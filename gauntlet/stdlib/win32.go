@@ -1377,13 +1377,13 @@ func baseLink() (map[string]bool, error) {
 	}
 	var code []string
 	for _, ln := range strings.Split(string(b), "\n") {
-		if !strings.HasPrefix(strings.TrimSpace(ln), ";") {
+		if !strings.HasPrefix(strings.TrimSpace(ln), "//") {
 			code = append(code, ln)
 		}
 	}
 	m := reLink.FindStringSubmatch(strings.Join(code, "\n"))
 	if m == nil {
-		return nil, fmt.Errorf("targets/windows/windows.oro declares no (link …)")
+		return nil, fmt.Errorf("targets/windows/windows.oro declares no link …")
 	}
 	base := map[string]bool{}
 	for _, q := range reQuoted.FindAllStringSubmatch(m[1], -1) {
@@ -1393,7 +1393,9 @@ func baseLink() (map[string]bool, error) {
 }
 
 var (
-	reLink   = regexp.MustCompile(`\(link((?:\s+"[^"]*")+)\s*\)`)
+	// The model's form in J: `link "kernel32" "msvcrt" …`, a line of its own
+	// (spec/j.md §2.12).
+	reLink   = regexp.MustCompile(`(?m)^\s*link((?:[ 	]+"[^"]*")+)[ 	]*$`)
 	reQuoted = regexp.MustCompile(`"([^"]*)"`)
 )
 

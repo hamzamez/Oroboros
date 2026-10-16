@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"oroboros/core"
+	"oroboros/j"
 )
 
 // THE REFINEMENT LAYER'S ENTAILMENT IS SOUND AGAINST A COMPLETE PROCEDURE
@@ -26,7 +27,7 @@ func TestEntailmentIsSoundAgainstPresburger(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		forms, err := core.Read(string(src))
+		forms, err := j.ReadEntry(string(src), path)
 		if err != nil {
 			t.Fatal(err)
 		}

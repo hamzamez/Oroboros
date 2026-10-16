@@ -1,49 +1,42 @@
-; Gauntlet program 3 — one generic operation, two instantiations — on the
-; NATIVE Go target.
-;
-; g3's claim: a non-recursive definition IS a rewrite rule (and since ADR 0014
-; there is no other kind), so instantiation is a side effect of matching and
-; there is no monomorphization pass. `reduce-over` is used once at f64 elements
-; with an f64 accumulator and once at string elements with a map accumulator.
-;
-; The portable form was examples/generic.oro, deleted with the portable layer
-; (portable-2026-09-29; in git at 870de46). Moving it asked a question that form
-; could not: on the portable layer `aindex` and `sat` are DIFFERENT NAMES for
-; the same shape, so matching could plausibly have been keying on the name. Here
-; the two instantiations read `(array f64)` and `(array bytestring)` — Go's
-; `[]float64` and `[]string`, whose elements are `float64` and `string` — through
-; the one language operation, application, at two element types, chosen by
-; nothing but which
-; argument arrived.
-;
-; And `combine` is `go.f+` in one and a two-statement map update in the other,
-; so the two residuals do not even have the same SHAPE: one is an expression and
-; one is a statement. Still no pass.
+// Gauntlet program 3 — one generic operation, two instantiations — on the
+// NATIVE Go target.
+//
+// g3's claim: a non-recursive definition IS a rewrite rule (and since ADR 0014
+// there is no other kind), so instantiation is a side effect of matching and
+// there is no monomorphization pass. `reduce-over` is used once at f64 elements
+// with an f64 accumulator and once at string elements with a map accumulator.
+//
+// The portable form was examples/generic.oro, deleted with the portable layer
+// (portable-2026-09-29; in git at 870de46). Moving it asked a question that form
+// could not: on the portable layer `aindex` and `sat` are DIFFERENT NAMES for
+// the same shape, so matching could plausibly have been keying on the name. Here
+// the two instantiations read `(array f64)` and `(array bytestring)` — Go's
+// `[]float64` and `[]string`, whose elements are `float64` and `string` — through
+// the one language operation, application, at two element types, chosen by
+// nothing but which
+// argument arrived.
+//
+// And `combine` is `go.f+` in one and a two-statement map update in the other,
+// so the two residuals do not even have the same SHAPE: one is an expression and
+// one is a statement. Still no pass.
+use go
+use go/strings
 
-(use go)
-(use go/strings)
+// The generic operation. n is a count, get reads element i, combine folds it in.
+// `loop` replaces `fold-range`, so the accumulator and the index are two loop
+// variables rather than a pair — the product `fold-range2` needed and `loop`
+// does not.
+fn reduce_over(n, get, combine, init) {
+    loop acc = init, i = 0 {
+        go.`>=`(i, n) -> acc
+        else -> again(combine(acc, get(i)), go.`+`(i, 1))
+    }
+}
 
-(export sum-of word-tally)
+// Instantiation 1 — f64 elements, f64 accumulator.
+fn sum_floats(a) { reduce_over(len(a), fn(i) { a[i] }, go.`f+`, 0.0) }
 
-(sig sum-of     ((a (array f64))) f64)
-(sig word-tally ((text string)) map-string-int)
-
-; The generic operation. n is a count, get reads element i, combine folds it in.
-; `loop` replaces `fold-range`, so the accumulator and the index are two loop
-; variables rather than a pair — the product `fold-range2` needed and `loop`
-; does not.
-(def reduce-over (n get combine init)
-  (loop ((acc init) (i 0))
-    (go.>= i n)  acc
-    else         (again (combine acc (get i)) (go.+ i 1))))
-
-; Instantiation 1 — f64 elements, f64 accumulator.
-(def sum-floats (a)
-  (reduce-over (len a) (fn (i) (a i)) go.f+ 0.0))
-
-; Instantiation 2 — string elements, map accumulator.
-(def tally-words (ws)
-  (reduce-over (len ws) (fn (i) (ws i)) go.inc-map (go.make-map)))
-
-(def sum-of     (a)    (sum-floats a))
-(def word-tally (text) (tally-words (strings.Fields text)))
+// Instantiation 2 — string elements, map accumulator.
+fn tally_words(ws) { reduce_over(len(ws), fn(i) { ws[i] }, go.inc_map, go.make_map()) }
+export fn sum_of(a ∈ Array(F64)) (F64) { sum_floats(a) }
+export fn word_tally(text ∈ String) (map_string_int) { tally_words(strings.Fields(text)) }

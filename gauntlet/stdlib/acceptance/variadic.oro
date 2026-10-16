@@ -1,70 +1,80 @@
-; ACCEPTANCE: A VARIADIC IS A FUNCTION OF A LIST, CALLED AS THE HOST CALLS IT
-; (variadic-2026-10-08, spec/variadic.md, ADR 0046).
-;
-; Go's ...T is the free monoid on T, a list of any length. Inside the function
-; its value is a []T, a call's arguments are the list, and f(xs...) passes one
-; unchanged. So each declaration here is ONE function of a table under Go's
-; name, marked variadic: `(strings.NewReplacer "a" "1")` is Go's call, every
-; length at once, the empty one included, and `(spread pairs)` is Go's
-; `pairs...`.
-;
-;   strings.NewReplacer  the pairs (oldᵢ, newᵢ), flattened, an even count: a
-;                        precondition, discharged here by evaluation on literals
-;   io.MultiReader       the concatenation of streams; none is the empty stream
-;   io.MultiWriter       the fan-out of a write to every writer, in order
-;
-; The order of the pairs matters, and Go's answer says how: the first pair that
-; matches wins, so (a→1, aa→2) turns "aaa" into "111" and (aa→2, a→1) into "21".
-; A table of writers is written at the call, so it is built at the declared
-; element, io.Writer: Go's slices are not covariant (io.oro's header). And Go's
-; ...any is the same thing over Go's box (formatting, below).
+// ACCEPTANCE: A VARIADIC IS A FUNCTION OF A LIST, CALLED AS THE HOST CALLS IT
+// (variadic-2026-10-08, spec/variadic.md, ADR 0046).
+//
+// Go's ...T is the free monoid on T, a list of any length. Inside the function
+// its value is a []T, a call's arguments are the list, and f(xs...) passes one
+// unchanged. So each declaration here is ONE function of a table under Go's
+// name, marked variadic: `(strings.NewReplacer "a" "1")` is Go's call, every
+// length at once, the empty one included, and `(spread pairs)` is Go's
+// `pairs...`.
+//
+//   strings.NewReplacer  the pairs (oldᵢ, newᵢ), flattened, an even count: a
+//                        precondition, discharged here by evaluation on literals
+//   io.MultiReader       the concatenation of streams; none is the empty stream
+//   io.MultiWriter       the fan-out of a write to every writer, in order
+//
+// The order of the pairs matters, and Go's answer says how: the first pair that
+// matches wins, so (a→1, aa→2) turns "aaa" into "111" and (aa→2, a→1) into "21".
+// A table of writers is written at the call, so it is built at the declared
+// element, io.Writer: Go's slices are not covariant (io.oro's header). And Go's
+// ...any is the same thing over Go's box (formatting, below).
+use go
+use result
+use go/os as gos
+use go/io as gio
+use go/strings
+use go/strings/Replacer
+use go/fmt
 
-(use go)
-(use result)
-(use go/os as gos)
-(use go/io as gio)
-(use go/strings as strings)
-(use go/strings/Replacer as Replacer)
-(use go/fmt as fmt)
+fn ok?(r) { case r { result.'ok(u) -> true; result.'err(e) -> false } }
 
-(export main)
+fn replacing() {
+    esc = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+    fmt.Println(Replacer.Replace(esc, "a<b & c>d"))
+    fmt.Println(Replacer.Replace(strings.NewReplacer("a", "1", "aa", "2"), "aaa"))
+    fmt.Println(Replacer.Replace(strings.NewReplacer("aa", "2", "a", "1"), "aaa"))
+    fmt.Println(Replacer.Replace(strings.NewReplacer(), "unchanged"))
+    (n, e) = Replacer.WriteString(esc, gos.Stdout(), "x<y\n")
+    fmt.Println(n, ok?(e))
+}
 
-(def ok? (r) (case r (result.ok u) true (result.err e) false))
+fn streams() {
+    {
+        (b, e) = gio.ReadAll(gio.MultiReader(strings.NewReader("con"), strings.NewReader("cat")))
+        fmt.Println(go.string_of_bytes(b), ok?(e))
+    }
+    { (b, e) = gio.ReadAll(gio.MultiReader()); fmt.Println(len(b), ok?(e)) }
+    (n, e) = gio.WriteString(gio.MultiWriter(gos.Stdout(), gos.Stdout()), "twice\n")
+    fmt.Println(n, ok?(e))
+}
 
-(def replacing ()
-  (let esc (strings.NewReplacer "&" "&amp;" "<" "&lt;" ">" "&gt;")
-    (seq (fmt.Println (Replacer.Replace esc "a<b & c>d"))
-         (fmt.Println (Replacer.Replace (strings.NewReplacer "a" "1" "aa" "2") "aaa"))
-         (fmt.Println (Replacer.Replace (strings.NewReplacer "aa" "2" "a" "1") "aaa"))
-         (fmt.Println (Replacer.Replace (strings.NewReplacer) "unchanged"))
-         ((Replacer.WriteString esc (gos.Stdout) "x<y\n") (fn (n e)
-           (fmt.Println n (ok? e)))))))
+// GO'S `any` IS A BOX, go.Value (fmt.oro, spec/types.md §3.3): a variadic over
+// it is a list of boxes, at any length. Five values is past the old
+// restrictions' wall at three.
+fn formatting() {
+    fmt.Println(go.string_of_bytes({
+                var b := array { 0 : _ ∈ 0..-1 }
+                fmt.Append(b, 1, "+", 2, "=", 3)
+                b
+            }))
+    fmt.Println(fmt.Sprintf("%d-%s-%v", 7, "x", true))
+    fmt.Println(1, 2, 3, 4, 5)
+    fmt.Print(go.string_of_bytes({ var b := array { 0 : _ ∈ 0..-1 }; fmt.Appendln(b, "line"); b }))
+}
 
-(def streams ()
-  (seq ((gio.ReadAll (gio.MultiReader (strings.NewReader "con") (strings.NewReader "cat")))
-        (fn (b e) (fmt.Println (go.string-of-bytes b) (ok? e))))
-       ((gio.ReadAll (gio.MultiReader)) (fn (b e)
-         (fmt.Println (len b) (ok? e))))
-       ((gio.WriteString (gio.MultiWriter (gos.Stdout) (gos.Stdout)) "twice\n") (fn (n e)
-         (fmt.Println n (ok? e))))))
+// A TABLE ONE HAS IS PASSED WITH spread, Go's `pairs...`. The even count is
+// NewReplacer's precondition, so a definition that hands its own table on
+// declares it, and its caller discharges it (ADR 0028).
+fn replacer(pairs ∈ Array(go.bytestring)) (`go/strings`.Replacer) where len(pairs) % 2 == 0 {
+    strings.NewReplacer(pairs...)
+}
 
-; GO'S `any` IS A BOX, go.Value (fmt.oro, spec/types.md §3.3): a variadic over
-; it is a list of boxes, at any length. Five values is past the old
-; restrictions' wall at three.
-(def formatting ()
-  (seq (fmt.Println (go.string-of-bytes (local b (table 0 0) (fmt.Append b 1 "+" 2 "=" 3))))
-       (fmt.Println (fmt.Sprintf "%d-%s-%v" 7 "x" true))
-       (fmt.Println 1 2 3 4 5)
-       (fmt.Print (go.string-of-bytes (local b (table 0 0) (fmt.Appendln b "line"))))))
+fn spreading() { fmt.Println(Replacer.Replace(replacer(array { "x", "1", "y", "2" }), "xyz")) }
 
-; A TABLE ONE HAS IS PASSED WITH spread, Go's `pairs...`. The even count is
-; NewReplacer's precondition, so a definition that hands its own table on
-; declares it, and its caller discharges it (ADR 0028).
-(sig replacer ((pairs (array go.bytestring))) go/strings.Replacer (where (= (% (len pairs) 2) 0)))
-(def replacer (pairs) (strings.NewReplacer (spread pairs)))
-
-(def spreading ()
-  (fmt.Println (Replacer.Replace (replacer (array "x" "1" "y" "2")) "xyz")))
-
-(def main ()
-  (seq (replacing) (streams) (formatting) (spreading) 0))
+export fn main() {
+    replacing()
+    streams()
+    formatting()
+    spreading()
+    0
+}

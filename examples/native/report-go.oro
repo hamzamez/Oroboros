@@ -1,47 +1,45 @@
-; Gauntlet program 5 — formatted output — on the NATIVE Go target.
-;
-; The only gauntlet program with an effect, and the only one whose pass
-; condition is not a number. Three things at once:
-;
-;   1. A host binding costs nothing. `fmt.Println` is one line in
-;      targets/go/fmt.oro and no Go at all.
-;   2. Order survives reduction. The three lines must print in the order
-;      written, once each, however aggressively beta rewrites around them.
-;   3. A pure computation feeds an effectful call, and neither moves the other:
-;      `dot` must still fuse into one loop with no intermediate vector, while
-;      sitting inside a `seq`.
-;
-; `seq` is sugar for a beta-redex with an unused binder and survives only
-; because weakening is denied for an impure argument (effects.md §5). That rule
-; is doing the work here: `fmt.Println` declares no `pure`, so its result — used
-; zero times — cannot be dropped.
-;
-; The portable form was examples/report.oro, deleted with the portable layer
-; (portable-2026-09-29; in git at 870de46). It took its array as a parameter,
-; which `main` cannot do. Construction is why: a program could not build data at
-; all until 2026-08-15, and here it is the language's `build` with a fill loop
-; (construction.md; `go.make-float64` and `go.set-float64` until
-; gotarget-2026-09-30).
+// Gauntlet program 5 — formatted output — on the NATIVE Go target.
+//
+// The only gauntlet program with an effect, and the only one whose pass
+// condition is not a number. Three things at once:
+//
+//   1. A host binding costs nothing. `fmt.Println` is one line in
+//      targets/go/fmt.oro and no Go at all.
+//   2. Order survives reduction. The three lines must print in the order
+//      written, once each, however aggressively beta rewrites around them.
+//   3. A pure computation feeds an effectful call, and neither moves the other:
+//      `dot` must still fuse into one loop with no intermediate vector, while
+//      sitting inside a `seq`.
+//
+// `seq` is sugar for a beta-redex with an unused binder and survives only
+// because weakening is denied for an impure argument (effects.md §5). That rule
+// is doing the work here: `fmt.Println` declares no `pure`, so its result — used
+// zero times — cannot be dropped.
+//
+// The portable form was examples/report.oro, deleted with the portable layer
+// (portable-2026-09-29; in git at 870de46). It took its array as a parameter,
+// which `main` cannot do. Construction is why: a program could not build data at
+// all until 2026-08-15, and here it is the language's `build` with a fill loop
+// (construction.md; `go.make-float64` and `go.set-float64` until
+// gotarget-2026-09-30).
+use go
+use go/fmt
 
-(use go)
-(use go/fmt)
+fn fill(n) {
+    var d := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0 { go.`>=`(i, n) -> d; else -> { d[i] := go.float64_of_int(i); again(go.`+`(i, 1)) } }
+}
 
-(export main)
+fn dot(a, b) {
+    loop acc = 0.0, i = 0 {
+        go.`>=`(i, len(a)) -> acc
+        else -> again(go.`f+`(acc, go.`f*`(a[i], b[i])), go.`+`(i, 1))
+    }
+}
 
-(def fill (n)
-  (local d (table n 0)
-    (loop ((d d) (i 0))
-      (go.>= i n)  d
-      else         (again (set d i (go.float64-of-int i)) (go.+ i 1)))))
-
-(def dot (a b)
-  (loop ((acc 0.0) (i 0))
-    (go.>= i (len a))     acc
-    else                  (again (go.f+ acc (go.f* (a i) (b i)))
-                                 (go.+ i 1))))
-
-(def main ()
-  (let xs (fill 1000)
-    (seq (fmt.Println "report")
-         (fmt.Println (len xs))
-         (fmt.Println (dot xs xs)))))
+export fn main() {
+    xs = fill(1000)
+    fmt.Println("report")
+    fmt.Println(len(xs))
+    fmt.Println(dot(xs, xs))
+}

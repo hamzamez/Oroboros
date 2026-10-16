@@ -10,7 +10,7 @@
 == examples/big/fact-limbs.oro java emitted 2845aa1ce29769fec8ea5f23b03ffe0dba4bd506cf2242633b4c473eebf4aa03
    note: gen-fact-limbs: 1 operation(s) in arbitrary precision
    note: gen-fact-limbs: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/fact-limbs.oro windows emitted d13270f428745cb46ba9c55c27cfad8cc835fef7acedbc149a40c3f340e0a09e
+== examples/big/fact-limbs.oro windows emitted 4d0ae932d652ef3fbcf54d6f13dc15939f6bb641177c11a851f026e13e2787ea
    note: gen-fact-limbs: 2 operation(s) in arbitrary precision
    note: gen-fact-limbs: 6 of 6 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-fact-limbs: 6 division(s) became a shift or a mask
@@ -273,11 +273,11 @@
 == examples/io/freq.oro windows refused
    gen: examples/io/freq.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/io/jsonfmt.oro go emitted 2836d59e729d386f4ade48feb95e237a745d472a406e9b7d440b3a4aef76252e
+== examples/io/jsonfmt.oro go emitted bb9e43f2be277df421be75d12b3e1849fcbf201c284ecbdbf029f5c1ae0d58ff
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
-== examples/io/jsonfmt.oro js emitted 2c70d4e29b77c8b9a9a4a9168b24863602ad1a0fb3b7547cac6edb77c095cf61
+== examples/io/jsonfmt.oro js emitted 0c565e34245fc7c80d0dc2b948f1f599dc277356e910794cf445741b79fb2be0
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
-== examples/io/jsonfmt.oro java emitted 149e5d1cf3f34cd61b73b265b7dcea2317224d89d7f8b23fc054ba43c511f2b1
+== examples/io/jsonfmt.oro java emitted f6d99eb2e4e536cb625122552e61e2966ca942484081f8d940a2e93e46ec8e4b
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro windows refused
    gen: examples/io/jsonfmt.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -324,7 +324,7 @@
 == examples/kara/core.oro go refused
    note: gen-main: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
    gen: gen-main: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-     go.+ [0, +inf] in (go.+ (out3 (let (go.+ i j) (fn (k) (if (go.< k 0) 0 (if (go....
+     go.+ [0, +inf] in (go.+ (#vout2 (let (go.+ i j) (fn (k) (if (go.< k 0) 0 (if (g...
      go.* [-inf, +inf] in (go.* acc 100)
      go.+ [-inf, +inf] in (go.+ (go.* acc 100) (p i))
      Outside its word a target's arithmetic does not compute the integer the
@@ -842,26 +842,26 @@
    gen: examples/table/sieve.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/tally/host-go.oro go refused
-   gen: examples/tally/host-go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: examples/tally/host-go.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == examples/tally/host-go.oro js refused
-   gen: examples/tally/host-go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: examples/tally/host-go.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == examples/tally/host-go.oro java refused
-   gen: examples/tally/host-go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: examples/tally/host-go.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == examples/tally/host-go.oro windows refused
-   gen: examples/tally/host-go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: examples/tally/host-go.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == examples/tally/host-java.oro go refused
-   gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: examples/tally/host-java.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == examples/tally/host-java.oro js refused
-   gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: examples/tally/host-java.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == examples/tally/host-java.oro java refused
-   gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: examples/tally/host-java.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == examples/tally/host-java.oro windows refused
-   gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: examples/tally/host-java.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == examples/tally/tally.oro go refused
    gen: examples/tally/tally.oro: in tally/host.capture: go/regexp/Regexp.FindStringSubmatch is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/regexp/Regexp) matched no file on the search path and this target provides no module go/regexp/Regexp either, so every name from it is unbound. Check the path.
 == examples/tally/tally.oro js refused
-   gen: examples/tally/tally.oro: in tally.tally: tally/host.show is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: examples/tally/tally.oro: in tally: tally/host.show is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use tally/host) matched no file on the search path and this target provides no module tally/host either, so every name from it is unbound. Check the path.
 == examples/tally/tally.oro java refused
    gen: examples/tally/tally.oro: in tally/host.capture: java/java/util/regex/Matcher.find is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -898,7 +898,7 @@
 == gauntlet/differential/cases/big-divmod.oro java emitted 4110c2ee2d520ca06a853b4794c156d12e72b95c664150154007c3eb1b7ea872
    note: gen-run: 5 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating
-== gauntlet/differential/cases/big-divmod.oro windows emitted c95842dc3baca5ff6839dc924b81d85927098c179875dbe7ed53a477b8213dc3
+== gauntlet/differential/cases/big-divmod.oro windows emitted dcf90746567cb17ac5bf5b9347734430caf538b86dc3d1080906295fdbf6173b
    note: gen-run: 7 operation(s) in arbitrary precision
    note: gen-run: 21 of 21 integer operations bounded; 9 of 9 loop(s) proven terminating
    note: gen-run: 18 division(s) became a shift or a mask
@@ -1067,7 +1067,7 @@
 == gauntlet/differential/cases/render.oro java emitted bda649462bade74d0a4428a47029f0d080697f2609b0f3d082fc6efd0c87424f
    note: gen-run: 6 operation(s) in arbitrary precision
    note: gen-run: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
-== gauntlet/differential/cases/render.oro windows emitted 2d63b33c935ac5cd31995b16118ee0ef6c357e6e30cc12d5d65b05ee225822e9
+== gauntlet/differential/cases/render.oro windows emitted c4200ac469733f0ad7f63601c50547a75e0a88ba3373e37d85468d5df1768105
    note: gen-run: 10 operation(s) in arbitrary precision
    note: gen-run: 22 of 22 integer operations bounded; 13 of 13 loop(s) proven terminating
    note: gen-run: 26 division(s) became a shift or a mask
@@ -1167,29 +1167,29 @@
 == gauntlet/differential/cases/word-wide.oro windows refused
    gen: gauntlet/differential/cases/word-wide.oro: in run: big-str is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/io/go.oro go refused
-   gen: lib\io\go.oro: a target file begins with (target NAME …)
+   gen: lib\io\go.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/go.oro js refused
-   gen: lib\io\js.oro: a target file begins with (target NAME …)
+   gen: lib\io\js.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/go.oro java refused
-   gen: lib\io\java.oro: a target file begins with (target NAME …)
+   gen: lib\io\java.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/go.oro windows refused
-   gen: lib/io/go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: lib/io/go.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == lib/io/java.oro go refused
-   gen: lib\io\go.oro: a target file begins with (target NAME …)
+   gen: lib\io\go.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/java.oro js refused
-   gen: lib\io\js.oro: a target file begins with (target NAME …)
+   gen: lib\io\js.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/java.oro java refused
-   gen: lib\io\java.oro: a target file begins with (target NAME …)
+   gen: lib\io\java.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/java.oro windows refused
-   gen: lib/io/java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: lib/io/java.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == lib/io/js.oro go refused
-   gen: lib\io\go.oro: a target file begins with (target NAME …)
+   gen: lib\io\go.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/js.oro js refused
-   gen: lib\io\js.oro: a target file begins with (target NAME …)
+   gen: lib\io\js.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/js.oro java refused
-   gen: lib\io\java.oro: a target file begins with (target NAME …)
+   gen: lib\io\java.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/io/js.oro windows refused
-   gen: lib/io/js.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: lib/io/js.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == lib/num/u128.oro go emitted 41bc50aa7d35779ef08224c9a4871fe110126f55c9a7a8b8d2459a4823c44ae0
    note: gen-add: 2 operation(s) or conversion(s) in the unsigned word
    note: gen-decimal: 13 operation(s) or conversion(s) in the unsigned word
@@ -1227,29 +1227,29 @@
    gen: lib/os.oro: in os.Args: os/host.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use os/host) matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
 == lib/os/go.oro go refused
-   gen: lib\os\go.oro: a target file begins with (target NAME …)
+   gen: lib\os\go.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/go.oro js refused
-   gen: lib\os\js.oro: a target file begins with (target NAME …)
+   gen: lib\os\js.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/go.oro java refused
-   gen: lib\os\java.oro: a target file begins with (target NAME …)
+   gen: lib\os\java.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/go.oro windows refused
-   gen: lib/os/go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: lib/os/go.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == lib/os/java.oro go refused
-   gen: lib\os\go.oro: a target file begins with (target NAME …)
+   gen: lib\os\go.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/java.oro js refused
-   gen: lib\os\js.oro: a target file begins with (target NAME …)
+   gen: lib\os\js.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/java.oro java refused
-   gen: lib\os\java.oro: a target file begins with (target NAME …)
+   gen: lib\os\java.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/java.oro windows refused
-   gen: lib/os/java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: lib/os/java.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == lib/os/js.oro go refused
-   gen: lib\os\go.oro: a target file begins with (target NAME …)
+   gen: lib\os\go.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/js.oro js refused
-   gen: lib\os\js.oro: a target file begins with (target NAME …)
+   gen: lib\os\js.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/js.oro java refused
-   gen: lib\os\java.oro: a target file begins with (target NAME …)
+   gen: lib\os\java.oro holds a library's fragment (provides …), not a target's own forms; a fragment is read from the library path
 == lib/os/js.oro windows refused
-   gen: lib/os/js.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+   gen: lib/os/js.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == lib/result.oro go refused
    gen: lib\io\go.oro: io.print-line is declared twice
 == lib/result.oro js refused

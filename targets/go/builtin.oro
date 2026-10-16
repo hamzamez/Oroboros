@@ -1,170 +1,181 @@
-; Go's predeclared identifiers and operators, under Go's names.
-;
-;   (use go)
-;   (go.+ x y)   (go./ a b)   (go.len s)   (go.err-nil err)
-;
-; Nothing here is portable and nothing claims to be: `go./` truncates toward
-; zero, `go.+` wraps at its type's width. A program using them is a Go program.
-;
-; THE ALGEBRA, BEFORE THE NAMES.
-;
-; - INTEGERS. `+ − ·` are the ring ℤ/2⁶⁴ on Go's int, exact wherever the result
-;   is proven in the word (the IR decides it, and `checked` names the trapping
-;   form it selects otherwise). `/` and `%` truncate, and their domain is b ≠ 0;
-;   the shifts' is b ≥ 0. Each domain is a `where`, an obligation at every call.
-; - FLOATS are IEEE 754 binary64, Go's float64: no domain, NaN and ±Inf included.
-; - GO'S STRING is B*, any bytes; ours is Σ* (ADR 0030). `string-of-bytes` and
-;   `bytes-of-string` are Go's conversions, the identity on bytes; `text` is the
-;   decode d back into ours, and `valid` decides V = enc(Σ*).
-; - (T, error) IS A SUM T + E, and `err-nil` is its discriminant.
-; - A MAP[STRING]INT is a mutable finite map M : B* ⇀ int with Go's default:
-;   `at-map m k` is M(k), or 0 when k is absent — total, and unable to tell
-;   absent from 0. Its stores mutate it in place, so its READ IS NOT PURE: a pure
-;   read may be moved across a store (ADR 0010 orders only impure calls), and
-;   reduction did move one (gotarget-2026-09-30 §13).
-; - THE LANGUAGE'S STRING MONOID on Go: `concat` is `+`, and `string-of` is η on
-;   scalar values, with Scalar's domain.
-;
-; TABLES ARE THE LANGUAGE'S, not this file's. `(array V)`, application, `len`,
-; `build` and `set` work on every target (tables.md). Until gotarget-2026-09-30
-; this file declared Go's slices once per element type — at-float64, set-int,
-; make-string, append-*, copy-float64 — the "suffix explosion" tables.md §10
-; records the type constructor deleting. They were removed, with the host types
-; slice-int … slice-any: every program here now uses the language's table, which
-; emits the same Go. And their reads were declared pure beside stores into the
-; same slice, which reduction reordered.
-;
-; A map[string]int is not the language's map, which is keyed by integers
-; (maps.md), so it stays a host type, `map-string-int`, declared in go.oro.
+// Go's predeclared identifiers and operators, under Go's names.
+//
+//   (use go)
+//   (go.+ x y)   (go./ a b)   (go.len s)   (go.err-nil err)
+//
+// Nothing here is portable and nothing claims to be: `go./` truncates toward
+// zero, `go.+` wraps at its type's width. A program using them is a Go program.
+//
+// THE ALGEBRA, BEFORE THE NAMES.
+//
+// - INTEGERS. `+ − ·` are the ring ℤ/2⁶⁴ on Go's int, exact wherever the result
+//   is proven in the word (the IR decides it, and `checked` names the trapping
+//   form it selects otherwise). `/` and `%` truncate, and their domain is b ≠ 0;
+//   the shifts' is b ≥ 0. Each domain is a `where`, an obligation at every call.
+// - FLOATS are IEEE 754 binary64, Go's float64: no domain, NaN and ±Inf included.
+// - GO'S STRING is B*, any bytes; ours is Σ* (ADR 0030). `string-of-bytes` and
+//   `bytes-of-string` are Go's conversions, the identity on bytes; `text` is the
+//   decode d back into ours, and `valid` decides V = enc(Σ*).
+// - (T, error) IS A SUM T + E, and `err-nil` is its discriminant.
+// - A MAP[STRING]INT is a mutable finite map M : B* ⇀ int with Go's default:
+//   `at-map m k` is M(k), or 0 when k is absent — total, and unable to tell
+//   absent from 0. Its stores mutate it in place, so its READ IS NOT PURE: a pure
+//   read may be moved across a store (ADR 0010 orders only impure calls), and
+//   reduction did move one (gotarget-2026-09-30 §13).
+// - THE LANGUAGE'S STRING MONOID on Go: `concat` is `+`, and `string-of` is η on
+//   scalar values, with Scalar's domain.
+//
+// TABLES ARE THE LANGUAGE'S, not this file's. `(array V)`, application, `len`,
+// `build` and `set` work on every target (tables.md). Until gotarget-2026-09-30
+// this file declared Go's slices once per element type — at-float64, set-int,
+// make-string, append-*, copy-float64 — the "suffix explosion" tables.md §10
+// records the type constructor deleting. They were removed, with the host types
+// slice-int … slice-any: every program here now uses the language's table, which
+// emits the same Go. And their reads were declared pure beside stores into the
+// same slice, which reduction reordered.
+//
+// A map[string]int is not the language's map, which is keyed by integers
+// (maps.md), so it stays a host type, `map-string-int`, declared in go.oro.
+// ═══ HOW WIDE A SHIFT IS EXACT HERE
+//
+// `x / 2^k` on a SIGNED value is not a shift -- truncation toward zero needs
+// a rounding correction -- so the compiler rewrites it into one wherever it
+// can PROVE the dividend is non-negative and fits this many bits
+// (shiftdiv-2026-09-03). Go's `>>` on an `int` is a 64-bit arithmetic shift.
+repr shift 63
 
-(target go
-  ; ═══ HOW WIDE A SHIFT IS EXACT HERE
-  ;
-  ; `x / 2^k` on a SIGNED value is not a shift -- truncation toward zero needs
-  ; a rounding correction -- so the compiler rewrites it into one wherever it
-  ; can PROVE the dividend is non-negative and fits this many bits
-  ; (shiftdiv-2026-09-03). Go's `>>` on an `int` is a 64-bit arithmetic shift.
-  (repr shift 63)
+module go {
+    // ---- integer arithmetic. The plain operators, and the CHECKED forms a
+    // declared range selects when the compiler cannot prove the result stays in
+    // the word. Go has no overflow intrinsic; each check is a func literal called
+    // once, so every operand appears once (overflow-2026-08-19).
+    fn `+`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} + ${b}" checked add_exact }
+    fn `-`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} - ${b}" checked sub_exact }
+    fn `*`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} * ${b}" checked mul_exact }
+    fn add_exact(a ∈ Int, b ∈ Int) (Int) pure {
+        host expr "func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic(\"int overflow\") }; return t }(${a}, ${b})"
+    }
+    fn sub_exact(a ∈ Int, b ∈ Int) (Int) pure {
+        host expr "func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic(\"int overflow\") }; return t }(${a}, ${b})"
+    }
+    fn mul_exact(a ∈ Int, b ∈ Int) (Int) pure {
+        host expr "func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic(\"int overflow\") }; return t }(${a}, ${b})"
+    }
+    // A zero divisor is a precondition, not a behaviour (integers.md §5): Go
+    // panics, Java throws, x86 raises #DE, and JavaScript returns Infinity.
+    fn `/`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} / ${b}" }
+    fn `%`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} % ${b}" }
 
-  (module go
-    ; ---- integer arithmetic. The plain operators, and the CHECKED forms a
-    ; declared range selects when the compiler cannot prove the result stays in
-    ; the word. Go has no overflow intrinsic; each check is a func literal called
-    ; once, so every operand appears once (overflow-2026-08-19).
-    (sig +   ((a int) (b int)) int pure (host expr "%s + %s" (checked add-exact)))
-    (sig -   ((a int) (b int)) int pure (host expr "%s - %s" (checked sub-exact)))
-    (sig *   ((a int) (b int)) int pure (host expr "%s * %s" (checked mul-exact)))
-    (sig add-exact ((a int) (b int)) int pure (host expr
-        "func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)"))
-    (sig sub-exact ((a int) (b int)) int pure (host expr
-        "func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)"))
-    (sig mul-exact ((a int) (b int)) int pure (host expr
-        "func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic(\"int overflow\") }; return t }(%s, %s)"))
-    ; A zero divisor is a precondition, not a behaviour (integers.md §5): Go
-    ; panics, Java throws, x86 raises #DE, and JavaScript returns Infinity.
-    (sig /   ((a int) (b int)) int pure (where (!= b 0)) (host expr "%s / %s"))
-    (sig %   ((a int) (b int)) int pure (where (!= b 0)) (host expr "%s %% %s"))
+    // ---- bitwise, on Go's int. A shift's count must be non-negative (the Go
+    // specification: a negative count panics); a count of 64 or more is defined.
+    fn `&`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} & ${b}" }
+    fn `|`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} | ${b}" }
+    fn `^`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} ^ ${b}" }
+    fn `&^`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} &^ ${b}" }
+    fn `<<`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} << ${b}" }
+    fn `>>`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} >> ${b}" }
 
-    ; ---- bitwise, on Go's int. A shift's count must be non-negative (the Go
-    ; specification: a negative count panics); a count of 64 or more is defined.
-    (sig &   ((a int) (b int)) int pure (host expr "%s & %s"))
-    (sig |   ((a int) (b int)) int pure (host expr "%s | %s"))
-    (sig ^   ((a int) (b int)) int pure (host expr "%s ^ %s"))
-    (sig &^  ((a int) (b int)) int pure (host expr "%s &^ %s"))
-    (sig <<  ((a int) (b int)) int pure (where (>= b 0)) (host expr "%s << %s"))
-    (sig >>  ((a int) (b int)) int pure (where (>= b 0)) (host expr "%s >> %s"))
+    // ---- float arithmetic and order: IEEE 754 binary64.
+    fn `f+`(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} + ${b}" }
+    fn f_(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} - ${b}" }
+    fn `f*`(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} * ${b}" }
+    fn `f/`(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} / ${b}" }
+    fn `f<`(a ∈ F64, b ∈ F64) (Bool) pure { host expr "${a} < ${b}" }
+    fn `f<=`(a ∈ F64, b ∈ F64) (Bool) pure { host expr "${a} <= ${b}" }
+    fn `f>`(a ∈ F64, b ∈ F64) (Bool) pure { host expr "${a} > ${b}" }
+    fn `f>=`(a ∈ F64, b ∈ F64) (Bool) pure { host expr "${a} >= ${b}" }
 
-    ; ---- float arithmetic and order: IEEE 754 binary64.
-    (sig f+  ((a f64) (b f64)) f64 pure (host expr "%s + %s"))
-    (sig f-  ((a f64) (b f64)) f64 pure (host expr "%s - %s"))
-    (sig f*  ((a f64) (b f64)) f64 pure (host expr "%s * %s"))
-    (sig f/  ((a f64) (b f64)) f64 pure (host expr "%s / %s"))
-    (sig f<  ((a f64) (b f64)) bool pure (host expr "%s < %s"))
-    (sig f<= ((a f64) (b f64)) bool pure (host expr "%s <= %s"))
-    (sig f>  ((a f64) (b f64)) bool pure (host expr "%s > %s"))
-    (sig f>= ((a f64) (b f64)) bool pure (host expr "%s >= %s"))
+    // ---- integer order, and Go's comparable ==. `any` stands where Go is
+    // polymorphic over comparable types; on two errors == is identity.
+    fn `==`(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a} == ${b}" }
+    fn `!=`(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a} != ${b}" }
+    fn `<`(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} < ${b}" }
+    fn `<=`(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} <= ${b}" }
+    fn `>`(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} > ${b}" }
+    fn `>=`(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} >= ${b}" }
+    // Lexicographic order on bytes.
+    fn `s<`(a ∈ bytestring, b ∈ bytestring) (Bool) pure { host expr "${a} < ${b}" }
 
-    ; ---- integer order, and Go's comparable ==. `any` stands where Go is
-    ; polymorphic over comparable types; on two errors == is identity.
-    (sig ==  ((a any) (b any)) bool pure (host expr "%s == %s"))
-    (sig !=  ((a any) (b any)) bool pure (host expr "%s != %s"))
-    (sig <   ((a int) (b int)) bool pure (host expr "%s < %s"))
-    (sig <=  ((a int) (b int)) bool pure (host expr "%s <= %s"))
-    (sig >   ((a int) (b int)) bool pure (host expr "%s > %s"))
-    (sig >=  ((a int) (b int)) bool pure (host expr "%s >= %s"))
-    ; Lexicographic order on bytes.
-    (sig s<  ((a bytestring) (b bytestring)) bool pure (host expr "%s < %s"))
+    // ---- boolean
+    fn `&&`(a ∈ Bool, b ∈ Bool) (Bool) pure { host expr "${a} && ${b}" }
+    fn `||`(a ∈ Bool, b ∈ Bool) (Bool) pure { host expr "${a} || ${b}" }
+    fn `!`(a ∈ Bool) (Bool) pure { host expr "!${a}" }
 
-    ; ---- boolean
-    (sig &&  ((a bool) (b bool)) bool pure (host expr "%s && %s"))
-    (sig ||  ((a bool) (b bool)) bool pure (host expr "%s || %s"))
-    (sig !   ((a bool)) bool pure (host expr "!%s"))
+    // ---- predeclared functions. len and cap take any Go value they apply to
+    // (a slice, a string's bytes, a map's keys); min and max are Go's generic
+    // builtins at int, their restriction to one type.
+    fn len(v ∈ Any) (Int) pure { host expr "len(${v})" }
+    fn cap(v ∈ Any) (Int) pure { host expr "cap(${v})" }
+    fn min(a ∈ Int, b ∈ Int) (Int) pure { host expr "min(${a}, ${b})" }
+    fn max(a ∈ Int, b ∈ Int) (Int) pure { host expr "max(${a}, ${b})" }
+    fn panic(v ∈ Any) (Any) { host stmt "panic(${v})" }
+    fn print(v ∈ Any) (Any) { host stmt "print(${v})" }
+    fn println(v ∈ Any) (Any) { host stmt "println(${v})" }
 
-    ; ---- predeclared functions. len and cap take any Go value they apply to
-    ; (a slice, a string's bytes, a map's keys); min and max are Go's generic
-    ; builtins at int, their restriction to one type.
-    (sig len ((v any)) int pure (host expr "len(%s)"))
-    (sig cap ((v any)) int pure (host expr "cap(%s)"))
-    (sig min ((a int) (b int)) int pure (host expr "min(%s, %s)"))
-    (sig max ((a int) (b int)) int pure (host expr "max(%s, %s)"))
-    (sig panic   ((v any)) any (host stmt "panic(%s)"))
-    (sig print   ((v any)) any (host stmt "print(%s)"))
-    (sig println ((v any)) any (host stmt "println(%s)"))
+    // ---- map[string]int, a host map (the header). Mutated in place; every
+    // read is impure so that no store is reordered past one.
+    fn make_map() (map_string_int) { host expr "make(map[string]int)" }
+    fn at_map(m ∈ map_string_int, k ∈ bytestring) (Int) { host expr "${m}[${k}]" }
+    fn set_map(m ∈ map_string_int, k ∈ bytestring, v ∈ Int) (map_string_int) {
+        host stmt "${m}[${k}] = ${v}"
+    }
+    // Go's fused increment: one mapassign where `m[k] = m[k] + 1` hashes twice,
+    // worth 1.21x (native-gauntlet-2026-08-20 §4). The parasite rule.
+    fn inc_map(m ∈ map_string_int, k ∈ bytestring) (map_string_int) { host stmt "${m}[${k}]++" }
+    fn delete(m ∈ map_string_int, k ∈ bytestring) (map_string_int) {
+        host stmt "delete(${m}, ${k})"
+    }
+    fn clear_map(m ∈ map_string_int) (map_string_int) { host stmt "clear(${m})" }
 
-    ; ---- map[string]int, a host map (the header). Mutated in place; every
-    ; read is impure so that no store is reordered past one.
-    (sig make-map () map-string-int (host expr "make(map[string]int)"))
-    (sig at-map ((m map-string-int) (k bytestring)) int (host expr "%s[%s]"))
-    (sig set-map ((m map-string-int) (k bytestring) (v int)) map-string-int (host stmt "%s[%s] = %s"))
-    ; Go's fused increment: one mapassign where `m[k] = m[k] + 1` hashes twice,
-    ; worth 1.21x (native-gauntlet-2026-08-20 §4). The parasite rule.
-    (sig inc-map ((m map-string-int) (k bytestring)) map-string-int (host stmt "%s[%s]++"))
-    (sig delete ((m map-string-int) (k bytestring)) map-string-int (host stmt "delete(%s, %s)"))
-    (sig clear-map ((m map-string-int)) map-string-int (host stmt "clear(%s)"))
+    // ---- conversions. Go spells these T(x). int(x) of a float truncates toward
+    // zero, and outside int's range or at NaN it is implementation-defined in
+    // Go; floats are outside the decided fragment, so that domain is named here
+    // and not checked.
+    fn int_of_float64(x ∈ F64) (Int) pure { host expr "int(${x})" }
+    fn float64_of_int(n ∈ Int) (F64) pure { host expr "float64(${n})" }
 
-    ; ---- conversions. Go spells these T(x). int(x) of a float truncates toward
-    ; zero, and outside int's range or at NaN it is implementation-defined in
-    ; Go; floats are outside the decided fragment, so that domain is named here
-    ; and not checked.
-    (sig int-of-float64 ((x f64)) int pure (host expr "int(%s)"))
-    (sig float64-of-int ((n int)) f64 pure (host expr "float64(%s)"))
+    // ---- the host's string (ADR 0030). string ≤ bytestring is declared in
+    // go.oro as `(implements string go.bytestring)`, the identity on bytes.
+    set bytestring = host "string"
+    // ---- Go's `any`, the empty interface ∃X. X (go.oro, and its
+    // `(implements any go.Value)`): a box, and a type, as ours is not.
+    set Value = host "any"
+    fn string_of_bytes(b ∈ Array(0..255)) (bytestring) pure { host expr "string(${b})" }
+    fn bytes_of_string(s ∈ bytestring) (Array(0..255)) pure { host expr "[]byte(${s})" }
+    // (T, error)'s discriminant: the error side is empty exactly when err is nil.
+    fn err_nil(e ∈ error) (Bool) pure { host expr "${e} == nil" }
 
-    ; ---- the host's string (ADR 0030). string ≤ bytestring is declared in
-    ; go.oro as `(implements string go.bytestring)`, the identity on bytes.
-    (type bytestring (host "string"))
-    ; ---- Go's `any`, the empty interface ∃X. X (go.oro, and its
-    ; `(implements any go.Value)`): a box, and a type, as ours is not.
-    (type Value (host "any"))
-    (sig string-of-bytes ((b (array (int 0 255)))) bytestring pure (host expr "string(%s)"))
-    (sig bytes-of-string ((s bytestring)) (array (int 0 255)) pure (host expr "[]byte(%s)"))
-    ; (T, error)'s discriminant: the error side is empty exactly when err is nil.
-    (sig err-nil ((e error)) bool pure (host expr "%s == nil"))
+    // ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
+    // with the reason. The language's `abandon`, found by spelling; it never
+    // returns, so the IR ends its region with `unreachable`.
+    fn abandon(why ∈ String) (Any) { host stmt "panic(${why})" }
 
-    ; ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
-    ; with the reason. The language's `abandon`, found by spelling; it never
-    ; returns, so the IR ends its region with `unreachable`.
-    (sig abandon ((why string)) any (host stmt "panic(%s)"))
+    // ---- the language's string monoid on Go (string-operations.md §1), found by
+    // spelling. V·V ⊆ V, so ours stays ours.
+    fn concat(a ∈ String, b ∈ String) (String) pure { host expr "${a} + ${b}" }
+    // η : Scalar → Σ*. ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF]
+    // (string-operations.md §7), a disjunction decided by case split. Outside it
+    // the hosts disagree observably — Go gives U+FFFD, JavaScript a lone
+    // surrogate or a RangeError, Java an exception or a lone char — so the
+    // language's operation states one domain on every target.
+    fn string_of(c ∈ Int) (String) pure
+        where c >= 0 && c <= 1114111 && (c <= 55295 || c >= 57344) {
+        host expr "string(rune(${c}))"
+    }
 
-    ; ---- the language's string monoid on Go (string-operations.md §1), found by
-    ; spelling. V·V ⊆ V, so ours stays ours.
-    (sig concat ((a string) (b string)) string pure (host expr "%s + %s"))
-    ; η : Scalar → Σ*. ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF]
-    ; (string-operations.md §7), a disjunction decided by case split. Outside it
-    ; the hosts disagree observably — Go gives U+FFFD, JavaScript a lone
-    ; surrogate or a RangeError, Java an exception or a lone char — so the
-    ; language's operation states one domain on every target.
-    (sig string-of ((c int)) string pure (where (and (>= c 0) (<= c 1114111) (or (<= c 55295) (>= c 57344)))) (host expr "string(rune(%s))"))
-
-    ; ---- THE HOST'S STRING INTO OURS, ONCE, AT THE BOUNDARY (ADR 0030). `text`
-    ; is d, the Unicode Standard's maximal-subpart substitution (§3.9, Table
-    ; 3-7): a well-formed sequence is its scalar, and each byte that begins
-    ; none, or the longest prefix of a sequence that cannot be completed, is one
-    ; U+FFFD. It is total, d ∘ enc = id, and the identity on valid UTF-8, which
-    ; is the fast path. It is NOT a homomorphism — d(E6)·d(97 A5) is three
-    ; U+FFFD and d(E6 97 A5) is 日 — so it is applied once, to a whole value.
-    ; `valid` decides V; `(if (go.valid s) (go.text s) …)` is the checked
-    ; conversion, because d is the identity there.
-    (sig text ((s bytestring)) string pure
-          (host expr "func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, \"\\uFFFD\"...) }; i = j }; return string(b) }(%s)" (import "unicode/utf8")))
-    (sig valid ((s bytestring)) bool pure
-          (host expr "utf8.ValidString(%s)" (import "unicode/utf8")))))
+    // ---- THE HOST'S STRING INTO OURS, ONCE, AT THE BOUNDARY (ADR 0030). `text`
+    // is d, the Unicode Standard's maximal-subpart substitution (§3.9, Table
+    // 3-7): a well-formed sequence is its scalar, and each byte that begins
+    // none, or the longest prefix of a sequence that cannot be completed, is one
+    // U+FFFD. It is total, d ∘ enc = id, and the identity on valid UTF-8, which
+    // is the fast path. It is NOT a homomorphism — d(E6)·d(97 A5) is three
+    // U+FFFD and d(E6 97 A5) is 日 — so it is applied once, to a whole value.
+    // `valid` decides V; `(if (go.valid s) (go.text s) …)` is the checked
+    // conversion, because d is the identity there.
+    fn text(s ∈ bytestring) (String) pure {
+        host expr "func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, \"\\uFFFD\"...) }; i = j }; return string(b) }(${s})" import "unicode/utf8"
+    }
+    fn valid(s ∈ bytestring) (Bool) pure {
+        host expr "utf8.ValidString(${s})" import "unicode/utf8"
+    }
+}

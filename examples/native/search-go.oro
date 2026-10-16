@@ -1,23 +1,20 @@
-; The gauntlet's `search`, on the NATIVE Go target.
-;
-; The portable form was examples/search.oro, deleted with the portable layer
-; (portable-2026-09-29; in git at 870de46). This is the same three clauses; only
-; the names moved. It is here because it is the gauntlet's one EARLY EXIT, and
-; early exit is what ADR 0015 claimed `loop` bought over `fold-range` — a claim
-; measured on the portable layer and not since re-checked on a native one.
-;
-; No `sig` refinement is needed. The first clause IS the bound: reaching the
-; second means `i < (len a)` was false to fail, which is where the index
-; obligation discharges from (refinements.md — the other half of Hoare logic).
+// The gauntlet's `search`, on the NATIVE Go target.
+//
+// The portable form was examples/search.oro, deleted with the portable layer
+// (portable-2026-09-29; in git at 870de46). This is the same three clauses; only
+// the names moved. It is here because it is the gauntlet's one EARLY EXIT, and
+// early exit is what ADR 0015 claimed `loop` bought over `fold-range` — a claim
+// measured on the portable layer and not since re-checked on a native one.
+//
+// No `sig` refinement is needed. The first clause IS the bound: reaching the
+// second means `i < (len a)` was false to fail, which is where the index
+// obligation discharges from (refinements.md — the other half of Hoare logic).
+use go
 
-(use go)
-
-(export find-first)
-
-(sig find-first ((a (array f64)) (k f64)) int)
-
-(def find-first (a k)
-  (loop ((i 0))
-    (go.>= i (len a))   -1
-    (go.f> (a i) k)     i
-    else                       (again (go.+ i 1))))
+export fn find_first(a ∈ Array(F64), k ∈ F64) (Int) {
+    loop i = 0 {
+        go.`>=`(i, len(a)) -> -1
+        go.`f>`(a[i], k) -> i
+        else -> again(go.`+`(i, 1))
+    }
+}

@@ -1,88 +1,88 @@
-; A BOTTOM-UP MERGE SORT, WHICH IS A LOOP OVER LEVELS.
-; inputs: 0 1 2
-; expect: 8699 9482 9391
-;
-; karatsuba-2026-08-30 states the rule -- *a balanced, data-independent
-; recursion is a loop over levels* -- and names mergesort first. This is that
-; instance: width 1, 2, 4, 8, and at each width every adjacent pair of runs is
-; merged from one buffer into the other, then the two swap. No recursion, no
-; stack, and the shape is a function of the length alone.
-;
-; It is here because examples/io/freq.oro is Go-only -- its file I/O is -- while
-; the sort at its centre is portable, and the sort is the part with something to
-; get wrong. TWO LIVE BUFFERS HANDED BACK AND FORTH ON EVERY PASS is the most
-; workspace-threading any small program does.
-;
-; IT SORTS A PERMUTATION, which is what freq.oro does, because a word is a pair
-; of offsets and must not be moved. That form was REFUSED on windows for one day
-; -- `x64.movb has more spilled operands than there are scratch registers`,
-; since the scratch pool is two registers and a table store has three operands.
-; The refusal was not even in this program: it was `lib/win/fmt.oro`'s
-; `print-int`, unable to make a call that was always legal because the sort's own
-; live values had exhausted the value pool. A template with more spilled operands
-; than scratch now borrows a value register through a frame slot, and the
-; comparator reading a key through an index -- the one live value that did not
-; fit -- fits.
-;
-; The keys are computed rather than stored, so this measures the SORT and not a
-; table literal. The checksum weights each key by its position, so it changes if
-; any element lands anywhere else -- a sort that merely permuted would pass a sum.
-;
-; Stability is deliberately NOT observable here: the checksum reads keys, and
-; equal keys are equal, so nothing depends on which of two equal elements comes
-; first. That is the right choice for a four-target case -- freq.oro is where
-; stability matters, and it is checked there against `sort | uniq -c`.
+// A BOTTOM-UP MERGE SORT, WHICH IS A LOOP OVER LEVELS.
+// inputs: 0 1 2
+// expect: 8699 9482 9391
+//
+// karatsuba-2026-08-30 states the rule -- *a balanced, data-independent
+// recursion is a loop over levels* -- and names mergesort first. This is that
+// instance: width 1, 2, 4, 8, and at each width every adjacent pair of runs is
+// merged from one buffer into the other, then the two swap. No recursion, no
+// stack, and the shape is a function of the length alone.
+//
+// It is here because examples/io/freq.oro is Go-only -- its file I/O is -- while
+// the sort at its centre is portable, and the sort is the part with something to
+// get wrong. TWO LIVE BUFFERS HANDED BACK AND FORTH ON EVERY PASS is the most
+// workspace-threading any small program does.
+//
+// IT SORTS A PERMUTATION, which is what freq.oro does, because a word is a pair
+// of offsets and must not be moved. That form was REFUSED on windows for one day
+// -- `x64.movb has more spilled operands than there are scratch registers`,
+// since the scratch pool is two registers and a table store has three operands.
+// The refusal was not even in this program: it was `lib/win/fmt.oro`'s
+// `print-int`, unable to make a call that was always legal because the sort's own
+// live values had exhausted the value pool. A template with more spilled operands
+// than scratch now borrows a value register through a frame slot, and the
+// comparator reading a key through an index -- the one live value that did not
+// fit -- fits.
+//
+// The keys are computed rather than stored, so this measures the SORT and not a
+// table literal. The checksum weights each key by its position, so it changes if
+// any element lands anywhere else -- a sort that merely permuted would pass a sum.
+//
+// Stability is deliberately NOT observable here: the checksum reads keys, and
+// equal keys are equal, so nothing depends on which of two equal elements comes
+// first. That is the right choice for a four-target case -- freq.oro is where
+// stability matters, and it is checked there against `sort | uniq -c`.
+cap = 16
 
-(def cap 16)
+// NO CLAMP. An index computed from two loop variables was clamped here, on the
+// belief that nothing could bound it. The merge keeps i + j − k = mid, a
+// translation invariant, which bounds j by hi once i reaches mid
+// (claimsdemand-2026-10-13).
+fn key(s, i) { (37 * (i + s) + 11) % 101 }
 
-; NO CLAMP. An index computed from two loop variables was clamped here, on the
-; belief that nothing could bound it. The merge keeps i + j − k = mid, a
-; translation invariant, which bounds j by hi once i reaches mid
-; (claimsdemand-2026-10-13).
+fn mmin(x, y) { if x < y { x } else { y } }
 
-(def key (s i) (% (+ (* 37 (+ i s)) 11) 101))
+fn pat(t, i) { t[i] }
 
-(def mmin (x y) (if (< x y) x y))
+fn iota(a linear) { loop k = 0 { k >= cap -> (); else -> { a[k] := k; again(k + 1) } } }
 
-(def pat (t i) (t i))
+// One merge of a[lo,mid) and a[mid,hi) into b. The left run wins ties, which is
+// what makes it stable -- not observable here, deliberately, see above.
+fn merge1(s, a, b linear, lo, mid, hi) {
+    loop i = lo, j = mid, k = lo {
+        k >= hi -> ()
+        i >= mid -> { b[k] := pat(a, j); again(i, j + 1, k + 1) }
+        j >= hi -> { b[k] := pat(a, i); again(i + 1, j, k + 1) }
+        key(s, pat(a, j)) < key(s, pat(a, i)) -> { b[k] := pat(a, j); again(i, j + 1, k + 1) }
+        else -> { b[k] := pat(a, i); again(i + 1, j, k + 1) }
+    }
+}
 
-(def iota (a)
-  (loop ((a a) (k 0))
-    (>= k cap)  a
-    else          (again (set a k k) (+ k 1))))
+// One pass at width w over the whole table.
+fn mpass(s, a, b linear, w) {
+    loop lo = 0 {
+        lo >= cap -> ()
+        else -> {
+            mid = mmin(cap, lo + w)
+            hi = mmin(cap, lo + 2 * w)
+            merge1(s, a, b, lo, mid, hi)
+            again(hi)
+        }
+    }
+}
 
-; One merge of a[lo,mid) and a[mid,hi) into b. The left run wins ties, which is
-; what makes it stable -- not observable here, deliberately, see above.
-(def merge1 (s a b lo mid hi)
-  (loop ((b b) (i lo) (j mid) (k lo))
-    (>= k hi)   b
-    (>= i mid)  (again (set b k (pat a j)) i (+ j 1) (+ k 1))
-    (>= j hi)   (again (set b k (pat a i)) (+ i 1) j (+ k 1))
-    (< (key s (pat a j)) (key s (pat a i)))
-                (again (set b k (pat a j)) i (+ j 1) (+ k 1))
-    else        (again (set b k (pat a i)) (+ i 1) j (+ k 1))))
+// THE WORKSPACE, THREADED. `a` is what is sorted so far and `b` is where this
+// pass writes; the `again` hands each to the other's place. `a` is READ inside
+// the pass and MOVED afterwards, in that order, which is exactly what ADR 0018's
+// linearity permits -- a read does not consume.
+fn msort(s) {
+    var a := array { 0 : _ ∈ 0..cap-1 }
+    var b := array { 0 : _ ∈ 0..cap-1 }
+    iota(a)
+    loop w = 1 { w >= cap -> a; else -> { mpass(s, a, b, w); a, b := b, a; again(2 * w) } }
+}
 
-; One pass at width w over the whole table.
-(def mpass (s a b w)
-  (loop ((b b) (lo 0))
-    (>= lo cap)  b
-    else (let mid (mmin cap (+ lo w))
-              hi  (mmin cap (+ lo (* 2 w)))
-           (again (merge1 s a b lo mid hi) hi))))
-
-; THE WORKSPACE, THREADED. `a` is what is sorted so far and `b` is where this
-; pass writes; the `again` hands each to the other's place. `a` is READ inside
-; the pass and MOVED afterwards, in that order, which is exactly what ADR 0018's
-; linearity permits -- a read does not consume.
-(def msort (s)
-  (local a (table cap 0)
-         b (table cap 0)
-    (loop ((a (iota a)) (b b) (w 1))
-      (>= w cap)  a
-      else          (again (mpass s a b w) a (* 2 w))))) 
-
-(def run (s)
-  (let v (msort s)
-    (loop ((acc 0) (r 0))
-      (>= r cap)  acc
-      else          (again (+ acc (* (+ r 1) (key s (pat v r)))) (+ r 1)))))
+fn run(s) {
+    v = msort(s)
+    loop acc = 0, r = 0 { r >= cap -> acc; else -> again(acc + (r + 1) * key(s, pat(v, r)), r + 1) }
+}

@@ -1,32 +1,36 @@
-; The sieve again, on java.lang's top level, to complete the three-host set.
-;
-; Java arrays are language-level so they need no import — and fixed-length, so
-; there is nothing to append to. `bset` is a statement whose value is its
-; array, which threads through a fold like an accumulator.
+// The sieve again, on java.lang's top level, to complete the three-host set.
+//
+// Java arrays are language-level so they need no import — and fixed-length, so
+// there is nothing to append to. `bset` is a statement whose value is its
+// array, which threads through a fold like an accumulator.
+use java/array as a
+use java/bool as b
+use java/int as ji
+use java/system as sys
+use num/int
 
-(use java/array as a)
-(use java/bool as b)
-(use java/int as ji)
-(use java/system as sys)
-(use num/int as int)
+fn cross_from(composite, i, n) {
+    fold_range(composite, n,
+        fn(arr, j) {
+            if int.ge(j, int.mul(i, i)) {
+                if int.eq(ji.rem(j, i), 0) { a.bset(arr, j, b.true()) } else { arr }
+            } else { arr }
+        })
+}
 
-(export main)
+fn sieve(n) {
+    fold_range(a.make_bool(n), n,
+        fn(arr, i) {
+            if int.lt(i, 2) { arr } else if a.bat(arr, i) { arr } else { cross_from(arr, i, n) }
+        })
+}
 
-(def cross-from (fn (composite i n)
-  (fold-range composite n (fn (arr j)
-    (if (int.ge j (int.mul i i))
-        (if (int.eq (ji.rem j i) 0) (a.bset arr j (b.true)) arr)
-        arr)))))
+fn count_primes(n) {
+    composite = sieve(n)
+    fold_range(0, n,
+        fn(acc, k) {
+            if int.lt(k, 2) { acc } else if a.bat(composite, k) { acc } else { int.add(acc, 1) }
+        })
+}
 
-(def sieve (fn (n)
-  (fold-range (a.make-bool n) n (fn (arr i)
-    (if (int.lt i 2) arr
-      (if (a.bat arr i) arr (cross-from arr i n)))))))
-
-(def count-primes (fn (n)
-  (let composite (sieve n)
-    (fold-range 0 n (fn (acc k)
-      (if (int.lt k 2) acc
-        (if (a.bat composite k) acc (int.add acc 1))))))))
-
-(def main (fn () (sys.println (count-primes 20000))))
+export fn main() { sys.println(count_primes(20000)) }

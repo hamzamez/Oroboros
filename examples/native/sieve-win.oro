@@ -1,53 +1,53 @@
-; The sieve of Eratosthenes, on the windows target.
-;
-;   build -target=windows -o sieve.exe examples/native/sieve-win.oro
-;
-; Compare with sieve-go.oro, sieve-js.oro and sieve-java.oro: the SHAPE is
-; identical — the same three loops, the same `seq`-then-`again` in the crossing
-; loop, the same guards. What differs is only the names, and on this host the
-; names are instruction mnemonics and Win32 entry points.
-;
-; Two things this version has that the others do not.
-;
-; THE ARRAY IS RAW MEMORY. There is no `make([]bool, n)`; there is
-; VirtualAlloc, which hands back zero-filled pages, and `movzx`/`movb` which
-; read and write one byte at an address. The language gained pointers on this
-; target and nowhere else, which is what "no portability claim" is for.
-;
-; PRINTING IS A PROGRAM. `(fmt.print-int …)` is lib/win/fmt.oro, written in the
-; language, because Win32 has no formatting anywhere in it.
+// The sieve of Eratosthenes, on the windows target.
+//
+//   build -target=windows -o sieve.exe examples/native/sieve-win.oro
+//
+// Compare with sieve-go.oro, sieve-js.oro and sieve-java.oro: the SHAPE is
+// identical — the same three loops, the same `seq`-then-`again` in the crossing
+// loop, the same guards. What differs is only the names, and on this host the
+// names are instruction mnemonics and Win32 entry points.
+//
+// Two things this version has that the others do not.
+//
+// THE ARRAY IS RAW MEMORY. There is no `make([]bool, n)`; there is
+// VirtualAlloc, which hands back zero-filled pages, and `movzx`/`movb` which
+// read and write one byte at an address. The language gained pointers on this
+// target and nowhere else, which is what "no portability claim" is for.
+//
+// PRINTING IS A PROGRAM. `(fmt.print-int …)` is lib/win/fmt.oro, written in the
+// language, because Win32 has no formatting anywhere in it.
+use x64
+use win/fmt
+use windows/kernel32
 
-(use x64)
-(use win/fmt)
-(use windows/kernel32)
+// The range, declared. Without it the compiler cannot bound a single one of the
+// ten integer operations below and every one of them emits a checked add or
+// multiply; with it, none of them do and all three loops are proven to
+// terminate. That is the whole trade (sct-2026-08-19).
+fn cross(c, i, n) {
+    loop j = x64.imul(i, i) {
+        x64.setl(j, n) -> { x64.movb(c, j, 1); again(x64.add(j, i)) }
+        else -> c
+    }
+}
 
-(export count-primes main)
+fn composite?(c, i) { x64.test_byte(c, i) }
 
-; The range, declared. Without it the compiler cannot bound a single one of the
-; ten integer operations below and every one of them emits a checked add or
-; multiply; with it, none of them do and all three loops are proven to
-; terminate. That is the whole trade (sct-2026-08-19).
-(sig count-primes ((n int)) int (where (and (<= 0 n) (< n 1048576))))
+fn sieve(n) {
+    c = kernel32.VirtualAlloc(n)
+    loop i = 2 {
+        x64.setge(x64.imul(i, i), n) -> c
+        composite?(c, i) -> again(x64.add(i, 1))
+        else -> { cross(c, i, n); again(x64.add(i, 1)) }
+    }
+}
+export fn count_primes(n ∈ Int) (Int) where 0 <= n && n < (2^20) {
+    c = sieve(n)
+    loop acc = 0, k = 2 {
+        x64.setge(k, n) -> acc
+        composite?(c, k) -> again(acc, x64.add(k, 1))
+        else -> again(x64.add(acc, 1), x64.add(k, 1))
+    }
+}
 
-(def cross (c i n)
-  (loop ((j (x64.imul i i)))
-    (x64.setl j n)  (seq (x64.movb c j 1) (again (x64.add j i)))
-    else            c))
-
-(def composite? (c i) (x64.test-byte c i))
-
-(def sieve (n)
-  (let c (kernel32.VirtualAlloc n)
-    (loop ((i 2))
-      (x64.setge (x64.imul i i) n)  c
-      (composite? c i)              (again (x64.add i 1))
-      else                          (seq (cross c i n) (again (x64.add i 1))))))
-
-(def count-primes (n)
-  (let c (sieve n)
-    (loop ((acc 0) (k 2))
-      (x64.setge k n)     acc
-      (composite? c k)    (again acc (x64.add k 1))
-      else                (again (x64.add acc 1) (x64.add k 1)))))
-
-(def main () (fmt.print-int (count-primes 20000)))
+export fn main() { fmt.print_int(count_primes(20000)) }

@@ -1,19 +1,13 @@
-; The thesis, runnable. Two targets, one program, across two files.
-;
-;   oro -target=blas examples/dot.oro   ⟶  (num/vec.dot p q)
-;   oro -target=go   examples/dot.oro   ⟶  a loop
-;
-; The `where` is not decoration. Without it the refinement checker reports that
-; `(aindex q i)` is unproven — the loop is bounded by `alen p` and nothing
-; relates the two lengths. That was a real latent bug in this program, found by
-; the checker on the day it was written (docs/spec/refinements.md).
+// The thesis, runnable. Two targets, one program, across two files.
+//
+//   oro -target=blas examples/dot.oro   ⟶  (num/vec.dot p q)
+//   oro -target=go   examples/dot.oro   ⟶  a loop
+//
+// The `where` is not decoration. Without it the refinement checker reports that
+// `(aindex q i)` is unproven — the loop is bounded by `alen p` and nothing
+// relates the two lengths. That was a real latent bug in this program, found by
+// the checker on the day it was written (docs/spec/refinements.md).
+use num/vec
+use num/int
 
-(use num/vec)
-(use num/int)
-
-(export dot)
-
-(sig dot ((p vec-f64) (q vec-f64)) f64
-  (where (int.eq (alen p) (alen q))))
-
-(def dot (p q) (vec.dot p q))
+export fn dot(p ∈ vec_f64, q ∈ vec_f64) (F64) where int.eq(alen(p), alen(q)) { vec.dot(p, q) }

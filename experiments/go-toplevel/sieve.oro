@@ -1,33 +1,35 @@
-; Sieve of Eratosthenes, using only Go's predeclared identifiers plus fmt.
-;
-; The question: can imperative array mutation be written at all? `bset` is a
-; statement whose VALUE is its container, so a mutation threads through a fold
-; the way an accumulator does, and the effect discipline pins the order.
+// Sieve of Eratosthenes, using only Go's predeclared identifiers plus fmt.
+//
+// The question: can imperative array mutation be written at all? `bset` is a
+// statement whose VALUE is its container, so a mutation threads through a fold
+// the way an accumulator does, and the effect discipline pins the order.
+use go/builtin as g
+use go/fmt
+use num/int
 
-(use go/builtin as g)
-(use go/fmt as fmt)
-(use num/int as int)
+// Cross out every multiple of i, from i*i upward.
+fn cross_from(composite, i, n) {
+    fold_range(composite, n,
+        fn(c, j) {
+            if int.ge(j, int.mul(i, i)) {
+                if int.eq(g.rem(j, i), 0) { g.bset(c, j, g.true()) } else { c }
+            } else { c }
+        })
+}
 
-(export main)
+// composite[k] is true once k has been crossed out.
+fn sieve(n) {
+    fold_range(g.make_bool(n), n,
+        fn(c, i) { if int.lt(i, 2) { c } else if g.bat(c, i) { c } else { cross_from(c, i, n) } })
+}
 
-; Cross out every multiple of i, from i*i upward.
-(def cross-from (fn (composite i n)
-  (fold-range composite n (fn (c j)
-    (if (int.ge j (int.mul i i))
-        (if (int.eq (g.rem j i) 0) (g.bset c j (g.true)) c)
-        c)))))
+// Count the primes below n. The sieve is built ONCE, by `let`, and then read.
+fn count_primes(n) {
+    composite = sieve(n)
+    fold_range(0, n,
+        fn(acc, k) {
+            if int.lt(k, 2) { acc } else if g.bat(composite, k) { acc } else { int.add(acc, 1) }
+        })
+}
 
-; composite[k] is true once k has been crossed out.
-(def sieve (fn (n)
-  (fold-range (g.make-bool n) n (fn (c i)
-    (if (int.lt i 2) c
-      (if (g.bat c i) c (cross-from c i n)))))))
-
-; Count the primes below n. The sieve is built ONCE, by `let`, and then read.
-(def count-primes (fn (n)
-  (let composite (sieve n)
-    (fold-range 0 n (fn (acc k)
-      (if (int.lt k 2) acc
-        (if (g.bat composite k) acc (int.add acc 1))))))))
-
-(def main (fn () (fmt.println (count-primes 100))))
+export fn main() { fmt.println(count_primes(100)) }

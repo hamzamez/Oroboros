@@ -1,113 +1,108 @@
-; The Java target. NO PORTABILITY CLAIM.
-;
-; Every name here is Java's own. `java./` on ints truncates and throws on zero;
-; `java.+` wraps at the width of its type; `java.==` on two Strings compares
-; references, which is why `String.equals` exists separately. Nothing is
-; renamed so three hosts can agree.
-;
-; The surface is one file per Java package or class, merged by LoadTarget.
-; The portable layer it replaced, targets/portable-java.oro, was deleted in
-; portable-2026-09-29.
+// The Java target. NO PORTABILITY CLAIM.
+//
+// Every name here is Java's own. `java./` on ints truncates and throws on zero;
+// `java.+` wraps at the width of its type; `java.==` on two Strings compares
+// references, which is why `String.equals` exists separately. Nothing is
+// renamed so three hosts can agree.
+//
+// The surface is one file per Java package or class, merged by LoadTarget.
+// The portable layer it replaced, targets/portable-java.oro, was deleted in
+// portable-2026-09-29.
+// THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here:
+// `int` and `f64` are what integer and float LITERALS type as, and `bool` is
+// what `if` and a loop guard demand. A target spells them however it likes on
+// the right; the names on the left are the language's.
+//
+// `int` is Java's **long**, deliberately: Java's `int` wraps at 2^31, which is
+// INSIDE the range our integer literals cover, so declaring it would be a
+// silent miscompilation (arithmetic.md §4). The consequence is that every
+// array index needs a cast, because Java array indices are `int`.
+// How this target spells an array of something (tables.md §10).
+// The JVM has NO UNSIGNED TYPES, so 0..255 does not fit its `byte`
+// (-128..127) and correctly selects `short`. Nothing special-cases that: the
+// target declares what it can hold and the range picks. This is the same fact
+// CLAUDE.md records as "the JVM has no unsigned types", stated where it can be
+// acted on.
+repr -128..127 host "byte"
+repr -32768..32767 host "short"
+repr -2^31..2^31-1 host "int"
+// THE WORD (ADR 0026): `int` is realized as `long`, 64-bit two's complement
+// by the JLS, so native arithmetic is exact on this interval.
+repr -2^63..2^63-1 word
 
-(target java
-  ; THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here:
-  ; `int` and `f64` are what integer and float LITERALS type as, and `bool` is
-  ; what `if` and a loop guard demand. A target spells them however it likes on
-  ; the right; the names on the left are the language's.
-  ;
-  ; `int` is Java's **long**, deliberately: Java's `int` wraps at 2^31, which is
-  ; INSIDE the range our integer literals cover, so declaring it would be a
-  ; silent miscompilation (arithmetic.md §4). The consequence is that every
-  ; array index needs a cast, because Java array indices are `int`.
-  ; How this target spells an array of something (tables.md §10).
-  ; The JVM has NO UNSIGNED TYPES, so 0..255 does not fit its `byte`
-  ; (-128..127) and correctly selects `short`. Nothing special-cases that: the
-  ; target declares what it can hold and the range picks. This is the same fact
-  ; CLAUDE.md records as "the JVM has no unsigned types", stated where it can be
-  ; acted on.
-  (repr (int -128 127) (host "byte"))
-  (repr (int -32768 32767) (host "short"))
-  (repr (int -2147483648 2147483647) (host "int"))
-  ; THE WORD (ADR 0026): `int` is realized as `long`, 64-bit two's complement
-  ; by the JLS, so native arithmetic is exact on this interval.
-  (repr (int -9223372036854775808 9223372036854775807) word)
+set Array(A) = host "${A}[]"
 
-  (type (array A) (host "%s[]"))
+// A MAP IS ONE DECLARATION, not an entry per (K, V) pair. This file's
+// java/util module says the alternative is "the same limitation squared" --
+// one name per (container, K, V) -- and it had declared exactly one
+// instantiation, Map<String,Long>, because that is all it could afford.
+set Map(K, V) = host "java.util.Map<${K},${V}>"
 
-  ; A MAP IS ONE DECLARATION, not an entry per (K, V) pair. This file's
-  ; java/util module says the alternative is "the same limitation squared" --
-  ; one name per (container, K, V) -- and it had declared exactly one
-  ; instantiation, Map<String,Long>, because that is all it could afford.
-  (type (map K V) (host "java.util.Map<%s,%s>"))
+// AND ITS TYPE ARGUMENTS MUST BE BOXED, because a JVM generic cannot be
+// instantiated at a primitive. `map int int` is `Map<Long,Long>`, never
+// `Map<long,long>`. Which types a host boxes and what it calls them is a host
+// fact, so it is declared here rather than hardcoded in the emitter -- no
+// other target declares any, and on those `boxed` is just the type.
+repr ref(Int) host "Long"
+repr ref(F64) host "Double"
+repr ref(Bool) host "Boolean"
 
-  ; AND ITS TYPE ARGUMENTS MUST BE BOXED, because a JVM generic cannot be
-  ; instantiated at a primitive. `map int int` is `Map<Long,Long>`, never
-  ; `Map<long,long>`. Which types a host boxes and what it calls them is a host
-  ; fact, so it is declared here rather than hardcoded in the emitter -- no
-  ; other target declares any, and on those `boxed` is just the type.
-  (repr (ref int) (host "Long"))
-  (repr (ref f64) (host "Double"))
-  (repr (ref bool) (host "Boolean"))
+// HOW MANY ELEMENTS A TABLE CAN HAVE HERE, and this host can say something
+// stronger than the language can. `arraylength` returns an `int` and `new
+// T[n]` takes one, so a Java array holds at most 2^31-1 elements. Every other
+// length on this target is an `int` too -- `Map.size()`, `String.length()`.
+//
+// Without it a length is bounded only by ADR 0012's window at 2^53-1, which
+// is true everywhere and true here, but too wide to hold an index. This is
+// the platform fact indextype-2026-08-25 hardcoded in Go, stated where a
+// target author can act on it.
+fact max_len (a ∈ Array(A)) len(a) <= (2^31-1)
 
-  ; HOW MANY ELEMENTS A TABLE CAN HAVE HERE, and this host can say something
-  ; stronger than the language can. `arraylength` returns an `int` and `new
-  ; T[n]` takes one, so a Java array holds at most 2^31-1 elements. Every other
-  ; length on this target is an `int` too -- `Map.size()`, `String.length()`.
-  ;
-  ; Without it a length is bounded only by ADR 0012's window at 2^53-1, which
-  ; is true everywhere and true here, but too wide to hold an index. This is
-  ; the platform fact indextype-2026-08-25 hardcoded in Go, stated where a
-  ; target author can act on it.
-  (fact max-len ((a (array A))) (<= (len a) 2147483647))
+set Int = host "long"
+set F64 = host "double"
+set Bool = host "boolean"
+set String = host "String"
+set Any = host "Object"
 
-  (type int     (host "long"))
-  (type f64     (host "double"))
-  (type bool    (host "boolean"))
-  (type string  (host "String"))
-  (type any     (host "Object"))
+// A HOST ERROR IS A TARGET-WIDE FACT, not a package's. `Exception` rather than
+// `IOException` because the only thing this language can do with one is hold
+// it, test it and hand it back (sums.md would be needed to read it, and that
+// needs an interface, which callbacks.md tier 3 refuses) -- so a narrower name
+// would be a claim about which calls may produce one.
+set error = host "Exception"
+// The try/catch templates' second result: the caught Exception, or null when
+// nothing was thrown. 1 + E with null the absent point, a NICHE (spec/errors.md
+// §4.1), through which a fallible declaration's failure is read.
+repr error niche host expr "%s == null"
 
-  ; A HOST ERROR IS A TARGET-WIDE FACT, not a package's. `Exception` rather than
-  ; `IOException` because the only thing this language can do with one is hold
-  ; it, test it and hand it back (sums.md would be needed to read it, and that
-  ; needs an interface, which callbacks.md tier 3 refuses) -- so a narrower name
-  ; would be a claim about which calls may produce one.
-  (type error   (host "Exception"))
-  ; The try/catch templates' second result: the caught Exception, or null when
-  ; nothing was thrown. 1 + E with null the absent point, a NICHE (spec/errors.md
-  ; §4.1), through which a fallible declaration's failure is read.
-  (repr error (niche (host expr "%s == null")))
+set jint = host "int"
+set char = host "char"
+set long_array = host "long[]"
+set double_array = host "double[]"
+set bool_array = host "boolean[]"
+set string_array = host "String[]"
+set strbuf = host "StringBuilder"
 
-  (type jint    (host "int"))
-  (type char    (host "char"))
-  (type long-array   (host "long[]"))
-  (type double-array (host "double[]"))
-  (type bool-array   (host "boolean[]"))
-  (type string-array (host "String[]"))
-  (type strbuf       (host "StringBuilder"))
+// java.util, which is not java.lang and needs an import — but is as much a
+// part of the platform as anything else. The generic parameters are baked in
+// because our type language has no constructors: List<Long> and List<String>
+// are two unrelated atoms, and every other instantiation is unreachable.
+set list_long = host "java.util.List<Long>"
+set list_string = host "java.util.List<String>"
+set map_string_long = host "java.util.Map<String,Long>"
 
-  ; java.util, which is not java.lang and needs an import — but is as much a
-  ; part of the platform as anything else. The generic parameters are baked in
-  ; because our type language has no constructors: List<Long> and List<String>
-  ; are two unrelated atoms, and every other instantiation is unreachable.
-  (type list-long    (host "java.util.List<Long>"))
-  (type list-string  (host "java.util.List<String>"))
-  (type map-string-long (host "java.util.Map<String,Long>"))
-
-  ; No `narrow`: a Java array cannot be re-sliced.
-
-  ; `Main.java` by NAME, not the source directory. cmd/build fills the second
-  ; hole with the work DIRECTORY and runs the command inside it, which `go build`
-  ; accepts and `javac` does not — it wants source files. This target could not
-  ; build a program at all until 2026-08-26, and nothing noticed because every
-  ; Java result so far came through cmd/gen plus javac by hand.
-  ;
-  ; -encoding UTF-8 is not optional: javac defaults to the platform charset
-  ; (strings.md §5).
-  (build "javac -encoding UTF-8 -d %s Main.java")
-
-  ; THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
-  ; injected into every target; declaring one is an error. The backend implements
-  ; them, which is where an implementation belongs — a construct promoted to the
-  ; language works on every target and the compiler finds the form.
-  ;
-)
+// No `narrow`: a Java array cannot be re-sliced.
+// `Main.java` by NAME, not the source directory. cmd/build fills the second
+// hole with the work DIRECTORY and runs the command inside it, which `go build`
+// accepts and `javac` does not — it wants source files. This target could not
+// build a program at all until 2026-08-26, and nothing noticed because every
+// Java result so far came through cmd/gen plus javac by hand.
+//
+// -encoding UTF-8 is not optional: javac defaults to the platform charset
+// (strings.md §5).
+build "javac -encoding UTF-8 -d %s Main.java"
+// THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
+// injected into every target; declaring one is an error. The backend implements
+// them, which is where an implementation belongs — a construct promoted to the
+// language works on every target and the compiler finds the form.
+//

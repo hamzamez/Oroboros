@@ -1,206 +1,218 @@
-; TALLY -- how often does each value a pattern captures occur?
-;
-;   tally PATTERN FILE
-;
-; For every line of FILE that PATTERN matches, take capture group 1 (or the whole
-; match, if the pattern has no group), and print each distinct value with how
-; many lines produced it, most frequent first, ties in ascending order:
-;
-;   $ tally '"GET ([^ ?]*)' access.log
-;   14	/index.html
-;   9	/api/items
-;   ...
-;
-; It is `grep -o | sort | uniq -c | sort -rn`, and the regular expression is the
-; HOST's -- Go's RE2 on one target, java.util.regex on the other. This language
-; has no regex engine and should not grow one: the host has a good one, and
-; reaching it is what the parasite model is for.
-;
-; assessment-2026-09-11 item 3: ONE APPLICATION, ON TWO HOSTS, THROUGH GENERATED
-; DECLARATIONS. Every host call below reaches the host through a line
-; gauntlet/stdlib/survey.go or jvm.go wrote; nothing in targets/ was edited.
-;
-; THE SHAPE, AND WHY IT NEEDED NO NEW MECHANISM.
-;
-; The two hosts spell the operations this tool needs completely differently:
-; Go matches with one call returning a slice, the JVM builds a Matcher and asks
-; it; Go splits a string exactly and the JVM splits by regex and drops trailing
-; empties. So this module is written against an INTERFACE of six operations, and
-; each host DEFINES them -- host-go.oro, host-java.oro, one (provides …) each.
-;
-; The core can mention a regex without having a type for one: the residual is
-; typed after reduction, when `re` is a `*regexp.Regexp` on one host and a
-; `Pattern` on the other, and nothing here ever had to say which.
-;
-; AND THE FUNCTOR IS GONE. It was written against an INTERFACE of six operations
-; passed as a `(tuple …)` argument -- an ML functor applied at compile time, free
-; because none of it survives staging -- and each host had its own entry file
-; supplying the tuple. target-system.md §6.2's `D_T` is now built, so the six are
-; ordinary DEFINITIONS the target contributes and this is ONE program: the
-; capability graph picks the binding, exactly as it picks a primitive.
+// TALLY -- how often does each value a pattern captures occur?
+//
+//   tally PATTERN FILE
+//
+// For every line of FILE that PATTERN matches, take capture group 1 (or the whole
+// match, if the pattern has no group), and print each distinct value with how
+// many lines produced it, most frequent first, ties in ascending order:
+//
+//   $ tally '"GET ([^ ?]*)' access.log
+//   14	/index.html
+//   9	/api/items
+//   ...
+//
+// It is `grep -o | sort | uniq -c | sort -rn`, and the regular expression is the
+// HOST's -- Go's RE2 on one target, java.util.regex on the other. This language
+// has no regex engine and should not grow one: the host has a good one, and
+// reaching it is what the parasite model is for.
+//
+// assessment-2026-09-11 item 3: ONE APPLICATION, ON TWO HOSTS, THROUGH GENERATED
+// DECLARATIONS. Every host call below reaches the host through a line
+// gauntlet/stdlib/survey.go or jvm.go wrote; nothing in targets/ was edited.
+//
+// THE SHAPE, AND WHY IT NEEDED NO NEW MECHANISM.
+//
+// The two hosts spell the operations this tool needs completely differently:
+// Go matches with one call returning a slice, the JVM builds a Matcher and asks
+// it; Go splits a string exactly and the JVM splits by regex and drops trailing
+// empties. So this module is written against an INTERFACE of six operations, and
+// each host DEFINES them -- host-go.oro, host-java.oro, one (provides …) each.
+//
+// The core can mention a regex without having a type for one: the residual is
+// typed after reduction, when `re` is a `*regexp.Regexp` on one host and a
+// `Pattern` on the other, and nothing here ever had to say which.
+//
+// AND THE FUNCTOR IS GONE. It was written against an INTERFACE of six operations
+// passed as a `(tuple …)` argument -- an ML functor applied at compile time, free
+// because none of it survives staging -- and each host had its own entry file
+// supplying the tuple. target-system.md §6.2's `D_T` is now built, so the six are
+// ordinary DEFINITIONS the target contributes and this is ONE program: the
+// capability graph picks the binding, exactly as it picks a primitive.
+use os
+use io
+use result
+use tally/host as h
 
-(module tally)
-(use os)
-(use io)
-(use result)
-(use tally/host as h)
+// --- the stated limits ------------------------------------------------------
+//
+// A file of at most cap-in bytes has at most cap-in + 1 lines, so no count,
+// index or run can exceed nmax. freq.oro's discipline: the cap makes the limit
+// visible, and the one derived from it cannot be reached.
+private cap_in = 2^24
+private nmax = 16777217
 
-(export main)
+private fn cli(n, i) { if i < 0 { 0 } else if i >= n { 0 } else { i } }
+// A permutation entry: the index is clamped, the value is not — the compiler
+// derives that `ord` holds indices below n (array smashing, smashfd-2026-09-16).
+private fn pat(t, n, i) { t[cli(n, i)] }
+private fn mmin(a, b) { if a < b { a } else { b } }
 
-; --- the stated limits ------------------------------------------------------
-;
-; A file of at most cap-in bytes has at most cap-in + 1 lines, so no count,
-; index or run can exceed nmax. freq.oro's discipline: the cap makes the limit
-; visible, and the one derived from it cannot be reached.
+// --- the sort: freq.oro's, over a permutation -------------------------------
+//
+// Bottom-up merge sort, stable, no recursion. `less` is a static-level function
+// and is substituted away; two comparators give two copies of the loop.
+private fn merge1(less, a, b linear, n, lo, mid, hi) {
+    loop i = lo, j = mid, k = lo {
+        k >= hi -> ()
+        i >= mid -> { b[cli(n, k)] := a[cli(n, j)]; again(i, j + 1, k + 1) }
+        j >= hi -> { b[cli(n, k)] := a[cli(n, i)]; again(i + 1, j, k + 1) }
+        less(pat(a, n, j), pat(a, n, i)) -> { b[cli(n, k)] := a[cli(n, j)]; again(i, j + 1, k + 1) }
+        else -> { b[cli(n, k)] := a[cli(n, i)]; again(i + 1, j, k + 1) }
+    }
+}
 
-(def cap-in 16777216)
-(def nmax   16777217)
+private fn mpass(less, a, b linear, n, w) {
+    loop lo = 0 {
+        lo >= n -> ()
+        else -> {
+            mid = mmin(n, lo + w)
+            hi = mmin(n, lo + 2 * w)
+            merge1(less, a, b, n, lo, mid, hi)
+            again(hi)
+        }
+    }
+}
 
-(def cli  (n i) (if (< i 0) 0 (if (>= i n) 0 i)))
-; A permutation entry: the index is clamped, the value is not — the compiler
-; derives that `ord` holds indices below n (array smashing, smashfd-2026-09-16).
-(def pat  (t n i) (t (cli n i)))
-(def mmin (a b) (if (< a b) a b))
+private fn iota(a linear, n) {
+    loop k = 0 { k >= n -> (); else -> { a[cli(n, k)] := k; again(k + 1) } }
+}
 
-; --- the sort: freq.oro's, over a permutation -------------------------------
-;
-; Bottom-up merge sort, stable, no recursion. `less` is a static-level function
-; and is substituted away; two comparators give two copies of the loop.
+private fn msort(less, n) {
+    var a := array { 0 : _ ∈ 0..n-1 }
+    var b := array { 0 : _ ∈ 0..n-1 }
+    iota(a, n)
+    loop w = 1 {
+        w >= n -> a
+        w >= nmax -> a
+        else -> { mpass(less, a, b, n, w); a, b := b, a; again(2 * w) }
+    }
+}
 
-(def merge1 (less a b n lo mid hi)
-  (loop ((b b) (i lo) (j mid) (k lo))
-    (>= k hi)   b
-    (>= i mid)  (again (set b (cli n k) (a (cli n j))) i (+ j 1) (+ k 1))
-    (>= j hi)   (again (set b (cli n k) (a (cli n i))) (+ i 1) j (+ k 1))
-    (less (pat a n j) (pat a n i))
-                (again (set b (cli n k) (a (cli n j))) i (+ j 1) (+ k 1))
-    else        (again (set b (cli n k) (a (cli n i))) (+ i 1) j (+ k 1))))
+// --- the tool ---------------------------------------------------------------
+// How many lines match. Count, then build: `build` fixes its length first.
+private fn nhits(hit?, re, ls) {
+    loop n = 0, i = 0 {
+        i >= len(ls) -> n
+        n >= nmax -> n
+        hit?(re, ls[i]) -> again(n + 1, i + 1)
+        else -> again(n, i + 1)
+    }
+}
 
-(def mpass (less a b n w)
-  (loop ((b b) (lo 0))
-    (>= lo n)  b
-    else (let mid (mmin n (+ lo w))
-              hi  (mmin n (+ lo (* 2 w)))
-           (again (merge1 less a b n lo mid hi) hi))))
+// THE CAPTURED VALUES, AS A TABLE OF THE HOST'S STRINGS. Nothing is copied into
+// bytes: the host produced these strings and the host will compare them.
+private fn captures(hit?, capture, re, ls, n) {
+    var cs := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0, k = 0 {
+        i >= len(ls) -> cs
+        k >= n -> cs
+        hit?(re, ls[i]) -> { cs[k] := capture(re, ls[i]); again(i + 1, k + 1) }
+        else -> again(i + 1, k)
+    }
+}
 
-(def iota (a n)
-  (loop ((a a) (k 0))
-    (>= k n)  a
-    else      (again (set a (cli n k) k) (+ k 1))))
+// A value at a sorted position. Clamped, because a permutation entry is a value
+// read out of a table (frozen-2026-08-28's stratum 0).
+private fn at(cs, ord, n, k) { cs[pat(ord, n, k)] }
 
-(def msort (less n)
-  (local a (table n 0)
-         b (table n 0)
-    (loop ((a (iota a n)) (b b) (w 1))
-      (>= w n)      a
-      (>= w nmax) a
-      else          (again (mpass less a b n w) a (* 2 w)))))
+private fn new?(cmp, cs, ord, n, k) {
+    k == 0 || !(cmp(at(cs, ord, n, k), at(cs, ord, n, k - 1)) == 0)
+}
 
-; --- the tool ---------------------------------------------------------------
+private fn ndist(cmp, cs, ord, n) {
+    loop d = 0, k = 0 {
+        k >= n -> d
+        d >= nmax -> d
+        new?(cmp, cs, ord, n, k) -> again(d + 1, k + 1)
+        else -> again(d, k + 1)
+    }
+}
 
-; How many lines match. Count, then build: `build` fixes its length first.
-(def nhits (hit? re ls)
-  (loop ((n 0) (i 0))
-    (>= i (len ls))  n
-    (>= n nmax)    n
-    (hit? re (ls i)) (again (+ n 1) (+ i 1))
-    else             (again n (+ i 1))))
+// A distinct value and how often it occurred: a PAIR, (position of its first
+// occurrence in `ord`, count). freq.oro's `dists`, with its two lessons kept --
+// the capacity guard stops a new group and not the counting. A count read back
+// inside its own `build` is no longer clamped: this loop runs at most n times
+// and adds 1 to one slot per trip, so a count is at most 1 + n, which the
+// compiler proves (the bounded-increment theorem, smashfd-2026-09-16).
+private fn dcount(dt, d) { dt[d][1] }
 
-; THE CAPTURED VALUES, AS A TABLE OF THE HOST'S STRINGS. Nothing is copied into
-; bytes: the host produced these strings and the host will compare them.
-(def captures (hit? capture re ls n)
-  (local cs (table n 0)
-    (loop ((cs cs) (i 0) (k 0))
-      (>= i (len ls))  cs
-      (>= k n)         cs
-      (hit? re (ls i)) (again (set cs k (capture re (ls i))) (+ i 1) (+ k 1))
-      else             (again cs (+ i 1) k))))
+private fn dists(cmp, cs, ord, n, nd) {
+    var dt := array { 0 : _ ∈ 0..nd-1 }
+    loop k = 0, d = 0 {
+        k >= n -> dt
+        // NO GROUPS, NO TABLE: `nd >= 1` whenever a value exists is a relation
+        // between `ndist` and this loop that no fact states, and without it the
+        // group read `(dt s)` cannot be shown inside `nd` pairs. Never taken
+        // (hex-2026-09-14 §4, freq.oro's same clause).
+        nd < 1 -> dt
+        new?(cmp, cs, ord, n, k) && d >= nd -> dt
+        new?(cmp, cs, ord, n, k) -> { dt[cli(nd, d)] := (k, 1); again(k + 1, d + 1) }
+        else -> { s = cli(nd, d - 1); dt[s][1] := dt[s][1] + 1; again(k + 1, d) }
+    }
+}
 
-; A value at a sorted position. Clamped, because a permutation entry is a value
-; read out of a table (frozen-2026-08-28's stratum 0).
-(def at (cs ord n k) (cs (pat ord n k)))
+private fn dvalue(cs, ord, n, dt, d) { at(cs, ord, n, dt[d][0]) }
 
-(def new? (cmp cs ord n k)
-  (or (= k 0)
-      (not (= (cmp (at cs ord n k) (at cs ord n (- k 1))) 0))))
+// The report is TEXT, built by concatenation -- render.oro's free monoid, and
+// the host's own strings throughout. `show` is the host's integer-to-text.
+private fn report(show, cs, ord, n, dt, ord2, nd) {
+    loop out = "", r = 0 {
+        r >= nd -> out
+        else -> {
+            d = pat(ord2, nd, r)
+            again(out ++ (show(dcount(dt, d)) ++ ("\t" ++ (dvalue(cs, ord, n, dt, d) ++ "\n"))),
+                r + 1)
+        }
+    }
+}
 
-(def ndist (cmp cs ord n)
-  (loop ((d 0) (k 0))
-    (>= k n)                  d
-    (>= d nmax)             d
-    (new? cmp cs ord n k)     (again (+ d 1) (+ k 1))
-    else                      (again d (+ k 1))))
+// THE HOST'S SIX OPERATIONS. They are DEFINED BY THE TARGET -- `D_T`,
+// target-system.md §6.2 -- in `(provides TARGET tally/host …)`:
+//
+//   (h.compile p)      a compiled pattern, of whatever type the host has
+//   (h.hit? re s)      does the pattern match somewhere in s
+//   (h.capture re s)   group 1 of the leftmost match, or the whole match
+//   (h.cmp a b)        <0, 0 or >0, ordering the host's strings
+//   (h.lines text)     text split at every newline, keeping empty lines
+//   (h.show n)         n in decimal
+//
+// No file declares `tally/host`, which is exactly how a target-provided module
+// looks (modules.md §4). Each host's binding is a LIBRARY FRAGMENT beside this
+// file -- host-go.oro, host-java.oro -- so this is ONE program and the
+// capability graph picks the binding, exactly as it picks a primitive.
+private fn tally(p, text) {
+    re = h.compile(p)
+    ls = h.lines(text)
+    n = nhits(h.hit?, re, ls)
+    cs = captures(h.hit?, h.capture, re, ls, n)
+    ord = msort(fn(u, v) { h.cmp(cs[u], cs[v]) < 0 }, n)
+    nd = ndist(h.cmp, cs, ord, n)
+    dt = dists(h.cmp, cs, ord, n, nd)
+    ord2 = msort(fn(u, v) { dcount(dt, u) > dcount(dt, v) }, nd)
+    report(h.show, cs, ord, n, dt, ord2, nd)
+}
 
-; A distinct value and how often it occurred: a PAIR, (position of its first
-; occurrence in `ord`, count). freq.oro's `dists`, with its two lessons kept --
-; the capacity guard stops a new group and not the counting. A count read back
-; inside its own `build` is no longer clamped: this loop runs at most n times
-; and adds 1 to one slot per trip, so a count is at most 1 + n, which the
-; compiler proves (the bounded-increment theorem, smashfd-2026-09-16).
-(def dcount (dt d) ((dt d) 1))
+private fn run() {
+    av = os.Args()
+    if len(av) < 3 { io.print_line("usage: tally PATTERN FILE") } else {
+        case os.ReadFile(av[2]) {
+            result.'ok(src) ->
+                if len(src) >= cap_in {
+                    io.print_line("tally: file is larger than this tool accepts")
+                } else { io.print(tally(av[1], os.text_of(src))) }
+            result.'err(k) -> io.print_line("tally: cannot read that file")
+        }
+    }
+}
 
-(def dists (cmp cs ord n nd)
-  (local dt (table nd 0)
-    (loop ((dt dt) (k 0) (d 0))
-      (>= k n)  dt
-      ; NO GROUPS, NO TABLE: `nd >= 1` whenever a value exists is a relation
-      ; between `ndist` and this loop that no fact states, and without it the
-      ; group read `(dt s)` cannot be shown inside `nd` pairs. Never taken
-      ; (hex-2026-09-14 §4, freq.oro's same clause).
-      (< nd 1)  dt
-      (and (new? cmp cs ord n k) (>= d nd))  dt
-      (new? cmp cs ord n k)
-        (again (set dt (cli nd d) (tuple k 1)) (+ k 1) (+ d 1))
-      else
-        (let s (cli nd (- d 1))
-          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d)))))
-
-(def dvalue (cs ord n dt d) (at cs ord n ((dt d) 0)))
-
-; The report is TEXT, built by concatenation -- render.oro's free monoid, and
-; the host's own strings throughout. `show` is the host's integer-to-text.
-(def report (show cs ord n dt ord2 nd)
-  (loop ((out "") (r 0))
-    (>= r nd) out
-    else (let d (pat ord2 nd r)
-           (again (concat out (concat (show (dcount dt d))
-                                      (concat "\t" (concat (dvalue cs ord n dt d) "\n"))))
-                  (+ r 1)))))
-
-; THE HOST'S SIX OPERATIONS. They are DEFINED BY THE TARGET -- `D_T`,
-; target-system.md §6.2 -- in `(provides TARGET tally/host …)`:
-;
-;   (h.compile p)      a compiled pattern, of whatever type the host has
-;   (h.hit? re s)      does the pattern match somewhere in s
-;   (h.capture re s)   group 1 of the leftmost match, or the whole match
-;   (h.cmp a b)        <0, 0 or >0, ordering the host's strings
-;   (h.lines text)     text split at every newline, keeping empty lines
-;   (h.show n)         n in decimal
-;
-; No file declares `tally/host`, which is exactly how a target-provided module
-; looks (modules.md §4). Each host's binding is a LIBRARY FRAGMENT beside this
-; file -- host-go.oro, host-java.oro -- so this is ONE program and the
-; capability graph picks the binding, exactly as it picks a primitive.
-(def tally (p text)
-    (let re   (h.compile p)
-         ls   (h.lines text)
-         n    (nhits h.hit? re ls)
-         cs   (captures h.hit? h.capture re ls n)
-         ord  (msort (fn (u v) (< (h.cmp (cs u) (cs v)) 0)) n)
-         nd   (ndist h.cmp cs ord n)
-         dt   (dists h.cmp cs ord n nd)
-         ord2 (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd)
-      (report h.show cs ord n dt ord2 nd)))
-
-(def run ()
-  (let av (os.Args)
-    (if (< (len av) 3)
-        (io.print-line "usage: tally PATTERN FILE")
-        (case (os.ReadFile (av 2))
-          (result.ok src)
-            (if (>= (len src) cap-in)
-                (io.print-line "tally: file is larger than this tool accepts")
-                (io.print (tally (av 1) (os.text-of src))))
-          (result.err k) (io.print-line "tally: cannot read that file")))))
-
-(def main () (run))
+export fn main() { run() }

@@ -1,54 +1,57 @@
-; io/fs, DECLARED BY HAND, in part: what a directory walk reads (examples/os/du.oro).
-; Every claim was read off src/io/fs/fs.go in the Go 1.27 toolchain.
-;
-; THE ALGEBRA. A file system is a tree of named nodes, each with metadata:
-; - a DIRECTORY ENTRY is a node as its parent lists it: its base name, whether
-;   it is a directory, its type bits, and its metadata, read now or at the
-;   directory's read (Info may fail: the node can be gone by then);
-; - a FILE INFO is a node's metadata: base name, size, mode, modification time;
-; - a FILE MODE is a 32-bit word, a product of two parts: the type bits (the
-;   high ones: directory, symlink, device, …) and the permission bits (rwxrwxrwx,
-;   the low nine). IsRegular is "no type bit set", IsDir "the directory bit".
-;   Its algebra is the Boolean ring of 32-bit words, which the language does not
-;   have (ℤ/2ⁿ is named, not built), so the mode is held as the host's value and
-;   read only through its predicates. They are called on the value,
-;   `%s.IsRegular()`, a template that names no package and so imports none:
-;   Go refuses an import nothing uses, which a program calling only these
-;   methods would have.
-;
-; DirEntry and FileInfo are INTERFACES: their methods are checked against Go's
-; manifest (gauntlet/stdlib/tooling_test.go, ifaces). A name, like every host
-; string here, is the host's string, bytestring (ADR 0030).
-;
-; FileInfo.Size is Go's int64, "length in bytes for regular files;
-; system-dependent for others": declared as the whole word, since nothing bounds
-; it below for the others. A program reads it as a length under IsRegular, and
-; says so.
-;
-; WHAT IS NOT DECLARED, named rather than hidden: FileInfo.ModTime (time.Time,
-; a package with no file), FileInfo.Sys (any), DirEntry.Type and FileMode's other
-; methods (String, Type, Perm), the FS interfaces and their functions (ReadFile,
-; ReadDir, Stat, Sub, Glob, WalkDir, which takes a callback: tiers 1 and 2), the
-; mode constants (bit arithmetic), and the errors (ErrNotExist and its kin).
-(target go
-  (module go/io/fs
-    (type DirEntry (host "fs.DirEntry"))
-    (type FileInfo (host "fs.FileInfo"))
-    (type FileMode (host "fs.FileMode"))
+// io/fs, DECLARED BY HAND, in part: what a directory walk reads (examples/os/du.oro).
+// Every claim was read off src/io/fs/fs.go in the Go 1.27 toolchain.
+//
+// THE ALGEBRA. A file system is a tree of named nodes, each with metadata:
+// - a DIRECTORY ENTRY is a node as its parent lists it: its base name, whether
+//   it is a directory, its type bits, and its metadata, read now or at the
+//   directory's read (Info may fail: the node can be gone by then);
+// - a FILE INFO is a node's metadata: base name, size, mode, modification time;
+// - a FILE MODE is a 32-bit word, a product of two parts: the type bits (the
+//   high ones: directory, symlink, device, …) and the permission bits (rwxrwxrwx,
+//   the low nine). IsRegular is "no type bit set", IsDir "the directory bit".
+//   Its algebra is the Boolean ring of 32-bit words, which the language does not
+//   have (ℤ/2ⁿ is named, not built), so the mode is held as the host's value and
+//   read only through its predicates. They are called on the value,
+//   `%s.IsRegular()`, a template that names no package and so imports none:
+//   Go refuses an import nothing uses, which a program calling only these
+//   methods would have.
+//
+// DirEntry and FileInfo are INTERFACES: their methods are checked against Go's
+// manifest (gauntlet/stdlib/tooling_test.go, ifaces). A name, like every host
+// string here, is the host's string, bytestring (ADR 0030).
+//
+// FileInfo.Size is Go's int64, "length in bytes for regular files;
+// system-dependent for others": declared as the whole word, since nothing bounds
+// it below for the others. A program reads it as a length under IsRegular, and
+// says so.
+//
+// WHAT IS NOT DECLARED, named rather than hidden: FileInfo.ModTime (time.Time,
+// a package with no file), FileInfo.Sys (any), DirEntry.Type and FileMode's other
+// methods (String, Type, Perm), the FS interfaces and their functions (ReadFile,
+// ReadDir, Stat, Sub, Glob, WalkDir, which takes a callback: tiers 1 and 2), the
+// mode constants (bit arithmetic), and the errors (ErrNotExist and its kin).
+module go/io/fs {
+    set DirEntry = host "fs.DirEntry"
+    set FileInfo = host "fs.FileInfo"
+    set FileMode = host "fs.FileMode"
 
-    (module DirEntry
-      (use result)
-      (sig Name  ((self DirEntry)) bytestring pure (host expr "%s.Name()"))
-      (sig IsDir ((self DirEntry)) bool pure (host expr "%s.IsDir()"))
-      ; A SUM: the metadata, or the error of a node gone since the directory read.
-      (sig Info  ((self DirEntry)) (result.result FileInfo error) (host expr "%s.Info()")))
+    module DirEntry {
+        use result
+        fn Name(self ∈ DirEntry) (bytestring) pure { host expr "${self}.Name()" }
+        fn IsDir(self ∈ DirEntry) (Bool) pure { host expr "${self}.IsDir()" }
+        // A SUM: the metadata, or the error of a node gone since the directory read.
+        fn Info(self ∈ DirEntry) (result.result(FileInfo, error)) { host expr "${self}.Info()" }
+    }
 
-    (module FileInfo
-      (sig Name  ((self FileInfo)) bytestring pure (host expr "%s.Name()"))
-      (sig Size  ((self FileInfo)) int64 pure (host expr "%s.Size()"))
-      (sig Mode  ((self FileInfo)) FileMode pure (host expr "%s.Mode()"))
-      (sig IsDir ((self FileInfo)) bool pure (host expr "%s.IsDir()")))
+    module FileInfo {
+        fn Name(self ∈ FileInfo) (bytestring) pure { host expr "${self}.Name()" }
+        fn Size(self ∈ FileInfo) (int64) pure { host expr "${self}.Size()" }
+        fn Mode(self ∈ FileInfo) (FileMode) pure { host expr "${self}.Mode()" }
+        fn IsDir(self ∈ FileInfo) (Bool) pure { host expr "${self}.IsDir()" }
+    }
 
-    (module FileMode
-      (sig IsDir     ((self FileMode)) bool pure (host expr "%s.IsDir()"))
-      (sig IsRegular ((self FileMode)) bool pure (host expr "%s.IsRegular()")))))
+    module FileMode {
+        fn IsDir(self ∈ FileMode) (Bool) pure { host expr "${self}.IsDir()" }
+        fn IsRegular(self ∈ FileMode) (Bool) pure { host expr "${self}.IsRegular()" }
+    }
+}

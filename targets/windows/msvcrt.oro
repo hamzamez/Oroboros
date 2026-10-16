@@ -1,53 +1,67 @@
-; msvcrt.dll — the C runtime, which every Windows install has and which the
-; linker resolves without any of it ending up in our artifact.
-;
-;   (use windows/msvcrt)
-;   (msvcrt.puts s)   (msvcrt.printf1 "%d\n" n)
-;
-; THE INTERESTING ONE IS printf, BECAUSE IT IS VARIADIC.
-;
-; targets/go/fmt.oro records that the Go Print family is `(a ...any)`, that our
-; arity is fixed, and that `Printf` with four operands "cannot be called at
-; all". Here the same function CAN be called, at every arity we care to declare,
-; because at this level a variadic call is not a different kind of call — it is
-; a call with n arguments, and the caller cleans up. The wall on Go was the Go
-; type system, not the concept.
-;
-; What we still cannot do is call it at an arity nobody declared, so the suffix
-; is back: printf1, printf2, printf3. That is the same limitation the other
-; three targets have, arriving from the same place — no variadics in the
-; language — and it is worth being exact that these are two different failures
-; wearing the same clothes.
-;
-; A FLOAT ARGUMENT TO A VARIADIC needs care the fixed-arity case does not: the
-; Win64 convention says a double passed to `...` goes in BOTH the xmm register
-; and the matching integer register. printf1f below does that, and forgetting it
-; prints garbage rather than failing.
+// msvcrt.dll — the C runtime, which every Windows install has and which the
+// linker resolves without any of it ending up in our artifact.
+//
+//   (use windows/msvcrt)
+//   (msvcrt.puts s)   (msvcrt.printf1 "%d\n" n)
+//
+// THE INTERESTING ONE IS printf, BECAUSE IT IS VARIADIC.
+//
+// targets/go/fmt.oro records that the Go Print family is `(a ...any)`, that our
+// arity is fixed, and that `Printf` with four operands "cannot be called at
+// all". Here the same function CAN be called, at every arity we care to declare,
+// because at this level a variadic call is not a different kind of call — it is
+// a call with n arguments, and the caller cleans up. The wall on Go was the Go
+// type system, not the concept.
+//
+// What we still cannot do is call it at an arity nobody declared, so the suffix
+// is back: printf1, printf2, printf3. That is the same limitation the other
+// three targets have, arriving from the same place — no variadics in the
+// language — and it is worth being exact that these are two different failures
+// wearing the same clothes.
+//
+// A FLOAT ARGUMENT TO A VARIADIC needs care the fixed-arity case does not: the
+// Win64 convention says a double passed to `...` goes in BOTH the xmm register
+// and the matching integer register. printf1f below does that, and forgetting it
+// prints garbage rather than failing.
+module windows/msvcrt {
+    fn puts(a ∈ String) (r ∈ Int) {
+        host expr "mov rcx, ${a}\ncall puts\nmovsxd ${r}, eax" import "puts"
+    }
+    fn putchar(a ∈ Int) (r ∈ Int) {
+        host expr "mov rcx, ${a}\ncall putchar\nmovsxd ${r}, eax" import "putchar"
+    }
 
-(target windows
-  (module windows/msvcrt
-    (sig puts    (string) int (host expr "mov rcx, %1\ncall puts\nmovsxd %r, eax" (import "puts")))
-    (sig putchar (int) int    (host expr "mov rcx, %1\ncall putchar\nmovsxd %r, eax" (import "putchar")))
+    fn printf(a ∈ String) (r ∈ Int) {
+        host expr "mov rcx, ${a}\ncall printf\nmovsxd ${r}, eax" import "printf"
+    }
+    fn printf1(a ∈ String, b ∈ Int) (r ∈ Int) {
+        host expr "mov rcx, ${a}\nmov rdx, ${b}\ncall printf\nmovsxd ${r}, eax" import "printf"
+    }
+    fn printf2(a ∈ String, b ∈ Int, c ∈ Int) (r ∈ Int) {
+        host expr "mov rcx, ${a}\nmov rdx, ${b}\nmov r8, ${c}\ncall printf\nmovsxd ${r}, eax" import "printf"
+    }
+    fn printf3(a ∈ String, b ∈ Int, c ∈ Int, d ∈ Int) (r ∈ Int) {
+        host expr "mov rcx, ${a}\nmov rdx, ${b}\nmov r8, ${c}\nmov r9, ${d}\ncall printf\nmovsxd ${r}, eax" import "printf"
+    }
+    // The double goes in xmm1 AND rdx. Both. That is the convention.
+    fn printf1f(a ∈ String, b ∈ F64) (r ∈ Int) {
+        host expr "mov rcx, ${a}\nmovsd xmm1, ${b}\nmovq rdx, xmm1\ncall printf\nmovsxd ${r}, eax" import "printf"
+    }
 
-    (sig printf  (string) int (host expr
-        "mov rcx, %1\ncall printf\nmovsxd %r, eax" (import "printf")))
-    (sig printf1 (string int) int (host expr
-        "mov rcx, %1\nmov rdx, %2\ncall printf\nmovsxd %r, eax" (import "printf")))
-    (sig printf2 (string int int) int (host expr
-        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall printf\nmovsxd %r, eax" (import "printf")))
-    (sig printf3 (string int int int) int (host expr
-        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nmov r9, %4\ncall printf\nmovsxd %r, eax"
-        (import "printf")))
-    ; The double goes in xmm1 AND rdx. Both. That is the convention.
-    (sig printf1f (string f64) int (host expr
-        "mov rcx, %1\nmovsd xmm1, %2\nmovq rdx, xmm1\ncall printf\nmovsxd %r, eax" (import "printf")))
-
-    (sig malloc (int) ptr    (host expr "mov rcx, %1\ncall malloc\nmov %r, rax" (import "malloc")))
-    (sig free   (ptr) ptr    (host stmt "mov rcx, %1\ncall free" (import "free")))
-    (sig memset (ptr int int) ptr (host stmt
-        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall memset" (import "memset")))
-    (sig atoi   (string) int  (host expr "mov rcx, %1\ncall atoi\nmovsxd %r, eax" (import "atoi")))
-    (sig atof   (string) f64  (host expr "mov rcx, %1\ncall atof\nmovsd %r, xmm0" (import "atof")))
-    (sig rand   () int    (host expr "call rand\nmovsxd %r, eax" (import "rand")))
-    (sig srand  (int) int     (host stmt "mov rcx, %1\ncall srand" (import "srand")))
-    (sig clock  () int    (host expr "call clock\nmovsxd %r, eax" (import "clock")))))
+    fn malloc(a ∈ Int) (r ∈ ptr) {
+        host expr "mov rcx, ${a}\ncall malloc\nmov ${r}, rax" import "malloc"
+    }
+    fn free(a ∈ ptr) (ptr) { host stmt "mov rcx, ${a}\ncall free" import "free" }
+    fn memset(a ∈ ptr, b ∈ Int, c ∈ Int) (ptr) {
+        host stmt "mov rcx, ${a}\nmov rdx, ${b}\nmov r8, ${c}\ncall memset" import "memset"
+    }
+    fn atoi(a ∈ String) (r ∈ Int) {
+        host expr "mov rcx, ${a}\ncall atoi\nmovsxd ${r}, eax" import "atoi"
+    }
+    fn atof(a ∈ String) (r ∈ F64) {
+        host expr "mov rcx, ${a}\ncall atof\nmovsd ${r}, xmm0" import "atof"
+    }
+    fn rand() (r ∈ Int) { host expr "call rand\nmovsxd ${r}, eax" import "rand" }
+    fn srand(a ∈ Int) (Int) { host stmt "mov rcx, ${a}\ncall srand" import "srand" }
+    fn clock() (r ∈ Int) { host expr "call clock\nmovsxd ${r}, eax" import "clock" }
+}

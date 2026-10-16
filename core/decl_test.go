@@ -1,8 +1,6 @@
 package core
 
 import (
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -115,41 +113,6 @@ func TestAClaimIsWrittenWhereItStood(t *testing.T) {
 	}
 	if strings.Join(kinds, " ") != "def export sig" {
 		t.Errorf("forms in the order %v", kinds)
-	}
-}
-
-// THEOREM D3 FOR DECLARATIONS (abstract.md §6.1): for every program in the
-// corpus, the forms D gives back from the trees are the forms today's reader
-// made of each image, field for field.
-func TestDeclarationTreesGiveTodaysForms(t *testing.T) {
-	n := 0
-	for _, dir := range []string{"../examples", "../lib", "../gauntlet"} {
-		filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() || !strings.HasSuffix(p, ".oro") {
-				return nil
-			}
-			src, _ := os.ReadFile(p)
-			r, decls, read, err := readModule(string(src))
-			if err != nil {
-				return nil // refused, before any tree: the snippet and corpus dumps pin those
-			}
-			got, err := r.d.forms(carryClaims(decls))
-			if err != nil {
-				t.Errorf("%s: %v", p, err)
-				return nil
-			}
-			if len(read) == 0 {
-				read = nil
-			}
-			if !reflect.DeepEqual(formsText(got), formsText(read)) {
-				t.Errorf("%s: the trees give\n%v\nand today's reader made\n%v", p, formsText(got), formsText(read))
-			}
-			n++
-			return nil
-		})
-	}
-	if n < 100 {
-		t.Fatalf("only %d programs read: the walk found too little to test", n)
 	}
 }
 

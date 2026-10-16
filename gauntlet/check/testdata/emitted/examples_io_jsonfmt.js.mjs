@@ -214,12 +214,12 @@ export function genMain() {
 				continue;
 			}
 			if ((v10[v387] === 44)) {
+				const v555 = (v386 + 1);
 				v385[v386] = 44;
-				const v557 = (v386 + 1);
-				v385[v557] = 10;
+				v385[v555] = 10;
 				let v564 = v385;
 				let v565 = 0;
-				let v566 = (v557 + 1);
+				let v566 = (v555 + 1);
 				for (;; v565 = (v565 + 1), v566 = (v566 + 1)) {
 					if ((v565 >= (2 * v388))) {
 						break;

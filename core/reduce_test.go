@@ -657,10 +657,7 @@ func TestLoadAcrossFiles(t *testing.T) {
 			           (fn (acc i) (add acc (mul (aindex a i) (aindex b i)))))))
 		`,
 	}
-	resolve := func(path string) (string, bool, error) {
-		src, ok := lib[path]
-		return src, ok, nil
-	}
+	resolve := snippetResolver(lib)
 
 	src, prims := splitPrims(`
 		(target go (prim add mul alen aindex fold-range))
@@ -704,7 +701,7 @@ func TestLoadAcrossFiles(t *testing.T) {
 // A module a program uses but no file provides is not an error — it is one the
 // target supplies, like go/strings.
 func TestUnresolvedModuleIsNotAnError(t *testing.T) {
-	none := func(string) (string, bool, error) { return "", false, nil }
+	none := snippetResolver(nil)
 	forms, err := Read(`(use go/strings) (strings.fields t)`)
 	if err != nil {
 		t.Fatalf("read: %v", err)

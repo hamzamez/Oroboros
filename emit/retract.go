@@ -39,6 +39,7 @@ import (
 	"strings"
 
 	"oroboros/core"
+	"oroboros/j"
 )
 
 // needsRetraction reports whether a declared result is a variant, an option, or
@@ -488,11 +489,12 @@ func (tg *Target) variantShape(head string, args []*core.Term, mod string) (*sha
 // readVariant finds variant name in the library module at path.
 func (tg *Target) readVariant(path, name string) (*core.Sum, error) {
 	for _, d := range tg.LibDirs {
-		b, err := os.ReadFile(filepath.Join(d, filepath.FromSlash(path)+".oro"))
+		file := filepath.Join(d, filepath.FromSlash(path)+".oro")
+		b, err := os.ReadFile(file)
 		if err != nil {
 			continue
 		}
-		forms, err := core.Read(string(b))
+		forms, err := j.ReadModule(string(b), file, path)
 		if err != nil {
 			return nil, err
 		}

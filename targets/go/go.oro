@@ -1,117 +1,113 @@
-; The Go target. NO PORTABILITY CLAIM.
-;
-; Every name here is Go's own name with Go's own semantics. `go.+` is Go's `+`,
-; on Go's types, with Go's overflow. `go./` on integers truncates toward zero
-; and panics on zero, because that is what Go does. Nothing is renamed to make
-; three hosts agree, because nothing here claims they do.
-;
-; This file is the target's HEADER: types and the
-; toolchain. The rest of the surface is one file per Go package, merged by
-; LoadTarget — targets are directories (docs/spec/target-files.md).
-;
-; The portable layer it replaced, targets/portable-go.oro, was deleted in
-; portable-2026-09-29. See docs/spec/target-native.md §5 for what it cost.
+// The Go target. NO PORTABILITY CLAIM.
+//
+// Every name here is Go's own name with Go's own semantics. `go.+` is Go's `+`,
+// on Go's types, with Go's overflow. `go./` on integers truncates toward zero
+// and panics on zero, because that is what Go does. Nothing is renamed to make
+// three hosts agree, because nothing here claims they do.
+//
+// This file is the target's HEADER: types and the
+// toolchain. The rest of the surface is one file per Go package, merged by
+// LoadTarget — targets are directories (docs/spec/target-files.md).
+//
+// The portable layer it replaced, targets/portable-go.oro, was deleted in
+// portable-2026-09-29. See docs/spec/target-native.md §5 for what it cost.
+// WHAT THIS TARGET CAN STORE AN INTEGER IN, narrowest first (ADR 0003).
+// A range type selects the first one that CONTAINS it, and a table is the only
+// place the width is consulted -- a value read out of a byte array is an
+// integer everywhere it is used.
+repr 0..255 host "byte"
+repr -128..127 host "int8"
+repr 0..65535 host "uint16"
+repr -32768..32767 host "int16"
+repr 0..2^32-1 host "uint32"
+repr -2^31..2^31-1 host "int32"
+// THE WORD: what the host type realizing `int` holds, and where native
+// arithmetic is exact (ADR 0026). Go's `int` is 64 bits on every 64-bit
+// GOARCH, which is the platform this target models; a 32-bit GOARCH is a
+// different model with a different word, and adding it would move no program
+// on this one.
+repr -2^63..2^63-1 word
+// AND U = [0, 2^64−1], natively, in a `uint64` (ADR 0026 (10)): a value
+// proven there is a machine word here, and its operations are in u64.oro.
+repr 0..2^64-1 word
+set u64 = host "uint64"
 
-(target go
-  ; WHAT THIS TARGET CAN STORE AN INTEGER IN, narrowest first (ADR 0003).
-  ; A range type selects the first one that CONTAINS it, and a table is the only
-  ; place the width is consulted -- a value read out of a byte array is an
-  ; integer everywhere it is used.
-  (repr (int 0 255) (host "byte"))
-  (repr (int -128 127) (host "int8"))
-  (repr (int 0 65535) (host "uint16"))
-  (repr (int -32768 32767) (host "int16"))
-  (repr (int 0 4294967295) (host "uint32"))
-  (repr (int -2147483648 2147483647) (host "int32"))
-  ; THE WORD: what the host type realizing `int` holds, and where native
-  ; arithmetic is exact (ADR 0026). Go's `int` is 64 bits on every 64-bit
-  ; GOARCH, which is the platform this target models; a 32-bit GOARCH is a
-  ; different model with a different word, and adding it would move no program
-  ; on this one.
-  (repr (int -9223372036854775808 9223372036854775807) word)
-  ; AND U = [0, 2^64−1], natively, in a `uint64` (ADR 0026 (10)): a value
-  ; proven there is a machine word here, and its operations are in u64.oro.
-  (repr (int 0 18446744073709551615) word)
-  (type u64 (host "uint64"))
+// How this target spells a table and a map: ONE declaration each, a type
+// constructor, where there used to be an entry per element type (tables.md
+// §10). `(array f64)` is Go's []float64, and every table a program holds is
+// one of these.
+set Array(A) = host "[]${A}"
+set Map(K, V) = host "map[${K}]${V}"
+// A cell a host writes is its address (spec/local.md §5): Go's pointer.
+set cell(A) = host "*${A}"
 
-  ; How this target spells a table and a map: ONE declaration each, a type
-  ; constructor, where there used to be an entry per element type (tables.md
-  ; §10). `(array f64)` is Go's []float64, and every table a program holds is
-  ; one of these.
-  (type (array A) (host "[]%s"))
-  (type (map K V) (host "map[%s]%s"))
-  ; A cell a host writes is its address (spec/local.md §5): Go's pointer.
-  (type (cell A) (host "*%s"))
+set Int = host "int"
+set F64 = host "float64"
+set String = host "string"
+// The HOST'S string, `go.bytestring`, is owned by module `go` (builtin.oro):
+// this realization is OURS, Σ* stored as UTF-8 (ADR 0030).
+// Ours is a subset of the host's, and the one edge between them points that
+// way; the way back is the decode `go.text`, never a coercion.
+axiom String ⊆ go.bytestring
+set Bool = host "bool"
+set byte = host "byte"
+set rune = host "rune"
+set error = host "error"
+// GO'S error IS 1 + E: nil, the absent point, lives in the type's own values.
+// That is a NICHE, declared once for the type (spec/errors.md §4.1), and every
+// fallible declaration reads its failure through it: a result declared
+// (result.result T error) is Go's (T, error) composed with the retraction
+// r(t, nil) = ok t, r(t, e) = err e (emit/retract.go).
+repr error niche host expr "%s == nil"
+set Any = host "any"
+// GO'S `any` IS A TYPE; OURS IS NOT. The line above spells the language's
+// `any`, which is no type but the absence of a claim (target-files.md §2):
+// `(a any)` is filled in at each call by the argument's own type, and Go boxes
+// it at its own call. Go's `any` is the EMPTY INTERFACE, ∃X. X, a box holding
+// a value and its type, and a value of it is ONE type, so a table of them is
+// an ordinary table: `[]any{42, "x"}`. It is `Value` here. An interface with
+// no methods is satisfied by every type, vacuously, so every type held as
+// one host value stands where it is wanted, and Go inserts the box
+// (spec/types.md §3.3). `fmt`'s ...any is a table of them, spread (fmt.oro).
+// The type is owned by module `go` (builtin.oro), as `go.bytestring` is.
+axiom Any ⊆ go.Value
 
-  (type int      (host "int"))
-  (type f64  (host "float64"))
-  (type string   (host "string"))
-  ; The HOST'S string, `go.bytestring`, is owned by module `go` (builtin.oro):
-  ; this realization is OURS, Σ* stored as UTF-8 (ADR 0030).
-  ; Ours is a subset of the host's, and the one edge between them points that
-  ; way; the way back is the decode `go.text`, never a coercion.
-  (implements string go.bytestring)
-  (type bool     (host "bool"))
-  (type byte     (host "byte"))
-  (type rune     (host "rune"))
-  (type error    (host "error"))
-  ; GO'S error IS 1 + E: nil, the absent point, lives in the type's own values.
-  ; That is a NICHE, declared once for the type (spec/errors.md §4.1), and every
-  ; fallible declaration reads its failure through it: a result declared
-  ; (result.result T error) is Go's (T, error) composed with the retraction
-  ; r(t, nil) = ok t, r(t, e) = err e (emit/retract.go).
-  (repr error (niche (host expr "%s == nil")))
-  (type any      (host "any"))
-  ; GO'S `any` IS A TYPE; OURS IS NOT. The line above spells the language's
-  ; `any`, which is no type but the absence of a claim (target-files.md §2):
-  ; `(a any)` is filled in at each call by the argument's own type, and Go boxes
-  ; it at its own call. Go's `any` is the EMPTY INTERFACE, ∃X. X, a box holding
-  ; a value and its type, and a value of it is ONE type, so a table of them is
-  ; an ordinary table: `[]any{42, "x"}`. It is `Value` here. An interface with
-  ; no methods is satisfied by every type, vacuously, so every type held as
-  ; one host value stands where it is wanted, and Go inserts the box
-  ; (spec/types.md §3.3). `fmt`'s ...any is a table of them, spread (fmt.oro).
-  ; The type is owned by module `go` (builtin.oro), as `go.bytestring` is.
-  (implements any go.Value)
+// ═══ GO'S INTEGER TYPES ARE RANGES — ADR 0003, said in the type language
+//
+// MANIFEST types: a definiens and no realization (theories.md §2 at the type
+// level), so `int32` MEANS the interval and δ erases the name before anything
+// downstream sees it. `int64` is the word itself (ADR 0026), so a host
+// `int64` is a machine word here and never arbitrary precision; Go's plain
+// `int` is the `(type int …)` above, which realizes the language's `int` in
+// that same word. A template passes an `int64` argument as `int64(%s)` and
+// receives an `int64` result as `int(…)`, exactly as it does for `int32`.
+set int8 = -128..127
+set int16 = -32768..32767
+set int32 = -2^31..2^31-1
+set int64 = -2^63..2^63-1
+set uint8 = 0..255
+set uint16 = 0..65535
+set uint32 = 0..2^32-1
+// U itself, which this target realizes natively as `uint64` (ADR 0026 (10)).
+set uint64 = 0..2^64-1
 
-  ; ═══ GO'S INTEGER TYPES ARE RANGES — ADR 0003, said in the type language
-  ;
-  ; MANIFEST types: a definiens and no realization (theories.md §2 at the type
-  ; level), so `int32` MEANS the interval and δ erases the name before anything
-  ; downstream sees it. `int64` is the word itself (ADR 0026), so a host
-  ; `int64` is a machine word here and never arbitrary precision; Go's plain
-  ; `int` is the `(type int …)` above, which realizes the language's `int` in
-  ; that same word. A template passes an `int64` argument as `int64(%s)` and
-  ; receives an `int64` result as `int(…)`, exactly as it does for `int32`.
-  (type int8   (int -128 127))
-  (type int16  (int -32768 32767))
-  (type int32  (int -2147483648 2147483647))
-  (type int64  (int -9223372036854775808 9223372036854775807))
-  (type uint8  (int 0 255))
-  (type uint16 (int 0 65535))
-  (type uint32 (int 0 4294967295))
-  ; U itself, which this target realizes natively as `uint64` (ADR 0026 (10)).
-  (type uint64 (int 0 18446744073709551615))
+// A GO map[string]int, which the language's map cannot be: its keys are
+// integers (maps.md), and these are Go's strings. The host type builtin.oro's
+// map operations take. The per-element-type slice names that stood here
+// (slice-int … slice-any) were removed in gotarget-2026-09-30: `(array V)`
+// above is every one of them.
+set map_string_int = host "map[string]int"
 
-  ; A GO map[string]int, which the language's map cannot be: its keys are
-  ; integers (maps.md), and these are Go's strings. The host type builtin.oro's
-  ; map operations take. The per-element-type slice names that stood here
-  ; (slice-int … slice-any) were removed in gotarget-2026-09-30: `(array V)`
-  ; above is every one of them.
-  (type map-string-int    (host "map[string]int"))
+// Restricting a container to a known length, so Go's own bounds-check
+// elimination has a proof (bce-2026-08-15.md).
+repr narrow host "%s := %s[:%s]"
 
-  ; Restricting a container to a known length, so Go's own bounds-check
-  ; elimination has a proof (bce-2026-08-15.md).
-  (repr narrow (host "%s := %s[:%s]"))
-
-  (build "go build -o %s %s")
-
-  ; THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
-  ; injected into every target; declaring one is an error. The backend implements
-  ; them, which is where an implementation belongs — a construct promoted to the
-  ; language works on every target and the compiler finds the form.
-  ;
-  ; `fold-range` and `fold-range2` are absent because `loop` subsumes both
-  ; (ADR 0015), and the language's tables — `(array V)`, application, `len`,
-  ; `build`, `set` — are injected like the rest (tables.md).
-)
+build "go build -o %s %s"
+// THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
+// injected into every target; declaring one is an error. The backend implements
+// them, which is where an implementation belongs — a construct promoted to the
+// language works on every target and the compiler finds the form.
+//
+// `fold-range` and `fold-range2` are absent because `loop` subsumes both
+// (ADR 0015), and the language's tables — `(array V)`, application, `len`,
+// `build`, `set` — are injected like the rest (tables.md).

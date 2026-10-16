@@ -1,106 +1,111 @@
-; ARBITRARY PRECISION ON JAVASCRIPT, WHICH IS `BigInt` IN THE LANGUAGE ITSELF.
-;
-; ADR 0019's third escape lands here: a range declared above the portable window
-; promotes that value to arbitrary precision, and on this host the host already
-; has it. See targets/go/bigint.oro for the shared argument.
-;
-; THIS IS THE HOST WHERE THE OPERATORS SURVIVE. `+`, `-`, `*`, `<` all work on
-; `BigInt` directly, so the templates are the ordinary ones -- but they are a
-; SEPARATE declaration rather than a reuse of `js.+`, because mixing a Number
-; and a BigInt with `+` is a TypeError at run time. The compiler is what keeps
-; them apart, and it can only do that if the two are two names.
-;
-; `/` TRUNCATES TOWARD ZERO on BigInt, which is not what `/` does on Number --
-; there it is float division, and targets/js/builtin.oro has to declare
-; `Math.trunc(a / b)` to get the language's meaning. So the divergence
-; integers.md found at the word level does not exist at this one: BigInt is the
-; better-behaved of V8's two integer stories.
-;
-; AND NEGATIVE ZERO DOES NOT EXIST HERE, which is the other word-level hazard
-; gone: `-0n` is `0n`, so the `+ 0` normalisation `js./` and `js.%` need has
-; nothing to do. Two hazards this file does not inherit, both worth stating
-; because both cost a differential case at the word level.
-;
-; A KNOWN COST: bigarith-2026-08-28 measured V8's `BigInt` losing to a bitwise
-; limb form up to about 100 limbs and winning above it, because `BigInt` is C++
-; with real 64-bit limbs and JS has no 64x64->128 multiply at all. So this is
-; the RIGHT choice for large values and the wrong one for the small ones
-; precision integers actually reach -- and that is a THRESHOLD, which is a thing
-; a target declares. Not declared yet: the fixed-limb rung is not built.
+// ARBITRARY PRECISION ON JAVASCRIPT, WHICH IS `BigInt` IN THE LANGUAGE ITSELF.
+//
+// ADR 0019's third escape lands here: a range declared above the portable window
+// promotes that value to arbitrary precision, and on this host the host already
+// has it. See targets/go/bigint.oro for the shared argument.
+//
+// THIS IS THE HOST WHERE THE OPERATORS SURVIVE. `+`, `-`, `*`, `<` all work on
+// `BigInt` directly, so the templates are the ordinary ones -- but they are a
+// SEPARATE declaration rather than a reuse of `js.+`, because mixing a Number
+// and a BigInt with `+` is a TypeError at run time. The compiler is what keeps
+// them apart, and it can only do that if the two are two names.
+//
+// `/` TRUNCATES TOWARD ZERO on BigInt, which is not what `/` does on Number --
+// there it is float division, and targets/js/builtin.oro has to declare
+// `Math.trunc(a / b)` to get the language's meaning. So the divergence
+// integers.md found at the word level does not exist at this one: BigInt is the
+// better-behaved of V8's two integer stories.
+//
+// AND NEGATIVE ZERO DOES NOT EXIST HERE, which is the other word-level hazard
+// gone: `-0n` is `0n`, so the `+ 0` normalisation `js./` and `js.%` need has
+// nothing to do. Two hazards this file does not inherit, both worth stating
+// because both cost a differential case at the word level.
+//
+// A KNOWN COST: bigarith-2026-08-28 measured V8's `BigInt` losing to a bitwise
+// limb form up to about 100 limbs and winning above it, because `BigInt` is C++
+// with real 64-bit limbs and JS has no 64x64->128 multiply at all. So this is
+// the RIGHT choice for large values and the wrong one for the small ones
+// precision integers actually reach -- and that is a THRESHOLD, which is a thing
+// a target declares. Not declared yet: the fixed-limb rung is not built.
+// ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
+//
+// A range is SEMANTICS -- `(int 0 (pow 2 1300))` says the value is a
+// mathematical integer in that interval, which is true on every target and is
+// what a programmer is taught. How it is STORED is this file's business,
+// exactly as `int-repr` decides one rung down that 0..255 is a `[]byte` on Go
+// and a `short[]` on the JVM.
+//
+// `BigInt`, and this is where the SHAPE of a declaration was costing the most:
+// 200! is 530,870 ns in limbs against 6,886 through `BigInt`, a factor of 77
+// for the same computation. `BigInt` is C++ with real 64-bit limbs, and V8 has
+// no 64x64 multiply to offer a library written in this language -- ours are
+// 24-bit with `/` for the carry, because ADR 0012 forces 2W < 53 and bitwise
+// operators are Tier 2. This host is unlikely ever to prefer ours.
+repr big host
 
-(target js
-  ; ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
-  ;
-  ; A range is SEMANTICS -- `(int 0 (pow 2 1300))` says the value is a
-  ; mathematical integer in that interval, which is true on every target and is
-  ; what a programmer is taught. How it is STORED is this file's business,
-  ; exactly as `int-repr` decides one rung down that 0..255 is a `[]byte` on Go
-  ; and a `short[]` on the JVM.
-  ;
-  ; `BigInt`, and this is where the SHAPE of a declaration was costing the most:
-  ; 200! is 530,870 ns in limbs against 6,886 through `BigInt`, a factor of 77
-  ; for the same computation. `BigInt` is C++ with real 64-bit limbs, and V8 has
-  ; no 64x64 multiply to offer a library written in this language -- ours are
-  ; 24-bit with `/` for the carry, because ADR 0012 forces 2W < 53 and bitwise
-  ; operators are Tier 2. This host is unlikely ever to prefer ours.
-  (repr big host)
+// JavaScript has one number type and this is the second one. It is written for
+// the checker only; the emitter writes no types on this host.
+set big = host "bigint"
 
-  ; JavaScript has one number type and this is the second one. It is written for
-  ; the checker only; the emitter writes no types on this host.
-  (type big (host "bigint"))
+module js {
+    fn `big+`(a ∈ big, b ∈ big) (big) pure { host expr "(${a} + ${b})" }
+    fn big_(a ∈ big, b ∈ big) (big) pure { host expr "(${a} - ${b})" }
+    fn `big*`(a ∈ big, b ∈ big) (big) pure { host expr "(${a} * ${b})" }
+    fn `big/`(a ∈ big, b ∈ big) (big) pure { host expr "(${a} / ${b})" }
+    fn `big%`(a ∈ big, b ∈ big) (big) pure { host expr "(${a} % ${b})" }
 
-  (module js
-    (sig big+ (big big) big pure (host expr "(%s + %s)"))
-    (sig big- (big big) big pure (host expr "(%s - %s)"))
-    (sig big* (big big) big pure (host expr "(%s * %s)"))
-    (sig big/ ((a big) (b big)) big pure (host expr "(%s / %s)"))
-    (sig big% ((a big) (b big)) big pure (host expr "(%s %% %s)"))
+    fn `big<`(a ∈ big, b ∈ big) (Bool) pure { host expr "(${a} < ${b})" }
+    fn `big<=`(a ∈ big, b ∈ big) (Bool) pure { host expr "(${a} <= ${b})" }
+    fn `big>`(a ∈ big, b ∈ big) (Bool) pure { host expr "(${a} > ${b})" }
+    fn `big>=`(a ∈ big, b ∈ big) (Bool) pure { host expr "(${a} >= ${b})" }
+    // `===` and not `==`: `1n == 1` is TRUE and `1n === 1` is false. Equality
+    // across the two representations is exactly the confusion this file exists
+    // to prevent, so the strict form is the only correct one.
+    fn `big=`(a ∈ big, b ∈ big) (Bool) pure { host expr "(${a} === ${b})" }
 
-    (sig big<  (big big) bool   pure (host expr "(%s < %s)"))
-    (sig big<= (big big) bool  pure (host expr "(%s <= %s)"))
-    (sig big>  (big big) bool   pure (host expr "(%s > %s)"))
-    (sig big>= (big big) bool  pure (host expr "(%s >= %s)"))
-    ; `===` and not `==`: `1n == 1` is TRUE and `1n === 1` is false. Equality
-    ; across the two representations is exactly the confusion this file exists
-    ; to prevent, so the strict form is the only correct one.
-    (sig big=  (big big) bool pure (host expr "(%s === %s)"))
+    fn big_of(a ∈ Int) (big) pure { host expr "BigInt(${a})" }
+    // NOT `%s.toString()`: `String(x)` gives "123" where a template literal or a
+    // bare console.log of a BigInt gives "123n". The suffix is a real)
+    // divergence from the other two hosts and this is where it is removed.
+    fn big_str(a ∈ big) (String) pure { host expr "String(${a})" }
+    // THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
+    // 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
+    // window whatever a's magnitude -- a fact about the arithmetic, not about
+    // this host, so every representation has to agree with it.
+    //
+    // Without it the fixed-limb rung and this one disagreed about which programs
+    // type-check: a signature declaring an `int` result over `(% a 100000000)`
+    // was accepted there and refused here, so SELECTING a representation would
+    // change which programs are legal (ADR 0009 at the representation boundary).
+    //
+    // It is also what decimal rendering is made of: printing needs each digit
+    // group as a word.
+    fn `big%-small`(a ∈ big, k ∈ Int) (Int) pure { host expr "Number(${a} % BigInt(${k}))" }
 
-    (sig big-of (int) big pure (host expr "BigInt(%s)"))
-    ; NOT `%s.toString()`: `String(x)` gives "123" where a template literal or a
-    ; bare console.log of a BigInt gives "123n". The suffix is a real)
-    ; divergence from the other two hosts and this is where it is removed.
-    (sig big-str (big) string pure (host expr "String(%s)"))
-    ; THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
-    ; 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
-    ; window whatever a's magnitude -- a fact about the arithmetic, not about
-    ; this host, so every representation has to agree with it.
-    ;
-    ; Without it the fixed-limb rung and this one disagreed about which programs
-    ; type-check: a signature declaring an `int` result over `(% a 100000000)`
-    ; was accepted there and refused here, so SELECTING a representation would
-    ; change which programs are legal (ADR 0009 at the representation boundary).
-    ;
-    ; It is also what decimal rendering is made of: printing needs each digit
-    ; group as a word.
-    (sig big%-small ((a big) (k int)) int pure (host expr "Number(%s %% BigInt(%s))"))
-
-    ; THE DECLARED BOUND, ENFORCED -- see targets/go/bigint.oro for why the two
-    ; representations must agree about it.
-    ;
-    ; A SHIFT rather than a comparison against 2^k, because building that value
-    ; would allocate a `BigInt` per call. `BigInt(oroK)` still converts a small
-    ; number per call, and emitting the count as a `BigInt` LITERAL instead is
-    ; measured at 1.14x here (8,427 ns against 9,565 on 200!) -- available, and
-    ; not taken, because it would mean putting the bound FIRST in the
-    ; primitive's arguments on all three hosts to get it into the template body.
-    ; The check itself costs 1.32x over no check on this host.
-    ;
-    ; THE SIGN IS PART OF THE SET (ADR 0029). `big-fit` is [0, 2^k), and the
-    ; shift already says so: it floors, so a negative value shifts to -1n, never
-    ; 0n. `big-fit-signed` is (-2^k, 2^k), the same shift on the magnitude; the
-    ; negation allocates only for a negative value.
-    (sig big-fit ((x big) (k int)) big (host expr "(function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(%s, %s)"))
-    (sig big-fit-signed ((x big) (k int)) big (host expr "(function(oroZ, oroK){ if (((oroZ < 0n ? -oroZ : oroZ) >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(%s, %s)"))
-    ; The fixed-limb rung's carry check -- see targets/go/bigint.oro for why a
-    ; declared width has to fail loudly rather than truncate.
-    (sig trap-if (int) int (host expr "(function(oroC){ if (oroC !== 0) throw new Error(\"bignum overflow: the declared range is too small\"); return 0; })(%s)"))))
+    // THE DECLARED BOUND, ENFORCED -- see targets/go/bigint.oro for why the two
+    // representations must agree about it.
+    //
+    // A SHIFT rather than a comparison against 2^k, because building that value
+    // would allocate a `BigInt` per call. `BigInt(oroK)` still converts a small
+    // number per call, and emitting the count as a `BigInt` LITERAL instead is
+    // measured at 1.14x here (8,427 ns against 9,565 on 200!) -- available, and
+    // not taken, because it would mean putting the bound FIRST in the
+    // primitive's arguments on all three hosts to get it into the template body.
+    // The check itself costs 1.32x over no check on this host.
+    //
+    // THE SIGN IS PART OF THE SET (ADR 0029). `big-fit` is [0, 2^k), and the
+    // shift already says so: it floors, so a negative value shifts to -1n, never
+    // 0n. `big-fit-signed` is (-2^k, 2^k), the same shift on the magnitude; the
+    // negation allocates only for a negative value.
+    fn big_fit(x ∈ big, k ∈ Int) (big) {
+        host expr "(function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(${x}, ${k})"
+    }
+    fn big_fit_signed(x ∈ big, k ∈ Int) (big) {
+        host expr "(function(oroZ, oroK){ if (((oroZ < 0n ? -oroZ : oroZ) >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(${x}, ${k})"
+    }
+    // The fixed-limb rung's carry check -- see targets/go/bigint.oro for why a
+    // declared width has to fail loudly rather than truncate.
+    fn trap_if(a ∈ Int) (Int) {
+        host expr "(function(oroC){ if (oroC !== 0) throw new Error(\"bignum overflow: the declared range is too small\"); return 0; })(${a})"
+    }
+}

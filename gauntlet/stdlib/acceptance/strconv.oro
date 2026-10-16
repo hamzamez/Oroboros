@@ -1,128 +1,157 @@
-; ACCEPTANCE: strconv, THE WHOLE PACKAGE, declared BY HAND (targets/go/strconv.oro),
-; every integer the program COMPUTED rather than wrote.
-;
-; Each section is a LAW of the package's algebra (strconv-2026-09-22 §1), and the
-; host is the oracle: the expected output is strconvReference in tooling_test.go,
-; hand-written Go calling the real package in the same order.
-;
-;   word        P_b ∘ F_b = id on the signed word, at both of its ends and in four bases
-;   unsigned    the same over U, past 2^63 — and the parsed value COMPUTED WITH,
-;               natively, which is what ADR 0026 was for
-;   saturate    past the word P_b returns the nearest bound and ErrRange; it never wraps
-;   decimal     Atoi ∘ Itoa = id, and a bad digit is a syntax error
-;   quote       Unquote ∘ Quote = id; one step of it is UnquoteChar
-;   bool, float the two small bijections, and the shortest float that round-trips
-;   append      the consume-and-return forms, threaded through one buffer
-;   error       NumError's method set, on an error the host produced
+// ACCEPTANCE: strconv, THE WHOLE PACKAGE, declared BY HAND (targets/go/strconv.oro),
+// every integer the program COMPUTED rather than wrote.
+//
+// Each section is a LAW of the package's algebra (strconv-2026-09-22 §1), and the
+// host is the oracle: the expected output is strconvReference in tooling_test.go,
+// hand-written Go calling the real package in the same order.
+//
+//   word        P_b ∘ F_b = id on the signed word, at both of its ends and in four bases
+//   unsigned    the same over U, past 2^63 — and the parsed value COMPUTED WITH,
+//               natively, which is what ADR 0026 was for
+//   saturate    past the word P_b returns the nearest bound and ErrRange; it never wraps
+//   decimal     Atoi ∘ Itoa = id, and a bad digit is a syntax error
+//   quote       Unquote ∘ Quote = id; one step of it is UnquoteChar
+//   bool, float the two small bijections, and the shortest float that round-trips
+//   append      the consume-and-return forms, threaded through one buffer
+//   error       NumError's method set, on an error the host produced
+use go
+use go/strconv as sc
+use go/strconv/NumError as ne
+use go/fmt
+use go/os as gos
+use result
 
-(use go)
-(use go/strconv as sc)
-(use go/strconv/NumError as ne)
-(use go/fmt as fmt)
-(use go/os as gos)
-(use result)
+// THE ERROR MODEL (spec/errors.md §4, oskinds-2026-10-06). ParseInt, ParseUint,
+// Atoi and ParseFloat are PARTIAL SUCCESSES: Go documents the value that comes
+// with the error (0, or saturated at the word, or ±Inf), so the error is the
+// relevant 1 + E beside it (spec/errors.md §4.3). ParseBool, Unquote and
+// UnquoteChar are SUMS: a value only without an error. `ok?` and `print-err`
+// read the 1 + E as Go prints an error: a nil one is `<nil>`.
+fn ok?(r) { case r { result.'ok(u) -> true; result.'err(e) -> false } }
+fn print_err(r) {
+    case r { result.'ok(u) -> { fmt.Println("<nil>"); 0 }; result.'err(e) -> { fmt.Println(e); 0 } }
+}
 
-(export main)
+// The ends of the signed word, computed: 2^63 − 1 − i and −2^63 + i.
+fn top(i) { (2^63-1) - i }
+fn bottom(i) { -9223372036854775807 - 1 + i }
 
-; THE ERROR MODEL (spec/errors.md §4, oskinds-2026-10-06). ParseInt, ParseUint,
-; Atoi and ParseFloat are PARTIAL SUCCESSES: Go documents the value that comes
-; with the error (0, or saturated at the word, or ±Inf), so the error is the
-; relevant 1 + E beside it (spec/errors.md §4.3). ParseBool, Unquote and
-; UnquoteChar are SUMS: a value only without an error. `ok?` and `print-err`
-; read the 1 + E as Go prints an error: a nil one is `<nil>`.
-(def ok? (r) (case r (result.ok u) true (result.err e) false))
-(def print-err (r) (case r (result.ok u) (seq (fmt.Println "<nil>") 0) (result.err e) (seq (fmt.Println e) 0)))
+fn roundtrip(x, b) {
+    (y, e) = sc.ParseInt(sc.FormatInt(x, b), b, 64)
+    fmt.Println(sc.FormatInt(x, b))
+    fmt.Println(x == y)
+    fmt.Println(ok?(e))
+}
 
-; The ends of the signed word, computed: 2^63 − 1 − i and −2^63 + i.
-(def top (i) (- 9223372036854775807 i))
-(def bottom (i) (+ (- -9223372036854775807 1) i))
+fn word() {
+    roundtrip(top(0), 10)
+    roundtrip(top(0), 2)
+    roundtrip(bottom(0), 16)
+    roundtrip(bottom(5), 36)
+    roundtrip(0, 10)
+}
 
-(def roundtrip (x b)
-  ((sc.ParseInt (sc.FormatInt x b) b 64) (fn (y e)
-    (seq (fmt.Println (sc.FormatInt x b))
-         (fmt.Println (= x y))
-         (fmt.Println (ok? e))))))
+// U: 2^64 − 1 − i, past 2^63. Parsed back, then divided and summed digit by
+// digit — arithmetic on a host uint64 result, in a machine word.
+fn digitsum(x ∈ 0..2^64-1) (Int) {
+    loop v = x, s = 0 { v == 0 -> s; else -> again(v / 10, s + v % 10) }
+}
 
-(def word ()
-  (seq (roundtrip (top 0) 10)
-       (roundtrip (top 0) 2)
-       (roundtrip (bottom 0) 16)
-       (roundtrip (bottom 5) 36)
-       (roundtrip 0 10)))
+fn unsigned_one(i) {
+    (y, e) = sc.ParseUint(sc.FormatUint((2^64-1) - i, 10), 10, 64)
+    fmt.Println(sc.FormatUint((2^64-1) - i, 16))
+    fmt.Println(sc.FormatUint(y, 10))
+    fmt.Println(ok?(e))
+    fmt.Println(y / 1000000000000)
+    fmt.Println(digitsum(y))
+}
 
-; U: 2^64 − 1 − i, past 2^63. Parsed back, then divided and summed digit by
-; digit — arithmetic on a host uint64 result, in a machine word.
-(sig digitsum ((x (int 0 18446744073709551615))) int)
-(def digitsum (x)
-  (loop ((v x) (s 0))
-    (= v 0) s
-    else    (again (/ v 10) (+ s (% v 10)))))
+fn unsigned() {
+    unsigned_one(0)
+    unsigned_one(7)
+}
 
-(def unsigned-one (i)
-  ((sc.ParseUint (sc.FormatUint (- 18446744073709551615 i) 10) 10 64) (fn (y e)
-    (seq (fmt.Println (sc.FormatUint (- 18446744073709551615 i) 16))
-         (fmt.Println (sc.FormatUint y 10))
-         (fmt.Println (ok? e))
-         (fmt.Println (/ y 1000000000000))
-         (fmt.Println (digitsum y))))))
+fn saturate() {
+    { (v, e) = sc.ParseInt("9223372036854775808", 10, 64); fmt.Println(v); print_err(e) }
+    { (v, e) = sc.ParseInt("-9223372036854775809", 10, 64); fmt.Println(v); print_err(e) }
+    (v, e) = sc.ParseUint("18446744073709551616", 10, 64)
+    fmt.Println(sc.FormatUint(v, 10))
+    print_err(e)
+}
 
-(def unsigned ()
-  (seq (unsigned-one 0) (unsigned-one 7)))
+fn decimal() {
+    { (v, e) = sc.Atoi(sc.Itoa(top(12345))); fmt.Println(v == top(12345)); fmt.Println(ok?(e)) }
+    (v, e) = sc.Atoi("12a")
+    fmt.Println(v)
+    print_err(e)
+}
 
-(def saturate ()
-  (seq ((sc.ParseInt "9223372036854775808" 10 64) (fn (v e)
-         (seq (fmt.Println v) (print-err e))))
-       ((sc.ParseInt "-9223372036854775809" 10 64) (fn (v e)
-         (seq (fmt.Println v) (print-err e))))
-       ((sc.ParseUint "18446744073709551616" 10 64) (fn (v e)
-         (seq (fmt.Println (sc.FormatUint v 10)) (print-err e))))))
+fn quote() {
+    fmt.Println(sc.Quote("tab\there, \"quoted\", é"))
+    fmt.Println(sc.QuoteToASCII("é"))
+    fmt.Println(sc.QuoteRune(900 + 45))
+    case sc.Unquote(sc.Quote("a\nb")) {
+        result.'ok(s) -> { fmt.Println(s); fmt.Println(true) }
+        result.'err(e) -> { fmt.Println(e); fmt.Println(false) }
+    }
+    case sc.UnquoteChar("\\u00e9rest", 34) {
+        result.'ok(t) -> {
+            (r, m, tail) = t
+            fmt.Println(r)
+            fmt.Println(m)
+            fmt.Println(tail)
+            fmt.Println(true)
+        }
+        result.'err(e) -> { fmt.Println(e); fmt.Println(false) }
+    }
+    fmt.Println(sc.CanBackquote("no `backquote`"))
+    fmt.Println(sc.IsPrint(7 + 0))
+}
 
-(def decimal ()
-  (seq ((sc.Atoi (sc.Itoa (top 12345))) (fn (v e)
-         (seq (fmt.Println (= v (top 12345))) (fmt.Println (ok? e)))))
-       ((sc.Atoi "12a") (fn (v e)
-         (seq (fmt.Println v) (print-err e))))))
+fn bools_floats() {
+    fmt.Println(sc.FormatBool(1 == 1))
+    case sc.ParseBool("T") {
+        result.'ok(b) -> { fmt.Println(b); fmt.Println(true) }
+        result.'err(e) -> { fmt.Println(e); fmt.Println(false) }
+    }
+    (f, e) = sc.ParseFloat("0.30000000000000004", 64)
+    fmt.Println(sc.FormatFloat(f, 103, -1, 64))
+    fmt.Println(sc.FormatFloat(f, 101, 3, 64))
+    fmt.Println(ok?(e))
+}
 
-(def quote ()
-  (seq (fmt.Println (sc.Quote "tab\there, \"quoted\", é"))
-       (fmt.Println (sc.QuoteToASCII "é"))
-       (fmt.Println (sc.QuoteRune (+ 900 45)))
-       (case (sc.Unquote (sc.Quote "a\nb"))
-         (result.ok s)  (seq (fmt.Println s) (fmt.Println true))
-         (result.err e) (seq (fmt.Println e) (fmt.Println false)))
-       (case (sc.UnquoteChar "\\u00e9rest" 34)
-         (result.ok t)  (let (tuple r m tail) t
-                          (seq (fmt.Println r) (fmt.Println m) (fmt.Println tail) (fmt.Println true)))
-         (result.err e) (seq (fmt.Println e) (fmt.Println false)))
-       (fmt.Println (sc.CanBackquote "no `backquote`"))
-       (fmt.Println (sc.IsPrint (+ 7 0)))))
+// One buffer, begun with '[' and threaded through four appends.
+fn append() {
+    fmt.Println({
+            var b := array { 0 : _ ∈ 0..0 }
+            b[0] := 91
+            sc.AppendBool(b, 1 == 2)
+            sc.AppendQuote(b, "x")
+            sc.AppendInt(b, bottom(0), 10)
+            sc.AppendUint(b, (2^64-1) - 1, 2)
+            b
+        })
+}
 
-(def bools-floats ()
-  (seq (fmt.Println (sc.FormatBool (= 1 1)))
-       (case (sc.ParseBool "T")
-         (result.ok b)  (seq (fmt.Println b) (fmt.Println true))
-         (result.err e) (seq (fmt.Println e) (fmt.Println false)))
-       ((sc.ParseFloat "0.30000000000000004" 64) (fn (f e)
-         (seq (fmt.Println (sc.FormatFloat f 103 -1 64))
-              (fmt.Println (sc.FormatFloat f 101 3 64))
-              (fmt.Println (ok? e)))))))
+fn error() {
+    (v, o) = sc.ParseInt("99999999999999999999", 10, 64)
+    case o {
+        result.'err(e) -> {
+            fmt.Println(ne.Error(ne.new(e, "ParseInt", "99999999999999999999")))
+            fmt.Println(ne.Unwrap(ne.new(e, "F", "N")))
+            0
+        }
+        result.'ok(u) -> { fmt.Println("<nil>"); 0 }
+    }
+}
 
-; One buffer, begun with '[' and threaded through four appends.
-(def append ()
-  (fmt.Println (local b (table 1 0)
-    (sc.AppendUint
-      (sc.AppendInt
-        (sc.AppendQuote (sc.AppendBool (set b 0 91) (= 1 2)) "x")
-        (bottom 0) 10)
-      (- 18446744073709551615 1) 2))))
-
-(def error ()
-  ((sc.ParseInt "99999999999999999999" 10 64) (fn (v o)
-    (case o
-      (result.err e) (seq (fmt.Println (ne.Error (ne.new e "ParseInt" "99999999999999999999")))
-                          (fmt.Println (ne.Unwrap (ne.new e "F" "N")))
-                          0)
-      (result.ok u)  (seq (fmt.Println "<nil>") 0)))))
-
-(def main ()
-  (seq (word) (unsigned) (saturate) (decimal) (quote) (bools-floats) (append) (error)))
+export fn main() {
+    word()
+    unsigned()
+    saturate()
+    decimal()
+    quote()
+    bools_floats()
+    append()
+    error()
+}

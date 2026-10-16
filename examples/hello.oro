@@ -1,24 +1,22 @@
-; The first Oroboros program that produces a binary.
-;
-;   go run ./cmd/build -target=go -o hello examples/hello.oro
-;
-; The entry point is an export named `main` taking no arguments — build.md §2.
-; Its body may be impure because the λ makes it a VALUE, which is what ADR 0010
-; requires of a definition body; the effects happen when the emitted entry
-; applies it.
-;
-; Note what is NOT here: no runtime, no prelude, no support library. The emitted
-; Go is a `package main` with one function, and the binary is whatever `go build`
-; makes of it. `twice` does not survive — reduction inlines it, so the emitted
-; code prints a literal.
+// The first Oroboros program that produces a binary.
+//
+//   go run ./cmd/build -target=go -o hello examples/hello.oro
+//
+// The entry point is an export named `main` taking no arguments — build.md §2.
+// Its body may be impure because the λ makes it a VALUE, which is what ADR 0010
+// requires of a definition body; the effects happen when the emitted entry
+// applies it.
+//
+// Note what is NOT here: no runtime, no prelude, no support library. The emitted
+// Go is a `package main` with one function, and the binary is whatever `go build`
+// makes of it. `twice` does not survive — reduction inlines it, so the emitted
+// code prints a literal.
+use go
+use go/fmt
 
-(use go)
-(use go/fmt)
+export fn main() {
+    fmt.Println("hello from oroboros")
+    fmt.Println(twice(21))
+}
 
-(export main)
-
-(def main ()
-  (seq (fmt.Println "hello from oroboros")
-       (fmt.Println (twice 21))))
-
-(def twice (n) (go.+ n n))
+fn twice(n) { go.`+`(n, n) }

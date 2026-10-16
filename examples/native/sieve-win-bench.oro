@@ -1,37 +1,41 @@
-; The sieve, repeated, so it can be timed against hand-written assembly.
-;
-; 100 rounds of a 200000 sieve, summed so nothing is dead. The hand-written
-; reference is gauntlet/windows/sieve.asm and it is the same program written the
-; way a person writes it — including the one thing this version cannot do, which
-; is reuse i*i between the guard and the inner loop's start.
+// The sieve, repeated, so it can be timed against hand-written assembly.
+//
+// 100 rounds of a 200000 sieve, summed so nothing is dead. The hand-written
+// reference is gauntlet/windows/sieve.asm and it is the same program written the
+// way a person writes it — including the one thing this version cannot do, which
+// is reuse i*i between the guard and the inner loop's start.
+use x64
+use win/fmt
+use windows/kernel32
 
-(use x64)
-(use win/fmt)
-(use windows/kernel32)
+fn cross(c, i, n) {
+    loop j = x64.imul(i, i) {
+        x64.setl(j, n) -> { x64.movb(c, j, 1); again(x64.add(j, i)) }
+        else -> c
+    }
+}
 
-(export main)
+fn sieve(n) {
+    c = kernel32.VirtualAlloc(n)
+    loop i = 2 {
+        x64.setge(x64.imul(i, i), n) -> c
+        x64.test_byte(c, i) -> again(x64.add(i, 1))
+        else -> { cross(c, i, n); again(x64.add(i, 1)) }
+    }
+}
 
-(def cross (c i n)
-  (loop ((j (x64.imul i i)))
-    (x64.setl j n)  (seq (x64.movb c j 1) (again (x64.add j i)))
-    else            c))
+fn count_primes(n) {
+    c = sieve(n)
+    loop acc = 0, k = 2 {
+        x64.setge(k, n) -> acc
+        x64.test_byte(c, k) -> again(acc, x64.add(k, 1))
+        else -> again(x64.add(acc, 1), x64.add(k, 1))
+    }
+}
 
-(def sieve (n)
-  (let c (kernel32.VirtualAlloc n)
-    (loop ((i 2))
-      (x64.setge (x64.imul i i) n)  c
-      (x64.test-byte c i)           (again (x64.add i 1))
-      else                          (seq (cross c i n) (again (x64.add i 1))))))
-
-(def count-primes (n)
-  (let c (sieve n)
-    (loop ((acc 0) (k 2))
-      (x64.setge k n)      acc
-      (x64.test-byte c k)  (again acc (x64.add k 1))
-      else                 (again (x64.add acc 1) (x64.add k 1)))))
-
-(def main ()
-  (fmt.print-int
-    (loop ((r 0) (t 0))
-      (x64.setge t 100)  r
-      else              (again (x64.add r (count-primes 200000)) (x64.add t 1)))))
+export fn main() {
+    fmt.print_int(loop r = 0, t = 0 {
+            x64.setge(t, 100) -> r
+            else -> again(x64.add(r, count_primes(200000)), x64.add(t, 1))
+        })
+}

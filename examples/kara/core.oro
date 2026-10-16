@@ -1,68 +1,81 @@
-(use go)
-(use go/fmt)
-(export run main)
+use go
+use go/fmt
 
-; KARATSUBA'S STRUCTURAL CORE IN OROBOROS: a schoolbook multiply run at offsets
-; read out of a DESCRIPTOR table, over one arena.
-;
-; This is `k_mac` driven by `kara_setup` -- the shape the level-walk needs, and
-; the one that decides whether ADR 0018's linear discipline can express the
-; algorithm at all. Three buffers are live: the arena (read), the descriptors
-; (read), the product (written), with two nested loops and every index computed
-; from a descriptor read.
-;
-; a = [1,2] at arena offset 0, b = [3,4] at offset 2, so the product is
-; 3, 4+6=10, 8 -- packed base 100 as 3*10000 + 10*100 + 8 = 31008.
+// KARATSUBA'S STRUCTURAL CORE IN OROBOROS: a schoolbook multiply run at offsets
+// read out of a DESCRIPTOR table, over one arena.
+//
+// This is `k_mac` driven by `kara_setup` -- the shape the level-walk needs, and
+// the one that decides whether ADR 0018's linear discipline can express the
+// algorithm at all. Three buffers are live: the arena (read), the descriptors
+// (read), the product (written), with two nested loops and every index computed
+// from a descriptor read.
+//
+// a = [1,2] at arena offset 0, b = [3,4] at offset 2, so the product is
+// 3, 4+6=10, 8 -- packed base 100 as 3*10000 + 10*100 + 8 = 31008.
+// A CLAMP, exactly as tree.oro uses one: an index read out of a table is not
+// bounded by anything the analysis can see, so the program says what happens
+// when it is out of range. The compiler makes it say so -- which is CLAUDE.md's
+// best argument for ADR 0014 arriving here unchanged.
+fn c4(k) { if go.`<`(k, 0) { 0 } else if go.`>=`(k, 4) { 0 } else { k } }
 
-; A CLAMP, exactly as tree.oro uses one: an index read out of a table is not
-; bounded by anything the analysis can see, so the program says what happens
-; when it is out of range. The compiler makes it say so -- which is CLAUDE.md's
-; best argument for ADR 0014 arriving here unchanged.
-(def c4 (k) (if (go.< k 0) 0 (if (go.>= k 4) 0 k)))
+// the descriptor table: ao=0, bo=2, ln=2
+fn descs(u) {
+    var d := array { 0 : _ ∈ 0..2 }
+    d[0] := 0
+    d[1] := 2
+    d[2] := 2
+    d
+}
 
-; the descriptor table: ao=0, bo=2, ln=2
-(def descs (u)
-  (local d (table 3 0) (set (set (set d 0 0) 1 2) 2 2)))
+fn limbs(u) {
+    var ar := array { 0 : _ ∈ 0..3 }
+    ar[0] := 1
+    ar[1] := 2
+    ar[2] := 3
+    ar[3] := 4
+    ar
+}
 
-(def limbs (u)
-  (local ar (table 4 0) (set (set (set (set ar 0 1) 1 2) 2 3) 3 4)))
+// The inner accumulation: out[i+j] += arena[ao+i] * arena[bo+j].
+// `out` crosses a binder here, which reduction inlines away.
+fn macrow(out linear, desc, arena, i) {
+    loop j = 0 {
+        go.`>=`(j, desc[2]) -> ()
+        else -> {
+            out[c4(go.`+`(i, j))] := go.`+`(out c4(go.`+`(i, j)),
+                go.`*`(arena[c4(go.`+`(desc[0], i))], arena[c4(go.`+`(desc[1], j))]))
+            again(go.`+`(j, 1))
+        }
+    }
+}
 
-; The inner accumulation: out[i+j] += arena[ao+i] * arena[bo+j].
-; `out` crosses a binder here, which reduction inlines away.
-(def macrow (out desc arena i)
-  (loop ((out out) (j 0))
-    (go.>= j (desc 2))  out
-    else (again (set out (c4 (go.+ i j))
-                  (go.+ (out (c4 (go.+ i j)))
-                        (go.* (arena (c4 (go.+ (desc 0) i)))
-                              (arena (c4 (go.+ (desc 1) j))))))
-                (go.+ j 1))))
+// ONE PASS of the multiply, taking the workspace it is given rather than
+// allocating one. `out` is threaded in and handed back, which is exactly what
+// ADR 0018's linearity is for.
+fn mulpass(out linear, arena, desc) {
+    loop i = 0 {
+        go.`>=`(i, desc[2]) -> ()
+        else -> { macrow(out, desc, arena, i); again(go.`+`(i, 1)) }
+    }
+}
 
-; ONE PASS of the multiply, taking the workspace it is given rather than
-; allocating one. `out` is threaded in and handed back, which is exactly what
-; ADR 0018's linearity is for.
-(def mulpass (out arena desc)
-  (loop ((out out) (i 0))
-    (go.>= i (desc 2))  out
-    else (again (macrow out desc arena i) (go.+ i 1))))
+// TWO multiplies sharing ONE workspace, the workspace threaded through the loop
+// as a linear buffer. This is the claim ADR 0018 makes -- that reuse is free
+// INSIDE a program because reduction removes the boundary -- tested rather than
+// taken. If it holds, the 1.66x measured for a fresh workspace is a cost at an
+// EXPORTED boundary only, which is what the ADR says the remaining gap is.
+fn mulat(arena, desc) {
+    var out := array { 0 : _ ∈ 0..3 }
+    loop r = 0 { go.`>=`(r, 2) -> out; else -> { mulpass(out, arena, desc); again(go.`+`(r, 1)) } }
+}
 
-; TWO multiplies sharing ONE workspace, the workspace threaded through the loop
-; as a linear buffer. This is the claim ADR 0018 makes -- that reuse is free
-; INSIDE a program because reduction removes the boundary -- tested rather than
-; taken. If it holds, the 1.66x measured for a fresh workspace is a cost at an
-; EXPORTED boundary only, which is what the ADR says the remaining gap is.
-(def mulat (arena desc)
-  (local out (table 4 0)
-    (loop ((out out) (r 0))
-      (go.>= r 2)  out
-      else (again (mulpass out arena desc) (go.+ r 1)))))
+fn pack(p) {
+    loop acc = 0, i = 0 {
+        go.`>=`(i, 3) -> acc
+        else -> again(go.`+`(go.`*`(acc, 100), p[i]), go.`+`(i, 1))
+    }
+}
 
-(def pack (p)
-  (loop ((acc 0) (i 0))
-    (go.>= i 3)  acc
-    else (again (go.+ (go.* acc 100) (p i)) (go.+ i 1))))
+export fn run(u ∈ Int) (Int) { pack(mulat(limbs(0), descs(0))) }
 
-(def run (u) (pack (mulat (limbs 0) (descs 0))))
-(sig run ((u int)) int)
-
-(def main () (fmt.Println (run 0)))
+export fn main() { fmt.Println(run(0)) }

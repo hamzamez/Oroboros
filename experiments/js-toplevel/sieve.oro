@@ -1,32 +1,40 @@
-; The Go experiment's sieve, ported to JavaScript's top level, to check whether
-; the loop penalty is a property of the LANGUAGE rather than of one host.
-;
-; Flags are 0.0/1.0 in a plain Array, because JS has no boolean array type and
-; needs none.
+// The Go experiment's sieve, ported to JavaScript's top level, to check whether
+// the loop penalty is a property of the LANGUAGE rather than of one host.
+//
+// Flags are 0.0/1.0 in a plain Array, because JS has no boolean array type and
+// needs none.
+use js/array as a
+use js/console as c
+use js/int as ji
+use num/int
+use num/f64 as f
 
-(use js/array as a)
-(use js/console as c)
-(use js/int as ji)
-(use num/int as int)
-(use num/f64 as f)
+fn cross_from(composite, i, n) {
+    fold_range(composite, n,
+        fn(arr, j) {
+            if int.ge(j, int.mul(i, i)) {
+                if int.eq(ji.rem(j, i), 0) { a.set(arr, j, 1.0) } else { arr }
+            } else { arr }
+        })
+}
 
-(export main)
+fn sieve(n) {
+    fold_range(a.of_size(n, 0.0), n,
+        fn(arr, i) {
+            if int.lt(i, 2) { arr } else if f.gt(a.at(arr, i), 0.0) { arr } else {
+                cross_from(arr, i, n)
+            }
+        })
+}
 
-(def cross-from (fn (composite i n)
-  (fold-range composite n (fn (arr j)
-    (if (int.ge j (int.mul i i))
-        (if (int.eq (ji.rem j i) 0) (a.set arr j 1.0) arr)
-        arr)))))
+fn count_primes(n) {
+    composite = sieve(n)
+    fold_range(0, n,
+        fn(acc, k) {
+            if int.lt(k, 2) { acc } else if f.gt(a.at(composite, k), 0.0) { acc } else {
+                int.add(acc, 1)
+            }
+        })
+}
 
-(def sieve (fn (n)
-  (fold-range (a.of-size n 0.0) n (fn (arr i)
-    (if (int.lt i 2) arr
-      (if (f.gt (a.at arr i) 0.0) arr (cross-from arr i n)))))))
-
-(def count-primes (fn (n)
-  (let composite (sieve n)
-    (fold-range 0 n (fn (acc k)
-      (if (int.lt k 2) acc
-        (if (f.gt (a.at composite k) 0.0) acc (int.add acc 1))))))))
-
-(def main (fn () (c.log (count-primes 20000))))
+export fn main() { c.log(count_primes(20000)) }

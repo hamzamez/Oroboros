@@ -37,6 +37,8 @@ type unthreader struct {
 	borrows map[string]core.BorrowDecl
 	origin  map[core.Tail]core.Tail
 	fresh   int
+	// receives holds "def/i" for each parameter some call hands a buffer.
+	receives map[string]bool
 }
 
 // places maps the names of a buffer's versions in scope to the place's name.
@@ -246,7 +248,7 @@ func (u *unthreader) bindScope(b core.LetBind, sc places) places {
 		}
 		return sc.without(p.Name)
 	case *core.PTuple:
-		if lent, ok := u.lent(b.Value, sc); ok && len(p.Names) > len(lent) {
+		if lent, ok := u.lent(b.Value, sc, len(p.Names)); ok {
 			out := sc.without(p.Names...)
 			for i, q := range lent {
 				out = out.with(p.Names[i], q)
@@ -260,13 +262,18 @@ func (u *unthreader) bindScope(b core.LetBind, sc places) places {
 
 // lent reports a borrow whose result is a product: the places it lends, in
 // order, which the result hands back first.
-func (u *unthreader) lent(e core.Expr, sc places) ([]string, bool) {
+//
+// binds is how many names the pattern or continuation gives the result: the
+// lent buffers and the result's rest, exactly. Any other count means the
+// declaration this program is compiled against is not the one U consulted (a
+// survey's generated File.Read hands no buffer back), so it is no borrow.
+func (u *unthreader) lent(e core.Expr, sc places, binds int) ([]string, bool) {
 	a, ok := e.(*core.Apply)
 	if !ok {
 		return nil, false
 	}
 	_, d, ok := u.callee(e)
-	if !ok || d.Results == 0 {
+	if !ok || d.Results == 0 || binds != len(d.Params)+d.Results {
 		return nil, false
 	}
 	var qs []string
@@ -409,7 +416,7 @@ func (u *unthreader) binding(b core.LetBind, sc places) ([]uitem, places, error)
 			return its, sc.with(p.Name, q), err
 		}
 	case *core.PTuple:
-		if lent, ok := u.lent(b.Value, sc); ok && len(p.Names) > len(lent) {
+		if lent, ok := u.lent(b.Value, sc, len(p.Names)); ok {
 			a := b.Value.(*core.Apply)
 			_, d, _ := u.callee(a)
 			var before []uitem
@@ -494,7 +501,7 @@ func (u *unthreader) valueE(e core.Expr, sc places) (core.Expr, error) {
 		if lam, ok := cont(e); ok {
 			// A CALL'S CONTINUATION, ((f a…) (fn (q r…) body)): a borrow binds
 			// the result's rest, its buffers handed back under the places' names.
-			if lent, ok := u.lent(e.Fn, sc); ok && len(lam.Params) > len(lent) {
+			if _, ok := u.lent(e.Fn, sc, len(lam.Params)); ok {
 				b := core.LetBind{Pat: &core.PTuple{Names: lam.Params}, Value: e.Fn}
 				its, next, err := u.binding(b, sc)
 				if err != nil {
@@ -804,21 +811,80 @@ func permutation(dst []core.Place, src []core.Expr) bool {
 
 // borrowed is the parameter a definition borrows: the one its value is a
 // version of, by the borrows known so far.
-func (u *unthreader) borrowed(lam *core.Lam) (int, bool) {
+func (u *unthreader) borrowed(name string, lam *core.Lam) (int, bool) {
 	sc := places{}
 	for _, p := range lam.Params {
 		sc[p] = p
 	}
 	q, ok := u.version(lam.Body, sc)
-	if !ok || !u.written(lam.Body, q) {
+	if !ok {
 		return 0, false
 	}
 	for i, p := range lam.Params {
-		if p == q {
+		if p == q && (u.written(lam.Body, q) || u.receives[name+"/"+fmt.Sprint(i)]) {
 			return i, true
 		}
 	}
 	return 0, false
+}
+
+// receivesBuffers records, for each call in the file, the argument positions
+// that hold a name of a buffer: a `local` buffer's, one stored into, or one a
+// loop initializes from either. A definition that returns its parameter
+// unchanged borrows it when a call hands it a buffer there (the limb library's
+// `guard`), and only then: gcd returns its integer `a` too.
+func (u *unthreader) receivesBuffers(defs map[string]*core.Lam) {
+	u.receives = map[string]bool{}
+	names := map[string]bool{}
+	for _, lam := range defs {
+		visit(lam.Body, func(e core.Expr) {
+			switch e := e.(type) {
+			case *core.Local:
+				for _, b := range e.Binds {
+					if b.Buffer {
+						names[b.Name] = true
+					}
+				}
+			case *core.Apply:
+				if v, ok := e.Fn.(*core.Var); ok && (v.Name == "set" || v.Name == "insert") && len(e.Args) == 3 {
+					if b, ok := e.Args[0].(*core.Var); ok {
+						names[b.Name] = true
+					}
+				}
+			}
+		})
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, lam := range defs {
+			visit(lam.Body, func(e core.Expr) {
+				if l, ok := e.(*core.Loop); ok {
+					for j, init := range l.Inits {
+						if v, ok := init.(*core.Var); ok && names[v.Name] && !names[l.Vars[j]] {
+							names[l.Vars[j]], changed = true, true
+						}
+					}
+				}
+			})
+		}
+	}
+	for _, lam := range defs {
+		visit(lam.Body, func(e core.Expr) {
+			a, ok := e.(*core.Apply)
+			if !ok {
+				return
+			}
+			f, ok := a.Fn.(*core.Var)
+			if !ok || defs[f.Name] == nil {
+				return
+			}
+			for i, arg := range a.Args {
+				if v, ok := arg.(*core.Var); ok && names[v.Name] {
+					u.receives[f.Name+"/"+fmt.Sprint(i)] = true
+				}
+			}
+		})
+	}
 }
 
 // written reports whether a body writes the buffer named q: stores into it, or
@@ -879,6 +945,7 @@ func unthread(decls []core.Decl, borrows map[string]core.BorrowDecl) (origin map
 			}
 		}
 	}
+	u.receivesBuffers(defs)
 	// THE DEFINITIONS THAT BORROW, a least fixpoint: one that returns the buffer
 	// it was given, possibly through a call of another.
 	names := make([]string, 0, len(defs))
@@ -892,7 +959,7 @@ func unthread(decls []core.Decl, borrows map[string]core.BorrowDecl) (origin map
 			if _, ok := u.borrows[n]; ok {
 				continue
 			}
-			if i, ok := u.borrowed(defs[n]); ok {
+			if i, ok := u.borrowed(n, defs[n]); ok {
 				u.borrows[n] = core.BorrowDecl{Params: []int{i}}
 				changed = true
 			}
@@ -1056,6 +1123,7 @@ func moduleBorrows(file string, host map[string]core.BorrowDecl) map[string]core
 			}
 		}
 	}
+	u.receivesBuffers(defs)
 	out := map[string]core.BorrowDecl{}
 	for changed := true; changed; {
 		changed = false
@@ -1063,7 +1131,7 @@ func moduleBorrows(file string, host map[string]core.BorrowDecl) map[string]core
 			if _, ok := out[n]; ok {
 				continue
 			}
-			if i, ok := u.borrowed(lam); ok {
+			if i, ok := u.borrowed(n, lam); ok {
 				out[n] = core.BorrowDecl{Params: []int{i}}
 				u.borrows[n] = out[n]
 				changed = true

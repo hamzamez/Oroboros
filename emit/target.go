@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"oroboros/core"
+	"oroboros/j"
 )
 
 // A target, declared as data rather than as Go source.
@@ -844,9 +845,12 @@ func loadFragment(path string) (*Target, error) {
 	// AN EXPLICIT EXTENSION NAMES THE FILE when both exist. A generated host
 	// has `io.oro` beside `io/` (io/fs, io/ioutil), and loading "io.oro" gave
 	// the directory — so an audit compared the wrong package (gotarget-2026-09-30).
+	// THE TARGET IS ITS DIRECTORY, OR ITS FILE'S NAME (ADR 0064 item 9): a
+	// target file in J writes no `(target T …)` header.
+	name := filepath.Base(base)
 	if base != path {
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return loadTargetFile(path)
+			return loadTargetFile(path, name)
 		}
 	}
 	for _, d := range []string{path, base} {
@@ -856,7 +860,7 @@ func loadFragment(path string) (*Target, error) {
 	}
 	for _, f := range []string{path, base + ".oro"} {
 		if info, err := os.Stat(f); err == nil && !info.IsDir() {
-			return loadTargetFile(f)
+			return loadTargetFile(f, name)
 		}
 	}
 	return nil, &fs.PathError{Op: "open", Path: path, Err: fs.ErrNotExist}
@@ -901,10 +905,10 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 			}
 			// Cheap reject before parsing: most library files have none, and a file
 			// that declares no `provides` is the module loader's to read and judge.
-			if !strings.Contains(string(src), "(provides") {
+			if !j.IsFragment(string(src)) {
 				return nil
 			}
-			terms, err := core.ReadAll(string(src))
+			terms, err := j.ReadTargetSource(string(src), fp, "")
 			if err != nil {
 				return fmt.Errorf("%s: a library fragment does not parse, so nothing it provides "+
 					"exists: %w", fp, err)
@@ -1650,12 +1654,19 @@ func (tg *Target) findEq() (Prim, bool) {
 	return Prim{}, false
 }
 
-func loadTargetFile(path string) (*Target, error) {
+func loadTargetFile(path, name string) (*Target, error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	terms, err := core.ReadAll(string(src))
+	// A LIBRARY'S FRAGMENT IS NO TARGET FILE: `provides T M { … }` is read from
+	// the library path (loadProvides), and a layer's `T.oro` that holds one is
+	// a fragment found in the wrong place, refused by name.
+	if j.IsFragment(string(src)) && !j.Todays(string(src)) {
+		return nil, fmt.Errorf("%s holds a library's fragment (provides …), not a target's own forms; "+
+			"a fragment is read from the library path", path)
+	}
+	terms, err := j.ReadTargetSource(string(src), path, name)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
@@ -1750,7 +1761,7 @@ func loadTargetDir(dir string) (*Target, error) {
 	}
 	var out *Target
 	for _, f := range files {
-		part, err := loadTargetFile(f)
+		part, err := loadTargetFile(f, filepath.Base(dir))
 		if err != nil {
 			return nil, err
 		}
@@ -3705,17 +3716,5 @@ func (tg *Target) checkExterns() error {
 // (retract.go), a program loaded without D_T no longer sees them.
 func (tg *Target) LoadProgram(forms []core.Form, dirs ...string) (*core.Program, []*core.Term, error) {
 	all := append(append([]string(nil), dirs...), tg.LibDirs...)
-	resolve := func(path string) (string, bool, error) {
-		for _, d := range all {
-			b, err := os.ReadFile(filepath.Join(d, filepath.FromSlash(path)+".oro"))
-			if err == nil {
-				return string(b), true, nil
-			}
-			if !os.IsNotExist(err) {
-				return "", false, err
-			}
-		}
-		return "", false, nil
-	}
-	return core.LoadWithDefs(forms, resolve, tg.Defs)
+	return core.LoadWithDefs(forms, j.Resolver(all), tg.Defs)
 }

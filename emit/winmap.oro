@@ -1,226 +1,236 @@
-; A HASH TABLE, WRITTEN IN OROBOROS, FOR THE TARGET THAT HAS NONE.
-;
-; Go, JavaScript and the JVM all bring a map and we parasitize it. windows
-; brings none, and CLAUDE.md's rule is explicit: a target does not get to
-; decline a language construct, and if a host has no native form we build one.
-; So this is the first library the language writes for itself, and it is a real
-; test of general-purpose.md's claim rather than an illustration of it.
-;
-; It is Oroboros source and not Go for the reason target files are data: adding
-; a case to `emit/*.go` for something that is a LIBRARY is the single most
-; common way to get this architecture wrong. It is embedded rather than sitting
-; in `lib/` only because a program must not have to import it -- `build-map` is
-; the language's, like `if`.
-;
-; THE REPRESENTATION is one buffer, stride 3, which is tree.oro's node table
-; with a different payload:
-;
-;   3s+0  used   0 empty, 1 occupied
-;   3s+1  key
-;   3s+2  value
-;
-; `build` ZERO-FILLS (tables.md §14.3), so "empty" needs no initialising pass --
-; the same guarantee that lets tree.oro use node 0 as its `none` sentinel.
-;
-; A separate `used` cell rather than a reserved key value, because there is no
-; integer a key cannot be: every sentinel-in-the-key-space scheme has to steal
-; one, and stealing one from `int` would make `(map int V)` a lie. One word per
-; slot is the honest price.
-;
-; OPEN ADDRESSING WITH LINEAR PROBING, and the slot count is a POWER OF TWO so
-; the hash is a mask. That matters twice: `x64.and` is one instruction where a
-; remainder is a division, and masking a NEGATIVE key still lands in [0, n)
-; because the mask clears the sign bits. `-1 and 7` is 7.
-;
-; THE PROBE IS BOUNDED BY n, which is not a safety net but the algorithm: with
-; the load factor held at 1/2 by `build-map`'s capacity, n probes is more than
-; enough to visit every slot, and a bounded loop is one size-change termination
-; can prove. An unbounded `while` could not be written here at all.
-;
-; WHAT HAPPENS WHEN IT IS FULL is a question the program is made to answer,
-; which is maps.md §6's whole argument. Insert into a full table DROPS the
-; entry. That is a real semantics and not an error path we forgot: the capacity
-; is declared, exceeding it is a program bug, and windows has no way to grow.
-; `tree.oro`'s node cap is the same shape and CLAUDE.md celebrates it -- a
-; capacity does not create the limit, it makes it visible.
+// A HASH TABLE, WRITTEN IN OROBOROS, FOR THE TARGET THAT HAS NONE.
+//
+// Go, JavaScript and the JVM all bring a map and we parasitize it. windows
+// brings none, and CLAUDE.md's rule is explicit: a target does not get to
+// decline a language construct, and if a host has no native form we build one.
+// So this is the first library the language writes for itself, and it is a real
+// test of general-purpose.md's claim rather than an illustration of it.
+//
+// It is Oroboros source and not Go for the reason target files are data: adding
+// a case to `emit/*.go` for something that is a LIBRARY is the single most
+// common way to get this architecture wrong. It is embedded rather than sitting
+// in `lib/` only because a program must not have to import it -- `build-map` is
+// the language's, like `if`.
+//
+// THE REPRESENTATION is one buffer, stride 3, which is tree.oro's node table
+// with a different payload:
+//
+//   3s+0  used   0 empty, 1 occupied
+//   3s+1  key
+//   3s+2  value
+//
+// `build` ZERO-FILLS (tables.md §14.3), so "empty" needs no initialising pass --
+// the same guarantee that lets tree.oro use node 0 as its `none` sentinel.
+//
+// A separate `used` cell rather than a reserved key value, because there is no
+// integer a key cannot be: every sentinel-in-the-key-space scheme has to steal
+// one, and stealing one from `int` would make `(map int V)` a lie. One word per
+// slot is the honest price.
+//
+// OPEN ADDRESSING WITH LINEAR PROBING, and the slot count is a POWER OF TWO so
+// the hash is a mask. That matters twice: `x64.and` is one instruction where a
+// remainder is a division, and masking a NEGATIVE key still lands in [0, n)
+// because the mask clears the sign bits. `-1 and 7` is 7.
+//
+// THE PROBE IS BOUNDED BY n, which is not a safety net but the algorithm: with
+// the load factor held at 1/2 by `build-map`'s capacity, n probes is more than
+// enough to visit every slot, and a bounded loop is one size-change termination
+// can prove. An unbounded `while` could not be written here at all.
+//
+// WHAT HAPPENS WHEN IT IS FULL is a question the program is made to answer,
+// which is maps.md §6's whole argument. Insert into a full table DROPS the
+// entry. That is a real semantics and not an error path we forgot: the capacity
+// is declared, exceeding it is a program bug, and windows has no way to grow.
+// `tree.oro`'s node cap is the same shape and CLAUDE.md celebrates it -- a
+// capacity does not create the limit, it makes it visible.
+use x64
 
-(module win/map)
-(use x64)
+// The slot count, read back off the buffer rather than threaded through every
+// call. `(len m)` is 3n by construction, so there is nothing to carry.
+private fn wm_n(m) { x64.idiv(len(m), 3) }
 
-; The slot count, read back off the buffer rather than threaded through every
-; call. `(len m)` is 3n by construction, so there is nothing to carry.
-(def wm-n (m) (x64.idiv (len m) 3))
+// The slot for key k at probe distance i, masked into [0, n).
+private fn wm_s(n, k, i) { x64.and(x64.add(x64.and(k, x64.sub(n, 1)), i), x64.sub(n, 1)) }
 
-; The slot for key k at probe distance i, masked into [0, n).
-(def wm-s (n k i) (x64.and (x64.add (x64.and k (x64.sub n 1)) i) (x64.sub n 1)))
+// A CLAMP, exactly as tree.oro uses one. `wm-s` is masked and therefore already
+// in range, but the refinement layer reasons in linear integer arithmetic and
+// `x64.and` is not linear -- so the fact is true and undischargeable, which is
+// the honest limit of the domain rather than a hole in the program. Clamping
+// turns a refusal into a note and says what happens if the impossible occurs.
+private fn wm_c(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else { x } }
 
-; A CLAMP, exactly as tree.oro uses one. `wm-s` is masked and therefore already
-; in range, but the refinement layer reasons in linear integer arithmetic and
-; `x64.and` is not linear -- so the fact is true and undischargeable, which is
-; the honest limit of the domain rather than a hole in the program. Clamping
-; turns a refusal into a note and says what happens if the impossible occurs.
-(def wm-c (m x) (if (x64.setl x 0) 0 (if (x64.setge x (len m)) 0 x)))
+// A GUARDED READ: the cell at x, or 0 when x is outside the table. Where a clamp's
+// 0 is itself outside an EMPTY table, so a read at a clamped index is never
+// proven, the guard here IS the proof of the read: on the path that reads,
+// 0 <= x < len m. A clamp turned a refusal into a note, and a note is a refusal
+// now (refinements.md §3a, noprop-2026-09-25); this says what happens if the
+// impossible occurs and is proven while saying it.
+private fn wm_at(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else { m[x] } }
 
-; A GUARDED READ: the cell at x, or 0 when x is outside the table. Where a clamp's
-; 0 is itself outside an EMPTY table, so a read at a clamped index is never
-; proven, the guard here IS the proof of the read: on the path that reads,
-; 0 <= x < len m. A clamp turned a refusal into a note, and a note is a refusal
-; now (refinements.md §3a, noprop-2026-09-25); this says what happens if the
-; impossible occurs and is proven while saying it.
-(def wm-at (m x) (if (x64.setl x 0) 0 (if (x64.setge x (len m)) 0 (m x))))
+private fn wm_used(m, n, k, i) { m[wm_c(m, x64.imul(3, wm_s(n, k, i)))] }
+private fn wm_key(m, n, k, i) { m[wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 1))] }
 
-(def wm-used (m n k i) (m (wm-c m (x64.imul 3 (wm-s n k i)))))
-(def wm-key  (m n k i) (m (wm-c m (x64.add (x64.imul 3 (wm-s n k i)) 1))))
+// The index of the VALUE cell, which is what a find returns so the caller needs
+// no second computation.
+private fn wm_vi(m, n, k, i) { wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 2)) }
 
-; The index of the VALUE cell, which is what a find returns so the caller needs
-; no second computation.
-(def wm-vi (m n k i) (wm-c m (x64.add (x64.imul 3 (wm-s n k i)) 2)))
+// FIND: the value cell's index, or -1 when the key is absent.
+//
+// Three exits and no `again` under an `if`, which is ADR 0015 choosing the shape
+// and choosing better: the guards ARE the control flow, so the probe reads as
+// the three things that can happen at a slot rather than as nested conditionals.
+//
+//   ran out of probes  -> absent
+//   an EMPTY slot      -> absent, because linear probing never leaves a gap
+//                         before a key it stored
+//   the key            -> found
+private fn wm_find(m, k) {
+    n = wm_n(m)
+    loop i = 0 {
+        x64.setge(i, n) -> -1
+        wm_used(m, n, k, i) == 0 -> -1
+        wm_key(m, n, k, i) == k -> wm_vi(m, n, k, i)
+        else -> again(x64.add(i, 1))
+    }
+}
 
-; FIND: the value cell's index, or -1 when the key is absent.
-;
-; Three exits and no `again` under an `if`, which is ADR 0015 choosing the shape
-; and choosing better: the guards ARE the control flow, so the probe reads as
-; the three things that can happen at a slot rather than as nested conditionals.
-;
-;   ran out of probes  -> absent
-;   an EMPTY slot      -> absent, because linear probing never leaves a gap
-;                         before a key it stored
-;   the key            -> found
-(def wm-find (m k)
-  (let n (wm-n m)
-    (loop ((i 0))
-      (x64.setge i n)              -1
-      (= (wm-used m n k i) 0)      -1
-      (= (wm-key m n k i) k)       (wm-vi m n k i)
-      else                         (again (x64.add i 1)))))
+// INSERT. The same three-way probe, with the buffer threaded through so ADR
+// 0018's linearity holds: every clause body either returns the buffer or hands
+// it to `again`.
+// EVERY INDEX IS COMPUTED BEFORE THE FIRST STORE, and that is ADR 0018's
+// linearity showing up as a shape requirement rather than as a rule to recite.
+//
+// `(set b i v)` CONSUMES b, so `(set (set m A 1) (wm-c m ...) k)` is a use of m
+// after it was handed on -- the clamp needs `(len m)` and the buffer is already
+// gone. The compiler refused the first version of this function for exactly
+// that, which is the linearity check doing its job on the first library the
+// language wrote for itself.
+//
+// Binding the indices first is not a workaround: it is the honest order, since
+// every index depends only on n, k and i, and none of them on the stores.
+// `n` IS READ OFF THE LOOP'S OWN BUFFER, not bound outside it, and that is
+// linearity again rather than a style choice. `(let n (wm-n m) (loop ((m m)
+// …)))` uses the incoming buffer TWICE at the top -- once to measure it and
+// once to hand it to the loop -- and when the argument is itself a `wm-put`,
+// call-by-need binds it and the second use is a use after hand-off. Reading it
+// inside, where the loop variable is the buffer, is one use.
+//
+// It costs a division per probe step, which the host hoists out of a loop whose
+// buffer does not change length; if that ever measures, `n` becomes a parameter.
+private fn wm_put(m linear, k, v) {
+    loop i = 0 {
+        // Full. The entry is DROPPED -- see the header.
+        x64.setge(i, wm_n(m)) -> ()
+        // A free slot: claim it.
+        wm_used(m, wm_n(m), k, i) == 0 -> {
+            u = wm_c(m, x64.imul(3, wm_s(wm_n(m), k, i)))
+            kc = wm_c(m, x64.add(x64.imul(3, wm_s(wm_n(m), k, i)), 1))
+            vc = wm_vi(m, wm_n(m), k, i)
+            m[u] := 1
+            m[kc] := k
+            m[vc] := v
+            ()
+        }
+        // The key is already here: overwrite, so an insert is idempotent in the
+        // domain. This is the clause that makes |dom m| an INTERVAL rather than an
+        // equation (growth.md §1.1) -- whether the key was present is a fact about
+        // the input, and here is where the program finds out.
+        wm_key(m, wm_n(m), k, i) == k -> { vc = wm_vi(m, wm_n(m), k, i); m[vc] := v; () }
+        else -> again(x64.add(i, 1))
+    }
+}
 
-; INSERT. The same three-way probe, with the buffer threaded through so ADR
-; 0018's linearity holds: every clause body either returns the buffer or hands
-; it to `again`.
-; EVERY INDEX IS COMPUTED BEFORE THE FIRST STORE, and that is ADR 0018's
-; linearity showing up as a shape requirement rather than as a rule to recite.
-;
-; `(set b i v)` CONSUMES b, so `(set (set m A 1) (wm-c m ...) k)` is a use of m
-; after it was handed on -- the clamp needs `(len m)` and the buffer is already
-; gone. The compiler refused the first version of this function for exactly
-; that, which is the linearity check doing its job on the first library the
-; language wrote for itself.
-;
-; Binding the indices first is not a workaround: it is the honest order, since
-; every index depends only on n, k and i, and none of them on the stores.
-; `n` IS READ OFF THE LOOP'S OWN BUFFER, not bound outside it, and that is
-; linearity again rather than a style choice. `(let n (wm-n m) (loop ((m m)
-; …)))` uses the incoming buffer TWICE at the top -- once to measure it and
-; once to hand it to the loop -- and when the argument is itself a `wm-put`,
-; call-by-need binds it and the second use is a use after hand-off. Reading it
-; inside, where the loop variable is the buffer, is one use.
-;
-; It costs a division per probe step, which the host hoists out of a loop whose
-; buffer does not change length; if that ever measures, `n` becomes a parameter.
-(def wm-put (m k v)
-  (loop ((m m) (i 0))
-      ; Full. The entry is DROPPED -- see the header.
-      (x64.setge i (wm-n m))          m
-      ; A free slot: claim it.
-      (= (wm-used m (wm-n m) k i) 0)
-        (let u  (wm-c m (x64.imul 3 (wm-s (wm-n m) k i)))
-             kc (wm-c m (x64.add (x64.imul 3 (wm-s (wm-n m) k i)) 1))
-             vc (wm-vi m (wm-n m) k i)
-          (set (set (set m u 1) kc k) vc v))
-      ; The key is already here: overwrite, so an insert is idempotent in the
-      ; domain. This is the clause that makes |dom m| an INTERVAL rather than an
-      ; equation (growth.md §1.1) -- whether the key was present is a fact about
-      ; the input, and here is where the program finds out.
-      (= (wm-key m (wm-n m) k i) k)
-        (let vc (wm-vi m (wm-n m) k i)
-          (set m vc v))
-      else                     (again m (x64.add i 1))))
+// HOW MANY KEYS ARE PRESENT. A scan, because nothing counts as it goes.
+//
+// O(n) where Go and Java are O(1), which is the same per-target cost JavaScript
+// pays with `Object.keys(m).length` -- the ANSWER is identical, so it is not a
+// Tier 2 disagreement, only a different price. A count in a reserved header cell
+// would make it O(1) and is not done here because no program needs it yet.
+private fn wm_len(m) {
+    n = wm_n(m)
+    loop c = 0, s = 0 {
+        x64.setge(s, n) -> c
+        else -> again(x64.add(c, m(wm_c(m, x64.imul(3, s)))), x64.add(s, 1))
+    }
+}
 
-; HOW MANY KEYS ARE PRESENT. A scan, because nothing counts as it goes.
-;
-; O(n) where Go and Java are O(1), which is the same per-target cost JavaScript
-; pays with `Object.keys(m).length` -- the ANSWER is identical, so it is not a
-; Tier 2 disagreement, only a different price. A count in a reserved header cell
-; would make it O(1) and is not done here because no program needs it yet.
-(def wm-len (m)
-  (let n (wm-n m)
-    (loop ((c 0) (s 0))
-      (x64.setge s n)  c
-      else             (again (x64.add c (m (wm-c m (x64.imul 3 s)))) (x64.add s 1)))))
+// THE SLOT COUNT FROM A CAPACITY: the least power of two that is at least twice
+// the capacity, so the load factor never exceeds 1/2 and linear probing stays
+// short. Computed with a loop because the capacity may be a runtime value; when
+// it is a literal, reduction folds the whole thing away.
+private fn wm_slots(cap) {
+    loop n = 1 { x64.setge(n, x64.imul(2, cap)) -> n; else -> again(x64.imul(n, 2)) }
+}
 
-; THE SLOT COUNT FROM A CAPACITY: the least power of two that is at least twice
-; the capacity, so the load factor never exceeds 1/2 and linear probing stays
-; short. Computed with a loop because the capacity may be a runtime value; when
-; it is a literal, reduction folds the whole thing away.
-(def wm-slots (cap)
-  (loop ((n 1))
-    (x64.setge n (x64.imul 2 cap))  n
-    else                            (again (x64.imul n 2))))
+// FILL a table from two parallel arrays, which is how a map LITERAL is built.
+//
+// One `wm-put` call site rather than one per row, and that is a host constraint
+// rather than taste: each inlined `wm-put` is a probe loop holding a buffer, an
+// index and a slot, and nesting them past two exhausts x86's scratch registers
+// -- the same wall `len-bounded.oro` caps itself at three inputs to avoid. A
+// loop has constant register pressure however many rows there are.
+private fn wm_fill(m linear, ks, vs) {
+    loop i = 0 {
+        x64.setge(i, len(ks)) -> ()
+        // THE VALUE READ IS GUARDED, because the loop is bounded by `(len ks)` and
+        // indexes `vs` as well -- two arrays under one bound, which is exactly the
+        // latent bug the refinement layer found in `dot` and `centroid`. The two
+        // arrays have the same length by construction here and nothing can see that,
+        // so the program says what happens if they do not.
+        else -> { wm_put(m, ks[i], wm_at(vs, i)); again(x64.add(i, 1)) }
+    }
+}
 
-; FILL a table from two parallel arrays, which is how a map LITERAL is built.
-;
-; One `wm-put` call site rather than one per row, and that is a host constraint
-; rather than taste: each inlined `wm-put` is a probe loop holding a buffer, an
-; index and a slot, and nesting them past two exhausts x86's scratch registers
-; -- the same wall `len-bounded.oro` caps itself at three inputs to avoid. A
-; loop has constant register pressure however many rows there are.
-(def wm-fill (m ks vs)
-  (loop ((m m) (i 0))
-    (x64.setge i (len ks))  m
-    ; THE VALUE READ IS GUARDED, because the loop is bounded by `(len ks)` and
-    ; indexes `vs` as well -- two arrays under one bound, which is exactly the
-    ; latent bug the refinement layer found in `dot` and `centroid`. The two
-    ; arrays have the same length by construction here and nothing can see that,
-    ; so the program says what happens if they do not.
-    else                    (again (wm-put m (ks i) (wm-at vs i)) (x64.add i 1))))
+// ---------------------------------------------------------------- keys
+//
+// `keys m` is the map's keys in ASCENDING order, and the order is what the
+// construct is FOR: a host's iteration order is not canonical -- Go randomises
+// on purpose, JavaScript specifies its own, Java leaves it unspecified -- so
+// sorting by the order on K is what makes the answer the same on four hosts.
+// Here there is no host order at all, only slot order, which is the hash's.
+//
+// SORTED BY RANK, NOT BY EXCHANGE, and the reason is the map's own invariant:
+// A MAP'S KEYS ARE DISTINCT, because the index set is a SET. So the sorted
+// position of a key is exactly the number of keys below it, and every key can be
+// written straight to its place in one pass. No comparisons between output
+// slots, no swap, no shifting.
+//
+// That is O(n^2) in comparisons and O(n) in stores, which is honest rather than
+// good -- the price of an order on the host that has none. The other three call
+// their own sort, which is the rule about emitting at the highest layer the
+// target provides. A counting sort over int keys is the obvious improvement and
+// is not made until a program measures it.
+//
+// It also avoids a SWAP, and that is not a stylistic choice: a swap reads two
+// slots and then writes both, and the compiler currently substitutes a buffer
+// read past a store, so `b[x], b[y] = b[y], b[x]` emits as `b[x] = b[y];
+// b[y] = b[x]` and silently copies. That is a real bug in the effect discipline
+// -- ADR 0010 exists to forbid exactly that reordering, and a buffer read is not
+// being judged impure. Ranking needs no swap and is correct either way.
+private fn wm_used_at(m, s) { m(wm_c(m, x64.imul(3, s))) }
+private fn wm_key_at(m, s) { m(wm_c(m, x64.add(x64.imul(3, s), 1))) }
 
-; ---------------------------------------------------------------- keys
-;
-; `keys m` is the map's keys in ASCENDING order, and the order is what the
-; construct is FOR: a host's iteration order is not canonical -- Go randomises
-; on purpose, JavaScript specifies its own, Java leaves it unspecified -- so
-; sorting by the order on K is what makes the answer the same on four hosts.
-; Here there is no host order at all, only slot order, which is the hash's.
-;
-; SORTED BY RANK, NOT BY EXCHANGE, and the reason is the map's own invariant:
-; A MAP'S KEYS ARE DISTINCT, because the index set is a SET. So the sorted
-; position of a key is exactly the number of keys below it, and every key can be
-; written straight to its place in one pass. No comparisons between output
-; slots, no swap, no shifting.
-;
-; That is O(n^2) in comparisons and O(n) in stores, which is honest rather than
-; good -- the price of an order on the host that has none. The other three call
-; their own sort, which is the rule about emitting at the highest layer the
-; target provides. A counting sort over int keys is the obvious improvement and
-; is not made until a program measures it.
-;
-; It also avoids a SWAP, and that is not a stylistic choice: a swap reads two
-; slots and then writes both, and the compiler currently substitutes a buffer
-; read past a store, so `b[x], b[y] = b[y], b[x]` emits as `b[x] = b[y];
-; b[y] = b[x]` and silently copies. That is a real bug in the effect discipline
-; -- ADR 0010 exists to forbid exactly that reordering, and a buffer read is not
-; being judged impure. Ranking needs no swap and is correct either way.
+// How many occupied keys are strictly less than k. With distinct keys that IS
+// the key's index in ascending order.
+private fn wm_rank(m, k) {
+    loop c = 0, s = 0 {
+        x64.setge(s, wm_n(m)) -> c
+        wm_used_at(m, s) == 0 -> again(c, x64.add(s, 1))
+        else -> again(if x64.setl(wm_key_at(m, s), k) { x64.add(c, 1) } else { c }, x64.add(s, 1))
+    }
+}
 
-(def wm-used-at (m s) (m (wm-c m (x64.imul 3 s))))
-(def wm-key-at  (m s) (m (wm-c m (x64.add (x64.imul 3 s) 1))))
-
-; How many occupied keys are strictly less than k. With distinct keys that IS
-; the key's index in ascending order.
-(def wm-rank (m k)
-  (loop ((c 0) (s 0))
-    (x64.setge s (wm-n m))     c
-    (= (wm-used-at m s) 0)     (again c (x64.add s 1))
-    else                       (again (if (x64.setl (wm-key-at m s) k) (x64.add c 1) c)
-                                      (x64.add s 1))))
-
-; One pass over the slots, each occupied key written to its own rank. `out` is
-; only ever WRITTEN here and `m` only ever READ, so no store can shadow a read.
-(def wm-keys (m)
-  (let cnt (wm-len m)
-    (local out (table cnt 0)
-      (loop ((out out) (s 0))
-        (x64.setge s (wm-n m))   out
-        (= (wm-used-at m s) 0)   (again out (x64.add s 1))
-        else                     (again (set out (wm-c out (wm-rank m (wm-key-at m s)))
-                                              (wm-key-at m s))
-                                        (x64.add s 1))))))
+// One pass over the slots, each occupied key written to its own rank. `out` is
+// only ever WRITTEN here and `m` only ever READ, so no store can shadow a read.
+private fn wm_keys(m) {
+    cnt = wm_len(m)
+    var out := array { 0 : _ ∈ 0..cnt-1 }
+    loop s = 0 {
+        x64.setge(s, wm_n(m)) -> out
+        wm_used_at(m, s) == 0 -> again(x64.add(s, 1))
+        else -> {
+            out[wm_c(out, wm_rank(m, wm_key_at(m, s)))] := wm_key_at(m, s)
+            again(x64.add(s, 1))
+        }
+    }
+}

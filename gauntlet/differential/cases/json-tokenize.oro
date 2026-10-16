@@ -1,135 +1,126 @@
-; A JSON TOKENISER: NESTING WITHOUT RECURSION (json-2026-08-26).
-; expect: 13021 7031 4010 1000
-; inputs: 0 1 2 3
-;
-; The one case here that is a PROGRAM rather than a construct. It exercises a
-; `build` buffer used as a STACK -- written, read back, and dead at the boundary
-; -- six loop variables, three nested loops whose bounds come from the input,
-; `array` literals, indexing by application, and `=` on each host's own
-; equality, all at once.
-;
-; It is in the suite because it found the `typeOf` bug the constructs could not:
-; every previous `build` in this repository hands the buffer back, and this one
-; returns a COUNT, which had the Go emitter declare `[]int` and return an `int`.
-;
-; The four documents are  {"a":[1,2],"b":true} / [[[1]]] / {"a":1 / ]
-; -- two valid, one unterminated, one unbalanced. See examples/json/tokenize.oro
-; for the annotated original.
+// A JSON TOKENISER: NESTING WITHOUT RECURSION (json-2026-08-26).
+// expect: 13021 7031 4010 1000
+// inputs: 0 1 2 3
+//
+// The one case here that is a PROGRAM rather than a construct. It exercises a
+// `build` buffer used as a STACK -- written, read back, and dead at the boundary
+// -- six loop variables, three nested loops whose bounds come from the input,
+// `array` literals, indexing by application, and `=` on each host's own
+// equality, all at once.
+//
+// It is in the suite because it found the `typeOf` bug the constructs could not:
+// every previous `build` in this repository hands the buffer back, and this one
+// returns a COUNT, which had the Go emitter declare `[]int` and return an `int`.
+//
+// The four documents are  {"a":[1,2],"b":true} / [[[1]]] / {"a":1 / ]
+// -- two valid, one unterminated, one unbalanced. See examples/json/tokenize.oro
+// for the annotated original.
+cap = 32
 
-(def cap 32)
+// --- character classes ------------------------------------------------------
+fn space?(c) { c == 32 || c == 9 || c == 10 || c == 13 }
+fn digit?(c) { c >= 48 && c <= 57 }
+fn alpha?(c) { c >= 97 && c <= 122 }
+fn numeric?(c) { digit?(c) || c == 45 || c == 43 || c == 46 || c == 101 || c == 69 }
 
-; --- character classes ------------------------------------------------------
+fn opener?(c) { c == 123 || c == 91 }
+fn closer?(c) { c == 125 || c == 93 }
+fn punct?(c) { c == 58 || c == 44 }
 
-(def space? (c) (or (= c 32) (or (= c 9) (or (= c 10) (= c 13)))))
-(def digit? (c) (and (>= c 48) (<= c 57)))
-(def alpha? (c) (and (>= c 97) (<= c 122)))
-(def numeric? (c)
-  (or (digit? c) (or (= c 45) (or (= c 43) (or (= c 46) (or (= c 101) (= c 69)))))))
+// --- scanners: each returns the index just past what it consumed ------------
+fn scan_string(src, i) {
+    loop j = i + 1 {
+        // REFINEMENT 1. `j >= i + 1` is a RELATIONAL fact, and the interval analysis
+        // is non-relational (decidability-map.md), so `j >= 0` does not follow from
+        // `i >= 0` and has to be stated. This clause is where it comes from.
+        j < 0 -> j
+        j >= len(src) -> j
+        src[j] == 92 -> again(j + 2)  // an escape: skip the next byte
+        src[j] == 34 -> j + 1  // the closing quote
+        else -> again(j + 1)
+    }
+}
 
-(def opener? (c) (or (= c 123) (= c 91)))
-(def closer? (c) (or (= c 125) (= c 93)))
-(def punct?  (c) (or (= c 58) (= c 44)))
+fn scan_run(src, i, pred) {
+    loop j = i {
+        j < 0 -> j
+        j >= len(src) -> j
+        pred(src[j]) -> again(j + 1)
+        else -> j
+    }
+}
 
-; --- scanners: each returns the index just past what it consumed ------------
+// --- the tokeniser ----------------------------------------------------------
+fn tokens(src) {
+    var stk := array { 0 : _ ∈ 0..cap-1 }
+    loop i = 0, nt = 0, sp = 0, mx = 0, ok = 1 {
+        // REFINEMENT 2. A scanner's result is opaque to the analysis -- it is a
+        // loop's value, not an expression it can bound -- so `i` is not provably
+        // non-negative once it comes back from one. One compare per token buys it.
+        i < 0 -> 0
+        i >= len(src) -> nt * 1000 + (mx * 10 + if sp == 0 { ok } else { 0 })
+        // REFINEMENT 3, AND THE ONE WORTH READING. Depth is finite and the
+        // compiler MAKES THE PARSER SAY SO. The stack is a table of `cap`
+        // elements, `(set stk sp ...)` carries `sp < cap` as an obligation, and
+        // nothing here can discharge it, because `sp` grows with the input. So the
+        // program must answer the question "what happens when the nesting is
+        // deeper than the stack".
+        //
+        // A recursive-descent parser has exactly the same limit -- the C stack --
+        // and is never asked. That is the trade this file exists to show: the
+        // explicit stack does not make the limit exist, it makes it VISIBLE.
+        //
+        // AND ITS POSITION IS LOAD-BEARING, which is the day's other finding.
+        // Moving this clause ABOVE the end-of-input clause takes the program from
+        // 80 of 124 integer operations bounded and 12 of 16 loops proven
+        // terminating to 36 and 0 -- same guards, same answers on these four
+        // documents, one clause swapped (json-2026-08-26 §4).
+        sp >= cap -> nt * 1000
+        space?(src[i]) -> again(i + 1, nt, sp, mx, ok)
+        // an opener: push the closer we expect, and record the depth
+        opener?(src[i]) -> {
+            stk[sp] := if src[i] == 123 { 125 } else { 93 }
+            again(i + 1, nt + 1, sp + 1, if sp + 1 > mx { sp + 1 } else { mx }, ok)
+        }
+        // a closer: it must match the top of the stack. A closer with nothing open
+        // is unbalanced, and the index is CLAMPED rather than guarded so that the
+        // indexing obligation holds on both sides of the test.
+        closer?(src[i]) ->
+            again(i + 1, nt + 1, if sp < 1 { 0 } else { sp - 1 }, mx,
+                if sp < 1 { 0 } else if stk[if sp < 1 { 0 } else { sp - 1 }] == src[i] { ok } else {
+                    0
+                })
+        punct?(src[i]) -> again(i + 1, nt + 1, sp, mx, ok)
+        src[i] == 34 -> again(scan_string(src, i), nt + 1, sp, mx, ok)
+        // SCANNING STARTS PAST THE BYTE THE GUARD ALREADY MATCHED. Identical
+        // answers -- the clause fires only when `(src i)` satisfies the predicate,
+        // so testing it again is redundant -- and it is what makes the program
+        // PROVABLE. Starting at `i`, a scanner may legitimately return `i`, so
+        // loop monotonicity gives only `i' >= i` and the outer loop has no strict
+        // descent; starting at `i + 1` gives `i' > i`, which is the size-change
+        // witness. 64.5% of integer operations bounded and 15 of 20 loops proven
+        // becomes 90.9% and 20 of 20 (monotone-2026-08-27).
+        numeric?(src[i]) -> again(scan_run(src, i + 1, numeric?), nt + 1, sp, mx, ok)
+        alpha?(src[i]) -> again(scan_run(src, i + 1, alpha?), nt + 1, sp, mx, ok)
+        else -> again(i + 1, nt, sp, mx, 0)
+    }
+}
 
-(def scan-string (src i)
-  (loop ((j (+ i 1)))
-    ; REFINEMENT 1. `j >= i + 1` is a RELATIONAL fact, and the interval analysis
-    ; is non-relational (decidability-map.md), so `j >= 0` does not follow from
-    ; `i >= 0` and has to be stated. This clause is where it comes from.
-    (< j 0)           j
-    (>= j (len src))  j
-    (= (src j) 92)       (again (+ j 2))     ; an escape: skip the next byte
-    (= (src j) 34)       (+ j 1)             ; the closing quote
-    else                 (again (+ j 1))))
+// --- documents, selected by k ----------------------------------------------
+// {"a":[1,2],"b":true}          13 tokens, depth 2, valid
+d0 = array { 123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125 }
+// [[[1]]]                        7 tokens, depth 3, valid
+d1 = array { 91, 91, 91, 49, 93, 93, 93 }
+// {"a":1                         4 tokens, depth 1, UNTERMINATED
+d2 = array { 123, 34, 97, 34, 58, 49 }
+// ]                              1 token, a closer with nothing open
+d3 = array { 93 }
 
-(def scan-run (src i pred)
-  (loop ((j i))
-    (< j 0)           j
-    (>= j (len src))  j
-    (pred (src j))       (again (+ j 1))
-    else                 j))
-
-; --- the tokeniser ----------------------------------------------------------
-
-(def tokens (src)
-  (local stk (table cap 0)
-    (loop ((stk stk) (i 0) (nt 0) (sp 0) (mx 0) (ok 1))
-
-      ; REFINEMENT 2. A scanner's result is opaque to the analysis -- it is a
-      ; loop's value, not an expression it can bound -- so `i` is not provably
-      ; non-negative once it comes back from one. One compare per token buys it.
-      (< i 0)  0
-
-      (>= i (len src))
-        (+ (* nt 1000) (+ (* mx 10) (if (= sp 0) ok 0)))
-
-      ; REFINEMENT 3, AND THE ONE WORTH READING. Depth is finite and the
-      ; compiler MAKES THE PARSER SAY SO. The stack is a table of `cap`
-      ; elements, `(set stk sp ...)` carries `sp < cap` as an obligation, and
-      ; nothing here can discharge it, because `sp` grows with the input. So the
-      ; program must answer the question "what happens when the nesting is
-      ; deeper than the stack".
-      ;
-      ; A recursive-descent parser has exactly the same limit -- the C stack --
-      ; and is never asked. That is the trade this file exists to show: the
-      ; explicit stack does not make the limit exist, it makes it VISIBLE.
-      ;
-      ; AND ITS POSITION IS LOAD-BEARING, which is the day's other finding.
-      ; Moving this clause ABOVE the end-of-input clause takes the program from
-      ; 80 of 124 integer operations bounded and 12 of 16 loops proven
-      ; terminating to 36 and 0 -- same guards, same answers on these four
-      ; documents, one clause swapped (json-2026-08-26 §4).
-      (>= sp cap)  (* nt 1000)
-
-
-      (space? (src i))   (again stk (+ i 1) nt sp mx ok)
-
-      ; an opener: push the closer we expect, and record the depth
-      (opener? (src i))
-        (again (set stk sp (if (= (src i) 123) 125 93))
-               (+ i 1) (+ nt 1) (+ sp 1)
-               (if (> (+ sp 1) mx) (+ sp 1) mx) ok)
-
-      ; a closer: it must match the top of the stack. A closer with nothing open
-      ; is unbalanced, and the index is CLAMPED rather than guarded so that the
-      ; indexing obligation holds on both sides of the test.
-      (closer? (src i))
-        (again stk (+ i 1) (+ nt 1)
-               (if (< sp 1) 0 (- sp 1)) mx
-               (if (< sp 1) 0
-                   (if (= (stk (if (< sp 1) 0 (- sp 1))) (src i)) ok 0)))
-
-      (punct? (src i))   (again stk (+ i 1) (+ nt 1) sp mx ok)
-      (= (src i) 34)     (again stk (scan-string src i) (+ nt 1) sp mx ok)
-      ; SCANNING STARTS PAST THE BYTE THE GUARD ALREADY MATCHED. Identical
-      ; answers -- the clause fires only when `(src i)` satisfies the predicate,
-      ; so testing it again is redundant -- and it is what makes the program
-      ; PROVABLE. Starting at `i`, a scanner may legitimately return `i`, so
-      ; loop monotonicity gives only `i' >= i` and the outer loop has no strict
-      ; descent; starting at `i + 1` gives `i' > i`, which is the size-change
-      ; witness. 64.5% of integer operations bounded and 15 of 20 loops proven
-      ; becomes 90.9% and 20 of 20 (monotone-2026-08-27).
-      (numeric? (src i)) (again stk (scan-run src (+ i 1) numeric?) (+ nt 1) sp mx ok)
-      (alpha? (src i))   (again stk (scan-run src (+ i 1) alpha?) (+ nt 1) sp mx ok)
-
-      else (again stk (+ i 1) nt sp mx 0))))
-
-; --- documents, selected by k ----------------------------------------------
-
-; {"a":[1,2],"b":true}          13 tokens, depth 2, valid
-(def d0 (array 123 34 97 34 58 91 49 44 50 93 44 34 98 34 58 116 114 117 101 125))
-; [[[1]]]                        7 tokens, depth 3, valid
-(def d1 (array 91 91 91 49 93 93 93))
-; {"a":1                         4 tokens, depth 1, UNTERMINATED
-(def d2 (array 123 34 97 34 58 49))
-; ]                              1 token, a closer with nothing open
-(def d3 (array 93))
-
-(sig run ((k int)) int)
-(def run (k)
-  (cond
-    (= k 0)  (tokens d0)
-    (= k 1)  (tokens d1)
-    (= k 2)  (tokens d2)
-    else     (tokens d3)))
+fn run(k ∈ Int) (Int) {
+    case {
+        k == 0 -> tokens(d0)
+        k == 1 -> tokens(d1)
+        k == 2 -> tokens(d2)
+        else -> tokens(d3)
+    }
+}

@@ -1,29 +1,29 @@
-; Modules, and the four cells of docs/spec/modules.md §5.
-;
-; `num/vec.dot` is DEFINED here and PROVIDED NATIVELY by the blas target. That
-; is the third cell — the conditional — and the whole point of the exercise is
-; that it still works once names are qualified:
-;
-;   oro -target=blas examples/modules.oro   ⟶  (num/vec.dot p q)     native wins
-;   oro -target=go   examples/modules.oro   ⟶  a fused loop          δ unfolds
-;
-; Nothing in the reducer knows modules exist. Resolution runs first and hands it
-; one flat qualified namespace.
+module num/vec {
+    // Modules, and the four cells of docs/spec/modules.md §5.
+    //
+    // `num/vec.dot` is DEFINED here and PROVIDED NATIVELY by the blas target. That
+    // is the third cell — the conditional — and the whole point of the exercise is
+    // that it still works once names are qualified:
+    //
+    //   oro -target=blas examples/modules.oro   ⟶  (num/vec.dot p q)     native wins
+    //   oro -target=go   examples/modules.oro   ⟶  a fused loop          δ unfolds
+    //
+    // Nothing in the reducer knows modules exist. Resolution runs first and hands it
+    // one flat qualified namespace.
+    use num/f64
 
-(module num/vec)
-(use num/f64)
-(export dot)
+    fn vec(n, f) { fn(sel) { sel(n, f) } }
+    fn vlen(v) { v(fn(n, f) { n }) }
+    fn vindex(v, i) { v(fn(n, f) { f })(i) }
+    fn of_array(a) { vec(alen(a), fn(i) { aindex(a, i) }) }
+    fn zip(g, a, b) { vec(vlen(a), fn(i) { g(vindex(a, i), vindex(b, i)) }) }
+    fn sum(v) { fold_range(0.0, vlen(v), fn(acc, i) { f64.add(acc, vindex(v, i)) }) }
+    export fn dot(a, b) { sum(zip(f64.mul, of_array(a), of_array(b))) }
+}
 
-(def vec      (n f) (fn (sel) (sel n f)))
-(def vlen     (v)   (v (fn (n f) n)))
-(def vindex   (v i) ((v (fn (n f) f)) i))
-(def of-array (a)   (vec (alen a) (fn (i) (aindex a i))))
-(def zip      (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i)))))
-(def sum      (v)   (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i)))))
-(def dot      (a b) (sum (zip f64.mul (of-array a) (of-array b))))
+module main {
+    use num/f64
+    use num/vec
 
-(module main)
-(use num/f64)
-(use num/vec)
-
-(fn (p q) (vec.dot p q))
+    fn(p, q) { vec.dot(p, q) }
+}

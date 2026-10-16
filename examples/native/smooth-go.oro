@@ -1,70 +1,59 @@
-; The gauntlet's stencil, on the NATIVE Go target — and the experiment ADR 0013
-; is waiting for.
-;
-; ADR 0013 accepted a price: g7's stencil runs at 1.79x on Go against a
-; hand-written BUFFER-REUSING form, because `num/vec.materialize` allocates
-; fresh so nothing can alias. The emitted code is at parity with hand-written
-; FUNCTIONAL code; the allocation is the whole gap.
-;
-; Two forms are carried here, which is the rule for adding to the gauntlet: the
-; one expected to win and the one expected to lose.
-;
-;   smooth       allocates its own destination. Expected to match SmoothFresh
-;                and to lose to the reusing form by ADR 0013's factor.
-;
-;   smooth-into  takes the destination as a parameter and writes through it.
-;                Expected to match SmoothNoAlias.
-;
-; `smooth-into` takes a `(buffer f64)` parameter (ADR 0020) and stores with the
-; language's `set`. A buffer's uniqueness is ASSUMED at an export and checked
-; through the body, so the ALIASING CLAIM is now written down: the caller
-; promises `dst` shares no storage with `a`. A caller that passes one slice as
-; both breaks that promise, which is the hazard gauntlet program 6 exists to
-; name. Until gotarget-2026-09-30 this stored with Go's `go.set-float64` into a
-; host slice and said nothing about aliasing at all.
-;
-; Both take `(>= (len a) 2)`: the kernel has len a − 2 elements, and a `build`'s
-; size is an obligation in [0, max-len] (irstep4f). Go's `make` panics on a
-; negative length, so the old `go.make-float64` version had the same domain and
-; did not say so.
+// The gauntlet's stencil, on the NATIVE Go target — and the experiment ADR 0013
+// is waiting for.
+//
+// ADR 0013 accepted a price: g7's stencil runs at 1.79x on Go against a
+// hand-written BUFFER-REUSING form, because `num/vec.materialize` allocates
+// fresh so nothing can alias. The emitted code is at parity with hand-written
+// FUNCTIONAL code; the allocation is the whole gap.
+//
+// Two forms are carried here, which is the rule for adding to the gauntlet: the
+// one expected to win and the one expected to lose.
+//
+//   smooth       allocates its own destination. Expected to match SmoothFresh
+//                and to lose to the reusing form by ADR 0013's factor.
+//
+//   smooth-into  takes the destination as a parameter and writes through it.
+//                Expected to match SmoothNoAlias.
+//
+// `smooth-into` takes a `(buffer f64)` parameter (ADR 0020) and stores with the
+// language's `set`. A buffer's uniqueness is ASSUMED at an export and checked
+// through the body, so the ALIASING CLAIM is now written down: the caller
+// promises `dst` shares no storage with `a`. A caller that passes one slice as
+// both breaks that promise, which is the hazard gauntlet program 6 exists to
+// name. Until gotarget-2026-09-30 this stored with Go's `go.set-float64` into a
+// host slice and said nothing about aliasing at all.
+//
+// Both take `(>= (len a) 2)`: the kernel has len a − 2 elements, and a `build`'s
+// size is an obligation in [0, max-len] (irstep4f). Go's `make` panics on a
+// negative length, so the old `go.make-float64` version had the same domain and
+// did not say so.
+use go
 
-(use go)
+// The delayed vector, unchanged from dot-go.oro. A library, not a primitive.
+fn vec(n, f) { fn(sel) { sel(n, f) } }
+fn vlen(v) { v(fn(n, f) { n }) }
+fn vindex(v, i) { v(fn(n, f) { f })(i) }
 
-(export smooth smooth-into)
+// `materialize`, written against the target instead of imported from num/vec:
+// allocate, then a `loop` that threads the destination and stores each element.
+// If reduction fuses the index function into the store, this IS the hand-written
+// loop, and the only thing left of the portable version's price is the `make`.
+fn materialize(v) {
+    var d := array { 0 : _ ∈ 0..vlen(v)-1 }
+    loop i = 0 { go.`>=`(i, vlen(v)) -> d; else -> { d[i] := vindex(v, i); again(go.`+`(i, 1)) } }
+}
 
-(sig smooth      ((a (array f64))) (array f64)
-  (where (>= (len a) 2)))
-(sig smooth-into ((dst (buffer f64)) (a (array f64))) (buffer f64)
-  (where (and (>= (len a) 2) (= (len dst) (len a)))))
+// The same loop, over a destination the caller supplies. Nothing is allocated.
+fn fill_into(dst linear, v) {
+    loop i = 0 {
+        go.`>=`(i, vlen(v)) -> ()
+        else -> { dst[i] := vindex(v, i); again(go.`+`(i, 1)) }
+    }
+}
 
-; The delayed vector, unchanged from dot-go.oro. A library, not a primitive.
-(def vec    (n f) (fn (sel) (sel n f)))
-(def vlen   (v)   (v (fn (n f) n)))
-(def vindex (v i) ((v (fn (n f) f)) i))
+fn window(a, j) { go.`f+`(go.`f+`(a[j], a[go.`+`(j, 1)]), a[go.`+`(j, 2)]) }
 
-; `materialize`, written against the target instead of imported from num/vec:
-; allocate, then a `loop` that threads the destination and stores each element.
-; If reduction fuses the index function into the store, this IS the hand-written
-; loop, and the only thing left of the portable version's price is the `make`.
-(def materialize (v)
-  (local d (table (vlen v) 0)
-    (loop ((d d) (i 0))
-      (go.>= i (vlen v))  d
-      else                (again (set d i (vindex v i)) (go.+ i 1)))))
-
-; The same loop, over a destination the caller supplies. Nothing is allocated.
-(def fill-into (dst v)
-  (loop ((d dst) (i 0))
-    (go.>= i (vlen v))  d
-    else                (again (set d i (vindex v i)) (go.+ i 1))))
-
-(def window (a j)
-  (go.f+ (go.f+ (a j)
-                (a (go.+ j 1)))
-         (a (go.+ j 2))))
-
-(def kernel (a)
-  (vec (go.- (len a) 2) (fn (j) (go.f/ (window a j) 3.0))))
-
-(def smooth      (a)     (materialize (kernel a)))
-(def smooth-into (dst a) (fill-into dst (kernel a)))
+fn kernel(a) { vec(go.`-`(len(a), 2), fn(j) { go.`f/`(window(a, j), 3.0) }) }
+export fn smooth(a ∈ Array(F64)) (Array(F64)) where len(a) >= 2 { materialize(kernel(a)) }
+export fn smooth_into(dst ∈ Array(F64) linear, a ∈ Array(F64)) (buffer(F64))
+    where len(a) >= 2 && len(dst) == len(a) { fill_into(dst, kernel(a)) }

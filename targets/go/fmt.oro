@@ -1,131 +1,166 @@
-; Go's `fmt`: formatting and printing, under Go's names.
-;
-;   (use go/fmt)
-;   (fmt.Println x)   (fmt.Sprintf "%d of %d" i n)   ((fmt.Fprintln w x) (fn (n err) …))
-;
-; THE ALGEBRA, BEFORE THE NAMES. fmt is one function and four uses of it:
-;
-;   F : Format × Value* → B*        the formatting (Sprintf; Sprint is F with the
-;                                   default verb, Sprintln with spaces and "\n")
-;   Print  = write stdout ∘ F       Fprint = write w ∘ F       Errorf = error ∘ F
-;   Append = (b ↦ b · F) on a buffer, B ⊸ B, as hex.AppendEncode
-;
-; Every one is VARIADIC over Go's `any`, f : Value* → B, and Go's `any` is the
-; EMPTY INTERFACE, ∃X. X, a box holding a value and its type (go.oro, and
-; spec/types.md §3.3). That is a type, as the language's `any` is not, so the
-; list is a table of boxes, `(array go.Value)`, and each function is ONE
-; declaration under Go's own name, marked `variadic` (spec/variadic.md). A call's
-; trailing arguments are the list, as Go's spec defines a variadic call:
-;
-;   (fmt.Println x)                 Go's fmt.Println(x)
-;   (fmt.Println "n =" n "of" t)    Go's fmt.Println("n =", n, "of", t)
-;   (fmt.Println (spread xs))       Go's fmt.Println(xs...)
-;
-; Every type held as one host value enters a box (types.md §3.3), so the
-; arguments are Go's `[]any{…}`, which the printer writes as Go's own call when
-; it is written at the call. The per-arity restrictions B2 and B3 stood here
-; until variadic-2026-10-08.
+// Go's `fmt`: formatting and printing, under Go's names.
+//
+//   (use go/fmt)
+//   (fmt.Println x)   (fmt.Sprintf "%d of %d" i n)   ((fmt.Fprintln w x) (fn (n err) …))
+//
+// THE ALGEBRA, BEFORE THE NAMES. fmt is one function and four uses of it:
+//
+//   F : Format × Value* → B*        the formatting (Sprintf; Sprint is F with the
+//                                   default verb, Sprintln with spaces and "\n")
+//   Print  = write stdout ∘ F       Fprint = write w ∘ F       Errorf = error ∘ F
+//   Append = (b ↦ b · F) on a buffer, B ⊸ B, as hex.AppendEncode
+//
+// Every one is VARIADIC over Go's `any`, f : Value* → B, and Go's `any` is the
+// EMPTY INTERFACE, ∃X. X, a box holding a value and its type (go.oro, and
+// spec/types.md §3.3). That is a type, as the language's `any` is not, so the
+// list is a table of boxes, `(array go.Value)`, and each function is ONE
+// declaration under Go's own name, marked `variadic` (spec/variadic.md). A call's
+// trailing arguments are the list, as Go's spec defines a variadic call:
+//
+//   (fmt.Println x)                 Go's fmt.Println(x)
+//   (fmt.Println "n =" n "of" t)    Go's fmt.Println("n =", n, "of", t)
+//   (fmt.Println (spread xs))       Go's fmt.Println(xs...)
+//
+// Every type held as one host value enters a box (types.md §3.3), so the
+// arguments are Go's `[]any{…}`, which the printer writes as Go's own call when
+// it is written at the call. The per-arity restrictions B2 and B3 stood here
+// until variadic-2026-10-08.
+// WHAT A BOX SHOWS: formatting through it sees the host value, so a verb that
+// tells representations apart tells ours apart (`%x` on a table whose element
+// width the compiler chose). Println's default verb does not. Tier 2.
+//
+// PRINT, PRINTLN AND PRINTF ARE STATEMENTS: their value is their first argument,
+// and Go's (n int, err error) are discarded — the restriction composed with the
+// projection that forgets them. So a failed write to standard output is not
+// observable through them; a program that must see it writes with
+// (fmt.Fprintln (os.Stdout) …), which hands the pair back.
+//
+// SPRINT'S RESULT IS THE HOST'S STRING (ADR 0030): a value may itself be host
+// bytes and %s prints them raw. THE FORMAT IS THE HOST'S STRING TOO: Go reads
+// any bytes as a format, and no result's claim depends on it being ours. It is
+// pure: equal operands, equal strings, and strings compare by content.
+//
+// ERRORF IS NOT PURE, which it was declared until gotarget-2026-09-30. Each call
+// allocates a new error, and Go's == on errors is identity: with e bound once,
+// (== e e) is true, and with the call duplicated, (== (Errorf …) (Errorf …)) is
+// false. Purity licenses duplication (ADR 0010), so a value with identity is
+// not pure, which is why `alloc` and `build` are not either.
+//
+// APPEND CONSUMES ITS BUFFER AND RETURNS IT, B ⊸ B: b grown when it must, and
+// dead either way, as hex.AppendEncode's.
+//
+// THE SCAN FAMILY IS THE INVERSE DIRECTION: it parses operands and stores each
+// through the pointer it is given, so its operands are CELLS (spec/local.md
+// §5): `(a (array (cell go.Value)))` makes every argument after the fixed ones
+// a cell of any type, its address in Go's box. A program passes cells in scope,
+// or (out τ) for a cell that lives for the one call:
+//
+//   ((fmt.Sscan line (out int) (out go.bytestring)) (fn (age name n e) …))
+//
+// Its result is a PARTIAL SUCCESS, ADR 0044's shape, read off Go's documentation:
+// "returns the number of items successfully scanned. If that is less than the
+// number of arguments, err will report why", so n means something beside the
+// error, and a cell past n keeps the value it had (its zero, for (out τ)). Not
+// pure: each stores through its operands, and Scan, Scanln, Scanf and Fscan…
+// read their input.
+//
+// WHAT IS NOT DECLARED, and why:
+//   - FormatString, and the Formatter, GoStringer and State interfaces, which
+//     only a callback could implement.
+module go/fmt {
+    use result
+    set Stringer = host "fmt.Stringer"
+    module Stringer {
+        fn String(self ∈ Stringer) (bytestring) { host expr "${self}.String()" }
+    }
 
-; WHAT A BOX SHOWS: formatting through it sees the host value, so a verb that
-; tells representations apart tells ours apart (`%x` on a table whose element
-; width the compiler chose). Println's default verb does not. Tier 2.
-;
-; PRINT, PRINTLN AND PRINTF ARE STATEMENTS: their value is their first argument,
-; and Go's (n int, err error) are discarded — the restriction composed with the
-; projection that forgets them. So a failed write to standard output is not
-; observable through them; a program that must see it writes with
-; (fmt.Fprintln (os.Stdout) …), which hands the pair back.
-;
-; SPRINT'S RESULT IS THE HOST'S STRING (ADR 0030): a value may itself be host
-; bytes and %s prints them raw. THE FORMAT IS THE HOST'S STRING TOO: Go reads
-; any bytes as a format, and no result's claim depends on it being ours. It is
-; pure: equal operands, equal strings, and strings compare by content.
-;
-; ERRORF IS NOT PURE, which it was declared until gotarget-2026-09-30. Each call
-; allocates a new error, and Go's == on errors is identity: with e bound once,
-; (== e e) is true, and with the call duplicated, (== (Errorf …) (Errorf …)) is
-; false. Purity licenses duplication (ADR 0010), so a value with identity is
-; not pure, which is why `alloc` and `build` are not either.
-;
-; APPEND CONSUMES ITS BUFFER AND RETURNS IT, B ⊸ B: b grown when it must, and
-; dead either way, as hex.AppendEncode's.
-;
-; THE SCAN FAMILY IS THE INVERSE DIRECTION: it parses operands and stores each
-; through the pointer it is given, so its operands are CELLS (spec/local.md
-; §5): `(a (array (cell go.Value)))` makes every argument after the fixed ones
-; a cell of any type, its address in Go's box. A program passes cells in scope,
-; or (out τ) for a cell that lives for the one call:
-;
-;   ((fmt.Sscan line (out int) (out go.bytestring)) (fn (age name n e) …))
-;
-; Its result is a PARTIAL SUCCESS, ADR 0044's shape, read off Go's documentation:
-; "returns the number of items successfully scanned. If that is less than the
-; number of arguments, err will report why", so n means something beside the
-; error, and a cell past n keeps the value it had (its zero, for (out τ)). Not
-; pure: each stores through its operands, and Scan, Scanln, Scanf and Fscan…
-; read their input.
-;
-; WHAT IS NOT DECLARED, and why:
-;   - FormatString, and the Formatter, GoStringer and State interfaces, which
-;     only a callback could implement.
+    // ---------------------------------------------------------- to standard output
+    fn Print(a ∈ Array(go.Value)) (Any) variadic { host stmt "fmt.Print(${a}...)" import "fmt" }
+    fn Println(a ∈ Array(go.Value)) (Any) variadic { host stmt "fmt.Println(${a}...)" import "fmt" }
+    fn Printf(format ∈ bytestring, a ∈ Array(go.Value)) (Any) variadic {
+        host stmt "fmt.Printf(${format}, ${a}...)" import "fmt"
+    }
 
-(target go
-  (module go/fmt
-    (use result)
-    (type Stringer (host "fmt.Stringer"))
-    (module Stringer
-      (sig String ((self Stringer)) bytestring (host expr "%s.String()")))
+    // ------------------------------------------------------------- to a string
+    fn Sprint(a ∈ Array(go.Value)) (bytestring) pure variadic {
+        host expr "fmt.Sprint(${a}...)" import "fmt"
+    }
+    fn Sprintln(a ∈ Array(go.Value)) (bytestring) pure variadic {
+        host expr "fmt.Sprintln(${a}...)" import "fmt"
+    }
+    fn Sprintf(format ∈ bytestring, a ∈ Array(go.Value)) (bytestring) pure variadic {
+        host expr "fmt.Sprintf(${format}, ${a}...)" import "fmt"
+    }
 
-    ; ---------------------------------------------------------- to standard output
-    (sig Print   ((a (array go.Value))) any variadic                      (host stmt "fmt.Print(%s...)" (import "fmt")))
-    (sig Println ((a (array go.Value))) any variadic                      (host stmt "fmt.Println(%s...)" (import "fmt")))
-    (sig Printf  ((format bytestring) (a (array go.Value))) any variadic  (host stmt "fmt.Printf(%s, %s...)" (import "fmt")))
+    // ------------------------------------------------------------- to a buffer
+    fn Append(b ∈ Array(0..255) linear, a ∈ Array(go.Value)) (buffer(0..255)) variadic {
+        host expr "fmt.Append(${b}, ${a}...)" import "fmt"
+    }
+    fn Appendln(b ∈ Array(0..255) linear, a ∈ Array(go.Value)) (buffer(0..255)) variadic {
+        host expr "fmt.Appendln(${b}, ${a}...)" import "fmt"
+    }
+    fn Appendf(b ∈ Array(0..255) linear, format ∈ bytestring,
+        a ∈ Array(go.Value)) (buffer(0..255)) variadic {
+        host expr "fmt.Appendf(${b}, ${format}, ${a}...)" import "fmt"
+    }
 
-    ; ------------------------------------------------------------- to a string
-    (sig Sprint   ((a (array go.Value))) bytestring pure variadic                      (host expr "fmt.Sprint(%s...)" (import "fmt")))
-    (sig Sprintln ((a (array go.Value))) bytestring pure variadic                      (host expr "fmt.Sprintln(%s...)" (import "fmt")))
-    (sig Sprintf  ((format bytestring) (a (array go.Value))) bytestring pure variadic  (host expr "fmt.Sprintf(%s, %s...)" (import "fmt")))
+    // ------------------------------------------------------------- to a Writer
+    // The pair is handed back: n, the bytes written, and the write's error.
+    fn Fprint(w ∈ `go/io`.Writer,
+        a ∈ Array(go.Value)) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Fprint(${w}, ${a}...)" import "fmt"
+    }
+    fn Fprintln(w ∈ `go/io`.Writer,
+        a ∈ Array(go.Value)) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Fprintln(${w}, ${a}...)" import "fmt"
+    }
+    fn Fprintf(w ∈ `go/io`.Writer, format ∈ bytestring,
+        a ∈ Array(go.Value)) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Fprintf(${w}, ${format}, ${a}...)" import "fmt"
+    }
 
-    ; ------------------------------------------------------------- to a buffer
-    (sig Append   ((b (buffer (int 0 255))) (a (array go.Value))) (buffer (int 0 255)) variadic
-      (host expr "fmt.Append(%s, %s...)" (import "fmt")))
-    (sig Appendln ((b (buffer (int 0 255))) (a (array go.Value))) (buffer (int 0 255)) variadic
-      (host expr "fmt.Appendln(%s, %s...)" (import "fmt")))
-    (sig Appendf  ((b (buffer (int 0 255))) (format bytestring) (a (array go.Value))) (buffer (int 0 255)) variadic
-      (host expr "fmt.Appendf(%s, %s, %s...)" (import "fmt")))
+    // ---------------------------------------------------- scanning, into cells
+    fn Scan(a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Scan(${a}...)" import "fmt"
+    }
+    fn Scanln(a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Scanln(${a}...)" import "fmt"
+    }
+    fn Scanf(format ∈ bytestring,
+        a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Scanf(${format}, ${a}...)" import "fmt"
+    }
+    fn Sscan(str ∈ bytestring,
+        a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Sscan(${str}, ${a}...)" import "fmt"
+    }
+    fn Sscanln(str ∈ bytestring,
+        a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Sscanln(${str}, ${a}...)" import "fmt"
+    }
+    fn Sscanf(str ∈ bytestring, format ∈ bytestring,
+        a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Sscanf(${str}, ${format}, ${a}...)" import "fmt"
+    }
+    fn Fscan(r ∈ `go/io`.Reader,
+        a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Fscan(${r}, ${a}...)" import "fmt"
+    }
+    fn Fscanln(r ∈ `go/io`.Reader,
+        a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Fscanln(${r}, ${a}...)" import "fmt"
+    }
+    fn Fscanf(r ∈ `go/io`.Reader, format ∈ bytestring,
+        a ∈ Array(cell(go.Value))) (0..2^63-1 × result.result((), error)) variadic {
+        host expr "fmt.Fscanf(${r}, ${format}, ${a}...)" import "fmt"
+    }
 
-    ; ------------------------------------------------------------- to a Writer
-    ; The pair is handed back: n, the bytes written, and the write's error.
-    (sig Fprint   ((w go/io.Writer) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Fprint(%s, %s...)" (import "fmt")))
-    (sig Fprintln ((w go/io.Writer) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Fprintln(%s, %s...)" (import "fmt")))
-    (sig Fprintf  ((w go/io.Writer) (format bytestring) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Fprintf(%s, %s, %s...)" (import "fmt")))
+    // ------------------------------------------------------------------ errors
+    // Not pure: each call is a new error, and == on errors is identity.
+    fn Errorf(format ∈ bytestring, a ∈ Array(go.Value)) (error) variadic {
+        host expr "fmt.Errorf(${format}, ${a}...)" import "fmt"
+    }
+}
 
-    ; ---------------------------------------------------- scanning, into cells
-    (sig Scan    ((a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Scan(%s...)" (import "fmt")))
-    (sig Scanln  ((a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Scanln(%s...)" (import "fmt")))
-    (sig Scanf   ((format bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Scanf(%s, %s...)" (import "fmt")))
-    (sig Sscan   ((str bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Sscan(%s, %s...)" (import "fmt")))
-    (sig Sscanln ((str bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Sscanln(%s, %s...)" (import "fmt")))
-    (sig Sscanf  ((str bytestring) (format bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Sscanf(%s, %s, %s...)" (import "fmt")))
-    (sig Fscan   ((r go/io.Reader) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Fscan(%s, %s...)" (import "fmt")))
-    (sig Fscanln ((r go/io.Reader) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Fscanln(%s, %s...)" (import "fmt")))
-    (sig Fscanf  ((r go/io.Reader) (format bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
-      (host expr "fmt.Fscanf(%s, %s, %s...)" (import "fmt")))
-
-    ; ------------------------------------------------------------------ errors
-    ; Not pure: each call is a new error, and == on errors is identity.
-    (sig Errorf ((format bytestring) (a (array go.Value))) error variadic (host expr "fmt.Errorf(%s, %s...)" (import "fmt"))))
-
-  ; A Builder's String is fmt.Stringer's method (Go's method set).
-  (implements go/strings.Builder go/fmt.Stringer))
+// A Builder's String is fmt.Stringer's method (Go's method set).
+axiom `go/strings`.Builder ⊆ `go/fmt`.Stringer

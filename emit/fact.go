@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"oroboros/core"
+	"oroboros/j"
 )
 
 // FACTS ARE AXIOM SCHEMATA OF A LOCAL THEORY EXTENSION (spec/theories.md §7).
@@ -55,7 +56,7 @@ func mustFacts(src string) []*Fact {
 }
 
 func readFacts(src string) ([]*Fact, error) {
-	terms, err := core.ReadAll(src)
+	terms, err := j.ReadTargetSource(src, "emit/lang-facts.oro", "")
 	if err != nil {
 		return nil, err
 	}

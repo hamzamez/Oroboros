@@ -1,26 +1,24 @@
-; A RESULT SUM PROPAGATED THROUGH THREE LEVELS (errors-2026-10-04 §2). After
-; reduction no tag, constructor or tuple is left: each error path is a branch to
-; the handler, with its code folded to a constant.
-(use os)
-(use io)
-(export main)
-(variant (result T) (ok T) (err int))
+// A RESULT SUM PROPAGATED THROUGH THREE LEVELS (errors-2026-10-04 §2). After
+// reduction no tag, constructor or tuple is left: each error path is a branch to
+// the handler, with its code folded to a constant.
+use os
+use io
+set Result(T) = 'ok(T) ∪ 'err(Int)
 
-(def read (p)
-  (let (tuple src e) (os.ReadFile p)
-    (if (os.err-nil e) (ok src) (err 1))))
+fn read(p) {
+    (src, e) = os.ReadFile(p)
+    if os.err_nil(e) { 'ok(src) } else { 'err(1) }
+}
 
-(def first (p)
-  (case (read p)
-    (ok s)  (if (> (len s) 0) (ok (s 0)) (err 2))
-    (err c) (err c)))
+fn first(p) {
+    case read(p) { 'ok(s) -> if len(s) > 0 { 'ok(s[0]) } else { 'err(2) }; 'err(c) -> 'err(c) }
+}
 
-(def plus1 (p)
-  (case (first p)
-    (ok b)  (ok (+ b 1))
-    (err c) (err c)))
+fn plus1(p) { case first(p) { 'ok(b) -> 'ok(b + 1); 'err(c) -> 'err(c) } }
 
-(def main ()
-  (case (plus1 "case.oro")
-    (ok v)  (seq (io.print-int v) 0)
-    (err c) (seq (io.print-int (- 0 c)) c)))
+export fn main() {
+    case plus1("case.oro") {
+        'ok(v) -> { io.print_int(v); 0 }
+        'err(c) -> { io.print_int(0 - c); c }
+    }
+}

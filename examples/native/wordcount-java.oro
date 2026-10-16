@@ -1,32 +1,29 @@
-; BUILT WITH `-checked`, for the reason wordcount-go.oro gives: nothing
-; declares what a `Map<String,Long>` holds, and the language's own map -- which
-; carries a value range in its type -- needs string keys.
-;
-; THE PARASITE TEST, on the native Java target.
-;
-; Java is where this matters most: baseline R5 measured Java's fused
-; `merge(k, 1, Integer::sum)` at 2.6x SLOWER than `getOrDefault` + `put` — the
-; exact opposite of Go, where the fused `m[k]++` wins 1.19x. Same capability,
-; opposite idiom, and the target file already says so.
-;
-; Both forms are carried, because a losing form that is not measured is a
-; belief rather than a result.
-(use java)
-(use java/Map as Map)
-(use java/String as Str)
-(export tally tally-merge)
+// BUILT WITH `-checked`, for the reason wordcount-go.oro gives: nothing
+// declares what a `Map<String,Long>` holds, and the language's own map -- which
+// carries a value range in its type -- needs string keys.
+//
+// THE PARASITE TEST, on the native Java target.
+//
+// Java is where this matters most: baseline R5 measured Java's fused
+// `merge(k, 1, Integer::sum)` at 2.6x SLOWER than `getOrDefault` + `put` — the
+// exact opposite of Go, where the fused `m[k]++` wins 1.19x. Same capability,
+// opposite idiom, and the target file already says so.
+//
+// Both forms are carried, because a losing form that is not measured is a
+// belief rather than a result.
+use java
+use java/Map
+use java/String as Str
 
-(sig tally       ((text string)) map-string-long)
-(sig tally-merge ((text string)) map-string-long)
+fn bump(m, w) { Map.put(m, w, java.`+`(Map.get(m, w), 1)) }
+fn bump_merge(m, w) { Map.merge(m, w) }
 
-(def bump       (m w) (Map.put m w (java.+ (Map.get m w) 1)))
-(def bump-merge (m w) (Map.merge m w))
-
-(def count-with (step text)
-  (let ws (Str.split text " ")
-    (loop ((m (Map.new)) (i 0))
-      (java.>= i (len ws))  m
-      else                  (again (step m (ws i)) (java.+ i 1)))))
-
-(def tally       (text) (count-with bump       text))
-(def tally-merge (text) (count-with bump-merge text))
+fn count_with(step, text) {
+    ws = Str.split(text, " ")
+    loop m = Map.new(), i = 0 {
+        java.`>=`(i, len(ws)) -> m
+        else -> again(step(m, ws[i]), java.`+`(i, 1))
+    }
+}
+export fn tally(text ∈ String) (map_string_long) { count_with(bump, text) }
+export fn tally_merge(text ∈ String) (map_string_long) { count_with(bump_merge, text) }

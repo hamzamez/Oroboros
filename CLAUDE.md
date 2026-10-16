@@ -174,8 +174,14 @@ concurrent assignment for the merge sorts' swapping buffers, which ADR 0052's R0
 store `dt[s][1] := v`; one rule for every borrow, growth a statement. **ADR 0058 is built behind the
 gate too** ([mapbuf-2026-10-16](gauntlet/results/mapbuf-2026-10-16.md)): a map buffer is the same place
 over another index set, `var m := map(8)`, `m[k] := v`, S choosing `insert` by the scope's mark; J has no
-threaded spelling left. Next: step 5, the corpus switched to J and the target loader with it; then 0062's
-logic, 0066's inference and 0053's arrow, each when a program needs it.
+threaded spelling left. **Step 5a: the corpus is J** ([jswitch-2026-10-16](gauntlet/results/jswitch-2026-10-16.md)):
+all 223 `.oro` files, programs, libraries, target files and fragments, are J, still `.oro`; core reads no
+source, its resolver returning forms, and the drivers, the module loader and the target loader read J
+(`j/via.go`); a file is the module named by its path under a library directory, else the root. A bridge
+reads the tests' inline snippets, still today's notation, recognised by a first `(` or `;`. Next: step 5b,
+the snippets and the surveys' generators in J, then today's reader, μ, the translator and the bridge
+deleted (hamza: "remove it"); then 0062's logic, 0066's inference and 0053's arrow, each when a program
+needs it.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.

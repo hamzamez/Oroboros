@@ -9,6 +9,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/j"
 )
 
 // RELEVANT USAGE AGREES ON THE CORPUS (abstract.md §8.1, step 2). For every
@@ -29,8 +30,11 @@ func TestRelevantUsageAgreesOnTheCorpus(t *testing.T) {
 				return nil
 			}
 			src, _ := os.ReadFile(p)
-			forms, err := core.Read(string(src))
-			if err != nil || core.OnlyFragments(forms) {
+			if j.IsFragment(string(src)) {
+				return nil
+			}
+			forms, err := j.ReadEntry(string(src), p)
+			if err != nil {
 				return nil
 			}
 			prog, _, err := tg.LoadProgram(forms, filepath.Dir(p), "../lib")
@@ -41,7 +45,7 @@ func TestRelevantUsageAgreesOnTheCorpus(t *testing.T) {
 			if err != nil {
 				return nil
 			}
-			decls, err := core.ReadTrees(string(src))
+			decls, err := j.ReadProgram(string(src), "", filepath.Dir(p), "..")
 			if err != nil {
 				t.Errorf("%s: %v", p, err)
 				return nil

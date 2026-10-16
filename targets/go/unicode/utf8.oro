@@ -1,112 +1,118 @@
-; unicode/utf8, DECLARED BY HAND (host-buffers.md §7; the decision to write host
-; declarations by hand and keep the generator as their checker).
-;
-; Every claim below was read off the package's documentation and source in the
-; Go 1.27 toolchain, and each kind of claim is one the generator cannot make:
-;
-;   pure       — the function reads its arguments and writes nothing; the census
-;                in host-buffers.md §6 classified every slice parameter here.
-;   a buffer   — EncodeRune writes into p; AppendRune may write into p's spare
-;                capacity. Both take a BUFFER, so an immutable array can never
-;                reach them and ADR 0018's invariant survives the call.
-;   a range    — what the host can return, which is what lets bounded-by-default
-;                prove arithmetic on a result instead of refusing it.
-;   a where    — what the host requires, checked at every call site.
-;
-; THE ALGEBRA.
-;   Σ = [0, 0xD7FF] ∪ [0xE000, 0x10FFFF], the scalar values, and B = [0, 255].
-;   ValidRune is Σ's characteristic function on `rune`.
-;   e : Σ → B⁺ is the shortest encoding of one scalar, in RuneLen(c) ∈ {1..4}
-;   bytes by the thresholds 2^7, 2^11, 2^16. Its image is a PREFIX-FREE code:
-;   the lead byte fixes the length, and every later byte is 10xxxxxx, which is
-;   what RuneStart tests.
-;   enc : Σ* → B* is the monoid homomorphism e generates, injective because the
-;   code is prefix-free. Its image V is ADR 0030's valid UTF-8, and Valid is
-;   V's characteristic function.
-;   DecodeRune reads the first codeword: (c, RuneLen c) when p begins with e(c),
-;   (RuneError, 1) when it begins with no codeword, (RuneError, 0) when p is
-;   empty. It is total on B*, and on Σ it inverts e: DecodeRune(e(c)) =
-;   (c, RuneLen c). RuneCount counts the codewords and the bytes that begin
-;   none, each at least one byte wide, so RuneCount p ≤ len p.
-;
-; WHAT IS NOT SAID: DecodeRune's size ≤ len p relates a component of a tuple
-; result, and an `ensures` names one `result` (math/bits.oro meets the same
-; wall); and EncodeRune's exact requirement is a disjunction (below).
-;
-; The generator still spells the host's types; gauntlet/stdlib/tooling_test.go
-; checks that every declaration here agrees with them, and that none is missing.
+// unicode/utf8, DECLARED BY HAND (host-buffers.md §7; the decision to write host
+// declarations by hand and keep the generator as their checker).
+//
+// Every claim below was read off the package's documentation and source in the
+// Go 1.27 toolchain, and each kind of claim is one the generator cannot make:
+//
+//   pure       — the function reads its arguments and writes nothing; the census
+//                in host-buffers.md §6 classified every slice parameter here.
+//   a buffer   — EncodeRune writes into p; AppendRune may write into p's spare
+//                capacity. Both take a BUFFER, so an immutable array can never
+//                reach them and ADR 0018's invariant survives the call.
+//   a range    — what the host can return, which is what lets bounded-by-default
+//                prove arithmetic on a result instead of refusing it.
+//   a where    — what the host requires, checked at every call site.
+//
+// THE ALGEBRA.
+//   Σ = [0, 0xD7FF] ∪ [0xE000, 0x10FFFF], the scalar values, and B = [0, 255].
+//   ValidRune is Σ's characteristic function on `rune`.
+//   e : Σ → B⁺ is the shortest encoding of one scalar, in RuneLen(c) ∈ {1..4}
+//   bytes by the thresholds 2^7, 2^11, 2^16. Its image is a PREFIX-FREE code:
+//   the lead byte fixes the length, and every later byte is 10xxxxxx, which is
+//   what RuneStart tests.
+//   enc : Σ* → B* is the monoid homomorphism e generates, injective because the
+//   code is prefix-free. Its image V is ADR 0030's valid UTF-8, and Valid is
+//   V's characteristic function.
+//   DecodeRune reads the first codeword: (c, RuneLen c) when p begins with e(c),
+//   (RuneError, 1) when it begins with no codeword, (RuneError, 0) when p is
+//   empty. It is total on B*, and on Σ it inverts e: DecodeRune(e(c)) =
+//   (c, RuneLen c). RuneCount counts the codewords and the bytes that begin
+//   none, each at least one byte wide, so RuneCount p ≤ len p.
+//
+// WHAT IS NOT SAID: DecodeRune's size ≤ len p relates a component of a tuple
+// result, and an `ensures` names one `result` (math/bits.oro meets the same
+// wall); and EncodeRune's exact requirement is a disjunction (below).
+//
+// The generator still spells the host's types; gauntlet/stdlib/tooling_test.go
+// checks that every declaration here agrees with them, and that none is missing.
+module go/unicode/utf8 {
+    // ------------------------------------------------------------ constants
+    MaxRune ∈ set { 1114111 } = host "utf8.MaxRune" import "unicode/utf8"
+    RuneError ∈ set { 65533 } = host "utf8.RuneError" import "unicode/utf8"
+    RuneSelf ∈ set { 128 } = host "utf8.RuneSelf" import "unicode/utf8"
+    UTFMax ∈ set { 4 } = host "utf8.UTFMax" import "unicode/utf8"
 
-(target go
-  (module go/unicode/utf8
+    // ------------------------------------------------------------ one rune
+    // "It returns -1 if the rune is not a valid value to encode in UTF-8."
+    fn RuneLen(r ∈ int32) (-1..UTFMax) pure {
+        host expr "utf8.RuneLen(int32(${r}))" import "unicode/utf8"
+    }
+    fn ValidRune(r ∈ int32) (Bool) pure {
+        host expr "utf8.ValidRune(int32(${r}))" import "unicode/utf8"
+    }
+    fn RuneStart(b ∈ uint8) (Bool) pure {
+        host expr "utf8.RuneStart(uint8(${b}))" import "unicode/utf8"
+    }
 
-    ; ------------------------------------------------------------ constants
-    (const MaxRune   1114111 (host "utf8.MaxRune"   (import "unicode/utf8")))
-    (const RuneError 65533   (host "utf8.RuneError" (import "unicode/utf8")))
-    (const RuneSelf  128     (host "utf8.RuneSelf"  (import "unicode/utf8")))
-    (const UTFMax    4       (host "utf8.UTFMax"    (import "unicode/utf8")))
+    // ------------------------------------------------------------ writing
+    // A WRITE-BORROW: B ⊸ B ⊗ R. The host writes into p "(which must be large
+    // enough)" and returns how many bytes it wrote; the template hands p back,
+    // which is the identity and costs nothing. An out-of-range rune writes
+    // RuneError, three bytes, so the count is 1..4 whatever r is.
+    //
+    // The precondition is CONSERVATIVE and says so: the host needs RuneLen(r)
+    // bytes (three for an invalid rune), and four is enough for every rune. The
+    // exact requirement is a disjunction the linear fragment cannot state.
+    fn EncodeRune(p ∈ Array(uint8) linear, r ∈ int32) (buffer(uint8) × 1..4)
+        where 4 <= len(p) {
+        host expr "func(p []byte, r int32) ([]byte, int) { return p, utf8.EncodeRune(p, r) }(${p}, int32(${r}))" import "unicode/utf8"
+    }
 
-    ; ------------------------------------------------------------ one rune
-    ; "It returns -1 if the rune is not a valid value to encode in UTF-8."
-    (sig RuneLen   ((r int32)) (int -1 UTFMax) pure
-          (host expr "utf8.RuneLen(int32(%s))" (import "unicode/utf8")))
-    (sig ValidRune ((r int32)) bool pure
-          (host expr "utf8.ValidRune(int32(%s))" (import "unicode/utf8")))
-    (sig RuneStart ((b uint8)) bool pure
-          (host expr "utf8.RuneStart(uint8(%s))" (import "unicode/utf8")))
+    // CONSUME AND RETURN: B ⊸ B. "appends the UTF-8 encoding of r to the end of p
+    // and returns the extended buffer" — the same storage when p has capacity, new
+    // storage when not, and p is dead either way.
+    fn AppendRune(p ∈ Array(uint8) linear, r ∈ int32) (buffer(uint8)) {
+        host expr "utf8.AppendRune(${p}, int32(${r}))" import "unicode/utf8"
+    }
 
-    ; ------------------------------------------------------------ writing
-    ; A WRITE-BORROW: B ⊸ B ⊗ R. The host writes into p "(which must be large
-    ; enough)" and returns how many bytes it wrote; the template hands p back,
-    ; which is the identity and costs nothing. An out-of-range rune writes
-    ; RuneError, three bytes, so the count is 1..4 whatever r is.
-    ;
-    ; The precondition is CONSERVATIVE and says so: the host needs RuneLen(r)
-    ; bytes (three for an invalid rune), and four is enough for every rune. The
-    ; exact requirement is a disjunction the linear fragment cannot state.
-    (sig EncodeRune ((p (buffer uint8)) (r int32))
-          (tuple (buffer uint8) (int 1 4))
-          (where (<= 4 (len p)))
-          (host expr "func(p []byte, r int32) ([]byte, int) { return p, utf8.EncodeRune(p, r) }(%s, int32(%s))"
-            (import "unicode/utf8")))
+    // ------------------------------------------------------------ reading bytes
+    // A decoded rune is a scalar value or RuneError, so 0..MaxRune; its size is
+    // 0 only for empty input and at most UTFMax. Both are written as the
+    // CONSTANTS this file already declares: a value written twice is two claims
+    // that can disagree, which is `const`'s own reason one level up.
+    fn DecodeRune(p ∈ Array(uint8)) (0..MaxRune × 0..UTFMax) pure {
+        host expr "utf8.DecodeRune(${p})" import "unicode/utf8"
+    }
+    fn DecodeLastRune(p ∈ Array(uint8)) (0..MaxRune × 0..UTFMax) pure {
+        host expr "utf8.DecodeLastRune(${p})" import "unicode/utf8"
+    }
+    fn FullRune(p ∈ Array(uint8)) (Bool) pure {
+        host expr "utf8.FullRune(${p})" import "unicode/utf8"
+    }
+    // Every rune, valid or not, is at least one byte.
+    fn RuneCount(p ∈ Array(uint8)) (r ∈ 0..2^63-1) pure
+        ensure r <= len(p) {
+        host expr "utf8.RuneCount(${p})" import "unicode/utf8"
+    }
+    fn Valid(p ∈ Array(uint8)) (Bool) pure { host expr "utf8.Valid(${p})" import "unicode/utf8" }
 
-    ; CONSUME AND RETURN: B ⊸ B. "appends the UTF-8 encoding of r to the end of p
-    ; and returns the extended buffer" — the same storage when p has capacity, new
-    ; storage when not, and p is dead either way.
-    (sig AppendRune ((p (buffer uint8)) (r int32))
-          (buffer uint8)
-          (host expr "utf8.AppendRune(%s, int32(%s))"
-            (import "unicode/utf8")))
-
-    ; ------------------------------------------------------------ reading bytes
-    ; A decoded rune is a scalar value or RuneError, so 0..MaxRune; its size is
-    ; 0 only for empty input and at most UTFMax. Both are written as the
-    ; CONSTANTS this file already declares: a value written twice is two claims
-    ; that can disagree, which is `const`'s own reason one level up.
-    (sig DecodeRune     ((p (array uint8))) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
-          (host expr "utf8.DecodeRune(%s)" (import "unicode/utf8")))
-    (sig DecodeLastRune ((p (array uint8))) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
-          (host expr "utf8.DecodeLastRune(%s)" (import "unicode/utf8")))
-    (sig FullRune       ((p (array uint8))) bool pure
-          (host expr "utf8.FullRune(%s)" (import "unicode/utf8")))
-    ; Every rune, valid or not, is at least one byte.
-    (sig RuneCount      ((p (array uint8))) (int 0 9223372036854775807) pure (ensures (<= result (len p)))
-          (host expr "utf8.RuneCount(%s)" (import "unicode/utf8")))
-    (sig Valid          ((p (array uint8))) bool pure
-          (host expr "utf8.Valid(%s)" (import "unicode/utf8")))
-
-    ; ------------------------------------------------------------ reading strings
-    ; Each is defined on ANY byte sequence — deciding and decoding it is the
-    ; package's purpose — so each takes the host's string (ADR 0030); ours, Σ*
-    ; stored as UTF-8, flows in as it is.
-    (sig DecodeRuneInString     ((s bytestring)) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
-          (host expr "utf8.DecodeRuneInString(%s)" (import "unicode/utf8")))
-    (sig DecodeLastRuneInString ((s bytestring)) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
-          (host expr "utf8.DecodeLastRuneInString(%s)" (import "unicode/utf8")))
-    (sig FullRuneInString       ((s bytestring)) bool pure
-          (host expr "utf8.FullRuneInString(%s)" (import "unicode/utf8")))
-    (sig RuneCountInString      ((s bytestring)) (int 0 9223372036854775807) pure
-          (host expr "utf8.RuneCountInString(%s)" (import "unicode/utf8")))
-    (sig ValidString            ((s bytestring)) bool pure
-          (host expr "utf8.ValidString(%s)" (import "unicode/utf8")))
-  )
-)
+    // ------------------------------------------------------------ reading strings
+    // Each is defined on ANY byte sequence — deciding and decoding it is the
+    // package's purpose — so each takes the host's string (ADR 0030); ours, Σ*
+    // stored as UTF-8, flows in as it is.
+    fn DecodeRuneInString(s ∈ bytestring) (0..MaxRune × 0..UTFMax) pure {
+        host expr "utf8.DecodeRuneInString(${s})" import "unicode/utf8"
+    }
+    fn DecodeLastRuneInString(s ∈ bytestring) (0..MaxRune × 0..UTFMax) pure {
+        host expr "utf8.DecodeLastRuneInString(${s})" import "unicode/utf8"
+    }
+    fn FullRuneInString(s ∈ bytestring) (Bool) pure {
+        host expr "utf8.FullRuneInString(${s})" import "unicode/utf8"
+    }
+    fn RuneCountInString(s ∈ bytestring) (0..2^63-1) pure {
+        host expr "utf8.RuneCountInString(${s})" import "unicode/utf8"
+    }
+    fn ValidString(s ∈ bytestring) (Bool) pure {
+        host expr "utf8.ValidString(${s})" import "unicode/utf8"
+    }
+}

@@ -96,25 +96,20 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	if err != nil {
 		return err
 	}
-	forms, err := core.Read(string(text))
-	if os.Getenv("ORO_VIA_J") != "" {
-		// J's reading of the program (spec/j.md; jread-2026-10-15): the gate
-		// that compiling from J changes nothing.
-		forms, err = j.ViaJ(string(text), src)
-		j.ViaJLibraries(libDirs(src, path))
+	// A TARGET FRAGMENT IS NOT A PROGRAM. `provides TARGET PATH { … }` is read by
+	// the target loader — a fragment of the model written where the library
+	// lives — so a file that says nothing else has nothing to emit, and saying so
+	// beats reporting its first word as unexpected.
+	if j.IsFragment(string(text)) {
+		return fmt.Errorf("%s is a target fragment — it declares provides … and nothing else, "+
+			"so there is no program here to build", src)
 	}
+	// THE PROGRAM, READ IN J (spec/j.md, ADR 0068).
+	forms, err := j.ReadModule(string(text), src, j.ModulePath(src, filepath.SplitList(path)))
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	// A TARGET FRAGMENT IS NOT A PROGRAM. `(provides TARGET PATH …)` is read by
-	// the target loader — it is `(target T (module PATH …))` written where the
-	// library lives — so a file that says nothing else has nothing to emit, and
-	// saying so beats reporting the first name inside it as unbound.
-	if core.OnlyFragments(forms) {
-		return fmt.Errorf("%s is a target fragment — it declares (provides …) and nothing else, "+
-			"so there is no program here to build", src)
-	}
-	prog, terms, err := core.LoadWithDefs(forms, fileResolver(libDirs(src, path)), tg.Defs)
+	prog, terms, err := core.LoadWithDefs(forms, j.Resolver(libDirs(src, path)), tg.Defs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
@@ -306,25 +301,6 @@ var irOut string
 // writeIR is ir.WriteFile on -ir's file.
 func writeIR(tg *emit.Target, p *ir.Program, errs []string) {
 	_ = ir.WriteFile(irOut, tg, p, errs)
-}
-
-// fileResolver finds a module on a search path: `(use num/vec)` looks for
-// num/vec.oro under each directory in turn. A path with no file is not an
-// error — it is a module the TARGET provides, like go/strings.
-func fileResolver(dirs []string) core.Resolver {
-	return func(path string) (string, bool, error) {
-		for _, d := range dirs {
-			p := filepath.Join(d, filepath.FromSlash(path)+".oro")
-			b, err := os.ReadFile(p)
-			if err == nil {
-				return string(b), true, nil
-			}
-			if !os.IsNotExist(err) {
-				return "", false, err
-			}
-		}
-		return "", false, nil
-	}
 }
 
 // libDirs is the search path: the entry file's own directory first, so a

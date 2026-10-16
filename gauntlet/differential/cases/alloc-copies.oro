@@ -1,22 +1,24 @@
-; `(alloc t)` OF A BUFFER IS THE TABLE OF ITS CONTENTS AT THAT POINT, and a store
-; after it must not show through (tables.md §2).
-; expect: 7 7
-; inputs: 0 1
-; Was built -checked: the term analysis gave these elements no bound
-; (bounds-2026-09-24). The IR's interval domain bounds them, and every operation
-; is proven on every target (irstep4c-2026-09-26).
-;
-; The meaning is (alloc t) = (alloc (table (len t) (fn (i) (t i)))). Every
-; backend returned t itself for a t that is not a rule — η-tab, which is true of
-; an immutable table and false of a buffer — so after `(set b1 0 9)` the table
-; allocated from b1 read 9, and every target answered 9 (found lowering `alloc`
-; to the IR, irstep1-2026-09-25 §4). Four targets agreeing on a wrong answer is
-; why a differential suite needs a hand-computed `expect`.
-(def run (n)
-  (let (tuple b2 v)
-       (local b (table 2 0)
-         (let b1 (set b 0 7)
-              t  (alloc b1)
-              b2 (set b1 0 9)
-           (tuple b2 (if (< 0 (len t)) (t 0) 0))))
-    v))
+// `(alloc t)` OF A BUFFER IS THE TABLE OF ITS CONTENTS AT THAT POINT, and a store
+// after it must not show through (tables.md §2).
+// expect: 7 7
+// inputs: 0 1
+// Was built -checked: the term analysis gave these elements no bound
+// (bounds-2026-09-24). The IR's interval domain bounds them, and every operation
+// is proven on every target (irstep4c-2026-09-26).
+//
+// The meaning is (alloc t) = (alloc (table (len t) (fn (i) (t i)))). Every
+// backend returned t itself for a t that is not a rule — η-tab, which is true of
+// an immutable table and false of a buffer — so after `(set b1 0 9)` the table
+// allocated from b1 read 9, and every target answered 9 (found lowering `alloc`
+// to the IR, irstep1-2026-09-25 §4). Four targets agreeing on a wrong answer is
+// why a differential suite needs a hand-computed `expect`.
+fn run(n) {
+    (b2, v) = {
+        var b := array { 0 : _ ∈ 0..1 }
+        b[0] := 7
+        t = alloc(b)
+        b[0] := 9
+        (b, if 0 < len(t) { t[0] } else { 0 })
+    }
+    v
+}

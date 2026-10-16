@@ -1,125 +1,164 @@
-; ACCEPTANCE: encoding/hex, THE WHOLE PACKAGE, declared BY HAND
-; (targets/go/encoding/hex.oro), every name called on bytes the program COMPUTED.
-;
-; Each section is a LAW of the package's algebra (hex-2026-09-14 §1), and the
-; host is the oracle: the expected output is hexReference in tooling_test.go,
-; hand-written Go calling the real package in the same order.
-;
-;   lengths     |H(x)| = 2|x|, and ⌊2n/2⌋ = n
-;   encode      H into a buffer the program sized as 2·len src, count and bytes
-;   left        G∘H = id, into fresh storage and into a buffer
-;   projection  H∘G is idempotent and ≠ id: uppercase comes back lowercase
-;   prefix      off its domain G returns the whole pairs before the first bad byte
-;   append      the consume-and-return forms, threaded through one buffer
-;   dump        hexdump -C
-;   streams     the encoder and decoder agree with H and G, and the dumper is
-;               closed through the method set its companion includes
+// ACCEPTANCE: encoding/hex, THE WHOLE PACKAGE, declared BY HAND
+// (targets/go/encoding/hex.oro), every name called on bytes the program COMPUTED.
+//
+// Each section is a LAW of the package's algebra (hex-2026-09-14 §1), and the
+// host is the oracle: the expected output is hexReference in tooling_test.go,
+// hand-written Go calling the real package in the same order.
+//
+//   lengths     |H(x)| = 2|x|, and ⌊2n/2⌋ = n
+//   encode      H into a buffer the program sized as 2·len src, count and bytes
+//   left        G∘H = id, into fresh storage and into a buffer
+//   projection  H∘G is idempotent and ≠ id: uppercase comes back lowercase
+//   prefix      off its domain G returns the whole pairs before the first bad byte
+//   append      the consume-and-return forms, threaded through one buffer
+//   dump        hexdump -C
+//   streams     the encoder and decoder agree with H and G, and the dumper is
+//               closed through the method set its companion includes
+use go
+use go/encoding/hex
+use go/fmt
+use go/os as gos
+use go/os/File as file
+use go/io as gio
+use go/io/WriteCloser as wc
+use os
+use result
 
-(use go)
-(use go/encoding/hex)
-(use go/fmt as fmt)
-(use go/os as gos)
-(use go/os/File as file)
-(use go/io as gio)
-(use go/io/WriteCloser as wc)
-(use os)
-(use result)
+// THE ERROR MODEL (spec/errors.md §4.3): a partial success's error is the
+// relevant 1 + E, (result (tuple) error), beside its value, and `ok?` and
+// `print-err` read it as Go prints an error, a nil one `<nil>`.
+fn ok?(r) { case r { result.'ok(u) -> true; result.'err(e) -> false } }
+fn print_err(r) {
+    case r { result.'ok(u) -> { fmt.Println("<nil>"); 0 }; result.'err(e) -> { fmt.Println(e); 0 } }
+}
 
-; THE ERROR MODEL (spec/errors.md §4.3): a partial success's error is the
-; relevant 1 + E, (result (tuple) error), beside its value, and `ok?` and
-; `print-err` read it as Go prints an error, a nil one `<nil>`.
-(def ok? (r) (case r (result.ok u) true (result.err e) false))
-(def print-err (r) (case r (result.ok u) (seq (fmt.Println "<nil>") 0) (result.err e) (seq (fmt.Println e) 0)))
+// Twenty-one bytes, 94 + (37·i mod 95): printable from 94 to 126 and not above,
+// so the dump's right-hand column shows both.
+fn source(n) {
+    var b := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0 { i >= n -> b; else -> { b[i] := 94 + 37 * i % 95; again(i + 1) } }
+}
 
-(export main)
+fn lengths(src) {
+    fmt.Println(len(src))
+    fmt.Println(hex.EncodedLen(len(src)))
+    fmt.Println(hex.DecodedLen(hex.EncodedLen(len(src))))
+}
 
-; Twenty-one bytes, 94 + (37·i mod 95): printable from 94 to 126 and not above,
-; so the dump's right-hand column shows both.
-(def source (n)
-  (local b (table n 0)
-    (loop ((i 0) (b b))
-      (>= i n) b
-      else (again (+ i 1) (set b i (+ 94 (% (* 37 i) 95)))))))
+// H into a buffer of exactly 2·len src: the precondition is linear and proven.
+fn encode(src) {
+    var b := array { 0 : _ ∈ 0..hex.EncodedLen(len(src))-1 }
+    n = hex.Encode(b, src)
+    fmt.Println(n)
+    b
+}
 
-(def lengths (src)
-  (seq (fmt.Println (len src))
-       (fmt.Println (hex.EncodedLen (len src)))
-       (fmt.Println (hex.DecodedLen (hex.EncodedLen (len src))))))
+fn left(src, enc) {
+    {
+        (back, e) = hex.DecodeString(hex.EncodeToString(src))
+        fmt.Println(back)
+        fmt.Println(ok?(e))
+    }
+    fmt.Println({
+            var b := array { 0 : _ ∈ 0..hex.DecodedLen(len(enc))-1 }
+            (n, e) = hex.Decode(b, enc)
+            fmt.Println(n)
+            fmt.Println(ok?(e))
+            b
+        })
+}
 
-; H into a buffer of exactly 2·len src: the precondition is linear and proven.
-(def encode (src)
-  (local b (table (hex.EncodedLen (len src)) 0)
-    ((hex.Encode b src) (fn (b2 n) (seq (fmt.Println n) b2)))))
+// The input is a valid encoding, mixed case, so the error is absent: ignored,
+// and said so (spec/errors.md §7).
+fn projection() {
+    (x, e) = hex.DecodeString("DEADbeef00FF")
+    ignore(e)
+    fmt.Println(x)
+    fmt.Println(hex.EncodeToString(x))
+}
 
-(def left (src enc)
-  (seq ((hex.DecodeString (hex.EncodeToString src)) (fn (back e)
-         (seq (fmt.Println back) (fmt.Println (ok? e)))))
-       (fmt.Println (local b (table (hex.DecodedLen (len enc)) 0)
-         ((hex.Decode b enc) (fn (b2 n e)
-           (seq (fmt.Println n) (fmt.Println (ok? e)) b2)))))))
+// "0102zz", "abcg12", "abc": a bad byte after two pairs, a bad byte after one,
+// and an odd length after one.
+fn prefix() {
+    {
+        bad = {
+            var b := array { 0 : _ ∈ 0..5 }
+            b[0] := 48
+            b[1] := 49
+            b[2] := 48
+            b[3] := 50
+            b[4] := 122
+            b[5] := 122
+            b
+        }
+        fmt.Println({
+                var b := array { 0 : _ ∈ 0..2 }
+                (n, e) = hex.Decode(b, bad)
+                fmt.Println(n)
+                print_err(e)
+                b
+            })
+    }
+    { (x, e) = hex.DecodeString("abcg12"); fmt.Println(x); print_err(e) }
+    (x, e) = hex.DecodeString("abc")
+    fmt.Println(x)
+    print_err(e)
+}
 
-; The input is a valid encoding, mixed case, so the error is absent: ignored,
-; and said so (spec/errors.md §7).
-(def projection ()
-  ((hex.DecodeString "DEADbeef00FF") (fn (x e)
-    (seq (ignore e)
-         (fmt.Println x)
-         (fmt.Println (hex.EncodeToString x))))))
+// One buffer: '>' then H(src) then G(H(src)).
+fn append(src, enc) {
+    fmt.Println({
+            var b := array { 0 : _ ∈ 0..0 }
+            b[0] := 62
+            hex.AppendEncode(b, src)
+            e = hex.AppendDecode(b, enc)
+            fmt.Println(ok?(e))
+            b
+        })
+}
 
-; "0102zz", "abcg12", "abc": a bad byte after two pairs, a bad byte after one,
-; and an odd length after one.
-(def prefix ()
-  (seq (let bad (local b (table 6 0) (set (set (set (set (set (set b 0 48) 1 49) 2 48) 3 50) 4 122) 5 122))
-         (fmt.Println (local b (table 3 0)
-           ((hex.Decode b bad) (fn (b2 n e)
-             (seq (fmt.Println n) (print-err e) b2))))))
-       ((hex.DecodeString "abcg12") (fn (x e) (seq (fmt.Println x) (print-err e))))
-       ((hex.DecodeString "abc") (fn (x e) (seq (fmt.Println x) (print-err e))))))
+fn streams(src) {
+    (dir, e0) = gos.MkdirTemp("", "orohex")
+    // the encoder writes H(src)
+    {
+        (f, e1) = gos.Create(go.text(dir) ++ "/enc")
+        { (n, e2) = gio.WriteString(hex.NewEncoder(f), go.string_of_bytes(src)); fmt.Println(n) }
+        file.Close(f)
+    }
+    { (b, e3) = gos.ReadFile(go.text(dir) ++ "/enc"); fmt.Println(os.text_of(b)) }
+    // the decoder reads G of it back
+    {
+        (f, e4) = gos.Open(go.text(dir) ++ "/enc")
+        { (b, e5) = gio.ReadAll(hex.NewDecoder(f)); fmt.Println(b); fmt.Println(go.err_nil(e5)) }
+        file.Close(f)
+    }
+    // the dumper, CLOSED. `Close` is `io.Closer`'s, and it reaches a
+    // `io.WriteCloser` because that interface's companion INCLUDES Closer's
+    // (targets/go/io.oro) — until companions existed there was no way to give an
+    // interface a method, and this dump was missing its last, partial line.
+    {
+        (f, e6) = gos.Create(go.text(dir) ++ "/dump")
+        {
+            d = hex.Dumper(f)
+            { (n, e7) = gio.WriteString(d, go.string_of_bytes(src)); fmt.Println(n) }
+            fmt.Println(case wc.Close(d) { result.'ok(u) -> true; result.'err(e) -> false })
+        }
+        file.Close(f)
+    }
+    { (b, e8) = gos.ReadFile(go.text(dir) ++ "/dump"); fmt.Println(os.text_of(b)) }
+    gos.RemoveAll(dir)
+}
 
-; One buffer: '>' then H(src) then G(H(src)).
-(def append (src enc)
-  (fmt.Println (local b (table 1 0)
-    ((hex.AppendDecode (hex.AppendEncode (set b 0 62) src) enc) (fn (b2 e)
-      (seq (fmt.Println (ok? e)) b2))))))
-
-(def streams (src)
-  ((gos.MkdirTemp "" "orohex") (fn (dir e0)
-    (seq
-      ; the encoder writes H(src)
-      ((gos.Create (concat (go.text dir) "/enc")) (fn (f e1)
-        (seq ((gio.WriteString (hex.NewEncoder f) (go.string-of-bytes src)) (fn (n e2)
-               (fmt.Println n)))
-             (file.Close f))))
-      ((gos.ReadFile (concat (go.text dir) "/enc")) (fn (b e3)
-        (fmt.Println (os.text-of b))))
-      ; the decoder reads G of it back
-      ((gos.Open (concat (go.text dir) "/enc")) (fn (f e4)
-        (seq ((gio.ReadAll (hex.NewDecoder f)) (fn (b e5)
-               (seq (fmt.Println b) (fmt.Println (go.err-nil e5)))))
-             (file.Close f))))
-      ; the dumper, CLOSED. `Close` is `io.Closer`'s, and it reaches a
-      ; `io.WriteCloser` because that interface's companion INCLUDES Closer's
-      ; (targets/go/io.oro) — until companions existed there was no way to give an
-      ; interface a method, and this dump was missing its last, partial line.
-      ((gos.Create (concat (go.text dir) "/dump")) (fn (f e6)
-        (seq (let d (hex.Dumper f)
-               (seq ((gio.WriteString d (go.string-of-bytes src)) (fn (n e7)
-                      (fmt.Println n)))
-                    (fmt.Println (case (wc.Close d) (result.ok u) true (result.err e) false))))
-             (file.Close f))))
-      ((gos.ReadFile (concat (go.text dir) "/dump")) (fn (b e8)
-        (fmt.Println (os.text-of b))))
-      (gos.RemoveAll dir)))))
-
-(def main ()
-  (let src (source 21)
-       enc (encode src)
-    (seq (lengths src)
-           (fmt.Println (os.text-of enc))
-           (fmt.Println (hex.EncodeToString src))
-           (left src enc)
-           (projection)
-           (prefix)
-           (append src enc)
-           (fmt.Print (hex.Dump src))
-           (streams src))))
+export fn main() {
+    src = source(21)
+    enc = encode(src)
+    lengths(src)
+    fmt.Println(os.text_of(enc))
+    fmt.Println(hex.EncodeToString(src))
+    left(src, enc)
+    projection()
+    prefix()
+    append(src, enc)
+    fmt.Print(hex.Dump(src))
+    streams(src)
+}

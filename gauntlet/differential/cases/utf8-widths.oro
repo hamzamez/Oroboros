@@ -1,27 +1,22 @@
-; η AT ALL FOUR UTF-8 WIDTHS, on the host that has no library to hide behind.
-;
-; `string-of` is η : Scalar → Scalar*, the free monoid's generator injection.
-; Three hosts spell it with one call — `string(rune(c))`, `String.fromCodePoint`,
-; `Character.toChars` — and windows has no string type at all, so its `string-of`
-; is a hand-written UTF-8 encoder in an assembly template
-; (targets/windows/strings.oro). Four cases, because UTF-8 is four cases, and
-; nothing else in the corpus reaches past the first one: `render.oro` only ever
-; asks for a decimal digit.
-;
-; prints: string
-;
-; FOUR TARGETS since ADR 0030's build. It was two, and that was a limitation of
-; PRINTING rather than of the encoder: `System.out` on the JVM encodes in the
-; platform charset, so a printed `é` was one byte on a Windows console and two
-; on Go. The harness now runs the JVM with UTF-8 output, as Go and V8 already
-; write, and the four encoders are compared byte for byte: windows' hand-written
-; one against Go's `string(rune(c))`, `String.fromCodePoint` and
-; `Character.toChars`.
-
-(export run)
-
-; inputs: 0
-; expect: Aé日🙂
-(def run (n)
-  (concat (concat (string-of 65) (string-of 233))
-          (concat (string-of 26085) (string-of 128578))))
+// η AT ALL FOUR UTF-8 WIDTHS, on the host that has no library to hide behind.
+//
+// `string-of` is η : Scalar → Scalar*, the free monoid's generator injection.
+// Three hosts spell it with one call — `string(rune(c))`, `String.fromCodePoint`,
+// `Character.toChars` — and windows has no string type at all, so its `string-of`
+// is a hand-written UTF-8 encoder in an assembly template
+// (targets/windows/strings.oro). Four cases, because UTF-8 is four cases, and
+// nothing else in the corpus reaches past the first one: `render.oro` only ever
+// asks for a decimal digit.
+//
+// prints: string
+//
+// FOUR TARGETS since ADR 0030's build. It was two, and that was a limitation of
+// PRINTING rather than of the encoder: `System.out` on the JVM encodes in the
+// platform charset, so a printed `é` was one byte on a Windows console and two
+// on Go. The harness now runs the JVM with UTF-8 output, as Go and V8 already
+// write, and the four encoders are compared byte for byte: windows' hand-written
+// one against Go's `string(rune(c))`, `String.fromCodePoint` and
+// `Character.toChars`.
+// inputs: 0
+// expect: Aé日🙂
+export fn run(n) { string_of(65) ++ string_of(233) ++ (string_of(26085) ++ string_of(128578)) }

@@ -1,97 +1,107 @@
-; Methods on values — Array, String, Map, Set.
-;
-; This is where the source STOPS reading like JavaScript, and the reason is
-; worth naming precisely. JS spells a method call `receiver.method(args)`. We
-; spell every call `(name args…)`, so the closest we get is
-;
-;   (Array.map a f)      emits   a.map(f)
-;   (String.toUpperCase s) emits s.toUpperCase()
-;
-; The EMITTED code is exactly right — a template's first hole is the receiver,
-; so nothing is lost at run time. What is lost is the reading order: the
-; receiver moves from before the dot to after the paren. That is the one thing
-; a Lisp surface cannot spell about a method-oriented host, and no amount of
-; target-file work changes it.
-;
-; The higher-order half — map, filter, reduce, sort — is declared and CANNOT BE
-; CALLED, because a bare abstraction is refused as an escaping closure — though see
-; docs/spec/callbacks.md: a lambda written AT THE CALL SITE needs no function value
-; and the host does the capture, so this is a missing template hole rather than a
-; capability gap. That is
-; deliberate and measured: js-toplevel-2026-08-18 puts those methods at 3.6x to
-; 133x SLOWER than a loop, so the one thing this language cannot reach on this
-; host is the one thing not worth reaching.
+// Methods on values — Array, String, Map, Set.
+//
+// This is where the source STOPS reading like JavaScript, and the reason is
+// worth naming precisely. JS spells a method call `receiver.method(args)`. We
+// spell every call `(name args…)`, so the closest we get is
+//
+//   (Array.map a f)      emits   a.map(f)
+//   (String.toUpperCase s) emits s.toUpperCase()
+//
+// The EMITTED code is exactly right — a template's first hole is the receiver,
+// so nothing is lost at run time. What is lost is the reading order: the
+// receiver moves from before the dot to after the paren. That is the one thing
+// a Lisp surface cannot spell about a method-oriented host, and no amount of
+// target-file work changes it.
+//
+// The higher-order half — map, filter, reduce, sort — is declared and CANNOT BE
+// CALLED, because a bare abstraction is refused as an escaping closure — though see
+// docs/spec/callbacks.md: a lambda written AT THE CALL SITE needs no function value
+// and the host does the capture, so this is a missing template hole rather than a
+// capability gap. That is
+// deliberate and measured: js-toplevel-2026-08-18 puts those methods at 3.6x to
+// 133x SLOWER than a loop, so the one thing this language cannot reach on this
+// host is the one thing not worth reaching.
+module js/Array {
+    fn isArray(a ∈ Any) (Bool) pure { host expr "Array.isArray(${a})" }
+    fn from(a ∈ Any) (Any) pure { host expr "Array.from(${a})" }
+    fn of(a ∈ Any) (Any) pure { host expr "Array.of(${a})" }
+    fn slice(a ∈ Any, b ∈ Any, c ∈ Any) (Any) pure { host expr "${a}.slice(${b}, ${c})" }
+    fn concat(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.concat(${b})" }
+    fn indexOf(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.indexOf(${b})" }
+    fn lastIndexOf(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.lastIndexOf(${b})" }
+    fn includes(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a}.includes(${b})" }
+    fn join(a ∈ Any, b ∈ String) (String) pure { host expr "${a}.join(${b})" }
+    fn push(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.push(${b})" }
+    fn pop(a ∈ Any) (Any) { host expr "${a}.pop()" }
+    fn shift(a ∈ Any) (Any) { host expr "${a}.shift()" }
+    fn unshift(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.unshift(${b})" }
+    fn reverse(a ∈ Any) (Any) { host stmt "${a}.reverse()" }
+    fn fill(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.fill(${b})" }
+    fn flat(a ∈ Any) (Any) pure { host expr "${a}.flat()" }
 
-(target js
-  (module js/Array
-    (sig isArray  (any) bool    pure         (host expr "Array.isArray(%s)"))
-    (sig from     (any) any       pure             (host expr "Array.from(%s)"))
-    (sig of       (any) any         pure             (host expr "Array.of(%s)"))
-    (sig slice    (any any any) any   pure (host expr "%s.slice(%s, %s)"))
-    (sig concat   (any any) any        pure         (host expr "%s.concat(%s)"))
-    (sig indexOf  (any any) any       pure      (host expr "%s.indexOf(%s)"))
-    (sig lastIndexOf (any any) any   pure   (host expr "%s.lastIndexOf(%s)"))
-    (sig includes (any any) bool      pure     (host expr "%s.includes(%s)"))
-    (sig join     (any string) string          pure   (host expr "%s.join(%s)"))
-    (sig push     (any any) any         (host stmt "%s.push(%s)"))
-    (sig pop      (any) any             (host expr "%s.pop()"))
-    (sig shift    (any) any             (host expr "%s.shift()"))
-    (sig unshift  (any any) any         (host stmt "%s.unshift(%s)"))
-    (sig reverse  (any) any             (host stmt "%s.reverse()"))
-    (sig fill     (any any) any         (host stmt "%s.fill(%s)"))
-    (sig flat     (any) any            pure             (host expr "%s.flat()"))
+    // Higher-order. Declared so the target is honest about what JS has; every
+    // one is unreachable, because passing a λ is an escaping closure.
+    fn `map`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.map(${b})" }
+    fn filter(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.filter(${b})" }
+    fn reduce(a ∈ Any, b ∈ Any, c ∈ Any) (Any) pure { host expr "${a}.reduce(${b}, ${c})" }
+    fn forEach(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.forEach(${b})" }
+    fn some(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a}.some(${b})" }
+    fn every(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a}.every(${b})" }
+    fn find(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.find(${b})" }
+    fn findIndex(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.findIndex(${b})" }
+    fn sort(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.sort(${b})" }
+}
 
-    ; Higher-order. Declared so the target is honest about what JS has; every
-    ; one is unreachable, because passing a λ is an escaping closure.
-    (sig map      (any any) any       pure    (host expr "%s.map(%s)"))
-    (sig filter   (any any) any    pure    (host expr "%s.filter(%s)"))
-    (sig reduce   (any any any) any pure (host expr "%s.reduce(%s, %s)"))
-    (sig forEach  (any any) any    (host stmt "%s.forEach(%s)"))
-    (sig some     (any any) bool     pure (host expr "%s.some(%s)"))
-    (sig every    (any any) bool    pure (host expr "%s.every(%s)"))
-    (sig find     (any any) any      pure    (host expr "%s.find(%s)"))
-    (sig findIndex (any any) any pure (host expr "%s.findIndex(%s)"))
-    (sig sort     (any any) any    (host stmt "%s.sort(%s)")))
+module js/String {
+    fn length(a ∈ String) (Any) pure { host expr "${a}.length" }
+    fn charAt(a ∈ String, b ∈ Any) (String) pure { host expr "${a}[${b}]" }
+    fn charCodeAt(a ∈ String, b ∈ Any) (Any) pure { host expr "${a}.charCodeAt(${b})" }
+    fn codePointAt(a ∈ String, b ∈ Any) (Any) pure { host expr "${a}.codePointAt(${b})" }
+    fn slice(a ∈ String, b ∈ Any, c ∈ Any) (String) pure { host expr "${a}.slice(${b}, ${c})" }
+    fn substring(a ∈ String, b ∈ Any, c ∈ Any) (String) pure {
+        host expr "${a}.substring(${b}, ${c})"
+    }
+    fn indexOf(a ∈ String, b ∈ String) (Any) pure { host expr "${a}.indexOf(${b})" }
+    fn includes(a ∈ String, b ∈ String) (Bool) pure { host expr "${a}.includes(${b})" }
+    fn startsWith(a ∈ String, b ∈ String) (Bool) pure { host expr "${a}.startsWith(${b})" }
+    fn endsWith(a ∈ String, b ∈ String) (Bool) pure { host expr "${a}.endsWith(${b})" }
+    fn toUpperCase(a ∈ String) (String) pure { host expr "${a}.toUpperCase()" }
+    fn toLowerCase(a ∈ String) (String) pure { host expr "${a}.toLowerCase()" }
+    fn trim(a ∈ String) (String) pure { host expr "${a}.trim()" }
+    fn trimStart(a ∈ String) (String) pure { host expr "${a}.trimStart()" }
+    fn trimEnd(a ∈ String) (String) pure { host expr "${a}.trimEnd()" }
+    fn repeat(a ∈ String, b ∈ Any) (String) pure { host expr "${a}.repeat(${b})" }
+    fn padStart(a ∈ String, b ∈ Any, c ∈ String) (String) pure {
+        host expr "${a}.padStart(${b}, ${c})"
+    }
+    fn split(a ∈ String, b ∈ String) (Any) pure { host expr "${a}.split(${b})" }
+    fn replace(a ∈ String, b ∈ String, c ∈ String) (String) pure {
+        host expr "${a}.replace(${b}, ${c})"
+    }
+    fn replaceAll(a ∈ String, b ∈ String, c ∈ String) (String) pure {
+        host expr "${a}.replaceAll(${b}, ${c})"
+    }
+    fn concat(a ∈ String, b ∈ String) (String) pure { host expr "${a}.concat(${b})" }
+    fn at(a ∈ String, b ∈ Any) (String) pure { host expr "${a}.at(${b})" }
+    fn fromCharCode(a ∈ Any) (String) pure { host expr "String.fromCharCode(${a})" }
+    // Runs of non-whitespace — Go's strings.Fields semantics, spelled in JS.
+    fn fields(a ∈ String) (Any) pure { host expr "(${a}.match(/\\S+/g) ?? [])" }
+}
 
-  (module js/String
-    (sig length      (string) any         pure         (host expr "%s.length"))
-    (sig charAt      (string any) string            pure  (host expr "%s[%s]"))
-    (sig charCodeAt  (string any) any pure  (host expr "%s.charCodeAt(%s)"))
-    (sig codePointAt (string any) any pure  (host expr "%s.codePointAt(%s)"))
-    (sig slice       (string any any) string pure (host expr "%s.slice(%s, %s)"))
-    (sig substring   (string any any) string pure (host expr "%s.substring(%s, %s)"))
-    (sig indexOf     (string string) any    pure  (host expr "%s.indexOf(%s)"))
-    (sig includes    (string string) bool   pure (host expr "%s.includes(%s)"))
-    (sig startsWith  (string string) bool pure (host expr "%s.startsWith(%s)"))
-    (sig endsWith    (string string) bool   pure (host expr "%s.endsWith(%s)"))
-    (sig toUpperCase (string) string  pure         (host expr "%s.toUpperCase()"))
-    (sig toLowerCase (string) string  pure         (host expr "%s.toLowerCase()"))
-    (sig trim        (string) string         pure         (host expr "%s.trim()"))
-    (sig trimStart   (string) string    pure         (host expr "%s.trimStart()"))
-    (sig trimEnd     (string) string      pure         (host expr "%s.trimEnd()"))
-    (sig repeat      (string any) string     pure  (host expr "%s.repeat(%s)"))
-    (sig padStart    (string any string) string pure (host expr "%s.padStart(%s, %s)"))
-    (sig split       (string string) any      pure     (host expr "%s.split(%s)"))
-    (sig replace     (string string string) string pure (host expr "%s.replace(%s, %s)"))
-    (sig replaceAll  (string string string) string pure (host expr "%s.replaceAll(%s, %s)"))
-    (sig concat      (string string) string     pure  (host expr "%s.concat(%s)"))
-    (sig at          (string any) string         pure  (host expr "%s.at(%s)"))
-    (sig fromCharCode (any) string pure        (host expr "String.fromCharCode(%s)"))
-    ; Runs of non-whitespace — Go's strings.Fields semantics, spelled in JS.
-    (sig fields      (string) any    pure (host expr "(%s.match(/\\S+/g) ?? [])")))
+module js/Map {
+    fn new() (Any) { host expr "new Map()" }
+    fn get(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.get(${b})" }
+    fn `set`(a ∈ Any, b ∈ Any, c ∈ Any) (Any) { host stmt "${a}.set(${b}, ${c})" }
+    fn has(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a}.has(${b})" }
+    fn delete(a ∈ Any, b ∈ Any) (Bool) { host stmt "${a}.delete(${b})" }
+    fn size(a ∈ Any) (Any) pure { host expr "${a}.size" }
+    fn clear(a ∈ Any) (Any) { host stmt "${a}.clear()" }
+}
 
-  (module js/Map
-    (sig new    () any        (host expr "new Map()"))
-    (sig get    (any any) any      pure     (host expr "%s.get(%s)"))
-    (sig set    (any any any) any (host stmt "%s.set(%s, %s)"))
-    (sig has    (any any) bool      pure (host expr "%s.has(%s)"))
-    (sig delete (any any) bool (host stmt "%s.delete(%s)"))
-    (sig size   (any) any         pure      (host expr "%s.size"))
-    (sig clear  (any) any         (host stmt "%s.clear()")))
-
-  (module js/Set
-    (sig new    () any        (host expr "new Set()"))
-    (sig add    (any any) any     (host stmt "%s.add(%s)"))
-    (sig has    (any any) bool      pure (host expr "%s.has(%s)"))
-    (sig delete (any any) bool (host stmt "%s.delete(%s)"))
-    (sig size   (any) any         pure      (host expr "%s.size"))))
+module js/Set {
+    fn new() (Any) { host expr "new Set()" }
+    fn add(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.add(${b})" }
+    fn has(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a}.has(${b})" }
+    fn delete(a ∈ Any, b ∈ Any) (Bool) { host stmt "${a}.delete(${b})" }
+    fn size(a ∈ Any) (Any) pure { host expr "${a}.size" }
+}

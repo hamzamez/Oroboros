@@ -1,14 +1,9 @@
-; The plainest bounded accumulator there is: sum of 0..n-1.
-;
-; Nothing guards `s`. Its bound comes entirely from the trip count times the
-; largest step, which is the mechanism size change added.
+// The plainest bounded accumulator there is: sum of 0..n-1.
+//
+// Nothing guards `s`. Its bound comes entirely from the trip count times the
+// largest step, which is the mechanism size change added.
+use go
 
-(use go)
-(export sum-range)
-
-(sig sum-range ((n int)) int (where (and (<= 0 n) (< n 65536))))
-
-(def sum-range (n)
-  (loop ((i 0) (s 0))
-    (go.>= i n)  s
-    else         (again (go.+ i 1) (go.+ s i))))
+export fn sum_range(n ∈ Int) (Int) where 0 <= n && n < (2^16) {
+    loop i = 0, s = 0 { go.`>=`(i, n) -> s; else -> again(go.`+`(i, 1), go.`+`(s, i)) }
+}

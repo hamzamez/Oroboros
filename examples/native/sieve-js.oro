@@ -1,25 +1,23 @@
-(use js)
-(use js/Math)
-(use js/console)
-(use js/String)
-(export main sieve-count)
-(sig sieve-count ((n int)) int)
+use js
+use js/Math
+use js/console
+use js/String
 
-(def cross (c i n)
-  (loop ((j (js.* i i)))
-    (js.< j n)  (seq (js.set c j true) (again (js.+ j i)))
-    else        c))
+fn cross(c, i, n) {
+    loop j = js.`*`(i, i) { js.`<`(j, n) -> { js.set(c, j, true); again(js.`+`(j, i)) }; else -> c }
+}
+export fn sieve_count(n ∈ Int) (Int) {
+    c = js.ArrayFill(n, false)
+    done = loop i = 2 {
+        js.`>=`(js.`*`(i, i), n) -> c
+        js.at(c, i) -> again(js.`+`(i, 1))
+        else -> { cross(c, i, n); again(js.`+`(i, 1)) }
+    }
+    loop acc = 0, k = 2 {
+        js.`>=`(k, n) -> acc
+        js.at(c, k) -> again(acc, js.`+`(k, 1))
+        else -> again(js.`+`(acc, 1), js.`+`(k, 1))
+    }
+}
 
-(def sieve-count (n)
-  (let c    (js.ArrayFill n false)
-       done (loop ((i 2))
-              (js.>= (js.* i i) n)  c
-              (js.at c i)           (again (js.+ i 1))
-              else                  (seq (cross c i n) (again (js.+ i 1))))
-    (loop ((acc 0) (k 2))
-        (js.>= k n)   acc
-        (js.at c k)   (again acc (js.+ k 1))
-        else          (again (js.+ acc 1) (js.+ k 1)))))
-
-(def main ()
-  (console.log (String.concat "primes: " (js.String (sieve-count 20000)))))
+export fn main() { console.log(String.concat("primes: ", js.String(sieve_count(20000)))) }

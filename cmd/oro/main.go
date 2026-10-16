@@ -46,12 +46,7 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 	if err != nil {
 		return err
 	}
-	forms, err := core.Read(string(text))
-	if os.Getenv("ORO_VIA_J") != "" {
-		// J's reading of the program, as cmd/gen's gate (jread-2026-10-15).
-		forms, err = j.ViaJ(string(text), src)
-		j.ViaJLibraries(libDirs(src, path))
-	}
+	forms, err := j.ReadModule(string(text), src, j.ModulePath(src, filepath.SplitList(path)))
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
@@ -65,7 +60,7 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 	if err != nil {
 		return err
 	}
-	prog, terms, err := core.LoadWithDefs(forms, fileResolver(libDirs(src, path)), tg.Defs)
+	prog, terms, err := core.LoadWithDefs(forms, j.Resolver(libDirs(src, path)), tg.Defs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
@@ -127,25 +122,6 @@ func plural(names []string) string {
 		return names[0]
 	}
 	return "each of these"
-}
-
-// fileResolver finds a module on a search path: `(use num/vec)` looks for
-// num/vec.oro under each directory in turn. A path with no file is not an
-// error — it is a module the TARGET provides, like go/strings.
-func fileResolver(dirs []string) core.Resolver {
-	return func(path string) (string, bool, error) {
-		for _, d := range dirs {
-			p := filepath.Join(d, filepath.FromSlash(path)+".oro")
-			b, err := os.ReadFile(p)
-			if err == nil {
-				return string(b), true, nil
-			}
-			if !os.IsNotExist(err) {
-				return "", false, err
-			}
-		}
-		return "", false, nil
-	}
 }
 
 // libDirs is the search path: the entry file's own directory first, so a

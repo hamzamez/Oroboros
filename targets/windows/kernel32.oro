@@ -1,122 +1,134 @@
-; kernel32.dll — the Win32 API, which on this host is the whole standard
-; library. There is no runtime underneath it and nothing else is linked in.
-;
-;   (use windows/kernel32)
-;   (kernel32.GetStdHandle -11)   (kernel32.WriteFile h p n)
-;
-; THIS IS THE ANSWER TO "WHAT IS `fmt` IN ASSEMBLY". It is this file, and this
-; file has no Println in it. The Win32 output primitive is
-;
-;   WriteFile(handle, buffer, count, &written, NULL)
-;
-; five arguments, over BYTES, with no formatting of any kind. Turning the number
-; 2262 into the four bytes "2262" is not something the platform does; it is a
-; program, and on this target it is written in Oroboros — see lib/win/fmt.oro.
-; On Go that program is `fmt.Println(n)`. That is the honest measure of what a
-; parasite gets for free from a rich host and does not get from a bare one.
-;
-; TWO THINGS THE LANGUAGE COULD NOT SPELL, both hidden inside the templates:
-;
-;   THE OUT-PARAMETER. The fourth argument of WriteFile is a pointer to a cell
-;   it writes into. We have no pointers to locals, no addresses, and no multiple
-;   returns. The target declares the cell with (data …) and passes
-;   `lea r9, __written`, so the language never learns the argument exists. That
-;   works here and would NOT work under threads, which is stated rather than
-;   fixed.
-;
-;   THE NULL FIFTH ARGUMENT. It goes on the stack at [rsp+32], above the home
-;   space every Win64 caller owes its callee. The emitter reserves 48 bytes at
-;   the bottom of every frame so a template can write there without knowing
-;   anything about the frame it is being expanded into.
+// kernel32.dll — the Win32 API, which on this host is the whole standard
+// library. There is no runtime underneath it and nothing else is linked in.
+//
+//   (use windows/kernel32)
+//   (kernel32.GetStdHandle -11)   (kernel32.WriteFile h p n)
+//
+// THIS IS THE ANSWER TO "WHAT IS `fmt` IN ASSEMBLY". It is this file, and this
+// file has no Println in it. The Win32 output primitive is
+//
+//   WriteFile(handle, buffer, count, &written, NULL)
+//
+// five arguments, over BYTES, with no formatting of any kind. Turning the number
+// 2262 into the four bytes "2262" is not something the platform does; it is a
+// program, and on this target it is written in Oroboros — see lib/win/fmt.oro.
+// On Go that program is `fmt.Println(n)`. That is the honest measure of what a
+// parasite gets for free from a rich host and does not get from a bare one.
+//
+// TWO THINGS THE LANGUAGE COULD NOT SPELL, both hidden inside the templates:
+//
+//   THE OUT-PARAMETER. The fourth argument of WriteFile is a pointer to a cell
+//   it writes into. We have no pointers to locals, no addresses, and no multiple
+//   returns. The target declares the cell with (data …) and passes
+//   `lea r9, __written`, so the language never learns the argument exists. That
+//   works here and would NOT work under threads, which is stated rather than
+//   fixed.
+//
+//   THE NULL FIFTH ARGUMENT. It goes on the stack at [rsp+32], above the home
+//   space every Win64 caller owes its callee. The emitter reserves 48 bytes at
+//   the bottom of every frame so a template can write there without knowing
+//   anything about the frame it is being expanded into.
+module windows/kernel32 {
+    // ---- handles. -11 is STD_OUTPUT_HANDLE, -10 stdin, -12 stderr. The
+    // language has no constants and no enums, so the number is the interface.
+    fn GetStdHandle(a ∈ Int) (r ∈ ptr) {
+        host expr "mov rcx, ${a}\ncall GetStdHandle\nmov ${r}, rax" import "GetStdHandle"
+    }
 
-(target windows
-  (module windows/kernel32
-    ; ---- handles. -11 is STD_OUTPUT_HANDLE, -10 stdin, -12 stderr. The
-    ; language has no constants and no enums, so the number is the interface.
-    (sig GetStdHandle (int) ptr (host expr
-        "mov rcx, %1\ncall GetStdHandle\nmov %r, rax" (import "GetStdHandle")))
+    // The buffer is `any`, not `ptr`, and that is a finding rather than laziness.
+    // On this host a string IS a pointer to bytes — the same qword — so the two
+    // type names describe one machine type, and declaring `ptr` made
+    // `(WriteFile h "hi" 2)` a type error the host does not have. It is the JS
+    // `js.+` problem again from the other side: there, one host type had to
+    // serve two of ours; here, two of ours name one host type.
+    fn WriteFile(a ∈ ptr, b ∈ Any, c ∈ Int) (ptr) {
+        host stmt "mov rcx, ${a}\nmov rdx, ${b}\nmov r8, ${c}\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile" import "WriteFile"
+    }
 
-    ; The buffer is `any`, not `ptr`, and that is a finding rather than laziness.
-    ; On this host a string IS a pointer to bytes — the same qword — so the two
-    ; type names describe one machine type, and declaring `ptr` made
-    ; `(WriteFile h "hi" 2)` a type error the host does not have. It is the JS
-    ; `js.+` problem again from the other side: there, one host type had to
-    ; serve two of ours; here, two of ours name one host type.
-    (sig WriteFile (ptr any int) ptr (host stmt
-        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile"
-        (import "WriteFile")))
+    // The count comes back through the out-parameter, so unlike WriteFile this
+    // one has to be an expr and has to read the cell afterwards.
+    fn ReadFile(a ∈ ptr, b ∈ ptr, c ∈ Int) (r ∈ Int) {
+        host expr "mov rcx, ${a}\nmov rdx, ${b}\nmov r8, ${c}\nlea r9, __read\nmov qword ptr [rsp+32], 0\ncall ReadFile\nmov ${r}, qword ptr [__read]" import "ReadFile"
+    }
 
-    ; The count comes back through the out-parameter, so unlike WriteFile this
-    ; one has to be an expr and has to read the cell afterwards.
-    (sig ReadFile (ptr ptr int) int (host expr
-        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nlea r9, __read\nmov qword ptr [rsp+32], 0\ncall ReadFile\nmov %r, qword ptr [__read]"
-        (import "ReadFile")))
+    fn ExitProcess(a ∈ Int) (Int) {
+        host stmt "mov rcx, ${a}\ncall ExitProcess" import "ExitProcess"
+    }
 
-    (sig ExitProcess (int) int (host stmt
-        "mov rcx, %1\ncall ExitProcess" (import "ExitProcess")))
+    // ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process.
+    // The language's `abandon`, found by spelling; it never returns, so the IR
+    // ends its region with `unreachable`, and the template may use any register:
+    // nothing after it reads one. It writes the reason's bytes to standard error
+    // (-12), measuring the NUL-terminated string first, then a newline, and
+    // exits with status 1, as an uncaught throw does (Go's panic exits with 2).
+    // The bytes go out as they are: a console shows them in its code page,
+    // printing-research's open question, the same as every string here.
+    fn abandon(why ∈ String) (Any) {
+        host stmt "mov r12, ${why}\nmov rcx, -12\ncall GetStdHandle\nmov r13, rax\nxor r8d, r8d\n@@:\ncmp byte ptr [r12+r8], 0\nje @F\ninc r8\njmp @B\n@@:\nmov rcx, r13\nmov rdx, r12\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile\nmov rcx, r13\nlea rdx, __nl\nmov r8, 1\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile\nmov rcx, 1\ncall ExitProcess" import "GetStdHandle" "WriteFile" "ExitProcess"
+    }
 
-    ; ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process.
-    ; The language's `abandon`, found by spelling; it never returns, so the IR
-    ; ends its region with `unreachable`, and the template may use any register:
-    ; nothing after it reads one. It writes the reason's bytes to standard error
-    ; (-12), measuring the NUL-terminated string first, then a newline, and
-    ; exits with status 1, as an uncaught throw does (Go's panic exits with 2).
-    ; The bytes go out as they are: a console shows them in its code page,
-    ; printing-research's open question, the same as every string here.
-    (sig abandon ((why string)) any (host stmt
-        "mov r12, %1\nmov rcx, -12\ncall GetStdHandle\nmov r13, rax\nxor r8d, r8d\n@@:\ncmp byte ptr [r12+r8], 0\nje @F\ninc r8\njmp @B\n@@:\nmov rcx, r13\nmov rdx, r12\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile\nmov rcx, r13\nlea rdx, __nl\nmov r8, 1\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile\nmov rcx, 1\ncall ExitProcess"
-        (import "GetStdHandle" "WriteFile" "ExitProcess")))
+    // ---- memory. VirtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE)
+    // is the platform allocator, and the three constants are baked in because
+    // there is nowhere else to put them.
+    fn VirtualAlloc(a ∈ Int) (r ∈ ptr) {
+        host expr "xor ecx, ecx\nmov rdx, ${a}\nmov r8, 3000h\nmov r9, 4\ncall VirtualAlloc\nmov ${r}, rax" import "VirtualAlloc"
+    }
+    fn VirtualFree(a ∈ ptr) (ptr) {
+        host stmt "mov rcx, ${a}\nxor edx, edx\nmov r8, 8000h\ncall VirtualFree" import "VirtualFree"
+    }
 
-    ; ---- memory. VirtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE)
-    ; is the platform allocator, and the three constants are baked in because
-    ; there is nowhere else to put them.
-    (sig VirtualAlloc (int) ptr (host expr
-        "xor ecx, ecx\nmov rdx, %1\nmov r8, 3000h\nmov r9, 4\ncall VirtualAlloc\nmov %r, rax"
-        (import "VirtualAlloc")))
-    (sig VirtualFree (ptr) ptr (host stmt
-        "mov rcx, %1\nxor edx, edx\nmov r8, 8000h\ncall VirtualFree" (import "VirtualFree")))
+    fn GetProcessHeap() (r ∈ ptr) {
+        host expr "call GetProcessHeap\nmov ${r}, rax" import "GetProcessHeap"
+    }
+    fn HeapAlloc(a ∈ ptr, b ∈ Int) (r ∈ ptr) {
+        host expr "mov rcx, ${a}\nmov rdx, 8\nmov r8, ${b}\ncall HeapAlloc\nmov ${r}, rax" import "HeapAlloc"
+    }
+    fn HeapFree(a ∈ ptr, b ∈ ptr) (ptr) {
+        host stmt "mov rcx, ${a}\nxor edx, edx\nmov r8, ${b}\ncall HeapFree" import "HeapFree"
+    }
 
-    (sig GetProcessHeap () ptr (host expr
-        "call GetProcessHeap\nmov %r, rax" (import "GetProcessHeap")))
-    (sig HeapAlloc (ptr int) ptr (host expr
-        "mov rcx, %1\nmov rdx, 8\nmov r8, %2\ncall HeapAlloc\nmov %r, rax" (import "HeapAlloc")))
-    (sig HeapFree (ptr ptr) ptr (host stmt
-        "mov rcx, %1\nxor edx, edx\nmov r8, %2\ncall HeapFree" (import "HeapFree")))
+    // ---- time. QueryPerformanceCounter is another out-parameter, and it is
+    // what a benchmark on this target has to use: there is no clock in the
+    // language and no library to borrow one from.
+    fn GetTickCount64() (r ∈ Int) {
+        host expr "call GetTickCount64\nmov ${r}, rax" import "GetTickCount64"
+    }
+    fn QueryPerformanceCounter() (r ∈ Int) {
+        host expr "lea rcx, __qpc\ncall QueryPerformanceCounter\nmov ${r}, qword ptr [__qpc]" import "QueryPerformanceCounter"
+    }
+    fn QueryPerformanceFrequency() (r ∈ Int) {
+        host expr "lea rcx, __qpc\ncall QueryPerformanceFrequency\nmov ${r}, qword ptr [__qpc]" import "QueryPerformanceFrequency"
+    }
+    fn Sleep(a ∈ Int) (Int) { host stmt "mov rcx, ${a}\ncall Sleep" import "Sleep" }
 
-    ; ---- time. QueryPerformanceCounter is another out-parameter, and it is
-    ; what a benchmark on this target has to use: there is no clock in the
-    ; language and no library to borrow one from.
-    (sig GetTickCount64 () int (host expr
-        "call GetTickCount64\nmov %r, rax" (import "GetTickCount64")))
-    (sig QueryPerformanceCounter () int (host expr
-        "lea rcx, __qpc\ncall QueryPerformanceCounter\nmov %r, qword ptr [__qpc]"
-        (import "QueryPerformanceCounter")))
-    (sig QueryPerformanceFrequency () int (host expr
-        "lea rcx, __qpc\ncall QueryPerformanceFrequency\nmov %r, qword ptr [__qpc]"
-        (import "QueryPerformanceFrequency")))
-    (sig Sleep (int) int (host stmt "mov rcx, %1\ncall Sleep" (import "Sleep")))
+    // ---- process and environment
+    fn GetCommandLineA() (r ∈ String) {
+        host expr "call GetCommandLineA\nmov ${r}, rax" import "GetCommandLineA"
+    }
+    fn GetLastError() (r ∈ Int) {
+        host expr "call GetLastError\nmov ${r}, rax" import "GetLastError"
+    }
+    fn GetCurrentProcessId() (r ∈ Int) {
+        host expr "call GetCurrentProcessId\nmov ${r}, rax" import "GetCurrentProcessId"
+    }
+    fn GetEnvironmentVariableA(a ∈ String, b ∈ ptr, c ∈ Int) (r ∈ Int) {
+        host expr "mov rcx, ${a}\nmov rdx, ${b}\nmov r8, ${c}\ncall GetEnvironmentVariableA\nmov ${r}, rax" import "GetEnvironmentVariableA"
+    }
 
-    ; ---- process and environment
-    (sig GetCommandLineA () string (host expr
-        "call GetCommandLineA\nmov %r, rax" (import "GetCommandLineA")))
-    (sig GetLastError () int (host expr
-        "call GetLastError\nmov %r, rax" (import "GetLastError")))
-    (sig GetCurrentProcessId () int (host expr
-        "call GetCurrentProcessId\nmov %r, rax" (import "GetCurrentProcessId")))
-    (sig GetEnvironmentVariableA (string ptr int) int (host expr
-        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall GetEnvironmentVariableA\nmov %r, rax"
-        (import "GetEnvironmentVariableA")))
+    // ---- files. CreateFileA takes SEVEN arguments; three go on the stack, and
+    // the frame the emitter reserves has room for two. So the access mode, share
+    // mode and creation disposition are baked in — this opens an existing file
+    // for reading, and nothing else. A target file cannot ask for a bigger
+    // frame, and that is a real limit, recorded in windows-target.md §6.
+    fn CloseHandle(a ∈ ptr) (ptr) {
+        host stmt "mov rcx, ${a}\ncall CloseHandle" import "CloseHandle"
+    }
 
-    ; ---- files. CreateFileA takes SEVEN arguments; three go on the stack, and
-    ; the frame the emitter reserves has room for two. So the access mode, share
-    ; mode and creation disposition are baked in — this opens an existing file
-    ; for reading, and nothing else. A target file cannot ask for a bigger
-    ; frame, and that is a real limit, recorded in windows-target.md §6.
-    (sig CloseHandle (ptr) ptr (host stmt
-        "mov rcx, %1\ncall CloseHandle" (import "CloseHandle")))
-
-    ; ---- console
-    (sig SetConsoleTextAttribute (ptr int) ptr (host stmt
-        "mov rcx, %1\nmov rdx, %2\ncall SetConsoleTextAttribute" (import "SetConsoleTextAttribute")))
-    (sig Beep (int int) int (host stmt
-        "mov rcx, %1\nmov rdx, %2\ncall Beep" (import "Beep")))))
+    // ---- console
+    fn SetConsoleTextAttribute(a ∈ ptr, b ∈ Int) (ptr) {
+        host stmt "mov rcx, ${a}\nmov rdx, ${b}\ncall SetConsoleTextAttribute" import "SetConsoleTextAttribute"
+    }
+    fn Beep(a ∈ Int, b ∈ Int) (Int) {
+        host stmt "mov rcx, ${a}\nmov rdx, ${b}\ncall Beep" import "Beep"
+    }
+}

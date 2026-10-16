@@ -1305,3 +1305,52 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/io/count.oro js`
 - emitted text changed — `examples/lines/ages.oro go`
 - compiler output changed — `examples/lines/ages.oro go`
+
+## 2026-10-16 — on 0c6470f, with uncommitted changes
+
+**Reason:** Step 5a, the corpus in J (ADR 0068, jswitch-2026-10-16): every source and target file is J, read by J's reader. Proof counts unchanged (2039 of 2084, 352 of 371), differential passes, compile time 1.07x. Changes, each reviewed: jsonfmt computes one addition before a store, where today's program named a version with a let (storeorder-2026-10-15); the limb library's guard borrows its buffer and its dead (if c o o) branch is gone, on windows in fact-limbs, big-divmod and render, the same trap check in fewer instructions; refusal texts: a fragment's (provides …) reworded for J, a fragment found as a target layer file named as one (J target files have no header), kara/core's version binder #vout2 for out3, tally an entry module (in tally for in tally.tally)
+
+560 runs: 301 emitted, 259 refused; 2039 of 2084 integer operations bounded, 352 of 371 loops proven. compiler pass, differential pass, tooling skip.
+
+40 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro go`
+- emitted text changed — `examples/io/jsonfmt.oro java`
+- emitted text changed — `examples/io/jsonfmt.oro js`
+- compiler output changed — `examples/kara/core.oro go`
+- compiler output changed — `examples/tally/host-go.oro go`
+- compiler output changed — `examples/tally/host-go.oro java`
+- compiler output changed — `examples/tally/host-go.oro js`
+- compiler output changed — `examples/tally/host-go.oro windows`
+- compiler output changed — `examples/tally/host-java.oro go`
+- compiler output changed — `examples/tally/host-java.oro java`
+- compiler output changed — `examples/tally/host-java.oro js`
+- compiler output changed — `examples/tally/host-java.oro windows`
+- compiler output changed — `examples/tally/tally.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- compiler output changed — `lib/io/go.oro go`
+- compiler output changed — `lib/io/go.oro java`
+- compiler output changed — `lib/io/go.oro js`
+- compiler output changed — `lib/io/go.oro windows`
+- compiler output changed — `lib/io/java.oro go`
+- compiler output changed — `lib/io/java.oro java`
+- compiler output changed — `lib/io/java.oro js`
+- compiler output changed — `lib/io/java.oro windows`
+- compiler output changed — `lib/io/js.oro go`
+- compiler output changed — `lib/io/js.oro java`
+- compiler output changed — `lib/io/js.oro js`
+- compiler output changed — `lib/io/js.oro windows`
+- compiler output changed — `lib/os/go.oro go`
+- compiler output changed — `lib/os/go.oro java`
+- compiler output changed — `lib/os/go.oro js`
+- compiler output changed — `lib/os/go.oro windows`
+- compiler output changed — `lib/os/java.oro go`
+- compiler output changed — `lib/os/java.oro java`
+- compiler output changed — `lib/os/java.oro js`
+- compiler output changed — `lib/os/java.oro windows`
+- compiler output changed — `lib/os/js.oro go`
+- compiler output changed — `lib/os/js.oro java`
+- compiler output changed — `lib/os/js.oro js`
+- compiler output changed — `lib/os/js.oro windows`

@@ -1,11 +1,10 @@
-; Early exit on the native Java target.
-(use java)
-(export find-first)
+// Early exit on the native Java target.
+use java
 
-(sig find-first ((a (array f64)) (k f64)) int)
-
-(def find-first (a k)
-  (loop ((i 0))
-    (java.>= i (len a))    -1
-    (java.f> (a i) k)      i
-    else                   (again (java.+ i 1))))
+export fn find_first(a ∈ Array(F64), k ∈ F64) (Int) {
+    loop i = 0 {
+        java.`>=`(i, len(a)) -> -1
+        java.`f>`(a[i], k) -> i
+        else -> again(java.`+`(i, 1))
+    }
+}

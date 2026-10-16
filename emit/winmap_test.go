@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"oroboros/core"
+	"oroboros/j"
 )
 
 // THE BUILT-IN MAP, for the target that ships none (maps.md §8.4).
@@ -18,7 +19,7 @@ import (
 // is reached only when a program on a mapless target uses a map, so a typo in
 // it would lie dormant until then.
 func TestTheBuiltInMapLoads(t *testing.T) {
-	forms, err := core.Read(winMapSrc)
+	forms, err := j.ReadModule(winMapSrc, "emit/winmap.oro", "win/map")
 	if err != nil {
 		t.Fatalf("the built-in map implementation does not parse: %v", err)
 	}

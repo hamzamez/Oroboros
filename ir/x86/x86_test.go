@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"oroboros/core"
+	"oroboros/j"
 	"oroboros/emit"
 	"oroboros/ir"
 )
@@ -31,18 +32,11 @@ func lower(t *testing.T, src string) (*emit.Target, []*ir.Func) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := core.Read(string(text))
+	forms, err := j.ReadEntry(string(text), src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.LoadWithDefs(forms, func(path string) (string, bool, error) {
-		for _, d := range dirs {
-			if b, err := os.ReadFile(filepath.Join(d, filepath.FromSlash(path)+".oro")); err == nil {
-				return string(b), true, nil
-			}
-		}
-		return "", false, nil
-	}, tg.Defs)
+	prog, _, err := core.LoadWithDefs(forms, j.Resolver(dirs), tg.Defs)
 	if err != nil {
 		t.Fatal(err)
 	}

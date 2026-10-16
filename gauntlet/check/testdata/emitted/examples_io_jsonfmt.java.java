@@ -403,10 +403,10 @@ public final class examples_io_jsonfmt.java {
 				final int v551 = v10[v387];
 				final boolean v553 = (v551 == 44);
 				if (v553) {
+					final int v555 = (v386 + 1);
 					v385[v386] = (short) (44);
-					final int v557 = (v386 + 1);
-					v385[v557] = (short) (10);
-					final int v562 = (v557 + 1);
+					v385[v555] = (short) (10);
+					final int v562 = (v555 + 1);
 					short[] v564 = v385;
 					int v565 = 0;
 					int v566 = v562;

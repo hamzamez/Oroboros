@@ -1,83 +1,86 @@
-; os, on Node — the LIBRARY layer, not the target's.
-;
-; TOTALISATION, AND WHY NOTHING NEW WAS NEEDED IN THE LANGUAGE.
-;
-; A host offers a PARTIAL function `f : A ⇀ B`; partiality is the whole content
-; of "it can fail". Partial maps `A ⇀ B` are exactly total maps `A → B + 1`, and
-; with information on the failure `A → B + E` — a coproduct, which sums.md has
-; and which `(values b e)` already carries across a boundary. So the TYPE of a
-; fallible call is host-independent and already in the language.
-;
-; What varies is the host's MECHANISM for saying which summand you got:
-;
-;   Go           a second return value          `B × E` plus a convention
-;   JavaScript   throw                          a partial map and an escape
-;   Java         throw, checked                 the same, with E in the types
-;   windows      a sentinel and GetLastError    `B + 1`, niche-encoded
-;
-; NO HOST GIVES THE COPRODUCT. Go's `(T, error)` is a PRODUCT with a discipline
-; and `err-nil` is the discriminator that totalises it, so this repository has
-; been totalising since the day it could open a file and never called it that.
-;
-; It follows that a target declares two things — the CALL that produces the
-; pair, and the DISCRIMINATOR that reads it — and the compiler learns nothing
-; about exceptions. On this host the totalisation is a `try`/`catch`, written
-; here, in data.
-;
-; AND ON A THROWING HOST THERE IS NO SMALLER HONEST BINDING. `fs.readFileSync`
-; cannot be declared `((path string)) (array (int 0 255))` and be true: it
-; throws, and a signature that does not say so is a lie a program cannot see
-; through. So the totalising form IS the binding, which is why nothing simpler
-; sits underneath this in `targets/js/`.
+// os, on Node — the LIBRARY layer, not the target's.
+//
+// TOTALISATION, AND WHY NOTHING NEW WAS NEEDED IN THE LANGUAGE.
+//
+// A host offers a PARTIAL function `f : A ⇀ B`; partiality is the whole content
+// of "it can fail". Partial maps `A ⇀ B` are exactly total maps `A → B + 1`, and
+// with information on the failure `A → B + E` — a coproduct, which sums.md has
+// and which `(values b e)` already carries across a boundary. So the TYPE of a
+// fallible call is host-independent and already in the language.
+//
+// What varies is the host's MECHANISM for saying which summand you got:
+//
+//   Go           a second return value          `B × E` plus a convention
+//   JavaScript   throw                          a partial map and an escape
+//   Java         throw, checked                 the same, with E in the types
+//   windows      a sentinel and GetLastError    `B + 1`, niche-encoded
+//
+// NO HOST GIVES THE COPRODUCT. Go's `(T, error)` is a PRODUCT with a discipline
+// and `err-nil` is the discriminator that totalises it, so this repository has
+// been totalising since the day it could open a file and never called it that.
+//
+// It follows that a target declares two things — the CALL that produces the
+// pair, and the DISCRIMINATOR that reads it — and the compiler learns nothing
+// about exceptions. On this host the totalisation is a `try`/`catch`, written
+// here, in data.
+//
+// AND ON A THROWING HOST THERE IS NO SMALLER HONEST BINDING. `fs.readFileSync`
+// cannot be declared `((path string)) (array (int 0 255))` and be true: it
+// throws, and a signature that does not say so is a lie a program cannot see
+// through. So the totalising form IS the binding, which is why nothing simpler
+// sits underneath this in `targets/js/`.
+provides js os/host {
+    // THIS IS os/host, ONE HOST'S CELL (oskinds-2026-10-06). `os` itself is a
+    // library module, lib/os.oro, one definition over every host: each portable
+    // call is (id + h) ∘ this cell's call, with h the classification written once
+    // there over the three predicates below. A fallible call's result is a value of
+    // lib/result's sum, read off the host through `error`'s niche (errors.md §4).
+    use result
+    // THE TEMPLATE ASSIGNS ITS RESULTS rather than being them, and that is the
+    // second of the two multi-result shapes the format has (`%r0`, `%r1`). A host
+    // whose call IS the tuple is destructured; a host that signals failure out of
+    // band has to be GIVEN somewhere to put the two values, because a `try`/`catch`
+    // is a statement and not an expression yielding a pair.
+    //
+    // `%r` is `%r0` at arity one, so this is the existing result hole at the arity
+    // the call actually has.
+    //
+    // THE ELEMENT RANGE IS DECLARED — a file is bytes — which is what gives the
+    // reads their width and lets `(src i)` be used in arithmetic without a refusal
+    // (elemwidth-2026-08-27). `readFileSync` gives a Buffer, which is a
+    // Uint8Array, and indexes 0..255 exactly as the declaration says.
+    fn ReadFile(path ∈ String) (r ∈ result.Result(Array(0..255), error)) {
+        host expr "try { ${r}0 = fs.readFileSync(${path}); ${r}1 = null; } catch (e) { ${r}0 = null; ${r}1 = e; }" import "node:fs"
+    }
 
-(provides js os/host
-  ; THIS IS os/host, ONE HOST'S CELL (oskinds-2026-10-06). `os` itself is a
-  ; library module, lib/os.oro, one definition over every host: each portable
-  ; call is (id + h) ∘ this cell's call, with h the classification written once
-  ; there over the three predicates below. A fallible call's result is a value of
-  ; lib/result's sum, read off the host through `error`'s niche (errors.md §4).
-  (use result)
-  ; THE TEMPLATE ASSIGNS ITS RESULTS rather than being them, and that is the
-  ; second of the two multi-result shapes the format has (`%r0`, `%r1`). A host
-  ; whose call IS the tuple is destructured; a host that signals failure out of
-  ; band has to be GIVEN somewhere to put the two values, because a `try`/`catch`
-  ; is a statement and not an expression yielding a pair.
-  ;
-  ; `%r` is `%r0` at arity one, so this is the existing result hole at the arity
-  ; the call actually has.
-  ;
-  ; THE ELEMENT RANGE IS DECLARED — a file is bytes — which is what gives the
-  ; reads their width and lets `(src i)` be used in arithmetic without a refusal
-  ; (elemwidth-2026-08-27). `readFileSync` gives a Buffer, which is a
-  ; Uint8Array, and indexes 0..255 exactly as the declaration says.
-  (sig ReadFile ((path string)) (result.result (array (int 0 255)) error) (host expr
-      "try { %r0 = fs.readFileSync(%s); %r1 = null; } catch (e) { %r0 = null; %r1 = e; }"
-      (import "node:fs")))
+    // Put on the store (lib/os/go.oro). `writeFileSync`'s default mode is 0o666,
+    // before the umask, which is the one every host shares.
+    fn WriteFile(path ∈ String, data ∈ Array(0..255)) (r ∈ result.Result((), error)) {
+        host expr "try { fs.writeFileSync(${path}, Buffer.from(${data})); ${r}0 = null; } catch (e) { ${r}0 = e; }" import "node:fs"
+    }
 
-  ; Put on the store (lib/os/go.oro). `writeFileSync`'s default mode is 0o666,
-  ; before the umask, which is the one every host shares.
-  (sig WriteFile ((path string) (data (array (int 0 255)))) (result.result (tuple) error) (host expr
-      "try { fs.writeFileSync(%s, Buffer.from(%s)); %r0 = null; } catch (e) { %r0 = e; }"
-      (import "node:fs")))
+    // The discriminator. `null` because that is what the templates above put
+    // there — one file says both halves, so the two cannot disagree.
+    // THE KINDS' PREDICATES: Node's error codes for io/fs's three sentinels.
+    fn not_found?(e ∈ error) (Bool) pure { host expr "(${e}.code === \"ENOENT\")" }
+    fn exists?(e ∈ error) (Bool) pure { host expr "(${e}.code === \"EEXIST\")" }
+    fn permission?(e ∈ error) (Bool) pure {
+        host expr "[\"EACCES\", \"EPERM\"].includes(${e}.code)"
+    }
 
-  ; The discriminator. `null` because that is what the templates above put
-  ; there — one file says both halves, so the two cannot disagree.
-  ; THE KINDS' PREDICATES: Node's error codes for io/fs's three sentinels.
-  (sig not-found? ((e error)) bool pure (host expr "(%s.code === \"ENOENT\")"))
-  (sig exists? ((e error)) bool pure (host expr "(%s.code === \"EEXIST\")"))
-  (sig permission? ((e error)) bool pure (host expr "[\"EACCES\", \"EPERM\"].includes(%s.code)"))
+    // Bytes to text, ONCE, at the boundary. `TextDecoder` is the platform's own
+    // UTF-8 decode and needs no import, and it IS d (ADR 0030): the WHATWG decoder
+    // is the Unicode Standard's maximal-subpart substitution, which Go and Java
+    // implement to match.
+    fn text_of(b ∈ Array(0..255)) (String) pure {
+        host expr "new TextDecoder().decode(Uint8Array.from(${b}))"
+    }
 
-  ; Bytes to text, ONCE, at the boundary. `TextDecoder` is the platform's own
-  ; UTF-8 decode and needs no import, and it IS d (ADR 0030): the WHATWG decoder
-  ; is the Unicode Standard's maximal-subpart substitution, which Go and Java
-  ; implement to match.
-  (sig text-of ((b (array (int 0 255)))) string pure (host expr
-      "new TextDecoder().decode(Uint8Array.from(%s))"))
-
-  ; `process.argv` is [node, script, …] where Go's `os.Args` is [prog, …], so
-  ; the first is dropped and a program sees the same shape on both hosts. That
-  ; is the parasite model doing its job: the difference is stated once, in the
-  ; cell that knows about it, and no program learns the hosts disagree.
-  (sig Args () (array string) (host expr "process.argv.slice(1)"))
-  ; Impure, as on every host: a read of the environment (lib/os/go.oro).
-  (sig Getenv ((k string)) string (host expr "(process.env[%s] ?? \"\")")))
+    // `process.argv` is [node, script, …] where Go's `os.Args` is [prog, …], so
+    // the first is dropped and a program sees the same shape on both hosts. That
+    // is the parasite model doing its job: the difference is stated once, in the
+    // cell that knows about it, and no program learns the hosts disagree.
+    fn Args() (Array(String)) { host expr "process.argv.slice(1)" }
+    // Impure, as on every host: a read of the environment (lib/os/go.oro).
+    fn Getenv(k ∈ String) (String) { host expr "(process.env[${k}] ?? \"\")" }
+}

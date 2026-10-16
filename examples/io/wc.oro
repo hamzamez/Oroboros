@@ -1,81 +1,86 @@
-; THE FIRST OROBOROS PROGRAM THAT OPENS A FILE.
-;
-; It exists as the acceptance test for one field in a data format. `Prim.Result`
-; was a single Go string, so a target could not declare a host call that gives
-; back several values — and `(T, error)` is Go's constructor idiom, so that one
-; field refused **19.8% of Go's callable standard library**, more than every
-; language-level limitation combined (gostdlib-2026-09-06 §4a). It is why this
-; language had no file I/O, and the reason was never a design position.
-;
-; The LANGUAGE needed nothing. `(values a b)` has been the negative product since
-; values.md, measured at 0.99x on Go with zero allocations, and it is eliminated
-; by applying it to a continuation — which is what happens here. When the
-; producer is a `def`, beta performs that application and the product vanishes;
-; when it is a `prim`, beta cannot, so the shape reaches the backend intact and
-; the backend emits the host's own form.
-;
-;   src, err := os.ReadFile("go.mod")
-;
-; No product is built on Go, because Go has several results natively. That is
-; "emit at the highest layer the target natively provides" at a call boundary.
+// THE FIRST OROBOROS PROGRAM THAT OPENS A FILE.
+//
+// It exists as the acceptance test for one field in a data format. `Prim.Result`
+// was a single Go string, so a target could not declare a host call that gives
+// back several values — and `(T, error)` is Go's constructor idiom, so that one
+// field refused **19.8% of Go's callable standard library**, more than every
+// language-level limitation combined (gostdlib-2026-09-06 §4a). It is why this
+// language had no file I/O, and the reason was never a design position.
+//
+// The LANGUAGE needed nothing. `(values a b)` has been the negative product since
+// values.md, measured at 0.99x on Go with zero allocations, and it is eliminated
+// by applying it to a continuation — which is what happens here. When the
+// producer is a `def`, beta performs that application and the product vanishes;
+// when it is a `prim`, beta cannot, so the shape reaches the backend intact and
+// the backend emits the host's own form.
+//
+//   src, err := os.ReadFile("go.mod")
+//
+// No product is built on Go, because Go has several results natively. That is
+// "emit at the highest layer the target natively provides" at a call boundary.
+use os
+use io
+use result
 
-(use os)
-(use io)
-(use result)
+// THE INPUT LIMIT IS STATED, and that is what makes the program provable rather
+// than trapped. A line count accumulates over the input and a file is unbounded,
+// so nothing can bound `(+ lines 1)` while nothing bounds the file — and the
+// answer is not a bigger integer, it is saying how large a file this tool
+// accepts. jsonfmt and freq say the same thing for the same reason, and
+// `tree.oro`'s node cap said it first: a capacity does not create the limit, it
+// makes it VISIBLE.
+cap_in = 2^24
 
-(export main)
-
-; THE INPUT LIMIT IS STATED, and that is what makes the program provable rather
-; than trapped. A line count accumulates over the input and a file is unbounded,
-; so nothing can bound `(+ lines 1)` while nothing bounds the file — and the
-; answer is not a bigger integer, it is saying how large a file this tool
-; accepts. jsonfmt and freq say the same thing for the same reason, and
-; `tree.oro`'s node cap said it first: a capacity does not create the limit, it
-; makes it VISIBLE.
-(def cap-in 16777216)
-
-; Count the newlines in a file, named on the command line.
-;
-; `seq` ON THE ERROR BRANCHES IS THE ONE THING THIS PROGRAM SAYS ABOUT THE
-; LANGUAGE. A conditional's branches must agree, and printing a message gives
-; back a string where counting gives back an int — so the messages are sequenced
-; and the value is stated. What is really missing is int-to-decimal as a library:
-; `examples/big/render.oro` shows it is twenty lines of the language, but until
-; it is a `lib/` module a program cannot turn its own answer into text, which is
-; why `print-int` exists beside `print-line` at all.
-;
-; AND THE SECOND GUARD CANNOT FIRE. A file under the cap has fewer than that
-; many newlines, so `(< lines cap-in)` is true at every iteration — it is there
-; because the ANALYSIS needs it, not the program: a counter incremented under a
-; condition has no bound from the loop's own guard, and `(+ lines 1)` was the one
-; operation of two this program could not prove. tree.oro's node cap, jsonfmt's
-; document cap and freq's derived word cap are all this same move.
-;
-; It is the OUTER test, and that is not a style choice: `(and a b)` erases to
-; `(if a b false)` (ADR 0017), so writing the two conditions as one conjunction
-; makes the enclosing `if`'s condition a nested `if` rather than a comparison,
-; and the refinement layer reads facts off comparisons.
-;
-; The byte range is DECLARED on `ReadFile`, so `src` is a `[]byte` on Go, a
-; packed array on V8 and a `short[]` on the JVM — where a file byte does not fit
-; a signed `byte` — and `(src i)` may be compared without a refusal.
-(def main ()
-  (let av (os.Args)
-    (if (< (len av) 2)
-        (seq (io.print-line "usage: wc FILE") 0)
-        ; A FAILURE IS A VALUE OF A SUM (ADR 0040): the read is a `case`, and the
-        ; bytes exist only in its success arm, so a failed read's value cannot
-        ; be counted. What each host runs is its own `if err == nil`.
-        (case (os.ReadFile (av 1))
-          (result.err k) (seq (io.print-line "wc: cannot read that file") 0)
-          (result.ok src)
-          ; TWO OUTCOMES, TWO CLAUSES. `cond` erases to the same nested `if`s in
-          ; the order written (ADR 0017).
-          (cond
-            (>= (len src) cap-in)   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
-            else (loop ((i 0) (lines 0))
-                   (>= i (len src)) (io.print-int lines)
-                   else (again (+ i 1)
-                         (if (< lines cap-in)
-                             (if (= (src i) 10) (+ lines 1) lines)
-                             lines))))))))
+// Count the newlines in a file, named on the command line.
+//
+// `seq` ON THE ERROR BRANCHES IS THE ONE THING THIS PROGRAM SAYS ABOUT THE
+// LANGUAGE. A conditional's branches must agree, and printing a message gives
+// back a string where counting gives back an int — so the messages are sequenced
+// and the value is stated. What is really missing is int-to-decimal as a library:
+// `examples/big/render.oro` shows it is twenty lines of the language, but until
+// it is a `lib/` module a program cannot turn its own answer into text, which is
+// why `print-int` exists beside `print-line` at all.
+//
+// AND THE SECOND GUARD CANNOT FIRE. A file under the cap has fewer than that
+// many newlines, so `(< lines cap-in)` is true at every iteration — it is there
+// because the ANALYSIS needs it, not the program: a counter incremented under a
+// condition has no bound from the loop's own guard, and `(+ lines 1)` was the one
+// operation of two this program could not prove. tree.oro's node cap, jsonfmt's
+// document cap and freq's derived word cap are all this same move.
+//
+// It is the OUTER test, and that is not a style choice: `(and a b)` erases to
+// `(if a b false)` (ADR 0017), so writing the two conditions as one conjunction
+// makes the enclosing `if`'s condition a nested `if` rather than a comparison,
+// and the refinement layer reads facts off comparisons.
+//
+// The byte range is DECLARED on `ReadFile`, so `src` is a `[]byte` on Go, a
+// packed array on V8 and a `short[]` on the JVM — where a file byte does not fit
+// a signed `byte` — and `(src i)` may be compared without a refusal.
+export fn main() {
+    av = os.Args()
+    if len(av) < 2 { io.print_line("usage: wc FILE"); 0 } else {
+        // A FAILURE IS A VALUE OF A SUM (ADR 0040): the read is a `case`, and the
+        // bytes exist only in its success arm, so a failed read's value cannot
+        // be counted. What each host runs is its own `if err == nil`.
+        case os.ReadFile(av[1]) {
+            result.'err(k) -> { io.print_line("wc: cannot read that file"); 0 }
+            // TWO OUTCOMES, TWO CLAUSES. `cond` erases to the same nested `if`s in
+            // the order written (ADR 0017).
+            result.'ok(src) ->
+                case {
+                    len(src) >= cap_in -> {
+                        io.print_line("wc: file is larger than this tool accepts")
+                        0
+                    }
+                    else -> loop i = 0, lines = 0 {
+                        i >= len(src) -> io.print_int(lines)
+                        else ->
+                            again(i + 1,
+                                if lines < cap_in {
+                                    if src[i] == 10 { lines + 1 } else { lines }
+                                } else { lines })
+                    }
+                }
+        }
+    }
+}

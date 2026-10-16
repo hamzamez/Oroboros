@@ -3,6 +3,8 @@ package j
 import (
 	"fmt"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -26,6 +28,7 @@ type parser struct {
 	indexed map[core.Expr]bool // applications written as indexing, t[i]
 	resultR string             // the name an `ensure` gives the result binder
 	at      int
+	x86     bool // reading x86's model, whose templates number their holes
 }
 
 func (p *parser) peek() token { return p.toks[p.i] }
@@ -125,15 +128,37 @@ func (p *parser) registerSets(src, dir, root string) {
 			if j+1 < len(toks) && toks[j].text == "as" && !toks[j].nl {
 				alias = toks[j+1].text
 			}
-			u := &core.UseDecl{Path: path, As: alias}
-			tp := &printer{sets: map[string]bool{}, ctors: map[string]bool{}}
-			tp.imports(u, dir, root)
-			for qualified := range tp.sets {
-				k := strings.LastIndex(qualified, ".")
-				p.sets[Spell(qualified[:k])+"."+SetName(qualified[k+1:])] = qualified
+			if alias == "" {
+				alias = path[strings.LastIndex(path, "/")+1:]
+			}
+			for _, name := range importedVariants(path, dir, root) {
+				p.sets[Spell(alias)+"."+name] = alias + "." + unsetName(name)
 			}
 		}
 	}
+}
+
+// importedVariants is the variant set names a module declares, as J spells
+// them, read from its source in J: lib/PATH.oro, or PATH.oro beside the file.
+func importedVariants(path, dir, root string) []string {
+	for _, file := range []string{filepath.Join(root, "lib", path+".oro"), filepath.Join(dir, filepath.Base(path)+".oro")} {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		toks, err := lex(string(b))
+		if err != nil {
+			return nil
+		}
+		var out []string
+		for i := 0; i+1 < len(toks); i++ {
+			if toks[i].kind == tIdent && toks[i].text == "set" && toks[i+1].kind == tIdent && toks[i].nl && isVariantAt(toks, i+2) {
+				out = append(out, toks[i+1].text)
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 // unsetName inverts SetName on a variant's name: OsError is os-error.

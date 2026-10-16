@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"oroboros/core"
+	"oroboros/j"
 	"oroboros/emit"
 )
 
@@ -46,7 +47,7 @@ func lowerUnselectedAs(src, target, repr string) (*emit.Target, []bigUnit, error
 	if err != nil {
 		return nil, nil, err
 	}
-	forms, err := core.Read(string(text))
+	forms, err := j.ReadEntry(string(text), src)
 	if err != nil {
 		return nil, nil, err
 	}

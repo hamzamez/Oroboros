@@ -1,171 +1,185 @@
-; Go's `os`: the process, its environment, and the file system, under Go's names.
-;
-;   (use go/os)
-;   ((os.ReadFile path) (fn (bytes err) …))    ((os.Open path) (fn (f err) …))
-;
-; This is the HOST's API and nothing more (ADR 0001, the `go/` prefix). The
-; portable `os` is lib/os, a different object: a claim that several hosts agree.
-;
-; THE ALGEBRA, BEFORE THE NAMES.
-;
-; - (T, error) is Go's encoding of a SUM T + E: by the package's convention
-;   exactly one side is meaningful. Its discriminant is `go.err-nil` (builtin),
-;   which belongs to the type `error` and not to this package.
-; - The FILE SYSTEM is a store F : Path ⇀ B*. `ReadFile p` reads F(p) or fails;
-;   `WriteFile p d m` sets F := F[p ↦ d]. Its law is read-after-write — a
-;   successful WriteFile p d, then ReadFile p, gives d when nothing else writes
-;   p — the store law of lenses (Foster et al. 2007). The language cannot check
-;   it; it is what the pair of declarations means.
-; - A FILE is a handle to a byte stream. `Read` is io.Reader's contract,
-;   0 ≤ n ≤ len p, and writes p[0, n); `Write` is io.Writer's, n = len b exactly
-;   when err is nil. `Stdin`, `Stdout` and `Stderr` are three of them, fixed for
-;   the process.
-; - The ENVIRONMENT is a map E : Name ⇀ B*. `LookupEnv` is the exact read,
-;   (E(k), true) or ("", false); `Getenv` is it composed with absent ↦ "" and so
-;   cannot tell unset from empty. `Setenv` and `Unsetenv` write E, which is why
-;   no read of E is `pure` here: a pure read could be moved across a write.
-; - A path, a name, a key and a value are the HOST's strings, `bytestring` (B*),
-;   in both directions (ADR 0030): Go's file system does not promise UTF-8. Ours,
-;   Σ*, is accepted wherever B* is, for nothing: `string ≤ bytestring`.
-;
-; A FileMode is Go's `type FileMode uint32`. A parameter of that type is taken
-; as an integer of its set, [0, 2^32 − 1], and converted in the template, so the
-; range is an obligation at every call (refinements.md §6b) rather than a
-; truncation (gotarget-2026-09-30). The checker confirms both halves against the
-; host (`underlying`, target-files.md §2a).
-;
-; WHAT IS NOT DECLARED, of the 130 names Go's `os` has that the survey can
-; declare. Nothing below is a wall; each is work, left until a program needs it:
-;   - the rest of *File: ReadAt, WriteAt, Seek, Stat, Sync, Truncate, Chmod,
-;     Chown, Chdir, File.ReadDir, Readdir, Readdirnames, the deadlines, SyscallConn;
-;   - Stat and Lstat, which return fs.FileInfo (declared in io/fs.oro since du);
-;   - Chmod, Chown, Lchown, Chtimes (time.Time), Link, Symlink, Readlink,
-;     Truncate, SameFile, CopyFS, DirFS;
-;   - OpenFile and its flag constants; CreateTemp;
-;   - the process API: StartProcess, FindProcess, Process, ProcessState, ProcAttr;
-;   - Root and OpenRoot, OpenInRoot;
-;   - the ids and the rest: Getuid and its family, Getpagesize, Getppid,
-;     Getgroups, ExpandEnv, UserHomeDir, UserCacheDir, UserConfigDir,
-;     IsPathSeparator, IsTimeout, NewSyscallError, and the error types' methods.
-; The survey declares every one of them, so each is checked against the host
-; the moment it is written here (gauntlet/stdlib/tooling_test.go, a partial
-; file).
+// Go's `os`: the process, its environment, and the file system, under Go's names.
+//
+//   (use go/os)
+//   ((os.ReadFile path) (fn (bytes err) …))    ((os.Open path) (fn (f err) …))
+//
+// This is the HOST's API and nothing more (ADR 0001, the `go/` prefix). The
+// portable `os` is lib/os, a different object: a claim that several hosts agree.
+//
+// THE ALGEBRA, BEFORE THE NAMES.
+//
+// - (T, error) is Go's encoding of a SUM T + E: by the package's convention
+//   exactly one side is meaningful. Its discriminant is `go.err-nil` (builtin),
+//   which belongs to the type `error` and not to this package.
+// - The FILE SYSTEM is a store F : Path ⇀ B*. `ReadFile p` reads F(p) or fails;
+//   `WriteFile p d m` sets F := F[p ↦ d]. Its law is read-after-write — a
+//   successful WriteFile p d, then ReadFile p, gives d when nothing else writes
+//   p — the store law of lenses (Foster et al. 2007). The language cannot check
+//   it; it is what the pair of declarations means.
+// - A FILE is a handle to a byte stream. `Read` is io.Reader's contract,
+//   0 ≤ n ≤ len p, and writes p[0, n); `Write` is io.Writer's, n = len b exactly
+//   when err is nil. `Stdin`, `Stdout` and `Stderr` are three of them, fixed for
+//   the process.
+// - The ENVIRONMENT is a map E : Name ⇀ B*. `LookupEnv` is the exact read,
+//   (E(k), true) or ("", false); `Getenv` is it composed with absent ↦ "" and so
+//   cannot tell unset from empty. `Setenv` and `Unsetenv` write E, which is why
+//   no read of E is `pure` here: a pure read could be moved across a write.
+// - A path, a name, a key and a value are the HOST's strings, `bytestring` (B*),
+//   in both directions (ADR 0030): Go's file system does not promise UTF-8. Ours,
+//   Σ*, is accepted wherever B* is, for nothing: `string ≤ bytestring`.
+//
+// A FileMode is Go's `type FileMode uint32`. A parameter of that type is taken
+// as an integer of its set, [0, 2^32 − 1], and converted in the template, so the
+// range is an obligation at every call (refinements.md §6b) rather than a
+// truncation (gotarget-2026-09-30). The checker confirms both halves against the
+// host (`underlying`, target-files.md §2a).
+//
+// WHAT IS NOT DECLARED, of the 130 names Go's `os` has that the survey can
+// declare. Nothing below is a wall; each is work, left until a program needs it:
+//   - the rest of *File: ReadAt, WriteAt, Seek, Stat, Sync, Truncate, Chmod,
+//     Chown, Chdir, File.ReadDir, Readdir, Readdirnames, the deadlines, SyscallConn;
+//   - Stat and Lstat, which return fs.FileInfo (declared in io/fs.oro since du);
+//   - Chmod, Chown, Lchown, Chtimes (time.Time), Link, Symlink, Readlink,
+//     Truncate, SameFile, CopyFS, DirFS;
+//   - OpenFile and its flag constants; CreateTemp;
+//   - the process API: StartProcess, FindProcess, Process, ProcessState, ProcAttr;
+//   - Root and OpenRoot, OpenInRoot;
+//   - the ids and the rest: Getuid and its family, Getpagesize, Getppid,
+//     Getgroups, ExpandEnv, UserHomeDir, UserCacheDir, UserConfigDir,
+//     IsPathSeparator, IsTimeout, NewSyscallError, and the error types' methods.
+// The survey declares every one of them, so each is checked against the host
+// the moment it is written here (gauntlet/stdlib/tooling_test.go, a partial
+// file).
+module go/os {
+    // THE ERROR MODEL (spec/errors.md, ADR 0040): a fallible call's result is a
+    // value of lib/result's marked sum, read off Go's (T, error) through error's
+    // niche. The raw call stays the host's, under a name no program can write.
+    use result
+    set File = host "*os.File"
 
-(target go
-  (module go/os
-    ; THE ERROR MODEL (spec/errors.md, ADR 0040): a fallible call's result is a
-    ; value of lib/result's marked sum, read off Go's (T, error) through error's
-    ; niche. The raw call stays the host's, under a name no program can write.
-    (use result)
-    (type File (host "*os.File"))
+    // ---------------------------------------------------------------- files
+    // A file is bytes: the element range is declared, which is what gives the
+    // emitted []byte (elemwidth-2026-08-27). The length needs no declaration:
+    // `len` is bounded at both ends (tables.md §2.3.1).
+    fn ReadFile(name ∈ bytestring) (result.result(Array(0..255), error)) {
+        host expr "os.ReadFile(${name})" import "os"
+    }
+    fn WriteFile(name ∈ bytestring, data ∈ Array(0..255),
+        perm ∈ 0..2^32-1) (result.result((), error)) {
+        host expr "os.WriteFile(${name}, ${data}, os.FileMode(${perm}))" import "os"
+    }
+    fn Open(name ∈ bytestring) (result.result(File, error)) {
+        host expr "os.Open(${name})" import "os"
+    }
+    fn Create(name ∈ bytestring) (result.result(File, error)) {
+        host expr "os.Create(${name})" import "os"
+    }
+    // A DIRECTORY'S ENTRIES, sorted by name. A PARTIAL SUCCESS (ADR 0044): "If an
+    // error occurs reading the directory, ReadDir returns the entries it was able
+    // to read before the error, along with the error" (src/os/dir.go), so the
+    // entries come with a relevant 1 + E. os.DirEntry is fs.DirEntry.
+    fn ReadDir(name ∈ bytestring) (Array(`go/io/fs`.DirEntry) × result.result((), error)) {
+        host expr "os.ReadDir(${name})" import "os"
+    }
+    fn Remove(name ∈ bytestring) (result.result((), error)) {
+        host expr "os.Remove(${name})" import "os"
+    }
+    fn RemoveAll(path ∈ bytestring) (result.result((), error)) {
+        host expr "os.RemoveAll(${path})" import "os"
+    }
+    fn Rename(oldpath ∈ bytestring, newpath ∈ bytestring) (result.result((), error)) {
+        host expr "os.Rename(${oldpath}, ${newpath})" import "os"
+    }
 
-    ; ---------------------------------------------------------------- files
-    ; A file is bytes: the element range is declared, which is what gives the
-    ; emitted []byte (elemwidth-2026-08-27). The length needs no declaration:
-    ; `len` is bounded at both ends (tables.md §2.3.1).
-    (sig ReadFile ((name bytestring)) (result.result (array (int 0 255)) error)
-      (host expr "os.ReadFile(%s)" (import "os")))
-    (sig WriteFile ((name bytestring) (data (array (int 0 255))) (perm (int 0 4294967295))) (result.result (tuple) error)
-      (host expr "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
-    (sig Open ((name bytestring)) (result.result File error)
-      (host expr "os.Open(%s)" (import "os")))
-    (sig Create ((name bytestring)) (result.result File error)
-      (host expr "os.Create(%s)" (import "os")))
-    ; A DIRECTORY'S ENTRIES, sorted by name. A PARTIAL SUCCESS (ADR 0044): "If an
-    ; error occurs reading the directory, ReadDir returns the entries it was able
-    ; to read before the error, along with the error" (src/os/dir.go), so the
-    ; entries come with a relevant 1 + E. os.DirEntry is fs.DirEntry.
-    (sig ReadDir ((name bytestring)) (tuple (array go/io/fs.DirEntry) (result.result (tuple) error))
-      (host expr "os.ReadDir(%s)" (import "os")))
-    (sig Remove ((name bytestring)) (result.result (tuple) error)
-      (host expr "os.Remove(%s)" (import "os")))
-    (sig RemoveAll ((path bytestring)) (result.result (tuple) error)
-      (host expr "os.RemoveAll(%s)" (import "os")))
-    (sig Rename ((oldpath bytestring) (newpath bytestring)) (result.result (tuple) error)
-      (host expr "os.Rename(%s, %s)" (import "os")))
+    // ---------------------------------------------------------- directories
+    fn Mkdir(name ∈ bytestring, perm ∈ 0..2^32-1) (result.result((), error)) {
+        host expr "os.Mkdir(${name}, os.FileMode(${perm}))" import "os"
+    }
+    fn MkdirAll(path ∈ bytestring, perm ∈ 0..2^32-1) (result.result((), error)) {
+        host expr "os.MkdirAll(${path}, os.FileMode(${perm}))" import "os"
+    }
+    fn MkdirTemp(dir ∈ bytestring, pattern ∈ bytestring) (result.result(bytestring, error)) {
+        host expr "os.MkdirTemp(${dir}, ${pattern})" import "os"
+    }
+    fn TempDir() (bytestring) { host expr "os.TempDir()" import "os" }
+    fn Getwd() (result.result(bytestring, error)) { host expr "os.Getwd()" import "os" }
+    fn Chdir(dir ∈ bytestring) (result.result((), error)) {
+        host expr "os.Chdir(${dir})" import "os"
+    }
 
-    ; ---------------------------------------------------------- directories
-    (sig Mkdir ((name bytestring) (perm (int 0 4294967295))) (result.result (tuple) error)
-      (host expr "os.Mkdir(%s, os.FileMode(%s))" (import "os")))
-    (sig MkdirAll ((path bytestring) (perm (int 0 4294967295))) (result.result (tuple) error)
-      (host expr "os.MkdirAll(%s, os.FileMode(%s))" (import "os")))
-    (sig MkdirTemp ((dir bytestring) (pattern bytestring)) (result.result bytestring error)
-      (host expr "os.MkdirTemp(%s, %s)" (import "os")))
-    (sig TempDir () bytestring
-      (host expr "os.TempDir()" (import "os")))
-    (sig Getwd () (result.result bytestring error)
-      (host expr "os.Getwd()" (import "os")))
-    (sig Chdir ((dir bytestring)) (result.result (tuple) error)
-      (host expr "os.Chdir(%s)" (import "os")))
+    // ---------------------------------------------------- the standard streams
+    // Package VARIABLES, which the survey does not generate: fixed for the
+    // process, since no program in this language can assign one, so a read of
+    // one is pure.
+    fn Stdin() (File) pure { host expr "os.Stdin" import "os" }
+    fn Stdout() (File) pure { host expr "os.Stdout" import "os" }
+    fn Stderr() (File) pure { host expr "os.Stderr" import "os" }
 
-    ; ---------------------------------------------------- the standard streams
-    ; Package VARIABLES, which the survey does not generate: fixed for the
-    ; process, since no program in this language can assign one, so a read of
-    ; one is pure.
-    (sig Stdin  () File pure (host expr "os.Stdin" (import "os")))
-    (sig Stdout () File pure (host expr "os.Stdout" (import "os")))
-    (sig Stderr () File pure (host expr "os.Stderr" (import "os")))
+    // --------------------------------------------------------- the environment
+    // Not pure: Setenv and Unsetenv are declared, and they write what these read.
+    fn Getenv(key ∈ bytestring) (bytestring) { host expr "os.Getenv(${key})" import "os" }
+    fn LookupEnv(key ∈ bytestring) (bytestring × Bool) {
+        host expr "os.LookupEnv(${key})" import "os"
+    }
+    fn Setenv(key ∈ bytestring, value ∈ bytestring) (result.result((), error)) {
+        host expr "os.Setenv(${key}, ${value})" import "os"
+    }
+    fn Unsetenv(key ∈ bytestring) (result.result((), error)) {
+        host expr "os.Unsetenv(${key})" import "os"
+    }
+    fn Environ() (Array(bytestring)) { host expr "os.Environ()" import "os" }
 
-    ; --------------------------------------------------------- the environment
-    ; Not pure: Setenv and Unsetenv are declared, and they write what these read.
-    (sig Getenv ((key bytestring)) bytestring
-      (host expr "os.Getenv(%s)" (import "os")))
-    (sig LookupEnv ((key bytestring)) (tuple bytestring bool)
-      (host expr "os.LookupEnv(%s)" (import "os")))
-    (sig Setenv ((key bytestring) (value bytestring)) (result.result (tuple) error)
-      (host expr "os.Setenv(%s, %s)" (import "os")))
-    (sig Unsetenv ((key bytestring)) (result.result (tuple) error)
-      (host expr "os.Unsetenv(%s)" (import "os")))
-    (sig Environ () (array bytestring)
-      (host expr "os.Environ()" (import "os")))
+    // ------------------------------------------------------------- the process
+    // Args is a package variable too.
+    //
+    // EXIT takes Go's `int`, and its PRECONDITION is 0 ≤ code ≤ 255: on POSIX
+    // the status a parent sees is the code mod 256, so Exit(256) exits 0, a
+    // silent truncation. [0, 255] is the set on which every system Go runs on
+    // reports the code unchanged; Go's documentation asks for [0, 125] for
+    // portability, since shells give 126 and above their own meanings. Written
+    // as a `where`, not a narrowed type: the type states the host's domain, and
+    // this is a claim beyond it. It does not return; a statement's value is its
+    // argument.
+    fn Args() (Array(bytestring)) { host expr "os.Args" import "os" }
+    fn Exit(code ∈ Int) (Int)
+        where code >= 0 && code <= 255 {
+        host stmt "os.Exit(${code})" import "os"
+    }
+    fn Getpid() (Int) { host expr "os.Getpid()" import "os" }
+    fn Hostname() (result.result(bytestring, error)) { host expr "os.Hostname()" import "os" }
+    fn Executable() (result.result(bytestring, error)) { host expr "os.Executable()" import "os" }
 
-    ; ------------------------------------------------------------- the process
-    ; Args is a package variable too.
-    ;
-    ; EXIT takes Go's `int`, and its PRECONDITION is 0 ≤ code ≤ 255: on POSIX
-    ; the status a parent sees is the code mod 256, so Exit(256) exits 0, a
-    ; silent truncation. [0, 255] is the set on which every system Go runs on
-    ; reports the code unchanged; Go's documentation asks for [0, 125] for
-    ; portability, since shells give 126 and above their own meanings. Written
-    ; as a `where`, not a narrowed type: the type states the host's domain, and
-    ; this is a claim beyond it. It does not return; a statement's value is its
-    ; argument.
-    (sig Args () (array bytestring) (host expr "os.Args" (import "os")))
-    (sig Exit ((code int)) int (where (and (>= code 0) (<= code 255)))
-      (host stmt "os.Exit(%s)" (import "os")))
-    (sig Getpid () int (host expr "os.Getpid()" (import "os")))
-    (sig Hostname () (result.result bytestring error)
-      (host expr "os.Hostname()" (import "os")))
-    (sig Executable () (result.result bytestring error)
-      (host expr "os.Executable()" (import "os")))
+    // ------------------------------------------------------------------ errors
+    // Pure functions of the error value: each inspects what it is handed.
+    fn IsExist(err ∈ error) (Bool) pure { host expr "os.IsExist(${err})" import "os" }
+    fn IsNotExist(err ∈ error) (Bool) pure { host expr "os.IsNotExist(${err})" import "os" }
+    fn IsPermission(err ∈ error) (Bool) pure { host expr "os.IsPermission(${err})" import "os" }
 
-    ; ------------------------------------------------------------------ errors
-    ; Pure functions of the error value: each inspects what it is handed.
-    (sig IsExist ((err error)) bool pure (host expr "os.IsExist(%s)" (import "os")))
-    (sig IsNotExist ((err error)) bool pure (host expr "os.IsNotExist(%s)" (import "os")))
-    (sig IsPermission ((err error)) bool pure (host expr "os.IsPermission(%s)" (import "os")))
+    // ------------------------------------------------------------- a file's methods
+    module File {
+        use result
+        // A WRITE-BORROW, B ⊸ B ⊗ int ⊗ (1 + E): the host writes p[0, n) with
+        // 0 ≤ n ≤ len p (io.Reader) and returns p, as hex.Decode does. A PARTIAL
+        // SUCCESS: n bytes arrive WITH the error, and io.Reader says to use them
+        // first, so the error is a relevant 1 + E beside them, not a sum (errors.md §4.3).
+        fn Read(self ∈ File,
+            p ∈ Array(0..255) linear) (buffer(0..255) × 0..2^63-1 × result.result((), error)) {
+            host expr "func(p []byte) ([]byte, int, error) { n, err := ${self}.Read(p); return p, n, err }(${p})" import "os"
+        }
+        // io.Writer's contract: n = len b exactly when err is nil.
+        fn Write(self ∈ File, b ∈ Array(0..255)) (0..2^63-1 × result.result((), error)) {
+            host expr "${self}.Write(${b})" import "os"
+        }
+        fn WriteString(self ∈ File, s ∈ bytestring) (0..2^63-1 × result.result((), error)) {
+            host expr "${self}.WriteString(${s})" import "os"
+        }
+        // Succeeds with nothing: 1 + E, the unit beside the error (data.md §3.6).
+        fn Close(self ∈ File) (result.result((), error)) { host expr "${self}.Close()" import "os" }
+        // The name Open was given: fixed for the handle, so pure.
+        fn Name(self ∈ File) (bytestring) pure { host expr "${self}.Name()" import "os" }
+    }
 
-    ; ------------------------------------------------------------- a file's methods
-    (module File
-      (use result)
-      ; A WRITE-BORROW, B ⊸ B ⊗ int ⊗ (1 + E): the host writes p[0, n) with
-      ; 0 ≤ n ≤ len p (io.Reader) and returns p, as hex.Decode does. A PARTIAL
-      ; SUCCESS: n bytes arrive WITH the error, and io.Reader says to use them
-      ; first, so the error is a relevant 1 + E beside them, not a sum (errors.md §4.3).
-      (sig Read ((self File) (p (buffer (int 0 255))))
-        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (result.result (tuple) error))
-        (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)"
-          (import "os")))
-      ; io.Writer's contract: n = len b exactly when err is nil.
-      (sig Write ((self File) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
-        (host expr "%s.Write(%s)" (import "os")))
-      (sig WriteString ((self File) (s bytestring)) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
-        (host expr "%s.WriteString(%s)" (import "os")))
-      ; Succeeds with nothing: 1 + E, the unit beside the error (data.md §3.6).
-      (sig Close ((self File)) (result.result (tuple) error) (host expr "%s.Close()" (import "os")))
-      ; The name Open was given: fixed for the handle, so pure.
-      (sig Name ((self File)) bytestring pure (host expr "%s.Name()" (import "os")))))
-
-  ; A *File is each of io's interfaces it implements (Go's method sets; the
-  ; survey's edge set, which the Go compiler verified, has them).
-  (implements go/os.File go/io.Reader go/io.Writer go/io.Closer go/io.WriteCloser))
+    // A *File is each of io's interfaces it implements (Go's method sets; the
+    // survey's edge set, which the Go compiler verified, has them).
+    axiom File ⊆ `go/io`.Reader ∩ `go/io`.Writer ∩ `go/io`.Closer ∩ `go/io`.WriteCloser
+}

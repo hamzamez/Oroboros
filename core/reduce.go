@@ -494,12 +494,10 @@ func qualify(path, name string) string {
 // into a fully qualified one, so loading more modules only means having more of
 // them in scope. Nothing downstream can tell whether a module came from the
 // entry file or from disk.
-type Resolver func(path string) (src string, found bool, err error)
-
-// ReadLibrary reads the source of an imported module, by its path. A driver
-// may replace it to read every module of a program through another rendering:
-// the ORO_VIA_J gate reads each through J (jread-2026-10-15, storeorder-2026-10-15).
-var ReadLibrary = func(src, path string) ([]Form, error) { return Read(src) }
+//
+// It returns the module's forms, read by the rendering its source is written in
+// (J; spec/j.md): core reads no source itself.
+type Resolver func(path string) (forms []Form, found bool, err error)
 
 // Load reads one source with no file resolution — every module it uses must be
 // declared in the same text, or provided by the target.
@@ -580,17 +578,13 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 				return nil
 			}
 			seen[want] = true
-			src, found, err := resolve(want)
+			sub, found, err := resolve(want)
 			if err != nil {
 				return fmt.Errorf("use %s: %w", want, err)
 			}
 			if !found {
 				unresolved = append(unresolved, want)
 				continue // provided by the target, not by a library
-			}
-			sub, err := ReadLibrary(src, want)
-			if err != nil {
-				return fmt.Errorf("%s: %w", want, err)
 			}
 			subMods, _, err := partition(sub)
 			if err != nil {

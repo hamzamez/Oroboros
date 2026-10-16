@@ -1,100 +1,96 @@
-; The Windows target. NO PORTABILITY CLAIM, and less of one than any target so
-; far: this emits x86-64 assembly and hands it to MASM.
-;
-; The surface is one file per "package", the same shape targets/go and
-; targets/java have:
-;
-;   (use x64)                → (x64.add a b)  (x64.imul a b)  (x64.sar x 3)
-;   (use windows/kernel32)   → (kernel32.WriteFile h p n)
-;   (use windows/msvcrt)     → (msvcrt.printf1 fmt n)
-;
-; THE NAMES ARE THE HOST'S. On this host the host's names for arithmetic are
-; INSTRUCTION MNEMONICS, so `+` is `x64.add` and `<` is `x64.setl`. That reads
-; strangely and it is not a mistake: the rule was "keep the names as in the
-; target", and assembly's name for adding is `add`.
-;
-; WHAT IS DIFFERENT ABOUT THIS TARGET. Every host before it was an expression
-; language, so `expr "%s + %s"` could hand the operands to the host's own parser
-; and let it rebuild the tree. Assembly has no tree. A template here is an
-; INSTRUCTION SEQUENCE, and it needs three things no other target file needs:
-;
-;   %r     where to put the result. There is no expression to be the result.
-;   %1..%9 operands by position, since instructions rarely use them in order.
-;   %u     a unique number, so a template may carry its own labels — and
-;          therefore its own loops. `x64.strlen` below is one.
-;
-; plus %b1/%br and %e1/%er, which spell an operand's register at 8 and 32 bits,
-; because x86 gives one register three names.
-;
-; WHICH REGISTERS A TEMPLATE MAY TOUCH. rax, rcx, rdx, r8, r9 and xmm0-xmm3 are
-; free. r10, r11, xmm4 and xmm5 are NOT: they carry spilled operands into the
-; template. Neither are rbx, rsi, rdi, r12-r15 or xmm6-xmm13, which hold live
-; values — and which is exactly why a Win32 call costs nothing here, since
-; kernel32 preserves all of them.
+// The Windows target. NO PORTABILITY CLAIM, and less of one than any target so
+// far: this emits x86-64 assembly and hands it to MASM.
+//
+// The surface is one file per "package", the same shape targets/go and
+// targets/java have:
+//
+//   (use x64)                → (x64.add a b)  (x64.imul a b)  (x64.sar x 3)
+//   (use windows/kernel32)   → (kernel32.WriteFile h p n)
+//   (use windows/msvcrt)     → (msvcrt.printf1 fmt n)
+//
+// THE NAMES ARE THE HOST'S. On this host the host's names for arithmetic are
+// INSTRUCTION MNEMONICS, so `+` is `x64.add` and `<` is `x64.setl`. That reads
+// strangely and it is not a mistake: the rule was "keep the names as in the
+// target", and assembly's name for adding is `add`.
+//
+// WHAT IS DIFFERENT ABOUT THIS TARGET. Every host before it was an expression
+// language, so `expr "%s + %s"` could hand the operands to the host's own parser
+// and let it rebuild the tree. Assembly has no tree. A template here is an
+// INSTRUCTION SEQUENCE, and it needs three things no other target file needs:
+//
+//   %r     where to put the result. There is no expression to be the result.
+//   %1..%9 operands by position, since instructions rarely use them in order.
+//   %u     a unique number, so a template may carry its own labels — and
+//          therefore its own loops. `x64.strlen` below is one.
+//
+// plus %b1/%br and %e1/%er, which spell an operand's register at 8 and 32 bits,
+// because x86 gives one register three names.
+//
+// WHICH REGISTERS A TEMPLATE MAY TOUCH. rax, rcx, rdx, r8, r9 and xmm0-xmm3 are
+// free. r10, r11, xmm4 and xmm5 are NOT: they carry spilled operands into the
+// template. Neither are rbx, rsi, rdi, r12-r15 or xmm6-xmm13, which hold live
+// values — and which is exactly why a Win32 call costs nothing here, since
+// kernel32 preserves all of them.
+// WHICH CODE GENERATOR COMPILES THIS TARGET (target-system.md §1.1). Not the
+// target NAME: windows is an operating system and x86-64 is the instruction
+// set, and target-system.md §5.2 wants those separable — the same Win32 API
+// over an arm64 backend is one member of the same family.
+backend x86_64
 
-(target windows
-  ; WHICH CODE GENERATOR COMPILES THIS TARGET (target-system.md §1.1). Not the
-  ; target NAME: windows is an operating system and x86-64 is the instruction
-  ; set, and target-system.md §5.2 wants those separable — the same Win32 API
-  ; over an arm64 backend is one member of the same family.
-  (backend x86-64)
+// THIS HOST SHIPS NO MAP, so the language supplies one -- `emit/winmap.oro`,
+// open addressing over an ordinary `build` buffer, lowered before reduction.
+//
+// Declared rather than inferred, because there is nothing sound to infer it
+// from: an empty `map-type` means "no map" here and "no TYPES" on JavaScript,
+// which has a perfectly good map and spells nothing at all. Guessing would
+// have handed JavaScript our hash table and thrown away a measured 3.67x.
+repr `map` library
 
-  ; THIS HOST SHIPS NO MAP, so the language supplies one -- `emit/winmap.oro`,
-  ; open addressing over an ordinary `build` buffer, lowered before reduction.
-  ;
-  ; Declared rather than inferred, because there is nothing sound to infer it
-  ; from: an empty `map-type` means "no map" here and "no TYPES" on JavaScript,
-  ; which has a perfectly good map and spells nothing at all. Guessing would
-  ; have handed JavaScript our hash table and thrown away a measured 3.67x.
-  (repr map library)
+// THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here: `int`
+// and `f64` are what integer and float LITERALS type as, and `bool` is what
+// `if` and a loop guard demand. The right-hand side is the machine
+// representation, which on this host is all a type can be.
+set Int = host "qword"
+// THE WORD (ADR 0026): a qword, 64-bit two's complement.
+repr -2^63..2^63-1 word
+set F64 = host "real8"
+set Bool = host "qword"
+set String = host "qword"  // a pointer to NUL-terminated bytes
+set ptr = host "qword"
+set Any = host "qword"
 
-  ; THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here: `int`
-  ; and `f64` are what integer and float LITERALS type as, and `bool` is what
-  ; `if` and a loop guard demand. The right-hand side is the machine
-  ; representation, which on this host is all a type can be.
-  (type int    (host "qword"))
-  ; THE WORD (ADR 0026): a qword, 64-bit two's complement.
-  (repr (int -9223372036854775808 9223372036854775807) word)
-  (type f64    (host "real8"))
-  (type bool   (host "qword"))
-  (type string (host "qword"))   ; a pointer to NUL-terminated bytes
-  (type ptr    (host "qword"))
-  (type any    (host "qword"))
+// STORAGE THE TARGET OWNS. This is new, and Win32 forced it. `WriteFile` takes
+// a pointer to a cell it writes the byte count into, and our language has no
+// pointers, no addresses and no way to spell an out-parameter. There was
+// nowhere to put one — so the TARGET declares the cell and hides it inside the
+// template, and the language never learns that it exists.
+//
+// __buf is the same trick for a different reason: printing a number needs a
+// byte buffer, and the language cannot allocate one either.
+//
+// Each line is emitted ONLY IF its label appears in the code, the way an
+// import is. 4096 bytes here made hello-win.exe 6656 against a hand-written
+// 2560, for a buffer it never touches; with the check it is 2560 exactly.
+data "__written qword 0"
+data "__read    qword 0"
+data "__qpc     qword 0"
+data "__buf     db 256 dup(0)"
+data "__nl      db 10"
 
-  ; STORAGE THE TARGET OWNS. This is new, and Win32 forced it. `WriteFile` takes
-  ; a pointer to a cell it writes the byte count into, and our language has no
-  ; pointers, no addresses and no way to spell an out-parameter. There was
-  ; nowhere to put one — so the TARGET declares the cell and hides it inside the
-  ; template, and the language never learns that it exists.
-  ;
-  ; __buf is the same trick for a different reason: printing a number needs a
-  ; byte buffer, and the language cannot allocate one either.
-  ;
-  ; Each line is emitted ONLY IF its label appears in the code, the way an
-  ; import is. 4096 bytes here made hello-win.exe 6656 against a hand-written
-  ; 2560, for a buffer it never touches; with the check it is 2560 exactly.
-  (data "__written qword 0")
-  (data "__read    qword 0")
-  (data "__qpc     qword 0")
-  (data "__buf     db 256 dup(0)")
-  (data "__nl      db 10")
+// THE LINK LINE IS DATA. These five were a constant in emit/target.go, which is a
+// host fact living in Go: kernel32 for ExitProcess, which the backend itself
+// emits, and the CRT the hand-written msvcrt.oro assumes. A primitive that lives
+// anywhere else says so with `(lib "…")`, and the library joins the line only
+// when a program calls it (target-files.md §6a, linkline-2026-09-13).
+link "kernel32" "msvcrt" "ucrt" "vcruntime" "legacy_stdio_definitions"
 
-  ; THE LINK LINE IS DATA. These five were a constant in emit/target.go, which is a
-  ; host fact living in Go: kernel32 for ExitProcess, which the backend itself
-  ; emits, and the CRT the hand-written msvcrt.oro assumes. A primitive that lives
-  ; anywhere else says so with `(lib "…")`, and the library joins the line only
-  ; when a program calls it (target-files.md §6a, linkline-2026-09-13).
-  (link "kernel32" "msvcrt" "ucrt" "vcruntime" "legacy_stdio_definitions")
-
-  (build "cmd /c .\\build.bat")
-  (artifact "main.exe")
-
-  ; THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
-  ; injected into every target; declaring one is an error. The backend implements
-  ; them, which is where an implementation belongs — a construct promoted to the
-  ; language works on every target and the compiler finds the form.
-  ;
-  ; and that is the result this target exists to test. `let`, `if` and `loop`
-  ; are the only things the backend implements in code; every other name in
-  ; this directory is a template.
-)
+build "cmd /c .\\build.bat"
+artifact "main.exe"
+// THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
+// injected into every target; declaring one is an error. The backend implements
+// them, which is where an implementation belongs — a construct promoted to the
+// language works on every target and the compiler finds the form.
+//
+// and that is the result this target exists to test. `let`, `if` and `loop`
+// are the only things the backend implements in code; every other name in
+// this directory is a template.

@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"oroboros/core"
+	"oroboros/j"
 )
 
 // THE FIXED-LIMB RUNG, SELECTED — ADR 0019's ladder, third step.
@@ -245,7 +246,7 @@ func loadLimbLib(tgt *Target) (*limbLib, error) {
 	if tgt.HasBig() {
 		src += "\n" + bigLimbHostSrc
 	}
-	forms, err := core.Read(src)
+	forms, err := j.ReadModule(src, "emit/bignum.oro", "big/limb")
 	if err != nil {
 		return nil, fmt.Errorf("the built-in bignum does not parse: %w", err)
 	}

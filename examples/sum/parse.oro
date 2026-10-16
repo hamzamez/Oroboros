@@ -1,19 +1,18 @@
-; A sum crossing a boundary, which is the case where the tag has to be
-; transmitted (docs/spec/sums.md). Inside a program a sum reduces away entirely;
-; here `step` is exported, so the caller has to be told WHICH.
-;
-; `(sum result (ok int) (err int))` is Go's own `(T, error)` shape, and that is
-; not a coincidence: a sum is Σ over a finite index set, so the value is a tag
-; and a payload.
-(use go)
-(export step)
+// A sum crossing a boundary, which is the case where the tag has to be
+// transmitted (docs/spec/sums.md). Inside a program a sum reduces away entirely;
+// here `step` is exported, so the caller has to be told WHICH.
+//
+// `(sum result (ok int) (err int))` is Go's own `(T, error)` shape, and that is
+// not a coincidence: a sum is Σ over a finite index set, so the value is a tag
+// and a payload.
+use go
 
-(variant result (ok int) (err int))
+set Result = 'ok(Int) ∪ 'err(Int)
 
-(sig step ((a int) (b int)) result)
-
-(def step (a b)
-  (cond
-    (= b 0)              (err 1)
-    (go.> (go.% a b) 0)  (err 2)
-    else                 (ok (go./ a b))))
+export fn step(a ∈ Int, b ∈ Int) (Result) {
+    case {
+        b == 0 -> 'err(1)
+        go.`>`(go.`%`(a, b), 0) -> 'err(2)
+        else -> 'ok(go.`/`(a, b))
+    }
+}

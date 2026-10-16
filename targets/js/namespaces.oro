@@ -1,70 +1,76 @@
-; JavaScript's namespace objects, each as a module whose ALIAS is the namespace.
-;
-;   (use js/Math)   →  (Math.floor x)      emits  Math.floor(x)
-;   (use js/JSON)   →  (JSON.stringify v)  emits  JSON.stringify(v)
-;   (use js/console)→  (console.log x)     emits  console.log(x)
-;
-; This is the one place the source reads EXACTLY like the host, because a
-; namespace call and a qualified name have the same shape. Methods on values
-; do not — see array.oro.
+// JavaScript's namespace objects, each as a module whose ALIAS is the namespace.
+//
+//   (use js/Math)   →  (Math.floor x)      emits  Math.floor(x)
+//   (use js/JSON)   →  (JSON.stringify v)  emits  JSON.stringify(v)
+//   (use js/console)→  (console.log x)     emits  console.log(x)
+//
+// This is the one place the source reads EXACTLY like the host, because a
+// namespace call and a qualified name have the same shape. Methods on values
+// do not — see array.oro.
+module js/Math {
+    fn floor(a ∈ F64) (F64) pure { host expr "Math.floor(${a})" }
+    fn ceil(a ∈ F64) (F64) pure { host expr "Math.ceil(${a})" }
+    fn round(a ∈ F64) (F64) pure { host expr "Math.round(${a})" }
+    fn trunc(a ∈ F64) (F64) pure { host expr "Math.trunc(${a})" }
+    fn abs(a ∈ F64) (F64) pure { host expr "Math.abs(${a})" }
+    fn sign(a ∈ F64) (F64) pure { host expr "Math.sign(${a})" }
+    fn sqrt(a ∈ F64) (F64) pure { host expr "Math.sqrt(${a})" }
+    fn cbrt(a ∈ F64) (F64) pure { host expr "Math.cbrt(${a})" }
+    fn pow(a ∈ F64, b ∈ F64) (F64) pure { host expr "Math.pow(${a}, ${b})" }
+    fn exp(a ∈ F64) (F64) pure { host expr "Math.exp(${a})" }
+    fn log(a ∈ F64) (F64) pure { host expr "Math.log(${a})" }
+    fn log2(a ∈ F64) (F64) pure { host expr "Math.log2(${a})" }
+    fn log10(a ∈ F64) (F64) pure { host expr "Math.log10(${a})" }
+    fn sin(a ∈ F64) (F64) pure { host expr "Math.sin(${a})" }
+    fn cos(a ∈ F64) (F64) pure { host expr "Math.cos(${a})" }
+    fn tan(a ∈ F64) (F64) pure { host expr "Math.tan(${a})" }
+    fn atan2(a ∈ F64, b ∈ F64) (F64) pure { host expr "Math.atan2(${a}, ${b})" }
+    fn hypot(a ∈ F64, b ∈ F64) (F64) pure { host expr "Math.hypot(${a}, ${b})" }
+    fn min(a ∈ F64, b ∈ F64) (F64) pure { host expr "Math.min(${a}, ${b})" }
+    fn max(a ∈ F64, b ∈ F64) (F64) pure { host expr "Math.max(${a}, ${b})" }
+    fn PI() (F64) pure { host expr "Math.PI" }
+    fn E() (F64) pure { host expr "Math.E" }
+    // Two calls, two answers. An `expr` that is NOT pure, which is the case
+    // that kills the tempting "expr means pure" heuristic (effects.md §3).
+    fn random() (F64) { host expr "Math.random()" }
+}
 
-(target js
-  (module js/Math
-    (sig floor  (f64) f64    pure         (host expr "Math.floor(%s)"))
-    (sig ceil   (f64) f64     pure         (host expr "Math.ceil(%s)"))
-    (sig round  (f64) f64    pure         (host expr "Math.round(%s)"))
-    (sig trunc  (f64) f64    pure         (host expr "Math.trunc(%s)"))
-    (sig abs    (f64) f64      pure         (host expr "Math.abs(%s)"))
-    (sig sign   (f64) f64     pure         (host expr "Math.sign(%s)"))
-    (sig sqrt   (f64) f64     pure         (host expr "Math.sqrt(%s)"))
-    (sig cbrt   (f64) f64     pure         (host expr "Math.cbrt(%s)"))
-    (sig pow    (f64 f64) f64  pure  (host expr "Math.pow(%s, %s)"))
-    (sig exp    (f64) f64      pure         (host expr "Math.exp(%s)"))
-    (sig log    (f64) f64      pure         (host expr "Math.log(%s)"))
-    (sig log2   (f64) f64     pure         (host expr "Math.log2(%s)"))
-    (sig log10  (f64) f64    pure         (host expr "Math.log10(%s)"))
-    (sig sin    (f64) f64      pure         (host expr "Math.sin(%s)"))
-    (sig cos    (f64) f64      pure         (host expr "Math.cos(%s)"))
-    (sig tan    (f64) f64      pure         (host expr "Math.tan(%s)"))
-    (sig atan2  (f64 f64) f64 pure  (host expr "Math.atan2(%s, %s)"))
-    (sig hypot  (f64 f64) f64 pure  (host expr "Math.hypot(%s, %s)"))
-    (sig min    (f64 f64) f64  pure  (host expr "Math.min(%s, %s)"))
-    (sig max    (f64 f64) f64  pure  (host expr "Math.max(%s, %s)"))
-    (sig PI     () f64           pure           (host expr "Math.PI"))
-    (sig E      () f64            pure           (host expr "Math.E"))
-    ; Two calls, two answers. An `expr` that is NOT pure, which is the case
-    ; that kills the tempting "expr means pure" heuristic (effects.md §3).
-    (sig random () f64           (host expr "Math.random()")))
+module js/JSON {
+    fn stringify(a ∈ Any) (String) pure { host expr "JSON.stringify(${a})" }
+    fn stringify2(a ∈ Any, b ∈ Any, c ∈ Any) (String) pure {
+        host expr "JSON.stringify(${a}, ${b}, ${c})"
+    }
+    fn parse(a ∈ String) (Any) pure { host expr "JSON.parse(${a})" }
+}
 
-  (module js/JSON
-    (sig stringify  (any) string        pure        (host expr "JSON.stringify(%s)"))
-    (sig stringify2 (any any any) string pure (host expr "JSON.stringify(%s, %s, %s)"))
-    (sig parse      (string) any            pure        (host expr "JSON.parse(%s)")))
+module js/Object {
+    fn keys(a ∈ Any) (Any) pure { host expr "Object.keys(${a})" }
+    fn values(a ∈ Any) (Any) pure { host expr "Object.values(${a})" }
+    fn entries(a ∈ Any) (Any) pure { host expr "Object.entries(${a})" }
+    fn assign(a ∈ Any, b ∈ Any) (Any) { host stmt "Object.assign(${a}, ${b})" }
+    fn freeze(a ∈ Any) (Any) { host stmt "Object.freeze(${a})" }
+    fn create(a ∈ Any) (Any) { host expr "Object.create(${a})" }
+    fn hasOwn(a ∈ Any, b ∈ String) (Bool) pure { host expr "Object.hasOwn(${a}, ${b})" }
+}
 
-  (module js/Object
-    (sig keys     (any) any     pure        (host expr "Object.keys(%s)"))
-    (sig values   (any) any   pure        (host expr "Object.values(%s)"))
-    (sig entries  (any) any  pure        (host expr "Object.entries(%s)"))
-    (sig assign   (any any) any    (host stmt "Object.assign(%s, %s)"))
-    (sig freeze   (any) any        (host stmt "Object.freeze(%s)"))
-    (sig create   (any) any        (host expr "Object.create(%s)"))
-    (sig hasOwn   (any string) bool pure (host expr "Object.hasOwn(%s, %s)")))
+module js/Number {
+    fn isInteger(a ∈ Any) (Bool) pure { host expr "Number.isInteger(${a})" }
+    fn isSafeInteger(a ∈ Any) (Bool) pure { host expr "Number.isSafeInteger(${a})" }
+    fn parseFloat(a ∈ String) (F64) pure { host expr "Number.parseFloat(${a})" }
+    fn toFixed(a ∈ F64, b ∈ F64) (String) pure { host expr "${a}.toFixed(${b})" }
+    fn `MAX_SAFE_INTEGER`() (F64) pure { host expr "Number.MAX_SAFE_INTEGER" }
+    fn EPSILON() (F64) pure { host expr "Number.EPSILON" }
+}
 
-  (module js/Number
-    (sig isInteger    (any) bool    pure   (host expr "Number.isInteger(%s)"))
-    (sig isSafeInteger (any) bool pure  (host expr "Number.isSafeInteger(%s)"))
-    (sig parseFloat   (string) f64   pure (host expr "Number.parseFloat(%s)"))
-    (sig toFixed      (f64 f64) string   pure (host expr "%s.toFixed(%s)"))
-    (sig MAX_SAFE_INTEGER () f64 pure (host expr "Number.MAX_SAFE_INTEGER"))
-    (sig EPSILON      () f64          pure   (host expr "Number.EPSILON")))
+module js/console {
+    fn log(a ∈ Any) (Any) { host stmt "console.log(${a})" }
+    fn log2(a ∈ Any, b ∈ Any) (Any) { host stmt "console.log(${a}, ${b})" }
+    fn error(a ∈ Any) (Any) { host stmt "console.error(${a})" }
+    fn warn(a ∈ Any) (Any) { host stmt "console.warn(${a})" }
+    fn time(a ∈ String) (Any) { host stmt "console.time(${a})" }
+    fn timeEnd(a ∈ String) (Any) { host stmt "console.timeEnd(${a})" }
+}
 
-  (module js/console
-    (sig log    (any) any     (host stmt "console.log(%s)"))
-    (sig log2   (any any) any (host stmt "console.log(%s, %s)"))
-    (sig error  (any) any     (host stmt "console.error(%s)"))
-    (sig warn   (any) any     (host stmt "console.warn(%s)"))
-    (sig time   (string) any  (host stmt "console.time(%s)"))
-    (sig timeEnd (string) any (host stmt "console.timeEnd(%s)")))
-
-  (module js/Date
-    (sig now () f64 (host expr "Date.now()"))))
+module js/Date {
+    fn now() (F64) { host expr "Date.now()" }
+}

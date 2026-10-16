@@ -1,24 +1,22 @@
-; REFUSED BY DEFAULT SINCE 2026-08-31, which is this file's whole point.
-; ADR 0019 makes an integer operation the compiler cannot prove stays inside
-; the portable window a COMPILE ERROR, so `cmd/build` now declines this
-; program by name and operation instead of emitting code that wraps on Go
-; and the JVM and loses precision on V8. `-checked` still builds it, taking
-; the trap: that is the second escape, and it is what this program is for.
-;
-; The Collatz conjecture, which is open — so this program's termination is NOT
-; provable, by size change or by anything else anyone has managed.
-;
-; It is in the corpus as a TRUE NEGATIVE. An analysis that claims this loop
-; terminates has a bug, and one that claims `x` stays in range is claiming
-; something nobody knows.
+// REFUSED BY DEFAULT SINCE 2026-08-31, which is this file's whole point.
+// ADR 0019 makes an integer operation the compiler cannot prove stays inside
+// the portable window a COMPILE ERROR, so `cmd/build` now declines this
+// program by name and operation instead of emitting code that wraps on Go
+// and the JVM and loses precision on V8. `-checked` still builds it, taking
+// the trap: that is the second escape, and it is what this program is for.
+//
+// The Collatz conjecture, which is open — so this program's termination is NOT
+// provable, by size change or by anything else anyone has managed.
+//
+// It is in the corpus as a TRUE NEGATIVE. An analysis that claims this loop
+// terminates has a bug, and one that claims `x` stays in range is claiming
+// something nobody knows.
+use go
 
-(use go)
-(export collatz)
-
-(sig collatz ((n int)) int (where (and (<= 1 n) (< n 1000000))))
-
-(def collatz (n)
-  (loop ((x n) (steps 0))
-    (go.<= x 1)            steps
-    (go.== (go.% x 2) 0)   (again (go./ x 2) (go.+ steps 1))
-    else                   (again (go.+ (go.* 3 x) 1) (go.+ steps 1))))
+export fn collatz(n ∈ Int) (Int) where 1 <= n && n < 1000000 {
+    loop x = n, steps = 0 {
+        go.`<=`(x, 1) -> steps
+        go.`==`(go.`%`(x, 2), 0) -> again(go.`/`(x, 2), go.`+`(steps, 1))
+        else -> again(go.`+`(go.`*`(3, x), 1), go.`+`(steps, 1))
+    }
+}

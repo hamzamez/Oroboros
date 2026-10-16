@@ -69,13 +69,13 @@ var ops = map[string]map[string]string{
 // program cannot do — so the harness supplies the `main` that prints, and a
 // case only ever defines `run`.
 var driver = map[string]struct{ uses, print string }{
-	"go":      {"(use go)\n(use go/fmt)", "fmt.Println"},
-	"js":      {"(use js)\n(use js/console as console)", "console.log"},
-	"java":    {"(use java)\n(use java/System as sys)", "sys.out-println"},
-	"windows": {"(use x64)\n(use win/fmt)", "fmt.print-int"},
+	"go":      {"use go\nuse go/fmt", "fmt.Println"},
+	"js":      {"use js\nuse js/console as console", "console.log"},
+	"java":    {"use java\nuse java/System as sys", "sys.out_println"},
+	"windows": {"use x64\nuse win/fmt", "fmt.print_int"},
 }
 
-// AND A DRIVER THAT PRINTS A STRING, selected by `; prints: string` on a case.
+// AND A DRIVER THAT PRINTS A STRING, selected by `// prints: string` on a case.
 //
 // Three of the four print an integer and a string through the same name; only
 // windows differs, because a string there is a pointer to NUL-terminated bytes
@@ -98,10 +98,10 @@ var driver = map[string]struct{ uses, print string }{
 // string to one — which is strings.md §2's finding arriving in the test harness
 // rather than in a program.
 var stringDriver = map[string]struct{ uses, print string }{
-	"go":      {"(use go)\n(use go/fmt)", "fmt.Println"},
-	"js":      {"(use js)\n(use js/console as console)", "console.log"},
-	"java":    {"(use java)\n(use java/System as sys)", "sys.out-println"},
-	"windows": {"(use x64)\n(use windows/msvcrt as crt)", "crt.puts"},
+	"go":      {"use go\nuse go/fmt", "fmt.Println"},
+	"js":      {"use js\nuse js/console as console", "console.log"},
+	"java":    {"use java\nuse java/System as sys", "sys.out_println"},
+	"windows": {"use x64\nuse windows/msvcrt as crt", "crt.puts"},
 }
 
 // What each target's artifact is CALLED, and how to run it.
@@ -133,7 +133,7 @@ var artifact = map[string]struct {
 	}},
 }
 
-// The default inputs. A case may override them with a `; inputs: …` line, and
+// The default inputs. A case may override them with a `// inputs: …` line, and
 // a heavy one has to: reduction inlines `run` at every call site, so nine calls
 // that each build a table is nine tables in one procedure — which on x86 is
 // ninety integer operations and more spilled operands than there are scratch
@@ -144,11 +144,11 @@ var defaultInputs = []int{0, 1, 2, 3, 5, 8, 13, 21, 34}
 func inputsFor(src string) []int {
 	for _, l := range strings.Split(src, "\n") {
 		l = strings.TrimSpace(l)
-		if !strings.HasPrefix(l, "; inputs:") {
+		if !strings.HasPrefix(l, "// inputs:") {
 			continue
 		}
 		var out []int
-		for _, f := range strings.Fields(strings.TrimPrefix(l, "; inputs:")) {
+		for _, f := range strings.Fields(strings.TrimPrefix(l, "// inputs:")) {
 			var n int
 			if _, err := fmt.Sscanf(f, "%d", &n); err == nil {
 				out = append(out, n)
@@ -165,13 +165,13 @@ func inputsFor(src string) []int {
 //
 // Agreement alone is not correctness: four backends can be wrong in the same
 // way, and the one bug that would hide from a purely differential test is a bug
-// in the READER or the REDUCER, which all four share. `; expect:` is what makes
+// in the READER or the REDUCER, which all four share. `// expect:` is what makes
 // each case a test of the compiler rather than only of its consistency.
 func expectFor(src string) string {
 	for _, l := range strings.Split(src, "\n") {
 		l = strings.TrimSpace(l)
-		if strings.HasPrefix(l, "; expect:") {
-			return strings.TrimSpace(strings.TrimPrefix(l, "; expect:"))
+		if strings.HasPrefix(l, "// expect:") {
+			return strings.TrimSpace(strings.TrimPrefix(l, "// expect:"))
 		}
 	}
 	return ""
@@ -182,30 +182,25 @@ func render(src, target string) string {
 	d := driver[target]
 	// A case that returns a STRING needs the host's string print, and on windows
 	// that is a different primitive. Everything else about the driver is the same.
-	if strings.Contains(src, "; prints: string") {
+	if strings.Contains(src, "// prints: string") {
 		d = stringDriver[target]
 	}
+	// THE DRIVER, IN J (spec/j.md): the target's imports, the case, and an
+	// entry point printing each result in order, the last print the block's
+	// value.
 	var b strings.Builder
 	b.WriteString(d.uses)
-	b.WriteString("\n(export main)\n")
+	b.WriteString("\n")
 	body := src
 	for k, v := range ops[target] {
 		body = strings.ReplaceAll(body, k, v)
 	}
 	b.WriteString(body)
-	b.WriteString("\n(def main (fn ()\n")
-	// A right-nested `seq` chain: print each result in order.
-	for i, n := range inputs {
-		b.WriteString(strings.Repeat("  ", i+1))
-		if i < len(inputs)-1 {
-			fmt.Fprintf(&b, "(seq (%s (run %d))\n", d.print, n)
-		} else {
-			fmt.Fprintf(&b, "(%s (run %d))", d.print, n)
-		}
+	b.WriteString("\nexport fn main() {\n")
+	for _, n := range inputs {
+		fmt.Fprintf(&b, "    %s(run(%d))\n", d.print, n)
 	}
-	// n inputs open n-1 `seq`s; the last print is balanced on its own.
-	b.WriteString(strings.Repeat(")", len(inputs)-1))
-	b.WriteString("))\n")
+	b.WriteString("}\n")
 	return b.String()
 }
 
@@ -279,14 +274,14 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool
 		// above the word a range is checked at run time (ADR 0029), and the
 		// property is that every target traps on the SAME value. So a run that
 		// stops with the bound's own message answers what it printed, then
-		// `trap`, and `; expect: … trap` states it. Any other failure is one.
+		// `trap`, and `// expect: … trap` states it. Any other failure is one.
 		if strings.Contains(stderr.String(), boundMessage) {
 			return strings.TrimSpace(normalise(stdout.String()) + "\ntrap"), traps, nil
 		}
 		// AND SO IS AN ABANDONMENT (spec/errors.md §8): `expect` crashes with its
 		// reason on any constructor but the success, through `abandon`, and the
 		// property is that every target crashes at the SAME point with the same
-		// reason. A case names the reason, `; abandons: REASON`; a run that stops
+		// reason. A case names the reason, `// abandons: REASON`; a run that stops
 		// with it on standard error answers what it printed, then `abandon`.
 		if why := abandonsFor(src); why != "" && strings.Contains(stderr.String(), why) {
 			return strings.TrimSpace(normalise(stdout.String()) + "\nabandon"), traps, nil
@@ -296,13 +291,13 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool
 	return normalise(stdout.String() + stderr.String()), traps, nil
 }
 
-// abandonsFor reads a case's `; abandons: REASON`, the reason its `expect`
+// abandonsFor reads a case's `// abandons: REASON`, the reason its `expect`
 // crashes with; empty when it declares none.
 func abandonsFor(src string) string {
 	for _, l := range strings.Split(src, "\n") {
 		l = strings.TrimSpace(l)
-		if strings.HasPrefix(l, "; abandons:") {
-			return strings.TrimSpace(strings.TrimPrefix(l, "; abandons:"))
+		if strings.HasPrefix(l, "// abandons:") {
+			return strings.TrimSpace(strings.TrimPrefix(l, "// abandons:"))
 		}
 	}
 	return ""
@@ -312,7 +307,7 @@ func abandonsFor(src string) string {
 // operation it did not prove.
 const trapNote = "note: -checked: "
 
-// checkedFor reads a case's `; checked: TARGET… — reason`: the targets on
+// checkedFor reads a case's `// checked: TARGET… — reason`: the targets on
 // which the case is ALLOWED to be unproven, and why. Every other target must
 // prove every integer operation, and a declared target must still need it, so
 // the declaration is held in both directions and cannot go stale. A case with
@@ -320,23 +315,23 @@ const trapNote = "note: -checked: "
 func checkedFor(src string) (map[string]bool, error) {
 	for _, l := range strings.Split(src, "\n") {
 		l = strings.TrimSpace(l)
-		if !strings.HasPrefix(l, "; checked:") {
+		if !strings.HasPrefix(l, "// checked:") {
 			continue
 		}
-		rest := strings.TrimSpace(strings.TrimPrefix(l, "; checked:"))
+		rest := strings.TrimSpace(strings.TrimPrefix(l, "// checked:"))
 		ts, why, ok := strings.Cut(rest, "—")
 		if !ok || strings.TrimSpace(why) == "" {
-			return nil, fmt.Errorf("`; checked:` names its targets, then ` — ` and the reason: %q", l)
+			return nil, fmt.Errorf("`// checked:` names its targets, then ` — ` and the reason: %q", l)
 		}
 		out := map[string]bool{}
 		for _, t := range strings.Fields(ts) {
 			if _, known := driver[t]; !known {
-				return nil, fmt.Errorf("`; checked:` names %q, which is not a target", t)
+				return nil, fmt.Errorf("`// checked:` names %q, which is not a target", t)
 			}
 			out[t] = true
 		}
 		if len(out) == 0 {
-			return nil, fmt.Errorf("`; checked:` names no target: %q", l)
+			return nil, fmt.Errorf("`// checked:` names no target: %q", l)
 		}
 		return out, nil
 	}
@@ -414,7 +409,7 @@ func main() {
 		// SAID, not achieved by the case quietly not being run anywhere.
 		skip := map[string]bool{}
 		for _, t := range targets {
-			if strings.Contains(src, "; skip: "+t) {
+			if strings.Contains(src, "// skip: "+t) {
 				skip[t] = true
 			}
 		}
@@ -437,7 +432,7 @@ func main() {
 		for _, t := range targets {
 			variants[t] = []string{""}
 		}
-		if strings.Contains(src, "; big-repr: both") {
+		if strings.Contains(src, "// big-repr: both") {
 			for _, t := range []string{"go", "js", "java"} {
 				variants[t] = []string{"host", "limbs"}
 			}
@@ -509,7 +504,7 @@ func main() {
 			}
 		} else {
 			fails++
-			fmt.Printf("FAIL %s — no `; expect:` line. Agreement is not correctness;\n"+
+			fmt.Printf("FAIL %s — no `// expect:` line. Agreement is not correctness;\n"+
 				"  a bug in the reader or the reducer is shared by every backend.\n", name)
 			continue
 		}
@@ -526,9 +521,9 @@ func main() {
 			switch {
 			case trapped[label] && !allowed[t]:
 				proof = append(proof, fmt.Sprintf("  %s: an integer operation is a trap, not a proof (built with -checked).\n"+
-					"    Prove it (a signature on run, a narrower range), or declare `; checked: %s — why`.", label, t))
+					"    Prove it (a signature on run, a narrower range), or declare `// checked: %s — why`.", label, t))
 			case !trapped[label] && allowed[t]:
-				proof = append(proof, fmt.Sprintf("  %s: `; checked:` names %s, and every operation there is proven. Remove it.", label, t))
+				proof = append(proof, fmt.Sprintf("  %s: `// checked:` names %s, and every operation there is proven. Remove it.", label, t))
 			}
 		}
 		if len(proof) > 0 {

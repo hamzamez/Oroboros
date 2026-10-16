@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"oroboros/core"
+	"oroboros/j"
 )
 
 // LOWERING A MAP ONTO A TARGET THAT HAS NONE.
@@ -53,7 +54,7 @@ func lowerMaps(tg *Target, p *core.Program) error {
 	if !tg.NeedsMapImpl() || !usesMap(tg, p) {
 		return nil
 	}
-	forms, err := core.Read(winMapSrc)
+	forms, err := j.ReadModule(winMapSrc, "emit/winmap.oro", "win/map")
 	if err != nil {
 		return fmt.Errorf("the built-in map implementation does not parse: %w", err)
 	}

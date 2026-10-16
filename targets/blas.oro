@@ -1,39 +1,38 @@
-; A target that provides `dot` natively — the "compiling up" half of ADR 0002.
-;
-; It differs from targets/go.oro by ONE line. That line is the entire distinction
-; between emitting a BLAS call and emitting a loop.
+// A target that provides `dot` natively — the "compiling up" half of ADR 0002.
+//
+// It differs from targets/go.oro by ONE line. That line is the entire distinction
+// between emitting a BLAS call and emitting a loop.
+set F64 = host "double"
+set Int = host "int"
+// THE WORD (ADR 0026): C's `int`, 32 bits on every platform this spelling
+// targets. The narrowest word of any target here — the int32 target the
+// question "would a new target move the window?" asked about. It moves nothing:
+// a program is accepted here when its integers fit 32 bits, and on every other
+// target exactly as before.
+repr -2^31..2^31-1 word
+set vec_f64 = host "double*"
 
-(target blas
-  (type f64     (host "double"))
-  (type int     (host "int"))
-  ; THE WORD (ADR 0026): C's `int`, 32 bits on every platform this spelling
-  ; targets. The narrowest word of any target here — the int32 target the
-  ; question "would a new target move the window?" asked about. It moves nothing:
-  ; a program is accepted here when its integers fit 32 bits, and on every other
-  ; target exactly as before.
-  (repr (int -2147483648 2147483647) word)
-  (type vec-f64 (host "double*"))
+module num/f64 {
+    fn add(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} + ${b}" }
+    fn mul(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} * ${b}" }
+}
 
-  (module num/f64
-    (sig add (f64 f64) f64 pure (host expr "%s + %s"))
-    (sig mul (f64 f64) f64 pure (host expr "%s * %s")))
+fn alen(a ∈ vec_f64) (Int) pure { host expr "${a}.n" }
+fn aindex(a ∈ vec_f64, b ∈ Int) (F64) pure { host expr "${a}[${b}]" }
 
-  (sig alen   (vec-f64) int    pure      (host expr "%s.n"))
-  (sig aindex (vec-f64 int) f64  pure  (host expr "%s[%s]"))
+fn dot(a ∈ vec_f64, b ∈ vec_f64) (F64) pure { host expr "cblas_ddot(${a}.n, ${b}, 1, ${a}, 1)" }
 
-  (sig dot (vec-f64 vec-f64) f64 pure (host expr "cblas_ddot(%s.n, %s, 1, %s, 1)"))
+// The same capability, declared as a member of a MODULE. A target provides
+// whatever subset of a module it happens to have natively (modules.md §4), and
+// the name it declares is the fully qualified one, so that P_T and the
+// library's definitions key the same namespace — R1.
+module num/vec {
+    fn dot(a ∈ vec_f64, b ∈ vec_f64) (F64) pure { host expr "cblas_ddot(${a}.n, ${b}, 1, ${a}, 1)" }
+}
 
-  ; The same capability, declared as a member of a MODULE. A target provides
-  ; whatever subset of a module it happens to have natively (modules.md §4), and
-  ; the name it declares is the fully qualified one, so that P_T and the
-  ; library's definitions key the same namespace — R1.
-  (module num/vec
-    (sig dot (vec-f64 vec-f64) f64 pure (host expr "cblas_ddot(%s.n, %s, 1, %s, 1)")))
-
-
-  ; The four the BACKEND implements. No types: fold-range is
-  ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,
-  ; and writing one was a false statement (target-files.md §4).
-  (structural fold-range  loop  pure)
-  (structural fold-range2 loop2 pure)
-  (structural make-vec     build pure))
+// The four the BACKEND implements. No types: fold-range is
+// A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,
+// and writing one was a false statement (target-files.md §4).
+structural fold_range `loop` pure
+structural fold_range2 loop2 pure
+structural make_vec build pure

@@ -1,166 +1,206 @@
-; strconv, DECLARED BY HAND. Every claim below was read off src/strconv/number.go,
-; src/strconv/quote.go and src/internal/strconv/{itoa,atoi,ftoa}.go in the Go 1.27
-; toolchain; the algebra is in gauntlet/results/strconv-2026-09-22.md §1.
-;
-; THE ALGEBRA IN SIX LINES.
-;   N_b ⊂ A*   the numerals in base b, 2 ≤ b ≤ 36: an optional '-', then digits
-;              over "0123456789abcdefghijklmnopqrstuvwxyz"[:b], no leading zero.
-;   F_b : ℤ → N_b is FormatInt, an INJECTION (positional notation is unique), and
-;   P_b : A* ⇀ ℤ is ParseInt, a PARTIAL LEFT INVERSE: P_b ∘ F_b = id on the word,
-;              F_b ∘ P_b ≠ id (P_b accepts '+', uppercase, '_' with base 0, a
-;              prefix 0x…), but F_b ∘ P_b is IDEMPOTENT — a projection onto N_b.
-;   P_b's domain is the words over the digits whose value lies in the word; past
-;   it P_b returns the nearest bound and ErrRange: it SATURATES, never wraps.
-;   The parses are TOTAL ON B*, with an error off their domain, so their
-;   argument is the host's string, `bytestring` (ADR 0030): a field of a line
-;   read from a file goes to ParseInt as it is. It was declared `string`, a
-;   narrower domain than the host's, until the first program that held a host
-;   string met it (bufio-2026-10-01). Our `string` still passes: Σ* ⊆ B*.
-;
-; INTEGER TYPES ARE THE HOST'S (ADR 0026): `int64` is the target's signed word and
-; `uint64` is U = [0, 2^64−1], held natively in a `uint64`. So ParseUint's result
-; is what Go returns, and arithmetic on it is native — which was the point of
-; the decision: under ADR 0012 this result could be printed and not computed with.
-;
-; WHAT IS NOT SAID, named rather than hidden:
-;   - ParseInt(s, b, bitSize) lies in [−2^(bitSize−1), 2^(bitSize−1)−1], a range
-;     that DEPENDS ON AN ARGUMENT'S VALUE. The declaration states the widest,
-;     bitSize = 64, which contains every other — sound, and less than true.
-;   - FormatFloat and AppendFloat panic unless bitSize ∈ {32, 64}. A disjunction
-;     is outside the linear fragment, so the domain is narrowed to bitSize = 64:
-;     a parameter may promise to pass less (contravariance), and the language's
-;     only float is a float64.
-(target go
-  (module go/strconv
-    (use result)
-    (type NumError (host "*strconv.NumError"))
+// strconv, DECLARED BY HAND. Every claim below was read off src/strconv/number.go,
+// src/strconv/quote.go and src/internal/strconv/{itoa,atoi,ftoa}.go in the Go 1.27
+// toolchain; the algebra is in gauntlet/results/strconv-2026-09-22.md §1.
+//
+// THE ALGEBRA IN SIX LINES.
+//   N_b ⊂ A*   the numerals in base b, 2 ≤ b ≤ 36: an optional '-', then digits
+//              over "0123456789abcdefghijklmnopqrstuvwxyz"[:b], no leading zero.
+//   F_b : ℤ → N_b is FormatInt, an INJECTION (positional notation is unique), and
+//   P_b : A* ⇀ ℤ is ParseInt, a PARTIAL LEFT INVERSE: P_b ∘ F_b = id on the word,
+//              F_b ∘ P_b ≠ id (P_b accepts '+', uppercase, '_' with base 0, a
+//              prefix 0x…), but F_b ∘ P_b is IDEMPOTENT — a projection onto N_b.
+//   P_b's domain is the words over the digits whose value lies in the word; past
+//   it P_b returns the nearest bound and ErrRange: it SATURATES, never wraps.
+//   The parses are TOTAL ON B*, with an error off their domain, so their
+//   argument is the host's string, `bytestring` (ADR 0030): a field of a line
+//   read from a file goes to ParseInt as it is. It was declared `string`, a
+//   narrower domain than the host's, until the first program that held a host
+//   string met it (bufio-2026-10-01). Our `string` still passes: Σ* ⊆ B*.
+//
+// INTEGER TYPES ARE THE HOST'S (ADR 0026): `int64` is the target's signed word and
+// `uint64` is U = [0, 2^64−1], held natively in a `uint64`. So ParseUint's result
+// is what Go returns, and arithmetic on it is native — which was the point of
+// the decision: under ADR 0012 this result could be printed and not computed with.
+//
+// WHAT IS NOT SAID, named rather than hidden:
+//   - ParseInt(s, b, bitSize) lies in [−2^(bitSize−1), 2^(bitSize−1)−1], a range
+//     that DEPENDS ON AN ARGUMENT'S VALUE. The declaration states the widest,
+//     bitSize = 64, which contains every other — sound, and less than true.
+//   - FormatFloat and AppendFloat panic unless bitSize ∈ {32, 64}. A disjunction
+//     is outside the linear fragment, so the domain is narrowed to bitSize = 64:
+//     a parameter may promise to pass less (contravariance), and the language's
+//     only float is a float64.
+module go/strconv {
+    use result
+    set NumError = host "*strconv.NumError"
 
-    ; ---------------------------------------------------------- booleans
-    ; {false, true} ↔ {"false", "true"}; ParseBool also accepts 1, t, T, TRUE,
-    ; True and their negations, so ParseBool ∘ FormatBool = id and not conversely.
-    (sig FormatBool ((b bool)) string pure (host expr "strconv.FormatBool(%s)" (import "strconv")))
-    (sig ParseBool ((s bytestring)) (result.result bool error) pure (host expr "strconv.ParseBool(%s)" (import "strconv")))
-    ; CONSUME AND RETURN, B ⊸ B: appends, growing dst when it must.
-    (sig AppendBool ((dst (buffer (int 0 255))) (b bool)) (buffer (int 0 255))
-          (host expr "strconv.AppendBool(%s, %s)" (import "strconv")))
+    // ---------------------------------------------------------- booleans
+    // {false, true} ↔ {"false", "true"}; ParseBool also accepts 1, t, T, TRUE,
+    // True and their negations, so ParseBool ∘ FormatBool = id and not conversely.
+    fn FormatBool(b ∈ Bool) (String) pure { host expr "strconv.FormatBool(${b})" import "strconv" }
+    fn ParseBool(s ∈ bytestring) (result.result(Bool, error)) pure {
+        host expr "strconv.ParseBool(${s})" import "strconv"
+    }
+    // CONSUME AND RETURN, B ⊸ B: appends, growing dst when it must.
+    fn AppendBool(dst ∈ Array(0..255) linear, b ∈ Bool) (buffer(0..255)) {
+        host expr "strconv.AppendBool(${dst}, ${b})" import "strconv"
+    }
 
-    ; ---------------------------------------------------------- integers
-    ; F_b, on the word and on U. formatBits panics outside 2 ≤ base ≤ 36
-    ; ("strconv: illegal AppendInt/FormatInt base"), so that is the precondition.
-    (sig FormatInt ((i int64) (base int)) string pure
-          (where (and (<= 2 base) (<= base 36)))
-          (host expr "strconv.FormatInt(int64(%s), %s)" (import "strconv")))
-    (sig FormatUint ((i uint64) (base int)) string pure
-          (where (and (<= 2 base) (<= base 36)))
-          (host expr "strconv.FormatUint(uint64(%s), %s)" (import "strconv")))
-    ; F_10 on Go's int, which is the word.
-    (sig Itoa ((i int)) string pure (host expr "strconv.Itoa(%s)" (import "strconv")))
-    (sig AppendInt ((dst (buffer (int 0 255))) (i int64) (base int)) (buffer (int 0 255))
-          (where (and (<= 2 base) (<= base 36)))
-          (host expr "strconv.AppendInt(%s, int64(%s), %s)" (import "strconv")))
-    (sig AppendUint ((dst (buffer (int 0 255))) (i uint64) (base int)) (buffer (int 0 255))
-          (where (and (<= 2 base) (<= base 36)))
-          (host expr "strconv.AppendUint(%s, uint64(%s), %s)" (import "strconv")))
+    // ---------------------------------------------------------- integers
+    // F_b, on the word and on U. formatBits panics outside 2 ≤ base ≤ 36
+    // ("strconv: illegal AppendInt/FormatInt base"), so that is the precondition.
+    fn FormatInt(i ∈ int64, base ∈ Int) (String) pure
+        where 2 <= base && base <= 36 {
+        host expr "strconv.FormatInt(int64(${i}), ${base})" import "strconv"
+    }
+    fn FormatUint(i ∈ uint64, base ∈ Int) (String) pure
+        where 2 <= base && base <= 36 {
+        host expr "strconv.FormatUint(uint64(${i}), ${base})" import "strconv"
+    }
+    // F_10 on Go's int, which is the word.
+    fn Itoa(i ∈ Int) (String) pure { host expr "strconv.Itoa(${i})" import "strconv" }
+    fn AppendInt(dst ∈ Array(0..255) linear, i ∈ int64, base ∈ Int) (buffer(0..255))
+        where 2 <= base && base <= 36 {
+        host expr "strconv.AppendInt(${dst}, int64(${i}), ${base})" import "strconv"
+    }
+    fn AppendUint(dst ∈ Array(0..255) linear, i ∈ uint64, base ∈ Int) (buffer(0..255))
+        where 2 <= base && base <= 36 {
+        host expr "strconv.AppendUint(${dst}, uint64(${i}), ${base})" import "strconv"
+    }
 
-    ; P_b. No precondition: a bad base or bitSize is an ERROR value, not a panic.
-    ; The result is the host's int64 — the word — received as Go's int, which is
-    ; the same 64 bits on this target.
-    (sig ParseInt ((s bytestring) (base int) (bitSize int)) (tuple int64 (result.result (tuple) error)) pure
-          (host expr "func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(%s, %s, %s)"
-            (import "strconv")))
-    ; …and over U, returned as the uint64 it is.
-    (sig ParseUint ((s bytestring) (base int) (bitSize int)) (tuple uint64 (result.result (tuple) error)) pure
-          (host expr "strconv.ParseUint(%s, %s, %s)" (import "strconv")))
-    ; P_10 into Go's int.
-    (sig Atoi ((s bytestring)) (tuple int (result.result (tuple) error)) pure (host expr "strconv.Atoi(%s)" (import "strconv")))
+    // P_b. No precondition: a bad base or bitSize is an ERROR value, not a panic.
+    // The result is the host's int64 — the word — received as Go's int, which is
+    // the same 64 bits on this target.
+    fn ParseInt(s ∈ bytestring, base ∈ Int, bitSize ∈ Int) (int64 × result.result((), error)) pure {
+        host expr "func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(${s}, ${base}, ${bitSize})" import "strconv"
+    }
+    // …and over U, returned as the uint64 it is.
+    fn ParseUint(s ∈ bytestring, base ∈ Int,
+        bitSize ∈ Int) (uint64 × result.result((), error)) pure {
+        host expr "strconv.ParseUint(${s}, ${base}, ${bitSize})" import "strconv"
+    }
+    // P_10 into Go's int.
+    fn Atoi(s ∈ bytestring) (Int × result.result((), error)) pure {
+        host expr "strconv.Atoi(${s})" import "strconv"
+    }
 
-    ; ---------------------------------------------------------- floats
-    ; The shortest decimal that rounds back (prec −1), or a fixed precision; an
-    ; unknown fmt byte gives "%" followed by it, and does not panic.
-    (sig FormatFloat ((f f64) (fmt uint8) (prec int) (bitSize int)) string pure
-          (where (and (<= 64 bitSize) (<= bitSize 64)))
-          (host expr "strconv.FormatFloat(%s, uint8(%s), %s, %s)" (import "strconv")))
-    (sig AppendFloat ((dst (buffer (int 0 255))) (f f64) (fmt uint8) (prec int) (bitSize int)) (buffer (int 0 255))
-          (where (and (<= 64 bitSize) (<= bitSize 64)))
-          (host expr "strconv.AppendFloat(%s, %s, uint8(%s), %s, %s)" (import "strconv")))
-    (sig ParseFloat ((s bytestring) (bitSize int)) (tuple f64 (result.result (tuple) error)) pure
-          (host expr "strconv.ParseFloat(%s, %s)" (import "strconv")))
+    // ---------------------------------------------------------- floats
+    // The shortest decimal that rounds back (prec −1), or a fixed precision; an
+    // unknown fmt byte gives "%" followed by it, and does not panic.
+    fn FormatFloat(f ∈ F64, fmt ∈ uint8, prec ∈ Int, bitSize ∈ Int) (String) pure
+        where 64 <= bitSize && bitSize <= 64 {
+        host expr "strconv.FormatFloat(${f}, uint8(${fmt}), ${prec}, ${bitSize})" import "strconv"
+    }
+    fn AppendFloat(dst ∈ Array(0..255) linear, f ∈ F64, fmt ∈ uint8, prec ∈ Int,
+        bitSize ∈ Int) (buffer(0..255))
+        where 64 <= bitSize && bitSize <= 64 {
+        host expr "strconv.AppendFloat(${dst}, ${f}, uint8(${fmt}), ${prec}, ${bitSize})" import "strconv"
+    }
+    fn ParseFloat(s ∈ bytestring, bitSize ∈ Int) (F64 × result.result((), error)) pure {
+        host expr "strconv.ParseFloat(${s}, ${bitSize})" import "strconv"
+    }
 
-    ; ---------------------------------------------------------- quoting
-    ; Q : strings → Go string literals, an injection; Unquote is its partial
-    ; left inverse, and accepts backquoted and single-quoted literals too.
-    (sig Quote          ((s bytestring)) string pure (host expr "strconv.Quote(%s)" (import "strconv")))
-    (sig QuoteToASCII   ((s bytestring)) string pure (host expr "strconv.QuoteToASCII(%s)" (import "strconv")))
-    (sig QuoteToGraphic ((s bytestring)) string pure (host expr "strconv.QuoteToGraphic(%s)" (import "strconv")))
-    (sig QuoteRune          ((r int32)) string pure (host expr "strconv.QuoteRune(int32(%s))" (import "strconv")))
-    (sig QuoteRuneToASCII   ((r int32)) string pure (host expr "strconv.QuoteRuneToASCII(int32(%s))" (import "strconv")))
-    (sig QuoteRuneToGraphic ((r int32)) string pure (host expr "strconv.QuoteRuneToGraphic(int32(%s))" (import "strconv")))
-    (sig AppendQuote ((dst (buffer (int 0 255))) (s bytestring)) (buffer (int 0 255))
-          (host expr "strconv.AppendQuote(%s, %s)" (import "strconv")))
-    (sig AppendQuoteToASCII ((dst (buffer (int 0 255))) (s bytestring)) (buffer (int 0 255))
-          (host expr "strconv.AppendQuoteToASCII(%s, %s)" (import "strconv")))
-    (sig AppendQuoteToGraphic ((dst (buffer (int 0 255))) (s bytestring)) (buffer (int 0 255))
-          (host expr "strconv.AppendQuoteToGraphic(%s, %s)" (import "strconv")))
-    (sig AppendQuoteRune ((dst (buffer (int 0 255))) (r int32)) (buffer (int 0 255))
-          (host expr "strconv.AppendQuoteRune(%s, int32(%s))" (import "strconv")))
-    (sig AppendQuoteRuneToASCII ((dst (buffer (int 0 255))) (r int32)) (buffer (int 0 255))
-          (host expr "strconv.AppendQuoteRuneToASCII(%s, int32(%s))" (import "strconv")))
-    (sig AppendQuoteRuneToGraphic ((dst (buffer (int 0 255))) (r int32)) (buffer (int 0 255))
-          (host expr "strconv.AppendQuoteRuneToGraphic(%s, int32(%s))" (import "strconv")))
-    (sig CanBackquote ((s bytestring)) bool pure (host expr "strconv.CanBackquote(%s)" (import "strconv")))
-    (sig IsPrint   ((r int32)) bool pure (host expr "strconv.IsPrint(int32(%s))" (import "strconv")))
-    (sig IsGraphic ((r int32)) bool pure (host expr "strconv.IsGraphic(int32(%s))" (import "strconv")))
-    ; `\x` and octal escapes denote BYTES, so Unquote's result is the host's
-    ; string: `Unquote("\xff")` is 0xFF, not a scalar (ADR 0030).
-    ; QuotedPrefix's result is a FACTOR of its argument, and the host does not
-    ; verify the bytes it cuts: a backquoted literal is "not verified … as valid
-    ; UTF-8" (strconv/quote.go), and inside a double-quoted one UnquoteChar
-    ; takes a stray byte as RuneError. So on B* it can hand back invalid bytes,
-    ; and its result is the host's. It maps V into V, which one `sig` cannot
-    ; also say.
-    (sig Unquote      ((s bytestring)) (result.result bytestring error) pure (host expr "strconv.Unquote(%s)" (import "strconv")))
-    (sig QuotedPrefix ((s bytestring)) (result.result bytestring error) pure (host expr "strconv.QuotedPrefix(%s)" (import "strconv")))
-    ; ONE STEP of Unquote. The rune is a decoded UTF-8 scalar (RuneError at
-    ; worst), a \x or octal escape (at most 255; octal past it is an error), or a
-    ; \u / \U escape the host checks with utf8.ValidRune — and 0 on an error — so
-    ; it lies in [0, MaxRune], narrower than the host's int32 and read off the
-    ; source rather than assumed. The tail is a factor of s, so it is the host's
-    ; string, as s is.
-    (sig UnquoteChar ((s bytestring) (quote uint8)) (result.result (tuple (int 0 1114111) bool bytestring) error) pure
-          (host expr "func(s string, q byte) (int, bool, string, error) { v, m, t, err := strconv.UnquoteChar(s, q); return int(v), m, t, err }(%s, uint8(%s))"
-            (import "strconv")))
+    // ---------------------------------------------------------- quoting
+    // Q : strings → Go string literals, an injection; Unquote is its partial
+    // left inverse, and accepts backquoted and single-quoted literals too.
+    fn Quote(s ∈ bytestring) (String) pure { host expr "strconv.Quote(${s})" import "strconv" }
+    fn QuoteToASCII(s ∈ bytestring) (String) pure {
+        host expr "strconv.QuoteToASCII(${s})" import "strconv"
+    }
+    fn QuoteToGraphic(s ∈ bytestring) (String) pure {
+        host expr "strconv.QuoteToGraphic(${s})" import "strconv"
+    }
+    fn QuoteRune(r ∈ int32) (String) pure {
+        host expr "strconv.QuoteRune(int32(${r}))" import "strconv"
+    }
+    fn QuoteRuneToASCII(r ∈ int32) (String) pure {
+        host expr "strconv.QuoteRuneToASCII(int32(${r}))" import "strconv"
+    }
+    fn QuoteRuneToGraphic(r ∈ int32) (String) pure {
+        host expr "strconv.QuoteRuneToGraphic(int32(${r}))" import "strconv"
+    }
+    fn AppendQuote(dst ∈ Array(0..255) linear, s ∈ bytestring) (buffer(0..255)) {
+        host expr "strconv.AppendQuote(${dst}, ${s})" import "strconv"
+    }
+    fn AppendQuoteToASCII(dst ∈ Array(0..255) linear, s ∈ bytestring) (buffer(0..255)) {
+        host expr "strconv.AppendQuoteToASCII(${dst}, ${s})" import "strconv"
+    }
+    fn AppendQuoteToGraphic(dst ∈ Array(0..255) linear, s ∈ bytestring) (buffer(0..255)) {
+        host expr "strconv.AppendQuoteToGraphic(${dst}, ${s})" import "strconv"
+    }
+    fn AppendQuoteRune(dst ∈ Array(0..255) linear, r ∈ int32) (buffer(0..255)) {
+        host expr "strconv.AppendQuoteRune(${dst}, int32(${r}))" import "strconv"
+    }
+    fn AppendQuoteRuneToASCII(dst ∈ Array(0..255) linear, r ∈ int32) (buffer(0..255)) {
+        host expr "strconv.AppendQuoteRuneToASCII(${dst}, int32(${r}))" import "strconv"
+    }
+    fn AppendQuoteRuneToGraphic(dst ∈ Array(0..255) linear, r ∈ int32) (buffer(0..255)) {
+        host expr "strconv.AppendQuoteRuneToGraphic(${dst}, int32(${r}))" import "strconv"
+    }
+    fn CanBackquote(s ∈ bytestring) (Bool) pure {
+        host expr "strconv.CanBackquote(${s})" import "strconv"
+    }
+    fn IsPrint(r ∈ int32) (Bool) pure { host expr "strconv.IsPrint(int32(${r}))" import "strconv" }
+    fn IsGraphic(r ∈ int32) (Bool) pure {
+        host expr "strconv.IsGraphic(int32(${r}))" import "strconv"
+    }
+    // `\x` and octal escapes denote BYTES, so Unquote's result is the host's
+    // string: `Unquote("\xff")` is 0xFF, not a scalar (ADR 0030).
+    // QuotedPrefix's result is a FACTOR of its argument, and the host does not
+    // verify the bytes it cuts: a backquoted literal is "not verified … as valid
+    // UTF-8" (strconv/quote.go), and inside a double-quoted one UnquoteChar
+    // takes a stray byte as RuneError. So on B* it can hand back invalid bytes,
+    // and its result is the host's. It maps V into V, which one `sig` cannot
+    // also say.
+    fn Unquote(s ∈ bytestring) (result.result(bytestring, error)) pure {
+        host expr "strconv.Unquote(${s})" import "strconv"
+    }
+    fn QuotedPrefix(s ∈ bytestring) (result.result(bytestring, error)) pure {
+        host expr "strconv.QuotedPrefix(${s})" import "strconv"
+    }
+    // ONE STEP of Unquote. The rune is a decoded UTF-8 scalar (RuneError at
+    // worst), a \x or octal escape (at most 255; octal past it is an error), or a
+    // \u / \U escape the host checks with utf8.ValidRune — and 0 on an error — so
+    // it lies in [0, MaxRune], narrower than the host's int32 and read off the
+    // source rather than assumed. The tail is a factor of s, so it is the host's
+    // string, as s is.
+    fn UnquoteChar(s ∈ bytestring,
+        quote ∈ uint8) (result.result(0..1114111 × Bool × bytestring, error)) pure {
+        host expr "func(s string, q byte) (int, bool, string, error) { v, m, t, err := strconv.UnquoteChar(s, q); return int(v), m, t, err }(${s}, uint8(${quote}))" import "strconv"
+    }
 
-    ; ---------------------------------------------------------- the error
-    ; The two causes a NumError carries, ErrSyntax and ErrRange: package
-    ; VARIABLES, compared by errors.Is (src/strconv/atoi.go).
-    (sig ErrSyntax () error pure (host expr "strconv.ErrSyntax" (import "strconv")))
-    (sig ErrRange () error pure (host expr "strconv.ErrRange" (import "strconv")))
+    // ---------------------------------------------------------- the error
+    // The two causes a NumError carries, ErrSyntax and ErrRange: package
+    // VARIABLES, compared by errors.Is (src/strconv/atoi.go).
+    fn ErrSyntax() (error) pure { host expr "strconv.ErrSyntax" import "strconv" }
+    fn ErrRange() (error) pure { host expr "strconv.ErrRange" import "strconv" }
 
-    ; THE TYPE'S THEORY, written inside the package: `go/strconv/NumError`. A
-    ; struct is a product over its labels, Π_{f ∈ {Err, Func, Num}} T_f, so its
-    ; theory is its introduction, the literal, and its eliminations, the field
-    ; reads, beside its methods. The literal is `new`, not the type's name: a
-    ; type is a value of the static level, so a module's names are one
-    ; namespace (spec/typevalues.md §2, ADR 0063).
-    ;
-    ; NUM IS THE HOST'S STRING, the input that failed to parse: Error() prints it
-    ; through Quote, which is in V whatever it is given. FUNC IS OURS,
-    ; deliberately narrower than the host's: Error() is "strconv." + Func +
-    ; ": parsing " + Quote(Num) + …, with Func unquoted, and Error's result is
-    ; declared `string`. A parameter is narrower than the host's domain only
-    ; where a result's claim depends on it; a field READ gives back what was
-    ; stored, so Func's is the host's string, as every NumError the parses
-    ; build holds the parse's own name.
-    (module NumError
-      (sig new ((err error) (func string) (num bytestring)) NumError
-            (host expr "(&strconv.NumError{Err: %s, Func: %s, Num: %s})" (import "strconv")))
-      (sig Err  ((self NumError)) error pure (host expr "%s.Err" (import "strconv")))
-      (sig Func ((self NumError)) bytestring pure (host expr "%s.Func" (import "strconv")))
-      (sig Num  ((self NumError)) bytestring pure (host expr "%s.Num" (import "strconv")))
-      (sig Error  ((self NumError)) string pure (host expr "%s.Error()" (import "strconv")))
-      (sig Unwrap ((self NumError)) error pure (host expr "%s.Unwrap()" (import "strconv"))))
-  )
-  ; *NumError has Error() string, so it is below error (Go's method sets; the
-  ; bound of errors.AsType's static parameter is read through this edge).
-  (implements go/strconv.NumError error)
-)
+    // THE TYPE'S THEORY, written inside the package: `go/strconv/NumError`. A
+    // struct is a product over its labels, Π_{f ∈ {Err, Func, Num}} T_f, so its
+    // theory is its introduction, the literal, and its eliminations, the field
+    // reads, beside its methods. The literal is `new`, not the type's name: a
+    // type is a value of the static level, so a module's names are one
+    // namespace (spec/typevalues.md §2, ADR 0063).
+    //
+    // NUM IS THE HOST'S STRING, the input that failed to parse: Error() prints it
+    // through Quote, which is in V whatever it is given. FUNC IS OURS,
+    // deliberately narrower than the host's: Error() is "strconv." + Func +
+    // ": parsing " + Quote(Num) + …, with Func unquoted, and Error's result is
+    // declared `string`. A parameter is narrower than the host's domain only
+    // where a result's claim depends on it; a field READ gives back what was
+    // stored, so Func's is the host's string, as every NumError the parses
+    // build holds the parse's own name.
+    module NumError {
+        fn new(err ∈ error, func ∈ String, num ∈ bytestring) (NumError) {
+            host expr "(&strconv.NumError{Err: ${err}, Func: ${func}, Num: ${num}})" import "strconv"
+        }
+        fn Err(self ∈ NumError) (error) pure { host expr "${self}.Err" import "strconv" }
+        fn Func(self ∈ NumError) (bytestring) pure { host expr "${self}.Func" import "strconv" }
+        fn Num(self ∈ NumError) (bytestring) pure { host expr "${self}.Num" import "strconv" }
+        fn Error(self ∈ NumError) (String) pure { host expr "${self}.Error()" import "strconv" }
+        fn Unwrap(self ∈ NumError) (error) pure { host expr "${self}.Unwrap()" import "strconv" }
+    }
+    // *NumError has Error() string, so it is below error (Go's method sets; the
+    // bound of errors.AsType's static parameter is read through this edge).
+    axiom NumError ⊆ error
+}

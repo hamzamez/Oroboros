@@ -294,10 +294,7 @@ func TestModuleDiagnostics(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog, terms, err := LoadWith(forms, func(p string) (string, bool, error) {
-			s, ok := files[p]
-			return s, ok, nil
-		})
+		prog, terms, err := LoadWith(forms, snippetResolver(files))
 		if err != nil {
 			return err
 		}

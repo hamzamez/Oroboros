@@ -1,67 +1,65 @@
-; DECIMAL RENDERING OF A BIGNUM, WRITTEN IN OROBOROS — the first text program.
-;
-; It exists to answer a question string-operations.md could not: does a text
-; program INDEX a string, or only fold it? That decides whether a string has to
-; become an indexable table and pay UTF-32, or can stay the free monoid it is.
-;
-; THE ANSWER IS THAT IT FOLDS. Every string here is built by `concat` out of
-; one-scalar strings — `η : Scalar → Scalar*`, the generator injection the free
-; monoid's universal property is stated in terms of. Nothing is indexed, nothing
-; needs a length, nothing compares two strings. Three operations, all derived.
-;
-; prints: string
-; big-repr: both
-;
-; BOTH STORAGE CHOICES, which makes this the first program to drive the limb
-; library end to end: `x % 10^8` is `rem-small`, `x / 10^8` is `div-small`, and
-; `(= v 0)` and `(> nv 0)` are the limb-wise `cmp` — all three landed yesterday
-; with only unit tests and a hand-written case behind them.
-;
-; AND WINDOWS RUNS IT NOW. It was skipped for a capability reason — that host
-; declares no string type, so it could PRINT a string and not CONSTRUCT one —
-; and `targets/windows/strings.oro` closes it: `concat` and `string-of` as two
-; assembly templates over a static bump arena, found by spelling like every
-; other language operation. So this case is four targets now, and on windows the
-; storage is limbs whatever `big-repr` asks for, because that host has no host
-; bignum to choose instead.
-;
-;   run n = the decimal digits of (25 + n)!
+// DECIMAL RENDERING OF A BIGNUM, WRITTEN IN OROBOROS — the first text program.
+//
+// It exists to answer a question string-operations.md could not: does a text
+// program INDEX a string, or only fold it? That decides whether a string has to
+// become an indexable table and pay UTF-32, or can stay the free monoid it is.
+//
+// THE ANSWER IS THAT IT FOLDS. Every string here is built by `concat` out of
+// one-scalar strings — `η : Scalar → Scalar*`, the generator injection the free
+// monoid's universal property is stated in terms of. Nothing is indexed, nothing
+// needs a length, nothing compares two strings. Three operations, all derived.
+//
+// prints: string
+// big-repr: both
+//
+// BOTH STORAGE CHOICES, which makes this the first program to drive the limb
+// library end to end: `x % 10^8` is `rem-small`, `x / 10^8` is `div-small`, and
+// `(= v 0)` and `(> nv 0)` are the limb-wise `cmp` — all three landed yesterday
+// with only unit tests and a hand-written case behind them.
+//
+// AND WINDOWS RUNS IT NOW. It was skipped for a capability reason — that host
+// declares no string type, so it could PRINT a string and not CONSTRUCT one —
+// and `targets/windows/strings.oro` closes it: `concat` and `string-of` as two
+// assembly templates over a static bump arena, found by spelling like every
+// other language operation. So this case is four targets now, and on windows the
+// storage is limbs whatever `big-repr` asks for, because that host has no host
+// bignum to choose instead.
+//
+//   run n = the decimal digits of (25 + n)!
+// inputs: 0 5
+// expect: 15511210043330985984000000 265252859812191058636308480000000
+// Eight decimal digits of a machine word, most significant first, built by
+// PREPENDING — which is the monoid operation, and the reason no index is needed.
+// `pad` keeps an interior group's leading zeros and drops the top group's; the
+// two differ only in a guard, so there is one `again` (ADR 0015).
+fn group(d, pad) {
+    loop s = "", k = 0, r = d {
+        k >= 8 -> s
+        !pad && r == 0 && k > 0 -> s
+        else -> again(string_of(48 + r % 10) ++ s, k + 1, r / 10)
+    }
+}
 
-; inputs: 0 5
-; expect: 15511210043330985984000000 265252859812191058636308480000000
+// Least significant group first, each prepended, so the digits come out in order
+// without anything being indexed or reversed. The trip bound is what makes it
+// terminate provably: nothing can bound a big value's magnitude from its
+// structure, so the program says how many groups there can be — `tree.oro`'s node
+// cap again, where a capacity does not create the limit but makes it visible.
+fn digits(x) {
+    loop s = "", v = x, i = 0 {
+        v == 0 -> s
+        i >= 32 -> s
+        else -> { nv = v / 100000000; again(group(v % 100000000, nv > 0) ++ s, nv, i + 1) }
+    }
+}
 
-(export run)
+fn render(x ∈ 0..2^200) (String) { if x == 0 { "0" } else { digits(x) } }
 
-; Eight decimal digits of a machine word, most significant first, built by
-; PREPENDING — which is the monoid operation, and the reason no index is needed.
-; `pad` keeps an interior group's leading zeros and drops the top group's; the
-; two differ only in a guard, so there is one `again` (ADR 0015).
-(def group (d pad)
-  (loop ((s "") (k 0) (r d))
-    (>= k 8)                              s
-    (and (not pad) (and (= r 0) (> k 0))) s
-    else (again (concat (string-of (+ 48 (% r 10))) s) (+ k 1) (/ r 10))))
+fn fact(n ∈ 0..40) (0..2^200) {
+    loop acc = 1, i = 2 { i > n -> acc; else -> again(acc * i, i + 1) }
+}
 
-; Least significant group first, each prepended, so the digits come out in order
-; without anything being indexed or reversed. The trip bound is what makes it
-; terminate provably: nothing can bound a big value's magnitude from its
-; structure, so the program says how many groups there can be — `tree.oro`'s node
-; cap again, where a capacity does not create the limit but makes it visible.
-(def digits (x)
-  (loop ((s "") (v x) (i 0))
-    (= v 0)   s
-    (>= i 32) s
-    else (let nv (/ v 100000000)
-           (again (concat (group (% v 100000000) (> nv 0)) s) nv (+ i 1)))))
-
-(sig render ((x (int 0 (pow 2 200)))) string)
-(def render (x) (if (= x 0) "0" (digits x)))
-
-(sig fact ((n (int 0 40))) (int 0 (pow 2 200)))
-(def fact (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1))))
-
-; The range is fact's domain, 0 ≤ 25 + n ≤ 40, stated where the export receives
-; n: a host caller may pass anything, and fact's declared range is an obligation
-; at this call (ADR 0028).
-(sig run ((n (int 0 15))) string)
-(def run (n) (render (fact (+ 25 n))))
+// The range is fact's domain, 0 ≤ 25 + n ≤ 40, stated where the export receives
+// n: a host caller may pass anything, and fact's declared range is an obligation
+// at this call (ADR 0028).
+export fn run(n ∈ 0..15) (String) { render(fact(25 + n)) }

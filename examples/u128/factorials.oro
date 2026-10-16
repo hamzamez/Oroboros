@@ -1,24 +1,25 @@
-; n! IN 128 BITS, 0 ≤ n ≤ 34, AND THE FIRST ONE THAT DOES NOT FIT.
-;
-; 34! ≈ 2.95·10^38 < 2^128 ≈ 3.40·10^38 < 35!, so the table ends at 34 and the
-; step to 35 reports the overflow num/u128's `mulw` detects: ι(a)·w ≥ 2^128.
-; Each factorial is printed in decimal by repeated short division by 10^18.
-;
-; The first program written against math/bits and strconv together rather than to
-; accept them (assessment-2026-09-23, item 3: one program per two packages).
+// n! IN 128 BITS, 0 ≤ n ≤ 34, AND THE FIRST ONE THAT DOES NOT FIT.
+//
+// 34! ≈ 2.95·10^38 < 2^128 ≈ 3.40·10^38 < 35!, so the table ends at 34 and the
+// step to 35 reports the overflow num/u128's `mulw` detects: ι(a)·w ≥ 2^128.
+// Each factorial is printed in decimal by repeated short division by 10^18.
+//
+// The first program written against math/bits and strconv together rather than to
+// accept them (assessment-2026-09-23, item 3: one program per two packages).
+use num/u128 as u
+use go/fmt
 
-(use num/u128 as u)
-(use go/fmt as fmt)
-
-(export main)
-
-; mulw's three results are the loop's next state, bound once by a tuple pattern:
-; the pattern's body is Mul64's and Add64's continuations, which run once, now,
-; so the `again` under it is a jump like any other (ADR 0027).
-(def main ()
-  (loop ((n 0) (h 0) (l 1) (over 0))
-    (= over 1) (seq (fmt.Println n "overflows 128 bits") n)
-    (> n 40)   0
-    else (seq (fmt.Println n (u.decimal h l))
-              (let (tuple h2 l2 over2) (u.mulw h l (+ n 1))
-                (again (+ n 1) h2 l2 over2)))))
+// mulw's three results are the loop's next state, bound once by a tuple pattern:
+// the pattern's body is Mul64's and Add64's continuations, which run once, now,
+// so the `again` under it is a jump like any other (ADR 0027).
+export fn main() {
+    loop n = 0, h = 0, l = 1, over = 0 {
+        over == 1 -> { fmt.Println(n, "overflows 128 bits"); n }
+        n > 40 -> 0
+        else -> {
+            fmt.Println(n, u.decimal(h, l))
+            (h2, l2, over2) = u.mulw(h, l, n + 1)
+            again(n + 1, h2, l2, over2)
+        }
+    }
+}

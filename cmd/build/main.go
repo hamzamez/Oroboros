@@ -86,25 +86,20 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if err != nil {
 		return err
 	}
-	forms, err := core.Read(string(text))
-	if os.Getenv("ORO_VIA_J") != "" {
-		// J's reading of the program (spec/j.md; jread-2026-10-15): the gate
-		// that compiling from J changes nothing.
-		forms, err = j.ViaJ(string(text), src)
-		j.ViaJLibraries(libDirs(src, path))
+	// A TARGET FRAGMENT IS NOT A PROGRAM. `provides TARGET PATH { … }` is read by
+	// the target loader — a fragment of the model written where the library
+	// lives — so a file that says nothing else has nothing to emit, and saying so
+	// beats reporting its first word as unexpected.
+	if j.IsFragment(string(text)) {
+		return fmt.Errorf("%s is a target fragment — it declares provides … and nothing else, "+
+			"so there is no program here to build", src)
 	}
+	// THE PROGRAM, READ IN J (spec/j.md, ADR 0068).
+	forms, err := j.ReadModule(string(text), src, j.ModulePath(src, filepath.SplitList(path)))
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	// A TARGET FRAGMENT IS NOT A PROGRAM. `(provides TARGET PATH …)` is read by
-	// the target loader — it is `(target T (module PATH …))` written where the
-	// library lives — so a file that says nothing else has nothing to emit, and
-	// saying so beats reporting the first name inside it as unbound.
-	if core.OnlyFragments(forms) {
-		return fmt.Errorf("%s is a target fragment — it declares (provides …) and nothing else, "+
-			"so there is no program here to build", src)
-	}
-	prog, _, err := core.LoadWithDefs(forms, fileResolver(libDirs(src, path)), tg.Defs)
+	prog, _, err := core.LoadWithDefs(forms, j.Resolver(libDirs(src, path)), tg.Defs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
@@ -311,24 +306,6 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	}
 	fmt.Printf("wrote %s\n", out)
 	return nil
-}
-
-// fileResolver finds a module on a search path; a path with no file is one the
-// target provides rather than a library.
-func fileResolver(dirs []string) core.Resolver {
-	return func(p string) (string, bool, error) {
-		for _, d := range dirs {
-			f := filepath.Join(d, filepath.FromSlash(p)+".oro")
-			b, err := os.ReadFile(f)
-			if err == nil {
-				return string(b), true, nil
-			}
-			if !os.IsNotExist(err) {
-				return "", false, err
-			}
-		}
-		return "", false, nil
-	}
 }
 
 func libDirs(entry, extra string) []string {

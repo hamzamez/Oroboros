@@ -1,305 +1,301 @@
-; BUILT WITHOUT `-checked`, and that is new (smashfd-2026-09-16).
-;
-; It used to need the trap: 36 integer operations chained off `d`, a depth read
-; back out of the worklist that stores it, and frozen-2026-08-28 refused an
-; element range for a read of a buffer inside its own build. What bounds `d` is a
-; COUNT, not a relation: the walk runs at most (* 2 nmax) trips and stores `d + 1`
-; at most once per trip, so no depth exceeds 1 + that. The interval layer proves it
-; now (array smashing, the copy-closed joint invariant and the bounded-increment
-; theorem), and every one of the 525 operations is bounded with no declaration.
-; And it has NO CLAMPS left (compfacts-2026-09-17). A node index read out of the
-; stack, the worklist or the node table is proven in range: every one of those
-; tables is strided, and the slots that hold node indices are exactly the ones
-; stored under `nn < nmax`. A fact about one COMPONENT of a strided table says so,
-; and the component a read lands in is decided by its index mod the stride.
-;
-; A JSON TREE AS A FLAT TABLE PLUS INDICES — parsed, linked, and WALKED.
-;
-; examples/json/tokenize.oro settled the CONTROL half of the standing claim that
-; recursive data is a flat table plus indices: nesting to an input-decided depth
-; needs no recursion, only a stack in a table. It deliberately did not settle the
-; VALUE half, because it produces counts and not a tree.
-;
-; This is the value half. It builds the document as a node table, links parent
-; to child and sibling to sibling with indices, and then TRAVERSES it — because
-; building a tree and never walking it would prove nothing, and the walk is
-; where a tree normally recurses.
-;
-; THE NODE TABLE. Node k occupies four slots, stride 4:
-;
-;   4k+0  tag    1 number, 2 string, 3 literal, 4 array, 5 object
-;   4k+1  val    a scalar's length in bytes; 0 for a container
-;   4k+2  kid    first child, 0 = none
-;   4k+3  sib    next sibling, 0 = none
-;
-; NODE 0 IS THE `none` SENTINEL. That is why `none` can be 0 rather than -1,
-; and why every index in the program is non-negative — which the refinement
-; layer cares about a great deal. Its four slots are unused.
-;
-; THE PARSE RETURNS THREE THINGS: the node table, the node count and ok. They
-; used to come back as ONE table, with the count and ok written into the
-; sentinel's slots 0 and 1, because a `build` had one way out. It now returns a
-; product, `(tuple nodes nn ok)`, frozen in its first position (ADR 0031,
-; tables.md §2.5): the count is an int with its own range, not a cell of the node
-; table that every reader had to prove held one.
-;
-; AND `build` ZERO-FILLS (tables.md §14.3), so `kid` and `sib` never need
-; initialising: a leaf writes neither and reads 0 for both. That one guarantee
-; removes two stores per node and is the reason the sentinel is free.
-;
-; THE PARSE STACK is a second buffer, stride 2, indexed by depth:
-;
-;   2d+0  the open container's node index
-;   2d+1  its LAST CHILD so far, 0 = none yet
-;
-; The second slot is what a recursive parser does not need. A recursive descent
-; RETURNS its subtree and the caller appends it; here nothing returns, so the
-; parser has to remember where to point next. That is the whole difference, and
-; it costs one machine word per level of depth.
+// BUILT WITHOUT `-checked`, and that is new (smashfd-2026-09-16).
+//
+// It used to need the trap: 36 integer operations chained off `d`, a depth read
+// back out of the worklist that stores it, and frozen-2026-08-28 refused an
+// element range for a read of a buffer inside its own build. What bounds `d` is a
+// COUNT, not a relation: the walk runs at most (* 2 nmax) trips and stores `d + 1`
+// at most once per trip, so no depth exceeds 1 + that. The interval layer proves it
+// now (array smashing, the copy-closed joint invariant and the bounded-increment
+// theorem), and every one of the 525 operations is bounded with no declaration.
+// And it has NO CLAMPS left (compfacts-2026-09-17). A node index read out of the
+// stack, the worklist or the node table is proven in range: every one of those
+// tables is strided, and the slots that hold node indices are exactly the ones
+// stored under `nn < nmax`. A fact about one COMPONENT of a strided table says so,
+// and the component a read lands in is decided by its index mod the stride.
+//
+// A JSON TREE AS A FLAT TABLE PLUS INDICES — parsed, linked, and WALKED.
+//
+// examples/json/tokenize.oro settled the CONTROL half of the standing claim that
+// recursive data is a flat table plus indices: nesting to an input-decided depth
+// needs no recursion, only a stack in a table. It deliberately did not settle the
+// VALUE half, because it produces counts and not a tree.
+//
+// This is the value half. It builds the document as a node table, links parent
+// to child and sibling to sibling with indices, and then TRAVERSES it — because
+// building a tree and never walking it would prove nothing, and the walk is
+// where a tree normally recurses.
+//
+// THE NODE TABLE. Node k occupies four slots, stride 4:
+//
+//   4k+0  tag    1 number, 2 string, 3 literal, 4 array, 5 object
+//   4k+1  val    a scalar's length in bytes; 0 for a container
+//   4k+2  kid    first child, 0 = none
+//   4k+3  sib    next sibling, 0 = none
+//
+// NODE 0 IS THE `none` SENTINEL. That is why `none` can be 0 rather than -1,
+// and why every index in the program is non-negative — which the refinement
+// layer cares about a great deal. Its four slots are unused.
+//
+// THE PARSE RETURNS THREE THINGS: the node table, the node count and ok. They
+// used to come back as ONE table, with the count and ok written into the
+// sentinel's slots 0 and 1, because a `build` had one way out. It now returns a
+// product, `(tuple nodes nn ok)`, frozen in its first position (ADR 0031,
+// tables.md §2.5): the count is an int with its own range, not a cell of the node
+// table that every reader had to prove held one.
+//
+// AND `build` ZERO-FILLS (tables.md §14.3), so `kid` and `sib` never need
+// initialising: a leaf writes neither and reads 0 for both. That one guarantee
+// removes two stores per node and is the reason the sentinel is free.
+//
+// THE PARSE STACK is a second buffer, stride 2, indexed by depth:
+//
+//   2d+0  the open container's node index
+//   2d+1  its LAST CHILD so far, 0 = none yet
+//
+// The second slot is what a recursive parser does not need. A recursive descent
+// RETURNS its subtree and the caller appends it; here nothing returns, so the
+// parser has to remember where to point next. That is the whole difference, and
+// it costs one machine word per level of depth.
+use go
 
-(use go)
-(export run)
+// `measure` is exported for benchmarking: it takes its source as a PARAMETER,
+// which is what stops reduction from folding the whole parse away. `run` feeds
+// it constants and is what the differential suite checks.
+// THE CONTRACT IS WHAT EARNS THE REPRESENTATION. The element range says what a
+// source byte is; the `where` bounds the document, which is what bounds a token
+// LENGTH stored into the node table — and nothing inside the `build` can know
+// that. ADR 0003 puts declarations at boundaries for exactly this reason, and
+// the node table becomes 16-bit slots because of this one line
+// (fixpoint-2026-08-27 §13).
+// The caps. A `build` needs its length UP FRONT, so a flat node table is sized
+// for the largest document it will accept rather than for the one it gets. That
+// is the cost of having no growable buffer (tables.md §14.3's `append`), and it
+// is a real one: a 20-byte document allocates the same table as a 6 KB one.
+nmax = 512  // nodes, including the sentinel
+dmax = 32  // nesting depth
 
-; `measure` is exported for benchmarking: it takes its source as a PARAMETER,
-; which is what stops reduction from folding the whole parse away. `run` feeds
-; it constants and is what the differential suite checks.
-(export measure)
-; THE CONTRACT IS WHAT EARNS THE REPRESENTATION. The element range says what a
-; source byte is; the `where` bounds the document, which is what bounds a token
-; LENGTH stored into the node table — and nothing inside the `build` can know
-; that. ADR 0003 puts declarations at boundaries for exactly this reason, and
-; the node table becomes 16-bit slots because of this one line
-; (fixpoint-2026-08-27 §13).
-(sig measure ((src (array (int 0 255)))) int (where (go.< (len src) 1024)))
+// --- byte classes -----------------------------------------------------------
+fn space?(c) { c == 32 || c == 9 || c == 10 || c == 13 }
+fn digit?(c) { go.`>=`(c, 48) && go.`<=`(c, 57) }
+fn alpha?(c) { go.`>=`(c, 97) && go.`<=`(c, 122) }
+fn numeric?(c) { digit?(c) || c == 45 || c == 43 || c == 46 || c == 101 || c == 69 }
+fn opener?(c) { c == 123 || c == 91 }
+fn closer?(c) { c == 125 || c == 93 }
+fn punct?(c) { c == 58 || c == 44 }
+fn scalar?(c) { c == 34 || numeric?(c) || alpha?(c) }
 
-; The caps. A `build` needs its length UP FRONT, so a flat node table is sized
-; for the largest document it will accept rather than for the one it gets. That
-; is the cost of having no growable buffer (tables.md §14.3's `append`), and it
-; is a real one: a 20-byte document allocates the same table as a 6 KB one.
-(def nmax 512)  ; nodes, including the sentinel
-(def dmax 32)   ; nesting depth
+// --- addressing -------------------------------------------------------------
+//
+// TWO ADDRESSING FORMS, and which one a site uses is a statement about what is
+// KNOWN there.
+//
+//   nsl / ssl / ssl2   one form, bare, whatever the index came from
+//
+// The first version clamped everywhere, which was 1.35x slower and left the
+// analysis with MORE undischarged obligations rather than fewer — 110 against
+// 40 — because a clamp hides the fact instead of establishing it. What made the
+// proven form possible is one Farkas multiplier in the decision procedure: a
+// strided index `(go.* 4 k)` has a coefficient the guard bounding `k` does not,
+// so `k < nmax` could not discharge `4k < 4*nmax` until `entails` learned to
+// scale a fact (json-tree-bench-2026-08-26).
+//
+// A NODE INDEX READ OUT OF A TABLE WAS CLAMPED here, six times, with a comment
+// saying the clamps were real because the value is data. The value IS data, and
+// what the data holds is provable: node indices go only into the stack's slot 0
+// and 1, the worklist's slot 0 and the node table's slots 2 and 3, and every one
+// of those stores happens under `nn < nmax`. The fact is about a COMPONENT — the
+// node table's slot 1 holds token lengths up to 1023 and the worklist's slot 1
+// holds depths — so a fact about the whole table could not state it; a fact about
+// the residue class of the index can (compfacts-2026-09-17).
+fn nsl(k, o) { go.`+`(go.`*`(4, k), o) }
+fn ssl(d, o) { go.`+`(go.`*`(2, d), o) }
 
-; --- byte classes -----------------------------------------------------------
+// --- scanners ---------------------------------------------------------------
+fn scan_string(src, i) {
+    loop j = go.`+`(i, 1) {
+        // `j >= i + 1` is relational and the interval analysis is not, so
+        // non-negativity is stated (json-2026-08-26 §2).
+        go.`<`(j, 0) -> j
+        go.`>=`(j, len(src)) -> j
+        src[j] == 92 -> again(go.`+`(j, 2))
+        src[j] == 34 -> go.`+`(j, 1)
+        else -> again(go.`+`(j, 1))
+    }
+}
 
-(def space? (c) (or (= c 32) (or (= c 9) (or (= c 10) (= c 13)))))
-(def digit? (c) (and (go.>= c 48) (go.<= c 57)))
-(def alpha? (c) (and (go.>= c 97) (go.<= c 122)))
-(def numeric? (c)
-  (or (digit? c) (or (= c 45) (or (= c 43) (or (= c 46) (or (= c 101) (= c 69)))))))
-(def opener? (c) (or (= c 123) (= c 91)))
-(def closer? (c) (or (= c 125) (= c 93)))
-(def punct?  (c) (or (= c 58) (= c 44)))
-(def scalar? (c) (or (= c 34) (or (numeric? c) (alpha? c))))
+fn scan_run(src, i, pred) {
+    loop j = i {
+        go.`<`(j, 0) -> j
+        go.`>=`(j, len(src)) -> j
+        pred(src[j]) -> again(go.`+`(j, 1))
+        else -> j
+    }
+}
 
-; --- addressing -------------------------------------------------------------
-;
-; TWO ADDRESSING FORMS, and which one a site uses is a statement about what is
-; KNOWN there.
-;
-;   nsl / ssl / ssl2   one form, bare, whatever the index came from
-;
-; The first version clamped everywhere, which was 1.35x slower and left the
-; analysis with MORE undischarged obligations rather than fewer — 110 against
-; 40 — because a clamp hides the fact instead of establishing it. What made the
-; proven form possible is one Farkas multiplier in the decision procedure: a
-; strided index `(go.* 4 k)` has a coefficient the guard bounding `k` does not,
-; so `k < nmax` could not discharge `4k < 4*nmax` until `entails` learned to
-; scale a fact (json-tree-bench-2026-08-26).
-;
-; A NODE INDEX READ OUT OF A TABLE WAS CLAMPED here, six times, with a comment
-; saying the clamps were real because the value is data. The value IS data, and
-; what the data holds is provable: node indices go only into the stack's slot 0
-; and 1, the worklist's slot 0 and the node table's slots 2 and 3, and every one
-; of those stores happens under `nn < nmax`. The fact is about a COMPONENT — the
-; node table's slot 1 holds token lengths up to 1023 and the worklist's slot 1
-; holds depths — so a fact about the whole table could not state it; a fact about
-; the residue class of the index can (compfacts-2026-09-17).
+// --- linking ----------------------------------------------------------------
+//
+// LINKING IS EXACTLY WHAT A RECURSIVE PARSER GETS FOR FREE. `link` points the
+// parent at its new child, or the previous sibling at its next one; `mark`
+// records the new child so the following one knows where to attach; `push` opens
+// a level. A recursive parser expresses all three by returning a value.
+fn link(nodes linear, stk, sp, k) {
+    if go.`<`(sp, 1) { () } else {
+        lc = stk[ssl(go.`-`(sp, 1), 1)]
+        if lc == 0 { nodes[nsl(stk[ssl(go.`-`(sp, 1), 0)], 2)] := k } else {
+            nodes[nsl(lc, 3)] := k
+        }
+    }
+}
 
-(def nsl (k o) (go.+ (go.* 4 k) o))
-(def ssl (d o) (go.+ (go.* 2 d) o))
+fn mark(stk linear, sp, k) { if go.`<`(sp, 1) { () } else { stk[ssl(go.`-`(sp, 1), 1)] := k } }
 
-; --- scanners ---------------------------------------------------------------
+fn push(stk linear, sp, k) {
+    stk[ssl(sp, 0)] := k
+    stk[ssl(sp, 1)] := 0
+}
 
-(def scan-string (src i)
-  (loop ((j (go.+ i 1)))
-    ; `j >= i + 1` is relational and the interval analysis is not, so
-    ; non-negativity is stated (json-2026-08-26 §2).
-    (go.< j 0)           j
-    (go.>= j (len src))  j
-    (= (src j) 92)       (again (go.+ j 2))
-    (= (src j) 34)       (go.+ j 1)
-    else                 (again (go.+ j 1))))
+// --- the parser -------------------------------------------------------------
+fn parse(src) {
+    var nodes := array { 0 : _ ∈ 0..go.`*`(4, nmax)-1 }
+    var stk := array { 0 : _ ∈ 0..go.`*`(2, dmax)-1 }
+    loop i = 0, nn = 1, sp = 0, ok = 1 {
+        // A scanner's result is opaque to the analysis (json-2026-08-26 §2).
+        go.`<`(i, 0) -> (nodes, nn, 0)
+        go.`>=`(i, len(src)) -> (nodes, nn, if sp == 0 { ok } else { 0 })
+        // THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. A store into
+        // `nodes` carries an obligation nothing can discharge, because both `nn`
+        // and `sp` grow with the input — so the program has to say what happens when
+        // a document has more nodes than the table, or nests deeper than the
+        // stack. A recursive-descent parser has both limits too; the heap and
+        // the C stack. It is never asked about either.
+        go.`>=`(nn, nmax) -> (nodes, nn, 0)
+        go.`>=`(sp, dmax) -> (nodes, nn, 0)
+        space?(src[i]) -> again(go.`+`(i, 1), nn, sp, ok)
+        punct?(src[i]) -> again(go.`+`(i, 1), nn, sp, ok)
+        // An opener allocates a container, attaches it, and opens a level. The
+        // order is forced: `mark` records it as the last child at the CURRENT
+        // depth, and only then does `push` move down.
+        opener?(src[i]) -> {
+            nodes[nsl(nn, 0)] := if src[i] == 123 { 5 } else { 4 }
+            nodes[nsl(nn, 1)] := 0
+            link(nodes, stk, sp, nn)
+            mark(stk, sp, nn)
+            push(stk, sp, nn)
+            again(go.`+`(i, 1), go.`+`(nn, 1), go.`+`(sp, 1), ok)
+        }
+        // A closer pops, and checks that what it closes is what was opened —
+        // read back out of the node table, which is the first time the parser
+        // reads a node it wrote earlier.
+        closer?(src[i]) ->
+            again(go.`+`(i, 1), nn, if go.`<`(sp, 1) { 0 } else { go.`-`(sp, 1) },
+                if go.`<`(sp, 1) { 0 } else if nodes[nsl(stk[ssl(go.`-`(sp, 1), 0)], 0)] ==
+                if src[i] == 125 { 5 } else { 4 } { ok } else { 0 })
+        // ONE CLAUSE FOR ALL THREE SCALARS, and ADR 0015 is why. `again` may not
+        // go under an `if`, so three clauses would each have to repeat the whole
+        // link-and-allocate expression. Computing the tag and the next index
+        // with `let` first — which ADR 0015 does permit above `again` — leaves
+        // one copy. That is the rule choosing the better shape, and it was not
+        // the first thing tried.
+        scalar?(src[i]) -> {
+            tg = case {
+                src[i] == 34 -> 2
+                numeric?(src[i]) -> 1
+                else -> 3
+            }
+            ni = case {
+                src[i] == 34 -> scan_string(src, i)
+                numeric?(src[i]) -> scan_run(src, go.`+`(i, 1), numeric?)
+                else -> scan_run(src, go.`+`(i, 1), alpha?)
+            }
+            // Scanning starts PAST the byte the guard already matched: identical
+            // answers, and it is what makes the loop provable. Starting at `i` a
+            // scanner may return `i`, so monotonicity gives only `i' >= i` and
+            // there is no strict descent (monotone-2026-08-27).
+            nodes[nsl(nn, 0)] := tg
+            nodes[nsl(nn, 1)] := go.`-`(ni, i)
+            link(nodes, stk, sp, nn)
+            mark(stk, sp, nn)
+            again(ni, go.`+`(nn, 1), sp, ok)
+        }
+        else -> again(go.`+`(i, 1), nn, sp, 0)
+    }
+}
 
-(def scan-run (src i pred)
-  (loop ((j i))
-    (go.< j 0)           j
-    (go.>= j (len src))  j
-    (pred (src j))       (again (go.+ j 1))
-    else                 j))
+// --- the walk ---------------------------------------------------------------
+//
+// A worklist depth-first traversal: pop a node, push its sibling, then push its
+// child one level deeper. This is the part a tree normally recurses for, and it
+// is the reason the tree is built at all — a linking bug that a parse-only test
+// cannot see shows up here as a wrong count.
+//
+// `steps` is a hard bound, and it is not defensive padding. Nothing in the
+// language can prove this loop terminates, because progress depends on links
+// read out of a table; the trip bound is what makes it a program rather than a
+// hope. It is also honest about the same thing the parse limits are: a cyclic
+// table would spin, so the walk says what it does about that.
+// The worklist is indexed by SLOT, not by depth, and it can hold one entry per
+// node — a tree shaped like a list pushes a sibling at every step.
+fn ssl2(k, o) { go.`+`(go.`*`(2, k), o) }
 
-; --- linking ----------------------------------------------------------------
-;
-; LINKING IS EXACTLY WHAT A RECURSIVE PARSER GETS FOR FREE. `link` points the
-; parent at its new child, or the previous sibling at its next one; `mark`
-; records the new child so the following one knows where to attach; `push` opens
-; a level. A recursive parser expresses all three by returning a value.
+fn walk(nodes) {
+    var wl := array { 0 : _ ∈ 0..go.`*`(2, nmax)-1 }
+    wl[0] := 1
+    wl[1] := 1
+    loop sp = 1, seen = 0, acc = 0, steps = 0 {
+        go.`>=`(steps, go.`*`(2, nmax)) -> go.`+`(go.`*`(seen, 1000), acc)
+        go.`<`(sp, 1) -> go.`+`(go.`*`(seen, 1000), acc)
+        // The worklist has the same shape of limit the parser's two do, and for
+        // the same reason: `sp` grows with the tree and nothing can bound it, so
+        // the program has to say what it does when the worklist fills.
+        go.`>=`(sp, nmax) -> go.`+`(go.`*`(seen, 1000), acc)
+        else -> {
+            n = wl[ssl2(go.`-`(sp, 1), 0)]
+            d = wl[ssl2(go.`-`(sp, 1), 1)]
+            sb = nodes(nsl(n, 3))
+            kd = nodes(nsl(n, 2))
+            s1 = go.`-`(sp, 1)
+            if sb == 0 { () } else { wl[ssl2(s1, 0)] := sb; wl[ssl2(s1, 1)] := d }
+            s2 = if sb == 0 { s1 } else { go.`+`(s1, 1) }
+            if kd == 0 { () } else { wl[ssl2(s2, 0)] := kd; wl[ssl2(s2, 1)] := go.`+`(d, 1) }
+            s3 = if kd == 0 { s2 } else { go.`+`(s2, 1) }
+            again(s3, go.`+`(seen, 1), go.`+`(acc, go.`*`(nodes(nsl(n, 0)), d)), go.`+`(steps, 1))
+        }
+    }
+}
 
-(def link (nodes stk sp k)
-  (if (go.< sp 1) nodes
-    (let lc (stk (ssl (go.- sp 1) 1))
-      (if (= lc 0)
-        (set nodes (nsl (stk (ssl (go.- sp 1) 0)) 2) k)
-        (set nodes (nsl lc 3) k)))))
+// --- documents --------------------------------------------------------------
+//
+// Answers computed BY HAND before running, which is the only way the walk tests
+// anything. The packed result is
+//
+//   nodes * 1000000 + seen * 10000 + tagdepth * 10 + ok
+//
+// where `nodes` counts everything but the sentinel, `seen` is how many the walk
+// reached, and `tagdepth` is the sum of tag x depth. seen == nodes is the check
+// that every node is reachable exactly once.
+// [1,2]                 array(4)@1, num@2, num@2       tagdepth 4+2+2 = 8
+d0 = array { 91, 49, 44, 50, 93 }
+// {"a":1}               object(5)@1, str(2)@2, num(1)@2  tagdepth 5+4+2 = 11
+d1 = array { 123, 34, 97, 34, 58, 49, 125 }
+// [[1],2]               4@1, 4@2, 1@3, 1@2             tagdepth 4+8+3+2 = 17
+d2 = array { 91, 91, 49, 93, 44, 50, 93 }
+// {"a":[1,2],"b":true}  5@1 2@2 4@2 2@2 3@2 1@3 1@3    tagdepth 5+4+8+4+6+3+3 = 33
+d3 = array { 123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125 }
 
-(def mark (stk sp k)
-  (if (go.< sp 1) stk (set stk (ssl (go.- sp 1) 1) k)))
+fn report(src) {
+    (nodes, nn, ok) = parse(src)
+    go.`+`(go.`*`(go.`-`(nn, 1), 1000000), go.`+`(go.`*`(walk(nodes), 10), ok))
+}
+export fn measure(src ∈ Array(0..255)) (Int) where go.`<`(len(src), 1024) {
+    (nodes, nn, ok) = parse(src)
+    walk(nodes)
+}
 
-(def push (stk sp k) (set (set stk (ssl sp 0) k) (ssl sp 1) 0))
-
-; --- the parser -------------------------------------------------------------
-
-(def parse (src)
-  (local nodes (table (go.* 4 nmax) 0)
-         stk (table (go.* 2 dmax) 0)
-    (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
-
-      ; A scanner's result is opaque to the analysis (json-2026-08-26 §2).
-      (go.< i 0)  (tuple nodes nn 0)
-
-      (go.>= i (len src))
-        (tuple nodes nn (if (= sp 0) ok 0))
-
-      ; THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. A store into
-      ; `nodes` carries an obligation nothing can discharge, because both `nn`
-      ; and `sp` grow with the input — so the program has to say what happens when
-      ; a document has more nodes than the table, or nests deeper than the
-      ; stack. A recursive-descent parser has both limits too; the heap and
-      ; the C stack. It is never asked about either.
-      (go.>= nn nmax)  (tuple nodes nn 0)
-      (go.>= sp dmax)  (tuple nodes nn 0)
-
-      (space? (src i))  (again nodes stk (go.+ i 1) nn sp ok)
-      (punct? (src i))  (again nodes stk (go.+ i 1) nn sp ok)
-
-      ; An opener allocates a container, attaches it, and opens a level. The
-      ; order is forced: `mark` records it as the last child at the CURRENT
-      ; depth, and only then does `push` move down.
-      (opener? (src i))
-        (again (link (set (set nodes (nsl nn 0) (if (= (src i) 123) 5 4))
-                          (nsl nn 1) 0)
-                     stk sp nn)
-               (push (mark stk sp nn) sp nn)
-               (go.+ i 1) (go.+ nn 1) (go.+ sp 1) ok)
-
-      ; A closer pops, and checks that what it closes is what was opened —
-      ; read back out of the node table, which is the first time the parser
-      ; reads a node it wrote earlier.
-      (closer? (src i))
-        (again nodes stk (go.+ i 1) nn
-               (if (go.< sp 1) 0 (go.- sp 1))
-               (if (go.< sp 1) 0
-                   (if (= (nodes (nsl (stk (ssl (go.- sp 1) 0)) 0))
-                          (if (= (src i) 125) 5 4))
-                       ok 0)))
-
-      ; ONE CLAUSE FOR ALL THREE SCALARS, and ADR 0015 is why. `again` may not
-      ; go under an `if`, so three clauses would each have to repeat the whole
-      ; link-and-allocate expression. Computing the tag and the next index
-      ; with `let` first — which ADR 0015 does permit above `again` — leaves
-      ; one copy. That is the rule choosing the better shape, and it was not
-      ; the first thing tried.
-      (scalar? (src i))
-        (let tg (cond
-                  (= (src i) 34)      2
-                  (numeric? (src i))  1
-                  else                3)
-             ni (cond
-                  (= (src i) 34)      (scan-string src i)
-                  (numeric? (src i))  (scan-run src (go.+ i 1) numeric?)
-                  else                (scan-run src (go.+ i 1) alpha?))
-          ; Scanning starts PAST the byte the guard already matched: identical
-          ; answers, and it is what makes the loop provable. Starting at `i` a
-          ; scanner may return `i`, so monotonicity gives only `i' >= i` and
-          ; there is no strict descent (monotone-2026-08-27).
-          (again (link (set (set nodes (nsl nn 0) tg) (nsl nn 1) (go.- ni i))
-                         stk sp nn)
-                   (mark stk sp nn)
-                   ni (go.+ nn 1) sp ok))
-
-      else (again nodes stk (go.+ i 1) nn sp 0))))
-
-; --- the walk ---------------------------------------------------------------
-;
-; A worklist depth-first traversal: pop a node, push its sibling, then push its
-; child one level deeper. This is the part a tree normally recurses for, and it
-; is the reason the tree is built at all — a linking bug that a parse-only test
-; cannot see shows up here as a wrong count.
-;
-; `steps` is a hard bound, and it is not defensive padding. Nothing in the
-; language can prove this loop terminates, because progress depends on links
-; read out of a table; the trip bound is what makes it a program rather than a
-; hope. It is also honest about the same thing the parse limits are: a cyclic
-; table would spin, so the walk says what it does about that.
-
-; The worklist is indexed by SLOT, not by depth, and it can hold one entry per
-; node — a tree shaped like a list pushes a sibling at every step.
-(def ssl2 (k o) (go.+ (go.* 2 k) o))
-
-(def walk (nodes)
-  (local wl (table (go.* 2 nmax) 0)
-    (loop ((wl (set (set wl 0 1) 1 1)) (sp 1) (seen 0) (acc 0) (steps 0))
-      (go.>= steps (go.* 2 nmax))  (go.+ (go.* seen 1000) acc)
-      (go.< sp 1)                    (go.+ (go.* seen 1000) acc)
-      ; The worklist has the same shape of limit the parser's two do, and for
-      ; the same reason: `sp` grows with the tree and nothing can bound it, so
-      ; the program has to say what it does when the worklist fills.
-      (go.>= sp nmax)              (go.+ (go.* seen 1000) acc)
-      else
-        (let n  (wl (ssl2 (go.- sp 1) 0))
-             d  (wl (ssl2 (go.- sp 1) 1))
-             sb (nodes (nsl n 3))
-             kd (nodes (nsl n 2))
-             s1 (go.- sp 1)
-             w1 (if (= sb 0) wl (set (set wl (ssl2 s1 0) sb) (ssl2 s1 1) d))
-             s2 (if (= sb 0) s1 (go.+ s1 1))
-             w2 (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (go.+ d 1)))
-             s3 (if (= kd 0) s2 (go.+ s2 1))
-          (again w2 s3 (go.+ seen 1)
-                 (go.+ acc (go.* (nodes (nsl n 0)) d))
-                 (go.+ steps 1))))))
-
-; --- documents --------------------------------------------------------------
-;
-; Answers computed BY HAND before running, which is the only way the walk tests
-; anything. The packed result is
-;
-;   nodes * 1000000 + seen * 10000 + tagdepth * 10 + ok
-;
-; where `nodes` counts everything but the sentinel, `seen` is how many the walk
-; reached, and `tagdepth` is the sum of tag x depth. seen == nodes is the check
-; that every node is reachable exactly once.
-
-; [1,2]                 array(4)@1, num@2, num@2       tagdepth 4+2+2 = 8
-(def d0 (array 91 49 44 50 93))
-; {"a":1}               object(5)@1, str(2)@2, num(1)@2  tagdepth 5+4+2 = 11
-(def d1 (array 123 34 97 34 58 49 125))
-; [[1],2]               4@1, 4@2, 1@3, 1@2             tagdepth 4+8+3+2 = 17
-(def d2 (array 91 91 49 93 44 50 93))
-; {"a":[1,2],"b":true}  5@1 2@2 4@2 2@2 3@2 1@3 1@3    tagdepth 5+4+8+4+6+3+3 = 33
-(def d3 (array 123 34 97 34 58 91 49 44 50 93 44 34 98 34 58 116 114 117 101 125))
-
-(def report (src)
-  (let (tuple nodes nn ok) (parse src)
-    (go.+ (go.* (go.- nn 1) 1000000)
-      (go.+ (go.* (walk nodes) 10)
-            ok))))
-
-(def measure (src) (let (tuple nodes nn ok) (parse src) (walk nodes)))
-
-(sig run ((k int)) int)
-(def run (k)
-  (cond
-    (= k 0)  (report d0)
-    (= k 1)  (report d1)
-    (= k 2)  (report d2)
-    else     (report d3)))
+export fn run(k ∈ Int) (Int) {
+    case {
+        k == 0 -> report(d0)
+        k == 1 -> report(d1)
+        k == 2 -> report(d2)
+        else -> report(d3)
+    }
+}

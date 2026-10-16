@@ -85,6 +85,13 @@ func (u *UsageEnv) ParamUsage(name string, j int) Usage {
 	}
 	l := u.Defs[name]
 	v := u.Of(l.Params[j], l.Body, false)
+	for _, b := range l.Borrows {
+		if b == l.Params[j] {
+			// A BORROWED PARAMETER IS HANDED BACK on every path, the λ's value
+			// carrying it (ADR 0052 item 3, spec/local.md §2.1).
+			v = v.Plus(once)
+		}
+	}
 	u.consumed[key] = v
 	return v
 }
@@ -174,10 +181,14 @@ func (u *UsageEnv) Of(x string, t Tail, outer bool) Usage {
 		}
 		return u.sum(x, t.Args, outer)
 	case *Write:
-		// Every value, then each place's indices: the order D evaluates them.
+		// Every value, then each place's indices: the order D evaluates them;
+		// an element write uses its place's current version, p := set(p, i, v).
 		s := u.sum(x, t.Values, outer)
 		for _, p := range t.Places {
 			s = s.Plus(u.sum(x, p.At, outer))
+			if p.Name == x && len(p.At) > 0 {
+				s = s.Plus(once)
+			}
 		}
 		return s
 	}

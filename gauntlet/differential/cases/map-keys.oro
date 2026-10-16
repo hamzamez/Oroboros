@@ -1,28 +1,27 @@
-; A MAP'S KEYS, ASCENDING (maps.md §7).
-; inputs: 1 2 4
-; checked: go js java windows — `acc·100 + k` grows geometrically and the interval analysis widens it; on windows the map's own counts also sum cells of a table whose elements get no bound (bounds-2026-09-24)
-; expect: 20 1720 11141720
-;
-; The keys are inserted DESCENDING -- 20, 17, 14, 11 -- and must come back
-; ascending on every target. That order is what the construct is FOR: a host's
-; iteration order is not canonical. Go randomises on purpose, JavaScript
-; specifies its own, Java leaves it unspecified, and windows has only hash-slot
-; order. Sorting by the order on K is what makes the answer the same on four
-; hosts, precisely because it ignores all four.
-;
-; The result is an `Array`, whose index set is `Fin n` and therefore ORDERED, so
-; producing one from an unordered index set REQUIRES supplying an order -- and
-; the only order available canonically is the one on K itself. Insertion order
-; is the other candidate and the algebra rules it out: a map is a SET.
-;
-; Each answer packs the keys base 100, so a wrong order is a different number
-; rather than the same digits rearranged.
-(def run (n)
-  (let m  (build-map m 8
-            (loop ((m m) (i 0))
-              (>= i n)  m
-              else       (again (insert m (- 20 (* 3 i)) i) (+ i 1))))
-       ks (keys m)
-    (loop ((acc 0) (j 0))
-        (>= j (len ks))  acc
-        else              (again (+ (* acc 100) (ks j)) (+ j 1)))))
+// A MAP'S KEYS, ASCENDING (maps.md §7).
+// inputs: 1 2 4
+// checked: go js java windows — `acc·100 + k` grows geometrically and the interval analysis widens it; on windows the map's own counts also sum cells of a table whose elements get no bound (bounds-2026-09-24)
+// expect: 20 1720 11141720
+//
+// The keys are inserted DESCENDING -- 20, 17, 14, 11 -- and must come back
+// ascending on every target. That order is what the construct is FOR: a host's
+// iteration order is not canonical. Go randomises on purpose, JavaScript
+// specifies its own, Java leaves it unspecified, and windows has only hash-slot
+// order. Sorting by the order on K is what makes the answer the same on four
+// hosts, precisely because it ignores all four.
+//
+// The result is an `Array`, whose index set is `Fin n` and therefore ORDERED, so
+// producing one from an unordered index set REQUIRES supplying an order -- and
+// the only order available canonically is the one on K itself. Insertion order
+// is the other candidate and the algebra rules it out: a map is a SET.
+//
+// Each answer packs the keys base 100, so a wrong order is a different number
+// rather than the same digits rearranged.
+fn run(n) {
+    m = {
+        var m := map(8)
+        loop i = 0 { i >= n -> m; else -> { m[20 - 3 * i] := i; again(i + 1) } }
+    }
+    ks = keys(m)
+    loop acc = 0, j = 0 { j >= len(ks) -> acc; else -> again(acc * 100 + ks[j], j + 1) }
+}

@@ -1,36 +1,41 @@
-; The counted encoding on JavaScript, to check the correction is not a Go
-; artifact. Trip counts are computed; no new primitive is used.
+// The counted encoding on JavaScript, to check the correction is not a Go
+// artifact. Trip counts are computed; no new primitive is used.
+use js/array as a
+use js/console as c
+use js/int as ji
+use js/math as m
+use num/int
+use num/f64 as f
 
-(use js/array as a)
-(use js/console as c)
-(use js/int as ji)
-(use js/math as m)
-(use num/int as int)
-(use num/f64 as f)
+fn isqrt(n) { ji.of_f64(m.sqrt(f.of_int(n))) }
 
-(export main)
+fn multiples(i, n) {
+    start = int.mul(i, i)
+    if int.ge(start, n) { 0 } else { ji.quo(int.sub(int.add(n, i), int.add(start, 1)), i) }
+}
 
-(def isqrt (fn (n) (ji.of-f64 (m.sqrt (f.of-int n)))))
+fn cross_from(composite, i, n) {
+    start = int.mul(i, i)
+    fold_range(composite, multiples(i, n),
+        fn(arr, k) { a.set(arr, int.add(start, int.mul(k, i)), 1.0) })
+}
 
-(def multiples (fn (i n)
-  (let start (int.mul i i)
-    (if (int.ge start n) 0
-      (ji.quo (int.sub (int.add n i) (int.add start 1)) i)))))
+fn sieve(n) {
+    fold_range(a.of_size(n, 0.0), int.sub(isqrt(n), 1),
+        fn(arr, k) {
+            i = int.add(k, 2)
+            if f.gt(a.at(arr, i), 0.0) { arr } else { cross_from(arr, i, n) }
+        })
+}
 
-(def cross-from (fn (composite i n)
-  (let start (int.mul i i)
-    (fold-range composite (multiples i n) (fn (arr k)
-      (a.set arr (int.add start (int.mul k i)) 1.0))))))
+fn count_primes(n) {
+    composite = sieve(n)
+    fold_range(0, n,
+        fn(acc, k) {
+            if int.lt(k, 2) { acc } else if f.gt(a.at(composite, k), 0.0) { acc } else {
+                int.add(acc, 1)
+            }
+        })
+}
 
-(def sieve (fn (n)
-  (fold-range (a.of-size n 0.0) (int.sub (isqrt n) 1) (fn (arr k)
-    (let i (int.add k 2)
-      (if (f.gt (a.at arr i) 0.0) arr (cross-from arr i n)))))))
-
-(def count-primes (fn (n)
-  (let composite (sieve n)
-    (fold-range 0 n (fn (acc k)
-      (if (int.lt k 2) acc
-        (if (f.gt (a.at composite k) 0.0) acc (int.add acc 1))))))))
-
-(def main (fn () (c.log (count-primes 20000))))
+export fn main() { c.log(count_primes(20000)) }

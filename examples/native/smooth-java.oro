@@ -1,42 +1,31 @@
-; THE STENCIL on the native Java target — ADR 0013's program, which is where
-; the allocation price was found and where it is still open.
-;
-; THREE forms are carried, because a form that is not measured is a belief:
-;
-;   smooth-alloc  the GATHER — `(alloc (table …))`, pure and parallel
-;   smooth-build  the SCATTER — `build`/`set`, sequential, still allocating
-;   smooth-into   target-native, writing into a buffer the CALLER owns
-;
-; The third is the one the portable language cannot express and does not try
-; to: ADR 0018 scopes a buffer to `build`, so reusing a caller's array is
-; `java.set-double` — Java's own store, no portability claim.
-(use java)
-(export smooth-alloc smooth-build smooth-into)
+// THE STENCIL on the native Java target — ADR 0013's program, which is where
+// the allocation price was found and where it is still open.
+//
+// THREE forms are carried, because a form that is not measured is a belief:
+//
+//   smooth-alloc  the GATHER — `(alloc (table …))`, pure and parallel
+//   smooth-build  the SCATTER — `build`/`set`, sequential, still allocating
+//   smooth-into   target-native, writing into a buffer the CALLER owns
+//
+// The third is the one the portable language cannot express and does not try
+// to: ADR 0018 scopes a buffer to `build`, so reusing a caller's array is
+// `java.set-double` — Java's own store, no portability claim.
+use java
 
-(sig smooth-alloc ((a (array f64))) (array f64)
-  (where (java.> (len a) 2)))
-(sig smooth-build ((a (array f64))) (array f64)
-  (where (java.> (len a) 2)))
-(sig smooth-into  ((dst double-array) (a (array f64))) double-array
-  (where (and (java.> (len a) 2) (java.>= (len dst) (java.- (len a) 2)))))
+fn window(a, j) { java.`f+`(java.`f+`(a[j], a[java.`+`(j, 1)]), a[java.`+`(j, 2)]) }
 
-(def window (a j)
-  (java.f+ (java.f+ (a j) (a (java.+ j 1))) (a (java.+ j 2))))
-
-(def kernel (a)
-  (table (java.- (len a) 2) (fn (j) (java.f/ (window a j) 3.0))))
-
-(def smooth-alloc (a) (alloc (kernel a)))
-
-(def smooth-build (a)
-  (let k (kernel a)
-    (local b (table (len k) 0)
-      (loop ((b b) (i 0))
-        (java.>= i (len k))  b
-        else                 (again (set b i (k i)) (java.+ i 1))))))
-
-(def smooth-into (dst a)
-  (let k (kernel a)
-    (loop ((d dst) (i 0))
-      (java.>= i (len k))  d
-      else                 (again (java.set-double d i (k i)) (java.+ i 1)))))
+fn kernel(a) { array { java.`f/`(window(a, j), 3.0) : j ∈ 0..java.`-`(len(a), 2)-1 } }
+export fn smooth_alloc(a ∈ Array(F64)) (Array(F64)) where java.`>`(len(a), 2) { alloc(kernel(a)) }
+export fn smooth_build(a ∈ Array(F64)) (Array(F64)) where java.`>`(len(a), 2) {
+    k = kernel(a)
+    var b := array { 0 : _ ∈ 0..len(k)-1 }
+    loop i = 0 { java.`>=`(i, len(k)) -> b; else -> { b[i] := k[i]; again(java.`+`(i, 1)) } }
+}
+export fn smooth_into(dst ∈ double_array, a ∈ Array(F64)) (double_array)
+    where java.`>`(len(a), 2) && java.`>=`(len(dst), java.`-`(len(a), 2)) {
+    k = kernel(a)
+    loop d = dst, i = 0 {
+        java.`>=`(i, len(k)) -> d
+        else -> again(java.set_double(d, i, k[i]), java.`+`(i, 1))
+    }
+}

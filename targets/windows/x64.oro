@@ -1,223 +1,264 @@
-; The x86-64 instruction set, under its own mnemonics.
-;
-;   (use x64)
-;   (x64.add a b)   (x64.imul a b)   (x64.sar x 3)   (x64.setl i n)
-;
-; Nothing here is portable and nothing here claims to be. `x64.idiv` truncates
-; toward zero and RAISES #DE on a zero divisor, which is a process-killing
-; hardware trap and not an exception anything can catch. `x64.add` wraps at 64
-; bits. That is the machine, and a program using it is a machine program.
-;
-; THREE THINGS THIS FILE COULD NOT SAY, and they are the findings:
-;
-;   1. `add` IS DESTRUCTIVE. x86 computes `a += b`; our language needs
-;      `d = a + b`. Every arithmetic template is therefore two instructions,
-;      `mov %r, %1` then the operation. The emitter allocates %r before it
-;      frees the operands, which is what makes that safe with no alias
-;      analysis — %r cannot be an operand still in use. The extra `mov` is
-;      real, and on a register-starved loop it is what separates this output
-;      from hand-written (docs/spec/windows-target.md §5).
-;
-;   2. `idiv` RETURNS TWO RESULTS — quotient in rax, remainder in rdx, from one
-;      instruction. Our language has no product, so it is declared twice and
-;      the divide runs twice. This is the FIFTH independent demand for a
-;      product type, and the first one that comes from the hardware rather than
-;      from a library.
-;
-;   3. `mov` IS BOTH DIRECTIONS. x86 spells load and store with one mnemonic
-;      and tells them apart by which operand is memory. Our language has no
-;      assignable place, so the direction has to be in the NAME: `mov` loads
-;      and `mov-store` stores. That is the one place the host's own naming
-;      could not be kept.
+// The x86-64 instruction set, under its own mnemonics.
+//
+//   (use x64)
+//   (x64.add a b)   (x64.imul a b)   (x64.sar x 3)   (x64.setl i n)
+//
+// Nothing here is portable and nothing here claims to be. `x64.idiv` truncates
+// toward zero and RAISES #DE on a zero divisor, which is a process-killing
+// hardware trap and not an exception anything can catch. `x64.add` wraps at 64
+// bits. That is the machine, and a program using it is a machine program.
+//
+// THREE THINGS THIS FILE COULD NOT SAY, and they are the findings:
+//
+//   1. `add` IS DESTRUCTIVE. x86 computes `a += b`; our language needs
+//      `d = a + b`. Every arithmetic template is therefore two instructions,
+//      `mov %r, %1` then the operation. The emitter allocates %r before it
+//      frees the operands, which is what makes that safe with no alias
+//      analysis — %r cannot be an operand still in use. The extra `mov` is
+//      real, and on a register-starved loop it is what separates this output
+//      from hand-written (docs/spec/windows-target.md §5).
+//
+//   2. `idiv` RETURNS TWO RESULTS — quotient in rax, remainder in rdx, from one
+//      instruction. Our language has no product, so it is declared twice and
+//      the divide runs twice. This is the FIFTH independent demand for a
+//      product type, and the first one that comes from the hardware rather than
+//      from a library.
+//
+//   3. `mov` IS BOTH DIRECTIONS. x86 spells load and store with one mnemonic
+//      and tells them apart by which operand is memory. Our language has no
+//      assignable place, so the direction has to be in the NAME: `mov` loads
+//      and `mov-store` stores. That is the one place the host's own naming
+//      could not be kept.
+// ═══ HOW WIDE A SHIFT IS EXACT HERE
+//
+// `x / 2^k` on a SIGNED value is not a shift -- truncation toward zero needs
+// a rounding correction -- so the compiler rewrites it into one wherever it
+// can PROVE the dividend is non-negative and fits this many bits. Worth
+// **2.39x** on our fixed-limb factorial (shiftdiv-2026-09-03).
+//
+// This does NOT promote bitwise operators to the language, and integers.md
+// §0a's reason for keeping them out stands. It lets the COMPILER use this
+// host's own shift where it has proved the rewrite changes no answer.
+//
+// `shr` is a 64-bit logical shift, which is what a non-negative value wants.
+repr shift 63
 
-(target windows
-  ; ═══ HOW WIDE A SHIFT IS EXACT HERE
-  ;
-  ; `x / 2^k` on a SIGNED value is not a shift -- truncation toward zero needs
-  ; a rounding correction -- so the compiler rewrites it into one wherever it
-  ; can PROVE the dividend is non-negative and fits this many bits. Worth
-  ; **2.39x** on our fixed-limb factorial (shiftdiv-2026-09-03).
-  ;
-  ; This does NOT promote bitwise operators to the language, and integers.md
-  ; §0a's reason for keeping them out stands. It lets the COMPILER use this
-  ; host's own shift where it has proved the rewrite changes no answer.
-  ;
-  ; `shr` is a 64-bit logical shift, which is what a non-negative value wants.
-  (repr shift 63)
+// THE ONLY WIDTH THIS TARGET DECLARES, and it declares it because it can
+// already load one: `movzx` zero-extends a byte, which is the same path a
+// boolean table takes (wintables-2026-08-25 §4a). 0..255 only -- a signed byte
+// needs `movsx` and nothing emits that yet, so it is not claimed.
+//
+// A target declares what it can DO. Everything wider keeps the machine word.
+// ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
+//
+// A range is SEMANTICS and how it is stored is this file's business, exactly
+// as `int-repr` below decides one rung down. Here there is nothing to weigh:
+// this host ships no bignum, so fixed limbs are the only representation
+// available, and declaring it is saying so rather than choosing.
+//
+// It is also the only one of the four targets where our library wins by
+// default, because the alternative is that the program does not run at all.
+repr big limbs
 
+repr 0..255 host "db"
+module x64 {
+    // ---- integer arithmetic. Two instructions each, for the reason above.
+    fn add(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nadd ${r}, ${b}" checked add_checked
+    }
+    fn sub(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nsub ${r}, ${b}" checked sub_checked
+    }
+    fn imul(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nimul ${r}, ${b}" checked imul_checked
+    }
 
-  ; THE ONLY WIDTH THIS TARGET DECLARES, and it declares it because it can
-  ; already load one: `movzx` zero-extends a byte, which is the same path a
-  ; boolean table takes (wintables-2026-08-25 §4a). 0..255 only -- a signed byte
-  ; needs `movsx` and nothing emits that yet, so it is not claimed.
-  ;
-  ; A target declares what it can DO. Everything wider keeps the machine word.
-  ; ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
-  ;
-  ; A range is SEMANTICS and how it is stored is this file's business, exactly
-  ; as `int-repr` below decides one rung down. Here there is nothing to weigh:
-  ; this host ships no bignum, so fixed limbs are the only representation
-  ; available, and declaring it is saying so rather than choosing.
-  ;
-  ; It is also the only one of the four targets where our library wins by
-  ; default, because the alternative is that the program does not run at all.
-  (repr big limbs)
+    // THE CHECKED FORMS, selected when a declared range does not prove the
+    // result stays in the window (sct-2026-08-19). The hardware has carried an
+    // overflow flag since 1978, so this is ONE extra instruction and a
+    // perfectly-predicted branch — and `ud2` raises #UD, which ends the process
+    // the way an unrecoverable arithmetic fault should. No helper, no runtime.
+    fn add_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nadd ${r}, ${b}\njno Lok${#}\nud2\nLok${#}:"
+    }
+    fn sub_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nsub ${r}, ${b}\njno Lok${#}\nud2\nLok${#}:"
+    }
+    fn imul_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nimul ${r}, ${b}\njno Lok${#}\nud2\nLok${#}:"
+    }
+    // THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). A declared width
+    // TRUNCATES where a host bignum would stay exact, so selecting a
+    // representation would change the answer -- ADR 0009's rule at a different
+    // boundary. `trap-if` returns 0 when handed 0 and raises #UD otherwise.
+    //
+    // THIS HOST NEEDS THE RUNG MOST, because it ships no bignum at all: the
+    // other three fall back to `math/big`, `BigInteger` or `BigInt` and windows
+    // has nothing to fall back to. So the same three instructions the checked
+    // arithmetic above uses are what make arbitrary precision reachable here --
+    // no helper, no runtime.
+    fn trap_if(a ∈ Int) (r ∈ Int) {
+        host expr "mov ${r}, ${a}\ntest ${r}, ${r}\njz Ltz${#}\nud2\nLtz${#}:\nxor ${r}, ${r}"
+    }
+    fn neg(a ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nneg ${r}" }
+    fn inc(a ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\ninc ${r}" }
+    fn dec(a ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\ndec ${r}" }
 
-  (repr (int 0 255) (host "db"))
-  (module x64
-    ; ---- integer arithmetic. Two instructions each, for the reason above.
-    (sig add  (int int) int  pure (host expr "mov %r, %1\nadd %r, %2" (checked add-checked)))
-    (sig sub  (int int) int  pure (host expr "mov %r, %1\nsub %r, %2" (checked sub-checked)))
-    (sig imul (int int) int pure (host expr "mov %r, %1\nimul %r, %2" (checked imul-checked)))
+    // idiv wants the dividend sign-extended across rdx:rax, which is what cqo
+    // is for. Declared twice because one instruction produces two results and
+    // there is no way to say that.
+    // A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5. Here
+    // it is #DE, a hardware trap that ends the process and that nothing catches.
+    fn idiv(a ∈ Int, b ∈ Int) (r ∈ Int) pure
+        where `!=`(b, 0) {
+        host expr "mov rax, ${a}\ncqo\nmov rcx, ${b}\nidiv rcx\nmov ${r}, rax"
+    }
+    fn irem(a ∈ Int, b ∈ Int) (r ∈ Int) pure
+        where `!=`(b, 0) {
+        host expr "mov rax, ${a}\ncqo\nmov rcx, ${b}\nidiv rcx\nmov ${r}, rdx"
+    }
 
-    ; THE CHECKED FORMS, selected when a declared range does not prove the
-    ; result stays in the window (sct-2026-08-19). The hardware has carried an
-    ; overflow flag since 1978, so this is ONE extra instruction and a
-    ; perfectly-predicted branch — and `ud2` raises #UD, which ends the process
-    ; the way an unrecoverable arithmetic fault should. No helper, no runtime.
-    (sig add-checked  (int int) int pure (host expr
-        "mov %r, %1\nadd %r, %2\njno Lok%u\nud2\nLok%u:"))
-    (sig sub-checked  (int int) int pure (host expr
-        "mov %r, %1\nsub %r, %2\njno Lok%u\nud2\nLok%u:"))
-    (sig imul-checked (int int) int pure (host expr
-        "mov %r, %1\nimul %r, %2\njno Lok%u\nud2\nLok%u:"))
-    ; THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). A declared width
-    ; TRUNCATES where a host bignum would stay exact, so selecting a
-    ; representation would change the answer -- ADR 0009's rule at a different
-    ; boundary. `trap-if` returns 0 when handed 0 and raises #UD otherwise.
-    ;
-    ; THIS HOST NEEDS THE RUNG MOST, because it ships no bignum at all: the
-    ; other three fall back to `math/big`, `BigInteger` or `BigInt` and windows
-    ; has nothing to fall back to. So the same three instructions the checked
-    ; arithmetic above uses are what make arbitrary precision reachable here --
-    ; no helper, no runtime.
-    (sig trap-if (int) int (host expr
-        "mov %r, %1\ntest %r, %r\njz Ltz%u\nud2\nLtz%u:\nxor %r, %r"))
-    (sig neg  (int) int      pure     (host expr "mov %r, %1\nneg %r"))
-    (sig inc  (int) int      pure     (host expr "mov %r, %1\ninc %r"))
-    (sig dec  (int) int      pure     (host expr "mov %r, %1\ndec %r"))
+    // ---- bitwise and shifts. A variable shift count must be in cl; x86 has no
+    // other form, which is why rcx appears in a template that never mentions it.
+    fn and(a ∈ Int, b ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nand ${r}, ${b}" }
+    fn or(a ∈ Int, b ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nor ${r}, ${b}" }
+    fn xor(a ∈ Int, b ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nxor ${r}, ${b}" }
+    fn not(a ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nnot ${r}" }
+    fn shl(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nmov rcx, ${b}\nshl ${r}, cl"
+    }
+    fn shr(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nmov rcx, ${b}\nshr ${r}, cl"
+    }
+    fn sar(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "mov ${r}, ${a}\nmov rcx, ${b}\nsar ${r}, cl"
+    }
 
-    ; idiv wants the dividend sign-extended across rdx:rax, which is what cqo
-    ; is for. Declared twice because one instruction produces two results and
-    ; there is no way to say that.
-    ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5. Here
-    ; it is #DE, a hardware trap that ends the process and that nothing catches.
-    (sig idiv ((a int) (b int)) int pure (where (!= b 0)) (host expr
-        "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rax"))
-    (sig irem ((a int) (b int)) int pure (where (!= b 0)) (host expr
-        "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rdx"))
+    // ---- comparison. `setcc` is the mnemonic that MAKES a boolean; `(jump …)`
+    // is the condition code that BRANCHES on one. Both are needed and they are
+    // the same predicate: a comparison in value position costs the setcc, and a
+    // comparison in a guard costs neither, because the backend emits the jump.
+    //
+    // Every other host folds a comparison into its branch by itself. This is the
+    // first one that has to be told, and (jump …) is the whole of being told.
+    fn sete(a ∈ Int, b ∈ Int) (r ∈ Bool) pure {
+        host expr "mov ${r}, ${a}\ncmp ${r}, ${b}\nsete ${r:b}\nmovzx ${r:e}, ${r:b}" jump "e"
+    }
+    fn setne(a ∈ Int, b ∈ Int) (r ∈ Bool) pure {
+        host expr "mov ${r}, ${a}\ncmp ${r}, ${b}\nsetne ${r:b}\nmovzx ${r:e}, ${r:b}" jump "ne"
+    }
+    fn setl(a ∈ Int, b ∈ Int) (r ∈ Bool) pure {
+        host expr "mov ${r}, ${a}\ncmp ${r}, ${b}\nsetl ${r:b}\nmovzx ${r:e}, ${r:b}" jump "l"
+    }
+    fn setle(a ∈ Int, b ∈ Int) (r ∈ Bool) pure {
+        host expr "mov ${r}, ${a}\ncmp ${r}, ${b}\nsetle ${r:b}\nmovzx ${r:e}, ${r:b}" jump "le"
+    }
+    fn setg(a ∈ Int, b ∈ Int) (r ∈ Bool) pure {
+        host expr "mov ${r}, ${a}\ncmp ${r}, ${b}\nsetg ${r:b}\nmovzx ${r:e}, ${r:b}" jump "g"
+    }
+    fn setge(a ∈ Int, b ∈ Int) (r ∈ Bool) pure {
+        host expr "mov ${r}, ${a}\ncmp ${r}, ${b}\nsetge ${r:b}\nmovzx ${r:e}, ${r:b}" jump "ge"
+    }
 
-    ; ---- bitwise and shifts. A variable shift count must be in cl; x86 has no
-    ; other form, which is why rcx appears in a template that never mentions it.
-    (sig and (int int) int pure (host expr "mov %r, %1\nand %r, %2"))
-    (sig or  (int int) int  pure (host expr "mov %r, %1\nor %r, %2"))
-    (sig xor (int int) int pure (host expr "mov %r, %1\nxor %r, %2"))
-    (sig not (int) int     pure     (host expr "mov %r, %1\nnot %r"))
-    (sig shl (int int) int pure (host expr "mov %r, %1\nmov rcx, %2\nshl %r, cl"))
-    (sig shr (int int) int pure (host expr "mov %r, %1\nmov rcx, %2\nshr %r, cl"))
-    (sig sar (int int) int pure (host expr "mov %r, %1\nmov rcx, %2\nsar %r, cl"))
+    // ---- boolean, STRICT AND BRANCHLESS, which is what the instruction is.
+    //
+    // These are NOT the language's `and`/`or`/`not`. Those short-circuit and are
+    // sugar over `if` (ADR 0017); these evaluate both operands and cost one ALU
+    // instruction with no branch. Ada spells the distinction `and` versus
+    // `and then`, C spells it `&` versus `&&`, and every language that
+    // distinguished them kept both — because when a predicate is unpredictable a
+    // branch misprediction costs about fifteen cycles and this costs one.
+    //
+    // They carried `(jump "and")` until ADR 0017 and that was a mistake: it made
+    // ONE name mean the strict operator in value position and the short-circuit
+    // one in a guard. Short-circuiting is the language's `if`, not a claim a
+    // target makes about an operator.
+    //
+    // No portability claim, and a program reaching for one should have measured.
+    fn andb(a ∈ Bool, b ∈ Bool) (r ∈ Bool) pure { host expr "mov ${r}, ${a}\nand ${r}, ${b}" }
+    fn orb(a ∈ Bool, b ∈ Bool) (r ∈ Bool) pure { host expr "mov ${r}, ${a}\nor ${r}, ${b}" }
+    fn notb(a ∈ Bool) (r ∈ Bool) pure { host expr "mov ${r}, ${a}\nxor ${r}, 1" }
 
-    ; ---- comparison. `setcc` is the mnemonic that MAKES a boolean; `(jump …)`
-    ; is the condition code that BRANCHES on one. Both are needed and they are
-    ; the same predicate: a comparison in value position costs the setcc, and a
-    ; comparison in a guard costs neither, because the backend emits the jump.
-    ;
-    ; Every other host folds a comparison into its branch by itself. This is the
-    ; first one that has to be told, and (jump …) is the whole of being told.
-    (sig sete  (int int) bool  pure (host expr "mov %r, %1\ncmp %r, %2\nsete %br\nmovzx %er, %br" (jump "e")))
-    (sig setne (int int) bool pure (host expr "mov %r, %1\ncmp %r, %2\nsetne %br\nmovzx %er, %br" (jump "ne")))
-    (sig setl  (int int) bool  pure (host expr "mov %r, %1\ncmp %r, %2\nsetl %br\nmovzx %er, %br" (jump "l")))
-    (sig setle (int int) bool pure (host expr "mov %r, %1\ncmp %r, %2\nsetle %br\nmovzx %er, %br" (jump "le")))
-    (sig setg  (int int) bool  pure (host expr "mov %r, %1\ncmp %r, %2\nsetg %br\nmovzx %er, %br" (jump "g")))
-    (sig setge (int int) bool pure (host expr "mov %r, %1\ncmp %r, %2\nsetge %br\nmovzx %er, %br" (jump "ge")))
+    // ---- SSE2 scalar double. A separate register file, which is why the
+    // backend has to know one bit of type for every value it places.
+    fn addsd(a ∈ F64, b ∈ F64) (r ∈ F64) pure { host expr "movsd ${r}, ${a}\naddsd ${r}, ${b}" }
+    fn subsd(a ∈ F64, b ∈ F64) (r ∈ F64) pure { host expr "movsd ${r}, ${a}\nsubsd ${r}, ${b}" }
+    fn mulsd(a ∈ F64, b ∈ F64) (r ∈ F64) pure { host expr "movsd ${r}, ${a}\nmulsd ${r}, ${b}" }
+    fn divsd(a ∈ F64, b ∈ F64) (r ∈ F64) pure { host expr "movsd ${r}, ${a}\ndivsd ${r}, ${b}" }
+    fn sqrtsd(a ∈ F64) (r ∈ F64) pure { host expr "sqrtsd ${r}, ${a}" }
+    fn minsd(a ∈ F64, b ∈ F64) (r ∈ F64) pure { host expr "movsd ${r}, ${a}\nminsd ${r}, ${b}" }
+    fn maxsd(a ∈ F64, b ∈ F64) (r ∈ F64) pure { host expr "movsd ${r}, ${a}\nmaxsd ${r}, ${b}" }
 
-    ; ---- boolean, STRICT AND BRANCHLESS, which is what the instruction is.
-    ;
-    ; These are NOT the language's `and`/`or`/`not`. Those short-circuit and are
-    ; sugar over `if` (ADR 0017); these evaluate both operands and cost one ALU
-    ; instruction with no branch. Ada spells the distinction `and` versus
-    ; `and then`, C spells it `&` versus `&&`, and every language that
-    ; distinguished them kept both — because when a predicate is unpredictable a
-    ; branch misprediction costs about fifteen cycles and this costs one.
-    ;
-    ; They carried `(jump "and")` until ADR 0017 and that was a mistake: it made
-    ; ONE name mean the strict operator in value position and the short-circuit
-    ; one in a guard. Short-circuiting is the language's `if`, not a claim a
-    ; target makes about an operator.
-    ;
-    ; No portability claim, and a program reaching for one should have measured.
-    (sig andb (bool bool) bool pure (host expr "mov %r, %1\nand %r, %2"))
-    (sig orb  (bool bool) bool  pure (host expr "mov %r, %1\nor %r, %2"))
-    (sig notb (bool) bool  pure      (host expr "mov %r, %1\nxor %r, 1"))
+    // comisd sets the CARRY flag, not the sign flag, so a float predicate takes
+    // the UNSIGNED condition codes. Getting this wrong compares correctly for
+    // positive numbers and silently wrongly for the rest.
+    fn setb(a ∈ F64, b ∈ F64) (r ∈ Bool) pure {
+        host expr "xor ${r:e}, ${r:e}\ncomisd ${a}, ${b}\nsetb ${r:b}" jump "b"
+    }
+    fn setbe(a ∈ F64, b ∈ F64) (r ∈ Bool) pure {
+        host expr "xor ${r:e}, ${r:e}\ncomisd ${a}, ${b}\nsetbe ${r:b}" jump "be"
+    }
+    fn seta(a ∈ F64, b ∈ F64) (r ∈ Bool) pure {
+        host expr "xor ${r:e}, ${r:e}\ncomisd ${a}, ${b}\nseta ${r:b}" jump "a"
+    }
+    fn setae(a ∈ F64, b ∈ F64) (r ∈ Bool) pure {
+        host expr "xor ${r:e}, ${r:e}\ncomisd ${a}, ${b}\nsetae ${r:b}" jump "ae"
+    }
 
-    ; ---- SSE2 scalar double. A separate register file, which is why the
-    ; backend has to know one bit of type for every value it places.
-    (sig addsd  (f64 f64) f64 pure (host expr "movsd %r, %1\naddsd %r, %2"))
-    (sig subsd  (f64 f64) f64 pure (host expr "movsd %r, %1\nsubsd %r, %2"))
-    (sig mulsd  (f64 f64) f64 pure (host expr "movsd %r, %1\nmulsd %r, %2"))
-    (sig divsd  (f64 f64) f64 pure (host expr "movsd %r, %1\ndivsd %r, %2"))
-    (sig sqrtsd (f64) f64              pure     (host expr "sqrtsd %r, %1"))
-    (sig minsd  (f64 f64) f64 pure (host expr "movsd %r, %1\nminsd %r, %2"))
-    (sig maxsd  (f64 f64) f64 pure (host expr "movsd %r, %1\nmaxsd %r, %2"))
+    fn cvtsi2sd(a ∈ Int) (r ∈ F64) pure { host expr "mov rax, ${a}\ncvtsi2sd ${r}, rax" }
+    fn cvttsd2si(a ∈ F64) (r ∈ Int) pure { host expr "cvttsd2si ${r}, ${a}" }
 
-    ; comisd sets the CARRY flag, not the sign flag, so a float predicate takes
-    ; the UNSIGNED condition codes. Getting this wrong compares correctly for
-    ; positive numbers and silently wrongly for the rest.
-    (sig setb  (f64 f64) bool  pure (host expr "xor %er, %er\ncomisd %1, %2\nsetb %br" (jump "b")))
-    (sig setbe (f64 f64) bool pure (host expr "xor %er, %er\ncomisd %1, %2\nsetbe %br" (jump "be")))
-    (sig seta  (f64 f64) bool  pure (host expr "xor %er, %er\ncomisd %1, %2\nseta %br" (jump "a")))
-    (sig setae (f64 f64) bool pure (host expr "xor %er, %er\ncomisd %1, %2\nsetae %br" (jump "ae")))
+    // ---- memory. `lea` is how x86 does pointer arithmetic, and it is also the
+    // only way to get an address at all, since the language has no `&`.
+    fn lea(a ∈ ptr, b ∈ Int) (r ∈ ptr) pure { host expr "lea ${r}, [${a}+${b}]" }
+    fn buf() (r ∈ ptr) pure { host expr "lea ${r}, __buf" }
 
-    (sig cvtsi2sd  (int) f64 pure (host expr "mov rax, %1\ncvtsi2sd %r, rax"))
-    (sig cvttsd2si (f64) int              pure (host expr "cvttsd2si %r, %1"))
+    // THE NULL POINTER, which 681 Win32 entry points need and none could get.
+    //
+    // win32-2026-09-06 counted a function as callable when every pointer
+    // argument could be passed, and took NULL as available because SAL's
+    // `_In_opt_` says so — *"665 of 3,878 callable functions are reachable ONLY
+    // because `_In_opt_` says a pointer we cannot construct may be 0"*. It was
+    // not constructible: the language has no null, an integer literal is an
+    // `int` and the checker refuses it where `ptr` is required, and this target
+    // declared nothing. So 17% of that number was a claim about a capability
+    // nobody had.
+    //
+    // It is one line of data, which is the parasite model working: a host
+    // capability the target says how to perform. `xor` rather than `mov …, 0`
+    // because it is shorter and breaks the dependency chain, and the 32-bit form
+    // zeroes the whole register on x86-64.
+    fn null() (r ∈ ptr) pure { host expr "xor ${r:e}, ${r:e}" }
 
-    ; ---- memory. `lea` is how x86 does pointer arithmetic, and it is also the
-    ; only way to get an address at all, since the language has no `&`.
-    (sig lea (ptr int) ptr pure (host expr "lea %r, [%1+%2]"))
-    (sig buf () ptr   pure    (host expr "lea %r, __buf"))
+    // One mnemonic, two names: our language has no assignable place, so the
+    // direction of the move has to be part of the name.
+    fn mov(p ∈ ptr, i ∈ Int) (r ∈ Int) pure index { host expr "mov ${r}, qword ptr [${p}+${i}*8]" }
+    fn mov_store(a ∈ ptr, b ∈ Int, c ∈ Int) (ptr) { host stmt "mov qword ptr [${a}+${b}*8], ${c}" }
+    fn movzx(p ∈ ptr, i ∈ Int) (r ∈ Int) pure index {
+        host expr "movzx ${r:e}, byte ptr [${p}+${i}]"
+    }
+    fn movb(a ∈ ptr, b ∈ Int, c ∈ Int) (ptr) { host stmt "mov byte ptr [${a}+${b}], ${c:b}" }
 
-    ; THE NULL POINTER, which 681 Win32 entry points need and none could get.
-    ;
-    ; win32-2026-09-06 counted a function as callable when every pointer
-    ; argument could be passed, and took NULL as available because SAL's
-    ; `_In_opt_` says so — *"665 of 3,878 callable functions are reachable ONLY
-    ; because `_In_opt_` says a pointer we cannot construct may be 0"*. It was
-    ; not constructible: the language has no null, an integer literal is an
-    ; `int` and the checker refuses it where `ptr` is required, and this target
-    ; declared nothing. So 17% of that number was a claim about a capability
-    ; nobody had.
-    ;
-    ; It is one line of data, which is the parasite model working: a host
-    ; capability the target says how to perform. `xor` rather than `mov …, 0`
-    ; because it is shorter and breaks the dependency chain, and the 32-bit form
-    ; zeroes the whole register on x86-64.
-    (sig null () ptr   pure    (host expr "xor %er, %er"))
+    // A PREDICATE THAT IS NOT A COMPARISON OF TWO VALUES.
+    //
+    // `(setne (movzx c i) 0)` is three instructions: load the byte, compare the
+    // register, branch. x86 does it in one — `cmp byte ptr [c+i], 0` — and the
+    // second string in (jump …) is how a target says so. Without it the sieve
+    // counting loop carries an extra load and an extra compare per element, and
+    // the value form below is what the same predicate still costs when it is
+    // used as a value rather than as a guard.
+    fn test_byte(p ∈ ptr, i ∈ Int) (r ∈ Bool) pure {
+        host expr "xor ${r:e}, ${r:e}\ncmp byte ptr [${p}+${i}], 0\nsetne ${r:b}" jump "ne" "cmp byte ptr [${p}+${i}], 0"
+    }
 
-    ; One mnemonic, two names: our language has no assignable place, so the
-    ; direction of the move has to be part of the name.
-    (sig mov       ((p ptr) (i int)) int pure index (host expr "mov %r, qword ptr [%1+%2*8]"))
-    (sig mov-store (ptr int int) ptr     (host stmt "mov qword ptr [%1+%2*8], %3"))
-    (sig movzx     ((p ptr) (i int)) int pure index (host expr "movzx %er, byte ptr [%1+%2]"))
-    (sig movb      (ptr int int) ptr     (host stmt "mov byte ptr [%1+%2], %b3"))
-
-    ; A PREDICATE THAT IS NOT A COMPARISON OF TWO VALUES.
-    ;
-    ; `(setne (movzx c i) 0)` is three instructions: load the byte, compare the
-    ; register, branch. x86 does it in one — `cmp byte ptr [c+i], 0` — and the
-    ; second string in (jump …) is how a target says so. Without it the sieve
-    ; counting loop carries an extra load and an extra compare per element, and
-    ; the value form below is what the same predicate still costs when it is
-    ; used as a value rather than as a guard.
-    (sig test-byte ((p ptr) (i int)) bool pure
-      (host expr "xor %er, %er\ncmp byte ptr [%1+%2], 0\nsetne %br"
-        (jump "ne" "cmp byte ptr [%1+%2], 0")))
-
-    ; ---- a template with its own control flow.
-    ;
-    ; %u is what makes this possible: each expansion gets its own labels, so a
-    ; template is not restricted to straight-line code. This is `strlen`, and it
-    ; is here to answer the obvious question about a target-file format made of
-    ; templates — no, they are not limited to single instructions, and a target
-    ; can put a whole loop behind one name when the host has no call for it.
-    (sig strlen (string) int pure (host expr
-        "mov rax, %1\nLstr%u:\ncmp byte ptr [rax], 0\nje Lstrend%u\ninc rax\njmp Lstr%u\nLstrend%u:\nsub rax, %1\nmov %r, rax"))))
+    // ---- a template with its own control flow.
+    //
+    // %u is what makes this possible: each expansion gets its own labels, so a
+    // template is not restricted to straight-line code. This is `strlen`, and it
+    // is here to answer the obvious question about a target-file format made of
+    // templates — no, they are not limited to single instructions, and a target
+    // can put a whole loop behind one name when the host has no call for it.
+    fn strlen(a ∈ String) (r ∈ Int) pure {
+        host expr "mov rax, ${a}\nLstr${#}:\ncmp byte ptr [rax], 0\nje Lstrend${#}\ninc rax\njmp Lstr${#}\nLstrend${#}:\nsub rax, ${a}\nmov ${r}, rax"
+    }
+}

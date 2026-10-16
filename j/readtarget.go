@@ -26,10 +26,12 @@ func ReadTarget(src, target, root string) ([]*core.Term, error) {
 	}
 	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[core.Expr]*big.Int{}, indexed: map[core.Expr]bool{}}
 	p.registerSets(src, root, root)
+	p.x86 = target == "windows"
 	forms, err := p.targetItems()
 	if err != nil {
 		return nil, err
 	}
+	forms = liftAxioms(forms)
 	if target == "" {
 		return forms, nil
 	}
@@ -53,6 +55,42 @@ func (p *parser) targetItems() ([]*core.Term, error) {
 	}
 }
 
+// liftAxioms takes each inclusion out of the module J writes it in, to the
+// file's top level with its type's whole name, `(implements P.T I…)`, where the
+// loader reads it: one law, ADR 0064 item 9, an inclusion is an axiom of the
+// model, wherever it is written.
+func liftAxioms(forms []*core.Term) []*core.Term {
+	var out, lifted []*core.Term
+	var walk func(t *core.Term, path string) *core.Term
+	walk = func(t *core.Term, path string) *core.Term {
+		p := t.Kids[1].Name
+		if path != "" && !strings.Contains(p, "/") {
+			p = path + "/" + p
+		}
+		kids := []*core.Term{t.Kids[0], t.Kids[1]}
+		for _, k := range t.Kids[2:] {
+			switch head(k) {
+			case "implements":
+				ax := append([]*core.Term{k.Kids[0], core.Name(p + "." + k.Kids[1].Name)}, k.Kids[2:]...)
+				lifted = append(lifted, app(ax...))
+			case "module":
+				kids = append(kids, walk(k, p))
+			default:
+				kids = append(kids, k)
+			}
+		}
+		return app(kids...)
+	}
+	for _, f := range forms {
+		if head(f) == "module" {
+			out = append(out, walk(f, ""))
+			continue
+		}
+		out = append(out, f)
+	}
+	return append(out, lifted...)
+}
+
 func (p *parser) targetItem() (*core.Term, error) {
 	switch {
 	case p.accept("module"):
@@ -65,7 +103,10 @@ func (p *parser) targetItem() (*core.Term, error) {
 	case p.accept("provides"):
 		target := p.next().text
 		path := p.path()
+		saved := p.x86
+		p.x86 = target == "windows"
 		inner, err := p.bracedItems()
+		p.x86 = saved
 		if err != nil {
 			return nil, err
 		}
@@ -381,7 +422,7 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*core.T
 		out = append(out, core.Name(p.next().text))
 	}
 	if p.peek().kind == tString {
-		out = append(out, core.Str(positionalHoles(p.next().text, params, statics, result)))
+		out = append(out, core.Str(positionalHoles(p.next().text, params, statics, result, p.x86)))
 	}
 	for !p.is("}") && !p.lineEnds() {
 		switch {
@@ -393,7 +434,7 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*core.T
 				if t.kind == tString {
 					s := t.text
 					if word == "jump" && len(c) == 2 {
-						s = positionalHoles(s, params, statics, result)
+						s = positionalHoles(s, params, statics, result, p.x86)
 					}
 					c = append(c, core.Str(s))
 				} else {
@@ -418,8 +459,13 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*core.T
 // whose holes are numbered, `%n` and `%r`; any other's are `%s`, filled in
 // order (emit/target.go, fill). `${#}` is `%u`, `$${` a literal `${`, and a
 // literal `%` is `%%`.
-func positionalHoles(tpl string, params, statics []string, result string) string {
-	numbered := result != "" && strings.Contains(tpl, "${"+Spell(result))
+func positionalHoles(tpl string, params, statics []string, result string, x86 bool) string {
+	// THE HOLES' STYLE IS THE BACKEND'S: x86's assembly templates number every
+	// hole, `%n`, `%r`; every other target's fill `%s` in order and name the
+	// result `%r` (emit/target.go, fill). Read off the model, not the template:
+	// a JavaScript template that splices its result keeps its `%s`
+	// (jswitch-2026-10-16, lib/os/js.oro's WriteFile).
+	numbered := x86
 	var b strings.Builder
 	for i := 0; i < len(tpl); i++ {
 		switch {
@@ -587,8 +633,16 @@ func (p *parser) modelForm() (*core.Term, error) {
 			out = append(out, e)
 		case p.peek().kind == tString:
 			out = append(out, core.Str(p.next().text))
-		case p.peek().kind == tIdent && !strings.Contains("0123456789", p.peek().text[:1]) && p.peekN(1).text != ".." && p.peekN(1).text != "(":
+		case word != "fact" && p.peek().kind == tIdent && !strings.Contains("0123456789", p.peek().text[:1]) &&
+			p.peekN(1).text != ".." && p.peekN(1).text != "(":
 			out = append(out, core.Name(Unspell(p.next().text)))
+		case word == "fact":
+			// A FACT'S OPERANDS are formulas: its guard and its conclusion.
+			e, err := p.expr()
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, datum(e))
 		default:
 			e, err := p.exprAt(pCmp + 1)
 			if err != nil {

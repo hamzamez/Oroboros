@@ -18,6 +18,7 @@ import (
 	"oroboros/core"
 	"oroboros/emit"
 	"oroboros/ir"
+	"oroboros/j"
 )
 
 func main() {
@@ -53,11 +54,11 @@ func run(targetDir, src, target, path string, verbose bool) error {
 	if err != nil {
 		return err
 	}
-	forms, err := core.Read(string(text))
+	forms, err := j.ReadModule(string(text), src, j.ModulePath(src, filepath.SplitList(path)))
 	if err != nil {
 		return err
 	}
-	prog, terms, err := core.LoadWithDefs(forms, resolver(ds), tg.Defs)
+	prog, terms, err := core.LoadWithDefs(forms, j.Resolver(ds), tg.Defs)
 	if err != nil {
 		return err
 	}
@@ -118,21 +119,6 @@ func run(targetDir, src, target, path string, verbose bool) error {
 	fmt.Printf("%-24s %3d/%-3d ops (%5.1f%%)  loops %d/%d terminate\n",
 		filepath.Base(src), proven, total, pct, halts, loops)
 	return nil
-}
-
-func resolver(ds []string) core.Resolver {
-	return func(p string) (string, bool, error) {
-		for _, d := range ds {
-			b, err := os.ReadFile(filepath.Join(d, filepath.FromSlash(p)+".oro"))
-			if err == nil {
-				return string(b), true, nil
-			}
-			if !os.IsNotExist(err) {
-				return "", false, err
-			}
-		}
-		return "", false, nil
-	}
 }
 
 func dirs(src, path string) []string {

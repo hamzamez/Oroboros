@@ -7,7 +7,20 @@ import (
 
 // noLibraries is a resolver that finds no file, so every `use` is unresolved —
 // which is how a target-provided module looks.
-func noLibraries(string) (string, bool, error) { return "", false, nil }
+func noLibraries(string) ([]Form, bool, error) { return nil, false, nil }
+
+// snippetResolver finds a test's library modules in a map of sources, written
+// in the notation the test's snippets are (reduce.go, Resolver).
+func snippetResolver(files map[string]string) Resolver {
+	return func(path string) ([]Form, bool, error) {
+		src, ok := files[path]
+		if !ok {
+			return nil, false, nil
+		}
+		forms, err := Read(src)
+		return forms, true, err
+	}
+}
 
 // `D_T` — THE TARGET'S OWN DEFINITIONS, target-system.md §6.2.
 //
@@ -89,7 +102,7 @@ func TestATargetsDefinitionsForAnUnusedModuleAreNotInTheProgram(t *testing.T) {
 // `▷`: the target's definition wins over the library's, and the program says so.
 func TestATargetsDefinitionOverridesTheLibrarys(t *testing.T) {
 	lib := map[string]string{"h": "(module h)\n(def twice (fn (x) (add x 0)))"}
-	resolve := func(p string) (string, bool, error) { s, ok := lib[p]; return s, ok, nil }
+	resolve := snippetResolver(lib)
 	src, prims := splitPrims(`
 		(target go (prim add))
 		(use h)

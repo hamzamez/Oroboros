@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"oroboros/core"
+	"oroboros/j"
 )
 
 // targetDecls is every declaration in every target file: each (sig …) and
@@ -37,7 +38,10 @@ func targetDecls(t *testing.T) map[string][]*core.Term {
 		if err != nil {
 			return err
 		}
-		ts, err := core.ReadAll(string(src))
+		// The target is its directory, or its file's name (ADR 0064 item 9).
+		rel := strings.TrimPrefix(filepath.ToSlash(p), "../targets/")
+		name := strings.TrimSuffix(strings.SplitN(rel, "/", 2)[0], ".oro")
+		ts, err := j.ReadTargetSource(string(src), p, name)
 		if err != nil {
 			return err
 		}

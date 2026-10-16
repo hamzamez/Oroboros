@@ -1,4 +1,2 @@
-(module cyc/a)
-(use cyc/b)
-(export f)
-(def f (n) (b.g n))
+use cyc/b
+fn f(n) { b.g(n) }

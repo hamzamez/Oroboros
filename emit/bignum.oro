@@ -1,319 +1,333 @@
-; THE FIXED-LIMB RUNG, WRITTEN IN OROBOROS.
-;
-; ADR 0019's ladder has four rungs and this is the third: narrower than a word,
-; the host's word, FIXED LIMBS, and the host's own bignum. A range that is
-; FINITE and above the portable window gives a limb count, which gives a `build`
-; of known length, which gives ZERO ALLOCATIONS -- bigarith-2026-08-28 measured
-; that at 3.97x over `math/big`, 6.2x over `BigInteger` and 5.8x over `BigInt`,
-; and on the last two it is the ONLY way there, because those bignums are
-; immutable.
-;
-; It is a LIBRARY and not compiler code, for the reason `emit/winmap.oro` is:
-; adding a case to `emit/*.go` for something that is a library is the single
-; most common way to get this architecture wrong. It is embedded rather than
-; sitting in `lib/` because a program must not have to import it -- a range is
-; a declaration, not a dependency.
-;
-; ═══ BASE 2^24, AND THE BASE IS FORCED RATHER THAN CHOSEN
-;
-; A limb product plus the accumulated carry has to stay EXACT, and ADR 0012 says
-; an `int` is exact to +-(2^53-1). With W-bit limbs a product is under 2^2W, so
-; 2W < 53 and W <= 26. Taking W = 24 leaves four bits of headroom:
-;
-;   out[i+j] < 2^24, a[i]*b[j] < 2^48, carry < 2^25
-;   t = out + a*b + carry  <  2^48 + 2^25 + 2^24  <  2^49
-;
-; ═══ `/` AND `%`, NOT A SHIFT AND A MASK, AND THAT IS THE LANGUAGE SPEAKING
-;
-; The natural carry split is `t >> 24` and `t & 0xFFFFFF`. Bitwise operators are
-; DELIBERATELY not in the language (integers.md §0a): V8 coerces both operands
-; to int32, so `(2^32) & -1` is 0 there and 4294967296 on the other three -- an
-; observable disagreement INSIDE the portable window, which is what makes a
-; construct Tier 2.
-;
-; So this uses `/` and `%`, which all four hosts agree on. bigarith measured the
-; cost: bitwise carry extraction is worth 3.9x at equal storage on V8. That is
-; the price of writing the library ONCE instead of four times, and naming it
-; here is what makes it a decision rather than an oversight.
-;
-; ═══ THE WIDTH IS A DECLARATION, SO EXCEEDING IT MUST BE LOUD
-;
-; This is the rung's whole difficulty. The host's bignum is exact whatever the
-; declared range says, so an under-declared bound costs nothing there. A fixed
-; width TRUNCATES -- and then selecting a representation would change the
-; answer, which is ADR 0009's rule at a different boundary and the one thing
-; this project refuses.
-;
-; So every operation checks its final carry with `trap-if`, which every target
-; can express: `panic` on Go, `throw` on JavaScript and the JVM, `ud2` on x86.
-; One comparison per OPERATION, not per limb.
-;
-; That makes the two upper rungs a real choice rather than a detail:
-;
-;   (int 0 (pow 2 1300))   fixed width, no allocation, traps at the bound
-;   (int 0 +inf)           the host's bignum, exact, allocates
-;
-; ═══ WHAT IS AND IS NOT HERE
-;
-; Non-negative magnitudes only. `(int 0 N)` and `(int 0 +inf)` are the
-; declarations this serves and both are non-negative -- which is what
-; unbounded-rung.md §4.2 means by a half-open range carrying something the
-; representation can spend, since bigarith measured sign handling as a real
-; cost.
-;
-; HERE: addition, subtraction, multiplication, and division by a machine WORD.
-; Subtraction returns a magnitude and TRAPS on underflow, for the same reason
-; addition traps on overflow -- a negative result is outside the `(int 0 N)` a
-; program declared to reach this rung.
-;
-; NOT HERE, and a program using one falls back to the host bignum whole (or is
-; refused by name on a target with none): the REMAINDER, whose result is a word
-; rather than a limb table and so a change of type; the COMPARISONS; and
-; big-by-big DIVISION, which needs a quotient estimate.
+// THE FIXED-LIMB RUNG, WRITTEN IN OROBOROS.
+//
+// ADR 0019's ladder has four rungs and this is the third: narrower than a word,
+// the host's word, FIXED LIMBS, and the host's own bignum. A range that is
+// FINITE and above the portable window gives a limb count, which gives a `build`
+// of known length, which gives ZERO ALLOCATIONS -- bigarith-2026-08-28 measured
+// that at 3.97x over `math/big`, 6.2x over `BigInteger` and 5.8x over `BigInt`,
+// and on the last two it is the ONLY way there, because those bignums are
+// immutable.
+//
+// It is a LIBRARY and not compiler code, for the reason `emit/winmap.oro` is:
+// adding a case to `emit/*.go` for something that is a library is the single
+// most common way to get this architecture wrong. It is embedded rather than
+// sitting in `lib/` because a program must not have to import it -- a range is
+// a declaration, not a dependency.
+//
+// ═══ BASE 2^24, AND THE BASE IS FORCED RATHER THAN CHOSEN
+//
+// A limb product plus the accumulated carry has to stay EXACT, and ADR 0012 says
+// an `int` is exact to +-(2^53-1). With W-bit limbs a product is under 2^2W, so
+// 2W < 53 and W <= 26. Taking W = 24 leaves four bits of headroom:
+//
+//   out[i+j] < 2^24, a[i]*b[j] < 2^48, carry < 2^25
+//   t = out + a*b + carry  <  2^48 + 2^25 + 2^24  <  2^49
+//
+// ═══ `/` AND `%`, NOT A SHIFT AND A MASK, AND THAT IS THE LANGUAGE SPEAKING
+//
+// The natural carry split is `t >> 24` and `t & 0xFFFFFF`. Bitwise operators are
+// DELIBERATELY not in the language (integers.md §0a): V8 coerces both operands
+// to int32, so `(2^32) & -1` is 0 there and 4294967296 on the other three -- an
+// observable disagreement INSIDE the portable window, which is what makes a
+// construct Tier 2.
+//
+// So this uses `/` and `%`, which all four hosts agree on. bigarith measured the
+// cost: bitwise carry extraction is worth 3.9x at equal storage on V8. That is
+// the price of writing the library ONCE instead of four times, and naming it
+// here is what makes it a decision rather than an oversight.
+//
+// ═══ THE WIDTH IS A DECLARATION, SO EXCEEDING IT MUST BE LOUD
+//
+// This is the rung's whole difficulty. The host's bignum is exact whatever the
+// declared range says, so an under-declared bound costs nothing there. A fixed
+// width TRUNCATES -- and then selecting a representation would change the
+// answer, which is ADR 0009's rule at a different boundary and the one thing
+// this project refuses.
+//
+// So every operation checks its final carry with `trap-if`, which every target
+// can express: `panic` on Go, `throw` on JavaScript and the JVM, `ud2` on x86.
+// One comparison per OPERATION, not per limb.
+//
+// That makes the two upper rungs a real choice rather than a detail:
+//
+//   (int 0 (pow 2 1300))   fixed width, no allocation, traps at the bound
+//   (int 0 +inf)           the host's bignum, exact, allocates
+//
+// ═══ WHAT IS AND IS NOT HERE
+//
+// Non-negative magnitudes only. `(int 0 N)` and `(int 0 +inf)` are the
+// declarations this serves and both are non-negative -- which is what
+// unbounded-rung.md §4.2 means by a half-open range carrying something the
+// representation can spend, since bigarith measured sign handling as a real
+// cost.
+//
+// HERE: addition, subtraction, multiplication, and division by a machine WORD.
+// Subtraction returns a magnitude and TRAPS on underflow, for the same reason
+// addition traps on overflow -- a negative result is outside the `(int 0 N)` a
+// program declared to reach this rung.
+//
+// NOT HERE, and a program using one falls back to the host bignum whole (or is
+// refused by name on a target with none): the REMAINDER, whose result is a word
+// rather than a limb table and so a change of type; the COMPARISONS; and
+// big-by-big DIVISION, which needs a quotient estimate.
+// A CLAMP, exactly as tree.oro, winmap.oro and kara/core.oro use one. Every
+// index here is derived from a loop bound over a DIFFERENT table than the one
+// being read -- two operands under one bound, which is the latent bug the
+// refinement layer found in `dot` and `centroid`. The tables have the same
+// length by construction and nothing can see that, so the program says what
+// happens if they do not.
+// AND THE VALUE IS MASKED, not only the index, which is the honest limit rather
+// than a shortcut.
+//
+// A limb is under 2^24 by construction, but that is an INDUCTIVE INVARIANT over a
+// buffer's own contents and frozen-2026-08-28 says such a thing is strictly
+// stronger than an octagon. Inside a `build` lambda every operand table is FREE,
+// so a read of one is stratum 0 and the analysis correctly refuses to claim a
+// range — and without a mask every column sum here is unbounded and the whole
+// library is refused by bounded-by-default.
+//
+// `% 2^24` is the identity on every value this library stores, so it changes no
+// answer; it costs one division per limb read. Removing it needs the analysis to
+// carry a frozen buffer's element range through a substitution into a lambda
+// where the buffer is free, which is a real extension and is named rather than
+// assumed.
+//
+// It has to be here rather than at the call sites because a LIBRARY is applied to
+// whatever the program has: `examples/big/limbs.oro` reads a loop variable, whose
+// element range the analysis does join, and a big literal's spine reads a `build`
+// whose range does not survive being substituted in. One of those proves and the
+// other does not, and a library may not be provable only sometimes.
+// AND THE RESULT IS NON-NEGATIVE BY CONSTRUCTION, which costs one compare and
+// buys 2.39x.
+//
+// `%` takes the DIVIDEND's sign, so masking a value the analysis cannot bound
+// gives back `[-(2^24-1), 2^24-1]` -- symmetric around zero. Every column sum
+// built from it is then symmetric too, and `t / 2^24` on a possibly-negative
+// value is not a shift: truncation toward zero needs a rounding correction, and
+// Go, the JVM and x86 all emit one.
+//
+// So the read says it is non-negative, and the whole carry chain follows: the
+// column sum, the stored limb and the outgoing carry are all provably >= 0, and
+// `SelectShifts` turns every `/` and `%` in this file into a shift and a mask.
+// Measured at 2.39x on the factorial (shiftdiv-2026-09-03), which is larger than
+// the clamp, this mask and the buffer clear PUT TOGETHER -- those three are
+// inside the noise floor.
+//
+// It is a fact the program states rather than one the analysis derives, and the
+// honest version is still owed: a limb IS non-negative by the buffer's element
+// range, which is an inductive invariant over a buffer's own contents, and
+// frozen-2026-08-28 says that is strictly stronger than an octagon.
+private fn at(t, i) {
+    v = if i < 0 { 0 } else if i >= len(t) { 0 } else { t[i] }
+    if v < 0 { 0 } else { v % (2^24) }
+}
 
-(module big/limb)
+// THE BOUND CHECK, and it is why this rung is sound at all. `trap-if` returns 0
+// when handed 0 and fails loudly otherwise; both branches of the conditional are
+// the buffer, so the check costs a compare and changes nothing when it passes.
+//
+// It is written as a conditional rather than a `seq` because `seq` needs an
+// impure operation to sequence, and a trap that only ever fires is pure in the
+// only sense that matters here: it returns the same thing every time it returns.
+//
+// TWO HALVES, AND THE SECOND IS WHAT MAKES THE TWO REPRESENTATIONS AGREE. The
+// carry `c` catches a value past the buffer's LAST limb; `lim` catches one past
+// the DECLARED bound, which can sit up to 23 bits lower. The host's bignum
+// enforces the bound at its bit length (`big-fit`), and a declaration that meant
+// one thing under limbs and another under `BigInt` would be ADR 0009's rule
+// broken at the representation boundary -- the compiler would be choosing the
+// answer, not just the storage.
+//
+// When the bound IS a whole number of limbs, `lim` is 2^24 and a limb is under
+// 2^24 by construction, so the check is present, free, and never fires. That is
+// the right shape for a check whose job is to make two representations agree.
+private fn guard(n, lim, c, o linear) {
+    if trap_if(c + if at(o, n - 1) < lim { 0 } else { 1 }) == 0 { () }
+}
 
-; A CLAMP, exactly as tree.oro, winmap.oro and kara/core.oro use one. Every
-; index here is derived from a loop bound over a DIFFERENT table than the one
-; being read -- two operands under one bound, which is the latent bug the
-; refinement layer found in `dot` and `centroid`. The tables have the same
-; length by construction and nothing can see that, so the program says what
-; happens if they do not.
-; AND THE VALUE IS MASKED, not only the index, which is the honest limit rather
-; than a shortcut.
-;
-; A limb is under 2^24 by construction, but that is an INDUCTIVE INVARIANT over a
-; buffer's own contents and frozen-2026-08-28 says such a thing is strictly
-; stronger than an octagon. Inside a `build` lambda every operand table is FREE,
-; so a read of one is stratum 0 and the analysis correctly refuses to claim a
-; range — and without a mask every column sum here is unbounded and the whole
-; library is refused by bounded-by-default.
-;
-; `% 2^24` is the identity on every value this library stores, so it changes no
-; answer; it costs one division per limb read. Removing it needs the analysis to
-; carry a frozen buffer's element range through a substitution into a lambda
-; where the buffer is free, which is a real extension and is named rather than
-; assumed.
-;
-; It has to be here rather than at the call sites because a LIBRARY is applied to
-; whatever the program has: `examples/big/limbs.oro` reads a loop variable, whose
-; element range the analysis does join, and a big literal's spine reads a `build`
-; whose range does not survive being substituted in. One of those proves and the
-; other does not, and a library may not be provable only sometimes.
-; AND THE RESULT IS NON-NEGATIVE BY CONSTRUCTION, which costs one compare and
-; buys 2.39x.
-;
-; `%` takes the DIVIDEND's sign, so masking a value the analysis cannot bound
-; gives back `[-(2^24-1), 2^24-1]` -- symmetric around zero. Every column sum
-; built from it is then symmetric too, and `t / 2^24` on a possibly-negative
-; value is not a shift: truncation toward zero needs a rounding correction, and
-; Go, the JVM and x86 all emit one.
-;
-; So the read says it is non-negative, and the whole carry chain follows: the
-; column sum, the stored limb and the outgoing carry are all provably >= 0, and
-; `SelectShifts` turns every `/` and `%` in this file into a shift and a mask.
-; Measured at 2.39x on the factorial (shiftdiv-2026-09-03), which is larger than
-; the clamp, this mask and the buffer clear PUT TOGETHER -- those three are
-; inside the noise floor.
-;
-; It is a fact the program states rather than one the analysis derives, and the
-; honest version is still owed: a limb IS non-negative by the buffer's element
-; range, which is an inductive invariant over a buffer's own contents, and
-; frozen-2026-08-28 says that is strictly stronger than an octagon.
-(def at (t i)
-  (let v (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))
-    (if (< v 0) 0 (% v 16777216))))
+// ---------------------------------------------------------------- of a word
+//
+// A machine word spread over n limbs, least significant first. `lim` is taken
+// and IGNORED, so that every entry point has one shape and the splice does not
+// have to know which of them checks.
+//
+// No check is needed here, and it is a proof rather than an oversight: a range
+// reaches this rung only by being ABOVE the portable window, so the declared
+// bound is at least 54 bits, and a machine word is under 2^53. A word can
+// therefore never exceed the bound it is being widened into.
+private fn of(n, lim, v) {
+    var b := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0, r = v { i >= n -> b; else -> { b[i] := r % (2^24); again(i + 1, r / (2^24)) } }
+}
 
-; THE BOUND CHECK, and it is why this rung is sound at all. `trap-if` returns 0
-; when handed 0 and fails loudly otherwise; both branches of the conditional are
-; the buffer, so the check costs a compare and changes nothing when it passes.
-;
-; It is written as a conditional rather than a `seq` because `seq` needs an
-; impure operation to sequence, and a trap that only ever fires is pure in the
-; only sense that matters here: it returns the same thing every time it returns.
-;
-; TWO HALVES, AND THE SECOND IS WHAT MAKES THE TWO REPRESENTATIONS AGREE. The
-; carry `c` catches a value past the buffer's LAST limb; `lim` catches one past
-; the DECLARED bound, which can sit up to 23 bits lower. The host's bignum
-; enforces the bound at its bit length (`big-fit`), and a declaration that meant
-; one thing under limbs and another under `BigInt` would be ADR 0009's rule
-; broken at the representation boundary -- the compiler would be choosing the
-; answer, not just the storage.
-;
-; When the bound IS a whole number of limbs, `lim` is 2^24 and a limb is under
-; 2^24 by construction, so the check is present, free, and never fires. That is
-; the right shape for a check whose job is to make two representations agree.
-(def guard (n lim c o)
-  (if (= (trap-if (+ c (if (< (at o (- n 1)) lim) 0 1))) 0) o o))
+// ---------------------------------------------------------------- addition
+//
+// The carry rides as an ordinary loop variable, which is what makes this
+// expressible: ADR 0015 lets `again` sit under a `let`, so the column sum is
+// named once and used for both the stored limb and the outgoing carry.
+private fn add(n, lim, a, b) {
+    var o := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0, c = 0 {
+        i >= n -> { guard(n, lim, c, o); o }
+        else -> { t = at(a, i) + at(b, i) + c; o[i] := t % (2^24); again(i + 1, t / (2^24)) }
+    }
+}
 
-; ---------------------------------------------------------------- of a word
-;
-; A machine word spread over n limbs, least significant first. `lim` is taken
-; and IGNORED, so that every entry point has one shape and the splice does not
-; have to know which of them checks.
-;
-; No check is needed here, and it is a proof rather than an oversight: a range
-; reaches this rung only by being ABOVE the portable window, so the declared
-; bound is at least 54 bits, and a machine word is under 2^53. A word can
-; therefore never exceed the bound it is being widened into.
-(def of (n lim v)
-  (local b (table n 0)
-    (loop ((b b) (i 0) (r v))
-      (>= i n)  b
-      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))
+// ------------------------------------------------------- multiply by a word
+//
+// a * k for a machine-word k, which is what a factorial is made of and the case
+// bigarith measured our form winning by 3.97x. One pass, one carry.
+//
+// k is NOT assumed to fit a limb: `(at a i) * k` with k up to 2^24 stays under
+// 2^48, and the lowering only chooses this form when the multiplier is a widened
+// word whose range the analysis has bounded.
+private fn mul_small(n, lim, a, k) {
+    var o := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0, c = 0 {
+        i >= n -> { guard(n, lim, c, o); o }
+        else -> { t = at(a, i) * k + c; o[i] := t % (2^24); again(i + 1, t / (2^24)) }
+    }
+}
 
-; ---------------------------------------------------------------- addition
-;
-; The carry rides as an ordinary loop variable, which is what makes this
-; expressible: ADR 0015 lets `again` sit under a `let`, so the column sum is
-; named once and used for both the stored limb and the outgoing carry.
-(def add (n lim a b)
-  (local o (table n 0)
-    (loop ((o o) (i 0) (c 0))
-      (>= i n)  (guard n lim c o)
-      else      (let t (+ (+ (at a i) (at b i)) c)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))
+// ------------------------------------------------------------ big by big
+//
+// Schoolbook, one row at a time, with the row's carry rippling as a loop
+// variable. `row` accumulates a[i]*b[j] into out[i+j]; the outer loop walks i.
+//
+// The read-back of `o` goes through `at` like every other read, so it carries the
+// same mask -- and here the buffer being read is the one being BUILT, which is
+// stratum 0 for a second reason.
+// THE COLUMN PAST THE LAST LIMB IS AN OVERFLOW, NOT A WRAP, and the first
+// version of this got it wrong in the way a fixed width invites: it CLAMPED the
+// store index, so a partial product at `i+j >= n` was written into slot 0 and
+// the answer came back wrong in its low digits. A clamp says "do something
+// safe"; here the only safe thing is to fail, because the declared width has
+// been exceeded.
+//
+// So the row has three clauses. Past the end of the row, stop. Past the end of
+// the RESULT, check that the contribution and the carry are both zero and keep
+// going -- `guard` nests, so both are checked. Otherwise accumulate.
+//
+// The middle clause is also what discharges the store's bounds obligation in the
+// last one: its negation gives `i + j < n`, and `n` is the buffer's length.
+private fn macrow(n, lim, o linear, a, b, i) {
+    loop j = 0, c = 0 {
+        j >= n -> { guard(n, lim, c, o); () }
+        i + j >= n -> {
+            guard(n, lim, c, o)
+            guard(n, lim, at(a, i) * at(b, j), o)
+            again(j + 1, 0)
+        }
+        else -> {
+            t = at(o, i + j) + at(a, i) * at(b, j) + c
+            o[i + j] := t % (2^24)
+            again(j + 1, t / (2^24))
+        }
+    }
+}
 
-; ------------------------------------------------------- multiply by a word
-;
-; a * k for a machine-word k, which is what a factorial is made of and the case
-; bigarith measured our form winning by 3.97x. One pass, one carry.
-;
-; k is NOT assumed to fit a limb: `(at a i) * k` with k up to 2^24 stays under
-; 2^48, and the lowering only chooses this form when the multiplier is a widened
-; word whose range the analysis has bounded.
-(def mul-small (n lim a k)
-  (local o (table n 0)
-    (loop ((o o) (i 0) (c 0))
-      (>= i n)  (guard n lim c o)
-      else      (let t (+ (* (at a i) k) c)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))
+private fn mul(n, lim, a, b) {
+    var o := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0 { i >= n -> o; else -> { macrow(n, lim, o, a, b, i); again(i + 1) } }
+}
 
-; ------------------------------------------------------------ big by big
-;
-; Schoolbook, one row at a time, with the row's carry rippling as a loop
-; variable. `row` accumulates a[i]*b[j] into out[i+j]; the outer loop walks i.
-;
-; The read-back of `o` goes through `at` like every other read, so it carries the
-; same mask -- and here the buffer being read is the one being BUILT, which is
-; stratum 0 for a second reason.
-; THE COLUMN PAST THE LAST LIMB IS AN OVERFLOW, NOT A WRAP, and the first
-; version of this got it wrong in the way a fixed width invites: it CLAMPED the
-; store index, so a partial product at `i+j >= n` was written into slot 0 and
-; the answer came back wrong in its low digits. A clamp says "do something
-; safe"; here the only safe thing is to fail, because the declared width has
-; been exceeded.
-;
-; So the row has three clauses. Past the end of the row, stop. Past the end of
-; the RESULT, check that the contribution and the carry are both zero and keep
-; going -- `guard` nests, so both are checked. Otherwise accumulate.
-;
-; The middle clause is also what discharges the store's bounds obligation in the
-; last one: its negation gives `i + j < n`, and `n` is the buffer's length.
-(def macrow (n lim o a b i)
-  (loop ((o o) (j 0) (c 0))
-    (>= j n)          (guard n lim c o)
-    (>= (+ i j) n)    (again (guard n lim (* (at a i) (at b j)) (guard n lim c o)) (+ j 1) 0)
-    else              (let t (+ (+ (at o (+ i j)) (* (at a i) (at b j))) c)
-                        (again (set o (+ i j) (% t 16777216))
-                               (+ j 1) (/ t 16777216)))))
+// ---------------------------------------------------------------- subtraction
+//
+// A BORROW CHAIN, which is addition's dual and needs nothing addition did not.
+// ADR 0015 forbids `again` under an `if`, so the two outcomes are `let`-computed
+// arguments to ONE `again` rather than two clauses -- the shape json/tree.oro
+// found when five token classes became one clause.
+//
+// THE FINAL BORROW IS AN UNDERFLOW, and `guard` is already the right check for
+// it: these are non-negative magnitudes, `(int 0 N)` is what a program declares
+// to reach this rung, and `a - b` with a < b is a value outside that declaration
+// exactly as an overflow is. So it traps, and for the same reason -- the
+// alternative is a wrap, and then choosing a representation would change the
+// answer (ADR 0009 at the representation boundary).
+private fn sub(n, lim, a, b) {
+    var o := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0, bw = 0 {
+        i >= n -> { guard(n, lim, bw, o); o }
+        else -> {
+            t = at(a, i) - at(b, i) - bw
+            o[i] := if t < 0 { t + (2^24) } else { t }
+            again(i + 1, if t < 0 { 1 } else { 0 })
+        }
+    }
+}
 
-(def mul (n lim a b)
-  (local o (table n 0)
-    (loop ((o o) (i 0))
-      (>= i n)  o
-      else      (again (macrow n lim o a b i) (+ i 1)))))
+// --------------------------------------------------------- divide by a word
+//
+// a / k for a machine-word k -- the exact dual of `mul-small`, one pass, one
+// running remainder, and the operation DECIMAL RENDERING is made of: printing a
+// limb table is repeated division by a power of ten.
+//
+// IT WALKS DOWNWARD, most significant limb first, because that is the direction
+// a remainder propagates. Termination is by ORIENTATION (sct-2026-08-19): a
+// descending counter is an ascending one under mu = -v, so the size-change
+// witness is the same one an ordinary loop has.
+//
+// `cur` is `r * 2^24 + a[i]` with r < k, so it is under `k * 2^24 + 2^24` and the
+// window admits it only for k under about 2^28. Nothing here says so and nothing
+// needs to: bounded-by-default asks at the call site with the caller's own range
+// for k in hand, and refuses if it cannot prove it. A library that stated its own
+// limit would be stating a weaker one than the caller can.
+//
+// DIVISION BY ZERO IS THE CALLER'S OBLIGATION and is already discharged there:
+// `(/ x k)` carries it before the promotion runs (integers.md §13.4), and
+// `splice` normalises this body against the caller's actual argument, so the
+// same facts are in scope at the same goal.
+private fn div_small(n, lim, a, k) {
+    var o := array { 0 : _ ∈ 0..n-1 }
+    loop i = n - 1, r = 0 {
+        i < 0 -> o
+        else -> { cur = r * (2^24) + at(a, i); o[i] := cur / k; again(i - 1, cur % k) }
+    }
+}
 
-; ---------------------------------------------------------------- subtraction
-;
-; A BORROW CHAIN, which is addition's dual and needs nothing addition did not.
-; ADR 0015 forbids `again` under an `if`, so the two outcomes are `let`-computed
-; arguments to ONE `again` rather than two clauses -- the shape json/tree.oro
-; found when five token classes became one clause.
-;
-; THE FINAL BORROW IS AN UNDERFLOW, and `guard` is already the right check for
-; it: these are non-negative magnitudes, `(int 0 N)` is what a program declares
-; to reach this rung, and `a - b` with a < b is a value outside that declaration
-; exactly as an overflow is. So it traps, and for the same reason -- the
-; alternative is a wrap, and then choosing a representation would change the
-; answer (ADR 0009 at the representation boundary).
-(def sub (n lim a b)
-  (local o (table n 0)
-    (loop ((o o) (i 0) (bw 0))
-      (>= i n)  (guard n lim bw o)
-      else      (let t (- (- (at a i) (at b i)) bw)
-                  (again (set o i (if (< t 0) (+ t 16777216) t))
-                         (+ i 1)
-                         (if (< t 0) 1 0))))))
+// ---------------------------------------------------------------- comparison
+//
+// Limb-wise from the TOP down: the first difference decides, and equality is
+// reaching the bottom without finding one. Both operands have the same width by
+// construction — one program holds one — so there is no length to compare first.
+//
+// WITHOUT THIS A BIGNUM CANNOT CONTROL A LOOP, which is an expressiveness gap
+// rather than a slow path: no `while (x > 1)`, no gcd, no Newton iteration, no
+// exponentiation that tests its own exponent. On a target that stores big values
+// as limbs and has no host bignum to fall back to, all of that was unreachable.
+//
+// It returns -1, 0 or 1 rather than a bool so that one loop serves all five
+// comparisons. Three guards read each limb twice, which is two compares more per
+// limb than a difference would cost; a comparison walks limbs and stops at the
+// first that differs, so this is not the arithmetic anyone measures.
+private fn cmp(n, lim, a, b) {
+    loop i = n - 1 {
+        i < 0 -> 0
+        at(a, i) > at(b, i) -> 1
+        at(a, i) < at(b, i) -> 0 - 1
+        else -> again(i - 1)
+    }
+}
 
-; --------------------------------------------------------- divide by a word
-;
-; a / k for a machine-word k -- the exact dual of `mul-small`, one pass, one
-; running remainder, and the operation DECIMAL RENDERING is made of: printing a
-; limb table is repeated division by a power of ten.
-;
-; IT WALKS DOWNWARD, most significant limb first, because that is the direction
-; a remainder propagates. Termination is by ORIENTATION (sct-2026-08-19): a
-; descending counter is an ascending one under mu = -v, so the size-change
-; witness is the same one an ordinary loop has.
-;
-; `cur` is `r * 2^24 + a[i]` with r < k, so it is under `k * 2^24 + 2^24` and the
-; window admits it only for k under about 2^28. Nothing here says so and nothing
-; needs to: bounded-by-default asks at the call site with the caller's own range
-; for k in hand, and refuses if it cannot prove it. A library that stated its own
-; limit would be stating a weaker one than the caller can.
-;
-; DIVISION BY ZERO IS THE CALLER'S OBLIGATION and is already discharged there:
-; `(/ x k)` carries it before the promotion runs (integers.md §13.4), and
-; `splice` normalises this body against the caller's actual argument, so the
-; same facts are in scope at the same goal.
-(def div-small (n lim a k)
-  (local o (table n 0)
-    (loop ((o o) (i (- n 1)) (r 0))
-      (< i 0)  o
-      else     (let cur (+ (* r 16777216) (at a i))
-                 (again (set o i (/ cur k)) (- i 1) (% cur k))))))
+private fn lt(n, lim, a, b) { cmp(n, lim, a, b) < 0 }
+private fn le(n, lim, a, b) { cmp(n, lim, a, b) <= 0 }
+private fn gt(n, lim, a, b) { cmp(n, lim, a, b) > 0 }
+private fn ge(n, lim, a, b) { cmp(n, lim, a, b) >= 0 }
+private fn eq(n, lim, a, b) { cmp(n, lim, a, b) == 0 }
 
-; ---------------------------------------------------------------- comparison
-;
-; Limb-wise from the TOP down: the first difference decides, and equality is
-; reaching the bottom without finding one. Both operands have the same width by
-; construction — one program holds one — so there is no length to compare first.
-;
-; WITHOUT THIS A BIGNUM CANNOT CONTROL A LOOP, which is an expressiveness gap
-; rather than a slow path: no `while (x > 1)`, no gcd, no Newton iteration, no
-; exponentiation that tests its own exponent. On a target that stores big values
-; as limbs and has no host bignum to fall back to, all of that was unreachable.
-;
-; It returns -1, 0 or 1 rather than a bool so that one loop serves all five
-; comparisons. Three guards read each limb twice, which is two compares more per
-; limb than a difference would cost; a comparison walks limbs and stops at the
-; first that differs, so this is not the arithmetic anyone measures.
-(def cmp (n lim a b)
-  (loop ((i (- n 1)))
-    (< i 0)                 0
-    (> (at a i) (at b i))   1
-    (< (at a i) (at b i))   (- 0 1)
-    else                    (again (- i 1))))
-
-(def lt (n lim a b) (<  (cmp n lim a b) 0))
-(def le (n lim a b) (<= (cmp n lim a b) 0))
-(def gt (n lim a b) (>  (cmp n lim a b) 0))
-(def ge (n lim a b) (>= (cmp n lim a b) 0))
-(def eq (n lim a b) (=  (cmp n lim a b) 0))
-
-; -------------------------------------------------------- remainder by a word
-;
-; `div-small`'s other half, and the two together are divmod — which is what
-; DECIMAL RENDERING consumes: printing a limb table is repeatedly taking the
-; quotient and the remainder by a power of ten.
-;
-; ITS RESULT IS A MACHINE WORD, not a limb table, which is the one place this
-; library changes the KIND of thing an operation produces. `a % k` is under k
-; and k is a word, so the answer is a word by construction — there is no limb
-; count to give it and no `build` here.
-(def rem-small (n lim a k)
-  (loop ((i (- n 1)) (r 0))
-    (< i 0)  r
-    else     (let cur (+ (* r 16777216) (at a i))
-               (again (- i 1) (% cur k)))))
+// -------------------------------------------------------- remainder by a word
+//
+// `div-small`'s other half, and the two together are divmod — which is what
+// DECIMAL RENDERING consumes: printing a limb table is repeatedly taking the
+// quotient and the remainder by a power of ten.
+//
+// ITS RESULT IS A MACHINE WORD, not a limb table, which is the one place this
+// library changes the KIND of thing an operation produces. `a % k` is under k
+// and k is a word, so the answer is a word by construction — there is no limb
+// count to give it and no `build` here.
+private fn rem_small(n, lim, a, k) {
+    loop i = n - 1, r = 0 {
+        i < 0 -> r
+        else -> { cur = r * (2^24) + at(a, i); again(i - 1, cur % k) }
+    }
+}

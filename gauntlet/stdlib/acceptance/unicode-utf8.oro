@@ -1,95 +1,106 @@
-; ACCEPTANCE: unicode/utf8, THE WHOLE PACKAGE, declared BY HAND — every function
-; and every constant, each called with a value the program COMPUTED.
-;
-; Computed rather than literal, because a Go untyped constant converts silently:
-; a program made of literals could not fail on a mistyped parameter, and the
-; first version of these declarations had exactly that mistake
-; (gostd-utf8-2026-09-13 §1).
-;
-; The expected output is computed by hand-written Go calling the real package in
-; the same order (utf8Reference in tooling_test.go), so the host is the oracle.
-;
-; What the declarations now let this program say, which the generated ones did
-; not (host-buffers.md):
-;   - EncodeRune hands its buffer back, so the program prints the COUNT and the
-;     BYTES — before, a buffer handed to the call was consumed and the bytes lost;
-;   - AppendRune takes and returns a BUFFER, so the accumulator is threaded
-;     through the loop and cannot alias — before, it took an immutable array and
-;     two appends to one value could share its capacity.
+// ACCEPTANCE: unicode/utf8, THE WHOLE PACKAGE, declared BY HAND — every function
+// and every constant, each called with a value the program COMPUTED.
+//
+// Computed rather than literal, because a Go untyped constant converts silently:
+// a program made of literals could not fail on a mistyped parameter, and the
+// first version of these declarations had exactly that mistake
+// (gostd-utf8-2026-09-13 §1).
+//
+// The expected output is computed by hand-written Go calling the real package in
+// the same order (utf8Reference in tooling_test.go), so the host is the oracle.
+//
+// What the declarations now let this program say, which the generated ones did
+// not (host-buffers.md):
+//   - EncodeRune hands its buffer back, so the program prints the COUNT and the
+//     BYTES — before, a buffer handed to the call was consumed and the bytes lost;
+//   - AppendRune takes and returns a BUFFER, so the accumulator is threaded
+//     through the loop and cannot alias — before, it took an immutable array and
+//     two appends to one value could share its capacity.
+use go
+use go/unicode/utf8
+use go/fmt
+use os
+use go/os as gos
 
-(use go)
-(use go/unicode/utf8)
-(use go/fmt as fmt)
-(use os)
-(use go/os as gos)
+// One rune: its encoded length, whether it is a scalar value, and what EncodeRune
+// writes into a four-byte buffer — the count, then the buffer it handed back.
+fn each_rune(r) {
+    fmt.Println(utf8.RuneLen(r))
+    fmt.Println(utf8.ValidRune(r))
+    fmt.Println({ var b := array { 0 : _ ∈ 0..3 }; n = utf8.EncodeRune(b, r); fmt.Println(n); b })
+}
 
-(export main)
+// A decoded rune and its width, and then their SUM, which is the witness that a
+// range result is received into the language's integer (gostd-utf8-2026-09-13 §1)
+// — and, with the declared ranges, a sum the analysis now proves in the window.
+fn pair(r, n) {
+    fmt.Println(r)
+    fmt.Println(n)
+    fmt.Println(r + n)
+}
 
-; One rune: its encoded length, whether it is a scalar value, and what EncodeRune
-; writes into a four-byte buffer — the count, then the buffer it handed back.
-(def each-rune (r)
-  (seq (fmt.Println (utf8.RuneLen r))
-       (fmt.Println (utf8.ValidRune r))
-       (fmt.Println (local b (table 4 0)
-         ((utf8.EncodeRune b r) (fn (b2 n) (seq (fmt.Println n) b2)))))))
+fn over_bytes(acc) {
+    fmt.Println(acc)
+    fmt.Println(utf8.RuneCount(acc))
+    fmt.Println(utf8.Valid(acc))
+    fmt.Println(utf8.FullRune(acc))
+    { (r, n) = utf8.DecodeRune(acc); pair(r, n) }
+    { (r, n) = utf8.DecodeLastRune(acc); pair(r, n) }
+    loop j = 0, c = 0 {
+        j >= len(acc) -> fmt.Println(c)
+        else -> again(j + 1, if utf8.RuneStart(acc[j]) { c + 1 } else { c })
+    }
+}
 
-; A decoded rune and its width, and then their SUM, which is the witness that a
-; range result is received into the language's integer (gostd-utf8-2026-09-13 §1)
-; — and, with the declared ranges, a sum the analysis now proves in the window.
-(def pair (r n) (seq (fmt.Println r) (fmt.Println n) (fmt.Println (+ r n))))
+fn over_string(s) {
+    fmt.Println(utf8.RuneCountInString(s))
+    fmt.Println(utf8.ValidString(s))
+    fmt.Println(utf8.FullRuneInString(s))
+    { (r, n) = utf8.DecodeRuneInString(s); pair(r, n) }
+    (r, n) = utf8.DecodeLastRuneInString(s)
+    pair(r, n)
+}
 
-(def over-bytes (acc)
-  (seq (fmt.Println acc)
-       (fmt.Println (utf8.RuneCount acc))
-       (fmt.Println (utf8.Valid acc))
-       (fmt.Println (utf8.FullRune acc))
-       ((utf8.DecodeRune acc) (fn (r n) (pair r n)))
-       ((utf8.DecodeLastRune acc) (fn (r n) (pair r n)))
-       (loop ((j 0) (c 0))
-         (>= j (len acc)) (fmt.Println c)
-         else (again (+ j 1) (if (utf8.RuneStart (acc j)) (+ c 1) c)))))
+// A truncated four-byte sequence: not valid UTF-8, and no string literal can
+// denote it, because a literal denotes scalar values (string-literals.md).
+// Nor can OUR string hold it: it reaches the `...InString` functions as the
+// host's string, `go/os`'s raw text-of, because the portable one decodes
+// (ADR 0030).
+fn invalid() {
+    bad = { var b := array { 0 : _ ∈ 0..2 }; b[0] := 240; b[1] := 159; b[2] := 153; b }
+    fmt.Println(utf8.FullRune(bad))
+    fmt.Println(utf8.Valid(bad))
+    fmt.Println(utf8.RuneCount(bad))
+    { (r, n) = utf8.DecodeRune(bad); pair(r, n) }
+    fmt.Println(utf8.ValidString(go.string_of_bytes(bad)))
+    fmt.Println(utf8.FullRuneInString(go.string_of_bytes(bad)))
+    fmt.Println(utf8.RuneCountInString(go.string_of_bytes(bad)))
+}
 
-(def over-string (s)
-  (seq (fmt.Println (utf8.RuneCountInString s))
-       (fmt.Println (utf8.ValidString s))
-       (fmt.Println (utf8.FullRuneInString s))
-       ((utf8.DecodeRuneInString s) (fn (r n) (pair r n)))
-       ((utf8.DecodeLastRuneInString s) (fn (r n) (pair r n)))))
+fn constants() {
+    fmt.Println(utf8.MaxRune())
+    fmt.Println(utf8.RuneError())
+    fmt.Println(utf8.RuneSelf())
+    fmt.Println(utf8.UTFMax())
+    fmt.Println(utf8.ValidRune(utf8.MaxRune() + 1))
+    fmt.Println(utf8.RuneLen(utf8.RuneError()))
+}
 
-; A truncated four-byte sequence: not valid UTF-8, and no string literal can
-; denote it, because a literal denotes scalar values (string-literals.md).
-; Nor can OUR string hold it: it reaches the `...InString` functions as the
-; host's string, `go/os`'s raw text-of, because the portable one decodes
-; (ADR 0030).
-(def invalid ()
-  (let bad (local b (table 3 0) (set (set (set b 0 240) 1 159) 2 153))
-    (seq (fmt.Println (utf8.FullRune bad))
-         (fmt.Println (utf8.Valid bad))
-         (fmt.Println (utf8.RuneCount bad))
-         ((utf8.DecodeRune bad) (fn (r n) (pair r n)))
-         (fmt.Println (utf8.ValidString (go.string-of-bytes bad)))
-         (fmt.Println (utf8.FullRuneInString (go.string-of-bytes bad)))
-         (fmt.Println (utf8.RuneCountInString (go.string-of-bytes bad))))))
-
-(def constants ()
-  (seq (fmt.Println (utf8.MaxRune))
-       (fmt.Println (utf8.RuneError))
-       (fmt.Println (utf8.RuneSelf))
-       (fmt.Println (utf8.UTFMax))
-       (fmt.Println (utf8.ValidRune (+ (utf8.MaxRune) 1)))
-       (fmt.Println (utf8.RuneLen (utf8.RuneError)))))
-
-; The accumulator is a BUFFER from start to finish: born with one byte, extended
-; by AppendRune once per rune, and frozen on the way out of `build` into the
-; immutable text the readers see.
-(def main ()
-  (let runes (array 104 233 26085 128578 -1 55296 1114112)
-       text  (local b (table 1 0)
-               (loop ((i 0) (acc (set b 0 104)))
-                 (>= i (len runes)) acc
-                 else (seq (each-rune (runes i))
-                           (again (+ i 1) (utf8.AppendRune acc (runes i))))))
-    (seq (over-bytes text)
-           (over-string (os.text-of text))
-           (invalid)
-           (constants))))
+// The accumulator is a BUFFER from start to finish: born with one byte, extended
+// by AppendRune once per rune, and frozen on the way out of `build` into the
+// immutable text the readers see.
+export fn main() {
+    runes = array { 104, 233, 26085, 128578, -1, 55296, 1114112 }
+    text = {
+        var b := array { 0 : _ ∈ 0..0 }
+        b[0] := 104
+        loop i = 0 {
+            i >= len(runes) -> b
+            else -> { each_rune(runes[i]); utf8.AppendRune(b, runes[i]); again(i + 1) }
+        }
+    }
+    over_bytes(text)
+    over_string(os.text_of(text))
+    invalid()
+    constants()
+}

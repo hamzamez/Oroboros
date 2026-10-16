@@ -1,31 +1,29 @@
-; A MAP'S LENGTH IS |dom m| (maps.md §1).
-; inputs: 0 1 5
-; Was built -checked: the term analysis gave these elements no bound
-; (bounds-2026-09-24). The IR's interval domain bounds them, and every operation
-; is proven on every target (irstep4c-2026-09-26).
-; expect: 0 1 5
-;
-; `len` is one construct with one meaning -- the cardinality of the index set --
-; at a different index set. Every table has one, so this is not a special case.
-;
-; It was wrong on THREE of the four targets and in three different ways, which
-; is the argument for this suite in one line:
-;
-;   Go        len(m)                   correct already
-;   JavaScript `{}.length`             SILENT: undefined
-;   Java       `.length` on a Map      a compile error -- javac refused it
-;   windows    the buffer's length     SILENT: 3 words a slot, so 48 for 5
-;
-; A host with types refused what the host without them printed. Neither
-; silent answer could be caught by reading the emitted code for one target.
-;
-; On windows this needs binder tracking rather than a shape: after lowering, a
-; map IS an array buffer, so `(len m)` and `(len a)` are the same term meaning
-; different things. The identification happens while `build-map` is still
-; visible, which is the only place the type exists.
-(def run (n)
-  (let m (build-map m 8
-           (loop ((m m) (i 0))
-             (>= i n)  m
-             else       (again (insert m i 1) (+ i 1))))
-    (len m)))
+// A MAP'S LENGTH IS |dom m| (maps.md §1).
+// inputs: 0 1 5
+// Was built -checked: the term analysis gave these elements no bound
+// (bounds-2026-09-24). The IR's interval domain bounds them, and every operation
+// is proven on every target (irstep4c-2026-09-26).
+// expect: 0 1 5
+//
+// `len` is one construct with one meaning -- the cardinality of the index set --
+// at a different index set. Every table has one, so this is not a special case.
+//
+// It was wrong on THREE of the four targets and in three different ways, which
+// is the argument for this suite in one line:
+//
+//   Go        len(m)                   correct already
+//   JavaScript `{}.length`             SILENT: undefined
+//   Java       `.length` on a Map      a compile error -- javac refused it
+//   windows    the buffer's length     SILENT: 3 words a slot, so 48 for 5
+//
+// A host with types refused what the host without them printed. Neither
+// silent answer could be caught by reading the emitted code for one target.
+//
+// On windows this needs binder tracking rather than a shape: after lowering, a
+// map IS an array buffer, so `(len m)` and `(len a)` are the same term meaning
+// different things. The identification happens while `build-map` is still
+// visible, which is the only place the type exists.
+fn run(n) {
+    m = { var m := map(8); loop i = 0 { i >= n -> m; else -> { m[i] := 1; again(i + 1) } } }
+    len(m)
+}

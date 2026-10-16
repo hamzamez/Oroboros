@@ -11,7 +11,7 @@ import (
 // no error type.
 
 func TestAVariantDeclaresItsRoles(t *testing.T) {
-	p, err := loadSrc(t, `(variant (result T E) (ok T) (err E) (success ok) (relevant))`)
+	p, err := loadSrc(t, `set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok relevant`)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,9 +15,11 @@ import (
 // copy holds: the Go a programmer writes, a variable, its address, the call,
 // and the read after it.
 func TestAHostWritesACellThroughAReference(t *testing.T) {
-	const head = `(use go) (use go/fmt as fmt) (use result) (export f) (sig f ((s go.bytestring)) int)
-(def ok? (r) (case r (result.ok u) true (result.err e) false))
-`
+	const head = `use go
+use go/fmt as fmt
+use result
+fn ok?(r) { case r { result.'ok(u) -> true; result.'err(e) -> false } }
+export `
 	call := regexp.MustCompile(`fmt\.Sscan\(v0, ([^)]*)\)`)
 	for _, c := range []struct {
 		body  string
@@ -27,12 +29,22 @@ func TestAHostWritesACellThroughAReference(t *testing.T) {
 	}{
 		// (out τ): a cell for the one call, holding τ's zero; its value, then
 		// the result's components
-		{`(def f (s) ((fmt.Sscan s (out int) (out go.bytestring)) (fn (age name n e) (if (and (ok? e) (> age 0)) n 0))))`,
+		{`fn f(s ∈ go.bytestring) (Int) {
+    (age, name, n, e) = fmt.Sscan(s, out Int, out go.bytestring)
+    if ok?(e) && age > 0 { n } else { 0 }
+}`,
 			[]string{" = 0", ` = ""`, "fmt.Sscan(v0, "}, []string{"c int", "c string"}, 1},
 		// cells in scope, passed where the host stores: a cell's own write
 		// before the call is what the copy starts as, and a string cell's copy
 		// is a string, whatever cell stands beside it in the list
-		{`(def f (s) (local x 7 w "" (seq (set x 9) ((fmt.Sscan s x w) (fn (n e) (seq (ignore w) (if (ok? e) x n)))))))`,
+		{`fn f(s ∈ go.bytestring) (Int) {
+    var x := 7
+    var w := ""
+    x := 9
+    (n, e) = fmt.Sscan(s, x, w)
+    ignore(w)
+    if ok?(e) { x } else { n }
+}`,
 			[]string{" = 9", "fmt.Sscan(v0, "}, []string{"c int", "c string"}, 1},
 	} {
 		got, err := entryGo(t, head+c.body)
@@ -81,12 +93,24 @@ func TestAHostWritesACellThroughAReference(t *testing.T) {
 // through the address of a copy nobody reads again. So is a λ that does not
 // take the cells' values and then the result's components.
 func TestACellParameterTakesACell(t *testing.T) {
-	const head = `(use go) (use go/fmt as fmt) (use result) (export f) (sig f ((s go.bytestring)) int)
-`
+	const head = "use go\nuse go/fmt as fmt\nuse result\nexport "
 	for _, c := range []struct{ body, refused string }{
-		{`(def f (s) ((fmt.Sscan s 5) (fn (n e) (seq (ignore e) n))))`, "takes a cell in scope or (out τ)"},
-		{`(def f (s) (let y 5 ((fmt.Sscan s y) (fn (n e) (seq (ignore e) n)))))`, "takes a cell in scope or (out τ)"},
-		{`(def f (s) ((fmt.Sscan s (out int)) (fn (n e) (seq (ignore e) n))))`, "gives 1 cell value(s) and then its declared result's 2"},
+		{`fn f(s ∈ go.bytestring) (Int) {
+    (n, e) = fmt.Sscan(s, 5)
+    ignore(e)
+    n
+}`, "takes a cell in scope or (out τ)"},
+		{`fn f(s ∈ go.bytestring) (Int) {
+    y = 5
+    (n, e) = fmt.Sscan(s, y)
+    ignore(e)
+    n
+}`, "takes a cell in scope or (out τ)"},
+		{`fn f(s ∈ go.bytestring) (Int) {
+    (n, e) = fmt.Sscan(s, out Int)
+    ignore(e)
+    n
+}`, "gives 1 cell value(s) and then its declared result's 2"},
 	} {
 		_, err := entryGoLoad(t, head+c.body)
 		if err == nil {
@@ -101,13 +125,19 @@ func TestACellParameterTakesACell(t *testing.T) {
 // WHAT THE HOST WROTE IS UNKNOWN: the value read back has its type's whole
 // range, so arithmetic on a scanned integer is refused until a guard bounds it.
 func TestWhatTheHostWroteIsUnbounded(t *testing.T) {
-	src := `(use go) (use go/fmt as fmt) (use result) (export f) (sig f ((s go.bytestring)) int)
-(def f (s) ((fmt.Sscan s (out int)) (fn (v n e) (seq (ignore e) (+ v 1)))))`
+	src := `use go
+use go/fmt
+use result
+export fn f(s ∈ go.bytestring) (Int) {
+    (v, n, e) = fmt.Sscan(s, out Int)
+    ignore(e)
+    v + 1
+}`
 	if err := entryLegal(t, src); err == nil || !strings.Contains(err.Error(), "cannot be proven") {
 		t.Errorf("(+ v 1) on a scanned v was accepted: %v", err)
 	}
 	// the control: a guard bounds it
-	guarded := strings.Replace(src, "(+ v 1)", "(if (and (>= v 0) (<= v 100)) (+ v 1) 0)", 1)
+	guarded := strings.Replace(src, "    v + 1", "    if v >= 0 && v <= 100 { v + 1 } else { 0 }", 1)
 	if err := entryLegal(t, guarded); err != nil {
 		t.Errorf("a guarded (+ v 1) was refused: %v", err)
 	}
@@ -149,15 +179,23 @@ func entryLegal(t *testing.T, src string) error {
 // A variadic call with a cell among its arguments, inside a scope, is still
 // read as the list.
 func TestACellTheHostWritesIsCarriedByALoop(t *testing.T) {
-	src := `(use go) (use go/fmt as fmt) (use result) (export f)
-(sig f ((xs (array go.bytestring))) (int 0 100))
-(def f (xs)
-  (local last 0 word ""
-    (loop ((i 0))
-      (>= i (len xs)) (seq (fmt.Println word last) (if (and (>= last 0) (<= last 100)) last 0))
-      (>= i 100)      0
-      else (let (tuple w n e) (fmt.Sscan (xs i) (out go.bytestring) last)
-             (seq (ignore e) (set word w) (again (+ i 1)))))))`
+	src := `use go
+use go/fmt
+use result
+export fn f(xs ∈ Array(go.bytestring)) (0..100) {
+    var last := 0
+    var word := ""
+    loop i = 0 {
+        i >= len(xs) -> { fmt.Println(word, last); if last >= 0 && last <= 100 { last } else { 0 } }
+        i >= 100 -> 0
+        else -> {
+            (w, n, e) = fmt.Sscan(xs[i], out go.bytestring, last)
+            ignore(e)
+            word := w
+            again(i + 1)
+        }
+    }
+}`
 	got, err := entryGo(t, src)
 	if err != nil {
 		t.Fatal(err)
@@ -171,8 +209,12 @@ func TestACellTheHostWritesIsCarriedByALoop(t *testing.T) {
 // passed to Sscan was read as its value, and Go's write went into a copy.
 func TestAProgramLoadedWithoutCellFormsIsRefused(t *testing.T) {
 	tg := goNative(t)
-	forms, err := core.Read(`(use go) (use go/fmt as fmt) (export f) (sig f ((s go.bytestring)) int)
-(def f (s) ((fmt.Sscan s 1) (fn (n e) n)))`)
+	forms, err := core.Read(`use go
+use go/fmt
+export fn f(s ∈ go.bytestring) (Int) {
+    (n, e) = fmt.Sscan(s, 1)
+    n
+}`)
 	if err != nil {
 		t.Fatal(err)
 	}

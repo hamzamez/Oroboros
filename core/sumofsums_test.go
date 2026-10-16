@@ -37,15 +37,10 @@ func reduceWith(t *testing.T, src, export string, prims ...string) string {
 	return nf.String()
 }
 
-const sumOfSums = `
-	(use go)
-	(variant (result T E) (ok T) (err E))
-	(variant kind small big)
-	(def g (fn (n) (if (go.> 5 n) (ok n) (err (if (go.> 10 n) small big)))))`
+const sumOfSums = "use go\nset Result(T, E) = 'ok(T) ∪ 'err(E)\nset Kind = 'small ∪ 'big\nfn g(n) { if go.`>`(5, n) { 'ok(n) } else { 'err(if go.`>`(10, n) { 'small } else { 'big }) } }"
 
 func TestASumOfSumsReducesWithPureArms(t *testing.T) {
-	got := reduceWith(t, sumOfSums+`
-		(def f (fn (n) (case (g n) (ok v) v (err k) (case k small 1000 big 2000))))`,
+	got := reduceWith(t, sumOfSums+`fn f(n) { case g(n) { ok(v) -> v; err(k) -> case k { small -> 1000; big -> 2000 } } }`,
 		"f", "go.>", "if", "=")
 	want := "(fn (n) (if (go.> 5 n) n (if (go.> 10 n) 1000 2000)))"
 	if got != want {
@@ -54,8 +49,12 @@ func TestASumOfSumsReducesWithPureArms(t *testing.T) {
 }
 
 func TestASumOfSumsReducesWithArmsThatHaveEffects(t *testing.T) {
-	got := reduceWith(t, sumOfSums+`
-		(def f (fn (n) (case (g n) (ok v) (go.print v) (err k) (case k small (go.print 1) big (go.print 2)))))`,
+	got := reduceWith(t, sumOfSums+`fn f(n) {
+    case g(n) {
+        ok(v) -> go.print(v)
+        err(k) -> case k { small -> go.print(1); big -> go.print(2) }
+    }
+}`,
 		"f", "go.>", "if", "=", "!go.print")
 	want := "(fn (n) (if (go.> 5 n) (go.print n) (if (go.> 10 n) (go.print 1) (go.print 2))))"
 	if got != want {
@@ -74,12 +73,7 @@ func TestASumOfSumsReducesWithArmsThatHaveEffects(t *testing.T) {
 // them. The call still runs once, at the point the program wrote it, as the
 // condition that chooses `small` or `big`.
 func TestTheRecountDoesNotMoveAnImpureValue(t *testing.T) {
-	got := reduceWith(t, `
-		(use go)
-		(variant (result T E) (ok T) (err E))
-		(variant kind small big)
-		(def g (fn (n) (if (go.> 5 n) (ok n) (err (if (go.> (go.roll) n) small big)))))
-		(def f (fn (n) (case (g n) (ok v) v (err k) (case k small 1000 big 2000))))`,
+	got := reduceWith(t, "use go\nset Result(T, E) = 'ok(T) ∪ 'err(E)\nset Kind = 'small ∪ 'big\nfn g(n) {\n    if go.`>`(5, n) { 'ok(n) } else { 'err(if go.`>`(go.roll(), n) { 'small } else { 'big }) }\n}\nfn f(n) { case g(n) { 'ok(v) -> v; 'err(k) -> case k { 'small -> 1000; 'big -> 2000 } } }",
 		"f", "go.>", "if", "=", "!go.roll")
 	if want := "(fn (n) (if (go.> 5 n) n (if (go.> (go.roll) n) 1000 2000)))"; got != want {
 		t.Errorf("the impure call must run where the program wrote it, and the sum must go:\n got  %s\n want %s", got, want)

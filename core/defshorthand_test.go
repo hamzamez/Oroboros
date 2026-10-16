@@ -17,10 +17,10 @@ import (
 // cannot tell them apart by construction.
 func TestTheShorthandIsTheLambdaItMeans(t *testing.T) {
 	pairs := []struct{ short, long string }{
-		{`(def sq (n) (* n n))`, `(def sq (fn (n) (* n n)))`},
-		{`(def add (a b) (+ a b))`, `(def add (fn (a b) (+ a b)))`},
-		{`(def main () (print 1))`, `(def main (fn () (print 1)))`},
-		{`(def k (a b c) a)`, `(def k (fn (a b c) a))`},
+		{`fn sq(n) { n * n }`, `fn sq(n) { n * n }`},
+		{`fn add(a, b) { a + b }`, `fn add(a, b) { a + b }`},
+		{`fn main() { print(1) }`, `fn main() { print(1) }`},
+		{`fn k(a, b, c) { a }`, `fn k(a, b, c) { a }`},
 	}
 	for _, p := range pairs {
 		s, err := Read(p.short)
@@ -44,12 +44,12 @@ func TestTheShorthandIsTheLambdaItMeans(t *testing.T) {
 // three elements still means what it meant, whatever its body looks like.
 func TestTheShorthandTakesNothingFromTheOldForm(t *testing.T) {
 	for _, src := range []string{
-		`(def cap 65536)`,             // a value
-		`(def greeting "hi")`,         // a value
-		`(def t (array 1 2 3))`,       // an application that is a table literal
-		`(def x (g))`,                 // an application of one name
-		`(def f (fn (x) x))`,          // the long spelling
-		`(def c (fn (a) (fn (b) a)))`, // curried, which the shorthand does not cover
+		`cap = 2^16`,              // a value
+		`greeting = "hi"`,         // a value
+		`t = array { 1, 2, 3 }`,   // an application that is a table literal
+		`x = g()`,                 // an application of one name
+		`fn f(x) { x }`,           // the long spelling
+		`fn c(a) { fn(b) { a } }`, // curried, which the shorthand does not cover
 	} {
 		forms, err := Read(src)
 		if err != nil {
@@ -135,7 +135,7 @@ func TestAnEmptyListIsStillNotATerm(t *testing.T) {
 		!strings.Contains(err.Error(), "empty list is not a term") {
 		t.Errorf("() must stay illegal as a term, got %v", err)
 	}
-	if _, err := Read(`(def main () 1)`); err != nil {
+	if _, err := Read(`fn main() { 1 }`); err != nil {
 		t.Errorf("() must be a parameter list after def: %v", err)
 	}
 }

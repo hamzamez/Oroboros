@@ -42,6 +42,7 @@ func allProgSigs(p *core.Program) []*core.Sig {
 	return out
 }
 
+// reduce normalizes the definition t of a program in J on target.
 func reduce(t *testing.T, src, target string) *core.Term {
 	t.Helper()
 	forms, err := core.Read(src)
@@ -52,7 +53,7 @@ func reduce(t *testing.T, src, target string) *core.Term {
 	if err != nil {
 		t.Fatalf("target: %v", err)
 	}
-	prog, terms, err := tg.LoadProgram(forms)
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -60,7 +61,11 @@ func reduce(t *testing.T, src, target string) *core.Term {
 	if err != nil {
 		t.Fatalf("env: %v", err)
 	}
-	out, err := core.Normalize(terms[0], env, core.DefaultFuel)
+	t0, ok := prog.Defs["t"]
+	if !ok {
+		t.Fatalf("the program defines no t")
+	}
+	out, err := core.Normalize(t0, env, core.DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -123,17 +128,7 @@ func takes(l *core.Term) map[string]*core.Term {
 // `((m k) (fn (#t #p) …))` is the shape the backend has to know. Handing the
 // emitter a beta-redex would test a term nothing emits, and the residual cannot
 // simply be pasted in because the reader does not round-trip a desugared loop.
-const mapSrc = `
-	(use go)
-	(export run)
-	(def run (fn (n k)
-	  (let m (build-map 8 (fn (m)
-  	         (loop ((m m) (i 0))
-  	           (go.>= i n)  m
-  	           else         (again (insert m i (go.* i 10)) (go.+ i 1)))))
-     (case (m k) (some v) v none -1))))
-	(sig run ((n int) (k int)) int)
-`
+const mapSrc = "use go\nexport fn run(n ∈ Int, k ∈ Int) (Int) {\n    m = build_map(8,\n        fn(m) {\n            loop m = m, i = 0 {\n                go.`>=`(i, n) -> m\n                else -> again(insert(m, i, go.`*`(i, 10)), go.`+`(i, 1))\n            }\n        })\n    case m[k] { 'some(v) -> v; 'none -> -1 }\n}\n"
 
 func mustRead(t *testing.T, src string) *core.Term {
 	t.Helper()
@@ -247,4 +242,19 @@ func decideOn(t *testing.T, tg *emit.Target, sig *core.Sig, nf *core.Term) decis
 	}
 	leg := ir.Decide(tg, f, false)
 	return decision{Ops: leg.Ops, Proven: leg.Proven, Loops: leg.Loops, Terminates: leg.Halts, Unproven: leg.Unproven}
+}
+
+// entryTerm is the term a test reduces: the program's definition t, or, while
+// a snippet is still today's notation, its bare top-level term (jswitch, step
+// 5b: J has no bare term at the top level).
+func entryTerm(t *testing.T, prog *core.Program, terms []*core.Term) *core.Term {
+	t.Helper()
+	if len(terms) > 0 {
+		return terms[0]
+	}
+	if d, ok := prog.Defs["t"]; ok {
+		return d
+	}
+	t.Fatal("the program defines no t")
+	return nil
 }

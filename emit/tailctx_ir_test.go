@@ -12,9 +12,7 @@ import (
 // the record field that receive it must say so: `byte` there was a type error on
 // both hosts, which the return from inside a host continuation first reached.
 func TestASeveralResultsReturnUsesTheValueType(t *testing.T) {
-	const src = `(export f)
-(sig f ((a (int -1000 1000))) (tuple (int 0 1) int))
-(def f (a) (tuple (if (> a 0) 1 0) a))`
+	const src = `export fn f(a ∈ -1000..1000) (0..1 × Int) { (if a > 0 { 1 } else { 0 }, a) }`
 	tg, nf, sig := normGo(t, src)
 	goSrc, err := golang.FromResidual(tg, "f", sig, nf)
 	if err != nil {

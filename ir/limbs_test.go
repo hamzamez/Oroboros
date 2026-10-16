@@ -33,52 +33,34 @@ func TestTheLimbRungKeepsEveryAnswer(t *testing.T) {
 	r := rand.New(rand.NewSource(41))
 	k := func(lo, n int) int { return lo + r.Intn(n) }
 	big := func() string { return fmt.Sprintf("%d%018d%06d", k(1, 9), r.Int63n(1e18), r.Intn(1e6)) }
-	const set = "(int 0 (pow 2 400))"
+	const set = "0..2^400"
 	shapes := []func() string{
 		func() string { // factorial: mul-small
-			return fmt.Sprintf(`(sig run ((n (int 0 12))) %s)
-(def run (n) (loop ((acc %d) (i 1)) (> i (* n 4)) acc else (again (* acc (+ i %d)) (+ i 1))))`, set, k(1, 9), k(0, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (%s) {\n    loop acc = %d, i = 1 { i > n * 4 -> acc; else -> again(acc * (i + %d), i + 1) }\n}", set, k(1, 9), k(0, 9))
 		},
 		func() string { // Fibonacci: add
-			return fmt.Sprintf(`(sig run ((n (int 0 12))) %s)
-(def run (n) (loop ((a %d) (b %d) (i 0)) (>= i (* n 9)) a else (again b (+ a b) (+ i 1))))`, set, k(0, 3), k(1, 3))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (%s) {\n    loop a = %d, b = %d, i = 0 { i >= n * 9 -> a; else -> again(b, a + b, i + 1) }\n}", set, k(0, 3), k(1, 3))
 		},
 		func() string { // the pair: mul of two bignums
-			return fmt.Sprintf(`(sig run ((n (int 0 12))) %s)
-(def run (n) (loop ((a %d) (b %d) (i 0)) (>= i (/ n 2)) b else (again (* a b) (+ b a) (+ i 1))))`, set, k(2, 4), k(1, 4))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (%s) {\n    loop a = %d, b = %d, i = 0 { i >= n / 2 -> b; else -> again(a * b, b + a, i + 1) }\n}", set, k(2, 4), k(1, 4))
 		},
 		func() string { // a product by a word past 2²⁸: mul, with the word widened into limbs
-			return fmt.Sprintf(`(sig run ((n (int 0 12))) %s)
-(def run (n) (loop ((acc %d) (i 0)) (>= i n) acc else (again (* acc %d) (+ i 1))))`, set, k(1, 9), 1<<29+k(0, 1000))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (%s) {\n    loop acc = %d, i = 0 { i >= n -> acc; else -> again(acc * %d, i + 1) }\n}", set, k(1, 9), 1<<29+k(0, 1000))
 		},
 		func() string { // subtraction keeping a magnitude, and a comparison
-			return fmt.Sprintf(`(sig run ((n (int 0 12))) %s)
-(def run (n)
-  (loop ((a (* (+ n 3) %s)) (i 0))
-    (>= i 5) a
-    (> a %s) (again (- a (* n %d)) (+ i 1))
-    else (again (+ a %d) (+ i 1))))`, set, big(), big(), k(1, 1000), k(1, 1000))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (%s) {\n    loop a = (n + 3) * %s, i = 0 {\n        i >= 5 -> a\n        a > %s -> again(a - n * %d, i + 1)\n        else -> again(a + %d, i + 1)\n    }\n}", set, big(), big(), k(1, 1000), k(1, 1000))
 		},
 		func() string { // digits: div-small and rem-small, a word result
-			return fmt.Sprintf(`(sig big ((n (int 0 12))) %s)
-(def big (n) (loop ((acc %d) (i 1)) (> i (* n 3)) acc else (again (* acc (+ i 7)) (+ i 1))))
-(sig run ((n (int 0 12))) int)
-(def run (n)
-  (loop ((v (big n)) (s 0) (i 0))
-    (or (= v 0) (>= i 120)) s
-    else (again (/ v %d) (+ s (%% v %d)) (+ i 1))))`, set, k(1, 9), k(2, 1000), k(2, 1000))
+			return fmt.Sprintf("fn big(n ∈ 0..12) (%s) {\n    loop acc = %d, i = 1 { i > n * 3 -> acc; else -> again(acc * (i + 7), i + 1) }\n}\nexport fn run(n ∈ 0..12) (Int) {\n    loop v = big(n), s = 0, i = 0 {\n        v == 0 || i >= 120 -> s\n        else -> again(v / %d, s + `%%`(v, %d), i + 1)\n    }\n}", set, k(1, 9), k(2, 1000), k(2, 1000))
 		},
 		func() string { // comparisons of two bignums, and a widened word kept as limbs
-			return fmt.Sprintf(`(sig run ((n (int 0 12))) %s)
-(def run (n)
-  (let a (* (+ n 1) %s) b (* (- 13 n) %s)
-    (if (< a b) (+ b n) (if (= a b) a (- a n)))))`, set, big(), big())
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (%s) {\n    a = (n + 1) * %s\n    b = (13 - n) * %s\n    if a < b { b + n } else if a == b { a } else { a - n }\n}", set, big(), big())
 		},
 	}
 	tried, lowered := 0, 0
 	for _, target := range []string{"go", "windows"} {
 		for c := 0; c < 42; c++ {
-			src := "(export run)\n" + shapes[c%len(shapes)]() + "\n"
+			src := shapes[c%len(shapes)]() + "\n"
 			path := filepath.Join(dir, fmt.Sprintf("%s%d.oro", target, c))
 			if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 				t.Fatal(err)
@@ -128,9 +110,10 @@ func TestTheLimbRungKeepsEveryAnswer(t *testing.T) {
 // the host's bignum (TestTheDeclaredBoundTrapsOnTheHostsBignum).
 func TestTheDeclaredBoundTrapsOnLimbs(t *testing.T) {
 	dir := t.TempDir()
-	src := `(export run)
-(sig run ((n (int 0 12))) (int 0 (pow 2 70)))
-(def run (n) (let a (* (+ n 1) 2000000000000000000000) (+ a a)))
+	src := `export fn run(n ∈ 0..12) (0..2^70) {
+    a = (n + 1) * 2000000000000000000000
+    a + a
+}
 `
 	path := filepath.Join(dir, "fit.oro")
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
@@ -153,9 +136,7 @@ func TestTheDeclaredBoundTrapsOnLimbs(t *testing.T) {
 // name, not split into limbs it has none of.
 func TestANegativeWideningIsRefusedOnLimbs(t *testing.T) {
 	dir := t.TempDir()
-	src := `(export run)
-(sig run ((n (int 0 12))) (int 0 (pow 2 300)))
-(def run (n) (+ 5000000000000000000000000 (- n 6)))
+	src := `export fn run(n ∈ 0..12) (0..2^300) { 5000000000000000000000000 + (n - 6) }
 `
 	path := filepath.Join(dir, "neg.oro")
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {

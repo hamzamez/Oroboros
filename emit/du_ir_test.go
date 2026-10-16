@@ -15,18 +15,19 @@ import (
 // strings before the loop's region was visited, and the loop's ints clashed in
 // the verifier (W5); typed in program order they are ints, boxed at the list.
 func TestALoopsResultsAreTypedBeforeTheirUses(t *testing.T) {
-	compiles(t, `(use go/os as os)
-(use go/fmt as fmt)
-(export main)
-(def walk (root)
-  (local stk (table 4 (fn (k) root))
-    (loop ((stk stk) (k 0) (a 0) (b 0))
-      (< 3 k) (tuple a b)
-      else (again (set stk k root) (+ k 1) (+ a 1) (+ b 2)))))
-(def main ()
-  (let av (os.Args)
-    (if (< (len av) 1) (tuple)
-      (let (tuple a b) (walk (av 0)) (fmt.Println a "and" b)))))
+	compiles(t, `use go/os
+use go/fmt
+fn walk(root) {
+    var stk := array { root : k ∈ 0..3 }
+    loop k = 0, a = 0, b = 0 {
+        3 < k -> (a, b)
+        else -> { stk[k] := root; again(k + 1, a + 1, b + 2) }
+    }
+}
+export fn main() {
+    av = os.Args()
+    if len(av) < 1 { () } else { (a, b) = walk(av[0]); fmt.Println(a, "and", b) }
+}
 `)
 }
 

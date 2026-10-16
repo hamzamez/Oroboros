@@ -131,7 +131,7 @@ func TestFoldingOnAFullWordIsChecked(t *testing.T) {
 		}
 		env := testEnv(prog, ps...)
 		env.Word = testGo
-		out, err := Normalize(terms[0], env, DefaultFuel)
+		out, err := Normalize(entryTerm(t, prog, terms), env, DefaultFuel)
 		if err != nil {
 			t.Fatal(err)
 		}

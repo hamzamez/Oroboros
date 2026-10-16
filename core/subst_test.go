@@ -46,13 +46,13 @@ func TestEtaForProductsNeedsEveryTailATupleOfOneArity(t *testing.T) {
 		src  string
 		want int
 	}{
-		{`(def v (tuple 1 2))`, 2},
-		{`(def v (if c (tuple 1 2) (tuple 3 4)))`, 2},
-		{`(def v (loop ((i 0)) c (tuple i 0) else (again (go.f i))))`, 2},
-		{`(def v (if c (tuple 1 2) (tuple 1 2 3)))`, 0},                 // two arities
-		{`(def v (if c (tuple 1 2) 7))`, 0},                             // a tail that is no tuple
-		{`(def v (go.f (tuple 1 2)))`, 0},                               // a shape it does not know
-		{`(def v (loop ((i 0)) c (again (go.f i)) else (again i)))`, 0}, // a loop with no exit
+		{`v = (1, 2)`, 2},
+		{`v = if c { (1, 2) } else { (3, 4) }`, 2},
+		{`v = loop i = 0 { c -> (i, 0); else -> again(go.f(i)) }`, 2},
+		{`v = if c { (1, 2) } else { (1, 2, 3) }`, 0},                   // two arities
+		{`v = if c { (1, 2) } else { 7 }`, 0},                           // a tail that is no tuple
+		{`v = go.f((1, 2))`, 0},                                         // a shape it does not know
+		{`v = loop i = 0 { c -> again(go.f(i)); else -> again(i) }`, 0}, // a loop with no exit
 	} {
 		n, ok := e.tupleTails(read(c.src), false)
 		if !ok {

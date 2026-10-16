@@ -25,7 +25,7 @@ func winEmit(t *testing.T, src string) string {
 	if err != nil {
 		t.Fatalf("env: %v", err)
 	}
-	nf, err := core.Normalize(terms[0], env, core.DefaultFuel)
+	nf, err := core.Normalize(entryTerm(t, prog, terms), env, core.DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}

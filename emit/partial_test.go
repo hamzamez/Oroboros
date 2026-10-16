@@ -35,30 +35,33 @@ func reduceGo(t *testing.T, src string) error {
 // strings.Builder's writes, whose error is always nil, and bufio.Writer's,
 // whose errors are sticky and reported by Flush.
 func TestAPartialSuccesssErrorIsRelevant(t *testing.T) {
-	const head = `(use go) (use result) (use go/os/File as File) (use go/strings/Builder as sb)
-(use go/bufio/Writer as bw) (use go/strconv as sc) (export f)
-`
+	const head = `use go
+use result
+use go/os/File as File
+use go/strings/Builder as sb
+use go/bufio/Writer as bw
+use go/strconv as sc
+export `
 	for _, c := range []struct {
 		body string
 		ok   bool
 	}{
 		// a File write's error, dropped, read, and ignored
-		{`(sig f ((h go/os.File) (b (array (int 0 255)))) int)
-(def f (h b) ((File.Write h b) (fn (n e) n)))`, false},
-		{`(sig f ((h go/os.File) (b (array (int 0 255)))) int)
-(def f (h b) ((File.Write h b) (fn (n e) (case e (result.ok u) n (result.err x) 0))))`, true},
-		{`(sig f ((h go/os.File) (b (array (int 0 255)))) int)
-(def f (h b) (seq (ignore (File.Write h b)) 0))`, true},
+		{"fn f(h ∈ `go/os`.File, b ∈ Array(0..255)) (Int) {\n    (n, e) = File.Write(h, b)\n    n\n}", false},
+		{"fn f(h ∈ `go/os`.File, b ∈ Array(0..255)) (Int) {\n    (n, e) = File.Write(h, b)\n    case e { result.'ok(u) -> n; result.'err(x) -> 0 }\n}", true},
+		{"fn f(h ∈ `go/os`.File, b ∈ Array(0..255)) (Int) {\n    ignore(File.Write(h, b))\n    0\n}", true},
 		// a parse: pure, and the error comes in the tuple pattern
-		{`(sig f ((s go.bytestring)) int)
-(def f (s) (let (tuple v e) (sc.Atoi s) v))`, false},
-		{`(sig f ((s go.bytestring)) int)
-(def f (s) (let (tuple v e) (sc.Atoi s) (case e (result.ok u) v (result.err x) 0)))`, true},
+		{`fn f(s ∈ go.bytestring) (Int) {
+    (v, e) = sc.Atoi(s)
+    v
+}`, false},
+		{`fn f(s ∈ go.bytestring) (Int) {
+    (v, e) = sc.Atoi(s)
+    case e { result.'ok(u) -> v; result.'err(x) -> 0 }
+}`, true},
 		// the ignorable ones
-		{`(sig f ((w go/strings.Builder) (b (array (int 0 255)))) int)
-(def f (w b) ((sb.Write w b) (fn (n e) n)))`, true},
-		{`(sig f ((w go/bufio.Writer) (b (array (int 0 255)))) int)
-(def f (w b) ((bw.Write w b) (fn (n e) n)))`, true},
+		{"fn f(w ∈ `go/strings`.Builder, b ∈ Array(0..255)) (Int) {\n    (n, e) = sb.Write(w, b)\n    n\n}", true},
+		{"fn f(w ∈ `go/bufio`.Writer, b ∈ Array(0..255)) (Int) {\n    (n, e) = bw.Write(w, b)\n    n\n}", true},
 	} {
 		err := reduceGo(t, head+c.body)
 		switch {

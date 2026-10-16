@@ -52,13 +52,7 @@ func genOn(t *testing.T, target, src, name string) (string, error) {
 // gone before any backend sees it — which is why it measured 1.01x with zero
 // allocations (product-2026-08-19) and why `values` is not a tuple.
 func TestValuesVanishesWhenConsumed(t *testing.T) {
-	code, err := genOn(t, "go", `
-		(use go)
-		(export f)
-		(sig f ((a int) (b int)) int (where (go.!= b 0)))
-		(def divmod (fn (a b) (tuple (go./ a b) (go.% a b))))
-		(def f (fn (a b) ((divmod a b) (fn (q r) (go.+ q r)))))
-	`, "f")
+	code, err := genOn(t, "go", "use go\nfn divmod(a, b) { (go.`/`(a, b), go.`%`(a, b)) }\nexport fn f(a ∈ Int, b ∈ Int) (Int) where go.`!=`(b, 0) {\n    (q, r) = divmod(a, b)\n    go.`+`(q, r)\n}", "f")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,21 +72,14 @@ func TestValuesVanishesWhenConsumed(t *testing.T) {
 // on every target and the compiler finds the implementation.
 func TestEveryTargetHasMultipleResults(t *testing.T) {
 	cases := []struct{ target, src, want string }{
-		{"go", `(use go)
-			(export d) (sig d ((a int) (b int)) (tuple int int) (where (go.!= b 0)))
-			(def d (fn (a b) (tuple (go./ a b) (go.% a b))))`,
+		{"go", "use go\nexport fn d(a ∈ Int, b ∈ Int) (Int × Int) where go.`!=`(b, 0) { (go.`/`(a, b), go.`%`(a, b)) }",
 			`\(v\d+ int, v\d+ int\) \(int, int\)`},
-		{"js", `(use js)
-			(export d) (sig d ((a any) (b any)) (tuple any any))
-			(def d (fn (a b) (tuple (js.+ a b) (js.- a b))))`,
+		{"js", "use js\nexport fn d(a ∈ Any, b ∈ Any) (Any × Any) { (js.`+`(a, b), js.`-`(a, b)) }",
 			`return \{f0: \(v\d+ \+ v\d+\), f1: \(v\d+ - v\d+\)\};`},
-		{"java", `(use java)
-			(export d) (sig d ((a int) (b int)) (tuple int int) (where (java.!= b 0)))
-			(def d (fn (a b) (tuple (java./ a b) (java.% a b))))`,
+		{"java", "use java\nexport fn d(a ∈ Int, b ∈ Int) (Int × Int) where java.`!=`(b, 0) { (java.`/`(a, b), java.`%`(a, b)) }",
 			`return new Tup_long_long\(`},
-		{"windows", `(use x64)
-			(export d) (sig d ((a int) (b int)) (tuple int int))
-			(def d (fn (a b) (tuple (x64.idiv a b) (x64.irem a b))))`,
+		{"windows", `use x64
+export fn d(a ∈ Int, b ∈ Int) (Int × Int) { (x64.idiv(a, b), x64.irem(a, b)) }`,
 			`mov rdx,`},
 	}
 	for _, c := range cases {
@@ -117,11 +104,8 @@ func TestEveryTargetHasMultipleResults(t *testing.T) {
 //
 // So no write to a convention register may appear before the last computation.
 func TestAsmPlacesResultsAfterComputing(t *testing.T) {
-	code, err := genOn(t, "windows", `
-		(use x64)
-		(export d) (sig d ((a int) (b int)) (tuple int int))
-		(def d (fn (a b) (tuple (x64.idiv a b) (x64.irem a b))))
-	`, "d")
+	code, err := genOn(t, "windows", `use x64
+export fn d(a ∈ Int, b ∈ Int) (Int × Int) { (x64.idiv(a, b), x64.irem(a, b)) }`, "d")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,11 +143,8 @@ func TestJavaSharesRecordsByShape(t *testing.T) {
 
 // The arity is checked against the signature, not guessed from the term.
 func TestResultArityMustMatch(t *testing.T) {
-	_, err := genOn(t, "go", `
-		(use go)
-		(export three) (sig three ((a int)) (tuple int int int))
-		(def three (fn (a) (tuple a a)))
-	`, "three")
+	_, err := genOn(t, "go", `use go
+export fn three(a ∈ Int) (Int × Int × Int) { (a, a) }`, "three")
 	if err == nil || !strings.Contains(err.Error(), "does not produce them") {
 		t.Errorf("declaring 3 results and producing 2 must be refused, got %v", err)
 	}
@@ -173,11 +154,8 @@ func TestResultArityMustMatch(t *testing.T) {
 // product and read the other way is a genuine higher-order function; without a
 // multi-result signature it stays an escaping closure and stays refused.
 func TestWithoutAMultiResultSigItIsStillAClosure(t *testing.T) {
-	_, err := genOn(t, "go", `
-		(use go)
-		(export pair) (sig pair ((a int) (b int)) any)
-		(def pair (fn (a b) (tuple a b)))
-	`, "pair")
+	_, err := genOn(t, "go", `use go
+export fn pair(a ∈ Int, b ∈ Int) (Any) { (a, b) }`, "pair")
 	// The IR lowers a product natively, so this is an arity mismatch with the
 	// one result the signature declares, which is the boundary.
 	if err == nil || !strings.Contains(err.Error(), "does not produce them") {
@@ -193,17 +171,11 @@ func TestWithoutAMultiResultSigItIsStillAClosure(t *testing.T) {
 // scrutinee that is a bare name becomes the loop variable under that name.
 func TestLoopMayShadowAParameter(t *testing.T) {
 	cases := []struct{ target, src, want string }{
-		{"js", `(use js)
-			(export f) (sig f ((n any)) any)
-			(def f (fn (n) (loop ((n n)) (js.=== n 0) 7 else (again (js.- n 1)))))`,
+		{"js", "use js\nexport fn f(n ∈ Any) (Any) { loop n = n { js.`===`(n, 0) -> 7; else -> again(js.`-`(n, 1)) } }",
 			`let (v\d+) = (v\d+);`},
-		{"go", `(use go)
-			(export f) (sig f ((n int)) int)
-			(def f (fn (n) (loop ((n n)) (= n 0) 7 else (again (go.- n 1)))))`,
+		{"go", "use go\nexport fn f(n ∈ Int) (Int) { loop n = n { n == 0 -> 7; else -> again(go.`-`(n, 1)) } }",
 			`var (v\d+) int = (v\d+)`},
-		{"java", `(use java)
-			(export f) (sig f ((n int)) int)
-			(def f (fn (n) (loop ((n n)) (= n 0) 7 else (again (java.- n 1)))))`,
+		{"java", "use java\nexport fn f(n ∈ Int) (Int) { loop n = n { n == 0 -> 7; else -> again(java.`-`(n, 1)) } }",
 			`long (v\d+) = (v\d+);`},
 	}
 	for _, c := range cases {
@@ -231,18 +203,13 @@ func TestLoopMayShadowAParameter(t *testing.T) {
 // of them — the point of desugaring rather than adding a term kind.
 func TestMatchReachesEveryBackend(t *testing.T) {
 	cases := []struct{ target, src, want string }{
-		{"go", `(use go)
-			(export g) (sig g ((s int) (n int)) int)
-			(def g (fn (s n) (match (s n) 0 v (again 1 (go.- v 1)) else n)))`, "for "},
-		{"js", `(use js)
-			(export g) (sig g ((s any) (n any)) any)
-			(def g (fn (s n) (match (s n) 0 v (again 1 (js.- v 1)) else n)))`, "for (;"},
-		{"java", `(use java)
-			(export g) (sig g ((s int) (n int)) int)
-			(def g (fn (s n) (match (s n) 0 v (again 1 (java.- v 1)) else n)))`, "for (;"},
-		{"windows", `(use x64)
-			(export g) (sig g ((s int) (n int)) int)
-			(def g (fn (s n) (match (s n) 0 v (again 1 (x64.sub v 1)) else n)))`, "Ltop"},
+		{"go", "use go\nexport fn g(s ∈ Int, n ∈ Int) (Int) {\n    loop s = s, n = n { s == 0 -> again(1, go.`-`(n, 1)); else -> n }\n}", "for "},
+		{"js", "use js\nexport fn g(s ∈ Any, n ∈ Any) (Any) {\n    loop s = s, n = n { s == 0 -> again(1, js.`-`(n, 1)); else -> n }\n}", "for (;"},
+		{"java", "use java\nexport fn g(s ∈ Int, n ∈ Int) (Int) {\n    loop s = s, n = n { s == 0 -> again(1, java.`-`(n, 1)); else -> n }\n}", "for (;"},
+		{"windows", `use x64
+export fn g(s ∈ Int, n ∈ Int) (Int) {
+    loop s = s, n = n { s == 0 -> again(1, x64.sub(n, 1)); else -> n }
+}`, "Ltop"},
 	}
 	for _, c := range cases {
 		code, err := genOn(t, c.target, c.src, "g")
@@ -265,25 +232,15 @@ func TestSumCrossesEveryBoundary(t *testing.T) {
 		target, src string
 		want        []string
 	}{
-		{"go", `(use go)
-			(variant result (ok int) (err int))
-			(export d) (sig d ((a int) (b int)) result)
-			(def d (fn (a b) (if (= b 0) (err 0) (ok (go./ a b)))))`,
+		{"go", "use go\nset Result = 'ok(Int) ∪ 'err(Int)\nexport fn d(a ∈ Int, b ∈ Int) (Result) { if b == 0 { 'err(0) } else { 'ok(go.`/`(a, b)) } }",
 			[]string{`\(int, int\)`, `return 1, 0`, `return 0, v\d+`}},
-		{"js", `(use js)
-			(variant result (ok any) (err any))
-			(export d) (sig d ((a any) (b any)) result)
-			(def d (fn (a b) (if (= b 0) (err 0) (ok (js./ a b)))))`,
+		{"js", "use js\nset Result = 'ok(Any) ∪ 'err(Any)\nexport fn d(a ∈ Any, b ∈ Any) (Result) { if b == 0 { 'err(0) } else { 'ok(js.`/`(a, b)) } }",
 			[]string{`return \{f0: 1, f1: 0\};`, `return \{f0: 0, f1: \(v\d+ / v\d+\)\};`}},
-		{"java", `(use java)
-			(variant result (ok int) (err int))
-			(export d) (sig d ((a int) (b int)) result)
-			(def d (fn (a b) (if (= b 0) (err 0) (ok (java./ a b)))))`,
+		{"java", "use java\nset Result = 'ok(Int) ∪ 'err(Int)\nexport fn d(a ∈ Int, b ∈ Int) (Result) { if b == 0 { 'err(0) } else { 'ok(java.`/`(a, b)) } }",
 			[]string{`Tup_long_long`, `return new Tup_long_long\(1, 0\);`}},
-		{"windows", `(use x64)
-			(variant result (ok int) (err int))
-			(export d) (sig d ((a int) (b int)) result)
-			(def d (fn (a b) (if (= b 0) (err 0) (ok (x64.idiv a b)))))`,
+		{"windows", `use x64
+set Result = 'ok(Int) ∪ 'err(Int)
+export fn d(a ∈ Int, b ∈ Int) (Result) { if b == 0 { 'err(0) } else { 'ok(x64.idiv(a, b)) } }`,
 			[]string{`mov rax, 1`, `mov rdx,`}},
 	}
 	for _, c := range cases {

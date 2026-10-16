@@ -73,15 +73,14 @@ func TestRecordFacts(t *testing.T) {
 	}
 	// The records are stored as (w, w + 1), and each iteration then sets
 	// component 0 of record 0 to 9: end − beg = −8 there.
-	overwritten := `(use go) (export f)
-(sig f ((n (int 1 100)) (src (array int))) int (where (= (len src) (+ n 1))))
-(def f (n src)
-  (let sp (local sp (table n 0)
-            (loop ((sp sp) (w 0))
-              (>= w n) sp
-              else (let b (set sp w (tuple w (+ w 1)))
-                     (again (set (b 0) 0 9) (+ w 1)))))
-    (src (- ((sp 0) 1) ((sp 0) 0)))))`
+	overwritten := `use go
+export fn f(n ∈ 1..100, src ∈ Array(Int)) (Int) where len(src) == n + 1 {
+    sp = {
+        var sp := array { 0 : _ ∈ 0..n-1 }
+        loop w = 0 { w >= n -> sp; else -> { sp[w] := (w, w + 1); sp[0][0] := 9; again(w + 1) } }
+    }
+    src[sp[0][1] - sp[0][0]]
+}`
 	cases := []struct {
 		what, src string
 		fault     *bool
@@ -106,9 +105,10 @@ func TestRecordFacts(t *testing.T) {
 
 	// A READ IS KEYED BY ITS INDEX: a guard on t[0] says nothing of t[1].
 	// Planted: reads keyed by the table alone.
-	byIndex := `(use go) (export f)
-(sig f ((t (array int)) (u (array int))) int (where (= (len u) 5)))
-(def f (t u) (if (and (<= 2 (len t)) (and (<= 0 (t 0)) (< (t 0) 5))) (u (t 1)) 0))`
+	byIndex := `use go
+export fn f(t ∈ Array(Int), u ∈ Array(Int)) (Int) where len(u) == 5 {
+    if 2 <= len(t) && 0 <= t[0] && t[0] < 5 { u[t[1]] } else { 0 }
+}`
 	if !refused(byIndex) {
 		t.Error("a guard on t[0] bounded the read of t[1]")
 	}

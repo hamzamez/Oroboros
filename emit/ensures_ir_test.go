@@ -113,10 +113,7 @@ func TestABigResultRangeIsNotAnObligation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := `(export fib)
-(sig fib ((n (int 0 1000))) (int 0 +inf))
-(def fib (fn (n) (loop ((a 0) (b 1) (i 0)) (>= i n) a else (again b (+ a b) (+ i 1)))))
-`
+	src := "export fn fib(n ∈ 0..1000) (0..`+inf`) {\n    loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }\n}\n"
 	forms, err := core.Read(src)
 	if err != nil {
 		t.Fatal(err)

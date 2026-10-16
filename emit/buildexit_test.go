@@ -11,15 +11,15 @@ import "testing"
 // now typed with the variables' solved types, so the table is `array string`
 // whatever order its reads come in.
 func TestABuildCarriesTheElementItsStoresSolved(t *testing.T) {
-	_, err := entryGo(t, `(use go)
-(use go/strings as strings)
-(export f)
-(sig f ((n (int 1 10))) string)
-(def f (n)
-  (let cs (local b (table n 0) (loop ((b b) (i 0))
-                       (>= i n) b
-                       else     (again (set b i "x") (+ i 1))))
-    (if (= (strings.Compare (cs 0) (cs 0)) 0) (concat (cs 0) "!") "")))`)
+	_, err := entryGo(t, `use go
+use go/strings
+export fn f(n ∈ 1..10) (String) {
+    cs = {
+        var b := array { 0 : _ ∈ 0..n-1 }
+        loop i = 0 { i >= n -> b; else -> { b[i] := "x"; again(i + 1) } }
+    }
+    if strings.Compare(cs[0], cs[0]) == 0 { cs[0] ++ "!" } else { "" }
+}`)
 	if err != nil {
 		t.Errorf("a buffer filled with strings froze to a table of strings: %v", err)
 	}

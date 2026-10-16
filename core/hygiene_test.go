@@ -69,7 +69,7 @@ func TestAResidualCanBeOpenedByItsHints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nf, err := Normalize(terms[0], testEnv(prog, prims...), DefaultFuel)
+	nf, err := Normalize(entryTerm(t, prog, terms), testEnv(prog, prims...), DefaultFuel)
 	if err != nil {
 		t.Fatal(err)
 	}

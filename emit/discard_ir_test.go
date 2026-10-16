@@ -15,11 +15,11 @@ import (
 // in, which Go refuses as declared and not used. No program had put a loop
 // before another statement until unicode/utf8.oro (gostd-utf8-2026-09-13).
 func TestADiscardedLoopResultIsRead(t *testing.T) {
-	src := `
-		(use go/fmt as fmt)
-		(def main (fn (n)
-		  (seq (loop ((j 0)) (>= j n) (fmt.Println j) else (again (+ j 1)))
-		       7)))`
+	src := `use go/fmt
+fn main(n) {
+    loop j = 0 { j >= n -> fmt.Println(j); else -> again(j + 1) }
+    7
+}`
 	forms, err := core.Read(src)
 	if err != nil {
 		t.Fatal(err)

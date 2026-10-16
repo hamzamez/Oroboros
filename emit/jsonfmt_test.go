@@ -28,20 +28,19 @@ func TestBoundedByDefaultReachesIntoAContinuation(t *testing.T) {
 	// The same loop, once directly and once under `os.ReadFile`'s continuation.
 	// `(go.* a n)` on an unbounded `n` cannot be proven in-window either way.
 	loop := func(n string) string {
-		return `(loop ((a 1) (k 0)) (go.>= k 40) a else (again (go.* a ` + n +
-			`) (go.+ k 1)))`
+		return "loop a = 1, k = 0 { go.`>=`(k, 40) -> a; else -> again(go.`*`(a, " + n + "), go.`+`(k, 1)) }"
 	}
 	for _, c := range []struct{ what, src string }{
-		{"directly", `(fn (n) ` + loop("n") + `)`},
+		{"directly", "fn(n) { " + loop("n") + " }"},
 		{"in a continuation",
-			`(fn () ((go/os.ReadFile "f") (fn (b e) ` + loop("(go.len b)") + `)))`},
+			"fn() { (b, e) = `go/os`.ReadFile(\"f\"); " + loop("go.len(b)") + " }"},
 	} {
-		terms, err := core.ReadAll(c.src)
-		if err != nil || len(terms) != 1 {
+		read, err := core.ReadTerm(c.src)
+		if err != nil {
 			t.Fatalf("%s: read: %v", c.what, err)
 		}
 		// The host call with several results is the raw one (retract.go).
-		term := core.Rename(terms[0], map[string]string{"go/os.ReadFile": emit.RawName("go/os.ReadFile")})
+		term := core.Rename(read, map[string]string{"go/os.ReadFile": emit.RawName("go/os.ReadFile")})
 		rep := decideOn(t, tg, nil, term)
 		if rep.Ops == 0 {
 			t.Fatalf("%s: NOTHING WAS COUNTED. The walk never reached the "+

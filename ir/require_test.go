@@ -56,12 +56,12 @@ func TestAnAllocationsSizeIsAnObligation(t *testing.T) {
 		name, body string
 		refused    map[string]bool
 	}{
-		{"past 2^31", "(len (local b (table 4294967297 0) b))", map[string]bool{"java": true, "go": false}},
-		{"a size that may be negative", "(len (local b (table (- n 6) 0) b))", map[string]bool{"java": true, "go": true}},
-		{"a proven size", "(len (local b (table (+ n 1) 0) b))", map[string]bool{"java": false, "go": false}},
+		{"past 2^31", "len({ var b := array { 0 : _ ∈ 0..4294967296 }; b })", map[string]bool{"java": true, "go": false}},
+		{"a size that may be negative", "len({ var b := array { 0 : _ ∈ 0..n-6-1 }; b })", map[string]bool{"java": true, "go": true}},
+		{"a proven size", "len({ var b := array { 0 : _ ∈ 0..n+1-1 }; b })", map[string]bool{"java": false, "go": false}},
 	}
 	for k, c := range cases {
-		src := fmt.Sprintf("(export run)\n(sig run ((n (int 0 12))) int)\n(def run (n) %s)\n", c.body)
+		src := fmt.Sprintf("export fn run(n ∈ 0..12) (Int) { %s }\n", c.body)
 		path := filepath.Join(dir, fmt.Sprintf("z%d.oro", k))
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)
@@ -94,12 +94,12 @@ func TestAnEnsuresBoundsItsResult(t *testing.T) {
 		q      string
 		allows func(x int64) []int64
 	}{
-		{"(= result (* 2 n))", func(x int64) []int64 { return []int64{2 * x} }},
-		{"(= result (+ (* 3 n) 1))", func(x int64) []int64 { return []int64{3*x + 1} }},
-		{"(<= result n)", func(x int64) []int64 { return []int64{x, x - 5, -100} }},
-		{"(< result n)", func(x int64) []int64 { return []int64{x - 1, x - 9} }},
-		{"(>= result (- 0 n))", func(x int64) []int64 { return []int64{-x, 0, 50} }},
-		{"(if (<= 0 result) (<= result (/ n 2)) false)", func(x int64) []int64 { return []int64{0, x / 2} }},
+		{"result == 2 * n", func(x int64) []int64 { return []int64{2 * x} }},
+		{"result == 3 * n + 1", func(x int64) []int64 { return []int64{3*x + 1} }},
+		{"result <= n", func(x int64) []int64 { return []int64{x, x - 5, -100} }},
+		{"result < n", func(x int64) []int64 { return []int64{x - 1, x - 9} }},
+		{"result >= 0 - n", func(x int64) []int64 { return []int64{-x, 0, 50} }},
+		{"{ if 0 <= result { result <= n / 2 } else { false } }", func(x int64) []int64 { return []int64{0, x / 2} }},
 	}
 	for _, r := range rows {
 		q := read(r.q)
@@ -107,7 +107,7 @@ func TestAnEnsuresBoundsItsResult(t *testing.T) {
 			b := ensuresBound(q, map[string]iv{"n": a})
 			for x := a.lo.big().Int64(); x <= a.hi.big().Int64(); x++ {
 				for _, y := range r.allows(x) {
-					if r.q == "(if (<= 0 result) (<= result (/ n 2)) false)" && (y < 0 || y > x/2) {
+					if r.q == "{ if 0 <= result { result <= n / 2 } else { false } }" && (y < 0 || y > x/2) {
 						continue
 					}
 					if !member(big.NewInt(y), b) {

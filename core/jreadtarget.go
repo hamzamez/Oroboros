@@ -16,14 +16,16 @@ import (
 // ReadTarget reads a target file in J into today's raw forms. target is the
 // target its directory names (ADR 0064 item 2), "" for a library's fragment
 // file, whose `provides` names its own.
-// root is the repository, whose lib/ holds the modules a fragment imports.
-func ReadTarget(src, target, root string) ([]*Term, error) {
+// dir is the file's directory and root the repository: an imported module
+// is read from beside the file or from root/lib, to know which of its names are
+// sets.
+func ReadTarget(src, target, dir, root string) ([]*Term, error) {
 	toks, err := lex(src)
 	if err != nil {
 		return nil, err
 	}
 	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[Expr]*big.Int{}, indexed: map[Expr]bool{}}
-	p.registerSets(src, root, root)
+	p.registerSets(src, dir, root)
 	p.x86 = target == "windows"
 	forms, err := p.targetItems()
 	if err != nil {

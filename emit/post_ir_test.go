@@ -8,15 +8,7 @@ import (
 
 // The uniform update is hoisted; the per-clause one is not.
 func TestPostHoistsTheUniformUpdate(t *testing.T) {
-	code, err := genOn(t, "go", `
-		(use go)
-		(export f) (sig f ((a (array f64))) f64)
-		(def f (fn (a)
-			(loop ((best 0.0) (i 0))
-				(go.>= i (len a))        best
-				(go.f> (a i) best)       (again (a i) (go.+ i 1))
-				else                     (again best (go.+ i 1)))))
-	`, "f")
+	code, err := genOn(t, "go", "use go\nexport fn f(a ∈ Array(F64)) (F64) {\n    loop best = 0.0, i = 0 {\n        go.`>=`(i, len(a)) -> best\n        go.`f>`(a[i], best) -> again(a[i], go.`+`(i, 1))\n        else -> again(best, go.`+`(i, 1))\n    }\n}", "f")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,24 +30,9 @@ func TestPostHoistsTheUniformUpdate(t *testing.T) {
 // The update must appear EXACTLY ONCE, on every target.
 func TestTheHoistedUpdateAppearsExactlyOnce(t *testing.T) {
 	cases := []struct{ target, src, want string }{
-		{"go", `(use go)
-			(export f) (sig f ((n int)) int)
-			(def f (fn (n) (loop ((acc 0) (i 0))
-				(go.>= i n) acc
-				(go.> i 3)  (again acc (go.+ i 1))
-				else        (again (go.+ acc 1) (go.+ i 1)))))`, "i = (i + 1)"},
-		{"js", `(use js)
-			(export f) (sig f ((n any)) any)
-			(def f (fn (n) (loop ((acc 0) (i 0))
-				(js.>= i n) acc
-				(js.> i 3)  (again acc (js.+ i 1))
-				else        (again (js.+ acc 1) (js.+ i 1)))))`, "i = (i + 1)"},
-		{"java", `(use java)
-			(export f) (sig f ((n int)) int)
-			(def f (fn (n) (loop ((acc 0) (i 0))
-				(java.>= i n) acc
-				(java.> i 3)  (again acc (java.+ i 1))
-				else          (again (java.+ acc 1) (java.+ i 1)))))`, "i = (i + 1)"},
+		{"go", "use go\nexport fn f(n ∈ Int) (Int) {\n    loop acc = 0, i = 0 {\n        go.`>=`(i, n) -> acc\n        go.`>`(i, 3) -> again(acc, go.`+`(i, 1))\n        else -> again(go.`+`(acc, 1), go.`+`(i, 1))\n    }\n}", "i = (i + 1)"},
+		{"js", "use js\nexport fn f(n ∈ Any) (Any) {\n    loop acc = 0, i = 0 {\n        js.`>=`(i, n) -> acc\n        js.`>`(i, 3) -> again(acc, js.`+`(i, 1))\n        else -> again(js.`+`(acc, 1), js.`+`(i, 1))\n    }\n}", "i = (i + 1)"},
+		{"java", "use java\nexport fn f(n ∈ Int) (Int) {\n    loop acc = 0, i = 0 {\n        java.`>=`(i, n) -> acc\n        java.`>`(i, 3) -> again(acc, java.`+`(i, 1))\n        else -> again(java.`+`(acc, 1), java.`+`(i, 1))\n    }\n}", "i = (i + 1)"},
 	}
 	for _, c := range cases {
 		code, err := genOn(t, c.target, c.src, "f")
@@ -89,16 +66,7 @@ func TestTheHoistedUpdateAppearsExactlyOnce(t *testing.T) {
 // `unhandled term: #0.0`. Nothing had hit it because no program before had a
 // non-trivial update under a `let`; a JSON tree walk did.
 func TestPostDoesNotHoistOutOfALet(t *testing.T) {
-	code, err := genOn(t, "go", `
-		(use go)
-		(export f) (sig f ((a (array f64))) int)
-		(def f (fn (a)
-			(loop ((mx 0) (i 0))
-				(go.>= i (len a))  mx
-				else
-				  (let d (go.+ i 1)
-        (again (if (go.> d mx) d mx) (go.+ i 1))))))
-	`, "f")
+	code, err := genOn(t, "go", "use go\nexport fn f(a ∈ Array(F64)) (Int) {\n    loop mx = 0, i = 0 {\n        go.`>=`(i, len(a)) -> mx\n        else -> { d = go.`+`(i, 1); again(if go.`>`(d, mx) { d } else { mx }, go.`+`(i, 1)) }\n    }\n}", "f")
 	if err != nil {
 		t.Fatal(err)
 	}

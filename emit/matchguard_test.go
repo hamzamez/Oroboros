@@ -38,9 +38,7 @@ func reportGo(t *testing.T, src string) decision {
 // the second conjunct says so. v's declared floor is the word's, so without the
 // narrowing v − 10 passes below it.
 func TestAConjunctionNarrowsByBothOperands(t *testing.T) {
-	rep := reportGo(t, `(export f)
-(sig f ((tag int) (v (int -9223372036854775808 1000))) int)
-(def f (tag v) (if (and (= tag 0) (>= v 10)) (- v 10) 0))`)
+	rep := reportGo(t, `export fn f(tag ∈ Int, v ∈ -2^63..1000) (Int) { if tag == 0 && v >= 10 { v - 10 } else { 0 } }`)
 	if rep.Proven != rep.Ops {
 		t.Errorf("%d of %d proven: under v ≥ 10, v − 10 is in the word", rep.Proven, rep.Ops)
 	}
@@ -48,9 +46,7 @@ func TestAConjunctionNarrowsByBothOperands(t *testing.T) {
 
 // `a ∨ b` FAILING narrows by both negations: 0 ≤ v ≤ 10.
 func TestAFailedDisjunctionNarrowsByBothNegations(t *testing.T) {
-	rep := reportGo(t, `(export f)
-(sig f ((v int)) int)
-(def f (v) (if (or (< v 0) (> v 10)) 0 (+ v 9223372036854775797)))`)
+	rep := reportGo(t, `export fn f(v ∈ Int) (Int) { if v < 0 || v > 10 { 0 } else { v + 9223372036854775797 } }`)
 	if rep.Proven != rep.Ops {
 		t.Errorf("%d of %d proven: v ∈ [0, 10] when neither disjunct holds", rep.Proven, rep.Ops)
 	}
@@ -59,9 +55,7 @@ func TestAFailedDisjunctionNarrowsByBothNegations(t *testing.T) {
 // `a ∧ b` FAILING is ¬a ∨ (a ∧ ¬b), a JOIN: v ∈ [0, 4] ∪ [11, 20], whose hull
 // is [0, 20]. Reading it as ¬a ∧ ¬b would make it empty, and prove anything.
 func TestAFailedConjunctionIsTheJoinOfTwoPaths(t *testing.T) {
-	const src = `(export f)
-(sig f ((v (int 0 20))) int)
-(def f (v) (if (and (>= v 5) (<= v 10)) 0 (+ v K)))`
+	const src = `export fn f(v ∈ 0..20) (Int) { if v >= 5 && v <= 10 { 0 } else { v + K } }`
 	if rep := reportGo(t, strings.Replace(src, "K", "9223372036854775787", 1)); rep.Proven != rep.Ops {
 		t.Errorf("%d of %d proven: v ≤ 20 on both paths, and 20 + (2^63 − 21) fits", rep.Proven, rep.Ops)
 	}
@@ -74,14 +68,14 @@ func TestAFailedConjunctionIsTheJoinOfTwoPaths(t *testing.T) {
 // above 50 and by 1 below: 46 trips from 100. Numbered by the last edge's 10,
 // it was 11, and `c + (2^63 − 20)` was proven while it overflowed at run time.
 func TestATripCountHoldsOnEveryEdge(t *testing.T) {
-	rep := reportGo(t, `(export f)
-(sig f ((n (int 0 100))) int)
-(def f (n)
-  (+ (loop ((k n) (c 0))
-       (<= k 0)  c
-       (< k 50)  (again (- k 1) (+ c 1))
-       else      (again (- k 10) (+ c 1)))
-     9223372036854775787))`)
+	rep := reportGo(t, `export fn f(n ∈ 0..100) (Int) {
+    loop k = n, c = 0 {
+        k <= 0 -> c
+        k < 50 -> again(k - 1, c + 1)
+        else -> again(k - 10, c + 1)
+    } +
+    9223372036854775787
+}`)
 	if rep.Proven == rep.Ops {
 		t.Errorf("%d of %d proven: c reaches 46, and 46 + (2^63 − 21) is past the word", rep.Proven, rep.Ops)
 	}
@@ -94,14 +88,14 @@ func TestATripCountHoldsOnEveryEdge(t *testing.T) {
 // [1, 9], and 0 < 1: v descends there as on the edge that subtracts 10, so the
 // loop terminates and its counter is bounded by the trips.
 func TestAResetBelowTheGuardDescends(t *testing.T) {
-	rep := reportGo(t, `(export f)
-(sig f ((n (int 0 100))) int)
-(def f (n)
-  (+ (loop ((v n) (c 0))
-       (= v 0)   c
-       (>= v 10) (again (- v 10) (+ c 1))
-       else      (again 0 (+ c 1)))
-     1000))`)
+	rep := reportGo(t, `export fn f(n ∈ 0..100) (Int) {
+    loop v = n, c = 0 {
+        v == 0 -> c
+        v >= 10 -> again(v - 10, c + 1)
+        else -> again(0, c + 1)
+    } +
+    1000
+}`)
 	if rep.Terminates != rep.Loops {
 		t.Errorf("%d of %d loops proven terminating: v ∈ [1, 9] when it is reset to 0", rep.Terminates, rep.Loops)
 	}
@@ -114,13 +108,9 @@ func TestAResetBelowTheGuardDescends(t *testing.T) {
 // which doubles v and so shows no descent, is never taken. It neither widens
 // the counter nor blocks termination.
 func TestAnUnreachableBackEdgeIsNoEdge(t *testing.T) {
-	rep := reportGo(t, `(export f)
-(sig f ((n (int 0 10))) int)
-(def f (n)
-  (+ (loop ((v 0) (c 0))
-       (= v 0) c
-       else    (again (* v 2) (+ c 1)))
-     9223372036854775807))`)
+	rep := reportGo(t, `export fn f(n ∈ 0..10) (Int) {
+    loop v = 0, c = 0 { v == 0 -> c; else -> again(v * 2, c + 1) } + (2^63-1)
+}`)
 	if rep.Terminates != rep.Loops {
 		t.Errorf("%d of %d loops proven terminating: the only back edge is dead", rep.Terminates, rep.Loops)
 	}
@@ -133,9 +123,9 @@ func TestAnUnreachableBackEdgeIsNoEdge(t *testing.T) {
 // path alone (x ≥ 5 and len t < 10); on the first (x < 5) nothing is known of
 // it, so after the join it is anything — and len t + (2^63 − 10) may overflow.
 func TestAJoinForgetsWhatOnePathAloneKnows(t *testing.T) {
-	rep := reportGo(t, `(export f)
-(sig f ((x (int 0 20)) (t (array int))) int)
-(def f (x t) (if (and (>= x 5) (>= (len t) 10)) 0 (+ (len t) 9223372036854775798)))`)
+	rep := reportGo(t, `export fn f(x ∈ 0..20, t ∈ Array(Int)) (Int) {
+    if x >= 5 && len(t) >= 10 { 0 } else { len(t) + 9223372036854775798 }
+}`)
 	if rep.Proven == rep.Ops {
 		t.Errorf("%d of %d proven: when x < 5, len t may be anything", rep.Proven, rep.Ops)
 	}
@@ -146,16 +136,16 @@ func TestAJoinForgetsWhatOnePathAloneKnows(t *testing.T) {
 // counter is bounded by 101 trips and no fewer can be claimed: c + (2^63 − 2)
 // may overflow, since c reaches 4.
 func TestASeparatedEdgeDescendsByItsGap(t *testing.T) {
-	rep := reportGo(t, `(export f)
-(sig f ((n (int 0 100))) int)
-(def f (n)
-  (+ (loop ((v n) (c 0))
-       (<= v 0)  c
-       (>= v 60) (again 59 (+ c 1))
-       (>= v 40) (again 39 (+ c 1))
-       (>= v 20) (again 19 (+ c 1))
-       else      (again 0 (+ c 1)))
-     9223372036854775806))`)
+	rep := reportGo(t, `export fn f(n ∈ 0..100) (Int) {
+    loop v = n, c = 0 {
+        v <= 0 -> c
+        v >= 60 -> again(59, c + 1)
+        v >= 40 -> again(39, c + 1)
+        v >= 20 -> again(19, c + 1)
+        else -> again(0, c + 1)
+    } +
+    9223372036854775806
+}`)
 	if rep.Terminates != rep.Loops {
 		t.Errorf("%d of %d loops proven terminating: every edge jumps below its band", rep.Terminates, rep.Loops)
 	}
@@ -167,12 +157,7 @@ func TestASeparatedEdgeDescendsByItsGap(t *testing.T) {
 // AND A DEAD EDGE THAT NOTHING ELSE RESCUES: it doubles v and leaves c alone,
 // so no variable descends on it. Recorded, it is a cycle with no descent.
 func TestAnUnreachableBackEdgeWithNoDescentIsNoEdge(t *testing.T) {
-	rep := reportGo(t, `(export f)
-(sig f ((n (int 0 10))) int)
-(def f (n)
-  (loop ((v 0) (c 0))
-    (= v 0) c
-    else    (again (* v 2) c)))`)
+	rep := reportGo(t, `export fn f(n ∈ 0..10) (Int) { loop v = 0, c = 0 { v == 0 -> c; else -> again(v * 2, c) } }`)
 	if rep.Terminates != rep.Loops {
 		t.Errorf("%d of %d loops proven terminating: the only back edge is dead", rep.Terminates, rep.Loops)
 	}
@@ -184,16 +169,26 @@ func TestAnUnreachableBackEdgeWithNoDescentIsNoEdge(t *testing.T) {
 // is what the other clauses' step used to lend it, when the measure was said to
 // be withheld and was not.)
 func TestADerivedStepDescendsByItsLeastStep(t *testing.T) {
-	const src = `(export f)
-(sig f ((n (int 0 100))) int)
-(def f (n)
-  (+ (loop ((i 0) (c 0))
-       (>= i n) c
-       else     (again (if (= (% i 2) 0)
-                           (loop ((j (+ i 1))) (>= j n) j (= (% j 7) 0) j else (again (+ j 1)))
-                           (loop ((j (+ i 1))) (>= j n) j (= (% j 5) 0) j else (again (+ j 1))))
-                       (+ c 1)))
-     K))`
+	const src = `export fn f(n ∈ 0..100) (Int) {
+    loop i = 0, c = 0 {
+        i >= n -> c
+        else ->
+            again(if i % 2 == 0 {
+                    loop j = i + 1 {
+                        j >= n -> j
+                        j % 7 == 0 -> j
+                        else -> again(j + 1)
+                    }
+                } else {
+                    loop j = i + 1 {
+                        j >= n -> j
+                        j % 5 == 0 -> j
+                        else -> again(j + 1)
+                    }
+                }, c + 1)
+    } +
+    K
+}`
 	rep := reportGo(t, strings.Replace(src, "K", "9223372036854775806", 1))
 	if rep.Proven == rep.Ops {
 		t.Errorf("%d of %d proven: c reaches n, and n + (2^63 − 2) is past the word", rep.Proven, rep.Ops)

@@ -44,17 +44,17 @@ func normGo(t *testing.T, src string) (*Target, *core.Term, *core.Sig) {
 // monotoneStep passed over the continuation and certified v non-decreasing, and
 // the index was accepted. The rising control must still be proven.
 func TestMonotonicityChecksAnEdgeInAHostContinuation(t *testing.T) {
-	const falling = `(use go/math/bits as b)
-(export f)
-(sig f ((t (array int))) int)
-(def f (t)
-  (loop ((v 0) (more true))
-    (not more) (if (< v (len t)) (t v) 0)
-    else (let (tuple s c) (b.Add64 5 6 0) (again (- v 1) (= c 0)))))`
+	const falling = `use go/math/bits as b
+export fn f(t ∈ Array(Int)) (Int) {
+    loop v = 0, more = true {
+        !more -> if v < len(t) { t[v] } else { 0 }
+        else -> { (s, c) = b.Add64(5, 6, 0); again(v - 1, c == 0) }
+    }
+}`
 	if err := refineGo(t, falling); err == nil || !strings.Contains(err.Error(), "(<= 0 v)") {
 		t.Errorf("v falls, so the index must be refused on 0 <= v; got %v", err)
 	}
-	rising := strings.Replace(falling, "(- v 1)", "(+ v 1)", 1)
+	rising := strings.Replace(falling, "again(v - 1", "again(v + 1", 1)
 	if err := refineGo(t, rising); err != nil {
 		t.Errorf("v rises from 0, so 0 <= v is the theorem's and the index is proven: %v", err)
 	}

@@ -12,21 +12,21 @@ import (
 // 2·len src ≤ len dst. It has to be assumed at the `build` (or the `let`)
 // where the length is recorded, which is not a call whose `where` is checked.
 
-const hexHead = `(use go/encoding/hex as hex)
-(export f)
-(sig f ((src (array (int 0 255)))) (array (int 0 255)) (where (<= (len src) 1000000)))
-`
+// hexHead is the import, and the export the definition's header continues.
+const hexHead = "use go/encoding/hex as hex\nexport "
 
 func TestABufferSizedByEncodedLenHoldsTheEncoding(t *testing.T) {
-	if err := refineGo(t, hexHead+`(def f (src)
-  (build (hex.EncodedLen (len src)) (fn (b) ((hex.Encode b src) (fn (b2 n) b2)))))`); err != nil {
+	if err := refineGo(t, hexHead+`fn f(src ∈ Array(0..255)) (Array(0..255)) where len(src) <= 1000000 {
+    build(hex.EncodedLen(len(src)), fn(b) { (b2, n) = hex.Encode(b, src); b2 })
+}`); err != nil {
 		t.Errorf("len b = EncodedLen(len src) = 2·len src: %v", err)
 	}
 }
 
 func TestABufferSizedByDecodedLenHoldsTheDecoding(t *testing.T) {
-	if err := refineGo(t, hexHead+`(def f (src)
-  (build (hex.DecodedLen (len src)) (fn (b) ((hex.Decode b src) (fn (b2 n e) (seq (ignore e) b2))))))`); err != nil {
+	if err := refineGo(t, hexHead+`fn f(src ∈ Array(0..255)) (Array(0..255)) where len(src) <= 1000000 {
+    build(hex.DecodedLen(len(src)), fn(b) { (b2, n, e) = hex.Decode(b, src); ignore(e); b2 })
+}`); err != nil {
 		t.Errorf("len src ≤ 2·⌊len src / 2⌋ + 1: %v", err)
 	}
 }
@@ -34,8 +34,9 @@ func TestABufferSizedByDecodedLenHoldsTheDecoding(t *testing.T) {
 // THE GUARANTEE PROVES ONLY WHAT IT SAYS. Half the length is not enough to
 // encode into, and a guarantee about DecodedLen must not be read as more.
 func TestAShortBufferIsStillRefused(t *testing.T) {
-	err := refineGo(t, hexHead+`(def f (src)
-  (build (hex.DecodedLen (len src)) (fn (b) ((hex.Encode b src) (fn (b2 n) b2)))))`)
+	err := refineGo(t, hexHead+`fn f(src ∈ Array(0..255)) (Array(0..255)) where len(src) <= 1000000 {
+    build(hex.DecodedLen(len(src)), fn(b) { (b2, n) = hex.Encode(b, src); b2 })
+}`)
 	if err == nil || !strings.Contains(err.Error(), "Encode") {
 		t.Errorf("⌊len src / 2⌋ < 2·len src when src is not empty; got %v", err)
 	}
@@ -46,11 +47,10 @@ func TestAShortBufferIsStillRefused(t *testing.T) {
 // program is refused there, and nothing is concluded from the result it would
 // have had.
 func TestAGuaranteeNeedsItsPrecondition(t *testing.T) {
-	err := refineGo(t, `(use go/encoding/hex as hex)
-(export f)
-(sig f ((src (array (int 0 255)))) (array (int 0 255)))
-(def f (src)
-  (build (hex.EncodedLen (len src)) (fn (b) ((hex.Encode b src) (fn (b2 n) b2)))))`)
+	err := refineGo(t, `use go/encoding/hex
+export fn f(src ∈ Array(0..255)) (Array(0..255)) {
+    build(hex.EncodedLen(len(src)), fn(b) { (b2, n) = hex.Encode(b, src); b2 })
+}`)
 	if err == nil || !strings.Contains(err.Error(), "EncodedLen") {
 		t.Errorf("len src may pass 2^62 − 1, where Go's EncodedLen wraps; got %v", err)
 	}
@@ -61,12 +61,13 @@ func TestAGuaranteeNeedsItsPrecondition(t *testing.T) {
 // the atom. The atom's guarantee was assumed as that allocation's argument
 // (postconditions.md §5, rule 1), and it alone makes i < 2·len src an index.
 func TestALetBoundAllocationSizedByEncodedLen(t *testing.T) {
-	const src = `(use go)
-(use go/encoding/hex as hex)
-(export f)
-(sig f ((src (array (int 0 255))) (i int)) int
-  (where (and (<= (len src) 1000) (and (<= 0 i) (< i (* K (len src)))))))
-(def f (src i) (let (tuple a x) (local b (table (hex.EncodedLen (len src)) 0) (tuple b (b i))) x))`
+	const src = `use go
+use go/encoding/hex
+export fn f(src ∈ Array(0..255), i ∈ Int) (Int)
+    where len(src) <= 1000 && 0 <= i && i < K * len(src) {
+    (a, x) = { var b := array { 0 : _ ∈ 0..hex.EncodedLen(len(src))-1 }; (b, b[i]) }
+    x
+}`
 	if err := refineGo(t, strings.Replace(src, "K", "2", 1)); err != nil {
 		t.Errorf("i < 2·len src = len a: %v", err)
 	}
@@ -78,12 +79,12 @@ func TestALetBoundAllocationSizedByEncodedLen(t *testing.T) {
 
 // DecodedLen gives ⌊len src / 2⌋ cells, and an index below len src may pass them.
 func TestDecodedLenIsHalfNotMore(t *testing.T) {
-	err := refineGo(t, `(use go)
-(use go/encoding/hex as hex)
-(export f)
-(sig f ((src (array (int 0 255))) (i int)) int
-  (where (and (<= (len src) 1000) (and (<= 0 i) (< i (len src))))))
-(def f (src i) (let (tuple a x) (local b (table (hex.DecodedLen (len src)) 0) (tuple b (b i))) x))`)
+	err := refineGo(t, `use go
+use go/encoding/hex
+export fn f(src ∈ Array(0..255), i ∈ Int) (Int) where len(src) <= 1000 && 0 <= i && i < len(src) {
+    (a, x) = { var b := array { 0 : _ ∈ 0..hex.DecodedLen(len(src))-1 }; (b, b[i]) }
+    x
+}`)
 	if err == nil {
 		t.Error("i may reach len src − 1, past ⌊len src / 2⌋")
 	}

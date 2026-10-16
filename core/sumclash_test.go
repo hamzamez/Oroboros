@@ -59,31 +59,39 @@ func TestTwoModulesMayDeclareDifferentSumsWithOneName(t *testing.T) {
 // pattern found `ok` in the global table, and its tag `ok#tag` then resolved by
 // δ to the root's definition, because the root's names are unqualified.
 func TestAPatternDoesNotReachAnUnimportedModule(t *testing.T) {
-	mustLoadFail(t, `(variant result (ok int) (err int))
-(module b)
-(def f (fn (r) (case r (ok v) v (err e) 0)))
+	mustLoadFail(t, `set Result = 'ok(Int) ∪ 'err(Int)
+
+module b {
+    fn f(r) { case r { 'ok(v) -> v; 'err(e) -> 0 } }
+}
 `, "declared by result")
 }
 
 // Imported, but written unqualified: the pattern was accepted and its tag left
 // FREE, so the residual was `(if (= 0 ok#tag) n 0)` with nothing to say why.
 func TestAnImportedConstructorIsWrittenThroughItsAlias(t *testing.T) {
-	mustLoadFail(t, `(module a)
-(variant result (ok int) (err int))
-(module b)
-(use a)
-(def f (fn (n) (case (a.ok n) (ok v) v (err e) 0)))
+	mustLoadFail(t, `module a {
+    set Result = 'ok(Int) ∪ 'err(Int)
+}
+
+module b {
+    use a
+    fn f(n) { case a.ok(n) { 'ok(v) -> v; 'err(e) -> 0 } }
+}
 `, "import that module and write the pattern through its alias")
 }
 
 // And the qualified spelling, which is the one that means what it says, was the
 // one refused. It now reduces exactly as a local variant does: to nothing.
 func TestAQualifiedPatternEliminatesAnImportedVariant(t *testing.T) {
-	p, err := loadSrc(t, `(module a)
-(variant result (ok int) (err int))
-(module b)
-(use a)
-(def f (fn (n) (case (a.ok n) (a.ok v) v (a.err e) 0)))
+	p, err := loadSrc(t, `module a {
+    set Result = 'ok(Int) ∪ 'err(Int)
+}
+
+module b {
+    use a
+    fn f(n) { case a.ok(n) { a.ok(v) -> v; a.err(e) -> 0 } }
+}
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -112,12 +120,15 @@ func TestAPatternRespectsTheExportList(t *testing.T) {
 // them — and the refusal names them by their qualified names, since the
 // spelling alone is exactly what cannot tell them apart.
 func TestOneCaseDoesNotMixTwoTypesWithOneSpelling(t *testing.T) {
-	_, err := loadSrc(t, `(module a)
-(variant result (ok int) (err int))
-(module b)
-(use a)
-(variant result (ok int) (err int))
-(def f (fn (r) (case r (a.ok v) v (err e) 0)))
+	_, err := loadSrc(t, `module a {
+    set Result = 'ok(Int) ∪ 'err(Int)
+}
+
+module b {
+    use a
+    set Result = 'ok(Int) ∪ 'err(Int)
+    fn f(r) { case r { a.ok(v) -> v; 'err(e) -> 0 } }
+}
 `)
 	if err == nil {
 		t.Fatal("a case on a.result and b.result together must be refused")
@@ -176,19 +187,19 @@ func TestAModuleMayShadowOption(t *testing.T) {
 // The main module's names are unqualified, like `lang`'s, so the two would be
 // one name there: refused, where a (module …) would shadow.
 func TestTheMainModuleCannotRedeclareTheLanguagesOwn(t *testing.T) {
-	mustLoadFail(t, `(variant option (yes int) no)`, "which is the language's own")
-	mustLoadFail(t, `(def some 3)`, "which is the language's own")
+	mustLoadFail(t, `set Option = 'yes(Int) ∪ 'no`, "which is the language's own")
+	mustLoadFail(t, `some = 3`, "which is the language's own")
 }
 
 // THE CONTROL: a two-module program eliminates the one option in both.
 func TestOptionIsOneTypeInEveryModule(t *testing.T) {
-	src := `(module a)
-(export f)
-(def f (fn (n) (case (some n) (some v) v none 0)))
+	src := `module a {
+    export fn f(n) { case 'some(n) { 'some(v) -> v; 'none -> 0 } }
+}
 
-(module b)
-(export g)
-(def g (fn (n) (case none (some v) v none n)))
+module b {
+    export fn g(n) { case 'none { 'some(v) -> v; 'none -> n } }
+}
 `
 	if _, err := loadSrc(t, src); err != nil {
 		t.Errorf("option in two modules must load: %v", err)

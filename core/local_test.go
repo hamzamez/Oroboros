@@ -34,15 +34,33 @@ func TestACellIsALocalVariableInProgramOrder(t *testing.T) {
 func TestACellIsRefusedWhereItsOrderWouldNotBeTheProgramsOrder(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
 		// a closure could run any number of times, or later
-		{`(def f (fn (xs) (local c 0 (seq (each xs (fn (i) (set c i))) c))))`, "a function that mentions a cell (c)"},
+		{`fn f(xs) {
+    var c := 0
+    each(xs, fn(i) { c := i })
+    c
+}`, "a function that mentions a cell (c)"},
 		// a primitive passed a λ: a host callback
-		{`(def f (fn (p) (local c 0 (seq (each (fn (i) (set c i))) c))))`, "a function that mentions a cell"},
+		{`fn f(p) {
+    var c := 0
+    each(fn(i) { c := i })
+    c
+}`, "a function that mentions a cell"},
 		// a binder hiding the cell
-		{`(def f (fn (p) (local c 0 (let c 1 c))))`, "hides the cell c"},
+		{`fn f(p) {
+    var c := 0
+    c = 1
+    c
+}`, "hides the cell c"},
 		// a buffer's store on a cell
-		{`(def f (fn (p) (local c 0 (set c 0 1))))`, "c is a cell, written (set c v)"},
+		{`fn f(p) {
+    var c := 0
+    store(c, 0, 1)
+}`, "c is a cell, written (set c v)"},
 		// a cell holds a value, not a function
-		{`(def f (fn (p) (local g (fn (x) x) 0)))`, "holds a function"},
+		{`fn f(p) {
+    var g := fn(x) { x }
+    0
+}`, "holds a function"},
 		// build's binder form is local's now
 		{`(def f (fn (p) (build b 3 b)))`, "a scope of local state is `local`"},
 		{`(def f (fn (p) (local c 0)))`, "binds NAME VALUE pairs and ONE body"},
@@ -127,15 +145,29 @@ func loopvarOr(s string) string {
 // is marked and the reducer decides it, once β has substituted the static
 // arguments.
 func TestAnEliminationIsDecidedOnTheNormalForm(t *testing.T) {
-	twice := `(def twice (fn (n) (fn (body) (seq (body n) (body n)))))`
+	twice := "fn twice(n) { fn(body) { body(n); body(n) } }\n"
 	for _, c := range []struct{ src, want string }{
-		{twice + ` (def f (fn (p) (local c 0 (seq ((twice 0) (fn (i) (set c (+ c 1)))) c))))`,
+		{twice + `fn f(p) {
+    var c := 0
+    twice(0)(fn(i) { c := c + 1 })
+    c
+}`,
 			"is a function and may run it any number of times"},
 		// bound first, the same function
-		{twice + ` (def f (fn (p) (local c 0 (let g (twice 0) (seq (g (fn (i) (set c (+ c 1)))) c)))))`,
+		{twice + `fn f(p) {
+    var c := 0
+    g = twice(0)
+    g(fn(i) { c := c + 1 })
+    c
+}`,
 			"is a function and may run it any number of times"},
 		// a primitive bound first: a host function, passed a callback
-		{`(def f (fn (p) (local c 0 (let g each (seq (g (fn (i) (set c (+ c 1)))) c)))))`,
+		{`fn f(p) {
+    var c := 0
+    g = each
+    g(fn(i) { c := c + 1 })
+    c
+}`,
 			"is a function and may run it any number of times"},
 	} {
 		p, err := loadSrc(t, c.src)
@@ -150,13 +182,21 @@ func TestAnEliminationIsDecidedOnTheNormalForm(t *testing.T) {
 	// Data is eliminated, and no mark is left: a tuple from a definition, and
 	// the results of an impure host call, whose argument the reducer let-binds.
 	for _, c := range []struct{ src, want string }{
-		{`(def dm (fn (a b) (tuple (+ a b) (+ a 1))))
-		  (def f (fn (p) (local c 0 (seq (let (tuple q r) (dm p 3) (set c (+ q r))) c))))`,
+		{`fn dm(a, b) { (a + b, a + 1) }
+fn f(p) {
+    var c := 0
+    { (q, r) = dm(p, 3); c := q + r }
+    c
+}`,
 			`(fn (p) (+ (+ p 3) (+ p 1)))`},
-		{`(def f (fn (p) (local c 0 (seq ((two p) (fn (q r) (set c (+ q r)))) c))))`,
+		{`fn f(p) {
+    var c := 0
+    { (q, r) = two(p); c := q + r }
+    c
+}`,
 			`(fn (p) ((two p) (fn (q r) (+ q r))))`},
 	} {
-		p, err := loadSrc(t, c.src+` (def g `+c.want+`)`)
+		p, err := loadSrc(t, c.src)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -165,7 +205,11 @@ func TestAnEliminationIsDecidedOnTheNormalForm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", c.src, err)
 		}
-		want, err := Normalize(p.Defs["g"], env, DefaultFuel)
+		g, err := ParseTerm(c.want)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := Normalize(g, env, DefaultFuel)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -180,7 +224,7 @@ func TestAnEliminationIsDecidedOnTheNormalForm(t *testing.T) {
 // The translation leaves such lets, and an instance of a residual (a limb
 // operation's, ADR 0035) does when a constant replaces a parameter.
 func TestAResidualLetObeysBetaAndTheUnitLaw(t *testing.T) {
-	p, err := loadSrc(t, `(def f (fn (p) p))`)
+	p, err := loadSrc(t, `fn f(p) { p }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +281,10 @@ func TestAZeroOfASortIsBuildsFormAscribed(t *testing.T) {
 func TestAnAppliedLambdasEffectIsKept(t *testing.T) {
 	for _, src := range []string{
 		`(def f (fn (p) (seq ((fn (k) (k p)) (fn (x) (eff x))) 0)))`,
-		`(def f (fn (p) (seq (local a p (eff a)) 0)))`,
+		`fn f(p) {
+    { var a := p; eff(a) }
+    0
+}`,
 	} {
 		got := reduceWith(t, src, "f", "!eff")
 		if !strings.Contains(got, "(eff p)") {

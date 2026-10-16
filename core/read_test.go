@@ -11,12 +11,12 @@ func TestNonNFCIsRejected(t *testing.T) {
 	if _, err := Read("(def caf\u0065\u0301 1)"); err == nil {
 		t.Fatal("a decomposed é must be rejected")
 	}
-	if _, err := Read("(def caf\u00e9 1)"); err != nil {
+	if _, err := Read("café = 1"); err != nil {
 		t.Errorf("a precomposed é is NFC and must pass: %v", err)
 	}
 	// A combining mark with no precomposed form is NFC-stable, and rejecting
 	// it would break every script that needs one.
-	if _, err := Read("(def q\u0307x 1)"); err != nil {
+	if _, err := Read("q̇x = 1"); err != nil {
 		t.Errorf("q + combining dot above has no precomposed form: %v", err)
 	}
 }
@@ -185,7 +185,7 @@ func TestQualifiedNameCannotBeDefined(t *testing.T) {
 	if _, err := Read("(def a.b (fn (n) n))"); err == nil {
 		t.Fatal("(def a.b …) must be rejected")
 	}
-	if _, err := Read("(def a/b (fn (n) n))"); err != nil {
+	if _, err := Read("fn `a/b`(n) { n }"); err != nil {
 		t.Errorf("`/` is an ordinary identifier character: %v", err)
 	}
 }
@@ -233,7 +233,7 @@ func TestDiagnosticsUnderABinderKeepTheirNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	_, err = Normalize(terms[0], testEnv(prog, "h"), DefaultFuel)
+	_, err = Normalize(entryTerm(t, prog, terms), testEnv(prog, "h"), DefaultFuel)
 	if err == nil {
 		t.Fatal("applying a 2-parameter fn to 1 argument must fail")
 	}
@@ -248,7 +248,7 @@ func TestDiagnosticsUnderABinderKeepTheirNames(t *testing.T) {
 
 	forms, _ = Read("(fn (n) ((fn (a) (a a)) (fn (a) (a a))))")
 	prog, terms, _ = Load(forms)
-	if _, err = Normalize(terms[0], testEnv(prog), DefaultFuel); err == nil {
+	if _, err = Normalize(entryTerm(t, prog, terms), testEnv(prog), DefaultFuel); err == nil {
 		t.Fatal("Ω under a binder must exhaust fuel")
 	}
 	if strings.Contains(err.Error(), "#") {
@@ -260,7 +260,8 @@ func TestDiagnosticsUnderABinderKeepTheirNames(t *testing.T) {
 // working — the note exists because the file that decides it is one the program
 // never names. It must fire on exactly that collision and nothing else.
 func TestShadowedByTargetIsReported(t *testing.T) {
-	forms, err := Read("(def dot (fn (a b) (mul a b)))\n(def near (fn (a) (dot a a)))")
+	forms, err := Read(`fn dot(a, b) { mul(a, b) }
+fn near(a) { dot(a, a) }`)
 	if err != nil {
 		t.Fatal(err)
 	}

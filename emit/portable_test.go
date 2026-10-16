@@ -199,10 +199,8 @@ func TestAConcreteTypeGoesWhereAnInterfaceIsWanted(t *testing.T) {
 		}
 		return Check(tg, "f", nf)
 	}
-	const src = `
-(use x)
-(export f)
-(def f (fn () (x.slurp (x.open "go.mod"))))`
+	const src = `use x
+export fn f() { x.slurp(x.open("go.mod")) }`
 	if err := prog(tg, src); err != nil {
 		t.Errorf("a file where a reader is wanted: %v", err)
 	}

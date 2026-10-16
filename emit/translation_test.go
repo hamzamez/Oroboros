@@ -12,11 +12,14 @@ import (
 // candidates: a wrong vector, planted, must be dropped by Houdini's check.
 func TestTranslationInvariants(t *testing.T) {
 	tg := goNative(t)
-	loop := findLoop(t, `(use go) (fn (lo mid hi)
-  (loop ((i lo) (j mid) (k lo))
-    (>= k hi)  k
-    (>= i mid) (again i (+ j 1) (+ k 1))
-    else       (again (+ i 1) j (+ k 1))))`)
+	loop := findLoop(t, `use go
+fn t(lo, mid, hi) {
+    loop i = lo, j = mid, k = lo {
+        k >= hi -> k
+        i >= mid -> again(i, j + 1, k + 1)
+        else -> again(i + 1, j, k + 1)
+    }
+}`)
 	lam, inits := loop.Args()[0], loop.Args()[1:]
 	holds := func(g *facts, src string) bool {
 		forms, err := core.Read(src)

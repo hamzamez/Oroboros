@@ -315,9 +315,11 @@ func (p *parser) name() string {
 // carrying its claims (ADR 0051), the claim present when the header states a
 // set, a result, a precondition or a postcondition.
 func (p *parser) lamHeader() (*Lam, error) {
+	line := p.peek().line
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
+
 	p.open(true)
 	lam := &Lam{}
 	claim := &Claim{}
@@ -350,6 +352,9 @@ func (p *parser) lamHeader() (*Lam, error) {
 	}
 	p.close()
 	if err := p.expect(")"); err != nil {
+		return nil, err
+	}
+	if err := distinct(lam.Params, "fn", line); err != nil {
 		return nil, err
 	}
 	if p.is("(") {
@@ -724,6 +729,9 @@ func (p *parser) statement() (stmt, error) {
 		var pat Pat = &PTuple{Names: names}
 		if len(names) == 1 {
 			pat = &PVar{Name: names[0]}
+		}
+		if err == nil {
+			err = distinct(names, "a tuple pattern", t.line)
 		}
 		return stmt{kind: "bind", pat: pat, value: e}, err
 	}
@@ -1170,11 +1178,15 @@ func (p *parser) lambda() (Expr, error) {
 		return nil, err
 	}
 	var params []string
+	line := p.peek().line
 	for !p.is(")") {
 		params = append(params, p.name())
 		p.accept(",")
 	}
 	p.next()
+	if err := distinct(params, "fn", line); err != nil {
+		return nil, err
+	}
 	b, err := p.block()
 	if err != nil {
 		return nil, err
@@ -1379,6 +1391,7 @@ func (p *parser) armValue() (Expr, error) {
 // loop reads `loop x = e, … { guard -> tail … }` (ADR 0055, 0015).
 func (p *parser) loop() (Expr, error) {
 	l := &Loop{}
+	line := p.peek().line
 	for {
 		l.Vars = append(l.Vars, p.name())
 		if err := p.expect("="); err != nil {
@@ -1423,7 +1436,102 @@ func (p *parser) loop() (Expr, error) {
 		l.Arms = append(l.Arms, arm)
 	}
 	p.close()
+	if err := distinct(l.Vars, "loop", line); err != nil {
+		return nil, err
+	}
+	for _, arm := range l.Arms {
+		if arm.Guard != nil && strays(arm.Guard) {
+			return nil, strayAgain(line)
+		}
+		if err := tailOK(arm.Body, len(l.Vars), line); err != nil {
+			return nil, err
+		}
+	}
 	return l, nil
+}
+
+// distinct is W2 (abstract.md §3): a binder group names distinct things, or
+// the second binder would silently shadow the first. `_` binds nothing.
+func distinct(names []string, what string, line int) error {
+	seen := map[string]bool{}
+	for _, n := range names {
+		if n == "_" || n == "-" {
+			continue
+		}
+		if seen[n] {
+			return fmt.Errorf("line %d: %s binds %s twice; a binder group may not repeat a name, "+
+				"because the second would silently shadow the first", line, what, n)
+		}
+		seen[n] = true
+	}
+	return nil
+}
+
+// tailOK is W3, the tail rule at a loop (ADR 0015, abstract.md §2.5): a clause
+// body is a back edge with one argument per loop variable, a binding whose body
+// is one — a let, a sequence, a success arm — or an expression with no `again`
+// in it. A binding may wrap an `again`; a branch or an expression may not.
+func tailOK(t Tail, arity, line int) error {
+	switch t := t.(type) {
+	case *Again:
+		if len(t.Args) != arity {
+			return fmt.Errorf("line %d: again takes %d argument(s), one per loop variable, "+
+				"given %d", line, arity, len(t.Args))
+		}
+		for _, a := range t.Args {
+			if strays(a) {
+				return strayAgain(line)
+			}
+		}
+		return nil
+	case *TLet:
+		for _, b := range t.Binds {
+			if strays(b.Value) {
+				return strayAgain(line)
+			}
+		}
+		return tailOK(t.Body, arity, line)
+	case *TSeq:
+		for _, x := range t.Xs {
+			if strays(x) {
+				return strayAgain(line)
+			}
+		}
+		return tailOK(t.Last, arity, line)
+	case *TMonad:
+		for _, x := range t.Items {
+			if strays(x) {
+				return strayAgain(line)
+			}
+		}
+		return tailOK(t.Body, arity, line)
+	case Expr:
+		if strays(t) {
+			return strayAgain(line)
+		}
+	}
+	return nil
+}
+
+// strays reports an `again` inside an expression: in J an `again` that is no
+// clause body reads as the name applied, which inside a loop is a jump where
+// none may stand.
+func strays(e Expr) bool {
+	found := false
+	visit(e, func(x Expr) {
+		if a, ok := x.(*Apply); ok {
+			if v, ok := a.Fn.(*Var); ok && v.Name == "again" {
+				found = true
+			}
+		}
+	})
+	return found
+}
+
+func strayAgain(line int) error {
+	return fmt.Errorf("line %d: `again` may be a clause body, or sit under a `let`, but "+
+		"not under an `if` or inside an expression — write another clause instead, so "+
+		"the clause list stays the loop's whole control flow", line)
 }
 
 // try reads `try p = e { body }`, the handled bind with no handler: try's law,

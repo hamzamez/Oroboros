@@ -49,7 +49,7 @@ func TestATargetsDefinitionsAreUnfoldedByDelta(t *testing.T) {
 	}
 	// A `use` that found no file is exactly how a target-provided module looks
 	// (modules.md §4) — and now the target really does provide it.
-	got, err := Normalize(terms[0], testEnv(prog, prims...), DefaultFuel)
+	got, err := Normalize(entryTerm(t, prog, terms), testEnv(prog, prims...), DefaultFuel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestATargetsDefinitionOverridesTheLibrarys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := Normalize(terms[0], testEnv(prog, prims...), DefaultFuel)
+	got, err := Normalize(entryTerm(t, prog, terms), testEnv(prog, prims...), DefaultFuel)
 	if err != nil {
 		t.Fatal(err)
 	}

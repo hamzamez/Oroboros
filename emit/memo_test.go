@@ -16,7 +16,8 @@ import (
 
 func loopUnderTest(t *testing.T) *core.Term {
 	t.Helper()
-	nf := reduce(t, `(use go) (fn (n) (loop ((i 0)) (>= i n) i else (again (+ i 1))))`, "go")
+	nf := reduce(t, `use go
+fn t(n) { loop i = 0 { i >= n -> i; else -> again(i + 1) } }`, "go")
 	var found *core.Term
 	var walk func(x *core.Term)
 	walk = func(x *core.Term) {

@@ -81,11 +81,8 @@ func refineOn(t *testing.T, target, src, name string) error {
 // the DOMAIN — `0 <= i < len(a)` is the condition for the application to be
 // defined, not a check bolted onto an operation.
 func TestAnUnprovenIndexIsRefused(t *testing.T) {
-	err := refineOn(t, "go", `
-		(use go)
-		(export f) (sig f ((a (array f64)) (i int)) f64)
-		(def f (fn (a i) (a i)))
-	`, "f")
+	err := refineOn(t, "go", `use go
+export fn f(a ∈ Array(F64), i ∈ Int) (F64) { a[i] }`, "f")
 	if err == nil {
 		t.Fatal("an unconstrained index must be refused")
 	}
@@ -137,14 +134,10 @@ func TestLanguageLenDoesNotShadowTheHosts(t *testing.T) {
 // value before its body — because it is an ordering property, not a counting
 // one: reads before the move are fine, anything after it is not.
 func TestUsingABufferAfterItIsConsumed(t *testing.T) {
-	err := linearOn(t, `
-		(use go)
-		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
-		(def f (fn (n)
-			(build n (fn (c)
-				(let c2 (set c 0 1)
-      (seq (set c 1 (c 0)) c2))))))
-	`)
+	err := linearOn(t, `use go
+export fn f(n ∈ Int) (Int) where 2 < n && n < 100 {
+    build(n, fn(c) { c2 = store(c, 0, 1); store(c, 1, c[0]); c2 })
+}`)
 	if err == nil {
 		t.Fatal("using a buffer after a store must be refused")
 	}

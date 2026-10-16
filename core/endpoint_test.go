@@ -54,7 +54,7 @@ func TestEndpointExpressions(t *testing.T) {
 // exact value leaves the window can only be a bignum; and used where an `int`
 // is required, bounded-by-default refuses it.
 func TestABigLiteralIsAValueBuiltFromSmallOnes(t *testing.T) {
-	forms, err := Read("(def f (fn () 123456789012345678901234567890))")
+	forms, err := Read("fn f() { 123456789012345678901234567890 }")
 	if err != nil {
 		t.Fatalf("a 30-digit literal was refused: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestABigLiteralIsAValueBuiltFromSmallOnes(t *testing.T) {
 	}
 	check(forms[0].Term)
 	// A negative one negates the magnitude rather than sign-extending a chunk.
-	neg, err := Read("(def f (fn () -123456789012345678901))")
+	neg, err := Read("fn f() { -123456789012345678901 }")
 	if err != nil {
 		t.Fatal(err)
 	}

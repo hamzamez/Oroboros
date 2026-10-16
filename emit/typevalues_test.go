@@ -20,11 +20,11 @@ import (
 // rule reads.
 
 // asType is the instance at work: errors.AsType applied to the set NumError.
-const asType = `(use go/strconv as sc)
-(use go/errors as errors)
-(export f)
-(sig f ((e error)) bool)
-(def f (e) (case ((errors.AsType sc.NumError) e) (some n) true none false))
+const asType = `use go/strconv as sc
+use go/errors
+export fn f(e ∈ error) (Bool) {
+    case errors.AsType(sc.NumError)(e) { 'some(n) -> true; 'none -> false }
+}
 `
 
 // loadGo loads src on tg and returns the program and its environment.
@@ -123,15 +123,21 @@ func TestTheBoundIsMembership(t *testing.T) {
 // stays unapplied; the same program without either passes.
 func TestNoSetSurvivesStaging(t *testing.T) {
 	for src, want := range map[string]string{
-		`(use go/strconv as sc) (use go/fmt as fmt) (export f) (def f () (fmt.Println sc.NumError))`:      "is a set, a static value",
-		`(use go/errors as errors) (use go/fmt as fmt) (export f) (def f () (fmt.Println errors.AsType))`: "static argument",
-		`(use go/fmt as fmt) (export f) (def f () (fmt.Println error))`:                                   "is a set, a static value",
+		`use go/strconv as sc
+use go/fmt
+export fn f() { fmt.Println(sc.NumError) }`: "is a set, a static value",
+		`use go/errors
+use go/fmt
+export fn f() { fmt.Println(errors.AsType) }`: "static argument",
+		`use go/fmt
+export fn f() { fmt.Println(error) }`: "is a set, a static value",
 	} {
 		if _, _, err := normalizeOn(t, goNative(t), src); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s\n  was not refused for %q: %v", src, want, err)
 		}
 	}
-	if _, _, err := normalizeOn(t, goNative(t), `(use go/fmt as fmt) (export f) (def f () (fmt.Println "error"))`); err != nil {
+	if _, _, err := normalizeOn(t, goNative(t), `use go/fmt
+export fn f() { fmt.Println("error") }`); err != nil {
 		t.Errorf("a program holding no set is refused: %v", err)
 	}
 	// A CLAIM'S SET IS NOT A VALUE: `(the (int 0 9) e)` names the set int in a
@@ -149,12 +155,23 @@ func TestNoSetSurvivesStaging(t *testing.T) {
 func TestAProgramsOwnSetIsRefusedAtItsSig(t *testing.T) {
 	const want = "cannot yet name its own set"
 	for _, src := range []string{
-		`(export f) (def Byte (int 0 255)) (sig f ((x Byte)) (int 0 256)) (def f (x) (+ x 1))`,
-		`(export f) (def Byte (int 0 255)) (sig f ((x (int 0 9))) Byte) (def f (x) (+ x 1))`,
-		`(export f) (def Byte (int 0 255)) (sig f ((x (array Byte))) int) (def f (x) (len x))`,
-		`(export f) (def most 4611686018427387903) (def Count (int 0 most)) (sig f ((x Count)) int) (def f (x) x)`,
-		`(module sets) (export Byte) (def Byte (int 0 255))
-		 (module main) (use sets as s) (export f) (sig f ((x s.Byte)) int) (def f (x) x)`,
+		`Byte = int(0, 255)
+export fn f(x ∈ Byte) (0..256) { x + 1 }`,
+		`Byte = int(0, 255)
+export fn f(x ∈ 0..9) (Byte) { x + 1 }`,
+		`Byte = int(0, 255)
+export fn f(x ∈ Array(Byte)) (Int) { len(x) }`,
+		`most = 2^62-1
+Count = int(0, most)
+export fn f(x ∈ Count) (Int) { x }`,
+		`module sets {
+    export Byte = int(0, 255)
+}
+
+module main {
+    use sets as s
+    export fn f(x ∈ s.Byte) (Int) { x }
+}`,
 	} {
 		forms, err := core.Read(src)
 		if err != nil {
@@ -166,7 +183,8 @@ func TestAProgramsOwnSetIsRefusedAtItsSig(t *testing.T) {
 	}
 	// A DEFINITION NAMED IN A VALUE POSITION is no claim: the same constant used
 	// as a bound's value passes.
-	if _, _, err := normalizeOn(t, goNative(t), `(export f) (def most 255) (sig f ((x (int 0 9))) int) (def f (x) (if (< x most) x most))`); err != nil {
+	if _, _, err := normalizeOn(t, goNative(t), `most = 255
+export fn f(x ∈ 0..9) (Int) { if x < most { x } else { most } }`); err != nil {
 		t.Errorf("a constant used as a value was refused: %v", err)
 	}
 }
@@ -174,9 +192,9 @@ func TestAProgramsOwnSetIsRefusedAtItsSig(t *testing.T) {
 // A STATIC λ (§6): a definition whose parameter is a set, applied to one; β
 // gives the set and then the instance is made, with no rule but application.
 func TestAStaticLambdaPassesASetOn(t *testing.T) {
-	src := strings.Replace(asType, `(def f (e) (case ((errors.AsType sc.NumError) e) (some n) true none false))`,
-		`(def is-a (E) (fn (e) (case ((errors.AsType E) e) (some n) true none false)))
-(def f (e) ((is-a sc.NumError) e))`, 1)
+	src := strings.Replace(asType, `fn f(e) { case errors.AsType(sc.NumError)(e) { 'some(n) -> true; 'none -> false } }`,
+		`fn is_a(E) { fn(e) { case errors.AsType(E)(e) { 'some(n) -> true; 'none -> false } } }
+fn f(e) { is_a(sc.NumError)(e) }`, 1)
 	tg := goNative(t)
 	_, nf, err := normalizeOn(t, tg, src)
 	if err != nil {

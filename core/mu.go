@@ -413,12 +413,6 @@ func (r *reader) noStray(line int, es ...Expr) error {
 	return nil
 }
 
-func strayAgain(line int) error {
-	return fmt.Errorf("line %d: `again` may be a clause body, or sit under a `let`, but "+
-		"not under an `if` or inside an expression — write another clause instead, so "+
-		"the clause list stays the loop's whole control flow", line)
-}
-
 // muMatch reads `(match (e…) p… (when c) body … else body)`, a loop whose
 // scrutinees are its state and whose arms have patterns over it (match.md).
 func (r *reader) muMatch(kids []*Term, line int) (Tail, error) {

@@ -35,16 +35,15 @@ func TestNarrowingDoesNotTruncateItsSource(t *testing.T) {
 	// A loop that copies a PREFIX of `src` — the bound is `m`, not `(len src)` —
 	// and then asks for `(len src)` afterwards. If the narrowing wrote back, the
 	// length read after the loop is the prefix's.
-	src := `(fn (src m)
-	          (go.+ (loop ((acc 0) (k 0))
-	                  (go.>= k m) acc
-	                  else (again (go.+ acc (src k)) (go.+ k 1)))
-	                (go.len src)))`
-	terms, err := core.ReadAll(src)
-	if err != nil || len(terms) != 1 {
+	src := "fn(src, m) {\n" +
+		"    go.`+`(loop acc = 0, k = 0 { go.`>=`(k, m) -> acc; else -> again(go.`+`(acc, src[k]), go.`+`(k, 1)) },\n" +
+		"        go.len(src))\n" +
+		"}"
+	term, err := core.ReadTerm(src)
+	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	out, err := golang.FromResidual(tg, "gen-copy", nil, terms[0])
+	out, err := golang.FromResidual(tg, "gen-copy", nil, term)
 	if err != nil {
 		t.Fatal(err)
 	}

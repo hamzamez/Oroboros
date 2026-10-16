@@ -27,13 +27,12 @@ func TestLengthIsBounded(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		src := "(fn (a) (loop ((i 0)) (" + c.op + ".>= i (len a)) i " +
-			"else (again (" + c.op + ".+ i 1))))"
-		terms, err := core.ReadAll(src)
-		if err != nil || len(terms) != 1 {
+		src := "fn(a) { loop i = 0 { " + c.op + ".`>=`(i, len(a)) -> i; else -> again(" + c.op + ".`+`(i, 1)) } }"
+		term, err := core.ReadTerm(src)
+		if err != nil {
 			t.Fatalf("%s: read: %v", c.op, err)
 		}
-		rep := decideOn(t, tg, nil, terms[0])
+		rep := decideOn(t, tg, nil, term)
 
 		if rep.Ops == 0 {
 			t.Fatalf("%s: nothing was counted, so this test proves nothing", c.op)

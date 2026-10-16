@@ -44,34 +44,31 @@ func entryGo(t *testing.T, src string) (string, error) {
 	return golang.FromFunc(tg, f)
 }
 
-const etaHead = "(use go/encoding/hex)\n(export f)\n(sig f ((n (int 0 100))) int)\n"
+// etaHead opens f; each case binds (dst, k) and returns.
+const etaHead = "use go/encoding/hex\nexport fn f(n ∈ 0..100) (Int) {\n    src = array { 104, 105, 33 }\n"
 
 // η FOR PRODUCTS (tables.md §2.5): a host call with m declared results at a
-// producer's exit is the tuple of its results, p = ⟨π₁ p, …, πₘ p⟩. The short
-// spelling and the one with the tuple written out are one program, so they
-// print one Go function, and the call is made once.
+// producer's exit is the tuple of its results, p = ⟨π₁ p, …, πₘ p⟩. In program
+// order (ADR 0052) a borrowing call's value is its result alone, so J writes the
+// tuple out, the buffer beside the call's result; the state translation gives
+// back the call's continuation (fn (d c) (tuple d c)), which η takes apart: the
+// call is made once, and no product is built.
 func TestAHostCallsResultsAreAProductByEta(t *testing.T) {
-	short := etaHead + `(def f (n)
-  (let src (array 104 105 33)
-       (tuple dst k) (local buf (table (* 2 (len src)) 0) (hex.Encode buf src))
-    (if (> k 2) (len dst) 0)))`
-	long := etaHead + `(def f (n)
-  (let src (array 104 105 33)
-       (tuple dst k) (local buf (table (* 2 (len src)) 0) (let (tuple d c) (hex.Encode buf src) (tuple d c)))
-    (if (> k 2) (len dst) 0)))`
-	a, err := entryGo(t, short)
+	a, err := entryGo(t, etaHead+`    (dst, k) = {
+        var buf := array { 0 : _ ∈ 0..2 * len(src)-1 }
+        c = hex.Encode(buf, src)
+        (buf, c)
+    }
+    if k > 2 { len(dst) } else { 0 }
+}`)
 	if err != nil {
-		t.Fatalf("the short spelling: %v", err)
-	}
-	b, err := entryGo(t, long)
-	if err != nil {
-		t.Fatalf("the tuple written out: %v", err)
-	}
-	if a != b {
-		t.Errorf("η changed the program:\n%s\nagainst\n%s", a, b)
+		t.Fatal(err)
 	}
 	if n := strings.Count(a, "hex.Encode("); n != 1 {
 		t.Errorf("the call is made %d times; η evaluates it once:\n%s", n, a)
+	}
+	if strings.Contains(a, "struct") {
+		t.Errorf("a product was built where the host has two results:\n%s", a)
 	}
 }
 
@@ -79,14 +76,20 @@ func TestAHostCallsResultsAreAProductByEta(t *testing.T) {
 // each giving the call's two results or a tuple.
 func TestEtaReachesArmsAndLoopExits(t *testing.T) {
 	for _, body := range []string{
-		`(local buf (table (* 2 (len src)) 0) (if (> n 50) (hex.Encode buf src) (tuple buf 0)))`,
-		`(local buf (table (* 2 (len src)) 0) (if (> n 50) (tuple buf 0) (hex.Encode buf src)))`,
-		`(local buf (table (* 2 (len src)) 0) (loop ((i 0)) (>= i 2) (hex.Encode buf src) else (again (+ i 1))))`,
+		`{
+        var buf := array { 0 : _ ∈ 0..2 * len(src)-1 }
+        if n > 50 { c = hex.Encode(buf, src); (buf, c) } else { (buf, 0) }
+    }`,
+		`{
+        var buf := array { 0 : _ ∈ 0..2 * len(src)-1 }
+        if n > 50 { (buf, 0) } else { c = hex.Encode(buf, src); (buf, c) }
+    }`,
+		`{
+        var buf := array { 0 : _ ∈ 0..2 * len(src)-1 }
+        loop i = 0 { i >= 2 -> { c = hex.Encode(buf, src); (buf, c) }; else -> again(i + 1) }
+    }`,
 	} {
-		src := etaHead + `(def f (n)
-  (let src (array 104 105 33)
-       (tuple dst k) ` + body + `
-    (if (> k 2) (len dst) 0)))`
+		src := etaHead + "    (dst, k) = " + body + "\n    if k > 2 { len(dst) } else { 0 }\n}"
 		if _, err := entryGo(t, src); err != nil {
 			t.Errorf("%s: %v", body, err)
 		}
@@ -97,13 +100,10 @@ func TestEtaReachesArmsAndLoopExits(t *testing.T) {
 // applies to a call declaring exactly as many results as the pattern has names.
 func TestAnExitThatIsNotAnMTupleIsRefused(t *testing.T) {
 	for _, c := range []struct{ pattern, body string }{
-		{"(tuple dst k j)", `(local buf (table 6 0) (hex.Encode buf src))`},
-		{"(tuple dst k)", `(local buf (table 6 0) buf)`},
+		{"(dst, k, j)", `{ var buf := array { 0 : _ ∈ 0..5 }; c = hex.Encode(buf, src); (buf, c) }`},
+		{"(dst, k)", `{ var buf := array { 0 : _ ∈ 0..5 }; buf }`},
 	} {
-		src := etaHead + `(def f (n)
-  (let src (array 104 105 33)
-       ` + c.pattern + ` ` + c.body + `
-    (len dst)))`
+		src := etaHead + "    " + c.pattern + " = " + c.body + "\n    len(dst)\n}"
 		_, err := entryGo(t, src)
 		if err == nil || !strings.Contains(err.Error(), "every exit must give") {
 			t.Errorf("%s over %s: %v", c.pattern, c.body, err)

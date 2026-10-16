@@ -39,7 +39,7 @@ func mustLoadFail(t *testing.T, src, want string) {
 // qualification, imports, δ and the occurrence counter apply to a constructor
 // without any of them learning that sums exist.
 func TestSumGeneratesConstructors(t *testing.T) {
-	p, err := loadSrc(t, `(variant result (ok int) (err int))`)
+	p, err := loadSrc(t, `set Result = 'ok(Int) ∪ 'err(Int)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestSumGeneratesConstructors(t *testing.T) {
 
 // An enum is a sum with no payloads — the degenerate case, not a new concept.
 func TestEnumIsASumWithNoPayloads(t *testing.T) {
-	p, err := loadSrc(t, `(variant colour red green blue)`)
+	p, err := loadSrc(t, `set Colour = 'red ∪ 'green ∪ 'blue`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,8 @@ func TestVariantMayNotBelongToTwoSums(t *testing.T) {
 	// In one module the two sums cannot both define `ok`. Across modules there
 	// is no collision to refuse: `a.ok` and `b.ok` are two constructors of two
 	// types (sumclash_test.go).
-	mustLoadFail(t, `(variant a (ok int) (no int)) (variant b (ok int) (yes int))`,
+	mustLoadFail(t, `set A = 'ok(Int) ∪ 'no(Int)
+set B = 'ok(Int) ∪ 'yes(Int)`,
 		"sum b declares a variant of that name")
 }
 
@@ -92,48 +93,48 @@ func TestVariantMayNotBelongToTwoSums(t *testing.T) {
 // Exhaustiveness is decidable by COUNTING, because a sum is closed and finite —
 // and it is what earns the last clause its missing test.
 func TestCaseMustBeExhaustive(t *testing.T) {
-	mustLoadFail(t, `
-		(variant result (ok int) (err int))
-		(def f (fn (r) (case r (ok v) v)))`,
+	mustLoadFail(t, `set Result = 'ok(Int) ∪ 'err(Int)
+fn f(r) { case r { 'ok(v) -> v } }`,
 		"not exhaustive: err is unmatched")
 }
 
 // The converse: an `else` under a complete match is dead code, and saying so is
 // more useful than silently accepting it.
 func TestElseUnderACompleteMatchIsDead(t *testing.T) {
-	mustLoadFail(t, `
-		(variant result (ok int) (err int))
-		(def f (fn (r) (case r (ok v) v (err e) e else 0)))`,
+	mustLoadFail(t, `set Result = 'ok(Int) ∪ 'err(Int)
+fn f(r) {
+    case r {
+        'ok(v) -> v
+        'err(e) -> e
+        else -> 0
+    }
+}`,
 		"`else` is dead code")
 }
 
 func TestCaseRefusesUnknownVariant(t *testing.T) {
-	mustLoadFail(t, `
-		(variant result (ok int) (err int))
-		(def f (fn (r) (case r (ok v) v (nope e) e)))`,
+	mustLoadFail(t, `set Result = 'ok(Int) ∪ 'err(Int)
+fn f(r) { case r { 'ok(v) -> v; nope(e) -> e } }`,
 		"not a constructor of any variant type")
 }
 
 func TestCaseRefusesMixingSums(t *testing.T) {
-	mustLoadFail(t, `
-		(variant a (ok int) (no int))
-		(variant b (yes int) (nah int))
-		(def f (fn (r) (case r (ok v) v (yes e) e)))`,
+	mustLoadFail(t, `set A = 'ok(Int) ∪ 'no(Int)
+set B = 'yes(Int) ∪ 'nah(Int)
+fn f(r) { case r { 'ok(v) -> v; 'yes(e) -> e } }`,
 		"one case eliminates one variant type")
 }
 
 func TestCaseRefusesRepeatedVariant(t *testing.T) {
-	mustLoadFail(t, `
-		(variant result (ok int) (err int))
-		(def f (fn (r) (case r (ok v) v (ok e) e)))`,
+	mustLoadFail(t, `set Result = 'ok(Int) ∪ 'err(Int)
+fn f(r) { case r { 'ok(v) -> v; 'ok(e) -> e } }`,
 		"matched twice")
 }
 
 // A variant that carries nothing has nothing to bind.
 func TestCaseRefusesBindingOnAnEmptyVariant(t *testing.T) {
-	mustLoadFail(t, `
-		(variant colour red green)
-		(def f (fn (c) (case c (red x) x (green y) 1)))`,
+	mustLoadFail(t, `set Colour = 'red ∪ 'green
+fn f(c) { case c { 'red(x) -> x; 'green(y) -> 1 } }`,
 		"carries no payload")
 }
 
@@ -142,10 +143,8 @@ func TestCaseRefusesBindingOnAnEmptyVariant(t *testing.T) {
 // constructor writes `#any` into the slots its tag does not select. Until
 // sumrep-2026-10-06 a mixed sum was refused here as a compiler limitation.
 func TestAMixedSumAtABoundaryIsItsTagAndItsSlots(t *testing.T) {
-	p, err := loadSrc(t, `
-		(variant mixed (num int) (name string) nothing)
-		(sig f ((a int)) mixed)
-		(def f (fn (a) (num a)))`)
+	p, err := loadSrc(t, `set Mixed = 'num(Int) ∪ 'name(String) ∪ 'nothing
+fn f(a ∈ Int) (Mixed) { 'num(a) }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,10 +163,8 @@ func TestAMixedSumAtABoundaryIsItsTagAndItsSlots(t *testing.T) {
 // the whole representation story, because two results already exist on all four
 // targets.
 func TestSumInASignatureIsTwoResults(t *testing.T) {
-	p, err := loadSrc(t, `
-		(variant result (ok int) (err int))
-		(sig f ((a int)) result)
-		(def f (fn (a) (ok a)))`)
+	p, err := loadSrc(t, `set Result = 'ok(Int) ∪ 'err(Int)
+fn f(a ∈ Int) (Result) { 'ok(a) }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,10 +195,7 @@ func reduceTo(t *testing.T, src, export string) string {
 // The Church-encoded sum always worked here (sums-research.md §0); what it
 // needed was `=` folding, or the tag became a literal and left `(= 0 0)` behind.
 func TestStaticSumVanishes(t *testing.T) {
-	got := reduceTo(t, `
-		(use go)
-		(variant result (ok int) (err int))
-		(def f (fn (n) (case (ok n) (ok v) (go.+ v 1) (err e) e)))`, "f")
+	got := reduceTo(t, "use go\nset Result = 'ok(Int) ∪ 'err(Int)\nfn f(n) { case 'ok(n) { 'ok(v) -> go.`+`(v, 1); 'err(e) -> e } }", "f")
 	if got != "(fn (n) (go.+ n 1))" {
 		t.Errorf("a static sum must leave nothing behind: %s", got)
 	}
@@ -212,10 +206,7 @@ func TestStaticSumVanishes(t *testing.T) {
 // the eliminator outside it, neither able to see the other — and no backend can
 // emit that.
 func TestDynamicSumVanishesThroughCaseOfCase(t *testing.T) {
-	got := reduceTo(t, `
-		(use go)
-		(variant result (ok int) (err int))
-		(def f (fn (n) (case (if (go.> n 0) (ok n) (err 0)) (ok v) (go.+ v 1) (err e) e)))`, "f")
+	got := reduceTo(t, "use go\nset Result = 'ok(Int) ∪ 'err(Int)\nfn f(n) {\n    case if go.`>`(n, 0) { 'ok(n) } else { 'err(0) } { 'ok(v) -> go.`+`(v, 1); 'err(e) -> e }\n}", "f")
 	if got != "(fn (n) (if (go.> n 0) (go.+ n 1) 0))" {
 		t.Errorf("case-of-case must reunite each constructor with the eliminator: %s", got)
 	}
@@ -225,12 +216,7 @@ func TestDynamicSumVanishesThroughCaseOfCase(t *testing.T) {
 // between a constructor and its eliminator when a shared subterm is not
 // duplicable, so handling only `if` stops one level in.
 func TestEliminatorCommutesThroughLet(t *testing.T) {
-	got := reduceTo(t, `
-		(use go)
-		(variant result (ok int) (err int))
-		(def step (fn (r k)
-			(case r (ok v) (if (go.> v k) (ok (go.- v k)) (err v)) (err e) (err e))))
-		(def f (fn (a b) (case (step (step (ok a) b) b) (ok v) v (err e) (go.- 0 e))))`, "f")
+	got := reduceTo(t, "use go\nset Result = 'ok(Int) ∪ 'err(Int)\nfn step(r, k) {\n    case r { 'ok(v) -> if go.`>`(v, k) { 'ok(go.`-`(v, k)) } else { 'err(v) }; 'err(e) -> 'err(e) }\n}\nfn f(a, b) { case step(step('ok(a), b), b) { 'ok(v) -> v; 'err(e) -> go.`-`(0, e) } }", "f")
 	// `#k` is the product's SELECTOR. Its absence is the whole claim: no
 	// closure and no tag survive. The `(fn (#c) …)` that remain are `let`
 	// binders, which is β doing what it always did.

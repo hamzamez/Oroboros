@@ -60,7 +60,7 @@ func norm(t *testing.T, src, target string) string {
 		t.Fatalf("expected exactly one term to reduce, got %d", len(terms))
 	}
 	env := testEnv(prog, prims...)
-	out, err := Normalize(terms[0], env, DefaultFuel)
+	out, err := Normalize(entryTerm(t, prog, terms), env, DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestFuelStopsSelfApplication(t *testing.T) {
 	forms, _ := Read(`((fn (f) (f f)) (fn (f) (f f)))`)
 	prog, terms, _ := Load(forms)
 	env := testEnv(prog, "x")
-	if _, err := Normalize(terms[0], env, 10_000); err == nil {
+	if _, err := Normalize(entryTerm(t, prog, terms), env, 10_000); err == nil {
 		t.Fatal("expected the step limit to stop self-application")
 	} else if _, ok := err.(*FuelError); !ok {
 		t.Fatalf("expected FuelError, got %T: %v", err, err)
@@ -255,7 +255,7 @@ func TestResidualNamesReported(t *testing.T) {
 	`)
 	prog, terms, _ := Load(forms)
 	env := testEnv(prog, "add")
-	out, err := Normalize(terms[0], env, DefaultFuel)
+	out, err := Normalize(entryTerm(t, prog, terms), env, DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -348,7 +348,7 @@ func TestSelfCallIsBottomNotAnError(t *testing.T) {
 	}
 	prog, terms, _ := Load(forms)
 	env := testEnv(prog)
-	out, err := Normalize(terms[0], env, DefaultFuel)
+	out, err := Normalize(entryTerm(t, prog, terms), env, DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -672,7 +672,7 @@ func TestLoadAcrossFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	got, err := Normalize(terms[0], testEnv(prog, prims...), DefaultFuel)
+	got, err := Normalize(entryTerm(t, prog, terms), testEnv(prog, prims...), DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -689,7 +689,7 @@ func TestLoadAcrossFiles(t *testing.T) {
 	// P ∩ D still decides, across the file boundary: a target that provides
 	// the name natively shadows the imported definition.
 	env := testEnv(prog, append(prims, "num/vec.dot")...)
-	got, err = Normalize(terms[0], env, DefaultFuel)
+	got, err = Normalize(entryTerm(t, prog, terms), env, DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -746,10 +746,7 @@ func TestAbstractionMovedAcrossBinderDepths(t *testing.T) {
 // One occurrence substituted and compiled correctly. Two reached this path and
 // silently returned the definition instead of the argument.
 func TestCallByNeedDoesNotCaptureADefinition(t *testing.T) {
-	got := reduceTo(t, `
-		(use go)
-		(def d1 "sentinel")
-		(def f (fn (k) ((fn (d1) (go.+ d1 d1)) (go.+ k 100))))`, "f")
+	got := reduceTo(t, "use go\nd1 = \"sentinel\"\nfn f(k) {\n    d1 = go.`+`(k, 100)\n    go.`+`(d1, d1)\n}", "f")
 	if strings.Contains(got, "sentinel") {
 		t.Fatalf("the definition captured the bound name: %s", got)
 	}

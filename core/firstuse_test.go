@@ -45,7 +45,7 @@ func TestALetOfAVersionUsedOnceFirstIsItsPlace(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			term := terms[0]
+			term := entryTerm(t, prog, terms)
 			if !c.program {
 				term = markVersion(term, "x")
 			}

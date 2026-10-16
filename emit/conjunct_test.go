@@ -24,14 +24,13 @@ import (
 // range added to `divmod`'s signature lost the division's own precondition.
 func TestAConjunctionAssumesEachConjunct(t *testing.T) {
 	for _, w := range []string{
-		"(go.!= b 0)",
-		"(and (go.!= b 0) (go.<= 0 a))",
-		"(and (go.<= 0 a) (go.!= b 0))",                    // order must not matter
-		"(and (go.!= b 0) (and (go.<= 0 a) (go.< a 100)))", // nested
-		"(and (and (go.<= 0 a) (go.< a 100)) (go.!= b 0))", // nested the other way
+		"go.`!=`(b, 0)",
+		"go.`!=`(b, 0) && go.`<=`(0, a)",
+		"go.`<=`(0, a) && go.`!=`(b, 0)",                     // order must not matter
+		"go.`!=`(b, 0) && go.`<=`(0, a) && go.`<`(a, 100)",   // nested
+		"(go.`<=`(0, a) && go.`<`(a, 100)) && go.`!=`(b, 0)", // nested the other way
 	} {
-		src := "(use go)\n(export q)\n(def q (fn (a b) (go./ a b)))\n" +
-			"(sig q ((a int) (b int)) int (where " + w + "))\n"
+		src := "use go\nexport fn q(a ∈ Int, b ∈ Int) (Int) where " + w + " { go.`/`(a, b) }\n"
 		if err := refineDivision(t, src); err != nil {
 			t.Errorf("%s did not discharge the division: %v", w, err)
 		}
@@ -43,12 +42,11 @@ func TestAConjunctionAssumesEachConjunct(t *testing.T) {
 // simply started assuming everything.
 func TestADivisionWithoutItsPreconditionStillRefuses(t *testing.T) {
 	for _, w := range []string{
-		"(go.<= 0 a)",
-		"(and (go.<= 0 a) (go.< a 100))",
-		"(and (go.<= 0 b) (go.<= 0 a))", // `0 <= b` does NOT give `b != 0`
+		"go.`<=`(0, a)",
+		"go.`<=`(0, a) && go.`<`(a, 100)",
+		"go.`<=`(0, b) && go.`<=`(0, a)", // `0 <= b` does NOT give `b != 0`
 	} {
-		src := "(use go)\n(export q)\n(def q (fn (a b) (go./ a b)))\n" +
-			"(sig q ((a int) (b int)) int (where " + w + "))\n"
+		src := "use go\nexport fn q(a ∈ Int, b ∈ Int) (Int) where " + w + " { go.`/`(a, b) }\n"
 		if err := refineDivision(t, src); err == nil {
 			t.Errorf("%s discharged a division it does not justify", w)
 		} else if !strings.Contains(err.Error(), "!= b 0") {

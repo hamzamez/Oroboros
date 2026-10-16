@@ -16,23 +16,29 @@ func TestASlotIsProvableWhereItsTagSelectsIt(t *testing.T) {
 (def f (n)
   (let (tuple k t) (loop ((i 0)) (>= i n) (tuple 1 (array n 100 7)) else (again (+ i 1)))
     (+ k (t 2))))`},
-		{"an #any tail is ⊥ in the join of a slot's tails", `
-(variant (found R) (rows R) nothing)
-(export f)
-(sig f ((n (int 0 9))) int)
-(def f (n)
-  (case (loop ((i 0)) (>= i n) (rows (array n 100 7)) (= i 5) nothing else (again (+ i 1)))
-    (rows t) (t 2)
-    nothing 0))`},
-		{"an arm whose tag no exit carries is dead: the tag's exact value set, and ex falso", `
-(variant (found R) (at int) (rows R) nothing)
-(export f)
-(sig f ((n (int 0 9))) int)
-(def f (n)
-  (case (loop ((i 0)) (> i 9) nothing (= i n) (at n) else (again (+ i 1)))
-    (at v)   v
-    (rows t) (t 2)
-    nothing  0))`},
+		{"an #any tail is ⊥ in the join of a slot's tails", `set Found(R) = 'rows(R) ∪ 'nothing
+export fn f(n ∈ 0..9) (Int) {
+    case loop i = 0 {
+        i >= n -> 'rows(array { n, 100, 7 })
+        i == 5 -> 'nothing
+        else -> again(i + 1)
+    } {
+        'rows(t) -> t(2)
+        'nothing -> 0
+    }
+}`},
+		{"an arm whose tag no exit carries is dead: the tag's exact value set, and ex falso", `set Found(R) = 'at(Int) ∪ 'rows(R) ∪ 'nothing
+export fn f(n ∈ 0..9) (Int) {
+    case loop i = 0 {
+        i > 9 -> 'nothing
+        i == n -> 'at(n)
+        else -> again(i + 1)
+    } {
+        'at(v) -> v
+        'rows(t) -> t(2)
+        'nothing -> 0
+    }
+}`},
 	} {
 		if err := refineGo(t, c.src); err != nil {
 			t.Errorf("%s: %v", c.why, err)
@@ -43,15 +49,18 @@ func TestASlotIsProvableWhereItsTagSelectsIt(t *testing.T) {
 // EX FALSO IS NOT A LICENCE: a guard whose constant IS among the tag's values
 // opens a live arm, and an index there must still be proven.
 func TestALiveArmIsStillChecked(t *testing.T) {
-	err := refineGo(t, `
-(variant (found R) (at int) (rows R) nothing)
-(export f)
-(sig f ((n (int 0 9))) int)
-(def f (n)
-  (case (loop ((i 0)) (> i 9) nothing (= i n) (rows (array n 7)) else (again (+ i 1)))
-    (at v)   v
-    (rows t) (t 2)
-    nothing  0))`)
+	err := refineGo(t, `set Found(R) = 'at(Int) ∪ 'rows(R) ∪ 'nothing
+export fn f(n ∈ 0..9) (Int) {
+    case loop i = 0 {
+        i > 9 -> 'nothing
+        i == n -> 'rows(array { n, 7 })
+        else -> again(i + 1)
+    } {
+        'at(v) -> v
+        'rows(t) -> t(2)
+        'nothing -> 0
+    }
+}`)
 	if err == nil || !strings.Contains(err.Error(), "indexing") {
 		t.Errorf("an index past a two-element table in a live arm must be refused, got %v", err)
 	}

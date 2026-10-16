@@ -13,21 +13,15 @@ import (
 // what it evaluates: a table the prover knows nothing about is still refused,
 // and one whose evenness the caller declares is proven by the assumption.
 func TestAHostPreconditionOnLiteralsIsDecidedByEvaluation(t *testing.T) {
-	const head = `(use go) (use go/strings as strings) (export f)
-`
+	const head = "use go\nuse go/strings as strings\nexport "
 	for _, c := range []struct {
 		body, want string // want "" when accepted
 	}{
-		{`(sig f ((s go.bytestring)) go/strings.Replacer)
-(def f (s) (strings.NewReplacer "a" s "b" "2"))`, ""},
-		{`(sig f () go/strings.Replacer)
-(def f () (strings.NewReplacer))`, ""},
-		{`(sig f ((s go.bytestring)) go/strings.Replacer)
-(def f (s) (strings.NewReplacer "a" s "b"))`, "which is false at this call"},
-		{`(sig f ((xs (array go.bytestring))) go/strings.Replacer)
-(def f (xs) (strings.NewReplacer (spread xs)))`, "which does not follow"},
-		{`(sig f ((xs (array go.bytestring))) go/strings.Replacer (where (= (% (len xs) 2) 0)))
-(def f (xs) (strings.NewReplacer (spread xs)))`, ""},
+		{"fn f(s ∈ go.bytestring) (`go/strings`.Replacer) { strings.NewReplacer(\"a\", s, \"b\", \"2\") }", ""},
+		{"fn f() (`go/strings`.Replacer) { strings.NewReplacer() }", ""},
+		{"fn f(s ∈ go.bytestring) (`go/strings`.Replacer) { strings.NewReplacer(\"a\", s, \"b\") }", "which is false at this call"},
+		{"fn f(xs ∈ Array(go.bytestring)) (`go/strings`.Replacer) { strings.NewReplacer(xs...) }", "which does not follow"},
+		{"fn f(xs ∈ Array(go.bytestring)) (`go/strings`.Replacer) where len(xs) % 2 == 0 {\n    strings.NewReplacer(xs...)\n}", ""},
 	} {
 		err := refineGo(t, head+c.body)
 		switch {

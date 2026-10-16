@@ -20,13 +20,7 @@ func TestTheShiftRewriteKeepsEveryAnswer(t *testing.T) {
 	rewrote := 0
 	for c := 0; c < 120; c++ {
 		k := 1 + r.Intn(4)
-		src := fmt.Sprintf(`(export run)
-(sig run ((n (int 0 12))) int)
-(def run (n)
-  (loop ((i (- n %d)) (acc 0))
-    (>= i %d) acc
-    else (again (+ i 1) (+ acc (+ (* 100 (/ i %d)) (%% i %d))))))
-`, r.Intn(2)*r.Intn(16), 8+r.Intn(8), 1<<k, 1<<(1+r.Intn(4)))
+		src := fmt.Sprintf("export fn run(n ∈ 0..12) (Int) {\n    loop i = n - %d, acc = 0 {\n        i >= %d -> acc\n        else -> again(i + 1, acc + (100 * (i / %d) + `%%`(i, %d)))\n    }\n}\n", r.Intn(2)*r.Intn(16), 8+r.Intn(8), 1<<k, 1<<(1+r.Intn(4)))
 		path := filepath.Join(dir, fmt.Sprintf("s%d.oro", c))
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)

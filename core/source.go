@@ -61,7 +61,7 @@ func ReadTargetSource(text, file, target string) ([]*Term, error) {
 	if Todays(text) {
 		return readAllTodays(text) // the bridge: removed with step 5b
 	}
-	return ReadTarget(text, target, Root(filepath.Dir(file)))
+	return ReadTarget(text, target, filepath.Dir(file), Root(filepath.Dir(file)))
 }
 
 // Todays reports a source in today's notation: its first token, past blanks
@@ -148,7 +148,11 @@ func ReadAll(text string) ([]*Term, error) { return ReadTargetSource(text, "", "
 // ReadTerm reads one expression in J and gives D of it, the core term it means.
 func ReadTerm(text string) (*Term, error) {
 	if Todays(text) {
-		return readTermTodays(text) // the bridge: removed with step 5b
+		// the bridge: removed with step 5b. A J expression may begin with `(`,
+		// so one today's reader refuses is read as J.
+		if t, err := readTermTodays(text); err == nil {
+			return t, nil
+		}
 	}
 	toks, err := lex(text)
 	if err != nil {

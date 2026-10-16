@@ -35,11 +35,7 @@ func goLive(t *testing.T) *emit.Target {
 // An escaping closure is refused, and the refusal says why rather than
 // producing Go that does not compile (callbacks.md tier 3).
 func TestEscapingClosureIsARefusal(t *testing.T) {
-	src := `
-		(use go)
-		(def make-scaler (fn (f) (fn (v) (go.* v f))))
-		(fn (k) (make-scaler k))
-	`
+	src := "use go\nfn make_scaler(f) { fn(v) { go.`*`(v, f) } }\nfn t(k) { make_scaler(k) }"
 	_, err := golang.FromResidual(goLive(t), "ms", nil, reduce(t, src, "go"))
 	if err == nil {
 		t.Fatal("expected a refusal for an escaping closure")
@@ -54,16 +50,12 @@ func TestEscapingClosureIsARefusal(t *testing.T) {
 // the signature's types are the Go function's.
 func TestSignatureTypesTheParameters(t *testing.T) {
 	tg := goLive(t)
-	nf := reduce(t, `
-		(use go)
-		(fn (n) (loop ((acc 0.0) (i 0))
-		  (go.>= i n)  acc
-		  else         (again (go.f+ acc 1.0) (go.+ i 1))))
-	`, "go")
+	nf := reduce(t, "use go\nfn t(n) {\n    loop acc = 0.0, i = 0 { go.`>=`(i, n) -> acc; else -> again(go.`f+`(acc, 1.0), go.`+`(i, 1)) }\n}", "go")
 	// A parameter that reaches no typed operation is untypeable without a
 	// signature. (`n` above reaches `go.>=`, whose declaration types it: the
 	// IR's typing is unification, and needs no signature there.)
-	if _, err := golang.FromResidual(tg, "id", nil, reduce(t, "(use go)\n(fn (x) x)", "go")); err == nil {
+	if _, err := golang.FromResidual(tg, "id", nil, reduce(t, `use go
+fn t(x) { x }`, "go")); err == nil {
 		t.Fatal("without a signature the parameter is untypeable, so this must fail")
 	} else if !strings.Contains(err.Error(), "parameter") {
 		t.Errorf("the refusal must name the parameter: %v", err)
@@ -83,14 +75,7 @@ func TestSignatureTypesTheParameters(t *testing.T) {
 // updated variable in the post clause (PostVars) and the early exit assigning
 // the loop's result.
 func TestLoopEmitsHostFor(t *testing.T) {
-	nf := reduce(t, `
-		(use go)
-		(fn (a k)
-		  (loop ((i 0))
-		    (go.>= i (len a))       -1
-		    (go.f> (a i) k)         i
-		    else                    (again (go.+ i 1))))
-	`, "go")
+	nf := reduce(t, "use go\nfn t(a, k) {\n    loop i = 0 {\n        go.`>=`(i, len(a)) -> -1\n        go.`f>`(a[i], k) -> i\n        else -> again(go.`+`(i, 1))\n    }\n}", "go")
 	sig := &core.Sig{Params: []core.SigParam{{Name: "a", Type: "array f64"},
 		{Name: "k", Type: "f64"}}, Result: "int"}
 	code, err := golang.FromResidual(goLive(t), "find", sig, nf)
@@ -110,14 +95,7 @@ func TestLoopEmitsHostFor(t *testing.T) {
 // clause (1.4x on the sieve); `best` differs per clause and stays in the body;
 // the clause that changes nothing is a bare `continue`.
 func TestLoopSkipsUnchangedArguments(t *testing.T) {
-	nf := reduce(t, `
-		(use go)
-		(fn (a)
-		  (loop ((best 0.0) (i 0))
-		    (go.>= i (len a))         best
-		    (go.f> (a i) best)        (again (a i) (go.+ i 1))
-		    else                      (again best (go.+ i 1))))
-	`, "go")
+	nf := reduce(t, "use go\nfn t(a) {\n    loop best = 0.0, i = 0 {\n        go.`>=`(i, len(a)) -> best\n        go.`f>`(a[i], best) -> again(a[i], go.`+`(i, 1))\n        else -> again(best, go.`+`(i, 1))\n    }\n}", "go")
 	sig := &core.Sig{Params: []core.SigParam{{Name: "a", Type: "array f64"}}, Result: "f64"}
 	code, err := golang.FromResidual(goLive(t), "best", sig, nf)
 	if err != nil {

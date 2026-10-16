@@ -23,18 +23,28 @@ import (
 // element size travels BY NAME (wintables-2026-08-25), so reading a byte table
 // as qwords is a wrong answer rather than a slow one.
 func TestALoopCarriedBufferHasOneElementType(t *testing.T) {
-	src := `(export f)
-(sig f ((n (int 2 200))) int)
-(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
-(def small (fn (v) (build 8 (fn (b)
-  (loop ((b b) (i 0) (r v)) (>= i 8) b
-    else (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
-(def step (fn (a k) (build 8 (fn (o)
-  (loop ((o o) (i 0) (c 0)) (>= i 8) o
-    else (let t (+ (* (at a i) k) c)
-           (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
-(def f (fn (n) (at (loop ((acc (small 1)) (i 2)) (> i n) acc
-                     else (again (step acc i) (+ i 1))) 0)))
+	src := `fn at(t, i) { if i < 0 { 0 } else if i >= len(t) { 0 } else { t[i] } }
+fn small(v) {
+    build(8,
+        fn(b) {
+            loop b = b, i = 0, r = v {
+                i >= 8 -> b
+                else -> again(store(b, i, r % (2^24)), i + 1, r / (2^24))
+            }
+        })
+}
+fn step(a, k) {
+    build(8,
+        fn(o) {
+            loop o = o, i = 0, c = 0 {
+                i >= 8 -> o
+                else -> { t = at(a, i) * k + c; again(store(o, i, t % (2^24)), i + 1, t / (2^24)) }
+            }
+        })
+}
+export fn f(n ∈ 2..200) (Int) {
+    at(loop acc = small(1), i = 2 { i > n -> acc; else -> again(step(acc, i), i + 1) }, 0)
+}
 `
 	for _, dir := range []string{"../targets/go", "../targets/java"} {
 		tg, err := emit.LoadTarget(dir)

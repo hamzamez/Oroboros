@@ -15,17 +15,18 @@ import (
 // since the way back is a decode; and a concrete type does not join its
 // interface here, which the IR could not hold.
 func TestAConditionalJoinsAtTheLarger(t *testing.T) {
-	head := "(use go) (use go/os as gos) (use go/strings as strings) (use go/fmt as fmt) (export f) "
+	head := "use go\nuse go/os as gos\nuse go/strings as strings\nuse go/fmt as fmt\nexport "
 	for _, c := range []struct{ src, refused string }{
-		{`(sig f ((c bool) (b go.bytestring)) go.bytestring) (def f (c b) (if c "" b))`, ""},
-		{`(sig f ((c bool) (b go.bytestring)) go.bytestring) (def f (c b) (if c b ""))`, ""},
-		{`(sig f ((c bool) (b go.bytestring)) string) (def f (c b) (if c "" b))`,
+		{`fn f(c ∈ Bool, b ∈ go.bytestring) (go.bytestring) { if c { "" } else { b } }`, ""},
+		{`fn f(c ∈ Bool, b ∈ go.bytestring) (go.bytestring) { if c { b } else { "" } }`, ""},
+		{`fn f(c ∈ Bool, b ∈ go.bytestring) (String) { if c { "" } else { b } }`,
 			"its signature declares result string, and the body yields go.bytestring"},
-		{`(sig f ((c bool) (w go/io.Writer)) bool)
-		  (def f (c w) (let (tuple n e) (fmt.Fprintln (if c (gos.Stderr) w) "x") (go.err-nil e)))`,
+		{"fn f(c ∈ Bool, w ∈ `go/io`.Writer) (Bool) {\n    (n, e) = fmt.Fprintln(if c { gos.Stderr() } else { w }, \"x\")\n    go.err_nil(e)\n}",
 			"the branches of a conditional are go/os.File and go/io.Writer"},
-		{`(sig f ((c bool)) bool)
-		  (def f (c) (let (tuple n e) (fmt.Fprintln (if c (gos.Stderr) (strings.NewBuilder)) "x") (go.err-nil e)))`,
+		{`fn f(c ∈ Bool) (Bool) {
+    (n, e) = fmt.Fprintln(if c { gos.Stderr() } else { strings.NewBuilder() }, "x")
+    go.err_nil(e)
+}`,
 			"the branches of a conditional are"},
 	} {
 		_, err := entryGo(t, head+c.src)
@@ -45,21 +46,18 @@ func TestAConditionalJoinsAtTheLarger(t *testing.T) {
 // every target. On JavaScript that is `undefined`; on x86 it is a read outside
 // the table.
 func TestALoopVariableDoesNotInheritAParametersFacts(t *testing.T) {
-	src := `(use go) (export f)
-(sig f ((n (int 0 5)) (a (array int))) int (where (= (len a) 6)))
-(def f (n a)
-  (let s (loop ((n 10))
-           (> n 100) n
-           else (again (+ n 1)))
-    (a s)))`
+	src := `use go
+export fn f(n ∈ 0..5, a ∈ Array(Int)) (Int) where len(a) == 6 {
+    s = loop n = 10 { n > 100 -> n; else -> again(n + 1) }
+    a[s]
+}`
 	_, err := entryGo(t, src)
 	if err == nil || !strings.Contains(err.Error(), "is not proven") {
 		t.Errorf("an index of 101 into a table of 6 was accepted: %v", err)
 	}
 	// The control: the parameter itself is in range.
-	if _, err := entryGo(t, `(use go) (export f)
-(sig f ((n (int 0 5)) (a (array int))) int (where (= (len a) 6)))
-(def f (n a) (a n))`); err != nil {
+	if _, err := entryGo(t, `use go
+export fn f(n ∈ 0..5, a ∈ Array(Int)) (Int) where len(a) == 6 { a[n] }`); err != nil {
 		t.Errorf("the parameter's own range no longer proves its index: %v", err)
 	}
 }
@@ -70,14 +68,17 @@ func TestALoopVariableDoesNotInheritAParametersFacts(t *testing.T) {
 // them under a host call's continuation, is in [0, 1].
 func TestAStatusIsBoundedByItsExits(t *testing.T) {
 	prog := func(exit0, exit1 string) string {
-		return `(use go) (use go/os as gos) (use go/fmt as fmt) (export f)
-(sig f ((k (int 0 100))) int)
-(def f (k)
-  (let s (loop ((i 0))
-           (>= i k)  ` + exit0 + `
-           (= i 50)  (let (tuple w e) (fmt.Fprintln (gos.Stderr) "x") (seq (ignore e) ` + exit1 + `))
-           else      (again (+ i 1)))
-    (gos.Exit s)))`
+		return `use go
+use go/os as gos
+use go/fmt as fmt
+export fn f(k ∈ 0..100) (Int) {
+    s = loop i = 0 {
+        i >= k -> ` + exit0 + `
+        i == 50 -> { (w, e) = fmt.Fprintln(gos.Stderr(), "x"); ignore(e); ` + exit1 + ` }
+        else -> again(i + 1)
+    }
+    gos.Exit(s)
+}`
 	}
 	if _, err := entryGo(t, prog("0", "1")); err != nil {
 		t.Errorf("a status of 0 or 1 at every exit: %v", err)
@@ -87,7 +88,7 @@ func TestAStatusIsBoundedByItsExits(t *testing.T) {
 		{"0", "300", "an exit of 300 under a host call's continuation"},
 		// a loop variable is a binder: its initial value holds on the first
 		// iteration only, and here it exits anywhere up to k
-		{"(* i 3)", "1", "an exit of 3i, up to 300"},
+		{"i * 3", "1", "an exit of 3i, up to 300"},
 	} {
 		_, err := entryGo(t, prog(c.exit0, c.exit1))
 		if err == nil || !strings.Contains(err.Error(), "go/os.Exit requires") {
@@ -102,50 +103,35 @@ func TestAStatusIsBoundedByItsExits(t *testing.T) {
 // bufio-2026-10-01 that was known only when the variable was spelled like the
 // buffer, through the fact layer's names; here it never is.
 func TestALoopVariableHasItsBuffersLength(t *testing.T) {
-	head := "(use go) (export f) "
+	head := "use go\nexport "
 	for _, c := range []struct {
 		why, src string
 		ok       bool
 	}{
-		{"a variable threading a buffer under another name", `
-(sig f ((n (int 1 100))) (array int))
-(def f (n)
-  (local t (table n 0)
-    (loop ((u t) (i 0))
-      (>= i n) u
-      else (again (set u i (+ (u i) i)) (+ i 1)))))`, true},
-		{"two buffers that swap on the back edge, both of length n", `
-(sig f ((n (int 1 100))) int)
-(def f (n)
-  (local a (table n 0)  b (table n 0)
-    (loop ((x a) (y b) (i 0))
-      (>= i n) (x 0)
-      else (again (set y i (+ (x i) 1)) x (+ i 1)))))`, true},
-		{"a back edge through a let", `
-(sig f ((n (int 1 100))) (array int))
-(def f (n)
-  (local t (table n 0)
-    (loop ((u t) (i 0))
-      (>= i n) u
-      else (let w (set u i 7)
-             (again (set w i (w i)) (+ i 1))))))`, true},
+		{"a variable threading a buffer under another name", `fn f(n ∈ 1..100) (Array(Int)) {
+    var t := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0 { i >= n -> t; else -> { t[i] := t[i] + i; again(i + 1) } }
+}`, true},
+		{"two buffers that swap on the back edge, both of length n", `fn f(n ∈ 1..100) (Int) {
+    var a := array { 0 : _ ∈ 0..n-1 }
+    var b := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0 { i >= n -> a[0]; else -> { b[i] := a[i] + 1; a, b := b, a; again(i + 1) } }
+}`, true},
+		{"a back edge through a let", `fn f(n ∈ 1..100) (Array(Int)) {
+    var t := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0 { i >= n -> t; else -> { t[i] := 7; t[i] := t[i]; again(i + 1) } }
+}`, true},
 		// The back edge passes a table of length 1 where one of length n is
 		// read: the equation is not inductive, and the index is not proven.
-		{"a back edge that passes a shorter table", `
-(sig f ((n (int 2 100)) (a (array int)) (b (array int))) int
-  (where (and (= (len a) n) (= (len b) 1))))
-(def f (n a b)
-  (loop ((c a) (i 0) (s 0))
-    (>= i n) s
-    else (again b (+ i 1) (+ (c i) 0))))`, false},
+		{"a back edge that passes a shorter table", `fn f(n ∈ 2..100, a ∈ Array(Int), b ∈ Array(Int)) (Int) where len(a) == n && len(b) == 1 {
+    loop c = a, i = 0, s = 0 { i >= n -> s; else -> again(b, i + 1, c[i] + 0) }
+}`, false},
 		// Two buffers of different lengths that swap: neither equation holds.
-		{"two buffers of different lengths that swap", `
-(sig f ((n (int 2 100))) int)
-(def f (n)
-  (local a (table n 0)  b (table 1 0)
-    (loop ((x a) (y b) (i 0))
-      (>= i n) (x 0)
-      else (again (set y 0 (+ (x i) 1)) x (+ i 1)))))`, false},
+		{"two buffers of different lengths that swap", `fn f(n ∈ 2..100) (Int) {
+    var a := array { 0 : _ ∈ 0..n-1 }
+    var b := array { 0 : _ ∈ 0..0 }
+    loop i = 0 { i >= n -> a[0]; else -> { b[0] := a[i] + 1; a, b := b, a; again(i + 1) } }
+}`, false},
 	} {
 		_, err := entryGo(t, head+c.src)
 		if c.ok && err != nil {
@@ -165,21 +151,22 @@ func TestALoopVariableHasItsBuffersLength(t *testing.T) {
 // prove 0 ≤ s − m, and the index below is −m or 1 − m. (s is used twice, so
 // that reduction leaves it bound: a pure value used once is substituted.)
 func TestATailsPathDoesNotAssumeALoopVariablesStart(t *testing.T) {
-	src := `(use go) (export f)
-(sig f ((m (int 2 100)) (a (array int))) int (where (= (len a) 2)))
-(def f (m a)
-  (let s (loop ((i 0))
-           (>= i m)  0
-           (>= i 150) 1
-           else      (again (+ i 1)))
-    (+ (a (- s m)) s)))`
+	src := `use go
+export fn f(m ∈ 2..100, a ∈ Array(Int)) (Int) where len(a) == 2 {
+    s = loop i = 0 {
+        i >= m -> 0
+        i >= 150 -> 1
+        else -> again(i + 1)
+    }
+    a[s - m] + s
+}`
 	_, err := entryGo(t, src)
 	if err == nil || !strings.Contains(err.Error(), "is an indexing") {
 		t.Errorf("an index of -m was accepted: %v", err)
 	}
 	// The control: the same value is bound and bounded, s ∈ [0, 1], so the
 	// refusal above is not the rule failing to see the loop at all.
-	if _, err := entryGo(t, strings.Replace(src, "(a (- s m))", "(a s)", 1)); err != nil {
+	if _, err := entryGo(t, strings.Replace(src, "a[s - m]", "a[s]", 1)); err != nil {
 		t.Errorf("s is 0 or 1 and the table has two elements: %v", err)
 	}
 }

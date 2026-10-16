@@ -49,15 +49,10 @@ func genFlat(t *testing.T, src, name string) (string, error) {
 // components. `((sp w) 1)` is `sp[2w+1]`, and a pair of `(int 0 65535)` is a
 // `[]uint16` — the type flattens with the term or the representation is lost.
 func TestAProjectionBecomesAStridedIndex(t *testing.T) {
-	got, err := genFlat(t, `
-(use go)
-(export f)
-(sig f ((sp (array (tuple (int 0 65535) (int 0 65535))))) int
-  (where (< (len sp) 1000)))
-(def f (fn (sp)
-  (loop ((acc 0) (w 0))
-    (>= w (len sp))  acc
-    else (again (+ acc (- ((sp w) 1) ((sp w) 0))) (+ w 1)))))`, "f")
+	got, err := genFlat(t, `use go
+export fn f(sp ∈ Array(0..65535 × 0..65535)) (Int) where len(sp) < 1000 {
+    loop acc = 0, w = 0 { w >= len(sp) -> acc; else -> again(acc + (sp[w][1] - sp[w][0]), w + 1) }
+}`, "f")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,15 +76,16 @@ func TestAProjectionBecomesAStridedIndex(t *testing.T) {
 // writes one field — set applied to a projection, the exact dual of read
 // applied to one.
 func TestConstructionAndFieldUpdate(t *testing.T) {
-	got, err := genFlat(t, `
-(use go)
-(export mk)
-(sig mk ((n (int 1 100))) (array int))
-(def mk (fn (n)
-  (build n (fn (t)
-    (loop ((t t) (i 0))
-      (>= i n)  (set (t 0) 1 7)
-      else      (again (set t i (tuple i 0)) (+ i 1)))))))`, "mk")
+	got, err := genFlat(t, `use go
+export fn mk(n ∈ 1..100) (Array(Int)) {
+    build(n,
+        fn(t) {
+            loop t = t, i = 0 {
+                i >= n -> store(t[0], 1, 7)
+                else -> again(store(t, i, (i, 0)), i + 1)
+            }
+        })
+}`, "mk")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,15 +141,16 @@ func TestTheArityTravelsThroughLoopAndLet(t *testing.T) {
 // propagation never ran: it found the stores only where the loop variable was
 // spelled like the buffer, which the hygiene pass no longer allows.
 func TestTheArityFollowsADifferentlyNamedLoopVariable(t *testing.T) {
-	got, err := genFlat(t, `
-(use go)
-(export mk)
-(sig mk ((n (int 1 100))) (array int))
-(def mk (fn (n)
-  (build n (fn (t)
-    (loop ((u t) (i 0))
-      (>= i n)  (set (u 0) 1 7)
-      else      (again (set u i (tuple i 0)) (+ i 1)))))))`, "mk")
+	got, err := genFlat(t, `use go
+export fn mk(n ∈ 1..100) (Array(Int)) {
+    build(n,
+        fn(t) {
+            loop u = t, i = 0 {
+                i >= n -> store(u[0], 1, 7)
+                else -> again(store(u, i, (i, 0)), i + 1)
+            }
+        })
+}`, "mk")
 	if err != nil {
 		t.Fatal(err)
 	}

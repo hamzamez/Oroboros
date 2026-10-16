@@ -29,7 +29,7 @@ func checkGo(t *testing.T, src string) error {
 	if err != nil {
 		t.Fatal(err)
 	}
-	term := terms[0]
+	term := entryTerm(t, prog, terms)
 	if len(prog.Exports) > 0 {
 		term = prog.Defs[prog.Exports[0]]
 	}

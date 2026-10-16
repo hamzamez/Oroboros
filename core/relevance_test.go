@@ -12,20 +12,13 @@ import (
 // `write` is the shape of a fallible host call: an effect, then a constructor
 // of the relevant `result`. `opt` is the same through a variant that is not
 // relevant.
-const relevanceDecl = `
-	(use go)
-	(variant (result T E) (ok T) (err E) (success ok) (relevant))
-	(variant (maybe T) (just T) nothing (success just))
-	(def write (fn (n) (seq (go.print n) (if (go.> n 0) (ok n) (err n)))))
-	(def opt (fn (n) (seq (go.print n) (if (go.> n 0) (just n) nothing))))
-	(def drop (fn (x) 0))
-	(def check (fn (r) (case r (ok v) v (err e) (go.- 0 e))))`
+const relevanceDecl = "use go\nset Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok relevant\nset Maybe(T) = 'just(T) ∪ 'nothing success 'just\nfn write(n) {\n    go.print(n)\n    if go.`>`(n, 0) { 'ok(n) } else { 'err(n) }\n}\nfn opt(n) {\n    go.print(n)\n    if go.`>`(n, 0) { 'just(n) } else { 'nothing }\n}\nfn drop(x) { 0 }\nfn check(r) { case r { 'ok(v) -> v; 'err(e) -> go.`-`(0, e) } }"
 
 var relevancePrims = []string{"go.>", "go.-", "if", "=", "!go.print", "!abandon", "ignore", "loop"}
 
 func relevanceReduce(t *testing.T, body string) (string, error) {
 	t.Helper()
-	p, err := loadSrc(t, relevanceDecl+`(def f (fn (n c) `+body+`))`)
+	p, err := loadSrc(t, relevanceDecl+"\nfn f(n, c) {\n"+body+"\n}\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,41 +35,84 @@ func TestARelevantValueMustBeUsedOnEveryPath(t *testing.T) {
 		ok   bool
 	}{
 		// in statement position, and bound and never read
-		{`(seq (write n) 1)`, false},
-		{`(let r (write n) 1)`, false},
-		{`(let (tuple a _) (tuple 1 (write n)) a)`, false},
+		{`{
+write(n)
+1
+}`, false},
+		{`{
+r = write(n)
+1
+}`, false},
+		{`{
+(a, _) = (1, write(n))
+a
+}`, false},
 		// handed to a definition that drops it: η keeps the mark on the tuple
 		// that stands for r, so drop's β meets the rule
-		{`(let r (write n) (drop r))`, false},
-		{`(drop (write n))`, false},
+		{`{
+r = write(n)
+drop(r)
+}`, false},
+		{`drop(write(n))`, false},
 		// a pure constructor, as written
-		{`(seq (ok 1) 1)`, false},
+		{`{
+'ok(1)
+1
+}`, false},
 		// used: eliminated, or handed to a definition that eliminates it
-		{`(let r (write n) (check r))`, true},
-		{`(case (write n) (ok v) v (err e) e)`, true},
-		{`(check (write n))`, true},
+		{`{
+r = write(n)
+check(r)
+}`, true},
+		{`{ case write(n) { 'ok(v) -> v; 'err(e) -> e } }`, true},
+		{`check(write(n))`, true},
 		// discarded on purpose
-		{`(seq (ignore (write n)) 1)`, true},
-		{`(let r (write n) (seq (ignore r) 1))`, true},
+		{`{
+ignore(write(n))
+1
+}`, true},
+		{`{
+r = write(n)
+ignore(r)
+1
+}`, true},
 		// ADDITIVE: an `if` uses r when its condition does, or both arms do
-		{`(let r (write n) (if c (check r) 0))`, false},
-		{`(let r (write n) (if c (check r) (seq (ignore r) 0)))`, true},
-		{`(let r (write n) (if (go.> (check r) 0) 1 2))`, true},
+		{`{
+r = write(n)
+if c { check(r) } else { 0 }
+}`, false},
+		{`{
+r = write(n)
+if c { check(r) } else { ignore(r); 0 }
+}`, true},
+		{"{\nr = write(n)\nif go.`>`(check(r), 0) { 1 } else { 2 }\n}", true},
 		// `and` is an `if` whose second arm is false: short-circuit loses r
-		{`(let r (write n) (if (and c (go.> (check r) 0)) 1 2))`, false},
+		{"{\nr = write(n)\nif c && go.`>`(check(r), 0) { 1 } else { 2 }\n}", false},
 		// try's failure arm returns the second error and loses the first
-		{`(let w (write n) (try (ok u) (write 1) (ok (check w))))`, false},
+		{`{
+w = write(n)
+try 'ok(u) = write(1) { 'ok(check(w)) }
+}`, false},
 		// a path that crashes uses it vacuously: 0 is initial
-		{`(let r (write n) (if c (check r) (abandon "x")))`, true},
+		{`{
+r = write(n)
+if c { check(r) } else { abandon("x") }
+}`, true},
 		// a loop uses it when its exits do; an `again` continues
-		{`(let r (write n) (loop ((i 0)) (go.> n i) (again (go.- i 1)) else (check r)))`, true},
-		{`(let r (write n) (loop ((i 0)) (go.> n i) (again (go.- i 1)) else 0))`, false},
+		{"{\nr = write(n)\nloop i = 0 { go.`>`(n, i) -> again(go.`-`(i, 1)); else -> check(r) }\n}", true},
+		{"{\nr = write(n)\nloop i = 0 { go.`>`(n, i) -> again(go.`-`(i, 1)); else -> 0 }\n}", false},
 		// a relevant payload: the slot that binds it is the compiler's, and
 		// is read by the one arm that selects it
-		{`(case (ok (ok n)) (ok r) (check r) (err e) e)`, true},
+		{`{ case 'ok('ok(n)) { 'ok(r) -> check(r); 'err(e) -> e } }`, true},
 		// a variant that is not relevant may be dropped
-		{`(seq (opt n) 1)`, true},
-		{`(let m (opt n) (drop m))`, true},
+		{`{
+opt(n)
+1
+}`, true},
+		{`{
+m = opt(n)
+drop(m)
+}`, true},
 	} {
 		_, err := relevanceReduce(t, c.body)
 		switch {
@@ -96,11 +132,17 @@ func TestARelevantValueMustBeUsedOnEveryPath(t *testing.T) {
 // object then takes the unit's binding apart, so `(seq (ignore e) B)` is what
 // `(seq e B)` was before relevance: the effect, then B.
 func TestIgnoreLeavesTheEffectAndNothingElse(t *testing.T) {
-	got, err := relevanceReduce(t, `(seq (ignore (write n)) 1)`)
+	got, err := relevanceReduce(t, `{
+ignore(write(n))
+1
+}`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := relevanceReduce(t, `(seq (opt n) 1)`)
+	want, err := relevanceReduce(t, `{
+opt(n)
+1
+}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,8 +151,11 @@ func TestIgnoreLeavesTheEffectAndNothingElse(t *testing.T) {
 	}
 	// on a value of any other type: pure, the unit; impure, its effect
 	for body, want := range map[string]string{
-		`(seq (ignore (go.- n 1)) 1)`:   `(fn (n c) 1)`,
-		`(seq (ignore (go.print n)) 1)`: `(fn (n c) (let (go.print n) (fn (`,
+		"{\nignore(go.`-`(n, 1))\n1\n}": `(fn (n c) 1)`,
+		`{
+ignore(go.print(n))
+1
+}`: `(fn (n c) (let (go.print n) (fn (`,
 	} {
 		got, err := relevanceReduce(t, body)
 		if err != nil || !strings.HasPrefix(got, want) {
@@ -122,8 +167,14 @@ func TestIgnoreLeavesTheEffectAndNothingElse(t *testing.T) {
 // The refusal says what was discarded, and how.
 func TestARelevanceRefusalNamesTheValueAndTheBinder(t *testing.T) {
 	for body, want := range map[string]string{
-		`(seq (write n) 1)`:                    "the result of write is a value of a relevant type (spec/errors.md §7), and it is discarded",
-		`(let r (write n) (if c (check r) 0))`: "the binder r is not used on every path",
+		`{
+write(n)
+1
+}`: "the result of write is a value of a relevant type (spec/errors.md §7), and it is discarded",
+		`{
+r = write(n)
+if c { check(r) } else { 0 }
+}`: "the binder r is not used on every path",
 	} {
 		_, err := relevanceReduce(t, body)
 		if err == nil || !strings.Contains(err.Error(), want) {
@@ -139,20 +190,20 @@ func TestARelevanceRefusalNamesTheValueAndTheBinder(t *testing.T) {
 // `again` was vacuous, and the first two were accepted).
 func TestAgainUsesOnlyWhatOutlivesTheJump(t *testing.T) {
 	loop := func(clause string) string {
-		return `(loop ((i n)) (go.> i 3) 0 else ` + clause + `)`
+		return "loop i = n { go.`>`(i, 3) -> 0; else -> " + clause + " }"
 	}
 	for _, c := range []struct {
 		body string
 		ok   bool
 	}{
-		{loop(`(let r (write i) (again (go.- i 1)))`), false},
-		{loop(`(seq (write i) (again (go.- i 1)))`), false},
-		{loop(`(let r (write i) (again (go.- (check r) 1)))`), true},
-		{loop(`(let r (write i) (seq (ignore r) (again (go.- i 1))))`), true},
-		{loop(`(let r (write i) (seq (check r) (again (go.- i 1))))`), true},
+		{loop("{\nr = write(i)\nagain(go.`-`(i, 1))\n}"), false},
+		{loop("{\nwrite(i)\nagain(go.`-`(i, 1))\n}"), false},
+		{loop("{\nr = write(i)\nagain(go.`-`(check(r), 1))\n}"), true},
+		{loop("{\nr = write(i)\nignore(r)\nagain(go.`-`(i, 1))\n}"), true},
+		{loop("{\nr = write(i)\ncheck(r)\nagain(go.`-`(i, 1))\n}"), true},
 		// bound outside the loop: the jump goes round, and the exits decide
-		{`(let r (write n) (loop ((i n)) (go.> i 3) (check r) else (again (go.- i 1))))`, true},
-		{`(let r (write n) (loop ((i n)) (go.> i 3) 0 else (again (go.- i 1))))`, false},
+		{"{\nr = write(n)\nloop i = n { go.`>`(i, 3) -> check(r); else -> again(go.`-`(i, 1)) }\n}", true},
+		{"{\nr = write(n)\nloop i = n { go.`>`(i, 3) -> 0; else -> again(go.`-`(i, 1)) }\n}", false},
 	} {
 		_, err := relevanceReduce(t, c.body)
 		if c.ok && err != nil {

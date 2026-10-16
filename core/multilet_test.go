@@ -16,10 +16,7 @@ import (
 // (u128-2026-09-23). The witness is exactly that: `swap` builds its tuple under
 // `go.mul`'s continuation, `f` projects the first component.
 func TestAnEliminatorCommutesIntoAHostCallsContinuation(t *testing.T) {
-	p, err := loadSrc(t, `
-		(use go)
-		(def swap (fn (x) (let (tuple h l) (go.mul x 3) (tuple l h))))
-		(def f (fn (x) (go.+ ((swap x) (fn (a b) a)) 1)))`)
+	p, err := loadSrc(t, "use go\nfn swap(x) {\n    (h, l) = go.mul(x, 3)\n    (l, h)\n}\nfn f(x) { go.`+`({ (a, b) = swap(x); a }, 1) }")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +61,8 @@ func TestAnImpureEliminatorStaysOutside(t *testing.T) {
 // again, so an eliminator argument can mention a `#nl` name free. Built by hand,
 // since no program can spell one: the free `#nl1` must stay free.
 func TestTheConversionDoesNotCapture(t *testing.T) {
-	p, err := loadSrc(t, `(use go) (def f (fn (x) x))`)
+	p, err := loadSrc(t, `use go
+fn f(x) { x }`)
 	if err != nil {
 		t.Fatal(err)
 	}

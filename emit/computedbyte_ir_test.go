@@ -121,16 +121,14 @@ func TestABufferNarrowsOnItsOwnContentsOnlyByAProof(t *testing.T) {
 // The property is stated on the OUTPUT rather than on the pass, because that is
 // what the host refuses: every variable the function declares is read somewhere.
 func TestALetInALoopGuardLeavesNoDeadBinding(t *testing.T) {
-	got, err := genOn(t, "go", `
-(use go)
-(export run)
-(sig run ((n int)) int (where (and (<= 0 n) (<= n 100))))
-(def lim (fn (n) (let d (- n 1)
-                   (if (< d 0) 0 d))))
-(def run (fn (n)
-  (loop ((s 0) (k 0))
-    (>= k (lim n))  s
-    else            (again (+ s k) (+ k 1)))))`, "run")
+	got, err := genOn(t, "go", `use go
+fn lim(n) {
+    d = n - 1
+    if d < 0 { 0 } else { d }
+}
+export fn run(n ∈ Int) (Int) where 0 <= n && n <= 100 {
+    loop s = 0, k = 0 { k >= lim(n) -> s; else -> again(s + k, k + 1) }
+}`, "run")
 	if err != nil {
 		t.Fatal(err)
 	}

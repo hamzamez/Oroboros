@@ -31,7 +31,7 @@ func TestAnEnvironmentReadStaysBeforeASetenv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nf, err := core.Normalize(terms[0], env, core.DefaultFuel)
+	nf, err := core.Normalize(entryTerm(t, prog, terms), env, core.DefaultFuel)
 	if err != nil {
 		t.Fatal(err)
 	}

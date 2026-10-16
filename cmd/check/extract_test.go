@@ -21,7 +21,8 @@ func TestHelperTarWriter(t *testing.T) {
 		return
 	}
 	w := tar.NewWriter(os.Stdout)
-	body := []byte("(def x 1)\n")
+	body := []byte(`x = 1
+`)
 	w.WriteHeader(&tar.Header{Name: "a/b.oro", Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg})
 	w.Write(body)
 	w.Close()
@@ -44,7 +45,8 @@ func TestExtractionDrainsItsPipe(t *testing.T) {
 		cmd.Process.Kill()
 		t.Fatal("the extraction did not finish: Wait is waiting on a writer blocked on an undrained pipe")
 	}
-	if b, err := os.ReadFile(filepath.Join(dir, "a", "b.oro")); err != nil || string(b) != "(def x 1)\n" {
+	if b, err := os.ReadFile(filepath.Join(dir, "a", "b.oro")); err != nil || string(b) != `x = 1
+` {
 		t.Fatalf("the extracted file: %q, %v", b, err)
 	}
 }

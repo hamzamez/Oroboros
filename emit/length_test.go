@@ -47,7 +47,7 @@ func refineGo(t *testing.T, src string) error {
 		q := prog.Exports[0]
 		term, sig = prog.Defs[q], prog.Sigs[q]
 	} else {
-		term = terms[0]
+		term = entryTerm(t, prog, terms)
 	}
 	nf, err := core.Normalize(term, env, core.DefaultFuel)
 	if err != nil {
@@ -65,17 +65,7 @@ func refineGo(t *testing.T, src string) error {
 // An `int` argument is a COUNT: `make([]bool, n)` is n long, so an index below
 // n is in range. This is the sieve's proof and it has no other route.
 func TestLengthFromACount(t *testing.T) {
-	if err := refineGo(t, `
-		(use go)
-		(export f)
-		(sig f ((n int)) bool (where (and (go.<= 0 n) (go.< n 1000))))
-		(def f (fn (n)
-		  (let c (go.make-bool n)
-      (loop ((i 0))
-		      (go.>= i n)      false
-		      (go.at-bool c i) true
-		      else             (again (go.+ i 1))))))
-	`); err != nil {
+	if err := refineGo(t, "use go\nexport fn f(n ∈ Int) (Bool) where go.`<=`(0, n) && go.`<`(n, 1000) {\n    c = go.make_bool(n)\n    loop i = 0 {\n        go.`>=`(i, n) -> false\n        go.at_bool(c, i) -> true\n        else -> again(go.`+`(i, 1))\n    }\n}"); err != nil {
 		t.Errorf("an array built with a declared count must be indexable below it: %v", err)
 	}
 }
@@ -83,15 +73,7 @@ func TestLengthFromACount(t *testing.T) {
 // A CONTAINER argument passes its own length through, which is what makes an
 // in-place store usable as a loop variable — the threaded sieve's shape.
 func TestLengthThroughAThreadedStore(t *testing.T) {
-	if err := refineGo(t, `
-		(use go)
-		(export f)
-		(sig f ((n int)) slice-bool (where (and (go.<= 0 n) (go.< n 1000))))
-		(def f (fn (n)
-		  (loop ((c (go.make-bool n)) (i 0))
-		    (go.>= i n)  c
-		    else         (again (go.set-bool c i (go.at-bool c i)) (go.+ i 1)))))
-	`); err != nil {
+	if err := refineGo(t, "use go\nexport fn f(n ∈ Int) (slice_bool) where go.`<=`(0, n) && go.`<`(n, 1000) {\n    loop c = go.make_bool(n), i = 0 {\n        go.`>=`(i, n) -> c\n        else -> again(go.set_bool(c, i, go.at_bool(c, i)), go.`+`(i, 1))\n    }\n}"); err != nil {
 		t.Errorf("a threaded store must keep its length as a loop invariant: %v", err)
 	}
 }
@@ -143,21 +125,7 @@ func TestAJavaScriptArrayStoreClaimsNoLength(t *testing.T) {
 // And the fallback is silence, not a guess: an array whose length nothing
 // declares proves nothing, rather than being assumed long enough.
 func TestAnUndeclaredLengthProvesNothing(t *testing.T) {
-	err := refineGo(t, `
-		(use go)
-		(use go/os)
-		(use result)
-		(export f)
-		(sig f ((n int)) int (where (and (go.<= 0 n) (go.< n 1000))))
-		(def f (fn (n)
-		  (case (os.ReadFile "f")
-		    (result.ok c)
-		      (loop ((i 0))
-		        (go.>= i n)          0
-		        (go.!= (c i) 0)      1
-		        else                 (again (go.+ i 1)))
-		    (result.err e) 0)))
-	`)
+	err := refineGo(t, "use go\nuse go/os\nuse result\nexport fn f(n ∈ Int) (Int) where go.`<=`(0, n) && go.`<`(n, 1000) {\n    case os.ReadFile(\"f\") {\n        result.'ok(c) ->\n            loop i = 0 {\n                go.`>=`(i, n) -> 0\n                go.`!=`(c(i), 0) -> 1\n                else -> again(go.`+`(i, 1))\n            }\n        result.'err(e) -> 0\n    }\n}")
 	if err == nil {
 		t.Fatal("indexing a 4-long array under a bound of 1000 must not be provable")
 	}
@@ -195,8 +163,13 @@ func TestLengthAttributesAreRespelledAsEnsures(t *testing.T) {
 // store — the same program over Go's per-type slice read printed the stored
 // value instead of the one read.
 func TestAMapReadStaysBeforeAStore(t *testing.T) {
-	nf := reduce(t, `(use go) (fn (k) (let m (go.make-map)
-		(let x (go.at-map m k) (seq (go.set-map m k 5) x))))`, "go")
+	nf := reduce(t, `use go
+fn t(k) {
+    m = go.make_map()
+    x = go.at_map(m, k)
+    go.set_map(m, k, 5)
+    x
+}`, "go")
 	out := nf.String()
 	read, store := strings.Index(out, "go.at-map"), strings.Index(out, "go.set-map")
 	if read < 0 || store < 0 || read > store {

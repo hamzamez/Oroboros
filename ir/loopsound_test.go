@@ -62,57 +62,89 @@ var loopShapes = []func(r *rand.Rand) string{
 	// Theorem 2, increasing, with an arm-conditioned accumulator and a
 	// running maximum (the thresholds' case).
 	func(r *rand.Rand) string {
-		return fmt.Sprintf(`(loop ((i %d) (acc %d) (m 0))
-    (>= i (+ n %d)) (+ acc m)
-    else (again (+ i %d) (if (< i %d) (+ acc (* i %d)) (- acc %d)) (if (> i m) i m)))`,
+		return fmt.Sprintf(`{
+loop i = %d, acc = %d, m = 0 {
+    i >= n + %d -> acc + m
+    else ->
+        again(i + %d, if i < %d { acc + i * %d } else { acc - %d },
+            if i > m { i } else { m })
+}
+}`,
 			r.Intn(5)-2, r.Intn(7)-3, r.Intn(9), 1+r.Intn(3), r.Intn(12), r.Intn(7)-3, r.Intn(5))
 	},
 	// Theorem 2, decreasing.
 	func(r *rand.Rand) string {
-		return fmt.Sprintf(`(loop ((i (+ n %d)) (acc %d) (k 0))
-    (< i %d) (+ acc k)
-    else (again (- i %d) (+ acc (* i %d)) (+ k 1)))`,
+		return fmt.Sprintf(`{
+loop i = n + %d, acc = %d, k = 0 {
+    i < %d -> acc + k
+    else -> again(i - %d, acc + i * %d, k + 1)
+}
+}`,
 			r.Intn(9), r.Intn(5), r.Intn(5)-2, 1+r.Intn(3), r.Intn(7)-3)
 	},
 	// Theorem 2, geometric.
 	func(r *rand.Rand) string {
-		return fmt.Sprintf(`(loop ((x (+ n %d)) (acc 0) (k 0))
-    (< x 1) (+ acc k)
-    else (again (/ x %d) (+ acc (* x %d)) (+ k 1)))`,
+		return fmt.Sprintf(`{
+loop x = n + %d, acc = 0, k = 0 {
+    x < 1 -> acc + k
+    else -> again(x / %d, acc + x * %d, k + 1)
+}
+}`,
 			1+r.Intn(40), 2+r.Intn(3), r.Intn(5)-2)
 	},
 	// Theorem 3: increments into a buffer, read from another cell, with a
 	// fresh store on one arm.
 	func(r *rand.Rand) string {
 		l := 1 + r.Intn(5)
-		return fmt.Sprintf(`(let t (local b (table %d 0)
-          (loop ((b b) (i 0))
-            (>= i (+ n %d)) b
-            (< i %d) (again (set b (%% i %d) %d) (+ i 1))
-            else (again (set b (%% i %d) (+ (b (%% (+ i %d) %d)) %d)) (+ i 1))))
-    (+ (t 0) (t %d)))`,
+		return fmt.Sprintf(`{
+t = {
+    var b := array { 0 : _ ∈ 0..%d-1 }
+    loop i = 0 {
+        i >= n + %d -> b
+        i < %d -> { b[i %% %d] := %d; again(i + 1) }
+        else -> { b[i %% %d] := b[(i + %d) %% %d] + %d; again(i + 1) }
+    }
+}
+t[0] + t[%d]
+}`,
 			l, r.Intn(9), r.Intn(4), l, r.Intn(11)-5, l, r.Intn(4), l, r.Intn(7)-3, l-1)
 	},
 	// Theorem 3 on two buffers: a copy between them, and an increment.
 	func(r *rand.Rand) string {
 		l := 1 + r.Intn(4)
-		return fmt.Sprintf(`(let t (local a (table %d 0)  c (table %d 0)
-          (loop ((a a) (c c) (i 0))
-            (>= i (+ n %d)) a
-            else (again (set a (%% i %d) (+ (c (%% i %d)) %d)) (set c (%% (+ i 1) %d) (a (%% i %d))) (+ i 1))))
-    (t %d))`,
+		return fmt.Sprintf(`{
+t = {
+    var a := array { 0 : _ ∈ 0..%d-1 }
+    var c := array { 0 : _ ∈ 0..%d-1 }
+    loop i = 0 {
+        i >= n + %d -> a
+        else -> {
+            a[i %% %d] := c[i %% %d] + %d
+            c[(i + 1) %% %d] := a[i %% %d]
+            again(i + 1)
+        }
+    }
+}
+t[%d]
+}`,
 			l, l, r.Intn(9), l, l, r.Intn(5)-1, l, l, l-1)
 	},
 	// delta's inner-loop rule: the outer step is an inner loop's result.
 	func(r *rand.Rand) string {
 		m := 2 + r.Intn(3)
-		return fmt.Sprintf(`(loop ((i 0) (acc 0))
-    (>= i (+ n %d)) acc
-    else (let j (loop ((j i))
-                  (>= j (+ n %d)) j
-                  (= (%% j %d) 0) j
-                  else (again (+ j 1)))
-           (again (+ j %d) (+ acc j))))`,
+		return fmt.Sprintf(`{
+loop i = 0, acc = 0 {
+    i >= n + %d -> acc
+    else -> {
+        j = loop j = i {
+            j >= n + %d -> j
+            j %% %d == 0 -> j
+            else -> again(j + 1)
+        }
+        again(j + %d, acc + j)
+    }
+}
+}`,
 			r.Intn(9), r.Intn(9), m, 1+r.Intn(2))
 	},
 	// delta's inner-loop rule where it is TIGHT: q moves by the inner loop's
@@ -121,20 +153,28 @@ var loopShapes = []func(r *rand.Rand) string{
 	// the rule must refuse (its parameter is not non-decreasing).
 	func(r *rand.Rand) string {
 		up := r.Intn(2) == 0
-		inner := fmt.Sprintf(`(loop ((j q))
-                  (>= j (+ q %d)) j
-                  (= (%% j 3) 0) j
-                  else (again (+ j 1)))`, r.Intn(3))
+		inner := fmt.Sprintf(`{
+loop j = q {
+    j >= q + %d -> j
+    j %% 3 == 0 -> j
+    else -> again(j + 1)
+}
+}`, r.Intn(3))
 		if !up {
-			inner = fmt.Sprintf(`(loop ((j q))
-                  (<= j (- q %d)) j
-                  (= (%% j 3) 0) j
-                  else (again (- j 1)))`, 1+r.Intn(3))
+			inner = fmt.Sprintf(`{
+loop j = q {
+    j <= q - %d -> j
+    j %% 3 == 0 -> j
+    else -> again(j - 1)
+}
+}`, 1+r.Intn(3))
 		}
-		return fmt.Sprintf(`(loop ((i 0) (q %d) (acc 0))
-    (>= i (+ n %d)) (+ acc q)
-    else (let j %s
-           (again (+ i 1) (- j %d) (+ acc j))))`,
+		return fmt.Sprintf(`{
+loop i = 0, q = %d, acc = 0 {
+    i >= n + %d -> acc + q
+    else -> { j = %s; again(i + 1, j - %d, acc + j) }
+}
+}`,
 			r.Intn(21)-10, r.Intn(5), inner, r.Intn(4))
 	},
 	// The arm conditions and the backward rules: a guard over a sum, a
@@ -144,22 +184,26 @@ var loopShapes = []func(r *rand.Rand) string{
 	func(r *rand.Rand) string {
 		k := func(lo, hi int) int { return lo + r.Intn(hi-lo+1) }
 		conds := []string{
-			fmt.Sprintf("(< (+ i %d) %d)", k(-3, 3), k(-4, 8)),
-			fmt.Sprintf("(> (- %d i) %d)", k(-4, 6), k(-3, 3)),
-			fmt.Sprintf("(<= (* i i) %d)", k(0, 30)),
-			fmt.Sprintf("(>= (* %d i) %d)", k(-3, 3), k(-6, 9)),
-			fmt.Sprintf("(and (< (+ i %d) %d) (>= (- i %d) %d))", k(-2, 2), k(0, 9), k(-2, 2), k(-5, 3)),
-			fmt.Sprintf("(or (< (* 2 i) %d) (> (- i %d) %d))", k(-4, 8), k(-3, 3), k(0, 6)),
-			fmt.Sprintf("(not (< (- %d i) %d))", k(-3, 6), k(-3, 3)),
-			fmt.Sprintf("(= (+ i %d) %d)", k(-3, 3), k(-3, 9)),
+			fmt.Sprintf("i + %d < %d", k(-3, 3), k(-4, 8)),
+			fmt.Sprintf("%d - i > %d", k(-4, 6), k(-3, 3)),
+			fmt.Sprintf("i * i <= %d", k(0, 30)),
+			fmt.Sprintf("%d * i >= %d", k(-3, 3), k(-6, 9)),
+			fmt.Sprintf("i + %d < %d && i - %d >= %d", k(-2, 2), k(0, 9), k(-2, 2), k(-5, 3)),
+			fmt.Sprintf("2 * i < %d || i - %d > %d", k(-4, 8), k(-3, 3), k(0, 6)),
+			fmt.Sprintf("!(%d - i < %d)", k(-3, 6), k(-3, 3)),
+			fmt.Sprintf("i + %d == %d", k(-3, 3), k(-3, 9)),
 			"(< i m)",
-			fmt.Sprintf("(>= (+ i %d) m)", k(-2, 2)),
+			fmt.Sprintf("i + %d >= m", k(-2, 2)),
 		}
 		c := conds[r.Intn(len(conds))]
-		return fmt.Sprintf(`(loop ((i (- 0 %d)) (m (+ n %d)) (acc 0))
-    (>= i (+ n %d)) acc
-    else (again (+ i 1) m
-           (if %s (+ acc (+ (* i %d) (* m 2))) (- acc (+ (* i %d) m)))))`,
+		return fmt.Sprintf(`{
+loop i = 0 - %d, m = n + %d, acc = 0 {
+    i >= n + %d -> acc
+    else ->
+        again(i + 1, m,
+            if %s { acc + (i * %d + m * 2) } else { acc - (i * %d + m) })
+}
+}`,
 			k(0, 6), k(-3, 3), k(0, 6), c, k(-3, 3), k(-3, 3))
 	},
 	// The step at ONE continue, from its own facts: a counter reset to a
@@ -167,24 +211,33 @@ var loopShapes = []func(r *rand.Rand) string{
 	// reset is taken only where the counter exceeds the literal.
 	func(r *rand.Rand) string {
 		d := 2 + r.Intn(9)
-		return fmt.Sprintf(`(loop ((v (+ n %d)) (c 0) (k 0))
-    (= v 0) (+ c k)
-    (>= v %d) (again (- v %d) (+ c 1) (+ k 1))
-    else (again 0 c (+ k 1)))`, r.Intn(30), d, d)
+		return fmt.Sprintf(`{
+loop v = n + %d, c = 0, k = 0 {
+    v == 0 -> c + k
+    v >= %d -> again(v - %d, c + 1, k + 1)
+    else -> again(0, c, k + 1)
+}
+}`, r.Intn(30), d, d)
 	},
 	// The relational difference and Theorem 1 on a difference (jsonfmt's
 	// shape): a counter grows by a pad plus (ni − i) for a scanner ni started at
 	// i, and i jumps to ni + 1, so c − i moves by the pad alone; and the mirror
 	// (i − ni) ≤ 0.
 	func(r *rand.Rand) string {
-		return fmt.Sprintf(`(loop ((c %d) (i 0) (k 0))
-    (>= i (+ n %d)) (+ c k)
-    (= (%% i 3) 0) (let ni (loop ((j i))
-                             (>= j (+ n %d)) j
-                             (= (%% j 5) 4) j
-                             else (again (+ j 1)))
-                     (again (+ c (+ %d (- ni i))) (+ ni 1) (+ k (- i ni))))
-    else (again (+ c %d) (+ i 1) k))`, r.Intn(5), 1+r.Intn(12), 1+r.Intn(12), r.Intn(4), r.Intn(3))
+		return fmt.Sprintf(`{
+loop c = %d, i = 0, k = 0 {
+    i >= n + %d -> c + k
+    i %% 3 == 0 -> {
+        ni = loop j = i {
+            j >= n + %d -> j
+            j %% 5 == 4 -> j
+            else -> again(j + 1)
+        }
+        again(c + (%d + (ni - i)), ni + 1, k + (i - ni))
+    }
+    else -> again(c + %d, i + 1, k)
+}
+}`, r.Intn(5), 1+r.Intn(12), 1+r.Intn(12), r.Intn(4), r.Intn(3))
 	},
 	// The exit narrowing's premise: x is defined BEFORE the `if` that yields
 	// it on one arm, so it reaches other uses where that arm is not taken, and
@@ -193,22 +246,29 @@ var loopShapes = []func(r *rand.Rand) string{
 	func(r *rand.Rand) string {
 		// x is read twice, so the reducer keeps it bound rather than
 		// substituting it into the arm.
-		return fmt.Sprintf(`(loop ((i 0) (m 0) (s 0))
-    (>= i (+ n %d)) (+ m s)
-    else (let x (+ i %d)
-           (again (+ i 1) (if (< i %d) x 0) (+ s x))))`, 3+r.Intn(8), 50+r.Intn(100), 1+r.Intn(3))
+		return fmt.Sprintf(`{
+loop i = 0, m = 0, s = 0 {
+    i >= n + %d -> m + s
+    else -> { x = i + %d; again(i + 1, if i < %d { x } else { 0 }, s + x) }
+}
+}`, 3+r.Intn(8), 50+r.Intn(100), 1+r.Intn(3))
 	},
 	// B = ∞: a loop no parameter ranks (the walk advances j only on one arm),
 	// carrying a buffer given only fresh values, whose cells keep their hull
 	// however many times the loop goes round.
 	func(r *rand.Rand) string {
 		l := 1 + r.Intn(5)
-		return fmt.Sprintf(`(let t (local b (table %d 0)
-          (loop ((b b) (i 0) (j 0) (m 0))
-            (>= j (+ n %d)) (set b 0 (+ (b 0) m))
-            (= (%% i 3) 0) (again (set b (%% i %d) %d) (+ i 1) j (- m 1))
-            else (again (set b (%% j %d) (%% i %d)) (+ i 1) (+ j 1) m)))
-    (+ (t 0) (t %d)))`, l, r.Intn(9), l, r.Intn(21)-10, l, 2+r.Intn(5), l-1)
+		return fmt.Sprintf(`{
+t = {
+    var b := array { 0 : _ ∈ 0..%d-1 }
+    loop i = 0, j = 0, m = 0 {
+        j >= n + %d -> { b[0] := b[0] + m; b }
+        i %% 3 == 0 -> { b[i %% %d] := %d; again(i + 1, j, m - 1) }
+        else -> { b[j %% %d] := i %% %d; again(i + 1, j + 1, m) }
+    }
+}
+t[0] + t[%d]
+}`, l, r.Intn(9), l, r.Intn(21)-10, l, 2+r.Intn(5), l-1)
 	},
 }
 
@@ -219,7 +279,7 @@ func TestTheLoopRulesAreSound(t *testing.T) {
 	compiled, ran := 0, 0
 	for c := 0; c < cases; c++ {
 		shape := loopShapes[c%len(loopShapes)](r)
-		src := fmt.Sprintf("(export run)\n(sig run ((n (int 0 12))) int)\n(def run (n)\n  %s)\n", shape)
+		src := fmt.Sprintf("export fn run(n ∈ 0..12) (Int) { %s }\n", shape)
 		path := filepath.Join(dir, fmt.Sprintf("c%d.oro", c))
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)

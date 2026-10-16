@@ -10,21 +10,15 @@ import (
 // its own way.
 func TestIndexingIsApplicationOnEveryTarget(t *testing.T) {
 	cases := []struct{ target, src, want string }{
-		{"go", `(use go)
-			(export f) (sig f ((a (array f64)) (i int)) f64
-			  (where (and (<= 0 i) (< i (len a)))))
-			(def f (fn (a i) (a i)))`, `v\d+\[v\d+\]`},
-		{"js", `(use js)
-			(export f) (sig f ((a (array any)) (i any)) any
-			  (where (and (<= 0 i) (< i (len a)))))
-			(def f (fn (a i) (a i)))`, `return v\d+\[v\d+\];`},
+		{"go", `use go
+export fn f(a ∈ Array(F64), i ∈ Int) (F64) where 0 <= i && i < len(a) { a[i] }`, `v\d+\[v\d+\]`},
+		{"js", `use js
+export fn f(a ∈ Array(Any), i ∈ Any) (Any) where 0 <= i && i < len(a) { a[i] }`, `return v\d+\[v\d+\];`},
 		// The (int) CAST is Java's and it is not optional: our `int` maps to
 		// `long` and a Java array index must be an `int`. Without it javac
 		// refuses the file with "possible lossy conversion".
-		{"java", `(use java)
-			(export f) (sig f ((a (array f64)) (i int)) f64
-			  (where (and (<= 0 i) (< i (len a)))))
-			(def f (fn (a i) (a i)))`, `v\d+\[\(int\) v\d+\]`},
+		{"java", `use java
+export fn f(a ∈ Array(F64), i ∈ Int) (F64) where 0 <= i && i < len(a) { a[i] }`, `v\d+\[\(int\) v\d+\]`},
 	}
 	for _, c := range cases {
 		code, err := genOn(t, c.target, c.src, "f")
@@ -41,14 +35,7 @@ func TestIndexingIsApplicationOnEveryTarget(t *testing.T) {
 // And a loop's own bound proves it, which is where almost every real index
 // gets its facts.
 func TestALoopBoundProvesItsIndex(t *testing.T) {
-	src := `
-		(use go)
-		(export f) (sig f ((a (array f64))) f64)
-		(def f (fn (a)
-			(loop ((acc 0.0) (i 0))
-				(go.>= i (len a))  acc
-				else               (again (go.f+ acc (a i)) (go.+ i 1)))))
-	`
+	src := "use go\nexport fn f(a ∈ Array(F64)) (F64) {\n    loop acc = 0.0, i = 0 {\n        go.`>=`(i, len(a)) -> acc\n        else -> again(go.`f+`(acc, a[i]), go.`+`(i, 1))\n    }\n}"
 	if err := refineOn(t, "go", src, "f"); err != nil {
 		t.Fatalf("a loop bounded by len must prove its own index: %v", err)
 	}
@@ -65,11 +52,8 @@ func TestALoopBoundProvesItsIndex(t *testing.T) {
 // refusal is the construct doing its job: the rule form exists to FUSE, and one
 // that survives did not.
 func TestAnUnallocatedTableIsRefused(t *testing.T) {
-	_, err := genOn(t, "go", `
-		(use go)
-		(export f) (sig f ((n int)) any)
-		(def f (fn (n) (table n (fn (i) i))))
-	`, "f")
+	_, err := genOn(t, "go", `use go
+export fn f(n ∈ Int) (Any) { array { i : i ∈ 0..n-1 } }`, "f")
 	if err == nil || !strings.Contains(err.Error(), "never allocated") {
 		t.Errorf("a surviving rule-table must be refused, got %v", err)
 	}
@@ -110,11 +94,7 @@ func TestBuildAndSetOnEveryTarget(t *testing.T) {
 // `alloc` is the GATHER — a rule put in memory, pure and parallel by
 // construction, as against `build`'s sequential scatter.
 func TestAllocEmitsAFillLoop(t *testing.T) {
-	code, err := genOn(t, "go", `
-		(use go)
-		(export f) (sig f ((n int)) (array int) (where (and (<= 0 n) (< n 1000))))
-		(def f (fn (n) (alloc (table n (fn (i) (go.* i i))))))
-	`, "f")
+	code, err := genOn(t, "go", "use go\nexport fn f(n ∈ Int) (Array(Int)) where 0 <= n && n < 1000 {\n    alloc(array { go.`*`(i, i) : i ∈ 0..n-1 })\n}", "f")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,15 +115,14 @@ func TestAllocEmitsAFillLoop(t *testing.T) {
 // instruction as `[rbx+rcx*8]`, because the displacement is part of x86's
 // addressing mode.
 func TestWindowsHasTables(t *testing.T) {
-	code, err := genOn(t, "windows", `
-		(use x64)
-		(export f) (sig f ((n int)) int (where (and (< 0 n) (< n 1000))))
-		(def f (fn (n)
-			(let v (alloc (table n (fn (i) (x64.imul i i))))
-     (loop ((acc 0) (i 0))
- 					(x64.setge i (len v))  acc
- 					else                   (again (x64.add acc (v i)) (x64.add i 1))))))
-	`, "f")
+	code, err := genOn(t, "windows", `use x64
+export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
+    v = alloc(array { x64.imul(i, i) : i ∈ 0..n-1 })
+    loop acc = 0, i = 0 {
+        x64.setge(i, len(v)) -> acc
+        else -> again(x64.add(acc, v[i]), x64.add(i, 1))
+    }
+}`, "f")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,19 +191,21 @@ func TestWindowsKeepsEightBytesForInts(t *testing.T) {
 // any one of those reads a byte array as qwords — seven bytes of the following
 // elements per access, which is a wrong answer rather than a slow one.
 func TestTheElementWidthSurvivesABinder(t *testing.T) {
-	code, err := genOn(t, "windows", `
-		(use x64)
-		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 1000))))
-		(def f (fn (n)
-			(let b (build n (fn (c)
-  				(loop ((c c) (i 0))
-  					(x64.setge i n)  c
-  					else             (again (set c i true) (x64.add i 1)))))
-     (loop ((acc 0) (k 0))
-						(x64.setge k (len b))  acc
-						(b k)                  (again (x64.add acc 1) (x64.add k 1))
-						else                   (again acc (x64.add k 1))))))
-	`, "f")
+	code, err := genOn(t, "windows", `use x64
+export fn f(n ∈ Int) (Int) where 2 < n && n < 1000 {
+    b = build(n,
+        fn(c) {
+            loop c = c, i = 0 {
+                x64.setge(i, n) -> c
+                else -> again(store(c, i, true), x64.add(i, 1))
+            }
+        })
+    loop acc = 0, k = 0 {
+        x64.setge(k, len(b)) -> acc
+        b[k] -> again(x64.add(acc, 1), x64.add(k, 1))
+        else -> again(acc, x64.add(k, 1))
+    }
+}`, "f")
 	if err != nil {
 		t.Fatal(err)
 	}

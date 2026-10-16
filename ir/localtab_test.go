@@ -16,7 +16,7 @@ func entryOn(t *testing.T, target, src string) (*Func, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := core.Read("(use " + target + ")\n" + src)
+	forms, err := core.Read("use " + target + "\n" + src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,8 +51,8 @@ func entryOn(t *testing.T, target, src string) (*Func, error) {
 // final", the verifier's failure where a program was correct.
 func TestATableNothingStoresIsTyped(t *testing.T) {
 	prog := func(result, body string) string {
-		return "(export f)\n(sig f ((n (int 1 100))) " + result + ")\n" +
-			"(def f (n) (let src (local s (table (+ n 1) 0) s) " + body + "))\n"
+		return "export fn f(n ∈ 1..100) (" + result + ") {\n" +
+			"    src = { var s := array { 0 : _ ∈ 0..n+1-1 }; s }\n    " + body + "\n}\n"
 	}
 	elem := func(f *Func) string {
 		for _, ty := range f.Types {
@@ -69,11 +69,11 @@ func TestATableNothingStoresIsTyped(t *testing.T) {
 	}{
 		// a read the function returns: the declared result is its demand.
 		// At int the default agrees, so only both faults together lose it.
-		{"int", "(src n)", "int", []*bool{&plantResultDemandFault, &plantZeroFillFault}},
-		{"f64", "(src n)", "f64", []*bool{&plantResultDemandFault}},
-		{"bool", "(src n)", "bool", []*bool{&plantResultDemandFault}},
+		{"Int", "src[n]", "int", []*bool{&plantResultDemandFault, &plantZeroFillFault}},
+		{"F64", "src[n]", "f64", []*bool{&plantResultDemandFault}},
+		{"Bool", "src[n]", "bool", []*bool{&plantResultDemandFault}},
 		// nothing reads an element: the zero fill's sort, the integer
-		{"int", "(len src)", "int", []*bool{&plantZeroFillFault}},
+		{"Int", "len(src)", "int", []*bool{&plantZeroFillFault}},
 	}
 	for _, c := range cases {
 		for _, target := range []string{"go", "java"} {
@@ -104,7 +104,11 @@ func TestATableNothingStoresIsTyped(t *testing.T) {
 // A VALUE NOTHING TYPES IS REFUSED IN WORDS, not by the verifier. A map built
 // and never written or read has neither key nor value fixed.
 func TestAValueNothingTypesIsRefusedInWords(t *testing.T) {
-	_, err := entryOn(t, "go", "(export f)\n(sig f ((n (int 1 100))) int)\n(def f (n) (let m (build-map 4 (fn (m) m)) n))\n")
+	_, err := entryOn(t, "go", `export fn f(n ∈ 1..100) (Int) {
+    m = build_map(4, fn(m) { m })
+    n
+}
+`)
 	if err == nil || !strings.Contains(err.Error(), "cannot determine a type for the value of (build-map") ||
 		strings.Contains(err.Error(), "W9") {
 		t.Errorf("want the untyped map refused in words: %v", err)
@@ -113,7 +117,11 @@ func TestAValueNothingTypesIsRefusedInWords(t *testing.T) {
 	// refusal and not W9.
 	plantZeroFillFault = true
 	defer func() { plantZeroFillFault = false }()
-	_, err = entryOn(t, "go", "(export f)\n(sig f ((n (int 1 100))) int)\n(def f (n) (let src (local s (table (+ n 1) 0) s) (len src)))\n")
+	_, err = entryOn(t, "go", `export fn f(n ∈ 1..100) (Int) {
+    src = { var s := array { 0 : _ ∈ 0..n + 1-1 }; s }
+    len(src)
+}
+`)
 	if err == nil || !strings.Contains(err.Error(), "cannot determine a type") || strings.Contains(err.Error(), "W9") {
 		t.Errorf("want the open element refused in words: %v", err)
 	}

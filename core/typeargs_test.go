@@ -21,11 +21,11 @@ func TestAnAppliedTypeHasOneCanonicalSpelling(t *testing.T) {
 		"(int int)":                   "", // `int` is the type language's own head
 		"(result (buffer int) int)":   "", // ADR 0020 rule 6
 	} {
-		forms, err := Read(src)
+		term, err := ParseTerm(src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := TypeTerm(forms[0].Term); got != want {
+		if got := TypeTerm(term); got != want {
 			t.Errorf("%s spells %q, want %q", src, got, want)
 		}
 	}
@@ -33,7 +33,7 @@ func TestAnAppliedTypeHasOneCanonicalSpelling(t *testing.T) {
 	// parameter list is read, so TypeName, which reads parameter lists, must not
 	// take it for `p` applied to `string`. Admitting it there renamed every
 	// named parameter and broke every refinement keyed by one.
-	if forms, _ := Read("(p string)"); TypeName(forms[0].Term) != "" {
+	if term, _ := ParseTerm("(p string)"); TypeName(term) != "" {
 		t.Errorf("TypeName read the named parameter (p string) as an applied type")
 	}
 	head, args, ok := Applied("result(option(int), int 0 255)")
@@ -48,11 +48,9 @@ func TestAnAppliedTypeHasOneCanonicalSpelling(t *testing.T) {
 // AN INSTANCE AT A BOUNDARY is its tag and its substituted payload — k = 1, the
 // representation every existing sum already has, so nothing new is emitted.
 func TestAnInstanceAtABoundaryIsItsTagAndItsPayload(t *testing.T) {
-	p, err := loadSrc(t, `(variant (result T) (ok T) (err T))
-(sig pick ((n int)) (result string))
-(def pick (fn (n) (ok "x")))
-(sig find ((n int)) (option int))
-(def find (fn (n) (some n)))
+	p, err := loadSrc(t, `set Result(T) = 'ok(T) ∪ 'err(T)
+fn pick(n ∈ Int) (Result(String)) { 'ok("x") }
+fn find(n ∈ Int) (Option(Int)) { 'some(n) }
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -65,21 +63,21 @@ func TestAnInstanceAtABoundaryIsItsTagAndItsPayload(t *testing.T) {
 }
 
 func TestTypeArgumentsAreWrittenAndCounted(t *testing.T) {
-	decl := "(variant (result T E) (ok T) (err E))\n(def f (fn (n) (ok n)))\n"
-	mustLoadFail(t, decl+"(sig f ((n int)) result)", "write (result T E) with its arguments")
-	mustLoadFail(t, decl+"(sig f ((n int)) (result int))", "takes 2 type arguments, not 1")
-	mustLoadFail(t, "(def f (fn (n) n))\n(sig f ((n int)) (nothing int))",
+	decl := "set Result(T, E) = 'ok(T) ∪ 'err(E)\n"
+	mustLoadFail(t, decl+"fn f(n ∈ Int) (Result) { 'ok(n) }", "write (result T E) with its arguments")
+	mustLoadFail(t, decl+"fn f(n ∈ Int) (Result(Int)) { 'ok(n) }", "takes 2 type arguments, not 1")
+	mustLoadFail(t, "fn f(n ∈ Int) (nothing(Int)) { n }",
 		"not a parameterised variant type in scope")
-	mustLoadFail(t, decl+"(sig g ((r (result int int))) int)\n(def g (fn (r) 0))",
+	mustLoadFail(t, decl+"fn g(r ∈ result(Int, Int)) (Int) { 0 }",
 		"not built")
 	// k > 1 is Theorem R's encoding: the declaration's slots under the
 	// substitution, which stay two when the instance makes them equal.
 	for ty, want := range map[string][]string{
-		"(result int string)":  {"int", "int", "string"},
-		"(result int int)":     {"int", "int", "int"},
-		"(result (tuple) int)": {"int", "int", "int"}, // 1 is represented by {0} ⊂ int
+		"Result(Int, String)": {"int", "int", "string"},
+		"Result(Int, Int)":    {"int", "int", "int"},
+		"Result((), Int)":     {"int", "int", "int"}, // 1 is represented by {0} ⊂ int
 	} {
-		p, err := loadSrc(t, decl+"(sig f ((n int)) "+ty+")")
+		p, err := loadSrc(t, decl+"fn f(n ∈ Int) ("+ty+") { 'ok(n) }")
 		if err != nil {
 			t.Errorf("%s: %v", ty, err)
 			continue
@@ -102,10 +100,7 @@ func TestAParameterisedDeclarationIsWellFormed(t *testing.T) {
 // Inside a program the argument is never needed: a parameterised variant reduces
 // exactly as an unparameterised one does.
 func TestAParameterisedVariantVanishesInsideAProgram(t *testing.T) {
-	got := reduceTo(t, `
-		(use go)
-		(variant (result T E) (ok T) (err E))
-		(def f (fn (n) (case (if (go.> n 0) (ok n) (err 0)) (ok v) (go.+ v 1) (err e) e)))`, "f")
+	got := reduceTo(t, "use go\nset Result(T, E) = 'ok(T) ∪ 'err(E)\nfn f(n) {\n    case if go.`>`(n, 0) { 'ok(n) } else { 'err(0) } { 'ok(v) -> go.`+`(v, 1); 'err(e) -> e }\n}", "f")
 	if got != "(fn (n) (if (go.> n 0) (go.+ n 1) 0))" {
 		t.Errorf("a parameterised variant must leave nothing behind: %s", got)
 	}

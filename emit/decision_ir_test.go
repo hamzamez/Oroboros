@@ -26,19 +26,15 @@ func TestReadCarriesTheElementRange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := `(def f (fn (a)
-	  (loop ((i 0) (acc 0))
-	    (go.>= i (len a))  acc
-	    else               (again (go.+ i 1) (go.+ acc (go.* (a i) (a i)))))))`
+	body := " {\n    loop i = 0, acc = 0 {\n        go.`>=`(i, len(a)) -> acc\n        else -> again(go.`+`(i, 1), go.`+`(acc, go.`*`(a[i], a[i])))\n    }\n}"
 	for _, c := range []struct {
 		name, elem string
 		want       int
 	}{
-		{"declared 0..255", "(array (int 0 255))", 3},
-		{"undeclared", "(array int)", 1},
+		{"declared 0..255", "Array(0..255)", 3},
+		{"undeclared", "Array(Int)", 1},
 	} {
-		src := "(use go)\n(export f)\n(sig f ((a " + c.elem +
-			")) int (where (go.< (len a) 1024)))\n" + body
+		src := "use go\nexport fn f(a ∈ " + c.elem + ") (Int) where go.`<`(len(a), 1024)" + body
 		forms, err := core.Read(src)
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
@@ -67,14 +63,7 @@ func TestRunningMaximumIsBounded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := `(use go)
-(def run (fn (n)
-  (loop ((i 0) (sp 0) (mx 0))
-    (go.>= sp 32)  mx
-    (go.>= i 100)  mx
-    else           (again (go.+ i 1)
-                          (if (go.> (go.+ sp 1) 4) 0 (go.+ sp 1))
-                          (if (go.> (go.+ sp 1) mx) (go.+ sp 1) mx)))))`
+	src := "use go\nfn run(n) {\n    loop i = 0, sp = 0, mx = 0 {\n        go.`>=`(sp, 32) -> mx\n        go.`>=`(i, 100) -> mx\n        else ->\n            again(go.`+`(i, 1), if go.`>`(go.`+`(sp, 1), 4) { 0 } else { go.`+`(sp, 1) },\n                if go.`>`(go.`+`(sp, 1), mx) { go.`+`(sp, 1) } else { mx })\n    }\n}"
 	forms, _ := core.Read(src)
 	prog, _, err := core.LoadWith(forms, nil)
 	if err != nil {
@@ -195,11 +184,11 @@ func TestADeclaredResultRangeIsRead(t *testing.T) {
 		name  string
 		bound bool
 	}{{"h.wide", false}, {"h.narrow", true}} {
-		terms, err := core.ReadAll(`(fn (n) (go.+ (` + c.name + ` n) 1))`)
+		term, err := core.ParseTerm(`(fn (n) (go.+ (` + c.name + ` n) 1))`)
 		if err != nil {
 			t.Fatal(err)
 		}
-		rep := decideOn(t, tg, nil, terms[0])
+		rep := decideOn(t, tg, nil, term)
 		got := rep.Proven == rep.Ops && rep.Ops > 0
 		if got != c.bound {
 			t.Errorf("%s: %d of %d operations bounded; want bounded=%v.\n"+
@@ -215,13 +204,11 @@ func TestADeclaredResultRangeIsRead(t *testing.T) {
 // was "proven" and a loop that diverges for a negative n was reported to
 // terminate — both emitted, before collectAgain walked the continuation.
 func TestABackEdgeInAHostContinuationIsSeen(t *testing.T) {
-	const hidden = `(use go/math/bits as b)
-(export f)
-(sig f ((n int)) int)
-(def f (n)
-  (let r (loop ((x 0)) (= x n) x
-          else (let (tuple s c) (b.Add64 5 6 0) (again (+ x 1))))
-    (* r 3037000500)))`
+	const hidden = `use go/math/bits as b
+export fn f(n ∈ Int) (Int) {
+    r = loop x = 0 { x == n -> x; else -> { (s, c) = b.Add64(5, 6, 0); again(x + 1) } }
+    r * 3037000500
+}`
 	tg, nf, sig := normGo(t, hidden)
 	rep := decideOn(t, tg, sig, nf)
 	if rep.Proven == rep.Ops {
@@ -232,8 +219,11 @@ func TestABackEdgeInAHostContinuationIsSeen(t *testing.T) {
 	}
 	// The same loop with the `again` bare, which every walker always saw, is the
 	// answer the continuation must give.
-	tg, nf, sig = normGo(t, strings.Replace(hidden,
-		"(let (tuple s c) (b.Add64 5 6 0) (again (+ x 1)))", "(again (+ x 1))", 1))
+	bareSrc := strings.Replace(hidden, "{ (s, c) = b.Add64(5, 6, 0); again(x + 1) }", "again(x + 1)", 1)
+	if bareSrc == hidden {
+		t.Fatal("the bare control is the same source")
+	}
+	tg, nf, sig = normGo(t, bareSrc)
 	bare := decideOn(t, tg, sig, nf)
 	if bare.Proven != rep.Proven || bare.Ops != rep.Ops || bare.Terminates != rep.Terminates {
 		t.Errorf("under a continuation %d/%d ops, %d terminating; bare %d/%d, %d",
@@ -250,9 +240,7 @@ func TestABackEdgeInAHostContinuationIsSeen(t *testing.T) {
 // where the next sweep had read it as ⊤ and left `(= h 0)` to be refused by type.
 func TestAShadowingLoopGivesTheParameterBack(t *testing.T) {
 	tg := goNative(t)
-	src := `(export f)
-(sig f ((h (int 0 100))) int)
-(def f (h) (+ (loop ((h h)) (= h 0) 1 else (again (/ h 10))) (* h h)))`
+	src := `export fn f(h ∈ 0..100) (Int) { loop h = h { h == 0 -> 1; else -> again(h / 10) } + h * h }`
 	forms, err := core.Read(src)
 	if err != nil {
 		t.Fatal(err)
@@ -276,9 +264,7 @@ func TestAShadowingLoopGivesTheParameterBack(t *testing.T) {
 	// Through CheckSignatures, where it was met: the claim is checked on the
 	// definition after the representation is chosen, and that pass sweeps the
 	// loop twice.
-	forms, err = core.Read(`(export f)
-(sig f ((h (int 0 18446744073709551615))) int)
-(def f (h) (loop ((h h)) (= h 0) 1 else (again (/ h 10))))`)
+	forms, err = core.Read(`export fn f(h ∈ 0..2^64-1) (Int) { loop h = h { h == 0 -> 1; else -> again(h / 10) } }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,14 +289,13 @@ func TestAShadowingLoopGivesTheParameterBack(t *testing.T) {
 // like after reduction, and the join over the exits must see that it yields no
 // value (prodfacts.go, noValue) or it loses the exit it does have.
 func TestEachComponentHasItsOwnFacts(t *testing.T) {
-	src := `(export f)
-(sig f ((n (int 0 10))) int)
-(def f (n)
-  (let (tuple a b) (loop ((i 0) (s 0))
-                     (>= i n)  (tuple i (* i 1000000000000))
-                     else      (let j (if (< i 5) (+ i 1) (+ i 2))
-                                 (again j j)))
-    (+ (* a 1000000000000000) (% (* b 1000000) 7))))`
+	src := `export fn f(n ∈ 0..10) (Int) {
+    (a, b) = loop i = 0, s = 0 {
+        i >= n -> (i, i * 1000000000000)
+        else -> { j = if i < 5 { i + 1 } else { i + 2 }; again(j, j) }
+    }
+    a * 1000000000000000 + b * 1000000 % 7
+}`
 	rep := reportGo(t, src)
 	if rep.Proven != 5 || rep.Ops != 6 || len(rep.Unproven) != 1 ||
 		!strings.Contains(rep.Unproven[0], "(* b 1000000)") {
@@ -359,13 +344,9 @@ func printed(f *ir.Func) string {
 	return ir.Print(&ir.Program{Target: "go", Stage: ir.StageA, Funcs: []*ir.Func{f}})
 }
 
-const signedProgram = `(export f)
-(sig f ((n (int 0 10))) (int (- 0 (pow 2 200)) (pow 2 200)))
-(def f (n) (- (- 0 1606938044258990275541962092341162602522202993782792835301376) n))`
+const signedProgram = `export fn f(n ∈ 0..10) (0 - pow(2, 200)..2^200) { 0 - (2^200) - n }`
 
-const naturalProgram = `(export f)
-(sig f ((n (int 0 10))) (int 0 (pow 2 200)))
-(def f (n) (+ 1606938044258990275541962092341162602522202993782792835301376 n))`
+const naturalProgram = `export fn f(n ∈ 0..10) (0..2^200) { (2^200) + n }`
 
 // THE ENFORCED SET HAS A SIGN (ADR 0029): the host's bignum checks a signed
 // program with big-fit-signed and a non-negative one with big-fit, and the
@@ -419,9 +400,9 @@ func TestAnUnsupportedLimbOperationIsRefusedByName(t *testing.T) {
 // that a declared range above the word holds exactly is, undeclared, a word
 // multiply no fact bounds, and the decision says so.
 func TestWithoutTheDeclarationTheMagnitudeIsNotDerivable(t *testing.T) {
-	tg, nf, sig := normGo(t, `(export run)
-(sig run ((n (int 0 50))) int)
-(def run (fn (n) (% (loop ((acc (+ n 7)) (i 0)) (>= i 6) acc else (again (* acc 999983) (+ i 1))) 100000000)))
+	tg, nf, sig := normGo(t, `export fn run(n ∈ 0..50) (Int) {
+    loop acc = n + 7, i = 0 { i >= 6 -> acc; else -> again(acc * 999983, i + 1) } % 100000000
+}
 `)
 	rep := decideOn(t, tg, sig, nf)
 	if rep.Proven == rep.Ops {
@@ -441,11 +422,7 @@ func TestWithoutTheDeclarationTheMagnitudeIsNotDerivable(t *testing.T) {
 // `int ⊆ big` is the decidable half of subtyping type-algebra.md already keeps,
 // run in the other direction.
 func TestABignumIsRefusedWhereAWordIsRequired(t *testing.T) {
-	src := `(use go)
-(export narrow)
-(sig narrow ((n (int 0 +inf))) int)
-(def narrow (fn (n) (+ n 1)))
-`
+	src := "use go\nexport fn narrow(n ∈ 0..`+inf`) (Int) { n + 1 }\n"
 	tg, err := emit.LoadTarget("../targets/go")
 	if err != nil {
 		t.Fatal(err)

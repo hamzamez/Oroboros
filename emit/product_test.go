@@ -89,15 +89,10 @@ func TestTheStrideIsProvenFromTheGuard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := core.Read(`
-(use go)
-(export f)
-(sig f ((sp (array (tuple (int 0 65535) (int 0 65535))))) int
-  (where (< (len sp) 1000)))
-(def f (fn (sp)
-  (loop ((acc 0) (w 0))
-    (>= w (len sp))  acc
-    else (again (+ acc (- ((sp w) 1) ((sp w) 0))) (+ w 1)))))`)
+	forms, err := core.Read(`use go
+export fn f(sp ∈ Array(0..65535 × 0..65535)) (Int) where len(sp) < 1000 {
+    loop acc = 0, w = 0 { w >= len(sp) -> acc; else -> again(acc + (sp[w][1] - sp[w][0]), w + 1) }
+}`)
 	if err != nil {
 		t.Fatal(err)
 	}

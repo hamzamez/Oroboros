@@ -11,8 +11,7 @@ import (
 // constructor reduces it away and a dynamic one leaves the host's own test.
 
 func TestExpectContinuesOnSuccessAndCrashesOtherwise(t *testing.T) {
-	got := reduceWith(t, resultDecl+`
-		(def f (fn (n) (expect (ok h) (half n) "odd" (go.- h 1))))`,
+	got := reduceWith(t, resultDecl+"fn f(n) {\n    expect ok(h) = half(n) else \"odd\"\n    go.`-`(h, 1)\n}",
 		"f", "go.>", "go.%", "go./", "go.-", "if", "=", "!abandon")
 	want := `(fn (n) (if (go.> (go.% n 2) 0) (abandon "odd") (go.- (go./ n 2) 1)))`
 	if got != want {
@@ -22,8 +21,7 @@ func TestExpectContinuesOnSuccessAndCrashesOtherwise(t *testing.T) {
 
 // Left identity holds for expect as for try: a known success is the body.
 func TestExpectOnAKnownSuccessIsItsBody(t *testing.T) {
-	got := reduceWith(t, resultDecl+`
-		(def f (fn (n) (expect (ok x) (ok n) "never" (go.- x 1))))`,
+	got := reduceWith(t, resultDecl+"fn f(n) {\n    expect ok(x) = ok(n) else \"never\"\n    go.`-`(x, 1)\n}",
 		"f", "go.-", "if", "=", "!abandon")
 	if got != "(fn (n) (go.- n 1))" {
 		t.Errorf("got %s", got)
@@ -32,10 +30,16 @@ func TestExpectOnAKnownSuccessIsItsBody(t *testing.T) {
 
 func TestExpectIsOnlyForASuccessConstructor(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
-		{`(variant colour (red int) blue)
-		  (def f (fn (c) (expect (red x) c "why" x)))`, "declares no (success"},
-		{`(variant (result T E) (ok T) (err E) (success ok))
-		  (def f (fn (r) (expect (err x) r "why" x)))`, "not the success constructor"},
+		{`set Colour = 'red(Int) ∪ 'blue
+fn f(c) {
+    expect 'red(x) = c else "why"
+    x
+}`, "declares no (success"},
+		{`set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok
+fn f(r) {
+    expect 'err(x) = r else "why"
+    x
+}`, "not the success constructor"},
 		{`(variant (result T E) (ok T) (err E) (success ok))
 		  (def f (fn (r) (expect (ok x) r x)))`, "a reason"},
 	} {

@@ -59,7 +59,7 @@ func refineWith(t *testing.T, tg *Target, src string) (string, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	term := terms[0]
+	term := entryTerm(t, prog, terms)
 	nf, err := core.Normalize(term, env, core.DefaultFuel)
 	if err != nil {
 		t.Fatal(err)

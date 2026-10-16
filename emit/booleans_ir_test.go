@@ -14,11 +14,12 @@ import (
 // ADR 0012, and the reason the recogniser exists.
 func TestConnectiveEmitsHostOperator(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
-		{`(fn (a b) (and (go.< a b) (go.< b 9)))`, "&&"},
-		{`(fn (a b) (or (go.< a b) (go.< b 9)))`, "||"},
-		{`(fn (a b) (not (go.< a b)))`, "!"},
+		{"fn t(a, b) { go.`<`(a, b) && go.`<`(b, 9) }", "&&"},
+		{"fn t(a, b) { go.`<`(a, b) || go.`<`(b, 9) }", "||"},
+		{"fn t(a, b) { !go.`<`(a, b) }", "!"},
 	} {
-		nf := reduce(t, "(use go)\n"+c.src, "go")
+		nf := reduce(t, `use go
+`+c.src, "go")
 		tg, err := emit.LoadTarget("../targets/go")
 		if err != nil {
 			t.Fatal(err)
@@ -39,10 +40,8 @@ func TestConnectiveEmitsHostOperator(t *testing.T) {
 // On the host with no operator, `and` in GUARD position is the dragon book's
 // jumping code: two compares that leave for the same label, and no boolean.
 func TestAsmAndIsJumpingCode(t *testing.T) {
-	code := winEmit(t, `
-		(use x64)
-		(fn (a b n) (if (and (x64.setl a n) (x64.setl b n)) 1 0))
-	`)
+	code := winEmit(t, `use x64
+fn t(a, b, n) { if x64.setl(a, n) && x64.setl(b, n) { 1 } else { 0 } }`)
 	if n := strings.Count(code, "cmp "); n != 2 {
 		t.Errorf("want two compares, got %d:\n%s", n, code)
 	}
@@ -63,10 +62,8 @@ func TestAsmAndIsJumpingCode(t *testing.T) {
 // conditional already lays the branches out that way. `x64.andb` — the strict
 // branchless instruction — is a different name and is not reached from `and`.
 func TestAsmAndInValuePositionShortCircuits(t *testing.T) {
-	code := winEmit(t, `
-		(use x64)
-		(fn (a b n) (and (x64.setl a n) (x64.setl b n)))
-	`)
+	code := winEmit(t, `use x64
+fn t(a, b, n) { x64.setl(a, n) && x64.setl(b, n) }`)
 	if strings.Contains(code, "and ") {
 		t.Errorf("value position used the strict instruction:\n%s", code)
 	}
@@ -78,10 +75,8 @@ func TestAsmAndInValuePositionShortCircuits(t *testing.T) {
 // The strict instruction is still reachable under its own host name, with no
 // portability claim — Ada's `and` beside `and then` (booleans.md §2.9).
 func TestStrictAndIsStillAvailable(t *testing.T) {
-	code := winEmit(t, `
-		(use x64)
-		(fn (a b n) (x64.andb (x64.setl a n) (x64.setl b n)))
-	`)
+	code := winEmit(t, `use x64
+fn t(a, b, n) { x64.andb(x64.setl(a, n), x64.setl(b, n)) }`)
 	if !strings.Contains(code, "and ") {
 		t.Errorf("x64.andb should emit the instruction:\n%s", code)
 	}

@@ -16,13 +16,7 @@ import (
 // backwards still compiles and still produces the right answer — one slowly,
 // one wrongly.
 
-const factSrc = `(export fact)
-(sig fact ((n (int 0 30))) (int 0 +inf))
-(def fact (fn (n)
-  (loop ((acc 1) (i 1))
-    (> i n)  acc
-    else     (again (* acc i) (+ i 1)))))
-`
+const factSrc = "export fn fact(n ∈ 0..30) (0..`+inf`) {\n    loop acc = 1, i = 1 { i > n -> acc; else -> again(acc * i, i + 1) }\n}\n"
 
 // A TARGET MAY DECLINE ARBITRARY PRECISION, and it is the capability model
 // answering rather than a hole — the same answer JavaScript already gives for
@@ -165,8 +159,7 @@ func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
 	// THE PARAMETER SIDE STILL SAYS ITS HALF, which is what `+inf` is for: a
 	// non-negative bignum needs no sign handling, and bigarith measured sign
 	// handling as a real cost.
-	forms, err := core.Read(`(sig f ((n (int 0 +inf))) (int 0 +inf))
-(def f (fn (n) n))`)
+	forms, err := core.Read("fn f(n ∈ 0..`+inf`) (0..`+inf`) { n }")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,9 +184,7 @@ func firstSig(forms []core.Form) *core.Sig {
 // refused with "big-fit is big, but array int is required here", a message
 // naming two internal representations, and the fallback never ran.
 func TestTheLimbFallBackIsCheckedOnTheHostsRung(t *testing.T) {
-	src := `(export run)
-(sig run ((a (int 0 (pow 2 200))) (b (int 1 (pow 2 200)))) (int 0 (pow 2 200)))
-(def run (a b) (/ (* a 7) b))
+	src := `export fn run(a ∈ 0..2^200, b ∈ 1..2^200) (0..2^200) { a * 7 / b }
 `
 	tg, err := LoadTarget("../targets/go")
 	if err != nil {

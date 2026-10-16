@@ -28,9 +28,9 @@ func TestABackEdgeBuildReusesTheLoopsStorage(t *testing.T) {
 	// `math/big` (targets/go/bigint.oro), where the reuse this test is about is
 	// `bigreuse.go`'s and not this one's. Same program, different storage.
 	tg.BigRepr = "limbs"
-	src := `(export fact)
-(sig fact ((n (int 0 50))) (int 0 (pow 2 300)))
-(def fact (fn (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1)))))
+	src := `export fn fact(n ∈ 0..50) (0..2^300) {
+    loop acc = 1, i = 2 { i > n -> acc; else -> again(acc * i, i + 1) }
+}
 `
 	code := emitGo(t, tg, src, "fact")
 	// One `make` for the initial buffer and one for the spare, both OUTSIDE the
@@ -63,13 +63,13 @@ func TestABufferReadElsewhereIsNotReused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := `(export f)
-(sig f ((n (int 0 20))) int)
-(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
-(def f (fn (n)
-  (loop ((b (build 8 (fn (x) x))) (s 0) (i 0))
-    (>= i n)  s
-    else      (again (build 8 (fn (o) (set o 0 (at b 0)))) (+ s (at b 1)) (+ i 1)))))
+	src := `fn at(t, i) { if i < 0 { 0 } else if i >= len(t) { 0 } else { t[i] } }
+export fn f(n ∈ 0..20) (Int) {
+    loop b = build(8, fn(x) { x }), s = 0, i = 0 {
+        i >= n -> s
+        else -> again(build(8, fn(o) { store(o, 0, at(b, 0)) }), s + at(b, 1), i + 1)
+    }
+}
 `
 	code := emitGo(t, tg, src, "f")
 	if strings.Count(code, "make(") != 2 || strings.Contains(code, "clear(") {
@@ -178,9 +178,7 @@ func TestADividendProvedNonNegativeBecomesAShift(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := `(export f)
-(sig f ((n (int 0 1000))) int)
-(def f (fn (n) (+ (/ n 8) (% n 8))))
+	src := `export fn f(n ∈ 0..1000) (Int) { n / 8 + n % 8 }
 `
 	code := emitGo(t, tg, src, "f")
 	if !strings.Contains(code, ">> 3") || !strings.Contains(code, "& 7") {
@@ -199,9 +197,7 @@ func TestAPossiblyNegativeDividendStaysADivision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := `(export f)
-(sig f ((n (int -1000 1000))) int)
-(def f (fn (n) (/ n 8)))
+	src := `export fn f(n ∈ -1000..1000) (Int) { n / 8 }
 `
 	code := emitGo(t, tg, src, "f")
 	if strings.Contains(code, ">>") {
@@ -221,9 +217,7 @@ func TestNoShiftWidthMeansNoRewrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	tg.ShiftWidth = 0
-	src := `(export f)
-(sig f ((n (int 0 1000))) int)
-(def f (fn (n) (/ n 8)))
+	src := `export fn f(n ∈ 0..1000) (Int) { n / 8 }
 `
 	if code := emitGo(t, tg, src, "f"); strings.Contains(code, ">>") {
 		t.Errorf("a target declaring no shift width was rewritten anyway:\n%s", code)
@@ -238,11 +232,10 @@ func TestADeclaredWideningSurvivesInlining(t *testing.T) {
 	// `scaled` is not exported and `run` returns an ordinary `int`, so after
 	// inlining nothing in the residual mentions a big type — except the
 	// ascription.
-	src := `(export run)
-(sig scaled ((n (int 0 50))) (int 0 (pow 2 200)))
-(def scaled (fn (n) (loop ((acc (+ n 7)) (i 0)) (>= i 6) acc else (again (* acc 999983) (+ i 1)))))
-(sig run ((n (int 0 50))) int)
-(def run (fn (n) (% (scaled n) 100000000)))
+	src := `fn scaled(n ∈ 0..50) (0..2^200) {
+    loop acc = n + 7, i = 0 { i >= 6 -> acc; else -> again(acc * 999983, i + 1) }
+}
+export fn run(n ∈ 0..50) (Int) { scaled(n) % 100000000 }
 `
 	code := emitGo(t, tg, src, "run")
 	if !strings.Contains(code, "big.NewInt") || !strings.Contains(code, "Mul") {

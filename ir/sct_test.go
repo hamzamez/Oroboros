@@ -57,21 +57,33 @@ func TestTheClosureDecidesTheTheorem(t *testing.T) {
 // divergent programs: each has an input on which its loop never ends, and names
 // the premise that input violates.
 var divergent = []struct{ why, body string }{
-	{"a descent with no floor: i falls forever below 100", `(loop ((i n)) (>= i 100) i else (again (- i 1)))`},
-	{"a quotient at 0: 0 / 2 is 0", `(loop ((x n) (k 0)) (> x 100) k else (again (/ x 2) (+ k 1)))`},
+	{"a descent with no floor: i falls forever below 100", `{ loop i = n { i >= 100 -> i; else -> again(i - 1) } }`},
+	{"a quotient at 0: 0 / 2 is 0", `{ loop x = n, k = 0 { x > 100 -> k; else -> again(x / 2, k + 1) } }`},
 	{"a remainder by a divisor that is not the variable: n = 0 keeps y' = x mod (y+1) = 0",
-		`(loop ((x n) (y n)) (= y 3) x else (again y (% x (+ y 1))))`},
+		`{ loop x = n, y = n { y == 3 -> x; else -> again(y, x % (y + 1)) } }`},
 	{"a remainder does not fall below its dividend: x mod 13 = x for x < 13",
-		`(loop ((x n)) (= x 7) x else (again (% x 13)))`},
-	{"a reset not below the guard: 5 stays 5", `(loop ((v n) (k 0)) (= v 0) k (>= v 10) (again (- v 10) k) else (again 5 k))`},
-	{"a parameter that does not move on one path", `(loop ((i 0)) (>= i n) i (= (% i 2) 0) (again i) else (again (+ i 1)))`},
-	{"an ascent with no ceiling", `(loop ((i n) (s 0)) (< i 0) s else (again (+ i 1) (+ s 1)))`},
+		`{ loop x = n { x == 7 -> x; else -> again(x % 13) } }`},
+	{"a reset not below the guard: 5 stays 5", `{
+loop v = n, k = 0 {
+    v == 0 -> k
+    v >= 10 -> again(v - 10, k)
+    else -> again(5, k)
+}
+}`},
+	{"a parameter that does not move on one path", `{
+loop i = 0 {
+    i >= n -> i
+    i % 2 == 0 -> again(i)
+    else -> again(i + 1)
+}
+}`},
+	{"an ascent with no ceiling", `{ loop i = n, s = 0 { i < 0 -> s; else -> again(i + 1, s + 1) } }`},
 }
 
 func TestADivergentLoopIsNotProven(t *testing.T) {
 	dir := t.TempDir()
 	for k, c := range divergent {
-		src := fmt.Sprintf("(export run)\n(sig run ((n (int 0 12))) int)\n(def run (n)\n  %s)\n", c.body)
+		src := fmt.Sprintf("export fn run(n ∈ 0..12) (Int) { %s }\n", c.body)
 		path := filepath.Join(dir, fmt.Sprintf("d%d.oro", k))
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)
@@ -92,15 +104,21 @@ func TestADivergentLoopIsNotProven(t *testing.T) {
 // premise and not for want of a rule.
 func TestTheLawsProveWhatTheyShould(t *testing.T) {
 	proven := []string{
-		`(loop ((i n)) (< i 0) i else (again (- i 1)))`,
-		`(loop ((x (+ n 1)) (k 0)) (< x 1) k else (again (/ x 2) (+ k 1)))`,
-		`(loop ((x n) (y (+ n 1))) (< y 1) x else (again y (% x y)))`,
-		`(loop ((v n) (k 0)) (= v 0) k (>= v 10) (again (- v 10) k) else (again 0 k))`,
-		`(loop ((i 0)) (>= i n) i else (again (+ i 1)))`,
+		`{ loop i = n { i < 0 -> i; else -> again(i - 1) } }`,
+		`{ loop x = n + 1, k = 0 { x < 1 -> k; else -> again(x / 2, k + 1) } }`,
+		`{ loop x = n, y = n + 1 { y < 1 -> x; else -> again(y, x % y) } }`,
+		`{
+loop v = n, k = 0 {
+    v == 0 -> k
+    v >= 10 -> again(v - 10, k)
+    else -> again(0, k)
+}
+}`,
+		`{ loop i = 0 { i >= n -> i; else -> again(i + 1) } }`,
 	}
 	dir := t.TempDir()
 	for k, body := range proven {
-		src := fmt.Sprintf("(export run)\n(sig run ((n (int 0 12))) int)\n(def run (n)\n  %s)\n", body)
+		src := fmt.Sprintf("export fn run(n ∈ 0..12) (Int) { %s }\n", body)
 		path := filepath.Join(dir, fmt.Sprintf("p%d.oro", k))
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)

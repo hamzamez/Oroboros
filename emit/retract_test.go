@@ -17,23 +17,28 @@ func retractTarget(t *testing.T, decls string) (*Target, error) {
 	if err := os.MkdirAll(lib, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res := "(module result)\n(export ok err)\n(variant (result T E) (ok T) (err E) (success ok) (relevant))\n" +
-		"(variant (two T E) (fine T) (bad E) (worse E) (success fine))\n"
+	res := `set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok relevant
+set Two(T, E) = 'fine(T) ∪ 'bad(E) ∪ 'worse(E) success 'fine
+`
 	if err := os.WriteFile(filepath.Join(lib, "result.oro"), []byte(res), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	src := `(target t (backend go)
-  (repr (int -9223372036854775808 9223372036854775807) word)
-  (type error (host "error"))
-  (repr error (niche (host expr "%s == nil")))
-  (module m
-    (use result)
-    ` + decls + `))`
-	p := filepath.Join(dir, "t.oro")
+	src := `backend go
+repr -2^63..2^63-1 word
+set error = host "error"
+repr error niche host expr "%s == nil"
+module m {
+    use result
+    ` + decls + `
+}
+`
+	// The target file beside the library, where J's reader finds the sets
+	// `result` declares.
+	p := filepath.Join(lib, "t.oro")
 	if err := os.WriteFile(p, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return LoadTargetLayers("t.oro", []string{dir}, []string{lib})
+	return LoadTargetLayers("t.oro", []string{lib}, []string{lib})
 }
 
 func TestARetractionSplitsADeclarationIntoItsRawCallAndADefinition(t *testing.T) {
@@ -42,11 +47,11 @@ func TestARetractionSplitsADeclarationIntoItsRawCallAndADefinition(t *testing.T)
 		results   []string
 		def       string
 	}{
-		{`(sig f ((n int)) (result.result int error) (host expr "f(%s)"))`, "#raw:m:f",
+		{`fn f(n ∈ Int) (result.Result(Int, error)) { host expr "f(${n})" }`, "#raw:m:f",
 			[]string{"int", "error"}, "(if (#niche:error #h2) (result.ok #h1) (result.err #h2))"},
-		{`(sig g ((n int)) (result.result (tuple) error) (host expr "g(%s)"))`, "#raw:m:g",
+		{`fn g(n ∈ Int) (result.Result((), error)) { host expr "g(${n})" }`, "#raw:m:g",
 			[]string{"error"}, "(if (#niche:error #h1) (result.ok (fn (#k) (#k))) (result.err #h1))"},
-		{`(sig h ((n int)) (tuple int (option error)) (host expr "h(%s)"))`, "#raw:m:h",
+		{`fn h(n ∈ Int) (Int × Option(error)) { host expr "h(${n})" }`, "#raw:m:h",
 			[]string{"int", "error"}, "(fn (#k) (#k #h1 (if (#niche:error #h2) none (some #h2))))"},
 	} {
 		tg, err := retractTarget(t, c.decl)
@@ -83,9 +88,9 @@ func TestARetractionSplitsADeclarationIntoItsRawCallAndADefinition(t *testing.T)
 
 func TestARetractionIsRefusedWhereTheAlgebraFails(t *testing.T) {
 	for _, c := range []struct{ decl, want string }{
-		{`(sig f ((n int)) (result.two int error) (host expr "f(%s)"))`, "exactly one"},
-		{`(sig f ((n int)) (result.result int int) (host expr "f(%s)"))`, "no niche"},
-		{`(sig f ((n int)) (other.result int error) (host expr "f(%s)"))`, "no (use"},
+		{`fn f(n ∈ Int) (result.Two(Int, error)) { host expr "f(${n})" }`, "exactly one"},
+		{`fn f(n ∈ Int) (result.Result(Int, Int)) { host expr "f(${n})" }`, "no niche"},
+		{`fn f(n ∈ Int) (other.Result(Int, error)) { host expr "f(${n})" }`, "no (use"},
 	} {
 		if _, err := retractTarget(t, c.decl); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: want a refusal mentioning %q, got %v", c.decl, c.want, err)

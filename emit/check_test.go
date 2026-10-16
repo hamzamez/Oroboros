@@ -29,7 +29,7 @@ func checkSrc(t *testing.T, target, src string) error {
 // program as Go's refusal.
 func TestCheckerRejectsTheMeasuredBug(t *testing.T) {
 	for _, target := range []string{"go", "js", "java", "windows"} {
-		err := checkSrc(t, target, `(fn (x) (+ "hello" 1))`)
+		err := checkSrc(t, target, `fn t(x) { "hello" + 1 }`)
 		if err == nil {
 			t.Errorf("%s: expected a type error", target)
 			continue
@@ -43,10 +43,7 @@ func TestCheckerRejectsTheMeasuredBug(t *testing.T) {
 // §3 — a parameter demanded at two different types is the conflict case, and
 // it is what makes this checking rather than inference.
 func TestCheckerRejectsConflictingUse(t *testing.T) {
-	err := checkSrc(t, "go", `
-		(use go)
-		(fn (a) (if (go.s< a "x") (go.string-of-bytes a) "y"))
-	`)
+	err := checkSrc(t, "go", "use go\nfn t(a) { if go.`s<`(a, \"x\") { go.string_of_bytes(a) } else { \"y\" } }")
 	if err == nil {
 		t.Fatal("a used as both a host string and a table of bytes should conflict")
 	}
@@ -58,20 +55,15 @@ func TestCheckerRejectsConflictingUse(t *testing.T) {
 // §3 — `any` demands nothing, so it neither conflicts nor binds. Println takes
 // `any` precisely because the host is polymorphic there.
 func TestCheckerAcceptsAny(t *testing.T) {
-	if err := checkSrc(t, "go", `
-		(use go/fmt)
-		(fn (label) (fmt.Println label))
-	`); err != nil {
+	if err := checkSrc(t, "go", `use go/fmt
+fn t(label) { fmt.Println(label) }`); err != nil {
 		t.Errorf("any must not constrain: %v", err)
 	}
 }
 
 // §4 — the branches of a conditional must agree.
 func TestCheckerRejectsMismatchedBranches(t *testing.T) {
-	err := checkSrc(t, "go", `
-		(use go)
-		(fn (a) (if (go.f< (go.at-float64 a 0) 1.0) 2.0 "no"))
-	`)
+	err := checkSrc(t, "go", "use go\nfn t(a) { if go.`f<`(go.at_float64(a, 0), 1.0) { 2.0 } else { \"no\" } }")
 	if err == nil {
 		t.Fatal("branches f64 and string should conflict")
 	}
@@ -86,24 +78,17 @@ func TestCheckerRejectsMismatchedBranches(t *testing.T) {
 // table, a map threaded through a loop, and a conditional.
 func TestCheckerAcceptsTheGauntletShapes(t *testing.T) {
 	cases := map[string]string{
-		"fold": `(use go)
-			(fn (a) (loop ((acc 0.0) (i 0))
-			  (>= i (go.len a))  acc
-			  else               (again (go.f+ acc (go.at-float64 a i)) (+ i 1))))`,
-		"map accumulator": `(use go)
-			(fn (ws) (loop ((m (go.make-map)) (i 0))
-			  (>= i (go.len ws))  m
-			  else                (again (go.inc-map m (go.at-string ws i)) (+ i 1))))`,
-		"table": `(use go)
-			(fn (a) (table (- (go.len a) 1) (fn (i) (go.f* (go.at-float64 a i) 2.0))))`,
-		"two accumulators": `(use go)
-			(fn (xs ys) (loop ((ax 0.0) (ay 0.0) (i 0))
-			  (>= i (go.len xs))  (go.f+ ax ay)
-			  else                (again (go.f+ ax (go.at-float64 xs i))
-			                             (go.f+ ay (go.at-float64 ys i))
-			                             (+ i 1))))`,
-		"conditional": `(use go)
-			(fn (a) (if (go.f> (go.at-float64 a 0) 0.0) 1.0 2.0))`,
+		"fold": "use go\nfn t(a) {\n    loop acc = 0.0, i = 0 {\n        i >= go.len(a) -> acc\n        else -> again(go.`f+`(acc, go.at_float64(a, i)), i + 1)\n    }\n}",
+		"map accumulator": `use go
+fn t(ws) {
+    loop m = go.make_map(), i = 0 {
+        i >= go.len(ws) -> m
+        else -> again(go.inc_map(m, go.at_string(ws, i)), i + 1)
+    }
+}`,
+		"table":            "use go\nfn t(a) { array { go.`f*`(go.at_float64(a, i), 2.0) : i ∈ 0..go.len(a) - 1-1 } }",
+		"two accumulators": "use go\nfn t(xs, ys) {\n    loop ax = 0.0, ay = 0.0, i = 0 {\n        i >= go.len(xs) -> go.`f+`(ax, ay)\n        else -> again(go.`f+`(ax, go.at_float64(xs, i)), go.`f+`(ay, go.at_float64(ys, i)), i + 1)\n    }\n}",
+		"conditional":      "use go\nfn t(a) { if go.`f>`(go.at_float64(a, 0), 0.0) { 1.0 } else { 2.0 } }",
 	}
 	for name, src := range cases {
 		if err := checkSrc(t, "go", src); err != nil {
@@ -139,10 +124,7 @@ func loadWithSigs(t *testing.T, target, src string) (*Target, *core.Program, *co
 
 func TestSignatureCheckedAgainstTargetNative(t *testing.T) {
 	// blas provides `dot` natively, taking two vectors.
-	src := `
-		(sig dot ((a vec-f64) (b int)) f64)
-		(def dot (fn (a b) (dot a b)))
-	`
+	src := `fn dot(a ∈ vec_f64, b ∈ Int) (F64) { dot(a, b) }`
 	tg, prog, env := loadWithSigs(t, "blas", src)
 	err := CheckSignatures(tg, prog, env, nil)
 	if err == nil {
@@ -154,10 +136,7 @@ func TestSignatureCheckedAgainstTargetNative(t *testing.T) {
 }
 
 func TestSignatureAcceptedWhenItAgrees(t *testing.T) {
-	src := `
-		(sig dot ((a vec-f64) (b vec-f64)) f64)
-		(def dot (fn (a b) (dot a b)))
-	`
+	src := `fn dot(a ∈ vec_f64, b ∈ vec_f64) (F64) { dot(a, b) }`
 	tg, prog, env := loadWithSigs(t, "blas", src)
 	if err := CheckSignatures(tg, prog, env, nil); err != nil {
 		t.Errorf("an agreeing signature must pass: %v", err)
@@ -167,11 +146,8 @@ func TestSignatureAcceptedWhenItAgrees(t *testing.T) {
 func TestSignatureCheckedAgainstDefinition(t *testing.T) {
 	// go does not provide `bad`, so the claim is about the definition — which
 	// here returns a host call's table rather than the declared f64.
-	src := `
-		(use go)
-		(sig bad ((a (array f64))) f64)
-		(def bad (a) (go.bytes-of-string "x"))
-	`
+	src := `use go
+fn bad(a ∈ Array(F64)) (F64) { go.bytes_of_string("x") }`
 	tg, prog, env := loadWithSigs(t, "go", src)
 	err := CheckSignatures(tg, prog, env, nil)
 	if err == nil {
@@ -265,10 +241,7 @@ func TestATableFormsEntriesAreDemanded(t *testing.T) {
 			t.Errorf("%s under %s: want a refusal %q, got %v", c.body, c.result, c.in, err)
 		}
 	}
-	tg, prog, env := loadWithSigs(t, "go", `
-		(sig put ((b (buffer f64))) (buffer f64))
-		(def put (b) (set b 0 "x"))
-	`)
+	tg, prog, env := loadWithSigs(t, "go", `fn put(b ∈ Array(F64) linear) (buffer(F64)) { b[0] := "x" }`)
 	err := CheckSignatures(tg, prog, env, nil)
 	if err == nil || !strings.Contains(err.Error(), "in a store's value") {
 		t.Errorf("a string stored into a buffer of f64: want a refusal, got %v", err)
@@ -282,11 +255,12 @@ func TestATableFormsEntriesAreDemanded(t *testing.T) {
 // found by running the acceptance programs, which the emission sweep does not
 // compile (tabletype-2026-09-29 §5).
 func TestAScopesBufferIsFrozenAsItLeaves(t *testing.T) {
-	tg, prog, env := loadWithSigs(t, "go", `
-		(use go/encoding/binary)
-		(sig enc ((x (int 0 1000))) (array (int 0 255)))
-		(def enc (x) (local b (table 0 0) (binary.AppendUvarint b x)))
-	`)
+	tg, prog, env := loadWithSigs(t, "go", `use go/encoding/binary
+fn enc(x ∈ 0..1000) (Array(0..255)) {
+    var b := array { 0 : _ ∈ 0..-1 }
+    binary.AppendUvarint(b, x)
+    b
+}`)
 	if err := CheckSignatures(tg, prog, env, nil); err != nil {
 		t.Errorf("a frozen buffer is a table: %v", err)
 	}
@@ -298,10 +272,14 @@ func TestAScopesBufferIsFrozenAsItLeaves(t *testing.T) {
 // printed `func F(a []float64) int`.
 func TestATablesReadAndLengthAreTyped(t *testing.T) {
 	for _, c := range []struct{ target, src, is string }{
-		{"go", `(use go) (sig f ((a (array string))) f64 (where (< 0 (len a)))) (def f (a) (go.f+ (a 0) 1.0))`, "(a …) is string, but f64"},
-		{"js", `(use js) (sig f ((a (array string))) any (where (< 0 (len a)))) (def f (a) (+ (a 0) 1))`, "(a …) is string, but int"},
-		{"go", `(sig f ((a (array f64))) string) (def f (a) (len a))`, "(len …) is int, but string"},
-		{"go", `(sig f () string) (def f () (let t (local b (table 2 0) (set b 0 1.5)) (t 0)))`, "(t …) is f64, but string"},
+		{"go", "use go\nfn f(a ∈ Array(String)) (F64) where 0 < len(a) { go.`f+`(a[0], 1.0) }", "(a …) is string, but f64"},
+		{"js", `use js
+fn f(a ∈ Array(String)) (Any) where 0 < len(a) { a[0] + 1 }`, "(a …) is string, but int"},
+		{"go", `fn f(a ∈ Array(F64)) (String) { len(a) }`, "(len …) is int, but string"},
+		{"go", `fn f() (String) {
+    t = { var b := array { 0 : _ ∈ 0..1 }; b[0] := 1.5; b }
+    t[0]
+}`, "(t …) is f64, but string"},
 	} {
 		tg, prog, env := loadWithSigs(t, c.target, c.src)
 		err := CheckSignatures(tg, prog, env, nil)
@@ -316,7 +294,12 @@ func TestATablesReadAndLengthAreTyped(t *testing.T) {
 // and ran; on Go it reached Go's compiler as generated code.
 func TestAStoreSolvesTheElement(t *testing.T) {
 	for _, target := range []string{"go", "js"} {
-		tg, prog, env := loadWithSigs(t, target, `(sig f () any) (def f () (local b (table 2 0) (set (set b 0 1.5) 1 "x")))`)
+		tg, prog, env := loadWithSigs(t, target, `fn f() (Any) {
+    var b := array { 0 : _ ∈ 0..1 }
+    b[0] := 1.5
+    b[1] := "x"
+    b
+}`)
 		err := CheckSignatures(tg, prog, env, nil)
 		if err == nil || !strings.Contains(err.Error(), "in a store's value") {
 			t.Errorf("%s: two stores of different types: want a refusal, got %v", target, err)
@@ -328,16 +311,29 @@ func TestAStoreSolvesTheElement(t *testing.T) {
 // makes a table of integers that meets (array (int 0 255)), and still refuses
 // a float.
 func TestAnIntegerStoreLeavesTheRealizationOpen(t *testing.T) {
-	tg, prog, env := loadWithSigs(t, "go", `(sig f () (array (int 0 255))) (def f () (local b (table 2 0) (set b 0 104)))`)
+	tg, prog, env := loadWithSigs(t, "go", `fn f() (Array(0..255)) {
+    var b := array { 0 : _ ∈ 0..1 }
+    b[0] := 104
+    b
+}`)
 	if err := CheckSignatures(tg, prog, env, nil); err != nil {
 		t.Errorf("a stored integer fixed a realization: %v", err)
 	}
-	tg, prog, env = loadWithSigs(t, "go", `(sig f () any) (def f () (local b (table 2 0) (set (set b 0 104) 1 1.5)))`)
+	tg, prog, env = loadWithSigs(t, "go", `fn f() (Any) {
+    var b := array { 0 : _ ∈ 0..1 }
+    b[0] := 104
+    b[1] := 1.5
+    b
+}`)
 	if err := CheckSignatures(tg, prog, env, nil); err == nil || !strings.Contains(err.Error(), "in a store's value") {
 		t.Errorf("a float stored after an integer: want a refusal, got %v", err)
 	}
 	// and a table of integers, realization open, is still not a table of f64
-	tg, prog, env = loadWithSigs(t, "go", `(sig f () (array f64)) (def f () (local b (table 2 0) (set b 0 104)))`)
+	tg, prog, env = loadWithSigs(t, "go", `fn f() (Array(F64)) {
+    var b := array { 0 : _ ∈ 0..1 }
+    b[0] := 104
+    b
+}`)
 	if err := CheckSignatures(tg, prog, env, nil); err == nil {
 		t.Error("a table of integers met a declared (array f64)")
 	}

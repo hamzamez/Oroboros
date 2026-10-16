@@ -27,11 +27,9 @@ func TestJavaScriptEmitsTheTotalisationAndItsImport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := core.Read(`
-(use os)
-(use result)
-(export main)
-(def main (fn () (case (os.ReadFile "f") (result.ok src) (len src) (result.err k) 0)))`)
+	forms, err := core.Read(`use os
+use result
+export fn main() { case os.ReadFile("f") { result.'ok(src) -> len(src); result.'err(k) -> 0 } }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,10 +95,8 @@ func TestASingleResultPrimKeepsItsImport(t *testing.T) {
 		Name: "js/pathgen.join", Result: "any", Kind: "expr",
 		Form: "path.join()", Import: "node:path",
 	}
-	src, err := core.Read(`
-(use js/pathgen as p)
-(export main)
-(def main (fn () (p.join)))`)
+	src, err := core.Read(`use js/pathgen as p
+export fn main() { p.join() }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,11 +137,9 @@ func TestJavaEmitsDeclaredDestinationsAndTheWidening(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := core.Read(`
-(use os)
-(use result)
-(export main)
-(def main (fn () (case (os.ReadFile "f") (result.ok src) (len src) (result.err k) 0)))`)
+	forms, err := core.Read(`use os
+use result
+export fn main() { case os.ReadFile("f") { result.'ok(src) -> len(src); result.'err(k) -> 0 } }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,20 +194,20 @@ func TestANarrowedLoopInitialiserIsCast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := `
-(use java)
-(export scan)
-(sig scan ((s (array (int 0 255)))) int (where (< (len s) 1000)))
-(def word-end (fn (s i)
-  (loop ((j (+ i 1)))
-    (>= j (len s))  j
-    (= (s j) 32)    j
-    else            (again (+ j 1)))))
-(def scan (fn (s)
-  (loop ((i 0) (n 0))
-    (>= i (len s)) n
-    else (let ni (word-end s i)
-           (again ni (if (> ni i) 1 0))))))`
+	src := `use java
+fn word_end(s, i) {
+    loop j = i + 1 {
+        j >= len(s) -> j
+        s[j] == 32 -> j
+        else -> again(j + 1)
+    }
+}
+export fn scan(s ∈ Array(0..255)) (Int) where len(s) < 1000 {
+    loop i = 0, n = 0 {
+        i >= len(s) -> n
+        else -> { ni = word_end(s, i); again(ni, if ni > i { 1 } else { 0 }) }
+    }
+}`
 	forms, err := core.Read(src)
 	if err != nil {
 		t.Fatal(err)
@@ -301,11 +295,11 @@ func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
 		}
 		return nf
 	}
-	got, err := golang.FromResidual(tg, "f", nil, body(`
-(use os)
-(use result)
-(export f)
-(def f (fn () (build 8 (fn (b) (case (os.WriteFile "x" b) (result.ok u) 0 (result.err k) 1)))))`))
+	got, err := golang.FromResidual(tg, "f", nil, body(`use os
+use result
+export fn f() {
+    build(8, fn(b) { case os.WriteFile("x", b) { result.'ok(u) -> 0; result.'err(k) -> 1 } })
+}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,11 +313,14 @@ func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
 	// printed a []int and handed it to a function taking []byte, which Go
 	// rejects; and its version of this control consumed `b` twice, which only
 	// passed because the linearity check is not on this path.
-	_, err = golang.FromResidual(tg, "g", nil, body(`
-(use os)
-(use result)
-(export f)
-(def f (fn () (build 8 (fn (b) (case (os.WriteFile "x" (set b 0 100000)) (result.ok u) 0 (result.err k) 1)))))`))
+	_, err = golang.FromResidual(tg, "g", nil, body(`use os
+use result
+export fn f() {
+    build(8,
+        fn(b) {
+            case os.WriteFile("x", store(b, 0, 100000)) { result.'ok(u) -> 0; result.'err(k) -> 1 }
+        })
+}`))
 	if err == nil || !strings.Contains(err.Error(), "int 0 255") {
 		t.Errorf("a byte buffer storing 100000 must be refused, naming the declared element; got %v", err)
 	}

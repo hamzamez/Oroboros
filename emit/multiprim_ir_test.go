@@ -18,11 +18,11 @@ func TestSeveralResultsEmitTheHostsOwnForm(t *testing.T) {
 	}
 	src := `(fn () ((go/os.ReadFile "f") (fn (src err)
 	           (if (go.err-nil err) (go.len src) 0))))`
-	terms, err := core.ReadAll(src)
-	if err != nil || len(terms) != 1 {
+	term, err := core.ParseTerm(src)
+	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	out, err := golang.FromResidual(tg, "gen-read", nil, rawReadFile(terms[0]))
+	out, err := golang.FromResidual(tg, "gen-read", nil, rawReadFile(term))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,12 +43,12 @@ func TestAnUnreadResultBecomesBlank(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	terms, err := core.ReadAll(
+	term, err := core.ParseTerm(
 		`(fn () ((go/os.ReadFile "f") (fn (src err) (go.len src))))`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := golang.FromResidual(tg, "gen-read", nil, rawReadFile(terms[0]))
+	out, err := golang.FromResidual(tg, "gen-read", nil, rawReadFile(term))
 	if err != nil {
 		t.Fatal(err)
 	}

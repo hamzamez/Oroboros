@@ -1,17 +1,15 @@
-package j
+package core
 
 import (
 	"strings"
 	"testing"
-
-	"oroboros/core"
 )
 
 // placeEnv is an environment for reducing the tests' definitions: the
 // language's injected names, all pure, and the program's definitions.
-func placeEnv(p *core.Program) *core.Env {
-	e := &core.Env{Defs: p.Defs, Prim: map[string]bool{}, Pure: map[string]bool{}, Rec: map[string]bool{},
-		Word: core.Word{Lo: -(1<<53 - 1), Hi: 1<<53 - 1}}
+func placeEnv(p *Program) *Env {
+	e := &Env{Defs: p.Defs, Prim: map[string]bool{}, Pure: map[string]bool{}, Rec: map[string]bool{},
+		Word: Word{Lo: -(1<<53 - 1), Hi: 1<<53 - 1}}
 	for _, n := range []string{"if", "=", "+", "-", "*", "<", ">=", "loop", "set", "build", "len", "let", "alloc", "insert", "build-map"} {
 		e.Prim[n] = true
 		e.Pure[n] = true
@@ -20,44 +18,27 @@ func placeEnv(p *core.Program) *core.Env {
 	return e
 }
 
-// loadJ loads a program written in J, and loadToday one in today's notation.
-func loadJ(t *testing.T, src string) (*core.Program, error) {
+// loadJ loads a program written in J: the state translation S decides R0–R4.
+func loadJ(t *testing.T, src string) (*Program, error) {
 	t.Helper()
-	decls, err := core.ReadProgram(src, "", ".", "..")
+	forms, err := Read(src)
 	if err != nil {
 		t.Fatalf("J does not read: %v\n%s", err, src)
 	}
-	forms, err := core.FormsOf(decls)
-	if err != nil {
-		return nil, err
-	}
-	p, _, err := core.Load(forms)
+	p, _, err := Load(forms)
 	return p, err
-}
-
-func loadToday(t *testing.T, src string) *core.Program {
-	t.Helper()
-	forms, err := core.Read(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, _, err := core.Load(forms)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return p
 }
 
 // A BUFFER IN PROGRAM ORDER MEANS THE THREADED BUFFER (ADR 0052, spec/local.md
 // §2.1): S of each program-order definition reduces to the normal form of the
-// definition today's notation writes by hand. The theorem of storeorder-research
-// §2.3, on its cases: a loop's store, a borrow, a borrow with a result, a swap
-// between places, and a φ. (A loop that only reads a buffer written before it
-// reduces to a let of the store where the threaded form substitutes it into the
-// loop: β decides the binding before the scope's selection reaches the loop.
-// storeorder-2026-10-15 §3 records it.)
+// definition threaded by hand. The theorem of storeorder-research §2.3, on its
+// cases: a loop's store, a borrow, a borrow with a result, a swap between
+// places, a map's store, and a φ. The threaded definitions were today's
+// notation, which J has no spelling of (ADR 0058); each case keeps the normal
+// form they reduced to, the core term's text (ParseTerm), as captured at step
+// 5b (jswitch-2026-10-16).
 func TestABufferInProgramOrderMeansTheThreadedBuffer(t *testing.T) {
-	for _, c := range []struct{ name, j, today string }{
+	for _, c := range []struct{ name, j, threaded string }{
 		{"a loop's store",
 			`fn f(n) {
 				var c := array { false : _ ∈ 0..n-1 }
@@ -66,7 +47,7 @@ func TestABufferInProgramOrderMeansTheThreadedBuffer(t *testing.T) {
 					else  -> c
 				}
 			}`,
-			`(def f (n) (local c (table n false) (loop ((c c) (j 0)) (< j n) (again (set c j true) (+ j 1)) else c)))`},
+			`(fn (n) (build n (fn (c) (loop (fn (c1 j) (if (< j n) (again (set c1 j true) (+ j 1)) c1)) (the "buffer bool" c) 0))))`},
 		{"a borrow",
 			`fn fill(b linear, n) {
 				loop k = 0 {
@@ -79,8 +60,7 @@ func TestABufferInProgramOrderMeansTheThreadedBuffer(t *testing.T) {
 				fill(b, n)
 				b
 			}`,
-			`(def fill (b n) (loop ((b b) (k 0)) (>= k n) b else (again (set b k (* k 2)) (+ k 1))))
-			 (def f (n) (local b (table n 0) (fill b n)))`},
+			`(fn (n) (build n (fn (b) (loop (fn (b1 k) (if (>= k n) b1 (again (set b1 k (* k 2)) (+ k 1)))) b 0))))`},
 		{"a borrow with a result",
 			`fn put(b linear, k) {
 				b[k] := 1
@@ -92,8 +72,7 @@ func TestABufferInProgramOrderMeansTheThreadedBuffer(t *testing.T) {
 				b[m] := 2
 				b
 			}`,
-			`(def put (b k) (tuple (set b k 1) (+ k 1)))
-			 (def f (n) (local b (table n 0) (let (tuple b m) (put b 0) (set b m 2))))`},
+			`(fn (n) (build n (fn (b) (set (set b 0 1) 1 2))))`},
 		{"a swap between places",
 			`fn f(n) {
 				var a := array { 0 : _ ∈ 0..3 }
@@ -103,8 +82,7 @@ func TestABufferInProgramOrderMeansTheThreadedBuffer(t *testing.T) {
 					else   -> { a[0] := w; a, b := b, a; again(w * 2) }
 				}
 			}`,
-			`(def f (n) (local a (table 4 0) b (table 4 0)
-			   (loop ((a a) (b b) (w 1)) (>= w n) a else (again b (set a 0 w) (* w 2)))))`},
+			`(fn (n) (build 4 (fn (a) (build 4 (fn (b) (loop (fn (a1 b1 w) (if (>= w n) a1 (again b1 (set a1 0 w) (* w 2)))) a b 1))))))`},
 		{"a map buffer's store (ADR 0058)",
 			`fn f(n) {
 				var m := map(8)
@@ -113,31 +91,30 @@ func TestABufferInProgramOrderMeansTheThreadedBuffer(t *testing.T) {
 					else   -> { m[i] := i * 10; again(i + 1) }
 				}
 			}`,
-			`(def f (n) (build-map m 8 (loop ((m m) (i 0)) (>= i n) m else (again (insert m i (* i 10)) (+ i 1)))))`},
+			`(fn (n) (build-map 8 (fn (m) (loop (fn (m1 i) (if (>= i n) m1 (again (insert m1 i (* i 10)) (+ i 1)))) m 0))))`},
 		{"a write under a condition, a φ",
 			`fn f(n) {
 				var b := array { 0 : _ ∈ 0..3 }
 				if n < 2 { b[0] := 1 }
 				b
 			}`,
-			`(def f (n) (local b (table 4 0) (if (< n 2) (set b 0 1) b)))`},
+			`(fn (n) (build 4 (fn (b) (if (< n 2) (set b 0 1) b))))`},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			pj, err := loadJ(t, c.j)
 			if err != nil {
 				t.Fatal(err)
 			}
-			pt := loadToday(t, c.today)
-			fj, err := core.Normalize(pj.Defs["f"], placeEnv(pj), core.DefaultFuel)
+			fj, err := Normalize(pj.Defs["f"], placeEnv(pj), DefaultFuel)
 			if err != nil {
 				t.Fatal(err)
 			}
-			ft, err := core.Normalize(pt.Defs["f"], placeEnv(pt), core.DefaultFuel)
+			ft, err := ParseTerm(c.threaded)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if !fj.Equal(ft) {
-				t.Errorf("program order and threading differ:\n  J     %s\n  today %s", fj, ft)
+				t.Errorf("program order and threading differ:\n  J        %s\n  threaded %s", fj, ft)
 			}
 		})
 	}

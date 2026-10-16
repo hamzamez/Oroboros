@@ -22,32 +22,43 @@ func TestTheWordSelectionKeepsEveryAnswer(t *testing.T) {
 	r := rand.New(rand.NewSource(17))
 	shapes := []func() string{
 		func() string {
-			return fmt.Sprintf(`(let x (+ 9223372036854775000 (* n %d))
-    (if (> x 9223372036854775%03d) (%% x %d) (/ x %d)))`, 50+r.Intn(200), r.Intn(807), 2+r.Intn(1000), 2+r.Intn(50))
+			return fmt.Sprintf(`{
+x = 9223372036854775000 + n * %d
+if x > 9223372036854775%03d { x %% %d } else { x / %d }
+}`, 50+r.Intn(200), r.Intn(807), 2+r.Intn(1000), 2+r.Intn(50))
 		},
 		func() string {
-			return fmt.Sprintf(`(loop ((v (- 18446744073709551615 (* n %d))) (s 0))
-    (= v 0) s
-    else (again (/ v %d) (+ s (%% v %d))))`, 1+r.Intn(1000), 2+r.Intn(15), 2+r.Intn(15))
+			return fmt.Sprintf(`{
+loop v = (2^64-1) - n * %d, s = 0 {
+    v == 0 -> s
+    else -> again(v / %d, s + v %% %d)
+}
+}`, 1+r.Intn(1000), 2+r.Intn(15), 2+r.Intn(15))
 		},
 		func() string {
-			return fmt.Sprintf(`(let x (- 18446744073709551615 (* n %d))
-       y (- 18446744073709551615 %d)
-    (+ (if (< x y) 1 2) (/ x %d)))`, r.Intn(99999), r.Intn(999999), 1000000000+r.Intn(1000000000))
+			return fmt.Sprintf(`{
+x = (2^64-1) - n * %d
+y = (2^64-1) - %d
+if x < y { 1 } else { 2 } + x / %d
+}`, r.Intn(99999), r.Intn(999999), 1000000000+r.Intn(1000000000))
 		},
 		func() string {
-			return fmt.Sprintf(`(let x (* (+ n %d) 1000000000000000000)
-    (+ (%% x %d) (/ x 1000000000000000000)))`, 9+r.Intn(8), 2+r.Intn(100000))
+			return fmt.Sprintf(`{
+x = (n + %d) * 1000000000000000000
+x %% %d + x / 1000000000000000000
+}`, 9+r.Intn(8), 2+r.Intn(100000))
 		},
 		// a remainder that stays in U∖S: x mod d = x for x < d, near 2⁶⁴
 		func() string {
-			return fmt.Sprintf(`(let x (- 18446744073709551614 (* n %d))
-    (/ (%% x 18446744073709551615) %d))`, 1+r.Intn(1000), 3+r.Intn(5))
+			return fmt.Sprintf(`{
+x = 18446744073709551614 - n * %d
+x %% (2^64-1) / %d
+}`, 1+r.Intn(1000), 3+r.Intn(5))
 		},
 	}
 	selected := 0
 	for c := 0; c < 150; c++ {
-		src := fmt.Sprintf("(export run)\n(sig run ((n (int 0 12))) int)\n(def run (n)\n  %s)\n", shapes[c%len(shapes)]())
+		src := fmt.Sprintf("export fn run(n ∈ 0..12) (Int) { %s }\n", shapes[c%len(shapes)]())
 		path := filepath.Join(dir, fmt.Sprintf("w%d.oro", c))
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)
@@ -94,11 +105,11 @@ func TestTheWordSelectionKeepsEveryAnswer(t *testing.T) {
 // negative is refused by name, not left to fail verification.
 func TestAnOrderNoRealizationHoldsIsRefused(t *testing.T) {
 	dir := t.TempDir()
-	src := `(export run)
-(sig run ((n (int 0 12))) int)
-(def run (n)
-  (let x (+ 9223372036854775000 (* n 100)) y (- n 6)
-    (if (> x y) 1 0)))
+	src := `export fn run(n ∈ 0..12) (Int) {
+    x = 9223372036854775000 + n * 100
+    y = n - 6
+    if x > y { 1 } else { 0 }
+}
 `
 	path := filepath.Join(dir, "r.oro")
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {

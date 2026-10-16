@@ -324,3 +324,47 @@ func openWith(t *Term, args []*Term, depth int) *Term {
 	}
 	return &Term{Kind: KApp, Kids: kids}
 }
+
+// ParseTerm reads a core term's text, what String prints: the IR's raw
+// s-expressions (ReadRaw), with each (fn (x…) b) an abstraction. It is the
+// printer's inverse, ParseTerm(t.String()) = t, for tests and tools that state
+// a residual; a program is read in J (core/jparse.go).
+func ParseTerm(src string) (*Term, error) {
+	ts, err := ReadRaw(src)
+	if err != nil {
+		return nil, err
+	}
+	if len(ts) != 1 {
+		return nil, fmt.Errorf("one term expected, %d read", len(ts))
+	}
+	return termOfText(ts[0])
+}
+
+func termOfText(t *Term) (*Term, error) {
+	if t.Kind != KApp {
+		return t, nil
+	}
+	if len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == "fn" && t.Kids[1].Kind == KApp {
+		var params []string
+		for _, p := range t.Kids[1].Kids {
+			if p.Kind != KName {
+				return nil, fmt.Errorf("a parameter is a name, not %s", p)
+			}
+			params = append(params, p.Name)
+		}
+		body, err := termOfText(t.Kids[2])
+		if err != nil {
+			return nil, err
+		}
+		return Fn(params, body), nil
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		c, err := termOfText(k)
+		if err != nil {
+			return nil, err
+		}
+		kids[i] = c
+	}
+	return App(kids[0], kids[1:]...), nil
+}

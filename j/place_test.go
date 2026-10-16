@@ -23,7 +23,7 @@ func placeEnv(p *core.Program) *core.Env {
 // loadJ loads a program written in J, and loadToday one in today's notation.
 func loadJ(t *testing.T, src string) (*core.Program, error) {
 	t.Helper()
-	decls, err := ReadProgram(src, "", ".", "..")
+	decls, err := core.ReadProgram(src, "", ".", "..")
 	if err != nil {
 		t.Fatalf("J does not read: %v\n%s", err, src)
 	}

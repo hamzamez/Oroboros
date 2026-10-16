@@ -18,7 +18,6 @@ import (
 	"oroboros/core"
 	"oroboros/emit"
 	"oroboros/ir"
-	"oroboros/j"
 )
 
 func main() {
@@ -54,11 +53,11 @@ func run(targetDir, src, target, path string, verbose bool) error {
 	if err != nil {
 		return err
 	}
-	forms, err := j.ReadModule(string(text), src, j.ModulePath(src, filepath.SplitList(path)))
+	forms, err := core.ReadModule(string(text), src, core.ModulePath(src, filepath.SplitList(path)))
 	if err != nil {
 		return err
 	}
-	prog, terms, err := core.LoadWithDefs(forms, j.Resolver(ds), tg.Defs)
+	prog, terms, err := core.LoadWithDefs(forms, core.SearchPath(ds), tg.Defs)
 	if err != nil {
 		return err
 	}

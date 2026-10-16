@@ -1,11 +1,9 @@
-package j
+package core
 
 import (
 	"fmt"
 	"math/big"
 	"strings"
-
-	"oroboros/core"
 )
 
 // READING A TARGET FILE OR FRAGMENT IN J (spec/j.md §2.1–2.5, §2.11–2.12): the
@@ -19,12 +17,12 @@ import (
 // target its directory names (ADR 0064 item 2), "" for a library's fragment
 // file, whose `provides` names its own.
 // root is the repository, whose lib/ holds the modules a fragment imports.
-func ReadTarget(src, target, root string) ([]*core.Term, error) {
+func ReadTarget(src, target, root string) ([]*Term, error) {
 	toks, err := lex(src)
 	if err != nil {
 		return nil, err
 	}
-	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[core.Expr]*big.Int{}, indexed: map[core.Expr]bool{}}
+	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[Expr]*big.Int{}, indexed: map[Expr]bool{}}
 	p.registerSets(src, root, root)
 	p.x86 = target == "windows"
 	forms, err := p.targetItems()
@@ -35,13 +33,13 @@ func ReadTarget(src, target, root string) ([]*core.Term, error) {
 	if target == "" {
 		return forms, nil
 	}
-	return []*core.Term{app(append([]*core.Term{core.Name("target"), core.Name(target)}, forms...)...)}, nil
+	return []*Term{app(append([]*Term{Name("target"), Name(target)}, forms...)...)}, nil
 }
 
-func app(ks ...*core.Term) *core.Term { return &core.Term{Kind: core.KApp, Kids: ks} }
+func app(ks ...*Term) *Term { return &Term{Kind: KApp, Kids: ks} }
 
-func (p *parser) targetItems() ([]*core.Term, error) {
-	var out []*core.Term
+func (p *parser) targetItems() ([]*Term, error) {
+	var out []*Term
 	for {
 		p.endOfStatement()
 		if p.peek().kind == tEOF || p.is("}") {
@@ -59,19 +57,19 @@ func (p *parser) targetItems() ([]*core.Term, error) {
 // file's top level with its type's whole name, `(implements P.T I…)`, where the
 // loader reads it: one law, ADR 0064 item 9, an inclusion is an axiom of the
 // model, wherever it is written.
-func liftAxioms(forms []*core.Term) []*core.Term {
-	var out, lifted []*core.Term
-	var walk func(t *core.Term, path string) *core.Term
-	walk = func(t *core.Term, path string) *core.Term {
+func liftAxioms(forms []*Term) []*Term {
+	var out, lifted []*Term
+	var walk func(t *Term, path string) *Term
+	walk = func(t *Term, path string) *Term {
 		p := t.Kids[1].Name
 		if path != "" && !strings.Contains(p, "/") {
 			p = path + "/" + p
 		}
-		kids := []*core.Term{t.Kids[0], t.Kids[1]}
+		kids := []*Term{t.Kids[0], t.Kids[1]}
 		for _, k := range t.Kids[2:] {
 			switch head(k) {
 			case "implements":
-				ax := append([]*core.Term{k.Kids[0], core.Name(p + "." + k.Kids[1].Name)}, k.Kids[2:]...)
+				ax := append([]*Term{k.Kids[0], Name(p + "." + k.Kids[1].Name)}, k.Kids[2:]...)
 				lifted = append(lifted, app(ax...))
 			case "module":
 				kids = append(kids, walk(k, p))
@@ -91,7 +89,7 @@ func liftAxioms(forms []*core.Term) []*core.Term {
 	return append(out, lifted...)
 }
 
-func (p *parser) targetItem() (*core.Term, error) {
+func (p *parser) targetItem() (*Term, error) {
 	switch {
 	case p.accept("module"):
 		path := p.path()
@@ -99,7 +97,7 @@ func (p *parser) targetItem() (*core.Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		return app(append([]*core.Term{core.Name("module"), core.Name(path)}, inner...)...), nil
+		return app(append([]*Term{Name("module"), Name(path)}, inner...)...), nil
 	case p.accept("provides"):
 		target := p.next().text
 		path := p.path()
@@ -110,11 +108,11 @@ func (p *parser) targetItem() (*core.Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		return app(append([]*core.Term{core.Name("provides"), core.Name(target), core.Name(path)}, inner...)...), nil
+		return app(append([]*Term{Name("provides"), Name(target), Name(path)}, inner...)...), nil
 	case p.accept("use"):
-		u := []*core.Term{core.Name("use"), core.Name(p.path())}
+		u := []*Term{Name("use"), Name(p.path())}
 		if p.accept("as") {
-			u = append(u, core.Name("as"), core.Name(p.next().text))
+			u = append(u, Name("as"), Name(p.next().text))
 		}
 		return app(u...), nil
 	case p.is("fn") && p.isProgramDef():
@@ -124,7 +122,7 @@ func (p *parser) targetItem() (*core.Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		return core.DeclTerms(ds)[0], nil
+		return DeclTerms(ds)[0], nil
 	case p.is("fn"):
 		return p.hostFn()
 	case p.is("set") && p.peekN(1).kind != tSym:
@@ -134,7 +132,7 @@ func (p *parser) targetItem() (*core.Term, error) {
 		if err := p.expect("⊆"); err != nil {
 			return nil, err
 		}
-		out := []*core.Term{core.Name("implements"), t}
+		out := []*Term{Name("implements"), t}
 		for {
 			out = append(out, p.rawName(p.next()))
 			if !p.accept("∩") {
@@ -157,7 +155,7 @@ func (p *parser) targetItem() (*core.Term, error) {
 	return nil, p.errorf("%s begins no form of a target file", t)
 }
 
-func (p *parser) bracedItems() ([]*core.Term, error) {
+func (p *parser) bracedItems() ([]*Term, error) {
 	if err := p.expect("{"); err != nil {
 		return nil, err
 	}
@@ -172,7 +170,7 @@ func (p *parser) bracedItems() ([]*core.Term, error) {
 
 // rawName is a name in today's spelling: σ_J⁻¹, a quoted name as written, a
 // qualified one joined by `.`; a set's name by the convention's inverse.
-func (p *parser) rawName(t token) *core.Term {
+func (p *parser) rawName(t token) *Term {
 	name := Unspell(t.text)
 	if t.kind == tQuoted {
 		name = t.text
@@ -186,11 +184,11 @@ func (p *parser) rawName(t token) *core.Term {
 			name += "." + Unspell(m.text)
 		}
 	}
-	return core.Name(p.setName(name))
+	return Name(p.setName(name))
 }
 
 // rawExpr reads an expression and gives today's datum for it.
-func (p *parser) rawExprTerm() (*core.Term, error) {
+func (p *parser) rawExprTerm() (*Term, error) {
 	e, err := p.expr()
 	if err != nil {
 		return nil, err
@@ -199,12 +197,12 @@ func (p *parser) rawExprTerm() (*core.Term, error) {
 }
 
 // datum is an expression a target file writes as the loader reads it: D of
-// its tree, as core.ReadAll gives every datum of today's target files (a
+// its tree, as ReadAll gives every datum of today's target files (a
 // tuple's Church form, the connectives as `if`).
-func datum(e core.Expr) *core.Term { return core.Desugar(e) }
+func datum(e Expr) *Term { return Desugar(e) }
 
-func datums(es []core.Expr) []*core.Term {
-	out := make([]*core.Term, len(es))
+func datums(es []Expr) []*Term {
+	out := make([]*Term, len(es))
 	for i, e := range es {
 		out[i] = datum(e)
 	}
@@ -212,23 +210,23 @@ func datums(es []core.Expr) []*core.Term {
 }
 
 // setDatum is today's spelling of a set a target file writes.
-func (p *parser) setDatum(e core.Expr, mode string) *core.Term { return datum(p.toSet(e, mode)) }
+func (p *parser) setDatum(e Expr, mode string) *Term { return datum(p.toSet(e, mode)) }
 
 // hostFn reads a host declaration, `fn NAME(params) (result) clauses { host … }`,
 // or a λ returning one, `fn NAME(E ⊆ B) { fn(params) … { host … } }` (ADR 0066),
 // into today's `sig`.
-func (p *parser) hostFn() (*core.Term, error) {
+func (p *parser) hostFn() (*Term, error) {
 	p.next()
 	nt := p.next()
-	name := core.Name(Unspell(nt.text))
+	name := Name(Unspell(nt.text))
 	if nt.kind == tQuoted {
-		name = core.Name(nt.text)
+		name = Name(nt.text)
 	}
 	var statics []string
-	var head *core.Term = name
+	var head *Term = name
 	if p.peekStatic() {
 		p.next()
-		heads := []*core.Term{name}
+		heads := []*Term{name}
 		for !p.is(")") {
 			n := p.next().text
 			statics = append(statics, n)
@@ -237,15 +235,15 @@ func (p *parser) hostFn() (*core.Term, error) {
 				if err != nil {
 					return nil, err
 				}
-				heads = append(heads, app(core.Name(n), app(core.Name("subsets"), p.setDatum(b, ""))))
+				heads = append(heads, app(Name(n), app(Name("subsets"), p.setDatum(b, ""))))
 			} else if p.accept("∈") {
 				b, err := p.expr()
 				if err != nil {
 					return nil, err
 				}
-				heads = append(heads, app(core.Name(n), p.setDatum(b, "")))
+				heads = append(heads, app(Name(n), p.setDatum(b, "")))
 			} else {
-				heads = append(heads, core.Name(n))
+				heads = append(heads, Name(n))
 			}
 			p.accept(",")
 		}
@@ -314,12 +312,12 @@ func (p *parser) peekStatic() bool {
 	return false
 }
 
-func (p *parser) hostSigRest(head *core.Term, statics []string) (*core.Term, error) {
+func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
 	p.open(true)
-	var params []*core.Term
+	var params []*Term
 	var names []string
 	for !p.is(")") {
 		n := p.name()
@@ -335,7 +333,7 @@ func (p *parser) hostSigRest(head *core.Term, statics []string) (*core.Term, err
 		if p.is("linear") || p.is("inout") {
 			mode = p.next().text
 		}
-		params = append(params, app(core.Name(n), p.setDatum(s, mode)))
+		params = append(params, app(Name(n), p.setDatum(s, mode)))
 		if !p.accept(",") {
 			break
 		}
@@ -344,7 +342,7 @@ func (p *parser) hostSigRest(head *core.Term, statics []string) (*core.Term, err
 	if err := p.expect(")"); err != nil {
 		return nil, err
 	}
-	sig := []*core.Term{core.Name("sig"), head, app(params...)}
+	sig := []*Term{Name("sig"), head, app(params...)}
 	result := ""
 	if err := p.expect("("); err != nil {
 		return nil, err
@@ -370,14 +368,14 @@ func (p *parser) hostSigRest(head *core.Term, statics []string) (*core.Term, err
 	for {
 		switch {
 		case p.is("pure") || p.is("index") || p.is("variadic"):
-			sig = append(sig, core.Name(p.next().text))
+			sig = append(sig, Name(p.next().text))
 			continue
 		case p.accept("where"):
 			e, err := p.rawExprTerm()
 			if err != nil {
 				return nil, err
 			}
-			sig = append(sig, app(core.Name("where"), e))
+			sig = append(sig, app(Name("where"), e))
 			continue
 		case p.accept("ensure"):
 			e, err := p.expr()
@@ -385,9 +383,9 @@ func (p *parser) hostSigRest(head *core.Term, statics []string) (*core.Term, err
 				return nil, err
 			}
 			if result != "" {
-				e = renameExpr(e, map[string]string{Unspell(result): core.ResultName})
+				e = renameExpr(e, map[string]string{Unspell(result): ResultName})
 			}
-			sig = append(sig, app(core.Name("ensures"), datum(e)))
+			sig = append(sig, app(Name("ensures"), datum(e)))
 			continue
 		}
 		break
@@ -409,26 +407,26 @@ func (p *parser) hostSigRest(head *core.Term, statics []string) (*core.Term, err
 
 // resultDatum is today's spelling of a sig's result: a product as the list of
 // its factors, `(int int)`, as today's `sig` writes several results.
-func (p *parser) resultDatum(e core.Expr) *core.Term { return p.setDatum(e, "") }
+func (p *parser) resultDatum(e Expr) *Term { return p.setDatum(e, "") }
 
 // hostBodyDatum reads `host [KIND] "template" clauses…` into today's `(host …)`,
 // its named splices back to today's positional holes.
-func (p *parser) hostBodyDatum(params, statics []string, result string) (*core.Term, error) {
+func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, error) {
 	if err := p.expect("host"); err != nil {
 		return nil, err
 	}
-	out := []*core.Term{core.Name("host")}
+	out := []*Term{Name("host")}
 	if p.is("expr") || p.is("stmt") {
-		out = append(out, core.Name(p.next().text))
+		out = append(out, Name(p.next().text))
 	}
 	if p.peek().kind == tString {
-		out = append(out, core.Str(positionalHoles(p.next().text, params, statics, result, p.x86)))
+		out = append(out, Str(positionalHoles(p.next().text, params, statics, result, p.x86)))
 	}
 	for !p.is("}") && !p.lineEnds() {
 		switch {
 		case p.is("import") || p.is("lib") || p.is("checked") || p.is("jump"):
 			word := p.next().text
-			c := []*core.Term{core.Name(word)}
+			c := []*Term{Name(word)}
 			for !p.is("}") && !p.lineEnds() && (p.peek().kind == tString || (word == "checked" && p.peek().kind == tIdent)) {
 				t := p.next()
 				if t.kind == tString {
@@ -436,9 +434,9 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*core.T
 					if word == "jump" && len(c) == 2 {
 						s = positionalHoles(s, params, statics, result, p.x86)
 					}
-					c = append(c, core.Str(s))
+					c = append(c, Str(s))
 				} else {
-					c = append(c, core.Name(Unspell(t.text)))
+					c = append(c, Name(Unspell(t.text)))
 				}
 				if word != "import" && word != "jump" {
 					break
@@ -446,7 +444,7 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*core.T
 			}
 			out = append(out, app(c...))
 		case p.accept("comma_ok"):
-			out = append(out, app(core.Name("comma-ok")))
+			out = append(out, app(Name("comma-ok")))
 		default:
 			return nil, p.errorf("%s in a host body", p.peek())
 		}
@@ -514,21 +512,21 @@ func hole(name, view string, params, statics []string, result string, numbered b
 }
 
 // hostSet reads `set N = host "s"`, `set F(A…) = host "…${A}…"` or `set N = S`.
-func (p *parser) hostSet() (*core.Term, error) {
+func (p *parser) hostSet() (*Term, error) {
 	p.next()
 	nameTok := p.next()
-	name := core.Name(p.setName(Unspell(nameTok.text)))
+	name := Name(p.setName(Unspell(nameTok.text)))
 	if nameTok.kind == tQuoted {
-		name = core.Name(nameTok.text)
+		name = Name(nameTok.text)
 	}
-	var head *core.Term = name
+	var head *Term = name
 	var params []string
 	if p.accept("(") {
-		hs := []*core.Term{name}
+		hs := []*Term{name}
 		for !p.is(")") {
 			n := p.next().text
 			params = append(params, n)
-			hs = append(hs, core.Name(n))
+			hs = append(hs, Name(n))
 			p.accept(",")
 		}
 		p.next()
@@ -542,17 +540,17 @@ func (p *parser) hostSet() (*core.Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		return app(core.Name("type"), head, h), nil
+		return app(Name("type"), head, h), nil
 	}
 	s, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
-	return app(core.Name("type"), head, p.setDatum(s, "")), nil
+	return app(Name("type"), head, p.setDatum(s, "")), nil
 }
 
 // hostConst reads `N ∈ set { v } = host "s" clauses` into today's `const`.
-func (p *parser) hostConst() (*core.Term, error) {
+func (p *parser) hostConst() (*Term, error) {
 	name := p.rawName(p.next())
 	p.next() // ∈
 	if err := p.expect("set"); err != nil {
@@ -575,45 +573,45 @@ func (p *parser) hostConst() (*core.Term, error) {
 	if err != nil {
 		return nil, err
 	}
-	return app(core.Name("const"), name, datum(v), h), nil
+	return app(Name("const"), name, datum(v), h), nil
 }
 
 // modelForm reads one of the model's own forms, its word and its operands
 // (spec/j.md §2.12), into today's datum.
-func (p *parser) modelForm() (*core.Term, error) {
+func (p *parser) modelForm() (*Term, error) {
 	word := Unspell(p.next().text)
-	out := []*core.Term{core.Name(word)}
+	out := []*Term{Name(word)}
 	for !p.lineEnds() && !p.is("}") {
 		switch {
 		case p.is("host") && (p.peekN(1).kind == tString || p.peekN(1).text == "expr" || p.peekN(1).text == "stmt"):
 			p.next()
-			h := []*core.Term{core.Name("host")}
+			h := []*Term{Name("host")}
 			for p.peek().kind == tString || p.is("expr") || p.is("stmt") {
 				t := p.next()
 				if t.kind == tString {
-					h = append(h, core.Str(t.text))
+					h = append(h, Str(t.text))
 				} else {
-					h = append(h, core.Name(t.text))
+					h = append(h, Name(t.text))
 				}
 			}
 			out = append(out, app(h...))
 		case p.accept("niche"):
 			p.next() // host
-			h := []*core.Term{core.Name("host")}
+			h := []*Term{Name("host")}
 			for p.peek().kind == tString || p.is("expr") || p.is("stmt") {
 				t := p.next()
 				if t.kind == tString {
-					h = append(h, core.Str(t.text))
+					h = append(h, Str(t.text))
 				} else {
-					h = append(h, core.Name(t.text))
+					h = append(h, Name(t.text))
 				}
 			}
-			out = append(out, app(core.Name("niche"), app(h...)))
+			out = append(out, app(Name("niche"), app(h...)))
 		case word == "fact" && len(out) == 1 && p.peek().kind == tIdent:
-			out = append(out, core.Name(Unspell(p.next().text)))
+			out = append(out, Name(Unspell(p.next().text)))
 		case word == "fact" && p.is("("):
 			p.next()
-			var ps []*core.Term
+			var ps []*Term
 			for !p.is(")") {
 				n := p.name()
 				p.expect("∈")
@@ -621,7 +619,7 @@ func (p *parser) modelForm() (*core.Term, error) {
 				if err != nil {
 					return nil, err
 				}
-				ps = append(ps, app(core.Name(n), p.setDatum(s, "")))
+				ps = append(ps, app(Name(n), p.setDatum(s, "")))
 				p.accept(",")
 			}
 			p.next()
@@ -632,10 +630,10 @@ func (p *parser) modelForm() (*core.Term, error) {
 			}
 			out = append(out, e)
 		case p.peek().kind == tString:
-			out = append(out, core.Str(p.next().text))
+			out = append(out, Str(p.next().text))
 		case word != "fact" && p.peek().kind == tIdent && !strings.Contains("0123456789", p.peek().text[:1]) &&
 			p.peekN(1).text != ".." && p.peekN(1).text != "(":
-			out = append(out, core.Name(Unspell(p.next().text)))
+			out = append(out, Name(Unspell(p.next().text)))
 		case word == "fact":
 			// A FACT'S OPERANDS are formulas: its guard and its conclusion.
 			e, err := p.expr()

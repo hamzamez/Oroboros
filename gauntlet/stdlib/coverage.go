@@ -33,7 +33,6 @@ import (
 	"strings"
 
 	"oroboros/core"
-	"oroboros/j"
 )
 
 // The packages targets/go has a file for. `math/big` is not one: bigint.oro
@@ -295,7 +294,7 @@ func declared(dir string) map[string]map[string]bool {
 		if err != nil {
 			return err
 		}
-		forms, err := j.ReadTargetSource(string(src), p, "go") // the target files are J (ADR 0068)
+		forms, err := core.ReadTargetSource(string(src), p, "go") // the target files are J (ADR 0068)
 		if err != nil {
 			fail(fmt.Errorf("%s: %v", p, err))
 		}

@@ -1,4 +1,4 @@
-package j
+package core
 
 import (
 	"fmt"
@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-
-	"oroboros/core"
 )
 
 // parse_J, spec/j.md §2–3: J's text read into abstract.md's trees, the ones μ
@@ -24,9 +22,9 @@ type parser struct {
 	parens []bool // the open brackets: true for ( and [, where a line break is a space
 
 	sets    map[string]string // a set's J name → its name in the abstract syntax (Result → result)
-	folded  map[core.Expr]*big.Int
-	indexed map[core.Expr]bool // applications written as indexing, t[i]
-	resultR string             // the name an `ensure` gives the result binder
+	folded  map[Expr]*big.Int
+	indexed map[Expr]bool // applications written as indexing, t[i]
+	resultR string        // the name an `ensure` gives the result binder
 	at      int
 	x86     bool // reading x86's model, whose templates number their holes
 }
@@ -86,24 +84,24 @@ func (p *parser) endOfStatement() {
 // a library file is found at, whose header J does not write (ADR 0064 item 1),
 // and "" for an entry file; root is the repository, whose lib/ holds the
 // modules imported, to know which of their names are sets.
-func ReadProgram(src, module, dir, root string) ([]core.Decl, error) {
+func ReadProgram(src, module, dir, root string) ([]Decl, error) {
 	toks, err := lex(src)
 	if err != nil {
 		return nil, err
 	}
-	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[core.Expr]*big.Int{},
-		indexed: map[core.Expr]bool{}}
+	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[Expr]*big.Int{},
+		indexed: map[Expr]bool{}}
 	p.registerSets(src, dir, root)
-	var decls []core.Decl
+	var decls []Decl
 	if module != "" {
-		decls = append(decls, &core.ModuleDecl{Path: module, At: p.nextAt()})
+		decls = append(decls, &ModuleDecl{Path: module, At: p.nextAt()})
 	}
 	items, exported, err := p.items(module != "")
 	if err != nil {
 		return nil, err
 	}
 	if module != "" || len(exported[""]) > 0 {
-		decls = append(decls, &core.ExportDecl{Names: exported[""], At: p.nextAt()})
+		decls = append(decls, &ExportDecl{Names: exported[""], At: p.nextAt()})
 	}
 	decls = append(decls, items...)
 	return decls, nil
@@ -184,8 +182,8 @@ func unsetName(s string) string {
 // items reads declarations to the end of the file or a closing brace. In a
 // library every definition no `private` hides is exported; in an entry file the
 // ones marked `export` (ADR 0064 items 4–5). exported is keyed by module.
-func (p *parser) items(library bool) ([]core.Decl, map[string][]string, error) {
-	var out []core.Decl
+func (p *parser) items(library bool) ([]Decl, map[string][]string, error) {
+	var out []Decl
 	exported := map[string][]string{}
 	for {
 		p.endOfStatement()
@@ -203,7 +201,7 @@ func (p *parser) items(library bool) ([]core.Decl, map[string][]string, error) {
 	}
 }
 
-func (p *parser) item(library bool) ([]core.Decl, map[string][]string, error) {
+func (p *parser) item(library bool) ([]Decl, map[string][]string, error) {
 	exported := map[string][]string{}
 	private, export := false, false
 	switch {
@@ -222,11 +220,11 @@ func (p *parser) item(library bool) ([]core.Decl, map[string][]string, error) {
 	case p.is("use"):
 		p.next()
 		path := p.path()
-		u := &core.UseDecl{Path: path, At: p.nextAt()}
+		u := &UseDecl{Path: path, At: p.nextAt()}
 		if p.accept("as") {
 			u.As = p.next().text
 		}
-		return []core.Decl{u}, nil, nil
+		return []Decl{u}, nil, nil
 	case p.is("module"):
 		p.next()
 		path := p.path()
@@ -234,7 +232,7 @@ func (p *parser) item(library bool) ([]core.Decl, map[string][]string, error) {
 			return nil, nil, err
 		}
 		p.open(false)
-		m := &core.ModuleDecl{Path: path, At: p.nextAt()}
+		m := &ModuleDecl{Path: path, At: p.nextAt()}
 		inner, names, err := p.items(false)
 		if err != nil {
 			return nil, nil, err
@@ -243,9 +241,9 @@ func (p *parser) item(library bool) ([]core.Decl, map[string][]string, error) {
 		if err := p.expect("}"); err != nil {
 			return nil, nil, err
 		}
-		out := []core.Decl{m}
+		out := []Decl{m}
 		if len(names[""]) > 0 {
-			out = append(out, &core.ExportDecl{Names: names[""], At: p.nextAt()})
+			out = append(out, &ExportDecl{Names: names[""], At: p.nextAt()})
 		}
 		return append(out, inner...), nil, nil
 	case p.is("fn") && p.peekN(1).text != "(":
@@ -260,7 +258,7 @@ func (p *parser) item(library bool) ([]core.Decl, map[string][]string, error) {
 			lam.Claim.At = claimAt
 		}
 		public(name)
-		return []core.Decl{&core.DefDecl{Name: name, Value: lam, At: p.nextAt()}}, exported, nil
+		return []Decl{&DefDecl{Name: name, Value: lam, At: p.nextAt()}}, exported, nil
 	case p.is("set") && p.peekN(1).kind == tIdent:
 		p.next()
 		v, err := p.variant()
@@ -274,7 +272,7 @@ func (p *parser) item(library bool) ([]core.Decl, map[string][]string, error) {
 				}
 			}
 		}
-		return []core.Decl{v}, exported, nil
+		return []Decl{v}, exported, nil
 	case (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == "=" && p.peekN(1).kind == tSym:
 		name := p.name()
 		p.next()
@@ -283,13 +281,13 @@ func (p *parser) item(library bool) ([]core.Decl, map[string][]string, error) {
 			return nil, nil, err
 		}
 		public(name)
-		return []core.Decl{&core.DefDecl{Name: name, Value: e, At: p.nextAt()}}, exported, nil
+		return []Decl{&DefDecl{Name: name, Value: e, At: p.nextAt()}}, exported, nil
 	}
 	e, err := p.expr()
 	if err != nil {
 		return nil, nil, err
 	}
-	return []core.Decl{&core.TermDecl{E: e, At: p.nextAt()}}, nil, nil
+	return []Decl{&TermDecl{E: e, At: p.nextAt()}}, nil, nil
 }
 
 func (p *parser) path() string {
@@ -316,18 +314,18 @@ func (p *parser) name() string {
 // lamHeader reads a definition's parameters, result, clauses and body: a λ
 // carrying its claims (ADR 0051), the claim present when the header states a
 // set, a result, a precondition or a postcondition.
-func (p *parser) lamHeader() (*core.Lam, error) {
+func (p *parser) lamHeader() (*Lam, error) {
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
 	p.open(true)
-	lam := &core.Lam{}
-	claim := &core.Claim{}
+	lam := &Lam{}
+	claim := &Claim{}
 	claimed := false
 	for !p.is(")") {
 		n := p.name()
 		lam.Params = append(lam.Params, n)
-		cp := core.ClaimParam{Name: n}
+		cp := ClaimParam{Name: n}
 		if p.accept("∈") {
 			s, err := p.expr()
 			if err != nil {
@@ -359,9 +357,9 @@ func (p *parser) lamHeader() (*core.Lam, error) {
 		p.open(true)
 		claimed = true
 		if p.is(")") {
-			claim.Result = &core.Apply{Fn: &core.Var{Name: "tuple"}}
+			claim.Result = &Apply{Fn: &Var{Name: "tuple"}}
 		} else {
-			var parts []core.Expr
+			var parts []Expr
 			for {
 				if p.peek().kind == tIdent && p.peekN(1).text == "∈" {
 					p.resultR = p.next().text
@@ -378,7 +376,7 @@ func (p *parser) lamHeader() (*core.Lam, error) {
 			}
 			claim.Result = parts[0]
 			if len(parts) > 1 {
-				claim.Result = &core.Apply{Fn: &core.Var{Name: "tuple"}, Args: parts}
+				claim.Result = &Apply{Fn: &Var{Name: "tuple"}, Args: parts}
 			}
 		}
 		p.close()
@@ -401,7 +399,7 @@ func (p *parser) lamHeader() (*core.Lam, error) {
 				return nil, err
 			}
 			if p.resultR != "" {
-				e = renameExpr(e, map[string]string{Unspell(p.resultR): core.ResultName})
+				e = renameExpr(e, map[string]string{Unspell(p.resultR): ResultName})
 			}
 			claim.Post, claimed = e, true
 			continue
@@ -413,7 +411,7 @@ func (p *parser) lamHeader() (*core.Lam, error) {
 	if err != nil {
 		return nil, err
 	}
-	e, ok := body.(core.Expr)
+	e, ok := body.(Expr)
 	if !ok {
 		return nil, p.errorf("a definition's body ends in a jump")
 	}
@@ -425,9 +423,9 @@ func (p *parser) lamHeader() (*core.Lam, error) {
 }
 
 // variant reads `set N(T…) = 'a ∪ 'c(S) … success 'a relevant` (ADR 0064 item 8).
-func (p *parser) variant() (*core.VariantDecl, error) {
+func (p *parser) variant() (*VariantDecl, error) {
 	jname := p.next().text
-	v := &core.VariantDecl{Name: unsetName(jname)}
+	v := &VariantDecl{Name: unsetName(jname)}
 	if p.accept("(") {
 		for !p.is(")") {
 			v.Params = append(v.Params, p.next().text)
@@ -443,7 +441,7 @@ func (p *parser) variant() (*core.VariantDecl, error) {
 		if p.peek().kind != tTag {
 			return nil, p.errorf("%s where a tag was expected in a set of tags", p.peek())
 		}
-		it := core.VariantItem{Ctor: Unspell(p.next().text)}
+		it := VariantItem{Ctor: Unspell(p.next().text)}
 		if p.is("(") && !p.lineEnds() {
 			p.next()
 			p.open(true)
@@ -465,9 +463,9 @@ func (p *parser) variant() (*core.VariantDecl, error) {
 	for !p.lineEnds() {
 		switch {
 		case p.accept("success"):
-			v.Items = append(v.Items, core.VariantItem{Success: Unspell(p.next().text)})
+			v.Items = append(v.Items, VariantItem{Success: Unspell(p.next().text)})
 		case p.accept("relevant"):
-			v.Items = append(v.Items, core.VariantItem{Relevant: true})
+			v.Items = append(v.Items, VariantItem{Relevant: true})
 		default:
 			return v, nil
 		}
@@ -479,56 +477,56 @@ func (p *parser) variant() (*core.VariantDecl, error) {
 // language's sets by name (Int is int), a range, a product, a variant's set by
 // its declared name, and a mode on a binder as today's former: Array(V) linear
 // is (buffer V), T inout is (cell T) (ADR 0050 item 2).
-func (p *parser) toSet(e core.Expr, mode string) core.Expr {
+func (p *parser) toSet(e Expr, mode string) Expr {
 	if e == nil {
 		return nil
 	}
 	out := p.set(e)
 	switch mode {
 	case "linear":
-		if a, ok := out.(*core.Apply); ok && len(a.Args) == 1 {
-			if v, ok := a.Fn.(*core.Var); ok && v.Name == "array" {
-				return &core.Apply{Fn: &core.Var{Name: "buffer"}, Args: a.Args}
+		if a, ok := out.(*Apply); ok && len(a.Args) == 1 {
+			if v, ok := a.Fn.(*Var); ok && v.Name == "array" {
+				return &Apply{Fn: &Var{Name: "buffer"}, Args: a.Args}
 			}
 		}
 	case "inout":
-		return &core.Apply{Fn: &core.Var{Name: "cell"}, Args: []core.Expr{out}}
+		return &Apply{Fn: &Var{Name: "cell"}, Args: []Expr{out}}
 	}
 	return out
 }
 
-func (p *parser) set(e core.Expr) core.Expr {
+func (p *parser) set(e Expr) Expr {
 	switch e := e.(type) {
-	case *core.Var:
-		return &core.Var{Name: p.setName(e.Name)}
-	case *core.Apply:
-		v, ok := e.Fn.(*core.Var)
+	case *Var:
+		return &Var{Name: p.setName(e.Name)}
+	case *Apply:
+		v, ok := e.Fn.(*Var)
 		if !ok {
 			return e
 		}
-		args := make([]core.Expr, len(e.Args))
+		args := make([]Expr, len(e.Args))
 		for i, a := range e.Args {
 			args[i] = p.set(a)
 		}
 		switch v.Name {
 		case "..":
-			return &core.Apply{Fn: &core.Var{Name: "int"}, Args: e.Args}
+			return &Apply{Fn: &Var{Name: "int"}, Args: e.Args}
 		case "×":
-			var flat []core.Expr
+			var flat []Expr
 			for _, a := range args {
-				if x, ok := a.(*core.Apply); ok {
-					if xv, ok := x.Fn.(*core.Var); ok && xv.Name == "tuple" && len(x.Args) > 0 {
+				if x, ok := a.(*Apply); ok {
+					if xv, ok := x.Fn.(*Var); ok && xv.Name == "tuple" && len(x.Args) > 0 {
 						flat = append(flat, x.Args...)
 						continue
 					}
 				}
 				flat = append(flat, a)
 			}
-			return &core.Apply{Fn: &core.Var{Name: "tuple"}, Args: flat}
+			return &Apply{Fn: &Var{Name: "tuple"}, Args: flat}
 		case "tuple":
-			return &core.Apply{Fn: v, Args: args}
+			return &Apply{Fn: v, Args: args}
 		}
-		return &core.Apply{Fn: &core.Var{Name: p.setName(v.Name)}, Args: args}
+		return &Apply{Fn: &Var{Name: p.setName(v.Name)}, Args: args}
 	}
 	return e
 }
@@ -551,15 +549,15 @@ func (p *parser) setName(n string) string {
 
 type stmt struct {
 	kind  string // "bind", "var", "buffer", "map", "expect", "expr"
-	pat   core.Pat
+	pat   Pat
 	name  string
-	value core.Tail
-	items []core.Expr
+	value Tail
+	items []Expr
 }
 
 // block reads `{ statements }`: a scope (ADR 0054), folded from its last
 // statement as μ builds today's let, seq, local and the handled bind.
-func (p *parser) block() (core.Tail, error) {
+func (p *parser) block() (Tail, error) {
 	if err := p.expect("{"); err != nil {
 		return nil, err
 	}
@@ -582,12 +580,12 @@ func (p *parser) block() (core.Tail, error) {
 	p.close()
 	p.next()
 	if len(stmts) == 0 {
-		return &core.Apply{Fn: &core.Var{Name: "tuple"}}, nil
+		return &Apply{Fn: &Var{Name: "tuple"}}, nil
 	}
 	return p.foldStmts(stmts)
 }
 
-func (p *parser) foldStmts(stmts []stmt) (core.Tail, error) {
+func (p *parser) foldStmts(stmts []stmt) (Tail, error) {
 	last := stmts[len(stmts)-1]
 	if last.kind != "expr" {
 		return nil, fmt.Errorf("a block ends in a %s, not a value", last.kind)
@@ -595,50 +593,50 @@ func (p *parser) foldStmts(stmts []stmt) (core.Tail, error) {
 	acc := last.value
 	for i := len(stmts) - 2; i >= 0; i-- {
 		s := stmts[i]
-		body, isExpr := acc.(core.Expr)
+		body, isExpr := acc.(Expr)
 		switch s.kind {
 		case "bind":
-			b := core.LetBind{Pat: s.pat, Value: s.value.(core.Expr)}
+			b := LetBind{Pat: s.pat, Value: s.value.(Expr)}
 			if isExpr {
-				acc = &core.Let{Binds: []core.LetBind{b}, Body: body}
+				acc = &Let{Binds: []LetBind{b}, Body: body}
 			} else {
-				acc = &core.TLet{Binds: []core.LetBind{b}, Body: acc}
+				acc = &TLet{Binds: []LetBind{b}, Body: acc}
 			}
 		case "expr":
-			e, ok := s.value.(core.Expr)
+			e, ok := s.value.(Expr)
 			if !ok {
 				return nil, fmt.Errorf("a jump stands before the end of its block")
 			}
 			if isExpr {
-				if seq, ok := body.(*core.Seq); ok {
-					acc = &core.Seq{Xs: append([]core.Expr{e}, seq.Xs...)}
+				if seq, ok := body.(*Seq); ok {
+					acc = &Seq{Xs: append([]Expr{e}, seq.Xs...)}
 				} else {
-					acc = &core.Seq{Xs: []core.Expr{e, body}}
+					acc = &Seq{Xs: []Expr{e, body}}
 				}
-			} else if ts, ok := acc.(*core.TSeq); ok {
-				acc = &core.TSeq{Xs: append([]core.Expr{e}, ts.Xs...), Last: ts.Last}
+			} else if ts, ok := acc.(*TSeq); ok {
+				acc = &TSeq{Xs: append([]Expr{e}, ts.Xs...), Last: ts.Last}
 			} else {
-				acc = &core.TSeq{Xs: []core.Expr{e}, Last: acc}
+				acc = &TSeq{Xs: []Expr{e}, Last: acc}
 			}
 		case "var", "buffer":
 			if !isExpr {
 				return nil, fmt.Errorf("local state around a jump")
 			}
-			init := s.value.(core.Expr)
+			init := s.value.(Expr)
 			// A STATE BINDER HOLDING A FRESH TABLE IS A BUFFER, in program order
 			// (ADR 0052, spec/local.md §2.1); any other state binder is a cell.
-			acc = &core.Local{Binds: []core.LocalBind{{Name: s.name, Init: init, Buffer: s.kind == "buffer",
+			acc = &Local{Binds: []LocalBind{{Name: s.name, Init: init, Buffer: s.kind == "buffer",
 				Place: s.kind == "var" && freshTable(init)}}, Body: body}
 		case "map", "mapvar":
 			if !isExpr {
 				return nil, fmt.Errorf("a map buffer around a jump")
 			}
-			acc = &core.BuildMap{Names: []string{s.name}, Caps: []core.Expr{s.value.(core.Expr)}, Body: body, Place: s.kind == "mapvar"}
+			acc = &BuildMap{Names: []string{s.name}, Caps: []Expr{s.value.(Expr)}, Body: body, Place: s.kind == "mapvar"}
 		case "expect":
 			if isExpr {
-				acc = &core.Monad{Form: "expect", Items: s.items, Body: body}
+				acc = &Monad{Form: "expect", Items: s.items, Body: body}
 			} else {
-				acc = &core.TMonad{Form: "expect", Items: s.items, Body: acc}
+				acc = &TMonad{Form: "expect", Items: s.items, Body: acc}
 			}
 		}
 	}
@@ -683,7 +681,7 @@ func (p *parser) statement() (stmt, error) {
 			return stmt{}, err
 		}
 		w, err := p.expr()
-		return stmt{kind: "expect", items: []core.Expr{pat, v, w}}, err
+		return stmt{kind: "expect", items: []Expr{pat, v, w}}, err
 	case (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == "linear" && p.peekN(2).text == "=":
 		name := p.name()
 		p.next()
@@ -705,9 +703,9 @@ func (p *parser) statement() (stmt, error) {
 		name := p.name()
 		p.next()
 		e, err := p.expr()
-		var pat core.Pat = &core.PVar{Name: name}
+		var pat Pat = &PVar{Name: name}
 		if name == "-" || t.text == "_" {
-			pat = &core.PWild{}
+			pat = &PWild{}
 		}
 		return stmt{kind: "bind", pat: pat, value: e}, err
 	case (t.kind == tIdent || t.kind == tQuoted) && p.isWrite():
@@ -723,9 +721,9 @@ func (p *parser) statement() (stmt, error) {
 		p.next()
 		p.next() // =
 		e, err := p.expr()
-		var pat core.Pat = &core.PTuple{Names: names}
+		var pat Pat = &PTuple{Names: names}
 		if len(names) == 1 {
-			pat = &core.PVar{Name: names[0]}
+			pat = &PVar{Name: names[0]}
 		}
 		return stmt{kind: "bind", pat: pat, value: e}, err
 	}
@@ -735,9 +733,9 @@ func (p *parser) statement() (stmt, error) {
 
 // freshTable reports a table former, `array { … }`: what a buffer's binder and
 // whole write may hold (R0).
-func freshTable(e core.Expr) bool {
-	if a, ok := e.(*core.Apply); ok {
-		if v, ok := a.Fn.(*core.Var); ok {
+func freshTable(e Expr) bool {
+	if a, ok := e.(*Apply); ok {
+		if v, ok := a.Fn.(*Var); ok {
 			return v.Name == "table" || v.Name == "array"
 		}
 	}
@@ -781,10 +779,10 @@ func (p *parser) isWrite() bool {
 
 // write reads places, `:=`, and as many values: one write, or a concurrent
 // assignment, every value in the state before (spec/local.md §2.1).
-func (p *parser) write() (*core.Write, error) {
-	w := &core.Write{}
+func (p *parser) write() (*Write, error) {
+	w := &Write{}
 	for {
-		pl := core.Place{Name: p.name()}
+		pl := Place{Name: p.name()}
 		for p.accept("[") {
 			p.open(true)
 			i, err := p.expr()
@@ -848,14 +846,14 @@ var binary = map[string]int{
 
 var opName = map[string]string{"==": "=", "++": "concat"}
 
-func (p *parser) expr() (core.Expr, error) { return p.exprAt(pLowest) }
+func (p *parser) expr() (Expr, error) { return p.exprAt(pLowest) }
 
 // tail reads an expression or a jump.
-func (p *parser) tail() (core.Tail, error) {
+func (p *parser) tail() (Tail, error) {
 	if p.is("again") {
 		p.next()
 		args, err := p.args()
-		return &core.Again{Args: args}, err
+		return &Again{Args: args}, err
 	}
 	if p.is("{") {
 		return p.block()
@@ -866,7 +864,7 @@ func (p *parser) tail() (core.Tail, error) {
 	return p.expr()
 }
 
-func (p *parser) exprAt(min int) (core.Expr, error) {
+func (p *parser) exprAt(min int) (Expr, error) {
 	left, err := p.unary()
 	if err != nil {
 		return nil, err
@@ -895,7 +893,7 @@ func (p *parser) exprAt(min int) (core.Expr, error) {
 // combine builds a binary operation. `^` folds, as do `+` and `-` beside a
 // folded power: a power is a constant (ADR 0067 item 4), and `2^62 - 1` is the
 // literal it was written for.
-func (p *parser) combine(op string, l, r core.Expr) core.Expr {
+func (p *parser) combine(op string, l, r Expr) Expr {
 	lv, lf := p.folded[l]
 	rv, rf := p.literal(r)
 	switch {
@@ -914,52 +912,52 @@ func (p *parser) combine(op string, l, r core.Expr) core.Expr {
 		}
 		return p.fold(v)
 	case op == "&&":
-		if a, ok := r.(*core.And); ok {
-			return &core.And{Xs: append([]core.Expr{l}, a.Xs...)}
+		if a, ok := r.(*And); ok {
+			return &And{Xs: append([]Expr{l}, a.Xs...)}
 		}
-		return &core.And{Xs: []core.Expr{l, r}}
+		return &And{Xs: []Expr{l, r}}
 	case op == "||":
-		if o, ok := r.(*core.Or); ok {
-			return &core.Or{Xs: append([]core.Expr{l}, o.Xs...)}
+		if o, ok := r.(*Or); ok {
+			return &Or{Xs: append([]Expr{l}, o.Xs...)}
 		}
-		return &core.Or{Xs: []core.Expr{l, r}}
+		return &Or{Xs: []Expr{l, r}}
 	}
 	name := op
 	if n, ok := opName[op]; ok {
 		name = n
 	}
-	return &core.Apply{Fn: &core.Var{Name: name}, Args: []core.Expr{l, r}}
+	return &Apply{Fn: &Var{Name: name}, Args: []Expr{l, r}}
 }
 
 // transitional maps the calls print_J writes for today's constructs an ADR has
 // not yet replaced (spec/j.md §7): a threaded store, `store(b, i, v)`, is
 // today's three-argument `set`.
 
-func (p *parser) fold(v *big.Int) core.Expr {
-	e := &core.Lit{T: core.IntLiteral(v.String())}
+func (p *parser) fold(v *big.Int) Expr {
+	e := &Lit{T: IntLiteral(v.String())}
 	p.folded[e] = v
 	return e
 }
 
 // literal is an integer literal's value.
-func (p *parser) literal(e core.Expr) (*big.Int, bool) {
+func (p *parser) literal(e Expr) (*big.Int, bool) {
 	if v, ok := p.folded[e]; ok {
 		return v, true
 	}
-	if l, ok := e.(*core.Lit); ok && l.T.Kind == core.KInt {
+	if l, ok := e.(*Lit); ok && l.T.Kind == KInt {
 		return big.NewInt(l.T.Int), true
 	}
 	return nil, false
 }
 
-func (p *parser) unary() (core.Expr, error) {
+func (p *parser) unary() (Expr, error) {
 	switch {
 	case p.is("-"):
 		p.next()
 		if p.peek().kind == tInt && p.peekN(1).text != "^" {
 			v, _ := new(big.Int).SetString(p.next().text, 10)
 			v.Neg(v)
-			l := &core.Lit{T: core.IntLiteral(v.String())}
+			l := &Lit{T: IntLiteral(v.String())}
 			return p.postfix(l)
 		}
 		x, err := p.exprAt(pPrefix)
@@ -969,11 +967,11 @@ func (p *parser) unary() (core.Expr, error) {
 		if v, ok := p.folded[x]; ok {
 			return p.fold(new(big.Int).Neg(v)), nil
 		}
-		return &core.Apply{Fn: &core.Var{Name: "-"}, Args: []core.Expr{x}}, nil
+		return &Apply{Fn: &Var{Name: "-"}, Args: []Expr{x}}, nil
 	case p.is("!"):
 		p.next()
 		x, err := p.exprAt(pPrefix)
-		return &core.Not{X: x}, err
+		return &Not{X: x}, err
 	}
 	e, err := p.primary()
 	if err != nil {
@@ -982,7 +980,7 @@ func (p *parser) unary() (core.Expr, error) {
 	return p.postfix(e)
 }
 
-func (p *parser) postfix(e core.Expr) (core.Expr, error) {
+func (p *parser) postfix(e Expr) (Expr, error) {
 	for !p.lineEnds() {
 		switch {
 		case p.is("("):
@@ -990,10 +988,10 @@ func (p *parser) postfix(e core.Expr) (core.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			if v, ok := e.(*core.Var); ok && v.Name == "store" && len(args) == 3 {
-				e = &core.Var{Name: "set"}
+			if v, ok := e.(*Var); ok && v.Name == "store" && len(args) == 3 {
+				e = &Var{Name: "set"}
 			}
-			e = &core.Apply{Fn: e, Args: args}
+			e = &Apply{Fn: e, Args: args}
 		case p.is("["):
 			p.next()
 			p.open(true)
@@ -1005,7 +1003,7 @@ func (p *parser) postfix(e core.Expr) (core.Expr, error) {
 			if err := p.expect("]"); err != nil {
 				return nil, err
 			}
-			e = &core.Apply{Fn: e, Args: []core.Expr{i}}
+			e = &Apply{Fn: e, Args: []Expr{i}}
 			p.indexed[e] = true
 		default:
 			return e, nil
@@ -1016,21 +1014,21 @@ func (p *parser) postfix(e core.Expr) (core.Expr, error) {
 
 // args reads `( arg, … )`: an expression, a spread `xs...`, or an out-cell
 // `out S` (spec/j.md G1, G2).
-func (p *parser) args() ([]core.Expr, error) {
+func (p *parser) args() ([]Expr, error) {
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
 	p.open(true)
-	var out []core.Expr
+	var out []Expr
 	for !p.is(")") {
-		var a core.Expr
+		var a Expr
 		if p.is("out") && (p.peekN(1).kind == tIdent || p.peekN(1).kind == tQuoted) {
 			p.next()
 			s, err := p.exprAt(pCmp + 1)
 			if err != nil {
 				return nil, err
 			}
-			a = &core.Apply{Fn: &core.Var{Name: "out"}, Args: []core.Expr{p.toSet(s, "")}}
+			a = &Apply{Fn: &Var{Name: "out"}, Args: []Expr{p.toSet(s, "")}}
 		} else {
 			e, err := p.expr()
 			if err != nil {
@@ -1038,7 +1036,7 @@ func (p *parser) args() ([]core.Expr, error) {
 			}
 			a = e
 			if p.accept("...") {
-				a = &core.Apply{Fn: &core.Var{Name: "spread"}, Args: []core.Expr{e}}
+				a = &Apply{Fn: &Var{Name: "spread"}, Args: []Expr{e}}
 			}
 		}
 		out = append(out, a)
@@ -1050,22 +1048,22 @@ func (p *parser) args() ([]core.Expr, error) {
 	return out, p.expect(")")
 }
 
-func (p *parser) primary() (core.Expr, error) {
+func (p *parser) primary() (Expr, error) {
 	t := p.peek()
 	switch t.kind {
 	case tInt:
 		p.next()
-		return &core.Lit{T: core.IntLiteral(t.text)}, nil
+		return &Lit{T: IntLiteral(t.text)}, nil
 	case tFloat:
 		p.next()
 		f, err := strconv.ParseFloat(t.text, 64)
-		return &core.Lit{T: core.Float(f)}, err
+		return &Lit{T: Float(f)}, err
 	case tString:
 		p.next()
-		return &core.Lit{T: core.Str(t.text)}, nil
+		return &Lit{T: Str(t.text)}, nil
 	case tTag:
 		p.next()
-		return &core.Var{Name: Unspell(t.text)}, nil
+		return &Var{Name: Unspell(t.text)}, nil
 	case tQuoted:
 		p.next()
 		return p.qualified(t.text)
@@ -1073,7 +1071,7 @@ func (p *parser) primary() (core.Expr, error) {
 		switch t.text {
 		case "true", "false":
 			p.next()
-			return &core.Lit{T: core.Bool(t.text == "true")}, nil
+			return &Lit{T: Bool(t.text == "true")}, nil
 		case "fn":
 			p.next()
 			return p.lambda()
@@ -1096,7 +1094,7 @@ func (p *parser) primary() (core.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			if x, ok := e.(core.Expr); ok {
+			if x, ok := e.(Expr); ok {
 				return x, nil
 			}
 			return nil, p.errorf("a try whose body jumps stands where a value is needed")
@@ -1111,7 +1109,7 @@ func (p *parser) primary() (core.Expr, error) {
 			if p.is(")") {
 				p.close()
 				p.next()
-				return &core.Apply{Fn: &core.Var{Name: "tuple"}}, nil
+				return &Apply{Fn: &Var{Name: "tuple"}}, nil
 			}
 			e, err := p.expr()
 			if err != nil {
@@ -1120,10 +1118,10 @@ func (p *parser) primary() (core.Expr, error) {
 			if v, ok := p.folded[e]; ok {
 				// A parenthesized power is a literal and no longer a power: `(2^16) - 1`
 				// is a subtraction (print.go writes the parentheses).
-				e = &core.Lit{T: core.IntLiteral(v.String())}
+				e = &Lit{T: IntLiteral(v.String())}
 			}
 			if p.is(",") {
-				parts := []core.Expr{e}
+				parts := []Expr{e}
 				for p.accept(",") {
 					x, err := p.expr()
 					if err != nil {
@@ -1131,7 +1129,7 @@ func (p *parser) primary() (core.Expr, error) {
 					}
 					parts = append(parts, x)
 				}
-				e = &core.Apply{Fn: &core.Var{Name: "tuple"}, Args: parts}
+				e = &Apply{Fn: &Var{Name: "tuple"}, Args: parts}
 			}
 			p.close()
 			return e, p.expect(")")
@@ -1140,7 +1138,7 @@ func (p *parser) primary() (core.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			if x, ok := b.(core.Expr); ok {
+			if x, ok := b.(Expr); ok {
 				return x, nil
 			}
 			return nil, p.errorf("a block that jumps stands where a value is needed")
@@ -1150,7 +1148,7 @@ func (p *parser) primary() (core.Expr, error) {
 }
 
 // qualified reads the rest of a qualified name, `a.b`, `go.\`+\“, `result.'ok`.
-func (p *parser) qualified(first string) (core.Expr, error) {
+func (p *parser) qualified(first string) (Expr, error) {
 	name := first
 	for p.is(".") && !p.peek().nl {
 		p.next()
@@ -1164,10 +1162,10 @@ func (p *parser) qualified(first string) (core.Expr, error) {
 			return nil, p.errorf("%s after `.`", m)
 		}
 	}
-	return &core.Var{Name: name}, nil
+	return &Var{Name: name}, nil
 }
 
-func (p *parser) lambda() (core.Expr, error) {
+func (p *parser) lambda() (Expr, error) {
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
@@ -1181,23 +1179,23 @@ func (p *parser) lambda() (core.Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	e, ok := b.(core.Expr)
+	e, ok := b.(Expr)
 	if !ok {
 		return nil, p.errorf("a λ's body is never a tail (ADR 0051)")
 	}
-	return &core.Lam{Params: params, Body: e}, nil
+	return &Lam{Params: params, Body: e}, nil
 }
 
 // array reads `array { e, … }`, a table's graph, or `array { e : k ∈ 0..n-1 }`,
 // its rule (ADR 0061): today's (table n f), where a rule that only indexes a
 // table is that table, by η (a table is its own rule, tables.md §2.4), and a
 // rule whose binder is `_` is a fill.
-func (p *parser) array() (core.Expr, error) {
+func (p *parser) array() (Expr, error) {
 	p.next() // {
 	p.open(true)
 	defer p.close()
 	if p.accept("}") {
-		return &core.Apply{Fn: &core.Var{Name: "array"}}, nil
+		return &Apply{Fn: &Var{Name: "array"}}, nil
 	}
 	first, err := p.expr()
 	if err != nil {
@@ -1224,20 +1222,20 @@ func (p *parser) array() (core.Expr, error) {
 			return nil, err
 		}
 		n := p.count(hi)
-		var f core.Expr = first
+		var f Expr = first
 		if k != "_" {
-			if a, ok := first.(*core.Apply); ok && len(a.Args) == 1 && p.indexed[a] {
-				if v, ok := a.Args[0].(*core.Var); ok && v.Name == Unspell(k) {
-					if t, ok := a.Fn.(*core.Var); ok && t.Name != v.Name {
-						return &core.Apply{Fn: &core.Var{Name: "table"}, Args: []core.Expr{n, t}}, nil
+			if a, ok := first.(*Apply); ok && len(a.Args) == 1 && p.indexed[a] {
+				if v, ok := a.Args[0].(*Var); ok && v.Name == Unspell(k) {
+					if t, ok := a.Fn.(*Var); ok && t.Name != v.Name {
+						return &Apply{Fn: &Var{Name: "table"}, Args: []Expr{n, t}}, nil
 					}
 				}
 			}
-			f = &core.Lam{Params: []string{Unspell(k)}, Body: first}
+			f = &Lam{Params: []string{Unspell(k)}, Body: first}
 		}
-		return &core.Apply{Fn: &core.Var{Name: "table"}, Args: []core.Expr{n, f}}, nil
+		return &Apply{Fn: &Var{Name: "table"}, Args: []Expr{n, f}}, nil
 	}
-	elems := []core.Expr{first}
+	elems := []Expr{first}
 	for p.accept(",") {
 		e, err := p.expr()
 		if err != nil {
@@ -1245,26 +1243,26 @@ func (p *parser) array() (core.Expr, error) {
 		}
 		elems = append(elems, e)
 	}
-	return &core.Apply{Fn: &core.Var{Name: "array"}, Args: elems}, p.expect("}")
+	return &Apply{Fn: &Var{Name: "array"}, Args: elems}, p.expect("}")
 }
 
 // count is n from a rule's upper bound n − 1: a literal plus one, or the n of
 // `n-1`, as print_J wrote it (print.go, upper).
-func (p *parser) count(hi core.Expr) core.Expr {
+func (p *parser) count(hi Expr) Expr {
 	if v, ok := p.literal(hi); ok {
 		return p.fold(new(big.Int).Add(v, big.NewInt(1)))
 	}
-	if a, ok := hi.(*core.Apply); ok && len(a.Args) == 2 {
-		if v, ok := a.Fn.(*core.Var); ok && v.Name == "-" {
+	if a, ok := hi.(*Apply); ok && len(a.Args) == 2 {
+		if v, ok := a.Fn.(*Var); ok && v.Name == "-" {
 			if one, ok := p.literal(a.Args[1]); ok && one.Int64() == 1 {
 				return a.Args[0]
 			}
 		}
 	}
-	return &core.Apply{Fn: &core.Var{Name: "+"}, Args: []core.Expr{hi, &core.Lit{T: core.Int(1)}}}
+	return &Apply{Fn: &Var{Name: "+"}, Args: []Expr{hi, &Lit{T: Int(1)}}}
 }
 
-func (p *parser) ifExpr() (core.Expr, error) {
+func (p *parser) ifExpr() (Expr, error) {
 	c, err := p.expr()
 	if err != nil {
 		return nil, err
@@ -1274,23 +1272,23 @@ func (p *parser) ifExpr() (core.Expr, error) {
 		return nil, err
 	}
 	if !p.is("else") {
-		return &core.If{C: c, A: a, B: &core.Apply{Fn: &core.Var{Name: "tuple"}}}, nil
+		return &If{C: c, A: a, B: &Apply{Fn: &Var{Name: "tuple"}}}, nil
 	}
 	p.next()
 	if p.accept("if") {
 		b, err := p.ifExpr()
-		return &core.If{C: c, A: a, B: b}, err
+		return &If{C: c, A: a, B: b}, err
 	}
 	b, err := p.valueBlock()
-	return &core.If{C: c, A: a, B: b}, err
+	return &If{C: c, A: a, B: b}, err
 }
 
-func (p *parser) valueBlock() (core.Expr, error) {
+func (p *parser) valueBlock() (Expr, error) {
 	b, err := p.block()
 	if err != nil {
 		return nil, err
 	}
-	e, ok := b.(core.Expr)
+	e, ok := b.(Expr)
 	if !ok {
 		return nil, p.errorf("`again` under an if (ADR 0015)")
 	}
@@ -1299,17 +1297,17 @@ func (p *parser) valueBlock() (core.Expr, error) {
 
 // caseExpr reads `case e { p -> b … }`, or `case { g -> b … }`, the guarded
 // choice (ADR 0056 item 2).
-func (p *parser) caseExpr() (core.Expr, error) {
+func (p *parser) caseExpr() (Expr, error) {
 	if p.is("{") {
 		p.next()
 		p.open(false)
-		var arms []core.CondArm
+		var arms []CondArm
 		for {
 			p.endOfStatement()
 			if p.accept("}") {
 				break
 			}
-			var guard core.Expr
+			var guard Expr
 			if !p.accept("else") {
 				g, err := p.expr()
 				if err != nil {
@@ -1324,10 +1322,10 @@ func (p *parser) caseExpr() (core.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			arms = append(arms, core.CondArm{Guard: guard, Body: b})
+			arms = append(arms, CondArm{Guard: guard, Body: b})
 		}
 		p.close()
-		return &core.Cond{Arms: arms}, nil
+		return &Cond{Arms: arms}, nil
 	}
 	scrut, err := p.expr()
 	if err != nil {
@@ -1337,15 +1335,15 @@ func (p *parser) caseExpr() (core.Expr, error) {
 		return nil, err
 	}
 	p.open(false)
-	c := &core.Case{Scrut: scrut}
+	c := &Case{Scrut: scrut}
 	for {
 		p.endOfStatement()
 		if p.accept("}") {
 			break
 		}
-		var pat core.Expr
+		var pat Expr
 		if p.accept("else") {
-			pat = &core.Var{Name: "else"}
+			pat = &Var{Name: "else"}
 		} else {
 			x, err := p.expr()
 			if err != nil {
@@ -1360,18 +1358,18 @@ func (p *parser) caseExpr() (core.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		c.Arms = append(c.Arms, core.CaseArm{Pat: pat, Body: b})
+		c.Arms = append(c.Arms, CaseArm{Pat: pat, Body: b})
 	}
 	p.close()
 	return c, nil
 }
 
-func (p *parser) armValue() (core.Expr, error) {
+func (p *parser) armValue() (Expr, error) {
 	t, err := p.tail()
 	if err != nil {
 		return nil, err
 	}
-	e, ok := t.(core.Expr)
+	e, ok := t.(Expr)
 	if !ok {
 		return nil, p.errorf("a case arm is no tail")
 	}
@@ -1379,8 +1377,8 @@ func (p *parser) armValue() (core.Expr, error) {
 }
 
 // loop reads `loop x = e, … { guard -> tail … }` (ADR 0055, 0015).
-func (p *parser) loop() (core.Expr, error) {
-	l := &core.Loop{}
+func (p *parser) loop() (Expr, error) {
+	l := &Loop{}
 	for {
 		l.Vars = append(l.Vars, p.name())
 		if err := p.expect("="); err != nil {
@@ -1404,7 +1402,7 @@ func (p *parser) loop() (core.Expr, error) {
 		if p.accept("}") {
 			break
 		}
-		arm := core.LoopArm{}
+		arm := LoopArm{}
 		if p.accept("else") {
 			arm.Else = true
 		} else {
@@ -1430,7 +1428,7 @@ func (p *parser) loop() (core.Expr, error) {
 
 // try reads `try p = e { body }`, the handled bind with no handler: try's law,
 // a failure passes through re-built (ADR 0057).
-func (p *parser) try() (core.Tail, error) {
+func (p *parser) try() (Tail, error) {
 	p.next()
 	pat, err := p.exprAt(pCmp + 1)
 	if err != nil {
@@ -1447,10 +1445,10 @@ func (p *parser) try() (core.Tail, error) {
 	if err != nil {
 		return nil, err
 	}
-	if b, ok := body.(core.Expr); ok {
-		return &core.Monad{Form: "try", Items: []core.Expr{pat, v}, Body: b}, nil
+	if b, ok := body.(Expr); ok {
+		return &Monad{Form: "try", Items: []Expr{pat, v}, Body: b}, nil
 	}
-	return &core.TMonad{Form: "try", Items: []core.Expr{pat, v}, Body: body}, nil
+	return &TMonad{Form: "try", Items: []Expr{pat, v}, Body: body}, nil
 }
 
 // isVariantAt reports whether a set declaration's right side, after its
@@ -1465,3 +1463,22 @@ func isVariantAt(toks []token, k int) bool {
 	}
 	return k+1 < len(toks) && toks[k].text == "=" && toks[k+1].kind == tTag
 }
+
+// Precedence, highest first (spec/j.md §3), as numbers: higher binds tighter.
+const (
+	pLowest = iota
+	pIff
+	pImp
+	pOr
+	pAnd
+	pCmp
+	pSet
+	pProd
+	pRange
+	pAdd
+	pMul
+	pPrefix
+	pPow
+	pPost
+	pAtom
+)

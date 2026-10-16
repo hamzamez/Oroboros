@@ -39,7 +39,6 @@ import (
 	"strings"
 
 	"oroboros/core"
-	"oroboros/j"
 )
 
 // needsRetraction reports whether a declared result is a variant, an option, or
@@ -494,7 +493,7 @@ func (tg *Target) readVariant(path, name string) (*core.Sum, error) {
 		if err != nil {
 			continue
 		}
-		forms, err := j.ReadModule(string(b), file, path)
+		forms, err := core.ReadModule(string(b), file, path)
 		if err != nil {
 			return nil, err
 		}

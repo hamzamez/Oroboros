@@ -21,7 +21,6 @@ import (
 	"oroboros/ir/java"
 	"oroboros/ir/js"
 	"oroboros/ir/x86"
-	"oroboros/j"
 )
 
 func main() {
@@ -100,16 +99,16 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	// the target loader — a fragment of the model written where the library
 	// lives — so a file that says nothing else has nothing to emit, and saying so
 	// beats reporting its first word as unexpected.
-	if j.IsFragment(string(text)) {
+	if core.IsFragment(string(text)) {
 		return fmt.Errorf("%s is a target fragment — it declares provides … and nothing else, "+
 			"so there is no program here to build", src)
 	}
 	// THE PROGRAM, READ IN J (spec/j.md, ADR 0068).
-	forms, err := j.ReadModule(string(text), src, j.ModulePath(src, filepath.SplitList(path)))
+	forms, err := core.ReadModule(string(text), src, core.ModulePath(src, filepath.SplitList(path)))
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	prog, terms, err := core.LoadWithDefs(forms, j.Resolver(libDirs(src, path)), tg.Defs)
+	prog, terms, err := core.LoadWithDefs(forms, core.SearchPath(libDirs(src, path)), tg.Defs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}

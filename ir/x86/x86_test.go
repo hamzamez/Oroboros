@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"oroboros/core"
-	"oroboros/j"
 	"oroboros/emit"
 	"oroboros/ir"
 )
@@ -32,11 +31,11 @@ func lower(t *testing.T, src string) (*emit.Target, []*ir.Func) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := j.ReadEntry(string(text), src)
+	forms, err := core.ReadEntry(string(text), src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.LoadWithDefs(forms, j.Resolver(dirs), tg.Defs)
+	prog, _, err := core.LoadWithDefs(forms, core.SearchPath(dirs), tg.Defs)
 	if err != nil {
 		t.Fatal(err)
 	}

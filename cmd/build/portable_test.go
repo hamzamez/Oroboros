@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"oroboros/core"
 	"oroboros/emit"
-	"oroboros/j"
 )
 
 // EVERY PORTABLE NAME RUNS ON EVERY HOST THAT PROVIDES IT (lib/os/README.md).
@@ -49,7 +49,7 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	osForms, err := j.ReadModule(string(osSrc), "../../lib/os.oro", "os")
+	osForms, err := core.ReadModule(string(osSrc), "../../lib/os.oro", "os")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 		// how a sum is eliminated.
 		// In J, a call `io.print_line(…)` and a kind matched as a tag
 		// `os.'not_found` (σ_J, spec/j.md §1.5; ADR 0059).
-		spelled := j.Spell(name)
+		spelled := core.Spell(name)
 		tag := strings.Replace(spelled, ".", ".'", 1)
 		if !regexp.MustCompile(`(^|[^\w.'])(` + regexp.QuoteMeta(spelled) + `|` + regexp.QuoteMeta(tag) + `)(\W|$)`).MatchString(string(text)) {
 			t.Errorf("%s is in Σ and roundtrip.oro does not call it, so no host runs it", name)

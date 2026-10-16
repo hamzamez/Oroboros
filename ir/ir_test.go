@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"oroboros/core"
-	"oroboros/j"
 	"oroboros/emit"
 )
 
@@ -47,7 +46,7 @@ func compilePath(src, target string, opt Options) (*emit.Target, *Program, error
 	if err != nil {
 		return nil, nil, err
 	}
-	forms, err := j.ReadEntry(string(text), src)
+	forms, err := core.ReadEntry(string(text), src)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -106,7 +105,7 @@ func compilePath(src, target string, opt Options) (*emit.Target, *Program, error
 	return tg, p, nil
 }
 
-func resolver(dirs []string) core.Resolver { return j.Resolver(dirs) }
+func resolver(dirs []string) core.Resolver { return core.SearchPath(dirs) }
 
 // corpus is a spread of shapes: loops with π, a join point, tables built and
 // read, maps read and built, host calls with several results, big integers.

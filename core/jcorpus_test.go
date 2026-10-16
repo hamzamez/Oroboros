@@ -1,4 +1,4 @@
-package j
+package core
 
 import (
 	"os"

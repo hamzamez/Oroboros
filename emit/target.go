@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"oroboros/core"
-	"oroboros/j"
 )
 
 // A target, declared as data rather than as Go source.
@@ -905,10 +904,10 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 			}
 			// Cheap reject before parsing: most library files have none, and a file
 			// that declares no `provides` is the module loader's to read and judge.
-			if !j.IsFragment(string(src)) {
+			if !core.IsFragment(string(src)) {
 				return nil
 			}
-			terms, err := j.ReadTargetSource(string(src), fp, "")
+			terms, err := core.ReadTargetSource(string(src), fp, "")
 			if err != nil {
 				return fmt.Errorf("%s: a library fragment does not parse, so nothing it provides "+
 					"exists: %w", fp, err)
@@ -1662,11 +1661,11 @@ func loadTargetFile(path, name string) (*Target, error) {
 	// A LIBRARY'S FRAGMENT IS NO TARGET FILE: `provides T M { … }` is read from
 	// the library path (loadProvides), and a layer's `T.oro` that holds one is
 	// a fragment found in the wrong place, refused by name.
-	if j.IsFragment(string(src)) && !j.Todays(string(src)) {
+	if core.IsFragment(string(src)) && !core.Todays(string(src)) {
 		return nil, fmt.Errorf("%s holds a library's fragment (provides …), not a target's own forms; "+
 			"a fragment is read from the library path", path)
 	}
-	terms, err := j.ReadTargetSource(string(src), path, name)
+	terms, err := core.ReadTargetSource(string(src), path, name)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
@@ -3716,5 +3715,5 @@ func (tg *Target) checkExterns() error {
 // (retract.go), a program loaded without D_T no longer sees them.
 func (tg *Target) LoadProgram(forms []core.Form, dirs ...string) (*core.Program, []*core.Term, error) {
 	all := append(append([]string(nil), dirs...), tg.LibDirs...)
-	return core.LoadWithDefs(forms, j.Resolver(all), tg.Defs)
+	return core.LoadWithDefs(forms, core.SearchPath(all), tg.Defs)
 }

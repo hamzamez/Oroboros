@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,7 +43,7 @@ func ModulePath(file string, libraries []string) string {
 // writes no header).
 func ReadModule(text, file, module string) ([]Form, error) {
 	if Todays(text) {
-		return Read(text) // the bridge: removed with step 5b
+		return readTodays(text) // the bridge: removed with step 5b
 	}
 	dir := filepath.Dir(file)
 	decls, err := ReadProgram(text, module, dir, Root(dir))
@@ -58,7 +59,7 @@ func ReadModule(text, file, module string) ([]Form, error) {
 // reads them.
 func ReadTargetSource(text, file, target string) ([]*Term, error) {
 	if Todays(text) {
-		return ReadAll(text) // the bridge: removed with step 5b
+		return readAllTodays(text) // the bridge: removed with step 5b
 	}
 	return ReadTarget(text, target, Root(filepath.Dir(file)))
 }
@@ -135,4 +136,33 @@ func Root(dir string) string {
 			return "."
 		}
 	}
+}
+
+// Read reads a program's entry source in J: its module the root.
+func Read(text string) ([]Form, error) { return ReadEntry(text, "") }
+
+// ReadAll reads a model's forms in J, a target file or a fragment, with no
+// target named.
+func ReadAll(text string) ([]*Term, error) { return ReadTargetSource(text, "", "") }
+
+// ReadTerm reads one expression in J and gives D of it, the core term it means.
+func ReadTerm(text string) (*Term, error) {
+	if Todays(text) {
+		return readTermTodays(text) // the bridge: removed with step 5b
+	}
+	toks, err := lex(text)
+	if err != nil {
+		return nil, err
+	}
+	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[Expr]*big.Int{},
+		indexed: map[Expr]bool{}}
+	t, err := p.tail()
+	if err != nil {
+		return nil, err
+	}
+	p.endOfStatement()
+	if p.peek().kind != tEOF {
+		return nil, p.errorf("%s after the expression", p.peek())
+	}
+	return Desugar(t), nil
 }

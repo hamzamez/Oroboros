@@ -190,7 +190,7 @@ func (r *reader) register(datum *Term, a Tail) *Term {
 	return datum
 }
 
-func Read(src string) ([]Form, error) {
+func readTodays(src string) ([]Form, error) {
 	if err := validSource(src); err != nil {
 		return nil, err
 	}
@@ -301,7 +301,7 @@ func ReadRaw(src string) ([]*Term, error) {
 
 // ReadAll reads raw terms without interpreting def/prim/target. Target files
 // are s-expressions but not programs, so they are parsed by their consumer.
-func ReadAll(src string) ([]*Term, error) {
+func readAllTodays(src string) ([]*Term, error) {
 	r := newReader(src, false)
 	var out []*Term
 	for {
@@ -318,7 +318,7 @@ func ReadAll(src string) ([]*Term, error) {
 }
 
 // ReadTerm reads exactly one term, for tests and the REPL.
-func ReadTerm(src string) (*Term, error) {
+func readTermTodays(src string) (*Term, error) {
 	r := newReader(src, false)
 	r.skipSpace()
 	t, err := r.term()

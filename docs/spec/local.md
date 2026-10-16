@@ -120,6 +120,20 @@ also holds of cells: §3's translation carried a cell the loop only read, append
 
 `again(b)`, `d = b` and `(b, n)` inside the scope are R1's refusals; the jump carries b itself.
 
+**A map buffer is the same place over another index set** (ADR 0058; maps.md §3.3: the discipline
+is about aliasing, which does not care what the index set is). Its value is a finite partial function
+K ⇀ V of a declared capacity; `insert` is McCarthy's store on it, with the same two axioms, and a read
+gives `option` where a table's is total. So:
+
+| form | equation (D) | |
+|---|---|---|
+| `var m := map(cap)` | build-map's region for the capacity, its body a state scope on m, `(#mapplace m (fn (m) …))` | |
+| `m[k] := e` | `m := insert(m, k, e)` | the scope's mark tells S the store is `insert`; D writes the element write one way for both index sets |
+| `m[k]` | `(m k)`, an `option` | |
+
+R0–R4 hold as written: a map's value is fresh, an empty map of a capacity. U spells today's threaded
+`(insert m k v)` as `m[k] := v`, and S of it is today's chain.
+
 **What S produces** is today's threaded residual: the store chain, the loop variable and the φ at a
 join that today's programs write by hand. The prediction of storeorder-research §2.6, checked by the
 gate, held once S learned what storeorder-2026-10-15 §2 records:

@@ -50,9 +50,9 @@ func TestEveryProgramPrintsInJWithEveryComment(t *testing.T) {
 			t.Errorf("%s: two translations differ", path)
 		}
 		// EVERY BUFFER IN PROGRAM ORDER (ADR 0052): unthreading is total on the
-		// corpus, so no threaded spelling is left. A map buffer stays threaded
-		// until ADR 0058 is built.
-		for _, threaded := range []string{"store(", " linear = array", " linear = {"} {
+		// corpus, so no threaded spelling is left, of a table or of a map
+		// (ADR 0058).
+		for _, threaded := range []string{"store(", "insert(", " linear = array", " linear = {", " linear = map("} {
 			if strings.Contains(r.J, threaded) {
 				t.Errorf("%s: a buffer is still threaded, %q", path, threaded)
 			}

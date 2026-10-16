@@ -124,6 +124,10 @@ Identical in discipline to `(local b (table n 0) …)` and for the reason arrays
 `wordcount` already has this shape on every target: it threads the map through the loop as a loop
 variable and returns it.
 
+**In J a map buffer is written in program order** (ADR 0058, local.md §2.1): `var m := map(8)`, then
+`m[k] := v` for today's `insert`, `m[k]` a read giving `option`; the state translation gives today's
+threaded chain back.
+
 ### 3.4 `insert` extends the index set by a POINT, and that is a real asymmetry
 
 growth.md §1.1:

@@ -206,6 +206,9 @@ type BuildMap struct {
 	Names []string
 	Caps  []Expr
 	Body  Expr
+	// Place says the map buffers are places, written in program order
+	// (ADR 0058): only a rendering in program order builds one.
+	Place bool
 }
 
 // The is a claim: e's value lies in S (abstract.md §2.4). It is carried to the

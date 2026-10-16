@@ -560,6 +560,11 @@ func (p *printer) stmts(t core.Tail) []*Doc {
 		case *core.BuildMap:
 			for i, n := range e.Names {
 				p.data[n] = true
+				if e.Place {
+					// A map buffer in program order (ADR 0058).
+					out = append(out, Cat(Text("var "+Spell(n)+" := map("), p.expr(e.Caps[i]), Text(")")))
+					continue
+				}
 				out = append(out, Cat(Text(Spell(n)+" linear = map("), p.expr(e.Caps[i]), Text(")")))
 			}
 			t = e.Body

@@ -171,7 +171,11 @@ borrow, gives today's residual on every program through J but two (a version tod
 name in kara/core's refusal), with every module read through J; R0–R4 decided on each place's scope,
 each with a planted fault. Building it found three gaps, G5–G7 (spec/j.md), **decided by hamza**: a
 concurrent assignment for the merge sorts' swapping buffers, which ADR 0052's R0 refused; the record
-store `dt[s][1] := v`; one rule for every borrow, growth a statement. Next: ADR 0058 (map buffers), then the rest of 0053–0066; then step 5, the corpus switched to J and the target loader with it.
+store `dt[s][1] := v`; one rule for every borrow, growth a statement. **ADR 0058 is built behind the
+gate too** ([mapbuf-2026-10-16](gauntlet/results/mapbuf-2026-10-16.md)): a map buffer is the same place
+over another index set, `var m := map(8)`, `m[k] := v`, S choosing `insert` by the scope's mark; J has no
+threaded spelling left. Next: step 5, the corpus switched to J and the target loader with it; then 0062's
+logic, 0066's inference and 0053's arrow, each when a program needs it.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -624,7 +628,7 @@ rejected alternatives.
 | A loop's variables are bound by application, not assigned: one iteration is a `let`, so its binders are definitional (`=`, `==`) and `again` is an application — not built | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
 | The surface is ~~D or J~~ J (0068) (B′ and K dropped); one arm grammar for `case` and `loop`, `cond` and `match` retired; `again` positional; `;` tighter than `[]` in D; `var x := e` in J; J's formers `array { … }`, `set { … }`, `array(n, f)`; `Seq(S)` the set — not built | [0056](docs/decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md) |
 | The handled bind is a derived operator, case(e; p → b, ā), with try and expect its instances; J writes `try p = e [else ā], … { body } [else ā]`, D `TRY … IN`; in a loop its success arm is a tail and its handler leaves — extends 0041, not built | [0057](docs/decisions/0057-the-handled-bind-and-its-tail.md) |
-| A map buffer is a state binder holding a map, written in program order (`m[k] := v`), R0–R4 as for a table — extends 0052, not built | [0058](docs/decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md) |
+| A map buffer is a state binder holding a map, written in program order (`m[k] := v`), R0–R4 as for a table — extends 0052, built behind the J gate | [0058](docs/decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md) |
 | A tag is a quoted symbol, `'name`, in patterns and expressions; case carries no category; a collection has one former shape and `array(n, f)` goes; the sets are `Array(V)` and `Map(K, V)` — supersedes 0056's items 8–9, not built | [0059](docs/decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md) |
 | J's membership `∈` ~~and Python's set operators~~ (superseded by 0065), D's TLA+'s; an imported tag qualified as `alias.'tag`, own and language tags unqualified, no `exposing` — not built | [0060](docs/decisions/0060-j-set-operators-and-qualified-tags.md) |
 | Inside a former, separation `set { x ∈ S : P }` and replacement `set { e : x ∈ S }`, `array { e : k ∈ 0..n-1 }` by the binder's place (TLA+'s); a map takes a graph only — not built | [0061](docs/decisions/0061-separation-and-replacement-by-the-binders-place.md) |

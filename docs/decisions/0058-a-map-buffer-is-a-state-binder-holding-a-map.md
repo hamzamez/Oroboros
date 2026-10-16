@@ -3,7 +3,10 @@
 Date: 2026-10-12
 Status: Accepted (hamza, 2026-10-12, on surface-design.md §4.7, item 4: "Agree. a map buffer is state
 binder holding a map"). **Extends [ADR 0052](0052-a-buffer-is-a-state-binder-holding-a-table.md)** from
-tables to maps. Not built: it is built with the surface, behind the byte-identical gate.
+tables to maps. **Built 2026-10-16 behind the `ORO_VIA_J` gate**
+([mapbuf-2026-10-16](../../gauntlet/results/mapbuf-2026-10-16.md)): the four map programs emit as
+before. As amended by ADR 0052's G7, R0 for a map is an empty map of a capacity, or a move in a
+concurrent assignment.
 
 ## Context
 

@@ -45,7 +45,7 @@ func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]Borro
 }
 
 func newCellTr(decls map[string]CellDecl, borrows map[string]BorrowDecl) *cellTr {
-	return &cellTr{locals: map[string]bool{}, places: map[string]bool{}, decls: decls, borrows: borrows}
+	return &cellTr{locals: map[string]bool{}, places: map[string]bool{}, maps: map[string]bool{}, decls: decls, borrows: borrows}
 }
 
 func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl) (*Term, error) {
@@ -118,7 +118,8 @@ func (c *cellTr) calls(t *Term) (*Term, error) {
 
 func isCellScope(t *Term) bool {
 	return t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName &&
-		(t.Kids[0].Name == CellName || t.Kids[0].Name == PlaceName) && t.Kids[2].Kind == KFn && len(t.Kids[2].Params) == 1
+		(t.Kids[0].Name == CellName || t.Kids[0].Name == PlaceName || t.Kids[0].Name == MapPlaceName) &&
+		t.Kids[2].Kind == KFn && len(t.Kids[2].Params) == 1
 }
 
 // noShadow refuses a binder inside a cell's scope that hides the cell.
@@ -152,6 +153,7 @@ type cellTr struct {
 	// places are the state binders whose value is a buffer, in program order
 	// (spec/local.md §2.1), and borrows the callees that borrow one.
 	places  map[string]bool
+	maps    map[string]bool // the places whose value is a map
 	borrows map[string]BorrowDecl
 }
 
@@ -359,7 +361,8 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		if err := noShadow(body, y); err != nil {
 			return nil, err
 		}
-		if headIs(t, PlaceName) {
+		place := headIs(t, PlaceName) || headIs(t, MapPlaceName)
+		if place {
 			if err := c.checkPlace(body, y, false); err != nil {
 				return nil, err
 			}
@@ -368,8 +371,11 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		if headIs(t, PlaceName) {
+		if place {
 			c.places[y] = true
+		}
+		if headIs(t, MapPlaceName) {
+			c.maps[y] = true // its element write is insert (ADR 0058)
 		}
 		iy := c.in(y)
 		outer := append([]string(nil), c.xs...)
@@ -447,11 +453,15 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		// it where it is used once, first (reduce.go, firstUse), with no binding
 		// of its own to reduce.
 		if v := args[1]; c.places[x] && headIs(v, "set") && len(v.Kids) == 4 {
+			store := "set"
+			if c.maps[x] {
+				store = "insert" // McCarthy's store over a map's index set (ADR 0058)
+			}
 			return c.thread(v.Kids[1:], inLoop, carried, true, func(vs []*Term) *Term {
 				after := c.state()
 				for i, n := range c.xs {
 					if n == c.in(x) {
-						after[i] = App(Name("set"), vs...)
+						after[i] = App(Name(store), vs...)
 					}
 				}
 				return tupOf(Unit(), after)

@@ -130,6 +130,9 @@ func (d *desugarer) build(a Tail) *Term {
 	case *BuildMap:
 		t := d.term(a.Body)
 		for i := len(a.Names) - 1; i >= 0; i-- {
+			if a.Place {
+				t = App(Name(MapPlaceName), Name(a.Names[i]), Fn([]string{a.Names[i]}, t))
+			}
 			t = &Term{Kind: KApp, Kids: []*Term{Name("build-map"), d.term(a.Caps[i]), Fn([]string{a.Names[i]}, t)}}
 		}
 		return t

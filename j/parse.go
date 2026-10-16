@@ -604,11 +604,11 @@ func (p *parser) foldStmts(stmts []stmt) (core.Tail, error) {
 			// (ADR 0052, spec/local.md §2.1); any other state binder is a cell.
 			acc = &core.Local{Binds: []core.LocalBind{{Name: s.name, Init: init, Buffer: s.kind == "buffer",
 				Place: s.kind == "var" && freshTable(init)}}, Body: body}
-		case "map":
+		case "map", "mapvar":
 			if !isExpr {
 				return nil, fmt.Errorf("a map buffer around a jump")
 			}
-			acc = &core.BuildMap{Names: []string{s.name}, Caps: []core.Expr{s.value.(core.Expr)}, Body: body}
+			acc = &core.BuildMap{Names: []string{s.name}, Caps: []core.Expr{s.value.(core.Expr)}, Body: body, Place: s.kind == "mapvar"}
 		case "expect":
 			if isExpr {
 				acc = &core.Monad{Form: "expect", Items: s.items, Body: body}
@@ -627,6 +627,18 @@ func (p *parser) statement() (stmt, error) {
 		name := p.name()
 		if err := p.expect(":="); err != nil {
 			return stmt{}, err
+		}
+		if p.is("map") && p.peekN(1).text == "(" {
+			// A MAP BUFFER, a place whose value is a map (ADR 0058).
+			p.next()
+			p.next()
+			p.open(true)
+			c, err := p.expr()
+			p.close()
+			if err != nil {
+				return stmt{}, err
+			}
+			return stmt{kind: "mapvar", name: name, value: c}, p.expect(")")
 		}
 		e, err := p.expr()
 		return stmt{kind: "var", name: name, value: e}, err

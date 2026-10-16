@@ -37,6 +37,11 @@ const PlaceName = "#place"
 // λ's value the buffers' last versions first, then the body's (local.md §2.1).
 const BorrowName = "#borrow"
 
+// MapPlaceName heads a map buffer's scope in program order (ADR 0058,
+// spec/local.md §2.1): a place whose value is a map, whose element write is
+// `insert` where a table's is `set`.
+const MapPlaceName = "#mapplace"
+
 // localPlace is a program-order buffer's binder: build's region for the
 // initializer, as localBinder makes it, with the region's binder a place.
 func localPlace(x string, e, body *Term) *Term {

@@ -158,7 +158,7 @@ func (u *unthreader) version(e core.Expr, sc places) (string, bool) {
 		q, ok := sc[e.Name]
 		return q, ok
 	case *core.Apply:
-		if v, ok := e.Fn.(*core.Var); ok && v.Name == "set" && len(e.Args) == 3 {
+		if v, ok := e.Fn.(*core.Var); ok && (v.Name == "set" || v.Name == "insert") && len(e.Args) == 3 {
 			if q, ok := u.version(e.Args[0], sc); ok {
 				return q, true
 			}
@@ -313,8 +313,9 @@ func (u *unthreader) stmts(e core.Expr, q string, sc places) ([]uitem, error) {
 	case *core.Var:
 		return nil, nil
 	case *core.Apply:
-		if v, ok := e.Fn.(*core.Var); ok && v.Name == "set" && len(e.Args) == 3 {
-			// AN ELEMENT WRITE: the chain's earlier writes, then this one. A
+		if v, ok := e.Fn.(*core.Var); ok && (v.Name == "set" || v.Name == "insert") && len(e.Args) == 3 {
+			// AN ELEMENT WRITE, a table's store or a map's insert (ADR 0058): the
+			// chain's earlier writes, then this one. A
 			// store's index and value are read before it, in the state before.
 			at := []core.Expr{u.value(e.Args[1], sc)}
 			base := e.Args[0]
@@ -565,8 +566,12 @@ func (u *unthreader) valueE(e core.Expr, sc places) (core.Expr, error) {
 		}
 		out = &core.Local{Binds: binds, Body: u.valueOrVersion(e.Body, inner)}
 	case *core.BuildMap:
-		// A map buffer stays threaded until ADR 0058 is built.
-		out = &core.BuildMap{Names: e.Names, Caps: u.values(e.Caps, sc), Body: u.value(e.Body, sc.without(e.Names...))}
+		// A MAP BUFFER is a place too (ADR 0058).
+		inner := sc
+		for _, n := range e.Names {
+			inner = inner.with(n, n)
+		}
+		out = &core.BuildMap{Names: e.Names, Caps: u.values(e.Caps, sc), Body: u.valueOrVersion(e.Body, inner), Place: true}
 	case *core.Loop:
 		items, loop, err := u.loop(e, sc, false)
 		if err != nil {

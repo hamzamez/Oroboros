@@ -12,7 +12,7 @@ import (
 func placeEnv(p *core.Program) *core.Env {
 	e := &core.Env{Defs: p.Defs, Prim: map[string]bool{}, Pure: map[string]bool{}, Rec: map[string]bool{},
 		Word: core.Word{Lo: -(1<<53 - 1), Hi: 1<<53 - 1}}
-	for _, n := range []string{"if", "=", "+", "-", "*", "<", ">=", "loop", "set", "build", "len", "let", "alloc"} {
+	for _, n := range []string{"if", "=", "+", "-", "*", "<", ">=", "loop", "set", "build", "len", "let", "alloc", "insert", "build-map"} {
 		e.Prim[n] = true
 		e.Pure[n] = true
 	}
@@ -105,6 +105,15 @@ func TestABufferInProgramOrderMeansTheThreadedBuffer(t *testing.T) {
 			}`,
 			`(def f (n) (local a (table 4 0) b (table 4 0)
 			   (loop ((a a) (b b) (w 1)) (>= w n) a else (again b (set a 0 w) (* w 2)))))`},
+		{"a map buffer's store (ADR 0058)",
+			`fn f(n) {
+				var m := map(8)
+				loop i = 0 {
+					i >= n -> m
+					else   -> { m[i] := i * 10; again(i + 1) }
+				}
+			}`,
+			`(def f (n) (build-map m 8 (loop ((m m) (i 0)) (>= i n) m else (again (insert m i (* i 10)) (+ i 1)))))`},
 		{"a write under a condition, a φ",
 			`fn f(n) {
 				var b := array { 0 : _ ∈ 0..3 }
@@ -156,6 +165,7 @@ func TestEachRuleOfAPlaceRefusesWhatItForbids(t *testing.T) {
 		}`},
 		{"R1", `fn g(t) { t }
 			fn f(n) { var b := array { 0 : _ ∈ 0..3 }; m = (b, 1); b }`},
+		{"R1", `fn f(n) { var m := map(8); d = m; d }`},
 		{"R2", `fn g(p, q) { p[0] + q[0] }
 			fn f(n) { var b := array { 0 : _ ∈ 0..3 }; s = g(b, b); b }`},
 		{"R3", `fn f(n) { var b := array { 0 : _ ∈ 0..3 }; h = fn(i) { b[i] }; b }`},

@@ -203,19 +203,17 @@ func TestEveryTargetReadsBackToItsForms(t *testing.T) {
 	for _, path := range files {
 		b, _ := os.ReadFile(path)
 		src := string(b)
-		want, err := core.ReadRaw(src)
+		// WHAT THE LOADER READS: emit/target.go reads every target file with
+		// core.ReadAll, each datum desugared, a program's definition in a fragment
+		// and a `where` clause's connectives alike.
+		want, err := core.ReadAll(src)
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		// A program's definition in a fragment is read by the loader as D of its
-		// datum (emit/target.go reads every target file with core.ReadAll).
-		meant, err := core.ReadAll(src)
-		if err != nil {
-			t.Fatalf("%s: %v", path, err)
-		}
+		raw, _ := core.ReadRaw(src)
 		hasDefs := false
-		for i := range want {
-			want[i] = withMeantDefs(want[i], meant[i], &hasDefs)
+		for i := range raw {
+			withMeantDefs(raw[i], want[i], &hasDefs)
 		}
 		r, err := TranslateTarget(src, "..")
 		if err != nil {

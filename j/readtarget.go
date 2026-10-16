@@ -157,29 +157,10 @@ func (p *parser) rawExprTerm() (*core.Term, error) {
 	return datum(e), nil
 }
 
-// datum is today's spelling of an expression a target file writes: names,
-// literals, applications, the connectives as `and`, `or`, `not`.
-func datum(e core.Expr) *core.Term {
-	switch e := e.(type) {
-	case *core.Var:
-		return core.Name(e.Name)
-	case *core.Lit:
-		return e.T
-	case *core.EmptyList:
-		return app()
-	case *core.And:
-		return app(append([]*core.Term{core.Name("and")}, datums(e.Xs)...)...)
-	case *core.Or:
-		return app(append([]*core.Term{core.Name("or")}, datums(e.Xs)...)...)
-	case *core.Not:
-		return app(core.Name("not"), datum(e.X))
-	case *core.If:
-		return app(core.Name("if"), datum(e.C), datum(e.A), datum(e.B))
-	case *core.Apply:
-		return app(append([]*core.Term{datum(e.Fn)}, datums(e.Args)...)...)
-	}
-	panic(fmt.Sprintf("j: a target file holds no %T", e))
-}
+// datum is an expression a target file writes as the loader reads it: D of
+// its tree, as core.ReadAll gives every datum of today's target files (a
+// tuple's Church form, the connectives as `if`).
+func datum(e core.Expr) *core.Term { return core.Desugar(e) }
 
 func datums(es []core.Expr) []*core.Term {
 	out := make([]*core.Term, len(es))

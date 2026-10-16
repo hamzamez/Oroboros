@@ -25,5 +25,5 @@ module main {
     use num/f64
     use num/vec
 
-    fn(p, q) { vec.dot(p, q) }
+    export fn run(p, q) { vec.dot(p, q) }
 }

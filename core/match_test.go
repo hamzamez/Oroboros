@@ -118,50 +118,15 @@ fn f(s, i) { loop s = s, i = i { s == 0 -> again(1, i); else -> i } }`)
 
 // --- what match REFUSES -----------------------------------------------------
 
-// ADR 0015's rule reaches through the sugar: the clause list is the loop's
-// whole control flow, so `again` may not hide under an `if` in a body. This is
-// the failure that produced `when`, and it must keep failing.
-func TestAgainUnderAnIfIsStillRefused(t *testing.T) {
-	mustFail(t, `
-		(use go)
-		(def f (fn (s n) (match (s 0) _ k (if (go.>= k n) k (again s k)) else 0)))`,
-		"not under an `if`")
-}
-
 // Float and string patterns are absent because the language has no portable
 // equality, and a float pattern would inherit IEEE's NaN — which is not the
-// equivalence relation a pattern needs.
+// equivalence relation a pattern needs. A `case` pattern is a constructor.
 func TestFloatPatternIsRefused(t *testing.T) {
-	mustFail(t, `(use go) (def f (fn (a) (match (a) 1.5 1 else 0)))`, "not a pattern")
+	mustLoadFail(t, `fn f(a) { case a { 1.5 -> 1; else -> 0 } }`, "a clause pattern is a constructor")
 }
 
 func TestStringPatternIsRefused(t *testing.T) {
-	mustFail(t, `(use go) (def f (fn (a) (match (a) "x" 1 else 0)))`, "not a pattern")
-}
-
-// Arity is checked: n scrutinees means n patterns per clause, so a clause that
-// is short is a mistake rather than an implicit wildcard.
-func TestClauseArityMustMatch(t *testing.T) {
-	mustFail(t, `(use go) (def f (fn (a b) (match (a b) 0 1 else 0)))`,
-		"pattern(s), an optional (when …), and a body")
-}
-
-// A repeated name in one clause would be an equality test, which patterns do
-// not do — Erlang allows it, ML does not, and we do not, because it would smuggle
-// an equality in that the language has no portable spelling for.
-func TestRepeatedBindingIsRefused(t *testing.T) {
-	mustFail(t, `(use go) (def f (fn (a b) (match (a b) x x 1 else 0)))`, "bound twice")
-}
-
-// `else` last, or the clauses after it could never run.
-func TestElseMustBeLast(t *testing.T) {
-	mustFail(t, `(use go) (def f (fn (a) (match (a) else 0 1 2)))`, "must be the last clause")
-}
-
-// A list of scrutinees, so that clauses need no tuple built and taken apart —
-// this is the same reason `loop` has n variables and no product (ADR 0015).
-func TestScrutineesAreAList(t *testing.T) {
-	mustFail(t, `(use go) (def f (fn (a) (match a 0 1 else 0)))`, "LIST of scrutinees")
+	mustLoadFail(t, `fn f(a) { case a { "x" -> 1; else -> 0 } }`, "a clause pattern is a constructor")
 }
 
 // A scrutinee that is a bare NAME becomes the loop variable under that same

@@ -27,6 +27,10 @@ type parser struct {
 	resultR string        // the name an `ensure` gives the result binder
 	at      int
 	x86     bool // reading x86's model, whose templates number their holes
+	// grouped are the expressions written in parentheses: `(A × B) × C` is a
+	// pair whose first component is a pair, TLA+'s product, where the chain
+	// `A × B × C` is a triple (ADR 0065).
+	grouped map[Expr]bool
 }
 
 func (p *parser) peek() token { return p.toks[p.i] }
@@ -36,7 +40,16 @@ func (p *parser) peekN(n int) token {
 	}
 	return p.toks[len(p.toks)-1]
 }
-func (p *parser) next() token { t := p.toks[p.i]; p.i++; return t }
+
+// next consumes a token; the end of input is never consumed, so a parse that
+// reads past it reports where it stands rather than reading beyond the tokens.
+func (p *parser) next() token {
+	t := p.toks[p.i]
+	if t.kind != tEOF {
+		p.i++
+	}
+	return t
+}
 
 func (p *parser) is(text string) bool {
 	t := p.peek()
@@ -283,19 +296,21 @@ func (p *parser) item(library bool) ([]Decl, map[string][]string, error) {
 		public(name)
 		return []Decl{&DefDecl{Name: name, Value: e, At: p.nextAt()}}, exported, nil
 	}
-	e, err := p.expr()
-	if err != nil {
-		return nil, nil, err
-	}
-	return []Decl{&TermDecl{E: e, At: p.nextAt()}}, nil, nil
+	// A FILE IS A THEORY (ADR 0064): it holds declarations, and a bare
+	// expression at the top level is none — read as one, junk became terms.
+	return nil, nil, p.errorf("%s begins no declaration; a file holds fn, set, use, module and NAME = e "+
+		"(ADR 0064)", t)
 }
 
 func (p *parser) path() string {
+	// A module path is a file's path under its library (ADR 0025, 0064): its
+	// segments are separated by `/`, and a segment may hold a `-`, as a file
+	// name may.
 	var b strings.Builder
 	for {
 		t := p.next()
 		b.WriteString(t.text)
-		if !p.is("/") || p.peek().nl {
+		if (!p.is("/") && !p.is("-")) || p.peek().nl {
 			return b.String()
 		}
 		b.WriteString(p.next().text)
@@ -465,14 +480,19 @@ func (p *parser) variant() (*VariantDecl, error) {
 			break
 		}
 	}
-	for !p.lineEnds() {
+	for !p.lineEnds() && !p.is("}") && !p.is(";") && p.peek().kind != tEOF {
 		switch {
 		case p.accept("success"):
 			v.Items = append(v.Items, VariantItem{Success: Unspell(p.next().text)})
 		case p.accept("relevant"):
 			v.Items = append(v.Items, VariantItem{Relevant: true})
+			if !p.lineEnds() && !p.is("success") && !p.is("relevant") && !p.is("}") && !p.is(";") && p.peek().kind != tEOF {
+				return nil, p.errorf("variant %s: (relevant) takes nothing; got %s", v.Name, p.peek())
+			}
 		default:
-			return v, nil
+			// The line is the declaration: a token after its tags and markers
+			// is no part of it, and must not be read as the next item.
+			return nil, p.errorf("variant %s: %s after its tags; a variant's markers are success 'tag and relevant", v.Name, p.peek())
 		}
 	}
 	return v, nil
@@ -517,17 +537,7 @@ func (p *parser) set(e Expr) Expr {
 		case "..":
 			return &Apply{Fn: &Var{Name: "int"}, Args: e.Args}
 		case "×":
-			var flat []Expr
-			for _, a := range args {
-				if x, ok := a.(*Apply); ok {
-					if xv, ok := x.Fn.(*Var); ok && xv.Name == "tuple" && len(x.Args) > 0 {
-						flat = append(flat, x.Args...)
-						continue
-					}
-				}
-				flat = append(flat, a)
-			}
-			return &Apply{Fn: &Var{Name: "tuple"}, Args: flat}
+			return &Apply{Fn: &Var{Name: "tuple"}, Args: args}
 		case "tuple":
 			return &Apply{Fn: v, Args: args}
 		}
@@ -906,8 +916,13 @@ func (p *parser) combine(op string, l, r Expr) Expr {
 	rv, rf := p.literal(r)
 	switch {
 	case op == "^":
+		// A NEGATIVE OR ABSURD EXPONENT IS NOT FOLDED, so a bound written with
+		// one is refused as no compile-time integer: big.Int's Exp gives 1 for a
+		// negative exponent, and the cap — 2^1000000 is far past any
+		// representation anyone will ask for — keeps a typo from asking the
+		// reader for a gigabyte-long integer.
 		base, bok := p.literal(l)
-		if bok && rf {
+		if bok && rf && rv.Sign() >= 0 && rv.IsInt64() && rv.Int64() <= 1000000 {
 			v := new(big.Int).Exp(base, rv, nil)
 			return p.fold(v)
 		}
@@ -919,6 +934,14 @@ func (p *parser) combine(op string, l, r Expr) Expr {
 			v.Add(lv, rv)
 		}
 		return p.fold(v)
+	case op == "×":
+		// A product chain is one n-ary product; a parenthesized one is a
+		// component (p.grouped).
+		if a, ok := l.(*Apply); ok && !p.grouped[l] {
+			if v, ok := a.Fn.(*Var); ok && v.Name == "×" {
+				return &Apply{Fn: v, Args: append(append([]Expr(nil), a.Args...), r)}
+			}
+		}
 	case op == "&&":
 		if a, ok := r.(*And); ok {
 			return &And{Xs: append([]Expr{l}, a.Xs...)}
@@ -998,6 +1021,9 @@ func (p *parser) postfix(e Expr) (Expr, error) {
 			}
 			if v, ok := e.(*Var); ok && v.Name == "store" && len(args) == 3 {
 				e = &Var{Name: "set"}
+			}
+			if v, ok := e.(*Var); ok && v.Name == "tuple" && len(args) == 1 {
+				return nil, p.errorf("tuple takes no terms, the unit, or two or more; a tuple of one is just the value")
 			}
 			e = &Apply{Fn: e, Args: args}
 		case p.is("["):
@@ -1088,6 +1114,11 @@ func (p *parser) primary() (Expr, error) {
 				p.next()
 				return p.array()
 			}
+		case "map":
+			if p.peekN(1).text == "{" {
+				p.next()
+				return p.mapGraph()
+			}
 		case "if":
 			p.next()
 			return p.ifExpr()
@@ -1138,6 +1169,11 @@ func (p *parser) primary() (Expr, error) {
 					parts = append(parts, x)
 				}
 				e = &Apply{Fn: &Var{Name: "tuple"}, Args: parts}
+			} else {
+				if p.grouped == nil {
+					p.grouped = map[Expr]bool{}
+				}
+				p.grouped[e] = true
 			}
 			p.close()
 			return e, p.expect(")")
@@ -1180,8 +1216,15 @@ func (p *parser) lambda() (Expr, error) {
 	var params []string
 	line := p.peek().line
 	for !p.is(")") {
+		// A λ's parameter is a name: a claim on one is a definition's header
+		// (ADR 0051), and a λ's own header, ADR 0066's, is not built.
+		if k := p.peek().kind; k != tIdent && k != tQuoted {
+			return nil, p.errorf("%s in a λ's parameters, which are names separated by \",\"", p.peek())
+		}
 		params = append(params, p.name())
-		p.accept(",")
+		if !p.accept(",") && !p.is(")") {
+			return nil, p.errorf("%s in a λ's parameters, which are names separated by \",\"", p.peek())
+		}
 	}
 	p.next()
 	if err := distinct(params, "fn", line); err != nil {
@@ -1222,7 +1265,11 @@ func (p *parser) array() (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		_ = lo
+		// A table is a function on [0, n) (tables.md §1): its rule's binder
+		// ranges from 0, or the former would mean another domain silently.
+		if v, ok := p.literal(lo); !ok || v.Sign() != 0 {
+			return nil, p.errorf("a table's index ranges over 0..n-1, so its binder's set starts at 0")
+		}
 		if err := p.expect(".."); err != nil {
 			return nil, err
 		}
@@ -1244,6 +1291,11 @@ func (p *parser) array() (Expr, error) {
 				}
 			}
 			f = &Lam{Params: []string{Unspell(k)}, Body: first}
+		} else if _, lit := first.(*Lit); !lit {
+			// `_` binds nothing: every element is the one value. A literal is
+			// today's fill; anything else is the constant rule, never a rule
+			// itself, which (table n e) would read it as.
+			f = &Lam{Params: []string{"_"}, Body: first}
 		}
 		return &Apply{Fn: &Var{Name: "table"}, Args: []Expr{n, f}}, nil
 	}
@@ -1439,6 +1491,14 @@ func (p *parser) loop() (Expr, error) {
 	if err := distinct(l.Vars, "loop", line); err != nil {
 		return nil, err
 	}
+	// ADR 0015: the last arm is `else`, and only the last, so that every path
+	// out of the loop is an arm and the arm list is its whole control flow.
+	for i, arm := range l.Arms {
+		if arm.Else != (i == len(l.Arms)-1) {
+			return nil, fmt.Errorf("line %d: the last arm of loop must be `else`, and only the last, "+
+				"so that every path out of the loop is one of its arms (ADR 0015)", line)
+		}
+	}
 	for _, arm := range l.Arms {
 		if arm.Guard != nil && strays(arm.Guard) {
 			return nil, strayAgain(line)
@@ -1590,3 +1650,31 @@ const (
 	pPost
 	pAtom
 )
+
+// mapGraph reads `map { k : v, … }`, a map given by its graph (spec/j.md §2,
+// ADR 0061): Σ₀'s `map` applied to the pairs, each the key applied to its
+// value, today's `(map (k v) …)`.
+func (p *parser) mapGraph() (Expr, error) {
+	p.next() // {
+	p.open(true)
+	defer p.close()
+	var pairs []Expr
+	for !p.is("}") {
+		k, err := p.exprAt(pCmp + 1)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.expect(":"); err != nil {
+			return nil, err
+		}
+		v, err := p.expr()
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, &Apply{Fn: k, Args: []Expr{v}})
+		if !p.accept(",") {
+			break
+		}
+	}
+	return &Apply{Fn: &Var{Name: "map"}, Args: pairs}, p.expect("}")
+}

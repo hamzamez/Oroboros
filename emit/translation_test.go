@@ -22,11 +22,11 @@ fn t(lo, mid, hi) {
 }`)
 	lam, inits := loop.Args()[0], loop.Args()[1:]
 	holds := func(g *facts, src string) bool {
-		forms, err := core.Read(src)
+		term, err := core.ParseTerm(src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		gs, ok := g.oblig(core.Rename2(forms[0].Term, map[string]*core.Term{
+		gs, ok := g.oblig(core.Rename2(term, map[string]*core.Term{
 			"i": core.Name(lam.Params[0]), "j": core.Name(lam.Params[1]), "k": core.Name(lam.Params[2])}))
 		return ok && allEntailed(g, gs)
 	}

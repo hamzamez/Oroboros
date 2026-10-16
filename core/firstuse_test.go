@@ -18,22 +18,22 @@ func TestALetOfAVersionUsedOnceFirstIsItsPlace(t *testing.T) {
 		program         bool
 	}{
 		{"used first: substituted",
-			"(fn (n) (let x (read) (write (add x n))))",
+			"t = fn(n) { x = read(); write(add(x, n)) }",
 			"(fn (n) (write (add (read) n)))", false},
 		{"after a pure argument: substituted",
-			"(fn (n) (let x (read) (write (add n x))))",
+			"t = fn(n) { x = read(); write(add(n, x)) }",
 			"(fn (n) (write (add n (read))))", false},
 		{"after an effect: bound, or the effects would be exchanged",
-			"(fn (n) (let x (read) (add (write n) x)))",
+			"t = fn(n) { x = read(); add(write(n), x) }",
 			"(fn (n) (let (read) (fn (#vx) (add (write n) #vx))))", false},
 		{"in a branch: bound, or the effect would run conditionally",
-			"(fn (n c) (let x (read) (if c (write x) 0)))",
+			"t = fn(n, c) { x = read(); if c { write(x) } else { 0 } }",
 			"(fn (n c) (let (read) (fn (#vx) (if c (write #vx) 0))))", false},
 		{"in a loop's body: bound, or the effect would run each time round",
-			"(fn (n) (let x (read) (loop ((i 0)) (ge i n) i else (again (add i x)))))",
+			"t = fn(n) { x = read(); loop i = 0 { ge(i, n) -> i; else -> again(add(i, x)) } }",
 			"(fn (n) (let (read) (fn (#vx) (loop (fn (i) (if (ge i n) i (again (add i #vx)))) 0))))", false},
 		{"a program's own binder: bound, its name what the analyses key on",
-			"(fn (n) (let x (read) (write (add x n))))",
+			"t = fn(n) { x = read(); write(add(x, n)) }",
 			"(fn (n) (let (read) (fn (x) (write (add x n)))))", true},
 	} {
 		t.Run(c.name, func(t *testing.T) {

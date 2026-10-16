@@ -10,12 +10,10 @@ import (
 // (sumrep-2026-10-06). Each row is a program that needs exactly one of them.
 func TestASlotIsProvableWhereItsTagSelectsIt(t *testing.T) {
 	for _, c := range []struct{ why, src string }{
-		{"a table written as its graph has its number of elements as its length", `
-(export f)
-(sig f ((n (int 0 9))) int)
-(def f (n)
-  (let (tuple k t) (loop ((i 0)) (>= i n) (tuple 1 (array n 100 7)) else (again (+ i 1)))
-    (+ k (t 2))))`},
+		{"a table written as its graph has its number of elements as its length", `export fn f(n ∈ 0..9) (Int) {
+    (k, t) = loop i = 0 { i >= n -> (1, array { n, 100, 7 }); else -> again(i + 1) }
+    k + t[2]
+}`},
 		{"an #any tail is ⊥ in the join of a slot's tails", `set Found(R) = 'rows(R) ∪ 'nothing
 export fn f(n ∈ 0..9) (Int) {
     case loop i = 0 {

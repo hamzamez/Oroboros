@@ -56,6 +56,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/gauntlet/stdlib/jdecl"
 	"testing"
 	"unicode/utf8"
 )
@@ -274,7 +275,7 @@ func firstDiff(a, b string) string {
 // ---------------------------------------------------------------------------
 // 2. Every name counted declarable is emitted.
 
-var primLine = regexp.MustCompile(`(?m)^\s*\((sig|const) `)
+var primLine = regexp.MustCompile(jdecl.PrimLine)
 
 // emittedInFiles counts the primitives actually written, which is the number
 // the report has to agree with — the files are what a program loads.

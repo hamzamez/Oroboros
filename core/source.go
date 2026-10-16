@@ -42,9 +42,6 @@ func ModulePath(file string, libraries []string) string {
 // found under (ADR 0064 item 1: a file is a theory named by its path, and J
 // writes no header).
 func ReadModule(text, file, module string) ([]Form, error) {
-	if Todays(text) {
-		return readTodays(text) // the bridge: removed with step 5b
-	}
 	dir := filepath.Dir(file)
 	decls, err := ReadProgram(text, module, dir, Root(dir))
 	if err != nil {
@@ -58,9 +55,6 @@ func ReadModule(text, file, module string) ([]Form, error) {
 // it is (ADR 0064 item 9: the target is its directory), as the target loader
 // reads them.
 func ReadTargetSource(text, file, target string) ([]*Term, error) {
-	if Todays(text) {
-		return readAllTodays(text) // the bridge: removed with step 5b
-	}
 	return ReadTarget(text, target, filepath.Dir(file), Root(filepath.Dir(file)))
 }
 
@@ -147,13 +141,6 @@ func ReadAll(text string) ([]*Term, error) { return ReadTargetSource(text, "", "
 
 // ReadTerm reads one expression in J and gives D of it, the core term it means.
 func ReadTerm(text string) (*Term, error) {
-	if Todays(text) {
-		// the bridge: removed with step 5b. A J expression may begin with `(`,
-		// so one today's reader refuses is read as J.
-		if t, err := readTermTodays(text); err == nil {
-			return t, nil
-		}
-	}
 	toks, err := lex(text)
 	if err != nil {
 		return nil, err
@@ -170,3 +157,8 @@ func ReadTerm(text string) (*Term, error) {
 	}
 	return Desugar(t), nil
 }
+
+// TodaysTerm and TodaysForms read today's notation, for the step-5b tool that
+// translates the tests' last snippets; deleted with today's reader.
+func TodaysTerm(text string) (*Term, error)    { return readTermTodays(text) }
+func TodaysForms(text string) ([]*Term, error) { return readAllTodays(text) }

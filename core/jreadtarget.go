@@ -117,7 +117,8 @@ func (p *parser) targetItem() (*Term, error) {
 			u = append(u, Name("as"), Name(p.next().text))
 		}
 		return app(u...), nil
-	case p.is("fn") && p.isProgramDef():
+	case p.is("fn") && p.isProgramDef(),
+		(p.peek().kind == tIdent || p.peek().kind == tQuoted) && p.peekN(1).text == "=" && p.peekN(1).kind == tSym:
 		// A program's definition in a fragment, D_T (target-system.md §6): the
 		// program reader's, and today's loader reads it as D of its datum.
 		ds, _, err := p.item(false)
@@ -150,7 +151,7 @@ func (p *parser) targetItem() (*Term, error) {
 	if t.kind == tIdent {
 		switch t.text {
 		case "repr", "include", "structural", "backend", "link", "build", "artifact", "data",
-			"underlying", "max_len", "big_repr", "int_repr", "fact":
+			"underlying", "max_len", "big_repr", "int_repr", "fact", "lemma":
 			return p.modelForm()
 		}
 	}
@@ -176,6 +177,11 @@ func (p *parser) rawName(t token) *Term {
 	name := Unspell(t.text)
 	if t.kind == tQuoted {
 		name = t.text
+		if !p.is(".") || p.peek().nl {
+			// A QUOTED NAME IS THE NAME ITSELF (σ_J, spec/j.md §1.5): `Int` is
+			// the language's set, and `` `Int` `` text/scanner's constant.
+			return Name(name)
+		}
 	}
 	for p.is(".") && !p.peek().nl {
 		p.next()
@@ -480,7 +486,13 @@ func positionalHoles(tpl string, params, statics []string, result string, x86 bo
 			if k := strings.IndexByte(inner, ':'); k >= 0 {
 				name, view = inner[:k], inner[k+1:]
 			}
-			b.WriteString(hole(Unspell(name), view, params, statics, result, numbered))
+			// A quoted splice is the name itself, as a quoted binder is.
+			if len(name) > 1 && name[0] == '`' && name[len(name)-1] == '`' {
+				name = name[1 : len(name)-1]
+			} else {
+				name = Unspell(name)
+			}
+			b.WriteString(hole(name, view, params, statics, result, numbered))
 		case tpl[i] == '%':
 			b.WriteString("%%")
 		default:
@@ -505,6 +517,11 @@ func hole(name, view string, params, statics []string, result string, numbered b
 	for k, n := range params {
 		if n == name {
 			if numbered || view != "" {
+				// Past the ninth operand the number is braced: `%10` is
+				// operand 1 and then `0` (emit/host.go).
+				if k+1 > 9 {
+					return fmt.Sprintf("%%%s{%d}", view, k+1)
+				}
 				return fmt.Sprintf("%%%s%d", view, k+1)
 			}
 			return "%s"
@@ -609,9 +626,9 @@ func (p *parser) modelForm() (*Term, error) {
 				}
 			}
 			out = append(out, app(Name("niche"), app(h...)))
-		case word == "fact" && len(out) == 1 && p.peek().kind == tIdent:
+		case (word == "fact" || word == "lemma") && len(out) == 1 && p.peek().kind == tIdent:
 			out = append(out, Name(Unspell(p.next().text)))
-		case word == "fact" && p.is("("):
+		case (word == "fact" || word == "lemma") && p.is("("):
 			p.next()
 			var ps []*Term
 			for !p.is(")") {
@@ -633,10 +650,15 @@ func (p *parser) modelForm() (*Term, error) {
 			out = append(out, e)
 		case p.peek().kind == tString:
 			out = append(out, Str(p.next().text))
-		case word != "fact" && p.peek().kind == tIdent && !strings.Contains("0123456789", p.peek().text[:1]) &&
+		case word != "fact" && word != "lemma" && p.peek().kind == tQuoted &&
+			p.peekN(1).text != ".." && p.peekN(1).text != "(" && p.peekN(1).text != ".":
+			// A quoted name is the name itself, and an operand alone: the
+			// operand after it is not subtracted from it.
+			out = append(out, Name(p.next().text))
+		case word != "fact" && word != "lemma" && p.peek().kind == tIdent && !strings.Contains("0123456789", p.peek().text[:1]) &&
 			p.peekN(1).text != ".." && p.peekN(1).text != "(":
 			out = append(out, Name(Unspell(p.next().text)))
-		case word == "fact":
+		case word == "fact" || word == "lemma":
 			// A FACT'S OPERANDS are formulas: its guard and its conclusion.
 			e, err := p.expr()
 			if err != nil {

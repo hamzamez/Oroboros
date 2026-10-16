@@ -48,7 +48,7 @@ func word(s string, member bool) string {
 		return s
 	}
 	t := strings.ReplaceAll(s, "-", "_")
-	if isIdent(t) && (member || !reserved[t]) && !strings.Contains(s, "_") && !strings.HasPrefix(s, "-") {
+	if isIdent(t) && (member || !reserved[t]) && !strings.Contains(s, "_") && !strings.HasPrefix(s, "-") && !isLangSpelling(t) {
 		return t
 	}
 	return "`" + s + "`"
@@ -91,6 +91,18 @@ func Collisions(names []string) [][2]string {
 // langSets are the language's sets, spelled by the convention (ADR 0067 item 3).
 var langSets = map[string]string{"int": "Int", "bool": "Bool", "string": "String", "f64": "F64",
 	"any": "Any", "option": "Option", "array": "Array", "map": "Map"}
+
+// isLangSpelling reports a word J reads as one of the language's sets, `Int`:
+// a name spelled so is quoted, `text/scanner`'s constant `` `Int` ``, or σ_J
+// would spell it and the set `int` alike.
+func isLangSpelling(t string) bool {
+	for _, l := range langSets {
+		if l == t {
+			return true
+		}
+	}
+	return false
+}
 
 // SetName is a set's name by the convention: UpperCamelCase.
 func SetName(n string) string {

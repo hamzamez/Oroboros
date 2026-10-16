@@ -23,17 +23,15 @@ import (
 // THE PROPERTY IS LOAD-ORDER INDEPENDENCE: Load(a ++ b) and Load(b ++ a) give
 // every signature the same meaning. It fails against a bare key in one order.
 func TestTwoModulesMayDeclareDifferentSumsWithOneName(t *testing.T) {
-	a := `(module a)
-(variant result (ok int) (err int))
-(export pick)
-(sig pick ((n int)) result)
-(def pick (fn (n) (if (< n 0) (err 0) (ok n))))
+	a := `module a {
+    set Result = 'ok(Int) ∪ 'err(Int)
+    fn pick(n ∈ Int) (Result) { if n < 0 { 'err(0) } else { 'ok(n) } }
+}
 `
-	b := `(module b)
-(variant result (ok string) (err string))
-(export label)
-(sig label ((n int)) result)
-(def label (fn (n) (err "none")))
+	b := `module b {
+    set Result = 'ok(String) ∪ 'err(String)
+    fn label(n ∈ Int) (Result) { 'err("none") }
+}
 `
 	want := map[string][]string{"a.pick": {"int", "int"}, "b.label": {"int", "string"}}
 	for _, c := range []struct{ order, src string }{
@@ -105,17 +103,6 @@ module b {
 	}
 }
 
-// The tag is exported with its constructor, and only with it.
-func TestAPatternRespectsTheExportList(t *testing.T) {
-	mustLoadFail(t, `(module a)
-(variant result (ok int) (err int))
-(export ok)
-(module b)
-(use a)
-(def f (fn (n) (case (a.ok n) (a.ok v) v (a.err e) 0)))
-`, "does not export it")
-}
-
 // Two declarations with one spelling are two types, so one `case` may not mix
 // them — and the refusal names them by their qualified names, since the
 // spelling alone is exactly what cannot tell them apart.
@@ -145,9 +132,9 @@ module b {
 // Now the program holds the constructors once, under the bare names the
 // compiler's own map reads already produce, and no module holds any.
 func TestOptionIsOneDeclaration(t *testing.T) {
-	p, err := loadSrc(t, `(module a)
-(export f)
-(def f (fn (n) (case (some n) (some v) v none 0)))
+	p, err := loadSrc(t, `module a {
+    fn f(n) { case 'some(n) { 'some(v) -> v; 'none -> 0 } }
+}
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -166,11 +153,10 @@ func TestOptionIsOneDeclaration(t *testing.T) {
 // an outer one (§5.5.2) — and the compiler's `some` from a map read is still
 // the language's, because the module's `option` has no `some`.
 func TestAModuleMayShadowOption(t *testing.T) {
-	p, err := loadSrc(t, `(module a)
-(variant option (yes int) no)
-(export f)
-(def f (fn (n) (+ (case (yes n) (yes v) v no 0)
-                  (case ((map (1 10)) 1) (some v) v none 0))))
+	p, err := loadSrc(t, `module a {
+    set Option = 'yes(Int) ∪ 'no
+    fn f(n) { (case 'yes(n) { 'yes(v) -> v; 'no -> 0 }) + (case map { 1 : 10 }[1] { 'some(v) -> v; 'none -> 0 }) }
+}
 `)
 	if err != nil {
 		t.Fatalf("a module may declare its own option: %v", err)

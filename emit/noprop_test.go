@@ -15,24 +15,24 @@ import (
 // same read under a guard that states the bounds is a proof, and is accepted.
 func TestAnIndexOutsideTheFragmentIsRefused(t *testing.T) {
 	prog := func(read string) string {
-		return `(export f)
-(sig f ((n (int 0 100))) int)
-(def f (n)
-  (let b (local b (table 8 0)
-           (loop ((b b) (i 0))
-             (>= i 8)  b
-             else      (again (set b i (% (+ i n) 10)) (+ i 1))))
-       t (local c (table 6 0) c)
-    ` + read + `))`
+		return `export fn f(n ∈ 0..100) (Int) {
+    b = {
+        var b := array { 0 : _ ∈ 0..7 }
+        loop i = 0 { i >= 8 -> b; else -> { b[i] := (i + n) % 10; again(i + 1) } }
+    }
+    t = { var c := array { 0 : _ ∈ 0..5 }; c }
+    ` + read + `
+}`
 	}
-	err := refineGo(t, prog(`(t (b 3))`))
+	err := refineGo(t, prog(`t[b[3]]`))
 	// The read is a linear atom since refinements.md §5e, so the refusal says
 	// the goal does not follow rather than that it is outside the fragment.
 	if err == nil || !strings.Contains(err.Error(), "is an indexing") ||
 		!(strings.Contains(err.Error(), "not proven") || strings.Contains(err.Error(), "does not follow")) {
 		t.Errorf("an index into six that may be 9 must be refused: %v", err)
 	}
-	guarded := prog(`(let v (b 3) (if (and (<= 0 v) (< v (len t))) (t v) 0))`)
+	guarded := prog(`v = b[3]
+    if 0 <= v && v < len(t) { t[v] } else { 0 }`)
 	if err := refineGo(t, guarded); err != nil {
 		t.Errorf("the same read under a guard stating its bounds was refused: %v", err)
 	}
@@ -41,13 +41,16 @@ func TestAnIndexOutsideTheFragmentIsRefused(t *testing.T) {
 // A PRIMITIVE'S `where` OUTSIDE THE FRAGMENT: a closed comparison is decided by
 // evaluation, true accepted and false refused; an open one is refused.
 func TestAPreconditionOutsideTheFragmentIsDecidedOrRefused(t *testing.T) {
-	tg := tempTarget(t, `(sig fdiv ((a any) (b any)) any pure (where (!= b 0)) (host expr "%s / %s"))`)
+	tg := tempTarget(t, "fn fdiv(a ∈ Any, b ∈ Any) (Any) pure where `!=`(b, 0) { host expr \"${a} / ${b}\" }")
 	for _, c := range []struct {
 		prog, want string
 	}{
-		{`(use tgt) (fn (x) (tgt.fdiv x 3.0))`, ""},
-		{`(use tgt) (fn (x) (tgt.fdiv x 0.0))`, "which is false"},
-		{`(use tgt) (fn (x y) (tgt.fdiv x (tgt.fdiv y 2.0)))`, "outside the decided fragment"},
+		{`use tgt
+fn t(x) { tgt.fdiv(x, 3.0) }`, ""},
+		{`use tgt
+fn t(x) { tgt.fdiv(x, 0.0) }`, "which is false"},
+		{`use tgt
+fn t(x, y) { tgt.fdiv(x, tgt.fdiv(y, 2.0)) }`, "outside the decided fragment"},
 	} {
 		notes, err := refineWith(t, tg, c.prog)
 		switch {
@@ -71,12 +74,12 @@ func TestAClosedComparisonIsEvaluatedExactly(t *testing.T) {
 		{`(!= 3.0 0)`, true}, {`(= 3 3)`, true}, {`(< 9007199254740992 9007199254740993)`, true},
 		{`(<= 2 2)`, true}, {`(> 0.5 1)`, false}, {`(>= -1 -2)`, true},
 	} {
-		v, closed := closedComparison(mustRead(t, c.src))
+		v, closed := closedComparison(mustCore(t, c.src))
 		if !closed || v != c.want {
 			t.Errorf("%s: got %v (closed %v), want %v", c.src, v, closed, c.want)
 		}
 	}
-	if _, closed := closedComparison(mustRead(t, `(< x 3)`)); closed {
+	if _, closed := closedComparison(mustCore(t, `(< x 3)`)); closed {
 		t.Error("a comparison with a name was taken as closed")
 	}
 }
@@ -88,13 +91,11 @@ func TestAClosedComparisonIsEvaluatedExactly(t *testing.T) {
 // fragment, so only the match can discharge it; a guard of a DIFFERENT relation
 // must not.
 func TestAnAtomIsMatchedByItsRelation(t *testing.T) {
-	tg := tempTarget(t, `(sig u64< ((a int) (b int)) bool pure (host expr "%s < %s"))
-    (sig u64<= ((a int) (b int)) bool pure (host expr "%s <= %s"))
-    (sig small ((x int)) int pure (where (< (* x x) 100)) (host expr "%s"))`)
-	if _, err := refineWith(t, tg, `(use tgt) (fn (a) (if (tgt.u64< (* a a) 100) (tgt.small a) 0))`); err != nil {
+	tg := tempTarget(t, "fn `u64<`(a ∈ Int, b ∈ Int) (Bool) pure { host expr \"${a} < ${b}\" }\nfn `u64<=`(a ∈ Int, b ∈ Int) (Bool) pure { host expr \"${a} <= ${b}\" }\nfn small(x ∈ Int) (Int) pure where x * x < 100 { host expr \"${x}\" }")
+	if _, err := refineWith(t, tg, "use tgt\nfn t(a) { if tgt.`u64<`(a * a, 100) { tgt.small(a) } else { 0 } }"); err != nil {
 		t.Errorf("a guard of the same relation in another spelling did not discharge it: %v", err)
 	}
-	if _, err := refineWith(t, tg, `(use tgt) (fn (a) (if (tgt.u64<= (* a a) 100) (tgt.small a) 0))`); !refusedUnproven(err) {
+	if _, err := refineWith(t, tg, "use tgt\nfn t(a) { if tgt.`u64<=`(a * a, 100) { tgt.small(a) } else { 0 } }"); !refusedUnproven(err) {
 		t.Errorf("a guard of a different relation discharged it: %v", err)
 	}
 }

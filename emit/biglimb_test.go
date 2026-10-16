@@ -38,7 +38,7 @@ var goWord = core.Word{Lo: -1 << 63, Hi: 1<<63 - 1}
 // operation is LINEAR and the host winning where it is QUADRATIC — so a target
 // declares what somebody measured.
 func TestTheTargetChoosesTheRepresentation(t *testing.T) {
-	sig := resultSig(t, "(int 0 (pow 2 1300))")
+	sig := resultSig(t, "0..2^1300")
 	for _, c := range []struct {
 		dir   string
 		limbs bool
@@ -132,11 +132,17 @@ func TestEveryTargetDeclaresTheCarryTrap(t *testing.T) {
 
 func resultSig(t *testing.T, result string) *core.Sig {
 	t.Helper()
-	forms, err := core.Read("(sig f ((n int)) " + result + ")")
-	if err != nil || len(forms) != 1 || forms[0].Sig == nil {
+	forms, err := core.Read("fn f(n ∈ Int) (" + result + ") { 0 }")
+	if err != nil {
 		t.Fatalf("read result %s: %v", result, err)
 	}
-	return forms[0].Sig
+	for _, f := range forms {
+		if f.Sig != nil && f.Name == "f" {
+			return f.Sig
+		}
+	}
+	t.Fatalf("read result %s: no claim", result)
+	return nil
 }
 
 func allProgSigs(p *core.Program) []*core.Sig {

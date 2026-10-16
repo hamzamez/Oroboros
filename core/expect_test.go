@@ -40,8 +40,11 @@ fn f(r) {
     expect 'err(x) = r else "why"
     x
 }`, "not the success constructor"},
-		{`(variant (result T E) (ok T) (err E) (success ok))
-		  (def f (fn (r) (expect (ok x) r x)))`, "a reason"},
+		{`set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok
+fn f(r) {
+    expect 'ok(x) = r
+    x
+}`, `"else" was expected`}, // the reason is grammar: expect p = e else "why"
 	} {
 		_, err := loadSrc(t, c.src)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
@@ -56,22 +59,21 @@ fn f(r) {
 func TestTheCrashAbsorbsItsContext(t *testing.T) {
 	for _, c := range []struct{ body, want string }{
 		// a primitive's argument
-		{`(go.- 1 (abandon "x"))`, `(abandon "x")`},
+		{"go.`-`(1, abandon(\"x\"))", `(abandon "x")`},
 		// an `if`'s condition is strict...
-		{`(if (go.> (abandon "x") 0) 1 2)`, `(abandon "x")`},
+		{"if go.`>`(abandon(\"x\"), 0) { 1 } else { 2 }", `(abandon "x")`},
 		// ...its branches are not
-		{`(if (go.> n 0) (abandon "x") 2)`, `(if (go.> n 0) (abandon "x") 2)`},
+		{"if go.`>`(n, 0) { abandon(\"x\") } else { 2 }", `(if (go.> n 0) (abandon "x") 2)`},
 		// a binding's value: the continuation never runs
-		{`(let x (abandon "x") (go.- x 1))`, `(abandon "x")`},
+		{"x = abandon(\"x\"); go.`-`(x, 1)", `(abandon "x")`},
 		// an effect before the crash stays, in order; a pure term is dropped
-		{`(go.f (!go.print n) (go.- n 1) (abandon "x"))`, ``},
+		{"go.f(go.print(n), go.`-`(n, 1), abandon(\"x\"))", ``},
 		// one after it never happens
-		{`(go.f (abandon "x") (!go.print n))`, `(abandon "x")`},
+		{"go.f(abandon(\"x\"), go.print(n))", `(abandon "x")`},
 		// a λ is a value and is not run
-		{`(go.each (fn (i) (abandon "x")))`, `(go.each (fn (i) (abandon "x")))`},
+		{`go.each(fn(i) { abandon("x") })`, `(go.each (fn (i) (abandon "x")))`},
 	} {
-		body := strings.ReplaceAll(c.body, "!go.print", "go.print")
-		got := reduceWith(t, `(use go) (def f (fn (n) `+body+`))`,
+		got := reduceWith(t, "use go\nfn f(n) { "+c.body+" }",
 			"f", "go.>", "go.-", "go.f", "go.each", "if", "!go.print", "!abandon")
 		if c.want == "" {
 			// the effect is bound, then the crash; the pure (go.- n 1) is gone
@@ -94,12 +96,12 @@ func TestTheCrashAbsorbsItsContext(t *testing.T) {
 // whose evaluation is an effect that weakening may not drop (ADR 0010).
 func TestTheConditionalsLaws(t *testing.T) {
 	for _, c := range []struct{ body, want string }{
-		{`(if (go.> n 0) true false)`, `(go.> n 0)`},
-		{`(if (go.> n 0) 7 7)`, `7`},
-		{`(if (go.> n m) n m)`, `(if (go.> n m) n m)`},
-		{`(if (go.read) 7 7)`, `(if (go.read) 7 7)`},
+		{"if go.`>`(n, 0) { true } else { false }", `(go.> n 0)`},
+		{"if go.`>`(n, 0) { 7 } else { 7 }", `7`},
+		{"if go.`>`(n, m) { n } else { m }", `(if (go.> n m) n m)`},
+		{`if go.read() { 7 } else { 7 }`, `(if (go.read) 7 7)`},
 	} {
-		got := reduceWith(t, `(use go) (def f (fn (n m) `+c.body+`))`, "f", "go.>", "if", "!go.read")
+		got := reduceWith(t, "use go\nfn f(n, m) { "+c.body+" }", "f", "go.>", "if", "!go.read")
 		if want := "(fn (n m) " + c.want + ")"; got != want {
 			t.Errorf("%s:\n got  %s\n want %s", c.body, got, want)
 		}

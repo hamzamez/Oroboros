@@ -1,5 +1,5 @@
-// Chapter 3 §3.1. The entry file beside noisy-lib.oro: its own bare term IS
-// reduced and printed, where the library's were not.
+// Chapter 3 §3.1. The entry file beside noisy-lib.oro: its entry point is
+// reduced and printed, and the library contributes only its declarations.
 use noisy-lib
 
-noisy_lib.k(x())
+export fn main() { noisy_lib.k(x()) }

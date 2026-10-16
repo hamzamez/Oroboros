@@ -44,12 +44,10 @@ func winEmit(t *testing.T, src string) string {
 // not `mov t, rsi` / `add t, 1` / `mov rsi, t`, which is what separates this
 // from hand-written assembly.
 func TestAsmLoopIsInPlace(t *testing.T) {
-	code := winEmit(t, `
-		(use x64)
-		(fn (n) (loop ((i 0) (acc 0))
-			(x64.setge i n)  acc
-			else             (again (x64.add i 1) (x64.add acc i))))
-	`)
+	code := winEmit(t, `use x64
+fn t(n) {
+    loop i = 0, acc = 0 { x64.setge(i, n) -> acc; else -> again(x64.add(i, 1), x64.add(acc, i)) }
+}`)
 	// The back edge: from the continue's arm to the jump to the head.
 	i, j := strings.Index(code, "\nLelse"), strings.Index(code, "jmp Ltop")
 	if i < 0 || j < i {
@@ -69,12 +67,8 @@ func TestAsmLoopIsInPlace(t *testing.T) {
 
 // A genuine cycle still needs one copy, and exactly one.
 func TestAsmSwapNeedsOneCopy(t *testing.T) {
-	code := winEmit(t, `
-		(use x64)
-		(fn (n) (loop ((a 1) (b 2) (k 0))
-			(x64.setge k n)  a
-			else             (again b a (x64.add k 1))))
-	`)
+	code := winEmit(t, `use x64
+fn t(n) { loop a = 1, b = 2, k = 0 { x64.setge(k, n) -> a; else -> again(b, a, x64.add(k, 1)) } }`)
 	body := between(code, "Ltop", "Lexit")
 	if n := strings.Count(body, "mov "); n != 3 {
 		t.Errorf("a swap should cost one copy and two moves, got %d:\n%s", n, body)
@@ -84,10 +78,8 @@ func TestAsmSwapNeedsOneCopy(t *testing.T) {
 // (jump …) is the whole of teaching a host to fold a comparison into a branch.
 // Without it every guard costs a setcc and a second compare.
 func TestAsmGuardIsOneCompare(t *testing.T) {
-	code := winEmit(t, `
-		(use x64)
-		(fn (a b) (if (x64.setl a b) 1 0))
-	`)
+	code := winEmit(t, `use x64
+fn t(a, b) { if x64.setl(a, b) { 1 } else { 0 } }`)
 	if strings.Contains(code, "setl") {
 		t.Errorf("a comparison in guard position materialised a boolean:\n%s", code)
 	}
@@ -99,10 +91,8 @@ func TestAsmGuardIsOneCompare(t *testing.T) {
 // The same predicate in VALUE position does need the boolean, and that is the
 // declaration's other half rather than a failure.
 func TestAsmComparisonAsValue(t *testing.T) {
-	code := winEmit(t, `
-		(use x64)
-		(fn (a b) (x64.setl a b))
-	`)
+	code := winEmit(t, `use x64
+fn t(a, b) { x64.setl(a, b) }`)
 	if !strings.Contains(code, "setl") {
 		t.Errorf("a comparison used as a value should materialise it:\n%s", code)
 	}
@@ -112,12 +102,12 @@ func TestAsmComparisonAsValue(t *testing.T) {
 // what makes a Win32 call cost nothing: kernel32 preserves all of them, so
 // nothing is saved around one.
 func TestAsmCallNeedsNoSpill(t *testing.T) {
-	code := winEmit(t, `
-		(use x64)
-		(use windows/kernel32)
-		(fn (x) (let a (kernel32.GetTickCount64)
-            (x64.add a x)))
-	`)
+	code := winEmit(t, `use x64
+use windows/kernel32
+fn t(x) {
+    a = kernel32.GetTickCount64()
+    x64.add(a, x)
+}`)
 	if !strings.Contains(code, "call GetTickCount64") {
 		t.Fatalf("no call emitted:\n%s", code)
 	}
@@ -129,7 +119,8 @@ func TestAsmCallNeedsNoSpill(t *testing.T) {
 // A float literal goes into the artifact as BITS, so the assembler's decimal
 // parser never gets a vote (ADR 0009).
 func TestAsmFloatLiteralIsBits(t *testing.T) {
-	winEmit(t, `(use x64) (fn (x) (x64.addsd x 0.1))`)
+	winEmit(t, `use x64
+fn t(x) { x64.addsd(x, 0.1) }`)
 	var found bool
 	for _, d := range emit.AsmData {
 		if strings.Contains(d, "3FB999999999999A") {

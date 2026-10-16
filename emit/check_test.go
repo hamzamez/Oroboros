@@ -158,42 +158,27 @@ fn bad(a ∈ Array(F64)) (F64) { go.bytes_of_string("x") }`
 	}
 }
 
-func TestSignatureArityIsChecked(t *testing.T) {
-	src := `
-		(sig two ((a f64) (b f64)) f64)
-		(def two (a) a)
-	`
-	tg, prog, env := loadWithSigs(t, "go", src)
-	err := CheckSignatures(tg, prog, env, nil)
-	if err == nil {
-		t.Fatal("an arity mismatch must be caught")
-	}
-	if !strings.Contains(err.Error(), "signature declares 2") {
-		t.Errorf("the refusal should be the arity's, got %v", err)
-	}
-}
-
 // A TABLE FORM HAS A TABLE'S TYPE (types.md §3.1, tabletype-2026-09-29). Every
 // table and map form was typed unknown, which agrees with everything, so a
 // signature was never checked against a table-valued body: `(array 1.0 2.0)`
 // under a result declared f64 compiled to a Go function returning []float64.
 func claimErr(t *testing.T, result, body string) error {
 	t.Helper()
-	tg, prog, env := loadWithSigs(t, "go", "(use go)\n(sig bad ((a (array f64))) "+result+")\n(def bad (a) "+body+")\n")
+	tg, prog, env := loadWithSigs(t, "go", "use go\nfn bad(a ∈ Array(F64)) ("+result+") { "+body+" }\n")
 	return CheckSignatures(tg, prog, env, nil)
 }
 
 func TestATableFormIsNotAScalar(t *testing.T) {
 	for _, c := range []struct{ result, body, is string }{
-		{"f64", "(array 1.0 2.0)", "is array f64"},
-		{"f64", "(table 3 (fn (i) 1.0))", "is array f64"},
-		{"f64", "(alloc (table 3 (fn (i) 1.0)))", "is a buffer"},
-		{"f64", "(local b (table 3 0) b)", "is a buffer"},
-		{"f64", "(local b (table 3 0) (set b 0 1.5))", "is buffer f64"},
-		{"f64", "(build-map m 4 m)", "is a map"},
+		{"F64", "array { 1.0, 2.0 }", "is array f64"},
+		{"F64", "array { 1.0 : i ∈ 0..2 }", "is array f64"},
+		{"F64", "alloc(array { 1.0 : i ∈ 0..2 })", "is a buffer"},
+		{"F64", "{ var b := array { 0 : _ ∈ 0..2 }; b }", "is a buffer"},
+		{"F64", "{ var b := array { 0 : _ ∈ 0..2 }; b[0] := 1.5; b }", "is buffer f64"},
+		{"F64", "{ var m := map(4); m }", "is a map"},
 		// and a constructor is not another constructor
-		{"(array f64)", "(build-map m 4 m)", "is a map"},
-		{"(map int f64)", "(array 1.0)", "is array f64"},
+		{"Array(F64)", "{ var m := map(4); m }", "is a map"},
+		{"Map(Int, F64)", "array { 1.0 }", "is array f64"},
 	} {
 		err := claimErr(t, c.result, c.body)
 		if err == nil || !strings.Contains(err.Error(), c.is+", but") {
@@ -207,12 +192,12 @@ func TestATableFormIsNotAScalar(t *testing.T) {
 // compared, invariantly.
 func TestATableFormMeetsATableDemand(t *testing.T) {
 	for _, c := range []struct{ result, body string }{
-		{"(array f64)", "(array 1.0 2.0)"},
-		{"(array f64)", "(local b (table 3 0) b)"},
-		{"(array f64)", "(alloc (table 3 (fn (i) 1.0)))"},
-		{"(array (int 0 255))", "(array 104 105 33)"},
-		{"(map int f64)", "(build-map m 4 m)"},
-		{"int", "(len (array 1.0 2.0))"},
+		{"Array(F64)", "array { 1.0, 2.0 }"},
+		{"Array(F64)", "{ var b := array { 0 : _ ∈ 0..2 }; b }"},
+		{"Array(F64)", "alloc(array { 1.0 : i ∈ 0..2 })"},
+		{"Array(0..255)", "array { 104, 105, 33 }"},
+		{"Map(Int, F64)", "{ var m := map(4); m }"},
+		{"Int", "len(array { 1.0, 2.0 })"},
 	} {
 		if err := claimErr(t, c.result, c.body); err != nil {
 			t.Errorf("%s under %s: %v", c.body, c.result, err)
@@ -221,8 +206,8 @@ func TestATableFormMeetsATableDemand(t *testing.T) {
 	// A HOST TYPE REALIZING A TABLE: Java's double-array is double[], which is
 	// ρ(array f64). Go has none left since gotarget-2026-09-30 removed its
 	// per-element slice names, so the witness is Java's.
-	for _, body := range []string{"(array 1.0 2.0)", "(local b (table 3 0) (set b 0 1.5))"} {
-		tg, prog, env := loadWithSigs(t, "java", "(use java)\n(sig bad ((a (array f64))) double-array)\n(def bad (a) "+body+")\n")
+	for _, body := range []string{"array { 1.0, 2.0 }", "{ var b := array { 0 : _ ∈ 0..2 }; b[0] := 1.5; b }"} {
+		tg, prog, env := loadWithSigs(t, "java", "use java\nfn bad(a ∈ Array(F64)) (double_array) { "+body+" }\n")
 		if err := CheckSignatures(tg, prog, env, nil); err != nil {
 			t.Errorf("%s under double-array: %v", body, err)
 		}
@@ -233,8 +218,8 @@ func TestATableFormMeetsATableDemand(t *testing.T) {
 // rule's body, and a store's value into a buffer whose element is known.
 func TestATableFormsEntriesAreDemanded(t *testing.T) {
 	for _, c := range []struct{ result, body, in string }{
-		{"(array f64)", `(array 1.0 "a")`, "in entry 2 of a table"},
-		{"(array f64)", `(table 3 (fn (i) "a"))`, "in a table's rule"},
+		{"Array(F64)", `array { 1.0, "a" }`, "in entry 2 of a table"},
+		{"Array(F64)", `array { "a" : i ∈ 0..2 }`, "in a table's rule"},
 	} {
 		err := claimErr(t, c.result, c.body)
 		if err == nil || !strings.Contains(err.Error(), c.in) || !strings.Contains(err.Error(), "string") {

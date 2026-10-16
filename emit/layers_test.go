@@ -30,10 +30,9 @@ func TestGlueIsOrderFreeAndOverrideIsOrdered(t *testing.T) {
 	// Two layers, both declaring `f`, disagreeing on purpose.
 	near, far := filepath.Join(root, "near"), filepath.Join(root, "far")
 	writeTarget(t, filepath.Join(near, "x"), "a",
-		`(target x (backend go) (sig f (int) int pure (host expr "NEAR(%s)")))`)
+		"backend go\nfn f(a ∈ Int) (Int) pure { host expr \"NEAR(${a})\" }\n")
 	writeTarget(t, filepath.Join(far, "x"), "a",
-		`(target x (backend go) (sig f (int) int pure (host expr "FAR(%s)"))
-		            (sig g (int) int pure (host expr "ONLYFAR(%s)")))`)
+		"backend go\nfn f(a ∈ Int) (Int) pure { host expr \"FAR(${a})\" }\nfn g(a ∈ Int) (Int) pure { host expr \"ONLYFAR(${a})\" }\n")
 
 	tg, err := LoadTargetLayers("x", []string{near, far})
 	if err != nil {
@@ -62,9 +61,9 @@ func TestGlueIsOrderFreeAndOverrideIsOrdered(t *testing.T) {
 	// cannot change a program.
 	one := filepath.Join(root, "one")
 	writeTarget(t, filepath.Join(one, "x"), "a",
-		`(target x (backend go) (sig f (int) int pure (host expr "A(%s)")))`)
+		"backend go\nfn f(a ∈ Int) (Int) pure { host expr \"A(${a})\" }\n")
 	writeTarget(t, filepath.Join(one, "x"), "b",
-		`(target x (sig f (int) int pure (host expr "B(%s)")))`)
+		"fn f(a ∈ Int) (Int) pure { host expr \"B(${a})\" }\n")
 	if _, err := LoadTargetLayers("x", []string{one}); err == nil {
 		t.Error("two files in ONE layer declaring `f` must be refused; glue requires agreement")
 	}
@@ -78,7 +77,7 @@ func TestGlueIsOrderFreeAndOverrideIsOrdered(t *testing.T) {
 func TestAnAbsentLayerIsTheIdentity(t *testing.T) {
 	root := t.TempDir()
 	writeTarget(t, filepath.Join(root, "x"), "a",
-		`(target x (backend go) (sig f (int) int pure (host expr "%s")))`)
+		"backend go\nfn f(a ∈ Int) (Int) pure { host expr \"${a}\" }\n")
 	tg, err := LoadTargetLayers("x", []string{filepath.Join(root, "nothing-here"), root})
 	if err != nil {
 		t.Fatalf("an absent layer must be skipped, not refused: %v", err)
@@ -106,7 +105,7 @@ func TestALibraryMayProvideANative(t *testing.T) {
 	root := t.TempDir()
 	lib := filepath.Join(root, "lib")
 	writeTarget(t, lib, "words-go",
-		`(provides go std/words (sig shout (string) string pure (host expr "UP(%s)")))`)
+		"provides go std/words {\n    fn shout(a ∈ String) (String) pure { host expr \"UP(${a})\" }\n}\n")
 
 	// ../lib too: the Go target reads lib/result for its fallible declarations
 	// (retract.go), so its library path must hold that module.
@@ -123,7 +122,7 @@ func TestALibraryMayProvideANative(t *testing.T) {
 	}
 	// A `provides` for a DIFFERENT target must not leak into this one.
 	writeTarget(t, lib, "words-js",
-		`(provides js std/words (sig shout (string) string pure (host expr "JS(%s)")))`)
+		"provides js std/words {\n    fn shout(a ∈ String) (String) pure { host expr \"JS(${a})\" }\n}\n")
 	tg2, err := LoadTargetLayers("go", []string{"../targets"}, []string{lib, "../lib"})
 	if err != nil {
 		t.Fatal(err)

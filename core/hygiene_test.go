@@ -60,7 +60,7 @@ func faithful(t *Term) (string, bool) {
 // first binder — correct by index, and captured the moment anything opens it
 // by name. tally.oro's checker reported "b is int, but string is required".
 func TestAResidualCanBeOpenedByItsHints(t *testing.T) {
-	src, prims := splitPrims("(prim !cmp)\n(fn (cs a) ((fn (a b) (cmp a b)) (cs (a 0)) (cs (a 1))))", "")
+	src, prims := splitPrims("(prim !cmp)\nt = fn(cs, a) { fn(a, b) { cmp(a, b) }(cs(a[0]), cs(a[1])) }", "")
 	forms, err := Read(src)
 	if err != nil {
 		t.Fatal(err)

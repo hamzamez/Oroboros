@@ -16,9 +16,27 @@ import "testing"
 // the identity `(a/b)*b + a%b == a` holds in every row.
 func foldNorm(t *testing.T, src string) string {
 	t.Helper()
-	prims := "(prim +)\n(prim -)\n(prim *)\n(prim /)\n(prim %)\n" +
-		"(prim <)\n(prim <=)\n(prim >)\n(prim >=)\n(prim =)\n"
-	return norm(t, prims+src, "")
+	return normCore(t, src, Word{}, "+", "-", "*", "/", "%", "<", "<=", ">", ">=", "=")
+}
+
+// normCore normalizes a core term written as its text (ParseTerm) under the
+// named primitives, word the target's or zero for the tests' default: the
+// reducer's own laws, below any surface.
+func normCore(t *testing.T, src string, word Word, prims ...string) string {
+	t.Helper()
+	term, err := ParseTerm(src)
+	if err != nil {
+		t.Fatalf("%s: %v", src, err)
+	}
+	env := testEnv(&Program{Defs: map[string]*Term{}}, prims...)
+	if word != (Word{}) {
+		env.Word = word
+	}
+	out, err := Normalize(term, env, DefaultFuel)
+	if err != nil {
+		t.Fatalf("%s: %v", src, err)
+	}
+	return out.String()
 }
 
 func TestIntegerOperatorsFold(t *testing.T) {
@@ -119,23 +137,7 @@ func TestNoFloatFolds(t *testing.T) {
 func TestFoldingOnAFullWordIsChecked(t *testing.T) {
 	fold := func(src string) string {
 		t.Helper()
-		prims := "(prim +)\n(prim -)\n(prim *)\n(prim /)\n(prim %)\n"
-		src, ps := splitPrims(prims+src, "")
-		forms, err := Read(src)
-		if err != nil {
-			t.Fatal(err)
-		}
-		prog, terms, err := Load(forms)
-		if err != nil {
-			t.Fatal(err)
-		}
-		env := testEnv(prog, ps...)
-		env.Word = testGo
-		out, err := Normalize(entryTerm(t, prog, terms), env, DefaultFuel)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return out.String()
+		return normCore(t, src, testGo, "+", "-", "*", "/", "%")
 	}
 	for _, c := range []struct {
 		src   string

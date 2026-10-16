@@ -29,10 +29,16 @@ func ensuresOn(t *testing.T, tg *emit.Target, sig *core.Sig, body *core.Term) er
 func sigRead(t *testing.T, src string) *core.Sig {
 	t.Helper()
 	forms, err := core.Read(src)
-	if err != nil || len(forms) != 1 || forms[0].Sig == nil {
+	if err != nil {
 		t.Fatalf("read %s: %v", src, err)
 	}
-	return forms[0].Sig
+	for _, f := range forms {
+		if f.Sig != nil && f.Name == "sq" {
+			return f.Sig
+		}
+	}
+	t.Fatalf("read %s: no claim", src)
+	return nil
 }
 
 // A RANGE IN THE RESULT POSITION IS A GUARANTEE: `result : (int LO HI)` is
@@ -44,15 +50,15 @@ func TestARangedResultIsChecked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := mustRead(t, "(fn (n) (go.* n n))")
+	body := mustRead(t, "fn(n) { go.`*`(n, n) }")
 	for _, c := range []struct {
 		result string
 		refuse bool
 	}{
-		{"(int 0 10000)", false}, // true: n ≤ 100, so n·n ≤ 10000
-		{"(int 0 5)", true},      // false: the body reaches 10000
+		{"0..10000", false}, // true: n ≤ 100, so n·n ≤ 10000
+		{"0..5", true},      // false: the body reaches 10000
 	} {
-		sig := sigRead(t, "(sig sq ((n (int 0 100))) "+c.result+")")
+		sig := sigRead(t, "fn sq(n ∈ 0..100) ("+c.result+") { n }")
 		if sig.Ensures == nil {
 			t.Fatalf("%s: a ranged result produced no postcondition", c.result)
 		}
@@ -78,8 +84,8 @@ func TestAnUndecidedPostconditionIsRefused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sig := sigRead(t, "(sig sq ((n (int 0 100))) int (ensures (>= result n)))")
-	err = ensuresOn(t, tg, sig, mustRead(t, "(fn (n) (go.* n n))"))
+	sig := sigRead(t, "fn sq(n ∈ 0..100) (r ∈ Int) ensure r >= n { n }")
+	err = ensuresOn(t, tg, sig, mustRead(t, "fn(n) { go.`*`(n, n) }"))
 	if err == nil || !strings.Contains(err.Error(), "refinements.md §3a") {
 		t.Errorf("a relational postcondition was not refused: %v", err)
 	}
@@ -93,15 +99,15 @@ func TestABoundPastTheEndsIsExact(t *testing.T) {
 		t.Fatal(err)
 	}
 	big := "1606938044258990275541962092341162602522202993782792835301376" // 2^200
-	bounded := sigRead(t, "(sig sq ((n (int 0 100))) int (ensures (<= result "+big+")))")
+	bounded := sigRead(t, "fn sq(n ∈ 0..100) (r ∈ Int) ensure r <= "+big+" { n }")
 	if bounded.Ensures == nil {
 		t.Skip("the reader does not keep a literal past int64 in an ensures")
 	}
-	if err := ensuresOn(t, tg, bounded, mustRead(t, "(fn (n) (go.* n n))")); err != nil {
+	if err := ensuresOn(t, tg, bounded, mustRead(t, "fn(n) { go.`*`(n, n) }")); err != nil {
 		t.Errorf("a finite result against 2^200 was refused: %v", err)
 	}
-	unbounded := sigRead(t, "(sig sq ((n int)) (int 0 +inf) (ensures (<= result "+big+")))")
-	if err := ensuresOn(t, tg, unbounded, mustRead(t, "(fn (n) (go.* n n))")); err == nil {
+	unbounded := sigRead(t, "fn sq(n ∈ Int) (r ∈ 0..`+inf`) ensure r <= "+big+" { n }")
+	if err := ensuresOn(t, tg, unbounded, mustRead(t, "fn(n) { go.`*`(n, n) }")); err == nil {
 		t.Errorf("an unbounded result was accepted against 2^200")
 	}
 }

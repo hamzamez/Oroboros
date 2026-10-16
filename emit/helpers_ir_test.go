@@ -132,11 +132,11 @@ const mapSrc = "use go\nexport fn run(n ∈ Int, k ∈ Int) (Int) {\n    m = bui
 
 func mustRead(t *testing.T, src string) *core.Term {
 	t.Helper()
-	forms, err := core.Read(src)
+	term, err := core.ReadTerm(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return forms[0].Term
+	return term
 }
 
 func receiveTarget(t *testing.T) *emit.Target {
@@ -161,11 +161,18 @@ func strSig(p string) *core.Sig {
 
 func sigOf(t *testing.T, decl string) *core.Sig {
 	t.Helper()
-	forms, err := core.Read("(sig sq ((n " + decl + ")) int)")
-	if err != nil || len(forms) != 1 || forms[0].Sig == nil {
+	src := "fn sq(n ∈ " + decl + ") (Int) { n }"
+	forms, err := core.Read(src)
+	if err != nil {
 		t.Fatalf("read sig %s: %v", decl, err)
 	}
-	return forms[0].Sig
+	for _, f := range forms {
+		if f.Sig != nil && f.Name == "sq" {
+			return f.Sig
+		}
+	}
+	t.Fatalf("read %s: no claim", src)
+	return nil
 }
 
 // refineOn runs the REFINEMENT pass, which is where a bounds obligation is

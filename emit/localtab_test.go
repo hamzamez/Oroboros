@@ -12,15 +12,13 @@ import (
 // outside constrains. The zero fill has no binder and was proven.
 func TestAFilledTableHasItsSizeAsLength(t *testing.T) {
 	prog := func(fill, idx string) string {
-		return `(export f)
-(sig f ((n (int 1 100))) int)
-(def f (n) (let src (local s (table (+ n 1) ` + fill + `) s) (src ` + idx + `)))`
+		return "export fn f(n ∈ 1..100) (Int) {\n    src = { var s := array { " + fill + " ∈ 0..n+1-1 }; s }\n    src[" + idx + "]\n}"
 	}
-	for _, fill := range []string{"0", "7", "(fn (i) i)"} {
+	for _, fill := range []string{"0 : _", "7 : _", "i : i"} {
 		if err := refineGo(t, prog(fill, "n")); err != nil {
 			t.Errorf("fill %s: len src = n + 1, so (src n) is in range: %v", fill, err)
 		}
-		if err := refineGo(t, prog(fill, "(+ n 1)")); err == nil || !strings.Contains(err.Error(), "is an indexing") {
+		if err := refineGo(t, prog(fill, "n + 1")); err == nil || !strings.Contains(err.Error(), "is an indexing") {
 			t.Errorf("fill %s: (src (+ n 1)) is one past the end and must be refused: %v", fill, err)
 		}
 	}
@@ -33,12 +31,10 @@ func TestAFilledTableHasItsSizeAsLength(t *testing.T) {
 // index out of range [5] with length 2 at n = 1, k = 5.
 func TestALengthNamesNoBinderOfItsValue(t *testing.T) {
 	prog := func(guard string) string {
-		return `(export f)
-(sig f ((n (int 1 100)) (k (int 0 1000))) int)
-(def f (n k)
-  (let src (local s (table (+ n 1) 7) s)
-       dst (local d (table (+ n 5) 7) d)
-    (if (< k (len ` + guard + `)) (src k) 0)))`
+		return "export fn f(n ∈ 1..100, k ∈ 0..1000) (Int) {\n" +
+			"    src = { var s := array { 7 : _ ∈ 0..n+1-1 }; s }\n" +
+			"    dst = { var d := array { 7 : _ ∈ 0..n+5-1 }; d }\n" +
+			"    if k < len(" + guard + ") { src[k] } else { 0 }\n}"
 	}
 	if err := refineGo(t, prog("dst")); err == nil || !strings.Contains(err.Error(), "(src k) is an indexing") {
 		t.Errorf("k < len dst = n + 5 does not bound a read of src, n + 1 long: %v", err)

@@ -51,17 +51,16 @@ func TestUsedLibrariesJoinTheLineSortedAndOnce(t *testing.T) {
 // `lib` with no string is refused rather than silently dropped.
 func TestLibAndLinkParse(t *testing.T) {
 	parse := func(src string) (*Target, error) {
-		term, err := core.ReadTerm(src)
+		terms, err := core.ReadTarget(src, "t", ".", ".")
 		if err != nil {
-			t.Fatal(err)
+			return nil, err
 		}
-		return parseTarget(term, "t.oro")
+		return parseTarget(terms[0], "t.oro")
 	}
-	tg, err := parse(`(target t
-  (backend x86-64)
-  (link "kernel32" "ucrt")
-  (link "vcruntime")
-  (sig f (int) int (host expr "call F" (import "F") (lib "user32"))))`)
+	tg, err := parse(`backend x86_64
+link "kernel32" "ucrt"
+link "vcruntime"
+fn f(a ∈ Int) (Int) { host expr "call F" import "F" lib "user32" }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,10 +70,10 @@ func TestLibAndLinkParse(t *testing.T) {
 	if p := tg.Prims["f"]; p.Lib != "user32" || p.Import != "F" {
 		t.Fatalf("prim f: lib %q import %q", p.Lib, p.Import)
 	}
-	if _, err := parse(`(target t (sig f (int) int (host expr "call F" (lib user32))))`); err == nil {
+	if _, err := parse(`fn f(a ∈ Int) (Int) { host expr "call F" lib user32 }`); err == nil {
 		t.Fatal("(lib user32) with a bare name was accepted")
 	}
-	if _, err := parse(`(target t (link))`); err == nil {
+	if _, err := parse(`link`); err == nil {
 		t.Fatal("(link) naming nothing was accepted")
 	}
 }

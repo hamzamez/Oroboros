@@ -14,17 +14,12 @@ import (
 // something else should not have to repeat it. A fixture that declares its own
 // word, or tests its absence, is left alone.
 func withWord(src string) string {
-	if strings.Contains(src, " word)") || strings.Contains(src, "no-word") {
+	if regexp.MustCompile(`(?m)^\s*repr .* word\s*$`).MatchString(src) || strings.Contains(src, "no-word") {
 		return src
 	}
-	loc := targetHead.FindStringIndex(src)
-	if loc == nil {
-		return src
-	}
-	return src[:loc[1]] + " (repr (int -9223372036854775808 9223372036854775807) word)" + src[loc[1]:]
+	// The target is its file, and its word a line of it.
+	return "repr -2^63..2^63-1 word\n" + src
 }
-
-var targetHead = regexp.MustCompile(`\(target\s+[^\s()]+`)
 
 // A HOST PRECONDITION IS THE HOST'S OWN BOUNDARY, once `int` at a host
 // boundary is the host's integer (ADR 0026). `hex.EncodedLen` is n ↦ 2n on
@@ -34,8 +29,7 @@ var targetHead = regexp.MustCompile(`\(target\s+[^\s()]+`)
 // have. Each edge is pinned from both sides.
 func TestEncodedLenIsExactOnGosOwnBoundary(t *testing.T) {
 	call := func(lo, hi string) error {
-		return refineGo(t, "(use go/encoding/hex)\n(export f)\n"+
-			"(sig f ((n (int "+lo+" "+hi+"))) int)\n(def f (n) (hex.EncodedLen n))")
+		return refineGo(t, "use go/encoding/hex\nexport fn f(n ∈ "+lo+".."+hi+") (Int) { hex.EncodedLen(n) }")
 	}
 	for _, c := range []struct {
 		lo, hi string
@@ -107,10 +101,11 @@ fn t() { strconv.Itoa(1) }`, "go")
 // goal says `u64%` and the fact's instance `%`, and each divisor is `(u64-of k)`.
 func TestARemainderBoundsAPrecondition(t *testing.T) {
 	for _, hi := range []string{"1000000", "18446744073709551615"} {
-		notes, err := refineWorded(t, `(use go/math/bits as b)
-(export f)
-(sig f ((h (int 0 `+hi+`)) (l (int 0 18446744073709551615))) any)
-(def f (h l) ((b.Div64 (% h 1000000000000000000) l 1000000000000000000) (fn (q r) q)))`)
+		notes, err := refineWorded(t, `use go/math/bits as b
+export fn f(h ∈ 0..`+hi+`, l ∈ 0..2^64-1) (Any) {
+    (q, r) = b.Div64(h % 1000000000000000000, l, 1000000000000000000)
+    q
+}`)
 		if err != nil || propagated(notes) {
 			t.Errorf("h ≤ %s: h mod k < k must be PROVEN: err %v, notes %s", hi, err, notes)
 		}

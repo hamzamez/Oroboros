@@ -127,11 +127,7 @@ func TestJavaSharesRecordsByShape(t *testing.T) {
 		delete(emit.JavaRecords, k)
 	}
 	for _, n := range []string{"d", "e"} {
-		if _, err := genOn(t, "java", `
-			(use java)
-			(export `+n+`) (sig `+n+` ((a int) (b int)) (tuple int int))
-			(def `+n+` (fn (a b) (tuple (java.+ a b) (java.- a b))))
-		`, n); err != nil {
+		if _, err := genOn(t, "java", "use java\nexport fn "+n+"(a ∈ Int, b ∈ Int) (Int × Int) { (java.`+`(a, b), java.`-`(a, b)) }", n); err != nil {
 			t.Fatal(err)
 		}
 	}

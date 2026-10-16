@@ -56,6 +56,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"oroboros/gauntlet/stdlib/jdecl"
 )
 
 // ------------------------------------------------------------------ the reasons
@@ -113,15 +115,15 @@ type verdict struct {
 // ladder picks the storage back. A BOXED TYPE IS ITS PRIMITIVE, because javac
 // inserts the conversion in both directions.
 var scalar = map[string]string{
-	"long": "int", "java.lang.Long": "int",
-	"int": "(int -2147483648 2147483647)", "java.lang.Integer": "(int -2147483648 2147483647)",
-	"short": "(int -32768 32767)", "java.lang.Short": "(int -32768 32767)",
-	"byte": "(int -128 127)", "java.lang.Byte": "(int -128 127)",
-	"char": "(int 0 65535)", "java.lang.Character": "(int 0 65535)",
-	"boolean": "bool", "java.lang.Boolean": "bool",
-	"double": "f64", "java.lang.Double": "f64",
-	"float": "f64", "java.lang.Float": "f64",
-	"java.lang.String": "string",
+	"long": "Int", "java.lang.Long": "Int",
+	"int": jdecl.Range("-2147483648", "2147483647"), "java.lang.Integer": jdecl.Range("-2147483648", "2147483647"),
+	"short": jdecl.Range("-32768", "32767"), "java.lang.Short": jdecl.Range("-32768", "32767"),
+	"byte": jdecl.Range("-128", "127"), "java.lang.Byte": jdecl.Range("-128", "127"),
+	"char": jdecl.Range("0", "65535"), "java.lang.Character": jdecl.Range("0", "65535"),
+	"boolean": "Bool", "java.lang.Boolean": "Bool",
+	"double": "F64", "java.lang.Double": "F64",
+	"float": "F64", "java.lang.Float": "F64",
+	"java.lang.String": "String",
 }
 
 var (
@@ -224,7 +226,7 @@ func jspell(t string) string {
 		return s
 	}
 	if strings.HasSuffix(t, "[]") {
-		return "(array " + jspell(t[:len(t)-2]) + ")"
+		return jdecl.Array(jset(t[:len(t)-2]))
 	}
 	// `[]` FIRST, and inside a type argument it is not a table but part of a
 	// NAME: `Map<Thread, StackTraceElement[]>` is one opaque token, and `[` is
@@ -233,6 +235,15 @@ func jspell(t string) string {
 	r := strings.NewReplacer("[]", "-array", ".", "-", "<", "-of-", ">", "",
 		", ", "-and-", ",", "-and-", " ", "", "$", "-")
 	return r.Replace(t)
+}
+
+// jset is a Java type's set as J writes it: a scalar's or a table's, or an
+// opaque type's name by σ_J.
+func jset(t string) string {
+	if _, isScalar := scalar[t]; isScalar || strings.HasSuffix(t, "[]") {
+		return jspell(t)
+	}
+	return jdecl.Name(jspell(t))
 }
 
 // rawOf strips the type arguments a generic class's members are written
@@ -841,19 +852,19 @@ func emit(dir string, syms []sym) error {
 			return strings.Join(list[i].params, ",") < strings.Join(list[j].params, ",")
 		})
 		types := map[string]string{}
-		spellQ := func(t string) string {
+		var spellQ func(t string) string
+		spellQ = func(t string) string {
 			if _, isScalar := scalar[t]; isScalar {
 				return jspell(t)
 			}
+			// A TABLE OF TABLES records its innermost element, an opaque type, and
+			// not `String[]` as a type named `(array string)`, which the old
+			// generator declared as a type function (step 5b.3).
 			if strings.HasSuffix(t, "[]") {
-				e := t[:len(t)-2]
-				if _, isScalar := scalar[e]; !isScalar {
-					types[jspell(e)] = e
-				}
-				return "(array " + jspell(e) + ")"
+				return jdecl.Array(spellQ(t[:len(t)-2]))
 			}
 			types[jspell(t)] = t
-			return jspell(t)
+			return jset(t)
 		}
 		// OVERLOADING IS THE FORMAT PROBLEM THIS HOST HAS AND THE OTHER TWO DO
 		// NOT. `tg.Prims` is keyed by NAME ALONE, so `nextInt()` and
@@ -891,7 +902,8 @@ func emit(dir string, syms []sym) error {
 			if s.kind == "ctor" {
 				pname = simple
 			}
-			var args, holes []string
+			var args []jdecl.Param
+			var holes []string
 			// EVERY MEMBER LIVES IN ITS CLASS'S MODULE, STATIC OR NOT — which
 			// is what targets/java/lang.oro already does by hand: `(use
 			// java/Math)` then `(Math.abs x)`, reading exactly as Java reads.
@@ -912,16 +924,13 @@ func emit(dir string, syms []sym) error {
 				// A METHOD'S RECEIVER IS ARGUMENT 0 — the convention Win32's
 				// `HANDLE` used and gomethods-2026-09-09 generalised. A generic
 				// class is named RAW here, which is what the JVM erases it to.
-				args = append(args, "(self "+spellQ(rawOf(s.owner))+")")
-				holes = append(holes, "%s")
+				args = append(args, jdecl.Param{Name: "self", Set: spellQ(rawOf(s.owner))})
+				holes = append(holes, jdecl.Hole("self"))
 			}
 			for k, a := range s.params {
-				args = append(args, fmt.Sprintf("(a%d %s)", k, spellQ(a)))
-				holes = append(holes, "%s")
-			}
-			argList := "(none)"
-			if len(args) > 0 {
-				argList = "(" + strings.Join(args, " ") + ")"
+				nm := fmt.Sprintf("a%d", k)
+				args = append(args, jdecl.Param{Name: nm, Set: spellQ(a)})
+				holes = append(holes, jdecl.Hole(nm))
 			}
 			callArgs := holes
 			if !s.static {
@@ -955,8 +964,7 @@ func emit(dir string, syms []sym) error {
 					continue
 				}
 				kind = "stmt"
-				res = strings.TrimSuffix(strings.TrimPrefix(args[0],
-					"("+strings.Fields(args[0][1:])[0]+" "), ")")
+				res = args[0].Set
 			default:
 				res = spellQ(s.results[0])
 			}
@@ -966,8 +974,8 @@ func emit(dir string, syms []sym) error {
 				pname = fmt.Sprintf("%s%d", pname, k)
 				overloaded++
 			}
-			fmt.Fprintf(modBuf(mod), "    (sig %s %s %s (host %s %q))\n",
-				pname, strings.Replace(argList, "(none)", "()", 1), res, kind, call)
+			modBuf(mod).WriteString(jdecl.Fn{Name: pname, Params: args, Result: res, Kind: kind,
+				Template: call}.String())
 			n++
 		}
 		// THE EDGES FOR THE TYPES THIS FILE DECLARES, put with the SUBTYPE,
@@ -1008,7 +1016,7 @@ func emit(dir string, syms []sym) error {
 			// is lost, because `ValueType` normalises a range to `int` and `int`
 			// carries the edges. `string` and `int` are names; the other boxes
 			// are ranges and go through `int`.
-			if strings.ContainsAny(k, "() ") {
+			if strings.Contains(k, "..") {
 				continue
 			}
 			ups := sub[rawOf(q)]
@@ -1027,18 +1035,17 @@ func emit(dir string, syms []sym) error {
 		}
 
 		var b strings.Builder
-		fmt.Fprintf(&b, "; GENERATED by gauntlet/stdlib/jvm.go — do not edit.\n")
-		fmt.Fprintf(&b, "; The declarable subset of the JVM's %s.\n", p)
-		b.WriteString("(target java\n")
+		b.WriteString(jdecl.Comment("GENERATED by gauntlet/stdlib/jvm.go — do not edit.",
+			"The declarable subset of the JVM's "+p+"."))
 		// THE WORD (ADR 0026): `long`, 64-bit two's complement by the JLS.
-		b.WriteString("  (repr (int -9223372036854775808 9223372036854775807) word)\n")
+		b.WriteString(jdecl.Word("-9223372036854775808", "9223372036854775807"))
 		var tn []string
 		for k := range types {
 			tn = append(tn, k)
 		}
 		sort.Strings(tn)
 		for _, k := range tn {
-			fmt.Fprintf(&b, "  (type %s (host %q))\n", k, jsrc(types[k]))
+			b.WriteString(jdecl.Set(k, jsrc(types[k])))
 		}
 		if len(tn) > 0 {
 			b.WriteString("\n")
@@ -1049,7 +1056,7 @@ func emit(dir string, syms []sym) error {
 		}
 		sort.Strings(en)
 		for _, k := range en {
-			fmt.Fprintf(&b, "  (implements %s %s)\n", k, strings.Join(edges[k], " "))
+			b.WriteString(jdecl.Axiom(k, edges[k]))
 			edgeSubjects[k] = true
 			for _, up := range edges[k] {
 				edgePairs[k+" "+up] = true
@@ -1064,9 +1071,8 @@ func emit(dir string, syms []sym) error {
 		}
 		sort.Strings(mn)
 		for _, k := range mn {
-			fmt.Fprintf(&b, "  (module %s\n%s  )\n", k, mods[k].String())
+			b.WriteString(jdecl.Module(k, mods[k].String()))
 		}
-		b.WriteString(")\n")
 		// THE FILE IS THE PATH (ADR 0025), with `.` the JVM's separator.
 		out := filepath.Join(dir, filepath.FromSlash(strings.ReplaceAll(p, ".", "/"))+".oro")
 		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {

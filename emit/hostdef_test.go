@@ -129,13 +129,19 @@ func TestHostDeclarationsAreDefinitions(t *testing.T) {
 // and a variadic list of cells beside a fixed cell.
 func TestHostDeclarationShapes(t *testing.T) {
 	for _, src := range []string{
-		`(sig Get ((c (cell int))) (tuple) (host stmt "get(%s)"))`,
-		`(sig Fill ((b (buffer (int 0 255)))) (buffer (int 0 255)) (host expr "fill(%s)"))`,
-		`(sig Put ((buffer (int 0 255)) int) (tuple (buffer (int 0 255)) int) pure (host expr "put(%s, %s)"))`,
-		`(sig Now (none) int (host expr "now()"))`,
-		`(sig Two ((x int) (y int)) int pure (where (< x y)) (ensures (> result 0)) (host expr "%s+%s" (import "m")))`,
-		`(sig Scan ((s bytestring) (n (cell int)) (a (array (cell go.Value)))) (tuple) variadic (host expr "scan(%s, %s, %s...)"))`,
-		`(const Max 9 (host "m.Max" (import "m")))`,
+		`fn Get(c ∈ Int inout) (()) { host stmt "get(${c})" }`,
+		`fn Fill(b ∈ Array(0..255) linear) (buffer(0..255)) { host expr "fill(${b})" }`,
+		`fn Put(a ∈ Array(0..255) linear, b ∈ Int) (buffer(0..255) × Int) pure { host expr "put(${a}, ${b})" }`,
+		`fn Now() (Int) { host expr "now()" }`,
+		`fn Two(x ∈ Int, y ∈ Int) (r ∈ Int) pure
+    where x < y
+    ensure r > 0 {
+    host expr "${x}+${y}" import "m"
+}`,
+		`fn Scan(s ∈ bytestring, n ∈ Int inout, a ∈ Array(cell(go.Value))) (()) variadic {
+    host expr "scan(${s}, ${n}, ${a}...)"
+}`,
+		`Max ∈ set { 9 } = host "m.Max" import "m"`,
 	} {
 		ts, err := core.ReadAll(src)
 		if err != nil {
@@ -160,7 +166,7 @@ func TestHostDeclarationShapes(t *testing.T) {
 			t.Errorf("%s:\n the tree gives %+v %v\n today's reader %+v %v", src, g, gt, w, wt)
 		}
 	}
-	ts, _ := core.ReadAll(`(sig Get ((c (cell int))) (tuple) (host stmt "get(%s)"))`)
+	ts, _ := core.ReadAll(`fn Get(c ∈ Int inout) (()) { host stmt "get(${c})" }`)
 	p, _ := parseSig(ts[0], "shape")
 	def, _ := hostDef(ts[0], p, "shape")
 	if c := core.HostLam(def).Claim.Params[0]; c.Mode != core.InOut {

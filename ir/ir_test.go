@@ -480,7 +480,7 @@ func TestLinearityAcrossIterations(t *testing.T) {
 // (spec §8.1), so a closure is a lowering error that names it.
 func TestLoweringRefusesWhatItDoesNotKnow(t *testing.T) {
 	tg, _ := compile(t, "examples/native/dot-go.oro", "go")
-	term, err := core.ReadTerm("(fn (x) (fn (y) y))")
+	term, err := core.ParseTerm("(fn (x) (fn (y) y))")
 	if err != nil {
 		t.Fatal(err)
 	}

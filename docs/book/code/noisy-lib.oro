@@ -1,12 +1,10 @@
-// Chapter 3 §3.1: a library with terms lying around at the top level, to show
-// what a library file CANNOT contribute to a program.
+// Chapter 3 §3.1: a library, to show what a library file contributes to a
+// program: its declarations, and nothing else.
 //
 //   go run ./cmd/oro -target=tutorial docs/book/code/noisy-prog.oro
 //
-// `(+ 1 2)` and `(* 9 9)` below are reduced by nobody and printed by nobody:
-// bare top-level terms in a LIBRARY are discarded (modules.md §5). And this
-// file's `(export k)` is visibility only — it is not the program's entry point.
+// Today's notation let a library leave bare terms lying around at the top
+// level, `(+ 1 2)` and `(* 9 9)`, reduced by nobody and printed by nobody. J
+// has no such thing: a file is a theory and holds declarations, and a bare
+// expression at the top level is refused (ADR 0064).
 fn k(n) { n * 3 }
-
-1 + 2
-9 * 9

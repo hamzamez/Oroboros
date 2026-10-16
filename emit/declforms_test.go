@@ -12,6 +12,9 @@ import (
 // refusal is checked to fire and to name what was wrong; each legitimate shape
 // beside it is checked to load, so a test cannot pass by refusing everything.
 
+// mod is declarations inside the module m.
+func mod(decls string) string { return "module m {\n" + decls + "\n}" }
+
 func loadOne(t *testing.T, body string) (*Target, error) {
 	t.Helper()
 	dir := t.TempDir()
@@ -19,39 +22,16 @@ func loadOne(t *testing.T, body string) (*Target, error) {
 	return LoadTargetLayers("x", []string{dir})
 }
 
-func TestARespelledFormIsRefusedWithItsNewSpelling(t *testing.T) {
-	for old, spelled := range respelled {
-		for _, body := range []string{
-			"(target x (" + old + " a b))",
-			"(target x (module m (" + old + " a b)))",
-		} {
-			_, err := loadOne(t, body)
-			if err == nil || !strings.Contains(err.Error(), spelled) {
-				t.Errorf("%s: want a refusal naming %s, got %v", body, spelled, err)
-			}
-		}
-	}
-}
-
 func TestASigSeparatesItsTwoKindsOfClaim(t *testing.T) {
-	refused := map[string]string{
-		`(sig f (int) int pure)`:                                    "no (host …) clause",
-		`(sig f (int) int (import "x") (host expr "F(%s)"))`:        "goes inside (host …)",
-		`(sig f (int) int (host expr "F(%s)" pure))`:                "(host …) takes",
-		`(sig f (int) int (host expr "F(%s)") (host expr "G(%s)"))`: "twice",
-		`(sig f (int) int (host expr))`:                             `(host KIND "template"`,
-		`(sig f (int) int "F(%s)" (host expr "F(%s)"))`:             "unexpected",
-	}
-	for decl, why := range refused {
-		if _, err := loadOne(t, "(target x "+decl+")"); err == nil || !strings.Contains(err.Error(), why) {
-			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
-		}
-	}
-	// And the legitimate shapes: every clause in its place, and arity zero as ().
-	tg, err := loadOne(t, `(target x
-	  (sig g ((a int) (b int)) int pure (where (<= 0 a)) (ensures (<= 0 result))
-	       (host expr "G(%s, %s)" (import "g") (checked g) (jump "l")))
-	  (sig null () ptr pure (host expr "0")))`)
+	// Every clause in its place, and arity zero as (). (Today's notation's
+	// misplaced clauses have no spelling in J's grammar: the header holds the
+	// claims and the host body the host's.)
+	tg, err := loadOne(t, `fn g(a ∈ Int, b ∈ Int) (r ∈ Int) pure
+    where 0 <= a
+    ensure 0 <= r {
+    host expr "G(${a}, ${b})" import "g" checked g jump "l"
+}
+fn null() (ptr) pure { host expr "0" }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,14 +49,14 @@ func TestASigSeparatesItsTwoKindsOfClaim(t *testing.T) {
 // of the loaded declarations, at the top level and inside a module.
 func TestAConstIsTheSigItMeans(t *testing.T) {
 	for _, wrap := range []func(string) string{
-		func(d string) string { return "(target x " + d + ")" },
-		func(d string) string { return "(target x (module m " + d + "))" },
+		func(d string) string { return d },
+		mod,
 	} {
-		c, err := loadOne(t, wrap(`(const Max -7 (host "p.Max" (import "p")))`))
+		c, err := loadOne(t, wrap(`Max ∈ set { -7 } = host "p.Max" import "p"`))
 		if err != nil {
 			t.Fatal(err)
 		}
-		s, err := loadOne(t, wrap(`(sig Max () (int -7 -7) pure (host expr "p.Max" (import "p")))`))
+		s, err := loadOne(t, wrap(`fn Max() (-7..-7) pure { host expr "p.Max" import "p" }`))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,14 +70,12 @@ func TestAConstIsTheSigItMeans(t *testing.T) {
 		}
 	}
 	refused := map[string]string{
-		`(const Pi 3.14 (host "math.Pi"))`: "not an integer literal",
-		`(const S "x" (host "p.S"))`:       "not an integer literal",
-		`(const N 4)`:                      "(const NAME INTEGER",
-		`(const N 4 (host expr "p.N"))`:    "has no kind",
-		`(const N 4 pure (host "p.N"))`:    "(const NAME INTEGER",
+		`Pi ∈ set { 3.14 } = host "math.Pi"`: "not an integer literal",
+		`S ∈ set { "x" } = host "p.S"`:       "not an integer literal",
+		`N ∈ set { 4 } = host expr "p.N"`:    "has no kind",
 	}
 	for decl, why := range refused {
-		if _, err := loadOne(t, "(target x "+decl+")"); err == nil || !strings.Contains(err.Error(), why) {
+		if _, err := loadOne(t, decl); err == nil || !strings.Contains(err.Error(), why) {
 			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
 		}
 	}
@@ -105,23 +83,26 @@ func TestAConstIsTheSigItMeans(t *testing.T) {
 
 func TestReprAndFactAreRefusedOffTheirShapes(t *testing.T) {
 	refused := map[string]string{
-		`(repr big medium)`:                       "(repr big host) or (repr big limbs)",
-		`(repr (int 5 1) (host "x"))`:             "is empty",
-		`(repr shift 64)`:                         "1 <= N <= 63",
-		`(repr map hash)`:                         "(repr map host) or (repr map library)",
-		`(repr float (host "double"))`:            "(repr (int LO HI)",
-		`(fact f ((a (array A))) (< (len a) 3))`:  "facts are specified",
-		`(fact f ((a (array A))) (<= (len b) 3))`: "facts are specified",
-		`(fact f ((a (array A))) (<= (len a) 0))`: "at least 1",
-		`(type t "spelling")`:                     `(type NAME (host "spelling"))`,
+		`repr big medium`:                   "(repr big host) or (repr big limbs)",
+		`repr 5..1 host "x"`:                "is empty",
+		`repr shift 64`:                     "1 <= N <= 63",
+		"repr `map` hash":                   "(repr map host) or (repr map library)",
+		`repr float host "double"`:          "(repr (int LO HI)",
+		`fact f (a ∈ Array(A)) len(a) < 3`:  "facts are specified",
+		`fact f (a ∈ Array(A)) len(b) <= 3`: "facts are specified",
+		`fact f (a ∈ Array(A)) len(a) <= 0`: "at least 1",
+		`set t = "spelling"`:                "a host spelling goes inside",
 	}
 	for decl, why := range refused {
-		if _, err := loadOne(t, "(target x "+decl+")"); err == nil || !strings.Contains(err.Error(), why) {
+		if _, err := loadOne(t, decl); err == nil || !strings.Contains(err.Error(), why) {
 			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
 		}
 	}
-	tg, err := loadOne(t, `(target x (repr big limbs) (repr shift 31) (repr (ref int) (host "Long"))
-	  (fact max-len ((xs (array A))) (<= (len xs) 2147483647)) (type (map K V) (host "M<%s,%s>")))`)
+	tg, err := loadOne(t, `repr big limbs
+repr shift 31
+repr ref(Int) host "Long"
+fact max_len (xs ∈ Array(A)) len(xs) <= (2^31-1)
+set Map(K, V) = host "M<${K},${V}>"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,30 +112,14 @@ func TestReprAndFactAreRefusedOffTheirShapes(t *testing.T) {
 	}
 }
 
-// A HEADER AND THE FORMS AFTER IT ARE ONE FILE'S GLUE, so writing a form inside
-// the header's parentheses or after them is the same target.
-func TestFormsAfterTheHeaderAreTheSameFragment(t *testing.T) {
-	inside, err := loadOne(t, `(target x (backend go) (type t (host "T")) (sig f (int) int (host expr "F(%s)")))`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	after, err := loadOne(t, "(target x (backend go))\n(type t (host \"T\"))\n(sig f (int) int (host expr \"F(%s)\"))")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(inside, after) {
-		t.Error("the same forms inside and after the header load to different targets")
-	}
-}
-
 // THE MAP REPRESENTATION COMPOSES BY OVERRIDE (theories.md §5.8). It was a flag
 // joined with ||, so a nearer layer could turn the language's own map on and
 // never off.
 func TestANearerLayerCanTurnTheLibraryMapOff(t *testing.T) {
 	root := t.TempDir()
 	host, lib := filepath.Join(root, "host"), filepath.Join(root, "lib")
-	writeTarget(t, filepath.Join(host, "x"), "a", `(target x (repr map host))`)
-	writeTarget(t, filepath.Join(lib, "x"), "a", `(target x (repr map library))`)
+	writeTarget(t, filepath.Join(host, "x"), "a", "repr `map` host")
+	writeTarget(t, filepath.Join(lib, "x"), "a", "repr `map` library")
 	for _, c := range []struct {
 		layers []string
 		want   bool
@@ -175,13 +140,13 @@ func TestANearerLayerCanTurnTheLibraryMapOff(t *testing.T) {
 func TestABrokenProvidesIsRefusedNotDropped(t *testing.T) {
 	root := t.TempDir()
 	targets, lib := filepath.Join(root, "targets"), filepath.Join(root, "lib")
-	writeTarget(t, filepath.Join(targets, "x"), "a", `(target x (backend go))`)
-	writeTarget(t, filepath.Join(lib, "m"), "x", `(provides x m (sig f (int) int pure))`)
+	writeTarget(t, filepath.Join(targets, "x"), "a", `backend go`)
+	writeTarget(t, filepath.Join(lib, "m"), "x", "provides x m {\n    fn f(a ∈ Int) (Int) pure\n}")
 	_, err := LoadTargetLayers("x", []string{targets}, []string{lib})
-	if err == nil || !strings.Contains(err.Error(), "no (host …) clause") {
-		t.Errorf("a provides with no realization must be refused, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "x.oro") {
+		t.Errorf("a provides with no realization must be refused naming its file, got %v", err)
 	}
-	writeTarget(t, filepath.Join(lib, "m"), "x", `(provides x m (sig f (int) int pure (host expr "F(%s)")))`)
+	writeTarget(t, filepath.Join(lib, "m"), "x", "provides x m {\n    fn f(a ∈ Int) (Int) pure { host expr \"F(${a})\" }\n}")
 	tg, err := LoadTargetLayers("x", []string{targets}, []string{lib})
 	if err != nil {
 		t.Fatal(err)
@@ -200,7 +165,7 @@ func TestABrokenProvidesIsRefusedNotDropped(t *testing.T) {
 func TestAProvidesThatDoesNotParseIsRefusedNamingTheFile(t *testing.T) {
 	root := t.TempDir()
 	targets, lib := filepath.Join(root, "targets"), filepath.Join(root, "lib")
-	writeTarget(t, filepath.Join(targets, "x"), "a", `(target x (backend go))`)
+	writeTarget(t, filepath.Join(targets, "x"), "a", `backend go`)
 	writeTarget(t, filepath.Join(lib, "m"), "x", `(provides x m (sig f (int) int pure (host expr "F\q(%s)")))`)
 	_, err := LoadTargetLayers("x", []string{targets}, []string{lib})
 	if err == nil {
@@ -222,13 +187,7 @@ func TestAProvidesThatDoesNotParseIsRefusedNamingTheFile(t *testing.T) {
 // two packages share is two types, measured as 3 of Go's 1,270 exported type
 // names (declaration-surface.md §4.2).
 func TestATypeIsAMemberOfItsModule(t *testing.T) {
-	tg, err := loadOne(t, `(target x
-	  (type int (host "int"))
-	  (module go/io (type Writer (host "io.Writer")))
-	  (module go/text-template (type Template (host "template.Template")))
-	  (module go/html-template (type Template (host "template.Template")))
-	  (module go/encoding/hex
-	    (sig NewEncoder ((w go/io.Writer)) go/io.Writer (host expr "hex.NewEncoder(%s)"))))`)
+	tg, err := loadOne(t, "set Int = host \"int\"\nmodule go/io {\n    set Writer = host \"io.Writer\"\n}\nmodule go/text-template {\n    set Template = host \"template.Template\"\n}\nmodule go/html-template {\n    set Template = host \"template.Template\"\n}\nmodule go/encoding/hex {\n    fn NewEncoder(w ∈ `go/io`.Writer) (`go/io`.Writer) { host expr \"hex.NewEncoder(${w})\" }\n}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +213,9 @@ func TestATypeIsAMemberOfItsModule(t *testing.T) {
 // A TYPE CONSTRUCTOR IS THE TARGET'S, not a module's: `array` and `map` are
 // `lang`'s own and every typed target realizes each exactly once (§5.6).
 func TestATypeConstructorIsNotAModuleMember(t *testing.T) {
-	_, err := loadOne(t, `(target x (module go/io (type (array A) (host "[]%s"))))`)
+	_, err := loadOne(t, `module go/io {
+    set Array(A) = host "[]${A}"
+}`)
 	if err == nil || !strings.Contains(err.Error(), "outside any module") {
 		t.Errorf("a constructor inside a module must be refused, got %v", err)
 	}
@@ -266,11 +227,12 @@ func TestATypeConstructorIsNotAModuleMember(t *testing.T) {
 // value from one to the other. The pool maps a name to the host's spelling, and
 // for an opaque host type that spelling IS the type.
 func TestOneHostTypeMayHaveTwoKeys(t *testing.T) {
-	tg, err := loadOne(t, `(target x
-	  (type ptr-os-File (host "*os.File"))
-	  (type io-Writer (host "io.Writer"))
-	  (implements ptr-os-File io-Writer)
-	  (module go/io (type Writer (host "io.Writer"))))`)
+	tg, err := loadOne(t, `set ptr_os_File = host "*os.File"
+set io_Writer = host "io.Writer"
+axiom ptr_os_File ⊆ io_Writer
+module go/io {
+    set Writer = host "io.Writer"
+}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,14 +260,7 @@ func TestOneHostTypeMayHaveTwoKeys(t *testing.T) {
 // An interface had no way to carry a method, which is the wall encoding/hex
 // recorded: a value of `io.WriteCloser` could be written to and never closed.
 func TestACompanionIncludesAnotherAndTheEdgeFollows(t *testing.T) {
-	tg, err := loadOne(t, `(target x
-	  (type error (host "error")) (type int (host "int"))
-	  (module go/io
-	    (type Writer (host "io.Writer")) (type Closer (host "io.Closer"))
-	    (type WriteCloser (host "io.WriteCloser")))
-	  (module go/io/Writer (sig Write ((self go/io.Writer) (p int)) int (host expr "%s.Write(%s)")))
-	  (module go/io/Closer (sig Close ((self go/io.Closer)) error (host expr "%s.Close()")))
-	  (module go/io/WriteCloser (include go/io/Writer go/io/Closer)))`)
+	tg, err := loadOne(t, "set error = host \"error\"\nset Int = host \"int\"\nmodule go/io {\n    set Writer = host \"io.Writer\"\n    set Closer = host \"io.Closer\"\n    set WriteCloser = host \"io.WriteCloser\"\n}\nmodule go/io/Writer {\n    fn Write(self ∈ `go/io`.Writer, p ∈ Int) (Int) { host expr \"${self}.Write(${p})\" }\n}\nmodule go/io/Closer {\n    fn Close(self ∈ `go/io`.Closer) (error) { host expr \"${self}.Close()\" }\n}\nmodule go/io/WriteCloser {\n    include `go/io/Writer` `go/io/Closer`\n}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,18 +285,15 @@ func TestACompanionIncludesAnotherAndTheEdgeFollows(t *testing.T) {
 
 // AN EDGE IS A VIEW, AND A VIEW IS CHECKED (§6.1). It was declared and believed.
 func TestAFalseImplementsEdgeIsRefused(t *testing.T) {
-	decls := `(target x
-	  (type error (host "error"))
-	  (module go/io (type Writer (host "io.Writer")) (type Closer (host "io.Closer")))
-	  (module go/io/Closer (sig Close ((self go/io.Closer)) error (host expr "%s.Close()")))
-	  `
-	_, err := loadOne(t, decls+`(implements go/io.Writer go/io.Closer))`)
+	decls := "set error = host \"error\"\n" +
+		"module go/io {\n    set Writer = host \"io.Writer\"\n    set Closer = host \"io.Closer\"\n    axiom Writer ⊆ `go/io`.Closer\n}\n" +
+		"module go/io/Closer {\n    fn Close(self ∈ `go/io`.Closer) (error) { host expr \"${self}.Close()\" }\n}\n"
+	_, err := loadOne(t, decls)
 	if err == nil || !strings.Contains(err.Error(), "is false") || !strings.Contains(err.Error(), "Close") {
 		t.Errorf("an edge whose interface declares a method the subject does not must be refused, got %v", err)
 	}
 	// The control: state the method and the same edge is accepted.
-	_, err = loadOne(t, decls+`(module go/io/Writer (sig Close ((self go/io.Writer)) error (host expr "%s.Close()")))
-	  (implements go/io.Writer go/io.Closer))`)
+	_, err = loadOne(t, decls+"module go/io/Writer {\n    fn Close(self ∈ `go/io`.Writer) (error) { host expr \"${self}.Close()\" }\n}\n")
 	if err != nil {
 		t.Errorf("the edge holds once the method is declared: %v", err)
 	}
@@ -353,27 +305,25 @@ func TestAFalseImplementsEdgeIsRefused(t *testing.T) {
 // array. The element must still agree.
 func TestAViewMeetsABufferWithATableOfItsElement(t *testing.T) {
 	decls := func(implArg string) string {
-		return `(target x
-		  (type error (host "error"))
-		  (module go/io (type Reader (host "io.Reader")) (type R (host "*R")))
-		  (module go/io/Reader (sig Read ((self go/io.Reader) (p (buffer (int 0 255))))
-		    (tuple (buffer (int 0 255)) int error) (host expr "%s.Read(%s)")))
-		  (module go/io/R (sig Read ((self go/io.R) (p ` + implArg + `)) (tuple int error) (host expr "%s.Read(%s)")))
-		  (implements go/io.R go/io.Reader))`
+		return "set error = host \"error\"\n" +
+			"module go/io {\n    set Reader = host \"io.Reader\"\n    set R = host \"*R\"\n    axiom R ⊆ `go/io`.Reader\n}\n" +
+			"module go/io/Reader {\n    fn Read(self ∈ `go/io`.Reader, p ∈ Array(0..255) linear) (buffer(0..255) × Int × error) {\n" +
+			"        host expr \"${self}.Read(${p})\"\n    }\n}\n" +
+			"module go/io/R {\n    fn Read(self ∈ `go/io`.R, p ∈ " + implArg + ") (Int × error) { host expr \"${self}.Read(${p})\" }\n}\n"
 	}
-	if _, err := loadOne(t, decls("(array (int 0 255))")); err != nil {
+	if _, err := loadOne(t, decls("Array(0..255)")); err != nil {
 		t.Errorf("a generated array meets a hand buffer of the same element: %v", err)
 	}
-	if _, err := loadOne(t, decls("(array int)")); err == nil || !strings.Contains(err.Error(), "argument 2") {
+	if _, err := loadOne(t, decls("Array(Int)")); err == nil || !strings.Contains(err.Error(), "argument 2") {
 		t.Errorf("an array of another element must not meet the buffer, got %v", err)
 	}
 }
 
 func TestIncludeIsRefusedOffACompanion(t *testing.T) {
 	for body, want := range map[string]string{
-		`(target x (module go/io (include go/io/Writer)))`:                                                      "not a companion",
-		`(target x (type t (host "T")) (module go/io (type A (host "A")) ) (module go/io/A (include go/io/B)))`: "no type go/io.B is declared",
-		`(target x (module go/io (type A (host "A"))) (module go/io/A (include go/io/A)))`:                      "includes itself",
+		"module go/io {\n    include `go/io/Writer`\n}":                                                             "not a companion",
+		"set t = host \"T\"\nmodule go/io {\n    set A = host \"A\"\n}\nmodule go/io/A {\n    include `go/io/B`\n}": "no type go/io.B is declared",
+		"module go/io {\n    set A = host \"A\"\n}\nmodule go/io/A {\n    include `go/io/A`\n}":                     "includes itself",
 	} {
 		if _, err := loadOne(t, body); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: want a refusal naming %q, got %v", body, want, err)
@@ -389,14 +339,12 @@ func TestIncludeIsRefusedOffACompanion(t *testing.T) {
 // way. That is what makes it a spelling rather than a feature: nothing
 // downstream can tell which was written.
 func TestAConstantsNameIsARangeEndpoint(t *testing.T) {
-	const c = `(const Max 1114111 (host "u.Max" (import "u")))`
-	named, err := loadOne(t, "(target x (module m "+c+
-		` (sig f ((r int)) (int 0 Max) pure (host expr "u.F(%s)" (import "u")))))`)
+	const c = `Max ∈ set { 1114111 } = host "u.Max" import "u"`
+	named, err := loadOne(t, mod(c+"\n"+`fn f(r ∈ Int) (0..Max) pure { host expr "u.F(${r})" import "u" }`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	digits, err := loadOne(t, "(target x (module m "+c+
-		` (sig f ((r int)) (int 0 1114111) pure (host expr "u.F(%s)" (import "u")))))`)
+	digits, err := loadOne(t, mod(c+"\n"+`fn f(r ∈ Int) (0..1114111) pure { host expr "u.F(${r})" import "u" }`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -417,17 +365,17 @@ func TestAConstantsNameIsARangeEndpoint(t *testing.T) {
 // splitting a file between a constant and its use must change nothing
 // (loader-2026-09-15, TestSplittingAFileChangesNothing).
 func TestAConstantEndpointResolvesAcrossFilesAndLayers(t *testing.T) {
-	sig := `(sig f ((r int)) (int 0 Max) pure (host expr "u.F(%s)" (import "u")))`
-	cst := `(const Max 7 (host "u.Max" (import "u")))`
-	one, err := loadOne(t, "(target x (module m "+cst+" "+sig+"))")
+	sig := `fn f(r ∈ Int) (0..Max) pure { host expr "u.F(${r})" import "u" }`
+	cst := `Max ∈ set { 7 } = host "u.Max" import "u"`
+	one, err := loadOne(t, mod(cst+"\n"+sig))
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Two files in one layer, the USE read first — glue is order-free, and
 	// sorting puts "a" before "b".
 	dir := t.TempDir()
-	writeTarget(t, filepath.Join(dir, "x"), "a", "(target x (module m "+sig+"))")
-	writeTarget(t, filepath.Join(dir, "x"), "b", "(target x (module m "+cst+"))")
+	writeTarget(t, filepath.Join(dir, "x"), "a", mod(sig))
+	writeTarget(t, filepath.Join(dir, "x"), "b", mod(cst))
 	split, err := LoadTargetLayers("x", []string{dir})
 	if err != nil {
 		t.Fatal(err)
@@ -438,8 +386,8 @@ func TestAConstantEndpointResolvesAcrossFilesAndLayers(t *testing.T) {
 	}
 	// And two LAYERS: the constant is in the far one, the use in the near one.
 	near, far := t.TempDir(), t.TempDir()
-	writeTarget(t, filepath.Join(near, "x"), "a", "(target x (module m "+sig+"))")
-	writeTarget(t, filepath.Join(far, "x"), "a", "(target x (module m "+cst+"))")
+	writeTarget(t, filepath.Join(near, "x"), "a", mod(sig))
+	writeTarget(t, filepath.Join(far, "x"), "a", mod(cst))
 	layered, err := LoadTargetLayers("x", []string{near, far})
 	if err != nil {
 		t.Fatal(err)
@@ -456,35 +404,24 @@ func TestAConstantEndpointResolvesAcrossFilesAndLayers(t *testing.T) {
 // up, which the control at the end checks.
 func TestAnEndpointThatIsNotAConstantIsRefused(t *testing.T) {
 	refused := map[string]string{
-		`(sig f ((r int)) (int 0 Max) pure (host expr "F(%s)"))`: "is not declared in this target",
-		`(const Max 7 (host "u.Max"))
-		 (sig g ((r int)) (int 0 Max2) pure (host expr "G(%s)"))`: "Max2 is not declared",
-		`(sig Max ((x int)) (int 7 7) pure (host expr "M(%s)"))
-		 (sig f ((r int)) (int 0 Max) pure (host expr "F(%s)"))`: "it must be a CONSTANT",
-		`(sig Max () (int 0 7) pure (host expr "M()"))
-		 (sig f ((r int)) (int 0 Max) pure (host expr "F(%s)"))`: "it must be a CONSTANT",
-		`(sig Max () (int 7 7) (host expr "M()"))
-		 (sig f ((r int)) (int 0 Max) pure (host expr "F(%s)"))`: "not pure",
+		`fn f(r ∈ Int) (0..Max) pure { host expr "F(${r})" }`: "is not declared in this target",
+		`Max ∈ set { 7 } = host "u.Max"
+fn g(r ∈ Int) (0..Max2) pure { host expr "G(${r})" }`: "Max2 is not declared",
+		`fn Max(x ∈ Int) (7..7) pure { host expr "M(${x})" }
+fn f(r ∈ Int) (0..Max) pure { host expr "F(${r})" }`: "it must be a CONSTANT",
+		`fn Max() (0..7) pure { host expr "M()" }
+fn f(r ∈ Int) (0..Max) pure { host expr "F(${r})" }`: "it must be a CONSTANT",
+		`fn Max() (7..7) { host expr "M()" }
+fn f(r ∈ Int) (0..Max) pure { host expr "F(${r})" }`: "not pure",
 	}
 	for decl, why := range refused {
-		if _, err := loadOne(t, "(target x (module m "+decl+"))"); err == nil ||
+		if _, err := loadOne(t, mod(decl)); err == nil ||
 			!strings.Contains(err.Error(), why) {
 			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
 		}
 	}
-	// AND THE AMBIGUITY WITNESS: `(int int string)` is an ARGUMENT LIST of three
-	// types, not a range over a constant called `string`. Both are applications
-	// headed by `int`, so a scan that looked for the shape anywhere refused every
-	// generated windows declaration written positionally.
-	pos, err := loadOne(t, `(target x (module m (sig f (int int string) int pure (host expr "F(%s,%s,%s)"))))`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := pos.Prims["m.f"].Args; !reflect.DeepEqual(got, []string{"int", "int", "string"}) {
-		t.Errorf("args %v, want [int int string]", got)
-	}
 	// THE CONTROL: an infinite endpoint is not a constant name.
-	tg, err := loadOne(t, `(target x (module m (sig f ((r int)) (int 0 +inf) pure (host expr "F(%s)"))))`)
+	tg, err := loadOne(t, "module m {\n    fn f(r ∈ Int) (0..`+inf`) pure { host expr \"F(${r})\" }\n}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,14 +439,13 @@ func TestAnEndpointThatIsNotAConstantIsRefused(t *testing.T) {
 // that aliases exist.
 func TestAManifestTypeIsWhatItMeans(t *testing.T) {
 	sig := func(ty string) string {
-		return `(sig f ((x ` + ty + `) (p (array ` + ty + `))) ` + ty +
-			` pure (host expr "F(%s,%s)"))`
+		return "fn f(x ∈ " + ty + ", p ∈ Array(" + ty + ")) (" + ty + ") pure { host expr \"F(${x},${p})\" }"
 	}
-	named, err := loadOne(t, `(target x (type u8 (int 0 255)) (module m `+sig("u8")+`))`)
+	named, err := loadOne(t, "set u8 = 0..255\n"+mod(sig("u8")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	plain, err := loadOne(t, `(target x (module m `+sig("(int 0 255)")+`))`)
+	plain, err := loadOne(t, mod(sig("0..255")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,8 +457,8 @@ func TestAManifestTypeIsWhatItMeans(t *testing.T) {
 	// of another — and the definiens may be in another file or another layer,
 	// which is why the unfolding waits for the glue.
 	near, far := t.TempDir(), t.TempDir()
-	writeTarget(t, filepath.Join(near, "x"), "a", `(target x (type b (array u8)) (module m `+sig("b")+`))`)
-	writeTarget(t, filepath.Join(far, "x"), "a", `(target x (type u8 (int 0 255)))`)
+	writeTarget(t, filepath.Join(near, "x"), "a", "set b = Array(u8)\n"+mod(sig("b")))
+	writeTarget(t, filepath.Join(far, "x"), "a", `set u8 = 0..255`)
 	chain, err := LoadTargetLayers("x", []string{near, far})
 	if err != nil {
 		t.Fatal(err)
@@ -538,16 +474,18 @@ func TestAManifestTypeIsWhatItMeans(t *testing.T) {
 // which is what makes "no host clause" mean "no claim about any host".
 func TestAManifestTypeIsRefusedOffItsRules(t *testing.T) {
 	refused := map[string]string{
-		`(type a (array b)) (type b (array a))`:  "defined in terms of itself",
-		`(type a (array a))`:                     "defined in terms of itself",
-		`(type int (int 0 255))`:                 "the language's own type",
-		`(type array (int 0 255))`:               "the language's own type",
-		`(type p (tuple int int))`:               "may not stand for a tuple",
-		`(type t "spelling")`:                    `goes inside (host …)`,
-		`(type t (host "T")) (type t (int 0 1))`: "a type has one definition",
+		`set a = Array(b)
+set b = Array(a)`: "defined in terms of itself",
+		`set a = Array(a)`:   "defined in terms of itself",
+		`set Int = 0..255`:   "the language's own type",
+		`set Array = 0..255`: "the language's own type",
+		`set p = Int × Int`:  "may not stand for a tuple",
+		`set t = "spelling"`: `goes inside (host …)`,
+		`set t = host "T"
+set t = 0..1`: "a type has one definition",
 	}
 	for decl, why := range refused {
-		if _, err := loadOne(t, "(target x "+decl+")"); err == nil ||
+		if _, err := loadOne(t, decl); err == nil ||
 			!strings.Contains(err.Error(), why) {
 			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
 		}
@@ -561,7 +499,10 @@ func TestAManifestTypeIsRefusedOffItsRules(t *testing.T) {
 // else, and nothing in the reducer changes: a name in `D_T` is more entries in
 // the definition environment and δ unfolds it exactly as it unfolds a library's.
 func TestATargetMayDefineAndNotOnlyRealize(t *testing.T) {
-	tg, err := loadOne(t, `(target x (module m (use n as q) (def f (fn (a) (q.g a)))))`)
+	tg, err := loadOne(t, `module m {
+    use n as q
+    fn f(a) { q.g(a) }
+}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -574,9 +515,9 @@ func TestATargetMayDefineAndNotOnlyRealize(t *testing.T) {
 		t.Error("a definition is not a primitive: reduction must unfold it, not halt on it")
 	}
 	refused := map[string]string{
-		`(target x (def f (fn (a) a)))`:             "belongs to a module",
-		`(target x (use n))`:                        "belongs to a module",
-		`(target x (module m (def f 1) (def f 2)))`: "m.f is defined twice",
+		`fn f(a) { a }`:     "belongs to a module",
+		`use n`:             "belongs to a module",
+		mod("f = 1\nf = 2"): "m.f is defined twice",
 	}
 	for decl, why := range refused {
 		if _, err := loadOne(t, decl); err == nil || !strings.Contains(err.Error(), why) {
@@ -589,8 +530,8 @@ func TestATargetMayDefineAndNotOnlyRealize(t *testing.T) {
 // mistake, and between layers the nearer one wins.
 func TestATargetsDefinitionsGlueAndOverride(t *testing.T) {
 	a, b := t.TempDir(), t.TempDir()
-	writeTarget(t, filepath.Join(a, "x"), "a", `(target x (module m (def f 1)))`)
-	writeTarget(t, filepath.Join(b, "x"), "a", `(target x (module m (def f 2) (def g 3)))`)
+	writeTarget(t, filepath.Join(a, "x"), "a", mod("f = 1"))
+	writeTarget(t, filepath.Join(b, "x"), "a", mod("f = 2\ng = 3"))
 	near, err := LoadTargetLayers("x", []string{a, b})
 	if err != nil {
 		t.Fatal(err)
@@ -604,8 +545,8 @@ func TestATargetsDefinitionsGlueAndOverride(t *testing.T) {
 	}
 	// Within ONE layer the same two files are a collision.
 	one := t.TempDir()
-	writeTarget(t, filepath.Join(one, "x"), "a", `(target x (module m (def f 1)))`)
-	writeTarget(t, filepath.Join(one, "x"), "b", `(target x (module m (def f 2)))`)
+	writeTarget(t, filepath.Join(one, "x"), "a", mod("f = 1"))
+	writeTarget(t, filepath.Join(one, "x"), "b", mod("f = 2"))
 	if _, err := LoadTargetLayers("x", []string{one}); err == nil ||
 		!strings.Contains(err.Error(), "m.f is defined twice") {
 		t.Errorf("want a glue collision naming m.f, got %v", err)
@@ -620,26 +561,8 @@ func TestATargetsDefinitionsGlueAndOverride(t *testing.T) {
 // the nested spelling and the flat one must load to the SAME target, not to
 // targets that behave alike.
 func TestANestedModuleIsItsParentsPathAndItsOwn(t *testing.T) {
-	nested := `(target x
-	  (type int (host "int"))
-	  (module go/io (type Writer (host "io.Writer")))
-	  (module go/encoding/hex
-	    (sig EncodeToString ((src (array int))) string pure (host expr "hex.EncodeToString(%s)"))
-	    (module InvalidByteError
-	      (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
-	        (host expr "%s.Error()")))
-	    (module Dumper
-	      (sig Close ((self go/io.Writer)) int (host expr "%s.Close()")))))`
-	flat := `(target x
-	  (type int (host "int"))
-	  (module go/io (type Writer (host "io.Writer")))
-	  (module go/encoding/hex
-	    (sig EncodeToString ((src (array int))) string pure (host expr "hex.EncodeToString(%s)")))
-	  (module go/encoding/hex/InvalidByteError
-	    (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
-	      (host expr "%s.Error()")))
-	  (module go/encoding/hex/Dumper
-	    (sig Close ((self go/io.Writer)) int (host expr "%s.Close()"))))`
+	nested := "set Int = host \"int\"\nmodule go/io {\n    set Writer = host \"io.Writer\"\n}\nmodule go/encoding/hex {\n    fn EncodeToString(src ∈ Array(Int)) (String) pure { host expr \"hex.EncodeToString(${src})\" }\n    module InvalidByteError {\n        fn Error(self ∈ `go/encoding/hex`.InvalidByteError) (String) pure {\n            host expr \"${self}.Error()\"\n        }\n    }\n    module Dumper {\n        fn Close(self ∈ `go/io`.Writer) (Int) { host expr \"${self}.Close()\" }\n    }\n}"
+	flat := "set Int = host \"int\"\nmodule go/io {\n    set Writer = host \"io.Writer\"\n}\nmodule go/encoding/hex {\n    fn EncodeToString(src ∈ Array(Int)) (String) pure { host expr \"hex.EncodeToString(${src})\" }\n}\nmodule go/encoding/hex/InvalidByteError {\n    fn Error(self ∈ `go/encoding/hex`.InvalidByteError) (String) pure {\n        host expr \"${self}.Error()\"\n    }\n}\nmodule go/encoding/hex/Dumper {\n    fn Close(self ∈ `go/io`.Writer) (Int) { host expr \"${self}.Close()\" }\n}"
 	a, err := loadOne(t, nested)
 	if err != nil {
 		t.Fatalf("nested: %v", err)
@@ -660,10 +583,14 @@ func TestANestedModuleIsItsParentsPathAndItsOwn(t *testing.T) {
 // DEPTH IS UNBOUNDED, because concatenation is associative: nesting three deep
 // is the same word as writing the three segments out.
 func TestNestingIsAssociative(t *testing.T) {
-	deep, err := loadOne(t, `(target x
-	  (type int (host "int"))
-	  (module go (module encoding (module hex
-	    (sig DecodedLen ((n int)) int pure (host expr "hex.DecodedLen(%s)"))))))`)
+	deep, err := loadOne(t, `set Int = host "int"
+module go {
+    module encoding {
+        module hex {
+            fn DecodedLen(n ∈ Int) (Int) pure { host expr "hex.DecodedLen(${n})" }
+        }
+    }
+}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -671,10 +598,12 @@ func TestNestingIsAssociative(t *testing.T) {
 		t.Errorf("three nested modules are one path, got %v", names(deep.Prims))
 	}
 	// and a child may itself carry a path, since `/` is the monoid's operation
-	wide, err := loadOne(t, `(target x
-	  (type int (host "int"))
-	  (module go (module encoding/hex
-	    (sig DecodedLen ((n int)) int pure (host expr "hex.DecodedLen(%s)")))))`)
+	wide, err := loadOne(t, `set Int = host "int"
+module go {
+    module encoding/hex {
+        fn DecodedLen(n ∈ Int) (Int) pure { host expr "hex.DecodedLen(${n})" }
+    }
+}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -684,17 +613,15 @@ func TestNestingIsAssociative(t *testing.T) {
 }
 
 // AN EMPTY SEGMENT IS REFUSED, which is the one thing concatenation must not
-// silently do: `a` ++ "/" ++ "/b" would be a path no `use` can name.
+// silently do: `a` ++ "/" ++ "/b" would be a path no `use` can name. In J a
+// module's path is segments joined by `/`, so the grammar refuses it, and the
+// loader's own refusal ("empty segment") remains for a raw form.
 func TestANestedModuleRefusesAnEmptySegment(t *testing.T) {
 	for _, child := range []string{"/InvalidByteError", "InvalidByteError/"} {
-		_, err := loadOne(t, `(target x
-		  (type int (host "int"))
-		  (module go/encoding/hex (module `+child+`
-		    (sig Error ((n int)) int pure (host expr "%s")))))`)
+		_, err := loadOne(t, "set Int = host \"int\"\nmodule go/encoding/hex {\n    module "+child+" {\n"+
+			"        fn Error(n ∈ Int) (Int) pure { host expr \"${n}\" }\n    }\n}")
 		if err == nil {
 			t.Errorf("%q: an empty segment must be refused", child)
-		} else if !strings.Contains(err.Error(), "empty segment") {
-			t.Errorf("%q: the refusal must name it, got %v", child, err)
 		}
 	}
 }

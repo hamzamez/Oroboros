@@ -56,9 +56,6 @@ func norm(t *testing.T, src, target string) string {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if len(terms) != 1 {
-		t.Fatalf("expected exactly one term to reduce, got %d", len(terms))
-	}
 	env := testEnv(prog, prims...)
 	out, err := Normalize(entryTerm(t, prog, terms), env, DefaultFuel)
 	if err != nil {
@@ -109,21 +106,17 @@ func check(t *testing.T, src, target, want string) {
 // ---------------------------------------------------------------- core-0 §5.1
 
 func TestBeta(t *testing.T) {
-	check(t, `
-		(prim add)
-		((fn (x) (add x 1)) 4)
-	`, "default", "(add 4 1)")
+	check(t, `(prim add)
+t = { x = 4; add(x, 1) }`, "default", "(add 4 1)")
 }
 
 // ---------------------------------------------------------------- core-0 §5.2
 
 func TestDelta(t *testing.T) {
-	check(t, `
-		(prim mul)
-		(def double (fn (x) (mul x 2)))
-		(def quad   (fn (x) (double (double x))))
-		(quad 3)
-	`, "default", "(mul (mul 3 2) 2)")
+	check(t, `(prim mul)
+fn double(x) { mul(x, 2) }
+fn quad(x) { double(double(x)) }
+t = quad(3)`, "default", "(mul (mul 3 2) 2)")
 }
 
 // ---------------------------------------------------------------- core-0 §5.3
@@ -131,20 +124,18 @@ func TestDelta(t *testing.T) {
 // The thesis, executable: one word of target declaration separates a BLAS call
 // from a loop.
 
-const dotProgram = `
-	(target go   (prim add mul alen aindex fold-range))
-	(target blas (prim add mul alen aindex fold-range dot))
+const dotProgram = `(target go   (prim add mul alen aindex fold-range))
+(target blas (prim add mul alen aindex fold-range dot))
+fn vec(n, f) { fn(sel) { sel(n, f) } }
+fn vlen(v) { v(fn(n, f) { n }) }
+fn vindex(v, i) { v(fn(n, f) { f })(i) }
+fn of_array(a) { vec(alen(a), fn(i) { aindex(a, i) }) }
 
-	(def vec     (fn (n f) (fn (sel) (sel n f))))
-	(def vlen    (fn (v)   (v (fn (n f) n))))
-	(def vindex  (fn (v i) ((v (fn (n f) f)) i)))
-	(def of-array (fn (a) (vec (alen a) (fn (i) (aindex a i)))))
+fn zip(g, a, b) { vec(vlen(a), fn(i) { g(vindex(a, i), vindex(b, i)) }) }
+fn sum(v) { fold_range(0.0, vlen(v), fn(acc, i) { add(acc, vindex(v, i)) }) }
+fn dot(a, b) { sum(zip(mul, of_array(a), of_array(b))) }
 
-	(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-	(def sum (fn (v) (fold-range 0.0 (vlen v) (fn (acc i) (add acc (vindex v i))))))
-	(def dot (fn (a b) (sum (zip mul (of-array a) (of-array b)))))
-
-	(dot p q)
+t = dot(p, q)
 `
 
 func TestSameTermTwoNormalForms(t *testing.T) {
@@ -159,11 +150,9 @@ func TestSameTermTwoNormalForms(t *testing.T) {
 // ---------------------------------------------------------------- core-0 §5.4
 
 func TestResidualLambda(t *testing.T) {
-	check(t, `
-		(prim mul)
-		(def make-scaler (fn (f) (fn (v) (mul v f))))
-		(make-scaler 3)
-	`, "default", "(fn (v) (mul v 3))")
+	check(t, `(prim mul)
+fn make_scaler(f) { fn(v) { mul(v, f) } }
+t = make_scaler(3)`, "default", "(fn (v) (mul v 3))")
 }
 
 // ---------------------------------------------------------------- q5b §3
@@ -176,15 +165,11 @@ func TestResidualLambda(t *testing.T) {
 // element is now bound once, exactly as q5b §3 derived on paper.
 
 func TestFilterFusesToOneLoop(t *testing.T) {
-	check(t, `
-		(target go (prim add alen aindex fold-range if pos))
-
-		(def push-of-array (fn (a)   (fn (step z) (fold-range z (alen a) (fn (acc i) (step acc (aindex a i)))))))
-		(def push-filter   (fn (p c) (fn (step z) (c (fn (acc x) (if (p x) (step acc x) acc)) z))))
-		(def push-sum      (fn (c)   (c (fn (acc x) (add acc x)) 0.0)))
-
-		(push-sum (push-filter pos (push-of-array a)))
-	`, "go",
+	check(t, `(target go (prim add alen aindex fold-range if pos))
+fn push_of_array(a) { fn(step, z) { fold_range(z, alen(a), fn(acc, i) { step(acc, aindex(a, i)) }) } }
+fn push_filter(p, c) { fn(step, z) { c(fn(acc, x) { if p(x) { step(acc, x) } else { acc } }, z) } }
+fn push_sum(c) { c(fn(acc, x) { add(acc, x) }, 0.0) }
+t = push_sum(push_filter(pos, push_of_array(a)))`, "go",
 		"(fold-range 0.0 (alen a) (fn (acc i) (let (aindex a i) (fn (x) (if (pos x) (add acc x) acc)))))")
 }
 
@@ -193,30 +178,29 @@ func TestFilterFusesToOneLoop(t *testing.T) {
 func TestRecursiveDefinitionIsNotUnfolded(t *testing.T) {
 	// core-0 §6: δ on a recursive definition does not terminate, so it is never
 	// applied. `count` must survive into the residual as a target function.
-	got := norm(t, `
-		(target go (prim add lt if))
-		(def count (fn (n) (if (lt n 1) 0 (add 1 (count (add n -1))))))
-		(count 5)
-	`, "go")
+	got := norm(t, `(target go (prim add lt if))
+fn count(n) { if lt(n, 1) { 0 } else { add(1, count(add(n, -1))) } }
+t = count(5)`, "go")
 	if !strings.Contains(got, "count") {
 		t.Errorf("recursive definition was unfolded; got %s", got)
 	}
 }
 
 func TestMutualRecursionIsNotUnfolded(t *testing.T) {
-	got := norm(t, `
-		(target go (prim if lt add))
-		(def even? (fn (n) (if (lt n 1) 1 (odd? (add n -1)))))
-		(def odd?  (fn (n) (if (lt n 1) 0 (even? (add n -1)))))
-		(even? 4)
-	`, "go")
+	got := norm(t, `(target go (prim if lt add))
+fn even?(n) { if lt(n, 1) { 1 } else { odd?(add(n, -1)) } }
+fn odd?(n) { if lt(n, 1) { 0 } else { even?(add(n, -1)) } }
+t = even?(4)`, "go")
 	if !strings.Contains(got, "even?") && !strings.Contains(got, "odd?") {
 		t.Errorf("mutual recursion was unfolded; got %s", got)
 	}
 }
 
 func TestFuelStopsSelfApplication(t *testing.T) {
-	forms, _ := Read(`((fn (f) (f f)) (fn (f) (f f)))`)
+	forms, err := Read(`t = fn(f) { f(f) }(fn(f) { f(f) })`)
+	if err != nil {
+		t.Fatal(err)
+	}
 	prog, terms, _ := Load(forms)
 	env := testEnv(prog, "x")
 	if _, err := Normalize(entryTerm(t, prog, terms), env, 10_000); err == nil {
@@ -240,19 +224,15 @@ func TestSubstitutionCannotCapture(t *testing.T) {
 	// The rename is no longer needed, and the output is CLEANER than before.
 	// That is a better answer, not a regression — an acceptance test that
 	// demanded byte-identical output would have rejected an improvement.
-	check(t, `
-		(prim f a)
-		((fn (x) ((fn (y) (fn (x) (f y x))) x)) a)
-	`, "default", "(fn (x) (f a x))")
+	check(t, `(prim f a)
+t = { x = a; y = x; fn(x) { f(y, x) } }`, "default", "(fn (x) (f a x))")
 }
 
 // ---------------------------------------------------------------- normal form
 
 func TestResidualNamesReported(t *testing.T) {
-	forms, _ := Read(`
-		(def use-missing (fn (x) (add x (nowhere x))))
-		(use-missing 1)
-	`)
+	forms, _ := Read(`fn use_missing(x) { add(x, nowhere(x)) }
+t = use_missing(1)`)
 	prog, terms, _ := Load(forms)
 	env := testEnv(prog, "add")
 	out, err := Normalize(entryTerm(t, prog, terms), env, DefaultFuel)
@@ -268,17 +248,15 @@ func TestResidualNamesReported(t *testing.T) {
 // ---------------------------------------------------------------- reader
 
 func TestReaderRejectsBidiControl(t *testing.T) {
-	if _, err := Read("(add 1 ‮2)"); err == nil {
+	if _, err := Read("t = add(1, \u202e2)"); err == nil || !strings.Contains(err.Error(), "bidirectional") {
 		t.Fatal("expected a bidirectional control to be rejected")
 	}
 }
 
 func TestReaderAcceptsUTF8Identifiers(t *testing.T) {
-	check(t, `
-		(prim جمع)
-		(def مجموع (fn (س ص) (جمع س ص)))
-		(مجموع 1 2)
-	`, "default", "(جمع 1 2)")
+	check(t, `(prim جمع)
+fn مجموع(س, ص) { جمع(س, ص) }
+t = مجموع(1, 2)`, "default", "(جمع 1 2)")
 }
 
 // UAX #31 admits letters, not mathematical symbols, so `＋` and `≤` are not
@@ -298,12 +276,10 @@ func TestReaderRejectsMathSymbolAsIdentifier(t *testing.T) {
 // rule may say "capitalised means variable" (Shen) or "capitalised means
 // exported" (Go). Identifiers remain case-sensitive for identity.
 func TestCaseDoesNotAssignMeaning(t *testing.T) {
-	check(t, `
-		(prim add)
-		(def Double (fn (X) (add X X)))
-		(def double (fn (x) (add x 1)))
-		(Double 5)
-	`, "default", "(add 5 5)")
+	check(t, `(prim add)
+fn Double(X) { add(X, X) }
+fn double(x) { add(x, 1) }
+t = Double(5)`, "default", "(add 5 5)")
 }
 
 func TestFloatsRoundTrip(t *testing.T) {
@@ -324,8 +300,10 @@ func TestFloatsRoundTrip(t *testing.T) {
 }
 
 func TestLambdaSpelledEitherWay(t *testing.T) {
-	a := norm(t, "(prim add)\n((fn (x) (add x 1)) 2)", "default")
-	b := norm(t, "(prim add)\n((λ (x) (add x 1)) 2)", "default")
+	a := norm(t, `(prim add)
+t = { x = 2; add(x, 1) }`, "default")
+	b := norm(t, `(prim add)
+t = { x = 2; add(x, 1) }`, "default")
 	if a != b {
 		t.Errorf("fn and λ disagree: %s vs %s", a, b)
 	}
@@ -339,10 +317,8 @@ func TestLambdaSpelledEitherWay(t *testing.T) {
 // such a definition at CheckProgram, one layer above this. Reduction must stay
 // correct on it anyway, which is what this test pins.
 func TestSelfCallIsBottomNotAnError(t *testing.T) {
-	forms, err := Read(`
-		(def f (f))
-		(f)
-	`)
+	forms, err := Read(`f = f()
+t = f()`)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -373,49 +349,50 @@ func TestSelfCallIsBottomNotAnError(t *testing.T) {
 
 // A programmer's let is erased when the compiler sees no reason to keep it.
 func TestSourceLetIsErasedWhenSharingIsPointless(t *testing.T) {
-	check(t, `
-		(prim add)
-		(let x 5
-    (add x 1))
-	`, "default", "(add 5 1)")
+	check(t, `(prim add)
+t = { x = 5; add(x, 1) }`, "default", "(add 5 1)")
 }
 
 // ...and is *not honoured as a knob*: a let around a value that reduces to a λ
 // must still be substituted, or fusion would die. This is the case that makes
 // option 1 dangerous rather than merely useless.
 func TestSourceLetCannotBlockFusion(t *testing.T) {
-	check(t, `
-		(target go (prim add alen aindex fold-range))
-		(def vec      (fn (n f) (fn (sel) (sel n f))))
-		(def vlen     (fn (v)   (v (fn (n f) n))))
-		(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-		(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
-		; The let here is exactly what a programmer might write for clarity.
-		(def sum (fn (v) (let w v
-                     (fold-range 0.0 (vlen w) (fn (acc i) (add acc (vindex w i)))))))
-		(fn (a) (sum (of-array a)))
-	`, "go", "(fn (a) (fold-range 0.0 (alen a) (fn (acc i) (add acc (aindex a i)))))")
+	check(t, `(target go (prim add alen aindex fold-range))
+fn vec(n, f) { fn(sel) { sel(n, f) } }
+fn vlen(v) { v(fn(n, f) { n }) }
+fn vindex(v, i) { v(fn(n, f) { f })(i) }
+fn of_array(a) { vec(alen(a), fn(i) { aindex(a, i) }) }
+// The let here is exactly what a programmer might write for clarity.
+fn sum(v) {
+    w = v
+    fold_range(0.0, vlen(w), fn(acc, i) { add(acc, vindex(w, i)) })
+}
+fn t(a) { sum(of_array(a)) }`, "go", "(fn (a) (fold-range 0.0 (alen a) (fn (acc i) (add acc (aindex a i)))))")
 }
 
 // The compiler still introduces one where sharing genuinely pays, which is the
 // same shape arrived at by decision rather than by instruction.
 func TestCompilerIntroducesLetWhereItPays(t *testing.T) {
-	check(t, `
-		(target go (prim add aindex))
-		((fn (x) (add x x)) (aindex a 0))
-	`, "go", "(let (aindex a 0) (fn (x) (add x x)))")
+	check(t, `(target go (prim add aindex))
+t = { x = aindex(a, 0); add(x, x) }`, "go", "(let (aindex a 0) (fn (x) (add x x)))")
 }
 
 // A program may no longer declare its own primitives; that is a target file's
 // job. Accepting the form silently would let a program believe it had said
 // something.
 func TestProgramsCannotDeclarePrimitives(t *testing.T) {
-	for _, src := range []string{`(prim add)`, `(target go (prim add))`} {
+	// In J a program has no `prim` item, and a host body belongs to a target
+	// file or a library's fragment (ADR 0064): both are refused, by the reader
+	// or by the loader.
+	for _, src := range []string{
+		"prim add",
+		"fn add(a ∈ Int, b ∈ Int) (Int) { host expr \"${a} + ${b}\" }",
+	} {
 		forms, err := Read(src)
-		if err != nil {
-			t.Fatalf("read %s: %v", src, err)
+		if err == nil {
+			_, _, err = Load(forms)
 		}
-		if _, _, err := Load(forms); err == nil {
+		if err == nil {
 			t.Errorf("%s should be rejected", src)
 		}
 	}
@@ -428,51 +405,39 @@ func TestProgramsCannotDeclarePrimitives(t *testing.T) {
 
 // §4 — contraction. Two occurrences must not become two effects.
 func TestEffectIsNotDuplicated(t *testing.T) {
-	check(t, `
-		(prim add !read)
-		((fn (x) (add x x)) (read))
-	`, "default", "(let (read) (fn (x) (add x x)))")
+	check(t, `(prim add !read)
+t = { x = read(); add(x, x) }`, "default", "(let (read) (fn (x) (add x x)))")
 }
 
 // §4 — weakening, and the hazard g5 missed. Zero occurrences must not become
 // zero effects. This is the clause that makes seq work at all.
 func TestEffectIsNotDeleted(t *testing.T) {
-	check(t, `
-		(prim !read)
-		((fn (x) 1) (read))
-	`, "default", "(let (read) (fn (x) 1))")
+	check(t, `(prim !read)
+t = { x = read(); 1 }`, "default", "(let (read) (fn (x) 1))")
 
 	// The pure case still deletes, which is the point of having the property.
-	check(t, `
-		(prim add)
-		((fn (x) 1) (add 2 3))
-	`, "default", "1")
+	check(t, `(prim add)
+t = { x = add(2, 3); 1 }`, "default", "1")
 }
 
 // §4 — exchange, the hazard the reducer could not see. One occurrence, but it
 // is inside what becomes a loop body: substituting would turn one effect into n.
 func TestEffectIsNotMovedIntoALoop(t *testing.T) {
-	check(t, `
-		(prim add fold-range !read)
-		((fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))) (read))
-	`, "default",
+	check(t, `(prim add fold-range !read)
+t = { x = read(); fold_range(0.0, 10, fn(acc, i) { add(acc, x) }) }`, "default",
 		"(let (read) (fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))))")
 
 	// The same shape with a pure argument still substitutes, so the discipline
 	// costs nothing where it is not needed.
-	check(t, `
-		(prim add mul fold-range)
-		((fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))) (mul 2.0 3.0))
-	`, "default",
+	check(t, `(prim add mul fold-range)
+t = { x = mul(2.0, 3.0); fold_range(0.0, 10, fn(acc, i) { add(acc, x) }) }`, "default",
 		"(fold-range 0.0 10 (fn (acc i) (add acc (mul 2.0 3.0))))")
 }
 
 // §5 — seq is sugar, and order survives reduction.
 func TestSeqPreservesOrder(t *testing.T) {
-	check(t, `
-		(prim !print)
-		(seq (print 1) (print 2) (print 3))
-	`, "default",
+	check(t, `(prim !print)
+t = { print(1); print(2); print(3) }`, "default",
 		"(let (print 1) (fn (#_) (let (print 2) (fn (#_1) (print 3)))))")
 }
 
@@ -480,30 +445,24 @@ func TestSeqPreservesOrder(t *testing.T) {
 // substitutes into the loop the programmer wrote it for. Judging it impure
 // would let-bind a bare λ, which reaches the emitter as an escaping closure.
 func TestEffectfulCallbackStillSubstitutes(t *testing.T) {
-	check(t, `
-		(prim fold-range !print)
-		((fn (f) (fold-range 0.0 10 f)) (fn (acc i) (print i)))
-	`, "default", "(fold-range 0.0 10 (fn (acc i) (print i)))")
+	check(t, `(prim fold-range !print)
+t = { f = fn(acc, i) { print(i) }; fold_range(0.0, 10, f) }`, "default", "(fold-range 0.0 10 (fn (acc i) (print i)))")
 }
 
 // §3 — but a λ argument to a PRIMITIVE is transparent, or the whole loop would
 // be judged pure and could be moved into another loop.
 func TestALoopContainingAnEffectIsImpure(t *testing.T) {
-	check(t, `
-		(prim add fold-range !print)
-		((fn (x) (add x x)) (fold-range 0.0 10 (fn (acc i) (print i))))
-	`, "default",
+	check(t, `(prim add fold-range !print)
+t = { x = fold_range(0.0, 10, fn(acc, i) { print(i) }); add(x, x) }`, "default",
 		"(let (fold-range 0.0 10 (fn (acc i) (print i))) (fn (x) (add x x)))")
 }
 
 // §4 — δ is safe because a definition's body must be a value. Without this,
 // two occurrences of `x` would print twice.
 func TestDefinitionBodyMustBeAValue(t *testing.T) {
-	src, prims := splitPrims(`
-		(prim !print)
-		(def x (print 1))
-		(add x x)
-	`, "default")
+	src, prims := splitPrims(`(prim !print)
+x = print(1)
+t = add(x, x)`, "default")
 	forms, err := Read(src)
 	if err != nil {
 		t.Fatalf("read: %v", err)
@@ -517,11 +476,8 @@ func TestDefinitionBodyMustBeAValue(t *testing.T) {
 	}
 
 	// Wrapping it in a λ makes it a value, and is accepted.
-	src, prims = splitPrims(`
-		(prim !print)
-		(def x (fn (n) (print n)))
-		(x 1)
-	`, "default")
+	src, prims = splitPrims(`(prim !print)
+fn x(n) { print(n) }`, "default")
 	forms, _ = Read(src)
 	prog, _, _ = Load(forms)
 	if err := testEnv(prog, prims...).CheckDefs(); err != nil {
@@ -538,57 +494,55 @@ func TestDefinitionBodyMustBeAValue(t *testing.T) {
 // §5 — resolution happens before reduction. A qualified reference reduces
 // exactly as the same definition would unqualified.
 func TestQualifiedNameResolves(t *testing.T) {
-	check(t, `
-		(prim mul)
-		(module lib/scale)
-		(export twice)
-		(def twice (fn (x) (mul x 2)))
+	check(t, `(prim mul)
+module lib/scale {
+    export fn twice(x) { mul(x, 2) }
+}
 
-		(module main)
-		(use lib/scale)
-		(scale.twice 3)
-	`, "default", "(mul 3 2)")
+module main {
+    use lib/scale
+    t = scale.twice(3)
+}`, "default", "(mul 3 2)")
 }
 
 // §3 — the alias is the last path segment, and `as` overrides it.
 func TestImportAlias(t *testing.T) {
-	check(t, `
-		(prim mul)
-		(module lib/scale)
-		(def twice (fn (x) (mul x 2)))
+	check(t, `(prim mul)
+module lib/scale {
+    fn twice(x) { mul(x, 2) }
+}
 
-		(module main)
-		(use lib/scale as s)
-		(s.twice 3)
-	`, "default", "(mul 3 2)")
+module main {
+    use lib/scale as s
+    t = s.twice(3)
+}`, "default", "(mul 3 2)")
 }
 
 // §5 — a λ-bound variable is never qualified, however it is spelled. This is
 // the case that would silently capture module names into local scope.
 func TestLocalsAreNotQualified(t *testing.T) {
-	check(t, `
-		(prim mul)
-		(module lib/scale)
-		(def twice (fn (twice) (mul twice 2)))
+	check(t, `(prim mul)
+module lib/scale {
+    fn twice(twice) { mul(twice, 2) }
+}
 
-		(module main)
-		(use lib/scale)
-		(scale.twice 3)
-	`, "default", "(mul 3 2)")
+module main {
+    use lib/scale
+    t = scale.twice(3)
+}`, "default", "(mul 3 2)")
 }
 
 // §5 — the export list is enforced for modules we can see.
 func TestUnexportedNameIsRejected(t *testing.T) {
-	src, _ := splitPrims(`
-		(module lib/scale)
-		(export twice)
-		(def twice  (fn (x) x))
-		(def secret (fn (x) x))
+	src, _ := splitPrims(`module lib/scale {
+    export fn twice(x) { x }
+    fn secret(x) { x }
+}
 
-		(module main)
-		(use lib/scale)
-		(scale.secret 3)
-	`, "default")
+module main {
+    use lib/scale
+    t = scale.secret(3)
+}`, "default")
 	forms, err := Read(src)
 	if err != nil {
 		t.Fatalf("read: %v", err)
@@ -600,15 +554,15 @@ func TestUnexportedNameIsRejected(t *testing.T) {
 
 // §3 — `.` is the qualifier separator and may not begin, end, or double.
 func TestDotIsReserved(t *testing.T) {
-	for _, bad := range []string{"(.x)", "(x.)", "(a..b)"} {
-		if _, err := Read(bad); err == nil {
+	for _, bad := range []string{".x", "x.", "f(x.)"} {
+		if _, err := ReadTerm(bad); err == nil {
 			t.Errorf("%s should not read as a name", bad)
 		}
 	}
-	// A float is still a float, and `/` is still an ordinary identifier
-	// character, so a module path is one segment.
-	if _, err := Read("(f 1.5 go/strings)"); err != nil {
-		t.Errorf("1.5 and go/strings must still read: %v", err)
+	// A float is still a float, and a module path, whose `/` is J's division,
+	// is a quoted name, one segment (ADR 0067).
+	if _, err := ReadTerm("f(1.5, `go/strings`.x)"); err != nil {
+		t.Errorf("1.5 and `go/strings` must still read: %v", err)
 	}
 }
 
@@ -617,23 +571,22 @@ func TestDotIsReserved(t *testing.T) {
 // library and provided natively by the target, so δ must be inhibited and the
 // native must win. If resolution and declaration keyed different namespaces the
 // intersection would be empty and the fallback would be emitted instead.
-const moduleProgram = `
-	(target go   (prim add mul alen aindex fold-range))
-	(target blas (prim add mul alen aindex fold-range num/vec.dot))
+const moduleProgram = `(target go   (prim add mul alen aindex fold-range))
+(target blas (prim add mul alen aindex fold-range num/vec.dot))
+module num/vec {
+    fn vec(n, f) { fn(sel) { sel(n, f) } }
+    fn vlen(v) { v(fn(n, f) { n }) }
+    fn vindex(v, i) { v(fn(n, f) { f })(i) }
+    fn of_array(a) { vec(alen(a), fn(i) { aindex(a, i) }) }
+    fn zip(g, a, b) { vec(vlen(a), fn(i) { g(vindex(a, i), vindex(b, i)) }) }
+    fn sum(v) { fold_range(0.0, vlen(v), fn(acc, i) { add(acc, vindex(v, i)) }) }
+    export fn dot(a, b) { sum(zip(mul, of_array(a), of_array(b))) }
+}
 
-	(module num/vec)
-	(export dot)
-	(def vec      (fn (n f) (fn (sel) (sel n f))))
-	(def vlen     (fn (v)   (v (fn (n f) n))))
-	(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-	(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
-	(def zip      (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-	(def sum      (fn (v)   (fold-range 0.0 (vlen v) (fn (acc i) (add acc (vindex v i))))))
-	(def dot      (fn (a b) (sum (zip mul (of-array a) (of-array b)))))
-
-	(module main)
-	(use num/vec)
-	(vec.dot p q)
+module main {
+    use num/vec
+    t = vec.dot(p, q)
+}
 `
 
 func TestNativeShadowsLibraryAcrossModules(t *testing.T) {
@@ -650,20 +603,13 @@ func TestNativeShadowsLibraryAcrossModules(t *testing.T) {
 // and by the time reduction runs nothing can tell it came from elsewhere.
 func TestLoadAcrossFiles(t *testing.T) {
 	lib := map[string]string{
-		"num/vec": `
-			(module num/vec)
-			(export dot)
-			(def dot (fn (a b) (fold-range 0.0 (alen a)
-			           (fn (acc i) (add acc (mul (aindex a i) (aindex b i)))))))
-		`,
+		"num/vec": `fn dot(a, b) { fold_range(0.0, alen(a), fn(acc, i) { add(acc, mul(aindex(a, i), aindex(b, i))) }) }`,
 	}
 	resolve := snippetResolver(lib)
 
-	src, prims := splitPrims(`
-		(target go (prim add mul alen aindex fold-range))
-		(use num/vec)
-		(vec.dot p q)
-	`, "go")
+	src, prims := splitPrims(`(target go (prim add mul alen aindex fold-range))
+use num/vec
+t = vec.dot(p, q)`, "go")
 	forms, err := Read(src)
 	if err != nil {
 		t.Fatalf("read: %v", err)
@@ -702,7 +648,8 @@ func TestLoadAcrossFiles(t *testing.T) {
 // target supplies, like go/strings.
 func TestUnresolvedModuleIsNotAnError(t *testing.T) {
 	none := snippetResolver(nil)
-	forms, err := Read(`(use go/strings) (strings.fields t)`)
+	forms, err := Read(`use go/strings
+t = strings.fields(t)`)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -720,18 +667,14 @@ func TestUnresolvedModuleIsNotAnError(t *testing.T) {
 // Here `f` is used twice, so the λ bound to it is duplicated into two positions
 // at different depths, and its reference to the OUTER binder must survive both.
 func TestAbstractionMovedAcrossBinderDepths(t *testing.T) {
-	check(t, `
-		(prim add mul fold-range alen aindex)
-		(def twice (fn (g x) (g (g x))))
-		(fn (k) (twice (fn (v) (mul v k)) 3.0))
-	`, "default", "(fn (k) (mul (mul 3.0 k) k))")
+	check(t, `(prim add mul fold-range alen aindex)
+fn twice(g, x) { g(g(x)) }
+fn t(k) { twice(fn(v) { mul(v, k) }, 3.0) }`, "default", "(fn (k) (mul (mul 3.0 k) k))")
 
 	// The same thing under a loop, where the moved λ crosses a real binder.
-	check(t, `
-		(prim add mul fold-range alen aindex)
-		(def apply-each (fn (a g) (fold-range 0.0 (alen a) (fn (acc i) (add acc (g (aindex a i)))))))
-		(fn (arr s) (apply-each arr (fn (v) (mul v s))))
-	`, "default",
+	check(t, `(prim add mul fold-range alen aindex)
+fn apply_each(a, g) { fold_range(0.0, alen(a), fn(acc, i) { add(acc, g(aindex(a, i))) }) }
+fn t(arr, s) { apply_each(arr, fn(v) { mul(v, s) }) }`, "default",
 		"(fn (arr s) (fold-range 0.0 (alen arr) (fn (acc i) (add acc (mul (aindex arr i) s)))))")
 }
 

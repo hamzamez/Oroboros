@@ -148,13 +148,13 @@ func TestEveryTargetHasTheLanguagesConstructs(t *testing.T) {
 // the line has misunderstood where the boundary is, and the message says so.
 func TestDeclaringALanguageConstructIsAnError(t *testing.T) {
 	for _, line := range []string{
-		`(structural let  let     pure)`,
-		`(structural loop iterate pure)`,
-		`(structural if   cond    pure)`,
+		`structural let let pure`,
+		"structural `loop` iterate pure",
+		"structural `if` cond pure",
 	} {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "t.oro")
-		src := "(target t\n  (type int (host \"int\"))\n  " + line + ")\n"
+		src := "set Int = host \"int\"\n" + line + "\n"
 		if err := os.WriteFile(path, []byte(withWord(src)), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -213,13 +213,19 @@ func TestRangeDoesNotNarrowAValue(t *testing.T) {
 // where two buffers cannot be told apart the stores merge, which can only
 // widen.
 func TestBufferRootDistinguishesTwoBuffers(t *testing.T) {
-	forms, _ := core.Read(`(fn (a) (fn (b) (set (set a 0 5) 1 500)))`)
-	inner := forms[0].Term.Closed()
+	outer, err := core.ParseTerm(`(fn (a) (fn (b) (set (set a 0 5) 1 500)))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner := outer.Closed()
 	if got := BufferRoot(inner); got != "" {
 		t.Errorf("an unopened lambda body has no nameable root, got %q", got)
 	}
-	forms, _ = core.Read(`(set (set nodes 0 5) 1 500)`)
-	if got := BufferRoot(forms[0].Term); got != "nodes" {
+	stores, err := core.ParseTerm(`(set (set nodes 0 5) 1 500)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := BufferRoot(stores); got != "nodes" {
 		t.Errorf("BufferRoot through a threaded set = %q, want nodes", got)
 	}
 }

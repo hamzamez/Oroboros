@@ -134,15 +134,15 @@ func TestTheShiftWidthIsTheTargets(t *testing.T) {
 		param string
 		want  bool
 	}{
-		{"../targets/js", "(int 0 1000)", true},
-		{"../targets/js", "(int 0 4000000000)", false}, // past 2^31
-		{"../targets/go", "(int 0 4000000000)", true},  // Go shifts 64-bit values
+		{"../targets/js", "0..1000", true},
+		{"../targets/js", "0..4000000000", false}, // past 2^31
+		{"../targets/go", "0..4000000000", true},  // Go shifts 64-bit values
 	} {
 		tg, err := emit.LoadTarget(c.dir)
 		if err != nil {
 			t.Fatal(err)
 		}
-		src := "(export f)\n(sig f ((n " + c.param + ")) int)\n(def f (fn (n) (/ n 8)))\n"
+		src := "export fn f(n ∈ " + c.param + ") (Int) { n / 8 }\n"
 		forms, err := core.Read(src)
 		if err != nil {
 			t.Fatal(err)

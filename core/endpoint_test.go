@@ -19,21 +19,26 @@ import (
 // should say what an operation IS.
 func TestEndpointExpressions(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
-		{"(sig f ((n (int 0 1000))) int)", "int 0 1000"},
-		{"(sig f ((n (int 0 (* 1000 1000)))) int)", "int 0 1000000"},
-		{"(sig f ((n (int (- 0 5) 5))) int)", "int -5 5"},
-		{"(sig f ((n (int 0 (+ (* 2 3) 1)))) int)", "int 0 7"},
-		{"(sig f ((n (int 0 (pow 2 10)))) int)", "int 0 1024"},
+		{"fn f(n ∈ 0..1000) (Int) { n }", "int 0 1000"},
+		{"fn f(n ∈ 0..1000 * 1000) (Int) { n }", "int 0 1000000"},
+		{"fn f(n ∈ 0 - 5..5) (Int) { n }", "int -5 5"},
+		{"fn f(n ∈ 0..2 * 3 + 1) (Int) { n }", "int 0 7"},
+		{"fn f(n ∈ 0..2^10) (Int) { n }", "int 0 1024"},
 		// Past the word, which is the point: exact, and no literal was written.
-		{"(sig f ((n (int 0 (pow 2 70)))) int)", "int 0 1180591620717411303424"},
-		{"(sig f ((n (int 0 (pow 10 30)))) int)", "int 0 1000000000000000000000000000000"},
+		{"fn f(n ∈ 0..2^70) (Int) { n }", "int 0 1180591620717411303424"},
+		{"fn f(n ∈ 0..10^30) (Int) { n }", "int 0 1000000000000000000000000000000"},
 	} {
 		forms, err := Read(c.src)
 		if err != nil {
 			t.Errorf("%s: %v", c.src, err)
 			continue
 		}
-		if got := forms[0].Sig.Params[0].Type; got != c.want {
+		sig := sigOf(forms, "f")
+		if sig == nil {
+			t.Errorf("%s: no claim", c.src)
+			continue
+		}
+		if got := sig.Params[0].Type; got != c.want {
 			t.Errorf("%s gave %q, want %q", c.src, got, c.want)
 		}
 	}
@@ -92,11 +97,11 @@ func TestABigLiteralIsAValueBuiltFromSmallOnes(t *testing.T) {
 // with a precondition is not a bound.
 func TestEndpointGrammarRefusesTheRest(t *testing.T) {
 	for _, src := range []string{
-		"(sig f ((n (int 0 (/ 100 5)))) int)",  // division: has a precondition
-		"(sig f ((n (int 0 (pow 2 -1)))) int)", // negative exponent
-		"(sig f ((n (int 0 (pow 2 99999999)))) int)",
-		"(sig f ((n (int 0 x))) int)", // a name is not a compile-time integer
-		"(sig f ((n (int 5 0))) int)", // empty: no value inhabits it
+		"fn f(n ∈ 0..100 / 5) (Int) { n }", // division: has a precondition
+		"fn f(n ∈ 0..2^-1) (Int) { n }",    // negative exponent
+		"fn f(n ∈ 0..2^99999999) (Int) { n }",
+		"fn f(n ∈ 0..x) (Int) { n }", // a name is not a compile-time integer
+		"fn f(n ∈ 5..0) (Int) { n }", // empty: no value inhabits it
 	} {
 		if _, err := Read(src); err == nil {
 			t.Errorf("%s was accepted as a type", src)
@@ -176,22 +181,23 @@ func TestTheWordSeparatesRefinementFromWidening(t *testing.T) {
 // it is not a type.
 func typeOf(t *testing.T, src string) string {
 	t.Helper()
-	forms, err := Read("(sig f ((n " + src + ")) int)")
+	forms, err := Read("fn f(n ∈ " + src + ") (Int) { n }")
 	if err != nil {
 		return ""
 	}
-	if len(forms) == 0 || forms[0].Sig == nil || len(forms[0].Sig.Params) == 0 {
+	sig := sigOf(forms, "f")
+	if sig == nil || len(sig.Params) == 0 {
 		return ""
 	}
-	return forms[0].Sig.Params[0].Type
+	return sig.Params[0].Type
 }
 
 func TestInfiniteEndpoints(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
-		{"(int 0 +inf)", "int 0 +inf"},
-		{"(int -inf 0)", "int -inf 0"},
-		{"(int -inf +inf)", "int -inf +inf"},
-		{"(int (- 0 5) +inf)", "int -5 +inf"},
+		{"0..`+inf`", "int 0 +inf"},
+		{"`-inf`..0", "int -inf 0"},
+		{"`-inf`..`+inf`", "int -inf +inf"},
+		{"0 - 5..`+inf`", "int -5 +inf"},
 	} {
 		if got := typeOf(t, c.src); got != c.want {
 			t.Errorf("%s is %q, want %q", c.src, got, c.want)
@@ -218,8 +224,8 @@ func TestInfiniteEndpoints(t *testing.T) {
 // them would mean answering `+inf − +inf`.
 func TestInfiniteEndpointsMustPointOutward(t *testing.T) {
 	for _, src := range []string{
-		"(int +inf 0)", "(int 0 -inf)", "(int +inf +inf)", "(int -inf -inf)",
-		"(int 0 (+ +inf 1))", "(int 0 (pow 2 +inf))", "(int (- +inf) 0)",
+		"`+inf`..0", "0..`-inf`", "`+inf`..`+inf`", "`-inf`..`-inf`",
+		"0..`+inf` + 1", "0..2^`+inf`", "-`+inf`..0",
 	} {
 		if got := typeOf(t, src); got != "" {
 			t.Errorf("%s was accepted as the type %q", src, got)
@@ -291,4 +297,14 @@ func TestTheUnsignedRealizationIsItsOwnRung(t *testing.T) {
 			t.Errorf("with U: Exceeds(%q) = %v, want %v", c.ty, got, want)
 		}
 	}
+}
+
+// sigOf is the claim a program's forms make of the definition name.
+func sigOf(forms []Form, name string) *Sig {
+	for _, f := range forms {
+		if f.Sig != nil && f.Name == name {
+			return f.Sig
+		}
+	}
+	return nil
 }

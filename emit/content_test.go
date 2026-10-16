@@ -13,12 +13,13 @@ import "testing"
 func TestAStoredBoundHoldsOfEveryRead(t *testing.T) {
 	tg := tempTarget(t, ``)
 	fill := func(store string) string {
-		return `(use tgt)
-	  (fn (a n)
-	    (if (<= n (len a))
-	      (let t (build n (fn (b) (loop ((c b) (i 0)) (>= i n) c else (again (set c i ` + store + `) (+ i 1)))))
-	        (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k))))))
-	      0))`
+		return `use tgt
+fn t(a, n) {
+    if n <= len(a) {
+        t = build(n, fn(b) { loop c = b, i = 0 { i >= n -> c; else -> again(store(c, i, ` + store + `), i + 1) } })
+        loop k = 0, s = 0 { k >= len(t) -> s; else -> again(k + 1, s + a[t[k]]) }
+    } else { 0 }
+}`
 	}
 	notes, err := refineWith(t, tg, fill(`i`))
 	if err != nil {
@@ -29,7 +30,7 @@ func TestAStoredBoundHoldsOfEveryRead(t *testing.T) {
 	}
 	// CONTROL, THE STORE OFF BY ONE: `i + 1` reaches n, so `#e < n` is not
 	// preserved and the read must be refused — never proven (refinements.md §3a).
-	_, err = refineWith(t, tg, fill(`(+ i 1)`))
+	_, err = refineWith(t, tg, fill(`i + 1`))
 	if !refusedUnproven(err) {
 		t.Errorf("a store reaching n was taken as preserving #e < n (refinements.md §3a: refused, not propagated): %v", err)
 	}
@@ -38,12 +39,20 @@ func TestAStoredBoundHoldsOfEveryRead(t *testing.T) {
 	// when `m ≤ 0` — and then the loop exits at once, every slot is 0, and
 	// `(a 0)` with `len a ≥ m` may be out of range. So the read must stay
 	// refused: Theorem S's base case is a proof obligation, not a given.
-	const zero = `(use tgt)
-	  (fn (a n m)
-	    (if (<= m (len a))
-	      (let t (build n (fn (b) (loop ((c b) (i 0)) (>= i n) c (< m 1) c else (again (set c i (- m 1)) (+ i 1)))))
-         (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k))))))
-	      0))`
+	const zero = `use tgt
+fn t(a, n, m) {
+    if m <= len(a) {
+        t = build(n,
+            fn(b) {
+                loop c = b, i = 0 {
+                    i >= n -> c
+                    m < 1 -> c
+                    else -> again(store(c, i, m - 1), i + 1)
+                }
+            })
+        loop k = 0, s = 0 { k >= len(t) -> s; else -> again(k + 1, s + a[t[k]]) }
+    } else { 0 }
+}`
 	_, err = refineWith(t, tg, zero)
 	if !refusedUnproven(err) {
 		t.Errorf("the zero fill was taken as satisfying #e < m (refinements.md §3a: refused, not propagated): %v", err)
@@ -56,14 +65,13 @@ func TestAStoredBoundHoldsOfEveryRead(t *testing.T) {
 func TestSwappedBuffersKeepTheirContentJointly(t *testing.T) {
 	tg := tempTarget(t, ``)
 	swap := func(store string) string {
-		return `(use tgt)
-	  (fn (a n)
-	    (if (<= n (len a))
-	      (let t (build n (fn (p) (build n (fn (q)
-	             (loop ((x p) (y q) (i 0)) (>= i n) x else
-	               (again (set y i ` + store + `) x (+ i 1)))))))
-	        (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k))))))
-	      0))`
+		return `use tgt
+fn t(a, n) {
+    if n <= len(a) {
+        t = build(n, fn(p) { build(n, fn(q) { loop x = p, y = q, i = 0 { i >= n -> x; else -> again(store(y, i, ` + store + `), x, i + 1) } }) })
+        loop k = 0, s = 0 { k >= len(t) -> s; else -> again(k + 1, s + a[t[k]]) }
+    } else { 0 }
+}`
 	}
 	notes, err := refineWith(t, tg, swap(`i`))
 	if err != nil {
@@ -85,16 +93,15 @@ func TestSwappedBuffersKeepTheirContentJointly(t *testing.T) {
 func TestAComponentFactHoldsOfItsResidueClass(t *testing.T) {
 	tg := tempTarget(t, ``)
 	prog := func(read string) string {
-		return `(use tgt)
-	  (fn (a n)
-	    (if (<= n (len a))
-	      (let t (build (* 2 n) (fn (b) (loop ((c b) (i 0)) (>= i n) c else
-	             (again (set (set c (+ (* 2 i) 0) i) (+ (* 2 i) 1) 1000000) (+ i 1)))))
-	        (loop ((k 0) (s 0)) (>= k n) s else
-	          (again (+ k 1) (+ s (a ` + read + `)))))
-	      0))`
+		return `use tgt
+fn t(a, n) {
+    if n <= len(a) {
+        t = build(2 * n, fn(b) { loop c = b, i = 0 { i >= n -> c; else -> again(store(store(c, 2 * i + 0, i), 2 * i + 1, 1000000), i + 1) } })
+        loop k = 0, s = 0 { k >= n -> s; else -> again(k + 1, s + a[` + read + `]) }
+    } else { 0 }
+}`
 	}
-	notes, err := refineWith(t, tg, prog(`(t (+ (* 2 k) 0))`))
+	notes, err := refineWith(t, tg, prog(`t[2 * k + 0]`))
 	if err != nil {
 		t.Fatalf("a read of component 0 was refused: %v", err)
 	}
@@ -103,19 +110,19 @@ func TestAComponentFactHoldsOfItsResidueClass(t *testing.T) {
 	}
 	// CONTROL, THE OTHER COMPONENT: slot 2k+1 holds 1000000, so the index is not
 	// in range — it must not be proven, whichever way it is reported.
-	notes, err = refineWith(t, tg, prog(`(t (+ (* 2 k) 1))`))
+	notes, err = refineWith(t, tg, prog(`t[2 * k + 1]`))
 	if err == nil && !propagated(notes) {
 		t.Error("component 1 was taken to hold indices below n")
 	}
 	// CONTROL, AN UNDECIDED RESIDUE: `k` alone is not known mod 2, so no component
 	// fact applies to `(t k)`.
-	notes, err = refineWith(t, tg, prog(`(t k)`))
+	notes, err = refineWith(t, tg, prog(`t[k]`))
 	if err == nil && !propagated(notes) {
 		t.Error("a component fact was applied at an index whose residue is unknown")
 	}
 	// CONTROL, A CONDITIONAL INDEX OVER TWO RESIDUES: `(if … 0 1)` lands in both
 	// components, so the join of its branches' residues knows nothing mod 2.
-	notes, err = refineWith(t, tg, prog(`(t (if (< k 1) 0 1))`))
+	notes, err = refineWith(t, tg, prog(`t[if k < 1 { 0 } else { 1 }]`))
 	if err == nil && !propagated(notes) {
 		t.Error("a conditional index over residues 0 and 1 was taken to lie in component 0")
 	}
@@ -126,15 +133,19 @@ func TestAComponentFactHoldsOfItsResidueClass(t *testing.T) {
 // after a store of 1000000 at an index that may be even.
 func TestAStoreOfUnknownResidueTouchesEveryComponent(t *testing.T) {
 	tg := tempTarget(t, ``)
-	const src = `(use tgt)
-	  (fn (a n j)
-	    (if (<= n (len a))
-	      (let t (build (* 2 n) (fn (b) (loop ((c b) (i 0)) (>= i n) c else
-  	             (again (set (set (set c (+ (* 2 i) 0) i) (+ (* 2 i) 1) 1000000)
-  	                         (if (< j 0) 0 (if (>= j (* 2 n)) 0 j)) 1000000) (+ i 1)))))
-         (loop ((k 0) (s 0)) (>= k n) s else
-	          (again (+ k 1) (+ s (a (t (+ (* 2 k) 0)))))))
-	      0))`
+	const src = `use tgt
+fn t(a, n, j) {
+    if n <= len(a) {
+        t = build(2 * n, fn(b) {
+            loop c = b, i = 0 {
+                i >= n -> c
+                else -> again(store(store(store(c, 2 * i + 0, i), 2 * i + 1, 1000000),
+                    if j < 0 { 0 } else if j >= 2 * n { 0 } else { j }, 1000000), i + 1)
+            }
+        })
+        loop k = 0, s = 0 { k >= n -> s; else -> again(k + 1, s + a[t[2 * k + 0]]) }
+    } else { 0 }
+}`
 	notes, err := refineWith(t, tg, src)
 	if err == nil && !propagated(notes) {
 		t.Error("a store at an index of unknown residue was taken to leave component 0 alone")

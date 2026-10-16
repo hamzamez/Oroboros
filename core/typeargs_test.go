@@ -90,11 +90,13 @@ func TestTypeArgumentsAreWrittenAndCounted(t *testing.T) {
 
 // §5.5.4, each rule the consequence of one stated elsewhere.
 func TestAParameterisedDeclarationIsWellFormed(t *testing.T) {
-	mustLoadFail(t, `(variant (r T T) (ok T) (err T))`, "declared twice")
-	mustLoadFail(t, `(variant (r r) (ok r) (err int))`, "the type's own name")
-	mustLoadFail(t, `(variant (r (F int)) (ok int) (err int))`, "higher-kinded")
-	mustLoadFail(t, `(variant (r T E) (ok T) (err T))`, "phantom")
-	mustLoadFail(t, `(variant tree leaf (node tree))`, "recursive type")
+	mustLoadFail(t, `set R(T, T) = 'ok(T) ∪ 'err(T)`, "declared twice")
+	// a parameter spelled as its set is the set, which then contains itself
+	mustLoadFail(t, `set R(R) = 'ok(R) ∪ 'err(Int)`, "contains itself")
+	// a higher-kinded parameter has no spelling: the grammar refuses it
+	mustLoadFail(t, `set R(F(Int)) = 'ok(Int) ∪ 'err(Int)`, "")
+	mustLoadFail(t, `set R(T, E) = 'ok(T) ∪ 'err(T)`, "phantom")
+	mustLoadFail(t, `set Tree = 'leaf ∪ 'node(Tree)`, "recursive type")
 }
 
 // Inside a program the argument is never needed: a parameterised variant reduces

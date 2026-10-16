@@ -48,32 +48,22 @@ func checkOne(t *testing.T, src string) error {
 // `build` already used, seeded from the signature instead of from `build`'s
 // binder. `CheckLinear` with a different seed, as uniqueness.md §6.2 predicted.
 func TestADeclaredBufferParameterIsLinear(t *testing.T) {
-	good := `
-(use go)
-(export f)
-(sig f ((w (buffer int))) (buffer int) (where (go.< 4 (go.len w))))
-(def f (fn (w) (go.set w 0 1)))`
+	good := "use go\nexport fn f(w ∈ Array(Int) linear) (()) where go.`<`(4, go.len(w)) { w[0] := 1 }"
 	if err := checkOne(t, good); err != nil {
 		t.Fatalf("a threaded workspace must be accepted: %v", err)
 	}
 
-	// A USE AFTER MOVE. `set` consumes the buffer and returns it, so after the
-	// store the ORIGINAL name is dead — and the read below is of the dead one.
-	// This is the mistake ADR 0020 makes available that ADR 0018 did not: the
-	// name is a parameter, so nothing lexically nearby says it was consumed.
-	bad := `
-(use go)
-(export f)
-(sig f ((w (buffer int))) int (where (go.< 4 (go.len w))))
-(def f (fn (w) (go.+ ((go.set w 0 1) 0) (w 1))))`
-	err := checkOne(t, bad)
+	// A USE AFTER MOVE was the mistake ADR 0020 made available: a read of the
+	// parameter after a store consumed it. In program order (ADR 0052) a store
+	// does not rename the buffer, so the dead name cannot be written; what can
+	// is a second name for it, which R1 refuses.
+	bad := "use go\nexport fn f(w ∈ Array(Int) linear) (Int) where go.`<`(4, go.len(w)) { x = w; w[0] := 1; x[1] }"
+	forms, err := core.Read(bad)
 	if err == nil {
-		t.Fatal("reading a buffer parameter after storing into it must be refused")
+		_, _, err = core.Load(forms)
 	}
-	// And the diagnostic must name ADR 0020's parameter rather than ADR 0018's
-	// `build`, because the two are different promises by different parties.
-	if !strings.Contains(err.Error(), "ADR 0020") {
-		t.Errorf("the message should name the declared parameter:\n%v", err)
+	if err == nil || !strings.Contains(err.Error(), "R1") {
+		t.Errorf("a second name for a buffer parameter must be refused by R1, got %v", err)
 	}
 }
 
@@ -85,11 +75,11 @@ func TestADeclaredBufferParameterIsLinear(t *testing.T) {
 // Odersky's observers (1992). Allow a table of buffers and that argument fails.
 func TestABufferIsNotAnElementType(t *testing.T) {
 	for _, ty := range []string{
-		"(array (buffer int))",
-		"(buffer (buffer int))",
-		"(map int (buffer int))",
+		"Array(buffer(Int))",
+		"buffer(buffer(Int))",
+		"Map(Int, buffer(Int))",
 	} {
-		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
+		forms, err := core.Read("fn f(x ∈ " + ty + ") (Int) { 0 }")
 		if err == nil {
 			_, _, err = core.Load(forms)
 		}
@@ -99,8 +89,8 @@ func TestABufferIsNotAnElementType(t *testing.T) {
 	}
 	// The control: the same shapes over an ARRAY are types, so the refusal above
 	// is about buffers and not about compound types.
-	for _, ty := range []string{"(array (array int))", "(array int)", "(map int int)"} {
-		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
+	for _, ty := range []string{"Array(Array(Int))", "Array(Int)", "Map(Int, Int)"} {
+		forms, err := core.Read("fn f(x ∈ " + ty + ") (Int) { 0 }")
 		if err != nil {
 			t.Fatal(err)
 		}

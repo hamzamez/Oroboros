@@ -24,7 +24,7 @@ import (
 // unbounded. growth.md called the map's value range FREE; it is free only once
 // the analysis is told.
 func TestAMapReadCarriesTheInsertedRange(t *testing.T) {
-	rep := mapIntervals(t, "(insert m i 7)")
+	rep := mapIntervals(t, "m[i] := 7")
 	if rep.Ops == 0 {
 		t.Fatal("nothing was counted, so this test proves nothing")
 	}
@@ -41,7 +41,7 @@ func TestAMapReadCarriesTheInsertedRange(t *testing.T) {
 // insert, `(* i 10)` included; the IR's cells carry the inserted values' facts,
 // and i ∈ [0, 8] bounds that one.)
 func TestAnUnboundedInsertIsNotClaimed(t *testing.T) {
-	rep := mapIntervals(t, "(insert m i k)")
+	rep := mapIntervals(t, "m[i] := k")
 	if rep.Ops == 0 {
 		t.Fatal("nothing was counted, so this test proves nothing")
 	}
@@ -57,13 +57,10 @@ func mapIntervals(t *testing.T, ins string) decision {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := "(use go)\n(export run)\n(def run (fn (n k)\n" +
-		"  (let t (build-map 8 (fn (m)\n" +
-		"         (loop ((m m) (i 0))\n" +
-		"           (>= i n)  m\n" +
-		"           else      (again " + ins + " (+ i 1)))))\n" +
-		"    (* 100 (case (t 3) (some v) v none 0)))))\n" +
-		"(sig run ((n (int 0 8)) (k int)) int)\n"
+	src := "use go\nexport fn run(n ∈ 0..8, k ∈ Int) (Int) {\n" +
+		"    t = { var m := map(8); loop i = 0 { i >= n -> m; else -> { " + ins + "; again(i + 1) } } }\n" +
+		"    100 * case t[3] { 'some(v) -> v; 'none -> 0 }\n" +
+		"}\n"
 	forms, err := core.Read(src)
 	if err != nil {
 		t.Fatal(err)

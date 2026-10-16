@@ -165,7 +165,7 @@ func TestNegateHandlesOperatorSpellings(t *testing.T) {
 		{`(go.== a b)`, `(go.ne a b)`},
 		{`(num/int.lt a b)`, `(num/int.ge a b)`},
 	} {
-		in, err := core.ReadTerm(c.src)
+		in, err := core.ParseTerm(c.src)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -1,8 +1,6 @@
 package emit
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -131,29 +129,6 @@ func TestAnUndeclaredLengthProvesNothing(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "is an indexing") {
 		t.Errorf("the refusal must name the operation, got %v", err)
-	}
-}
-
-// (length N) and (length-of N) are RESPELLED as the postcondition they always
-// were, and the old spellings are refused naming the new one (theories.md §8.4).
-// Checked through a real target file, because a declaration is only meaningful
-// inside a `(target …)`.
-func TestLengthAttributesAreRespelledAsEnsures(t *testing.T) {
-	for old, want := range map[string]string{
-		`(sig mk (int) slice-bool (length 0) (host expr "make([]bool, %s)"))`:               "(ensures (= (len result) n))",
-		`(sig st (slice-bool int bool) slice-bool (length-of 0) (host stmt "%s[%s] = %s"))`: "(ensures (= (len result) (len c)))",
-	} {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "bad.oro")
-		src := "(target bad\n  (type int (host \"int\"))\n  (type bool (host \"bool\"))\n" +
-			"  (type slice-bool (host \"[]bool\"))\n  " + old + ")\n"
-		if err := os.WriteFile(path, []byte(withWord(src)), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		_, err := LoadTarget(path)
-		if err == nil || !strings.Contains(err.Error(), want) {
-			t.Errorf("%s must be refused naming %s, got %v", old, want, err)
-		}
 	}
 }
 

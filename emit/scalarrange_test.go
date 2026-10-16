@@ -44,8 +44,8 @@ func TestScalarRangeIsAnInt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := mustRead(t, "(fn (n) (go.* n n))")
-	if err := CheckAgainstSig(tg, "sq", sigOf(t, "(int 0 1000)"), body); err != nil {
+	body := mustRead(t, "fn(n) { go.`*`(n, n) }")
+	if err := CheckAgainstSig(tg, "sq", sigOf(t, "0..1000"), body); err != nil {
 		t.Fatalf("a declared range was refused where `int` is required: %v\n"+
 			"A range IS an int (core.ValueType). It says what the value is, not "+
 			"what operations accept it.", err)
@@ -74,8 +74,8 @@ func TestAScalarRangeIsAnIntNotAWidth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sig := sigOf(t, "(int 0 255)")
-	body := mustRead(t, "(fn (n) (go.* n n))")
+	sig := sigOf(t, "0..255")
+	body := mustRead(t, "fn(n) { go.`*`(n, n) }")
 
 	// It IS an int: an integer operation accepts it.
 	if err := CheckAgainstSig(tg, "sq", sig, body); err != nil {
@@ -85,7 +85,7 @@ func TestAScalarRangeIsAnIntNotAWidth(t *testing.T) {
 	// And it is not a licence to accept anything: a float operation must still
 	// refuse it. Without this the check above passes under a `compatible` that
 	// gave up rather than one that normalised.
-	f := mustRead(t, "(fn (n) (go.f* n n))")
+	f := mustRead(t, "fn(n) { go.`f*`(n, n) }")
 	if fErr := CheckAgainstSig(tg, "sq", sig, f); fErr == nil {
 		t.Error("a 0..255 parameter was accepted where f64 is required; " +
 			"normalising a range to `int` must not weaken the checker")
@@ -105,32 +105,46 @@ func TestAScalarRangeIsAnIntNotAWidth(t *testing.T) {
 // as "n is int 100 0, but int is required here" — a type mismatch reported
 // against the wrong thing, at the wrong place, for the wrong reason.
 func TestAnEmptyRangeIsRefusedWhereItIsWritten(t *testing.T) {
-	if _, err := core.Read("(sig f ((n (int 100 0))) int)"); err == nil {
+	if _, err := core.Read("fn f(n ∈ 100..0) (Int) { n }"); err == nil {
 		t.Error("an empty range was accepted as a type")
 	} else if !strings.Contains(err.Error(), "(int 100 0)") {
 		t.Errorf("the error does not name the range that is wrong: %v", err)
 	}
 	// The control: a single-point range is legal and must stay legal, or the
 	// refusal above could be implemented as "lo must be less than hi".
-	if _, err := core.Read("(sig f ((n (int 5 5))) int)"); err != nil {
+	if _, err := core.Read("fn f(n ∈ 5..5) (Int) { n }"); err != nil {
 		t.Errorf("a single-point range was refused: %v", err)
 	}
 }
 
 func resultSigOf(t *testing.T, param, result string) *core.Sig {
 	t.Helper()
-	forms, err := core.Read("(sig sq ((n " + param + ")) " + result + ")")
-	if err != nil || len(forms) != 1 || forms[0].Sig == nil {
+	src := "fn sq(n ∈ " + param + ") (" + result + ") { n }"
+	forms, err := core.Read(src)
+	if err != nil {
 		t.Fatalf("read sig %s -> %s: %v", param, result, err)
 	}
-	return forms[0].Sig
+	for _, f := range forms {
+		if f.Sig != nil && f.Name == "sq" {
+			return f.Sig
+		}
+	}
+	t.Fatalf("read %s: no claim", src)
+	return nil
 }
 
 func sigOf(t *testing.T, decl string) *core.Sig {
 	t.Helper()
-	forms, err := core.Read("(sig sq ((n " + decl + ")) int)")
-	if err != nil || len(forms) != 1 || forms[0].Sig == nil {
+	src := "fn sq(n ∈ " + decl + ") (Int) { n }"
+	forms, err := core.Read(src)
+	if err != nil {
 		t.Fatalf("read sig %s: %v", decl, err)
 	}
-	return forms[0].Sig
+	for _, f := range forms {
+		if f.Sig != nil && f.Name == "sq" {
+			return f.Sig
+		}
+	}
+	t.Fatalf("read %s: no claim", src)
+	return nil
 }

@@ -37,12 +37,12 @@ func TestStringLiteralEscapes(t *testing.T) {
 		// NFC constrains the program TEXT, not the data: this is two scalars.
 		{`"e\u{301}"`, "e\u0301"},
 	} {
-		got, err := Read("(def x " + c.src + ")")
+		got, err := ReadTerm(c.src)
 		if err != nil {
 			t.Errorf("%s: %v", c.src, err)
 			continue
 		}
-		if v := got[0].Term.Str; v != c.want {
+		if v := got.Str; got.Kind != KStr || v != c.want {
 			t.Errorf("%s gave %q, want %q", c.src, v, c.want)
 		}
 	}
@@ -76,7 +76,7 @@ func TestStringLiteralRefusals(t *testing.T) {
 		{`"\u{zz}"`, "not hexadecimal"},
 		{`"\u41"`, "must be written"},
 	} {
-		if _, err := Read("(def x " + c.src + ")"); err == nil {
+		if _, err := ReadTerm(c.src); err == nil {
 			t.Errorf("%s was accepted", c.src)
 		} else if !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: error does not mention %q: %v", c.src, c.want, err)
@@ -90,7 +90,7 @@ func TestStringLiteralRefusals(t *testing.T) {
 // would be reported at end of file instead of where it happened.
 func TestStringLiteralRejectsRawWhitespace(t *testing.T) {
 	for _, raw := range []string{"a\tb", "a\nb", "a\rb"} {
-		if _, err := Read(`(def x "` + raw + `")`); err == nil {
+		if _, err := ReadTerm(`"` + raw + `"`); err == nil {
 			t.Errorf("a literal containing a raw %q was accepted", raw)
 		} else if !strings.Contains(err.Error(), "raw") {
 			t.Errorf("%q: %v", raw, err)

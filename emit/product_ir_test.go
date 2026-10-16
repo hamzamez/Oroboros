@@ -113,20 +113,7 @@ export fn mk(n ∈ 1..100) (Array(Int)) {
 // has inlined it. Without propagation through both, the arity is known for
 // exactly one term and lost immediately — which is every program anyone writes.
 func TestTheArityTravelsThroughLoopAndLet(t *testing.T) {
-	got, err := genFlat(t, `
-(use go)
-(export use)
-(sig use ((n (int 1 50))) int)
-(def mk (fn (n)
-  (build n (fn (t)
-    (loop ((t t) (i 0))
-      (>= i n)  t
-      else      (again (set t i (tuple i i)) (+ i 1)))))))
-(def use (fn (n)
-  (let sp (mk n)
-    (loop ((acc 0) (w 0))
-      (>= w n)  acc
-      else      (again (+ acc ((sp w) 1)) (+ w 1))))))`, "use")
+	got, err := genFlat(t, "use go\nfn mk(n) {\n    build(n, fn(t) { loop t = t, i = 0 { i >= n -> t; else -> again(store(t, i, (i, i)), i + 1) } })\n}\nexport fn `use`(n ∈ 1..50) (Int) {\n    sp = mk(n)\n    loop acc = 0, w = 0 { w >= n -> acc; else -> again(acc + sp(w)(1), w + 1) }\n}", "use")
 	if err != nil {
 		t.Fatal(err)
 	}

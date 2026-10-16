@@ -62,22 +62,19 @@ export fn f(n ∈ Int) (Any) { array { i : i ∈ 0..n-1 } }`, "f")
 // `build` reaches every target that has arrays, and each one spells the
 // allocation and the store its own way. No target declares any of it.
 func TestBuildAndSetOnEveryTarget(t *testing.T) {
-	src := func(u, ge, add string) string {
-		return `(use ` + u + `)
-			(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
-			(def f (fn (n)
-				(let b (build n (fn (c)
-					(loop ((c c) (i 0)) (` + ge + ` i n) c
-						else (again (set c i true) (` + add + ` i 1)))))
-					(if (b 0) 1 0))))`
+	// The host's own comparison and addition, h.`>=` and h.`+`.
+	src := func(h string) string {
+		return "use " + h + "\nexport fn f(n ∈ Int) (Int) where 2 < n && n < 100 {\n" +
+			"    b = build(n, fn(c) { loop c = c, i = 0 { " + h + ".`>=`(i, n) -> c; else -> again(store(c, i, true), " + h + ".`+`(i, 1)) } })\n" +
+			"    if b[0] { 1 } else { 0 }\n}"
 	}
 	cases := []struct{ target, src, want string }{
-		{"go", src("go", "go.>=", "go.+"), `v\d+\[v\d+\] = true`},
-		{"js", src("js", "js.>=", "js.+"), `v\d+\[v\d+\] = true;`},
+		{"go", src("go"), `v\d+\[v\d+\] = true`},
+		{"js", src("js"), `v\d+\[v\d+\] = true;`},
 		// The array is FILLED rather than left sparse: a sparse array on V8 is
 		// a dictionary, so every store into one is a map insert.
-		{"js", src("js", "js.>=", "js.+"), `\.fill\(0\)`},
-		{"java", src("java", "java.>=", "java.+"), `new boolean\[\(int\) v\d+\]`},
+		{"js", src("js"), `\.fill\(0\)`},
+		{"java", src("java"), `new boolean\[\(int\) v\d+\]`},
 	}
 	for _, c := range cases {
 		code, err := genOn(t, c.target, c.src, "f")
@@ -144,16 +141,17 @@ export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
 // is one byte — three hosts were sizing our elements for us through their own
 // type systems, and x86 is where the choice became ours.
 func TestWindowsSizesABooleanTableByTheByte(t *testing.T) {
-	code, err := genOn(t, "windows", `
-		(use x64)
-		(export f) (sig f ((n int)) int (where (and (< 0 n) (< n 1000))))
-		(def f (fn (n)
-			(let b (build n (fn (c)
-  				(loop ((c c) (i 0))
-  					(x64.setge i n)  c
-  					else             (again (set c i true) (x64.add i 1)))))
-     (if (b 0) 1 0))))
-	`, "f")
+	code, err := genOn(t, "windows", `use x64
+export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
+    b = build(n,
+        fn(c) {
+            loop c = c, i = 0 {
+                x64.setge(i, n) -> c
+                else -> again(store(c, i, true), x64.add(i, 1))
+            }
+        })
+    if b(0) { 1 } else { 0 }
+}`, "f")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,13 +169,11 @@ func TestWindowsSizesABooleanTableByTheByte(t *testing.T) {
 
 // An INT table keeps the wide form, because that is what an int needs.
 func TestWindowsKeepsEightBytesForInts(t *testing.T) {
-	code, err := genOn(t, "windows", `
-		(use x64)
-		(export f) (sig f ((n int)) int (where (and (< 0 n) (< n 1000))))
-		(def f (fn (n)
-			(let v (alloc (table n (fn (i) (x64.imul i i))))
-     (v 0))))
-	`, "f")
+	code, err := genOn(t, "windows", `use x64
+export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
+    v = alloc(array { x64.imul(i, i) : i ∈ 0..n-1 })
+    v(0)
+}`, "f")
 	if err != nil {
 		t.Fatal(err)
 	}

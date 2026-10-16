@@ -32,11 +32,11 @@ func TestMapLiteralReduces(t *testing.T) {
 	// more informative test: it shows there is no sum VALUE anywhere, only a
 	// function that a `case` consumes and erases.
 	for _, c := range []struct{ src, want string }{
-		{"((map (1 10) (2 20) (5 50)) 2)", "(fn (#k) (#k 0 20))"},
-		{"((map (1 10) (2 20) (5 50)) 9)", "(fn (#k) (#k 1 #any))"},
-		{"((map (1 10)) 1)", "(fn (#k) (#k 0 10))"},
-		{"(len (map (1 10) (2 20) (5 50)))", "3"},
-		{"(len (map))", "0"},
+		{"t = map { 1 : 10, 2 : 20, 5 : 50 }[2]", "(fn (#k) (#k 0 20))"},
+		{"t = map { 1 : 10, 2 : 20, 5 : 50 }[9]", "(fn (#k) (#k 1 #any))"},
+		{"t = map { 1 : 10 }[1]", "(fn (#k) (#k 0 10))"},
+		{"t = len(map { 1 : 10, 2 : 20, 5 : 50 })", "3"},
+		{"t = len(map {})", "0"},
 	} {
 		if got := mapNorm(t, c.src); got != c.want {
 			t.Errorf("%s reduced to %s, want %s", c.src, got, c.want)
@@ -47,7 +47,7 @@ func TestMapLiteralReduces(t *testing.T) {
 // A STATIC MAP LEAVES NOTHING — the claim maps.md §5.2 makes, and the reason F2
 // is affordable at all.
 func TestAStaticMapLeavesNothing(t *testing.T) {
-	got := mapNorm(t, "(case ((map (1 10) (2 20)) 2) (some v) (+ v 1) none 0)")
+	got := mapNorm(t, "t = case map { 1 : 10, 2 : 20 }[2] { 'some(v) -> v + 1; 'none -> 0 }")
 	// `21`, and it used to be `(+ 20 1)`: with integer arithmetic promoted to
 	// the language it folds too, so "a static map leaves nothing" is now
 	// literally true rather than true of the map alone.
@@ -72,13 +72,13 @@ func TestAStaticMapLeavesNothing(t *testing.T) {
 // because `k ∈ dom m` is set membership and nothing decides it (maps.md §1.1).
 // So `none` is the answer here and a diagnostic there.
 func TestAbsenceIsAResultAndOutOfRangeIsNot(t *testing.T) {
-	if got := mapNorm(t, "((map (1 10)) 7)"); got != "(fn (#k) (#k 1 #any))" {
+	if got := mapNorm(t, "t = map { 1 : 10 }[7]"); got != "(fn (#k) (#k 1 #any))" {
 		t.Errorf("a missing key gave %s, want none's encoding (tag 1)", got)
 	}
 	// The control, and it must NOT fold. If this ever starts returning a sum,
 	// the two constructs have been conflated and the refinement layer has lost
 	// a diagnostic that only it can give.
-	got := mapNorm(t, "((array 1 2 3) 7)")
+	got := mapNorm(t, "t = array { 1, 2, 3 }[7]")
 	if strings.Contains(got, "#k") || !strings.Contains(got, "array") {
 		t.Errorf("an out-of-range ARRAY read gave %s; it must stay stuck so the "+
 			"refinement layer can report it with the bound and the call site", got)
@@ -90,7 +90,7 @@ func TestAbsenceIsAResultAndOutOfRangeIsNot(t *testing.T) {
 // is exactly the case a target has to implement, and the reason indexing being
 // application costs nothing: `(m k)` is the same text either way.
 func TestADynamicKeyDoesNotReduce(t *testing.T) {
-	got := mapNorm(t, "(fn (k) ((map (1 10) (2 20)) k))")
+	got := mapNorm(t, "t = fn(k) { map { 1 : 10, 2 : 20 }[k] }")
 	if strings.Contains(got, "#k") {
 		t.Fatalf("a dynamic key decided the domain condition: %s", got)
 	}
@@ -104,7 +104,7 @@ func TestADynamicKeyDoesNotReduce(t *testing.T) {
 // makes the whole lookup undecidable rather than absent. Answering `none` here
 // would be a silent wrong answer, because `(j 10)` might BE the row for 2.
 func TestANonLiteralKeyInTheGraphDoesNotReduce(t *testing.T) {
-	got := mapNorm(t, "(fn (j) ((map (j 10) (2 20)) 2))")
+	got := mapNorm(t, "t = fn(j) { map { j : 10, 2 : 20 }[2] }")
 	if strings.Contains(got, "#k") {
 		t.Errorf("a graph with an unknown key was decided anyway: %s", got)
 	}
@@ -114,24 +114,21 @@ func TestANonLiteralKeyInTheGraphDoesNotReduce(t *testing.T) {
 // declares no sum can still be handed one by the compiler — a map read produces
 // `some`/`none` and they have to resolve, the same way `if` has to (maps.md §4).
 func TestOptionIsAvailableWithoutBeingDeclared(t *testing.T) {
-	if got := mapNorm(t, "(case (some 3) (some v) v none 0)"); got != "3" {
+	if got := mapNorm(t, "t = case 'some(3) { 'some(v) -> v; 'none -> 0 }"); got != "3" {
 		t.Errorf("case on an injected `some` gave %s, want 3", got)
 	}
-	if got := mapNorm(t, "(case none (some v) v none 7)"); got != "7" {
+	if got := mapNorm(t, "t = case 'none { 'some(v) -> v; 'none -> 7 }"); got != "7" {
 		t.Errorf("case on an injected `none` gave %s, want 7", got)
 	}
 }
 
-// A `case` IN A BARE TERM EXPANDS, which it did not until the map work needed
-// it. `expandCase` ran over every module's DEFS and not over the top-level
+// A `case` EXPANDS WHEREVER IT STANDS. It did not until the map work needed
+// it: `expandCase` ran over every module's DEFS and not over today's top-level
 // entry terms, so the identical `case` reduced inside a `(def …)` and stayed a
-// stuck application at top level.
-//
-// Every real program puts its code in a def, which is why this was never seen —
-// and a construct that works in one position and silently does not in another
-// is the shape of bug this repository keeps finding.
+// stuck application at top level. J has no bare top-level term (ADR 0064), so
+// a program's code is in a definition, the one position.
 func TestCaseExpandsInABareTerm(t *testing.T) {
-	if got := mapNorm(t, "(case (some 5) (some v) v none 0)"); strings.Contains(got, "case") {
+	if got := mapNorm(t, "t = case 'some(5) { 'some(v) -> v; 'none -> 0 }"); strings.Contains(got, "case") {
 		t.Errorf("a top-level `case` did not expand: %s", got)
 	}
 }

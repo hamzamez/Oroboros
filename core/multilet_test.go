@@ -40,9 +40,8 @@ func TestAnEliminatorCommutesIntoAHostCallsContinuation(t *testing.T) {
 // The side condition is ADR 0010's: an eliminator that is not pure is not moved,
 // because moving it under the host call would reorder its effect after the call's.
 func TestAnImpureEliminatorStaysOutside(t *testing.T) {
-	p, err := loadSrc(t, `
-		(use go)
-		(def f (fn (x) (((go.mul x 3) (fn (h l) (fn (k) (k h l)))) (go.eff x))))`)
+	p, err := loadSrc(t, `use go
+fn f(x) { go.mul(x, 3)(fn(h, l) { fn(k) { k(h, l) } })(go.eff(x)) }`)
 	if err != nil {
 		t.Fatal(err)
 	}

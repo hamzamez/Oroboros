@@ -18,11 +18,11 @@ func lowerBound(t *testing.T, src string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := core.Read(src)
+	term, err := core.ReadTerm(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	z := LoopLowerBound(tg, forms[0].Term)
+	z := LoopLowerBound(tg, term)
 	if z == nil {
 		return ""
 	}
@@ -33,49 +33,39 @@ func TestLoopLowerBound(t *testing.T) {
 	for _, c := range []struct{ name, src, want string }{
 		// A SCANNER. j starts at i+1 and every path only adds, so the value is
 		// at least i+1 — which is what makes a caller's index strictly increase.
-		{"a scanner", `
-			(loop ((j (go.+ i 1)))
-			  (go.>= j (len src))  j
-			  (= (src j) 92)       (again (go.+ j 2))
-			  (= (src j) 34)       (go.+ j 1)
-			  else                 (again (go.+ j 1)))`, "(go.+ i 1)"},
+		{"a scanner", "loop j = go.`+`(i, 1) {\n" +
+			"    go.`>=`(j, len(src)) -> j\n" +
+			"    src[j] == 92 -> again(go.`+`(j, 2))\n" +
+			"    src[j] == 34 -> go.`+`(j, 1)\n" +
+			"    else -> again(go.`+`(j, 1))\n}", "(go.+ i 1)"},
 
 		// Rule 3: subtracting a NEGATIVE literal is an increase.
-		{"minus a negative", `
-			(loop ((j i)) (go.>= j 10) j else (again (go.- j -2)))`, "i"},
+		{"minus a negative", "loop j = i { go.`>=`(j, 10) -> j; else -> again(go.`-`(j, -2)) }", "i"},
 
 		// Rule 4: a conditional qualifies when BOTH branches do.
-		{"a conditional step", `
-			(loop ((j i)) (go.>= j 10) j else (again (if c (go.+ j 1) (go.+ j 5))))`, "i"},
+		{"a conditional step", "loop j = i { go.`>=`(j, 10) -> j; else -> again(if c { go.`+`(j, 1) } else { go.`+`(j, 5) }) }", "i"},
 
 		// Rule 5, and ADR 0015's `again` under a `let`.
-		{"again under a let", `
-			(loop ((j i)) (go.>= j 10) j else (let n (go.+ j 3)
-                                       (again n)))`, "i"},
+		{"again under a let", "loop j = i { go.`>=`(j, 10) -> j; else -> { n = go.`+`(j, 3); again(n) } }", "i"},
 
 		// --- and what it must refuse ---
 
-		{"a decreasing step", `
-			(loop ((j i)) (go.<= j 0) j else (again (go.- j 1)))`, ""},
+		{"a decreasing step", "loop j = i { go.`<=`(j, 0) -> j; else -> again(go.`-`(j, 1)) }", ""},
 
 		// THE SECOND HALF. Every step increases, but an exit returns 0 — so the
 		// loop's value is NOT at least its initial value. A check of the steps
 		// alone would wrongly accept this.
-		{"an exit below the initial value", `
-			(loop ((j i)) (go.>= j 10) 0 else (again (go.+ j 1)))`, ""},
+		{"an exit below the initial value", "loop j = i { go.`>=`(j, 10) -> 0; else -> again(go.`+`(j, 1)) }", ""},
 
 		// One bad branch is enough: the conditional is only as good as its worse
 		// side, because either may be the one evaluated.
-		{"one bad branch", `
-			(loop ((j i)) (go.>= j 10) j else (again (if c (go.+ j 1) (go.- j 1))))`, ""},
+		{"one bad branch", "loop j = i { go.`>=`(j, 10) -> j; else -> again(if c { go.`+`(j, 1) } else { go.`-`(j, 1) }) }", ""},
 
 		// An opaque step. Nothing says `(f j)` is at least j.
-		{"an opaque step", `
-			(loop ((j i)) (go.>= j 10) j else (again (go.* j 2)))`, ""},
+		{"an opaque step", "loop j = i { go.`>=`(j, 10) -> j; else -> again(go.`*`(j, 2)) }", ""},
 
 		// Adding a VARIABLE, not a literal: `j + k` is below j when k < 0.
-		{"plus an unknown", `
-			(loop ((j i)) (go.>= j 10) j else (again (go.+ j k)))`, ""},
+		{"plus an unknown", "loop j = i { go.`>=`(j, 10) -> j; else -> again(go.`+`(j, k)) }", ""},
 	} {
 		if got := lowerBound(t, c.src); got != c.want {
 			t.Errorf("%s: lower bound %q, want %q", c.name, got, c.want)
@@ -109,11 +99,11 @@ func TestAtLeastIsTheRelationAndNothingMore(t *testing.T) {
 		{"(go.* j 2)", false},          // outside the relation
 		{"3", false},                   // a literal says nothing about j
 	} {
-		forms, err := core.Read(c.src)
+		term, err := core.ParseTerm(c.src)
 		if err != nil {
 			t.Fatalf("%s: %v", c.src, err)
 		}
-		if got := atLeast(tg, forms[0].Term, s); got != c.want {
+		if got := atLeast(tg, term, s); got != c.want {
 			t.Errorf("atLeast(%s) = %v, want %v", c.src, got, c.want)
 		}
 	}

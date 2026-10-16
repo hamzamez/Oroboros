@@ -29,18 +29,16 @@ func tabNorm(t *testing.T, e *Env, src string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var term *Term
 	for _, f := range forms {
-		if f.Kind == "term" {
-			term = f.Term
-		}
 		if f.Kind == "def" {
 			e.Defs[f.Name] = f.Term
 		}
 	}
-	if term == nil {
-		t.Fatal("no term")
+	term, ok := e.Defs["t"]
+	if !ok {
+		t.Fatal("no t")
 	}
+	delete(e.Defs, "t")
 	nf, err := Normalize(term, e, DefaultFuel)
 	if err != nil {
 		t.Fatal(err)
@@ -53,10 +51,10 @@ func tabNorm(t *testing.T, e *Env, src string) string {
 // body, and the same judgement in both cases (tables.md §4.1).
 func TestBetaTabOnAGraph(t *testing.T) {
 	e := tableEnv()
-	if got := tabNorm(t, e, `((array 10 20 30) 2)`); got != "30" {
+	if got := tabNorm(t, e, `t = array { 10, 20, 30 }[2]`); got != "30" {
 		t.Errorf("looking up element 2 must give 30, got %s", got)
 	}
-	if got := tabNorm(t, e, `((array 10 20 30) 0)`); got != "10" {
+	if got := tabNorm(t, e, `t = array { 10, 20, 30 }[0]`); got != "10" {
 		t.Errorf("element 0, got %s", got)
 	}
 }
@@ -69,7 +67,7 @@ func TestBetaTabOnARule(t *testing.T) {
 	// `4` and not `(+ 3 1)`: the language's integer operators fold on two
 	// literals now, so the rule applies AND the arithmetic goes. That is a
 	// stronger demonstration of the same thing.
-	if got := tabNorm(t, e, `((table 5 (fn (i) (+ i 1))) 3)`); got != "4" {
+	if got := tabNorm(t, e, `t = array { i + 1 : i ∈ 0..4 }[3]`); got != "4" {
 		t.Errorf("a rule applies to any index, got %s", got)
 	}
 }
@@ -80,7 +78,7 @@ func TestBetaTabOnARule(t *testing.T) {
 // text whether it reduces here or survives (tables.md §3.1).
 func TestDynamicIndexSurvives(t *testing.T) {
 	e := tableEnv()
-	got := tabNorm(t, e, `(fn (i) ((array 1 2 3) i))`)
+	got := tabNorm(t, e, `t = fn(i) { array { 1, 2, 3 }[i] }`)
 	if !strings.Contains(got, "(array 1 2 3) i") {
 		t.Errorf("a dynamic index must survive to the backend, got %s", got)
 	}
@@ -91,7 +89,7 @@ func TestDynamicIndexSurvives(t *testing.T) {
 // and the call site and can explain itself (tables.md §6).
 func TestOutOfDomainIsLeftToTheRefiner(t *testing.T) {
 	e := tableEnv()
-	got := tabNorm(t, e, `((array 1 2 3) 7)`)
+	got := tabNorm(t, e, `t = array { 1, 2, 3 }[7]`)
 	if !strings.Contains(got, "array") {
 		t.Errorf("reduction must not decide an out-of-domain index, got %s", got)
 	}
@@ -102,10 +100,10 @@ func TestOutOfDomainIsLeftToTheRefiner(t *testing.T) {
 // see — rather than being a new one (tables.md §4.2).
 func TestLenFoldsOnBothPresentations(t *testing.T) {
 	e := tableEnv()
-	if got := tabNorm(t, e, `(len (array 1 2 3 4))`); got != "4" {
+	if got := tabNorm(t, e, `t = len(array { 1, 2, 3, 4 })`); got != "4" {
 		t.Errorf("len of a graph is its element count, got %s", got)
 	}
-	if got := tabNorm(t, e, `(fn (n) (len (table n (fn (i) i))))`); got != "(fn (n) n)" {
+	if got := tabNorm(t, e, `t = fn(n) { len(array { i : i ∈ 0..n-1 }) }`); got != "(fn (n) n)" {
 		t.Errorf("len of a rule is its declared length, got %s", got)
 	}
 }
@@ -115,7 +113,7 @@ func TestLenFoldsOnBothPresentations(t *testing.T) {
 // visible, and the first version checked before δ had run.
 func TestLenFoldsThroughADefinition(t *testing.T) {
 	e := tableEnv()
-	if got := tabNorm(t, e, `(def a (array 1 2 3)) (len a)`); got != "3" {
+	if got := tabNorm(t, e, "a = array { 1, 2, 3 }\nt = len(a)"); got != "3" {
 		t.Errorf("len must see through a definition, got %s", got)
 	}
 }
@@ -130,9 +128,8 @@ func TestLenFoldsThroughADefinition(t *testing.T) {
 // erases the intermediate.
 func TestARuleTableFuses(t *testing.T) {
 	e := tableEnv()
-	got := tabNorm(t, e, `
-		(def use2 (fn (v) (+ (len v) (v 0))))
-		(fn (n) (use2 (table n (fn (i) (+ i 1)))))`)
+	got := tabNorm(t, e, `fn use2(v) { len(v) + v[0] }
+t = fn(n) { use2(array { i + 1 : i ∈ 0..n-1 }) }`)
 	if strings.Contains(got, "table") {
 		t.Errorf("the intermediate table must not survive:\n%s", got)
 	}
@@ -158,9 +155,8 @@ func TestARuleTableFuses(t *testing.T) {
 // is a missed optimisation, not a wrong answer.
 func TestAGraphIsSharedNotDuplicated(t *testing.T) {
 	e := tableEnv()
-	got := tabNorm(t, e, `
-		(def use2 (fn (v) (+ (v 0) (v 1))))
-		(use2 (array 7 9))`)
+	got := tabNorm(t, e, `fn use2(v) { v[0] + v[1] }
+t = use2(array { 7, 9 })`)
 	if !strings.Contains(got, "let") {
 		t.Errorf("a graph used twice must be shared, not copied:\n%s", got)
 	}
@@ -173,9 +169,8 @@ func TestAGraphIsSharedNotDuplicated(t *testing.T) {
 // case that matters, and the one a fused pipeline produces.
 func TestAGraphUsedOnceFoldsAway(t *testing.T) {
 	e := tableEnv()
-	if got := tabNorm(t, e, `
-		(def use1 (fn (v) (+ (v 1) 100)))
-		(use1 (array 7 9))`); got != "109" {
+	if got := tabNorm(t, e, `fn use1(v) { v[1] + 100 }
+t = use1(array { 7, 9 })`); got != "109" {
 		t.Errorf("one mention folds to the element, got %s", got)
 	}
 }

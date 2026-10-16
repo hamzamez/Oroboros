@@ -107,15 +107,13 @@ func TestThePostClauseRules(t *testing.T) {
 		name, loop string
 		hoisted    int
 	}{
-		{"reads another variable", `(loop ((i 0) (j 0)) (go.>= j n) i else (again (go.+ i j) (go.+ j 1)))`, 1},
-		{"disagreeing updates", `(loop ((i 0)) (go.>= i n) i (go.== (go.% i 3) 0) (again (go.+ i 1)) else (again (go.+ i 2)))`, 0},
-		{"an unchanged variable", `(loop ((i 0) (k 5)) (go.>= i n) k else (again (go.+ i 1) k))`, 1},
-		{"a value the body computes", `(loop ((v 0) (i 0)) (go.>= i n) v else (let nv (go./ (go.+ v 300) 2) (again nv (go.+ i 1))))`, 1},
-		{"an enclosing name", `(loop ((i 0)) (go.>= i n) i else (again (go.+ i n)))`, 0},
+		{"reads another variable", "loop i = 0, j = 0 { go.`>=`(j, n) -> i; else -> again(go.`+`(i, j), go.`+`(j, 1)) }", 1},
+		{"disagreeing updates", "loop i = 0 { go.`>=`(i, n) -> i; go.`==`(go.`%`(i, 3), 0) -> again(go.`+`(i, 1)); else -> again(go.`+`(i, 2)) }", 0},
+		{"an unchanged variable", "loop i = 0, k = 5 { go.`>=`(i, n) -> k; else -> again(go.`+`(i, 1), k) }", 1},
+		{"a value the body computes", "loop v = 0, i = 0 { go.`>=`(i, n) -> v; else -> { nv = go.`/`(go.`+`(v, 300), 2); again(nv, go.`+`(i, 1)) } }", 1},
+		{"an enclosing name", "loop i = 0 { go.`>=`(i, n) -> i; else -> again(go.`+`(i, n)) }", 0},
 	} {
-		code, err := genOn(t, "go", `(use go)
-			(export f) (sig f ((n (int 1 1000))) int)
-			(def f (fn (n) `+c.loop+`))`, "f")
+		code, err := genOn(t, "go", "use go\nexport fn f(n ∈ 1..1000) (Int) { "+c.loop+" }", "f")
 		if err != nil {
 			t.Errorf("%s: %v", c.name, err)
 			continue

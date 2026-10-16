@@ -70,9 +70,9 @@ func TestAgainMaySitInASuccessArmOnly(t *testing.T) {
 		t.Errorf("again in expect's success arm, under a seq: %v", err)
 	}
 	for _, bad := range []string{
-		`(def f (fn (n) (loop ((i 0)) (>= i n) i else (try (r.ok x) (again i) x))))`,
-		`(def f (fn (n) (loop ((i 0)) (>= i n) i else (expect (r.ok x) (r.g i) (again i) x))))`,
-		`(def f (fn (n) (loop ((i 0)) (>= i n) i else (try (r.ok x) (r.g i) (+ 1 (again i))))))`,
+		`fn f(n) { loop i = 0 { i >= n -> i; else -> try r.ok(x) = again(i) { x } } }`,
+		`fn f(n) { loop i = 0 { i >= n -> i; else -> { expect r.ok(x) = r.g(i) else again(i); x } } }`,
+		`fn f(n) { loop i = 0 { i >= n -> i; else -> try r.ok(x) = r.g(i) { 1 + again(i) } } }`,
 	} {
 		if _, err := Read(bad); err == nil || !strings.Contains(err.Error(), "again") {
 			t.Errorf("want again refused in %s, got %v", bad, err)
@@ -94,11 +94,14 @@ func TestTheUnitAndADiscardInsideASequence(t *testing.T) {
 	if ty := TypeName(forms[0].Term); ty != UnitType {
 		t.Errorf("the unit's type is %q, want %q", ty, UnitType)
 	}
-	arr, _ := Read(`a = array { () }`)
+	arr, err := Read(`a = array { () }`)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if ty := TypeName(arr[0].Term); ty != "" {
 		t.Errorf("a table of units is its length alone and is refused as a type; got %q", ty)
 	}
-	if _, err := Read(`(def x (tuple 1))`); err == nil {
+	if _, err := Read(`x = tuple(1)`); err == nil || !strings.Contains(err.Error(), "a tuple of one") {
 		t.Error("a tuple of one is just the value, and is refused")
 	}
 	got := reduceWith(t, resultDecl+`fn f(n) {

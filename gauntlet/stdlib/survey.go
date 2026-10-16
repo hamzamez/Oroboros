@@ -43,6 +43,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"oroboros/gauntlet/stdlib/jdecl"
 )
 
 // ---------------------------------------------------------------- the reasons
@@ -123,19 +125,19 @@ type verdict struct {
 // `strconv.Unquote("\xff")` is the byte 0xFF. A person who reads the body may
 // narrow a result to `string` (ADR 0022); the generator may not.
 var scalar = map[string]string{
-	"bool": "bool", "string": "go.bytestring",
-	"int":    "int",
-	"int64":  "(int -9223372036854775808 9223372036854775807)",
-	"uint":   "(int 0 18446744073709551615)",
-	"uint64": "(int 0 18446744073709551615)",
-	"int8":   "(int -128 127)",
-	"int16":  "(int -32768 32767)",
-	"int32":  "(int -2147483648 2147483647)",
-	"uint8":  "(int 0 255)", "byte": "(int 0 255)",
-	"uint16":  "(int 0 65535)",
-	"uint32":  "(int 0 4294967295)",
-	"rune":    "(int -2147483648 2147483647)",
-	"float64": "f64", "float32": "f64",
+	"bool": "Bool", "string": "go.bytestring",
+	"int":    "Int",
+	"int64":  jdecl.Range("-9223372036854775808", "9223372036854775807"),
+	"uint":   jdecl.Range("0", "18446744073709551615"),
+	"uint64": jdecl.Range("0", "18446744073709551615"),
+	"int8":   jdecl.Range("-128", "127"),
+	"int16":  jdecl.Range("-32768", "32767"),
+	"int32":  jdecl.Range("-2147483648", "2147483647"),
+	"uint8":  jdecl.Range("0", "255"), "byte": jdecl.Range("0", "255"),
+	"uint16":  jdecl.Range("0", "65535"),
+	"uint32":  jdecl.Range("0", "4294967295"),
+	"rune":    jdecl.Range("-2147483648", "2147483647"),
+	"float64": "F64", "float32": "F64",
 	"error": "error",
 }
 
@@ -197,7 +199,7 @@ func classify(t string) verdict {
 			}
 		}
 		k, v := t[4:i-1], t[i:]
-		if kv := classify(k); kv.why != ok || scalar[k] != "int" {
+		if kv := classify(k); kv.why != ok || scalar[k] != "Int" {
 			// maps.md: `(map K V)` is well-formed exactly where `=` is defined,
 			// and `=` is integer equality. A string key is the common Go case
 			// and is exactly what the language refuses.
@@ -1715,29 +1717,12 @@ func pct(a, b int) float64 {
 // `uint` are this build's width; `uintptr` is left out, being an address.
 func intTypeRange(t string) (string, bool) {
 	switch t {
-	case "int8":
-		return "(int -128 127)", true
-	case "int16":
-		return "(int -32768 32767)", true
-	case "int32", "rune":
-		return "(int -2147483648 2147483647)", true
-	case "int64":
-		return "(int -9223372036854775808 9223372036854775807)", true
 	case "int":
-		return fmt.Sprintf("(int %d %d)", math.MinInt, math.MaxInt), true
-	case "uint8", "byte":
-		return "(int 0 255)", true
-	case "uint16":
-		return "(int 0 65535)", true
-	case "uint32":
-		return "(int 0 4294967295)", true
-	case "uint64":
-		return "(int 0 18446744073709551615)", true
+		return jdecl.Range(fmt.Sprint(math.MinInt), fmt.Sprint(math.MaxInt)), true
 	case "uint":
-		if uint64(math.MaxUint) == math.MaxUint64 {
-			return "(int 0 18446744073709551615)", true
-		}
-		return "(int 0 4294967295)", true
+		return jdecl.Range("0", fmt.Sprint(uint64(math.MaxUint))), true
+	case "int8", "int16", "int32", "rune", "int64", "uint8", "byte", "uint16", "uint32", "uint64":
+		return scalar[t], true
 	}
 	return "", false
 }
@@ -1808,14 +1793,14 @@ func emit(dir string, syms []sym, raw []string) error {
 				return spell(t)
 			}
 			if strings.HasPrefix(t, "[]") {
-				return "(array " + spellQ(t[2:]) + ")"
+				return jdecl.Array(spellQ(t[2:]))
 			}
 			if strings.HasPrefix(t, "map[") {
-				return "(map int " + spellQ(t[strings.Index(t, "]")+1:]) + ")"
+				return jdecl.Map("Int", spellQ(t[strings.Index(t, "]")+1:]))
 			}
 			q := qual(p, t)
 			types[spell(q)] = q
-			return spell(q)
+			return jdecl.Name(spell(q))
 		}
 		base := p
 		if i := strings.LastIndex(p, "/"); i >= 0 {
@@ -1846,26 +1831,26 @@ func emit(dir string, syms []sym, raw []string) error {
 				// range; anything else is a zero-argument sig, since its value is
 				// never read (emit.constSig says why).
 				buf := modBuf("go/" + p)
-				if exact, isInt := strings.CutPrefix(res, "(int "); isInt {
-					fmt.Fprintf(buf, "    (const %s %s (host \"%s.%s\" (import %q)))\n",
-						s.name, strings.Fields(exact)[0], base, s.name, p)
+				if v, isInt := new(big.Int).SetString(s.value, 0); isInt && strings.Contains(res, "..") {
+					buf.WriteString(jdecl.Const(s.name, v.String(), base+"."+s.name, p))
 				} else {
-					fmt.Fprintf(buf, "    (sig %s () %s pure (host expr \"%s.%s\" (import %q)))\n",
-						s.name, res, base, s.name, p)
+					buf.WriteString(jdecl.Fn{Name: s.name, Result: res, Pure: true, Kind: "expr",
+						Template: base + "." + s.name, Import: p}.String())
 				}
 				n++
 				continue
 			}
-			var args, holes []string
+			var args []jdecl.Param
+			var holes []string
 			declName := s.name
 			mod := "go/" + p
 			tmplRecv := ""
 			if s.recv != "" {
 				rt := strings.TrimPrefix(s.recv, "*")
 				mod = "go/" + p + "/" + spell(rt)
-				args = append(args, "(self "+spellQ(s.recv)+")")
-				holes = append(holes, "%s")
-				tmplRecv = "%s."
+				args = append(args, jdecl.Param{Name: "self", Set: spellQ(s.recv)})
+				holes = append(holes, jdecl.Hole("self"))
+				tmplRecv = jdecl.Hole("self") + "."
 			}
 			for k, a := range s.params {
 				// A CONSTRUCTOR'S PARAMETER IS NAMED FOR ITS FIELD, because
@@ -1876,14 +1861,10 @@ func emit(dir string, syms []sym, raw []string) error {
 				if len(s.fields) > 0 {
 					nm = strings.ToLower(s.fields[k][:1]) + s.fields[k][1:]
 				}
-				args = append(args, fmt.Sprintf("(%s %s)", nm, spellQ(a)))
-				holes = append(holes, hostArg(a))
+				args = append(args, jdecl.Param{Name: nm, Set: spellQ(a)})
+				holes = append(holes, hostArg(a, nm))
 			}
-			argList := "(none)"
-			if len(args) > 0 {
-				argList = "(" + strings.Join(args, " ") + ")"
-			}
-			// The call text. A method is `%s.Name(…)`; a function is
+			// The call text. A method is `${self}.Name(…)`; a function is
 			// `pkg.Name(…)`, and the receiver hole is already in `holes`.
 			callArgs := holes
 			if s.recv != "" {
@@ -1924,8 +1905,7 @@ func emit(dir string, syms []sym, raw []string) error {
 					skipped++
 					continue
 				}
-				kind, res = "stmt", strings.TrimSuffix(strings.TrimPrefix(args[0],
-					"("+strings.Fields(args[0][1:])[0]+" "), ")")
+				kind, res = "stmt", args[0].Set
 			case 1:
 				res = spellQ(s.results[0])
 			default:
@@ -1933,10 +1913,10 @@ func emit(dir string, syms []sym, raw []string) error {
 				for _, r := range s.results {
 					rs = append(rs, spellQ(r))
 				}
-				res = "(tuple " + strings.Join(rs, " ") + ")"
+				res = jdecl.Product(rs...)
 			}
-			fmt.Fprintf(modBuf(mod), "    (sig %s %s %s (host %s \"%s\" (import %q)))\n",
-				declName, strings.Replace(argList, "(none)", "()", 1), res, kind, call, p)
+			modBuf(mod).WriteString(jdecl.Fn{Name: declName, Params: args, Result: res, Kind: kind,
+				Template: call, Import: p}.String())
 			n++
 		}
 		// THE EDGES FOR THE TYPES THIS FILE DECLARES. Put with the CONCRETE type,
@@ -1962,26 +1942,25 @@ func emit(dir string, syms []sym, raw []string) error {
 			}
 		}
 		var b strings.Builder
-		fmt.Fprintf(&b, "; GENERATED by gauntlet/stdlib/survey.go — do not edit.\n")
-		fmt.Fprintf(&b, "; The declarable subset of Go's %s.\n", p)
-		b.WriteString("(target go\n")
+		b.WriteString(jdecl.Comment("GENERATED by gauntlet/stdlib/survey.go — do not edit.",
+			"The declarable subset of Go's "+p+"."))
 		// THE WORD, which ADR 0026 requires of every target and which this
 		// generator can justify (ADR 0023): Go's `int` is as wide as the build
 		// running the survey says it is.
-		fmt.Fprintf(&b, "  (repr (int %d %d) word)\n", math.MinInt, math.MaxInt)
+		b.WriteString(jdecl.Word(fmt.Sprint(math.MinInt), fmt.Sprint(math.MaxInt)))
 		// And U = [0, 2^64−1], which Go's `uint64` is on every platform.
-		b.WriteString("  (repr (int 0 18446744073709551615) word)\n")
+		b.WriteString(jdecl.Word("0", "18446744073709551615"))
 		var tn []string
 		for k := range types {
 			tn = append(tn, k)
 		}
 		sort.Strings(tn)
 		for _, k := range tn {
-			fmt.Fprintf(&b, "  (type %s (host %q))\n", k, types[k])
+			b.WriteString(jdecl.Set(k, types[k]))
 		}
 		for _, k := range tn {
 			if r, ok := underlying[types[k]]; ok {
-				fmt.Fprintf(&b, "  (underlying %s %s)\n", k, r)
+				b.WriteString(jdecl.Underlying(k, r))
 			}
 		}
 		if len(tn) > 0 {
@@ -1993,7 +1972,7 @@ func emit(dir string, syms []sym, raw []string) error {
 		}
 		sort.Strings(en)
 		for _, k := range en {
-			fmt.Fprintf(&b, "  (implements %s %s)\n", k, strings.Join(edges[k], " "))
+			b.WriteString(jdecl.Axiom(k, edges[k]))
 		}
 		if len(en) > 0 {
 			b.WriteString("\n")
@@ -2004,9 +1983,8 @@ func emit(dir string, syms []sym, raw []string) error {
 		}
 		sort.Strings(mn)
 		for _, k := range mn {
-			fmt.Fprintf(&b, "  (module %s\n%s  )\n", k, mods[k].String())
+			b.WriteString(jdecl.Module(k, mods[k].String()))
 		}
-		b.WriteString(")\n")
 		// THE FILE IS THE PATH. A module path is a word in Seg*, and a directory
 		// tree is that monoid's trie, so `encoding/hex` is written at
 		// `DIR/encoding/hex.oro` rather than flattened into one segment
@@ -2037,10 +2015,10 @@ func spell(t string) string {
 		return s
 	}
 	if strings.HasPrefix(t, "[]") {
-		return "(array " + spell(t[2:]) + ")"
+		return jdecl.Array(jdecl.Name(spell(t[2:])))
 	}
 	if strings.HasPrefix(t, "map[") {
-		return "(map int " + spell(t[strings.Index(t, "]")+1:]) + ")"
+		return jdecl.Map("Int", jdecl.Name(spell(t[strings.Index(t, "]")+1:])))
 	}
 	// An opaque host type keeps the host's own name, with `.` and `*` made
 	// legal in an identifier position.
@@ -2068,12 +2046,12 @@ func spell(t string) string {
 // reaches `uint64(%s)` — the silent wrap ADR 0012's note feared is refused
 // before it is emitted. `uint64(x)` of a value already held as `uint64` is the
 // identity.
-func hostArg(goType string) string {
+func hostArg(goType, param string) string {
 	switch goType {
 	case "int8", "int16", "int32", "rune", "uint8", "byte", "uint16", "uint32", "int64", "uint", "uint64":
-		return goType + "(%s)"
+		return goType + "(" + jdecl.Hole(param) + ")"
 	}
-	return "%s"
+	return jdecl.Hole(param)
 }
 
 // mergeConst folds a constant's two manifest lines into one symbol: the
@@ -2129,19 +2107,19 @@ func constResult(s sym) (string, string) {
 		if v.Cmp(wordLo) < 0 || v.Cmp(uHi) > 0 {
 			return "", "integer constant outside the word and U"
 		}
-		return fmt.Sprintf("(int %s %s)", v, v), ""
+		return jdecl.Range(v.String(), v.String()), ""
 	case "ideal-float", "float64", "float32":
-		return "f64", ""
+		return "F64", ""
 	case "ideal-string", "string":
 		// A CONSTANT'S VALUE IS KNOWN, so here the generator CAN justify ours: a
 		// value that is valid UTF-8 is in Σ*. `debug/elf.ELFMAG` is "\x7fELF",
 		// which is; one that is not stays the host's string (ADR 0030).
 		if v, err := strconv.Unquote(s.value); err == nil && utf8.ValidString(v) {
-			return "string", ""
+			return "String", ""
 		}
 		return "go.bytestring", ""
 	case "ideal-bool", "bool":
-		return "bool", ""
+		return "Bool", ""
 	case "ideal-complex", "complex64", "complex128":
 		return "", "complex constant"
 	}

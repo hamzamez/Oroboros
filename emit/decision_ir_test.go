@@ -90,15 +90,15 @@ func TestScalarRangeIsAPremise(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := mustRead(t, "(fn (n) (go.* n n))")
+	body := mustRead(t, "fn(n) { go.`*`(n, n) }")
 
 	for _, c := range []struct {
 		what   string
 		sig    *core.Sig
 		proven int
 	}{
-		{"nothing declared", sigOf(t, "int"), 0},
-		{"a declared range", sigOf(t, "(int 0 1000)"), 1},
+		{"nothing declared", sigOf(t, "Int"), 0},
+		{"a declared range", sigOf(t, "0..1000"), 1},
 	} {
 		rep := decideOn(t, tg, c.sig, body)
 		if rep.Ops != 1 {
@@ -126,12 +126,11 @@ func TestScalarRangeAndWhereAgree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := mustRead(t, "(fn (n) (loop ((i 0) (s 0)) (go.>= i n) s "+
-		"else (again (go.+ i 1) (go.+ s (go.* i 3)))))")
+	body := mustRead(t, "fn(n) { loop i = 0, s = 0 { go.`>=`(i, n) -> s; else -> again(go.`+`(i, 1), go.`+`(s, go.`*`(i, 3))) } }")
 
-	ranged := sigOf(t, "(int 0 1000)")
-	whered := sigOf(t, "int")
-	whered.Where = mustRead(t, "(and (<= 0 n) (<= n 1000))")
+	ranged := sigOf(t, "0..1000")
+	whered := sigOf(t, "Int")
+	whered.Where = mustRead(t, "0 <= n && n <= 1000")
 
 	a := decideOn(t, tg, ranged, body)
 	b := decideOn(t, tg, whered, body)
@@ -150,7 +149,7 @@ func TestScalarRangeAndWhereAgree(t *testing.T) {
 	}
 	// The control: without either, the same program must do WORSE. A test whose
 	// two sides agree because neither learned anything proves nothing.
-	c := decideOn(t, tg, sigOf(t, "int"), body)
+	c := decideOn(t, tg, sigOf(t, "Int"), body)
 	if c.Proven == a.Proven && c.Terminates == a.Terminates {
 		t.Errorf("the undeclared program is as provable as the declared one "+
 			"(%d of %d, %d of %d loops), so this test is vacuous",
@@ -376,12 +375,10 @@ func TestAnUnsupportedLimbOperationIsRefusedByName(t *testing.T) {
 		t.Skip("windows now declares a bignum; this test has done its job")
 	}
 	for _, c := range []struct{ body, want string }{
-		{"(% a b)", "the remainder by another arbitrary-precision value"},
-		{"(/ a b)", "division by another arbitrary-precision value"},
+		{"a % b", "the remainder by another arbitrary-precision value"},
+		{"a / b", "division by another arbitrary-precision value"},
 	} {
-		src := "(export f)\n" +
-			"(sig f ((a (int 0 (pow 2 200))) (b (int 1 (pow 2 200)))) (int 0 (pow 2 200)))\n" +
-			"(def f (fn (a b) " + c.body + "))\n"
+		src := "export fn f(a ∈ 0..2^200, b ∈ 1..2^200) (0..2^200) { " + c.body + " }\n"
 		_, err := rungOn(t, tg, src)
 		if err == nil {
 			t.Errorf("%s was accepted on windows, which cannot do it", c.body)

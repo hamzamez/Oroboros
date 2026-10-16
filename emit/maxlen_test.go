@@ -68,8 +68,8 @@ func TestMaxLenBeyondTheWindowIsRefused(t *testing.T) {
 	// A bound one past JavaScript's word, on a target whose word that is: a
 	// length the target cannot count is not a length (ADR 0026).
 	path := filepath.Join(t.TempDir(), "bad.oro")
-	src := "(target bad (repr (int -9007199254740991 9007199254740991) word) " +
-		"(fact max-len ((a (array A))) (<= (len a) 9007199254740992)))"
+	src := "repr -9007199254740991..9007199254740991 word\n" +
+		"fact max_len (a ∈ Array(A)) len(a) <= 9007199254740992\n"
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}

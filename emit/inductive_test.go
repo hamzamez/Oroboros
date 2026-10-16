@@ -12,15 +12,14 @@ import "testing"
 // the step for `w` given `0 <= w`. So neither is inductive ALONE and both are
 // inductive TOGETHER — which is what the simultaneous induction proves.
 func TestALowerBoundIsProvedByInduction(t *testing.T) {
-	tg := tempTarget(t, `(sig at ((k int)) int (where (<= 0 k)) (host expr "at(%s)"))`)
-	const pass = `(use tgt)
-	  (fn (n)
-	    (loop ((lo 0) (w 1))
-	      (>= lo n) 0
-	      else (let b  (+ lo w)
-                 hi (if (< n b) n b)
-                 u  (tgt.at lo)
-              (again hi (* 2 w)))))`
+	tg := tempTarget(t, `fn at(k ∈ Int) (Int) where 0 <= k { host expr "at(${k})" }`)
+	const pass = `use tgt
+fn t(n) {
+    loop lo = 0, w = 1 {
+        lo >= n -> 0
+        else -> { b = lo + w; hi = if n < b { n } else { b }; u = tgt.at(lo); again(hi, 2 * w) }
+    }
+}`
 	if _, err := refineWith(t, tg, pass); err != nil {
 		t.Errorf("0 <= lo is inductive jointly with 0 <= w and must be derived: %v", err)
 	}
@@ -29,12 +28,10 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 	// CONDITIONAL, not a name — and when the clamp is `min` inlined, a `let`
 	// binds its operand first, so the join has to know `b = lo + w`.
 	for _, step := range []string{
-		`(if (< n (+ lo w)) n (+ lo w))`,
-		`(let b (+ lo w)
-  (if (< n b) n b))`,
+		`if n < lo + w { n } else { lo + w }`,
+		`{ b = lo + w; if n < b { n } else { b } }`,
 	} {
-		src := `(use tgt) (fn (n) (loop ((lo 0) (w 1)) (>= lo n) 0 else
-		  (let u (tgt.at lo) (again ` + step + ` (* 2 w)))))`
+		src := "use tgt\nfn t(n) { loop lo = 0, w = 1 { lo >= n -> 0; else -> { u = tgt.at(lo); again(" + step + ", 2 * w) } } }"
 		if _, err := refineWith(t, tg, src); err != nil {
 			t.Errorf("step %s: 0 <= lo must be derived: %v", step, err)
 		}
@@ -42,14 +39,13 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 	// CONTROL: a step that genuinely can go negative must stay refused. `w`
 	// starts at 1 and becomes `w - 3`, so it is not an invariant, and without it
 	// `lo + w` bounds nothing below — Houdini drops `w` and then `lo`.
-	const falls = `(use tgt)
-	  (fn (n)
-	    (loop ((lo 0) (w 1))
-	      (>= lo n) 0
-	      else (let b  (+ lo w)
-                 hi (if (< n b) n b)
-                 u  (tgt.at lo)
-              (again hi (- w 3)))))`
+	const falls = `use tgt
+fn t(n) {
+    loop lo = 0, w = 1 {
+        lo >= n -> 0
+        else -> { b = lo + w; hi = if n < b { n } else { b }; u = tgt.at(lo); again(hi, w - 3) }
+    }
+}`
 	if _, err := refineWith(t, tg, falls); err == nil {
 		t.Error("a lower bound was assumed for a variable whose step can go negative")
 	}
@@ -58,12 +54,13 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 	// the syntactic rule already gives), while a third variable `m` steps to
 	// `m + w`. The greatest inductive subset keeps `lo`, drops `w` and `m`, and
 	// an index at `m` is refused.
-	const shrink = `(use tgt)
-	  (fn (n)
-	    (loop ((lo 0) (w 1) (m 0))
-	      (>= lo n) 0
-	      else (let u (tgt.at m)
-              (again (+ lo 1) (- w 3) (+ m w)))))`
+	const shrink = `use tgt
+fn t(n) {
+    loop lo = 0, w = 1, m = 0 {
+        lo >= n -> 0
+        else -> { u = tgt.at(m); again(lo + 1, w - 3, m + w) }
+    }
+}`
 	if _, err := refineWith(t, tg, shrink); err == nil {
 		t.Error("m depends on a non-inductive w and must not be given 0 <= m")
 	}
@@ -77,8 +74,8 @@ func TestAConditionalIndexIsProvenBranchByBranch(t *testing.T) {
 	tg := tempTarget(t, ``)
 	// A clamp, under a guard that makes the table non-empty: both bounds hold on
 	// every branch, so both are PROVEN and no note remains.
-	notes, err := refineWith(t, tg, `(use tgt)
-	  (fn (a i) (if (>= (len a) 1) (a (if (< i 0) 0 (if (>= i (len a)) 0 i))) 0))`)
+	notes, err := refineWith(t, tg, `use tgt
+fn t(a, i) { if len(a) >= 1 { a[if i < 0 { 0 } else if i >= len(a) { 0 } else { i }] } else { 0 } }`)
 	if err != nil {
 		t.Fatalf("a clamped index was refused: %v", err)
 	}
@@ -87,14 +84,15 @@ func TestAConditionalIndexIsProvenBranchByBranch(t *testing.T) {
 	}
 	// CONTROL: one branch is 5 and the table may be shorter, so the upper bound
 	// does not follow — and must be PROPAGATED, exactly as before, not proven.
-	_, err = refineWith(t, tg, `(use tgt)
-	  (fn (a i) (if (>= (len a) 1) (a (if (< i 0) 0 5)) 0))`)
+	_, err = refineWith(t, tg, `use tgt
+fn t(a, i) { if len(a) >= 1 { a[if i < 0 { 0 } else { 5 }] } else { 0 } }`)
 	if !refusedUnproven(err) {
 		t.Errorf("a branch outside the table was taken as proven (refinements.md §3a: refused, not propagated): %v", err)
 	}
 	// AND WITHOUT THE GUARD the clamp's zero branch is out of range for an empty
 	// table, so it is not proven either, and it is refused (refinements.md §3a).
-	_, err = refineWith(t, tg, `(use tgt) (fn (a i) (a (if (< i 0) 0 (if (>= i (len a)) 0 i))))`)
+	_, err = refineWith(t, tg, `use tgt
+fn t(a, i) { a[if i < 0 { 0 } else if i >= len(a) { 0 } else { i }] }`)
 	if !refusedUnproven(err) {
 		t.Errorf("a clamp into a possibly empty table was taken as proven: %v", err)
 	}
@@ -106,8 +104,8 @@ func TestAConditionalIndexIsProvenBranchByBranch(t *testing.T) {
 // the GOAL on the clamp's branches proves it exactly (refine.go, provedBySplit).
 func TestAClampUnderArithmeticIsSplitOn(t *testing.T) {
 	tg := tempTarget(t, ``)
-	const strided = `(use tgt)
-	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (if (< k 0) 0 (if (>= k 512) 0 k))) 2)))))`
+	const strided = `use tgt
+t = fn(k) { build(2048, fn(a) { a[4 * (if k < 0 { 0 } else if k >= 512 { 0 } else { k }) + 2] }) }`
 	notes, err := refineWith(t, tg, strided)
 	if err != nil {
 		t.Fatalf("a strided clamp was refused: %v", err)
@@ -117,17 +115,16 @@ func TestAClampUnderArithmeticIsSplitOn(t *testing.T) {
 	}
 	// CONTROL: one slot too far — stride 4 with offset 4 reaches 2048 — must stay
 	// propagated, never proven.
-	const over = `(use tgt)
-	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (if (< k 0) 0 (if (>= k 512) 0 k))) 4)))))`
+	const over = `use tgt
+t = fn(k) { build(2048, fn(a) { a[4 * (if k < 0 { 0 } else if k >= 512 { 0 } else { k }) + 4] }) }`
 	_, err = refineWith(t, tg, over)
 	if !refusedUnproven(err) {
 		t.Errorf("an index reaching past the table was taken as proven (refinements.md §3a: refused, not propagated): %v", err)
 	}
 	// A `let` INSIDE the arithmetic: its binder becomes a fresh name, equal to the
 	// value when the value is linear.
-	const let = `(use tgt)
-	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (let i (+ k 1)
-                                            (if (< i 1) 0 (if (>= i 512) 0 i)))) 3)))))`
+	const let = `use tgt
+t = fn(k) { build(2048, fn(a) { a[4 * ({ i = k + 1; if i < 1 { 0 } else if i >= 512 { 0 } else { i } }) + 3] }) }`
 	notes, err = refineWith(t, tg, let)
 	if err != nil {
 		t.Fatalf("a let-bound strided clamp was refused: %v", err)
@@ -145,10 +142,11 @@ func TestAClampUnderArithmeticIsSplitOn(t *testing.T) {
 // combined, which is Fourier–Motzkin's job, and what makes `(a 0)` in range.
 func TestALoopResultIsBoundedByItsExits(t *testing.T) {
 	tg := tempTarget(t, ``)
-	const count = `(use tgt)
-	  (fn (a)
-	    (let nw (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 1) (+ i 1)))
-       (if (>= nw 1) (a (if (< nw 0) 0 0)) 0)))`
+	const count = `use tgt
+fn t(a) {
+    nw = loop n = 0, i = 0 { i >= len(a) -> n; else -> again(n + 1, i + 1) }
+    if nw >= 1 { a[if nw < 0 { 0 } else { 0 }] } else { 0 }
+}`
 	notes, err := refineWith(t, tg, count)
 	if err != nil {
 		t.Fatalf("a count bounded by its loop was refused: %v", err)
@@ -158,10 +156,11 @@ func TestALoopResultIsBoundedByItsExits(t *testing.T) {
 	}
 	// THREE FACTS, freq's own shape: 0 ≤ u, u < nw and nw ≤ len a give 0 < len a.
 	// No single fact and no sum of two reaches it; eliminating u and nw does.
-	const three = `(use tgt)
-	  (fn (a u)
-	    (let nw (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 1) (+ i 1)))
-       (if (>= u 0) (if (< u nw) (a (if (< u 0) 0 0)) 0) 0)))`
+	const three = `use tgt
+fn t(a, u) {
+    nw = loop n = 0, i = 0 { i >= len(a) -> n; else -> again(n + 1, i + 1) }
+    if u >= 0 { if u < nw { a[if u < 0 { 0 } else { 0 }] } else { 0 } } else { 0 }
+}`
 	notes, err = refineWith(t, tg, three)
 	if err != nil {
 		t.Fatalf("a three-fact entailment was refused: %v", err)
@@ -171,10 +170,11 @@ func TestALoopResultIsBoundedByItsExits(t *testing.T) {
 	}
 	// CONTROL: a count that advances TWICE as fast is not below the index, so no
 	// summary relates it to the table, and the read stays propagated.
-	const twice = `(use tgt)
-	  (fn (a)
-	    (let nw (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 2) (+ i 1)))
-       (if (>= nw 1) (a (if (< nw 0) 0 0)) 0)))`
+	const twice = `use tgt
+fn t(a) {
+    nw = loop n = 0, i = 0 { i >= len(a) -> n; else -> again(n + 2, i + 1) }
+    if nw >= 1 { a[if nw < 0 { 0 } else { 0 }] } else { 0 }
+}`
 	_, err = refineWith(t, tg, twice)
 	if !refusedUnproven(err) {
 		t.Errorf("a count that can exceed the table's length was summarised as bounded by it (refinements.md §3a: refused, not propagated): %v", err)

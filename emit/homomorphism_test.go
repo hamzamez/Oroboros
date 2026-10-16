@@ -26,30 +26,30 @@ import (
 func TestSplittingAFileChangesNothing(t *testing.T) {
 	pairs := []struct{ a, b string }{
 		// disagreements: glue must refuse them, in one file as in two
-		{`(type (array A) (host "[]%s"))`, `(type (array A) (host "%s[]"))`},
-		{`(type (map K V) (host "map[%s]%s"))`, `(type (map K V) (host "M<%s,%s>"))`},
-		{`(type t (host "a"))`, `(type t (host "b"))`},
-		{`(repr (ref int) (host "Long"))`, `(repr (ref int) (host "Integer"))`},
-		{`(repr narrow (host "x"))`, `(repr narrow (host "y"))`},
-		{`(fact max-len ((a (array A))) (<= (len a) 10))`, `(fact max-len ((a (array A))) (<= (len a) 20))`},
-		{`(repr shift 31)`, `(repr shift 63)`},
-		{`(repr big host)`, `(repr big limbs)`},
-		{`(repr map host)`, `(repr map library)`},
-		{`(build "a %s %s")`, `(build "b %s %s")`},
-		{`(sig f (int) int pure (host expr "A(%s)"))`, `(sig f (int) int pure (host expr "B(%s)"))`},
+		{`set Array(A) = host "[]${A}"`, `set Array(A) = host "${A}[]"`},
+		{`set Map(K, V) = host "map[${K}]${V}"`, `set Map(K, V) = host "M<${K},${V}>"`},
+		{`set t = host "a"`, `set t = host "b"`},
+		{`repr ref(Int) host "Long"`, `repr ref(Int) host "Integer"`},
+		{`repr narrow host "x"`, `repr narrow host "y"`},
+		{`fact max_len (a ∈ Array(A)) len(a) <= 10`, `fact max_len (a ∈ Array(A)) len(a) <= 20`},
+		{`repr shift 31`, `repr shift 63`},
+		{`repr big host`, `repr big limbs`},
+		{"repr `map` host", "repr `map` library"},
+		{`build "a %s %s"`, `build "b %s %s"`},
+		{`fn f(a ∈ Int) (Int) pure { host expr "A(${a})" }`, `fn f(a ∈ Int) (Int) pure { host expr "B(${a})" }`},
 		// agreements and ordered data: both must load, to one target
-		{`(type t (host "a"))`, `(type t (host "a"))`},
-		{`(repr (int 0 255) (host "byte"))`, `(repr (int 0 65535) (host "uint16"))`},
-		{`(link "a.lib")`, `(link "b.lib")`},
-		{`(implements T I)`, `(implements T J)`},
-		{`(sig f (int) int pure (host expr "A(%s)"))`, `(sig g (int) int pure (host expr "B(%s)"))`},
+		{`set t = host "a"`, `set t = host "a"`},
+		{`repr 0..255 host "byte"`, `repr 0..65535 host "uint16"`},
+		{`link "a.lib"`, `link "b.lib"`},
+		{`axiom T ⊆ I`, `axiom T ⊆ J`},
+		{`fn f(a ∈ Int) (Int) pure { host expr "A(${a})" }`, `fn g(a ∈ Int) (Int) pure { host expr "B(${a})" }`},
 	}
 	for i, p := range pairs {
 		root := t.TempDir()
 		one, two := filepath.Join(root, "one"), filepath.Join(root, "two")
-		writeTarget(t, filepath.Join(one, "x"), "a", "(target x "+p.a+" "+p.b+")")
-		writeTarget(t, filepath.Join(two, "x"), "a", "(target x "+p.a+")")
-		writeTarget(t, filepath.Join(two, "x"), "b", "(target x "+p.b+")")
+		writeTarget(t, filepath.Join(one, "x"), "a", p.a+"\n"+p.b+"\n")
+		writeTarget(t, filepath.Join(two, "x"), "a", p.a+"\n")
+		writeTarget(t, filepath.Join(two, "x"), "b", p.b+"\n")
 
 		whole, errWhole := LoadTargetLayers("x", []string{one})
 		split, errSplit := LoadTargetLayers("x", []string{two})

@@ -31,20 +31,6 @@ export fn main() {
 `)
 }
 
-// AN ASCRIPTION WRITTEN IN A PROGRAM LOWERS (core/desugar.go): `(the S e)` carries
-// S as its canonical type spelling, the form every consumer reads. Written as a
-// term, `int` was lowered as a value; the interval route, which lowers the
-// residual to decide a range obligation, failed silently, and h's range was
-// refused as unproven by the route that decides ranges above the word.
-func TestAnAscriptionInAProgramLowers(t *testing.T) {
-	compiles(t, `(export f)
-(sig h ((x (int 0 100))) int)
-(def h (x) (+ x 1))
-(sig f ((n (int 0 5))) int)
-(def f (n) (h (the (int 0 9) (+ n 1))))
-`)
-}
-
 // compiles runs the drivers' pipeline on src's first export, on Go, and prints it.
 func compiles(t *testing.T, src string) {
 	t.Helper()

@@ -151,17 +151,17 @@ func TestAConcreteTypeGoesWhereAnInterfaceIsWanted(t *testing.T) {
 		}
 		return tg
 	}
-	tg := load(`(target x
-  (backend go)
-  (type file (host "*os.File"))
-  (type reader (host "io.Reader"))
-  (type closer (host "io.Closer"))
-  (type rc (host "io.ReadCloser"))
-  (implements file rc)
-  (implements rc reader closer)
-  (module x
-    (sig open ((p string)) file (host expr "os.Open(%s)"))
-    (sig slurp ((r reader)) int (host expr "io.ReadAll(%s)"))))`)
+	tg := load(`backend go
+set file = host "*os.File"
+set reader = host "io.Reader"
+set closer = host "io.Closer"
+set rc = host "io.ReadCloser"
+axiom file ⊆ rc
+axiom rc ⊆ reader ∩ closer
+module x {
+    fn open(p ∈ String) (file) { host expr "os.Open(${p})" }
+    fn slurp(r ∈ reader) (Int) { host expr "io.ReadAll(${r})" }
+}`)
 
 	// TRANSITIVITY IS NOT DECORATION: `io.ReadCloser` embeds `io.Reader`, so a
 	// type declared to satisfy the first satisfies the second. A target file
@@ -208,13 +208,13 @@ export fn f() { x.slurp(x.open("go.mod")) }`
 	// THE CONTROL, and it is what makes the test mean anything: with the edges
 	// removed the same program must be REFUSED. A test whose passing and
 	// failing cases look identical proves nothing.
-	bare := load(`(target x
-  (backend go)
-  (type file (host "*os.File"))
-  (type reader (host "io.Reader"))
-  (module x
-    (sig open ((p string)) file (host expr "os.Open(%s)"))
-    (sig slurp ((r reader)) int (host expr "io.ReadAll(%s)"))))`)
+	bare := load(`backend go
+set file = host "*os.File"
+set reader = host "io.Reader"
+module x {
+    fn open(p ∈ String) (file) { host expr "os.Open(${p})" }
+    fn slurp(r ∈ reader) (Int) { host expr "io.ReadAll(${r})" }
+}`)
 	err := prog(bare, src)
 	if err == nil {
 		t.Fatal("without a declared edge the program must be refused")

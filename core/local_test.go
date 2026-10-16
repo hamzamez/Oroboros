@@ -14,17 +14,17 @@ import (
 func TestACellIsALocalVariableInProgramOrder(t *testing.T) {
 	for _, c := range []struct{ body, want string }{
 		// a read sees the last write on its path; an if joins its branches
-		{`(local c 0 (seq (if p (set c 1) (set c 2)) c))`, `(fn (p) (if p 1 2))`},
+		{`var c := 0; if p { c := 1 } else { c := 2 }; c`, `(fn (p) (if p 1 2))`},
 		// a write the path does not take leaves the value
-		{`(local c 5 (seq (if p (set c 1) (tuple)) c))`, `(fn (p) (if p 1 5))`},
+		{`var c := 5; if p { c := 1 }; c`, `(fn (p) (if p 1 5))`},
 		// writes in sequence: the last one is read
-		{`(local c 0 (seq (set c 1) (set c (+ c 1)) c))`, `(fn (p) 2)`},
+		{`var c := 0; c := 1; c := c + 1; c`, `(fn (p) 2)`},
 		// two cells, each its own variable
-		{`(local a 1 b 2 (seq (set a b) (set b a) (+ a b)))`, `(fn (p) 4)`},
+		{`var a := 1; var b := 2; a := b; b := a; a + b`, `(fn (p) 4)`},
 		// a tuple is a value, its components read in order
-		{`(local c 1 (seq (set c 2) (tuple c 3)))`, `(fn (p) (fn (#k) (#k 2 3)))`},
+		{`var c := 1; c := 2; (c, 3)`, `(fn (p) (fn (#k) (#k 2 3)))`},
 	} {
-		got := reduceWith(t, `(def f (fn (p) `+c.body+`))`, "f", "if", "=", "+")
+		got := reduceWith(t, "fn f(p) { "+c.body+" }", "f", "if", "=", "+")
 		if got != c.want {
 			t.Errorf("%s:\n got  %s\n want %s", c.body, got, c.want)
 		}
@@ -61,9 +61,6 @@ func TestACellIsRefusedWhereItsOrderWouldNotBeTheProgramsOrder(t *testing.T) {
     var g := fn(x) { x }
     0
 }`, "holds a function"},
-		// build's binder form is local's now
-		{`(def f (fn (p) (build b 3 b)))`, "a scope of local state is `local`"},
-		{`(def f (fn (p) (local c 0)))`, "binds NAME VALUE pairs and ONE body"},
 	} {
 		_, err := loadSrc(t, c.src)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
@@ -72,14 +69,12 @@ func TestACellIsRefusedWhereItsOrderWouldNotBeTheProgramsOrder(t *testing.T) {
 	}
 }
 
-// A buffer binder's initializer is a table, and the zero table reads as build's
-// own core form, so every scope that build wrote emits what it emitted.
+// A buffer binder's initializer is a table, and the zero table is build's own
+// core form: the state translation leaves exactly it, so every scope that
+// build wrote emits what it emitted.
 func TestAZeroTableIsBuildsOwnForm(t *testing.T) {
-	forms, err := Read(`(local b (table n 0) b)`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := forms[0].Term.String(), "(build n (fn (b) b))"; got != want {
+	got := reduceWith(t, "fn f(n) { var b := array { 0 : _ ∈ 0..n-1 }; b }", "f")
+	if want := "(fn (n) (build n (fn (b) b)))"; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
@@ -90,20 +85,19 @@ func TestAZeroTableIsBuildsOwnForm(t *testing.T) {
 // printer sees the same term (spec/local.md §3).
 func TestACellReducesToTheLoopVariableItMeans(t *testing.T) {
 	for _, c := range []struct{ cell, loopvar string }{
-		{`(local total 0
-		   (loop ((i 0)) (>= i n) total
-		     else (seq (set total (+ total i)) (again (+ i 1)))))`,
+		{`var total := 0
+    loop i = 0 { i >= n -> total; else -> { total := total + i; again(i + 1) } }`,
 			// the loop carries the cell first (spec/local.md §2.1)
-			`(loop ((total 0) (i 0)) (>= i n) total else (again (+ total i) (+ i 1)))`},
-		{`(local a 0 b 1
-		   (loop ((i 0)) (>= i n) (+ a b)
-		     else (seq (set a (+ a i)) (if (= i 2) (set b (+ b 1)) (tuple)) (again (+ i 1)))))`,
+			`loop total = 0, i = 0 { i >= n -> total; else -> again(total + i, i + 1) }`},
+		{`var a := 0
+    var b := 1
+    loop i = 0 { i >= n -> a + b; else -> { a := a + i; if i == 2 { b := b + 1 }; again(i + 1) } }`,
 			// the write under `if` is a statement writing one cell, so its
 			// value is a φ on the cell (spec/local.md §2.1): the loop variable's
 			// argument is the conditional, as one writes it by hand
-			`(loop ((a 0) (b 1) (i 0)) (>= i n) (+ a b) else (again (+ a i) (if (= i 2) (+ b 1) b) (+ i 1)))`},
+			`loop a = 0, b = 1, i = 0 { i >= n -> a + b; else -> again(a + i, if i == 2 { b + 1 } else { b }, i + 1) }`},
 	} {
-		p, err := loadSrc(t, `(def f (fn (n) `+c.cell+`)) (def g (fn (n) `+loopvarOr(c.loopvar)+`))`)
+		p, err := loadSrc(t, "fn f(n) {\n    "+c.cell+"\n}\nfn g(n) { "+loopvarOr(c.loopvar)+" }")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -253,22 +247,22 @@ func TestAResidualLetObeysBetaAndTheUnitLaw(t *testing.T) {
 // fills.
 func TestAZeroOfASortIsBuildsFormAscribed(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
-		{`(local b (table n false) b)`, `(build n (fn (b) ((fn (b) b) (the "buffer bool" b))))`},
-		{`(local b (table n 0.0) b)`, `(build n (fn (b) ((fn (b) b) (the "buffer f64" b))))`},
+		{`{ var b := array { false : _ ∈ 0..n-1 }; b }`, `(build n (fn (b) ((fn (b) (#place b (fn (b) b))) (the "buffer bool" b))))`},
+		{`{ var b := array { 0.0 : _ ∈ 0..n-1 }; b }`, `(build n (fn (b) ((fn (b) (#place b (fn (b) b))) (the "buffer f64" b))))`},
 	} {
-		forms, err := Read(c.src)
+		got, err := ReadTerm(c.src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := forms[0].Term.String(); got != c.want {
+		if got.String() != c.want {
 			t.Errorf("%s:\n got  %s\n want %s", c.src, got, c.want)
 		}
 	}
-	forms, err := Read(`(local b (table n -0.0) b)`)
+	got, err := ReadTerm(`{ var b := array { -0.0 : _ ∈ 0..n-1 }; b }`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := forms[0].Term.String(); !strings.Contains(got, "loop") {
+	if got := got.String(); !strings.Contains(got, "loop") {
 		t.Errorf("-0.0 is not a fresh buffer's zero, and it was not filled: %s", got)
 	}
 }
@@ -280,7 +274,7 @@ func TestAZeroOfASortIsBuildsFormAscribed(t *testing.T) {
 // as such a λ's component, lost its effect (outcells-2026-10-09).
 func TestAnAppliedLambdasEffectIsKept(t *testing.T) {
 	for _, src := range []string{
-		`(def f (fn (p) (seq ((fn (k) (k p)) (fn (x) (eff x))) 0)))`,
+		`fn f(p) { fn(k) { k(p) }(fn(x) { eff(x) }); 0 }`,
 		`fn f(p) {
     { var a := p; eff(a) }
     0

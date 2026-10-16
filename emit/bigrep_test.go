@@ -122,11 +122,9 @@ func TestJavaScriptBigStringHasNoSuffix(t *testing.T) {
 // silent wrong answer behind it). Here there is nothing behind it: the value is
 // exact by construction, and the claim was never checkable.
 func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
-	for _, result := range []string{"(int 0 +inf)", "(int 0 +inf)"} {
-		src := `(export fib)
-(sig fib ((n (int 0 1000))) ` + result + `)
-(def fib (fn (n) (loop ((a 0) (b 1) (i 0)) (>= i n) a else (again b (+ a b) (+ i 1)))))
-`
+	for _, result := range []string{"0..`+inf`"} {
+		src := "export fn fib(n ∈ 0..1000) (" + result + ") {\n" +
+			"    loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }\n}\n"
 		tg, err := LoadTarget("../targets/go")
 		if err != nil {
 			t.Fatal(err)

@@ -69,14 +69,11 @@ func TestAgainIsCheckedUnderEveryBinding(t *testing.T) {
 		// err is a relevant error, discarded on purpose: the loop's iteration is
 		// its scope, and dropping it at the jump was accepted until
 		// abstract2-2026-10-11 closed that hole in the relevance check.
-		`(let (tuple v err) (sc.ParseInt "5" 10 64) (seq (ignore err) (again "x")))`,
+		`{ (v, err) = sc.ParseInt("5", 10, 64); ignore(err); again("x") }`,
 		// y is used twice, so call-by-need keeps the `let` rather than substituting.
-		`(let y (* i 3) (again (if (> y y) "x" "z")))`,
+		`{ y = i * 3; again(if y > y { "x" } else { "z" }) }`,
 	} {
-		src := `(use go/strconv as sc)
-(export f)
-(sig f ((n (int 0 10))) int)
-(def f (n) (loop ((i 0)) (>= i n) i else ` + body + `))`
+		src := "use go/strconv as sc\nexport fn f(n ∈ 0..10) (Int) { loop i = 0 { i >= n -> i; else -> " + body + " } }"
 		tg, nf, _ := normGo(t, src)
 		if err := Check(tg, "f", nf); err == nil || !strings.Contains(err.Error(), "again's argument") {
 			t.Errorf("%s: a string handed to an int loop variable must be refused; got %v", body, err)

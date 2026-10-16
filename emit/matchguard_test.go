@@ -206,10 +206,8 @@ func TestADerivedStepDescendsByItsLeastStep(t *testing.T) {
 // condition and again by the narrowing of i against it; only the first is the
 // program's. A connective narrowed its first operand on two paths, three counts.
 func TestAGuardsOperationIsCountedOnce(t *testing.T) {
-	for _, g := range []string{"(>= i (- n 1))", "(and (>= i (- n 1)) (< i 5))"} {
-		rep := reportGo(t, `(export f)
-(sig f ((i (int 0 10)) (n (int 0 10))) int)
-(def f (i n) (if `+g+` 0 1))`)
+	for _, g := range []string{"i >= n - 1", "i >= n - 1 && i < 5"} {
+		rep := reportGo(t, `export fn f(i ∈ 0..10, n ∈ 0..10) (Int) { if `+g+` { 0 } else { 1 } }`)
 		if rep.Ops != 1 {
 			t.Errorf("%s: %d operations counted, and the program has one", g, rep.Ops)
 		}

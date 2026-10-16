@@ -46,8 +46,9 @@ func checkGo(t *testing.T, src string) error {
 // declared `string` — without the decode. Before, it did: the realizations are
 // one Go `string`, and identity by realization let the bytes through.
 func TestTheHostsStringIsNotOurs(t *testing.T) {
-	err := checkGo(t, `(use go/strconv as sc) (use result)
-(fn (q) (case (sc.Unquote q) (result.ok s) (concat s "x") (result.err e) ""))`)
+	err := checkGo(t, `use go/strconv as sc
+use result
+fn t(q) { case sc.Unquote(q) { result.'ok(s) -> s ++ "x"; result.'err(e) -> "" } }`)
 	if err == nil || !strings.Contains(err.Error(), "bytestring") {
 		t.Errorf("a host string was accepted as ours; got %v", err)
 	}
@@ -58,8 +59,10 @@ func TestTheHostsStringIsNotOurs(t *testing.T) {
 // which reads any Go string.
 func TestOursIsAHostString(t *testing.T) {
 	for _, src := range []string{
-		`(use go) (fn (q) (go.valid (concat "a" q)))`,
-		`(use go/strconv as sc) (fn (q) (sc.Quote (concat "a" q)))`,
+		`use go
+fn t(q) { go.valid("a" ++ q) }`,
+		`use go/strconv as sc
+fn t(q) { sc.Quote("a" ++ q) }`,
 	} {
 		if err := checkGo(t, src); err != nil {
 			t.Errorf("our string where the host's is wanted: %v\n%s", err, src)
@@ -69,8 +72,10 @@ func TestOursIsAHostString(t *testing.T) {
 
 // THE WAY BACK IS THE DECODE, and after it the value is ours.
 func TestTheWayBackIsTheDecode(t *testing.T) {
-	if err := checkGo(t, `(use go) (use go/strconv as sc) (use result)
-(fn (q) (case (sc.Unquote q) (result.ok s) (concat (go.text s) "x") (result.err e) ""))`); err != nil {
+	if err := checkGo(t, `use go
+use go/strconv as sc
+use result
+fn t(q) { case sc.Unquote(q) { result.'ok(s) -> go.text(s) ++ "x"; result.'err(e) -> "" } }`); err != nil {
 		t.Errorf("d gives a value of Σ*: %v", err)
 	}
 }

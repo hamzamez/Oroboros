@@ -19,15 +19,15 @@ import (
 // spans is a table of n pairs built by the loop; `store` is the pair stored at
 // w, and `after` what is done to the table before it is read.
 func spans(store, after string) string {
-	return `(use go) (export f)
-(sig f ((n (int 1 100)) (src (array int))) int (where (= (len src) (+ n 1))))
-(def f (n src)
-  (let sp (local sp (table n 0)
-            (loop ((sp sp) (w 0))
-              (>= w n) sp
-              else (again (set sp w ` + store + `) (+ w 1))))
-       sq ` + after + `
-    (src (- ((sq 0) 1) ((sq 0) 0)))))`
+	return `use go
+export fn f(n ∈ 1..100, src ∈ Array(Int)) (Int) where len(src) == n + 1 {
+    sp = {
+        var sp := array { 0 : _ ∈ 0..n-1 }
+        loop w = 0 { w >= n -> sp; else -> { sp[w] := ` + store + `; again(w + 1) } }
+    }
+    sq = ` + after + `
+    src[sq[0][1] - sq[0][0]]
+}`
 }
 
 // refineFlat is refineGo through the product pass, which turns a table of
@@ -63,7 +63,7 @@ func refineFlat(t *testing.T, src string) error {
 func TestRecordFacts(t *testing.T) {
 	// ACCEPTED: each pair is (w, w + 1), so end − beg = 1 ≥ 0, a record fact,
 	// and end − beg < n + 1 from each component's own bound.
-	good := spans("(tuple w (+ w 1))", "sp")
+	good := spans("(w, w + 1)", "sp")
 	if err := refineFlat(t, good); err != nil {
 		t.Fatalf("end − beg of a pair stored as (w, w + 1) was not proven non-negative: %v", err)
 	}
@@ -87,7 +87,7 @@ export fn f(n ∈ 1..100, src ∈ Array(Int)) (Int) where len(src) == n + 1 {
 	}{
 		// The pair stored is (w + 1, w): end − beg = −1, and src[−1] has no value.
 		// Planted: the record's values not checked at the store.
-		{"a record stored as (w + 1, w)", spans("(tuple (+ w 1) w)", "sp"), &plantRecStoreFault},
+		{"a record stored as (w + 1, w)", spans("(w + 1, w)", "sp"), &plantRecStoreFault},
 		// Planted: a one-component store keeping φ though φ reads that component.
 		{"component 0 overwritten in the loop", overwritten, &plantRecComponentFault},
 	}
@@ -126,11 +126,11 @@ func TestARecordInstanceNeedsItsSiblingInRange(t *testing.T) {
 	tg := goNative(t)
 	r := &refiner{tgt: tg, pure: pureAtoms(tg)}
 	term := func(src string) *core.Term {
-		forms, err := core.Read(src)
+		term, err := core.ParseTerm(src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return forms[0].Term
+		return term
 	}
 	instances := func(read string) []*core.Term {
 		f := newFacts()

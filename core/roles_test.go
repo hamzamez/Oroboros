@@ -34,12 +34,12 @@ func TestAVariantDeclaresItsRoles(t *testing.T) {
 
 func TestARoleMarkerIsChecked(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
-		{`(variant r (ok int) (err int) (success yes))`, "names no constructor"},
-		{`(variant r (ok int) (err int) (success ok) (success err))`, "one success constructor"},
-		{`(variant r (ok int) (err int) (relevant) (relevant))`, "declared twice"},
-		{`(variant r (ok int) (err int) (relevant err))`, "takes nothing"},
-		{`(variant r (ok int) success)`, "reserved"},
-		{`(variant r (ok int) (relevant int))`, "takes nothing"},
+		{`set R = 'ok(Int) ∪ 'err(Int) success 'yes`, "names no constructor"},
+		{`set R = 'ok(Int) ∪ 'err(Int) success 'ok success 'err`, "one success constructor"},
+		{`set R = 'ok(Int) ∪ 'err(Int) relevant relevant`, "declared twice"},
+		{`set R = 'ok(Int) ∪ 'err(Int) relevant 'err`, "takes nothing"},
+		{`set R = 'ok(Int) ∪ 'success`, "reserved"},
+		{`set R = 'ok(Int) ∪ 'err(Int) relevant Int`, "takes nothing"},
 	} {
 		_, err := loadSrc(t, c.src)
 		if err == nil || !strings.Contains(err.Error(), c.want) {

@@ -66,7 +66,7 @@ func TestATargetWithNoBackendIsRefusedForEmission(t *testing.T) {
 		}
 		// The message has to name the fix, because the person seeing it is
 		// writing a target and has no other way to learn the set is closed.
-		for _, want := range []string{"(backend NAME)", "x86-64"} {
+		for _, want := range []string{"backend NAME", "x86-64"} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("%s: the refusal does not mention %q:\n%s", dir, want, err)
 			}
@@ -135,9 +135,8 @@ func TestSeveralImportsOnlyInAnAssemblyTemplate(t *testing.T) {
 		{"x86-64", ""},
 	} {
 		path := filepath.Join(t.TempDir(), "t.oro")
-		src := `(target t (backend ` + c.backend + `)
-		  (repr (int -9223372036854775808 9223372036854775807) word)
-		  (sig f (int) int (host expr "f(%s)" (import "a" "b"))))`
+		src := "backend " + strings.ReplaceAll(c.backend, "-", "_") + "\nrepr -2^63..2^63-1 word\n" +
+			"fn f(a ∈ Int) (Int) { host expr \"f(${a})\" import \"a\" \"b\" }\n"
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)
 		}

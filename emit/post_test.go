@@ -18,9 +18,19 @@ import (
 
 func mustRead(t *testing.T, src string) *core.Term {
 	t.Helper()
-	forms, err := core.Read(src)
+	term, err := core.ReadTerm(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return forms[0].Term
+	return term
+}
+
+// mustCore reads a core term's text, what Term.String prints.
+func mustCore(t *testing.T, src string) *core.Term {
+	t.Helper()
+	term, err := core.ParseTerm(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return term
 }

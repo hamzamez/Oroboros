@@ -1,6 +1,9 @@
 package core
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // entryTerm is the term a test reduces: the program's definition t, or, while
 // a snippet is still today's notation, its bare top-level term (jswitch, step
@@ -12,6 +15,11 @@ func entryTerm(t *testing.T, prog *Program, terms []*Term) *Term {
 	}
 	if d, ok := prog.Defs["t"]; ok {
 		return d
+	}
+	for name, d := range prog.Defs {
+		if strings.HasSuffix(name, ".t") {
+			return d
+		}
 	}
 	t.Fatal("the program defines no t")
 	return nil

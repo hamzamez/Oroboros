@@ -84,11 +84,11 @@ func TestAnAllocationsSizeIsAnObligation(t *testing.T) {
 // is a postcondition and a function giving the results it allows at x.
 func TestAnEnsuresBoundsItsResult(t *testing.T) {
 	read := func(src string) *core.Term {
-		forms, err := core.Read(src)
+		term, err := core.ReadTerm(src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return forms[0].Term
+		return term
 	}
 	rows := []struct {
 		q      string
@@ -116,5 +116,9 @@ func TestAnEnsuresBoundsItsResult(t *testing.T) {
 				}
 			}
 		}
+	}
+	// ANTI-VACUITY: ⊤ contains every result, so the bound must also exclude one.
+	if b := ensuresBound(read("result == 2 * n"), map[string]iv{"n": rangeIV(0, 10)}); member(big.NewInt(21), b) {
+		t.Errorf("result = 2n on n ∈ [0, 10] is bounded by [0, 20], got %s", show(b))
 	}
 }

@@ -17,7 +17,7 @@ func snippetResolver(files map[string]string) Resolver {
 		if !ok {
 			return nil, false, nil
 		}
-		forms, err := Read(src)
+		forms, err := ReadModule(src, path+".oro", path)
 		return forms, true, err
 	}
 }
@@ -29,16 +29,14 @@ func snippetResolver(files map[string]string) Resolver {
 // everywhere else, `P_T ▷ D_T ▷ D`, and nothing in the reducer changes: δ
 // unfolds a target's definition exactly as it unfolds a library's.
 func TestATargetsDefinitionsAreUnfoldedByDelta(t *testing.T) {
-	src, prims := splitPrims(`
-		(target go (prim add))
-		(use h)
-		(h.twice 3)
-	`, "go")
+	src, prims := splitPrims(`(target go (prim add))
+use h
+t = h.twice(3)`, "go")
 	forms, err := Read(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dtTwice, err := ReadTerm(`(fn (x) (add x x))`)
+	dtTwice, err := ParseTerm(`(fn (x) (add x x))`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,15 +72,13 @@ func TestATargetsDefinitionsAreUnfoldedByDelta(t *testing.T) {
 // program, where `CheckProgram` reads EVERY definition and refused `hello.oro`
 // for a name in tally's Go binding.
 func TestATargetsDefinitionsForAnUnusedModuleAreNotInTheProgram(t *testing.T) {
-	src, prims := splitPrims(`
-		(target go (prim add))
-		(add 1 2)
-	`, "go")
+	src, prims := splitPrims(`(target go (prim add))
+t = add(1, 2)`, "go")
 	forms, err := Read(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, err := ReadTerm(`(fn (x) (nowhere.g x))`)
+	body, err := ParseTerm(`(fn (x) (nowhere.g x))`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,18 +97,16 @@ func TestATargetsDefinitionsForAnUnusedModuleAreNotInTheProgram(t *testing.T) {
 
 // `▷`: the target's definition wins over the library's, and the program says so.
 func TestATargetsDefinitionOverridesTheLibrarys(t *testing.T) {
-	lib := map[string]string{"h": "(module h)\n(def twice (fn (x) (add x 0)))"}
+	lib := map[string]string{"h": "fn twice(x) { add(x, 0) }"}
 	resolve := snippetResolver(lib)
-	src, prims := splitPrims(`
-		(target go (prim add))
-		(use h)
-		(h.twice 3)
-	`, "go")
+	src, prims := splitPrims(`(target go (prim add))
+use h
+t = h.twice(3)`, "go")
 	forms, err := Read(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, err := ReadTerm(`(fn (x) (add x x))`)
+	body, err := ParseTerm(`(fn (x) (add x x))`)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -12,11 +12,11 @@ import (
 // integers: a goal the facts do not entail must stay unproven.
 func TestADisequalityBesideAnOrderIsStrict(t *testing.T) {
 	term := func(src string) *core.Term {
-		forms, err := core.Read(src)
+		term, err := core.ParseTerm(src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return forms[0].Term
+		return term
 	}
 	proves := func(facts []string, goal string) bool {
 		f := newFacts()

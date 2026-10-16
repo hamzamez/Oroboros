@@ -22,11 +22,12 @@ import (
 // boundary: flattening is what gives a product a representation, and a nested
 // one would need the layout machinery products.md §8 puts last.
 func TestWhatMayNotBeAField(t *testing.T) {
+	// (A buffer is a mode on a binder in J, `linear`, and no set: a buffer as a
+	// field has no spelling, so the first is refused by construction.)
 	for _, ty := range []string{
-		"(array (tuple (buffer int) int))",
-		"(array (tuple (tuple int int) int))",
+		"Array((Int × Int) × Int)",
 	} {
-		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
+		forms, err := core.Read("fn f(x ∈ " + ty + ") (Int) { 0 }")
 		if err == nil {
 			_, _, err = core.LoadWith(forms, nil)
 		}
@@ -38,9 +39,9 @@ func TestWhatMayNotBeAField(t *testing.T) {
 	// AS AN ELEMENT, because a product is an element type and a signature is
 	// where that is enforced — a bare product parameter has no width the caller
 	// and callee could agree on, and is refused by name.
-	for _, ty := range []string{"(array (tuple int int))",
-		"(array (tuple (int 0 255) int int))", "(buffer (tuple int int))"} {
-		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
+	for _, ty := range []string{"Array(Int × Int)",
+		"Array(0..255 × Int × Int)", "Array(Int × Int) linear"} {
+		forms, err := core.Read("fn f(x ∈ " + ty + ") (Int) { 0 }")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -135,13 +136,13 @@ export fn f(sp ∈ Array(0..65535 × 0..65535)) (Int) where len(sp) < 1000 {
 func TestAProductIsAnElementTypeAndNothingElse(t *testing.T) {
 	for _, tc := range []struct{ what, src, want string }{
 		{"a bare product parameter",
-			"(sig f ((p (tuple int int))) int)\n(def f (fn (p) 0))", "ELEMENT type"},
+			"fn f(p ∈ Int × Int) (Int) { 0 }", "ELEMENT type"},
 		// A tuple RESULT is several results now (spec/data.md §3.3), so what stays
 		// refused in that position is a tuple inside one.
 		{"a tuple inside a tuple result",
-			"(sig f ((n int)) (tuple (tuple int int) int))\n(def f (fn (n) 0))", "is not a type"},
+			"fn f(n ∈ Int) ((Int × Int) × Int) { 0 }", "is not a type"},
 		{"a map of products",
-			"(sig f ((m (map int (tuple int int)))) int)\n(def f (fn (m) 0))", "is not a type"},
+			"fn f(m ∈ Map(Int, Int × Int)) (Int) { 0 }", "is not a type"},
 	} {
 		forms, err := core.Read(tc.src)
 		if err == nil {
@@ -157,8 +158,8 @@ func TestAProductIsAnElementTypeAndNothingElse(t *testing.T) {
 	}
 	// The control: as an ELEMENT all three shapes are types, so the refusals
 	// above are about where a product may stand and not about products.
-	for _, ty := range []string{"(array (tuple int int))", "(buffer (tuple int int))"} {
-		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
+	for _, ty := range []string{"Array(Int × Int)", "Array(Int × Int) linear"} {
+		forms, err := core.Read("fn f(x ∈ " + ty + ") (Int) { 0 }")
 		if err != nil {
 			t.Fatal(err)
 		}

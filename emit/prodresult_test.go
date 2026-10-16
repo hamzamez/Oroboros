@@ -67,14 +67,13 @@ func TestAMapBufferIsLinear(t *testing.T) {
 // half — a layer that proved everything would pass the first.
 func TestAFrozenComponentKeepsItsLength(t *testing.T) {
 	prog := func(i string) string {
-		return `(export f)
-(sig f ((n (int 0 100))) int)
-(def f (n)
-  (let (tuple b k) (local b (table 8 0)
-                     (loop ((b b) (i 0))
-                       (>= i 8)  (tuple b i)
-                       else      (again (set b i n) (+ i 1))))
-    (+ (b ` + i + `) k)))`
+		return `export fn f(n ∈ 0..100) (Int) {
+    (b, k) = {
+        var b := array { 0 : _ ∈ 0..7 }
+        loop i = 0 { i >= 8 -> (b, i); else -> { b[i] := n; again(i + 1) } }
+    }
+    b[` + i + `] + k
+}`
 	}
 	if err := refineGo(t, prog("7")); err != nil {
 		t.Errorf("(b 7) through a tuple: %v", err)
@@ -147,12 +146,15 @@ func placeRefusal(t *testing.T, src string) error {
 // R2: THE SAME BUFFER TWICE is two live references to what the freeze hands
 // out once. Linearity refuses it, because forming the tuple moves the buffer.
 func TestTheSameBufferTwiceIsRefused(t *testing.T) {
-	src := `(export f)
-(def f (n)
-  (let (tuple p q) (local b (table 4 0) (loop ((b b) (i 0)) (>= i 4) (tuple b b) else (again (set b i n) (+ i 1))))
-    (+ (p 0) (q 0))))`
+	src := `export fn f(n) {
+    (p, q) = {
+        var b := array { 0 : _ ∈ 0..3 }
+        loop i = 0 { i >= 4 -> (b, b); else -> { b[i] := n; again(i + 1) } }
+    }
+    p[0] + q[0]
+}`
 	if err := linearOn(t, src); err == nil || !strings.Contains(err.Error(), "handed on") {
-		t.Errorf("(tuple b b): want the linearity refusal, got %v", err)
+		t.Errorf("(b, b): want the linearity refusal, got %v", err)
 	}
 }
 
@@ -169,15 +171,14 @@ func TestTheSameBufferTwiceIsRefused(t *testing.T) {
 // why `proven` also reads the notes.
 func TestAFrozenComponentKeepsItsContent(t *testing.T) {
 	prog := func(g string) string {
-		return `(export f)
-(sig f ((n (int 0 100))) int)
-(def f (n)
-  (let (tuple b k) (local b (table 8 0)
-                     (loop ((b b) (i 0))
-                       (>= i ` + g + `)  (tuple b i)
-                       else      (again (set b i i) (+ i 1))))
-       t (local c (table 6 0) c)
-    (+ (t (b 3)) k)))`
+		return `export fn f(n ∈ 0..100) (Int) {
+    (b, k) = {
+        var b := array { 0 : _ ∈ 0..7 }
+        loop i = 0 { i >= ` + g + ` -> (b, i); else -> { b[i] := i; again(i + 1) } }
+    }
+    t = { var c := array { 0 : _ ∈ 0..5 }; c }
+    t[b[3]] + k
+}`
 	}
 	proven := func(src string) bool {
 		tg, nf, sig := normGo(t, src)

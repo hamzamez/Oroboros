@@ -45,8 +45,7 @@ func TestATableReadDoesNotMoveIntoAnImpureBody(t *testing.T) {
 	// The swap. Both reads must survive as bindings rather than be inlined into
 	// the stores, so the property is about WHERE the reads are rather than about
 	// a count.
-	got := norm(t, prims+"(fn (b) (let vx (b 0) vy (b 1) "+
-		"(set (set b 0 vy) 1 vx)))", "")
+	got := norm(t, prims+"t = fn(b) { vx = b[0]; vy = b[1]; set(set(b, 0, vy), 1, vx) }", "")
 	i := strings.Index(got, "(set")
 	if i < 0 {
 		t.Fatalf("expected the stores to survive, got %s", got)
@@ -64,7 +63,7 @@ func TestATableReadStillMovesIntoAPureBody(t *testing.T) {
 	prims := "(prim add)\n(prim if)\n"
 	// ONE occurrence of x, deliberately: with two, call-by-need binds it
 	// whatever its purity, and the control would pass for the wrong reason.
-	got := norm(t, prims+"(fn (a) (let x (a 0)\n          (add x 1)))", "")
+	got := norm(t, prims+"t = fn(a) { x = a[0]; add(x, 1) }", "")
 	if strings.Contains(got, "let") {
 		t.Errorf("a table read was bound rather than substituted into a PURE "+
 			"body; that is what un-fuses a rule-table:\n%s", got)
@@ -76,7 +75,7 @@ func TestATableReadStillMovesIntoAPureBody(t *testing.T) {
 // body.
 func TestAnOrdinaryArgumentIsUnaffected(t *testing.T) {
 	prims := "(prim !set)\n(prim add)\n(prim if)\n"
-	got := norm(t, prims+"(fn (b n) (let x (add n 1)\n            (set b 0 x)))", "")
+	got := norm(t, prims+"t = fn(b, n) { x = add(n, 1); set(b, 0, x) }", "")
 	if strings.Contains(got, "let") {
 		t.Errorf("a pure arithmetic argument was bound rather than substituted "+
 			"into an impure body, so the rule is wider than it should be:\n%s", got)
@@ -92,8 +91,7 @@ func TestAnOrdinaryArgumentIsUnaffected(t *testing.T) {
 // `(fn (u v) (< (cmp (cs u) (cs v)) 0))` (tally-2026-09-11).
 func TestALambdaReadingATableIsStillSubstituted(t *testing.T) {
 	prims := "(prim build)\n(prim !set)\n(prim if)\n(prim lt)\n"
-	got := norm(t, prims+"(fn (cs b) ((fn (less) (set b 0 (if (less 0 1) 1 2))) "+
-		"(fn (u v) (lt (cs u) (cs v)))))", "")
+	got := norm(t, prims+"t = fn(cs, b) { fn(less) { set(b, 0, if less(0, 1) { 1 } else { 2 }) }(fn(u, v) { lt(cs(u), cs(v)) }) }", "")
 	if strings.Contains(got, "(fn (u v)") {
 		t.Errorf("a λ that reads a table was let-bound rather than substituted "+
 			"into an impure body, so it survives as a closure:\n%s", got)

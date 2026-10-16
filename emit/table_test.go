@@ -150,17 +150,16 @@ export fn f(n ∈ Int) (Int) where 2 < n && n < 100 {
 // then keeps going with the same buffer. A checker that counted occurrences
 // rather than ordering them would refuse the one program ADR 0018 exists for.
 func TestReadingABufferIsFine(t *testing.T) {
-	if err := linearOn(t, `
-		(use go)
-		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
-		(def f (fn (n)
-			(let b (build n (fn (c)
-  				(loop ((c c) (i 0))
-  					(go.>= i n)  c
-  					(c i)        (again c (go.+ i 1))
-  					else         (again (set c i true) (go.+ i 1)))))
-     (if (b 0) 1 0))))
-	`); err != nil {
+	if err := linearOn(t, "use go\n"+
+		"export fn f(n ∈ Int) (Int) where 2 < n && n < 100 {\n"+
+		"    b = build(n, fn(c) {\n"+
+		"        loop c = c, i = 0 {\n"+
+		"            go.`>=`(i, n) -> c\n"+
+		"            c[i] -> again(c, go.`+`(i, 1))\n"+
+		"            else -> again(store(c, i, true), go.`+`(i, 1))\n"+
+		"        }\n"+
+		"    })\n"+
+		"    if b[0] { 1 } else { 0 }\n}"); err != nil {
 		t.Errorf("a read must not consume the buffer: %v", err)
 	}
 }
@@ -171,18 +170,16 @@ func TestReadingABufferIsFine(t *testing.T) {
 // turned its own occurrences into free `c`s and the check refused a correct
 // program. `Closed()` leaves inner binders as indices.
 func TestAShadowingLoopVariableIsNotTheOuterBuffer(t *testing.T) {
-	if err := linearOn(t, `
-		(use go)
-		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
-		(def inner (fn (c n)
-			(loop ((c c) (j 0)) (go.>= j n) c else (again (set c j true) (go.+ j 1)))))
-		(def f (fn (n)
-			(let b (build n (fn (c)
-  				(loop ((c c) (i 0))
-  					(go.>= i n)  c
-  					else         (again (inner c n) (go.+ i 1)))))
-     (if (b 0) 1 0))))
-	`); err != nil {
+	if err := linearOn(t, "use go\n"+
+		"fn inner(c, n) { loop c = c, j = 0 { go.`>=`(j, n) -> c; else -> again(store(c, j, true), go.`+`(j, 1)) } }\n"+
+		"export fn f(n ∈ Int) (Int) where 2 < n && n < 100 {\n"+
+		"    b = build(n, fn(c) {\n"+
+		"        loop c = c, i = 0 {\n"+
+		"            go.`>=`(i, n) -> c\n"+
+		"            else -> again(inner(c, n), go.`+`(i, 1))\n"+
+		"        }\n"+
+		"    })\n"+
+		"    if b[0] { 1 } else { 0 }\n}"); err != nil {
 		t.Errorf("a shadowing loop variable is its own buffer: %v", err)
 	}
 }

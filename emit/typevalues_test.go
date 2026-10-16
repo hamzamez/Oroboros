@@ -140,10 +140,10 @@ export fn f() { fmt.Println(error) }`: "is a set, a static value",
 export fn f() { fmt.Println("error") }`); err != nil {
 		t.Errorf("a program holding no set is refused: %v", err)
 	}
-	// A CLAIM'S SET IS NOT A VALUE: `(the (int 0 9) e)` names the set int in a
-	// position erasure drops (abstract.md §5), so Law S does not refuse it
-	// (examples/os/du.oro found the refusal).
-	if _, _, err := normalizeOn(t, goNative(t), `(use go/fmt as fmt) (export f) (sig f ((n (int 0 5))) int) (def f (n) (the (int 0 9) (+ n 1)))`); err != nil {
+	// A CLAIM'S SET IS NOT A VALUE: a header names its sets in positions erasure
+	// drops (abstract.md §5), so Law S does not refuse them. (examples/os/du.oro
+	// found the refusal on `the`, which J does not have, ADR 0062.)
+	if _, _, err := normalizeOn(t, goNative(t), `export fn f(n ∈ 0..5) (0..9) { n + 1 }`); err != nil {
 		t.Errorf("a set in a claim position was refused as a value: %v", err)
 	}
 }
@@ -266,12 +266,12 @@ func TestAnInstanceIsAFunctionOfItsName(t *testing.T) {
 // refused, which is how the hand NumError constructor was found.
 func TestOneNamespace(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(dir+"/t.oro", []byte(`(target t
-  (backend go)
-  (repr (int -9223372036854775808 9223372036854775807) word)
-  (module m
-    (type T (host "int"))
-    (sig T ((x int)) T (host expr "%s"))))`), 0o644); err != nil {
+	if err := os.WriteFile(dir+"/t.oro", []byte(`backend go
+repr -2^63..2^63-1 word
+module m {
+    set T = host "int"
+    fn T(x ∈ Int) (T) { host expr "${x}" }
+}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	_, err := emit.LoadTarget(dir + "/t.oro")

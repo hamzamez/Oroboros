@@ -38,16 +38,17 @@ func TestAComputedByteNarrowsItsBuffer(t *testing.T) {
 	// therefore ⊤. So a buffer holding both was refused by both, and that is
 	// exactly the shape of a report line -- a word copied out of the file and a
 	// count rendered into digits.
-	got, err := genOn(t, "go", `
-(use go)
-(export f)
-(sig f ((src (array (int 0 255)))) int (where (<= 8 (len src))))
-(def f (fn (src)
-  (let t (build 8 (fn (out)
-           (loop ((out out) (k 0))
-             (>= k 8)  out
-             else      (again (set out k (if (< k 4) (src k) (+ 48 (% (src k) 10)))) (+ k 1)))))
-    (+ (t 0) (t 7)))))`,
+	got, err := genOn(t, "go", `use go
+export fn f(src ∈ Array(0..255)) (Int) where 8 <= len(src) {
+    t = build(8,
+        fn(out) {
+            loop out = out, k = 0 {
+                k >= 8 -> out
+                else -> again(store(out, k, if k < 4 { src[k] } else { 48 + src[k] % 10 }), k + 1)
+            }
+        })
+    t(0) + t(7)
+}`,
 		"f")
 	if err != nil {
 		t.Fatal(err)
@@ -74,32 +75,27 @@ func TestAComputedByteNarrowsItsBuffer(t *testing.T) {
 // stores a literal, which narrows with no induction at all.
 func TestABufferNarrowsOnItsOwnContentsOnlyByAProof(t *testing.T) {
 	prog := func(trips, v string) string {
-		return `
-(use go)
-(export f)
-(sig f ((n int)) int (where (and (<= 0 n) (<= n 4))))
-(def f (fn (n)
-  (let t (build 8 (fn (b)
-           (loop ((b b) (k 0))
-             (>= k ` + trips + `)  b
-             else      (again (set b (% k 8) ` + v + `) (+ k 1)))))
-    (+ (t 0) (t 7)))))`
+		return `use go
+export fn f(n ∈ Int) (Int) where 0 <= n && n <= 4 {
+    t = build(8, fn(b) { loop b = b, k = 0 { k >= ` + trips + ` -> b; else -> again(store(b, k % 8, ` + v + `), k + 1) } })
+    t[0] + t[7]
+}`
 	}
-	proven, err := genOn(t, "go", prog("8", "(+ (b (% k 8)) 1)"), "f")
+	proven, err := genOn(t, "go", prog("8", "b[k % 8] + 1"), "f")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(proven, "make([]byte, 8)") {
 		t.Errorf("eight increments of one bound every cell by 8, so the buffer is a []byte:\n%s", proven)
 	}
-	wide, err := genOn(t, "go", prog("4000", "(+ (b (% k 8)) 1)"), "f")
+	wide, err := genOn(t, "go", prog("4000", "b[k % 8] + 1"), "f")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(wide, "[]byte") {
 		t.Errorf("4000 increments over 8 cells reach 500, which a byte does not hold:\n%s", wide)
 	}
-	control, err := genOn(t, "go", prog("8", "(+ 48 1)"), "f")
+	control, err := genOn(t, "go", prog("8", "48 + 1"), "f")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -16,13 +16,18 @@ import (
 // under hex.Encode, which built and panicked inside the host.
 
 func TestAWhereOnAPrimitiveWithSeveralResultsIsDischarged(t *testing.T) {
-	tg := tempTarget(t, `(sig pair ((k int)) (tuple int int) (where (<= 0 k)) (host expr "pair(%s)"))`)
+	tg := tempTarget(t, `fn pair(k ∈ Int) (Int × Int) where 0 <= k { host expr "pair(${k})" }`)
 	// k is unconstrained, so the precondition does not follow.
-	if _, err := refineWith(t, tg, `(use tgt) (fn (k) ((tgt.pair k) (fn (a b) a)))`); err == nil {
+	if _, err := refineWith(t, tg, `use tgt
+fn t(k) {
+    (a, b) = tgt.pair(k)
+    a
+}`); err == nil {
 		t.Error("an unproven precondition on a primitive with two results was accepted")
 	}
 	// CONTROL: a literal satisfies it, and must still be accepted and PROVEN.
-	notes, err := refineWith(t, tg, `(use tgt) ((tgt.pair 3) (fn (a b) a))`)
+	notes, err := refineWith(t, tg, `use tgt
+fn t() { (a, b) = tgt.pair(3); a }`)
 	if err != nil {
 		t.Errorf("a proven precondition was refused: %v", err)
 	}
@@ -32,13 +37,18 @@ func TestAWhereOnAPrimitiveWithSeveralResultsIsDischarged(t *testing.T) {
 }
 
 func TestTheContinuationOfAPrimitiveWithSeveralResultsIsWalked(t *testing.T) {
-	tg := tempTarget(t, `(sig pair ((k int)) (tuple int int) (host expr "pair(%s)"))`)
+	tg := tempTarget(t, `fn pair(k ∈ Int) (Int × Int) { host expr "pair(${k})" }`)
 	// `need` requires 0 <= k, and the continuation passes it an unconstrained name.
-	if _, err := refineWith(t, tg, `(use tgt) (fn (k) ((tgt.pair 1) (fn (a b) (tgt.need k))))`); err == nil {
+	if _, err := refineWith(t, tg, `use tgt
+fn t(k) {
+    (a, b) = tgt.pair(1)
+    tgt.need(k)
+}`); err == nil {
 		t.Error("an obligation inside the continuation body was never discharged")
 	}
 	// CONTROL: the same body with a literal is accepted.
-	if _, err := refineWith(t, tg, `(use tgt) ((tgt.pair 1) (fn (a b) (tgt.need 2)))`); err != nil {
+	if _, err := refineWith(t, tg, `use tgt
+fn t() { (a, b) = tgt.pair(1); tgt.need(2) }`); err != nil {
 		t.Errorf("a discharged obligation inside the continuation was refused: %v", err)
 	}
 }
@@ -54,30 +64,20 @@ func TestTheContinuationOfAPrimitiveWithSeveralResultsIsWalked(t *testing.T) {
 func TestAnIndexAssignedAScannersResultIsNonNegative(t *testing.T) {
 	// IMPURE, so the call with an unused result survives reduction and there is
 	// an obligation left to discharge (see the note on `half` below).
-	tg := tempTarget(t, `(sig at ((k int)) int (where (<= 0 k)) (host expr "at(%s)"))`)
+	tg := tempTarget(t, `fn at(k ∈ Int) (Int) where 0 <= k { host expr "at(${k})" }`)
 	// The scanner is a definition, as in freq.oro: reduction inlines it, so the
 	// loop reaches the refiner as the value of a `let`.
-	const scanner = `(use tgt)
-	  (def scan (fn (n i) (loop ((j (+ i 1))) (>= j n) j else (again (+ j 1)))))
-	  (fn (n)
-	    (loop ((i 0))
-	      (>= i n) 0
-	      else (let ni (scan n i)
-                 u  (tgt.at i)
-              (again ni))))`
+	const scanner = `use tgt
+fn scan(n, i) { loop j = i + 1 { j >= n -> j; else -> again(j + 1) } }
+fn t(n) { loop i = 0 { i >= n -> 0; else -> { ni = scan(n, i); u = tgt.at(i); again(ni) } } }`
 	if _, err := refineWith(t, tg, scanner); err != nil {
 		t.Errorf("0 <= i follows from monotonicity and must be derived: %v", err)
 	}
 	// CONTROL: a scanner that may return LESS than it was given is not
 	// non-decreasing, and the obligation must stay refused.
-	const falls = `(use tgt)
-	  (def scan (fn (n i) (loop ((j (+ i 1))) (>= j n) (- j 5) else (again (+ j 1)))))
-	  (fn (n)
-	    (loop ((i 0))
-	      (>= i n) 0
-	      else (let ni (scan n i)
-                 u  (tgt.at i)
-              (again ni))))`
+	const falls = `use tgt
+fn scan(n, i) { loop j = i + 1 { j >= n -> j - 5; else -> again(j + 1) } }
+fn t(n) { loop i = 0 { i >= n -> 0; else -> { ni = scan(n, i); u = tgt.at(i); again(ni) } } }`
 	if _, err := refineWith(t, tg, falls); err == nil {
 		t.Error("a scanner whose exit subtracts was taken as non-decreasing")
 	}
@@ -89,16 +89,14 @@ func TestAnIndexAssignedAScannersResultIsNonNegative(t *testing.T) {
 // needs x <= 2·len + 1 — hex.Decode's exact precondition. The guard that makes
 // both halves sound is the same one: x is a LENGTH, so x >= 0.
 func TestBothHalvesOfDivisionByALiteralAreKnown(t *testing.T) {
-	tg := tempTarget(t, `(sig / ((a int) (b int)) int pure (host expr "%s / %s"))
-    (sig half ((dst (array int)) (src (array int))) int
-      (where (<= (len src) (+ (* 2 (len dst)) 1))) (host expr "half(%s, %s)"))`)
+	tg := tempTarget(t, "fn `/`(a ∈ Int, b ∈ Int) (Int) pure { host expr \"${a} / ${b}\" }\nfn half(dst ∈ Array(Int), src ∈ Array(Int)) (Int)\n    where len(src) <= 2 * len(dst) + 1 {\n    host expr \"half(${dst}, ${src})\"\n}")
 	// IMPURE on purpose: a pure call whose result is unused is dropped by
 	// reduction (weakening is allowed for it, ADR 0010), and then there is no
 	// call left to check and both halves of this test pass vacuously.
 	// The call sits inside the build's binder, which is where `len b` is known —
 	// hex.Decode's own shape in encoding/hex.oro.
-	notes, err := refineWith(t, tg, `(use tgt) (fn (a) (build (/ (len a) 2) (fn (b) (let u (tgt.half b a)
-                                                 b))))`)
+	notes, err := refineWith(t, tg, `use tgt
+fn t(a) { build(len(a) / 2, fn(b) { u = tgt.half(b, a); b }) }`)
 	if err != nil {
 		t.Errorf("x <= 2·(x/2) + 1 must follow for a length x: %v", err)
 	}
@@ -106,8 +104,8 @@ func TestBothHalvesOfDivisionByALiteralAreKnown(t *testing.T) {
 		t.Errorf("the precondition must be proven, not propagated: %s", notes)
 	}
 	// CONTROL: one element fewer is genuinely too small, and must be refused.
-	if _, err := refineWith(t, tg, `(use tgt) (fn (a) (build (- (/ (len a) 2) 1) (fn (b) (let u (tgt.half b a)
-                                                       b))))`); err == nil {
+	if _, err := refineWith(t, tg, `use tgt
+fn t(a) { build(len(a) / 2 - 1, fn(b) { u = tgt.half(b, a); b }) }`); err == nil {
 		t.Error("a buffer one element short of ⌊x/2⌋ was accepted")
 	}
 }
@@ -119,21 +117,21 @@ func TestBothHalvesOfDivisionByALiteralAreKnown(t *testing.T) {
 // became `2·len(a)`, and the two stopped matching. Equality is a congruence:
 // rewriting both sides by the same equations at query time changes no meaning.
 func TestAFactAndAGoalAreRewrittenByTheSameEquations(t *testing.T) {
-	tg := tempTarget(t, `(sig / ((a int) (b int)) int pure (host expr "%s / %s"))
-    (sig half ((dst (array int)) (src (array int))) int
-      (where (<= (len src) (+ (* 2 (len dst)) 1))) (host expr "half(%s, %s)"))`)
-	const ok = `(use tgt)
-	  (fn (a) (let enc (build (* 2 (len a)) (fn (c) c))
-             (build (/ (len enc) 2) (fn (b) (let u (tgt.half b enc)
-                                              b)))))`
+	tg := tempTarget(t, "fn `/`(a ∈ Int, b ∈ Int) (Int) pure { host expr \"${a} / ${b}\" }\nfn half(dst ∈ Array(Int), src ∈ Array(Int)) (Int)\n    where len(src) <= 2 * len(dst) + 1 {\n    host expr \"half(${dst}, ${src})\"\n}")
+	const ok = `use tgt
+fn t(a) {
+    enc = build(2 * len(a), fn(c) { c })
+    build(len(enc) / 2, fn(b) { u = tgt.half(b, enc); b })
+}`
 	if _, err := refineWith(t, tg, ok); err != nil {
 		t.Errorf("the axiom and the goal must agree after the let's equation: %v", err)
 	}
 	// CONTROL: one short is still refused.
-	const short = `(use tgt)
-	  (fn (a) (let enc (build (* 2 (len a)) (fn (c) c))
-             (build (- (/ (len enc) 2) 1) (fn (b) (let u (tgt.half b enc)
-                                                    b)))))`
+	const short = `use tgt
+fn t(a) {
+    enc = build(2 * len(a), fn(c) { c })
+    build(len(enc) / 2 - 1, fn(b) { u = tgt.half(b, enc); b })
+}`
 	if _, err := refineWith(t, tg, short); err == nil {
 		t.Error("a buffer one short was accepted once the equation was known")
 	}
@@ -144,18 +142,17 @@ func TestAFactAndAGoalAreRewrittenByTheSameEquations(t *testing.T) {
 // jsonfmt.oro copies a token with a loop starting at the index `i` it already
 // knows is non-negative, and was refused on it.
 func TestALoopStartingAtAKnownNonNegativeValueStaysNonNegative(t *testing.T) {
-	tg := tempTarget(t, `(sig at ((k int)) int (where (<= 0 k)) (host expr "at(%s)"))`)
-	const guarded = `(use tgt)
-	  (fn (n m) (if (< m 0) 0
-	    (loop ((k m)) (>= k n) 0 else (let u (tgt.at k)
-                                     (again (+ k 1))))))`
+	tg := tempTarget(t, `fn at(k ∈ Int) (Int) where 0 <= k { host expr "at(${k})" }`)
+	const guarded = `use tgt
+fn t(n, m) {
+    if m < 0 { 0 } else { loop k = m { k >= n -> 0; else -> { u = tgt.at(k); again(k + 1) } } }
+}`
 	if _, err := refineWith(t, tg, guarded); err != nil {
 		t.Errorf("0 <= m on entry and k only grows, so 0 <= k: %v", err)
 	}
 	// CONTROL: with nothing known about m, k may start negative.
-	const bare = `(use tgt)
-	  (fn (n m) (loop ((k m)) (>= k n) 0 else (let u (tgt.at k)
-                                             (again (+ k 1)))))`
+	const bare = `use tgt
+fn t(n, m) { loop k = m { k >= n -> 0; else -> { u = tgt.at(k); again(k + 1) } } }`
 	if _, err := refineWith(t, tg, bare); err == nil {
 		t.Error("a loop starting at an unconstrained value was taken as non-negative")
 	}
@@ -167,19 +164,23 @@ func TestALoopStartingAtAKnownNonNegativeValueStaysNonNegative(t *testing.T) {
 // the product. The join over the branches (refine.go, joinConditional) gives
 // the name every inequality all its leaves satisfy on their paths.
 func TestAClampUsedTwiceKeepsItsBounds(t *testing.T) {
-	tg := tempTarget(t, `(sig at ((k int)) int (where (and (<= 0 k) (< k 10))) (host expr "at(%s)"))`)
-	const clamp = `(use tgt)
-	  (fn (i) (let c (if (< i 0) 0 (if (>= i 10) 0 i))
-                u (tgt.at c)
-             (tgt.at c)))`
+	tg := tempTarget(t, `fn at(k ∈ Int) (Int) where 0 <= k && k < 10 { host expr "at(${k})" }`)
+	const clamp = `use tgt
+fn t(i) {
+    c = if i < 0 { 0 } else if i >= 10 { 0 } else { i }
+    u = tgt.at(c)
+    tgt.at(c)
+}`
 	if _, err := refineWith(t, tg, clamp); err != nil {
 		t.Errorf("every branch of the clamp is in [0, 10), so c is: %v", err)
 	}
 	// CONTROL: one branch outside the range, and the join must not claim it.
-	const leaky = `(use tgt)
-	  (fn (i) (let c (if (< i 0) 0 (if (>= i 10) 11 i))
-                u (tgt.at c)
-             (tgt.at c)))`
+	const leaky = `use tgt
+fn t(i) {
+    c = if i < 0 { 0 } else if i >= 10 { 11 } else { i }
+    u = tgt.at(c)
+    tgt.at(c)
+}`
 	if _, err := refineWith(t, tg, leaky); err == nil {
 		t.Error("a conditional with a branch at 11 was taken to be below 10")
 	}
@@ -190,21 +191,25 @@ func TestAClampUsedTwiceKeepsItsBounds(t *testing.T) {
 // the join has to look through that `let` — and must not keep a fact about the
 // inner name, which means nothing outside.
 func TestAClampOfAnOpaqueValueKeepsItsBounds(t *testing.T) {
-	tg := tempTarget(t, `(sig rd ((k int)) int (host expr "rd(%s)"))
-    (sig at ((k int)) int (where (and (<= 0 k) (< k 10))) (host expr "at(%s)"))`)
-	const clamp = `(use tgt)
-	  (def cl (fn (i) (if (< i 0) 0 (if (>= i 10) 0 i))))
-	  (fn (j) (let c (cl (tgt.rd j))
-                u (tgt.at c)
-             (tgt.at c)))`
+	tg := tempTarget(t, `fn rd(k ∈ Int) (Int) { host expr "rd(${k})" }
+fn at(k ∈ Int) (Int) where 0 <= k && k < 10 { host expr "at(${k})" }`)
+	const clamp = `use tgt
+fn cl(i) { if i < 0 { 0 } else if i >= 10 { 0 } else { i } }
+fn t(j) {
+    c = cl(tgt.rd(j))
+    u = tgt.at(c)
+    tgt.at(c)
+}`
 	if _, err := refineWith(t, tg, clamp); err != nil {
 		t.Errorf("a clamp of an opaque host result is in [0, 10): %v", err)
 	}
 	// CONTROL: no clamp, and nothing is known about the host's result.
-	const bare = `(use tgt)
-	  (fn (j) (let c (tgt.rd j)
-                u (tgt.at c)
-             (tgt.at c)))`
+	const bare = `use tgt
+fn t(j) {
+    c = tgt.rd(j)
+    u = tgt.at(c)
+    tgt.at(c)
+}`
 	if _, err := refineWith(t, tg, bare); err == nil {
 		t.Error("an unclamped host result was taken to be in range")
 	}
@@ -214,11 +219,10 @@ func TestAClampOfAnOpaqueValueKeepsItsBounds(t *testing.T) {
 // assigned a field, so a second one replaced the first and a precondition the
 // author wrote vanished without a word — the conjunction is spelled `(and …)`.
 func TestARepeatedWhereOrEnsuresIsRefused(t *testing.T) {
-	for _, clause := range []string{"where", "ensures"} {
+	for clause, claim := range map[string]string{"where": "where 0 <= n where n <= 9", "ensures": "ensure 0 <= r ensure r <= 9"} {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "t.oro")
-		src := `(target tgt (type int (host "int")) (module tgt
-  (sig f ((n int)) int pure (` + clause + ` (<= 0 n)) (` + clause + ` (<= n 9)) (host expr "f(%s)"))))`
+		src := "set Int = host \"int\"\nmodule tgt {\n    fn f(n ∈ Int) (r ∈ Int) pure " + claim + " { host expr \"f(${n})\" }\n}\n"
 		if err := os.WriteFile(path, []byte(withWord(src)), 0o644); err != nil {
 			t.Fatal(err)
 		}

@@ -27,11 +27,11 @@ func TestScalarRangeEmitsWhatTheWhereEmits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := mustRead(t, "(fn (n) (go.* n n))")
+	body := mustRead(t, "fn(n) { go.`*`(n, n) }")
 
-	ranged := sigOf(t, "(int 0 1000)")
-	whered := sigOf(t, "int")
-	whered.Where = mustRead(t, "(and (<= 0 n) (<= n 1000))")
+	ranged := sigOf(t, "0..1000")
+	whered := sigOf(t, "Int")
+	whered.Where = mustRead(t, "0 <= n && n <= 1000")
 
 	a, err := golang.FromResidual(tg, "sq", ranged, body)
 	if err != nil {

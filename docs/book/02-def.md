@@ -351,6 +351,8 @@ go run ./cmd/oro -target=blas examples/modules.oro
 
 ```lisp
 note: num/vec.dot is defined here and provided natively by target "blas"; the target's is used
+…
+main.run =
 (fn (p q) (num/vec.dot p q))
 ```
 

@@ -12,13 +12,13 @@ func TestFactAdmissionIsTheFBFragment(t *testing.T) {
 		t.Fatalf("lang's theory must load all eight facts, got %d", len(langFacts))
 	}
 	refused := map[string]string{
-		`(fact two ((x int) (y int)) (<= (% x 3) (% y 3)))`:          "F-C",
-		`(fact cover ((x int) (y int)) (<= 0 (len x)))`:              "condition 3",
-		`(fact nest ((x int)) (<= 0 (% (% x 3) 5)))`:                 "not flat",
-		`(fact fl ((x f64)) (<= 0 (sqrt x)))`:                        "float",
-		`(fact q ((a (array int))) (forall ((i int)) (<= 0 (a i))))`: "F-D",
-		`(lemma l ((x int)) (<= 0 x))`:                               "F-E",
-		`(fact lin ((x int)) (<= 0 x))`:                              "no trigger",
+		`fact two (x ∈ Int, y ∈ Int) x % 3 <= y % 3`:          "F-C",
+		`fact cover (x ∈ Int, y ∈ Int) 0 <= len(x)`:           "condition 3",
+		`fact nest (x ∈ Int) 0 <= x % 3 % 5`:                  "not flat",
+		`fact fl (x ∈ F64) 0 <= sqrt(x)`:                      "float",
+		`fact q (a ∈ Array(Int)) forall(i(int)(), 0 <= a(i))`: "F-D",
+		`lemma l (x ∈ Int) 0 <= x`:                            "F-E",
+		`fact lin (x ∈ Int) 0 <= x`:                           "no trigger",
 	}
 	for src, want := range refused {
 		_, err := readFacts(src)
@@ -29,12 +29,10 @@ func TestFactAdmissionIsTheFBFragment(t *testing.T) {
 }
 
 // hex.Decode's witness, TestBothHalvesOfDivisionByALiteralAreKnown, as one query.
-const decodeTarget = `(sig / ((a int) (b int)) int pure (host expr "%s / %s"))
-    (sig half ((dst (array int)) (src (array int))) int
-      (where (<= (len src) (+ (* 2 (len dst)) 1))) (host expr "half(%s, %s)"))`
+const decodeTarget = "fn `/`(a ∈ Int, b ∈ Int) (Int) pure { host expr \"${a} / ${b}\" }\nfn half(dst ∈ Array(Int), src ∈ Array(Int)) (Int)\n    where len(src) <= 2 * len(dst) + 1 {\n    host expr \"half(${dst}, ${src})\"\n}"
 
-const decodeQuery = `(use tgt) (fn (a) (build (/ (len a) 2) (fn (b) (let u (tgt.half b a)
-                                                 b))))`
+const decodeQuery = `use tgt
+fn t(a) { build(len(a) / 2, fn(b) { u = tgt.half(b, a); b }) }`
 
 // proves runs the Decode query under a theory and reports whether the
 // precondition is PROVEN — neither refused nor merely propagated.
@@ -53,9 +51,8 @@ func TestDeletingDivFloorsUpperHalfFailsTheDecodeWitness(t *testing.T) {
 	if !proves(t, langFacts) {
 		t.Fatal("the control, lang's full theory, must prove Decode's precondition")
 	}
-	weak, err := readFacts(`
-(fact len-nonneg ((t (array A))) (<= 0 (len t)))
-(fact div-floor ((x int) (k int)) (when (<= 0 x) (<= 1 k)) (<= (* k (/ x k)) x))`)
+	weak, err := readFacts(`fact len_nonneg (t ∈ Array(A)) 0 <= len(t)
+fact div_floor (x ∈ Int, k ∈ Int) when(0 <= x, 1 <= k) k * (x / k) <= x`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,9 +65,8 @@ func TestDeletingDivFloorsUpperHalfFailsTheDecodeWitness(t *testing.T) {
 // And len-nonneg is load-bearing: without it div-floor's guard 0 <= x is not
 // entailed for a length, and neither half is instantiated.
 func TestDivFloorNeedsLenNonneg(t *testing.T) {
-	noLen, err := readFacts(`
-(fact div-floor ((x int) (k int)) (when (<= 0 x) (<= 1 k))
-  (and (<= (* k (/ x k)) x) (<= x (+ (* k (/ x k)) (- k 1)))))`)
+	noLen, err := readFacts(`fact div_floor (x ∈ Int, k ∈ Int) when(0 <= x, 1 <= k) k * (x / k) <= x && x <=
+k * (x / k) + (k - 1)`)
 	if err != nil {
 		t.Fatal(err)
 	}

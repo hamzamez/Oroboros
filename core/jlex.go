@@ -51,6 +51,11 @@ var ascii = map[string]string{`\in`: "∈", `\notin`: "∉", `\cup`: "∪", `\ca
 	`\subset`: "⊂", `\X`: "×", `\A`: "∀", `\E`: "∃"}
 
 func lex(src string) ([]token, error) {
+	// UTF-8, NFC and no bidirectional control (core-0 §1.1): two identifiers
+	// that display alike are one identifier.
+	if err := validSource(src); err != nil {
+		return nil, err
+	}
 	var out []token
 	line, nl := 1, true
 	for i := 0; i < len(src); {
@@ -206,11 +211,14 @@ func unquote(s string, line int) (string, int, error) {
 		switch {
 		case c == '"':
 			return b.String(), i + 1, nil
-		case c == '\n':
-			return "", 0, fmt.Errorf("line %d: a string ends at its line", line)
+		case c == '\t' || c == '\n' || c == '\r':
+			// A token that may contain a raw line terminator makes an unterminated
+			// literal indistinguishable from a long one (string-literals.md §4).
+			return "", 0, fmt.Errorf("line %d: a string literal may not contain a raw "+
+				"tab, newline or carriage return; write \\t, \\n or \\r", line)
 		case c == '\\':
 			if i+1 >= len(s) {
-				break
+				return "", 0, fmt.Errorf("line %d: unterminated escape in string literal", line)
 			}
 			switch s[i+1] {
 			case 't':
@@ -224,19 +232,17 @@ func unquote(s string, line int) (string, int, error) {
 			case '"':
 				b.WriteByte('"')
 			case 'u':
-				end := strings.IndexByte(s[i:], '}')
-				if i+2 >= len(s) || s[i+2] != '{' || end < 0 {
-					return "", 0, fmt.Errorf("line %d: \\u is \\u{H…}", line)
+				v, n, err := scalarEscape(s[i+2:], line)
+				if err != nil {
+					return "", 0, err
 				}
-				v, err := strconv.ParseUint(s[i+3:i+end], 16, 32)
-				if err != nil || v > 0x10FFFF || (v >= 0xD800 && v <= 0xDFFF) {
-					return "", 0, fmt.Errorf("line %d: \\u{%s} is no scalar value", line, s[i+3:i+end])
-				}
-				b.WriteRune(rune(v))
-				i += end + 1
+				b.WriteRune(v)
+				i += 2 + n
 				continue
 			default:
-				return "", 0, fmt.Errorf("line %d: \\%c is no escape", line, s[i+1])
+				return "", 0, fmt.Errorf("line %d: \\%c is not an escape. The escapes are "+
+					"\\\" \\\\ \\t \\n \\r and \\u{H…} for any scalar value "+
+					"(docs/spec/string-literals.md §3)", line, s[i+1])
 			}
 			i += 2
 			continue
@@ -245,4 +251,42 @@ func unquote(s string, line int) (string, int, error) {
 		i++
 	}
 	return "", 0, fmt.Errorf("line %d: a string has no closing quote", line)
+}
+
+// scalarEscape reads `{H…}` after `\u`, returning the scalar and the bytes read.
+// One to six hexadecimal digits, and the value must be a SCALAR VALUE: Unicode
+// excludes the surrogate range D800–DFFF, an artefact of the UTF-16 encoding
+// form rather than a character, which is what makes a string's value
+// encoding-independent (string-literals.md §1).
+func scalarEscape(s string, line int) (rune, int, error) {
+	if len(s) == 0 || s[0] != '{' {
+		return 0, 0, fmt.Errorf("line %d: \\u must be written \\u{H…} with one to six "+
+			"hexadecimal digits", line)
+	}
+	end := strings.IndexByte(s, '}')
+	if end < 0 {
+		return 0, 0, fmt.Errorf("line %d: unterminated \\u{…} escape", line)
+	}
+	digits := s[1:end]
+	switch {
+	case len(digits) == 0:
+		return 0, 0, fmt.Errorf("line %d: \\u{} has no digits", line)
+	case len(digits) > 6:
+		return 0, 0, fmt.Errorf("line %d: \\u{…} takes at most six hexadecimal "+
+			"digits; the largest scalar value is 10FFFF", line)
+	}
+	v, err := strconv.ParseUint(digits, 16, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("line %d: \\u{%s} is not hexadecimal", line, digits)
+	}
+	if v > 0x10FFFF {
+		return 0, 0, fmt.Errorf("line %d: \\u{%s} is above the largest scalar value, 10FFFF", line, digits)
+	}
+	if v >= 0xD800 && v <= 0xDFFF {
+		return 0, 0, fmt.Errorf("line %d: \\u{%s} is a SURROGATE, which is not a scalar "+
+			"value — it exists only inside the UTF-16 encoding form, and a sequence "+
+			"containing one has no representation in UTF-8 at all "+
+			"(docs/spec/string-literals.md §1)", line, digits)
+	}
+	return rune(v), end + 1, nil
 }

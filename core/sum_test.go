@@ -70,11 +70,11 @@ func TestEnumIsASumWithNoPayloads(t *testing.T) {
 // --- what a sum REFUSES ------------------------------------------------------
 
 func TestSumNeedsTwoVariants(t *testing.T) {
-	mustLoadFail(t, `(variant wrapper (only int))`, "two or more constructors")
+	mustLoadFail(t, `set Wrapper = 'only(Int)`, "two or more constructors")
 }
 
 func TestSumRefusesDuplicateVariant(t *testing.T) {
-	mustLoadFail(t, `(variant r (ok int) (ok int))`, "declared twice")
+	mustLoadFail(t, `set R = 'ok(Int) ∪ 'ok(Int)`, "declared twice")
 }
 
 // A constructor names ONE sum. Sums are nominal — `(ok 3)` does not determine
@@ -239,11 +239,11 @@ func TestEqFoldsOnIntegersOnly(t *testing.T) {
 		"(= 2 3)":     "false",
 		"(= 1.0 1.0)": "(= 1.0 1.0)", // floats are NOT folded, deliberately
 	} {
-		forms, err := Read(src)
+		term, err := ParseTerm(src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nf, err := Normalize(forms[0].Term, e, DefaultFuel)
+		nf, err := Normalize(term, e, DefaultFuel)
 		if err != nil {
 			t.Fatal(err)
 		}

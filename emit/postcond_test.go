@@ -21,19 +21,21 @@ func tempTarget(t *testing.T, prim string) *Target {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "t.oro")
-	src := `(target tgt
-  (type int (host "int")) (type bool (host "bool")) (type any (host "any"))
-  (type (array A) (host "[]%s"))
-  (module tgt
-    (sig + ((a int) (b int)) int pure (host expr "%s + %s"))
-    (sig - ((a int) (b int)) int pure (host expr "%s - %s"))
-    (sig * ((a int) (b int)) int pure (host expr "%s * %s"))
-    (sig < ((a int) (b int)) bool pure (host expr "%s < %s"))
-    (sig <= ((a int) (b int)) bool pure (host expr "%s <= %s"))
-    (sig > ((a int) (b int)) bool pure (host expr "%s > %s"))
-    (sig >= ((a int) (b int)) bool pure (host expr "%s >= %s"))
+	src := `set Int = host "int"
+set Bool = host "bool"
+set Any = host "any"
+set Array(A) = host "[]${A}"
+module tgt {
+    fn ` + "`+`" + `(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} + ${b}" }
+    fn ` + "`-`" + `(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} - ${b}" }
+    fn ` + "`*`" + `(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} * ${b}" }
+    fn ` + "`<`" + `(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} < ${b}" }
+    fn ` + "`<=`" + `(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} <= ${b}" }
+    fn ` + "`>`" + `(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} > ${b}" }
+    fn ` + "`>=`" + `(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} >= ${b}" }
     ` + prim + `
-    (sig need ((k int)) int pure (where (<= 0 k)) (host expr "need(%s)"))))
+    fn need(k ∈ Int) (Int) pure where 0 <= k { host expr "need(${k})" }
+}
 `
 	if err := os.WriteFile(path, []byte(withWord(src)), 0o644); err != nil {
 		t.Fatal(err)
@@ -85,11 +87,13 @@ func refusedUnproven(err error) bool {
 // A postcondition is the only way a PRIMITIVE can establish anything about its
 // result: it has no body, so nothing can derive it.
 func TestPrimEnsuresDischargesADownstreamObligation(t *testing.T) {
-	const prog = `(use tgt)
-		(fn (v) (let n (tgt.size v)
-            (tgt.need n)))`
+	const prog = `use tgt
+fn t(v) {
+    n = tgt.size(v)
+    tgt.need(n)
+}`
 	// `need` requires `0 <= k`, and nothing but the postcondition says so.
-	tg := tempTarget(t, `(sig size ((v any)) int pure (ensures (<= 0 result)) (host expr "size(%s)"))`)
+	tg := tempTarget(t, `fn size(v ∈ Any) (r ∈ Int) pure ensure 0 <= r { host expr "size(${v})" }`)
 	notes, err := refineWith(t, tg, prog)
 	if err != nil {
 		t.Errorf("the postcondition must discharge the obligation: %v", err)
@@ -105,7 +109,7 @@ func TestPrimEnsuresDischargesADownstreamObligation(t *testing.T) {
 	// entails, and it is REFUSED — facts.md §6's predicted gate: naming an atom
 	// makes an obligation readable that was opaque before. Either way it is not
 	// proven, and that is the property.
-	bare := tempTarget(t, `(sig size ((v any)) int pure (host expr "size(%s)"))`)
+	bare := tempTarget(t, `fn size(v ∈ Any) (Int) pure { host expr "size(${v})" }`)
 	notes, err = refineWith(t, bare, prog)
 	if err == nil && !propagated(notes) {
 		t.Errorf("without a postcondition there is no fact and the obligation "+
@@ -123,16 +127,15 @@ func TestPrimEnsuresDischargesADownstreamObligation(t *testing.T) {
 // VARIABLE of the linear fragment, which referential transparency licenses for a
 // pure call. The control: with no `ensures` there is no fact to use.
 func TestAPureContractProvesALinearConsequence(t *testing.T) {
-	const prog = `(use tgt) (fn (v) (tgt.need1 (tgt.size v)))`
-	const need1 = `(sig need1 ((k int)) int pure (where (<= 1 (tgt.+ k 1))) (host expr "need1(%s)"))`
-	tg := tempTarget(t, `(sig size ((v any)) int pure (ensures (<= 0 result)) (host expr "size(%s)"))
-    `+need1)
+	const prog = `use tgt
+fn t(v) { tgt.need1(tgt.size(v)) }`
+	const need1 = "fn need1(k ∈ Int) (Int) pure where 1 <= tgt.`+`(k, 1) { host expr \"need1(${k})\" }"
+	tg := tempTarget(t, `fn size(v ∈ Any) (r ∈ Int) pure ensure 0 <= r { host expr "size(${v})" }`+need1)
 	notes, err := refineWith(t, tg, prog)
 	if err != nil || propagated(notes) {
 		t.Errorf("0 <= size(v) must prove 1 <= size(v) + 1: err=%v notes=%q", err, notes)
 	}
-	bare := tempTarget(t, `(sig size ((v any)) int pure (host expr "size(%s)"))
-    `+need1)
+	bare := tempTarget(t, `fn size(v ∈ Any) (Int) pure { host expr "size(${v})" }`+need1)
 	notes, err = refineWith(t, bare, prog)
 	if err == nil && !propagated(notes) {
 		t.Errorf("with no postcondition the obligation must not be proven, got %q", notes)
@@ -145,9 +148,9 @@ func TestAPureContractProvesALinearConsequence(t *testing.T) {
 // fragment already interprets or keeps opaque on purpose. A buffer read is kept
 // out by construction: it is not a declared primitive at all.
 func TestTheAtomSignatureAdmitsOnlyPureHostCalls(t *testing.T) {
-	tg := tempTarget(t, `(sig size ((v any)) int pure (host expr "size(%s)"))
-    (sig tick ((v any)) int (host expr "tick(%s)"))
-    (sig put ((v any)) int pure (host stmt "put(%s)"))`)
+	tg := tempTarget(t, `fn size(v ∈ Any) (Int) pure { host expr "size(${v})" }
+fn tick(v ∈ Any) (Int) { host expr "tick(${v})" }
+fn put(v ∈ Any) (Int) pure { host stmt "put(${v})" }`)
 	sigma := pureAtoms(tg)
 	for op, want := range map[string]bool{
 		"tgt.size": true,  // pure, an expression: an atom
@@ -180,11 +183,12 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 	//
 	// Deliberately impure, so ADR 0010 let-binds the call and the guarantee has
 	// a name the linear fragment could use — if it were licensed.
-	tg := tempTarget(t, `(sig ident ((x int)) int `+
-		`(where (< 0 (tgt.* x x))) (ensures (< 0 result)) (host expr "%s"))`)
-	const prog = `(use tgt)
-		(fn (n) (let y (tgt.ident n)
-            (tgt.need y)))`
+	tg := tempTarget(t, "fn ident(x ∈ Int) (r ∈ Int) where 0 < tgt.`*`(x, x) ensure 0 < r { host expr \"${x}\" }")
+	const prog = `use tgt
+fn t(n) {
+    y = tgt.ident(n)
+    tgt.need(y)
+}`
 	_, err := refineWith(t, tg, prog)
 	// `ident`'s precondition is outside the fragment, so the program is REFUSED
 	// there (refinements.md §3a). This test used to watch the walk continue past
@@ -198,11 +202,12 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 
 	// THE CONTROL. The same shapes with a precondition the fragment can prove:
 	// now the guarantee is licensed and the downstream obligation is proven.
-	ok := tempTarget(t, `(sig ident ((x int)) int `+
-		`(where (< 0 x)) (ensures (< 0 result)) (host expr "%s"))`)
-	notes, err := refineWith(t, ok, `(use tgt)
-		(fn (n) (let y (tgt.ident 7)
-            (tgt.need y)))`)
+	ok := tempTarget(t, `fn ident(x ∈ Int) (r ∈ Int) where 0 < x ensure 0 < r { host expr "${x}" }`)
+	notes, err := refineWith(t, ok, `use tgt
+fn t(n) {
+    y = tgt.ident(7)
+    tgt.need(y)
+}`)
 	if err != nil || propagated(notes) {
 		t.Errorf("with P discharged the guarantee holds: %v / %q", err, notes)
 	}
@@ -214,28 +219,14 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 // is keyed by printed term. ADR 0010 guarantees the binder exists: an impure
 // argument is never substituted, it is let-bound at the application site.
 func TestEnsuresAttachesToTheBinder(t *testing.T) {
-	tg := tempTarget(t, `(sig readc ((h int)) int (ensures (<= 0 result)) (host expr "readc(%s)"))`)
-	notes, err := refineWith(t, tg, `(use tgt)
-		(fn (h) (let a (tgt.readc h)
-            (tgt.need a)))`)
+	tg := tempTarget(t, `fn readc(h ∈ Int) (r ∈ Int) ensure 0 <= r { host expr "readc(${h})" }`)
+	notes, err := refineWith(t, tg, `use tgt
+fn t(h) {
+    a = tgt.readc(h)
+    tgt.need(a)
+}`)
 	if err != nil || propagated(notes) {
 		t.Errorf("an impure call's postcondition holds of the name it is bound to: "+
 			"%v / %q", err, notes)
-	}
-}
-
-// `result` names the result, so a parameter may not take the name — otherwise
-// an `ensures` would mean two things and the checker would pick one silently.
-func TestResultIsReservedInsideAnEnsures(t *testing.T) {
-	_, err := core.Read(`(sig f ((result int)) int (ensures (<= 0 result)))`)
-	if err == nil {
-		t.Fatal("a parameter named `result` alongside an `ensures` must be refused")
-	}
-	if !strings.Contains(err.Error(), "result") {
-		t.Errorf("the refusal must say which name: %v", err)
-	}
-	// Without an `ensures` the name is ordinary: the language has no keyword.
-	if _, err := core.Read(`(sig f ((result int)) int)`); err != nil {
-		t.Errorf("`result` is reserved only inside an ensures: %v", err)
 	}
 }

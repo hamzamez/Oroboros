@@ -8,7 +8,7 @@ import (
 // core-0 §1.1 — NFC. Without it, `é` as U+00E9 and as e+U+0301 are two
 // distinct identifiers that display identically.
 func TestNonNFCIsRejected(t *testing.T) {
-	if _, err := Read("(def caf\u0065\u0301 1)"); err == nil {
+	if _, err := Read("caf\u0065\u0301 = 1"); err == nil || !strings.Contains(err.Error(), "NFC") {
 		t.Fatal("a decomposed é must be rejected")
 	}
 	if _, err := Read("café = 1"); err != nil {
@@ -25,7 +25,7 @@ func TestNonNFCIsRejected(t *testing.T) {
 // is case carrying MEANING, as in Shen's capitals-are-variables or Go's
 // capitals-are-exported.
 func TestCaseIsSignificantForIdentity(t *testing.T) {
-	forms, err := Read("(f Xr xr XR)")
+	forms, err := Read("t = f(Xr, xr, XR)")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,15 +43,30 @@ func TestCaseIsSignificantForIdentity(t *testing.T) {
 // by parameter, so ((fn (x x) x) 1 2) reduced to 2 and the first argument
 // vanished with no way to name it.
 func TestDuplicateParameterIsRejected(t *testing.T) {
-	if _, err := Read("(fn (x x) x)"); err == nil {
-		t.Fatal("(fn (x x) x) must be rejected")
+	if _, err := Read("fn t(x, x) { x }"); err == nil || !strings.Contains(err.Error(), "binds x twice") {
+		t.Fatalf("fn t(x, x) must be rejected, got %v", err)
 	}
-	if _, err := Read("(fn (a b) a)"); err != nil {
+	if _, err := Read("fn t(a, b) { a }"); err != nil {
 		t.Errorf("distinct parameters must pass: %v", err)
 	}
 	// Nested shadowing is two abstractions, and stays legal.
-	if _, err := Read("(fn (x) (fn (x) x))"); err != nil {
+	if _, err := Read("fn t(x) { fn(x) { x } }"); err != nil {
 		t.Errorf("nested shadowing must stay legal: %v", err)
+	}
+}
+
+// A λ'S PARAMETERS ARE NAMES separated by commas. The reader took any token
+// as one, so `fn(m ∈ 0..9) { m }` was a λ of five parameters, `m`, `∈`, `0`,
+// `..` and `9`, and failed at its call with an arity no source states
+// (jswitch5b). A claim on a λ is ADR 0066's header, not built.
+func TestALambdasParametersAreNames(t *testing.T) {
+	for _, src := range []string{"fn t(n) { g = fn(m ∈ 0..9) { m }; g(n) }", "fn t(n) { g = fn(a b) { a }; g(n) }"} {
+		if _, err := Read(src); err == nil || !strings.Contains(err.Error(), "in a λ's parameters") {
+			t.Errorf("%s must be refused at its parameters, got %v", src, err)
+		}
+	}
+	if _, err := Read("fn t(n) { g = fn(a, b) { a }; g(n, n) }"); err != nil {
+		t.Errorf("names separated by commas are a λ's parameters: %v", err)
 	}
 }
 
@@ -81,13 +96,14 @@ func TestScopeCheck(t *testing.T) {
 		return e, terms
 	}
 
-	e, terms := env("(fn (x) y)")
+	e, terms := env("fn t(x) { y }")
 	if err := e.CheckProgram(terms); err == nil {
 		t.Error("a free variable in a body must be reported")
 	}
 
 	// The classic one: a typo in a definition the program never reaches.
-	e, terms = env("(def unused (fn (x) nope))\n(add 1 2)")
+	e, terms = env(`fn unused(x) { nope }
+t = add(1, 2)`)
 	err := e.CheckProgram(terms)
 	if err == nil {
 		t.Fatal("a typo in an unreached definition must be reported")
@@ -97,14 +113,16 @@ func TestScopeCheck(t *testing.T) {
 	}
 
 	// Parameters, definitions and primitives are all in scope.
-	e, terms = env("(def f (fn (a) (add a 1)))\n(fn (x) (f x))")
+	e, terms = env(`fn f(a) { add(a, 1) }
+fn t(x) { f(x) }`)
 	if err := e.CheckProgram(terms); err != nil {
 		t.Errorf("bound names must pass: %v", err)
 	}
 
 	// A recursive definition refers to itself, which IS in scope — the two
 	// questions are separate, and only the second one rejects it (ADR 0014).
-	e, terms = env("(def loop-forever (fn (n) (loop-forever n)))\n(loop-forever 1)")
+	e, terms = env(`fn loop_forever(n) { loop_forever(n) }
+t = loop_forever(1)`)
 	if err := e.checkScope(terms); err != nil {
 		t.Errorf("a recursive definition is in its own scope: %v", err)
 	}
@@ -137,7 +155,9 @@ func TestRecursionIsRejected(t *testing.T) {
 	}
 
 	// Mutual recursion, named in full.
-	err := load("(def even? (fn (n) (odd? n)))\n(def odd? (fn (n) (even? n)))\n(even? 3)", "sub")
+	err := load(`fn even?(n) { odd?(n) }
+fn odd?(n) { even?(n) }
+t = even?(3)`, "sub")
 	if err == nil {
 		t.Fatal("mutual recursion must be rejected")
 	}
@@ -149,7 +169,8 @@ func TestRecursionIsRejected(t *testing.T) {
 
 	// An unused recursive definition is still rejected: every definition is
 	// checked, which is what turns a typo'd self-reference into an error.
-	if err := load("(def size (fn (v) (size v)))\n(add 1 2)", "add"); err == nil {
+	if err := load(`fn size(v) { size(v) }
+t = add(1, 2)`, "add"); err == nil {
 		t.Error("an unused recursive definition must be rejected")
 	}
 
@@ -157,7 +178,8 @@ func TestRecursionIsRejected(t *testing.T) {
 	// definition, so the cycle is unreachable. This is ADR 0002's "compiling
 	// up", and rejecting it would break every program built against a target
 	// that happens to implement one of the library's functions.
-	if err := load("(def sort (fn (v) (sort v)))\n(sort 1)", "sort"); err != nil {
+	if err := load(`fn sort(v) { sort(v) }
+t = sort(1)`, "sort"); err != nil {
 		t.Errorf("a definition the target shadows must not be rejected: %v", err)
 	}
 }
@@ -166,15 +188,15 @@ func TestRecursionIsRejected(t *testing.T) {
 // cannot bind into a module — and it let a parameter shadow a module-qualified
 // primitive, after which reduction applied a number to two arguments.
 func TestQualifiedNameCannotBeAParameter(t *testing.T) {
-	if _, err := Read("(fn (a.b) a.b)"); err == nil {
-		t.Fatal("(fn (a.b) …) must be rejected")
+	if _, err := Read("fn t(a.b) { a.b }"); err == nil {
+		t.Fatal("fn t(a.b) must be rejected")
 	}
-	if _, err := Read("(fn (num/f64.add) 1)"); err == nil {
+	if _, err := Read("fn t(`num/f64`.add) { 1 }"); err == nil {
 		t.Fatal("binding a module-qualified name must be rejected")
 	}
-	// A path segment separator is still fine inside a simple name.
-	if _, err := Read("(fn (a/b) a/b)"); err != nil {
-		t.Errorf("`/` is an ordinary identifier character: %v", err)
+	// A quoted name is one name, whatever it holds.
+	if _, err := Read("fn t(`a/b`) { `a/b` }"); err != nil {
+		t.Errorf("a quoted name is one simple name: %v", err)
 	}
 }
 
@@ -182,42 +204,11 @@ func TestQualifiedNameCannotBeAParameter(t *testing.T) {
 // qualified name in a term always resolves to an import. Before this rule,
 // `(def a.b …)` was accepted and no term could ever refer to it.
 func TestQualifiedNameCannotBeDefined(t *testing.T) {
-	if _, err := Read("(def a.b (fn (n) n))"); err == nil {
-		t.Fatal("(def a.b …) must be rejected")
+	if _, err := Read("fn a.b(n) { n }"); err == nil {
+		t.Fatal("fn a.b must be rejected")
 	}
 	if _, err := Read("fn `a/b`(n) { n }"); err != nil {
-		t.Errorf("`/` is an ordinary identifier character: %v", err)
-	}
-}
-
-// An `export` or a `sig` was read off the list of DEFINITIONS, so one naming
-// nothing was silently dropped: a misspelled export left a program with no
-// entry points and build then reported a missing `main`.
-func TestExportAndSigMustNameADefinition(t *testing.T) {
-	for _, tc := range []struct{ src, want string }{
-		{"(def area (fn (w h) (h w)))\n(export are)", "exports are"},
-		{"(def area (fn (w h) (h w)))\n(sig aera ((w num)) num)", "aera"},
-	} {
-		forms, err := Read(tc.src)
-		if err != nil {
-			t.Fatalf("read: %v", err)
-		}
-		_, _, err = Load(forms)
-		if err == nil {
-			t.Errorf("%q should be rejected", tc.src)
-			continue
-		}
-		if !strings.Contains(err.Error(), tc.want) {
-			t.Errorf("%q: error %q does not mention %q", tc.src, err, tc.want)
-		}
-	}
-	// The same names, spelled right, must still load.
-	forms, err := Read("(def area (fn (w h) (h w)))\n(sig area ((w num)) num)\n(export area)")
-	if err != nil {
-		t.Fatalf("read: %v", err)
-	}
-	if _, _, err := Load(forms); err != nil {
-		t.Fatalf("a correct export and sig must load: %v", err)
+		t.Errorf("a quoted name is one simple name: %v", err)
 	}
 }
 
@@ -225,7 +216,7 @@ func TestExportAndSigMustNameADefinition(t *testing.T) {
 // variables with no name and prints as `#1.0`. Both errors that carry a term
 // reclose it as the stack unwinds, so the message is spelled like the source.
 func TestDiagnosticsUnderABinderKeepTheirNames(t *testing.T) {
-	forms, err := Read("(fn (n) ((fn (a b) (h a b)) n))")
+	forms, err := Read("fn t(n) { fn(a, b) { h(a, b) }(n) }")
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -246,8 +237,14 @@ func TestDiagnosticsUnderABinderKeepTheirNames(t *testing.T) {
 		}
 	}
 
-	forms, _ = Read("(fn (n) ((fn (a) (a a)) (fn (a) (a a))))")
-	prog, terms, _ = Load(forms)
+	forms, err = Read("t = fn(n) { fn(a) { a(a) }(fn(a) { a(a) }) }")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, terms, err = Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err = Normalize(entryTerm(t, prog, terms), testEnv(prog), DefaultFuel); err == nil {
 		t.Fatal("Ω under a binder must exhaust fuel")
 	}
@@ -303,18 +300,23 @@ func TestModuleDiagnostics(t *testing.T) {
 		e.SetUnresolved(prog.Unresolved)
 		return e.CheckProgram(terms)
 	}
-	geo := "(module geo)\n(export area)\n(def area (fn (w h) (mul w h)))\n(def hidden 1)\n"
+	geo := "fn area(w, h) { mul(w, h) }\nprivate hidden = 1\n"
 	files := map[string]string{"geo": geo}
 
 	for _, tc := range []struct{ name, src, want string }{
 		// A member that exists but is private, versus one that does not exist.
-		{"private", "(use geo)\n(geo.hidden)", "defines hidden but does not export it"},
-		{"absent", "(use geo)\n(geo.volume)", "has no member volume"},
+		{"private", `use geo
+t = geo.hidden()`, "defines hidden but does not export it"},
+		{"absent", `use geo
+t = geo.volume()`, "has no member volume"},
 		// The anonymous entry scope printed as `module ""`.
-		{"clash", "(use geo)\n(use geo/other as geo)\n(geo.area 1 2)", "the program binds geo to"},
+		{"clash", `use geo
+use geo/other as geo
+t = geo.area(1, 2)`, "the program binds geo to"},
 		// A misspelled path is silent at the import and fails on the member,
 		// which is the wrong half of the name to look at.
-		{"typo", "(use gee)\n(gee.area 1 2)", "matched no file on the search path"},
+		{"typo", `use gee
+t = gee.area(1, 2)`, "matched no file on the search path"},
 	} {
 		err := load(files, tc.src, "mul")
 		if err == nil {
@@ -327,24 +329,14 @@ func TestModuleDiagnostics(t *testing.T) {
 	}
 
 	// A module the TARGET provides must not get the misspelled-path hint.
-	if err := load(files, "(use math/trig)\n(trig.sin 1)", "math/trig.sin"); err != nil {
+	if err := load(files, `use math/trig
+t = trig.sin(1)`, "math/trig.sin"); err != nil {
 		t.Errorf("a target-provided module must resolve: %v", err)
 	}
 
-	// One file, one module: extras were visible only after something else had
-	// imported the file that declared them, which is load-order-dependent.
-	two := map[string]string{"sub/one": "(module sub/one)\n(export k)\n(def k 1)\n" +
-		"(module sub/two)\n(export j)\n(def j 2)\n"}
-	err := load(two, "(use sub/one)\n(sub/one.k)")
-	if err == nil || !strings.Contains(err.Error(), "also declares (module sub/two)") {
-		t.Errorf("a second module in a library file must be rejected, got %v", err)
-	}
-	// And a file whose module simply does not match the path it was found at.
-	one := map[string]string{"mixup": "(module geo)\n(export a)\n(def a 1)\n"}
-	err = load(one, "(use mixup)\n(mixup.a)")
-	if err == nil || !strings.Contains(err.Error(), "must be the path that imports it") {
-		t.Errorf("a mismatched module path must be rejected, got %v", err)
-	}
+	// A file is the module its path names (ADR 0064 item 1): it writes no
+	// header, so neither a second module in one file nor a header that names
+	// another path can be written, which today's notation refused here.
 }
 
 // An integer literal is never a FLOAT, whatever its size.

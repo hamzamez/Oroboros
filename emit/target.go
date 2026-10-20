@@ -884,6 +884,15 @@ func loadFragment(path string) (*Target, error) {
 func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 	out := &Target{Name: name, Types: map[string]string{}, Prims: map[string]Prim{}}
 	var from []string
+	// A FILE IS READ ONCE, HOWEVER MANY ROOTS REACH IT. The search path is a list
+	// of module roots, and two may overlap: a driver puts the entry's own
+	// directory first and `-path lib` after it, so an entry in lib/ gives
+	// [lib, lib] and one in lib/num gives [lib/num, lib]. For modules both roots
+	// mean something, each resolving paths from its own base; but each root is
+	// walked whole here, and a fragment read twice is glued with itself, which
+	// declares every name twice: lib/result.oro compiled alone was refused with
+	// "io.print-line is declared twice" (jmsg-2026-10-20 §5).
+	seen := map[string]bool{}
 	for _, d := range libDirs {
 		if d == "" {
 			continue
@@ -892,6 +901,14 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 			if err != nil || info.IsDir() || !strings.HasSuffix(fp, ".oro") {
 				return nil
 			}
+			key := fp
+			if abs, err := filepath.Abs(fp); err == nil {
+				key = abs
+			}
+			if seen[key] {
+				return nil
+			}
+			seen[key] = true
 			// A FILE THAT CANNOT BE READ, OR A FRAGMENT THAT DOES NOT PARSE, IS
 			// REFUSED BY NAME. Both used to be skipped — "the loader's problem, not
 			// ours" — but the module loader never reads a `provides`, so nobody

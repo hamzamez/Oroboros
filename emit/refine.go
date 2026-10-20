@@ -30,6 +30,12 @@ type refiner struct {
 	// existing refinement tests the moment indexing became application.
 	bound map[string]bool
 
+	// undeclared are the definition's parameters no header gives a set. Applied
+	// to one argument, such a parameter is read as a table (tables.md §3.2), and
+	// a refusal of that reading says so, since it may be a function: a table's
+	// read and a function's call are one form, and only a set tells them apart.
+	undeclared map[string]bool
+
 	// pure is the atom signature Σ every linear reading here uses (linear.go,
 	// atoms), so a contract assumed about a pure call and a goal mentioning it
 	// name one variable.
@@ -148,6 +154,14 @@ func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, er
 		houdini: map[string][]*core.Term{}, summary: map[string]summaryMemo{}}}
 	f := newFacts()
 	f.pure = r.pure
+	if t.Kind == core.KFn {
+		r.undeclared = map[string]bool{}
+		for i, name := range t.Params {
+			if sig == nil || i >= len(sig.Params) || sig.Params[i].Type == "" || sig.Params[i].Type == "any" {
+				r.undeclared[name] = true
+			}
+		}
+	}
 
 	if t.Kind == core.KFn && sig != nil {
 		// The signature names parameters independently of the definition, so
@@ -641,7 +655,13 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 	// condition for the application to be defined at all. It is generated from
 	// the FORM, which means it cannot be forgotten by a target author and
 	// applies on all four targets at once.
-	if !known && len(args) == 1 && r.isTable(op.Name) {
+	//
+	// AN INDEX IS AN INTEGER, so an application whose argument is a λ is no
+	// indexing: a table's domain is [0, len) ⊂ ℤ. It is a value of unknown set
+	// applied to a continuation, a sum's elimination, and reading it as an
+	// indexing demanded `0 <= λ` (jmsg-2026-10-20 §5, lib/result.oro's err_map
+	// compiled alone). What it is, is the checker's and the printers' to say.
+	if !known && len(args) == 1 && args[0].Kind != core.KFn && r.isTable(op.Name) {
 		if err := r.indexObligation(op, args[0], f); err != nil {
 			return err
 		}
@@ -2642,6 +2662,20 @@ func (r *refiner) isTable(name string) bool {
 	return r.bound[name]
 }
 
+// undeclaredNote is what an indexing's refusal adds when the table is a
+// parameter no header gives a set: the reading was the rule's, not the
+// program's, and a function there is a definition that cannot be an entry.
+func (r *refiner) undeclaredNote(tab *core.Term) string {
+	if tab.Kind != core.KName || !r.undeclared[tab.Name] {
+		return ""
+	}
+	n := core.ShowName(tab.Name)
+	return "\n  " + n + " is a parameter no header gives a set, so applied to one argument it is read as a\n" +
+		"  table (tables.md §3.2). If " + n + " is a function, this definition takes one and cannot be\n" +
+		"  compiled alone: a function does not cross an entry point (closures-direction.md), and the\n" +
+		"  definition is used where it is inlined. If it is a table, declare its set, " + n + " ∈ Array(…)."
+}
+
 // indexObligation demands `0 <= i` and `i < len(a)` at an indexing.
 //
 // The length term is built with the LANGUAGE's `len`, and then recorded under
@@ -2674,8 +2708,8 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 				"  content fact about a table bounds it. A table is a function with a finite\n"+
 				"  domain, so 0 <= i < len is the condition for the application to be DEFINED,\n"+
 				"  and an application not known to be defined is refused (docs/spec/tables.md §6,\n"+
-				"  refinements.md §3a). A guard that tests the index against len(%s) is a proof.",
-				core.ShowIndex(tab, idx), core.ShowTerm(want), f.known(), core.ShowTerm(tab))
+				"  refinements.md §3a). A guard that tests the index against len(%s) is a proof.%s",
+				core.ShowIndex(tab, idx), core.ShowTerm(want), f.known(), core.ShowTerm(tab), r.undeclaredNote(tab))
 		}
 		// A READ IN THE GOAL is a linear atom (refinements.md §5e), and its
 		// table's content facts reach the goal only by naming it: the split.
@@ -2693,7 +2727,7 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 				"  known: %s\n"+
 				"  A table is a function with a finite domain, so 0 <= i < len is the\n"+
 				"  condition for the application to be DEFINED — not a check bolted on\n"+
-				"  (docs/spec/tables.md §6).", core.ShowIndex(tab, idx), core.ShowTerm(want), f.known())
+				"  (docs/spec/tables.md §6).%s", core.ShowIndex(tab, idx), core.ShowTerm(want), f.known(), r.undeclaredNote(tab))
 		}
 	}
 	return nil

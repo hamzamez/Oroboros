@@ -637,3 +637,25 @@ func names(prims map[string]Prim) []string {
 	sort.Strings(out)
 	return out
 }
+
+// A LIBRARY FILE REACHED BY TWO ROOTS IS READ ONCE. A driver's search path puts
+// the entry's own directory first and `-path lib` after it, so an entry in lib/
+// gives [lib, lib], and one in lib/m gives [lib/m, lib]; each root was walked
+// whole, every fragment read twice, and every name it provides "declared twice"
+// (lib/result.oro compiled alone, jmsg-2026-10-20 §5).
+func TestALibraryFileReachedByTwoRootsIsReadOnce(t *testing.T) {
+	root := t.TempDir()
+	targets, lib := filepath.Join(root, "targets"), filepath.Join(root, "lib")
+	writeTarget(t, filepath.Join(targets, "x"), "a", `backend go`)
+	writeTarget(t, filepath.Join(lib, "m"), "x", "provides x m {\n    fn f(a ∈ Int) (Int) pure { host expr \"F(${a})\" }\n}")
+	for _, dirs := range [][]string{{lib, lib}, {filepath.Join(lib, "m"), lib}, {lib, filepath.Join(lib, ".", "m")}} {
+		tg, err := LoadTargetLayers("x", []string{targets}, dirs)
+		if err != nil {
+			t.Errorf("%v: %v", dirs, err)
+			continue
+		}
+		if _, ok := tg.Prims["m.f"]; !ok {
+			t.Errorf("%v: m.f must be provided once", dirs)
+		}
+	}
+}

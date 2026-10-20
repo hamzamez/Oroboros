@@ -1598,3 +1598,19 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `lib/win/fmt.oro go`
 - compiler output changed — `lib/win/fmt.oro java`
 - compiler output changed — `lib/win/fmt.oro js`
+
+## 2026-10-20 — on 981e9b4, with uncommitted changes
+
+**Reason:** lib/result.oro and lib/os.oro compiled alone are refused for their own reasons: a library file reached by two roots is read once (no 'declared twice'), a λ argument is no index, an undeclared parameter's reading as a table is named, lowering's messages render in J
+
+560 runs: 301 emitted, 259 refused; 2039 of 2084 integer operations bounded, 352 of 371 loops proven. compiler pass, differential pass, tooling skip.
+
+7 change(s):
+
+- compiler output changed — `lib/os.oro go`
+- compiler output changed — `lib/os.oro java`
+- compiler output changed — `lib/os.oro js`
+- compiler output changed — `lib/result.oro go`
+- compiler output changed — `lib/result.oro java`
+- compiler output changed — `lib/result.oro js`
+- compiler output changed — `lib/result.oro windows`

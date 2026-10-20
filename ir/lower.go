@@ -248,7 +248,7 @@ func (l *lowerer) lookup(t *core.Term) V {
 	}
 	f := l.frames[len(l.frames)-1-t.Depth]
 	if t.Index >= len(f) || f[t.Index] < 0 {
-		l.fail("a variable with no value: %s", t)
+		l.fail("a variable with no value: %s", core.ShowTerm(t))
 	}
 	return f[t.Index]
 }
@@ -344,7 +344,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		if p, ok := l.prim(t.Name); ok && len(p.Args) == 0 && p.Kind != "cond" && p.Kind != "let" {
 			return []V{l.call(r, t.Name, p, nil)}
 		}
-		l.fail("the free name %s is not a value the IR has: a global (spec §2.4) is not produced by staging, and a primitive used as a value is a closure", t.Name)
+		l.fail("the free name %s is not a value the IR has: a global (spec §2.4) is not produced by staging, and a primitive used as a value is a closure", core.ShowName(t.Name))
 	case core.KFn:
 		// THE UNIT, `(tuple)` = (fn (#k) (#k)), as a value: 1 has one element,
 		// and its representation is the singleton {0} ⊂ int (data.md §3.6), so
@@ -364,7 +364,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 			l.pop()
 			return out
 		}
-		l.fail("a λ in value position is a closure (callbacks.md): %s", t)
+		l.fail("a λ in value position is a closure (callbacks.md): %s", core.ShowTerm(t))
 	}
 	op, args := t.Kids[0], t.Kids[1:]
 	switch op.Kind {
@@ -383,7 +383,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 			i := l.single(args[0], r)
 			return []V{l.one(r, Stmt{Op: OIndex, Args: []V{tab, i}})}
 		}
-		l.fail("a bound variable applied to %d arguments: %s", len(args), t)
+		l.fail("a bound variable applied to %d arguments: %s", len(args), core.ShowTerm(t))
 	case core.KApp:
 		if vs, ok := l.eliminator(t, r, func(body *core.Term) []V { return l.value(body, r) }); ok {
 			return vs
@@ -398,17 +398,17 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 			i := l.single(args[0], r)
 			return []V{l.one(r, Stmt{Op: OIndex, Args: []V{tab, i}})}
 		}
-		l.fail("an application whose operator is an application, and not an eliminator: %s", t)
+		l.fail("an application whose operator is an application, and not an eliminator: %s", core.ShowTerm(t))
 	case core.KName:
 	default:
-		l.fail("an application of %s", op)
+		l.fail("an application of %s", core.ShowTerm(op))
 	}
 	if op.Name == "again" {
 		l.fail("`again` outside a loop's tail (ADR 0015)")
 	}
 	p, known := l.prim(op.Name)
 	if !known {
-		l.fail("%s is not a primitive of target %s, and a global (spec §2.4) is not produced by staging", op.Name, l.tg.Name)
+		l.fail("%s is not a primitive of target %s, and a global (spec §2.4) is not produced by staging", core.ShowName(op.Name), l.tg.Name)
 	}
 	switch {
 	case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn:
@@ -479,7 +479,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		body.T, body.Args = TYield, []V{e}
 		return []V{l.one(r, Stmt{Op: OTabulate, Args: []V{n}, Sub: []*Region{body}})}
 	case p.Kind == "table":
-		l.fail("a table rule that was never allocated (tables.md §2): %s", t)
+		l.fail("a table rule that was never allocated (tables.md §2): %s", core.ShowTerm(t))
 	case p.Kind == "cell-ref" && len(args) == 1:
 		return []V{l.one(r, Stmt{Op: OCellRef, Args: []V{l.single(args[0], r)}})}
 	case p.Kind == "cell-fresh" && len(args) == 1 && args[0].Kind == core.KStr:
@@ -499,7 +499,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		var kv []V
 		for _, row := range args {
 			if row.Kind != core.KApp || len(row.Kids) != 2 {
-				l.fail("a map literal's row is (key value), got %s", row)
+				l.fail("a map literal's row is `key : value`, got %s", core.ShowTerm(row))
 			}
 			kv = append(kv, l.single(row.Kids[0], r), l.single(row.Kids[1], r))
 		}
@@ -541,8 +541,10 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 func (l *lowerer) single(t *core.Term, r *Region) V {
 	vs := l.value(t, r)
 	if len(vs) != 1 {
-		l.fail("%s is %d values where one is wanted: a tuple has no representation in this position "+
-			"(a table of tuples is flattened only where the program builds it, products.md)", t, len(vs))
+		l.fail("%s is %d values where one is wanted: a tuple, or a variant, which is its tag and its slots "+
+			"(ADR 0042), has no representation in this position (a table of tuples is flattened only where "+
+			"the program builds it, products.md; a variant is one value only where case-of-case eliminates it)",
+			core.ShowTerm(t), len(vs))
 	}
 	return vs[0]
 }
@@ -561,7 +563,7 @@ func (l *lowerer) call(r *Region, name string, p emit.Prim, args []V) V {
 	// this lowering does not know, and printing it as a call printed `()`:
 	// the cell forms did, before their lowering existed (outcells-2026-10-09).
 	if p.Form == "" {
-		l.fail("%s has no template and no lowering: a %s is not a host call", name, p.Kind)
+		l.fail("%s has no template and no lowering: a %s is not a host call", core.ShowName(name), p.Kind)
 	}
 	n := 1
 	if len(p.Results) >= 2 {

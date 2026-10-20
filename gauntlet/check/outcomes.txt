@@ -1218,11 +1218,11 @@
    gen: lib/num/vec.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
 == lib/os.oro go refused
-   gen: lib\io\go.oro: io.print-line is declared twice
+   gen: gen-ReadFile: lowering: case { `os/host`.not_found?(#1.1) -> (0, #any); `os/host`.exists?(#1.1) -> (1, #any); `os/host`.permission?(#1.1) -> (2, #any); else -> (3, #2.1) } is 2 values where one is wanted: a tuple, or a variant, which is its tag and its slots (ADR 0042), has no representation in this position (a table of tuples is flattened only where the program builds it, products.md; a variant is one value only where case-of-case eliminates it)
 == lib/os.oro js refused
-   gen: lib\io\js.oro: io.print-line is declared twice
+   gen: gen-ReadFile: lowering: case { `os/host`.not_found?(#1.1) -> (0, #any); `os/host`.exists?(#1.1) -> (1, #any); `os/host`.permission?(#1.1) -> (2, #any); else -> (3, #2.1) } is 2 values where one is wanted: a tuple, or a variant, which is its tag and its slots (ADR 0042), has no representation in this position (a table of tuples is flattened only where the program builds it, products.md; a variant is one value only where case-of-case eliminates it)
 == lib/os.oro java refused
-   gen: lib\io\java.oro: io.print-line is declared twice
+   gen: gen-ReadFile: lowering: case { `os/host`.not_found?(#1.1) -> (0, #any); `os/host`.exists?(#1.1) -> (1, #any); `os/host`.permission?(#1.1) -> (2, #any); else -> (3, #2.1) } is 2 values where one is wanted: a tuple, or a variant, which is its tag and its slots (ADR 0042), has no representation in this position (a table of tuples is flattened only where the program builds it, products.md; a variant is one value only where case-of-case eliminates it)
 == lib/os.oro windows refused
    gen: lib/os.oro: in os.Args: `os/host`.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use os/host` matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
@@ -1251,19 +1251,29 @@
 == lib/os/js.oro windows refused
    gen: lib/os/js.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
 == lib/result.oro go refused
-   gen: lib\io\go.oro: io.print-line is declared twice
+   gen: gen-err: cannot determine a type for parameter 1: no header declares it, and it is never passed to an operation or a primitive whose header would fix it
 == lib/result.oro js refused
-   gen: lib\io\js.oro: io.print-line is declared twice
+   gen: gen-err-map: f[#p1] is an indexing, and 0 <= #p1 does not follow
+     known: assumed ne(#t,+0)
+     A table is a function with a finite domain, so 0 <= i < len is the
+     condition for the application to be DEFINED — not a check bolted on
+     (docs/spec/tables.md §6).
+     f is a parameter no header gives a set, so applied to one argument it is read as a
+     table (tables.md §3.2). If f is a function, this definition takes one and cannot be
+     compiled alone: a function does not cross an entry point (closures-direction.md), and the
+     definition is used where it is inlined. If it is a table, declare its set, f ∈ Array(…).
 == lib/result.oro java refused
-   gen: lib\io\java.oro: io.print-line is declared twice
+   gen: gen-err: cannot determine a type for parameter 1: no header declares it, and it is never passed to an operation or a primitive whose header would fix it
 == lib/result.oro windows refused
-   gen: gen-err-map: r[fn(#t, #p, #p1) { if #t == 0 { fn(#k!) { #k!(0, #p, #any) } } else { fn(#k!) { #k!(1, #any, f(#p1)) } } }] is an indexing, and 0 <= (fn(#t, #p, #p1) { if #t == 0 { fn(#k!) { #k!(0, #p, #any) } } else { fn(#k!) { #k!(1, #any, f(#p1)) } } }) is not proven
-     known: nothing
-     The index is outside the linear fragment, and neither a proof by cases nor a
-     content fact about a table bounds it. A table is a function with a finite
-     domain, so 0 <= i < len is the condition for the application to be DEFINED,
-     and an application not known to be defined is refused (docs/spec/tables.md §6,
-     refinements.md §3a). A guard that tests the index against len(r) is a proof.
+   gen: gen-err-map: f[#p1] is an indexing, and 0 <= #p1 does not follow
+     known: assumed ne(#t,+0)
+     A table is a function with a finite domain, so 0 <= i < len is the
+     condition for the application to be DEFINED — not a check bolted on
+     (docs/spec/tables.md §6).
+     f is a parameter no header gives a set, so applied to one argument it is read as a
+     table (tables.md §3.2). If f is a function, this definition takes one and cannot be
+     compiled alone: a function does not cross an entry point (closures-direction.md), and the
+     definition is used where it is inlined. If it is a table, declare its set, f ∈ Array(…).
 == lib/win/fmt.oro go refused
    gen: lib/win/fmt.oro: in `win/fmt`.print_int: x64.sete is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use x64` matched no file on the search path and this target provides no module x64 either, so every name from it is unbound. Check the path.

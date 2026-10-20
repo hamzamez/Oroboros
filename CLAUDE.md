@@ -373,9 +373,10 @@ a wall that needs language work, stop and research it, then design it.
 first, in J.
 1. Two loose ends: the JavaScript survey's Node pin, **re-measured on v26.8.1**
    ([nodepin-2026-10-20](gauntlet/results/nodepin-2026-10-20.md): 16 callable members more, no
-   conclusion moved); and `lib/result.oro` compiled alone as an entry, refused for the wrong reasons
-   (on windows an untyped parameter applied to its eliminator read as a table indexing; elsewhere its
-   directory loaded twice, as the nearest layer and as the library path).
+   conclusion moved); and `lib/result.oro` compiled alone, **refused for its own reasons now**
+   ([libalone-2026-10-20](gauntlet/results/libalone-2026-10-20.md)): a library file reached by two
+   roots is read once, a λ argument is no index, an undeclared parameter's reading as a table is named,
+   and lowering's messages render in J. **Item 1 is done.**
 2. `os`, program first: an `ls -lR`-shaped tool (sizes, modes, modification times), bringing in
    `time`, the first package with no file.
 3. `bufio`'s `Reader`, program first, meeting C (a borrow a later call ends) and researching it then.

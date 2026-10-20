@@ -358,7 +358,7 @@ var measuredOn = map[string][2]string{
 	"go":    {"go env GOVERSION", "go1.27.0"},
 	"win32": {"", "WINDOWS SDK 10.0.26100.0"}, // the report's own first line
 	"jvm":   {"java -version", `"17.0.12"`},
-	"js":    {"node --version", "v26.7.0"},
+	"js":    {"node --version", "v26.8.1"},
 }
 
 // Each line is one a result document or CLAUDE.md quotes, with the document
@@ -426,11 +426,11 @@ var published = map[string][]string{
 		"19 declarable names have no template",
 		"10095 subsumption edges over 3225 subtypes",
 	},
-	"js": { // surveys-2026-09-10 as corrected 2026-09-11
-		"DECLARABLE: 2326 of 2340 callable",
+	"js": { // surveys-2026-09-10 as corrected 2026-09-11, re-measured on v26.8.1 (nodepin-2026-10-20)
+		"DECLARABLE: 2342 of 2356 callable",
 		"10 have a key the HOST accepts and OUR READER does not",
-		"604 of 2326 callable members report arity ZERO (26.0%)",
-		"emitted 2326 primitives",
+		"618 of 2342 callable members report arity ZERO (26.4%)",
+		"emitted 2342 primitives",
 	},
 }
 

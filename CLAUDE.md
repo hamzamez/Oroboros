@@ -371,8 +371,11 @@ a wall that needs language work, stop and research it, then design it.
 
 **The 10-20 plan** (assessment-2026-10-20 §5): the Go standard library, package by package, program
 first, in J.
-1. Two loose ends: `lib/result.oro`'s `err-map` on windows, refused through a Church encoding of a
-   variant (a defect upstream of its message); and the JavaScript survey's Node pin, re-measured.
+1. Two loose ends: the JavaScript survey's Node pin, **re-measured on v26.8.1**
+   ([nodepin-2026-10-20](gauntlet/results/nodepin-2026-10-20.md): 16 callable members more, no
+   conclusion moved); and `lib/result.oro` compiled alone as an entry, refused for the wrong reasons
+   (on windows an untyped parameter applied to its eliminator read as a table indexing; elsewhere its
+   directory loaded twice, as the nearest layer and as the library path).
 2. `os`, program first: an `ls -lR`-shaped tool (sizes, modes, modification times), bringing in
    `time`, the first package with no file.
 3. `bufio`'s `Reader`, program first, meeting C (a borrow a later call ends) and researching it then.

@@ -73,21 +73,6 @@ func Spell(n string) string {
 	return word(n[:i], false) + "." + word(n[i+1:], true)
 }
 
-// Collisions is the pairs of distinct names σ_J spells alike (spec/j.md §5, J8).
-func Collisions(names []string) [][2]string {
-	seen := map[string]string{}
-	var out [][2]string
-	for _, n := range names {
-		s := Spell(n)
-		if m, ok := seen[s]; ok && m != n {
-			out = append(out, [2]string{m, n})
-			continue
-		}
-		seen[s] = n
-	}
-	return out
-}
-
 // langSets are the language's sets, spelled by the convention (ADR 0067 item 3).
 var langSets = map[string]string{"int": "Int", "bool": "Bool", "string": "String", "f64": "F64",
 	"any": "Any", "option": "Option", "array": "Array", "map": "Map"}
@@ -102,20 +87,6 @@ func isLangSpelling(t string) bool {
 		}
 	}
 	return false
-}
-
-// SetName is a set's name by the convention: UpperCamelCase.
-func SetName(n string) string {
-	if s, ok := langSets[n]; ok {
-		return s
-	}
-	var b strings.Builder
-	for _, part := range strings.FieldsFunc(n, func(r rune) bool { return r == '-' || r == '_' }) {
-		rs := []rune(part)
-		b.WriteRune(unicode.ToUpper(rs[0]))
-		b.WriteString(string(rs[1:]))
-	}
-	return b.String()
 }
 
 // Integer spells an integer literal: a power of two, or one less, or its

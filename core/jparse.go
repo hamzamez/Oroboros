@@ -10,11 +10,10 @@ import (
 	"unicode"
 )
 
-// parse_J, spec/j.md §2–3: J's text read into abstract.md's trees, the ones μ
-// builds from today's notation (core/abs.go), so that D gives the core term
-// (abstract.md §9.1, R2). Where J has one form for what today's notation wrote
-// two ways, the tree is the one whose D-image is the same; spec/j.md §7 lists
-// the pairs, and the check compares D-images (read_test.go).
+// parse_J, spec/j.md §2–3: J's text read into abstract.md's trees
+// (core/abs.go), from which D gives the core term (abstract.md §9.1, R2). Where
+// J has one form for what today's notation wrote two ways, the tree is the one
+// whose D-image is the same (spec/j.md §7); today's reader is deleted (step 5b).
 
 type parser struct {
 	toks   []token

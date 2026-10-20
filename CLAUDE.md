@@ -121,11 +121,11 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   sorts), and its meanings as homomorphisms. These are erasure ε, a retraction, so ⟦P⟧ := ⟦D(ε(P))⟧
   and claims are inert by construction; desugaring D into today's core; obligations 𝒪, a VC generator;
   and usage 𝒰 on an interval semiring. A notation is a rendering with two round-trip laws, comments
-  decorating positions. Today's notation maps in by μ. **Built: step 1a, the computation's terms
+  decorating positions. J is the one rendering (ADR 0068). **Built: step 1a, the computation's terms
   ([abstract1-2026-10-11](gauntlet/results/abstract1-2026-10-11.md)): the reader builds trees
-  (`core/abs.go`, μ in `core/mu.go`), D makes today's core term (`core/desugar.go`), every source and
-  1,032 test snippets read identically, emission byte-identical; the tail rule is a sort and its
-  walkers are deleted. Step 1b, program declarations
+  (`core/abs.go`; today's reader μ until step 5b deleted it, J's `core/jparse.go` since), D makes the
+  core term (`core/desugar.go`), emission byte-identical; the tail rule is a sort and its walkers are
+  deleted. Step 1b, program declarations
   ([abstract1b-2026-10-11](gauntlet/results/abstract1b-2026-10-11.md), `core/decl.go`): a definition
   is a named λ and a `sig` its λ's claim
   ([ADR 0051](docs/decisions/0051-a-definition-is-a-named-lambda.md)). Step 1c, target files
@@ -155,18 +155,17 @@ decided ([ADR 0067](docs/decisions/0067-the-lexical-level.md)), and **J is the s
 ([ADR 0068](docs/decisions/0068-j-is-the-surface.md)), the experiment not run. **Its grammar is
 [spec/j.md](docs/spec/j.md)**, consolidating ADRs 0050–0067: six conflicts between them resolved (the
 later decision governs) and three gaps filled (an out-cell argument, a spread, a lemma's steps), all
-confirmed by hamza. **Today's corpus prints in J** ([jprint-2026-10-15](gauntlet/results/jprint-2026-10-15.md),
-package `j`, `cmd/toj`): all 152 programs, the 8 fragment files and the 35 target files, every comment
-carried in order, deterministic, no σ_J collision, no positional hole left in a host declaration; 12
-one-argument applications stay undecided between indexing and a call (the D-image the same). **J's reader
-is built** ([jread-2026-10-15](gauntlet/results/jread-2026-10-15.md), `j/lex.go`, `j/parse.go`,
-`j/readtarget.go`): all 152 programs read back to today's D-image and all 43 target files and fragments
-to today's forms, each check failing under a planted fault; with `ORO_VIA_J=1` the drivers read entry
-sources through J, and `cmd/check` is byte-identical (560 runs) with the differential suite passing.
-**Step 4 has begun: ADR 0052 is built behind the gate**
+confirmed by hamza. **J is the only notation** ([jprint-2026-10-15](gauntlet/results/jprint-2026-10-15.md),
+[jread-2026-10-15](gauntlet/results/jread-2026-10-15.md), [jswitch-2026-10-16](gauntlet/results/jswitch-2026-10-16.md),
+[jswitch5b-2026-10-16](gauntlet/results/jswitch5b-2026-10-16.md)): the corpus was printed in J by a
+translator, every comment carried, and read back to today's D-image, emission byte-identical; then the
+corpus, the tests' snippets and the four survey generators (`gauntlet/stdlib/jdecl`) moved to J, and
+today's reader, μ, the translator and `cmd/toj` were deleted. J's reader is `core/jlex.go`,
+`core/jparse.go` and `core/jreadtarget.go`; the IR's text and a core term's printed form are
+s-expressions, read by the raw reader (`core/raw.go`). **Step 4: ADR 0052 is built behind the gate**
 ([storeorder-2026-10-15](gauntlet/results/storeorder-2026-10-15.md), spec/local.md §2.1, `core/place.go`,
-`j/unthread.go`): J writes every buffer in program order, `var b := array {…}`, `b[i] := v`, `fn f(b linear)`;
-the translator unthreads today's corpus (U), and S, the state translation with one new clause, the
+the translator's U, deleted with it in step 5b): J writes every buffer in program order, `var b := array {…}`,
+`b[i] := v`, `fn f(b linear)`; the translator unthreaded today's corpus (U), and S, the state translation with one new clause, the
 borrow, gives today's residual on every program through J but two (a version today's jsonfmt names, a
 name in kara/core's refusal), with every module read through J; R0–R4 decided on each place's scope,
 each with a planted fault. Building it found three gaps, G5–G7 (spec/j.md), **decided by hamza**: a
@@ -174,14 +173,13 @@ concurrent assignment for the merge sorts' swapping buffers, which ADR 0052's R0
 store `dt[s][1] := v`; one rule for every borrow, growth a statement. **ADR 0058 is built behind the
 gate too** ([mapbuf-2026-10-16](gauntlet/results/mapbuf-2026-10-16.md)): a map buffer is the same place
 over another index set, `var m := map(8)`, `m[k] := v`, S choosing `insert` by the scope's mark; J has no
-threaded spelling left. **Step 5a: the corpus is J** ([jswitch-2026-10-16](gauntlet/results/jswitch-2026-10-16.md)):
-all 223 `.oro` files, programs, libraries, target files and fragments, are J, still `.oro`; core reads no
-source, its resolver returning forms, and the drivers, the module loader and the target loader read J
-(`j/via.go`); a file is the module named by its path under a library directory, else the root. A bridge
-reads the tests' inline snippets, still today's notation, recognised by a first `(` or `;`. Next: step 5b,
-the snippets and the surveys' generators in J, then today's reader, μ, the translator and the bridge
-deleted (hamza: "remove it"); then 0062's logic, 0066's inference and 0053's arrow, each when a program
-needs it.
+threaded spelling left. **Step 5: the corpus is J**: all 223 `.oro` files, programs, libraries, target files and fragments, are
+J, still `.oro`; a file is the module named by its path under a library directory, else the root. **Step
+5b is done**: the tests and generators are J and today's reader is deleted; the J reader's faults the move
+found are fixed (NFC and bidi, a λ's parameters, a quoted name, an x86 hole past nine; jswitch5b §2).
+Left by it: the loader's messages still quote today's notation, and the specs' examples are rewritten in
+J as each is next touched (hamza's option (b)). Next: 0062's logic, 0066's inference and 0053's arrow,
+each when a program needs it.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -674,37 +672,38 @@ target at zero cost** ([core-candidates.md §1](docs/core-candidates.md)).
 ## The language today
 
 Grounded in [docs/spec/state.md](docs/spec/state.md), which is checkable by grep. Each item names the
-spec to read before touching it.
+spec to read before touching it. **The surface is J** ([spec/j.md](docs/spec/j.md), ADR 0068), and the
+examples here are J's; a parenthesized s-expression is a core term or the residual, which J's reader
+produces through D and every stage after it reads. The specs still write today's notation until each is
+next touched (jswitch5b-2026-10-16).
 
 ### Core
 
 - **Terms.** Seven term kinds: name, integer, float, string, `true`/`false`, `fn` and application.
   `core.Term`'s `KBound` is internal.
-- **Comments.** `;` to the end of the line or of the input, and **gap rather than a token**: erased by
+- **Comments.** `//` to the end of the line (ADR 0067), and **gap rather than a token**: erased by
   the lexer, so nothing below the reader sees one and no emitted file carries one. No doc comments, no
-  pragmas, no block comments, no `#;` — which would let a comment change which grammar a form takes,
-  since `def`, `let` and every clause chain are discriminated by arity or parity
-  ([comments.md](docs/spec/comments.md), ADR 0024). **A tool that rewrites source preserves every gap
+  pragmas, no block comments ([comments.md](docs/spec/comments.md), ADR 0024). The IR's text keeps
+  `;`. **A tool that rewrites source preserves every gap
   or refuses the edit**; two rewriters have lost comments the compiler could never have missed.
-- **Definitions.** `(def f (x…) body)` is sugar for `(def f (fn (x…) body))`: a parameter list is a
-  list of NAMES, there is one body, and `(fn …)` stays legal
-  ([def.md §4](docs/spec/def.md), [program-surface.md](docs/program-surface.md)). **A constant is a
-  value** — `(def cap 65536)`; the `(fn () …)` wrapper is for a computation, whose effects unfolding
-  would repeat.
-- **Binding.** `(let x e … body)` is flat, sequential and n-ary, with a name or a `(tuple a b)`
-  pattern on the left ([binding.md](docs/spec/binding.md)). It erases to applications, so nothing
-  below the reader knows it; the RESIDUAL's `let` — `(let e (fn (x) b))`, what β leaves when it
-  declines to substitute — keeps its own spelling, and the old source spelling is refused.
-  `seq` is a binding whose name is discarded, and works only because ADR 0010 denies weakening.
+- **Definitions.** `fn f(x, y) { body }` is a named λ, `(def f (fn (x y) body))`, and its header
+  carries its claims, `fn f(x ∈ S) (R) where φ ensure ψ { e }` (ADR 0051, 0062, 0064): a declaration is
+  a header and one body ([def.md §4](docs/spec/def.md)). **A constant is a value** — `cap = 65536`;
+  `fn f() { … }` is for a computation, whose effects unfolding would repeat.
+- **Binding.** A block `{ x = e; (a, b) = p; body }` binds sequentially, a name or a tuple pattern on
+  the left ([binding.md](docs/spec/binding.md), ADR 0054). It erases to applications, so nothing below
+  the reader knows it; the RESIDUAL's `let` — `(let e (fn (x) b))`, what β leaves when it declines to
+  substitute — keeps its own spelling. A statement `e; body` is a binding whose name is discarded, and
+  works only because ADR 0010 denies weakening.
 - **Variadic calls** ([variadic.md](docs/spec/variadic.md), ADR 0046): a declaration marked
   `variadic` takes a list as its last parameter; the loader rewrites a call's trailing arguments
-  into the table, or passes `(spread xs)`'s table, once, from the target's forms, and a target's Env
+  into the table, or passes `f(xs...)`'s table, once, from the target's forms, and a target's Env
   refuses a program loaded without them.
 - **Relevance** ([errors.md §7](docs/spec/errors.md), ADR 0043): a value of a `(relevant)` variant,
   `lib/result`'s, must be used on every path of its binder's scope, the eliminators being additive;
   checked at β on the λ as written, through definitions by usage inference. `again` uses vacuously only
   a variable bound outside the loop it goes round: one bound inside the iteration ends at the jump
-  (abstract2-2026-10-11, a soundness hole the tree usage found). `(ignore e)` is the
+  (abstract2-2026-10-11, a soundness hole the tree usage found). `ignore(e)` is the
   discard, !_A : A → 1, erased by the reducer, and η for products includes the unit.
 - **A residual's binders are named apart** (`core/hygiene.go`, state.md): no binder's hint equals a
   name its body refers to past it, **nor any enclosing binder's**. The second is what a context keyed
@@ -718,24 +717,26 @@ spec to read before touching it.
   ([effects.md](docs/spec/effects.md), ADR 0010). A λ argument may be applied, so its body counts as
   run when a term's purity is judged (outcells-2026-10-09: an applied λ's effect was weakened). A table read through a bound variable is not
   substituted into an impure body (§7c).
-- **Booleans and control.** `bool` is data and `if` is its eliminator; `and`/`or`/`not`/`cond` erase
-  in the reader (ADR 0017, [booleans.md](docs/spec/booleans.md)). `(if true a b) → a` is the only
-  evaluation reduction performs. The reader also builds `(if (not c) a b)` as `(if c b a)` — case-of-case
-  plus that evaluation, done eagerly — **unless a branch is a boolean literal**, where the term is a
-  connective a backend emits as an operator. That is what makes `cond` cost nothing
+- **Booleans and control.** `Bool` is data and `if c { a } else { b }` is its eliminator; `&&`, `||`,
+  `!` and `case { φ -> a; else -> b }` (cond's equation) erase in the reader (ADR 0017,
+  [booleans.md](docs/spec/booleans.md)). `(if true a b) → a` is the only evaluation reduction performs.
+  D also builds `(if (not c) a b)` as `(if c b a)` — case-of-case plus that evaluation, done eagerly —
+  **unless a branch is a boolean literal**, where the term is a connective a backend emits as an
+  operator. That is what makes a guard chain cost nothing
   ([cond-2026-09-19](gauntlet/results/cond-2026-09-19.md)).
-- **Iteration.** `(loop ((x z)…) c e … else e)` with `(again a…)` (ADR 0015). `again` is a jump; it may
-  be a clause body or sit under a binding, never under an `if`. A binding is a `let`, a `(tuple …)`
-  pattern, whose body after reduction is a host call's continuation, which runs once, now, and is a
+- **Iteration.** `loop x = z, … { c -> e; …; else -> e }` with `again(a, …)` (ADR 0015, 0056). `again`
+  is a jump; it may be an arm's body or end a block, never stand under an `if`. A binding before it is a
+  name, a tuple pattern, whose body after reduction is a host call's continuation, which runs once, now, and is a
   tail position ([ADR 0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md)), or a `try` or
   `expect` success arm, whose other arms leave the loop
   ([ADR 0041](docs/decisions/0041-a-success-arm-is-a-tail.md)). **Every
   walker of a clause chain walks four forms** — `again`, `if`, `let`, and a host call's continuation —
   and one that enumerates back edges and misses a form is unsound, not imprecise. **In the reader the
-  rule is a sort** (abstract.md W3, `core/mu.go`): `again` is a Tail, a constructor that needs an
-  expression demotes one to the free name and marks the tree stray, and a loop refuses a stray clause
-  body. A λ's body is never a tail, so a λ applied by hand to a jump is refused; `let` binds one
-  (ADR 0051). `match` is a loop whose arms have patterns ([match.md](docs/spec/match.md)).
+  rule is a sort** (abstract.md W3, `core/jparse.go`): `again` is a Tail, J's reader refuses one that
+  stands where no jump can be taken and one of the wrong arity, and a loop's last arm, and only its
+  last, is `else`. A λ's body is never a tail, so a λ applied by hand to a jump is refused; a block's
+  binding binds one (ADR 0051). `match` was a loop whose arms have patterns; J writes it as a `loop`
+  guarded on its variables ([match.md](docs/spec/match.md)).
 - **No recursion** (ADR 0014). A balanced, data-independent recursion is a loop over levels, as
   Karatsuba showed ([karatsuba-2026-08-30](gauntlet/results/karatsuba-2026-08-30.md)).
 - **Closures.** A closure may not survive staging ([closures-direction.md](docs/closures-direction.md)).
@@ -747,29 +748,31 @@ spec to read before touching it.
 
 Every data form is a function whose domain differs ([data.md](docs/spec/data.md)).
 
-- **Tables.** `(array V)` is a function on `[0, len)` and indexing is application
+- **Tables.** `Array(V)` is a function on `[0, len)` and indexing `t[i]` is application
   ([tables.md](docs/spec/tables.md)). `build` zero-fills (§14.3). A length is bounded by the target's word
   or by a target's `max-len` (§2.3.1).
-- **A table written as its GRAPH** — `(array 104 105 33)` — takes the JOIN of its elements' exact
+- **A table written as its GRAPH** — `array { 104, 105, 33 }` — takes the JOIN of its elements' exact
   ranges, and at a boundary the DECLARED element decides and the literal must fit it
   ([literal-elements.md](docs/literal-elements.md)). windows keeps qwords by choice.
-- **Local state** ([local.md](docs/spec/local.md), ADR 0047). Values are immutable. Mutation happens
-  only inside a `local` scope, `(local b (table n 0)  c (table m f)  d (array e…)  x 0  body)`,
-  n-ary and sequential, whose **initializer decides each binder**: a table makes a buffer, anything
-  else a cell (Ref τ ≅ Buffer τ 1). Thaw is `(table (len xs) xs)`, a copy.
-  - **A buffer** is linear, checked by `occurrences` on the residual (ADR 0018); `(table n 0)` is
-    reader sugar for the core form `(build n (fn (b) …))`, one region ([tables.md
-    §2.4](docs/spec/tables.md)). `build`'s binder spelling is refused naming `local`; `build-map`
-    keeps its own.
-  - **A cell** is read by name and written by `(set c v)` in program order, value the unit. The
+- **Local state** ([local.md](docs/spec/local.md), ADR 0047, 0052). Values are immutable. Mutation
+  happens only to a state binder of a block, `{ var b := array { 0 : _ ∈ 0..n-1 }; var x := 0; body }`,
+  sequential, whose **initializer decides each binder**: a table makes a buffer, a map former `map(cap)`
+  a map buffer (ADR 0058), anything else a cell (Ref τ ≅ Buffer τ 1). Thaw is
+  `var b := array { xs[k] : k ∈ 0..len(xs)-1 }`, a copy.
+  - **A buffer** is a state binder holding a table, written in program order, `b[i] := v` and
+    `b := f(b, …)` (ADR 0052); R0 (a fresh value) and R1–R4 (syntactic control of interference) are
+    decided on each place's scope, and the state translation S gives the core's threaded
+    `(build n (fn (b) …))`, one region, whose linearity `occurrences` checks on the residual (ADR 0018,
+    [tables.md §2.4](docs/spec/tables.md), `core/place.go`).
+  - **A cell** is read by name and written by `x := v` in program order, value the unit. The
     loader translates every cell into loop variables (`core/cell.go`, the state-passing translation
     over the flat tuple of the cells in scope, after resolution), so nothing below it learns cells
     exist and a cell costs a loop variable. **Each elimination the translation assumes is marked
     `((#elim op) λ)`** and decided by the reducer on op's normal form, since a static function could
     run λ twice; a closure over a cell is refused. A loop variable's type is the join of its
     initializer and its back edges' values.
-  - **A host writing a cell** (local.md §5–6, ADR 0048, `core/outcell.go`): at a declaration's `(cell
-    T)` parameter, a cell in scope or `(out τ)`; inside the call the cell is a reference to a fresh
+  - **A host writing a cell** (local.md §5–6, ADR 0048, `core/outcell.go`): at a declaration's `inout`
+    parameter, a cell in scope or `f(out S)`; inside the call the cell is a reference to a fresh
     copy, `(#ref c)` … `(#deref r)`, impure, an ordinary argument through the retraction and the
     variadic list. The IR's `cell T` and `cell-ref`/`cell-fresh`/`cell-get`; Go prints a variable
     declared once at the top and its address, and the other printers refuse one.
@@ -781,47 +784,49 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   - the pattern is a **join point**, emitted once after the scope and the loop in it;
   - each name knows what its **projection** Pⱼ (the producer with every tail tuple replaced by its j-th
     component) would tell a `let`, because ⟦Pⱼ⟧ = πⱼ⟦P⟧;
-  - **a store needs a live buffer**: `set`/`insert` into a frozen table or map is refused, and a map
+  - **a store needs a live buffer**: a store into a frozen table or map is refused, and a map
     buffer is linear. Both were accepted before and gave wrong answers;
   - not built: an `again` inside the pattern's body. A variant out of a scope is built: a constructor is
-    the tuple (tag, payload), so it is a product, and η for products binds it (ADR 0041, sumloop-2026-10-06). `(buffer V)` is a nameable parameter type (ADR 0020):
+    the tuple (tag, payload), so it is a product, and η for products binds it (ADR 0041, sumloop-2026-10-06). A buffer parameter is `b ∈ Array(V) linear`, borrowed by reference
+    (ADR 0020, 0052 item 3):
   - uniqueness is *assumed* at an export;
   - linearity is *checked* through the body;
   - a buffer may not be an element type.
-- **Tuples and products.** `tuple` is one object for products and several results, and `(tuple)` is
+- **Tuples and products.** `(a, b)` is one object for products and several results, and `()` is
   the unit, the terminal object 1 ([data.md §3.6](docs/spec/data.md)). A table of tuples
   is flattened by currying before the checker runs, so no backend knows products exist
   ([products.md](docs/spec/products.md), [values.md](docs/spec/values.md)).
-- **Variants.** `variant` is closed, finite and non-recursive, and takes type arguments. Where it must
+- **Variants.** A variant, `set S = 'a ∪ 'c(T)` (ADR 0064 item 7), its tags quoted (ADR 0059), is
+  closed, finite and non-recursive, and takes type arguments. Where it must
   exist as data (a boundary, a loop's exit, a scope's) it is its tag and one slot per payload type of
   its declaration, an unselected slot holding `#any`, the zero of its type (ADR 0042). `case`-of-case
   makes both levels free
   ([sums.md](docs/spec/sums.md), data.md §5.5). `option` is one declaration, in `lang`.
-- **Maps.** `(map int V)`. A read gives `(option V)`, every map has a declared capacity, and iteration
+- **Maps.** `Map(Int, V)`. A read `m[k]` gives `Option(V)`, every map has a declared capacity, and iteration
   is `keys` in ascending order ([maps.md](docs/spec/maps.md)).
 - **Strings.** An element of the free monoid over Unicode scalar values. The operations are `concat`,
-  `""` and `string-of`; three text programs needed nothing more
+  `""` and `string_of`; three text programs needed nothing more
   ([string-literals.md](docs/spec/string-literals.md), [strings.md](docs/spec/strings.md),
   [string-operations.md](docs/string-operations.md)).
   **Every value a program holds is one** ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md), strings.md §8):
   - a host's string is the host's type: on Go `go.bytestring`, any byte sequence;
   - `string ≤ go.bytestring`, and the coercion emits nothing;
   - the only way back is d, `go.text`, the Unicode Standard's maximal-subpart substitution, and the
-    portable `os.text-of` is d on every host;
+    portable `os.text_of` is d on every host;
   - a declared result is `string` only where the host provably maps Σ* into valid UTF-8, and the
     generator spells every Go `string` as `go.bytestring`.
 - **Not built:** records, symbols, `with`.
 
 ### Integers
 
-- **What an `int` is.** ℤ (ADR 0026). A range is a type: `(int LO HI)` means a set of integers for
+- **What an `int` is.** ℤ (ADR 0026). A range is a type: `LO..HI` means a set of integers for
   typing, a premise for the analyses, and a representation for storage (ADR 0003,
   [integers.md](docs/spec/integers.md)). Bitwise operators are deliberately not promoted to the
   language.
 - **Each target realizes a sub-lattice of intervals, by containment.** Its **word** is data,
-  `(repr (int LO HI) word)`, required of every target, with no default in the compiler: int64 on Go,
+  `repr LO..HI word`, required of every target, with no default in the compiler: int64 on Go,
   the JVM and windows, ±(2⁵³−1) on JS, 32 bits on `blas`. Go also declares
-  `(repr (int 0 18446744073709551615) word)`: **U, held natively as `uint64`**, selected by
+  `repr 0..2^64-1 word`: **U, held natively as `uint64`**, selected by
   `ir/words.go` on the ring homomorphism ℤ → ℤ/2⁶⁴ (`+ − ·` in either 64-bit type after the
   residue map; `< = / %` only where one realization holds both operands). A binding is ρ of its
   interval: `int` in S, `u64` in U∖S, `big` only past both and only by declaration.
@@ -836,7 +841,7 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   - `-checked`, which asks for the trap.
 - **At a host boundary an integer is the host's**: `go.int64` is the word, `go.uint64` is U, and a
   host precondition is the host's own boundary (`hex.EncodedLen`: −2⁶² ≤ n ≤ 2⁶²−1).
-- **Above the word.** A target chooses `(big-repr host)` or `(big-repr limbs)`. The bound is
+- **Above the word.** A target chooses `repr big host` or `repr big limbs`. The bound is
   enforced on both, so representation never changes which programs are legal
   ([bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md)). It is ONE set per program, and it
   has a sign: [0, 2ᵏ) or (−2ᵏ, 2ᵏ), checked by `big-fit` or `big-fit-signed`. Limbs hold a
@@ -845,16 +850,16 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   Which values are held exactly is chosen on the IR (`ir/big.go`, ADR 0034), and on limbs each
   operation is an inlined instance of the limb library, checked once per width (`ir/limbs.go`,
   ADR 0035).
-- **Element width follows the range.** `(int-repr …)` picks the narrowest host type containing the
+- **Element width follows the range.** `repr LO..HI host "T"` picks the narrowest host type containing the
   range ([elemwidth-2026-08-27](gauntlet/results/elemwidth-2026-08-27.md)).
 
 ### Types, contracts and facts
 
 - **The type checker** runs on the residual, which is monomorphic, first-order and closed
-  ([types.md](docs/spec/types.md)). `sig` is a claim checked in two directions. **Table(σ) has its
+  ([types.md](docs/spec/types.md)). A header's claim is checked in two directions. **Table(σ) has its
   three kinds of rule** (types.md §3.1, [tabletype](gauntlet/results/tabletype-2026-09-29.md),
   [tableelim](gauntlet/results/tableelim-2026-09-29.md)): introduction by its constructor;
-  elimination, `(a i) : σ` and `len : int`; and the store, `set` at σ. An element may be open, a
+  elimination, `a[i] : σ` and `len : Int`; and the store, `b[i] := v` at σ. An element may be open, a
   unification variable solved by the first store or read: `?`, or `?int`, the sort ℤ with its
   realization left to the IR (ADR 0033). A map's read is not typed. The IR checks each yield against
   the declared result by sort too (`ir/claim.go`); W5 could not, for a non-table result.
@@ -864,7 +869,7 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   a concrete type with its interface, is not built.
 - **A declared precondition is an obligation at every call** ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
   [refinements.md §6b](docs/spec/refinements.md)):
-  - on a `prim`, at every call site — its `where` and, since gotarget-2026-09-30, its parameters'
+  - on a host declaration, at every call site — its `where` and, since gotarget-2026-09-30, its parameters'
     declared ranges, which a template's conversion used to truncate silently;
   - on a definition, at every call it is inlined into, exported ones included when the call is inside
     the program; the obligations inlining propagates are still checked too;
@@ -887,7 +892,7 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   so reduction always marks; a literal outside its range and a false `where` stay as marks; deciding
   is one procedure, `ir.DecideMarks`, which `ir.Entry` and each `FromResidual` call; and `emit.Refine`
   and `ir.ToP` refuse a residual that still carries a mark. Until then only the three drivers marked
-  at all, and `(digit 12)` compiled through any other path.
+  at all, and `digit(12)` compiled through any other path.
 - **An obligation is discharged, or the program is refused** ([refinements.md §3a](docs/spec/refinements.md)).
   It is the domain condition of an application, and a program denotes only if every application is
   defined. Three routes discharge one:
@@ -938,15 +943,17 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   - `use`/`export`/`provides` are morphisms;
   - a file is the glue of its forms.
 - **What is built:**
-  - target files in the `(sig … (host …))` spelling ([target-files.md](docs/spec/target-files.md));
+  - target files of host declarations, `fn f(x ∈ S) (R) pure { host expr "F(${x})" import "p" }`
+    ([target-files.md](docs/spec/target-files.md), ADR 0064, 0066 item 9);
   - types owned by their module;
-  - companions and `include`, from which subtyping is derived, written as child modules inside their package;
-  - `const`, and constants as range endpoints;
+  - companions and inclusions, `axiom T ⊆ I`, from which subtyping is derived, written as child
+    modules inside their package;
+  - constants, `N ∈ set { v } = host "…"`, and constants as range endpoints;
   - manifest types unfolded by δ;
   - `D_T`, definitions inside `provides`.
 - **A target is a chain of layers** `Δ_T = L₁ ▷ … ▷ Lₖ`: glue within a layer, override between layers.
   The source's own directory is the nearest layer ([target-system.md](docs/spec/target-system.md)).
-  The backend is `(backend NAME)`, from a closed set.
+  The backend is `backend NAME`, from a closed set.
 - **A host module's path is the HOST'S path**, prefixed by the host — `go/encoding/hex`,
   `java/java/util/regex` — because `ι(p) = HOST ++ p` is injective and commutes with `lastSegment`,
   so an import's default alias is the host's own name and needs no `as` (ADR 0025,
@@ -957,7 +964,7 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   [nestmod-2026-09-20](gauntlet/results/nestmod-2026-09-20.md)). The absolute spelling stays legal,
   because a fragment in another layer must be able to add to a module it does not enclose. **A bare
   type name resolves lexically** — the declaring module, each enclosing module by path, then the root,
-  on the glued target, with shadowing refused — so a companion writes `(self NumError)` and a child of
+  on the glued target, with shadowing refused — so a companion writes `self ∈ NumError` and a child of
   `go` writes `bytestring` ([theories.md §3.4](docs/spec/theories.md), ADR 0021,
   [names-2026-09-25](gauntlet/results/names-2026-09-25.md)).
 - **Host declarations are written by hand**, by someone who read the host's source. The generator
@@ -1205,17 +1212,15 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 
 | | |
 |---|---|
-| `core/` | Reader; abstract Oroboros's trees (`abs`), μ from today's notation (`mu`, and `decl` for declarations) and D into the core term (`desugar`); terms, β/δ reducer, module loading, variants, hygiene; the state translation S for cells and, in program order, buffers (`cell`, `place`: the borrow, R0–R4) |
+| `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`, σ_J in `jspell`) and the raw reader of the IR's text and core terms (`raw`); abstract Oroboros's trees (`abs`, `decl`) and D into the core term (`desugar`, `forms`); terms, β/δ reducer, module loading, variants, hygiene; the state translation S for cells and, in program order, buffers (`cell`, `place`: the borrow, R0–R4) |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
-| `j/` | J, the surface (spec/j.md, ADR 0068): the document algebra (Wadler's prettier printer), σ_J, print_J over abstract.md's trees, the translator from today's notation for programs (`file`, `data`: indexing decided from evidence) and for target files and fragments (`target`); the reader, `lex`, `parse` (programs into abstract.md's trees) and `readtarget` (target files into today's raw forms); `unthread`, U, today's threaded buffers in program order (ADR 0052); `via`, the `ORO_VIA_J` gate in `cmd/gen`, `cmd/build` and `cmd/oro`, every module read through J; `cmd/toj` prints one file |
 | `presburger/` | The Omega test (Pugh 1991): satisfiability of linear constraints over ℤ, complete, overflow and budget reported as unknown; ADR 0049's first own decision procedure, a soundness witness for the refinement layer's entailment today (presburger-2026-10-11) |
 | `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`; a declaration's tree, `hostdef`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |
-| `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program), `toj` (a file in J) |
+| `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `count`, the first program with cells, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`, and `ages`, cells the host writes), `os/` (`du`, a directory walk), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
 | `gauntlet/balance.py` | The balance of effort, counted as every assessment counts it, at any revision: `python gauntlet/balance.py 137e9c6 HEAD` |
-| `gauntlet/types/` | Types as static values' measurements: `namespace.go`, the names a module declares both as a type and as a value (spec/typevalues.md §2) |
-| `gauntlet/surface/` | The surface's measurements, kept so a table can be recounted: `tokens.go` (installments 2–8's programs, read from surface-design.md), `scopes.go` (how the corpus nests `let` and `local`), `control.go` (how it chooses and iterates), `data.go` (how it writes data and constructors), `claims.go` (how it writes claims), `decls.go` (how it declares: modules, imports, exports, variants, host declarations), `visibility.go` (how much of a Go package is public), `apply.go` (where λs stand, companion calls, chains, static applications), `templates.go` (how host templates write their holes) and `lexical.go` (names, literals and comments) |
-| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, twenty programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, `fmt-scan`, Go storing through cells, and `errors-astype`, a declaration over sets applied to one (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |
+| `gauntlet/surface/` | The surface's measurements: `tokens.go` (installments 2–8's programs, read from surface-design.md) and `visibility.go` (how much of a Go package is public). The ones that read today's corpus (scopes, control, data, claims, decls, apply, templates, lexical, stores, and `gauntlet/types/namespace.go`) are deleted; recount them at `0c6470f` |
+| `gauntlet/stdlib/` | The four host surveys, which write their target files in J through `jdecl`; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, twenty programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, `fmt-scan`, Go storing through cells, and `errors-astype`, a declaration over sets applied to one (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

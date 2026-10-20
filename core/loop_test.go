@@ -1,6 +1,9 @@
 package core
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLoopDesugars(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
@@ -93,5 +96,20 @@ func TestANestedLoopsAgainIsItsOwn(t *testing.T) {
 }`
 	if _, err := ReadTerm(bad); err == nil {
 		t.Errorf("an again inside a let's value was accepted")
+	}
+}
+
+// A LOOP'S LAST ARM IS `else`, AND ONLY ITS LAST (ADR 0015): every path out of
+// the loop is one of its arms. In J the rule is the reader's, as it was today's
+// reader's (TestElseMustBeLast, deleted with it in step 5b).
+func TestALoopsLastArmIsElse(t *testing.T) {
+	for _, src := range []string{"loop i = 0 { else -> 1; i > 2 -> 3 }", "loop i = 0 { i > 2 -> 3 }",
+		"loop i = 0 { i > 2 -> 3; else -> 1; else -> 2 }"} {
+		if _, err := ReadTerm(src); err == nil || !strings.Contains(err.Error(), "the last arm of loop must be `else`") {
+			t.Errorf("%s: want the last-arm refusal, got %v", src, err)
+		}
+	}
+	if _, err := ReadTerm("loop i = 0 { i > 2 -> 3; else -> again(i + 1) }"); err != nil {
+		t.Errorf("an else last is a loop: %v", err)
 	}
 }

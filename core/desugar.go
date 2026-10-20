@@ -11,8 +11,8 @@ import "fmt"
 //
 // D is a homomorphism: one clause per operator, each a context applied to the
 // images of its arguments, computed bottom-up. Each clause builds exactly the
-// term today's reader built for the form it came from (Theorem D3, the build
-// check: cmd/check byte-identical). A derived operator's clause is its
+// term the core has read for the form since before J (Theorem D3, held by
+// cmd/check's byte-identical emission). A derived operator's clause is its
 // definition's (abstract.md §2.7), written out.
 //
 // D is memoized per node, so the reader may ask for a subtree's image while it

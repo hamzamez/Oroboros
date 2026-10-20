@@ -209,14 +209,6 @@ func (p *parser) rawExprTerm() (*Term, error) {
 // tuple's Church form, the connectives as `if`).
 func datum(e Expr) *Term { return Desugar(e) }
 
-func datums(es []Expr) []*Term {
-	out := make([]*Term, len(es))
-	for i, e := range es {
-		out[i] = datum(e)
-	}
-	return out
-}
-
 // setDatum is today's spelling of a set a target file writes.
 func (p *parser) setDatum(e Expr, mode string) *Term { return datum(p.toSet(e, mode)) }
 

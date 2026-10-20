@@ -58,35 +58,15 @@ func ReadTargetSource(text, file, target string) ([]*Term, error) {
 	return ReadTarget(text, target, filepath.Dir(file), Root(filepath.Dir(file)))
 }
 
-// Todays reports a source in today's notation: its first token, past blanks
-// and comments, is `(`, or its first comment is `;`. No J file begins either
-// way: a J item begins with a word, and a J comment with `//`.
-//
-// THE BRIDGE, step 5a's (jswitch-2026-10-16): the corpus is J and the drivers
-// read J, while the tests' inline snippets are still written in today's
-// notation. Step 5b rewrites them in J and removes this with today's reader.
-func Todays(text string) bool {
-	for i := 0; i < len(text); i++ {
-		switch c := text[i]; {
-		case c == ' ' || c == 9 || c == 10 || c == 13: // blanks: space, tab, newline, return
-		case c == ';' || c == '(':
-			return true
-		default:
-			return false
-		}
-	}
-	return false
-}
-
 // IsFragment reports a source holding a target's fragment, `provides T M { … }`:
 // the target loader's to read, no program. It looks for a line that begins
 // with the word, not for a parse, so that a fragment that does not parse is
 // still the loader's and refused naming its file (hoststring-2026-09-24), never
-// skipped. Today's `(provides` too, while the bridge stands.
+// skipped.
 func IsFragment(text string) bool {
 	for _, line := range strings.Split(text, string(rune(10))) { // each line
 		l := strings.TrimSpace(line)
-		if strings.HasPrefix(l, "provides ") || strings.HasPrefix(l, "(provides ") {
+		if strings.HasPrefix(l, "provides ") {
 			return true
 		}
 	}
@@ -158,7 +138,4 @@ func ReadTerm(text string) (*Term, error) {
 	return Desugar(t), nil
 }
 
-// TodaysTerm and TodaysForms read today's notation, for the step-5b tool that
-// translates the tests' last snippets; deleted with today's reader.
-func TodaysTerm(text string) (*Term, error)    { return readTermTodays(text) }
-func TodaysForms(text string) ([]*Term, error) { return readAllTodays(text) }
+

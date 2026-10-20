@@ -16,8 +16,8 @@ import "fmt"
 // because the body is nesting's IDENTITY — the same law that forces `(and)` to
 // be `true` rather than choosing it (binding.md §4).
 //
-// μ reads the form into a Let (mu.go, muLet and letPat), and D folds it back
-// into those redexes (desugar.go, let).
+// J's reader reads a block's bindings into a Let (jparse.go), and D folds it
+// back into those redexes (desugar.go, let).
 
 // discards respells a binder written `_` as an unwritable one, `#_`, the name
 // `seq` binds (binding.md §6): `_` binds nothing, so no `_` written later, a
@@ -40,22 +40,4 @@ func discards(ps []string) []string {
 		n++
 	}
 	return out
-}
-
-// patternNames recognises a tuple pattern on its image: μ checks a let's
-// left-hand side on the term today's reader made of it, so `(tuple a b)`
-// arrives as `(fn (#k) (#k a b))`.
-//
-// `#k` is unwritable — `#` is not isIdentStart — so no source term can be
-// mistaken for a pattern, and a λ the programmer wrote has a different binder
-// name and is refused as a left-hand side.
-func patternNames(t *Term) ([]*Term, bool) {
-	if t.Kind != KFn || len(t.Params) != 1 || t.Params[0] != "#k" {
-		return nil, false
-	}
-	b := t.Closed()
-	if b.Kind != KApp || len(b.Kids) < 3 || b.Kids[0].Kind != KBound {
-		return nil, false
-	}
-	return b.Kids[1:], true
 }

@@ -4,8 +4,8 @@ package core
 //
 // The language is the initial algebra of a many-sorted binding signature Σ, and
 // a notation is a rendering of it. These are Σ's trees for the computation's
-// terms: what the reader builds (μ, mu.go) from today's notation, and what
-// desugaring maps into today's core (D, desugar.go). Every meaning below the
+// terms: what J's reader builds (jparse.go), and what desugaring maps into
+// the core term (D, desugar.go). Every meaning below the
 // reader is a homomorphism out of these trees, defined by one clause per
 // operator.
 //

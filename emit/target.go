@@ -1661,7 +1661,7 @@ func loadTargetFile(path, name string) (*Target, error) {
 	// A LIBRARY'S FRAGMENT IS NO TARGET FILE: `provides T M { … }` is read from
 	// the library path (loadProvides), and a layer's `T.oro` that holds one is
 	// a fragment found in the wrong place, refused by name.
-	if core.IsFragment(string(src)) && !core.Todays(string(src)) {
+	if core.IsFragment(string(src)) {
 		return nil, fmt.Errorf("%s holds a library's fragment (provides …), not a target's own forms; "+
 			"a fragment is read from the library path", path)
 	}

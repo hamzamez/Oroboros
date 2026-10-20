@@ -166,7 +166,7 @@ func TestAProvidesThatDoesNotParseIsRefusedNamingTheFile(t *testing.T) {
 	root := t.TempDir()
 	targets, lib := filepath.Join(root, "targets"), filepath.Join(root, "lib")
 	writeTarget(t, filepath.Join(targets, "x"), "a", `backend go`)
-	writeTarget(t, filepath.Join(lib, "m"), "x", `(provides x m (sig f (int) int pure (host expr "F\q(%s)")))`)
+	writeTarget(t, filepath.Join(lib, "m"), "x", "provides x m {\n    fn f(a ∈ Int) (Int) pure { host expr \"F\\q(${a})\" }\n}")
 	_, err := LoadTargetLayers("x", []string{targets}, []string{lib})
 	if err == nil {
 		t.Fatal("a provides fragment that does not parse was skipped in silence")
@@ -175,7 +175,7 @@ func TestAProvidesThatDoesNotParseIsRefusedNamingTheFile(t *testing.T) {
 		t.Errorf("the refusal must name the file and the reader's message, got %v", err)
 	}
 	// A file with no `provides` in it is not this loader's to judge.
-	writeTarget(t, filepath.Join(lib, "m"), "x", `(def g (x) "F\q")`)
+	writeTarget(t, filepath.Join(lib, "m"), "x", "fn g(x) { \"F\\q\" }")
 	if _, err := LoadTargetLayers("x", []string{targets}, []string{lib}); err != nil {
 		t.Errorf("a library file that declares no provides is the module loader's business: %v", err)
 	}

@@ -7,89 +7,11 @@ import (
 
 // DECLARATIONS AS TREES — docs/spec/abstract.md §2.6, ADR 0051 (step 1b).
 //
-// μ reads each top-level form into a Decl. Every form is first read as today's
-// reader read it, toForm on its image, so a refusal and its message are what
-// they were; the tree is then built from the form as written. After the whole
-// file, a `sig` becomes the Claim of its definition's λ: a definition is a
-// named λ, and a λ carries what it claims (ADR 0051, D1). D gives the forms back
-// in the order they were written, the claim where the `sig` stood, so every
-// stage after the reader reads what it always has.
-
-// muDecl reads one top-level form, `f` being what toForm made of its image.
-func (r *reader) muDecl(datum *Term, f Form, at int) (Decl, error) {
-	kids := datum.Kids
-	switch f.Kind {
-	case "def":
-		if len(kids) == 4 { // the equational shorthand, (def f (x…) body)
-			b := r.expr(kids[3])
-			return &DefDecl{Name: f.Name, Value: r.mark(&Lam{Params: f.Term.Params, Body: b}, b), At: at}, nil
-		}
-		return &DefDecl{Name: f.Name, Value: r.expr(kids[2]), At: at}, nil
-	case "sig":
-		c, err := r.claim(kids, f.Sig, at)
-		if err != nil {
-			return nil, err
-		}
-		return &ClaimDecl{Name: f.Name, Claim: c}, nil
-	case "sum":
-		v := &VariantDecl{Name: f.Sum.Name, Params: f.Sum.Params, At: at}
-		for _, k := range kids[2:] {
-			img := r.image(k)
-			switch {
-			case img.Kind == KName:
-				v.Items = append(v.Items, VariantItem{Ctor: img.Name})
-			case img.Kids[0].Name == "success":
-				v.Items = append(v.Items, VariantItem{Success: img.Kids[1].Name})
-			case img.Kids[0].Name == "relevant":
-				v.Items = append(v.Items, VariantItem{Relevant: true})
-			default:
-				v.Items = append(v.Items, VariantItem{Ctor: img.Kids[0].Name, Payload: r.expr(k.Kids[1])})
-			}
-		}
-		return v, nil
-	case "module":
-		return &ModuleDecl{Path: f.Name, At: at}, nil
-	case "use":
-		u := &UseDecl{Path: f.Name, At: at}
-		if len(kids) == 4 {
-			u.As = f.Alias
-		}
-		return u, nil
-	case "export":
-		return &ExportDecl{Names: f.Names, At: at}, nil
-	case "term":
-		return &TermDecl{E: r.expr(datum), At: at}, nil
-	}
-	return &ForeignDecl{E: r.expr(datum), At: at}, nil // provides, prim, target
-}
-
-// claim reads a `sig`'s claim: each parameter's set, the result's set, and the
-// `where` and `ensures` it states (ADR 0051, D2). A parameter list is read as a
-// list (mu.go): its elements are the parameters the program wrote.
-func (r *reader) claim(kids []*Term, sig *Sig, at int) (*Claim, error) {
-	ps := kids[2].Kids
-	if len(ps) != len(sig.Params) {
-		return nil, fmt.Errorf("sig %s: a parameter list is a list of parameters, each TYPE or "+
-			"(name TYPE); got %s", kids[1].Name, r.image(kids[2]))
-	}
-	c := &Claim{Result: r.expr(kids[3]), At: at}
-	for i, p := range ps {
-		if sig.Params[i].Name == "" {
-			c.Params = append(c.Params, ClaimParam{Set: r.expr(p)})
-			continue
-		}
-		c.Params = append(c.Params, ClaimParam{Name: sig.Params[i].Name, Set: r.expr(p.Kids[1])})
-	}
-	for _, k := range kids[4:] {
-		switch r.image(k).Kids[0].Name {
-		case "where":
-			c.Pre = r.expr(k.Kids[1])
-		case "ensures":
-			c.Post = r.expr(k.Kids[1])
-		}
-	}
-	return c, nil
-}
+// J's reader (jparse.go) reads each top-level declaration into a Decl. A
+// definition is a named λ, and a λ carries what it claims (ADR 0051, D1); a
+// claim read apart from its definition becomes its Claim (carryClaims). D gives
+// the forms back in the order they were written, so every stage after the
+// reader reads what it always has.
 
 // carryClaims makes each claim its definition's: a `sig` and the one definition
 // of its name, whose value is a λ of the claim's arity. Anything else — no
@@ -366,16 +288,3 @@ func HostLam(def *DefDecl) *Lam {
 
 // formed is a type former applied to one set, `(buffer V)`.
 func formed(name string, x Expr) Expr { return &Apply{Fn: &Var{Name: name}, Args: []Expr{x}} }
-
-// ReadTrees reads a source into its declaration trees, each claim its
-// definition's (ADR 0051): abstract Oroboros's reading of a module.
-func ReadTrees(src string) ([]Decl, error) {
-	if err := validSource(src); err != nil {
-		return nil, err
-	}
-	_, decls, _, err := readModule(src)
-	if err != nil {
-		return nil, err
-	}
-	return carryClaims(decls), nil
-}

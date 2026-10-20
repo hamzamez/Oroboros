@@ -7,8 +7,8 @@ import "math"
 //	(build-map m cap body)              ≡  (build-map cap (fn (m) body))
 //	(local b (table n 0) body)          ≡  (build n (fn (b) body))
 //
-// μ reads both binder forms into trees (mu.go, muLocal and muBuildMap), and D
-// makes the core form (desugar.go). The λ of the core form is never a function
+// J's reader reads a block's state binders into trees (jparse.go), and D makes
+// the core form (desugar.go). The λ of the core form is never a function
 // value — it sits where a backend consumes it structurally (tables.md §14.1) —
 // so it is a binding occurrence, and the source writes it as one, as `let`
 // writes its redex as a binding (binding.md §1). The fold is on the right, so

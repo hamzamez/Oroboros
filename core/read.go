@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -11,12 +10,12 @@ import (
 	unicodenorm "golang.org/x/text/unicode/norm"
 )
 
-// Reader for the surface syntax of core-0 §1–2.
-//
-// Implemented from the spec: UTF-8 required, NFC required, bidirectional
-// controls rejected, identifiers per UAX #31 plus a fixed set of symbol
-// characters, and case never assigning meaning — though names remain
-// case-SENSITIVE for identity, which is a different property.
+// What every reader shares, now that the surface is J (jparse.go) and the IR's
+// text the raw reader's (raw.go): a source's validity (core-0 §1.1: UTF-8, NFC,
+// no bidirectional control), identifiers per UAX #31 plus a fixed set of
+// symbol characters, the declaration forms the loader reads (toForm), sums,
+// and the type strings. Names are case-SENSITIVE for identity; case carries
+// no meaning.
 
 // Bidirectional overrides and isolates. Rejecting these closes Trojan Source
 // (CVE-2021-42574): source that displays differently than it parses.
@@ -149,95 +148,6 @@ type Variant struct {
 	Payload string
 }
 
-type reader struct {
-	src  string
-	pos  int
-	line int
-	raw  bool // ReadRaw: lists are read as written, with no sugar
-
-	// What the reader builds: for each datum, its tree of abstract Oroboros (μ,
-	// mu.go), from which D (desugar.go) makes the core term. elems are the
-	// elements of the list a tree was read from, and stray marks an expression
-	// holding an `again` that stands where no jump can be taken.
-	abs   map[*Term]Tail
-	elems map[Tail][]*Term
-	stray map[Expr]bool
-	d     *desugarer
-
-	// THE CONCRETE TREE (abstract.md §9.1), kept only when asked for
-	// (ReadConcrete, concrete.go): each datum's source span, each top-level
-	// datum in order, and each comment, a gap, with its position. An ordinary
-	// read records none of it.
-	concrete bool
-	spans    map[*Term]Span
-	top      []*Term
-	gaps     []Gap
-}
-
-func newReader(src string, raw bool) *reader {
-	return &reader{src: src, line: 1, raw: raw, abs: map[*Term]Tail{}, elems: map[Tail][]*Term{},
-		stray: map[Expr]bool{}, d: newDesugarer()}
-}
-
-// core is D of a top-level datum's tree: the term today's reader made of it.
-func (r *reader) core(datum *Term) *Term { return r.d.term(r.demote(r.abs[datum])) }
-
-// register records a datum's tree.
-func (r *reader) register(datum *Term, a Tail) *Term {
-	if !r.raw {
-		r.abs[datum] = a
-	}
-	return datum
-}
-
-func readTodays(src string) ([]Form, error) {
-	if err := validSource(src); err != nil {
-		return nil, err
-	}
-	r, decls, _, err := readModule(src)
-	if err != nil {
-		return nil, err
-	}
-	return r.d.forms(carryClaims(decls))
-}
-
-// readModule reads each form into a declaration tree (decl.go, ADR 0051),
-// having first read it as today's reader did, toForm on its image, so a refusal
-// is reported where it always was. It returns the trees and those forms; Read
-// makes each claim its definition's and has D give the forms back in the order
-// written, which must be the same forms (Theorem D3, abstract.md §6.1).
-func readModule(src string) (*reader, []Decl, []Form, error) {
-	return readModuleWith(newReader(src, false))
-}
-
-func readModuleWith(r *reader) (*reader, []Decl, []Form, error) {
-	var decls []Decl
-	var read []Form
-	for i := 0; ; i++ {
-		r.skipSpace()
-		if r.done() {
-			return r, decls, read, nil
-		}
-		t, err := r.term()
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		f, err := toForm(r.core(t))
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		d, err := r.muDecl(t, f, i)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		if r.concrete {
-			r.top = append(r.top, t)
-		}
-		decls = append(decls, d)
-		read = append(read, f)
-	}
-}
-
 // validSource is what every source must be before a byte of it is read: valid
 // UTF-8, NFC-normalised, and free of bidirectional controls.
 func validSource(src string) error {
@@ -271,316 +181,6 @@ func validSource(src string) error {
 		}
 	}
 	return nil
-}
-
-// ReadRaw reads s-expressions in the language's LEXICAL syntax — its atoms,
-// literals and strings, with `;` comments as gaps (ADR 0024), and the same
-// UTF-8, NFC and bidirectional-control checks as Read — and with the LIST
-// structure raw: a list is an application of its elements, and no form is
-// desugared. It is the IR's reader (docs/spec/ir.md §2.1): the IR's `loop` and
-// `let` are not the language's, so Read's dispatch would misread them. A list
-// may not be empty, which the IR's grammar never needs.
-func ReadRaw(src string) ([]*Term, error) {
-	if err := validSource(src); err != nil {
-		return nil, err
-	}
-	r := newReader(src, true)
-	var out []*Term
-	for {
-		r.skipSpace()
-		if r.done() {
-			return out, nil
-		}
-		t, err := r.term()
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, t)
-	}
-}
-
-// ReadAll reads raw terms without interpreting def/prim/target. Target files
-// are s-expressions but not programs, so they are parsed by their consumer.
-func readAllTodays(src string) ([]*Term, error) {
-	r := newReader(src, false)
-	var out []*Term
-	for {
-		r.skipSpace()
-		if r.done() {
-			return out, nil
-		}
-		t, err := r.term()
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, r.core(t))
-	}
-}
-
-// ReadTerm reads exactly one term, for tests and the REPL.
-func readTermTodays(src string) (*Term, error) {
-	r := newReader(src, false)
-	r.skipSpace()
-	t, err := r.term()
-	if err != nil {
-		return nil, err
-	}
-	r.skipSpace()
-	if !r.done() {
-		return nil, fmt.Errorf("line %d: trailing input after term", r.line)
-	}
-	return r.core(t), nil
-}
-
-func (r *reader) done() bool { return r.pos >= len(r.src) }
-
-func (r *reader) peek() rune {
-	if r.done() {
-		return -1
-	}
-	c, _ := utf8.DecodeRuneInString(r.src[r.pos:])
-	return c
-}
-
-func (r *reader) next() rune {
-	c, w := utf8.DecodeRuneInString(r.src[r.pos:])
-	r.pos += w
-	if c == '\n' {
-		r.line++
-	}
-	return c
-}
-
-func (r *reader) skipSpace() {
-	for !r.done() {
-		c := r.peek()
-		switch {
-		case c == ';':
-			start, line := r.pos, r.line
-			for !r.done() && r.peek() != '\n' {
-				r.next()
-			}
-			if r.concrete {
-				r.gap(start, line)
-			}
-		case unicode.IsSpace(c):
-			r.next()
-		default:
-			return
-		}
-	}
-}
-
-func (r *reader) term() (*Term, error) {
-	r.skipSpace()
-	if r.done() {
-		return nil, fmt.Errorf("line %d: unexpected end of input", r.line)
-	}
-	if !r.concrete {
-		return r.datum()
-	}
-	start := r.pos
-	t, err := r.datum()
-	if err == nil {
-		r.spans[t] = Span{start, r.pos}
-	}
-	return t, err
-}
-
-// datum reads one datum, the reader positioned at its first character.
-func (r *reader) datum() (*Term, error) {
-	if r.peek() == '"' {
-		return r.str()
-	}
-	if r.peek() == '(' {
-		return r.list()
-	}
-	if r.peek() == ')' {
-		return nil, fmt.Errorf("line %d: unexpected ')'", r.line)
-	}
-	return r.atom()
-}
-
-const backslash = rune(92)
-
-// str reads a double-quoted literal — string-literals.md.
-//
-// A literal denotes an element of Scalar*, and the notation mirrors the object:
-// a scalar denotes itself, and its value is the concatenation. Six escapes, and
-// every one of them is FORCED rather than borrowed from a host:
-//
-//	\"        the delimiter cannot delimit and denote at once
-//	\        the escape introducer, likewise
-//	\t \n \r  the source grammar's own whitespace. A token that could contain a
-//	          raw line terminator makes an unterminated literal indistinguishable
-//	          from a long one, so the error would be reported at end of file
-//	          rather than where it happened.
-//	\u{H…}    totality: most scalars cannot be typed and many are invisible
-//
-// AN UNKNOWN ESCAPE IS AN ERROR, which follows from unambiguity: if `\a` meant
-// `a`, two different literals would denote one string. That is the rule
-// JavaScript does not have — `"\a"` is the letter there — and it is the first of
-// three divergences string-literals.md §6.2 measured.
-//
-// `\xHH` and octal are absent because they denote a BYTE. A byte is not a scalar
-// value, so a notation that can build `\xff` is a notation for a different
-// object — and Go's `strconv.Unquote`, which this replaces, could build one.
-func (r *reader) str() (*Term, error) {
-	line := r.line
-	r.next() // opening quote
-	var b strings.Builder
-	for {
-		if r.done() {
-			return nil, fmt.Errorf("line %d: unterminated string literal", line)
-		}
-		c := r.next()
-		if c == '"' {
-			t := Str(b.String())
-			return r.register(t, &Lit{T: t}), nil
-		}
-		if c == '\t' || c == '\n' || c == '\r' {
-			return nil, fmt.Errorf("line %d: a string literal may not contain a raw "+
-				"tab, newline or carriage return; write \t, \n or \r", line)
-		}
-		if c != backslash {
-			b.WriteRune(c)
-			continue
-		}
-		if r.done() {
-			return nil, fmt.Errorf("line %d: unterminated escape in string literal", line)
-		}
-		switch e := r.next(); e {
-		case '"':
-			b.WriteByte('"')
-		case backslash:
-			b.WriteRune(backslash)
-		case 'n':
-			b.WriteByte('\n')
-		case 'r':
-			b.WriteByte('\r')
-		case 't':
-			b.WriteByte('\t')
-		case 'u':
-			v, err := r.scalarEscape(line)
-			if err != nil {
-				return nil, err
-			}
-			b.WriteRune(v)
-		default:
-			return nil, fmt.Errorf("line %d: %c%c is not an escape. The escapes are "+
-				"%c\" %c%c %ct %cn %cr and %cu{H…} for any scalar value "+
-				"(docs/spec/string-literals.md §3)",
-				line, backslash, e, backslash, backslash, backslash,
-				backslash, backslash, backslash, backslash)
-		}
-	}
-}
-
-// scalarEscape reads the body of `\u{H…}`, having consumed the `u`.
-//
-// One to six hexadecimal digits, and the value must be a SCALAR VALUE: Unicode
-// excludes the surrogate range D800–DFFF, because a surrogate is an artefact of
-// the UTF-16 encoding form rather than a character. That exclusion is what makes
-// a string's value encoding-independent — every scalar sequence has a unique
-// representation in every encoding form, and a sequence containing a lone
-// surrogate has none in UTF-8 (string-literals.md §1).
-func (r *reader) scalarEscape(line int) (rune, error) {
-	if r.done() || r.next() != '{' {
-		return 0, fmt.Errorf("line %d: %cu must be written %cu{H…} with one to six "+
-			"hexadecimal digits", line, backslash, backslash)
-	}
-	var digits []rune
-	for {
-		if r.done() {
-			return 0, fmt.Errorf("line %d: unterminated %cu{…} escape", line, backslash)
-		}
-		c := r.next()
-		if c == '}' {
-			break
-		}
-		digits = append(digits, c)
-		if len(digits) > 6 {
-			return 0, fmt.Errorf("line %d: %cu{…} takes at most six hexadecimal "+
-				"digits; the largest scalar value is 10FFFF", line, backslash)
-		}
-	}
-	if len(digits) == 0 {
-		return 0, fmt.Errorf("line %d: %cu{} has no digits", line, backslash)
-	}
-	v, err := strconv.ParseUint(string(digits), 16, 32)
-	if err != nil {
-		return 0, fmt.Errorf("line %d: %cu{%s} is not hexadecimal", line, backslash,
-			string(digits))
-	}
-	if v > 0x10FFFF {
-		return 0, fmt.Errorf("line %d: %cu{%s} is above the largest scalar value, 10FFFF",
-			line, backslash, string(digits))
-	}
-	if v >= 0xD800 && v <= 0xDFFF {
-		return 0, fmt.Errorf("line %d: %cu{%s} is a SURROGATE, which is not a scalar "+
-			"value — it exists only inside the UTF-16 encoding form, and a sequence "+
-			"containing one has no representation in UTF-8 at all "+
-			"(docs/spec/string-literals.md §1)", line, backslash, string(digits))
-	}
-	return rune(v), nil
-}
-
-func (r *reader) list() (*Term, error) {
-	line := r.line
-	r.next() // '('
-	var kids []*Term
-	for {
-		r.skipSpace()
-		if r.done() {
-			return nil, fmt.Errorf("line %d: unclosed '('", line)
-		}
-		if r.peek() == ')' {
-			r.next()
-			break
-		}
-		// `()` is not a term, but it IS a legal parameter list: `(fn () b)` is
-		// a nullary abstraction, which is what a program's entry point has to
-		// be (build.md §2), and `(sig null () ptr …)` declares one. Nothing else
-		// may be empty.
-		if (len(kids) == 1 && isFnHead(kids[0]) || len(kids) == 2 && kids[0].Kind == KName &&
-			(kids[0].Name == "sig" || kids[0].Name == "def")) && r.peek() == '(' {
-			save := r.pos
-			r.next()
-			r.skipSpace()
-			if !r.done() && r.peek() == ')' {
-				r.next()
-				kids = append(kids, r.register(&Term{Kind: KApp}, &EmptyList{})) // the empty parameter list
-				continue
-			}
-			r.pos = save
-		}
-		k, err := r.term()
-		if err != nil {
-			return nil, err
-		}
-		kids = append(kids, k)
-	}
-	if len(kids) == 0 {
-		return nil, fmt.Errorf("line %d: empty list is not a term", line)
-	}
-	if r.raw {
-		return &Term{Kind: KApp, Kids: kids}, nil
-	}
-	// THE LIST'S TREE, built now that its elements are read, so the tree is
-	// built bottom-up in the order the reader reads and an error is reported
-	// where it always was (μ, mu.go). Every form the notation has — `let`,
-	// `seq`, the connectives, `cond`, `tuple`, `loop`, `local`, `build-map`,
-	// `match`, `fn`, `if`, `case`, `try`, `expect`, `the` — is a node of the
-	// tree, and D (desugar.go) makes the core term each always read as.
-	a, err := r.mu(kids, line)
-	if err != nil {
-		return nil, err
-	}
-	datum := &Term{Kind: KApp, Kids: kids}
-	if _, seen := r.elems[a]; !seen {
-		r.elems[a] = kids
-	}
-	return r.register(datum, a), nil
 }
 
 // mkIf builds `(if c a b)`, normalising a negated condition:
@@ -628,16 +228,6 @@ func negated(t *Term) (*Term, bool) {
 	return nil, false
 }
 
-// paramList reads (a b c). The reader produced it as an application, so it is
-// unpacked here rather than parsed specially.
-// isFnHead reports whether this kid makes the enclosing list an abstraction,
-// which is the one place an empty list is admissible.
-func isFnHead(t *Term) bool {
-	return t.Kind == KName && (t.Name == "fn" || t.Name == "λ")
-}
-
-func paramList(t *Term, line int) ([]string, error) { return paramListOf("fn", t, line) }
-
 // paramListOf reads a parameter list for `fn` or for `def`'s shorthand. One
 // implementation, because a parameter list means the same thing in both: two
 // would be two rules that can disagree.
@@ -654,15 +244,15 @@ func paramListOf(what string, t *Term, line int) ([]string, error) {
 		if k.Kind != KName {
 			return nil, fmt.Errorf("%s%s parameter must be a name, got %s", at(line), what, k)
 		}
-		// A repeated binder in ONE abstraction is ill-formed. β substitutes
+		// A repeated binder in ONE abstraction is ill-formed. Î² substitutes
 		// parameter by parameter, so the later argument silently won and the
 		// earlier one vanished: ((fn (x x) x) 1 2) reduced to 2, with no way to
 		// name the first x at all.
 		//
-		// Nested shadowing — (fn (x) (fn (x) …)) — is unaffected and still
+		// Nested shadowing â€” (fn (x) (fn (x) â€¦)) â€” is unaffected and still
 		// legal, because those are two abstractions.
 		// A binder must be a SIMPLE name. `.` is the qualifier separator, and a
-		// qualified name denotes a module member — a λ cannot bind into a
+		// qualified name denotes a module member â€” a Î» cannot bind into a
 		// module. Allowing it let ((fn (f64.add) (f64.add 1.0 2.0)) 9.0) reduce
 		// to (9.0 1.0 2.0): a parameter shadowed a module-qualified primitive
 		// and reduction happily applied a number to two arguments.
@@ -678,109 +268,6 @@ func paramListOf(what string, t *Term, line int) ([]string, error) {
 		params = append(params, k.Name)
 	}
 	return params, nil
-}
-
-func (r *reader) atom() (*Term, error) {
-	line := r.line
-	start := r.pos
-	for !r.done() {
-		c := r.peek()
-		if c == '(' || c == ')' || c == ';' || c == '"' || unicode.IsSpace(c) {
-			break
-		}
-		r.next()
-	}
-	text := r.src[start:r.pos]
-
-	// Integer before float, and both before name, so that -1 is a number.
-	//
-	// A literal made only of digits IS an integer, and one too large for int64
-	// is an ERROR rather than a float. It used to fall through to ParseFloat,
-	// which succeeds — so `9223372036854775808` silently became
-	// `9.223372036854776e+18` and the program's type changed underneath it, at
-	// a threshold ten bits past the portable window and mentioned in no
-	// specification (data-model.md §1.1).
-	if looksInteger(text) {
-		if v, err := strconv.ParseInt(text, 10, 64); err == nil {
-			return r.lit(Int(v)), nil
-		}
-		if t := bigLiteral(text); t != nil {
-			return r.lit(t), nil
-		}
-		return nil, fmt.Errorf("line %d: %s is not an integer", line, text)
-	}
-	if v, err := strconv.ParseFloat(text, 64); err == nil && looksNumeric(text) {
-		return r.lit(Float(v)), nil
-	}
-	// The two boolean literals. They are read here rather than declared by a
-	// target because the reader's own desugaring of `and` has to PRODUCE one,
-	// and the reader does not know which target it is reading for — it could
-	// not emit `go.false` or `x64.false` even if it wanted to (booleans.md 4.1).
-	if text == "true" || text == "false" {
-		return r.lit(Bool(text == "true")), nil
-	}
-	if err := validName(text); err != nil {
-		return nil, fmt.Errorf("line %d: %w", line, err)
-	}
-	t := Name(text)
-	return r.register(t, &Var{Name: text}), nil
-}
-
-func (r *reader) lit(t *Term) *Term { return r.register(t, &Lit{T: t}) }
-
-// validName accepts a name, which is one or more identifier segments separated
-// by `.`. A qualified reference like `words.split-words` is ONE name whose text
-// carries the separator; splitting it is resolution's job, not the reader's, so
-// that reduction never sees an unresolved name (modules.md §5).
-func validName(text string) error {
-	for _, seg := range strings.Split(text, ".") {
-		if seg == "" {
-			return fmt.Errorf("%q has an empty segment; `.` separates qualifiers "+
-				"and cannot begin, end, or double", text)
-		}
-		first, _ := utf8.DecodeRuneInString(seg)
-		if !isIdentStart(first) {
-			return fmt.Errorf("%q is not a valid identifier or number", text)
-		}
-		for _, c := range seg {
-			if !isIdentContinue(c) {
-				return fmt.Errorf("%q contains %q, which is not an identifier character",
-					text, c)
-			}
-		}
-	}
-	return nil
-}
-
-// looksInteger reports whether the text is integer SYNTAX — an optional sign
-// and then digits, nothing else. Being an integer literal is a property of how
-// it is written, not of whether it happens to fit.
-func looksInteger(s string) bool {
-	if s == "" {
-		return false
-	}
-	if s[0] == '+' || s[0] == '-' {
-		s = s[1:]
-	}
-	if s == "" {
-		return false
-	}
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
-}
-
-// looksNumeric keeps ParseFloat from swallowing names like `-` or `inf`.
-func looksNumeric(s string) bool {
-	for _, c := range s {
-		if unicode.IsDigit(c) {
-			return true
-		}
-	}
-	return false
 }
 
 // OnlyFragments reports whether a file says nothing but `(provides …)` — a
@@ -1212,40 +699,6 @@ func renameFree(t *Term, binds map[string]string) *Term {
 		out.Kids[i] = renameFree(k, binds)
 	}
 	return out
-}
-
-// loopBindings reads ((x z) (y w)) into names and initial values.
-func loopBindings(t *Term, line int) ([]string, []*Term, error) {
-	if t.Kind != KApp {
-		return nil, nil, fmt.Errorf("line %d: a loop's bindings are a list of (name init), "+
-			"got %s", line, t)
-	}
-	var names []string
-	var inits []*Term
-	seen := map[string]bool{}
-	for _, b := range t.Kids {
-		if b.Kind != KApp || len(b.Kids) != 2 || b.Kids[0].Kind != KName {
-			return nil, nil, fmt.Errorf("line %d: a loop binding is (name init), got %s", line, b)
-		}
-		n := b.Kids[0].Name
-		switch {
-		case n == "again" || n == "else":
-			return nil, nil, fmt.Errorf("line %d: %s is reserved by `loop` and cannot be a "+
-				"loop variable", line, n)
-		case strings.Contains(n, "."):
-			return nil, nil, fmt.Errorf("line %d: %s cannot be a loop variable; a binder is a "+
-				"simple name, and `.` qualifies a module member", line, n)
-		case seen[n]:
-			return nil, nil, fmt.Errorf("line %d: loop binds %s twice", line, n)
-		}
-		seen[n] = true
-		names = append(names, n)
-		inits = append(inits, b.Kids[1])
-	}
-	if len(names) == 0 {
-		return nil, nil, fmt.Errorf("line %d: a loop needs at least one variable", line)
-	}
-	return names, inits, nil
 }
 
 func isAgain(t *Term) bool {

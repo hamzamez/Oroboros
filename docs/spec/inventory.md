@@ -26,7 +26,14 @@ Comments were unspecified until 2026-09-20 and are now [comments.md](comments.md
 [ADR 0024](../decisions/0024-comments-are-erased.md). The mechanical check tests words; the lexical
 layer is tested by `core/comment_test.go`.
 
-**Result: 136 words.**
+**Result: 133 words.**
+
+> **Since step 5b (jswitch-2026-10-16) the surface is J** ([j.md](j.md), [ADR 0068](../decisions/0068-j-is-the-surface.md)),
+> and today's reader and μ are deleted. The words below are what J's reader (`core/jparse.go`,
+> `core/jreadtarget.go`), the module loader, the reducer and the target loaders dispatch on: J's
+> spellings where J has one, and the core term's heads, which J's desugaring produces. The S-expression
+> examples in the rows are today's notation, kept as each spec writes them until it is next touched.
+> J's own keywords and symbols are [j.md §1.4](j.md).
 
 | status | count |
 |---|---:|
@@ -78,13 +85,13 @@ and so expands in `Load` ([state.md](state.md)).
 
 | word | status | where |
 |---|---|---|
-| `fn`, `λ` | specified — the only non-sugar special form | [core-0.md](core-0.md), [state.md](state.md) |
+| `fn` | specified — the only non-sugar special form | [core-0.md](core-0.md), [state.md](state.md) |
 | `let` | specified — the flat binding form, sugar for nested applications; injected, and a structural kind | [binding.md](binding.md), [def.md](def.md) |
-| `seq` | specified — a binding whose name is discarded, `((fn (_) b) a)` | [binding.md §6](binding.md), [effects.md](effects.md) |
 | `and`, `or`, `not`, `cond` | specified — sugar for `if`; `cond` is also a structural kind | [booleans.md](booleans.md) |
 | `tuple` | specified — sugar for `(fn (k) (k a b …))`, the tuple type, and a `let`'s left-hand side; `(tuple)` is the unit, the terminal object 1, typed `prod()` | [data.md](data.md) §3.6, [binding.md §5](binding.md) |
-| `match`, `when`, `else` | specified — sugar for `loop` | [match.md](match.md) |
-| `_` | specified — a pattern that binds nothing, and `seq`'s binder | [match.md](match.md) |
+| `when`, `else` | specified — clause words of `loop`, which `match` was sugar for | [match.md](match.md) |
+| `store` | specified — `store(b, i, v)`, today's three-argument `set` on a threaded buffer, which a test of the core writes in J | [j.md §7](j.md) |
+| `×` | specified — the product of sets, TLA+'s, n-ary in a chain and a component when parenthesized (ADR 0065) | [j.md](j.md) |
 | `case` | specified — sugar, expanded in `Load` | [sums.md](sums.md) |
 | `try` | specified — the exception monad's bind, `(try (ok x) e body)`; expands to `case` in `Load`, on a variant marked `success` | [errors.md](errors.md) |
 | `expect` | specified — total, `(expect (ok x) e why body)`: continues on the marked success and crashes with `why` on every other constructor, through `abandon`; expands to `case` in `Load` | [errors.md](errors.md) §8 |
@@ -260,7 +267,6 @@ compiler so the message can be given.
 | word | status | where |
 |---|---|---|
 | `sum` | refused — `variant` | [data.md](data.md) |
-| `values` | refused — `tuple` | [data.md](data.md) |
 | `int-repr` | refused — `(repr (int LO HI) (host …))` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
 | `big-repr` | refused — `(repr big host)` or `(repr big limbs)` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
 | `shift-width` | refused — `(repr shift N)` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |

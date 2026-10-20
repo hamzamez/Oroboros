@@ -33,10 +33,6 @@ func TestEveryCorpusFileReadsInJ(t *testing.T) {
 			t.Fatal(err)
 		}
 		src := string(b)
-		if Todays(src) {
-			t.Errorf("%s is today's notation, not J", path)
-			continue
-		}
 		slash := filepath.ToSlash(path)
 		if strings.Contains(slash, "/targets/") || strings.HasSuffix(slash, "emit/lang-facts.oro") || IsFragment(src) {
 			if _, err := ReadTargetSource(src, path, ""); err != nil {

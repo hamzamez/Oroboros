@@ -8,6 +8,11 @@ Rewritten 2026-09-17. The previous version dated from 2026-08-27 and predated ma
 operators, buffer parameters, `tuple` and `variant`, facts, and declarations as theories. It is in git
 history.
 
+> **The surface is J since step 5 (jswitch-2026-10-16, jswitch5b-2026-10-16; ADR 0068), and today's
+> reader is deleted.** The examples below are today's notation, which is also how the core term and
+> the residual print: read each as the term J's reader produces through D. They are rewritten in J
+> as each section is next touched ([j.md](j.md) §4 maps every J form to its abstract operator).
+
 ---
 
 ## 1. The whole language

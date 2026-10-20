@@ -290,7 +290,7 @@ func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
 	if !decided {
 		return fmt.Errorf("the postcondition %s is outside what the compiler decides "+
 			"(constant bounds on the result, and their conjunctions); an obligation is "+
-			"discharged or the program is refused (refinements.md §3a)", ens)
+			"discharged or the program is refused (refinements.md §3a)", core.ShowTerm(ens))
 	}
 	fs := f.facts
 	if len(fs) != f.NV() {
@@ -325,7 +325,7 @@ func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
 		}
 	}
 	if !r.bot && (empty || meetIV(r, s) != r) {
-		return fmt.Errorf("the body does not establish %s; its result is %s", ens, termShow(r))
+		return fmt.Errorf("the body does not establish %s; its result is %s", core.ShowTerm(ens), termShow(r))
 	}
 	return nil
 }

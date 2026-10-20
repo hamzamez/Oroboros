@@ -321,7 +321,7 @@ export fn f() {
             case os.WriteFile("x", store(b, 0, 100000)) { result.'ok(u) -> 0; result.'err(k) -> 1 }
         })
 }`))
-	if err == nil || !strings.Contains(err.Error(), "int 0 255") {
+	if err == nil || !strings.Contains(err.Error(), "0..255") {
 		t.Errorf("a byte buffer storing 100000 must be refused, naming the declared element; got %v", err)
 	}
 }

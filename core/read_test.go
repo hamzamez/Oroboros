@@ -231,7 +231,7 @@ func TestDiagnosticsUnderABinderKeepTheirNames(t *testing.T) {
 	if strings.Contains(err.Error(), "#") {
 		t.Errorf("diagnostic leaks the internal representation: %v", err)
 	}
-	for _, want := range []string{"(fn (n)", "(fn (a b)", "given 1"} {
+	for _, want := range []string{"fn(n)", "fn(a, b)", "given 1"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %q", err, want)
 		}
@@ -306,7 +306,7 @@ func TestModuleDiagnostics(t *testing.T) {
 	for _, tc := range []struct{ name, src, want string }{
 		// A member that exists but is private, versus one that does not exist.
 		{"private", `use geo
-t = geo.hidden()`, "defines hidden but does not export it"},
+t = geo.hidden()`, "defines hidden but hides it"},
 		{"absent", `use geo
 t = geo.volume()`, "has no member volume"},
 		// The anonymous entry scope printed as `module ""`.

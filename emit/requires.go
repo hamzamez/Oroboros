@@ -133,11 +133,11 @@ func literalFails(w core.Word, t *core.Term) []requireFail {
 		case core.IsRequire(x):
 			if a := x.Kids[4]; a.Kind == core.KInt && !literalIn(w, x.Kids[3].Str, big.NewInt(a.Int)) {
 				out = append(out, requireFail{def: x.Kids[1].Str, param: x.Kids[2].Str, ty: x.Kids[3].Str,
-					arg: a.String(), literal: true})
+					arg: core.ShowTerm(a), literal: true})
 			}
 		case core.IsRequireWhere(x):
 			if clause, isFalse := core.IsRequireFalse(x.Kids[2]); isFalse {
-				out = append(out, requireFail{def: x.Kids[1].Str, param: "where", arg: clause.String(), literal: true})
+				out = append(out, requireFail{def: x.Kids[1].Str, param: "where", arg: core.ShowTerm(clause), literal: true})
 			}
 		}
 		for _, k := range x.Kids {
@@ -213,6 +213,15 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 	return core.StripRequires(t), nil
 }
 
+// showDef is the subject of a failed obligation as J writes it: a definition's
+// name by σ_J, or a label already written (a residual range's, requireRange).
+func showDef(s string) string {
+	if strings.ContainsAny(s, " ,") {
+		return s
+	}
+	return core.ShowName(s)
+}
+
 func (f requireFail) message(n int) string {
 	var b strings.Builder
 	// A diagnostic names what the program wrote: a fallible declaration's raw
@@ -220,16 +229,17 @@ func (f requireFail) message(n int) string {
 	if d, ok := DeclaredName(f.def); ok {
 		f.def = d
 	}
+	f.def = showDef(f.def)
 	switch {
 	case f.param == "where" && f.literal:
 		fmt.Fprintf(&b, "%s's `where` is false at a call: %s", f.def, f.arg)
 	case f.param == "where":
 		fmt.Fprintf(&b, "%s requires %s at a call, which does not follow\n  known: %s", f.def, f.arg, f.known)
 	case f.literal:
-		fmt.Fprintf(&b, "%s's parameter %s is declared (%s), and a call passes %s", f.def, f.param, f.ty, f.arg)
+		fmt.Fprintf(&b, "%s's parameter %s is declared in %s, and a call passes %s", f.def, core.ShowName(f.param), core.ShowSet(f.ty), f.arg)
 	default:
-		fmt.Fprintf(&b, "%s's parameter %s is declared (%s), and at a call the argument %s is not proven in it",
-			f.def, f.param, f.ty, f.arg)
+		fmt.Fprintf(&b, "%s's parameter %s is declared in %s, and at a call the argument %s is not proven in it",
+			f.def, core.ShowName(f.param), core.ShowSet(f.ty), f.arg)
 		if f.got != "" {
 			fmt.Fprintf(&b, "\n  its interval: %s", f.got)
 		}
@@ -523,7 +533,7 @@ func residualRange(w core.Word, v span, def, param, ty string, arg *core.Term) *
 	if d, ok := DeclaredName(def); ok {
 		def = d // the name the program wrote (retract.go)
 	}
-	label := fmt.Sprintf("%s's parameter %s, declared (%s),", def, param, ty)
+	label := fmt.Sprintf("%s's parameter %s, declared in %s,", core.ShowName(def), core.ShowName(param), core.ShowSet(ty))
 	return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName), core.Str(label), cond, arg}}
 }
 
@@ -547,7 +557,7 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 		r.collectEnsures(cond, g)
 		if r.requires != nil && !r.proveCond(cond, g) {
 			*r.requires = append(*r.requires, requireFail{def: t.Kids[1].Str, param: "where",
-				arg: cond.String(), known: f.known()})
+				arg: core.ShowTerm(cond), known: f.known()})
 		}
 		return r.walk(t.Kids[3], f)
 	}
@@ -562,7 +572,7 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 	}
 	if r.requires != nil {
 		*r.requires = append(*r.requires, requireFail{def: t.Kids[1].Str, param: t.Kids[2].Str,
-			ty: t.Kids[3].Str, arg: a.String(), known: f.known()})
+			ty: t.Kids[3].Str, arg: core.ShowTerm(a), known: f.known()})
 	}
 	return nil
 }

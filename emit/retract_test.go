@@ -90,7 +90,7 @@ func TestARetractionIsRefusedWhereTheAlgebraFails(t *testing.T) {
 	for _, c := range []struct{ decl, want string }{
 		{`fn f(n ∈ Int) (result.Two(Int, error)) { host expr "f(${n})" }`, "exactly one"},
 		{`fn f(n ∈ Int) (result.Result(Int, Int)) { host expr "f(${n})" }`, "no niche"},
-		{`fn f(n ∈ Int) (other.Result(Int, error)) { host expr "f(${n})" }`, "no (use"},
+		{`fn f(n ∈ Int) (other.Result(Int, error)) { host expr "f(${n})" }`, "no `use`"},
 	} {
 		if _, err := retractTarget(t, c.decl); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: want a refusal mentioning %q, got %v", c.decl, c.want, err)

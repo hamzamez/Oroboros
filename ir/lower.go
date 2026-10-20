@@ -106,8 +106,8 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 		}
 		for j, r := range claims {
 			if !claimSorts(tg, f.Results[j], r) {
-				return nil, fmt.Errorf("%s: its signature declares result %s, and the body yields %s",
-					name, core.ShowType(r), core.ShowType(f.Results[j]))
+				return nil, fmt.Errorf("%s: its header declares result %s, and the body yields %s",
+					core.ShowName(name), core.ShowSet(r), core.ShowSet(f.Results[j]))
 			}
 		}
 		switch {

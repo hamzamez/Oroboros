@@ -46,7 +46,7 @@ func TestEveryOneValueTypeEntersTheEmptyInterface(t *testing.T) {
 		{`fn f(n ∈ 0..100, s ∈ go.bytestring, xs ∈ Array(0..255)) (Int) {
     gio.MultiWriter(7)
     0
-}`, false, "go/io.Writer is required here"},
+}`, false, "`go/io`.Writer is required here"},
 	} {
 		_, err := entryGo(t, head+c.body)
 		switch {

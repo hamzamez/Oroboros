@@ -91,12 +91,12 @@ func TestEveryPipelineDecidesItsObligations(t *testing.T) {
 		{"digit(k)", ""},
 		{"if n >= 0 { half(n) } else { 0 }", ""},
 		{"digit(7)", ""},
-		{"bits.Len32(n)", "go/math/bits.Len32's parameter x, declared (int 0 4294967295), requires"},
-		{"bits.Len32(-1)", "go/math/bits.Len32's parameter x is declared (int 0 4294967295), and a call passes -1"},
-		{"digit(n)", "digit's parameter x, declared (int 0 9), requires"},
-		{"digit(12)", "digit's parameter x is declared (int 0 9), and a call passes 12"},
-		{"half(n)", "half requires (>= n 0) at a call"},
-		{"half(-4)", "half's `where` is false at a call: (>= -4 0)"},
+		{"bits.Len32(n)", "`go/math/bits`.Len32's parameter x, declared in 0..2^32-1, requires"},
+		{"bits.Len32(-1)", "`go/math/bits`.Len32's parameter x is declared in 0..2^32-1, and a call passes -1"},
+		{"digit(n)", "digit's parameter x, declared in 0..9, requires"},
+		{"digit(12)", "digit's parameter x is declared in 0..9, and a call passes 12"},
+		{"half(n)", "half requires n >= 0 at a call"},
+		{"half(-4)", "half's `where` is false at a call: -4 >= 0"},
 	} {
 		src := hazardProgram(c.body)
 		_, viaEntry := entryGo(t, src)

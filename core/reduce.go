@@ -598,7 +598,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 				}
 				if m.Path == "" {
 					return fmt.Errorf(
-						"%s: a library file must declare (module %s) before its definitions", want, want)
+						"%s: a library file is the module its path names, `module %s { … }` (ADR 0064 item 1), and holds nothing outside it", want, want)
 				}
 				// A library file declares exactly the module its path names.
 				// Adding the extras made their visibility depend on LOAD ORDER:
@@ -616,12 +616,12 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 			}
 			switch {
 			case !declared && len(extra) == 1:
-				return fmt.Errorf("%s declares (module %s); a library file's module "+
-					"must be the path that imports it", want, extra[0])
+				return fmt.Errorf("%s holds `module %s`; a library file's module "+
+					"is the path that imports it (ADR 0064 item 1)", want, extra[0])
 			case !declared:
-				return fmt.Errorf("%s does not declare (module %s)", want, want)
+				return fmt.Errorf("%s holds no `module %s`", want, want)
 			case len(extra) > 0:
-				return fmt.Errorf("%s also declares (module %s); a library file declares "+
+				return fmt.Errorf("%s also holds `module %s`; a library file holds "+
 					"one module, and it is the one its path names — put %s in its own file, or its "+
 					"members are reachable only after something else has imported this one",
 					want, strings.Join(extra, ", "), extra[0])
@@ -696,8 +696,8 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 				switch f.Kind {
 				case "use":
 					if prev, dup := m.Uses[f.Alias]; dup && prev != f.Name {
-						return nil, nil, fmt.Errorf("a target's (provides … %s …) binds %s to %s, "+
-							"and the module binds it to %s", path, f.Alias, f.Name, prev)
+						return nil, nil, fmt.Errorf("a target's `provides … %s { … }` binds %s to %s, "+
+							"and the module binds it to %s", path, ShowName(f.Alias), f.Name, prev)
 					}
 					m.Uses[f.Alias] = f.Name
 				case "def":
@@ -722,8 +722,8 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 					}
 					borrows[qualify(path, f.Name)] = d
 				default:
-					return nil, nil, fmt.Errorf("a target's (provides … %s …) may hold (use …) and "+
-						"(def …); got a %s", path, f.Kind)
+					return nil, nil, fmt.Errorf("a target's `provides … %s { … }` may hold `use` and "+
+						"definitions; got a %s", path, f.Kind)
 				}
 			}
 		}
@@ -759,8 +759,8 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		}
 		if len(noDef) > 0 {
 			sort.Strings(noDef)
-			return nil, nil, fmt.Errorf("%s declares (sig %s …) but does not define %s",
-				modLabel(m.Path), noDef[0], strings.Join(noDef, ", "))
+			return nil, nil, fmt.Errorf("%s states a header for %s but gives no body: %s",
+				modLabel(m.Path), ShowName(noDef[0]), strings.Join(ShowNames(noDef), ", "))
 		}
 	}
 
@@ -778,10 +778,10 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		for _, sum := range m.Sums {
 			k := sumKey(m.Path, sum)
 			if _, own := langSums[k]; own {
-				return nil, nil, fmt.Errorf("%s declares (variant %s …), which is the language's "+
+				return nil, nil, fmt.Errorf("%s declares the variant %s, which is the language's "+
 					"own. The main module's names are unqualified, like the language's, so they "+
-					"would be one name; declare it in a (module …), where it shadows the "+
-					"language's", modLabel(m.Path), sum.Name)
+					"would be one name; declare it in a `module … { … }`, where it shadows the "+
+					"language's", modLabel(m.Path), ShowSet(sum.Name))
 			}
 			sums[k] = sum
 		}
@@ -822,9 +822,9 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		for n, sig := range m.Sigs {
 			for _, ty := range sigTypes(sig) {
 				if def, ok := m.definitionNamed(ty, byPath); ok {
-					return nil, nil, fmt.Errorf("%s: its signature names %s, a definition, as a set; "+
+					return nil, nil, fmt.Errorf("%s: its header names %s, a definition, as a set; "+
 						"a program cannot yet name its own set (spec/typevalues.md §1, step 2 of §10), "+
-						"so write the set where it is used, as (int 0 255)", qualify(m.Path, n), def)
+						"so write the set where it is used, as 0..255", ShowName(qualify(m.Path, n)), ShowName(def))
 				}
 			}
 		}
@@ -889,8 +889,8 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 			if _, own := langDefs[q]; own {
 				return nil, nil, fmt.Errorf("%s defines %s, which is the language's own. The main "+
 					"module's names are unqualified, like the language's, so they would be one "+
-					"name; define it in a (module …), where it shadows the language's",
-					modLabel(m.Path), q)
+					"name; define it in a `module … { … }`, where it shadows the language's",
+					modLabel(m.Path), ShowName(q))
 			}
 			if _, dup := p.Defs[q]; dup {
 				return nil, nil, fmt.Errorf("%s is defined twice", q)
@@ -926,7 +926,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// trailing arguments become the list. Every definition and every entry term.
 	for _, m := range mods {
 		if _, ok := m.Defs[SpreadName]; ok {
-			return nil, nil, fmt.Errorf("%s defines %s, which is the language's: (spread xs) passes a "+
+			return nil, nil, fmt.Errorf("%s defines %s, which is the language's: `f(xs...)` passes a "+
 				"table as a variadic call's arguments (spec/variadic.md)", modLabel(m.Path), SpreadName)
 		}
 	}
@@ -1007,11 +1007,11 @@ func variadicCalls(t *Term, v map[string]int, mayspread bool) (*Term, error) {
 	}
 	if isSpread(t) {
 		if !mayspread {
-			return nil, fmt.Errorf("%s: (spread xs) passes a table as a variadic call's list, and stands "+
-				"only as that call's argument after its fixed ones (spec/variadic.md)", t)
+			return nil, fmt.Errorf("%s: `xs...` passes a table as a variadic call's list, and stands "+
+				"only as that call's argument after its fixed ones (spec/variadic.md)", ShowTerm(t))
 		}
 		if len(t.Kids) != 2 {
-			return nil, fmt.Errorf("%s: spread takes one table", t)
+			return nil, fmt.Errorf("%s: `xs...` spreads one table", ShowTerm(t))
 		}
 		return variadicCalls(t.Kids[1], v, false)
 	}
@@ -1036,7 +1036,7 @@ func variadicCalls(t *Term, v map[string]int, mayspread bool) (*Term, error) {
 	}
 	name, args := t.Kids[0].Name, t.Kids[1:]
 	if len(args) < k {
-		return nil, fmt.Errorf("%s takes %d argument(s) before its list, and is given %d", name, k, len(args))
+		return nil, fmt.Errorf("%s takes %d argument(s) before its list, and is given %d", ShowName(name), k, len(args))
 	}
 	kids := []*Term{t.Kids[0]}
 	for _, a := range args[:k] {
@@ -1057,8 +1057,8 @@ func variadicCalls(t *Term, v map[string]int, mayspread bool) (*Term, error) {
 	word := []*Term{Name("array")}
 	for _, a := range rest {
 		if isSpread(a) {
-			return nil, fmt.Errorf("%s: (spread xs) is the whole list of %s, so it stands alone after "+
-				"the fixed arguments (spec/variadic.md)", t, name)
+			return nil, fmt.Errorf("%s: `xs...` is the whole list of %s, so it stands alone after "+
+				"the fixed arguments (spec/variadic.md)", ShowTerm(t), ShowName(name))
 		}
 		x, err := variadicCalls(a, v, false)
 		if err != nil {
@@ -1140,8 +1140,8 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 		case "use":
 			if prev, ok := cur.Uses[f.Alias]; ok && prev != f.Name {
 				return nil, nil, fmt.Errorf("%s binds %s to both %s and %s — "+
-					"give one of them a different (use … as …) alias",
-					modLabel(cur.Path), f.Alias, prev, f.Name)
+					"give one of them a different alias, `use … as …`",
+					modLabel(cur.Path), ShowName(f.Alias), prev, f.Name)
 			}
 			cur.Uses[f.Alias] = f.Name
 		case "sig":
@@ -1210,8 +1210,8 @@ func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term,
 				// resolved to itself and worked with no import at all, which
 				// is precisely the "meaning depends on what is in scope"
 				// that qualified imports exist to prevent (modules.md §3).
-				return nil, fmt.Errorf("%s is not imported: add (use %s) or (use PATH as %s)",
-					alias, alias, alias)
+				return nil, fmt.Errorf("%s is not imported: add `use %s` or `use PATH as %s`",
+					ShowName(alias), alias, ShowName(alias))
 			}
 			if err := checkExported(mods, path, rest); err != nil {
 				return nil, err
@@ -1286,7 +1286,7 @@ func (m *Module) constructor(sp string, byPath map[string]*Module, mods []*Modul
 		}
 	}
 	return ctorRef{}, fmt.Errorf("case: %s is not a constructor of any variant type in scope. "+
-		"A variant type is declared with (variant NAME (constructor type) …)", sp)
+		"A variant type is declared `set S = 'c(T) ∪ …` (ADR 0064 item 7)", tagJ(sp))
 }
 
 // instance resolves a result type that may be a variant type INSTANCE: a bare
@@ -1302,7 +1302,7 @@ func (m *Module) instance(q, ty string, byPath map[string]*Module) (*sumRef, err
 	switch {
 	case !ok && applied:
 		return nil, fmt.Errorf("%s returns %s, but %s is not a parameterised variant type in "+
-			"scope. Several results are (tuple A B …) (spec/data.md §10)", q, ty, head)
+			"scope. Several results are a product, A × B (spec/data.md §10)", ShowName(q), ShowSet(ty), ShowSet(head))
 	case !ok:
 		return nil, nil
 	case len(args) != len(ref.sum.Params) && !applied:
@@ -1386,8 +1386,8 @@ func (m *Module) scope(sp string, byPath map[string]*Module) (*Module, string, e
 	alias, local := sp[:i], sp[i+1:]
 	path, ok := m.Uses[alias]
 	if !ok {
-		return nil, "", fmt.Errorf("%s is not imported: add (use %s) or (use PATH as %s)",
-			alias, alias, alias)
+		return nil, "", fmt.Errorf("%s is not imported: add `use %s` or `use PATH as %s`",
+			ShowName(alias), alias, ShowName(alias))
 	}
 	if byPath[path] == nil {
 		return nil, "", fmt.Errorf("%s names module %s, which has no source, so it declares "+
@@ -1414,10 +1414,9 @@ func checkExported(mods []*Module, path, name string) error {
 		}
 		if !m.Exports[name] {
 			if _, defined := m.Defs[name]; defined {
-				return fmt.Errorf("module %s defines %s but does not export it; "+
-					"add it to that module's (export …)", path, name)
+				return fmt.Errorf("module %s defines %s but hides it (`private`, ADR 0064 item 4)", path, ShowName(name))
 			}
-			return fmt.Errorf("module %s has no member %s", path, name)
+			return fmt.Errorf("module %s has no member %s", path, ShowName(name))
 		}
 		return nil
 	}
@@ -1490,8 +1489,8 @@ func (e *Env) CheckDefs() error {
 		}
 		return fmt.Errorf("the body of %s is a computation, not a value, "+
 			"so unfolding it would repeat its effects\n"+
-			"  Give it an empty parameter list — (def %s () …) — and apply it,\n"+
-			"  or bind it with let at the point of use.", name, name)
+			"  Give it an empty parameter list — fn %s() { … } — and apply it,\n"+
+			"  or bind it in a block at the point of use.", ShowName(name), ShowName(name))
 	}
 	return nil
 }
@@ -1771,7 +1770,7 @@ func (a *ArityError) Error() string {
 	// The term is printed LAST and introduced as context, because reclose may
 	// have wrapped the offending function in its enclosing binders — which is
 	// what supplies the names. "%s expects N" would then name the wrong λ.
-	return fmt.Sprintf("arity: expects %d argument(s), given %d, in: %s", a.Want, a.Given, a.Fn)
+	return fmt.Sprintf("arity: expects %d argument(s), given %d, in: %s", a.Want, a.Given, ShowTerm(a.Fn))
 }
 
 func (a *ArityError) reclose(params []string) error {
@@ -1968,7 +1967,7 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 					"a function and may run it any number of times, or later, so the cell's order "+
 					"would not be the program's. A cell may be read and written in the scope, a case "+
 					"arm, a loop and the elimination of a value; callbacks over a scope's cells are "+
-					"tier 1, not built (spec/local.md §3)", op.Kids[1])
+					"tier 1, not built (spec/local.md §3)", ShowTerm(op.Kids[1]))
 			}
 			return normalize(&Term{Kind: KApp, Kids: append([]*Term{op.Kids[1]}, args...)}, e, fuel)
 		}
@@ -2921,7 +2920,7 @@ func (e *Env) CheckProgram(terms []*Term) error {
 
 func (e *Env) checkScope(terms []*Term) error {
 	for _, name := range sortedKeys(e.Defs) {
-		if err := e.scope(e.Defs[name], map[string]bool{}, "in "+name); err != nil {
+		if err := e.scope(e.Defs[name], map[string]bool{}, "in "+ShowName(name)); err != nil {
 			return err
 		}
 	}
@@ -2948,7 +2947,7 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 			return nil
 		}
 		return fmt.Errorf("%s: %s is not bound — it is not a parameter, not a definition, "+
-			"and not a primitive on this target%s", where, t.Name, e.importHint(t.Name))
+			"and not a primitive on this target%s", where, ShowName(t.Name), e.importHint(t.Name))
 	case KFn:
 		inner := make(map[string]bool, len(bound)+len(t.Params))
 		for k := range bound {
@@ -3064,7 +3063,7 @@ func (e *Env) importHint(name string) string {
 			return "" // the target does provide this module, just not this member
 		}
 	}
-	return fmt.Sprintf("\n  (use %s) matched no file on the search path and this target "+
+	return fmt.Sprintf("\n  `use %s` matched no file on the search path and this target "+
 		"provides no module %s either, so every name from it is unbound. Check the path.",
 		path, path)
 }
@@ -3597,20 +3596,20 @@ func relevanceError(p string, arg *Term) error {
 	// A call is named by what the program called; a value that reached the
 	// binder already reduced (a conversion's `if`, a tuple's component) by
 	// the binder it reached.
-	what := "the value bound to " + p
+	what := "the value bound to " + ShowName(p)
 	if strings.HasPrefix(p, "#_") {
 		what = "a value"
 	}
 	if h := head(arg); arg.Kind == KApp && arg.Op().Kind == KName && !strings.HasPrefix(h, "#") &&
 		h != "if" && h != "let" && h != "loop" && h != "build" && h != "build-map" {
-		what = "the result of " + h
+		what = "the result of " + ShowName(h)
 	}
-	how := "the binder " + p + " is not used on every path"
+	how := "the binder " + ShowName(p) + " is not used on every path"
 	if strings.HasPrefix(p, "#_") {
 		how = "it is discarded"
 	}
 	return fmt.Errorf("%s is a value of a relevant type (spec/errors.md §7), and %s: use it, or "+
-		"discard it with (ignore …)", what, how)
+		"discard it with ignore(…)", what, how)
 }
 
 // normalizeLater builds the application case-of-case pushes into one branch.
@@ -3799,7 +3798,7 @@ func (e *Env) instantiate(f string, args []*Term, fuel *int) (*Term, []*Term, bo
 				return nil, nil, false, nil // a variable: not decided yet
 			}
 			return nil, nil, false, fmt.Errorf("%s's static argument %d is %s, which is not a set; a "+
-				"declaration over sets is applied to types (spec/typevalues.md §5)", declared(f), i+1, a)
+				"declaration over sets is applied to types (spec/typevalues.md §5)", ShowName(declared(f)), i+1, ShowTerm(a))
 		}
 		sets[i] = a.Name
 	}

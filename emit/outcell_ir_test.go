@@ -99,13 +99,13 @@ func TestACellParameterTakesACell(t *testing.T) {
     (n, e) = fmt.Sscan(s, 5)
     ignore(e)
     n
-}`, "takes a cell in scope or (out τ)"},
+}`, "takes a cell in scope or `out S`"},
 		{`fn f(s ∈ go.bytestring) (Int) {
     y = 5
     (n, e) = fmt.Sscan(s, y)
     ignore(e)
     n
-}`, "takes a cell in scope or (out τ)"},
+}`, "takes a cell in scope or `out S`"},
 		{`fn f(s ∈ go.bytestring) (Int) {
     (n, e) = fmt.Sscan(s, out Int)
     ignore(e)

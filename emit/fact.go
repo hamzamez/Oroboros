@@ -78,12 +78,12 @@ func admitFact(t *core.Term) (*Fact, error) {
 	}
 	if formWord(t) != "fact" || len(t.Kids) < 4 || len(t.Kids) > 5 ||
 		t.Kids[1].Kind != core.KName || t.Kids[2].Kind != core.KApp {
-		return nil, fmt.Errorf("(fact NAME ((x τ)…) [(when φ…)] φ), got %s", t)
+		return nil, fmt.Errorf("`fact NAME (x ∈ S, …) [when(φ, …)] φ`, got %s", t)
 	}
 	f := &Fact{Name: t.Kids[1].Name, Params: map[string]bool{}}
 	for _, p := range t.Kids[2].Kids {
 		if p.Kind != core.KApp || len(p.Kids) != 2 || p.Kids[0].Kind != core.KName {
-			return nil, fmt.Errorf("fact %s: a parameter is (x τ), got %s", f.Name, p)
+			return nil, fmt.Errorf("fact %s: a parameter is `x ∈ S`, got %s", core.ShowName(f.Name), p)
 		}
 		switch ty := core.TypeName(p.Kids[1]); {
 		case ty == "f64":
@@ -96,7 +96,7 @@ func admitFact(t *core.Term) (*Fact, error) {
 	}
 	if len(t.Kids) == 5 {
 		if formWord(t.Kids[3]) != "when" {
-			return nil, fmt.Errorf("fact %s: guards are (when φ…), got %s", f.Name, t.Kids[3])
+			return nil, fmt.Errorf("fact %s: guards are `when(φ, …)`, got %s", core.ShowName(f.Name), t.Kids[3])
 		}
 		f.Guards = t.Kids[3].Kids[1:]
 	}
@@ -148,7 +148,7 @@ func admitFact(t *core.Term) (*Fact, error) {
 	for p := range f.Params {
 		if !occursName(f.Trigger, p) {
 			return nil, fmt.Errorf("fact %s: condition 3 — parameter %s does not occur in the trigger "+
-				"%s, so an instance is not determined by a term already present", f.Name, p, f.Trigger)
+				"%s, so an instance is not determined by a term already present", core.ShowName(f.Name), core.ShowName(p), core.ShowTerm(f.Trigger))
 		}
 	}
 	// Condition 4: linear once the trigger is READ AS AN ATOM — replaced by one —
@@ -164,7 +164,7 @@ func admitFact(t *core.Term) (*Fact, error) {
 	for _, g := range append([]*core.Term{f.Concl}, f.Guards...) {
 		if _, ok := obligation(core.Rename2(substTerm(g, f.Trigger, core.Name(atomName)), probe)); !ok {
 			return nil, fmt.Errorf("fact %s: condition 4 — %s is not linear once %s is an atom",
-				f.Name, g, f.Trigger)
+				core.ShowName(f.Name), core.ShowTerm(g), core.ShowTerm(f.Trigger))
 		}
 	}
 	return f, nil

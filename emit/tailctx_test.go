@@ -51,7 +51,7 @@ export fn f(t ∈ Array(Int)) (Int) {
         else -> { (s, c) = b.Add64(5, 6, 0); again(v - 1, c == 0) }
     }
 }`
-	if err := refineGo(t, falling); err == nil || !strings.Contains(err.Error(), "(<= 0 v)") {
+	if err := refineGo(t, falling); err == nil || !strings.Contains(err.Error(), "0 <= v") {
 		t.Errorf("v falls, so the index must be refused on 0 <= v; got %v", err)
 	}
 	rising := strings.Replace(falling, "again(v - 1", "again(v + 1", 1)

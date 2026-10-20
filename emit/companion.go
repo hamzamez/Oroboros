@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"oroboros/core"
 )
 
 // COMPANIONS, `include`, AND WHY AN EDGE IS DERIVED RATHER THAN DECLARED
@@ -75,7 +77,7 @@ func (tg *Target) expandCompanions() error {
 		}
 		ty, ok := typeOfCompanion(mod)
 		if !ok || tg.Types[ty] == "" {
-			return fmt.Errorf("(include …) in module %s, which is not a companion: it names no type %s "+
+			return fmt.Errorf("`include …` in module %s, which is not a companion: it names no type %s "+
 				"declared by its parent (theories.md §3.3)", mod, ty)
 		}
 		for _, inc := range tg.Includes[mod] {
@@ -179,9 +181,9 @@ func (tg *Target) checkViews() error {
 					got, have = tg.Prims[RawName(subComp+"."+local)]
 				}
 				if !have {
-					return fmt.Errorf("(implements %s %s) is false: %s declares %s and %s does not "+
+					return fmt.Errorf("`axiom %s ⊆ %s` is false: %s declares %s and %s does not "+
 						"(theories.md §6.1). An edge is a view, and a view is checked",
-						sub, iface, iface, local, sub)
+						core.ShowSet(sub), core.ShowSet(iface), core.ShowSet(iface), core.ShowName(local), core.ShowSet(sub))
 				}
 				want, ok := tg.Prims[m]
 				if !ok {
@@ -212,8 +214,8 @@ func sameSlice(a, b string) bool {
 // the receiver, which is the one argument the two are REQUIRED to differ in.
 func (tg *Target) viewAgrees(sub, iface, local string, want, got Prim) error {
 	if len(want.Args) != len(got.Args) {
-		return fmt.Errorf("(implements %s %s): %s takes %d argument(s) on %s and %d on %s",
-			sub, iface, local, len(want.Args), iface, len(got.Args), sub)
+		return fmt.Errorf("`axiom %s ⊆ %s`: %s takes %d argument(s) on %s and %d on %s",
+			core.ShowSet(sub), core.ShowSet(iface), core.ShowName(local), len(want.Args), core.ShowSet(iface), len(got.Args), core.ShowSet(sub))
 	}
 	for i := range want.Args {
 		if i == 0 {
@@ -221,13 +223,13 @@ func (tg *Target) viewAgrees(sub, iface, local string, want, got Prim) error {
 		}
 		if !compatible(tg, want.Args[i], got.Args[i]) && !tg.SameHostType(want.Args[i], got.Args[i]) &&
 			!sameSlice(want.Args[i], got.Args[i]) {
-			return fmt.Errorf("(implements %s %s): %s's argument %d is %q on %s and %q on %s",
-				sub, iface, local, i+1, want.Args[i], iface, got.Args[i], sub)
+			return fmt.Errorf("`axiom %s ⊆ %s`: %s's argument %d is %s on %s and %s on %s",
+				core.ShowSet(sub), core.ShowSet(iface), core.ShowName(local), i+1, core.ShowSet(want.Args[i]), core.ShowSet(iface), core.ShowSet(got.Args[i]), core.ShowSet(sub))
 		}
 	}
 	if !compatible(tg, want.Result, got.Result) && !tg.SameHostType(want.Result, got.Result) {
-		return fmt.Errorf("(implements %s %s): %s returns %q on %s and %q on %s",
-			sub, iface, local, want.Result, iface, got.Result, sub)
+		return fmt.Errorf("`axiom %s ⊆ %s`: %s returns %s on %s and %s on %s",
+			core.ShowSet(sub), core.ShowSet(iface), core.ShowName(local), core.ShowSet(want.Result), core.ShowSet(iface), core.ShowSet(got.Result), core.ShowSet(sub))
 	}
 	// AND SEVERAL RESULTS, which were never compared: a fallible method's raw
 	// call has two or more, and a view compares the host's methods. A
@@ -236,13 +238,13 @@ func (tg *Target) viewAgrees(sub, iface, local string, want, got Prim) error {
 	// compared: R on both sides.
 	wr, gr := hostResults(want), hostResults(got)
 	if len(wr) != len(gr) {
-		return fmt.Errorf("(implements %s %s): %s returns %d results on %s and %d on %s",
-			sub, iface, local, len(wr), iface, len(gr), sub)
+		return fmt.Errorf("`axiom %s ⊆ %s`: %s returns %d results on %s and %d on %s",
+			core.ShowSet(sub), core.ShowSet(iface), core.ShowName(local), len(wr), core.ShowSet(iface), len(gr), core.ShowSet(sub))
 	}
 	for i := range wr {
 		if !compatible(tg, wr[i], gr[i]) && !tg.SameHostType(wr[i], gr[i]) && !sameSlice(wr[i], gr[i]) {
-			return fmt.Errorf("(implements %s %s): %s's result %d is %q on %s and %q on %s",
-				sub, iface, local, i+1, wr[i], iface, gr[i], sub)
+			return fmt.Errorf("`axiom %s ⊆ %s`: %s's result %d is %s on %s and %s on %s",
+				core.ShowSet(sub), core.ShowSet(iface), core.ShowName(local), i+1, core.ShowSet(wr[i]), core.ShowSet(iface), core.ShowSet(gr[i]), core.ShowSet(sub))
 		}
 	}
 	return nil

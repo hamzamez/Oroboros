@@ -177,8 +177,11 @@ threaded spelling left. **Step 5: the corpus is J**: all 223 `.oro` files, progr
 J, still `.oro`; a file is the module named by its path under a library directory, else the root. **Step
 5b is done**: the tests and generators are J and today's reader is deleted; the J reader's faults the move
 found are fixed (NFC and bidi, a λ's parameters, a quoted name, an x86 hole past nine; jswitch5b §2).
-Left by it: the loader's messages still quote today's notation, and the specs' examples are rewritten in
-J as each is next touched (hamza's option (b)). Next: 0062's logic, 0066's inference and 0053's arrow,
+**The compiler's messages quote J** ([jmsg-2026-10-20](gauntlet/results/jmsg-2026-10-20.md),
+`core/jshow.go`, spec/j.md §6.1): a name by σ_J, a set by J's formers, a core term by J's expressions,
+the inverse of D, with parse_J(show_J(t)) = t on every corpus definition; the prover's fact log after
+`known:` stays the linear fragment's notation. The specs' examples are rewritten in J as each is next
+touched (hamza's option (b)). Next: 0062's logic, 0066's inference and 0053's arrow,
 each when a program needs it.
 
 **The compiler.**
@@ -1212,7 +1215,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 
 | | |
 |---|---|
-| `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`, σ_J in `jspell`) and the raw reader of the IR's text and core terms (`raw`); abstract Oroboros's trees (`abs`, `decl`) and D into the core term (`desugar`, `forms`); terms, β/δ reducer, module loading, variants, hygiene; the state translation S for cells and, in program order, buffers (`cell`, `place`: the borrow, R0–R4) |
+| `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`, σ_J in `jspell`), J's rendering of what a message quotes (`jshow`), and the raw reader of the IR's text and core terms (`raw`); abstract Oroboros's trees (`abs`, `decl`) and D into the core term (`desugar`, `forms`); terms, β/δ reducer, module loading, variants, hygiene; the state translation S for cells and, in program order, buffers (`cell`, `place`: the borrow, R0–R4) |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
 | `presburger/` | The Omega test (Pugh 1991): satisfiability of linear constraints over ℤ, complete, overflow and budget reported as unknown; ADR 0049's first own decision procedure, a soundness witness for the refinement layer's entailment today (presburger-2026-10-11) |
 | `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`; a declaration's tree, `hostdef`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |

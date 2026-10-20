@@ -65,8 +65,8 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 	if Typed(tg) {
 		for i, x := range f.Params {
 			if f.Types[x] == "any" {
-				return fmt.Errorf("cannot determine a type for parameter %d: no signature declares it, "+
-					"and it is never passed to an operation or a primitive whose signature would fix it", i+1)
+				return fmt.Errorf("cannot determine a type for parameter %d: no header declares it, "+
+					"and it is never passed to an operation or a primitive whose header would fix it", i+1)
 			}
 		}
 	}
@@ -394,12 +394,12 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 			}
 		})
 		if bad != nil {
-			return fmt.Errorf("a literal table's element %d lies outside its declared element (int %d %d), "+
-				"which decides at a boundary (literal-elements.md)", bad.Int, dlo, dhi)
+			return fmt.Errorf("a literal table's element %d lies outside its declared element %s, "+
+				"which decides at a boundary (literal-elements.md)", bad.Int, core.ShowSet(fmt.Sprintf("int %d %d", dlo, dhi)))
 		}
-		return fmt.Errorf("a table takes the declared element (int %d %d), but its elements are only known "+
+		return fmt.Errorf("a table takes the declared element %s, but its elements are only known "+
 			"to lie in %s: the declaration's premise is an obligation, and nothing discharges it "+
-			"(literal-elements.md, refinements.md §3a)", dlo, dhi, show(rng))
+			"(literal-elements.md, refinements.md §3a)", core.ShowSet(fmt.Sprintf("int %d %d", dlo, dhi)), show(rng))
 	}
 	// Write the class's representation onto every member, keeping whether each
 	// is a buffer.

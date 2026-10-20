@@ -219,7 +219,7 @@ fn t(j) {
 // assigned a field, so a second one replaced the first and a precondition the
 // author wrote vanished without a word — the conjunction is spelled `(and …)`.
 func TestARepeatedWhereOrEnsuresIsRefused(t *testing.T) {
-	for clause, claim := range map[string]string{"where": "where 0 <= n where n <= 9", "ensures": "ensure 0 <= r ensure r <= 9"} {
+	for clause, claim := range map[string]string{"where": "where 0 <= n where n <= 9", "ensure": "ensure 0 <= r ensure r <= 9"} {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "t.oro")
 		src := "set Int = host \"int\"\nmodule tgt {\n    fn f(n ∈ Int) (r ∈ Int) pure " + claim + " { host expr \"f(${n})\" }\n}\n"

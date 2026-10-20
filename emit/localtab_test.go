@@ -36,7 +36,7 @@ func TestALengthNamesNoBinderOfItsValue(t *testing.T) {
 			"    dst = { var d := array { 7 : _ ∈ 0..n+5-1 }; d }\n" +
 			"    if k < len(" + guard + ") { src[k] } else { 0 }\n}"
 	}
-	if err := refineGo(t, prog("dst")); err == nil || !strings.Contains(err.Error(), "(src k) is an indexing") {
+	if err := refineGo(t, prog("dst")); err == nil || !strings.Contains(err.Error(), "src[k] is an indexing") {
 		t.Errorf("k < len dst = n + 5 does not bound a read of src, n + 1 long: %v", err)
 	}
 	if err := refineGo(t, prog("src")); err != nil {

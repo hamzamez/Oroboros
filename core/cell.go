@@ -131,7 +131,7 @@ func noShadow(t *Term, x string) error {
 		for _, p := range t.Params {
 			if p == x {
 				return fmt.Errorf("a binder named %s hides the cell %s in its scope; rename one "+
-					"(spec/local.md §3)", x, x)
+					"(spec/local.md §3)", ShowName(x), ShowName(x))
 			}
 		}
 		return noShadow(t.Kids[0], x)
@@ -355,7 +355,7 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		lam := args[1]
 		y := lam.Params[0]
 		if initial := args[0]; initial.Kind == KFn {
-			return nil, fmt.Errorf("cell %s holds a function: a cell holds a value (spec/local.md §3)", y)
+			return nil, fmt.Errorf("cell %s holds a function: a cell holds a value (spec/local.md §3)", ShowName(y))
 		}
 		body := lam.Body()
 		if err := noShadow(body, y); err != nil {
@@ -444,8 +444,8 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		!(len(args) == 3 && c.places[args[0].Name]) {
 		x := args[0].Name
 		if len(args) != 2 {
-			return nil, fmt.Errorf("%s is a cell, written (set %s v); (set b i v) stores into a "+
-				"buffer, which a table initializer makes (spec/local.md §1)", x, x)
+			return nil, fmt.Errorf("%s is a cell, written `%s := v`; `b[i] := v` stores into a "+
+				"buffer, which a table initializer makes (spec/local.md §1)", ShowName(x), ShowName(x))
 		}
 		// AN ELEMENT WRITE puts the store in its place's slot of the state, a
 		// tuple's component, evaluated where the tuple is taken apart: the
@@ -883,5 +883,5 @@ func (c *cellTr) closure(lam *Term) error {
 	return fmt.Errorf("a function that mentions a cell (%s): %s may run any number of times, or "+
 		"later, so the cell's order would not be the program's. A cell may be read and written in "+
 		"the scope, a case arm, a loop and a host call's continuation; callbacks over a scope's "+
-		"cells are tier 1, not built (spec/local.md §3)", strings.Join(c.xs, ", "), lam)
+		"cells are tier 1, not built (spec/local.md §3)", strings.Join(ShowNames(c.xs), ", "), ShowTerm(lam))
 }

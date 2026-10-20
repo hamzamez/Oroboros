@@ -44,8 +44,8 @@ export fn add(out ∈ Array(F64) linear, a ∈ Array(F64), b ∈ Array(F64)) (bu
 		if c.ok && err != nil {
 			t.Errorf("%s: %v", c.where, err)
 		}
-		if !c.ok && (err == nil || !strings.Contains(err.Error(), "(b i) is an indexing")) {
-			t.Errorf("%s: want (b i) refused, got %v", c.where, err)
+		if !c.ok && (err == nil || !strings.Contains(err.Error(), "b[i] is an indexing")) {
+			t.Errorf("%s: want b[i] refused, got %v", c.where, err)
 		}
 	}
 }

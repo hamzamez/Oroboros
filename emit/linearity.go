@@ -219,16 +219,16 @@ func (c *linChecker) storeTarget(p Prim, args []*core.Term, env, taken map[strin
 	if (p.Kind != "table-set" && p.Kind != "map-insert") || len(args) == 0 || c.isBuf(args[0], env, taken) {
 		return nil
 	}
-	what, scope := "table", "`(local b (table n 0) …)`"
+	what, scope := "table", "`var b := array { 0 : _ ∈ 0..n-1 }`"
 	if p.Kind == "map-insert" {
-		what, scope = "map", "`(build-map m cap …)`"
+		what, scope = "map", "`var m := map(cap)`"
 	}
-	return fmt.Errorf("%s stores into %s, which is a frozen %s, not a buffer.\n"+
+	return fmt.Errorf("a store writes into %s, which is a frozen %s, not a buffer.\n"+
 		"  A store writes a LIVE buffer, one a scope such as %s is still filling. A frozen\n"+
 		"  %s is immutable (ADR 0018), and every other name that shares it would see the\n"+
 		"  write (tables.md §2.5, S). For a changed copy, copy the %s into a new buffer and\n"+
-		"  store there: a buffer initialized from a table, (local c (table (len t) t) …)\n"+
-		"  (spec/local.md §1).", p.Name, args[0], what, scope, what, what)
+		"  store there: a buffer initialized from a table, `var c := array { t[k] : k ∈ 0..len(t)-1 }`\n"+
+		"  (spec/local.md §1).", core.ShowTerm(args[0]), what, scope, what, what)
 }
 
 // bufferArgs refuses a value that is not a buffer where a primitive declares a
@@ -244,12 +244,12 @@ func (c *linChecker) bufferArgs(p Prim, args []*core.Term, env, taken map[string
 		if i >= len(p.Args) || !core.IsBuffer(p.Args[i]) || c.isBuf(a, env, taken) {
 			continue
 		}
-		return fmt.Errorf("argument %d of %s, %s, is not a buffer, and %s declares it `(%s)`.\n"+
+		return fmt.Errorf("argument %d of %s, %s, is not a buffer, and %s declares it %s.\n"+
 			"  A parameter declared a buffer is one the host may WRITE, so it takes a linear\n"+
 			"  buffer and nothing else: an immutable array handed to it would be written\n"+
 			"  under every other name that shares it (ADR 0018, docs/host-buffers.md §4).\n"+
-			"  Build the bytes inside `build`, or copy the array into one there first.",
-			i+1, p.Name, a, p.Name, p.Args[i])
+			"  Build the bytes in a buffer, `var b := array { … }`, or copy the array into one first.",
+			i+1, core.ShowName(spelled(p.Name)), core.ShowTerm(a), core.ShowName(spelled(p.Name)), core.ShowSet(p.Args[i]))
 	}
 	return nil
 }
@@ -481,13 +481,13 @@ func (c *linChecker) dead(name, how string, st *linState) error {
 			"  it was handed to (docs/host-buffers.md)."
 	}
 	if st.declared {
-		where = "A parameter declared `(buffer V)` is linear through the body\n" +
+		where = "A parameter declared `linear` is linear through the body\n" +
 			"  (ADR 0020): the caller guarantees nobody else holds it, and in exchange\n" +
 			"  the body must thread it and hand it back."
 	}
 	return fmt.Errorf("the buffer %s is %s after it has already been handed on.\n"+
-		"  `(set b i v)` CONSUMES b and returns it, so the value to carry forward is\n"+
-		"  the one `set` gave back — the old name is dead. %s\n"+
+		"  A store, threaded (spec/local.md §2.1), CONSUMES b and returns it, so the value\n"+
+		"  to carry forward is the one the store gave back — the old name is dead. %s\n"+
 		"  Reading a buffer is fine and does not consume it; using it after a store\n"+
-		"  or after passing it on is not.", name, how, where)
+		"  or after passing it on is not.", core.ShowName(name), how, where)
 }

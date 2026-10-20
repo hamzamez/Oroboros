@@ -49,7 +49,7 @@ func TestADivisionWithoutItsPreconditionStillRefuses(t *testing.T) {
 		src := "use go\nexport fn q(a ∈ Int, b ∈ Int) (Int) where " + w + " { go.`/`(a, b) }\n"
 		if err := refineDivision(t, src); err == nil {
 			t.Errorf("%s discharged a division it does not justify", w)
-		} else if !strings.Contains(err.Error(), "!= b 0") {
+		} else if !strings.Contains(err.Error(), "b != 0") {
 			t.Errorf("%s was refused for the wrong reason: %v", w, err)
 		}
 	}

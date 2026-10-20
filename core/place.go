@@ -261,7 +261,7 @@ func (c *cellTr) translateBorrow(call *Term, d BorrowDecl, k *Term, inLoop bool,
 	if k != nil {
 		if len(k.Params) != d.Results {
 			return nil, fmt.Errorf("%s hands back its buffer, and its result has %d component(s); the λ it "+
-				"is applied to takes %d (spec/local.md §2.1)", call, d.Results, len(k.Params))
+				"is applied to takes %d (spec/local.md §2.1)", ShowTerm(call), d.Results, len(k.Params))
 		}
 		for _, p := range k.Params {
 			c.locals[p] = true
@@ -342,13 +342,13 @@ func (pc *placeCheck) is(t *Term) bool { return t.Kind == KName && t.Name == pc.
 
 func (pc *placeCheck) refuse(rule, what string, t *Term) error {
 	return fmt.Errorf("%s: the buffer %s %s (%s; spec/local.md §2.1, ADR 0052): %s",
-		rule, pc.b, what, map[string]string{
+		rule, ShowName(pc.b), what, map[string]string{
 			"R0": "a buffer's value is fresh",
 			"R1": "a buffer is named only by its binder",
 			"R2": "a call borrows a buffer once",
 			"R3": "no closure over a buffer",
 			"R4": "the scope's value freezes the buffer, and a borrowed one is the caller's",
-		}[rule], t)
+		}[rule], ShowTerm(t))
 }
 
 // walk checks every occurrence of b in t; tail says t is a tail of the scope's

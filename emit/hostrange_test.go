@@ -14,17 +14,17 @@ func TestAHostParametersRangeIsAnObligation(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
 		{`use go/math/bits
 export fn f(x ∈ Int) (Int) { bits.Len32(x) }`,
-			"go/math/bits.Len32's parameter x, declared (int 0 4294967295), requires"},
+			"`go/math/bits`.Len32's parameter x, declared in 0..2^32-1, requires"},
 		{`use go/math/bits
 export fn f() (Int) { bits.Len32(-1) }`,
-			"go/math/bits.Len32's parameter x is declared (int 0 4294967295), and a call passes -1"},
+			"`go/math/bits`.Len32's parameter x is declared in 0..2^32-1, and a call passes -1"},
 		{`use go
 use go/os
 use result
 export fn f(d ∈ Array(0..255)) (Bool) {
     case os.WriteFile("p", d, -1) { result.'ok(u) -> true; result.'err(e) -> false }
 }`,
-			"go/os.WriteFile's parameter perm is declared (int 0 4294967295), and a call passes -1"},
+			"`go/os`.WriteFile's parameter perm is declared in 0..2^32-1, and a call passes -1"},
 	} {
 		_, err := dischargeGo(t, c.src)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
@@ -139,7 +139,7 @@ func TestStringOfsDomainIsScalar(t *testing.T) {
 		if c.ok && err != nil {
 			t.Errorf("%s: %v", c.src, err)
 		}
-		if !c.ok && (err == nil || !strings.Contains(err.Error(), "string-of requires")) {
+		if !c.ok && (err == nil || !strings.Contains(err.Error(), "string_of requires")) {
 			t.Errorf("%s: want Scalar's precondition refused, got %v", c.src, err)
 		}
 	}

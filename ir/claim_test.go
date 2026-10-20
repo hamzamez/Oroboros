@@ -55,7 +55,7 @@ func TestTheIRChecksADeclaredResultsSort(t *testing.T) {
 	} {
 		src := "export fn f(a ∈ Array(F64)) (" + c.result + ") { " + c.body + " }\n"
 		err := lowerClaimed(t, src)
-		if err == nil || !strings.Contains(err.Error(), "its signature declares result") {
+		if err == nil || !strings.Contains(err.Error(), "its header declares result") {
 			t.Errorf("%s under %s: want the claim refused, got %v", c.body, c.result, err)
 		}
 	}

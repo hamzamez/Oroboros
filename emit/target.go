@@ -660,7 +660,7 @@ func (tg *Target) cellParams() error {
 				}
 			case tg.CellType == "":
 				return fmt.Errorf("%s: a parameter of type %s is the address of a cell, and this target "+
-					"spells no cell type: (type (cell A) (host \"…\")) (spec/local.md §5)", n, elem)
+					"spells no cell type: `set cell(A) = host \"…${A}…\"` (spec/local.md §5)", core.ShowName(n), core.ShowSet(elem))
 			}
 		}
 		if !any {
@@ -816,7 +816,7 @@ func (tg *Target) checkWord() error {
 	// say which ones it computes exactly.
 	if tg.Word.Lo == 0 && tg.Word.Hi == 0 {
 		return fmt.Errorf("target %s does not say what interval its native integers hold exactly; "+
-			"declare it as (repr (int LO HI) word) — (repr (int -9223372036854775808 9223372036854775807) word) "+
+			"declare it as `repr LO..HI word` — `repr -2^63..2^63-1 word` "+
 			"for a 64-bit two's-complement integer (ADR 0026)", tg.Name)
 	}
 	if tg.MaxLen > tg.Word.Hi {
@@ -1034,7 +1034,7 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 			out = lib
 			continue
 		}
-		if err := out.combine(lib, "a library's (provides "+name+" …)", override); err != nil {
+		if err := out.combine(lib, "a library's `provides "+name+" … { … }`", override); err != nil {
 			return nil, err
 		}
 	}
@@ -1662,7 +1662,7 @@ func loadTargetFile(path, name string) (*Target, error) {
 	// the library path (loadProvides), and a layer's `T.oro` that holds one is
 	// a fragment found in the wrong place, refused by name.
 	if core.IsFragment(string(src)) {
-		return nil, fmt.Errorf("%s holds a library's fragment (provides …), not a target's own forms; "+
+		return nil, fmt.Errorf("%s holds a library's fragment (`provides T M { … }`), not a target's own forms; "+
 			"a fragment is read from the library path", path)
 	}
 	terms, err := core.ReadTargetSource(string(src), path, name)
@@ -1714,7 +1714,7 @@ func (tg *Target) ResolveBackend() (string, error) {
 	}
 	return "", fmt.Errorf("target %q does not say which backend compiles it, and its name is "+
 		"not one, so it cannot emit code.\n"+
-		"  Add (backend NAME) to the target file, where NAME is one of: %s\n"+
+		"  Add `backend NAME` to the target file, where NAME is one of: %s\n"+
 		"  A backend is compiler code rather than data, so the set is closed.\n"+
 		"\n"+
 		"  Declaring none is legitimate: a target is a capability set first, and one\n"+
@@ -2005,11 +2005,11 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 	// (TestSplittingAFileChangesNothing).
 	for _, f := range t.Kids[2:] {
 		if f.Kind != core.KApp || f.Kids[0].Kind != core.KName {
-			return nil, fmt.Errorf("%s: expected a declaration — (sig …), (type …), (repr …), (module …) — got %s",
+			return nil, fmt.Errorf("%s: expected a declaration — `fn …`, `set …`, `repr …`, `module … { … }` — got %s",
 				path, f)
 		}
 		if spelled, old := respelled[f.Kids[0].Name]; old {
-			return nil, fmt.Errorf("%s: (%s …) is spelled %s (theories.md §8.4)", path, f.Kids[0].Name, spelled)
+			return nil, fmt.Errorf("%s: `%s …` is spelled %s (theories.md §8.4)", path, core.ShowName(f.Kids[0].Name), spelled)
 		}
 		frag := newTarget(tg.Name)
 		switch f.Kids[0].Name {
@@ -2021,11 +2021,11 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			// Writer, a Closer and a ReaderAt, and writing four lines would suggest
 			// four independent facts.
 			if len(f.Kids) < 3 {
-				return nil, fmt.Errorf("%s: (implements TYPE IFACE ...), got %s", path, f)
+				return nil, fmt.Errorf("%s: `axiom TYPE ⊆ IFACE ∩ …`, got %s", path, f)
 			}
 			for _, k := range f.Kids[1:] {
 				if k.Kind != core.KName {
-					return nil, fmt.Errorf("%s: (implements TYPE IFACE ...) takes names, got %s",
+					return nil, fmt.Errorf("%s: `axiom TYPE ⊆ IFACE ∩ …` takes names, got %s",
 						path, f)
 				}
 			}
@@ -2039,12 +2039,12 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 		case "underlying":
 			// (underlying TYPE (int LO HI)) -- a named host type over an integer set.
 			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName {
-				return nil, fmt.Errorf("%s: (underlying TYPE (int LO HI)), got %s", path, f)
+				return nil, fmt.Errorf("%s: `underlying TYPE LO..HI`, got %s", path, f)
 			}
 			u := core.TypeName(f.Kids[2])
 			if _, _, ok := core.IntRangeBig(u); !ok {
-				return nil, fmt.Errorf("%s: (underlying %s …) names an integer range, got %s",
-					path, f.Kids[1].Name, f.Kids[2])
+				return nil, fmt.Errorf("%s: `underlying %s …` names an integer range, got %s",
+					path, core.ShowName(f.Kids[1].Name), core.ShowTerm(f.Kids[2]))
 			}
 			if frag.Underlying == nil {
 				frag.Underlying = map[string]string{}
@@ -2071,7 +2071,7 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 		case "backend":
 			// (backend NAME) — which code generator compiles this target.
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KName {
-				return nil, fmt.Errorf("%s: (backend NAME), one of %s; got %s",
+				return nil, fmt.Errorf("%s: `backend NAME`, one of %s; got %s",
 					path, strings.Join(Backends, ", "), f)
 			}
 			if !isBackend(f.Kids[1].Name) {
@@ -2082,26 +2082,26 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			frag.Backend = f.Kids[1].Name
 		case "artifact":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (artifact \"name\"), got %s", path, f)
+				return nil, fmt.Errorf("%s: `artifact \"name\"`, got %s", path, f)
 			}
 			frag.Artifact = f.Kids[1].Str
 		case "build":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (build \"cmd %%s %%s\"), got %s", path, f)
+				return nil, fmt.Errorf("%s: `build \"cmd %%s %%s\"`, got %s", path, f)
 			}
 			frag.Build = f.Kids[1].Str
 		case "data":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (data \"label ...\"), got %s", path, f)
+				return nil, fmt.Errorf("%s: `data \"label …\"`, got %s", path, f)
 			}
 			frag.Data = append(frag.Data, f.Kids[1].Str)
 		case "link":
 			if len(f.Kids) < 2 {
-				return nil, fmt.Errorf("%s: (link \"library\"…) names at least one library, got %s", path, f)
+				return nil, fmt.Errorf("%s: `link \"library\" …` names at least one library, got %s", path, f)
 			}
 			for _, k := range f.Kids[1:] {
 				if k.Kind != core.KStr {
-					return nil, fmt.Errorf("%s: (link \"library\"…) takes strings, got %s", path, f)
+					return nil, fmt.Errorf("%s: `link \"library\" …` takes strings, got %s", path, f)
 				}
 				frag.Link = append(frag.Link, k.Str)
 			}
@@ -2205,7 +2205,7 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 			subj.Kids[2].Kind == core.KInt && choice.Kind == core.KName && choice.Name == "word" {
 			lo, hi := subj.Kids[1].Int, subj.Kids[2].Int
 			if lo > 0 || hi < 0 {
-				return fmt.Errorf("%s: a word must contain 0, got (int %d %d)", path, lo, hi)
+				return fmt.Errorf("%s: a word must contain 0, got %s", path, core.ShowSet(fmt.Sprintf("int %d %d", lo, hi)))
 			}
 			frag.Word.Lo, frag.Word.Hi = lo, hi
 			return nil
@@ -2216,7 +2216,7 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 		}
 		lo, hi := subj.Kids[1].Int, subj.Kids[2].Int
 		if lo > hi {
-			return fmt.Errorf("%s: (int %d %d) is empty", path, lo, hi)
+			return fmt.Errorf("%s: %d..%d is empty", path, lo, hi)
 		}
 		frag.Reprs = append(frag.Reprs, IntRepr{Lo: lo, Hi: hi, Spell: spelling})
 	case "ref":
@@ -2286,8 +2286,8 @@ func parseType(f *core.Term, frag *Target, modPath, path string) error {
 		}
 		n := f.Kids[1].Name
 		if langTypes[n] || core.IsTypeFormer(n) {
-			return fmt.Errorf("%s: (type %s …): %s is the language's own type and a target does not "+
-				"get to say what it means (docs/spec/booleans.md's rule, one level up)", path, n, n)
+			return fmt.Errorf("%s: `set %s = …`: %s is the language's own type and a target does not "+
+				"get to say what it means (docs/spec/booleans.md's rule, one level up)", path, core.ShowSet(n), core.ShowSet(n))
 		}
 		if frag.Aliases == nil {
 			frag.Aliases = map[string]string{}
@@ -2297,13 +2297,13 @@ func parseType(f *core.Term, frag *Target, modPath, path string) error {
 	}
 	s, ok := hostSpelling(lastKid(f))
 	if !ok || len(f.Kids) != 3 {
-		return fmt.Errorf("%s: (type NAME (host \"spelling\")) or (type NAME τ), got %s", path, f)
+		return fmt.Errorf("%s: `set NAME = host \"spelling\"` or `set NAME = S`, got %s", path, f)
 	}
 	switch n := f.Kids[1]; {
 	case n.Kind == core.KName:
 		frag.Types[qualify(modPath, n.Name)] = s
 	case modPath != "":
-		return fmt.Errorf("%s: (type %s …) in module %s: `array` and `map` are the language's own "+
+		return fmt.Errorf("%s: `set %s = …` in module %s: `Array` and `Map` are the language's own "+
 			"type constructors and a target realizes each once, outside any module (theories.md §5.6)",
 			path, n, modPath)
 	case formWord(n) == "array" && len(n.Kids) == 2 && n.Kids[1].Kind == core.KName:
@@ -2314,8 +2314,8 @@ func parseType(f *core.Term, frag *Target, modPath, path string) error {
 		n.Kids[1].Kind == core.KName && n.Kids[2].Kind == core.KName:
 		frag.MapType = s
 	default:
-		return fmt.Errorf("%s: (type NAME (host …)), (type (array A) (host …)) or "+
-			"(type (map K V) (host …)), got %s", path, f)
+		return fmt.Errorf("%s: `set NAME = host \"…\"`, `set Array(A) = host \"…\"` or "+
+			"`set Map(K, V) = host \"…\"`, got %s", path, f)
 	}
 	return nil
 }
@@ -2347,7 +2347,7 @@ func parseFact(f *core.Term, frag *Target, path string) error {
 	switch {
 	case !ok:
 		return fmt.Errorf("%s: facts are specified (theories.md §7) and not built; the one fact a "+
-			"target may state today is (fact NAME ((a (array A))) (<= (len a) N)), got %s", path, f)
+			"target may state today is `fact max_len (a ∈ Array(A)) len(a) <= N`, got %s", path, f)
 	case n < 1:
 		return fmt.Errorf("%s: an array bound must be at least 1, got %d", path, n)
 	}
@@ -2364,8 +2364,8 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 	// primitive table (target-system.md §6).
 	if w := formWord(f); w == "def" || w == "use" {
 		if modPath == "" {
-			return fmt.Errorf("%s: (%s …) is the target's own library and belongs to a module — "+
-				"write it inside (module PATH …) or (provides TARGET PATH …) (theories.md §5.4)",
+			return fmt.Errorf("%s: `%s …` is the target's own library and belongs to a module — "+
+				"write it inside `module PATH { … }` or `provides TARGET PATH { … }` (theories.md §5.4)",
 				file, w)
 		}
 		fm, err := core.ToForm(f)
@@ -2433,16 +2433,16 @@ func lenEquals(arg string, count bool) *core.Term {
 // rather than kept as aliases, for data.md §10's reason: two spellings of one
 // declaration is the shape `merge` had before glue and override were separated.
 var respelled = map[string]string{
-	"prim":        `(sig NAME ((x τ)…) τ clause… (host KIND "template" hclause…))`,
-	"int-repr":    `(repr (int LO HI) (host "spelling"))`,
-	"big-repr":    `(repr big host) or (repr big limbs)`,
-	"shift-width": `(repr shift N)`,
-	"max-len":     `(fact max-len ((a (array A))) (<= (len a) N))`,
-	"array-type":  `(type (array A) (host "spelling"))`,
-	"map-type":    `(type (map K V) (host "spelling"))`,
-	"boxed":       `(repr (ref T) (host "spelling"))`,
-	"builtin-map": `(repr map library)`,
-	"narrow":      `(repr narrow (host "spelling"))`,
+	"prim":        "`fn NAME(x ∈ S, …) (R) clause… { host KIND \"template\" … }`",
+	"int-repr":    "`repr LO..HI host \"spelling\"`",
+	"big-repr":    "`repr big host` or `repr big limbs`",
+	"shift-width": "`repr shift N`",
+	"max-len":     "`fact max_len (a ∈ Array(A)) len(a) <= N`",
+	"array-type":  "`set Array(A) = host \"spelling\"`",
+	"map-type":    "`set Map(K, V) = host \"spelling\"`",
+	"boxed":       "`repr ref(T) host \"spelling\"`",
+	"builtin-map": "`repr map library`",
+	"narrow":      "`repr narrow host \"spelling\"`",
 }
 
 // The words a `sig` may carry, split by WHO they are a claim about. A sig clause
@@ -2471,7 +2471,7 @@ var (
 // never read. For them a zero-argument sig already says everything true.
 func constSig(f *core.Term, path string) (*core.Term, error) {
 	if len(f.Kids) != 4 || f.Kids[1].Kind != core.KName || formWord(f.Kids[3]) != "host" {
-		return nil, fmt.Errorf("%s: (const NAME INTEGER (host \"spelling\" hclause…)), got %s", path, f)
+		return nil, fmt.Errorf("%s: `NAME ∈ set { INTEGER } = host \"spelling\" …`, got %s", path, f)
 	}
 	name, v, host := f.Kids[1], f.Kids[2], f.Kids[3]
 	// A LITERAL PAST int64 IS STILL AN INTEGER: the reader spells one as a Horner
@@ -2485,11 +2485,11 @@ func constSig(f *core.Term, path string) (*core.Term, error) {
 	if v.Kind != core.KInt && !wide {
 		return nil, fmt.Errorf("%s: const %s: %s is not an integer literal. A constant's value is a fact "+
 			"the analysis uses, and only an integer's is one; for any other value write "+
-			"(sig %s () TYPE pure (host expr \"spelling\"))", path, name.Name, v, name.Name)
+			"`fn %s() (S) pure { host expr \"spelling\" }`", path, core.ShowName(name.Name), core.ShowTerm(v), core.ShowName(name.Name))
 	}
 	if len(host.Kids) < 2 || host.Kids[1].Kind != core.KStr {
-		return nil, fmt.Errorf("%s: const %s: (host \"spelling\" hclause…) — a constant is a value, so "+
-			"its host clause has no kind; got %s", path, name.Name, host)
+		return nil, fmt.Errorf("%s: constant %s: `host \"spelling\" …` — a constant is a value, so "+
+			"its host clause has no kind; got %s", path, core.ShowName(name.Name), host)
 	}
 	app := func(kids ...*core.Term) *core.Term { return &core.Term{Kind: core.KApp, Kids: kids} }
 	realize := app(append([]*core.Term{core.Name("host"), core.Name("expr")}, host.Kids[1:]...)...)
@@ -2513,12 +2513,12 @@ func parseSig(f *core.Term, path string) (Prim, error) {
 	}
 	if w := formWord(f); w != "sig" || f.Kind != core.KApp {
 		if spelled, old := respelled[w]; old {
-			return Prim{}, fmt.Errorf("%s: (%s …) is spelled %s (theories.md §8.4)", path, w, spelled)
+			return Prim{}, fmt.Errorf("%s: `%s …` is spelled %s (theories.md §8.4)", path, core.ShowName(w), spelled)
 		}
-		return Prim{}, fmt.Errorf("%s: expected (sig …), got %s", path, f)
+		return Prim{}, fmt.Errorf("%s: expected a host declaration, `fn …`, got %s", path, f)
 	}
 	if len(f.Kids) < 4 {
-		return Prim{}, fmt.Errorf("%s: (sig NAME ((x τ)…) τ clause… (host KIND \"template\" …)), got %s", path, f)
+		return Prim{}, fmt.Errorf("%s: `fn NAME(x ∈ S, …) (R) clause… { host KIND \"template\" … }`, got %s", path, f)
 	}
 	name := f.Kids[1]
 	// A HEAD THAT BINDS: `(sig (f B…) …)`, each B a static parameter, `E` or
@@ -2538,30 +2538,30 @@ func parseSig(f *core.Term, path string) (Prim, error) {
 		switch {
 		case w == "host":
 			if host != nil {
-				return Prim{}, fmt.Errorf("%s: sig %s gives (host …) twice", path, name)
+				return Prim{}, fmt.Errorf("%s: %s gives a host body twice", path, core.ShowTerm(name))
 			}
 			host = c
 		case sigWords[w]:
 			rest = append(rest, c)
 		case hostWords[w]:
-			return Prim{}, fmt.Errorf("%s: sig %s: (%s …) is a claim about the host, and goes inside (host …)",
-				path, name, w)
+			return Prim{}, fmt.Errorf("%s: %s: `%s` is a claim about the host, and goes inside its `host` body",
+				path, core.ShowTerm(name), core.ShowName(w))
 		default:
-			return Prim{}, fmt.Errorf("%s: sig %s: unexpected %s; a sig takes pure, index, (where …), "+
-				"(ensures …) and one (host …)", path, name, c)
+			return Prim{}, fmt.Errorf("%s: %s: unexpected %s; a header takes pure, index, `where`, "+
+				"`ensure` and one `host` body", path, core.ShowTerm(name), c)
 		}
 	}
 	if host == nil {
-		return Prim{}, fmt.Errorf("%s: sig %s has no (host …) clause. A target REALIZES a declaration, "+
-			"and one with no realization belongs in a module (theories.md §5.2)", path, name)
+		return Prim{}, fmt.Errorf("%s: %s has no `host` body. A target REALIZES a declaration, "+
+			"and one with no realization belongs in a module (theories.md §5.2)", path, core.ShowTerm(name))
 	}
 	if len(host.Kids) < 3 || host.Kids[2].Kind != core.KStr {
-		return Prim{}, fmt.Errorf("%s: sig %s: (host KIND \"template\" hclause…), got %s", path, name, host)
+		return Prim{}, fmt.Errorf("%s: %s: `host KIND \"template\" …`, got %s", path, core.ShowTerm(name), host)
 	}
 	for _, c := range host.Kids[3:] {
 		if !hostWords[formWord(c)] {
-			return Prim{}, fmt.Errorf("%s: sig %s: (host …) takes (import …), (lib …), (checked …) and "+
-				"(jump …), got %s", path, name, c)
+			return Prim{}, fmt.Errorf("%s: %s: a `host` body takes `import`, `lib`, `checked` and "+
+				"`jump`, got %s", path, core.ShowTerm(name), c)
 		}
 	}
 	p, err := primOf(name, f.Kids[2], f.Kids[3], host.Kids[1], append(rest, host.Kids[2:]...), path)
@@ -2570,8 +2570,8 @@ func parseSig(f *core.Term, path string) (Prim, error) {
 	}
 	p.Static = static
 	if p.CommaOk && (p.Retract == nil || formWord(p.Retract) != "option") {
-		return Prim{}, fmt.Errorf("%s: sig %s: (comma-ok) says the host gives an (option E) as (v, ok), "+
-			"so the declared result is (option E) (spec/typevalues.md §7)", path, p.Name)
+		return Prim{}, fmt.Errorf("%s: %s: `comma_ok` says the host gives an Option(E) as (v, ok), "+
+			"so the declared result is Option(E) (spec/typevalues.md §7)", path, core.ShowName(p.Name))
 	}
 	return p, nil
 }
@@ -2583,7 +2583,7 @@ func staticParams(head *core.Term, path string) ([]StaticParam, error) {
 		return nil, nil
 	}
 	if len(head.Kids) < 2 || head.Kids[0].Kind != core.KName {
-		return nil, fmt.Errorf("%s: a sig's head is a name or (NAME P…), its static parameters; got %s", path, head)
+		return nil, fmt.Errorf("%s: a declaration's head is a name, or a λ over its static parameters; got %s", path, head)
 	}
 	var out []StaticParam
 	seen := map[string]bool{}
@@ -2596,12 +2596,12 @@ func staticParams(head *core.Term, path string) ([]StaticParam, error) {
 			formWord(b.Kids[1]) == "subsets" && len(b.Kids[1].Kids) == 2 && b.Kids[1].Kids[1].Kind == core.KName:
 			sp.Name, sp.SubsetOf = b.Kids[0].Name, b.Kids[1].Kids[1].Name
 		default:
-			return nil, fmt.Errorf("%s: sig %s: a static parameter is a name, ranging over every set, or "+
-				"(NAME (subsets T)), ranging over the subsets of T; got %s (spec/typevalues.md §4)",
-				path, head.Kids[0], b)
+			return nil, fmt.Errorf("%s: %s: a static parameter is a name, ranging over every set, or "+
+				"`E ⊆ T`, ranging over the subsets of T; got %s (spec/typevalues.md §4)",
+				path, core.ShowTerm(head.Kids[0]), b)
 		}
 		if seen[sp.Name] {
-			return nil, fmt.Errorf("%s: sig %s binds %s twice", path, head.Kids[0], sp.Name)
+			return nil, fmt.Errorf("%s: %s binds %s twice", path, core.ShowTerm(head.Kids[0]), sp.Name)
 		}
 		seen[sp.Name] = true
 		out = append(out, sp)
@@ -2635,7 +2635,7 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			"declares (docs/spec/booleans.md)", path, k[0])
 	}
 	if k[0].Kind != core.KName {
-		return Prim{}, fmt.Errorf("%s: a sig needs a name, got %s", path, k[0])
+		return Prim{}, fmt.Errorf("%s: a declaration needs a name, got %s", path, k[0])
 	}
 	p := Prim{Name: k[0].Name}
 
@@ -2706,8 +2706,8 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 	case rt != "":
 		p.Result = rt
 	default:
-		return Prim{}, fmt.Errorf("%s: %s has a result that is not a type; several results are "+
-			"(tuple A B …): %s", path, p.Name, k[2])
+		return Prim{}, fmt.Errorf("%s: %s has a result that is not a set; several results are "+
+			"a product, A × B: %s", path, core.ShowName(p.Name), k[2])
 	}
 
 	if k[3].Kind != core.KName {
@@ -2736,15 +2736,15 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			// A second clause used to REPLACE the first, so a precondition the
 			// author wrote vanished without a word. A conjunction is one clause.
 			if p.Where != nil {
-				return Prim{}, fmt.Errorf("%s: %s gives (where …) twice, and one would be dropped; "+
-					"write one (where (and …))", path, p.Name)
+				return Prim{}, fmt.Errorf("%s: %s gives `where` twice, and one would be dropped; "+
+					"write one, `where a && b`", path, core.ShowName(p.Name))
 			}
 			p.Where = rest.Kids[1]
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "ensures" && len(rest.Kids) == 2:
 			if p.Ensures != nil {
-				return Prim{}, fmt.Errorf("%s: %s gives (ensures …) twice, and one would be dropped; "+
-					"write one (ensures (and …))", path, p.Name)
+				return Prim{}, fmt.Errorf("%s: %s gives `ensure` twice, and one would be dropped; "+
+					"write one, `ensure a && b`", path, core.ShowName(p.Name))
 			}
 			p.Ensures = rest.Kids[1]
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
@@ -2757,8 +2757,8 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			if len(rest.Kids) == 3 && rest.Kids[2].Kind == core.KStr {
 				p.JumpForm = rest.Kids[2].Str
 			} else if len(rest.Kids) != 2 {
-				return Prim{}, fmt.Errorf("%s: %s: (jump \"cc\" [\"compare form\"]), got %s",
-					path, p.Name, rest)
+				return Prim{}, fmt.Errorf("%s: %s: `jump \"cc\" [\"compare form\"]`, got %s",
+					path, core.ShowName(p.Name), rest)
 			}
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			(rest.Kids[0].Name == "length" || rest.Kids[0].Name == "length-of"):
@@ -2782,8 +2782,8 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			// replacing the first — the rule a repeated `where` already has, for
 			// the same reason: a clause the author wrote must not vanish.
 			if p.Import != "" {
-				return Prim{}, fmt.Errorf("%s: %s has a second (import …); a template names one package, "+
-					"so spell anything else structurally (an interface literal, not io.ByteReader)", path, p.Name)
+				return Prim{}, fmt.Errorf("%s: %s has a second `import`; a template names one package, "+
+					"so spell anything else structurally (an interface literal, not io.ByteReader)", path, core.ShowName(p.Name))
 			}
 			p.Import = rest.Kids[1].Str
 			for _, k := range rest.Kids[2:] {
@@ -2816,8 +2816,8 @@ func checkVariadic(p Prim, path string) error {
 	spreads := strings.Contains(p.Form, "%s...")
 	switch {
 	case p.Variadic && (len(p.Args) == 0 || !strings.HasPrefix(p.Args[len(p.Args)-1], "array ")):
-		return fmt.Errorf("%s: %s is variadic, so its last parameter is the list, a table (array T); "+
-			"got %v (spec/variadic.md)", path, p.Name, p.Args)
+		return fmt.Errorf("%s: %s is variadic, so its last parameter is the list, a table Array(T); "+
+			"got %v (spec/variadic.md)", path, core.ShowName(p.Name), showSets(p.Args))
 	case p.Variadic && !spreads:
 		return fmt.Errorf("%s: %s is variadic, so its template spreads the list into the host's call, "+
 			"%%s... (spec/variadic.md)", path, p.Name)
@@ -2854,7 +2854,7 @@ func checkVariadic(p Prim, path string) error {
 // still legal — and not two independent spellings of one construct.
 func declareModule(frag *Target, f *core.Term, prefix, path string) error {
 	if len(f.Kids) < 2 || f.Kids[1].Kind != core.KName {
-		return fmt.Errorf("%s: (module PATH (sig …)…), got %s", path, f)
+		return fmt.Errorf("%s: `module PATH { … }`, got %s", path, f)
 	}
 	mod := f.Kids[1].Name
 	if prefix != "" {
@@ -2880,11 +2880,11 @@ func declareModule(frag *Target, f *core.Term, prefix, path string) error {
 			// Σ = (S, Ω), and its sorts belong to it: `go/io.Writer` has one
 			// owner, and a base name shared by two packages is two types.
 			if len(inner.Kids) < 2 {
-				return fmt.Errorf("%s: (include COMPANION …), got %s", path, inner)
+				return fmt.Errorf("%s: `include COMPANION …`, got %s", path, inner)
 			}
 			for _, k := range inner.Kids[1:] {
 				if k.Kind != core.KName {
-					return fmt.Errorf("%s: (include …) takes module names, got %s", path, k)
+					return fmt.Errorf("%s: `include …` takes module names, got %s", path, k)
 				}
 				if frag.Includes == nil {
 					frag.Includes = map[string][]string{}
@@ -2907,7 +2907,7 @@ func declareModule(frag *Target, f *core.Term, prefix, path string) error {
 func parseStructural(f *core.Term, path string) (Prim, error) {
 	k := f.Kids[1:]
 	if len(k) < 2 || k[0].Kind != core.KName || k[1].Kind != core.KName {
-		return Prim{}, fmt.Errorf("%s: (structural NAME KIND [pure]), got %s", path, f)
+		return Prim{}, fmt.Errorf("%s: `structural NAME KIND [pure]`, got %s", path, f)
 	}
 	p := Prim{Name: k[0].Name, Kind: k[1].Name}
 	if coreNames[p.Name] {
@@ -3702,7 +3702,7 @@ func (tg *Target) checkExterns() error {
 	sort.Strings(names)
 	for _, n := range names {
 		if p := tg.Prims[n]; len(p.Externs) > 0 {
-			return fmt.Errorf("%s: (import …) names %d things; on backend %s a template names one "+
+			return fmt.Errorf("%s: `import` names %d things; on backend %s a template names one "+
 				"package, and only an assembly template calls several externs", n, 1+len(p.Externs), b)
 		}
 	}
@@ -3716,4 +3716,13 @@ func (tg *Target) checkExterns() error {
 func (tg *Target) LoadProgram(forms []core.Form, dirs ...string) (*core.Program, []*core.Term, error) {
 	all := append(append([]string(nil), dirs...), tg.LibDirs...)
 	return core.LoadWithDefs(forms, core.SearchPath(all), tg.Defs)
+}
+
+// showSets renders a list of sets as J writes them, for a message.
+func showSets(ts []string) []string {
+	out := make([]string, len(ts))
+	for i, t := range ts {
+		out[i] = core.ShowSet(t)
+	}
+	return out
 }

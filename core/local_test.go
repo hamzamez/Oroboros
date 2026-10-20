@@ -55,7 +55,7 @@ func TestACellIsRefusedWhereItsOrderWouldNotBeTheProgramsOrder(t *testing.T) {
 		{`fn f(p) {
     var c := 0
     store(c, 0, 1)
-}`, "c is a cell, written (set c v)"},
+}`, "c is a cell, written `c := v`"},
 		// a cell holds a value, not a function
 		{`fn f(p) {
     var g := fn(x) { x }

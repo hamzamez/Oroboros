@@ -34,7 +34,7 @@ func TestCheckerRejectsTheMeasuredBug(t *testing.T) {
 			t.Errorf("%s: expected a type error", target)
 			continue
 		}
-		if !strings.Contains(err.Error(), "string") || !strings.Contains(err.Error(), "int") {
+		if !strings.Contains(err.Error(), "String") || !strings.Contains(err.Error(), "Int") {
 			t.Errorf("%s: error should name both types, got %v", target, err)
 		}
 	}
@@ -47,7 +47,7 @@ func TestCheckerRejectsConflictingUse(t *testing.T) {
 	if err == nil {
 		t.Fatal("a used as both a host string and a table of bytes should conflict")
 	}
-	if !strings.Contains(err.Error(), "bytestring") || !strings.Contains(err.Error(), "array int 0 255") {
+	if !strings.Contains(err.Error(), "bytestring") || !strings.Contains(err.Error(), "Array(0..255)") {
 		t.Errorf("the conflict should name both types, got %v", err)
 	}
 }
@@ -67,7 +67,7 @@ func TestCheckerRejectsMismatchedBranches(t *testing.T) {
 	if err == nil {
 		t.Fatal("branches f64 and string should conflict")
 	}
-	if !strings.Contains(err.Error(), "f64") || !strings.Contains(err.Error(), "string") {
+	if !strings.Contains(err.Error(), "F64") || !strings.Contains(err.Error(), "String") {
 		t.Errorf("the conflict should name both types, got %v", err)
 	}
 }
@@ -153,7 +153,7 @@ fn bad(a ∈ Array(F64)) (F64) { go.bytes_of_string("x") }`
 	if err == nil {
 		t.Fatal("a definition disagreeing with its own signature must be caught")
 	}
-	if !strings.Contains(err.Error(), "array int 0 255") {
+	if !strings.Contains(err.Error(), "Array(0..255)") {
 		t.Errorf("the error should name the actual type, got %v", err)
 	}
 }
@@ -170,15 +170,15 @@ func claimErr(t *testing.T, result, body string) error {
 
 func TestATableFormIsNotAScalar(t *testing.T) {
 	for _, c := range []struct{ result, body, is string }{
-		{"F64", "array { 1.0, 2.0 }", "is array f64"},
-		{"F64", "array { 1.0 : i ∈ 0..2 }", "is array f64"},
+		{"F64", "array { 1.0, 2.0 }", "is Array(F64)"},
+		{"F64", "array { 1.0 : i ∈ 0..2 }", "is Array(F64)"},
 		{"F64", "alloc(array { 1.0 : i ∈ 0..2 })", "is a buffer"},
 		{"F64", "{ var b := array { 0 : _ ∈ 0..2 }; b }", "is a buffer"},
-		{"F64", "{ var b := array { 0 : _ ∈ 0..2 }; b[0] := 1.5; b }", "is buffer f64"},
+		{"F64", "{ var b := array { 0 : _ ∈ 0..2 }; b[0] := 1.5; b }", "is buffer(F64)"},
 		{"F64", "{ var m := map(4); m }", "is a map"},
 		// and a constructor is not another constructor
 		{"Array(F64)", "{ var m := map(4); m }", "is a map"},
-		{"Map(Int, F64)", "array { 1.0 }", "is array f64"},
+		{"Map(Int, F64)", "array { 1.0 }", "is Array(F64)"},
 	} {
 		err := claimErr(t, c.result, c.body)
 		if err == nil || !strings.Contains(err.Error(), c.is+", but") {
@@ -257,14 +257,14 @@ fn enc(x ∈ 0..1000) (Array(0..255)) {
 // printed `func F(a []float64) int`.
 func TestATablesReadAndLengthAreTyped(t *testing.T) {
 	for _, c := range []struct{ target, src, is string }{
-		{"go", "use go\nfn f(a ∈ Array(String)) (F64) where 0 < len(a) { go.`f+`(a[0], 1.0) }", "(a …) is string, but f64"},
+		{"go", "use go\nfn f(a ∈ Array(String)) (F64) where 0 < len(a) { go.`f+`(a[0], 1.0) }", "a[…] is String, but F64"},
 		{"js", `use js
-fn f(a ∈ Array(String)) (Any) where 0 < len(a) { a[0] + 1 }`, "(a …) is string, but int"},
-		{"go", `fn f(a ∈ Array(F64)) (String) { len(a) }`, "(len …) is int, but string"},
+fn f(a ∈ Array(String)) (Any) where 0 < len(a) { a[0] + 1 }`, "a[…] is String, but Int"},
+		{"go", `fn f(a ∈ Array(F64)) (String) { len(a) }`, "len(…) is Int, but String"},
 		{"go", `fn f() (String) {
     t = { var b := array { 0 : _ ∈ 0..1 }; b[0] := 1.5; b }
     t[0]
-}`, "(t …) is f64, but string"},
+}`, "t[…] is F64, but String"},
 	} {
 		tg, prog, env := loadWithSigs(t, c.target, c.src)
 		err := CheckSignatures(tg, prog, env, nil)

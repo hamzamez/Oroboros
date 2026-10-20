@@ -56,7 +56,7 @@ export fn f(n ∈ 0..2) (Int) { array { 1, 2, 3 }(n) }`); err != nil {
 func TestAZeroTableKeepsItsSort(t *testing.T) {
 	_, err := entryGo(t, `use go
 export fn f() (Int) { len({ var b := array { false : _ ∈ 0..2 }; b[0] := 5; b }) }`)
-	if err == nil || !strings.Contains(err.Error(), "bool is required here") {
+	if err == nil || !strings.Contains(err.Error(), "Bool is required here") {
 		t.Errorf("an int stored into a table of false was accepted: %v", err)
 	}
 	if _, err := entryGo(t, `use go

@@ -176,7 +176,7 @@ func (tg *Target) retract(q string) error {
 		}
 		if !ok {
 			return fmt.Errorf("its failure is a %s, which this target declares no niche for: "+
-				"write (repr %s (niche (host expr \"…\"))) (spec/errors.md §4.1)", e, e)
+				"write `repr %s niche host expr \"…\"` (spec/errors.md §4.1)", core.ShowSet(e), core.ShowSet(e))
 		}
 		n := nicheName(e)
 		if _, have := tg.Prims[n]; !have {
@@ -395,7 +395,7 @@ func (tg *Target) shapeOf(t *core.Term, mod string) (*shape, error) {
 		head := t.Kids[0].Name
 		if head == "option" {
 			if len(t.Kids) != 2 {
-				return nil, fmt.Errorf("(option E) takes one type")
+				return nil, fmt.Errorf("Option(E) takes one set")
 			}
 			return &shape{option: core.TypeName(t.Kids[1])}, nil
 		}
@@ -427,18 +427,18 @@ func (tg *Target) variantShape(head string, args []*core.Term, mod string) (*sha
 		}
 	}
 	if path == "" {
-		return nil, fmt.Errorf("its result names %s, and module %s has no (use …) for %s", head, mod, alias)
+		return nil, fmt.Errorf("its result names %s, and module %s has no `use` for %s", core.ShowSet(head), mod, core.ShowName(alias))
 	}
 	sum, err := tg.readVariant(path, vname)
 	if err != nil {
 		return nil, err
 	}
 	if sum.Success == "" {
-		return nil, fmt.Errorf("variant %s declares no (success …) constructor, so it is not a "+
+		return nil, fmt.Errorf("variant %s marks no `success` constructor, so it is not a "+
 			"model of the exception monad (spec/errors.md §2)", head)
 	}
 	if len(args) != len(sum.Params) {
-		return nil, fmt.Errorf("(%s …) takes %d type arguments, not %d", head, len(sum.Params), len(args))
+		return nil, fmt.Errorf("%s(…) takes %d type arguments, not %d", core.ShowSet(head), len(sum.Params), len(args))
 	}
 	sigma := map[string]*core.Term{}
 	for i, p := range sum.Params {

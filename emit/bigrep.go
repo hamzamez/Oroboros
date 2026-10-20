@@ -184,8 +184,8 @@ func fitBig(tgt *Target, t *core.Term, bits int, signed bool) (*core.Term, error
 			"bound.\n"+
 			"  A bound the target cannot check is a declaration that means one\n"+
 			"  thing here and another on the fixed-limb rung, so it is refused\n"+
-			"  rather than dropped. Declare `%s`, or `(big-repr limbs)`.",
-			tgt.Name, fit, fit)
+			"  rather than dropped. Declare `%s`, or `repr big limbs`.",
+			tgt.Name, core.ShowName(fit), core.ShowName(fit))
 	}
 	return fitWalk(t, fit, bits), nil
 }

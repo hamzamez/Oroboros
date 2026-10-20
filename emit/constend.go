@@ -212,13 +212,13 @@ func (tg *Target) constValue(mod, name, file string) (int64, error) {
 		if !ok || lo != hi || len(p.Args) > 0 || len(p.Results) > 0 || !p.Pure {
 			return 0, fmt.Errorf("%s: %s is a range endpoint, so it must be a CONSTANT — a pure "+
 				"declaration of no arguments whose result is an exact range, which is what "+
-				"(const %s v (host …)) elaborates to; %s is declared %s", file, name, name, q, describePrim(p))
+				"`%s ∈ set { v } = host …` elaborates to; %s is declared %s", file, core.ShowName(name), core.ShowName(name), core.ShowName(q), describePrim(p))
 		}
 		return lo, nil
 	}
 	return 0, fmt.Errorf("%s: %s is not declared in this target, and a range endpoint that is a name "+
-		"must be a constant — (const %s v (host \"spelling\")) — because an endpoint is evaluated at "+
-		"compile time (theories.md §8.3)", file, name, name)
+		"must be a constant — `%s ∈ set { v } = host \"spelling\"` — because an endpoint is evaluated at "+
+		"compile time (theories.md §8.3)", file, core.ShowName(name), core.ShowName(name))
 }
 
 func describePrim(p Prim) string {

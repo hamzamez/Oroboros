@@ -354,7 +354,7 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 	}
 	if !tg.HasBig() {
 		return 0, fmt.Errorf("this program needs %s.\n"+
-			"  Target %s stores arbitrary precision as fixed limbs (big-repr) and the built-in\n"+
+			"  Target %s stores arbitrary precision as fixed limbs (`repr big limbs`) and the built-in\n"+
 			"  limb library does not implement that; it declares no bignum of its own to\n"+
 			"  fall back to either. What it does have is addition, subtraction,\n"+
 			"  multiplication, the comparisons, and division and remainder by a machine\n"+

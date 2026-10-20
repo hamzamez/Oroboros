@@ -137,5 +137,3 @@ func ReadTerm(text string) (*Term, error) {
 	}
 	return Desugar(t), nil
 }
-
-

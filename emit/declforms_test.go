@@ -91,7 +91,7 @@ func TestReprAndFactAreRefusedOffTheirShapes(t *testing.T) {
 		`fact f (a ∈ Array(A)) len(a) < 3`:  "facts are specified",
 		`fact f (a ∈ Array(A)) len(b) <= 3`: "facts are specified",
 		`fact f (a ∈ Array(A)) len(a) <= 0`: "at least 1",
-		`set t = "spelling"`:                "a host spelling goes inside",
+		`set t = "spelling"`:                "a host spelling goes after `host`",
 	}
 	for decl, why := range refused {
 		if _, err := loadOne(t, decl); err == nil || !strings.Contains(err.Error(), why) {
@@ -479,8 +479,8 @@ set b = Array(a)`: "defined in terms of itself",
 		`set a = Array(a)`:   "defined in terms of itself",
 		`set Int = 0..255`:   "the language's own type",
 		`set Array = 0..255`: "the language's own type",
-		`set p = Int × Int`:  "may not stand for a tuple",
-		`set t = "spelling"`: `goes inside (host …)`,
+		`set p = Int × Int`:  "may not stand for a product",
+		`set t = "spelling"`: "goes after `host`",
 		`set t = host "T"
 set t = 0..1`: "a type has one definition",
 	}

@@ -78,7 +78,7 @@ var langSets = map[string]string{"int": "Int", "bool": "Bool", "string": "String
 	"any": "Any", "option": "Option", "array": "Array", "map": "Map"}
 
 // isLangSpelling reports a word J reads as one of the language's sets, `Int`:
-// a name spelled so is quoted, `text/scanner`'s constant `` `Int` ``, or σ_J
+// a name spelled so is quoted, `text/scanner`'s constant “ `Int` “, or σ_J
 // would spell it and the set `int` alike.
 func isLangSpelling(t string) bool {
 	for _, l := range langSets {

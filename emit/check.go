@@ -114,7 +114,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			}
 			return want, nil
 		}
-		return got, c.agree(t.Name, got, want)
+		return got, c.agree(core.ShowName(t.Name), got, want)
 
 	case core.KFn:
 		// Walk the body. The top-level term of every residual is an
@@ -143,7 +143,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 					d = p.Args[i]
 				}
 				if _, err := c.walk(a, d); err != nil {
-					return "", fmt.Errorf("in %s's argument %d: %w", p.Name, i+1, err)
+					return "", fmt.Errorf("in %s's argument %d: %w", core.ShowName(spelled(p.Name)), i+1, err)
 				}
 			}
 			// The continuation's parameters are the declared results, and the
@@ -227,12 +227,12 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			if res == "" {
 				return "", nil
 			}
-			return res, c.agree(op.Name, res, want)
+			return res, c.agree(core.ShowName(op.Name), res, want)
 		}
 	case "cell-fresh":
 		if len(args) == 1 && args[0].Kind == core.KStr {
 			res := "cell " + args[0].Str
-			return res, c.agree(op.Name, res, want)
+			return res, c.agree(core.ShowName(op.Name), res, want)
 		}
 	case "ascribe":
 		// `(the T e)` says e is in T (core.AscribeName): e is checked against
@@ -243,7 +243,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			if _, err := c.walk(args[1], ty); err != nil {
 				return "", err
 			}
-			return ty, c.agree(op.Name, ty, want)
+			return ty, c.agree(core.ShowName(op.Name), ty, want)
 		}
 	}
 
@@ -256,7 +256,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	if len(p.Args) > 0 && len(args) != len(p.Args) {
 		return "", fmt.Errorf("%s takes %d argument(s), given %d; a primitive is applied to "+
 			"exactly what it declares (an extra argument would be dropped by its template)",
-			op.Name, len(p.Args), len(args))
+			core.ShowName(spelled(op.Name)), len(p.Args), len(args))
 	}
 	// An ordinary primitive: demand each declared argument type.
 	for i, a := range args {
@@ -270,15 +270,15 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			// is called `=` rather than a narrow name like `tag=`. A name cannot
 			// say why; an error can.
 			if op.Name == "=" {
-				return "", fmt.Errorf("in argument %d of `=`: %w.\n"+
-					"`=` is the language's equality and it is integer equality only. "+
+				return "", fmt.Errorf("in argument %d of `==`: %w.\n"+
+					"`==` is the language's equality and it is integer equality only. "+
 					"Floats are excluded because NaN is not an equivalence relation, "+
 					"and strings because no two of the four targets agree on comparing "+
 					"them (docs/spec/strings.md). For a host's own equality, name it: "+
-					"`go.==`, `js.===`, `java.==`, `x64.sete` — that is target-native "+
+					"go.`==`, js.`===`, java.`==`, x64.sete — that is target-native "+
 					"and carries no portability claim", i+1, err)
 			}
-			return "", fmt.Errorf("in argument %d of %s: %w", i+1, spelled(op.Name), err)
+			return "", fmt.Errorf("in argument %d of %s: %w", i+1, core.ShowName(spelled(op.Name)), err)
 		}
 	}
 	// ABANDON HAS NO VALUE (spec/errors.md §8): crash : E → 0, and 0 is the
@@ -299,7 +299,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			res = ty
 		}
 	}
-	return res, c.agree(op.Name, res, want)
+	return res, c.agree(core.ShowName(op.Name), res, want)
 }
 
 // bottom is the type of a binder no tail gives a value: a component every tail
@@ -405,23 +405,23 @@ func (c *checker) agree(what, got, want string) error {
 			"  Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three "+
 			"parasitize the host's own. A target without one needs a bignum WRITTEN, in "+
 			"Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).",
-			what, core.ShowType(want), c.tgt.Name, c.tgt.Word)
+			what, core.ShowSet(want), c.tgt.Name, c.tgt.Word)
 	}
 	// THE UNSIGNED WORD WHERE THE SIGNED ONE IS REQUIRED (ADR 0026 (10)). The
 	// value is a machine word on this target — just the other one, and the two
 	// agree only modulo 2^64, so the program has to say which integer it means.
 	if c.tgt.ValueType(got) == core.U64Type && c.tgt.ValueType(want) == "int" {
 		return fmt.Errorf("%s is %s, which is outside target %s's signed word [%d, %d] and inside "+
-			"[0, 18446744073709551615], so it is held in the UNSIGNED word, not an `int` (ADR 0026).\n"+
+			"[0, 18446744073709551615], so it is held in the UNSIGNED word, not an `Int` (ADR 0026).\n"+
 			"  The two realizations agree only modulo 2^64: +, − and · convert freely where the result "+
 			"is proven in one of them, and nothing else does. Prove the value back inside the signed "+
-			"word (narrow it, or divide it down), or declare the destination (int 0 18446744073709551615).",
-			what, core.ShowType(got), c.tgt.Name, c.tgt.Word.Lo, c.tgt.Word.Hi)
+			"word (narrow it, or divide it down), or declare the destination 0..2^64-1.",
+			what, core.ShowSet(got), c.tgt.Name, c.tgt.Word.Lo, c.tgt.Word.Hi)
 	}
 	if openTable(got) {
-		return fmt.Errorf("%s is a %s, but %s is required here", what, constructorWord(got), want)
+		return fmt.Errorf("%s is a %s, but %s is required here", what, constructorWord(got), core.ShowSet(want))
 	}
-	return fmt.Errorf("%s is %s, but %s is required here", what, got, want)
+	return fmt.Errorf("%s is %s, but %s is required here", what, core.ShowSet(got), core.ShowSet(want))
 }
 
 func (c *checker) loop(args []*core.Term, want string) (string, error) {
@@ -561,7 +561,7 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 				d = p.Args[i]
 			}
 			if _, err := c.walk(a, d); err != nil {
-				return "", fmt.Errorf("in %s's argument %d: %w", p.Name, i+1, err)
+				return "", fmt.Errorf("in %s's argument %d: %w", core.ShowName(spelled(p.Name)), i+1, err)
 			}
 		}
 		body, raw, _ := openFresh(k, map[string]bool{}, func(s string) string { return s })
@@ -613,7 +613,7 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 			// declares everything `any` does not turn a loop with one known
 			// exit into a type error (json-2026-08-26).
 			if !compatible(c.tgt, a, b) {
-				return "", fmt.Errorf("a loop's exits are %s and %s", a, b)
+				return "", fmt.Errorf("a loop's exits are %s and %s", core.ShowSet(a), core.ShowSet(b))
 			}
 			return joinOf(a, b), nil
 		}
@@ -657,7 +657,7 @@ func (c *checker) cond(args []*core.Term, want string) (string, error) {
 		if j, ok := c.tgt.JoinSameRepr(a, b); ok {
 			return j, c.agree("a conditional", j, want)
 		}
-		return "", fmt.Errorf("the branches of a conditional are %s and %s", a, b)
+		return "", fmt.Errorf("the branches of a conditional are %s and %s", core.ShowSet(a), core.ShowSet(b))
 	}
 	// The more informative of the two survives, so a known branch still
 	// constrains what the conditional is used as.
@@ -752,17 +752,17 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env,
 		}
 		if len(p.Args) != len(sig.Params) {
 			return fmt.Errorf("%s: target %s provides it with %d argument(s), "+
-				"but its signature declares %d", n, tgt.Name, len(p.Args), len(sig.Params))
+				"but its header declares %d", core.ShowName(n), tgt.Name, len(p.Args), len(sig.Params))
 		}
 		for i, want := range sig.Params {
 			if got := p.Args[i]; !compatible(tgt, got, want.Type) {
-				return fmt.Errorf("%s: argument %d is %s in target %s, but %s in its signature",
-					n, i+1, got, tgt.Name, want.Type)
+				return fmt.Errorf("%s: argument %d is %s in target %s, but %s in its header",
+					core.ShowName(n), i+1, core.ShowSet(got), tgt.Name, core.ShowSet(want.Type))
 			}
 		}
 		if !compatible(tgt, p.Result, sig.Result) {
-			return fmt.Errorf("%s: target %s returns %s, but its signature declares %s",
-				n, tgt.Name, p.Result, sig.Result)
+			return fmt.Errorf("%s: target %s returns %s, but its header declares %s",
+				core.ShowName(n), tgt.Name, core.ShowSet(p.Result), core.ShowSet(sig.Result))
 		}
 	}
 	return nil
@@ -811,8 +811,8 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		return nil
 	}
 	if len(t.Params) != len(sig.Params) {
-		return fmt.Errorf("%s takes %d argument(s), but its signature declares %d",
-			name, len(t.Params), len(sig.Params))
+		return fmt.Errorf("%s takes %d argument(s), but its header declares %d",
+			core.ShowName(name), len(t.Params), len(sig.Params))
 	}
 	c := &checker{tgt: tgt, types: map[string]string{}}
 	for i, p := range t.Params {
@@ -841,8 +841,8 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		if pass == 1 && !compatible(tgt, got, sig.Result) &&
 			!tgt.Subsumes(tgt.ValueType(got), tgt.ValueType(sig.Result)) &&
 			!intSortsAgree(tgt, got, sig.Result) {
-			return fmt.Errorf("%s returns %s, but its signature declares %s",
-				name, got, sig.Result)
+			return fmt.Errorf("%s returns %s, but its header declares %s",
+				core.ShowName(name), core.ShowSet(got), core.ShowSet(sig.Result))
 		}
 	}
 	return nil
@@ -853,12 +853,12 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 // happen silently in the narrowing direction (unbounded-rung.md §3).
 func WiderThanWord(tg *Target, what, got string) error {
 	return fmt.Errorf("%s is %s, which is WIDER than the word of target %s, %s, so on "+
-		"this target it is not an `int` — it is arbitrary precision, a rung above "+
+		"this target it is not an `Int` — it is arbitrary precision, a rung above "+
 		"the host's word (ADR 0026, docs/unbounded-rung.md).\n"+
 		"  A range above the word is a WIDENING, not a refinement: a value that "+
-		"may leave the machine word cannot silently be used where an `int` is "+
+		"may leave the machine word cannot silently be used where an `Int` is "+
 		"required, and this refusal is where that is said. Widen the destination, "+
-		"or take the value to a string with `big-str`.", what, core.ShowType(got), tg.Name, tg.Word)
+		"or take the value to a string with `big_str`.", what, core.ShowSet(got), tg.Name, tg.Word)
 }
 
 // intSortsAgree is the integer sort's agreement (ADR 0033): two integer types

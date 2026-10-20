@@ -20,9 +20,9 @@ func TestAConditionalJoinsAtTheLarger(t *testing.T) {
 		{`fn f(c ∈ Bool, b ∈ go.bytestring) (go.bytestring) { if c { "" } else { b } }`, ""},
 		{`fn f(c ∈ Bool, b ∈ go.bytestring) (go.bytestring) { if c { b } else { "" } }`, ""},
 		{`fn f(c ∈ Bool, b ∈ go.bytestring) (String) { if c { "" } else { b } }`,
-			"its signature declares result string, and the body yields go.bytestring"},
+			"its header declares result String, and the body yields go.bytestring"},
 		{"fn f(c ∈ Bool, w ∈ `go/io`.Writer) (Bool) {\n    (n, e) = fmt.Fprintln(if c { gos.Stderr() } else { w }, \"x\")\n    go.err_nil(e)\n}",
-			"the branches of a conditional are go/os.File and go/io.Writer"},
+			"the branches of a conditional are `go/os`.File and `go/io`.Writer"},
 		{`fn f(c ∈ Bool) (Bool) {
     (n, e) = fmt.Fprintln(if c { gos.Stderr() } else { strings.NewBuilder() }, "x")
     go.err_nil(e)
@@ -91,7 +91,7 @@ export fn f(k ∈ 0..100) (Int) {
 		{"i * 3", "1", "an exit of 3i, up to 300"},
 	} {
 		_, err := entryGo(t, prog(c.exit0, c.exit1))
-		if err == nil || !strings.Contains(err.Error(), "go/os.Exit requires") {
+		if err == nil || !strings.Contains(err.Error(), "`go/os`.Exit requires") {
 			t.Errorf("%s was accepted as an exit status: %v", c.why, err)
 		}
 	}

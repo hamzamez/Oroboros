@@ -42,17 +42,17 @@ func aliasOf(f *core.Term, path string) (string, error) {
 		// A HOST SPELLING GOES INSIDE (host …), theories.md §5.2 — the one clause
 		// that carries host text. Without that rule "no host clause" would stop
 		// meaning "no claim about any host".
-		return "", fmt.Errorf("%s: (type %s \"…\"): a host spelling goes inside (host …) — write "+
-			"(type NAME (host \"spelling\")); a bare τ is a manifest type", path, f.Kids[1])
+		return "", fmt.Errorf("%s: `set %s = \"…\"`: a host spelling goes after `host` — write "+
+			"`set NAME = host \"spelling\"`; a bare set is a manifest type", path, core.ShowSet(f.Kids[1].Name))
 	case ty == "":
-		return "", fmt.Errorf("%s: (type %s τ) — τ must be a type, got %s", path, f.Kids[1], f.Kids[2])
+		return "", fmt.Errorf("%s: `set %s = S` — S must be a set, got %s", path, core.ShowSet(f.Kids[1].Name), core.ShowTerm(f.Kids[2]))
 	case core.IsProd(ty):
 		// SEVERAL RESULTS ARE DECIDED AT THE DECLARATION, not after it: primOf
 		// splits a `tuple` result into Prim.Results while reading the sig, and an
 		// alias is unfolded later, so a name standing for a tuple would be one
 		// result where the tuple it means is two. Writing the tuple says it.
-		return "", fmt.Errorf("%s: (type %s %s): a manifest type may not stand for a tuple, because "+
-			"several results are read from the declaration itself; write the tuple", path, f.Kids[1], ty)
+		return "", fmt.Errorf("%s: `set %s = %s`: a manifest type may not stand for a product, because "+
+			"several results are read from the declaration itself; write the product", path, core.ShowSet(f.Kids[1].Name), core.ShowSet(ty))
 	}
 	return ty, nil
 }

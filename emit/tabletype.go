@@ -166,7 +166,7 @@ func (c *checker) read(name, e string, idx *core.Term, want string) (string, err
 	if _, err := c.walk(idx, "int"); err != nil {
 		return "", fmt.Errorf("in an index of %s: %w", name, err)
 	}
-	what := "(" + name + " …)"
+	what := core.ShowName(name) + "[…]"
 	switch e {
 	case "", unknownElem:
 		c.solve(name, want)
@@ -278,7 +278,7 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 	lambda := func(t *core.Term) bool { return t.Kind == core.KFn && len(t.Params) == 1 }
 	switch kind {
 	case "array": // a graph: every entry at the demanded element
-		what := "(array …)"
+		what := "array { … }"
 		elem := c.demandedElem(want, false)
 		tys := make([]string, len(args))
 		for i, a := range args {
@@ -295,7 +295,7 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 		if len(args) != 2 || !lambda(args[1]) {
 			return "", false, nil
 		}
-		what := "(table …)"
+		what := "array { … : k ∈ … }"
 		if _, err := c.walk(args[0], "int"); err != nil {
 			return "", true, fmt.Errorf("in a table's length: %w", err)
 		}
@@ -315,7 +315,7 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 		if _, err := c.walk(args[0], ""); err != nil {
 			return "", true, err
 		}
-		ty, err := c.formValue("(alloc …)", bufferOfUnknown, want)
+		ty, err := c.formValue("alloc(…)", bufferOfUnknown, want)
 		return ty, true, err
 
 	case "table-build", "map-build": // the scope's value is its body's
@@ -356,9 +356,9 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 		if err != nil {
 			return "", true, err
 		}
-		key, val, store := "int", "", "(set …)"
+		key, val, store := "int", "", "a store, b[…] := …,"
 		if kind == "map-insert" {
-			store = "(insert …)"
+			store = "a store, m[…] := …,"
 			key = ""
 			if k, v, ok := core.MapTypes(buf); ok && k != unknownElem {
 				key, val = k, v
@@ -393,7 +393,7 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 				return "", true, err
 			}
 		}
-		ty, err := c.formValue("(map …)", mapOfUnknown, want)
+		ty, err := c.formValue("map { … }", mapOfUnknown, want)
 		return ty, true, err
 
 	case "len": // the domain bound: len : Table(σ) → int
@@ -403,7 +403,7 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 		if _, err := c.walk(args[0], ""); err != nil {
 			return "", true, err
 		}
-		return "int", true, c.agree("(len …)", "int", want)
+		return "int", true, c.agree("len(…)", "int", want)
 
 	case "map-keys":
 		if len(args) != 1 {
@@ -412,7 +412,7 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 		if _, err := c.walk(args[0], ""); err != nil {
 			return "", true, err
 		}
-		ty, err := c.formValue("(keys …)", arrayOfUnknown, want)
+		ty, err := c.formValue("keys(…)", arrayOfUnknown, want)
 		return ty, true, err
 	}
 	return "", false, nil

@@ -539,6 +539,26 @@ A spelling that reads to a different tree is not a synonym and is printed as wri
 unless the block fits on one line; arms aligned at `->`. Layout is decoration (abstract.md §9.1), so a
 file printed in another layout reads to the same abstract tree.
 
+### 6.1 Messages
+
+A diagnostic is a function of the program, so what it quotes is J (jmsg-2026-10-20, `core/jshow.go`):
+
+- **a name** by σ_J (§1.5): `io.print_line`, ``go.`>=` ``, a module path quoted, `` `go/fmt`.Println ``;
+- **a set** by J's formers: `0..9`, `-2^63..2^63-1`, `` 0..`+inf` ``, `Array(0..255)`, `Map(Int, F64)`,
+  `Int × Bool`, `()`; an end too long to read keeps its size, `1.234e400 (401 digits)`;
+- **a term** of the core by J's expressions, the inverse of D on D's image: a redex is a block
+  `{ x = e; b }`, a Church tuple its pair, the connectives and comparisons infix (`=` as `==`), a
+  right-nested chain of `if` a `case { φ -> a; … }`, a loop `loop x = z { … }` whose negated guards
+  D normalized come back as `!c -> …`, a store `store(b, i, v)`, an integer in decimal (a power folds
+  with its neighbours when read); an indexing a message knows is one is `t[i]`.
+
+The law, tested on every corpus definition: **parse_J(show_J(t)) = t** for each core term t that D
+makes and that holds no name the compiler made (`#…`) or ascription. A message's own words name J's
+forms: `` `use go` ``, `fn f() { … }`, `` `axiom T ⊆ I` ``, `` `repr LO..HI word` ``, `` `x := v` ``.
+Not rendered: the prover's fact log after `known:` (the linear fragment's notation, `-i + n + -1 <= 0`),
+an interval `[lo, hi]`, the IR's own messages about its text, and a raw form a loader quotes after
+`got`.
+
 ---
 
 ## 7. From today's notation

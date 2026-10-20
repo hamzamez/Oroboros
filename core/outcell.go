@@ -134,15 +134,15 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 		case isOut(a):
 			ty := TypeName(a.Kids[1])
 			if ty == "" {
-				return nil, fmt.Errorf("%s: (out τ) takes a type, got %s", call, a.Kids[1])
+				return nil, fmt.Errorf("%s: `out S` takes a set, got %s", ShowTerm(call), ShowTerm(a.Kids[1]))
 			}
 			kids = append(kids, App(Name(FreshName), Str(ty)))
 			outAt = append(outAt, i)
 		default:
 			return nil, fmt.Errorf("%s: argument %d of %s is a cell the host writes, and takes a cell in "+
-				"scope or (out τ); %s is neither. A host that writes through the address of a value the "+
+				"scope or `out S`; %s is neither. A host that writes through the address of a value the "+
 				"program cannot read again has written into nothing (spec/local.md §5)",
-				call, i+1, head.Name, a)
+				ShowTerm(call), i+1, ShowName(head.Name), ShowTerm(a))
 		}
 	}
 	// The continuation's parameters: the out cells' values, then the declared
@@ -153,7 +153,7 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 		if len(k.Params) != len(outAt)+d.Arity {
 			return nil, fmt.Errorf("%s gives %d cell value(s) and then its declared result's %d "+
 				"component(s), and the λ it is applied to takes %d (spec/local.md §6)",
-				call, len(outAt), d.Arity, len(k.Params))
+				ShowTerm(call), len(outAt), d.Arity, len(k.Params))
 		}
 		outParams, resParams = k.Params[:len(outAt)], k.Params[len(outAt):]
 		for _, p := range k.Params {

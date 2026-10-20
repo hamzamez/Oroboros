@@ -212,10 +212,10 @@ func (w *words) conv(v V, toU bool, declared bool, where string) V {
 	}
 	if declared && !w.inS(v) && w.err == nil {
 		w.err = fmt.Errorf("%s is %s, which is outside target %s's signed word [%d, %d] and inside "+
-			"[0, 18446744073709551615], so it is held in the UNSIGNED word, not an `int` (ADR 0026, ADR 0033).\n"+
+			"[0, 18446744073709551615], so it is held in the UNSIGNED word, not an `Int` (ADR 0026, ADR 0033).\n"+
 			"  The two realizations agree only modulo 2^64: +, − and · convert freely where the result "+
 			"is proven in one of them, and nothing else does. Prove the value back inside the signed "+
-			"word (narrow it, or divide it down), or declare the destination (int 0 18446744073709551615).",
+			"word (narrow it, or divide it down), or declare the destination 0..2^64-1.",
 			where, termShow(w.fs[v].v), w.tg.Name, w.tg.Word.Lo, w.tg.Word.Hi)
 	}
 	out := w.fresh("int")

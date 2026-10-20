@@ -301,7 +301,7 @@ func (f *flattener) walk(t *core.Term) (*core.Term, error) {
 				vs := f.prodLit(t.Kids[3])
 				if vs == nil {
 					return nil, fmt.Errorf("a table whose element is a %d-component "+
-						"product is written with `(array v1 … v%d)`, not with a scalar", k, k)
+						"product is written with a tuple, `(v1, …, v%d)`, not with a scalar", k, k)
 				}
 				if len(vs) != k {
 					return nil, fmt.Errorf("%d values stored into a %d-component product",

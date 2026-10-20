@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"oroboros/core"
 )
 
 // InstanceName is f#[T₁,…,Tₙ]. The `#` keeps a program from writing it, as it
@@ -68,18 +70,18 @@ func (tg *Target) oneNamespace() error {
 	sort.Strings(both)
 	return fmt.Errorf("%s is declared as a type and as a value in one module; a type is a value of the static "+
 		"level, so a name denotes one thing. A struct literal is its type's introduction rule and is "+
-		"declared in the type's companion module as `new` (spec/typevalues.md §2)", strings.Join(both, ", "))
+		"declared in the type's companion module as `new` (spec/typevalues.md §2)", strings.Join(core.ShowNames(both), ", "))
 }
 
 // Instantiate makes f's instance at args, registers it, and returns its name.
 func (tg *Target) Instantiate(f string, args []string) (string, error) {
 	p, ok := tg.Prims[f]
 	if !ok || len(p.Static) == 0 {
-		return "", fmt.Errorf("%s takes no static parameters, so it is not applied to a set", spelled(f))
+		return "", fmt.Errorf("%s takes no static parameters, so it is not applied to a set", core.ShowName(spelled(f)))
 	}
 	if len(args) != len(p.Static) {
 		return "", fmt.Errorf("%s takes %d static argument%s, a set for each of %s; it is applied to %d",
-			spelled(f), len(p.Static), plural(len(p.Static)), staticNames(p.Static), len(args))
+			core.ShowName(spelled(f)), len(p.Static), plural(len(p.Static)), staticNames(p.Static), len(args))
 	}
 	name := InstanceName(f, args)
 	if _, have := tg.Prims[name]; have {
@@ -90,13 +92,14 @@ func (tg *Target) Instantiate(f string, args []string) (string, error) {
 		a := args[i]
 		if !tg.IsSet(a) {
 			return "", fmt.Errorf("%s's static parameter %s is given %s, which is not a set this target "+
-				"declares (spec/typevalues.md §1)", spelled(f), sp.Name, a)
+				"declares (spec/typevalues.md §1)", core.ShowName(spelled(f)), sp.Name, core.ShowSet(a))
 		}
 		// THE BOUND IS MEMBERSHIP: ⟦a⟧ ∈ 𝒫(⟦B⟧) iff ⟦a⟧ ⊆ ⟦B⟧.
 		if sp.SubsetOf != "" && !tg.Subsumes(a, sp.SubsetOf) {
-			return "", fmt.Errorf("%s applied to %s: its static parameter %s ranges over (subsets %s), and "+
-				"%s is not a subset of %s — the target declares no (implements %s %s) (spec/typevalues.md §5)",
-				spelled(f), a, sp.Name, sp.SubsetOf, a, sp.SubsetOf, a, sp.SubsetOf)
+			return "", fmt.Errorf("%s applied to %s: its static parameter %s ⊆ %s, and "+
+				"%s is not a subset of %s — the target declares no `axiom %s ⊆ %s` (spec/typevalues.md §5)",
+				core.ShowName(spelled(f)), core.ShowSet(a), sp.Name, core.ShowSet(sp.SubsetOf), core.ShowSet(a),
+				core.ShowSet(sp.SubsetOf), core.ShowSet(a), core.ShowSet(sp.SubsetOf))
 		}
 		sigma[sp.Name] = a
 	}
@@ -125,7 +128,7 @@ func (tg *Target) Instantiate(f string, args []string) (string, error) {
 	}
 	if strings.Contains(q.Form, "%t") {
 		return "", fmt.Errorf("%s's template %q has a type hole beyond its %d static parameter%s",
-			spelled(f), p.Form, len(p.Static), plural(len(p.Static)))
+			core.ShowName(spelled(f)), p.Form, len(p.Static), plural(len(p.Static)))
 	}
 	tg.Prims[name] = q
 	tg.Names = append(tg.Names, name)

@@ -206,7 +206,7 @@ func CheckJoins(tg *Target, t *core.Term) error {
 		}
 		if isScopeTerm(tg, t) {
 			if bad := badTail(tg, t.Kids[2].Closed()); bad != nil {
-				err = fmt.Errorf("a `build`'s value is a table, a value with no buffer in it, or a " +
+				err = fmt.Errorf("a scope's value is a table, a value with no buffer in it, or a " +
 					"tuple of them (tables.md §2.5); this one is a function term: a closure, or a " +
 					"tuple component that is one.\n  A closure made inside a scope may hold a buffer " +
 					"that outlives it unfrozen, so it is not built (R1). Return what the closure " +
@@ -225,7 +225,7 @@ func CheckJoins(tg *Target, t *core.Term) error {
 				m := len(t.Kids[1].Params)
 				if _, ok := projectTail(tg, t.Kids[0], 0, m); !ok {
 					err = fmt.Errorf("a tuple pattern of %d names takes apart a `build` or a `loop`, so "+
-						"every exit must give %d values: a (tuple …) of them, or a host call that "+
+						"every exit must give %d values: a tuple (a, b, …) of them, or a host call that "+
 						"declares %d results (tables.md §2.5). An exit gives something else: a single "+
 						"value, a tuple of another size, or a call declaring another number of results.",
 						m, m, m)

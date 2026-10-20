@@ -75,7 +75,7 @@ func TestALiteralOutsideTheDeclaredElementIsRefused(t *testing.T) {
 		if err == nil {
 			t.Fatalf("%s: a literal outside the declared element must be refused", what)
 		}
-		for _, want := range []string{"300", "int 0 255", "literal-elements.md"} {
+		for _, want := range []string{"300", "0..255", "literal-elements.md"} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("%s: the refusal must name %q, got: %v", what, want, err)
 			}

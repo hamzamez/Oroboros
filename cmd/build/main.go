@@ -78,7 +78,7 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		tg.BigRepr = bigRepr
 	}
 	if tg.Build == "" && tg.Artifact == "" {
-		return fmt.Errorf("target %q declares neither (build …) nor (artifact …), so it can "+
+		return fmt.Errorf("target %q declares neither `build \"cmd\"` nor `artifact \"file\"`, so it can "+
 			"emit source but not produce a deliverable; use cmd/gen instead", target)
 	}
 	text, err := os.ReadFile(src)
@@ -139,8 +139,7 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		}
 	}
 	if entry == "" {
-		return fmt.Errorf("%s has no entry point: a program needs `(export main)` where main "+
-			"is `(fn () …)`", src)
+		return fmt.Errorf("%s has no entry point: a program needs `export fn main() { … }`", src)
 	}
 	// A DEFINITION'S CONTRACT IS CHECKED AT ITS CALLS (ADR 0028): decided
 	// here, immediately after reduction, and erased before anything else runs.

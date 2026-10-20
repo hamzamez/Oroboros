@@ -1099,7 +1099,7 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		if r.probe {
 			return false, nil
 		}
-		return false, fmt.Errorf("%s requires %s, which is false at this call", name, want)
+		return false, fmt.Errorf("%s requires %s, which is false at this call", core.ShowName(name), core.ShowTerm(want))
 	}
 	// A GOAL WITH A DISJUNCTION IN IT is decided by the sequent calculus's
 	// right-hand rules (goalHolds). Scalar's precondition on `string-of` is the
@@ -1114,7 +1114,7 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		return false, fmt.Errorf("%s requires %s, which does not follow\n  known: %s\n"+
 			"  A disjunction is proven by proving one side, or by an assumption that is the same "+
 			"term; a case split over a disjunctive fact is not attempted (docs/spec/refinements.md §3b).",
-			name, want, f.known())
+			core.ShowName(name), core.ShowTerm(want), f.known())
 	}
 	// A DISEQUALITY is a disjunction, so the conjunctive fragment cannot hold
 	// the goal — but it can hold each side. `d ≠ 0` is `d < 0 ∨ d > 0`, and
@@ -1130,7 +1130,7 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 			return false, nil
 		}
 		return false, fmt.Errorf("%s requires %s, which does not follow\n  known: %s",
-			name, want, f.known())
+			core.ShowName(name), core.ShowTerm(want), f.known())
 	}
 	goals, ok := f.oblig(want)
 	if !ok {
@@ -1149,7 +1149,7 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 			if r.probe {
 				return false, nil
 			}
-			return false, fmt.Errorf("%s requires %s, which is false", name, want)
+			return false, fmt.Errorf("%s requires %s, which is false", core.ShowName(name), core.ShowTerm(want))
 		}
 		// NOT DISCHARGED, SO REFUSED (refinements.md §3a). This was a note —
 		// "propagated, not proven" — and the program was emitted, relying on a
@@ -1162,7 +1162,7 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 			"not follow\n  known: %s\n  An obligation is discharged by a proof, by an assumption that "+
 			"is the same term, or by evaluating a comparison of literals; otherwise the call is not "+
 			"known to be defined, and the program is refused (docs/spec/refinements.md §3a).",
-			name, want, f.known())
+			core.ShowName(name), core.ShowTerm(want), f.known())
 	}
 	if !allEntailed(f, goals) && r.firstAlien(want, f) != nil {
 		budget := splitBudget
@@ -1176,7 +1176,7 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 				return false, nil
 			}
 			return false, fmt.Errorf("%s requires %s <= 0, which does not follow\n  known: %s",
-				name, g.String(), f.known())
+				core.ShowName(name), g.String(), f.known())
 		}
 	}
 	return true, nil
@@ -2668,14 +2668,14 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			if r.probe {
 				continue
 			}
-			return fmt.Errorf("(%s %s) is an indexing, and %s is not proven\n"+
+			return fmt.Errorf("%s is an indexing, and %s is not proven\n"+
 				"  known: %s\n"+
 				"  The index is outside the linear fragment, and neither a proof by cases nor a\n"+
 				"  content fact about a table bounds it. A table is a function with a finite\n"+
 				"  domain, so 0 <= i < len is the condition for the application to be DEFINED,\n"+
 				"  and an application not known to be defined is refused (docs/spec/tables.md §6,\n"+
-				"  refinements.md §3a). A guard that tests the index against (len %s) is a proof.",
-				tab, idx, want, f.known(), tab)
+				"  refinements.md §3a). A guard that tests the index against len(%s) is a proof.",
+				core.ShowIndex(tab, idx), core.ShowTerm(want), f.known(), core.ShowTerm(tab))
 		}
 		// A READ IN THE GOAL is a linear atom (refinements.md §5e), and its
 		// table's content facts reach the goal only by naming it: the split.
@@ -2689,11 +2689,11 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			if f.entails(g) || r.probe {
 				continue
 			}
-			return fmt.Errorf("(%s %s) is an indexing, and %s does not follow\n"+
+			return fmt.Errorf("%s is an indexing, and %s does not follow\n"+
 				"  known: %s\n"+
 				"  A table is a function with a finite domain, so 0 <= i < len is the\n"+
 				"  condition for the application to be DEFINED — not a check bolted on\n"+
-				"  (docs/spec/tables.md §6).", tab, idx, want, f.known())
+				"  (docs/spec/tables.md §6).", core.ShowIndex(tab, idx), core.ShowTerm(want), f.known())
 		}
 	}
 	return nil

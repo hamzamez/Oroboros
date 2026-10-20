@@ -20,7 +20,7 @@ func TestAStoreIntoAFrozenValueIsRefused(t *testing.T) {
     t = { var b := array { 0 : _ ∈ 0..3 }; b[0] := n; b }
     t2 = store(t, 1, n)
     t2[0] + t[1]
-}`, "set stores into t, which is a frozen table"},
+}`, "a store writes into t, which is a frozen table"},
 		{`export fn f(n) {
     m = { var m := map(8); m[1] := n; m }
     m2 = insert(m, 1, n + 1)

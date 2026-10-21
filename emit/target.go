@@ -2971,9 +2971,11 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 		return nil, err
 	}
 	e.SetUnresolved(p.Unresolved)
+	e.Observe = map[string]bool{}
 	for _, n := range tg.Names {
 		e.Prim[n] = true
 		e.Pure[n] = tg.Prims[n].Pure
+		e.Observe[n] = tg.Observer(tg.Prims[n])
 	}
 	// `let` reaches the reducer only in a residual it produced itself, so it is
 	// primitive here without being declared. Its own application does nothing —

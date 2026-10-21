@@ -483,7 +483,7 @@ abs_J, operator by operator (abstract.md §2):
 | `set { x ∈ S : φ }`, `set { e : x ∈ S }` | compr(x ∈ S; φ), image(x ∈ S; e) |
 | `e ∈ S` in a computation, in a claim | mem(e; S), the formula e ∈ S |
 | `assert φ` | assert(φ; rest of the block) |
-| `b ∈ S = e` | the binder b ∈ S over e, a claim; today's the(S; e) under μ |
+| `b ∈ S = e` | the binder b ∈ S over e, a claim: an obligation (a range marked as a parameter's range is, ADR 0028), proven or refused, then the(S; e) the IR reads; built (ADR 0069). `the` itself is not J |
 | `(a, b)`, `()` | tuple(a, b), tuple() |
 | `'c(e)`, `alias.'c(e)` | the tag c applied, resolved in the module that owns it |
 | `array { 2, 3 }`, `array { e : k ∈ 0..n-1 }` | Σ₀'s `array(2, 3)`, `table(n; λk. e)` |

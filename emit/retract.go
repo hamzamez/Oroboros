@@ -156,6 +156,13 @@ func (tg *Target) retract(q string) error {
 	if len(host) == 0 {
 		return fmt.Errorf("the declared result carries no host value")
 	}
+	// AN `ensures` OVER COMPONENTS NAMES THEM BY POSITION, and the raw call keeps
+	// it, so the declared tuple's components must be its host values one for one:
+	// a factor that is no host value, or several, shifts every position after it.
+	if p.Ensures != nil && mentionsComponent(p.Ensures) && !sh.onePerComponent() {
+		return fmt.Errorf("its `ensure` names components of a result whose host values are not " +
+			"one per component, so a position would name another value")
+	}
 	// THE RAW CALL, the host's own product, under a name no program can write.
 	raw := p
 	raw.Name, raw.Retract = RawName(q), nil
@@ -505,4 +512,33 @@ func (tg *Target) readVariant(path, name string) (*core.Sum, error) {
 		return nil, fmt.Errorf("library module %s declares no variant %s", path, name)
 	}
 	return nil, fmt.Errorf("library module %s is not on the library path %v", path, tg.LibDirs)
+}
+
+// mentionsComponent reports whether a term names a component of a tuple result.
+func mentionsComponent(t *core.Term) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == core.KName && strings.HasPrefix(t.Name, core.ResultName+"#") {
+		return true
+	}
+	for _, k := range t.Kids {
+		if mentionsComponent(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// onePerComponent reports a tuple whose every component is one host value.
+func (s *shape) onePerComponent() bool {
+	if s.elems == nil {
+		return false
+	}
+	for _, e := range s.elems {
+		if len(e.host()) != 1 {
+			return false
+		}
+	}
+	return true
 }

@@ -1393,6 +1393,10 @@ var handDeclared = []handEntry{
 	// PROGRAM FIRST (examples/os/ls.oro): a listing's time, the first package of
 	// K with a file. Time's methods against the survey.
 	{"go", "targets/go", "time.oro", []string{"go/time/Time"}, timeMistakes, true, nil, nil, nil},
+	// PROGRAM FIRST (observer-2026-10-21): what examples/lines/shape.oro's
+	// segments are built on. The segments themselves are checked against these by
+	// TestASegmentIsItsFunctionRestricted.
+	{"go", "targets/go", "bytes.oro", []string{"go/bytes"}, bytesMistakes, true, nil, nil, nil},
 	// PROGRAM FIRST (bufio-2026-10-01): what examples/lines/lines.oro calls,
 	// and Writer.Write, which the io.Writer edge demands.
 	{"go", "targets/go", "bufio.oro", []string{"go/bufio", "go/bufio/Scanner", "go/bufio/Writer", "go/bufio/Reader"},
@@ -1428,6 +1432,112 @@ var fsMistakes = map[string]func(m map[string]emit.Prim){
 
 // timeMistakes: a rendering returning a number, a projection returning a
 // rendering, and a method template that names the package it does not import.
+// bytesMistakes: a count returning a table, a search over a string, and the
+// template of another function.
+var bytesMistakes = map[string]func(m map[string]emit.Prim){
+	"Count returning a table": func(m map[string]emit.Prim) {
+		p := m["Count"]
+		p.Result = "array int 0 255"
+		m["Count"] = p
+	},
+	"IndexByte over a string": func(m map[string]emit.Prim) {
+		p := m["IndexByte"]
+		p.Args = append([]string{"go.bytestring"}, p.Args[1:]...)
+		m["IndexByte"] = p
+	},
+	"a template calling the wrong function": func(m map[string]emit.Prim) {
+		p := m["IndexByte"]
+		p.Form = strings.ReplaceAll(p.Form, "bytes.IndexByte(", "bytes.LastIndexByte(")
+		m["IndexByte"] = p
+	},
+}
+
+// A SEGMENT IS ITS FUNCTION RESTRICTED (targets/go/bytes.oro, ADR 0069 item 3):
+// segment.F(b, lo, hi, x̄) = F(b[lo:hi], x̄). Go has no such names, so each is
+// checked against F, which the hand check holds to the manifest: its parameters
+// F's with lo, hi ∈ Int after the table; its result and purity F's; its template
+// F's with [lo:hi] after the table's hole; its precondition the restriction's
+// domain, 0 ≤ lo ≤ hi ≤ len b; its law F's with len b replaced by hi − lo.
+func TestASegmentIsItsFunctionRestricted(t *testing.T) {
+	tg, err := emit.LoadTarget("../../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, name := range tg.Names {
+		if !strings.HasPrefix(name, "go/bytes/segment.") {
+			continue
+		}
+		n++
+		f, ok := tg.Prims["go/bytes."+strings.TrimPrefix(name, "go/bytes/segment.")]
+		if !ok {
+			t.Errorf("%s restricts no declared function", name)
+			continue
+		}
+		if errs := segmentLaw(f, tg.Prims[name]); len(errs) > 0 {
+			t.Errorf("%s: %v", name, errs)
+		}
+	}
+	if n == 0 {
+		t.Fatal("no segment declared") // anti-vacuity
+	}
+	// Each clause catches a planted mistake.
+	f, seg := tg.Prims["go/bytes.Count"], tg.Prims["go/bytes/segment.Count"]
+	for what, mutate := range map[string]func(p *emit.Prim){
+		"the slice dropped from the template": func(p *emit.Prim) { p.Form = f.Form },
+		"the law's length not restricted":     func(p *emit.Prim) { p.Ensures = f.Ensures },
+		"the domain one-sided":                func(p *emit.Prim) { p.Where = core.App(core.Name("<="), core.Int(0), core.Name("lo")) },
+		"hi not an integer":                   func(p *emit.Prim) { p.Args = append([]string(nil), p.Args...); p.Args[2] = "array int 0 255" },
+		"impure":                              func(p *emit.Prim) { p.Pure = false },
+	} {
+		m := seg
+		mutate(&m)
+		if len(segmentLaw(f, m)) == 0 {
+			t.Errorf("%s was not caught", what)
+		}
+	}
+}
+
+// segmentLaw is the list of ways seg is not f composed with a restriction.
+func segmentLaw(f, seg emit.Prim) []string {
+	var errs []string
+	if len(f.Args) == 0 || !strings.HasPrefix(f.Args[0], "array ") || len(f.Names) == 0 {
+		return []string{"its function's first parameter is not a table"}
+	}
+	want := append([]string{f.Args[0], "int", "int"}, f.Args[1:]...)
+	if fmt.Sprint(seg.Args) != fmt.Sprint(want) || len(seg.Names) != len(want) {
+		errs = append(errs, fmt.Sprintf("parameters %q, want %q", seg.Args, want))
+		return errs
+	}
+	if seg.Result != f.Result || fmt.Sprint(seg.Results) != fmt.Sprint(f.Results) || seg.Pure != f.Pure {
+		errs = append(errs, "its result or purity is not its function's")
+	}
+	if seg.Form != strings.Replace(f.Form, "%s", "%s[%s:%s]", 1) {
+		errs = append(errs, fmt.Sprintf("template %q is not %q restricted", seg.Form, f.Form))
+	}
+	b, lo, hi := seg.Names[0], seg.Names[1], seg.Names[2]
+	le := func(x, y *core.Term) *core.Term { return core.App(core.Name("<="), x, y) }
+	and := func(x, y *core.Term) *core.Term { return core.App(core.Name("if"), x, y, core.Bool(false)) }
+	dom := and(le(core.Int(0), core.Name(lo)), and(le(core.Name(lo), core.Name(hi)),
+		le(core.Name(hi), core.App(core.Name("len"), core.Name(b)))))
+	if seg.Where == nil || seg.Where.String() != dom.String() {
+		errs = append(errs, fmt.Sprintf("precondition %v, want the restriction's domain %v", seg.Where, dom))
+	}
+	if f.Ensures != nil {
+		ren := map[string]*core.Term{}
+		for i, n := range f.Names {
+			if i > 0 && i+2 < len(seg.Names) {
+				ren[n] = core.Name(seg.Names[i+2])
+			}
+		}
+		law := strings.ReplaceAll(core.Rename2(f.Ensures, ren).String(), "(len "+f.Names[0]+")", "(- "+hi+" "+lo+")")
+		if seg.Ensures == nil || seg.Ensures.String() != law {
+			errs = append(errs, fmt.Sprintf("law %v, want %s", seg.Ensures, law))
+		}
+	}
+	return errs
+}
+
 var timeMistakes = map[string]func(m map[string]emit.Prim){
 	"Format returning an integer": func(m map[string]emit.Prim) {
 		p := m["Format"]

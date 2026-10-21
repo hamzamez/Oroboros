@@ -478,11 +478,19 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 		// so `(b.Add64 x y c)`'s carry, declared (int 0 1), was "known: nothing" at
 		// the next Add64's `carry ≤ 1` — a carry chain refused (mathbits-2026-09-23).
 		// Each endpoint a term can state is assumed of its binder.
-		if pr, _, k, ok := multiPrimCall(r.tgt, t); ok && k.Kind == core.KFn {
+		if pr, args, k, ok := multiPrimCall(r.tgt, t); ok && k.Kind == core.KFn {
 			if err := r.walk(op, f); err != nil {
 				return err
 			}
 			g := f
+			// AND ITS `ensures`, over the arguments and each component by its
+			// position (core.ResultComponent), under Lemma 1: assumed only where
+			// the call's precondition is proven at the call. io.Reader's law
+			// n ≤ len p is File.Read's (ownbuf-2026-10-21, defect 2).
+			if q := r.componentEnsures(pr, args, k.Params, f); q != nil {
+				g = f.clone()
+				assume(g, q)
+			}
 			for i, n := range k.Params {
 				if i >= len(pr.Results) {
 					break
@@ -751,6 +759,32 @@ func (r *refiner) ensuresOf(call *core.Term, result *core.Term, f *facts) *core.
 	return q
 }
 
+// componentEnsures is the postcondition of a call with several results, its
+// components named by the continuation's binders, or nil: ensuresOf for a tuple.
+func (r *refiner) componentEnsures(p Prim, args []*core.Term, binders []string, f *facts) *core.Term {
+	if p.Ensures == nil {
+		return nil
+	}
+	if p.Where != nil {
+		n := len(r.notes)
+		proven, err := r.discharge(p.Name, p, args, f)
+		r.notes = r.notes[:n]
+		if err != nil || !proven {
+			return nil
+		}
+	}
+	sub := map[string]*core.Term{}
+	for i, n := range p.Names {
+		if n != "" && i < len(args) {
+			sub[n] = args[i]
+		}
+	}
+	for j, b := range binders {
+		sub[core.ResultComponent(j)] = core.Name(b)
+	}
+	return core.Rename2(p.Ensures, sub)
+}
+
 // collectEnsures assumes the postcondition of every PURE call inside a term,
 // about the call term itself.
 //
@@ -881,9 +915,21 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 			walk(k.Body(), path, depth)
 			return
 		}
+		if x, isWrap := transparent(t); isWrap {
+			walk(x, path, depth)
+			return
+		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
 			// A JUMP HAS NO VALUE.
 			if t.Op().Name == "again" {
+				return
+			}
+			// A SCOPE'S TAILS are its body's, its buffer a binder (tailsLinear).
+			if a := t.Args(); r.isScope(t.Op().Name) && len(a) == 2 && a[1].Kind == core.KFn {
+				for _, y := range a[1].Params {
+					binders[y] = true
+				}
+				walk(a[1].Body(), path, depth)
 				return
 			}
 			// A LOOP'S TAILS are its exits. Its variables are binders, and a
@@ -960,6 +1006,28 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 	walk(value, f.clone(), 0)
 	if !ok || len(leaves) < 2 {
 		return
+	}
+	// THE TAILS AND THE NAMES THEY MENTION ARE TEMPLATES (ownbuf-2026-10-21): a
+	// value `if j >= 0 { k + j } else { n }` lies in [k, n] on both paths, and
+	// with only the guard's sides (j, 0) as templates the join kept neither end,
+	// though each holds on each leaf. A template is a candidate checked on every
+	// leaf under that leaf's facts, so more of them refine the join and keep it
+	// sound. A name bound inside the value is never one (below).
+	seenT := map[string]bool{}
+	for _, l := range leaves {
+		if len(l.e.coef) == 0 {
+			continue
+		}
+		if k := l.e.String(); !seenT[k] {
+			seenT[k] = true
+			sides = append(sides, l.e)
+		}
+		for name := range l.e.coef {
+			if v := variable(name); !seenT[v.String()] {
+				seenT[v.String()] = true
+				sides = append(sides, v)
+			}
+		}
 	}
 	// The CONSTANT tails are templates too: over them the join is the
 	// interval hull [min ℓⱼ, max ℓⱼ].
@@ -1054,8 +1122,20 @@ func (r *refiner) tailsLinear(value *core.Term, f *facts) bool {
 			walk(k.Body(), depth)
 			return
 		}
+		// A CLAIM OR A MARK IS THE IDENTITY ON ITS VALUE (core.AscribeName,
+		// core.RequireName): its tails are its argument's.
+		if x, isWrap := transparent(t); isWrap {
+			walk(x, depth)
+			return
+		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
 			if t.Op().Name == "again" {
+				return
+			}
+			// A SCOPE'S VALUE IS ITS BODY'S (tables.md §2.5, ADR 0031): a status a
+			// loop inside `var b := …` returns is the scope's (ownbuf, defect 5).
+			if a := t.Args(); r.isScope(t.Op().Name) && len(a) == 2 && a[1].Kind == core.KFn {
+				walk(a[1].Body(), depth)
 				return
 			}
 			if a := t.Args(); loopKinds[t.Op().Name] && len(a) >= 1 && a[0].Kind == core.KFn {
@@ -1885,6 +1965,16 @@ func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEn
 				add(core.Name(u), v)
 			}
 		}
+		// v ≤ len t FOR t A LOOP VARIABLE WHOSE LENGTH IS ESTABLISHED (§5b): the
+		// difference template with a length for the second variable, "index ≤
+		// length". A count a read hands back is at most the length of the buffer
+		// it fills (os.File.Read's law), and that bound has to cross the
+		// iterations that consume the chunk (examples/lines/shape.oro).
+		for _, t := range params {
+			if t != n && g.hasLength(r.tgt, t) {
+				add(v, core.App(core.Name("len"), core.Name(t)))
+			}
+		}
 	}
 	// TRANSLATION INVARIANTS (translation.go): c·x̄ = c·z̄ for c orthogonal to every
 	// back edge's step, as two inequalities Houdini checks like any candidate.
@@ -2635,6 +2725,26 @@ func (r *refiner) againDisagrees(t *core.Term, lens []*linear, env lenEnv, depth
 				return // a nested loop owns its own back edges
 			}
 		}
+		// A HOST CALL WITH SEVERAL RESULTS BINDS EACH COMPONENT WITH THE LENGTH ITS
+		// `ensures` STATES, len(result#j) == len(p): a write-borrow hands its buffer
+		// back, of the length it was given (os.File.Read, ownbuf-2026-10-21). Read
+		// as unknown, the buffer a read refills lost its length at every loop
+		// that reads.
+		if pr, args, k, isCall := multiPrimCall(r.tgt, t); isCall && k.Kind == core.KFn {
+			walk(t.Op(), env)
+			inner := env
+			for j, y := range k.Params {
+				var l *linear
+				if a := componentLengthArg(pr, args, j); a != nil {
+					if got, have := r.valueLength(a, env, depth+1); have {
+						l = got
+					}
+				}
+				inner = inner.with(y, l, nil)
+			}
+			walk(k.Body(), inner)
+			return
+		}
 		switch t.Kind {
 		case core.KFn:
 			inner := env
@@ -2650,6 +2760,70 @@ func (r *refiner) againDisagrees(t *core.Term, lens []*linear, env lenEnv, depth
 	}
 	walk(t, env)
 	return bad
+}
+
+// transparent reads through a term that is the identity on its value: a claim,
+// (the S e), and an obligation's marks, (#req … e) and (#reqw "def" cond e),
+// each decided apart. It returns the value and whether t was one.
+func transparent(t *core.Term) (*core.Term, bool) {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return nil, false
+	}
+	a := t.Args()
+	switch {
+	case t.Op().Name == core.AscribeName && len(a) == 2 && a[0].Kind == core.KStr:
+		return a[1], true
+	case t.Op().Name == core.RequireName && len(a) == 4:
+		return a[3], true
+	case t.Op().Name == core.RequireWhereName && len(a) == 3:
+		return a[2], true
+	}
+	return nil, false
+}
+
+// isScope reports a local-state scope, a buffer's or a map buffer's: `build`.
+func (r *refiner) isScope(name string) bool {
+	p, known := r.tgt.Prims[name]
+	return known && (p.Kind == "table-build" || p.Kind == "map-build")
+}
+
+// componentLengthArg is the argument whose length component j of a call has,
+// when the declaration's `ensures` states len(result#j) == len(p) for a
+// parameter p, as one conjunct; or nil.
+func componentLengthArg(p Prim, args []*core.Term, j int) *core.Term {
+	var find func(t *core.Term) *core.Term
+	find = func(t *core.Term) *core.Term {
+		if a, b, ok := erasedAnd(t); ok {
+			if x := find(a); x != nil {
+				return x
+			}
+			return find(b)
+		}
+		if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName || !isOp(t.Op().Name, "eq") || len(t.Args()) != 2 {
+			return nil
+		}
+		lenOf := func(x *core.Term) string {
+			if x.Kind == core.KApp && x.Op().Kind == core.KName && isLenOp(x.Op().Name) &&
+				len(x.Args()) == 1 && x.Args()[0].Kind == core.KName {
+				return x.Args()[0].Name
+			}
+			return ""
+		}
+		l, rr := lenOf(t.Args()[0]), lenOf(t.Args()[1])
+		if rr == core.ResultComponent(j) {
+			l, rr = rr, l
+		}
+		if l != core.ResultComponent(j) || rr == "" {
+			return nil
+		}
+		for i, n := range p.Names {
+			if n == rr && i < len(args) {
+				return args[i]
+			}
+		}
+		return nil
+	}
+	return find(p.Ensures)
 }
 
 // isTable reports whether a name in operator position is a table rather than an

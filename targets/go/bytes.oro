@@ -1,0 +1,48 @@
+// bytes, DECLARED BY HAND, PROGRAM FIRST: what examples/lines/shape.oro calls.
+// Every claim was read off src/bytes/bytes.go in the Go 1.27 toolchain.
+//
+// THE ALGEBRA. B = [0, 255]; a []byte is a word w ∈ B*.
+// - IndexByte(w, c) is the position of the first c in w, min { i : wᵢ = c }, or
+//   −1 when there is none: so −1 ≤ r < |w|, and r = −1 exactly when c ∉ w.
+// - Count(w, s) is the number of non-overlapping occurrences of s in w. For one
+//   letter, s = c, it is the letter count |w|_c, the monoid homomorphism
+//   (B*, ·, ε) → (ℕ, +, 0), so Count(uv, c) = Count(u, c) + Count(v, c) and
+//   r ≤ |w|. For the empty s it is the rune count of w plus one, so for every s,
+//   r ≤ |w| + 1, the law the header states.
+// - Both are pure, and their results are integers: each is an OBSERVER (ADR
+//   0069), so it reads a live buffer at its table parameter for the length of the
+//   call, as `b[i]` does, and the buffer is not consumed.
+//
+// A SEGMENT IS THE FUNCTION RESTRICTED. module segment declares, for each F
+// above, segment.F(b, lo, hi, x̄) = F(b[lo:hi], x̄): F composed with the
+// restriction of b to [lo, hi) re-indexed from 0, the slice expression Go writes,
+// which copies nothing. Its precondition is the restriction's domain,
+// 0 ≤ lo ≤ hi ≤ len b, and its law is F's with |w| = hi − lo. Go has no such
+// names; tooling_test.go checks each against F, its template F's with the slice
+// in the table's place (TestASegmentIsItsFunctionRestricted). That is how a
+// program searches a buffer it owns, by chunk, with the host's vectorized search
+// (ownbuf-2026-10-21).
+//
+// WHAT IS NOT DECLARED: the other 92 names; each is work, and none is a wall but
+// the functions taking a callback (Map, FieldsFunc, IndexFunc, …: tiers 1 and 2)
+// and Buffer's lent results (Bytes, Next, Peek, AvailableBuffer:
+// borrow-research.md).
+module go/bytes {
+    fn IndexByte(b ∈ Array(0..255), c ∈ 0..255) (r ∈ -1..2^63-1) pure ensure r < len(b) {
+        host expr "bytes.IndexByte(${b}, uint8(${c}))" import "bytes"
+    }
+    fn Count(s ∈ Array(0..255), sep ∈ Array(0..255)) (r ∈ 0..2^63-1) pure ensure r <= len(s) + 1 {
+        host expr "bytes.Count(${s}, ${sep})" import "bytes"
+    }
+
+    module segment {
+        fn IndexByte(b ∈ Array(0..255), lo ∈ Int, hi ∈ Int, c ∈ 0..255) (r ∈ -1..2^63-1) pure
+                where 0 <= lo && lo <= hi && hi <= len(b) ensure r < hi - lo {
+            host expr "bytes.IndexByte(${b}[${lo}:${hi}], uint8(${c}))" import "bytes"
+        }
+        fn Count(s ∈ Array(0..255), lo ∈ Int, hi ∈ Int, sep ∈ Array(0..255)) (r ∈ 0..2^63-1) pure
+                where 0 <= lo && lo <= hi && hi <= len(s) ensure r <= hi - lo + 1 {
+            host expr "bytes.Count(${s}[${lo}:${hi}], ${sep})" import "bytes"
+        }
+    }
+}

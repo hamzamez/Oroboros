@@ -1644,3 +1644,18 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/lines/shape.oro java`
 - new source — `examples/lines/shape.oro js`
 - new source — `examples/lines/shape.oro windows`
+
+## 2026-10-21 — on 6be56d5, with uncommitted changes
+
+**Reason:** observer-2026-10-21: examples/lines/shape.oro reads its own buffer with os.File.Read and bytes.oro's segments (ADR 0069): 13 of 13 operations, parity with the hand-written program; its compile is 1.2 s serial, Houdini over a 12-variable loop. No other emission changed.
+
+568 runs: 303 emitted, 265 refused; 2065 of 2110 integer operations bounded, 353 of 374 loops proven. compiler pass, differential pass, tooling skip.
+
+2 change(s):
+
+- emitted text changed — `examples/lines/shape.oro go`
+- compiler output changed — `examples/lines/shape.oro go`
+
+1 compile(s) accepted SLOWER — compile time 0.99x the baseline (median of 10 compiles over 300 ms); a second sweep kept 1 of 1 suspect(s); paired serially against the baseline's binary (6942a00), 1 confirmed:
+
+- `examples/lines/shape.oro go` 125 → 937 ms, 7.50x; paired 78 → 468 ms, 6.00x

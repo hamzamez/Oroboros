@@ -344,6 +344,11 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 	}
 	sig := []*Term{Name("sig"), head, app(params...)}
 	result := ""
+	// A GROUP RESULT `(q ∈ B, n ∈ N, r ∈ E)` is the tuple pattern of its components
+	// (spec/j.md §2.4), its set the product B × N × E, and each named component
+	// renamed in the `ensure` to its position (ResultComponent): `File.Read`'s
+	// count is at most the length of the buffer it fills, io.Reader's law.
+	var components map[string]string
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
@@ -351,15 +356,35 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 	if p.is(")") {
 		sig = append(sig, app())
 	} else {
-		if p.peek().kind == tIdent && p.peekN(1).text == "∈" {
-			result = p.next().text
-			p.next()
+		var parts []Expr
+		var names []string
+		for {
+			name := ""
+			if p.peek().kind == tIdent && p.peekN(1).text == "∈" {
+				name = p.next().text
+				p.next()
+			}
+			s, err := p.expr()
+			if err != nil {
+				return nil, err
+			}
+			parts, names = append(parts, s), append(names, name)
+			if !p.accept(",") {
+				break
+			}
 		}
-		s, err := p.expr()
-		if err != nil {
-			return nil, err
+		if len(parts) == 1 {
+			result = names[0]
+			sig = append(sig, p.resultDatum(parts[0]))
+		} else {
+			components = map[string]string{}
+			for j, n := range names {
+				if n != "" {
+					components[Unspell(n)] = ResultComponent(j)
+				}
+			}
+			sig = append(sig, p.resultDatum(&Apply{Fn: &Var{Name: "×"}, Args: parts}))
 		}
-		sig = append(sig, p.resultDatum(s))
 	}
 	p.close()
 	if err := p.expect(")"); err != nil {
@@ -384,6 +409,9 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 			}
 			if result != "" {
 				e = renameExpr(e, map[string]string{Unspell(result): ResultName})
+			}
+			if components != nil {
+				e = renameExpr(e, components)
 			}
 			sig = append(sig, app(Name("ensures"), datum(e)))
 			continue

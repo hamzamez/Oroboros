@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -1400,6 +1401,12 @@ func Applied(ty string) (string, []string, bool) {
 // `result` keyword and a program may still use the name for anything that is
 // not a parameter of a function carrying one.
 const ResultName = "result"
+
+// ResultComponent names the j-th component of a tuple result in a host
+// declaration's `ensures` (j from 0): a header's group result `(q ∈ B, n ∈ N, r ∈ E)`
+// names its components, and the reader renames each to its position, as a single
+// named result is renamed to ResultName. The `#` keeps a program from writing it.
+func ResultComponent(j int) string { return ResultName + "#" + strconv.Itoa(j) }
 
 // prodHoldsBuffer is ADR 0020's rule 6 for a product element: a buffer may not
 // be a field of a table's element any more than the element itself.

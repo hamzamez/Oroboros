@@ -264,6 +264,19 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		if i < len(p.Args) {
 			d = p.Args[i]
 		}
+		// AN OBSERVER'S TABLE PARAMETER TAKES A LIVE BUFFER as the frozen array
+		// it would be at the call (ADR 0069, observer.go): Buffer(V) meets
+		// Array(V), element for element. Only a NAME is asked first, which is the
+		// only form a live buffer takes in a residual; anything else is walked
+		// against its declaration once, as before.
+		if c.tgt.observes(p, i) && a.Kind == core.KName {
+			if got, err := c.walk(a, ""); err == nil && core.IsBuffer(got) {
+				if err := c.agree(core.ShowTerm(a), "array "+core.BufferElem(got), d); err != nil {
+					return "", fmt.Errorf("in argument %d of %s: %w", i+1, core.ShowName(spelled(op.Name)), err)
+				}
+				continue
+			}
+		}
 		if _, err := c.walk(a, d); err != nil {
 			// `=` is the LANGUAGE's equality and is deliberately narrow, so its
 			// refusal has to explain itself — that explanation is the reason it

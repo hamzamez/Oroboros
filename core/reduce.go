@@ -75,7 +75,11 @@ type Env struct {
 	Defs map[string]*Term
 	Prim map[string]bool
 	Pure map[string]bool // names whose APPLICATION is pure; see pureName
-	Rec  map[string]bool // recursive definitions are never δ-reduced
+	// Observe names the host calls that may read a live buffer at a table
+	// parameter (ADR 0069): pure, with scalar results. An application of one to
+	// a bound variable is a read of a table through it, as `(b i)` is (§7c).
+	Observe map[string]bool
+	Rec     map[string]bool // recursive definitions are never δ-reduced
 
 	// Word is the target's word (ADR 0026): constant folding stays inside it,
 	// because that is where the target's run time computes the same integer.
@@ -207,6 +211,15 @@ func (p *Program) AscribeWide(w Word) {
 // measurement, see Env.Requires. `#` is not an identifier character, so no
 // program can write one.
 const RequireName = "#req"
+
+// ClaimName is a binder's claim whose set is not yet canonical, (#claim "b" S e):
+// the reducer normalizes S and makes it (#req ClaimDef "b" "ty" e) when S is a
+// range, or e when it is not (desugar.go).
+const ClaimName = "#claim-set"
+
+// ClaimDef is the def a binder's claim marks carry, `b ∈ S = e` (desugar.go):
+// no definition, the claim itself.
+const ClaimDef = "#claim"
 
 // markRequires wraps each ranged argument of a direct call to a measured
 // definition. An argument already marked for the same range is left alone, so a
@@ -1526,7 +1539,7 @@ func sortedKeys(m map[string]*Term) []string {
 // destination rather than this. Recognising it at all is what keeps the rule
 // narrow — an ordinary arithmetic argument is still substituted into an impure
 // body, as it always was.
-func readsBoundTable(t *Term) bool {
+func (e *Env) readsBoundTable(t *Term) bool {
 	if t == nil {
 		return false
 	}
@@ -1542,8 +1555,20 @@ func readsBoundTable(t *Term) bool {
 	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KBound {
 		return true
 	}
+	// AN OBSERVER APPLIED TO A BOUND VARIABLE reads a table through it too
+	// (ADR 0069): `(bytes.Count b sep)` reads b as `(b i)` does, and moved into an
+	// impure body it would read b after a store there. Which argument is the
+	// table is the target's knowledge, so every bound argument is taken for one:
+	// conservative, as the rule is.
+	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName && e.Observe[t.Kids[0].Name] {
+		for _, k := range t.Kids[1:] {
+			if k.Kind == KBound {
+				return true
+			}
+		}
+	}
 	for _, k := range t.Kids {
-		if readsBoundTable(k) {
+		if e.readsBoundTable(k) {
 			return true
 		}
 	}
@@ -1885,6 +1910,30 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		return FnClosed(t.Params, b), nil
 
 	case KApp:
+		// A BINDER'S CLAIM, ITS SET CANONICAL NOW: the mark a range claim needs, as
+		// D makes it for a set it can spell (desugar.go).
+		if t.Op().Kind == KName && t.Op().Name == ClaimName && len(t.Kids) == 4 && t.Kids[1].Kind == KStr {
+			set, err := normalize(t.Kids[2], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			ty := TypeTerm(set)
+			if _, _, isRange := IntRangeBig(ty); isRange {
+				return normalize(&Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(ClaimDef), t.Kids[1], Str(ty), t.Kids[3]}}, e, fuel)
+			}
+			return normalize(t.Kids[3], e, fuel)
+		}
+		// AN ASCRIPTION'S SET IS ITS CANONICAL SPELLING (desugar.go), once a
+		// constant in it is unfolded.
+		if t.Op().Kind == KName && t.Op().Name == AscribeName && len(t.Kids) == 3 && t.Kids[1].Kind != KStr {
+			set, err := normalize(t.Kids[1], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			if ty := TypeTerm(set); ty != "" {
+				return normalize(&Term{Kind: KApp, Kids: []*Term{t.Kids[0], Str(ty), t.Kids[2]}}, e, fuel)
+			}
+		}
 		if e.Requires != nil && t.Op().Kind == KName {
 			if t.Op().Name == RequireName && len(t.Kids) == 5 {
 				a, err := normalize(t.Kids[4], e, fuel)
@@ -2246,7 +2295,7 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				// operations, which reached the emitter as an "escaping
 				// closure" (tally-2026-09-11). freq.oro escaped only because
 				// its comparator hides the read behind a call to `wcmp`.
-				if args[i].Kind != KFn && readsBoundTable(args[i]) && !e.pureTerm(op.Body(), map[string]bool{}) {
+				if args[i].Kind != KFn && e.readsBoundTable(args[i]) && !e.pureTerm(op.Body(), map[string]bool{}) {
 					na, err := normalize(args[i], e, fuel)
 					if err != nil {
 						return nil, err

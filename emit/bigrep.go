@@ -296,6 +296,37 @@ func PlanBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (BigPla
 // EraseAscriptions removes every `(the T e)`, leaving e.
 func EraseAscriptions(t *core.Term) *core.Term { return eraseAscriptions(t) }
 
+// EraseAscriptionsButClaims is EraseAscriptions keeping a range within the word:
+// a binder's claim, `b ∈ S = e`, the only source of one (AscribeWide writes ranges
+// above the word, scope.go a buffer's sort), and PROVEN by the time this runs,
+// since its mark is an obligation ir.DecideMarks decides or refuses
+// (desugar.go). So the IR may read it as the value's set: ρ from a proven set
+// (ADR 0049), which the IR's own intervals cannot derive when the proof is
+// relational (ownbuf-2026-10-21). The IR erases it after deciding (ir.eraseThe).
+func EraseAscriptionsButClaims(w core.Word, t *core.Term) *core.Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == core.KFn {
+		return core.FnClosed(t.Params, EraseAscriptionsButClaims(w, t.Closed()))
+	}
+	if t.Kind != core.KApp {
+		return t
+	}
+	if op := t.Op(); op.Kind == core.KName && op.Name == core.AscribeName && len(t.Args()) == 2 {
+		a := t.Args()
+		lo, hi, isRange := core.IntRangeBig(a[0].Str)
+		if !(a[0].Kind == core.KStr && isRange && lo.IsInt64() && hi.IsInt64() && w.Contains(lo, hi)) {
+			return EraseAscriptionsButClaims(w, a[1])
+		}
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = EraseAscriptionsButClaims(w, k)
+	}
+	return &core.Term{Kind: core.KApp, Kids: kids}
+}
+
 // KeepSortAscriptions is the residual the type checker reads: ranges erased as
 // EraseAscriptions and EraseWordAscriptions erase them, and a buffer's sort
 // kept, `(the "buffer bool" b)`, which `(table n false)` writes (spec/local.md

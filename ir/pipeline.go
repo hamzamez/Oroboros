@@ -91,7 +91,7 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if plan.Host || plan.Limbs {
 		nf = emit.EraseWordAscriptions(tg.Word, nf)
 	} else {
-		nf = emit.EraseAscriptions(nf)
+		nf = emit.EraseAscriptionsButClaims(tg.Word, nf)
 	}
 	// Check the residual before emitting it (docs/spec/types.md). On Go and
 	// Java the host would catch most of this; on JavaScript nothing would. It

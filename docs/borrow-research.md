@@ -23,7 +23,8 @@ reproduced from the programs quoted there.
 >   §4 types and nothing builds. Whether a host call may observe a live buffer follows from its
 >   result's representation, so it needs no annotation.
 >
-> So **`lent` is not needed for parity**. It is needed for `Peek` and `Scanner.Bytes`, which have no
+> **Decisions 1–3 below are built** (ADR 0069, observer-2026-10-21): `shape` reads its own buffer at
+> parity. So **`lent` is not needed for parity**. It is needed for `Peek` and `Scanner.Bytes`, which have no
 > caller-owned form, and it waits for a program that calls them. The findings below stand as
 > analysis; §8's decisions are replaced.
 

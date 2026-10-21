@@ -8,6 +8,11 @@ written by hand**, carrying what a call does to a buffer, what it requires and w
 the generator kept as the checker of the mechanical half. `unicode/utf8` is the first. D3 is not
 taken. This document is kept as the reading the decision rests on.
 
+**Aspect 3 at a host parameter is built, 2026-10-21** ([ADR 0069](decisions/0069-an-observer-at-a-host-parameter.md),
+observer-2026-10-21): a pure declaration whose results are scalars is an OBSERVER, derived and never
+declared, and a live buffer stands at its table parameter for the length of the call, §4's "a read of B
+that does not consume it". Aspect 2 stays "never B": a table or host-object result refuses it.
+
 The wall
 [gostd-utf8-2026-09-13](../gauntlet/results/gostd-utf8-2026-09-13.md) §4 stopped at, on hamza's
 *"go ahead with the research, be mathematical and algebraic, and always reach for the literature."*

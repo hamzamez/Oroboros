@@ -213,7 +213,12 @@ type BuildMap struct {
 
 // The is a claim: e's value lies in S (abstract.md §2.4). It is carried to the
 // logic as today's ascription and erased at emission (ADR 0037's pattern).
-type The struct{ Set, E Expr }
+type The struct {
+	Set, E Expr
+	// Name is the binder a block's `b ∈ S = e` claims S of; "" for an
+	// ascription the compiler writes. A named claim is an obligation (D).
+	Name string
+}
 
 // EmptyList is `()` where a parameter list may be empty and the form around it
 // is still read as a term: a top-level `(def f () body)` or `(sig f () …)`,

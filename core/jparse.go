@@ -713,6 +713,25 @@ func (p *parser) statement() (stmt, error) {
 		}
 		e, err := p.expr()
 		return stmt{kind: "buffer", name: name, value: e}, err
+	case (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == "∈":
+		// A BINDER WITH ITS SET, `b ∈ S = e` (spec/j.md §5): b bound to the(S; e),
+		// a claim on the value, an obligation discharged as a declared range is
+		// (ADR 0028, desugar.go), and once proven the set the IR reads of b
+		// (ownbuf-2026-10-21). Today's reader had the form; J's reader lacked it.
+		name := p.name()
+		p.next()
+		set, err := p.expr()
+		if err != nil {
+			return stmt{}, err
+		}
+		if err := p.expect("="); err != nil {
+			return stmt{}, err
+		}
+		e, err := p.expr()
+		if err != nil {
+			return stmt{}, err
+		}
+		return stmt{kind: "bind", pat: &PVar{Name: name}, value: &The{Set: p.toSet(set, ""), E: e, Name: name}}, nil
 	case (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == "=" && p.peekN(1).kind == tSym:
 		name := p.name()
 		p.next()
@@ -1113,6 +1132,15 @@ func (p *parser) primary() (Expr, error) {
 		case "fn":
 			p.next()
 			return p.lambda()
+		case "the":
+			// THE CORE'S ASCRIPTION IS NOT SURFACE (ADR 0062: "`the` leaves the
+			// surface"). Written as a call it reached the core as a trusted claim,
+			// `the("int 0 5", 10)` compiling; a claim is `b ∈ S = e`, an obligation
+			// (ownbuf-2026-10-21).
+			if p.peekN(1).text == "(" {
+				return nil, p.errorf("`the` is the core's ascription, not J's (ADR 0062): " +
+					"claim a value's set with a binder, `b ∈ S = e`, which is proven or refused")
+			}
 		case "array":
 			if p.peekN(1).text == "{" {
 				p.next()

@@ -405,6 +405,29 @@ func (c *linChecker) walk(t *core.Term, name string, st *linState) error {
 		return nil
 	}
 
+	// AN OBSERVER'S TABLE ARGUMENT IS A READ (ADR 0069, observer.go): a pure
+	// host call with scalar results reads the buffer for the length of the call
+	// and hands nothing on, as `(b i)` does. So it is refused after a move, and
+	// it moves nothing; its other arguments are evaluated first, in order.
+	if t.Kind == core.KApp && len(t.Kids) > 0 && t.Kids[0].Kind == core.KName {
+		if p, ok := c.tgt.Prims[t.Kids[0].Name]; ok && c.tgt.Observer(p) {
+			observed := false
+			for i, a := range t.Kids[1:] {
+				if a.Kind == core.KName && a.Name == name && c.tgt.observes(p, i) {
+					observed = true
+					continue
+				}
+				if err := c.walk(a, name, st); err != nil {
+					return err
+				}
+			}
+			if observed && st.moved {
+				return c.dead(name, "read", st)
+			}
+			return nil
+		}
+	}
+
 	// `again`'s arguments are SIMULTANEOUS (ADR 0015): every one is evaluated
 	// against the iteration's state and only then does the jump rebind the
 	// variables. So a buffer passed through unchanged — `(again stk … (stk sp))`,

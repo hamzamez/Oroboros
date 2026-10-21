@@ -143,10 +143,24 @@ func (d *desugarer) build(a Tail) *Term {
 		// `(the (int 0 9) e)` lowered `int` as a value and was refused
 		// (examples/os/du.oro, the first program to write one).
 		set := d.term(a.Set)
-		if ty := TypeTerm(set); ty != "" {
+		ty := TypeTerm(set)
+		if ty != "" {
 			set = Str(ty)
 		}
-		return &Term{Kind: KApp, Kids: []*Term{Name(AscribeName), set, d.term(a.E)}}
+		e := d.term(a.E)
+		// A BINDER'S CLAIM IS AN OBLIGATION (ADR 0049, 0062): `b ∈ S = e` with S a
+		// range marks e as a declared parameter's range marks an argument
+		// (ADR 0028), decided by a literal, the intervals or the refinement layer,
+		// or the program is refused. Only once it is proven is the(S; e) a set
+		// the IR may read. Trusted, `x ∈ 0..5 = 10` compiled (ownbuf-2026-10-21).
+		if _, _, isRange := IntRangeBig(ty); isRange && a.Name != "" {
+			e = &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(ClaimDef), Str(a.Name), Str(ty), e}}
+		} else if ty == "" && a.Name != "" {
+			// A SET NAMING A CONSTANT, `0..size_buf`, is canonical only once
+			// reduction has unfolded it: the reducer makes the mark then (ClaimName).
+			e = &Term{Kind: KApp, Kids: []*Term{Name(ClaimName), Str(a.Name), d.term(a.Set), e}}
+		}
+		return &Term{Kind: KApp, Kids: []*Term{Name(AscribeName), set, e}}
 	case *Case:
 		kids := []*Term{Name("case"), d.term(a.Scrut)}
 		for _, arm := range a.Arms {

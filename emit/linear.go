@@ -921,6 +921,16 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 		switch {
 		case (op.Name == "u64-of" || op.Name == "int-of-u64") && len(args) == 1:
 			return asLinearIn(pure, args[0]) // the identity on every value it converts
+		case op.Name == core.AscribeName && len(args) == 2 && args[0].Kind == core.KStr:
+			// (the S e) is e's value: a claim is decided apart (desugar.go).
+			return asLinearIn(pure, args[1])
+		case op.Name == core.RequireWhereName && len(args) == 3:
+			// AN OBLIGATION'S WHERE-MARK IS ITS BODY'S VALUE, (#reqw "def" cond body):
+			// cond is decided apart, and an undecided one refuses the program, so
+			// reading the value through it is sound. Opaque, it hid a claim's value,
+			// the piece's end in examples/lines/shape.oro, from the facts that decide
+			// the claim (observer-2026-10-21).
+			return asLinearIn(pure, args[2])
 		case isOp(op.Name, "add") && len(args) == 2:
 			a, ok1 := asLinearIn(pure, args[0])
 			b, ok2 := asLinearIn(pure, args[1])
@@ -1214,4 +1224,17 @@ func (l *linear) constantValue() (int64, bool) {
 		}
 	}
 	return l.konst, true
+}
+
+// hasLength reports whether the facts hold an equation for the length of the
+// table named t, under any spelling of `len` the target declares.
+func (f *facts) hasLength(tg *Target, t string) bool {
+	for prim := range tg.Prims {
+		if isOp(prim, "alen") || isOp(prim, "slen") {
+			if _, ok := f.eq[lengthVar(prim, core.Name(t))]; ok {
+				return true
+			}
+		}
+	}
+	return false
 }

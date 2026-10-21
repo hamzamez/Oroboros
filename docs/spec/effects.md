@@ -315,6 +315,16 @@ before an impure call, and the one benchmarked program among them
 (`examples/json/tree.oro`) measures **5,842 ns against 5,840** — indistinguishable,
 against a 15% noise floor.
 
+### An observer applied to a bound variable is such a read (2026-10-21)
+
+ADR 0069 lets a pure host call with scalar results read a live buffer at a table parameter, an
+observer: `bytes.Count(b, sep)` reads b as `(b i)` does. So the rule counts an application of an
+observer to a bound variable as a read of a table through it, and the observation is not moved into an
+impure body past the buffer's next store. Which argument is the table is the target's knowledge, so
+every bound argument is taken for one, conservatively, as the rule always was. Withheld, the program
+is not miscompiled but refused: linearity reads the moved observation as a read after a move
+(observer-2026-10-21, `TestAnObserverReadsALiveBufferBeforeItsNextStore`).
+
 ## 8. What this does not do
 
 - **No effect types, no monads, no regions.** Purity is one declared bit per primitive and a

@@ -18,40 +18,51 @@
 //
 // and the records are r₁, …, r_m: each cᵢ without its d, then u when u ≠ ε. So
 // m = k + [u ≠ ε], a final LF ends a record and begins none, and nothing is
-// lost: the records and the k delimiters give x back. bufio's ReadString(d)
-// returns exactly the factors, c₁, …, c_k, then u with the error that ended
-// the input (targets/go/bufio.oro), so one call per factor reads the table.
+// lost: the records and the k delimiters give x back.
 //
 // A record's fields are its factors over SEP in the same way, with no final
 // one dropped, so fields(r) = |r|_s + 1, where |r|_s, the number of SEPs in r,
-// is the letter count: a monoid homomorphism (B*, ·, ε) → (ℕ, +, 0). It is
-// strings.Count(w, SEP) on the factor w, since SEP ≠ LF. Then
+// is the letter count: a monoid homomorphism (B*, ·, ε) → (ℕ, +, 0). Then
 //
 //   F = fields(r₁)  (0 when m = 0),   R = |{ i : fields(rᵢ) ≠ F }|,
 //   I = min { i : fields(rᵢ) ≠ F },   L = max |rᵢ|  (0 when m = 0),
 //
-// a left fold over the records, one ReadString per step.
+// a left fold over the records.
 //
-// COUNTS ARE ON ℕ_C, C = 2⁶² − 1, as du's sizes are: x ⊕ 1 = min(x + 1, C).
-// Nothing in a Go string's type bounds its length below the word, so |r|_s + 1
-// is not provably inside it; a count of 2⁶² is no table anyone holds.
+// THE READS ARE CHUNKS, AND THE FOLD DOES NOT SEE THEM. The program owns a
+// buffer, and File.Read fills a prefix of it with the next chunk, so the input is
+// x = w₁ w₂ … w_t, cut where the reads fell, not where records end. Within a
+// chunk, the first LF at or after the cursor, seg.IndexByte, splits the rest into
+// a piece and its delimiter, and seg.Count counts the piece's SEPs. Both are the
+// host's own vectorized search, reading the buffer for the length of the call
+// (an observer, ADR 0069). A record that crosses a chunk boundary arrives in
+// pieces, and its counts ADD because |·|_s and |·| are homomorphisms:
+// |uv|_s = |u|_s + |v|_s. So the fold's state after x is the same whatever the
+// chunks were: the output is a function of x alone, which the test checks at the
+// buffer's edges.
 //
-// WHAT IT DOES NOT NEED. ReadString copies each factor into a new string, so
-// the program holds one record at a time, and nothing it holds is lent.
+// COUNTS ARE ON ℕ_C, C = 2⁶² − 1, as du's sizes are: x ⊕ y = min(x + y, C).
+// Nothing in a Go string's type bounds the input's length below the word; a
+// count of 2⁶² is no table anyone holds.
 use go
 use go/os as gos
+use go/os/File
 use go/io
 use go/errors
-use go/bufio
-use go/bufio/Reader as rd
+use go/bytes/segment as seg
 use go/strings
 use go/fmt
 use result
 
-// x ⊕ 1 on ℕ_C.
-fn inc(x ∈ 0..2^63-1) (1..2^62-1) { if x < 2^62-1 { x + 1 } else { 2^62-1 } }
+size_buf = 65536
 
-// How a factor ended: 0 at its delimiter, 1 at the end of the input, 2 at a
+// x ⊕ y on ℕ_C: each member is in the set, so the sum is inside the word.
+fn sat(x ∈ 0..2^62-1, y ∈ 0..2^62-1) (0..2^62-1) {
+    s = x + y
+    if s <= (2^62-1) { s } else { 2^62-1 }
+}
+
+// How a read ended: 0 with more to come, 1 at the end of the input, 2 at a
 // failure. The error is used on every path (ADR 0043).
 fn ending(r) {
     case r {
@@ -74,29 +85,47 @@ fn report(m, f, rag, ri, rf, long, open) {
     0
 }
 
-// The fold. A step reads one factor w: it is a record when it ended at its
-// delimiter or is not empty, of |w| − 1 bytes or |w| as it ended.
+// The fold, one step per piece. The cursor k runs over the chunk b[0, n); c and
+// z are the SEPs and bytes of the record so far, and open says it has begun. A
+// piece ending at an LF closes the record, with c ⊕ 1 fields and z bytes.
 fn shape(sep) {
-    in = bufio.NewReader(gos.Stdin())
-    loop m = 0, f = 0, rag = 0, ri = 0, rf = 0, long = 0, end = 0, open = false {
-        end == 1 -> report(m, f, rag, ri, rf, long, open)
-        end == 2 -> fail("shape: cannot read standard input", 1)
-        else -> {
-            (w, r) = rd.ReadString(in, 10)
-            k = len(w)
-            how = ending(r)
-            here = how == 0 || k > 0
-            size = if how == 0 { k - 1 } else { k }
-            fc = inc(strings.Count(w, sep))
-            odd = here && m > 0 && fc != f
-            again(if here { inc(m) } else { m },
-                  if here && m == 0 { fc } else { f },
-                  if odd { inc(rag) } else { rag },
-                  if odd && rag == 0 { inc(m) } else { ri },
+    in = gos.Stdin()
+    var b := array { 0 : _ ∈ 0..size_buf-1 }
+    loop k = 0, n = 0, how = 0, m = 0, f = 0, rag = 0, ri = 0, rf = 0, long = 0, c = 0, z = 0, open = false {
+        k < n -> {
+            // j ≥ 0 is written at each use: a boolean's definition is not a fact
+            // on its arms (bufio-2026-10-01 §3.4), as lines.oro writes its guard.
+            j ∈ -1..size_buf = seg.IndexByte(b, k, n, 10)
+            e ∈ 0..size_buf = if j >= 0 { k + j } else { n }
+            c1 = sat(c, seg.Count(b, k, e, sep))
+            d ∈ 0..size_buf = e - k
+            z1 = sat(z, d)
+            fc = sat(c1, 1)
+            odd = j >= 0 && m > 0 && fc != f
+            again(if j >= 0 { e + 1 } else { n }, n, how,
+                  if j >= 0 { sat(m, 1) } else { m },
+                  if j >= 0 && m == 0 { fc } else { f },
+                  if odd { sat(rag, 1) } else { rag },
+                  if odd && rag == 0 { sat(m, 1) } else { ri },
                   if odd && rag == 0 { fc } else { rf },
-                  if here && size > long { size } else { long },
-                  how,
-                  how != 0 && k > 0)
+                  if j >= 0 && z1 > long { z1 } else { long },
+                  if j >= 0 { 0 } else { c1 },
+                  if j >= 0 { 0 } else { z1 },
+                  j < 0)
+        }
+        how == 1 && open -> {
+            fc = sat(c, 1)
+            odd = m > 0 && fc != f
+            report(sat(m, 1), if m == 0 { fc } else { f }, if odd { sat(rag, 1) } else { rag },
+                   if odd && rag == 0 { sat(m, 1) } else { ri }, if odd && rag == 0 { fc } else { rf },
+                   if z > long { z } else { long }, true)
+        }
+        how == 1 -> report(m, f, rag, ri, rf, long, false)
+        how == 2 -> fail("shape: cannot read standard input", 1)
+        else -> {
+            (n2, r) = File.Read(in, b)
+            got ∈ 0..size_buf = n2
+            again(0, got, ending(r), m, f, rag, ri, rf, long, c, z, open)
         }
     }
 }
@@ -104,7 +133,12 @@ fn shape(sep) {
 export fn main() {
     av = gos.Args()
     sep = if len(av) < 2 { "\t" } else { av[1] }
-    status = if len(av) <= 2 && len(sep) == 1 && strings.IndexByte(sep, 10) < 0 { shape(sep) } else {
+    // The separator's bytes, bound here and read twice, so computed once: used
+    // once, a pure call is substituted into the loop and run per piece (ownbuf).
+    sb = go.bytes_of_string(sep)
+    status = if len(av) <= 2 && len(sb) == 1 && strings.IndexByte(sep, 10) < 0 {
+        shape(sb)
+    } else {
         fail("usage: shape [SEP] < FILE    (SEP is one byte, not LF; TAB when absent)", 2)
     }
     gos.Exit(status)

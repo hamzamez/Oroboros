@@ -50,8 +50,8 @@ func shapeReference(x []byte, sep byte) string {
 
 // THE PROGRAM IS ITS DEFINITION on the factorization's edges: no record, an
 // empty one, an unterminated last one, CR kept as a byte, SEP at a record's ends,
-// and records at and around the Reader's 4,096-byte buffer, which ReadString
-// must make invisible by reassembling a factor from full buffers.
+// and records at and around the 4,096 and 65,536 bytes a read may stop at: the
+// counts are homomorphisms, so where the reads cut the input is invisible.
 func TestShapeIsTheFoldOverTheFactorization(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go is not on the path")
@@ -78,6 +78,10 @@ func TestShapeIsTheFoldOverTheFactorization(t *testing.T) {
 		{"a record of 4,096 bytes, the LF past the buffer", row(4096) + "\nx\ty\n", '\t'},
 		{"a record of 4,097 bytes", row(4097) + "\nx\n", '\t'},
 		{"a record of 10,000 bytes across three buffers, unterminated", "x\ty\n" + row(10000), '\t'},
+		{"a record of 65,535 bytes and its LF fill the program's buffer exactly", row(65535) + "\nx\ty\n", '\t'},
+		{"a record of 65,536 bytes, the LF past the program's buffer", row(65536) + "\nx\ty\n", '\t'},
+		{"a record of 65,537 bytes", row(65537) + "\nx\n", '\t'},
+		{"a record of 200,000 bytes across four reads, between short ones", "a\tb\n" + row(200000) + "\nc\n", '\t'},
 	} {
 		want := shapeReference([]byte(c.in), c.sep)
 		args := []string{}

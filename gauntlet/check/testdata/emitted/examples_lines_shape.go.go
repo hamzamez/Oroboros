@@ -2,7 +2,7 @@
 
 package gauntlet
 
-import "bufio"
+import "bytes"
 import "errors"
 import "fmt"
 import "io"
@@ -20,153 +20,281 @@ func GenMain() int {
 		v9 := v0[1]
 		v4 = v9
 	}
-	v13 := len(v0)
-	v15 := (v13 <= 2)
-	v16 := (v15 && ((len(v4) == 1) && (int(strings.IndexByte(v4, uint8(10))) < 0)))
-	var v30 int
-	if v16 {
-		v31 := (os.Stdin)
-		v32 := (bufio.NewReader(v31))
-		var v42 int = 0
-		var v43 int = 0
-		var v44 int = 0
-		var v45 int = 0
-		var v46 int = 0
-		var v47 int = 0
-		var v48 int = 0
-		var v49 bool = false
-		var v41 int
+	v10 := ([]byte(v4))
+	v14 := len(v0)
+	v16 := (v14 <= 2)
+	v17 := (v16 && ((len(v10) == 1) && (int(strings.IndexByte(v4, uint8(10))) < 0)))
+	var v31 int
+	if v17 {
+		v34 := make([]byte, 65536)
+		var v33 int
+		v48 := v34
+		var v49 int = 0
+		var v50 int = 0
+		var v51 int = 0
+		var v52 int = 0
+		var v53 int = 0
+		var v54 int = 0
+		var v55 int = 0
+		var v56 int = 0
+		var v57 int = 0
+		var v58 int = 0
+		var v59 int = 0
+		var v60 bool = false
+		var v47 int
 		for {
-			v51 := (v48 == 1)
-			if v51 {
-				fmt.Printf("records %d\nfields %d\n", v42, v43)
-				v58 := (v44 > 0)
-				if v58 {
-					fmt.Printf("ragged %d, the first record %d with %d fields\n", v44, v45, v46)
+			v61 := (v49 < v50)
+			if v61 {
+				v65 := int(bytes.IndexByte(v48[v49:v50], uint8(10)))
+				v67 := (v65 >= 0)
+				var v68 int
+				if v67 {
+					v70 := (v49 + v65)
+					v68 = v70
+				} else {
+					v68 = v50
+				}
+				v72 := int(bytes.Count(v48[v49:v68], v10))
+				v73 := (v58 + v72)
+				v75 := (v73 <= 4611686018427387903)
+				var v76 int
+				if v75 {
+					v76 = v73
+				} else {
+					v76 = 4611686018427387903
+				}
+				v80 := (v68 - v49)
+				v81 := (v59 + v80)
+				v83 := (v81 <= 4611686018427387903)
+				var v84 int
+				if v83 {
+					v84 = v81
+				} else {
+					v84 = 4611686018427387903
+				}
+				v89 := (v76 + 1)
+				v91 := (v89 <= 4611686018427387903)
+				var v92 int
+				if v91 {
+					v92 = v89
+				} else {
+					v92 = 4611686018427387903
+				}
+				v97 := (v65 >= 0)
+				v98 := (v97 && ((v52 > 0) && (!(v92 == v53))))
+				v115 := (v65 >= 0)
+				var v116 int
+				if v115 {
+					v119 := (v68 + 1)
+					v116 = v119
+				} else {
+					v116 = v50
+				}
+				v122 := (v65 >= 0)
+				var v123 int
+				if v122 {
+					v126 := (v52 + 1)
+					v128 := (v126 <= 4611686018427387903)
+					if v128 {
+						v123 = v126
+					} else {
+						v123 = 4611686018427387903
+					}
+				} else {
+					v123 = v52
+				}
+				v136 := (v65 >= 0)
+				v137 := (v136 && (v52 == 0))
+				var v143 int
+				if v137 {
+					v143 = v92
+				} else {
+					v143 = v53
+				}
+				var v146 int
+				if v98 {
+					v148 := (v54 + 1)
+					v150 := (v148 <= 4611686018427387903)
+					if v150 {
+						v146 = v148
+					} else {
+						v146 = 4611686018427387903
+					}
+				} else {
+					v146 = v54
+				}
+				v155 := (v98 && (v54 == 0))
+				var v159 int
+				if v155 {
+					v162 := (v52 + 1)
+					v164 := (v162 <= 4611686018427387903)
+					if v164 {
+						v159 = v162
+					} else {
+						v159 = 4611686018427387903
+					}
+				} else {
+					v159 = v55
+				}
+				v169 := (v98 && (v54 == 0))
+				var v173 int
+				if v169 {
+					v173 = v92
+				} else {
+					v173 = v56
+				}
+				v177 := (v65 >= 0)
+				v178 := (v177 && (v84 > v57))
+				var v183 int
+				if v178 {
+					v183 = v84
+				} else {
+					v183 = v57
+				}
+				v188 := (v65 >= 0)
+				var v189 int
+				if v188 {
+					v189 = 0
+				} else {
+					v189 = v76
+				}
+				v194 := (v65 >= 0)
+				var v195 int
+				if v194 {
+					v195 = 0
+				} else {
+					v195 = v84
+				}
+				v200 := (v65 < 0)
+				v49, v52, v53, v54, v55, v56, v57, v58, v59, v60 = v116, v123, v143, v146, v159, v173, v183, v189, v195, v200
+				continue
+			}
+			v205 := (v51 == 1)
+			v206 := (v205 && v60)
+			if v206 {
+				v212 := (v58 + 1)
+				v214 := (v212 <= 4611686018427387903)
+				var v215 int
+				if v214 {
+					v215 = v212
+				} else {
+					v215 = 4611686018427387903
+				}
+				v220 := (v52 > 0)
+				v221 := (v220 && (!(v215 == v53)))
+				var v232 int
+				if v221 {
+					v234 := (v54 + 1)
+					v236 := (v234 <= 4611686018427387903)
+					if v236 {
+						v232 = v234
+					} else {
+						v232 = 4611686018427387903
+					}
+				} else {
+					v232 = v54
+				}
+				v242 := (v52 + 1)
+				v244 := (v242 <= 4611686018427387903)
+				var v245 int
+				if v244 {
+					v245 = v242
+				} else {
+					v245 = 4611686018427387903
+				}
+				v250 := (v52 == 0)
+				var v251 int
+				if v250 {
+					v251 = v215
+				} else {
+					v251 = v53
+				}
+				fmt.Printf("records %d\nfields %d\n", v245, v251)
+				v258 := (v232 > 0)
+				if v258 {
+					v263 := (v221 && (v54 == 0))
+					var v267 int
+					if v263 {
+						v270 := (v52 + 1)
+						v272 := (v270 <= 4611686018427387903)
+						if v272 {
+							v267 = v270
+						} else {
+							v267 = 4611686018427387903
+						}
+					} else {
+						v267 = v55
+					}
+					v277 := (v221 && (v54 == 0))
+					var v281 int
+					if v277 {
+						v281 = v215
+					} else {
+						v281 = v56
+					}
+					fmt.Printf("ragged %d, the first record %d with %d fields\n", v232, v267, v281)
 				} else {
 					fmt.Println("ragged 0")
 				}
-				fmt.Printf("longest %d\n", v47)
-				if v49 {
-					fmt.Println("the last record has no final LF")
+				v292 := (v59 > v57)
+				var v293 int
+				if v292 {
+					v293 = v59
 				} else {
+					v293 = v57
 				}
-				v41 = 0
+				fmt.Printf("longest %d\n", v293)
+				fmt.Println("the last record has no final LF")
+				v47 = 0
 				break
 			}
-			v83 := (v48 == 2)
-			if v83 {
-				v85 := (os.Stderr)
-				fmt.Fprintln(v85, "shape: cannot read standard input")
-				v41 = 1
+			v307 := (v51 == 1)
+			if v307 {
+				fmt.Printf("records %d\nfields %d\n", v52, v53)
+				v314 := (v54 > 0)
+				if v314 {
+					fmt.Printf("ragged %d, the first record %d with %d fields\n", v54, v55, v56)
+				} else {
+					fmt.Println("ragged 0")
+				}
+				fmt.Printf("longest %d\n", v57)
+				v47 = 0
 				break
 			}
-			v93, v94 := v32.ReadString(uint8(10))
-			v95 := len(v93)
-			v96 := (v94 == nil)
-			var v97 int
-			if v96 {
-				v97 = 0
+			v333 := (v51 == 2)
+			if v333 {
+				v335 := (os.Stderr)
+				fmt.Fprintln(v335, "shape: cannot read standard input")
+				v47 = 1
+				break
+			}
+			v342 := (os.Stdin)
+			v343, v344h, v345 := func(p []byte) ([]byte, int, error) { n, err := v342.Read(p); return p, n, err }(v48)
+			v344 := int(v344h)
+			v347 := (v345 == nil)
+			var v348 int
+			if v347 {
+				v348 = 0
 			} else {
-				v99 := (io.EOF)
-				v100 := (errors.Is(v94, v99))
-				if v100 {
-					v97 = 1
+				v350 := (io.EOF)
+				v351 := (errors.Is(v345, v350))
+				if v351 {
+					v348 = 1
 				} else {
-					v97 = 2
+					v348 = 2
 				}
 			}
-			v104 := (v97 == 0)
-			v105 := (v104 || (v95 > 0))
-			v112 := (v97 == 0)
-			var v113 int
-			if v112 {
-				v116 := (v95 - 1)
-				v113 = v116
-			} else {
-				v113 = v95
-			}
-			v118 := int(strings.Count(v93, v4))
-			v120 := (v118 < 4611686018427387903)
-			var v121 int
-			if v120 {
-				v124 := (v118 + 1)
-				v121 = v124
-			} else {
-				v121 = 4611686018427387903
-			}
-			v127 := (v105 && ((v42 > 0) && (!(v121 == v43))))
-			var v141 int
-			if v105 {
-				v143 := (v42 < 4611686018427387903)
-				if v143 {
-					v146 := (v42 + 1)
-					v141 = v146
-				} else {
-					v141 = 4611686018427387903
-				}
-			} else {
-				v141 = v42
-			}
-			v150 := (v105 && (v42 == 0))
-			var v154 int
-			if v150 {
-				v154 = v121
-			} else {
-				v154 = v43
-			}
-			var v156 int
-			if v127 {
-				v158 := (v44 < 4611686018427387903)
-				if v158 {
-					v161 := (v44 + 1)
-					v156 = v161
-				} else {
-					v156 = 4611686018427387903
-				}
-			} else {
-				v156 = v44
-			}
-			v165 := (v127 && (v44 == 0))
-			var v169 int
-			if v165 {
-				v172 := (v42 < 4611686018427387903)
-				if v172 {
-					v175 := (v42 + 1)
-					v169 = v175
-				} else {
-					v169 = 4611686018427387903
-				}
-			} else {
-				v169 = v45
-			}
-			v179 := (v127 && (v44 == 0))
-			var v183 int
-			if v179 {
-				v183 = v121
-			} else {
-				v183 = v46
-			}
-			v185 := (v105 && (v113 > v47))
-			var v188 int
-			if v185 {
-				v188 = v113
-			} else {
-				v188 = v47
-			}
-			v192 := (v97 == 0)
-			v193 := (!v192)
-			v198 := (v193 && (v95 > 0))
-			v42, v43, v44, v45, v46, v47, v48, v49 = v141, v154, v156, v169, v183, v188, v97, v198
+			v48, v49, v50, v51 = v343, 0, v344, v348
 			continue
 		}
-		v30 = v41
+		v33 = v47
+		v31 = v33
 	} else {
-		v202 := (os.Stderr)
-		fmt.Fprintln(v202, "usage: shape [SEP] < FILE    (SEP is one byte, not LF; TAB when absent)")
-		v30 = 2
+		v354 := (os.Stderr)
+		fmt.Fprintln(v354, "usage: shape [SEP] < FILE    (SEP is one byte, not LF; TAB when absent)")
+		v31 = 2
 	}
-	os.Exit(v30)
-	return v30
+	os.Exit(v31)
+	return v31
 }
 

@@ -378,8 +378,8 @@
 == examples/lines/lines.oro windows refused
    gen: examples/lines/lines.oro: in fail: `go/fmt`.Fprintln is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/fmt` matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
-== examples/lines/shape.oro go emitted 6bc5241e847e4d531cf50509ed791e76a26f0243c1a9bc61f3646ce4ad310e48
-   note: gen-main: 5 of 5 integer operations bounded; 0 of 1 loop(s) proven terminating
+== examples/lines/shape.oro go emitted 420d85ef2c8b47d1feef85d520eabb7a354db41ac8630266ec27c55c4a9bd6da
+   note: gen-main: 13 of 13 integer operations bounded; 0 of 1 loop(s) proven terminating
 == examples/lines/shape.oro js refused
    gen: examples/lines/shape.oro: in ending: `go/errors`.Is is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/errors` matched no file on the search path and this target provides no module go/errors either, so every name from it is unbound. Check the path.

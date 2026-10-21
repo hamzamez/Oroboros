@@ -74,7 +74,7 @@ func installContracts(env *core.Env, prog *core.Program, w core.Word) {
 		env.Requires = map[string][]string{}
 	}
 	env.Wheres = map[string]core.WhereContract{}
-	for _, m := range []string{core.RequireName, core.RequireWhereName, core.RequireFalseName} {
+	for _, m := range []string{core.RequireName, core.RequireWhereName, core.RequireFalseName, core.ClaimName} {
 		env.Prim[m], env.Pure[m] = true, true
 	}
 	env.InRange = func(ty string, v int64) bool { return literalIn(w, ty, big.NewInt(v)) }
@@ -231,8 +231,27 @@ func (f requireFail) message(n int) string {
 	}
 	f.def = showDef(f.def)
 	switch {
+	case f.def == showDef(core.ClaimDef) && f.literal:
+		fmt.Fprintf(&b, "the claim %s ∈ %s is false: its value is %s", core.ShowName(f.param), core.ShowSet(f.ty), f.arg)
+		return b.String()
+	case f.def == showDef(core.ClaimDef):
+		fmt.Fprintf(&b, "the claim %s ∈ %s is not proven of %s", core.ShowName(f.param), core.ShowSet(f.ty), f.arg)
+		if f.got != "" {
+			fmt.Fprintf(&b, "\n  its interval: %s", f.got)
+		}
+		if f.known != "" {
+			fmt.Fprintf(&b, "\n  known: %s", f.known)
+		}
+		b.WriteString("\n  A binder's claim, `b ∈ S = e`, is an obligation: proven of e, or the program is refused\n" +
+			"  (ADR 0049). Prove it — narrow what e comes from — or drop the claim.")
+		return b.String()
 	case f.param == "where" && f.literal:
 		fmt.Fprintf(&b, "%s's `where` is false at a call: %s", f.def, f.arg)
+	case f.param == "where" && strings.HasPrefix(f.def, "the claim "):
+		fmt.Fprintf(&b, "%s is not proven: %s does not follow\n  known: %s\n"+
+			"  A binder's claim, `b ∈ S = e`, is an obligation: proven of e, or the program is refused\n"+
+			"  (ADR 0049). Prove it — narrow what e comes from — or drop the claim.", f.def, f.arg, f.known)
+		return b.String()
 	case f.param == "where":
 		fmt.Fprintf(&b, "%s requires %s at a call, which does not follow\n  known: %s", f.def, f.arg, f.known)
 	case f.literal:
@@ -534,6 +553,9 @@ func residualRange(w core.Word, v span, def, param, ty string, arg *core.Term) *
 		def = d // the name the program wrote (retract.go)
 	}
 	label := fmt.Sprintf("%s's parameter %s, declared in %s,", core.ShowName(def), core.ShowName(param), core.ShowSet(ty))
+	if def == core.ClaimDef {
+		label = fmt.Sprintf("the claim %s ∈ %s", core.ShowName(param), core.ShowSet(ty))
+	}
 	return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName), core.Str(label), cond, arg}}
 }
 
@@ -586,7 +608,14 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 	}
 	goals, ok := f.oblig(cond)
 	if !ok {
-		return f.entailsOpaque(opaqueKey(cond))
+		if f.entailsOpaque(opaqueKey(cond)) {
+			return true
+		}
+		// A CONDITION OVER A CONDITIONAL is split by cases, as a linear goal the
+		// facts do not entail is: `(if j >= 0 { k + j } else { n }) <= 65536`, a
+		// claim on a piece's end (examples/lines/shape.oro), holds on each branch.
+		budget := splitBudget
+		return r.provedBySplit(cond, f, &budget)
 	}
 	for _, g := range goals {
 		if !f.entails(g) {

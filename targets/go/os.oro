@@ -169,8 +169,11 @@ module go/os {
         // 0 ≤ n ≤ len p (io.Reader) and returns p, as hex.Decode does. A PARTIAL
         // SUCCESS: n bytes arrive WITH the error, and io.Reader says to use them
         // first, so the error is a relevant 1 + E beside them, not a sum (errors.md §4.3).
-        fn Read(self ∈ File,
-            p ∈ Array(0..255) linear) (buffer(0..255) × 0..2^63-1 × result.result((), error)) {
+        // The law, as its header's `ensure`: q is p handed back, so of p's length,
+        // and n ≤ len q (ownbuf-2026-10-21, defect 2).
+        fn Read(self ∈ File, p ∈ Array(0..255) linear)
+                (q ∈ buffer(0..255), n ∈ 0..2^63-1, r ∈ result.result((), error))
+                ensure n <= len(q) && len(q) == len(p) {
             host expr "func(p []byte) ([]byte, int, error) { n, err := ${self}.Read(p); return p, n, err }(${p})" import "os"
         }
         // io.Writer's contract: n = len b exactly when err is nil.

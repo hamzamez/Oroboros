@@ -398,6 +398,14 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
 4. **The clause chain's copying** (a six-arm loop, 2,423 lines of Go), researched when a program names it.
 5. **The analysis grows only for a refusal a program names**, each rule's planted fault written with the
    rule.
+6. **The Windows application: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)**
+   (hamza, 2026-10-21: "as handwritten by a good programmer as it gets"), a Notepad-style editor in
+   about 2.5 KB of 32-bit MASM over RICHEDIT, the common dialogs and a window procedure, packed by
+   Crinkler. First a measurement of what it calls from Win32 against what is declared, callable and
+   linkable; then spec first, with an ADR per wall. Its known walls: a window procedure is a callback
+   the host calls (tier 2, not built), its structs (OPENFILENAME, CHOOSEFONT, PRINTDLG) are records (not
+   built), and it is 32-bit where the windows target is x86-64. Its standard is size and behaviour, not
+   speed.
 
 Rules kept: a refusal test states its reason and is checked for it; an `-accept` that changes a count
 updates every document that quotes it; every experiment gets a time limit.
@@ -552,9 +560,7 @@ updates every document that quotes it; every experiment gets a time limit.
    4. K's packages, program first: `io/fs`, `time`, `unicode`;
    5. the walls by what they unlock: callbacks tier 1 (A and B, 27 names, and concurrency's entry
       point), then borrows (C), then D, E, F and J when a program asks.
-3. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs
-   from Win32 against what is declared, callable and linkable (31.0% callable and linkable today);
-   then spec first, with an ADR per wall.
+3. **The Windows application** is TinyRetroPad, handed over 2026-10-21: the 10-21 plan's item 6.
 4. **The analysis grows only for a refusal one of those programs names**, and every rule it relies on
    gets a witness that it is *sound* and a planted fault that fails, planted before the witness is
    trusted.
@@ -1193,6 +1199,8 @@ measured, what failed first, what it cost, and what was not built. Update this f
 
 **Keep documents current rather than accumulating drafts.** A stale design document is worse than
 none. Status lines ("nothing built", "no decision") go stale fastest; fix them when the thing ships.
+**README.md's "Current work" section is the plan for a reader** (hamza, 2026-10-21): it is updated when
+a plan is set and when one of its items finishes, with its date, and says no more than the plan does.
 
 **Emission is byte-identical by default** (hamza, 2026-09-15). `cmd/check` compares every source ×
 target's emitted code, outcome, proof counts and refusal text against the baseline in

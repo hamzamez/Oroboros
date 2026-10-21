@@ -241,7 +241,10 @@ count updates every document that quotes it; every experiment gets a time limit.
   when one is.
 - **Carried with their reasons**: more surface design; rendering the prover's fact log in J; the specs
   rewritten wholesale; hoisting or CSE on the IR; records, `with` and named views.
-- **The Windows application — hamza's**, when he hands it over.
+- ~~**The Windows application — hamza's**, when he hands it over.~~ **Amended the same day**: hamza
+  handed over [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a Notepad-style
+  editor in about 2.5 KB of hand-written x86 assembly. It is item 6 of the plan, in CLAUDE.md and
+  README.md's "Current work": first a measurement of what it calls from Win32.
 
 ## 6. The one sentence
 

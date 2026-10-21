@@ -5,8 +5,27 @@ the wall the 10-20 plan's item 3 predicted `bufio`'s `Reader` would meet. hamza'
 *"go ahead with bufio's Reader, always mathematical and algebraic."*
 
 `examples/lines/shape.oro` met it ([shape-2026-10-21](../gauntlet/results/shape-2026-10-21.md)).
-**Not decided**; six decisions for hamza are in §8. Experiments are in §2 and can be reproduced from
-the programs quoted there.
+**Not decided**; the decisions for hamza are in §8, revised. Experiments are in §2 and can be
+reproduced from the programs quoted there.
+
+> **REVISED, 2026-10-21, after hamza asked whether our buffer rules already cover this**
+> ([ownbuf-2026-10-21](../gauntlet/results/ownbuf-2026-10-21.md)). They nearly do, and the revision
+> follows from that.
+>
+> - **ADR 0020 already has the concept.** Our buffers have Wadler's `let!` and Odersky's observers:
+>   an observation produces a scalar or a copy, so it cannot alias, and §7c orders it against the
+>   stores. A lent result is that observer, of a buffer the host owns.
+> - **For the cost, ownership is not what matters.** By hand, the caller owning a 64 KB buffer and
+>   searching it with `bytes.IndexByte` and `bytes.Count` takes 131 ms, against 145 ms for `ReadSlice`
+>   with a buffer of the same size. What matters is the host's vectorized search and the buffer's
+>   size.
+> - **What stops the caller-owned form is an observer at a host parameter**, which host-buffers.md
+>   §4 types and nothing builds. Whether a host call may observe a live buffer follows from its
+>   result's representation, so it needs no annotation.
+>
+> So **`lent` is not needed for parity**. It is needed for `Peek` and `Scanner.Bytes`, which have no
+> caller-owned form, and it waits for a program that calls them. The findings below stand as
+> analysis; §8's decisions are replaced.
 
 > **Six findings, in the order they change what should be decided.**
 >
@@ -266,30 +285,32 @@ a claim about time, made by hand from the documentation, which ADR 0022 says a h
 for. The generator never writes `lent`, because the manifest does not say it (ADR 0023). A lent host
 object (`DotReader`, `Decoder.Buffered`) is the same mode on an opaque result.
 
-## 8. Decisions for hamza
+## 8. Decisions for hamza (revised after ownbuf-2026-10-21)
 
-1. **Is a lent result a mode on the result binder, `lent`, with its set unchanged?**
-   *Recommended*: yes, as `linear` is a mode on a parameter. The alternative is a set of its own,
-   which would make "the bytes of the next piece" two different types depending on how they are
-   held.
-2. **Which writes end the epoch?** *Recommended*: E0, every impure call. It is sound with nothing
-   new, and enough for `shape` and for `Peek` followed by `Discard`. E1 waits for its trigger, the
-   first program that hands a lent piece to another host call; it needs the receiver as an ADR 0052
-   place, and a premise about its argument because `NewReaderSize` may return it.
-3. **What happens on a violation?** *Recommended*: refuse, naming the read, the ending call and the
-   copy to write. Never insert the copy: it is an allocation the source does not show.
-4. **Where is it enforced?** *Recommended*: the reducer's side condition (§6, §7c generalized) and
-   (L0) on the IR. Neither alone is enough: the reducer alone does not see escape through a loop, and
-   the IR alone sees experiment B only after β has already made it A.
-5. **Program first: does `shape` move to `ReadSlice`?** *Recommended*: yes. `shape` becomes the
-   lent form, with `bytes.Count` (a new `targets/go/bytes.oro`, one declaration, pure, its parameter
-   read and not kept). It is measured against the hand-written `ReadSlice` program for parity.
-   `ReadString` stays declared, the copying form, and the refusal tests carry experiments A and B
-   as programs that must be refused, each checked for its reason.
-6. **Do the other lent names follow?** *Recommended*: `Scanner.Bytes`, `ReadLine` and `Peek` declared
-   `lent` when a program calls them, not before. A lent host object, and `Writer.AvailableBuffer`, a
-   buffer lent for **writing** (aspect 1 lent, coverage cause J's neighbour), are recorded and wait
-   for a program.
+1. **Build the observer at a host parameter, with no new mode?** A pure host call may take a live
+   buffer at a declared `Array` parameter when every result of the declaration is of a type that
+   cannot share an extent (a scalar, a Go string; §3). That is ADR 0020's read-borrow, and
+   host-buffers.md §4's aspect-3 row, extended from `b[i]` to a host's read-only parameter. A
+   declaration with a table or host-object result may not take a live buffer (aspect 2). The borrow
+   ends when the call returns, as a write-borrow's does. *Recommended*: yes.
+2. **Generalize effects.md §7c from "a term that reads a table through a bound variable" to "a term
+   that passes a buffer to a call"?** Without this, a pure observer of a buffer moves past the
+   buffer's next store, which is experiment B with the program as the owner. *Recommended*: yes, with
+   1. The cost is at most a temporary bound before an impure call, as §7c's was.
+3. **Program first: does `shape` move to its own buffer?** It would read with `os.File.Read` (no
+   `bufio`) and search by segment with `bytes.IndexByte` and `bytes.Count`, in a new
+   `targets/go/bytes.oro`. Each declaration is a function of (b, lo, hi, …) with `where 0 <= lo && lo
+   <= hi && hi <= len(b)` and the template slicing. It would be measured against `hown2` for parity.
+   *Recommended*: yes. It also needs defect 2 of ownbuf-2026-10-21 (the `io.Reader` law on a
+   component of a tuple result) and defect 5 (a loop's summary through a buffer's scope). Both are
+   analysis that this program names, each with a planted fault.
+4. **`lent` waits.** It is decisions 1–6 of the first version, with E0 recommended, unchanged in
+   substance. It is built when a program calls `Peek` or `Scanner.Bytes`, the lent functions with no
+   caller-owned form. *Recommended*: wait.
+5. **The clause chain's copying** (ownbuf §1: 2,423 lines for six arms, and an inflated proof count).
+   This is a defect of its own, independent of C, and it affects every loop guarded by
+   conjunctions. *Recommended*: research it as its own step: whether D should bind a failed
+   conjunct's continuation once (a join point) rather than copy it.
 
 ## 9. What this does not decide
 

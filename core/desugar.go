@@ -160,7 +160,7 @@ func (d *desugarer) build(a Tail) *Term {
 	case *Again:
 		return &Term{Kind: KApp, Kids: append([]*Term{Name("again")}, d.terms(a.Args)...)}
 	}
-	panic("desugar: a provisional tree reached D")
+	panic(fmt.Sprintf("desugar: a provisional tree reached D: %T", a))
 }
 
 // let is a binder group around a body, folded from the right: a name binds by

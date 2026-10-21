@@ -106,17 +106,27 @@ func (d *desugarer) placed(decls []Decl) ([]*Term, error) {
 	return out, nil
 }
 
-// sig is D of a claim: today's `sig`, which binds its own names.
+// sig is D of a claim: today's `sig`, which binds its own names. A binder or a
+// result the header states no set for claims nothing (ADR 0062 item 8), which
+// the core spells `any`, the absence of a type (types.md §3.3): a header that
+// claimed one parameter and left another, or left its result, reached D with no
+// set and crashed it (shape-2026-10-21).
 func (d *desugarer) sig(name string, c *Claim) *Term {
+	set := func(e Expr) *Term {
+		if e == nil {
+			return Name("any")
+		}
+		return d.term(e)
+	}
 	params := &Term{Kind: KApp}
 	for _, p := range c.Params {
 		if p.Name == "" {
-			params.Kids = append(params.Kids, d.term(p.Set))
+			params.Kids = append(params.Kids, set(p.Set))
 			continue
 		}
-		params.Kids = append(params.Kids, &Term{Kind: KApp, Kids: []*Term{Name(p.Name), d.term(p.Set)}})
+		params.Kids = append(params.Kids, &Term{Kind: KApp, Kids: []*Term{Name(p.Name), set(p.Set)}})
 	}
-	t := &Term{Kind: KApp, Kids: []*Term{Name("sig"), Name(name), params, d.term(c.Result)}}
+	t := &Term{Kind: KApp, Kids: []*Term{Name("sig"), Name(name), params, set(c.Result)}}
 	if c.Pre != nil {
 		t.Kids = append(t.Kids, &Term{Kind: KApp, Kids: []*Term{Name("where"), d.term(c.Pre)}})
 	}

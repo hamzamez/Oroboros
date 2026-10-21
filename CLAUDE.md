@@ -396,9 +396,14 @@ first, in J.
    same algorithm by hand, and C turned out to be a cost, not a wall: the hand-written `ReadSlice`
    form is 0.74× with 0 garbage collections against 78. A naive lent declaration miscompiles a correct
    program (β moves a pure copy past the next read). A lent result is a value held as a view for an
-   epoch (Theorem L), Wadler's `let!` and Reynolds' passive alias. **Six decisions for hamza**,
-   nothing of C built; the recommendation is a mode `lent`, the epoch ended by every impure call (E0),
-   a side condition on β (effects.md §7c generalized), and (L0) on the IR.
+   epoch (Theorem L), Wadler's `let!` and Reynolds' passive alias. **Revised by measurement**
+   ([ownbuf-2026-10-21](gauntlet/results/ownbuf-2026-10-21.md)): ownership is not what costs. The
+   caller owning a 64 KB buffer and searching it with the host's `bytes.IndexByte`/`Count` is 131 ms
+   by hand, against 145 ms for `ReadSlice` at the same size. What the language lacks is ADR 0020's
+   observer at a host parameter (a live buffer read by a pure call whose results cannot alias), with
+   §7c generalized. `lent` waits for `Peek` and `Scanner.Bytes`. Five decisions for hamza; writing the
+   caller-owned form found a crash in D (fixed: an unclaimed binder is `any`) and seven analysis gaps
+   (ownbuf §3).
 4. Every program written in J by hand, and what J's reader catches counted.
 5. The analysis grows only for a refusal a program names; ADRs 0053, 0062's logic and 0066's inference
    each when a program needs it.

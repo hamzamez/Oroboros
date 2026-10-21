@@ -1,0 +1,111 @@
+// shape [SEP] — the shape of a delimited table on standard input: its records,
+// delimited by LF, and their fields, separated by SEP, one byte, TAB when
+// absent. No quoting: TSV, or any DSV; a quoted CSV is encoding/csv's. It prints
+//
+//   records M
+//   fields F
+//   ragged R            (R > 0: ", the first record I with G fields")
+//   longest L
+//   the last record has no final LF      (only when it has none)
+//
+// and fails, printing nothing to standard output, when standard input cannot be
+// read.
+//
+// THE ALGEBRA. B = [0, 255], d = LF. The words ending at their first d form a
+// prefix code C_d = (B ∖ {d})*·d, so the input factors uniquely as
+//
+//   x = c₁ c₂ … c_k u        cᵢ ∈ C_d,  u ∈ (B ∖ {d})*
+//
+// and the records are r₁, …, r_m: each cᵢ without its d, then u when u ≠ ε. So
+// m = k + [u ≠ ε], a final LF ends a record and begins none, and nothing is
+// lost: the records and the k delimiters give x back. bufio's ReadString(d)
+// returns exactly the factors, c₁, …, c_k, then u with the error that ended
+// the input (targets/go/bufio.oro), so one call per factor reads the table.
+//
+// A record's fields are its factors over SEP in the same way, with no final
+// one dropped, so fields(r) = |r|_s + 1, where |r|_s, the number of SEPs in r,
+// is the letter count: a monoid homomorphism (B*, ·, ε) → (ℕ, +, 0). It is
+// strings.Count(w, SEP) on the factor w, since SEP ≠ LF. Then
+//
+//   F = fields(r₁)  (0 when m = 0),   R = |{ i : fields(rᵢ) ≠ F }|,
+//   I = min { i : fields(rᵢ) ≠ F },   L = max |rᵢ|  (0 when m = 0),
+//
+// a left fold over the records, one ReadString per step.
+//
+// COUNTS ARE ON ℕ_C, C = 2⁶² − 1, as du's sizes are: x ⊕ 1 = min(x + 1, C).
+// Nothing in a Go string's type bounds its length below the word, so |r|_s + 1
+// is not provably inside it; a count of 2⁶² is no table anyone holds.
+//
+// WHAT IT DOES NOT NEED. ReadString copies each factor into a new string, so
+// the program holds one record at a time, and nothing it holds is lent.
+use go
+use go/os as gos
+use go/io
+use go/errors
+use go/bufio
+use go/bufio/Reader as rd
+use go/strings
+use go/fmt
+use result
+
+// x ⊕ 1 on ℕ_C.
+fn inc(x ∈ 0..2^63-1) (1..2^62-1) { if x < 2^62-1 { x + 1 } else { 2^62-1 } }
+
+// How a factor ended: 0 at its delimiter, 1 at the end of the input, 2 at a
+// failure. The error is used on every path (ADR 0043).
+fn ending(r) {
+    case r {
+        result.'ok(u) -> 0
+        result.'err(e) -> if errors.Is(e, io.EOF()) { 1 } else { 2 }
+    }
+}
+
+// Ignored: the run is failing already, and standard error is the last channel
+// there is to report that it could not be written.
+fn fail(msg, status) { ignore(fmt.Fprintln(gos.Stderr(), msg)); status }
+
+fn report(m, f, rag, ri, rf, long, open) {
+    fmt.Printf("records %d\nfields %d\n", m, f)
+    if rag > 0 {
+        fmt.Printf("ragged %d, the first record %d with %d fields\n", rag, ri, rf)
+    } else { fmt.Println("ragged 0") }
+    fmt.Printf("longest %d\n", long)
+    if open { fmt.Println("the last record has no final LF") }
+    0
+}
+
+// The fold. A step reads one factor w: it is a record when it ended at its
+// delimiter or is not empty, of |w| − 1 bytes or |w| as it ended.
+fn shape(sep) {
+    in = bufio.NewReader(gos.Stdin())
+    loop m = 0, f = 0, rag = 0, ri = 0, rf = 0, long = 0, end = 0, open = false {
+        end == 1 -> report(m, f, rag, ri, rf, long, open)
+        end == 2 -> fail("shape: cannot read standard input", 1)
+        else -> {
+            (w, r) = rd.ReadString(in, 10)
+            k = len(w)
+            how = ending(r)
+            here = how == 0 || k > 0
+            size = if how == 0 { k - 1 } else { k }
+            fc = inc(strings.Count(w, sep))
+            odd = here && m > 0 && fc != f
+            again(if here { inc(m) } else { m },
+                  if here && m == 0 { fc } else { f },
+                  if odd { inc(rag) } else { rag },
+                  if odd && rag == 0 { inc(m) } else { ri },
+                  if odd && rag == 0 { fc } else { rf },
+                  if here && size > long { size } else { long },
+                  how,
+                  how != 0 && k > 0)
+        }
+    }
+}
+
+export fn main() {
+    av = gos.Args()
+    sep = if len(av) < 2 { "\t" } else { av[1] }
+    status = if len(av) <= 2 && len(sep) == 1 && strings.IndexByte(sep, 10) < 0 { shape(sep) } else {
+        fail("usage: shape [SEP] < FILE    (SEP is one byte, not LF; TAB when absent)", 2)
+    }
+    gos.Exit(status)
+}

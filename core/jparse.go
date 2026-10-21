@@ -951,6 +951,11 @@ func (p *parser) combine(op string, l, r Expr) Expr {
 			return &Or{Xs: append([]Expr{l}, o.Xs...)}
 		}
 		return &Or{Xs: []Expr{l, r}}
+	case op == "!=":
+		// a ≠ b is ¬(a = b), a derived operator over the language's equality,
+		// which every target has (ADR 0017): erased here, as `!` is. Read as a
+		// name it was one nothing binds (shape-2026-10-21).
+		return &Not{X: &Apply{Fn: &Var{Name: "="}, Args: []Expr{l, r}}}
 	}
 	name := op
 	if n, ok := opName[op]; ok {

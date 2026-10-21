@@ -1631,3 +1631,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/os/ls.oro java`
 - new source — `examples/os/ls.oro js`
 - new source — `examples/os/ls.oro windows`
+
+## 2026-10-21 — on 6a83467, with uncommitted changes
+
+**Reason:** shape-2026-10-21: examples/lines/shape.oro joins (5 of 5 operations, 0 of 1 loops; Go only, as lines); J's != is now !(a == b), which no corpus file used
+
+568 runs: 303 emitted, 265 refused; 2057 of 2102 integer operations bounded, 353 of 374 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- new source — `examples/lines/shape.oro go`
+- new source — `examples/lines/shape.oro java`
+- new source — `examples/lines/shape.oro js`
+- new source — `examples/lines/shape.oro windows`

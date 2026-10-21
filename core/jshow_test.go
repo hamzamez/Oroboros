@@ -138,3 +138,16 @@ func TestShowTermWritesWhatTheProgramWrote(t *testing.T) {
 		t.Errorf("ShowIndex = %s", got)
 	}
 }
+
+// a != b IS ¬(a = b), erased by the reader as `!` is (ADR 0017): the same term
+// as `!(a == b)`, and no name `!=` that a program cannot bind (shape-2026-10-21).
+func TestNotEqualIsTheNegationOfEquality(t *testing.T) {
+	ne, err := ReadTerm("a != b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	not, _ := ReadTerm("!(a == b)")
+	if ne.String() != not.String() || ne.String() != "(if (= a b) false true)" {
+		t.Errorf("a != b reads as %s, !(a == b) as %s", ne, not)
+	}
+}

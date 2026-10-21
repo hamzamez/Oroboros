@@ -403,7 +403,9 @@ A formula's own forms (quantifiers, `⇒`, `⇔`, membership in a set the comput
 `spec`'s call, `==` at a sort the computation cannot compare, and a primed name) stand only in a claim
 position: `where`, `ensure`, `invariant`, `assert`, a `spec`'s or `lemma`'s body, and a `set { … : φ }`
 the program does not compute (abstract.md W6). `==` is the logic's ≐ in a claim and the computation's
-equality elsewhere (ADR 0062 item 3). `&&`, `||` and `!` serve both.
+equality elsewhere (ADR 0062 item 3). `&&`, `||` and `!` serve both. `a != b` is derived,
+`!(a == b)`, and erased by the reader as `!` is (shape-2026-10-21: until then it read as an
+application of a name `!=` that nothing binds).
 
 ### 2.11 Host templates
 

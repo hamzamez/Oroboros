@@ -1395,8 +1395,10 @@ var handDeclared = []handEntry{
 	{"go", "targets/go", "time.oro", []string{"go/time/Time"}, timeMistakes, true, nil, nil, nil},
 	// PROGRAM FIRST (bufio-2026-10-01): what examples/lines/lines.oro calls,
 	// and Writer.Write, which the io.Writer edge demands.
-	{"go", "targets/go", "bufio.oro", []string{"go/bufio", "go/bufio/Scanner", "go/bufio/Writer"},
+	{"go", "targets/go", "bufio.oro", []string{"go/bufio", "go/bufio/Scanner", "go/bufio/Writer", "go/bufio/Reader"},
 		bufioMistakes, true, nil, nil, nil},
+	// PROGRAM FIRST (shape-2026-10-21): what examples/lines/shape.oro calls.
+	{"go", "targets/go", "bufio.oro", []string{"go/bufio/Reader"}, bufioReaderMistakes, true, nil, nil, nil},
 }
 
 // bufioMistakes: a token as OUR string (a line of a file is bytes until it is
@@ -1461,6 +1463,28 @@ var bufioMistakes = map[string]func(m map[string]emit.Prim){
 		m["NewScanner"] = p
 	},
 	"a name the host lacks": func(m map[string]emit.Prim) { m["Bogus"] = m["NewWriter"] },
+	"NewReader returning a Writer": func(m map[string]emit.Prim) {
+		p := m["NewReader"]
+		p.Result = "go/bufio.Writer"
+		m["NewReader"] = p
+	},
+}
+
+// bufioReaderMistakes: the Reader's methods, checked as their own module so the
+// mistakes reach them (a mistake mutates an entry's first module).
+var bufioReaderMistakes = map[string]func(m map[string]emit.Prim){
+	"ReadString's delimiter a string": func(m map[string]emit.Prim) {
+		p := m["ReadString"]
+		p.Args = append([]string(nil), p.Args...)
+		p.Args[len(p.Args)-1] = "go.bytestring"
+		m["ReadString"] = p
+	},
+	"ReadString returning an integer": func(m map[string]emit.Prim) {
+		p := m["ReadString"]
+		p.Results = append([]string(nil), p.Results...)
+		p.Results[0] = "int"
+		m["ReadString"] = p
+	},
 }
 
 // stringsMistakes: the four disagreements this file had (a host alias for the

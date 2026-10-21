@@ -151,15 +151,15 @@
 == examples/int/collatz.oro go refused
    note: gen-collatz: 0 of 4 integer operations bounded; 0 of 1 loop(s) proven terminating
    gen: gen-collatz: 4 of 4 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-     go.+ [1, +inf] in (go.+ steps 1)
-     go.* [-inf, +inf] in (go.* 3 x)
-     go.+ [-inf, +inf] in (go.+ (go.* 3 x) 1)
+     go.+ [1, +inf] in go.`+`(steps, 1)
+     go.* [-inf, +inf] in go.`*`(3, x)
+     go.+ [-inf, +inf] in go.`+`(go.`*`(3, x), 1)
      … and 1 more
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
      this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
-       · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
+       · NARROW THE RANGE — `fn f(n ∈ 0..1000)`, or a `where`,
          so the operation is provably in range;
        · ASK FOR THE TRAP — build with `-checked`, which emits the target's
          own checked arithmetic and fails at run time instead.
@@ -186,12 +186,12 @@
 == examples/int/fib.oro go refused
    note: gen-fib: 1 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    gen: gen-fib: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-     go.+ [1, +inf] in (go.+ a b)
+     go.+ [1, +inf] in go.`+`(a, b)
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
      this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
-       · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
+       · NARROW THE RANGE — `fn f(n ∈ 0..1000)`, or a `where`,
          so the operation is provably in range;
        · ASK FOR THE TRAP — build with `-checked`, which emits the target's
          own checked arithmetic and fails at run time instead.
@@ -218,14 +218,14 @@
 == examples/int/power.oro go refused
    note: gen-power: 0 of 3 integer operations bounded; 1 of 1 loop(s) proven terminating
    gen: gen-power: 3 of 3 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-     go.* [-inf, +inf] in (go.* acc x)
-     go.* [-inf, +inf] in (go.* x x)
-     go.* [-inf, +inf] in (go.* x x)
+     go.* [-inf, +inf] in go.`*`(acc, x)
+     go.* [-inf, +inf] in go.`*`(x, x)
+     go.* [-inf, +inf] in go.`*`(x, x)
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
      this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
-       · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
+       · NARROW THE RANGE — `fn f(n ∈ 0..1000)`, or a `where`,
          so the operation is provably in range;
        · ASK FOR THE TRAP — build with `-checked`, which emits the target's
          own checked arithmetic and fails at run time instead.
@@ -324,14 +324,14 @@
 == examples/kara/core.oro go refused
    note: gen-main: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
    gen: gen-main: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-     go.+ [0, +inf] in (go.+ (#vout2 (let (go.+ i j) (fn (k) (if (go.< k 0) 0 (if (g...
-     go.* [-inf, +inf] in (go.* acc 100)
-     go.+ [-inf, +inf] in (go.+ (go.* acc 100) (p i))
+     go.+ [0, +inf] in go.`+`(#vout2({ k = go.`+`(i, j); case { go.`<`(k, 0) -> 0; g...
+     go.* [-inf, +inf] in go.`*`(acc, 100)
+     go.+ [-inf, +inf] in go.`+`(go.`*`(acc, 100), p(i))
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
      this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
-       · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
+       · NARROW THE RANGE — `fn f(n ∈ 0..1000)`, or a `where`,
          so the operation is provably in range;
        · ASK FOR THE TRAP — build with `-checked`, which emits the target's
          own checked arithmetic and fails at run time instead.
@@ -774,6 +774,17 @@
      `use go/io/fs/DirEntry` matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
 == examples/os/du.oro windows refused
    gen: examples/os/du.oro: in contribution: `go/io/fs/DirEntry`.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/io/fs/DirEntry` matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
+== examples/os/ls.oro go emitted 90af784923f13cb9b976b7f6aad89585363cba95409a87013452f17259837c0c
+   note: gen-main: 13 of 13 integer operations bounded; 1 of 2 loop(s) proven terminating
+== examples/os/ls.oro js refused
+   gen: examples/os/ls.oro: in entry: `go/io/fs/DirEntry`.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/io/fs/DirEntry` matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
+== examples/os/ls.oro java refused
+   gen: examples/os/ls.oro: in entry: `go/io/fs/DirEntry`.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/io/fs/DirEntry` matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
+== examples/os/ls.oro windows refused
+   gen: examples/os/ls.oro: in entry: `go/io/fs/DirEntry`.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/io/fs/DirEntry` matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target

@@ -53,6 +53,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -368,20 +369,20 @@ var published = map[string][]string{
 	"go": { // gomethods, interfaces.md §5, coercion, structlit, surveys-2026-09-10
 		"CALLABLE SURFACE (func + method): 4932",
 		"declarable as a (prim …): 4331 87.8%",
-		"usable by a program: 2978 60.4%",
-		"method 3098 total 2862 declarable (92.4%) 1670 usable (53.9%)",
-		"HOST TYPES A PROGRAM CAN OBTAIN: 568",
-		"1651 candidate edges, 1466 accepted by the host",
-		"702 struct types; 462 get a generated constructor",
+		"usable by a program: 2983 60.5%", // aliases resolved, manifests in release order (ls-2026-10-20)
+		"method 3098 total 2862 declarable (92.4%) 1674 usable (54.0%)",
+		"HOST TYPES A PROGRAM CAN OBTAIN: 566",
+		"1646 candidate edges, 1461 accepted by the host",
+		"701 struct types; 460 get a generated constructor",
 		"238 have no exported field and get NOTHING",
 		"52 types have BOTH",
-		"USABLE GOES 2710 -> 2978 (+268)",
+		"USABLE GOES 2721 -> 2983 (+262)",
 		// gostd-utf8-2026-09-13. A constant is a zero-argument pure prim whose
 		// result is its own exact range, and these are what refuses the rest.
-		"CONSTANTS: 2989 exported, 514 declarable", // +5 in the word or U: ADR 0026
-		"constant of a named type 2425",
+		"CONSTANTS: 2989 exported, 509 declarable", // +5 in the word or U: ADR 0026
+		"constant of a named type 2430",
 		"integer constant whose value is per-platform 50",
-		"emitted 5287 primitives",
+		"emitted 5280 primitives",
 	},
 	"win32": { // win32-2026-09-08, win32enum-2026-09-11, structval-2026-09-12
 		"FLAT C API: 11575",
@@ -490,6 +491,13 @@ type accept struct {
 	srcs   []string
 	args   []string
 	inputs map[string]string
+	// stamp, when set, is every input's modification time, files and the
+	// directories that hold them, set deepest first so that making a file does
+	// not move its directory's (ls). wantFn, when set, computes the expected
+	// lines from the project once its inputs are written, by hand-written Go:
+	// what the platform says of a directory, its size, is the platform's.
+	stamp  time.Time
+	wantFn func(proj string) []string
 }
 
 // duTree is du's input: files at several depths, one empty, and an empty
@@ -500,6 +508,63 @@ var duTree = map[string]string{
 	"tree/a/b/c/z":   "abc",
 	"tree/d/empty":   "",
 	"tree/d/e/f.txt": "seventeen bytes!\n",
+}
+
+// lsTree is ls's input: entries at several depths, in name order across
+// directories (a's subtree, b and b2, before d), and an empty file.
+var lsTree = map[string]string{
+	"tree/x.txt":     "hello",
+	"tree/a/y.bin":   "0123456789",
+	"tree/a/b/c/z":   "abc",
+	"tree/a/b2/q":    "q",
+	"tree/d/empty":   "",
+	"tree/d/e/f.txt": "seventeen bytes!\n",
+}
+
+// lsStamp is every ls input's modification time: an instant whose rendering in
+// UTC is known, 2026-03-04 05:06.
+var lsStamp = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
+
+// lsReference is what `ls PATH` must print, from ls's definition in
+// hand-written Go: the tree's pre-order over directories, each listing whole and
+// in name order, a line the FileInfo's mode, size and UTC time to the minute.
+func lsReference(path string) []string {
+	var out []string
+	line := func(info os.FileInfo, name string) {
+		out = append(out, fmt.Sprintf("%s %10d %s %s", info.Mode().String(), info.Size(),
+			info.ModTime().UTC().Format("2006-01-02 15:04"), name))
+	}
+	var list func(dir string, first bool)
+	list = func(dir string, first bool) {
+		if !first {
+			out = append(out, "")
+		}
+		out = append(out, dir+":")
+		ents, _ := os.ReadDir(dir)
+		for _, e := range ents {
+			info, err := e.Info()
+			if err != nil {
+				out = append(out, "? "+e.Name())
+				continue
+			}
+			line(info, e.Name())
+		}
+		for _, e := range ents {
+			if e.IsDir() {
+				list(filepath.Join(dir, e.Name()), false)
+			}
+		}
+	}
+	info, err := os.Lstat(path)
+	switch {
+	case err != nil:
+		out = append(out, fmt.Sprint("ls: ", err))
+	case info.IsDir():
+		list(path, true)
+	default:
+		line(info, path)
+	}
+	return out
 }
 
 // duReference is what `du tree` must print, from du's definition rather than
@@ -669,6 +734,12 @@ func acceptance() map[string]accept {
 		// definition gives (duReference).
 		"du": {host: "go", target: "go", layer: "tg", srcs: []string{"examples/os/du.oro"},
 			args: []string{"{proj}/tree"}, inputs: duTree, want: duReference(duTree)},
+		// A LISTING, program first for os.Lstat, FileInfo.ModTime, FileMode.String
+		// and time (examples/os/ls.oro): a tree stamped with one instant, and what
+		// ls's definition prints of it in hand-written Go (lsReference).
+		"ls": {host: "go", target: "go", layer: "tg", srcs: []string{"examples/os/ls.oro"},
+			args: []string{"{proj}/tree"}, inputs: lsTree, stamp: lsStamp,
+			wantFn: func(proj string) []string { return lsReference(proj + "/tree") }}, // the argument as given
 		"variadic": {host: "go", target: "go", layer: "tg", want: []string{
 			"a&lt;b &amp; c&gt;d", "111", "21", "unchanged", "x&lt;y", "7 true",
 			"concat true", "0 true", "twice", "twice", "6 true",
@@ -779,6 +850,31 @@ func TestAcceptanceProgramsRun(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			if !a.stamp.IsZero() {
+				// Every input and every directory above it, deepest first.
+				paths := map[string]bool{}
+				for n := range a.inputs {
+					for p := n; p != "." && p != ""; p = filepath.Dir(p) {
+						paths[p] = true
+					}
+				}
+				var ps []string
+				for p := range paths {
+					ps = append(ps, p)
+				}
+				sort.Slice(ps, func(i, j int) bool {
+					di, dj := strings.Count(ps[i], "/"), strings.Count(ps[j], "/")
+					if di != dj {
+						return di > dj
+					}
+					return ps[i] < ps[j]
+				})
+				for _, p := range ps {
+					if err := os.Chtimes(filepath.Join(proj, p), a.stamp, a.stamp); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
 			src := filepath.Join(proj, filepath.Base(srcs[0]))
 			// The layer is NAMED on the command line, so it must exist (emit.SearchPath)
 			// even for a program that supplies no generated file into it.
@@ -802,8 +898,12 @@ func TestAcceptanceProgramsRun(t *testing.T) {
 				t.Fatalf("run: %v", err)
 			}
 			lines := strings.Split(strings.TrimRight(strings.ReplaceAll(string(got), "\r\n", "\n"), "\n"), "\n")
-			if strings.Join(lines, "\n") != strings.Join(a.want, "\n") {
-				t.Errorf("printed %q, and the host's answer is %q", lines, a.want)
+			want := a.want
+			if a.wantFn != nil {
+				want = a.wantFn(proj)
+			}
+			if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+				t.Errorf("printed %q, and the host's answer is %q", lines, want)
 			}
 		})
 	}
@@ -1290,6 +1390,9 @@ var handDeclared = []handEntry{
 	{"go", "targets/go", "io/fs.oro", []string{"go/io/fs/FileMode"}, fsMistakes, true, nil,
 		[]string{"go/io/fs/DirEntry", "go/io/fs/FileInfo"}, nil},
 	{"go", "targets/go", "path/filepath.oro", []string{"go/path/filepath"}, nil, true, nil, nil, nil},
+	// PROGRAM FIRST (examples/os/ls.oro): a listing's time, the first package of
+	// K with a file. Time's methods against the survey.
+	{"go", "targets/go", "time.oro", []string{"go/time/Time"}, timeMistakes, true, nil, nil, nil},
 	// PROGRAM FIRST (bufio-2026-10-01): what examples/lines/lines.oro calls,
 	// and Writer.Write, which the io.Writer edge demands.
 	{"go", "targets/go", "bufio.oro", []string{"go/bufio", "go/bufio/Scanner", "go/bufio/Writer"},
@@ -1318,6 +1421,26 @@ var fsMistakes = map[string]func(m map[string]emit.Prim){
 		p := m["IsRegular"]
 		p.Result = "int"
 		m["IsRegular"] = p
+	},
+}
+
+// timeMistakes: a rendering returning a number, a projection returning a
+// rendering, and a method template that names the package it does not import.
+var timeMistakes = map[string]func(m map[string]emit.Prim){
+	"Format returning an integer": func(m map[string]emit.Prim) {
+		p := m["Format"]
+		p.Result = "int"
+		m["Format"] = p
+	},
+	"UTC returning a string": func(m map[string]emit.Prim) {
+		p := m["UTC"]
+		p.Result = "go.bytestring"
+		m["UTC"] = p
+	},
+	"a template naming time with no import": func(m map[string]emit.Prim) {
+		p := m["UTC"]
+		p.Form = "time.Time(%s).UTC()"
+		m["UTC"] = p
 	},
 }
 
@@ -1873,6 +1996,8 @@ func manifestFuncs() map[string]goFunc {
 			return
 		}
 		files, _ := filepath.Glob(filepath.Join(strings.TrimSpace(string(out)), "api", "go1*.txt"))
+		// In release order, so the last spelling kept is the newest (survey.go, apiVersion).
+		sort.Slice(files, func(i, j int) bool { return apiVersion(files[i]) < apiVersion(files[j]) })
 		re := regexp.MustCompile(`^pkg ([^, ]+), func (\w+)\((.*?)\) ?(.*?)( #\d+)?$`)
 		for _, f := range files {
 			b, err := os.ReadFile(f)
@@ -1905,6 +2030,15 @@ func manifestFuncs() map[string]goFunc {
 		}
 	})
 	return funcsAll
+}
+
+// apiVersion is a Go API manifest's minor version: go1.txt is 0, go1.N.txt is N.
+func apiVersion(path string) int {
+	n, err := strconv.Atoi(strings.TrimPrefix(strings.TrimSuffix(filepath.Base(path), ".txt"), "go1."))
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 var (

@@ -182,7 +182,7 @@ func srcName(s *Stmt) string {
 func unprovenLine(s *Stmt, v iv) string {
 	src := s.Op.String()
 	if s.Src != nil {
-		src = s.Src.String()
+		src = core.ShowTerm(s.Src) // the program's term, as J writes it (spec/j.md §6.1)
 	}
 	if len(src) > 64 {
 		src = src[:61] + "..."

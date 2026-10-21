@@ -38,7 +38,7 @@
 // declare. Nothing below is a wall; each is work, left until a program needs it:
 //   - the rest of *File: ReadAt, WriteAt, Seek, Stat, Sync, Truncate, Chmod,
 //     Chown, Chdir, File.ReadDir, Readdir, Readdirnames, the deadlines, SyscallConn;
-//   - Stat and Lstat, which return fs.FileInfo (declared in io/fs.oro since du);
+//   - Stat, which follows a symbolic link, and File.Stat;
 //   - Chmod, Chown, Lchown, Chtimes (time.Time), Link, Symlink, Readlink,
 //     Truncate, SameFile, CopyFS, DirFS;
 //   - OpenFile and its flag constants; CreateTemp;
@@ -78,6 +78,13 @@ module go/os {
     // error occurs reading the directory, ReadDir returns the entries it was able
     // to read before the error, along with the error" (src/os/dir.go), so the
     // entries come with a relevant 1 + E. os.DirEntry is fs.DirEntry.
+    // A NODE'S METADATA, the link itself where the path names a symbolic link:
+    // "If the file is a symbolic link, the returned FileInfo describes the
+    // symbolic link. Lstat makes no attempt to follow the link" (src/os/stat.go).
+    // A sum: the metadata, or the path's error.
+    fn Lstat(name ∈ bytestring) (result.result(`go/io/fs`.FileInfo, error)) {
+        host expr "os.Lstat(${name})" import "os"
+    }
     fn ReadDir(name ∈ bytestring) (Array(`go/io/fs`.DirEntry) × result.result((), error)) {
         host expr "os.ReadDir(${name})" import "os"
     }

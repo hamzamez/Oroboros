@@ -1614,3 +1614,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `lib/result.oro java`
 - compiler output changed — `lib/result.oro js`
 - compiler output changed — `lib/result.oro windows`
+
+## 2026-10-21 — on 8fdc434, with uncommitted changes
+
+**Reason:** ls-2026-10-20: examples/os/ls.oro joins (13 of 13 operations, 1 of 2 loops; Go only, as du), and refusal texts quote J: unproven lines by show_J, the NARROW advice in J's header syntax
+
+564 runs: 302 emitted, 262 refused; 2052 of 2097 integer operations bounded, 353 of 373 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- compiler output changed — `examples/int/collatz.oro go`
+- compiler output changed — `examples/int/fib.oro go`
+- compiler output changed — `examples/int/power.oro go`
+- compiler output changed — `examples/kara/core.oro go`
+- new source — `examples/os/ls.oro go`
+- new source — `examples/os/ls.oro java`
+- new source — `examples/os/ls.oro js`
+- new source — `examples/os/ls.oro windows`

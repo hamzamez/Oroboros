@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"oroboros/core"
@@ -208,7 +209,9 @@ func manifest(goroot string) []name {
 		in[p] = true
 	}
 	files, _ := filepath.Glob(filepath.Join(goroot, "api", "go1*.txt"))
-	sort.Strings(files)
+	// IN RELEASE ORDER, oldest first, and a name's newest spelling kept: lexical
+	// order put go1.txt, the oldest, last (ls-2026-10-20, survey.go's apiVersion).
+	sort.Slice(files, func(i, j int) bool { return apiVersion(files[i]) < apiVersion(files[j]) })
 	byKey := map[string]*name{}
 	var order []string
 	for _, f := range files {
@@ -241,6 +244,7 @@ func manifest(goroot string) []name {
 			k := pkg + ":" + key
 			if n, ok := byKey[k]; ok {
 				n.deprecated = n.deprecated || dep
+				n.text = rest // the newest spelling: os.Chmod's fs.FileMode, not go1's FileMode
 				continue
 			}
 			byKey[k] = &name{pkg, key, kind, rest, dep}
@@ -330,4 +334,13 @@ func trim(s string, n int) string {
 func fail(err error) {
 	fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
+}
+
+// apiVersion is a Go API manifest's minor version: go1.txt is 0, go1.N.txt is N.
+func apiVersion(path string) int {
+	n, err := strconv.Atoi(strings.TrimPrefix(strings.TrimSuffix(filepath.Base(path), ".txt"), "go1."))
+	if err != nil {
+		return 0
+	}
+	return n
 }

@@ -1,0 +1,109 @@
+// ls PATH — the shape of `ls -lR`: a file is one line; a directory is a header
+// `DIR:`, then one line per entry, then each subdirectory the same way, every
+// directory after the first set off by a blank line. A line is
+//
+//   MODE SIZE YYYY-MM-DD HH:MM NAME
+//
+// the mode as Go renders a FileMode, the size in bytes, the modification time
+// in UTC to the minute, and the entry's name. No `total`, no owners, no link
+// counts: what Go's portable FileInfo holds and nothing it does not.
+//
+// THE ALGEBRA. A directory tree is a finite rooted tree; ReadDir lists a node's
+// children in name order, and a symbolic link is a leaf, its entry not followed
+// and Info describing the link itself. `ls -R` is the tree's DEPTH-FIRST
+// PRE-ORDER over directories, each directory's listing printed whole before its
+// first subdirectory is entered. A line is a function of one FileInfo: Mode and
+// Size are its fields, and the time is t.UTC().Format(L). UTC keeps the instant
+// and changes only the location, so the rendering is a function of the instant
+// alone and the output does not depend on the machine's time zone. Format's
+// layout is Go's reference time, Mon Jan 2 15:04:05 2006, written in the form
+// wanted.
+//
+// THE WALK HAS NO RECURSION (ADR 0014). A stack of directories waiting, in a
+// buffer of `cap` paths, is the pre-order's frontier: a directory's
+// subdirectories are pushed LAST FIRST, so the first is popped first. One loop
+// over a cursor does both halves of a listing: phase 0 prints its entries
+// forward, phase 1 walks it backward pushing its subdirectories. A directory
+// found with the stack full is listed and not entered, and reported.
+//
+// WHAT IT CANNOT KNOW. An entry gone between the listing and its Info prints
+// `?` and its name. A directory it cannot read is listed as far as ReadDir got
+// (a partial success, ADR 0044) and counted.
+use go/os
+use go/io/fs/DirEntry as de
+use go/io/fs/FileInfo as fi
+use go/io/fs/FileMode as fm
+use go/time/Time as tm
+use go/path/filepath
+use go/fmt
+use result
+
+cap = 4096
+
+// x ⊕ y = min(x + y, C) on ℕ_C, C = 2⁶² − 1, as du counts: two members sum
+// inside the word, so the sum's bound is one an interval sees.
+fn sat(x ∈ 0..2^62-1, y ∈ 0..2^62-1) (0..2^62-1) {
+    s = x + y
+    if s <= (2^62-1) { s } else { 2^62-1 }
+}
+
+// One FileInfo's line. The time is rendered from the instant alone (UTC).
+fn line(info, name) {
+    fmt.Printf("%s %10d %s %s\n", fm.String(fi.Mode(info)), fi.Size(info),
+        tm.Format(tm.UTC(fi.ModTime(info)), "2006-01-02 15:04"), name)
+}
+
+// An entry's line, or `?` when it is gone before its Info is read.
+fn entry(ent) {
+    case de.Info(ent) {
+        result.'err(e) -> { ignore(e); fmt.Println("?", de.Name(ent)) }
+        result.'ok(info) -> line(info, de.Name(ent))
+    }
+}
+
+// How many directories a listing adds to the unreadable: 1 when it failed. The
+// error is used either way: it is relevant (ADR 0043).
+fn failed(r) { case r { result.'ok(u) -> 0; result.'err(e) -> { ignore(e); 1 } } }
+
+// The walk, as ONE loop over a cursor: `ents` is the listing of `dir`, `k` the
+// cursor, `ph` the phase. It gives (unreadable, unentered).
+fn walk(root) {
+    var stk := array { root : k ∈ 0..cap-1 }
+    (es0, r0) = os.ReadDir(root)
+    fmt.Printf("%s:\n", root)
+    loop sp = 0, ents = es0, k = 0, ph = 0, dir = root, bad = failed(r0), lost = 0 {
+        // phase 0: the listing's entries, forward
+        ph == 0 && k < len(ents) -> { entry(ents[k]); again(sp, ents, k + 1, 0, dir, bad, lost) }
+        ph == 0 -> again(sp, ents, len(ents), 1, dir, bad, lost)
+        // phase 1: its subdirectories pushed, backward, so the first is popped first
+        0 < k && k <= len(ents) && de.IsDir(ents[k - 1]) && sp < cap -> {
+            stk[sp] := filepath.Join(dir, de.Name(ents[k - 1]))
+            again(sp + 1, ents, k - 1, 1, dir, bad, lost)
+        }
+        0 < k && k <= len(ents) && de.IsDir(ents[k - 1]) -> again(sp, ents, k - 1, 1, dir, bad, sat(lost, 1))
+        0 < k -> again(sp, ents, k - 1, 1, dir, bad, lost)
+        // the listing spent: done when nothing waits, else the next directory
+        sp < 1 -> (bad, lost)
+        else -> {
+            next = stk[sp - 1]
+            (es, r) = os.ReadDir(next)
+            fmt.Printf("\n%s:\n", next)
+            again(sp - 1, es, 0, 0, next, sat(bad, failed(r)), lost)
+        }
+    }
+}
+
+export fn main() {
+    av = os.Args()
+    if len(av) < 2 { fmt.Println("usage: ls PATH") } else {
+        case os.Lstat(av[1]) {
+            result.'err(e) -> fmt.Println("ls:", e)
+            result.'ok(info) ->
+                if fi.IsDir(info) {
+                    (bad, lost) = walk(av[1])
+                    if 0 < bad { fmt.Println(bad, "directories could not be read") }
+                    if 0 < lost { fmt.Println(lost, "directories were not entered: more than", cap, "waiting") }
+                } else { line(info, av[1]) }
+        }
+    }
+}

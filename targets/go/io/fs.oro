@@ -1,4 +1,5 @@
-// io/fs, DECLARED BY HAND, in part: what a directory walk reads (examples/os/du.oro).
+// io/fs, DECLARED BY HAND, in part: what a directory walk reads (examples/os/du.oro)
+// and what a listing renders (examples/os/ls.oro).
 // Every claim was read off src/io/fs/fs.go in the Go 1.27 toolchain.
 //
 // THE ALGEBRA. A file system is a tree of named nodes, each with metadata:
@@ -9,6 +10,10 @@
 // - a FILE MODE is a 32-bit word, a product of two parts: the type bits (the
 //   high ones: directory, symlink, device, …) and the permission bits (rwxrwxrwx,
 //   the low nine). IsRegular is "no type bit set", IsDir "the directory bit".
+//   String renders the word as `ls` does: one letter per type bit set, or `-`
+//   for none, then the nine permission bits as `rwx` or `-` each (src/io/fs/fs.go,
+//   FileMode.String); it is injective on the permission bits and on each single
+//   type bit, which is all a listing needs of it.
 //   Its algebra is the Boolean ring of 32-bit words, which the language does not
 //   have (ℤ/2ⁿ is named, not built), so the mode is held as the host's value and
 //   read only through its predicates. They are called on the value,
@@ -25,9 +30,10 @@
 // it below for the others. A program reads it as a length under IsRegular, and
 // says so.
 //
-// WHAT IS NOT DECLARED, named rather than hidden: FileInfo.ModTime (time.Time,
-// a package with no file), FileInfo.Sys (any), DirEntry.Type and FileMode's other
-// methods (String, Type, Perm), the FS interfaces and their functions (ReadFile,
+// FileInfo.ModTime is an instant, `go/time`.Time (time.oro).
+//
+// WHAT IS NOT DECLARED, named rather than hidden: FileInfo.Sys (any), DirEntry.Type
+// and FileMode's other methods (Type, Perm), the FS interfaces and their functions (ReadFile,
 // ReadDir, Stat, Sub, Glob, WalkDir, which takes a callback: tiers 1 and 2), the
 // mode constants (bit arithmetic), and the errors (ErrNotExist and its kin).
 module go/io/fs {
@@ -48,10 +54,12 @@ module go/io/fs {
         fn Size(self ∈ FileInfo) (int64) pure { host expr "${self}.Size()" }
         fn Mode(self ∈ FileInfo) (FileMode) pure { host expr "${self}.Mode()" }
         fn IsDir(self ∈ FileInfo) (Bool) pure { host expr "${self}.IsDir()" }
+        fn ModTime(self ∈ FileInfo) (`go/time`.Time) pure { host expr "${self}.ModTime()" }
     }
 
     module FileMode {
         fn IsDir(self ∈ FileMode) (Bool) pure { host expr "${self}.IsDir()" }
         fn IsRegular(self ∈ FileMode) (Bool) pure { host expr "${self}.IsRegular()" }
+        fn String(self ∈ FileMode) (bytestring) pure { host expr "${self}.String()" }
     }
 }

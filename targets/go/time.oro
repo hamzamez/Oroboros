@@ -1,0 +1,43 @@
+// time, DECLARED BY HAND, in part: what a listing renders (examples/os/ls.oro).
+// Every claim was read off src/time/time.go and src/time/format.go in the Go 1.27
+// toolchain.
+//
+// THE ALGEBRA, BEFORE THE NAMES.
+// - A Time is an INSTANT with a PRESENTATION: an integer count of nanoseconds on
+//   one line (wall seconds since year 1, and, read from the clock, a monotonic
+//   reading), paired with a Location that says how the instant is written, an
+//   offset and a zone name for each instant. Two Times may be one instant
+//   presented two ways; `Equal` compares instants, `==` compares both.
+// - UTC is the projection onto the UTC presentation: it keeps the instant,
+//   replaces the location by UTC and drops the monotonic reading. It is
+//   idempotent, UTC ∘ UTC = UTC, and t.UTC() is Equal to t.
+// - Format is a RENDERING, Time × Layout → B*: the layout is Go's reference time,
+//   Mon Jan 2 15:04:05 MST 2006, written in the form wanted, each field of it
+//   replaced by the same field of the presented time, and every other byte
+//   copied. So t.UTC().Format(L) depends on the instant alone: the composite is
+//   constant on each Equal-class, which is why a program that must print the same
+//   text on every machine renders through UTC.
+//
+// A layout is the host's string, bytestring, and so is Format's result (ADR
+// 0030): it copies the layout's bytes, so a valid layout gives valid text, but a
+// header states one set (strings.md §8, refinement sorts not built).
+//
+// WHAT IS NOT DECLARED, each work and none a wall, left until a program needs
+// it: Now (the clock, an effect); Unix, UnixNano and their inverses (integers,
+// declarable); Duration (an int64 of nanoseconds, a range) and its methods;
+// Add, Sub, Before, After, Equal, Compare; Date, Clock and the field accessors;
+// Parse (a partial inverse of Format, a sum); Location, LoadLocation and In;
+// Timer, Ticker, Sleep and AfterFunc (concurrency, and AfterFunc a callback:
+// tiers 1 and 2).
+module go/time {
+    set Time = host "time.Time"
+
+    module Time {
+        // The instant kept, the presentation UTC's (src/time/time.go, Time.UTC).
+        fn UTC(self ∈ Time) (Time) pure { host expr "${self}.UTC()" }
+        // The rendering by the reference layout (src/time/format.go, Time.Format).
+        fn Format(self ∈ Time, layout ∈ bytestring) (bytestring) pure {
+            host expr "${self}.Format(${layout})"
+        }
+    }
+}

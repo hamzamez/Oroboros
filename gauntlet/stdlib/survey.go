@@ -1076,6 +1076,31 @@ func suppliedBy(have map[string]bool) map[string]bool {
 // `io.Reader` and not `io.Reader`'s path; two packages with the same base name
 // and the same type name still collide, and that residue is named rather than
 // hidden.
+// apiVersion is a manifest's minor version: go1.txt is 0, go1.N.txt is N.
+func apiVersion(path string) int {
+	base := strings.TrimSuffix(filepath.Base(path), ".txt")
+	n, err := strconv.Atoi(strings.TrimPrefix(base, "go1."))
+	if err != nil {
+		return 0 // go1.txt
+	}
+	return n
+}
+
+// aliases maps a type alias, qualified, to the type it names (main).
+var aliases = map[string]string{}
+
+// resolve follows aliases to the type they name.
+func resolve(q string) string {
+	for i := 0; i < 8; i++ { // an alias names a type, never itself; 8 bounds a chain
+		t, ok := aliases[q]
+		if !ok {
+			return q
+		}
+		q = t
+	}
+	return q
+}
+
 func qual(pkg, t string) string {
 	// A PREDECLARED TYPE BELONGS TO NO PACKAGE. `[]uint8` qualified against `os`
 	// is `[]os.uint8`, which matches nothing — and that mattered the moment this
@@ -1093,13 +1118,13 @@ func qual(pkg, t string) string {
 			pre, t = pre+"[]", t[2:]
 		default:
 			if strings.Contains(t, ".") {
-				return pre + t
+				return pre + resolve(t)
 			}
 			base := pkg
 			if i := strings.LastIndex(pkg, "/"); i >= 0 {
 				base = pkg[i+1:]
 			}
-			return pre + base + "." + t
+			return pre + resolve(base+"."+t)
 		}
 	}
 }
@@ -1277,6 +1302,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, "no api manifest at", apiDir)
 		os.Exit(1)
 	}
+	// THE MANIFESTS IN RELEASE ORDER, oldest first, so that "last wins" below is
+	// "newest wins". Glob's order is lexical: go1.16.txt before go1.2.txt, and
+	// go1.txt, the oldest, last of all, so go1's `type FileInfo interface {…}`
+	// overrode go1.16's `type FileInfo = fs.FileInfo` (ls-2026-10-20).
+	sort.Slice(files, func(i, j int) bool { return apiVersion(files[i]) < apiVersion(files[j]) })
 
 	seen := map[string]bool{}
 	var syms []sym
@@ -1322,6 +1352,19 @@ func main() {
 			}
 		}
 		fh.Close()
+	}
+
+	// AN ALIAS IS THE TYPE IT NAMES. `type FileInfo = fs.FileInfo` in package os
+	// binds a second name to one type (the Go spec, Alias declarations), and the
+	// manifest states it. A name the manifest lists once with the alias's
+	// spelling — `func Lstat(string) (FileInfo, error)`, never re-listed — was a
+	// type of its own here, so the generated os.Lstat's result could not be
+	// passed to fs.FileInfo's methods, and a hand file declaring the true type was
+	// refused (ls-2026-10-20). Recorded before anything is spelled; qual resolves.
+	for _, s := range syms {
+		if s.kind == "type" && len(s.results) == 1 && strings.HasPrefix(s.results[0], "= ") {
+			aliases[qual(s.pkg, s.name)] = qual(s.pkg, strings.TrimPrefix(s.results[0], "= "))
+		}
 	}
 
 	// THE SUBSUMPTION RELATION, COMPUTED AND VERIFIED ONCE, so the usable number

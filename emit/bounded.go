@@ -32,7 +32,7 @@ func unboundedText(what string, ops, proven int, target string, word core.Word, 
 	if outside {
 		b.WriteString("\n  An operation above is BOUNDED, only not by this target's word: targets whose\n" +
 			"  word holds that interval accept the program, and this one refuses it. To compile it\n" +
-			"  here too, DECLARE THE RANGE — e.g. a result of `(int 0 N)` — which is arbitrary\n" +
+			"  here too, DECLARE THE RANGE — e.g. a result of `0..N` — which is arbitrary\n" +
 			"  precision on this target and a machine word where one holds it. `go run ./cmd/portable`\n" +
 			"  reports which targets accept the program.")
 	}
@@ -41,7 +41,7 @@ func unboundedText(what string, ops, proven int, target string, word core.Word, 
 		"  program means — Go, the JVM and x86 wrap, JavaScript loses precision — so\n" +
 		"  this is refused rather than noted (ADR 0019, ADR 0026).\n" +
 		"  Clear it by saying one of:\n" +
-		"    · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,\n" +
+		"    · NARROW THE RANGE — `fn f(n ∈ 0..1000)`, or a `where`,\n" +
 		"      so the operation is provably in range;\n" +
 		"    · ASK FOR THE TRAP — build with `-checked`, which emits the target's\n" +
 		"      own checked arithmetic and fails at run time instead.")

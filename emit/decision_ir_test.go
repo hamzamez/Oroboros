@@ -297,7 +297,7 @@ func TestEachComponentHasItsOwnFacts(t *testing.T) {
 }`
 	rep := reportGo(t, src)
 	if rep.Proven != 5 || rep.Ops != 6 || len(rep.Unproven) != 1 ||
-		!strings.Contains(rep.Unproven[0], "(* b 1000000)") {
+		!strings.Contains(rep.Unproven[0], " in b * 1000000") {
 		t.Errorf("%d of %d proven, unproven %v; want 5 of 6, only b·10⁶", rep.Proven, rep.Ops, rep.Unproven)
 	}
 }

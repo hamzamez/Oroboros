@@ -139,10 +139,11 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
 
 ## Where it stands
 
-As of 2026-10-20. The current assessment is [assessment-2026-10-20.md](docs/assessment-2026-10-20.md);
-read it before planning. It scores the 10-14 plan, the surface first, which is finished, and sets the
-next: **the Go standard library in J, program first** (the 10-20 plan, below). The surface round, in
-brief: installment 6, declarations and modules, is written ([surface-design.md](docs/surface-design.md) §6),
+As of 2026-10-21. The current assessment is [assessment-2026-10-21.md](docs/assessment-2026-10-21.md);
+read it before planning. It scores the 10-20 plan, the Go library program first in J, which is finished
+(two programs, `ls` and `shape`; C met as a cost and answered by ADR 0069's observer; the margin 6.6 : 1),
+and sets the next: **two defects every program has, then the library** (the 10-21 plan, below). The
+previous round, the surface (assessment-2026-10-20), in brief: installment 6, declarations and modules, is written ([surface-design.md](docs/surface-design.md) §6),
 its gauntlet program `examples/os/du.oro` ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)), and
 decided ([ADR 0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md)).
 J writes sets in TLA+'s symbols ([ADR 0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md)).
@@ -377,44 +378,29 @@ Soundness bugs found while writing the IR's rules:
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
-**The 10-20 plan** (assessment-2026-10-20 §5): the Go standard library, package by package, program
-first, in J.
-1. Two loose ends: the JavaScript survey's Node pin, **re-measured on v26.8.1**
-   ([nodepin-2026-10-20](gauntlet/results/nodepin-2026-10-20.md): 16 callable members more, no
-   conclusion moved); and `lib/result.oro` compiled alone, **refused for its own reasons now**
-   ([libalone-2026-10-20](gauntlet/results/libalone-2026-10-20.md)): a library file reached by two
-   roots is read once, a λ argument is no index, an undeclared parameter's reading as a table is named,
-   and lowering's messages render in J. **Item 1 is done.**
-2. `os`, program first: an `ls -lR`-shaped tool (sizes, modes, modification times), bringing in
-   `time`, the first package with no file. **Done** ([ls-2026-10-20](gauntlet/results/ls-2026-10-20.md)):
-   `examples/os/ls.oro`, 13 of 13 operations proven; `time.oro`; and the Go survey's two faults it found
-   (an alias was a type of its own, and go1.txt, read last, overrode every later spelling). The Go
-   coverage is 306 of 590 (51.9%).
-3. `bufio`'s `Reader`, program first, meeting C (a borrow a later call ends) and researching it then.
-   **Met and researched** ([shape-2026-10-21](gauntlet/results/shape-2026-10-21.md),
-   [borrow-research.md](docs/borrow-research.md)): `shape` runs with `ReadString`, at parity with the
-   same algorithm by hand, and C turned out to be a cost, not a wall: the hand-written `ReadSlice`
-   form is 0.74× with 0 garbage collections against 78. A naive lent declaration miscompiles a correct
-   program (β moves a pure copy past the next read). A lent result is a value held as a view for an
-   epoch (Theorem L), Wadler's `let!` and Reynolds' passive alias. **Revised by measurement**
-   ([ownbuf-2026-10-21](gauntlet/results/ownbuf-2026-10-21.md)): ownership is not what costs. The
-   caller owning a 64 KB buffer and searching it with the host's `bytes.IndexByte`/`Count` is 131 ms
-   by hand, against 145 ms for `ReadSlice` at the same size. What the language lacks is ADR 0020's
-   observer at a host parameter (a live buffer read by a pure call whose results cannot alias), with
-   §7c generalized. `lent` waits for `Peek` and `Scanner.Bytes`. Writing the caller-owned form found a
-   crash in D (fixed: an unclaimed binder is `any`) and seven analysis gaps (ownbuf §3). **Decisions 1–3
-   built** ([ADR 0069](docs/decisions/0069-an-observer-at-a-host-parameter.md),
-   [observer-2026-10-21](gauntlet/results/observer-2026-10-21.md)): the observer, derived; §7c
-   generalized; `shape` in its own buffer with `bytes.oro`'s segments, **at parity** (125 ms against
-   113 by hand and 125 for `ReadSlice` at 64 KB, no GC). A binder's claim `b ∈ S = e` is an obligation
-   and `the` is refused in J: the core's ascription had been trusted. `File.Read` states io.Reader's
-   law on its tuple result's components.
-4. Every program written in J by hand, and what J's reader catches counted.
-5. The analysis grows only for a refusal a program names; ADRs 0053, 0062's logic and 0066's inference
-   each when a program needs it.
+**The 10-20 plan is finished** (scored in assessment-2026-10-21 §1): the loose ends (nodepin,
+libalone); `ls` with `time` ([ls-2026-10-20](gauntlet/results/ls-2026-10-20.md)); `bufio`'s Reader with
+`shape`, C researched ([borrow-research.md](docs/borrow-research.md)), measured
+([ownbuf-2026-10-21](gauntlet/results/ownbuf-2026-10-21.md)) and answered by the observer
+([ADR 0069](docs/decisions/0069-an-observer-at-a-host-parameter.md),
+[observer-2026-10-21](gauntlet/results/observer-2026-10-21.md)): `shape` reads its own buffer at parity,
+and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and two in the Go survey.
 
-Rules kept from the 10-20 assessment: a refusal test states its reason and is checked for it; an
-`-accept` that changes a count updates every document that quotes it.
+**The 10-21 plan** (assessment-2026-10-21 §5):
+1. **Work stays where it was written**: β's one-occurrence rule substitutes a pure application into a
+   loop body, where it runs per iteration (GHC's once-inside-a-lambda case). Research it, build it behind
+   the gate, measure the corpus and the gauntlet.
+2. **A declared result range is an obligation**, with the mechanism binder claims now have: marked,
+   proven or refused, then read by the IR. `fn bad(x ∈ 0..100) (0..5) { x + 10 }` must be refused. The
+   first piece of ADR 0062's logic.
+3. **The Go library, program first**: more of `os` and `io`, and `unicode`, by a program over files and
+   text (a `cmp`, a `wc -m`), written by hand in J, what the reader catches counted.
+4. **The clause chain's copying** (a six-arm loop, 2,423 lines of Go), researched when a program names it.
+5. **The analysis grows only for a refusal a program names**, each rule's planted fault written with the
+   rule.
+
+Rules kept: a refusal test states its reason and is checked for it; an `-accept` that changes a count
+updates every document that quotes it; every experiment gets a time limit.
 
 **The 10-03 plan** (scored in assessment-2026-10-14 §1; its Go library order still stands):
 1. **A round of questions** — hamza's, answered as the type, integer and table questions were: what the
@@ -588,12 +574,10 @@ assessment's table from git (assessment-2026-10-03 §3.1's definitions: code lin
 `examples/` and `lib/`, `;` and `//` comments excluded; raw lines of `.go` in `core/`, `emit/`, `ir/`,
 tests included). `--nodes` adds the language's size in core-term nodes by each revision's own reader, a
 cross-check across a change of notation (gauntlet/balance_nodes.go):
-- The 10-20 round: +3,831 lines of compiler against +49 written in the language (`du`), **78 : 1**,
-  against 64 : 1 the round before; and the translator, 7,440 lines, written and deleted. The switch to
-  J added 7% to the language's lines and 6% to its nodes, no meaning.
-- The compiler is 70,449 lines: `core` 19,001, `emit` 31,629, `ir` 19,819. `emit : core` is 1.66 and
-  (`emit` + `ir`) : `core` 2.71, falling as `core` took the surface. The refinement layer, extended, is
-  5,808 lines, the IR's analysis 3,342.
+- The 10-21 round: +928 lines of compiler against +140 written in the language (`ls`, `shape`),
+  **6.6 : 1**, against 78 : 1 the round before (the surface's), the best since the IR; +1,017 nodes.
+- The compiler is 71,377 lines: `core` 19,187, `emit` 32,369, `ir` 19,821. `emit : core` is 1.69 and
+  (`emit` + `ir`) : `core` 2.72. The refinement layer, extended, is 6,039 lines, the IR's analysis 3,342.
 - The largest program, `freq`, has been the largest for five assessments: 194 lines of J, 163 of
   today's notation.
 
@@ -601,7 +585,7 @@ The part that decides what is legal is the hardest to check. Write programs, and
 analysis.
 
 Previous assessments:
-[10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md), [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
+[10-20](docs/assessment-2026-10-20.md), [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md), [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
 [09-09](docs/assessment-2026-09-09.md), [09-06](docs/assessment-2026-09-06.md),
 [08-20](docs/assessment-2026-08-20.md), [08-19](docs/assessment-2026-08-19.md),
 [08-13](docs/assessment-2026-08-13.md).

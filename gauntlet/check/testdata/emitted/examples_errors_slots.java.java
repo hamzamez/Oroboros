@@ -16,8 +16,8 @@ public final class examples_errors_slots.java {
 	public static Tup_long_long_String genParse(int v0) {
 		final boolean v10 = (v0 < 50);
 		if (v10) {
-			final int v14 = (v0 * 2);
-			return new Tup_long_long_String(0, v14, "");
+			final int v13 = (v0 * 2);
+			return new Tup_long_long_String(0, v13, "");
 		}
 		return new Tup_long_long_String(1, 0, "too large");
 	}

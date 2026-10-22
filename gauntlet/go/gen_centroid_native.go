@@ -19,9 +19,9 @@ func NativeCentroid(v0 []float64, v1 []float64) float64 {
 		}
 		v21 := v0[v13]
 		v22 := (v11 + v21)
-		v23 := v9[v13]
-		v24 := (v12 + v23)
-		v11, v12 = v22, v24
+		v24 := v9[v13]
+		v25 := (v12 + v24)
+		v11, v12 = v22, v25
 		continue
 	}
 	return v10

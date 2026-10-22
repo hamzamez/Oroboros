@@ -41,5 +41,9 @@ export fn main() {
     xs = fill(1000)
     fmt.Println("report")
     fmt.Println(len(xs))
-    fmt.Println(dot(xs, xs))
+    // The value is the dot product, which the harness checks and times: a
+    // variadic statement's value is the unit (ADR 0046).
+    d = dot(xs, xs)
+    fmt.Println(d)
+    d
 }

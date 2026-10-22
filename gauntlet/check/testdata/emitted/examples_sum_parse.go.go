@@ -12,7 +12,7 @@ func GenStep(v0 int, v1 int) (int, int) {
 	if v10 {
 		return 1, 2
 	}
-	v14 := (v0 / v1)
-	return 0, v14
+	v13 := (v0 / v1)
+	return 0, v13
 }
 

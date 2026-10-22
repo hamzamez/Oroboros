@@ -410,7 +410,7 @@ The full, current description is [docs/spec/state.md](docs/spec/state.md), and t
 | | how | measured |
 |---|---|---|
 | Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript and Java | geometric mean of generated over hand-written **0.990** on Go, **0.977** on JavaScript, **0.987** on Java, over 35 comparisons from **0.87×** to **1.21×**; the three above 1.10× each explained, the largest a JavaScript module boundary ([gauntlet-2026-09-29](gauntlet/results/gauntlet-2026-09-29.md)). On Android's runtime, in the emulator, 9 of 10 pairs are at parity and the stencil is 1.17–1.19× ([android-2026-10-05](gauntlet/results/android-2026-10-05.md)). The newest program, a table-shape tool reading its own 64 KB buffer, is at 1.11× its hand-written Go ([observer-2026-10-21](gauntlet/results/observer-2026-10-21.md)) |
-| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **2,065 of 2,110** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
+| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **2,064 of 2,109** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
 | Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
 | A function is only called inside its declared domain | every declared parameter range and `where` is proven at every call, above the machine word as the set its enforcement decides, by sign and bit length ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | 346 range obligations in the corpus measured before it was switched on; one program was missing a declaration ([requires](gauntlet/results/requires-2026-09-24.md), [contracts](gauntlet/results/contracts-2026-09-24.md)) |
 | A string is always text | every value typed `String` is a sequence of Unicode scalar values: a host's string is its own type (`go.bytestring`), entered only by the standard's decode, which is the same function on every host ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md)) | 57 Go declarations read one at a time; `text_of` agrees on Go, JS and Java over 18 ill-formed sequences ([hoststring](gauntlet/results/hoststring-2026-09-24.md)) |
@@ -468,12 +468,15 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-10-21.* The current assessment,
+*Updated with the plan; last updated 2026-10-22.* The current assessment,
 [docs/assessment-2026-10-21.md](docs/assessment-2026-10-21.md), says what went well, what went badly,
 and why the plan is what it is.
 
-- **Work stays where it was written.** The reducer copies a value used once into a loop body, where it
-   then runs on every iteration. Fixing it touches every program, so it is measured on all of them.
+- ~~**Work stays where it was written.**~~ **Done 2026-10-22**
+  ([ADR 0071](docs/decisions/0071-work-stays-where-it-was-written.md),
+  [work-2026-10-22](gauntlet/results/work-2026-10-22.md)): the reducer counts how often a value is
+  *evaluated*, not how often it is written, so a value bound before a loop is computed there. `freq` no
+  longer runs a loop inside the loop that used its result; the gauntlet is unchanged within noise.
 - **A declared result range is an obligation**, proven or refused, as a parameter's range already is.
 - **Go's standard library, package by package, program first**: next, more of `os`, `io` and
    `unicode`, each brought in by a program that needs it.

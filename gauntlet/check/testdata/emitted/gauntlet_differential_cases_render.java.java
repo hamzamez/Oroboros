@@ -2,73 +2,73 @@
 
 public final class gauntlet_differential_cases_render.java {
 	public static String genRun(int v0) {
-		final java.math.BigInteger v10 = (java.math.BigInteger.valueOf(1));
-		java.math.BigInteger v13 = v10;
-		int v14 = 2;
-		for (;; v14 = (v14 + 1)) {
-			final int v16 = (25 + v0);
-			final boolean v17 = (v14 > v16);
+		final int v10 = (25 + v0);
+		final java.math.BigInteger v12 = (java.math.BigInteger.valueOf(1));
+		java.math.BigInteger v15 = v12;
+		int v16 = 2;
+		for (;; v16 = (v16 + 1)) {
+			final boolean v17 = (v16 > v10);
 			if (v17) {
 				break;
 			}
-			final java.math.BigInteger v20 = (java.math.BigInteger.valueOf(v14));
-			final java.math.BigInteger v21 = (v13.multiply(v20));
-			final java.math.BigInteger v23 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v21, (long)(201)));
-			v13 = v23;
+			final java.math.BigInteger v22 = (java.math.BigInteger.valueOf(v16));
+			final java.math.BigInteger v23 = (v15.multiply(v22));
+			final java.math.BigInteger v25 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v23, (long)(201)));
+			v15 = v25;
 			continue;
 		}
-		final java.math.BigInteger v27 = (java.math.BigInteger.valueOf(0));
-		final boolean v28 = (v13.compareTo(v27) == 0);
-		if (v28) {
+		final java.math.BigInteger v29 = (java.math.BigInteger.valueOf(0));
+		final boolean v30 = (v15.compareTo(v29) == 0);
+		if (v30) {
 			return "0";
 		}
-		String v33 = "";
-		java.math.BigInteger v34 = v13;
-		int v35 = 0;
-		for (;; v35 = (v35 + 1)) {
-			final java.math.BigInteger v37 = (java.math.BigInteger.valueOf(0));
-			final boolean v38 = (v34.compareTo(v37) == 0);
-			if (v38) {
-				break;
-			}
-			final boolean v40 = (v35 >= 32);
+		String v35 = "";
+		java.math.BigInteger v36 = v15;
+		int v37 = 0;
+		for (;; v37 = (v37 + 1)) {
+			final java.math.BigInteger v39 = (java.math.BigInteger.valueOf(0));
+			final boolean v40 = (v36.compareTo(v39) == 0);
 			if (v40) {
 				break;
 			}
-			final java.math.BigInteger v44 = (java.math.BigInteger.valueOf(100000000));
-			final java.math.BigInteger v45 = (v34.divide(v44));
-			final java.math.BigInteger v47 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v45, (long)(201)));
-			final int v51 = (int) (v34.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
-			String v53 = "";
-			int v54 = 0;
-			int v55 = v51;
-			for (;; v54 = (v54 + 1)) {
-				final boolean v57 = (v54 >= 8);
-				if (v57) {
+			final boolean v42 = (v37 >= 32);
+			if (v42) {
+				break;
+			}
+			final java.math.BigInteger v46 = (java.math.BigInteger.valueOf(100000000));
+			final java.math.BigInteger v47 = (v36.divide(v46));
+			final java.math.BigInteger v49 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v47, (long)(201)));
+			final java.math.BigInteger v51 = (java.math.BigInteger.valueOf(0));
+			final boolean v52 = (v49.compareTo(v51) > 0);
+			final int v56 = (int) (v36.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
+			String v58 = "";
+			int v59 = 0;
+			int v60 = v56;
+			for (;; v59 = (v59 + 1)) {
+				final boolean v62 = (v59 >= 8);
+				if (v62) {
 					break;
 				}
-				final java.math.BigInteger v63 = (java.math.BigInteger.valueOf(0));
-				final boolean v64 = (v47.compareTo(v63) > 0);
-				final boolean v65 = (!v64);
-				final boolean v68 = (v65 && ((v55 == 0) && (v54 > 0)));
-				if (v68) {
+				final boolean v67 = (!v52);
+				final boolean v70 = (v67 && ((v60 == 0) && (v59 > 0)));
+				if (v70) {
 					break;
 				}
-				final int v81 = (v55 % 10);
-				final int v82 = (48 + v81);
-				final String v83 = (new String(Character.toChars((int) v82)));
-				final String v84 = (v83.concat(v53));
-				final int v88 = (v55 / 10);
-				v53 = v84;
-				v55 = v88;
+				final int v83 = (v60 % 10);
+				final int v84 = (48 + v83);
+				final String v85 = (new String(Character.toChars((int) v84)));
+				final String v86 = (v85.concat(v58));
+				final int v90 = (v60 / 10);
+				v58 = v86;
+				v60 = v90;
 				continue;
 			}
-			final String v89 = (v53.concat(v33));
-			v33 = v89;
-			v34 = v47;
+			final String v91 = (v58.concat(v35));
+			v35 = v91;
+			v36 = v49;
 			continue;
 		}
-		return v33;
+		return v35;
 	}
 
 }

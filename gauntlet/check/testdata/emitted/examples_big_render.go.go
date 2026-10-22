@@ -26,31 +26,31 @@ func GenRender(v0 *big.Int) string {
 		v19 := (big.NewInt(int64(100000000)))
 		v20 := (new(big.Int).Quo(v9, v19))
 		v22 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v20, 201))
-		v26 := (int(new(big.Int).Rem(v9, big.NewInt(int64(100000000))).Int64()))
-		var v28 string = ""
-		var v29 int = 0
-		var v30 int = v26
-		for ; ; v29 = (v29 + 1) {
-			v32 := (v29 >= 8)
-			if v32 {
+		v24 := (big.NewInt(int64(0)))
+		v25 := (v22.Cmp(v24) > 0)
+		v29 := (int(new(big.Int).Rem(v9, big.NewInt(int64(100000000))).Int64()))
+		var v31 string = ""
+		var v32 int = 0
+		var v33 int = v29
+		for ; ; v32 = (v32 + 1) {
+			v35 := (v32 >= 8)
+			if v35 {
 				break
 			}
-			v38 := (big.NewInt(int64(0)))
-			v39 := (v22.Cmp(v38) > 0)
-			v40 := (!v39)
-			v43 := (v40 && ((v30 == 0) && (v29 > 0)))
+			v40 := (!v25)
+			v43 := (v40 && ((v33 == 0) && (v32 > 0)))
 			if v43 {
 				break
 			}
-			v56 := (v30 % 10)
+			v56 := (v33 % 10)
 			v57 := (48 + v56)
 			v58 := (string(rune(v57)))
-			v59 := (v58 + v28)
-			v63 := (v30 / 10)
-			v28, v30 = v59, v63
+			v59 := (v58 + v31)
+			v63 := (v33 / 10)
+			v31, v33 = v59, v63
 			continue
 		}
-		v64 := (v28 + v8)
+		v64 := (v31 + v8)
 		v8, v9 = v64, v22
 		continue
 	}

@@ -2,38 +2,38 @@
 
 public final class examples_native_generic-java.java {
 	public static double genSumOf(double[] v0) {
-		double v4 = 0.0;
-		int v5 = 0;
-		for (;; v5 = (v5 + 1)) {
-			final int v6 = v0.length;
-			final boolean v7 = (v5 >= v6);
+		final int v1 = v0.length;
+		double v5 = 0.0;
+		int v6 = 0;
+		for (;; v6 = (v6 + 1)) {
+			final boolean v7 = (v6 >= v1);
 			if (v7) {
 				break;
 			}
-			final double v12 = v0[v5];
-			final double v13 = (v4 + v12);
-			v4 = v13;
+			final double v14 = v0[v6];
+			final double v15 = (v5 + v14);
+			v5 = v15;
 			continue;
 		}
-		return v4;
+		return v5;
 	}
 
 	public static java.util.Map<String,Long> genWordTally(String v0) {
 		final String[] v2 = (v0.split(" "));
-		final java.util.Map<String,Long> v3 = (new java.util.HashMap<String,Long>());
-		java.util.Map<String,Long> v6 = v3;
-		int v7 = 0;
-		for (;; v7 = (v7 + 1)) {
-			final int v8 = v2.length;
-			final boolean v9 = (v7 >= v8);
+		final int v3 = v2.length;
+		final java.util.Map<String,Long> v4 = (new java.util.HashMap<String,Long>());
+		java.util.Map<String,Long> v7 = v4;
+		int v8 = 0;
+		for (;; v8 = (v8 + 1)) {
+			final boolean v9 = (v8 >= v3);
 			if (v9) {
 				break;
 			}
-			final String v14 = v2[v7];
-			v6.merge(v14, 1L, Long::sum);
+			final String v16 = v2[v8];
+			v7.merge(v16, 1L, Long::sum);
 			continue;
 		}
-		return v6;
+		return v7;
 	}
 
 }

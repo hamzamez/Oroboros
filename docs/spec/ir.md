@@ -981,49 +981,73 @@ the emission baseline is the text's, through §10.4's law. A binary form is not 
 
 ### 10.3 An example
 
-`examples/native/dot-go.oro`, lowered for Go, in IR_P. Lowering writes exactly this in IR_A
-(`gen -ir`), except for the ranges, which are `int` there: the loop variable's (int 0 65535) comes
-from the `where` on `len p`, and it is the analyses that write it. Each arm renames both the index
-(`%9`, `%11`) and the table whose length it was compared with (`%10`, `%12`).
+`examples/native/dot-go.oro`, lowered for Go, in IR_P, as `gen -ir` writes it (2026-10-22). Lowering
+writes the same text in IR_A, except for the ranges, which are `int` there and the analyses' here, and
+the `restrict`, which the rewrite of §9.4 adds. The export's `where` is assumed at entry (ADR 0028).
+The length `len %0` is measured once, before the loop, where the program's `vlen(v)` is bound (ADR
+0071), and the guard compares the index with it. Each arm renames the index (`%22`, `%25`), the
+length (`%23`, `%26`), and the table the length measures (`%24`, `%27`): a guard on a value defined
+as `len x` is a guard on x's length, as one on `(len x)` written in place is.
 
 ```lisp
 (ir 1
   (target go)
   (stage P)
-  (ops const add ge call index len loop yield break continue branch)
+  (ops const add eq lt ge call index len if loop restrict assume yield break continue branch)
   (func native-dot (params (%0 (array f64)) (%1 (array f64))) (results f64)
     (region
-      (val (%2 f64) (const 0.0))
-      (val (%3 (int 0 0)) (const 0))
-      (val (%4 f64)
-        (loop (init %2 %3)
+      (val (%2 (int 0 9223372036854775807)) (len %0))
+      (val (%3 (int 0 9223372036854775807)) (len %1))
+      (val (%4 bool) (eq %2 %3))
+      (val (%5 bool)
+        (if %4
           (region
-            (params (%5 f64) (%6 (int 0 65535)))
-            (val (%7 (int 0 65535)) (len %0))
-            (val (%8 bool) (ge %6 %7))
-            (branch %8
+            (pi %6 (array f64) ((len %0) eq %3))
+            (pi %7 (array f64) ((len %1) eq %2))
+            (val (%8 (int 0 65535)) (len %6))
+            (val (%9 (int 65536 65536)) (const 65536))
+            (val (%10 bool) (lt %8 %9))
+            (yield %10))
+          (region
+            (pi %11 (array f64) ((len %0) ne %3))
+            (pi %12 (array f64) ((len %1) ne %2))
+            (val (%13 bool) (const false))
+            (yield %13))))
+      (do (assume %5))
+      (val (%14 (int 0 9223372036854775807)) (len %0))
+      (val (%15 f64) (const 0.0))
+      (val (%16 (int 0 0)) (const 0))
+      (val (%17 (array f64)) (restrict %1 %14))
+      (val (%18 f64)
+        (loop (init %15 %16)
+          (region
+            (params (%19 f64) (%20 (int 0 9223372036854775807)))
+            (val (%21 bool) (ge %20 %14))
+            (branch %21
               (region
-                (pi %9 (int 0 65535) (%6 ge %7))
-                (pi %10 (array f64) ((len %0) le %6))
-                (break %5))
+                (pi %22 (int 0 9223372036854775807) (%20 ge %14))
+                (pi %23 (int 0 9223372036854775807) (%14 le %20))
+                (pi %24 (array f64) ((len %0) le %20))
+                (break %19))
               (region
-                (pi %11 (int 0 65534) (%6 lt %7))
-                (pi %12 (array f64) ((len %0) gt %6))
-                (val (%13 f64) (index %12 %11))
-                (val (%14 f64) (index %1 %11))
-                (val (%15 f64) (call go.f* %13 %14))
-                (val (%16 f64) (call go.f+ %5 %15))
-                (val (%17 (int 1 1)) (const 1))
-                (val (%18 (int 1 65535)) (add exact %11 %17))
-                (continue %16 %18))))))
-      (yield %4))))
+                (pi %25 (int 0 9223372036854775806) (%20 lt %14))
+                (pi %26 (int 1 9223372036854775807) (%14 gt %20))
+                (pi %27 (array f64) ((len %0) gt %20))
+                (val (%28 f64) (index %27 %25))
+                (val (%29 f64) (index %17 %25))
+                (val (%30 f64) (call go.f* %28 %29))
+                (val (%31 f64) (call go.f+ %19 %30))
+                (val (%32 (int 1 1)) (const 1))
+                (val (%33 (int 1 9223372036854775807)) (add exact %25 %32))
+                (continue %31 %33))))))
+      (yield %18))))
 ```
 
 What a Go printer does with it (irp2):
 - `%4` is `%5` by soleExit;
 - `%18`, the index plus one, goes to the post clause by PostVars;
-- `%1` is re-sliced to `len %0`, because `len %0 = len %1` is the `where`'s, discharged at the loop's
-  entry.
+- `%1` is re-sliced to `len %0`, `%17`, because `len %0 = len %1` is the `where`'s, discharged at the
+  loop's entry, and the bound is the length the guard measured before the loop.
 
 The result is the loop `gen` emits today, one statement per value, at the same speed (irp2 §2:
 0.99× of `gen`).

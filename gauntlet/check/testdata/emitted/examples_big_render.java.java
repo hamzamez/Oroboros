@@ -23,32 +23,32 @@ public final class examples_big_render.java {
 			final java.math.BigInteger v19 = (java.math.BigInteger.valueOf(100000000));
 			final java.math.BigInteger v20 = (v9.divide(v19));
 			final java.math.BigInteger v22 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v20, (long)(201)));
-			final int v26 = (int) (v9.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
-			String v28 = "";
-			int v29 = 0;
-			int v30 = v26;
-			for (;; v29 = (v29 + 1)) {
-				final boolean v32 = (v29 >= 8);
-				if (v32) {
+			final java.math.BigInteger v24 = (java.math.BigInteger.valueOf(0));
+			final boolean v25 = (v22.compareTo(v24) > 0);
+			final int v29 = (int) (v9.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
+			String v31 = "";
+			int v32 = 0;
+			int v33 = v29;
+			for (;; v32 = (v32 + 1)) {
+				final boolean v35 = (v32 >= 8);
+				if (v35) {
 					break;
 				}
-				final java.math.BigInteger v38 = (java.math.BigInteger.valueOf(0));
-				final boolean v39 = (v22.compareTo(v38) > 0);
-				final boolean v40 = (!v39);
-				final boolean v43 = (v40 && ((v30 == 0) && (v29 > 0)));
+				final boolean v40 = (!v25);
+				final boolean v43 = (v40 && ((v33 == 0) && (v32 > 0)));
 				if (v43) {
 					break;
 				}
-				final int v56 = (v30 % 10);
+				final int v56 = (v33 % 10);
 				final int v57 = (48 + v56);
 				final String v58 = (new String(Character.toChars((int) v57)));
-				final String v59 = (v58.concat(v28));
-				final int v63 = (v30 / 10);
-				v28 = v59;
-				v30 = v63;
+				final String v59 = (v58.concat(v31));
+				final int v63 = (v33 / 10);
+				v31 = v59;
+				v33 = v63;
 				continue;
 			}
-			final String v64 = (v28.concat(v8));
+			final String v64 = (v31.concat(v8));
 			v8 = v64;
 			v9 = v22;
 			continue;

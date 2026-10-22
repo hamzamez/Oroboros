@@ -187,6 +187,11 @@ type lowerer struct {
 	marks map[*core.Term][]V
 	// undecided counts the contract marks met (Func.undecided).
 	undecided int
+	// lenOfV maps a value defined as (len x), x a bound table, to x's frame
+	// (absolute depth, index): a guard on the value is a guard on x's length,
+	// as one on (len x) written in place is. β binds a length where the
+	// program wrote it, outside a loop that compares against it (ADR 0071).
+	lenOfV map[V][2]int
 }
 
 func (l *lowerer) fail(format string, args ...any) {
@@ -412,7 +417,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	}
 	switch {
 	case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn:
-		vs := l.value(args[0], r)
+		vs := l.letValue(args[0], r)
 		l.push(vs[:1], args[1].Params)
 		out := l.value(args[1].Closed(), r)
 		l.pop()
@@ -505,7 +510,14 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		}
 		return []V{l.one(r, Stmt{Op: OMap, Args: kv})}
 	case p.Kind == "len" || l.tg.IsLengthName(op.Name) && len(args) == 1:
-		return []V{l.one(r, Stmt{Op: OLen, Args: l.values(args, r)})}
+		v := l.one(r, Stmt{Op: OLen, Args: l.values(args, r)})
+		if len(args) == 1 && args[0].Kind == core.KBound {
+			if l.lenOfV == nil {
+				l.lenOfV = map[V][2]int{}
+			}
+			l.lenOfV[v] = [2]int{len(l.frames) - 1 - args[0].Depth, args[0].Index}
+		}
+		return []V{v}
 	case p.Kind == "table-set" && len(args) == 3:
 		return []V{l.one(r, Stmt{Op: OSet, Args: l.values(args, r)})}
 	case p.Kind == "map-insert" && len(args) == 3:
@@ -541,12 +553,28 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 func (l *lowerer) single(t *core.Term, r *Region) V {
 	vs := l.value(t, r)
 	if len(vs) != 1 {
-		l.fail("%s is %d values where one is wanted: a tuple, or a variant, which is its tag and its slots "+
-			"(ADR 0042), has no representation in this position (a table of tuples is flattened only where "+
-			"the program builds it, products.md; a variant is one value only where case-of-case eliminates it)",
-			core.ShowTerm(t), len(vs))
+		l.manyValues(t, len(vs))
 	}
 	return vs[0]
+}
+
+// letValue lowers a residual let's value, which its one binder holds: several
+// values, a tuple or a variant's tag and slots, have no representation there,
+// and keeping the first was the silent loss single refuses (ADR 0071 made the
+// path reachable: a variant's payload bound outside its constructor).
+func (l *lowerer) letValue(t *core.Term, r *Region) []V {
+	vs := l.value(t, r)
+	if len(vs) > 1 {
+		l.manyValues(t, len(vs))
+	}
+	return vs
+}
+
+func (l *lowerer) manyValues(t *core.Term, n int) {
+	l.fail("%s is %d values where one is wanted: a tuple, or a variant, which is its tag and its slots "+
+		"(ADR 0042), has no representation in this position (a table of tuples is flattened only where "+
+		"the program builds it, products.md; a variant is one value only where case-of-case eliminates it)",
+		core.ShowTerm(t), n)
 }
 
 func (l *lowerer) values(ts []*core.Term, r *Region) []V {
@@ -804,7 +832,7 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 				r.T, r.Cond, r.Then, r.Else = TBranch, c, th, el
 				return
 			case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn:
-				vs := l.value(args[0], r)
+				vs := l.letValue(args[0], r)
 				l.push(vs[:1], args[1].Params)
 				l.tail(args[1].Closed(), r, loop)
 				l.pop()
@@ -974,6 +1002,16 @@ func negate(rel string) string {
 
 var cmpRel = map[Op]string{OEq: "eq", ONe: "ne", OLt: "lt", OLe: "le", OGt: "gt", OGe: "ge"}
 
+// lenBinder answers, for a value defined as (len x), x's binder as a variable
+// of the current frame, while x is in scope.
+func (l *lowerer) lenBinder(v V) (*core.Term, bool) {
+	src, ok := l.lenOfV[v]
+	if !ok || src[0] >= len(l.frames) || src[1] >= len(l.frames[src[0]]) {
+		return nil, false
+	}
+	return &core.Term{Kind: core.KBound, Depth: len(l.frames) - 1 - src[0], Index: src[1]}, true
+}
+
 // lenOf recognises `(len X)` with X a bound variable.
 func (l *lowerer) lenOf(t *core.Term) (*core.Term, bool) {
 	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[1].Kind == core.KBound {
@@ -1012,11 +1050,17 @@ func (l *lowerer) cond(t *core.Term, r *Region) (V, []guard, []guard) {
 				}
 				if t.Kids[1].Kind == core.KBound {
 					add(t.Kids[1], a, rel, b, false)
+					if x, ok := l.lenBinder(a); ok {
+						add(x, l.lookup(x), rel, b, true)
+					}
 				} else if x, ok := l.lenOf(t.Kids[1]); ok {
 					add(x, l.lookup(x), rel, b, true)
 				}
 				if t.Kids[2].Kind == core.KBound {
 					add(t.Kids[2], b, flip(rel), a, false)
+					if x, ok := l.lenBinder(b); ok {
+						add(x, l.lookup(x), flip(rel), a, true)
+					}
 				} else if x, ok := l.lenOf(t.Kids[2]); ok {
 					add(x, l.lookup(x), flip(rel), a, true)
 				}

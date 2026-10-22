@@ -299,323 +299,323 @@ public final class examples_io_jsonfmt.java {
 					final boolean v445 = (v389 == 1);
 					short[] v446 = null;
 					if (v445) {
+						final int v449 = (2 * v388);
 						v385[v386] = (short) (10);
-						final int v452 = (v386 + 1);
-						short[] v454 = v385;
-						int v455 = 0;
-						int v456 = v452;
-						for (;; v455 = (v455 + 1), v456 = (v456 + 1)) {
-							final int v458 = (2 * v388);
-							final boolean v459 = (v455 >= v458);
+						final int v454 = (v386 + 1);
+						short[] v456 = v385;
+						int v457 = 0;
+						int v458 = v454;
+						for (;; v457 = (v457 + 1), v458 = (v458 + 1)) {
+							final boolean v459 = (v457 >= v449);
 							if (v459) {
 								break;
 							}
-							v454[v456] = (short) (32);
+							v456[v458] = (short) (32);
 							continue;
 						}
-						v446 = v454;
+						v446 = v456;
 					} else {
 						v446 = v385;
 					}
-					final int v469 = v10[v387];
-					final boolean v471 = (v469 == 123);
-					int v472 = 0;
-					if (v471) {
-						v472 = 123;
+					final int v471 = v10[v387];
+					final boolean v473 = (v471 == 123);
+					int v474 = 0;
+					if (v473) {
+						v474 = 123;
 					} else {
-						v472 = 91;
+						v474 = 91;
 					}
-					final int v475 = (v386 + v436);
-					v446[v475] = (short) (v472);
-					final int v478 = (v436 + 1);
-					final int v479 = (v386 + v478);
-					final int v481 = (v387 + 1);
-					final int v483 = (v388 + 1);
+					final int v477 = (v386 + v436);
+					v446[v477] = (short) (v474);
+					final int v480 = (v436 + 1);
+					final int v481 = (v386 + v480);
+					final int v483 = (v387 + 1);
+					final int v485 = (v388 + 1);
 					v385 = v446;
-					v386 = v479;
-					v387 = v481;
-					v388 = v483;
+					v386 = v481;
+					v387 = v483;
+					v388 = v485;
 					v389 = 1;
 					continue;
 				}
-				final int v485 = v10[v387];
-				final boolean v487 = (v485 == 125);
-				final boolean v488 = (v487 || (v485 == 93));
-				if (v488) {
-					final boolean v495 = (v388 < 1);
-					int v496 = 0;
-					if (v495) {
-						v496 = 0;
+				final int v487 = v10[v387];
+				final boolean v489 = (v487 == 125);
+				final boolean v490 = (v489 || (v487 == 93));
+				if (v490) {
+					final boolean v497 = (v388 < 1);
+					int v498 = 0;
+					if (v497) {
+						v498 = 0;
 					} else {
-						final int v501 = (v388 - 1);
-						v496 = v501;
+						final int v503 = (v388 - 1);
+						v498 = v503;
 					}
-					final boolean v503 = (v389 == 0);
-					int v504 = 0;
-					if (v503) {
-						final int v508 = (2 * v496);
-						final int v509 = (1 + v508);
-						v504 = v509;
+					final boolean v505 = (v389 == 0);
+					int v506 = 0;
+					if (v505) {
+						final int v510 = (2 * v498);
+						final int v511 = (1 + v510);
+						v506 = v511;
 					} else {
-						v504 = 0;
+						v506 = 0;
 					}
-					final boolean v513 = (v389 == 0);
-					short[] v514 = null;
-					if (v513) {
+					final boolean v515 = (v389 == 0);
+					short[] v516 = null;
+					if (v515) {
+						final int v519 = (2 * v498);
 						v385[v386] = (short) (10);
-						final int v520 = (v386 + 1);
-						short[] v522 = v385;
-						int v523 = 0;
-						int v524 = v520;
-						for (;; v523 = (v523 + 1), v524 = (v524 + 1)) {
-							final int v526 = (2 * v496);
-							final boolean v527 = (v523 >= v526);
-							if (v527) {
+						final int v524 = (v386 + 1);
+						short[] v526 = v385;
+						int v527 = 0;
+						int v528 = v524;
+						for (;; v527 = (v527 + 1), v528 = (v528 + 1)) {
+							final boolean v529 = (v527 >= v519);
+							if (v529) {
 								break;
 							}
-							v522[v524] = (short) (32);
+							v526[v528] = (short) (32);
 							continue;
 						}
-						v514 = v522;
+						v516 = v526;
 					} else {
-						v514 = v385;
+						v516 = v385;
 					}
-					final int v537 = v10[v387];
-					final boolean v539 = (v537 == 125);
-					int v540 = 0;
-					if (v539) {
-						v540 = 125;
+					final int v541 = v10[v387];
+					final boolean v543 = (v541 == 125);
+					int v544 = 0;
+					if (v543) {
+						v544 = 125;
 					} else {
-						v540 = 93;
+						v544 = 93;
 					}
-					final int v543 = (v386 + v504);
-					v514[v543] = (short) (v540);
-					final int v546 = (v504 + 1);
-					final int v547 = (v386 + v546);
-					final int v549 = (v387 + 1);
-					v385 = v514;
-					v386 = v547;
-					v387 = v549;
-					v388 = v496;
+					final int v547 = (v386 + v506);
+					v516[v547] = (short) (v544);
+					final int v550 = (v506 + 1);
+					final int v551 = (v386 + v550);
+					final int v553 = (v387 + 1);
+					v385 = v516;
+					v386 = v551;
+					v387 = v553;
+					v388 = v498;
 					v389 = 0;
 					continue;
 				}
-				final int v551 = v10[v387];
-				final boolean v553 = (v551 == 44);
-				if (v553) {
-					final int v555 = (v386 + 1);
+				final int v555 = v10[v387];
+				final boolean v557 = (v555 == 44);
+				if (v557) {
+					final int v559 = (v386 + 1);
+					final int v561 = (2 * v388);
 					v385[v386] = (short) (44);
-					v385[v555] = (short) (10);
-					final int v562 = (v555 + 1);
-					short[] v564 = v385;
-					int v565 = 0;
-					int v566 = v562;
-					for (;; v565 = (v565 + 1), v566 = (v566 + 1)) {
-						final int v568 = (2 * v388);
-						final boolean v569 = (v565 >= v568);
-						if (v569) {
+					v385[v559] = (short) (10);
+					final int v568 = (v559 + 1);
+					short[] v570 = v385;
+					int v571 = 0;
+					int v572 = v568;
+					for (;; v571 = (v571 + 1), v572 = (v572 + 1)) {
+						final boolean v573 = (v571 >= v561);
+						if (v573) {
 							break;
 						}
-						v564[v566] = (short) (32);
+						v570[v572] = (short) (32);
 						continue;
 					}
-					final int v580 = (2 * v388);
-					final int v581 = (2 + v580);
-					final int v582 = (v386 + v581);
-					final int v584 = (v387 + 1);
-					v385 = v564;
-					v386 = v582;
-					v387 = v584;
+					final int v586 = (2 * v388);
+					final int v587 = (2 + v586);
+					final int v588 = (v386 + v587);
+					final int v590 = (v387 + 1);
+					v385 = v570;
+					v386 = v588;
+					v387 = v590;
 					v389 = 0;
 					continue;
 				}
-				final int v586 = v10[v387];
-				final boolean v588 = (v586 == 58);
-				if (v588) {
+				final int v592 = v10[v387];
+				final boolean v594 = (v592 == 58);
+				if (v594) {
 					v385[v386] = (short) (58);
-					final int v592 = (v386 + 1);
-					v385[v592] = (short) (32);
-					final int v596 = (v386 + 2);
-					final int v598 = (v387 + 1);
-					v386 = v596;
-					v387 = v598;
+					final int v598 = (v386 + 1);
+					v385[v598] = (short) (32);
+					final int v602 = (v386 + 2);
+					final int v604 = (v387 + 1);
+					v386 = v602;
+					v387 = v604;
 					continue;
 				}
-				final int v599 = v10[v387];
-				final boolean v601 = (v599 == 34);
-				final boolean v602 = (v601 || ((((v599 >= 48) && (v599 <= 57)) || ((v599 == 45) || ((v599 == 43) || ((v599 == 46) || ((v599 == 101) || (v599 == 69)))))) || ((v599 >= 97) && (v599 <= 122))));
-				if (v602) {
-					final int v662 = v10[v387];
-					final boolean v664 = (v662 == 34);
-					int v665 = 0;
-					if (v664) {
-						final int v667 = (v387 + 1);
-						int v669 = v667;
-						int v668 = 0;
+				final int v605 = v10[v387];
+				final boolean v607 = (v605 == 34);
+				final boolean v608 = (v607 || ((((v605 >= 48) && (v605 <= 57)) || ((v605 == 45) || ((v605 == 43) || ((v605 == 46) || ((v605 == 101) || (v605 == 69)))))) || ((v605 >= 97) && (v605 <= 122))));
+				if (v608) {
+					final int v668 = v10[v387];
+					final boolean v670 = (v668 == 34);
+					int v671 = 0;
+					if (v670) {
+						final int v673 = (v387 + 1);
+						int v675 = v673;
+						int v674 = 0;
 						for (;;) {
-							final boolean v671 = (v669 < 0);
-							if (v671) {
-								v668 = v669;
+							final boolean v677 = (v675 < 0);
+							if (v677) {
+								v674 = v675;
 								break;
 							}
-							final int v674 = v10.length;
-							final boolean v675 = (v669 >= v674);
-							if (v675) {
-								v668 = v669;
+							final int v680 = v10.length;
+							final boolean v681 = (v675 >= v680);
+							if (v681) {
+								v674 = v675;
 								break;
 							}
-							final int v681 = v10[v669];
-							final boolean v683 = (v681 == 92);
-							boolean v684 = false;
-							if (v683) {
-								final int v686 = (v669 + 1);
-								final int v687 = v10.length;
-								final boolean v688 = (v686 >= v687);
-								v684 = v688;
+							final int v687 = v10[v675];
+							final boolean v689 = (v687 == 92);
+							boolean v690 = false;
+							if (v689) {
+								final int v692 = (v675 + 1);
+								final int v693 = v10.length;
+								final boolean v694 = (v692 >= v693);
+								v690 = v694;
 							} else {
-								v684 = false;
+								v690 = false;
 							}
-							if (v684) {
-								final int v691 = (v669 + 1);
-								v668 = v691;
+							if (v690) {
+								final int v697 = (v675 + 1);
+								v674 = v697;
 								break;
 							}
-							final int v692 = v10[v669];
-							final boolean v694 = (v692 == 92);
-							if (v694) {
-								final int v696 = (v669 + 2);
-								v669 = v696;
+							final int v698 = v10[v675];
+							final boolean v700 = (v698 == 92);
+							if (v700) {
+								final int v702 = (v675 + 2);
+								v675 = v702;
 								continue;
 							}
-							final int v697 = v10[v669];
-							final boolean v699 = (v697 == 34);
-							if (v699) {
-								final int v701 = (v669 + 1);
-								v668 = v701;
+							final int v703 = v10[v675];
+							final boolean v705 = (v703 == 34);
+							if (v705) {
+								final int v707 = (v675 + 1);
+								v674 = v707;
 								break;
 							}
-							final int v703 = (v669 + 1);
-							v669 = v703;
+							final int v709 = (v675 + 1);
+							v675 = v709;
 							continue;
 						}
-						v665 = v668;
+						v671 = v674;
 					} else {
-						final int v704 = v10[v387];
-						final boolean v708 = (v704 >= 48);
-						final boolean v709 = (v708 && (v704 <= 57));
-						final boolean v715 = (v709 || ((v704 == 45) || ((v704 == 43) || ((v704 == 46) || ((v704 == 101) || (v704 == 69))))));
-						if (v715) {
-							final int v742 = (v387 + 1);
-							int v744 = v742;
-							for (;; v744 = (v744 + 1)) {
-								final boolean v746 = (v744 < 0);
-								if (v746) {
+						final int v710 = v10[v387];
+						final boolean v714 = (v710 >= 48);
+						final boolean v715 = (v714 && (v710 <= 57));
+						final boolean v721 = (v715 || ((v710 == 45) || ((v710 == 43) || ((v710 == 46) || ((v710 == 101) || (v710 == 69))))));
+						if (v721) {
+							final int v748 = (v387 + 1);
+							int v750 = v748;
+							for (;; v750 = (v750 + 1)) {
+								final boolean v752 = (v750 < 0);
+								if (v752) {
 									break;
 								}
-								final int v749 = v10.length;
-								final boolean v750 = (v744 >= v749);
-								if (v750) {
+								final int v755 = v10.length;
+								final boolean v756 = (v750 >= v755);
+								if (v756) {
 									break;
 								}
-								final int v755 = v10[v744];
-								final boolean v759 = (v755 >= 48);
-								final boolean v760 = (v759 && (v755 <= 57));
-								final boolean v766 = (v760 || ((v755 == 45) || ((v755 == 43) || ((v755 == 46) || ((v755 == 101) || (v755 == 69))))));
-								if (v766) {
+								final int v761 = v10[v750];
+								final boolean v765 = (v761 >= 48);
+								final boolean v766 = (v765 && (v761 <= 57));
+								final boolean v772 = (v766 || ((v761 == 45) || ((v761 == 43) || ((v761 == 46) || ((v761 == 101) || (v761 == 69))))));
+								if (v772) {
 									continue;
 								}
 								break;
 							}
-							v665 = v744;
+							v671 = v750;
 						} else {
-							final int v795 = (v387 + 1);
-							int v797 = v795;
-							for (;; v797 = (v797 + 1)) {
-								final boolean v799 = (v797 < 0);
-								if (v799) {
+							final int v801 = (v387 + 1);
+							int v803 = v801;
+							for (;; v803 = (v803 + 1)) {
+								final boolean v805 = (v803 < 0);
+								if (v805) {
 									break;
 								}
-								final int v802 = v10.length;
-								final boolean v803 = (v797 >= v802);
-								if (v803) {
+								final int v808 = v10.length;
+								final boolean v809 = (v803 >= v808);
+								if (v809) {
 									break;
 								}
-								final int v808 = v10[v797];
-								final boolean v810 = (v808 >= 97);
-								final boolean v811 = (v810 && (v808 <= 122));
-								if (v811) {
+								final int v814 = v10[v803];
+								final boolean v816 = (v814 >= 97);
+								final boolean v817 = (v816 && (v814 <= 122));
+								if (v817) {
 									continue;
 								}
 								break;
 							}
-							v665 = v797;
+							v671 = v803;
 						}
 					}
-					final boolean v820 = (v389 == 1);
-					int v821 = 0;
-					if (v820) {
-						final int v825 = (2 * v388);
-						final int v826 = (1 + v825);
-						v821 = v826;
+					final boolean v826 = (v389 == 1);
+					int v827 = 0;
+					if (v826) {
+						final int v831 = (2 * v388);
+						final int v832 = (1 + v831);
+						v827 = v832;
 					} else {
-						v821 = 0;
+						v827 = 0;
 					}
-					final boolean v830 = (v389 == 1);
-					short[] v831 = null;
-					if (v830) {
+					final boolean v836 = (v389 == 1);
+					short[] v837 = null;
+					if (v836) {
+						final int v840 = (2 * v388);
 						v385[v386] = (short) (10);
-						final int v837 = (v386 + 1);
-						short[] v839 = v385;
-						int v840 = 0;
-						int v841 = v837;
-						for (;; v840 = (v840 + 1), v841 = (v841 + 1)) {
-							final int v843 = (2 * v388);
-							final boolean v844 = (v840 >= v843);
-							if (v844) {
+						final int v845 = (v386 + 1);
+						short[] v847 = v385;
+						int v848 = 0;
+						int v849 = v845;
+						for (;; v848 = (v848 + 1), v849 = (v849 + 1)) {
+							final boolean v850 = (v848 >= v840);
+							if (v850) {
 								break;
 							}
-							v839[v841] = (short) (32);
+							v847[v849] = (short) (32);
 							continue;
 						}
-						v831 = v839;
+						v837 = v847;
 					} else {
-						v831 = v385;
+						v837 = v385;
 					}
-					final int v854 = (v386 + v821);
-					short[] v856 = v831;
-					int v857 = v387;
-					int v858 = v854;
-					for (;; v857 = (v857 + 1), v858 = (v858 + 1)) {
-						final boolean v859 = (v857 >= v665);
-						if (v859) {
+					final int v862 = (v386 + v827);
+					short[] v864 = v837;
+					int v865 = v387;
+					int v866 = v862;
+					for (;; v865 = (v865 + 1), v866 = (v866 + 1)) {
+						final boolean v867 = (v865 >= v671);
+						if (v867) {
 							break;
 						}
-						final int v864 = v10.length;
-						final boolean v865 = (v857 >= v864);
-						if (v865) {
+						final int v872 = v10.length;
+						final boolean v873 = (v865 >= v872);
+						if (v873) {
 							break;
 						}
-						final int v870 = v10[v857];
-						v856[v858] = (short) (v870);
+						final int v878 = v10[v865];
+						v864[v866] = (short) (v878);
 						continue;
 					}
-					final int v876 = (v665 - v387);
-					final int v877 = (v821 + v876);
-					final int v878 = (v386 + v877);
-					v385 = v856;
-					v386 = v878;
-					v387 = v665;
+					final int v884 = (v671 - v387);
+					final int v885 = (v827 + v884);
+					final int v886 = (v386 + v885);
+					v385 = v864;
+					v386 = v886;
+					v387 = v671;
 					v389 = 0;
 					continue;
 				}
-				final int v881 = (v387 + 1);
-				v387 = v881;
+				final int v889 = (v387 + 1);
+				v387 = v889;
 				continue;
 			}
 			v378 = v385;
-			final String v882 = (((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v378));
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v882);
-			return v882;
+			final String v890 = (((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v378));
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v890);
+			return v890;
 		}
 		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("jsonfmt: cannot read that file" + "\n");
 		return "jsonfmt: cannot read that file";

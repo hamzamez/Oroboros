@@ -13,8 +13,8 @@ func GenLabel(v0 int) (int, string) {
 func GenParse(v0 int) (int, int, string) {
 	v10 := (v0 < 50)
 	if v10 {
-		v14 := (v0 * 2)
-		return 0, v14, ""
+		v13 := (v0 * 2)
+		return 0, v13, ""
 	}
 	return 1, 0, "too large"
 }

@@ -5,37 +5,37 @@ package gauntlet
 import "strings"
 
 func NativeSumOf(v0 []float64) float64 {
-	var v4 float64 = 0.0
-	var v5 int = 0
-	for ; ; v5 = (v5 + 1) {
-		v6 := len(v0)
-		v7 := (v5 >= v6)
+	v1 := len(v0)
+	var v5 float64 = 0.0
+	var v6 int = 0
+	for ; ; v6 = (v6 + 1) {
+		v7 := (v6 >= v1)
 		if v7 {
 			break
 		}
-		v12 := v0[v5]
-		v13 := (v4 + v12)
-		v4 = v13
+		v14 := v0[v6]
+		v15 := (v5 + v14)
+		v5 = v15
 		continue
 	}
-	return v4
+	return v5
 }
 
 func NativeWordTally(v0 string) map[string]int {
 	v1 := (strings.Fields(v0))
-	v2 := (make(map[string]int))
-	v5 := v2
-	var v6 int = 0
-	for ; ; v6 = (v6 + 1) {
-		v7 := len(v1)
-		v8 := (v6 >= v7)
+	v2 := len(v1)
+	v3 := (make(map[string]int))
+	v6 := v3
+	var v7 int = 0
+	for ; ; v7 = (v7 + 1) {
+		v8 := (v7 >= v2)
 		if v8 {
 			break
 		}
-		v13 := v1[v6]
-		v5[v13]++
+		v15 := v1[v7]
+		v6[v15]++
 		continue
 	}
-	return v5
+	return v6
 }
 

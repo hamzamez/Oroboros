@@ -58,11 +58,15 @@ func restrictLoops(f *Func) int {
 			if s.Op != OLoop {
 				continue
 			}
-			ins := restrictOne(f, s, le, root)
+			ins := restrictOne(f, s, le, root, def)
 			if len(ins) > 0 {
 				r.Stmts = append(r.Stmts[:i], append(ins, r.Stmts[i:]...)...)
 				i += len(ins)
-				n += len(ins) - 1 // one `len`, then one `restrict` per table
+				for _, st := range ins {
+					if st.Op == ORestrict {
+						n++ // one per table, after the bound's `len` when the loop measured it
+					}
+				}
 			}
 		}
 		if r.T == TBranch {
@@ -147,7 +151,7 @@ func isConst(def map[V]*Stmt, v V, b bool) bool {
 // body and the tables read only at p, and returns the statements to insert
 // before the loop: `n = len X` and `Y' = restrict Y n` for each Y whose premise
 // is assumed. It rewrites the loop's reads of Y to Y'.
-func restrictOne(f *Func, loop *Stmt, le map[[2]V]bool, root func(V) V) []Stmt {
+func restrictOne(f *Func, loop *Stmt, le map[[2]V]bool, root func(V) V, def map[V]*Stmt) []Stmt {
 	body := loop.Sub[0]
 	inside := map[V]bool{}
 	var defs func(r *Region)
@@ -177,9 +181,16 @@ func restrictOne(f *Func, loop *Stmt, le map[[2]V]bool, root func(V) V) []Stmt {
 		isParam[p] = true
 	}
 	// The guard: a comparison, at the body's top level, of a parameter and the
-	// length of an invariant table.
+	// length of an invariant table, measured in the body or before the loop: a
+	// value is immutable, so `len X` bound outside is the same term, and β
+	// binds a length where the program wrote it (ADR 0071).
 	lenOf := map[V]V{}
-	param, bound := V(-1), V(-1)
+	for v, d := range def {
+		if d.Op == OLen && !inside[v] && !inside[root(d.Args[0])] {
+			lenOf[v] = root(d.Args[0])
+		}
+	}
+	param, bound, measured := V(-1), V(-1), V(-1)
 	for i := range body.Stmts {
 		s := &body.Stmts[i]
 		if s.Op == OLen && !inside[root(s.Args[0])] {
@@ -190,11 +201,11 @@ func restrictOne(f *Func, loop *Stmt, le map[[2]V]bool, root func(V) V) []Stmt {
 			continue
 		}
 		if x, ok := lenOf[s.Args[1]]; ok && isParam[root(s.Args[0])] {
-			param, bound = root(s.Args[0]), x
+			param, bound, measured = root(s.Args[0]), x, s.Args[1]
 			break
 		}
 		if x, ok := lenOf[s.Args[0]]; ok && isParam[root(s.Args[1])] {
-			param, bound = root(s.Args[1]), x
+			param, bound, measured = root(s.Args[1]), x, s.Args[0]
 			break
 		}
 	}
@@ -250,8 +261,14 @@ func restrictOne(f *Func, loop *Stmt, le map[[2]V]bool, root func(V) V) []Stmt {
 		f.Types = append(f.Types, ty)
 		return V(len(f.Types) - 1)
 	}
-	nx := fresh("int")
-	ins := []Stmt{{Op: OLen, Args: []V{bound}, Res: []V{nx}}}
+	// The bound: the guard's own length when it is measured before the loop,
+	// which dominates the loop, else measured again there.
+	var ins []Stmt
+	nx := measured
+	if inside[measured] {
+		nx = fresh("int")
+		ins = []Stmt{{Op: OLen, Args: []V{bound}, Res: []V{nx}}}
+	}
 	with := map[V]V{}
 	for _, y := range ys {
 		y2 := fresh(f.Types[y])

@@ -87,6 +87,9 @@ type Env struct {
 	// initHole says the value firstUse places may go in a loop's initializer:
 	// it holds no loop (reduce.go, headUse).
 	initHole bool
+	// floatSeq numbers the placeholders let-floating names a floated binder by
+	// until β chooses its name (core/work.go).
+	floatSeq int
 
 	// fresh numbers the binders the n-ary let conversion introduces. Per Env,
 	// so a compile is deterministic.
@@ -2240,6 +2243,12 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			if src.Kind != KFn || len(src.Params) != len(op.Params) {
 				src = op
 			}
+			// Which arguments are λs: a parameter holding one, applied to a λ,
+			// is a static function, not an eliminator (core/work.go).
+			fnArgs := make([]bool, len(args))
+			for i, a := range args {
+				fnArgs[i] = a.Kind == KFn
+			}
 			relevant := func(i int, val *Term) error {
 				p := op.Params[i]
 				if !programBinder(p) || !e.relevant(val, false) ||
@@ -2345,8 +2354,13 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 					subs[i] = Name(nm)
 					continue
 				}
-				// One occurrence or none: substituting cannot duplicate anything.
-				if boundOccurrences(op.Closed(), 0, i) <= 1 {
+				// One evaluation or none: substituting duplicates neither code nor
+				// work. An occurrence under a λ applied many times, a loop's body
+				// or a table's rule, is ω: there e would run per iteration where
+				// the program wrote it once (ADR 0071, core/work.go), so it takes
+				// the many-occurrence path below, which substitutes a value and
+				// binds anything else where it was written.
+				if e.workOccurrences(op.Closed(), 0, i, fnArgs) <= 1 {
 					subs[i] = args[i]
 					continue
 				}
@@ -2356,6 +2370,27 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				na, err := normalize(args[i], e, fuel)
 				if err != nil {
 					return nil, err
+				}
+				// LET-FLOATING TO EXPOSE A VALUE: (let a (fn (x) V)), V a value,
+				// is bound as x := a here, where the argument is evaluated, and V
+				// substituted (Peyton Jones, Partain and Santos 1996, §3.1). A
+				// static pair whose length is computed, (let (alen p) (fn (n)
+				// (fn (sel) …))), is a λ once its length is bound, and fuses; the
+				// length is computed once, where the program wrote it. A floated
+				// binder is pure, so the recount substitutes it back when it is
+				// left with one evaluation, as β's one-occurrence rule would.
+				if v, fl, ok := e.floatToValue(na); ok {
+					for _, f := range fl {
+						nm := e.freshFor(f.hint, op, args, used)
+						used[nm] = true
+						recount[nm] = true
+						bound = append(bound, struct {
+							name string
+							val  *Term
+						}{nm, f.val})
+						v = subst(v, map[string]*Term{f.name: Name(nm)})
+					}
+					na = v
 				}
 				if duplicable(na) || e.duplicableTable(na) {
 					subs[i] = na
@@ -2396,8 +2431,12 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 					case 0:
 						continue // pure and unread: dropped, as β drops an unused pure argument
 					case 1:
-						again[b.name] = b.val
-						continue
+						// Once in the text, and once in evaluation: not under a
+						// loop's body or a table's rule (ADR 0071).
+						if e.workNamed(body, b.name) <= 1 {
+							again[b.name] = b.val
+							continue
+						}
 					}
 				}
 				kept = append(kept, b)
@@ -3148,6 +3187,17 @@ func (e *Env) reduceLet(op *Term, args []*Term, fuel *int) (*Term, error) {
 		return nil, err
 	}
 	if duplicable(v) && !IsRequire(v) && !IsRequireWhere(v) {
+		return normalize(args[1].OpenWith([]*Term{v}), e, fuel)
+	}
+	// β'S ONE-EVALUATION RULE, ON A RESIDUAL LET (ADR 0071). β binds a pure
+	// value whose use, when it looked, sat under a λ that might run many times:
+	// a λ handed to a definition. Once that λ is applied, by staging, the use
+	// may be evaluated once, or not at all; then the binding serves nothing, and
+	// β's own rule applies: substitute, or drop a pure value unread. A table
+	// read stays bound before an impure body, as β binds it (effects.md §7c).
+	if b := args[1].Closed(); !IsRequire(v) && !IsRequireWhere(v) &&
+		e.pureTerm(v, map[string]bool{}) && e.workOccurrences(b, 0, 0, []bool{false}) <= 1 &&
+		!(e.readsTable(v) && !e.pureTerm(args[1].Body(), map[string]bool{})) {
 		return normalize(args[1].OpenWith([]*Term{v}), e, fuel)
 	}
 	// A VERSION USED ONCE, FIRST: β's own rule (normalize).

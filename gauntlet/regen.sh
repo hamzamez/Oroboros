@@ -23,7 +23,7 @@ go build -o "$tmp/gen" ./cmd/gen
 
 ported() { # ported SRC HOST: SRC with Go's host prefix replaced by HOST's
 	local f="$tmp/$(basename "$1" .oro)-$2.oro"
-	sed -e "s/(use go)/(use $2)/" -e "s/go[.]/$2./g" "$1" >"$f"
+	sed -e "s/^use go\$/use $2/" -e "s/go[.]/$2./g" "$1" >"$f"
 	echo "$f"
 }
 

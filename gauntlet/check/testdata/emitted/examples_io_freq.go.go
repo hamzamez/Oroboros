@@ -1064,215 +1064,215 @@ func GenMain() string {
 			v1303 := int(v685[v1302])
 			v1305 := (2 * v1298)
 			v1306 := int(v685[v1305])
-			var v1310 int = 1
-			var v1311 int = 1
-			for ; ; v1311 = (v1311 + 1) {
-				var v1314 int = 1
-				var v1315 int = v1303
-				for ; ; v1314 = (v1314 + 1) {
-					v1317 := (v1315 < 10)
-					if v1317 {
-						break
-					}
-					v1321 := (v1314 >= 8)
-					if v1321 {
-						break
-					}
-					v1327 := (v1315 / 10)
-					v1315 = v1327
-					continue
+			var v1309 int = 1
+			var v1310 int = v1303
+			for ; ; v1309 = (v1309 + 1) {
+				v1312 := (v1310 < 10)
+				if v1312 {
+					break
 				}
-				v1328 := (v1311 >= v1314)
+				v1316 := (v1309 >= 8)
+				if v1316 {
+					break
+				}
+				v1322 := (v1310 / 10)
+				v1310 = v1322
+				continue
+			}
+			var v1326 int = 1
+			var v1327 int = 1
+			for ; ; v1327 = (v1327 + 1) {
+				v1328 := (v1327 >= v1309)
 				if v1328 {
 					break
 				}
-				v1332 := (v1311 >= 8)
-				if v1332 {
+				v1334 := (v1327 >= 8)
+				if v1334 {
 					break
 				}
-				v1336 := (v1310 >= 100000000)
-				if v1336 {
+				v1338 := (v1326 >= 100000000)
+				if v1338 {
 					break
 				}
-				v1340 := (v1310 * 10)
-				v1310 = v1340
+				v1342 := (v1326 * 10)
+				v1326 = v1342
 				continue
 			}
-			v1344 := v1281
-			var v1345 int = v1282
-			var v1346 int = v1310
-			var v1347 int = v1303
-			for ; ; v1345 = (v1345 + 1) {
-				v1349 := (v1346 < 1)
-				if v1349 {
+			v1346 := v1281
+			var v1347 int = v1282
+			var v1348 int = v1326
+			var v1349 int = v1303
+			for ; ; v1347 = (v1347 + 1) {
+				v1351 := (v1348 < 1)
+				if v1351 {
 					break
 				}
-				v1353 := (v1347 / v1346)
-				v1355 := (v1353 % 10)
-				v1356 := (48 + v1355)
-				v1344[v1345] = byte(v1356)
-				v1361 := (v1346 / 10)
-				v1346 = v1361
+				v1355 := (v1349 / v1348)
+				v1357 := (v1355 % 10)
+				v1358 := (48 + v1357)
+				v1346[v1347] = byte(v1358)
+				v1363 := (v1348 / 10)
+				v1348 = v1363
 				continue
 			}
-			var v1364 int = 1
-			var v1365 int = v1303
-			for ; ; v1364 = (v1364 + 1) {
-				v1367 := (v1365 < 10)
-				if v1367 {
+			var v1366 int = 1
+			var v1367 int = v1303
+			for ; ; v1366 = (v1366 + 1) {
+				v1369 := (v1367 < 10)
+				if v1369 {
 					break
 				}
-				v1371 := (v1364 >= 8)
-				if v1371 {
+				v1373 := (v1366 >= 8)
+				if v1373 {
 					break
 				}
-				v1377 := (v1365 / 10)
-				v1365 = v1377
+				v1379 := (v1367 / 10)
+				v1367 = v1379
 				continue
 			}
-			v1378 := (v1282 + v1364)
-			v1344[v1378] = byte(32)
-			var v1383 int = 1
-			var v1384 int = v1303
-			for ; ; v1383 = (v1383 + 1) {
-				v1386 := (v1384 < 10)
-				if v1386 {
+			v1380 := (v1282 + v1366)
+			v1346[v1380] = byte(32)
+			var v1385 int = 1
+			var v1386 int = v1303
+			for ; ; v1385 = (v1385 + 1) {
+				v1388 := (v1386 < 10)
+				if v1388 {
 					break
 				}
-				v1390 := (v1383 >= 8)
-				if v1390 {
+				v1392 := (v1385 >= 8)
+				if v1392 {
 					break
 				}
-				v1396 := (v1384 / 10)
-				v1384 = v1396
+				v1398 := (v1386 / 10)
+				v1386 = v1398
 				continue
 			}
-			v1398 := (v1383 + 1)
-			v1399 := (v1282 + v1398)
-			v1402 := v1344
-			var v1403 int = v1399
-			var v1404 int = 0
-			for ; ; v1403, v1404 = (v1403 + 1), (v1404 + 1) {
-				v1406 := (2 * v1306)
-				v1408 := (v1406 + 1)
-				v1409 := int(v101[v1408])
-				v1411 := (2 * v1306)
-				v1412 := int(v101[v1411])
-				v1413 := (v1409 - v1412)
-				v1415 := (v1413 < 0)
-				var v1416 int
-				if v1415 {
-					v1416 = 0
+			v1400 := (v1385 + 1)
+			v1401 := (v1282 + v1400)
+			v1404 := v1346
+			var v1405 int = v1401
+			var v1406 int = 0
+			for ; ; v1405, v1406 = (v1405 + 1), (v1406 + 1) {
+				v1408 := (2 * v1306)
+				v1410 := (v1408 + 1)
+				v1411 := int(v101[v1410])
+				v1413 := (2 * v1306)
+				v1414 := int(v101[v1413])
+				v1415 := (v1411 - v1414)
+				v1417 := (v1415 < 0)
+				var v1418 int
+				if v1417 {
+					v1418 = 0
 				} else {
-					v1421 := (v1413 >= 65536)
-					if v1421 {
-						v1416 = 0
+					v1423 := (v1415 >= 65536)
+					if v1423 {
+						v1418 = 0
 					} else {
-						v1416 = v1413
+						v1418 = v1415
 					}
 				}
-				v1425 := (v1404 >= v1416)
-				if v1425 {
+				v1427 := (v1406 >= v1418)
+				if v1427 {
 					break
 				}
-				v1429 := (2 * v1306)
-				v1430 := int(v101[v1429])
-				v1431 := (v1430 + v1404)
-				v1432 := int(v10[v1431])
-				v1402[v1403] = byte(v1432)
+				v1431 := (2 * v1306)
+				v1432 := int(v101[v1431])
+				v1433 := (v1432 + v1406)
+				v1434 := int(v10[v1433])
+				v1404[v1405] = byte(v1434)
 				continue
 			}
-			v1440 := (2 * v1298)
-			v1442 := (v1440 + 1)
-			v1443 := int(v685[v1442])
-			var v1445 int = 1
-			var v1446 int = v1443
-			for ; ; v1445 = (v1445 + 1) {
-				v1448 := (v1446 < 10)
-				if v1448 {
+			v1442 := (2 * v1298)
+			v1444 := (v1442 + 1)
+			v1445 := int(v685[v1444])
+			var v1447 int = 1
+			var v1448 int = v1445
+			for ; ; v1447 = (v1447 + 1) {
+				v1450 := (v1448 < 10)
+				if v1450 {
 					break
 				}
-				v1452 := (v1445 >= 8)
-				if v1452 {
+				v1454 := (v1447 >= 8)
+				if v1454 {
 					break
 				}
-				v1458 := (v1446 / 10)
-				v1446 = v1458
+				v1460 := (v1448 / 10)
+				v1448 = v1460
 				continue
 			}
-			v1461 := (2 * v1298)
-			v1462 := int(v685[v1461])
-			v1464 := (2 * v1462)
-			v1466 := (v1464 + 1)
-			v1467 := int(v101[v1466])
-			v1469 := (2 * v1462)
-			v1470 := int(v101[v1469])
-			v1471 := (v1467 - v1470)
-			v1473 := (v1471 < 0)
-			var v1474 int
-			if v1473 {
-				v1474 = 0
+			v1463 := (2 * v1298)
+			v1464 := int(v685[v1463])
+			v1466 := (2 * v1464)
+			v1468 := (v1466 + 1)
+			v1469 := int(v101[v1468])
+			v1471 := (2 * v1464)
+			v1472 := int(v101[v1471])
+			v1473 := (v1469 - v1472)
+			v1475 := (v1473 < 0)
+			var v1476 int
+			if v1475 {
+				v1476 = 0
 			} else {
-				v1479 := (v1471 >= 65536)
-				if v1479 {
-					v1474 = 0
+				v1481 := (v1473 >= 65536)
+				if v1481 {
+					v1476 = 0
 				} else {
-					v1474 = v1471
+					v1476 = v1473
 				}
 			}
-			v1483 := (2 + v1474)
-			v1484 := (v1445 + v1483)
-			v1486 := (v1484 - 1)
-			v1487 := (v1282 + v1486)
-			v1402[v1487] = byte(10)
-			v1492 := (2 * v1298)
-			v1494 := (v1492 + 1)
-			v1495 := int(v685[v1494])
-			var v1497 int = 1
-			var v1498 int = v1495
-			for ; ; v1497 = (v1497 + 1) {
-				v1500 := (v1498 < 10)
-				if v1500 {
+			v1485 := (2 + v1476)
+			v1486 := (v1447 + v1485)
+			v1488 := (v1486 - 1)
+			v1489 := (v1282 + v1488)
+			v1404[v1489] = byte(10)
+			v1494 := (2 * v1298)
+			v1496 := (v1494 + 1)
+			v1497 := int(v685[v1496])
+			var v1499 int = 1
+			var v1500 int = v1497
+			for ; ; v1499 = (v1499 + 1) {
+				v1502 := (v1500 < 10)
+				if v1502 {
 					break
 				}
-				v1504 := (v1497 >= 8)
-				if v1504 {
+				v1506 := (v1499 >= 8)
+				if v1506 {
 					break
 				}
-				v1510 := (v1498 / 10)
-				v1498 = v1510
+				v1512 := (v1500 / 10)
+				v1500 = v1512
 				continue
 			}
-			v1513 := (2 * v1298)
-			v1514 := int(v685[v1513])
-			v1516 := (2 * v1514)
-			v1518 := (v1516 + 1)
-			v1519 := int(v101[v1518])
-			v1521 := (2 * v1514)
-			v1522 := int(v101[v1521])
-			v1523 := (v1519 - v1522)
-			v1525 := (v1523 < 0)
-			var v1526 int
-			if v1525 {
-				v1526 = 0
+			v1515 := (2 * v1298)
+			v1516 := int(v685[v1515])
+			v1518 := (2 * v1516)
+			v1520 := (v1518 + 1)
+			v1521 := int(v101[v1520])
+			v1523 := (2 * v1516)
+			v1524 := int(v101[v1523])
+			v1525 := (v1521 - v1524)
+			v1527 := (v1525 < 0)
+			var v1528 int
+			if v1527 {
+				v1528 = 0
 			} else {
-				v1531 := (v1523 >= 65536)
-				if v1531 {
-					v1526 = 0
+				v1533 := (v1525 >= 65536)
+				if v1533 {
+					v1528 = 0
 				} else {
-					v1526 = v1523
+					v1528 = v1525
 				}
 			}
-			v1535 := (2 + v1526)
-			v1536 := (v1497 + v1535)
-			v1537 := (v1282 + v1536)
-			v1281, v1282 = v1402, v1537
+			v1537 := (2 + v1528)
+			v1538 := (v1499 + v1537)
+			v1539 := (v1282 + v1538)
+			v1281, v1282 = v1404, v1539
 			continue
 		}
 		v1276 = v1281
-		v1540 := (func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }(string(v1276)))
-		fmt.Print(v1540)
-		return v1540
+		v1542 := (func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }(string(v1276)))
+		fmt.Print(v1542)
+		return v1542
 	}
 	fmt.Println("freq: cannot read that file")
 	return "freq: cannot read that file"

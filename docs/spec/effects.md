@@ -325,6 +325,43 @@ every bound argument is taken for one, conservatively, as the rule always was. W
 is not miscompiled but refused: linearity reads the moved observation as a read after a move
 (observer-2026-10-21, `TestAnObserverReadsALiveBufferBeforeItsNextStore`).
 
+## 7d. Work stays where it was written (2026-10-22)
+
+§2's third row, an argument moved into a loop body, is withheld from an impure term by §4. A **pure**
+term moved there changes no answer, and still changes the cost: one evaluation becomes one per
+iteration. "Purity is not cheapness" (§3) is the same axis, met one level up. Duplicating a costly term
+is §3's second row, and *moving* it under a λ that runs many times duplicates it in time rather than in
+text. [ADR 0071](../decisions/0071-work-stays-where-it-was-written.md) decides it.
+
+**The count.** β's rule `let x = e in E[x] ⟶ E[e]`, for a pure e, is cost-preserving exactly when E
+evaluates its hole at most once (Moran and Sands 1999, improvement theory), or when e is a value.
+The count N_x(E) is in the semiring M = {0, 1, ω}: a use is 1, sequence and branches add (1 + 1 = ω,
+a branch's copy being code that β declines to duplicate for its own reason), and a λ multiplies its
+body by its **shot** σ:
+
+| the λ | σ |
+|---|---|
+| the operator of a β-redex `((fn x̄ b) ā)` | 1 |
+| the continuation of `let`, `build`, `build-map` | 1 |
+| the continuation of an elimination `(e (fn x̄ b))`, e data or a host call (a product's, a sum's, ADR 0027's) | 1 |
+| `loop`'s body, `table`'s rule | ω |
+| a λ handed to a definition, a primitive, or a parameter holding a λ | ω |
+
+β substitutes when N ≤ 1. Otherwise it takes the many-occurrence path: a value (a literal, a variable, a
+λ, a rule table) is substituted, and anything else is bound where the program wrote it. GHC's
+occurrence analysis draws the same line (Peyton Jones and Marlow 2002 §2.2: OnceInLam is not once).
+
+**Let-floating exposes a value.** A static pair whose length is computed normalizes to
+`(let (alen p) (fn (n) (fn (sel) …)))`, a let around a λ. It is bound as `n := alen p` at the redex and
+the λ substituted (Peyton Jones, Partain and Santos 1996 §3.1), so fusion goes on, and the length is
+computed once. A binder β adds this way, or binds for an ω use, is pure. So when a later reduction
+leaves it with one evaluation, β's rule applies to the residual `let` as well, and substitutes it (or
+drops it, unread).
+
+**What the IR reads through.** A length measured before a loop, `n = len a`, is the same term as
+`len a` measured in it, because values are immutable. So a guard on n is a guard on a's length (a
+length π, lowering), and §9.4's re-slicing takes n as its bound (`ir/restrict.go`).
+
 ## 8. What this does not do
 
 - **No effect types, no monads, no regions.** Purity is one declared bit per primitive and a

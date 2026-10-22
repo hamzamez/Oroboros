@@ -3,21 +3,20 @@
 package gauntlet
 
 func GenDot(v0 []float64, v1 []float64) float64 {
-	v16 := len(v0)
-	v17 := v1[:v16]
+	v14 := len(v0)
+	v17 := v1[:v14]
 	var v19 float64 = 0.0
 	var v20 int = 0
 	for ; ; v20 = (v20 + 1) {
-		v21 := len(v0)
-		v22 := (v20 >= v21)
-		if v22 {
+		v21 := (v20 >= v14)
+		if v21 {
 			break
 		}
-		v27 := v0[v20]
-		v28 := v17[v20]
-		v29 := (v27 * v28)
-		v30 := (v19 + v29)
-		v19 = v30
+		v28 := v0[v20]
+		v29 := v17[v20]
+		v30 := (v28 * v29)
+		v31 := (v19 + v30)
+		v19 = v31
 		continue
 	}
 	return v19

@@ -241,15 +241,17 @@ func TestDotIsTheSpecExample(t *testing.T) {
 	_, p := compile(t, "examples/native/dot-go.oro", "go")
 	text := Print(p)
 	for _, want := range []string{
-		"(do (assume %5))", // the export's `where`, assumed at entry (ADR 0028)
-		"(loop (init %14 %15)",
-		"(val (%20 bool) (ge %18 %19))",
-		"(pi %23 int (%18 lt %19))",
-		"(pi %24 (array f64) ((len %0) gt %18))",
-		"(val (%25 f64) (index %24 %23))",
-		"(call go.f* %25 %26)",
-		"(add %23 %29)",
-		"(continue %28 %30)",
+		"(do (assume %5))",         // the export's `where`, assumed at entry (ADR 0028)
+		"(val (%14 int) (len %0))", // measured once, before the loop (ADR 0071)
+		"(loop (init %15 %16)",
+		"(val (%20 bool) (ge %19 %14))",
+		"(pi %24 int (%19 lt %14))",
+		"(pi %25 int (%14 gt %19))",
+		"(pi %26 (array f64) ((len %0) gt %19))", // a guard on a measured length guards the table
+		"(val (%27 f64) (index %26 %24))",
+		"(call go.f* %27 %28)",
+		"(add %24 %31)",
+		"(continue %30 %32)",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing %s in\n%s", want, text)

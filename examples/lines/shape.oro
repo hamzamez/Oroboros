@@ -133,8 +133,8 @@ fn shape(sep) {
 export fn main() {
     av = gos.Args()
     sep = if len(av) < 2 { "\t" } else { av[1] }
-    // The separator's bytes, bound here and read twice, so computed once: used
-    // once, a pure call is substituted into the loop and run per piece (ownbuf).
+    // The separator's bytes, computed once, here: a value bound outside a loop
+    // is computed where it is written, however often the loop reads it (ADR 0071).
     sb = go.bytes_of_string(sep)
     status = if len(av) <= 2 && len(sb) == 1 && strings.IndexByte(sep, 10) < 0 {
         shape(sb)

@@ -427,11 +427,39 @@ func TestEffectIsNotMovedIntoALoop(t *testing.T) {
 t = { x = read(); fold_range(0.0, 10, fn(acc, i) { add(acc, x) }) }`, "default",
 		"(let (read) (fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))))")
 
-	// The same shape with a pure argument still substitutes, so the discipline
-	// costs nothing where it is not needed.
+	// The same shape with a pure argument moves no effect, but it would move
+	// WORK: under the loop's λ the multiplication would run per iteration where
+	// the program wrote it once. Its one occurrence is ω evaluations, so it is
+	// bound where it was written (ADR 0071, core/work.go).
 	check(t, `(prim add mul fold-range)
 t = { x = mul(2.0, 3.0); fold_range(0.0, 10, fn(acc, i) { add(acc, x) }) }`, "default",
-		"(fold-range 0.0 10 (fn (acc i) (add acc (mul 2.0 3.0))))")
+		"(let (mul 2.0 3.0) (fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))))")
+	// Used once outside the loop, it still substitutes: one evaluation either way.
+	check(t, `(prim add mul fold-range)
+t = { x = mul(2.0, 3.0); fold_range(x, 10, fn(acc, i) { add(acc, i) }) }`, "default",
+		"(fold-range (mul 2.0 3.0) 10 (fn (acc i) (add acc i)))")
+	// A parameter holding a λ, applied to a λ, is a static function and no
+	// eliminator: it may run its argument per iteration, as fold_range does
+	// here once `with` is unfolded, so x is still bound where it was written.
+	check(t, `(prim add mul fold-range)
+fn with(f, x) { f(fn(acc, i) { add(acc, x) }) }
+t = with(fn(k) { fold_range(0.0, 10, k) }, mul(2.0, 3.0))`, "default",
+		"(let (mul 2.0 3.0) (fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))))")
+	// A table's rule runs once per element read: ω as well.
+	check(t, `(prim add mul)
+t = { x = mul(2.0, 3.0); table(4, fn(i) { add(x, i) }) }`, "default",
+		"(let (mul 2.0 3.0) (fn (x) (table 4 (fn (i) (add x i)))))")
+}
+
+// §7c through a residual let (ADR 0071): β keeps a table read bound before an
+// impure body, and the residual let's own one-evaluation rule must keep it so
+// whatever spelling the table's variable has by then, a bound index or a name
+// (ls-2026-10-20's `line(info, av[1])` was moved past its host calls).
+func TestATableReadStaysBeforeAnImpureBodyThroughALet(t *testing.T) {
+	check(t, `(prim !print !mk)
+fn line(name) { print(1); print(name) }
+t = { a = mk(); line(a[1]) }`, "default",
+		"(let (mk) (fn (a) (let (a 1) (fn (name) (let (print 1) (fn (#_) (print name)))))))")
 }
 
 // §5 — seq is sugar, and order survives reduction.

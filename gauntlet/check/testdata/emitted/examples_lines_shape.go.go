@@ -26,10 +26,10 @@ func GenMain() int {
 	v17 := (v16 && ((len(v10) == 1) && (int(strings.IndexByte(v4, uint8(10))) < 0)))
 	var v31 int
 	if v17 {
-		v34 := make([]byte, 65536)
-		var v33 int
-		v48 := v34
-		var v49 int = 0
+		v32 := (os.Stdin)
+		v35 := make([]byte, 65536)
+		var v34 int
+		v49 := v35
 		var v50 int = 0
 		var v51 int = 0
 		var v52 int = 0
@@ -40,236 +40,236 @@ func GenMain() int {
 		var v57 int = 0
 		var v58 int = 0
 		var v59 int = 0
-		var v60 bool = false
-		var v47 int
+		var v60 int = 0
+		var v61 bool = false
+		var v48 int
 		for {
-			v61 := (v49 < v50)
-			if v61 {
-				v65 := int(bytes.IndexByte(v48[v49:v50], uint8(10)))
-				v67 := (v65 >= 0)
-				var v68 int
-				if v67 {
-					v70 := (v49 + v65)
-					v68 = v70
+			v62 := (v50 < v51)
+			if v62 {
+				v66 := int(bytes.IndexByte(v49[v50:v51], uint8(10)))
+				v68 := (v66 >= 0)
+				var v69 int
+				if v68 {
+					v71 := (v50 + v66)
+					v69 = v71
 				} else {
-					v68 = v50
+					v69 = v51
 				}
-				v72 := int(bytes.Count(v48[v49:v68], v10))
-				v73 := (v58 + v72)
-				v75 := (v73 <= 4611686018427387903)
-				var v76 int
-				if v75 {
-					v76 = v73
+				v73 := int(bytes.Count(v49[v50:v69], v10))
+				v74 := (v59 + v73)
+				v76 := (v74 <= 4611686018427387903)
+				var v77 int
+				if v76 {
+					v77 = v74
 				} else {
-					v76 = 4611686018427387903
+					v77 = 4611686018427387903
 				}
-				v80 := (v68 - v49)
-				v81 := (v59 + v80)
-				v83 := (v81 <= 4611686018427387903)
-				var v84 int
-				if v83 {
-					v84 = v81
+				v81 := (v69 - v50)
+				v82 := (v60 + v81)
+				v84 := (v82 <= 4611686018427387903)
+				var v85 int
+				if v84 {
+					v85 = v82
 				} else {
-					v84 = 4611686018427387903
+					v85 = 4611686018427387903
 				}
-				v89 := (v76 + 1)
-				v91 := (v89 <= 4611686018427387903)
-				var v92 int
-				if v91 {
-					v92 = v89
+				v90 := (v77 + 1)
+				v92 := (v90 <= 4611686018427387903)
+				var v93 int
+				if v92 {
+					v93 = v90
 				} else {
-					v92 = 4611686018427387903
+					v93 = 4611686018427387903
 				}
-				v97 := (v65 >= 0)
-				v98 := (v97 && ((v52 > 0) && (!(v92 == v53))))
-				v115 := (v65 >= 0)
-				var v116 int
-				if v115 {
-					v119 := (v68 + 1)
-					v116 = v119
+				v98 := (v66 >= 0)
+				v99 := (v98 && ((v53 > 0) && (!(v93 == v54))))
+				v116 := (v66 >= 0)
+				var v117 int
+				if v116 {
+					v120 := (v69 + 1)
+					v117 = v120
 				} else {
-					v116 = v50
+					v117 = v51
 				}
-				v122 := (v65 >= 0)
-				var v123 int
-				if v122 {
-					v126 := (v52 + 1)
-					v128 := (v126 <= 4611686018427387903)
-					if v128 {
-						v123 = v126
+				v123 := (v66 >= 0)
+				var v124 int
+				if v123 {
+					v127 := (v53 + 1)
+					v129 := (v127 <= 4611686018427387903)
+					if v129 {
+						v124 = v127
 					} else {
-						v123 = 4611686018427387903
+						v124 = 4611686018427387903
 					}
 				} else {
-					v123 = v52
+					v124 = v53
 				}
-				v136 := (v65 >= 0)
-				v137 := (v136 && (v52 == 0))
-				var v143 int
-				if v137 {
-					v143 = v92
+				v137 := (v66 >= 0)
+				v138 := (v137 && (v53 == 0))
+				var v144 int
+				if v138 {
+					v144 = v93
 				} else {
-					v143 = v53
+					v144 = v54
 				}
-				var v146 int
-				if v98 {
-					v148 := (v54 + 1)
-					v150 := (v148 <= 4611686018427387903)
-					if v150 {
-						v146 = v148
+				var v147 int
+				if v99 {
+					v149 := (v55 + 1)
+					v151 := (v149 <= 4611686018427387903)
+					if v151 {
+						v147 = v149
 					} else {
-						v146 = 4611686018427387903
+						v147 = 4611686018427387903
 					}
 				} else {
-					v146 = v54
+					v147 = v55
 				}
-				v155 := (v98 && (v54 == 0))
-				var v159 int
-				if v155 {
-					v162 := (v52 + 1)
-					v164 := (v162 <= 4611686018427387903)
-					if v164 {
-						v159 = v162
+				v156 := (v99 && (v55 == 0))
+				var v160 int
+				if v156 {
+					v163 := (v53 + 1)
+					v165 := (v163 <= 4611686018427387903)
+					if v165 {
+						v160 = v163
 					} else {
-						v159 = 4611686018427387903
+						v160 = 4611686018427387903
 					}
 				} else {
-					v159 = v55
+					v160 = v56
 				}
-				v169 := (v98 && (v54 == 0))
-				var v173 int
-				if v169 {
-					v173 = v92
+				v170 := (v99 && (v55 == 0))
+				var v174 int
+				if v170 {
+					v174 = v93
 				} else {
-					v173 = v56
+					v174 = v57
 				}
-				v177 := (v65 >= 0)
-				v178 := (v177 && (v84 > v57))
-				var v183 int
-				if v178 {
-					v183 = v84
+				v178 := (v66 >= 0)
+				v179 := (v178 && (v85 > v58))
+				var v184 int
+				if v179 {
+					v184 = v85
 				} else {
-					v183 = v57
+					v184 = v58
 				}
-				v188 := (v65 >= 0)
-				var v189 int
-				if v188 {
-					v189 = 0
+				v189 := (v66 >= 0)
+				var v190 int
+				if v189 {
+					v190 = 0
 				} else {
-					v189 = v76
+					v190 = v77
 				}
-				v194 := (v65 >= 0)
-				var v195 int
-				if v194 {
-					v195 = 0
+				v195 := (v66 >= 0)
+				var v196 int
+				if v195 {
+					v196 = 0
 				} else {
-					v195 = v84
+					v196 = v85
 				}
-				v200 := (v65 < 0)
-				v49, v52, v53, v54, v55, v56, v57, v58, v59, v60 = v116, v123, v143, v146, v159, v173, v183, v189, v195, v200
+				v201 := (v66 < 0)
+				v50, v53, v54, v55, v56, v57, v58, v59, v60, v61 = v117, v124, v144, v147, v160, v174, v184, v190, v196, v201
 				continue
 			}
-			v205 := (v51 == 1)
-			v206 := (v205 && v60)
-			if v206 {
-				v212 := (v58 + 1)
-				v214 := (v212 <= 4611686018427387903)
-				var v215 int
-				if v214 {
-					v215 = v212
+			v206 := (v52 == 1)
+			v207 := (v206 && v61)
+			if v207 {
+				v213 := (v59 + 1)
+				v215 := (v213 <= 4611686018427387903)
+				var v216 int
+				if v215 {
+					v216 = v213
 				} else {
-					v215 = 4611686018427387903
+					v216 = 4611686018427387903
 				}
-				v220 := (v52 > 0)
-				v221 := (v220 && (!(v215 == v53)))
-				var v232 int
-				if v221 {
-					v234 := (v54 + 1)
-					v236 := (v234 <= 4611686018427387903)
-					if v236 {
-						v232 = v234
+				v221 := (v53 > 0)
+				v222 := (v221 && (!(v216 == v54)))
+				var v233 int
+				if v222 {
+					v235 := (v55 + 1)
+					v237 := (v235 <= 4611686018427387903)
+					if v237 {
+						v233 = v235
 					} else {
-						v232 = 4611686018427387903
+						v233 = 4611686018427387903
 					}
 				} else {
-					v232 = v54
+					v233 = v55
 				}
-				v242 := (v52 + 1)
-				v244 := (v242 <= 4611686018427387903)
-				var v245 int
-				if v244 {
-					v245 = v242
+				v243 := (v53 + 1)
+				v245 := (v243 <= 4611686018427387903)
+				var v246 int
+				if v245 {
+					v246 = v243
 				} else {
-					v245 = 4611686018427387903
+					v246 = 4611686018427387903
 				}
-				v250 := (v52 == 0)
-				var v251 int
-				if v250 {
-					v251 = v215
+				v251 := (v53 == 0)
+				var v252 int
+				if v251 {
+					v252 = v216
 				} else {
-					v251 = v53
+					v252 = v54
 				}
-				fmt.Printf("records %d\nfields %d\n", v245, v251)
-				v258 := (v232 > 0)
-				if v258 {
-					v263 := (v221 && (v54 == 0))
-					var v267 int
-					if v263 {
-						v270 := (v52 + 1)
-						v272 := (v270 <= 4611686018427387903)
-						if v272 {
-							v267 = v270
+				fmt.Printf("records %d\nfields %d\n", v246, v252)
+				v259 := (v233 > 0)
+				if v259 {
+					v264 := (v222 && (v55 == 0))
+					var v268 int
+					if v264 {
+						v271 := (v53 + 1)
+						v273 := (v271 <= 4611686018427387903)
+						if v273 {
+							v268 = v271
 						} else {
-							v267 = 4611686018427387903
+							v268 = 4611686018427387903
 						}
 					} else {
-						v267 = v55
+						v268 = v56
 					}
-					v277 := (v221 && (v54 == 0))
-					var v281 int
-					if v277 {
-						v281 = v215
+					v278 := (v222 && (v55 == 0))
+					var v282 int
+					if v278 {
+						v282 = v216
 					} else {
-						v281 = v56
+						v282 = v57
 					}
-					fmt.Printf("ragged %d, the first record %d with %d fields\n", v232, v267, v281)
+					fmt.Printf("ragged %d, the first record %d with %d fields\n", v233, v268, v282)
 				} else {
 					fmt.Println("ragged 0")
 				}
-				v292 := (v59 > v57)
-				var v293 int
-				if v292 {
-					v293 = v59
+				v293 := (v60 > v58)
+				var v294 int
+				if v293 {
+					v294 = v60
 				} else {
-					v293 = v57
+					v294 = v58
 				}
-				fmt.Printf("longest %d\n", v293)
+				fmt.Printf("longest %d\n", v294)
 				fmt.Println("the last record has no final LF")
-				v47 = 0
+				v48 = 0
 				break
 			}
-			v307 := (v51 == 1)
-			if v307 {
-				fmt.Printf("records %d\nfields %d\n", v52, v53)
-				v314 := (v54 > 0)
-				if v314 {
-					fmt.Printf("ragged %d, the first record %d with %d fields\n", v54, v55, v56)
+			v308 := (v52 == 1)
+			if v308 {
+				fmt.Printf("records %d\nfields %d\n", v53, v54)
+				v315 := (v55 > 0)
+				if v315 {
+					fmt.Printf("ragged %d, the first record %d with %d fields\n", v55, v56, v57)
 				} else {
 					fmt.Println("ragged 0")
 				}
-				fmt.Printf("longest %d\n", v57)
-				v47 = 0
+				fmt.Printf("longest %d\n", v58)
+				v48 = 0
 				break
 			}
-			v333 := (v51 == 2)
-			if v333 {
-				v335 := (os.Stderr)
-				fmt.Fprintln(v335, "shape: cannot read standard input")
-				v47 = 1
+			v334 := (v52 == 2)
+			if v334 {
+				v336 := (os.Stderr)
+				fmt.Fprintln(v336, "shape: cannot read standard input")
+				v48 = 1
 				break
 			}
-			v342 := (os.Stdin)
-			v343h, v344 := v342.Read(v48)
+			v343h, v344 := v32.Read(v49)
 			v343 := int(v343h)
 			v346 := (v344 == nil)
 			var v347 int
@@ -284,11 +284,11 @@ func GenMain() int {
 					v347 = 2
 				}
 			}
-			v49, v50, v51 = 0, v343, v347
+			v50, v51, v52 = 0, v343, v347
 			continue
 		}
-		v33 = v47
-		v31 = v33
+		v34 = v48
+		v31 = v34
 	} else {
 		v353 := (os.Stderr)
 		fmt.Fprintln(v353, "usage: shape [SEP] < FILE    (SEP is one byte, not LF; TAB when absent)")

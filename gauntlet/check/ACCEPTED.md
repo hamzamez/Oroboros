@@ -1669,3 +1669,43 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 change(s):
 
 - emitted text changed — `examples/lines/shape.oro go`
+
+## 2026-10-22 — on 5f73417, with uncommitted changes
+
+**Reason:** work-2026-10-22: ADR 0071, beta counts evaluations not occurrences, so a pure value bound outside a loop is computed there (freq loses a nested loop; smooth computes len-2 once, 2065->2064 operations); let-floating; a residual let takes beta's rule; the IR reads a measured length as the length; report-go returns its dot product again
+
+568 runs: 303 emitted, 265 refused; 2064 of 2109 integer operations bounded, 353 of 374 loops proven. compiler pass, differential pass, tooling pass.
+
+31 change(s):
+
+- emitted text changed — `examples/big/render.oro go`
+- emitted text changed — `examples/big/render.oro java`
+- emitted text changed — `examples/big/render.oro js`
+- emitted text changed — `examples/big/render.oro windows`
+- emitted text changed — `examples/errors/slots.oro go`
+- emitted text changed — `examples/errors/slots.oro java`
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`
+- emitted text changed — `examples/io/jsonfmt.oro go`
+- emitted text changed — `examples/io/jsonfmt.oro java`
+- emitted text changed — `examples/io/jsonfmt.oro js`
+- emitted text changed — `examples/lines/shape.oro go`
+- emitted text changed — `examples/native/centroid-go.oro go`
+- emitted text changed — `examples/native/dot-go.oro go`
+- emitted text changed — `examples/native/dot-js.oro js`
+- emitted text changed — `examples/native/generic-go.oro go`
+- emitted text changed — `examples/native/generic-java.oro java`
+- emitted text changed — `examples/native/generic-js.oro js`
+- emitted text changed — `examples/native/report-go.oro go`
+- emitted text changed — `examples/native/smooth-go.oro go`
+- compiler output changed — `examples/native/smooth-go.oro go`
+- emitted text changed — `examples/native/smooth-js.oro js`
+- emitted text changed — `examples/sum/parse.oro go`
+- emitted text changed — `gauntlet/differential/cases/render.oro go`
+- emitted text changed — `gauntlet/differential/cases/render.oro java`
+- emitted text changed — `gauntlet/differential/cases/render.oro js`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- compiler output changed — `lib/os.oro go`
+- compiler output changed — `lib/os.oro java`
+- compiler output changed — `lib/os.oro js`

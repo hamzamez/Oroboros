@@ -478,8 +478,14 @@ func (set *RequireSet) decideAscribed(w core.Word, t *core.Term) (*core.Term, []
 	return out, proven
 }
 
-// ascribedAbove reports `(the T e)` with T above the word.
+// ascribedAbove reports `(the T e)` with T above the word, at the term or at
+// the tail of the residual lets around it: a let's value is its body's, and β
+// binds a value where the program wrote it (ADR 0071).
 func ascribedAbove(w core.Word, t *core.Term) bool {
+	for t != nil && t.Kind == core.KApp && len(t.Kids) == 3 && t.Op().Kind == core.KName &&
+		t.Op().Name == "let" && t.Kids[2].Kind == core.KFn && len(t.Kids[2].Params) == 1 {
+		t = t.Kids[2].Closed()
+	}
 	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName || t.Op().Name != core.AscribeName ||
 		len(t.Args()) != 2 || t.Args()[0].Kind != core.KStr {
 		return false

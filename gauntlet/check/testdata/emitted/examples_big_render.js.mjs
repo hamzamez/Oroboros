@@ -15,21 +15,22 @@ export function genRender(v0) {
 			break;
 		}
 		const v22 = ((function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error("bignum overflow: the declared range is too small"); return oroZ; })(((v9 / (BigInt(100000000)))), 201));
-		let v28 = "";
-		let v29 = 0;
-		let v30 = (Number(v9 % BigInt(100000000)));
-		for (;; v29 = (v29 + 1)) {
-			if ((v29 >= 8)) {
+		const v25 = ((v22 > (BigInt(0))));
+		let v31 = "";
+		let v32 = 0;
+		let v33 = (Number(v9 % BigInt(100000000)));
+		for (;; v32 = (v32 + 1)) {
+			if ((v32 >= 8)) {
 				break;
 			}
-			if (((!((v22 > (BigInt(0))))) && ((v30 === 0) && (v29 > 0)))) {
+			if (((!v25) && ((v33 === 0) && (v32 > 0)))) {
 				break;
 			}
-			v28 = ((String.fromCodePoint((48 + (((v30 % 10) + 0))))) + v28);
-			v30 = ((Math.trunc(v30 / 10) + 0));
+			v31 = ((String.fromCodePoint((48 + (((v33 % 10) + 0))))) + v31);
+			v33 = ((Math.trunc(v33 / 10) + 0));
 			continue;
 		}
-		v8 = (v28 + v8);
+		v8 = (v31 + v8);
 		v9 = v22;
 		continue;
 	}

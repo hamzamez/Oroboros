@@ -159,6 +159,10 @@ func (tg *Target) retract(q string) error {
 	// AN `ensures` OVER COMPONENTS NAMES THEM BY POSITION, and the raw call keeps
 	// it, so the declared tuple's components must be its host values one for one:
 	// a factor that is no host value, or several, shifts every position after it.
+	if len(p.InPlace) > 0 && !sh.onePerComponent() {
+		return fmt.Errorf("it writes a buffer in place, and its result's host values are not one per " +
+			"component, so the in-place position would name another value (ADR 0070)")
+	}
 	if p.Ensures != nil && mentionsComponent(p.Ensures) && !sh.onePerComponent() {
 		return fmt.Errorf("its `ensure` names components of a result whose host values are not " +
 			"one per component, so a position would name another value")

@@ -1701,6 +1701,13 @@ var binaryMistakes = map[string]func(m map[string]emit.Prim){
 // strconvMistakes include the one ADR 0026 exists to prevent: a 64-bit result
 // declared narrower than the host returns — the survey's old `uint64 → int`.
 var strconvMistakes = map[string]func(m map[string]emit.Prim){
+	// ADR 0070: the host's own results, the in-place components left out, must be
+	// the manifest's exactly.
+	"AppendInt declared in place, its grown slice lost": func(m map[string]emit.Prim) {
+		p := m["AppendInt"]
+		p.InPlace = []emit.InPlace{{Result: 0, Arg: 0}}
+		m["AppendInt"] = p
+	},
 	"ParseUint's result narrowed to the signed word": func(m map[string]emit.Prim) {
 		p := m["ParseUint"]
 		p.Results = []string{"int -9223372036854775808 9223372036854775807", p.Results[1]}
@@ -1720,6 +1727,13 @@ var strconvMistakes = map[string]func(m map[string]emit.Prim){
 }
 
 var utf8Mistakes = map[string]func(m map[string]emit.Prim){
+	// ADR 0070: the host's own results, the in-place components left out, must be
+	// the manifest's exactly.
+	"AppendRune declared in place": func(m map[string]emit.Prim) {
+		p := m["AppendRune"]
+		p.InPlace = []emit.InPlace{{Result: 0, Arg: 0}}
+		m["AppendRune"] = p
+	},
 	"a mistyped argument": func(m map[string]emit.Prim) {
 		p := m["RuneLen"]
 		p.Args = []string{"int 0 255"}
@@ -1745,6 +1759,13 @@ var utf8Mistakes = map[string]func(m map[string]emit.Prim){
 }
 
 var hexMistakes = map[string]func(m map[string]emit.Prim){
+	// ADR 0070: the host's own results, the in-place components left out, must be
+	// the manifest's exactly.
+	"Encode declared handing back storage it writes in place": func(m map[string]emit.Prim) {
+		p := m["Encode"]
+		p.InPlace = nil
+		m["Encode"] = p
+	},
 	"a mistyped argument": func(m map[string]emit.Prim) {
 		p := m["DecodedLen"]
 		p.Args = []string{"int 0 255"}
@@ -2359,7 +2380,8 @@ func agreeAll(word core.Word, hand, host map[string]emit.Prim, hres, gres func(s
 //
 //   - a parameter or result the host spells as a slice may be a BUFFER, because
 //     the host writes it;
-//   - a write-borrow's result list may BEGIN with the buffer it hands back;
+//   - a write-borrow's buffer is no result at all: the host writes it in place,
+//     and the declaration says so by naming no p' (emit.HostResults, ADR 0070);
 //   - an integer result may be a narrower RANGE inside the host's type;
 //   - a string result may be OURS, `string`, where the host's type is
 //     `go.bytestring`: Σ* inside B*, which a person justifies by reading the
@@ -2375,15 +2397,11 @@ func agreeOne(word core.Word, name string, h, g emit.Prim, hres, gres func(strin
 			return fmt.Errorf("%s: argument %d is %q by hand and %q on the host", name, i+1, h.Args[i], g.Args[i])
 		}
 	}
-	hr, gr := resultsOf(h), resultsOf(g)
-	if len(hr) == len(gr)+1 && len(hr) > 0 && core.IsBuffer(hr[0]) {
-		for _, a := range h.Args {
-			if a == hr[0] {
-				hr = hr[1:] // a write-borrow hands its buffer back first
-				break
-			}
-		}
-	}
+	// THE HOST'S OWN RESULTS (ADR 0070): a buffer written in place is the
+	// argument itself, not a result, so the declaration's threaded results less
+	// its in-place components must be the host's exactly. AppendInt declared in
+	// place, or Encode as handing back storage, fails here on the count.
+	hr, gr := emit.HostResults(h), resultsOf(g)
 	if len(hr) != len(gr) {
 		return fmt.Errorf("%s returns %d value(s) by hand and %d on the host", name, len(hr), len(gr))
 	}

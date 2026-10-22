@@ -557,8 +557,47 @@ func (l *lowerer) values(ts []*core.Term, r *Region) []V {
 	return out
 }
 
+// threadedCall emits a call with several results and returns the values of its
+// threaded results, the ones the core binds. A WRITE-BORROW'S BUFFER COMES BACK AS
+// THE SAME STORAGE (ADR 0070): its component is the argument's own value, and the
+// call is the host primitive with the host's own results (Prim.Host), so Go gets
+// `n := hex.Encode(dst, src)` and nothing manufactures the pair.
+func (l *lowerer) threadedCall(r *Region, name string, p emit.Prim, args []V) []V {
+	if p.Host == "" {
+		l.call(r, name, p, args)
+		return r.Stmts[len(r.Stmts)-1].Res
+	}
+	hp, ok := l.prim(p.Host)
+	if !ok {
+		l.fail("%s writes a buffer in place, and its host call %s is not declared", core.ShowName(name), p.Host)
+	}
+	l.call(r, p.Host, hp, args)
+	host := r.Stmts[len(r.Stmts)-1].Res
+	arg := map[int]int{}
+	for _, ip := range p.InPlace {
+		arg[ip.Result] = ip.Arg
+	}
+	out := make([]V, len(p.Results))
+	next := 0
+	for j := range out {
+		if i, in := arg[j]; in {
+			out[j] = args[i]
+			continue
+		}
+		out[j] = host[next]
+		next++
+	}
+	return out
+}
+
 // call emits a primitive call with its declared number of results.
 func (l *lowerer) call(r *Region, name string, p emit.Prim, args []V) V {
+	// A call writing a buffer in place is lowered only by its continuation
+	// (threadedCall), which binds the buffer to its argument; here its template,
+	// the host's own call, would be printed against the threaded results.
+	if p.Host != "" {
+		l.fail("%s writes a buffer in place and reaches lowering without its continuation", core.ShowName(name))
+	}
 	// A HOST CALL HAS A TEMPLATE. A primitive with none is a structural kind
 	// this lowering does not know, and printing it as a call printed `()`:
 	// the cell forms did, before their lowering existed (outcells-2026-10-09).
@@ -684,8 +723,7 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 	if op.Kind == core.KApp && op.Kids[0].Kind == core.KName {
 		if p, ok := l.prim(op.Kids[0].Name); ok && len(p.Results) >= 2 && len(k.Params) == len(p.Results) {
 			vs := l.values(op.Kids[1:], r)
-			l.call(r, op.Kids[0].Name, p, vs)
-			res := r.Stmts[len(r.Stmts)-1].Res
+			res := l.threadedCall(r, op.Kids[0].Name, p, vs)
 			l.push(res, k.Params)
 			out := then(k.Closed())
 			l.pop()

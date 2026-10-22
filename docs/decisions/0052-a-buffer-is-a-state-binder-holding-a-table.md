@@ -8,7 +8,9 @@ check (the guarantee stands), [ADR 0047](0047-local-state-is-a-scope-and-a-cell-
 initializer rule and [spec/abstract.md](../spec/abstract.md) §2.2 and §2.4, under
 [ADR 0050](0050-the-abstract-syntax-fits-the-semantics.md). Supersedes surface-design.md §2.3's
 option (a), `linear` written at 26 binders. **Extended to maps by
-[ADR 0058](0058-a-map-buffer-is-a-state-binder-holding-a-map.md)** (not built).
+[ADR 0058](0058-a-map-buffer-is-a-state-binder-holding-a-map.md)** (not built). **Item 4 amended by
+[ADR 0070](0070-a-header-is-the-callers-view-of-a-borrow.md)** (2026-10-22): a host header is the
+caller's view, and the write-borrow wrapper is gone.
 
 **Built 2026-10-15** behind the `ORO_VIA_J` gate ([storeorder-2026-10-15](../../gauntlet/results/storeorder-2026-10-15.md),
 spec/local.md §2.1): J writes every buffer in program order, and S of it is today's residual on the

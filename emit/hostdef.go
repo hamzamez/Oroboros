@@ -63,6 +63,8 @@ func hostDef(f *core.Term, p Prim, path string) (*core.DefDecl, error) {
 			} else {
 				c.Post = e
 			}
+		case w == "inplace" && len(k.Kids) == 3 && k.Kids[1].Kind == core.KInt && k.Kids[2].Kind == core.KInt:
+			h.InPlace = append(h.InPlace, [2]int{int(k.Kids[1].Int), int(k.Kids[2].Int)})
 		case w == "host":
 			h.Kind, h.Template = k.Kids[1].Name, k.Kids[2].Str
 			for _, hc := range k.Kids[3:] {

@@ -319,6 +319,15 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 	p.open(true)
 	var params []*Term
 	var names []string
+	// The `linear` parameters, in order: each is handed back first in the core's
+	// threaded result (ADR 0052's borrow, ADR 0070), as its own storage or as the
+	// storage the result `p'` names.
+	type borrowed struct {
+		name string
+		set  Expr
+		at   int
+	}
+	var linear []borrowed
 	for !p.is(")") {
 		n := p.name()
 		names = append(names, n)
@@ -332,6 +341,9 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 		mode := ""
 		if p.is("linear") || p.is("inout") {
 			mode = p.next().text
+		}
+		if mode == "linear" {
+			linear = append(linear, borrowed{n, p.toSet(s, "linear"), len(names) - 1})
 		}
 		params = append(params, app(Name(n), p.setDatum(s, mode)))
 		if !p.accept(",") {
@@ -353,39 +365,96 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 		return nil, err
 	}
 	p.open(true)
-	if p.is(")") {
-		sig = append(sig, app())
-	} else {
-		var parts []Expr
-		var names []string
+	var parts []Expr
+	var rnames []string
+	if !p.is(")") {
 		for {
 			name := ""
-			if p.peek().kind == tIdent && p.peekN(1).text == "∈" {
+			switch {
+			case p.peek().kind == tIdent && p.peekN(1).text == "∈":
 				name = p.next().text
+				p.next()
+			case p.peek().kind == tIdent && p.peekN(1).kind == tPrime && p.peekN(2).text == "∈":
+				name = p.next().text + "'"
+				p.next()
 				p.next()
 			}
 			s, err := p.expr()
 			if err != nil {
 				return nil, err
 			}
-			parts, names = append(parts, s), append(names, name)
+			parts, rnames = append(parts, s), append(rnames, name)
 			if !p.accept(",") {
 				break
 			}
 		}
-		if len(parts) == 1 {
-			result = names[0]
-			sig = append(sig, p.resultDatum(parts[0]))
-		} else {
-			components = map[string]string{}
-			for j, n := range names {
-				if n != "" {
-					components[Unspell(n)] = ResultComponent(j)
-				}
+	}
+	// A RESULT WRITTEN AS A PRODUCT, `(A × B)`, is its factors, as the group
+	// `(a ∈ A, b ∈ B)` is: one shape for several results (ADR 0051).
+	if len(parts) == 1 && rnames[0] == "" {
+		if a, ok := parts[0].(*Apply); ok {
+			if v, ok := a.Fn.(*Var); ok && v.Name == "×" && len(a.Args) >= 2 {
+				parts = append([]Expr(nil), a.Args...)
+				rnames = make([]string, len(parts))
 			}
-			sig = append(sig, p.resultDatum(&Apply{Fn: &Var{Name: "×"}, Args: parts}))
 		}
 	}
+	// THE THREADED RESULT (ADR 0070). The header is the caller's view: its result
+	// is what the call gives, and a `linear` parameter is borrowed by reference
+	// (ADR 0052 item 3). The core's is the state-passing translation's: each
+	// borrowed buffer handed back first, then the rest, a unit dropped (B × 1 ≅ B).
+	// A borrowed p with a result `p'` is handed back as the storage that result
+	// names (a consume-and-return, an append); one with none is handed back as
+	// its own storage (a write-borrow), recorded `(inplace j i)` for the IR.
+	var threaded []Expr
+	var tnames []string
+	var inplace []*Term
+	used := map[int]bool{}
+	for _, b := range linear {
+		at := -1
+		for k, n := range rnames {
+			if n == b.name+"'" {
+				at = k
+			}
+		}
+		if at >= 0 {
+			threaded, tnames = append(threaded, parts[at]), append(tnames, rnames[at])
+			used[at] = true
+			continue
+		}
+		inplace = append(inplace, app(Name("inplace"), Int(int64(len(threaded))), Int(int64(b.at))))
+		threaded, tnames = append(threaded, b.set), append(tnames, b.name+"'")
+	}
+	for k, part := range parts {
+		if used[k] {
+			continue
+		}
+		if strings.HasSuffix(rnames[k], "'") {
+			return nil, p.errorf("the result %s names no `linear` parameter's storage", rnames[k])
+		}
+		if len(linear) > 0 && rnames[k] == "" && isBufferSet(part) {
+			return nil, p.errorf("a buffer among the results of a declaration that borrows one: the header " +
+				"is the caller's view (ADR 0070), so name it `p'` when the host hands back storage, " +
+				"or leave it out when the host writes p in place")
+		}
+		threaded, tnames = append(threaded, part), append(tnames, rnames[k])
+	}
+	switch len(threaded) {
+	case 0:
+		sig = append(sig, app())
+	case 1:
+		result = tnames[0]
+		sig = append(sig, p.resultDatum(threaded[0]))
+	default:
+		components = map[string]string{}
+		for j, n := range tnames {
+			if n != "" {
+				components[Unspell(strings.TrimSuffix(n, "'"))+suffixOf(n)] = ResultComponent(j)
+			}
+		}
+		sig = append(sig, p.resultDatum(&Apply{Fn: &Var{Name: "×"}, Args: threaded}))
+	}
+	sig = append(sig, inplace...)
 	p.close()
 	if err := p.expect(")"); err != nil {
 		return nil, err
@@ -408,7 +477,7 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 				return nil, err
 			}
 			if result != "" {
-				e = renameExpr(e, map[string]string{Unspell(result): ResultName})
+				e = renameExpr(e, map[string]string{Unspell(strings.TrimSuffix(result, "'")) + suffixOf(result): ResultName})
 			}
 			if components != nil {
 				e = renameExpr(e, components)
@@ -694,4 +763,23 @@ func (p *parser) modelForm() (*Term, error) {
 		}
 	}
 	return app(out...), nil
+}
+
+// suffixOf is a name's prime, "'" or "".
+func suffixOf(n string) string {
+	if strings.HasSuffix(n, "'") {
+		return "'"
+	}
+	return ""
+}
+
+// isBufferSet reports a result written `buffer(…)`, the old threaded spelling
+// of a borrowed buffer handed back.
+func isBufferSet(e Expr) bool {
+	a, ok := e.(*Apply)
+	if !ok {
+		return false
+	}
+	v, ok := a.Fn.(*Var)
+	return ok && v.Name == "buffer"
 }

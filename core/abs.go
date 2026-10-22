@@ -369,6 +369,10 @@ type HostBody struct {
 	Template string
 	Clauses  []Expr
 	Markers  []string
+	// InPlace are the threaded result's components that are a borrowed buffer
+	// handed back as its own storage, each (component, parameter) (ADR 0070):
+	// what the host's call does, so it rides with the host body.
+	InPlace [][2]int
 }
 
 // ClaimDecl is a claim written for a name with no λ to carry it: a `sig` whose

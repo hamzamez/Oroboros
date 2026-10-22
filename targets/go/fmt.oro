@@ -93,14 +93,16 @@ module go/fmt {
     }
 
     // ------------------------------------------------------------- to a buffer
-    fn Append(b ∈ Array(0..255) linear, a ∈ Array(go.Value)) (buffer(0..255)) variadic {
+    fn Append(b ∈ Array(0..255) linear, a ∈ Array(go.Value)) (b' ∈ buffer(0..255)) variadic
+            ensure len(b') >= len(b) {
         host expr "fmt.Append(${b}, ${a}...)" import "fmt"
     }
-    fn Appendln(b ∈ Array(0..255) linear, a ∈ Array(go.Value)) (buffer(0..255)) variadic {
+    fn Appendln(b ∈ Array(0..255) linear, a ∈ Array(go.Value)) (b' ∈ buffer(0..255)) variadic
+            ensure len(b') > len(b) {
         host expr "fmt.Appendln(${b}, ${a}...)" import "fmt"
     }
     fn Appendf(b ∈ Array(0..255) linear, format ∈ bytestring,
-        a ∈ Array(go.Value)) (buffer(0..255)) variadic {
+        a ∈ Array(go.Value)) (b' ∈ buffer(0..255)) variadic ensure len(b') >= len(b) {
         host expr "fmt.Appendf(${b}, ${format}, ${a}...)" import "fmt"
     }
 

@@ -42,7 +42,7 @@ module go/strconv {
         host expr "strconv.ParseBool(${s})" import "strconv"
     }
     // CONSUME AND RETURN, B ⊸ B: appends, growing dst when it must.
-    fn AppendBool(dst ∈ Array(0..255) linear, b ∈ Bool) (buffer(0..255)) {
+    fn AppendBool(dst ∈ Array(0..255) linear, b ∈ Bool) (dst' ∈ buffer(0..255)) ensure len(dst') > len(dst) {
         host expr "strconv.AppendBool(${dst}, ${b})" import "strconv"
     }
 
@@ -59,12 +59,12 @@ module go/strconv {
     }
     // F_10 on Go's int, which is the word.
     fn Itoa(i ∈ Int) (String) pure { host expr "strconv.Itoa(${i})" import "strconv" }
-    fn AppendInt(dst ∈ Array(0..255) linear, i ∈ int64, base ∈ Int) (buffer(0..255))
-        where 2 <= base && base <= 36 {
+    fn AppendInt(dst ∈ Array(0..255) linear, i ∈ int64, base ∈ Int) (dst' ∈ buffer(0..255))
+        where 2 <= base && base <= 36 ensure len(dst') > len(dst) {
         host expr "strconv.AppendInt(${dst}, int64(${i}), ${base})" import "strconv"
     }
-    fn AppendUint(dst ∈ Array(0..255) linear, i ∈ uint64, base ∈ Int) (buffer(0..255))
-        where 2 <= base && base <= 36 {
+    fn AppendUint(dst ∈ Array(0..255) linear, i ∈ uint64, base ∈ Int) (dst' ∈ buffer(0..255))
+        where 2 <= base && base <= 36 ensure len(dst') > len(dst) {
         host expr "strconv.AppendUint(${dst}, uint64(${i}), ${base})" import "strconv"
     }
 
@@ -92,8 +92,8 @@ module go/strconv {
         host expr "strconv.FormatFloat(${f}, uint8(${fmt}), ${prec}, ${bitSize})" import "strconv"
     }
     fn AppendFloat(dst ∈ Array(0..255) linear, f ∈ F64, fmt ∈ uint8, prec ∈ Int,
-        bitSize ∈ Int) (buffer(0..255))
-        where 64 <= bitSize && bitSize <= 64 {
+        bitSize ∈ Int) (dst' ∈ buffer(0..255))
+        where 64 <= bitSize && bitSize <= 64 ensure len(dst') > len(dst) {
         host expr "strconv.AppendFloat(${dst}, ${f}, uint8(${fmt}), ${prec}, ${bitSize})" import "strconv"
     }
     fn ParseFloat(s ∈ bytestring, bitSize ∈ Int) (F64 × result.result((), error)) pure {
@@ -119,22 +119,28 @@ module go/strconv {
     fn QuoteRuneToGraphic(r ∈ int32) (String) pure {
         host expr "strconv.QuoteRuneToGraphic(int32(${r}))" import "strconv"
     }
-    fn AppendQuote(dst ∈ Array(0..255) linear, s ∈ bytestring) (buffer(0..255)) {
+    fn AppendQuote(dst ∈ Array(0..255) linear, s ∈ bytestring) (dst' ∈ buffer(0..255))
+            ensure len(dst') > len(dst) {
         host expr "strconv.AppendQuote(${dst}, ${s})" import "strconv"
     }
-    fn AppendQuoteToASCII(dst ∈ Array(0..255) linear, s ∈ bytestring) (buffer(0..255)) {
+    fn AppendQuoteToASCII(dst ∈ Array(0..255) linear, s ∈ bytestring) (dst' ∈ buffer(0..255))
+            ensure len(dst') > len(dst) {
         host expr "strconv.AppendQuoteToASCII(${dst}, ${s})" import "strconv"
     }
-    fn AppendQuoteToGraphic(dst ∈ Array(0..255) linear, s ∈ bytestring) (buffer(0..255)) {
+    fn AppendQuoteToGraphic(dst ∈ Array(0..255) linear, s ∈ bytestring) (dst' ∈ buffer(0..255))
+            ensure len(dst') > len(dst) {
         host expr "strconv.AppendQuoteToGraphic(${dst}, ${s})" import "strconv"
     }
-    fn AppendQuoteRune(dst ∈ Array(0..255) linear, r ∈ int32) (buffer(0..255)) {
+    fn AppendQuoteRune(dst ∈ Array(0..255) linear, r ∈ int32) (dst' ∈ buffer(0..255))
+            ensure len(dst') > len(dst) {
         host expr "strconv.AppendQuoteRune(${dst}, int32(${r}))" import "strconv"
     }
-    fn AppendQuoteRuneToASCII(dst ∈ Array(0..255) linear, r ∈ int32) (buffer(0..255)) {
+    fn AppendQuoteRuneToASCII(dst ∈ Array(0..255) linear, r ∈ int32) (dst' ∈ buffer(0..255))
+            ensure len(dst') > len(dst) {
         host expr "strconv.AppendQuoteRuneToASCII(${dst}, int32(${r}))" import "strconv"
     }
-    fn AppendQuoteRuneToGraphic(dst ∈ Array(0..255) linear, r ∈ int32) (buffer(0..255)) {
+    fn AppendQuoteRuneToGraphic(dst ∈ Array(0..255) linear, r ∈ int32) (dst' ∈ buffer(0..255))
+            ensure len(dst') > len(dst) {
         host expr "strconv.AppendQuoteRuneToGraphic(${dst}, int32(${r}))" import "strconv"
     }
     fn CanBackquote(s ∈ bytestring) (Bool) pure {

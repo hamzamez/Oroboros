@@ -1035,6 +1035,14 @@ func (p *parser) unary() (Expr, error) {
 }
 
 func (p *parser) postfix(e Expr) (Expr, error) {
+	// A PRIMED NAME, `x'`: a binder's value on exit (ADR 0066 item 7), read as the
+	// name `x'`. Only a host declaration's `ensure` gives it a meaning, the
+	// storage a `linear` parameter hands back (ADR 0070, jreadtarget.go); anywhere
+	// else it is a name nothing binds.
+	if v, ok := e.(*Var); ok && p.peek().kind == tPrime {
+		p.next()
+		e = &Var{Name: v.Name + "'"}
+	}
 	for !p.lineEnds() {
 		switch {
 		case p.is("("):

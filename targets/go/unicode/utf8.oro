@@ -63,15 +63,15 @@ module go/unicode/utf8 {
     // The precondition is CONSERVATIVE and says so: the host needs RuneLen(r)
     // bytes (three for an invalid rune), and four is enough for every rune. The
     // exact requirement is a disjunction the linear fragment cannot state.
-    fn EncodeRune(p ∈ Array(uint8) linear, r ∈ int32) (buffer(uint8) × 1..4)
-        where 4 <= len(p) {
-        host expr "func(p []byte, r int32) ([]byte, int) { return p, utf8.EncodeRune(p, r) }(${p}, int32(${r}))" import "unicode/utf8"
+    fn EncodeRune(p ∈ Array(uint8) linear, r ∈ int32) (n ∈ 1..4)
+        where 4 <= len(p) ensure len(p') == len(p) {
+        host expr "utf8.EncodeRune(${p}, int32(${r}))" import "unicode/utf8"
     }
 
     // CONSUME AND RETURN: B ⊸ B. "appends the UTF-8 encoding of r to the end of p
     // and returns the extended buffer" — the same storage when p has capacity, new
     // storage when not, and p is dead either way.
-    fn AppendRune(p ∈ Array(uint8) linear, r ∈ int32) (buffer(uint8)) {
+    fn AppendRune(p ∈ Array(uint8) linear, r ∈ int32) (p' ∈ buffer(uint8)) ensure len(p') > len(p) {
         host expr "utf8.AppendRune(${p}, int32(${r}))" import "unicode/utf8"
     }
 

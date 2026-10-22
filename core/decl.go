@@ -277,6 +277,9 @@ func HostSig(def *DefDecl) *Term {
 	if c.Post != nil {
 		t.Kids = append(t.Kids, App(Name("ensures"), d.term(c.Post)))
 	}
+	for _, ip := range h.InPlace {
+		t.Kids = append(t.Kids, App(Name("inplace"), Int(int64(ip[0])), Int(int64(ip[1]))))
+	}
 	host := App(Name("host"), Name(h.Kind), Str(h.Template))
 	for _, k := range h.Clauses {
 		host.Kids = append(host.Kids, d.term(k))

@@ -70,6 +70,7 @@ Everything a *program* may write. From `core/read.go`'s form and special-form di
 | `where` | specified — a precondition, on a program sig and a target sig | [refinements.md](refinements.md) |
 | `ensures` | specified — a postcondition | [postconditions.md](postconditions.md) |
 | `result` | specified — the value, named only inside `ensures` | [postconditions.md](postconditions.md) |
+| `inplace` | specified — a host declaration's threaded-result component that is a borrowed buffer handed back as its own storage, `(inplace j i)`, derived by J's target reader from a header naming no `p'` for a `linear` p; never written by hand | [ADR 0070](../decisions/0070-a-header-is-the-callers-view-of-a-borrow.md) |
 | `variant` | specified — closed, finite, non-recursive, with type arguments | [sums.md](sums.md), [data.md](data.md) |
 | `success` | specified — a variant's role marker, `(success c)`: the constructor `try` continues on; reserved as a constructor name | [errors.md](errors.md) §2 |
 | `relevant` | specified — a variant's role marker, `(relevant)`: a value of the type must be used; reserved as a constructor name | [errors.md](errors.md) §2, §7 |

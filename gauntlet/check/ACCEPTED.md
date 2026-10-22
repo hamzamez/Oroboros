@@ -1659,3 +1659,13 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) accepted SLOWER — compile time 0.99x the baseline (median of 10 compiles over 300 ms); a second sweep kept 1 of 1 suspect(s); paired serially against the baseline's binary (6942a00), 1 confirmed:
 
 - `examples/lines/shape.oro go` 125 → 937 ms, 7.50x; paired 78 → 468 ms, 6.00x
+
+## 2026-10-22 — on 24e1e53, with uncommitted changes
+
+**Reason:** inplace-2026-10-22: ADR 0070, a host header is the caller's view of a borrow; a write-borrow is the host's own call, no wrapper, and shape's read loop loses the closure and the buffer's back-edge copy; counts unchanged
+
+568 runs: 303 emitted, 265 refused; 2065 of 2110 integer operations bounded, 353 of 374 loops proven. compiler pass, differential pass, tooling pass.
+
+1 change(s):
+
+- emitted text changed — `examples/lines/shape.oro go`

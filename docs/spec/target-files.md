@@ -513,6 +513,35 @@ indirectly: `(T, error)` is Go's constructor idiom, so it also unlocks the types
 those calls return and the methods on them
 ([multiresult-2026-09-06](../../gauntlet/results/multiresult-2026-09-06.md)).
 
+### A borrowed buffer: the header is the caller's view (ADR 0070)
+
+A `linear` parameter is borrowed by reference, and the header's result is what the call gives, as on a
+definition (ADR 0052 item 3). Two arrows, told apart by the header:
+
+```
+fn Encode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (n ∈ 0..9223372036854775806)
+        where 2 * len(src) <= len(dst) ensure len(dst') == len(dst) && n == 2 * len(src) {
+    host expr "hex.Encode(${dst}, ${src})" import "encoding/hex"
+}
+
+fn AppendInt(dst ∈ Array(0..255) linear, i ∈ int64, base ∈ Int) (dst' ∈ buffer(0..255))
+        where 2 <= base && base <= 36 ensure len(dst') > len(dst) {
+    host expr "strconv.AppendInt(${dst}, int64(${i}), ${base})" import "strconv"
+}
+```
+
+- **No `p'` among the results**: a write-borrow. The host writes p **in place**, and the buffer after
+  the call is the same storage. The template is the host's own call, whose value is the declared
+  results.
+- **A result `p' ∈ buffer(V)`**: a consume-and-return. The host hands back storage, possibly new, and
+  the template's value includes it, in the result's position.
+- **The core's threaded result is derived**: each borrowed buffer in order, then the rest, a unit
+  dropped. A write-borrow's component is recorded `(inplace j i)`, and the IR calls a derived host
+  primitive with the host's own results, binding the component to the argument.
+- **`p'` in `ensure` is the buffer after the call.** A write-borrow states `len(p') == len(p)`, an
+  append that it grows.
+- A buffer among the results without a name is refused: it is the old threaded spelling.
+
 ### A result RANGE
 
 ```lisp

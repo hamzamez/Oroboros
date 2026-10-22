@@ -101,7 +101,8 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   holding a table, which removes installment 2's `linear` markers. It refuses 4 sites (version
   renames, all in one differential case), and predicts unchanged emission. hamza took all four
   recommendations: program order, the buffer as a state binder, borrowed parameters by reference, and
-  the write-borrow wrapper kept. ADR 0052 adds R0, a buffer's value is fresh, the inbound half of
+  the write-borrow wrapper kept (until ADR 0070, which made a host header the caller's view and removed it,
+  [inplace-2026-10-22](gauntlet/results/inplace-2026-10-22.md)). ADR 0052 adds R0, a buffer's value is fresh, the inbound half of
   uniqueness. Built with the surface, behind the byte-identical gate.
 - **[arrow-research.md](docs/arrow-research.md), decided by
   [ADR 0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md), not built.** Whether
@@ -667,7 +668,7 @@ rejected alternatives.
 | Types are sets and the logic that reasons about the computation never prints; ρ from proven sets the one bridge; the decided fragment the ceiling of automation; own complete procedures; extension by definitions and proven lemmas only; types are static values | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
 | The abstract syntax is the initial algebra of the semantics: usage a mode on a binder; one definition carrying its claims; sets formed explicitly; pairs, one guarded choice; indexing marked; meanings are homomorphisms, claims inert by construction; the surface open | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
 | A definition is a named λ, which carries its claims: a set per binder with φ and ψ, meaning the sets P and R; the result one binder whose pattern may be a tuple; program declarations before target files; a λ applied by hand is no binding for a jump | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
-| A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays — built behind the J gate; G5–G7 decided | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
+| A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays (removed by 0070) — built behind the J gate; G5–G7 decided | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
 | The arrow is a claim used as a set, on a host's callback parameter or as a named claim: Π(P).R with markers, not a set former of the type algebra; a returned host function is a host type with application — not built | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
 | `let` and `local` are one scope whose binders state their kind (a monoid action of binder words); a definitional name may be rebound, a state name once per region; the head is `let` — not built | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
 | A loop's variables are bound by application, not assigned: one iteration is a `let`, so its binders are definitional (`=`, `==`) and `again` is an application — not built | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
@@ -685,6 +686,7 @@ rejected alternatives.
 | The lexical level: ASCII words with a final `?`, `-` as `_`, backquoted host names; few reserved words, clause words contextual; case meaningless, sets UpperCamelCase by convention; `^` on constants; line comments; Scala 3's line rule; J's logic in TLA+'s symbols; one precedence table — not built | [0067](docs/decisions/0067-the-lexical-level.md) |
 | **J is the surface**, one rendering; the D-or-J experiment not run; supersedes 0056's item 1 — not built | [0068](docs/decisions/0068-j-is-the-surface.md) |
 | An observer at a host parameter: a pure declaration with scalar results reads a live buffer for the call, derived not declared; §7c counts it; a segment is F composed with a restriction; a binder's claim is an obligation and `the` is not J — built | [0069](docs/decisions/0069-an-observer-at-a-host-parameter.md) |
+| A host declaration's header is the caller's view of a borrow: the threaded result derived; a primed result `p'` names storage the host hands back, its absence a write-borrow in place, `(inplace j i)`; the template the host's own call, the wrapper gone; the hand check exact — amends 0052 item 4, built | [0070](docs/decisions/0070-a-header-is-the-callers-view-of-a-borrow.md) |
 
 ## How this project is run
 
@@ -1013,7 +1015,9 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 - **Host declarations are written by hand**, by someone who read the host's source. The generator
   checks them (ADR 0022) and never claims what it cannot justify (ADR 0023).
 - **What a host call does to a buffer** is declared as a write-borrow or a consume, following
-  [host-buffers.md](docs/host-buffers.md).
+  [host-buffers.md](docs/host-buffers.md), in the caller's view (ADR 0070): a `linear` parameter is
+  lent, a result `p'` is storage the host hands back (an append), and its absence is a write in place,
+  whose template is the host's own call (`hex.Encode(${dst}, ${src})`, no wrapper).
 
 ## Constraints that override normal instincts
 

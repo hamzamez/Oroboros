@@ -33,22 +33,22 @@ module go/encoding/binary {
 
     // C into a buffer: A WRITE-BORROW, B ⊸ B ⊗ int. The host writes buf[0 .. |C(x)|)
     // and checks nothing — past the end is a panic — and returns |C(x)| ∈ [1, 10].
-    fn PutUvarint(buf ∈ Array(0..255) linear, x ∈ uint64) (buffer(0..255) × 1..10)
-        where 10 <= len(buf) {
-        host expr "func(b []byte, x uint64) ([]byte, int) { return b, binary.PutUvarint(b, x) }(${buf}, uint64(${x}))" import "encoding/binary"
+    fn PutUvarint(buf ∈ Array(0..255) linear, x ∈ uint64) (n ∈ 1..10)
+        where 10 <= len(buf) ensure len(buf') == len(buf) {
+        host expr "binary.PutUvarint(${buf}, uint64(${x}))" import "encoding/binary"
     }
     // MaxVarintLen64
-    fn PutVarint(buf ∈ Array(0..255) linear, x ∈ int64) (buffer(0..255) × 1..10)
-        where 10 <= len(buf) {
-        host expr "func(b []byte, x int64) ([]byte, int) { return b, binary.PutVarint(b, x) }(${buf}, int64(${x}))" import "encoding/binary"
+    fn PutVarint(buf ∈ Array(0..255) linear, x ∈ int64) (n ∈ 1..10)
+        where 10 <= len(buf) ensure len(buf') == len(buf) {
+        host expr "binary.PutVarint(${buf}, int64(${x}))" import "encoding/binary"
     }
 
     // MaxVarintLen64
     // CONSUME AND RETURN, B ⊸ B: C(x) appended, growing buf when it must.
-    fn AppendUvarint(buf ∈ Array(0..255) linear, x ∈ uint64) (buffer(0..255)) {
+    fn AppendUvarint(buf ∈ Array(0..255) linear, x ∈ uint64) (buf' ∈ buffer(0..255)) ensure len(buf') > len(buf) {
         host expr "binary.AppendUvarint(${buf}, uint64(${x}))" import "encoding/binary"
     }
-    fn AppendVarint(buf ∈ Array(0..255) linear, x ∈ int64) (buffer(0..255)) {
+    fn AppendVarint(buf ∈ Array(0..255) linear, x ∈ int64) (buf' ∈ buffer(0..255)) ensure len(buf') > len(buf) {
         host expr "binary.AppendVarint(${buf}, int64(${x}))" import "encoding/binary"
     }
 

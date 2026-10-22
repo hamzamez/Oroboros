@@ -341,10 +341,9 @@ module's path is the **host's own path**, and a type's methods are a module insi
 
 ```
 module go/encoding/hex {
-    fn Encode(dst ∈ Array(0..255) linear,
-        src ∈ Array(0..255)) (buffer(0..255) × 0..9223372036854775806)
-        where 2 * len(src) <= len(dst) {
-        host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(${dst}, ${src})" import "encoding/hex"
+    fn Encode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (n ∈ 0..9223372036854775806)
+        where 2 * len(src) <= len(dst) ensure len(dst') == len(dst) && n == 2 * len(src) {
+        host expr "hex.Encode(${dst}, ${src})" import "encoding/hex"
     }
 
     module InvalidByteError {
@@ -355,8 +354,11 @@ module go/encoding/hex {
 }
 ```
 
-`dst ∈ Array(0..255) linear` says the host writes it (a write-borrow): it takes a buffer and hands it
-back. A host call that only reads a buffer and returns numbers, such as `utf8.Valid` or
+The header is the caller's view, read the way the call is written. `dst ∈ Array(0..255) linear` lends
+the buffer to the host, and since no `dst'` is among the results, the host writes it **in place** (a
+write-borrow); `len(dst')`, the buffer after the call, keeps its length. An append, which may hand back
+new storage, says so with a result `dst' ∈ buffer(0..255)`
+([ADR 0070](docs/decisions/0070-a-header-is-the-callers-view-of-a-borrow.md)). A host call that only reads a buffer and returns numbers, such as `utf8.Valid` or
 `bytes.IndexByte`, reads a live buffer in place, with no copy and no declaration to say so
 ([ADR 0069](docs/decisions/0069-an-observer-at-a-host-parameter.md)).
 

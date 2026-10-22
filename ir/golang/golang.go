@@ -551,15 +551,18 @@ func (p *printer) call(s *ir.Stmt) {
 			p.line("%s", c)
 		}
 	default:
+		// AN UNUSED RESULT IS THE CALL ALONE, as written: stripping the wrapper
+		// below kept `int(` of a scalar one and lost its `)` (ADR 0070's write-
+		// borrows were the first unused integer results to reach here).
+		if p.pl.Uses[p.pl.Res(s.Res[0])] == 0 {
+			p.line("%s", expr)
+			return
+		}
 		if scalarRange(q.Result) {
 			// Received into the language's integer, as a several-result call is.
 			expr = p.tg.HostType("int") + "(" + expr + ")"
 		} else {
 			expr = "(" + expr + ")"
-		}
-		if p.pl.Uses[p.pl.Res(s.Res[0])] == 0 {
-			p.line("%s", strings.TrimSuffix(strings.TrimPrefix(expr, "("), ")"))
-			return
 		}
 		p.define(s.Res[0], expr)
 	}

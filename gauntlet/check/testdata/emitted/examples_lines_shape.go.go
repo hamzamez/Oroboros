@@ -269,29 +269,29 @@ func GenMain() int {
 				break
 			}
 			v342 := (os.Stdin)
-			v343, v344h, v345 := func(p []byte) ([]byte, int, error) { n, err := v342.Read(p); return p, n, err }(v48)
-			v344 := int(v344h)
-			v347 := (v345 == nil)
-			var v348 int
-			if v347 {
-				v348 = 0
+			v343h, v344 := v342.Read(v48)
+			v343 := int(v343h)
+			v346 := (v344 == nil)
+			var v347 int
+			if v346 {
+				v347 = 0
 			} else {
-				v350 := (io.EOF)
-				v351 := (errors.Is(v345, v350))
-				if v351 {
-					v348 = 1
+				v349 := (io.EOF)
+				v350 := (errors.Is(v344, v349))
+				if v350 {
+					v347 = 1
 				} else {
-					v348 = 2
+					v347 = 2
 				}
 			}
-			v48, v49, v50, v51 = v343, 0, v344, v348
+			v49, v50, v51 = 0, v343, v347
 			continue
 		}
 		v33 = v47
 		v31 = v33
 	} else {
-		v354 := (os.Stderr)
-		fmt.Fprintln(v354, "usage: shape [SEP] < FILE    (SEP is one byte, not LF; TAB when absent)")
+		v353 := (os.Stderr)
+		fmt.Fprintln(v353, "usage: shape [SEP] < FILE    (SEP is one byte, not LF; TAB when absent)")
 		v31 = 2
 	}
 	os.Exit(v31)

@@ -60,15 +60,15 @@ module go/encoding/hex {
     // stated exactly rather than conservatively. The count is always 2|src|
     // ("this value is always EncodedLen(len(src))"), and 2|src| ≤ len dst ≤
     // 2^63 − 1 with 2|src| even, so it is at most 2^63 − 2.
-    fn Encode(dst ∈ Array(0..255) linear,
-        src ∈ Array(0..255)) (buffer(0..255) × 0..9223372036854775806)
-        where 2 * len(src) <= len(dst) {
-        host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(${dst}, ${src})" import "encoding/hex"
+    fn Encode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (n ∈ 0..9223372036854775806)
+        where 2 * len(src) <= len(dst) ensure len(dst') == len(dst) && n == 2 * len(src) {
+        host expr "hex.Encode(${dst}, ${src})" import "encoding/hex"
     }
 
     // CONSUME AND RETURN, B ⊸ B: appends H(src) to dst, growing it when it must
     // (slices.Grow), so dst is dead either way.
-    fn AppendEncode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (buffer(0..255)) {
+    fn AppendEncode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (dst' ∈ buffer(0..255))
+        ensure len(dst') == len(dst) + 2 * len(src) {
         host expr "hex.AppendEncode(${dst}, ${src})" import "encoding/hex"
     }
 
@@ -82,16 +82,15 @@ module go/encoding/hex {
     // dst[i] for i < ⌊len src / 2⌋ and no further, so the exact requirement is
     // ⌊s/2⌋ ≤ d, which over the integers is s ≤ 2d + 1 — linear again. The count
     // is the number of whole pairs decoded before the first bad byte.
-    fn Decode(dst ∈ Array(0..255) linear,
-        src ∈ Array(0..255)) (buffer(0..255) × 0..2^62-1 × result.result((), error))
-        where len(src) <= 2 * len(dst) + 1 {
-        host expr "func(dst, src []byte) ([]byte, int, error) { n, err := hex.Decode(dst, src); return dst, n, err }(${dst}, ${src})" import "encoding/hex"
+    fn Decode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (n ∈ 0..2^62-1, r ∈ result.result((), error))
+        where len(src) <= 2 * len(dst) + 1 ensure len(dst') == len(dst) {
+        host expr "hex.Decode(${dst}, ${src})" import "encoding/hex"
     }
 
     // CONSUME AND RETURN with a fallible result: the decoded prefix is appended
     // either way.
-    fn AppendDecode(dst ∈ Array(0..255) linear,
-        src ∈ Array(0..255)) (buffer(0..255) × result.result((), error)) {
+    fn AppendDecode(dst ∈ Array(0..255) linear, src ∈ Array(0..255))
+            (dst' ∈ buffer(0..255), r ∈ result.result((), error)) ensure len(dst') >= len(dst) {
         host expr "hex.AppendDecode(${dst}, ${src})" import "encoding/hex"
     }
 

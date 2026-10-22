@@ -130,8 +130,8 @@ func TestHostDeclarationsAreDefinitions(t *testing.T) {
 func TestHostDeclarationShapes(t *testing.T) {
 	for _, src := range []string{
 		`fn Get(c ∈ Int inout) (()) { host stmt "get(${c})" }`,
-		`fn Fill(b ∈ Array(0..255) linear) (buffer(0..255)) { host expr "fill(${b})" }`,
-		`fn Put(a ∈ Array(0..255) linear, b ∈ Int) (buffer(0..255) × Int) pure { host expr "put(${a}, ${b})" }`,
+		`fn Fill(b ∈ Array(0..255) linear) (b' ∈ buffer(0..255)) { host expr "fill(${b})" }`,
+		`fn Put(a ∈ Array(0..255) linear, b ∈ Int) (n ∈ Int) pure ensure len(a') == len(a) { host expr "put(${a}, ${b})" }`,
 		`fn Now() (Int) { host expr "now()" }`,
 		`fn Two(x ∈ Int, y ∈ Int) (r ∈ Int) pure
     where x < y
@@ -171,5 +171,47 @@ func TestHostDeclarationShapes(t *testing.T) {
 	def, _ := hostDef(ts[0], p, "shape")
 	if c := core.HostLam(def).Claim.Params[0]; c.Mode != core.InOut {
 		t.Errorf("a cell is the inout mode on its set, got %+v", c)
+	}
+}
+
+// ADR 0070: the header is the caller's view of a borrow. A linear parameter
+// with no p' among the results is written in place, and the core's threaded
+// result is derived, the buffer first; a result p' is storage handed back. The
+// old threaded spelling, and a p' naming no linear parameter, are refused.
+func TestHostHeaderIsTheCallersView(t *testing.T) {
+	read := func(src string) Prim {
+		t.Helper()
+		ts, err := core.ReadAll(src)
+		if err != nil {
+			t.Fatalf("%s: %v", src, err)
+		}
+		p, err := parseSig(ts[0], "view")
+		if err != nil {
+			t.Fatalf("%s: %v", src, err)
+		}
+		return p
+	}
+	put := read(`fn Put(a ∈ Array(0..255) linear, b ∈ Int) (n ∈ Int) ensure len(a') == len(a) { host expr "put(${a}, ${b})" }`)
+	if !reflect.DeepEqual(put.InPlace, []InPlace{{Result: 0, Arg: 0}}) || len(put.Results) != 2 {
+		t.Errorf("a write-borrow threads the buffer first and records it in place, got %v %v", put.Results, put.InPlace)
+	}
+	if hr := HostResults(put); len(hr) != 1 {
+		t.Errorf("the host's own results leave the in-place buffer out, got %v", hr)
+	}
+	fill := read(`fn Fill(b ∈ Array(0..255) linear, x ∈ Int) (b' ∈ buffer(0..255)) { host expr "fill(${b}, ${x})" }`)
+	if len(fill.InPlace) != 0 || len(HostResults(fill)) != 1 {
+		t.Errorf("a primed result is storage the host hands back, got %v %v", fill.Results, fill.InPlace)
+	}
+	for _, c := range []struct{ src, why string }{
+		{`fn Old(a ∈ Array(0..255) linear) (buffer(0..255) × Int) { host expr "old(${a})" }`, "caller's view"},
+		{`fn Odd(a ∈ Array(0..255) linear, q ∈ Int) (q' ∈ buffer(0..255)) { host expr "odd(${a}, ${q})" }`, "linear"},
+	} {
+		ts, err := core.ReadAll(c.src)
+		if err == nil {
+			_, err = parseSig(ts[0], "view")
+		}
+		if err == nil || !strings.Contains(err.Error(), c.why) {
+			t.Errorf("%s: want a refusal naming %q, got %v", c.src, c.why, err)
+		}
 	}
 }

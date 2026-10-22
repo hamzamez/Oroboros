@@ -8,6 +8,11 @@ written by hand**, carrying what a call does to a buffer, what it requires and w
 the generator kept as the checker of the mechanical half. `unicode/utf8` is the first. D3 is not
 taken. This document is kept as the reading the decision rests on.
 
+**Aspect 1's two arrows are told apart by the header, 2026-10-22** ([ADR 0070](decisions/0070-a-header-is-the-callers-view-of-a-borrow.md)):
+a write-borrow names no `p'` and hands back its own storage, with no wrapper in its template; a
+consume-and-return names its result `p'`. The hand check compares the host's own results with the
+manifest exactly.
+
 **Aspect 3 at a host parameter is built, 2026-10-21** ([ADR 0069](decisions/0069-an-observer-at-a-host-parameter.md),
 observer-2026-10-21): a pure declaration whose results are scalars is an OBSERVER, derived and never
 declared, and a live buffer stands at its table parameter for the length of the call, §4's "a read of B

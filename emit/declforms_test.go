@@ -307,7 +307,7 @@ func TestAViewMeetsABufferWithATableOfItsElement(t *testing.T) {
 	decls := func(implArg string) string {
 		return "set error = host \"error\"\n" +
 			"module go/io {\n    set Reader = host \"io.Reader\"\n    set R = host \"*R\"\n    axiom R ⊆ `go/io`.Reader\n}\n" +
-			"module go/io/Reader {\n    fn Read(self ∈ `go/io`.Reader, p ∈ Array(0..255) linear) (buffer(0..255) × Int × error) {\n" +
+			"module go/io/Reader {\n    fn Read(self ∈ `go/io`.Reader, p ∈ Array(0..255) linear) (Int × error) {\n" +
 			"        host expr \"${self}.Read(${p})\"\n    }\n}\n" +
 			"module go/io/R {\n    fn Read(self ∈ `go/io`.R, p ∈ " + implArg + ") (Int × error) { host expr \"${self}.Read(${p})\" }\n}\n"
 	}

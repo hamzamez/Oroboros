@@ -255,13 +255,13 @@ module go/strings {
         fn Len(self ∈ Reader) (0..2^63-1) { host expr "${self}.Len()" import "strings" }
         fn Size(self ∈ Reader) (0..2^63-1) { host expr "${self}.Size()" import "strings" }
         // Write-borrows, B ⊸ B ⊗ int ⊗ error, as os's File.Read.
-        fn Read(self ∈ Reader,
-            b ∈ Array(0..255) linear) (buffer(0..255) × 0..2^63-1 × result.result((), error)) {
-            host expr "func(b []byte) ([]byte, int, error) { n, err := ${self}.Read(b); return b, n, err }(${b})" import "strings"
+        fn Read(self ∈ Reader, b ∈ Array(0..255) linear) (n ∈ 0..2^63-1, r ∈ result.result((), error))
+                ensure n <= len(b') && len(b') == len(b) {
+            host expr "${self}.Read(${b})" import "strings"
         }
-        fn ReadAt(self ∈ Reader, b ∈ Array(0..255) linear,
-            off ∈ -2^63..2^63-1) (buffer(0..255) × 0..2^63-1 × result.result((), error)) {
-            host expr "func(b []byte, off int64) ([]byte, int, error) { n, err := ${self}.ReadAt(b, off); return b, n, err }(${b}, int64(${off}))" import "strings"
+        fn ReadAt(self ∈ Reader, b ∈ Array(0..255) linear, off ∈ -2^63..2^63-1)
+                (n ∈ 0..2^63-1, r ∈ result.result((), error)) ensure n <= len(b') && len(b') == len(b) {
+            host expr "${self}.ReadAt(${b}, int64(${off}))" import "strings"
         }
         fn ReadByte(self ∈ Reader) (result.result(0..255, error)) {
             host expr "${self}.ReadByte()" import "strings"

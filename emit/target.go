@@ -106,6 +106,19 @@ type Prim struct {
 	// fact into a conjunctive fragment, from which everything follows.
 	Ensures *core.Term
 
+	// InPlace are the components of the threaded result that are a write-borrow's
+	// buffer handed back as THE SAME STORAGE (ADR 0070): component Result is the
+	// argument Arg itself. The header says so by naming no `p'` among its results
+	// for a `linear` parameter p; a primed result `p'` is storage the host hands
+	// back. The core sees the threaded result; the IR calls Host, the primitive
+	// with the host's own results, and binds each in-place component to its
+	// argument (ir/lower.go). Empty for every other primitive.
+	InPlace []InPlace
+	// Host names the primitive the IR calls in this one's place when InPlace is
+	// not empty: the same template and arguments, its results the threaded ones
+	// without the in-place components (Target.hostPrims).
+	Host string
+
 	// Where is a refinement: a boolean term over the primitive's parameter
 	// names, discharged at every call site (docs/spec/refinements.md).
 	Where *core.Term
@@ -513,6 +526,9 @@ func (tg *Target) finish(wrap func(error) error) error {
 		return wrap(err)
 	}
 	if err := tg.checkWord(); err != nil {
+		return wrap(err)
+	}
+	if err := tg.hostPrims(); err != nil {
 		return wrap(err)
 	}
 	tg.variadicForms()
@@ -2467,7 +2483,7 @@ var respelled = map[string]string{
 // about, one host (theories.md §5.2). Keeping the second set inside `(host …)` is
 // what makes "no host clause" mean "no claim about any host".
 var (
-	sigWords  = map[string]bool{"pure": true, "variadic": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true}
+	sigWords  = map[string]bool{"pure": true, "variadic": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true, "inplace": true}
 	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true, "comma-ok": true}
 )
 
@@ -2764,6 +2780,10 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 					"write one, `ensure a && b`", path, core.ShowName(p.Name))
 			}
 			p.Ensures = rest.Kids[1]
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "inplace" && len(rest.Kids) == 3 &&
+			rest.Kids[1].Kind == core.KInt && rest.Kids[2].Kind == core.KInt:
+			p.InPlace = append(p.InPlace, InPlace{Result: int(rest.Kids[1].Int), Arg: int(rest.Kids[2].Int)})
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "checked" && len(rest.Kids) == 2 &&
 			rest.Kids[1].Kind == core.KName:

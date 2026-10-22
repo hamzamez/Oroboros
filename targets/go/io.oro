@@ -72,9 +72,9 @@ module go/io {
     // A write-borrow, B ⊸ B ⊗ int ⊗ error, as os's File.Read.
     module Reader {
         use result
-        fn Read(self ∈ Reader,
-            p ∈ Array(0..255) linear) (buffer(0..255) × 0..2^63-1 × result.result((), error)) {
-            host expr "func(p []byte) ([]byte, int, error) { n, err := ${self}.Read(p); return p, n, err }(${p})"
+        fn Read(self ∈ Reader, p ∈ Array(0..255) linear) (n ∈ 0..2^63-1, r ∈ result.result((), error))
+                ensure n <= len(p') && len(p') == len(p) {
+            host expr "${self}.Read(${p})"
         }
     }
     module Writer {
@@ -142,13 +142,13 @@ module go/io {
         host expr "io.ReadAll(${r})" import "io"
     }
     // Write-borrows: the host fills buf and returns the count.
-    fn ReadFull(r ∈ Reader,
-        buf ∈ Array(0..255) linear) (buffer(0..255) × 0..2^63-1 × result.result((), error)) {
-        host expr "func(buf []byte) ([]byte, int, error) { n, err := io.ReadFull(${r}, buf); return buf, n, err }(${buf})" import "io"
+    fn ReadFull(r ∈ Reader, buf ∈ Array(0..255) linear) (n ∈ 0..2^63-1, e ∈ result.result((), error))
+            ensure n <= len(buf') && len(buf') == len(buf) {
+        host expr "io.ReadFull(${r}, ${buf})" import "io"
     }
-    fn ReadAtLeast(r ∈ Reader, buf ∈ Array(0..255) linear,
-        min ∈ Int) (buffer(0..255) × 0..2^63-1 × result.result((), error)) {
-        host expr "func(buf []byte, min int) ([]byte, int, error) { n, err := io.ReadAtLeast(${r}, buf, min); return buf, n, err }(${buf}, ${min})" import "io"
+    fn ReadAtLeast(r ∈ Reader, buf ∈ Array(0..255) linear, min ∈ Int)
+            (n ∈ 0..2^63-1, e ∈ result.result((), error)) ensure n <= len(buf') && len(buf') == len(buf) {
+        host expr "io.ReadAtLeast(${r}, ${buf}, ${min})" import "io"
     }
     fn WriteString(w ∈ Writer, s ∈ bytestring) (0..2^63-1 × result.result((), error)) {
         host expr "io.WriteString(${w}, ${s})" import "io"
@@ -175,9 +175,9 @@ module go/io {
     fn Pipe() (PipeReader × PipeWriter) { host expr "io.Pipe()" import "io" }
     module PipeReader {
         use result
-        fn Read(self ∈ PipeReader,
-            p ∈ Array(0..255) linear) (buffer(0..255) × 0..2^63-1 × result.result((), error)) {
-            host expr "func(p []byte) ([]byte, int, error) { n, err := ${self}.Read(p); return p, n, err }(${p})" import "io"
+        fn Read(self ∈ PipeReader, p ∈ Array(0..255) linear) (n ∈ 0..2^63-1, r ∈ result.result((), error))
+                ensure n <= len(p') && len(p') == len(p) {
+            host expr "${self}.Read(${p})" import "io"
         }
         fn Close(self ∈ PipeReader) (result.result((), error)) {
             host expr "${self}.Close()" import "io"

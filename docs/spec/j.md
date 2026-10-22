@@ -511,7 +511,7 @@ concrete tree:
 | | condition |
 |---|---|
 | **J1** | `again` appears only in a loop arm's tail (W3's sort, read off the grammar of §2.8). |
-| **J2** | A primed name `x'` appears only in an `ensure`, and x is an `inout` binder of that header. |
+| **J2** | A primed name `x'` appears only in an `ensure`, and x is an `inout` or `linear` binder of that header; and, in a host declaration's result, as `p' ∈ S`, the storage a `linear` p hands back (ADR 0070). |
 | **J3** | Both operands of `^` are static integers, the exponent non-negative; refused otherwise. |
 | **J4** | A ⊆-binder of a computation's λ takes only a static set (Law S); a host body lies only under ⊆-λs. |
 | **J5** | A host body, an `axiom` and the model's data appear only in a target file or a fragment. |

@@ -39,19 +39,25 @@ the precondition's**:
 |---|---|---|
 | a `prim` | **obligation** — discharged at every call site | **assumption** — granted where `P` was discharged |
 | an **exported** definition | **assumption** — the caller is outside the program | **obligation** — checked against the body |
-| an **internal** definition | **obligation at every call it is inlined into** ([ADR 0028](../decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | **redundant** — inlining is stronger |
+| an **internal** definition | **obligation at every call it is inlined into** ([ADR 0028](../decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | **obligation** — checked against the body, as an export's ([ADR 0072](../decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md)) |
 
 The first two rows exchange the two roles. On the third, reduction removes the boundary, and the two
-roles part: `Q` is re-derived at every inlined site, so declaring it adds nothing. `P` is the
-caller's duty, and nothing re-derives a duty. Until ADR 0028 it was dropped as `Q` is, which was sound
-for every obligation inside the body and left the declared domain unchecked.
+roles part. `P` is the caller's duty, and nothing re-derives a duty: until ADR 0028 it was dropped,
+which was sound for every obligation inside the body and left the declared domain unchecked. `Q` is
+re-derived at every inlined site, so it is never needed as an **assumption** (§3). But it is still a
+**claim**: the header states f ∈ Π(x ∈ P). R (ADR 0062), and a claim is proven or the program is refused
+(refinements.md §3a). Until ADR 0072 it was dropped too, so `fn bad(x ∈ 0..100) (0..5) { x + 10 }`
+printed 11. Now it is decided where the export's is, against the body with each parameter at its set
+and the `where` assumed, which is P ⟹ Q itself. It is decided whether the definition is called or not:
+a check made at the sites that inline it decides only the instances the program forms, and an uncalled
+definition's claim would be decided by nothing.
 
 The asymmetry is not arbitrary. `P` is the caller's duty and `Q` is the callee's, so whichever side
 of the boundary we can see is the side that gets checked, and the other is assumed. For a `prim` we
 can see the caller and never the body. For an exported definition we can see the body and never the
 caller.
 
-## 3. Why an internal definition's postcondition is redundant
+## 3. Why an internal definition's postcondition is redundant as an assumption
 
 **Theorem.** Let `f` be a non-exported definition with body `B`. Reduction replaces every call
 `f(a⃗)` with `B[x⃗ := a⃗]`. Then a declared `Q` on `f`:
@@ -71,7 +77,16 @@ call site is concrete, everything is provable* — the site is the stronger posi
 refinements.md §6b drew the same conclusion for preconditions, and ADR 0028 kept half of it: the
 propagated obligations are still what protect safety, and they are still checked. The declared
 precondition is checked **as well**, because it is a duty and not a summary. A postcondition is a
-summary of the body, so this section's argument stands for it.
+summary of the body, so this section's argument stands for it **as an assumption**: no site needs `Q`
+given to it. It does not show that `Q` need not hold. A false summary is a false claim, and ADR 0072
+decides it against the body (§2).
+
+**What is decided where.** Within the word and the unsigned word, the result's set and the
+postcondition's constant bounds are decided on the IR's intervals, a tuple's set factor by factor
+(R₁ × … × Rₙ holds a tuple iff each component is in its factor). Above every word a result's set is
+representation (ADR 0029) and only a stated postcondition is decided. A definition over a function
+quantifies its contract over the function, which has no set (ADR 0053): it is refused with that
+reason, since the per-instance decision it needs is not built.
 
 ## 4. Two soundness lemmas, and both are load-bearing
 

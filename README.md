@@ -468,7 +468,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-10-22.* The current assessment,
+*Updated with the plan; last updated 2026-10-23.* The current assessment,
 [docs/assessment-2026-10-21.md](docs/assessment-2026-10-21.md), says what went well, what went badly,
 and why the plan is what it is.
 
@@ -477,7 +477,14 @@ and why the plan is what it is.
   [work-2026-10-22](gauntlet/results/work-2026-10-22.md)): the reducer counts how often a value is
   *evaluated*, not how often it is written, so a value bound before a loop is computed there. `freq` no
   longer runs a loop inside the loop that used its result; the gauntlet is unchanged within noise.
-- **A declared result range is an obligation**, proven or refused, as a parameter's range already is.
+- ~~**A declared result range is an obligation**~~ **Done 2026-10-23**
+  ([ADR 0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md),
+  [resultclaim-2026-10-23](gauntlet/results/resultclaim-2026-10-23.md)): a definition's declared result
+  is checked against its body whether or not anything calls it, so `fn bad(x ∈ 0..100) (0..5) { x + 10 }`
+  is refused. Every result the corpus declares turned out to be true.
+- **Two checks to close when their area is next touched**: a set's name in a header must name a set
+  (today a misspelled one is accepted and prints Go that does not build), and the IR's verifier checks
+  that each branch justifies the facts it hands its arms.
 - **Go's standard library, package by package, program first**: next, more of `os`, `io` and
    `unicode`, each brought in by a program that needs it.
 - **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a

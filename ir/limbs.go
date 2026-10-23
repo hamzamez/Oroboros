@@ -3,6 +3,7 @@ package ir
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"oroboros/core"
@@ -378,6 +379,13 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 // only by a program that calls it there.
 func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.Term) error {
 	return func(name string, sig *core.Sig, nf *core.Term) error {
+		// THE RESULT'S CLAIM, decided at the definition (ADR 0072): the
+		// header is f ∈ Π(x ∈ P). R, so the obligation is ∀x ∈ P. ⟦B⟧(x) ∈ R,
+		// the export's postcondition (postconditions.md §2), whether or not
+		// the definition is exported or called.
+		if err := checkResultClaim(tg, name, sig, nf); err != nil {
+			return err
+		}
 		plan, err := emit.PlanBig(tg, sig, nf, all...)
 		if err != nil || (!plan.Host && !plan.Limbs) {
 			return err
@@ -391,4 +399,173 @@ func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.
 		_, err = SelectBig(tg, f, sig, 0, false)
 		return err
 	}
+}
+
+// checkResultClaim decides a definition's postcondition, its result's set
+// included (the reader makes `(R)` the conjunct `lo <= result && result <= hi`
+// of sig.Ensures), against the definition's own body: lowered with each
+// parameter at its declared set and the `where` assumed at entry, as an export
+// is (assumeWhere), so what is decided is P ⟹ Q. Above the word a result's set
+// is representation, enforced on every representation (ADR 0029), and only a
+// stated postcondition is decided, as CheckEnsures does for an export.
+//
+// A contract mark inside the body is its value here (Lower): the obligations of
+// the calls it makes are decided where it is inlined, with its arguments.
+func checkResultClaim(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) error {
+	if sig == nil {
+		return nil
+	}
+	ensures := sig.Ensures != nil && (tg.ValueType(sig.Result) != core.BigType || sig.Stated() != nil)
+	// A TUPLE'S SET IS A PRODUCT, R₁ × … × Rₙ, and a tuple is in it iff each
+	// component is in its factor: the reader keeps a tuple's factors as
+	// sig.Results and makes no postcondition of them, so each is decided here.
+	type factor struct {
+		j      int
+		ty     string
+		lo, hi *big.Int
+	}
+	var factors []factor
+	if len(sig.Results) > 1 {
+		for j, ty := range sig.Results {
+			if tg.ValueType(ty) == core.BigType {
+				continue
+			}
+			if lo, hi, ok := core.IntRangeBig(ty); ok {
+				factors = append(factors, factor{j, ty, lo, hi})
+			}
+		}
+	}
+	// A RESULT IN THE UNSIGNED WORD is a claim too. The reader makes a
+	// postcondition only of int64 ends, since it reads before any target is
+	// known; on a target that holds the set in a word (U on Go), the IR's
+	// interval domain is exact there, and the set is decided like any other.
+	// Above every word it is ADR 0029's representation, enforced there.
+	if len(sig.Results) <= 1 && sig.ResultRange == nil && tg.ValueType(sig.Result) != core.BigType {
+		if lo, hi, ok := core.IntRangeBig(sig.Result); ok {
+			factors = append(factors, factor{0, sig.Result, lo, hi})
+		}
+	}
+	if !ensures && len(factors) == 0 {
+		return nil
+	}
+	// A DEFINITION OVER A FUNCTION quantifies its contract over that function,
+	// and a function has no set yet (the arrow, ADR 0053, is not built): the
+	// claim is decidable only per instance, where staging knows the function,
+	// which is not built either. Refused with that reason, not with the [-inf,
+	// +inf] an opaque application of the parameter would give.
+	if p, ok := appliedParam(nf); ok {
+		return fmt.Errorf("its declared result is a claim for every function its parameter %s may be, "+
+			"and a function has no set to decide it over (ADR 0053, not built); a result claim on a "+
+			"definition over a function is decided per instance, which is not built either (ADR 0072). "+
+			"Drop the claim, or state it on a first-order definition", core.ShowName(p))
+	}
+	nf = emit.EraseAscriptionsButClaims(tg.Word, nf)
+	fsig := sig
+	if nfl, s, k, err := emit.FlattenProducts(tg, sig, nf); err != nil {
+		return err
+	} else if k > 0 {
+		nf, fsig = nfl, s
+	}
+	f, err := Lower(tg, name, fsig, nf, Options{Decided: true})
+	if err != nil {
+		return fmt.Errorf("its declared result is a claim, decided on its body alone (ADR 0072), "+
+			"and the body cannot be lowered on its own: %v", err)
+	}
+	Decide(tg, f, false)
+	hint := "\n  A definition's declared result is a claim about every argument its parameters' sets " +
+		"admit (ADR 0072): narrow a parameter's set, state a `where`, or widen the result's set if " +
+		"the definition is right outside it"
+	// AN UNCLAIMED PARAMETER APPLIED TO ONE VALUE is a table read or a
+	// function's application, one term by design (tables.md §3.1); its set is
+	// what would tell them apart, and it has none. So a refusal names both.
+	if p, ok := unclaimedApplied(sig, nf); ok {
+		hint += fmt.Sprintf("; or, if %s is a function, the claim is about every function it may be, "+
+			"which no set expresses yet (ADR 0053): decided per instance, which is not built", core.ShowName(p))
+	}
+	if ensures {
+		if err := CheckEnsures(tg, f, fsig); err != nil {
+			return fmt.Errorf("%v%s", err, hint)
+		}
+	}
+	for _, c := range factors {
+		if r, ok := resultWithin(tg, f, c.j, c.lo, c.hi); !ok {
+			what := fmt.Sprintf("component %d of its result", c.j+1)
+			if len(sig.Results) <= 1 {
+				what = "its result"
+			}
+			return fmt.Errorf("the body does not establish that %s is in %s; it is %s%s",
+				what, core.ShowSet(c.ty), termShow(r), hint)
+		}
+	}
+	return nil
+}
+
+// appliedParam reports a parameter of the definition t that its body applies:
+// one standing in an operator's place, which a first-order parameter never
+// does, since a table read applies a table and a table is data (tables.md
+// §3.1). A read of a table parameter is told apart by its arity and by its
+// argument being no λ: a static function is applied to one at least once
+// where it is handed a continuation, and else to anything; so only a
+// parameter applied to a λ, or to several arguments, is taken for a function.
+func appliedParam(t *core.Term) (string, bool) {
+	if t == nil || t.Kind != core.KFn {
+		return "", false
+	}
+	var found string
+	var walk func(k *core.Term, d int)
+	walk = func(k *core.Term, d int) {
+		if found != "" || k == nil {
+			return
+		}
+		if k.Kind == core.KFn {
+			walk(k.Kids[0], d+1)
+			return
+		}
+		if k.Kind == core.KApp && len(k.Kids) > 0 {
+			op := k.Kids[0]
+			if op.Kind == core.KBound && op.Depth == d && op.Index < len(t.Params) {
+				args := k.Kids[1:]
+				if len(args) != 1 || args[0].Kind == core.KFn {
+					found = t.Params[op.Index]
+					return
+				}
+			}
+		}
+		for _, c := range k.Kids {
+			walk(c, d)
+		}
+	}
+	walk(t.Kids[0], 0)
+	return found, found != ""
+}
+
+// unclaimedApplied reports a parameter with no declared set that t's body
+// applies: a table read, or a function's application.
+func unclaimedApplied(sig *core.Sig, t *core.Term) (string, bool) {
+	if t == nil || t.Kind != core.KFn {
+		return "", false
+	}
+	var found string
+	var walk func(k *core.Term, d int)
+	walk = func(k *core.Term, d int) {
+		if found != "" || k == nil {
+			return
+		}
+		if k.Kind == core.KFn {
+			walk(k.Kids[0], d+1)
+			return
+		}
+		if k.Kind == core.KApp && len(k.Kids) > 0 {
+			if op := k.Kids[0]; op.Kind == core.KBound && op.Depth == d && op.Index < len(t.Params) &&
+				(op.Index >= len(sig.Params) || sig.Params[op.Index].Type == "" || sig.Params[op.Index].Type == "any") {
+				found = t.Params[op.Index]
+				return
+			}
+		}
+		for _, c := range k.Kids {
+			walk(c, d)
+		}
+	}
+	walk(t.Kids[0], 0)
+	return found, found != ""
 }

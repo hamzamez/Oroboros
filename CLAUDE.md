@@ -396,9 +396,12 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    body and a table's rule ω; let-floating exposes a value; a residual let takes β's rule; the IR reads a
    measured length as the length. 26 emitted files changed (`freq` lost a loop nested in the loop that
    used it), the gauntlet unchanged within noise.
-2. **A declared result range is an obligation**, with the mechanism binder claims now have: marked,
-   proven or refused, then read by the IR. `fn bad(x ∈ 0..100) (0..5) { x + 10 }` must be refused. The
-   first piece of ADR 0062's logic.
+2. ~~**A declared result range is an obligation**~~ **Done** ([ADR 0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md),
+   [resultclaim-2026-10-23](gauntlet/results/resultclaim-2026-10-23.md)): the contract
+   ∀x ∈ P. φ ⟹ ⟦B⟧(x) ∈ R is decided at the definition, exported or not, called or not, not by marks at
+   the sites (which decide only the instances a program forms); a tuple's set factor by factor, the
+   unsigned word included; a definition over a function refused with its reason. `bad` is refused; 22
+   corpus claims decided, all true, emission byte-identical.
 3. **The Go library, program first**: more of `os` and `io`, and `unicode`, by a program over files and
    text (a `cmp`, a `wc -m`), written by hand in J, what the reader catches counted.
 4. **The clause chain's copying** (a six-arm loop, 2,423 lines of Go), researched when a program names it.
@@ -412,6 +415,22 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    the host calls (tier 2, not built), its structs (OPENFILENAME, CHOOSEFONT, PRINTDLG) are records (not
    built), and it is 32-bit where the windows target is x86-64. Its standard is size and behaviour, not
    speed.
+7. **A name in a claim position denotes a set, or is refused** (added 2026-10-23; found in
+   setdef-2026-10-15, "Not fixed"). A program's header may name a type nothing declares,
+   `fn f(x ∈ Array(Nonesuch)) (Int)`, and it is accepted as opaque: Go is printed with
+   `[]/*Nonesuch?*/`, which does not build. The rule (ADR 0049, spec/typevalues.md): a set word is a
+   language set, a target's type (companions, qualified host types through an alias), a variant's set,
+   or a static parameter. Spec first, a witness failing first, a planted fault, emission byte-identical.
+   **Close it next**, beside item 2, which made a header's result a claim, or the first time a program
+   misspells a set.
+8. **A π is justified by its branch, and the verifier checks it** (added 2026-10-23; found in
+   work-2026-10-22 §5). W6 checks a π's types, not its relation. A π on the wrong table, planted in
+   lowering's new length guard, passed the verifier and was caught only by an exact-text witness. The
+   rule is Theorem E as a W-rule: on a branch over (cmp a b), each π relates a or b to the other (or,
+   for a length π, a table whose length is the compared operand), negated on the else arm, and a
+   connective's π's follow `implied`. Planted faults: the wrong table, a flipped relation, a foreign
+   operand, a missing negation. **Close it when the IR's lowering or analysis next grows** (item 5),
+   before a new π is trusted.
 
 Rules kept: a refusal test states its reason and is checked for it; an `-accept` that changes a count
 updates every document that quotes it; every experiment gets a time limit.
@@ -693,6 +712,7 @@ rejected alternatives.
 | An observer at a host parameter: a pure declaration with scalar results reads a live buffer for the call, derived not declared; §7c counts it; a segment is F composed with a restriction; a binder's claim is an obligation and `the` is not J — built | [0069](docs/decisions/0069-an-observer-at-a-host-parameter.md) |
 | A host declaration's header is the caller's view of a borrow: the threaded result derived; a primed result `p'` names storage the host hands back, its absence a write-borrow in place, `(inplace j i)`; the template the host's own call, the wrapper gone; the hand check exact — amends 0052 item 4, built | [0070](docs/decisions/0070-a-header-is-the-callers-view-of-a-borrow.md) |
 | Work stays where it was written: β counts evaluations in {0, 1, ω}, a λ by its shot (ω for a loop's body, a table's rule, a λ handed on), and substitutes a pure value evaluated at most once, else only a value; let-floating exposes a value; a residual let takes the same rule; a measured length is the length on the IR — built | [0071](docs/decisions/0071-work-stays-where-it-was-written.md) |
+| A declared result is a claim decided at its definition: ∀x ∈ P. φ ⟹ ⟦B⟧(x) ∈ R ∧ ψ, exported or not, called or not; a product's set factor by factor; the words only, above them ADR 0029; a definition over a function refused with its reason; amends postconditions.md §2 — built | [0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md) |
 
 ## How this project is run
 
@@ -928,6 +948,12 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   - on a definition, at every call it is inlined into, exported ones included when the call is inside
     the program; the obligations inlining propagates are still checked too;
   - on an export called from outside, assumed.
+
+  **A declared result is a claim at its definition** ([ADR 0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md),
+  postconditions.md §2): the result's set and the `ensure` are decided against the body, each parameter
+  at its set and the `where` assumed, on every definition, exported or not; a tuple's set factor by
+  factor; in the words only, above them ADR 0029's representation (`ir.CheckClaim`, run by
+  `emit.CheckSignatures` in `gen` and `build`).
 
   A parameter's range is the same claim as a `where` (the reader desugars one into the other), checked
   on the argument. **Above the word it denotes the least set a sign and a bit length decide** —

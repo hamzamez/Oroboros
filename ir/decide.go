@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"math/big"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -292,14 +293,24 @@ func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
 			"(constant bounds on the result, and their conjunctions); an obligation is "+
 			"discharged or the program is refused (refinements.md §3a)", core.ShowTerm(ens))
 	}
+	if r, ok := resultWithin(tg, f, 0, lo, hi); !ok {
+		return fmt.Errorf("the body does not establish %s; its result is %s", core.ShowTerm(ens), termShow(r))
+	}
+	return nil
+}
+
+// resultWithin reports whether the join of the j-th value every exit of f
+// yields lies in [lo, hi] (a nil end is open), with that join: the decision of
+// a result's set, R ⊆ S, from the decision's facts (Decide runs first).
+func resultWithin(tg *emit.Target, f *Func, j int, lo, hi *big.Int) (iv, bool) {
 	fs := f.facts
 	if len(fs) != f.NV() {
 		fs = analyse(tg, f)
 	}
 	r := ivBot
 	for _, y := range exitsOf(f.Body, TYield) {
-		if len(y) > 0 {
-			r = joinIV(r, fs[y[0]].v)
+		if len(y) > j {
+			r = joinIV(r, fs[y[j]].v)
 		}
 	}
 	// S's ends, exactly. A bound K past E on its own side is met by every
@@ -324,10 +335,7 @@ func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
 			empty = true
 		}
 	}
-	if !r.bot && (empty || meetIV(r, s) != r) {
-		return fmt.Errorf("the body does not establish %s; its result is %s", core.ShowTerm(ens), termShow(r))
-	}
-	return nil
+	return r, r.bot || (!empty && meetIV(r, s) == r)
 }
 
 // SizeRefusal refuses an allocation whose size is not proven in

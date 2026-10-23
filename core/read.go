@@ -501,9 +501,10 @@ func toForm(t *Term) (Form, error) {
 		// it. A claim that is quietly ignored is worse than one that is refused,
 		// and the machinery that refuses it already existed.
 		//
-		// It rides on postconditions.md's trichotomy unchanged: assumed on a
-		// prim, CHECKED against the body on an exported definition, and gone on
-		// an internal one, where reduction removes the boundary.
+		// It rides on postconditions.md's table: assumed on a prim, and CHECKED
+		// against the body on every definition, exported or not (ADR 0072,
+		// ir.CheckClaim), since a header is a claim whether or not reduction
+		// removes the boundary.
 		//
 		// This must run BEFORE the `result`-name check below, or a signature
 		// with a ranged result and a parameter called `result` would mean two

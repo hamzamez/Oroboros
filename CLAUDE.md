@@ -415,14 +415,11 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    the host calls (tier 2, not built), its structs (OPENFILENAME, CHOOSEFONT, PRINTDLG) are records (not
    built), and it is 32-bit where the windows target is x86-64. Its standard is size and behaviour, not
    speed.
-7. **A name in a claim position denotes a set, or is refused** (added 2026-10-23; found in
-   setdef-2026-10-15, "Not fixed"). A program's header may name a type nothing declares,
-   `fn f(x ∈ Array(Nonesuch)) (Int)`, and it is accepted as opaque: Go is printed with
-   `[]/*Nonesuch?*/`, which does not build. The rule (ADR 0049, spec/typevalues.md): a set word is a
-   language set, a target's type (companions, qualified host types through an alias), a variant's set,
-   or a static parameter. Spec first, a witness failing first, a planted fault, emission byte-identical.
-   **Close it next**, beside item 2, which made a header's result a claim, or the first time a program
-   misspells a set.
+7. ~~**A name in a claim position denotes a set, or is refused**~~ **Done** ([ADR 0073](docs/decisions/0073-a-sets-name-denotes-a-set.md),
+   [setname-2026-10-23](gauntlet/results/setname-2026-10-23.md)): ⊢ S set is a scope check of a header's
+   atoms against Γ_T (the language's sets, the target's types), decided on every header in
+   `CheckSignatures`; an alias resolves as a term's does (`strings.Replacer` ↦ `go/strings.Replacer`, which
+   an export printed as `/*strings.Replacer?*/`); emission byte-identical.
 8. **A π is justified by its branch, and the verifier checks it** (added 2026-10-23; found in
    work-2026-10-22 §5). W6 checks a π's types, not its relation. A π on the wrong table, planted in
    lowering's new length guard, passed the verifier and was caught only by an exact-text witness. The
@@ -713,6 +710,7 @@ rejected alternatives.
 | A host declaration's header is the caller's view of a borrow: the threaded result derived; a primed result `p'` names storage the host hands back, its absence a write-borrow in place, `(inplace j i)`; the template the host's own call, the wrapper gone; the hand check exact — amends 0052 item 4, built | [0070](docs/decisions/0070-a-header-is-the-callers-view-of-a-borrow.md) |
 | Work stays where it was written: β counts evaluations in {0, 1, ω}, a λ by its shot (ω for a loop's body, a table's rule, a λ handed on), and substitutes a pure value evaluated at most once, else only a value; let-floating exposes a value; a residual let takes the same rule; a measured length is the length on the IR — built | [0071](docs/decisions/0071-work-stays-where-it-was-written.md) |
 | A declared result is a claim decided at its definition: ∀x ∈ P. φ ⟹ ⟦B⟧(x) ∈ R ∧ ψ, exported or not, called or not; a product's set factor by factor; the words only, above them ADR 0029; a definition over a function refused with its reason; amends postconditions.md §2 — built | [0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md) |
+| A set's name denotes a set: ⊢ S set is a scope check of a header's atoms against Γ_T, the language's sets and the target's types, on every header; an alias resolves as a term's does; no variant reaches a header — built | [0073](docs/decisions/0073-a-sets-name-denotes-a-set.md) |
 
 ## How this project is run
 

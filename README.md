@@ -482,9 +482,12 @@ and why the plan is what it is.
   [resultclaim-2026-10-23](gauntlet/results/resultclaim-2026-10-23.md)): a definition's declared result
   is checked against its body whether or not anything calls it, so `fn bad(x ∈ 0..100) (0..5) { x + 10 }`
   is refused. Every result the corpus declares turned out to be true.
-- **Two checks to close when their area is next touched**: a set's name in a header must name a set
-  (today a misspelled one is accepted and prints Go that does not build), and the IR's verifier checks
-  that each branch justifies the facts it hands its arms.
+- ~~**A set's name in a header must name a set**~~ **Done 2026-10-23**
+  ([ADR 0073](docs/decisions/0073-a-sets-name-denotes-a-set.md),
+  [setname-2026-10-23](gauntlet/results/setname-2026-10-23.md)): a misspelled or undeclared set is
+  refused where the header names it, instead of printing Go that does not build.
+- **To close when the IR's analysis next grows**: the IR's verifier checks that each branch justifies
+  the facts it hands its arms.
 - **Go's standard library, package by package, program first**: next, more of `os`, `io` and
    `unicode`, each brought in by a program that needs it.
 - **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a

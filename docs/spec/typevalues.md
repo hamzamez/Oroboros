@@ -56,6 +56,39 @@ denote before step 2. Accepted, `Byte` was an opaque type that every use refused
 required here", and a table of it printed an unknown host type, `[]/*Byte?*/` (du-2026-10-14). A set a
 program states is written where it is used, `(int 0 255)`.
 
+### 1a. A set's name denotes a set (ADR 0073)
+
+A header's set is a term of the set algebra, and ⟦·⟧ is defined on it by structural recursion: a
+homomorphism from the free algebra of set expressions into sets. It is total exactly when every atom is
+bound in the environment of named sets, which on a target T is
+
+```
+Γ_T = the language's sets ∪ dom(T's types)
+```
+
+- **The language's sets**: the open elements `?` and `?int` (types.md §3.1), the ranges `lo..hi`
+  (`-inf` and `+inf` ends included), and the formers, each well formed when its arguments are:
+  `Array(S)`, `buffer(S)`, `cell(S)`, `Map(K, V)`, and products `S × T`, with `()` the empty one.
+- **T's types**: the names its files declare (`tg.Types`), the language's base sets among them (`Int`,
+  `Bool`, `F64`, `String`, `Any`), and the host's, qualified through their module (`bytestring`,
+  `go/strings.Replacer`).
+- **No variant**: none reaches a header by the time it is checked. A variant crossing a boundary is
+  its tag and its slots (ADR 0042), made so at load, and a variant parameter is refused at load
+  (sums.md §6). A variant that reached a header would be refused here.
+- **An alias resolves as a term's does**: a host set written through its import, `strings.Replacer`,
+  is the imported module's, `go/strings.Replacer` (ρ_m, core.Load). Unresolved, it was printed as
+  Go's `/*strings.Replacer?*/` at an export.
+
+So **⊢ S set is a scope check**, the twin of a term's "is not bound": a name nothing binds has no
+denotation, and a claim about it says nothing. It is decided on every header, as the header's claims
+are (ADR 0072), in `emit.CheckSignatures`, and a body whose own names do not resolve is refused for
+those first. Before ADR 0073 an unbound name was an opaque type: `fn f(x ∈ Array(Nonesuch))` printed
+Go's `[]/*Nonesuch?*/`, which does not build, and `fn g(x ∈ Nonesuch) (Int) { x + 1 }` was refused at
+the `+` as though `Nonesuch` were a set, "x is Nonesuch, but Int is required here".
+
+A program's own definition named as a set is refused earlier, at load, by its own name (above): it
+is bound, but not to a set, before step 2.
+
 **Law S (staging).** A set has no run-time representation, so ⟦P⟧ does not depend on how a set
 argument is written or bound, and erasing every set from a residual changes nothing it computes.
 Consequently **a residual that holds a set is refused**: it would have no meaning to print.

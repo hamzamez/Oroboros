@@ -881,6 +881,23 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		}
 	}
 
+	// A HOST SET WRITTEN THROUGH ITS IMPORT is the set of the module the alias
+	// names, `strings.Replacer` ↦ `go/strings.Replacer`: ρ_m for a set atom, as
+	// for a term (spec/typevalues.md §1a, ADR 0073). After the step above,
+	// which resolved a variant crossing a boundary into its tag and slots.
+	for _, m := range mods {
+		for _, sig := range m.Sigs {
+			res := func(ty string) string { return m.resolveSetAliases(ty) }
+			sig.Result = res(sig.Result)
+			for i := range sig.Results {
+				sig.Results[i] = res(sig.Results[i])
+			}
+			for i := range sig.Params {
+				sig.Params[i].Type = res(sig.Params[i].Type)
+			}
+		}
+	}
+
 	p := NewProgram()
 	sort.Strings(unresolved)
 	p.Unresolved = unresolved
@@ -3959,4 +3976,36 @@ func (e *Env) staged(t *Term) error {
 		return nil
 	}
 	return walk(t)
+}
+
+// resolveSetAliases rewrites each atom `alias.X` of the canonical set ty whose
+// alias the module imports to that module's path, `strings.Replacer` ↦
+// `go/strings.Replacer`: ρ_m for a set. Every other atom is kept.
+func (m *Module) resolveSetAliases(ty string) string {
+	if !strings.Contains(ty, ".") {
+		return ty
+	}
+	var b strings.Builder
+	word := func(w string) string {
+		i := strings.Index(w, ".")
+		if i <= 0 {
+			return w
+		}
+		path, ok := m.Uses[w[:i]]
+		if !ok || path == w[:i] {
+			return w
+		}
+		return path + w[i:]
+	}
+	start := 0
+	for i := 0; i <= len(ty); i++ {
+		if i == len(ty) || ty[i] == ' ' || ty[i] == '(' || ty[i] == ')' || ty[i] == ',' {
+			b.WriteString(word(ty[start:i]))
+			if i < len(ty) {
+				b.WriteByte(ty[i])
+			}
+			start = i + 1
+		}
+	}
+	return b.String()
 }

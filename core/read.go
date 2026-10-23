@@ -76,10 +76,9 @@ type Sig struct {
 	// rest on the call.
 	Written *Term
 	// Ensures is a POSTCONDITION: a boolean term over the parameter names and
-	// `result`. On an exported definition it is an obligation checked against
-	// the body; on an internal one it is redundant, because reduction inlines
-	// the call and the analysis sees the body at the site with the caller's own
-	// values (postconditions.md §3).
+	// `result`. On every definition it is an obligation checked against the
+	// body (ADR 0072); reduction inlining the call makes it redundant only as an
+	// assumption (postconditions.md §3).
 	Ensures *Term
 	// ResultRange is the conjunct of Ensures that the RESULT'S RANGE
 	// contributed, kept apart because whether it is a contract depends on the

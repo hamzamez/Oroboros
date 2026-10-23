@@ -747,6 +747,13 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env,
 				continue // reduction already reports this better
 			}
 			nf = EtaTails(tgt, nf) // η for products (tables.md §2.5)
+			// EVERY SET THE HEADER NAMES DENOTES ONE (ADR 0073), decided before
+			// the claim is compared with the body: a claim about a name that is
+			// no set says nothing. After the body normalizes, so a body's own
+			// unbound name is refused first, as it always was.
+			if err := tgt.headerSets(n, sig); err != nil {
+				return err
+			}
 			// THE CLAIM'S TYPING is checked on the residual as written: the
 			// integer sort is ℤ (ADR 0033), so a range, the unsigned word and
 			// the rung above it agree. Whether a value is HELD in the word the
@@ -762,6 +769,9 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env,
 				}
 			}
 			continue
+		}
+		if err := tgt.headerSets(n, sig); err != nil {
+			return err
 		}
 		if len(p.Args) != len(sig.Params) {
 			return fmt.Errorf("%s: target %s provides it with %d argument(s), "+

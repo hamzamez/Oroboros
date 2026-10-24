@@ -140,11 +140,13 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
 
 ## Where it stands
 
-As of 2026-10-21. The current assessment is [assessment-2026-10-21.md](docs/assessment-2026-10-21.md);
-read it before planning. It scores the 10-20 plan, the Go library program first in J, which is finished
-(two programs, `ls` and `shape`; C met as a cost and answered by ADR 0069's observer; the margin 6.6 : 1),
-and sets the next: **two defects every program has, then the library** (the 10-21 plan, below). The
-previous round, the surface (assessment-2026-10-20), in brief: installment 6, declarations and modules, is written ([surface-design.md](docs/surface-design.md) §6),
+As of 2026-10-24. The current assessment is [assessment-2026-10-24.md](docs/assessment-2026-10-24.md);
+read it before planning. It scores the 10-21 plan, two defects every program had and then the library,
+which is finished (ADR 0070–0076; one program, `wc`; the margin 20.6 : 1, five of six phases compiler work
+with no program), and sets the next: **the documents tell the truth, two surface questions decided, then
+the Windows track begins with its own question** (the 10-24 plan, below). The round before, the 10-20
+plan, is scored in assessment-2026-10-21 (`ls` and `shape`, ADR 0069's observer, 6.6 : 1). The surface
+round (assessment-2026-10-20), in brief: installment 6, declarations and modules, is written ([surface-design.md](docs/surface-design.md) §6),
 its gauntlet program `examples/os/du.oro` ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)), and
 decided ([ADR 0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md)).
 J writes sets in TLA+'s symbols ([ADR 0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md)).
@@ -397,7 +399,40 @@ libalone); `ls` with `time` ([ls-2026-10-20](gauntlet/results/ls-2026-10-20.md))
 [observer-2026-10-21](gauntlet/results/observer-2026-10-21.md)): `shape` reads its own buffer at parity,
 and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and two in the Go survey.
 
-**The 10-21 plan** (assessment-2026-10-21 §5):
+**The 10-24 plan** (assessment-2026-10-24 §5):
+1. **The documents tell the truth** (hamza's): spec/j.md's status (built, with what is not); state.md in
+   J, the core's terms shown as such; inventory.md in J's words, `def` and `sig` listed as the core's
+   forms D makes from a `fn` header; `cmd/check` regenerating the gauntlet's 26 files from `regen.sh`'s
+   list and comparing them.
+2. **Two surface questions, each an ADR**, the corpus moved and emission byte-identical:
+   - **the unbounded range**: `` `+inf` `` is no integer and reads as a host's name; the set is a ray
+     ↑lo. Proposed: an omitted end, `lo..` and `..hi`, and `Nat` for `0..` (TLA+'s name);
+   - **visibility**: private by default with `pub`, revisiting ADR 0064 items 4–5 with its "Why not" in
+     view; `export` stays the entry point, a different relation.
+3. **CLAUDE.md rewritten as state**, after 1 and 2, at about a third of its length, history by link.
+4. **The Windows track, in steps** (hamza's):
+   - 4a. **MASM or LLVM IR**, researched and decided by an ADR: LLVM reaches ARM, Linux and macOS from
+     one backend; against it, duplicated work and checks the type system made unnecessary. Weights:
+     ADR 0001/0008 (LLVM as an ecosystem parasitized, like the JVM), what our IR already decides
+     (chordal registers, proven ranges; `nsw`/`nuw`/poison as the way a proof drops a check), the
+     2,794-byte size standard, the toolchain, and a measurement of the sieve and one gauntlet program
+     on each path;
+   - 4b. **TinyRetroPad's Win32 surface, measured** (downloaded 2026-10-24 at `42f4c6c`, as data, never
+     built or run): 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over
+     kernel32, user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time;
+   - 4c. **its walls, spec first, an ADR each**: the window procedure (callbacks tier 2), its structs
+     (records), 32-bit against x86-64 (decided by 4a).
+5. **A π is justified by its branch, and the verifier checks it** (the 10-21 plan's item 8, below), before
+   item 6 grows lowering.
+6. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go.
+   Research it as a join point that may jump, build it, measure `wc` nested.
+7. **The Go library, program first**: `cmp`, two files compared chunk by chunk, two buffers by segment.
+8. **The analysis grows only for a refusal a program names**, each rule's planted fault with it.
+
+Deliberately not next (assessment-2026-10-24 §5): ARM, Linux and macOS targets themselves; loop-arm
+patterns and `try`'s handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`.
+
+**The 10-21 plan is finished** (scored in assessment-2026-10-24 §1):
 1. ~~**Work stays where it was written**~~ **Done** ([ADR 0071](docs/decisions/0071-work-stays-where-it-was-written.md),
    [work-2026-10-22](gauntlet/results/work-2026-10-22.md)): β counts evaluations in {0, 1, ω}, a loop's
    body and a table's rule ω; let-floating exposes a value; a residual let takes β's rule; the IR reads a
@@ -421,9 +456,10 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    Go, the 16% being the shape the language forces (one loop over a cursor: an `again` after a nested
    loop's join point is not built, tables.md §2.5).
 4. **The clause chain's copying** (a six-arm loop, 2,423 lines of Go), researched when a program names it.
+   Carried: no program named it.
 5. **The analysis grows only for a refusal a program names**, each rule's planted fault written with the
    rule.
-6. **The Windows application: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)**
+6. **Carried into the 10-24 plan's item 4. The Windows application: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)**
    (hamza, 2026-10-21: "as handwritten by a good programmer as it gets"), a Notepad-style editor in
    about 2.5 KB of 32-bit MASM over RICHEDIT, the common dialogs and a window procedure, packed by
    Crinkler. First a measurement of what it calls from Win32 against what is declared, callable and
@@ -443,10 +479,11 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    for a length π, a table whose length is the compared operand), negated on the else arm, and a
    connective's π's follow `implied`. Planted faults: the wrong table, a flipped relation, a foreign
    operand, a missing negation. **Close it when the IR's lowering or analysis next grows** (item 5),
-   before a new π is trusted.
+   before a new π is trusted. Carried as the 10-24 plan's item 5.
 
-Rules kept: a refusal test states its reason and is checked for it; an `-accept` that changes a count
-updates every document that quotes it; every experiment gets a time limit.
+Rules kept: a refusal test states its reason and is checked for it, and its premise is computed; an
+`-accept` that changes a count updates every document that quotes it; every experiment gets a time limit;
+a check refuses something false before it is trusted to pass something true.
 
 **The 10-03 plan** (scored in assessment-2026-10-14 §1; its Go library order still stands):
 1. **A round of questions** — hamza's, answered as the type, integer and table questions were: what the
@@ -618,10 +655,11 @@ assessment's table from git (assessment-2026-10-03 §3.1's definitions: code lin
 `examples/` and `lib/`, `;` and `//` comments excluded; raw lines of `.go` in `core/`, `emit/`, `ir/`,
 tests included). `--nodes` adds the language's size in core-term nodes by each revision's own reader, a
 cross-check across a change of notation (gauntlet/balance_nodes.go):
-- The 10-21 round: +928 lines of compiler against +140 written in the language (`ls`, `shape`),
-  **6.6 : 1**, against 78 : 1 the round before (the surface's), the best since the IR; +1,017 nodes.
-- The compiler is 71,377 lines: `core` 19,187, `emit` 32,369, `ir` 19,821. `emit : core` is 1.69 and
-  (`emit` + `ir`) : `core` 2.72. The refinement layer, extended, is 6,039 lines, the IR's analysis 3,342.
+- The 10-24 round: +1,590 lines of compiler against +77 written in the language (`wc`), **20.6 : 1**,
+  against 6.6 : 1 the round before: five of its six phases were whole-corpus fixes with no program;
+  `wc`'s own phase was 3.4 : 1. +597 nodes.
+- The compiler is 72,967 lines, 23,871 of them tests. `emit : core` is 1.67 and (`emit` + `ir`) : `core`
+  2.69. The refinement layer, extended, is 6,065 lines, the IR's analysis 3,350.
 - The largest program, `freq`, has been the largest for five assessments: 194 lines of J, 163 of
   today's notation.
 
@@ -629,7 +667,7 @@ The part that decides what is legal is the hardest to check. Write programs, and
 analysis.
 
 Previous assessments:
-[10-20](docs/assessment-2026-10-20.md), [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md), [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
+[10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md), [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md), [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
 [09-09](docs/assessment-2026-09-09.md), [09-06](docs/assessment-2026-09-06.md),
 [08-20](docs/assessment-2026-08-20.md), [08-19](docs/assessment-2026-08-19.md),
 [08-13](docs/assessment-2026-08-13.md).

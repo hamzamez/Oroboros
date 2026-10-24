@@ -469,34 +469,29 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 ## Current work
 
 *Updated with the plan; last updated 2026-10-24.* The current assessment,
-[docs/assessment-2026-10-21.md](docs/assessment-2026-10-21.md), says what went well, what went badly,
-and why the plan is what it is.
+[docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
+defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
+says why the next is what it is.
 
-- ~~**Work stays where it was written.**~~ **Done 2026-10-22**
-  ([ADR 0071](docs/decisions/0071-work-stays-where-it-was-written.md),
-  [work-2026-10-22](gauntlet/results/work-2026-10-22.md)): the reducer counts how often a value is
-  *evaluated*, not how often it is written, so a value bound before a loop is computed there. `freq` no
-  longer runs a loop inside the loop that used its result; the gauntlet is unchanged within noise.
-- ~~**A declared result range is an obligation**~~ **Done 2026-10-23**
-  ([ADR 0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md),
-  [resultclaim-2026-10-23](gauntlet/results/resultclaim-2026-10-23.md)): a definition's declared result
-  is checked against its body whether or not anything calls it, so `fn bad(x ∈ 0..100) (0..5) { x + 10 }`
-  is refused. Every result the corpus declares turned out to be true.
-- ~~**A set's name in a header must name a set**~~ **Done 2026-10-23**
-  ([ADR 0073](docs/decisions/0073-a-sets-name-denotes-a-set.md),
-  [setname-2026-10-23](gauntlet/results/setname-2026-10-23.md)): a misspelled or undeclared set is
-  refused where the header names it, instead of printing Go that does not build.
-- **To close when the IR's analysis next grows**: the IR's verifier checks that each branch justifies
-  the facts it hands its arms.
-- **Go's standard library, package by package, program first**: **done for this round 2026-10-24**
-  ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)): `examples/os/wc.oro`, a word count over files,
-  brought in `unicode` and reads by segment. Writing it raised one question, may a `case` arm continue a
-  loop, decided yes and built
-  ([ADR 0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md)).
-- **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a
-   Notepad-style editor in about 2.5 KB of hand-written x86 assembly. It is the standard the Windows
-   target will be held to. The first step is measuring what it needs from Win32 against what is
-   declared, callable and linkable today.
+1. **The documents tell the truth.** The specs that still describe an older state are brought up to
+   date: the grammar's status, the language's summary written in today's syntax, and the inventory of
+   words. The files the benchmarks call are regenerated and compared on every check, so they cannot go
+   stale again.
+2. **Two questions of the surface, each decided by an ADR**: how to write a range with no upper end (in
+   place of `` `+inf` ``), and whether a declaration is private unless marked `pub`.
+3. **This project's guide for Claude, CLAUDE.md, rewritten** to state where things stand, at about a
+   third of its length, with the history reached by link.
+4. **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a
+   Notepad-style editor in about 2.5 KB of hand-written x86 assembly, the standard the Windows target
+   will be held to. In steps:
+   - first, whether Windows keeps targeting MASM or targets LLVM IR, which would also reach ARM, Linux
+     and macOS: researched, measured and decided;
+   - then what it needs from Win32 against what is declared, callable and linkable today;
+   - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.
+5. **The IR's verifier checks that each branch justifies the facts it hands its arms.**
+6. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
+   as Go is, and which costs it 16% today.
+7. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.
 
 ## Try it
 

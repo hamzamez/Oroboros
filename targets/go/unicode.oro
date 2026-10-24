@@ -1,0 +1,30 @@
+// unicode, DECLARED BY HAND, in part: what a word count classifies (examples/os/wc.oro).
+// Every claim was read off src/unicode/graphic.go and src/unicode/tables.go in the
+// Go 1.27 toolchain.
+//
+// THE ALGEBRA, BEFORE THE NAMES.
+// - A rune is an int32; the scalar values are Σ = [0, 0xD7FF] ∪ [0xE000, 0x10FFFF]
+//   (unicode/utf8.oro). The package's tables are SETS of runes: each category
+//   (L, Lu, Nd, Z, …), script and property is a finite union of ranges, a
+//   RangeTable, and each predicate IsX(r) is the CHARACTERISTIC FUNCTION χ_X of
+//   its set, total on int32 and false off Σ.
+// - The sets form a Boolean algebra under ∪ ∩ ∖, and the predicates the algebra
+//   of their characteristic functions: χ_{X∪Y} = χ_X ∨ χ_Y, and so on. IsOneOf is
+//   χ of a finite union; In is χ of a union of tables.
+// - IsSpace is χ_S for S = Unicode's White_Space property, 25 code points: U+0009 to
+//   U+000D, U+0020, U+0085, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029,
+//   U+202F, U+205F and U+3000. In Latin-1 the host tests the eight directly; above
+//   it, the table White_Space. S is not the category Z (which holds no control
+//   character), and not Pattern_White_Space.
+//
+// WHAT IS NOT DECLARED, each work and none a wall, left until a program needs it:
+// the other predicates (IsLetter, IsDigit, IsNumber, IsPunct, IsPrint, IsGraphic,
+// IsControl, IsMark, IsSymbol, IsLower, IsUpper, IsTitle); the case mappings
+// ToLower, ToUpper, ToTitle, To and SimpleFold (Σ → Σ maps, integers, declarable);
+// Is, In and IsOneOf, which take a RangeTable, a host type no program builds; and
+// the tables themselves, package VARIABLES the survey does not generate.
+module go/unicode {
+    fn IsSpace(r ∈ int32) (Bool) pure {
+        host expr "unicode.IsSpace(int32(${r}))" import "unicode"
+    }
+}

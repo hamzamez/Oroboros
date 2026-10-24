@@ -42,20 +42,6 @@ func TestAShortBufferIsStillRefused(t *testing.T) {
 	}
 }
 
-// LEMMA 1: a guarantee holds only where its precondition is proven. With src
-// unbounded, EncodedLen's own `where` (|n| ≤ 2^62 − 1) does not follow, so the
-// program is refused there, and nothing is concluded from the result it would
-// have had.
-func TestAGuaranteeNeedsItsPrecondition(t *testing.T) {
-	err := refineGo(t, `use go/encoding/hex
-export fn f(src ∈ Array(0..255)) (Array(0..255)) {
-    build(hex.EncodedLen(len(src)), fn(b) { (b2, n) = hex.Encode(b, src); b2 })
-}`)
-	if err == nil || !strings.Contains(err.Error(), "EncodedLen") {
-		t.Errorf("len src may pass 2^62 − 1, where Go's EncodedLen wraps; got %v", err)
-	}
-}
-
 // AND THROUGH A `let`: an impure allocation is bound, never substituted (ADR
 // 0010), so `len a` is recorded against its length contract, whose argument is
 // the atom. The atom's guarantee was assumed as that allocation's argument

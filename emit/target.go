@@ -122,6 +122,10 @@ type Prim struct {
 	// Where is a refinement: a boolean term over the primitive's parameter
 	// names, discharged at every call site (docs/spec/refinements.md).
 	Where *core.Term
+	// Bounds are the ranges a `where` states for single parameters by constants,
+	// lo ≤ x ≤ hi, taken out of Where and decided as a ranged parameter's are
+	// (wherebounds.go, ADR 0062's bounds in binder sets); "" for the others.
+	Bounds []string
 	// Names are the parameter names, which a Where refers to. Empty unless the
 	// declaration used the named form.
 	Names []string
@@ -528,6 +532,7 @@ func (tg *Target) finish(wrap func(error) error) error {
 	if err := tg.checkWord(); err != nil {
 		return wrap(err)
 	}
+	tg.whereBounds()
 	if err := tg.hostPrims(); err != nil {
 		return wrap(err)
 	}
@@ -3060,6 +3065,9 @@ func (tg *Target) hostRequires(e *core.Env) {
 		for i, a := range p.Args {
 			if _, _, ok := core.IntRangeBig(a); ok {
 				tys[i], ranged = a, true
+			}
+			if i < len(p.Bounds) && p.Bounds[i] != "" {
+				tys[i], ranged = p.Bounds[i], true // a `where`'s constant bounds, the binder's set
 			}
 		}
 		if !ranged {

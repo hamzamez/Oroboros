@@ -1393,6 +1393,9 @@ var handDeclared = []handEntry{
 	// PROGRAM FIRST (examples/os/ls.oro): a listing's time, the first package of
 	// K with a file. Time's methods against the survey.
 	{"go", "targets/go", "time.oro", []string{"go/time/Time"}, timeMistakes, true, nil, nil, nil},
+	// PROGRAM FIRST (examples/os/wc.oro): a word count's predicate, χ of
+	// Unicode's White_Space, the second package of K with a file.
+	{"go", "targets/go", "unicode.oro", []string{"go/unicode"}, unicodeMistakes, true, nil, nil, nil},
 	// PROGRAM FIRST (observer-2026-10-21): what examples/lines/shape.oro's
 	// segments are built on. The segments themselves are checked against these by
 	// TestASegmentIsItsFunctionRestricted.
@@ -1453,11 +1456,21 @@ var bytesMistakes = map[string]func(m map[string]emit.Prim){
 }
 
 // A SEGMENT IS ITS FUNCTION RESTRICTED (targets/go/bytes.oro, ADR 0069 item 3):
-// segment.F(b, lo, hi, x̄) = F(b[lo:hi], x̄). Go has no such names, so each is
-// checked against F, which the hand check holds to the manifest: its parameters
-// F's with lo, hi ∈ Int after the table; its result and purity F's; its template
-// F's with [lo:hi] after the table's hole; its precondition the restriction's
-// domain, 0 ≤ lo ≤ hi ≤ len b; its law F's with len b replaced by hi − lo.
+// segment.F(…, b, lo, hi, x̄) = F(…, b[lo:hi], x̄), or, for a writer into a suffix,
+// segment.F(…, b, lo, x̄) = F(…, b[lo:], x̄) (targets/go/os.oro, File.segment.Read).
+// Go has no such names, so each is checked against F, which the hand check holds
+// to the manifest:
+//   - its parameters F's, with lo (and hi) ∈ Int after F's table;
+//   - its result and purity F's;
+//   - its template F's with the restriction after the table's hole;
+//   - its precondition holds the restriction's domain, 0 ≤ lo ≤ hi ≤ len b or
+//     0 ≤ lo ≤ len b, among its conjuncts: a further conjunct only narrows it;
+//   - its law holds F's law restricted among its conjuncts: the host sees
+//     q = b[lo:hi] or b[lo:], so len b is hi − lo or len b − lo, and for a writer
+//     the buffer it hands back, b', likewise; (len b' − lo = len b − lo) cancels
+//     to len b' = len b. A further conjunct is a claim about F on the narrower
+//     domain, read off the host's source as every claim is (ADR 0022): DecodeRune's
+//     1 ≤ size on a non-empty segment.
 func TestASegmentIsItsFunctionRestricted(t *testing.T) {
 	tg, err := emit.LoadTarget("../../targets/go")
 	if err != nil {
@@ -1465,11 +1478,12 @@ func TestASegmentIsItsFunctionRestricted(t *testing.T) {
 	}
 	n := 0
 	for _, name := range tg.Names {
-		if !strings.HasPrefix(name, "go/bytes/segment.") {
+		base, ok := segmentBase(name)
+		if !ok {
 			continue
 		}
 		n++
-		f, ok := tg.Prims["go/bytes."+strings.TrimPrefix(name, "go/bytes/segment.")]
+		f, ok := tg.Prims[base]
 		if !ok {
 			t.Errorf("%s restricts no declared function", name)
 			continue
@@ -1478,64 +1492,234 @@ func TestASegmentIsItsFunctionRestricted(t *testing.T) {
 			t.Errorf("%s: %v", name, errs)
 		}
 	}
-	if n == 0 {
-		t.Fatal("no segment declared") // anti-vacuity
+	if n < 4 {
+		t.Fatalf("%d segments declared, want bytes' two, utf8's and File's", n) // anti-vacuity
 	}
-	// Each clause catches a planted mistake.
-	f, seg := tg.Prims["go/bytes.Count"], tg.Prims["go/bytes/segment.Count"]
-	for what, mutate := range map[string]func(p *emit.Prim){
-		"the slice dropped from the template": func(p *emit.Prim) { p.Form = f.Form },
-		"the law's length not restricted":     func(p *emit.Prim) { p.Ensures = f.Ensures },
-		"the domain one-sided":                func(p *emit.Prim) { p.Where = core.App(core.Name("<="), core.Int(0), core.Name("lo")) },
-		"hi not an integer":                   func(p *emit.Prim) { p.Args = append([]string(nil), p.Args...); p.Args[2] = "array int 0 255" },
-		"impure":                              func(p *emit.Prim) { p.Pure = false },
+	// Each clause catches a planted mistake, on each kind of restriction.
+	type planted struct {
+		base, seg string
+		mutate    func(f emit.Prim, p *emit.Prim)
+	}
+	for what, c := range map[string]planted{
+		"the slice dropped from the template": {"go/bytes.Count", "go/bytes/segment.Count",
+			func(f emit.Prim, p *emit.Prim) { p.Form = f.Form }},
+		"the law's length not restricted": {"go/bytes.Count", "go/bytes/segment.Count",
+			func(f emit.Prim, p *emit.Prim) { p.Ensures = f.Ensures }},
+		"the domain one-sided": {"go/bytes.Count", "go/bytes/segment.Count",
+			func(f emit.Prim, p *emit.Prim) { p.Where = core.App(core.Name("<="), core.Int(0), core.Name("lo")) }},
+		"hi not an integer": {"go/bytes.Count", "go/bytes/segment.Count",
+			func(f emit.Prim, p *emit.Prim) {
+				p.Args = append([]string(nil), p.Args...)
+				p.Args[2] = "array int 0 255"
+			}},
+		"impure": {"go/bytes.Count", "go/bytes/segment.Count",
+			func(f emit.Prim, p *emit.Prim) { p.Pure = false }},
+		"a decode's size not restricted": {"go/unicode/utf8.DecodeRune", "go/unicode/utf8/segment.DecodeRune",
+			func(f emit.Prim, p *emit.Prim) { p.Ensures = f.Ensures }},
+		"a decode over the whole table": {"go/unicode/utf8.DecodeRune", "go/unicode/utf8/segment.DecodeRune",
+			func(f emit.Prim, p *emit.Prim) { p.Form = f.Form }},
+		"a read into the suffix written as a two-sided slice": {"#raw:go/os/File:Read", "#raw:go/os/File/segment:Read",
+			func(f emit.Prim, p *emit.Prim) { p.Form = "%s.Read(%s[%s:%s])" }},
+		"a read's count bounded by the whole buffer": {"#raw:go/os/File:Read", "#raw:go/os/File/segment:Read",
+			func(f emit.Prim, p *emit.Prim) { p.Ensures = f.Ensures }},
+		"a read's suffix past the buffer": {"#raw:go/os/File:Read", "#raw:go/os/File/segment:Read",
+			func(f emit.Prim, p *emit.Prim) { p.Where = core.App(core.Name("<="), core.Int(0), core.Name("lo")) }},
 	} {
-		m := seg
-		mutate(&m)
-		if len(segmentLaw(f, m)) == 0 {
+		f, seg := tg.Prims[c.base], tg.Prims[c.seg]
+		if len(segmentLaw(f, seg)) > 0 {
+			t.Fatalf("%s: the declaration fails before the mistake is planted", what)
+		}
+		c.mutate(f, &seg)
+		if len(segmentLaw(f, seg)) == 0 {
 			t.Errorf("%s was not caught", what)
 		}
 	}
 }
 
+// segmentBase is the function a segment restricts, by the path segment
+// `segment` taken out of its name: go/bytes/segment.Count is go/bytes.Count, and
+// a fallible one's raw call #raw:go/os/File/segment:Read is #raw:go/os/File:Read.
+// The host primitive derived from a raw call (#host:…) is checked through it.
+func segmentBase(name string) (string, bool) {
+	if strings.HasPrefix(name, "#host:") {
+		return "", false
+	}
+	for _, sep := range []string{".", ":"} {
+		if i := strings.Index(name, "/segment"+sep); i >= 0 {
+			return name[:i] + sep + name[i+len("/segment"+sep):], true
+		}
+	}
+	return "", false
+}
+
 // segmentLaw is the list of ways seg is not f composed with a restriction.
 func segmentLaw(f, seg emit.Prim) []string {
 	var errs []string
-	if len(f.Args) == 0 || !strings.HasPrefix(f.Args[0], "array ") || len(f.Names) == 0 {
-		return []string{"its function's first parameter is not a table"}
+	ti := -1
+	for i, a := range f.Args {
+		if strings.HasPrefix(a, "array ") || strings.HasPrefix(a, "buffer ") {
+			ti = i
+			break
+		}
 	}
-	want := append([]string{f.Args[0], "int", "int"}, f.Args[1:]...)
+	k := len(seg.Args) - len(f.Args) // 2 for [lo:hi], 1 for [lo:]
+	if ti < 0 || len(f.Names) != len(f.Args) || (k != 1 && k != 2) {
+		return []string{"its function has no table parameter, or it adds neither lo, hi nor lo"}
+	}
+	want := append(append(append([]string(nil), f.Args[:ti+1]...), []string{"int", "int"}[:k]...), f.Args[ti+1:]...)
 	if fmt.Sprint(seg.Args) != fmt.Sprint(want) || len(seg.Names) != len(want) {
-		errs = append(errs, fmt.Sprintf("parameters %q, want %q", seg.Args, want))
-		return errs
+		return []string{fmt.Sprintf("parameters %q, want %q", seg.Args, want)}
 	}
 	if seg.Result != f.Result || fmt.Sprint(seg.Results) != fmt.Sprint(f.Results) || seg.Pure != f.Pure {
 		errs = append(errs, "its result or purity is not its function's")
 	}
-	if seg.Form != strings.Replace(f.Form, "%s", "%s[%s:%s]", 1) {
+	slice := []string{"%s[%s:]", "%s[%s:%s]"}[k-1]
+	if seg.Form != replaceNth(f.Form, "%s", slice, ti) {
 		errs = append(errs, fmt.Sprintf("template %q is not %q restricted", seg.Form, f.Form))
 	}
-	b, lo, hi := seg.Names[0], seg.Names[1], seg.Names[2]
+	b, lo := seg.Names[ti], core.Name(seg.Names[ti+1])
+	length := func(x *core.Term) *core.Term { return core.App(core.Name("len"), x) }
+	minus := func(x, y *core.Term) *core.Term { return core.App(core.Name("-"), x, y) }
 	le := func(x, y *core.Term) *core.Term { return core.App(core.Name("<="), x, y) }
-	and := func(x, y *core.Term) *core.Term { return core.App(core.Name("if"), x, y, core.Bool(false)) }
-	dom := and(le(core.Int(0), core.Name(lo)), and(le(core.Name(lo), core.Name(hi)),
-		le(core.Name(hi), core.App(core.Name("len"), core.Name(b)))))
-	if seg.Where == nil || seg.Where.String() != dom.String() {
-		errs = append(errs, fmt.Sprintf("precondition %v, want the restriction's domain %v", seg.Where, dom))
+	var dom []*core.Term
+	var restricted func(*core.Term) *core.Term // what len b is, to the host
+	if k == 2 {
+		hi := core.Name(seg.Names[ti+2])
+		dom = []*core.Term{le(core.Int(0), lo), le(lo, hi), le(hi, length(core.Name(b)))}
+		restricted = func(*core.Term) *core.Term { return minus(hi, lo) }
+	} else {
+		dom = []*core.Term{le(core.Int(0), lo), le(lo, length(core.Name(b)))}
+		restricted = func(x *core.Term) *core.Term { return minus(length(x), lo) }
+	}
+	have := conjuncts(seg.Where)
+	for _, d := range dom {
+		if !have[d.String()] {
+			errs = append(errs, fmt.Sprintf("precondition %v lacks the restriction's domain %v", seg.Where, d))
+		}
 	}
 	if f.Ensures != nil {
 		ren := map[string]*core.Term{}
 		for i, n := range f.Names {
-			if i > 0 && i+2 < len(seg.Names) {
-				ren[n] = core.Name(seg.Names[i+2])
+			j := i
+			if i > ti {
+				j = i + k
+			}
+			ren[n] = core.Name(seg.Names[j])
+		}
+		// The host's view: b's length, and for a writer the length of the buffer it
+		// hands back in b's place, are the restriction's.
+		handed := map[string]bool{}
+		for _, ip := range seg.InPlace {
+			if ip.Arg == ti {
+				handed[fmt.Sprintf("result#%d", ip.Result)] = true
 			}
 		}
-		law := strings.ReplaceAll(core.Rename2(f.Ensures, ren).String(), "(len "+f.Names[0]+")", "(- "+hi+" "+lo+")")
-		if seg.Ensures == nil || seg.Ensures.String() != law {
-			errs = append(errs, fmt.Sprintf("law %v, want %s", seg.Ensures, law))
+		law := mapTerm(core.Rename2(f.Ensures, ren), func(x *core.Term) *core.Term {
+			if x.Kind == core.KApp && len(x.Kids) == 2 && x.Kids[0].Kind == core.KName && x.Kids[0].Name == "len" &&
+				x.Kids[1].Kind == core.KName && (x.Kids[1].Name == b || handed[x.Kids[1].Name]) {
+				return restricted(x.Kids[1])
+			}
+			return nil
+		})
+		law = mapTerm(law, cancelOnBothSides)
+		have := conjuncts(seg.Ensures)
+		for c := range conjuncts(law) {
+			if !have[c] {
+				errs = append(errs, fmt.Sprintf("law %v lacks %s, its function's restricted", seg.Ensures, c))
+			}
 		}
 	}
 	return errs
+}
+
+// conjuncts flattens a conjunction, (if a b false), into its conjuncts' texts.
+func conjuncts(t *core.Term) map[string]bool {
+	out := map[string]bool{}
+	var walk func(*core.Term)
+	walk = func(t *core.Term) {
+		if t == nil {
+			return
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "if" &&
+			t.Kids[3].Kind == core.KBool && !t.Kids[3].IsTrue() {
+			walk(t.Kids[1])
+			walk(t.Kids[2])
+			return
+		}
+		out[t.String()] = true
+	}
+	walk(t)
+	return out
+}
+
+// mapTerm rebuilds t bottom-up where f answers, and keeps it elsewhere.
+func mapTerm(t *core.Term, f func(*core.Term) *core.Term) *core.Term {
+	if t == nil {
+		return nil
+	}
+	if r := f(t); r != nil {
+		return r
+	}
+	if t.Kind != core.KApp {
+		return t
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = mapTerm(k, f)
+	}
+	return &core.Term{Kind: core.KApp, Kids: kids}
+}
+
+// cancelOnBothSides is (ℤ, +)'s cancellation law, x − c = y − c ⟺ x = y.
+func cancelOnBothSides(t *core.Term) *core.Term {
+	if t.Kind != core.KApp || len(t.Kids) != 3 || t.Kids[0].Kind != core.KName || t.Kids[0].Name != "=" {
+		return nil
+	}
+	x, y := t.Kids[1], t.Kids[2]
+	sub := func(z *core.Term) bool {
+		return z.Kind == core.KApp && len(z.Kids) == 3 && z.Kids[0].Kind == core.KName && z.Kids[0].Name == "-"
+	}
+	if sub(x) && sub(y) && x.Kids[2].String() == y.Kids[2].String() {
+		return core.App(core.Name("="), x.Kids[1], y.Kids[1])
+	}
+	return nil
+}
+
+// replaceNth replaces the n-th (from 0) occurrence of old in s.
+func replaceNth(s, old, repl string, n int) string {
+	at := 0
+	for i := 0; i <= n; i++ {
+		j := strings.Index(s[at:], old)
+		if j < 0 {
+			return s
+		}
+		if i == n {
+			return s[:at+j] + repl + s[at+j+len(old):]
+		}
+		at += j + len(old)
+	}
+	return s
+}
+
+// unicodeMistakes: a predicate returning an integer, a predicate over a byte,
+// and the template of another predicate.
+var unicodeMistakes = map[string]func(m map[string]emit.Prim){
+	"IsSpace returning an integer": func(m map[string]emit.Prim) {
+		p := m["IsSpace"]
+		p.Result = "int"
+		m["IsSpace"] = p
+	},
+	"IsSpace over a byte, not a rune": func(m map[string]emit.Prim) {
+		p := m["IsSpace"]
+		p.Args = []string{"int 0 255"}
+		p.Form = "unicode.IsSpace(rune(%s))"
+		m["IsSpace"] = p
+	},
+	"a template calling another predicate": func(m map[string]emit.Prim) {
+		p := m["IsSpace"]
+		p.Form = strings.ReplaceAll(p.Form, "unicode.IsSpace(", "unicode.IsPunct(")
+		m["IsSpace"] = p
+	},
 }
 
 var timeMistakes = map[string]func(m map[string]emit.Prim){

@@ -162,9 +162,12 @@ fn t(n, m) { loop k = m { k >= n -> 0; else -> { u = tgt.at(k); again(k + 1) } }
 // conditional that is used more than once, and the refinement layer learned
 // nothing about a let-bound conditional — a limitation CLAUDE.md recorded with
 // the product. The join over the branches (refine.go, joinConditional) gives
-// the name every inequality all its leaves satisfy on their paths.
+// the name every inequality all its leaves satisfy on their paths. The bound is
+// written k + 1 <= 10, a relation: a constant bound on one parameter would be its
+// range obligation (wherebounds.go), decided first on the IR's intervals, and
+// this tests the refinement layer's join.
 func TestAClampUsedTwiceKeepsItsBounds(t *testing.T) {
-	tg := tempTarget(t, `fn at(k ∈ Int) (Int) where 0 <= k && k < 10 { host expr "at(${k})" }`)
+	tg := tempTarget(t, `fn at(k ∈ Int) (Int) where 0 <= k && k + 1 <= 10 { host expr "at(${k})" }`)
 	const clamp = `use tgt
 fn t(i) {
     c = if i < 0 { 0 } else if i >= 10 { 0 } else { i }
@@ -192,7 +195,7 @@ fn t(i) {
 // inner name, which means nothing outside.
 func TestAClampOfAnOpaqueValueKeepsItsBounds(t *testing.T) {
 	tg := tempTarget(t, `fn rd(k ∈ Int) (Int) { host expr "rd(${k})" }
-fn at(k ∈ Int) (Int) where 0 <= k && k < 10 { host expr "at(${k})" }`)
+fn at(k ∈ Int) (Int) where 0 <= k && k + 1 <= 10 { host expr "at(${k})" }`)
 	const clamp = `use tgt
 fn cl(i) { if i < 0 { 0 } else if i >= 10 { 0 } else { i } }
 fn t(j) {

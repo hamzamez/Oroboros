@@ -1709,3 +1709,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `lib/os.oro go`
 - compiler output changed — `lib/os.oro java`
 - compiler output changed — `lib/os.oro js`
+
+## 2026-10-24 — on 90e1475, with uncommitted changes
+
+**Reason:** wc-2026-10-24: examples/os/wc.oro, a word count over files (Go): unicode.IsSpace, utf8 and File.Read segments (ADR 0074); a where's constant bounds decided as the parameter's range; a length keyed by what it denotes; +36 operations, +2 loops
+
+572 runs: 304 emitted, 268 refused; 2100 of 2145 integer operations bounded, 353 of 376 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/os/wc.oro go`
+- new source — `examples/os/wc.oro java`
+- new source — `examples/os/wc.oro js`
+- new source — `examples/os/wc.oro windows`

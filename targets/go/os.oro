@@ -145,8 +145,11 @@ module go/os {
     // reports the code unchanged; Go's documentation asks for [0, 125] for
     // portability, since shells give 126 and above their own meanings. Written
     // as a `where`, not a narrowed type: the type states the host's domain, and
-    // this is a claim beyond it. It does not return; a statement's value is its
-    // argument.
+    // this is a claim beyond it. A `where`'s constant bounds on one parameter are
+    // its range obligation all the same (emit/wherebounds.go, ADR 0062's bounds
+    // in binder sets), decided on the IR's intervals, which bound an exit status
+    // a loop computes (examples/os/wc.oro). It does not return; a statement's
+    // value is its argument.
     fn Args() (Array(bytestring)) { host expr "os.Args" import "os" }
     fn Exit(code ∈ Int) (Int)
         where code >= 0 && code <= 255 {
@@ -186,6 +189,23 @@ module go/os {
         fn Close(self ∈ File) (result.result((), error)) { host expr "${self}.Close()" import "os" }
         // The name Open was given: fixed for the handle, so pure.
         fn Name(self ∈ File) (bytestring) pure { host expr "${self}.Name()" import "os" }
+
+        // A SEGMENT OF A WRITE-BORROW IS READ RESTRICTED: segment.Read(f, p, lo) =
+        // Read(f, p[lo:]), the host writing into p's suffix, the slice Go writes,
+        // which copies nothing. The host sees q = p[lo:], so Read's law holds of q
+        // and q', |q| = len p − lo, and with its cancellation (len p' − lo =
+        // len p − lo is len p' = len p) it is n ≤ len p' − lo and len p' = len p.
+        // Its domain is the restriction's, 0 ≤ lo ≤ len p. That p[0, lo) is kept
+        // is Read's own: io.Reader writes only into the slice it is handed. It is
+        // how a program keeps a tail across reads: move it to the front, read after
+        // it (examples/os/wc.oro).
+        module segment {
+            use result
+            fn Read(self ∈ File, p ∈ Array(0..255) linear, lo ∈ Int) (n ∈ 0..2^63-1, r ∈ result.result((), error))
+                    where 0 <= lo && lo <= len(p) ensure n <= len(p') - lo && len(p') == len(p) {
+                host expr "${self}.Read(${p}[${lo}:])" import "os"
+            }
+        }
     }
 
     // A *File is each of io's interfaces it implements (Go's method sets; the

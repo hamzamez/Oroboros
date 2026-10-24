@@ -244,7 +244,11 @@ func printF(f *Func) string {
 // the word, and the refusal says why (unbounded-rung.md §3).
 func TestABigValueIsRefusedWhereAWordIsDeclared(t *testing.T) {
 	dir := t.TempDir()
-	src := `export fn run(x ∈ 0..2^100) (String) { string_of(x + 1) }
+	// A host's word parameter with no bound of its own: string_of's domain is
+	// [0, 0x10FFFF], a range obligation, which refuses a big value before the
+	// rung does (wherebounds.go).
+	src := `use go/strconv
+export fn run(x ∈ 0..2^100) (String) { strconv.Itoa(x + 1) }
 `
 	path := filepath.Join(dir, "w.oro")
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
@@ -257,7 +261,7 @@ func TestABigValueIsRefusedWhereAWordIsDeclared(t *testing.T) {
 	u := units[0]
 	if _, err := SelectBig(tg, u.f, u.sig, u.plan.Bits, u.plan.Signed); err == nil ||
 		!strings.Contains(err.Error(), "WIDER than the word") {
-		t.Errorf("a big value into string-of's int: %v", err)
+		t.Errorf("a big value into Itoa's int: %v", err)
 	}
 }
 

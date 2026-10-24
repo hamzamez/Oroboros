@@ -329,6 +329,15 @@ The count was read as written until localtab-2026-10-14, which had two consequen
 |---|---|---|
 | a count is closed over V's binders | read as written (`plantLenEscapeFault`): the sibling `#n`s are one length, and src[k] under k < len dst is accepted | `TestALengthNamesNoBinderOfItsValue` |
 
+**A length is keyed by what it denotes** (2026-10-24, `lengthSubject`). The fragment's atom for a
+length, len(t), was keyed by t's spelling, so two spellings of one quantity were two unknowns. Two laws
+make the key canonical: `set` keeps length, len(set c i x) = len c, and a function commutes with a
+conditional, len(if φ a b) = if φ len(a) len(b), which is len(a) when the two agree; a claim or a mark
+is the identity on its value. So a guarded store before a read, `if t > 0 { b[0] := b[k] }`, whose
+version `(if (> t 0) (set b 0 …) b)` is the read's buffer argument, has len(b) for the length the
+read's law names (examples/os/wc.oro, wc-2026-10-24). A map's `insert` grows its map and is not one,
+and arms of different lengths stay apart (`TestALengthIsKeyedByWhatItDenotes`).
+
 ### 5c. Translation invariants (2026-10-13)
 
 A merge advances i or j and always k, and its reads need i + j − k = mid, an equality no template of

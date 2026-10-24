@@ -54,7 +54,10 @@ func refineGo(t *testing.T, src string) error {
 	// THIS HELPER TESTS THE REFINEMENT LAYER ALONE, which requires its residual's
 	// contract marks decided (Undecided). Their decision is the pipeline's
 	// (ir.DecideMarks, which this package cannot import) and is tested through
-	// it; here they are erased, on purpose and in sight.
+	// it; here they are erased, on purpose and in sight. A host `where`'s
+	// constant bounds on one parameter are such a mark (wherebounds.go), so a
+	// test of a program's acceptance at such a bound runs the pipeline
+	// (hexbound_ir_test.go).
 	nf = core.StripRequires(nf)
 	_, err = Refine(tg, "test", sig, nf)
 	return err

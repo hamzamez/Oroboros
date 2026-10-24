@@ -139,7 +139,10 @@ func TestStringOfsDomainIsScalar(t *testing.T) {
 		if c.ok && err != nil {
 			t.Errorf("%s: %v", c.src, err)
 		}
-		if !c.ok && (err == nil || !strings.Contains(err.Error(), "string_of requires")) {
+		// Refused by the domain's bounds, a range obligation since a `where`'s
+		// constant bounds are the parameter's (wherebounds.go), or by its
+		// disjunction, the `where` that stays.
+		if !c.ok && (err == nil || !strings.Contains(err.Error(), "string_of") || !strings.Contains(err.Error(), "requires")) {
 			t.Errorf("%s: want Scalar's precondition refused, got %v", c.src, err)
 		}
 	}

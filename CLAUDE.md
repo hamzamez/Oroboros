@@ -205,11 +205,12 @@ failed from the J switch to work-2026-10-22 (its port to JS rewrote `(use go)`),
 was stale for that week.
 
 **Provability.**
-- **2,064 of 2,109** integer operations are proven inside their target's word. The 45 left are mostly
+- **2,100 of 2,145** integer operations are proven inside their target's word. The 45 left are mostly
   meant to be refused. `du` added 19 (du-2026-10-14), the program-order cells (4efca1c, ADR 0052)
   made `count` and `ages` 19 shorter, all proven, `ls` added 13 (ls-2026-10-20) and `shape` 13 (shape-2026-10-21, observer-2026-10-21).
   `smooth`'s `len(a) − 2`, computed once since ADR 0071, made it one shorter (work-2026-10-22).
-- **353 of 374** loops are proven to terminate (the IR's count since irstep4d; the term analysis had
+  `wc` added 36, all proven (wc-2026-10-24).
+- **353 of 376** loops are proven to terminate (the IR's count since irstep4d; the term analysis had
   343). render's factorial counter became a word on the host's bignum (irstep4h, +3 of each) and on
   limbs (irstep4i, where the counter's own limb operations disappeared: −16 operations, −6 loops).
   `examples/native/filter-go.oro` added 1 of each (portable-2026-09-29); the two deleted `sieve-go`
@@ -219,7 +220,8 @@ was stale for that week.
   `examples/lines/ages.oro`, cells the host writes, 16 and 1 (outcells-2026-10-09); `examples/os/du.oro`,
   a directory walk, 19 and 1 of its 2 (du-2026-10-14); `examples/os/ls.oro`, a recursive listing, 13
   and 1 of its 2 (ls-2026-10-20); `examples/lines/shape.oro`, a delimited table's shape, 13 and 0
-  of its 1 (observer-2026-10-21).
+  of its 1 (observer-2026-10-21); `examples/os/wc.oro`, a word count over files, 36 and 0 of its 2
+  (wc-2026-10-24): a loop that reads a file ends when the file does.
 - Counted once each since matchguard-2026-09-24. Before, the narrowing of a guard re-evaluated its
   operands with counting on, so the totals were 2,434 and 387: the same 47 and 38 unproven, over
   inflated denominators.
@@ -254,6 +256,11 @@ was stale for that week.
   checked against the line split written from its definition. Its **`Reader`** followed
   ([shape-2026-10-21](gauntlet/results/shape-2026-10-21.md)): `NewReader` and `ReadString`, the
   factorization of the input over the prefix code C_d, which `examples/lines/shape.oro` folds.
+  **`unicode`**, the second of K's packages, joined program first
+  ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)): `IsSpace`, what `examples/os/wc.oro`, a word
+  count over files read in chunks, classifies by, with `utf8`'s `segment.DecodeRune` (look-ahead 4, so
+  chunked decoding is the whole input's) and `File.segment.Read` into a suffix; its output is checked
+  against a count over the whole input at every straddle of the read.
 - **The portable `os` and `io`** (`lib/`): `os` is a library module, `lib/os.oro`, one definition over
   each host's cell `os/host`, its failures classified once into kinds, `not-found | exists |
   permission | other` ([oskinds-2026-10-06](gauntlet/results/oskinds-2026-10-06.md));
@@ -402,8 +409,16 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    the sites (which decide only the instances a program forms); a tuple's set factor by factor, the
    unsigned word included; a definition over a function refused with its reason. `bad` is refused; 22
    corpus claims decided, all true, emission byte-identical.
-3. **The Go library, program first**: more of `os` and `io`, and `unicode`, by a program over files and
-   text (a `cmp`, a `wc -m`), written by hand in J, what the reader catches counted.
+3. ~~**The Go library, program first**~~ **Done** ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)):
+   `examples/os/wc.oro`, lines, words, characters and bytes over files read in chunks; `unicode`
+   (`IsSpace`, χ of White_Space) the second package of K with a file; segments wherever a function's
+   table is, a writer's suffix included ([ADR 0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md));
+   a host `where`'s constant bounds decided as the parameter's range
+   ([ADR 0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md)); a length keyed by
+   what it denotes. Seven things writing it caught; one is a **question for hamza: may a `case` arm
+   continue a loop?** (wc-2026-10-24 §6). Speed: 1.01× hand-written Go of the same shape, 1.18× idiomatic
+   Go, the 16% being the shape the language forces (one loop over a cursor: an `again` after a nested
+   loop's join point is not built, tables.md §2.5).
 4. **The clause chain's copying** (a six-arm loop, 2,423 lines of Go), researched when a program names it.
 5. **The analysis grows only for a refusal a program names**, each rule's planted fault written with the
    rule.
@@ -587,9 +602,9 @@ updates every document that quotes it; every experiment gets a time limit.
    gets a witness that it is *sound* and a planted fault that fails, planted before the witness is
    trusted.
 
-Deliberately not next: optimising the compile (flat this round, measured by pairs); a host `where` on
-the IR's intervals, a join across representations and a boolean-carried guard (each ready, none asked
-for); reporting an unsatisfiable contract, until item 1 decides; hoisting or CSE on the IR, which would
+Deliberately not next: optimising the compile (flat this round, measured by pairs); a join across
+representations and a boolean-carried guard (each ready, none asked for; a host `where`'s constant
+bounds on the IR's intervals was asked for by `wc` and is built, ADR 0075); reporting an unsatisfiable contract, until item 1 decides; hoisting or CSE on the IR, which would
 make reachable two premises witnessed only on hand-built IR; host callbacks, until item 1; a limb
 instance emitted once as a function; geometric accumulation; per-result enforcement above the word and
 signed limbs (ADR 0029); the higher-order contract gap (ADR 0028); a phase-wise trip count; the
@@ -711,6 +726,8 @@ rejected alternatives.
 | Work stays where it was written: β counts evaluations in {0, 1, ω}, a λ by its shot (ω for a loop's body, a table's rule, a λ handed on), and substitutes a pure value evaluated at most once, else only a value; let-floating exposes a value; a residual let takes the same rule; a measured length is the length on the IR — built | [0071](docs/decisions/0071-work-stays-where-it-was-written.md) |
 | A declared result is a claim decided at its definition: ∀x ∈ P. φ ⟹ ⟦B⟧(x) ∈ R ∧ ψ, exported or not, called or not; a product's set factor by factor; the words only, above them ADR 0029; a definition over a function refused with its reason; amends postconditions.md §2 — built | [0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md) |
 | A set's name denotes a set: ⊢ S set is a scope check of a header's atoms against Γ_T, the language's sets and the target's types, on every header; an alias resolves as a term's does; no variant reaches a header — built | [0073](docs/decisions/0073-a-sets-name-denotes-a-set.md) |
+| A segment is its function restricted wherever its table is, b[lo:hi] or a writer's b[lo:]; its domain may narrow, and a law beyond the restricted one is a claim on the narrower domain; one check for every segment — extends 0069 item 3, built | [0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md) |
+| A host `where`'s constant bounds on one parameter are its range obligation, decided by a literal, the IR's intervals, then the refinement layer; the host's type and the hand check unchanged — built | [0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md) |
 
 ## How this project is run
 

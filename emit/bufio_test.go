@@ -65,7 +65,9 @@ export fn f(n ∈ 0..5, a ∈ Array(Int)) (Int) where len(a) == 6 { a[n] }`); er
 // A VALUE IS BOUNDED BY ITS TAILS, through every form of a clause chain and
 // the loop it sits in (refine.go, joinConditional). os.Exit requires
 // 0 ≤ code ≤ 255, and a status that is 0 or 1 at every exit of a loop, one of
-// them under a host call's continuation, is in [0, 1].
+// them under a host call's continuation, is in [0, 1]. The bound is a `where`'s,
+// decided as the parameter's range (wherebounds.go), so the IR's intervals
+// decide it too: they hold a loop's exit value exactly.
 func TestAStatusIsBoundedByItsExits(t *testing.T) {
 	prog := func(exit0, exit1 string) string {
 		return `use go
@@ -87,13 +89,28 @@ export fn f(k ∈ 0..100) (Int) {
 		// a tail under a continuation is a tail
 		{"0", "300", "an exit of 300 under a host call's continuation"},
 		// a loop variable is a binder: its initial value holds on the first
-		// iteration only, and here it exits anywhere up to k
-		{"i * 3", "1", "an exit of 3i, up to 300"},
+		// iteration only. The first arm exits only while i < 50, at i = k, since
+		// the arm i == 50 exits first: 6i is at most 300.
+		{"i * 6", "1", "an exit of 6i, up to 300"},
 	} {
 		_, err := entryGo(t, prog(c.exit0, c.exit1))
-		if err == nil || !strings.Contains(err.Error(), "`go/os`.Exit requires") {
+		if err == nil || !strings.Contains(err.Error(), "`go/os`.Exit") || !strings.Contains(err.Error(), "255") {
 			t.Errorf("%s was accepted as an exit status: %v", c.why, err)
 		}
+	}
+	// THE CONTROLS the where-only route refused: 3i is at most 150 (the case above
+	// said "up to 300" and pinned a false refusal), and a status that is a LOOP
+	// VARIABLE, 0 at entry and 0 or 1 on every back edge, is in {0, 1}.
+	if _, err := entryGo(t, prog("i * 3", "1")); err != nil {
+		t.Errorf("an exit of 3i, at most 150: %v", err)
+	}
+	if _, err := entryGo(t, `use go
+use go/os as gos
+export fn f(k ∈ 0..100) (Int) {
+    s = loop i = 0, st = 0 { i >= k -> st; else -> again(i + 1, if i == 7 { 1 } else { st }) }
+    gos.Exit(s)
+}`); err != nil {
+		t.Errorf("a status that is a loop variable in {0, 1}: %v", err)
 	}
 }
 

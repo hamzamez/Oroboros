@@ -797,6 +797,17 @@
 == examples/os/ls.oro windows refused
    gen: examples/os/ls.oro: in entry: `go/io/fs/DirEntry`.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/io/fs/DirEntry` matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
+== examples/os/wc.oro go emitted 03b6b82a4e996fbe767209bca6918df03fb056e08198fcc4bc783c57fc1205c7
+   note: gen-main: 36 of 36 integer operations bounded; 0 of 2 loop(s) proven terminating
+== examples/os/wc.oro js refused
+   gen: examples/os/wc.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.
+== examples/os/wc.oro java refused
+   gen: examples/os/wc.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.
+== examples/os/wc.oro windows refused
+   gen: examples/os/wc.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.

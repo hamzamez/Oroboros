@@ -1079,7 +1079,33 @@ func positiveLit(t *core.Term) int64 {
 func lengthVar(op string, arg *core.Term) string {
 	// NORMALISED, so `alen(a)` and `len(a)` are the same variable. Two
 	// spellings of one quantity must key alike or nothing composes.
-	return "len(" + arg.String() + ")"
+	return "len(" + lengthSubject(arg).String() + ")"
+}
+
+// lengthSubject is the table whose length t has, by two laws: a store keeps a
+// table's length, len ∘ set = len ∘ π₁ (tables.md, `set`'s postcondition), and a
+// function commutes with a conditional, len(if c a b) = if c len(a) len(b), which
+// is len(a) when the two agree; a claim or a mark is the identity on its value.
+// So `len(if t > 0 { set(b, 0, v) } else { b })` is len(b): a program's guarded
+// store before a read, whose law names its buffer argument, kept the buffer's
+// length unknown (examples/os/wc.oro).
+func lengthSubject(t *core.Term) *core.Term {
+	for {
+		if v, ok := transparent(t); ok {
+			t = v
+			continue
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "set" {
+			t = t.Kids[1] // (set b i v): b's length
+			continue
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "if" {
+			if a, b := lengthSubject(t.Kids[2]), lengthSubject(t.Kids[3]); a.String() == b.String() {
+				return a
+			}
+		}
+		return t
+	}
 }
 
 // isOp matches a qualified primitive name by its last segment, so `num/int.add`

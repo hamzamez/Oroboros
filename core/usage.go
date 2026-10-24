@@ -149,6 +149,22 @@ func (u *UsageEnv) Of(x string, t Tail, outer bool) Usage {
 			}
 		}
 		return v.Plus(arms)
+	case *TCase:
+		// The eliminator's arms are additive, as a Case's are, and each a tail.
+		v := u.Of(x, t.Scrut, outer)
+		var arms Usage
+		for i, a := range t.Arms {
+			au := unused
+			if !patBinds(a.Pat, x) {
+				au = u.Of(x, a.Body, outer)
+			}
+			if i == 0 {
+				arms = au
+			} else {
+				arms = arms.Join(au)
+			}
+		}
+		return v.Plus(arms)
 	case *Monad:
 		return u.monad(x, t.Form, t.Items, t.Body, outer)
 	case *TMonad:

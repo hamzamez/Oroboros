@@ -62,19 +62,6 @@ fn ending(r) {
     }
 }
 
-// A FILE OPENED, OR WHY NOT, AS A PRODUCT: (the file, true), or (a handle never
-// read, false). It is 1 + File held as its tag and its slot (ADR 0042), written
-// by hand, because the loop below must go on after a failure, and a case arm is
-// no tail in J (abstract.md §2.5): only a `try`'s success arm continues a loop,
-// and its handler leaves it (ADR 0057). Standard input is the slot's filler; the
-// loop reads a file only when the flag says it opened.
-fn open(name) {
-    case gos.Open(name) {
-        result.'ok(f) -> (f, true)
-        result.'err(e) -> { ignore(e); (gos.Stdin(), false) }
-    }
-}
-
 // A file opened for reading loses nothing if its close fails: there was nothing
 // to write back, so the error is discarded.
 fn close(f) { ignore(File.Close(f)) }
@@ -85,7 +72,7 @@ fn complain(name, what) { ignore(fmt.Fprintf(gos.Stderr(), "wc: %s: %s\n", name,
 
 // The inputs are a word of names: ⟨""⟩ for standard input, or av's FILEs. The
 // state: `how` is 0 while the file may give more, 1 once it has ended, 2 when a
-// read failed, 3 when it would not open, 4 between files. b[k, n) is the window
+// read failed, 4 between files. b[k, n) is the window
 // of the current chunk not yet decoded; l, w, m, c the file's counts and inw
 // whether its last rune was in a word; tl, tw, tm, tc the totals.
 fn wc(names, stdin) {
@@ -127,20 +114,22 @@ fn wc(names, stdin) {
             if !stdin { close(f) }
             again(i, f, nm, 4, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, 1)
         }
-        how == 3 -> {
-            complain(nm, "cannot open")
-            again(i, f, nm, 4, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, 1)
-        }
         i >= len(names) -> {
             if len(names) > 1 { line(tl, tw, tm, tc, "total") }
             status
         }
-        // The next file, counted as it is opened, where i < len(names) is the
+        // The next input, counted as it is taken, where i < len(names) is the
         // failed guard's: so i + 1 is in the word by the guard alone.
-        else -> {
-            name = names[i]
-            (g, ok) = if stdin { (gos.Stdin(), true) } else { open(name) }
-            again(i + 1, g, name, if ok { 0 } else { 3 }, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, status)
+        stdin -> again(i + 1, gos.Stdin(), "", 0, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, status)
+        // A file that will not open is named and skipped: each arm of the case
+        // is a tail, and each goes round the loop (ADR 0076).
+        else -> case gos.Open(names[i]) {
+            result.'ok(g) -> again(i + 1, g, names[i], 0, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, status)
+            result.'err(e) -> {
+                ignore(e)
+                complain(names[i], "cannot open")
+                again(i + 1, f, names[i], 4, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, 1)
+            }
         }
     }
 }

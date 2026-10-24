@@ -362,9 +362,12 @@ pattern     ::= "_" | ident | literal | ( ident "." )? tag ( "(" pattern,* ")" )
 - **A loop's variables are definitional**, bound at entry and at each `again` by application (ADR 0055):
   `loop i = 0, s = 0 { … }`. Its arms are guards over them; `again(…)` is positional and appears only in
   a tail (abstract.md W3). An invariant is optional, `invariant I`, absent meaning ⊤.
-- **A tail** is an expression, an `again`, a block whose statements end in a tail, or a `try` whose body
-  is a tail; a `try`'s handler arms leave the loop with their value (ADR 0057 item 5). `again` is never
-  under an `if` (ADR 0015).
+- **A tail** is an expression, an `again`, a block whose statements end in a tail, a `try` whose body
+  is a tail, or a `case` on a scrutinee whose arms are tails (ADR 0076): the tail sort is closed under a
+  sum's eliminator, each arm running once. A `case` with an arm that jumps stands only where a tail may.
+  A `try`'s handler arms leave the loop with their value (ADR 0057 item 5; by ADR 0076 item 5 they are
+  tails too, when handlers are built). `again` is never under an `if` (ADR 0015): an `if`'s condition
+  belongs in the loop's guards, and only a pattern's binders need the case.
 - **`try p₁ = e₁ [else h₁], … { body } [else h]`** is the handled bind, a group of n binders n nested
   binds; with no handler a failure passes through re-built (ADR 0057 items 1–2).
 - **A pattern's name always binds and a tag never does** (ADR 0059 item 1); `x ∈ S` binds x at S's sort.

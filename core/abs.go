@@ -283,6 +283,22 @@ type TMonad struct {
 	Body  Tail
 }
 
+// TCase is a `case` with an arm that is a tail and no expression, a jump or a
+// binding around one (ADR 0076): the tail sort closed under a sum's eliminator.
+// Each arm runs once, now, as a host call's continuation does (ADR 0027), so a
+// case in a tail with every arm a tail is a tail. A case whose arms are all
+// expressions stays a Case.
+type TCase struct {
+	Scrut Expr
+	Arms  []TCaseArm
+}
+
+// TCaseArm is a pattern, as written, and its body, a tail.
+type TCaseArm struct {
+	Pat  Expr
+	Body Tail
+}
+
 // ---- Patterns ----
 
 // PVar binds a name; PWild binds nothing; PTuple binds a product's components;
@@ -316,6 +332,7 @@ func (*Again) tailSort()     {}
 func (*TLet) tailSort()      {}
 func (*TSeq) tailSort()      {}
 func (*TMonad) tailSort()    {}
+func (*TCase) tailSort()     {}
 
 func (*Var) exprSort()       {}
 func (*Lit) exprSort()       {}

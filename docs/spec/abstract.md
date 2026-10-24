@@ -208,6 +208,8 @@ Tail    ::= e
           | let(b̄; t)                                   a binding around a tail; a host call's continuation
                                                        is a let with a tuple pattern (ADR 0027)
           | try(p; e; t)  |  expect(p; e; w; t)          a success arm is a tail (ADR 0041)
+          | case(e; p₁ → t₁, …, pₙ → tₙ)                  each arm a tail: the sort closed under the
+                                                       eliminator, each arm run once (ADR 0076)
           | bind(p; e; ā; t)                              its handler's arms leave the loop (ADR 0057)
           | assert(φ; t)
 

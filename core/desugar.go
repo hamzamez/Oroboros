@@ -167,6 +167,12 @@ func (d *desugarer) build(a Tail) *Term {
 			kids = append(kids, d.term(arm.Pat), d.term(arm.Body))
 		}
 		return &Term{Kind: KApp, Kids: kids}
+	case *TCase:
+		kids := []*Term{Name("case"), d.term(a.Scrut)}
+		for _, arm := range a.Arms {
+			kids = append(kids, d.term(arm.Pat), d.term(arm.Body))
+		}
+		return &Term{Kind: KApp, Kids: kids}
 	case *Monad:
 		return d.monad(a.Form, a.Items, d.term(a.Body))
 	case *TMonad:

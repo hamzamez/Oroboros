@@ -205,11 +205,11 @@ failed from the J switch to work-2026-10-22 (its port to JS rewrote `(use go)`),
 was stale for that week.
 
 **Provability.**
-- **2,100 of 2,145** integer operations are proven inside their target's word. The 45 left are mostly
+- **2,103 of 2,148** integer operations are proven inside their target's word. The 45 left are mostly
   meant to be refused. `du` added 19 (du-2026-10-14), the program-order cells (4efca1c, ADR 0052)
   made `count` and `ages` 19 shorter, all proven, `ls` added 13 (ls-2026-10-20) and `shape` 13 (shape-2026-10-21, observer-2026-10-21).
   `smooth`'s `len(a) − 2`, computed once since ADR 0071, made it one shorter (work-2026-10-22).
-  `wc` added 36, all proven (wc-2026-10-24).
+  `wc` added 39, all proven (wc-2026-10-24, ADR 0076).
 - **353 of 376** loops are proven to terminate (the IR's count since irstep4d; the term analysis had
   343). render's factorial counter became a word on the host's bignum (irstep4h, +3 of each) and on
   limbs (irstep4i, where the counter's own limb operations disappeared: −16 operations, −6 loops).
@@ -220,7 +220,7 @@ was stale for that week.
   `examples/lines/ages.oro`, cells the host writes, 16 and 1 (outcells-2026-10-09); `examples/os/du.oro`,
   a directory walk, 19 and 1 of its 2 (du-2026-10-14); `examples/os/ls.oro`, a recursive listing, 13
   and 1 of its 2 (ls-2026-10-20); `examples/lines/shape.oro`, a delimited table's shape, 13 and 0
-  of its 1 (observer-2026-10-21); `examples/os/wc.oro`, a word count over files, 36 and 0 of its 2
+  of its 1 (observer-2026-10-21); `examples/os/wc.oro`, a word count over files, 39 and 0 of its 2
   (wc-2026-10-24): a loop that reads a file ends when the file does.
 - Counted once each since matchguard-2026-09-24. Before, the narrowing of a guard re-evaluated its
   operands with counting on, so the totals were 2,434 and 387: the same 47 and 38 unproven, over
@@ -415,8 +415,9 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    table is, a writer's suffix included ([ADR 0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md));
    a host `where`'s constant bounds decided as the parameter's range
    ([ADR 0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md)); a length keyed by
-   what it denotes. Seven things writing it caught; one is a **question for hamza: may a `case` arm
-   continue a loop?** (wc-2026-10-24 §6). Speed: 1.01× hand-written Go of the same shape, 1.18× idiomatic
+   what it denotes. Seven things writing it caught; one was a question, may a `case` arm continue a loop,
+   **decided (a) and built** ([ADR 0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md)):
+   the tail sort closed under a sum's eliminator. Speed: 1.01× hand-written Go of the same shape, 1.18× idiomatic
    Go, the 16% being the shape the language forces (one loop over a cursor: an `again` after a nested
    loop's join point is not built, tables.md §2.5).
 4. **The clause chain's copying** (a six-arm loop, 2,423 lines of Go), researched when a program names it.
@@ -728,6 +729,7 @@ rejected alternatives.
 | A set's name denotes a set: ⊢ S set is a scope check of a header's atoms against Γ_T, the language's sets and the target's types, on every header; an alias resolves as a term's does; no variant reaches a header — built | [0073](docs/decisions/0073-a-sets-name-denotes-a-set.md) |
 | A segment is its function restricted wherever its table is, b[lo:hi] or a writer's b[lo:]; its domain may narrow, and a law beyond the restricted one is a claim on the narrower domain; one check for every segment — extends 0069 item 3, built | [0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md) |
 | A host `where`'s constant bounds on one parameter are its range obligation, decided by a literal, the IR's intervals, then the refinement layer; the host's type and the hand check unchanged — built | [0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md) |
+| A case in a tail is a tail when each arm is: the tail sort closed under a sum's eliminator (each arm runs once); only in a tail; `if` still may not jump; a handler's arms follow when built — extends 0041 and 0057 item 5, built | [0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md) |
 
 ## How this project is run
 
@@ -818,7 +820,10 @@ next touched (jswitch5b-2026-10-16).
   name, a tuple pattern, whose body after reduction is a host call's continuation, which runs once, now, and is a
   tail position ([ADR 0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md)), or a `try` or
   `expect` success arm, whose other arms leave the loop
-  ([ADR 0041](docs/decisions/0041-a-success-arm-is-a-tail.md)). **Every
+  ([ADR 0041](docs/decisions/0041-a-success-arm-is-a-tail.md)). **A `case` in a tail is a tail when each
+  arm is** ([ADR 0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md)): the
+  eliminator runs one arm once, so any arm may jump; such a case stands only in a tail, and an `if` still
+  may not jump, its condition being the loop's guard to hold. **Every
   walker of a clause chain walks four forms** — `again`, `if`, `let`, and a host call's continuation —
   and one that enumerates back edges and misses a form is unsound, not imprecise. **In the reader the
   rule is a sort** (abstract.md W3, `core/jparse.go`): `again` is a Tail, J's reader refuses one that

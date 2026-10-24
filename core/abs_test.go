@@ -25,6 +25,13 @@ func TestTheTailRuleIsASort(t *testing.T) {
 		`{ expect 'ok(v) = r(i) else "why"; f(v); again(v, j) }`,
 		`{ x = loop k = 0 { k >= 2 -> k; else -> again(k + 1) }; again(x, j) }`,
 		`if c { 1 } else { 2 }`,
+		// A CASE IN A TAIL is a tail when each arm is (ADR 0076): an arm may jump,
+		// sit under a binding that jumps, or leave the loop with a value.
+		`case r { 'ok(v) -> again(v, j); 'err(e) -> 0 }`,
+		`case r { 'ok(v) -> { f(v); again(v, j) }; 'err(e) -> again(i, e) }`,
+		`{ x = 1; case r { 'ok(v) -> again(v, x); 'err(e) -> { ignore(e); 0 } } }`,
+		`case r { 'ok(v) -> case s { 'ok(w) -> again(v, w); 'err(e) -> 1 }; 'err(e) -> 2 }`,
+		`case r { 'ok(v) -> v + 1; 'err(e) -> 0 } + 1`,
 	}
 	for _, b := range ok {
 		if _, err := ReadTerm(wrap(b)); err != nil {
@@ -41,7 +48,14 @@ func TestTheTailRuleIsASort(t *testing.T) {
 		{`{ x = 1 + again(i, j); again(x, j) }`, "may be a clause body"},
 		{`{ again(i, j); 1 }`, "a jump stands before the end of its block"},
 		{`try 'ok(v) = again(i, j) { v }`, "may be a clause body"},
-		{`case r { 'ok(v) -> again(v, j); 'err(e) -> 0 }`, "a case arm is no tail"},
+		// …and only in a tail: as an operand, a binding's value, an argument or a
+		// scrutinee it is a jump inside an expression.
+		{`case r { 'ok(v) -> again(v, j); 'err(e) -> 0 } + 1`, "stands only where a tail may"},
+		{`f(case r { 'ok(v) -> again(v, j); 'err(e) -> 0 })`, "stands only where a tail may"},
+		{`{ x = case r { 'ok(v) -> again(v, j); 'err(e) -> 0 }; x }`, "stands only where a tail may"},
+		{`case (case r { 'ok(v) -> again(v, j); 'err(e) -> 0 }) { 'ok(w) -> w; 'err(e) -> 0 }`, "stands only where a tail may"},
+		{`case r { 'ok(v) -> again(v); 'err(e) -> 0 }`, "again takes 2 argument(s)"},
+		{`case r { 'ok(v) -> if c { again(v, j) } else { 1 }; 'err(e) -> 0 }`, "under an if"},
 		{`f(fn(a, b) { again(a, b) })`, "a λ's body is never a tail"},
 		{`fn(x) { again(x, j) }`, "a λ's body is never a tail"},
 		{`fn(x, y) { again(x, y) }(1, 2)`, "a λ's body is never a tail"},

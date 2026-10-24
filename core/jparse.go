@@ -897,6 +897,30 @@ func (p *parser) tail() (Tail, error) {
 	if p.is("try") {
 		return p.try()
 	}
+	// A CASE IN A TAIL may have arms that are tails (ADR 0076). One whose arms
+	// are all expressions is an expression, and the expression goes on from it.
+	if p.is("case") && p.peekN(1).text != "{" {
+		p.next()
+		t, err := p.caseAny()
+		if err != nil {
+			return nil, err
+		}
+		if e, ok := t.(Expr); ok {
+			if e, err = p.postfix(e); err != nil {
+				return nil, err
+			}
+			return p.binaryFrom(e, pLowest)
+		}
+		// A tail is no operand: what continues an expression after it would make
+		// a jump inside one.
+		if n := p.peek(); !p.lineEnds() && n.kind == tSym {
+			if _, op := binary[n.text]; op || n.text == "(" || n.text == "[" || n.text == "." {
+				return nil, p.errorf("a case with an arm that jumps is a tail, and stands only where a tail " +
+					"may, a clause's body or the body of a binding in one (ADR 0076)")
+			}
+		}
+		return t, nil
+	}
 	return p.expr()
 }
 
@@ -905,6 +929,11 @@ func (p *parser) exprAt(min int) (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.binaryFrom(left, min)
+}
+
+// binaryFrom reads the binary operators that follow an operand already read.
+func (p *parser) binaryFrom(left Expr, min int) (Expr, error) {
 	for {
 		t := p.peek()
 		prec, ok := binary[t.text]
@@ -1164,7 +1193,16 @@ func (p *parser) primary() (Expr, error) {
 			return p.ifExpr()
 		case "case":
 			p.next()
-			return p.caseExpr()
+			t, err := p.caseAny()
+			if err != nil {
+				return nil, err
+			}
+			e, ok := t.(Expr)
+			if !ok {
+				return nil, p.errorf("a case with an arm that jumps is a tail, and stands only where a tail " +
+					"may, a clause's body or the body of a binding in one (ADR 0076)")
+			}
+			return e, nil
 		case "loop":
 			p.next()
 			return p.loop()
@@ -1399,9 +1437,11 @@ func (p *parser) valueBlock() (Expr, error) {
 	return e, nil
 }
 
-// caseExpr reads `case e { p -> b … }`, or `case { g -> b … }`, the guarded
-// choice (ADR 0056 item 2).
-func (p *parser) caseExpr() (Expr, error) {
+// caseAny reads `case { g -> b … }`, the guarded choice (ADR 0056 item 2), whose
+// arms are expressions (a guard is the loop's to hold, ADR 0015), or
+// `case e { p -> b … }`, whose arms may be tails (ADR 0076): a Case when every
+// arm is an expression, a TCase when one is not.
+func (p *parser) caseAny() (Tail, error) {
 	if p.is("{") {
 		p.next()
 		p.open(false)
@@ -1439,7 +1479,7 @@ func (p *parser) caseExpr() (Expr, error) {
 		return nil, err
 	}
 	p.open(false)
-	c := &Case{Scrut: scrut}
+	tc := &TCase{Scrut: scrut}
 	for {
 		p.endOfStatement()
 		if p.accept("}") {
@@ -1458,13 +1498,21 @@ func (p *parser) caseExpr() (Expr, error) {
 		if err := p.expect("->"); err != nil {
 			return nil, err
 		}
-		b, err := p.armValue()
+		b, err := p.tail()
 		if err != nil {
 			return nil, err
 		}
-		c.Arms = append(c.Arms, CaseArm{Pat: pat, Body: b})
+		tc.Arms = append(tc.Arms, TCaseArm{Pat: pat, Body: b})
 	}
 	p.close()
+	c := &Case{Scrut: tc.Scrut}
+	for _, a := range tc.Arms {
+		e, ok := a.Body.(Expr)
+		if !ok {
+			return tc, nil
+		}
+		c.Arms = append(c.Arms, CaseArm{Pat: a.Pat, Body: e})
+	}
 	return c, nil
 }
 
@@ -1605,6 +1653,18 @@ func tailOK(t Tail, arity, line int) error {
 			}
 		}
 		return tailOK(t.Body, arity, line)
+	case *TCase:
+		// The tail sort closed under the eliminator (ADR 0076): the scrutinee
+		// and the patterns are expressions, each arm a tail.
+		if strays(t.Scrut) {
+			return strayAgain(line)
+		}
+		for _, a := range t.Arms {
+			if err := tailOK(a.Body, arity, line); err != nil {
+				return err
+			}
+		}
+		return nil
 	case Expr:
 		if strays(t) {
 			return strayAgain(line)

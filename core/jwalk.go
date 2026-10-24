@@ -103,6 +103,12 @@ func visit(t Tail, f func(Expr)) {
 		case *TMonad:
 			exprs(t.Items)
 			tail(t.Body)
+		case *TCase:
+			expr(t.Scrut)
+			for _, a := range t.Arms {
+				expr(a.Pat)
+				tail(a.Body)
+			}
 		case Expr:
 			expr(t)
 		}

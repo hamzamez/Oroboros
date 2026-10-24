@@ -1722,3 +1722,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/os/wc.oro java`
 - new source — `examples/os/wc.oro js`
 - new source — `examples/os/wc.oro windows`
+
+## 2026-10-24 — on 4f401ec, with uncommitted changes
+
+**Reason:** ADR 0076: a case in a tail is a tail when each arm is; wc names and skips an unopenable file in the case's own arm, its junk slot gone (36 -> 39 operations, all proven)
+
+572 runs: 304 emitted, 268 refused; 2103 of 2148 integer operations bounded, 353 of 376 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- emitted text changed — `examples/os/wc.oro go`
+- compiler output changed — `examples/os/wc.oro go`

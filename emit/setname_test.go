@@ -55,7 +55,7 @@ func TestASetsNameDenotesASet(t *testing.T) {
 	// word and an open end.
 	for what, src := range map[string]string{
 		"the base sets": "fn a(x ∈ Int, b ∈ Bool, s ∈ String, f ∈ F64, y ∈ Any) (Int) { 0 }" + main,
-		"ranges":        "fn b(x ∈ 0..255, y ∈ -5..5) (0..`+inf`) { x }" + main,
+		"ranges":        "fn b(x ∈ 0..255, y ∈ -5..5) (0..) { x }" + main,
 		"formers":       "fn c(x ∈ Array(0..255), y ∈ Array(F64), m ∈ Map(Int, Int)) (Int) { len(x) }" + main,
 		"a buffer":      "fn d(b ∈ Array(F64) linear) (()) { () }" + main,
 		"a host type":   "use go\nuse go/strings\nfn e(s ∈ go.bytestring, r ∈ strings.Replacer) (Int) { 0 }" + main,

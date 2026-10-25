@@ -3,6 +3,7 @@ package core
 import (
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 )
 
@@ -193,11 +194,15 @@ func typeOf(t *testing.T, src string) string {
 }
 
 func TestInfiniteEndpoints(t *testing.T) {
+	// AN UNBOUNDED END IS OMITTED (ADR 0077): ↑a and ↓b, the core's (int a +inf)
+	// and (int -inf b). The bound is absent wherever the next token cannot begin
+	// one, a header's word included.
 	for _, c := range []struct{ src, want string }{
-		{"0..`+inf`", "int 0 +inf"},
-		{"`-inf`..0", "int -inf 0"},
-		{"`-inf`..`+inf`", "int -inf +inf"},
-		{"0 - 5..`+inf`", "int -5 +inf"},
+		{"0..", "int 0 +inf"},
+		{"..0", "int -inf 0"},
+		{"0 - 5..", "int -5 +inf"},
+		{"..2^62", "int -inf 4611686018427387904"},
+		{"-2^63..", "int -9223372036854775808 +inf"},
 	} {
 		if got := typeOf(t, c.src); got != c.want {
 			t.Errorf("%s is %q, want %q", c.src, got, c.want)
@@ -213,19 +218,48 @@ func TestInfiniteEndpoints(t *testing.T) {
 			t.Errorf("ValueType(%s) = %q, want %q", c.src, got, BigType)
 		}
 	}
+	// Before a mode, a clause and the end of a header the bound is absent too.
+	for src, want := range map[string]string{
+		"fn f(n ∈ 0.. inout) { n }":       "cell int 0 +inf",
+		"fn f(n ∈ 0..) (0..) { n }":       "int 0 +inf",
+		"fn f(n ∈ 0..) where n > 0 { n }": "int 0 +inf",
+		"fn f(n ∈ 0.., m ∈ ..9) { n }":    "int 0 +inf",
+		"fn f(n ∈ 0..\n) { n }":           "int 0 +inf",
+	} {
+		forms, err := Read(src)
+		if err != nil {
+			t.Errorf("%s: %v", src, err)
+			continue
+		}
+		if sig := sigOf(forms, "f"); sig == nil || len(sig.Params) == 0 || sig.Params[0].Type != want {
+			t.Errorf("%s: the first parameter is not %s: %+v", src, want, sig)
+		}
+	}
+}
+
+// AN ABSENT BOUND IS NO ELEMENT, so the old spelling of one is refused naming
+// the omitted end, and `..` alone, ℤ, is `Int` (ADR 0077 items 3–4).
+func TestAnUnboundedEndIsNoElement(t *testing.T) {
+	for src, want := range map[string]string{
+		"fn f(n ∈ 0..`+inf`) { n }": "an unbounded end is omitted",
+		"fn f(n ∈ `-inf`..0) { n }": "an unbounded end is omitted",
+		"fn f(n ∈ ..) { n }":        "a range omits at most one end",
+		"fn f() (0..`+inf`) { 1 }":  "an unbounded end is omitted",
+	} {
+		_, err := Read(src)
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: want a refusal saying %q, got %v", src, want, err)
+		}
+	}
 }
 
 // AN INFINITE ENDPOINT MUST POINT OUTWARD, and arithmetic on one is refused
-// rather than defined.
-//
-// `(int +inf 0)` is empty, `(int +inf +inf)` is a point that is not an integer,
-// and `(+ +inf 1)` is a question about the extended reals this language has no
-// use for. Refusing costs nothing: nobody writes these on purpose, and defining
-// them would mean answering `+inf − +inf`.
+// rather than defined. In J an end is either a bound or absent, so the inward
+// shapes the core's spelling allowed have no J spelling; the arithmetic ones
+// are still refused.
 func TestInfiniteEndpointsMustPointOutward(t *testing.T) {
 	for _, src := range []string{
-		"`+inf`..0", "0..`-inf`", "`+inf`..`+inf`", "`-inf`..`-inf`",
-		"0..`+inf` + 1", "0..2^`+inf`", "-`+inf`..0",
+		"0.. + 1", "0..2^..",
 	} {
 		if got := typeOf(t, src); got != "" {
 			t.Errorf("%s was accepted as the type %q", src, got)

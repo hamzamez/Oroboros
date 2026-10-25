@@ -1733,3 +1733,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - emitted text changed — `examples/os/wc.oro go`
 - compiler output changed — `examples/os/wc.oro go`
+
+## 2026-10-25 — on f40f531, with uncommitted changes
+
+**Reason:** ADR 0077: an unbounded end is omitted; the four windows refusals in examples/big quote the range as 0.. instead of 0..`+inf`
+
+572 runs: 304 emitted, 268 refused; 2103 of 2148 integer operations bounded, 353 of 376 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- compiler output changed — `examples/big/fact.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/power.oro windows`

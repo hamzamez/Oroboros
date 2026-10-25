@@ -421,7 +421,7 @@ fn f(r ∈ Int) (0..Max) pure { host expr "F(${r})" }`: "not pure",
 		}
 	}
 	// THE CONTROL: an infinite endpoint is not a constant name.
-	tg, err := loadOne(t, "module m {\n    fn f(r ∈ Int) (0..`+inf`) pure { host expr \"F(${r})\" }\n}")
+	tg, err := loadOne(t, "module m {\n    fn f(r ∈ Int) (0..) pure { host expr \"F(${r})\" }\n}")
 	if err != nil {
 		t.Fatal(err)
 	}

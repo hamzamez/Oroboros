@@ -19,7 +19,7 @@
 // increment and a bignum compare.
 //
 // 30! = 265252859812191058636308480000000, which is under 2^110.
-export fn fact(n ∈ 0..30) (0..`+inf`) {
+export fn fact(n ∈ 0..30) (0..) {
     // `i` starts at 2 rather than 1 because multiplying by 1 is a wasted bignum
     // operation and an allocation -- fact(0) and fact(1) are both 1 and the guard
     // already gives them.

@@ -139,7 +139,8 @@ generated from the form.
 
 - **Base sets:** `Int`, `F64`, `Bool`, `String`; the core spells them `int`, `f64`, `bool`, `string`.
 - **A range** `LO..HI` is a set, the core's `(int LO HI)`. Its endpoints are compile-time expressions
-  over literals, unary `-`, `+ - *`, `^` and `` `+inf` ``/`` `-inf` ``, and in a target file its constants.
+  over literals, unary `-`, `+ - *` and `^`, and in a target file its constants. **An end may be omitted**:
+  `lo..` is ↑lo and `..hi` is ↓hi, the core's `(int lo +inf)` and `(int -inf hi)` (ADR 0077).
 - **Tables:** `Array(V)` and `Map(K, V)`.
 - **A buffer parameter** is `b ∈ Array(V) linear`, the core's `(buffer V)`
   ([ADR 0020](../decisions/0020-uniqueness-on-parameters.md), [ADR 0052](../decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md));

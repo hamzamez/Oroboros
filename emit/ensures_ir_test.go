@@ -106,7 +106,7 @@ func TestABoundPastTheEndsIsExact(t *testing.T) {
 	if err := ensuresOn(t, tg, bounded, mustRead(t, "fn(n) { go.`*`(n, n) }")); err != nil {
 		t.Errorf("a finite result against 2^200 was refused: %v", err)
 	}
-	unbounded := sigRead(t, "fn sq(n ∈ Int) (r ∈ 0..`+inf`) ensure r <= "+big+" { n }")
+	unbounded := sigRead(t, "fn sq(n ∈ Int) (r ∈ 0..) ensure r <= "+big+" { n }")
 	if err := ensuresOn(t, tg, unbounded, mustRead(t, "fn(n) { go.`*`(n, n) }")); err == nil {
 		t.Errorf("an unbounded result was accepted against 2^200")
 	}
@@ -119,7 +119,7 @@ func TestABigResultRangeIsNotAnObligation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := "export fn fib(n ∈ 0..1000) (0..`+inf`) {\n    loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }\n}\n"
+	src := "export fn fib(n ∈ 0..1000) (0..) {\n    loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }\n}\n"
 	forms, err := core.Read(src)
 	if err != nil {
 		t.Fatal(err)

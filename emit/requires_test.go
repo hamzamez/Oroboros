@@ -136,7 +136,7 @@ export fn f(n ∈ Int) (Int) { s2(array { 1, 2, 3 }) }`); err != nil {
 // AN INFINITE ENDPOINT'S FINITE SIDE IS STILL AN OBLIGATION: `(int 0 +inf)` is
 // `0 <= n`, carried by the call's own condition.
 func TestAnInfiniteRangesFiniteSideIsChecked(t *testing.T) {
-	if _, err := dischargeGo(t, "fn k(n ∈ 0..`+inf`) (Int) { n + 1 }\nexport fn f(m ∈ -5..5) (Int) { k(m) }"); err == nil {
+	if _, err := dischargeGo(t, "fn k(n ∈ 0..) (Int) { n + 1 }\nexport fn f(m ∈ -5..5) (Int) { k(m) }"); err == nil {
 		t.Error("m may be −5, below k's 0")
 	}
 }

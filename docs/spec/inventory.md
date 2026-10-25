@@ -146,7 +146,7 @@ An endpoint is a compile-time integer expression, evaluated and never emitted.
 
 | word | status | where |
 |---|---|---|
-| `+inf`, `-inf` | specified — an unbounded endpoint, J's `` `+inf` `` | [ADR 0019](../decisions/0019-precision-by-declaration.md), [unbounded-rung.md](../unbounded-rung.md) |
+| `+inf`, `-inf` | specified — an unbounded endpoint, the core's; J omits the end, `lo..` and `..hi`, and refuses `` `+inf` `` (ADR 0077) | [ADR 0019](../decisions/0019-precision-by-declaration.md), [unbounded-rung.md](../unbounded-rung.md) |
 | `pow` | specified — J's `^` on constants | [ADR 0019](../decisions/0019-precision-by-declaration.md), [unbounded-rung.md](../unbounded-rung.md) |
 
 `+`, `-` and `*` are also endpoint operators; their rows are in the injected names below.

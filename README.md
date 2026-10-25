@@ -5,7 +5,7 @@ JavaScript, Java and x86-64 assembly. The output is the code a good programmer o
 have written, and it calls the platform's own libraries directly.
 
 ```
-fn fib(n ∈ 0..1000) (0..`+inf`) {
+fn fib(n ∈ 0..1000) (0..) {
     loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }
 }
 
@@ -160,7 +160,7 @@ This refusal is the point. Compiled naively, that line gives `373671077878043437
 (wrapped) and `354224848179262000000` on JavaScript (rounded): three wrong answers from one source. An
 integer is an integer, and each target says which integers its machine word holds: int64 on Go and the
 JVM, plus `uint64` on Go, and ±(2⁵³−1) on JavaScript. The program at the top of this page says the
-result is unbounded, `` (0..`+inf`) ``, and prints `354224848179261915075` on all three.
+result is unbounded, `(0..)`, and prints `354224848179261915075` on all three.
 
 Each host uses its own big integer: `*big.Int` on Go, `BigInt` on JavaScript, `BigInteger` on the JVM
 and on Android. A range is part of a value's type: `Array(0..255)` is stored as a `[]byte` on Go and as
@@ -399,7 +399,7 @@ The full, current description is [docs/spec/state.md](docs/spec/state.md), and t
 | **Local state** | `var x := e`: a table makes a buffer, written `b[i] := v` in program order and linear; a map former a map buffer; anything else a cell. A parameter `b ∈ Array(V) linear` borrows a buffer. A host may write a cell where its declaration says `inout`, and `f(out S)` passes a cell for one call |
 | **Claims** | a binder's set, `x ∈ 0..255`, and `where` are obligations at every call; `b ∈ S = e` claims a value's set; each is proven or the program is refused |
 | **Failures** | a value of a sum: `lib/result`'s `result(T, E)`, met by `case`, `try`, `expect` or `ignore`, and *relevant*, so it cannot be dropped silently. A host's own encoding (Go's `(T, error)`, a throw) is translated once, at its declaration |
-| **Integers** | an integer is an integer; each target declares the word it holds (int64 on Go, the JVM and x86, plus `uint64` on Go; ±(2⁵³−1) on JS), an operation not proven inside it is refused on that target, and which targets accept a program is reported; a range `0..255` is a type; `` 0..`+inf` `` is arbitrary precision |
+| **Integers** | an integer is an integer; each target declares the word it holds (int64 on Go, the JVM and x86, plus `uint64` on Go; ±(2⁵³−1) on JS), an operation not proven inside it is refused on that target, and which targets accept a program is reported; a range `0..255` is a type; `0..`, its upper end omitted, is arbitrary precision |
 | **Functions** | fully higher-order at compile time; nothing that needs a closure at run time may survive to the output |
 | **Effects** | one purity bit per host call; an impure call runs exactly once, where it was written |
 | **Host calls** | under the host's own names: `fmt.Println(a, b)` is Go's variadic call, and `f(xs...)` passes a table as its list. A host's string is the host's type, and a `String` is always valid text |

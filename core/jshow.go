@@ -95,14 +95,14 @@ func setHead(n string) string {
 	return ShowName(n)
 }
 
-// endpointJ is a range's end: an integer as J writes a bound, an infinite one
-// as the quoted name the corpus writes (“ 0..`+inf` “).
+// endpointJ is a range's end: an integer as J writes a bound, and an infinite
+// one as nothing, since J omits an absent bound (ADR 0077): `0..`, `..5`.
 //
 // An end too long to read whole, and no power of two, keeps its size: `1.234e400
 // (401 digits)`, as ShowType writes it, a note for the reader and no J.
 func endpointJ(s string) string {
 	if s == "+inf" || s == "-inf" {
-		return "`" + s + "`"
+		return ""
 	}
 	if j := Integer(s); len(j) <= 24 {
 		return j

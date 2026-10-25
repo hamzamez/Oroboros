@@ -16,7 +16,7 @@ import (
 // backwards still compiles and still produces the right answer — one slowly,
 // one wrongly.
 
-const factSrc = "export fn fact(n ∈ 0..30) (0..`+inf`) {\n    loop acc = 1, i = 1 { i > n -> acc; else -> again(acc * i, i + 1) }\n}\n"
+const factSrc = "export fn fact(n ∈ 0..30) (0..) {\n    loop acc = 1, i = 1 { i > n -> acc; else -> again(acc * i, i + 1) }\n}\n"
 
 // A TARGET MAY DECLINE ARBITRARY PRECISION, and it is the capability model
 // answering rather than a hole — the same answer JavaScript already gives for
@@ -122,7 +122,7 @@ func TestJavaScriptBigStringHasNoSuffix(t *testing.T) {
 // silent wrong answer behind it). Here there is nothing behind it: the value is
 // exact by construction, and the claim was never checkable.
 func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
-	for _, result := range []string{"0..`+inf`"} {
+	for _, result := range []string{"0.."} {
 		src := "export fn fib(n ∈ 0..1000) (" + result + ") {\n" +
 			"    loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }\n}\n"
 		tg, err := LoadTarget("../targets/go")
@@ -157,7 +157,7 @@ func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
 	// THE PARAMETER SIDE STILL SAYS ITS HALF, which is what `+inf` is for: a
 	// non-negative bignum needs no sign handling, and bigarith measured sign
 	// handling as a real cost.
-	forms, err := core.Read("fn f(n ∈ 0..`+inf`) (0..`+inf`) { n }")
+	forms, err := core.Read("fn f(n ∈ 0..) (0..) { n }")
 	if err != nil {
 		t.Fatal(err)
 	}

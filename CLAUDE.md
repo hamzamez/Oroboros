@@ -773,6 +773,7 @@ rejected alternatives.
 | A segment is its function restricted wherever its table is, b[lo:hi] or a writer's b[lo:]; its domain may narrow, and a law beyond the restricted one is a claim on the narrower domain; one check for every segment — extends 0069 item 3, built | [0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md) |
 | A host `where`'s constant bounds on one parameter are its range obligation, decided by a literal, the IR's intervals, then the refinement layer; the host's type and the hand check unchanged — built | [0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md) |
 | A case in a tail is a tail when each arm is: the tail sort closed under a sum's eliminator (each arm runs once); only in a tail; `if` still may not jump; a handler's arms follow when built — extends 0041 and 0057 item 5, built | [0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md) |
+| An unbounded end is omitted: `lo..` is ↑lo and `..hi` ↓hi, the core's `(int lo +inf)`; an absent bound is no element, so `` `+inf` `` is refused and `..` alone (ℤ) is `Int`; no `Nat` while a declared set above the word is a representation request (it widens to the rung above) — built | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
 
 ## How this project is run
 

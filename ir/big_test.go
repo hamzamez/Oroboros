@@ -120,59 +120,59 @@ func TestTheBigSelectionKeepsEveryAnswer(t *testing.T) {
 	shapes := []func() string{
 		// factorial
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop acc = %d, i = 1 { i > n * 3 -> acc; else -> again(acc * (i + %d), i + 1) }\n}", k(1, 5), k(0, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop acc = %d, i = 1 { i > n * 3 -> acc; else -> again(acc * (i + %d), i + 1) }\n}", k(1, 5), k(0, 9))
 		},
 		// Fibonacci: a permutation of two owned objects
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop a = %d, b = %d, i = 0 { i >= n * 9 -> a; else -> again(b, a + b, i + 1) }\n}", k(0, 3), k(1, 3))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop a = %d, b = %d, i = 0 { i >= n * 9 -> a; else -> again(b, a + b, i + 1) }\n}", k(0, 3), k(1, 3))
 		},
 		// squaring: x read by the accumulator and by its own square
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop acc = 1, x = n + %d, y = n + %d {\n        y == 0 -> acc\n        `%%`(y, 2) == 1 -> again(acc * x, x * x, y / 2)\n        else -> again(acc, x * x, y / 2)\n    }\n}", k(2, 50), k(10, 60))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop acc = 1, x = n + %d, y = n + %d {\n        y == 0 -> acc\n        `%%`(y, 2) == 1 -> again(acc * x, x * x, y / 2)\n        else -> again(acc, x * x, y / 2)\n    }\n}", k(2, 50), k(10, 60))
 		},
 		// the pair: each update reads both
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop a = %d, b = %d, i = 0 { i >= n -> b; else -> again(a * b, b + a, i + 1) }\n}", k(2, 4), k(1, 4))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop a = %d, b = %d, i = 0 { i >= n -> b; else -> again(a * b, b + a, i + 1) }\n}", k(2, 4), k(1, 4))
 		},
 		// a word result: the demand arrives by an ascription
 		func() string {
-			return fmt.Sprintf("fn big(n ∈ 0..12) (0..`+inf`) {\n    loop acc = %d, i = 1 { i > n * 4 -> acc; else -> again(acc * (i + 7), i + 1) }\n}\nexport fn run(n ∈ 0..12) (Int) {\n    x = big(n)\n    `%%`(x, %d) + if x > %s { 1000 } else { 0 }\n}", k(1, 9), k(2, 100000), big())
+			return fmt.Sprintf("fn big(n ∈ 0..12) (0..) {\n    loop acc = %d, i = 1 { i > n * 4 -> acc; else -> again(acc * (i + 7), i + 1) }\n}\nexport fn run(n ∈ 0..12) (Int) {\n    x = big(n)\n    `%%`(x, %d) + if x > %s { 1000 } else { 0 }\n}", k(1, 9), k(2, 100000), big())
 		},
 		// SUPPLY WITHOUT DEMAND: a remainder by a bignum, a join of bignums and
 		// a constant past the word, each only compared, so nothing demands them
 		func() string {
-			return fmt.Sprintf("fn big(n ∈ 0..12) (0..`+inf`) {\n    loop acc = %d, i = 1 { i > n * 4 -> acc; else -> again(acc * (i + 7), i + 1) }\n}\nexport fn run(n ∈ 0..12) (Int) {\n    x = big(n)\n    y = big(12 - n)\n    t = if n > %d { x } else { y + 1 }\n    if `%%`(x, y + 1) > %d { 1 } else { 0 } + if t > %s { 10 } else { 0 } +\n    if n * n > %s { 100 } else { 0 }\n}", k(1, 9), k(0, 12), k(0, 1000), big(), big())
+			return fmt.Sprintf("fn big(n ∈ 0..12) (0..) {\n    loop acc = %d, i = 1 { i > n * 4 -> acc; else -> again(acc * (i + 7), i + 1) }\n}\nexport fn run(n ∈ 0..12) (Int) {\n    x = big(n)\n    y = big(12 - n)\n    t = if n > %d { x } else { y + 1 }\n    if `%%`(x, y + 1) > %d { 1 } else { 0 } + if t > %s { 10 } else { 0 } +\n    if n * n > %s { 100 } else { 0 }\n}", k(1, 9), k(0, 12), k(0, 1000), big(), big())
 		},
 		// a permutation through a destination: b takes a's object, a is b·c
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop a = n + %d, b = 1, i = 0 { i >= 12 -> a + b; else -> again(b * %d, a, i + 1) }\n}", k(1, 9), k(2, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop a = n + %d, b = 1, i = 0 { i >= 12 -> a + b; else -> again(b * %d, a, i + 1) }\n}", k(1, 9), k(2, 9))
 		},
 		// A CONTINUE HANDS acc AN OBJECT FROM OUTSIDE THE LOOP. Written into on
 		// the next iteration, x itself would change.
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    x = (n + 5) * %s\n    loop acc = 1, i = 0 {\n        i >= %d -> acc + x\n        `%%`(i, 3) == 1 -> again(x, i + 1)\n        else -> again(acc * %d, i + 1)\n    }\n}", big(), k(4, 6), k(2, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    x = (n + 5) * %s\n    loop acc = 1, i = 0 {\n        i >= %d -> acc + x\n        `%%`(i, 3) == 1 -> again(x, i + 1)\n        else -> again(acc * %d, i + 1)\n    }\n}", big(), k(4, 6), k(2, 9))
 		},
 		// A PARAMETER READ AFTER THE OPERATION that would write into it
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop a = %d, b = %d, i = 0 { i >= n * 5 -> a + b; else -> again(a * %d, a + b, i + 1) }\n}", k(1, 9), k(1, 9), k(2, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop a = %d, b = %d, i = 0 { i >= n * 5 -> a + b; else -> again(a * %d, a + b, i + 1) }\n}", k(1, 9), k(1, 9), k(2, 9))
 		},
 		// ONE OBJECT BOUND TO TWO PARAMETERS: after (again b b), writing into
 		// a would change b
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop a = %d, b = (n + %d) * %s, i = 0 {\n        i >= n * 3 -> a + b\n        `%%`(i, 3) == 0 -> again(b, b, i + 1)\n        else -> again(a * %d, b + 1, i + 1)\n    }\n}", k(1, 9), k(1, 9), big(), k(2, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop a = %d, b = (n + %d) * %s, i = 0 {\n        i >= n * 3 -> a + b\n        `%%`(i, 3) == 0 -> again(b, b, i + 1)\n        else -> again(a * %d, b + 1, i + 1)\n    }\n}", k(1, 9), k(1, 9), big(), k(2, 9))
 		},
 		// A JOIN THAT MAY HOLD a's OBJECT, bound before the operation on a
 		// (t is read twice, so it is not substituted) and read after it
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop a = %d, b = %s, i = 0 {\n        i >= n * 3 -> a + b\n        else -> { t = if i > %d { a } else { b }; again(a * %d, t + t, i + 1) }\n    }\n}", k(1, 9), big(), k(0, 4), k(2, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop a = %d, b = %s, i = 0 {\n        i >= n * 3 -> a + b\n        else -> { t = if i > %d { a } else { b }; again(a * %d, t + t, i + 1) }\n    }\n}", k(1, 9), big(), k(0, 4), k(2, 9))
 		},
 		// AN INITIALISER READ ELSEWHERE: the loop does not own x's object
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    x = (n + 5) * %s\n    loop acc = x, i = 0 { i >= %d -> acc + x; else -> again(acc * %d, i + 1) }\n}", big(), k(1, 6), k(2, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    x = (n + 5) * %s\n    loop acc = x, i = 0 { i >= %d -> acc + x; else -> again(acc * %d, i + 1) }\n}", big(), k(1, 6), k(2, 9))
 		},
 		// conditionals and comparisons against words
 		func() string {
-			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..`+inf`) {\n    loop acc = %s, i = 0 {\n        i >= n * 4 -> acc\n        acc > %s * %d -> again(acc / %d - n, i + 1)\n        else -> again(acc * %d + i, i + 1)\n    }\n}", big(), big(), k(2, 50), k(2, 9), k(2, 9))
+			return fmt.Sprintf("export fn run(n ∈ 0..12) (0..) {\n    loop acc = %s, i = 0 {\n        i >= n * 4 -> acc\n        acc > %s * %d -> again(acc / %d - n, i + 1)\n        else -> again(acc * %d + i, i + 1)\n    }\n}", big(), big(), k(2, 50), k(2, 9), k(2, 9))
 		},
 		// a finite bound, enforced by big-fit, and division by a bignum
 		func() string {

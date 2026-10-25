@@ -941,6 +941,12 @@ func (p *parser) binaryFrom(left Expr, min int) (Expr, error) {
 			return left, nil
 		}
 		p.next()
+		if t.text == ".." && !p.beginsOperand() {
+			// lo.. is ↑lo: the range with its upper bound absent (ADR 0077),
+			// the core's (int lo +inf).
+			left = &Apply{Fn: &Var{Name: ".."}, Args: []Expr{left, &Var{Name: "+inf"}}}
+			continue
+		}
 		next := prec + 1
 		if t.text == "^" || t.text == "&&" || t.text == "||" {
 			// `^` is right-associative; `&&` and `||` are associative, and read
@@ -953,6 +959,36 @@ func (p *parser) binaryFrom(left Expr, min int) (Expr, error) {
 		}
 		left = p.combine(t.text, left, right)
 	}
+}
+
+// rangeEnds are the header's contextual words (j.md §2.4), which may follow a
+// range in a binder and would otherwise be read as its bound: `n ∈ 0.. inout`.
+var rangeEnds = map[string]bool{
+	"where": true, "ensure": true, "pure": true, "index": true, "variadic": true,
+	"linear": true, "inout": true, "out": true,
+}
+
+// beginsOperand reports whether the next token can begin a range's bound. When
+// it cannot, the bound is absent (ADR 0077 item 2): a line end, the file's end,
+// a symbol that begins no expression, or a word of the header's grammar.
+func (p *parser) beginsOperand() bool {
+	t := p.peek()
+	if p.lineEnds() {
+		return false
+	}
+	switch t.kind {
+	case tEOF:
+		return false
+	case tSym:
+		switch t.text {
+		case "(", "{", "-", "!":
+			return true
+		}
+		return false
+	case tIdent:
+		return !rangeEnds[t.text]
+	}
+	return true
 }
 
 // combine builds a binary operation. `^` folds, as do `+` and `-` beside a
@@ -1055,6 +1091,17 @@ func (p *parser) unary() (Expr, error) {
 		p.next()
 		x, err := p.exprAt(pPrefix)
 		return &Not{X: x}, err
+	case p.is(".."):
+		// ..hi is ↓hi, the lower bound absent (ADR 0077), the core's (int -inf hi).
+		p.next()
+		if !p.beginsOperand() {
+			return nil, p.errorf("`..` with neither end is ℤ, which is `Int`; a range omits at most one end (ADR 0077)")
+		}
+		x, err := p.exprAt(pRange + 1)
+		if err != nil {
+			return nil, err
+		}
+		return &Apply{Fn: &Var{Name: ".."}, Args: []Expr{&Var{Name: "-inf"}, x}}, nil
 	}
 	e, err := p.primary()
 	if err != nil {
@@ -1159,6 +1206,11 @@ func (p *parser) primary() (Expr, error) {
 		p.next()
 		return &Var{Name: Unspell(t.text)}, nil
 	case tQuoted:
+		if t.text == "+inf" || t.text == "-inf" {
+			// AN ABSENT BOUND IS NO ELEMENT (ADR 0077): ↑a is a set of integers,
+			// and ±∞ are the ends of the IR's abstract domain, not of a set.
+			return nil, p.errorf("`%s` is no integer: an unbounded end is omitted, `lo..` or `..hi` (ADR 0077)", t.text)
+		}
 		p.next()
 		return p.qualified(t.text)
 	case tIdent:

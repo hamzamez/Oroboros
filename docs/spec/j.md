@@ -412,11 +412,11 @@ set_expr    ::= expr                                   an expression whose value
 former      ::= "array" "{" ( expr,* | expr ":" binder ) "}"
               | "set" "{" ( expr,* | binder ":" formula | expr ":" binder,+ ) "}"
               | "map" "{" ( expr ":" expr ),* "}"
-range       ::= expr ".." expr
+range       ::= expr ".." expr | expr ".." | ".." expr          an end omitted is unbounded (ADR 0077)
 ```
 
 - **A set is a static value** (ADR 0063), so a set expression is an expression: a name (`Int`,
-  `Array(E)`, `fs.DirEntry`), a range `0..255`, `-2^63..2^63-1`, a former, the set operators `∪ ∩ ∖ ×`,
+  `Array(E)`, `fs.DirEntry`), a range `0..255`, `-2^63..2^63-1`, an unbounded one `0..` or `..0`, a former, the set operators `∪ ∩ ∖ ×`,
   a set-valued application (`result.Result(FileInfo, error)`, `elems(x)`), or an arrow (§2.4).
 - **A former always has its keyword**, and braces with none are a block (ADR 0065 item 4):
   `array { 2, 3, 5 }` a table's graph; `array { e : k ∈ 0..n-1 }` a table by a rule, the ordered image;
@@ -582,7 +582,7 @@ file printed in another layout reads to the same abstract tree.
 A diagnostic is a function of the program, so what it quotes is J (jmsg-2026-10-20, `core/jshow.go`):
 
 - **a name** by σ_J (§1.5): `io.print_line`, ``go.`>=` ``, a module path quoted, `` `go/fmt`.Println ``;
-- **a set** by J's formers: `0..9`, `-2^63..2^63-1`, `` 0..`+inf` ``, `Array(0..255)`, `Map(Int, F64)`,
+- **a set** by J's formers: `0..9`, `-2^63..2^63-1`, `0..`, `Array(0..255)`, `Map(Int, F64)`,
   `Int × Bool`, `()`; an end too long to read keeps its size, `1.234e400 (401 digits)`;
 - **a term** of the core by J's expressions, the inverse of D on D's image: a redex is a block
   `{ x = e; b }`, a Church tuple its pair, the connectives and comparisons infix (`=` as `==`), a

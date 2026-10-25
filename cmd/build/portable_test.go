@@ -36,9 +36,9 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Σ IS os's EXPORTS AND io's PRIMITIVES. `os` is a library module, one
+	// Σ IS os's INTERFACE AND io's PRIMITIVES. `os` is a library module, one
 	// definition over each host's cell os/host (oskinds-2026-10-06), so its
-	// names are what lib/os.oro exports; `io` is still a cell per host.
+	// names are what lib/os.oro marks `pub` (ADR 0078); `io` is still a cell per host.
 	var sigma []string
 	for name := range tg.Prims {
 		if strings.HasPrefix(name, "io.") {
@@ -54,7 +54,7 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range osForms {
-		if f.Kind == "export" {
+		if f.Kind == "pub" {
 			for _, n := range f.Names {
 				sigma = append(sigma, "os."+n)
 			}

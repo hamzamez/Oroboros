@@ -1,10 +1,10 @@
 // A library module for chapter 3. Run the programs beside it with:
 //
 //   go run ./cmd/oro -target=tutorial docs/book/code/FILE.oro
-fn area(w, h) { w * h }
-fn perimeter(w, h) { 2 * (w + h) }
-fn scale(k, w, h) { area(k * w, k * h) }
+pub fn area(w, h) { w * h }
+pub fn perimeter(w, h) { 2 * (w + h) }
+pub fn scale(k, w, h) { area(k * w, k * h) }
 
 // Not exported. It is reachable from `scale` inside this module and from
 // nowhere outside it.
-private fn twice(n) { 2 * n }
+fn twice(n) { 2 * n }

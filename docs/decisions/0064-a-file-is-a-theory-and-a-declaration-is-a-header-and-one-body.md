@@ -4,6 +4,8 @@ Date: 2026-10-15
 Status: Accepted (hamza, 2026-10-15, on surface-design.md §6.7 and §6.8: items 1, 2, 5–8, then 9 and
 10; J's set notation, items 11 and 12, is §6.9's). Amends the surface ADR 0021 drew from its theories, and modules.md §0's `export` row.
 Not built: the surface is built when it is chosen, by the reader and the translator.
+Item 4 superseded by [ADR 0078](0078-a-modules-interface-is-what-it-marks-pub.md) (2026-10-25): private is
+the default, and `pub` marks the interface.
 
 
 > **Item 7's sentence on `let` is corrected** by ADR 0054 item 3: J writes no scope head, so `let`

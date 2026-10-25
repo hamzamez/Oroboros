@@ -29,7 +29,7 @@ use go/math/bits as b
 use go/strconv as sc
 
 // ι(a) + ι(b) → (h, l, carry out of the top digit).
-fn add(ah ∈ 0..2^64-1, al ∈ 0..2^64-1, bh ∈ 0..2^64-1,
+pub export fn add(ah ∈ 0..2^64-1, al ∈ 0..2^64-1, bh ∈ 0..2^64-1,
     bl ∈ 0..2^64-1) (0..2^64-1 × 0..2^64-1 × 0..1) {
     (l, c) = b.Add64(al, bl, 0)
     (h, c2) = b.Add64(ah, bh, c)
@@ -37,7 +37,7 @@ fn add(ah ∈ 0..2^64-1, al ∈ 0..2^64-1, bh ∈ 0..2^64-1,
 }
 
 // ι(a)·w → (h, l, overflow): overflow is 1 exactly when ι(a)·w ≥ 2^128.
-fn mulw(ah ∈ 0..2^64-1, al ∈ 0..2^64-1, w ∈ 0..2^64-1) (0..2^64-1 × 0..2^64-1 × 0..1) {
+pub export fn mulw(ah ∈ 0..2^64-1, al ∈ 0..2^64-1, w ∈ 0..2^64-1) (0..2^64-1 × 0..2^64-1 × 0..1) {
     (p1h, p1l) = b.Mul64(al, w)
     (p2h, p2l) = b.Mul64(ah, w)
     (h, c) = b.Add64(p2l, p1h, 0)
@@ -45,7 +45,7 @@ fn mulw(ah ∈ 0..2^64-1, al ∈ 0..2^64-1, w ∈ 0..2^64-1) (0..2^64-1 × 0..2^
 }
 
 // ι(a) ÷ y → (qh, ql, r) with ι(a) = ι(qh, ql)·y + r and 0 ≤ r < y.
-fn divw(ah ∈ 0..2^64-1, al ∈ 0..2^64-1,
+pub export fn divw(ah ∈ 0..2^64-1, al ∈ 0..2^64-1,
     y ∈ 1..2^64-1) (0..2^64-1 × 0..2^64-1 × 0..18446744073709551614) {
     (qh, rh) = b.Div64(0, ah, y)
     (ql, r) = b.Div64(b.Rem64(0, ah, y), al, y)
@@ -53,7 +53,7 @@ fn divw(ah ∈ 0..2^64-1, al ∈ 0..2^64-1,
 }
 
 // A base-10^18 digit as exactly 18 decimal digits, most significant first.
-private fn digits18(g ∈ 0..999999999999999999) (String) {
+fn digits18(g ∈ 0..999999999999999999) (String) {
     loop i = 0, v = g, s = "" {
         i >= 18 -> s
         else -> again(i + 1, v / 10, string_of(48 + v % 10) ++ s)
@@ -83,7 +83,7 @@ private fn digits18(g ∈ 0..999999999999999999) (String) {
 // an `int` whose negative values the unsigned word's selection converted by the
 // residue map into digits of a different number. Declared, the membership is an
 // obligation at every call (ADR 0028) instead of a silent conversion (ADR 0033).
-fn decimal(h ∈ 0..2^64-1, l ∈ 0..2^64-1) (String) {
+pub export fn decimal(h ∈ 0..2^64-1, l ∈ 0..2^64-1) (String) {
     loop h = h, l = l, s = "" {
         h == 0 && l < 1000000000000000000 -> sc.FormatUint(l, 10) ++ s
         else ->

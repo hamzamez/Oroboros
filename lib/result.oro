@@ -19,6 +19,6 @@
 // errors meet another's:
 //
 //   err-map id = id                  err-map (g ∘ f) = err-map g ∘ err-map f
-set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok relevant
+pub set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok relevant
 
-fn err_map(f, r) { case r { 'ok(v) -> 'ok(v); 'err(e) -> 'err(f(e)) } }
+pub fn err_map(f, r) { case r { 'ok(v) -> 'ok(v); 'err(e) -> 'err(f(e)) } }

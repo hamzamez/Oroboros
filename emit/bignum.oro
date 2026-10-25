@@ -117,7 +117,7 @@
 // honest version is still owed: a limb IS non-negative by the buffer's element
 // range, which is an inductive invariant over a buffer's own contents, and
 // frozen-2026-08-28 says that is strictly stronger than an octagon.
-private fn at(t, i) {
+fn at(t, i) {
     v = if i < 0 { 0 } else if i >= len(t) { 0 } else { t[i] }
     if v < 0 { 0 } else { v % (2^24) }
 }
@@ -141,7 +141,7 @@ private fn at(t, i) {
 // When the bound IS a whole number of limbs, `lim` is 2^24 and a limb is under
 // 2^24 by construction, so the check is present, free, and never fires. That is
 // the right shape for a check whose job is to make two representations agree.
-private fn guard(n, lim, c, o linear) {
+fn guard(n, lim, c, o linear) {
     if trap_if(c + if at(o, n - 1) < lim { 0 } else { 1 }) == 0 { () }
 }
 
@@ -155,7 +155,7 @@ private fn guard(n, lim, c, o linear) {
 // reaches this rung only by being ABOVE the portable window, so the declared
 // bound is at least 54 bits, and a machine word is under 2^53. A word can
 // therefore never exceed the bound it is being widened into.
-private fn of(n, lim, v) {
+fn of(n, lim, v) {
     var b := array { 0 : _ ∈ 0..n-1 }
     loop i = 0, r = v { i >= n -> b; else -> { b[i] := r % (2^24); again(i + 1, r / (2^24)) } }
 }
@@ -165,7 +165,7 @@ private fn of(n, lim, v) {
 // The carry rides as an ordinary loop variable, which is what makes this
 // expressible: ADR 0015 lets `again` sit under a `let`, so the column sum is
 // named once and used for both the stored limb and the outgoing carry.
-private fn add(n, lim, a, b) {
+fn add(n, lim, a, b) {
     var o := array { 0 : _ ∈ 0..n-1 }
     loop i = 0, c = 0 {
         i >= n -> { guard(n, lim, c, o); o }
@@ -181,7 +181,7 @@ private fn add(n, lim, a, b) {
 // k is NOT assumed to fit a limb: `(at a i) * k` with k up to 2^24 stays under
 // 2^48, and the lowering only chooses this form when the multiplier is a widened
 // word whose range the analysis has bounded.
-private fn mul_small(n, lim, a, k) {
+fn mul_small(n, lim, a, k) {
     var o := array { 0 : _ ∈ 0..n-1 }
     loop i = 0, c = 0 {
         i >= n -> { guard(n, lim, c, o); o }
@@ -210,7 +210,7 @@ private fn mul_small(n, lim, a, k) {
 //
 // The middle clause is also what discharges the store's bounds obligation in the
 // last one: its negation gives `i + j < n`, and `n` is the buffer's length.
-private fn macrow(n, lim, o linear, a, b, i) {
+fn macrow(n, lim, o linear, a, b, i) {
     loop j = 0, c = 0 {
         j >= n -> { guard(n, lim, c, o); () }
         i + j >= n -> {
@@ -226,7 +226,7 @@ private fn macrow(n, lim, o linear, a, b, i) {
     }
 }
 
-private fn mul(n, lim, a, b) {
+fn mul(n, lim, a, b) {
     var o := array { 0 : _ ∈ 0..n-1 }
     loop i = 0 { i >= n -> o; else -> { macrow(n, lim, o, a, b, i); again(i + 1) } }
 }
@@ -244,7 +244,7 @@ private fn mul(n, lim, a, b) {
 // exactly as an overflow is. So it traps, and for the same reason -- the
 // alternative is a wrap, and then choosing a representation would change the
 // answer (ADR 0009 at the representation boundary).
-private fn sub(n, lim, a, b) {
+fn sub(n, lim, a, b) {
     var o := array { 0 : _ ∈ 0..n-1 }
     loop i = 0, bw = 0 {
         i >= n -> { guard(n, lim, bw, o); o }
@@ -277,7 +277,7 @@ private fn sub(n, lim, a, b) {
 // `(/ x k)` carries it before the promotion runs (integers.md §13.4), and
 // `splice` normalises this body against the caller's actual argument, so the
 // same facts are in scope at the same goal.
-private fn div_small(n, lim, a, k) {
+fn div_small(n, lim, a, k) {
     var o := array { 0 : _ ∈ 0..n-1 }
     loop i = n - 1, r = 0 {
         i < 0 -> o
@@ -300,7 +300,7 @@ private fn div_small(n, lim, a, k) {
 // comparisons. Three guards read each limb twice, which is two compares more per
 // limb than a difference would cost; a comparison walks limbs and stops at the
 // first that differs, so this is not the arithmetic anyone measures.
-private fn cmp(n, lim, a, b) {
+fn cmp(n, lim, a, b) {
     loop i = n - 1 {
         i < 0 -> 0
         at(a, i) > at(b, i) -> 1
@@ -309,11 +309,11 @@ private fn cmp(n, lim, a, b) {
     }
 }
 
-private fn lt(n, lim, a, b) { cmp(n, lim, a, b) < 0 }
-private fn le(n, lim, a, b) { cmp(n, lim, a, b) <= 0 }
-private fn gt(n, lim, a, b) { cmp(n, lim, a, b) > 0 }
-private fn ge(n, lim, a, b) { cmp(n, lim, a, b) >= 0 }
-private fn eq(n, lim, a, b) { cmp(n, lim, a, b) == 0 }
+fn lt(n, lim, a, b) { cmp(n, lim, a, b) < 0 }
+fn le(n, lim, a, b) { cmp(n, lim, a, b) <= 0 }
+fn gt(n, lim, a, b) { cmp(n, lim, a, b) > 0 }
+fn ge(n, lim, a, b) { cmp(n, lim, a, b) >= 0 }
+fn eq(n, lim, a, b) { cmp(n, lim, a, b) == 0 }
 
 // -------------------------------------------------------- remainder by a word
 //
@@ -325,7 +325,7 @@ private fn eq(n, lim, a, b) { cmp(n, lim, a, b) == 0 }
 // library changes the KIND of thing an operation produces. `a % k` is under k
 // and k is a word, so the answer is a word by construction — there is no limb
 // count to give it and no `build` here.
-private fn rem_small(n, lim, a, k) {
+fn rem_small(n, lim, a, k) {
     loop i = n - 1, r = 0 {
         i < 0 -> r
         else -> { cur = r * (2^24) + at(a, i); again(i - 1, cur % k) }

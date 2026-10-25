@@ -7,4 +7,4 @@
 // level, `(+ 1 2)` and `(* 9 9)`, reduced by nobody and printed by nobody. J
 // has no such thing: a file is a theory and holds declarations, and a bare
 // expression at the top level is refused (ADR 0064).
-fn k(n) { n * 3 }
+pub fn k(n) { n * 3 }

@@ -419,7 +419,7 @@ type VariantItem struct {
 	Relevant bool
 }
 
-// ModuleDecl, UseDecl and ExportDecl are resolution (ADR 0011); ForeignDecl is a form another
+// ModuleDecl, UseDecl, PubDecl and ExportDecl are resolution (ADR 0011); ForeignDecl is a form another
 // reader owns or Load refuses — a target fragment `provides`, or `prim` and
 // `target`, which a program may not write — kept as written.
 type ModuleDecl struct {
@@ -429,6 +429,14 @@ type ModuleDecl struct {
 type UseDecl struct {
 	Path, As string
 	At       int
+}
+
+// PubDecl is a module's interface, the names an importer may use (ADR 0078);
+// ExportDecl its entry points, the names the build compiles into host functions.
+// Two relations: resolution reads the first, the build the second.
+type PubDecl struct {
+	Names []string
+	At    int
 }
 type ExportDecl struct {
 	Names []string
@@ -450,6 +458,7 @@ func (*ClaimDecl) declSort()   {}
 func (*VariantDecl) declSort() {}
 func (*ModuleDecl) declSort()  {}
 func (*UseDecl) declSort()     {}
+func (*PubDecl) declSort()     {}
 func (*ExportDecl) declSort()  {}
 func (*ForeignDecl) declSort() {}
 func (*TermDecl) declSort()    {}

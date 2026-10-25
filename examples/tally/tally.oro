@@ -48,20 +48,20 @@ use tally/host as h
 // A file of at most cap-in bytes has at most cap-in + 1 lines, so no count,
 // index or run can exceed nmax. freq.oro's discipline: the cap makes the limit
 // visible, and the one derived from it cannot be reached.
-private cap_in = 2^24
-private nmax = 16777217
+cap_in = 2^24
+nmax = 16777217
 
-private fn cli(n, i) { if i < 0 { 0 } else if i >= n { 0 } else { i } }
+fn cli(n, i) { if i < 0 { 0 } else if i >= n { 0 } else { i } }
 // A permutation entry: the index is clamped, the value is not — the compiler
 // derives that `ord` holds indices below n (array smashing, smashfd-2026-09-16).
-private fn pat(t, n, i) { t[cli(n, i)] }
-private fn mmin(a, b) { if a < b { a } else { b } }
+fn pat(t, n, i) { t[cli(n, i)] }
+fn mmin(a, b) { if a < b { a } else { b } }
 
 // --- the sort: freq.oro's, over a permutation -------------------------------
 //
 // Bottom-up merge sort, stable, no recursion. `less` is a static-level function
 // and is substituted away; two comparators give two copies of the loop.
-private fn merge1(less, a, b linear, n, lo, mid, hi) {
+fn merge1(less, a, b linear, n, lo, mid, hi) {
     loop i = lo, j = mid, k = lo {
         k >= hi -> ()
         i >= mid -> { b[cli(n, k)] := a[cli(n, j)]; again(i, j + 1, k + 1) }
@@ -71,7 +71,7 @@ private fn merge1(less, a, b linear, n, lo, mid, hi) {
     }
 }
 
-private fn mpass(less, a, b linear, n, w) {
+fn mpass(less, a, b linear, n, w) {
     loop lo = 0 {
         lo >= n -> ()
         else -> {
@@ -83,11 +83,11 @@ private fn mpass(less, a, b linear, n, w) {
     }
 }
 
-private fn iota(a linear, n) {
+fn iota(a linear, n) {
     loop k = 0 { k >= n -> (); else -> { a[cli(n, k)] := k; again(k + 1) } }
 }
 
-private fn msort(less, n) {
+fn msort(less, n) {
     var a := array { 0 : _ ∈ 0..n-1 }
     var b := array { 0 : _ ∈ 0..n-1 }
     iota(a, n)
@@ -100,7 +100,7 @@ private fn msort(less, n) {
 
 // --- the tool ---------------------------------------------------------------
 // How many lines match. Count, then build: `build` fixes its length first.
-private fn nhits(hit?, re, ls) {
+fn nhits(hit?, re, ls) {
     loop n = 0, i = 0 {
         i >= len(ls) -> n
         n >= nmax -> n
@@ -111,7 +111,7 @@ private fn nhits(hit?, re, ls) {
 
 // THE CAPTURED VALUES, AS A TABLE OF THE HOST'S STRINGS. Nothing is copied into
 // bytes: the host produced these strings and the host will compare them.
-private fn captures(hit?, capture, re, ls, n) {
+fn captures(hit?, capture, re, ls, n) {
     var cs := array { 0 : _ ∈ 0..n-1 }
     loop i = 0, k = 0 {
         i >= len(ls) -> cs
@@ -123,13 +123,13 @@ private fn captures(hit?, capture, re, ls, n) {
 
 // A value at a sorted position. Clamped, because a permutation entry is a value
 // read out of a table (frozen-2026-08-28's stratum 0).
-private fn at(cs, ord, n, k) { cs[pat(ord, n, k)] }
+fn at(cs, ord, n, k) { cs[pat(ord, n, k)] }
 
-private fn new?(cmp, cs, ord, n, k) {
+fn new?(cmp, cs, ord, n, k) {
     k == 0 || !(cmp(at(cs, ord, n, k), at(cs, ord, n, k - 1)) == 0)
 }
 
-private fn ndist(cmp, cs, ord, n) {
+fn ndist(cmp, cs, ord, n) {
     loop d = 0, k = 0 {
         k >= n -> d
         d >= nmax -> d
@@ -144,9 +144,9 @@ private fn ndist(cmp, cs, ord, n) {
 // inside its own `build` is no longer clamped: this loop runs at most n times
 // and adds 1 to one slot per trip, so a count is at most 1 + n, which the
 // compiler proves (the bounded-increment theorem, smashfd-2026-09-16).
-private fn dcount(dt, d) { dt[d][1] }
+fn dcount(dt, d) { dt[d][1] }
 
-private fn dists(cmp, cs, ord, n, nd) {
+fn dists(cmp, cs, ord, n, nd) {
     var dt := array { 0 : _ ∈ 0..nd-1 }
     loop k = 0, d = 0 {
         k >= n -> dt
@@ -161,11 +161,11 @@ private fn dists(cmp, cs, ord, n, nd) {
     }
 }
 
-private fn dvalue(cs, ord, n, dt, d) { at(cs, ord, n, dt[d][0]) }
+fn dvalue(cs, ord, n, dt, d) { at(cs, ord, n, dt[d][0]) }
 
 // The report is TEXT, built by concatenation -- render.oro's free monoid, and
 // the host's own strings throughout. `show` is the host's integer-to-text.
-private fn report(show, cs, ord, n, dt, ord2, nd) {
+fn report(show, cs, ord, n, dt, ord2, nd) {
     loop out = "", r = 0 {
         r >= nd -> out
         else -> {
@@ -190,7 +190,7 @@ private fn report(show, cs, ord, n, dt, ord2, nd) {
 // looks (modules.md §4). Each host's binding is a LIBRARY FRAGMENT beside this
 // file -- host-go.oro, host-java.oro -- so this is ONE program and the
 // capability graph picks the binding, exactly as it picks a primitive.
-private fn tally(p, text) {
+fn tally(p, text) {
     re = h.compile(p)
     ls = h.lines(text)
     n = nhits(h.hit?, re, ls)
@@ -202,7 +202,7 @@ private fn tally(p, text) {
     report(h.show, cs, ord, n, dt, ord2, nd)
 }
 
-private fn run() {
+fn run() {
     av = os.Args()
     if len(av) < 3 { io.print_line("usage: tally PATTERN FILE") } else {
         case os.ReadFile(av[2]) {

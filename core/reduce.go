@@ -440,11 +440,16 @@ func NewProgram() *Program {
 type Module struct {
 	Path    string
 	Uses    map[string]string // alias -> module path
-	Exports map[string]bool   // empty means "everything", pending signatures
-	Defs    map[string]*Term  // unqualified name -> body, before resolution
-	Order   []string
-	Sigs    map[string]*Sig
-	Sums    map[string]*Sum
+	Exports map[string]bool   // its entry points: compiled when this module is (ADR 0078)
+	// Pub is its interface, the names an importer may use, and HasPub whether it
+	// has one: a module read from J always does, and an empty one hides every
+	// name. One with none (a core term written by hand) shows everything.
+	Pub    map[string]bool
+	HasPub bool
+	Defs   map[string]*Term // unqualified name -> body, before resolution
+	Order  []string
+	Sigs   map[string]*Sig
+	Sums   map[string]*Sum
 }
 
 // qualify joins a module path to a local name. The root module has no path, so
@@ -765,6 +770,16 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		if len(noDef) > 0 {
 			sort.Strings(noDef)
 			return nil, nil, fmt.Errorf("%s exports %s, which it does not define",
+				modLabel(m.Path), strings.Join(noDef, ", "))
+		}
+		for n := range m.Pub {
+			if _, ok := m.Defs[n]; !ok && !isSumMember(m, n) {
+				noDef = append(noDef, n)
+			}
+		}
+		if len(noDef) > 0 {
+			sort.Strings(noDef)
+			return nil, nil, fmt.Errorf("%s makes %s `pub`, which it does not define",
 				modLabel(m.Path), strings.Join(noDef, ", "))
 		}
 		noDef = nil
@@ -1147,7 +1162,7 @@ var langSums = map[string]*Sum{"option": OptionSum()}
 
 func newModule(path string) *Module {
 	return &Module{Path: path, Uses: map[string]string{},
-		Exports: map[string]bool{}, Defs: map[string]*Term{},
+		Exports: map[string]bool{}, Pub: map[string]bool{}, Defs: map[string]*Term{},
 		Sigs: map[string]*Sig{}, Sums: map[string]*Sum{}}
 }
 
@@ -1182,6 +1197,11 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 		case "export":
 			for _, n := range f.Names {
 				cur.Exports[n] = true
+			}
+		case "pub":
+			cur.HasPub = true
+			for _, n := range f.Names {
+				cur.Pub[n] = true
 			}
 		case "def":
 			if _, dup := cur.Defs[f.Name]; dup {
@@ -1442,12 +1462,16 @@ func checkExported(mods []*Module, path, name string) error {
 		if m.Path != path {
 			continue
 		}
-		if len(m.Exports) == 0 {
-			return nil // no signature yet; everything is visible
+		// A MODULE'S INTERFACE IS WHAT IT MARKS `pub` (ADR 0078). Until then an
+		// empty interface read as "no signature yet", so a module that hid every
+		// name hid none.
+		if !m.HasPub {
+			return nil
 		}
-		if !m.Exports[name] {
-			if _, defined := m.Defs[name]; defined {
-				return fmt.Errorf("module %s defines %s but hides it (`private`, ADR 0064 item 4)", path, ShowName(name))
+		if !m.Pub[name] {
+			if _, defined := m.Defs[name]; defined || isSumMember(m, name) {
+				return fmt.Errorf("module %s defines %s and does not make it `pub`: a declaration is private "+
+					"to its module unless marked `pub` (ADR 0078)", path, ShowName(name))
 			}
 			return fmt.Errorf("module %s has no member %s", path, ShowName(name))
 		}
@@ -4008,4 +4032,17 @@ func (m *Module) resolveSetAliases(ty string) string {
 		}
 	}
 	return b.String()
+}
+
+// isSumMember reports whether name is a constructor of a variant m declares: a
+// `pub` variant's tags are in its module's interface (ADR 0078 item 1).
+func isSumMember(m *Module, name string) bool {
+	for _, s := range m.Sums {
+		for _, v := range s.Variants {
+			if v.Name == name {
+				return true
+			}
+		}
+	}
+	return false
 }

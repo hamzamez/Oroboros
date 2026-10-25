@@ -1,2 +1,2 @@
 use cyc/a
-fn g(n) { n * 2 }
+pub fn g(n) { n * 2 }

@@ -1250,12 +1250,9 @@
 == lib/num/vec.oro windows refused
    gen: lib/num/vec.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== lib/os.oro go refused
-   gen: gen-ReadFile: lowering: case { `os/host`.not_found?(#0.1) -> (0, #any); `os/host`.exists?(#0.1) -> (1, #any); `os/host`.permission?(#0.1) -> (2, #any); else -> (3, #1.1) } is 2 values where one is wanted: a tuple, or a variant, which is its tag and its slots (ADR 0042), has no representation in this position (a table of tuples is flattened only where the program builds it, products.md; a variant is one value only where case-of-case eliminates it)
-== lib/os.oro js refused
-   gen: gen-ReadFile: lowering: case { `os/host`.not_found?(#0.1) -> (0, #any); `os/host`.exists?(#0.1) -> (1, #any); `os/host`.permission?(#0.1) -> (2, #any); else -> (3, #1.1) } is 2 values where one is wanted: a tuple, or a variant, which is its tag and its slots (ADR 0042), has no representation in this position (a table of tuples is flattened only where the program builds it, products.md; a variant is one value only where case-of-case eliminates it)
-== lib/os.oro java refused
-   gen: gen-ReadFile: lowering: case { `os/host`.not_found?(#0.1) -> (0, #any); `os/host`.exists?(#0.1) -> (1, #any); `os/host`.permission?(#0.1) -> (2, #any); else -> (3, #1.1) } is 2 values where one is wanted: a tuple, or a variant, which is its tag and its slots (ADR 0042), has no representation in this position (a table of tuples is flattened only where the program builds it, products.md; a variant is one value only where case-of-case eliminates it)
+== lib/os.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== lib/os.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== lib/os.oro java emitted 113520fdc630d7533f2dc37b0c1bd77e81b95d1aee78fc9e2ab38cfb2cacebc5
 == lib/os.oro windows refused
    gen: lib/os.oro: in os.Args: `os/host`.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use os/host` matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
@@ -1283,30 +1280,10 @@
    gen: lib\os\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/js.oro windows refused
    gen: lib/os/js.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
-== lib/result.oro go refused
-   gen: gen-err: cannot determine a type for parameter 1: no header declares it, and it is never passed to an operation or a primitive whose header would fix it
-== lib/result.oro js refused
-   gen: gen-err-map: f[#p1] is an indexing, and 0 <= #p1 does not follow
-     known: assumed ne(#t,+0)
-     A table is a function with a finite domain, so 0 <= i < len is the
-     condition for the application to be DEFINED — not a check bolted on
-     (docs/spec/tables.md §6).
-     f is a parameter no header gives a set, so applied to one argument it is read as a
-     table (tables.md §3.2). If f is a function, this definition takes one and cannot be
-     compiled alone: a function does not cross an entry point (closures-direction.md), and the
-     definition is used where it is inlined. If it is a table, declare its set, f ∈ Array(…).
-== lib/result.oro java refused
-   gen: gen-err: cannot determine a type for parameter 1: no header declares it, and it is never passed to an operation or a primitive whose header would fix it
-== lib/result.oro windows refused
-   gen: gen-err-map: f[#p1] is an indexing, and 0 <= #p1 does not follow
-     known: assumed ne(#t,+0)
-     A table is a function with a finite domain, so 0 <= i < len is the
-     condition for the application to be DEFINED — not a check bolted on
-     (docs/spec/tables.md §6).
-     f is a parameter no header gives a set, so applied to one argument it is read as a
-     table (tables.md §3.2). If f is a function, this definition takes one and cannot be
-     compiled alone: a function does not cross an entry point (closures-direction.md), and the
-     definition is used where it is inlined. If it is a table, declare its set, f ∈ Array(…).
+== lib/result.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== lib/result.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== lib/result.oro java emitted a55a9cbbc8e4476b44bc5819ff933436d0f1a40a1bd6826111f247eb036c690a
+== lib/result.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == lib/win/fmt.oro go refused
    gen: lib/win/fmt.oro: in `win/fmt`.print_int: x64.sete is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use x64` matched no file on the search path and this target provides no module x64 either, so every name from it is unbound. Check the path.

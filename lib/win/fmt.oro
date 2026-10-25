@@ -55,13 +55,13 @@ use windows/kernel32
 // call it is vacuous, because an `int` argument is held in the word (ADR 0026).
 // -11 is STD_OUTPUT_HANDLE. There is no constant in the language to name it
 // with, so the number is the interface — see targets/windows/kernel32.oro.
-fn write_bytes(p, n) { kernel32.WriteFile(kernel32.GetStdHandle(-11), p, n) }
+pub export fn write_bytes(p, n) { kernel32.WriteFile(kernel32.GetStdHandle(-11), p, n) }
 
-fn print_str(s) {
+pub export fn print_str(s) {
     write_bytes(s, x64.strlen(s))
     write_bytes("\n", 1)
 }
-fn print_int(n ∈ -2^63..2^63-1) (Any) {
+pub export fn print_int(n ∈ -2^63..2^63-1) (Any) {
     // Digits are produced least-significant first, so they are written BACKWARDS
     // from the end of the field and the loop returns where it stopped. The loop's
     // value is that index — an ordinary `loop` exit, not a special form — and the

@@ -97,7 +97,7 @@ t = add(1, 2)`, "go")
 
 // `▷`: the target's definition wins over the library's, and the program says so.
 func TestATargetsDefinitionOverridesTheLibrarys(t *testing.T) {
-	lib := map[string]string{"h": "fn twice(x) { add(x, 0) }"}
+	lib := map[string]string{"h": "pub fn twice(x) { add(x, 0) }"}
 	resolve := snippetResolver(lib)
 	src, prims := splitPrims(`(target go (prim add))
 use h

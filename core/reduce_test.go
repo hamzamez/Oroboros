@@ -524,7 +524,7 @@ fn x(n) { print(n) }`, "default")
 func TestQualifiedNameResolves(t *testing.T) {
 	check(t, `(prim mul)
 module lib/scale {
-    export fn twice(x) { mul(x, 2) }
+    pub fn twice(x) { mul(x, 2) }
 }
 
 module main {
@@ -537,7 +537,7 @@ module main {
 func TestImportAlias(t *testing.T) {
 	check(t, `(prim mul)
 module lib/scale {
-    fn twice(x) { mul(x, 2) }
+    pub fn twice(x) { mul(x, 2) }
 }
 
 module main {
@@ -551,7 +551,7 @@ module main {
 func TestLocalsAreNotQualified(t *testing.T) {
 	check(t, `(prim mul)
 module lib/scale {
-    fn twice(twice) { mul(twice, 2) }
+    pub fn twice(twice) { mul(twice, 2) }
 }
 
 module main {
@@ -560,10 +560,10 @@ module main {
 }`, "default", "(mul 3 2)")
 }
 
-// §5 — the export list is enforced for modules we can see.
+// §5 — the interface is enforced for modules we can see (ADR 0078).
 func TestUnexportedNameIsRejected(t *testing.T) {
 	src, _ := splitPrims(`module lib/scale {
-    export fn twice(x) { x }
+    pub fn twice(x) { x }
     fn secret(x) { x }
 }
 
@@ -608,7 +608,7 @@ module num/vec {
     fn of_array(a) { vec(alen(a), fn(i) { aindex(a, i) }) }
     fn zip(g, a, b) { vec(vlen(a), fn(i) { g(vindex(a, i), vindex(b, i)) }) }
     fn sum(v) { fold_range(0.0, vlen(v), fn(acc, i) { add(acc, vindex(v, i)) }) }
-    export fn dot(a, b) { sum(zip(mul, of_array(a), of_array(b))) }
+    pub fn dot(a, b) { sum(zip(mul, of_array(a), of_array(b))) }
 }
 
 module main {
@@ -631,7 +631,7 @@ func TestNativeShadowsLibraryAcrossModules(t *testing.T) {
 // and by the time reduction runs nothing can tell it came from elsewhere.
 func TestLoadAcrossFiles(t *testing.T) {
 	lib := map[string]string{
-		"num/vec": `fn dot(a, b) { fold_range(0.0, alen(a), fn(acc, i) { add(acc, mul(aindex(a, i), aindex(b, i))) }) }`,
+		"num/vec": `pub fn dot(a, b) { fold_range(0.0, alen(a), fn(acc, i) { add(acc, mul(aindex(a, i), aindex(b, i))) }) }`,
 	}
 	resolve := snippetResolver(lib)
 

@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 156 words of the core**, and j.md §1.4's keywords.
+**Result: 157 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 116 |
+| `specified` — a spec states it | 117 |
 | `recorded` — only research, a result document or code comments | 25 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -62,7 +62,7 @@ Statuses, as the test reads them:
 ## 0. J's words
 
 j.md §1.4 is the list, and it is not repeated here: **reserved** words (`fn spec lemma set array map var
-loop again case if else try expect assert use module provides private export axiom true false`),
+loop again case if else try expect assert use module provides pub export axiom true false`),
 **contextual** ones, keywords only where the grammar takes them (`where ensure invariant pure index
 variadic inout out linear as host expr stmt import lib checked jump comma_ok success relevant`), and
 **the model's data words** of a target file (`repr`, `fact`, `backend`, …, j.md §2.12).
@@ -95,7 +95,8 @@ text), D's output, and the module loader's dispatch.
 | `variant` | specified — closed, finite, non-recursive, with type arguments; J writes `set S(T) = 'a ∪ 'c(T)` | [sums.md](sums.md), [data.md](data.md) |
 | `success` | specified — a variant's role marker, `(success c)`, J's `success 'c` after the union: the constructor `try` continues on; reserved as a constructor name | [errors.md](errors.md) §2 |
 | `relevant` | specified — a variant's role marker, `(relevant)`, J's `relevant`: a value of the type must be used; reserved as a constructor name | [errors.md](errors.md) §2, §7 |
-| `module`, `use`, `export` | specified — the same words in J; `module` in a target too; `private`, J's other visibility word, D erases into the reduct | [modules.md](modules.md) |
+| `module`, `use`, `export` | specified — the same words in J; `export` the entry points (ADR 0078); `module` in a target too | [modules.md](modules.md) |
+| `pub` | specified — a module's interface, `(pub n…)`, J's `pub` marker: the names an importer may use; apart from the entry points | [ADR 0078](../decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
 | `as` | specified — `use PATH as ALIAS` | [state.md](state.md) |
 | `provides` | specified — a target fragment written where a library lives, which may hold definitions; the same word in J | [target-system.md](target-system.md), [theories.md](theories.md) |
 | `target` | specified — a target file's header in the loader's form; J's target file names its module by `module`, and a program writing `target` is refused | [target-files.md](target-files.md) |

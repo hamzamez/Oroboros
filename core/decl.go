@@ -83,6 +83,12 @@ func (d *desugarer) placed(decls []Decl) ([]*Term, error) {
 				u.Kids = append(u.Kids, Name("as"), Name(dc.As))
 			}
 			ts = append(ts, placed{dc.At, u})
+		case *PubDecl:
+			e := &Term{Kind: KApp, Kids: []*Term{Name("pub")}}
+			for _, n := range dc.Names {
+				e.Kids = append(e.Kids, Name(n))
+			}
+			ts = append(ts, placed{dc.At, e})
 		case *ExportDecl:
 			e := &Term{Kind: KApp, Kids: []*Term{Name("export")}}
 			for _, n := range dc.Names {

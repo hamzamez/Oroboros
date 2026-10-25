@@ -1746,3 +1746,19 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/big/fib.oro windows`
 - compiler output changed — `examples/big/pair.oro windows`
 - compiler output changed — `examples/big/power.oro windows`
+
+## 2026-10-25 — on 9bda359, with uncommitted changes
+
+**Reason:** ADR 0078: a library's interface is no longer its entry points; lib/os and lib/result compiled alone have none and emit an empty file, where their whole interface was refused as entry points (err_map's function parameter, err's untyped one)
+
+572 runs: 311 emitted, 261 refused; 2103 of 2148 integer operations bounded, 353 of 376 loops proven. compiler pass, differential pass, tooling skip.
+
+7 change(s):
+
+- now emits — `lib/os.oro go`
+- now emits — `lib/os.oro java`
+- now emits — `lib/os.oro js`
+- now emits — `lib/result.oro go`
+- now emits — `lib/result.oro java`
+- now emits — `lib/result.oro js`
+- now emits — `lib/result.oro windows`

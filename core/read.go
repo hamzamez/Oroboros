@@ -587,6 +587,13 @@ func toForm(t *Term) (Form, error) {
 			return Form{}, fmt.Errorf("export: %w", err)
 		}
 		return Form{Kind: "export", Names: names}, nil
+	case "pub":
+		// A module's interface (ADR 0078), apart from its entry points.
+		names, err := nameList(t.Kids[1:])
+		if err != nil {
+			return Form{}, fmt.Errorf("pub: %w", err)
+		}
+		return Form{Kind: "pub", Names: names}, nil
 	case "prim":
 		names, err := nameList(t.Kids[1:])
 		if err != nil {

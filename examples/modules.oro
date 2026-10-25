@@ -18,7 +18,7 @@ module num/vec {
     fn of_array(a) { vec(alen(a), fn(i) { aindex(a, i) }) }
     fn zip(g, a, b) { vec(vlen(a), fn(i) { g(vindex(a, i), vindex(b, i)) }) }
     fn sum(v) { fold_range(0.0, vlen(v), fn(acc, i) { f64.add(acc, vindex(v, i)) }) }
-    export fn dot(a, b) { sum(zip(f64.mul, of_array(a), of_array(b))) }
+    pub export fn dot(a, b) { sum(zip(f64.mul, of_array(a), of_array(b))) }
 }
 
 module main {

@@ -46,8 +46,13 @@ entirely by how it was reached.
 |---|---|---|
 | `(module …)` | optional; may declare several | exactly one, matching the path it was found at |
 | bare top-level terms | reduced | discarded |
-| `(export …)` | the program's entry points | visibility only |
-| `(export main)` | what `build` compiles | ignored |
+| `pub` (core `(pub …)`) | the interface, read by nobody | the interface: what an importer may name (ADR 0078) |
+| `export` (core `(export …)`) | the program's entry points | not the program's |
+| `export fn main()` | what `build` compiles | ignored |
+
+Two relations, kept apart since ADR 0078: the interface I is read by resolution, the entry points E by
+the build. Until then one `(export …)` was both, so a library compiled alone made its whole interface
+its entry points, and an empty one read as "everything visible".
 
 The last row is the one with teeth: a dependency cannot supply a program's `main`, so adding one
 cannot move where the program starts. The rest is what makes `(use …)` a dependency rather than an

@@ -31,11 +31,11 @@ use os/host
 use result
 
 // K + E_host: three kinds, and the host's error as the residue.
-set OsError = 'not_found ∪ 'exists ∪ 'permission ∪ 'other(error)
+pub set OsError = 'not_found ∪ 'exists ∪ 'permission ∪ 'other(error)
 
 // h, the classification. The predicates are each host's; the order is the
 // kinds' and fixes nothing, because the three host sentinels are disjoint.
-private fn classify(e) {
+fn classify(e) {
     case {
         host.not_found?(e) -> 'not_found
         host.exists?(e) -> 'exists
@@ -45,16 +45,16 @@ private fn classify(e) {
 }
 
 // GET on the store F : Path ⇀ B*.
-fn ReadFile(path) { result.err_map(classify, host.ReadFile(path)) }
+pub fn ReadFile(path) { result.err_map(classify, host.ReadFile(path)) }
 
 // PUT on the store: after it succeeds, ReadFile path gives data (the lens law
 // roundtrip.oro checks). It succeeds with nothing, 1 + E (data.md §3.6).
-fn WriteFile(path, data) { result.err_map(classify, host.WriteFile(path, data)) }
+pub fn WriteFile(path, data) { result.err_map(classify, host.WriteFile(path, data)) }
 
 // Bytes to text, once, at the boundary: d, the Unicode Standard's maximal-subpart
 // decode, on every host (ADR 0030).
-fn text_of(b) { host.text_of(b) }
+pub fn text_of(b) { host.text_of(b) }
 
 // The environment, so a program can be told what to open.
-fn Args() { host.Args() }
-fn Getenv(k) { host.Getenv(k) }
+pub fn Args() { host.Args() }
+pub fn Getenv(k) { host.Getenv(k) }

@@ -50,7 +50,8 @@ module companion { … }               // a child module
 cap = 4096                           // a value
 fn f(x ∈ 0..255, b ∈ Array(Int) linear) (r ∈ Int) where x < len(b) ensure r >= 0 { … }
 set Kind = 'not_found ∪ 'other(error) success 'not_found relevant
-private fn helper(x) { … }           // hidden from a module that uses this one
+pub fn area(w, h) { … }              // in the interface: another module may name it
+fn helper(x) { … }                   // private to this module, the default
 export fn main() { … }               // an entry point
 ```
 
@@ -76,9 +77,11 @@ export fn main() { … }               // an entry point
   `set Result(T, E) = 'ok(T) ∪ 'err(E)` ([sums.md](sums.md), [data.md §5](data.md)). D makes the core's
   `variant`, which generates ordinary definitions: constructors and tag constants. A variant is its
   qualified declaration, and a pattern resolves in its module. `option` is one declaration, in `lang`.
-- **`use`, `module`, `private` and `export`** are resolution, not reduction ([modules.md](modules.md),
-  [ADR 0011](../decisions/0011-modules-add-nothing-to-the-reducer.md)). `export` marks an entry point;
-  the build's is `export fn main()`, taking nothing ([build.md §2](build.md)).
+- **`use`, `module`, `pub` and `export`** are resolution, not reduction ([modules.md](modules.md),
+  [ADR 0011](../decisions/0011-modules-add-nothing-to-the-reducer.md)). A declaration is private to its
+  module unless marked `pub`, which puts it in the interface an importer sees; `export` marks an entry
+  point, the core's `(pub …)` and `(export …)`, two relations ([ADR 0078](../decisions/0078-a-modules-interface-is-what-it-marks-pub.md)).
+  The build's entry is `export fn main()`, taking nothing ([build.md §2](build.md)).
 
 A library directory may also hold `provides TARGET PATH { … }` fragments: the target's own
 declarations and definitions for that module, `D_T` ([target-system.md](target-system.md),

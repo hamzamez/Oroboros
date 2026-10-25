@@ -47,17 +47,17 @@ use x64
 
 // The slot count, read back off the buffer rather than threaded through every
 // call. `(len m)` is 3n by construction, so there is nothing to carry.
-private fn wm_n(m) { x64.idiv(len(m), 3) }
+fn wm_n(m) { x64.idiv(len(m), 3) }
 
 // The slot for key k at probe distance i, masked into [0, n).
-private fn wm_s(n, k, i) { x64.and(x64.add(x64.and(k, x64.sub(n, 1)), i), x64.sub(n, 1)) }
+fn wm_s(n, k, i) { x64.and(x64.add(x64.and(k, x64.sub(n, 1)), i), x64.sub(n, 1)) }
 
 // A CLAMP, exactly as tree.oro uses one. `wm-s` is masked and therefore already
 // in range, but the refinement layer reasons in linear integer arithmetic and
 // `x64.and` is not linear -- so the fact is true and undischargeable, which is
 // the honest limit of the domain rather than a hole in the program. Clamping
 // turns a refusal into a note and says what happens if the impossible occurs.
-private fn wm_c(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else { x } }
+fn wm_c(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else { x } }
 
 // A GUARDED READ: the cell at x, or 0 when x is outside the table. Where a clamp's
 // 0 is itself outside an EMPTY table, so a read at a clamped index is never
@@ -65,14 +65,14 @@ private fn wm_c(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0
 // 0 <= x < len m. A clamp turned a refusal into a note, and a note is a refusal
 // now (refinements.md §3a, noprop-2026-09-25); this says what happens if the
 // impossible occurs and is proven while saying it.
-private fn wm_at(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else { m[x] } }
+fn wm_at(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else { m[x] } }
 
-private fn wm_used(m, n, k, i) { m[wm_c(m, x64.imul(3, wm_s(n, k, i)))] }
-private fn wm_key(m, n, k, i) { m[wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 1))] }
+fn wm_used(m, n, k, i) { m[wm_c(m, x64.imul(3, wm_s(n, k, i)))] }
+fn wm_key(m, n, k, i) { m[wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 1))] }
 
 // The index of the VALUE cell, which is what a find returns so the caller needs
 // no second computation.
-private fn wm_vi(m, n, k, i) { wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 2)) }
+fn wm_vi(m, n, k, i) { wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 2)) }
 
 // FIND: the value cell's index, or -1 when the key is absent.
 //
@@ -84,7 +84,7 @@ private fn wm_vi(m, n, k, i) { wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 2)) }
 //   an EMPTY slot      -> absent, because linear probing never leaves a gap
 //                         before a key it stored
 //   the key            -> found
-private fn wm_find(m, k) {
+fn wm_find(m, k) {
     n = wm_n(m)
     loop i = 0 {
         x64.setge(i, n) -> -1
@@ -117,7 +117,7 @@ private fn wm_find(m, k) {
 //
 // It costs a division per probe step, which the host hoists out of a loop whose
 // buffer does not change length; if that ever measures, `n` becomes a parameter.
-private fn wm_put(m linear, k, v) {
+fn wm_put(m linear, k, v) {
     loop i = 0 {
         // Full. The entry is DROPPED -- see the header.
         x64.setge(i, wm_n(m)) -> ()
@@ -146,7 +146,7 @@ private fn wm_put(m linear, k, v) {
 // pays with `Object.keys(m).length` -- the ANSWER is identical, so it is not a
 // Tier 2 disagreement, only a different price. A count in a reserved header cell
 // would make it O(1) and is not done here because no program needs it yet.
-private fn wm_len(m) {
+fn wm_len(m) {
     n = wm_n(m)
     loop c = 0, s = 0 {
         x64.setge(s, n) -> c
@@ -158,7 +158,7 @@ private fn wm_len(m) {
 // the capacity, so the load factor never exceeds 1/2 and linear probing stays
 // short. Computed with a loop because the capacity may be a runtime value; when
 // it is a literal, reduction folds the whole thing away.
-private fn wm_slots(cap) {
+fn wm_slots(cap) {
     loop n = 1 { x64.setge(n, x64.imul(2, cap)) -> n; else -> again(x64.imul(n, 2)) }
 }
 
@@ -169,7 +169,7 @@ private fn wm_slots(cap) {
 // index and a slot, and nesting them past two exhausts x86's scratch registers
 // -- the same wall `len-bounded.oro` caps itself at three inputs to avoid. A
 // loop has constant register pressure however many rows there are.
-private fn wm_fill(m linear, ks, vs) {
+fn wm_fill(m linear, ks, vs) {
     loop i = 0 {
         x64.setge(i, len(ks)) -> ()
         // THE VALUE READ IS GUARDED, because the loop is bounded by `(len ks)` and
@@ -207,12 +207,12 @@ private fn wm_fill(m linear, ks, vs) {
 // b[y] = b[x]` and silently copies. That is a real bug in the effect discipline
 // -- ADR 0010 exists to forbid exactly that reordering, and a buffer read is not
 // being judged impure. Ranking needs no swap and is correct either way.
-private fn wm_used_at(m, s) { m(wm_c(m, x64.imul(3, s))) }
-private fn wm_key_at(m, s) { m(wm_c(m, x64.add(x64.imul(3, s), 1))) }
+fn wm_used_at(m, s) { m(wm_c(m, x64.imul(3, s))) }
+fn wm_key_at(m, s) { m(wm_c(m, x64.add(x64.imul(3, s), 1))) }
 
 // How many occupied keys are strictly less than k. With distinct keys that IS
 // the key's index in ascending order.
-private fn wm_rank(m, k) {
+fn wm_rank(m, k) {
     loop c = 0, s = 0 {
         x64.setge(s, wm_n(m)) -> c
         wm_used_at(m, s) == 0 -> again(c, x64.add(s, 1))
@@ -222,7 +222,7 @@ private fn wm_rank(m, k) {
 
 // One pass over the slots, each occupied key written to its own rank. `out` is
 // only ever WRITTEN here and `m` only ever READ, so no store can shadow a read.
-private fn wm_keys(m) {
+fn wm_keys(m) {
     cnt = wm_len(m)
     var out := array { 0 : _ ∈ 0..cnt-1 }
     loop s = 0 {

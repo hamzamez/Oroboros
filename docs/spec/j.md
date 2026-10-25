@@ -9,7 +9,7 @@ of each form through desugaring (2026-10-25):
 | | built | not built |
 |---|---|---|
 | §1 lexical | NFC, bidi refused, gaps, every token class, §1.6's symbols with their ASCII, §1.7's line rule | **§1.4's reservation**: a word is a keyword only where the grammar takes it, so `spec`, `set`, `map`, `export` and others are accepted as names |
-| §2.1–2.3 files | `use … as`, `module`, `provides`, companions, `private`, `export`, `axiom` | |
+| §2.1–2.3 files | `use … as`, `module`, `provides`, companions, `pub`, `export`, `axiom` | |
 | §2.2 declarations | `fn`, `set` (variants with `success` and `relevant`), a value, a host constant | **`spec` and `lemma`** (ADR 0062) |
 | §2.4 headers | binders with sets and modes, a telescope, the three result forms, `where`, `ensure`, `pure`, `index`, `variadic`; `x'` in a host result (ADR 0070) | **a ⊆-binder in a program** (built in a target file's host declaration, `errors.AsType(E ⊆ error)`); **the arrow** as a binder's set (ADR 0053); **`x'` in a program's `ensure`**, read and then refused as outside what the compiler decides |
 | §2.6 blocks | `=`, `var … :=`, writes, concurrent (G5) and into a record (G6), a binder's claim, `expect`, a one-armed `if` | **`assert`**; **a local named `fn`** |
@@ -61,7 +61,7 @@ written, and nothing about what it means. Where a form is new to the abstract sy
 | [0060](../decisions/0060-j-set-operators-and-qualified-tags.md) | membership `∈`; an imported tag qualified `alias.'tag`; no `exposing` |
 | [0062](../decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md) | the header as a membership statement; telescopes; one equality; `fn`, `spec`, `lemma`; `assert` and `expect`; `the` gone |
 | [0063](../decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md), [0066](../decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md) | a definition over sets is a λ returning a λ, `E ⊆ S`; inference; the arrow's header; `x'`; named splices `${x}`; Code_T |
-| [0064](../decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md) | files, modules, fragments; imports; `private` and `export`; one declaration form; `set`; variants as unions of tagged sets; `axiom` |
+| [0064](../decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md) | files, modules, fragments; imports; `private` (item 4, superseded by [0078](../decisions/0078-a-modules-interface-is-what-it-marks-pub.md): `pub`) and `export`; one declaration form; `set`; variants as unions of tagged sets; `axiom` |
 | [0065](../decisions/0065-j-writes-sets-in-tla-symbols.md), [0067](../decisions/0067-the-lexical-level.md) | TLA+'s set and logic symbols with TLA+'s ASCII; the lexical level; precedence |
 
 ### 0.2 Conflicts between the decisions, and their resolution
@@ -138,7 +138,7 @@ a tag and must be.
 ### 1.4 Words
 
 **Reserved**, never an identifier: `fn spec lemma set array map var loop again case if else try expect
-assert use module provides private export axiom true false`.
+assert use module provides pub export axiom true false`.
 
 **Contextual**, keywords only in the clause positions the grammar gives them, identifiers everywhere
 else: `where ensure invariant pure index variadic inout out linear as host expr stmt import lib checked
@@ -146,8 +146,8 @@ jump comma_ok success relevant` and the model's data words (`repr word niche nar
 link build artifact data include fact underlying`, §2.12).
 
 **Read and refused**, each with a message naming what replaced it (inventory.md §4): `the`, the core's
-ascription, refused for a binder's claim (ADR 0069); and the model's old words `max_len big_repr
-int_repr`. And `_` is the wildcard (§1.5).
+ascription, refused for a binder's claim (ADR 0069); `private`, the default since ADR 0078; and the
+model's old words `max_len big_repr int_repr`. And `_` is the wildcard (§1.5).
 
 These three paragraphs are the reader's words: `TestJsKeywordsAreTheReadersKeywords`
 (emit/inventory_test.go) reads every word a token is compared against in core/jparse.go and
@@ -237,8 +237,8 @@ provides    ::= "provides" ident path "{" item* "}"
 ### 2.2 Declarations
 
 ```
-declaration ::= visibility? ( fn_decl | spec_decl | lemma_decl | set_decl | value_decl )
-visibility  ::= "private" | "export"
+declaration ::= markers ( fn_decl | spec_decl | lemma_decl | set_decl | value_decl )
+markers     ::= ( "pub" | "export" )*                 each at most once, in either order
 fn_decl     ::= "fn" name params result? clause* body
 spec_decl   ::= "spec" name params result? clause* body
 lemma_decl  ::= "lemma" name params clause* block
@@ -249,9 +249,12 @@ axiom       ::= "axiom" expr
 name        ::= ident | quoted
 ```
 
-- **`private` hides a name; public is the default**; a private set hides its tags (ADR 0064 item 4).
-- **`export` marks an entry point**: in the entry file the build compiles it into a host function, and in
-  a file reached by `use` it is ignored (ADR 0064 item 5).
+- **`pub` puts a name in its module's interface; private is the default** (ADR 0078): an importer sees
+  the reduct to the `pub` names, a `pub` variant's tags among them, and an unmarked declaration is
+  private to its file or nested `module`. `private` is refused, naming the rule.
+- **`export` marks an entry point, and only that**: when its module is the one compiled, the build
+  compiles it into a host function, and the host takes on its claim; in a file reached by `use` it is not
+  the program's (ADR 0064 item 5, ADR 0078). `pub export fn f` is both.
 - **`fn f(…) … { e }` is the tree of `f = fn(…) … { e }`**, def(f; λ); print_J writes the named form
   (ADR 0064 item 7).
 - **`set S = e` is `S = e` with the claim S ∈ subsets(any)**, optional except on a host body, where it
@@ -530,7 +533,7 @@ abs_J, operator by operator (abstract.md §2):
 | `set S = 'a ∪ 'c(T) success 'a relevant` | variant(S; ; a(), c(T); success a; relevant) |
 | `{ host expr "t" import "p" }` | host(expr; t; import p) |
 | `use p as a`, `module p { … }`, `provides T p { … }` | use(p; a), module(p; …), provides(T; p; …) |
-| `private`, `export` | the reduct's complement, an entry point (ADR 0064 items 4–5) |
+| `pub`, `export` | the interface I, the reduct an importer sees; an entry point, in E (ADR 0078) |
 | `axiom T ⊆ I` | the model's inclusion axiom (Σ_T) |
 | `f(xs...)`, `f(out S)` | app(f; spread(xs)), app(f; out(S)) (G1, G2) |
 
@@ -551,7 +554,7 @@ concrete tree:
 | **J3** | Both operands of `^` are static integers, the exponent non-negative; refused otherwise. |
 | **J4** | A ⊆-binder of a computation's λ takes only a static set (Law S); a host body lies only under ⊆-λs. |
 | **J5** | A host body, an `axiom` and the model's data appear only in a target file or a fragment. |
-| **J6** | `private` and `export` appear only on a declaration at a module's level. |
+| **J6** | `pub` and `export` appear only on a declaration at a module's level, each at most once. |
 | **J7** | A quantifier, `⇒`, `⇔`, a primed name and a `spec`'s call appear only in a claim position (W6). |
 | **J8** | A name is spelled by σ_J injectively: a program in which two names spell alike is refused. |
 | **J9** | A `var` binder's initializer satisfies R0 when the binder is written element-wise (ADR 0052). |
@@ -614,7 +617,7 @@ rewrites, mechanically:
 | a name with `-` | σ_J: `_` |
 | `(module X)` in a library file | nothing |
 | `(target T (module P …))` | `module P { … }` |
-| `(export f …)` in a library | public by default; `private` on each definition not listed |
+| `(export f …)` in a library | public by default; `private` on each definition not listed (then: ADR 0078 made private the default, and `pub` marks the listed ones) |
 | `(export main)` in an entry file | `export fn main()` |
 | `(sig f …)` beside `(def f …)` | one `fn f(…) … { … }` |
 | `(sig f … (host k "t" …))` | `fn f(…) … { host k "t′" … }`, t′ with `%s`, `%n`, `%r` and `%tᵢ` named, `%u` as `${#}`; a parameter given only its set named `a`, `b`, … |

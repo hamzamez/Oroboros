@@ -121,7 +121,7 @@ func (p *parser) targetItem() (*Term, error) {
 		(p.peek().kind == tIdent || p.peek().kind == tQuoted) && p.peekN(1).text == "=" && p.peekN(1).kind == tSym:
 		// A program's definition in a fragment, D_T (target-system.md §6): the
 		// program reader's, and today's loader reads it as D of its datum.
-		ds, _, err := p.item(false)
+		ds, _, err := p.item()
 		if err != nil {
 			return nil, err
 		}

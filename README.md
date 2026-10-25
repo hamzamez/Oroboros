@@ -479,21 +479,26 @@ says why the next is what it is.
    source file says from the core's forms below it. The grammar's keyword list and the inventory's counts
    are now checked against the code, and the files the benchmarks call are regenerated and compared on
    every check, so none of them can go stale unseen.
-2. **Two questions of the surface, each decided by an ADR**: how to write a range with no upper end (in
-   place of `` `+inf` ``), and whether a declaration is private unless marked `pub`.
-3. **This project's guide for Claude, CLAUDE.md, rewritten** to state where things stand, at about a
+2. ~~**Two questions of the surface**~~ **Done 2026-10-25**
+   ([surface-2026-10-25](gauntlet/results/surface-2026-10-25.md)): a range with no upper end is written
+   `0..`, the end left out, in place of `` 0..`+inf` `` ([ADR 0077](docs/decisions/0077-an-unbounded-end-is-omitted.md));
+   and a declaration is private unless marked `pub`, while `export` still marks what the build compiles
+   ([ADR 0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md)).
+3. **Three defects the audit of item 1 found**: a program may redefine one of the language's own names
+   (`if`), which should be refused; and two error messages that name the wrong thing.
+4. **This project's guide for Claude, CLAUDE.md, rewritten** to state where things stand, at about a
    third of its length, with the history reached by link.
-4. **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a
+5. **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a
    Notepad-style editor in about 2.5 KB of hand-written x86 assembly, the standard the Windows target
    will be held to. In steps:
    - first, whether Windows keeps targeting MASM or targets LLVM IR, which would also reach ARM, Linux
      and macOS: researched, measured and decided;
    - then what it needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.
-5. **The IR's verifier checks that each branch justifies the facts it hands its arms.**
-6. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
+6. **The IR's verifier checks that each branch justifies the facts it hands its arms.**
+7. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
    as Go is, and which costs it 16% today.
-7. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.
+8. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.
 
 ## Try it
 

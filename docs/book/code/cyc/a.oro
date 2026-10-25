@@ -1,2 +1,2 @@
 use cyc/b
-fn f(n) { b.g(n) }
+pub fn f(n) { b.g(n) }

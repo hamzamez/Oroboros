@@ -300,13 +300,13 @@ func TestModuleDiagnostics(t *testing.T) {
 		e.SetUnresolved(prog.Unresolved)
 		return e.CheckProgram(terms)
 	}
-	geo := "fn area(w, h) { mul(w, h) }\nprivate hidden = 1\n"
+	geo := "pub fn area(w, h) { mul(w, h) }\nhidden = 1\n"
 	files := map[string]string{"geo": geo}
 
 	for _, tc := range []struct{ name, src, want string }{
-		// A member that exists but is private, versus one that does not exist.
+		// A member that exists but is not `pub`, versus one that does not exist (ADR 0078).
 		{"private", `use geo
-t = geo.hidden()`, "defines hidden but hides it"},
+t = geo.hidden()`, "defines hidden and does not make it `pub`"},
 		{"absent", `use geo
 t = geo.volume()`, "has no member volume"},
 		// The anonymous entry scope printed as `module ""`.

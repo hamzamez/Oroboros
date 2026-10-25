@@ -24,7 +24,7 @@ import (
 // every signature the same meaning. It fails against a bare key in one order.
 func TestTwoModulesMayDeclareDifferentSumsWithOneName(t *testing.T) {
 	a := `module a {
-    set Result = 'ok(Int) ∪ 'err(Int)
+    pub set Result = 'ok(Int) ∪ 'err(Int)
     fn pick(n ∈ Int) (Result) { if n < 0 { 'err(0) } else { 'ok(n) } }
 }
 `
@@ -69,7 +69,7 @@ module b {
 // FREE, so the residual was `(if (= 0 ok#tag) n 0)` with nothing to say why.
 func TestAnImportedConstructorIsWrittenThroughItsAlias(t *testing.T) {
 	mustLoadFail(t, `module a {
-    set Result = 'ok(Int) ∪ 'err(Int)
+    pub set Result = 'ok(Int) ∪ 'err(Int)
 }
 
 module b {
@@ -83,7 +83,7 @@ module b {
 // one refused. It now reduces exactly as a local variant does: to nothing.
 func TestAQualifiedPatternEliminatesAnImportedVariant(t *testing.T) {
 	p, err := loadSrc(t, `module a {
-    set Result = 'ok(Int) ∪ 'err(Int)
+    pub set Result = 'ok(Int) ∪ 'err(Int)
 }
 
 module b {
@@ -108,7 +108,7 @@ module b {
 // spelling alone is exactly what cannot tell them apart.
 func TestOneCaseDoesNotMixTwoTypesWithOneSpelling(t *testing.T) {
 	_, err := loadSrc(t, `module a {
-    set Result = 'ok(Int) ∪ 'err(Int)
+    pub set Result = 'ok(Int) ∪ 'err(Int)
 }
 
 module b {

@@ -108,13 +108,11 @@ func ReadProgram(src, module, dir, root string) ([]Decl, error) {
 	if module != "" {
 		decls = append(decls, &ModuleDecl{Path: module, At: p.nextAt()})
 	}
-	items, exported, err := p.items(module != "")
+	items, marked, err := p.items()
 	if err != nil {
 		return nil, err
 	}
-	if module != "" || len(exported[""]) > 0 {
-		decls = append(decls, &ExportDecl{Names: exported[""], At: p.nextAt()})
-	}
+	decls = append(decls, p.interfaceDecls(module != "", marked)...)
 	decls = append(decls, items...)
 	return decls, nil
 }
@@ -126,7 +124,7 @@ func (p *parser) nextAt() int { p.at++; return p.at }
 func (p *parser) registerSets(src, dir, root string) {
 	toks := p.toks
 	for i := 0; i+1 < len(toks); i++ {
-		if toks[i].kind == tIdent && toks[i].text == "set" && toks[i+1].kind == tIdent && toks[i].nl && isVariantAt(toks, i+2) {
+		if toks[i].kind == tIdent && toks[i].text == "set" && toks[i+1].kind == tIdent && declStart(toks, i) && isVariantAt(toks, i+2) {
 			p.sets[toks[i+1].text] = unsetName(toks[i+1].text)
 		}
 		if toks[i].kind == tIdent && toks[i].text == "use" && toks[i].nl {
@@ -148,6 +146,20 @@ func (p *parser) registerSets(src, dir, root string) {
 	}
 }
 
+// declStart reports whether toks[i] begins a declaration: it begins a line, or
+// it follows the markers that begin one, `pub` and `export` (ADR 0078).
+func declStart(toks []token, i int) bool {
+	for j := i; j >= 0; j-- {
+		if toks[j].nl || j == 0 {
+			return true
+		}
+		if k := toks[j-1]; k.kind != tIdent || (k.text != "pub" && k.text != "export") {
+			return false
+		}
+	}
+	return false
+}
+
 // importedVariants is the variant set names a module declares, as J spells
 // them, read from its source in J: lib/PATH.oro, or PATH.oro beside the file.
 func importedVariants(path, dir, root string) []string {
@@ -162,7 +174,7 @@ func importedVariants(path, dir, root string) []string {
 		}
 		var out []string
 		for i := 0; i+1 < len(toks); i++ {
-			if toks[i].kind == tIdent && toks[i].text == "set" && toks[i+1].kind == tIdent && toks[i].nl && isVariantAt(toks, i+2) {
+			if toks[i].kind == tIdent && toks[i].text == "set" && toks[i+1].kind == tIdent && declStart(toks, i) && isVariantAt(toks, i+2) {
 				out = append(out, toks[i+1].text)
 			}
 		}
@@ -192,39 +204,68 @@ func unsetName(s string) string {
 }
 
 // items reads declarations to the end of the file or a closing brace. In a
-// library every definition no `private` hides is exported; in an entry file the
-// ones marked `export` (ADR 0064 items 4–5). exported is keyed by module.
-func (p *parser) items(library bool) ([]Decl, map[string][]string, error) {
+// "pub" the names marked `pub`, the module's interface, and "export" the ones
+// marked `export`, its entry points (ADR 0078).
+func (p *parser) items() ([]Decl, map[string][]string, error) {
 	var out []Decl
-	exported := map[string][]string{}
+	marked := map[string][]string{}
 	for {
 		p.endOfStatement()
 		if p.peek().kind == tEOF || p.is("}") {
-			return out, exported, nil
+			return out, marked, nil
 		}
-		ds, names, err := p.item(library)
+		ds, names, err := p.item()
 		if err != nil {
 			return nil, nil, err
 		}
 		out = append(out, ds...)
 		for k, v := range names {
-			exported[k] = append(exported[k], v...)
+			marked[k] = append(marked[k], v...)
 		}
 	}
 }
 
-func (p *parser) item(library bool) ([]Decl, map[string][]string, error) {
-	exported := map[string][]string{}
-	private, export := false, false
-	switch {
-	case p.accept("private"):
-		private = true
-	case p.accept("export"):
-		export = true
+// interfaceDecls are a module's two relations (ADR 0078): its interface, always
+// present for a library or a nested module so that an empty one hides every
+// name, and its entry points when it marks any.
+func (p *parser) interfaceDecls(library bool, marked map[string][]string) []Decl {
+	var out []Decl
+	if library || len(marked["pub"]) > 0 {
+		out = append(out, &PubDecl{Names: marked["pub"], At: p.nextAt()})
+	}
+	if len(marked["export"]) > 0 {
+		out = append(out, &ExportDecl{Names: marked["export"], At: p.nextAt()})
+	}
+	return out
+}
+
+func (p *parser) item() ([]Decl, map[string][]string, error) {
+	marked := map[string][]string{}
+	pub, export := false, false
+	// THE MARKERS ARE A SET, each at most once, in either order (ADR 0078):
+	// `pub` puts a name in the interface, `export` makes it an entry point.
+	for {
+		switch {
+		case p.is("private"):
+			return nil, nil, p.errorf("`private` is the default: a declaration is private to its module " +
+				"unless it is marked `pub` (ADR 0078)")
+		case p.is("pub") && !pub && p.peekN(1).kind == tIdent:
+			p.next()
+			pub = true
+			continue
+		case p.is("export") && !export:
+			p.next()
+			export = true
+			continue
+		}
+		break
 	}
 	public := func(names ...string) {
-		if (library && !private) || export {
-			exported[""] = append(exported[""], names...)
+		if pub {
+			marked["pub"] = append(marked["pub"], names...)
+		}
+		if export {
+			marked["export"] = append(marked["export"], names...)
 		}
 	}
 	t := p.peek()
@@ -245,7 +286,7 @@ func (p *parser) item(library bool) ([]Decl, map[string][]string, error) {
 		}
 		p.open(false)
 		m := &ModuleDecl{Path: path, At: p.nextAt()}
-		inner, names, err := p.items(false)
+		inner, names, err := p.items()
 		if err != nil {
 			return nil, nil, err
 		}
@@ -253,10 +294,7 @@ func (p *parser) item(library bool) ([]Decl, map[string][]string, error) {
 		if err := p.expect("}"); err != nil {
 			return nil, nil, err
 		}
-		out := []Decl{m}
-		if len(names[""]) > 0 {
-			out = append(out, &ExportDecl{Names: names[""], At: p.nextAt()})
-		}
+		out := append([]Decl{m}, p.interfaceDecls(true, names)...)
 		return append(out, inner...), nil, nil
 	case p.is("fn") && p.peekN(1).text != "(":
 		p.next()
@@ -270,21 +308,19 @@ func (p *parser) item(library bool) ([]Decl, map[string][]string, error) {
 			lam.Claim.At = claimAt
 		}
 		public(name)
-		return []Decl{&DefDecl{Name: name, Value: lam, At: p.nextAt()}}, exported, nil
+		return []Decl{&DefDecl{Name: name, Value: lam, At: p.nextAt()}}, marked, nil
 	case p.is("set") && p.peekN(1).kind == tIdent:
 		p.next()
 		v, err := p.variant()
 		if err != nil {
 			return nil, nil, err
 		}
-		if !private {
-			for _, it := range v.Items {
-				if it.Ctor != "" {
-					public(it.Ctor)
-				}
+		for _, it := range v.Items {
+			if it.Ctor != "" {
+				public(it.Ctor)
 			}
 		}
-		return []Decl{v}, exported, nil
+		return []Decl{v}, marked, nil
 	case (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == "=" && p.peekN(1).kind == tSym:
 		name := p.name()
 		p.next()
@@ -293,7 +329,7 @@ func (p *parser) item(library bool) ([]Decl, map[string][]string, error) {
 			return nil, nil, err
 		}
 		public(name)
-		return []Decl{&DefDecl{Name: name, Value: e, At: p.nextAt()}}, exported, nil
+		return []Decl{&DefDecl{Name: name, Value: e, At: p.nextAt()}}, marked, nil
 	}
 	// A FILE IS A THEORY (ADR 0064): it holds declarations, and a bare
 	// expression at the top level is none — read as one, junk became terms.

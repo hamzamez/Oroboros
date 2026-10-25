@@ -1,6 +1,7 @@
 package emit
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
 
 	"oroboros/core"
 )
@@ -359,6 +361,7 @@ func checkInventory(t *testing.T, code map[string]bool, text, dir string) []stri
 			}
 		}
 	}
+	problems = append(problems, countProblems(docRows(t, text), text)...)
 	var missing, stale []string
 	for w := range code {
 		if _, ok := listed[w]; !ok {
@@ -382,11 +385,47 @@ func checkInventory(t *testing.T, code map[string]bool, text, dir string) []stri
 	return problems
 }
 
+// countRow is a row of the document's count table: `| `status` — … | N |`.
+var countRow = regexp.MustCompile("^\\|\\s*`([a-z]+)`[^|]*\\|\\s*([0-9]+)\\s*\\|\\s*$")
+
+// countProblems checks the count table, where the document has one, against the
+// rows: each status's count is the number of WORDS its rows list. The counts were
+// quoted by hand and stale for nine days after the J switch (133 for 156).
+func countProblems(rows []docRow, text string) []string {
+	got := map[string]int{}
+	for _, r := range rows {
+		got[r.status] += len(r.words)
+	}
+	var problems []string
+	for i, line := range strings.Split(text, "\n") {
+		m := countRow.FindStringSubmatch(strings.TrimSpace(line))
+		if m == nil || !inventoryStatuses[m[1]] {
+			continue
+		}
+		if n, _ := strconv.Atoi(m[2]); n != got[m[1]] {
+			problems = append(problems, "inventory.md:"+strconv.Itoa(i+1)+": the count of `"+m[1]+"` is "+
+				m[2]+", and the rows list "+strconv.Itoa(got[m[1]]))
+		}
+	}
+	return problems
+}
+
 func TestTheInventoryIsTheWordsTheCompilerKnows(t *testing.T) {
 	code := codeWords(t)
 	b, err := os.ReadFile("../docs/spec/inventory.md")
 	if err != nil {
 		t.Fatal(err)
+	}
+	// A document that loses the count table loses its check, so the table is
+	// required: one row per status.
+	found := 0
+	for _, line := range strings.Split(string(b), "\n") {
+		if countRow.MatchString(strings.TrimSpace(line)) {
+			found++
+		}
+	}
+	if found != len(inventoryStatuses) {
+		t.Errorf("inventory.md: the count table has %d rows, one per status wanted (%d)", found, len(inventoryStatuses))
 	}
 	for _, p := range checkInventory(t, code, string(b), "../docs/spec") {
 		t.Error(p)
@@ -466,5 +505,233 @@ func f(t T, op2 string) {
 	}
 	if got["seven"] || got["eight"] {
 		t.Errorf("the extractor took a comparison against a field that is not a word")
+	}
+}
+
+// J'S KEYWORDS ARE THE READER'S (docs/spec/j.md §1.4). The inventory above is the
+// core's words, what the loaders dispatch on; a source file is J, and its words
+// are the ones J's readers compare a token against. Let K_read be those and K_doc
+// the words j.md §1.4's paragraphs list. The claim is K_doc = K_read ∪ N, with N
+// the words §1.4 lists that the reader does not take yet, each with its reason.
+//
+// The limit, stated: a keyword recognised by a NEW shape (neither p.accept,
+// p.is, p.expect, a comparison of a token's text, nor a switch on it) is
+// invisible, as in the inventory's extractor.
+
+// jReaders are the files that read J.
+var jReaders = []string{"../core/jparse.go", "../core/jreadtarget.go"}
+
+// jNotRead are the words j.md §1.4 lists and the reader does not compare a token
+// against, with why. An entry the reader starts taking is stale, and the test says so.
+var jNotRead = map[string]string{
+	"spec":      "ADR 0062's spec is not built (j.md's status)",
+	"assert":    "ADR 0062's assert is not built (j.md's status)",
+	"invariant": "a loop's invariant is not built (j.md's status)",
+	"word":      "an operand of `repr`, read as an expression and dispatched on by the target loader (inventory.md §2)",
+	"narrow":    "an operand of `repr`, read as an expression and dispatched on by the target loader (inventory.md §2)",
+}
+
+// readerKeywords collects the identifier-shaped literals a J reader compares a
+// token against: p.accept, p.is and p.expect's arguments, `….text == "w"`, and a
+// switch on `….text`.
+func readerKeywords(src, name string) (map[string]bool, error) {
+	fs := token.NewFileSet()
+	f, err := parser.ParseFile(fs, name, src, 0)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	lit := func(e ast.Expr) {
+		l, ok := e.(*ast.BasicLit)
+		if !ok || l.Kind != token.STRING {
+			return
+		}
+		s, err := strconv.Unquote(l.Value)
+		if err != nil || s == "" {
+			return
+		}
+		for i, r := range s {
+			if !(r == '_' || unicode.IsLetter(r) || (i > 0 && unicode.IsDigit(r))) {
+				return
+			}
+		}
+		out[s] = true
+	}
+	isText := func(e ast.Expr) bool {
+		sel, ok := e.(*ast.SelectorExpr)
+		return ok && sel.Sel.Name == "text"
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.CallExpr:
+			if sel, ok := x.Fun.(*ast.SelectorExpr); ok {
+				switch sel.Sel.Name {
+				case "accept", "is", "expect":
+					for _, a := range x.Args {
+						lit(a)
+					}
+				}
+			}
+		case *ast.BinaryExpr:
+			if (x.Op == token.EQL || x.Op == token.NEQ) && isText(x.X) {
+				lit(x.Y)
+			}
+		case *ast.SwitchStmt:
+			if x.Tag != nil && isText(x.Tag) {
+				for _, st := range x.Body.List {
+					for _, v := range st.(*ast.CaseClause).List {
+						lit(v)
+					}
+				}
+			}
+		}
+		return true
+	})
+	return out, nil
+}
+
+// docKeywords reads the words §1.4 lists: every word of a code span in its list
+// paragraphs, the ones that begin **Reserved**, **Contextual** and **Read and
+// refused**. The section's other paragraphs are prose.
+func docKeywords(jmd string) (map[string]bool, error) {
+	start := strings.Index(jmd, "### 1.4 Words")
+	if start < 0 {
+		return nil, fmt.Errorf("j.md has no §1.4")
+	}
+	sec := jmd[start:]
+	if end := strings.Index(sec[1:], "\n### "); end >= 0 {
+		sec = sec[:end+1]
+	}
+	out := map[string]bool{}
+	lists := 0
+	for _, para := range strings.Split(sec, "\n\n") {
+		if !strings.HasPrefix(para, "**Reserved**") && !strings.HasPrefix(para, "**Contextual**") &&
+			!strings.HasPrefix(para, "**Read and refused**") {
+			continue
+		}
+		lists++
+		for _, m := range backticked.FindAllStringSubmatch(para, -1) {
+			for _, w := range strings.Fields(m[1]) {
+				out[w] = true
+			}
+		}
+	}
+	if lists != 3 {
+		return nil, fmt.Errorf("j.md §1.4 has %d of its three list paragraphs", lists)
+	}
+	return out, nil
+}
+
+func keywordProblems(read, doc map[string]bool, notRead map[string]string) []string {
+	var problems []string
+	for w := range read {
+		if !doc[w] {
+			problems = append(problems, "J's reader takes `"+w+"` as a keyword and j.md §1.4 does not list it")
+		}
+	}
+	for w := range doc {
+		_, owed := notRead[w]
+		switch {
+		case !read[w] && !owed:
+			problems = append(problems, "j.md §1.4 lists `"+w+"` and J's reader takes no such keyword")
+		case read[w] && owed:
+			problems = append(problems, "J's reader now takes `"+w+"`: delete its jNotRead entry ("+notRead[w]+")")
+		}
+	}
+	for w, why := range notRead {
+		if !doc[w] {
+			problems = append(problems, "jNotRead names `"+w+"` ("+why+"), which j.md §1.4 does not list")
+		}
+	}
+	sort.Strings(problems)
+	return problems
+}
+
+func TestJsKeywordsAreTheReadersKeywords(t *testing.T) {
+	read := map[string]bool{}
+	for _, f := range jReaders {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := readerKeywords(string(src), f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for k := range got {
+			read[k] = true
+		}
+	}
+	b, err := os.ReadFile("../docs/spec/j.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := docKeywords(string(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range keywordProblems(read, doc, jNotRead) {
+		t.Error(p)
+	}
+}
+
+// THE KEYWORD CHECK MUST BE ABLE TO FAIL, in each direction.
+func TestTheKeywordCheckFails(t *testing.T) {
+	read := map[string]bool{"fn": true, "loop": true}
+	doc := map[string]bool{"fn": true, "loop": true, "spec": true}
+	notRead := map[string]string{"spec": "not built"}
+	if p := keywordProblems(read, doc, notRead); len(p) != 0 {
+		t.Fatalf("the control must pass: %v", p)
+	}
+	cases := []struct {
+		name      string
+		read, doc map[string]bool
+		notRead   map[string]string
+		want      string
+	}{
+		{"a keyword the reader takes is unlisted", map[string]bool{"fn": true, "loop": true, "var": true}, doc, notRead, "does not list it"},
+		{"a listed keyword the reader does not take", read, map[string]bool{"fn": true, "loop": true, "spec": true, "case": true}, notRead, "takes no such keyword"},
+		{"an owed word the reader now takes", map[string]bool{"fn": true, "loop": true, "spec": true}, doc, notRead, "delete its jNotRead entry"},
+		{"an owed word the document dropped", read, map[string]bool{"fn": true, "loop": true}, notRead, "does not list"},
+	}
+	for _, c := range cases {
+		found := false
+		for _, s := range keywordProblems(c.read, c.doc, c.notRead) {
+			if strings.Contains(s, c.want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: want a problem containing %q", c.name, c.want)
+		}
+	}
+	// And the extractor sees each shape, and not a comparison of another field.
+	src := `package p
+func f(p *parser, t token) {
+	p.accept("one"); p.is("two"); p.expect("three")
+	if t.text == "four" {}
+	switch t.text { case "five": }
+	if t.kind == "six" {}
+	p.accept("->")
+}`
+	got, err := readerKeywords(src, "p.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range []string{"one", "two", "three", "four", "five"} {
+		if !got[w] {
+			t.Errorf("the keyword extractor missed %q", w)
+		}
+	}
+	if got["six"] || got["->"] {
+		t.Errorf("the keyword extractor took a non-keyword: %v", got)
+	}
+	// And the count check: a stated count that is not the rows'.
+	rows := []docRow{{words: []string{"alpha", "beta"}, status: "specified"}}
+	if p := countProblems(rows, "| `specified` — x | 2 |\n"); len(p) != 0 {
+		t.Errorf("a true count must pass: %v", p)
+	}
+	if p := countProblems(rows, "| `specified` — x | 3 |\n"); len(p) == 0 {
+		t.Errorf("a false count passed")
 	}
 }

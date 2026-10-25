@@ -12,6 +12,7 @@ go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline
 | `vet` | `go vet ./...` |
 | `compiler` | `go test ./core/ ./emit/ ./ir/... ./cmd/...` |
 | `emission` | every `.oro` under `examples/`, `lib/` and `gauntlet/differential/cases/`, on every target, compared with the baseline in this directory — its output byte for byte, and what each compile cost |
+| `gauntlet` | the 26 files the gauntlet's harnesses call, regenerated from [`gauntlet/regen.txt`](../regen.txt) (target, source, `-name`, output) and compared byte for byte with the committed copies. A difference fails, naming the file: run `bash gauntlet/regen.sh`, then time the harnesses that call it, as the rule for emission asks |
 | `ir` | the IR ([docs/spec/ir.md](../../docs/spec/ir.md) §11): the sweep runs `gen -ir`, so every program that emits is also lowered, verified (W1–W10) and printed to `.check/ir/`. This step fails if a program that emitted has no IR, a refused one has one, or `print ∘ read ∘ print ≠ print`. It keeps no baseline of its own until a printer reads the IR |
 | `differential` | `gauntlet/differential/run.go`: build, **run** and agree on four targets |
 | `tooling` | `go test ./gauntlet/stdlib/`: the surveys twice, the pins, the acceptance programs, the hand declarations against the host |
@@ -134,13 +135,13 @@ The median is printed on every run so that the second is at least visible.
 **It does not benchmark the emitted code.** That is the second half of the emission rule and stays a
 person's measurement against hand-written code. It does gate what the COMPILER costs, above.
 
-**It cannot say which changed programs a benchmark covers.** The generated files the gauntlet benchmarks
-— `gauntlet/go/gen_*.go`, `gauntlet/js/gen_*.mjs`, `gauntlet/java/gen/*.java` — record nowhere which
-source, target and flags produced them. A few result documents show the command, and most files have
-none. So a changed example cannot be traced to a benchmark mechanically, and a benchmark file can be
-stale against the compiler without anything noticing. gauntlet-2026-09-07 found three of them still on
-the retired portable layer for exactly this reason. **Owed:** a generated benchmark file names its
-source, target and flags in its header, so the check can regenerate it and report a change there too.
+**It says which benchmarks a change reaches, and leaves the timing to a person.** The generated files
+the gauntlet benchmarks (`gauntlet/go/gen_*.go`, `gauntlet/js/gen_*.mjs`, `gauntlet/java/gen/*.java`)
+are listed in `gauntlet/regen.txt` with the source, target and name that produce them, and the
+`gauntlet` step regenerates each and fails on a difference (since 2026-10-25). Until then the list was
+run by hand: gauntlet-2026-09-07 found three files still on the retired portable layer, all 26 were the
+term backends' output of August until gauntlet-2026-09-29, and `regen.sh` failed silently from the J
+switch to work-2026-10-22, so `gen_report_native.go` was a week stale.
 
 ## Files
 

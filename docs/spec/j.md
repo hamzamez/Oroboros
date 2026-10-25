@@ -1,6 +1,28 @@
 # J — the language's surface
 
-**Status, 2026-10-15: specification, not built.** J is the surface ([ADR 0068](../decisions/0068-j-is-the-surface.md)).
+**Status, 2026-10-25: built, the computation's forms; the logic's not.** J is the surface
+([ADR 0068](../decisions/0068-j-is-the-surface.md)) and the only notation: J's reader (`core/jlex.go`,
+`core/jparse.go`, `core/jreadtarget.go`) reads all 223 `.oro` files of the corpus, the tests' snippets and
+the surveys' output (jswitch5b-2026-10-16). What is built and what is not, read off the reader by a probe
+of each form through desugaring (2026-10-25):
+
+| | built | not built |
+|---|---|---|
+| §1 lexical | NFC, bidi refused, gaps, every token class, §1.6's symbols with their ASCII, §1.7's line rule | **§1.4's reservation**: a word is a keyword only where the grammar takes it, so `spec`, `set`, `map`, `export` and others are accepted as names |
+| §2.1–2.3 files | `use … as`, `module`, `provides`, companions, `private`, `export`, `axiom` | |
+| §2.2 declarations | `fn`, `set` (variants with `success` and `relevant`), a value, a host constant | **`spec` and `lemma`** (ADR 0062) |
+| §2.4 headers | binders with sets and modes, a telescope, the three result forms, `where`, `ensure`, `pure`, `index`, `variadic`; `x'` in a host result (ADR 0070) | **a ⊆-binder in a program** (built in a target file's host declaration, `errors.AsType(E ⊆ error)`); **the arrow** as a binder's set (ADR 0053); **`x'` in a program's `ensure`**, read and then refused as outside what the compiler decides |
+| §2.6 blocks | `=`, `var … :=`, writes, concurrent (G5) and into a record (G6), a binder's claim, `expect`, a one-armed `if` | **`assert`**; **a local named `fn`** |
+| §2.7 expressions | application, indexing, tags, tuples, `++`, `!=`, `out S` (G1), `xs...` (G2), `fn(a, b) { e }` | **a λ's header**: a claimed parameter or result on an anonymous `fn`; **membership `e ∈ S` as a test** (refused, and its message is garbled: "`` is not imported") |
+| §2.8 choice and iteration | `case` with and without a scrutinee, a pattern a tag with one binder per payload, or `else`; `loop`, `again`; a case in a tail (ADR 0076); `try` without a handler | **a pattern that is a literal, `_` or `x ∈ S`**; **a case arm's guard `p if φ`**; **`invariant`**; **`try`'s handlers** (`else`, ADR 0057) |
+| §2.9 sets | names, ranges, `Array`, `Map`, `∪`, `×`, `array { … }` both shapes, `map { k : v }`, `map(cap)` | **`set { x ∈ S : φ }` and `set { e : x ∈ S }`** (ADR 0061) |
+| §2.10 formulas | the computation's boolean expressions in `where` and `ensure` | **`∀`, `∃`, `⇒`, `⇔`** |
+| §6 printing | §6.1, show_J for messages | **print_J**, the lossless printer: it was the translator's and went with it |
+
+Not built either: static argument inference (ADR 0066 item 2). Each waits for a program that needs it.
+§7's translator is deleted (step 5b); its transitional spellings are still read and no corpus file uses
+them (§7).
+
 This document is its one grammar, consolidated from the decisions of surface-design.md's eight
 installments, ADRs 0050–0067. It specifies **R_J**, a rendering of [abstract.md](abstract.md) in that
 document's sense (§9): a language L_J ⊂ Σ*, and maps
@@ -121,7 +143,18 @@ assert use module provides private export axiom true false`.
 **Contextual**, keywords only in the clause positions the grammar gives them, identifiers everywhere
 else: `where ensure invariant pure index variadic inout out linear as host expr stmt import lib checked
 jump comma_ok success relevant` and the model's data words (`repr word niche narrow structural backend
-link fact underlying max_len big_repr int_repr`, §2.12).
+link build artifact data include fact underlying`, §2.12).
+
+**Read and refused**, each with a message naming what replaced it (inventory.md §4): `the`, the core's
+ascription, refused for a binder's claim (ADR 0069); and the model's old words `max_len big_repr
+int_repr`. And `_` is the wildcard (§1.5).
+
+These three paragraphs are the reader's words: `TestJsKeywordsAreTheReadersKeywords`
+(emit/inventory_test.go) reads every word a token is compared against in core/jparse.go and
+core/jreadtarget.go, and requires the paragraphs to list that set, less the words not built (spec,
+assert, invariant) and the two operands of repr the target loader reads (word, narrow). **Not built:
+the reservation**: the reader takes a word as a keyword only where the grammar meets it (the status,
+above).
 
 **After `.`, any word is a member**, reserved ones included: `` java.List.set ``.
 
@@ -568,7 +601,11 @@ an interval `[lo, hi]`, the IR's own messages about its text, and a raw form a l
 
 ## 7. From today's notation
 
-The translator is tr_{T→J} = print_J ∘ (id × transport) ∘ μ (abstract.md §9.2, §10). It carries every
+**Historical**: the translator ran once, moving the corpus to J (jswitch-2026-10-16), and was deleted
+with today's reader in step 5b (jswitch5b-2026-10-16). This section records what it did. The
+transitional spellings of the last paragraph are still read; no corpus file uses them, and three tests do.
+
+The translator was tr_{T→J} = print_J ∘ (id × transport) ∘ μ (abstract.md §9.2, §10). It carries every
 gap to its abstract position, `;` becoming `//`, and a comment that quotes code stays as written. It
 rewrites, mechanically:
 

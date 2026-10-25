@@ -468,15 +468,17 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-10-24.* The current assessment,
+*Updated with the plan; last updated 2026-10-25.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
 
-1. **The documents tell the truth.** The specs that still describe an older state are brought up to
-   date: the grammar's status, the language's summary written in today's syntax, and the inventory of
-   words. The files the benchmarks call are regenerated and compared on every check, so they cannot go
-   stale again.
+1. ~~**The documents tell the truth.**~~ **Done 2026-10-25**
+   ([docs-2026-10-25](gauntlet/results/docs-2026-10-25.md)): the grammar's status says what is built and
+   what is not, the language's summary is in today's syntax, and the inventory of words separates what a
+   source file says from the core's forms below it. The grammar's keyword list and the inventory's counts
+   are now checked against the code, and the files the benchmarks call are regenerated and compared on
+   every check, so none of them can go stale unseen.
 2. **Two questions of the surface, each decided by an ADR**: how to write a range with no upper end (in
    place of `` `+inf` ``), and whether a declaration is private unless marked `pub`.
 3. **This project's guide for Claude, CLAUDE.md, rewritten** to state where things stand, at about a

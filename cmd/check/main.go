@@ -5,6 +5,7 @@
 //	go run ./cmd/check -skip tooling     every step but the host surveys
 //	go run ./cmd/check -only emission    one step, or a comma-separated list
 //	go run ./cmd/check -accept "why"     keep this run's emission as the baseline, and log why
+//	go run ./cmd/check -regen DIR        write the gauntlet's generated files under DIR, and exit
 //
 // THE STEPS, in order. Every step runs, whatever the ones before it did, so one
 // run reports everything:
@@ -13,6 +14,8 @@
 //	compiler     go test ./core/ ./emit/ ./ir/... ./cmd/...
 //	emission     every .oro under examples/, lib/ and the differential cases, on
 //	             every target, compared with the baseline committed in gauntlet/check/
+//	gauntlet     the files the gauntlet's harnesses call, regenerated from
+//	             gauntlet/regen.txt and compared byte for byte with the committed copies
 //	ir           every program that emitted, lowered to the IR and verified; the
 //	             canonical printing round-trips (docs/spec/ir.md §11)
 //	differential gauntlet/differential: build, RUN and agree on four targets
@@ -90,7 +93,7 @@ type checker struct {
 	swept2         bool // a second sweep has run, so c.times is a minimum of two
 }
 
-var stepNames = []string{"vet", "compiler", "emission", "ir", "differential", "tooling"}
+var stepNames = []string{"vet", "compiler", "emission", "gauntlet", "ir", "differential", "tooling"}
 
 func main() {
 	skipList := flag.String("skip", "", "comma-separated steps to skip")
@@ -101,6 +104,7 @@ func main() {
 	// The rule is 1.5x either way, and in the sweep a real 1.78x serial speed-up
 	// measured 1.48x (tokenize-compile-2026-09-23). Left alone, the baseline would
 	// keep the old cost, and a regression all the way back would pass unflagged.
+	regen := flag.String("regen", "", "write the gauntlet's generated files (gauntlet/regen.txt) under this directory, `.` for the gauntlet itself, and exit")
 	retime := flag.Bool("retime", false, "with -accept: re-record the compile-time baseline even when no compile crossed the rule")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: check [-skip S,…] [-only S,…] [-accept REASON]\n"+
@@ -125,6 +129,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, "check:", err)
 		os.Exit(1)
 	}
+	if *regen != "" {
+		if err := c.regenInto(*regen); err != nil {
+			fmt.Fprintln(os.Stderr, "check:", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	steps := []step{
 		{"vet", func(c *checker) result { return c.command("vet", c.root, "go", "vet", "./...") }},
@@ -132,6 +143,7 @@ func main() {
 			return c.command("compiler", c.root, "go", "test", "-count=1", "./core/", "./emit/", "./ir/...", "./cmd/...")
 		}},
 		{"emission", (*checker).emission},
+		{"gauntlet", (*checker).gauntlet},
 		{"ir", (*checker).ir},
 		{"differential", func(c *checker) result {
 			return c.command("differential", filepath.Join(c.root, "gauntlet", "differential"), "go", "run", "run.go")

@@ -16,7 +16,7 @@ import (
 var reserved = map[string]bool{"fn": true, "spec": true, "lemma": true, "set": true, "array": true,
 	"map": true, "var": true, "loop": true, "again": true, "case": true, "if": true, "else": true,
 	"try": true, "expect": true, "assert": true, "use": true, "module": true, "provides": true,
-	"private": true, "export": true, "axiom": true, "true": true, "false": true}
+	"pub": true, "private": true, "export": true, "axiom": true, "true": true, "false": true}
 
 // isIdent reports whether s is an identifier: a letter or `_`, then letters,
 // digits and `_`, optionally ending in one `?`.

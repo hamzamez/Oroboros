@@ -486,19 +486,22 @@ says why the next is what it is.
    ([ADR 0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md)).
 3. **Three defects the audit of item 1 found**: a program may redefine one of the language's own names
    (`if`), which should be refused; and two error messages that name the wrong thing.
-4. **This project's guide for Claude, CLAUDE.md, rewritten** to state where things stand, at about a
+4. **A declared range stops choosing how a number is stored**: the compiler picks the machine word or
+   a big integer from what it proves about the value, and a declaration only states the set. Then `Nat`
+   names the natural numbers ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).
+5. **This project's guide for Claude, CLAUDE.md, rewritten** to state where things stand, at about a
    third of its length, with the history reached by link.
-5. **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a
+6. **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a
    Notepad-style editor in about 2.5 KB of hand-written x86 assembly, the standard the Windows target
    will be held to. In steps:
    - first, whether Windows keeps targeting MASM or targets LLVM IR, which would also reach ARM, Linux
      and macOS: researched, measured and decided;
    - then what it needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.
-6. **The IR's verifier checks that each branch justifies the facts it hands its arms.**
-7. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
+7. **The IR's verifier checks that each branch justifies the facts it hands its arms.**
+8. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
    as Go is, and which costs it 16% today.
-8. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.
+9. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.
 
 ## Try it
 

@@ -48,10 +48,29 @@ word. `fn inc(n ∈ 0..`+inf`) { n + 1 }`, applied to an `x ∈ 0..100` inside a
    misreading: abstract.md writes `i ∈ Nat` for an index, where `0..` would widen the index out of the
    word. **`Nat` becomes TLA+'s exactly when a declared set stops being a representation request**,
    which is ADR 0049's line (ρ chosen from proven sets) applied at a declaration: a question of its own,
-   put to hamza with this ADR.
+   put to hamza with this ADR. **Answered 2026-10-25, yes** ([ADR 0079](0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)):
+   `Nat` is added when that is built.
 
 ## Why not
 
+- **A word `inf`, +∞ on the right and −∞ on the left: `0..inf`, `inf..0`** (hamza, 2026-10-25, weighed
+  against this decision and rejected):
+  - **`lo..hi` is closed**, {x : lo ≤ x ≤ hi}, so `0..inf` says inf is in the set, which is false of ℤ.
+    Mathematics writes [0, ∞) with an open bracket for exactly this reason, and J's `..` has no open
+    form. An omitted end says "no bound", which is what ↑0 is.
+  - **One word, two elements, by position**: a homonym (fit-research.md). `inf..0`, read as it is
+    written, is the range from +∞ down to 0, the empty set; only the position rule saves it.
+  - **`-inf` would be written anyway**: every interval in the literature, and our own IR's reports
+    (`[-inf, +inf]`), write the sign. `-inf..0` would be either a synonym of `inf..0` (two spellings of
+    one set) or refused (a surprise).
+  - **It is a word**: reserved, it takes a name from programs (`inf` the infimum); and when float sets are
+    built (settypes-research §5's float intervals), F64 has an element +∞, IEEE's, so `0.0..inf` would
+    name an element where `0..inf` names none, a homonym across sorts.
+  - **An endpoint is an expression** (`2^62 - 1`), so `inf - 1`, `2^inf` and `-(inf)` must each be
+    refused, which is what `TestInfiniteEndpointsMustPointOutward` existed for under `+inf`.
+  - **Its one advantage** is visibility: a bound forgotten from `0..n` reads `0..`, a weaker claim that
+    may still compile. The common case gets a name instead, `Nat` (ADR 0079), and the omitted end is
+    Rust's, Python's slices' and Haskell's `[lo..]` choice.
 - **Keep `` `+inf` ``.** A quoted name that is no name and an endpoint that is no integer: two misfits in
   one token, and a reader rule only for it.
 - **`0..∞`, or `∞` as a symbol with an ASCII name.** It writes the element ℤ lacks, the imprecision
@@ -74,4 +93,4 @@ word. `fn inc(n ∈ 0..`+inf`) { n + 1 }`, applied to an `x ∈ 0..100` inside a
 - `+inf` and `-inf` stay the core's words (inventory.md), spelled only in a core term and the IR's text.
 - **Opened: whether a declared set above the word should be a representation request at all**, or only
   a set, with ρ chosen from proven facts as everywhere else (ADR 0034's least fixed point). `Nat` waits
-  on it.
+  on it. **Decided 2026-10-25, a claim only**: [ADR 0079](0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md), not built.

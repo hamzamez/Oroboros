@@ -413,8 +413,10 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    - **the unbounded range** ([ADR 0077](docs/decisions/0077-an-unbounded-end-is-omitted.md)): an absent
      bound is no element, so J omits it, `lo..` and `..hi`; `` `+inf` `` refused. **`Nat` waits**: a range
      declared above the word widens into the rung above (measured), so `Nat` would name the bignum while
-     reading as ℕ. Opened for hamza: should a declared set stop being a representation request, ρ chosen
-     from proven facts as everywhere else (ADR 0034, 0049)?
+     reading as ℕ. **hamza: yes**, a declared set is a claim and the facts choose the representation
+     ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md),
+     the plan's item 4). hamza's `inf` (+∞ on the right, −∞ on the left) weighed and rejected in ADR
+     0077's "Why not": `..` is closed, so `0..inf` would put inf in the set.
    - **visibility** ([ADR 0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md)): `pub`
      marks the interface, private the default; `export` the entry points only; two relations in the core,
      `(pub …)` and `(export …)`. Found: an empty interface showed everything (closed). 55 `private` marks
@@ -425,25 +427,30 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    refused as a target file's is, where today it compiles with a note; the recursion refusal naming
    `loop` and `again`, not `fold-range`; and `x ∈ S` as a value refused saying membership as a test is
    not built, not "`` is not imported". Each with a planted fault.
-4. **CLAUDE.md rewritten as state**, after 1–3, at about a third of its length, history by link.
-5. **The Windows track, in steps** (hamza's):
-   - 5a. **MASM or LLVM IR**, researched and decided by an ADR: LLVM reaches ARM, Linux and macOS from
+4. **A declared set is a claim, and the facts choose the representation** (hamza, 2026-10-25,
+   [ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)):
+   ADR 0034's supply only where the claim is the fact (an entry point's parameter, a host result), the
+   widening refused by the fact on the IR and not by a declared type; then `Nat`. Spec first, each rule
+   with its planted fault; measure which programs change.
+5. **CLAUDE.md rewritten as state**, after 1–4, at about a third of its length, history by link.
+6. **The Windows track, in steps** (hamza's):
+   - 6a. **MASM or LLVM IR**, researched and decided by an ADR: LLVM reaches ARM, Linux and macOS from
      one backend; against it, duplicated work and checks the type system made unnecessary. Weights:
      ADR 0001/0008 (LLVM as an ecosystem parasitized, like the JVM), what our IR already decides
      (chordal registers, proven ranges; `nsw`/`nuw`/poison as the way a proof drops a check), the
      2,794-byte size standard, the toolchain, and a measurement of the sieve and one gauntlet program
      on each path;
-   - 5b. **TinyRetroPad's Win32 surface, measured** (downloaded 2026-10-24 at `42f4c6c`, as data, never
+   - 6b. **TinyRetroPad's Win32 surface, measured** (downloaded 2026-10-24 at `42f4c6c`, as data, never
      built or run): 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over
      kernel32, user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time;
-   - 5c. **its walls, spec first, an ADR each**: the window procedure (callbacks tier 2), its structs
-     (records), 32-bit against x86-64 (decided by 5a).
-6. **A π is justified by its branch, and the verifier checks it** (the 10-21 plan's item 8, below), before
-   item 7 grows lowering.
-7. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go.
+   - 6c. **its walls, spec first, an ADR each**: the window procedure (callbacks tier 2), its structs
+     (records), 32-bit against x86-64 (decided by 6a).
+7. **A π is justified by its branch, and the verifier checks it** (the 10-21 plan's item 8, below), before
+   item 8 grows lowering.
+8. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go.
    Research it as a join point that may jump, build it, measure `wc` nested.
-8. **The Go library, program first**: `cmp`, two files compared chunk by chunk, two buffers by segment.
-9. **The analysis grows only for a refusal a program names**, each rule's planted fault with it.
+9. **The Go library, program first**: `cmp`, two files compared chunk by chunk, two buffers by segment.
+10. **The analysis grows only for a refusal a program names**, each rule's planted fault with it.
 
 Deliberately not next (assessment-2026-10-24 §5): ARM, Linux and macOS targets themselves; loop-arm
 patterns and `try`'s handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`.
@@ -475,7 +482,7 @@ patterns and `try`'s handlers; a result claim per instance; the clause chain's c
    Carried: no program named it.
 5. **The analysis grows only for a refusal a program names**, each rule's planted fault written with the
    rule.
-6. **Carried into the 10-24 plan's item 5. The Windows application: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)**
+6. **Carried into the 10-24 plan's item 6. The Windows application: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)**
    (hamza, 2026-10-21: "as handwritten by a good programmer as it gets"), a Notepad-style editor in
    about 2.5 KB of 32-bit MASM over RICHEDIT, the common dialogs and a window procedure, packed by
    Crinkler. First a measurement of what it calls from Win32 against what is declared, callable and
@@ -495,7 +502,7 @@ patterns and `try`'s handlers; a result claim per instance; the clause chain's c
    for a length π, a table whose length is the compared operand), negated on the else arm, and a
    connective's π's follow `implied`. Planted faults: the wrong table, a flipped relation, a foreign
    operand, a missing negation. **Close it when the IR's lowering or analysis next grows** (item 5),
-   before a new π is trusted. Carried as the 10-24 plan's item 6.
+   before a new π is trusted. Carried as the 10-24 plan's item 7.
 
 Rules kept: a refusal test states its reason and is checked for it, and its premise is computed; an
 `-accept` that changes a count updates every document that quotes it; every experiment gets a time limit;
@@ -786,6 +793,7 @@ rejected alternatives.
 | A case in a tail is a tail when each arm is: the tail sort closed under a sum's eliminator (each arm runs once); only in a tail; `if` still may not jump; a handler's arms follow when built — extends 0041 and 0057 item 5, built | [0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md) |
 | An unbounded end is omitted: `lo..` is ↑lo and `..hi` ↓hi, the core's `(int lo +inf)`; an absent bound is no element, so `` `+inf` `` is refused and `..` alone (ℤ) is `Int`; no `Nat` while a declared set above the word is a representation request (it widens to the rung above) — built | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
 | A module's interface is what it marks `pub`, private the default; `export` an entry point only: two relations, I read by resolution and E by the build, the core's `(pub …)` and `(export …)`; an empty interface hides everything; `private` refused — supersedes 0064 item 4, built | [0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
+| A declared set is a claim, and the facts choose the representation: ρ of the proven fact at every binder; the consent to the rung above is a claim's demand (bounded by default stays); supply only where the claim is the fact (an entry point's parameter, a host result, a constant); `Nat` then TLA+'s — amends 0019 items 3–4 and 0034's supply, not built | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
 
 ## How this project is run
 

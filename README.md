@@ -489,9 +489,12 @@ says why the next is what it is.
    of the language's own names, which inside a module had silently changed what `if` meant; the
    recursion error names the language's loop; and writing a set where a value belongs, such as
    `x ∈ 0..9`, is refused with a clear reason instead of a garbled one.
-4. **A declared range stops choosing how a number is stored**: the compiler picks the machine word or
-   a big integer from what it proves about the value, and a declaration only states the set. Then `Nat`
-   names the natural numbers ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).
+4. ~~**A declared range stops choosing how a number is stored**~~ **Done 2026-10-26**
+   ([claimset-2026-10-26](gauntlet/results/claimset-2026-10-26.md)): the compiler picks the machine word
+   or a big integer from what it proves about each value, and a declaration only states the set, so one
+   function over `Nat` (the natural numbers, now named) runs in the word where its arguments are small and
+   on a big integer where the host hands it one
+   ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).
 5. **This project's guide for Claude, CLAUDE.md, rewritten** to state where things stand, at about a
    third of its length, with the history reached by link.
 6. **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a

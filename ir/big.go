@@ -21,8 +21,12 @@ import (
 // B is the least set closed under two rules.
 //
 //	(S) SUPPLY. v ∈ B if v is
-//	    - a parameter declared above the word, or a primitive's result
-//	      declared `big`;
+//	    - a parameter of the function compiled declared above the word, where
+//	      the claim is the fact: an entry point's, whose value the host
+//	      passes, or a definition's checked alone at its claim (ADR 0072). A
+//	      definition inlined has no parameter left, only its argument's fact,
+//	      and its declared sets are claims (ADR 0079);
+//	    - a primitive's result declared `big`;
 //	    - a language operation + − · / with an operand in B, or a remainder
 //	      a % b with b ∈ B (a % b with a ∈ B and b a word is under |b|, a
 //	      word: `big%-small`);
@@ -32,7 +36,8 @@ import (
 //	      word is a Horner spine of words, core/read.go).
 //	(D) DEMAND. A position that requires an exact integer demands its value:
 //	    the function's result declared above the word, a primitive's `big`
-//	    argument, an ascription above the word, every incoming value of a join
+//	    argument, an ascription above the word (a claim inlined, whose value is
+//	    its operand's: ADR 0079), every incoming value of a join
 //	    in B, and every operand of an operation in B (both operands of a
 //	    comparison with one in B). A demanded v is in B iff fact(v) ⊄ S;
 //	    otherwise it stays in the word and is widened where it is used, by the
@@ -519,6 +524,18 @@ func (g *bigs) word(v V, where string) {
 		where, g.tg.Name, g.tg.Word)
 }
 
+// resultUnclaimed reports the j-th result declaring no set: no signature, or
+// one whose result is unstated.
+func resultUnclaimed(sig *core.Sig, j int) bool {
+	if sig == nil {
+		return true
+	}
+	if len(sig.Results) > 0 {
+		return j < len(sig.Results) && (sig.Results[j] == "" || sig.Results[j] == "any")
+	}
+	return j == 0 && (sig.Result == "" || sig.Result == "any")
+}
+
 var bigArith = map[Op]string{OAdd: "big+", OSub: "big-", OMul: "big*", ODiv: "big/", ORem: "big%", ONeg: "big-"}
 var bigCmp = map[Op]string{OEq: "big=", OLt: "big<", OLe: "big<=", OGt: "big>", OGe: "big>="}
 
@@ -538,6 +555,18 @@ func (g *bigs) rewrite(sig *core.Sig) {
 				big = big || g.bigType(sig.Results[j])
 			case j == 0 && len(sig.Results) == 0:
 				big = big || g.bigType(sig.Result)
+			}
+		}
+		// A RESULT THAT CLAIMS NOTHING (ADR 0062 item 8) is held as its yields
+		// are, their join in S ⊑ big (ADR 0079 item 2): exactly when a yield is
+		// in B, which a claim above the word upstream consented to. Until then
+		// it was a position in the word, and a definition whose result was never
+		// claimed was refused for a representation nobody had asked for.
+		if !big && resultUnclaimed(sig, j) {
+			for _, args := range ownExits(f.Body, TYield) {
+				if j < len(args) && g.isB(args[j]) {
+					big = true
+				}
 			}
 		}
 		if big {

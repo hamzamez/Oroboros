@@ -74,6 +74,32 @@ not mean the same thing on all of them. Deciding it needs the *product* type fir
 usable bignum keeps its small case inline in the value, and `math/big` without one is 38.9× even
 used perfectly.
 
+## 1a. A declared set is a claim, and the facts choose the representation
+
+**Built 2026-10-26** ([ADR 0079](../decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md),
+[claimset-2026-10-26](../../gauntlet/results/claimset-2026-10-26.md)). The bignum §1 deferred is
+ADR 0019's rung above the word, chosen on the IR (ADR 0034, 0035). What decides it:
+
+- **ρ(v) is ρ of v's proven fact**: the signed word inside S, the unsigned inside U (ADR 0033), the rung
+  above past both. A declared set, `n ∈ Nat` or a result `(0..2^100)`, is a claim: an obligation on an
+  argument (ADR 0028), a claim decided at the definition (ADR 0072), enforced at run time above the
+  word where unproven (ADR 0029). It names no representation.
+- **The consent is a claim's demand**: an operation not proven inside the word is refused (ADR 0019
+  item 2) unless a claim above the word on its path demands the value, and then it is computed exactly
+  if and only if its fact leaves the word.
+- **Supply is where the claim is the fact**: an entry point's parameter, which the host passes and
+  nothing proves smaller; a host result declared `big`; a constant outside S; and a definition's
+  parameter when the definition is checked alone at its claim (ADR 0072). Inlined, a definition's
+  parameter is its argument's fact.
+- **A result that claims nothing** (ADR 0062 item 8) is held as its yields are: exactly when one is.
+
+| | ρ |
+|---|---|
+| `fn inc(n ∈ Nat) (Nat) { n + 1 }` used in `f(x ∈ 0..100) (0..200)` | the word: `func GenF(v0 int) int` |
+| `export fn e(n ∈ Nat) (Nat) { inc(n) }` | the host's bignum: `func GenE(v0 *big.Int) *big.Int` |
+| `fn grow(n ∈ Nat) (Nat) { n * n }` used on `x ∈ 0..2^40` | exact, consented by grow's claim |
+| `export fn h(x ∈ 0..2^40) { x * x }` | refused: no claim above the word |
+
 ## 2. Overflow
 
 **Decision: outside the window there is no portable meaning, and the compiler can be asked to say

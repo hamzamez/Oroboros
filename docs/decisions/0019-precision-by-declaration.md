@@ -1,7 +1,7 @@
 # 0019 — Precision by declaration
 
 Date: 2026-08-28
-Status: Accepted — **provisionally**, with the reopening triggers in "What should reopen this". **Amended by [0026](0026-an-int-is-an-integer.md)**: `word` is the target's word, not the window
+Status: Accepted — **provisionally**, with the reopening triggers in "What should reopen this". **Amended by [0026](0026-an-int-is-an-integer.md)**: `word` is the target's word, not the window. **Items 3–4 amended by [0079](0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)** (2026-10-26): a declared range above the word is a claim, the consent to the rung above; the representation is the proven fact's, not the declaration's
 
 Research: [precision-by-declaration.md](../precision-by-declaration.md),
 [precision-integers.md](../precision-integers.md).

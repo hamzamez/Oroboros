@@ -21,7 +21,7 @@
 // counter, the guard and the division are all ordinary integer arithmetic.
 //
 // 1000^64 = 10^192, comfortably under 2^640.
-export fn power(b ∈ 0..1000, e ∈ 0..64) (0..) {
+export fn power(b ∈ 0..1000, e ∈ 0..64) (Nat) {
     loop acc = 1, x = b, k = e {
         k == 0 -> acc
         k % 2 == 1 -> again(acc * x, x * x, k / 2)

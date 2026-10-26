@@ -279,8 +279,10 @@ func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
 	if sig == nil || sig.Ensures == nil {
 		return nil
 	}
-	// ABOVE THE WORD a result's range is a representation declaration, not a
-	// contract (ADR 0026): only what the author wrote is checked.
+	// ABOVE THE WORD a result's range is a claim the program enforces at run
+	// time where the facts do not prove it (ADR 0029, one set per program), not
+	// one decided here: only what the author wrote in `ensure` is checked. It
+	// names no representation (ADR 0079).
 	ens := sig.Ensures
 	if tg.ValueType(sig.Result) == core.BigType {
 		if ens = sig.Stated(); ens == nil {

@@ -429,11 +429,13 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
    had pinned "fold-range"); **a set has no representation**: a set operator in a computation or a
    claim's formula is refused saying what it is, where `where x ∈ 0..9` had compiled on an entry point
    as an assumed atom. Emission byte-identical.
-4. **A declared set is a claim, and the facts choose the representation** (hamza, 2026-10-25,
-   [ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)):
-   ADR 0034's supply only where the claim is the fact (an entry point's parameter, a host result), the
-   widening refused by the fact on the IR and not by a declared type; then `Nat`. Spec first, each rule
-   with its planted fault; measure which programs change.
+4. ~~**A declared set is a claim, and the facts choose the representation**~~ **Done**
+   ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md),
+   [claimset-2026-10-26](gauntlet/results/claimset-2026-10-26.md), integers.md §1a): the request lived in
+   four places, none of them ADR 0034's supply: the IR typed an inlined ascription by its claim (a `(Nat)`
+   helper made its caller return a `*big.Int` it computed in the word); an unclaimed result was a word
+   position; the term checker's `WiderThanWord`, whose premise left with irstep4j; and an entry point's ℕ
+   parameter printed `/*int 0 +inf?*/`. Then **`Nat`**, ↑0. Emission byte-identical.
 5. **CLAUDE.md rewritten as state**, after 1–4, at about a third of its length, history by link.
 6. **The Windows track, in steps** (hamza's):
    - 6a. **MASM or LLVM IR**, researched and decided by an ADR: LLVM reaches ARM, Linux and macOS from
@@ -793,9 +795,9 @@ rejected alternatives.
 | A segment is its function restricted wherever its table is, b[lo:hi] or a writer's b[lo:]; its domain may narrow, and a law beyond the restricted one is a claim on the narrower domain; one check for every segment — extends 0069 item 3, built | [0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md) |
 | A host `where`'s constant bounds on one parameter are its range obligation, decided by a literal, the IR's intervals, then the refinement layer; the host's type and the hand check unchanged — built | [0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md) |
 | A case in a tail is a tail when each arm is: the tail sort closed under a sum's eliminator (each arm runs once); only in a tail; `if` still may not jump; a handler's arms follow when built — extends 0041 and 0057 item 5, built | [0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md) |
-| An unbounded end is omitted: `lo..` is ↑lo and `..hi` ↓hi, the core's `(int lo +inf)`; an absent bound is no element, so `` `+inf` `` is refused and `..` alone (ℤ) is `Int`; no `Nat` while a declared set above the word is a representation request (it widens to the rung above) — built | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
+| An unbounded end is omitted: `lo..` is ↑lo and `..hi` ↓hi, the core's `(int lo +inf)`; an absent bound is no element, so `` `+inf` `` is refused and `..` alone (ℤ) is `Int`; no `Nat` while a declared set above the word is a representation request (it widens to the rung above), `Nat` added with 0079 — built | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
 | A module's interface is what it marks `pub`, private the default; `export` an entry point only: two relations, I read by resolution and E by the build, the core's `(pub …)` and `(export …)`; an empty interface hides everything; `private` refused — supersedes 0064 item 4, built | [0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
-| A declared set is a claim, and the facts choose the representation: ρ of the proven fact at every binder; the consent to the rung above is a claim's demand (bounded by default stays); supply only where the claim is the fact (an entry point's parameter, a host result, a constant); `Nat` then TLA+'s — amends 0019 items 3–4 and 0034's supply, not built | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
+| A declared set is a claim, and the facts choose the representation: ρ of the proven fact at every binder; the consent to the rung above is a claim's demand (bounded by default stays); supply only where the claim is the fact (an entry point's parameter, a host result, a constant); `Nat` then TLA+'s — amends 0019 items 3–4 and 0034's supply, built | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
 
 ## How this project is run
 
@@ -989,7 +991,9 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   `repr 0..2^64-1 word`: **U, held natively as `uint64`**, selected by
   `ir/words.go` on the ring homomorphism ℤ → ℤ/2⁶⁴ (`+ − ·` in either 64-bit type after the
   residue map; `< = / %` only where one realization holds both operands). A binding is ρ of its
-  interval: `int` in S, `u64` in U∖S, `big` only past both and only by declaration.
+  proven fact: `int` in S, `u64` in U∖S, `big` only past both and only where a claim above the word
+  demands it (ADR 0079): a declared set is a claim and names no representation, except where the claim is
+  the fact, an entry point's parameter or result.
 - **Legality is per (program, target).** Every target that accepts a program computes the same
   integer; **portability is computed and reported**, and W(S) = ⋂ word_T is a derived number
   (`go run ./cmd/portable SRC`). A language operation is proven only inside the signed word; a `u64`
@@ -997,7 +1001,8 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 - **Bounded by default** (ADR 0019, amended by 0026). An operation not proven inside the target's word
   is a compile error on that target, cleared by one of:
   - narrowing the range;
-  - declaring a range above the word, which is arbitrary precision there and a word where one holds it;
+  - claiming a set above the word (`Nat`, `0..2^100`), the consent to arbitrary precision, used only where
+    the facts leave the word (ADR 0079);
   - `-checked`, which asks for the trap.
 - **At a host boundary an integer is the host's**: `go.int64` is the word, `go.uint64` is U, and a
   host precondition is the host's own boundary (`hex.EncodedLen`: −2⁶² ≤ n ≤ 2⁶²−1).

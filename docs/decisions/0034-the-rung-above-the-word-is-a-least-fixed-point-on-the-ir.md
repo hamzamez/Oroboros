@@ -2,7 +2,11 @@
 
 Date: 2026-09-27
 Status: Accepted. Realized for the host's bignum (Go, JavaScript, Java) in irstep4h, and for the
-fixed-limb rung in irstep4i (ADR 0035).
+fixed-limb rung in irstep4i (ADR 0035). **Supply amended by
+[0079](0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)** (2026-10-26): a
+parameter declared above the word supplies B only where the claim is the fact (the function compiled:
+an entry point, or a definition checked alone); an inlined ascription's value is its operand's; a result
+that claims nothing is held as its yields are.
 
 ## Context
 

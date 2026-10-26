@@ -1762,3 +1762,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - now emits — `lib/result.oro java`
 - now emits — `lib/result.oro js`
 - now emits — `lib/result.oro windows`
+
+## 2026-10-26 — on d4b3799, with uncommitted changes
+
+**Reason:** ADR 0079: a declared set is a claim, the facts choose the representation; examples/big's results are (Nat), and the four windows refusals print Nat for 0..
+
+572 runs: 311 emitted, 261 refused; 2103 of 2148 integer operations bounded, 353 of 376 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- compiler output changed — `examples/big/fact.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/power.oro windows`

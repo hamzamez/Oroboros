@@ -49,7 +49,7 @@ word. `fn inc(n ∈ 0..`+inf`) { n + 1 }`, applied to an `x ∈ 0..100` inside a
    word. **`Nat` becomes TLA+'s exactly when a declared set stops being a representation request**,
    which is ADR 0049's line (ρ chosen from proven sets) applied at a declaration: a question of its own,
    put to hamza with this ADR. **Answered 2026-10-25, yes** ([ADR 0079](0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)):
-   `Nat` is added when that is built.
+   `Nat` is added when that is built. **Built 2026-10-26**: `Nat` is ↑0, read as `0..`.
 
 ## Why not
 

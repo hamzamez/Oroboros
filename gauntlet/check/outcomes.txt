@@ -24,7 +24,7 @@
    note: gen-fact: 1 operation(s) in arbitrary precision
    note: gen-fact: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/fact.oro windows refused
-   gen: fact: acc needs arbitrary precision — 0.. is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
+   gen: fact: acc needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/fib.oro go emitted a30ed197be9c09f62bb7819fae5ab10392088365a8a3510a00c1d5ce53045f99
    note: gen-fib: 1 operation(s) in arbitrary precision
@@ -36,7 +36,7 @@
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/fib.oro windows refused
-   gen: fib: a needs arbitrary precision — 0.. is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
+   gen: fib: a needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/limbs.oro go emitted 8159406788a85d98f07c02fff1f82d54695fbf44bcf1efbe0273fe9777b1da5e
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
@@ -60,7 +60,7 @@
    note: gen-pair: 2 operation(s) in arbitrary precision
    note: gen-pair: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/pair.oro windows refused
-   gen: pair: b needs arbitrary precision — 0.. is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
+   gen: pair: b needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/power.oro go emitted 7a15610ef53b8c1055c013e4ecaeff42edef2f2ab2a6fe6aa19b298e3538a840
    note: gen-power: 3 operation(s) in arbitrary precision
@@ -75,7 +75,7 @@
    note: gen-power: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-power: 3 division(s) became a shift or a mask
 == examples/big/power.oro windows refused
-   gen: power: acc needs arbitrary precision — 0.. is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
+   gen: power: acc needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/render.oro go emitted 414470f0d10dca6e778c64c8b199c66819dce4cc3cf8ceb14b83ae1d831ba07b
    note: gen-render: 5 operation(s) in arbitrary precision

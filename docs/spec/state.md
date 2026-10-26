@@ -141,6 +141,7 @@ generated from the form.
 ### The sets
 
 - **Base sets:** `Int`, `F64`, `Bool`, `String`; the core spells them `int`, `f64`, `bool`, `string`.
+  **`Nat`** is ↑0, read as `0..` (ADR 0079).
 - **A range** `LO..HI` is a set, the core's `(int LO HI)`. Its endpoints are compile-time expressions
   over literals, unary `-`, `+ - *` and `^`, and in a target file its constants. **An end may be omitted**:
   `lo..` is ↑lo and `..hi` is ↓hi, the core's `(int lo +inf)` and `(int -inf hi)` (ADR 0077).
@@ -157,9 +158,13 @@ A range means three things, kept apart:
 - a premise for the analyses;
 - a representation for storage.
 
-The representation is chosen by the target, `repr LO..HI …` below the word and `repr big …` above it
-([ADR 0003](../decisions/0003-range-typed-integers.md), [ADR 0019](../decisions/0019-precision-by-declaration.md)),
-and on the IR ([ADR 0033](../decisions/0033-an-integers-representation-is-chosen-on-the-ir.md)).
+The representation is chosen on the IR from the proven fact, by what the target declares, `repr LO..HI
+…` below the word and `repr big …` above it ([ADR 0003](../decisions/0003-range-typed-integers.md),
+[ADR 0033](../decisions/0033-an-integers-representation-is-chosen-on-the-ir.md)). **A declared set is a
+claim and names no representation** ([ADR 0079](../decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md),
+[integers.md §1a](integers.md)): a claim above the word is the consent to the rung above, which holds a
+value exactly only where its fact leaves the word, and is the representation itself only where the claim
+is the fact, an entry point's parameter or result.
 
 ### Reduction
 

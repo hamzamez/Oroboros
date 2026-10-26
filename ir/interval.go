@@ -706,7 +706,9 @@ func (a *intervals) stmt(s *Stmt) {
 		// ABOVE THE WORD an ascription tells only the one set the program
 		// enforces (ADR 0029), which this domain does not know: its own type
 		// would be a false premise (h declared 2¹⁰⁰ in a program enforcing
-		// 2²⁰¹ may return 2¹⁵⁰). Within the word it is the type.
+		// 2²⁰¹ may return 2¹⁵⁰). Within the word it is the type. Either way
+		// the value is its operand's, and its representation the fact's
+		// (ADR 0079).
 		if a.tg.Word.Exceeds(s.Type) {
 			one(args[0])
 		} else {

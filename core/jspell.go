@@ -77,10 +77,16 @@ func Spell(n string) string {
 var langSets = map[string]string{"int": "Int", "bool": "Bool", "string": "String", "f64": "F64",
 	"any": "Any", "option": "Option", "array": "Array", "map": "Map"}
 
+// NatSet is ℕ's name, TLA+'s, read as `0..` (ADR 0077 item 5, ADR 0079 item 6).
+const NatSet = "Nat"
+
 // isLangSpelling reports a word J reads as one of the language's sets, `Int`:
 // a name spelled so is quoted, `text/scanner`'s constant “ `Int` “, or σ_J
 // would spell it and the set `int` alike.
 func isLangSpelling(t string) bool {
+	if t == NatSet {
+		return true
+	}
 	for _, l := range langSets {
 		if l == t {
 			return true

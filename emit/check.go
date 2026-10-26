@@ -854,13 +854,12 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		// carry a `sig` with a concrete result (json-tree-2026-08-26).
 		// The integer sort is ℤ (ADR 0033): a body typed `int` against a result
 		// declared in U is a membership claim the IR decides, not a mismatch.
-		// A BIGNUM WHERE THE SIGNATURE DECLARES A WORD: this check runs on a
-		// residual whose representation PromoteBig has chosen, so here a sort
-		// IS a representation, and the promotion is a widening.
-		if pass == 1 && (tgt.Word.Exceeds(got) || core.UnboundedRange(got) || got == core.BigType) &&
-			isWordSort(tgt, sig.Result) {
-			return fmt.Errorf("%s: %w", name, WiderThanWord(tgt, "its result", got))
-		}
+		// So is a body whose type is a claim above the word against a result in
+		// the word (ADR 0079): a declared set names no representation, and the
+		// IR refuses a value held exactly where a word is required, by its fact
+		// (ir/big.go). This checker refused it by the declared type, a rule
+		// whose premise, that the residual's representation was chosen
+		// (PromoteBig), went with the term promotion in irstep4j.
 		if pass == 1 && !compatible(tgt, got, sig.Result) &&
 			!tgt.Subsumes(tgt.ValueType(got), tgt.ValueType(sig.Result)) &&
 			!intSortsAgree(tgt, got, sig.Result) {
@@ -869,19 +868,6 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		}
 	}
 	return nil
-}
-
-// WiderThanWord is the refusal of a value held above the word where a word is
-// required: the promotion is a WIDENING, not a refinement, so it may not
-// happen silently in the narrowing direction (unbounded-rung.md §3).
-func WiderThanWord(tg *Target, what, got string) error {
-	return fmt.Errorf("%s is %s, which is WIDER than the word of target %s, %s, so on "+
-		"this target it is not an `Int` — it is arbitrary precision, a rung above "+
-		"the host's word (ADR 0026, docs/unbounded-rung.md).\n"+
-		"  A range above the word is a WIDENING, not a refinement: a value that "+
-		"may leave the machine word cannot silently be used where an `Int` is "+
-		"required, and this refusal is where that is said. Widen the destination, "+
-		"or take the value to a string with `big_str`.", what, core.ShowSet(got), tg.Name, tg.Word)
 }
 
 // intSortsAgree is the integer sort's agreement (ADR 0033): two integer types

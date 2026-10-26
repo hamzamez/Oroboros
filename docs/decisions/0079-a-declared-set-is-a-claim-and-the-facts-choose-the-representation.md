@@ -2,8 +2,8 @@
 
 Date: 2026-10-25
 Status: Accepted (hamza, 2026-10-25: "Yes, a declared set should stop being a representation request.
-with the representation chosen from what's proven", on the question ADR 0077 item 5 opened). **Not
-built.** Amends [ADR 0019](0019-precision-by-declaration.md) items 3–4 and
+with the representation chosen from what's proven", on the question ADR 0077 item 5 opened). **Built
+2026-10-26** ([claimset-2026-10-26](../../gauntlet/results/claimset-2026-10-26.md)); see Consequences. Amends [ADR 0019](0019-precision-by-declaration.md) items 3–4 and
 [ADR 0034](0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md)'s supply rule; unblocks
 `Nat` ([ADR 0077](0077-an-unbounded-end-is-omitted.md) item 5).
 
@@ -56,6 +56,26 @@ proven sets**. ADR 0019's request predates it.
   default (ADR 0019 item 2). The claim above the word is the visible consent; only its second job goes.
 
 ## Consequences
+
+**As built** (claimset-2026-10-26). Measuring where the request lived found it in four places, none of
+them ADR 0034's supply rule, which already read a parameter only on the function compiled:
+1. **The IR typed an ascription by its claim**: lowering recorded `(the S e)`'s declared type, and typing
+   took it over the operand's, so a definition inlined with a `(Nat)` result made its caller's value a
+   bignum (`f` computed `x + 1` in the word and widened it with `big-of` to return a `*big.Int`). Above
+   the word the value is now its operand's (`ir/lower.go`).
+2. **A result that claims nothing was a word position**, so `fn inc(n ∈ Nat) { n + 1 }`, checked at its
+   definition (ADR 0072), was refused for a representation nobody claimed. It is now held as its yields
+   are (`ir/big.go`, `resultUnclaimed`), item 3's consent having come from the parameter's claim.
+3. **The term checker refused a claim above the word against a result in it by the declared type**
+   (`WiderThanWord`), a rule whose premise, that the residual's representation was chosen by the term
+   promotion, went with irstep4j. Deleted; the IR refuses by the fact (`ir/big.go`'s word position).
+4. **An entry point's unbounded parameter printed `/*int 0 +inf?*/`** in Go, which does not build: no
+   program had one. A range above both words now spells as the target's big representation
+   (`emit/target.go`).
+Then `Nat`, read as `0..` and printed by messages; the four `examples/big/` results are `(Nat)`. Emission
+byte-identical on every target; four windows refusals print `Nat` for `0..`.
+
+**Planned before building:**
 
 - To build, spec first: ADR 0034's supply rule restated (item 3), the term checker's sort rule replaced
   by the IR's fact rule (item 4), each with a planted fault: `inc` accepted and computed in the word, an

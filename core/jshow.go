@@ -52,6 +52,9 @@ func ShowSet(ty string) string {
 		return ty
 	case strings.HasPrefix(ty, "int "):
 		f := strings.Fields(ty)
+		if len(f) == 3 && f[1] == "0" && f[2] == "+inf" {
+			return NatSet // ℕ, which J names (ADR 0079 item 6)
+		}
 		if len(f) == 3 {
 			return endpointJ(f[1]) + ".." + endpointJ(f[2])
 		}

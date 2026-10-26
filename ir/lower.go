@@ -496,7 +496,15 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case p.Kind == "ascribe" && len(args) == 2 && args[0].Kind == core.KStr:
 		a := l.single(args[1], r)
 		v := l.one(r, Stmt{Op: OThe, Type: args[0].Str, Args: []V{a}})
-		l.decl[v] = args[0].Str
+		// A DECLARED SET IS A CLAIM, NOT A REPRESENTATION (ADR 0079). Inside the
+		// word the claim's set is the value's type, a refinement of its operand's.
+		// Above it the claim names no representation: the value is its operand's,
+		// typed by unification, and the rung above the word follows the facts,
+		// the ascription demanding an exact value only where its fact leaves the
+		// word (ADR 0034's demand, big.go).
+		if l.tg.ValueType(args[0].Str) != core.BigType {
+			l.decl[v] = args[0].Str
+		}
 		return []V{v}
 	case p.Kind == "array":
 		return []V{l.one(r, Stmt{Op: OArray, Args: l.values(args, r)})}

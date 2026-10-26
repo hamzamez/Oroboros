@@ -558,6 +558,11 @@ func (p *parser) toSet(e Expr, mode string) Expr {
 func (p *parser) set(e Expr) Expr {
 	switch e := e.(type) {
 	case *Var:
+		if e.Name == NatSet {
+			// ℕ, TLA+'s Nat, is ↑0 by definition: `0..`, the core's (int 0 +inf).
+			// A set names no representation (ADR 0079), so this is ℕ and only ℕ.
+			return &Apply{Fn: &Var{Name: "int"}, Args: []Expr{&Lit{T: IntLiteral("0")}, &Var{Name: "+inf"}}}
+		}
 		return &Var{Name: p.setName(e.Name)}
 	case *Apply:
 		v, ok := e.Fn.(*Var)

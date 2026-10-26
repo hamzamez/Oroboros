@@ -3168,6 +3168,16 @@ func (tg *Target) ty(name string) string {
 	if tg.Word.ValueType(name) == core.U64Type && name != core.U64Type {
 		return tg.ty(core.U64Type)
 	}
+	// A RANGE ABOVE BOTH WORDS is held on the rung above (ADR 0019, 0034), so it
+	// spells as the target's big representation. It fell through to `/*…?*/`
+	// until defects of ADR 0079's build: no program had an entry point taking
+	// one, the only place a declared set is its value's representation (ADR
+	// 0079 item 3).
+	if name != core.BigType && tg.ValueType(name) == core.BigType {
+		if s := tg.ty(core.BigType); !strings.HasPrefix(s, "/*") {
+			return s
+		}
+	}
 	// A RANGE spells itself as the representation that holds it, and falls back
 	// to the target's own integer when nothing narrower was declared.
 	if lo, hi, ok := core.IntRange(name); ok {

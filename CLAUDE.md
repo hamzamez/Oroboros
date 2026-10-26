@@ -115,16 +115,23 @@ checked. When a package hits a wall that needs language work, stop, research it,
    [claimset-2026-10-26](gauntlet/results/claimset-2026-10-26.md)); then `Nat`.
 5. ~~CLAUDE.md rewritten as state~~ **done** (2026-10-26, this file).
 6. **The Windows track, in steps** (hamza's):
-   - 6a. **MASM or LLVM IR**, researched and decided by an ADR. LLVM reaches ARM, Linux and macOS from one
-     backend; against it, duplicated work and checks the type system made unnecessary. Weights: ADR
-     0001/0008 (LLVM as an ecosystem parasitized, like the JVM), what our IR already decides (chordal
-     registers, proven ranges; `nsw`/`nuw`/poison as the way a proof drops a check), the 2,794-byte size
-     standard, the toolchain, and a measurement of the sieve and one gauntlet program on each path.
-   - 6b. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
+   - 6a. ~~MASM or LLVM IR~~ **decided: LLVM IR** ([ADR 0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md),
+     [backend-2026-10-26](gauntlet/results/backend-2026-10-26.md)). One IR_P printed three ways, MASM, C and
+     LLVM IR: MASM is dominated (LLVM `-O2` 0.63 and 0.35 of its time; `minsize` 0.77 and 0.51 of its code at
+     no worse speed); C carries less of the IR's proofs (0.55 against 0.35 under one compiler) and its speed
+     is one compiler's heuristics. LLVM adds no check: its undefined behaviour is what the IR proves absent,
+     so the proofs become `nsw`, `nuw`, `inbounds`, `select`. 32-bit is a triple.
+   - 6b. **`ir/llvm`, spec first**: the printer of ADR 0080 at the corpus's windows parity (the
+     differential suite's windows cases and the gauntlet's sieve), then `ir/x86` and `x64.oro`'s vocabulary
+     retired and their programs ported to the language's operators. Needs clang installed (Visual Studio's
+     "C++ Clang Compiler for Windows" component, or LLVM's release); the experiment ran a copy in a session
+     scratchpad.
+   - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
      user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.
-   - 6c. **Its walls, spec first, an ADR each**: the window procedure (callbacks tier 2), its structs
-     (records), 32-bit against x86-64 (decided by 6a).
+   - 6d. **Its walls, spec first, an ADR each**: the window procedure (callbacks tier 2, a function pointer
+     LLVM gives its calling convention), its structs (records, laid out by the target's data layout); 32-bit
+     is ADR 0080's triple.
 7. **A π is justified by its branch, and the verifier checks it**, before item 8 grows lowering. W6
    checks a π's types, not its relation; a π on the wrong table passed it (work-2026-10-22 §5). The rule
    is Theorem E as a W-rule, with faults planted for the wrong table, a flipped relation, a foreign
@@ -202,8 +209,8 @@ instances of a theory checked once (`ir/limbs.go`, ADR 0035); postconditions and
 
 **The IR's text is the printers' whole input** (ADR 0038): `gen -ir` writes IR_P, and `cmd/check`
 reprints every program from that text alone, byte for byte. Four printers, `ir/golang`, `ir/js`,
-`ir/java` and `ir/x86` (MASM, a value's place a colouring of exact live sets, optimal by chordality),
-sharing `ir/plan`. The term backends and the term interval analysis are deleted (irstep4a, irstep4j).
+`ir/java` and `ir/x86` (MASM, a value's place a colouring of exact live sets, optimal by chordality;
+to be replaced by `ir/llvm`, ADR 0080), sharing `ir/plan`. The term backends and the term interval analysis are deleted (irstep4a, irstep4j).
 
 ## The language today
 
@@ -444,6 +451,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | An unbounded end is omitted, `lo..`; `Nat` is ↑0 | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
 | A module's interface is what it marks `pub`; `export` an entry point | [0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
 | A declared set is a claim, and the facts choose the representation | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
+| The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity (not built) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
 
 ## Build commands
 

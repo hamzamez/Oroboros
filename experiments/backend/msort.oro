@@ -1,0 +1,51 @@
+// A BOTTOM-UP MERGE SORT OF A PERMUTATION, gauntlet/differential/cases/merge-sort.oro
+// at a size worth timing: 100000 elements, 20 rounds, each over another key
+// function. In the language's own operators, so every backend prints one IR_P
+// (backend-2026-10-26).
+cap = 100000
+
+fn key(s, i) { (37 * (i + s) + 11) % 100003 }
+
+fn mmin(x, y) { if x < y { x } else { y } }
+
+fn pat(t, i) { t[i] }
+
+fn iota(a linear) { loop k = 0 { k >= cap -> (); else -> { a[k] := k; again(k + 1) } } }
+
+fn merge1(s, a, b linear, lo, mid, hi) {
+    loop i = lo, j = mid, k = lo {
+        k >= hi -> ()
+        i >= mid -> { b[k] := pat(a, j); again(i, j + 1, k + 1) }
+        j >= hi -> { b[k] := pat(a, i); again(i + 1, j, k + 1) }
+        key(s, pat(a, j)) < key(s, pat(a, i)) -> { b[k] := pat(a, j); again(i, j + 1, k + 1) }
+        else -> { b[k] := pat(a, i); again(i + 1, j, k + 1) }
+    }
+}
+
+fn mpass(s, a, b linear, w) {
+    loop lo = 0 {
+        lo >= cap -> ()
+        else -> {
+            mid = mmin(cap, lo + w)
+            hi = mmin(cap, lo + 2 * w)
+            merge1(s, a, b, lo, mid, hi)
+            again(hi)
+        }
+    }
+}
+
+fn msort(s) {
+    var a := array { 0 : _ ∈ 0..cap-1 }
+    var b := array { 0 : _ ∈ 0..cap-1 }
+    iota(a)
+    loop w = 1 { w >= cap -> a; else -> { mpass(s, a, b, w); a, b := b, a; again(2 * w) } }
+}
+
+fn run(s ∈ 0..100) (Int) {
+    v = msort(s)
+    loop acc = 0, r = 0 { r >= 1000 -> acc; else -> again(acc + (r + 1) * key(s, pat(v, r)), r + 1) }
+}
+
+export fn bench() (Int) {
+    loop acc = 0, s = 0 { s >= 20 -> acc; else -> again(acc + run(s), s + 1) }
+}

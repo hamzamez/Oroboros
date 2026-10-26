@@ -1,0 +1,8 @@
+# Everything build.bat prints and builds from the two .oro sources.
+out/
+*.ir
+*.ll
+sieve.asm
+msort.asm
+sieve.c
+msort.c

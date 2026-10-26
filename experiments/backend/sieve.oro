@@ -1,0 +1,32 @@
+// THE SIEVE, IN THE LANGUAGE'S OWN OPERATORS, so one IR_P exists for every
+// target and each backend prints the same input (backend-2026-10-26).
+// 100 rounds of a 200000 sieve, summed: 1798400.
+
+fn cross(c linear, i, n) {
+    loop j = i * i { j < n -> { c[j] := true; again(j + i) }; else -> () }
+}
+
+fn sieve(n ∈ 0..2^20) {
+    var c := array { false : _ ∈ 0..n-1 }
+    loop i = 2 {
+        i * i >= n -> c
+        c[i] -> again(i + 1)
+        else -> { cross(c, i, n); again(i + 1) }
+    }
+}
+
+fn count_primes(n ∈ 0..2^20) (Int) {
+    c = sieve(n)
+    loop acc = 0, k = 2 {
+        k >= n -> acc
+        c[k] -> again(acc, k + 1)
+        else -> again(acc + 1, k + 1)
+    }
+}
+
+export fn bench() (Int) {
+    loop r = 0, t = 0 {
+        t >= 100 -> r
+        else -> again(r + count_primes(200000), t + 1)
+    }
+}

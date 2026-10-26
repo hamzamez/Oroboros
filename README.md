@@ -500,9 +500,13 @@ says why the next is what it is.
 6. **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a
    Notepad-style editor in about 2.5 KB of hand-written x86 assembly, the standard the Windows target
    will be held to. In steps:
-   - first, whether Windows keeps targeting MASM or targets LLVM IR, which would also reach ARM, Linux
-     and macOS: researched, measured and decided;
-   - then what it needs from Win32 against what is declared, callable and linkable today;
+   - ~~first, whether Windows keeps targeting MASM or targets LLVM IR~~ **decided 2026-10-26: LLVM IR**
+     ([ADR 0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md),
+     [backend-2026-10-26](gauntlet/results/backend-2026-10-26.md)). The same program printed as MASM, C and
+     LLVM IR: LLVM IR was faster (up to 2.9× on a merge sort) or smaller (half the code) than our MASM,
+     and it reaches 32-bit Windows, ARM, Linux, macOS and WebAssembly from one printer;
+   - then the LLVM IR backend itself, until it builds everything the MASM one does, which then retires;
+   - then what TinyRetroPad needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.
 7. **The IR's verifier checks that each branch justifies the facts it hands its arms.**
 8. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written

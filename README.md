@@ -495,8 +495,8 @@ says why the next is what it is.
    function over `Nat` (the natural numbers, now named) runs in the word where its arguments are small and
    on a big integer where the host hands it one
    ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).
-5. **This project's guide for Claude, CLAUDE.md, rewritten** to state where things stand, at about a
-   third of its length, with the history reached by link.
+5. ~~**This project's guide for Claude, CLAUDE.md, rewritten**~~ **Done 2026-10-26**: it states where
+   the project is in about a third of its former length, and reaches the history by link.
 6. **The Windows application**: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad), a
    Notepad-style editor in about 2.5 KB of hand-written x86 assembly, the standard the Windows target
    will be held to. In steps:

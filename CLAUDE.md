@@ -1,1401 +1,486 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) working in this repository.
-
-**This file describes the project's current STATE, not its history.** Update the state when it
-changes. Don't append a narrative: each result has its own document in
-[gauntlet/results/](gauntlet/results/), and each round has an assessment in [docs/](docs/). Until
-2026-09-17 this file was a changelog of about 60,000 words; that version is in git at `73004de`.
+Guidance for Claude Code working in this repository. **It states where the project is, not how it got
+there.** Each result has its document in [gauntlet/results/](gauntlet/results/), each round an
+assessment in [docs/](docs/), each decision an ADR in [docs/decisions/](docs/decisions/); follow the
+links for history. Update this file where the state changes, and never append a narrative. The long
+versions are in git: `73004de` (a 60,000-word changelog) and `b22d553` (17,300 words, before this
+rewrite, 2026-10-26).
 
 ## What this project is
 
 Oroboros is a small language and build system that **parasitizes** target ecosystems rather than
-abstracting over them. Portability is a property a program may or may not have, and the compiler
-computes it; it is not a global guarantee ([ADR 0001](docs/decisions/0001-parasite-model.md)).
+abstracting over them ([ADR 0001](docs/decisions/0001-parasite-model.md)). Portability is a property a
+program may or may not have, and the compiler computes it.
+- **One mechanism, a capability graph**: modules declare what they require, targets what they provide,
+  and building covers the first with the second ([ADR 0002](docs/decisions/0002-capability-graph.md)).
+  **Emit at the highest layer the target natively provides**, and lower only as far as necessary.
+- **General-purpose** ([general-purpose.md](docs/general-purpose.md)). **The targets are Go, Windows,
+  Android and the browser** ([ADR 0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md)):
+  the JavaScript backend's host is the browser (Node only tests it as an engine), the Java backend's is
+  Android, ART its runtime of record.
+- **The atom** ([the-atom.md](docs/the-atom.md)): λ-calculus whose normal form is a parameter. A target
+  partitions names into primitive and defined, and reduction runs until only primitives remain.
+- **Two levels** ([closures-direction.md](docs/closures-direction.md)): a static level, unrestricted and
+  higher-order, erased by staging; a dynamic level of first-order tables and loops.
+- **Two languages** ([ADR 0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md)): a
+  computation that reduces and prints, and a logic whose types are sets and whose claims are formulas,
+  which never prints. The one bridge is ρ, a representation chosen from proven sets.
 
-The single mechanism is a **capability graph**:
-- modules declare the capabilities they require;
-- targets declare the capabilities they provide;
-- building means covering the first with the second ([ADR 0002](docs/decisions/0002-capability-graph.md)).
+## Working rules (hamza's)
 
-The governing rule is **emit at the highest layer the target natively provides**, and lower only as
-far as necessary.
-
-It is a **general-purpose language** ([general-purpose.md](docs/general-purpose.md)): apps on Windows
-and Android, websites, cloud backends. **The four primary targets are Go, Windows, Android and the
-browser** ([ADR 0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md)):
-- the JavaScript backend's host is **the browser**, and its supported API is the Web platform's.
-  Node is not a primary target; a third party may add it as a layer;
-- the Java backend exists for **Android**, and ART is its runtime of record, tested by `dalvikvm64`
-  in the emulator ([android-2026-10-05](gauntlet/results/android-2026-10-05.md)).
-
-Until 2026-10-05 the JavaScript target was built and tested under Node (its portable `os` is
-`node:fs` and `process`), and the Java target on HotSpot. Moving each to its platform is the
-consequence ADR 0039 names.
-
-**The atom** ([the-atom.md](docs/the-atom.md)) is **lambda calculus in which the normal form is a
-parameter**:
-- a target partitions names into primitive and defined;
-- reduction runs until only primitives remain.
-
-It is a **two-level language** ([closures-direction.md](docs/closures-direction.md)). The static
-level is unrestricted higher-order and is erased by staging. The dynamic level is first-order tables
-and loops.
+- **Always be mathematical and algebraic, and reach for the literature.** Before building or declaring
+  anything, say what it is: the set, the operation, the law, the theorem that makes the design sound,
+  where the literature answered it. A host package is an algebra before it is a list of functions.
+  Derive first, measure second, and never substitute a list of cases for a derivation.
+- **Follow the derivation where it leads, even into a rewrite.** Propose the better design, whatever it
+  costs to build; never present the cheaper option as the recommendation when the algebra says
+  otherwise. When the algebra decides a question already in front of hamza, take it.
+- **Spec first.** Nothing enters the language without a specification of how it behaves on every
+  target; every primitive is classified in [primitives.md](docs/spec/primitives.md), and a Tier 1 name
+  needs a conformance case ([gauntlet/conformance/](gauntlet/conformance/)). The test is not "is it
+  useful": what does it mean independently of a target; what does each target do; if they disagree, is it
+  observable (then Tier 2, no portability claim)?
+- **An ADR per significant decision**, from the template in [docs/decisions/README.md](docs/decisions/README.md);
+  its "Why not" is the point. A reversal is a new ADR. A rejected alternative raised later joins the
+  "Why not".
+- **A result document per step**, `gauntlet/results/NAME-YYYY-MM-DD.md`: what was measured, what failed
+  first, what it cost, what was not built. **An assessment when a plan finishes**, not an ADR: it scores
+  the plan, measures the balance the same way every time, names process failures, and sets the next plan
+  with a "deliberately not next" list.
+- **README.md's "Current work" is the plan for a reader**: updated when a plan is set and when an item
+  finishes, dated, and saying no more than the plan.
+- **Emission is byte-identical by default.** `cmd/check` compares every source × target's emitted code,
+  outcome, proof counts and refusal text against [gauntlet/check/](gauntlet/check/). A difference is kept
+  only when correct and no slower, with `-accept "reason"` (which needs the compiler and differential
+  steps passing in the same run, and is logged in `ACCEPTED.md`); otherwise fix the code. **An accept
+  that changes a count updates every document quoting it.**
+- **Compile time is gated** (gauntlet/check/README.md): 1.5× the baseline and 250 ms slower is a change
+  for review, confirmed by a second sweep and a serial pair against `gen` built at the baseline's commit.
+  To say how long one program compiles, time its binary serially and warm.
+- **Every soundness rule gets a planted fault** that fails before its witness is trusted, the bug that
+  shipped included; a refusal test states its reason, is checked for it, and computes its premise; a
+  check refuses something false before it is trusted to pass something true.
+- **Every experiment gets a time limit.**
+- **Keep documents current.** A stale status line is worse than none; fix it when the thing ships.
 
 ## Primary documents
 
-**Read these before planning anything that touches types, claims or the surface. They stay here until
-everything in them is built** (hamza, 2026-10-10: "we do not want to lose what we arrived at").
+Read these before planning anything that touches types, claims or the surface. They stay here until
+everything in them is built (hamza, 2026-10-10).
 
-- **[settypes-research.md](docs/settypes-research.md), decided by
-  [ADR 0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md).** The language is two
-  languages: a computation that reduces and prints, and a logic whose types are sets of values and
-  whose claims are formulas about the computation, which never prints. The one bridge is ρ, a
-  representation chosen from proven sets. Types form a Boolean algebra (∪ ∩ ∖, singletons,
-  comprehension, ×, tagged +, tables, maps, ∀ over sets) and are static values; the partition
-  theorem makes a union within a sort free and a union across sorts ADR 0042's variant. The ceiling
-  of automation is the decidability map (§5): Presburger and semilinear sets, regular strings with
-  lengths, float intervals, semantic subtyping, the array property fragment, BAPA, congruence
-  closure, Nelson–Oppen; above the cliff a programmer climbs by assertions, invariants and lemmas,
-  each decided. Own complete procedures, no SMT. **Built: the Omega test (`presburger/`) and §8's
-  measurement ([presburger-2026-10-11](gauntlet/results/presburger-2026-10-11.md)): today's entailment
-  is sound on all 27,693 distinct corpus questions, and a complete procedure flips no refused program
-  (200 more proofs, 168 ex falso, all in programs that compile) at 3.5–9.5× compile time; refusals lack
-  facts, not proof strength. Types as static values, step 1, is built
-  ([ADR 0063](docs/decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md),
-  [spec/typevalues.md](docs/spec/typevalues.md), [typevalues-2026-10-13](gauntlet/results/typevalues-2026-10-13.md)):
-  a set is a static value in one namespace, a declaration over sets is instantiated by application, and
-  `errors.AsType` runs. Next in this line: the Boolean algebra of sorts, when a program states a set it
-  cannot write.**
-- **[notation-research.md](docs/notation-research.md), surface not yet decided** (its abstract syntax is, ADR 0050). The language as the
-  executable subset of a mathematical notation, TLA+'s with PlusCal's state and Dijkstra's guarded
-  commands (Abrial's B0 the precedent for compiling mathematics): `f(x ∈ S) ∈ T == e`, `0..255`,
-  `Seq(S)`, `t[i]`, `CASE`, `LOOP … AGAIN`, `LOCAL x := e IN`, capitals for reserved words, ASCII for
-  every symbol, comments as gaps. The semantics unchanged; five unifications (one `CASE`, buffers in
-  program order, tables and maps one finite function, claims in the header, membership as a test);
-  a translator carrying every comment. Six decisions for hamza.
-- **[syntax-research.md](docs/syntax-research.md), surface not yet decided.** The same eight programs in six
-  notations side by side: mathematical, F# with F\*'s refinements, and four S-expression flavors (pure,
-  today's, Clojure's, Shen's), measured for size and nesting. The untyped λ is kept, and ADR 0049 makes
-  it structural (Curry-style, extrinsic types): Church encodings reduce at compile time; a
-  fixed-point combinator diverges (ADR 0014 at the static level). The LLM side ranks S-expressions
-  first for writing (one shape, errors caught by the reader) and mathematics first for reading
-  claims, and proposes one source and two renderings, with an experiment to measure it. Whichever
-  notation wins is a rendering of spec/abstract.md (ADR 0050).
-- **[fit-research.md](docs/fit-research.md), decisions 1–6 decided by
-  [ADR 0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md); 7, the surface, open.** Which syntax is the most faithful
-  image of the semantics: a syntax fits when its abstract syntax is the initial algebra of the
-  semantic signature (Montague; Goguen et al. 1977), and misfits are countable (synonyms, homonyms,
-  hidden binders, missing distinctions, checked invariants). Most of the fit is in the abstract
-  syntax, not prefix against infix. β's textual substitution measured 6 of 1,590 occurrences. Every
-  notation so far writes usage as membership (`(buffer V)`, `(cell T)`), where it should be a mode on
-  the binder (QTT, Ada's `in out`). Today's notation has eight binder shapes for three kinds.
-- **[storeorder-research.md](docs/storeorder-research.md), decided by
-  [ADR 0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), built behind the J gate
-  ([storeorder-2026-10-15](gauntlet/results/storeorder-2026-10-15.md)).** Program-order stores,
-  `b[i] := v`, against today's threaded buffers, researched before the surface takes either. The two are
-  one semantics: the state-passing translation maps a place onto a linear functional array, and its
-  image is the single-threaded programs (Schmidt 1985; Array SSA). Program order removes 55 loop
-  variables and 51 back-edge arguments that only carry a buffer, replaces the linearity ordering check
-  by Reynolds' syntactic control of interference (four rules), and makes a buffer a state binder
-  holding a table, which removes installment 2's `linear` markers. It refuses 4 sites (version
-  renames, all in one differential case), and predicts unchanged emission. hamza took all four
-  recommendations: program order, the buffer as a state binder, borrowed parameters by reference, and
-  the write-borrow wrapper kept (until ADR 0070, which made a host header the caller's view and removed it,
-  [inplace-2026-10-22](gauntlet/results/inplace-2026-10-22.md)). ADR 0052 adds R0, a buffer's value is fresh, the inbound half of
-  uniqueness. Built with the surface, behind the byte-identical gate.
-- **[arrow-research.md](docs/arrow-research.md), decided by
-  [ADR 0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md), not built.** Whether
-  the language needs function set formers. A function-space claim f ∈ Π(P).R is needed at one place,
-  a host's callback parameter, where the body is opaque (150 of Go's 5,536 functions and methods,
-  `gauntlet/stdlib/callbacks.go`); a λ's claim and a definition's meaning already state theirs, and a
-  definition's static parameter is discharged by inlining. The form is a claim used as a set, a λ's
-  header without a body, not an operation of the type algebra: arrows under ∪ ∩ ∖ are semantic
-  subtyping with arrows (Frisch, Castagna and Benzaken 2008) for operations no host uses, and a heading
-  carries what a set cannot (call count, escape, no captured buffer). A function a host returns (50)
-  is a host type with application. Built with callbacks tier 1.
-- **[spec/abstract.md](docs/spec/abstract.md), decided (ADR 0050), not built.** Abstract Oroboros: the language as the initial algebra of a many-sorted binding signature
-  (thirteen primitive expression operators, six derived ones each with its equation, three binder
-  kinds; usage and passing modes on binders, `linear`, `inout`, `out`, in place of `(buffer V)` and
-  `(cell T)`; one definition carrying its claims, a Z schema, in place of `sig` beside `def`; sets
-  formed explicitly; one guarded choice; indexing its own operator), eleven well-formedness conditions (the tail rule and the logic's boundary become
-  sorts), and its meanings as homomorphisms. These are erasure ε, a retraction, so ⟦P⟧ := ⟦D(ε(P))⟧
-  and claims are inert by construction; desugaring D into today's core; obligations 𝒪, a VC generator;
-  and usage 𝒰 on an interval semiring. A notation is a rendering with two round-trip laws, comments
-  decorating positions. J is the one rendering (ADR 0068). **Built: step 1a, the computation's terms
-  ([abstract1-2026-10-11](gauntlet/results/abstract1-2026-10-11.md)): the reader builds trees
-  (`core/abs.go`; today's reader μ until step 5b deleted it, J's `core/jparse.go` since), D makes the
-  core term (`core/desugar.go`), emission byte-identical; the tail rule is a sort and its walkers are
-  deleted. Step 1b, program declarations
-  ([abstract1b-2026-10-11](gauntlet/results/abstract1b-2026-10-11.md), `core/decl.go`): a definition
-  is a named λ and a `sig` its λ's claim
-  ([ADR 0051](docs/decisions/0051-a-definition-is-a-named-lambda.md)). Step 1c, target files
-  ([abstract1c-2026-10-11](gauntlet/results/abstract1c-2026-10-11.md), `emit/hostdef.go`): every
-  declaration is a definition with a host body, usage a mode (`linear`, `inout`) and not a set.
-  Step 2 ([abstract2-2026-10-11](gauntlet/results/abstract2-2026-10-11.md), `core/usage.go`):
-  relevant usage on trees agrees with the reducer on 630 corpus parameters, and found a hole in the
-  relevance check at `again`, fixed; effects are the core's judgement pulled back along D; `linear` is
-  an ordering, not a count. Step 3a, the Presburger measurement (above): ε and 𝒪 on trees wait for
-  claims that carry sets.**
+| document | decided by | built |
+|---|---|---|
+| [settypes-research.md](docs/settypes-research.md): types are sets, a Boolean algebra of static values; the decidability map (Presburger, regular strings, the array property fragment, BAPA, congruence closure), above it assertions and lemmas; own procedures, no SMT | ADR 0049 | the Omega test, `presburger/` ([presburger-2026-10-11](gauntlet/results/presburger-2026-10-11.md): refusals lack facts, not proof strength); types as static values, step 1 (ADR 0063); next: the algebra of sorts, when a program states a set it cannot write |
+| [spec/abstract.md](docs/spec/abstract.md): the language as the initial algebra of a binding signature, its meanings homomorphisms (erasure ε, desugaring D, obligations 𝒪, usage 𝒰) | ADR 0050 | the trees and D (`core/abs.go`, `decl.go`, `desugar.go`); usage on trees; ε and 𝒪 wait for claims that carry sets |
+| [fit-research.md](docs/fit-research.md): a syntax fits when its abstract syntax is the semantics' initial algebra; misfits are countable | ADR 0050, 0068 | J is the surface |
+| [notation-research.md](docs/notation-research.md), [syntax-research.md](docs/syntax-research.md): the mathematical notation and six notations measured | ADR 0068 | J |
+| [storeorder-research.md](docs/storeorder-research.md): program-order stores are the state-passing translation's image | ADR 0052, 0058 | built ([storeorder-2026-10-15](gauntlet/results/storeorder-2026-10-15.md)) |
+| [arrow-research.md](docs/arrow-research.md): the arrow is a claim on a host's callback parameter | ADR 0053 | not built (callbacks tier 1) |
 
 ## Where it stands
 
-As of 2026-10-24. The current assessment is [assessment-2026-10-24.md](docs/assessment-2026-10-24.md);
-read it before planning. It scores the 10-21 plan, two defects every program had and then the library,
-which is finished (ADR 0070–0076; one program, `wc`; the margin 20.6 : 1, five of six phases compiler work
-with no program), and sets the next: **the documents tell the truth, two surface questions decided, then
-the Windows track begins with its own question** (the 10-24 plan, below). The round before, the 10-20
-plan, is scored in assessment-2026-10-21 (`ls` and `shape`, ADR 0069's observer, 6.6 : 1). The surface
-round (assessment-2026-10-20), in brief: installment 6, declarations and modules, is written ([surface-design.md](docs/surface-design.md) §6),
-its gauntlet program `examples/os/du.oro` ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)), and
-decided ([ADR 0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md)).
-J writes sets in TLA+'s symbols ([ADR 0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md)).
-Installment 7, static parameters, the arrow and application, is decided
-([ADR 0066](docs/decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md)), its program
-`top` written by hand in D and J (callbacks tier 1 not built). Installment 8, the lexical level, is
-decided ([ADR 0067](docs/decisions/0067-the-lexical-level.md)), and **J is the surface**
-([ADR 0068](docs/decisions/0068-j-is-the-surface.md)), the experiment not run. **Its grammar is
-[spec/j.md](docs/spec/j.md)**, consolidating ADRs 0050–0067: six conflicts between them resolved (the
-later decision governs) and three gaps filled (an out-cell argument, a spread, a lemma's steps), all
-confirmed by hamza. **J is the only notation** ([jprint-2026-10-15](gauntlet/results/jprint-2026-10-15.md),
-[jread-2026-10-15](gauntlet/results/jread-2026-10-15.md), [jswitch-2026-10-16](gauntlet/results/jswitch-2026-10-16.md),
-[jswitch5b-2026-10-16](gauntlet/results/jswitch5b-2026-10-16.md)): the corpus was printed in J by a
-translator, every comment carried, and read back to today's D-image, emission byte-identical; then the
-corpus, the tests' snippets and the four survey generators (`gauntlet/stdlib/jdecl`) moved to J, and
-today's reader, μ, the translator and `cmd/toj` were deleted. J's reader is `core/jlex.go`,
-`core/jparse.go` and `core/jreadtarget.go`; the IR's text and a core term's printed form are
-s-expressions, read by the raw reader (`core/raw.go`). **Step 4: ADR 0052 is built behind the gate**
-([storeorder-2026-10-15](gauntlet/results/storeorder-2026-10-15.md), spec/local.md §2.1, `core/place.go`,
-the translator's U, deleted with it in step 5b): J writes every buffer in program order, `var b := array {…}`,
-`b[i] := v`, `fn f(b linear)`; the translator unthreaded today's corpus (U), and S, the state translation with one new clause, the
-borrow, gives today's residual on every program through J but two (a version today's jsonfmt names, a
-name in kara/core's refusal), with every module read through J; R0–R4 decided on each place's scope,
-each with a planted fault. Building it found three gaps, G5–G7 (spec/j.md), **decided by hamza**: a
-concurrent assignment for the merge sorts' swapping buffers, which ADR 0052's R0 refused; the record
-store `dt[s][1] := v`; one rule for every borrow, growth a statement. **ADR 0058 is built behind the
-gate too** ([mapbuf-2026-10-16](gauntlet/results/mapbuf-2026-10-16.md)): a map buffer is the same place
-over another index set, `var m := map(8)`, `m[k] := v`, S choosing `insert` by the scope's mark; J has no
-threaded spelling left. **Step 5: the corpus is J**: all 223 `.oro` files, programs, libraries, target files and fragments, are
-J, still `.oro`; a file is the module named by its path under a library directory, else the root. **Step
-5b is done**: the tests and generators are J and today's reader is deleted; the J reader's faults the move
-found are fixed (NFC and bidi, a λ's parameters, a quoted name, an x86 hole past nine; jswitch5b §2).
-**The compiler's messages quote J** ([jmsg-2026-10-20](gauntlet/results/jmsg-2026-10-20.md),
-`core/jshow.go`, spec/j.md §6.1): a name by σ_J, a set by J's formers, a core term by J's expressions,
-the inverse of D, with parse_J(show_J(t)) = t on every corpus definition; the prover's fact log after
-`known:` stays the linear fragment's notation. The specs' examples are rewritten in J as each is next
-touched (hamza's option (b)). Next: 0062's logic, 0066's inference and 0053's arrow,
-each when a program needs it.
+**Read first**: the primary documents above, [README.md](README.md), [design-direction.md](docs/design-direction.md)
+(the founding argument; its §8 records how its questions were settled, concurrency the one open), the
+ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measurements in
+[gauntlet/results/](gauntlet/results/) are the authority: every design claim here not measured has been
+wrong about half the time.
 
-**The compiler.**
-- A β/δ reducer with call-by-need and an effect discipline.
-- A type checker on the residual, a refinement layer, an interval analysis and size-change
-  termination.
-- Four backends: **Go, JavaScript, Java and x86-64** (the `windows` target, MASM).
-- `go run ./cmd/check` passes every step: vet, compiler, emission, gauntlet, ir, differential and tooling.
-
-**The gauntlet** ([docs/gauntlet.md](docs/gauntlet.md)) runs seven programs, and all seven are at
-parity with hand-written code on Go, JavaScript and Java **on the IR's printers**. Last full benchmark:
-[gauntlet-2026-09-29](gauntlet/results/gauntlet-2026-09-29.md):
-- geometric mean of generated over hand-written: Go 0.990, JavaScript 0.977, Java 0.987;
-- the IR against the term backends it replaced: 1.006, 0.988, 0.971 (Java's JSON tree 0.78×);
-- three residues above 1.10×, each explained: identical machine code, a module boundary, and a
-  `-checked` trap program 4 needs only because Theorem 3 does not reach a host map's cells.
-
-The generated files the harnesses call are listed in **`gauntlet/regen.txt`** (target, source, name,
-output), written by `bash gauntlet/regen.sh` and **regenerated and compared byte for byte by
-`cmd/check`'s `gauntlet` step** (2026-10-25), so a copy cannot go stale unseen. Until gauntlet-2026-09-29
-all 26 were term-backend copies from August, and from the J switch to work-2026-10-22 `regen.sh` failed
-silently, so `gen_report_native.go` was stale for that week.
-
-**Provability.**
-- **2,103 of 2,148** integer operations are proven inside their target's word. The 45 left are mostly
-  meant to be refused. `du` added 19 (du-2026-10-14), the program-order cells (4efca1c, ADR 0052)
-  made `count` and `ages` 19 shorter, all proven, `ls` added 13 (ls-2026-10-20) and `shape` 13 (shape-2026-10-21, observer-2026-10-21).
-  `smooth`'s `len(a) − 2`, computed once since ADR 0071, made it one shorter (work-2026-10-22).
-  `wc` added 39, all proven (wc-2026-10-24, ADR 0076).
-- **353 of 376** loops are proven to terminate (the IR's count since irstep4d; the term analysis had
-  343). render's factorial counter became a word on the host's bignum (irstep4h, +3 of each) and on
-  limbs (irstep4i, where the counter's own limb operations disappeared: −16 operations, −6 loops).
-  `examples/native/filter-go.oro` added 1 of each (portable-2026-09-29); the two deleted `sieve-go`
-  variants took 32 and 12 (gotarget-2026-09-30); `examples/lines/lines.oro` added 5 and 1
-  (bufio-2026-10-01); the error model's rounds of 2026-10-06 5 operations (gauntlet/check/ACCEPTED.md);
-  `examples/io/count.oro`, the first program with cells, 48 and 3 (local-2026-10-08);
-  `examples/lines/ages.oro`, cells the host writes, 16 and 1 (outcells-2026-10-09); `examples/os/du.oro`,
-  a directory walk, 19 and 1 of its 2 (du-2026-10-14); `examples/os/ls.oro`, a recursive listing, 13
-  and 1 of its 2 (ls-2026-10-20); `examples/lines/shape.oro`, a delimited table's shape, 13 and 0
-  of its 1 (observer-2026-10-21); `examples/os/wc.oro`, a word count over files, 39 and 0 of its 2
-  (wc-2026-10-24): a loop that reads a file ends when the file does.
-- Counted once each since matchguard-2026-09-24. Before, the narrowing of a guard re-evaluated its
-  operands with counting on, so the totals were 2,434 and 387: the same 47 and 38 unproven, over
-  inflated denominators.
-- Both counts, and every emitted file, are pinned by `cmd/check`.
-
-**Host APIs.**
-- Surveys, as "declarable / usable":
-  - Go 87.8% / 60.5% (60.4% until ls-2026-10-20 found the survey ignoring type aliases and reading
-    the manifests in lexical order);
-  - the JVM 81.4% / 60.9%;
-  - Win32 90.5% declarable, 31.0% callable *and* linkable;
-  - JavaScript 100% declarable, a figure the survey itself calls vacuous.
-- **Supported, in the sense of [ADR 0022](docs/decisions/0022-host-declarations-are-written-by-hand.md)**
-  (declared by hand, checked against the host, exercised by a program): the Go packages
-  `unicode/utf8`, `encoding/hex`, **`strconv`**, **`encoding/binary`'s varints** and **`math/bits`**,
-  plus `io`'s interfaces ([strconv-2026-09-22](gauntlet/results/strconv-2026-09-22.md),
-  [mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md)). `lib/num/u128.oro` is the first
-  library written in the language over a package pair (`math/bits`, `strconv`).
-- **Partial and checked** ([gotarget-2026-09-30](gauntlet/results/gotarget-2026-09-30.md) §15):
-  `os`, `strings`, `io` and `fmt`. Every name declared is checked against the host: interface
-  methods against the manifest, and a variadic as its restrictions f|Aⁿ. Each header names the rest
-  and what stops it. Every file in `targets/go` states its algebra and names its parameters.
-  **`errors`** joined them program first (typevalues-2026-10-13): `New`, `Is`, `Unwrap` and
-  `AsType`, the first declaration over sets. **`io/fs`** and **`path/filepath`** joined program
-  first ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)): what `examples/os/du.oro`, a directory
-  walk, calls, with `os.ReadDir`. **`time`**, the first of K's packages, joined program first
-  ([ls-2026-10-20](gauntlet/results/ls-2026-10-20.md)): `Time.UTC` and `Time.Format`, what
-  `examples/os/ls.oro`, an `ls -lR`, calls, with `os.Lstat`, `FileInfo.ModTime` and `FileMode.String`;
-  its output is checked against a hand-written Go listing over a tree with fixed modification times.
-  **`bufio`** joined them program first ([bufio-2026-10-01](gauntlet/results/bufio-2026-10-01.md)):
-  the 9 names `examples/lines/lines.oro` calls, a line tool over standard input whose output is
-  checked against the line split written from its definition. Its **`Reader`** followed
-  ([shape-2026-10-21](gauntlet/results/shape-2026-10-21.md)): `NewReader` and `ReadString`, the
-  factorization of the input over the prefix code C_d, which `examples/lines/shape.oro` folds.
-  **`unicode`**, the second of K's packages, joined program first
-  ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)): `IsSpace`, what `examples/os/wc.oro`, a word
-  count over files read in chunks, classifies by, with `utf8`'s `segment.DecodeRune` (look-ahead 4, so
-  chunked decoding is the whole input's) and `File.segment.Read` into a suffix; its output is checked
-  against a count over the whole input at every straddle of the read.
-- **The portable `os` and `io`** (`lib/`): `os` is a library module, `lib/os.oro`, one definition over
-  each host's cell `os/host`, its failures classified once into kinds, `not-found | exists |
-  permission | other` ([oskinds-2026-10-06](gauntlet/results/oskinds-2026-10-06.md));
-  `examples/io/roundtrip.oro` calls every name, and `cmd/build` builds and runs it on Go, JavaScript
-  and Java and requires one output, a missing path's `not-found` included
-  ([libos-2026-09-30](gauntlet/results/libos-2026-09-30.md)).
-
-**The IR** ([ADR 0032](docs/decisions/0032-the-ir-is-structured-ssa.md), [spec/ir.md](docs/spec/ir.md)) is
-structured SSA with π-parameters between the residual and every backend and analysis, and it realizes
-ADR 0006. **Step 1 is built** in `ir/` ([irstep1-2026-09-25](gauntlet/results/irstep1-2026-09-25.md)):
-- lowering, typing by unification, the verifier (W1–W10) and the canonical printer and reader;
-- `gen -ir` and `build -ir`;
-- `cmd/check`'s `ir` step, where all 242 emitted programs lower and verify;
-- the differential runner's check of its 169 builds.
-
-**The IR's text is the printers' whole input**
-([ADR 0038](docs/decisions/0038-the-irs-text-is-read-not-written.md),
-[irtext-2026-10-04](gauntlet/results/irtext-2026-10-04.md), spec/ir.md §10.4):
-- `gen -ir` writes IR_P, and `cmd/check`'s `ir` step reprints every program from that text and the
-  target's declarations alone, byte for byte: e_T = e_T ∘ read ∘ print;
-- others may read it. Nobody else writes it: at P every printer trusts the claims (modes, final
-  ranges, indices), and at A the decision re-derives the arithmetic but not an index, which is
-  proven only on terms.
-
-**Step 2 is built** ([irstep2-2026-09-25](gauntlet/results/irstep2-2026-09-25.md)): **the Go backend
-is the IR's printer**, `ir/golang`, which prints IR_P.
-- `emit/golang.go` stayed as `gen -printer terms` for comparison until step 4a deleted it.
-- The gauntlet is at parity, within 2% of the term backend.
-- The differential suite, all 78 Go programs and the acceptance programs pass.
-- IR_P's element widths come from a reduced product: the term analysis and the IR's own interval
-  domain, which reads `assume`.
-- Bounds-check re-slicing is `restrict` by law L13, under its premise. The derivation is [ir-research.md](docs/ir-research.md).
-Three prototypes decided it (in `experiments/irproto`, deleted with the term analysis in irstep4j):
-- lowering is nearly free (irp1);
-- a sparse interval analysis on it is 12–115× faster (irp3);
-- a Go printer from it is at parity on the gauntlet (irp2).
-
-**Step 3 has begun** ([irstep3-2026-09-25](gauntlet/results/irstep3-2026-09-25.md)): the decisions every
-printer shares are `ir/plan`, and **the JavaScript backend is the IR's printer**, `ir/js`, at parity with
-the term backend (0.94–1.01×). **So is Java**, `ir/java`
-([irstep3java-2026-09-25](gauntlet/results/irstep3java-2026-09-25.md)):
-- IR_P carries final scalar ranges, the first slice of the analysis port;
-- Java's `int` or `long` is ρ of a value's range, and an operation is computed in the join of its
-  representations;
-- at parity with the term backend, or better (the JSON tree is 0.86×).
-
-**And so is x86**, `ir/x86` ([irstep3x86-2026-09-26](gauntlet/results/irstep3x86-2026-09-26.md)):
-- a value's place is a colouring of exact live sets, optimal by chordality (spec §9.6);
-- the Windows sieve is 0.98× hand-written and 1.00× the term backend.
-
-**Step 3 is done: all four backends print from the IR.** **Step 4 is done**
-([irstep4a-2026-09-26](gauntlet/results/irstep4a-2026-09-26.md)):
-- the four term backends are deleted, with the 47 helpers only they reached. Production code is
-  −8,858 lines net, and each backend has one printer, so `-printer` is gone;
-- their 51 test sites moved to external tests (`emit/*_ir_test.go`) against the IR's printers, and
-  reading every failing assertion found five gaps in the IR path, now closed:
-  - Theorem D′'s premise, a class holding only its declared element's values, was assumed, not
-    discharged;
-  - a signature's declared arity was dropped;
-  - Go's literals were not ASCII-only;
-  - x86 lost its ordered back edges and threaded jumps;
-  - Go and Java lost the tail connective.
-
-**The IR decides legality and modes, and proves termination**
-([irstep4b-2026-09-26](gauntlet/results/irstep4b-2026-09-26.md),
-[irstep4c-2026-09-26](gauntlet/results/irstep4c-2026-09-26.md),
-[irstep4d-2026-09-27](gauntlet/results/irstep4d-2026-09-27.md), spec/ir.md §7.1–7.3):
-- `ir.Decide` proves each counted operation inside its set or not. That decides the refusal, and under
-  `-checked` each operation's `trap`. The printers print the decided function (`FromFunc`);
-- its domain is intervals over ℤ̄ with ends in (−2¹²⁶, 2¹²⁶), the term analysis's lattice, so U and
-  "bounded, not by this word" are exact;
-- it proves 2,007 of 2,054, the term analysis's count, function by function. It also bounds what the
-  term analysis could not: `alloc (table …)` elements and a map's cells, so three differential cases
-  dropped `; checked:`;
-- the rules include: thresholds for 16 rounds, then the plain widening; the arm conditions; backward
-  propagation; trip bounds (Theorems 1–2, and B = ∞); bounded increments into a buffer (Theorem 3);
-  unreachable arms; the mask and the shift; the unsigned word as the residue map;
-- termination is size-change termination over the IR's steps (`ir/sct.go`): **359 of 381 loops**, where
-  the term analysis proved 343, never fewer in a function, on exports and on `build`'s entry points;
-- each rule is checked against executions, by a concrete interpreter over ℤ (`ir/interp_test.go`) on
-  generated programs and word- and shift-selected ones, and has a planted fault it catches. A
-  termination law's fault is caught by a divergent program it would falsely prove.
-
-Postconditions (`ir.CheckEnsures`, refusing what it cannot decide), build buffers' element ranges
-(the class hull alone) and the shift selection (`ir.SelectShifts`) are on the IR's facts too
-([irstep4e-2026-09-27](gauntlet/results/irstep4e-2026-09-27.md)), and so is the interval route of a
-contract's range obligation (`ir.DischargeRanges`, with a one-ended proof handed to the refinement
-route). **An allocation's size is an obligation**, in [0, max-len_T], refused whatever the build mode
-([irstep4f-2026-09-27](gauntlet/results/irstep4f-2026-09-27.md)). The domain gained the relational
-difference and Theorem 1 on a difference, over linear forms. **The unsigned word is chosen on the
-IR** ([ADR 0033](docs/decisions/0033-an-integers-representation-is-chosen-on-the-ir.md),
-[irstep4g-2026-09-27](gauntlet/results/irstep4g-2026-09-27.md)). The term checker's integer sort is
-ℤ, and a value crossing between S and U is an obligation the IR discharges, with W5 strict on
-realizations. **So is the rung above the word on the host's bignum**
-([ADR 0034](docs/decisions/0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md),
-[irstep4h-2026-09-27](gauntlet/results/irstep4h-2026-09-27.md)):
-- the values held exactly are the least set closed under supply and demand, and a demanded value is
-  held exactly iff its fact leaves S;
-- a Go bignum destination needs ownership and liveness, which caught an aliasing rule R missed and
-  found two destinations it declined.
-
-**And so is the fixed-limb rung**
-([ADR 0035](docs/decisions/0035-a-compiler-library-is-a-theory-checked-once.md),
-[irstep4i-2026-09-28](gauntlet/results/irstep4i-2026-09-28.md)). The limb library is a theory checked
-once per width, and each bignum operation is an instance of it, inlined on the IR.
-
-**The term interval analysis is deleted**
-([irstep4j-2026-09-28](gauntlet/results/irstep4j-2026-09-28.md)):
-- `emit/interval.go` and seven files around it, the term promotion and its limb splice: production
-  code −7,222 lines net;
-- `CheckSignatures`' representation half is `ir.CheckClaim`;
-- the drivers and the tests share one pipeline, `ir.Entry`;
-- the IR's domain gained a map's cell fact, the one claim it lacked.
-
-Every analysis and every representation choice is on the IR. `freq`'s compile went from 7,991 to
-5,257 ms and from 15.5 to 7.2 s of CPU (assessment-2026-09-28 §3.2).
-Soundness bugs found while writing the IR's rules:
-- in the (now deleted) term backends: bounds-check re-slicing without its premise (spec §9.4), `alloc`
-  of a live buffer aliasing it (irstep1 §4), and a Java loop variable narrowed to `int` from one that
-  was not (`narrow-from-wide`);
-- the IR's `u64` transfers took the residue map as the identity (unreachable: only the word selection writes
-  them, on S ∩ U), now its exact image;
-- a `build`'s size was not obliged to fit `max-len`, so `(len (local b (table 4294967297 0) …))` was 1 on Java
-  (irstep3java §3); now an obligation (irstep4f).
-
-**The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
-a wall that needs language work, stop and research it, then design it.
-
-**The 10-20 plan is finished** (scored in assessment-2026-10-21 §1): the loose ends (nodepin,
-libalone); `ls` with `time` ([ls-2026-10-20](gauntlet/results/ls-2026-10-20.md)); `bufio`'s Reader with
-`shape`, C researched ([borrow-research.md](docs/borrow-research.md)), measured
-([ownbuf-2026-10-21](gauntlet/results/ownbuf-2026-10-21.md)) and answered by the observer
-([ADR 0069](docs/decisions/0069-an-observer-at-a-host-parameter.md),
-[observer-2026-10-21](gauntlet/results/observer-2026-10-21.md)): `shape` reads its own buffer at parity,
-and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and two in the Go survey.
-
-**The 10-24 plan** (assessment-2026-10-24 §5):
-1. ~~**The documents tell the truth**~~ **Done** ([docs-2026-10-25](gauntlet/results/docs-2026-10-25.md)):
-   spec/j.md's status, built and not, read off the reader by a probe of each form; state.md in J, the
-   core's terms shown as such; inventory.md in two layers, J's words and the core's forms, `def` and `sig`
-   D's from a `fn` header. Two are now checked: j.md §1.4 against the reader's keywords
-   (`TestJsKeywordsAreTheReadersKeywords`) and the inventory's counts against its rows; and `cmd/check`'s
-   `gauntlet` step regenerates the 26 files from `gauntlet/regen.txt` and compares them byte for byte.
-   Found: §1.4's reservation is not built; a program may define a language name (`fn if`); two stale
-   messages.
-2. ~~**Two surface questions, each an ADR**~~ **Done** ([surface-2026-10-25](gauntlet/results/surface-2026-10-25.md)):
-   - **the unbounded range** ([ADR 0077](docs/decisions/0077-an-unbounded-end-is-omitted.md)): an absent
-     bound is no element, so J omits it, `lo..` and `..hi`; `` `+inf` `` refused. **`Nat` waits**: a range
-     declared above the word widens into the rung above (measured), so `Nat` would name the bignum while
-     reading as ℕ. **hamza: yes**, a declared set is a claim and the facts choose the representation
-     ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md),
-     the plan's item 4). hamza's `inf` (+∞ on the right, −∞ on the left) weighed and rejected in ADR
-     0077's "Why not": `..` is closed, so `0..inf` would put inf in the set.
-   - **visibility** ([ADR 0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md)): `pub`
-     marks the interface, private the default; `export` the entry points only; two relations in the core,
-     `(pub …)` and `(export …)`. Found: an empty interface showed everything (closed). 55 `private` marks
-     became 29 `pub`; programs byte-identical, `lib/os` and `lib/result` compiled alone now emit nothing
-     where their interface was refused as entry points.
-3. ~~**Three defects the documents' audit found**~~ **Done** ([defects-2026-10-26](gauntlet/results/defects-2026-10-26.md)):
-   **no module defines a name of Σ_L**, the language's signature (`core.LanguageSignature`, a
-   definitional extension introduces fresh symbols): in a nested module `fn if` had captured every `if`,
-   a function answering 7 whatever its argument; the recursion refusal names `loop` with `again` (a test
-   had pinned "fold-range"); **a set has no representation**: a set operator in a computation or a
-   claim's formula is refused saying what it is, where `where x ∈ 0..9` had compiled on an entry point
-   as an assumed atom. Emission byte-identical.
-4. ~~**A declared set is a claim, and the facts choose the representation**~~ **Done**
-   ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md),
-   [claimset-2026-10-26](gauntlet/results/claimset-2026-10-26.md), integers.md §1a): the request lived in
-   four places, none of them ADR 0034's supply: the IR typed an inlined ascription by its claim (a `(Nat)`
-   helper made its caller return a `*big.Int` it computed in the word); an unclaimed result was a word
-   position; the term checker's `WiderThanWord`, whose premise left with irstep4j; and an entry point's ℕ
-   parameter printed `/*int 0 +inf?*/`. Then **`Nat`**, ↑0. Emission byte-identical.
-5. **CLAUDE.md rewritten as state**, after 1–4, at about a third of its length, history by link.
-6. **The Windows track, in steps** (hamza's):
-   - 6a. **MASM or LLVM IR**, researched and decided by an ADR: LLVM reaches ARM, Linux and macOS from
-     one backend; against it, duplicated work and checks the type system made unnecessary. Weights:
-     ADR 0001/0008 (LLVM as an ecosystem parasitized, like the JVM), what our IR already decides
-     (chordal registers, proven ranges; `nsw`/`nuw`/poison as the way a proof drops a check), the
-     2,794-byte size standard, the toolchain, and a measurement of the sieve and one gauntlet program
-     on each path;
-   - 6b. **TinyRetroPad's Win32 surface, measured** (downloaded 2026-10-24 at `42f4c6c`, as data, never
-     built or run): 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over
-     kernel32, user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time;
-   - 6c. **its walls, spec first, an ADR each**: the window procedure (callbacks tier 2), its structs
-     (records), 32-bit against x86-64 (decided by 6a).
-7. **A π is justified by its branch, and the verifier checks it** (the 10-21 plan's item 8, below), before
-   item 8 grows lowering.
-8. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go.
-   Research it as a join point that may jump, build it, measure `wc` nested.
-9. **The Go library, program first**: `cmp`, two files compared chunk by chunk, two buffers by segment.
-10. **The analysis grows only for a refusal a program names**, each rule's planted fault with it.
-
-Deliberately not next (assessment-2026-10-24 §5): ARM, Linux and macOS targets themselves; loop-arm
-patterns and `try`'s handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`.
-
-**The 10-21 plan is finished** (scored in assessment-2026-10-24 §1):
-1. ~~**Work stays where it was written**~~ **Done** ([ADR 0071](docs/decisions/0071-work-stays-where-it-was-written.md),
-   [work-2026-10-22](gauntlet/results/work-2026-10-22.md)): β counts evaluations in {0, 1, ω}, a loop's
-   body and a table's rule ω; let-floating exposes a value; a residual let takes β's rule; the IR reads a
-   measured length as the length. 26 emitted files changed (`freq` lost a loop nested in the loop that
-   used it), the gauntlet unchanged within noise.
-2. ~~**A declared result range is an obligation**~~ **Done** ([ADR 0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md),
-   [resultclaim-2026-10-23](gauntlet/results/resultclaim-2026-10-23.md)): the contract
-   ∀x ∈ P. φ ⟹ ⟦B⟧(x) ∈ R is decided at the definition, exported or not, called or not, not by marks at
-   the sites (which decide only the instances a program forms); a tuple's set factor by factor, the
-   unsigned word included; a definition over a function refused with its reason. `bad` is refused; 22
-   corpus claims decided, all true, emission byte-identical.
-3. ~~**The Go library, program first**~~ **Done** ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)):
-   `examples/os/wc.oro`, lines, words, characters and bytes over files read in chunks; `unicode`
-   (`IsSpace`, χ of White_Space) the second package of K with a file; segments wherever a function's
-   table is, a writer's suffix included ([ADR 0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md));
-   a host `where`'s constant bounds decided as the parameter's range
-   ([ADR 0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md)); a length keyed by
-   what it denotes. Seven things writing it caught; one was a question, may a `case` arm continue a loop,
-   **decided (a) and built** ([ADR 0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md)):
-   the tail sort closed under a sum's eliminator. Speed: 1.01× hand-written Go of the same shape, 1.18× idiomatic
-   Go, the 16% being the shape the language forces (one loop over a cursor: an `again` after a nested
-   loop's join point is not built, tables.md §2.5).
-4. **The clause chain's copying** (a six-arm loop, 2,423 lines of Go), researched when a program names it.
-   Carried: no program named it.
-5. **The analysis grows only for a refusal a program names**, each rule's planted fault written with the
-   rule.
-6. **Carried into the 10-24 plan's item 6. The Windows application: [TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)**
-   (hamza, 2026-10-21: "as handwritten by a good programmer as it gets"), a Notepad-style editor in
-   about 2.5 KB of 32-bit MASM over RICHEDIT, the common dialogs and a window procedure, packed by
-   Crinkler. First a measurement of what it calls from Win32 against what is declared, callable and
-   linkable; then spec first, with an ADR per wall. Its known walls: a window procedure is a callback
-   the host calls (tier 2, not built), its structs (OPENFILENAME, CHOOSEFONT, PRINTDLG) are records (not
-   built), and it is 32-bit where the windows target is x86-64. Its standard is size and behaviour, not
-   speed.
-7. ~~**A name in a claim position denotes a set, or is refused**~~ **Done** ([ADR 0073](docs/decisions/0073-a-sets-name-denotes-a-set.md),
-   [setname-2026-10-23](gauntlet/results/setname-2026-10-23.md)): ⊢ S set is a scope check of a header's
-   atoms against Γ_T (the language's sets, the target's types), decided on every header in
-   `CheckSignatures`; an alias resolves as a term's does (`strings.Replacer` ↦ `go/strings.Replacer`, which
-   an export printed as `/*strings.Replacer?*/`); emission byte-identical.
-8. **A π is justified by its branch, and the verifier checks it** (added 2026-10-23; found in
-   work-2026-10-22 §5). W6 checks a π's types, not its relation. A π on the wrong table, planted in
-   lowering's new length guard, passed the verifier and was caught only by an exact-text witness. The
-   rule is Theorem E as a W-rule: on a branch over (cmp a b), each π relates a or b to the other (or,
-   for a length π, a table whose length is the compared operand), negated on the else arm, and a
-   connective's π's follow `implied`. Planted faults: the wrong table, a flipped relation, a foreign
-   operand, a missing negation. **Close it when the IR's lowering or analysis next grows** (item 5),
-   before a new π is trusted. Carried as the 10-24 plan's item 7.
-
-Rules kept: a refusal test states its reason and is checked for it, and its premise is computed; an
-`-accept` that changes a count updates every document that quotes it; every experiment gets a time limit;
-a check refuses something false before it is trusted to pass something true.
-
-**The 10-03 plan** (scored in assessment-2026-10-14 §1; its Go library order still stands):
-1. **A round of questions** — hamza's, answered as the type, integer and table questions were: what the
-   thing is (set, operation, law), where the literature settled it, what a measurement decides, and the
-   decision, with an ADR where it settles one. **Answered:** the IR's text as a format others read and
-   write (ADR 0038, irtext-2026-10-04: read, yes; written, once the IR proves indices). **Researched,
-   six decisions each for hamza, taken when a program meets them:** concurrency, the Erlang model and
-   "let it crash" ([concurrency-research.md](docs/concurrency-research.md), conc-ring-2026-10-04);
-   errors, three kinds with three algebras, the product's leak measured
-   ([errors-research.md](docs/errors-research.md), errors-2026-10-04); how to reach Android — Java
-   source, frameless class files, DEX or Kotlin, with the UI's toolkit the bigger fork
-   ([android-research.md](docs/android-research.md), android-2026-10-05); printing — rendering,
-   layout and sinks as three algebras, the Windows console, and Win32 organized by header
-   ([printing-research.md](docs/printing-research.md), win32org-2026-10-05; `lib/win/fmt` garbles
-   non-ASCII text on a console). The rest of the assessment's
-   starting list, for hamza to replace or extend: a borrow a later call ends
-   (`Scanner.Bytes`); callbacks, tiers 1 and 2; ℤ/2ⁿ as a type; one prover or two (the refinement
-   layer's terms or the IR's values); what an unsatisfiable contract should do; which Go package
-   next, and in what order.
-
-   **To do, named by these questions** (built when a program needs it, not specified yet):
-   - **One integer rendering in the language**, render : ℤ → Σ*, injected on every target, with its
-     implementation chosen on the IR per representation: the word (`strconv.FormatInt`,
-     `Long.toString`, `String(n)`, `lib/win/fmt`'s digit loop), `u64`, the host's bignum, and limbs
-     by repeated `div-small`. It replaces `big-str`, which is not language surface: it is declared on
-     three targets (Windows refuses a limb rendering), it doubles as the demand signal for the rung
-     above the word (`emit.MentionsBig`), and on a value that fits the word it renders through a
-     host bignum (`big.NewInt(v).String()`), a hidden allocation. It is the integer half of
-     printing-research's P3.
-   - **A representation as an instance of a type's signature**: one declaration per representation
-     (carrier, held set, relation to the abstract type, operation templates, conversions), read by one
-     selection rule, in place of the four mechanisms integers use today (`builtin.oro` found by name,
-     `u64.oro`'s mangled names with `words.go`'s `wordOp`, `bigOps` with `big.go`, and the limb
-     library) and their hand-written name tables. Data refinement (Hoare 1972; Isabelle's code
-     generator, Haftmann et al. 2013). Conversions would compose (U has no conversion into the bignum
-     today), transfers would follow the relation's kind, and new representations would be target data:
-     ℤ/2ⁿ, the JVM's unsigned rung, Java's `int`, strings' encodings (UTF-8, UTF-16, WTF-16), and table
-     elements by functoriality. Floats are excluded by algebra: `f32` is no representation of `f64`.
-     **Trigger: the first program that needs a fifth integer representation** (ℤ/2ⁿ for `hash/fnv`,
-     most likely) **or a second string encoding** (Win32's `W` functions).
-   - **Validity carried through functions that preserve it**: most Go string functions map B* into
-     B* and also V into V (Theorem 1), but a `sig` states one type, so ours passed to
-     `strings.Fields` comes back `(array bytestring)` and is recovered only by `go.text`, a run-time
-     scan. The type is an intersection, (B* → (B*)*) ∧ (V → V*): refinement sorts (Freeman and
-     Pfenning 1991). strings.md §8. **Trigger: the first program that pays for `go.text` right after
-     a `strings` call.**
-2. **The Go standard library, package by package, program first**: the package item 1 chooses, its
-   algebra, a program in the language that needs it, and exactly the declarations it calls, checked.
-   **Where it stands** ([gocoverage-2026-10-06](gauntlet/results/gocoverage-2026-10-06.md),
-   `go run gauntlet/stdlib/coverage.go`): of the 590 exported names in the ten packages with a file,
-   284 are declared (48.1%). The missing 306, by cause:
-   - **L, work** (205): declarable today. 73 of its 122 functions return an error, as do 69 declared;
-   - **K, a package with no file** (33): `time`, `io/fs`, `unicode`, `syscall`, `iter`;
-   - **A, callbacks** (21) and **B, implementing a host interface** (6): tiers 1 and 2, not built;
-   - **C, a borrow a later call ends** (9): `Scanner.Bytes`, `Peek`, `ReadSlice`;
-   - **closable without language work, measured**: G, a variadic over one type, as Go's spread
-     `f(xs...)` over a table (6); H, over `any`, as restrictions (3); I, out-parameters, as templates
-     that own the pointer (9). strings.oro, fmt.oro and io.oro call two of these walls;
-   - D, reflection (8); E, complex numbers (2); F, `uintptr` handles (2); J, scratch write-borrows (2).
-
-   Declarable today with K's packages: 88.5%, matching the survey's 87.8%; with G, H and I, 91.5%.
-   **The order to close it:**
-   1. the error model for host declarations, decided and built (errors-research questions 1–4),
-      because 142 declarations depend on it and the product leaks. **Decided** (ADR 0040,
-      [errors.md](docs/spec/errors.md), candidate E4): the compiler knows the roles `success` and
-      `relevant`, not a type; `(result T E)` is `lib/result`; `try` is the exception monad's bind;
-      the host's encoding is a niche of its error type; `expect` is the one way to give up; one error
-      type per chain with `err-map`; the portable `os` returns `not-found | exists | permission |
-      other`. Built in errors.md §12's order. **Steps 1–3 are built**: the markers, `lib/result`,
-      `try`, and `expect` with `abandon` on all four targets, a crash whose value is in 0: it absorbs
-      every strict context (the commuting conversion at arity 0), types as anything, and ends its IR
-      region with `unreachable` ([expect-2026-10-06](gauntlet/results/expect-2026-10-06.md)). A loop
-      yields a sum, and `again` may sit in a success arm (ADR 0041,
-      [sumloop-2026-10-06](gauntlet/results/sumloop-2026-10-06.md)). `(tuple)` is the unit, so
-      1 + E is `(result (tuple) E)` ([unit-2026-10-06](gauntlet/results/unit-2026-10-06.md)). **A
-      variant's value is its tag and its slots** wherever it must exist as data (ADR 0042,
-      [sumrep-2026-10-06](gauntlet/results/sumrep-2026-10-06.md)): a read loop over two payload
-      types, an enum with a string payload and `(result (tuple) E)` at a signature all build.
-      **Step 4 is built on Go** ([niche-2026-10-06](gauntlet/results/niche-2026-10-06.md)):
-      `(repr error (niche …))`, and a declaration whose result is a marked sum, an option or a
-      tuple with one as a factor becomes the raw host call and a target-library definition applying
-      the retraction, compositionally (H and r, errors.md §4.2). `os.Open`, `File.Read` and
-      `File.Close` are declared in the model, and `acceptance/errors-os.oro` runs them. Generated
-      declarations stay the host's product (ADR 0023). **Step 5 is built**: the portable `os` returns
-      kinds on three hosts (oskinds-2026-10-06), and every fallible Go declaration states its shape
-      (sum, unit + E, partial success, option) from Go's documentation
-      ([gomigrate-2026-10-06](gauntlet/results/gomigrate-2026-10-06.md)). **Step 6 is built**
-      ([ADR 0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md),
-      [relevance-2026-10-07](gauntlet/results/relevance-2026-10-07.md)): a relevant value is used on
-      every path or refused, checked at β on the term as written, and `(ignore e)` is the discard.
-      **A partial success's error is relevant**
-      ([ADR 0044](docs/decisions/0044-a-partial-successs-error-is-relevant.md),
-      [partial-2026-10-07](gauntlet/results/partial-2026-10-07.md)): its factor is `(result (tuple)
-      error)`, and `(option error)` stays only on `strings.Builder`'s and `bufio.Writer`'s writes, with
-      the reason in the file. Step 7, the audit of JavaScript's and Java's throwing declarations,
-      waits for the browser and Android `os`;
-   2. G, H and I, and the three headers corrected. **G is closed**
-      ([variadic-2026-10-08](gauntlet/results/variadic-2026-10-08.md)): a variadic over one type is
-      ONE declaration over a table, spread into Go's call, `f(xs...)` — `strings.NewReplacer` and
-      its `Replacer`, `io.MultiReader`, `io.MultiWriter`; the host check reads a spread against the
-      manifest's `...T`; a host `where` on literals is decided by evaluation. **H is closed**
-      ([ADR 0045](docs/decisions/0045-a-hosts-empty-interface-is-a-type.md)): Go's `any` is a host
-      type, `go.Value`, the empty interface, below which every one-value type is derived; a variadic
-      over it is a table of boxes. **A variadic is one declaration under the host's name**
-      ([ADR 0046](docs/decisions/0046-a-variadic-call-is-its-declaration-applied-to-a-word.md),
-      [variadic.md](docs/spec/variadic.md)): marked `variadic`, its last parameter the list; a
-      call's trailing arguments are the list, as Go's spec defines a variadic call, `(spread xs)`
-      passes a table, and the printer writes Go's own call. 293 of 590 declared (49.7%). **I is
-      researched** ([outparams-research.md](docs/outparams-research.md),
-      [outparams-2026-10-08](gauntlet/results/outparams-2026-10-08.md)): an out-parameter is a result,
-      and the caller-typed ones (the Scan family, `errors.As`, `json.Unmarshal`, `binary.Read`,
-      `sql.Rows.Scan`, about 25 in 8 packages) need typed out-cells `(out τ)` and type variables in
-      host declarations; Win32 has 3,461 functions with fixed-type cells. **Weighed against hamza's
-      mutation scope** ([mutscope-research.md](docs/mutscope-research.md)): `build` with cells (a cell
-      is a buffer of one; ST, Idealized Algol's `new`) is the more general primitive (callbacks over
-      scope state, thaw, in-out), and `(out τ)` its one-call derived form, which keeps typed shapes
-      and needs no type pack. hamza decided all six, and the keyword `local`. **Stage A is built**
-      ([ADR 0047](docs/decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md),
-      [local.md](docs/spec/local.md), [local-2026-10-08](gauntlet/results/local-2026-10-08.md)):
-      `local`, its initializer deciding buffer or cell, the 137 `build` sites migrated byte for byte,
-      and cells as loop variables by the state-passing translation. **Stages B and C are built, Go
-      first** ([ADR 0048](docs/decisions/0048-a-host-writes-a-cell-through-a-reference.md),
-      [outcells-2026-10-09](gauntlet/results/outcells-2026-10-09.md)): inside a host call a cell is a
-      reference to a fresh copy, `#ref`/`#deref` around the call, so it passes through the
-      retraction, the variadic list and Go's box; `(cell T)` and `(cell go.Value)` in declarations;
-      `(out τ)` a cell for one call, its value the cells' then the result's. The nine Scan functions
-      are declared (302 of 590, 51.2%), and **I is closed** for Go. Next: `errors.As`, whose result
-      names its cell's type. **Type variables in declarations are researched**
-      ([typevars-research.md](docs/typevars-research.md), `gauntlet/stdlib/generics.go`): a type is
-      a set, a variable ranges over a set of types, a bound is membership (an interface I denotes
-      ↓I), TLA+'s binder-with-its-set as the uniform shape; `(sig (AsType (E error)) …)`, a head
-      binding as a variant's does, instantiated by application or inference. Go has 88 generic
-      functions and methods, 51 without a callback, and `errors.AsType` (Go 1.26), As as a function.
-      Five decisions for hamza. **Reworked from first principles**
-      ([settypes-research.md](docs/settypes-research.md)): two languages, a computation that
-      prints and a logic of sets that reasons about it and never prints, ρ from proven sets the only
-      bridge; types a Boolean algebra (∪ ∩ ∖, singletons, comprehension, ×, tagged +, tables, maps,
-      ∀ over sets) and static values; the partition theorem (a union across sorts ≅ ADR 0042's
-      variant); a decidability map (Presburger, semilinear sets, regular strings, the array
-      property fragment, BAPA, congruence closure, Nelson–Oppen) with the cliff at nonlinearity,
-      quantifier alternation and induction, climbed by decided assertions, invariants and lemmas;
-      TLA+, Shen and Coq each one principle; own complete procedures, no SMT. Decided (ADR 0049),
-      the first step a measurement. **The abstract syntax that fits it is decided**
-      ([ADR 0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md),
-      [spec/abstract.md](docs/spec/abstract.md)); the surface notation is open. Then Win32's
-      fixed-type cells on x86;
-   3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
-      (27). The process API waits for concurrency-research's decisions;
-   4. K's packages, program first: `io/fs`, `time`, `unicode`;
-   5. the walls by what they unlock: callbacks tier 1 (A and B, 27 names, and concurrency's entry
-      point), then borrows (C), then D, E, F and J when a program asks.
-3. **The Windows application** is TinyRetroPad, handed over 2026-10-21: the 10-21 plan's item 6.
-4. **The analysis grows only for a refusal one of those programs names**, and every rule it relies on
-   gets a witness that it is *sound* and a planted fault that fails, planted before the witness is
-   trusted.
-
-Deliberately not next: optimising the compile (flat this round, measured by pairs); a join across
-representations and a boolean-carried guard (each ready, none asked for; a host `where`'s constant
-bounds on the IR's intervals was asked for by `wc` and is built, ADR 0075); reporting an unsatisfiable contract, until item 1 decides; hoisting or CSE on the IR, which would
-make reachable two premises witnessed only on hand-built IR; host callbacks, until item 1; a limb
-instance emitted once as a function; geometric accumulation; per-result enforcement above the word and
-signed limbs (ADR 0029); the higher-order contract gap (ADR 0028); a phase-wise trip count; the
-windows/V8/JVM unsigned rungs; dependent result ranges, a sum in a sign, `ByteOrder`'s values; records,
-`with` and named views.
-
-**The balance risk, named in every assessment.** The compiler grows much faster than the code written
-in the language. Counted by **`python gauntlet/balance.py [--nodes] [REV…]`**, which reproduces every
-assessment's table from git (assessment-2026-10-03 §3.1's definitions: code lines of `.oro` in
-`examples/` and `lib/`, `;` and `//` comments excluded; raw lines of `.go` in `core/`, `emit/`, `ir/`,
-tests included). `--nodes` adds the language's size in core-term nodes by each revision's own reader, a
-cross-check across a change of notation (gauntlet/balance_nodes.go):
-- The 10-24 round: +1,590 lines of compiler against +77 written in the language (`wc`), **20.6 : 1**,
-  against 6.6 : 1 the round before: five of its six phases were whole-corpus fixes with no program;
-  `wc`'s own phase was 3.4 : 1. +597 nodes.
-- The compiler is 72,967 lines, 23,871 of them tests. `emit : core` is 1.67 and (`emit` + `ir`) : `core`
-  2.69. The refinement layer, extended, is 6,065 lines, the IR's analysis 3,350.
-- The largest program, `freq`, has been the largest for five assessments: 194 lines of J, 163 of
-  today's notation.
-
-The part that decides what is legal is the hardest to check. Write programs, and let them demand the
-analysis.
-
-Previous assessments:
-[10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md), [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md), [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
+**The current assessment is [assessment-2026-10-24.md](docs/assessment-2026-10-24.md)**; read it
+before planning. Previous: [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
+[10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
+[09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md),
+[09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md),
+[09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
 [09-09](docs/assessment-2026-09-09.md), [09-06](docs/assessment-2026-09-06.md),
 [08-20](docs/assessment-2026-08-20.md), [08-19](docs/assessment-2026-08-19.md),
 [08-13](docs/assessment-2026-08-13.md).
 
-## Read first
+**The standing goal** (hamza) is **the Go standard library, package by package, program first**: a
+program in the language that needs a package, its algebra, and exactly the declarations it calls,
+checked. When a package hits a wall that needs language work, stop, research it, design it.
 
-0. The primary documents, above.
-1. [README.md](README.md)
-2. [docs/design-direction.md](docs/design-direction.md), the founding argument. Its section 8 records how its
-   open questions were settled; concurrency is the one still open.
-3. The ADRs in [docs/decisions/](docs/decisions/).
-4. [docs/spec/state.md](docs/spec/state.md), which is the language read off the code.
-5. The current assessment.
+### The 10-24 plan (assessment-2026-10-24 §5)
 
-Measurements in [gauntlet/results/](gauntlet/results/) are the authority. **Every design claim here
-that was not measured has been wrong about half the time.**
+1. ~~The documents tell the truth~~ **done** ([docs-2026-10-25](gauntlet/results/docs-2026-10-25.md)):
+   j.md's status read off the reader; state.md in J; inventory.md in two layers; j.md §1.4 and the
+   inventory's counts checked against the code; `cmd/check`'s `gauntlet` step.
+2. ~~Two surface questions~~ **done** ([surface-2026-10-25](gauntlet/results/surface-2026-10-25.md)):
+   an unbounded end is omitted, `lo..` (ADR 0077; hamza's `inf` weighed and rejected there); `pub` marks
+   the interface, private the default, `export` the entry points (ADR 0078).
+3. ~~Three defects the audit found~~ **done** ([defects-2026-10-26](gauntlet/results/defects-2026-10-26.md)):
+   no module defines a name of Σ_L (a nested `fn if` had captured every `if`); the recursion refusal names
+   `loop`; a set operator in a term is refused saying what it is.
+4. ~~A declared set is a claim, and the facts choose the representation~~ **done** (ADR 0079,
+   [claimset-2026-10-26](gauntlet/results/claimset-2026-10-26.md)); then `Nat`.
+5. ~~CLAUDE.md rewritten as state~~ **done** (2026-10-26, this file).
+6. **The Windows track, in steps** (hamza's):
+   - 6a. **MASM or LLVM IR**, researched and decided by an ADR. LLVM reaches ARM, Linux and macOS from one
+     backend; against it, duplicated work and checks the type system made unnecessary. Weights: ADR
+     0001/0008 (LLVM as an ecosystem parasitized, like the JVM), what our IR already decides (chordal
+     registers, proven ranges; `nsw`/`nuw`/poison as the way a proof drops a check), the 2,794-byte size
+     standard, the toolchain, and a measurement of the sieve and one gauntlet program on each path.
+   - 6b. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
+     built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
+     user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.
+   - 6c. **Its walls, spec first, an ADR each**: the window procedure (callbacks tier 2), its structs
+     (records), 32-bit against x86-64 (decided by 6a).
+7. **A π is justified by its branch, and the verifier checks it**, before item 8 grows lowering. W6
+   checks a π's types, not its relation; a π on the wrong table passed it (work-2026-10-22 §5). The rule
+   is Theorem E as a W-rule, with faults planted for the wrong table, a flipped relation, a foreign
+   operand and a missing negation.
+8. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
+   ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)). Research it as a join point that may jump, build
+   it, measure `wc` nested.
+9. **The Go library, program first**: `cmp`, two files compared chunk by chunk.
+10. **The analysis grows only for a refusal a program names**, each rule's planted fault with it.
+
+**Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
+handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;
+a join across representations; hoisting or CSE on the IR (it would reach two premises witnessed only on
+hand-built IR); a limb instance emitted once as a function; per-result enforcement above the word and
+signed limbs (ADR 0029); the higher-order contract gap (ADR 0028); records, `with` and named views beyond
+what TinyRetroPad's walls need.
+
+**Waiting on a trigger** (researched, built when a program needs it):
+- **One integer rendering**, render : ℤ → Σ*, per representation, replacing `big-str` (declared on three
+  targets, and a hidden allocation on a value that fits the word). Trigger: printing's P3.
+- **A representation as an instance of a type's signature** (data refinement, Hoare 1972; Haftmann et
+  al. 2013), replacing integers' four mechanisms. Trigger: a fifth integer representation (ℤ/2ⁿ for
+  `hash/fnv`) or a second string encoding (Win32's `W` functions).
+- **Validity through functions that preserve it**: refinement sorts (Freeman and Pfenning 1991) for
+  `strings` over V ⊂ B*. Trigger: a program paying for `go.text` right after a `strings` call.
+- Six decisions each on **concurrency** ([concurrency-research.md](docs/concurrency-research.md)) and
+  **Android's toolkit** ([android-research.md](docs/android-research.md)); **printing**'s three algebras
+  ([printing-research.md](docs/printing-research.md)); a borrow a later call ends (`Scanner.Bytes`,
+  [borrow-research.md](docs/borrow-research.md)); §1.4's reservation of J's words.
+
+### What is measured
+
+- **The gauntlet** ([docs/gauntlet.md](docs/gauntlet.md)), the one fixed commitment: seven programs at
+  parity with hand-written code on Go, JavaScript and Java. Last full benchmark
+  [gauntlet-2026-09-29](gauntlet/results/gauntlet-2026-09-29.md): geometric means 0.990, 0.977, 0.987,
+  three residues above 1.10× each explained. The 26 files its harnesses call are listed in
+  `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
+  `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
+- **Provability**: **2,103 of 2,148** integer operations proven inside their target's word, the 45 left
+  mostly meant to be refused; **353 of 376** loops proven to terminate (size-change termination). Each
+  program's share is in its result document; both counts are pinned by `cmd/check`.
+- **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
+  declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
+  share of the Go packages with a file, with a cause for every missing name
+  ([gocoverage-2026-10-06](gauntlet/results/gocoverage-2026-10-06.md)). **Supported** (declared by hand,
+  checked against the host, exercised by a program, ADR 0022): `unicode/utf8`, `encoding/hex`, `strconv`,
+  `encoding/binary`'s varints, `math/bits`, `io`'s interfaces; **partial and checked**: `os`, `strings`,
+  `io`, `fmt`, `errors`, `io/fs`, `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`. The
+  portable `os` (`lib/os.oro`) runs on Go, JavaScript and Java with one output.
+- **The balance**, named in every assessment: the compiler grows faster than the code written in the
+  language. `python gauntlet/balance.py [--nodes] [REV…]` reproduces every assessment's table. At
+  `b22d553`: compiler 73,854 lines (24,461 of them tests; `core` 20,257, `emit` 33,442, `ir` 20,155), the
+  language 2,086 lines; the 10-24 round's margin 20.6 : 1. The largest program is still `freq`, 194
+  lines. **Write programs, and let them demand the analysis.**
+
+## The compiler
+
+`go run ./cmd/check` passes every step: vet, compiler, emission, gauntlet, ir, differential, tooling.
+
+**The pipeline.** J's reader (`core/jlex.go`, `jparse.go`, `jreadtarget.go`) builds abstract Oroboros's
+trees, and D (`core/desugar.go`) makes the core term; `Load` resolves modules, expands `case`, `try` and
+`expect`, and translates cells and buffers (S, the state translation, `core/cell.go`, `place.go`). The
+β/δ reducer, call-by-need with an effect discipline, gives the residual: closed, first-order,
+monomorphic. The type checker and the refinement layer run on it; then it is lowered to **the IR**
+(ADR 0032, [spec/ir.md](docs/spec/ir.md)), structured SSA with π-parameters, which every analysis and
+every backend reads.
+
+**On the IR**: `ir.Decide` proves each operation inside its set (intervals over ℤ̄, thresholds, trip
+bounds, the relational difference) and refuses the program or, under `-checked`, traps; size-change
+termination (`ir/sct.go`); the representations, the unsigned word (`ir/words.go`, ADR 0033), the rung
+above the word as a least fixed point of supply and demand (`ir/big.go`, ADR 0034, 0079), fixed limbs as
+instances of a theory checked once (`ir/limbs.go`, ADR 0035); postconditions and a definition's claim
+(`ir.CheckClaim`, ADR 0072). Each rule is checked against a concrete interpreter over ℤ
+(`ir/interp_test.go`) and has a planted fault.
+
+**The IR's text is the printers' whole input** (ADR 0038): `gen -ir` writes IR_P, and `cmd/check`
+reprints every program from that text alone, byte for byte. Four printers, `ir/golang`, `ir/js`,
+`ir/java` and `ir/x86` (MASM, a value's place a colouring of exact live sets, optimal by chordality),
+sharing `ir/plan`. The term backends and the term interval analysis are deleted (irstep4a, irstep4j).
+
+## The language today
+
+**The surface is J** ([spec/j.md](docs/spec/j.md), ADR 0068; its status says what is built), and every
+`.oro` file is J. [spec/state.md](docs/spec/state.md) is the language read off the code, checkable by
+grep; [inventory.md](docs/spec/inventory.md) is every word the compiler knows, pinned by a test. A
+parenthesized s-expression is a core term, which only the tests and the IR's text write. The other
+specs' examples are in the notation J replaced, and each moves to J when it is next touched (hamza's
+option (b), jswitch5b-2026-10-16).
+
+### Core
+
+- **Seven core term kinds**: name, integer, float, string, boolean, `fn`, application. A residual's
+  binders are named apart along the scope chain (ADR 0036), so a context keyed by name is sound.
+- **A declaration is a header and one body** (ADR 0051, 0062, 0064): `fn f(x ∈ S) (R) where φ ensure ψ
+  { e }`, D's `def` and `sig`. A constant is a value, `cap = 65536`. **A comment is `//`, a gap, never a
+  token** (ADR 0024, 0067); a tool that rewrites source keeps every gap or refuses the edit.
+- **A block binds sequentially**, `{ x = e; (a, b) = p; body }`, and a statement is a binding whose name
+  is discarded (ADR 0054). `if c { a } else { b }`, `&&`, `||`, `!`, `!=` and `case { φ -> a; else -> b }`
+  are D's (ADR 0017); a guard chain costs nothing ([cond-2026-09-19](gauntlet/results/cond-2026-09-19.md)).
+- **Effects are a side condition on β** (ADR 0010, [effects.md](docs/spec/effects.md)): a purity bit per
+  primitive, impure by default; an impure argument is let-bound, never substituted. **β counts
+  evaluations in {0, 1, ω}** (ADR 0071): a pure argument is substituted when evaluated at most once.
+- **Iteration is `loop x = z { φ -> again(…); else -> r }`** (ADR 0015). `again` is a jump in a tail: an
+  arm's body, a block's end, a host call's continuation (ADR 0027), a `try` or `expect` success arm
+  (ADR 0041), each arm of a `case` in a tail (ADR 0076); never under an `if`. In the reader the rule is a
+  sort. Every walker of a clause chain walks all four forms, or it is unsound. **No recursion**
+  (ADR 0014); a balanced recursion is a loop over levels.
+- **Relevance** (ADR 0043): a value of a `relevant` variant is used on every path, `ignore(e)` the
+  discard. **Failures are values of a marked sum** (ADR 0040): `lib/result`, `try`, `expect`, the host's
+  encoding a niche of its error type.
+- **Closures** may not survive staging; host callbacks' tiers 1 and 2 are specified
+  ([callbacks.md](docs/spec/callbacks.md)) and not built.
+- **Modules**: a file is a theory named by its path (ADR 0064); `use p as a`; **`pub` marks the
+  interface, private the default, `export` an entry point** (ADR 0078); **no module defines a name of
+  Σ_L**, the language's signature (`core.LanguageSignature`, defects-2026-10-26).
+
+### Data
+
+- **Every data form is a function whose domain differs** ([data.md](docs/spec/data.md)). `Array(V)` on
+  `[0, len)`, indexing `t[i]` application ([tables.md](docs/spec/tables.md)); a graph `array { 2, 3 }`
+  and a rule `array { e : k ∈ 0..n-1 }`; `Map(Int, V)` with a declared capacity, a read an `Option`
+  ([maps.md](docs/spec/maps.md)).
+- **State is a binder of a block** (ADR 0047, 0052, 0058): `var b := array {…}` a buffer, `var m :=
+  map(cap)` a map buffer, anything else a cell, written in program order (`b[i] := v`, `x := v`) with
+  R0–R4 decided on each scope; S gives the core's threaded `build`; a cell becomes loop variables. A host
+  writes a cell through a reference to a fresh copy (ADR 0048). A buffer parameter is `b ∈ Array(V)
+  linear`, borrowed by reference; a host header is the caller's view of a borrow (ADR 0070); a pure host
+  call observes a live buffer (ADR 0069), a segment `b[lo:hi]` its function restricted (ADR 0074).
+- **A scope's value may be a product** of frozen buffers and values (ADR 0031), taken apart at a join
+  point; an `again` after it is not built. Tuples `(a, b)` and the unit `()`; a table of tuples is
+  flattened by currying ([products.md](docs/spec/products.md)).
+- **Variants**: `set S = 'a ∪ 'c(T)`, closed, finite, non-recursive, with type arguments; at a boundary its
+  tag and one slot per payload type (ADR 0042, 0059).
+- **Strings** are the free monoid over Unicode scalars, `++` and `string_of`; a host's string is the
+  host's (`go.bytestring`), entered by one total decode, `go.text` (ADR 0030,
+  [strings.md](docs/spec/strings.md)). **Not built**: records, symbols, `with`.
+
+### Integers
+
+- **An `Int` is an integer** (ADR 0026), and a range `lo..hi` is a set; an end may be omitted, `lo..` and
+  `..hi` (ADR 0077), and **`Nat`** is ↑0. Each target declares its word as data, `repr LO..HI word`:
+  int64 on Go, the JVM and windows, ±(2⁵³−1) on JavaScript; Go also realizes 0..2^64-1 as `uint64`.
+  Legality is per (program, target), portability computed (`go run ./cmd/portable`).
+- **Bounded by default** (ADR 0019): an operation not proven inside the word is refused, cleared by
+  narrowing a range, a claim above the word, or `-checked`.
+- **A declared set is a claim, and the facts choose the representation** (ADR 0079,
+  [integers.md §1a](docs/spec/integers.md)): ρ of a value is its proven fact's, the word, the unsigned
+  word, or the rung above; a claim above the word is the consent to that rung, and the representation
+  itself only at an entry point's parameter or result. Above the word a target chooses `repr big host`
+  or `repr big limbs`, and the program's one set is enforced on both, by sign and bit length (ADR 0029).
+- **Staging never changes an answer** (ADR 0009): integers fold only inside the word, checked, never
+  dividing by zero; floats fold through explicit `float64`.
+
+### Types, claims and facts
+
+- **The type checker** runs on the residual ([types.md](docs/spec/types.md)); the integer sort is ℤ, its
+  realization the IR's (ADR 0033); `Table(σ)` has its introduction, elimination and store rules.
+- **A header's sets are claims**: a parameter's set and `where` are obligations at every call a
+  definition is inlined into, assumed at an export's boundary (ADR 0028); **a declared result is a claim
+  decided at its definition**, exported or not (ADR 0072); every name used as a set must denote one
+  (ADR 0073); a host `where`'s constant bounds are its parameter's range (ADR 0075). **A set has no
+  representation**: a set operator in a computation or a claim's formula is refused saying what it is.
+- **An obligation is discharged or the program is refused** ([refinements.md §3a](docs/spec/refinements.md)),
+  by a literal, the IR's intervals, then the refinement layer (Fourier–Motzkin over the linear fragment,
+  facts as a solved form). Every pipeline carries its obligations in the residual (ADR 0037).
+- **Facts** are guarded boundedness axioms ([facts.md](docs/facts.md)); content facts are derived, never
+  declared (Houdini invariants, store chains, strided components, record facts, translation invariants,
+  a peeled first iteration). A clamp in a program is a missing proof.
+
+### Declarations and targets
+
+- **Declarations are theories** (ADR 0021, [theories.md](docs/spec/theories.md)): a module a theory, a
+  target a model, `use`, `pub`, `export` and `provides` morphisms. **A target is a chain of layers**,
+  glue within, override between ([target-system.md](docs/spec/target-system.md)).
+- **A host module's path is the host's** (`go/encoding/hex`, ADR 0025), and the file is the path; a
+  companion is a child module; a bare type name resolves lexically.
+- **Host declarations are written by hand**, by someone who read the host's source, and checked against
+  it by the generator, which never claims what it cannot justify (ADR 0022, 0023;
+  `gauntlet/stdlib/tooling_test.go`). `fn f(x ∈ S) (R) pure { host expr "F(${x})" import "p" }`; a
+  variadic is one declaration over a table (ADR 0046); a host's empty interface is a type (ADR 0045).
+
+## Constraints that override normal instincts
+
+- **Anything promoted to the language works on every target, and the compiler finds the
+  implementation.** A target may neither decline nor declare a language construct; the capability graph
+  is for target-native names, where "this target cannot do it" is a true answer.
+- **Never lower further than the target requires**: no hand-rolled hash table into Go, which has `map`.
+- **Never assert which host construct is fastest: measure it** (ADR 0008). Treat host compilers as black
+  boxes; `go build -gcflags="-m -m"` and `-gcflags="-d=ssa/check_bce/debug=1"` have each been decisive.
+- **Never make the core a superset of one host.** JavaScript has no integers or structs; the JVM no
+  unsigned types, `goto` or tail calls; Go restricts `goto`.
+- **Never introduce boxing or hidden allocation into the core**: that killed the predecessor
+  ([design-direction.md §2](docs/design-direction.md)).
+- **Never add unstructured control flow.**
+- **Performance claims are measured against hand-written code**, never on less than the ~15% noise floor
+  of the hybrid P/E-core laptop; carry the form expected to lose as well as the one expected to win.
+- **Primitives are declared in `targets/*.oro`, not in Go.** Only structural constructs live in code.
+- **Prefer deriving a fact over clamping around it or declaring it.**
+- **The core is deliberately unspecified** ([core-candidates.md](docs/core-candidates.md)); the
+  predecessor stalled on a fixed language. Beware the minimality trap: the core is minimal subject to
+  lowering natively to every target at zero cost. Candidates are killed by measurement, not argument,
+  and the derivations are in [docs/derivations/](docs/derivations/).
+
+## Lessons that recur
+
+Each has bitten more than once; the instances are in the results named.
+- **A path nothing runs is a path nothing checks** (a `; skip:`, a backend no target used, an escape
+  taken everywhere, a kind nothing has, a file regenerated by hand; bounds-2026-09-24, bufio-2026-10-01,
+  docs-2026-10-25).
+- **A harness that cannot fail proves nothing**: plant the fault first; refusal-shaped properties need an
+  anti-vacuity guard; random search cannot test what over-approximation makes sound.
+- **A relation relaxed for one check weakens every check that reads it** (W5 after ADR 0033). Audit
+  every consumer.
+- **"Not refused" is not "proven"**, and a check that runs only where a caller remembers to ask is no
+  property of the program (noprop-2026-09-25, hazard-2026-10-02). State a precondition on the consumer.
+- **An empty case read as "everything"**: an interface with no names showed every name (ADR 0078); a
+  `where` over an unbound name was assumed at an entry point (defects-2026-10-26).
+- **A comment stating what code does is not a review of whether it should**; a rule's comment can state
+  a premise that is no longer true (`WiderThanWord`, claimset-2026-10-26). Only a planted fault shows
+  whether a rule's conclusions are true.
+- **A context keyed by name is captured by the name alone**, and `Body()` and `openFresh` rebuild terms:
+  a map keyed by a term pointer answers about a copy (bufio-2026-10-01, localtab-2026-10-14).
+- **The emitter must be a function of its input**: run it twice; it is reprinted from the IR's text.
+- **A survey's first number describes the measurer**, and a count is a measurement too
+  (matchguard-2026-09-24). Read ten members of a figure before it becomes a plan item.
+- **Benchmark-method errors have many species**: a closure in the reference, a fixed iteration count,
+  shared processes, eliminated work, two things changed at once, a modified input, comparing against
+  HEAD after a regression, timing among parallel jobs, a stopped run still running, one megamorphic call
+  site, a baseline built from `git stash`. Time a baseline in a worktree. Make a suspicious result explain
+  itself before recording it.
+- **A refusal can hide a wrong answer**, and **a program finds what a construct suite cannot**.
+- **A test can pin a stale text**: `TestScopeCheck` required "fold-range" (defects-2026-10-26). Read
+  what a test asserts before trusting it to guard a change.
 
 ## Decisions already made
 
-Do not relitigate these without reading the ADR first. Each has a "Why not" section recording
-rejected alternatives.
+Read the ADR, and its "Why not", before relitigating one.
 
 | Decision | ADR |
 |---|---|
 | Targets are ecosystems; portability is a program property | [0001](docs/decisions/0001-parasite-model.md) |
-| Capability graph, not a fixed layer tower | [0002](docs/decisions/0002-capability-graph.md) |
-| Range-typed integers, mathematical semantics, machine representation | [0003](docs/decisions/0003-range-typed-integers.md) |
-| ~~Go, JavaScript, Java/Android first~~ — the list superseded by 0039; C deferred | [0004](docs/decisions/0004-first-targets.md) |
-| Compiler written in Go | [0005](docs/decisions/0005-implementation-language.md) |
-| Backend interface is a file format, not a Go interface | [0006](docs/decisions/0006-ir-file-format.md) |
+| A capability graph, not a fixed layer tower | [0002](docs/decisions/0002-capability-graph.md) |
+| Range-typed integers: mathematical semantics, machine representation | [0003](docs/decisions/0003-range-typed-integers.md) |
+| ~~Go, JavaScript, Java first~~ (superseded by 0039) | [0004](docs/decisions/0004-first-targets.md) |
+| The compiler is written in Go | [0005](docs/decisions/0005-implementation-language.md) |
+| The backend interface is a file format | [0006](docs/decisions/0006-ir-file-format.md) |
 | Explore candidates against a fixed test; do not specify the core first | [0007](docs/decisions/0007-exploration-over-specification.md) |
-| Parasite decisions are per-target measurements, not principles | [0008](docs/decisions/0008-measurement-over-principle.md) |
+| Parasite decisions are per-target measurements | [0008](docs/decisions/0008-measurement-over-principle.md) |
 | Staging must not change results | [0009](docs/decisions/0009-staging-preserves-results.md) |
-| Effects are a side condition on β, not a feature | [0010](docs/decisions/0010-effects-as-structural-rules.md) |
+| Effects are a side condition on β | [0010](docs/decisions/0010-effects-as-structural-rules.md) |
 | Modules are resolution, not reduction | [0011](docs/decisions/0011-modules-add-nothing-to-the-reducer.md) |
-| ~~`int` is exact within ±(2⁵³−1)~~ — the window part superseded by 0026 | [0012](docs/decisions/0012-portable-integer-range.md) |
-| ~~Accept the allocation price~~ — superseded by 0020 | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
+| ~~`int` within ±(2⁵³−1)~~ (window superseded by 0026) | [0012](docs/decisions/0012-portable-integer-range.md) |
+| ~~Accept the allocation price~~ (superseded by 0020) | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
 | Recursion is not in the language | [0014](docs/decisions/0014-recursion-is-not-in-the-language.md) |
-| `loop`/`again` — guarded clauses over n variables | [0015](docs/decisions/0015-loop-and-again.md) |
+| `loop`/`again`, guarded clauses over n variables | [0015](docs/decisions/0015-loop-and-again.md) |
 | A target need not be an expression language | [0016](docs/decisions/0016-targets-need-not-have-expressions.md) |
 | Booleans and control flow are in the language | [0017](docs/decisions/0017-booleans-are-in-the-language.md) |
 | Immutable values, one scoped linear buffer | [0018](docs/decisions/0018-immutable-values-linear-buffers.md) |
-| Precision by declaration — provisionally | [0019](docs/decisions/0019-precision-by-declaration.md) |
+| Precision by declaration, provisionally (items 3–4 amended by 0079) | [0019](docs/decisions/0019-precision-by-declaration.md) |
 | A buffer is a nameable type: uniqueness on parameters | [0020](docs/decisions/0020-uniqueness-on-parameters.md) |
-| Declarations are theories, and the surface that follows — amends 0011's *reasoning* | [0021](docs/decisions/0021-declarations-are-theories.md) |
-| Host declarations are written by hand; the generator is their checker | [0022](docs/decisions/0022-host-declarations-are-written-by-hand.md) |
+| Declarations are theories | [0021](docs/decisions/0021-declarations-are-theories.md) |
+| Host declarations are written by hand; the generator checks them | [0022](docs/decisions/0022-host-declarations-are-written-by-hand.md) |
 | A generator does not make a claim it cannot justify | [0023](docs/decisions/0023-a-generator-does-not-make-a-claim-it-cannot-justify.md) |
-| A comment never carries meaning; documentation is a term | [0024](docs/decisions/0024-comments-are-erased.md) |
-| A module path is the host's path, and the file is the path | [0025](docs/decisions/0025-a-module-path-is-the-hosts.md) |
+| A comment never carries meaning | [0024](docs/decisions/0024-comments-are-erased.md) |
+| A module path is the host's, and the file is the path | [0025](docs/decisions/0025-a-module-path-is-the-hosts.md) |
 | An `int` is an integer; each target realizes what it can; portability is reported | [0026](docs/decisions/0026-an-int-is-an-integer.md) |
-| A host call's continuation is a tail position: `again` may sit under a tuple binding | [0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) |
-| A definition's declared parameter range and `where` are obligations at its calls | [0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md) |
-| Above the word, a type denotes a set decided by sign and bit length; every representation enforces the program's one set | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
-| At a host boundary a string is the host's (`go.bytestring`); ours is Σ*, entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
-| A `build`'s result is a product of its frozen buffers and buffer-free values; the tuple-component law | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
-| The IR is structured SSA with π-parameters; representation is a type; realizes 0006 — steps 1–3 built: every backend prints from it | [0032](docs/decisions/0032-the-ir-is-structured-ssa.md) |
-| An integer's representation is chosen on the IR; the checker's integer sort is ℤ, and crossing S and U is an obligation | [0033](docs/decisions/0033-an-integers-representation-is-chosen-on-the-ir.md) |
-| The rung above the word is a least fixed point on the IR, demand gated by facts; a bignum destination needs ownership and liveness | [0034](docs/decisions/0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md) |
-| A compiler library is a theory checked once per specialisation; a use is an instance, inlined on the IR (the limb rung) | [0035](docs/decisions/0035-a-compiler-library-is-a-theory-checked-once.md) |
-| A residual's binders are named apart along the scope chain: no binder reuses an enclosing binder's name, so a context keyed by name is sound | [0036](docs/decisions/0036-a-residuals-binders-are-named-apart.md) |
-| A program's obligations are in its residual: every environment installs the contracts, one procedure decides the marks, and the refiner and the printers refuse a residual that still carries one | [0037](docs/decisions/0037-a-programs-obligations-are-in-its-residual.md) |
-| The IR's text (IR_P) is the printers' whole input, checked on every program; others may read it, and nobody else writes it until the IR proves index obligations | [0038](docs/decisions/0038-the-irs-text-is-read-not-written.md) |
-| The targets are Go, Windows, Android and the browser; Node is a third-party layer; supersedes 0004's list | [0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md) |
-| A failure is a value of a marked sum: the compiler knows `success` and `relevant`, `try` is bind, `(result T E)` is a library, the host's encoding is a niche, `expect` is the one way to give up | [0040](docs/decisions/0040-a-failure-is-a-value-of-a-marked-sum.md) |
-| A success arm is a tail: `again` may sit under `try` and `expect`; a constructor is the tuple (tag, payload), so a loop yields a sum — extends 0015 | [0041](docs/decisions/0041-a-success-arm-is-a-tail.md) |
-| A variant's value is its tag and one slot per payload type of its declaration, wherever it must exist as data; an unselected slot holds `#any`, the zero of its type (Theorem R) | [0042](docs/decisions/0042-a-variants-value-is-its-tag-and-its-slots.md) |
-| Relevance is checked at β, where a binder meets its value, on every path; usage inference through definitions; `ignore` is !_A : A → 1 | [0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md) |
-| A partial success's error is the relevant 1 + E, `(result (tuple) E)`; `(option error)` only where the host makes it ignorable, with the reason | [0044](docs/decisions/0044-a-partial-successs-error-is-relevant.md) |
-| A host's empty interface is a type every one-value type is below, derived; a variadic over it is a table of boxes, spread; the language's `any` is unchanged | [0045](docs/decisions/0045-a-hosts-empty-interface-is-a-type.md) |
-| A variadic is one declaration under the host's name; a call's trailing arguments are the list, `(spread xs)` passes a table; a variadic statement's value is the unit | [0046](docs/decisions/0046-a-variadic-call-is-its-declaration-applied-to-a-word.md) |
-| `local` is a scope of local state; its initializer decides buffer or cell; a cell is a loop variable by the state-passing translation, and an elimination it assumes is decided on a normal form | [0047](docs/decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) |
-| A host writes a cell through a reference to a fresh copy, `#ref`/`#deref` around the call; `(cell T)` in declarations; `(out τ)` is a cell for one call, its value the cells' then the result's | [0048](docs/decisions/0048-a-host-writes-a-cell-through-a-reference.md) |
-| Types are sets and the logic that reasons about the computation never prints; ρ from proven sets the one bridge; the decided fragment the ceiling of automation; own complete procedures; extension by definitions and proven lemmas only; types are static values | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
-| The abstract syntax is the initial algebra of the semantics: usage a mode on a binder; one definition carrying its claims; sets formed explicitly; pairs, one guarded choice; indexing marked; meanings are homomorphisms, claims inert by construction; the surface open | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
-| A definition is a named λ, which carries its claims: a set per binder with φ and ψ, meaning the sets P and R; the result one binder whose pattern may be a tuple; program declarations before target files; a λ applied by hand is no binding for a jump | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
-| A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays (removed by 0070) — built behind the J gate; G5–G7 decided | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
-| The arrow is a claim used as a set, on a host's callback parameter or as a named claim: Π(P).R with markers, not a set former of the type algebra; a returned host function is a host type with application — not built | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
-| `let` and `local` are one scope whose binders state their kind (a monoid action of binder words); a definitional name may be rebound, a state name once per region; the head is `let` — not built | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
-| A loop's variables are bound by application, not assigned: one iteration is a `let`, so its binders are definitional (`=`, `==`) and `again` is an application — not built | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
-| The surface is ~~D or J~~ J (0068) (B′ and K dropped); one arm grammar for `case` and `loop`, `cond` and `match` retired; `again` positional; `;` tighter than `[]` in D; `var x := e` in J; J's formers `array { … }`, `set { … }`, `array(n, f)`; `Seq(S)` the set — not built | [0056](docs/decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md) |
-| The handled bind is a derived operator, case(e; p → b, ā), with try and expect its instances; J writes `try p = e [else ā], … { body } [else ā]`, D `TRY … IN`; in a loop its success arm is a tail and its handler leaves — extends 0041, not built | [0057](docs/decisions/0057-the-handled-bind-and-its-tail.md) |
-| A map buffer is a state binder holding a map, written in program order (`m[k] := v`), R0–R4 as for a table — extends 0052, built behind the J gate | [0058](docs/decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md) |
-| A tag is a quoted symbol, `'name`, in patterns and expressions; case carries no category; a collection has one former shape and `array(n, f)` goes; the sets are `Array(V)` and `Map(K, V)` — supersedes 0056's items 8–9, not built | [0059](docs/decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md) |
-| J's membership `∈` ~~and Python's set operators~~ (superseded by 0065), D's TLA+'s; an imported tag qualified as `alias.'tag`, own and language tags unqualified, no `exposing` — not built | [0060](docs/decisions/0060-j-set-operators-and-qualified-tags.md) |
-| Inside a former, separation `set { x ∈ S : P }` and replacement `set { e : x ∈ S }`, `array { e : k ∈ 0..n-1 }` by the binder's place (TLA+'s); a map takes a graph only — not built | [0061](docs/decisions/0061-separation-and-replacement-by-the-binders-place.md) |
-| A header is the membership statement, its result a binder (`result` gone); bounds in binder sets (a telescope), relations in `where`; one equality in formulas; `fn`, `spec`, `lemma` share the header, a lemma used by `assert L(…)`, a recursive one an induction; `assert` proves, `expect` checks; `the` leaves the surface — not built | [0062](docs/decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md) |
-| A type is a static value: one namespace per module (a struct literal is its companion's `new`); a declaration's head binds static parameters, `(sig (AsType (E (subsets error))) …)`; instantiation is application reduced by δ to `f#[T̄]`, identified by its name, the bound membership by subsumption; no set survives staging; `(comma-ok)` | [0063](docs/decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md) |
-| A file is a theory named by its path, a target file a set of fragments, the target its directory; an import carries its alias; ~~visibility public, `private` hiding~~ (item 4 superseded by 0078), `export` an entry point only; a declaration is a header and one body (an expression or a host); `let` off the top level, `set S = e` an optional claim; a variant a union of tagged sets; an inclusion an axiom of a model; a companion a nested module — not built | [0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md) |
-| J writes sets in TLA+'s symbols `∈ ∉ ∪ ∩ ∖ ⊆ ⊂ ×`, TLA+'s names their ASCII, the file storing the symbol; short input is the editor's, never a string escape; a set former keeps its keyword, a headless brace is a block — supersedes 0060's item 2, not built | [0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md) |
-| A definition over sets is a λ returning a λ, `E ⊆ S` binding a set; static arguments inferred by matching sorts; Go's `~[]E` collapses; the arrow a λ's header, its domain a telescope; no receiver form; `x'` on exit in `ensure`; a host template is quoted code with named splices `${x}`, a value of Code_T = text × requirements — not built | [0066](docs/decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md) |
-| The lexical level: ASCII words with a final `?`, `-` as `_`, backquoted host names; few reserved words, clause words contextual; case meaningless, sets UpperCamelCase by convention; `^` on constants; line comments; Scala 3's line rule; J's logic in TLA+'s symbols; one precedence table — not built | [0067](docs/decisions/0067-the-lexical-level.md) |
-| **J is the surface**, one rendering; the D-or-J experiment not run; supersedes 0056's item 1 — not built | [0068](docs/decisions/0068-j-is-the-surface.md) |
-| An observer at a host parameter: a pure declaration with scalar results reads a live buffer for the call, derived not declared; §7c counts it; a segment is F composed with a restriction; a binder's claim is an obligation and `the` is not J — built | [0069](docs/decisions/0069-an-observer-at-a-host-parameter.md) |
-| A host declaration's header is the caller's view of a borrow: the threaded result derived; a primed result `p'` names storage the host hands back, its absence a write-borrow in place, `(inplace j i)`; the template the host's own call, the wrapper gone; the hand check exact — amends 0052 item 4, built | [0070](docs/decisions/0070-a-header-is-the-callers-view-of-a-borrow.md) |
-| Work stays where it was written: β counts evaluations in {0, 1, ω}, a λ by its shot (ω for a loop's body, a table's rule, a λ handed on), and substitutes a pure value evaluated at most once, else only a value; let-floating exposes a value; a residual let takes the same rule; a measured length is the length on the IR — built | [0071](docs/decisions/0071-work-stays-where-it-was-written.md) |
-| A declared result is a claim decided at its definition: ∀x ∈ P. φ ⟹ ⟦B⟧(x) ∈ R ∧ ψ, exported or not, called or not; a product's set factor by factor; the words only, above them ADR 0029; a definition over a function refused with its reason; amends postconditions.md §2 — built | [0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md) |
-| A set's name denotes a set: ⊢ S set is a scope check of a header's atoms against Γ_T, the language's sets and the target's types, on every header; an alias resolves as a term's does; no variant reaches a header — built | [0073](docs/decisions/0073-a-sets-name-denotes-a-set.md) |
-| A segment is its function restricted wherever its table is, b[lo:hi] or a writer's b[lo:]; its domain may narrow, and a law beyond the restricted one is a claim on the narrower domain; one check for every segment — extends 0069 item 3, built | [0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md) |
-| A host `where`'s constant bounds on one parameter are its range obligation, decided by a literal, the IR's intervals, then the refinement layer; the host's type and the hand check unchanged — built | [0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md) |
-| A case in a tail is a tail when each arm is: the tail sort closed under a sum's eliminator (each arm runs once); only in a tail; `if` still may not jump; a handler's arms follow when built — extends 0041 and 0057 item 5, built | [0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md) |
-| An unbounded end is omitted: `lo..` is ↑lo and `..hi` ↓hi, the core's `(int lo +inf)`; an absent bound is no element, so `` `+inf` `` is refused and `..` alone (ℤ) is `Int`; no `Nat` while a declared set above the word is a representation request (it widens to the rung above), `Nat` added with 0079 — built | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
-| A module's interface is what it marks `pub`, private the default; `export` an entry point only: two relations, I read by resolution and E by the build, the core's `(pub …)` and `(export …)`; an empty interface hides everything; `private` refused — supersedes 0064 item 4, built | [0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
-| A declared set is a claim, and the facts choose the representation: ρ of the proven fact at every binder; the consent to the rung above is a claim's demand (bounded by default stays); supply only where the claim is the fact (an entry point's parameter, a host result, a constant); `Nat` then TLA+'s — amends 0019 items 3–4 and 0034's supply, built | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
-
-## How this project is run
-
-**The core is deliberately unspecified.** Do not propose freezing it, and do not treat
-[core-candidates.md](docs/core-candidates.md) as settled. The predecessor project stalled on a fixed
-language that effort then went into making viable, and recreating that is the primary process risk.
-
-**[The gauntlet](docs/gauntlet.md) is the one fixed commitment.** It is seven programs on three
-targets, held to parity with hand-written code. Candidates are killed by measurement, not argument;
-when one dies, write an ADR naming what killed it. The derivations in
-[docs/derivations/](docs/derivations/) record what was believed, what measurement said and which won.
-Read them before proposing anything about lowering, generics, closures or capability granularity.
-
-**An assessment is written when a plan finishes**, not on a schedule. It:
-- scores the last plan;
-- measures the balance with the same counting method every time;
-- names process failures;
-- sets the next plan, with a "deliberately not next" list.
-
-It is deliberately **not** an ADR.
-
-**Beware the minimality trap.** A tiny elegant core minimizes the constructs needed to express all
-computation. That is not the property this project needs; lambda calculus allocates precisely
-because everything is a function. The core should be minimal **subject to lowering natively to every
-target at zero cost** ([core-candidates.md §1](docs/core-candidates.md)).
-
-## The language today
-
-Grounded in [docs/spec/state.md](docs/spec/state.md), which is checkable by grep. Each item names the
-spec to read before touching it. **The surface is J** ([spec/j.md](docs/spec/j.md), ADR 0068), and the
-examples here are J's; a parenthesized s-expression is a core term or the residual, which J's reader
-produces through D and every stage after it reads. The specs still write today's notation until each is
-next touched (jswitch5b-2026-10-16).
-
-### Core
-
-- **Terms.** Seven term kinds: name, integer, float, string, `true`/`false`, `fn` and application.
-  `core.Term`'s `KBound` is internal.
-- **Comments.** `//` to the end of the line (ADR 0067), and **gap rather than a token**: erased by
-  the lexer, so nothing below the reader sees one and no emitted file carries one. No doc comments, no
-  pragmas, no block comments ([comments.md](docs/spec/comments.md), ADR 0024). The IR's text keeps
-  `;`. **A tool that rewrites source preserves every gap
-  or refuses the edit**; two rewriters have lost comments the compiler could never have missed.
-- **Definitions.** `fn f(x, y) { body }` is a named λ, `(def f (fn (x y) body))`, and its header
-  carries its claims, `fn f(x ∈ S) (R) where φ ensure ψ { e }` (ADR 0051, 0062, 0064): a declaration is
-  a header and one body ([def.md §4](docs/spec/def.md)). **A constant is a value** — `cap = 65536`;
-  `fn f() { … }` is for a computation, whose effects unfolding would repeat.
-- **Binding.** A block `{ x = e; (a, b) = p; body }` binds sequentially, a name or a tuple pattern on
-  the left ([binding.md](docs/spec/binding.md), ADR 0054). It erases to applications, so nothing below
-  the reader knows it; the RESIDUAL's `let` — `(let e (fn (x) b))`, what β leaves when it declines to
-  substitute — keeps its own spelling. A statement `e; body` is a binding whose name is discarded, and
-  works only because ADR 0010 denies weakening.
-- **Variadic calls** ([variadic.md](docs/spec/variadic.md), ADR 0046): a declaration marked
-  `variadic` takes a list as its last parameter; the loader rewrites a call's trailing arguments
-  into the table, or passes `f(xs...)`'s table, once, from the target's forms, and a target's Env
-  refuses a program loaded without them.
-- **Relevance** ([errors.md §7](docs/spec/errors.md), ADR 0043): a value of a `(relevant)` variant,
-  `lib/result`'s, must be used on every path of its binder's scope, the eliminators being additive;
-  checked at β on the λ as written, through definitions by usage inference. `again` uses vacuously only
-  a variable bound outside the loop it goes round: one bound inside the iteration ends at the jump
-  (abstract2-2026-10-11, a soundness hole the tree usage found). `ignore(e)` is the
-  discard, !_A : A → 1, erased by the reducer, and η for products includes the unit.
-- **A residual's binders are named apart** (`core/hygiene.go`, state.md): no binder's hint equals a
-  name its body refers to past it, **nor any enclosing binder's**. The second is what a context keyed
-  by name needs, and the refinement layer's facts are one
-  ([ADR 0036](docs/decisions/0036-a-residuals-binders-are-named-apart.md)). Sibling binders keep
-  their names.
-- **Reduction.** Four rules, two with two clauses ([state.md](docs/spec/state.md)). `if`, `let`, `loop`, `=`, the integer operators, `the` and the table
-  operations are **injected** into every target; declaring one is an error.
-- **Effects.** A declared purity bit per primitive, defaulting to impure. An impure argument is
-  let-bound, never substituted, which denies contraction, weakening and exchange
-  ([effects.md](docs/spec/effects.md), ADR 0010). A λ argument may be applied, so its body counts as
-  run when a term's purity is judged (outcells-2026-10-09: an applied λ's effect was weakened). A table read through a bound variable is not
-  substituted into an impure body (§7c). **A pure argument is substituted when it is evaluated at most
-  once** (ADR 0071, effects.md §7d, `core/work.go`): the count is in {0, 1, ω}, a λ multiplied by its
-  shot, ω for a loop's body, a table's rule and a λ handed on; else only a value is copied, a let around
-  one floated out first, and anything else bound where it was written.
-- **Booleans and control.** `Bool` is data and `if c { a } else { b }` is its eliminator; `&&`, `||`,
-  `!`, `a != b` as `!(a == b)` (shape-2026-10-21), and `case { φ -> a; else -> b }` (cond's equation)
-  erase in the reader (ADR 0017,
-  [booleans.md](docs/spec/booleans.md)). `(if true a b) → a` is the only evaluation reduction performs.
-  D also builds `(if (not c) a b)` as `(if c b a)` — case-of-case plus that evaluation, done eagerly —
-  **unless a branch is a boolean literal**, where the term is a connective a backend emits as an
-  operator. That is what makes a guard chain cost nothing
-  ([cond-2026-09-19](gauntlet/results/cond-2026-09-19.md)).
-- **Iteration.** `loop x = z, … { c -> e; …; else -> e }` with `again(a, …)` (ADR 0015, 0056). `again`
-  is a jump; it may be an arm's body or end a block, never stand under an `if`. A binding before it is a
-  name, a tuple pattern, whose body after reduction is a host call's continuation, which runs once, now, and is a
-  tail position ([ADR 0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md)), or a `try` or
-  `expect` success arm, whose other arms leave the loop
-  ([ADR 0041](docs/decisions/0041-a-success-arm-is-a-tail.md)). **A `case` in a tail is a tail when each
-  arm is** ([ADR 0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md)): the
-  eliminator runs one arm once, so any arm may jump; such a case stands only in a tail, and an `if` still
-  may not jump, its condition being the loop's guard to hold. **Every
-  walker of a clause chain walks four forms** — `again`, `if`, `let`, and a host call's continuation —
-  and one that enumerates back edges and misses a form is unsound, not imprecise. **In the reader the
-  rule is a sort** (abstract.md W3, `core/jparse.go`): `again` is a Tail, J's reader refuses one that
-  stands where no jump can be taken and one of the wrong arity, and a loop's last arm, and only its
-  last, is `else`. A λ's body is never a tail, so a λ applied by hand to a jump is refused; a block's
-  binding binds one (ADR 0051). `match` was a loop whose arms have patterns; J writes it as a `loop`
-  guarded on its variables ([match.md](docs/spec/match.md)).
-- **No recursion** (ADR 0014). A balanced, data-independent recursion is a loop over levels, as
-  Karatsuba showed ([karatsuba-2026-08-30](gauntlet/results/karatsuba-2026-08-30.md)).
-- **Closures.** A closure may not survive staging ([closures-direction.md](docs/closures-direction.md)).
-  Host callbacks come in three tiers: tier 3, a manufactured closure that escapes, is refused, and
-  tiers 1 and 2 are specified and not built, on any backend (irstep4a §1)
-  ([callbacks.md](docs/spec/callbacks.md)).
-
-### Data
-
-Every data form is a function whose domain differs ([data.md](docs/spec/data.md)).
-
-- **Tables.** `Array(V)` is a function on `[0, len)` and indexing `t[i]` is application
-  ([tables.md](docs/spec/tables.md)). `build` zero-fills (§14.3). A length is bounded by the target's word
-  or by a target's `max-len` (§2.3.1).
-- **A table written as its GRAPH** — `array { 104, 105, 33 }` — takes the JOIN of its elements' exact
-  ranges, and at a boundary the DECLARED element decides and the literal must fit it
-  ([literal-elements.md](docs/literal-elements.md)). windows keeps qwords by choice.
-- **Local state** ([local.md](docs/spec/local.md), ADR 0047, 0052). Values are immutable. Mutation
-  happens only to a state binder of a block, `{ var b := array { 0 : _ ∈ 0..n-1 }; var x := 0; body }`,
-  sequential, whose **initializer decides each binder**: a table makes a buffer, a map former `map(cap)`
-  a map buffer (ADR 0058), anything else a cell (Ref τ ≅ Buffer τ 1). Thaw is
-  `var b := array { xs[k] : k ∈ 0..len(xs)-1 }`, a copy.
-  - **A buffer** is a state binder holding a table, written in program order, `b[i] := v` and
-    `b := f(b, …)` (ADR 0052); R0 (a fresh value) and R1–R4 (syntactic control of interference) are
-    decided on each place's scope, and the state translation S gives the core's threaded
-    `(build n (fn (b) …))`, one region, whose linearity `occurrences` checks on the residual (ADR 0018,
-    [tables.md §2.4](docs/spec/tables.md), `core/place.go`).
-  - **A cell** is read by name and written by `x := v` in program order, value the unit. The
-    loader translates every cell into loop variables (`core/cell.go`, the state-passing translation
-    over the flat tuple of the cells in scope, after resolution), so nothing below it learns cells
-    exist and a cell costs a loop variable. **Each elimination the translation assumes is marked
-    `((#elim op) λ)`** and decided by the reducer on op's normal form, since a static function could
-    run λ twice; a closure over a cell is refused. A loop variable's type is the join of its
-    initializer and its back edges' values.
-  - **A host writing a cell** (local.md §5–6, ADR 0048, `core/outcell.go`): at a declaration's `inout`
-    parameter, a cell in scope or `f(out S)`; inside the call the cell is a reference to a fresh
-    copy, `(#ref c)` … `(#deref r)`, impure, an ordinary argument through the retraction and the
-    variadic list. The IR's `cell T` and `cell-ref`/`cell-fresh`/`cell-get`; Go prints a variable
-    declared once at the top and its address, and the other printers refuse one.
-- **A scope's value** is its body's, and it may be **a product**
-  of frozen buffers and buffer-free values, taken apart by a tuple pattern
-  ([ADR 0031](docs/decisions/0031-a-builds-result-is-a-product.md), [tables.md §2.5](docs/spec/tables.md)).
-  An exit may be any term of the product's type: a host call declaring m results is a tuple by η for
-  products, `emit.EtaTails` ([eta-2026-09-28](gauntlet/results/eta-2026-09-28.md)):
-  - the pattern is a **join point**, emitted once after the scope and the loop in it;
-  - each name knows what its **projection** Pⱼ (the producer with every tail tuple replaced by its j-th
-    component) would tell a `let`, because ⟦Pⱼ⟧ = πⱼ⟦P⟧;
-  - **a store needs a live buffer**: a store into a frozen table or map is refused, and a map
-    buffer is linear. Both were accepted before and gave wrong answers;
-  - not built: an `again` inside the pattern's body. A variant out of a scope is built: a constructor is
-    the tuple (tag, payload), so it is a product, and η for products binds it (ADR 0041, sumloop-2026-10-06). A buffer parameter is `b ∈ Array(V) linear`, borrowed by reference
-    (ADR 0020, 0052 item 3):
-  - uniqueness is *assumed* at an export;
-  - linearity is *checked* through the body;
-  - a buffer may not be an element type.
-- **Tuples and products.** `(a, b)` is one object for products and several results, and `()` is
-  the unit, the terminal object 1 ([data.md §3.6](docs/spec/data.md)). A table of tuples
-  is flattened by currying before the checker runs, so no backend knows products exist
-  ([products.md](docs/spec/products.md), [values.md](docs/spec/values.md)).
-- **Variants.** A variant, `set S = 'a ∪ 'c(T)` (ADR 0064 item 7), its tags quoted (ADR 0059), is
-  closed, finite and non-recursive, and takes type arguments. Where it must
-  exist as data (a boundary, a loop's exit, a scope's) it is its tag and one slot per payload type of
-  its declaration, an unselected slot holding `#any`, the zero of its type (ADR 0042). `case`-of-case
-  makes both levels free
-  ([sums.md](docs/spec/sums.md), data.md §5.5). `option` is one declaration, in `lang`.
-- **Maps.** `Map(Int, V)`. A read `m[k]` gives `Option(V)`, every map has a declared capacity, and iteration
-  is `keys` in ascending order ([maps.md](docs/spec/maps.md)).
-- **Strings.** An element of the free monoid over Unicode scalar values. The operations are `concat`,
-  `""` and `string_of`; three text programs needed nothing more
-  ([string-literals.md](docs/spec/string-literals.md), [strings.md](docs/spec/strings.md),
-  [string-operations.md](docs/string-operations.md)).
-  **Every value a program holds is one** ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md), strings.md §8):
-  - a host's string is the host's type: on Go `go.bytestring`, any byte sequence;
-  - `string ≤ go.bytestring`, and the coercion emits nothing;
-  - the only way back is d, `go.text`, the Unicode Standard's maximal-subpart substitution, and the
-    portable `os.text_of` is d on every host;
-  - a declared result is `string` only where the host provably maps Σ* into valid UTF-8, and the
-    generator spells every Go `string` as `go.bytestring`.
-- **Not built:** records, symbols, `with`.
-
-### Integers
-
-- **What an `int` is.** ℤ (ADR 0026). A range is a type: `LO..HI` means a set of integers for
-  typing, a premise for the analyses, and a representation for storage (ADR 0003,
-  [integers.md](docs/spec/integers.md)). Bitwise operators are deliberately not promoted to the
-  language.
-- **Each target realizes a sub-lattice of intervals, by containment.** Its **word** is data,
-  `repr LO..HI word`, required of every target, with no default in the compiler: int64 on Go,
-  the JVM and windows, ±(2⁵³−1) on JS, 32 bits on `blas`. Go also declares
-  `repr 0..2^64-1 word`: **U, held natively as `uint64`**, selected by
-  `ir/words.go` on the ring homomorphism ℤ → ℤ/2⁶⁴ (`+ − ·` in either 64-bit type after the
-  residue map; `< = / %` only where one realization holds both operands). A binding is ρ of its
-  proven fact: `int` in S, `u64` in U∖S, `big` only past both and only where a claim above the word
-  demands it (ADR 0079): a declared set is a claim and names no representation, except where the claim is
-  the fact, an entry point's parameter or result.
-- **Legality is per (program, target).** Every target that accepts a program computes the same
-  integer; **portability is computed and reported**, and W(S) = ⋂ word_T is a derived number
-  (`go run ./cmd/portable SRC`). A language operation is proven only inside the signed word; a `u64`
-  primitive inside U.
-- **Bounded by default** (ADR 0019, amended by 0026). An operation not proven inside the target's word
-  is a compile error on that target, cleared by one of:
-  - narrowing the range;
-  - claiming a set above the word (`Nat`, `0..2^100`), the consent to arbitrary precision, used only where
-    the facts leave the word (ADR 0079);
-  - `-checked`, which asks for the trap.
-- **At a host boundary an integer is the host's**: `go.int64` is the word, `go.uint64` is U, and a
-  host precondition is the host's own boundary (`hex.EncodedLen`: −2⁶² ≤ n ≤ 2⁶²−1).
-- **Above the word.** A target chooses `repr big host` or `repr big limbs`. The bound is
-  enforced on both, so representation never changes which programs are legal
-  ([bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md)). It is ONE set per program, and it
-  has a sign: [0, 2ᵏ) or (−2ᵏ, 2ᵏ), checked by `big-fit` or `big-fit-signed`. Limbs hold a
-  magnitude, so a signed program takes the host's bignum or is refused
-  ([ADR 0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md), [bigsign-2026-09-24](gauntlet/results/bigsign-2026-09-24.md)).
-  Which values are held exactly is chosen on the IR (`ir/big.go`, ADR 0034), and on limbs each
-  operation is an inlined instance of the limb library, checked once per width (`ir/limbs.go`,
-  ADR 0035).
-- **Element width follows the range.** `repr LO..HI host "T"` picks the narrowest host type containing the
-  range ([elemwidth-2026-08-27](gauntlet/results/elemwidth-2026-08-27.md)).
-
-### Types, contracts and facts
-
-- **The type checker** runs on the residual, which is monomorphic, first-order and closed
-  ([types.md](docs/spec/types.md)). A header's claim is checked in two directions. **Table(σ) has its
-  three kinds of rule** (types.md §3.1, [tabletype](gauntlet/results/tabletype-2026-09-29.md),
-  [tableelim](gauntlet/results/tableelim-2026-09-29.md)): introduction by its constructor;
-  elimination, `a[i] : σ` and `len : Int`; and the store, `b[i] := v` at σ. An element may be open, a
-  unification variable solved by the first store or read: `?`, or `?int`, the sort ℤ with its
-  realization left to the IR (ADR 0033). A map's read is not typed. The IR checks each yield against
-  the declared result by sort too (`ir/claim.go`); W5 could not, for a non-table result.
-  **A conditional joins two branches at the larger** where they are strictly comparable under a
-  declared subsumption and of one host representation, as `string ≤ go.bytestring` (types.md §3.2);
-  the IR's typing reads the same relation, `Target.JoinSameRepr`. A join across two representations,
-  a concrete type with its interface, is not built.
-- **A declared precondition is an obligation at every call** ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
-  [refinements.md §6b](docs/spec/refinements.md)):
-  - on a host declaration, at every call site — its `where` and, since gotarget-2026-09-30, its parameters'
-    declared ranges, which a template's conversion used to truncate silently;
-  - on a definition, at every call it is inlined into, exported ones included when the call is inside
-    the program; the obligations inlining propagates are still checked too;
-  - on an export called from outside, assumed.
-
-  **A declared result is a claim at its definition** ([ADR 0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md),
-  postconditions.md §2): the result's set and the `ensure` are decided against the body, each parameter
-  at its set and the `where` assumed, on every definition, exported or not; a tuple's set factor by
-  factor; in the words only, above them ADR 0029's representation (`ir.CheckClaim`, run by
-  `emit.CheckSignatures` in `gen` and `build`).
-
-  A parameter's range is the same claim as a `where` (the reader desugars one into the other), checked
-  on the argument. **Above the word it denotes the least set a sign and a bit length decide** —
-  [0, 2ᵇ) when LO ≥ 0, (−2ᵇ, 2ᵇ) when LO < 0 ([ADR 0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md)) — and a declared
-  result there tells only the one set the whole program enforces. The reducer marks each obligation, and `emit.DischargeRequires` decides it immediately
-  after reduction, in order:
-  1. a literal;
-  2. the interval analysis;
-  3. the refinement layer, `ensures` included.
-
-  It then erases the marks, so nothing downstream sees one.
-
-  **The obligations are in the residual, in every pipeline**
-  ([ADR 0037](docs/decisions/0037-a-programs-obligations-are-in-its-residual.md),
-  [hazard-2026-10-02](gauntlet/results/hazard-2026-10-02.md)): `Target.Env` installs every contract,
-  so reduction always marks; a literal outside its range and a false `where` stay as marks; deciding
-  is one procedure, `ir.DecideMarks`, which `ir.Entry` and each `FromResidual` call; and `emit.Refine`
-  and `ir.ToP` refuse a residual that still carries a mark. Until then only the three drivers marked
-  at all, and `digit(12)` compiled through any other path.
-- **An obligation is discharged, or the program is refused** ([refinements.md §3a](docs/spec/refinements.md)).
-  It is the domain condition of an application, and a program denotes only if every application is
-  defined. Three routes discharge one:
-  - a proof in the fragment, by cases, or from a table's content facts;
-  - an assumption that is the same term;
-  - evaluation of a comparison of literals.
-
-  "Propagated, not proven" is gone: it emitted the program and relied on a host check that JavaScript
-  and x86 do not make. `-checked` does not clear an index.
-- **`ensures` is the exact swap** ([postconditions.md](docs/spec/postconditions.md)). A pure call is
-  an atom of the linear fragment, and its `ensures` holds where the term is read: a primitive's
-  arguments and a `build`'s size (§5). A declaration states a linear law as an `ensures`, not in a
-  comment: `EncodedLen`'s was missing, and Go's own idiom for sizing `Encode`'s buffer was refused
-  ([hexlen-2026-09-24](gauntlet/results/hexlen-2026-09-24.md)).
-- **Facts** are guarded boundedness axioms of a local theory extension, instantiated on present terms
-  ([facts.md](docs/facts.md), [theories.md §7](docs/spec/theories.md), `emit/lang-facts.oro`). Only F-B
-  is admitted; F-C, F-D and F-E are reserved. **Content facts (F-D₁) are derived, never declared**:
-  - Houdini invariants;
-  - induction on a buffer's store chain;
-  - components of a strided table;
-  - **record facts**, a relation between the components of every record of a table read at stride k,
-    `(#rec k φ)`, established where a loop stores a record whole and read with the record's other
-    components beside it (refinements.md §5e).
-
-  See [array-facts.md](docs/array-facts.md). **A table's read is a linear atom**, keyed by the table and
-  the index's linear form, so a guard on a read is a linear fact (§5e). Loop invariants include
-  **translation invariants**, Karr's affine relations when every back edge is a translation (§5c);
-  a loop the ordinary walk refuses is checked again with its **first iteration peeled** (§5d); a
-  disequality beside an order is strict (§3c); a failed `or` is a conjunction and a failed `and` a
-  clause a later guard resolves (§5d). Demanded by the corpus's clamps
-  ([claimsdemand-2026-10-13](gauntlet/results/claimsdemand-2026-10-13.md)): no program needs a
-  hand-written claim, every fact a clamp lacked was derivable, and freq has one clamp left, `slen`,
-  whose fact the IR's interval domain does not hold.
-- **A name bound to a value is bounded by the value's tails**, through `if`, `let`, a host call's
-  continuation and a loop's exits (refinements.md §5a): a status that is 0 or 1 at every exit is in
-  [0, 1]. **A loop variable that threads a buffer has the buffer's length** (§5b): `set` preserves
-  length, each variable's equation is verified at every back edge, and the greatest inductive subset
-  is kept. Until bufio-2026-10-01 that was known only where the variable was spelled like its buffer.
-- **The facts' equations are a solved form** (refinements.md §4): an equation is added by Gaussian
-  elimination, never assigned. Until lengtheq-2026-10-03 a second equation under the same key
-  overwrote the first, so the orientation of a true precondition decided whether a program compiled.
-
-### Declarations and targets
-
-- **Declarations are theories** (ADR 0021, [spec/theories.md](docs/spec/theories.md)):
-  - a module is a theory;
-  - a target is a model;
-  - `use`/`export`/`provides` are morphisms;
-  - a file is the glue of its forms.
-- **What is built:**
-  - target files of host declarations, `fn f(x ∈ S) (R) pure { host expr "F(${x})" import "p" }`
-    ([target-files.md](docs/spec/target-files.md), ADR 0064, 0066 item 9);
-  - types owned by their module;
-  - companions and inclusions, `axiom T ⊆ I`, from which subtyping is derived, written as child
-    modules inside their package;
-  - constants, `N ∈ set { v } = host "…"`, and constants as range endpoints;
-  - manifest types unfolded by δ;
-  - `D_T`, definitions inside `provides`.
-- **A target is a chain of layers** `Δ_T = L₁ ▷ … ▷ Lₖ`: glue within a layer, override between layers.
-  The source's own directory is the nearest layer ([target-system.md](docs/spec/target-system.md)).
-  The backend is `backend NAME`, from a closed set.
-- **A host module's path is the HOST'S path**, prefixed by the host — `go/encoding/hex`,
-  `java/java/util/regex` — because `ι(p) = HOST ++ p` is injective and commutes with `lastSegment`,
-  so an import's default alias is the host's own name and needs no `as` (ADR 0025,
-  [modules.md §3.1](docs/spec/modules.md)). A type's companion is a child of its package. **The file
-  is the path**: `targets/go/encoding/hex.oro`, and the target loader walks. **A module may contain a
-  module** — a child's path is its parent's followed by its own, so a companion is written inside its
-  package ([target-files.md §1a](docs/spec/target-files.md),
-  [nestmod-2026-09-20](gauntlet/results/nestmod-2026-09-20.md)). The absolute spelling stays legal,
-  because a fragment in another layer must be able to add to a module it does not enclose. **A bare
-  type name resolves lexically** — the declaring module, each enclosing module by path, then the root,
-  on the glued target, with shadowing refused — so a companion writes `self ∈ NumError` and a child of
-  `go` writes `bytestring` ([theories.md §3.4](docs/spec/theories.md), ADR 0021,
-  [names-2026-09-25](gauntlet/results/names-2026-09-25.md)).
-- **Host declarations are written by hand**, by someone who read the host's source. The generator
-  checks them (ADR 0022) and never claims what it cannot justify (ADR 0023).
-- **What a host call does to a buffer** is declared as a write-borrow or a consume, following
-  [host-buffers.md](docs/host-buffers.md), in the caller's view (ADR 0070): a `linear` parameter is
-  lent, a result `p'` is storage the host hands back (an append), and its absence is a write in place,
-  whose template is the host's own call (`hex.Encode(${dst}, ${src})`, no wrapper).
-
-## Constraints that override normal instincts
-
-Violating these produces code that looks fine and undermines the project.
-
-**Anything promoted to the LANGUAGE works on every target, and the compiler finds the
-implementation.**
-- A target may neither decline nor declare a language construct (`fn`, `def`, `loop`, `if`, `let`,
-  `=`, integer operators, tuples, variants).
-- The capability graph is for **target-native names** (`go.map`, `x64.andb`), where "this target
-  cannot do it" is a true answer.
-- The precedent is `values`. It was reverted when it arrived as a construct two targets declined; it
-  came back with Java getting a record and windows getting `rax`/`rdx`.
-
-**Never lower further than the target requires.** Emitting a hand-rolled hash table into Go, which
-has `map`, is wrong on performance, size and ecosystem access at once.
-
-**But never assert which host construct is fastest: measure it** (ADR 0008). The first baseline
-refuted four such inferences, and the refutations did not all reproduce either. Treat host compilers
-as black boxes with measured behaviour.
-
-**Staging must never change an answer** (ADR 0009). Compile-time arithmetic must be bit-identical to
-runtime.
-- Force every compile-time float operation through explicit `float64`; Go's untyped constants fold
-  `0.1+0.2` differently.
-- Integers fold only inside the target's word, and every fold is checked against int64 overflow.
-- Division by zero never folds.
-
-**Never make the core a superset of one host.**
-- JavaScript has no integers, structs or int64.
-- The JVM has no unsigned types, `goto` or tail calls.
-- Go restricts `goto` and forbids pointer arithmetic.
-
-**Never introduce boxing or hidden allocation into the core.** That is what killed the predecessor
-([design-direction.md §2](docs/design-direction.md)). The one allocating construct is visible in the
-source.
-
-**Never add unstructured control flow.** Structured control only.
-
-**Performance claims are measured against hand-written code in the target language**, and a
-decision never rests on less than the ~15% noise floor of the hybrid P/E-core laptop the benchmarks
-run on.
-- When adding to the gauntlet, carry both the form expected to win and the form expected to lose.
-- Check the host compiler's own decisions as well: `go build -gcflags="-m -m"` and
-  `-gcflags="-d=ssa/check_bce/debug=1"` have each been decisive where timings were ambiguous.
-
-**Primitives are declared in `targets/*.oro`, not in Go.** Adding a case to `emit/*.go` for a host
-function is the wrong place. Only structural constructs live in code.
-
-**Prefer deriving a fact over clamping around it or declaring it.**
-- A clamp hides the fact instead of establishing it.
-- A declared `where` or range on a definition is checked at its calls (ADR 0028), but it is a duty
-  on the caller, not a proof: what the body needs is still derived at the inlined site.
-
-A clamp in a program is a missing proof.
-
-## Lessons that recur
-
-Each of these has bitten more than once. The instances are in the results they name.
-
-- **A path nothing runs is a path nothing checks.** A `; skip:`, a rebuilt term discarded unless
-  `-checked` is on, a backend no target used: each hid a real bug for weeks. The mirror: an escape
-  taken everywhere checks nothing either — every differential case was built `-checked`, so a case's
-  lost proof became a trap and passed (bounds-2026-09-24). And **a shape an analysis does not know is
-  a shape it does not check**: the interval pass returned ⊤ for a host call's continuation, and later
-  for a tuple from a `build`, without evaluating either side, and the type checker walked neither
-  (prodresult-2026-09-25). And **a test for a kind nothing has**: the product pass recognised a loop
-  by the kind `loop`, the language's is `iterate`, and its loop branches never ran; it worked where a
-  loop variable was spelled like its buffer (bufio-2026-10-01). The portable `WriteFile` compiled on
-  one host of three for as long as no program called it elsewhere (libos-2026-09-30).
-- **A harness that cannot fail proves nothing.**
-  - Every soundness test must be shown to fail against a planted bug, including the bug that shipped.
-  - Refusal-shaped properties need an anti-vacuity guard.
-  - Random search cannot test what over-approximation makes sound; pin those with exact witnesses.
-- **A relation relaxed for one check weakens every check that reads it.** ADR 0033 made the checker's
-  integer sort ℤ, and the verifier's representation rule (W5) read the same relation: it stopped
-  telling `int` from `u64` (irstep4g) and then from `big` (irstep4h), and each time a planted fault
-  passed. When a relation is relaxed, audit every consumer of it.
-- **"Not refused" is not "proven".** A path that returns success with a note has checked nothing.
-  The refinement layer's own was *"propagated, not proven"*: an index it could not bound was emitted,
-  and on JavaScript an `int` function returned `undefined` (noprop-2026-09-25). And **a check that
-  runs only where a caller remembers to ask is not a property of the program**: the contract marks
-  existed only where a driver installed them, and every pass after reduction read an undecided one
-  as its value (hazard-2026-10-02). State a precondition on the consumer, and have it refuse.
-- **A comment that states what code does is not a review of whether it should.** `scKind` was
-  documented "per the LAST edge examined", and a measure was documented as withheld that never was:
-  both sentences described a false proof exactly (matchguard-2026-09-24). Only a planted fault shows
-  whether a rule's conclusions are true.
-- **`Body()` and `openFresh` rebuild terms.**
-  - A map keyed by a term pointer answers about a copy.
-  - `FnClosed` does not close.
-  - Printing hides an unbound binder.
-  - The structural test is: *a lambda's closed body never contains a free name equal to its own
-    parameter.*
-  - **A context keyed by name is captured by the name alone.** The term was faithful; the facts
-    about a parameter `n` were read as facts about a loop variable `n` (bufio-2026-10-01). When a
-    proof holds, ask what would make it false: here, renaming one variable. Again in
-    localtab-2026-10-14: a table's length named a binder of its own value, `#n`, read outside that
-    value's scope, where two sibling tables' `#n` were one variable and an index proven against the
-    longer table read past the shorter.
-- **The emitter must be a function of its input.** Iterating a Go map without a total order made
-  output vary between runs. Test it by running twice. Its input is the IR's text, and `cmd/check`
-  reprints every file from it: that found process-wide sinks a reset missed and an x86 file that
-  depended on the order of the export list (irtext-2026-10-04).
-- **A survey's first number describes the measurer.** Seven corrections so far, in both directions.
-  A measurement's *scope* does too: requires-2026-09-24 counted `where` only on non-exported
-  definitions and missed `win/fmt.print-int`, an export every Windows harness print calls.
-  And the emission sweep compiles EXPORTS: the differential cases' `run` and the acceptance programs'
-  `main` never pass through it, so "the baseline shows none" did not mean the corpus had none
-  (noprop-2026-09-25).
-  Read ten members of a figure one at a time before it becomes a plan item. And a *count* is a
-  measurement too: the corpus totals counted an operation in a guard three times, once per
-  evaluation, for as long as the figures have been quoted (matchguard-2026-09-24).
-- **Benchmark-method errors have many species:**
-  - a closure inside the reference;
-  - a fixed iteration count;
-  - benchmarks sharing one process, including allocating ones;
-  - V8 eliminating unused work;
-  - two things changed at once;
-  - a silently modified input;
-  - comparing against HEAD after a regression has landed;
-  - timing one job among many run in parallel, which inflates it unevenly (the tokeniser ~2.5×);
-  - **a stopped run that kept running**: stopping a background job ended its shell, not its loop,
-    so two runs timed side by side and the tokeniser read 1.14× for 1.04× (gauntlet-2026-09-29).
-    List the processes before measuring;
-  - one timing call site for every case in a JVM, megamorphic after a few lambdas: one case per JVM;
-  - a baseline binary built from `git stash` (untracked files stay behind, so it fails to build and
-    its "timings" are fast failures), or one reading the current commit's target files, which it
-    cannot parse. Time the baseline in a **worktree**, with its own targets.
-
-  Make a suspicious result explain itself before recording it.
-- **A refusal can hide a wrong answer.** Removing the refusal is often what finds it.
-- **A program finds what a construct suite cannot.** `tally`, `jsonfmt`, `freq`, `tree` and `u128` each
-  found bugs in constructs the differential suite already covered; size and combination were what was
-  new.
-
-## Adding to the language
-
-**Nothing goes in without a specification saying how it behaves on every target.** Write the spec
-first. The first time a construct shipped without one, writing it immediately found three silently
-accepted shapes.
-
-The test is not "is it useful":
-1. What does it mean, independently of any target?
-2. What does each target do with it, and do they agree?
-3. If they disagree, is the disagreement **observable**? If so, it is Tier 2 and carries no
-   portability claim.
-
-Every primitive is classified in [primitives.md](docs/spec/primitives.md). A Tier 1 name without a
-conformance case ([gauntlet/conformance/](gauntlet/conformance/)) is decoration.
-
-## Working conventions
-
-**Always be mathematical and algebraic, and reach for the literature.** This is hamza's standing
-rule. Before building or declaring anything, say what it IS:
-- the set;
-- the operation;
-- the law it obeys;
-- the theorem that makes the design sound;
-- where the literature already answered it.
-
-A host package is an algebra before it is a list of functions. A declaration is a claim about that
-algebra: state the law, make the declaration say as much of it as the language can check, and name
-the part it cannot. Deriving what a construct is and measuring whether it is good are different jobs.
-Do the first before the second, and never substitute a list of cases for a derivation.
-
-**Follow the derivation where it leads, even into a rewrite** (hamza, 2026-10-06). This rule covers
-the language and the implementation alike. When the mathematics, the algebra or a derivation points to
-a better design, propose it. "Better" means better in any way: simpler, more uniform, more general,
-sounder, faster, smaller. Propose it even when it means rewriting a lot of code. Rewriting is not a cost
-to avoid: this is Oroboros, and it eats its own tail. Never keep a design because changing it is work,
-and never present the cheaper option as the recommendation when the algebra says otherwise. Say what
-the derivation shows, what it would replace, and what the rewrite costs, and we discuss it. When the
-algebra leads to the recommendation and the question is already in front of hamza, take it.
-
-**Every significant decision gets an ADR** in `docs/decisions/`, using the template in its README.
-The "Why not" section is the point. Reversing a decision means a new ADR that supersedes the old one.
-Do not edit decision history.
-
-**A result gets its own document** in `gauntlet/results/NAME-YYYY-MM-DD.md`. It records what was
-measured, what failed first, what it cost, and what was not built. Update this file only where the
-**state** changed.
-
-**Keep documents current rather than accumulating drafts.** A stale design document is worse than
-none. Status lines ("nothing built", "no decision") go stale fastest; fix them when the thing ships.
-**README.md's "Current work" section is the plan for a reader** (hamza, 2026-10-21): it is updated when
-a plan is set and when one of its items finishes, with its date, and says no more than the plan does.
-
-**Emission is byte-identical by default** (hamza, 2026-09-15). `cmd/check` compares every source ×
-target's emitted code, outcome, proof counts and refusal text against the baseline in
-`gauntlet/check/`. A difference is a change for review:
-- **keep it** when it is correct and no slower, with `-accept "reason"`. That requires the compiler
-  and differential steps passing in the same run, and logs the reason in `gauntlet/check/ACCEPTED.md`;
-- **otherwise fix the code.**
-
-**Compile time is gated too** (gauntlet/check/README.md, "The rule for compile time"): a compile at
-1.5× its baseline time **and** 250 ms slower is a change for review, kept only with `-accept`.
-Before it is reported it must survive a second sweep and then a **pair**: serial, interleaved runs
-against `gen` built from the commit that last wrote `compiletime.txt`, at `GOMAXPROCS=1`. A
-neighbour's load moves freq 1.6× in the sweep, and only a pair cancels it
-([compiletime-2026-09-25](gauntlet/results/compiletime-2026-09-25.md)). **A faster compile is the mirror**, reported and
-recorded by `-accept`; a gain below the rule's resolution is locked in deliberately with
-`-accept "reason" -retime`. Profile one compile with `go run ./cmd/gen -cpuprofile FILE …`. The sweep's times are not serial times — the
-tokeniser costs ~2.5× its serial time among 16 parallel compiles — so **to say how long one program
-compiles, time its binary serially and warm, and compare against a binary built at the baseline's
-commit, not against HEAD**.
+| A host call's continuation is a tail | [0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) |
+| A definition's parameter range and `where` are obligations at its calls | [0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md) |
+| Above the word, one set decided by sign and bit length, enforced on every representation | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
+| A host's string is the host's; ours is entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
+| A `build`'s result is a product of frozen buffers and values | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
+| The IR is structured SSA with π-parameters; every backend prints from it | [0032](docs/decisions/0032-the-ir-is-structured-ssa.md) |
+| An integer's representation is chosen on the IR; the checker's sort is ℤ | [0033](docs/decisions/0033-an-integers-representation-is-chosen-on-the-ir.md) |
+| The rung above the word is a least fixed point of supply and demand (supply amended by 0079) | [0034](docs/decisions/0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md) |
+| A compiler library is a theory checked once; a use is an inlined instance | [0035](docs/decisions/0035-a-compiler-library-is-a-theory-checked-once.md) |
+| A residual's binders are named apart along the scope chain | [0036](docs/decisions/0036-a-residuals-binders-are-named-apart.md) |
+| A program's obligations are in its residual, decided by one procedure | [0037](docs/decisions/0037-a-programs-obligations-are-in-its-residual.md) |
+| The IR's text is the printers' whole input; read by others, written by nobody else | [0038](docs/decisions/0038-the-irs-text-is-read-not-written.md) |
+| The targets are Go, Windows, Android and the browser | [0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md) |
+| A failure is a value of a marked sum; `try` is bind, `expect` the one way to give up | [0040](docs/decisions/0040-a-failure-is-a-value-of-a-marked-sum.md) |
+| A success arm is a tail; a loop yields a sum | [0041](docs/decisions/0041-a-success-arm-is-a-tail.md) |
+| A variant's value is its tag and one slot per payload type | [0042](docs/decisions/0042-a-variants-value-is-its-tag-and-its-slots.md) |
+| Relevance is checked at β on every path; `ignore` is !_A | [0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md) |
+| A partial success's error is relevant | [0044](docs/decisions/0044-a-partial-successs-error-is-relevant.md) |
+| A host's empty interface is a type | [0045](docs/decisions/0045-a-hosts-empty-interface-is-a-type.md) |
+| A variadic is one declaration over a table | [0046](docs/decisions/0046-a-variadic-call-is-its-declaration-applied-to-a-word.md) |
+| Local state is a scope; a cell is a loop variable | [0047](docs/decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) |
+| A host writes a cell through a reference to a fresh copy | [0048](docs/decisions/0048-a-host-writes-a-cell-through-a-reference.md) |
+| Types are sets and the logic never prints; ρ from proven sets; own procedures | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
+| The abstract syntax is the semantics' initial algebra | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
+| A definition is a named λ carrying its claims | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
+| A buffer is a state binder holding a table, in program order; R0–R4 | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
+| The arrow is a claim on a host's callback parameter (not built) | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
+| `let` and `local` are one scope | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
+| A loop variable is bound by application | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
+| One arm grammar for choice and iteration (the surface: 0068) | [0056](docs/decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md) |
+| The handled bind is a derived operator; its success arm a tail | [0057](docs/decisions/0057-the-handled-bind-and-its-tail.md) |
+| A map buffer is a state binder holding a map | [0058](docs/decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md) |
+| A tag is a quoted symbol; collections have one former | [0059](docs/decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md) |
+| Membership `∈`; an imported tag is qualified | [0060](docs/decisions/0060-j-set-operators-and-qualified-tags.md) |
+| Separation and replacement by the binder's place (not built) | [0061](docs/decisions/0061-separation-and-replacement-by-the-binders-place.md) |
+| A header is a membership statement; `fn`, `spec`, `lemma` (the logic not built) | [0062](docs/decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md) |
+| A type is a static value; instantiation is application | [0063](docs/decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md) |
+| A file is a theory; a declaration a header and one body (item 4 superseded by 0078) | [0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md) |
+| J writes sets in TLA+'s symbols | [0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md) |
+| A definition over sets is a λ returning a λ; named splices `${x}` | [0066](docs/decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md) |
+| The lexical level | [0067](docs/decisions/0067-the-lexical-level.md) |
+| **J is the surface** | [0068](docs/decisions/0068-j-is-the-surface.md) |
+| An observer at a host parameter | [0069](docs/decisions/0069-an-observer-at-a-host-parameter.md) |
+| A host header is the caller's view of a borrow | [0070](docs/decisions/0070-a-header-is-the-callers-view-of-a-borrow.md) |
+| Work stays where it was written: β counts evaluations | [0071](docs/decisions/0071-work-stays-where-it-was-written.md) |
+| A declared result is a claim decided at its definition | [0072](docs/decisions/0072-a-declared-result-is-a-claim-decided-at-its-definition.md) |
+| A set's name denotes a set | [0073](docs/decisions/0073-a-sets-name-denotes-a-set.md) |
+| A segment is its function restricted wherever its table is | [0074](docs/decisions/0074-a-segment-is-its-function-restricted-wherever-its-table-is.md) |
+| A host `where`'s constant bounds are its parameter's range | [0075](docs/decisions/0075-a-wheres-constant-bounds-are-the-parameters-range.md) |
+| A case in a tail is a tail when each arm is | [0076](docs/decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md) |
+| An unbounded end is omitted, `lo..`; `Nat` is ↑0 | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
+| A module's interface is what it marks `pub`; `export` an entry point | [0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
+| A declared set is a claim, and the facts choose the representation | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
 
 ## Build commands
 
 Module path is `oroboros` (local).
 
 ```bash
-go run ./cmd/check               # every check — gauntlet/check/README.md
-go run ./cmd/check -skip tooling # everything but the host surveys
-go test ./core/ ./emit/          # the compiler
-go test ./core/ -run TestBeta    # one test
-go vet ./...
-```
-
-```bash
-go run ./cmd/build -target=go -o hello examples/hello.oro   # a real binary
-go run ./cmd/oro -target=go examples/native/dot-go.oro      # reduce to normal form
-bash gauntlet/regen.sh                                      # regenerate every file the gauntlet benchmarks
+go run ./cmd/check                 # every check (gauntlet/check/README.md)
+go run ./cmd/check -skip tooling   # everything but the host surveys
+go run ./cmd/check -accept "why"   # keep this run's emission as the baseline, and log why
+go test ./core/ ./emit/ ./ir/...   # the compiler
+go run ./cmd/build -target=go -o hello.exe examples/hello.oro   # a real binary
+go run ./cmd/oro -target=go examples/native/dot-go.oro          # reduce to normal form
+go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   # emit, and write the IR
+go run ./cmd/intervals -v examples/table/sieve.oro go           # what the decision proves, and what not
+go run ./cmd/portable examples/io/wc.oro                        # which targets accept a program, and why
+bash gauntlet/regen.sh                                          # regenerate the gauntlet's 26 files
 cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5   # generated vs hand-written
-go run ./cmd/intervals -v examples/table/sieve.oro go     # what the IR's decision proves: operations in the word, loops terminating, and each unproven one
-go run ./cmd/portable examples/io/wc.oro                  # which targets accept a program, why the others refuse, and W(S) — ADR 0026
-go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   # also write the canonical IR (docs/spec/ir.md)
 ```
 
-- `gauntlet/go`, `gauntlet/js`, `gauntlet/java` and `experiments/legibility` are **separate modules**.
-  `cd` into them before running their tests.
-- `gauntlet/fmt/*.go` carry `//go:build ignore`; they are standalone scripts run with `go run`.
-- On Windows, Git Bash's `/tmp` is not visible to native tools; use the session scratchpad.
-- **Line endings are LF**, pinned by `.gitattributes` (`* text=auto eol=lf`), whatever a machine's
-  `core.autocrlf` says. The four Windows scripts are CRLF and the emission baseline is `-text`. So
-  `gofmt -l` means what it says; if it ever lists files nobody edited, check the endings first.
-- A **doctor**, which would report missing toolchains, is wanted and deliberately not built yet
-  ([build.md §6](docs/spec/build.md)).
+- `gauntlet/go`, `gauntlet/js`, `gauntlet/java` and `experiments/legibility` are separate modules: `cd`
+  into them first. `gauntlet/fmt/*.go` are `//go:build ignore` scripts run with `go run`.
+- On Windows, Git Bash's `/tmp` is not visible to native tools: use the session scratchpad. A heredoc
+  eats backslashes: write a script containing `\n` with the Write tool, not through bash.
+- **Line endings are LF** (`.gitattributes`); the four Windows scripts are CRLF and the emission baseline
+  is `-text`, so `gofmt -l` means what it says.
 
 ## What exists
 
 | | |
 |---|---|
-| `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`, σ_J in `jspell`), J's rendering of what a message quotes (`jshow`), and the raw reader of the IR's text and core terms (`raw`); abstract Oroboros's trees (`abs`, `decl`) and D into the core term (`desugar`, `forms`); terms, β/δ reducer, module loading, variants, hygiene; the state translation S for cells and, in program order, buffers (`cell`, `place`: the borrow, R0–R4) |
-| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
-| `presburger/` | The Omega test (Pugh 1991): satisfiability of linear constraints over ℤ, complete, overflow and budget reported as unknown; ADR 0049's first own decision procedure, a soundness witness for the refinement layer's entailment today (presburger-2026-10-11) |
-| `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`; a declaration's tree, `hostdef`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
-| `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |
-| `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |
-| `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
-| `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `count`, the first program with cells, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`, `ages`, cells the host writes, and `shape`, a delimited table read with `bufio`'s Reader), `os/` (`du`, a directory walk, and `ls`, a recursive listing), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
-| `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
-| `gauntlet/balance.py` | The balance of effort, counted as every assessment counts it, at any revision: `python gauntlet/balance.py 137e9c6 HEAD`; `--nodes` adds the language's size in core-term nodes (`balance_nodes.go`, run in a worktree of each revision) |
-| `gauntlet/surface/` | The surface's measurements: `tokens.go` (installments 2–8's programs, read from surface-design.md) and `visibility.go` (how much of a Go package is public). The ones that read today's corpus (scopes, control, data, claims, decls, apply, templates, lexical, stores, and `gauntlet/types/namespace.go`) are deleted; recount them at `0c6470f` |
-| `gauntlet/stdlib/` | The four host surveys, which write their target files in J through `jdecl`; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, twenty programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, `fmt-scan`, Go storing through cells, and `errors-astype`, a declaration over sets applied to one (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |
+| `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`), σ_J (`jspell`), J in messages (`jshow`), the raw reader of core terms and the IR's text (`raw`, `read`); the trees (`abs`, `decl`) and D (`desugar`); terms, the β/δ reducer and module loading (`reduce`), variants (`sum`), hygiene, the state translation (`cell`, `place`), β's work count (`work`), Σ_L |
+| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/x86` |
+| `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
+| `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
+| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/`; `blas` and the `tutorial*` targets parameterize the normal form for the book |
+| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num`, `win` |
+| `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
+| `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
+| `gauntlet/` | hand-written references, `results/`, `check/` (the baseline), `differential/` (cases on four targets, proving their arithmetic unless `; checked:` says why), `conformance/`, `regen.txt`, `balance.py`, `surface/` (the surface's measurements) |
+| `gauntlet/stdlib/` | the four host surveys (writing J through `jdecl`), `coverage.go`, `callbacks.go`, twenty acceptance programs, and `tooling_test.go`, which checks every hand declaration against its host |

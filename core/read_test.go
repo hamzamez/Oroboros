@@ -130,7 +130,7 @@ t = loop_forever(1)`)
 	if err == nil {
 		t.Fatal("recursion must be rejected")
 	}
-	for _, want := range []string{"loop-forever", "fold-range", "0014"} {
+	for _, want := range []string{"loop-forever", "`loop` with `again`", "0014", "0015"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %q", err, want)
 		}
@@ -161,10 +161,16 @@ t = even?(3)`, "sub")
 	if err == nil {
 		t.Fatal("mutual recursion must be rejected")
 	}
-	for _, want := range []string{"even?", "odd?", "mutually recursive"} {
+	for _, want := range []string{"even?", "odd?", "mutually recursive", "`loop` with `again`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %q", err, want)
 		}
+	}
+	// It names the construct the language has: fold-range left with the
+	// portable layer (portable-2026-09-29), and the message kept it until
+	// docs-2026-10-25.
+	if strings.Contains(err.Error(), "fold-range") {
+		t.Errorf("error %q names fold-range, which the language no longer has", err)
 	}
 
 	// An unused recursive definition is still rejected: every definition is

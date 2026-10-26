@@ -922,6 +922,24 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// the spelling the compiler already produces — β on a map literal builds
 	// `some` and `none` wherever the read occurs. A module finds them after its
 	// own declarations because `resolve` leaves a name it does not define bare.
+	// A DEFINITION INTRODUCES A FRESH NAME (a definitional extension: Shoenfield
+	// 1967, §4.6). Σ_L, the language's signature, is the names J's reader emits
+	// bare, so a module defining one does not extend the theory, it redefines a
+	// symbol of it: resolution would capture every use of the construct in that
+	// module (`if c { a } else { b }` reached the module's `if`, and a function
+	// answered 7 whatever its argument), and in the root δ would ignore it beside
+	// the target's (ADR 0002's ▷), a definition with no effect. Both are refused.
+	for _, m := range mods {
+		for _, n := range m.Order {
+			if LanguageSignature[n] {
+				return nil, nil, fmt.Errorf("%s defines %s, which is the language's own: J's reader "+
+					"writes its constructs with these names (`if c { a } else { b }` is `if`, `a + b` is "+
+					"`+`), so a definition would capture them in its module or be ignored beside the "+
+					"target's. A definition introduces a fresh name; choose another",
+					modLabel(m.Path), ShowName(n))
+			}
+		}
+	}
 	langOrder, langDefs := OptionSum().Defs()
 	for _, n := range langOrder {
 		p.Defs[n] = langDefs[n]
@@ -1155,6 +1173,27 @@ func OptionSum() *Sum {
 	}, Success: "some"}
 }
 
+// LanguageSignature is Σ_L, the names the language owns: the ones J's reader and
+// Load's expansions emit unqualified, so that no module may define one. It is
+// the program's side of the rule a target file meets (emit's coreNames and
+// langOps, which a test holds inside this set): a construct promoted to the
+// language works on every target, and neither a target nor a program may
+// declare it.
+var LanguageSignature = map[string]bool{
+	// control and binding (ADR 0015, 0017), and the connectives D erases
+	"if": true, "let": true, "loop": true, "and": true, "or": true, "not": true, "cond": true,
+	// the integer operators and equality (ADR 0026, match.md)
+	"=": true, "+": true, "-": true, "*": true, "/": true, "%": true,
+	"<": true, "<=": true, ">": true, ">=": true,
+	// tables, buffers and maps (tables.md, maps.md, ADR 0018)
+	"array": true, "table": true, "len": true, "alloc": true, "build": true, "set": true,
+	"map": true, "build-map": true, "insert": true, "keys": true,
+	// strings (string-operations.md)
+	"concat": true, "string-of": true,
+	// a range on a term, the discard, and the crash `expect` expands into
+	AscribeName: true, IgnoreName: true, "abandon": true,
+}
+
 // langSums are `lang`'s variant types, by key. The key of a `lang` declaration
 // is its bare name, qualify("", name), which is why the main module — also
 // unqualified — may not declare one.
@@ -1252,6 +1291,11 @@ func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term,
 	case KName:
 		if bound[t.Name] {
 			return t, nil
+		}
+		if err := setInTerm(t.Name); err != nil {
+			// A SET IS A VALUE OF THE LOGIC, which never prints (ADR 0049). Until
+			// this, `..` was read as a path and refused as "`` is not imported".
+			return nil, err
 		}
 		if i := strings.Index(t.Name, "."); i >= 0 {
 			alias, rest := t.Name[:i], t.Name[i+1:]
@@ -3142,12 +3186,14 @@ func (e *Env) checkRecursion() error {
 	sort.Strings(names)
 	if len(names) == 1 {
 		return fmt.Errorf("%s is recursive: it is defined in terms of itself, and recursion "+
-			"is not in the language — iteration is fold-range (ADR 0014).\n"+
+			"is not in the language, since δ unfolds a definition and a cycle has no normal form "+
+			"(ADR 0014). Iteration is `loop` with `again` (ADR 0015).\n"+
 			"  If the self-reference was not deliberate, this definition is shadowing "+
 			"the %s you meant.", names[0], names[0])
 	}
-	return fmt.Errorf("%s are mutually recursive, and recursion is not in the language — "+
-		"iteration is fold-range (ADR 0014)", strings.Join(names, ", "))
+	return fmt.Errorf("%s are mutually recursive, and recursion is not in the language, since δ "+
+		"unfolds a definition and a cycle has no normal form (ADR 0014). Iteration is `loop` with "+
+		"`again` (ADR 0015)", strings.Join(names, ", "))
 }
 
 // Shadowed reports definitions the target provides natively.
@@ -4045,4 +4091,52 @@ func isSumMember(m *Module, name string) bool {
 		}
 	}
 	return false
+}
+
+// setInTerm refuses a set operator where a term is: a computation, which needs
+// a representation, and no set has one (ADR 0049); or a claim's formula, where
+// membership is not built and an atom over an unbound name would be assumed at
+// an entry point and undecidable at a call.
+func setInTerm(name string) error {
+	why, ok := setOperators[name]
+	if !ok {
+		return nil
+	}
+	return fmt.Errorf("%s is %s. A set stands in a set position, a binder `x ∈ S` or a binder's claim "+
+		"`b ∈ S = e`; in a computation, or a claim's formula, a set has no representation (ADR 0049, "+
+		"spec/j.md's status)", ShowName(name), why)
+}
+
+// setOperatorIn is the first set operator a term names, or "".
+func setOperatorIn(t *Term) string {
+	if t == nil {
+		return ""
+	}
+	if t.Kind == KName {
+		if _, ok := setOperators[t.Name]; ok {
+			return t.Name
+		}
+	}
+	for _, k := range t.Kids {
+		if n := setOperatorIn(k); n != "" {
+			return n
+		}
+	}
+	return ""
+}
+
+// setOperators are J's operators on sets, which D passes through as names
+// wherever they were written; in a term they are refused with what each would
+// be (resolve). Membership as a test is the characteristic function χ_S, not
+// built: for a range it is the derived lo ≤ e ∧ e ≤ hi.
+var setOperators = map[string]string{
+	"∈":  "membership, the test χ_S(e), which is not built; for a range write `lo <= e && e <= hi`",
+	"∉":  "non-membership, ¬χ_S(e), which is not built; for a range write `e < lo || e > hi`",
+	"..": "a range, a set of integers",
+	"∪":  "union, an operation of the set algebra",
+	"∩":  "intersection, an operation of the set algebra",
+	"∖":  "difference, an operation of the set algebra",
+	"×":  "the product of sets",
+	"⊆":  "inclusion, a relation between sets, which a binder `E ⊆ S` and an `axiom` state",
+	"⊂":  "strict inclusion, a relation between sets",
 }

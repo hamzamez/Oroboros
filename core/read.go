@@ -572,6 +572,11 @@ func toForm(t *Term) (Form, error) {
 					strings.Join(ProdTypes(pm.Type), " "))
 			}
 		}
+		for _, f := range []*Term{sig.Where, sig.Ensures} {
+			if n := setOperatorIn(f); n != "" {
+				return Form{}, fmt.Errorf("%s's header: %w", ShowName(t.Kids[1].Name), setInTerm(n))
+			}
+		}
 		return Form{Kind: "sig", Name: t.Kids[1].Name, Sig: sig}, nil
 	case "sum":
 		return Form{}, fmt.Errorf("`sum` is spelled `variant` (spec/data.md §5.2): %s", t)

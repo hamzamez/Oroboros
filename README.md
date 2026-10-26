@@ -468,7 +468,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-10-25.* The current assessment,
+*Updated with the plan; last updated 2026-10-26.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
@@ -484,8 +484,11 @@ says why the next is what it is.
    `0..`, the end left out, in place of `` 0..`+inf` `` ([ADR 0077](docs/decisions/0077-an-unbounded-end-is-omitted.md));
    and a declaration is private unless marked `pub`, while `export` still marks what the build compiles
    ([ADR 0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md)).
-3. **Three defects the audit of item 1 found**: a program may redefine one of the language's own names
-   (`if`), which should be refused; and two error messages that name the wrong thing.
+3. ~~**Three defects the audit of item 1 found**~~ **Done 2026-10-26**
+   ([defects-2026-10-26](gauntlet/results/defects-2026-10-26.md)): a program may no longer redefine one
+   of the language's own names, which inside a module had silently changed what `if` meant; the
+   recursion error names the language's loop; and writing a set where a value belongs, such as
+   `x ∈ 0..9`, is refused with a clear reason instead of a garbled one.
 4. **A declared range stops choosing how a number is stored**: the compiler picks the machine word or
    a big integer from what it proves about the value, and a declaration only states the set. Then `Nat`
    names the natural numbers ([ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).

@@ -117,9 +117,9 @@ a λ's header) is j.md's status table.
 
 ### Names the language owns
 
-These are injected into every target, and the backend implements each on each host. **A target file
-declaring one is an error.** A program defining one is not refused: it gets a note that the target's
-is used (cmd/gen, cmd/build), the gap named in §2.
+These are injected into every target, and the backend implements each on each host. They are Σ_L, the
+language's signature (`core.LanguageSignature`): the names J's reader and `Load`'s expansions emit bare.
+**A target file declaring one is an error, and so is a module of a program defining one** (§2).
 
 | the core's names | J writes | what | spec |
 |---|---|---|---|
@@ -211,10 +211,16 @@ These are not language, but they decide what is legal.
 - **A host body, an `axiom` and the model's data are a target file's** (j.md J5): a program writing one
   is refused by the reader. Primitives come from `targets/NAME/*.oro` and from `provides` fragments,
   and nowhere else.
-- **A target file may not declare a language name** (§1's owned names), nor a program a variant
-  colliding with `lang`'s in the main module. **A gap**: a program's definition of a language name
-  (`fn if(x) { x }`) is accepted with a note that the target's is used, where this section's rule says
-  it is an error (found 2026-10-25).
+- **No module defines a language name, and no target file declares one** (§1's Σ_L), nor a program a
+  variant colliding with `lang`'s in the main module. A definition introduces a fresh name (a
+  definitional extension); one of Σ_L's would redefine a symbol J's syntax is read as. Until
+  defects-2026-10-26 it was accepted: in a nested module `fn if(c, a, b) { 7 }` captured every `if` in
+  the module, and a function answered 7 whatever its argument; in the root it was ignored beside the
+  target's, with a note.
+- **A set has no representation** (ADR 0049): a set operator (`∈ ∉ .. ∪ ∩ ∖ × ⊆ ⊂`) in a computation or a
+  claim's formula is refused saying what it is; a set stands in a binder, a binder's claim, a former or
+  a `set` declaration. Membership as a test, χ_S(e), is not built; for a range the message gives the
+  derived `lo <= e && e <= hi`.
 - **An integer operation not proven inside its target's word is a compile error on that target**
   (ADR 0026: the word is data, `repr LO..HI word`; Go also realizes 0..2^64-1 as `uint64`,
   ir/words.go). It is cleared by narrowing a range, declaring one above the word, or `-checked`.

@@ -422,11 +422,13 @@ and `lent` waits for `Peek`. Writing by hand found four faults in J's reader and
      `(pub …)` and `(export …)`. Found: an empty interface showed everything (closed). 55 `private` marks
      became 29 `pub`; programs byte-identical, `lib/os` and `lib/result` compiled alone now emit nothing
      where their interface was refused as entry points.
-3. **Three defects the documents' audit found** (hamza, 2026-10-25, docs-2026-10-25 §3), before the
-   rewrite so that it states them fixed: a program's definition of a language-owned name (`fn if(x)`)
-   refused as a target file's is, where today it compiles with a note; the recursion refusal naming
-   `loop` and `again`, not `fold-range`; and `x ∈ S` as a value refused saying membership as a test is
-   not built, not "`` is not imported". Each with a planted fault.
+3. ~~**Three defects the documents' audit found**~~ **Done** ([defects-2026-10-26](gauntlet/results/defects-2026-10-26.md)):
+   **no module defines a name of Σ_L**, the language's signature (`core.LanguageSignature`, a
+   definitional extension introduces fresh symbols): in a nested module `fn if` had captured every `if`,
+   a function answering 7 whatever its argument; the recursion refusal names `loop` with `again` (a test
+   had pinned "fold-range"); **a set has no representation**: a set operator in a computation or a
+   claim's formula is refused saying what it is, where `where x ∈ 0..9` had compiled on an entry point
+   as an assumed atom. Emission byte-identical.
 4. **A declared set is a claim, and the facts choose the representation** (hamza, 2026-10-25,
    [ADR 0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)):
    ADR 0034's supply only where the claim is the fact (an entry point's parameter, a host result), the

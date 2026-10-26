@@ -735,3 +735,20 @@ func f(p *parser, t token) {
 		t.Errorf("a false count passed")
 	}
 }
+
+// THE TWO SIDES OF ONE RULE: what a target may not declare (coreNames and the
+// integer operators, langOps) is inside Σ_L, what no program module may define
+// (core.LanguageSignature). A word added to one list and not the other would
+// let a program capture a construct a target may not declare, or the reverse.
+func TestATargetsForbiddenNamesAreTheLanguages(t *testing.T) {
+	for n := range coreNames {
+		if !core.LanguageSignature[n] {
+			t.Errorf("a target may not declare %q, and core.LanguageSignature lets a program define it", n)
+		}
+	}
+	for _, op := range langOps {
+		if !core.LanguageSignature[op.name] {
+			t.Errorf("the language's operator %q is missing from core.LanguageSignature", op.name)
+		}
+	}
+}

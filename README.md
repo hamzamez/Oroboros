@@ -513,8 +513,11 @@ says why the next is what it is.
         ([ADR 0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md)): the
         bitwise operations become the language's on every target, and a wrapping result is written
         `mod 2^64`; built with the next step, first for two hash programs;
-     2. **integer widths** (bytes, 32-bit words, 128-bit integers;
-        [widths-research.md](docs/widths-research.md), now);
+     2. ~~**integer widths**~~ **decided 2026-10-27**
+        ([ADR 0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md)):
+        a width is only how a target holds an integer, never part of what it is, so no choice of width can
+        change an answer; each is chosen by where the value lives. **Being built now with step 1**,
+        first for two programs, FNV and CRC-32 hashes of a file;
      3. pointers;
      4. vectors (several numbers in one register);
      5. float formats other than 64-bit;

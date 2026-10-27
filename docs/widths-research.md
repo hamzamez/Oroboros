@@ -1,6 +1,7 @@
 # Research: widths, or how an integer is held
 
-2026-10-27. **Research, not a decision.** The second of the seven walls
+2026-10-27. **Decided by [ADR 0083](decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md)**
+(hamza, 2026-10-27: W1–W6 as recommended). Being built with ADR 0082. The second of the seven walls
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (§4.2), and the plan's 6b,
 step 2. hamza: "research on wall 2, explain the issue, the solutions, what does it mean in different
 targets, the type system, and plenty of examples. and recommendations."

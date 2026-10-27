@@ -163,9 +163,9 @@ JVM, plus `uint64` on Go, and ±(2⁵³−1) on JavaScript. The program at the t
 result is unbounded, `(0..)`, and prints `354224848179261915075` on all three.
 
 Each host uses its own big integer: `*big.Int` on Go, `BigInt` on JavaScript, `BigInteger` on the JVM
-and on Android. A range is part of a value's type: `Array(0..255)` is stored as a `[]byte` on Go and as
-a `short[]` on the JVM, whose `byte` is signed. Above the machine word, the target picks the
-representation.
+and on Android. A range chooses how a table is stored: `Array(0..255)` is a `[]byte` on Go and a
+`byte[]` read unsigned (`b & 0xFF`) on the JVM, whose `byte` is signed. Above the machine word, the
+target picks the representation.
 
 **So legality is per target, and the compiler reports it.** A product of two numbers up to 3·10⁹ fits
 a 64-bit word and not a JavaScript number:

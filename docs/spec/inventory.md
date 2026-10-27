@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 165 words of the core**, and j.md §1.4's keywords.
+**Result: 167 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 125 |
+| `specified` — a spec states it | 127 |
 | `recorded` — only research, a result document or code comments | 25 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -247,6 +247,7 @@ What a declaration's `host KIND …` or a `structural NAME KIND` may say.
 | `library` | specified — `(repr map library)`: a map written in Oroboros | [target-files.md](target-files.md) |
 | `shift` | specified — `(repr shift N)` | [theories.md](theories.md) |
 | `narrow` | specified — `(repr narrow (host …))` | [theories.md](theories.md) |
+| `read`, `write` | specified — `repr LO..HI host "T" read "…" write "…"`, a host type's second reading (ADR 0083) | [integers.md](integers.md) §0b |
 | `wrap` | specified — `(repr wrap W)`, the width a target's operators wrap at (ADR 0082) | [integers.md](integers.md) §0b |
 | `niche` | specified — `(repr TYPE (niche (host expr "…")))`: the host type is 1 + E, its absent point inside its own values; a fallible declaration's failure is read through it | [errors.md](errors.md) §4.1 |
 | `word` | specified — `repr LO..HI word`, the target's word | [ADR 0026](../decisions/0026-an-int-is-an-integer.md) |

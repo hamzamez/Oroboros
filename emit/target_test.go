@@ -179,7 +179,8 @@ func TestRangeSelectsRepresentation(t *testing.T) {
 		{"go", "array int 0 70000", "[]uint32"},
 		{"go", "array int 0 9007199254740991", "[]int"}, // nothing narrower holds it
 		{"go", "array int", "[]int"},                    // a plain int is not a range
-		{"java", "array int 0 255", "short[]"},          // byte is SIGNED here
+		{"java", "array int 0 255", "byte[]"},           // byte read unsigned, b & 0xFF (ADR 0083)
+		{"java", "array int -1 255", "short[]"},         // in neither reading of a byte
 		{"java", "array int -128 127", "byte[]"},
 		{"java", "array int 0 100000", "int[]"},
 	} {

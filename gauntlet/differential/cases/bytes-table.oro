@@ -1,0 +1,24 @@
+// A TABLE OF BYTES, STORED THEN READ (ADR 0083): fnv32's data, written into a
+// buffer one byte at a time and hashed from it. On the JVM the table is a
+// byte[] read unsigned, `(b[i] & 0xFF)`, and written `(byte) v`; a byte past
+// 127 read without the mask is negative, and its xor flips the hash's high
+// bits. fnv32 itself computes its data in the loop and holds no table, so it
+// could not see that fault; this case does. The expected values are fnv32's.
+//
+// inputs: 0 1 7 100 255
+// expect: 2172928100 1210915922 2724907374 2847905932 3551467230
+fn fill(n ∈ 0..255) (Array(0..255)) {
+    var b := array { 0 : _ ∈ 0..63 }
+    loop k = 0 {
+        k < 64 -> { b[k] := (n * 31 + k * 7 + k * k % 13) mod 256; again(k + 1) }
+        else -> b
+    }
+}
+
+export fn run(n ∈ 0..255) (0..2^32-1) {
+    d = fill(n)
+    loop i = 0, h = 0x811C9DC5 {
+        i < len(d) -> again(i + 1, ((h ⊕ d[i]) * 16777619) mod 2^32)
+        else -> h
+    }
+}

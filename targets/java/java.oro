@@ -24,6 +24,10 @@
 // CLAUDE.md records as "the JVM has no unsigned types", stated where it can be
 // acted on.
 repr -128..127 host "byte"
+// AND THE SAME byte READ UNSIGNED (ADR 0083): a host type and a second
+// abstraction function, σ_u, so 0..255 is a byte[] and not a short[] — half
+// the memory, and a file's bytes are Files.readAllBytes' own array, uncopied.
+repr 0..255 host "byte" read "(${x} & 0xFF)" write "(byte) ${x}"
 repr -32768..32767 host "short"
 repr -2^31..2^31-1 host "int"
 // THE WORD (ADR 0026): `int` is realized as `long`, 64-bit two's complement

@@ -104,6 +104,12 @@ JavaScript, through `Math.imul` and `| 0`), and its intermediates are exempt fro
 `u64-of` for n = 64 on a target with the unsigned word. Division, `%`, `>>`, a comparison, `mod` by a
 non-power of two and a call stop it (`TestFusionStopsAtWhatDoesNotDescend`). n > W is computed exactly.
 
+**A host type under a second reading (ADR 0083).** A representation is a host type and an
+abstraction function. Where the function is not the host's own, the target states it:
+`repr 0..255 host "byte" read "(${x} & 0xFF)" write "(byte) ${x}"` on the JVM, whose `byte` is
+signed. A table element so held is read through `read` and stored through `write`, and the move is
+the identity on ℤ, so no answer changes; a file's bytes are then the host's own `byte[]`, uncopied.
+
 ## 0. What does not change
 
 [ADR 0012](../decisions/0012-portable-integer-range.md) stands, and this specification is mostly

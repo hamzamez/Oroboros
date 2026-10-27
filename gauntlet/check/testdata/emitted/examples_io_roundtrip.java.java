@@ -13,26 +13,26 @@ public final class examples_io_roundtrip.java {
 			return 1;
 		}
 		final String v10 = v0[1];
-		final short[] v18 = new short[]{104, 105, 32, 226, 130, 172, 10};
+		final byte[] v18 = new byte[]{(byte) 104, (byte) 105, (byte) 32, (byte) 226, (byte) 130, (byte) 172, (byte) 10};
 		Exception v19;
-		try { final Path $oroP = Path.of(v10); final short[] $oroS = v18; final byte[] $oroB = new byte[$oroS.length]; for (int $oroI = 0; $oroI < $oroS.length; $oroI++) $oroB[$oroI] = (byte) $oroS[$oroI]; Files.write($oroP, $oroB); v19 = null; } catch (Exception $oroE) { v19 = $oroE; }
+		try { final Path $oroP = Path.of(v10); Files.write($oroP, v18); v19 = null; } catch (Exception $oroE) { v19 = $oroE; }
 		final boolean v20 = (v19 == null);
 		if (v20) {
-			short[] v21;
+			byte[] v21;
 			Exception v22;
-			try { final byte[] $oroB = Files.readAllBytes(Path.of(v10)); v21 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) v21[$oroI] = (short) ($oroB[$oroI] & 0xFF); v22 = null; } catch (Exception $oroE) { v21 = null; v22 = $oroE; }
+			try { v21 = Files.readAllBytes(Path.of(v10)); v22 = null; } catch (Exception $oroE) { v21 = null; v22 = $oroE; }
 			final boolean v23 = (v22 == null);
 			if (v23) {
-				final String v24 = (((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v21));
+				final String v24 = (((java.util.function.Function<byte[],String>) ($oroA) -> { final byte[] $oroB = $oroA; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v21));
 				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v24);
 				final String v27 = (System.getenv().getOrDefault("ORO_ROUNDTRIP", ""));
 				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v27 + "\n");
 				final int v29 = v21.length;
 				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v29 + "\n");
 				final String v32 = (v10.concat(".missing"));
-				short[] v33;
+				byte[] v33;
 				Exception v34;
-				try { final byte[] $oroB = Files.readAllBytes(Path.of(v32)); v33 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) v33[$oroI] = (short) ($oroB[$oroI] & 0xFF); v34 = null; } catch (Exception $oroE) { v33 = null; v34 = $oroE; }
+				try { v33 = Files.readAllBytes(Path.of(v32)); v34 = null; } catch (Exception $oroE) { v33 = null; v34 = $oroE; }
 				final boolean v35 = (v34 == null);
 				String v36 = null;
 				if (v35) {

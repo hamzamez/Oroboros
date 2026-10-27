@@ -3,9 +3,9 @@
 import java.nio.file.*;
 
 public final class examples_errors_ignore.java {
-	public static long genSave(String v0, short[] v1) {
+	public static long genSave(String v0, byte[] v1) {
 		Exception v2;
-		try { final Path $oroP = Path.of(v0); final short[] $oroS = v1; final byte[] $oroB = new byte[$oroS.length]; for (int $oroI = 0; $oroI < $oroS.length; $oroI++) $oroB[$oroI] = (byte) $oroS[$oroI]; Files.write($oroP, $oroB); v2 = null; } catch (Exception $oroE) { v2 = $oroE; }
+		try { final Path $oroP = Path.of(v0); Files.write($oroP, v1); v2 = null; } catch (Exception $oroE) { v2 = $oroE; }
 		return 0;
 	}
 

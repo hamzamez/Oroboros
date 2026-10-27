@@ -44,10 +44,9 @@ func TestALiteralTableTakesTheHullOfItsElements(t *testing.T) {
 	}
 }
 
-// CHECKING: the declaration decides. The Go and JVM answers DIFFER for the same
-// literal — `(int 0 255)` is `[]byte` on one and `short[]` on the other, whose
-// `byte` is signed — which is exactly why synthesis alone cannot serve a
-// boundary, and why this is bidirectional rather than one rule.
+// CHECKING: the declaration decides. `(int 0 255)` is `[]byte` on Go and a
+// `byte[]` read unsigned on the JVM, whose `byte` is signed, so each element is
+// written `(byte) 104` (ADR 0083); until ADR 0083 it was `short[]`.
 func TestADeclaredElementDecidesAtABoundary(t *testing.T) {
 	for what, term := range takes(lit(104, 105, 33)) {
 		code, err := golang.FromResidual(litTarget(t, "go"), "t", nil, term)
@@ -61,8 +60,8 @@ func TestADeclaredElementDecidesAtABoundary(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s (java): %v", what, err)
 		}
-		if !strings.Contains(jcode, "new short[]{") {
-			t.Errorf("%s on the JVM: want short[], got:\n%s", what, jcode)
+		if !strings.Contains(jcode, "new byte[]{(byte) 104") {
+			t.Errorf("%s on the JVM: want a byte[] written (byte) 104, got:\n%s", what, jcode)
 		}
 	}
 }

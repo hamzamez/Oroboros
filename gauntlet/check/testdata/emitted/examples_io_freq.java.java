@@ -13,9 +13,9 @@ public final class examples_io_freq.java {
 			return "usage: freq FILE";
 		}
 		final String v9 = v0[1];
-		short[] v10;
+		byte[] v10;
 		Exception v11;
-		try { final byte[] $oroB = Files.readAllBytes(Path.of(v9)); v10 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) v10[$oroI] = (short) ($oroB[$oroI] & 0xFF); v11 = null; } catch (Exception $oroE) { v10 = null; v11 = $oroE; }
+		try { v10 = Files.readAllBytes(Path.of(v9)); v11 = null; } catch (Exception $oroE) { v10 = null; v11 = $oroE; }
 		final boolean v12 = (v11 == null);
 		if (v12) {
 			final int v13 = v10.length;
@@ -36,7 +36,7 @@ public final class examples_io_freq.java {
 				if (v32) {
 					break;
 				}
-				final int v35 = v10[v24];
+				final int v35 = (v10[v24] & 0xFF);
 				final boolean v39 = (v35 >= 65);
 				final boolean v40 = (v39 && (v35 <= 90));
 				final boolean v46 = (v40 || ((v35 >= 97) && (v35 <= 122)));
@@ -54,7 +54,7 @@ public final class examples_io_freq.java {
 						if (v68) {
 							break;
 						}
-						final int v73 = v10[v62];
+						final int v73 = (v10[v62] & 0xFF);
 						final boolean v77 = (v73 >= 65);
 						final boolean v78 = (v77 && (v73 <= 90));
 						final boolean v84 = (v78 || ((v73 >= 97) && (v73 <= 122)));
@@ -87,7 +87,7 @@ public final class examples_io_freq.java {
 				if (v115) {
 					break;
 				}
-				final int v120 = v10[v107];
+				final int v120 = (v10[v107] & 0xFF);
 				final boolean v124 = (v120 >= 65);
 				final boolean v125 = (v124 && (v120 <= 90));
 				final boolean v131 = (v125 || ((v120 >= 97) && (v120 <= 122)));
@@ -104,7 +104,7 @@ public final class examples_io_freq.java {
 						if (v151) {
 							break;
 						}
-						final int v156 = v10[v145];
+						final int v156 = (v10[v145] & 0xFF);
 						final boolean v160 = (v156 >= 65);
 						final boolean v161 = (v160 && (v156 <= 90));
 						final boolean v167 = (v161 || ((v156 >= 97) && (v156 <= 122)));
@@ -284,7 +284,7 @@ public final class examples_io_freq.java {
 								final int v384 = (2 * v279);
 								final int v385 = v101[v384];
 								final int v386 = (v385 + v310);
-								final int v387 = v10[v386];
+								final int v387 = (v10[v386] & 0xFF);
 								final boolean v391 = (v387 >= 65);
 								final boolean v392 = (v391 && (v387 <= 90));
 								int v398 = 0;
@@ -297,7 +297,7 @@ public final class examples_io_freq.java {
 								final int v404 = (2 * v280);
 								final int v405 = v101[v404];
 								final int v406 = (v405 + v310);
-								final int v407 = v10[v406];
+								final int v407 = (v10[v406] & 0xFF);
 								final boolean v411 = (v407 >= 65);
 								final boolean v412 = (v411 && (v407 <= 90));
 								int v418 = 0;
@@ -314,7 +314,7 @@ public final class examples_io_freq.java {
 								final int v427 = (2 * v279);
 								final int v428 = v101[v427];
 								final int v429 = (v428 + v310);
-								final int v430 = v10[v429];
+								final int v430 = (v10[v429] & 0xFF);
 								final boolean v434 = (v430 >= 65);
 								final boolean v435 = (v434 && (v430 <= 90));
 								int v441 = 0;
@@ -327,7 +327,7 @@ public final class examples_io_freq.java {
 								final int v447 = (2 * v280);
 								final int v448 = v101[v447];
 								final int v449 = (v448 + v310);
-								final int v450 = v10[v449];
+								final int v450 = (v10[v449] & 0xFF);
 								final boolean v454 = (v450 >= 65);
 								final boolean v455 = (v454 && (v450 <= 90));
 								int v461 = 0;
@@ -469,7 +469,7 @@ public final class examples_io_freq.java {
 						final int v587 = (2 * v507);
 						final int v588 = v101[v587];
 						final int v589 = (v588 + v513);
-						final int v590 = v10[v589];
+						final int v590 = (v10[v589] & 0xFF);
 						final boolean v594 = (v590 >= 65);
 						final boolean v595 = (v594 && (v590 <= 90));
 						int v601 = 0;
@@ -482,7 +482,7 @@ public final class examples_io_freq.java {
 						final int v607 = (2 * v510);
 						final int v608 = v101[v607];
 						final int v609 = (v608 + v513);
-						final int v610 = v10[v609];
+						final int v610 = (v10[v609] & 0xFF);
 						final boolean v614 = (v610 >= 65);
 						final boolean v615 = (v614 && (v610 <= 90));
 						int v621 = 0;
@@ -499,7 +499,7 @@ public final class examples_io_freq.java {
 						final int v630 = (2 * v507);
 						final int v631 = v101[v630];
 						final int v632 = (v631 + v513);
-						final int v633 = v10[v632];
+						final int v633 = (v10[v632] & 0xFF);
 						final boolean v637 = (v633 >= 65);
 						final boolean v638 = (v637 && (v633 <= 90));
 						int v644 = 0;
@@ -512,7 +512,7 @@ public final class examples_io_freq.java {
 						final int v650 = (2 * v510);
 						final int v651 = v101[v650];
 						final int v652 = (v651 + v513);
-						final int v653 = v10[v652];
+						final int v653 = (v10[v652] & 0xFF);
 						final boolean v657 = (v653 >= 65);
 						final boolean v658 = (v657 && (v653 <= 90));
 						int v664 = 0;
@@ -638,7 +638,7 @@ public final class examples_io_freq.java {
 						final int v790 = (2 * v710);
 						final int v791 = v101[v790];
 						final int v792 = (v791 + v716);
-						final int v793 = v10[v792];
+						final int v793 = (v10[v792] & 0xFF);
 						final boolean v797 = (v793 >= 65);
 						final boolean v798 = (v797 && (v793 <= 90));
 						int v804 = 0;
@@ -651,7 +651,7 @@ public final class examples_io_freq.java {
 						final int v810 = (2 * v713);
 						final int v811 = v101[v810];
 						final int v812 = (v811 + v716);
-						final int v813 = v10[v812];
+						final int v813 = (v10[v812] & 0xFF);
 						final boolean v817 = (v813 >= 65);
 						final boolean v818 = (v817 && (v813 <= 90));
 						int v824 = 0;
@@ -668,7 +668,7 @@ public final class examples_io_freq.java {
 						final int v833 = (2 * v710);
 						final int v834 = v101[v833];
 						final int v835 = (v834 + v716);
-						final int v836 = v10[v835];
+						final int v836 = (v10[v835] & 0xFF);
 						final boolean v840 = (v836 >= 65);
 						final boolean v841 = (v840 && (v836 <= 90));
 						int v847 = 0;
@@ -681,7 +681,7 @@ public final class examples_io_freq.java {
 						final int v853 = (2 * v713);
 						final int v854 = v101[v853];
 						final int v855 = (v854 + v716);
-						final int v856 = v10[v855];
+						final int v856 = (v10[v855] & 0xFF);
 						final boolean v860 = (v856 >= 65);
 						final boolean v861 = (v860 && (v856 <= 90));
 						int v867 = 0;
@@ -789,7 +789,7 @@ public final class examples_io_freq.java {
 						final int v972 = (2 * v892);
 						final int v973 = v101[v972];
 						final int v974 = (v973 + v898);
-						final int v975 = v10[v974];
+						final int v975 = (v10[v974] & 0xFF);
 						final boolean v979 = (v975 >= 65);
 						final boolean v980 = (v979 && (v975 <= 90));
 						int v986 = 0;
@@ -802,7 +802,7 @@ public final class examples_io_freq.java {
 						final int v992 = (2 * v895);
 						final int v993 = v101[v992];
 						final int v994 = (v993 + v898);
-						final int v995 = v10[v994];
+						final int v995 = (v10[v994] & 0xFF);
 						final boolean v999 = (v995 >= 65);
 						final boolean v1000 = (v999 && (v995 <= 90));
 						int v1006 = 0;
@@ -819,7 +819,7 @@ public final class examples_io_freq.java {
 						final int v1015 = (2 * v892);
 						final int v1016 = v101[v1015];
 						final int v1017 = (v1016 + v898);
-						final int v1018 = v10[v1017];
+						final int v1018 = (v10[v1017] & 0xFF);
 						final boolean v1022 = (v1018 >= 65);
 						final boolean v1023 = (v1022 && (v1018 <= 90));
 						int v1029 = 0;
@@ -832,7 +832,7 @@ public final class examples_io_freq.java {
 						final int v1035 = (2 * v895);
 						final int v1036 = v101[v1035];
 						final int v1037 = (v1036 + v898);
-						final int v1038 = v10[v1037];
+						final int v1038 = (v10[v1037] & 0xFF);
 						final boolean v1042 = (v1038 >= 65);
 						final boolean v1043 = (v1042 && (v1038 <= 90));
 						int v1049 = 0;
@@ -1046,9 +1046,9 @@ public final class examples_io_freq.java {
 				v1209 = v1273;
 				continue;
 			}
-			final short[] v1277 = new short[v1209];
-			short[] v1276 = null;
-			short[] v1281 = v1277;
+			final byte[] v1277 = new byte[v1209];
+			byte[] v1276 = null;
+			byte[] v1281 = v1277;
 			int v1282 = 0;
 			int v1283 = 0;
 			for (;; v1283 = (v1283 + 1)) {
@@ -1106,7 +1106,7 @@ public final class examples_io_freq.java {
 					v1326 = v1342;
 					continue;
 				}
-				short[] v1346 = v1281;
+				byte[] v1346 = v1281;
 				int v1347 = v1282;
 				int v1348 = v1326;
 				int v1349 = v1303;
@@ -1118,7 +1118,7 @@ public final class examples_io_freq.java {
 					final int v1355 = (v1349 / v1348);
 					final int v1357 = (v1355 % 10);
 					final int v1358 = (48 + v1357);
-					v1346[v1347] = (short) (v1358);
+					v1346[v1347] = (byte) v1358;
 					final int v1363 = (v1348 / 10);
 					v1348 = v1363;
 					continue;
@@ -1139,7 +1139,7 @@ public final class examples_io_freq.java {
 					continue;
 				}
 				final int v1380 = (v1282 + v1366);
-				v1346[v1380] = (short) (32);
+				v1346[v1380] = (byte) 32;
 				int v1385 = 1;
 				int v1386 = v1303;
 				for (;; v1385 = (v1385 + 1)) {
@@ -1157,7 +1157,7 @@ public final class examples_io_freq.java {
 				}
 				final int v1400 = (v1385 + 1);
 				final int v1401 = (v1282 + v1400);
-				short[] v1404 = v1346;
+				byte[] v1404 = v1346;
 				int v1405 = v1401;
 				int v1406 = 0;
 				for (;; v1405 = (v1405 + 1), v1406 = (v1406 + 1)) {
@@ -1186,8 +1186,8 @@ public final class examples_io_freq.java {
 					final int v1431 = (2 * v1306);
 					final int v1432 = v101[v1431];
 					final int v1433 = (v1432 + v1406);
-					final int v1434 = v10[v1433];
-					v1404[v1405] = (short) (v1434);
+					final int v1434 = (v10[v1433] & 0xFF);
+					v1404[v1405] = (byte) v1434;
 					continue;
 				}
 				final int v1442 = (2 * v1298);
@@ -1232,7 +1232,7 @@ public final class examples_io_freq.java {
 				final int v1486 = (v1447 + v1485);
 				final int v1488 = (v1486 - 1);
 				final int v1489 = (v1282 + v1488);
-				v1404[v1489] = (short) (10);
+				v1404[v1489] = (byte) 10;
 				final int v1494 = (2 * v1298);
 				final int v1496 = (v1494 + 1);
 				final int v1497 = v685[v1496];
@@ -1279,7 +1279,7 @@ public final class examples_io_freq.java {
 				continue;
 			}
 			v1276 = v1281;
-			final String v1542 = (((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v1276));
+			final String v1542 = (((java.util.function.Function<byte[],String>) ($oroA) -> { final byte[] $oroB = $oroA; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v1276));
 			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v1542);
 			return v1542;
 		}

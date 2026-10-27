@@ -13,9 +13,9 @@ public final class examples_io_jsonfmt.java {
 			return "usage: jsonfmt FILE";
 		}
 		final String v9 = v0[1];
-		short[] v10;
+		byte[] v10;
 		Exception v11;
-		try { final byte[] $oroB = Files.readAllBytes(Path.of(v9)); v10 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) v10[$oroI] = (short) ($oroB[$oroI] & 0xFF); v11 = null; } catch (Exception $oroE) { v10 = null; v11 = $oroE; }
+		try { v10 = Files.readAllBytes(Path.of(v9)); v11 = null; } catch (Exception $oroE) { v10 = null; v11 = $oroE; }
 		final boolean v12 = (v11 == null);
 		if (v12) {
 			final int v13 = v10.length;
@@ -43,7 +43,7 @@ public final class examples_io_jsonfmt.java {
 					v24 = v41;
 					break;
 				}
-				final int v43 = v10[v26];
+				final int v43 = (v10[v26] & 0xFF);
 				final boolean v45 = (v43 == 32);
 				final boolean v46 = (v45 || ((v43 == 9) || ((v43 == 10) || (v43 == 13))));
 				if (v46) {
@@ -51,7 +51,7 @@ public final class examples_io_jsonfmt.java {
 					v26 = v63;
 					continue;
 				}
-				final int v64 = v10[v26];
+				final int v64 = (v10[v26] & 0xFF);
 				final boolean v66 = (v64 == 123);
 				final boolean v67 = (v66 || (v64 == 91));
 				if (v67) {
@@ -74,7 +74,7 @@ public final class examples_io_jsonfmt.java {
 					v28 = 1;
 					continue;
 				}
-				final int v91 = v10[v26];
+				final int v91 = (v10[v26] & 0xFF);
 				final boolean v93 = (v91 == 125);
 				final boolean v94 = (v93 || (v91 == 93));
 				if (v94) {
@@ -104,7 +104,7 @@ public final class examples_io_jsonfmt.java {
 					v28 = 0;
 					continue;
 				}
-				final int v124 = v10[v26];
+				final int v124 = (v10[v26] & 0xFF);
 				final boolean v126 = (v124 == 44);
 				if (v126) {
 					final int v129 = (2 * v27);
@@ -116,7 +116,7 @@ public final class examples_io_jsonfmt.java {
 					v28 = 0;
 					continue;
 				}
-				final int v135 = v10[v26];
+				final int v135 = (v10[v26] & 0xFF);
 				final boolean v137 = (v135 == 58);
 				if (v137) {
 					final int v139 = (v25 + 2);
@@ -125,11 +125,11 @@ public final class examples_io_jsonfmt.java {
 					v26 = v141;
 					continue;
 				}
-				final int v142 = v10[v26];
+				final int v142 = (v10[v26] & 0xFF);
 				final boolean v144 = (v142 == 34);
 				final boolean v145 = (v144 || ((((v142 >= 48) && (v142 <= 57)) || ((v142 == 45) || ((v142 == 43) || ((v142 == 46) || ((v142 == 101) || (v142 == 69)))))) || ((v142 >= 97) && (v142 <= 122))));
 				if (v145) {
-					final int v205 = v10[v26];
+					final int v205 = (v10[v26] & 0xFF);
 					final boolean v207 = (v205 == 34);
 					int v208 = 0;
 					if (v207) {
@@ -148,7 +148,7 @@ public final class examples_io_jsonfmt.java {
 								v211 = v212;
 								break;
 							}
-							final int v224 = v10[v212];
+							final int v224 = (v10[v212] & 0xFF);
 							final boolean v226 = (v224 == 92);
 							boolean v227 = false;
 							if (v226) {
@@ -164,14 +164,14 @@ public final class examples_io_jsonfmt.java {
 								v211 = v234;
 								break;
 							}
-							final int v235 = v10[v212];
+							final int v235 = (v10[v212] & 0xFF);
 							final boolean v237 = (v235 == 92);
 							if (v237) {
 								final int v239 = (v212 + 2);
 								v212 = v239;
 								continue;
 							}
-							final int v240 = v10[v212];
+							final int v240 = (v10[v212] & 0xFF);
 							final boolean v242 = (v240 == 34);
 							if (v242) {
 								final int v244 = (v212 + 1);
@@ -184,7 +184,7 @@ public final class examples_io_jsonfmt.java {
 						}
 						v208 = v211;
 					} else {
-						final int v247 = v10[v26];
+						final int v247 = (v10[v26] & 0xFF);
 						final boolean v251 = (v247 >= 48);
 						final boolean v252 = (v251 && (v247 <= 57));
 						final boolean v258 = (v252 || ((v247 == 45) || ((v247 == 43) || ((v247 == 46) || ((v247 == 101) || (v247 == 69))))));
@@ -201,7 +201,7 @@ public final class examples_io_jsonfmt.java {
 								if (v293) {
 									break;
 								}
-								final int v298 = v10[v287];
+								final int v298 = (v10[v287] & 0xFF);
 								final boolean v302 = (v298 >= 48);
 								final boolean v303 = (v302 && (v298 <= 57));
 								final boolean v309 = (v303 || ((v298 == 45) || ((v298 == 43) || ((v298 == 46) || ((v298 == 101) || (v298 == 69))))));
@@ -224,7 +224,7 @@ public final class examples_io_jsonfmt.java {
 								if (v346) {
 									break;
 								}
-								final int v351 = v10[v340];
+								final int v351 = (v10[v340] & 0xFF);
 								final boolean v353 = (v351 >= 97);
 								final boolean v354 = (v353 && (v351 <= 122));
 								if (v354) {
@@ -256,9 +256,9 @@ public final class examples_io_jsonfmt.java {
 				v26 = v377;
 				continue;
 			}
-			final short[] v379 = new short[v24];
-			short[] v378 = null;
-			short[] v385 = v379;
+			final byte[] v379 = new byte[v24];
+			byte[] v378 = null;
+			byte[] v385 = v379;
 			int v386 = 0;
 			int v387 = 0;
 			int v388 = 0;
@@ -267,15 +267,15 @@ public final class examples_io_jsonfmt.java {
 				final int v390 = v10.length;
 				final boolean v391 = (v387 >= v390);
 				if (v391) {
-					v385[v386] = (short) (10);
+					v385[v386] = (byte) 10;
 					break;
 				}
 				final boolean v399 = (v388 >= 64);
 				if (v399) {
-					v385[v386] = (short) (10);
+					v385[v386] = (byte) 10;
 					break;
 				}
-				final int v404 = v10[v387];
+				final int v404 = (v10[v387] & 0xFF);
 				final boolean v406 = (v404 == 32);
 				final boolean v407 = (v406 || ((v404 == 9) || ((v404 == 10) || (v404 == 13))));
 				if (v407) {
@@ -283,7 +283,7 @@ public final class examples_io_jsonfmt.java {
 					v387 = v424;
 					continue;
 				}
-				final int v425 = v10[v387];
+				final int v425 = (v10[v387] & 0xFF);
 				final boolean v427 = (v425 == 123);
 				final boolean v428 = (v427 || (v425 == 91));
 				if (v428) {
@@ -297,12 +297,12 @@ public final class examples_io_jsonfmt.java {
 						v436 = 0;
 					}
 					final boolean v445 = (v389 == 1);
-					short[] v446 = null;
+					byte[] v446 = null;
 					if (v445) {
 						final int v449 = (2 * v388);
-						v385[v386] = (short) (10);
+						v385[v386] = (byte) 10;
 						final int v454 = (v386 + 1);
-						short[] v456 = v385;
+						byte[] v456 = v385;
 						int v457 = 0;
 						int v458 = v454;
 						for (;; v457 = (v457 + 1), v458 = (v458 + 1)) {
@@ -310,14 +310,14 @@ public final class examples_io_jsonfmt.java {
 							if (v459) {
 								break;
 							}
-							v456[v458] = (short) (32);
+							v456[v458] = (byte) 32;
 							continue;
 						}
 						v446 = v456;
 					} else {
 						v446 = v385;
 					}
-					final int v471 = v10[v387];
+					final int v471 = (v10[v387] & 0xFF);
 					final boolean v473 = (v471 == 123);
 					int v474 = 0;
 					if (v473) {
@@ -326,7 +326,7 @@ public final class examples_io_jsonfmt.java {
 						v474 = 91;
 					}
 					final int v477 = (v386 + v436);
-					v446[v477] = (short) (v474);
+					v446[v477] = (byte) v474;
 					final int v480 = (v436 + 1);
 					final int v481 = (v386 + v480);
 					final int v483 = (v387 + 1);
@@ -338,7 +338,7 @@ public final class examples_io_jsonfmt.java {
 					v389 = 1;
 					continue;
 				}
-				final int v487 = v10[v387];
+				final int v487 = (v10[v387] & 0xFF);
 				final boolean v489 = (v487 == 125);
 				final boolean v490 = (v489 || (v487 == 93));
 				if (v490) {
@@ -360,12 +360,12 @@ public final class examples_io_jsonfmt.java {
 						v506 = 0;
 					}
 					final boolean v515 = (v389 == 0);
-					short[] v516 = null;
+					byte[] v516 = null;
 					if (v515) {
 						final int v519 = (2 * v498);
-						v385[v386] = (short) (10);
+						v385[v386] = (byte) 10;
 						final int v524 = (v386 + 1);
-						short[] v526 = v385;
+						byte[] v526 = v385;
 						int v527 = 0;
 						int v528 = v524;
 						for (;; v527 = (v527 + 1), v528 = (v528 + 1)) {
@@ -373,14 +373,14 @@ public final class examples_io_jsonfmt.java {
 							if (v529) {
 								break;
 							}
-							v526[v528] = (short) (32);
+							v526[v528] = (byte) 32;
 							continue;
 						}
 						v516 = v526;
 					} else {
 						v516 = v385;
 					}
-					final int v541 = v10[v387];
+					final int v541 = (v10[v387] & 0xFF);
 					final boolean v543 = (v541 == 125);
 					int v544 = 0;
 					if (v543) {
@@ -389,7 +389,7 @@ public final class examples_io_jsonfmt.java {
 						v544 = 93;
 					}
 					final int v547 = (v386 + v506);
-					v516[v547] = (short) (v544);
+					v516[v547] = (byte) v544;
 					final int v550 = (v506 + 1);
 					final int v551 = (v386 + v550);
 					final int v553 = (v387 + 1);
@@ -400,15 +400,15 @@ public final class examples_io_jsonfmt.java {
 					v389 = 0;
 					continue;
 				}
-				final int v555 = v10[v387];
+				final int v555 = (v10[v387] & 0xFF);
 				final boolean v557 = (v555 == 44);
 				if (v557) {
 					final int v559 = (v386 + 1);
 					final int v561 = (2 * v388);
-					v385[v386] = (short) (44);
-					v385[v559] = (short) (10);
+					v385[v386] = (byte) 44;
+					v385[v559] = (byte) 10;
 					final int v568 = (v559 + 1);
-					short[] v570 = v385;
+					byte[] v570 = v385;
 					int v571 = 0;
 					int v572 = v568;
 					for (;; v571 = (v571 + 1), v572 = (v572 + 1)) {
@@ -416,7 +416,7 @@ public final class examples_io_jsonfmt.java {
 						if (v573) {
 							break;
 						}
-						v570[v572] = (short) (32);
+						v570[v572] = (byte) 32;
 						continue;
 					}
 					final int v586 = (2 * v388);
@@ -429,23 +429,23 @@ public final class examples_io_jsonfmt.java {
 					v389 = 0;
 					continue;
 				}
-				final int v592 = v10[v387];
+				final int v592 = (v10[v387] & 0xFF);
 				final boolean v594 = (v592 == 58);
 				if (v594) {
-					v385[v386] = (short) (58);
+					v385[v386] = (byte) 58;
 					final int v598 = (v386 + 1);
-					v385[v598] = (short) (32);
+					v385[v598] = (byte) 32;
 					final int v602 = (v386 + 2);
 					final int v604 = (v387 + 1);
 					v386 = v602;
 					v387 = v604;
 					continue;
 				}
-				final int v605 = v10[v387];
+				final int v605 = (v10[v387] & 0xFF);
 				final boolean v607 = (v605 == 34);
 				final boolean v608 = (v607 || ((((v605 >= 48) && (v605 <= 57)) || ((v605 == 45) || ((v605 == 43) || ((v605 == 46) || ((v605 == 101) || (v605 == 69)))))) || ((v605 >= 97) && (v605 <= 122))));
 				if (v608) {
-					final int v668 = v10[v387];
+					final int v668 = (v10[v387] & 0xFF);
 					final boolean v670 = (v668 == 34);
 					int v671 = 0;
 					if (v670) {
@@ -464,7 +464,7 @@ public final class examples_io_jsonfmt.java {
 								v674 = v675;
 								break;
 							}
-							final int v687 = v10[v675];
+							final int v687 = (v10[v675] & 0xFF);
 							final boolean v689 = (v687 == 92);
 							boolean v690 = false;
 							if (v689) {
@@ -480,14 +480,14 @@ public final class examples_io_jsonfmt.java {
 								v674 = v697;
 								break;
 							}
-							final int v698 = v10[v675];
+							final int v698 = (v10[v675] & 0xFF);
 							final boolean v700 = (v698 == 92);
 							if (v700) {
 								final int v702 = (v675 + 2);
 								v675 = v702;
 								continue;
 							}
-							final int v703 = v10[v675];
+							final int v703 = (v10[v675] & 0xFF);
 							final boolean v705 = (v703 == 34);
 							if (v705) {
 								final int v707 = (v675 + 1);
@@ -500,7 +500,7 @@ public final class examples_io_jsonfmt.java {
 						}
 						v671 = v674;
 					} else {
-						final int v710 = v10[v387];
+						final int v710 = (v10[v387] & 0xFF);
 						final boolean v714 = (v710 >= 48);
 						final boolean v715 = (v714 && (v710 <= 57));
 						final boolean v721 = (v715 || ((v710 == 45) || ((v710 == 43) || ((v710 == 46) || ((v710 == 101) || (v710 == 69))))));
@@ -517,7 +517,7 @@ public final class examples_io_jsonfmt.java {
 								if (v756) {
 									break;
 								}
-								final int v761 = v10[v750];
+								final int v761 = (v10[v750] & 0xFF);
 								final boolean v765 = (v761 >= 48);
 								final boolean v766 = (v765 && (v761 <= 57));
 								final boolean v772 = (v766 || ((v761 == 45) || ((v761 == 43) || ((v761 == 46) || ((v761 == 101) || (v761 == 69))))));
@@ -540,7 +540,7 @@ public final class examples_io_jsonfmt.java {
 								if (v809) {
 									break;
 								}
-								final int v814 = v10[v803];
+								final int v814 = (v10[v803] & 0xFF);
 								final boolean v816 = (v814 >= 97);
 								final boolean v817 = (v816 && (v814 <= 122));
 								if (v817) {
@@ -561,12 +561,12 @@ public final class examples_io_jsonfmt.java {
 						v827 = 0;
 					}
 					final boolean v836 = (v389 == 1);
-					short[] v837 = null;
+					byte[] v837 = null;
 					if (v836) {
 						final int v840 = (2 * v388);
-						v385[v386] = (short) (10);
+						v385[v386] = (byte) 10;
 						final int v845 = (v386 + 1);
-						short[] v847 = v385;
+						byte[] v847 = v385;
 						int v848 = 0;
 						int v849 = v845;
 						for (;; v848 = (v848 + 1), v849 = (v849 + 1)) {
@@ -574,7 +574,7 @@ public final class examples_io_jsonfmt.java {
 							if (v850) {
 								break;
 							}
-							v847[v849] = (short) (32);
+							v847[v849] = (byte) 32;
 							continue;
 						}
 						v837 = v847;
@@ -582,7 +582,7 @@ public final class examples_io_jsonfmt.java {
 						v837 = v385;
 					}
 					final int v862 = (v386 + v827);
-					short[] v864 = v837;
+					byte[] v864 = v837;
 					int v865 = v387;
 					int v866 = v862;
 					for (;; v865 = (v865 + 1), v866 = (v866 + 1)) {
@@ -595,8 +595,8 @@ public final class examples_io_jsonfmt.java {
 						if (v873) {
 							break;
 						}
-						final int v878 = v10[v865];
-						v864[v866] = (short) (v878);
+						final int v878 = (v10[v865] & 0xFF);
+						v864[v866] = (byte) v878;
 						continue;
 					}
 					final int v884 = (v671 - v387);
@@ -613,7 +613,7 @@ public final class examples_io_jsonfmt.java {
 				continue;
 			}
 			v378 = v385;
-			final String v890 = (((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v378));
+			final String v890 = (((java.util.function.Function<byte[],String>) ($oroA) -> { final byte[] $oroB = $oroA; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v378));
 			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v890);
 			return v890;
 		}

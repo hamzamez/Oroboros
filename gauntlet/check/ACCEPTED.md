@@ -1833,3 +1833,23 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/fnv64-fold.oro js`
 - new source — `gauntlet/differential/cases/fnv64-fold.oro windows`
 - now emits — `gauntlet/differential/cases/fnv64.oro java`
+
+## 2026-10-27 — on 94d5473, with uncommitted changes
+
+**Reason:** ADR 0083 stage 4: the JVM holds 0..255 in a byte read unsigned (b & 0xFF), not a short[]; files are the host's byte[], uncopied. Measured: JsonTree GEN 4.96-4.98us against 4.97-5.23 (no slower); JsonTok GEN alone equal in its fast window (8.06us) and 3.5% slower in its JIT-degraded steady state (23.3 vs 22.5us), under the noise floor; bytes-table case added
+
+596 runs: 331 emitted, 265 refused; 2392 of 2449 integer operations bounded, 371 of 394 loops proven. compiler pass, differential pass, tooling skip.
+
+11 change(s):
+
+- emitted text changed — `examples/errors/ignore.oro java`
+- emitted text changed — `examples/io/count.oro java`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/jsonfmt.oro java`
+- emitted text changed — `examples/io/roundtrip.oro java`
+- emitted text changed — `examples/io/wc.oro java`
+- emitted text changed — `examples/kara/workspace.oro java`
+- new source — `gauntlet/differential/cases/bytes-table.oro go`
+- new source — `gauntlet/differential/cases/bytes-table.oro java`
+- new source — `gauntlet/differential/cases/bytes-table.oro js`
+- new source — `gauntlet/differential/cases/bytes-table.oro windows`

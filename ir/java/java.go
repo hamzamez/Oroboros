@@ -432,13 +432,24 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OCall:
 		p.call(s)
 	case ir.OIndex:
+		// AN ELEMENT HELD UNDER A SECOND READING (ADR 0083) is read through it:
+		// a `byte` holding 0..255 is `(b[i] & 0xFF)`, an int.
+		if r, ok := p.reading(s.Args[0]); ok && r.Read != "" {
+			p.define(s.Res[0], coerce(emit.Fill(r.Read, p.index(s.Args[0], s.Args[1])), "int", p.tyOf(s.Res[0])))
+			return
+		}
 		p.define(s.Res[0], coerce(p.index(s.Args[0], s.Args[1]), p.elemTy(s.Args[0]), p.tyOf(s.Res[0])))
 	case ir.OLen:
 		p.define(s.Res[0], p.Len(s.Args[0], p.ref(s.Args[0])))
 	case ir.OArray:
 		e := p.elemTy(s.Res[0])
 		out := make([]string, len(s.Args))
+		r, written := p.reading(s.Res[0])
 		for i, a := range s.Args {
+			if written && r.Write != "" {
+				out[i] = p.written(r, a) // 200 is no `byte` constant; `(byte) 200` is
+				continue
+			}
 			if d := p.pl.Const[p.pl.Res(a)]; d != nil {
 				out[i] = lit(d) // a constant narrows in an array initializer
 			} else {
@@ -458,6 +469,10 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OKeys:
 		p.define(s.Res[0], fmt.Sprintf("%s.keySet().stream().sorted().mapToLong(Long::longValue).toArray()", p.ref(s.Args[0])))
 	case ir.OSet:
+		if r, ok := p.reading(s.Args[0]); ok && r.Write != "" {
+			p.line("%s = %s;", p.index(s.Args[0], s.Args[1]), p.written(r, s.Args[2]))
+			return
+		}
 		p.line("%s = %s;", p.index(s.Args[0], s.Args[1]), p.refAs(s.Args[2], p.elemTy(s.Args[0])))
 	case ir.OInsert:
 		kt, vt := p.mapTys(s.Args[0])
@@ -502,6 +517,30 @@ func (p *printer) asInt32(x ir.V) string {
 		return "(int) " + p.ref(x)
 	}
 	return p.ref(x)
+}
+
+// reading is the representation of a table's elements, where the target
+// declares one with a reading of its own (ADR 0083).
+func (p *printer) reading(tab ir.V) (emit.IntRepr, bool) {
+	t := p.f.Types[p.pl.Res(tab)]
+	if strings.HasPrefix(t, "buffer ") {
+		t = "array " + t[len("buffer "):]
+	}
+	e := ir.ElemOf(p.tg, t)
+	if e == "" {
+		return emit.IntRepr{}, false
+	}
+	return p.tg.ElemRepr(e)
+}
+
+// written is a value as stored under a reading: the integer as the host's
+// `int`, then the write, `(byte) v`.
+func (p *printer) written(r emit.IntRepr, v ir.V) string {
+	x := p.refAs(v, "int")
+	if d := p.pl.Const[p.pl.Res(v)]; d != nil {
+		x = lit(d)
+	}
+	return emit.Fill(r.Write, x)
 }
 
 // elemTy is a table's element's Java type.

@@ -13,9 +13,9 @@ public final class examples_io_count.java {
 			return 0;
 		}
 		final String v10 = v0[1];
-		short[] v11;
+		byte[] v11;
 		Exception v12;
-		try { final byte[] $oroB = Files.readAllBytes(Path.of(v10)); v11 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) v11[$oroI] = (short) ($oroB[$oroI] & 0xFF); v12 = null; } catch (Exception $oroE) { v11 = null; v12 = $oroE; }
+		try { v11 = Files.readAllBytes(Path.of(v10)); v12 = null; } catch (Exception $oroE) { v11 = null; v12 = $oroE; }
 		final boolean v13 = (v12 == null);
 		if (v13) {
 			final int v14 = v11.length;
@@ -40,7 +40,7 @@ public final class examples_io_count.java {
 					v26 = v37;
 					break;
 				}
-				final int v41 = v11[v30];
+				final int v41 = (v11[v30] & 0xFF);
 				final boolean v43 = (v41 == 10);
 				if (v43) {
 					final boolean v46 = (v27 < 16777216);

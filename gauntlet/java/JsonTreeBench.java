@@ -277,13 +277,13 @@ public final class JsonTreeBench {
         return b.append("]}").toString();
     }
 
-    // The generated parser takes short[] now: tree.oro declares (array (int 0
-    // 255)) on its source, the JVM's byte is SIGNED so 0..255 does not fit it,
-    // and short is the next representation up. The hand-written references keep
-    // the long[] they were written against.
-    static short[] shortsOf(String s) {
-        short[] out = new short[s.length()];
-        for (int i = 0; i < s.length(); i++) out[i] = (short) s.charAt(i);
+    // The generated parser takes byte[]: tree.oro declares (array (int 0 255))
+    // on its source, and since ADR 0083 the JVM holds 0..255 in a byte read
+    // unsigned, `b & 0xFF` (until then a short[]). The hand-written references
+    // keep the long[] they were written against.
+    static byte[] bytesOf(String s) {
+        byte[] out = new byte[s.length()];
+        for (int i = 0; i < s.length(); i++) out[i] = (byte) s.charAt(i);
         return out;
     }
 
@@ -317,7 +317,7 @@ public final class JsonTreeBench {
         System.out.println("all three agree");
 
         long[] doc = longsOf(makeDoc(20));
-        short[] ds = shortsOf(makeDoc(20));
+        byte[] ds = bytesOf(makeDoc(20));
         run("T  tree recursive     hand", () -> treeRec(doc), 50000, 2000);
         run("T  tree flat          hand", () -> treeFlat(doc), 50000, 2000);
         run("T  tree flat int[]    hand", () -> treeFlatInt(doc), 50000, 2000);
@@ -327,9 +327,9 @@ public final class JsonTreeBench {
     static void check(String s) {
         long[] a = longsOf(s);
         long want = treeRec(a);
-        if (treeFlat(a) != want || treeFlatInt(a) != want || GenJsonTree.genMeasure(shortsOf(s)) != want) {
+        if (treeFlat(a) != want || treeFlatInt(a) != want || GenJsonTree.genMeasure(bytesOf(s)) != want) {
             throw new AssertionError(s + ": rec=" + want + " flat=" + treeFlat(a)
-                    + " gen=" + GenJsonTree.genMeasure(shortsOf(s)));
+                    + " gen=" + GenJsonTree.genMeasure(bytesOf(s)));
         }
     }
 }

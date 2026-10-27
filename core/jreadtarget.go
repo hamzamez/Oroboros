@@ -753,6 +753,12 @@ func (p *parser) modelForm() (*Term, error) {
 					h = append(h, Name(t.text))
 				}
 			}
+			// A SECOND READING of the host type (ADR 0083): how a value is read
+			// out of it and written into it, `read "(${x} & 0xFF)"`.
+			for (p.is("read") || p.is("write")) && p.peekN(1).kind == tString {
+				w := p.next().text
+				h = append(h, app(Name(w), Str(p.next().text)))
+			}
 			out = append(out, app(h...))
 		case p.accept("niche"):
 			p.next() // host

@@ -13,19 +13,12 @@
 // target and is declared in `targets/java/java.oro`, because how a host spells an
 // error value is a fact about the target rather than about any package.)
 //
-// AND THE JVM CHARGES FOR A BYTE, WHICH THE OTHER TWO DO NOT.
-//
-// `Files.readAllBytes` gives a `byte[]`, and the JVM's byte is SIGNED, so 0..255
-// does not fit it — the exact fact elemwidth-2026-08-27 found when a declared
-// `(array (int 0 255))` came out `short[]` here and `[]byte` on Go. A file's
-// bytes ARE 0..255; declaring them −128..127 would make `(src i)` return −1 for
-// 0xFF and the same program answer differently on different hosts, which is what
-// ADR 0009's rule forbids one level down. So this host WIDENS on the way in and
-// NARROWS on the way out, one pass each, at the boundary and nowhere else.
-//
-// That is the parasite model pricing something honestly rather than hiding it:
-// Go and Node read a file for free, the JVM pays a copy, and the cost is written
-// in the cell that knows why.
+// A FILE'S BYTES ARE Files.readAllBytes' OWN byte[] (ADR 0083). The JVM's byte
+// is signed, and until ADR 0083 0..255 was a short[] here (elemwidth-2026-08-27),
+// so this cell widened every file on the way in and narrowed it on the way out,
+// a copy each. A byte holds 0..255 under a second reading, `b & 0xFF`, which the
+// printer applies at every index (targets/java/java.oro), so the array the host
+// returns is the table, and nothing is copied.
 provides java os/host {
     // THIS IS os/host, ONE HOST'S CELL (oskinds-2026-10-06). `os` itself is a
     // library module, lib/os.oro, one definition over every host: each portable
@@ -44,7 +37,7 @@ provides java os/host {
     // cannot collide with an emitted local: Java forbids shadowing one, and
     // `javaMangle` never produces a name starting with `$oro`.
     fn ReadFile(path ∈ String) (r ∈ result.Result(Array(0..255), error)) {
-        host expr "try { final byte[] $oroB = Files.readAllBytes(Path.of(${path})); ${r}0 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) ${r}0[$oroI] = (short) ($oroB[$oroI] & 0xFF); ${r}1 = null; } catch (Exception $oroE) { ${r}0 = null; ${r}1 = $oroE; }" import "java.nio.file.*"
+        host expr "try { ${r}0 = Files.readAllBytes(Path.of(${path})); ${r}1 = null; } catch (Exception $oroE) { ${r}0 = null; ${r}1 = $oroE; }" import "java.nio.file.*"
     }
 
     // Put on the store (lib/os/go.oro). The holes are filled in the ARGUMENT
@@ -52,7 +45,7 @@ provides java os/host {
     // first, took the path as a short[], and never compiled. `Files.write`
     // creates with 0666 before the umask, as the other two hosts do.
     fn WriteFile(path ∈ String, data ∈ Array(0..255)) (r ∈ result.Result((), error)) {
-        host expr "try { final Path $oroP = Path.of(${path}); final short[] $oroS = ${data}; final byte[] $oroB = new byte[$oroS.length]; for (int $oroI = 0; $oroI < $oroS.length; $oroI++) $oroB[$oroI] = (byte) $oroS[$oroI]; Files.write($oroP, $oroB); ${r}0 = null; } catch (Exception $oroE) { ${r}0 = $oroE; }" import "java.nio.file.*"
+        host expr "try { final Path $oroP = Path.of(${path}); Files.write($oroP, ${data}); ${r}0 = null; } catch (Exception $oroE) { ${r}0 = $oroE; }" import "java.nio.file.*"
     }
 
     // The discriminator.
@@ -88,7 +81,7 @@ provides java os/host {
     // fast path; it lacks the lenient one's ASCII intrinsic and cost 3.6× on 1 KB
     // of ASCII, measured.)
     fn text_of(b ∈ Array(0..255)) (String) pure {
-        host expr "((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(${b})" import "java.nio.charset.StandardCharsets"
+        host expr "((java.util.function.Function<byte[],String>) ($oroA) -> { final byte[] $oroB = $oroA; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(${b})" import "java.nio.charset.StandardCharsets"
     }
 
     // THE COMMAND LINE IS THE ONE THING A JVM PROGRAM CANNOT ASK FOR. Go has

@@ -125,11 +125,10 @@ public final class JsonTokBench {
         }
     }
 
-    // OUR SHAPE NOW: the generated tokeniser takes short[], because its
-    // signature says (array (int 0 255)) and this target declares that it holds
-    // that range in a `short` -- the JVM's byte is SIGNED, so 0..255 does not
-    // fit it, and nothing special-cases that. byte[] stays as the control for
-    // what a person writes.
+    // THE GENERATED TOKENISER TAKES byte[]: its signature says (array (int 0
+    // 255)), and since ADR 0083 this target holds that range in a byte read
+    // unsigned, `b & 0xFF`, as a person writes it. Until then it took short[];
+    // the short[] hand variant stays as the record of that shape.
 
     static long tokShorts(short[] src) {
         short[] stk = new short[CAP];
@@ -362,14 +361,14 @@ public final class JsonTokBench {
         run("J  tokenize long[]     hand", () -> tokLongs(dl), 50000, 2000);
         run("J  tokenize long[]/long idx hand", () -> tokLongsIdx(dl), 50000, 2000);
         run("J  tokenize short[]    hand", () -> tokShorts(ds), 50000, 2000);
-        run("J  tokenize short[]    GEN ", () -> GenJsonTok.genTokens(ds), 50000, 2000);
+        run("J  tokenize byte[]     GEN ", () -> GenJsonTok.genTokens(db), 50000, 2000);
     }
 
     static void check(String s) {
         long want = tokString(s);
         long[] l = longsOf(s);
         if (tokBytes(bytesOf(s)) != want || tokLongs(l) != want || tokLongsIdx(l) != want
-                || tokShorts(shortsOf(s)) != want || GenJsonTok.genTokens(shortsOf(s)) != want) {
+                || tokShorts(shortsOf(s)) != want || GenJsonTok.genTokens(bytesOf(s)) != want) {
             throw new AssertionError(s + ": " + want + " " + tokBytes(bytesOf(s))
                     + " " + tokLongs(l) + " " + tokShorts(shortsOf(s)));
         }

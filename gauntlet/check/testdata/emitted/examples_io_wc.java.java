@@ -13,9 +13,9 @@ public final class examples_io_wc.java {
 			return 0;
 		}
 		final String v10 = v0[1];
-		short[] v11;
+		byte[] v11;
 		Exception v12;
-		try { final byte[] $oroB = Files.readAllBytes(Path.of(v10)); v11 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) v11[$oroI] = (short) ($oroB[$oroI] & 0xFF); v12 = null; } catch (Exception $oroE) { v11 = null; v12 = $oroE; }
+		try { v11 = Files.readAllBytes(Path.of(v10)); v12 = null; } catch (Exception $oroE) { v11 = null; v12 = $oroE; }
 		final boolean v13 = (v12 == null);
 		if (v13) {
 			final int v14 = v11.length;
@@ -36,7 +36,7 @@ public final class examples_io_wc.java {
 				final boolean v37 = (v26 < 16777216);
 				int v38 = 0;
 				if (v37) {
-					final int v40 = v11[v25];
+					final int v40 = (v11[v25] & 0xFF);
 					final boolean v42 = (v40 == 10);
 					if (v42) {
 						final int v44 = (v26 + 1);

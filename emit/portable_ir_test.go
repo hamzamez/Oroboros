@@ -121,14 +121,13 @@ export fn main() { p.join() }`)
 	}
 }
 
-// THE SAME CALL ON THE HOST WHERE FAILURE IS IN THE TYPES, plus the price the
-// JVM charges for a byte.
+// THE SAME CALL ON THE HOST WHERE FAILURE IS IN THE TYPES, and a file's bytes
+// held as the host gives them.
 //
-// `Files.readAllBytes` gives a `byte[]` and the JVM's byte is SIGNED, so a file
-// byte does not fit it (elemwidth-2026-08-27). Declaring the element −128..127
-// would make `(src i)` answer −1 for 0xFF and the same program differ across
-// hosts, so this target widens at the boundary — and the DECLARATION is what
-// must survive, which is what the emitted `short[]` checks.
+// `Files.readAllBytes` gives a `byte[]` and the JVM's byte is SIGNED. Until ADR
+// 0083 the element 0..255 was a `short[]` and this cell copied every file into
+// one; now a byte holds 0..255 read `b & 0xFF`, so the destination is the
+// host's own array, and no copy loop is emitted.
 func TestJavaEmitsDeclaredDestinationsAndTheWidening(t *testing.T) {
 	for k := range emit.JavaImports {
 		delete(emit.JavaImports, k)
@@ -160,7 +159,7 @@ export fn main() { case os.ReadFile("f") { result.'ok(src) -> len(src); result.'
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`short\[\] v\d+;`, // the widened element, not byte[]
+		`byte\[\] v\d+;`, // the host's own array, read unsigned (ADR 0083)
 		`Exception v\d+;`,
 		`try \{`, `Files\.readAllBytes`, `catch \(Exception`,
 		`== null`,
@@ -172,8 +171,11 @@ export fn main() { case os.ReadFile("f") { result.'ok(src) -> len(src); result.'
 	// DECLARED, THEN ASSIGNED — not `final var`, because every arm of the
 	// template writes every destination and javac's definite-assignment check is
 	// what then enforces that the two halves of a totalisation agree.
-	if strings.Contains(out, "final short[]") {
+	if strings.Contains(out, "final byte[]") {
 		t.Error("a destination the template assigns may not be final")
+	}
+	if strings.Contains(out, "short[]") || strings.Contains(out, "for (int $oroI") {
+		t.Errorf("a file's bytes were copied:\n%s", out)
 	}
 }
 

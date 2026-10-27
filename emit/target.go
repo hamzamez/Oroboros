@@ -2296,7 +2296,8 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 		if lo > hi {
 			return fmt.Errorf("%s: %d..%d is empty", path, lo, hi)
 		}
-		frag.Reprs = append(frag.Reprs, IntRepr{Lo: lo, Hi: hi, Spell: spelling})
+		rd, wr := hostReading(choice)
+		frag.Reprs = append(frag.Reprs, IntRepr{Lo: lo, Hi: hi, Spell: spelling, Read: rd, Write: wr})
 	case "ref":
 		if subj.Kind != core.KApp || len(subj.Kids) != 2 || subj.Kids[1].Kind != core.KName || !hosted {
 			return bad(`(repr (ref T) (host "spelling"))`)
@@ -2707,10 +2708,34 @@ func formWord(t *core.Term) string {
 
 // hostSpelling reads `(host "spelling")`.
 func hostSpelling(t *core.Term) (string, bool) {
-	if formWord(t) != "host" || len(t.Kids) != 2 || t.Kids[1].Kind != core.KStr {
+	if formWord(t) != "host" || len(t.Kids) < 2 || t.Kids[1].Kind != core.KStr {
 		return "", false
 	}
+	for _, k := range t.Kids[2:] {
+		if w := formWord(k); w != "read" && w != "write" {
+			return "", false
+		}
+	}
 	return t.Kids[1].Str, true
+}
+
+// hostReading is a host choice's `read` and `write` templates, `${x}` as `%s`.
+func hostReading(t *core.Term) (read, write string) {
+	if formWord(t) != "host" {
+		return "", ""
+	}
+	for _, k := range t.Kids[2:] {
+		if len(k.Kids) == 2 && k.Kids[1].Kind == core.KStr {
+			tpl := strings.ReplaceAll(strings.ReplaceAll(k.Kids[1].Str, "%", "%%"), "${x}", "%s")
+			switch formWord(k) {
+			case "read":
+				read = tpl
+			case "write":
+				write = tpl
+			}
+		}
+	}
+	return read, write
 }
 
 func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path string) (Prim, error) {
@@ -3181,6 +3206,26 @@ func (tg *Target) MaxLenOf() int64 {
 type IntRepr struct {
 	Lo, Hi int64
 	Spell  string
+	// Read and Write, where the host type holds [Lo, Hi] under a reading that
+	// is not its own (ADR 0083, an abstraction function): `%s` is the stored
+	// value, or the value to store. The JVM's `byte` holds 0..255 read
+	// `(b & 0xFF)` and written `(byte) v`. Empty: the host's own reading.
+	Read, Write string
+}
+
+// ElemRepr is the declared representation a table element of type e takes,
+// with its reading (ADR 0083), or false where the element is no narrow range.
+func (tg *Target) ElemRepr(e string) (IntRepr, bool) {
+	lo, hi, ok := core.IntRange(e)
+	if !ok {
+		return IntRepr{}, false
+	}
+	for _, r := range tg.Reprs {
+		if r.Lo <= lo && hi <= r.Hi {
+			return r, true
+		}
+	}
+	return IntRepr{}, false
 }
 
 // reprFor picks the narrowest declared representation that holds [lo,hi], or ""

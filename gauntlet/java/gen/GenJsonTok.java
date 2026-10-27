@@ -965,7 +965,7 @@ public final class GenJsonTok {
 		return v979;
 	}
 
-	public static long genTokens(short[] v0) {
+	public static long genTokens(byte[] v0) {
 		final byte[] v6 = new byte[32];
 		int v5 = 0;
 		byte[] v13 = v6;
@@ -1004,7 +1004,7 @@ public final class GenJsonTok {
 				v12 = v46;
 				break;
 			}
-			final int v48 = v0[v14];
+			final int v48 = (v0[v14] & 0xFF);
 			final boolean v50 = (v48 == 32);
 			final boolean v51 = (v50 || ((v48 == 9) || ((v48 == 10) || (v48 == 13))));
 			if (v51) {
@@ -1012,11 +1012,11 @@ public final class GenJsonTok {
 				v14 = v68;
 				continue;
 			}
-			final int v69 = v0[v14];
+			final int v69 = (v0[v14] & 0xFF);
 			final boolean v71 = (v69 == 123);
 			final boolean v72 = (v71 || (v69 == 91));
 			if (v72) {
-				final int v78 = v0[v14];
+				final int v78 = (v0[v14] & 0xFF);
 				final boolean v80 = (v78 == 123);
 				int v81 = 0;
 				if (v80) {
@@ -1043,7 +1043,7 @@ public final class GenJsonTok {
 				v17 = v94;
 				continue;
 			}
-			final int v99 = v0[v14];
+			final int v99 = (v0[v14] & 0xFF);
 			final boolean v101 = (v99 == 125);
 			final boolean v102 = (v101 || (v99 == 93));
 			if (v102) {
@@ -1071,7 +1071,7 @@ public final class GenJsonTok {
 						v128 = v133;
 					}
 					final int v134 = v13[v128];
-					final int v135 = v0[v14];
+					final int v135 = (v0[v14] & 0xFF);
 					final boolean v136 = (v134 == v135);
 					if (v136) {
 						v122 = v18;
@@ -1085,7 +1085,7 @@ public final class GenJsonTok {
 				v18 = v122;
 				continue;
 			}
-			final int v138 = v0[v14];
+			final int v138 = (v0[v14] & 0xFF);
 			final boolean v140 = (v138 == 58);
 			final boolean v141 = (v140 || (v138 == 44));
 			if (v141) {
@@ -1095,7 +1095,7 @@ public final class GenJsonTok {
 				v15 = v150;
 				continue;
 			}
-			final int v151 = v0[v14];
+			final int v151 = (v0[v14] & 0xFF);
 			final boolean v153 = (v151 == 34);
 			if (v153) {
 				final int v155 = (v14 + 1);
@@ -1113,14 +1113,14 @@ public final class GenJsonTok {
 						v156 = v157;
 						break;
 					}
-					final int v168 = v0[v157];
+					final int v168 = (v0[v157] & 0xFF);
 					final boolean v170 = (v168 == 92);
 					if (v170) {
 						final int v172 = (v157 + 2);
 						v157 = v172;
 						continue;
 					}
-					final int v173 = v0[v157];
+					final int v173 = (v0[v157] & 0xFF);
 					final boolean v175 = (v173 == 34);
 					if (v175) {
 						final int v177 = (v157 + 1);
@@ -1136,7 +1136,7 @@ public final class GenJsonTok {
 				v15 = v181;
 				continue;
 			}
-			final int v182 = v0[v14];
+			final int v182 = (v0[v14] & 0xFF);
 			final boolean v186 = (v182 >= 48);
 			final boolean v187 = (v186 && (v182 <= 57));
 			final boolean v193 = (v187 || ((v182 == 45) || ((v182 == 43) || ((v182 == 46) || ((v182 == 101) || (v182 == 69))))));
@@ -1153,7 +1153,7 @@ public final class GenJsonTok {
 					if (v228) {
 						break;
 					}
-					final int v233 = v0[v222];
+					final int v233 = (v0[v222] & 0xFF);
 					final boolean v237 = (v233 >= 48);
 					final boolean v238 = (v237 && (v233 <= 57));
 					final boolean v244 = (v238 || ((v233 == 45) || ((v233 == 43) || ((v233 == 46) || ((v233 == 101) || (v233 == 69))))));
@@ -1167,7 +1167,7 @@ public final class GenJsonTok {
 				v15 = v273;
 				continue;
 			}
-			final int v274 = v0[v14];
+			final int v274 = (v0[v14] & 0xFF);
 			final boolean v276 = (v274 >= 97);
 			final boolean v277 = (v276 && (v274 <= 122));
 			if (v277) {
@@ -1183,7 +1183,7 @@ public final class GenJsonTok {
 					if (v292) {
 						break;
 					}
-					final int v297 = v0[v286];
+					final int v297 = (v0[v286] & 0xFF);
 					final boolean v299 = (v297 >= 97);
 					final boolean v300 = (v299 && (v297 <= 122));
 					if (v300) {

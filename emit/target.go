@@ -30,7 +30,7 @@ import (
 type Prim struct {
 	// key is the name the target holds the primitive under, set by spelled for
 	// a search that needs it (realizations); never read elsewhere.
-	key string
+	key  string
 	Name string
 	Args []string // our type names; empty when the target is untyped
 

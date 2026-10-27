@@ -136,13 +136,17 @@ checked. When a package hits a wall that needs language work, stop, research it,
      document first and hamza's decision after** (hamza, 2026-10-27), in this order:
      1. ~~**ℤ/2ⁿ and 𝔽₂ⁿ**~~ **decided** ([ADR 0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md),
         [bits-research.md](docs/bits-research.md)): `& | ⊕ ~ << >>` are ℤ's own, wrapping is `mod 2ⁿ`, no
-        new sort, fusion the one new soundness rule, `⊕` spelled `\oplus`. Built with step 2, program
-        first: `hash/fnv` and `hash/crc32`.
+        new sort, fusion the one new soundness rule, `⊕` spelled `\oplus`. **Built** with step 2
+        ([bits-2026-10-27](gauntlet/results/bits-2026-10-27.md)).
      2. ~~**Widths**~~ **decided** ([ADR 0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md),
         [widths-research.md](docs/widths-research.md)): a representation is an abstraction function
         (H, d), one mechanism; ρ chooses by place; native iN above the word on LLVM; the word S₆₄ on
-        every triple. **Building now with ADR 0082, in stages, program first**: `hash/fnv` and
-        `hash/crc32` at parity with Go's own on Go, Java and JavaScript.
+        every triple. **Built with ADR 0082, program first** ([bits-2026-10-27](gauntlet/results/bits-2026-10-27.md)):
+        `examples/hash`, FNV-1a and CRC-32 of a file, equal to Go's `hash/fnv` and `hash/crc32` and at
+        parity with hand-written code on Go, the JVM and JavaScript (1.00–1.12); the JVM's unsigned word
+        and its `byte` read unsigned, JavaScript's typed arrays. Not built: JavaScript's split pair (so
+        FNV-1a 64 is refused there), a 32-bit scalar representation, the old mechanisms re-declared as
+        (H, d), LLVM's widths (with `ir/llvm`).
      3. **Pointers as values**: an opaque host pointer a host type, every other pointer a segment.
      4. **Vectors**: a representation of a static-length table, not a sort.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
@@ -175,9 +179,10 @@ what TinyRetroPad's walls need.
 **Waiting on a trigger** (researched, built when a program needs it):
 - **One integer rendering**, render : ℤ → Σ*, per representation, replacing `big-str` (declared on three
   targets, and a hidden allocation on a value that fits the word). Trigger: printing's P3.
-- **A representation as an instance of a type's signature** (data refinement, Hoare 1972; Haftmann et
-  al. 2013), replacing integers' four mechanisms. Trigger: a fifth integer representation (ℤ/2ⁿ for
-  `hash/fnv`) or a second string encoding (Win32's `W` functions).
+- **Integers' four old mechanisms re-declared as (H, d) data** (ADR 0083 item 1; Hoare 1972): the new
+  representations are declared so (bits-2026-10-27), the word, the unsigned word, limbs and the bignum
+  are still separate code. Trigger: the next change to any of them, or a second string encoding
+  (Win32's `W` functions).
 - **Validity through functions that preserve it**: refinement sorts (Freeman and Pfenning 1991) for
   `strings` over V ⊂ B*. Trigger: a program paying for `go.text` right after a `strings` call.
 - **Concurrency's** six questions and surface (ADR 0081 decided the direction) and six decisions on
@@ -193,9 +198,9 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **2,392 of 2,449** integer operations proven inside their target's word, the 57 left
+- **Provability**: **2,607 of 2,664** integer operations proven inside their target's word, the 57 left
   mostly meant to be refused or waiting on a target's unsigned word (FNV-1a 64 on JavaScript and MASM);
-  **371 of 394** loops proven to terminate (size-change termination). Each
+  **388 of 411** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -477,8 +482,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | A declared set is a claim, and the facts choose the representation | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
 | The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity; every LLVM primitive offered, walls to hamza (not built) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
 | Concurrency is typed processes: a Mealy machine, failure an effect, supervisors its handlers; Kahn networks and fork–join its fragments (the direction; not built) | [0081](docs/decisions/0081-concurrency-is-typed-processes.md) |
-| Wrapping is the residue map `mod 2ⁿ` on ℤ, not a sort; `& \| ⊕ ~ << >>` are ℤ's own; fusion computes a term under `mod 2ⁿ` in n-bit arithmetic (not built) | [0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
-| A representation is an abstraction function (H, d), chosen by place; native iN above the word on LLVM; the word S₆₄ on every triple (built in stages) | [0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md) |
+| Wrapping is the residue map `mod 2ⁿ` on ℤ, not a sort; `& \| ⊕ ~ << >>` are ℤ's own; fusion computes a term under `mod 2ⁿ` in n-bit arithmetic | [0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
+| A representation is an abstraction function (H, d), chosen by place; native iN above the word on LLVM; the word S₆₄ on every triple (LLVM's part with ir/llvm) | [0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md) |
 
 ## Build commands
 
@@ -516,6 +521,6 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/`; `blas` and the `tutorial*` targets parameterize the normal form for the book |
 | `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num`, `win` |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
-| `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
+| `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
 | `gauntlet/` | hand-written references, `results/`, `check/` (the baseline), `differential/` (cases on four targets, proving their arithmetic unless `; checked:` says why), `conformance/`, `regen.txt`, `balance.py`, `surface/` (the surface's measurements) |
 | `gauntlet/stdlib/` | the four host surveys (writing J through `jdecl`), `coverage.go`, `callbacks.go`, twenty acceptance programs, and `tooling_test.go`, which checks every hand declaration against its host |

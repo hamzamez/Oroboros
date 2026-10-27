@@ -28,6 +28,16 @@ set Int = host "number"
 // ±(2^53−1) and no further — the one host whose word is not 64 bits, and the
 // reason ADR 0012's window was 2^53 when it was one interval for every target.
 repr -9007199254740991..2^53-1 word
+// WHAT A TABLE'S ELEMENTS ARE HELD IN, narrowest first (ADR 0083 item 2): a
+// typed array whose elements are the set's integers, unboxed, where an Array
+// of integers past int31 holds doubles (hashbench-2026-10-27: a CRC table in
+// an Array cost 2.7×). Zero on creation, as a table is.
+repr 0..255 host "Uint8Array"
+repr -128..127 host "Int8Array"
+repr 0..65535 host "Uint16Array"
+repr -32768..32767 host "Int16Array"
+repr 0..2^32-1 host "Uint32Array"
+repr -2^31..2^31-1 host "Int32Array"
 set F64 = host "number"
 set Bool = host "boolean"
 set String = host "string"

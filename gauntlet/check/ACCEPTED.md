@@ -1853,3 +1853,29 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/bytes-table.oro java`
 - new source — `gauntlet/differential/cases/bytes-table.oro js`
 - new source — `gauntlet/differential/cases/bytes-table.oro windows`
+
+## 2026-10-27 — on 1a7fb50, with uncommitted changes
+
+**Reason:** ADR 0083 stage 5: examples/hash (fnv, crc32); JavaScript holds integer tables in typed arrays (JsonTok NATIVE 7.99-8.11us against 8.15-8.20, JsonTree 8.45-8.55 against 8.62-8.70: no slower) and computes >> as >>> or >> where the operands are proven in an int32 window (hash CRC-32 2.72x to 1.00x hand-written); realizations chosen by operand and result facts; a remainder of an opaque dividend and the language's & are atoms of the refinement layer
+
+604 runs: 336 emitted, 268 refused; 2607 of 2664 integer operations bounded, 388 of 411 loops proven. compiler pass, differential pass, tooling skip.
+
+17 change(s):
+
+- emitted text changed — `examples/big/limbs.oro js`
+- new source — `examples/hash/crc32.oro go`
+- new source — `examples/hash/crc32.oro java`
+- new source — `examples/hash/crc32.oro js`
+- new source — `examples/hash/crc32.oro windows`
+- new source — `examples/hash/fnv.oro go`
+- new source — `examples/hash/fnv.oro java`
+- new source — `examples/hash/fnv.oro js`
+- new source — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/freq.oro js`
+- emitted text changed — `examples/io/jsonfmt.oro js`
+- emitted text changed — `examples/io/roundtrip.oro js`
+- emitted text changed — `examples/kara/workspace.oro js`
+- emitted text changed — `gauntlet/differential/cases/bits.oro js`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro js`
+- compiler output changed — `gauntlet/differential/cases/fnv64-fold.oro js`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro js`

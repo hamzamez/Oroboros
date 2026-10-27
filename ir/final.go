@@ -603,17 +603,34 @@ func eraseThe(f *Func) {
 }
 
 // selectRealizations chooses, for each Boolean operation the target realizes
-// more than one way, the first realization whose declared result set holds the
-// operation's proven result (ADR 0083 item 2), and records it in the
-// statement, where the printers read it (ADR 0038). The first is the one found
-// by spelling and is left unrecorded, so a program that needs no other prints
-// as before. JavaScript is the case: its `&` is the and only where the result
-// is proven in S₃₂, and `>>> 0` reads it in U₃₂. A result in none is refused,
-// naming the windows.
+// more than one way, a realization whose declared parameter sets hold the
+// operands' facts and whose declared result set holds the result's (ADR 0083
+// item 2), the narrowest such, and records it in the statement, where the
+// printers read it (ADR 0038). The one found by spelling wins a tie and is left
+// unrecorded, so a program that needs no other prints as before. JavaScript is
+// the case: its `&` is the and only where the result is proven in S₃₂, and
+// `>>> 0` reads it in U₃₂; its `>>` is `>>>` on an operand proven in U₃₂ and a
+// count below 32, `Math.floor` of a quotient elsewhere. A result no
+// realization holds is refused, naming the sets.
 func selectRealizations(tg *emit.Target, f *Func, fs []fact) error {
 	var err error
+	word := func(ty string) (*big.Int, *big.Int) {
+		if lo, hi, ok := core.IntRangeBig(ty); ok && lo != nil && hi != nil {
+			return lo, hi
+		}
+		return big.NewInt(tg.Word.Lo), big.NewInt(tg.Word.Hi)
+	}
+	holds := func(ty string, x iv) bool {
+		lo, hi := word(ty)
+		l, ok1 := fromBig(lo)
+		h, ok2 := fromBig(hi)
+		return ok1 && ok2 && x.within(l, h)
+	}
+	width := func(ty string) *big.Int {
+		lo, hi := word(ty)
+		return new(big.Int).Sub(hi, lo)
+	}
 	f.Walk(func(r *Region) {
-	next:
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
 			if !s.Op.IsBit() || len(s.Res) != 1 || err != nil {
@@ -623,24 +640,38 @@ func selectRealizations(tg *emit.Target, f *Func, fs []fact) error {
 			if len(rs) == 0 {
 				continue
 			}
-			v := fs[s.Res[0]].v
+			best, bestW := -1, (*big.Int)(nil)
 			var sets []string
 			for j, name := range rs {
-				lo, hi, ok := core.IntRange(tg.Prims[name].Result)
-				if !ok {
-					lo, hi = tg.Word.Lo, tg.Word.Hi
+				q := tg.Prims[name]
+				lo, hi := word(q.Result)
+				sets = append(sets, fmt.Sprintf("%s..%s", lo, hi))
+				if !holds(q.Result, fs[s.Res[0]].v) {
+					continue
 				}
-				sets = append(sets, fmt.Sprintf("%d..%d", lo, hi))
-				if v.within(ei(lo), ei(hi)) {
-					if j > 0 {
-						s.Name = name
+				w := width(q.Result)
+				fits := true
+				for k, a := range s.Args {
+					if k < len(q.Args) {
+						if !holds(q.Args[k], fs[a].v) {
+							fits = false
+						}
+						w.Add(w, width(q.Args[k]))
 					}
-					continue next
 				}
+				if fits && (best < 0 || w.Cmp(bestW) < 0) {
+					best, bestW = j, w
+				}
+			}
+			if best > 0 {
+				s.Name = rs[best]
+			}
+			if best >= 0 {
+				continue
 			}
 			err = fmt.Errorf("the result of `%s` lies in %s, and target %s computes `%s` only where the result is "+
 				"proven in one of %s (integers.md §0b); narrow its operands' sets",
-				bitName[s.Op], show(v), tg.Name, bitName[s.Op], strings.Join(sets, ", "))
+				bitName[s.Op], show(fs[s.Res[0]].v), tg.Name, bitName[s.Op], strings.Join(sets, ", "))
 		}
 	})
 	return err

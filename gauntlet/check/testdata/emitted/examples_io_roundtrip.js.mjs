@@ -7,7 +7,7 @@ export function genMain() {
 		return 1;
 	}
 	const v10 = v0[1];
-	const v18 = [104, 105, 32, 226, 130, 172, 10];
+	const v18 = Uint8Array.of(104, 105, 32, 226, 130, 172, 10);
 	let v19;
 	try { fs.writeFileSync(v10, Buffer.from(v18)); v19 = null; } catch (e) { v19 = e; }
 	if ((v19 === null)) {

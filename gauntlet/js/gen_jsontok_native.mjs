@@ -2,8 +2,8 @@
 
 export function nativeRun(v0) {
 	if ((v0 === 0)) {
-		const v24 = [123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125];
-		const v27 = new Array(32).fill(0);
+		const v24 = Uint8Array.of(123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125);
+		const v27 = new Uint8Array(32);
 		let v26;
 		let v34 = v27;
 		let v35 = 0;
@@ -128,8 +128,8 @@ export function nativeRun(v0) {
 		return v26;
 	}
 	if ((v0 === 1)) {
-		const v345 = [91, 91, 91, 49, 93, 93, 93];
-		const v348 = new Array(32).fill(0);
+		const v345 = Uint8Array.of(91, 91, 91, 49, 93, 93, 93);
+		const v348 = new Uint8Array(32);
 		let v347;
 		let v355 = v348;
 		let v356 = 0;
@@ -254,8 +254,8 @@ export function nativeRun(v0) {
 		return v347;
 	}
 	if ((v0 === 2)) {
-		const v665 = [123, 34, 97, 34, 58, 49];
-		const v668 = new Array(32).fill(0);
+		const v665 = Uint8Array.of(123, 34, 97, 34, 58, 49);
+		const v668 = new Uint8Array(32);
 		let v667;
 		let v675 = v668;
 		let v676 = 0;
@@ -379,8 +379,8 @@ export function nativeRun(v0) {
 		v667 = v674;
 		return v667;
 	}
-	const v977 = [93];
-	const v980 = new Array(32).fill(0);
+	const v977 = Uint8Array.of(93);
+	const v980 = new Uint8Array(32);
 	let v979;
 	let v987 = v980;
 	let v988 = 0;
@@ -506,7 +506,7 @@ export function nativeRun(v0) {
 }
 
 export function nativeTokens(v0) {
-	const v6 = new Array(32).fill(0);
+	const v6 = new Uint8Array(32);
 	let v5;
 	let v13 = v6;
 	let v14 = 0;

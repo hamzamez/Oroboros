@@ -154,6 +154,11 @@ module js {
     fn not(a ∈ Int) (Int) pure { host expr "(-(${a}) - 1)" }
     fn shl(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "(${a} * 2 ** ${b})" }
     fn sar(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "Math.floor(${a} / 2 ** Math.min(${b}, 64))" }
+    // ⌊a/2ᵏ⌋ IN THE INT32 WINDOWS, chosen by the operands' facts (ADR 0083
+    // item 2): ToUint32 is the identity on U₃₂ and `>>>` its floor by 2ᵏ, as
+    // ToInt32 and `>>` are on S₃₂, for a count below 32, which JavaScript masks.
+    fn sar_u32(a ∈ 0..2^32-1, b ∈ 0..31) (0..2^32-1) pure { host expr "(${a} >>> ${b})" }
+    fn sar_s32(a ∈ -2^31..2^31-1, b ∈ 0..31) (-2^31..2^31-1) pure { host expr "(${a} >> ${b})" }
     fn add_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(((${a} | 0) + (${b} | 0)) | 0)" }
     fn sub_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(((${a} | 0) - (${b} | 0)) | 0)" }
     fn mul_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.imul(${a}, ${b})" }

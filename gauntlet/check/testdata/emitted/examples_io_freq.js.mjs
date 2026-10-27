@@ -45,7 +45,7 @@ export function genMain() {
 			v24 = (v24 + 1);
 			continue;
 		}
-		const v102 = new Array((2 * v23)).fill(0);
+		const v102 = new Uint16Array((2 * v23));
 		let v101;
 		let v106 = v102;
 		let v107 = 0;
@@ -83,9 +83,9 @@ export function genMain() {
 			continue;
 		}
 		v101 = v106;
-		const v193 = new Array(v23).fill(0);
+		const v193 = new Uint16Array(v23);
 		let v192;
-		const v195 = new Array(v23).fill(0);
+		const v195 = new Uint16Array(v23);
 		let v194;
 		let v198 = v193;
 		let v199 = 0;
@@ -253,7 +253,7 @@ export function genMain() {
 			}
 			continue;
 		}
-		const v686 = new Array((2 * v489)).fill(0);
+		const v686 = new Uint32Array((2 * v489));
 		let v685;
 		let v690 = v686;
 		let v691 = 0;
@@ -367,9 +367,9 @@ export function genMain() {
 			continue;
 		}
 		v685 = v690;
-		const v1093 = new Array(v489).fill(0);
+		const v1093 = new Uint16Array(v489);
 		let v1092;
-		const v1095 = new Array(v489).fill(0);
+		const v1095 = new Uint16Array(v489);
 		let v1094;
 		let v1098 = v1093;
 		let v1099 = 0;
@@ -468,7 +468,7 @@ export function genMain() {
 			v1209 = (v1209 + (v1233 + (2 + ((v1259 < 0) ? 0 : ((v1259 >= 65536) ? 0 : v1259)))));
 			continue;
 		}
-		const v1277 = new Array(v1209).fill(0);
+		const v1277 = new Uint8Array(v1209);
 		let v1276;
 		let v1281 = v1277;
 		let v1282 = 0;

@@ -135,7 +135,7 @@ export function genMain() {
 			v26 = (v26 + 1);
 			continue;
 		}
-		const v379 = new Array(v24).fill(0);
+		const v379 = new Uint8Array(v24);
 		let v378;
 		let v385 = v379;
 		let v386 = 0;

@@ -1,0 +1,57 @@
+// CRC-32 OF A FILE: Go's hash/crc32 (ChecksumIEEE), table-driven, program
+// first (ADR 0082).
+//
+// CRC-32 is the remainder, in 𝔽₂[x], of the message by the IEEE polynomial
+// (bits-research.md §1.4); reflected, one byte at a time, it is
+//
+//     crc ← tab[(crc ⊕ b) & 255] ⊕ (crc >> 8)
+//
+// with tab[k] eight steps of c ↦ (c >> 1) ⊕ (0xEDB88320 & (0 − (c & 1))). Every
+// value lies in [0, 2³²) and every operation is exact on ℤ there: nothing wraps,
+// so no `mod` is needed, and JavaScript computes it natively in its U₃₂ window
+// (`>>> 0`). `0 − (c & 1)` is 0 or −1, all ones in the 2-adic integers, so the and
+// selects the polynomial without a branch. The 32-bit complement of the
+// standard is `⊕ (2^32 − 1)`, not `~`, which is −x − 1 on ℤ.
+//
+// The table's entry applies the step eight times in a row rather than looping:
+// a loop whose value is stored before the outer loop continues is the 10-24
+// plan's item 8, an `again` after a nested loop's join point, not built.
+use os
+use io
+use result
+
+fn step(c ∈ 0..2^32-1) (0..2^32-1) { (c >> 1) ⊕ (0xEDB88320 & (0 - (c & 1))) }
+
+fn crc_table() (Array(0..2^32-1)) {
+    var t := array { 0 : _ ∈ 0..255 }
+    loop k = 0 {
+        k < 256 -> { t[k] := step(step(step(step(step(step(step(step(k)))))))); again(k + 1) }
+        else -> t
+    }
+}
+
+fn hex(h ∈ 0..2^32-1) (String) {
+    loop k = 0, s = "" {
+        k >= 8 -> s
+        (h >> (4 * k)) % 16 < 10 -> again(k + 1, string_of(48 + (h >> (4 * k)) % 16) ++ s)
+        else -> again(k + 1, string_of(87 + (h >> (4 * k)) % 16) ++ s)
+    }
+}
+
+fn crc32(tab ∈ Array(0..2^32-1), src ∈ Array(0..255)) (0..2^32-1) {
+    c = loop i = 0, crc = 0xFFFFFFFF {
+        i < len(src) -> again(i + 1, tab[(crc ⊕ src[i]) & 255] ⊕ (crc >> 8))
+        else -> crc
+    }
+    c ⊕ 0xFFFFFFFF
+}
+
+export fn main() {
+    av = os.Args()
+    if len(av) < 2 { io.print_line("usage: crc32 FILE"); 0 } else {
+        case os.ReadFile(av[1]) {
+            result.'err(k) -> { io.print_line("crc32: cannot read that file"); 0 }
+            result.'ok(src) -> { io.print_line(hex(crc32(crc_table(), src))); 0 }
+        }
+    }
+}

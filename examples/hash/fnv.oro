@@ -1,0 +1,51 @@
+// FNV-1a OF A FILE, 32 AND 64 BITS: Go's hash/fnv (New32a, New64a), program
+// first (ADR 0082, ADR 0083).
+//
+// Each step is h ← ((h ⊕ b) · p) mod 2ⁿ. The product is never held: under
+// `mod 2ⁿ` the xor and the multiply are computed in each target's wrapping
+// operators (fusion, ir/fuse.go), and `mod 2^64` is the residue map into the
+// unsigned word, a uint64 on Go and a long read unsigned on the JVM. The
+// hashes print in hexadecimal, as `sha256sum` and Go's examples do, each digit
+// ⌊h / 16ᵏ⌋ mod 16, so a 64-bit value prints on every host the same way.
+//
+// JavaScript has no unsigned word yet (its split pair is ADR 0083's next
+// stage), so FNV-1a 64 is refused there; `cmd/portable` says so.
+use os
+use io
+use result
+
+fn hex(h ∈ 0..2^64-1, digits ∈ 1..16) (String) {
+    loop k = 0, s = "" {
+        k >= digits -> s
+        (h >> (4 * k)) % 16 < 10 -> again(k + 1, string_of(48 + (h >> (4 * k)) % 16) ++ s)
+        else -> again(k + 1, string_of(87 + (h >> (4 * k)) % 16) ++ s)
+    }
+}
+
+fn fnv32(src ∈ Array(0..255)) (0..2^32-1) {
+    loop i = 0, h = 0x811C9DC5 {
+        i < len(src) -> again(i + 1, ((h ⊕ src[i]) * 16777619) mod 2^32)
+        else -> h
+    }
+}
+
+fn fnv64(src ∈ Array(0..255)) (0..2^64-1) {
+    loop i = 0, h = 0xCBF29CE484222325 {
+        i < len(src) -> again(i + 1, ((h ⊕ src[i]) * 1099511628211) mod 2^64)
+        else -> h
+    }
+}
+
+export fn main() {
+    av = os.Args()
+    if len(av) < 2 { io.print_line("usage: fnv FILE"); 0 } else {
+        case os.ReadFile(av[1]) {
+            result.'err(k) -> { io.print_line("fnv: cannot read that file"); 0 }
+            result.'ok(src) -> {
+                io.print_line(hex(fnv32(src), 8))
+                io.print_line(hex(fnv64(src), 16))
+                0
+            }
+        }
+    }
+}

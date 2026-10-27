@@ -8,8 +8,12 @@ walls of [llvmsurvey-2026-10-27](../../gauntlet/results/llvmsurvey-2026-10-27.md
 [0034](0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md),
 [0035](0035-a-compiler-library-is-a-theory-checked-once.md) and
 [0079](0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md); fulfils CLAUDE.md's
-waiting item "a representation as an instance of a type's signature". Built in stages with
-[ADR 0082](0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md).
+waiting item "a representation as an instance of a type's signature". **Built** with
+[ADR 0082](0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md), program first
+([bits-2026-10-27](../../gauntlet/results/bits-2026-10-27.md)): the JVM's unsigned word and its byte
+read unsigned, JavaScript's typed arrays and int32 shifts. Not built: JavaScript's split pair, a 32-bit
+scalar representation, the old mechanisms re-declared as (H, d), and items 3, 4 and 6's LLVM part,
+which come with `ir/llvm`.
 
 ## Context
 

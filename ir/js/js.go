@@ -333,6 +333,10 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OLen:
 		p.define(s.Res[0], p.Len(s.Args[0], p.ref(s.Args[0])))
 	case ir.OArray:
+		if ta := p.typed(s.Res[0]); ta != "" {
+			p.define(s.Res[0], ta+".of("+strings.Join(p.refs(s.Args), ", ")+")")
+			return
+		}
 		p.define(s.Res[0], "["+strings.Join(p.refs(s.Args), ", ")+"]")
 	case ir.OMap:
 		rows := make([]string, 0, len(s.Args)/2)
@@ -490,6 +494,34 @@ func (p *printer) ifOp(s *ir.Stmt) {
 	p.line("}")
 }
 
+// typed is the typed array a table's elements are held in, where the target
+// declares one for its element set (ADR 0083: `repr 0..255 host "Uint8Array"`),
+// or "": a typed array holds its elements unboxed, one to four bytes each, where
+// an Array of integers past int31 holds doubles.
+func (p *printer) typed(v ir.V) string {
+	t := p.f.Types[p.pl.Res(v)]
+	if strings.HasPrefix(t, "buffer ") {
+		t = "array " + t[len("buffer "):]
+	}
+	e := ir.ElemOf(p.tg, t)
+	if e == "" {
+		return ""
+	}
+	if r, ok := p.tg.ElemRepr(e); ok {
+		return r.Spell
+	}
+	return ""
+}
+
+// newTable is a fresh table of n zeros: a typed array where the element set has
+// one, which is zero on creation, and a PACKED Array otherwise.
+func (p *printer) newTable(v ir.V, n string) string {
+	if ta := p.typed(v); ta != "" {
+		return "new " + ta + "(" + n + ")"
+	}
+	return "new Array(" + n + ").fill(0)"
+}
+
 func (p *printer) build(s *ir.Stmt) {
 	buf := s.Sub[0].Params[0]
 	if sp, ok := p.spare[s]; ok {
@@ -498,7 +530,7 @@ func (p *printer) build(s *ir.Stmt) {
 		p.line("%s.fill(0);", sp)
 		p.line("const %s = %s;", p.name(buf), sp)
 	} else {
-		p.line("const %s = new Array(%s).fill(0);", p.name(buf), p.ref(s.Args[0]))
+		p.line("const %s = %s;", p.name(buf), p.newTable(buf, p.ref(s.Args[0])))
 	}
 	p.body(s, buf)
 }
@@ -521,7 +553,7 @@ func (p *printer) tabulate(s *ir.Stmt) {
 	i := p.name(s.Sub[0].Params[0])
 	e := p.fresh("e")
 	p.line("const %s = %s;", n, p.ref(s.Args[0]))
-	p.line("const %s = new Array(%s).fill(0);", t, n)
+	p.line("const %s = %s;", t, p.newTable(s.Res[0], n))
 	p.line("for (let %s = 0; %s < %s; %s++) {", i, i, n, i)
 	p.ind++
 	p.line("let %s;", e)
@@ -571,7 +603,7 @@ func (p *printer) loop(s *ir.Stmt) {
 				p.spare = map[*ir.Stmt]string{}
 			}
 			p.spare[sb.Build] = sp
-			p.line("let %s = new Array(%d).fill(0);", sp, sb.Len)
+			p.line("let %s = %s;", sp, p.newTable(q, fmt.Sprint(sb.Len)))
 		}
 	}
 	if len(ups) > 0 {

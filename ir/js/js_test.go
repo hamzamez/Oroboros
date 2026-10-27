@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -82,7 +83,12 @@ func TestTheMeasuredShapes(t *testing.T) {
 		t.Errorf("a tail loop breaks instead of returning:\n%s", dot)
 	}
 	shapes := print(t, "ir/testdata/js-shapes.oro")
-	has(t, shapes, ".fill(0)", "a build is packed, not sparse")
+	// A build is packed, not sparse: an Array filled with zeros, or a typed
+	// array, dense by construction (ADR 0083: an integer table's element set
+	// chooses one).
+	if !strings.Contains(shapes, ".fill(0)") && !regexp.MustCompile(`new (Ui|I)nt(8|16|32)Array\(`).MatchString(shapes) {
+		t.Errorf("a build is neither filled nor a typed array, so it may be sparse:\n%s", shapes)
+	}
 }
 
 // TestDivisionIsTheTargetsIntegerDivision: ℤ's division prints as `idiv`'s

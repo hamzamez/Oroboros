@@ -992,6 +992,18 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 			if a, ok := asLinearIn(pure, args[0]); ok {
 				return variable(quotVar("rem", a, positiveLit(args[1]))), true
 			}
+			// A DIVIDEND OUTSIDE THE FRAGMENT is an atom, and its remainder by a
+			// literal k still lies in (−k, k), F6–F8's law for every integer: a
+			// hex digit `(h >> 4k) % 16` is bounded though its shift is not
+			// (examples/hash).
+			return variable(quotVar("rem", variable(appVar(args[0])), positiveLit(args[1]))), true
+
+		// THE LANGUAGE'S `&` IS AN ATOM (ADR 0082), so F9's mask facts
+		// (lang-facts.oro) can conclude about it: `(crc ⊕ b) & 255` is an index
+		// in [0, 255]. Without it the facts' conclusions were outside the
+		// fragment, and assumed nothing (examples/hash/crc32).
+		case op.Name == "&" && len(args) == 2:
+			return variable(appVar(t)), true
 		}
 		// AN APPLICATION IN Σ IS AN ATOM — a pure host call, so its contract can
 		// be a fact about it (theories.md §7.9) rather than an opaque string that

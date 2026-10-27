@@ -128,7 +128,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
      its target offers every primitive it has** (hamza, 2026-10-27; ADR 0080 item 7): Σ_LLVM declared by
      hand, each operation's undefined behaviour its `where`; **a primitive the language cannot state is a
      wall, brought to hamza** before anything is built for it. LLVM 23.1.4, the official release, is
-     installed at `%LOCALAPPDATA%\Programs\LLVM` (2026-10-27).
+     installed at `%LOCALAPPDATA%\Programs\LLVM` (2026-10-27). **Σ_LLVM surveyed**
+     ([llvmsurvey-2026-10-27](gauntlet/results/llvmsurvey-2026-10-27.md)): 31 of 67 instructions and 83 of
+     534 target-independent intrinsics stateable now; **seven walls with hamza** (bit-vectors, widths, float
+     formats, relations, the float environment, pointers as values, vectors), each with its algebra and a
+     recommendation; the declarations and the printer wait on them.
    - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
      user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.

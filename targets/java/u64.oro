@@ -1,0 +1,34 @@
+// THE UNSIGNED WORD ON THE JVM: U = [0, 2^64), held in a `long` read unsigned
+// (ADR 0033, ADR 0083; u64repr-2026-09-22). The JVM has no unsigned type, so
+// the representation is (long, σ_u): the bits of x mod 2^64, read as an
+// unsigned integer.
+//
+// THE ALGEBRA is targets/go/u64.oro's. The residue map r : ℤ → ℤ/2^64 is a
+// ring homomorphism, and S and U are systems of representatives: `+ − ·` on a
+// long compute r of ℤ's result in either reading, so they are Java's own
+// operators, exact where ir/words.go proved the result in U. Order, division
+// and the right shift do not commute with r: they are Long's unsigned forms.
+// The conversions between S and U are the identity on the bits.
+//
+// A U VALUE BOXED is a BigInteger: Java's `Long` reads a long signed, so a
+// value past 2^63 would print negative. `u64-box` is the move from (long, σ_u)
+// to the rung above's representation, `big`, which denotes the same integer
+// as an Object (ADR 0083: a move between representations is the identity on ℤ).
+module java {
+    fn `u64+`(a ∈ u64, b ∈ u64) (u64) pure { host expr "(${a} + ${b})" }
+    fn u64_(a ∈ u64, b ∈ u64) (u64) pure { host expr "(${a} - ${b})" }
+    fn `u64*`(a ∈ u64, b ∈ u64) (u64) pure { host expr "(${a} * ${b})" }
+    fn `u64/`(a ∈ u64, b ∈ u64) (u64) pure where `!=`(b, 0) { host expr "Long.divideUnsigned(${a}, ${b})" }
+    fn `u64%`(a ∈ u64, b ∈ u64) (u64) pure where `!=`(b, 0) { host expr "Long.remainderUnsigned(${a}, ${b})" }
+    fn `u64<`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(Long.compareUnsigned(${a}, ${b}) < 0)" }
+    fn `u64<=`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(Long.compareUnsigned(${a}, ${b}) <= 0)" }
+    fn `u64>`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(Long.compareUnsigned(${a}, ${b}) > 0)" }
+    fn `u64>=`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(Long.compareUnsigned(${a}, ${b}) >= 0)" }
+    fn `u64=`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(${a} == ${b})" }
+    fn u64_of(x ∈ Int) (u64) pure { host expr "((long) ${x})" }
+    fn int_of_u64(x ∈ u64) (Int) pure { host expr "${x}" }
+    // ⌊a/2ᵏ⌋ on U is the logical shift; Java masks the count by 63, and a
+    // count of 64 or more leaves 0.
+    fn `u64>>`(a ∈ u64, b ∈ Int) (u64) pure where b >= 0 { host expr "(${b} >= 64 ? 0L : ${a} >>> ${b})" }
+    fn u64_box(x ∈ u64) (big) pure { host expr "new java.math.BigInteger(Long.toUnsignedString(${x}))" }
+}

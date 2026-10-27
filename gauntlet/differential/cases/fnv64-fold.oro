@@ -1,0 +1,23 @@
+// FNV-1a 64 FOLDED TO 32 BITS, (h >> 32) ⊕ (h mod 2^32): the right shift and
+// the mask of a value in the unsigned word (ADR 0082, ADR 0083).
+//
+// h lies in [0, 2^64), past the signed word, so `h >> 32` is computed in the
+// unsigned word, by its logical shift (`u64>>`: Go's `>>` on a uint64, the
+// JVM's `>>>` on a long), and `h mod 2^32` is `h & (2^32 − 1)`, which takes h by
+// the residue map. Both results are in [0, 2^32), and so is their xor.
+//
+// skip: js — JavaScript's split pair for the unsigned word is ADR 0083's next stage
+// skip: windows — MASM realizes no unsigned word; ir/llvm will
+//
+// inputs: 0 1 7 100 255
+// expect: 4213628364 419904624 1404039386 2212467110 1526927566
+fn data(n ∈ 0..255) (Array(0..255)) { array { (n * 31 + k * 7 + k * k % 13) mod 256 : k ∈ 0..63 } }
+
+export fn run(n ∈ 0..255) (0..2^32-1) {
+    d = data(n)
+    h = loop i = 0, h = 0xCBF29CE484222325 {
+        i < len(d) -> again(i + 1, ((h ⊕ d[i]) * 1099511628211) mod 2^64)
+        else -> h
+    }
+    (h >> 32) ⊕ (h mod 2^32)
+}

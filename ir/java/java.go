@@ -558,6 +558,14 @@ func (p *printer) call(s *ir.Stmt) {
 		if i < len(q.Args) && p.tg.ValueType(q.Args[i]) == "int" {
 			args[i] = coerce(args[i], p.tyOf(a), p.jty(q.Args[i]))
 		}
+		// A VALUE IN THE UNSIGNED WORD WHERE THE HOST TAKES ANY OBJECT moves to
+		// the representation that denotes it as one (ADR 0083): a long boxes as a
+		// Long, which reads it signed, so it is the target's `u64-box`.
+		if i < len(q.Args) && (q.Args[i] == "any" || q.Args[i] == "Any") && p.f.Types[p.pl.Res(a)] == "u64" {
+			if box, ok := p.tg.Prims["u64-box"]; ok {
+				args[i] = emit.Fill(box.Form, args[i])
+			}
+		}
 	}
 	expr := emit.Fill(q.Form, args...)
 	switch {

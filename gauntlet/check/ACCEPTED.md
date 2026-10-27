@@ -1819,3 +1819,17 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/fnv64.oro java`
 - new source — `gauntlet/differential/cases/fnv64.oro js`
 - new source — `gauntlet/differential/cases/fnv64.oro windows`
+
+## 2026-10-27 — on eb28bd3, with uncommitted changes
+
+**Reason:** ADR 0083 stage 3: the JVM's unsigned word (a long read unsigned); fnv64 now emits on Java; fnv64-fold exercises >> and & in the unsigned word; indexed template holes
+
+592 runs: 327 emitted, 265 refused; 2372 of 2429 integer operations bounded, 363 of 386 loops proven. compiler pass, differential pass, tooling skip.
+
+5 change(s):
+
+- new source — `gauntlet/differential/cases/fnv64-fold.oro go`
+- new source — `gauntlet/differential/cases/fnv64-fold.oro java`
+- new source — `gauntlet/differential/cases/fnv64-fold.oro js`
+- new source — `gauntlet/differential/cases/fnv64-fold.oro windows`
+- now emits — `gauntlet/differential/cases/fnv64.oro java`

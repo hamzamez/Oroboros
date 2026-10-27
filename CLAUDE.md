@@ -193,8 +193,9 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **2,341 of 2,386** integer operations proven inside their target's word, the 45 left
-  mostly meant to be refused; **353 of 376** loops proven to terminate (size-change termination). Each
+- **Provability**: **2,372 of 2,429** integer operations proven inside their target's word, the 57 left
+  mostly meant to be refused or waiting on a target's unsigned word (FNV-1a 64 on JavaScript and MASM);
+  **363 of 386** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared

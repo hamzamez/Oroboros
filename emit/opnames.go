@@ -68,10 +68,13 @@ var wordOps = []string{
 	"u64+", "u64-", "u64*", "u64/", "u64%",
 	"u64<", "u64<=", "u64>", "u64>=", "u64=",
 	"u64-of", "int-of-u64",
+	// ADR 0082 and 0083: the right shift in U, and U's boxing where a host
+	// boxes the word's type signed (the JVM's `long` as a `Long`)
+	"u64>>", "u64-box",
 }
 
 func wordOpArity(op string) int {
-	if op == "u64-of" || op == "int-of-u64" {
+	if op == "u64-of" || op == "int-of-u64" || op == "u64-box" {
 		return 1
 	}
 	return 2

@@ -561,6 +561,11 @@ func positionalHoles(tpl string, params, statics []string, result string, x86 bo
 	// a JavaScript template that splices its result keeps its `%s`
 	// (jswitch-2026-10-16, lib/os/js.oro's WriteFile).
 	numbered := x86
+	// A TEMPLATE THAT NAMES ITS PARAMETERS OUT OF ORDER, OR ONE TWICE, cannot be
+	// filled by `%s` in order: Java's `(${b} >= 64 ? 0L : ${a} >>> ${b})` was
+	// filled `(a >= 64 ? 0L : b >>> a)`. Its holes are indexed, `%[2]s`, which
+	// fill passes to Sprintf as they are. One that names each in order keeps `%s`.
+	indexed := !numbered && !inOrder(tpl, params)
 	var b strings.Builder
 	for i := 0; i < len(tpl); i++ {
 		switch {
@@ -581,7 +586,15 @@ func positionalHoles(tpl string, params, statics []string, result string, x86 bo
 			} else {
 				name = Unspell(name)
 			}
-			b.WriteString(hole(name, view, params, statics, result, numbered))
+			h := hole(name, view, params, statics, result, numbered)
+			if indexed && h == "%s" {
+				for k, n := range params {
+					if n == name {
+						h = fmt.Sprintf("%%[%d]s", k+1)
+					}
+				}
+			}
+			b.WriteString(h)
 		case tpl[i] == '%':
 			b.WriteString("%%")
 		default:
@@ -589,6 +602,44 @@ func positionalHoles(tpl string, params, statics []string, result string, x86 bo
 		}
 	}
 	return b.String()
+}
+
+// inOrder reports a template whose parameter splices are a prefix of params,
+// in order, each once.
+func inOrder(tpl string, params []string) bool {
+	next := 0
+	for i := 0; i < len(tpl); i++ {
+		if strings.HasPrefix(tpl[i:], "$${") {
+			i += 2
+			continue
+		}
+		if !strings.HasPrefix(tpl[i:], "${") {
+			continue
+		}
+		end := strings.IndexByte(tpl[i:], '}')
+		if end < 0 {
+			return true
+		}
+		name := tpl[i+2 : i+end]
+		if k := strings.IndexByte(name, ':'); k >= 0 {
+			name = name[:k]
+		}
+		if len(name) > 1 && name[0] == '`' && name[len(name)-1] == '`' {
+			name = name[1 : len(name)-1]
+		} else {
+			name = Unspell(name)
+		}
+		i += end
+		for k, n := range params {
+			if n == name {
+				if k != next {
+					return false
+				}
+				next++
+			}
+		}
+	}
+	return true
 }
 
 func hole(name, view string, params, statics []string, result string, numbered bool) string {

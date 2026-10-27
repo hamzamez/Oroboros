@@ -640,6 +640,11 @@ func (a *intervals) stmt(s *Stmt) {
 					}
 					return
 				}
+			case "u64>>":
+				if len(args) == 2 {
+					one(fact{v: shrZ(args[0].v, args[1].v)})
+					return
+				}
 			case "u64+", "u64-", "u64*", "u64/", "u64%":
 				if len(args) == 2 {
 					one(fact{v: u64Arith(s.Name, args[0].v, args[1].v)})

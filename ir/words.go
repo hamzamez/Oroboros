@@ -87,6 +87,9 @@ type words struct {
 
 func (w *words) isU(ty string) bool { return w.tg.ValueType(ty) == core.U64Type }
 
+// has reports a primitive this target declares.
+func (w *words) has(name string) bool { _, ok := w.tg.Prims[name]; return ok }
+
 // integer reports a value of the integer sort, in either realization.
 func (w *words) integer(v V) bool {
 	ty := w.f.Types[v]
@@ -290,6 +293,24 @@ func (w *words) stmt(s *Stmt) {
 			w.rewrote++
 		}
 		w.stmts = append(w.stmts, *s)
+	case s.Op == OShr && s.Mode != MWrap && len(s.Args) == 2 && len(s.Res) == 1 &&
+		(w.u[s.Args[0]] || w.inU(s.Args[0]) && !w.inS(s.Args[0])) && w.has("u64>>"):
+		// ⌊a/2ᵏ⌋ OF A VALUE IN U is computed there, by the logical shift: on a
+		// non-negative a it is the floor, and it does not leave U.
+		a := w.conv(s.Args[0], true, true, "an operand of shr")
+		k := w.conv(s.Args[1], false, true, "a shift count")
+		res := s.Res[0]
+		w.rewrote++
+		if w.u[res] {
+			w.f.Types[res] = "u64"
+			w.stmts = append(w.stmts, Stmt{Op: OCall, Name: "u64>>", Args: []V{a, k}, Res: []V{res}, Src: s.Src})
+			return
+		}
+		q := w.fresh("u64")
+		w.u[q] = true
+		w.stmts = append(w.stmts, Stmt{Op: OCall, Name: "u64>>", Args: []V{a, k}, Res: []V{q}, Src: s.Src})
+		w.stmts = append(w.stmts, Stmt{Op: OCall, Name: "int-of-u64", Args: []V{q}, Res: []V{res}})
+		w.convOf[res] = q
 	case s.Op.IsBit() && len(s.Res) == 1:
 		// ADR 0082'S OPERATIONS. A fused one, and &, |, ⊕, ~ and <<, descend to
 		// ℤ/2⁶⁴, so like +, − and · they take their operands by the residue map

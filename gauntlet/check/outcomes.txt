@@ -1021,13 +1021,25 @@
    note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv32.oro windows emitted dc58798fe48ad6a4af90711881df516c13dd6300af498588063dfc53e1b602c5
    note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv64-fold.oro go emitted 67196f8dcdca62e9c7261182604bc4a3bfc5d5633d7cf0d9533e992b72151cb7
+   note: gen-run: 9 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 7 of 7 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv64-fold.oro js refused
+   note: gen-run: 6 of 13 integer operations bounded; 1 of 1 loop(s) proven terminating
+   gen: gen-run: the result of `⊕` lies in [0, 18446744073709551615], and target js computes `⊕` only where the result is proven in one of -2147483648..2147483647, 0..4294967295 (integers.md §0b); narrow its operands' sets
+== gauntlet/differential/cases/fnv64-fold.oro java emitted 18b3cc911a8772fc3a6f97708ad5c9965faeb668545ef5c792a927881ec27857
+   note: gen-run: 9 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 7 of 7 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv64-fold.oro windows emitted 6674ca505cc414bcac311fef383f4c5049bd5d6ddb9a3a300a0ddbd00253fc65
+   note: gen-run: 6 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv64.oro go emitted 77523b51761ed9eac09df01d2d5e0c6d5bfecd320f08ea8cef70217c53ba34ed
    note: gen-run: 7 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv64.oro js refused
    gen: data: data: lowering: a table rule that was never allocated (tables.md §2): table(64, fn(k) { (#1.0 * 31 + k * 7 + k * k % 13) mod 256 })
-== gauntlet/differential/cases/fnv64.oro java refused
-   gen: data: data: lowering: a table rule that was never allocated (tables.md §2): table(64, fn(k) { (#1.0 * 31 + k * 7 + k * k % 13) mod 256 })
+== gauntlet/differential/cases/fnv64.oro java emitted c801f2f593486d0490337470c4a8895dfde03b745f5d9c15136e317de55fad18
+   note: gen-run: 7 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv64.oro windows refused
    gen: data: data: lowering: a table rule that was never allocated (tables.md §2): table(64, fn(k) { (#1.0 * 31 + k * 7 + k * k % 13) mod 256 })
 == gauntlet/differential/cases/json-tokenize.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9

@@ -3149,6 +3149,9 @@ func Fill(form string, args ...string) string {
 }
 
 func fill(form string, vals []any) string {
+	if strings.Contains(form, "%[") {
+		return fmt.Sprintf(form, vals...) // indexed holes (core/jreadtarget.go)
+	}
 	holes := strings.Count(form, "%s")
 	if len(vals) == 0 || holes <= len(vals) {
 		return fmt.Sprintf(form, vals[:min(holes, len(vals))]...)

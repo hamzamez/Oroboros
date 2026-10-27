@@ -4,7 +4,6 @@
 // never held: the xor and the multiply are the word's wrapping operators, and
 // `mod 2^64` is the residue map into the unsigned word, `uint64(x)` on Go.
 //
-// skip: java — the JVM's unsigned word (a long read unsigned, u64repr-2026-09-22) is ADR 0083's next stage
 // skip: js — JavaScript's split pair for the unsigned word is ADR 0083's stage after it
 // skip: windows — MASM realizes no unsigned word; ir/llvm will
 //

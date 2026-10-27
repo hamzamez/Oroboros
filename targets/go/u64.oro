@@ -58,4 +58,7 @@ module go {
     fn `u64=`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(${a} == ${b})" }
     fn u64_of(x ∈ Int) (u64) pure { host expr "uint64(${x})" }
     fn int_of_u64(x ∈ u64) (Int) pure { host expr "int(${x})" }
+    // ⌊a/2ᵏ⌋ on U (ADR 0082): Go's `>>` on a uint64 is logical, and a count of
+    // 64 or more gives 0.
+    fn `u64>>`(a ∈ u64, b ∈ Int) (u64) pure where b >= 0 { host expr "(${a} >> ${b})" }
 }

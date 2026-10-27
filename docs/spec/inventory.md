@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 157 words of the core**, and j.md §1.4's keywords.
+**Result: 164 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 117 |
+| `specified` — a spec states it | 124 |
 | `recorded` — only research, a result document or code comments | 25 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -161,6 +161,7 @@ A target may not declare one, and declaring one is an **error**.
 | `if` | specified — the same word in J | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md), [booleans.md](booleans.md) |
 | `=` | specified — integer equality only; J's `==` | [match.md](match.md) |
 | `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=` | specified — found per target by spelling | [integers.md](integers.md) |
+| `&`, `\|`, `⊕`, `~`, `<<`, `>>`, `mod` | specified — found per target by spelling; on JavaScript per result window (ADR 0082) | [integers.md](integers.md) §0b |
 | `table`, `len` | specified — `table`, a table by its rule, J's `array { e : k ∈ 0..n-1 }`; `len` the same in J | [tables.md](tables.md) |
 | `alloc`, `set` | specified — `set`, a store into a live buffer, J's `b[i] := v` | [tables.md](tables.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) |
 | `local` | specified — a scope of local state, J's `var x := e` in a block: a binder initialized by a table is a buffer; by anything else, a cell, written in program order and translated into loop variables at load, so nothing below the loader sees one | [local.md](local.md) |

@@ -572,6 +572,20 @@ func (a *intervals) stmt(s *Stmt) {
 		one(fact{v: divIV(args[0].v, args[1].v)})
 	case ORem:
 		one(fact{v: remIV(args[0].v, args[1].v)})
+	case OAnd:
+		one(fact{v: andZ(args[0].v, args[1].v)})
+	case OOr:
+		one(fact{v: orZ(args[0].v, args[1].v)})
+	case OXor:
+		one(fact{v: xorZ(args[0].v, args[1].v)})
+	case ONot:
+		one(fact{v: notZ(args[0].v)})
+	case OShl:
+		one(fact{v: shlZ(args[0].v, args[1].v)})
+	case OShr:
+		one(fact{v: shrZ(args[0].v, args[1].v)})
+	case OMod:
+		one(fact{v: modZ(args[0].v, args[1].v)})
 	case OEq, ONe, OLt, OLe, OGt, OGe:
 		one(fact{v: rangeIV(0, 1)})
 	case OCall:

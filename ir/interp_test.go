@@ -133,6 +133,31 @@ func (in *interp) stmt(s *Stmt) {
 		one(cval{i: new(big.Int).Mul(a(0).i, a(1).i)})
 	case ONeg:
 		one(cval{i: new(big.Int).Neg(a(0).i)})
+	// ADR 0082's operations, ℤ's 2-adic ones: math/big's are two's complement
+	// on the whole integers, Rsh floors and Mod is Euclidean.
+	case OAnd:
+		one(cval{i: new(big.Int).And(a(0).i, a(1).i)})
+	case OOr:
+		one(cval{i: new(big.Int).Or(a(0).i, a(1).i)})
+	case OXor:
+		one(cval{i: new(big.Int).Xor(a(0).i, a(1).i)})
+	case ONot:
+		one(cval{i: new(big.Int).Not(a(0).i)})
+	case OShl, OShr:
+		k := a(1).i
+		if k.Sign() < 0 || !k.IsInt64() || k.Int64() > 1<<16 {
+			panic(fmt.Errorf("a shift by %s, outside its `where`", k))
+		}
+		if s.Op == OShl {
+			one(cval{i: new(big.Int).Lsh(a(0).i, uint(k.Int64()))})
+		} else {
+			one(cval{i: new(big.Int).Rsh(a(0).i, uint(k.Int64()))})
+		}
+	case OMod:
+		if a(1).i.Sign() <= 0 {
+			panic(fmt.Errorf("mod by %s, outside its `where`", a(1).i))
+		}
+		one(cval{i: new(big.Int).Mod(a(0).i, a(1).i)})
 	case ODiv, ORem:
 		if a(1).i.Sign() == 0 {
 			panic(fmt.Errorf("division by zero"))

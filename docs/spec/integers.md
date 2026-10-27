@@ -50,6 +50,54 @@ observable disagreement *inside* the window, which is exactly what makes a
 construct Tier 2. Promoting them conditionally, when a declared range fits
 int32, is a real design and is not made.
 
+## 0b. The Boolean operations, the shifts and `mod` (ADR 0082)
+
+**Status 2026-10-27: being built**, in stages with ADR 0083; this section says what each stage has.
+
+**Meaning, independently of any target.** Read an integer as its 2-adic expansion, an eventually
+constant bit string (bits-research.md §1.5). Then, for all a, b ∈ ℤ:
+
+| J | core | meaning on ℤ | domain |
+|---|---|---|---|
+| `a & b` | `&` | and, position by position | total |
+| `a \| b` | `\|` | or | total |
+| `a ⊕ b` (ASCII `\oplus`) | `⊕` | xor, the field 𝔽₂'s addition | total |
+| `~a` | `~` | not: `−a − 1` | total |
+| `a << k` | `<<` | a · 2ᵏ | k ≥ 0 |
+| `a >> k` | `>>` | ⌊a / 2ᵏ⌋ | k ≥ 0, no upper bound |
+| `a mod m` | `mod` | the Euclidean remainder, in [0, m) | m > 0 |
+
+Precedence is Go's (j.md §3): `<< >> & mod` with `* / %`, `| ⊕` with `+ -`, prefix `~` with prefix `-`.
+`x mod 2ⁿ` is π_n, the residue map; `x & (2ⁿ − 1)` is the same function on every integer.
+
+**Overflow.** `&`, `|`, `⊕`, `~` and `>>` of operands in the word are in the word (the signed window
+[−2ᵏ, 2ᵏ) is closed under the Boolean operations), so they carry no obligation. `<<` is a product and
+carries one, like `*`. `mod`'s result is in [0, m).
+
+**Facts** (`ir/interval.go`, each checked against ℤ by `TestTheBitOperationsAreSound`): for operands in
+[−2ᵏ, 2ᵏ), and, or and xor are in [−2ᵏ, 2ᵏ); for non-negative operands, `a & b ≤ min(a, b)`,
+`max(a, b) ≤ a | b`, and `a | b`, `a ⊕ b < 2^bitlen(max)`; `~[lo, hi] = [−hi − 1, −lo − 1]`; a shift is
+the product or the floor by the shift's power interval; `a mod m ∈ [0, m − 1]`, and `a` itself when
+`0 ≤ a < m`.
+
+**Each target realizes them** (the realization a target declares, found by spelling, ADR 0083 item 2):
+
+| | Go | Java / ART | JavaScript | windows (MASM, retiring) |
+|---|---|---|---|---|
+| `&` `\|` `⊕` | `&` `\|` `^` | `&` `\|` `^` | `&` `\|` `^` where the result is proven in S₃₂; with `>>> 0` where it is proven in U₃₂; otherwise refused until the split is built | `and` `or` `xor` |
+| `~` | `^a` | `~a` | `-a - 1` | `not` |
+| `<<` | `<<` | `<<` | `a * 2 ** k` | `shl` |
+| `>>` | `>>` (a count of 64 or more fills with the sign, as ℤ's floor does) | `a >> Math.min(k, 63)` | `Math.floor(a / 2 ** Math.min(k, 64))` | `sar`, count at most 63 |
+| `mod` | `r := a % m; if r < 0 { r += m }` | `Math.floorMod` | `((r) => r < 0 ? r + m : r)(a % m)` | `idiv`, then add m to a negative remainder |
+
+JavaScript's operators compute π₃₂ˢ of the true result for any integer operands, because `ToInt32` is
+π₃₂ˢ and the Boolean operations descend to ℤ/2³² (bits-research.md §1.3); so the result's fact, not the
+operands', chooses the realization. A program that names a host's own operator (`js.&`, `go.^`) still
+gets the host's meaning, as every target-native name does.
+
+**Fusion (ADR 0082 item 3)**: built in a later stage; until then a term under `mod 2ⁿ` is computed
+exactly, and refused where an intermediate is not proven in the word.
+
 ## 0. What does not change
 
 [ADR 0012](../decisions/0012-portable-integer-range.md) stands, and this specification is mostly

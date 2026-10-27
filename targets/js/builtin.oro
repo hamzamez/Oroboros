@@ -128,6 +128,29 @@ module js {
     fn `>>`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} >> ${b}" }
     fn `>>>`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} >>> ${b}" }
 
+    // ---- THE LANGUAGE'S BOOLEAN OPERATIONS (ADR 0082), which JavaScript's
+    // operators above are not. ToInt32 is π₃₂ˢ, and and, or and xor descend to
+    // ℤ/2³², so `a & b` is π₃₂ˢ of the true and for any integer operands: it IS
+    // the and wherever the result is proven in S₃₂, and `>>> 0` reads the same
+    // bits unsigned wherever it is proven in U₃₂. Each realization's result set
+    // says which; the IR picks by the proven result (ADR 0083 item 2), and a
+    // result in neither is refused until the split is built (integers.md §0b).
+    // not, the shifts and the remainder are exact on JavaScript's whole word:
+    // −a − 1, a·2ᵏ and ⌊a/2ᵏ⌋ in doubles are exact on integers below 2⁵³, a count
+    // past 64 cannot move a floor, and `+ 0` turns a −0 remainder into 0.
+    fn and(a ∈ Int, b ∈ Int) (-2^31..2^31-1) pure { host expr "(${a} & ${b})" }
+    fn and_u32(a ∈ Int, b ∈ Int) (0..2^32-1) pure { host expr "((${a} & ${b}) >>> 0)" }
+    fn or(a ∈ Int, b ∈ Int) (-2^31..2^31-1) pure { host expr "(${a} | ${b})" }
+    fn or_u32(a ∈ Int, b ∈ Int) (0..2^32-1) pure { host expr "((${a} | ${b}) >>> 0)" }
+    fn xor(a ∈ Int, b ∈ Int) (-2^31..2^31-1) pure { host expr "(${a} ^ ${b})" }
+    fn xor_u32(a ∈ Int, b ∈ Int) (0..2^32-1) pure { host expr "((${a} ^ ${b}) >>> 0)" }
+    fn not(a ∈ Int) (Int) pure { host expr "(-(${a}) - 1)" }
+    fn shl(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "(${a} * 2 ** ${b})" }
+    fn sar(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "Math.floor(${a} / 2 ** Math.min(${b}, 64))" }
+    fn emod(a ∈ Int, m ∈ Int) (Int) pure where m > 0 {
+        host expr "((a, m) => { const r = a % m; return r < 0 ? r + m : r + 0; })(${a}, ${m})"
+    }
+
     // ---- comparison. Both equalities, because JS has both and they differ.
     fn `===`(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a} === ${b}" }
     fn `!==`(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a} !== ${b}" }

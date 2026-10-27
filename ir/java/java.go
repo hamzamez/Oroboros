@@ -393,6 +393,13 @@ func (p *printer) arith(s *ir.Stmt, form string) string {
 	if rank(res) > rank(promoted) && len(args) > 0 {
 		args[0] = "((" + res + ") " + args[0] + ")" // widen first: Java would overflow in 32 bits
 	}
+	if s.Op == ir.OShr && rank(promoted) < rank("long") {
+		// JAVA MASKS AN int'S SHIFT COUNT BY 31, and the language's `>>` takes a
+		// count up to 63 (ADR 0082): the operand is shifted as a long, and the
+		// result, which lies between it and its sign, narrowed back.
+		args[0] = "((long) " + args[0] + ")"
+		promoted = "long"
+	}
 	e := "(" + emit.Fill(form, args...) + ")"
 	return coerce(e, promoted, res)
 }
@@ -405,8 +412,9 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OConst, ir.OAssume, ir.OZero:
 	case ir.OGlobal:
 		p.define(s.Res[0], emit.JavaMangle(s.Name))
-	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem, ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:
-		form := p.pl.Spell[s.Op]
+	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem, ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe,
+		ir.OAnd, ir.OOr, ir.OXor, ir.ONot, ir.OShl, ir.OShr, ir.OMod:
+		form := p.pl.Form(s)
 		f := form[0]
 		if s.Mode == ir.MTrap {
 			f = form[1]

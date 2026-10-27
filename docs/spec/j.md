@@ -142,7 +142,7 @@ assert use module provides pub export axiom true false`.
 
 **Contextual**, keywords only in the clause positions the grammar gives them, identifiers everywhere
 else: `where ensure invariant pure index variadic inout out linear as host expr stmt import lib checked
-jump comma_ok success relevant` and the model's data words (`repr word niche narrow structural backend
+jump comma_ok success relevant`, and `mod`, an operator only between two operands (ADR 0082) and the model's data words (`repr word niche narrow structural backend
 link build artifact data include fact underlying`, §2.12).
 
 **Read and refused**, each with a message naming what replaced it (inventory.md §4): `the`, the core's
@@ -186,11 +186,13 @@ both, and print_J writes the symbol (ADR 0065).
 | `∈` `∉` | `\in` `\notin` | | `∀` `∃` | `\A` `\E` |
 | `∪` `∩` `∖` | `\cup` `\cap` `\` | | `⇒` `⇔` | `=>` `<=>` |
 | `⊆` `⊂` | `\subseteq` `\subset` | | `×` | `\X` |
+| `⊕` | `\oplus` (xor, ADR 0082) | | | |
 
 The ASCII operators and punctuation:
 
 ```
 +  -  *  /  %  ^  ++          arithmetic, concatenation, constant power
+&  |  ~  <<  >>  mod          the Boolean operations, the shifts, the Euclidean remainder (ADR 0082)
 ==  !=  <  <=  >  >=           comparison (no chains)
 &&  ||  !                      the computation's connectives
 =  :=  ->  :  ,  ;  .  ..  ... binding, writing, arms, formers, separators, member, range, spread
@@ -198,7 +200,9 @@ The ASCII operators and punctuation:
 ```
 
 Maximal munch decides `...` before `..` before `.`, `:=` before `:`, `==` before `=`, `<=>` before
-`<=`, `=>` before `=`, and `->` before `-`. A backslash begins only a TLA+ ASCII name or set difference
+`<=`, `=>` before `=`, `->` before `-`, `<<` before `<`, `>>` before `>`, `&&` before `&`, and `||` before `|`.
+An integer literal may be hexadecimal, `0x` or `0X` and hexadecimal digits (`0xEDB88320`); it is the
+same integer as its decimal spelling. `mod` is an operator only between two operands (§1.4). A backslash begins only a TLA+ ASCII name or set difference
 `\` followed by a space.
 
 ### 1.7 Lines
@@ -482,9 +486,9 @@ Highest first (ADR 0067 item 8):
 |---|---|---|
 | 1 | application `f(…)`, indexing `t[i]`, prime `x'`, member `a.b` | left |
 | 2 | `^` (static integers only) | right |
-| 3 | prefix `-`, `!` | — |
-| 4 | `*` `/` `%` | left |
-| 5 | `+` `-` `++` | left |
+| 3 | prefix `-`, `!`, `~` | — |
+| 4 | `*` `/` `%` `<<` `>>` `&` `mod` | left |
+| 5 | `+` `-` `++` `\|` `⊕` | left |
 | 6 | `..` | none |
 | 7 | `×` | none |
 | 8 | `∪` `∩` `∖`, one level, mixed only in parentheses | — |

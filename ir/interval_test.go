@@ -434,3 +434,72 @@ func TestTheUnsignedTransfersAreTheResidueMap(t *testing.T) {
 		}
 	}
 }
+
+// bitRows are ADR 0082's operations on ℤ, read 2-adically: math/big's And, Or,
+// Xor and shifts are two's complement on the whole integers, and Rsh floors.
+// A shift by a count past 300 and a remainder by m ≤ 0 lie outside the domains
+// their `where`s give, and are not checked.
+var bitRows = []binRow{
+	{"and", andZ, func(x, y *big.Int) (*big.Int, bool) { return new(big.Int).And(x, y), true }},
+	{"or", orZ, func(x, y *big.Int) (*big.Int, bool) { return new(big.Int).Or(x, y), true }},
+	{"xor", xorZ, func(x, y *big.Int) (*big.Int, bool) { return new(big.Int).Xor(x, y), true }},
+	{"shl", shlZ, func(x, k *big.Int) (*big.Int, bool) {
+		if k.Sign() < 0 || !k.IsInt64() || k.Int64() > 300 {
+			return nil, false
+		}
+		return new(big.Int).Lsh(x, uint(k.Int64())), true
+	}},
+	{"shr", shrZ, func(x, k *big.Int) (*big.Int, bool) {
+		if k.Sign() < 0 || !k.IsInt64() || k.Int64() > 300 {
+			return nil, false
+		}
+		return new(big.Int).Rsh(x, uint(k.Int64())), true
+	}},
+	{"mod", modZ, func(x, m *big.Int) (*big.Int, bool) {
+		if m.Sign() <= 0 {
+			return nil, false
+		}
+		return new(big.Int).Mod(x, m), true // big's Mod is Euclidean
+	}},
+}
+
+// TestTheBitOperationsAreSound: the transfer functions of integers.md §0b
+// against ℤ's operations, exhaustively on the test domains and their shift
+// counts, and at random; and not, which reverses the order, on every domain.
+func TestTheBitOperationsAreSound(t *testing.T) {
+	ds := domains()
+	ks := []iv{rangeIV(0, 0), rangeIV(1, 1), rangeIV(0, 3), rangeIV(5, 62), rangeIV(62, 70), rangeIV(2, 6), rangeIV(100, 130)}
+	for _, r := range bitRows {
+		for _, a := range ds {
+			for _, b := range append(append([]iv(nil), ds...), ks...) {
+				checkBin(t, r, a, b)
+			}
+		}
+	}
+	for _, a := range ds {
+		out := notZ(a)
+		for _, x := range samples(a) {
+			c := new(big.Int).Not(x)
+			if !member(c, out) {
+				t.Fatalf("not: %d ∈ %s gives %s, not in %s", x, show(a), c, show(out))
+			}
+		}
+	}
+	rng := rand.New(rand.NewSource(7))
+	pick := func() iv {
+		x, y := rng.Int63n(1<<20)-1<<19, rng.Int63n(1<<20)-1<<19
+		if rng.Intn(3) == 0 {
+			x, y = rng.Int63()-rng.Int63(), rng.Int63()-rng.Int63()
+		}
+		if x > y {
+			x, y = y, x
+		}
+		return rangeIV(x, y)
+	}
+	for i := 0; i < 4000; i++ {
+		a, b := pick(), pick()
+		for _, r := range bitRows {
+			checkBin(t, r, a, b)
+		}
+	}
+}

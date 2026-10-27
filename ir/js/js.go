@@ -309,8 +309,9 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OConst, ir.OAssume, ir.OZero:
 	case ir.OGlobal:
 		p.define(s.Res[0], emit.JSMangle(s.Name))
-	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem, ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:
-		form := p.pl.Spell[s.Op]
+	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem, ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe,
+		ir.OAnd, ir.OOr, ir.OXor, ir.ONot, ir.OShl, ir.OShr, ir.OMod:
+		form := p.pl.Form(s)
 		f := form[0]
 		if s.Mode == ir.MTrap {
 			f = form[1]

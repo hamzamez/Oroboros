@@ -101,7 +101,9 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 		if len(s.Res) != 1 || spec[s.Res[0]] {
 			return
 		}
-		arith := (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg) && s.Name == ""
+		// `<<` is a product by a power of two, so it is counted like `*`; the
+		// other operations ADR 0082 added keep the word (integers.md §0b).
+		arith := (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op == OShl) && s.Name == ""
 		word := s.Op == OCall && (s.Name == "u64+" || s.Name == "u64-" || s.Name == "u64*")
 		if !arith && !word {
 			return

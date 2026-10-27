@@ -217,7 +217,7 @@ func (g *bigs) collect(sig *core.Sig) {
 			switch {
 			case s.Op == OConst && s.Lit != nil && s.Lit.Kind == core.KInt && len(s.Res) == 1:
 				consts[s.Res[0]] = big.NewInt(s.Lit.Int)
-			case s.Op.IsArith() && s.Name == "" && len(s.Res) == 1:
+			case s.Op.IsArith() && !s.Op.IsBit() && s.Name == "" && len(s.Res) == 1:
 				g.ariths = append(g.ariths, s)
 				// A CLOSED CONSTANT TERM outside S can only denote an exact
 				// value: bounded-by-default refuses it as a word.
@@ -634,6 +634,18 @@ func (g *bigs) recvOf(res []V) []bool {
 
 func (g *bigs) stmt(s *Stmt) {
 	switch {
+	case s.Op.IsBit():
+		// ADR 0082'S OPERATIONS ARE NOT BUILT ABOVE THE WORD: an operand or a
+		// result held there is refused, as a target's own operator's is.
+		for _, a := range s.Args {
+			g.word(a, "an operand of "+s.Op.String())
+		}
+		for _, v := range s.Res {
+			if g.isB(v) {
+				g.word(v, "the result of "+s.Op.String())
+			}
+		}
+		g.stmts = append(g.stmts, *s)
 	case s.Op.IsArith() && s.Name == "" && len(s.Res) == 1:
 		v := s.Res[0]
 		switch {

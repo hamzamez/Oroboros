@@ -359,6 +359,7 @@ func (v *verifier) terminator(r *Region, c ctx) [][]V {
 var sigma = map[Op][2]int{
 	OConst: {0, 1}, OGlobal: {0, 1},
 	OAdd: {2, 1}, OSub: {2, 1}, OMul: {2, 1}, ONeg: {1, 1}, ODiv: {2, 1}, ORem: {2, 1},
+	OAnd: {2, 1}, OOr: {2, 1}, OXor: {2, 1}, ONot: {1, 1}, OShl: {2, 1}, OShr: {2, 1}, OMod: {2, 1},
 	OEq: {2, 1}, ONe: {2, 1}, OLt: {2, 1}, OLe: {2, 1}, OGt: {2, 1}, OGe: {2, 1},
 	OIndex: {2, 1}, OLen: {1, 1}, OArray: {-1, 1}, OMap: {-1, 1}, ORead: {2, 2},
 	OKeys: {1, 1}, OSet: {3, 1}, OInsert: {3, 1},

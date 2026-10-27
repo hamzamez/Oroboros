@@ -696,6 +696,16 @@ func classify(tg *emit.Target, name string, p emit.Prim, n int, opt Options) (Op
 			return 0, 0, false
 		}
 	}
+	// THE LANGUAGE'S BOOLEAN OPERATIONS are the language's names only (ADR
+	// 0082): a host's own `js.&` is π₃₂ˢ of the and and `java.>>` masks its
+	// count, so a program naming one gets the host's meaning, a call.
+	if o, ok := bitOps[name]; ok && len(p.Args) == n && (n == 1) == (o == ONot) {
+		mode := MNone
+		if opt.Decided {
+			mode = MExact
+		}
+		return o, mode, true
+	}
 	if open(p.Result) {
 		ops := map[string]Op{"add": OAdd, "sub": OSub, "mul": OMul, "neg": ONeg, "div": ODiv, "rem": ORem}
 		if o, ok := ops[emit.ArithOp(name, n)]; ok {
@@ -1258,3 +1268,7 @@ func opName(t *core.Term) string {
 	}
 	return ""
 }
+
+// bitOps are the language's Boolean operations, shifts and Euclidean remainder
+// by their core names (ADR 0082; core.LanguageSignature).
+var bitOps = map[string]Op{"&": OAnd, "|": OOr, "⊕": OXor, "~": ONot, "<<": OShl, ">>": OShr, "mod": OMod}

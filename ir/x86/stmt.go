@@ -18,6 +18,7 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OConst, ir.OAssume, ir.OZero:
 		// A literal is an operand where it is read; an assumption is a fact.
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem,
+		ir.OAnd, ir.OOr, ir.OXor, ir.ONot, ir.OShl, ir.OShr, ir.OMod,
 		ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:
 		form := p.formOf(s)
 		if form == "" {

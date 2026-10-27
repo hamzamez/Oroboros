@@ -135,7 +135,31 @@ func Spellings(tg *emit.Target) map[ir.Op][2]string {
 			out[o] = [2]string{q.Form, trap}
 		}
 	}
+	// THE LANGUAGE'S BOOLEAN OPERATIONS (ADR 0082) are spelled by the
+	// declaration the target registered under the language's name, never by a
+	// host operator found by classifying names: JavaScript's `&` is not the and.
+	for o, name := range BitNames {
+		if q, ok := tg.Prims[name]; ok && q.Form != "" {
+			out[o] = [2]string{q.Form, ""}
+		}
+	}
 	return out
+}
+
+// BitNames are the language's names of the operations ADR 0082 added.
+var BitNames = map[ir.Op]string{ir.OAnd: "&", ir.OOr: "|", ir.OXor: "⊕", ir.ONot: "~", ir.OShl: "<<",
+	ir.OShr: ">>", ir.OMod: "mod"}
+
+// Form is the spelling of an integer operation s: its realization's, where the
+// IR recorded one it chose by the proven result (ADR 0083 item 2), else the
+// target's for the operation.
+func (p *Plan) Form(s *ir.Stmt) [2]string {
+	if s.Op.IsBit() && s.Name != "" {
+		if q, ok := p.Tg.Prims[s.Name]; ok {
+			return [2]string{q.Form, ""}
+		}
+	}
+	return p.Spell[s.Op]
 }
 
 func open(ty string) bool { return ty == "" || ty == "any" }
@@ -280,7 +304,7 @@ func (p *Plan) PureRegion(r *ir.Region) bool {
 			if s.Mode == ir.MTrap {
 				return false
 			}
-		case ir.ODiv, ir.ORem:
+		case ir.ODiv, ir.ORem, ir.OMod:
 			return false // a zero divisor stops the program: not total
 		}
 		for _, sub := range s.Sub {

@@ -3,6 +3,8 @@ package emit
 import (
 	"strings"
 	"testing"
+
+	"oroboros/core"
 )
 
 // THE LANGUAGE OWNS INTEGER ARITHMETIC, on exactly `=`'s argument.
@@ -124,23 +126,60 @@ func TestJavaScriptDivisionIsIntegerDivision(t *testing.T) {
 	}
 }
 
-// BITWISE AND SHIFTS ARE DELIBERATELY NOT PROMOTED, and the reason is a
-// measured divergence rather than caution: JavaScript coerces both operands to
-// int32 for `& | ^ << >>` (and uint32 for `>>>`), so `(2^32) & -1` is 0 on V8
-// and 4294967296 on Go, Java and x86 — an OBSERVABLE disagreement INSIDE ADR
-// 0012's window, which is exactly what makes a construct Tier 2.
-//
-// They stay target-native, where a program using one has chosen its host.
-func TestBitwiseIsNotPromoted(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, op := range []string{"&", "|", "^", "<<", ">>", "~"} {
-		if _, ok := tg.Prims[op]; ok {
-			t.Errorf("%q was promoted to the language; JavaScript truncates it "+
-				"to int32, which is observable inside the portable window", op)
+// THE BOOLEAN OPERATIONS ARE THE LANGUAGE'S ON EVERY TARGET (ADR 0082), which
+// reversed this test's predecessor, TestBitwiseIsNotPromoted. Its measurement
+// stands: JavaScript's `&` coerces to int32, so `(2^32) & -1` is 0 on V8. What
+// changed is the reading: that `&` is π₃₂ˢ of the and, a lowering, not the and.
+// So JavaScript's language `&` must NOT be its own `&` unqualified: it is
+// realized per result window, each realization's declared result set the
+// window where it computes the and, and the IR picks by the proven result.
+func TestTheBitOperationsAreTheLanguagesOnEveryTarget(t *testing.T) {
+	ops := []string{"&", "|", "⊕", "~", "<<", ">>", "mod"}
+	for _, dir := range []string{"go", "java", "js", "windows"} {
+		tg, err := LoadTarget("../targets/" + dir)
+		if err != nil {
+			t.Fatal(err)
 		}
+		for _, op := range ops {
+			p, ok := tg.Prims[op]
+			if !ok {
+				t.Errorf("%s: the language's %q is not realized", dir, op)
+				continue
+			}
+			if p.Result != "int" {
+				t.Errorf("%s: %q's result is %q; a language operation's is the language's, int", dir, op, p.Result)
+			}
+		}
+	}
+	js, _ := LoadTarget("../targets/js")
+	windows := map[string][2]int64{"": {-1 << 31, 1<<31 - 1}, "-u32": {0, 1<<32 - 1}}
+	for _, op := range []string{"&", "|", "⊕"} {
+		rs := js.Realize[op]
+		if len(rs) != 2 {
+			t.Errorf("js: %q has realizations %v, want the S₃₂ and the U₃₂ one", op, rs)
+			continue
+		}
+		for i, name := range rs {
+			suffix := ""
+			if i > 0 {
+				suffix = rs[i][len(rs[0]):]
+			}
+			w := windows[suffix]
+			lo, hi, ok := core.IntRange(js.Prims[name].Result)
+			// A REALIZATION DECLARED OVER THE WHOLE WORD would let the IR pick it
+			// for a 40-bit and, and V8 would truncate it: the planted fault this
+			// check refuses is `and` declared `(Int)`.
+			if !ok || lo < w[0] || hi > w[1] {
+				t.Errorf("js: %s declares its result %q, outside the window %v where V8's operator is the and", name, js.Prims[name].Result, w)
+			}
+		}
+	}
+	if f := js.Prims["<<"].Form; !strings.Contains(f, "2 **") {
+		t.Errorf("js: the language's `<<` is %q; JavaScript's own `<<` is int32, a·2ᵏ is the product", f)
+	}
+	java, _ := LoadTarget("../targets/java")
+	if f := java.Prims[">>"].Form; !strings.Contains(f, "Math.min") {
+		t.Errorf("java: the language's `>>` is %q; Java masks the count by 63, and ⌊a/2⁶⁴⌋ is a's sign", f)
 	}
 }
 

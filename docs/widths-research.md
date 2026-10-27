@@ -379,6 +379,11 @@ a set naming a representation.
 
 ### 5.2 A table's element set is a claim that is the fact
 
+**Corrected 2026-10-27, while building ADR 0083:** the inference this section defers is built. ir.md
+§4.3's Theorem D gives each table's element representation as ρ of the hull of its flow class's proven
+element ranges, and Theorem D′ lets a declared representation fix the class. The paragraph below is as
+first written.
+
 The one place a declared set already picks a width is a table's elements (elemwidth). That fits ADR 0079
 because the element set is **checked at every store**: `h[k] := h[k] + 1` is an obligation that the new
 count lies in 0..2³²−1, so the declared set is a fact about every element the table can hold. For a table
@@ -515,7 +520,8 @@ unbounded set stays refused on LLVM, which has no bignum, until a program asks f
 width (W2) is 32 bits there, so values the analysis proves in S₃₂ are computed in `i32`. Pointer-sized
 host types (`WPARAM`, `LPARAM`, handles) take the triple's width from the triple's target layer.
 
-**W5. A table's element set is the declared one; inference waits for a program.**
+**W5. A table's element set is the declared one; inference waits for a program.** *(Corrected: the
+inference is ir.md §4.3's Theorem D, already built; ADR 0083 item 5 records the rule as it is.)*
 *Recommended*: as now, a declared element set is a claim checked at every store and chooses the element
 representation. Inferring an undeclared table's element set from its stores (a least fixed point) is built
 when a program's table is wider than its stores and the difference is measured.

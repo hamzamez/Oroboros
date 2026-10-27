@@ -163,6 +163,8 @@ var infix = map[string]struct {
 	"+": {"+", pAdd}, "-": {"-", pAdd}, "*": {"*", pMul}, "/": {"/", pMul}, "%": {"%", pMul},
 	"<": {"<", pCmp}, "<=": {"<=", pCmp}, "=": {"==", pCmp}, ">=": {">=", pCmp}, ">": {">", pCmp},
 	"!=": {"!=", pCmp}, "concat": {"++", pAdd},
+	"&": {"&", pMul}, "<<": {"<<", pMul}, ">>": {">>", pMul}, "mod": {"mod", pMul},
+	"|": {"|", pAdd}, "⊕": {"⊕", pAdd},
 }
 
 func paren(s string, inner, min int) string {
@@ -315,6 +317,8 @@ func showApp(t *Term, min int) string {
 		switch {
 		case n == "-" && len(args) == 1:
 			return paren("-"+showAt(args[0], pPrefix), pPrefix, min)
+		case n == "~" && len(args) == 1:
+			return paren("~"+showAt(args[0], pPrefix), pPrefix, min)
 		case n == "if" && len(args) == 3:
 			return showIf(args[0], args[1], args[2], min)
 		case n == "again":

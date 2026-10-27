@@ -1775,3 +1775,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/big/fib.oro windows`
 - compiler output changed — `examples/big/pair.oro windows`
 - compiler output changed — `examples/big/power.oro windows`
+
+## 2026-10-27 — on fd4309e, with uncommitted changes
+
+**Reason:** ADR 0082 stage 1: two differential cases for the Boolean operations, shifts and mod (bits, bits-edges); every existing emission byte-identical
+
+580 runs: 318 emitted, 262 refused; 2195 of 2240 integer operations bounded, 353 of 376 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- new source — `gauntlet/differential/cases/bits-edges.oro go`
+- new source — `gauntlet/differential/cases/bits-edges.oro java`
+- new source — `gauntlet/differential/cases/bits-edges.oro js`
+- new source — `gauntlet/differential/cases/bits-edges.oro windows`
+- new source — `gauntlet/differential/cases/bits.oro go`
+- new source — `gauntlet/differential/cases/bits.oro java`
+- new source — `gauntlet/differential/cases/bits.oro js`
+- new source — `gauntlet/differential/cases/bits.oro windows`

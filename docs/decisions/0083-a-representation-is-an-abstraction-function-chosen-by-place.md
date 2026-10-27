@@ -57,10 +57,12 @@ Correctness comes from facts, and the choice is cost alone.
    arithmetic is exact, and `i64` is exact on i686. The preferred register width there is 32 bits, so a
    value proven in S₃₂ is computed in `i32`. Pointer-sized host types take the triple's width from the
    triple's target layer.
-5. **A table's element set is the declared one** (W5): a claim checked at every store, so it is the fact
-   about every element. Inferring an undeclared table's element set as the join of its stores' facts (a
-   least fixed point, as ADR 0034's supply and demand) waits for a program whose table is wider than its
-   stores.
+5. **A table's element representation is Theorem D′'s** (W5; [ir.md](../spec/ir.md) §4.3, built
+   since irstep4a): ρ of the hull of its flow class's proven element ranges, and a declared
+   representation in the class fixes it, the class's range an obligation against it. This decision
+   leaves that rule as it is and widens ρ's codomain (Java's `byte` read as U₈, JavaScript's typed
+   arrays). widths-research.md had said inference waited for a program; Theorem D had built it, which
+   was found while building this decision.
 6. **IR_P carries each value's representation** (W6): every printer reads the width and the reading from
    the IR's text alone (ADR 0038), and `cmd/check` reprints them byte for byte.
 
@@ -76,7 +78,6 @@ Correctness comes from facts, and the choice is cost alone.
   facts already put most values in S₃₂, where they are computed in `i32` under item 4.
 - **Keep the limb library on LLVM**: LLVM legalizes iN itself; a limb library compiled to LLVM IR is
   lowering further than the target requires. It stays where the host has no wide integer (Go, the JVM).
-- **Infer element sets now**: no program has a table wider than its stores yet.
 
 ## Consequences
 

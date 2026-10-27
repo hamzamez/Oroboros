@@ -1185,6 +1185,8 @@ var LanguageSignature = map[string]bool{
 	// the integer operators and equality (ADR 0026, match.md)
 	"=": true, "+": true, "-": true, "*": true, "/": true, "%": true,
 	"<": true, "<=": true, ">": true, ">=": true,
+	// the Boolean operations, the shifts and the Euclidean remainder (ADR 0082)
+	"&": true, "|": true, "⊕": true, "~": true, "<<": true, ">>": true, "mod": true,
 	// tables, buffers and maps (tables.md, maps.md, ADR 0018)
 	"array": true, "table": true, "len": true, "alloc": true, "build": true, "set": true,
 	"map": true, "build-map": true, "insert": true, "keys": true,

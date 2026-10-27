@@ -1,0 +1,31 @@
+// THE BOOLEAN OPERATIONS AT THEIR EDGES (ADR 0082, integers.md §0b), the
+// conformance of each target's realization against ℤ's meaning.
+//
+// The operands are the word's and the int32 windows' ends, and values past
+// 2^32 up to JavaScript's word. `>>` takes counts at the edges where hosts
+// differ: 31 and 32 (int32), 63 and 64 (Java and x86 mask by 63), 100 (Go
+// fills with the sign, which is ℤ's floor). `~` and `mod` meet negative
+// operands, and `s5` is an and read in U₃₂, which JavaScript computes with
+// `>>> 0`. Every term is reduced mod M, so the sum stays in every target's
+// word. The expected values are Python's, whose integers are 2-adic.
+//
+// skip: windows — x86 masks a shift count by 63, so its `>>` takes a count
+// proven at most 63 (integers.md §0b); the counts 64 and 100 wait for ir/llvm.
+//
+// inputs: 0 1 2 3 4 5 6 7 8 9 10 11
+// expect: 148742215 148742222 674884480 679473500 144153195 369984053 900715338 148797853 674828849 905394059 392090426 188188084
+edges = array { 0, 1, -1, 2^31 - 1, -2^31, 2^31, 2^32 - 1, 12345, -12345, 2^52 + 7, -2^52 + 3, 2^53 - 1 }
+
+M = 1000000007
+
+export fn run(n ∈ 0..11) (Int) {
+    a = edges[n]
+    s1 = (a >> 0) mod M + (a >> 1) mod M + (a >> 31) mod M + (a >> 32) mod M + (a >> 63) mod M +
+        (a >> 64) mod M + (a >> 100) mod M
+    s2 = ~a mod M
+    s3 = a mod 7 + a mod 1000000007 + a mod 2^40 mod M
+    s4 = (a & 0xFFFF) + ((a & 0xFFFF) | 0x10000) + ((a & 0xFFFFFF) ⊕ 0x123456)
+    s5 = ((a & 0xFFFFFFFF) ⊕ 0x80000000) mod M
+    s6 = ((a >> 20) << 3) mod M
+    (s1 + s2 + s3 + s4 + s5 + s6) mod M
+}

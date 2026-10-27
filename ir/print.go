@@ -202,10 +202,16 @@ func (pr *printer) op(s *Stmt) []string {
 		return []string{"(global " + s.Name + ")"}
 	case OCall:
 		return []string{"(call " + primText(s.Name) + lead([]string{pr.vs(s.Args)}) + ")"}
-	case OAdd, OSub, OMul, ONeg, ODiv, ORem:
+	case OAdd, OSub, OMul, ONeg, ODiv, ORem, OAnd, OOr, OXor, ONot, OShl, OShr, OMod:
 		m := ""
 		if s.Mode == MExact || s.Mode == MTrap {
 			m = " " + s.Mode.String()
+		}
+		// A Boolean operation's REALIZATION, where the target has more than one
+		// and the IR chose by the proven result (ADR 0083 item 2), is the
+		// printer's input like the mode: `(and exact js.and-u32 %1 %2)`.
+		if s.Op.IsBit() && s.Name != "" {
+			m += " " + primText(s.Name)
 		}
 		return []string{"(" + name + m + " " + pr.vs(s.Args) + ")"}
 	case OMap:

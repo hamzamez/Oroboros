@@ -78,9 +78,21 @@ module java {
     fn `|`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} | ${b}" }
     fn `^`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} ^ ${b}" }
     fn `~`(a ∈ Int) (Int) pure { host expr "~${a}" }
-    fn `<<`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} << ${b}" }
+    fn `<<`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} << ${b}" }
     fn `>>`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} >> ${b}" }
     fn `>>>`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} >>> ${b}" }
+
+    // ---- THE LANGUAGE'S BOOLEAN OPERATIONS (ADR 0082). On a long, Java's `&`,
+    // `|`, `^` and `~` are ℤ's 2-adic operations restricted to the word, and
+    // `<<` is a·2ᵏ wherever the product is proven in the word (a count of 64 or
+    // more with a non-zero a is never proven). Java masks a shift's count by 63
+    // (JLS §15.19), so ⌊a/2ᵏ⌋ for k ≥ 64, which is a's sign, is `>> 63`: the
+    // language's `>>` clamps the count. `Math.floorMod` is the Euclidean
+    // remainder for a positive divisor.
+    // A scalar the IR holds in an `int` (indextype) would have its count masked
+    // by 31: the printer widens the operand first (ir/java's arith).
+    fn sar(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} >> Math.min(${b}, 63)" }
+    fn emod(a ∈ Int, m ∈ Int) (Int) pure where m > 0 { host expr "Math.floorMod(${a}, ${m})" }
 
     // ---- comparison
     fn `<`(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} < ${b}" }

@@ -301,7 +301,7 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 				case core.KStr:
 					is(s.Res[0], "string")
 				}
-			case OAdd, OSub, OMul, ONeg, ODiv, ORem:
+			case OAdd, OSub, OMul, ONeg, ODiv, ORem, OAnd, OOr, OXor, ONot, OShl, OShr, OMod:
 				for _, a := range s.Args {
 					is(a, "int")
 				}

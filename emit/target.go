@@ -28,6 +28,9 @@ import (
 // `fmt.Println` needs no Go; adding a new control structure does.
 
 type Prim struct {
+	// key is the name the target holds the primitive under, set by spelled for
+	// a search that needs it (realizations); never read elsewhere.
+	key string
 	Name string
 	Args []string // our type names; empty when the target is untyped
 
@@ -343,6 +346,12 @@ type Target struct {
 	Prims map[string]Prim
 	Names []string // every primitive name, for core.Env
 
+	// Realize lists, for each of the language's Boolean operations, the
+	// target's realizations in order of preference: the declaration found by
+	// spelling, then those named after it with a suffix (`and_u32`), each
+	// holding the results its declared result set says (ADR 0083 item 2). The
+	// IR picks the first whose result set holds the proven result.
+	Realize map[string][]string
 	// Narrow is a template `dst = src[:n]` that restricts a container to a
 	// known length. A target that declares one gets bounds-check elimination
 	// in loops (bce-2026-08-15.md); one that does not simply gets none, which
@@ -1384,15 +1393,21 @@ func (tg *Target) addCore() {
 		if _, have := tg.Prims[op.name]; have {
 			continue
 		}
-		if p, ok := tg.findOpBySpelling(op.spellings, op.result); ok {
+		n := op.arity
+		if n == 0 {
+			n = 2
+		}
+		if p, ok := tg.findOpBySpelling(op.spellings, op.result, n); ok {
+			found := p.key
 			p.Name = op.name
-			p.Args = []string{"int", "int"}
+			p.Args = []string{"int", "int"}[:n]
 			if op.result != "" {
 				p.Result = op.result
 			}
 			p.Pure = true
 			tg.Prims[op.name] = p
 			tg.Names = append(tg.Names, op.name)
+			tg.realizations(op.name, found, p, n)
 		}
 	}
 	// ARBITRARY PRECISION, THE RUNG ABOVE THE HOST'S WORD.
@@ -1583,6 +1598,7 @@ func (tg *Target) spelled(want string) []Prim {
 	out := make([]Prim, len(cs))
 	for i, c := range cs {
 		out[i] = c.p
+		out[i].key = c.name
 	}
 	return out
 }
@@ -1639,16 +1655,30 @@ var langOps = []struct {
 	name      string
 	spellings []string
 	result    string // the LANGUAGE's result type, not the host's
+	arity     int    // 0 is 2
 }{
-	{"+", []string{"+", "add"}, "int"},
-	{"-", []string{"-", "sub"}, "int"},
-	{"*", []string{"*", "imul", "mul"}, "int"},
-	{"/", []string{"idiv", "/"}, "int"},
-	{"%", []string{"irem", "%", "rem"}, "int"},
-	{"<", []string{"<", "setl"}, "bool"},
-	{"<=", []string{"<=", "setle"}, "bool"},
-	{">", []string{">", "setg"}, "bool"},
-	{">=", []string{">=", "setge"}, "bool"},
+	{"+", []string{"+", "add"}, "int", 2},
+	{"-", []string{"-", "sub"}, "int", 2},
+	{"*", []string{"*", "imul", "mul"}, "int", 2},
+	{"/", []string{"idiv", "/"}, "int", 2},
+	{"%", []string{"irem", "%", "rem"}, "int", 2},
+	{"<", []string{"<", "setl"}, "bool", 2},
+	{"<=", []string{"<=", "setle"}, "bool", 2},
+	{">", []string{">", "setg"}, "bool", 2},
+	{">=", []string{">=", "setge"}, "bool", 2},
+	// THE BOOLEAN OPERATIONS, THE SHIFTS AND THE EUCLIDEAN REMAINDER (ADR 0082),
+	// the 2-adic operations on ℤ. A word spelling comes first, so a target whose
+	// own operator means something else declares the language's under it:
+	// JavaScript's `&` is π₃₂ˢ of the and, so its language `&` is `and`, with a
+	// realization per result window (realizations); Java's `>>` masks its count
+	// by 63, so its language `>>` is `sar`.
+	{"&", []string{"and", "&"}, "int", 2},
+	{"|", []string{"or", "|"}, "int", 2},
+	{"⊕", []string{"xor", "^"}, "int", 2},
+	{"~", []string{"not", "~"}, "int", 1},
+	{"<<", []string{"shl", "<<"}, "int", 2},
+	{">>", []string{"sar", ">>"}, "int", 2},
+	{"mod", []string{"emod"}, "int", 2},
 }
 
 // findOpBySpelling returns the target's own two-argument integer operator.
@@ -1657,10 +1687,10 @@ var langOps = []struct {
 // both ints and floats (JavaScript does, as `any`) is fine, but Go's `f+` must
 // never be picked for `+`, and it is not, because the segment compared is the
 // whole unqualified name.
-func (tg *Target) findOpBySpelling(spellings []string, result string) (Prim, bool) {
+func (tg *Target) findOpBySpelling(spellings []string, result string, n int) (Prim, bool) {
 	for _, want := range spellings {
 		for _, p := range tg.spelled(want) {
-			if len(p.Args) != 2 || p.Kind != "expr" {
+			if len(p.Args) != n || p.Kind != "expr" {
 				continue
 			}
 			// The host's own result must agree with what the language expects:
@@ -3722,6 +3752,11 @@ func (tg *Target) ShiftNames() (shr, and string, ok bool) {
 			// `shr` before `sar` on x86: both are correct on a non-negative
 			// value and the logical one says so.
 			for _, p := range tg.spelled(want) {
+				// THE LANGUAGE'S OWN `>>` AND `&` (ADR 0082) are not this rewrite's:
+				// it writes the host's operator on a value it proved non-negative.
+				if core.LanguageSignature[p.key] {
+					continue
+				}
 				if len(p.Args) == 2 && p.Kind == "expr" &&
 					p.Args[0] != "bool" && p.Args[1] != "bool" {
 					return p.Name, true
@@ -3782,4 +3817,25 @@ func showSets(ts []string) []string {
 		out[i] = core.ShowSet(t)
 	}
 	return out
+}
+
+// realizations records the language operation op's realizations: base, the
+// declaration found by spelling, and every declaration of the same module and
+// arity named base_SUFFIX in J (base-SUFFIX in the core's spelling), sorted. Only an operation with more than one is
+// recorded; the others are the found declaration alone.
+func (tg *Target) realizations(op, base string, p Prim, n int) {
+	var more []string
+	for name, q := range tg.Prims {
+		if strings.HasPrefix(name, base+"-") && len(q.Args) == n && q.Kind == "expr" {
+			more = append(more, name)
+		}
+	}
+	if len(more) == 0 {
+		return
+	}
+	sort.Strings(more)
+	if tg.Realize == nil {
+		tg.Realize = map[string][]string{}
+	}
+	tg.Realize[op] = append([]string{base}, more...)
 }

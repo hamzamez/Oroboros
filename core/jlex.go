@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"unicode"
@@ -43,12 +44,14 @@ func (t token) String() string {
 
 // symbols, longest first where one is a prefix of another.
 var symbols = []string{"...", "<=>", "..", ":=", "==", "!=", "<=", ">=", "=>", "->", "&&", "||", "++",
+	"<<", ">>",
 	"+", "-", "*", "/", "%", "^", "<", ">", "=", "!", ":", ",", ";", ".", "(", ")", "[", "]", "{", "}",
-	"∈", "∉", "∪", "∩", "∖", "⊆", "⊂", "×", "∀", "∃", "⇒", "⇔"}
+	"&", "|", "~",
+	"∈", "∉", "∪", "∩", "∖", "⊆", "⊂", "×", "∀", "∃", "⇒", "⇔", "⊕"}
 
 // ascii are TLA+'s ASCII spellings of the symbols (ADR 0065, 0067).
 var ascii = map[string]string{`\in`: "∈", `\notin`: "∉", `\cup`: "∪", `\cap`: "∩", `\subseteq`: "⊆",
-	`\subset`: "⊂", `\X`: "×", `\A`: "∀", `\E`: "∃"}
+	`\subset`: "⊂", `\X`: "×", `\A`: "∀", `\E`: "∃", `\oplus`: "⊕"}
 
 func lex(src string) ([]token, error) {
 	// UTF-8, NFC and no bidirectional control (core-0 §1.1): two identifiers
@@ -99,6 +102,20 @@ func lex(src string) ([]token, error) {
 			}
 			t.kind, t.text = tQuoted, src[i+1:i+1+j]
 			i += j + 2
+		case r == '0' && i+2 < len(src) && (src[i+1] == 'x' || src[i+1] == 'X') && isHexDigit(src[i+2]):
+			// A HEXADECIMAL LITERAL (ADR 0082 item 6) is the same integer as its
+			// decimal spelling, and the token carries the decimal: everything after
+			// the lexer reads one spelling of an integer.
+			j := i + 2
+			for j < len(src) && isHexDigit(src[j]) {
+				j++
+			}
+			if j < len(src) && (src[j] == '_' || unicode.IsLetter(rune(src[j])) || unicode.IsDigit(rune(src[j]))) {
+				return nil, fmt.Errorf("line %d: %q is not a hexadecimal literal", line, src[i:j+1])
+			}
+			v, _ := new(big.Int).SetString(src[i+2:j], 16)
+			t.kind, t.text = tInt, v.String()
+			i = j
 		case r >= '0' && r <= '9':
 			j := i
 			for j < len(src) && src[j] >= '0' && src[j] <= '9' {
@@ -289,4 +306,9 @@ func scalarEscape(s string, line int) (rune, int, error) {
 			"(docs/spec/string-literals.md §1)", line, digits)
 	}
 	return rune(v), end + 1, nil
+}
+
+// isHexDigit reports a hexadecimal digit, either case.
+func isHexDigit(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
 }

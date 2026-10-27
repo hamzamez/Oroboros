@@ -1,0 +1,25 @@
+// THE BOOLEAN OPERATIONS, THE SHIFTS AND MOD ON ℤ (ADR 0082, integers.md §0b).
+//
+// Each is ℤ's operation read 2-adically, and every target computes the same
+// integer. The inputs reach negative operands (~, >> and mod on a negative),
+// and `u` is an xor whose result is proven in U₃₂ = [0, 2³²) and not in S₃₂,
+// which on JavaScript takes the `>>> 0` realization: its `^` would give the
+// negative int32 of the same bits. The expected values are Python's, whose
+// integers are 2-adic, whose `>>` floors and whose `%` by a positive divisor
+// is Euclidean.
+//
+// inputs: 0 1 7 -5 -1000 1000
+// expect: 7343509502 7345010828 7354477282 3333192478 2883368335 7803657069
+export fn run(n ∈ -1000..1000) (Int) {
+    a = n * 1000003
+    b = 2000000000 - n
+    m = a & 255
+    o = a | 4096
+    x = a ⊕ b
+    t = ~a
+    l = (n + 1000) << 20
+    r = a >> 3
+    q = a mod 1000
+    u = (x & 65535) ⊕ 0xFFFFFFFF
+    m + o + x + t + l + r + q + u
+}

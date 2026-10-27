@@ -919,6 +919,10 @@ var binary = map[string]int{
 	"==": pCmp, "!=": pCmp, "<": pCmp, "<=": pCmp, ">": pCmp, ">=": pCmp, "∈": pCmp, "∉": pCmp, "⊆": pCmp, "⊂": pCmp,
 	"∪": pSet, "∩": pSet, "∖": pSet, "×": pProd, "..": pRange,
 	"+": pAdd, "-": pAdd, "++": pAdd, "*": pMul, "/": pMul, "%": pMul, "^": pPow,
+	// The Boolean operations and the shifts at Go's levels (ADR 0082 item 6):
+	// `x & 1 == 0` is `(x & 1) == 0`. `mod` is a word, read as an operator only
+	// between two operands (binaryFrom).
+	"<<": pMul, ">>": pMul, "&": pMul, "mod": pMul, "|": pAdd, "⊕": pAdd,
 }
 
 var opName = map[string]string{"==": "=", "++": "concat"}
@@ -978,7 +982,7 @@ func (p *parser) binaryFrom(left Expr, min int) (Expr, error) {
 	for {
 		t := p.peek()
 		prec, ok := binary[t.text]
-		if t.kind != tSym || !ok || prec < min || p.lineEnds() {
+		if t.kind != tSym && !(t.kind == tIdent && t.text == "mod") || !ok || prec < min || p.lineEnds() {
 			return left, nil
 		}
 		p.next()
@@ -1022,7 +1026,7 @@ func (p *parser) beginsOperand() bool {
 		return false
 	case tSym:
 		switch t.text {
-		case "(", "{", "-", "!":
+		case "(", "{", "-", "!", "~":
 			return true
 		}
 		return false
@@ -1132,6 +1136,17 @@ func (p *parser) unary() (Expr, error) {
 		p.next()
 		x, err := p.exprAt(pPrefix)
 		return &Not{X: x}, err
+	case p.is("~"):
+		// not on ℤ, −x − 1 (ADR 0082), folded on a literal as `-` is.
+		p.next()
+		x, err := p.exprAt(pPrefix)
+		if err != nil {
+			return nil, err
+		}
+		if v, ok := p.literal(x); ok {
+			return p.fold(new(big.Int).Sub(new(big.Int).Neg(v), big.NewInt(1))), nil
+		}
+		return &Apply{Fn: &Var{Name: "~"}, Args: []Expr{x}}, nil
 	case p.is(".."):
 		// ..hi is ↓hi, the lower bound absent (ADR 0077), the core's (int -inf hi).
 		p.next()

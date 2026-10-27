@@ -34,6 +34,15 @@ const (
 	ONeg
 	ODiv
 	ORem
+	// The Boolean operations, the shifts and the Euclidean remainder (ADR
+	// 0082): ℤ's 2-adic operations, which IsBit names.
+	OAnd
+	OOr
+	OXor
+	ONot
+	OShl
+	OShr
+	OMod
 	OEq
 	ONe
 	OLt
@@ -76,6 +85,7 @@ const (
 var opNames = [numOps]string{
 	OConst: "const", OGlobal: "global",
 	OAdd: "add", OSub: "sub", OMul: "mul", ONeg: "neg", ODiv: "div", ORem: "rem",
+	OAnd: "and", OOr: "or", OXor: "xor", ONot: "not", OShl: "shl", OShr: "shr", OMod: "mod",
 	OEq: "eq", ONe: "ne", OLt: "lt", OLe: "le", OGt: "gt", OGe: "ge",
 	OCall: "call", OIndex: "index", OLen: "len", OArray: "array", OMap: "map",
 	ORead: "read", OKeys: "keys", OSet: "set", OInsert: "insert",
@@ -103,8 +113,13 @@ func OpNamed(s string) (Op, bool) {
 }
 
 // IsArith and IsCmp partition the integer operations (spec §1.2).
-func (o Op) IsArith() bool { return o >= OAdd && o <= ORem }
-func (o Op) IsCmp() bool   { return o >= OEq && o <= OGe }
+func (o Op) IsArith() bool { return o >= OAdd && o <= OMod }
+
+// IsBit names the operations ADR 0082 added to the integer ones: total on ℤ
+// but for `<<`'s and `>>`'s count and `mod`'s divisor, each a declared
+// `where`. Of them only `<<` can leave the word, so only it is counted.
+func (o Op) IsBit() bool { return o >= OAnd && o <= OMod }
+func (o Op) IsCmp() bool { return o >= OEq && o <= OGe }
 
 // Pure reports whether an operation is central (spec §1.1). A call's purity is
 // its primitive's declared bit, which the caller supplies.

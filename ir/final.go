@@ -86,6 +86,9 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 	if rewrites > 0 || len(fs) != nv {
 		fs = analyse(tg, f)
 	}
+	if err := selectRealizations(tg, f, fs); err != nil {
+		return err
+	}
 	tainted := map[V]bool{} // a table a host call may write through an unfixed argument
 	parent := make([]V, nv)
 	for i := range parent {
@@ -598,3 +601,50 @@ func eraseThe(f *Func) {
 	})
 	Canonicalize(f)
 }
+
+// selectRealizations chooses, for each Boolean operation the target realizes
+// more than one way, the first realization whose declared result set holds the
+// operation's proven result (ADR 0083 item 2), and records it in the
+// statement, where the printers read it (ADR 0038). The first is the one found
+// by spelling and is left unrecorded, so a program that needs no other prints
+// as before. JavaScript is the case: its `&` is the and only where the result
+// is proven in S₃₂, and `>>> 0` reads it in U₃₂. A result in none is refused,
+// naming the windows.
+func selectRealizations(tg *emit.Target, f *Func, fs []fact) error {
+	var err error
+	f.Walk(func(r *Region) {
+	next:
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if !s.Op.IsBit() || len(s.Res) != 1 || err != nil {
+				continue
+			}
+			rs := tg.Realize[bitName[s.Op]]
+			if len(rs) == 0 {
+				continue
+			}
+			v := fs[s.Res[0]].v
+			var sets []string
+			for j, name := range rs {
+				lo, hi, ok := core.IntRange(tg.Prims[name].Result)
+				if !ok {
+					lo, hi = tg.Word.Lo, tg.Word.Hi
+				}
+				sets = append(sets, fmt.Sprintf("%d..%d", lo, hi))
+				if v.within(ei(lo), ei(hi)) {
+					if j > 0 {
+						s.Name = name
+					}
+					continue next
+				}
+			}
+			err = fmt.Errorf("the result of `%s` lies in %s, and target %s computes `%s` only where the result is "+
+				"proven in one of %s (integers.md §0b); narrow its operands' sets",
+				bitName[s.Op], show(v), tg.Name, bitName[s.Op], strings.Join(sets, ", "))
+		}
+	})
+	return err
+}
+
+// bitName is each of ADR 0082's operations by the language's name.
+var bitName = map[Op]string{OAnd: "&", OOr: "|", OXor: "⊕", ONot: "~", OShl: "<<", OShr: ">>", OMod: "mod"}

@@ -75,6 +75,18 @@ module go {
     fn `<<`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} << ${b}" }
     fn `>>`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} >> ${b}" }
 
+    // ---- THE LANGUAGE'S BOOLEAN OPERATIONS (ADR 0082), where Go's spelling is
+    // not its operator's. On an int, Go's `&`, `|`, `^` and `>>` are ℤ's 2-adic
+    // operations restricted to the word, and a count of 64 or more fills with
+    // the sign, which is ℤ's floor; `<<` is a·2ᵏ wherever the product is proven
+    // in the word. So those are found under their own spellings. Go writes not
+    // as unary `^`, and has no Euclidean remainder: r + m on a negative r lies
+    // in (0, m), so it does not overflow.
+    fn `~`(a ∈ Int) (Int) pure { host expr "^${a}" }
+    fn emod(a ∈ Int, m ∈ Int) (Int) pure where m > 0 {
+        host expr "func(a, m int) int { r := a % m; if r < 0 { r += m }; return r }(${a}, ${m})"
+    }
+
     // ---- float arithmetic and order: IEEE 754 binary64.
     fn `f+`(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} + ${b}" }
     fn f_(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} - ${b}" }

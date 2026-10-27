@@ -124,14 +124,22 @@ module x64 {
     fn or(a ∈ Int, b ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nor ${r}, ${b}" }
     fn xor(a ∈ Int, b ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nxor ${r}, ${b}" }
     fn not(a ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nnot ${r}" }
-    fn shl(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+    fn shl(a ∈ Int, b ∈ Int) (r ∈ Int) pure where b >= 0 {
         host expr "mov ${r}, ${a}\nmov rcx, ${b}\nshl ${r}, cl"
     }
     fn shr(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
         host expr "mov ${r}, ${a}\nmov rcx, ${b}\nshr ${r}, cl"
     }
-    fn sar(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+    // x86 masks a count by 63, so the language's `>>` (ADR 0082), found under
+    // this spelling, takes a count proven at most 63 here; ⌊a/2ᵏ⌋ for a larger
+    // one waits for ir/llvm, which retires this printer.
+    fn sar(a ∈ Int, b ∈ Int) (r ∈ Int) pure where b >= 0 && b <= 63 {
         host expr "mov ${r}, ${a}\nmov rcx, ${b}\nsar ${r}, cl"
+    }
+    // THE EUCLIDEAN REMAINDER for a positive divisor (ADR 0082): idiv's
+    // remainder takes the dividend's sign, and a negative one is moved up by m.
+    fn emod(a ∈ Int, m ∈ Int) (r ∈ Int) pure where m > 0 {
+        host expr "mov rax, ${a}\ncqo\nmov rcx, ${m}\nidiv rcx\ntest rdx, rdx\njge Lemod${#}\nadd rdx, rcx\nLemod${#}:\nmov ${r}, rdx"
     }
 
     // ---- comparison. `setcc` is the mnemonic that MAKES a boolean; `(jump …)`

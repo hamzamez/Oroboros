@@ -489,7 +489,7 @@ func (p *printer) inPlace(s *ir.Stmt) bool {
 func (p *printer) formOf(s *ir.Stmt) string {
 	switch {
 	case s.Op.IsArith() || s.Op.IsCmp():
-		f := p.pl.Spell[s.Op]
+		f := p.pl.Form(s)
 		if s.Mode == ir.MTrap {
 			return f[1]
 		}

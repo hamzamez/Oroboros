@@ -37,7 +37,7 @@ func isBidiControl(r rune) bool {
 // the host's own names — `go.%`, `go.&`, `go.|`. A target module that has to
 // rename `%` to `rem` is teaching the reader's limitations rather than the
 // host's, which is the opposite of what a parasite target file is for.
-const symbolChars = "-+*/<>=!?_%&|^~"
+const symbolChars = "-+*/<>=!?_%&|^~⊕"
 
 func isIdentStart(r rune) bool {
 	if strings.ContainsRune(symbolChars, r) {

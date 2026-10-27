@@ -347,7 +347,7 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 		}
 		s.Args, err = rd.values(args[1:])
 		return s, err
-	case OAdd, OSub, OMul, ONeg, ODiv, ORem:
+	case OAdd, OSub, OMul, ONeg, ODiv, ORem, OAnd, OOr, OXor, ONot, OShl, OShr, OMod:
 		if len(args) > 0 && args[0].Kind == core.KName {
 			switch args[0].Name {
 			case "exact":
@@ -355,6 +355,9 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 			case "trap":
 				s.Mode, args = MTrap, args[1:]
 			}
+		}
+		if o.IsBit() && len(args) > 0 && args[0].Kind == core.KName && !strings.HasPrefix(args[0].Name, "%") {
+			s.Name, args = args[0].Name, args[1:]
 		}
 		s.Args, err = rd.values(args)
 		return s, err

@@ -268,7 +268,12 @@ func docRows(t *testing.T, text string) []docRow {
 		if !strings.HasPrefix(line, "|") || strings.HasPrefix(line, "|---") {
 			continue
 		}
-		cells := strings.Split(strings.Trim(line, "|"), "|")
+		// An escaped pipe, `\|`, is a cell's text in a GitHub table, not a
+		// column: the word `|` is listed so.
+		cells := strings.Split(strings.Trim(strings.ReplaceAll(line, `\|`, "\x00"), "|"), "|")
+		for j := range cells {
+			cells[j] = strings.ReplaceAll(cells[j], "\x00", "|")
+		}
 		if len(cells) < 3 || strings.TrimSpace(cells[0]) == "word" {
 			continue
 		}

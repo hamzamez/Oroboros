@@ -39,6 +39,10 @@ float division — `7 / 2` is 3.5 — so `targets/js` declares `idiv` as
 and not `| 0`, because the bitwise form coerces to int32 and would silently wrap
 every value past 2³¹, well inside the window.
 
+**Reversed by [ADR 0082](../decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md)
+(2026-10-27, not built):** the bitwise operations are ℤ's own, 2-adic and width-free, and V8's int32
+coercion is a lowering cost, not a disagreement of meaning. What follows is the original reasoning.
+
 **Bitwise and shifts are NOT promoted**, and §12's third question is why: V8
 coerces both operands to int32 for `& | ^ << >>` (uint32 for `>>>`), so
 `(2³²) & -1` is **0** there and 4294967296 on Go, Java and x86. That is an

@@ -1,6 +1,7 @@
 # Research: ℤ/2ⁿ and 𝔽₂ⁿ, the integers modulo 2ⁿ and the bits
 
-2026-10-27. **Research, not a decision.** The first of the seven walls
+2026-10-27. **Decided by [ADR 0082](decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md)**
+(hamza, 2026-10-27: B1–B5 as recommended; B6 with `⊕` spelled `\oplus`). Not built. The first of the seven walls
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (§4.1), and the first
 decision step of the 10-24 plan's item 6b. hamza: "make a research document explaining what it is? how
 does it relate to our language? llvm? the other targets? the type system. with plenty of examples. and

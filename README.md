@@ -509,9 +509,12 @@ says why the next is what it is.
      ([llvmsurvey-2026-10-27](gauntlet/results/llvmsurvey-2026-10-27.md)): of LLVM's 67 instructions and
      534 general intrinsics, 31 and 83 can be offered today; the rest meet seven questions the language
      has not answered, each decided by hamza in turn, with a research document first:
-     1. **wrapping integers and bits**, the arithmetic of a machine word and its bitwise operations,
-        which hashes, checksums and random numbers need ([bits-research.md](docs/bits-research.md), now);
-     2. integer widths (bytes, 32-bit words, 128-bit integers);
+     1. ~~**wrapping integers and bits**~~ **decided 2026-10-27**
+        ([ADR 0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md)): the
+        bitwise operations become the language's on every target, and a wrapping result is written
+        `mod 2^64`; built with the next step, first for two hash programs;
+     2. **integer widths** (bytes, 32-bit words, 128-bit integers;
+        [widths-research.md](docs/widths-research.md), now);
      3. pointers;
      4. vectors (several numbers in one register);
      5. float formats other than 64-bit;

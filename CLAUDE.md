@@ -134,10 +134,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
      formats, relations, the float environment, pointers as values, vectors), each with its algebra and a
      recommendation; the declarations and the printer wait on them. **Each wall is a step, a research
      document first and hamza's decision after** (hamza, 2026-10-27), in this order:
-     1. **ℤ/2ⁿ and 𝔽₂ⁿ**: [bits-research.md](docs/bits-research.md), decisions B1–B6 (recommended: the
-        Boolean operations on ℤ promoted, wrapping as π_n = `mod 2ⁿ` on ℤ, no new sort, fusion as the one
-        new soundness rule); then its ADR and a program first, `hash/fnv` and `hash/crc32`.
-     2. **Widths**: ρ over every iN, the rung above as native iN on LLVM (amends ADR 0079).
+     1. ~~**ℤ/2ⁿ and 𝔽₂ⁿ**~~ **decided** ([ADR 0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md),
+        [bits-research.md](docs/bits-research.md)): `& | ⊕ ~ << >>` are ℤ's own, wrapping is `mod 2ⁿ`, no
+        new sort, fusion the one new soundness rule, `⊕` spelled `\oplus`. Built with step 2, program
+        first: `hash/fnv` and `hash/crc32`.
+     2. **Widths**: [widths-research.md](docs/widths-research.md), decisions W1–W6 with hamza
+        (recommended: a representation is an abstraction function (H, d), one mechanism for every
+        integer representation; ρ chooses by place, forced at a boundary or record field, smallest in a
+        table, the register width for a scalar; native iN above the word on LLVM; the word S₆₄ on every
+        triple).
      3. **Pointers as values**: an opaque host pointer a host type, every other pointer a segment.
      4. **Vectors**: a representation of a static-length table, not a sort.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
@@ -471,6 +476,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A declared set is a claim, and the facts choose the representation | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
 | The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity; every LLVM primitive offered, walls to hamza (not built) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
 | Concurrency is typed processes: a Mealy machine, failure an effect, supervisors its handlers; Kahn networks and fork–join its fragments (the direction; not built) | [0081](docs/decisions/0081-concurrency-is-typed-processes.md) |
+| Wrapping is the residue map `mod 2ⁿ` on ℤ, not a sort; `& \| ⊕ ~ << >>` are ℤ's own; fusion computes a term under `mod 2ⁿ` in n-bit arithmetic (not built) | [0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
 
 ## Build commands
 

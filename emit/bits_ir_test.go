@@ -34,3 +34,35 @@ func TestABitResultOutsideEveryRealizationIsRefused(t *testing.T) {
 		t.Errorf("an or proven in S₃₂ took the U₃₂ realization:\n%s", code)
 	}
 }
+
+// FUSION STOPS AT EVERY OPERATION THAT DOES NOT DESCEND TO ℤ/2ⁿ (ADR 0082 item
+// 3). `(a * b) mod 256` is computed wrapping, the product never held: accepted
+// though a·b may reach 2^124, past every word. Under `/`, `%`, `>>`, a
+// comparison or a `mod` by a non-power of two, the product is read as an
+// integer, and wrapping it changes the answer: π₈((200 + 100) / 2) is 150, and
+// wrapped (44 / 2) is 22. So each of those is refused, its product unproven.
+func TestFusionStopsAtWhatDoesNotDescend(t *testing.T) {
+	head := "export fn f(a ∈ 0..2^62, b ∈ 0..2^62, c ∈ 1..9) (Int) { "
+	for _, body := range []string{
+		"(a * b) mod 256",
+		"((a * b + c) ⊕ (a * 3 << 2)) mod 2^32",
+		"(~(a * b) | c) mod 2^63",
+	} {
+		if err := legalGo(t, head+body+" }"); err != nil {
+			t.Errorf("%s was not fused: %v", body, err)
+		}
+	}
+	for _, body := range []string{
+		"((a * b) / 2) mod 256",
+		"((a * b) % 7) mod 256",
+		"((a * b) >> 1) mod 256",
+		"((a * b) mod 255) mod 256",
+		"(if a * b > c { 1 } else { 0 }) mod 256",
+		"(a * b) mod 255",
+		"(a * b) mod 2^65",
+	} {
+		if err := legalGo(t, head+body+" }"); err == nil {
+			t.Errorf("%s: fused through an operation that does not descend", body)
+		}
+	}
+}

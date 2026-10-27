@@ -24,6 +24,13 @@
 // is what lets a program whose values provably fit get it anyway.
 repr shift 31
 
+// ═══ WHERE THIS HOST'S OPERATORS WRAP (ADR 0082 item 3): JavaScript's `+` and
+// `*` do not wrap at all, so it declares 32, the width of its int32 forms, and
+// each fusable operation's wrapping form below (`add_wrap`). Each computes the
+// signed 32-bit residue of ℤ's result for operands anywhere in its word: `| 0`
+// and `Math.imul` apply ToInt32, which is π₃₂ˢ, first.
+repr wrap 32
+
 module js {
     // ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
     // with the reason. The language's `abandon`, found by spelling; it never
@@ -147,6 +154,12 @@ module js {
     fn not(a ∈ Int) (Int) pure { host expr "(-(${a}) - 1)" }
     fn shl(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "(${a} * 2 ** ${b})" }
     fn sar(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "Math.floor(${a} / 2 ** Math.min(${b}, 64))" }
+    fn add_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(((${a} | 0) + (${b} | 0)) | 0)" }
+    fn sub_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(((${a} | 0) - (${b} | 0)) | 0)" }
+    fn mul_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.imul(${a}, ${b})" }
+    fn neg_wrap(a ∈ Int) (Int) pure { host expr "((-(${a} | 0)) | 0)" }
+    fn not_wrap(a ∈ Int) (Int) pure { host expr "(~${a})" }
+    fn shl_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(${a} << ${b})" }
     fn emod(a ∈ Int, m ∈ Int) (Int) pure where m > 0 {
         host expr "((a, m) => { const r = a % m; return r < 0 ? r + m : r + 0; })(${a}, ${m})"
     }

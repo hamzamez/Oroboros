@@ -110,14 +110,20 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 					core.ShowName(name), core.ShowSet(r), core.ShowSet(f.Results[j]))
 			}
 		}
+		// A RESULT DECLARED IN THE UNSIGNED WORD is its representation at this
+		// entry point (ADR 0079 item 3), on a target that realizes that word:
+		// a hash reduced `mod 2^64` leaves as a uint64, not as an int.
+		fixes := func(r string) bool {
+			return declaresTable(tg, r) || tg.Word.Unsigned && tg.ValueType(r) == core.U64Type
+		}
 		switch {
 		case len(sig.Results) > 0 && len(sig.Results) == len(f.Results):
 			for j, r := range sig.Results {
-				if declaresTable(tg, r) {
+				if fixes(r) {
 					f.Results[j] = r
 				}
 			}
-		case len(f.Results) == 1 && declaresTable(tg, sig.Result):
+		case len(f.Results) == 1 && fixes(sig.Result):
 			f.Results[0] = sig.Result
 		}
 	}

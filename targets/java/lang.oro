@@ -22,6 +22,10 @@
 // our `int` is Java's `long`, and `>>` on one is a 64-bit arithmetic shift.
 repr shift 63
 
+// ═══ WHERE THIS HOST'S OPERATORS WRAP (ADR 0082 item 3): at 64 bits, two's
+// complement, so a term under `mod 2^n`, n ≤ 64, is computed in them, fused.
+repr wrap 64
+
 module java {
     // ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
     // with the reason. The language's `abandon`, found by spelling; it never

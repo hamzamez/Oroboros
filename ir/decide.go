@@ -98,12 +98,14 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 	spec := specOnly(f)
 	wLo, wHi := ei(tg.Word.Lo), ei(tg.Word.Hi)
 	inOrder(f, func(s *Stmt) {
-		if len(s.Res) != 1 || spec[s.Res[0]] {
-			return
+		if len(s.Res) != 1 || spec[s.Res[0]] || s.Mode == MWrap {
+			return // a fused operation is read only through its `mod` (Fuse)
 		}
-		// `<<` is a product by a power of two, so it is counted like `*`; the
-		// other operations ADR 0082 added keep the word (integers.md §0b).
-		arith := (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op == OShl) && s.Name == ""
+		// ADR 0082'S OPERATIONS ARE COUNTED LIKE `+`: each result proven in the
+		// word. On a word [−2ᵏ, 2ᵏ) the Boolean ones cannot leave it, and are
+		// proven at no cost; JavaScript's word is symmetric, ±(2⁵³−1), and
+		// `~(2⁵³−1)` is −2⁵³ (integers.md §0b).
+		arith := (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op.IsBit()) && s.Name == ""
 		word := s.Op == OCall && (s.Name == "u64+" || s.Name == "u64-" || s.Name == "u64*")
 		if !arith && !word {
 			return

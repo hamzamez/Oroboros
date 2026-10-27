@@ -2,7 +2,7 @@
 
 public final class gauntlet_differential_cases_bits-edges.java {
 	public static long genRun(int v0) {
-		final long[] v21 = new long[]{0, 1, -1, 2147483647, -2147483648, 2147483648L, 4294967295L, 12345, -12345, 4503599627370503L, -4503599627370493L, 9007199254740991L};
+		final long[] v21 = new long[]{0, 1, -1, 2147483647, -2147483648, 2147483648L, 4294967295L, 12345, -12345, 4503599627370503L, -4503599627370493L, 9007199254740990L};
 		final long v22 = v21[v0];
 		final long v24 = (v22 >> Math.min(0, 63));
 		final int v26 = (int) ((Math.floorMod(v24, 1000000007)));
@@ -30,7 +30,7 @@ public final class gauntlet_differential_cases_bits-edges.java {
 		final int v62 = (int) ((Math.floorMod(v22, 7)));
 		final int v64 = (int) ((Math.floorMod(v22, 1000000007)));
 		final int v65 = (v62 + v64);
-		final long v67 = (Math.floorMod(v22, 1099511627776L));
+		final long v67 = (v22 & 1099511627775L);
 		final int v69 = (int) ((Math.floorMod(v67, 1000000007)));
 		final int v70 = (v65 + v69);
 		final long v71 = (v60 + v70);

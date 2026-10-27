@@ -70,9 +70,10 @@ constant bit string (bits-research.md §1.5). Then, for all a, b ∈ ℤ:
 Precedence is Go's (j.md §3): `<< >> & mod` with `* / %`, `| ⊕` with `+ -`, prefix `~` with prefix `-`.
 `x mod 2ⁿ` is π_n, the residue map; `x & (2ⁿ − 1)` is the same function on every integer.
 
-**Overflow.** `&`, `|`, `⊕`, `~` and `>>` of operands in the word are in the word (the signed window
-[−2ᵏ, 2ᵏ) is closed under the Boolean operations), so they carry no obligation. `<<` is a product and
-carries one, like `*`. `mod`'s result is in [0, m).
+**Overflow.** Every result is proven in the word, like `+`'s. On a word [−2ᵏ, 2ᵏ) the Boolean
+operations cannot leave it (the window is closed under them) and `>>` and `mod` cannot either, so they
+are proven at no cost; `<<` is a product and can. JavaScript's word is symmetric, ±(2⁵³−1), and
+`~(2⁵³−1)` is −2⁵³, outside it: there the obligation can fail.
 
 **Facts** (`ir/interval.go`, each checked against ℤ by `TestTheBitOperationsAreSound`): for operands in
 [−2ᵏ, 2ᵏ), and, or and xor are in [−2ᵏ, 2ᵏ); for non-negative operands, `a & b ≤ min(a, b)`,
@@ -95,8 +96,13 @@ JavaScript's operators compute π₃₂ˢ of the true result for any integer ope
 operands', chooses the realization. A program that names a host's own operator (`js.&`, `go.^`) still
 gets the host's meaning, as every target-native name does.
 
-**Fusion (ADR 0082 item 3)**: built in a later stage; until then a term under `mod 2ⁿ` is computed
-exactly, and refused where an intermediate is not proven in the word.
+**Fusion (ADR 0082 item 3, `ir/fuse.go`).** Under `x mod 2ⁿ`, a term of `+ − · neg & | ⊕ ~` and `<<` by a
+constant, each intermediate read only by it, is computed in the target's wrapping operators at its
+declared width W (`repr wrap W`: 64 on Go, the JVM and x86, whose plain operators wrap; 32 on
+JavaScript, through `Math.imul` and `| 0`), and its intermediates are exempt from the word. Then
+`mod 2ⁿ` becomes `& (2ⁿ − 1)` for n ≤ 63, the same function on every integer, and the residue map
+`u64-of` for n = 64 on a target with the unsigned word. Division, `%`, `>>`, a comparison, `mod` by a
+non-power of two and a call stop it (`TestFusionStopsAtWhatDoesNotDescend`). n > W is computed exactly.
 
 ## 0. What does not change
 

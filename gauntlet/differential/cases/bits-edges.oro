@@ -9,12 +9,16 @@
 // `>>> 0`. Every term is reduced mod M, so the sum stays in every target's
 // word. The expected values are Python's, whose integers are 2-adic.
 //
+// The largest edge is 2^53 − 2, not 2^53 − 1: JavaScript's word is symmetric,
+// ±(2^53 − 1), and ~(2^53 − 1) = −2^53 leaves it, so that edge is refused
+// there (integers.md §0b) — which this case found.
+//
 // skip: windows — x86 masks a shift count by 63, so its `>>` takes a count
 // proven at most 63 (integers.md §0b); the counts 64 and 100 wait for ir/llvm.
 //
 // inputs: 0 1 2 3 4 5 6 7 8 9 10 11
-// expect: 148742215 148742222 674884480 679473500 144153195 369984053 900715338 148797853 674828849 905394059 392090426 188188084
-edges = array { 0, 1, -1, 2^31 - 1, -2^31, 2^31, 2^32 - 1, 12345, -12345, 2^52 + 7, -2^52 + 3, 2^53 - 1 }
+// expect: 148742215 148742222 674884480 679473500 144153195 369984053 900715338 148797853 674828849 905394059 392090426 188188077
+edges = array { 0, 1, -1, 2^31 - 1, -2^31, 2^31, 2^32 - 1, 12345, -12345, 2^52 + 7, -2^52 + 3, 2^53 - 2 }
 
 M = 1000000007
 

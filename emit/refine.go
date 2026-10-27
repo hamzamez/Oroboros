@@ -1201,6 +1201,19 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		}
 		return false, fmt.Errorf("%s requires %s, which is false at this call", core.ShowName(name), core.ShowTerm(want))
 	}
+	// A COMPARISON OF CLOSED INTEGER TERMS IS DECIDED IN ℤ, exactly: `mod 2^64`'s
+	// divisor reaches here as 18446·10¹⁵ + 744… (a literal past int64), which
+	// the word's evaluation does not fold. Folding in a proof is no staging:
+	// nothing is emitted from it (ADR 0009 governs code).
+	if v, ok := closedIntComparison(want); ok {
+		if v {
+			return true, nil
+		}
+		if r.probe {
+			return false, nil
+		}
+		return false, fmt.Errorf("%s requires %s, which is false at this call", core.ShowName(name), core.ShowTerm(want))
+	}
 	// A GOAL WITH A DISJUNCTION IN IT is decided by the sequent calculus's
 	// right-hand rules (goalHolds). Scalar's precondition on `string-of` is the
 	// first: 0 ≤ c ≤ 10FFFF and (c ≤ D7FF or c ≥ E000) (gotarget-2026-09-30).

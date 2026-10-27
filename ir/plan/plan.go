@@ -18,6 +18,7 @@ package plan
 
 import (
 	"sort"
+	"strings"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -146,6 +147,22 @@ func Spellings(tg *emit.Target) map[ir.Op][2]string {
 	return out
 }
 
+// wrapName is the key of the target's wrapping form of o, `js.mul-wrap`, or "".
+func (p *Plan) wrapName(o ir.Op) string {
+	want := o.String() + "-wrap"
+	names := make([]string, 0, 1)
+	for n := range p.Tg.Prims {
+		if n == want || strings.HasSuffix(n, "."+want) {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+	if len(names) == 0 {
+		return ""
+	}
+	return names[0]
+}
+
 // BitNames are the language's names of the operations ADR 0082 added.
 var BitNames = map[ir.Op]string{ir.OAnd: "&", ir.OOr: "|", ir.OXor: "⊕", ir.ONot: "~", ir.OShl: "<<",
 	ir.OShr: ">>", ir.OMod: "mod"}
@@ -154,6 +171,14 @@ var BitNames = map[ir.Op]string{ir.OAnd: "&", ir.OOr: "|", ir.OXor: "⊕", ir.ON
 // IR recorded one it chose by the proven result (ADR 0083 item 2), else the
 // target's for the operation.
 func (p *Plan) Form(s *ir.Stmt) [2]string {
+	// A FUSED OPERATION (mode wrap) is spelled by the target's wrapping form
+	// where it declares one (JavaScript's `mul_wrap`, Math.imul); elsewhere its
+	// plain operator wraps at the target's width already.
+	if s.Mode == ir.MWrap {
+		if q, ok := p.Tg.Prims[p.wrapName(s.Op)]; ok {
+			return [2]string{q.Form, ""}
+		}
+	}
 	if s.Op.IsBit() && s.Name != "" {
 		if q, ok := p.Tg.Prims[s.Name]; ok {
 			return [2]string{q.Form, ""}

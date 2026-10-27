@@ -1792,3 +1792,30 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/bits.oro java`
 - new source — `gauntlet/differential/cases/bits.oro js`
 - new source — `gauntlet/differential/cases/bits.oro windows`
+
+## 2026-10-27 — on 647278a, with uncommitted changes
+
+**Reason:** ADR 0082 stage 2: fusion under mod 2^n (fnv32 on every target, fnv64 on Go); every new operation's result counted like +'s, so the bits cases' counts grow; bits-edges' largest edge 2^53-2, and mod 2^40 printed as a mask
+
+588 runs: 323 emitted, 265 refused; 2341 of 2386 integer operations bounded, 358 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+18 change(s):
+
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro go`
+- compiler output changed — `gauntlet/differential/cases/bits-edges.oro go`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro java`
+- compiler output changed — `gauntlet/differential/cases/bits-edges.oro java`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro js`
+- compiler output changed — `gauntlet/differential/cases/bits-edges.oro js`
+- compiler output changed — `gauntlet/differential/cases/bits.oro go`
+- compiler output changed — `gauntlet/differential/cases/bits.oro java`
+- compiler output changed — `gauntlet/differential/cases/bits.oro js`
+- compiler output changed — `gauntlet/differential/cases/bits.oro windows`
+- new source — `gauntlet/differential/cases/fnv32.oro go`
+- new source — `gauntlet/differential/cases/fnv32.oro java`
+- new source — `gauntlet/differential/cases/fnv32.oro js`
+- new source — `gauntlet/differential/cases/fnv32.oro windows`
+- new source — `gauntlet/differential/cases/fnv64.oro go`
+- new source — `gauntlet/differential/cases/fnv64.oro java`
+- new source — `gauntlet/differential/cases/fnv64.oro js`
+- new source — `gauntlet/differential/cases/fnv64.oro windows`

@@ -256,3 +256,12 @@ func modZ(a, m iv) iv {
 	}
 	return rangeE(ep{}, hi)
 }
+
+// wrapIV is S_W = [−2^(W−1), 2^(W−1)), where a fused operation's signed
+// residue lies (ADR 0082 item 3).
+func wrapIV(w int64) iv {
+	if w <= 0 || w > 64 {
+		return ivTop
+	}
+	return windowIV(uint(w - 1))
+}

@@ -117,6 +117,9 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if err != nil {
 		return nil, nil, err
 	}
+	// FUSION (ADR 0082 item 3): a term under `mod 2ⁿ` computed wrapping,
+	// before the decision, which would count its intermediates.
+	Fuse(tg, f)
 	leg := Decide(tg, f, checked)
 	// THE RUNG ABOVE THE WORD: the least set of values held exactly, on the
 	// decided function's facts; decided again after, where no operation held

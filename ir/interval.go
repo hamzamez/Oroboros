@@ -551,6 +551,12 @@ func (a *intervals) region(r *Region) ([]fact, bool) {
 func (a *intervals) stmt(s *Stmt) {
 	args := a.facts(s.Args)
 	one := func(f fact) { a.fs[s.Res[0]] = f }
+	if s.Mode == MWrap && len(s.Res) == 1 {
+		// A FUSED OPERATION holds the signed residue of ℤ's result at the
+		// target's wrap width (Fuse): S_W, whatever its operands.
+		one(fact{v: wrapIV(a.tg.WrapWidth)})
+		return
+	}
 	switch s.Op {
 	case OConst:
 		if s.Lit.Kind == core.KInt {

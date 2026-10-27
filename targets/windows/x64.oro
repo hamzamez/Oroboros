@@ -43,6 +43,10 @@
 // `shr` is a 64-bit logical shift, which is what a non-negative value wants.
 repr shift 63
 
+// ═══ WHERE THIS HOST'S OPERATORS WRAP (ADR 0082 item 3): at 64 bits, two's
+// complement, so a term under `mod 2^n`, n ≤ 64, is computed in them, fused.
+repr wrap 64
+
 // THE ONLY WIDTH THIS TARGET DECLARES, and it declares it because it can
 // already load one: `movzx` zero-extends a byte, which is the same path a
 // boolean table takes (wintables-2026-08-25 §4a). 0..255 only -- a signed byte

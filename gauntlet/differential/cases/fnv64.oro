@@ -1,0 +1,21 @@
+// FNV-1a, 64 BITS (Go's hash/fnv, New64a), FUSED (ADR 0082 item 3).
+//
+// h ← ((h ⊕ b) · 1099511628211) mod 2^64. The product reaches 2^104 and is
+// never held: the xor and the multiply are the word's wrapping operators, and
+// `mod 2^64` is the residue map into the unsigned word, `uint64(x)` on Go.
+//
+// skip: java — the JVM's unsigned word (a long read unsigned, u64repr-2026-09-22) is ADR 0083's next stage
+// skip: js — JavaScript's split pair for the unsigned word is ADR 0083's stage after it
+// skip: windows — MASM realizes no unsigned word; ir/llvm will
+//
+// inputs: 0 1 7 100 255
+// expect: 461012207434663396 8405117280599655890 15165116331320844334 10683267473116825228 12973567403027353118
+fn data(n ∈ 0..255) (Array(0..255)) { array { (n * 31 + k * 7 + k * k % 13) mod 256 : k ∈ 0..63 } }
+
+export fn run(n ∈ 0..255) (0..2^64-1) {
+    d = data(n)
+    loop i = 0, h = 0xCBF29CE484222325 {
+        i < len(d) -> again(i + 1, ((h ⊕ d[i]) * 1099511628211) mod 2^64)
+        else -> h
+    }
+}

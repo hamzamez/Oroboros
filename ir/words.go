@@ -290,6 +290,23 @@ func (w *words) stmt(s *Stmt) {
 			w.rewrote++
 		}
 		w.stmts = append(w.stmts, *s)
+	case s.Op.IsBit() && len(s.Res) == 1:
+		// ADR 0082'S OPERATIONS. A fused one, and &, |, ⊕, ~ and <<, descend to
+		// ℤ/2⁶⁴, so like +, − and · they take their operands by the residue map
+		// and compute in S, where their result is proven or, fused, read only
+		// through its `mod`. >> and mod do not descend: their operands must be
+		// in S. None is built in U, so a result held there is refused.
+		descends := s.Mode == MWrap || s.Op == OAnd || s.Op == OOr || s.Op == OXor || s.Op == ONot || s.Op == OShl
+		for j, a := range s.Args {
+			free := descends && !(s.Op == OShl && j == 1)
+			s.Args[j] = w.conv(a, false, !free, "an operand of "+s.Op.String())
+		}
+		if w.u[s.Res[0]] && w.err == nil {
+			w.err = fmt.Errorf("the result of %s is %s, in the unsigned word and outside the signed one, where "+
+				"%s is not built (ADR 0082); keep it below 2^63, or reduce it with `mod 2^64`",
+				s.Op, termShow(w.fs[s.Res[0]].v), s.Op)
+		}
+		w.stmts = append(w.stmts, *s)
 	case s.Op == ONeg && len(s.Res) == 1:
 		s.Args[0] = w.conv(s.Args[0], false, false, "an operand")
 		w.u[s.Res[0]] = false

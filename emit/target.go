@@ -334,6 +334,15 @@ type Target struct {
 	// that provably fit, rather than being excluded.
 	ShiftWidth int64
 
+	// WrapWidth is W, the width at which this host's integer operators wrap:
+	// they compute the signed W-bit residue of ℤ's result (ADR 0082 item 3).
+	// A term under `mod 2ⁿ` with n ≤ W is computed in them, fused, its
+	// intermediates exempt from the word. Go's, the JVM's and x86's plain
+	// operators wrap at 64; JavaScript declares 32 and its `*_wrap` forms
+	// (`Math.imul`), since its own `+` and `*` do not wrap at all. Zero: no
+	// fusion, and a term under `mod` is computed exactly.
+	WrapWidth int64
+
 	// Word is the widest interval this target's native integer arithmetic is
 	// exact on — ADR 0026, declared as `(repr (int LO HI) word)`. It is the
 	// realization of `int`, and it decides, ON THIS TARGET, what the window used
@@ -1963,6 +1972,7 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 		what string
 	}{
 		{&tg.ShiftWidth, o.ShiftWidth, "shift-width"},
+		{&tg.WrapWidth, o.WrapWidth, "wrap-width"},
 		{&tg.MaxLen, o.MaxLen, "max-len"},
 	} {
 		if err := combineOne(f.dst, f.src, f.what, from, how); err != nil {
@@ -2312,13 +2322,20 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 			return bad("(repr shift N) with 1 <= N <= 63")
 		}
 		frag.ShiftWidth = choice.Int
+	case "wrap":
+		// W, the width the host's operators wrap at (ADR 0082 item 3): the
+		// word's, 64, or JavaScript's int32 forms.
+		if subj.Kind != core.KName || choice.Kind != core.KInt || (choice.Int != 32 && choice.Int != 64) {
+			return bad("(repr wrap W) with W 32 or 64")
+		}
+		frag.WrapWidth = choice.Int
 	case "narrow":
 		if subj.Kind != core.KName || !hosted {
 			return bad(`(repr narrow (host "dst = src[:n]"))`)
 		}
 		frag.Narrow = spelling
 	default:
-		return bad("(repr (int LO HI) | (ref T) | big | map | shift | narrow  CHOICE)")
+		return bad("(repr (int LO HI) | (ref T) | big | map | shift | wrap | narrow  CHOICE)")
 	}
 	return nil
 }
@@ -3826,7 +3843,8 @@ func showSets(ts []string) []string {
 func (tg *Target) realizations(op, base string, p Prim, n int) {
 	var more []string
 	for name, q := range tg.Prims {
-		if strings.HasPrefix(name, base+"-") && len(q.Args) == n && q.Kind == "expr" {
+		// a wrapping form (`not_wrap`, ADR 0082 item 3) is fusion's, not a realization
+		if strings.HasPrefix(name, base+"-") && !strings.HasSuffix(name, "-wrap") && len(q.Args) == n && q.Kind == "expr" {
 			more = append(more, name)
 		}
 	}

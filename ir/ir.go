@@ -139,6 +139,10 @@ const (
 	MNone Mode = iota
 	MExact
 	MTrap
+	// MWrap is an operation fused under `mod 2ⁿ` (ADR 0082 item 3, Fuse): it
+	// computes the signed residue, at the target's wrap width W, of ℤ's
+	// result, and is read only through the `mod`, which no residue changes.
+	MWrap
 )
 
 func (m Mode) String() string {
@@ -147,6 +151,8 @@ func (m Mode) String() string {
 		return "exact"
 	case MTrap:
 		return "trap"
+	case MWrap:
+		return "wrap"
 	}
 	return ""
 }

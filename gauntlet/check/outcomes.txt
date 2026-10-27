@@ -981,12 +981,12 @@
    note: gen-calc: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/big-subdiv.oro windows refused
    gen: gauntlet/differential/cases/big-subdiv.oro: in run: big_str is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== gauntlet/differential/cases/bits-edges.oro go emitted b3c4f2238e8bc967de2bc2ede62eb26bd7110bd656d568c5d59aab1ec32405d4
-   note: gen-run: 16 of 16 integer operations bounded; 0 of 0 loop(s) proven terminating
-== gauntlet/differential/cases/bits-edges.oro js emitted 83a6299faaee4018ab9d0e596d42bb7dd29baef583fd9e49464547062bdcf2b8
-   note: gen-run: 16 of 16 integer operations bounded; 0 of 0 loop(s) proven terminating
-== gauntlet/differential/cases/bits-edges.oro java emitted 5fff9822142bb0b24a227a8f1cf05d735dcec06d3210c291a52792cb314ef6fc
-   note: gen-run: 16 of 16 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/bits-edges.oro go emitted 03401c429b72d2d0d94995138f81b7d3121458c75f86997b02dffd3080e71a42
+   note: gen-run: 47 of 47 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/bits-edges.oro js emitted c4c5fae1ee625d9882f7a553e824c24b826130c4d78e39fa10deb6b2bac07e5c
+   note: gen-run: 47 of 47 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/bits-edges.oro java emitted 6006a8c939e86eb49fdca95f20ce39379189839f47c7d99c8ea25d6c01acf69c
+   note: gen-run: 47 of 47 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/bits-edges.oro windows refused
    gen: gen-run: `>>`'s parameter b is declared in 0..63, and a call passes 64
      A definition's declared parameter range and `where` are obligations at every call it is
@@ -994,13 +994,13 @@
      what it comes from — or widen the declaration if the definition is right outside it.
      (4 obligations at calls fail; this is the first.)
 == gauntlet/differential/cases/bits.oro go emitted ce492cdb0cddbcea54ca2caaa79a7e15507f74bb27783c63a388a8c8eecef058
-   note: gen-run: 11 of 11 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/bits.oro js emitted d3f1491f4f05e2d11a3b3073604cdeb23f0949371e9feb94a72eb703191da69b
-   note: gen-run: 11 of 11 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/bits.oro java emitted fd343eb6da833884806db7f6c9c3c26470c9eaf408293cee7d7e9eb6e5641bad
-   note: gen-run: 11 of 11 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/bits.oro windows emitted e98ce2f4f90d371f6212b6a36c98b54bc49cdd9425718d05e1336ec47ef377a4
-   note: gen-run: 11 of 11 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/buffer-swap.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/buffer-swap.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/buffer-swap.oro java emitted a182f08cab2e6cc38be66d76c4126877f00383ab98bdd1e4354719e043ddef7c
@@ -1013,6 +1013,23 @@
 == gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736
 == gauntlet/differential/cases/expect.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/fnv32.oro go emitted b127e2577d6f080bf18aed22a76d7aa8d2713da3d1bb30c79879d8a9eb0bb8ac
+   note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv32.oro js emitted 5e222ba488e3877508459b0d137815c701ab683361b9f22de417683ff0780d94
+   note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv32.oro java emitted 6c972d6cd957a7c3888485f761da2645ac27f623a7b51361ec84cd0b10ad1eca
+   note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv32.oro windows emitted dc58798fe48ad6a4af90711881df516c13dd6300af498588063dfc53e1b602c5
+   note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv64.oro go emitted 77523b51761ed9eac09df01d2d5e0c6d5bfecd320f08ea8cef70217c53ba34ed
+   note: gen-run: 7 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv64.oro js refused
+   gen: data: data: lowering: a table rule that was never allocated (tables.md §2): table(64, fn(k) { (#1.0 * 31 + k * 7 + k * k % 13) mod 256 })
+== gauntlet/differential/cases/fnv64.oro java refused
+   gen: data: data: lowering: a table rule that was never allocated (tables.md §2): table(64, fn(k) { (#1.0 * 31 + k * 7 + k * k % 13) mod 256 })
+== gauntlet/differential/cases/fnv64.oro windows refused
+   gen: data: data: lowering: a table rule that was never allocated (tables.md §2): table(64, fn(k) { (#1.0 * 31 + k * 7 + k * k % 13) mod 256 })
 == gauntlet/differential/cases/json-tokenize.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/json-tokenize.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/json-tokenize.oro java emitted c1da358348d4706072b906ded86469c965cd23b8b3aff4461fd9d979468f77f6

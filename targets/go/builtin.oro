@@ -44,6 +44,10 @@
 // (shiftdiv-2026-09-03). Go's `>>` on an `int` is a 64-bit arithmetic shift.
 repr shift 63
 
+// ═══ WHERE THIS HOST'S OPERATORS WRAP (ADR 0082 item 3): at 64 bits, two's
+// complement, so a term under `mod 2^n`, n ≤ 64, is computed in them, fused.
+repr wrap 64
+
 module go {
     // ---- integer arithmetic. The plain operators, and the CHECKED forms a
     // declared range selects when the compiler cannot prove the result stays in

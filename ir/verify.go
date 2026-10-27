@@ -153,7 +153,7 @@ func (v *verifier) run() {
 				switch {
 				case s.Op == OThe || s.Op == ORequire:
 					v.add("W9: (%s …) in IR_P; the step to IR_P erases it", s.Op)
-				case s.Op.IsArith() && s.Mode != MExact && s.Mode != MTrap:
+				case s.Op.IsArith() && s.Mode != MExact && s.Mode != MTrap && s.Mode != MWrap:
 					v.add("W9: (%s …) with no mode in IR_P", s.Op)
 				}
 			}

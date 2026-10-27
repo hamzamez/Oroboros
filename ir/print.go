@@ -204,7 +204,7 @@ func (pr *printer) op(s *Stmt) []string {
 		return []string{"(call " + primText(s.Name) + lead([]string{pr.vs(s.Args)}) + ")"}
 	case OAdd, OSub, OMul, ONeg, ODiv, ORem, OAnd, OOr, OXor, ONot, OShl, OShr, OMod:
 		m := ""
-		if s.Mode == MExact || s.Mode == MTrap {
+		if s.Mode == MExact || s.Mode == MTrap || s.Mode == MWrap {
 			m = " " + s.Mode.String()
 		}
 		// A Boolean operation's REALIZATION, where the target has more than one

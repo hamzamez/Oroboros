@@ -1,0 +1,18 @@
+// FNV-1a, 32 BITS (Go's hash/fnv, New32a), FUSED (ADR 0082 item 3).
+//
+// h ← ((h ⊕ b) · 16777619) mod 2^32 over 64 bytes. The product reaches 2^56,
+// past JavaScript's word, and is never held: it is computed in each target's
+// wrapping operators (`Math.imul` on JavaScript, the 64-bit word elsewhere)
+// and reduced by `& (2^32 − 1)`. The expected values are Python's.
+//
+// inputs: 0 1 7 100 255
+// expect: 2172928100 1210915922 2724907374 2847905932 3551467230
+fn data(n ∈ 0..255) (Array(0..255)) { array { (n * 31 + k * 7 + k * k % 13) mod 256 : k ∈ 0..63 } }
+
+export fn run(n ∈ 0..255) (0..2^32-1) {
+    d = data(n)
+    loop i = 0, h = 0x811C9DC5 {
+        i < len(d) -> again(i + 1, ((h ⊕ d[i]) * 16777619) mod 2^32)
+        else -> h
+    }
+}

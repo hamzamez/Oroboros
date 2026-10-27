@@ -1,6 +1,8 @@
 # Research: concurrency, and letting it crash
 
-2026-10-04. **Research, not a decision.** This is the one question
+2026-10-04. **Its recommendation, C2, is the direction**, accepted by hamza on 2026-10-27
+([ADR 0081](decisions/0081-concurrency-is-typed-processes.md)); §7's questions and the surface are answered
+when a program meets them. Originally: **research, not a decision.** This is the one question
 [design-direction.md §8](design-direction.md) left open (item 3), and the second of the 10-03 round.
 hamza's framing: the Erlang model, Joe Armstrong's "let it crash", fault tolerance, approached through
 the literature, the mathematics and candidates. It follows ADR 0007: each candidate is named with the

@@ -62,6 +62,14 @@ compiled for x86-64 and i686 Windows, ARM64 Windows, x86-64 and AArch64 Linux, A
    (`examples/native/*-win*.oro`, `lib/win/fmt.oro`) move to the language's operators.
 6. **C is not the native backend.** ADR 0004 deferred it until a native desktop was wanted; one is, and
    the measurement chose LLVM IR, the layer below C in every LLVM toolchain.
+7. **LLVM IR is a host like any other, and the target offers every primitive it has** (hamza, 2026-10-27:
+   "because llvm ir is just another target, we will try to support every primitive it has, when you hit a
+   wall or something that can't be expressed let me know, so we can decide it together"). Its signature
+   Σ_LLVM, the instructions and intrinsics over its types, is declared by hand in a target file under the
+   host's own names (`llvm.ctpop`, `llvm.umul.with.overflow`), as Go's and x86's are (ADR 0022, 0025); an
+   operation's undefined behaviour or poison condition is its declaration's `where`, an obligation
+   discharged or refused, never assumed. A primitive the language cannot yet state (a type, a form or an
+   effect it lacks) is a wall, put to hamza with its algebra before anything is built for it.
 
 ## Why not
 

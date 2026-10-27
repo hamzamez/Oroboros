@@ -77,11 +77,12 @@ everything in them is built (hamza, 2026-10-10).
 | [notation-research.md](docs/notation-research.md), [syntax-research.md](docs/syntax-research.md): the mathematical notation and six notations measured | ADR 0068 | J |
 | [storeorder-research.md](docs/storeorder-research.md): program-order stores are the state-passing translation's image | ADR 0052, 0058 | built ([storeorder-2026-10-15](gauntlet/results/storeorder-2026-10-15.md)) |
 | [arrow-research.md](docs/arrow-research.md): the arrow is a claim on a host's callback parameter | ADR 0053 | not built (callbacks tier 1) |
+| [concurrency-research.md](docs/concurrency-research.md): a process is a Mealy machine; a crash the exception effect, a link its propagation, a supervisor its handler; isolation a typing property, determinacy computed | ADR 0081 (the direction, C2 with C3 and C4 as fragments) | not built; §7's six questions and the surface answered when a program meets them |
 
 ## Where it stands
 
 **Read first**: the primary documents above, [README.md](README.md), [design-direction.md](docs/design-direction.md)
-(the founding argument; its §8 records how its questions were settled, concurrency the one open), the
+(the founding argument; its §8 records how its questions were settled, concurrency's by ADR 0081), the
 ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measurements in
 [gauntlet/results/](gauntlet/results/) are the authority: every design claim here not measured has been
 wrong about half the time.
@@ -123,9 +124,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
      so the proofs become `nsw`, `nuw`, `inbounds`, `select`. 32-bit is a triple.
    - 6b. **`ir/llvm`, spec first**: the printer of ADR 0080 at the corpus's windows parity (the
      differential suite's windows cases and the gauntlet's sieve), then `ir/x86` and `x64.oro`'s vocabulary
-     retired and their programs ported to the language's operators. Needs clang installed (Visual Studio's
-     "C++ Clang Compiler for Windows" component, or LLVM's release); the experiment ran a copy in a session
-     scratchpad.
+     retired and their programs ported to the language's operators. **LLVM IR is a host like any other, and
+     its target offers every primitive it has** (hamza, 2026-10-27; ADR 0080 item 7): Σ_LLVM declared by
+     hand, each operation's undefined behaviour its `where`; **a primitive the language cannot state is a
+     wall, brought to hamza** before anything is built for it. LLVM 23.1.4, the official release, is
+     installed at `%LOCALAPPDATA%\Programs\LLVM` (2026-10-27).
    - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
      user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.
@@ -157,7 +160,7 @@ what TinyRetroPad's walls need.
   `hash/fnv`) or a second string encoding (Win32's `W` functions).
 - **Validity through functions that preserve it**: refinement sorts (Freeman and Pfenning 1991) for
   `strings` over V ⊂ B*. Trigger: a program paying for `go.text` right after a `strings` call.
-- Six decisions each on **concurrency** ([concurrency-research.md](docs/concurrency-research.md)) and
+- **Concurrency's** six questions and surface (ADR 0081 decided the direction) and six decisions on
   **Android's toolkit** ([android-research.md](docs/android-research.md)); **printing**'s three algebras
   ([printing-research.md](docs/printing-research.md)); a borrow a later call ends (`Scanner.Bytes`,
   [borrow-research.md](docs/borrow-research.md)); §1.4's reservation of J's words.
@@ -451,7 +454,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | An unbounded end is omitted, `lo..`; `Nat` is ↑0 | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
 | A module's interface is what it marks `pub`; `export` an entry point | [0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
 | A declared set is a claim, and the facts choose the representation | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
-| The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity (not built) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
+| The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity; every LLVM primitive offered, walls to hamza (not built) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
+| Concurrency is typed processes: a Mealy machine, failure an effect, supervisors its handlers; Kahn networks and fork–join its fragments (the direction; not built) | [0081](docs/decisions/0081-concurrency-is-typed-processes.md) |
 
 ## Build commands
 

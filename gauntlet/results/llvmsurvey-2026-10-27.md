@@ -163,6 +163,11 @@ with c ∈ {0, 1} is Presburger. (b) Host functions over the word: cheap, and a 
 
 **Recommended: (a)**, designed now, built when a program needs one (`hash/fnv`, `hash/crc32`).
 
+**Revised the same day** by [bits-research.md](../../docs/bits-research.md). The derivation there finds
+that no sort is needed: π_n(x) = x mod 2ⁿ is at once a ring and a Boolean homomorphism, so wrapping is
+π_n applied to ℤ's own operations, computed in n-bit arithmetic by a fusion theorem. (a), the sort, is
+its candidate C and not the recommendation.
+
 ### 4.2 Widths: i1 to i2²³
 
 **What.** `trunc`, `zext`, `sext`; 2,129 intrinsics over i8/i16/i32; every Win32 `DWORD`, `WORD` and

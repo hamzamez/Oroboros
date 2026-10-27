@@ -1,7 +1,10 @@
 # Bytes, words, and bitwise operations
 
 **Status, 2026-08-19. Research and candidates. Nothing built.** Written before any code, per the
-rule [strings.md](strings.md) exists to enforce.
+rule [strings.md](strings.md) exists to enforce. **Its candidates are superseded by
+[bits-research.md](../bits-research.md) (2026-10-27)**, written after the language gained sets as types,
+a checked word and facts that choose the representation; its measurements and its 2-adic observation
+(§3.1) stand, and that document's §3.4 says which premises moved.
 
 This reopens one entry in [ADR 0012](../decisions/0012-portable-integer-range.md)'s rejected list:
 

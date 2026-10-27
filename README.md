@@ -468,7 +468,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-10-26.* The current assessment,
+*Updated with the plan; last updated 2026-10-27.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
@@ -505,6 +505,18 @@ says why the next is what it is.
      [backend-2026-10-26](gauntlet/results/backend-2026-10-26.md)). The same program printed as MASM, C and
      LLVM IR: LLVM IR was faster (up to 2.9× on a merge sort) or smaller (half the code) than our MASM,
      and it reaches 32-bit Windows, ARM, Linux, macOS and WebAssembly from one printer;
+   - ~~every LLVM primitive surveyed~~ **done 2026-10-27**
+     ([llvmsurvey-2026-10-27](gauntlet/results/llvmsurvey-2026-10-27.md)): of LLVM's 67 instructions and
+     534 general intrinsics, 31 and 83 can be offered today; the rest meet seven questions the language
+     has not answered, each decided by hamza in turn, with a research document first:
+     1. **wrapping integers and bits**, the arithmetic of a machine word and its bitwise operations,
+        which hashes, checksums and random numbers need ([bits-research.md](docs/bits-research.md), now);
+     2. integer widths (bytes, 32-bit words, 128-bit integers);
+     3. pointers;
+     4. vectors (several numbers in one register);
+     5. float formats other than 64-bit;
+     6. operations LLVM allows to give more than one answer;
+     7. rounding modes;
    - then the LLVM IR backend itself, until it builds everything the MASM one does, which then retires;
    - then what TinyRetroPad needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.

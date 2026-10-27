@@ -132,7 +132,18 @@ checked. When a package hits a wall that needs language work, stop, research it,
      ([llvmsurvey-2026-10-27](gauntlet/results/llvmsurvey-2026-10-27.md)): 31 of 67 instructions and 83 of
      534 target-independent intrinsics stateable now; **seven walls with hamza** (bit-vectors, widths, float
      formats, relations, the float environment, pointers as values, vectors), each with its algebra and a
-     recommendation; the declarations and the printer wait on them.
+     recommendation; the declarations and the printer wait on them. **Each wall is a step, a research
+     document first and hamza's decision after** (hamza, 2026-10-27), in this order:
+     1. **ℤ/2ⁿ and 𝔽₂ⁿ**: [bits-research.md](docs/bits-research.md), decisions B1–B6 (recommended: the
+        Boolean operations on ℤ promoted, wrapping as π_n = `mod 2ⁿ` on ℤ, no new sort, fusion as the one
+        new soundness rule); then its ADR and a program first, `hash/fnv` and `hash/crc32`.
+     2. **Widths**: ρ over every iN, the rung above as native iN on LLVM (amends ADR 0079).
+     3. **Pointers as values**: an opaque host pointer a host type, every other pointer a segment.
+     4. **Vectors**: a representation of a static-length table, not a sort.
+     5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
+     6. **Relations**: only deterministic refinements offered.
+     7. **The float environment**: ∘_r of a static rounding mode.
+     Then Σ_LLVM declared and `ir/llvm` built at parity.
    - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
      user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.

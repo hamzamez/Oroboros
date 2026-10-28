@@ -89,36 +89,33 @@ func GenMain() int {
 		}
 		v122 := (v104 ^ 4294967295)
 		var v126 int = 0
-		var v127 string = ""
+		var v127 int = v122
+		var v128 string = ""
 		for ; ; v126 = (v126 + 1) {
-			v129 := (v126 >= 8)
-			if v129 {
+			v130 := (v126 >= 8)
+			if v130 {
 				break
 			}
-			v133 := (4 * v126)
-			v134 := (v122 >> v133)
-			v136 := (v134 & 15)
-			v138 := (v136 < 10)
-			if v138 {
-				v143 := (4 * v126)
-				v144 := (v122 >> v143)
-				v146 := (v144 & 15)
-				v147 := (48 + v146)
-				v148 := (string(rune(v147)))
-				v149 := (v148 + v127)
-				v127 = v149
+			v134 := (v127 & 15)
+			v136 := (v134 < 10)
+			if v136 {
+				v140 := (v127 >> 4)
+				v143 := (v127 & 15)
+				v144 := (48 + v143)
+				v145 := (string(rune(v144)))
+				v146 := (v145 + v128)
+				v127, v128 = v140, v146
 				continue
 			}
-			v154 := (4 * v126)
-			v155 := (v122 >> v154)
-			v157 := (v155 & 15)
-			v158 := (87 + v157)
-			v159 := (string(rune(v158)))
-			v160 := (v159 + v127)
-			v127 = v160
+			v150 := (v127 >> 4)
+			v153 := (v127 & 15)
+			v154 := (87 + v153)
+			v155 := (string(rune(v154)))
+			v156 := (v155 + v128)
+			v127, v128 = v150, v156
 			continue
 		}
-		fmt.Println(v127)
+		fmt.Println(v128)
 		return 0
 	}
 	fmt.Println("crc32: cannot read that file")

@@ -1,0 +1,36 @@
+// THE UNSIGNED WORD'S OPERATIONS AT RUN TIME, every one of ir/pairs.go's
+// expansions on JavaScript, where U is held as two 32-bit digits (ADR 0083),
+// and the same program on Go's uint64 and the JVM's long read unsigned.
+//
+// `mix` runs in a loop over a value in [0, 2^64), so nothing is folded when
+// compiling (the harness inlines `run`'s input, and an earlier version of this
+// case was computed entirely by the compiler): a carry and a borrow across the
+// digits' boundary (the constant 0x00000001FFFFFFFF carries out of the low digit
+// almost always, so a dropped carry fails), shifts by counts on both sides of 32, the Boolean
+// operations, not, a division and remainders by powers of two, exact and
+// wrapped, and the loop variable a pair at its join. The expected values are
+// Python's.
+//
+// skip: windows — MASM realizes no unsigned word; ir/llvm will
+//
+// inputs: 0 1 2 3 4 5 6 7 8 9
+// expect: 899588809 3022664801 2796196182 4086836550 933114002 2650989795 2471589099 2077010205 1677399926 1519270277
+fn mix(x ∈ 0..2^64-1, i ∈ 0..15) (0..2^64-1) {
+    a = (x * 0x9E3779B97F4A7C15 + i) mod 2^64
+    b = (a ⊕ (a << 13)) mod 2^64
+    c = (b + 0x00000001FFFFFFFF) mod 2^64
+    d = (c - a) mod 2^64
+    e = ~d mod 2^64
+    h = (a << 32) mod 2^64
+    k = (a * a) mod 2^64
+    l = (a | b) & 0x0F0F0F0F0F0F0F0F
+    (e ⊕ (e >> 7) ⊕ (e >> 33) ⊕ h ⊕ (e / 1024) mod 65536 ⊕ e mod 65536 ⊕ k ⊕ l ⊕ (d >> 63)) mod 2^64
+}
+
+export fn run(n ∈ 0..9) (0..2^32-1) {
+    x = loop i = 0, x = n + 1 {
+        i < 4 -> again(i + 1, mix(x, i))
+        else -> x
+    }
+    (x >> 32) ⊕ (x mod 2^32)
+}

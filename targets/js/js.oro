@@ -28,6 +28,10 @@ set Int = host "number"
 // ±(2^53−1) and no further — the one host whose word is not 64 bits, and the
 // reason ADR 0012's window was 2^53 when it was one interval for every target.
 repr -9007199254740991..2^53-1 word
+// AND U = [0, 2^64−1] AS A PAIR of 32-bit digits, hi·2^32 + lo (ADR 0083;
+// u64repr-2026-09-22: 4.8× ahead of BigInt). ir/pairs.go expands every value
+// held there, and every operation on one, into the digits' own operations.
+repr 0..2^64-1 pair
 // WHAT A TABLE'S ELEMENTS ARE HELD IN, narrowest first (ADR 0083 item 2): a
 // typed array whose elements are the set's integers, unboxed, where an Array
 // of integers past int31 holds doubles (hashbench-2026-10-27: a CRC table in

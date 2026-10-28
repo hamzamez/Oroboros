@@ -142,6 +142,14 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 		note(Note{Kind: NoteWord, N: WordOps(f)})
 		leg = Decide(tg, f, checked)
 	}
+	// THE UNSIGNED WORD AS A PAIR (ADR 0083, ir/pairs.go), on a target whose word
+	// is narrower: every value held there, and every operation on one, expanded
+	// into the halves' operations, which the decision then proves.
+	if changed, err := SelectPairs(tg, f); err != nil {
+		return nil, nil, fmt.Errorf("%s: %v", name, err)
+	} else if changed {
+		leg = Decide(tg, f, checked)
+	}
 	// A POSTCONDITION on an exported definition is an obligation: the caller
 	// is outside the program, so the body is the only evidence there is.
 	if err := CheckEnsures(tg, f, sig); err != nil {

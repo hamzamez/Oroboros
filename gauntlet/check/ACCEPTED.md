@@ -1879,3 +1879,30 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/bytes-table.oro js`
 - compiler output changed — `gauntlet/differential/cases/fnv64-fold.oro js`
 - emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro js`
+
+## 2026-10-28 — on 6b04ee0, with uncommitted changes
+
+**Reason:** ADR 0083: JavaScript's split pair (ir/pairs.go); FNV-1a 64 now emits on JavaScript (0.80 of the hand-written split pair); pairs case; the hash programs' hex printer takes digits by x >> 4
+
+608 runs: 341 emitted, 267 refused; 2753 of 2803 integer operations bounded, 396 of 419 loops proven. compiler pass, differential pass, tooling skip.
+
+18 change(s):
+
+- emitted text changed — `examples/hash/crc32.oro go`
+- compiler output changed — `examples/hash/crc32.oro go`
+- emitted text changed — `examples/hash/crc32.oro java`
+- compiler output changed — `examples/hash/crc32.oro java`
+- emitted text changed — `examples/hash/crc32.oro js`
+- compiler output changed — `examples/hash/crc32.oro js`
+- emitted text changed — `examples/hash/fnv.oro go`
+- compiler output changed — `examples/hash/fnv.oro go`
+- emitted text changed — `examples/hash/fnv.oro java`
+- compiler output changed — `examples/hash/fnv.oro java`
+- now emits — `examples/hash/fnv.oro js`
+- now REFUSED — `gauntlet/differential/cases/bits-edges.oro js`
+- now emits — `gauntlet/differential/cases/fnv64-fold.oro js`
+- now emits — `gauntlet/differential/cases/fnv64.oro js`
+- new source — `gauntlet/differential/cases/pairs.oro go`
+- new source — `gauntlet/differential/cases/pairs.oro java`
+- new source — `gauntlet/differential/cases/pairs.oro js`
+- new source — `gauntlet/differential/cases/pairs.oro windows`

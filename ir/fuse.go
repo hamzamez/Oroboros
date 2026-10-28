@@ -66,7 +66,8 @@ func Fuse(tg *emit.Target, f *Func) int {
 		switch {
 		case d.Op == OConst && d.Lit != nil && d.Lit.Kind == core.KInt:
 			return big.NewInt(d.Lit.Int), true
-		case (d.Op == OAdd || d.Op == OSub || d.Op == OMul) && len(d.Args) == 2 && d.Name == "":
+		case (d.Op == OAdd || d.Op == OSub || d.Op == OMul || d.Op == OAnd || d.Op == OOr || d.Op == OXor ||
+			d.Op == OShl) && len(d.Args) == 2 && d.Name == "":
 			a, ok1 := constant(d.Args[0])
 			b, ok2 := constant(d.Args[1])
 			if !ok1 || !ok2 {
@@ -77,70 +78,49 @@ func Fuse(tg *emit.Target, f *Func) int {
 				return new(big.Int).Add(a, b), true
 			case OSub:
 				return new(big.Int).Sub(a, b), true
+			case OAnd:
+				return new(big.Int).And(a, b), true // math/big's are 2-adic
+			case OOr:
+				return new(big.Int).Or(a, b), true
+			case OXor:
+				return new(big.Int).Xor(a, b), true
+			case OShl:
+				if !b.IsInt64() || b.Int64() < 0 || b.Int64() > 128 {
+					return nil, false
+				}
+				return new(big.Int).Lsh(a, uint(b.Int64())), true
 			}
 			return new(big.Int).Mul(a, b), true
+		case (d.Op == OMod || d.Op == ODiv || d.Op == ORem || d.Op == OShr) && len(d.Args) == 2 && d.Name == "":
+			a, ok1 := constant(d.Args[0])
+			b, ok2 := constant(d.Args[1])
+			if !ok1 || !ok2 || b.Sign() == 0 || d.Op == OMod && b.Sign() < 0 {
+				return nil, false
+			}
+			switch d.Op {
+			case OMod:
+				return new(big.Int).Mod(a, b), true // Euclidean, as `mod` is
+			case ODiv:
+				return new(big.Int).Quo(a, b), true // truncating, as `/` is
+			case ORem:
+				return new(big.Int).Rem(a, b), true
+			}
+			if !b.IsInt64() || b.Int64() < 0 || b.Int64() > 128 {
+				return nil, false
+			}
+			return new(big.Int).Rsh(a, uint(b.Int64())), true // a floor, as `>>` is
+		case (d.Op == ONot || d.Op == ONeg) && len(d.Args) == 1 && d.Name == "":
+			a, ok := constant(d.Args[0])
+			if !ok {
+				return nil, false
+			}
+			if d.Op == ONot {
+				return new(big.Int).Not(a), true
+			}
+			return new(big.Int).Neg(a), true
 		}
 		return nil, false
 	}
-	fused := 0
-	var mark func(v V) bool
-	mark = func(v V) bool {
-		d := def[v]
-		if d == nil || uses[v] != 1 || d.Name != "" || d.Mode == MTrap || len(d.Res) != 1 {
-			return false
-		}
-		if _, isConst := constant(v); isConst {
-			return false // a literal is its own residue's source; π_n reads it as it is
-		}
-		switch d.Op {
-		case OAdd, OSub, OMul, ONeg, OAnd, OOr, OXor, ONot:
-		case OShl:
-			// by a constant count below W: a wrapping shift by W or more is the
-			// host's own business (JavaScript masks by 31, x86 by 63)
-			k, ok := constant(d.Args[1])
-			if !ok || k.Sign() < 0 || k.Cmp(big.NewInt(w)) >= 0 {
-				return false
-			}
-		default:
-			return false
-		}
-		d.Mode = MWrap
-		fused++
-		for j, a := range d.Args {
-			if d.Op == OShl && j == 1 {
-				continue
-			}
-			mark(a)
-		}
-		return true
-	}
-	type rewrite struct {
-		s    *Stmt
-		n    int64
-		root bool
-	}
-	var rws []rewrite
-	f.Walk(func(r *Region) {
-		for i := range r.Stmts {
-			s := &r.Stmts[i]
-			if s.Op != OMod || len(s.Args) != 2 || s.Name != "" {
-				continue
-			}
-			m, ok := constant(s.Args[1])
-			if !ok || m.Sign() <= 0 || m.BitLen() < 2 || new(big.Int).And(m, new(big.Int).Sub(m, big.NewInt(1))).Sign() != 0 {
-				continue // not a power of two above 1
-			}
-			n := int64(m.BitLen() - 1)
-			if n > w {
-				continue // wider than the host wraps: computed exactly
-			}
-			rws = append(rws, rewrite{s: s, n: n, root: mark(s.Args[0])})
-		}
-	})
-	if len(rws) == 0 {
-		return 0
-	}
-	// THE MOD ITSELF, and the divisor's constant term when nothing else reads it.
 	var dead []*Stmt
 	var deadChain func(v V)
 	deadChain = func(v V) {
@@ -156,22 +136,153 @@ func Fuse(tg *emit.Target, f *Func) int {
 			}
 		}
 	}
+	// before holds the statements a rewrite inserts ahead of one, placed in one
+	// rebuild per region at the end (an insertion moves a region's array).
+	before := map[*Stmt][]Stmt{}
+	// residue folds a closed constant subterm of a fused term to its residue at
+	// the term's width: what the term reads of it (π_n ∘ π_W = π_n). Go refuses
+	// a constant expression that overflows, so a wrapped operation of constants
+	// is never printed. Signed at a wrap width, as the wrapping operators hold
+	// their values; unsigned at the pair's 64 bits, a spine past int64.
+	residue := func(d *Stmt, c *big.Int, width int64, signed bool) {
+		m := new(big.Int).Lsh(big.NewInt(1), uint(width))
+		r := new(big.Int).Mod(c, m)
+		if signed && r.Cmp(new(big.Int).Rsh(m, 1)) >= 0 {
+			r.Sub(r, m)
+		}
+		for _, a := range d.Args {
+			deadChain(a) // the subterm's own operands, now unread
+		}
+		if r.IsInt64() {
+			d.Op, d.Mode, d.Name, d.Args, d.Lit = OConst, MNone, "", nil, core.Int(r.Int64())
+			return
+		}
+		e15 := big.NewInt(1_000_000_000_000_000)
+		hi, lo := new(big.Int).QuoRem(r, e15, new(big.Int))
+		k := func(c int64) V {
+			v := V(len(f.Types))
+			f.Types = append(f.Types, "int")
+			before[d] = append(before[d], Stmt{Op: OConst, Lit: core.Int(c), Res: []V{v}})
+			return v
+		}
+		prod := V(len(f.Types))
+		f.Types = append(f.Types, "int")
+		before[d] = append(before[d], Stmt{Op: OMul, Mode: MExact, Args: []V{k(hi.Int64()), k(e15.Int64())}, Res: []V{prod}})
+		d.Op, d.Mode, d.Name, d.Args, d.Lit = OAdd, MExact, "", []V{prod, k(lo.Int64())}, nil
+	}
+	fused := 0
+	// width and mode are the current `mod`'s: the target's W and mode wrap, or,
+	// for 32 < n ≤ 64 on a target holding U as a pair, 64 and wrap64.
+	width, mode := w, MWrap
+	var mark func(v V) bool
+	mark = func(v V) bool {
+		d := def[v]
+		if d == nil || uses[v] != 1 || d.Name != "" || d.Mode == MTrap || len(d.Res) != 1 {
+			return false
+		}
+		if c, isConst := constant(v); isConst {
+			// a literal is its own residue's source; a closed term of literals is
+			// folded to its residue, read by the term as it is
+			if d.Op != OConst {
+				residue(d, c, width, mode == MWrap)
+			}
+			return false
+		}
+		switch d.Op {
+		case OAdd, OSub, OMul, ONeg, OAnd, OOr, OXor, ONot:
+		case OShl:
+			// by a constant count below W: a wrapping shift by W or more is the
+			// host's own business (JavaScript masks by 31, x86 by 63)
+			k, ok := constant(d.Args[1])
+			if !ok || k.Sign() < 0 || k.Cmp(big.NewInt(width)) >= 0 {
+				return false
+			}
+		default:
+			return false
+		}
+		d.Mode = mode
+		fused++
+		for j, a := range d.Args {
+			if d.Op == OShl && j == 1 {
+				continue
+			}
+			mark(a)
+		}
+		return true
+	}
+	type rewrite struct {
+		s    *Stmt
+		n    int64
+		root bool
+		kon  *big.Int // the residue, where the operand is a closed constant
+	}
+	var rws []rewrite
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != OMod || len(s.Args) != 2 || s.Name != "" {
+				continue
+			}
+			m, ok := constant(s.Args[1])
+			if !ok || m.Sign() <= 0 || m.BitLen() < 2 || new(big.Int).And(m, new(big.Int).Sub(m, big.NewInt(1))).Sign() != 0 {
+				continue // not a power of two above 1
+			}
+			n := int64(m.BitLen() - 1)
+			// A CLOSED CONSTANT'S RESIDUE is known when compiling (inlining puts
+			// one under a `mod`: `(C * (0 + 1)) mod 2^64`), at any n.
+			if c, ok := constant(s.Args[0]); ok {
+				rws = append(rws, rewrite{s: s, n: n, kon: new(big.Int).Mod(c, m)})
+				continue
+			}
+			width, mode = w, MWrap
+			if n > w {
+				if !tg.Word.Pair || n > 64 {
+					continue // wider than the host wraps: computed exactly
+				}
+				width, mode = 64, MWrapPair // the pair's 64 bits (ir/pairs.go)
+			}
+			rws = append(rws, rewrite{s: s, n: n, root: mark(s.Args[0])})
+		}
+	})
+	if len(rws) == 0 {
+		return 0
+	}
+	// THE MOD ITSELF, and the divisor's constant term when nothing else reads it.
 	// Statements are changed in place, and the masks' constants inserted and
 	// the dead divisors removed in one rebuild per region, after: an insertion
 	// moves a region's array, and every pointer above is into it.
-	before := map[*Stmt]Stmt{}
 	changed := false
 	for _, rw := range rws {
 		s := rw.s
-		divisor := s.Args[1]
+		divisor, operand := s.Args[1], s.Args[0]
 		switch {
+		case rw.kon != nil:
+			// the residue as a literal, or past int64 as the core holds one, a
+			// spine hi·10¹⁵ + lo of words
+			konst := func(c int64) V {
+				v := V(len(f.Types))
+				f.Types = append(f.Types, "int")
+				before[s] = append(before[s], Stmt{Op: OConst, Lit: core.Int(c), Res: []V{v}})
+				return v
+			}
+			if rw.kon.IsInt64() {
+				s.Op, s.Mode, s.Name, s.Args, s.Lit = OConst, MNone, "", nil, core.Int(rw.kon.Int64())
+			} else {
+				e15 := big.NewInt(1_000_000_000_000_000)
+				hi, lo := new(big.Int).QuoRem(rw.kon, e15, new(big.Int))
+				prod := V(len(f.Types))
+				f.Types = append(f.Types, "int")
+				before[s] = append(before[s], Stmt{Op: OMul, Mode: s.Mode, Args: []V{konst(hi.Int64()), konst(e15.Int64())}, Res: []V{prod}})
+				s.Op, s.Name, s.Args = OAdd, "", []V{prod, konst(lo.Int64())}
+			}
+			deadChain(operand) // the constant's own spine, now unread
 		case rw.n <= 63:
 			mask := V(len(f.Types))
 			f.Types = append(f.Types, "int")
 			lit := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(rw.n)), big.NewInt(1))
-			before[s] = Stmt{Op: OConst, Lit: core.Int(lit.Int64()), Res: []V{mask}}
+			before[s] = append(before[s], Stmt{Op: OConst, Lit: core.Int(lit.Int64()), Res: []V{mask}})
 			s.Op, s.Name, s.Args = OAnd, "", []V{s.Args[0], mask}
-		case rw.root && tg.Word.Unsigned:
+		case rw.root && (tg.Word.Unsigned || tg.Word.Pair):
 			s.Op, s.Mode, s.Name, s.Args = OCall, MNone, "u64-of", []V{s.Args[0]}
 		default:
 			continue
@@ -179,7 +290,7 @@ func Fuse(tg *emit.Target, f *Func) int {
 		changed = true
 		deadChain(divisor)
 	}
-	if !changed {
+	if !changed && len(before) == 0 && len(dead) == 0 {
 		return fused
 	}
 	gone := map[*Stmt]bool{}
@@ -190,9 +301,7 @@ func Fuse(tg *emit.Target, f *Func) int {
 		out := make([]Stmt, 0, len(r.Stmts)+1)
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
-			if c, ok := before[s]; ok {
-				out = append(out, c)
-			}
+			out = append(out, before[s]...)
 			if !gone[s] {
 				out = append(out, *s)
 			}

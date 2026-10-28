@@ -11,8 +11,8 @@ walls of [llvmsurvey-2026-10-27](../../gauntlet/results/llvmsurvey-2026-10-27.md
 waiting item "a representation as an instance of a type's signature". **Built** with
 [ADR 0082](0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md), program first
 ([bits-2026-10-27](../../gauntlet/results/bits-2026-10-27.md)): the JVM's unsigned word and its byte
-read unsigned, JavaScript's typed arrays and int32 shifts. Not built: JavaScript's split pair, a 32-bit
-scalar representation, the old mechanisms re-declared as (H, d), and items 3, 4 and 6's LLVM part,
+read unsigned, JavaScript's typed arrays and int32 shifts, and JavaScript's split pair
+([pairs-2026-10-28](../../gauntlet/results/pairs-2026-10-28.md)). Not built: a 32-bit scalar representation, the old mechanisms re-declared as (H, d), and items 3, 4 and 6's LLVM part,
 which come with `ir/llvm`.
 
 ## Context

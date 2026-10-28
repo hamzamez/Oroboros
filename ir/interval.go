@@ -551,6 +551,10 @@ func (a *intervals) region(r *Region) ([]fact, bool) {
 func (a *intervals) stmt(s *Stmt) {
 	args := a.facts(s.Args)
 	one := func(f fact) { a.fs[s.Res[0]] = f }
+	if s.Mode == MWrapPair && len(s.Res) == 1 {
+		one(fact{v: rangeE(ep{}, u64Max)}) // the unsigned residue mod 2⁶⁴ (Fuse, pairs.go)
+		return
+	}
 	if s.Mode == MWrap && len(s.Res) == 1 {
 		// A FUSED OPERATION holds the signed residue of ℤ's result at the
 		// target's wrap width (Fuse): S_W, whatever its operands.
@@ -643,6 +647,14 @@ func (a *intervals) stmt(s *Stmt) {
 			case "u64>>":
 				if len(args) == 2 {
 					one(fact{v: shrZ(args[0].v, args[1].v)})
+					return
+				}
+			case "u64&", "u64|", "u64^", "u64<<":
+				// selected only where the result is proven in U, on operands there:
+				// ℤ's operation on non-negative integers
+				if len(args) == 2 {
+					f := map[string]func(iv, iv) iv{"u64&": andZ, "u64|": orZ, "u64^": xorZ, "u64<<": shlZ}[s.Name]
+					one(fact{v: f(args[0].v, args[1].v)})
 					return
 				}
 			case "u64+", "u64-", "u64*", "u64/", "u64%":

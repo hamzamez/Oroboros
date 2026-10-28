@@ -31,10 +31,10 @@ fn crc_table() (Array(0..2^32-1)) {
 }
 
 fn hex(h ∈ 0..2^32-1) (String) {
-    loop k = 0, s = "" {
+    loop k = 0, x = h, s = "" {
         k >= 8 -> s
-        (h >> (4 * k)) % 16 < 10 -> again(k + 1, string_of(48 + (h >> (4 * k)) % 16) ++ s)
-        else -> again(k + 1, string_of(87 + (h >> (4 * k)) % 16) ++ s)
+        x % 16 < 10 -> again(k + 1, x >> 4, string_of(48 + x % 16) ++ s)
+        else -> again(k + 1, x >> 4, string_of(87 + x % 16) ++ s)
     }
 }
 

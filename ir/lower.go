@@ -114,7 +114,7 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 		// entry point (ADR 0079 item 3), on a target that realizes that word:
 		// a hash reduced `mod 2^64` leaves as a uint64, not as an int.
 		fixes := func(r string) bool {
-			return declaresTable(tg, r) || tg.Word.Unsigned && tg.ValueType(r) == core.U64Type
+			return declaresTable(tg, r) || (tg.Word.Unsigned || tg.Word.Pair) && tg.ValueType(r) == core.U64Type
 		}
 		switch {
 		case len(sig.Results) > 0 && len(sig.Results) == len(f.Results):

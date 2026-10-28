@@ -6,7 +6,6 @@
 // JVM's `>>>` on a long), and `h mod 2^32` is `h & (2^32 − 1)`, which takes h by
 // the residue map. Both results are in [0, 2^32), and so is their xor.
 //
-// skip: js — JavaScript's split pair for the unsigned word is ADR 0083's next stage
 // skip: windows — MASM realizes no unsigned word; ir/llvm will
 //
 // inputs: 0 1 7 100 255

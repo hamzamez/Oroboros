@@ -61,4 +61,10 @@ module go {
     // ⌊a/2ᵏ⌋ on U (ADR 0082): Go's `>>` on a uint64 is logical, and a count of
     // 64 or more gives 0.
     fn `u64>>`(a ∈ u64, b ∈ Int) (u64) pure where b >= 0 { host expr "(${a} >> ${b})" }
+    // ⋆ ∈ {&, |, ⊕, <<} descend to ℤ/2⁶⁴, so on U they are uint64's own (ADR
+    // 0082): the residues' operation, exact where the result is proven in U.
+    fn `u64&`(a ∈ u64, b ∈ u64) (u64) pure { host expr "(${a} & ${b})" }
+    fn `u64|`(a ∈ u64, b ∈ u64) (u64) pure { host expr "(${a} | ${b})" }
+    fn `u64^`(a ∈ u64, b ∈ u64) (u64) pure { host expr "(${a} ^ ${b})" }
+    fn `u64<<`(a ∈ u64, b ∈ Int) (u64) pure where b >= 0 { host expr "(${a} << ${b})" }
 }

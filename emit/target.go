@@ -1988,6 +1988,7 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	}
 	tg.Word.Lo, tg.Word.Hi = signed[0], signed[1]
 	tg.Word.Unsigned = tg.Word.Unsigned || o.Word.Unsigned
+	tg.Word.Pair = tg.Word.Pair || o.Word.Pair
 	// ORDERED, so they append rather than folding by key — narrowest first is
 	// the whole selection rule for `int-repr`. Nearest layer first, so a nearer
 	// declaration is found before a built-in one.
@@ -2272,6 +2273,16 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 		// AND [0, 2^64−1] AT WORD WIDTH: `(repr (int 0 18446744073709551615) word)`
 		// says the target realizes U too, natively (ADR 0026 (10)). Its upper
 		// endpoint is past int64, so it is read at full precision.
+		// [0, 2^64−1] AS A PAIR of 32-bit halves of the word (ADR 0083,
+		// ir/pairs.go): `repr 0..2^64-1 pair`, JavaScript's.
+		if choice.Kind == core.KName && choice.Name == "pair" {
+			if lo, hi, ok := core.IntRangeBig(core.TypeName(subj)); ok && lo.Sign() == 0 &&
+				hi.Cmp(new(big.Int).SetUint64(1<<64-1)) == 0 {
+				frag.Word.Pair = true
+				return nil
+			}
+			return bad("(repr (int 0 18446744073709551615) pair)")
+		}
 		if choice.Kind == core.KName && choice.Name == "word" {
 			if lo, hi, ok := core.IntRangeBig(core.TypeName(subj)); ok && lo.Sign() == 0 &&
 				hi.Cmp(new(big.Int).SetUint64(1<<64-1)) == 0 {

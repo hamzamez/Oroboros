@@ -227,6 +227,10 @@ func (w *words) conv(v V, toU bool, declared bool, where string) V {
 	return out
 }
 
+// wordBit are the operations ADR 0082 added that descend to ℤ/2⁶⁴, by their
+// name in the unsigned word.
+var wordBit = map[Op]string{OAnd: "u64&", OOr: "u64|", OXor: "u64^", OShl: "u64<<"}
+
 var wordOp = map[Op]string{OAdd: "u64+", OSub: "u64-", OMul: "u64*", ODiv: "u64/", ORem: "u64%",
 	OEq: "u64=", OLt: "u64<", OLe: "u64<=", OGt: "u64>", OGe: "u64>="}
 
@@ -318,6 +322,19 @@ func (w *words) stmt(s *Stmt) {
 		// through its `mod`. >> and mod do not descend: their operands must be
 		// in S. None is built in U, so a result held there is refused.
 		descends := s.Mode == MWrap || s.Op == OAnd || s.Op == OOr || s.Op == OXor || s.Op == ONot || s.Op == OShl
+		// A RESULT IN U of an operation that descends is computed there, by the
+		// target's own operator on the residues (`u64|`, uint64's `|`).
+		if name, ok := wordBit[s.Op]; ok && w.u[s.Res[0]] && s.Mode != MWrap && w.has(name) {
+			for j, a := range s.Args {
+				count := s.Op == OShl && j == 1
+				s.Args[j] = w.conv(a, !count, count, "an operand of "+s.Op.String())
+			}
+			s.Op, s.Mode, s.Name = OCall, MNone, name
+			w.f.Types[s.Res[0]] = "u64"
+			w.rewrote++
+			w.stmts = append(w.stmts, *s)
+			return
+		}
 		for j, a := range s.Args {
 			free := descends && !(s.Op == OShl && j == 1)
 			s.Args[j] = w.conv(a, false, !free, "an operand of "+s.Op.String())

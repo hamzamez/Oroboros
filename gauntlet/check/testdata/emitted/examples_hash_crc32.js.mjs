@@ -37,21 +37,23 @@ export function genMain() {
 			}
 			break;
 		}
-		const v122 = (((v104 ^ 4294967295) >>> 0));
 		let v126 = 0;
-		let v127 = "";
+		let v127 = (((v104 ^ 4294967295) >>> 0));
+		let v128 = "";
 		for (;; v126 = (v126 + 1)) {
 			if ((v126 >= 8)) {
 				break;
 			}
-			if (((((((v122 >>> (4 * v126))) % 16) + 0)) < 10)) {
-				v127 = ((String.fromCodePoint((48 + (((((v122 >>> (4 * v126))) % 16) + 0))))) + v127);
+			if (((((v127 % 16) + 0)) < 10)) {
+				v128 = ((String.fromCodePoint((48 + (((v127 % 16) + 0))))) + v128);
+				v127 = ((v127 >>> 4));
 				continue;
 			}
-			v127 = ((String.fromCodePoint((87 + (((((v122 >>> (4 * v126))) % 16) + 0))))) + v127);
+			v128 = ((String.fromCodePoint((87 + (((v127 % 16) + 0))))) + v128);
+			v127 = ((v127 >>> 4));
 			continue;
 		}
-		console.log(v127);
+		console.log(v128);
 		return 0;
 	}
 	console.log("crc32: cannot read that file");

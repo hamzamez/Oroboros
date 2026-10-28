@@ -70,7 +70,9 @@ var wordOps = []string{
 	"u64-of", "int-of-u64",
 	// ADR 0082 and 0083: the right shift in U, and U's boxing where a host
 	// boxes the word's type signed (the JVM's `long` as a `Long`)
-	"u64>>", "u64-box",
+	"u64>>", "u64-box", "u64&", "u64|", "u64^", "u64<<",
+	// a pair's digits leaving it (ADR 0083, ir/pairs.go)
+	"pair-box", "pair-bigint",
 }
 
 func wordOpArity(op string) int {

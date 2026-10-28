@@ -18,110 +18,108 @@ public final class examples_hash_fnv.java {
 		try { v11 = Files.readAllBytes(Path.of(v10)); v12 = null; } catch (Exception $oroE) { v11 = null; v12 = $oroE; }
 		final boolean v13 = (v12 == null);
 		if (v13) {
-			int v17 = 0;
-			long v18 = 2166136261L;
-			for (;; v17 = (v17 + 1)) {
-				final int v19 = v11.length;
-				final boolean v20 = (v17 < v19);
-				if (v20) {
-					final int v25 = (v11[v17] & 0xFF);
-					final long v26 = (v18 ^ v25);
-					final long v28 = (v26 * 16777619);
-					final long v30 = (v28 & 4294967295L);
-					v18 = v30;
+			int v18 = 0;
+			long v19 = 2166136261L;
+			for (;; v18 = (v18 + 1)) {
+				final int v20 = v11.length;
+				final boolean v21 = (v18 < v20);
+				if (v21) {
+					final int v26 = (v11[v18] & 0xFF);
+					final long v27 = (v19 ^ v26);
+					final long v29 = (v27 * 16777619);
+					final long v31 = (v29 & 4294967295L);
+					v19 = v31;
 					continue;
 				}
 				break;
 			}
 			int v36 = 0;
-			String v37 = "";
+			long v37 = v19;
+			String v38 = "";
 			for (;; v36 = (v36 + 1)) {
-				final boolean v39 = (v36 >= 8);
-				if (v39) {
+				final boolean v40 = (v36 >= 8);
+				if (v40) {
 					break;
 				}
-				final int v43 = (4 * v36);
-				final long v44 = (v18 >> Math.min(v43, 63));
-				final int v46 = (int) (v44 & 15);
-				final boolean v48 = (v46 < 10);
-				if (v48) {
-					final int v53 = (4 * v36);
-					final long v54 = (v18 >> Math.min(v53, 63));
-					final int v56 = (int) (v54 & 15);
-					final int v57 = (48 + v56);
-					final String v58 = (new String(Character.toChars((int) v57)));
-					final String v59 = (v58.concat(v37));
-					v37 = v59;
+				final int v44 = (int) (v37 & 15);
+				final boolean v46 = (v44 < 10);
+				if (v46) {
+					final int v50 = (int) ((v37 >> Math.min(4, 63)));
+					final int v53 = (int) (v37 & 15);
+					final int v54 = (48 + v53);
+					final String v55 = (new String(Character.toChars((int) v54)));
+					final String v56 = (v55.concat(v38));
+					v37 = v50;
+					v38 = v56;
 					continue;
 				}
-				final int v64 = (4 * v36);
-				final long v65 = (v18 >> Math.min(v64, 63));
-				final int v67 = (int) (v65 & 15);
-				final int v68 = (87 + v67);
-				final String v69 = (new String(Character.toChars((int) v68)));
-				final String v70 = (v69.concat(v37));
-				v37 = v70;
+				final int v60 = (int) ((v37 >> Math.min(4, 63)));
+				final int v63 = (int) (v37 & 15);
+				final int v64 = (87 + v63);
+				final String v65 = (new String(Character.toChars((int) v64)));
+				final String v66 = (v65.concat(v38));
+				v37 = v60;
+				v38 = v66;
 				continue;
 			}
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v37 + "\n");
-			final long v75 = (((long) 14695));
-			final long v76 = (((long) 1000000000000000L));
-			final long v77 = ((v75 * v76));
-			final long v79 = (((long) 981039346656037L));
-			final long v80 = ((v77 + v79));
-			int v82 = 0;
-			long v83 = v80;
-			for (;; v82 = (v82 + 1)) {
-				final int v84 = v11.length;
-				final boolean v85 = (v82 < v84);
-				if (v85) {
-					final int v90 = (v11[v82] & 0xFF);
-					final long v91 = (v83);
-					final long v92 = (v91 ^ v90);
-					final long v94 = (v92 * 1099511628211L);
-					final long v95 = (((long) v94));
-					v83 = v95;
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v38 + "\n");
+			final long v72 = (((long) 14695));
+			final long v73 = (((long) 1000000000000000L));
+			final long v74 = ((v72 * v73));
+			final long v76 = (((long) 981039346656037L));
+			final long v77 = ((v74 + v76));
+			int v79 = 0;
+			long v80 = v77;
+			for (;; v79 = (v79 + 1)) {
+				final int v81 = v11.length;
+				final boolean v82 = (v79 < v81);
+				if (v82) {
+					final int v87 = (v11[v79] & 0xFF);
+					final long v88 = (v80);
+					final long v89 = (v88 ^ v87);
+					final long v91 = (v89 * 1099511628211L);
+					final long v92 = (((long) v91));
+					v80 = v92;
 					continue;
 				}
 				break;
 			}
-			int v101 = 0;
-			String v102 = "";
-			for (;; v101 = (v101 + 1)) {
-				final boolean v104 = (v101 >= 16);
-				if (v104) {
+			int v97 = 0;
+			long v98 = v80;
+			String v99 = "";
+			for (;; v97 = (v97 + 1)) {
+				final boolean v101 = (v97 >= 16);
+				if (v101) {
 					break;
 				}
-				final int v108 = (4 * v101);
-				final long v109 = ((v108 >= 64 ? 0L : v83 >>> v108));
-				final long v111 = (((long) 16));
-				final long v112 = (Long.remainderUnsigned(v109, v111));
-				final int v113 = (int) (v112);
-				final boolean v115 = (v113 < 10);
-				if (v115) {
-					final int v120 = (4 * v101);
-					final long v121 = ((v120 >= 64 ? 0L : v83 >>> v120));
-					final long v123 = (((long) 16));
-					final long v124 = (Long.remainderUnsigned(v121, v123));
-					final int v125 = (int) (v124);
-					final int v126 = (48 + v125);
-					final String v127 = (new String(Character.toChars((int) v126)));
-					final String v128 = (v127.concat(v102));
-					v102 = v128;
+				final long v105 = (((long) 16));
+				final long v106 = (Long.remainderUnsigned(v98, v105));
+				final int v107 = (int) (v106);
+				final boolean v109 = (v107 < 10);
+				if (v109) {
+					final long v113 = ((4 >= 64 ? 0L : v98 >>> 4));
+					final long v117 = (((long) 16));
+					final long v118 = (Long.remainderUnsigned(v98, v117));
+					final int v119 = (int) (v118);
+					final int v120 = (48 + v119);
+					final String v121 = (new String(Character.toChars((int) v120)));
+					final String v122 = (v121.concat(v99));
+					v98 = v113;
+					v99 = v122;
 					continue;
 				}
-				final int v133 = (4 * v101);
-				final long v134 = ((v133 >= 64 ? 0L : v83 >>> v133));
-				final long v136 = (((long) 16));
-				final long v137 = (Long.remainderUnsigned(v134, v136));
-				final int v138 = (int) (v137);
-				final int v139 = (87 + v138);
-				final String v140 = (new String(Character.toChars((int) v139)));
-				final String v141 = (v140.concat(v102));
-				v102 = v141;
+				final long v126 = ((4 >= 64 ? 0L : v98 >>> 4));
+				final long v130 = (((long) 16));
+				final long v131 = (Long.remainderUnsigned(v98, v130));
+				final int v132 = (int) (v131);
+				final int v133 = (87 + v132);
+				final String v134 = (new String(Character.toChars((int) v133)));
+				final String v135 = (v134.concat(v99));
+				v98 = v126;
+				v99 = v135;
 				continue;
 			}
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v102 + "\n");
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v99 + "\n");
 			return 0;
 		}
 		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("fnv: cannot read that file" + "\n");

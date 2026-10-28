@@ -98,7 +98,7 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 	spec := specOnly(f)
 	wLo, wHi := ei(tg.Word.Lo), ei(tg.Word.Hi)
 	inOrder(f, func(s *Stmt) {
-		if len(s.Res) != 1 || spec[s.Res[0]] || s.Mode == MWrap {
+		if len(s.Res) != 1 || spec[s.Res[0]] || s.Mode == MWrap || s.Mode == MWrapPair {
 			return // a fused operation is read only through its `mod` (Fuse)
 		}
 		// ADR 0082'S OPERATIONS ARE COUNTED LIKE `+`: each result proven in the

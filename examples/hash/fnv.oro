@@ -4,21 +4,19 @@
 // Each step is h ← ((h ⊕ b) · p) mod 2ⁿ. The product is never held: under
 // `mod 2ⁿ` the xor and the multiply are computed in each target's wrapping
 // operators (fusion, ir/fuse.go), and `mod 2^64` is the residue map into the
-// unsigned word, a uint64 on Go and a long read unsigned on the JVM. The
-// hashes print in hexadecimal, as `sha256sum` and Go's examples do, each digit
-// ⌊h / 16ᵏ⌋ mod 16, so a 64-bit value prints on every host the same way.
-//
-// JavaScript has no unsigned word yet (its split pair is ADR 0083's next
-// stage), so FNV-1a 64 is refused there; `cmd/portable` says so.
+// unsigned word: a uint64 on Go, a long read unsigned on the JVM, and on
+// JavaScript two 32-bit digits (ir/pairs.go). The hashes print in hexadecimal,
+// as `sha256sum` and Go's examples do, the digits taken off the low end by
+// x mod 16 and x >> 4, so a 64-bit value prints on every host the same way.
 use os
 use io
 use result
 
 fn hex(h ∈ 0..2^64-1, digits ∈ 1..16) (String) {
-    loop k = 0, s = "" {
+    loop k = 0, x = h, s = "" {
         k >= digits -> s
-        (h >> (4 * k)) % 16 < 10 -> again(k + 1, string_of(48 + (h >> (4 * k)) % 16) ++ s)
-        else -> again(k + 1, string_of(87 + (h >> (4 * k)) % 16) ++ s)
+        x % 16 < 10 -> again(k + 1, x >> 4, string_of(48 + x % 16) ++ s)
+        else -> again(k + 1, x >> 4, string_of(87 + x % 16) ++ s)
     }
 }
 

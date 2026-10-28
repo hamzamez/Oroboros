@@ -110,6 +110,11 @@ abstraction function. Where the function is not the host's own, the target state
 signed. A table element so held is read through `read` and stored through `write`, and the move is
 the identity on ℤ, so no answer changes; a file's bytes are then the host's own `byte[]`, uncopied.
 
+**The unsigned word as a pair (ADR 0083, `ir/pairs.go`).** A target whose word is narrower than 64 bits
+declares `repr 0..2^64-1 pair` (JavaScript): U is held as two digits base 2³², hi·2³² + lo, and every
+value there, and every operation fused under `mod 2ⁿ` with 32 < n ≤ 64, is expanded into the digits' own
+operations, which the decision then proves inside the word (pairs-2026-10-28).
+
 ## 0. What does not change
 
 [ADR 0012](../decisions/0012-portable-integer-range.md) stands, and this specification is mostly

@@ -165,6 +165,15 @@ module js {
     fn neg_wrap(a ∈ Int) (Int) pure { host expr "((-(${a} | 0)) | 0)" }
     fn not_wrap(a ∈ Int) (Int) pure { host expr "(~${a})" }
     fn shl_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(${a} << ${b})" }
+    // A PAIR LEAVING ITS DIGITS (ADR 0083, ir/pairs.go): as a decimal string
+    // where a host takes any value, which prints as the integer does on every
+    // other target, and as the BigInt an entry point's caller holds.
+    fn pair_box(hi ∈ 0..2^32-1, lo ∈ 0..2^32-1) (String) pure {
+        host expr "(BigInt(${hi}) * 4294967296n + BigInt(${lo})).toString()"
+    }
+    fn pair_bigint(hi ∈ 0..2^32-1, lo ∈ 0..2^32-1) (big) pure {
+        host expr "(BigInt(${hi}) * 4294967296n + BigInt(${lo}))"
+    }
     fn emod(a ∈ Int, m ∈ Int) (Int) pure where m > 0 {
         host expr "((a, m) => { const r = a % m; return r < 0 ? r + m : r + 0; })(${a}, ${m})"
     }

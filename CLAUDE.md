@@ -144,10 +144,12 @@ checked. When a package hits a wall that needs language work, stop, research it,
         every triple. **Built with ADR 0082, program first** ([bits-2026-10-27](gauntlet/results/bits-2026-10-27.md)):
         `examples/hash`, FNV-1a and CRC-32 of a file, equal to Go's `hash/fnv` and `hash/crc32` and at
         parity with hand-written code on Go, the JVM and JavaScript (1.00–1.12); the JVM's unsigned word
-        and its `byte` read unsigned, JavaScript's typed arrays. **Its last piece, now: JavaScript's
-        split pair**, the unsigned word on V8 as two 32-bit halves (u64repr-2026-09-22), so FNV-1a 64
-        runs there; fusion past 32 bits on JavaScript comes with it. LLVM's widths, the unsigned word
-        on windows and `>>` past a count of 63 there come with `ir/llvm` (below).
+        and its `byte` read unsigned, JavaScript's typed arrays, and **JavaScript's split pair**
+        ([pairs-2026-10-28](gauntlet/results/pairs-2026-10-28.md)): U as two 32-bit digits, every
+        operation expanded on the IR (`ir/pairs.go`) and proven by the decision; FNV-1a 64 runs there at
+        0.80 of a hand-written pair. Not built on the pair: a comparison of two pairs, a shift by a
+        variable count, a division by a non-power of two. LLVM's widths, the unsigned word on windows
+        and `>>` past a count of 63 there come with `ir/llvm` (below).
      3. **Pointers as values**: an opaque host pointer a host type, every other pointer a segment.
      4. **Vectors**: a representation of a static-length table, not a sort.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
@@ -209,9 +211,9 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **2,607 of 2,664** integer operations proven inside their target's word, the 57 left
-  mostly meant to be refused or waiting on a target's unsigned word (FNV-1a 64 on JavaScript and MASM);
-  **388 of 411** loops proven to terminate (size-change termination). Each
+- **Provability**: **2,753 of 2,803** integer operations proven inside their target's word, the 50 left
+  mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
+  **396 of 419** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -242,7 +244,9 @@ every backend reads.
 **On the IR**: `ir.Decide` proves each operation inside its set (intervals over ℤ̄, thresholds, trip
 bounds, the relational difference) and refuses the program or, under `-checked`, traps; size-change
 termination (`ir/sct.go`); the representations, the unsigned word (`ir/words.go`, ADR 0033), the rung
-above the word as a least fixed point of supply and demand (`ir/big.go`, ADR 0034, 0079), fixed limbs as
+above the word as a least fixed point of supply and demand (`ir/big.go`, ADR 0034, 0079), fusion under
+`mod 2ⁿ` (`ir/fuse.go`, ADR 0082), the unsigned word as a pair of digits on a narrower word (`ir/pairs.go`,
+ADR 0083), fixed limbs as
 instances of a theory checked once (`ir/limbs.go`, ADR 0035); postconditions and a definition's claim
 (`ir.CheckClaim`, ADR 0072). Each rule is checked against a concrete interpreter over ℤ
 (`ir/interp_test.go`) and has a planted fault.

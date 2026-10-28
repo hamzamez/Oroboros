@@ -29,6 +29,12 @@ type Word struct {
 	// rests on (emit/wordsel.go). It is the one unsigned realization any 64-bit
 	// two's-complement host has, so it is a flag and not a second interval.
 	Unsigned bool
+
+	// Pair says the target realizes U as TWO 32-bit halves of its word, hi·2³²
+	// + lo (ADR 0083; u64repr-2026-09-22): JavaScript, whose word is ±(2⁵³−1).
+	// U is then a word for the rung above (ContainsU), and ir/pairs.go expands
+	// every value held there, and every operation on one, into the halves.
+	Pair bool
 }
 
 // U64Type is the language-level name of the unsigned realization: the type a
@@ -44,7 +50,7 @@ func (w Word) Contains(lo, hi *big.Int) bool {
 
 // ContainsU reports [lo, hi] ⊆ U, on a target that realizes U.
 func (w Word) ContainsU(lo, hi *big.Int) bool {
-	return w.Unsigned && lo.Sign() >= 0 && hi.Cmp(maxU64) <= 0
+	return (w.Unsigned || w.Pair) && lo.Sign() >= 0 && hi.Cmp(maxU64) <= 0
 }
 
 // Has reports v ∈ w.

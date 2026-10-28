@@ -90,36 +90,35 @@ public final class examples_hash_crc32.java {
 			}
 			final long v122 = (v104 ^ 4294967295L);
 			int v126 = 0;
-			String v127 = "";
+			long v127 = v122;
+			String v128 = "";
 			for (;; v126 = (v126 + 1)) {
-				final boolean v129 = (v126 >= 8);
-				if (v129) {
+				final boolean v130 = (v126 >= 8);
+				if (v130) {
 					break;
 				}
-				final int v133 = (4 * v126);
-				final long v134 = (v122 >> Math.min(v133, 63));
-				final int v136 = (int) (v134 & 15);
-				final boolean v138 = (v136 < 10);
-				if (v138) {
-					final int v143 = (4 * v126);
-					final long v144 = (v122 >> Math.min(v143, 63));
-					final int v146 = (int) (v144 & 15);
-					final int v147 = (48 + v146);
-					final String v148 = (new String(Character.toChars((int) v147)));
-					final String v149 = (v148.concat(v127));
-					v127 = v149;
+				final int v134 = (int) (v127 & 15);
+				final boolean v136 = (v134 < 10);
+				if (v136) {
+					final int v140 = (int) ((v127 >> Math.min(4, 63)));
+					final int v143 = (int) (v127 & 15);
+					final int v144 = (48 + v143);
+					final String v145 = (new String(Character.toChars((int) v144)));
+					final String v146 = (v145.concat(v128));
+					v127 = v140;
+					v128 = v146;
 					continue;
 				}
-				final int v154 = (4 * v126);
-				final long v155 = (v122 >> Math.min(v154, 63));
-				final int v157 = (int) (v155 & 15);
-				final int v158 = (87 + v157);
-				final String v159 = (new String(Character.toChars((int) v158)));
-				final String v160 = (v159.concat(v127));
-				v127 = v160;
+				final int v150 = (int) ((v127 >> Math.min(4, 63)));
+				final int v153 = (int) (v127 & 15);
+				final int v154 = (87 + v153);
+				final String v155 = (new String(Character.toChars((int) v154)));
+				final String v156 = (v155.concat(v128));
+				v127 = v150;
+				v128 = v156;
 				continue;
 			}
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v127 + "\n");
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v128 + "\n");
 			return 0;
 		}
 		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("crc32: cannot read that file" + "\n");

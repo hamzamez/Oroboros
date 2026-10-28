@@ -519,7 +519,8 @@ says why the next is what it is.
         change an answer; each is chosen by where the value lives. **Built 2026-10-27**
         ([bits-2026-10-27](gauntlet/results/bits-2026-10-27.md)): two programs, the FNV and CRC-32
         hashes of a file, give Go's own answers on Go, Java and JavaScript at the speed of hand-written
-        code, and Java and JavaScript now hold a table of bytes as bytes;
+        code, and Java and JavaScript now hold a table of bytes as bytes; **finishing now**: 64-bit
+        unsigned numbers on JavaScript, held as two 32-bit halves, so the 64-bit hash runs there too;
      3. pointers;
      4. vectors (several numbers in one register);
      5. float formats other than 64-bit;
@@ -532,6 +533,8 @@ says why the next is what it is.
 8. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
    as Go is, and which costs it 16% today.
 9. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.
+10. **A slowdown in the generated JSON tokenizer on the JVM**, which runs at hand-written speed for its
+    first second and then three times slower, found while measuring step 2 above.
 
 ## Try it
 

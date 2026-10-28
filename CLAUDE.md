@@ -144,15 +144,18 @@ checked. When a package hits a wall that needs language work, stop, research it,
         every triple. **Built with ADR 0082, program first** ([bits-2026-10-27](gauntlet/results/bits-2026-10-27.md)):
         `examples/hash`, FNV-1a and CRC-32 of a file, equal to Go's `hash/fnv` and `hash/crc32` and at
         parity with hand-written code on Go, the JVM and JavaScript (1.00–1.12); the JVM's unsigned word
-        and its `byte` read unsigned, JavaScript's typed arrays. Not built: JavaScript's split pair (so
-        FNV-1a 64 is refused there), a 32-bit scalar representation, the old mechanisms re-declared as
-        (H, d), LLVM's widths (with `ir/llvm`).
+        and its `byte` read unsigned, JavaScript's typed arrays. **Its last piece, now: JavaScript's
+        split pair**, the unsigned word on V8 as two 32-bit halves (u64repr-2026-09-22), so FNV-1a 64
+        runs there; fusion past 32 bits on JavaScript comes with it. LLVM's widths, the unsigned word
+        on windows and `>>` past a count of 63 there come with `ir/llvm` (below).
      3. **Pointers as values**: an opaque host pointer a host type, every other pointer a segment.
      4. **Vectors**: a representation of a static-length table, not a sort.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
      6. **Relations**: only deterministic refinements offered.
      7. **The float environment**: ∘_r of a static rounding mode.
-     Then Σ_LLVM declared and `ir/llvm` built at parity.
+     Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
+     widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
+     rung above as native iN, measured against the limbs.
    - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
      user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.
@@ -168,6 +171,9 @@ checked. When a package hits a wall that needs language work, stop, research it,
    it, measure `wc` nested.
 9. **The Go library, program first**: `cmp`, two files compared chunk by chunk.
 10. **The analysis grows only for a refusal a program names**, each rule's planted fault with it.
+11. **The JVM's generated JSON tokenizer slows from 8 to 22.5 µs mid-run** (bits-2026-10-27 §2), before
+    and after ADR 0083: find the cause (a deoptimization, a profile, or the emitted shape), against
+    hand-written code. A gauntlet program, so ahead of new programs once 6b is done.
 
 **Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;
@@ -179,6 +185,11 @@ what TinyRetroPad's walls need.
 **Waiting on a trigger** (researched, built when a program needs it):
 - **One integer rendering**, render : ℤ → Σ*, per representation, replacing `big-str` (declared on three
   targets, and a hidden allocation on a value that fits the word). Trigger: printing's P3.
+- **A 32-bit scalar representation** (ADR 0083 item 2's register rule): FNV-1a 32 masks each step
+  with `& 0xFFFFFFFF` where a `uint32` would not (1.08–1.12, inside the noise floor). Trigger: a loop
+  whose mask is measured above the noise floor, or `ir/llvm`'s i32.
+- **The Boolean operations above the word** (ADR 0082): an operand or result held in arbitrary
+  precision is refused. Trigger: a program needing the bits of a big value (`math/big`'s `And`).
 - **Integers' four old mechanisms re-declared as (H, d) data** (ADR 0083 item 1; Hoare 1972): the new
   representations are declared so (bits-2026-10-27), the word, the unsigned word, limbs and the bignum
   are still separate code. Trigger: the next change to any of them, or a second string encoding

@@ -522,7 +522,10 @@ says why the next is what it is.
         code, and Java and JavaScript now hold a table of bytes as bytes; and since 2026-10-28
         ([pairs-2026-10-28](gauntlet/results/pairs-2026-10-28.md)) JavaScript holds a 64-bit unsigned
         number as two 32-bit halves, so the 64-bit hash runs there too, faster than a hand-written one;
-     3. pointers;
+     3. **pointers, researched 2026-10-28** ([pointers-research.md](docs/pointers-research.md)), waiting
+        for hamza's decision: a pointer is never a value in the language; what a Win32 function does
+        with one is always a value passed, a result returned or a buffer lent for the call, except when
+        the host keeps it, which only the Find dialog does and which is decided with the window procedure;
      4. vectors (several numbers in one register);
      5. float formats other than 64-bit;
      6. operations LLVM allows to give more than one answer;

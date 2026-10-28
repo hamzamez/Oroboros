@@ -255,6 +255,9 @@ address as an integer forgets provenance, and nothing in the language's semantic
 **Recommended:** never an address as a value; an opaque host pointer is a host type; every other pointer
 is a segment. The four casts are not offered.
 
+*Researched since: [pointers-research.md](../../docs/pointers-research.md), whose Theorem P derives this
+recommendation and finds the one wall it leaves, a pointer the host keeps past the call.*
+
 ### 4.7 Vectors
 
 **What.** 158 target-independent intrinsics, 10,101 in all (61.5% of Σ_LLVM), and `extractelement`,

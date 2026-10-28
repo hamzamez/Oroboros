@@ -150,7 +150,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
         0.80 of a hand-written pair. Not built on the pair: a comparison of two pairs, a shift by a
         variable count, a division by a non-power of two. LLVM's widths, the unsigned word on windows
         and `>>` past a count of 63 there come with `ir/llvm` (below).
-     3. **Pointers as values**: an opaque host pointer a host type, every other pointer a segment.
+     3. **Pointers**, researched ([pointers-research.md](docs/pointers-research.md)), **with hamza**: no
+        pointer is a value (P1); a host's pointer parameter is a mode on its binder, a value, a result or a
+        borrow by Theorem P, its LLVM attributes the mode's premises (P2); a handle a host type with a niche
+        (P3); a pointer the host keeps is the wall, designed with 6d (P4); a message family one
+        declaration per message (P5); host memory decoded at the boundary (P6).
      4. **Vectors**: a representation of a static-length table, not a sort.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
      6. **Relations**: only deterministic refinements offered.

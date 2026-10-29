@@ -1,7 +1,8 @@
 # Research: pointers, or what a host does with an address
 
 2026-10-28. **For hamza's decision**: P1–P6 in §8. **Part II (2026-10-29), appended at the end, develops
-hamza's sketch, in which an address is an integer and ownership a view, and replaces P1 with P1′ (§17).** The third of the seven walls
+hamza's sketch, in which an address is an integer and ownership a view, and replaces P1 with P1′ (§17). Part III answers four questions on it: views in the surface,
+uninit, the linear result, and codecs (§23 lists the decisions).** The third of the seven walls
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (§4.6), and the 10-24 plan's 6b,
 step 3. hamza: "go ahead with the research on wall 3, pointers". Like
 [bits-research.md](bits-research.md) and [widths-research.md](widths-research.md), it explains the
@@ -1481,3 +1482,470 @@ Part I's §3.5 adds two measurements:
 5. **Shared and atomic views**: concurrency's (ADR 0081), and not before.
 6. **The root region and page tables**: an OS target, not in the plan. Recorded so the algebra is known
    to reach it.
+
+---
+
+# Part III. Four clarifications: views in the surface, uninit, the linear result, codecs
+
+2026-10-29. hamza, on Part II: "I mostly agree. I need some clarifications." In his words:
+- *"views in the surface: show me my options, I need to see it to choose. examples."*
+- *"and uninit? will it be in the language? provided by the target? is it needed?"*
+- *"linear result: does it cost us? what about the proofs in our language?"*
+- *"anything that is a library is cheap. nevertheless we should try our best in designing the interface."*
+
+Every option is shown on the same tasks, so they can be compared line by line. The spelling of each
+option is a sketch. What differs between options is **where the view is written**, and that is the
+decision.
+
+**The short version of Part III:**
+- **Views in the surface** (§19): four options.
+
+  | option | where the view is written |
+  |---|---|
+  | A | never: inferred from the binders that exist |
+  | B | as a value threaded through the code (ATS's and L³'s style) |
+  | C | as a formula in every header (separation logic's style) |
+  | D | A's binders as abbreviations of C's formulas, with a formula written only where a binder cannot say it |
+
+  **Recommended: D.** It is A for every program in the corpus, so nothing changes. C's power is there
+  when a program needs it, and the abbreviation is a desugaring, so it is checkable. B is never right,
+  because it puts the logic in the computation.
+- **Uninit** (§20): four options. **Recommended: uninit is never a typestate the program sees.** A table
+  is born full, either from its rule (`array { e : k ∈ 0..n-1 }`, today) or **at a host's boundary**: a
+  fresh `out` table the host fills, of which the program receives only the filled prefix. Both are the
+  language's on every target. A typestate in the surface waits on a measured trigger, because on Go, the
+  JVM and JavaScript the host zeroes every allocation anyway. A target-only `uninit` is wrong in
+  principle.
+- **The linear result** (§21) costs nothing at run time after inlining, and **one** proof obligation is
+  new: **generativity**. Each call makes a fresh region, so no transformation may merge two calls. The
+  linearity checker also gains one rule: a function moves out only a view it owns, never one it borrowed.
+  Each gets a planted fault. Intervals, facts, claims and termination see a table value, as they do
+  today.
+- **Codecs** (§22): the library's interface is one algebra. A **codec** is a partial isomorphism between
+  a set and k bytes. Codecs are closed under products, powers and byte order, so one interface reads an
+  integer, a file header and a Win32 `RECT`. That makes **6d's record layout a codec too**. Each target
+  prints a codec as its own fastest access, measured on Go: `binary.LittleEndian.Uint32` compiles to one
+  `MOVL`, and the big-endian read to `MOVL` and `BSWAPL`.
+
+---
+
+## 19. Views in the surface
+
+### 19.1 The five tasks
+
+| | task | what it needs |
+|---|---|---|
+| T1 | sum part of a table | a read-only view of a range |
+| T2 | swap two elements | an exclusive view, lent for a call |
+| T3 | make a table and return it | a view moved out of a function (§21) |
+| T4 | sort two halves in one call, then merge | two disjoint views of one region at once |
+| T5 | read a file into a fresh buffer | a view the host fills (§20) |
+
+### 19.2 Option A: inferred, never written
+
+The view is the binder: `var` makes a region and its exclusive view, `linear` lends one, a parameter
+without a mode observes, a segment `b[lo:hi]` is a view of a range. The only new word is the move
+(`linear` on a result, §21).
+
+```
+// T1: a read; a call lends the view of b[lo:hi] for its duration
+fn sum(s ∈ Array(Int)) (Int) { loop i = 0, t = 0 { i < len(s) -> again(i + 1, t + s[i]); else -> t } }
+t = sum(b[lo:hi])
+
+// T2: an exclusive view lent for the call
+fn swap(b ∈ Array(V) linear, i ∈ 0..len(b)-1, j ∈ 0..len(b)-1) () {
+    x = b[i]
+    b[i] := b[j]
+    b[j] := x
+}
+
+// T3: moved out (§21)
+fn zeros(n ∈ Nat) (p ∈ Array(Int) linear) { var p := array { 0 : k ∈ 0..n-1 }; p }
+
+// T4: two segments of one buffer at once, allowed because their ranges are proven disjoint
+fn sort2(x ∈ Array(Int) linear, y ∈ Array(Int) linear) () { sort(x); sort(y) }
+sort2(b[0:m], b[m:len(b)])                 // 0 ≤ m ≤ len(b): [0, m) and [m, len b) are disjoint
+merge(b, m)
+
+// T5: a fresh table the host fills (§20, U3)
+(data, e) = ReadFile(h, out Array(0..255) of 4096)      // data: the filled prefix
+```
+
+- **What it can say**: everything the corpus and TinyRetroPad need. Most programs already write their
+  views without naming them.
+- **What it cannot say**:
+  - a function whose effect on a view is more than "read" or "read and write": it turns uninit into
+    initialized, it splits a view and keeps half, or it promises the contents of what it returns;
+  - a protocol over several calls, like §14.18's Find dialog.
+- **New over today**: segments as views anywhere, not only at host calls (ADR 0074). Two segments of
+  one buffer may be lent at once when the decision proves their ranges disjoint. The linear result.
+- **Rust is this option** for slices (`fn swap(b: &mut [V], i: usize, j: usize)`; `split_at_mut` for
+  T4). Rust writes lifetimes because its references can be stored, and here a view is never stored, so
+  scopes suffice.
+
+### 19.3 Option B: views as values, threaded
+
+The address and the view are separate parameters, and every load and store takes the view and gives it
+back. This is how ATS writes proof terms (`pf`) and L³ writes capabilities. The views are erased, but
+they are spelled in the computation.
+
+```
+// T2
+fn swap(r ∈ Region(V), i ∈ Nat, j ∈ Nat, v ∈ View(r, 0, len(r))) (v' ∈ View(r, 0, len(r))) {
+    (x, v1) = load(r, i, v)
+    (y, v2) = load(r, j, v1)
+    v3 = store(r, i, y, v2)
+    store(r, j, x, v3)
+}
+
+// T4
+(v1, v2) = split(v, m)
+v1' = sort(r, 0, m, v1)
+v2' = sort(r, m, len(r), v2)
+v' = join(v1', v2')
+merge(r, m, v')
+```
+
+- **What it can say**: everything. A view is a first-class proof, so the page table of §14.15 can be
+  written.
+- **Why not**:
+  - Every access threads a proof, which roughly doubles the code of T2.
+  - It puts the logic in the computation's syntax, which ADR 0049 separates and fit-research would
+    count as a misfit: a binder of the computation whose value never prints.
+  - ATS's users report it as the language's main cost (Xi's own tutorials introduce views late, and
+    mostly through library abbreviations).
+
+### 19.4 Option C: views as formulas in every header
+
+The code is plain loads and stores. Every function's header states what it needs and what it gives, in
+separation logic, as VeriFast, Viper (Müller, Schwerhoff and Summers, VMCAI 2016) and Prusti do.
+
+```
+// T1
+fn sum(r ∈ Region(Int), lo ∈ Nat, hi ∈ Nat) (Int)
+    needs r[lo..hi) ↦_q σ          ensure r[lo..hi) ↦_q σ
+{ … }
+
+// T2: the separating conjunction makes i ≠ j a precondition
+fn swap(r ∈ Region(V), i ∈ Nat, j ∈ Nat) ()
+    needs r[i] ↦ x ∗ r[j] ↦ y      ensure r[i] ↦ y ∗ r[j] ↦ x
+{ t = r[i]; r[i] := r[j]; r[j] := t }
+
+// T3
+fn zeros(n ∈ Nat) (r ∈ Region(Int))
+    needs emp                       ensure r[0..n) ↦ 0ⁿ
+```
+
+- **What it can say**: everything B can, with code as plain as A's, and contents as well as access
+  (`↦ 0ⁿ`).
+- **Why not as the default**:
+  - Every header carries a formula, even where a mode would say it all: compare T1 and T2 with A's.
+  - The precision has a price that shows in T2. `r[i] ↦ x ∗ r[j] ↦ y` is false when i = j, so the
+    separation logic version refuses a swap of an element with itself, which A's version allows.
+    Writing the case i = j means a disjunction in every header of the kind.
+
+### 19.5 Option D: A's binders are abbreviations of C's formulas (recommended)
+
+A **mode is a formula**, and D, the desugaring, already turns surface forms into core terms (ADR 0050).
+So each binder of A expands to the view formula it means:
+
+| A writes | it abbreviates (C) |
+|---|---|
+| `b ∈ Array(V)` (a parameter) | needs b[0..len b) ↦_q σ, ensure b[0..len b) ↦_q σ: a fraction, returned unchanged |
+| `b ∈ Array(V) linear` | needs b[0..len b) ↦_1 σ, ensure b[0..len b) ↦_1 σ′: exclusive, returned, contents may change |
+| `b[lo:hi]` as an argument | the split law: lend r[lo..hi), frame the rest, join after |
+| `var b := e` | ∃r. r[0..n) ↦_1 e: a fresh region, exclusive, consumed at the scope's end |
+| `(p ∈ Array(V) linear)` as a result | ensure ∃r. r[0..len p) ↦_1 σ: moved out |
+| `out Array(V) of n` at a host call | lend r[0..n) ↦_uninit; the host gives back r[0..k) ↦_1 σ (§20) |
+
+**A formula is written only where no binder says it**, in the header's existing `where` and `ensure`.
+These are the three cases A cannot express:
+
+```
+// what a function promises about the contents it returns
+fn zeros(n ∈ Nat) (p ∈ Array(Int) linear) ensure len(p) == n && ∀k ∈ 0..n-1. p[k] == 0
+
+// a host declaration's protocol across calls (the Find dialog, §14.18): which call moves, which lends
+fn FindTextA(fr ∈ FindReplace moved) (h ∈ result(HWND, win.error))
+// the window procedure's message carries the view back for one call: 6d's declaration
+
+// a split kept: hand back the first half, keep the second (rare)
+fn take(b ∈ Array(V) linear, m ∈ 0..len(b)) (head ∈ Array(V) linear) ensure len(head) == m
+```
+
+- **Why D**:
+  - Every program in the corpus is unchanged.
+  - A reader sees modes, which are short.
+  - The checker sees formulas, so there is one rule set: the abbreviations are definitions, and a test
+    can expand each one and check that it means what the table says.
+  - The power of C is available exactly where a program needs it.
+- **This is how the language already treats sets**: `Nat` abbreviates `0..`, and a range is a formula's
+  solved form (ADR 0077). A mode abbreviating a view formula is the same move one level up.
+- **What D needs that A does not**: the formula language of `ensure` grows the points-to ↦ and ∗, but
+  only for the three uses above. ∀ over a range is already the claims' (settypes-research's array
+  property fragment).
+
+### 19.6 Side by side
+
+| | A | B | C | D |
+|---|---|---|---|---|
+| T2's lines | 4 | 5 | 2 + header formulas | 4 |
+| new words | `linear` result, `out` table | `Region`, `View`, `load`, `store`, `split`, `join` | `needs`, ↦, ∗ | A's, plus ↦ and ∗ in `ensure` where needed |
+| a swap with i = j | allowed | allowed | refused unless written | allowed |
+| contents promised | no | no | yes | yes, where written |
+| the Find protocol | no | yes | yes | yes (a mode on the host declaration) |
+| the page table (§14.15) | no | yes | yes | yes, by formulas |
+| where the logic lives | in binders | in the computation | in claims | in binders, which are claims |
+| programs changed | none | all | all | none |
+
+---
+
+## 20. Uninit: in the language, from the target, or not at all?
+
+### 20.1 What it is for
+
+An uninit view r[a..b) ↦_uninit ⊥ exists so that memory **is not written twice**: once to make it
+valid, again with what the program wants. It has two uses:
+- **speed**, skipping a zeroing pass;
+- **meaning at a boundary**: a host's `_Out_writes_` buffer, whose old contents nobody reads.
+
+### 20.2 What the targets do
+
+| target | a fresh allocation | uninit possible? |
+|---|---|---|
+| Go | `make([]T, n)` is zeroed, always | no (only through `unsafe` or the runtime's internals) |
+| the JVM | `new T[n]` is zeroed, always (JLS §15.10.2) | no |
+| JavaScript | `new Uint8Array(n)` is zeroed, always | no |
+| LLVM | `alloca` and `malloc` give undefined contents (`poison`/`undef` on load) | yes |
+| Win32 | `VirtualAlloc(MEM_COMMIT)` and fresh pages are zeroed by the OS; `HeapAlloc` without `HEAP_ZERO_MEMORY` is not | partly |
+
+**On three of the four targets, uninit memory does not exist.** Only LLVM has it, and even there the
+OS's fresh pages are zero.
+
+### 20.3 The four options, on the same three tasks
+
+The tasks: **U-a**, fill a table of n squares; **U-b**, read a file into a fresh buffer; **U-c**, a
+growable vector (append with capacity).
+
+**U0. Never uninit: every table is born valid.**
+```
+sq = array { k * k : k ∈ 0..n-1 }                       // U-a: the rule writes each element once
+var buf := array { 0 : k ∈ 0..4095 }                    // U-b: zeroed, then written by the host
+(got, e) = ReadFile(h, buf)
+var v := array { 0 : k ∈ 0..cap-1 }                     // U-c: the capacity zeroed
+```
+U-a costs nothing: a rule *is* an initialization without a prior zero (the compiler allocates and the
+rule covers [0, n), which the decision proves). U-b and U-c pay a zeroing on LLVM only. On Go, the JVM
+and JavaScript the host zeroes regardless, so U0 costs nothing there.
+
+**U1. Uninit as a typestate in the surface.**
+```
+var buf := uninit(0..255, 4096)                         // r[0..4096) ↦_uninit
+(got, e) = ReadFile(h, buf)                             // r[0..got) ↦_1 σ ∗ r[got..4096) ↦_uninit
+x = buf[0]                                              // refused unless 0 < got is proven
+```
+- The checker tracks the initialized ranges as facts, a prefix [0, k) or a union of ranges, which
+  Presburger arithmetic decides.
+- A fill whose coverage is not a range, such as a permutation `b[p[i]] := x`, cannot be proven
+  initialized, and the program would need a check or a rule.
+- **Cost**: a typestate on every buffer in the checker, and new refusals to explain, to save a memset on
+  one target of four.
+
+**U2. Uninit offered by the LLVM target only.** Wrong in principle. Uninit means the same thing on every
+target (memory not yet written, never read before it is), and every target can realize it (by zeroing).
+So it passes the spec-first test as a language construct, and a target-only version would make a
+portable meaning non-portable. CLAUDE.md: "Anything promoted to the language works on every target, and
+the compiler finds the implementation."
+
+**U3. Uninit only where the program cannot see it** (recommended):
+```
+sq = array { k * k : k ∈ 0..n-1 }                       // U-a: a rule, as today
+(data, e) = ReadFile(h, out Array(0..255) of 4096)      // U-b: the compiler makes r[0..4096) uninit,
+                                                        //      the host fills r[0..got), and the
+                                                        //      program receives data = r[0:got]
+v = push(v, x)                                          // U-c: a vector in a library, whose capacity
+                                                        //      is a rule-built table, or U0's zeros
+```
+- **Uninit exists only between the compiler's allocation and the first write that covers it**: a
+  rule's, or a host's. The program never holds an uninit view, so it needs no typestate and no new
+  refusal.
+- It is ADR 0048's `out S`, a fresh cell the host writes, extended from a cell to a table. That is
+  outparams-research §5's caller-typed out-cell with a length.
+- **It is the language's on every target**: Go `make`, the JVM `new`, JavaScript `new Uint8Array`, and on
+  LLVM an `alloca` or `malloc` with no memset, its call carrying `initializes`.
+
+### 20.4 Is it needed?
+
+| need | where it shows | U3 covers it? |
+|---|---|---|
+| a host fills a buffer (`ReadFile`, `WM_GETTEXT`, `io.Reader.Read`, `getRandomValues`) | TinyRetroPad, every I/O program | yes |
+| a table computed element by element | every rule in the corpus | yes (a rule, today) |
+| a growable vector's capacity | `append`-style programs; none in the corpus | as U0's zeros, until measured |
+| an arena's free slots | §14.3's linked structures | as U0's zeros |
+
+**Recommended: U3 now. U1 waits on a trigger**: a program on LLVM whose zeroing is measured above the
+noise floor, against hand-written C that skips it. Until then the zeroing cost is a hypothesis. On three
+of four targets it is zero by construction.
+
+---
+
+## 21. The linear result: what it costs, and what it does to the proofs
+
+### 21.1 What it is
+
+`fn make(n ∈ Nat) (p ∈ Array(V) linear)`: a function returns a **writable** view it owns, and the caller
+becomes its one holder. Under the state translation (Theorem V, part 3) it is
+
+```
+make : ℕ → Table(V)          the caller binds the result as a state binder: var p := make(n)
+```
+
+a function returning a table **value**, with the promise that nobody else holds it, so the caller may
+write it in place. Nothing in that is new to the core. A host declaration already returns a buffer this
+way (ADR 0070's `p′`), and the linearity checker already seeds itself on every binder of a buffer
+("a buffer is linear wherever it is bound", `emit/linearity.go`). What is new is a *definition* returning
+one.
+
+### 21.2 What it costs at run time
+
+| where | cost |
+|---|---|
+| a call inlined (every definition today, ADR 0028) | nothing: after inlining, the region is the caller's, and `var p := make(n)` is `var p := array {…}` in the caller |
+| the region's storage | chosen by the view's place: `alloca` if it never leaves the caller's scope, the heap if it does (§14.1) |
+| Go, the JVM, JavaScript | the host's `make`, `new`, `new Uint8Array`, as today's buffers |
+| an entry point returning one | the host's allocation, as today's frozen result |
+
+### 21.3 What it does to the proofs
+
+| procedure | effect |
+|---|---|
+| intervals, `ir.Decide` | none: the result is a table, its elements' sets the table's |
+| facts and content facts | none new: after inlining, the store chain that fills the table is in the caller, and the facts flow as today. A declared `ensure` on the result is decided at the definition (ADR 0072) |
+| termination (SCT) | none |
+| claims, the refinement layer | none |
+| **linearity**, one new rule | **a function moves out only a view it owns**: one made in its body, or received by a move. A borrowed (`linear`) parameter returned as an owned result would give the caller a second name for the lender's region, and is refused |
+| **β and the reducer**, one new obligation | **generativity**: each call makes a fresh region (Pitts and Stark's ν; ML's generative functors). Two calls `make(n)` with equal arguments are *not* equal, because writing one must not change the other. So no transformation may merge two such calls: not β's sharing (ADR 0071 counts evaluations of one argument, so it never merges two calls), not a future CSE (which the plan deliberately excludes). Today this holds because nothing merges; the fault makes it a checked property |
+| relevance (ADR 0043) | the result is relevant: it must be consumed (freed at a scope's end, returned, moved or frozen) |
+
+### 21.4 Planted faults, before it is trusted
+
+1. **A borrow moved out**: `fn f(b ∈ Array(V) linear) (c ∈ Array(V) linear) { b }`. Refused, with
+   "b is lent by the caller; a function moves out only what it owns".
+2. **Generativity**: `x = make(n); y = make(n); x[0] := 1; print(y[0])` must print 0 on every target.
+   It fails if any pass merges the calls.
+3. **A moved result used twice**: `p = make(n); q = p; p[0] := 1; q[0]`. Refused by the existing rule,
+   now on a definition's result.
+
+**A segment as a moved result** (`take` in §19.5) is not in the first build. Moving part of an allocation
+leaves the rest owned by nobody, and on LLVM `free` needs the allocation's base. Go's and the JVM's
+collectors would not care. On LLVM it needs the (base, offset, length) triple to be kept. It waits for a
+program.
+
+---
+
+## 22. The bytes library: codecs
+
+### 22.1 The algebra
+
+A **codec** for a set S is a pair (e, d) with
+
+```
+e : S → Bᵏ           (encode, total and injective)
+d : Bᵏ ⇀ S           (decode, partial)
+d ∘ e = id_S         (round trip)          and  e ∘ d = id on dom(d)
+```
+
+It is a **partial isomorphism** (Rendel and Ostermann, "Invertible syntax descriptions", Haskell
+Symposium 2010), and ADR 0083's representation (H, d) with H = Bᵏ. Its width k is static, and it is
+**total** when dom(d) = Bᵏ. Codecs are closed under three constructions:
+
+| construction | encode | width | total when |
+|---|---|---|---|
+| a product c₁ × c₂ (a record, a tuple) | e(a, b) = e₁(a) ++ e₂(b) | k₁ + k₂ | both are |
+| a power cⁿ (a fixed array) | e(v) = e(v₀) ++ … ++ e(vₙ₋₁) | n·k | c is |
+| a byte order, `be(c)` | e_be = reverse ∘ e_le | k | c is |
+| padding, `pad(j)` | j bytes, written 0, ignored when read | j | yes |
+
+**A record's memory layout is a codec.** C's struct with natural alignment is the product of its fields'
+codecs, with `pad` where the data layout puts padding. So Win32's `RECT` is
+`le(Int32) × le(Int32) × le(Int32) × le(Int32)`, and `OPENFILENAMEA` is its fields' product with pads.
+**6d's record layout question becomes this library's**, and the printer realizes a codec that matches
+LLVM's data layout as an LLVM struct type, and any other codec as loads at offsets.
+
+The literature built exactly this, verified:
+- **Narcissus** (Delaware, Suriyakarn, Pit-Claudel, Ye and Chlipala, ICFP 2019): encoders and decoders
+  derived from binary formats, correct by construction.
+- **EverParse** (Ramananandro et al., USENIX Security 2019): zero-copy validators and accessors for
+  message formats, verified in Low* and shipped in Windows' Hyper-V.
+- **Pickler combinators** (Kennedy, JFP 2004): the product and sum algebra.
+
+### 22.2 The interface (a sketch)
+
+```
+// lib/bytes
+set Order = 'le ∪ 'be
+
+fn codec(S ⊆ Int, o ∈ Order)      // static: the narrowest k bytes, signed or unsigned, that hold S
+fn f64(o ∈ Order)                 // static: 8 bytes, total (every bit pattern is a float)
+fn pair(c1, c2)                   // static: the product
+fn times(c, n ∈ Nat)              // static: the power
+fn pad(j ∈ Nat)                   // static
+fn width(c) (Nat)                 // static
+
+fn get(b ∈ Array(0..255), a ∈ Nat, c) (v ∈ set(c)) where a + width(c) <= len(b) && total(c)
+fn check(b ∈ Array(0..255), a ∈ Nat, c) (option(set(c))) where a + width(c) <= len(b)
+fn put(b ∈ Array(0..255) linear, a ∈ Nat, c, v ∈ set(c)) () where a + width(c) <= len(b)
+fn table(b ∈ Array(0..255), c) (t ∈ Array(set(c))) ensure len(t) == len(b) / width(c)
+```
+
+Why each choice:
+- **A codec is a static value** (ADR 0063: a type is a static value), erased by staging. So
+  `get(b, 0, codec(Int32, 'le))` prints as one host access, with nothing left of the codec.
+- **The width comes from the set**, by ADR 0083's own rule (the narrowest representation holding S). The
+  program says what values it reads, not how many bytes. `codec(0..65535, 'be)` is two bytes, read
+  unsigned.
+- **Totality decides the result's type**: `get` takes only a total codec and returns S, and `check`
+  takes any codec and returns `option(S)`. `codec(0..9, 'le)` is one byte and partial, so the program
+  must `check` it, or prove the bytes valid.
+- **Round trip is a fact**: after `put(b, a, c, v)`, `get(b, a, c)` is v without a check, because
+  d ∘ e = id. That is a store-chain fact (facts.md), and it lets a program read back what it wrote,
+  partial codec or not.
+- **The bounds are an obligation**, `a + width(c) <= len(b)`, decided like every index.
+- **`table` is a typed view of the whole region**: element i at bytes [i·k, (i+1)·k), read through c, a
+  representation of `Array(S)` by bytes. Java's `MethodHandles.byteArrayViewVarHandle` is exactly this.
+- **Byte order is never implicit.** There is no `native` order. A program that wants the host's order
+  is not portable, and §22.4's question 1 asks whether to offer it at Tier 2.
+
+### 22.3 What each target prints
+
+| `get(b, a, codec(Int32, 'le))` | prints | measured |
+|---|---|---|
+| Go | `int32(binary.LittleEndian.Uint32(b[a:]))` | **one `MOVL`** on amd64 (Go 1.27, `-gcflags=-S`); `'be` is `MOVL` and `BSWAPL` |
+| the JVM | a `VarHandle` from `byteArrayViewVarHandle(int[].class, LITTLE_ENDIAN)`, `.get(b, a)` | intrinsified by C2 (JEP 193); not measured here |
+| JavaScript | `dv.getInt32(a, true)` on a `DataView` of b's buffer | not measured here |
+| LLVM | `load i32, ptr (gep b, a), align 1`; `'be` adds `@llvm.bswap.i32` | an unaligned load is one instruction on x86 |
+
+A product prints as its fields' accesses at their offsets. Go's and LLVM's compilers then combine
+adjacent loads where they can, as the `MOVL` shows.
+
+### 22.4 Questions on the interface
+
+1. **The host's byte order**, for a program that maps a host struct in place: offer `'native` at Tier 2,
+   or never? Recommended: never in `lib/bytes`. A host struct's layout is the host declaration's codec
+   (6d), and that declaration knows its order.
+2. **Zero-copy access to a record**: `get` decodes a whole product into a tuple. EverParse's accessors
+   read one field in place. Recommended: both, `get` for small records and a field accessor
+   `field(c, i)`, a codec offset, for large ones.
+3. **Sums** (a tag, then a payload chosen by it): the next construction after products, needed for file
+   formats and for Win32's unions. It waits for a program.
+
+---
+
+## 23. What is asked of hamza
+
+1. **Views in the surface**: A, B, C or D (§19.6). Recommended: D.
+2. **Uninit**: U0, U1, U2 or U3 (§20.3). Recommended: U3 now, U1 on a measured trigger, U2 never.
+3. **The linear result**: build it, with its two rules (owned-only, generativity) and three faults
+   (§21.4). Segments as moved results wait for a program.
+4. **Codecs**: the interface of §22.2, its three questions (§22.4), and **6d's record layout as a codec**,
+   which moves part of 6d into this library.

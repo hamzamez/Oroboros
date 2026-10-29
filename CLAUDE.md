@@ -150,12 +150,13 @@ checked. When a package hits a wall that needs language work, stop, research it,
         0.80 of a hand-written pair. Not built on the pair: a comparison of two pairs, a shift by a
         variable count, a division by a non-power of two. LLVM's widths, the unsigned word on windows
         and `>>` past a count of 63 there come with `ir/llvm` (below).
-     3. **Pointers**, researched ([pointers-research.md](docs/pointers-research.md)), **with hamza**: Part II
-        (hamza's sketch) makes an address an integer offset in a region and ownership a linear **view** in the
-        logic (ATS's stateful views, L³; Theorem V: with views, memory is values), P1′ replacing P1; a host's pointer parameter is a mode on its binder, a value, a result or a
-        borrow by Theorem P, its LLVM attributes the mode's premises (P2); a handle a host type with a niche
-        (P3); a pointer the host keeps is the wall, designed with 6d (P4); a message family one
-        declaration per message (P5); host memory decoded at the boundary (P6).
+     3. **Pointers**, researched ([pointers-research.md](docs/pointers-research.md)), **with hamza**.
+        Part II, hamza's sketch made precise: an address is an integer offset in a region, ownership a
+        linear **view** in the logic (ATS's stateful views, L³; Theorem V: with views, memory is values),
+        P1′ replacing P1; a host's pointer parameter a view lent for one call (P2, its LLVM attributes the
+        premises); a handle a host type with a niche (P3); a pointer the host keeps a protocol of views,
+        declared with 6d (P4); a message family one declaration per message (P5); host memory a view kind
+        (P6).
      4. **Vectors**: a representation of a static-length table, not a sort.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
      6. **Relations**: only deterministic refinements offered.

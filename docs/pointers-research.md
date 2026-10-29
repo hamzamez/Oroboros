@@ -1,6 +1,7 @@
 # Research: pointers, or what a host does with an address
 
-2026-10-28. **For hamza's decision**: P1–P6 in §8. The third of the seven walls
+2026-10-28. **For hamza's decision**: P1–P6 in §8. **Part II (2026-10-29), appended at the end, develops
+hamza's sketch, in which an address is an integer and ownership a view, and replaces P1 with P1′ (§17).** The third of the seven walls
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (§4.6), and the 10-24 plan's 6b,
 step 3. hamza: "go ahead with the research on wall 3, pointers". Like
 [bits-research.md](bits-research.md) and [widths-research.md](widths-research.md), it explains the
@@ -675,3 +676,808 @@ language change. A message TinyRetroPad sends is declared when a program sends i
 
 None of it is built before hamza decides, and P2's attributes are built with `ir/llvm`, whose printer
 they belong to.
+
+---
+
+# Part II. hamza's sketch: an address is an integer, and ownership is a view
+
+2026-10-29. Appended at hamza's request; Part I is not yet rewritten. hamza: "don't rewrite just yet.
+You can elaborate and append … the restriction of our language are not on what we can do (we hope to do
+anything c/c++ can, more than that everything a target offers we can do, even if c can't). the
+restriction should on how. our way of doing should safer, cleaner, and simply better."
+
+The sketch (2026-10-28, abridged):
+- No pointers *in* the language, but pointers a target provides, and pointers as a library. "Addresses
+  are just integers, operation on them can be handled by the language. Dereferencing is just an operator
+  (function) provided by the target. The ability to modify the content of the memory being pointed at by
+  the address is just a cell. Reading is just a read."
+- Shen's globals, `(set *s* v)` and `(value *s*)`, are similar, except that Shen lets anyone set one.
+  Here, "once the address is returned it would freeze, same rules as buffers and cells".
+- So "an address will be owned by the scope that introduces it, passed and borrowed, or returned and
+  frozen". That reaches down to an operating system: "the first process owns the whole address space, it
+  passes addresses to another process which can modify it knowing nobody else can, when the process
+  dies, they are freed, and returned to the owner."
+
+**The short version of Part II:**
+- **The sketch is right, once it is split in two.**
+  - An address really is an integer: an offset into a region.
+  - **Ownership cannot sit on the integer**, because an integer can be copied, recomputed or read from
+    input. It sits on a second object, a **view**: a linear claim that this scope may read and write
+    this range of this region.
+  - That split is ATS's stateful views (Zhu and Xi 2005) and L³'s locations and capabilities (Ahmed,
+    Fluet and Morrisett 2007). The operating system is seL4's untyped memory, and its processes are
+    Singularity's exchange heap.
+- **It fits this language exactly.** ADR 0049 already has two languages. The address belongs to the
+  computation, as an integer that prints. **The view belongs to the logic, which never prints.** A buffer
+  is already a view on a region the compiler made, and `i ∈ 0..len(b)-1` is already the type of an
+  address into it.
+- **The algebra** (§12):
+  - Regions are names, and the addresses of one region are an affine space over ℤ.
+  - Views form a separation algebra, split and joined by ranges with linear integer bounds, so the Omega
+    test decides disjointness.
+  - A view is exclusive, fractional, persistent (frozen), a device's, or uninitialized.
+  - A view's contents have a type only through an abstraction function, which says exactly when type
+    punning is sound.
+  - **Theorem V** (§12.6): an exclusive view's contents are a value threaded through the program. So with
+    views, memory *is* cells and buffers, and every proof the language has carries over.
+- **The reach** (§14): every C and C++ pointer idiom surveyed in §14 has a form here. So do things C
+  cannot express: an ArrayBuffer moved between workers, W^X as a freeze, offsets that survive `realloc`,
+  CHERI's hardware capabilities.
+- **The restriction is on *how***: every access lies inside a view the scope holds, proven or checked.
+  That excludes by construction use-after-free, double free, leaks, a dangling stack address,
+  out-of-bounds, uninitialized reads, type confusion, null dereference and data races (§15).
+- **Measured**: a proven `noalias` is worth something (§16). On LLVM 23.1.4, a loop C writes without
+  `restrict` carries a run-time overlap check and a second, scalar copy of itself: 96 lines. With
+  `restrict` it has neither: 47 lines. In C `restrict` is an unchecked promise, and here it would be a
+  theorem.
+- **What it changes in Part I** (§17):
+  - P1 becomes P1′.
+  - P2's modes become views lent for one call, a special case.
+  - P4's wall becomes a protocol of views: the Find dialog's struct is moved to the host and lent back to
+    the window procedure for each message.
+
+  Open questions are in §18.
+
+---
+
+## 11. Five corrections to the sketch
+
+**11.1 You cannot own an integer.** To own a thing means nothing else holds it. An integer can be
+duplicated and discarded at will: contraction and weakening hold on ℤ, as on every set of values. It can
+also be recomputed: `a + 8 − 8`, a value read from a file, a guess. So "the scope that introduces an
+address owns it" cannot be enforced on the address. It has to be enforced on an object the program
+cannot copy or forge: ATS's view `T @ l`, L³'s `Cap ℓ τ`, seL4's capability slot, CHERI's tag bit. **The
+address stays an integer anyone may hold, and the view is what is owned.** That split makes the sketch
+work, and it is also what makes it better than C (§13.1).
+
+**11.2 An address is an integer only relative to a region.** The addresses of one region form an
+**affine space over ℤ** (a ℤ-torsor):
+- an address plus an integer is an address;
+- the difference of two addresses in the *same* region is an integer;
+- the sum of two addresses means nothing, and neither does the difference of two in *different* regions.
+
+C's rule on pointer subtraction (C17 §6.5.6: both pointers must point into the same array object) and
+LLVM's provenance encode exactly this.
+
+To turn an address into a bare integer is to choose an origin, and the allocator chooses a different one
+every run, which is why `ptrtoint` gives a new answer each time. **One region has a canonical origin: the
+whole address space, [0, 2⁶⁴), with origin 0.** For whoever holds *its* view, the operating system,
+addresses are integers outright, and `ptrtoint` and `inttoptr` are the identity. So "addresses are just
+integers" is true **in the root region**, and true relative to a region everywhere else.
+
+**11.3 Memory someone else can write is not a cell.** A cell here is a fiction the compiler keeps. It has
+no address, and it becomes SSA values and loop variables (ADR 0047). That is sound only because nobody
+else writes it. Memory under an **exclusive** view can be a cell. Memory that a device, another process
+or the host may write between two reads cannot. For such memory each read is an effect, never folded or
+reordered: C's `volatile`, or concurrency's question when the other writer is a process.
+
+**11.4 Returning a borrow is not freezing.** The sketch's "returned and frozen" names two operations:
+- **When a borrow ends**, the exclusive view goes back to the lender, who can write again.
+- **When the owner's scope ends**, the region either dies or, if its contents are the scope's value,
+  **freezes**. A frozen view is read-only and freely copyable. It is ADR 0031's frozen buffer, and Iris's
+  persistent points-to ℓ ↦□ v (Vindum and Birkedal, CPP 2021).
+
+The sketch implies a third operation, **moving** a view out of a scope unfrozen (`malloc` returns
+writable memory). It is not in the language today (§14.1).
+
+**11.5 "When the process dies, its memory returns" is a typing rule only for a child inside its parent's
+scope.**
+- A child whose lifetime is one of the parent's scopes (fork–join, ADR 0081's fragment) is a **borrow**,
+  and the view comes back when the scope ends.
+- A child that outlives the parent's scope needs **revocation**, which is a run-time act: seL4's revoke
+  over its capability derivation tree, Singularity's reclamation of a dead process's exchange-heap
+  blocks, and in this language ADR 0081's supervisor handler.
+- If the child **crashed**, the view comes back with **no facts about its contents**, which may be half
+  written. That is Rust's poisoned mutex: the handler must re-establish its facts (validate,
+  re-initialize) before trusting them.
+
+---
+
+## 12. The algebra
+
+### 12.1 Regions and addresses
+
+A **region** is a name: made fresh by its allocator, compared by equality, and nothing else (Pitts and
+Stark 1993). It is §2.1's provenance. A region r has an extent [0, n_r) and an **element
+representation**, bytes at the lowest level. An **address** in r is an integer a, an offset:
+
+```
+Addr_r = ℤ            an affine space: a + k ∈ Addr_r, and a − b ∈ ℤ for a, b ∈ Addr_r
+valid_r = [0, n_r)    the addresses a load or store may use
+```
+
+A pointer of C's is the pair (r, a). The language never forms the pair as a value: r is always known
+*statically*, as the name of the view the program holds, and only a is dynamic. That is how the language
+keeps provenance without carrying it at run time. It is also why the printer always knows the base:
+`getelementptr inbounds base, a`.
+
+**The root region** R has n_R = 2⁶⁴ (2³² on a 32-bit triple) and a canonical origin. Its addresses are
+machine addresses.
+- A target that offers R (an OS, bare metal, an embedded board) offers `ptrtoint` and `inttoptr` as
+  coordinates in it.
+- A target that does not (JavaScript, the JVM, an application under Windows) has no R. That is a true
+  "this target cannot do it" (Tier 2), and every other region stays portable.
+
+### 12.2 Views form a separation algebra
+
+A **view** is a claim on part of a region:
+
+```
+r[a..b) ↦_π σ      this scope may access r's addresses a ≤ x < b, which hold σ, with permission π
+```
+
+where σ is a sequence of b − a elements and π a permission (§12.3). Views form a **partial commutative
+monoid** (V, ∗, emp), a separation algebra (Calcagno, O'Hearn and Yang, "Local action and abstract
+separation logic", LICS 2007; Dockins, Hobor and Appel, "A fresh look at separation algebras and share
+accounting", APLAS 2009). ∗ is defined on views whose ranges are disjoint, and on views of one range
+whose permissions add (§12.3).
+
+**The splitting law**, for a ≤ m ≤ b:
+
+```
+r[a..b) ↦_π σ·τ   ⊣⊢   r[a..m) ↦_π σ  ∗  r[m..b) ↦_π τ        where |σ| = m − a
+```
+
+- Read left to right it is a split. A segment `b[lo:hi]` (ADR 0074) is a middle piece, borrowed.
+- Read right to left it is a join.
+
+**Disjointness is linear arithmetic.** Two views on r are separate when b₁ ≤ a₂ or b₂ ≤ a₁. When the
+bounds are linear terms over the program's integers, that is Presburger arithmetic, decided by the Omega
+test already in the project (`presburger/`). Two views on different regions are separate by their names
+alone. So the view fragment needs **no new decision procedure**, and ADR 0049's "own procedures, no SMT"
+stands.
+
+**What is not ranges.** A linked structure inside one region is one view of the whole arena, and its
+links are integers in the contents, not views (§14.3). That choice keeps the fragment decidable:
+- views are ranges of regions;
+- the shape of the data is a fact about the contents (Part I's content facts), never a separating
+  conjunction iterated over a recursive predicate.
+
+### 12.3 Permissions
+
+| permission π | may | duplicable | literature | the language today |
+|---|---|---|---|---|
+| **1, exclusive** | read, write | no (linear) | ℓ ↦ v | a `var` buffer; `linear` |
+| **q ∈ (0, 1), a fraction** | read | splits, q = q₁ + q₂ | Boyland, SAS 2003; Bornat, Calcagno, O'Hearn and Parkinson, POPL 2005 | an observer (ADR 0069) |
+| **□, persistent** | read | yes, □P ⊢ □P ∗ □P | Iris's ℓ ↦□ v | a frozen buffer, a constant |
+| **dev, a device's** | read and write, each an effect | no | `volatile`; MMIO | nothing |
+| **uninit** | write | no | typestate (Strom and Yemini, TSE 1986) | nothing |
+
+The laws:
+- **Sharing**: 1 = q₁ + q₂ splits a writer into readers, who join back into a writer. That is a shared
+  borrow and its end.
+- **Freezing** is 1 ⊢ □: the writer gives up writing forever and gets a duplicable view. It is one-way.
+  There is no □ ⊢ 1, since a copy may still be reading.
+- **uninit is a typestate**: r[a..b) ↦_uninit ⊥ⁿ becomes r[a..b) ↦_1 σ as each element is written. A
+  read of uninit memory is refused. LLVM's `initializes((a, b))` states this transition on a host call.
+- **A device view is not a cell** (§11.3). It is linear, so one scope drives the device, but its reads
+  are not a function of its writes.
+
+### 12.4 Contents have a type only through an abstraction function
+
+At the bottom, a region holds bytes. A **typed view** reads k bytes as a value of T through an
+abstraction function d_T : Bᵏ ⇀ T, which is ADR 0083's (H, d) with H = Bᵏ:
+
+```
+r[a..a+k) ↦ β   and   d_T(β) = v      gives      r[a..a+k) ↦_T v
+```
+
+For most T, d_T is **partial**: `Bool` is defined on 0 and 1 only, a variant on its tags. Two laws
+follow, and they are the whole theory of type punning:
+
+- **Encoding is total.** From r[a..a+k) ↦_T v, the bytes can always be seen, as β = e_T(v).
+- **Decoding is total exactly when d_T is.** Bytes may be read as T without a check iff every bit
+  pattern is a T. That holds for `Int32`, `0..2^64-1` and `F64` (every bit pattern is a float, NaNs
+  included). It fails for `Bool`, a variant, and a range narrower than its width, where the read needs a
+  **validity check**, or a fact proving the bytes lie in d_T's domain.
+
+That is Rust's "validity invariant", stated as a property of the abstraction function. It replaces
+**C's strict aliasing rule** (C17 §6.5¶7: an object may be accessed only through its own type or a
+character type). That rule approximates this one by type identity: it forbids the sound pun of an `int`
+as a `float`, and forbids nothing the abstraction function would allow.
+
+**Retyping** a range is a change of the view's T with no run-time effect:
+r[a..a+k) ↦ β ⊢ r[a..a+k) ↦_T d_T(β), under the condition above. C++ calls it placement `new`, and
+seL4 calls it retype, of untyped memory. L³ calls it a **strong update**: a location's type changes
+while one view holds it, which is sound because nothing else can see the location.
+
+**Byte order lives in d.** d_{Int32,le} and d_{Int32,be} are different functions, so a pun here says
+which order it reads, and means the same on every target. C's `*(int32_t *)p` reads the host's order.
+
+### 12.5 The operations, as small axioms
+
+These are in the style of O'Hearn, Reynolds and Yang (CSL 2001): each axiom mentions only what it
+touches, and the frame rule supplies the rest.
+
+```
+{ r[a] ↦_π v }          load(r, a)        { ret = v  ∗  r[a] ↦_π v }        π ≠ uninit
+{ r[a] ↦_1 _ }          store(r, a, w)    { r[a] ↦_1 w }
+{ r[a] ↦_uninit ⊥ }     store(r, a, w)    { r[a] ↦_1 w }
+{ emp }                 alloc(T, n)       { ∃r. r[0..n) ↦_uninit ⊥ⁿ }      r fresh
+{ r[0..n) ↦_1 _ }       free(r)           { emp }
+{ r[0..n) ↦_1 σ }       grow(r, m)        { ∃r'. r'[0..n) ↦_1 σ  ∗  r'[n..m) ↦_uninit ⊥ }
+{ r[a] ↦_dev _ }        vload(r, a)       { ret = ?  ∗  r[a] ↦_dev _ }      an effect
+a + k, a − b, a & m, a ⊕ b                no axiom: these are ℤ's operations
+```
+
+Every access needs its address inside the view's range. That is the **bounds obligation** every table
+index already carries (tables.md), decided by the analysis or checked under `-checked`. **No axiom loads
+without a view.** That missing axiom is the whole restriction, and it is a restriction on *how*: to load
+from a, hold a view covering a.
+
+### 12.6 Theorem V: with views, memory is values
+
+**Theorem V.** Let p be a program whose every load and store lies in a view held by the scope
+executing it, with views split, joined, lent and returned by the laws above. Then:
+
+1. **Safety**: no execution of p accesses memory outside a live allocation, reads uninitialized memory,
+   or touches a region freed or revoked. In LLVM's terms, p performs none of the memory operations whose
+   behaviour is undefined.
+2. **Erasure**: deleting the views changes nothing p computes. The views are in the logic, and the
+   program's meaning is the computation's.
+3. **Values**: an exclusive view's contents behave as a value threaded through p by the state-passing
+   translation. A load reads the current value, a store gives a new one, and a lent view is an argument
+   and a result (Theorem P, §2.3).
+
+*Why.*
+- (1) is the soundness of separation logic over a separation algebra (Reynolds, LICS 2002; Calcagno,
+  O'Hearn and Yang 2007), and the type soundness of ATS's stateful views (Zhu and Xi, PADL 2005) and of
+  L³ (Ahmed, Fluet and Morrisett, Fundamenta Informaticae 2007).
+- (2) holds because a view never flows into a computed value: ADR 0049's "the logic never prints".
+- (3) is Charguéraud and Pottier's translation of capabilities into state passing (ICFP 2008). In this
+  language it is ADR 0052's S, and a buffer is the case where the compiler made the region.
+
+**So nothing the language proves today is weakened.** β's substitution, the effect discipline, the
+intervals and the claims all reason about values, and Theorem V says an exclusive view's memory is a
+value. Only the other kinds behave differently:
+- a fraction and □ are read-only, so they are still values;
+- a device view, and a shared view under a lock, are effects, which the effect discipline already treats
+  as impure.
+
+### 12.7 Ownership is a tree
+
+```
+          root R[0..2⁶⁴) ↦ …              the OS: the entry point's view
+           /             \
+   kernel[0..k)       user[k..2⁶⁴)        split
+                       /        \
+                  proc A       proc B     moved to a process (ADR 0081)
+                    |
+                buffer b                  lent to a call (P2), returned
+```
+
+| operation | on the tree | law | the language |
+|---|---|---|---|
+| **split / join** | a node's range into children, and back | §12.2 | segments (ADR 0074), for a borrowed piece |
+| **lend** | a subtree to a callee or child scope, returned at its end | the frame rule | `linear` parameters, borrows (ADR 0070) |
+| **move** | a subtree to another owner, never returned | ∗ transferred | not yet: a linear result, a message (ADR 0081) |
+| **freeze** | a subtree to □: copyable and read-only, forever | 1 ⊢ □ | a buffer's scope ending (ADR 0031) |
+| **free** | a subtree consumed | free's axiom | a scope's end |
+| **revoke** | an ancestor takes a subtree back from a live owner | a run-time act | a supervisor (ADR 0081) |
+
+This is **seL4's capability derivation tree** (Elkaduwe, Klein and Elphinstone, "Verified protection
+model of the seL4 microkernel", VSTTE 2008), whose two operations are retype and revoke. It is also
+**Singularity's exchange heap** (Fähndrich et al., EuroSys 2006): a block has one owner, which changes at
+each send, and a dead process's blocks are reclaimed. The sketch's operating system is this tree with R at
+its root.
+
+---
+
+## 13. Why this design, and why not the others
+
+**13.1 Why the address and the view are separate, unlike Rust's `&mut T`.** Rust fuses them: a reference
+*is* its permission, so an address cannot be stored apart from it. A doubly linked list then needs
+`Rc<RefCell<…>>`, with run-time counts and flags, or `unsafe`. ATS, L³ and Mezzo (Pottier and Protzenko,
+ICFP 2013) separate them instead:
+- addresses are data, copied into structures freely;
+- the one permission is on the region.
+
+**The separation costs nothing at run time**, since views are erased. In the proofs, a dereference needs
+its address proven in the view's range, which is the obligation every table index already pays.
+
+**13.2 Why views are erased, unlike CHERI's run-time capabilities.** A run-time capability is a fat
+pointer: 128 bits carrying bounds and a tag, checked by hardware (Woodruff et al., ISCA 2014; Watson et
+al., S&P 2015). It is sound without any proof, and it doubles every pointer and checks every access.
+Erased views cost nothing wherever the proof succeeds. **On a CHERI target** (Morello), a view could
+*print* as a hardware capability: a realization of the view, not a replacement for it (§14.17).
+
+**13.3 Why linear, not affine.** An affine view may be dropped silently, which is a leak. Rust's
+`mem::forget` is safe for exactly that reason. A linear view must be consumed: freed, returned, moved or
+frozen. A scope's end consumes whatever the scope owns (Tofte and Talpin's `letregion`), so the rule
+costs no syntax. A deliberate leak is spelled out: freeze it forever, as Rust's `Box::leak` does.
+
+**13.4 Why addresses are offsets into a region, not absolute.** An offset is:
+- **deterministic**: the same every run;
+- **relocatable**: it survives `realloc` and a move between processes (§14.9);
+- **portable**: every target has buffers.
+
+An absolute address is none of these, and is offered only in the root region.
+
+**13.5 Why there is no `unsafe`.** Rust's `unsafe` block suspends the proof inside it. RustBelt (Jung et
+al., POPL 2018) shows how to re-establish the proof semantically, one library at a time. Here the only
+trusted code is a **host declaration** (ADR 0022), written against the host's documentation. A program
+never suspends a rule. What it cannot prove, it **checks**:
+- a bounds test on an address read from data;
+- a validity test on punned bytes;
+- a count test on a shared object (§14.16).
+
+So the price of what cannot be proven is a run-time check, never undefined behaviour.
+
+**13.6 Why not a garbage collector of the language's own.** A collector is a hidden allocation policy
+plus a runtime, which CLAUDE.md forbids in the core. A *host's* collector is a region kind like any
+other: Go's, the JVM's and JavaScript's heaps are regions whose `free` belongs to the host (§14.17).
+
+**13.7 Why not full separation logic.** Entailment with inductive predicates is undecidable in general,
+and the tools draw lines inside it: Smallfoot's lists (Berdine, Calcagno and O'Hearn 2005), VeriFast's
+annotations. §12.2 draws the line here: views are ranges of regions, with disjointness in Presburger
+arithmetic, and shapes are content facts. That decides less than full separation logic does, using the
+procedures the project already has.
+
+**13.8 Why not C's `restrict` and strict aliasing.** Both are **promises**. The compiler assumes them, and
+a program that breaks them has undefined behaviour that no tool reports. Here the same facts are
+**theorems**: `noalias` because a view is exclusive, a pun because its abstraction function is total. The
+optimizer gets what C gives it (§16), from a proof instead of a promise.
+
+**13.9 Why not Shen's globals.** `(set *s* v)` from anywhere means every function may hold the view of
+`*s*`. That is aliasing everywhere, and then β cannot substitute a read past a call. Here a global is a
+region whose view the entry point holds and lends where it is needed (§14.11). A constant global is a
+frozen region, readable anywhere.
+
+**13.10 Why not region inference.** Tofte and Talpin infer ML's regions. This language's regions are its
+lexical scopes and its buffers, each written where it is, so inference would have nothing to find. Cyclone
+(Grossman et al., PLDI 2002) also chose explicit regions for C.
+
+**13.11 Why not ownership types on objects** (Clarke, Potter and Noble, OOPSLA 1998; Pony's reference
+capabilities, Clebsch et al. 2015). They own objects in a heap graph, which presumes a heap of objects.
+This language has regions of elements, and an object graph is an arena with integer links (§14.3).
+
+---
+
+## 14. Everything C and C++ do with pointers, and how it is done here
+
+The notation below is a **sketch**, and its spelling is not decided.
+- **Already exist**: `var b := …`, `linear`, `b[lo:hi]`, `i ∈ 0..len(b)-1`, an `ensure`, `mod`.
+- **New in the sketch**:
+  - `uninit(T, n)`;
+  - a `linear` result (a view moved out);
+  - `split` and `join`;
+  - typed reads of bytes (`load_i32le(b, a)`, `store_i32le(b, a, v)`), library functions over ADR 0083's
+    abstraction functions;
+  - the view kinds `dev` and `shared`;
+  - `freeze` and `spawn`.
+
+Each item gives C, then the form here, why it is safe, and what it costs.
+
+### 14.1 `malloc` and `free`; use-after-free and double free
+
+```c
+int *p = malloc(n * sizeof *p);  init(p, n);
+free(p);  p[0] = 1;    /* use after free: undefined */
+free(p);               /* double free: undefined */
+```
+
+```
+fn make(n ∈ Nat) (p ∈ Array(Int32) linear) {    // a linear result: a writable view moved out
+    var p := uninit(Int32, n)
+    fill(p, 0)                                 // uninit → initialized, element by element
+    p
+}
+{ p = make(n)
+  use(p)
+}                                              // the scope ends: p's view is consumed, the region freed
+```
+
+- **Use after free** cannot be written. After the scope, `p` is not in scope. An integer address into it
+  may survive, but no view covers it, and a load needs one.
+- **Double free** cannot be written. Freeing consumes the view, and linearity refuses a second use
+  (R0–R4).
+- **A leak** cannot be written, because the scope's end consumes the view.
+- **Cost**: none at run time. The printer picks the allocator by the view's place (ADR 0083's principle
+  again): a view that never leaves its scope is an `alloca`, and one moved out is `malloc` or
+  `HeapAlloc`, the host's allocator. That is Go's escape analysis, decided here by the program's own
+  linearity rather than by a heuristic.
+
+### 14.2 Pointer arithmetic and walking a string
+
+```c
+size_t strlen(const char *s) { const char *p = s; while (*p) p++; return p - s; }
+/* without a NUL, it reads past the end */
+```
+
+```
+fn strlen(s ∈ Array(0..255)) (n ∈ 0..len(s)) {
+    loop p = 0 { p < len(s) && s[p] != 0 -> again(p + 1); else -> p }
+}
+```
+
+- The address p is an integer: `p++` is `p + 1`, and `p − s` is `p − 0`. This is affine arithmetic, ℤ's.
+- **Out of bounds** cannot be written: the load `s[p]` needs p ∈ [0, len(s)), which the guard proves.
+- **Cost**: one comparison, which C's `strnlen` also pays. On LLVM the access is a `gep inbounds`, and the
+  guard is the one bound the loop needs.
+
+### 14.3 Linked lists, doubly linked lists, graphs with cycles
+
+The folklore says linear types cannot express a doubly linked list. **That is true only when the views
+are on the nodes.** Put the view on the **arena**, and the links are integers:
+
+```c
+struct node { int v; struct node *prev, *next; };     /* each node its own allocation */
+```
+
+```
+// one region per field (a structure of arrays) until 6d decides records; the niche n is nil
+fn unlink(n ∈ Nat, next ∈ Array(0..n) linear, prev ∈ Array(0..n) linear, i ∈ 0..n-1) () {
+    a = prev[i]
+    b = next[i]
+    if a < n { next[a] := b } else { () }
+    if b < n { prev[b] := a } else { () }
+}
+```
+
+- The two regions' views are exclusive, held by the caller and lent for the call. The links `a` and `b`
+  are integers in the contents, copied freely, and a cycle is just a cycle in the integers.
+- **The hazard that remains is a link outside the arena.** The set `Array(0..n)` makes that a fact about
+  the contents (0..n−1, or the niche n): proven where the link is stored, or else a bounds check where it
+  is loaded.
+- **A link to a slot that was freed and reused is a logic error, not a memory error**: the memory is
+  still the arena's, and still typed. Generational indices close that gap with a check (slotmap; West,
+  RustConf 2018).
+- **This is how Rust programmers write graphs** (petgraph's indices), and how ATS and Mezzo verify them.
+  The language already has every piece except moving the arena's view out of its scope (§14.1).
+- **Cost**: an index is often *cheaper* than a pointer. A 32-bit link takes half the memory of a 64-bit
+  pointer, and x86 addresses base + 4·i in one instruction.
+
+### 14.4 `memcpy` and `memmove`
+
+```c
+memcpy(d, s, n);    /* overlap: undefined, and undetected */
+memmove(d, s, n);   /* overlap allowed */
+```
+
+```
+fn copy(d ∈ Array(V) linear, s ∈ Array(V), n ∈ 0..min(len(d), len(s))) ()   // two views, disjoint by linearity
+fn move(b ∈ Array(V) linear, from ∈ Nat, to ∈ Nat, n ∈ Nat)
+    where from + n <= len(b) && to + n <= len(b) ()                         // one view, two ranges in it
+```
+
+- C tells the two apart only in its documentation. Here the **types** do: two views are separate, so
+  `copy` can never be handed overlapping memory, while `move` works within one view.
+- **Cost**: `copy` prints `llvm.memcpy` with `noalias` as a theorem. §16 measures what that is worth.
+
+### 14.5 Type punning: a float's bits, a header from a file, an invalid `bool`
+
+```c
+float f; uint32_t u = *(uint32_t *)&f;      /* strict aliasing: undefined */
+struct hdr h; memcpy(&h, buf, sizeof h);    /* host byte order, and padding */
+bool b; memcpy(&b, buf, 1);                 /* 2 is not a bool: undefined */
+```
+
+```
+u = bits32(f)                       // the inverse of d_F32: total
+magic = load_i32le(buf, 0)          // the byte order is explicit: the same on every target
+flag = load_bool(buf, 4)            // d_Bool is partial: a validity check, or a fact
+```
+
+- This is §12.4's law: decoding is free when d_T is total, and checked otherwise. **Type confusion**
+  cannot be written, since a T is read only through d_T.
+- **Better than C, twice.**
+  - The byte order is part of the read, so a format parser is portable.
+  - There is no padding to get wrong: a record's layout is 6d's, and its bytes are read field by field,
+    each through its own d.
+
+### 14.6 Uninitialized memory and the growable vector
+
+```c
+int *v = malloc(cap * sizeof *v); size_t len = 0;   /* v[len..cap) is garbage; reading it is undefined */
+```
+
+```
+// the view splits: r[0..k) ↦_1 σ  ∗  r[k..len(r)) ↦_uninit ⊥
+fn push(r ∈ Array(Int) linear, k ∈ 0..len(r)-1, x ∈ Int) (k2 ∈ Int) ensure k2 == k + 1 {
+    r[k] := x        // one element goes from uninit to initialized
+    k + 1
+}
+```
+
+- **An uninitialized read** cannot be written, because r[k..len(r)) has no read axiom.
+- This is Go's slice and C++'s `std::vector`. (base, len, cap) is one region: an initialized prefix and
+  an uninitialized suffix, with §12.3's law at the boundary between them.
+
+### 14.7 The stack: `&local` and the dangling return
+
+```c
+int *f(void) { int x = 1; return &x; }      /* dangling */
+```
+
+- A block's region's view cannot leave the block, except **moved** (§14.1) or **frozen** (as its value).
+- In either case the printer allocates the region where it outlives the block. So a dangling stack
+  address cannot exist, and the choice of stack or heap is the compiler's, from the view's place.
+
+### 14.8 C++: references, smart pointers, iterators, `span`, `launder`
+
+| C++ | in the algebra | here |
+|---|---|---|
+| `T&` | an address with a view lent for its scope | a borrowed parameter |
+| `std::unique_ptr<T>` | an address and an exclusive view, moved | a linear value: a view and its region |
+| `std::shared_ptr<T>` | a counted fraction: the view is recovered when the count reaches zero (Bornat et al. 2005) | a shared view with a run-time count, the one place a count is needed |
+| `std::weak_ptr<T>` | **an address without a view**, upgraded by a run-time test | exactly that: an integer address, and a checked `upgrade` |
+| iterators | addresses (affine) | integers |
+| `std::span<T>` | a segment | `b[lo:hi]` (ADR 0074) |
+| placement `new` | a retype (strong update) | §12.4's retype |
+| `std::launder` | recovering provenance the optimizer lost | not needed: provenance is the view's name, never lost |
+| `offsetof`, pointer-to-member | an offset inside a record type | an integer constant from the layout (6d) |
+| RAII destructor | the view consumed at the scope's end | the scope's end (§13.3) |
+
+`weak_ptr` is the plainest witness for the sketch: C++ itself has an address without ownership as a
+type, and recovers the ownership only by a check.
+
+### 14.9 `realloc`: offsets survive a move
+
+```c
+int *q = realloc(p, 2 * n * sizeof *p);   /* every old pointer into p now dangles */
+```
+
+```
+p2 = grow(p, 2 * n)                        // consumes p's view; p2's view covers [0, 2n)
+```
+
+- **Better than C**: addresses are offsets, so **every address into the region survives the move**, in
+  every data structure that stored one. In C, a `realloc` that moves invalidates all of them, which is
+  why C programs store indices into growable arrays anyway.
+- The same holds when a region is moved to another process, when a wasm memory grows, and when a buffer
+  is written to a file and mapped back: offsets are position-independent.
+
+### 14.10 Tagged pointers and the XOR list
+
+```c
+uintptr_t w = (uintptr_t)p | tag;                       /* the low bits of an aligned pointer */
+node *q = (node *)(w & ~(uintptr_t)7);
+uintptr_t link = (uintptr_t)prev ^ (uintptr_t)next;     /* the XOR linked list */
+```
+
+- **Tagging.** In a region of 8-byte elements, an address is 8q. With ADR 0082's bits, `w = a | t` and
+  `a = w & ~7` are ℤ's operations, and the decision proves `w & ~7` back in range from the fact that w
+  was built that way. That proof is a content fact; without it, a bounds check.
+- **NaN-boxing** is the same, with the payload in a float's mantissa: d_F64 is total, so the bits are free.
+- **The XOR list** stores `prev ⊕ next`. Recovering `next = link ⊕ prev` is ℤ's arithmetic, and the load
+  needs it in range: either a content invariant over the region, or a check. **It is memory-safe either
+  way**, which C's is not.
+- The **high bits** of a machine pointer (x86-64's 48-bit canonical form) exist only in the root region,
+  on a target that offers it.
+
+### 14.11 Globals, and Shen
+
+```c
+static int counter;  void tick(void) { counter++; }     /* written from anywhere */
+```
+
+```
+export fn main() {
+    var state := array { 0 }      // the "global": a region the entry point owns
+    run(state)                    // lent where it is needed, visibly
+}
+```
+
+- A **mutable global** is a region whose view the outermost scope holds. The functions that touch it say
+  so in their headers, which is exactly what C's globals hide.
+- A **constant global** is a frozen region (□), readable anywhere. Today's module constants are this.
+- **Shen's** `(value *s*)` is a read under a view everyone holds, which is what breaks β (§13.9). A global
+  that every process may write is a shared view under a lock (§14.12), which is concurrency's.
+
+### 14.12 Shared mutable memory under a lock
+
+```c
+pthread_mutex_lock(&m);  shared->n++;  pthread_mutex_unlock(&m);
+```
+
+- **Concurrent separation logic** (O'Hearn, CONCUR 2004) says a lock *owns* a view, its resource
+  invariant. Acquiring the lock gives the view to the critical section, and releasing it gives the view
+  back.
+- So a critical section is a borrow, and between acquire and release the memory is a cell again
+  (Theorem V). An unsynchronized race cannot be written: without the lock there is no view.
+- **Atomics** are a view kind whose every operation is a single atomic effect (SharedArrayBuffer's
+  `Atomics`, LLVM's `atomicrmw`). Their orderings belong to concurrency's research (ADR 0081), not this
+  one.
+
+### 14.13 Function pointers, vtables and a JIT
+
+- **A code address** is an address in the code region, which is frozen (□). So it is a value, and needs
+  no linear view.
+  - A function value carries its set, `fn(…) (…)`, so the wrong-type call that a C cast allows cannot be
+    written.
+  - A vtable is a frozen table of function values.
+  - Callbacks are 6d's.
+- **A JIT, and W^X as a theorem.** Write the code under an exclusive view, then **freeze** it, and allow
+  only a frozen view to be executed.
+  - "Writable or executable, never both" is then the law 1 ⊢ □, with execution allowed only at □.
+  - Win32's `VirtualProtect(PAGE_EXECUTE_READ)` and POSIX's `mprotect` realize the freeze.
+  - C has no way to say this.
+
+### 14.14 Comparing, ordering and hashing addresses
+
+- **Within one region**, addresses are integers: equality, order and hash are deterministic and portable.
+- **Across regions**, only equality of region names is defined.
+  - C leaves `p < q` across objects undefined. C++'s `std::less` defines a total order whose values are
+    implementation-defined.
+  - Here an order or hash across regions needs the root coordinate, which changes every run. So it is an
+    **effect**, an impure read like the clock, and Tier 2.
+  - A hash table keyed by object identity keys by (region id, offset) instead, where the region id is a
+    counter the program assigns.
+
+### 14.15 An operating system: MMIO, the page allocator, processes
+
+```
+export fn kernel(mem ∈ Root linear) {          // the root view: R[0..2⁶⁴)
+    (low, rest) = split(mem, 0x10000000)
+    uart = device(low, 0x09000000, 0x1000)     // a dev view: each read and write an effect
+    vstore_u8(uart, 0, 'H')                    // LLVM: store volatile
+    (heap, user) = split(rest, …)
+    child = spawn(init, user)                  // the view moved to a process
+    …                                          // on its exit, the supervisor's handler receives it back
+}
+```
+
+- **MMIO**: a device range split off the root, with permission `dev`. It is linear, so one driver owns the
+  device, and its reads are effects (§11.3).
+- **The page allocator** is a region of pages whose free list is integers in its contents (§14.3).
+- **Processes**: a view moved by `spawn`.
+  - If the child is joined within the scope, the view was lent and comes back.
+  - If the child lives on, the supervisor holds the right to revoke it.
+  - After a crash, the view returns with its content facts erased (§11.5).
+- **Open, and deep: page tables.** Their contents *define* other views: mapping physical range P at
+  virtual V turns a view of P into a view of V. That is a morphism between two root regions, written by
+  storing into a third, and it is seL4's mapping of frames. It is research for when an OS target exists.
+
+### 14.16 Reference counting and dynamic borrowing: when the proof is a check
+
+Some correct C programs share memory in a way no static rule proves: an object freed when the last of
+several owners lets go, or a cache read while another path may write. The view algebra has a run-time
+image for each:
+- a **counted view** (`shared_ptr`): the count is a run-time number, and the view is recovered when it
+  reaches zero (counting permissions, Bornat et al. 2005);
+- a **flagged borrow** (Rust's `RefCell`): a view's exclusivity is checked at run time.
+
+Both are **checks, not escapes**. Where C would have undefined behaviour, this program traps at the check:
+gradual ownership (Sergey and Clarke, ESOP 2012). Every such check is visible in the source, and the
+number of checked accesses is reported as `-checked`'s are.
+
+### 14.17 What the targets offer, including what C cannot
+
+| the target offers | in the algebra | here |
+|---|---|---|
+| JavaScript's `postMessage(buf, [buf])` | a **move**: the host detaches the sender's view at run time | a view moved to a worker; linearity states what the host enforces |
+| JavaScript's `SharedArrayBuffer` and `Atomics` | a shared view with atomic operations only | §14.12's atomic kind |
+| WebAssembly's `memory.grow` | `grow` of the instance's root region | offsets survive (§14.9) |
+| Go's `*T` and `[]T` | a region the host collects; a slice a segment with a capacity | a region whose `free` is the host's; `b[lo:hi]` |
+| the JVM's references, `ByteBuffer`, `VarHandle` | objects the host collects; typed views of bytes | a region; `load_i32le` as a `VarHandle` view of a byte array |
+| Java's `MemorySegment` (FFM, Java 22) | **a region with a lifetime arena**, confined, shared or global | the same algebra, built by the JVM: an arena is a scope |
+| LLVM's `addrspace(n)` (a GPU's global, shared and constant memory) | region kinds; `addrspacecast` a coercion where the target says one space contains another | a view's kind, chosen by place |
+| CHERI (Morello) | views carried by hardware: bounds and a tag on every pointer | a view printed as a capability (§13.2) |
+| ARM MTE | a 4-bit tag on memory and on the pointer: a run-time image of the region's name | a view's region, checked by hardware |
+| Win32's `VirtualAlloc` and `VirtualProtect` | owned regions; page permissions as view kinds | uninit, 1 and □ (execute), per range |
+| Win32's `GlobalLock` and `GlobalUnlock` | a view the host lends for an epoch | borrow-research's `lent` |
+| `GetCommandLineA` | a persistent view the host made | □, decoded at the boundary (P6) |
+
+The JVM reached the same algebra independently. Java 22's FFM API has memory segments with bounds, arenas
+whose closing frees everything allocated in them, and confinement to one thread: regions, scopes and
+exclusive views, checked at run time where this language proves them.
+
+### 14.18 The Find dialog, P4, as a protocol of views
+
+Part I left `FindTextA` as the wall, because the host keeps `&fr` past the call. In views it is a
+protocol:
+
+```
+FindTextA(fr)                      moves fr's view to the host                (the program cannot touch fr)
+WndProc(uFindMsg, lParam = &fr)    the host lends fr's view to the callback   (Theorem P, roles swapped)
+   …                               the callback reads fr.Flags and what, and returns: the view goes back
+WndProc(uFindMsg, FR_DIALOGTERM)   the host returns fr's view for good        (the program owns it again)
+```
+
+- Every step is a law already listed: a move, a lend for one call, a return. No new kind of view is
+  needed, only declarations saying which message carries which view, which are the window procedure's,
+  6d's.
+- **What the program cannot write is the bug C allows**: touching `fr` between messages, while the dialog
+  may be writing it.
+
+---
+
+## 15. The classic memory bugs, each with the rule that excludes it
+
+| bug (CWE) | in C | the rule here | its price |
+|---|---|---|---|
+| use after free (416) | undefined | a load needs a view, and `free` consumed it | none |
+| double free (415) | undefined | a view is linear | none |
+| leak (401) | allowed | a view is linear, not affine; a scope's end consumes it | none |
+| dangling stack address (562) | undefined | a block's view leaves only moved or frozen | the printer may allocate on the heap |
+| out of bounds (125, 787) | undefined | every access lies in a view's range | a proof, or a bounds check |
+| uninitialized read (457) | undefined | uninit has no read axiom | none |
+| type confusion (843) | undefined | a T is read only through d_T | a validity check where d_T is partial |
+| null dereference (476) | undefined | no null address; `Option`, with a niche | the test the program writes anyway |
+| data race (362) | undefined | a write needs an exclusive view; sharing is a lock's or an atomic's | the lock |
+| `restrict` or `memcpy` overlap | undefined | two views are disjoint by linearity | none |
+
+**No row costs a capability.** Each excluded behaviour is undefined in C, so a correct C program never
+does it, and every correct C program has a form here. Where its correctness is beyond the static rules
+(§14.16), that form includes a run-time check.
+
+---
+
+## 16. Measured: what a proven `noalias` is worth
+
+The loop is `for (i = 0; i < n; i++) a[i] += b[i]`, compiled by clang 23.1.4 at `-O2`, once with plain
+`int *` parameters and once with `restrict`:
+
+| | lines of LLVM IR | overlap check | scalar fallback loop |
+|---|---:|---|---|
+| plain pointers | 96 | two pointer comparisons (`icmp ult ptr`), run on every call | yes: a second copy of the loop, for overlap |
+| `restrict` (`noalias`) | 47 | none | none |
+
+- In C, `restrict` is a promise: a caller that passes overlapping arrays gets a vectorized loop that
+  silently computes a wrong answer.
+- Here the same `noalias` follows from two exclusive views, and a call that passes one buffer twice is
+  refused by linearity. **So the language would give LLVM the facts of a C program fully annotated with
+  `restrict`, each one proven.**
+- This is Fortran's historical advantage over C (Fortran forbids aliased dummy arguments), and why Rust's
+  `&mut` has carried `noalias` to LLVM since Rust 1.54.
+- The speed of the result is not measured here. That belongs to `ir/llvm`, against hand-written C.
+
+Part I's §3.5 adds two measurements:
+- `captures(none)` lets a value be folded across an unknown call, and views state it;
+- a pointer inside a record, or cast to an integer, loses every fold. Those are §14.18's protocol and
+  P5's per-message declarations.
+
+---
+
+## 17. What changes in Part I
+
+- **P1 becomes P1′.**
+  - An address is an integer offset in a region.
+  - Access needs the region's view: a linear claim in the logic, erased, owned by a scope, and lent,
+    moved or frozen.
+  - A buffer is the view of a region the compiler allocated, and a target or library may provide others.
+  - The root region, where addresses are absolute integers, belongs to a target (Tier 2). `ptrtoint` and
+    `inttoptr` are coordinates in it, offered where it is.
+  - There is no load without a view.
+- **P2** is unchanged and becomes a special case: a mode is a view lent for one call.
+- **P3** is unchanged: a handle names something the program has no view of, because the host holds it.
+- **P4** becomes §14.18's protocol of views, declared with the window procedure (6d).
+- **P5** is unchanged.
+- **P6** becomes a choice of view kind for host memory: owned (`VirtualAlloc`), lent (`GlobalLock`) or
+  persistent (`GetCommandLineA`).
+
+## 18. Open questions for hamza
+
+1. **The direction itself**: addresses in the computation as integers, ownership in the logic as views
+   (P1′). Recommended: everything above follows from it, and it is the sketch made precise.
+2. **Views in the surface.** Are they written, as ATS writes `T @ l`, or always inferred from the
+   binders that exist already (`var`, `linear`, segments), with new words only for uninit, move, freeze
+   and the kinds? Recommended: inferred, with new words only where a program needs them. A program today
+   already writes its views without naming them.
+3. **A linear result**: moving a writable view out of a function (§14.1). It is the one construct that
+   `malloc`, arenas and growable vectors need, and the first to build.
+4. **Typed views over bytes** (§12.4): `load_T(b, a)` as library functions over each T's abstraction
+   function, or a view `b as Array(Int32 le)` over a byte region. Records join this question in 6d.
+5. **Shared and atomic views**: concurrency's (ADR 0081), and not before.
+6. **The root region and page tables**: an OS target, not in the plan. Recorded so the algebra is known
+   to reach it.

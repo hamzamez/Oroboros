@@ -150,8 +150,9 @@ checked. When a package hits a wall that needs language work, stop, research it,
         0.80 of a hand-written pair. Not built on the pair: a comparison of two pairs, a shift by a
         variable count, a division by a non-power of two. LLVM's widths, the unsigned word on windows
         and `>>` past a count of 63 there come with `ir/llvm` (below).
-     3. **Pointers**, researched ([pointers-research.md](docs/pointers-research.md)), **with hamza**: no
-        pointer is a value (P1); a host's pointer parameter is a mode on its binder, a value, a result or a
+     3. **Pointers**, researched ([pointers-research.md](docs/pointers-research.md)), **with hamza**: Part II
+        (hamza's sketch) makes an address an integer offset in a region and ownership a linear **view** in the
+        logic (ATS's stateful views, L³; Theorem V: with views, memory is values), P1′ replacing P1; a host's pointer parameter is a mode on its binder, a value, a result or a
         borrow by Theorem P, its LLVM attributes the mode's premises (P2); a handle a host type with a niche
         (P3); a pointer the host keeps is the wall, designed with 6d (P4); a message family one
         declaration per message (P5); host memory decoded at the boundary (P6).

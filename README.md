@@ -522,10 +522,11 @@ says why the next is what it is.
         code, and Java and JavaScript now hold a table of bytes as bytes; and since 2026-10-28
         ([pairs-2026-10-28](gauntlet/results/pairs-2026-10-28.md)) JavaScript holds a 64-bit unsigned
         number as two 32-bit halves, so the 64-bit hash runs there too, faster than a hand-written one;
-     3. **pointers, researched 2026-10-28** ([pointers-research.md](docs/pointers-research.md)), waiting
-        for hamza's decision: a pointer is never a value in the language; what a Win32 function does
-        with one is always a value passed, a result returned or a buffer lent for the call, except when
-        the host keeps it, which only the Find dialog does and which is decided with the window procedure;
+     3. ~~**pointers**~~ **decided 2026-10-30**
+        ([ADR 0084](docs/decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md)): an address
+        is an integer, and what a program may do with the memory behind it is decided by a claim the
+        compiler checks and then erases, so everything C does with pointers has a form here without
+        C's memory bugs; not built yet;
      4. vectors (several numbers in one register);
      5. float formats other than 64-bit;
      6. operations LLVM allows to give more than one answer;

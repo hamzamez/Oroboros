@@ -1,8 +1,9 @@
 # Research: pointers, or what a host does with an address
 
-2026-10-28. **For hamza's decision**: P1–P6 in §8. **Part II (2026-10-29), appended at the end, develops
-hamza's sketch, in which an address is an integer and ownership a view, and replaces P1 with P1′ (§17). Part III answers four questions on it: views in the surface,
-uninit, the linear result, and codecs (§23 lists the decisions).** The third of the seven walls
+2026-10-28. **Decided by [ADR 0084](decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md)**
+(hamza, 2026-10-30): P1′ and P2–P6; Part II's direction; Part III's D, U3, the linear result and codecs.
+Part I is the first research, Part II (2026-10-29) develops hamza's sketch (an address is an integer and
+ownership a view) and replaces P1 with P1′ (§17), and Part III answers four questions on it (§23). The third of the seven walls
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (§4.6), and the 10-24 plan's 6b,
 step 3. hamza: "go ahead with the research on wall 3, pointers". Like
 [bits-research.md](bits-research.md) and [widths-research.md](widths-research.md), it explains the
@@ -1568,7 +1569,7 @@ sort2(b[0:m], b[m:len(b)])                 // 0 ≤ m ≤ len(b): [0, m) and [m,
 merge(b, m)
 
 // T5: a fresh table the host fills (§20, U3)
-(data, e) = ReadFile(h, out Array(0..255) of 4096)      // data: the filled prefix
+(data, e) = ReadFile(h, out set { t ∈ Array(0..255) : len(t) <= 4096 })   // data: the filled prefix
 ```
 
 - **What it can say**: everything the corpus and TinyRetroPad need. Most programs already write their
@@ -1656,7 +1657,7 @@ So each binder of A expands to the view formula it means:
 | `b[lo:hi]` as an argument | the split law: lend r[lo..hi), frame the rest, join after |
 | `var b := e` | ∃r. r[0..n) ↦_1 e: a fresh region, exclusive, consumed at the scope's end |
 | `(p ∈ Array(V) linear)` as a result | ensure ∃r. r[0..len p) ↦_1 σ: moved out |
-| `out Array(V) of n` at a host call | lend r[0..n) ↦_uninit; the host gives back r[0..k) ↦_1 σ (§20) |
+| `out set { t ∈ Array(V) : len(t) <= n }` at a host call | lend r[0..n) ↦_uninit; the host gives back r[0..k) ↦_1 σ (§20) |
 
 **A formula is written only where no binder says it**, in the header's existing `where` and `ensure`.
 These are the three cases A cannot express:
@@ -1760,9 +1761,10 @@ the compiler finds the implementation."
 **U3. Uninit only where the program cannot see it** (recommended):
 ```
 sq = array { k * k : k ∈ 0..n-1 }                       // U-a: a rule, as today
-(data, e) = ReadFile(h, out Array(0..255) of 4096)      // U-b: the compiler makes r[0..4096) uninit,
+set Block = set { t ∈ Array(0..255) : len(t) <= 4096 }
+(data, e) = ReadFile(h, out Block)                      // U-b: the compiler makes r[0..4096) uninit,
                                                         //      the host fills r[0..got), and the
-                                                        //      program receives data = r[0:got]
+                                                        //      program receives data = r[0:got] ∈ Block
 v = push(v, x)                                          // U-c: a vector in a library, whose capacity
                                                         //      is a rule-built table, or U0's zeros
 ```
@@ -1774,7 +1776,28 @@ v = push(v, x)                                          // U-c: a vector in a li
 - **It is the language's on every target**: Go `make`, the JVM `new`, JavaScript `new Uint8Array`, and on
   LLVM an `alloca` or `malloc` with no memset, its call carrying `initializes`.
 
-### 20.4 Is it needed?
+### 20.4 No new word: the set says it
+
+An earlier draft wrote `out Array(0..255) of 4096`. hamza asked whether the set operations could not say
+it already. They can, so `of` is withdrawn:
+
+- **A table of length n over V is a function [0, n) → V**, an element of the exponential V^[0,n), and
+  `Array(V)` is the union of these over every n. A table of n bytes is therefore the subset
+  `set { t ∈ Array(0..255) : len(t) == n }`, which is ADR 0061's separation, already decided. TLA+ writes
+  the same set `[0..n-1 → 0..255]`. It is only the separation with `==`, so the language needs no
+  function-set former for it.
+- **The set can state the host's result exactly.** `ReadFile` fills a prefix, so the true set of what
+  it returns is `set { t ∈ Array(0..255) : len(t) <= 4096 }`, and one set gives two things:
+  - **the allocation** is the set's supremum length, read off its formula as a range's bounds are read
+    off theirs (ADR 0075, 0077). A set with no greatest length is refused at `out`, since there is
+    nothing to allocate;
+  - **the result** `data` is an element of the set, so `len(data) <= 4096` is a fact with no check.
+- **A family over n is a definition over sets** (ADR 0066), for a library to name:
+  `fn Bytes(n ∈ Nat) { set { t ∈ Array(0..255) : len(t) <= n } }`, then `ReadFile(h, out Bytes(4096))`.
+- **What is missing is only the build of separation** (j.md's "not built" column). `len` inside a
+  formula is already used, in host declarations' `where` and `ensure` (`targets/go/encoding/hex.oro`).
+
+### 20.5 Is it needed?
 
 | need | where it shows | U3 covers it? |
 |---|---|---|
@@ -1942,6 +1965,8 @@ adjacent loads where they can, as the `MOVL` shows.
 ---
 
 ## 23. What is asked of hamza
+
+**Decided** (hamza, 2026-10-30): D, U3, the linear result, and the codecs, recorded in ADR 0084.
 
 1. **Views in the surface**: A, B, C or D (§19.6). Recommended: D.
 2. **Uninit**: U0, U1, U2 or U3 (§20.3). Recommended: U3 now, U1 on a measured trigger, U2 never.

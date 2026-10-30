@@ -150,13 +150,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
         0.80 of a hand-written pair. Not built on the pair: a comparison of two pairs, a shift by a
         variable count, a division by a non-power of two. LLVM's widths, the unsigned word on windows
         and `>>` past a count of 63 there come with `ir/llvm` (below).
-     3. **Pointers**, researched ([pointers-research.md](docs/pointers-research.md)), **with hamza**.
-        Part II, hamza's sketch made precise: an address is an integer offset in a region, ownership a
-        linear **view** in the logic (ATS's stateful views, L³; Theorem V: with views, memory is values),
-        P1′ replacing P1; a host's pointer parameter a view lent for one call (P2, its LLVM attributes the
-        premises); a handle a host type with a niche (P3); a pointer the host keeps a protocol of views,
-        declared with 6d (P4); a message family one declaration per message (P5); host memory a view kind
-        (P6).
+     3. ~~**Pointers**~~ **decided** ([ADR 0084](docs/decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md),
+        [pointers-research.md](docs/pointers-research.md), hamza's sketch made precise): an address is an
+        integer offset in a region, ownership a linear **view** in the logic (ATS's stateful views, L³;
+        Theorem V: with views, memory is values); no load without a view; the binders abbreviate view
+        formulas (D); a definition's linear result; uninit never visible, `out` on a set of tables (U3);
+        a host's pointer parameter a view lent per call, its LLVM attributes the premises; codecs in
+        `lib/bytes`, a record's layout one. **Not built**: the portable part (separation, `out` tables,
+        the linear result, segments as views, `lib/bytes`) on every target; the attributes with `ir/llvm`;
+        P4–P5 with 6d.
      4. **Vectors**: a representation of a static-length table, not a sort.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
      6. **Relations**: only deterministic refinements offered.
@@ -505,6 +507,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | Concurrency is typed processes: a Mealy machine, failure an effect, supervisors its handlers; Kahn networks and fork–join its fragments (the direction; not built) | [0081](docs/decisions/0081-concurrency-is-typed-processes.md) |
 | Wrapping is the residue map `mod 2ⁿ` on ℤ, not a sort; `& \| ⊕ ~ << >>` are ℤ's own; fusion computes a term under `mod 2ⁿ` in n-bit arithmetic | [0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
 | A representation is an abstraction function (H, d), chosen by place; native iN above the word on LLVM; the word S₆₄ on every triple (LLVM's part with ir/llvm) | [0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md) |
+| An address is an integer offset in a region, ownership a linear view in the logic; no load without a view; binders abbreviate view formulas; a definition's linear result; uninit never visible; codecs (not built) | [0084](docs/decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md) |
 
 ## Build commands
 

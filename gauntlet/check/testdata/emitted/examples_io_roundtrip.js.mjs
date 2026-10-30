@@ -18,10 +18,24 @@ export function genMain() {
 			const v27 = ((process.env["ORO_ROUNDTRIP"] ?? ""));
 			console.log(v27);
 			console.log(v21.length);
-			let v33, v34;
-			try { v33 = fs.readFileSync((v10 + ".missing")); v34 = null; } catch (e) { v33 = null; v34 = e; }
-			console.log(((v34 === null) ? "found" : (((v34.code === "ENOENT")) ? "not-found" : (((v34.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v34.code)) ? "permission" : "other")))));
-			return 0;
+			const v33 = new Uint8Array(4);
+			let v32;
+			let v35, v36;
+			try { const $oroF = fs.openSync(v10, "r"); try { let $oroN = 0; while ($oroN < v33.length) { const $oroK = fs.readSync($oroF, v33, $oroN, v33.length - $oroN, 3 + $oroN); if ($oroK === 0) break; $oroN += $oroK; } v35 = $oroN; } finally { fs.closeSync($oroF); } v36 = null; } catch (e) { v35 = 0; v36 = e; }
+			if ((v36 === null)) {
+				console.log((((((String.fromCodePoint((48 + (((v35 % 10) + 0))))) + " ") + (String.fromCodePoint((48 + ((Math.trunc(v33[0] / 100) + 0)))))) + (String.fromCodePoint((48 + (((((Math.trunc(v33[0] / 10) + 0)) % 10) + 0)))))) + (String.fromCodePoint((48 + (((v33[0] % 10) + 0)))))));
+				let v74, v75;
+				try { v74 = fs.readFileSync((v10 + ".missing")); v75 = null; } catch (e) { v74 = null; v75 = e; }
+				console.log(((v75 === null) ? "found" : (((v75.code === "ENOENT")) ? "not-found" : (((v75.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v75.code)) ? "permission" : "other")))));
+				v32 = 0;
+			} else {
+				console.log((((v36.code === "ENOENT")) ? "not-found" : (((v36.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v36.code)) ? "permission" : "other"))));
+				let v99, v100;
+				try { v99 = fs.readFileSync((v10 + ".missing")); v100 = null; } catch (e) { v99 = null; v100 = e; }
+				console.log(((v100 === null) ? "found" : (((v100.code === "ENOENT")) ? "not-found" : (((v100.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v100.code)) ? "permission" : "other")))));
+				v32 = 0;
+			}
+			return v32;
 		}
 		console.log(("roundtrip: cannot read that file: " + (((v22.code === "ENOENT")) ? "not-found" : (((v22.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v22.code)) ? "permission" : "other")))));
 		return 1;

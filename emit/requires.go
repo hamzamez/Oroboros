@@ -575,8 +575,9 @@ func residualRange(w core.Word, v span, def, param, ty string, arg *core.Term) *
 				return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireName),
 					core.Str(def), core.Str(param), core.Str(ty), arg}}
 			}
-			m := conjTerm(core.App(core.Name("<="), core.Int(lo.Int64()), arg),
-				core.App(core.Name("<="), arg, core.Int(hi.Int64())))
+			plain := core.StripRequires(arg)
+			m := conjTerm(core.App(core.Name("<="), core.Int(lo.Int64()), plain),
+				core.App(core.Name("<="), plain, core.Int(hi.Int64())))
 			if cond == nil {
 				cond = m
 			} else {
@@ -594,12 +595,17 @@ func residualRange(w core.Word, v span, def, param, ty string, arg *core.Term) *
 		return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireName),
 			core.Str(def), core.Str(param), core.Str(ty), arg}}
 	}
+	// THE CONDITION STATES THE BOUND OF THE VALUE: a mark inside the argument
+	// is the identity on it and decided on its own, and left in the condition
+	// it is an opaque atom to the refinement layer (a rule's index that is a
+	// parameter's ranged argument, ADR 0084's build).
+	plain := core.StripRequires(arg)
 	var cond *core.Term
 	if v.lo == nil || v.lo.Cmp(s.lo) < 0 {
-		cond = core.App(core.Name("<="), core.Int(s.lo.Int64()), arg)
+		cond = core.App(core.Name("<="), core.Int(s.lo.Int64()), plain)
 	}
 	if v.hi == nil || v.hi.Cmp(s.hi) > 0 {
-		cond = conjTerm(cond, core.App(core.Name("<="), arg, core.Int(s.hi.Int64())))
+		cond = conjTerm(cond, core.App(core.Name("<="), plain, core.Int(s.hi.Int64())))
 	}
 	if d, ok := DeclaredName(def); ok {
 		def = d // the name the program wrote (retract.go)

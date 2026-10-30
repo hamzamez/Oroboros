@@ -2131,20 +2131,8 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			if err != nil {
 				return nil, err
 			}
-			// A CONDITION A VALUE WAS SUBSTITUTED INTO after it was formed (β
-			// of a let whose name it read) is reduced again when that value
-			// left something to reduce: an obligation of its own, hoisted to
-			// stand beside this one, or the length of a table that is no name
-			// (a segment's, lib/bytes' get). Pure reasoning: the condition is
-			// erased once decided.
-			if cond := t.Kids[2]; needsReduction(cond) {
-				var inner []*Term
-				cond = hoistWheres(cond, &inner)
-				if c, err := normalize(cond, e, fuel); err == nil {
-					cond = c
-				}
-				m := &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], cond, b}}
-				return wrapWheres(m, inner), nil
+			if needsReduction(t.Kids[2]) {
+				return e.reduceCondition(t, b, fuel), nil
 			}
 			return withWhere(t, b), nil
 		}
@@ -2232,14 +2220,8 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		// segment's formation obligation stands around its rule (segment), and
 		// a codec's around its tuple, which is eliminated by applying it.
 		if IsRequireWhere(op) {
-			in, ms := peelWheres(op)
-			if in.Kind == KFn || isForm(in, e, "tuple") ||
-				((isForm(in, e, "table") || isForm(in, e, "array")) && len(args) == 1) {
-				inner, err := normalize(&Term{Kind: KApp, Kids: append([]*Term{in}, args...)}, e, fuel)
-				if err != nil {
-					return nil, err
-				}
-				return wrapWheres(inner, ms), nil
+			if out, ok, err := e.applyMarked(op, args, fuel); ok || err != nil {
+				return out, err
 			}
 		}
 		if op.Kind == KName && op.Name == SegmentName && len(args) == 3 {
@@ -2771,29 +2753,7 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		// finite range attains. Static: a range has no run-time value, so either
 		// folds here or the residual is refused (Law S, staged).
 		if op.Kind == KName && (op.Name == "inf" || op.Name == "sup") && e.Prim[op.Name] && len(args) == 1 {
-			na, err := normalize(args[0], e, fuel)
-			if err != nil {
-				return nil, err
-			}
-			if na.Kind == KApp && len(na.Kids) == 3 && na.Kids[0].Kind == KName && na.Kids[0].Name == ".." {
-				lo, err := normalize(na.Kids[1], e, fuel)
-				if err != nil {
-					return nil, err
-				}
-				hi, err := normalize(na.Kids[2], e, fuel)
-				if err != nil {
-					return nil, err
-				}
-				l, okl := closedBig(lo)
-				h, okh := closedBig(hi)
-				if okl && okh && l.Cmp(h) <= 0 {
-					if op.Name == "inf" {
-						return lo, nil
-					}
-					return hi, nil
-				}
-			}
-			return &Term{Kind: KApp, Kids: []*Term{op, na}}, nil
+			return e.infSup(op, args[0], fuel)
 		}
 		// `len` on a table whose length is known. See tableLen.
 		if op.Kind == KName && op.Name == "len" && e.Prim["len"] && len(args) == 1 {
@@ -2905,10 +2865,13 @@ func duplicable(t *Term) bool {
 	case KInt, KFloat, KStr, KBool, KName, KFn, KBound:
 		return true
 	}
-	// A CLOSED INTEGER is a constant, a literal past the word staged as closed
-	// arithmetic (2^64 − 1 is 18446·10¹⁵ + …): free to copy, as a literal is.
+	// A CLOSED INTEGER ONE WORD HOLDS is a constant, a literal past the signed
+	// word staged as closed arithmetic (2^64 − 1 is 18446·10¹⁵ + …): free to
+	// copy, as a literal is. Past the unsigned word it is a bignum computed at
+	// run time, work that stays where it was written (ADR 0071): big-sign's
+	// 2^200 copied into each branch was refused by the emission check.
 	if t.Kind == KApp {
-		if _, ok := closedBig(t); ok {
+		if v, ok := closedBig(t); ok && v.CmpAbs(wordBound) <= 0 {
 			return true
 		}
 	}
@@ -4041,28 +4004,28 @@ func (e *Env) betaTab(op *Term, args []*Term, fuel *int) (*Term, bool) {
 			return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef),
 				App(Name(RequireFalseName), cond), body}}, true
 		}
-		c, err := normalize(cond, e, fuel)
-		if err == nil && c.Kind == KBool && c.IsTrue() {
-			return body, true
-		}
-		if err == nil && c.Kind == KBool {
-			return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef),
-				App(Name(RequireFalseName), cond), body}}, true
-		}
 		// TWO OBLIGATIONS OF TWO KINDS (ADR 0075's split): 0 ≤ i, a constant
 		// bound, is a range on the index, decided by a literal, the IR's
 		// intervals, then the refinement layer; i < n, a relation, is the
-		// where-mark the refinement layer decides from the guards.
+		// where-mark the refinement layer decides from the guards. Neither is
+		// normalized here: the index is reduced where the body is, and reducing
+		// it again for the condition doubled the work of every nested rule
+		// (examples/os/wc.oro compiled 1.85× slower).
 		if e.Word != (Word{}) {
+			// A LITERAL LENGTH MAKES THE WHOLE DOMAIN A RANGE, i ∈ [0, n − 1],
+			// with no relation left for the refinement layer, whose walk a
+			// single where-mark runs over the whole program.
+			if op.Kids[1].Kind == KInt && op.Kids[1].Int >= 1 {
+				ty := fmt.Sprintf("int 0 %d", op.Kids[1].Int-1)
+				idx := &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(RuleIndexDef), Str("index"), Str(ty), args[0]}}
+				return &Term{Kind: KApp, Kids: []*Term{op.Kids[2], idx}}, true
+			}
 			idx := e.nonnegative(RuleIndexDef, "index", args[0])
 			body = &Term{Kind: KApp, Kids: []*Term{op.Kids[2], idx}}
 			return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef),
 				App(Name("<"), i, op.Kids[1]), body}}, true
 		}
-		if err != nil {
-			c = cond
-		}
-		return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef), c, body}}, true
+		return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef), cond, body}}, true
 	}
 	// A MAP LITERAL, which is β-tab with a SUM in the result position.
 	//
@@ -4268,9 +4231,9 @@ func (e *Env) staged(t *Term) error {
 		if t.Kind == KName {
 			switch {
 			case t.Name == "..":
-				return fmt.Errorf("a range, lo..hi, is a set, a static value, and has no value at run time: " +
-					"it is an argument consumed by staging, by inf, sup or a definition over sets " +
-					"(spec/typevalues.md §1); here it reaches the program as a value")
+				return fmt.Errorf("`..` is a range, a set of integers: a static value, consumed by staging " +
+					"(inf, sup, a definition over sets), with no representation at run time (Law S, " +
+					"spec/typevalues.md §1); here it reaches the program as a value")
 			case (t.Name == "inf" || t.Name == "sup") && e.Prim[t.Name]:
 				return fmt.Errorf("%s takes a range with literal ends, lo..hi, and gives its %s element at "+
 					"compile time; here its argument is not one, so it has no value", t.Name,
@@ -4697,4 +4660,72 @@ func (e *Env) nonnegative(def, param string, a *Term) *Term {
 	}
 	ty := fmt.Sprintf("int 0 %d", e.Word.Hi)
 	return &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(def), Str(param), Str(ty), a}}
+}
+
+// wordBound is 2^64: a closed integer within it is held by one word, signed or
+// unsigned, on every target with an unsigned word, or a pair of digits.
+var wordBound = new(big.Int).Lsh(big.NewInt(1), 64)
+
+// reduceCondition is a where-mark (#reqw def cond …) over its reduced body b,
+// its condition reduced again: a value substituted into it after it was
+// formed (β of a let whose name it read) left something to reduce, an
+// obligation of its own, hoisted to stand beside this one, or the length of a
+// table that is no name (a segment's, lib/bytes' get). Pure reasoning: the
+// condition is erased once decided. Apart from normalizeStep, so its frame,
+// which every step of a reduction stacks, stays as it was.
+func (e *Env) reduceCondition(t, b *Term, fuel *int) *Term {
+	var inner []*Term
+	cond := hoistWheres(t.Kids[2], &inner)
+	if c, err := normalize(cond, e, fuel); err == nil {
+		cond = c
+	}
+	m := &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], cond, b}}
+	return wrapWheres(m, inner)
+}
+
+// applyMarked applies a function under an obligation: (#reqw c t) applied is
+// t applied, under c, as `len` reads through one. A segment's formation stands
+// around its rule, and a codec's `where` around its tuple, which is
+// eliminated by applying it.
+func (e *Env) applyMarked(op *Term, args []*Term, fuel *int) (*Term, bool, error) {
+	in, ms := peelWheres(op)
+	if in.Kind == KFn || isForm(in, e, "tuple") ||
+		((isForm(in, e, "table") || isForm(in, e, "array")) && len(args) == 1) {
+		inner, err := normalize(&Term{Kind: KApp, Kids: append([]*Term{in}, args...)}, e, fuel)
+		if err != nil {
+			return nil, true, err
+		}
+		return wrapWheres(inner, ms), true, nil
+	}
+	return nil, false, nil
+}
+
+// infSup is δ for inf and sup: on lo..hi with closed integer ends, the least
+// and the greatest element, the order's infimum and supremum, which a finite
+// range attains, compared exactly in ℤ. Static: a range has no run-time value,
+// so either it folds here or the residual is refused (Law S, staged).
+func (e *Env) infSup(op, arg *Term, fuel *int) (*Term, error) {
+	na, err := normalize(arg, e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	if na.Kind == KApp && len(na.Kids) == 3 && na.Kids[0].Kind == KName && na.Kids[0].Name == ".." {
+		lo, err := normalize(na.Kids[1], e, fuel)
+		if err != nil {
+			return nil, err
+		}
+		hi, err := normalize(na.Kids[2], e, fuel)
+		if err != nil {
+			return nil, err
+		}
+		l, okl := closedBig(lo)
+		h, okh := closedBig(hi)
+		if okl && okh && l.Cmp(h) <= 0 {
+			if op.Name == "inf" {
+				return lo, nil
+			}
+			return hi, nil
+		}
+	}
+	return &Term{Kind: KApp, Kids: []*Term{op, na}}, nil
 }

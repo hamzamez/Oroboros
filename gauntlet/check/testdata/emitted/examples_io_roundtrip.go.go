@@ -28,73 +28,147 @@ func GenMain() int {
 			fmt.Println(v27)
 			v29 := len(v21)
 			fmt.Println(v29)
-			v32 := (v10 + ".missing")
-			_, v34 := os.ReadFile(v32)
-			v35 := (v34 == nil)
-			var v36 string
-			if v35 {
-				v36 = "found"
-			} else {
-				v38 := (os.IsNotExist(v34))
-				if v38 {
-					v36 = "not-found"
+			v33 := make([]byte, 4)
+			var v32 int
+			v35h, v36 := func() (int, error) { f, err := os.Open(v10); if err != nil { return 0, err }; defer f.Close(); fi, err := f.Stat(); if err != nil { return 0, err }; m := int64(len(v33)); if rest := fi.Size() - int64(3); rest < m { m = max(rest, 0) }; return f.ReadAt(v33[:m], int64(3)) }()
+			v35 := int(v35h)
+			v37 := (v36 == nil)
+			if v37 {
+				v40 := (v35 % 10)
+				v41 := (48 + v40)
+				v42 := (string(rune(v41)))
+				v44 := (v42 + " ")
+				v47 := int(v33[0])
+				v49 := (v47 / 100)
+				v50 := (48 + v49)
+				v51 := (string(rune(v50)))
+				v52 := (v44 + v51)
+				v55 := int(v33[0])
+				v57 := (v55 / 10)
+				v59 := (v57 % 10)
+				v60 := (48 + v59)
+				v61 := (string(rune(v60)))
+				v62 := (v52 + v61)
+				v65 := int(v33[0])
+				v67 := (v65 % 10)
+				v68 := (48 + v67)
+				v69 := (string(rune(v68)))
+				v70 := (v62 + v69)
+				fmt.Println(v70)
+				v73 := (v10 + ".missing")
+				_, v75 := os.ReadFile(v73)
+				v76 := (v75 == nil)
+				var v77 string
+				if v76 {
+					v77 = "found"
 				} else {
-					v40 := (os.IsExist(v34))
-					if v40 {
-						v36 = "exists"
+					v79 := (os.IsNotExist(v75))
+					if v79 {
+						v77 = "not-found"
 					} else {
-						v42 := (os.IsPermission(v34))
-						if v42 {
-							v36 = "permission"
+						v81 := (os.IsExist(v75))
+						if v81 {
+							v77 = "exists"
 						} else {
-							v36 = "other"
+							v83 := (os.IsPermission(v75))
+							if v83 {
+								v77 = "permission"
+							} else {
+								v77 = "other"
+							}
 						}
 					}
 				}
-			}
-			fmt.Println(v36)
-			return 0
-		}
-		v48 := (os.IsNotExist(v22))
-		var v49 string
-		if v48 {
-			v49 = "not-found"
-		} else {
-			v51 := (os.IsExist(v22))
-			if v51 {
-				v49 = "exists"
+				fmt.Println(v77)
+				v32 = 0
 			} else {
-				v53 := (os.IsPermission(v22))
-				if v53 {
-					v49 = "permission"
+				v88 := (os.IsNotExist(v36))
+				var v89 string
+				if v88 {
+					v89 = "not-found"
 				} else {
-					v49 = "other"
+					v91 := (os.IsExist(v36))
+					if v91 {
+						v89 = "exists"
+					} else {
+						v93 := (os.IsPermission(v36))
+						if v93 {
+							v89 = "permission"
+						} else {
+							v89 = "other"
+						}
+					}
+				}
+				fmt.Println(v89)
+				v98 := (v10 + ".missing")
+				_, v100 := os.ReadFile(v98)
+				v101 := (v100 == nil)
+				var v102 string
+				if v101 {
+					v102 = "found"
+				} else {
+					v104 := (os.IsNotExist(v100))
+					if v104 {
+						v102 = "not-found"
+					} else {
+						v106 := (os.IsExist(v100))
+						if v106 {
+							v102 = "exists"
+						} else {
+							v108 := (os.IsPermission(v100))
+							if v108 {
+								v102 = "permission"
+							} else {
+								v102 = "other"
+							}
+						}
+					}
+				}
+				fmt.Println(v102)
+				v32 = 0
+			}
+			return v32
+		}
+		v114 := (os.IsNotExist(v22))
+		var v115 string
+		if v114 {
+			v115 = "not-found"
+		} else {
+			v117 := (os.IsExist(v22))
+			if v117 {
+				v115 = "exists"
+			} else {
+				v119 := (os.IsPermission(v22))
+				if v119 {
+					v115 = "permission"
+				} else {
+					v115 = "other"
 				}
 			}
 		}
-		v56 := ("roundtrip: cannot read that file: " + v49)
-		fmt.Println(v56)
+		v122 := ("roundtrip: cannot read that file: " + v115)
+		fmt.Println(v122)
 		return 1
 	}
-	v60 := (os.IsNotExist(v19))
-	var v61 string
-	if v60 {
-		v61 = "not-found"
+	v126 := (os.IsNotExist(v19))
+	var v127 string
+	if v126 {
+		v127 = "not-found"
 	} else {
-		v63 := (os.IsExist(v19))
-		if v63 {
-			v61 = "exists"
+		v129 := (os.IsExist(v19))
+		if v129 {
+			v127 = "exists"
 		} else {
-			v65 := (os.IsPermission(v19))
-			if v65 {
-				v61 = "permission"
+			v131 := (os.IsPermission(v19))
+			if v131 {
+				v127 = "permission"
 			} else {
-				v61 = "other"
+				v127 = "other"
 			}
 		}
 	}
-	v68 := ("roundtrip: cannot write that file: " + v61)
-	fmt.Println(v68)
+	v134 := ("roundtrip: cannot write that file: " + v127)
+	fmt.Println(v134)
 	return 1
 }
 

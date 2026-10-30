@@ -14,7 +14,6 @@ func TestASetInATermIsRefusedWithWhatItIs(t *testing.T) {
 	for src, want := range map[string]string{
 		"export fn f(x ∈ 0..20) { b = x ∈ 0..9; b }":                               "is membership, the test χ_S(e)",
 		"export fn f(x ∈ 0..20) { b = x ∉ 0..9; b }":                               "is non-membership",
-		"export fn f(x ∈ 0..20) { b = 0..9; b }":                                   "is a range",
 		"export fn f(x) { b = Int ∪ Bool; b }":                                     "is union",
 		"export fn f(x ∈ 0..20) (Int) where x ∈ 0..9 { x }":                        "header: `∈` is membership",
 		"export fn f(x ∈ 0..20) (r ∈ Int) ensure r ∈ 0..9 { x }":                   "header: `∈` is membership",
@@ -43,5 +42,23 @@ func TestASetInATermIsRefusedWithWhatItIs(t *testing.T) {
 		if err != nil {
 			t.Errorf("%s: a set in a set position must load: %v", src, err)
 		}
+	}
+}
+
+// A RANGE IS A STATIC VALUE (ADR 0084's build, spec/typevalues.md §1b): it
+// passes the loader as an argument for inf, sup or a definition over sets, and
+// one that reaches the program as a value is refused at staging (Law S).
+func TestARangeAsAValueIsRefusedAtStaging(t *testing.T) {
+	forms, err := Read("t = fn(x) { b = 0..9; b }\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, terms, err := Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Normalize(entryTerm(t, prog, terms), testEnv(prog), DefaultFuel)
+	if err == nil || !strings.Contains(err.Error(), "is a range") || !strings.Contains(err.Error(), "no representation") {
+		t.Errorf("a range as a value: want it refused at staging, got %v", err)
 	}
 }

@@ -53,6 +53,15 @@ export fn main() {
                         io.print(os.text_of(src))
                         io.print_line(os.Getenv("ORO_ROUNDTRIP"))
                         io.print_int(len(src))
+                        // pread into a fresh region of at most 4 bytes (ADR 0084):
+                        // the file's bytes 3..6, so 4 of them, the first 226.
+                        (buf, read) = os.ReadAt(path, 3, out set { t ∈ Array(0..255) : len(t) <= 4 })
+                        (n, r) = read
+                        io.print_line(case r {
+                                result.'ok(u) -> string_of(48 + n % 10) ++ " " ++ string_of(48 + buf[0] / 100) ++
+                                    string_of(48 + buf[0] / 10 % 10) ++ string_of(48 + buf[0] % 10)
+                                result.'err(k) -> kind_name(k)
+                            })
                         io.print_line(case os.ReadFile(path ++ ".missing") {
                                 result.'ok(b) -> "found"
                                 result.'err(k) -> kind_name(k)

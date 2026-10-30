@@ -906,7 +906,7 @@ func writtenCells(t *Term, borrows map[string]BorrowDecl) *Term {
 		b := t.Kids[2].Params[0]
 		body := writtenCells(t.Kids[2].Body(), borrows)
 		e := writtenCells(t.Kids[1], borrows)
-		if writesElements(body, b, borrows) {
+		if !scalarLiteral(e) && writesElements(body, b, borrows) {
 			return App(Name(AdoptName), e, Fn([]string{b}, App(Name(PlaceName), Name(b), Fn([]string{b}, body))))
 		}
 		return App(t.Kids[0], e, Fn([]string{b}, body))
@@ -946,6 +946,16 @@ func writesElements(t *Term, b string, borrows map[string]BorrowDecl) bool {
 		if writesElements(k, b, borrows) {
 			return true
 		}
+	}
+	return false
+}
+
+// scalarLiteral reports a literal that is no table: a binder it initializes
+// is a cell whatever its scope writes, and a store into it is the cell's error.
+func scalarLiteral(t *Term) bool {
+	switch t.Kind {
+	case KInt, KFloat, KStr, KBool:
+		return true
 	}
 	return false
 }

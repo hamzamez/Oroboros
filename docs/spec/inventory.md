@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 168 words of the core**, and j.md §1.4's keywords.
+**Result: 170 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 128 |
+| `specified` — a spec states it | 130 |
 | `recorded` — only research, a result document or code comments | 25 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -268,6 +268,7 @@ precision names the host rung needs: the target declares them, and the compiler 
 | word | status | where |
 |---|---|---|
 | `abandon` | specified — crash : E → 0, which `expect` expands into: a statement taking the reason, injected unqualified and impure; each target's own crash (panic, throw, ExitProcess after the reason on standard error). Its value is in 0: it absorbs every strict context, and the IR ends its region with `unreachable` | [errors.md](errors.md) §8–9 |
+| `inf`, `sup` | specified — a range's least and greatest elements, static: on `lo..hi` with closed integer ends they are `lo` and `hi`, compared exactly in ℤ; a range is a static value, free to copy, and one a residual still holds is refused (Law S). No target realizes them | [typevalues.md](typevalues.md) §1; ADR 0084 |
 | `big+` | specified | [target-files.md](target-files.md) |
 | `big-fit` | specified — the bound enforced on a host bignum, [0, 2ᵏ) | [target-files.md](target-files.md), [ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md) |
 | `big-fit-signed` | specified — the same for a signed range, (−2ᵏ, 2ᵏ) | [ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md) |

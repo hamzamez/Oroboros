@@ -93,6 +93,24 @@ is bound, but not to a set, before step 2.
 argument is written or bound, and erasing every set from a residual changes nothing it computes.
 Consequently **a residual that holds a set is refused**: it would have no meaning to print.
 
+### 1b. A range as a static argument: `inf` and `sup` (ADR 0084)
+
+A range `lo..hi` may be an argument in a computation, a static value consumed by staging: lib/bytes'
+`codec(0..2^16-1, 'le)` computes a codec's width from its set. Two operations read it, the order's
+infimum and supremum, which a finite range attains:
+
+```
+inf(lo..hi) = lo        sup(lo..hi) = hi        (closed integer ends, compared exactly in ℤ)
+```
+
+They are δ-rules of the reducer, static: no target realizes them, and a residual that still holds a
+range, or an `inf` or `sup` of something that is not one, is refused by Law S below. A range is free to
+copy, as a λ is, so β substitutes it where `inf` and `sup` can read it. A comparison of two closed
+integers folds exactly in ℤ, a literal past the word included, since its value is a Boolean every
+target holds (ADR 0009 governs the integers a fold would produce). Only ranges pass: membership and the
+other set operators in a computation are still refused, and a program's own sets beyond ranges and
+separations wait for §10's step 2.
+
 ## 2. One namespace
 
 A module is a theory (ADR 0021) whose names denote its constants. With types as values, a type and a

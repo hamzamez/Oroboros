@@ -17,7 +17,7 @@ func TestATemplateNamesItsParametersByIndexWhereOrderDiffers(t *testing.T) {
 		"(${b} >= 64 ? 0L : ${a} >>> ${b})": "(%[2]s >= 64 ? 0L : %[1]s >>> %[2]s)",
 		"100% ${a}":                         "100%% %s",
 	} {
-		if got := positionalHoles(tpl, params, nil, "", false); got != want {
+		if got := positionalHoles(tpl, params, nil, "", false, nil); got != want {
 			t.Errorf("%s: holes %s, want %s", tpl, got, want)
 		}
 	}

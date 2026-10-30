@@ -151,14 +151,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
         variable count, a division by a non-power of two. LLVM's widths, the unsigned word on windows
         and `>>` past a count of 63 there come with `ir/llvm` (below).
      3. ~~**Pointers**~~ **decided** ([ADR 0084](docs/decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md),
-        [pointers-research.md](docs/pointers-research.md), hamza's sketch made precise): an address is an
-        integer offset in a region, ownership a linear **view** in the logic (ATS's stateful views, L³;
-        Theorem V: with views, memory is values); no load without a view; the binders abbreviate view
-        formulas (D); a definition's linear result; uninit never visible, `out` on a set of tables (U3);
-        a host's pointer parameter a view lent per call, its LLVM attributes the premises; codecs in
-        `lib/bytes`, a record's layout one. **Not built**: the portable part (separation, `out` tables,
-        the linear result, segments as views, `lib/bytes`) on every target; the attributes with `ir/llvm`;
-        P4–P5 with 6d.
+        [pointers-research.md](docs/pointers-research.md)): an address is an integer offset in a region,
+        ownership a linear **view** in the logic (Theorem V: with views, memory is values). **The portable
+        part built, program first** ([views-2026-10-30](gauntlet/results/views-2026-10-30.md)):
+        `examples/pe`, a PE header reader and checksum fixer equal to Go's `debug/pe` and Windows' own
+        checksum on Go, the JVM and JavaScript; separation and set definitions, segments `b[lo:hi]` as
+        rules, `inf`/`sup`, `lib/bytes`' codecs, the linear result (`adopt`: a move, or a copy),
+        `out` on a set of tables, `os.ReadAt`. Two soundness holes closed: a rule's index past its end,
+        and a buffer a host filled read as its zero fill. Not built: two segments lent together, a
+        segment moved out, products of codecs; the LLVM attributes with `ir/llvm`; P4–P5 with 6d.
      4. **Vectors**: a representation of a static-length table, not a sort.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
      6. **Relations**: only deterministic refinements offered.
@@ -219,9 +220,9 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **2,753 of 2,803** integer operations proven inside their target's word, the 50 left
+- **Provability**: **4,008 of 4,060** integer operations proven inside their target's word, the 52 left
   mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
-  **396 of 419** loops proven to terminate (size-change termination). Each
+  **476 of 499** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared

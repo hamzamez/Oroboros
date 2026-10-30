@@ -306,9 +306,12 @@
 == examples/io/jsonfmt.oro windows refused
    gen: examples/io/jsonfmt.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/io/roundtrip.oro go emitted 7b52567344d93d6dd796f4b438ab9064cfcb006c929b43018f5ba7ca3812e477
-== examples/io/roundtrip.oro js emitted cf9cd07e8a8f6185097710dbce88bd581857ae5dcfc6c8108def2d9076e69b14
-== examples/io/roundtrip.oro java emitted 79c5d2843489c18f503f12e373f40c037015c9308268906a973dec0a29ec800f
+== examples/io/roundtrip.oro go emitted 6bac65e06db7a15d3e39d210dbd2f238999fb31ea986a5bbff80596cdc06e565
+   note: gen-main: 4 of 4 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/io/roundtrip.oro js emitted 68da44043bb587fda190dad9069c23af84871cfc5faae157af826df3ca52de3b
+   note: gen-main: 4 of 4 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/io/roundtrip.oro java emitted 684eab54733c432238e8d818181fc4c639b8bd5d689e008d975d8abcedfa726e
+   note: gen-main: 4 of 4 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro windows refused
    gen: examples/io/roundtrip.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
@@ -832,6 +835,20 @@
 == examples/os/wc.oro windows refused
    gen: examples/os/wc.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.
+== examples/pe/pe.oro go emitted 0bfe6a31ae0e690456b1aba81fc95747fca7d74c2502f7d1721b2448020ffd71
+   note: gen-main: 14 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 340 of 340 integer operations bounded; 20 of 20 loop(s) proven terminating
+   note: gen-main: 44 division(s) became a shift or a mask
+== examples/pe/pe.oro js emitted 63435f729f4c3302282787cd91ce4165613eb01d1550dc4fd35d6fcdbfce2290
+   note: gen-main: 364 of 364 integer operations bounded; 20 of 20 loop(s) proven terminating
+   note: gen-main: 12 division(s) became a shift or a mask
+== examples/pe/pe.oro java emitted bda877fc599bd3ab77cb794a2fe2f8d68a91d1c41234cf596ce771fdd41c21b3
+   note: gen-main: 14 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 340 of 340 integer operations bounded; 20 of 20 loop(s) proven terminating
+   note: gen-main: 44 division(s) became a shift or a mask
+== examples/pe/pe.oro windows refused
+   gen: examples/pe/pe.oro: in check: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
@@ -1042,6 +1059,16 @@
    note: gen-run: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
 == gauntlet/differential/cases/bytes-table.oro windows emitted 3e32e1c00866e98cc0a1c5845c6f9884f6e36bf452a6b875e227df7e77c01981
    note: gen-run: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
+== gauntlet/differential/cases/codecs.oro go emitted 69890e2dc089eaa48522c0925532b985a9b55399116dd760b6f575bb58d116d7
+   note: gen-run: 5 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 47 of 47 integer operations bounded; 5 of 5 loop(s) proven terminating
+== gauntlet/differential/cases/codecs.oro js emitted a56106162ce3e650145abab7f3ef9f49f595695f41990a438f2b874981d9c72d
+   note: gen-run: 58 of 58 integer operations bounded; 5 of 5 loop(s) proven terminating
+== gauntlet/differential/cases/codecs.oro java emitted 3b3d5eabd76c9258e9f1a58f3b5a079ab2d1e63e64fb06f0516f7fc5a036d054
+   note: gen-run: 5 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 47 of 47 integer operations bounded; 5 of 5 loop(s) proven terminating
+== gauntlet/differential/cases/codecs.oro windows emitted f7ff04de3512877b07435754a1cb025855e833527467622b011acdb451339264
+   note: gen-run: 47 of 49 integer operations bounded; 5 of 5 loop(s) proven terminating
 == gauntlet/differential/cases/expect.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736
@@ -1291,6 +1318,10 @@
 == gauntlet/differential/cases/word-wide.oro java emitted 31ef65acaf74f666771af54aa8dbd8468fe35f64c0458c1d9200c5ca9ac95c57
 == gauntlet/differential/cases/word-wide.oro windows refused
    gen: gauntlet/differential/cases/word-wide.oro: in run: big_str is not bound — it is not a parameter, not a definition, and not a primitive on this target
+== lib/bytes.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== lib/bytes.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== lib/bytes.oro java emitted 2beb2aced2345d8c0617835b0780f247562972b67814ebd2bfe23dfcc8a7d36e
+== lib/bytes.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == lib/io/go.oro go refused
    gen: lib\io\go.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/go.oro js refused

@@ -1,0 +1,63 @@
+// CODECS, SEGMENTS AND THE LINEAR RESULT AT RUN TIME (ADR 0084): lib/bytes'
+// decodings of a table filled in a loop, so nothing is folded when compiling.
+//
+// - u16 and u32 little-endian, u16 big-endian, s16 sign-extended, and u64,
+//   which JavaScript holds as two 32-bit digits (a decode written with | there
+//   lost the bits past 2^32; the decoders sum their digits);
+// - a partial codec, 0..9, through `check`;
+// - a segment, d[4:12], summed by a definition;
+// - two copies of one table by bytes.copy, a linear result: the first is
+//   written by `put`, and the second must not see it (generativity: two calls,
+//   two regions).
+//
+// The expected values are Python's.
+//
+// skip: windows — MASM has no unsigned word for the 64-bit codec; ir/llvm will
+//
+// inputs: 0 1 7 100 255
+// expect: 119043919 2795517007 2025885467 3008889943 1619046075
+use bytes
+
+u16 = bytes.codec(0..2^16-1, bytes.'le)
+b16 = bytes.codec(0..2^16-1, bytes.'be)
+s16 = bytes.codec(-2^15..2^15-1, bytes.'le)
+u32 = bytes.codec(0..2^32-1, bytes.'le)
+u64 = bytes.codec(0..2^64-1, bytes.'le)
+d9 = bytes.codec(0..9, bytes.'le)
+
+fn fill(n ∈ 0..255) (Array(0..255)) {
+    var b := array { 0 : _ ∈ 0..15 }
+    loop k = 0 {
+        k < 16 -> { b[k] := (n * 31 + k * 7 + k * k % 13) mod 256; again(k + 1) }
+        else -> b
+    }
+}
+
+fn sum(s ∈ Array(0..255)) (0..2^16) {
+    loop i = 0, t = 0 {
+        i < len(s) && i < 256 -> again(i + 1, t + s[i])
+        else -> t
+    }
+}
+
+fn copies(d ∈ Array(0..255)) (0..2^32-1) {
+    var a := bytes.copy(d)
+    var c := bytes.copy(d)
+    case {
+        len(d) < 4 -> 0
+        else -> {
+            bytes.put(a, 0, u32, 0xDEADBEEF)
+            a[0] + a[3] * 256 + c[0] * 65536
+        }
+    }
+}
+
+export fn run(n ∈ 0..255) (0..2^32-1) {
+    d = fill(n)
+    h = bytes.get(d, 0, u16) ⊕ bytes.get(d, 1, b16) ⊕ (bytes.get(d, 2, s16) + 2^15) ⊕ bytes.get(d, 4, u32)
+    q = bytes.get(d, 8, u64)
+    k = case bytes.check(d, 3, d9) { 'some(v) -> v; 'none -> 77 }
+    s = sum(d[4:12])
+    r = copies(d)
+    (h ⊕ (q >> 32) ⊕ (q mod 2^32) ⊕ k ⊕ s ⊕ r) mod 2^32
+}

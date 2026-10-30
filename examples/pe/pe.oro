@@ -15,7 +15,8 @@
 //
 // THE CHECKSUM is the one's-complement sum of the file's 16-bit words, the
 // checksum field itself read as zero, folded to 16 bits, plus the file's length:
-// RFC 1071's sum, which CheckSumMappedFile computes. A fold is s ↦ (s & 0xFFFF) +
+// RFC 1071's sum, which CheckSumMappedFile computes. An odd last byte is the
+// low byte of a last word, and the sum ends there. A fold is s ↦ (s & 0xFFFF) +
 // (s >> 16), the reduction mod 2¹⁶ − 1 that keeps the carries.
 use os
 use io
@@ -53,15 +54,19 @@ fn name(s ∈ Array(0..255)) (String) {
 fn fold(x ∈ 0..2^20) (0..2^17) { (x & 0xFFFF) + (x >> 16) }
 
 // The checksum of src, whose checksum field is at `at`. Every offset in the
-// format is a 32-bit field plus a header's length, so below 2^34.
+// format is a 32-bit field plus a header's length, so below 2^34. The sum runs
+// over the w = ⌊len/2⌋ words, word j at byte 2j, so 2j + 2 ≤ 2⌊len/2⌋ ≤ len
+// reads inside src; the field's two words are read as zero; an odd last byte
+// is the low byte of one more word.
 fn checksum(src ∈ Array(0..255), at ∈ 0..2^34) (0..2^32-1) {
-    s = loop i = 0, sum = 0 {
-        i + 1 < len(src) && (i == at || i == at + 2) -> again(i + 2, sum)
-        i + 1 < len(src) -> again(i + 2, fold(sum + bytes.get(src, i, u16)))
-        i < len(src) -> again(i + 2, fold(sum + src[i]))
-        else -> sum
+    w = len(src) / 2
+    s = loop j = 0, sum = 0 {
+        j >= w -> sum
+        2 * j == at || 2 * j == at + 2 -> again(j + 1, sum)
+        else -> again(j + 1, fold(sum + bytes.get(src, 2 * j, u16)))
     }
-    (fold(s) + len(src)) mod 2^32
+    t = if len(src) % 2 == 1 { fold(s + src[len(src) - 1]) } else { s }
+    (fold(t) + len(src)) mod 2^32
 }
 
 fn sections(h ∈ Array(0..255), s ∈ 0..2^34, n ∈ 0..2^16-1) where s + 40 * n <= len(h) {

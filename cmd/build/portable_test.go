@@ -79,7 +79,7 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 
 	// The last line is the kinds' claim: a missing path is not-found on every
 	// host (spec/errors.md §6).
-	const want = "hi €\nok\n7\nnot-found\n"
+	const want = "hi €\nok\n7\n4 226\nnot-found\n"
 	hosts := []struct {
 		target, artifact string
 		tools            []string

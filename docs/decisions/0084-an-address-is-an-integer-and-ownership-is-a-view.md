@@ -1,7 +1,7 @@
 # 0084 — An address is an integer, and ownership is a view
 
 Date: 2026-10-30
-Status: Accepted; not built
+Status: Accepted; the portable part built ([views-2026-10-30](../../gauntlet/results/views-2026-10-30.md)); the LLVM part with ir/llvm, P4–P5 with 6d
 
 ## Context
 
@@ -183,7 +183,10 @@ linear result and the codecs.
 - **Amends**: ADR 0048 (`out` takes a set of tables), ADR 0074 (a segment is a view anywhere), ADR 0018,
   0052 and 0070 (a definition's linear result), ADR 0083 (a codec is a representation over bytes).
   pointers-research.md's P1 is replaced by P1′.
-- **Built on every target, independent of `ir/llvm`**:
+- **Built on every target, independent of `ir/llvm`** ([views-2026-10-30](../../gauntlet/results/views-2026-10-30.md),
+  program first: `examples/pe`, equal to Go's `debug/pe` and Windows' checksum on Go, the JVM and
+  JavaScript, every operation and loop proven). Not built of it: two segments of one buffer lent
+  together, a segment moved out, a product of codecs:
   - separation (ADR 0061), with `len` in its formula;
   - `out` on a set of tables;
   - the linear result with its two rules;

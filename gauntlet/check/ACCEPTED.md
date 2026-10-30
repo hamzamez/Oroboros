@@ -1906,3 +1906,34 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/pairs.oro java`
 - new source — `gauntlet/differential/cases/pairs.oro js`
 - new source — `gauntlet/differential/cases/pairs.oro windows`
+
+## 2026-10-30 — on 33890a2, with uncommitted changes
+
+**Reason:** ADR 0084's portable part (views-2026-10-30): new sources examples/pe, lib/bytes, the codecs case; roundtrip.oro calls os.ReadAt. examples/os/wc.oro compiles about 2x slower on go: a rule's index now carries its domain (a soundness hole closed: an index past a rule's end was accepted), and wc's four rules of symbolic length, i < len(av) - 2, are relations only the refinement layer decides, whose walk wc did not need before. Literal lengths are ranges and cost nothing. For hamza's review
+
+620 runs: 352 emitted, 268 refused; 4008 of 4060 integer operations bounded, 476 of 499 loops proven. compiler pass, differential pass, tooling skip.
+
+18 change(s):
+
+- emitted text changed — `examples/io/roundtrip.oro go`
+- compiler output changed — `examples/io/roundtrip.oro go`
+- emitted text changed — `examples/io/roundtrip.oro java`
+- compiler output changed — `examples/io/roundtrip.oro java`
+- emitted text changed — `examples/io/roundtrip.oro js`
+- compiler output changed — `examples/io/roundtrip.oro js`
+- new source — `examples/pe/pe.oro go`
+- new source — `examples/pe/pe.oro java`
+- new source — `examples/pe/pe.oro js`
+- new source — `examples/pe/pe.oro windows`
+- new source — `gauntlet/differential/cases/codecs.oro go`
+- new source — `gauntlet/differential/cases/codecs.oro java`
+- new source — `gauntlet/differential/cases/codecs.oro js`
+- new source — `gauntlet/differential/cases/codecs.oro windows`
+- new source — `lib/bytes.oro go`
+- new source — `lib/bytes.oro java`
+- new source — `lib/bytes.oro js`
+- new source — `lib/bytes.oro windows`
+
+1 compile(s) accepted SLOWER — compile time 1.00x the baseline (median of 11 compiles over 300 ms); a second sweep kept 1 of 1 suspect(s); paired serially against the baseline's binary (273f3f8), 1 confirmed:
+
+- `examples/os/wc.oro go` 1578 → 3468 ms, 2.20x; paired 812 → 1484 ms, 1.83x

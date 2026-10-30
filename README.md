@@ -534,9 +534,12 @@ says why the next is what it is.
         one register, and GPUs, are a table the hardware computes all at once; the compiler does it
         wherever the answer cannot change, which is every integer sum but not a floating-point one;
         built with the LLVM backend;
-     5. float formats other than 64-bit;
-     6. operations LLVM allows to give more than one answer;
-     7. rounding modes;
+     5.–7. float formats other than 64-bit, operations LLVM allows to give more than one answer, and
+        rounding modes, **researched together 2026-10-30** ([floats-research.md](docs/floats-research.md)),
+        with decimals and how `0.1` is read; waiting on hamza's decisions. The proposal:
+        - floating point becomes the language's, one meaning on every target;
+        - the small formats machine learning uses (FP8, FP4) are exact on every target;
+        - decimals are numbers like integers, so `0.1 + 0.2 == 0.3`;
    - then the LLVM IR backend itself, until it builds everything the MASM one does, which then retires;
    - then what TinyRetroPad needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.

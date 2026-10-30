@@ -166,9 +166,20 @@ checked. When a package hits a wall that needs language work, stop, research it,
         and Omega-independent stores; a float fold keeps its order (measured: reassociated, 2× faster
         and a different number), its reordering a relation for wall 6; explicit SIMD only where
         measured; GPUs a later target layer. Not built: its consumer is `ir/llvm`.
-     5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
-     6. **Relations**: only deterministic refinements offered.
-     7. **The float environment**: ∘_r of a static rounding mode.
+     5–7. **Float formats, relations, the float environment, with decimals and literals**, researched
+        as one ([floats-research.md](docs/floats-research.md)), **with hamza** (F1–F11). Floats become
+        the language's:
+        - a float is a real number, and its operations are binary64's correctly rounded ones (Kulisch's
+          semimorphism), one sort;
+        - F32, F16, BF16, FP8, FP6 and FP4 are sets within it, each with its rounding r_F;
+        - Figueroa's theorem is the floats' fusion, one operation at a time (measured: 0 disagreements
+          in 2·10⁷);
+        - overflow, NaN and ÷0 are obligations;
+        - only deterministic operations: correctly rounded transcendentals, measured Go's `pow` 18,212
+          ulps off;
+        - a rounding mode is a static parameter, with no environment;
+        - decimals are ℤ[1/10], the integer sort enlarged, their representation the facts';
+        - a literal is exact, rounded once where it meets the float sort.
      Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
      widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
      rung above as native iN, measured against the limbs.

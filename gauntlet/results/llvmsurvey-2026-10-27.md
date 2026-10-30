@@ -207,6 +207,8 @@ not IEEE), and no target of ours has them: MSVC's `long double` is binary64.
 **Recommended:** F32, F16 and BF16 as subsets of F64 with their rounding functions, ρ printing `float`
 where the fact allows; the wider three not offered until a program asks.
 
+*Researched since: [floats-research.md](../../docs/floats-research.md) §2.5, which confirms (a) from ADR 0049 and ADR 0082: a format is a set, its rounding the floats' residue map, and Figueroa's theorem their fusion, one operation at a time.*
+
 ### 4.4 Relations
 
 **What.** Ten intrinsics specify a set of results rather than one. For `fmuladd`, "Fusion is not
@@ -224,6 +226,8 @@ by the backend's build. Each relation has a deterministic refinement the languag
 Tier 2, its declared result the hull of R(x), reported like portability. **Recommended: (a)**, and a
 `bitcast` of an F64 to its bits is guarded `where x is not NaN` (or Tier 2).
 
+*Researched since: [floats-research.md](../../docs/floats-research.md) §6, which finds three relations a program meets (a reordered fold, a transcendental, stochastic rounding) and a function for each.*
+
 ### 4.5 The float environment
 
 **What.** The 49 constrained intrinsics; `get`/`set.rounding`, `fpenv`, `fpmode`; AVX-512's rounding
@@ -240,6 +244,8 @@ throughout. The status flags are a second piece of state that every operation wr
 with `set.rounding` inside a `strictfp` function. The dynamic mode and the flags are not offered, since
 they would make every float operation impure. (b) Nothing until a program asks. **Recommended: (a) as
 the design, (b) as the schedule.** No program asks.
+
+*Researched since: [floats-research.md](../../docs/floats-research.md) §7, which realizes ∘_r on every target by error-free transformations, not by `set.rounding`.*
 
 ### 4.6 Pointers as values
 

@@ -1,0 +1,625 @@
+# Research: floats in the language, their formats, their relations, their environment, and decimals
+
+2026-10-30. **For hamza's decision**: F1–F11 in §11. Walls 5, 6 and 7 of the seven
+[llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (float formats, relations,
+the float environment), the 10-24 plan's 6b steps 5–7, researched as one because they share one
+algebra; and the question of decimals. hamza: "until now, floats are still using the target ops. not the
+language. it is time to promote floats to the language the same way we did with integers … in ai these
+days we use fp4, fp8 .. so include those … should we introduce decimals in the language same as Z. or
+keep it a library? should there be a difference between a decimal literal and a float?" The
+measurements in §10 were taken on this machine: LLVM 23.1.4, Go 1.27, JDK 17, Node 26.
+
+**The short version:**
+- **Today a float is each target's.**
+  - A program writes ``go.`f+` ``, a host's operation.
+  - `F64` is a host set per target, and `sqrt` is the only float function classified (Tier 1).
+  - The hosts disagree in measurable ways (§10): Go fuses `x*y + z` into one rounding on arm64 (Android)
+    and amd64 v3; the three print the same number differently; and their `sin` and `pow` differ in the
+    last bits. Go's `pow` is off by up to **18,212 ulps** where Java's is correctly rounded.
+- **The algebra that makes floats the language's** is IEEE 754's own, read as Kulisch's
+  **semimorphism**:
+  - a format F is a finite set of dyadic rationals;
+  - a rounding ρ_F : ℝ → F is a monotone retraction;
+  - each operation is the exact real operation followed by the rounding, x ⊞ y = ρ_F(x + y).
+
+  So **a float is a real number**, as an `Int` is an integer (ADR 0026), and its operations are defined
+  once, independently of any target, deterministic and portable.
+- **One float sort, binary64's; every narrower format a set within it, with its rounding a map**:
+  - F32, F16, BF16, FP8 (E4M3, E5M2), FP6 and FP4 (E2M1) are subsets of F64;
+  - `r32(x + y)` is binary32's sum, as `(x + y) mod 2³²` is a 32-bit word's (ADR 0082);
+  - a set never changes what `+` computes (ADR 0049).
+- **Figueroa's double-rounding theorem (1995) is the floats' fusion**: +, −, ×, ÷ and √ computed in
+  binary64 and rounded once give the correctly rounded result of any format with 2p + 2 ≤ 53. So
+  `r32(x + y)` is printed as one native binary32 operation, exactly. Measured: **0 disagreements in 20
+  million** binary32 triples; fma, which the theorem does not cover, disagrees 22 times. A rounding is
+  not a homomorphism, so unlike `mod 2ⁿ` it fuses one operation at a time. Every format is Tier 1 on
+  every target: native where the hardware has it, binary64 and a rounding elsewhere. The microscaling block formats (MXFP8, MXFP4, NVFP4) are a representation of a table
+  (ADR 0085) with a shared scale.
+- **Exceptional values are obligations, as overflow is for integers** (ADR 0019): an overflow to ∞,
+  an invalid operation (NaN) and a division by zero are proven absent, checked, or consented to by
+  claiming the extended set. Proving it is a float interval analysis on the IR (Miné 2004; Astrée).
+- **Wall 6, relations**: the language's float operations are functions. Three kinds of relation
+  appear, each with its answer:
+  - **a reordered fold**: ADR 0085's, recorded;
+  - **a transcendental function**: not correctly rounded by the hosts, so the language gives its own
+    correctly rounded ones (CORE-MATH), or a host's is Tier 2 with its accuracy as a claim;
+  - **stochastic rounding** (training in FP8): made a function by giving it its random bits as an
+    argument.
+- **Wall 7, the environment**: no dynamic rounding mode and no observable flags. A rounding mode is a
+  static parameter of an operation, ∘_r, realized natively or by error-free transformations.
+- **Decimals: in the language, like ℤ.** The decimals are the ring ℤ[1/10] = {m·10⁻ᵏ}: +, − and · are
+  exact there, so a decimal is a number, and only division needs a rounding, which is stated. The facts
+  choose its representation as they choose an integer's (ADR 0079): a scaled machine word when the scale
+  and magnitude are bounded (measured 22× faster than `BigDecimal`), the host's big decimal otherwise.
+- **Literals: a literal is an exact number, and the sort it meets decides it.**
+  - `0.1` is the decimal 1/10.
+  - Where it meets the float sort, it is rounded once, to nearest, at compile time, identically on
+    every target.
+  - In the exact sort it stays the exact decimal, so `0.1 + 0.2 == 0.3` holds.
+  - A decimal or integer *value* becomes a float only by an explicit rounding.
+
+  Go already reads literals this way, as exact constants; §10 shows the consequence.
+
+---
+
+## 1. The issue
+
+### 1.1 What a program writes today
+
+```
+// examples/native/dot-go.oro
+fn sum(v) {
+    loop acc = 0.0, i = 0 {
+        go.`>=`(i, vlen(v)) -> acc
+        else -> again(go.`f+`(acc, vindex(v, i)), go.`+`(i, 1))
+    }
+}
+```
+
+A float operation is a target's primitive, ``go.`f+` ``, ``java.`f+` ``, and `F64` is declared by each
+target (`set F64 = host "float64"`). So a program using floats names a host and is not portable, and
+the language says nothing about what the operation computes. primitives.md classifies `sqrt` as Tier 1
+("IEEE-754 requires correct rounding") and lists `sin`, `exp`, `pow` and `log` as absent because they are
+not. ADR 0009 fixed one thing: compile-time float arithmetic is binary64, as at run time, because Go's
+exact constant folding made `0.1 + 0.2` print `0.3` folded and `0.30000000000000004` at run time.
+
+### 1.2 What the targets offer
+
+| | Go | the JVM / Android | the browser (JavaScript) | LLVM (Windows) |
+|---|---|---|---|---|
+| binary64 | `float64` | `double` | `number`, the only numeric type | `double` |
+| binary32 | `float32` | `float` | `Math.fround` after each binary64 operation | `float` |
+| binary16 | none | none in JDK 17 (`Float.float16ToFloat` from JDK 20) | `Math.f16round`, `Float16Array` (Node 26: present) | `half` |
+| bfloat16 | none | none | none | `bfloat` |
+| FP8, FP6, FP4 | none | none | none | **no IR type**; LLVM's APFloat knows 12 formats of 8 bits or fewer (E4M3, E4M3FN, E4M3FNUZ, E4M3B11FNUZ, E5M2, E5M2FNUZ, E3M4, E2M3, E3M2, E2M1, E8M0FNU, TF32); operations only as target intrinsics on bytes (97 for FP8 on AArch64) |
+| binary128 | none | none | none | `fp128` (software on x86) |
+| fused multiply-add | `math.FMA`; **the compiler may fuse `x*y + z` by itself** | `Math.fma`; never fused implicitly (strict since JDK 17) | none (no fma) | `llvm.fma`; fused only under `contract` |
+| rounding modes | none (`math/big.Float` has them) | none (`BigDecimal` has them) | none | constrained intrinsics; x86's MXCSR, AVX-512's embedded rounding |
+| decimal | none (`math/big.Rat` is exact rationals) | `BigDecimal` | none (BigInt only) | none |
+
+### 1.3 What the ML formats are
+
+| format | sign / exponent / mantissa bits | precision p | largest finite | ∞, NaN | where |
+|---|---|---|---:|---|---|
+| binary64 | 1/11/52 | 53 | ≈1.8·10³⁰⁸ | yes | everywhere |
+| binary32 | 1/8/23 | 24 | ≈3.4·10³⁸ | yes | everywhere |
+| TF32 | 1/8/10 | 11 | ≈3.4·10³⁸ | yes | NVIDIA tensor cores (a computation format) |
+| binary16 | 1/5/10 | 11 | 65504 | yes | GPUs, ARM, AVX-512 FP16 |
+| bfloat16 | 1/8/7 | 8 | ≈3.4·10³⁸ | yes | training; Google TPUs, AMX, ARM (Kalamkar et al. 2019) |
+| FP8 E4M3 (OCP "FN") | 1/4/3 | 4 | 448 | no ∞; one NaN pattern | training and inference (Micikevicius et al. 2022) |
+| FP8 E5M2 | 1/5/2 | 3 | 57344 | yes | gradients; it is binary16 with the low byte cut |
+| FP6 E2M3, E3M2 | 1/2/3, 1/3/2 | 4, 3 | 7.5, 28 | none | OCP microscaling |
+| FP4 E2M1 | 1/2/1 | 2 | 6 | none | inference; its 15 values are 0, ±0.5, ±1, ±1.5, ±2, ±3, ±4, ±6 |
+| E8M0 | 0/8/0 | — | 2¹²⁷ | one NaN | a block's shared scale, a power of two |
+
+**Microscaling (MX)** (OCP MX specification v1.0, 2023; Rouhani et al. 2023): a block of 32 elements in
+FP8, FP6, FP4 or INT8 shares one E8M0 scale, so element i is 2^s · cᵢ. NVIDIA's **NVFP4** (Blackwell)
+uses E2M1 elements with an E4M3 scale per 16 and a binary32 scale per tensor. AMD's and Graphcore's
+**FNUZ** variants have no negative zero and use the pattern 0x80 for NaN.
+
+### 1.4 What decimals are asked for
+
+Money, quantities written in decimal (0.1 kg), protocols that carry decimal strings (JSON numbers),
+and the literal `0.1` itself, which no binary format holds.
+
+---
+
+## 2. The algebra of a binary format
+
+### 2.1 A format is a finite set of dyadic rationals
+
+A binary format with precision p and exponent range [e_min, e_max] is
+
+```
+F(p, e_min, e_max) = { (−1)ˢ · m · 2^(e − p + 1) : s ∈ {0, 1}, m ∈ [0, 2ᵖ), e ∈ [e_min, e_max],
+                        m ≥ 2^(p−1) unless e = e_min }                     (the subnormals at e_min)
+```
+
+Every finite float is a **dyadic rational**, an element of ℤ[1/2] = {m·2ᵏ}. So F ⊂ ℤ[1/2] ⊂ ℚ ⊂ ℝ,
+and **a float is a number**: 0.5 is one half, 0.1₆₄ is 3602879701896397/2⁵⁵.
+
+IEEE 754 adds four special data:
+- **±∞**, the overflow's results;
+- **NaN**, with a sign and payload bits, the invalid operation's result;
+- **−0**, a second zero that is distinguishable by 1/x, `copysign` and `atan2`.
+
+They are not real numbers, and §4 decides what the language does with them.
+
+### 2.2 A rounding is a monotone retraction, and an operation is a semimorphism
+
+A **rounding** ρ_F : ℝ → F̄ (F extended by ±∞) is:
+- **monotone**: x ≤ y ⇒ ρ(x) ≤ ρ(y);
+- **a projection**: ρ(f) = f for f ∈ F, so ρ ∘ ρ = ρ, a retraction of ℝ onto F;
+- for round-to-nearest-even, **odd**: ρ(−x) = −ρ(x).
+
+IEEE 754 §4.3 requires +, −, ×, ÷, √, fma and conversions to be **correctly rounded**:
+
+```
+x ⊞ y = ρ_F(x + y)        x ⊟ y = ρ_F(x − y)        x ⊠ y = ρ_F(x · y)
+x ⊘ y = ρ_F(x / y)        √̄x = ρ_F(√x)               fma(x, y, z) = ρ_F(x·y + z)
+```
+
+This is Kulisch's **semimorphism** (Kulisch and Miranker, *Computer Arithmetic in Theory and Practice*,
+1981): the operation on F is the operation on ℝ composed with a monotone, odd projection. **It defines
+each operation's result uniquely, independently of any machine.** So binary64 arithmetic is as portable
+as ℤ's: the same inputs give the same bits on every conforming target, unless something rounds twice,
+fuses, or substitutes a different operation (§5).
+
+### 2.3 What the semimorphism keeps and loses
+
+Kept:
+- **commutativity** of ⊞ and ⊠;
+- **monotonicity**: x ≤ y ⇒ x ⊞ z ≤ y ⊞ z;
+- **exactness where the result is in F**: x ⊞ y = x + y when x + y ∈ F, so sums of small integers in
+  F64 are exact below 2⁵³;
+- **the error bound** |ρ(x) − x| ≤ u·|x| with u = 2⁻ᵖ, for x in the normal range (Higham, *Accuracy and
+  Stability of Numerical Algorithms*, 2002).
+
+Lost:
+- **associativity**: (1 ⊞ 2⁻⁵³) ⊞ 2⁻⁵³ = 1, but 1 ⊞ (2⁻⁵³ ⊞ 2⁻⁵³) = 1 + 2⁻⁵²;
+- **distributivity**;
+- **cancellation**: x ⊞ y = x ⊞ z does not give y = z.
+
+So (F, ⊞) is a **commutative, non-associative magma**. That is exactly why ADR 0085 keeps a float fold's
+order.
+
+**Exactness theorems the language can use as facts:**
+- **Sterbenz** (1974): if y/2 ≤ x ≤ 2y then x ⊟ y = x − y exactly.
+- **Error-free transformations**: s = a ⊞ b, b′ = s ⊟ a, a′ = s ⊟ b′ and e = (a ⊟ a′) ⊞ (b ⊟ b′) give
+  a + b = s + e exactly, e ∈ F (Møller 1965; Knuth's TwoSum, TAOCP vol. 2; with |a| ≥ |b|, Dekker's
+  Fast2Sum e = b ⊟ (s ⊟ a) in three operations). With fma, p = a ⊠ b and e = fma(a, b, −p) give
+  a · b = p + e exactly (Dekker 1971). These make exact and directed computations portable (§7, §8).
+  IEEE 754-2019 names them (`augmentedAddition`, `augmentedMultiplication`).
+
+### 2.4 Formats are ordered by inclusion, and narrower formats live inside binary64
+
+F(p, e_min, e_max) ⊆ F(p′, e′_min, e′_max) when p ≤ p′ and the exponent range, subnormals included, lies
+inside. So:
+
+```
+FP4 E2M1 ⊂ FP6 E2M3 ⊂ FP8 E4M3 ⊂ binary16 ⊂ binary32 ⊂ binary64 ⊂ binary128
+FP8 E5M2 ⊂ binary16             bfloat16 ⊂ binary32          (bfloat16 ⊄ binary16, binary16 ⊄ bfloat16)
+```
+
+This is a partial order, a lattice under join: bfloat16 ∨ binary16 = binary32, the least format holding
+both.
+
+**Figueroa's theorem** ("When is double rounding innocuous?", SIGNUM Newsletter 1995): for x, y in a
+format of precision p, computing +, −, ×, ÷ or √ in a format of precision p′ ≥ 2p + 2 and rounding the
+result to p gives the correctly rounded p-result:
+
+```
+ρ_p(ρ_p′(x ∘ y)) = ρ_p(x ∘ y)        when p′ ≥ 2p + 2,  ∘ ∈ {+, −, ×, ÷, √}
+```
+
+For binary64, p′ = 53, so every format with p ≤ 25 qualifies: binary32 (24), binary16 (11), bfloat16
+(8), TF32 (11), FP8 (4, 3), FP6, FP4. **So each of them is exactly realizable on any target with
+binary64 and a rounding function**: JavaScript's `Math.fround` is ρ₂₄ and `Math.f16round` ρ₁₁. Measured
+(§10): 0 disagreements in 20 million binary32 triples. The theorem does **not** cover fma: its exact
+product needs 2p bits before the addition, and 22 of the same 20 million triples disagreed. A narrow
+fma is computed exactly by an error-free transformation, or natively.
+
+### 2.5 A format is a set and its rounding a map; the operations are binary64's
+
+Take x, y ∈ binary32. There are two readings of `x + y`:
+
+- **(a) A format is a sort.** `x + y` is ⊞₃₂, rounded to binary32, and an operation's format is the join
+  of its operands' formats (binary32 ∨ binary64 = binary64). This is C's, Java's and Mojo's reading.
+- **(b) A format is a set, and its rounding a function.** F32 ⊂ F64, so x and y are binary64 values
+  that happen to lie in F32. `x + y` is ⊞₆₄, and binary32's sum is written `r32(x + y)`, with
+  r32 = ρ₂₄ the rounding the program applies.
+
+**Two decisions already made settle it, for (b):**
+- **ADR 0049: a claim never changes an answer.** Under (a), declaring the same value x ∈ F32 rather than
+  x ∈ F64 changes what `x + y` computes. A set would print.
+- **ADR 0082: wrapping is the residue map `mod 2ⁿ`, applied by the program, not a sort**, and
+  *fusion* computes it in n-bit arithmetic. Rounding is the floats' residue map: ρ_p, a retraction.
+  **Figueroa's theorem is the floats' fusion**: for ∘ ∈ {+, −, ×, ÷, √} on F-operands,
+  ρ_F(x ⊞₆₄ y) = ρ_F(x ∘ y). So `r32(x + y)` is printed as one native binary32 addition, and is
+  exactly that.
+
+**Where floats differ from integers.** `mod 2ⁿ` is a ring homomorphism ℤ → ℤ/2ⁿ, so ADR 0082 fuses a
+whole term. A rounding is no homomorphism, so **fusion is per operation**:
+- `r32(a * b + c)` is binary64's two operations rounded once to binary32. That is more accurate than
+  binary32's two roundings, and not equal to them.
+- A program that wants binary32's arithmetic bit for bit writes the rounding at each operation,
+  `r32(r32(a * b) + c)`. That is the cost of (b): a binary32 program's roundings are visible. A
+  library's `add32` and `mul32` name them.
+
+The same holds for a literal. **Rounding twice is not innocuous on an arbitrary real**, only on an
+operation's result: x = 1 + 2⁻²⁴ + 2⁻⁷⁰ gives ρ₂₄(ρ₅₃(x)) = 1 (ρ₅₃ drops 2⁻⁷⁰, leaving a tie that goes
+to even), while ρ₂₄(x) = 1 + 2⁻²³. So r_F is defined on exact numbers too, and `r32(0.1)` rounds the
+literal's exact value once.
+
+**So there is one float sort**, whose operations are binary64's semimorphism. It is the widest format
+every target has natively, and the only number JavaScript has. Every narrower format is a set within it:
+- each has its rounding r_F : ℝ → F (r32, r16, rbf16, re4m3, re5m2, re2m1, …);
+- a format without ∞ (E4M3, E2M1) has two: r_F, whose overflow is an obligation (§4), and the saturating
+  sat_F, a different, total retraction (OCP's "saturation mode");
+- a value stored in `Array(F32)` must be proven in F32, an obligation, like a byte stored in
+  `Array(0..255)`. Then ρ (ADR 0083) holds it in 4 bytes, by place.
+
+The one thing that would be a sort is an operation *wider* than binary64: binary128's ⊞ is not F64's
+restricted. It would be a second float sort, and it is not offered, since only LLVM has it, in
+software.
+
+This confirms the survey's §4.3 recommendation ("F32 a set of F64, round₃₂(F64), and its operations F64's
+followed by round₃₂"), now with its reasons.
+
+### 2.6 The microscaling formats are representations of tables
+
+An MX block of 32 elements is the pair (s, c) ∈ E8M0 × E^32 with the abstraction function
+d(s, c)ᵢ = 2ˢ · cᵢ. That is ADR 0083's (H, d) for a **table** (ADR 0085: a vector is a representation of a
+table). **Quantization**, choosing s and rounding each element, is a rounding map on tables:
+
+```
+q(x) = (s, ρ_E(x / 2ˢ))        s = ⌊log₂ max |xᵢ|⌋ − e_max(E)         (OCP MX v1.0 §6.3)
+```
+
+It is lossy, a retraction of F^32 onto the block's set, and so it is explicit, a function the program
+calls. A matrix multiply over MX blocks (the hardware's purpose) is a fold whose partial sums the
+hardware keeps in binary32: ADR 0085's fold, with its order fixed by the hardware's specification.
+
+---
+
+## 3. Floats in the language
+
+The construction mirrors ADR 0026, an `Int` is an integer:
+
+| | integers (built) | floats (proposed) |
+|---|---|---|
+| a value is | an element of ℤ | an element of ℤ[1/2], a real number |
+| the language's operations | ℤ's own, exact | binary64's: ρ₆₄ ∘ ℝ's operation, correctly rounded (the semimorphism) |
+| a narrower set | a range, a width's `0..2ⁿ-1`; wrapping the residue map `mod 2ⁿ` (ADR 0082) | a format F ⊂ F64 (F32, F16, BF16, E4M3, …), or a range in one; rounding the retraction r_F |
+| fusion | a term under `mod 2ⁿ` computed in n-bit arithmetic (ADR 0082) | an operation under r_F computed in F, one at a time (Figueroa) |
+| the default | `Int`, unbounded, held in the word when proven | `F64`, binary64 |
+| an operation leaving the set | an obligation: proven inside the word, refused, or `-checked` (ADR 0019) | an obligation: proven finite and valid, refused, or `-checked` (§4) |
+| a representation | chosen by place, invisible (ADR 0083) | chosen by place, invisible: a value proven in F16 held in 2 bytes, in a typed array or a `half` |
+| staging | folds only inside the word (ADR 0009) | folds in binary64, and through each written rounding (ADR 0009, unchanged) |
+
+What the language then owns: `+ − * /`, `sqrt`, `fma`, the comparisons, `min`/`max`, the conversions
+(`round`, `floor`, `ceil`, `trunc` to `Int`; an `Int` or a decimal rounded to a format), `abs`, `neg`.
+It owns them as Σ_L names on every target, as `& | ⊕` became ℤ's (ADR 0082), and each target realizes
+them by spelling. `go.\`f+\`` goes, and `a + b` on two F64s is the language's.
+
+---
+
+## 4. Exceptional values are obligations (wall 5's and 7's half)
+
+Overflow, invalid operation and division by zero are IEEE's three exceptions that produce non-numbers.
+The language treats them as it treats integer overflow:
+
+| exception | when | the language |
+|---|---|---|
+| overflow | \|ρ(x ∘ y)\| exceeds the format's largest finite | an obligation: the result's interval proven inside the format's finite range |
+| invalid | ∞ − ∞, 0 × ∞, 0/0, √(negative), a NaN operand | an obligation on the operands: x ≥ 0 for √, the divisor ≠ 0; no ∞ or NaN exists to produce it |
+| division by zero | x/0, x ≠ 0 | an obligation: divisor ≠ 0, as for integers |
+| underflow | a result below the normal range | **not an exception**: subnormals are values, gradual underflow is IEEE's, and no target flushes to zero |
+| inexact | almost every operation | not observable: rounding is the operation's meaning |
+
+**Deciding them** is an interval analysis over floats with outward rounding: the IR's intervals over ℤ̄,
+extended to F̄. This is the established technique: Miné, "Relational abstract domains for the detection
+of floating-point run-time errors", ESOP 2004; Astrée (Cousot et al., ESOP 2005), which proves the
+absence of float overflow and invalid operations in flight software. A program that cannot be proven is
+refused on that target, or traps under `-checked`, exactly as for integers.
+
+**The consent to IEEE's specials** is a claim of the extended set, `F̄64` (as a claim above the word
+consents to the rung above, ADR 0079): ±∞ and NaN become values, and the program owns their algebra.
+NaN ≠ NaN under IEEE comparison, so the extended set separates **identity** (=, reflexive, NaN equals
+itself) from **IEEE comparison** (`ieee_eq`, which a NaN fails). In F64 without the extension NaN never
+exists, so `==` is the real numbers' equality, reflexive and exact.
+
+**Signed zero**: in ℝ there is one zero. −0 arises in F64 (−1 × 0), and only 1/x, `copysign` and
+`atan2` see it. With division by zero an obligation and the other two not offered on the quotient, F64
+without the extension is the **quotient** that identifies ±0, and printing prints `0`. Measured: Go
+prints `-0`, Java `-0.0`, JavaScript `0`. On `F̄64`, −0 is a value.
+
+---
+
+## 5. Each operation rounds once: what the printers must prevent
+
+The semimorphism holds only if every operation rounds exactly once, to its own format. Three host
+behaviours break it, and each printer must prevent them:
+
+| hazard | where | prevented by |
+|---|---|---|
+| **contraction**: x*y + z fused into one rounding | **Go**: the spec permits it, and the compiler does it on arm64 and on amd64 with GOAMD64=v3 (measured); C with `-ffp-contract=on`; GPUs | Go: `float64(x*y) + z`, the conversion the spec says forces rounding; LLVM: never the `contract` flag; fma only when the program writes `fma` |
+| **excess precision**: intermediates kept wider | x87 (80-bit), C's FLT_EVAL_METHOD 2 | not on our targets; the JVM is strict since JDK 17 (JEP 306); LLVM on x86-64 uses SSE |
+| **flush-to-zero**: subnormals read or written as zero | SSE's FTZ/DAZ bits, GPU defaults (`-ftz`) | never enabled; CUDA's `-ftz=false` when a GPU target exists |
+| **a narrower format through a wider one twice** | JavaScript's binary32 | correct for + − × ÷ √ by Figueroa; fma by an error-free transformation |
+
+Monniaux, "The pitfalls of verifying floating-point computations" (TOPLAS 2008) catalogues these.
+
+---
+
+## 6. Relations (wall 6)
+
+A **relation** R ⊆ X × Y lets an operation give any of several results. IEEE's basic operations are
+functions. The relations that reach programs are three:
+
+**6.1 A reordered fold.** A float sum computed in any bracketing is the set of all bracketings' results.
+ADR 0085 item 3 keeps the program's order. A program that wants speed and accepts any order is asking for
+this relation. The algebraic alternative is exact summation, a function again.
+
+**6.2 A transcendental function.** IEEE 754 *recommends* correct rounding for `exp`, `log`, `sin`,
+`pow` and the rest (§9.2), and no common libm delivers it. So a host's `sin(x)` is one element of the
+set {y : |y − sin x| ≤ k ulp}, and different hosts pick different elements. Measured (§10):
+
+| | sin | pow |
+|---|---|---|
+| Go vs JavaScript, results that differ | 50,420 of 200,000 | 199,993 of 200,000 |
+| largest error against the true value | Go, Java, StrictMath and JavaScript ≤ 1 ulp | **Go 18,212 ulps**; Java's `Math` 0, correctly rounded on these; `StrictMath` and JavaScript ≤ 1 |
+
+The answer is to make the function a function again: **correctly rounded implementations**. They exist
+and are fast now: CRlibm (Daramy-Loirat et al. 2006) and the CORE-MATH project (Sibidanov, Zimmermann and
+Glondu, ARITH 2022), correctly rounded binary32 and binary64 functions within a small factor of glibc's
+speed. Written in the language or ported as a library, they give one answer on every target. A host's
+own function stays available as Tier 2, declared with its accuracy as a claim
+(`ensure abs(r − sin(x)) <= ulp(r)`), and a program choosing it is not portable.
+
+**6.3 Stochastic rounding.** Low-precision training rounds up with probability equal to the fraction
+(Gupta et al., "Deep learning with limited numerical precision", ICML 2015): a relation, random. It
+becomes a function by **taking its randomness as an argument**: SR(x, u) = ⌊x⌋_F if u ≥ frac(x), else
+⌈x⌉_F, with u ∈ [0, 1) supplied. That is the standard construction of a relation as a function of an
+oracle. The program passes the random bits, and the result is reproducible from them.
+
+So **only deterministic operations are offered**, the survey's recommendation for this wall. Each
+relation a program meets has a function form: an exact fold, a correctly rounded function, or an
+explicit random input.
+
+---
+
+## 7. The float environment (wall 7)
+
+C's `<fenv.h>` is global mutable state: the rounding mode, the exception flags and the traps. Each read
+or write is an effect on every float operation after it, which would make every float operation impure
+(ADR 0010). **The algebra replaces the state with a parameter.** Each rounding mode r ∈ {nearest-even,
+toward zero, toward +∞, toward −∞, nearest-away} is a different rounding map ρ_r, and so a different
+operation, ∘_r = ρ_r ∘ ∘. A static mode is part of the operation's name:
+
+```
+lo = add_down(x, y)        hi = add_up(x, y)        // interval arithmetic's outward rounding
+```
+
+Realized natively where the hardware takes a mode per instruction: LLVM's constrained intrinsics with a
+static rounding argument, AVX-512's embedded rounding. Elsewhere it is realized **exactly by error-free
+transformations**. With s = x ⊞ y and e the exact error (TwoSum), the upward sum is s if e ≤ 0 and
+nextUp(s) if e > 0, and the other directions likewise (Rump, Ogita and Oishi, "Accurate floating-point
+summation", SIAM J. Sci. Comput. 2008, and Rump's interval libraries). So every mode is portable, at a few
+operations each.
+
+**The flags** are replaced by §4's obligations: an overflow or invalid operation is proven absent or
+refused, so there is nothing to flag. Inexact is the meaning of rounding. **Traps** are never enabled.
+**FTZ and DAZ** are never set (§5).
+
+---
+
+## 8. Decimals
+
+### 8.1 The algebra: ℤ[1/10], a ring
+
+The decimals are the numbers with a finite decimal expansion:
+
+```
+Dec = ℤ[1/10] = { m · 10⁻ᵏ : m ∈ ℤ, k ∈ ℕ } = ℤ[1/2, 1/5]
+```
+
+the localization of ℤ at 10. It is a **ring**: closed under +, − and ·, with exact results:
+- **sum**: m·10⁻ᵏ + n·10⁻ʲ = (m·10^(j−k) + n)·10⁻ʲ for k ≤ j;
+- **product**: (m·10⁻ᵏ)(n·10⁻ʲ) = mn·10^−(k+j).
+
+**Division is not closed**: 1/3 ∉ Dec. So a decimal division states its result's scale and rounding,
+`div(a, b, scale, mode)`, or leaves Dec for ℚ. And ℤ ⊂ Dec ⊂ ℚ, while Dec ∩ F64 holds only the dyadic
+decimals (0.5, 0.25, 0.375): 0.1 ∈ Dec, 0.1 ∉ F64.
+
+So **a decimal is a number in the same sense an integer is**, and its arithmetic is exact. That is the
+criterion for a language construct (CLAUDE.md, "spec first"): it means one thing independently of any
+target, and every target can realize it. **Decimals belong in the language, like ℤ**, not in a library.
+
+**Not a new sort: a larger set of the same one.** ℤ's +, − and · are Dec's restricted, since ℤ is a
+subring. So the integer sort becomes the exact sort ℤ[1/10]:
+- `Int` stays the set it is, a subset, and `Dec` is the whole sort;
+- every integer program means what it meant, since no operation on integers changes;
+- **`/` and `mod` keep ℤ's meaning**, truncating division and the floor remainder, with "both operands
+  are integers" one more obligation on them;
+- a decimal's division is a different function and is written so, `div(a, b, k, r)`: the quotient
+  rounded by r to k places.
+
+What it costs: the IR's facts gain a **scale**, the least k with v·10ᵏ ∈ ℤ, next to an interval. An
+interval over ℤ̄ becomes one over Dec̄, and representation chooses a word when both the scaled
+interval and k are bounded. A fact of the same kind as a bit length (ADR 0029), computed by the same
+lattice: scale(a ± b) = max, scale(a · b) = sum.
+
+### 8.2 The facts choose its representation, as for integers
+
+A decimal is a pair (m, k), an integer and a scale. When the program's facts bound the scale (money to
+the cent) and the magnitude, it is **an integer in disguise**: m in the machine word, k a compile-time
+constant. Its sum is a word addition and its product a word product with the scales added, each
+proven inside the word as ADR 0019 requires. Unbounded, it is the host's big decimal:
+- Java's `BigDecimal`;
+- Go's `math/big.Int` with a scale;
+- JavaScript's `BigInt` with a scale.
+
+This is ADR 0079's mechanism exactly: a declared set is a claim, and the facts choose the
+representation. Measured (§10): a million two-place amounts summed as scaled `long`s take 0.39 ms, as
+`BigDecimal`s 8.61 ms (22×), both exact; as `double`, 0.52 ms and **wrong in the cents**.
+
+**Decimal floating point** (IEEE 754-2008's decimal64 and decimal128, Cowlishaw's General Decimal
+Arithmetic) is a different thing: a *rounded* decimal format, a semimorphism onto a finite set of
+decimals. It has its uses (fixed-width storage, Java's `MathContext.DECIMAL64`), and it is a format
+like §2's, available later as one. The exact ring is what decimals are, and it comes first.
+
+---
+
+## 9. Literals
+
+**A literal is an exact number.** `3` is an integer, and `0.1`, `1.5e-3` and `6.02e23` are decimals:
+elements of ℤ[1/10], since a decimal numeral with an exponent denotes m·10ᵏ exactly. What it becomes
+depends on the **sort** it meets: the exact numbers (§8.1) or the floats. A sort is the type checker's
+(ADR 0049). A *set* within a sort never changes the value, only what must be proven of it:
+
+| where the literal is | `0.1` means |
+|---|---|
+| the exact sort: no float near it, or a binder `∈ Dec` | 1/10 exactly |
+| the float sort: an operand of a float operation, or a binder `∈ F64` | ρ₆₄(1/10), rounded to nearest-even **once, at compile time**, the same bits on every target |
+| a narrower format's rounding, `r32(0.1)` | ρ₂₄(1/10), rounded once from the exact value (§2.5: never through binary64) |
+| a claim in the float sort, `x ∈ F32 = 0.1` | ρ₆₄(1/10), and the claim is refused: that value is not in F32. Write `r32(0.1)` |
+| a claim in the exact sort, `x ∈ Int = 0.1` | refused, as `x ∈ 0..9 = 12` is; `2.0` is the integer 2 |
+
+So **there is a difference between a decimal literal and a float, and it lies in the context, not the
+spelling**:
+- `x ∈ F64 = 0.1` is the binary64 nearest 1/10.
+- `d = 0.1` is one tenth.
+- `0.1 + 0.2 == 0.3` holds, because the arithmetic is the decimals' and exact.
+- `a + b` with a, b ∈ F64 bound to 0.1 and 0.2 is 0.30000000000000004 on every target and at every
+  stage. ADR 0009 is unchanged, because the rounding happens where the literal meets F64, once,
+  identically at compile time and run time.
+
+**A value crosses into a float only by an explicit rounding**, `to_f64(d)`, because rounding loses
+information, and a decimal or an integer above 2⁵³ is not a float. A literal is the exception: its
+rounding is what writing a decimal where a float is expected means in every language, and the
+compiler does it exactly (Clinger, "How to read floating point numbers accurately", PLDI 1990).
+
+**Why not a separate spelling** (C#'s `0.1m`, a suffix `d`): the number is the same, and the context
+already says which set it lies in. A suffix would be a second spelling of one literal, which
+fit-research counts as a misfit.
+
+**Why not Go's exact constant expressions for floats** (Go folds `0.1 + 0.2` exactly, then rounds once):
+that is the folding ADR 0009 rejected. Here the exactness belongs to the decimals, where the
+arithmetic is exact at run time too, so folding cannot change an answer.
+
+---
+
+## 10. Measured
+
+| what | result |
+|---|---|
+| **Figueroa**: binary32's + − × ÷ √ through binary64, 20,000,000 random triples (finite operands) | **0** disagreements; fma through binary64: **22** |
+| **Contraction**: Go's `x*y + z` | amd64 v1: `MULSD`, `ADDSD`; **amd64 v3: `VFMADD231SD`**; **arm64: `FMADDD`**; `float64(x*y) + z`: never fused |
+| **Printing** the same nine doubles | 1e23: Go `1e+23`, JDK 17 `9.999999999999999E22`, JavaScript `1e+23`; −0: `-0`, `-0.0`, `0`; 2.82879384806159e17: `2.82879384806159e+17`, `2.82879384806159008E17`, `282879384806159000`; ∞: `+Inf`, `Infinity`, `Infinity`; `0.1 + 0.2` as written: Go `0.3` (folded exactly), the others `0.30000000000000004` |
+| **sin, exp, log, pow** on 200,000 arguments: results that differ | Go vs JavaScript: 50,420 / 3,069 / 186 / 199,993; JavaScript vs `StrictMath`: 0 / 0 / 0 / 19,266; Java's `Math` vs `StrictMath`: 6,778 / 1,822 / 1,985 / 19,201 |
+| **Accuracy against a 60-digit reference** (2,062 samples) | sin: every host ≤ 1 ulp (Go not correctly rounded in 518, Java's `Math` in 3); pow(1.0001, y): **Go up to 18,212 ulps** (relative error 2·10⁻¹² at y = 97000), Java's `Math` correctly rounded in all, `StrictMath` and JavaScript ≤ 1 ulp |
+| **Decimals**: 10⁶ two-place amounts summed on the JVM | scaled `long` 0.39 ms exact; `BigDecimal` 8.61 ms exact; `double` 0.52 ms, **4998789092.6099790** for 4998789092.61 |
+| **Formats in the hosts** | Node 26: `Float16Array`, `Math.f16round`; JDK 17: no binary16; Go 1.27: no binary16 or bfloat16; LLVM 23.1.4: IR types `half bfloat float double fp128 x86_fp80`, no 8-bit type, 12 small formats in APFloat, 97 FP8 intrinsics on AArch64 |
+
+---
+
+## 11. Decisions for hamza
+
+**F1. Floats are the language's.** A float is a real number, an element of a format's finite set
+F ⊂ ℤ[1/2]. The language owns +, −, ×, ÷, √, fma, the comparisons, min, max, abs and the conversions,
+each defined as IEEE 754's correctly rounded operation, round-to-nearest-even (Kulisch's semimorphism):
+one meaning, every target, as Σ_L names. The targets realize them by spelling, and `go.\`f+\``
+and its siblings retire. **Recommended.**
+
+**F2. One float sort, binary64's; a narrower format is a set within it, its rounding a function**
+(§2.5; ADR 0049 and ADR 0082 decide it).
+- The sets are binary32, binary16 and bfloat16, and the ML formats: FP8 E4M3 and E5M2 (OCP), FP6 E2M3
+  and E3M2, FP4 E2M1, each with its rounding r_F.
+- A format without ∞ also gets the saturating sat_F.
+- A value stored in a table of a format is proven in it.
+- FNUZ variants are added when a program needs one. Binary128, a wider operation and so a second sort,
+  is not offered.
+- **Why not a format as a sort** (C, Java, Mojo): a claim would change an answer.
+
+**Recommended.**
+
+**F3. Every format is Tier 1, and `r_F(x ∘ y)` is fused into F's native operation** (Figueroa:
+measured, 0 disagreements in 20 million). The rule is ADR 0082's fusion for one operation at a time,
+with a planted fault for a compound term fused.
+- Native where the host has the format: Go's `float32`, Java's `float`, JavaScript's `Math.fround` and
+  `Math.f16round`, LLVM's types and its FP8 intrinsics.
+- Elsewhere: binary64's operation and the rounding function, written once in the language.
+- A narrow fma is computed by an error-free transformation.
+
+**Recommended.**
+
+**F4. The microscaling block formats are representations of tables** (ADR 0083, 0085): a block of 32 (or
+16) elements and a shared scale. Quantization is an explicit rounding of a table, and a block's
+arithmetic is a fold whose order the format's specification fixes. Built when a program needs one.
+**Recommended.**
+
+**F5. Overflow, invalid operations and division by zero are obligations** (ADR 0019 for floats):
+- each is proven absent by a float interval analysis on the IR, refused, or trapped under `-checked`;
+- ±∞ and NaN exist only in the extended set `F̄64`, claimed when a program wants IEEE's specials, with
+  identity (reflexive `=`) separate from IEEE comparison;
+- in F64, ±0 are one zero, and print `0`;
+- subnormals are values.
+
+**Recommended.**
+
+**F6. Each operation rounds once.** No contraction: Go prints `float64(x*y)`, and LLVM never gets
+`contract`. No flush-to-zero and no excess precision. `fma` only where the program writes it.
+**Recommended.**
+
+**F7. Only deterministic operations are offered (wall 6).**
+- A reordered fold stays ADR 0085's, and is offered later as exact summation.
+- Transcendental functions are the language's own and correctly rounded (CORE-MATH, ported), so
+  identical everywhere. A host's is Tier 2, with its accuracy as a claim (measured: Go's `pow` misses
+  by 18,212 ulps).
+- Stochastic rounding takes its random bits as an argument.
+
+**Recommended.**
+
+**F8. No float environment (wall 7).** A rounding mode is a static parameter of an operation
+(`add_up`, `div_toward_zero`): native where the hardware takes one, by error-free transformations
+elsewhere. No observable flags, no traps, no dynamic mode. **Recommended.**
+
+**F9. Decimals are the language's, the ring ℤ[1/10], like ℤ.**
+- Not a new sort: the integer sort becomes the exact sort ℤ[1/10], with `Int` a subset of it.
+- +, − and · are exact. `/` and `mod` keep ℤ's meaning, with integer operands obligated; a decimal's
+  division states its places and rounding, `div(a, b, k, r)`.
+- The IR's facts gain a scale beside the interval.
+- Its representation is chosen by the facts: a scaled machine word when scale and magnitude are
+  bounded, the host's big decimal otherwise (ADR 0079's mechanism; measured 22×).
+- Decimal floating point (decimal64 and decimal128) is a format for later.
+
+**Recommended.**
+
+**F10. A literal is an exact number, and the sort it meets decides it.**
+- `0.1` is 1/10.
+- In the float sort it is rounded once, to nearest-even, at compile time, identically everywhere.
+- Under a narrower rounding (`r32(0.1)`) it is rounded once from its exact value.
+- In the exact sort it is the exact decimal, so `0.1 + 0.2 == 0.3`.
+- A claim never rounds it: `x ∈ F32 = 0.1` is refused.
+- A decimal or integer *value* becomes a float only by an explicit rounding.
+- No separate decimal spelling.
+
+ADR 0009 is unchanged. **Recommended.**
+
+**F11. One rendering and one reading per format**: the shortest string that reads back to the same
+value (Steele and White, PLDI 1990; Ryu, Adams, PLDI 2018; Schubfach, Giulietti 2020), and reading
+correctly rounded (Clinger 1990). The same on every target: measured, the three hosts print the same
+values three ways. It joins printing's P3 (printing-research.md), which owns rendering. **Recommended.**
+
+## 12. Not here
+
+- **ℚ**, exact rationals: a set the decimals sit inside. It is unneeded until a program divides
+  exactly.
+- **Interval arithmetic as a type**: §7's directed operations make it a library.
+- **Posits** (Gustafson and Yonemoto 2017): no target has them.
+- **Complex numbers**: a product of two floats, a library.
+- **x87's 80-bit and IBM's double-double**: Tier 2 if ever.
+- **Error analysis as claims**: bounds on a result's error, as Fluctuat, FPTaylor (Solovyev et al.,
+  FM 2015) and Herbie (Panchekha et al., PLDI 2015) compute them. That is the logic's later work, once
+  floats are the language's.

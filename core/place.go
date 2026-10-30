@@ -434,7 +434,7 @@ func (pc *placeCheck) walk(t *Term, tail bool) error {
 			return err
 		}
 		return pc.walks(args)
-	case (headIs(t, "build") || headIs(t, "build-map")) && len(args) == 2 && args[1].Kind == KFn,
+	case (headIs(t, "build") || headIs(t, "build-map") || headIs(t, AdoptName)) && len(args) == 2 && args[1].Kind == KFn,
 		isCellScope(t):
 		// A REGION'S λ RUNS ONCE, NOW: build's, or a nested scope's.
 		if err := pc.walk(args[0], false); err != nil {

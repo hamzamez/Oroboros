@@ -48,6 +48,14 @@ provides java os/host {
         host expr "try { final Path $oroP = Path.of(${path}); Files.write($oroP, ${data}); ${r}0 = null; } catch (Exception $oroE) { ${r}0 = $oroE; }" import "java.nio.file.*"
     }
 
+    // Read at an offset (lib/os/go.oro): RandomAccessFile, read until the buffer
+    // is full or the file ends, since one read may return fewer bytes.
+    // The count is an int: a Java array's length is below 2^31.
+    fn ReadAt(path ∈ String, off ∈ Nat, b ∈ Array(0..255) linear) (n ∈ 0..2^31-1, r ∈ result.Result((), error))
+        ensure n <= len(b') && len(b') == len(b) {
+        host expr "try (java.io.RandomAccessFile $oroF = new java.io.RandomAccessFile(${path}, \"r\")) { $oroF.seek(${off}); int $oroN = 0; while ($oroN < ${b}.length) { int $oroK = $oroF.read(${b}, $oroN, ${b}.length - $oroN); if ($oroK < 0) break; $oroN += $oroK; } ${n} = $oroN; ${r} = null; } catch (Exception $oroE) { ${n} = 0; ${r} = $oroE; }"
+    }
+
     // The discriminator.
     // THE KINDS' PREDICATES: java.nio.file's exception classes for io/fs's three
     // sentinels.

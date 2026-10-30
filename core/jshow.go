@@ -50,6 +50,14 @@ func ShowSet(ty string) string {
 		return "()"
 	case strings.HasPrefix(ty, "?"):
 		return ty
+	case strings.Contains(ty, "|"):
+		// A FINITE UNION OF RANGES, a host `where`'s disjunction of constant
+		// bounds on one parameter (emit/wherebounds.go).
+		parts := strings.Split(ty, "|")
+		for i, p := range parts {
+			parts[i] = ShowSet(p)
+		}
+		return strings.Join(parts, " ∪ ")
 	case strings.HasPrefix(ty, "int "):
 		f := strings.Fields(ty)
 		if len(f) == 3 && f[1] == "0" && f[2] == "+inf" {

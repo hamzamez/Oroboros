@@ -3,6 +3,7 @@ package ir
 import (
 	"math"
 	"sort"
+	"strings"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -776,7 +777,19 @@ func (a *intervals) stmt(s *Stmt) {
 	case OBuild:
 		body := s.Sub[0]
 		ln := meetIV(args[0].v, rangeIV(0, a.maxLen))
-		a.fs[body.Params[0]] = fact{v: ivTop, hasLn: true, ln: ln, hasEl: true, el: exactIV(0)} // zero-filled (tables.md §14.3)
+		el := exactIV(0) // zero-filled (tables.md §14.3)
+		// A HOST THAT WRITES THE BUFFER IN PLACE (ADR 0070) stores elements the
+		// stores in this λ do not show: the in-place component is the argument's
+		// own value, so its fact is this one. Its stores are held to its
+		// parameter's declared element set (the declaration is written against
+		// the host, ADR 0022), which joins the zero fill. Without it a
+		// buffer a host filled was read as all zeros (ADR 0084's build: a fresh
+		// `out` region filled by os.ReadAt), and JavaScript's 32-bit `|` was
+		// chosen for a value past 2³².
+		if w, ok := a.hostWrites(body); ok {
+			el = joinIV(el, w)
+		}
+		a.fs[body.Params[0]] = fact{v: ivTop, hasLn: true, ln: ln, hasEl: true, el: el}
 		y, _ := a.region(body)
 		a.set(s.Res, y)
 	case OBuildMap:
@@ -1741,4 +1754,41 @@ func (a *intervals) exitsNarrow(r *Region, contRecv, yieldRecv []iv) {
 			a.exitsNarrow(sub, nil, res)
 		}
 	}
+}
+
+// hostWrites is the join of the element sets a host may store into a buffer
+// in r, at any depth: for each impure call taking a buffer, its parameter's
+// declared element set there (⊤ when none is declared). A pure call observes
+// and writes nothing (ADR 0069). ok is false when no call writes.
+func (a *intervals) hostWrites(r *Region) (iv, bool) {
+	out, any := ivBot, false
+	if r == nil {
+		return out, false
+	}
+	for i := range r.Stmts {
+		s := &r.Stmts[i]
+		if s.Op == OCall {
+			p, known := a.tg.Prims[s.Name]
+			if !known || !p.Pure {
+				for j, x := range s.Args {
+					if x < 0 || int(x) >= len(a.f.Types) || !strings.HasPrefix(a.f.Types[x], "buffer") {
+						continue
+					}
+					el := ivTop
+					if known && j < len(p.Args) {
+						if d := a.declared(p.Args[j]); d.hasEl {
+							el = d.el
+						}
+					}
+					out, any = joinIV(out, el), true
+				}
+			}
+		}
+		for _, sub := range s.Sub {
+			if w, ok := a.hostWrites(sub); ok {
+				out, any = joinIV(out, w), true
+			}
+		}
+	}
+	return out, any
 }

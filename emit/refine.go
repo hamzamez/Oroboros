@@ -840,7 +840,44 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 		r.markName(k.Params[0])
 		assume(inner, q)
 	}
+	// A CLAIM IS A FACT ONCE PROVEN: x = (the S e) with S a range, under its
+	// marks. Every claim is an obligation of its own, decided or the program
+	// refused (ADR 0049), so in a program that is accepted each holds and may be
+	// assumed of the others, as a proven assertion is. A codec's decode claims
+	// its set (lib/bytes), which the IR proves of an | of bytes and this layer
+	// could not.
+	if lo, hi, ok := ascribedRange(args[0]); ok {
+		x := core.Name(k.Params[0])
+		assume(inner, conjTerm(core.App(core.Name("<="), core.Int(lo), x), core.App(core.Name("<="), x, core.Int(hi))))
+	}
 	return r.walk(k.Body(), inner)
+}
+
+// ascribedRange is the range a value is claimed in, (the "int lo hi" e) under
+// its marks, with both ends in the word.
+func ascribedRange(t *core.Term) (int64, int64, bool) {
+	for t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName {
+		a := t.Args()
+		switch {
+		case t.Op().Name == core.AscribeName && len(a) == 2 && a[0].Kind == core.KStr:
+			lo, hi, ok := core.IntRangeBig(a[0].Str)
+			if !ok || !lo.IsInt64() || !hi.IsInt64() {
+				return 0, 0, false
+			}
+			return lo.Int64(), hi.Int64(), true
+		case t.Op().Name == core.RequireName && len(a) == 4:
+			t = a[3]
+		case t.Op().Name == core.RequireWhereName && len(a) == 3:
+			t = a[2]
+		case isOp(t.Op().Name, "let") && len(a) == 2 && a[1].Kind == core.KFn:
+			// A LET'S VALUE IS ITS BODY'S, and a claim's range is constant, so
+			// it is read under the binder as it is.
+			t = a[1].Closed()
+		default:
+			return 0, 0, false
+		}
+	}
+	return 0, 0, false
 }
 
 // joinConditional gives a name bound to a CONDITIONAL the facts that hold on
@@ -1617,6 +1654,12 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 // β puts a scanner used once straight into the guard that tests it, so
 // `(< u (loop …))` is a comparison the fragment could never read before.
 func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
+	// A GUARD UNDER A MARK IS THAT GUARD: (#reqw "def" φ c) is c, its
+	// obligation φ decided apart (requireMark). A segment's formation stands
+	// around a comparison that measured it.
+	for c != nil && core.IsRequireWhere(c) {
+		c = c.Kids[3]
+	}
 	// A DISJUNCTION THAT FAILED IS A CONJUNCTION (refinements.md §5d). `or` is
 	// erased to `(if a true b)` (ADR 0017), and ¬(a ∨ b) = ¬a ∧ ¬b, each conjunct
 	// a guard of its own; a disjunction that HOLDS stays out of the fragment

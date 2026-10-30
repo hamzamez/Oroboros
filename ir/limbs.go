@@ -386,6 +386,15 @@ func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.
 		if err := checkResultClaim(tg, name, sig, nf); err != nil {
 			return err
 		}
+		// A DEFINITION OVER AN APPLIED PARAMETER, a function or a static
+		// tuple (a tuple is eliminated by applying it), has no values until it
+		// is instantiated: what it holds, and in what representation, is each
+		// instance's, decided where it is inlined, as its result claim is
+		// (ADR 0072). Lowered on its own, its parameter is an opaque value and
+		// the plan is of nothing the program runs (lib/bytes' codecs).
+		if _, ok := appliedParam(nf); ok {
+			return nil
+		}
 		plan, err := emit.PlanBig(tg, sig, nf, all...)
 		if err != nil || (!plan.Host && !plan.Limbs) {
 			return err

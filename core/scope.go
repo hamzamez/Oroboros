@@ -45,8 +45,23 @@ const MapPlaceName = "#mapplace"
 // localPlace is a program-order buffer's binder: build's region for the
 // initializer, as localBinder makes it, with the region's binder a place.
 func localPlace(x string, e, body *Term) *Term {
-	return localBinder(x, e, App(Name(PlaceName), Name(x), Fn([]string{x}, body)))
+	inner := App(Name(PlaceName), Name(x), Fn([]string{x}, body))
+	if headIsName(e, "table") || headIsName(e, "array") {
+		return localBinder(x, e, inner)
+	}
+	// A BUFFER HOLDING ANOTHER TABLE'S VALUE: (adopt e (fn (x) …)), a fresh
+	// region whose contents are e's, which the reducer moves in when e is a
+	// fresh region and copies otherwise (reduce.go, adopt).
+	return App(Name(AdoptName), e, Fn([]string{x}, inner))
 }
+
+func headIsName(t *Term, name string) bool {
+	return t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName && t.Kids[0].Name == name
+}
+
+// AdoptName is the buffer former whose region is given, (adopt e (fn (b)
+// body)): the state translation threads it as build's, and δ makes it one.
+const AdoptName = "adopt"
 
 // zeroSort reports a literal that is the zero of one sort, and the sort:
 // `false` of bool, positive `0.0` of f64.

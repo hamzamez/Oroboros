@@ -144,5 +144,5 @@ func decideMark(tg *emit.Target, m *core.Term, x iv) (bool, *core.Term) {
 	if !x.bot && !x.phi {
 		hi = x.hi.big()
 	}
-	return emit.DecideRange(tg.Word, m.Kids[3].Str, lo, hi, x.bot, m.Kids[1].Str, m.Kids[2].Str, m.Kids[4])
+	return emit.DecideRange(tg, m.Kids[3].Str, lo, hi, x.bot, m.Kids[1].Str, m.Kids[2].Str, m.Kids[4])
 }

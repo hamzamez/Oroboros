@@ -33,6 +33,7 @@ import (
 // reach: one outside any scope, or inside a λ a scope passes as a value
 // (spec/local.md §5, §6). decls holds those declarations by qualified name.
 func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl) (*Term, error) {
+	t = writtenCells(t, borrows)
 	t, err := translateScopes(t, decls, borrows)
 	if err != nil {
 		return nil, err
@@ -585,7 +586,7 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 
 	// A buffer's scope, (build n (fn (b) body)): its λ runs once, now. An
 	// `again` cannot leave a scope, so the body is not in the loop.
-	if (headIs(t, "build") || headIs(t, "build-map")) && len(args) == 2 && args[1].Kind == KFn {
+	if (headIs(t, "build") || headIs(t, "build-map") || headIs(t, AdoptName)) && len(args) == 2 && args[1].Kind == KFn {
 		lam := args[1]
 		body, err := c.stLoop(lam.Body(), false, nil)
 		if err != nil {
@@ -870,7 +871,7 @@ func (e *Env) isData(t *Term) bool {
 		return true
 	case op.Name == "if" && len(t.Kids) == 4:
 		return e.isData(t.Kids[2]) && e.isData(t.Kids[3])
-	case (op.Name == "let" || op.Name == "build" || op.Name == "build-map") &&
+	case (op.Name == "let" || op.Name == "build" || op.Name == "build-map" || op.Name == AdoptName) &&
 		len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
 		return e.isData(t.Kids[2].Closed())
 	case op.Name == "loop" && len(t.Kids) >= 2 && t.Kids[1].Kind == KFn:
@@ -884,4 +885,67 @@ func (c *cellTr) closure(lam *Term) error {
 		"later, so the cell's order would not be the program's. A cell may be read and written in "+
 		"the scope, a case arm, a loop and a host call's continuation; callbacks over a scope's "+
 		"cells are tier 1, not built (spec/local.md §3)", strings.Join(ShowNames(c.xs), ", "), ShowTerm(lam))
+}
+
+// writtenCells makes a buffer of each cell its scope writes element by element:
+// by a store, (set b i v), or by lending it to a callee's linear parameter,
+// which writes it in place (ADR 0070). Such a binder holds a table and is
+// written as one, so it is a fresh region holding its initializer's value,
+// (adopt e (fn (b) (#place b …))): moved in when e is a fresh region, a linear
+// result, and copied in otherwise (reduce.go, adopt; ADR 0084). Only the loader
+// knows which callees borrow, so the reader cannot decide it.
+func writtenCells(t *Term, borrows map[string]BorrowDecl) *Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == KFn {
+		return Fn(t.Params, writtenCells(t.Body(), borrows))
+	}
+	if t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == CellName &&
+		t.Kids[2].Kind == KFn && len(t.Kids[2].Params) == 1 {
+		b := t.Kids[2].Params[0]
+		body := writtenCells(t.Kids[2].Body(), borrows)
+		e := writtenCells(t.Kids[1], borrows)
+		if writesElements(body, b, borrows) {
+			return App(Name(AdoptName), e, Fn([]string{b}, App(Name(PlaceName), Name(b), Fn([]string{b}, body))))
+		}
+		return App(t.Kids[0], e, Fn([]string{b}, body))
+	}
+	if len(t.Kids) == 0 {
+		return t
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = writtenCells(k, borrows)
+	}
+	return &Term{Kind: t.Kind, Kids: kids}
+}
+
+// writesElements reports a store into b, or b lent at a borrowed parameter.
+func writesElements(t *Term, b string, borrows map[string]BorrowDecl) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == KFn {
+		return writesElements(t.Kids[0], b, borrows)
+	}
+	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName {
+		op := t.Kids[0].Name
+		if op == "set" && len(t.Kids) == 4 && t.Kids[1].Kind == KName && t.Kids[1].Name == b {
+			return true
+		}
+		if d, ok := borrows[op]; ok {
+			for i, a := range t.Kids[1:] {
+				if d.at(i) && a.Kind == KName && a.Name == b {
+					return true
+				}
+			}
+		}
+	}
+	for _, k := range t.Kids {
+		if writesElements(k, b, borrows) {
+			return true
+		}
+	}
+	return false
 }

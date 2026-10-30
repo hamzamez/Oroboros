@@ -51,6 +51,19 @@ pub fn ReadFile(path) { result.err_map(classify, host.ReadFile(path)) }
 // roundtrip.oro checks). It succeeds with nothing, 1 + E (data.md §3.6).
 pub fn WriteFile(path, data) { result.err_map(classify, host.WriteFile(path, data)) }
 
+// READ AT AN OFFSET into a region the caller lends: the bytes of the file at
+// [off, off + len b), written to b[0, n), with n ≤ len b and the failure
+// (ADR 0084, pread; io.Reader's shape, ADR 0070).
+// A file that ends first gives a shorter n, which is no failure. With `out S`
+// at b the region is fresh, S's longest table (U3):
+//
+//   (buf, read) = os.ReadAt(path, 0, out set { t ∈ Array(0..255) : len(t) <= 4096 })
+//   (n, r) = read
+pub fn ReadAt(path, off, b ∈ Array(0..255) linear) {
+    (n, r) = host.ReadAt(path, off, b)
+    (n, result.err_map(classify, r))
+}
+
 // Bytes to text, once, at the boundary: d, the Unicode Standard's maximal-subpart
 // decode, on every host (ADR 0030).
 pub fn text_of(b) { host.text_of(b) }

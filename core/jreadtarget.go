@@ -356,6 +356,7 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 	}
 	sig := []*Term{Name("sig"), head, app(params...)}
 	result := ""
+	p.resultHoles = nil
 	// A GROUP RESULT `(q ∈ B, n ∈ N, r ∈ E)` is the tuple pattern of its components
 	// (spec/j.md §2.4), its set the product B × N × E, and each named component
 	// renamed in the `ensure` to its position (ResultComponent): `File.Read`'s
@@ -447,9 +448,27 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 		sig = append(sig, p.resultDatum(threaded[0]))
 	default:
 		components = map[string]string{}
+		p.resultHoles = map[string]string{}
+		// A BUFFER WRITTEN IN PLACE HAS NO HOST VALUE (ADR 0070): the host's
+		// destinations count only the other components.
+		inPlaceAt := map[int]bool{}
+		for _, ip := range inplace {
+			inPlaceAt[int(ip.Kids[1].Int)] = true
+		}
+		host := 0
 		for j, n := range tnames {
 			if n != "" {
 				components[Unspell(strings.TrimSuffix(n, "'"))+suffixOf(n)] = ResultComponent(j)
+				// A TEMPLATE THAT ASSIGNS ITS RESULTS names each by its binder:
+				// component j is destination %rj, exact when every component
+				// is one host value, which ADR 0070's check holds a write-borrow
+				// to (lib/os/java.oro's ReadAt).
+				if !strings.HasSuffix(n, "'") {
+					p.resultHoles[Unspell(n)] = fmt.Sprintf("r%d", host)
+				}
+			}
+			if !inPlaceAt[j] {
+				host++
 			}
 		}
 		sig = append(sig, p.resultDatum(&Apply{Fn: &Var{Name: "×"}, Args: threaded}))
@@ -517,7 +536,7 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 		out = append(out, Name(p.next().text))
 	}
 	if p.peek().kind == tString {
-		out = append(out, Str(positionalHoles(p.next().text, params, statics, result, p.x86)))
+		out = append(out, Str(positionalHoles(p.next().text, params, statics, result, p.x86, p.resultHoles)))
 	}
 	for !p.is("}") && !p.lineEnds() {
 		switch {
@@ -529,7 +548,7 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 				if t.kind == tString {
 					s := t.text
 					if word == "jump" && len(c) == 2 {
-						s = positionalHoles(s, params, statics, result, p.x86)
+						s = positionalHoles(s, params, statics, result, p.x86, p.resultHoles)
 					}
 					c = append(c, Str(s))
 				} else {
@@ -554,7 +573,7 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 // whose holes are numbered, `%n` and `%r`; any other's are `%s`, filled in
 // order (emit/target.go, fill). `${#}` is `%u`, `$${` a literal `${`, and a
 // literal `%` is `%%`.
-func positionalHoles(tpl string, params, statics []string, result string, x86 bool) string {
+func positionalHoles(tpl string, params, statics []string, result string, x86 bool, multi map[string]string) string {
 	// THE HOLES' STYLE IS THE BACKEND'S: x86's assembly templates number every
 	// hole, `%n`, `%r`; every other target's fill `%s` in order and name the
 	// result `%r` (emit/target.go, fill). Read off the model, not the template:
@@ -586,7 +605,7 @@ func positionalHoles(tpl string, params, statics []string, result string, x86 bo
 			} else {
 				name = Unspell(name)
 			}
-			h := hole(name, view, params, statics, result, numbered)
+			h := hole(name, view, params, statics, result, numbered, multi)
 			if indexed && h == "%s" {
 				for k, n := range params {
 					if n == name {
@@ -642,9 +661,12 @@ func inOrder(tpl string, params []string) bool {
 	return true
 }
 
-func hole(name, view string, params, statics []string, result string, numbered bool) string {
+func hole(name, view string, params, statics []string, result string, numbered bool, multi map[string]string) string {
 	if name == "#" {
 		return "%u"
+	}
+	if h, ok := multi[name]; ok {
+		return "%" + view + h
 	}
 	if result != "" && name == Unspell(result) {
 		return "%" + view + "r"

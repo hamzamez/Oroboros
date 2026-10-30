@@ -1,0 +1,155 @@
+// THE HEADERS OF A WINDOWS EXECUTABLE, AND ITS CHECKSUM, program first
+// (ADR 0084): what Go's debug/pe reads, and what imagehlp's CheckSumMappedFile
+// computes, on every target.
+//
+//   pe FILE        the headers, the sections, the stored and computed checksums
+//   pe FILE OUT    the same, and OUT a copy of FILE with its checksum set
+//
+// THE FORMAT (Microsoft's PE/COFF specification) is a product of codecs at
+// offsets: "MZ" at 0, the PE header's offset p at 0x3C; at p, "PE\0\0" and the
+// COFF header, 20 bytes; after it the optional header, whose magic says PE32
+// (0x10B) or PE32+ (0x20B); after that the section table, 40 bytes a section.
+// Every field is little-endian, so every read is a codec's decode d at an
+// offset (pointers-research.md §22), and every offset comes from the file: each
+// is proven inside the table it reads, by the guard before it.
+//
+// THE CHECKSUM is the one's-complement sum of the file's 16-bit words, the
+// checksum field itself read as zero, folded to 16 bits, plus the file's length:
+// RFC 1071's sum, which CheckSumMappedFile computes. A fold is s ↦ (s & 0xFFFF) +
+// (s >> 16), the reduction mod 2¹⁶ − 1 that keeps the carries.
+use os
+use io
+use result
+use bytes
+
+// The codecs: each a partial isomorphism between a set and k little-endian
+// bytes, its width the narrowest that holds the set.
+u16 = bytes.codec(0..2^16-1, bytes.'le)
+u32 = bytes.codec(0..2^32-1, bytes.'le)
+u64 = bytes.codec(0..2^64-1, bytes.'le)
+
+// The headers, not the file: at most 4096 bytes from offset 0, into a fresh
+// table the host fills (U3). The set is a separation; its supremum length is
+// the allocation, and what the host returns is an element of it.
+set Head = set { t ∈ Array(0..255) : len(t) <= 4096 }
+
+fn hex(h ∈ 0..2^64-1, digits ∈ 1..16) (String) {
+    loop k = 0, x = h, s = "" {
+        k >= digits -> s
+        x % 16 < 10 -> again(k + 1, x >> 4, string_of(48 + x % 16) ++ s)
+        else -> again(k + 1, x >> 4, string_of(87 + x % 16) ++ s)
+    }
+}
+
+// A section's name: eight bytes, NUL-padded. Its argument is a segment of the
+// header, a view of eight bytes of it.
+fn name(s ∈ Array(0..255)) (String) {
+    loop i = 0, t = "" {
+        i < len(s) && s[i] != 0 -> again(i + 1, t ++ string_of(s[i]))
+        else -> t
+    }
+}
+
+fn fold(x ∈ 0..2^20) (0..2^17) { (x & 0xFFFF) + (x >> 16) }
+
+// The checksum of src, whose checksum field is at `at`. Every offset in the
+// format is a 32-bit field plus a header's length, so below 2^34.
+fn checksum(src ∈ Array(0..255), at ∈ 0..2^34) (0..2^32-1) {
+    s = loop i = 0, sum = 0 {
+        i + 1 < len(src) && (i == at || i == at + 2) -> again(i + 2, sum)
+        i + 1 < len(src) -> again(i + 2, fold(sum + bytes.get(src, i, u16)))
+        i < len(src) -> again(i + 2, fold(sum + src[i]))
+        else -> sum
+    }
+    (fold(s) + len(src)) mod 2^32
+}
+
+fn sections(h ∈ Array(0..255), s ∈ 0..2^34, n ∈ 0..2^16-1) where s + 40 * n <= len(h) {
+    loop i = 0 {
+        i < n -> {
+            o = s + 40 * i
+            io.print_line("section " ++ name(h[o:o + 8])
+                ++ " " ++ hex(bytes.get(h, o + 8, u32), 8)
+                ++ " " ++ hex(bytes.get(h, o + 12, u32), 8)
+                ++ " " ++ hex(bytes.get(h, o + 16, u32), 8)
+                ++ " " ++ hex(bytes.get(h, o + 20, u32), 8)
+                ++ " " ++ hex(bytes.get(h, o + 36, u32), 8))
+            again(i + 1)
+        }
+        else -> 0
+    }
+}
+
+// The checksum: computed over the whole file, and written into a copy when OUT
+// is given. The copy is a linear result, a writable view moved to this scope.
+fn check(av ∈ Array(String), at ∈ 0..2^34, stored ∈ 0..2^32-1) {
+    case os.ReadFile(av[1]) {
+        result.'err(k) -> { io.print_line("pe: cannot read that file"); 0 }
+        result.'ok(src) -> {
+            c ∈ 0..2^32-1 = checksum(src, at)
+            io.print_line("checksum " ++ hex(stored, 8) ++ " " ++ hex(c, 8))
+            case {
+                len(av) < 3 || at + 4 > len(src) -> 0
+                else -> {
+                    var b := bytes.copy(src)
+                    bytes.put(b, at, u32, c)
+                    case os.WriteFile(av[2], b) {
+                        result.'err(k) -> { io.print_line("pe: cannot write " ++ av[2]); 0 }
+                        result.'ok(u) -> 0
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn report(h ∈ Head, av ∈ Array(String)) {
+    case {
+        len(h) < 64 || bytes.get(h, 0, u16) != 0x5A4D -> { io.print_line("pe: not an MZ file"); 0 }
+        else -> {
+            p = bytes.get(h, 60, u32)
+            case {
+                p + 24 > len(h) || bytes.get(h, p, u32) != 0x4550 -> { io.print_line("pe: no PE header"); 0 }
+                else -> {
+                    n = bytes.get(h, p + 6, u16)
+                    opt = bytes.get(h, p + 20, u16)
+                    o = p + 24
+                    s = o + opt
+                    io.print_line("machine " ++ hex(bytes.get(h, p + 4, u16), 4))
+                    io.print_line("sections " ++ hex(n, 4))
+                    io.print_line("timestamp " ++ hex(bytes.get(h, p + 8, u32), 8))
+                    io.print_line("characteristics " ++ hex(bytes.get(h, p + 22, u16), 4))
+                    case {
+                        opt < 72 || s + 40 * n > len(h) -> { io.print_line("pe: truncated headers"); 0 }
+                        else -> {
+                            m = bytes.get(h, o, u16)
+                            io.print_line("magic " ++ hex(m, 4))
+                            io.print_line("entry " ++ hex(bytes.get(h, o + 16, u32), 8))
+                            case {
+                                m == 0x20B -> io.print_line("imagebase " ++ hex(bytes.get(h, o + 24, u64), 16))
+                                else -> io.print_line("imagebase " ++ hex(bytes.get(h, o + 28, u32), 16))
+                            }
+                            sections(h, s, n)
+                            check(av, o + 64, bytes.get(h, o + 64, u32))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export fn main() {
+    av = os.Args()
+    if len(av) < 2 { io.print_line("usage: pe FILE [OUT]"); 0 } else {
+        // The host writes the file's first bytes into the fresh region and
+        // says how many, n ≤ len(buf) by its `ensure`: the filled part is the
+        // segment buf[0:n], the rest the region's zeros.
+        (buf, read) = os.ReadAt(av[1], 0, out Head)
+        (n, r) = read
+        case r {
+            result.'err(k) -> { io.print_line("pe: cannot read that file"); 0 }
+            result.'ok(u) -> report(buf[0:n], av)
+        }
+    }
+}

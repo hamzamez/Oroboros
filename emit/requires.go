@@ -254,6 +254,8 @@ func (f requireFail) message(n int) string {
 		return b.String()
 	case f.param == "where":
 		fmt.Fprintf(&b, "%s requires %s at a call, which does not follow\n  known: %s", f.def, f.arg, f.known)
+	case f.literal && strings.Contains(f.ty, "|"):
+		fmt.Fprintf(&b, "%s requires %s ∈ %s, and a call passes %s", f.def, core.ShowName(f.param), core.ShowSet(f.ty), f.arg)
 	case f.literal:
 		fmt.Fprintf(&b, "%s's parameter %s is declared in %s, and a call passes %s", f.def, core.ShowName(f.param), core.ShowSet(f.ty), f.arg)
 	default:
@@ -416,6 +418,14 @@ func (a rangeSet) within(b rangeSet) bool {
 }
 
 func literalIn(w core.Word, ty string, v *big.Int) bool {
+	if members, ok := unionMembers(ty); ok {
+		for _, m := range members {
+			if literalIn(w, m, v) {
+				return true
+			}
+		}
+		return false
+	}
 	s, ok := setOf(w, ty)
 	if !ok {
 		return true
@@ -512,6 +522,17 @@ func provenIn(w core.Word, v span, ty string) bool {
 	if v.bot {
 		return true // unreachable
 	}
+	// A UNION OF RANGES holds an interval that lies inside one member. That is
+	// sufficient, not necessary: [0, 9] ⊆ [0, 4] ∪ [5, 9] is missed when the
+	// members touch, and a host's union never has touching members.
+	if members, ok := unionMembers(ty); ok {
+		for _, m := range members {
+			if provenIn(w, v, m) {
+				return true
+			}
+		}
+		return false
+	}
 	s, ok := setOf(w, ty)
 	if !ok {
 		return false
@@ -543,6 +564,31 @@ func provenIn(w core.Word, v span, ty string) bool {
 // parameter, so a refusal still names it. Above the word the set is bitwise,
 // which the linear fragment cannot state, and the range mark stays as it is.
 func residualRange(w core.Word, v span, def, param, ty string, arg *core.Term) *core.Term {
+	if members, ok := unionMembers(ty); ok {
+		// THE REFINEMENT ROUTE GETS THE WHOLE DISJUNCTION, the condition the
+		// `where` stated, so a union the intervals did not prove is decided
+		// exactly as before ADR 0084's build: never weaker.
+		var cond *core.Term
+		for i := len(members) - 1; i >= 0; i-- {
+			lo, hi, ok := core.IntRangeBig(members[i])
+			if !ok || !lo.IsInt64() || !hi.IsInt64() {
+				return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireName),
+					core.Str(def), core.Str(param), core.Str(ty), arg}}
+			}
+			m := conjTerm(core.App(core.Name("<="), core.Int(lo.Int64()), arg),
+				core.App(core.Name("<="), arg, core.Int(hi.Int64())))
+			if cond == nil {
+				cond = m
+			} else {
+				cond = core.App(core.Name("if"), m, core.Bool(true), cond)
+			}
+		}
+		if d, ok := DeclaredName(def); ok {
+			def = d
+		}
+		label := fmt.Sprintf("%s's parameter %s, declared in %s,", core.ShowName(def), core.ShowName(param), core.ShowSet(ty))
+		return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName), core.Str(label), cond, arg}}
+	}
 	s, ok := setOf(w, ty)
 	if !ok || s.lo == nil || !s.lo.IsInt64() || !s.hi.IsInt64() {
 		return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireName),
@@ -589,6 +635,11 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 		}
 		return r.walk(t.Kids[3], f)
 	}
+	// A UNION OF RANGES THAT REACHES HERE was not decided on the IR (it could
+	// not be lowered): it is its residual, the hull and the host's disjunction.
+	if _, ok := unionMembers(t.Kids[3].Str); ok && r.tgt != nil {
+		return r.requireMark(r.tgt.unionResidual(span{}, t.Kids[1].Str, t.Kids[2].Str, t.Kids[3].Str, t.Kids[4]), f)
+	}
 	// A RANGE MARK THAT REACHES HERE IS ABOVE THE WORD. Within the word the
 	// interval analysis either proved the range or handed on the ends it could
 	// not, as a condition on a where-mark (residualRange); above it the set is
@@ -609,6 +660,12 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 // a disequality by either side, a linear conjunction by entailment, an opaque
 // atom by an identical assumption. It proves or it does not; it never refuses.
 func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
+	// A CLOSED COMPARISON IS DECIDED IN ℤ, exactly, as a primitive's is
+	// (discharge): a literal past the word, lib/bytes' 2^64 − 1, folds nowhere
+	// else, and folding in a proof emits nothing (ADR 0009 governs code).
+	if v, ok := closedIntComparison(cond); ok {
+		return v
+	}
 	if lo, hi, isNe := disequality(cond); isNe {
 		return f.entailsEither(lo, hi)
 	}
@@ -638,12 +695,75 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 // every route. When it is not proven, residual is what the refinement route
 // still has to show (ResidualRange); for a range above the word, the mark
 // itself.
-func DecideRange(w core.Word, ty string, lo, hi *big.Int, bot bool, def, param string, arg *core.Term) (proven bool, residual *core.Term) {
+func DecideRange(tg *Target, ty string, lo, hi *big.Int, bot bool, def, param string, arg *core.Term) (proven bool, residual *core.Term) {
+	w := tg.Word
 	v := span{lo: lo, hi: hi, bot: bot}
 	if provenIn(w, v, ty) {
 		return true, nil
 	}
+	if _, ok := unionMembers(ty); ok {
+		return false, tg.unionResidual(v, def, param, ty, arg)
+	}
 	return false, residualRange(w, v, def, param, ty, arg)
+}
+
+// unionResidual is what a union of ranges the interval did not prove hands the
+// refinement layer: exactly the two obligations the `where` stated before it
+// was read as a union (whereUnions). The hull of the members, a range, is
+// residualRange's, dropping each end the interval establishes; inside it, the
+// host's own disjunction with the argument for the parameter, so a guard the
+// program wrote the same way proves it by identity, as it did.
+func (tg *Target) unionResidual(v span, def, param, ty string, arg *core.Term) *core.Term {
+	members, _ := unionMembers(ty)
+	var lo, hi *big.Int
+	for _, m := range members {
+		l, h, ok := core.IntRangeBig(m)
+		if !ok {
+			return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireName),
+				core.Str(def), core.Str(param), core.Str(ty), arg}}
+		}
+		if lo == nil || l.Cmp(lo) < 0 {
+			lo = l
+		}
+		if hi == nil || h.Cmp(hi) > 0 {
+			hi = h
+		}
+	}
+	inner := arg
+	if cond := tg.unionCondition(def, param, arg); cond != nil {
+		label := core.ShowName(def)
+		if d, ok := DeclaredName(def); ok {
+			label = core.ShowName(d)
+		}
+		inner = &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName),
+			core.Str(label), cond, arg}}
+	}
+	hull := "int " + lo.String() + " " + hi.String()
+	if provenIn(tg.Word, v, hull) {
+		return inner
+	}
+	r := residualRange(tg.Word, v, def, param, hull, arg)
+	if core.IsRequireWhere(r) {
+		return &core.Term{Kind: core.KApp, Kids: []*core.Term{r.Kids[0], r.Kids[1], r.Kids[2], inner}}
+	}
+	return r
+}
+
+// unionCondition is the host's disjunction a union was read from, with arg for
+// the parameter, or nil when the primitive kept none.
+func (tg *Target) unionCondition(def, param string, arg *core.Term) *core.Term {
+	p, ok := tg.Prims[def]
+	if !ok {
+		return nil
+	}
+	for i, n := range p.Names {
+		if n == param {
+			if c, ok := p.Unions[i]; ok {
+				return core.Rename2(c, map[string]*core.Term{param: arg})
+			}
+		}
+	}
+	return nil
 }
 
 // DecideAscribed is decideAscribed for a caller outside the package (gen's
@@ -665,4 +785,14 @@ func Undecided(what string, t *core.Term) error {
 	return fmt.Errorf("%s: the residual carries a contract obligation nothing has decided (ADR 0028). "+
 		"Decide its marks first: ir.DecideMarks, which ir.Entry and every FromResidual call, or "+
 		"emit.DischargeRequires", what)
+}
+
+// unionMembers splits a finite union of ranges, `int a b|int c d`, into its
+// members, each a range (emit/wherebounds.go). A set that is one range is no
+// union.
+func unionMembers(ty string) ([]string, bool) {
+	if !strings.Contains(ty, "|") {
+		return nil, false
+	}
+	return strings.Split(ty, "|"), true
 }

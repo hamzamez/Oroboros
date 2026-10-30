@@ -2,6 +2,7 @@ package emit
 
 import (
 	"math/big"
+	"strings"
 
 	"oroboros/core"
 )
@@ -74,7 +75,120 @@ func (tg *Target) whereBounds() {
 		p.Where = conjoin(kept)
 		tg.Prims[n] = p
 	}
+	tg.whereUnions()
 }
+
+// whereUnions reads a conjunct of a host `where` that is a disjunction of
+// constant bounds on one parameter, x ≤ 55295 ∨ x ≥ 57344, as what it states:
+// x ∈ R₁ ∪ … ∪ Rₖ, a finite union of ranges, each end a disjunct's or the
+// declared set's own. It is that parameter's range obligation, decided as one
+// (DischargeRequires): a literal in some member; the IR's interval inside some
+// member; else the refinement layer, handed the disjunction itself
+// (residualRange), so the route is never weaker than the `where` it replaces.
+// It extends ADR 0075 from a range to a union of ranges, and a parameter with a
+// range already moved there keeps its range and its `where` (ADR 0084's build:
+// `string_of` of a byte read from a file, examples/pe).
+func (tg *Target) whereUnions() {
+	for n, p := range tg.Prims {
+		if p.Where == nil || len(p.Names) == 0 {
+			continue
+		}
+		cs := whereConjuncts(p.Where)
+		var kept []*core.Term
+		moved := false
+		for _, c := range cs {
+			closers := append([]string(nil), p.Args...)
+			for j := range closers {
+				if j < len(p.Bounds) && p.Bounds[j] != "" {
+					closers[j] = p.Bounds[j] // the range already moved closes an open end
+				}
+			}
+			i, members, ok := unionBound(c, p.Names, closers)
+			if ok && i < len(p.Bounds) && p.Bounds[i] != "" {
+				// A RANGE ALREADY MOVED IS CONJOINED: [l, h] ∩ (R₁ ∪ … ∪ Rₖ) is
+				// (R₁ ∩ [l, h]) ∪ … ∪ (Rₖ ∩ [l, h]), conjunction distributing
+				// over the union. A member it empties is dropped; one moved
+				// union is not intersected with another (it stays a `where`).
+				members, ok = intersectUnion(members, p.Bounds[i])
+			}
+			if !ok {
+				kept = append(kept, c)
+				continue
+			}
+			if len(p.Bounds) < len(p.Args) {
+				b := make([]string, len(p.Args))
+				copy(b, p.Bounds)
+				p.Bounds = b
+			}
+			p.Bounds[i] = strings.Join(members, "|")
+			if p.Unions == nil {
+				p.Unions = map[int]*core.Term{}
+			}
+			p.Unions[i] = c
+			moved = true
+		}
+		if moved {
+			p.Where = conjoin(kept)
+			tg.Prims[n] = p
+		}
+	}
+}
+
+// unionBound reads c as a disjunction of constant bounds on one parameter, each
+// disjunct one bound or a conjunction of two, and gives its members as ranges,
+// an open end closed by the parameter's enclosing set: its range already moved
+// out of the `where`, or its declared set. A disjunct that is no
+// such bound, two parameters, or an end neither gives makes it no union.
+func unionBound(c *core.Term, names, args []string) (int, []string, bool) {
+	var disjuncts []*core.Term
+	var flat func(*core.Term)
+	flat = func(t *core.Term) {
+		if a, b, ok := erasedOr(t); ok {
+			flat(a)
+			flat(b)
+			return
+		}
+		disjuncts = append(disjuncts, t)
+	}
+	flat(c)
+	if len(disjuncts) < 2 {
+		return 0, nil, false
+	}
+	at := -1
+	var members []string
+	for _, d := range disjuncts {
+		var lo, hi *big.Int
+		for _, b := range whereConjuncts(d) {
+			i, l, h, ok := constantBound(b, names)
+			if !ok || (at >= 0 && i != at) {
+				return 0, nil, false
+			}
+			at = i
+			if l != nil {
+				lo = l
+			}
+			if h != nil {
+				hi = h
+			}
+		}
+		if at < 0 || at >= len(args) {
+			return 0, nil, false
+		}
+		dl, dh, ok := core.IntRangeBig(args[at])
+		if lo == nil || (ok && dl.Cmp(lo) > 0) {
+			lo = dl
+		}
+		if hi == nil || (ok && dh.Cmp(hi) < 0) {
+			hi = dh
+		}
+		if lo == nil || hi == nil {
+			return 0, nil, false
+		}
+		members = append(members, "int "+lo.String()+" "+hi.String())
+	}
+	return at, members, true
+}
+
 
 // whereConjuncts flattens a conjunction, (if a b false), into its conjuncts.
 func whereConjuncts(t *core.Term) []*core.Term {
@@ -147,4 +261,30 @@ func constantBound(c *core.Term, names []string) (i int, lo, hi *big.Int, ok boo
 		}
 	}
 	return 0, nil, nil, false
+}
+
+// intersectUnion is (R₁ ∪ … ∪ Rₖ) ∩ r for r one range: each member cut to r,
+// an empty one dropped. r a union itself is not intersected (ok false).
+func intersectUnion(members []string, r string) ([]string, bool) {
+	l, h, ok := core.IntRangeBig(r)
+	if !ok || strings.Contains(r, "|") {
+		return nil, false
+	}
+	var out []string
+	for _, m := range members {
+		ml, mh, ok := core.IntRangeBig(m)
+		if !ok {
+			return nil, false
+		}
+		if l.Cmp(ml) > 0 {
+			ml = l
+		}
+		if h.Cmp(mh) < 0 {
+			mh = h
+		}
+		if ml.Cmp(mh) <= 0 {
+			out = append(out, "int "+ml.String()+" "+mh.String())
+		}
+	}
+	return out, len(out) > 0
 }

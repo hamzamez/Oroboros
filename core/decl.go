@@ -118,6 +118,7 @@ func (d *desugarer) placed(decls []Decl) ([]*Term, error) {
 // claimed one parameter and left another, or left its result, reached D with no
 // set and crashed it (shape-2026-10-21).
 func (d *desugarer) sig(name string, c *Claim) *Term {
+	c = separated(c)
 	set := func(e Expr) *Term {
 		if e == nil {
 			return Name("any")
@@ -307,3 +308,46 @@ func HostLam(def *DefDecl) *Lam {
 
 // formed is a type former applied to one set, `(buffer V)`.
 func formed(name string, x Expr) Expr { return &Apply{Fn: &Var{Name: name}, Args: []Expr{x}} }
+
+// separated is D of a header's separations (ADR 0084, ADR 0061 item 1). The set
+// { x ∈ S : φ } has the characteristic function χ_S ∧ φ, so a binder in it is a
+// binder in S and the formula φ of that binder:
+//
+//	x ∈ {t ∈ S : φ}   ⇝   x ∈ S, where φ[x/t]          a parameter: an obligation at each call
+//	(r ∈ {t ∈ S : φ}) ⇝   (r ∈ S), ensure φ[r/t]       the result: a claim decided at the definition
+//
+// which is ADR 0062 item 1 read backwards: a header is f ∈ Π(x̄ ∈ {x̄ ∈ S̄ : φ}).
+// {r ∈ U : ψ}, and a separation on one binder is its share of φ or ψ.
+func separated(c *Claim) *Claim {
+	sep := func(e Expr) (x string, s Expr, phi Expr, ok bool) {
+		a, isApp := e.(*Apply)
+		if !isApp || len(a.Args) != 3 {
+			return "", nil, nil, false
+		}
+		v, isVar := a.Fn.(*Var)
+		b, isBinder := a.Args[0].(*Var)
+		if !isVar || v.Name != SepName || !isBinder {
+			return "", nil, nil, false
+		}
+		return b.Name, a.Args[1], a.Args[2], true
+	}
+	and := func(a, b Expr) Expr {
+		if b == nil {
+			return a
+		}
+		return &And{Xs: []Expr{a, b}}
+	}
+	out := *c
+	out.Params = append([]ClaimParam(nil), c.Params...)
+	for i, p := range out.Params {
+		if x, s, phi, ok := sep(p.Set); ok && p.Name != "" {
+			out.Params[i].Set = s
+			out.Pre = and(renameExpr(phi, map[string]string{x: p.Name}), out.Pre)
+		}
+	}
+	if x, s, phi, ok := sep(out.Result); ok {
+		out.Result = s
+		out.Post = and(renameExpr(phi, map[string]string{x: ResultName}), out.Post)
+	}
+	return &out
+}

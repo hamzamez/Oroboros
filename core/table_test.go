@@ -130,12 +130,19 @@ func TestARuleTableFuses(t *testing.T) {
 	e := tableEnv()
 	got := tabNorm(t, e, `fn use2(v) { len(v) + v[0] }
 t = fn(n) { use2(array { i + 1 : i ∈ 0..n-1 }) }`)
-	if strings.Contains(got, "table") {
+	if strings.Contains(got, "(table") {
 		t.Errorf("the intermediate table must not survive:\n%s", got)
 	}
+	// THE DOMAIN STAYS AN OBLIGATION (ADR 0084's build): v[0] on a table of n
+	// elements needs 0 < n, a where-mark that DischargeRequires decides and
+	// erases. Before, the rule was applied with no domain, and an index past
+	// the table's end read the rule outside it.
+	if !strings.Contains(got, "(< 0 n)") {
+		t.Errorf("an index into a rule must keep its domain, 0 < n, as an obligation:\n%s", got)
+	}
 	// `(+ n 1)`: the table is gone and `(+ 0 1)` folded, leaving exactly the
-	// arithmetic the pipeline meant.
-	if got != "(fn (n) (+ n 1))" {
+	// arithmetic the pipeline meant once the obligation is decided.
+	if !strings.HasSuffix(got, "(+ n 1)))") {
 		t.Errorf("expected the fused form, got %s", got)
 	}
 }

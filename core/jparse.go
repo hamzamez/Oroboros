@@ -1,6 +1,7 @@
 package core
 
 import (
+	"reflect"
 	"fmt"
 	"math/big"
 	"os"
@@ -30,6 +31,22 @@ type parser struct {
 	// pair whose first component is a pair, TLA+'s product, where the chain
 	// `A × B × C` is a triple (ADR 0065).
 	grouped map[Expr]bool
+	// setDefs are the module's set definitions, `set Head = S`, by J name: an
+	// explicit definition, eliminated by unfolding where it is used (Padoa's
+	// eliminability: a definitional extension is conservative), so a header
+	// names its own set and the checker sees the set it denotes (ADR 0084).
+	setDefs map[string]Expr
+	// resultHoles name a host template's destinations by its result binders,
+	// for a group result: `${n}` is %r0 when n is the first (jreadtarget.go).
+	resultHoles map[string]string
+	// outScopes are the scopes outTables made, by the scope: the region's
+	// name and the call lent it.
+	outScopes map[*Local]outScope
+}
+
+type outScope struct {
+	region string
+	call   Expr
 }
 
 func (p *parser) peek() token { return p.toks[p.i] }
@@ -309,6 +326,33 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 		}
 		public(name)
 		return []Decl{&DefDecl{Name: name, Value: lam, At: p.nextAt()}}, marked, nil
+	case p.is("set") && p.peekN(1).kind == tIdent && p.peekN(2).text == "=" && p.peekN(3).kind != tTag:
+		// A SET DEFINITION, `set Head = S`: ⟦Head⟧ = ⟦S⟧, unfolded where it is
+		// used. Defined before its uses, as TLA+'s are, so the unfolding is the
+		// order the module is read in.
+		p.next()
+		jn := p.next().text
+		p.next()
+		if pub || export {
+			return nil, nil, p.errorf("set %s is a definition unfolded where its module uses it; naming "+
+				"it from another module is the algebra of sorts' (spec/typevalues.md §10), not built", jn)
+		}
+		if _, dup := p.setDefs[jn]; dup {
+			return nil, nil, p.errorf("set %s is defined twice", jn)
+		}
+		e, err := p.expr()
+		if err != nil {
+			return nil, nil, err
+		}
+		s := p.set(e)
+		if err := p.nestedSep(s, true); err != nil {
+			return nil, nil, err
+		}
+		if p.setDefs == nil {
+			p.setDefs = map[string]Expr{}
+		}
+		p.setDefs[jn] = s
+		return nil, marked, nil
 	case p.is("set") && p.peekN(1).kind == tIdent:
 		p.next()
 		v, err := p.variant()
@@ -395,6 +439,9 @@ func (p *parser) lamHeader() (*Lam, error) {
 			lam.Borrows = append(lam.Borrows, n)
 		}
 		cp.Set = p.toSet(cp.Set, mode)
+		if err := p.nestedSep(cp.Set, true); err != nil {
+			return nil, err
+		}
 		claim.Params = append(claim.Params, cp)
 		if !p.accept(",") {
 			break
@@ -424,7 +471,16 @@ func (p *parser) lamHeader() (*Lam, error) {
 				if err != nil {
 					return nil, err
 				}
+				// A LINEAR RESULT, `(r ∈ Array(V) linear)`: a writable region the
+				// definition owns and moves to its caller (ADR 0084).
+				if p.is("linear") {
+					p.next()
+					claim.ResultModes = append(claim.ResultModes, Linear)
+				}
 				parts = append(parts, p.toSet(s, ""))
+				if err := p.nestedSep(parts[len(parts)-1], true); err != nil {
+					return nil, err
+				}
 				if !p.accept(",") {
 					break
 				}
@@ -473,6 +529,9 @@ func (p *parser) lamHeader() (*Lam, error) {
 	lam.Body = e
 	if claimed {
 		lam.Claim = claim
+	}
+	if len(claim.ResultModes) == 1 && claim.ResultModes[0] == Linear {
+		lam.Body = &Apply{Fn: &Var{Name: OwnedName}, Args: []Expr{e}}
 	}
 	return lam, nil
 }
@@ -563,11 +622,18 @@ func (p *parser) set(e Expr) Expr {
 			// A set names no representation (ADR 0079), so this is ℕ and only ℕ.
 			return &Apply{Fn: &Var{Name: "int"}, Args: []Expr{&Lit{T: IntLiteral("0")}, &Var{Name: "+inf"}}}
 		}
+		if d, ok := p.setDefs[e.Name]; ok {
+			return d
+		}
 		return &Var{Name: p.setName(e.Name)}
 	case *Apply:
 		v, ok := e.Fn.(*Var)
 		if !ok {
 			return e
+		}
+		if v.Name == SepName && len(e.Args) == 3 {
+			// { x ∈ S : φ }: the binder and the formula are no sets.
+			return &Apply{Fn: v, Args: []Expr{e.Args[0], p.set(e.Args[1]), e.Args[2]}}
 		}
 		args := make([]Expr, len(e.Args))
 		for i, a := range e.Args {
@@ -651,6 +717,28 @@ func (p *parser) foldStmts(stmts []stmt) (Tail, error) {
 		body, isExpr := acc.(Expr)
 		switch s.kind {
 		case "bind":
+			// AN OUT TABLE BOUND BY ITS PAIR, `(buf, r) = f(…, out S, …)`: the
+			// rest of the block runs inside the region's scope, the region named
+			// buf there, so nothing but the block's value crosses the scope's
+			// boundary (outTables).
+			if loc, ok := s.value.(*Local); ok && isExpr {
+				if o, ok := p.outScopes[loc]; ok {
+					if pt, ok := s.pat.(*PTuple); ok && len(pt.Names) == 2 {
+						// The region takes the program's name, and the call's
+						// argument is renamed to it.
+						if mentions(o.call, pt.Names[0]) {
+							return nil, fmt.Errorf("%s names both the out table and an argument of its call",
+								pt.Names[0])
+						}
+						bind := loc.Binds[0]
+						bind.Name = pt.Names[0]
+						call := renameExpr(o.call, map[string]string{o.region: pt.Names[0]})
+						acc = &Local{Binds: []LocalBind{bind}, Body: &Let{Binds: []LetBind{{Pat: &PVar{Name: pt.Names[1]},
+							Value: call}}, Body: body}}
+						continue
+					}
+				}
+			}
 			b := LetBind{Pat: s.pat, Value: s.value.(Expr)}
 			if isExpr {
 				acc = &Let{Binds: []LetBind{b}, Body: body}
@@ -679,9 +767,13 @@ func (p *parser) foldStmts(stmts []stmt) (Tail, error) {
 			}
 			init := s.value.(Expr)
 			// A STATE BINDER HOLDING A FRESH TABLE IS A BUFFER, in program order
-			// (ADR 0052, spec/local.md §2.1); any other state binder is a cell.
+			// (ADR 0052, spec/local.md §2.1); and so is one its scope writes
+			// element by element, `b[i] := v`, whatever its initializer: a fresh
+			// region holding the initializer's value, moved in when that value is
+			// itself a fresh region (ADR 0084: a linear result), copied in
+			// otherwise (scope.go, adopt). Any other state binder is a cell.
 			acc = &Local{Binds: []LocalBind{{Name: s.name, Init: init, Buffer: s.kind == "buffer",
-				Place: s.kind == "var" && freshTable(init)}}, Body: body}
+				Place: s.kind == "var" && (freshTable(init) || writesElement(body, s.name))}}, Body: body}
 		case "map", "mapvar":
 			if !isExpr {
 				return nil, fmt.Errorf("a map buffer around a jump")
@@ -1188,6 +1280,12 @@ func (p *parser) postfix(e Expr) (Expr, error) {
 			if v, ok := e.(*Var); ok && v.Name == "tuple" && len(args) == 1 {
 				return nil, p.errorf("tuple takes no terms, the unit, or two or more; a tuple of one is just the value")
 			}
+			if call, ok, err := p.outTables(e, args); err != nil {
+				return nil, err
+			} else if ok {
+				e = call
+				continue
+			}
 			e = &Apply{Fn: e, Args: args}
 		case p.is("["):
 			p.next()
@@ -1195,6 +1293,24 @@ func (p *parser) postfix(e Expr) (Expr, error) {
 			i, err := p.expr()
 			if err != nil {
 				return nil, err
+			}
+			if p.accept(":") {
+				// A SEGMENT, b[lo:hi] or b[lo:]: the rule k ↦ b[lo + k] on
+				// [0, hi − lo), formed where 0 ≤ lo ≤ hi ≤ len b (ADR 0084;
+				// amends ADR 0074). The reducer gives it its meaning
+				// (SegmentName); here it is only read.
+				var hi Expr = &Apply{Fn: &Var{Name: "len"}, Args: []Expr{e}}
+				if !p.is("]") {
+					if hi, err = p.expr(); err != nil {
+						return nil, err
+					}
+				}
+				p.close()
+				if err := p.expect("]"); err != nil {
+					return nil, err
+				}
+				e = &Apply{Fn: &Var{Name: SegmentName}, Args: []Expr{e, i, hi}}
+				continue
 			}
 			p.close()
 			if err := p.expect("]"); err != nil {
@@ -1290,6 +1406,11 @@ func (p *parser) primary() (Expr, error) {
 			if p.peekN(1).text == "{" {
 				p.next()
 				return p.array()
+			}
+		case "set":
+			if p.peekN(1).text == "{" {
+				p.next()
+				return p.separation()
 			}
 		case "map":
 			if p.peekN(1).text == "{" {
@@ -1885,4 +2006,243 @@ func (p *parser) mapGraph() (Expr, error) {
 		}
 	}
 	return &Apply{Fn: &Var{Name: "map"}, Args: pairs}, p.expect("}")
+}
+
+// SepName is separation's former in the abstract syntax, `(#sep x S φ)`, the
+// set { x ∈ S : φ } (ADR 0061 item 1; Zermelo 1908): a name a program cannot
+// write, so the former is only J's.
+const SepName = "#sep"
+
+// separation reads `set { x ∈ S : φ }`, the elements of S for which φ holds.
+// Its characteristic function is χ_S ∧ φ, so membership in it is membership in
+// S and the formula φ, which is what a header states as its `where` and its
+// `ensure` (decl.go, sig). The binder-last form `set { e : x ∈ S }` is
+// replacement (Fraenkel 1922), decided by ADR 0061 and not built.
+func (p *parser) separation() (Expr, error) {
+	p.next() // {
+	p.open(true)
+	defer p.close()
+	if p.peek().kind != tIdent || p.peekN(1).text != "∈" {
+		return nil, p.errorf("set { e : x ∈ S } is replacement, the image of S under x ↦ e, which is " +
+			"not built (ADR 0061); separation is set { x ∈ S : φ }")
+	}
+	x := Unspell(p.next().text)
+	p.next() // ∈
+	s, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.expect(":"); err != nil {
+		return nil, err
+	}
+	phi, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.expect("}"); err != nil {
+		return nil, err
+	}
+	return &Apply{Fn: &Var{Name: SepName}, Args: []Expr{&Var{Name: x}, s, phi}}, nil
+}
+
+// nestedSep refuses a separation anywhere but a binder's whole set. Inside a
+// former, Array({x ∈ S : φ}), it would claim φ of every element, a ∀ over the
+// table, which the claims do not state yet (settypes-research's array property
+// fragment).
+func (p *parser) nestedSep(e Expr, top bool) error {
+	a, ok := e.(*Apply)
+	if !ok {
+		return nil
+	}
+	if v, ok := a.Fn.(*Var); ok && v.Name == SepName && len(a.Args) == 3 {
+		if !top {
+			return p.errorf("a separation, set { x ∈ S : φ }, is a binder's whole set; inside a former it " +
+				"would claim φ of every element, a ∀ the claims do not state yet")
+		}
+		return p.nestedSep(a.Args[1], false)
+	}
+	for _, x := range a.Args {
+		if err := p.nestedSep(x, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writesElement reports a write `x[i] := v` in t: x is then a buffer, since a
+// cell is written whole.
+func writesElement(t any, x string) bool {
+	found := false
+	var walk func(v reflect.Value)
+	walk = func(v reflect.Value) {
+		if found || !v.IsValid() {
+			return
+		}
+		switch v.Kind() {
+		case reflect.Interface, reflect.Pointer:
+			if v.IsNil() {
+				return
+			}
+			if w, ok := v.Interface().(*Write); ok {
+				for _, p := range w.Places {
+					if p.Name == x && len(p.At) > 0 {
+						found = true
+						return
+					}
+				}
+			}
+			walk(v.Elem())
+		case reflect.Struct:
+			for i := 0; i < v.NumField(); i++ {
+				if v.Type().Field(i).IsExported() {
+					walk(v.Field(i))
+				}
+			}
+		case reflect.Slice:
+			for i := 0; i < v.Len(); i++ {
+				walk(v.Index(i))
+			}
+		}
+	}
+	walk(reflect.ValueOf(t))
+	return found
+}
+
+// OwnedName marks the body of a definition whose result is linear, (#owned e):
+// e must be a region the definition owns, which δ decides (reduce.go, owned).
+const OwnedName = "#owned"
+
+// outTables is `out S` at an argument whose set is a set of tables, `out
+// set { t ∈ Array(V) : len(t) <= n }` (ADR 0084 item 8, U3): a fresh region of
+// S's greatest length, lent to the call, whose value is then the region's
+// contents and the call's own, as ADR 0048's out cell is:
+//
+//	f(…, out S, …)   ⇝   { var #o := array { 0 : _ ∈ 0..sup-1 }; r = f(…, #o, …); (#o, r) }
+//
+// The supremum is read off S's formula, a conjunct len(t) <= e, len(t) < e or
+// len(t) == e with e free of t; a set with none has no greatest element, and
+// nothing to allocate. A cell's `out S` (a set that is no set of tables) is
+// left to the cell translation (outcell.go).
+func (p *parser) outTables(f Expr, args []Expr) (Expr, bool, error) {
+	at := -1
+	var sup Expr
+	for i, a := range args {
+		ap, ok := a.(*Apply)
+		if !ok || len(ap.Args) != 1 {
+			continue
+		}
+		if v, ok := ap.Fn.(*Var); !ok || v.Name != "out" {
+			continue
+		}
+		sep, ok := ap.Args[0].(*Apply)
+		if !ok || len(sep.Args) != 3 {
+			continue
+		}
+		if v, ok := sep.Fn.(*Var); !ok || v.Name != SepName {
+			continue
+		}
+		base, ok := sep.Args[1].(*Apply)
+		if v, isVar := base.Fn.(*Var); !ok || !isVar || v.Name != "array" {
+			continue
+		}
+		x := sep.Args[0].(*Var).Name
+		s, ok := supLen(sep.Args[2], x)
+		if !ok {
+			return nil, false, p.errorf("`out S` allocates S's longest element, and S's formula bounds no " +
+				"length: write len(t) <= n, len(t) < n or len(t) == n among its conjuncts")
+		}
+		if at >= 0 {
+			return nil, false, p.errorf("one `out` table to a call; bind the others first")
+		}
+		at, sup = i, s
+	}
+	if at < 0 {
+		return nil, false, nil
+	}
+	o := fmt.Sprintf("#out%d", p.nextAt())
+	r := fmt.Sprintf("#res%d", p.nextAt())
+	call := append([]Expr(nil), args...)
+	call[at] = &Var{Name: o}
+	zero := &Apply{Fn: &Var{Name: "table"}, Args: []Expr{sup, &Lit{T: Int(0)}}}
+	app := &Apply{Fn: f, Args: call}
+	body := &Let{Binds: []LetBind{{Pat: &PVar{Name: r}, Value: app}},
+		Body: &Apply{Fn: &Var{Name: "tuple"}, Args: []Expr{&Var{Name: o}, &Var{Name: r}}}}
+	loc := &Local{Binds: []LocalBind{{Name: o, Init: zero, Place: true}}, Body: body}
+	if p.outScopes == nil {
+		p.outScopes = map[*Local]outScope{}
+	}
+	p.outScopes[loc] = outScope{region: o, call: app}
+	return loc, true, nil
+}
+
+// supLen is the greatest length φ allows t: a conjunct len(t) <= e, len(t) < e
+// (e − 1) or len(t) == e, e free of t.
+func supLen(phi Expr, x string) (Expr, bool) {
+	var cs []Expr
+	if a, ok := phi.(*And); ok {
+		cs = a.Xs
+	} else {
+		cs = []Expr{phi}
+	}
+	for _, c := range cs {
+		ap, ok := c.(*Apply)
+		if !ok || len(ap.Args) != 2 {
+			continue
+		}
+		op, ok := ap.Fn.(*Var)
+		if !ok {
+			continue
+		}
+		l, ok := ap.Args[0].(*Apply)
+		if !ok || len(l.Args) != 1 {
+			continue
+		}
+		if v, ok := l.Fn.(*Var); !ok || v.Name != "len" {
+			continue
+		}
+		if v, ok := l.Args[0].(*Var); !ok || v.Name != x || mentions(ap.Args[1], x) {
+			continue
+		}
+		switch op.Name {
+		case "<=", "=":
+			return ap.Args[1], true
+		case "<":
+			return &Apply{Fn: &Var{Name: "-"}, Args: []Expr{ap.Args[1], &Lit{T: Int(1)}}}, true
+		}
+	}
+	return nil, false
+}
+
+// mentions reports a variable x in e.
+func mentions(e Expr, x string) bool {
+	found := false
+	var walk func(v reflect.Value)
+	walk = func(v reflect.Value) {
+		if found || !v.IsValid() {
+			return
+		}
+		switch v.Kind() {
+		case reflect.Interface, reflect.Pointer:
+			if v.IsNil() {
+				return
+			}
+			if w, ok := v.Interface().(*Var); ok && w.Name == x {
+				found = true
+				return
+			}
+			walk(v.Elem())
+		case reflect.Struct:
+			for i := 0; i < v.NumField(); i++ {
+				if v.Type().Field(i).IsExported() {
+					walk(v.Field(i))
+				}
+			}
+		case reflect.Slice:
+			for i := 0; i < v.Len(); i++ {
+				walk(v.Index(i))
+			}
+		}
+	}
+	walk(reflect.ValueOf(e))
+	return found
 }

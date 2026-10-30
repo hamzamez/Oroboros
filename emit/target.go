@@ -129,6 +129,11 @@ type Prim struct {
 	// lo ≤ x ≤ hi, taken out of Where and decided as a ranged parameter's are
 	// (wherebounds.go, ADR 0062's bounds in binder sets); "" for the others.
 	Bounds []string
+	// Unions are the `where` conjuncts a union of ranges in Bounds was read
+	// from, by parameter: a disjunction of constant bounds, in the parameter's
+	// name. When the IR's interval does not prove the union, the refinement
+	// layer is handed this condition itself, as before (whereUnions).
+	Unions map[int]*core.Term
 	// Names are the parameter names, which a Where refers to. Empty unless the
 	// declaration used the named form.
 	Names []string
@@ -3091,6 +3096,15 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// judgement reads through.
 	e.Prim["let"] = true
 	e.Pure["let"] = true
+	// `inf` and `sup`, a range's least and greatest element (ADR 0084's build):
+	// static, folded by the reducer, so like `let` they are primitive without
+	// being declared, and no target realizes them, because a residual never
+	// holds one (Law S, core.staged).
+	e.Prim["inf"], e.Pure["inf"] = true, true
+	e.Prim["sup"], e.Pure["sup"] = true, true
+	// A range, lo..hi, is a static value and pure, so β substitutes it where
+	// inf and sup can read its ends; Law S keeps it out of a residual.
+	e.Prim[".."], e.Pure[".."] = true, true
 	// `#any`, the value a constructor writes into a slot its tag does not
 	// select (data.md §5.5.5): a pure constant on every target, the zero of the
 	// slot's type, which the IR chooses once the slot is typed.

@@ -39,3 +39,4 @@ fact rem_dividend_nonpos (a ∈ Int, b ∈ Int) when(a <= 0) a <= a % b && a % b
 fact and_left (a ∈ Int, b ∈ Int) when(0 <= a) 0 <= `&`(a, b) && `&`(a, b) <= a
 
 fact and_right (a ∈ Int, b ∈ Int) when(0 <= b) 0 <= `&`(a, b) && `&`(a, b) <= b
+

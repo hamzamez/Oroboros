@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math/big"
 	"fmt"
 	"math"
 	"sort"
@@ -290,6 +291,67 @@ func IsRequireFalse(t *Term) (*Term, bool) {
 	return nil, false
 }
 
+// SegmentName is the segment former, `(#segment b lo hi)`, J's `b[lo:hi]`:
+// structural, a name a program cannot write.
+const SegmentName = "#segment"
+
+// SegmentDef labels a segment's formation obligation.
+const SegmentDef = "a segment b[lo:hi]"
+
+// segment is δ for the segment former. A segment is its table restricted and
+// translated: (b[lo:hi])(k) = b(lo + k) on [0, hi − lo), the function ADR 0074
+// gave a host's restricted parameter, now wherever a table is (ADR 0084):
+//
+//	(#segment b lo hi)  ⟶  (#reqw "segment" (0 ≤ lo ≤ hi ≤ len b) (table (− hi lo) (fn (k) (b (+ lo k)))))
+//
+// The formation obligation makes its length hi − lo a natural number, and the
+// rule's own domain (betaTab) keeps every read inside it, so neither a read
+// past hi nor a negative length can be written. It is a rule, so it fuses: a
+// segment that is only indexed and measured is erased, with no copy and no
+// representation, on every target. An impure operand is bound first (ADR 0010).
+func (e *Env) segment(args []*Term, fuel *int) (*Term, error) {
+	for _, a := range args {
+		if !e.pureTerm(a, map[string]bool{}) {
+			ns := e.freshNames(3, args...)
+			inner := App(Name(SegmentName), Name(ns[0]), Name(ns[1]), Name(ns[2]))
+			return normalize(App(Fn(ns, inner), args...), e, fuel)
+		}
+	}
+	b, lo, hi := args[0], args[1], args[2]
+	k := e.freshNames(1, args...)[0]
+	// 0 ≤ lo is a range on lo, decided where lo is computed, inside the rule;
+	// the rest a relation, the where-mark (betaTab).
+	marked := lo
+	if e.Word != (Word{}) {
+		marked = e.nonnegative(SegmentDef, "lo", lo)
+	}
+	rule := App(Name("table"), App(Name("-"), hi, lo), Fn([]string{k}, App(b, App(Name("+"), marked, Name(k)))))
+	plain := lo
+	cond := App(Name("if"), App(Name("<="), plain, hi), App(Name("<="), hi, App(Name("len"), b)), Bool(false))
+	if e.Word == (Word{}) {
+		cond = App(Name("if"), App(Name("<="), Int(0), plain), cond, Bool(false))
+	}
+	c, err := normalize(cond, e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	body, err := normalize(rule, e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case c.Kind == KBool && c.IsTrue():
+		return body, nil
+	case c.Kind == KBool:
+		return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(SegmentDef), App(Name(RequireFalseName), cond), body}}, nil
+	}
+	return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(SegmentDef), c, body}}, nil
+}
+
+// RuleIndexDef labels the obligation an index into a table given by a rule
+// carries, 0 ≤ i < n (betaTab).
+const RuleIndexDef = "an index into a table given by a rule"
+
 // RequireWhereName marks a call's result with its definition's instantiated
 // `where` (ADR 0028): `(#reqw "def" cond body)`, whose value is body.
 const RequireWhereName = "#reqw"
@@ -348,6 +410,17 @@ func (e *Env) markWhere(def string, subs, args []*Term, body *Term, fuel *int) (
 	cond, err := normalize(subst(w.Cond, m), e, fuel)
 	if err != nil {
 		return nil, err
+	}
+	// AN OBLIGATION INSIDE THE CONDITION IS ITS OWN: a static argument's
+	// where-mark (a codec's, lib/bytes) is hoisted to stand around the body
+	// beside this one, and its value is what the condition reads.
+	var inner []*Term
+	cond = hoistWheres(cond, &inner)
+	body = wrapWheres(body, inner)
+	if len(inner) > 0 {
+		if cond, err = normalize(cond, e, fuel); err != nil {
+			return nil, err
+		}
 	}
 	if cond.Kind == KBool {
 		if cond.IsTrue() {
@@ -967,7 +1040,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	}
 	for _, m := range mods {
 		for n, sig := range m.Sigs {
-			p.Sigs[qualify(m.Path, n)] = sig
+			p.Sigs[qualify(m.Path, n)] = m.qualifySig(sig)
 		}
 	}
 	for _, m := range mods {
@@ -1194,6 +1267,8 @@ var LanguageSignature = map[string]bool{
 	"concat": true, "string-of": true,
 	// a range on a term, the discard, and the crash `expect` expands into
 	AscribeName: true, IgnoreName: true, "abandon": true,
+	// the least and greatest elements of a range, static (ADR 0084's build)
+	"inf": true, "sup": true,
 }
 
 // langSums are `lang`'s variant types, by key. The key of a `lang` declaration
@@ -1292,6 +1367,12 @@ func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term,
 
 	case KName:
 		if bound[t.Name] {
+			return t, nil
+		}
+		// A RANGE IS A STATIC VALUE (spec/typevalues.md §1): it may be an
+		// argument, consumed by staging, `inf` and `sup` (ADR 0084's build:
+		// lib/bytes' codec). Law S refuses one a residual still holds (staged).
+		if t.Name == ".." {
 			return t, nil
 		}
 		if err := setInTerm(t.Name); err != nil {
@@ -2050,6 +2131,21 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			if err != nil {
 				return nil, err
 			}
+			// A CONDITION A VALUE WAS SUBSTITUTED INTO after it was formed (β
+			// of a let whose name it read) is reduced again when that value
+			// left something to reduce: an obligation of its own, hoisted to
+			// stand beside this one, or the length of a table that is no name
+			// (a segment's, lib/bytes' get). Pure reasoning: the condition is
+			// erased once decided.
+			if cond := t.Kids[2]; needsReduction(cond) {
+				var inner []*Term
+				cond = hoistWheres(cond, &inner)
+				if c, err := normalize(cond, e, fuel); err == nil {
+					cond = c
+				}
+				m := &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], cond, b}}
+				return wrapWheres(m, inner), nil
+			}
 			return withWhere(t, b), nil
 		}
 		op, err := normalize(t.Op(), e, fuel)
@@ -2130,6 +2226,30 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		// path and folding waits for integers to need it (tables.md §4.3).
 		if idx, ok := e.betaTab(op, args, fuel); ok {
 			return normalize(idx, e, fuel)
+		}
+		// A FUNCTION UNDER AN OBLIGATION IS STILL THAT FUNCTION: applying
+		// (#reqw c t) is applying t, under c, as `len` reads through one. A
+		// segment's formation obligation stands around its rule (segment), and
+		// a codec's around its tuple, which is eliminated by applying it.
+		if IsRequireWhere(op) {
+			in, ms := peelWheres(op)
+			if in.Kind == KFn || isForm(in, e, "tuple") ||
+				((isForm(in, e, "table") || isForm(in, e, "array")) && len(args) == 1) {
+				inner, err := normalize(&Term{Kind: KApp, Kids: append([]*Term{in}, args...)}, e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				return wrapWheres(inner, ms), nil
+			}
+		}
+		if op.Kind == KName && op.Name == SegmentName && len(args) == 3 {
+			return e.segment(args, fuel)
+		}
+		if op.Kind == KName && op.Name == AdoptName && len(args) == 2 && args[1].Kind == KFn {
+			return e.adopt(args, fuel)
+		}
+		if op.Kind == KName && op.Name == OwnedName && len(args) == 1 {
+			return e.owned(args[0], fuel)
 		}
 
 		// `ignore` IS !_A : A → 1, the unique arrow into the terminal object
@@ -2631,10 +2751,49 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 					return out, nil
 				}
 			}
+			// A COMPARISON OF CLOSED INTEGERS FOLDS EXACTLY, a literal past the
+			// word included (2^64 − 1 is staged as 18446·10¹⁵ + …): its value is
+			// a Boolean, which every target holds, so no answer can change
+			// (ADR 0009 governs integers a fold would produce, and this produces
+			// none). lib/bytes' width of a 64-bit codec is decided so.
+			if e.Word != (Word{}) {
+				if out, ok := foldClosedComparison(op.Name, a, b); ok {
+					return out, nil
+				}
+			}
 			if out, ok := e.absorb([]*Term{op, a, b}); ok {
 				return out, nil
 			}
 			return &Term{Kind: KApp, Kids: []*Term{op, a, b}}, nil
+		}
+		// inf and sup ARE A RANGE'S ENDS: on lo..hi with literal ends, the least
+		// and the greatest element, the order's infimum and supremum, which a
+		// finite range attains. Static: a range has no run-time value, so either
+		// folds here or the residual is refused (Law S, staged).
+		if op.Kind == KName && (op.Name == "inf" || op.Name == "sup") && e.Prim[op.Name] && len(args) == 1 {
+			na, err := normalize(args[0], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			if na.Kind == KApp && len(na.Kids) == 3 && na.Kids[0].Kind == KName && na.Kids[0].Name == ".." {
+				lo, err := normalize(na.Kids[1], e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				hi, err := normalize(na.Kids[2], e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				l, okl := closedBig(lo)
+				h, okh := closedBig(hi)
+				if okl && okh && l.Cmp(h) <= 0 {
+					if op.Name == "inf" {
+						return lo, nil
+					}
+					return hi, nil
+				}
+			}
+			return &Term{Kind: KApp, Kids: []*Term{op, na}}, nil
 		}
 		// `len` on a table whose length is known. See tableLen.
 		if op.Kind == KName && op.Name == "len" && e.Prim["len"] && len(args) == 1 {
@@ -2744,6 +2903,30 @@ func duplicable(t *Term) bool {
 	}
 	switch t.Kind {
 	case KInt, KFloat, KStr, KBool, KName, KFn, KBound:
+		return true
+	}
+	// A CLOSED INTEGER is a constant, a literal past the word staged as closed
+	// arithmetic (2^64 − 1 is 18446·10¹⁵ + …): free to copy, as a literal is.
+	if t.Kind == KApp {
+		if _, ok := closedBig(t); ok {
+			return true
+		}
+	}
+	// A RANGE IS A STATIC VALUE with no run-time existence, so copying it costs
+	// nothing, as copying a λ does: lo..hi with copyable ends.
+	if t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == ".." {
+		_, closedLo := closedBig(t.Kids[1])
+		_, closedHi := closedBig(t.Kids[2])
+		return (duplicable(t.Kids[1]) || closedLo) && (duplicable(t.Kids[2]) || closedHi)
+	}
+	// A TUPLE OF COPYABLE COMPONENTS is a function too, eliminated by applying
+	// it, so copying it copies a description: a codec, (k, lo, hi, order).
+	if t.Kind == KApp && len(t.Kids) > 1 && t.Kids[0].Kind == KName && t.Kids[0].Name == "tuple" {
+		for _, k := range t.Kids[1:] {
+			if !duplicable(k) {
+				return false
+			}
+		}
 		return true
 	}
 	return false
@@ -3114,8 +3297,11 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 	case KName:
 		// `#any`, the unconstrained value, is the language's own (Theorem R,
 		// data.md §5.5.5), on every target, and no source can write it; so is
-		// `#elim`, the cell translation's claim the reducer decides.
-		if bound[t.Name] || e.Prim[t.Name] || e.Sets[t.Name] || t.Name == AnyName || t.Name == ElimName {
+		// `#elim`, the cell translation's claim the reducer decides; and
+		// `#segment`, J's b[lo:hi], which δ rewrites to a rule (segment); and a
+		// range, a static value Law S keeps out of the residual (staged).
+		if bound[t.Name] || e.Prim[t.Name] || e.Sets[t.Name] || t.Name == AnyName || t.Name == ElimName || t.Name == SegmentName ||
+			t.Name == ".." || t.Name == AdoptName || t.Name == OwnedName {
 			return nil
 		}
 		if _, ok := e.Defs[t.Name]; ok {
@@ -3277,6 +3463,20 @@ func (e *Env) reduceLet(op *Term, args []*Term, fuel *int) (*Term, error) {
 	}
 	if duplicable(v) && !IsRequire(v) && !IsRequireWhere(v) {
 		return normalize(args[1].OpenWith([]*Term{v}), e, fuel)
+	}
+	// A VALUE UNDER AN OBLIGATION: the obligation is moved out, to stand
+	// around the let, where it is decided once, and the value it guards is
+	// bound: let x = (#reqw c v) in b is (#reqw c (let x = v in b)). A codec's
+	// width under its `where` (lib/bytes) is then the literal it is.
+	if IsRequireWhere(v) {
+		in, ms := peelWheres(v)
+		if duplicable(in) && !IsRequire(in) {
+			inner, err := normalize(args[1].OpenWith([]*Term{in}), e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			return wrapWheres(inner, ms), nil
+		}
 	}
 	// β'S ONE-EVALUATION RULE, ON A RESIDUAL LET (ADR 0071). β binds a pure
 	// value whose use, when it looked, sat under a λ that might run many times:
@@ -3818,14 +4018,51 @@ func isForm(t *Term, e *Env, name string) bool {
 // is the whole point of indexing being application: `(a i)` is the same text
 // whether it reduces here or is emitted (tables.md §3.1).
 //
-// The rule form needs nothing: `((table n f) i)` is `(f i)` for any i, which is
-// what makes a table-of-a-rule FUSE. That is the mechanism `dot` runs on.
+// The rule form needs no literal: `((table n f) i)` is `(f i)`, which is what
+// makes a table-of-a-rule FUSE, the mechanism `dot` runs on. But a table is a
+// function on [0, n) (tables.md §1), and f may be defined beyond it: a segment
+// `b[lo:hi]` is the rule k ↦ b[lo + k], defined wherever b is. So the
+// application keeps its domain as an obligation, 0 ≤ i < n, a where-mark on
+// (f i) decided like every other (DischargeRequires) and erased after. Without
+// it an index past a rule's end read the function outside the table, a value
+// the program never described (ADR 0084's build: examples/pe).
 func (e *Env) betaTab(op *Term, args []*Term, fuel *int) (*Term, bool) {
 	if len(args) != 1 {
 		return nil, false
 	}
 	if isForm(op, e, "table") && len(op.Kids) == 3 {
-		return &Term{Kind: KApp, Kids: []*Term{op.Kids[2], args[0]}}, true
+		body := &Term{Kind: KApp, Kids: []*Term{op.Kids[2], args[0]}}
+		i := StripRequires(args[0])
+		cond := App(Name("if"), App(Name("<="), Int(0), i), App(Name("<"), i, op.Kids[1]), Bool(false))
+		if i.Kind == KInt && op.Kids[1].Kind == KInt {
+			if i.Int >= 0 && i.Int < op.Kids[1].Int {
+				return body, true
+			}
+			return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef),
+				App(Name(RequireFalseName), cond), body}}, true
+		}
+		c, err := normalize(cond, e, fuel)
+		if err == nil && c.Kind == KBool && c.IsTrue() {
+			return body, true
+		}
+		if err == nil && c.Kind == KBool {
+			return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef),
+				App(Name(RequireFalseName), cond), body}}, true
+		}
+		// TWO OBLIGATIONS OF TWO KINDS (ADR 0075's split): 0 ≤ i, a constant
+		// bound, is a range on the index, decided by a literal, the IR's
+		// intervals, then the refinement layer; i < n, a relation, is the
+		// where-mark the refinement layer decides from the guards.
+		if e.Word != (Word{}) {
+			idx := e.nonnegative(RuleIndexDef, "index", args[0])
+			body = &Term{Kind: KApp, Kids: []*Term{op.Kids[2], idx}}
+			return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef),
+				App(Name("<"), i, op.Kids[1]), body}}, true
+		}
+		if err != nil {
+			c = cond
+		}
+		return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(RuleIndexDef), c, body}}, true
 	}
 	// A MAP LITERAL, which is β-tab with a SUM in the result position.
 	//
@@ -3924,9 +4161,19 @@ func (e *Env) tableLen(args []*Term) (*Term, bool) {
 //
 // Purity is still required, because β may not move an impure term at all
 // (ADR 0010).
+//
+// A rule under an obligation, a segment's formation (segment), is still a
+// description: copying it copies the obligation, which is decided at each copy
+// and erased.
 func (e *Env) duplicableTable(t *Term) bool {
-	return isForm(t, e, "table") && len(t.Kids) == 3 &&
-		e.pureTerm(t, map[string]bool{})
+	in, ms := peelWheres(t)
+	for _, m := range ms {
+		if !e.pureTerm(m.Kids[2], map[string]bool{}) {
+			return false
+		}
+	}
+	return isForm(in, e, "table") && len(in.Kids) == 3 &&
+		e.pureTerm(in, map[string]bool{})
 }
 
 // AscribeName is the structural name that carries a range on a TERM.
@@ -4016,12 +4263,19 @@ func declared(n string) string {
 // staged is Law S of spec/typevalues.md §1: a residual holds no set, and no
 // declaration over sets that was not applied to them.
 func (e *Env) staged(t *Term) error {
-	if len(e.Sets) == 0 && len(e.Static) == 0 {
-		return nil
-	}
 	var walk func(t *Term) error
 	walk = func(t *Term) error {
 		if t.Kind == KName {
+			switch {
+			case t.Name == "..":
+				return fmt.Errorf("a range, lo..hi, is a set, a static value, and has no value at run time: " +
+					"it is an argument consumed by staging, by inf, sup or a definition over sets " +
+					"(spec/typevalues.md §1); here it reaches the program as a value")
+			case (t.Name == "inf" || t.Name == "sup") && e.Prim[t.Name]:
+				return fmt.Errorf("%s takes a range with literal ends, lo..hi, and gives its %s element at "+
+					"compile time; here its argument is not one, so it has no value", t.Name,
+					map[string]string{"inf": "least", "sup": "greatest"}[t.Name])
+			}
 			switch {
 			case e.Static[t.Name] > 0:
 				return fmt.Errorf("%s takes %d static argument%s, a set for each, and is not applied to "+
@@ -4104,9 +4358,13 @@ func setInTerm(name string) error {
 	if !ok {
 		return nil
 	}
+	shown := ShowName(name)
+	if name == SepName {
+		shown = "set { x ∈ S : φ }"
+	}
 	return fmt.Errorf("%s is %s. A set stands in a set position, a binder `x ∈ S` or a binder's claim "+
 		"`b ∈ S = e`; in a computation, or a claim's formula, a set has no representation (ADR 0049, "+
-		"spec/j.md's status)", ShowName(name), why)
+		"spec/j.md's status)", shown, why)
 }
 
 // setOperatorIn is the first set operator a term names, or "".
@@ -4135,10 +4393,308 @@ var setOperators = map[string]string{
 	"∈":  "membership, the test χ_S(e), which is not built; for a range write `lo <= e && e <= hi`",
 	"∉":  "non-membership, ¬χ_S(e), which is not built; for a range write `e < lo || e > hi`",
 	"..": "a range, a set of integers",
+	SepName: "a separation, the set { x ∈ S : φ } of S's elements for which φ holds",
 	"∪":  "union, an operation of the set algebra",
 	"∩":  "intersection, an operation of the set algebra",
 	"∖":  "difference, an operation of the set algebra",
 	"×":  "the product of sets",
 	"⊆":  "inclusion, a relation between sets, which a binder `E ⊆ S` and an `axiom` state",
 	"⊂":  "strict inclusion, a relation between sets",
+}
+
+// qualifySig resolves a signature's formulas as its definition's body is
+// resolved: a name its module defines, and no parameter binds, is that module's
+// definition. A `where` calling a helper of its module, lib/bytes' width(c),
+// was read as a bare name nothing defines, and the obligation never reduced
+// (ADR 0084's build). The main module's names are unqualified already.
+func (m *Module) qualifySig(sig *Sig) *Sig {
+	if sig == nil || m.Path == "" {
+		return sig
+	}
+	params := map[string]bool{ResultName: true}
+	for _, p := range sig.Params {
+		params[p.Name] = true
+	}
+	var q func(t *Term, bound map[string]bool) *Term
+	q = func(t *Term, bound map[string]bool) *Term {
+		if t == nil {
+			return nil
+		}
+		switch t.Kind {
+		case KName:
+			if _, own := m.Defs[t.Name]; own && !bound[t.Name] && !params[t.Name] {
+				return Name(qualify(m.Path, t.Name))
+			}
+			return t
+		case KFn:
+			inner := map[string]bool{}
+			for k := range bound {
+				inner[k] = true
+			}
+			for _, p := range t.Params {
+				inner[p] = true
+			}
+			body := q(t.Kids[0], inner)
+			if body == t.Kids[0] {
+				return t
+			}
+			c := *t
+			c.Kids = []*Term{body}
+			return &c
+		}
+		var kids []*Term
+		for i, k := range t.Kids {
+			nk := q(k, bound)
+			if nk != k && kids == nil {
+				kids = append([]*Term(nil), t.Kids...)
+			}
+			if kids != nil {
+				kids[i] = nk
+			}
+		}
+		if kids == nil {
+			return t
+		}
+		c := *t
+		c.Kids = kids
+		return &c
+	}
+	out := *sig
+	out.Where = q(sig.Where, map[string]bool{})
+	out.Written = q(sig.Written, map[string]bool{})
+	out.Ensures = q(sig.Ensures, map[string]bool{})
+	out.ResultRange = q(sig.ResultRange, map[string]bool{})
+	return &out
+}
+
+// hoistWheres replaces each where-mark inside t by its body, collecting the
+// marks, outermost first, so an obligation a condition reached is kept as one.
+func hoistWheres(t *Term, out *[]*Term) *Term {
+	if t == nil {
+		return nil
+	}
+	if IsRequireWhere(t) {
+		*out = append(*out, t)
+		return hoistWheres(t.Kids[3], out)
+	}
+	var kids []*Term
+	for i, k := range t.Kids {
+		nk := hoistWheres(k, out)
+		if nk != k && kids == nil {
+			kids = append([]*Term(nil), t.Kids...)
+		}
+		if kids != nil {
+			kids[i] = nk
+		}
+	}
+	if kids == nil {
+		return t
+	}
+	c := *t
+	c.Kids = kids
+	return &c
+}
+
+// adopt is δ for a buffer whose region is given, (adopt e (fn (b) B)): a fresh
+// region holding e's value, then B. Under the state-passing translation
+// (Theorem V) a scope is a state transformer, so when e is itself a fresh
+// region, a scope (build n (fn (r) R)) that hands back its buffer, the two
+// compose into one region:
+//
+//	(adopt (build n (fn (r) R)) (fn (b) B))  ⟶  (build n (fn (r) ((fn (b) B) R)))
+//
+// the MOVE of a linear result (ADR 0084): one allocation, nothing copied, and
+// nothing else can name the region, since only the producer's scope did. Any
+// other e is a table something else may hold, and its value is copied into a
+// fresh region, element by element, which is what `var b := e` means.
+func (e *Env) adopt(args []*Term, fuel *int) (*Term, error) {
+	v, err := normalize(args[0], e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	in, ms := peelWheres(v)
+	// A LET AROUND A FRESH REGION is still one: the adoption moves inside it,
+	// under a fresh name, so nothing of the caller's is captured.
+	// Built closed (locally nameless): the let's body stays under its binder,
+	// and the caller's λ moves under it, shifted by one.
+	if lam, val, ok := letClosed(in); ok && e.freshRegion(lam.Body()) {
+		inner := App(Name(AdoptName), lam.Closed(), shift(args[1], 0, 1))
+		out, err := normalize(App(FnClosed(lam.Params, inner), val), e, fuel)
+		if err != nil {
+			return nil, err
+		}
+		return wrapWheres(out, ms), nil
+	}
+	if isForm(in, e, "build") && len(in.Kids) == 3 && in.Kids[2].Kind == KFn && len(in.Kids[2].Params) == 1 {
+		lam := in.Kids[2]
+		moved := App(Name("build"), in.Kids[1], FnClosed(lam.Params, App(shift(args[1], 0, 1), lam.Closed())))
+		out, err := normalize(moved, e, fuel)
+		if err != nil {
+			return nil, err
+		}
+		return wrapWheres(out, ms), nil
+	}
+	if !e.pureTerm(v, map[string]bool{}) {
+		ns := e.freshNames(1, v, args[1])
+		return normalize(App(Fn(ns, App(Name(AdoptName), Name(ns[0]), args[1])), v), e, fuel)
+	}
+	// THE COPY: element i of the fresh region is e's, by build's fill loop.
+	ns := e.freshNames(3, v, args[1])
+	i, x, n := ns[0], ns[1], ns[2]
+	fill := App(Name("loop"),
+		Fn([]string{i, x}, App(Name("if"), App(Name(">="), Name(i), Name(n)),
+			Name(x),
+			App(Name("again"), App(Name("+"), Name(i), Int(1)),
+				App(Name("set"), Name(x), Name(i), App(v, Name(i)))))),
+		Int(0), Name(x))
+	copied := App(Fn([]string{n}, App(Name("build"), Name(n), Fn([]string{x}, App(args[1], fill)))),
+		App(Name("len"), v))
+	return normalize(copied, e, fuel)
+}
+
+// owned decides a linear result (ADR 0084 item 7): the definition moves out a
+// region it owns, so its value is a fresh one, a buffer's scope that hands its
+// buffer back, (build n (fn (b) …)). Anything else, a table it was lent, a
+// parameter, a table something else names, would give the caller a writable
+// name for a region another holds, and is refused. Decided where the
+// definition is inlined, per instance, like its other claims.
+func (e *Env) owned(body *Term, fuel *int) (*Term, error) {
+	v, err := normalize(body, e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	if e.freshRegion(v) {
+		return v, nil
+	}
+	in, _ := peelWheres(v)
+	return nil, fmt.Errorf("a definition whose result is linear moves out a region it owns, a buffer " +
+		"its body makes (`var r := array { … }`, then `r`); this one returns %s, which it does not " +
+		"own, so the caller would hold a writable name for a region another holds (ADR 0084)",
+		ShowTerm(in))
+}
+
+// freshRegion reports a fresh region: a buffer's scope, (build n (fn (b) …)),
+// under where-marks and lets.
+func (e *Env) freshRegion(t *Term) bool {
+	in, _ := peelWheres(t)
+	if _, _, body, ok := letParts(in); ok {
+		return e.freshRegion(body)
+	}
+	return isForm(in, e, "build") && len(in.Kids) == 3 && in.Kids[2].Kind == KFn && len(in.Kids[2].Params) == 1
+}
+
+// letParts reads a let, (let v (fn (x) b)) or ((fn (x) b) v): its binder, its
+// value and its body, opened with the binder's name.
+func letParts(t *Term) (string, *Term, *Term, bool) {
+	if t.Kind != KApp || len(t.Kids) == 0 {
+		return "", nil, nil, false
+	}
+	if t.Kids[0].Kind == KName && t.Kids[0].Name == "let" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn &&
+		len(t.Kids[2].Params) == 1 {
+		return t.Kids[2].Params[0], t.Kids[1], t.Kids[2].Body(), true
+	}
+	if t.Kids[0].Kind == KFn && len(t.Kids[0].Params) == 1 && len(t.Kids) == 2 {
+		return t.Kids[0].Params[0], t.Kids[1], t.Kids[0].Body(), true
+	}
+	return "", nil, nil, false
+}
+
+// letClosed reads a let as its λ and its value, the λ's body still closed.
+func letClosed(t *Term) (*Term, *Term, bool) {
+	if t.Kind != KApp || len(t.Kids) == 0 {
+		return nil, nil, false
+	}
+	if t.Kids[0].Kind == KName && t.Kids[0].Name == "let" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn &&
+		len(t.Kids[2].Params) == 1 {
+		return t.Kids[2], t.Kids[1], true
+	}
+	if t.Kids[0].Kind == KFn && len(t.Kids[0].Params) == 1 && len(t.Kids) == 2 {
+		return t.Kids[0], t.Kids[1], true
+	}
+	return nil, nil, false
+}
+
+// closedBig is the value of a closed integer term, literals under +, − and ·,
+// exactly in ℤ: how staging leaves a literal past the word.
+func closedBig(t *Term) (*big.Int, bool) {
+	switch {
+	case t.Kind == KInt:
+		return big.NewInt(t.Int), true
+	case t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName:
+		a, ok1 := closedBig(t.Kids[1])
+		b, ok2 := closedBig(t.Kids[2])
+		if !ok1 || !ok2 {
+			return nil, false
+		}
+		switch t.Kids[0].Name {
+		case "+":
+			return a.Add(a, b), true
+		case "-":
+			return a.Sub(a, b), true
+		case "*":
+			return a.Mul(a, b), true
+		}
+	case t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == "-":
+		if a, ok := closedBig(t.Kids[1]); ok {
+			return a.Neg(a), true
+		}
+	}
+	return nil, false
+}
+
+// foldClosedComparison decides a comparison of two closed integer terms.
+func foldClosedComparison(op string, a, b *Term) (*Term, bool) {
+	x, ok1 := closedBig(a)
+	y, ok2 := closedBig(b)
+	if !ok1 || !ok2 {
+		return nil, false
+	}
+	c := x.Cmp(y)
+	switch op {
+	case "<":
+		return Bool(c < 0), true
+	case "<=":
+		return Bool(c <= 0), true
+	case ">":
+		return Bool(c > 0), true
+	case ">=":
+		return Bool(c >= 0), true
+	case "=":
+		return Bool(c == 0), true
+	}
+	return nil, false
+}
+
+// needsReduction reports a where-mark's condition holding an obligation of
+// its own, or the length of a table that is no name, which normalization
+// folds.
+func needsReduction(t *Term) bool {
+	if t == nil {
+		return false
+	}
+	if IsRequireWhere(t) {
+		return true
+	}
+	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == "len" &&
+		t.Kids[1].Kind == KApp {
+		return true
+	}
+	for _, k := range t.Kids {
+		if needsReduction(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// nonnegative marks a ≥ 0 as a range obligation, a ∈ [0, the word's top]:
+// decided as a parameter's range is, the IR's intervals included, which know
+// a table's element set and a loop's exit value where the refinement layer
+// does not. A literal is decided here.
+func (e *Env) nonnegative(def, param string, a *Term) *Term {
+	if a.Kind == KInt && a.Int >= 0 {
+		return a
+	}
+	ty := fmt.Sprintf("int 0 %d", e.Word.Hi)
+	return &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(def), Str(param), Str(ty), a}}
 }

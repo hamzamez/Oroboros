@@ -1,0 +1,199 @@
+// bytes: integers as bytes, by codecs (ADR 0084 item 14, pointers-research.md §22).
+//
+// THE ALGEBRA. A codec for a set S is a partial isomorphism between S and k bytes
+// (Rendel and Ostermann 2010): an encoding e : S → Bᵏ, total and injective, and a
+// decoding d : Bᵏ ⇀ S with d ∘ e = id_S. It is ADR 0083's representation (H, d)
+// with H = Bᵏ. For a range S it is determined by three things:
+//
+//   k        the width, the narrowest number of bytes that holds S: S ⊆ [0, 256ᵏ)
+//            read unsigned, or S ⊆ [−256ᵏ/2, 256ᵏ/2) read signed
+//   inf, sup S's ends, so the codec knows its set (check, put)
+//   order    'le or 'be: d_be = d_le ∘ reverse, the byte order part of d
+//
+// so a codec is the static value (k, inf S, sup S, order), computed at compile
+// time and erased by staging: no codec exists at run time, only the reads and
+// writes it determines.
+//
+//   d_le(b, a) = Σ_{i<k} b[a+i]·256ⁱ, written b[a] | b[a+1] << 8 | …, which is
+//                ℤ's own arithmetic on [0, 2^{8k}) (ADR 0082: the digits occupy
+//                disjoint bits, so | is +)
+//   signed     the reading u is sign-extended, u ⊕ 2^{8k−1} − 2^{8k−1}, an identity
+//              on ℤ that maps [0, 2^{8k}) onto [−2^{8k−1}, 2^{8k−1})
+//   e          v mod 2^{8k}, the residue, v & (2^{8k} − 1) on ℤ, cut into its
+//              digits base 256
+//
+// A codec is TOTAL when every bit pattern decodes into S: S is the whole of
+// [0, 256ᵏ) or of the signed range. `get` takes only a total codec; `check` takes
+// any and returns an option. A value `put` and then `get` is the round trip
+// d(e(v)) = v.
+//
+// Not here, each with the program that needs it: a product of codecs (a
+// record) and a power (a fixed array), which need a codec to hold codecs, a
+// recursive static value (spec/typevalues.md §10's step 2); floats (wall 5);
+// a signed 8-byte reading, whose unsigned reading lies in the unsigned word and
+// whose value in the signed word, a move between representations not built.
+
+pub set Order = 'le ∪ 'be
+
+// k, the narrowest width that holds [lo, hi]: unsigned when lo ≥ 0, else signed.
+fn width_of(lo ∈ Int, hi ∈ Int) (1..8) {
+    case {
+        lo >= 0 && hi <= 2^8-1 -> 1
+        lo >= 0 && hi <= 2^16-1 -> 2
+        lo >= 0 && hi <= 2^24-1 -> 3
+        lo >= 0 && hi <= 2^32-1 -> 4
+        lo >= 0 && hi <= 2^40-1 -> 5
+        lo >= 0 && hi <= 2^48-1 -> 6
+        lo >= 0 && hi <= 2^56-1 -> 7
+        lo >= 0 -> 8
+        lo >= -2^7 && hi <= 2^7-1 -> 1
+        lo >= -2^15 && hi <= 2^15-1 -> 2
+        lo >= -2^23 && hi <= 2^23-1 -> 3
+        else -> 4
+    }
+}
+
+// A codec for the range S in the byte order o.
+pub fn codec(S, o) where inf(S) >= -2^31 && sup(S) <= 2^64-1 {
+    (width_of(inf(S), sup(S)), inf(S), sup(S), o)
+}
+
+// k, the codec's width in bytes.
+pub fn width(c) { (k, lo, hi, o) = c; k }
+
+// 2^{8k} − 1, the greatest unsigned reading of k bytes, and 2^{8k−1}, half
+// the patterns: tables over the widths, each entry a literal, since k is known
+// at compile time. The mask is the residue map too: on ℤ, & is the 2-adic and,
+// so v & (2ⁿ − 1) = v mod 2ⁿ for every v, a negative one included (ADR 0082).
+fn maxu(k ∈ 1..8) {
+    case {
+        k == 1 -> 2^8-1
+        k == 2 -> 2^16-1
+        k == 3 -> 2^24-1
+        k == 4 -> 2^32-1
+        k == 5 -> 2^40-1
+        k == 6 -> 2^48-1
+        k == 7 -> 2^56-1
+        else -> 2^64-1
+    }
+}
+fn half(k ∈ 1..4) {
+    case { k == 1 -> 2^7; k == 2 -> 2^15; k == 3 -> 2^23; else -> 2^31 }
+}
+
+// Whether every bit pattern of k bytes decodes into the codec's set.
+fn total(c) {
+    (k, lo, hi, o) = c
+    case {
+        lo >= 0 -> lo == 0 && hi == maxu(k)
+        else -> lo == 0 - half(k) && hi == half(k) - 1
+    }
+}
+
+// d_le: the k bytes from a, least significant first. The decoders' parameters
+// claim nothing: they are inlined into get and check, whose `where` holds
+// a + k ≤ len(b), and each index they make is decided there, per instance.
+// Each arm CLAIMS ITS VALUE'S SET, [0, 2^{8k}), d's codomain at width k: the
+// IR proves it of an | of shifted bytes, and once proven it is a fact the
+// refinement layer reads (a decoded count bounds a later offset).
+fn d_le(b, a, k) {
+    case {
+        k == 1 -> { v ∈ 0..2^8-1 = b[a]; v }
+        k == 2 -> { v ∈ 0..2^16-1 = b[a] | b[a + 1] << 8; v }
+        k == 3 -> { v ∈ 0..2^24-1 = b[a] | b[a + 1] << 8 | b[a + 2] << 16; v }
+        k == 4 -> { v ∈ 0..2^32-1 = b[a] | b[a + 1] << 8 | b[a + 2] << 16 | b[a + 3] << 24; v }
+        k == 5 -> { v ∈ 0..2^40-1 = b[a] | b[a + 1] << 8 | b[a + 2] << 16 | b[a + 3] << 24 |
+            b[a + 4] << 32; v }
+        k == 6 -> { v ∈ 0..2^48-1 = b[a] | b[a + 1] << 8 | b[a + 2] << 16 | b[a + 3] << 24 |
+            b[a + 4] << 32 | b[a + 5] << 40; v }
+        k == 7 -> { v ∈ 0..2^56-1 = b[a] | b[a + 1] << 8 | b[a + 2] << 16 | b[a + 3] << 24 |
+            b[a + 4] << 32 | b[a + 5] << 40 | b[a + 6] << 48; v }
+        else -> { v ∈ 0..2^64-1 = b[a] | b[a + 1] << 8 | b[a + 2] << 16 | b[a + 3] << 24 |
+            b[a + 4] << 32 | b[a + 5] << 40 | b[a + 6] << 48 | b[a + 7] << 56; v }
+    }
+}
+
+// d_be: the k bytes from a, most significant first, d_le of the reversal.
+fn d_be(b, a, k) {
+    case {
+        k == 1 -> { v ∈ 0..2^8-1 = b[a]; v }
+        k == 2 -> { v ∈ 0..2^16-1 = b[a] << 8 | b[a + 1]; v }
+        k == 3 -> { v ∈ 0..2^24-1 = b[a] << 16 | b[a + 1] << 8 | b[a + 2]; v }
+        k == 4 -> { v ∈ 0..2^32-1 = b[a] << 24 | b[a + 1] << 16 | b[a + 2] << 8 | b[a + 3]; v }
+        k == 5 -> { v ∈ 0..2^40-1 = b[a] << 32 | b[a + 1] << 24 | b[a + 2] << 16 | b[a + 3] << 8 |
+            b[a + 4]; v }
+        k == 6 -> { v ∈ 0..2^48-1 = b[a] << 40 | b[a + 1] << 32 | b[a + 2] << 24 | b[a + 3] << 16 |
+            b[a + 4] << 8 | b[a + 5]; v }
+        k == 7 -> { v ∈ 0..2^56-1 = b[a] << 48 | b[a + 1] << 40 | b[a + 2] << 32 | b[a + 3] << 24 |
+            b[a + 4] << 16 | b[a + 5] << 8 | b[a + 6]; v }
+        else -> { v ∈ 0..2^64-1 = b[a] << 56 | b[a + 1] << 48 | b[a + 2] << 40 | b[a + 3] << 32 |
+            b[a + 4] << 24 | b[a + 5] << 16 | b[a + 6] << 8 | b[a + 7]; v }
+    }
+}
+
+// The signed reading of k ≤ 4 bytes, u sign-extended, each width claiming its
+// set as the decoders' arms do.
+fn sext(u, k) {
+    case {
+        k == 1 -> { v ∈ -2^7..2^7-1 = (u ⊕ 2^7) - 2^7; v }
+        k == 2 -> { v ∈ -2^15..2^15-1 = (u ⊕ 2^15) - 2^15; v }
+        k == 3 -> { v ∈ -2^23..2^23-1 = (u ⊕ 2^23) - 2^23; v }
+        else -> { v ∈ -2^31..2^31-1 = (u ⊕ 2^31) - 2^31; v }
+    }
+}
+
+// d: the reading in the codec's order, sign-extended for a signed codec.
+fn decode(b, a, c) {
+    (k, lo, hi, o) = c
+    u = case o { 'le -> d_le(b, a, k); 'be -> d_be(b, a, k) }
+    case {
+        lo >= 0 -> u
+        else -> sext(u, k)
+    }
+}
+
+// The value of the codec's k bytes at a. The codec is total, so every reading
+// is in its set. a claims no set: each byte read, b[a + i], carries its own
+// obligation 0 ≤ a + i < len(b), and the `where` states what none of them does,
+// that all k fit.
+pub fn get(b ∈ Array(0..255), a, c) where a + width(c) <= len(b) && total(c) {
+    decode(b, a, c)
+}
+
+// The value at a when its bytes decode into the codec's set, else none.
+pub fn check(b ∈ Array(0..255), a, c) where a + width(c) <= len(b) {
+    (k, lo, hi, o) = c
+    v = decode(b, a, c)
+    case { lo <= v && v <= hi -> 'some(v); else -> 'none }
+}
+
+// e: v's k bytes written at a, v's residue mod 2^{8k} cut into digits base 256.
+pub fn put(b ∈ Array(0..255) linear, a, c, v ∈ Int)
+    where a + width(c) <= len(b) && inf_of(c) <= v && v <= sup_of(c) {
+    // The codec's parts are read before the first write: the writes are
+    // program-ordered stores to b (ADR 0052), and none is under the codec's
+    // elimination.
+    k = width(c)
+    o = order_of(c)
+    u = v & maxu(k)
+    loop i = 0 {
+        i < k -> {
+            d = case o { 'le -> (u >> (8 * i)) & 255; 'be -> (u >> (8 * (k - 1 - i))) & 255 }
+            b[a + i] := d
+            again(i + 1)
+        }
+        else -> ()
+    }
+}
+
+fn inf_of(c) { (k, lo, hi, o) = c; lo }
+fn order_of(c) { (k, lo, hi, o) = c; o }
+fn sup_of(c) { (k, lo, hi, o) = c; hi }
+
+// A writable copy of s: a fresh region holding s's bytes, moved to the caller
+// (a linear result, ADR 0084 item 7). `var b := bytes.copy(s)` is then one
+// allocation and one copy, and b is the caller's to write.
+pub fn copy(s ∈ Array(0..255)) (r ∈ Array(0..255) linear) {
+    var r := array { s[k] : k ∈ 0..len(s)-1 }
+    r
+}

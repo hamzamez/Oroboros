@@ -36,6 +36,14 @@ provides go os/host {
         host expr "os.WriteFile(${path}, ${data}, 0o666)" import "os"
     }
 
+    // READ AT AN OFFSET into a buffer the caller lends, written in place
+    // (ADR 0070): os.File.ReadAt of min(len b, size − off) bytes, so the file
+    // ending first is a shorter n, and any error is a failure.
+    fn ReadAt(path ∈ String, off ∈ Nat, b ∈ Array(0..255) linear) (n ∈ 0..2^62, r ∈ result.Result((), error))
+        ensure n <= len(b') && len(b') == len(b) {
+        host expr "func() (int, error) { f, err := os.Open(${path}); if err != nil { return 0, err }; defer f.Close(); fi, err := f.Stat(); if err != nil { return 0, err }; m := int64(len(${b})); if rest := fi.Size() - int64(${off}); rest < m { m = max(rest, 0) }; return f.ReadAt(${b}[:m], int64(${off})) }()" import "os"
+    }
+
     // THE KINDS' PREDICATES, h's host half: Go's own tests for io/fs's three
     // portable sentinels. os.IsNotExist and its siblings read the os package's
     // errors, which are the only ones these calls return, and each names one

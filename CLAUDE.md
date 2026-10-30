@@ -160,7 +160,13 @@ checked. When a package hits a wall that needs language work, stop, research it,
         `out` on a set of tables, `os.ReadAt`. Two soundness holes closed: a rule's index past its end,
         and a buffer a host filled read as its zero fill. Not built: two segments lent together, a
         segment moved out, products of codecs; the LLVM attributes with `ir/llvm`; P4–P5 with 6d.
-     4. **Vectors**: a representation of a static-length table, not a sort.
+     4. **Vectors**, researched ([vectors-research.md](docs/vectors-research.md)), **with hamza**: a
+        vector is a representation of a table of static length, never a sort (V1); the compiler
+        vectorizes rules, folds of an associative operation (the homomorphism lemma) and loops of
+        stores the Omega test shows independent (V2); a float fold keeps its order, measured to change
+        the answer when reassociated, a relation for wall 6 (V3); explicit SIMD only where measured
+        (V4); vector intrinsics host primitives over static-length tables (V5); shuffles and masks
+        rules (V6); GPUs a later target layer with the same algebra (V7).
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
      6. **Relations**: only deterministic refinements offered.
      7. **The float environment**: ∘_r of a static rounding mode.

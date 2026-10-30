@@ -276,6 +276,9 @@ pointwise.
 with `where len(a) = N`, so `aesenc` takes two tables of two words. (b) A host type `Vec(N, T)`.
 **Recommended: (a)**, the fit; (b) is a second form of one function.
 
+*Researched since: [vectors-research.md](../../docs/vectors-research.md), which derives (a) from Birkhoff's
+theorem and the homomorphism lemma, and finds the one question it raises, a float fold's order.*
+
 ### 4.8 Records
 
 `extractvalue`/`insertvalue` on a literal struct are tuple projection (products, ADR 0031, stateable). A

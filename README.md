@@ -530,7 +530,10 @@ says why the next is what it is.
         ([views-2026-10-30](gauntlet/results/views-2026-10-30.md)): a program that reads a Windows
         executable's headers and sets its checksum, matching Go's own reader and Windows' own checksum on
         Go, Java and JavaScript;
-     4. vectors (several numbers in one register);
+     4. **vectors, researched 2026-10-30** ([vectors-research.md](docs/vectors-research.md)), waiting
+        for hamza's decision: several numbers in one register, and GPUs, are a table the hardware
+        computes all at once; the compiler can do it wherever the answer cannot change, which is
+        every integer sum but not a floating-point one;
      5. float formats other than 64-bit;
      6. operations LLVM allows to give more than one answer;
      7. rounding modes;

@@ -1,6 +1,6 @@
 # Research: vectors, or a table the hardware applies an operation to all at once
 
-2026-10-30. **For hamza's decision**: V1–V7 in §9. The fourth of the seven walls
+2026-10-30. **Decided by [ADR 0085](decisions/0085-a-vector-is-a-representation-of-a-table-and-a-fold-vectorizes-iff-it-is-a-homomorphism.md)** (hamza, 2026-10-30: V1–V7 as recommended). The fourth of the seven walls
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (§4.7), and the 10-24 plan's
 6b, step 4. hamza: "go ahead with the research on wall 4, vectors. I supposed this related to simd, and
 gpu's. mojo might be the best implementation so far in a programming language, correct me if I am

@@ -160,13 +160,12 @@ checked. When a package hits a wall that needs language work, stop, research it,
         `out` on a set of tables, `os.ReadAt`. Two soundness holes closed: a rule's index past its end,
         and a buffer a host filled read as its zero fill. Not built: two segments lent together, a
         segment moved out, products of codecs; the LLVM attributes with `ir/llvm`; P4–P5 with 6d.
-     4. **Vectors**, researched ([vectors-research.md](docs/vectors-research.md)), **with hamza**: a
-        vector is a representation of a table of static length, never a sort (V1); the compiler
-        vectorizes rules, folds of an associative operation (the homomorphism lemma) and loops of
-        stores the Omega test shows independent (V2); a float fold keeps its order, measured to change
-        the answer when reassociated, a relation for wall 6 (V3); explicit SIMD only where measured
-        (V4); vector intrinsics host primitives over static-length tables (V5); shuffles and masks
-        rules (V6); GPUs a later target layer with the same algebra (V7).
+     4. ~~**Vectors**~~ **decided** ([ADR 0085](docs/decisions/0085-a-vector-is-a-representation-of-a-table-and-a-fold-vectorizes-iff-it-is-a-homomorphism.md),
+        [vectors-research.md](docs/vectors-research.md)): a vector is a representation of a table of
+        static length, never a sort; the compiler vectorizes rules, folds of an associative operation
+        and Omega-independent stores; a float fold keeps its order (measured: reassociated, 2× faster
+        and a different number), its reordering a relation for wall 6; explicit SIMD only where
+        measured; GPUs a later target layer. Not built: its consumer is `ir/llvm`.
      5. **Float formats**: F32, F16 and BF16 as subsets of F64 with their roundings (Figueroa 1995).
      6. **Relations**: only deterministic refinements offered.
      7. **The float environment**: ∘_r of a static rounding mode.
@@ -515,6 +514,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | Wrapping is the residue map `mod 2ⁿ` on ℤ, not a sort; `& \| ⊕ ~ << >>` are ℤ's own; fusion computes a term under `mod 2ⁿ` in n-bit arithmetic | [0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
 | A representation is an abstraction function (H, d), chosen by place; native iN above the word on LLVM; the word S₆₄ on every triple (LLVM's part with ir/llvm) | [0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md) |
 | An address is an integer offset in a region, ownership a linear view in the logic; no load without a view; binders abbreviate view formulas; a definition's linear result; uninit never visible; codecs (not built) | [0084](docs/decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md) |
+| A vector is a representation of a table, never a sort; a fold vectorizes iff its operation is associative; a float fold keeps its order (not built) | [0085](docs/decisions/0085-a-vector-is-a-representation-of-a-table-and-a-fold-vectorizes-iff-it-is-a-homomorphism.md) |
 
 ## Build commands
 

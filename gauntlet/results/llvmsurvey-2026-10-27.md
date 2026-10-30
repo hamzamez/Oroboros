@@ -207,7 +207,7 @@ not IEEE), and no target of ours has them: MSVC's `long double` is binary64.
 **Recommended:** F32, F16 and BF16 as subsets of F64 with their rounding functions, ρ printing `float`
 where the fact allows; the wider three not offered until a program asks.
 
-*Researched since: [floats-research.md](../../docs/floats-research.md) §2.5, which confirms (a) from ADR 0049 and ADR 0082: a format is a set, its rounding the floats' residue map, and Figueroa's theorem their fusion, one operation at a time.*
+*Researched since: [floats-research.md](../../docs/floats-research.md) §2.5, which confirms this recommendation from ADR 0049 and ADR 0082: a format is a set, its rounding the floats' residue map, and Figueroa's theorem their fusion, one operation at a time.*
 
 ### 4.4 Relations
 

@@ -167,19 +167,21 @@ checked. When a package hits a wall that needs language work, stop, research it,
         and a different number), its reordering a relation for wall 6; explicit SIMD only where
         measured; GPUs a later target layer. Not built: its consumer is `ir/llvm`.
      5–7. **Float formats, relations, the float environment, with decimals and literals**, researched
-        as one ([floats-research.md](docs/floats-research.md)), **with hamza** (F1–F11). Floats become
-        the language's:
-        - a float is a real number, and its operations are binary64's correctly rounded ones (Kulisch's
-          semimorphism), one sort;
-        - F32, F16, BF16, FP8, FP6 and FP4 are sets within it, each with its rounding r_F;
-        - Figueroa's theorem is the floats' fusion, one operation at a time (measured: 0 disagreements
-          in 2·10⁷);
-        - overflow, NaN and ÷0 are obligations;
-        - only deterministic operations: correctly rounded transcendentals, measured Go's `pow` 18,212
-          ulps off;
-        - a rounding mode is a static parameter, with no environment;
-        - decimals are ℤ[1/10], the integer sort enlarged, their representation the facts';
-        - a literal is exact, rounded once where it meets the float sort.
+        as one ([floats-research.md](docs/floats-research.md)), **with hamza**: Part I's F1–F11, revised
+        by Part II's G1–G7 (hamza: decouple the number from its format). The proposal:
+        - **one numeric sort, ℤ[1/10]**, the least ring holding ℤ, every binary float and every decimal
+          numeral (Theorem R). +, −, ·, = and < are exact, and `Int`, F(p, e_min, e_max) for any p,
+          decimal grids and fixed point are its sets;
+        - **a rounding r_S is the only lossy operation**. ÷, √ and the transcendentals are written under
+          one, one per rounding, which terminates by Lindemann–Weierstrass (Theorem T), and integer `/`
+          is one;
+        - every answer is a function of the inputs (Theorem D), and the representation is the facts';
+        - realization: Figueroa's fusion (measured: 0 disagreements in 2·10⁷), r64(a·b + c) as fma,
+          round to odd, the exact accumulator (measured 2.96× a naive sum, order-independent);
+        - accuracy is a claim, never a chooser;
+        - IEEE's per-operation arithmetic is a static scope;
+        - no ∞ or NaN;
+        - correctly rounded transcendentals (measured: Go's `pow` 18,212 ulps off).
      Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
      widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
      rung above as native iN, measured against the limbs.

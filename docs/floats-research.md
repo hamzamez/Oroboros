@@ -1,6 +1,6 @@
 # Research: floats in the language, their formats, their relations, their environment, and decimals
 
-2026-10-30. **For hamza's decision**: F1–F11 in §11. Walls 5, 6 and 7 of the seven
+2026-10-30; Part II 2026-10-31. **For hamza's decision**: Part II's G1–G7 (§17), which revise F1, F2, F5, F6 and F10 of §11: one numeric sort ℤ[1/10], a rounding the only lossy operation, the representation the facts'. Walls 5, 6 and 7 of the seven
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (float formats, relations,
 the float environment), the 10-24 plan's 6b steps 5–7, researched as one because they share one
 algebra; and the question of decimals. hamza: "until now, floats are still using the target ops. not the
@@ -623,3 +623,265 @@ values three ways. It joins printing's P3 (printing-research.md), which owns ren
 - **Error analysis as claims**: bounds on a result's error, as Fluctuat, FPTaylor (Solovyev et al.,
   FM 2015) and Herbie (Panchekha et al., PLDI 2015) compute them. That is the logic's later work, once
   floats are the language's.
+
+---
+
+# Part II: the number without its format
+
+2026-10-31. hamza, on Part I: "by choosing one sort binary64 we are kind of choosing the representation
+as a sort … could we decouple them, and use mathematical numbers just like we did with integers. in this
+case, what we care about is a range and a precision, resolution, uncertainty, error … let's reach for
+the literature, and see if anyone did it before. if not, let's follow the math and see where we land."
+
+**Where it lands: decoupling is possible, and it is the better design.**
+- **One numeric sort, the ring ℤ[1/10]**, holds every integer, every decimal and every binary float.
+  `+`, `−`, `·`, `=` and `<` are exact on it: one `+` for every number in the language, ℤ's.
+- **A rounding is the only operation that loses information.** It is a retraction r_S onto a set S, and
+  S is mathematical: a range and a resolution. S may be F(p, e_min, e_max) for *any* p, a decimal grid
+  D(k), a fixed-point grid, or ℤ itself.
+- **Division, √ and the transcendentals leave the ring**, and so they are only written under a rounding.
+  Integer `/` turns out to be one such rounding: r_ℤ toward zero of a ÷ b.
+- **The facts choose the representation**, as for integers. A value proven in F(53, …) is held in a
+  double; an exact a·b + c in a pair; an unrounded float sum in an exact accumulator.
+- **Every answer is a function of the inputs**, independent of the representation and of how strong the
+  compiler's proofs are, so ADR 0009 and ADR 0049 hold with no exception.
+- **Part I's design is this one with a rounding written at every operation.** That is IEEE's arithmetic,
+  kept as a special case.
+
+Nobody we found has done the whole of it. Pieces exist, in Kulisch's exact dot product and
+PASCAL-XSC's exact expressions, in Shewchuk's exact predicates, and in Scheme's exact numbers. Two other
+lines of work decoupled precision and paid with determinism: Ada's model numbers, and Rosa and Daisy's
+compilation of reals.
+
+## 13. What the literature did
+
+| line of work | what it decouples | what it costs, or why it stops |
+|---|---|---|
+| **Exact real arithmetic**: Boehm's constructive reals (1986; the Android calculator, Boehm, PLDI 2020); iRRAM (Müller 2001); RealPCF (Escardó 1996); Type-2 computability (Weihrauch 2000) | everything: a real is a program producing approximations on demand | **Theorem C** (Grzegorczyk 1957, Ceitin 1959): every computable function on ℝ is continuous. So `x < y` and `x == y` do not terminate when x = y, rounding and `floor` are not computable, and printing is multivalued. iRRAM's comparisons are partial, and Boehm's calculator shows approximations. Values are lazy closures on the heap, orders of magnitude slower |
+| **Declared precision**: Ada 83, `type T is digits 6 range -1.0 .. 1.0`, with W. S. Brown's model numbers (TOMS 1981); Fortran 90's `selected_real_kind(p, r)`; PL/I's `FLOAT DECIMAL(p)`; COBOL's `PICTURE` | the program states a precision and a range, and the compiler picks the format | **Ada**: an operation's result is any number in the *model interval*, a relation, so two conforming compilers may print different answers. In practice every compiler picks IEEE single or double, and programs rely on that. **Fortran**: the kind chosen is a format, and from then on the semantics is that format's, so (p, r) only names it |
+| **Compiling reals to an error bound**: Rosa (Darulova and Kuncak, POPL 2014), "Towards a compiler for reals" (Darulova and Kuncak, TOPLAS 2017), Daisy (Darulova et al., TACAS 2018), FPTuner (Chiang et al., POPL 2017), Precimonious (Rubio-González et al., SC 2013), Herbie (Panchekha et al., PLDI 2015) | the program is written over ℝ with an error bound; the tool chooses each operation's precision, or rewrites it | the semantics is a relation, any answer within ε. **The printed answer depends on the tuner**: a better analysis chooses cheaper precisions and prints different bits, the opposite of ADR 0009 |
+| **Exact expressions, rounded once**: Kulisch's exact dot product (Kulisch and Miranker 1981; *Computer Arithmetic and Validity*, 2013); PASCAL-XSC's `#( … )` expressions (Klatte et al. 1991) and ACRITH-XSC; IEEE 1788-2015's exact dot product; Neal's superaccumulators (2015); ExBLAS (Iakymchuk et al. 2015); ReproBLAS | inside the expression nothing is rounded; the one rounding is at its end | **Restricted to dot products and sums.** Deterministic, reproducible, and near memory speed for long sums |
+| **Exact predicates**: Shewchuk, "Adaptive precision floating-point arithmetic and fast robust geometric predicates" (1997) | a sign of a polynomial in doubles, decided exactly: a fast path with an error bound, exact expansions when it fails | only signs, in a library |
+| **Exact and inexact numbers**: Scheme (R7RS), Common Lisp's rationals | exactness is a property of the value | the inexact numbers are IEEE's, chosen by the value, dynamically |
+| **Run-time uncertainty**: ball arithmetic, Arb (Johansson 2017); MPFI; Mathematica's significance arithmetic (Sofroniou and Spaletta 2005) | a value carries its error | the value *is* a set, decided at run time; the algebra is a library's, not the language's |
+| **Round to odd** (Boldo and Melquiond, IEEE TC 2008) | any precision p from a wider one | the tool that makes any F(p, …) with p ≤ 51 exact through binary64 |
+
+Each line meets one of the three theorems below. Exact reals meet Theorem C. Declared precision and
+compiling to an error bound give up determinism. The exact expressions stop at dot products, but they
+show where a construction can stand.
+
+## 14. The algebra
+
+### 14.1 Theorem R: the sort is ℤ[1/10]
+
+**ℤ[1/10] is the least subring of ℚ that contains ℤ, every binary float and every decimal numeral.**
+*Proof.* It contains 1/2 (a float) and 1/10 (a numeral), hence 1/5 = 2 · (1/10), and the ring generated
+by ℤ, 1/2 and 1/5 is ℤ[1/2, 1/5] = ℤ[1/10]. Conversely, every finite float is m·2ᵉ = m·5⁻ᵉ·10ᵉ for
+e < 0, and every numeral is m·10ᵏ. ∎
+
+It is closed under +, − and ·, and **=** and **<** are decidable on it: an element is a pair (m, k)
+compared by cross-multiplying. So it is to the numbers what ℤ was to the integers. The sets a program
+names are its subsets:
+
+| set | elements | range | resolution |
+|---|---|---|---|
+| `Int`, `lo..hi` | m | lo..hi | 1 |
+| F(p, e_min, e_max), any p ≥ 1: binary64 is F(53, −1022, 1023), FP4 E2M1 is F(2, 0, 2) | ±m·2^(e−p+1), m < 2ᵖ | ±(2 − 2^(1−p))·2^e_max | relative, 2^(1−p); absolute 2^(e_min−p+1) at the bottom |
+| D(k, lo..hi), decimal places: cents are D(2, …) | m·10⁻ᵏ | lo..hi | 10⁻ᵏ |
+| Q(k, lo..hi), binary fixed point (DSP, Q15) | m·2⁻ᵏ | lo..hi | 2⁻ᵏ |
+
+hamza's "a range and a precision, resolution" is exactly this: **a set is its range and its resolution**,
+and binary64 is one such set, as `0..255` is one range.
+
+### 14.2 Theorem C: what leaves the ring must be rounded back
+
+÷ leaves the ring for ℚ; √, exp, log, sin and pow leave it for ℝ. By Theorem C, a real-valued result
+cannot in general be compared, printed or branched on. The way back into the ring is a **rounding**: a
+monotone retraction r_S,m : ℝ → S onto a discrete closed set S, with a mode m (nearest-even, toward 0,
+toward ±∞, away, saturating; stochastic with its random bits, §6.3). A rounding is discontinuous at S's
+breakpoints:
+- the midpoints, for nearest;
+- the points of S themselves, for the directed modes.
+
+That is the only place a computation can fail to decide.
+
+**Integer division is already one**: today's `a / b` is r_ℤ,toward 0(a ÷ b), and `mod` is
+a − b·r_ℤ,floor(a ÷ b). They keep their meaning, extended to the whole ring.
+
+### 14.3 Theorem T: one non-closed operation per rounding terminates
+
+Let t, t′ be terms of the ring (+, −, ·, literals, variables), so their values are exact, and let f be
+one non-closed operation. Then **r_S(f(t)) is computable, and so is r_S(t ÷ t′)**:
+- **÷**: t / t′ is rational, and its position against S's breakpoints is decided exactly.
+- **√**: √t is either rational, which is decided by an integer square root, or irrational and so never a
+  breakpoint.
+- **exp, log, sin, cos, tan and their inverses**: by Lindemann–Weierstrass, e^a is transcendental for
+  algebraic a ≠ 0. So exp(t), log(t) (t ≠ 1), sin(t) (t ≠ 0) and the rest are transcendental at every
+  point of the ring other than the trivial ones, and never a breakpoint, which is rational. Ziv's
+  iteration (1991), evaluating at increasing precision until the rounding is determined, terminates.
+- **pow(x, y)** with y = m/2ʲ rational: x^y is algebraic, and whether it is a breakpoint is decided by
+  extracting an integer root. That is the exact-case test CORE-MATH runs.
+
+**Two non-closed operations under one rounding** (r(√a + √b), r(exp(a) − exp(b))) need a zero test on an
+expression. It is decidable for the algebraic numbers, at a cost growing with the degree; for exp and
+log, decidable only if Schanuel's conjecture holds (Richardson 1997); and undecidable once sin and the
+whole line are allowed (Richardson 1968). **So the rule is: one non-closed operation at the root of each
+rounding**, with inner ones rounded first. The cost is bounded for the formats whose worst cases are
+known: binary32 and binary64, by Lefèvre and Muller's searches (2001), which CORE-MATH uses. For an
+arbitrary p it is bounded in practice, by Ziv's loop, but not proved.
+
+### 14.4 Theorem D: every answer is a function of the inputs
+
+Every operation of the computation is now one of three things:
+- **exact**, because it is the ring's;
+- **a rounding of an exact ring term**, which is a function of that term's value;
+- **a rounding of one non-closed operation**, which is a function by Theorem T.
+
+So the program's answer is a function of its inputs. Neither ρ, nor the target, nor the strength of
+the compiler's proofs enters it. **ADR 0009 holds with no float exception**: staging folds exactly, and
+a rounding folded at compile time is the same function. **ADR 0049 holds**: no set changes an answer,
+since a set only states a claim, and a rounding is an operation the program wrote. This is what
+Part I's F2 could not give: there, `+` on floats was a second operation, ⊞₆₄.
+
+### 14.5 Representation is the facts', as for integers
+
+An exact value v = m·2ᵃ·5ᵇ has two facts: its interval and its **lowest digit**, the valuations
+v₂(v) and v₅(v). They give the float's ulp and the decimal's scale, and are computed by the same lattice
+as bit lengths:
+- v(a ± b) ≥ min(v(a), v(b));
+- v(a · b) = v(a) + v(b);
+- the interval as today.
+
+ρ then chooses, cheapest first:
+
+| proven fact | representation |
+|---|---|
+| an integer inside the word | the word (today) |
+| in F(53, −1022, 1023) | a double |
+| in F(p, …), p ≤ 24, exponent inside binary32's | a float, or a double holding it (JavaScript) |
+| an exact a·b, or a·b + c, of doubles | a pair or an expansion of doubles: TwoProduct, TwoSum (Dekker 1971; Shewchuk 1997) |
+| an unrounded sum of n doubles | an exact accumulator, fixed size for any n below 2⁶⁴ (Kulisch; Neal 2015) |
+| a decimal with bounded k and range | a scaled word (Part I §8.2) |
+| beyond | limbs or the host's big number, by consent (ADR 0079), or refused (ADR 0019) |
+
+Each rounding is realized as cheaply as its term allows:
+- **Fusion** (Part I §2.5, Figueroa): r64(a + b) on doubles is the double `+`; r32(x · y) on floats is
+  binary32's; **r64(a · b + c) is `fma`**, one rounding of an exact term, native on amd64 v3 and arm64.
+- **Round to odd** (Boldo and Melquiond): any p ≤ 51 within binary64's range, exactly.
+- **Error-free transformations** for a short term (Boldo and Melquiond's correctly rounded sum of three).
+- **The accumulator** for a fold.
+- **CORE-MATH** for a transcendental.
+
+### 14.6 Consequences that come free
+
+- **A float fold becomes associative.** An unrounded sum is exact, so ADR 0085's homomorphism lemma
+  applies: it vectorizes and parallelizes, and its answer does not depend on the order. That settles
+  ADR 0085's item 3 without a relation. **Measured** (`experiments/floats/exactsum`, 2²⁴ doubles across
+  60 binary orders of magnitude):
+
+  | sum | time | answer |
+  |---|---:|---|
+  | naive, the written order | 0.65 ns per element | 264327992223.14578 |
+  | naive, sorted | | 264327992231.0256 |
+  | four partial sums | 0.51 ns per element | 264327992223.1665 |
+  | exact accumulator, rounded once | 1.92 ns per element (**2.96×**, scalar, not vectorized) | 264327992223.16898, the same in every order, equal to a 2400-bit `big.Float` |
+
+- **Comparisons are exact**: `if a*b - c*d > 0` decides the true sign. Robust geometric predicates are
+  what ρ realizes, with Shewchuk's fast path when its error bound excludes zero.
+- **Printing is exact and finite**, since every element of ℤ[1/10] has a finite decimal expansion.
+  Shortest round-trip printing (Part I's F11) is a function render_F of a value and the set it was
+  rounded to, and stays a choice for output.
+- **Literals need no rule**: `0.1` is an element of the ring, and nothing rounds it unless the program
+  writes a rounding. Part I's §9 table collapses to one line.
+- **No exceptional values**: no ∞, no NaN and no −0 exist in the ring. A rounding's overflow is its
+  obligation (or the program uses sat_F), and ÷'s divisor ≠ 0 and √'s operand ≥ 0 are obligations. A
+  host's double enters the ring by a partial decode, with NaN and ±∞ its failure, as `go.text` decodes a
+  host string.
+
+### 14.7 Error and uncertainty are claims, never choosers
+
+hamza's "uncertainty, error": the accuracy of a result against the real expression the program means is
+a claim in the logic, `ensure abs(r − e) <= ε`, with e an expression over ℝ that never prints. It is
+proven by an error analysis (Higham's bounds, FPTaylor's symbolic Taylor forms, Daisy's) or refused.
+**It never chooses a precision**, because then the answer would depend on the analysis: Rosa's and
+Daisy's semantics, rejected in §13. A tool may *propose* the cheapest roundings that satisfy the claim,
+as FPTuner does. The program then contains the roundings, and the compiler checks them. Uncertainty
+carried at run time, a value with its radius, is ball arithmetic, a library over the ring.
+
+### 14.8 IEEE's arithmetic is a special case, written as a scope
+
+Bit-for-bit compatibility with C, Go or Java float code is a rounding at every operation:
+`r64(r64(a * b) + c)`. A static, lexical scope says it once: `round(F64) { … }`. D rewrites each
+arithmetic operation and literal inside it to its rounding, so nothing is dynamic, and wall 7 stays
+answered. The spelling is a surface question for hamza. Without the scope, a program's interior is
+exact and its roundings are where it wrote them.
+
+## 15. Part I's decisions, revised
+
+| | Part I | Part II |
+|---|---|---|
+| F1 the operations | the language's, IEEE's correctly rounded binary64 | the ring's exact +, −, ·; IEEE's operations are roundings of them |
+| F2 the sort | one float sort, binary64's; narrower formats sets in it | **one numeric sort, ℤ[1/10]**; every format, decimal grid and fixed point a set, F(p, …) for any p |
+| F3 realization | Figueroa's fusion, one operation at a time | the same, plus round to odd, error-free transformations and the accumulator |
+| F4 microscaling | representations of tables | unchanged |
+| F5 exceptional values | obligations; F̄64 for IEEE's specials | none exist; the rounding's overflow and the domains of ÷ and √ are obligations; host specials enter by a partial decode |
+| F6 contraction | forbidden | a different term: r64(a·b + c) *is* fma, r64(r64(a·b) + c) is not, and the printer keeps each |
+| F7 relations | deterministic only | the same, now a theorem (D); transcendentals are non-closed operations under a rounding (T) |
+| F8 rounding modes | a static parameter | a rounding's mode |
+| F9 decimals | ℤ[1/10], the integer sort enlarged | the same sort, which now holds the floats too |
+| F10 literals | exact, rounded where they meet the float sort | exact; rounded only by a written rounding |
+| F11 rendering | one per format | exact printing, plus render_F |
+
+## 16. What it costs, and what is not known
+
+- **Writing IEEE code is longer** without the scope: every rounding is visible. With the scope it is as
+  short as today's.
+- **An exact interior can be slower than a rounded one**. An unrounded sum costs 2.96×, measured
+  unvectorized; an expansion costs a few operations per term; JavaScript has no fma, so an exact a·b
+  needs Veltkamp's splitting, about 17 operations. Not measured: the cost on a real program, and the
+  accumulator vectorized.
+- **An unrounded value in a loop must be bounded at both ends**, as an integer must. The magnitude needs
+  a trip bound, and the lowest digit is a new fact. A product carried around a loop unrounded
+  (xₙ₊₁ = xₙ²) doubles its bits each time and is refused, as an integer squaring would be.
+- **Theorem T's cost for an arbitrary p is bounded in practice, not in proof.** For binary32 and binary64
+  the worst cases are known.
+- **The type checker's numeric sort becomes ℤ[1/10]**. Integer programs are unchanged, since ℤ is a
+  subring and `/` keeps its meaning. Every rule over ℤ (intervals, Fourier–Motzkin, the Omega test)
+  stays sound for the integer subset; over the ring, linear arithmetic over ℚ is the decidable theory
+  (Fourier–Motzkin is complete there, Tarski for the reals).
+- **A host's floats enter through a decode** (NaN, ±∞ and −0 are its failures or its quotient), and every
+  host signature with a `float64` names a set, F64, not a sort.
+
+## 17. Decisions for hamza (Part II), recommended over F1, F2, F5, F6 and F10
+
+**G1. One numeric sort, ℤ[1/10].** Integers, decimals and binary floats are its elements, and `Int`, the
+ranges, F(p, e_min, e_max) for any p, D(k, …) and Q(k, …) are sets in it. +, −, ·, = and < are exact.
+One `+` for every number. **Recommended** (Theorem R, Theorem D).
+
+**G2. A rounding r_S,m is the only lossy operation, a function onto a set with a mode.** ÷, √ and the
+transcendentals are written under one, one non-closed operation per rounding (Theorem T). Integer `/` and
+`mod` are roundings and keep their meaning. **Recommended.**
+
+**G3. The facts choose the representation**: an interval and a lowest digit, the ladder of §14.5,
+unbounded values refused or consented to. **Recommended.**
+
+**G4. A rounding is realized as cheaply as its term allows**: native fusion where the term is one host
+operation (fma included), round to odd, error-free transformations, the accumulator, CORE-MATH. The
+planted faults:
+- a compound term printed as per-operation native code;
+- a double rounding through binary64 for p > 25 without round to odd;
+- r64(r64(a·b) + c) contracted into fma.
+
+**Recommended.**
+
+**G5. Accuracy is a claim, proven or refused, never a chooser of precision**; tuning is a tool's.
+**Recommended.**
+
+**G6. IEEE's per-operation arithmetic is a static scope**, `round(F64) { … }` or a spelling hamza
+chooses. **For hamza: the spelling.**
+
+**G7. No exceptional values in the ring.** Overflow is a rounding's obligation, ÷ and √ have domains, and
+a host's double is decoded. **Recommended.**
+
+**So: decoupling does not confirm Part I.** It improves it, and Part I survives as the case "a rounding
+at every operation".

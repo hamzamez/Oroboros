@@ -1,6 +1,6 @@
 # Research: floats in the language, their formats, their relations, their environment, and decimals
 
-2026-10-30; Part II 2026-10-31. **For hamza's decision**: Part II's G1–G7 (§17), which revise F1, F2, F5, F6 and F10 of §11: one numeric sort ℤ[1/10], a rounding the only lossy operation, the representation the facts'. Walls 5, 6 and 7 of the seven
+2026-10-30; Part II 2026-10-31; Part III 2026-11-01. **For hamza's decision**: Part II's G1–G7 (§17), which revise F1, F2, F5, F6 and F10 of §11: one numeric sort ℤ[1/10], a rounding the only lossy operation, the representation the facts'; and Part III's surface questions S1–S4 (§21), with programs and target declarations in J (§18, §19) and what the design restricts on a host (§20). Walls 5, 6 and 7 of the seven
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (float formats, relations,
 the float environment), the 10-24 plan's 6b steps 5–7, researched as one because they share one
 algebra; and the question of decimals. hamza: "until now, floats are still using the target ops. not the
@@ -885,3 +885,346 @@ a host's double is decoded. **Recommended.**
 
 **So: decoupling does not confirm Part I.** It improves it, and Part I survives as the case "a rounding
 at every operation".
+
+
+# Part III: the surface, sketched
+
+2026-11-01. hamza, on Part II: "show me the surface, how would it look like in programs? examples. and
+how would we declare target primitives examples of llvm, go? does it put any restriction on exploiting
+targets fully when someone reach for them?" This part writes Part II in J, in programs (§18) and in target
+declarations (§19), and answers the third question from the declarations (§20). Nothing in it is built.
+Its spellings are proposals, and the four that are open are in §21.
+
+## 18. Programs
+
+### 18.1 What a program writes
+
+| written | meaning | where it comes from |
+|---|---|---|
+| `3`, `0.1`, `1e-3`, `0x1.8p3` | an element of ℤ[1/10], exactly | Theorem R; a literal is never rounded |
+| `+ - * == < <=` | the ring's, exact | G1 |
+| `a / b`, `a % b` | the integer quotient and remainder, as today: r_ℤ,zero(a ÷ b) | §14.2 |
+| `a ÷ b` (ASCII `\div`), `sqrt(x)`, `exp`, `log`, `sin`, `cos`, `atan2`, `pow` | the real value, which never prints. A computation may write one only at the root of a rounding; a claim may write it anywhere | Theorem C, Theorem T, ADR 0049 |
+| `round(S, e)`, `round(S, e, mode)` | r_S,m(e), the one lossy operation; S a set, static, and the mode a tag: `'nearest` (even, the default), `'away`, `'zero`, `'up`, `'down`, `'sat`, `'stochastic(bits)` | G2 |
+| `round(S) { … }` | every operation and literal inside rounded to S, IEEE's arithmetic | G6 |
+| `F64`, `F32`, `BF16`, `E4M3`, `D(2, R)`, `Q(15, R)` | sets, defined in `lib/num` (§18.2) | §14.1 |
+| `string_of(x)` | x's exact decimal expansion, finite | §14.6 |
+| `render(S, x)` | the shortest decimal that rounds back to x in S (Ryu, Schubfach) | F11 |
+
+The sets are ordinary set definitions (ADR 0066), written once in a library and not in the compiler:
+
+```
+// lib/num.oro
+pub set F(p ∈ 1.., lo ∈ Int, hi ∈ Int) = { m * 2^(e - p + 1) : m ∈ -(2^p - 1)..2^p - 1, e ∈ lo..hi }
+pub set F64  = F(53, -1022, 1023)
+pub set F32  = F(24, -126, 127)
+pub set F16  = F(11, -14, 15)
+pub set BF16 = F(8, -126, 127)
+pub set E4M3 = F(4, -6, 8) ∩ -448..448     // OCP FP8: the top code is NaN, so 448 and not 480
+pub set E5M2 = F(3, -14, 15)
+pub set E2M1 = F(2, 0, 2)                  // FP4: ±{0, 0.5, 1, 1.5, 2, 3, 4, 6}
+pub set D(k ∈ Nat, R) = { x ∈ R : x * 10^k ∈ Int }   // k decimal places
+pub set Q(k ∈ Nat, R) = { x ∈ R : x * 2^k ∈ Int }    // binary fixed point
+```
+
+F(p, lo, hi) holds the subnormals too: they are the elements with e = lo and a small m.
+
+### 18.2 Money: decimals, with no float in sight
+
+```
+use num
+set Price = num.D(2, 0..10^9)
+set Total = num.D(2, 0..10^16)
+
+fn total(p ∈ Array(Price), q ∈ Array(0..1000)) (Total) where len(q) == len(p) && len(p) <= 10000 {
+    loop i = 0, t = 0 {
+        i < len(p) -> again(i + 1, t + p[i] * q[i])
+        else -> t
+    }
+}
+
+fn with_tax(t ∈ Total) (Total) { round(Total, t * 1.0825, 'away) }   // to the cent, half away from zero
+```
+
+- `t + p[i] * q[i]` is exact, and its facts are an interval and a lowest digit of 10⁻². ρ holds it as
+  a word counting cents, which is §10's scaled `long`, 0.39 ms against `BigDecimal`'s 8.61.
+- `t * 1.0825` has a lowest digit of 10⁻⁶. The rounding is the program's, and so is the mode.
+- `render(Total, x)` prints `1234.50`. `string_of(x)` prints `1234.5`.
+
+### 18.3 A dot product, exact inside and rounded once
+
+```
+fn dot(a ∈ Array(F64), b ∈ Array(F64)) (F64) where len(a) == len(b) {
+    round(F64, loop i = 0, s = 0 {
+        i < len(a) -> again(i + 1, s + a[i] * b[i])
+        else -> s
+    })
+}
+```
+
+- `s` is never rounded, so the answer is the correctly rounded dot product: the same on every target,
+  in every order, vectorized or not.
+- ρ holds `s` in an exact accumulator. That is Kulisch's long accumulator: each product's two halves come
+  from TwoProduct by `fma` and go into the accumulator's bins.
+- **Not measured**: the cost against a naive loop. §14.6 measured a sum at 2.96×. A dot product adds the
+  TwoProduct.
+- The obligation that remains: the rounding's argument must lie inside F64's range. That holds when
+  each |aᵢ·bᵢ| is bounded and n is a trip bound, as for an integer sum. Otherwise, as today: narrow the
+  set (`Array(F64 ∩ -1e100..1e100)`), saturate (`'sat`), or `-checked`.
+
+### 18.4 The same dot product, as Go and C compute it
+
+```
+fn dot_ieee(a ∈ Array(F64 ∩ -1e100..1e100), b ∈ Array(F64 ∩ -1e100..1e100)) (F64) where len(a) == len(b) {
+    round(F64) {
+        loop i = 0, s = 0 {
+            i < len(a) -> again(i + 1, s + a[i] * b[i])
+            else -> s
+        }
+    }
+}
+```
+
+- D rewrites the body to `round(F64, s + round(F64, a[i] * b[i]))`. Each rounding is one host
+  operation (fusion, Figueroa), so the printed Go is `s += float64(a[i] * b[i])`. The conversion is
+  there because Go's specification allows the compiler to fuse `x*y + z` across statements unless an
+  explicit conversion rounds. That is §10's measurement of arm64.
+- The narrowed sets make each rounding's overflow obligation provable:
+  - each product is below 10²⁰⁰;
+  - the sum is below 2⁶³·10²⁰⁰ < 2¹⁰²⁴.
+- Fused, `round(F64, s + a[i] * b[i])` inside no scope is one `fma` per step: a different program, and
+  written so.
+
+### 18.5 What exactness buys without writing a rounding
+
+**A geometric predicate** (Shewchuk's orientation test):
+
+```
+set P = F64 ∩ -1e100..1e100
+fn orient(ax ∈ P, ay ∈ P, bx ∈ P, by ∈ P, cx ∈ P, cy ∈ P) (-1..1) {
+    d = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+    case { d > 0 -> 1; d < 0 -> -1; else -> 0 }
+}
+```
+
+- The sign of `d` is the true one. No rounding is written, because the result is an integer.
+- ρ is Shewchuk's adaptive scheme: the double computation, with its error bound, decides most inputs,
+  and an expansion decides the rest.
+
+**A hypotenuse**:
+
+```
+fn hypot(x ∈ F64 ∩ -1e300..1e300, y ∈ F64 ∩ -1e300..1e300) (F64) {
+    round(F64, sqrt(x * x + y * y))
+}
+```
+
+- `x * x + y * y` is exact, so there is no intermediate overflow and no scaling trick. One non-closed
+  operation sits at the root, so the result is correctly rounded (Theorem T).
+- C's `hypot` and Go's `math.Hypot` scale to avoid the overflow, and neither promises correct rounding.
+
+### 18.6 FP8 and FP4 in a mixed-precision kernel
+
+```
+fn quantize(v ∈ F32) (E4M3) { round(E4M3, v, 'sat) }       // OCP's satfinite: total, no obligation
+
+fn qdot(w ∈ Array(E4M3), x ∈ Array(BF16), scale ∈ F32) (F32) where len(w) == len(x) {
+    round(F32, scale * loop i = 0, s = 0 {
+        i < len(w) -> again(i + 1, s + w[i] * x[i])
+        else -> s
+    })
+}
+```
+
+- An E4M3 times a BF16 has a 4 + 8 = 12-bit significand, and its exponent is inside binary32's. So each
+  product is exact in a `float`, and ρ multiplies in `float`.
+- The sum is the accumulator, and the one rounding is at the end. A GPU's tensor core accumulates in an
+  order and a width its vendor does not fully specify. This answer is the same on every target.
+- Stochastic rounding is `round(BF16, g, 'stochastic(r))`, with `r` random bits the program passes in
+  (§6.3). It is a function of g and r.
+
+### 18.7 What is refused, and what the refusal says
+
+| written | refusal |
+|---|---|
+| `x = a ÷ b` | `a ÷ b is not in the ring; write round(S, a ÷ b), or a / b for the integer quotient` |
+| `round(F64, exp(a) - exp(b))` | `two operations leave the ring under one rounding (exp, exp): round each first` |
+| `round(F64, sqrt(x))`, x unbounded below | `sqrt needs x >= 0, not proven` |
+| `round(F64, a * b)`, a, b ∈ F64 | `round(F64, a * b) may overflow F64: |a * b| < 2^1024 - 2^970 not proven` |
+| `loop … again(x * x)` unrounded | `x * x doubles x's bits at every step: no bound`, as for an integer |
+| `string_of(round(F64, 0.1))` | not refused. It prints `0.1000000000000000055511151231257827021181583404541015625`, the exact value. `render(F64, …)` prints `0.1` |
+
+The fourth row is the cost that matters most. A float program meets the integers' discipline (ADR 0019):
+an operation not proven inside its set is refused. The exits are the same: a narrower set, `'sat`, or
+`-checked`. The decode at the input is where a range is usually stated.
+
+## 19. Target primitives
+
+### 19.1 The rule: a declaration realizes a rounding by its `ensure`
+
+A target declaration is Σ × I (target-system.md §3): what it means and how the host does it. A host
+operation whose `ensure` states `r == round(S, t)` for a ring term t **realizes** that rounding. Wherever
+a program's rounding matches t, the printer may emit the host operation, and nothing else may realize it
+by that name. This needs no new mechanism. The `ensure` is a claim the generator checks against the host
+(ADR 0022, 0023) and a conformance case tests (primitives.md). A declaration with no such `ensure` is the
+host's own operation, Tier 2, as `go./` is today.
+
+### 19.2 Go
+
+```
+// targets/go/go.oro: which sets this host holds natively, as for 0..255 and the word
+repr F(53, -1022, 1023) host "float64"
+repr F(24, -126, 127) host "float32"
+
+module go {
+    // The host's double, IEEE's: NaN, ±Inf and -0 are its values, not ours (ADR 0030's pattern).
+    set float64 = host "float64"
+    axiom F64 ⊆ go.float64
+    fn num(x ∈ float64) (result(F64, 'nan ∪ 'inf)) pure { … }     // the one decode, partial
+
+    // ---- realizations: the ensure is the language term computed.
+    fn fadd(a ∈ F64, b ∈ F64) (r ∈ F64) pure
+        where abs(a + b) < 2^1024 - 2^970 ensure r == round(F64, a + b) { host expr "${a} + ${b}" }
+    fn fmul(a ∈ F64, b ∈ F64) (r ∈ F64) pure
+        where abs(a * b) < 2^1024 - 2^970 ensure r == round(F64, a * b) { host expr "float64(${a} * ${b})" }
+    fn fdiv(a ∈ F64, b ∈ F64) (r ∈ F64) pure
+        where b != 0 && abs(a ÷ b) < 2^1024 - 2^970 ensure r == round(F64, a ÷ b) { host expr "${a} / ${b}" }
+    fn f32(x ∈ F64) (r ∈ F32) pure
+        where abs(x) < 2^128 - 2^103 ensure r == round(F32, x) { host expr "float32(${x})" }
+}
+module go/math {
+    fn FMA(a ∈ F64, b ∈ F64, c ∈ F64) (r ∈ F64) pure
+        where abs(a * b + c) < 2^1024 - 2^970 ensure r == round(F64, a * b + c) {
+        host expr "math.FMA(${a}, ${b}, ${c})" import "math"
+    }
+    fn Sqrt(x ∈ F64) (r ∈ F64) pure where x >= 0 ensure r == round(F64, sqrt(x)) {
+        host expr "math.Sqrt(${x})" import "math"
+    }
+    // NOT a realization. Go's exp.go claims an error below 1 ulp for its Go code, and amd64, arm64,
+    // loong64, riscv64 and s390x replace it with assembly. So the result is Go's, a function of x and
+    // GOARCH, Tier 2. The claim is the one the source justifies, a relation in the logic.
+    fn Exp(x ∈ F64) (r ∈ float64) pure ensure abs(r - exp(x)) < ulp(F64, exp(x)) {
+        host expr "math.Exp(${x})" import "math"
+    }
+    // Neither a realization nor a claim: §10 measured Pow 18,212 ulps off, so nothing is promised.
+    fn Pow(x ∈ F64, y ∈ F64) (r ∈ float64) pure { host expr "math.Pow(${x}, ${y})" import "math" }
+}
+```
+
+`round(F64, exp(x))` is never printed as `math.Exp`. The compiler realizes it with a correctly rounded
+algorithm (CORE-MATH's, ported) written in the language. A program that wants Go's answer calls
+`go.math.Exp` by name and decodes the result. That is a Go program, as `go./` makes one today.
+
+### 19.3 LLVM (the windows target's Σ_LLVM, ADR 0080 item 7)
+
+```
+repr F(53, -1022, 1023) host "double"
+repr F(24, -126, 127) host "float"
+repr F(11, -14, 15) host "half"
+repr F(8, -126, 127) host "bfloat"
+
+module llvm {
+    fn fadd(a ∈ F64, b ∈ F64) (r ∈ F64) pure
+        where abs(a + b) < 2^1024 - 2^970 ensure r == round(F64, a + b) { host expr "fadd double ${a}, ${b}" }
+    fn fma(a ∈ F64, b ∈ F64, c ∈ F64) (r ∈ F64) pure
+        where abs(a * b + c) < 2^1024 - 2^970 ensure r == round(F64, a * b + c) {
+        host expr "call double @llvm.fma.f64(double ${a}, double ${b}, double ${c})"
+    }
+    fn sqrt(x ∈ F64) (r ∈ F64) pure where x >= 0 ensure r == round(F64, sqrt(x)) {
+        host expr "call double @llvm.sqrt.f64(double ${x})"
+    }
+    fn fptrunc(x ∈ F64) (r ∈ F32) pure
+        where abs(x) < 2^128 - 2^103 ensure r == round(F32, x) { host expr "fptrunc double ${x} to float" }
+    fn fptrunc_bf(x ∈ F32) (r ∈ BF16) pure
+        where abs(x) < 2^128 - 2^119 ensure r == round(BF16, x) { host expr "fptrunc float ${x} to bfloat" }
+    fn sitofp(n ∈ -2^53..2^53) (r ∈ F64) pure ensure r == n { host expr "sitofp i64 ${n} to double" }
+    // The ordered reduction: a rounding after every add, in index order, which is the scope's sum.
+    // Each partial sum's overflow bound is a `where` like fadd's, omitted here.
+    fn reduce_fadd4(s ∈ F64, v ∈ Array(F64)) (r ∈ F64) pure where len(v) == 4
+        ensure r == round(F64, round(F64, round(F64, round(F64, s + v[0]) + v[1]) + v[2]) + v[3]) {
+        host expr "call double @llvm.vector.reduce.fadd.v4f64(double ${s}, <4 x double> ${v})"
+    }
+}
+```
+
+The template form of `ir/llvm` is not fixed. These show only what each declaration states. The
+`where` clauses follow the survey's §3: each is a domain D that excludes the host's behaviour outside the
+ring, so the flags and the poison never become visible. `sitofp` states an exact conversion,
+`ensure r == n`, on the range where it is exact.
+
+**Not offered as realizations**:
+- **The fast-math flags** `reassoc`, `contract`, `afn` and `fast`, and `fmuladd` ("fusion is not
+  guaranteed"). Each is a relation (survey §4.4), and its answer depends on LLVM's choices.
+- **The constrained intrinsics with a static rounding mode.** Their `ensure` would be true only while
+  the dynamic mode matches. LLVM states that a mismatch is undefined behaviour (survey §4.5). The
+  directed roundings are realized by error-free transformations instead (§7).
+
+### 19.4 JavaScript, where the host lacks a primitive
+
+```
+repr F(53, -1022, 1023) host "number"
+repr F(24, -126, 127) host "Float32Array"      // a table of F32, as Uint8Array is of 0..255
+module js {
+    fn fround(x ∈ F64) (r ∈ F32) pure where abs(x) < 2^128 - 2^103 ensure r == round(F32, x) {
+        host expr "Math.fround(${x})"
+    }
+}
+```
+
+JavaScript has no `fma`, so no declaration realizes `round(F64, a * b + c)`. The compiler realizes it
+in the language: Veltkamp's split and Dekker's product make `a * b` exact as a pair, about 17 operations,
+then the correctly rounded sum of three (Boldo and Melquiond). The program is unchanged and so is the
+answer. Only the cost differs, and `round(F64) { … }` avoids it where per-operation IEEE is what the
+program means.
+
+## 20. Does it restrict reaching for the target?
+
+**What is not restricted: calling.** Every host operation stays declarable under the host's name with
+the host's semantics, over the host's own type: `go.float64`, LLVM's `double` with NaN and the flags.
+That is Tier 2 with no portability claim, as `go./` and `go.f+` are today. The parasite model loses
+nothing it can call.
+
+**What is restricted: which host operations may count as the language's.** An operation counts only when
+its `ensure` is true, which takes two things:
+- the generator's check against the host (ADR 0022);
+- a conformance case.
+
+Measured against §10 and the survey:
+
+| host behaviour | the language's? | reached how |
+|---|---|---|
+| IEEE `+ - * ÷`, `sqrt`, `fma`, conversions, `fptrunc` and `sitofp`: correctly rounded by IEEE 754 on every host | **yes**, by fusion, at the host's speed | automatically |
+| libm and `java.lang.Math`: `exp`, `sin`, `pow`, not correctly rounded | no: their answer is the host's | by name, Tier 2; `round(F64, exp(x))` costs a correctly rounded algorithm, within a small factor of glibc's speed (CORE-MATH's report; not measured here) |
+| NaN, ±∞ and −0 as values (a NaN as a missing-data marker) | no: not in the ring | the host's type, then a decode; or an `Option`, a variant the program states |
+| `reassoc` and `fast`: a float sum vectorized by LLVM | no: a relation | the exact sum is associative, so it vectorizes with a deterministic answer. **Not measured**: its speed against `reassoc`'s |
+| an FP8 GEMM on a tensor core, accumulation order unspecified | no: a relation | Tier 2 on a future GPU layer (ADR 0085), with its hull as the claim |
+| the dynamic rounding mode and the status flags | no: state every operation would read | a static mode, by EFTs (§7) |
+
+So the restriction is exactly the line Theorem D draws: **a host behaviour is the language's when it is
+a function of the operands, stated and checked**. Everything else is still callable, under its own name,
+and marked as the host's. Two costs fall on the programs that want the host's speed with per-operation
+rounding:
+- they write `round(F64) { … }`, and get the host's instruction, never a slower one;
+- their inputs must be bounded so that the overflow obligations are proven, as integer programs' already
+  are.
+
+One cost may matter for speed, and it is unmeasured: a fast-math vectorized sum against the exact
+accumulator vectorized. If the gap is large, a program that accepts any order has two choices. One is
+the scope with an explicit reduction tree (pairwise sums, a function of the inputs and so the
+language's). The other is the relation, as Tier 2.
+
+## 21. Surface questions for hamza
+
+- **S1. The rounding's spelling.** `round(S, e, mode)`, with S static and the mode a tag. The
+  alternatives: an infix form like `mod`, `e round F64`; or a set applied as a function, `F64(e)`,
+  which reads well but is refused today, since a set has no representation in a term. **Recommended:
+  `round(S, e)`.** It is an operation, and its name says so.
+- **S2. The scope (G6).** `round(F64) { … }` shares the name with S1's operation. The alternatives:
+  `ieee(F64) { … }`, or `each round(F64) { … }`. **Recommended: `round(F64) { … }`**, since it means
+  "round here, everywhere".
+- **S3. The real quotient's symbol.** `÷`, ASCII `\div`, as `⊕` is `\oplus` (ADR 0082). `/` keeps the
+  integer quotient, so no program changes meaning. **Recommended.**
+- **S4. `/` on a non-integer.** Part II extends `/` to the ring as the integer quotient, so `3.5 / 2` is
+  1. The alternative is to require integer operands, so that `3.5 / 2` is refused and points to
+  `round(S, 3.5 ÷ 2)`. **Recommended: refuse.** The extension is sound, but a reader of `3.5 / 2` would
+  expect 1.75, and a refusal that names `÷` costs nothing.

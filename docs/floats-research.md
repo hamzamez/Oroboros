@@ -1,6 +1,6 @@
 # Research: floats in the language, their formats, their relations, their environment, and decimals
 
-2026-10-30; Part II 2026-10-31; Part III 2026-11-01. **For hamza's decision**: Part II's G1–G7 (§17), which revise F1, F2, F5, F6 and F10 of §11: one numeric sort ℤ[1/10], a rounding the only lossy operation, the representation the facts'; and Part III's surface questions S1–S4 (§21), with programs and target declarations in J (§18, §19) and what the design restricts on a host (§20). Walls 5, 6 and 7 of the seven
+2026-10-30; Part II 2026-10-31; Part III 2026-11-01. **Decided 2026-11-01** ([ADR 0086](decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md)): hamza agreed to Part II's G1–G7 (§17), which revise F1, F2, F5, F6 and F10 of §11: one numeric sort ℤ[1/10], a rounding the only lossy operation, the representation the facts'; and Part III's surface questions S1–S4 (§21), with programs and target declarations in J (§18, §19) and what the design restricts on a host (§20). Walls 5, 6 and 7 of the seven
 [llvmsurvey-2026-10-27](../gauntlet/results/llvmsurvey-2026-10-27.md) found (float formats, relations,
 the float environment), the 10-24 plan's 6b steps 5–7, researched as one because they share one
 algebra; and the question of decimals. hamza: "until now, floats are still using the target ops. not the

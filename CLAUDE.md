@@ -166,22 +166,23 @@ checked. When a package hits a wall that needs language work, stop, research it,
         and Omega-independent stores; a float fold keeps its order (measured: reassociated, 2× faster
         and a different number), its reordering a relation for wall 6; explicit SIMD only where
         measured; GPUs a later target layer. Not built: its consumer is `ir/llvm`.
-     5–7. **Float formats, relations, the float environment, with decimals and literals**, researched
-        as one ([floats-research.md](docs/floats-research.md)), **with hamza**: Part I's F1–F11, revised
-        by Part II's G1–G7 (hamza: decouple the number from its format). The proposal:
-        - **one numeric sort, ℤ[1/10]**, the least ring holding ℤ, every binary float and every decimal
-          numeral (Theorem R). +, −, ·, = and < are exact, and `Int`, F(p, e_min, e_max) for any p,
-          decimal grids and fixed point are its sets;
-        - **a rounding r_S is the only lossy operation**. ÷, √ and the transcendentals are written under
-          one, one per rounding, which terminates by Lindemann–Weierstrass (Theorem T), and integer `/`
-          is one;
-        - every answer is a function of the inputs (Theorem D), and the representation is the facts';
-        - realization: Figueroa's fusion (measured: 0 disagreements in 2·10⁷), r64(a·b + c) as fma,
-          round to odd, the exact accumulator (measured 2.96× a naive sum, order-independent);
-        - accuracy is a claim, never a chooser;
-        - IEEE's per-operation arithmetic is a static scope;
-        - no ∞ or NaN;
-        - correctly rounded transcendentals (measured: Go's `pow` 18,212 ulps off).
+     5–7. ~~**Float formats, relations, the float environment, with decimals and literals**~~ **decided**
+        ([ADR 0086](docs/decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md),
+        [floats-research.md](docs/floats-research.md) Parts I–III; hamza agreed to G1–G7 and S1–S4,
+        2026-11-01):
+        - **one numeric sort, ℤ[1/10]** (Theorem R): +, −, ·, = and < exact; `Int`, F(p, …) for any p,
+          D(k, R) and Q(k, R) are sets in `lib/num`; a literal is exact;
+        - **`round(S, e, mode)` is the only lossy operation**, with `÷` (`\div`), `sqrt` and the
+          transcendentals only at its root, one per rounding (Theorem T); `/` needs integer operands;
+        - every answer is a function of the inputs (Theorem D); the facts (an interval and v₂, v₅)
+          choose ρ;
+        - a target realizes a rounding by an `ensure r == round(S, t)`, otherwise the host's, Tier 2;
+        - `round(F64) { … }` is IEEE's per-operation scope;
+        - no ∞, NaN or −0: overflow an obligation, a host double decoded;
+        - accuracy a claim.
+
+        Measured: Figueroa's fusion, 0 disagreements in 2·10⁷; the exact accumulator 2.96× a naive sum
+        and order-independent. **Not built.**
      Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
      widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
      rung above as native iN, measured against the limbs.
@@ -527,7 +528,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | Wrapping is the residue map `mod 2ⁿ` on ℤ, not a sort; `& \| ⊕ ~ << >>` are ℤ's own; fusion computes a term under `mod 2ⁿ` in n-bit arithmetic | [0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
 | A representation is an abstraction function (H, d), chosen by place; native iN above the word on LLVM; the word S₆₄ on every triple (LLVM's part with ir/llvm) | [0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md) |
 | An address is an integer offset in a region, ownership a linear view in the logic; no load without a view; binders abbreviate view formulas; a definition's linear result; uninit never visible; codecs (not built) | [0084](docs/decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md) |
-| A vector is a representation of a table, never a sort; a fold vectorizes iff its operation is associative; a float fold keeps its order (not built) | [0085](docs/decisions/0085-a-vector-is-a-representation-of-a-table-and-a-fold-vectorizes-iff-it-is-a-homomorphism.md) |
+| A vector is a representation of a table, never a sort; a fold vectorizes iff its operation is associative; a float fold keeps its order (item 3 amended by 0086; not built) | [0085](docs/decisions/0085-a-vector-is-a-representation-of-a-table-and-a-fold-vectorizes-iff-it-is-a-homomorphism.md) |
+| A number is an element of ℤ[1/10]; `round(S, e, mode)` is its one lossy operation, `÷` and the transcendentals at its root; the facts choose ρ; IEEE's arithmetic a static scope; no NaN or ∞; a target realizes a rounding by its `ensure` (not built) | [0086](docs/decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md) |
 
 ## Build commands
 

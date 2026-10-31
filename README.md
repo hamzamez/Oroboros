@@ -534,9 +534,9 @@ says why the next is what it is.
         one register, and GPUs, are a table the hardware computes all at once; the compiler does it
         wherever the answer cannot change, which is every integer sum but not a floating-point one;
         built with the LLVM backend;
-     5.–7. float formats other than 64-bit, operations LLVM allows to give more than one answer, and
-        rounding modes, **researched together 2026-10-30** ([floats-research.md](docs/floats-research.md)),
-        with decimals and how `0.1` is read; waiting on hamza's decisions. The proposal:
+     5.–7. ~~float formats other than 64-bit, operations LLVM allows to give more than one answer, and
+        rounding modes~~, **decided 2026-11-01** ([ADR 0086](docs/decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md),
+        [floats-research.md](docs/floats-research.md)), with decimals and how `0.1` is read; not built yet:
         - integers, decimals and floating-point values become one kind of number, with exact
           arithmetic, so `0.1 + 0.2 == 0.3`;
         - rounding is the one operation that loses information, written where the program wants it,

@@ -1,7 +1,7 @@
 # 0085 — A vector is a representation of a table, and a fold vectorizes iff it is a homomorphism
 
 Date: 2026-10-30
-Status: Accepted; not built (its main consumer is `ir/llvm`)
+Status: Accepted; not built (its main consumer is `ir/llvm`). Item 3 amended by [ADR 0086](0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md): an unrounded float fold is exact, so associative, and vectorizes; a fold rounded at every step keeps its order.
 
 ## Context
 

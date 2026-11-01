@@ -667,6 +667,9 @@ func FromResidual(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (s
 	if err != nil {
 		return "", err
 	}
+	if _, err := ir.SelectNumbers(tg, f); err != nil {
+		return "", err
+	}
 	return FromFunc(tg, f)
 }
 

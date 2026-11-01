@@ -26,6 +26,9 @@ import (
 
 // entails is the refinement layer's entailment: facts ⊢ goal ≤ 0.
 func (f *facts) entails(goal *linear) bool {
+	if f.mentionsNum(goal) {
+		return false // ℤ's entailment says nothing of a number of N (numnames.go)
+	}
 	today := f.entailsFM(goal)
 	if entailLog != nil {
 		entailLog.record(f, goal, today)

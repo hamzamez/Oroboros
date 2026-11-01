@@ -1,0 +1,41 @@
+// NUMBERS OF N = ℤ[1/10] WRITTEN IN THE LANGUAGE (ADR 0086, docs/spec/numbers.md).
+//
+// The sets are the language's: D(k, lo..hi), the elements of the grid 10⁻ᵏℤ
+// between two integers, which the compiler decides and holds as numerators
+// (ir/numbers.go). Their definitions, which the compiler's procedure is checked
+// against (numbers.md §2), are
+//
+//   D(k, lo..hi) = { x ∈ N : x · 10^k ∈ Int, lo ≤ x ≤ hi }
+//
+// This module holds what is written over them: a number's decimal numeral, from
+// the ring's own operations and one rounding, so it prints the same on every
+// target, exactly.
+
+// pow10 is 10ᵏ, read from its graph.
+fn pow10(k ∈ 0..18) (1..10^18) {
+    array { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000,
+        10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000,
+        1000000000000000, 10000000000000000, 100000000000000000, 1000000000000000000 }[k]
+}
+
+// digits is n's decimal digits, at least `width` of them, zeros in front. A
+// number below 2⁶³ has at most 19 digits, which bounds the count.
+fn digits(n ∈ 0..2^63-1, width ∈ 0..19) (String) {
+    loop i = 0, m = n, s = "" {
+        i < 19 && (i < width || m > 0) -> again(i + 1, m / 10, string_of(48 + m % 10) ++ s)
+        else -> s
+    }
+}
+
+// decimal is x's numeral with exactly k places after the point: x rounded onto
+// 10⁻ᵏℤ, to the nearest, a tie to the even neighbour (numbers.md §3), so
+// decimal(2.675, 2) is "2.68" and decimal(2.665, 2) is "2.66". It is exact:
+// nothing between x and its digits is a double.
+pub fn decimal(x, k ∈ 0..18) (String) {
+    p = pow10(k)
+    n = round(Int, x * p)
+    a = if n < 0 { 0 - n } else { n }
+    sign = if n < 0 { "-" } else { "" }
+    whole = digits(a / p, 1)
+    if k == 0 { sign ++ whole } else { sign ++ whole ++ "." ++ digits(a % p, k) }
+}

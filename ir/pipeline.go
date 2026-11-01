@@ -117,6 +117,12 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if err != nil {
 		return nil, nil, err
 	}
+	// THE NUMBERS OF N (ADR 0086, numbers.go): each value of a decimal grid
+	// held as its numerator, and each operation of N and each rounding
+	// rewritten into integer operations, which the decision below proves.
+	if _, err := SelectNumbers(tg, f); err != nil {
+		return nil, nil, fmt.Errorf("%s: %v", name, err)
+	}
 	// FUSION (ADR 0082 item 3): a term under `mod 2ⁿ` computed wrapping,
 	// before the decision, which would count its intermediates.
 	Fuse(tg, f)

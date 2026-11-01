@@ -802,6 +802,15 @@
 == examples/native/wordcount-js.oro windows refused
    gen: examples/native/wordcount-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/num/ledger.oro go emitted 553a70c5218b906b2911bc769a78ce534a279f21ada4b343dc06b952a628a477
+   note: gen-main: 255 of 255 integer operations bounded; 7 of 7 loop(s) proven terminating
+== examples/num/ledger.oro js emitted 5311e47f6ddf95242be51ed08575c3f6bc2606fb2e66820d482e6dcbf7442af7
+   note: gen-main: 255 of 255 integer operations bounded; 7 of 7 loop(s) proven terminating
+== examples/num/ledger.oro java emitted 7efb56bc871a96fce55720e29f5808c33b959ad4abb436386121798b16ea2e58
+   note: gen-main: 255 of 255 integer operations bounded; 7 of 7 loop(s) proven terminating
+== examples/num/ledger.oro windows refused
+   gen: examples/num/ledger.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
 == examples/os/du.oro go emitted 80877d4d1aae758f8df4b718dd063985deca223fc4eb671f7fc02d35ab91ecc3
    note: gen-main: 19 of 19 integer operations bounded; 1 of 2 loop(s) proven terminating
 == examples/os/du.oro js refused
@@ -1346,6 +1355,10 @@
    gen: lib\io\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/js.oro windows refused
    gen: lib/io/js.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
+== lib/num.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== lib/num.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== lib/num.oro java emitted 7ee875b9aaefa008f6b40ad47d54fed65cba07d29e0e51acac58d24fe131b61b
+== lib/num.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == lib/num/u128.oro go emitted 41bc50aa7d35779ef08224c9a4871fe110126f55c9a7a8b8d2459a4823c44ae0
    note: gen-add: 2 operation(s) or conversion(s) in the unsigned word
    note: gen-decimal: 13 operation(s) or conversion(s) in the unsigned word

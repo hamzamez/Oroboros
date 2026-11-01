@@ -71,6 +71,27 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 	for promote(tg, f, opt) {
 		typeFunc(tg, f, l.decl, declared)
 	}
+	// A NUMERAL IS EXACT (ADR 0086): `0.1` is one tenth, which no double holds.
+	// One typed as the host's double, where nothing rounds it (numbers.md §9
+	// part 4 brings round(F64, …)), has no representation, and nothing rounds
+	// it behind the program's back; one typed N is a decimal (numbers.go).
+	var inexact error
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != OConst || s.Lit.Kind != core.KDec || f.Types[s.Res[0]] == core.NumType || inexact != nil {
+				continue
+			}
+			if _, exact := s.Lit.Dec.Float64(); !exact {
+				inexact = fmt.Errorf("%s: lowering: %s is not a double, and a numeral is exact (ADR 0086): no "+
+					"representation holds it at a double; round(F64, %s) comes with numbers.md §9 part 4",
+					name, s.Lit.Dec, s.Lit.Dec)
+			}
+		}
+	})
+	if inexact != nil {
+		return nil, inexact
+	}
 	// A DECLARED RESULT is the signature's, not what the body's yields were
 	// typed as: it is a fixed member of its value's class (Theorem D′), and the
 	// host compiles the declaration.
@@ -115,7 +136,9 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 		// entry point (ADR 0079 item 3), on a target that realizes that word:
 		// a hash reduced `mod 2^64` leaves as a uint64, not as an int.
 		fixes := func(r string) bool {
-			return declaresTable(tg, r) || (tg.Word.Unsigned || tg.Word.Pair) && tg.ValueType(r) == core.U64Type
+			// and A DECIMAL GRID'S, its numerator's at its scale (numbers.go)
+			return declaresTable(tg, r) || (tg.Word.Unsigned || tg.Word.Pair) && tg.ValueType(r) == core.U64Type ||
+				decType(r)
 		}
 		switch {
 		case len(sig.Results) > 0 && len(sig.Results) == len(f.Results):
@@ -341,17 +364,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		return l.value(t.Kids[3], r)
 	}
 	switch t.Kind {
-	case core.KDec:
-		// A NUMERAL IS EXACT (ADR 0086): `0.1` is one tenth, which no double
-		// holds. Until a rounding can be written (numbers.md §9, step 3), the
-		// one representation of sort N is the double, so a numeral outside F64
-		// has none, and nothing rounds it behind the program's back.
-		if _, exact := t.Dec.Float64(); !exact {
-			l.fail("%s is not a double, and a numeral is exact (ADR 0086): no representation holds it yet; "+
-				"round(F64, %s) comes with numbers.md §9 step 3", t.Dec, t.Dec)
-		}
-		return []V{l.one(r, Stmt{Op: OConst, Lit: t})}
-	case core.KInt, core.KStr, core.KBool:
+	case core.KInt, core.KDec, core.KStr, core.KBool:
 		return []V{l.one(r, Stmt{Op: OConst, Lit: t})}
 	case core.KBound:
 		return []V{l.lookup(t)}
@@ -427,6 +440,27 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	}
 	if op.Name == "again" {
 		l.fail("`again` outside a loop's tail (ADR 0015)")
+	}
+	// A ROUNDING (ADR 0086, numbers.md §3), (round "S" e "m"): one ORound,
+	// whose one value is e's, or whose two are the operands of a real quotient
+	// at its root (Theorem T: one operation that leaves N per rounding).
+	// SelectNumbers realizes it.
+	if op.Name == core.RoundName {
+		if len(args) != 3 || args[0].Kind != core.KStr || args[2].Kind != core.KStr || !core.RoundModes[args[2].Str] {
+			l.fail("a rounding is round(S, e) or round(S, e, mode), with S a set and the mode one of "+
+				"'nearest, 'half_away, 'down, 'up, 'zero, 'away, 'sat: %s", core.ShowTerm(t))
+		}
+		s := Stmt{Op: ORound, Type: args[0].Str, Name: args[2].Str}
+		if e := args[1]; e.Kind == core.KApp && e.Kids[0].Kind == core.KName && e.Kids[0].Name == core.QuoName && len(e.Kids) == 3 {
+			s.Args = []V{l.single(e.Kids[1], r), l.single(e.Kids[2], r)}
+		} else {
+			s.Args = []V{l.single(e, r)}
+		}
+		return []V{l.one(r, s)}
+	}
+	if op.Name == core.QuoName {
+		l.fail("%s is the real quotient, which leaves N: it is written only at the root of a rounding, "+
+			"round(S, a ÷ b) (ADR 0086, Theorem T); a / b is the integer quotient", core.ShowTerm(t))
 	}
 	p, known := l.prim(op.Name)
 	if !known {

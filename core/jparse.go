@@ -1014,6 +1014,9 @@ var binary = map[string]int{
 	// `x & 1 == 0` is `(x & 1) == 0`. `mod` is a word, read as an operator only
 	// between two operands (binaryFrom).
 	"<<": pMul, ">>": pMul, "&": pMul, "mod": pMul, "|": pAdd, "⊕": pAdd,
+	// THE REAL QUOTIENT (ADR 0086): at `/`'s level, and legal only at the root
+	// of a rounding's argument, which the reducer's Σ_L rule checks.
+	"÷": pMul,
 }
 
 var opName = map[string]string{"==": "=", "++": "concat"}

@@ -68,6 +68,27 @@ func (d *desugarer) build(a Tail) *Term {
 		if v, ok := a.Fn.(*Var); ok && v.Name == "tuple" {
 			return Fn([]string{"#k"}, &Term{Kind: KApp, Kids: append([]*Term{Name("#k")}, d.terms(a.Args)...)})
 		}
+		// A ROUNDING (ADR 0086, numbers.md §3), round(S, e) or round(S, e, 'm):
+		// the set is static and carried as its canonical type, as an
+		// ascription's is, and the mode as its name. (round "S" e "m").
+		if v, ok := a.Fn.(*Var); ok && v.Name == RoundName && (len(a.Args) == 2 || len(a.Args) == 3) {
+			set := d.term(a.Args[0])
+			if set.Kind == KName && isLangSpelling(set.Name) && set.Name != NatSet {
+				set = Name(unsetName(set.Name)) // `Int` is the set int, as in a header
+			}
+			if ty := TypeTerm(rangeType(set)); ty != "" {
+				set = Str(ty)
+			}
+			mode := Str(RoundNearest)
+			if len(a.Args) == 3 {
+				if m, ok := a.Args[2].(*Var); ok && RoundModes[m.Name] {
+					mode = Str(m.Name)
+				} else {
+					mode = d.term(a.Args[2]) // not a mode: the reducer refuses it, saying which
+				}
+			}
+			return &Term{Kind: KApp, Kids: []*Term{Name(RoundName), set, d.term(a.Args[1]), mode}}
+		}
 		return &Term{Kind: KApp, Kids: append([]*Term{d.term(a.Fn)}, d.terms(a.Args)...)}
 	case *Index:
 		return &Term{Kind: KApp, Kids: []*Term{d.term(a.Table), d.term(a.At)}}

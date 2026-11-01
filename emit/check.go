@@ -26,6 +26,12 @@ type checker struct {
 	// widened is set when an `again` passed a value larger than its loop
 	// variable's type, which then takes the join (iterate).
 	widened bool
+	// nums, when not nil, collects every name a binder or a demand gives sort N
+	// (NumNames): the names the refinement layer's ℤ must not reason about.
+	nums map[string]bool
+	// maybe caches maybeNum on an application, so the test is linear in the
+	// term however deep its arithmetic nests.
+	maybe map[*core.Term]bool
 }
 
 // bind gives a binder's names their types for the walk of ITS body, and returns
@@ -48,6 +54,9 @@ func (c *checker) bind(names, tys []string) func() {
 	for i, n := range names {
 		ty, ok := c.types[n]
 		old[i] = prev{ty, ok}
+		if c.nums != nil && (tys[i] == core.NumType || c.tgt.ValueType(tys[i]) == core.NumType) {
+			c.nums[n] = true
+		}
 		if tys[i] == "" {
 			delete(c.types, n)
 		} else {
@@ -73,6 +82,7 @@ func Check(tgt *Target, what string, t *core.Term) error {
 	// with everything known. Without this a conflict is reported or missed
 	// depending on the order the term happens to be written in.
 	_, _ = c.walk(t, "")
+	c.maybe = nil // the second pass knows more names' types (maybeNum)
 	if _, err := c.walk(t, ""); err != nil {
 		return fmt.Errorf("%s: %w", what, err)
 	}
@@ -85,6 +95,10 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	case core.KInt:
 		return "int", c.agree("an integer literal", "int", want)
 	case core.KDec:
+		// A NUMERAL IS TYPED AS THE DOUBLE IT WAS BEFORE N, and the double and
+		// N agree in both directions here (agree): only the IR's typing tells a
+		// numeral (`#dec`, typing.go) from a host's double, and it refuses a
+		// real mix. NumNames marks a name bound to a numeral N's.
 		return "f64", c.agree("a float literal", "f64", want)
 	case core.KBool:
 		return "bool", c.agree("a boolean literal", "bool", want)
@@ -111,6 +125,9 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			// name's own type, so nothing is learned.
 			if want != "" && want != "any" && !c.tgt.HasSubtypes(c.tgt.ValueType(want)) {
 				c.types[t.Name] = want
+				if c.nums != nil && (want == core.NumType || c.tgt.ValueType(want) == core.NumType) {
+					c.nums[t.Name] = true
+				}
 			}
 			return want, nil
 		}
@@ -178,6 +195,63 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			return c.walk(body, want)
 		}
 		return "", nil // the emitter reports this better than the checker can
+	}
+	// A ROUNDING (ADR 0086, numbers.md §3): its term is checked, a real
+	// quotient's operands as N's, and its sort is ℤ's onto a set of integers
+	// and N's onto any other.
+	if op.Name == core.RoundName && len(t.Args()) == 3 && t.Args()[0].Kind == core.KStr {
+		e := t.Args()[1]
+		operands := []*core.Term{e}
+		if e.Kind == core.KApp && e.Kids[0].Kind == core.KName && e.Kids[0].Name == core.QuoName && len(e.Kids) == 3 {
+			operands = e.Kids[1:]
+		}
+		for _, a := range operands {
+			if ty, err := c.walk(a, ""); err != nil {
+				return "", fmt.Errorf("in a rounding: %w", err)
+			} else if ty != "" && !numeric(c.tgt, ty) && c.tgt.ValueType(ty) != "f64" && !(a.Kind == core.KDec) {
+				return "", fmt.Errorf("in a rounding: %s is %s, not a number", core.ShowTerm(a), core.ShowSet(ty))
+			}
+		}
+		res := core.NumType
+		if set := t.Args()[0].Str; set == "int" || c.tgt.ValueType(set) == "int" || core.UnboundedRange(set) {
+			res = "int"
+		}
+		return res, c.agree("a rounding", res, want)
+	}
+	// N'S ARITHMETIC (ADR 0086, numbers.md §1): the language's +, −, ·, order and
+	// equality are N's when an operand is a number of N or a numeral, and an
+	// integer operand is N's too, ℤ ≤ N. Otherwise they are ℤ's, as declared.
+	if numberOps[op.Name] && c.maybeNum(t) {
+		var tys []string
+		isNum := false
+		for _, a := range t.Args() {
+			ty, err := c.walk(a, "")
+			if err != nil {
+				return "", err
+			}
+			if ty == core.NumType || c.tgt.ValueType(ty) == core.NumType || a.Kind == core.KDec {
+				isNum = true
+			}
+			// A NAME TYPED AS THE DOUBLE may be a numeral's (`sum = 0.0`): the
+			// operation is N's here, and the IR refuses it if the double is a host's.
+			if c.tgt.ValueType(ty) == "f64" {
+				isNum = true
+			}
+			tys = append(tys, ty)
+		}
+		if isNum {
+			for i, ty := range tys {
+				if ty != "" && !numeric(c.tgt, ty) && c.tgt.ValueType(ty) != "f64" && t.Args()[i].Kind != core.KDec {
+					return "", fmt.Errorf("in argument %d of %s: %s is %s, and the operation is N's "+
+						"(ADR 0086)", i+1, core.ShowName(spelled(op.Name)), core.ShowTerm(t.Args()[i]), core.ShowSet(ty))
+				}
+			}
+			res := core.NumType
+			if op.Name != "+" && op.Name != "-" && op.Name != "*" {
+				res = "bool"
+			}
+			return res, c.agree(core.ShowName(op.Name), res, want)
+		}
 	}
 	p, ok := c.tgt.Prims[op.Name]
 	if !ok {
@@ -366,6 +440,16 @@ func unselected(tg *Target, t *core.Term, inLoop bool) bool {
 // the same thing. Unknown agrees with everything, and `any` demands nothing.
 func (c *checker) agree(what, got, want string) error {
 	if compatible(c.tgt, got, want) {
+		return nil
+	}
+	// THE ORDER OF THE NUMBERS (ADR 0086, numbers.md §1), in the direction a
+	// value flows: an integer goes where a number of N is wanted (ℤ ≤ N), and
+	// a number of N where the host's double is, which the IR's typing decides
+	// (only it tells a numeral, which a double may hold, from a decimal, which
+	// none does). Here and not in `compatible`, which is symmetric and which W5
+	// reads.
+	gv, wv := c.tgt.ValueType(got), c.tgt.ValueType(want)
+	if (wv == core.NumType && (gv == "int" || gv == "f64" || numeric(c.tgt, got))) || (gv == core.NumType && wv == "f64") {
 		return nil
 	}
 	// AND A DECLARED SUBSUMPTION EDGE, which is the ONE direction `compatible`
@@ -663,6 +747,12 @@ func (c *checker) cond(args []*core.Term, want string) (string, error) {
 		}
 		return a, c.agree("a conditional", a, want)
 	}
+	// N JOINS ITS SUBSORTS (ADR 0086): a branch of N and one of ℤ, or of the
+	// double a numeral is typed as (agree), is N's.
+	if va, vb := c.tgt.ValueType(a), c.tgt.ValueType(b); (va == core.NumType) != (vb == core.NumType) &&
+		(va == core.NumType || numeric(c.tgt, a) || va == "f64") && (vb == core.NumType || numeric(c.tgt, b) || vb == "f64") {
+		return core.NumType, c.agree("a conditional", core.NumType, want)
+	}
 	// TWO COMPARABLE BRANCHES OF ONE REPRESENTATION JOIN AT THE LARGER
 	// (types.md §3.2, Target.JoinSameRepr): by subsumption each branch has the
 	// larger type, so the conditional does.
@@ -892,6 +982,71 @@ func isWordSort(tg *Target, ty string) bool {
 	switch tg.ValueType(ty) {
 	case "int", core.U64Type:
 		return ty != "" && ty != core.BigType
+	}
+	return false
+}
+
+// numberOps are the language's operations N has as ℤ has them (numbers.md §1):
+// +, −, · and the order and equality. `/`, `%` and the Boolean operations are
+// ℤ's alone.
+var numberOps = map[string]bool{"+": true, "-": true, "*": true,
+	"=": true, "<": true, "<=": true, ">": true, ">=": true}
+
+// numeric reports a sort at or below N: ℤ (any integer sort), or N.
+func numeric(tg *Target, ty string) bool {
+	switch v := tg.ValueType(ty); {
+	case ty == core.NumType || v == core.NumType || v == "int" || ty == "int":
+		return true
+	case v == core.U64Type || v == core.BigType:
+		return true
+	}
+	_, _, ok := core.IntRangeBig(ty)
+	return ok
+}
+
+// maybeNum reports, without walking, whether an operation of numberOps may be
+// N's: some operand is a numeral, a rounding, a quotient, or a name typed N or
+// the double, or is such an operation itself. Only then are the operands
+// walked twice; an integer program's arithmetic is walked once, as before.
+func (c *checker) maybeNum(t *core.Term) bool {
+	switch t.Kind {
+	case core.KDec:
+		return true
+	case core.KName:
+		v := c.tgt.ValueType(c.types[t.Name])
+		return v == core.NumType || v == "f64"
+	case core.KFn:
+		return c.maybeNum(t.Body())
+	case core.KApp:
+		if len(t.Kids) == 0 {
+			return false
+		}
+		if r, ok := c.maybe[t]; ok {
+			return r
+		}
+		out := false
+		op := t.Op()
+		switch {
+		case op.Kind == core.KFn:
+			out = c.maybeNum(op.Body())
+		case op.Kind != core.KName:
+		case op.Name == core.RoundName || op.Name == core.QuoName:
+			out = true
+		case numberOps[op.Name] || op.Name == "if" || op.Name == "cond" || op.Name == "let" ||
+			op.Name == core.AscribeName || op.Name == core.RequireName:
+			// N's arithmetic, or a form whose value is one of its operands'
+			for _, a := range t.Args() {
+				if c.maybeNum(a) {
+					out = true
+					break
+				}
+			}
+		}
+		if c.maybe == nil {
+			c.maybe = map[*core.Term]bool{}
+		}
+		c.maybe[t] = out
+		return out
 	}
 	return false
 }

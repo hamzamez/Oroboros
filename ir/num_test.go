@@ -14,6 +14,31 @@ import (
 // lowerFile is a program's every entry point through the checker and Lower:
 // the first refusal on the way, or nil.
 func lowerFile(src, target string) error {
+	_, err := lowerFuncs(src, target, false)
+	return err
+}
+
+// lowerFuncs is lowerFile's functions, with numbers selected when numbers is set
+// (numbers.go): the IR the decision reads.
+func lowerFuncs(src, target string, numbers bool) ([]*Func, error) {
+	var out []*Func
+	err := eachEntry(src, target, func(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) error {
+		f, err := Lower(tg, name, sig, nf, Options{Decided: true})
+		if err != nil {
+			return err
+		}
+		if numbers {
+			if _, err := SelectNumbers(tg, f); err != nil {
+				return err
+			}
+		}
+		out = append(out, f)
+		return nil
+	})
+	return out, err
+}
+
+func eachEntry(src, target string, use func(*emit.Target, string, *core.Sig, *core.Term) error) error {
 	layers, err := emit.SearchPath(src, filepath.Join("..", "targets"))
 	if err != nil {
 		return err
@@ -58,7 +83,7 @@ func lowerFile(src, target string) error {
 		if err := emit.Check(tg, name, nf); err != nil {
 			return err
 		}
-		if _, err := Lower(tg, name, sig, nf, Options{Decided: true}); err != nil {
+		if err := use(tg, name, sig, nf); err != nil {
 			return err
 		}
 	}

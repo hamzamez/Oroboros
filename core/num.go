@@ -148,3 +148,66 @@ func (d *Dec) String() string {
 	}
 	return s
 }
+
+// RoundName is the rounding's former in the core, (round "S" e "m") (ADR 0086,
+// numbers.md §3): S a set's canonical type, e the term rounded, m the mode.
+const RoundName = "round"
+
+// QuoName is the real quotient a ÷ b, written only at the root of a rounding's
+// argument (Theorem T).
+const QuoName = "÷"
+
+// RoundNearest is the default mode: the nearer neighbour, a tie to the even one.
+const RoundNearest = "nearest"
+
+// RoundModes are the modes a rounding takes (numbers.md §3), by their names.
+var RoundModes = map[string]bool{
+	"nearest": true, "half-away": true, "down": true, "up": true, "zero": true, "away": true, "sat": true,
+}
+
+// DecType is D(k, lo..hi)'s canonical type, "dec K LO HI": the elements of
+// 10⁻ᵏℤ between lo and hi (numbers.md §2).
+func DecType(k int, lo, hi *big.Int) string {
+	return fmt.Sprintf("dec %d %s %s", k, lo, hi)
+}
+
+// DecRange reads "dec K LO HI" back.
+func DecRange(ty string) (k int, lo, hi *big.Int, ok bool) {
+	f := strings.Fields(ty)
+	if len(f) != 4 || f[0] != "dec" {
+		return 0, nil, nil, false
+	}
+	if _, err := fmt.Sscanf(f[1], "%d", &k); err != nil || k < 0 || k > 1000 {
+		return 0, nil, nil, false
+	}
+	lo, ok1 := new(big.Int).SetString(f[2], 10)
+	hi, ok2 := new(big.Int).SetString(f[3], 10)
+	if !ok1 || !ok2 || lo.Cmp(hi) > 0 {
+		return 0, nil, nil, false
+	}
+	return k, lo, hi, true
+}
+
+// DecSetName is D, the decimal grid's former in a set, D(k, lo..hi).
+const DecSetName = "D"
+
+// rangeType reads a range written in a term, (.. lo hi), as the type former
+// (int lo hi) a header's set already is, and a decimal grid's range with it.
+func rangeType(t *Term) *Term {
+	if t != nil && t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName {
+		switch t.Kids[0].Name {
+		case "..":
+			return &Term{Kind: KApp, Kids: []*Term{Name("int"), t.Kids[1], t.Kids[2]}}
+		case DecSetName:
+			return &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], rangeType(t.Kids[2])}}
+		}
+	}
+	return t
+}
+
+// NumType is the sort N = ℤ[1/10] of a value of the language's arithmetic that
+// is not an integer (ADR 0086, numbers.md §1): ℤ ≤ N, so an integer goes where
+// a number does, and not back. The host's double is still `f64`, its own type,
+// until numbers.md §9 part 4 makes F64 a set of N with the double its
+// representation.
+const NumType = "num"

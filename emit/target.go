@@ -3105,6 +3105,12 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// A range, lo..hi, is a static value and pure, so β substitutes it where
 	// inf and sup can read its ends; Law S keeps it out of a residual.
 	e.Prim[".."], e.Pure[".."] = true, true
+	// A ROUNDING AND THE REAL QUOTIENT AT ITS ROOT (ADR 0086, numbers.md §3):
+	// the language's on every target, pure, a function of their arguments
+	// (Theorem D). The IR realizes them (ir/numbers.go), so no target declares
+	// one, as no target declares `loop`.
+	e.Prim[core.RoundName], e.Pure[core.RoundName] = true, true
+	e.Prim[core.QuoName], e.Pure[core.QuoName] = true, true
 	// `#any`, the value a constructor writes into a slot its tag does not
 	// select (data.md §5.5.5): a pure constant on every target, the zero of the
 	// slot's type, which the IR chooses once the slot is typed.

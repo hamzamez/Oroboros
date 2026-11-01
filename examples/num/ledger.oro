@@ -1,0 +1,94 @@
+// ledger: THE SUBTOTAL, TAX AND TOTAL OF A FILE OF LINES `PRICE QUANTITY`, in
+// decimals, exactly (ADR 0086, docs/spec/numbers.md).
+//
+//   ledger FILE
+//
+// A price has at most two places (`12.5`, `3`, `0.99`) and a quantity is an
+// integer. The subtotal is Σ price·quantity in N, exactly; the tax is 8.25% of
+// it rounded to the cent, half away from zero, as commerce rounds; the total is
+// their sum. No double is anywhere: each number is held as its numerator at
+// its scale (ir/numbers.go), and every operation on one is an integer
+// operation the decision proves inside the target's word.
+//
+// THE LIMITS ARE STATED, as count's are, so that the numerators fit every
+// target's word, JavaScript's ±(2⁵³ − 1) included: a price below 10⁷ before its
+// point, a quantity below 10³, a subtotal guarded below 10¹⁰, a file under 2¹⁶
+// bytes. A line past them makes the ledger refuse the file, saying so.
+use os
+use io
+use num
+use result
+
+cap_in = 2^16
+
+fn digit?(b) { b >= 48 && b <= 57 }
+
+// price is the digits read with `places` of them after the point, as the
+// number they write: 1250 with two places is 12.5.
+fn price(digits ∈ 0..10^7, places ∈ 0..2) {
+    case {
+        places == 2 -> digits * 0.01
+        places == 1 -> digits * 0.1
+        else -> digits * 1.0
+    }
+}
+
+export fn main() {
+    av = os.Args()
+    if len(av) < 2 { io.print_line("usage: ledger FILE"); 0 } else {
+        case os.ReadFile(av[1]) {
+            result.'err(k) -> { io.print_line("ledger: cannot read that file"); 0 }
+            result.'ok(src) ->
+                if len(src) >= cap_in {
+                    io.print_line("ledger: file is larger than this tool accepts")
+                    0
+                } else {
+                    var digits := 0
+                    var places := 0
+                    var point := false
+                    var qty := 0
+                    var field := 0
+                    var sum := 0.0
+                    var bad := false
+                    loop i = 0 {
+                        i > len(src) -> {
+                            if bad {
+                                io.print_line("ledger: a line is not PRICE QUANTITY within the limits")
+                                0
+                            } else {
+                                tax = round(D(2, 0..10^10), sum * 0.0825, 'half_away)
+                                io.print_line("subtotal " ++ num.decimal(sum, 2))
+                                io.print_line("tax      " ++ num.decimal(tax, 2))
+                                io.print_line("total    " ++ num.decimal(sum + tax, 2))
+                                0
+                            }
+                        }
+                        else -> {
+                            b = if i < len(src) { src[i] } else { 10 }
+                            case {
+                                b == 10 -> {
+                                    if field == 1 && sum < 10^10 { sum := sum + price(digits, places) * qty }
+                                    if field == 0 && digits > 0 { bad := true }
+                                    digits := 0
+                                    places := 0
+                                    point := false
+                                    qty := 0
+                                    field := 0
+                                }
+                                b == 32 && field == 0 -> { field := 1 }
+                                b == 46 && field == 0 && !point -> { point := true }
+                                digit?(b) && field == 0 && digits < 10^6 && places < 2 -> {
+                                    digits := digits * 10 + (b - 48)
+                                    if point { places := places + 1 }
+                                }
+                                digit?(b) && field == 1 && qty < 100 -> { qty := qty * 10 + (b - 48) }
+                                b == 13 -> ()
+                                else -> { bad := true }
+                            }
+                            again(i + 1)
+                        }
+                    }
+                }
+        }
+    }
+}

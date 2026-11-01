@@ -182,7 +182,16 @@ checked. When a package hits a wall that needs language work, stop, research it,
         - accuracy a claim.
 
         Measured: Figueroa's fusion, 0 disagreements in 2·10⁷; the exact accumulator 2.96× a naive sum
-        and order-independent. **Not built.**
+        and order-independent. **Step 1, spec first** ([numbers.md](docs/spec/numbers.md) §9):
+        - part 2 built ([numerals-2026-11-01](gauntlet/results/numerals-2026-11-01.md)): a numeral is
+          exact, `core/num.go`;
+        - part 3 built ([decimals-2026-11-01](gauntlet/results/decimals-2026-11-01.md)): `round`, `÷`,
+          `D(k, R)` and ℤ ≤ N, each decimal held as its numerator at a static scale and every operation
+          an integer one the decision proves (`ir/numbers.go`). `examples/num/ledger.oro` equals
+          hand-written Go on three targets. The refinement layer's ℤ no longer reasons about a number
+          (`emit/numnames.go`), and the thresholds are closed under the body's scalings;
+        - next, part 4: doubles (F64 a set, `round(F64, …)` realized by a declaration's `ensure`, the
+          scope, the decode, the gauntlet's six float programs).
      Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
      widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
      rung above as native iN, measured against the limbs.
@@ -239,9 +248,9 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **4,008 of 4,060** integer operations proven inside their target's word, the 52 left
+- **Provability**: **4,773 of 4,825** integer operations proven inside their target's word, the 52 left
   mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
-  **476 of 499** loops proven to terminate (size-change termination). Each
+  **497 of 520** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -561,12 +570,12 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | | |
 |---|---|
 | `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`), σ_J (`jspell`), J in messages (`jshow`), the raw reader of core terms and the IR's text (`raw`, `read`); the trees (`abs`, `decl`) and D (`desugar`); terms, the β/δ reducer and module loading (`reduce`), variants (`sum`), hygiene, the state translation (`cell`, `place`), β's work count (`work`), Σ_L |
-| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/x86` |
+| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/x86` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
 | `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/`; `blas` and the `tutorial*` targets parameterize the normal form for the book |
-| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num`, `win` |
+| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
-| `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
+| `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `num/` (`ledger`, decimals), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
 | `gauntlet/` | hand-written references, `results/`, `check/` (the baseline), `differential/` (cases on four targets, proving their arithmetic unless `; checked:` says why), `conformance/`, `regen.txt`, `balance.py`, `surface/` (the surface's measurements) |
 | `gauntlet/stdlib/` | the four host surveys (writing J through `jdecl`), `coverage.go`, `callbacks.go`, twenty acceptance programs, and `tooling_test.go`, which checks every hand declaration against its host |

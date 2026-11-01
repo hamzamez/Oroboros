@@ -66,6 +66,12 @@ func ShowSet(ty string) string {
 		if len(f) == 3 {
 			return endpointJ(f[1]) + ".." + endpointJ(f[2])
 		}
+	case strings.HasPrefix(ty, "dec "):
+		if k, lo, hi, ok := DecRange(ty); ok {
+			return "D(" + itoa(k) + ", " + endpointJ(lo.String()) + ".." + endpointJ(hi.String()) + ")"
+		}
+	case ty == NumType:
+		return "N"
 	case strings.HasPrefix(ty, "array "):
 		return "Array(" + ShowSet(ty[len("array "):]) + ")"
 	case strings.HasPrefix(ty, "buffer "):
@@ -172,7 +178,7 @@ var infix = map[string]struct {
 	"<": {"<", pCmp}, "<=": {"<=", pCmp}, "=": {"==", pCmp}, ">=": {">=", pCmp}, ">": {">", pCmp},
 	"!=": {"!=", pCmp}, "concat": {"++", pAdd},
 	"&": {"&", pMul}, "<<": {"<<", pMul}, ">>": {">>", pMul}, "mod": {"mod", pMul},
-	"|": {"|", pAdd}, "⊕": {"⊕", pAdd},
+	"|": {"|", pAdd}, "⊕": {"⊕", pAdd}, "÷": {"÷", pMul},
 }
 
 func paren(s string, inner, min int) string {

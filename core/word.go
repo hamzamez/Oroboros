@@ -103,5 +103,10 @@ func (w Word) ValueType(ty string) string {
 	if w.Exceeds(ty) || UnboundedRange(ty) {
 		return BigType
 	}
+	// A DECIMAL GRID IS A SET OF N (ADR 0086, numbers.md §2): its values have
+	// sort N, and which representation holds one is the IR's (ir/numbers.go).
+	if _, _, _, ok := DecRange(ty); ok {
+		return NumType
+	}
 	return ty
 }

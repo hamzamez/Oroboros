@@ -88,7 +88,12 @@ func installContracts(env *core.Env, prog *core.Program, w core.Word) {
 		tys := make([]string, len(sig.Params))
 		ranged := false
 		for i, p := range sig.Params {
+			// A RANGE, OR A DECIMAL GRID (ADR 0086): x ∈ D(k, lo..hi) is an
+			// obligation at every call, decided on the IR by the argument's scale
+			// and its numerator's interval (ir/require.go), and by nothing else.
 			if _, _, ok := core.IntRangeBig(p.Type); ok {
+				tys[i], ranged = p.Type, true
+			} else if _, _, _, ok := core.DecRange(p.Type); ok {
 				tys[i], ranged = p.Type, true
 			}
 		}
@@ -184,7 +189,7 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 		// when every mark left is one of those, the refinement walk, which reads
 		// the facts at every point of the program, is not run.
 		if hasRequireMarks(rest) && !closedWheresHold(tgt, rest) {
-			r := &refiner{tgt: tgt, pure: pureAtoms(tgt), probe: true, requires: &[]requireFail{},
+			r := &refiner{tgt: tgt, pure: pureAtomsFor(tgt, sig, rest), probe: true, requires: &[]requireFail{},
 				memo: &refineMemo{houdini: map[string][]*core.Term{}, summary: map[string]summaryMemo{}}}
 			f := newFacts()
 			f.pure = r.pure
@@ -311,7 +316,7 @@ func closedWheresHold(tgt *Target, t *core.Term) bool {
 			return
 		case core.IsRequireWhere(x):
 			cond := x.Kids[2]
-			r := &refiner{tgt: tgt, pure: pureAtoms(tgt), probe: true,
+			r := &refiner{tgt: tgt, pure: pureAtomsFor(tgt, nil, cond), probe: true,
 				memo: &refineMemo{houdini: map[string][]*core.Term{}, summary: map[string]summaryMemo{}}}
 			f := newFacts()
 			f.pure = r.pure

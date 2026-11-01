@@ -58,6 +58,14 @@ func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*
 	if err != nil || len(f.marks) == 0 {
 		return nil, nil
 	}
+	// A mark's argument computed from numbers of N is decided on their
+	// numerators' facts, as the pipeline will hold them (numbers.go).
+	// The pass's own obligations are not decided here: Entry decides them, and
+	// one unproven must not take every other mark's decision with it.
+	nums, _, err := selectNumbersFor(tg, f, false)
+	if err != nil {
+		return nil, nil
+	}
 	fs := analyse(tg, f)
 	out := map[*core.Term]*core.Term{}
 	var verdicts []RangeVerdict
@@ -67,6 +75,30 @@ func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*
 		}
 		x, known := argumentFact(fs, vs)
 		if !known {
+			continue
+		}
+		// x ∈ D(k, lo..hi) (ADR 0086): each value it became has a scale at most
+		// k, so x·10ᵏ is an integer, and a numerator inside the grid's ends at
+		// its own scale. Unproven, the mark stays, and nothing else decides one.
+		if k, lo, hi, isDec := core.DecRange(m.Kids[3].Str); isDec {
+			proven := true
+			for _, v := range vs {
+				kv := 0
+				if nums != nil {
+					kv = nums.scale[v]
+				}
+				p := pow10(kv)
+				l, okl := fromBig(new(big.Int).Mul(lo, p))
+				h, okh := fromBig(new(big.Int).Mul(hi, p))
+				if kv > k || !okl || !okh || !fs[v].v.within(l, h) {
+					proven = false
+				}
+			}
+			if proven {
+				out[m] = m.Kids[4]
+			}
+			verdicts = append(verdicts, RangeVerdict{Def: m.Kids[1].Str, Param: m.Kids[2].Str, Type: m.Kids[3].Str,
+				Arg: m.Kids[4].String(), Got: termShow(x), Proven: proven})
 			continue
 		}
 		proven, residual := decideMark(tg, m, x)

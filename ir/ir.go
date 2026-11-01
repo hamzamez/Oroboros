@@ -79,6 +79,12 @@ const (
 	OCellRef
 	OCellFresh
 	OCellGet
+	// ORound is a rounding r_S,m (ADR 0086, numbers.md §3): Type is the set S's
+	// canonical type, Name the mode, and Args the term's one value, or the two
+	// operands of the real quotient a ÷ b at its root. It exists only between
+	// Lower and SelectNumbers (numbers.go), which realizes it, so the verifier
+	// refuses one.
+	ORound
 	numOps
 )
 
@@ -92,7 +98,7 @@ var opNames = [numOps]string{
 	OIf: "if", OLoop: "loop", OBuild: "build", OBuildMap: "build-map", OTabulate: "tabulate",
 	OThe: "the", ORequire: "require", OZero: "zero",
 	OCellRef: "cell-ref", OCellFresh: "cell-fresh", OCellGet: "cell-get",
-	ORestrict: "restrict", OAssume: "assume",
+	ORestrict: "restrict", OAssume: "assume", ORound: "round",
 }
 
 func (o Op) String() string {

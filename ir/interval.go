@@ -1171,10 +1171,13 @@ func thresholds(tg *emit.Target, f *Func) []ep {
 	if tg.Word.Unsigned {
 		set[u64Max] = true
 	}
+	consts := map[V]int64{}
+	mulSet := map[int64]bool{}
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
 			if s.Op == OConst && s.Lit.Kind == core.KInt {
+				consts[s.Res[0]] = s.Lit.Int
 				k := ei(s.Lit.Int)
 				set[k] = true
 				if d, ok := k.sub(ei(1)); ok {
@@ -1186,6 +1189,50 @@ func thresholds(tg *emit.Target, f *Func) []ep {
 			}
 		}
 	})
+	// WIDENING UP TO THE GUARDS' IMAGES (Halbwachs, Proy and Roumanoff 1997):
+	// a guard x < c bounds a step x·m + d to about c·m, which is no constant
+	// of the program, so a chain growing by ×m (x ← 10x + digit while x < 10⁶)
+	// was widened past it to the word. The guards' constants are closed under
+	// the body's constant scalings, once: each c·m. Any threshold set is sound, a
+	// post-fixpoint being checked; this one only lets a guarded geometric step
+	// stop where its guard's image is.
+	guards := map[int64]bool{}
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op == OMul && len(s.Args) == 2 {
+				for _, a := range s.Args {
+					if m, ok := consts[a]; ok && (m >= 2 || m <= -2) {
+						mulSet[m] = true
+					}
+				}
+			}
+			if s.Op.IsCmp() {
+				for _, a := range s.Args {
+					if c, ok := consts[a]; ok {
+						guards[c] = true
+					}
+				}
+			}
+		}
+	})
+	muls := make([]int64, 0, len(mulSet))
+	for m := range mulSet {
+		muls = append(muls, m)
+	}
+	if len(muls) > 0 && len(muls) <= 16 {
+		base := make([]ep, 0, len(guards))
+		for c := range guards {
+			base = append(base, ei(c))
+		}
+		for _, t := range base {
+			for _, m := range muls {
+				if p, ok := t.mul(ei(m)); ok {
+					set[p] = true
+				}
+			}
+		}
+	}
 	out := make([]ep, 0, len(set))
 	for k := range set {
 		out = append(out, k)

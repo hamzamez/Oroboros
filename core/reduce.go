@@ -1260,6 +1260,8 @@ var LanguageSignature = map[string]bool{
 	"<": true, "<=": true, ">": true, ">=": true,
 	// the Boolean operations, the shifts and the Euclidean remainder (ADR 0082)
 	"&": true, "|": true, "⊕": true, "~": true, "<<": true, ">>": true, "mod": true,
+	// the rounding and the real quotient at its root (ADR 0086, numbers.md §3)
+	RoundName: true, QuoName: true,
 	// tables, buffers and maps (tables.md, maps.md, ADR 0018)
 	"array": true, "table": true, "len": true, "alloc": true, "build": true, "set": true,
 	"map": true, "build-map": true, "insert": true, "keys": true,

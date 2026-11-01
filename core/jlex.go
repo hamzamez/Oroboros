@@ -47,11 +47,13 @@ var symbols = []string{"...", "<=>", "..", ":=", "==", "!=", "<=", ">=", "=>", "
 	"<<", ">>",
 	"+", "-", "*", "/", "%", "^", "<", ">", "=", "!", ":", ",", ";", ".", "(", ")", "[", "]", "{", "}",
 	"&", "|", "~",
-	"∈", "∉", "∪", "∩", "∖", "⊆", "⊂", "×", "∀", "∃", "⇒", "⇔", "⊕"}
+	"∈", "∉", "∪", "∩", "∖", "⊆", "⊂", "×", "∀", "∃", "⇒", "⇔", "⊕", "÷"}
 
 // ascii are TLA+'s ASCII spellings of the symbols (ADR 0065, 0067).
 var ascii = map[string]string{`\in`: "∈", `\notin`: "∉", `\cup`: "∪", `\cap`: "∩", `\subseteq`: "⊆",
-	`\subset`: "⊂", `\X`: "×", `\A`: "∀", `\E`: "∃", `\oplus`: "⊕"}
+	`\subset`: "⊂", `\X`: "×", `\A`: "∀", `\E`: "∃", `\oplus`: "⊕",
+	// the real quotient (ADR 0086, numbers.md §3), TeX's spelling as ⊕'s is
+	`\div`: "÷"}
 
 func lex(src string) ([]token, error) {
 	// UTF-8, NFC and no bidirectional control (core-0 §1.1): two identifiers

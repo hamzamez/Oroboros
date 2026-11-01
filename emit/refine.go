@@ -114,6 +114,21 @@ func (r *refiner) lin(t *core.Term) (*linear, bool) { return asLinearIn(r.pure, 
 // opaque on purpose. Arithmetic, masks and shifts stay out, so `(* x y)` and a
 // non-literal `%` are exactly as opaque as they were; so do comparisons and
 // connectives, which are propositions rather than terms.
+// pureAtomsFor is pureAtoms answering numQuery for t's names of sort N.
+func pureAtomsFor(tgt *Target, sig *core.Sig, t *core.Term) atoms {
+	base := pureAtoms(tgt)
+	if tgt == nil || base == nil {
+		return base
+	}
+	nums := NumNames(tgt, sig, t)
+	return func(op string) bool {
+		if name, ok := strings.CutPrefix(op, numQuery); ok {
+			return nums[name]
+		}
+		return base(op)
+	}
+}
+
 func pureAtoms(tgt *Target) atoms {
 	if tgt == nil {
 		return nil
@@ -150,7 +165,7 @@ func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, er
 	if err := Undecided(what, t); err != nil {
 		return nil, err
 	}
-	r := &refiner{tgt: tgt, pure: pureAtoms(tgt), memo: &refineMemo{
+	r := &refiner{tgt: tgt, pure: pureAtomsFor(tgt, sig, t), memo: &refineMemo{
 		houdini: map[string][]*core.Term{}, summary: map[string]summaryMemo{}}}
 	f := newFacts()
 	f.pure = r.pure

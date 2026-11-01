@@ -86,6 +86,8 @@ func (u *unifier) node(ty string) int {
 		return u.mk("int")
 	case ty == "f64" || ty == "bool" || ty == "string":
 		return u.mk(ty)
+	case ty == core.NumType || u.tg.ValueType(ty) == core.NumType:
+		return u.mk(core.NumType) // N, a decimal grid's sort (ADR 0086)
 	}
 	if _, _, ok := core.IntRangeBig(ty); ok || ty == core.BigType {
 		switch s := sortOf(u.tg, ty); s {
@@ -143,6 +145,39 @@ func (u *unifier) unify(a, b int) {
 		return
 	}
 	ca, cb := u.n[a].con, u.n[b].con
+	// A LITERAL'S SORT IS ITS CONTEXT'S, AT OR ABOVE ITS LEAST (ADR 0086,
+	// numbers.md §1): an integer literal is declared at ℤ and so at N, and a
+	// numeral at N and so at the host's double, which holds it (lower.go). So
+	// `#int` becomes `num` where it meets N, and `#dec` becomes `num` or `f64`;
+	// met by anything else, each is the sort it was before N existed, `int`
+	// and `f64`, and clashes as it did.
+	if ca == litInt || ca == litDec || cb == litInt || cb == litDec {
+		if lit, other := absorb(ca, cb); lit != "" {
+			if ca == lit && cb == lit {
+				u.n[b].parent = a
+				return
+			}
+			win, lose := a, b
+			if ca == lit {
+				win, lose = b, a
+			}
+			if other == "" {
+				win, lose = lose, win // a variable takes the literal's sort
+			}
+			u.n[lose].parent = win
+			return
+		}
+		for _, x := range []int{a, b} {
+			switch u.n[x].con {
+			case litInt:
+				u.n[x].con = "int"
+			case litDec:
+				u.n[x].con = "f64"
+			}
+		}
+		u.unify(a, b)
+		return
+	}
 	switch {
 	case ca == "any" || cb == "any":
 		return
@@ -180,6 +215,9 @@ func (u *unifier) unifiable(a, b int) bool {
 	if na.con == "" || nb.con == "" || na.con == "any" || nb.con == "any" {
 		return true
 	}
+	if lit, _ := absorb(na.con, nb.con); lit != "" {
+		return true
+	}
 	if na.con != nb.con || len(na.kids) != len(nb.kids) {
 		return false
 	}
@@ -208,6 +246,10 @@ func (u *unifier) render(i int, buffer bool) string {
 		return "map " + u.render(nd.kids[0], false) + " " + u.render(nd.kids[1], false)
 	case "cell":
 		return "cell " + u.render(nd.kids[0], false)
+	case litInt:
+		return "int" // a literal nothing typed is an integer, or the double it was
+	case litDec:
+		return "f64"
 	}
 	return strings.TrimPrefix(nd.con, "@")
 }
@@ -293,24 +335,39 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 			case OConst:
 				switch s.Lit.Kind {
 				case core.KInt:
-					is(s.Res[0], "int")
+					u.unify(node[s.Res[0]], u.mk(litInt))
 				case core.KDec:
-					is(s.Res[0], "f64")
+					u.unify(node[s.Res[0]], u.mk(litDec))
 				case core.KBool:
 					is(s.Res[0], "bool")
 				case core.KStr:
 					is(s.Res[0], "string")
 				}
 			case OAdd, OSub, OMul, ONeg, ODiv, ORem, OAnd, OOr, OXor, ONot, OShl, OShr, OMod:
+				if numberOp(s) && u.numeric(node, s.Args) {
+					is(s.Res[0], core.NumType)
+					break
+				}
 				for _, a := range s.Args {
 					is(a, "int")
 				}
 				is(s.Res[0], "int")
 			case OEq, ONe, OLt, OLe, OGt, OGe:
-				for _, a := range s.Args {
-					is(a, "int")
+				if !u.numeric(node, s.Args) {
+					for _, a := range s.Args {
+						is(a, "int")
+					}
 				}
 				is(s.Res[0], "bool")
+			case ORound:
+				// A ROUNDING ONTO A SET OF INTEGERS IS AN INTEGER (numbers.md
+				// §3, least sort), and onto any other set, a number of N.
+				u.numeric(node, s.Args)
+				if roundsToZ(s.Type) {
+					is(s.Res[0], "int")
+				} else {
+					is(s.Res[0], core.NumType)
+				}
 			case OCall:
 				p := tg.Prims[s.Name]
 				for j, a := range s.Args {
@@ -670,3 +727,64 @@ func buffers(tg *emit.Target, f *Func) []bool {
 // Planted faults for TestATableNothingStoresIsTyped: the declared result read
 // as no demand, and a zero-filled element left open.
 var plantResultDemandFault, plantZeroFillFault = false, false
+
+// The literal sorts (ADR 0086): an integer literal's and a numeral's, each
+// absorbed by the sort of the context it meets (unify).
+const (
+	litInt = "#int"
+	litDec = "#dec"
+)
+
+// absorb is the literal sort of a pair one of whose sides absorbs the other,
+// and that other side: #int into int or N, #dec into the double or N, either
+// into a variable, and #int into #dec (a loop begun at 0 and stepped by 0.5).
+func absorb(ca, cb string) (lit, other string) {
+	for _, p := range [][2]string{{ca, cb}, {cb, ca}} {
+		l, o := p[0], p[1]
+		switch {
+		case l == litInt && (o == "int" || o == core.NumType || o == litInt || o == ""):
+			return l, o
+		case l == litDec && (o == "f64" || o == core.NumType || o == litDec || o == ""):
+			return l, o
+		case l == litInt && o == litDec:
+			return l, o
+		}
+	}
+	return "", ""
+}
+
+// numberOp is an operation N has as ℤ has it: +, −, ·, negation. The others
+// (/, %, the Boolean operations, mod) are ℤ's alone (numbers.md §1).
+func numberOp(s *Stmt) bool {
+	return (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg) && s.Name == ""
+}
+
+// numeric reports whether an operation's operands have sort N: some operand is
+// N's, or a numeral. The literals among them are N's then, and an integer
+// operand stays an integer, the inclusion ℤ ↪ N realized by SelectNumbers
+// (numbers.go), coherent because it is a ring homomorphism.
+func (u *unifier) numeric(node []int, args []V) bool {
+	num := false
+	for _, a := range args {
+		if c := u.n[u.find(node[a])].con; c == core.NumType || c == litDec {
+			num = true
+		}
+	}
+	if !num {
+		return false
+	}
+	for _, a := range args {
+		if c := u.n[u.find(node[a])].con; c == litInt || c == litDec {
+			u.unify(node[a], u.mk(core.NumType))
+		}
+	}
+	return true
+}
+
+// roundsToZ reports a rounding's set inside ℤ: a range, or `int` itself.
+func roundsToZ(ty string) bool {
+	if _, _, ok := core.IntRangeBig(ty); ok {
+		return true
+	}
+	return ty == "int"
+}

@@ -1937,3 +1937,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) accepted SLOWER — compile time 1.00x the baseline (median of 11 compiles over 300 ms); a second sweep kept 1 of 1 suspect(s); paired serially against the baseline's binary (273f3f8), 1 confirmed:
 
 - `examples/os/wc.oro go` 1578 → 3468 ms, 2.20x; paired 812 → 1484 ms, 1.83x
+
+## 2026-11-01 — on 84a81aa, with uncommitted changes
+
+**Reason:** ADR 0086 numbers.md part 3: two new sources, examples/num/ledger.oro and lib/num.oro, emitted on go, js and java (refused on windows, which has no ReadFile or print_line); every existing program byte-identical; every new operation and loop proven
+
+628 runs: 359 emitted, 269 refused; 4773 of 4825 integer operations bounded, 497 of 520 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- new source — `examples/num/ledger.oro go`
+- new source — `examples/num/ledger.oro java`
+- new source — `examples/num/ledger.oro js`
+- new source — `examples/num/ledger.oro windows`
+- new source — `lib/num.oro go`
+- new source — `lib/num.oro java`
+- new source — `lib/num.oro js`
+- new source — `lib/num.oro windows`

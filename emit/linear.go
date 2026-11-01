@@ -232,8 +232,28 @@ func (f *facts) fingerprint() string {
 	return b.String()
 }
 
+// numQuery asks an atom signature whether a name has sort N (NumNames).
+const numQuery = "#num:"
+
+// mentionsNum reports a linear form over a variable of sort N, about which
+// this fragment, ℤ's, may assume nothing and prove nothing (numnames.go).
+func (f *facts) mentionsNum(e *linear) bool {
+	if f.pure == nil {
+		return false
+	}
+	for v := range e.coef {
+		if f.pure(numQuery + v) {
+			return true
+		}
+	}
+	return false
+}
+
 // assumeLE records `e <= 0`.
 func (f *facts) assumeLE(e *linear, why string) {
+	if f.mentionsNum(e) {
+		return
+	}
 	f.le = append(f.le, f.substitute(e))
 	f.log = append(f.log, why)
 }
@@ -264,6 +284,9 @@ func (f *facts) assumeLE(e *linear, why string) {
 // gives: no binder reuses an enclosing binder's name, and every binder's
 // equation is assumed on its own scope's copy of the facts.
 func (f *facts) assumeEQ(name string, e *linear) {
+	if f.mentionsNum(variable(name)) || f.mentionsNum(e) {
+		return
+	}
 	l := f.substitute(variable(name).addScaled(e, -1))
 	if len(l.coef) == 0 {
 		if l.konst != 0 {

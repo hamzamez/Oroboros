@@ -1331,6 +1331,19 @@ func TypeName(t *Term) string {
 		}
 		return "int " + endpointStr(lo, loInf) + " " + endpointStr(hi, hiInf)
 	}
+	// `(D K R)` — A DECIMAL GRID (ADR 0086, numbers.md §2): the elements of the
+	// module 10⁻ᴷℤ between R's ends, "dec K LO HI". K is a constant scale, and
+	// R a range with finite ends: the grid restricted to an interval, the one
+	// shape a rounding targets.
+	if t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == DecSetName {
+		k, kInf, ok := endpoint(t.Kids[1])
+		r := TypeName(rangeType(t.Kids[2]))
+		lo, hi, isRange := IntRangeBig(r)
+		if !ok || kInf != 0 || !k.IsInt64() || k.Sign() < 0 || k.Int64() > 1000 || !isRange {
+			return ""
+		}
+		return DecType(int(k.Int64()), lo, hi)
+	}
 	return ""
 }
 
@@ -1372,6 +1385,8 @@ func TypeTerm(t *Term) string {
 var typeFormers = map[string]bool{
 	"array": true, "tuple": true, "buffer": true, "map": true, "int": true, "cell": true,
 	"fn": true, "record": true, "prod": true,
+	// a decimal grid, D(k, lo..hi) in a set and "dec K LO HI" canonically (ADR 0086)
+	DecSetName: true, "dec": true,
 }
 
 // IsTypeFormer reports whether a name is one of them. The emitter asks when it

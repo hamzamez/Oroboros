@@ -1,6 +1,7 @@
 # Numbers: the ring ℤ[1/10], its sets and its rounding
 
-Status: **specified 2026-11-01 (ADR 0086); being built in step 1** (§9). This file says what a number
+Status: **specified 2026-11-01 (ADR 0086)**; step 1's parts 1–3 built (§9): exact numerals, and
+decimals held as scaled words. Part 4, doubles, is not built. This file says what a number
 means on every target, independently of any. [floats-research.md](../floats-research.md) is the
 derivation, and its Part III the surface. Where this file and the code disagree, this file is the
 specification and the code is wrong.
@@ -198,13 +199,18 @@ Each Tier 1 name has a case in `gauntlet/conformance/`, run on Go, the JVM and J
 
    The corpus's emission stays byte-identical. The checker's ℤ ≤ N and the internal sort's renaming
    (`f64` to `num`) move to part 3, the first part with a value of N that is not a double.
-3. **Decimals**:
-   - `round`, `÷` and modes;
+3. **Decimals** (built 2026-11-01, [decimals-2026-11-01](../../gauntlet/results/decimals-2026-11-01.md)):
+   - `round`, `÷` and the modes;
    - `D(k, R)`;
-   - the scaled-word expansion (§6.1) and `lib/num`'s rendering;
-   - a program, a ledger read from a file, against hand-written Go.
+   - ℤ ≤ N in the checker and the IR's literal sorts;
+   - the scaled word (§6.1, `ir/numbers.go`), its obligations, and `lib/num`'s `decimal`;
+   - `examples/num/ledger.oro`, equal to hand-written Go on three targets.
 
-   Limit: one session.
+   Found and repaired on the way:
+   - the refinement layer's ℤ no longer reasons about numbers (`emit/numnames.go`);
+   - a π-parameter on a number is realigned to one scale;
+   - a D claim at a call is an obligation;
+   - the thresholds are closed under the body's scalings (widening up to).
 4. **Doubles**:
    - F64 as the language's set;
    - the magnitude facts (§5);

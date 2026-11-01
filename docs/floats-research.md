@@ -899,6 +899,11 @@ Its spellings are proposals, and the four that are open are in §21.
 
 ### 18.1 What a program writes
 
+*Corrected 2026-11-01 ([decimals-2026-11-01](../gauntlet/results/decimals-2026-11-01.md)): `lo..hi` is a
+set of integers, so `F64 ∩ -1e100..1e100` below is the integers of that range, not the doubles in it.
+The bound is a separation, `{ x ∈ F64 : -1e100 <= x && x <= 1e100 }`, named by a `set`. Part 4 writes
+the programs so.*
+
 | written | meaning | where it comes from |
 |---|---|---|
 | `3`, `0.1`, `1e-3`, `0x1.8p3` | an element of ℤ[1/10], exactly | Theorem R; a literal is never rounded |

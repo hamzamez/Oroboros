@@ -1,9 +1,9 @@
 package core
 
 import (
-	"math/big"
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"strings"
 )
@@ -1362,7 +1362,7 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 // spelled.
 func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term, error) {
 	switch t.Kind {
-	case KInt, KFloat, KStr, KBool, KBound:
+	case KInt, KDec, KStr, KBool, KBound:
 		return t, nil
 
 	case KName:
@@ -1647,7 +1647,7 @@ func (e *Env) reaches(from, target string, seen map[string]bool) bool {
 			}
 			seen[t.Name] = true
 			return e.reaches(t.Name, target, seen)
-		case KInt, KFloat, KStr, KBool:
+		case KInt, KDec, KStr, KBool:
 			return false
 		}
 		for _, k := range t.Kids {
@@ -1748,7 +1748,7 @@ func (e *Env) readsBoundTable(t *Term) bool {
 
 func (e *Env) pureTerm(t *Term, seen map[string]bool) bool {
 	switch t.Kind {
-	case KName, KInt, KFloat, KStr, KBool, KFn, KBound:
+	case KName, KInt, KDec, KStr, KBool, KFn, KBound:
 		return true // values
 	case KApp:
 		op := t.Op()
@@ -2058,7 +2058,7 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 	*fuel--
 
 	switch t.Kind {
-	case KInt, KFloat, KStr, KBool, KBound:
+	case KInt, KDec, KStr, KBool, KBound:
 		return t, nil
 
 	case KName:
@@ -2862,7 +2862,7 @@ func duplicable(t *Term) bool {
 		return duplicable(t.Kids[3]) // a where-mark is its body
 	}
 	switch t.Kind {
-	case KInt, KFloat, KStr, KBool, KName, KFn, KBound:
+	case KInt, KDec, KStr, KBool, KName, KFn, KBound:
 		return true
 	}
 	// A CLOSED INTEGER ONE WORD HOLDS is a constant, a literal past the signed
@@ -2935,7 +2935,7 @@ func (e *Env) headUse(t *Term, depth, index int) (found, stop bool) {
 			return true, true
 		}
 		return false, false
-	case KName, KInt, KFloat, KStr, KBool:
+	case KName, KInt, KDec, KStr, KBool:
 		return false, false
 	case KFn:
 		// A value: its body runs where it is applied, later or never.
@@ -3016,7 +3016,7 @@ func boundOccurrences(t *Term, depth, index int) int {
 			return 1
 		}
 		return 0
-	case KName, KInt, KFloat, KStr, KBool:
+	case KName, KInt, KDec, KStr, KBool:
 		return 0
 	case KFn:
 		return boundOccurrences(t.Kids[0], depth+1, index)
@@ -3040,7 +3040,7 @@ func occurrences(t *Term, name string) int {
 			return 1
 		}
 		return 0
-	case KInt, KFloat, KStr, KBool, KBound:
+	case KInt, KDec, KStr, KBool, KBound:
 		return 0
 	case KFn:
 		for _, p := range t.Params {
@@ -3097,7 +3097,7 @@ func substAt(t *Term, m map[string]*Term, depth int) *Term {
 			return shift(r, 0, depth)
 		}
 		return t
-	case KInt, KFloat, KStr, KBool, KBound:
+	case KInt, KDec, KStr, KBool, KBound:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{substAt(t.Kids[0], m, depth+1)}}
@@ -3132,7 +3132,7 @@ func freeVars(t *Term) map[string]bool {
 			if !bound[t.Name] {
 				out[t.Name] = true
 			}
-		case KInt, KFloat, KStr, KBool, KBound:
+		case KInt, KDec, KStr, KBool, KBound:
 		case KFn:
 			inner := make(map[string]bool, len(bound)+len(t.Params))
 			for k := range bound {
@@ -3180,7 +3180,7 @@ func Residual(t *Term, e *Env) []string {
 			if !e.Prim[t.Name] && !e.Rec[t.Name] {
 				found[t.Name] = true
 			}
-		case KInt, KFloat, KStr, KBool, KBound:
+		case KInt, KDec, KStr, KBool, KBound:
 		case KFn:
 			inner := make(map[string]bool, len(bound)+len(t.Params))
 			for k := range bound {
@@ -3255,7 +3255,7 @@ func (e *Env) checkScope(terms []*Term) error {
 
 func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 	switch t.Kind {
-	case KInt, KFloat, KStr, KBool, KBound:
+	case KInt, KDec, KStr, KBool, KBound:
 		return nil
 	case KName:
 		// `#any`, the unconstrained value, is the language's own (Theorem R,
@@ -4353,16 +4353,16 @@ func setOperatorIn(t *Term) string {
 // be (resolve). Membership as a test is the characteristic function χ_S, not
 // built: for a range it is the derived lo ≤ e ∧ e ≤ hi.
 var setOperators = map[string]string{
-	"∈":  "membership, the test χ_S(e), which is not built; for a range write `lo <= e && e <= hi`",
-	"∉":  "non-membership, ¬χ_S(e), which is not built; for a range write `e < lo || e > hi`",
-	"..": "a range, a set of integers",
+	"∈":     "membership, the test χ_S(e), which is not built; for a range write `lo <= e && e <= hi`",
+	"∉":     "non-membership, ¬χ_S(e), which is not built; for a range write `e < lo || e > hi`",
+	"..":    "a range, a set of integers",
 	SepName: "a separation, the set { x ∈ S : φ } of S's elements for which φ holds",
-	"∪":  "union, an operation of the set algebra",
-	"∩":  "intersection, an operation of the set algebra",
-	"∖":  "difference, an operation of the set algebra",
-	"×":  "the product of sets",
-	"⊆":  "inclusion, a relation between sets, which a binder `E ⊆ S` and an `axiom` state",
-	"⊂":  "strict inclusion, a relation between sets",
+	"∪":     "union, an operation of the set algebra",
+	"∩":     "intersection, an operation of the set algebra",
+	"∖":     "difference, an operation of the set algebra",
+	"×":     "the product of sets",
+	"⊆":     "inclusion, a relation between sets, which a binder `E ⊆ S` and an `axiom` state",
+	"⊂":     "strict inclusion, a relation between sets",
 }
 
 // qualifySig resolves a signature's formulas as its definition's body is
@@ -4530,8 +4530,8 @@ func (e *Env) owned(body *Term, fuel *int) (*Term, error) {
 		return v, nil
 	}
 	in, _ := peelWheres(v)
-	return nil, fmt.Errorf("a definition whose result is linear moves out a region it owns, a buffer " +
-		"its body makes (`var r := array { … }`, then `r`); this one returns %s, which it does not " +
+	return nil, fmt.Errorf("a definition whose result is linear moves out a region it owns, a buffer "+
+		"its body makes (`var r := array { … }`, then `r`); this one returns %s, which it does not "+
 		"own, so the caller would hold a writable name for a region another holds (ADR 0084)",
 		ShowTerm(in))
 }

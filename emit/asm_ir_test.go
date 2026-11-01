@@ -117,10 +117,12 @@ fn t(x) {
 }
 
 // A float literal goes into the artifact as BITS, so the assembler's decimal
-// parser never gets a vote (ADR 0009).
+// parser never gets a vote (ADR 0009). The numeral is the double nearest a
+// tenth, written exactly: `0.1` itself is one tenth, which no double holds,
+// and is refused (ADR 0086, ir.TestANumeralOutsideF64IsRefused).
 func TestAsmFloatLiteralIsBits(t *testing.T) {
 	winEmit(t, `use x64
-fn t(x) { x64.addsd(x, 0.1) }`)
+fn t(x) { x64.addsd(x, 0.1000000000000000055511151231257827021181583404541015625) }`)
 	var found bool
 	for _, d := range emit.AsmData {
 		if strings.Contains(d, "3FB999999999999A") {
@@ -128,6 +130,6 @@ fn t(x) { x64.addsd(x, 0.1) }`)
 		}
 	}
 	if !found {
-		t.Errorf("0.1 was not emitted as its binary64 bits: %v", emit.AsmData)
+		t.Errorf("the double nearest 0.1 was not emitted as its binary64 bits: %v", emit.AsmData)
 	}
 }

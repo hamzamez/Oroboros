@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"oroboros/core"
@@ -340,7 +341,17 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		return l.value(t.Kids[3], r)
 	}
 	switch t.Kind {
-	case core.KInt, core.KFloat, core.KStr, core.KBool:
+	case core.KDec:
+		// A NUMERAL IS EXACT (ADR 0086): `0.1` is one tenth, which no double
+		// holds. Until a rounding can be written (numbers.md §9, step 3), the
+		// one representation of sort N is the double, so a numeral outside F64
+		// has none, and nothing rounds it behind the program's back.
+		if _, exact := t.Dec.Float64(); !exact {
+			l.fail("%s is not a double, and a numeral is exact (ADR 0086): no representation holds it yet; "+
+				"round(F64, %s) comes with numbers.md §9 step 3", t.Dec, t.Dec)
+		}
+		return []V{l.one(r, Stmt{Op: OConst, Lit: t})}
+	case core.KInt, core.KStr, core.KBool:
 		return []V{l.one(r, Stmt{Op: OConst, Lit: t})}
 	case core.KBound:
 		return []V{l.lookup(t)}
@@ -1259,7 +1270,7 @@ func settleZeros(f *Func, declared []string) {
 			case ty == "bool":
 				s.Op, s.Lit = OConst, core.Bool(false)
 			case ty == "f64":
-				s.Op, s.Lit = OConst, &core.Term{Kind: core.KFloat}
+				s.Op, s.Lit = OConst, core.Decimal(core.NewDec(new(big.Int), 0))
 			case ty == "string":
 				s.Op, s.Lit = OConst, core.Str("")
 			}

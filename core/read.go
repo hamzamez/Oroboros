@@ -705,7 +705,7 @@ func renameFree(t *Term, binds map[string]string) *Term {
 	if len(t.Kids) == 0 {
 		return t
 	}
-	out := &Term{Kind: t.Kind, Name: t.Name, Int: t.Int, Float: t.Float, Str: t.Str,
+	out := &Term{Kind: t.Kind, Name: t.Name, Int: t.Int, Dec: t.Dec, Str: t.Str,
 		Params: t.Params, Index: t.Index, Depth: t.Depth,
 		Kids: make([]*Term, len(t.Kids))}
 	for i, k := range t.Kids {

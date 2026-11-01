@@ -954,7 +954,7 @@ func writesElements(t *Term, b string, borrows map[string]BorrowDecl) bool {
 // is a cell whatever its scope writes, and a store into it is the cell's error.
 func scalarLiteral(t *Term) bool {
 	switch t.Kind {
-	case KInt, KFloat, KStr, KBool:
+	case KInt, KDec, KStr, KBool:
 		return true
 	}
 	return false

@@ -1,7 +1,5 @@
 package core
 
-import "math"
-
 // A SCOPED BUFFER IS A BINDER — docs/spec/tables.md §2.4, spec/local.md.
 //
 //	(build-map m cap body)              ≡  (build-map cap (fn (m) body))
@@ -64,12 +62,12 @@ func headIsName(t *Term, name string) bool {
 const AdoptName = "adopt"
 
 // zeroSort reports a literal that is the zero of one sort, and the sort:
-// `false` of bool, positive `0.0` of f64.
+// `false` of bool, `0.0` of f64.
 func zeroSort(f *Term) (string, bool) {
 	switch {
 	case f.Kind == KBool && f.Int == 0:
 		return "bool", true
-	case f.Kind == KFloat && f.Float == 0 && !math.Signbit(f.Float):
+	case f.Kind == KDec && f.Dec.M.Sign() == 0: // N has one zero (ADR 0086)
 		return "f64", true
 	}
 	return "", false
@@ -102,7 +100,7 @@ func localBinder(x string, e, body *Term) *Term {
 		// table K v). The size is bound once, since the loop reads it again.
 		var elem *Term
 		switch f.Kind {
-		case KInt, KFloat, KStr, KBool:
+		case KInt, KDec, KStr, KBool:
 			elem = f
 		default:
 			elem = App(f, Name("#i"))

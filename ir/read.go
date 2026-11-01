@@ -327,7 +327,7 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 			return s, fmt.Errorf("(const LITERAL)")
 		}
 		switch args[0].Kind {
-		case core.KInt, core.KFloat, core.KBool, core.KStr:
+		case core.KInt, core.KDec, core.KBool, core.KStr:
 			s.Lit = args[0]
 		default:
 			return s, fmt.Errorf("%s is not a literal", args[0])

@@ -293,8 +293,8 @@ func TestFloatsRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reread %s -> %s: %v", src, tm, err)
 		}
-		if back.Float != tm.Float {
-			t.Errorf("%s did not round-trip: %v vs %v", src, tm.Float, back.Float)
+		if !back.Equal(tm) {
+			t.Errorf("%s did not round-trip: %v vs %v", src, tm, back)
 		}
 	}
 }

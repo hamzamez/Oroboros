@@ -64,7 +64,7 @@ func (w *workWalk) count(t *Term, d int) int {
 		return 1
 	}
 	switch t.Kind {
-	case KBound, KName, KInt, KFloat, KStr, KBool:
+	case KBound, KName, KInt, KDec, KStr, KBool:
 		return 0
 	case KFn:
 		return w.lam(t, d, nil, false)

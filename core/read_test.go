@@ -371,7 +371,7 @@ func TestOversizedIntegerLiteralIsRefused(t *testing.T) {
 			t.Errorf("%s should read as a desugared spine: %v", big, err)
 			continue
 		}
-		if got.Kind == KFloat {
+		if got.Kind == KDec {
 			t.Errorf("%s became a float", big)
 		}
 	}

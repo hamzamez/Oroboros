@@ -253,8 +253,8 @@ func litText(t *core.Term) string {
 	switch t.Kind {
 	case core.KInt:
 		return strconv.FormatInt(t.Int, 10)
-	case core.KFloat:
-		f := t.Float
+	case core.KDec:
+		f, _ := t.Dec.Float64()
 		if math.IsInf(f, 0) || math.IsNaN(f) {
 			return fmt.Sprintf("%v", f) // not a literal the reader has; the verifier refuses none, the round trip would
 		}

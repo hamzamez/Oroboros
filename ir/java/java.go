@@ -186,16 +186,17 @@ func lit(d *core.Term) string {
 			return strconv.FormatInt(d.Int, 10) + "L"
 		}
 		return strconv.FormatInt(d.Int, 10)
-	case core.KFloat:
+	case core.KDec:
+		f, _ := d.Dec.Float64()
 		switch {
-		case math.IsInf(d.Float, 1):
+		case math.IsInf(f, 1):
 			return "Double.POSITIVE_INFINITY"
-		case math.IsInf(d.Float, -1):
+		case math.IsInf(f, -1):
 			return "Double.NEGATIVE_INFINITY"
-		case math.IsNaN(d.Float):
+		case math.IsNaN(f):
 			return "Double.NaN"
 		}
-		s := strconv.FormatFloat(d.Float, 'g', -1, 64)
+		s := strconv.FormatFloat(f, 'g', -1, 64)
 		if !strings.ContainsAny(s, ".eE") {
 			s += ".0"
 		}

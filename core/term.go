@@ -17,7 +17,7 @@ type Kind uint8
 const (
 	KName  Kind = iota // a variable or a global reference
 	KInt               // integer literal
-	KFloat             // float literal, IEEE-754 binary64 exactly
+	KDec               // a numeral of sort N = ℤ[1/10], exact (ADR 0086, num.go)
 	KStr               // string literal
 	KBool              // boolean literal, `true` or `false` (booleans.md)
 	KFn                // (fn (p...) body)  — Params, Kids[0] = body
@@ -34,17 +34,16 @@ type Term struct {
 	Name   string
 	Str    string
 	Int    int64
-	Float  float64
+	Dec    *Dec     // KDec: the element, exactly
 	Params []string // KFn: naming HINTS. The body refers to them by index.
 	Index  int      // KBound: which parameter
 	Depth  int      // KBound: how many binders out (0 = nearest)
 	Kids   []*Term
 }
 
-func Name(s string) *Term   { return &Term{Kind: KName, Name: s} }
-func Int(v int64) *Term     { return &Term{Kind: KInt, Int: v} }
-func Float(v float64) *Term { return &Term{Kind: KFloat, Float: v} }
-func Str(v string) *Term    { return &Term{Kind: KStr, Str: v} }
+func Name(s string) *Term { return &Term{Kind: KName, Name: s} }
+func Int(v int64) *Term   { return &Term{Kind: KInt, Int: v} }
+func Str(v string) *Term  { return &Term{Kind: KStr, Str: v} }
 
 // Bool is the fourth literal kind. It carries its value in Int rather than in a
 // field of its own: Term is allocated on every substitution, and a bool field
@@ -87,9 +86,9 @@ func (t *Term) Closed() *Term { return t.Kids[0] }
 func (t *Term) Op() *Term     { return t.Kids[0] }
 func (t *Term) Args() []*Term { return t.Kids[1:] }
 
-// String renders a term as an s-expression. Floats print with the shortest
-// representation that round-trips, so that printing and reading are inverses
-// (ADR 0009 — a value must not change by being written down).
+// String renders a term as an s-expression. A numeral prints exactly, so that
+// printing and reading are inverses (ADR 0009 — a value must not change by
+// being written down).
 func (t *Term) String() string {
 	var sb strings.Builder
 	t.write(&sb)
@@ -110,13 +109,9 @@ func (t *Term) write(sb *strings.Builder) {
 		} else {
 			sb.WriteString("false")
 		}
-	case KFloat:
-		s := strconv.FormatFloat(t.Float, 'g', -1, 64)
-		// A float literal must read back as a float, so 1 prints as 1.0.
-		if !strings.ContainsAny(s, ".eEni") {
-			s += ".0"
-		}
-		sb.WriteString(s)
+	case KDec:
+		// Exactly, and at sort N: an integral numeral prints as 1.0 (num.go).
+		sb.WriteString(t.Dec.String())
 	case KFn:
 		sb.WriteString("(fn (")
 		sb.WriteString(strings.Join(t.Params, " "))
@@ -152,8 +147,8 @@ func (t *Term) Equal(u *Term) bool {
 		return t.Name == u.Name
 	case KInt:
 		return t.Int == u.Int
-	case KFloat:
-		return t.Float == u.Float
+	case KDec:
+		return t.Dec.Equal(u.Dec)
 	case KStr:
 		return t.Str == u.Str
 	case KBool:
@@ -239,7 +234,7 @@ func shift(t *Term, cutoff, by int) *Term {
 			return Bound(t.Depth+by, t.Index)
 		}
 		return t
-	case KName, KInt, KFloat, KStr, KBool:
+	case KName, KInt, KDec, KStr, KBool:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{shift(t.Kids[0], cutoff+1, by)}}
@@ -261,7 +256,7 @@ func closeTerm(t *Term, params []string, depth int) *Term {
 			}
 		}
 		return t
-	case KInt, KFloat, KStr, KBool, KBound:
+	case KInt, KDec, KStr, KBool, KBound:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{closeTerm(t.Kids[0], params, depth+1)}}
@@ -281,7 +276,7 @@ func openTerm(t *Term, names []string, depth int) *Term {
 			return Name(names[t.Index])
 		}
 		return t
-	case KName, KInt, KFloat, KStr, KBool:
+	case KName, KInt, KDec, KStr, KBool:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{openTerm(t.Kids[0], names, depth+1)}}
@@ -313,7 +308,7 @@ func openWith(t *Term, args []*Term, depth int) *Term {
 			return Bound(t.Depth-1, t.Index) // the binder it looked through is gone
 		}
 		return t
-	case KName, KInt, KFloat, KStr, KBool:
+	case KName, KInt, KDec, KStr, KBool:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{openWith(t.Kids[0], args, depth+1)}}

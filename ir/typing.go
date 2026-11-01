@@ -294,7 +294,7 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 				switch s.Lit.Kind {
 				case core.KInt:
 					is(s.Res[0], "int")
-				case core.KFloat:
+				case core.KDec:
 					is(s.Res[0], "f64")
 				case core.KBool:
 					is(s.Res[0], "bool")

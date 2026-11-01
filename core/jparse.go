@@ -1,12 +1,11 @@
 package core
 
 import (
-	"reflect"
 	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
-	"strconv"
+	"reflect"
 	"strings"
 	"unicode"
 )
@@ -1369,8 +1368,11 @@ func (p *parser) primary() (Expr, error) {
 		return &Lit{T: IntLiteral(t.text)}, nil
 	case tFloat:
 		p.next()
-		f, err := strconv.ParseFloat(t.text, 64)
-		return &Lit{T: Float(f)}, err
+		d, err := ParseNum(t.text)
+		if err != nil {
+			return nil, err
+		}
+		return &Lit{T: Decimal(d)}, nil
 	case tString:
 		p.next()
 		return &Lit{T: Str(t.text)}, nil

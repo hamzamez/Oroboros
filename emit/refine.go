@@ -414,7 +414,7 @@ func isSquare(t *core.Term) (string, bool) {
 
 func (r *refiner) walk(t *core.Term, f *facts) error {
 	switch t.Kind {
-	case core.KInt, core.KFloat, core.KStr, core.KBool, core.KName:
+	case core.KInt, core.KDec, core.KStr, core.KBool, core.KName:
 		return nil
 	case core.KFn:
 		for _, n := range t.Params {
@@ -2998,8 +2998,8 @@ func closedComparison(t *core.Term) (value, closed bool) {
 		switch x.Kind {
 		case core.KInt:
 			return float64(x.Int), x.Int, true, true
-		case core.KFloat:
-			return x.Float, 0, false, true
+		case core.KDec:
+			return x.Dec.Double(), 0, false, true
 		}
 		return 0, 0, false, false
 	}

@@ -84,7 +84,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	switch t.Kind {
 	case core.KInt:
 		return "int", c.agree("an integer literal", "int", want)
-	case core.KFloat:
+	case core.KDec:
 		return "f64", c.agree("a float literal", "f64", want)
 	case core.KBool:
 		return "bool", c.agree("a boolean literal", "bool", want)

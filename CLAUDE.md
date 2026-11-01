@@ -295,7 +295,7 @@ option (b), jswitch5b-2026-10-16).
 
 ### Core
 
-- **Seven core term kinds**: name, integer, float, string, boolean, `fn`, application. A residual's
+- **Seven core term kinds**: name, integer, numeral (an exact element of ℤ[1/10], `core/num.go`, ADR 0086), string, boolean, `fn`, application. A residual's
   binders are named apart along the scope chain (ADR 0036), so a context keyed by name is sound.
 - **A declaration is a header and one body** (ADR 0051, 0062, 0064): `fn f(x ∈ S) (R) where φ ensure ψ
   { e }`, D's `def` and `sig`. A constant is a value, `cap = 65536`. **A comment is `//`, a gap, never a

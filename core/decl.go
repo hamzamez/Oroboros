@@ -179,7 +179,7 @@ func TermTree(t *Term) (Expr, error) {
 	switch t.Kind {
 	case KName:
 		return &Var{Name: t.Name}, nil
-	case KInt, KFloat, KStr, KBool:
+	case KInt, KDec, KStr, KBool:
 		return &Lit{T: t}, nil
 	case KApp:
 		if len(t.Kids) == 0 {

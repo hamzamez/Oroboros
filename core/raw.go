@@ -165,8 +165,10 @@ func (r *rawReader) atom() (*Term, error) {
 		}
 		return nil, fmt.Errorf("line %d: %s is not an integer", line, text)
 	}
-	if v, err := strconv.ParseFloat(text, 64); err == nil && looksNumeric(text) {
-		return Float(v), nil
+	if looksNumeric(text) && strings.ContainsAny(text, ".eE") {
+		if d, err := ParseNum(text); err == nil {
+			return Decimal(d), nil
+		}
 	}
 	if text == "true" || text == "false" {
 		return Bool(text == "true"), nil
@@ -221,7 +223,7 @@ func looksInteger(s string) bool {
 	return true
 }
 
-// looksNumeric keeps ParseFloat from swallowing names like `-` or `inf`.
+// looksNumeric keeps a numeral's reading from swallowing names like `-` or `inf`.
 func looksNumeric(s string) bool {
 	for _, c := range s {
 		if unicode.IsDigit(c) {

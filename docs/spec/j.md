@@ -125,7 +125,7 @@ one character:
 | **identifier** | UAX #31: a letter or `_`, then letters, digits, marks and `_`; optionally ending in one `?`. Case is significant for identity and carries no meaning (§1.5). |
 | **quoted name** | `` `…` ``: any characters except a backquote, a newline and a bidirectional control, between backquotes. It names what an identifier cannot: a host operator, `` go.`>=` ``, a representation operation, `` `big+` ``. |
 | **integer** | decimal digits. |
-| **float** | digits `.` digits, optionally `e`/`E`, a sign and digits; or digits and an exponent: `0.5`, `1.5e-3`, `1e9`. A `.` not followed by a digit ends the number, so `0..n` is a range. |
+| **numeral** | digits `.` digits, optionally `e`/`E`, a sign and digits; or digits and an exponent: `0.5`, `1.5e-3`, `1e9`. A `.` not followed by a digit ends the number, so `0..n` is a range. The value is the element of ℤ[1/10] the numeral denotes, exactly, at sort N (ADR 0086, numbers.md §1): `0.1` is one tenth. |
 | **string** | `"…"` with string-literals.md's six escapes, `\t \n \r \\ \"` and `\u{H…}`; an unknown escape is an error. A host template is a string (§2.11). |
 | **tag** | `'` followed directly by an identifier: `'none`, `'other`. |
 | **prime** | `'` directly after an identifier, with no space, and not followed by an identifier character: `x'`. |
@@ -364,7 +364,7 @@ member      ::= ident | quoted | reserved_word
 tag_expr    ::= ( ident "." )? tag ( "(" expr,* ")" )?
 prime       ::= ident "'"                              (in an `ensure` only)
 arg         ::= expr | expr "..." | "out" set_expr     (G2, G1)
-literal     ::= integer | float | string | "true" | "false"
+literal     ::= integer | numeral | string | "true" | "false"
 lambda      ::= "fn" params result? clause* block
 if_expr     ::= "if" expr block ( "else" ( block | if_expr ) )?
 ```

@@ -194,8 +194,8 @@ func (p *printer) lit(d *core.Term) string {
 	switch d.Kind {
 	case core.KInt:
 		return strconv.FormatInt(d.Int, 10)
-	case core.KFloat:
-		f := d.Float
+	case core.KDec:
+		f, _ := d.Dec.Float64()
 		if math.IsInf(f, 1) {
 			p.imps["math"] = true
 			return "math.Inf(1)"

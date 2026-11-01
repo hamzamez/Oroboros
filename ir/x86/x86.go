@@ -549,11 +549,11 @@ func (p *printer) load(r string, v ir.V) {
 			}
 		case core.KStr:
 			p.line("lea %s, %s", r, emit.AsmStringLit(d.Str))
-		case core.KFloat:
+		case core.KDec:
 			if strings.HasPrefix(r, "xmm") {
-				p.line("movsd %s, %s", r, emit.AsmFloatLit(d.Float))
+				p.line("movsd %s, %s", r, emit.AsmFloatLit(d.Dec.Double()))
 			} else {
-				p.line("mov %s, qword ptr %s", r, emit.AsmFloatLit(d.Float))
+				p.line("mov %s, qword ptr %s", r, emit.AsmFloatLit(d.Dec.Double()))
 			}
 		default:
 			p.fail("literal %s has no x86 spelling", d)

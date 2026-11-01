@@ -118,16 +118,17 @@ func lit(d *core.Term) string {
 	switch d.Kind {
 	case core.KInt:
 		return strconv.FormatInt(d.Int, 10)
-	case core.KFloat:
+	case core.KDec:
+		f, _ := d.Dec.Float64()
 		switch {
-		case math.IsInf(d.Float, 1):
+		case math.IsInf(f, 1):
 			return "Infinity"
-		case math.IsInf(d.Float, -1):
+		case math.IsInf(f, -1):
 			return "-Infinity"
-		case math.IsNaN(d.Float):
+		case math.IsNaN(f):
 			return "NaN"
 		}
-		return strconv.FormatFloat(d.Float, 'g', -1, 64)
+		return strconv.FormatFloat(f, 'g', -1, 64)
 	case core.KBool:
 		if d.IsTrue() {
 			return "true"

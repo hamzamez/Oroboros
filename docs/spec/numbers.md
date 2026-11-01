@@ -27,9 +27,16 @@ Nₐ + N_b ⊆ N_max(a,b) and Nₐ · N_b ⊆ N_(a+b). Each x ∈ N has a least 
 No other numeric sort exists. F64, the decimal grids and the ranges are **sets** (§2). A set never
 chooses a sort, except as §3's least-sort rule says.
 
-**A literal is an element of N, exactly**: `3`, `0.1`, `1e-3`, `2.50` and hexadecimal integers. Its
-canonical form is the one the core holds, so `2.0` is the integer 2. A literal is never rounded unless
-the program writes a rounding.
+**A literal is an element of N, exactly**: `3`, `0.1`, `1e-3`, `2.50` and hexadecimal integers. The
+core holds its canonical form (m, k) (`core/num.go`). A literal is never rounded unless the program
+writes a rounding.
+
+**A numeral with a point or an exponent is a constant declared at sort N**, even when its value is an
+integer. An order-sorted signature may declare a constant at a sort above its least one (Goguen and
+Meseguer 1992), and Haskell's `0.0 :: Fractional a` against `0 :: Num a` makes the same distinction.
+- `2.0` and `2` are the same element, but only `2` is also declared at ℤ, so `a[2.0]` is refused.
+- An integer literal is declared at ℤ and so, by ℤ ≤ N, at N too: `s = 0` may begin a sum of numbers
+  (§3, built in step 3).
 
 ## 2. Sets
 
@@ -184,12 +191,13 @@ Each Tier 1 name has a case in `gauntlet/conformance/`, run on Go, the JVM and J
 ## 9. Step 1: what is built, in order, each with a time limit
 
 1. **This specification** and primitives.md's entries.
-2. **N as the sort**:
-   - the core's float literal becomes an exact element of N;
-   - the checker's sorts become ℤ ≤ N, with f64 renamed num;
-   - the IR's text carries a literal exactly.
+2. **Exact numerals** (built 2026-11-01):
+   - the core's float literal becomes an exact element of N (`core/num.go`, kind `KDec`), which the
+     IR's text carries exactly;
+   - a numeral outside F64 at a double is refused, where the reader used to round it.
 
-   The corpus's emission must stay byte-identical. Limit: one session; past it, stop and report.
+   The corpus's emission stays byte-identical. The checker's ℤ ≤ N and the internal sort's renaming
+   (`f64` to `num`) move to part 3, the first part with a value of N that is not a double.
 3. **Decimals**:
    - `round`, `÷` and modes;
    - `D(k, R)`;

@@ -21,7 +21,7 @@ The version before, in the notation the J switch replaced, is in git at `1e2bdcd
 **Seven term kinds.** That is the entire grammar of what reduction sees.
 
 ```
-term ::= name | integer | float | string | true | false
+term ::= name | integer | numeral | string | true | false
        | (fn (name…) term) | (term term…)
 ```
 

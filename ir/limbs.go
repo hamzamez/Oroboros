@@ -414,9 +414,11 @@ func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.
 // included (the reader makes `(R)` the conjunct `lo <= result && result <= hi`
 // of sig.Ensures), against the definition's own body: lowered with each
 // parameter at its declared set and the `where` assumed at entry, as an export
-// is (assumeWhere), so what is decided is P ⟹ Q. Above the word a result's set
-// is representation, enforced on every representation (ADR 0029), and only a
-// stated postcondition is decided, as CheckEnsures does for an export.
+// is (assumeWhere), so what is decided is P ⟹ Q. Every conjunct is decided,
+// above the word too: the reader makes one of each end of the result's set
+// inside the word, and an end past it is ADR 0029's, enforced at run time
+// (resultclaim-2026-11-02). The body is decided before any representation is
+// chosen, so the facts are ℤ's.
 //
 // A contract mark inside the body is its value here (Lower): the obligations of
 // the calls it makes are decided where it is inlined, with its arguments.
@@ -424,7 +426,7 @@ func checkResultClaim(tg *emit.Target, name string, sig *core.Sig, nf *core.Term
 	if sig == nil {
 		return nil
 	}
-	ensures := sig.Ensures != nil && (tg.ValueType(sig.Result) != core.BigType || sig.Stated() != nil)
+	ensures := sig.Ensures != nil
 	// A TUPLE'S SET IS A PRODUCT, R₁ × … × Rₙ, and a tuple is in it iff each
 	// component is in its factor: the reader keeps a tuple's factors as
 	// sig.Results and makes no postcondition of them, so each is decided here.
@@ -449,7 +451,8 @@ func checkResultClaim(tg *emit.Target, name string, sig *core.Sig, nf *core.Term
 	// known; on a target that holds the set in a word (U on Go), the IR's
 	// interval domain is exact there, and the set is decided like any other.
 	// Above every word it is ADR 0029's representation, enforced there.
-	if len(sig.Results) <= 1 && sig.ResultRange == nil && tg.ValueType(sig.Result) != core.BigType {
+	_, _, expressed := core.IntRange(sig.Result) // both ends int64: the reader's conjuncts are the whole range
+	if len(sig.Results) <= 1 && !expressed && tg.ValueType(sig.Result) != core.BigType {
 		if lo, hi, ok := core.IntRangeBig(sig.Result); ok {
 			factors = append(factors, factor{0, sig.Result, lo, hi})
 		}

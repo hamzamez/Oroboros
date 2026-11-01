@@ -127,6 +127,16 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// before the decision, which would count its intermediates.
 	Fuse(tg, f)
 	leg := Decide(tg, f, checked)
+	// A POSTCONDITION on an exported definition is an obligation: the caller
+	// is outside the program, so the body is the only evidence there is. It is
+	// decided HERE, on ℤ's facts, before any representation is chosen: a
+	// representation is an abstraction function (ADR 0083), so the value the
+	// claim is about is the same on every one, and past this point a value
+	// held above the word is a host call's, whose fact is ⊤
+	// (resultclaim-2026-11-02).
+	if err := CheckEnsures(tg, f, sig); err != nil {
+		return nil, nil, fmt.Errorf("%s: %v", name, err)
+	}
 	// THE RUNG ABOVE THE WORD: the least set of values held exactly, on the
 	// decided function's facts; decided again after, where no operation held
 	// exactly is counted.
@@ -155,11 +165,6 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 		return nil, nil, fmt.Errorf("%s: %v", name, err)
 	} else if changed {
 		leg = Decide(tg, f, checked)
-	}
-	// A POSTCONDITION on an exported definition is an obligation: the caller
-	// is outside the program, so the body is the only evidence there is.
-	if err := CheckEnsures(tg, f, sig); err != nil {
-		return nil, nil, fmt.Errorf("%s: %v", name, err)
 	}
 	return f, leg, nil
 }

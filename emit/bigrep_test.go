@@ -107,21 +107,17 @@ func TestJavaScriptBigStringHasNoSuffix(t *testing.T) {
 	}
 }
 
-// A RANGE ABOVE THE WINDOW IS A REPRESENTATION AND NOT A CONTRACT, and the
-// asymmetry with a parameter's range is soundness rather than convenience.
+// A RESULT'S RANGE ABOVE THE WINDOW GUARANTEES ITS FINITE END, the dual of a
+// parameter's, which assumes it (resultclaim-2026-11-02). `(int 0 +inf)`
+// synthesises `(<= 0 result)`, and the IR decides it on ℤ's facts, before any
+// representation is chosen, where a bignum's sign is known.
 //
-// A `where` is ASSUMED, so half of it is a weaker assumption and safe. An
-// `ensures` on an exported definition is CHECKED AGAINST THE BODY — and the
-// interval domain does not model a bignum, reporting [-inf, +inf] for one by
-// construction. So synthesising `(<= 0 result)` from `(int 0 +inf)`
-// demands of the checker a fact it can never establish, and EVERY
-// arbitrary-precision program is refused for a claim nothing can discharge.
-//
-// That is a refusal standing in front of nothing, which this repository has
-// caught once already (scalarrange-2026-08-31, where removing one found a
-// silent wrong answer behind it). Here there is nothing behind it: the value is
-// exact by construction, and the claim was never checkable.
-func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
+// This test pinned the opposite: that the guarantee "the interval domain can
+// never establish for a bignum" must not be synthesised. That premise was the
+// term analysis's; on the IR a product with an unbounded factor keeps its sign
+// (mulInf), and the rule it justified left `Nat` on a result decided by
+// nothing, so −5 passed as one.
+func TestABigResultRangeGuaranteesItsFiniteEnd(t *testing.T) {
 	for _, result := range []string{"0.."} {
 		src := "export fn fib(n ∈ 0..1000) (" + result + ") {\n" +
 			"    loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }\n}\n"
@@ -133,9 +129,8 @@ func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := firstSig(forms).Ensures; got != nil {
-			t.Errorf("%s synthesised the guarantee %s, which the interval domain "+
-				"can never establish for a bignum", result, got)
+		if got := firstSig(forms).Ensures; got == nil || got.String() != "(<= 0 result)" {
+			t.Errorf("%s synthesised %v, want its finite end's guarantee (<= 0 result)", result, got)
 		}
 		prog, _, err := core.Load(forms)
 		if err != nil {
@@ -151,8 +146,8 @@ func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
 			t.Errorf("%s: %v", result, err)
 			continue
 		}
-		// That the program is ACCEPTED by the postcondition check is
-		// TestABigResultRangeIsNotAnObligation (ensures_ir_test.go).
+		// That the guarantee is DISCHARGED on the facts is
+		// TestABigResultRangeIsDecidedOnTheFacts (ensures_ir_test.go).
 	}
 	// THE PARAMETER SIDE STILL SAYS ITS HALF, which is what `+inf` is for: a
 	// non-negative bignum needs no sign handling, and bigarith measured sign

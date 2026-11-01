@@ -159,12 +159,8 @@ func mulIV(a, b iv) iv {
 	if a.bot || b.bot {
 		return ivBot
 	}
-	zero := func(x iv) bool { return x.finite() && x.lo.sign() == 0 && x.hi.sign() == 0 }
 	if !a.finite() || !b.finite() {
-		if zero(a) || zero(b) {
-			return exactIV(0)
-		}
-		return ivTop
+		return mulInf(a, b)
 	}
 	out, first := iv{}, true
 	for _, x := range []ep{a.lo, a.hi} {
@@ -185,11 +181,103 @@ func mulIV(a, b iv) iv {
 			}
 		}
 	}
-	if first { // every corner left E: the finite ends are E's
+	if first { // every corner left E: on the side their signs agree, E's edge
 		out.lo, out.hi = eMax.neg(), eMax
+		if out.phi && !out.nlo { // all past +E: the product is above E
+			out.lo = eMax
+		}
+		if out.nlo && !out.phi {
+			out.hi = eMax.neg()
+		}
 	}
 	return out.norm()
 }
+
+// mulInf is the product of two intervals one of which has an infinite end:
+// the hull of the four corner products over ℤ̄ (Hickey, Ju and van Emden
+// 2001), with (±∞)·c = ±sign(c)·∞ for c ≠ 0 and 0·(±∞) = 0. The last is sound
+// because an interval of ℤ never attains its infinite end: each of its
+// elements is finite, and a factor 0 makes every product 0. A finite corner
+// past E is the infinity of its sign, as in mulIV. It keeps the sign a
+// product's facts carry when one factor is unbounded: [1, +∞)·[2, 30] is
+// [2, +∞), where ⊤ lost a factorial's lower end (resultclaim-2026-11-02).
+func mulInf(a, b iv) iv {
+	// xe is an end of ℤ̄: inf −1 or +1 an infinity, 0 the finite v.
+	type xe struct {
+		inf int
+		v   ep
+	}
+	ends := func(x iv) [2]xe {
+		lo, hi := xe{v: x.lo}, xe{v: x.hi}
+		if x.nlo {
+			lo = xe{inf: -1}
+		}
+		if x.phi {
+			hi = xe{inf: 1}
+		}
+		return [2]xe{lo, hi}
+	}
+	sgn := func(e xe) int {
+		if e.inf != 0 {
+			return e.inf
+		}
+		return e.v.sign()
+	}
+	less := func(p, q xe) bool { // p < q over ℤ̄
+		if p.inf != q.inf {
+			return p.inf < q.inf
+		}
+		return p.inf == 0 && p.v.lt(q.v)
+	}
+	var lo, hi xe
+	first := true
+	for _, x := range ends(a) {
+		for _, y := range ends(b) {
+			var p xe
+			switch {
+			case x.inf == 0 && y.inf == 0:
+				if m, ok := x.v.mul(y.v); ok {
+					p = xe{v: m}
+				} else {
+					p = xe{inf: sgn(x) * sgn(y)} // past E: the infinity of its sign
+				}
+			case sgn(x) == 0 || sgn(y) == 0:
+				p = xe{v: ei(0)} // 0·(±∞) = 0: an infinite end is never attained
+			default:
+				p = xe{inf: sgn(x) * sgn(y)}
+			}
+			switch {
+			case first:
+				lo, hi, first = p, p, false
+			case less(p, lo):
+				lo = p
+			case less(hi, p):
+				hi = p
+			}
+		}
+	}
+	out := iv{lo: lo.v, hi: hi.v, nlo: lo.inf < 0, phi: hi.inf > 0}
+	if lo.inf > 0 { // every corner +∞: values past E only, so E's edge bounds below
+		out.lo = eMax
+	}
+	if hi.inf < 0 {
+		out.hi = eMax.neg()
+	}
+	if out.nlo {
+		out.lo = ep{}
+	}
+	if out.phi {
+		out.hi = ep{}
+	}
+	if plantMulInfFault { // the planted fault: an infinite corner dropped
+		return mulIV(iv{lo: a.lo, hi: a.lo}, iv{lo: b.lo, hi: b.hi}.norm())
+	}
+	return out.norm()
+}
+
+// plantMulInfFault, for TestTheProductOfUnboundedIntervalsIsSound: the
+// infinite corners dropped, so [1, +∞)·[2, 30] is [2, 30], which 100·2 leaves.
+var plantMulInfFault = false
 
 // divIV is truncating division (integers.md §3). A strictly positive divisor
 // with a finite dividend takes the corners; otherwise the dividend bound.
@@ -453,10 +541,19 @@ func (a *intervals) declared(ty string) fact {
 // (U's top, 2⁶⁴ − 1, included), the realization's own range for a u64, and ⊤
 // otherwise.
 func (a *intervals) rangeOf(ty string) iv {
-	if lo, hi, ok := core.IntRangeBig(ty); ok {
-		l, okl := fromBig(lo)
-		h, okh := fromBig(hi)
-		out := iv{lo: l, hi: h, nlo: !okl, phi: !okh}
+	// A RANGE'S ENDS, an infinite one included: `Nat` is [0, +∞], which ⊤ lost,
+	// so a parameter in ℕ began knowing nothing of its sign
+	// (resultclaim-2026-11-02). An end past E is the infinity on its side.
+	if lo, hi, ok := core.RangeEnds(ty); ok {
+		out := iv{nlo: lo == nil, phi: hi == nil}
+		if lo != nil {
+			l, okl := fromBig(lo)
+			out.lo, out.nlo = l, !okl
+		}
+		if hi != nil {
+			h, okh := fromBig(hi)
+			out.hi, out.phi = h, !okh
+		}
 		return out.norm()
 	}
 	if a.tg.ValueType(ty) == core.U64Type {
@@ -760,8 +857,11 @@ func (a *intervals) stmt(s *Stmt) {
 		// would be a false premise (h declared 2¹⁰⁰ in a program enforcing
 		// 2²⁰¹ may return 2¹⁵⁰). Within the word it is the type. Either way
 		// the value is its operand's, and its representation the fact's
-		// (ADR 0079).
-		if a.tg.Word.Exceeds(s.Type) {
+		// (ADR 0079). A range with an infinite end is enforced nowhere (ADR
+		// 0029 item 2: α of it is ℤ), so it tells nothing either: read as its
+		// type, an export's own `Nat` result proved its own claim
+		// (resultclaim-2026-11-02).
+		if a.tg.Word.Exceeds(s.Type) || core.UnboundedRange(s.Type) {
 			one(args[0])
 		} else {
 			one(meetF(args[0], a.declared(s.Type)))

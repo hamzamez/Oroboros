@@ -1,7 +1,9 @@
 # 0029 — Above the word, a type denotes a set decided by sign and bit length, and every representation enforces the program's one set
 
 Date: 2026-09-24
-Status: Accepted. **Amends [ADR 0028](0028-a-definitions-contract-is-checked-at-its-calls.md)'s
+Status: Accepted; **amended by [ADR 0087](0087-a-results-set-is-a-claim-by-its-ends-inside-the-word.md)**:
+a result's ends inside the word are decided at its definition on ℤ's facts, and this enforcement stands
+for an end past the word, and for the sign end of a bounded range held above the word. **Amends [ADR 0028](0028-a-definitions-contract-is-checked-at-its-calls.md)'s
 decision 4** (what a range above the word denotes) and corrects its reading of a declared result as a
 fact. Refines [bigrepr-2026-09-03](../../gauntlet/results/bigrepr-2026-09-03.md) §3a, which made the
 bound a bit length and left the sign unsaid.

@@ -49,8 +49,15 @@ func TestADeclaredSetChoosesNoRepresentation(t *testing.T) {
 	if err := claimCheck(t, "fn inc(n ∈ Nat) { n + 1 }\nexport fn f(x ∈ 0..100) { inc(x) }\n"); err != nil {
 		t.Errorf("an unclaimed result over ℕ must check: %v", err)
 	}
-	if err := claimCheck(t, "fn inc(n) (Nat) { n + 1 }\nexport fn f(x ∈ 0..100) (0..200) { inc(x) }\n"); err != nil {
+	if err := claimCheck(t, incNat+"export fn f(x ∈ 0..100) (0..200) { inc(x) }\n"); err != nil {
 		t.Errorf("a claim above the word against a result in it is the IR's to decide, by facts: %v", err)
+	}
+	// And a claim the facts refute is refused: with no set, n ranges over ℤ, so
+	// inc(−5) = −4 is no Nat (ADR 0072). This case was accepted while an open
+	// range on a result was decided by nothing (resultclaim-2026-11-02).
+	if err := claimCheck(t, "fn inc(n) (Nat) { n + 1 }\nexport fn f(x ∈ 0..100) (0..200) { inc(x) }\n"); err == nil ||
+		!strings.Contains(err.Error(), "0 <= result") {
+		t.Errorf("a Nat claim over an unconstrained parameter was accepted: %v", err)
 	}
 }
 

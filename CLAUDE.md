@@ -381,7 +381,8 @@ option (b), jswitch5b-2026-10-16).
   realization the IR's (ADR 0033); `Table(σ)` has its introduction, elimination and store rules.
 - **A header's sets are claims**: a parameter's set and `where` are obligations at every call a
   definition is inlined into, assumed at an export's boundary (ADR 0028); **a declared result is a claim
-  decided at its definition**, exported or not (ADR 0072); every name used as a set must denote one
+  decided at its definition**, exported or not (ADR 0072), by each end inside the word on ℤ's facts,
+  whatever its representation (ADR 0087); every name used as a set must denote one
   (ADR 0073); a host `where`'s constant bounds are its parameter's range (ADR 0075). **A set has no
   representation**: a set operator in a computation or a claim's formula is refused saying what it is.
 - **An obligation is discharged or the program is refused** ([refinements.md §3a](docs/spec/refinements.md)),
@@ -548,6 +549,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | An address is an integer offset in a region, ownership a linear view in the logic; no load without a view; binders abbreviate view formulas; a definition's linear result; uninit never visible; codecs (not built) | [0084](docs/decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md) |
 | A vector is a representation of a table, never a sort; a fold vectorizes iff its operation is associative; a float fold keeps its order (item 3 amended by 0086; not built) | [0085](docs/decisions/0085-a-vector-is-a-representation-of-a-table-and-a-fold-vectorizes-iff-it-is-a-homomorphism.md) |
 | A number is an element of ℤ[1/10]; `round(S, e, mode)` is its one lossy operation, `÷` and the transcendentals at its root; the facts choose ρ; IEEE's arithmetic a static scope; no NaN or ∞; a target realizes a rounding by its `ensure` (not built) | [0086](docs/decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md) |
+| A result's set is a claim by its ends inside the word, decided on ℤ's facts before any representation; an end past the word, and a bounded range's sign end held above it, ADR 0029's at run time; amends 0029 | [0087](docs/decisions/0087-a-results-set-is-a-claim-by-its-ends-inside-the-word.md) |
 
 ## Build commands
 

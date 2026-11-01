@@ -283,13 +283,15 @@ func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
 	if sig == nil || sig.Ensures == nil {
 		return nil
 	}
-	// ABOVE THE WORD a result's range is a claim the program enforces at run
-	// time where the facts do not prove it (ADR 0029, one set per program), not
-	// one decided here: only what the author wrote in `ensure` is checked. It
-	// names no representation (ADR 0079).
+	// EVERY CONJUNCT IS DECIDED HERE, a result above the word included: the
+	// reader made only the range's ends inside the word conjuncts (read.go),
+	// and an end past it is ADR 0029's, enforced at run time through α. Above
+	// the word this decided only what the author wrote, and α of a range with
+	// an infinite end is ℤ, so `Nat` was decided by nothing
+	// (resultclaim-2026-11-02). It names no representation (ADR 0079).
 	ens := sig.Ensures
-	if tg.ValueType(sig.Result) == core.BigType {
-		if ens = sig.Stated(); ens == nil {
+	if plantOpenClaimFault && tg.ValueType(sig.Result) == core.BigType {
+		if ens = sig.Stated(); ens == nil { // the planted fault: the old skip
 			return nil
 		}
 	}
@@ -300,10 +302,48 @@ func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
 			"discharged or the program is refused (refinements.md §3a)", core.ShowTerm(ens))
 	}
 	if r, ok := resultWithin(tg, f, 0, lo, hi); !ok {
-		return fmt.Errorf("the body does not establish %s; its result is %s", core.ShowTerm(ens), termShow(r))
+		if !signAtRunTime(tg, sig, r) {
+			return fmt.Errorf("the body does not establish %s; its result is %s", core.ShowTerm(ens), termShow(r))
+		}
+		// The range's sign end is ADR 0029's at run time; what the author
+		// stated is still decided here.
+		if st := sig.Stated(); st != nil {
+			slo, shi, ok := emit.EnsuresBounds(tg, st)
+			if !ok {
+				return fmt.Errorf("the postcondition %s is outside what the compiler decides", core.ShowTerm(st))
+			}
+			if r, ok := resultWithin(tg, f, 0, slo, shi); !ok {
+				return fmt.Errorf("the body does not establish %s; its result is %s", core.ShowTerm(st), termShow(r))
+			}
+		}
 	}
 	return nil
 }
+
+// signAtRunTime reports a result whose set's one end inside the word, its sign
+// 0, ADR 0029 enforces at run time, exactly, where the facts did not decide it
+// here: a bounded range above the word, [0, b] with b past it, whose α is
+// N_bitlen(b), a sign check and a bit-length check on every operation that can
+// grow the value; and a value whose fact leaves the word, so that it is held
+// above it, where the check runs. A value the facts keep in the word is held
+// in the word and checked by nothing, and a range with an infinite end has
+// α = ℤ, enforced nowhere (ADR 0029 item 2), so both are decided here or
+// refused (resultclaim-2026-11-02).
+func signAtRunTime(tg *emit.Target, sig *core.Sig, r iv) bool {
+	lo, hi, ok := core.RangeEnds(sig.Result)
+	if !ok || lo == nil || lo.Sign() != 0 || hi == nil || !tg.Word.Exceeds(sig.Result) {
+		return false
+	}
+	return plantSignFault || !r.within(ei(tg.Word.Lo), ei(tg.Word.Hi))
+}
+
+// plantSignFault: the run time taken to check a value the facts keep in the
+// word, where no check runs, so `(0..2^100)` returned −5.
+var plantSignFault = false
+
+// plantOpenClaimFault, for TestAnOpenRangeOnAResultIsAClaim: the rule that
+// shipped, a result above the word decided only by what the author stated.
+var plantOpenClaimFault = false
 
 // resultWithin reports whether the join of the j-th value every exit of f
 // yields lies in [lo, hi] (a nil end is open), with that join: the decision of

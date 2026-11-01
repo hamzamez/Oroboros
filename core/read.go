@@ -509,32 +509,30 @@ func toForm(t *Term) (Form, error) {
 		// with a ranged result and a parameter called `result` would mean two
 		// things and the checker would silently pick one.
 		//
-		// ABOVE THE WINDOW A RANGE GUARANTEES NOTHING, and that asymmetry with
-		// the parameter case is a soundness fact rather than a convenience. A
-		// premise is ASSUMED, so a half of it is a weaker assumption and safe; a
-		// guarantee is CHECKED AGAINST THE BODY, and the interval domain does not
-		// model a bignum — it reports [-inf, +inf] for one by construction. So
-		// `(int 0 (pow 2 1000))` on a result would demand `(<= 0 result)` of a
-		// value the analysis can never bound, and every arbitrary-precision
-		// program would be refused for a claim nothing can discharge.
+		// EVERY HALF OF THE RESULT'S RANGE INSIDE THE WORD IS A GUARANTEE
+		// (resultclaim-2026-11-02). S = [a, b] is the meet of two half-spaces,
+		// [a, +∞) ∩ (−∞, b], so `result ∈ S` is the conjunction of their claims,
+		// and each one whose end is inside the word is decided at the
+		// definition on the facts (ADR 0072), as a parameter's is assumed at
+		// it: the dual. An end past the word is ADR 0029's, enforced at run
+		// time on the representation above the word through α.
 		//
-		// That is the refusal-in-front-of-nothing shape, and this is where it is
-		// declined: above the word a range is a REPRESENTATION declaration and
-		// not a contract, which is the third of scalarrange-2026-08-31's three
-		// effects surviving alone.
+		// This read only a word range's two ends, as "a REPRESENTATION
+		// declaration and not a contract" above it, because the term analysis
+		// reported a bignum as [−∞, +∞]. The IR's domain is over ℤ̄ and keeps a
+		// finite end beside an infinite one, so the premise is false, and the
+		// rule it justified left `Nat` and `10..` on a result decided by
+		// nothing (ADR 0029 item 2: α of them is ℤ, enforced nowhere):
+		// `fn h(y ∈ -5..5) (Nat) { y }` returned −5.
 		//
 		// This runs as the file is READ, before any target is known, so "the
-		// word" here is int64's — the widest any target declares (ADR 0026). A
-		// range with int64 endpoints is a contract; one beyond is a request for
-		// arbitrary precision on every target there is.
-		if _, _, isWord := IntRange(sig.Result); isWord {
-			if c := rangePremise(sig.Result, Name(ResultName)); c != nil {
-				sig.ResultRange = c
-				if sig.Ensures == nil {
-					sig.Ensures = c
-				} else {
-					sig.Ensures = conj(sig.Ensures, c)
-				}
+		// word" here is int64's, the widest any target declares (ADR 0026).
+		if c := rangePremise(sig.Result, Name(ResultName)); c != nil {
+			sig.ResultRange = c
+			if sig.Ensures == nil {
+				sig.Ensures = c
+			} else {
+				sig.Ensures = conj(sig.Ensures, c)
 			}
 		}
 		// `result` NAMES THE RESULT in a postcondition, so a parameter may not
@@ -1572,6 +1570,28 @@ func showEndpoint(v *big.Int) string {
 // `IntRange` is this narrowed to `int64` and reports failure when an endpoint
 // does not fit — which is what keeps every existing consumer honest: a range it
 // cannot represent looks like "not a range" rather than like a smaller one.
+// RangeEnds is a range's ends, finite or not: nil for an infinite one, so
+// `int 0 +inf` (Nat) is (0, nil). ok is false for anything but a range.
+func RangeEnds(ty string) (lo, hi *big.Int, ok bool) {
+	f := strings.Fields(ty)
+	if len(f) != 3 || f[0] != "int" {
+		return nil, nil, false
+	}
+	end := func(s, inf string) (*big.Int, bool) {
+		if s == inf {
+			return nil, true
+		}
+		v, ok := new(big.Int).SetString(s, 10)
+		return v, ok
+	}
+	lo, ok1 := end(f[1], "-inf")
+	hi, ok2 := end(f[2], "+inf")
+	if !ok1 || !ok2 || (lo != nil && hi != nil && lo.Cmp(hi) > 0) {
+		return nil, nil, false
+	}
+	return lo, hi, true
+}
+
 func IntRangeBig(ty string) (*big.Int, *big.Int, bool) {
 	if !strings.HasPrefix(ty, "int ") {
 		return nil, nil, false

@@ -176,8 +176,8 @@
    note: gen-collatz: 0 of 4 integer operations bounded; 0 of 1 loop(s) proven terminating
    gen: gen-collatz: 4 of 4 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
      go.+ [1, +inf] in go.`+`(steps, 1)
-     go.* [-inf, +inf] in go.`*`(3, x)
-     go.+ [-inf, +inf] in go.`+`(go.`*`(3, x), 1)
+     go.* [6, +inf] in go.`*`(3, x)
+     go.+ [7, +inf] in go.`+`(go.`*`(3, x), 1)
      … and 1 more
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
@@ -352,8 +352,8 @@
    note: gen-main: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
    gen: gen-main: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
      go.+ [0, +inf] in go.`+`(#vout2({ k = go.`+`(i, j); case { go.`<`(k, 0) -> 0; g...
-     go.* [-inf, +inf] in go.`*`(acc, 100)
-     go.+ [-inf, +inf] in go.`+`(go.`*`(acc, 100), p(i))
+     go.* [0, +inf] in go.`*`(acc, 100)
+     go.+ [0, +inf] in go.`+`(go.`*`(acc, 100), p(i))
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
      this is refused rather than noted (ADR 0019, ADR 0026).

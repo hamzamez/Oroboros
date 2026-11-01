@@ -112,9 +112,10 @@ func TestABoundPastTheEndsIsExact(t *testing.T) {
 	}
 }
 
-// A BIG RESULT'S RANGE IS NO GUARANTEE (ADR 0026): `(int 0 +inf)` synthesises
-// nothing, and the program is accepted.
-func TestABigResultRangeIsNotAnObligation(t *testing.T) {
+// A BIG RESULT'S RANGE IS DECIDED ON THE FACTS (resultclaim-2026-11-02):
+// `(int 0 +inf)` guarantees 0 <= result, and fib's sum of non-negative values
+// establishes it on ℤ's facts, before its value is held above the word.
+func TestABigResultRangeIsDecidedOnTheFacts(t *testing.T) {
 	tg, err := emit.LoadTarget("../targets/go")
 	if err != nil {
 		t.Fatal(err)

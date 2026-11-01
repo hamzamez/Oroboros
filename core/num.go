@@ -297,8 +297,8 @@ func F64Range(ty string) (lo, hi *Dec, ok bool) {
 const F64GridName = "#f64"
 
 // SeparatedGrid is the normal form of a separation { x ∈ S : φ } whose base S
-// is a grid restricted to an interval, G ∩ [a₀, b₀] (F64, or F64 ∩ [lo, hi];
-// ℤ waits, gridOfExpr), and whose φ is a conjunction of bounds of x by constants
+// is a grid restricted to an interval, G ∩ [a₀, b₀] (ℤ, a range, F64, or
+// F64 ∩ [lo, hi]), and whose φ is a conjunction of bounds of x by constants
 // (numbers.md §2). Its characteristic function is χ_G ∧ a ≤ x ∧ x ≤ b, so the
 // set is G ∩ [a, b], and that has ONE spelling by the Galois connection of
 // G ↪ ℚ: G ∩ [a, b] = G ∩ [⌈a⌉_G, ⌊b⌋_G], whose ends are elements of G. A
@@ -306,8 +306,9 @@ const F64GridName = "#f64"
 // greatest element of G below b. An end
 // not stated is S's own (F64's are ±MAX, every element of F64 lying between
 // them). Any other formula, or an empty set, is not this shape: the separation
-// stays one. The result is the set's expression: F64 ∩ [lo, hi] (F64GridExpr),
-// or F64 itself when its ends are F64's.
+// stays one. The result is the set's expression: a range over ℤ, F64 ∩ [lo, hi]
+// over F64 (F64GridExpr), or F64 itself when its ends are F64's. ℤ's waited on
+// a result in an open range being a claim (resultclaim-2026-11-02).
 func SeparatedGrid(e Expr) (Expr, bool) {
 	a, isApp := e.(*Apply)
 	if !isApp || len(a.Args) != 3 {
@@ -372,6 +373,15 @@ func SeparatedGrid(e Expr) (Expr, bool) {
 	if lq != nil && hq != nil && lq.Cmp(hq) > 0 {
 		return nil, false
 	}
+	if g.Kind == 'z' { // a range, its infinite ends ℤ's
+		end := func(q *big.Rat, inf string) Expr {
+			if q == nil {
+				return &Var{Name: inf}
+			}
+			return &Lit{T: IntLiteral(q.Num().String())}
+		}
+		return &Apply{Fn: &Var{Name: ".."}, Args: []Expr{end(lq, "-inf"), end(hq, "+inf")}}, true
+	}
 	m := g.Max()
 	if lq.Cmp(new(big.Rat).Neg(m)) == 0 && hq.Cmp(m) == 0 {
 		return &Var{Name: F64Name}, true
@@ -389,24 +399,38 @@ func below(g Grid, q *big.Rat) *big.Rat {
 	return g.Round(probe, "down")
 }
 
-// gridOfExpr is a separation's base as a grid and its interval's ends: F64,
-// or F64 ∩ [lo, hi].
-//
-// NOT ℤ YET, though its normal form is the range ⌈a⌉..⌊b⌋: a range with an
-// infinite end on a result is read as a representation, not a claim
-// (read.go), so `Nat` and `10..` there are decided by nothing (grids-
-// 2026-11-01), while a separation of ℤ is a `where` and an `ensure`, decided.
-// The normal form waits on that repair, so that it never makes a decided claim
-// undecided.
+// gridOfExpr is a separation's base as a grid and its interval's ends, nil
+// for an end ℤ does not have: ℤ, a range, F64, or F64 ∩ [lo, hi].
 func gridOfExpr(s Expr) (Grid, *big.Rat, *big.Rat, bool) {
 	switch s := s.(type) {
 	case *Var:
-		if s.Name == F64Name || s.Name == "F64" {
+		switch s.Name {
+		case F64Name, "F64":
 			m := GridF64.Max()
 			return GridF64, new(big.Rat).Neg(m), m, true
+		case "int", "Int":
+			return GridZ, nil, nil, true
 		}
 	case *Apply:
-		if f, ok := s.Fn.(*Var); ok && f.Name == F64GridName && len(s.Args) == 2 {
+		f, ok := s.Fn.(*Var)
+		if !ok || len(s.Args) != 2 {
+			break
+		}
+		switch f.Name {
+		case "..":
+			end := func(e Expr) (*big.Rat, bool) {
+				if v, isVar := e.(*Var); isVar && (v.Name == "+inf" || v.Name == "-inf") {
+					return nil, true
+				}
+				q, ok := constRat(e)
+				return q, ok && q.IsInt()
+			}
+			lo, ok1 := end(s.Args[0])
+			hi, ok2 := end(s.Args[1])
+			if ok1 && ok2 {
+				return GridZ, lo, hi, true
+			}
+		case F64GridName:
 			lo, ok1 := constRat(s.Args[0])
 			hi, ok2 := constRat(s.Args[1])
 			if ok1 && ok2 {

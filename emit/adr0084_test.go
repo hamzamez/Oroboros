@@ -79,15 +79,18 @@ func refuses(t *testing.T, what, src, reason string) {
 func TestASeparationIsItsSetAndItsFormula(t *testing.T) {
 	head := "set Small = set { x ∈ 0..100 : x <= 9 }\nfn f(y ∈ Small) (r ∈ set { z ∈ Int : z >= 1 }) { y + 1 }\n"
 	accepts(t, "f(3)", head+"export fn g() (Int) { f(3) }")
-	refuses(t, "f(12)", head+"export fn g() (Int) { f(12) }", "12 <= 9")
+	// A separation of ℤ by bounds is its range (numbers.md §2): 0..100 ∩ ↓9 is 0..9.
+	refuses(t, "f(12)", head+"export fn g() (Int) { f(12) }", "declared in 0..9, and a call passes 12")
 	refuses(t, "a result outside its separation",
 		"fn h(y ∈ 0..5) (r ∈ set { z ∈ Int : z >= 10 }) { y }\nexport fn g() (Int) { h(3) }",
 		"does not establish")
+	// A separation by any other formula is still a formula, refused where it
+	// would claim it of every element or stand as a value.
 	refuses(t, "a separation inside a former",
-		"fn h(t ∈ Array(set { z ∈ Int : z >= 10 })) (Int) { len(t) }\nexport fn g() (Int) { 1 }",
+		"fn h(t ∈ Array(set { z ∈ Int : z * z >= 10 })) (Int) { len(t) }\nexport fn g() (Int) { 1 }",
 		"a binder's whole set")
 	refuses(t, "a separation in a computation",
-		"export fn g() (Int) { x = set { z ∈ Int : z >= 10 }; 1 }", "set { x ∈ S : φ }")
+		"export fn g() (Int) { x = set { z ∈ Int : z * z >= 10 }; 1 }", "set { x ∈ S : φ }")
 	refuses(t, "replacement", "set S = set { x * 2 : x ∈ 0..9 }\nexport fn g() (Int) { 1 }", "replacement")
 }
 

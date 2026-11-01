@@ -161,9 +161,7 @@ func TestF64IsBinary64(t *testing.T) {
 
 // A SEPARATION OF A GRID BY BOUNDS HAS ONE NORMAL FORM, its ends the grid's by
 // the Galois connection: two spellings of one set read as one type, strict
-// bounds included, and any other formula stays a separation. A separation of ℤ
-// stays one for now (gridOfExpr: a range with an infinite end on a result is
-// decided by nothing, and its separation is).
+// bounds included, and any other formula stays a separation.
 func TestASeparationOfAGridHasOneNormalForm(t *testing.T) {
 	sigOf := func(set string) *Sig {
 		forms, err := ReadEntry("export fn f(x ∈ "+set+") (Bool) { true }\n", "t.oro")
@@ -185,6 +183,10 @@ func TestASeparationOfAGridHasOneNormalForm(t *testing.T) {
 		{`set { y ∈ F64 : y <= 1e100 }`, // ⌊10¹⁰⁰⌋ onto F64, the double just below it
 			`set { y ∈ F64 : y <= 9999999999999998216360018871870109548898901740426374747374488505608317520357971321909184780648316928 }`},
 		{`set { y ∈ F64 : -1e400 <= y }`, `F64`},
+		{`set { y ∈ Int : 0 <= y && y < 10 }`, `0..9`},
+		{`set { y ∈ Int : 0.5 <= y && y <= 9.5 }`, `1..9`},
+		{`set { y ∈ 0..100 : y > 50 }`, `51..100`},
+		{`set { y ∈ Int : y >= 0 }`, `Nat`},
 		{`set { y ∈ F64 : 0 < y && y < 1 }`, `set { y ∈ F64 : 1e-400 <= y && y <= 0.99999999999999999 }`},
 	}
 	for _, c := range same {
@@ -196,9 +198,6 @@ func TestASeparationOfAGridHasOneNormalForm(t *testing.T) {
 	// `where`'s share (decl.go); a grid's normal form leaves no `where`.
 	if sig := sigOf(`set { y ∈ F64 : y * y <= 2 }`); sig.Where == nil {
 		t.Errorf("a separation by another formula lost its formula: %s", sig.Params[0].Type)
-	}
-	if sig := sigOf(`set { y ∈ Int : 0 <= y && y < 10 }`); sig.Where == nil {
-		t.Errorf("a separation of ℤ became a range, which a result's claim would not decide: %s", sig.Params[0].Type)
 	}
 	if sig := sigOf(`set { y ∈ F64 : y <= 1 }`); sig.Where != nil {
 		t.Errorf("a grid's normal form kept a formula: %v", sig.Where)

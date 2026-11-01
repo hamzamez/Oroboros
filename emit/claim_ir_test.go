@@ -104,6 +104,11 @@ func TestAResultClaimIsAnObligation(t *testing.T) {
 		"export fn main() { fmt.Println(bad(1)) }\n", "does not establish 0 <= result && result <= 5")
 	refused("never called", "fn bad(x ∈ 0..100) (0..5) { x + 10 }"+main, "its result is [10, 110]")
 	refused("exported", "export fn bad(x ∈ 0..100) (0..5) { x + 10 }\n", "does not establish")
+	// AN OPEN RANGE IS A CLAIM BY ITS FINITE END (resultclaim-2026-11-02): `Nat`
+	// was a representation above the word, and −5 passed as one.
+	refused("open, never called", "fn h(y ∈ -5..5) (Nat) { y }"+main, "does not establish 0 <= result")
+	refused("open above", "fn h(y ∈ 0..5) (r ∈ 10..) { y }"+main, "does not establish 10 <= result")
+	accepted("open, true", "fn h(y ∈ 0..5) (Nat) { y * y }"+main)
 	// A parameter with no set ranges over its sort, ℤ: x % 6 may be negative.
 	refused("no set", "fn f(x) (0..5) { x % 6 }"+main, "does not establish")
 	accepted("saturating", "fn sat(x ∈ 0..2^62-1, y ∈ 0..2^62-1) (0..2^62-1) {\n"+

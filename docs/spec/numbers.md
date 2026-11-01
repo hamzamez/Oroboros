@@ -77,10 +77,9 @@ x < b is x ≤ the greatest element below b. An end not written is F64's own, ±
 that form wherever a set may stand: a binder's set, a table's element, a named set. Any other formula
 stays a separation.
 
-**ℤ's normal form, the range ⌈a⌉..⌊b⌋, waits on a repair** (grids-2026-11-01): a result declared in a
-range with an infinite end (`Nat`, `10..`) is read as a representation and not a claim (`core/read.go`),
-so it is decided by nothing, and `fn h(y ∈ -5..5) (Nat) { y }` returns −5. A separation of ℤ is a
-`where` and an `ensure`, which are decided, so it stays a separation until the hole is closed.
+**A separation of ℤ by bounds is its range**, ⌈a⌉..⌊b⌋, by the same adjunction: `{ y ∈ Int : y >= 0 }`
+is `Nat`. It waited on a result in a range with an infinite end being a claim, which it was not until
+ADR 0087 (resultclaim-2026-11-02).
 
 ## 3. Rounding, the one lossy operation
 

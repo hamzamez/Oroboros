@@ -2036,3 +2036,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/f64-round.oro java`
 - new source — `gauntlet/differential/cases/f64-round.oro js`
 - new source — `gauntlet/differential/cases/f64-round.oro windows`
+
+## 2026-11-01 — on bae71f5, with uncommitted changes
+
+**Reason:** ADR 0087: a result's set is a claim by its ends inside the word; the interval domain keeps a product's sign with an unbounded factor (mulInf), so collatz's and kara/core's refusals report [6, +inf] and [0, +inf] where they reported [-inf, +inf]; both still refused for the same unproven operation
+
+608 runs: 366 emitted, 242 refused; 4801 of 4853 integer operations bounded, 502 of 525 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- compiler output changed — `examples/int/collatz.oro go`
+- compiler output changed — `examples/kara/core.oro go`

@@ -406,8 +406,10 @@ func TestWithoutTheDeclarationTheMagnitudeIsNotDerivable(t *testing.T) {
 		t.Fatal("the multiply was proven in the word without any declaration; if the " +
 			"analysis can now derive it, this test has done its job")
 	}
-	if !strings.Contains(strings.Join(rep.Unproven, "\n"), "[-inf, +inf]") {
-		t.Errorf("expected the multiply to be unbounded, got %v", rep.Unproven)
+	// Unbounded above: its lower end is kept, since every factor is positive
+	// (mulInf, resultclaim-2026-11-02), but nothing bounds its magnitude.
+	if !strings.Contains(strings.Join(rep.Unproven, "\n"), ", +inf]") {
+		t.Errorf("expected the multiply to be unbounded above, got %v", rep.Unproven)
 	}
 }
 

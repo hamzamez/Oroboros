@@ -439,14 +439,13 @@ func (d *doubles) round(r *Region, s Stmt) {
 	// A CONSTANT TERM IS FOLDED, exactly (numbers.md §4): its rounding is
 	// computed by rational arithmetic, and is a literal.
 	if q, ok := d.constOf(t); ok {
-		x, fin := q.Float64()
-		if math.IsInf(x, 0) {
+		x := core.GridF64.Round(q, core.RoundNearest)
+		if !core.GridF64.InRange(x) {
 			d.fail("%s: %s overflows F64: its value is past 2^1024 - 2^970 (ADR 0086, numbers.md §3)", d.f.Name, what)
 			return
 		}
-		_ = fin
-		r.Stmts = append(r.Stmts, Stmt{Op: OConst, Lit: core.Decimal(core.DecOfFloat64(x + 0)), Res: []V{res}, Src: s.Src})
-		d.lit[res] = core.DecOfFloat64(x + 0).Rat()
+		r.Stmts = append(r.Stmts, Stmt{Op: OConst, Lit: core.Decimal(core.DecOfRat(x)), Res: []V{res}, Src: s.Src})
+		d.lit[res] = x
 		return
 	}
 	// A DOUBLE'S ROUNDING IS ITSELF: r is a retraction onto F64.
@@ -546,8 +545,7 @@ func (d *doubles) accepts(ty string, v V) bool {
 			return true
 		}
 		if q, ok := d.lit[v]; ok {
-			_, exact := q.Float64()
-			return exact
+			return inF64(q)
 		}
 		return d.isInt(v) && d.conversion() != nil
 	}
@@ -575,9 +573,9 @@ func (d *doubles) pass(r *Region, ty string, v V, src *core.Term) V {
 		return v
 	}
 	if q, ok := d.lit[v]; ok {
-		if x, exact := q.Float64(); exact {
+		if inF64(q) {
 			c := d.fresh(core.F64Name)
-			r.Stmts = append(r.Stmts, Stmt{Op: OConst, Lit: core.Decimal(core.DecOfFloat64(x + 0)), Res: []V{c}})
+			r.Stmts = append(r.Stmts, Stmt{Op: OConst, Lit: core.Decimal(core.DecOfRat(q)), Res: []V{c}})
 			d.lit[c] = q
 			return c
 		}
@@ -689,22 +687,26 @@ func galois(rel string, q *big.Rat) (string, float64, *bool) {
 	return rel, 0, nil
 }
 
-// floorF64 is ⌊q⌋ onto F64, false when q is below −MAX.
+// inF64 reports q ∈ F64: a fixed point of the rounding onto its grid, inside
+// its range (core.Grid).
+func inF64(q *big.Rat) bool { return core.GridF64.Contains(q) && core.GridF64.InRange(q) }
+
+// floorF64 is ⌊q⌋ onto F64, the right adjoint of F64 ↪ ℚ, false when q is
+// below −MAX and no element of F64 is ≤ q.
 func floorF64(q *big.Rat) (float64, bool) {
-	x, _ := q.Float64()
-	if math.IsInf(x, -1) || (x == -math.MaxFloat64 && new(big.Rat).SetFloat64(x).Cmp(q) > 0) {
+	m := core.GridF64.Max()
+	if q.Cmp(new(big.Rat).Neg(m)) < 0 {
 		return 0, false
 	}
-	if math.IsInf(x, 1) {
-		return math.MaxFloat64, true
+	x := core.GridF64.Round(q, "down")
+	if x.Cmp(m) > 0 {
+		x = m
 	}
-	if new(big.Rat).SetFloat64(x).Cmp(q) > 0 {
-		x = math.Nextafter(x, math.Inf(-1))
-	}
-	return x + 0, true
+	f, _ := x.Float64() // exact: x ∈ F64, which a double represents
+	return f + 0, true
 }
 
-// ceilF64 is ⌈q⌉ onto F64, false when q is above MAX.
+// ceilF64 is ⌈q⌉ onto F64, the left adjoint, false when q is above MAX.
 func ceilF64(q *big.Rat) (float64, bool) {
 	x, ok := floorF64(new(big.Rat).Neg(q))
 	return -x + 0, ok
@@ -821,7 +823,7 @@ func (d *doubles) literals() {
 				continue
 			}
 			q := new(big.Rat).SetInt64(s.Lit.Int)
-			if _, exact := q.Float64(); !exact {
+			if !inF64(q) {
 				d.fail("%s: the integer %d is held as a double and is not one: a literal is exact (ADR 0086); "+
 					"round it, round(F64, %d)", d.f.Name, s.Lit.Int, s.Lit.Int)
 				return
@@ -1047,11 +1049,12 @@ func quoRV(a, b rv) (rv, bool) {
 	return corners('/', a, b), true
 }
 
-// ratDown and ratUp are a rational's outward double ends.
+// ratDown and ratUp are a rational's outward double ends: ⌊q⌋ onto F64, −∞
+// below its range, and MAX above it, a sound lower end there.
 func ratDown(q *big.Rat) float64 {
-	x, _ := q.Float64()
-	if !math.IsInf(x, 0) && new(big.Rat).SetFloat64(x).Cmp(q) > 0 {
-		x = math.Nextafter(x, math.Inf(-1))
+	x, ok := floorF64(q)
+	if !ok {
+		return math.Inf(-1)
 	}
 	return x
 }

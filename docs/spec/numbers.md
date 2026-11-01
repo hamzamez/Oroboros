@@ -43,8 +43,19 @@ Meseguer 1992), and Haskell's `0.0 :: Fractional a` against `0 :: Num a` makes t
 ## 2. Sets
 
 Each of these is a set of N, with a characteristic function the compiler decides exactly. Their
-definitions are written in `lib/num.oro`, and a test checks the procedure against each definition on a
-small instance (ADR 0035's "a theory checked once").
+definitions belong in `lib/num.oro`, with a test checking the compiler's procedure against each
+definition on a small instance (ADR 0035's "a theory checked once").
+
+**Built so far, and what waits** (grids-2026-11-01): the definitions are not yet written in
+`lib/num.oro`, because J cannot state them. F(p, …) is a replacement set, the image
+{ m·2^(e−p+1) : m, e } (ADR 0061, not built), and its separation form needs ∃ or a logarithm. Until then
+**one procedure decides every grid** (`core/grid.go`), and its test stands in for the library's
+definition: `TestTheGridIsItsDefinition` enumerates F(3, −2, 2) from the definition above and checks
+every mode at every quarter of the finest spacing, and `TestF64IsBinary64` checks the p = 53 instance
+against the host's binary64. The procedure is the cell's algebra. A grid is **locally uniform**: x lies
+in a closed cell whose ends are in G and on which G is u(x)·ℤ, u = 1 on ℤ, 10⁻ᵏ on 10⁻ᵏℤ, and
+2^(E−p+1) on F(p, emin, ∞) with E = max(⌊log₂|x|⌋, emin). So r_G,μ(x) = u·r_ℤ,μ(x/u) for every mode,
+a tie to even being m even in the cell's generator.
 
 | set | definition | grid G and bounds |
 |---|---|---|
@@ -58,11 +69,18 @@ small instance (ADR 0035's "a theory checked once").
 **Every set a rounding targets is S = G ∩ [a, b]**, a grid restricted to an interval. A rounding onto
 any other set is refused, saying which.
 
-**A separation of F64 by constant bounds is F64 ∩ [lo, hi]** (`core.F64Grid`): `set { x ∈ F64 : lo <= x
-&& x <= hi }` has the characteristic function χ_F64 ∧ lo ≤ x ∧ x ≤ hi, so the reader gives it that
-canonical form, `f64 LO HI`, wherever a set may stand: a binder's set, a table's element, a named set.
-An end not written is F64's own, ±MAX, since every element of F64 lies between them, and one past it is
-clamped there; both are the same set. A strict bound, or any other formula, stays a separation.
+**A separation of F64 by constant bounds is F64 ∩ [lo, hi]** (`core.SeparatedGrid`): `set { x ∈ F64 :
+a <= x && x <= b }` has the characteristic function χ_F64 ∧ a ≤ x ∧ x ≤ b, and that set has one
+spelling by the Galois connection of G ↪ ℚ: **G ∩ [a, b] = G ∩ [⌈a⌉_G, ⌊b⌋_G]**, ends in G, so two
+spellings of one set are one canonical type, `f64 LO HI`. A strict bound is the adjunction once more:
+x < b is x ≤ the greatest element below b. An end not written is F64's own, ±MAX. The reader gives it
+that form wherever a set may stand: a binder's set, a table's element, a named set. Any other formula
+stays a separation.
+
+**ℤ's normal form, the range ⌈a⌉..⌊b⌋, waits on a repair** (grids-2026-11-01): a result declared in a
+range with an infinite end (`Nat`, `10..`) is read as a representation and not a claim (`core/read.go`),
+so it is decided by nothing, and `fn h(y ∈ -5..5) (Nat) { y }` returns −5. A separation of ℤ is a
+`where` and an `ensure`, which are decided, so it stays a separation until the hole is closed.
 
 ## 3. Rounding, the one lossy operation
 

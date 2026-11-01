@@ -2072,11 +2072,11 @@ func (p *parser) separation() (Expr, error) {
 		return nil, err
 	}
 	sep := &Apply{Fn: &Var{Name: SepName}, Args: []Expr{&Var{Name: x}, s, phi}}
-	// F64 SEPARATED BY CONSTANT BOUNDS IS A GRID RESTRICTED TO AN INTERVAL
-	// (numbers.md §2, F64Grid): the same set, in the normal form a rounding
-	// targets and a table's element may be, with no formula left to state.
-	if lo, hi, ok := F64Grid(sep); ok {
-		return F64GridExpr(lo, hi), nil
+	// A GRID SEPARATED BY CONSTANT BOUNDS IS THE GRID RESTRICTED TO AN INTERVAL
+	// (numbers.md §2, SeparatedGrid): the same set, in the one normal form a
+	// rounding targets and a table's element may be, with no formula left.
+	if g, ok := SeparatedGrid(sep); ok {
+		return g, nil
 	}
 	return sep, nil
 }

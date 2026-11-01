@@ -296,26 +296,32 @@ func F64Range(ty string) (lo, hi *Dec, ok bool) {
 // which TypeName reads as F64Type: a name a program cannot write.
 const F64GridName = "#f64"
 
-// F64Grid reads a separation { x ∈ F64 : φ } whose φ is a conjunction of
-// non-strict bounds of x by constants as F64 ∩ [lo, hi], the grid restricted to
-// an interval that a rounding targets (numbers.md §2): its characteristic
-// function is χ_F64 ∧ lo ≤ x ∧ x ≤ hi. An end not stated is F64's own, since
-// every element of F64 lies in [−MAX, MAX], and an end past it is clamped there,
-// so the two sets are equal. A strict bound, any other formula, or an empty
-// interval is not this shape, and the separation stays one.
-func F64Grid(e Expr) (lo, hi *Dec, ok bool) {
+// SeparatedGrid is the normal form of a separation { x ∈ S : φ } whose base S
+// is a grid restricted to an interval, G ∩ [a₀, b₀] (F64, or F64 ∩ [lo, hi];
+// ℤ waits, gridOfExpr), and whose φ is a conjunction of bounds of x by constants
+// (numbers.md §2). Its characteristic function is χ_G ∧ a ≤ x ∧ x ≤ b, so the
+// set is G ∩ [a, b], and that has ONE spelling by the Galois connection of
+// G ↪ ℚ: G ∩ [a, b] = G ∩ [⌈a⌉_G, ⌊b⌋_G], whose ends are elements of G. A
+// strict bound is the same adjunction applied once more: x < b is x ≤ the
+// greatest element of G below b. An end
+// not stated is S's own (F64's are ±MAX, every element of F64 lying between
+// them). Any other formula, or an empty set, is not this shape: the separation
+// stays one. The result is the set's expression: F64 ∩ [lo, hi] (F64GridExpr),
+// or F64 itself when its ends are F64's.
+func SeparatedGrid(e Expr) (Expr, bool) {
 	a, isApp := e.(*Apply)
 	if !isApp || len(a.Args) != 3 {
-		return nil, nil, false
+		return nil, false
 	}
 	v, isVar := a.Fn.(*Var)
 	x, isBinder := a.Args[0].(*Var)
-	s, isSet := a.Args[1].(*Var)
-	if !isVar || v.Name != SepName || !isBinder || !isSet || (s.Name != F64Name && s.Name != "F64") {
-		return nil, nil, false
+	if !isVar || v.Name != SepName || !isBinder {
+		return nil, false
 	}
-	max := DecOfFloat64(math.MaxFloat64)
-	lq, hq := new(big.Rat).Neg(max.Rat()), max.Rat()
+	g, lq, hq, ok := gridOfExpr(a.Args[1])
+	if !ok {
+		return nil, false
+	}
 	var conj []Expr
 	if and, isAnd := a.Args[2].(*And); isAnd {
 		conj = and.Xs
@@ -325,51 +331,90 @@ func F64Grid(e Expr) (lo, hi *Dec, ok bool) {
 	for _, c := range conj {
 		cmp, ok := c.(*Apply)
 		if !ok || len(cmp.Args) != 2 {
-			return nil, nil, false
+			return nil, false
 		}
 		op, ok := cmp.Fn.(*Var)
 		if !ok {
-			return nil, nil, false
+			return nil, false
 		}
 		rel := op.Name
 		l, r := cmp.Args[0], cmp.Args[1]
 		if isVarNamed(r, x.Name) { // c rel x is x rel' c
 			l, r = r, l
-			switch rel {
-			case "<=":
-				rel = ">="
-			case ">=":
-				rel = "<="
-			default:
-				return nil, nil, false
-			}
+			rel = map[string]string{"<=": ">=", ">=": "<=", "<": ">", ">": "<"}[rel]
 		}
 		q, isConst := constRat(r)
 		if !isVarNamed(l, x.Name) || !isConst {
-			return nil, nil, false
+			return nil, false
 		}
+		var end *big.Rat
 		switch rel {
-		case "<=":
-			if q.Cmp(hq) < 0 {
-				hq = q
+		case "<=", "<":
+			end = g.Round(q, "down") // the greatest element ≤ q
+			if rel == "<" && end.Cmp(q) == 0 {
+				end = below(g, q)
 			}
-		case ">=":
-			if q.Cmp(lq) > 0 {
-				lq = q
+			if lowerBound(end, hq) {
+				hq = end
+			}
+		case ">=", ">":
+			end = g.Round(q, "up")
+			if rel == ">" && end.Cmp(q) == 0 {
+				end = new(big.Rat).Neg(below(g, new(big.Rat).Neg(q)))
+			}
+			if lq == nil || end.Cmp(lq) > 0 {
+				lq = end
 			}
 		default:
-			return nil, nil, false
+			return nil, false
 		}
 	}
-	if lq.Cmp(hq) > 0 {
-		return nil, nil, false
+	if lq != nil && hq != nil && lq.Cmp(hq) > 0 {
+		return nil, false
 	}
-	lo, err1 := ratDec(lq)
-	hi, err2 := ratDec(hq)
-	if err1 != nil || err2 != nil {
-		return nil, nil, false
+	m := g.Max()
+	if lq.Cmp(new(big.Rat).Neg(m)) == 0 && hq.Cmp(m) == 0 {
+		return &Var{Name: F64Name}, true
 	}
-	return lo, hi, true
+	return F64GridExpr(DecOfRat(lq), DecOfRat(hq)), true
+}
+
+// lowerBound reports a new upper end tighter than the current, nil for none.
+func lowerBound(end, cur *big.Rat) bool { return cur == nil || end.Cmp(cur) < 0 }
+
+// below is the greatest element of g strictly below q, for q ∈ g: one spacing
+// down, the spacing of the cell below q (at a binade's bottom, the binade below).
+func below(g Grid, q *big.Rat) *big.Rat {
+	probe := new(big.Rat).Sub(q, new(big.Rat).Quo(g.Spacing(q), big.NewRat(4, 1)))
+	return g.Round(probe, "down")
+}
+
+// gridOfExpr is a separation's base as a grid and its interval's ends: F64,
+// or F64 ∩ [lo, hi].
+//
+// NOT ℤ YET, though its normal form is the range ⌈a⌉..⌊b⌋: a range with an
+// infinite end on a result is read as a representation, not a claim
+// (read.go), so `Nat` and `10..` there are decided by nothing (grids-
+// 2026-11-01), while a separation of ℤ is a `where` and an `ensure`, decided.
+// The normal form waits on that repair, so that it never makes a decided claim
+// undecided.
+func gridOfExpr(s Expr) (Grid, *big.Rat, *big.Rat, bool) {
+	switch s := s.(type) {
+	case *Var:
+		if s.Name == F64Name || s.Name == "F64" {
+			m := GridF64.Max()
+			return GridF64, new(big.Rat).Neg(m), m, true
+		}
+	case *Apply:
+		if f, ok := s.Fn.(*Var); ok && f.Name == F64GridName && len(s.Args) == 2 {
+			lo, ok1 := constRat(s.Args[0])
+			hi, ok2 := constRat(s.Args[1])
+			if ok1 && ok2 {
+				return GridF64, lo, hi, true
+			}
+		}
+	}
+	return Grid{}, nil, nil, false
 }
 
 // F64GridExpr is F64 ∩ [lo, hi] in the abstract syntax.
@@ -392,6 +437,9 @@ func constRat(e Expr) (*big.Rat, bool) {
 			return new(big.Rat).SetInt64(e.T.Int), true
 		case KDec:
 			return e.T.Dec.Rat(), true
+		}
+		if v, ok := EvalEndpoint(e.T); ok { // a literal past int64, a term (bigLiteral)
+			return new(big.Rat).SetInt(v), true
 		}
 	case *Apply:
 		f, ok := e.Fn.(*Var)
@@ -417,21 +465,4 @@ func constRat(e Expr) (*big.Rat, bool) {
 		}
 	}
 	return nil, false
-}
-
-// ratDec is a rational of N as its canonical form, an error when the
-// denominator has a prime other than 2 and 5.
-func ratDec(q *big.Rat) (*Dec, error) {
-	den := new(big.Int).Set(q.Denom())
-	k := 0
-	p := big.NewInt(1)
-	for new(big.Int).Rem(p, den).Sign() != 0 {
-		p.Mul(p, ten)
-		k++
-		if k > 2000 {
-			return nil, fmt.Errorf("%s is not an element of N", q.RatString())
-		}
-	}
-	m := new(big.Int).Mul(q.Num(), new(big.Int).Quo(p, den))
-	return NewDec(m, k), nil
 }

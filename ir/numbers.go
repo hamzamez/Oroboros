@@ -752,46 +752,8 @@ func roundedHull(u, d iv, mode string) (lo, hi *big.Int, ok bool) {
 	return roundRat(mn, mode), roundRat(mx, mode), true
 }
 
-// roundRat is r_ℤ,μ on a rational (numbers.md §3).
-func roundRat(x *big.Rat, mode string) *big.Int {
-	fl := new(big.Int).Div(x.Num(), x.Denom()) // Euclidean, so the floor
-	if x.IsInt() {
-		return fl
-	}
-	c := new(big.Int).Add(fl, big.NewInt(1))
-	switch mode {
-	case "down":
-		return fl
-	case "up":
-		return c
-	case "zero":
-		if x.Sign() >= 0 {
-			return fl
-		}
-		return c
-	case "away":
-		if x.Sign() >= 0 {
-			return c
-		}
-		return fl
-	}
-	switch new(big.Rat).Sub(x, new(big.Rat).SetInt(fl)).Cmp(big.NewRat(1, 2)) {
-	case -1:
-		return fl
-	case 1:
-		return c
-	}
-	if mode == "half-away" {
-		if x.Sign() >= 0 {
-			return c
-		}
-		return fl
-	}
-	if fl.Bit(0) == 0 {
-		return fl
-	}
-	return c
-}
+// roundRat is r_ℤ,μ on a rational (numbers.md §3), the one procedure.
+func roundRat(x *big.Rat, mode string) *big.Int { return core.RoundInt(x, mode) }
 
 func mustEnd(x *big.Int) ep {
 	e, _ := fromBig(x)

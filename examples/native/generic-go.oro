@@ -16,11 +16,16 @@
 // nothing but which
 // argument arrived.
 //
-// And `combine` is `go.f+` in one and a two-statement map update in the other,
-// so the two residuals do not even have the same SHAPE: one is an expression and
-// one is a statement. Still no pass.
+// And `combine` is the language's rounded sum in one (ADR 0086: IEEE's
+// `acc + x` is round(F64, acc + x), Go's `+` found by its declaration) and a
+// two-statement map update in the other, so the two residuals do not even have
+// the same SHAPE: one is an expression and one is a statement. Still no pass.
+// An element's set bounds the sum (doubles.go, Theorem A), so no rounding can
+// overflow.
 use go
 use go/strings
+
+set Entry = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
 
 // The generic operation. n is a count, get reads element i, combine folds it in.
 // `loop` replaces `fold-range`, so the accumulator and the index are two loop
@@ -33,10 +38,10 @@ fn reduce_over(n, get, combine, init) {
     }
 }
 
-// Instantiation 1 — f64 elements, f64 accumulator.
-fn sum_floats(a) { reduce_over(len(a), fn(i) { a[i] }, go.`f+`, 0.0) }
+// Instantiation 1 — F64 elements, an F64 accumulator.
+fn sum_floats(a) { reduce_over(len(a), fn(i) { a[i] }, fn(acc, x) { round(F64, acc + x) }, 0) }
 
 // Instantiation 2 — string elements, map accumulator.
 fn tally_words(ws) { reduce_over(len(ws), fn(i) { ws[i] }, go.inc_map, go.make_map()) }
-export fn sum_of(a ∈ Array(F64)) (F64) { sum_floats(a) }
+export fn sum_of(a ∈ Array(Entry)) (F64) { sum_floats(a) }
 export fn word_tally(text ∈ String) (map_string_int) { tally_words(strings.Fields(text)) }

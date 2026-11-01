@@ -25,15 +25,20 @@
 use go
 use go/fmt
 
+// The table holds each i as a double, round(F64, i), exact below 2⁵³; the dot
+// product is IEEE's, round(F64) { … } (ADR 0086). What the table holds bounds
+// what the products sum to, so no rounding can overflow.
 fn fill(n) {
     var d := array { 0 : _ ∈ 0..n-1 }
-    loop i = 0 { go.`>=`(i, n) -> d; else -> { d[i] := go.float64_of_int(i); again(go.`+`(i, 1)) } }
+    loop i = 0 { i >= n -> d; else -> { d[i] := round(F64, i); again(i + 1) } }
 }
 
 fn dot(a, b) {
-    loop acc = 0.0, i = 0 {
-        go.`>=`(i, len(a)) -> acc
-        else -> again(go.`f+`(acc, go.`f*`(a[i], b[i])), go.`+`(i, 1))
+    round(F64) {
+        loop acc = 0, i = 0 {
+            i >= len(a) -> acc
+            else -> again(acc + a[i] * b[i], i + 1)
+        }
     }
 }
 

@@ -2,22 +2,22 @@
 
 public final class NatDot {
 	public static double natDotDot(double[] v0, double[] v1) {
-		double v17 = 0.0;
-		int v18 = 0;
-		for (;; v18 = (v18 + 1)) {
-			final int v19 = v0.length;
-			final boolean v20 = (v18 >= v19);
-			if (v20) {
+		final int v5 = v0.length;
+		double v9 = 0.0;
+		int v10 = 0;
+		for (;; v10 = (v10 + 1)) {
+			final boolean v11 = (v10 >= v5);
+			if (v11) {
 				break;
 			}
-			final double v25 = v0[v18];
-			final double v26 = v1[v18];
-			final double v27 = (v25 * v26);
-			final double v28 = (v17 + v27);
-			v17 = v28;
+			final double v18 = v0[v10];
+			final double v19 = v1[v10];
+			final double v20 = (v18 * v19);
+			final double v21 = (v9 + v20);
+			v9 = v21;
 			continue;
 		}
-		return v17;
+		return v9;
 	}
 
 }

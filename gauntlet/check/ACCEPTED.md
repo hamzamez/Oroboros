@@ -1954,3 +1954,85 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `lib/num.oro java`
 - new source — `lib/num.oro js`
 - new source — `lib/num.oro windows`
+
+## 2026-11-01 — on be99ae2, with uncommitted changes
+
+**Reason:** ADR 0086 step 1 part 4: doubles. dot, centroid and search are one source each in the language's numbers, their per-target copies removed; generic, report and smooth use round(F64, …) and the scope, Go's product now float64(x*y), which stops fusion; the new differential case f64-round; every other program's emission unchanged
+
+608 runs: 366 emitted, 242 refused; 4801 of 4853 integer operations bounded, 502 of 525 loops proven. compiler pass, differential pass, tooling pass.
+
+73 change(s):
+
+- source removed — `examples/native/centroid-go.oro go`
+- source removed — `examples/native/centroid-go.oro java`
+- source removed — `examples/native/centroid-go.oro js`
+- source removed — `examples/native/centroid-go.oro windows`
+- source removed — `examples/native/centroid-java.oro go`
+- source removed — `examples/native/centroid-java.oro java`
+- source removed — `examples/native/centroid-java.oro js`
+- source removed — `examples/native/centroid-java.oro windows`
+- source removed — `examples/native/centroid-js.oro go`
+- source removed — `examples/native/centroid-js.oro java`
+- source removed — `examples/native/centroid-js.oro js`
+- source removed — `examples/native/centroid-js.oro windows`
+- new source — `examples/native/centroid.oro go`
+- new source — `examples/native/centroid.oro java`
+- new source — `examples/native/centroid.oro js`
+- new source — `examples/native/centroid.oro windows`
+- source removed — `examples/native/dot-go.oro go`
+- source removed — `examples/native/dot-go.oro java`
+- source removed — `examples/native/dot-go.oro js`
+- source removed — `examples/native/dot-go.oro windows`
+- source removed — `examples/native/dot-java.oro go`
+- source removed — `examples/native/dot-java.oro java`
+- source removed — `examples/native/dot-java.oro js`
+- source removed — `examples/native/dot-java.oro windows`
+- source removed — `examples/native/dot-js.oro go`
+- source removed — `examples/native/dot-js.oro java`
+- source removed — `examples/native/dot-js.oro js`
+- source removed — `examples/native/dot-js.oro windows`
+- new source — `examples/native/dot.oro go`
+- new source — `examples/native/dot.oro java`
+- new source — `examples/native/dot.oro js`
+- new source — `examples/native/dot.oro windows`
+- emitted text changed — `examples/native/generic-js.oro js`
+- emitted text changed — `examples/native/report-go.oro go`
+- compiler output changed — `examples/native/report-go.oro java`
+- compiler output changed — `examples/native/report-go.oro js`
+- compiler output changed — `examples/native/report-go.oro windows`
+- compiler output changed — `examples/native/report-java.oro go`
+- compiler output changed — `examples/native/report-java.oro js`
+- compiler output changed — `examples/native/report-java.oro windows`
+- compiler output changed — `examples/native/report-js.oro go`
+- compiler output changed — `examples/native/report-js.oro java`
+- emitted text changed — `examples/native/report-js.oro js`
+- compiler output changed — `examples/native/report-js.oro js`
+- compiler output changed — `examples/native/report-js.oro windows`
+- source removed — `examples/native/search-go.oro go`
+- source removed — `examples/native/search-go.oro java`
+- source removed — `examples/native/search-go.oro js`
+- source removed — `examples/native/search-go.oro windows`
+- source removed — `examples/native/search-java.oro go`
+- source removed — `examples/native/search-java.oro java`
+- source removed — `examples/native/search-java.oro js`
+- source removed — `examples/native/search-java.oro windows`
+- source removed — `examples/native/search-js.oro go`
+- source removed — `examples/native/search-js.oro java`
+- source removed — `examples/native/search-js.oro js`
+- source removed — `examples/native/search-js.oro windows`
+- new source — `examples/native/search.oro go`
+- new source — `examples/native/search.oro java`
+- new source — `examples/native/search.oro js`
+- new source — `examples/native/search.oro windows`
+- now emits — `examples/native/smooth-go.oro java`
+- now emits — `examples/native/smooth-go.oro js`
+- compiler output changed — `examples/native/smooth-go.oro windows`
+- compiler output changed — `examples/native/smooth-java.oro go`
+- compiler output changed — `examples/native/smooth-java.oro js`
+- compiler output changed — `examples/native/smooth-java.oro windows`
+- emitted text changed — `examples/native/smooth-js.oro js`
+- compiler output changed — `examples/native/smooth-js.oro js`
+- new source — `gauntlet/differential/cases/f64-round.oro go`
+- new source — `gauntlet/differential/cases/f64-round.oro java`
+- new source — `gauntlet/differential/cases/f64-round.oro js`
+- new source — `gauntlet/differential/cases/f64-round.oro windows`

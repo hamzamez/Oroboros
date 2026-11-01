@@ -43,6 +43,10 @@ func (tg *Target) unboundSet(ty string) string {
 	if _, _, ok := core.IntRangeBig(ty); ok || core.UnboundedRange(ty) {
 		return ""
 	}
+	// F64 ∩ [lo, hi] is a subset of F64, so it denotes a set where F64 does.
+	if _, _, ok := core.F64Range(ty); ok {
+		return tg.unboundSet(core.F64Name)
+	}
 	for _, elem := range []string{core.ArrayElem(ty), core.BufferElem(ty), core.CellElem(ty)} {
 		if elem != "" {
 			return tg.unboundSet(elem)

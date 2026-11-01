@@ -165,6 +165,7 @@ func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, er
 	if err := Undecided(what, t); err != nil {
 		return nil, err
 	}
+	t = Unscope(tgt, sig, t)
 	r := &refiner{tgt: tgt, pure: pureAtomsFor(tgt, sig, t), memo: &refineMemo{
 		houdini: map[string][]*core.Term{}, summary: map[string]summaryMemo{}}}
 	f := newFacts()

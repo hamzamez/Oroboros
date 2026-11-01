@@ -190,8 +190,14 @@ checked. When a package hits a wall that needs language work, stop, research it,
           an integer one the decision proves (`ir/numbers.go`). `examples/num/ledger.oro` equals
           hand-written Go on three targets. The refinement layer's ℤ no longer reasons about a number
           (`emit/numnames.go`), and the thresholds are closed under the body's scalings;
-        - next, part 4: doubles (F64 a set, `round(F64, …)` realized by a declaration's `ensure`, the
-          scope, the decode, the gauntlet's six float programs).
+        - part 4 built ([doubles-2026-11-01](gauntlet/results/doubles-2026-11-01.md)): F64 a set held as
+          a double, F64 ∩ [lo, hi] a separation's normal form; a rounding onto F64 the call of the
+          declaration whose `ensure` states it (`ir/doubles.go`, `fadd fsub fmul fdiv fint` on three
+          targets), comparisons with constants exact by a Galois connection, the scope, obligations on
+          a real interval domain with Theorem A for a rounded accumulator. The gauntlet's float
+          programs are the language's, dot, centroid and search one source each, at parity. A host's
+          double is refused where the language's numbers read it; its type and decode are not built.
+        - next: step 2, exact interiors, which owes the cost measurement; then Σ_LLVM.
      Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
      widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
      rung above as native iN, measured against the limbs.
@@ -248,9 +254,9 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **4,773 of 4,825** integer operations proven inside their target's word, the 52 left
+- **Provability**: **4,801 of 4,853** integer operations proven inside their target's word, the 52 left
   mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
-  **497 of 520** loops proven to terminate (size-change termination). Each
+  **502 of 525** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -284,7 +290,10 @@ termination (`ir/sct.go`); the representations, the unsigned word (`ir/words.go`
 above the word as a least fixed point of supply and demand (`ir/big.go`, ADR 0034, 0079), fusion under
 `mod 2ⁿ` (`ir/fuse.go`, ADR 0082), the unsigned word as a pair of digits on a narrower word (`ir/pairs.go`,
 ADR 0083), fixed limbs as
-instances of a theory checked once (`ir/limbs.go`, ADR 0035); postconditions and a definition's claim
+instances of a theory checked once (`ir/limbs.go`, ADR 0035), N's decimals as scaled words
+(`ir/numbers.go`) and its doubles, each rounding onto F64 the call of a target declaration whose
+`ensure` states it and its obligations decided on a real interval domain (`ir/doubles.go`, ADR 0086);
+postconditions and a definition's claim
 (`ir.CheckClaim`, ADR 0072). Each rule is checked against a concrete interpreter over ℤ
 (`ir/interp_test.go`) and has a planted fault.
 
@@ -550,8 +559,8 @@ go run ./cmd/check -skip tooling   # everything but the host surveys
 go run ./cmd/check -accept "why"   # keep this run's emission as the baseline, and log why
 go test ./core/ ./emit/ ./ir/...   # the compiler
 go run ./cmd/build -target=go -o hello.exe examples/hello.oro   # a real binary
-go run ./cmd/oro -target=go examples/native/dot-go.oro          # reduce to normal form
-go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   # emit, and write the IR
+go run ./cmd/oro -target=go examples/native/dot.oro          # reduce to normal form
+go run ./cmd/gen -ir dot.ir -name native examples/native/dot.oro go dot.go   # emit, and write the IR
 go run ./cmd/intervals -v examples/table/sieve.oro go           # what the decision proves, and what not
 go run ./cmd/portable examples/io/wc.oro                        # which targets accept a program, and why
 bash gauntlet/regen.sh                                          # regenerate the gauntlet's 26 files
@@ -570,7 +579,7 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | | |
 |---|---|
 | `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`), σ_J (`jspell`), J in messages (`jshow`), the raw reader of core terms and the IR's text (`raw`, `read`); the trees (`abs`, `decl`) and D (`desugar`); terms, the β/δ reducer and module loading (`reduce`), variants (`sum`), hygiene, the state translation (`cell`, `place`), β's work count (`work`), Σ_L |
-| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/x86` |
+| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/x86` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
 | `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/`; `blas` and the `tutorial*` targets parameterize the normal form for the book |

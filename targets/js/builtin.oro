@@ -66,6 +66,20 @@ module js {
         host expr "String.fromCodePoint(${c})"
     }
 
+    // ---- THE ROUNDINGS JAVASCRIPT REALIZES (ADR 0086, numbers.md §6.2). Each
+    // `ensure` is the term the operation computes: ECMA-262's Number::add,
+    // ::multiply and ::divide (§6.1.6.1) are IEEE 754 binary64 operations under
+    // roundTiesToEven, each its own rounding, with no contraction. The
+    // finiteness and the divisor are the rounding's own obligations, decided
+    // where the program writes it. This host has no fused multiply-add, so
+    // nothing here realizes round(F64, a * b + c), and that rounding is refused.
+    fn fadd(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a + b) { host expr "${a} + ${b}" }
+    fn fsub(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a - b) { host expr "${a} - ${b}" }
+    fn fmul(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a * b) { host expr "${a} * ${b}" }
+    fn fdiv(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a ÷ b) { host expr "${a} / ${b}" }
+    // An integer is a Number already, and one within ±2⁵³ is that double.
+    fn fint(n ∈ -2^53..2^53) (r ∈ F64) pure ensure r == round(F64, n) { host expr "${n}" }
+
     fn `+`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} + ${b}" }
     fn `-`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} - ${b}" }
     fn `*`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} * ${b}" }

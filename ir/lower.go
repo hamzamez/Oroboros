@@ -446,11 +446,12 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	// at its root (Theorem T: one operation that leaves N per rounding).
 	// SelectNumbers realizes it.
 	if op.Name == core.RoundName {
-		if len(args) != 3 || args[0].Kind != core.KStr || args[2].Kind != core.KStr || !core.RoundModes[args[2].Str] {
+		scoped := len(args) == 4 && args[3].Kind == core.KStr && args[3].Str == core.RoundScoped
+		if (len(args) != 3 && !scoped) || args[0].Kind != core.KStr || args[2].Kind != core.KStr || !core.RoundModes[args[2].Str] {
 			l.fail("a rounding is round(S, e) or round(S, e, mode), with S a set and the mode one of "+
 				"'nearest, 'half_away, 'down, 'up, 'zero, 'away, 'sat: %s", core.ShowTerm(t))
 		}
-		s := Stmt{Op: ORound, Type: args[0].Str, Name: args[2].Str}
+		s := Stmt{Op: ORound, Type: args[0].Str, Name: args[2].Str, Src: t, Scoped: scoped}
 		if e := args[1]; e.Kind == core.KApp && e.Kids[0].Kind == core.KName && e.Kids[0].Name == core.QuoName && len(e.Kids) == 3 {
 			s.Args = []V{l.single(e.Kids[1], r), l.single(e.Kids[2], r)}
 		} else {

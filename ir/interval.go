@@ -2,6 +2,7 @@ package ir
 
 import (
 	"math"
+	"math/big"
 	"sort"
 	"strings"
 
@@ -360,6 +361,11 @@ type intervals struct {
 	// halts is each loop's termination verdict (sct.go), from its last
 	// evaluation, which is the one under the final facts.
 	halts map[*Stmt]bool
+	// trips is each loop's bound B on the back edges an execution takes
+	// (trip.go, Theorem 2), from its last evaluation, nil for none. It is
+	// cleared when the loop is evaluated, so a bound computed under an
+	// earlier, narrower round of an enclosing loop never survives it.
+	trips map[*Stmt]*big.Int
 }
 
 type exitFacts struct {
@@ -400,9 +406,17 @@ func analyse(tg *emit.Target, f *Func) []fact {
 	return a.fs
 }
 
+// analyseTrips is analyse with each loop's bound on its back edges.
+func analyseTrips(tg *emit.Target, f *Func) ([]fact, map[*Stmt]*big.Int) {
+	a := newIntervals(tg, f)
+	a.region(f.Body)
+	return a.fs, a.trips
+}
+
 // newIntervals prepares the analysis of f without running it.
 func newIntervals(tg *emit.Target, f *Func) *intervals {
-	a := &intervals{tg: tg, f: f, maxLen: tg.Word.Hi, fs: make([]fact, f.NV()), def: map[V]*Stmt{}, piOf: map[V]V{}, halts: map[*Stmt]bool{}}
+	a := &intervals{tg: tg, f: f, maxLen: tg.Word.Hi, fs: make([]fact, f.NV()), def: map[V]*Stmt{}, piOf: map[V]V{},
+		halts: map[*Stmt]bool{}, trips: map[*Stmt]*big.Int{}}
 	f.Walk(func(r *Region) {
 		for _, pi := range r.Pis {
 			a.piOf[pi.V] = pi.Of
@@ -835,6 +849,7 @@ func (a *intervals) inWord(x iv) bool { return x.within(ei(a.tg.Word.Lo), ei(a.t
 // the result, which is what the facts of the body's values record.
 func (a *intervals) loop(s *Stmt) {
 	body := s.Sub[0]
+	delete(a.trips, s)
 	init := a.facts(s.Args)
 	cur := append([]fact(nil), init...)
 	lc := &exitFacts{}
@@ -980,9 +995,18 @@ func (a *intervals) yieldsConst(r *Region, b bool) bool {
 // narrowAssumed narrows x, or the table whose length x is, by `x rel o`.
 func (a *intervals) narrowAssumed(x V, rel string, o iv) {
 	if d := a.def[x]; d != nil && d.Op == OLen {
-		t := d.Args[0]
-		if a.fs[t].hasLn {
-			a.fs[t].ln = narrowIV(a.fs[t].ln, rel, o)
+		// The table's length, and its source's: a π of a table is the table
+		// renamed on an arm, of one length (below), so a `where` on len(t)
+		// bounds the length every later use of the table reads.
+		for t, seen := d.Args[0], 0; seen < 64; seen++ {
+			if a.fs[t].hasLn {
+				a.fs[t].ln = narrowIV(a.fs[t].ln, rel, o)
+			}
+			src, ok := a.piOf[t]
+			if !ok {
+				break
+			}
+			t = src
 		}
 		a.fs[x].v = narrowIV(a.fs[x].v, rel, o)
 		return

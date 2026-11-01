@@ -71,6 +71,19 @@ module java {
     fn `%`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} % ${b}" }
     fn neg(a ∈ Int) (Int) pure { host expr "-${a}" }
 
+    // ---- THE ROUNDINGS JAVA REALIZES (ADR 0086, numbers.md §6.2). Each `ensure`
+    // is the term the host operation computes: JLS §15.17–15.18, IEEE 754's
+    // round to nearest, ties to even, on every operation since Java 17's
+    // strict semantics (JEP 306), and the JIT never contracts a product into a
+    // sum (Math.fma is the one fused operation). The finiteness and the divisor
+    // are the rounding's own obligations, decided where the program writes it.
+    fn fadd(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a + b) { host expr "${a} + ${b}" }
+    fn fsub(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a - b) { host expr "${a} - ${b}" }
+    fn fmul(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a * b) { host expr "${a} * ${b}" }
+    fn fdiv(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a ÷ b) { host expr "${a} / ${b}" }
+    // An integer within ±2⁵³ is a double, so the widening (JLS §5.1.2) is exact.
+    fn fint(n ∈ -2^53..2^53) (r ∈ F64) pure ensure r == round(F64, n) { host expr "(double) ${n}" }
+
     // ---- arithmetic on double
     fn `f+`(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} + ${b}" }
     fn f_(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} - ${b}" }

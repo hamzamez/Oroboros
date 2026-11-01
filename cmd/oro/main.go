@@ -4,7 +4,7 @@
 // reduction stops.
 //
 //	oro -target=blas examples/dot.oro           # stops at blas's own dot
-//	oro -target=go   examples/native/dot-go.oro # reduces to one loop
+//	oro -target=go   examples/native/dot.oro # reduces to one loop
 package main
 
 import (

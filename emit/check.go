@@ -54,7 +54,7 @@ func (c *checker) bind(names, tys []string) func() {
 	for i, n := range names {
 		ty, ok := c.types[n]
 		old[i] = prev{ty, ok}
-		if c.nums != nil && (tys[i] == core.NumType || c.tgt.ValueType(tys[i]) == core.NumType) {
+		if c.nums != nil && isNSorted(c.tgt, tys[i]) {
 			c.nums[n] = true
 		}
 		if tys[i] == "" {
@@ -93,6 +93,12 @@ func Check(tgt *Target, what string, t *core.Term) error {
 func (c *checker) walk(t *core.Term, want string) (string, error) {
 	switch t.Kind {
 	case core.KInt:
+		// AN INTEGER LITERAL IS DECLARED AT ℤ AND SO AT N (numbers.md §1), and
+		// where a double is wanted it is the double it is, which the IR decides
+		// (ir/doubles.go, literals).
+		if c.tgt.ValueType(want) == core.F64Name {
+			return want, nil
+		}
 		return "int", c.agree("an integer literal", "int", want)
 	case core.KDec:
 		// A NUMERAL IS TYPED AS THE DOUBLE IT WAS BEFORE N, and the double and
@@ -125,7 +131,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			// name's own type, so nothing is learned.
 			if want != "" && want != "any" && !c.tgt.HasSubtypes(c.tgt.ValueType(want)) {
 				c.types[t.Name] = want
-				if c.nums != nil && (want == core.NumType || c.tgt.ValueType(want) == core.NumType) {
+				if c.nums != nil && isNSorted(c.tgt, want) {
 					c.nums[t.Name] = true
 				}
 			}
@@ -199,22 +205,37 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	// A ROUNDING (ADR 0086, numbers.md §3): its term is checked, a real
 	// quotient's operands as N's, and its sort is ℤ's onto a set of integers
 	// and N's onto any other.
-	if op.Name == core.RoundName && len(t.Args()) == 3 && t.Args()[0].Kind == core.KStr {
+	if op.Name == core.RoundName && (len(t.Args()) == 3 || len(t.Args()) == 4) && t.Args()[0].Kind == core.KStr {
 		e := t.Args()[1]
 		operands := []*core.Term{e}
 		if e.Kind == core.KApp && e.Kids[0].Kind == core.KName && e.Kids[0].Name == core.QuoName && len(e.Kids) == 3 {
 			operands = e.Kids[1:]
 		}
+		var opTy string
 		for _, a := range operands {
 			if ty, err := c.walk(a, ""); err != nil {
 				return "", fmt.Errorf("in a rounding: %w", err)
 			} else if ty != "" && !numeric(c.tgt, ty) && c.tgt.ValueType(ty) != "f64" && !(a.Kind == core.KDec) {
 				return "", fmt.Errorf("in a rounding: %s is %s, not a number", core.ShowTerm(a), core.ShowSet(ty))
+			} else {
+				opTy = ty
 			}
 		}
+		// A ROUNDING THE SCOPE WROTE IS THE IDENTITY ON AN INTEGER (numbers.md
+		// §3): the scope rounds N's operations, and ℤ's are exact.
+		if len(t.Args()) == 4 && len(operands) == 1 && e.Kind != core.KDec && opTy != "" &&
+			numeric(c.tgt, opTy) && c.tgt.ValueType(opTy) != core.NumType {
+			return opTy, c.agree("an integer", opTy, want)
+		}
 		res := core.NumType
-		if set := t.Args()[0].Str; set == "int" || c.tgt.ValueType(set) == "int" || core.UnboundedRange(set) {
+		switch set := t.Args()[0].Str; {
+		case set == "int" || c.tgt.ValueType(set) == "int" || core.UnboundedRange(set):
 			res = "int"
+		case core.IsF64Set(set):
+			// ONTO F64 the value is an element of F64, which a double holds
+			// (numbers.md §5): the sort is N's, and the checker's type for
+			// F64's elements is the double's.
+			res = core.F64Name
 		}
 		return res, c.agree("a rounding", res, want)
 	}
@@ -616,11 +637,16 @@ func (c *checker) iterate(args []*core.Term, want string) (string, error) {
 	for round := 0; ; round++ {
 		c.widened = false
 		ty, err = c.loopBody(lam.Body(), lam.Params, tys, want)
-		if err != nil || !c.widened || round == 8 {
+		// A ROUND THAT WIDENED IS WALKED AGAIN, refused or not: an exit listed
+		// before the `again` that widened its variable was checked at the old
+		// sort (`i >= n -> acc` before `again(acc + x, …)`, ℤ ≤ N).
+		if !c.widened || round == 8 {
 			break
 		}
 		for i, p := range lam.Params {
 			if j, ok := c.tgt.JoinSameRepr(c.types[p], tys[i]); ok {
+				c.types[p] = j
+			} else if j, ok := numJoin(c.tgt, c.types[p], tys[i]); ok {
 				c.types[p] = j
 			} else if c.types[p] == "" {
 				c.types[p] = tys[i]
@@ -686,6 +712,12 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 				if got, err := c.walk(a, ""); err == nil && got != "" {
 					if j, ok := c.tgt.JoinSameRepr(tys[i], got); ok && j != tys[i] {
 						tys[i], c.widened = j, true
+					} else if j, ok := numJoin(c.tgt, tys[i], got); ok && j != tys[i] {
+						// bound now: an exit after this `again` reads the
+						// variable at its joined sort in this same round
+						tys[i], c.widened = j, true
+						c.types[params[i]] = j
+						c.maybe = nil // its answers read the old sort
 					}
 				}
 				if _, err := c.walk(a, tys[i]); err != nil {
@@ -698,13 +730,16 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 			if _, err := c.walk(t.Args()[0], "bool"); err != nil {
 				return "", fmt.Errorf("in a loop's guard: %w", err)
 			}
-			a, err := c.loopBody(t.Args()[1], params, tys, want)
-			if err != nil {
-				return "", err
+			// BOTH ARMS ARE WALKED BEFORE EITHER'S REFUSAL IS REPORTED: an
+			// `again` in the second may widen a variable the first returns,
+			// and iterate walks the chain again when one did.
+			a, errA := c.loopBody(t.Args()[1], params, tys, want)
+			b, errB := c.loopBody(t.Args()[2], params, tys, want)
+			if errA != nil {
+				return "", errA
 			}
-			b, err := c.loopBody(t.Args()[2], params, tys, want)
-			if err != nil {
-				return "", err
+			if errB != nil {
+				return "", errB
 			}
 			// Same rule as `cond`: `any` demands nothing, so a host that
 			// declares everything `any` does not turn a loop with one known
@@ -747,11 +782,10 @@ func (c *checker) cond(args []*core.Term, want string) (string, error) {
 		}
 		return a, c.agree("a conditional", a, want)
 	}
-	// N JOINS ITS SUBSORTS (ADR 0086): a branch of N and one of ℤ, or of the
-	// double a numeral is typed as (agree), is N's.
-	if va, vb := c.tgt.ValueType(a), c.tgt.ValueType(b); (va == core.NumType) != (vb == core.NumType) &&
-		(va == core.NumType || numeric(c.tgt, a) || va == "f64") && (vb == core.NumType || numeric(c.tgt, b) || vb == "f64") {
-		return core.NumType, c.agree("a conditional", core.NumType, want)
+	// N JOINS ITS SUBSORTS (ADR 0086, numJoin): a branch of N and one of ℤ or
+	// of a double is N's, and one of ℤ and one of a double is the double's.
+	if j, ok := numJoin(c.tgt, a, b); ok {
+		return j, c.agree("a conditional", j, want)
 	}
 	// TWO COMPARABLE BRANCHES OF ONE REPRESENTATION JOIN AT THE LARGER
 	// (types.md §3.2, Target.JoinSameRepr): by subsumption each branch has the
@@ -986,6 +1020,25 @@ func isWordSort(tg *Target, ty string) bool {
 	return false
 }
 
+// numJoin is the join of two sorts under ℤ ≤ N (ADR 0086, numbers.md §1): a
+// value of N with an integer's or a double's is N's, and an integer's with a
+// double's is the double's, which the IR's typing allows only for an integer
+// literal in F64 (#int, typing.go) and refuses for any other integer.
+func numJoin(tg *Target, a, b string) (string, bool) {
+	va, vb := tg.ValueType(a), tg.ValueType(b)
+	switch {
+	case va == vb:
+		return "", false
+	case va == core.NumType && (numeric(tg, b) || vb == core.F64Name), vb == core.NumType && (numeric(tg, a) || va == core.F64Name):
+		return core.NumType, true
+	case va == core.F64Name && numeric(tg, b):
+		return a, true
+	case vb == core.F64Name && numeric(tg, a):
+		return b, true
+	}
+	return "", false
+}
+
 // numberOps are the language's operations N has as ℤ has them (numbers.md §1):
 // +, −, · and the order and equality. `/`, `%` and the Boolean operations are
 // ℤ's alone.
@@ -1032,6 +1085,11 @@ func (c *checker) maybeNum(t *core.Term) bool {
 		case op.Kind != core.KName:
 		case op.Name == core.RoundName || op.Name == core.QuoName:
 			out = true
+		case c.tgt.ValueType(core.ArrayElem(c.types[op.Name])) == core.F64Name ||
+			c.tgt.ValueType(core.ArrayElem(c.types[op.Name])) == core.NumType:
+			out = true // a read of a table of doubles or of N
+		case c.tgt.ValueType(c.tgt.Prims[op.Name].Result) == core.F64Name:
+			out = true // a host's double, which the IR refuses where N's order reads it
 		case numberOps[op.Name] || op.Name == "if" || op.Name == "cond" || op.Name == "let" ||
 			op.Name == core.AscribeName || op.Name == core.RequireName:
 			// N's arithmetic, or a form whose value is one of its operands'

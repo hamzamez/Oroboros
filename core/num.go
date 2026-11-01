@@ -157,6 +157,51 @@ const RoundName = "round"
 // argument (Theorem T).
 const QuoName = "÷"
 
+// RoundScopeName is the scope round(S) { body } in the abstract syntax, and
+// RoundScoped the fifth word of a rounding the scope wrote, (round "S" e "m"
+// "scope"): onto S when e is N's, and the identity on an integer (numbers.md §3).
+const (
+	RoundScopeName = "#scope"
+	RoundScoped    = "scope"
+)
+
+// ScopeRounds is the scope's rewrite of its body t onto set (a canonical type,
+// as a string term): every +, −, · and ÷ becomes its rounding, and so does
+// every numeral, which is folded when it is in S. A rounding the program wrote
+// is its own, and its argument is left as written; comparisons, integer
+// operators and calls are not rewritten. The body is a closed term and the
+// rewrite adds no binder, so a λ's body is rewritten as it stands.
+func ScopeRounds(set *Term, t *Term) *Term {
+	wrap := func(e *Term) *Term {
+		return &Term{Kind: KApp, Kids: []*Term{Name(RoundName), set, e, Str(RoundNearest), Str(RoundScoped)}}
+	}
+	switch t.Kind {
+	case KDec:
+		return wrap(t)
+	case KFn:
+		n := *t
+		n.Kids = []*Term{ScopeRounds(set, t.Kids[0])}
+		return &n
+	case KApp:
+		if len(t.Kids) > 0 && t.Kids[0].Kind == KName && t.Kids[0].Name == RoundName {
+			return t
+		}
+		n := *t
+		n.Kids = make([]*Term, len(t.Kids))
+		for i, k := range t.Kids {
+			n.Kids[i] = ScopeRounds(set, k)
+		}
+		if len(n.Kids) == 3 && n.Kids[0].Kind == KName {
+			switch n.Kids[0].Name {
+			case "+", "-", "*", QuoName:
+				return wrap(&n)
+			}
+		}
+		return &n
+	}
+	return t
+}
+
 // RoundNearest is the default mode: the nearer neighbour, a tie to the even one.
 const RoundNearest = "nearest"
 
@@ -211,3 +256,182 @@ func rangeType(t *Term) *Term {
 // until numbers.md §9 part 4 makes F64 a set of N with the double its
 // representation.
 const NumType = "num"
+
+// F64Name is F64's canonical type, binary64's finite values, which a double
+// represents (numbers.md §2, §5).
+const F64Name = "f64"
+
+// F64MaxRat is F64's greatest element, (2 − 2⁻⁵²)·2¹⁰²³.
+func F64MaxRat() *big.Rat { return new(big.Rat).SetFloat64(math.MaxFloat64) }
+
+// F64Type is F64 ∩ [lo, hi]'s canonical type, "f64 LO HI", each end an exact
+// numeral: the grid restricted to an interval (numbers.md §2), which a
+// separation { x ∈ F64 : lo <= x && x <= hi } is.
+func F64Type(lo, hi *Dec) string { return "f64 " + lo.String() + " " + hi.String() }
+
+// IsF64Set reports F64 or F64 restricted to an interval.
+func IsF64Set(ty string) bool {
+	if ty == F64Name {
+		return true
+	}
+	_, _, ok := F64Range(ty)
+	return ok
+}
+
+// F64Range reads "f64 LO HI" back.
+func F64Range(ty string) (lo, hi *Dec, ok bool) {
+	f := strings.Fields(ty)
+	if len(f) != 3 || f[0] != F64Name {
+		return nil, nil, false
+	}
+	l, err1 := ParseNum(f[1])
+	h, err2 := ParseNum(f[2])
+	if err1 != nil || err2 != nil || l.Rat().Cmp(h.Rat()) > 0 {
+		return nil, nil, false
+	}
+	return l, h, true
+}
+
+// F64GridName is the hidden former of F64 ∩ [lo, hi] in a term, (#f64 lo hi),
+// which TypeName reads as F64Type: a name a program cannot write.
+const F64GridName = "#f64"
+
+// F64Grid reads a separation { x ∈ F64 : φ } whose φ is a conjunction of
+// non-strict bounds of x by constants as F64 ∩ [lo, hi], the grid restricted to
+// an interval that a rounding targets (numbers.md §2): its characteristic
+// function is χ_F64 ∧ lo ≤ x ∧ x ≤ hi. An end not stated is F64's own, since
+// every element of F64 lies in [−MAX, MAX], and an end past it is clamped there,
+// so the two sets are equal. A strict bound, any other formula, or an empty
+// interval is not this shape, and the separation stays one.
+func F64Grid(e Expr) (lo, hi *Dec, ok bool) {
+	a, isApp := e.(*Apply)
+	if !isApp || len(a.Args) != 3 {
+		return nil, nil, false
+	}
+	v, isVar := a.Fn.(*Var)
+	x, isBinder := a.Args[0].(*Var)
+	s, isSet := a.Args[1].(*Var)
+	if !isVar || v.Name != SepName || !isBinder || !isSet || (s.Name != F64Name && s.Name != "F64") {
+		return nil, nil, false
+	}
+	max := DecOfFloat64(math.MaxFloat64)
+	lq, hq := new(big.Rat).Neg(max.Rat()), max.Rat()
+	var conj []Expr
+	if and, isAnd := a.Args[2].(*And); isAnd {
+		conj = and.Xs
+	} else {
+		conj = []Expr{a.Args[2]}
+	}
+	for _, c := range conj {
+		cmp, ok := c.(*Apply)
+		if !ok || len(cmp.Args) != 2 {
+			return nil, nil, false
+		}
+		op, ok := cmp.Fn.(*Var)
+		if !ok {
+			return nil, nil, false
+		}
+		rel := op.Name
+		l, r := cmp.Args[0], cmp.Args[1]
+		if isVarNamed(r, x.Name) { // c rel x is x rel' c
+			l, r = r, l
+			switch rel {
+			case "<=":
+				rel = ">="
+			case ">=":
+				rel = "<="
+			default:
+				return nil, nil, false
+			}
+		}
+		q, isConst := constRat(r)
+		if !isVarNamed(l, x.Name) || !isConst {
+			return nil, nil, false
+		}
+		switch rel {
+		case "<=":
+			if q.Cmp(hq) < 0 {
+				hq = q
+			}
+		case ">=":
+			if q.Cmp(lq) > 0 {
+				lq = q
+			}
+		default:
+			return nil, nil, false
+		}
+	}
+	if lq.Cmp(hq) > 0 {
+		return nil, nil, false
+	}
+	lo, err1 := ratDec(lq)
+	hi, err2 := ratDec(hq)
+	if err1 != nil || err2 != nil {
+		return nil, nil, false
+	}
+	return lo, hi, true
+}
+
+// F64GridExpr is F64 ∩ [lo, hi] in the abstract syntax.
+func F64GridExpr(lo, hi *Dec) Expr {
+	return &Apply{Fn: &Var{Name: F64GridName}, Args: []Expr{&Lit{T: Decimal(lo)}, &Lit{T: Decimal(hi)}}}
+}
+
+func isVarNamed(e Expr, name string) bool {
+	v, ok := e.(*Var)
+	return ok && v.Name == name
+}
+
+// constRat is a constant's exact value: a literal, a negation of one, or an
+// integer power of integer literals.
+func constRat(e Expr) (*big.Rat, bool) {
+	switch e := e.(type) {
+	case *Lit:
+		switch e.T.Kind {
+		case KInt:
+			return new(big.Rat).SetInt64(e.T.Int), true
+		case KDec:
+			return e.T.Dec.Rat(), true
+		}
+	case *Apply:
+		f, ok := e.Fn.(*Var)
+		if !ok {
+			return nil, false
+		}
+		switch {
+		case (f.Name == "-" || f.Name == "neg") && len(e.Args) == 1:
+			q, ok := constRat(e.Args[0])
+			return new(big.Rat).Neg(q), ok && q != nil
+		case f.Name == "-" && len(e.Args) == 2:
+			a, ok1 := constRat(e.Args[0])
+			b, ok2 := constRat(e.Args[1])
+			if ok1 && ok2 {
+				return new(big.Rat).Sub(a, b), true
+			}
+		case f.Name == "^" && len(e.Args) == 2:
+			a, ok1 := constRat(e.Args[0])
+			b, ok2 := constRat(e.Args[1])
+			if ok1 && ok2 && a.IsInt() && b.IsInt() && b.Sign() >= 0 && b.Num().IsInt64() && b.Num().Int64() <= 4096 {
+				return new(big.Rat).SetInt(new(big.Int).Exp(a.Num(), b.Num(), nil)), true
+			}
+		}
+	}
+	return nil, false
+}
+
+// ratDec is a rational of N as its canonical form, an error when the
+// denominator has a prime other than 2 and 5.
+func ratDec(q *big.Rat) (*Dec, error) {
+	den := new(big.Int).Set(q.Denom())
+	k := 0
+	p := big.NewInt(1)
+	for new(big.Int).Rem(p, den).Sign() != 0 {
+		p.Mul(p, ten)
+		k++
+		if k > 2000 {
+			return nil, fmt.Errorf("%s is not an element of N", q.RatString())
+		}
+	}
+	m := new(big.Int).Mul(q.Num(), new(big.Int).Quo(p, den))
+	return NewDec(m, k), nil
+}

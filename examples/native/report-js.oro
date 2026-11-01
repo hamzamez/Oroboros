@@ -9,21 +9,26 @@
 use js
 use js/console
 
+// The language's table, each i as a double, and IEEE's dot product,
+// round(F64) { … } (ADR 0086), where the host's `Float64Array`, `js.set` and
+// `js.+` over `any` were.
 fn fill(n) {
-    dst = js.Float64Array(n)
-    loop d = dst, i = 0 { js.`>=`(i, n) -> d; else -> again(js.set(d, i, i), js.`+`(i, 1)) }
+    var d := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0 { i >= n -> d; else -> { d[i] := round(F64, i); again(i + 1) } }
 }
 
 fn dot(a, b) {
-    loop acc = 0.0, i = 0 {
-        js.`>=`(i, js.len(a)) -> acc
-        else -> again(js.`+`(acc, js.`*`(js.at(a, i), js.at(b, i))), js.`+`(i, 1))
+    round(F64) {
+        loop acc = 0, i = 0 {
+            i >= len(a) -> acc
+            else -> again(acc + a[i] * b[i], i + 1)
+        }
     }
 }
 
 export fn main() {
     xs = fill(1000)
     console.log("report")
-    console.log(js.len(xs))
+    console.log(len(xs))
     console.log(dot(xs, xs))
 }

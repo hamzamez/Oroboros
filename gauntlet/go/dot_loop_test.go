@@ -28,7 +28,7 @@ func BenchmarkSmallDotLoop(b *testing.B) {
 }
 
 // The gauntlet's oldest program on the NATIVE Go target — go.len, go.at-float64
-// and a `loop`, with no portable layer underneath (examples/native/dot-go.oro).
+// and a `loop`, with no portable layer underneath (examples/native/dot.oro).
 //
 // The delayed vector is the same three lines it always was, so the question is
 // only whether the fusion survives moving the names it calls. If this is not at

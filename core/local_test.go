@@ -243,8 +243,9 @@ func TestAResidualLetObeysBetaAndTheUnitLaw(t *testing.T) {
 
 // THE ZERO OF A SORT IS BUILD'S ZERO-FILLED FORM (tables.md §14.3): `false`
 // and `0.0` read as the core form, the buffer ascribed its sort so the
-// literal's claim is still checked; -0.0 is no fresh buffer's zero, so it
-// fills.
+// literal's claim is still checked. And -0.0 is 0.0: a numeral is an element
+// of N, whose one zero has no sign (ADR 0086), so it is a fresh buffer's zero
+// too. (Before ADR 0086 it was IEEE's −0, and filled.)
 func TestAZeroOfASortIsBuildsFormAscribed(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
 		{`{ var b := array { false : _ ∈ 0..n-1 }; b }`, `(build n (fn (b) ((fn (b) (#place b (fn (b) b))) (the "buffer bool" b))))`},
@@ -262,8 +263,8 @@ func TestAZeroOfASortIsBuildsFormAscribed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := got.String(); !strings.Contains(got, "loop") {
-		t.Errorf("-0.0 is not a fresh buffer's zero, and it was not filled: %s", got)
+	if want := `(build n (fn (b) ((fn (b) (#place b (fn (b) b))) (the "buffer f64" b))))`; got.String() != want {
+		t.Errorf("-0.0 is N's zero, a fresh buffer's:\n got  %s\n want %s", got, want)
 	}
 }
 

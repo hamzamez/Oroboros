@@ -17,7 +17,7 @@ public final class One {
             case "dots-hand"     -> () -> NativeBench.dotRef(sA, sB);
             case "dots-gen"      -> () -> NatDot.natDotDot(sA, sB);
             case "cent-hand"     -> () -> NativeBench.centroidRef(A, B);
-            case "cent-gen"      -> () -> NatCentroid.natCentroidCentroidX(A, B);
+            case "cent-gen"      -> () -> NatCentroid.natCentroidCentroid(A, B);
             case "late-hand"     -> () -> NativeBench.findFirstRef(A, 2.0);
             case "late-long"     -> () -> NativeBench.findFirstLongRef(A, 2.0);
             case "late-gen"      -> () -> NatSearch.natSearchFindFirst(A, 2.0);

@@ -12,20 +12,25 @@
 // `java.set-double` — Java's own store, no portability claim.
 use java
 
-fn window(a, j) { java.`f+`(java.`f+`(a[j], a[java.`+`(j, 1)]), a[java.`+`(j, 2)]) }
+// THE ARITHMETIC IS THE LANGUAGE'S (ADR 0086): the window's sum is IEEE's,
+// round(F64) { … }, and the third is round(F64, w ÷ 3). An element's set keeps
+// each rounding finite.
+set Entry = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
 
-fn kernel(a) { array { java.`f/`(window(a, j), 3.0) : j ∈ 0..java.`-`(len(a), 2)-1 } }
-export fn smooth_alloc(a ∈ Array(F64)) (Array(F64)) where java.`>`(len(a), 2) { alloc(kernel(a)) }
-export fn smooth_build(a ∈ Array(F64)) (Array(F64)) where java.`>`(len(a), 2) {
+fn window(a, j) { round(F64) { a[j] + a[j + 1] + a[j + 2] } }
+
+fn kernel(a) { array { round(F64, window(a, j) ÷ 3) : j ∈ 0..len(a)-2-1 } }
+export fn smooth_alloc(a ∈ Array(Entry)) (Array(F64)) where len(a) > 2 { alloc(kernel(a)) }
+export fn smooth_build(a ∈ Array(Entry)) (Array(F64)) where len(a) > 2 {
     k = kernel(a)
     var b := array { 0 : _ ∈ 0..len(k)-1 }
-    loop i = 0 { java.`>=`(i, len(k)) -> b; else -> { b[i] := k[i]; again(java.`+`(i, 1)) } }
+    loop i = 0 { i >= len(k) -> b; else -> { b[i] := k[i]; again(i + 1) } }
 }
-export fn smooth_into(dst ∈ double_array, a ∈ Array(F64)) (double_array)
-    where java.`>`(len(a), 2) && java.`>=`(len(dst), java.`-`(len(a), 2)) {
+export fn smooth_into(dst ∈ double_array, a ∈ Array(Entry)) (double_array)
+    where len(a) > 2 && len(dst) >= len(a) - 2 {
     k = kernel(a)
     loop d = dst, i = 0 {
-        java.`>=`(i, len(k)) -> d
-        else -> again(java.set_double(d, i, k[i]), java.`+`(i, 1))
+        i >= len(k) -> d
+        else -> again(java.set_double(d, i, k[i]), i + 1)
     }
 }

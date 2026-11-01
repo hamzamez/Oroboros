@@ -1,0 +1,19 @@
+// The gauntlet's `search`, its one EARLY EXIT: ONE SOURCE for Go, JavaScript
+// and Java (ADR 0086).
+//
+// Each target had its own copy for one operation, the comparison of two
+// doubles: `go.f>`, `js.>` over `any`, `java.f>`. A double is an element of
+// F64 ⊂ N, and N's order is the language's, so `a[i] > k` is that comparison
+// on every target, exact (IEEE 754 compares finite doubles as reals). No
+// rounding is written, because nothing is computed that leaves F64.
+//
+// No refinement is needed. The first clause is the bound: reaching the second
+// means `i >= len(a)` was false, which is where the index obligation
+// discharges from.
+export fn find_first(a ∈ Array(F64), k ∈ F64) (Int) {
+    loop i = 0 {
+        i >= len(a) -> -1
+        a[i] > k -> i
+        else -> again(i + 1)
+    }
+}

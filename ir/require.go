@@ -62,15 +62,39 @@ func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*
 	// numerators' facts, as the pipeline will hold them (numbers.go).
 	// The pass's own obligations are not decided here: Entry decides them, and
 	// one unproven must not take every other mark's decision with it.
-	nums, _, err := selectNumbersFor(tg, f, false)
+	nums, dbl, _, err := selectBoth(tg, f, false)
 	if err != nil {
 		return nil, nil
 	}
 	fs := analyse(tg, f)
+	var reals *dfacts
 	out := map[*core.Term]*core.Term{}
 	var verdicts []RangeVerdict
 	for m, vs := range f.marks {
 		if len(vs) == 0 || m.Kids[3].Kind != core.KStr {
+			continue
+		}
+		// x ∈ F64 ∩ [lo, hi] (ADR 0086): each value it became inside [lo, hi],
+		// on the doubles' intervals. Unproven, the mark stays.
+		if b, isF64 := f64Bounds(m.Kids[3].Str); isF64 {
+			if reals == nil {
+				reals = dbl.facts()
+			}
+			proven := reals != nil
+			got := rvBot
+			for _, v := range vs {
+				if reals != nil {
+					got = got.join(reals.get(v))
+				}
+				if reals == nil || !reals.get(v).within(b) {
+					proven = false
+				}
+			}
+			if proven {
+				out[m] = m.Kids[4]
+			}
+			verdicts = append(verdicts, RangeVerdict{Def: m.Kids[1].Str, Param: m.Kids[2].Str, Type: m.Kids[3].Str,
+				Arg: m.Kids[4].String(), Got: got.String(), Proven: proven})
 			continue
 		}
 		x, known := argumentFact(fs, vs)

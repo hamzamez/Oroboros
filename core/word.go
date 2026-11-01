@@ -108,5 +108,9 @@ func (w Word) ValueType(ty string) string {
 	if _, _, _, ok := DecRange(ty); ok {
 		return NumType
 	}
+	// F64 RESTRICTED TO AN INTERVAL is held as F64 is, in a double.
+	if _, _, ok := F64Range(ty); ok {
+		return F64Name
+	}
 	return ty
 }

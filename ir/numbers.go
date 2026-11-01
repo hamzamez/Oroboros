@@ -48,6 +48,11 @@ import (
 // value at a host call, in a table, or in a map, and a scale past maxScale.
 func SelectNumbers(tg *emit.Target, f *Func) (bool, error) {
 	_, changed, err := selectNumbers(tg, f)
+	if changed && err == nil {
+		// in the printer's numbering, as every pass that makes values ends
+		// (print.go): a value's id is then the text's (ADR 0038)
+		Canonicalize(f)
+	}
 	return changed, err
 }
 
@@ -59,6 +64,45 @@ func selectNumbers(tg *emit.Target, f *Func) (*numbers, bool, error) {
 
 // selectNumbersFor is selectNumbers deciding its own obligations or not.
 func selectNumbersFor(tg *emit.Target, f *Func, decide bool) (*numbers, bool, error) {
+	n, _, changed, err := selectBoth(tg, f, decide)
+	return n, changed, err
+}
+
+// selectBoth is selectNumbersFor with the doubles' pass, which a decision of
+// x ∈ F64 ∩ [lo, hi] reads (require.go).
+func selectBoth(tg *emit.Target, f *Func, decide bool) (*numbers, *doubles, bool, error) {
+	unscope(f)
+	// THE DOUBLES FIRST (doubles.go): each rounding onto F64 becomes the
+	// target's realization, so what is left of N is held in scaled words.
+	dbl, err := realizeDoubles(tg, f)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	n, changed, err := selectScaled(tg, f, decide)
+	if err != nil || !decide {
+		return n, dbl, changed || dbl != nil, err
+	}
+	return n, dbl, changed || dbl != nil, dbl.decide()
+}
+
+// unscope makes each rounding the scope wrote of an integer the identity it
+// is (numbers.md §3): typing gave its value the operand's type.
+func unscope(f *Func) {
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != ORound || !s.Scoped || len(s.Args) != 1 {
+				continue
+			}
+			if ty := f.Types[s.Res[0]]; ty != core.NumType && ty != core.F64Name && !decType(ty) {
+				*s = Stmt{Op: OThe, Type: ty, Args: s.Args, Res: s.Res, Src: s.Src}
+			}
+		}
+	})
+}
+
+// selectScaled is the scaled word's part of selectNumbersFor.
+func selectScaled(tg *emit.Target, f *Func, decide bool) (*numbers, bool, error) {
 	n := &numbers{tg: tg, f: f, scale: map[V]int{}, konstOf: map[V]int64{}}
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {

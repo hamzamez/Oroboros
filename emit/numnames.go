@@ -54,6 +54,101 @@ func NumNames(tg *Target, sig *core.Sig, t *core.Term) map[string]bool {
 	return s
 }
 
+// isNSorted reports a type whose values have sort N: N's, a decimal grid's, or
+// a double's, an element of F64 ⊂ N (ADR 0086). Over any of them `x > 9` does
+// not give x ≥ 10.
+func isNSorted(tg *Target, ty string) bool {
+	v := tg.ValueType(ty)
+	return ty == core.NumType || v == core.NumType || v == core.F64Name
+}
+
+// Unscope is t with each rounding the scope wrote of an integer term replaced
+// by that term, the identity on ℤ (numbers.md §3), so ℤ's reasoning reads ℤ's
+// own operations: `i + 1` inside round(F64) { … } is the integer it was. It
+// strips only an operand intTerm proves an integer; any other is left, and the
+// IR's typing decides it (ir/numbers.go, unscope), so a wrong guess here can
+// only leave a rounding in place.
+func Unscope(tg *Target, sig *core.Sig, t *core.Term) *core.Term {
+	if !hasScoped(t) {
+		return t
+	}
+	nums := NumNames(tg, sig, t)
+	var walk func(t *core.Term) *core.Term
+	walk = func(t *core.Term) *core.Term {
+		switch t.Kind {
+		case core.KFn:
+			return core.Fn(t.Params, walk(t.Body()))
+		case core.KApp:
+			if a := t.Args(); isScoped(t) && intTerm(tg, a[1], nums) {
+				return walk(a[1])
+			}
+			n := *t
+			n.Kids = make([]*core.Term, len(t.Kids))
+			for i, k := range t.Kids {
+				n.Kids[i] = walk(k)
+			}
+			return &n
+		}
+		return t
+	}
+	return walk(t)
+}
+
+func isScoped(t *core.Term) bool {
+	return t.Kind == core.KApp && len(t.Kids) == 5 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == core.RoundName &&
+		t.Kids[4].Kind == core.KStr && t.Kids[4].Str == core.RoundScoped
+}
+
+func hasScoped(t *core.Term) bool {
+	if t == nil {
+		return false
+	}
+	if isScoped(t) {
+		return true
+	}
+	for _, k := range t.Kids {
+		if hasScoped(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// intTerm reports a term proven an integer: an integer literal, a name not of
+// sort N, ℤ's operations on such terms, a call of a primitive whose result is
+// an integer, or a rounding the scope wrote of one. A read of a table is not
+// one, since its element may be a double.
+func intTerm(tg *Target, t *core.Term, nums map[string]bool) bool {
+	switch t.Kind {
+	case core.KInt:
+		return true
+	case core.KName:
+		return !nums[t.Name]
+	case core.KApp:
+		if isScoped(t) {
+			return intTerm(tg, t.Args()[1], nums)
+		}
+		op := t.Op()
+		if op.Kind != core.KName {
+			return false
+		}
+		p, prim := tg.Prims[op.Name]
+		switch {
+		case op.Name == "+" || op.Name == "-" || op.Name == "*" || op.Name == "/" || op.Name == "%":
+		case prim && p.Pure && (p.Result == "int" || tg.ValueType(p.Result) == "int"):
+		default:
+			return false
+		}
+		for _, a := range t.Args() {
+			if !intTerm(tg, a, nums) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // numTerm reports a term whose value has sort N, as far as the set s says.
 func numTerm(tg *Target, t *core.Term, s map[string]bool) bool {
 	switch t.Kind {
@@ -79,6 +174,9 @@ func numTerm(tg *Target, t *core.Term, s map[string]bool) bool {
 		case core.QuoName:
 			return true
 		case core.RoundName:
+			if isScoped(t) {
+				return !intTerm(tg, args[1], s)
+			}
 			if len(args) == 3 && args[0].Kind == core.KStr {
 				set := args[0].Str
 				return !(set == "int" || tg.ValueType(set) == "int" || core.UnboundedRange(set))
@@ -171,7 +269,7 @@ func agains(t *core.Term) [][]*core.Term {
 func mentionsN(tg *Target, sig *core.Sig, t *core.Term) bool {
 	if sig != nil {
 		for _, p := range sig.Params {
-			if tg.ValueType(p.Type) == core.NumType {
+			if isNSorted(tg, p.Type) {
 				return true
 			}
 		}
@@ -190,7 +288,7 @@ func mentionsN(tg *Target, sig *core.Sig, t *core.Term) bool {
 			found = x.Name == core.RoundName || x.Name == core.QuoName
 			return
 		case core.KStr:
-			found = tg.ValueType(x.Str) == core.NumType
+			found = isNSorted(tg, x.Str)
 			return
 		}
 		for _, k := range x.Kids {

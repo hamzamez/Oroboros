@@ -6,7 +6,7 @@ export function nativeFindFirst(v0, v1) {
 		if ((v4 >= v0.length)) {
 			return -1;
 		}
-		if (((v0[v4]) > v1)) {
+		if ((v0[v4] > v1)) {
 			return v4;
 		}
 		continue;

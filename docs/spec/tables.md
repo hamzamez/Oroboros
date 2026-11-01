@@ -981,7 +981,7 @@ is — `array` is the language's and windows gets memory and a length.
 (def dot (fn (a b) (sum (zip f* a b))))
 ```
 
-Against `examples/native/dot-go.oro`, the four-line `vec`/`vlen`/`vindex`/`of-array` preamble is
+Against the gauntlet's `examples/native/dot.oro`, the four-line `vec`/`vlen`/`vindex`/`of-array` preamble is
 gone — `len` and application work on both presentations, so there is nothing to convert.
 
 The stencil, with its one allocation where the source says so:

@@ -451,39 +451,14 @@
 == examples/modules.oro windows refused
    gen: examples/modules.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/native/centroid-go.oro go emitted 9bd3624542c042648e6e9c490ff6195af3213b4e4bbf212cbd0720487bbf832a
+== examples/native/centroid.oro go emitted c46834fcf6a8e4398aa0b313887a3cc0124d5278d9c11fc3dbedd7dfc8886366
    note: gen-centroid: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/centroid-go.oro js refused
-   gen: examples/native/centroid-go.oro: in centroid: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/centroid-go.oro java refused
-   gen: examples/native/centroid-go.oro: in centroid: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/centroid-go.oro windows refused
-   gen: examples/native/centroid-go.oro: in centroid: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/centroid-java.oro go refused
-   gen: examples/native/centroid-java.oro: in centroid_x: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/centroid-java.oro js refused
-   gen: examples/native/centroid-java.oro: in centroid_x: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/centroid-java.oro java emitted 7f55045336b94acddd9be7cf0e32c2f3f4a66e5b47502a07a29321e8866320da
-   note: gen-centroid-x: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/centroid-java.oro windows refused
-   gen: examples/native/centroid-java.oro: in centroid_x: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/centroid-js.oro go refused
-   gen: examples/native/centroid-js.oro: in centroid: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/centroid-js.oro js emitted 9443baa9d40f19392455004a0f32724561f15be2473b33dc7caf60c10eca6bb0
-   note: gen-centroid: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/centroid-js.oro java refused
-   gen: examples/native/centroid-js.oro: in centroid: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/centroid-js.oro windows refused
-   gen: examples/native/centroid-js.oro: in centroid: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/native/centroid.oro js emitted 7784061c95351b23c5d89fe7cbca708989d67d8c9fd425dabfa63c6f2e8a0226
+   note: gen-centroid: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/centroid.oro java emitted ceddeb61e2f02427b60cc06bc0ebbc952db600d65abb3357e220db239b3ce589
+   note: gen-centroid: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/centroid.oro windows refused
+   gen: gen-centroid: gen-centroid: round(F64, #0.0 + #0.1): no declaration of target windows realizes it (numbers.md §6.2): a target realizes round(F64, t) by a declaration whose ensure is r == round(F64, t), each operand a double, an integer or a constant that is a double; a rounding inside it is its own operation, and an exact interior (a term of doubles rounded once) is step 2
 == examples/native/divmod-go.oro go emitted 1529460f48cb0e9a2a8c68237f45f9e18b440d99e192e4106419b03633b2cbd2
    note: gen-divmod-sum: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/native/divmod-go.oro js refused
@@ -506,39 +481,14 @@
 == examples/native/divmod-java.oro windows refused
    gen: examples/native/divmod-java.oro: in divmod_sum: java.`+` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/dot-go.oro go emitted e5eaebfc9afcdd5c0867d63e53522070638db3349a26e390318d09959b22664f
+== examples/native/dot.oro go emitted d0628e57acfe3cdf59a2e4aac0d91b8b6b6e39f11b3689eb7a220a7b22a30998
    note: gen-dot: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/dot-go.oro js refused
-   gen: examples/native/dot-go.oro: in dot: go.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/dot-go.oro java refused
-   gen: examples/native/dot-go.oro: in dot: go.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/dot-go.oro windows refused
-   gen: examples/native/dot-go.oro: in dot: go.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/dot-java.oro go refused
-   gen: examples/native/dot-java.oro: in dot: java.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/dot-java.oro js refused
-   gen: examples/native/dot-java.oro: in dot: java.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/dot-java.oro java emitted 6239647fc1da6f9b5a59ebe3d92f1f59508f8e8ac20555be9d71740f3e58d9ff
+== examples/native/dot.oro js emitted 8bf010e008844e3240b6029f20ef4f98338a82fb25fde461df02f10f80f85d54
    note: gen-dot: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/dot-java.oro windows refused
-   gen: examples/native/dot-java.oro: in dot: java.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/dot-js.oro go refused
-   gen: examples/native/dot-js.oro: in dot: js.`*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/dot-js.oro js emitted 5041574ebc9bb500804f098951056de30b1cf8cc2a0ac23e398da2bd47f5c6cc
-   note: gen-dot: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/dot-js.oro java refused
-   gen: examples/native/dot-js.oro: in dot: js.`*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/dot-js.oro windows refused
-   gen: examples/native/dot-js.oro: in dot: js.`*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/native/dot.oro java emitted 4b86c7a29278224eee8b927138d326728274bf4a9a74c8a6241bee705715dd5a
+   note: gen-dot: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/dot.oro windows refused
+   gen: gen-dot: gen-dot: round(F64, #2.0(#0.1) * #2.1(#0.1)): no declaration of target windows realizes it (numbers.md §6.2): a target realizes round(F64, t) by a declaration whose ensure is r == round(F64, t), each operand a double, an integer or a constant that is a double; a rounding inside it is its own operation, and an exact interior (a term of doubles rounded once) is step 2
 == examples/native/filter-go.oro go emitted 2c02bae9b20fbbeeb5c7a81858e8032a1929db70ba5ab4a2b2dba1fbba87823f
    note: gen-sum-positive: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/filter-go.oro js refused
@@ -577,7 +527,7 @@
 == examples/native/generic-js.oro go refused
    gen: examples/native/generic-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/generic-js.oro js emitted 422ac1d77e9aa3e3c912b850575e2dfd978854760d22f7d9a28fd0ec0e57ac54
+== examples/native/generic-js.oro js emitted 7e6aab73a314280c7cbefdea1e1aae95cdcf74dfab562ad7a7560be937e0efff
    note: gen-sum-of: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-word-tally: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/generic-js.oro java refused
@@ -596,72 +546,47 @@
    gen: examples/native/hello-win.oro: in puts: `windows/kernel32`.WriteFile is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use windows/kernel32` matched no file on the search path and this target provides no module windows/kernel32 either, so every name from it is unbound. Check the path.
 == examples/native/hello-win.oro windows emitted 3a235646ebee6b63bcb1ea6fb47ebbed031fb6c73b89a365494c0e36686cc41a
-== examples/native/report-go.oro go emitted 7c595f428191ebd799999551457d4c3fe4ed8a6367084007b910d3c9d062ee1d
+== examples/native/report-go.oro go emitted a24ccc4c1179e9ebfac86c64188cb79c9512a63b8bf8ee6676508fecef0099d3
    note: gen-main: 2 of 2 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/native/report-go.oro js refused
-   gen: examples/native/report-go.oro: in dot: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+   gen: examples/native/report-go.oro: in main: `go/fmt`.Println is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/fmt` matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == examples/native/report-go.oro java refused
-   gen: examples/native/report-go.oro: in dot: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+   gen: examples/native/report-go.oro: in main: `go/fmt`.Println is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/fmt` matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == examples/native/report-go.oro windows refused
-   gen: examples/native/report-go.oro: in dot: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+   gen: examples/native/report-go.oro: in main: `go/fmt`.Println is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/fmt` matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == examples/native/report-java.oro go refused
-   gen: examples/native/report-java.oro: in dot: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
+   gen: examples/native/report-java.oro: in main: `java/System`.out_println is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use java/System` matched no file on the search path and this target provides no module java/System either, so every name from it is unbound. Check the path.
 == examples/native/report-java.oro js refused
-   gen: examples/native/report-java.oro: in dot: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
+   gen: examples/native/report-java.oro: in main: `java/System`.out_println is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use java/System` matched no file on the search path and this target provides no module java/System either, so every name from it is unbound. Check the path.
 == examples/native/report-java.oro java emitted a13d1c8b6a3305e13f9e9a287fd9a31d06ef06ecb33439b5716765d7da2eb59a
    note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/report-java.oro windows refused
-   gen: examples/native/report-java.oro: in dot: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
+   gen: examples/native/report-java.oro: in main: `java/System`.out_println is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use java/System` matched no file on the search path and this target provides no module java/System either, so every name from it is unbound. Check the path.
 == examples/native/report-js.oro go refused
-   gen: examples/native/report-js.oro: in dot: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/report-js.oro js emitted 8c2c1888afc8ccb586e8d47e5c0743f5155725ffd92b7fb34fd06be58bd35953
-   note: gen-main: 0 of 0 integer operations bounded; 2 of 2 loop(s) proven terminating
+   gen: examples/native/report-js.oro: in main: `js/console`.log is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use js/console` matched no file on the search path and this target provides no module js/console either, so every name from it is unbound. Check the path.
+== examples/native/report-js.oro js emitted 9f72d5a06395ab9d45c77ef5eae5a3bc63ad926e276b2ad0d840f8cd95334303
+   note: gen-main: 2 of 2 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/native/report-js.oro java refused
-   gen: examples/native/report-js.oro: in dot: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+   gen: examples/native/report-js.oro: in main: `js/console`.log is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use js/console` matched no file on the search path and this target provides no module js/console either, so every name from it is unbound. Check the path.
 == examples/native/report-js.oro windows refused
-   gen: examples/native/report-js.oro: in dot: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/search-go.oro go emitted f82a03ee457f776acd912ecbc7580aad50ef82d70d859520eb2dab1627c8070a
+   gen: examples/native/report-js.oro: in main: `js/console`.log is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use js/console` matched no file on the search path and this target provides no module js/console either, so every name from it is unbound. Check the path.
+== examples/native/search.oro go emitted f82a03ee457f776acd912ecbc7580aad50ef82d70d859520eb2dab1627c8070a
    note: gen-find-first: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/search-go.oro js refused
-   gen: examples/native/search-go.oro: in find_first: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/search-go.oro java refused
-   gen: examples/native/search-go.oro: in find_first: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/search-go.oro windows refused
-   gen: examples/native/search-go.oro: in find_first: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/search-java.oro go refused
-   gen: examples/native/search-java.oro: in find_first: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/search-java.oro js refused
-   gen: examples/native/search-java.oro: in find_first: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/search-java.oro java emitted 4313154eec4d34389b26e2ab0167d0d9a1cc1d7e53b34d19d95890ec665c9cf5
+== examples/native/search.oro js emitted 6c4d77a8e338f166ec6682edca2f87cd739aec8fd93561c94162818ad30cba36
    note: gen-find-first: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/search-java.oro windows refused
-   gen: examples/native/search-java.oro: in find_first: java.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/search-js.oro go refused
-   gen: examples/native/search-js.oro: in find_first: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/search-js.oro js emitted e36d0fe5affff7643537818377f394f2a1bc1c047d1c40a877f7b1e654387890
-   note: gen-find-first: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/search-js.oro java refused
-   gen: examples/native/search-js.oro: in find_first: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/search-js.oro windows refused
-   gen: examples/native/search-js.oro: in find_first: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/native/search.oro java emitted f3f8e10f653d6c158a779bf872ae846e9d1cb59abc88d24a1fbc1f2a0db9d542
+   note: gen-find-first: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/search.oro windows emitted 759b6da47747b706c25fe035ba498e6200560441fb7e8dc4de44cf2a143b1095
+   note: gen-find-first: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/shortcircuit-go.oro go emitted f3d4226707bef28fea7c5caa95638dcebfa95a03809bb372f6981669683fb718
    note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/shortcircuit-go.oro js refused
@@ -733,34 +658,33 @@
 == examples/native/smooth-go.oro go emitted 7658d540b82ca8927abf2fe740af14d47dbda29cc743d7c9189bb35b38ebabe8
    note: gen-smooth: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/smooth-go.oro js refused
-   gen: examples/native/smooth-go.oro: in fill_into: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/smooth-go.oro java refused
-   gen: examples/native/smooth-go.oro: in fill_into: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/native/smooth-go.oro js emitted b253045233291e01394a06aa085e537d86b3dfb6c42c5f520d7b40e16bbce324
+   note: gen-smooth: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/smooth-go.oro java emitted c1cb30ebc0b398b17927237b5fb75d3291a56b0c25b9dafdf9ca87ed01202a2d
+   note: gen-smooth: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/smooth-go.oro windows refused
-   gen: examples/native/smooth-go.oro: in fill_into: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+   gen: gen-smooth: gen-smooth: round(F64, #3.0(#0.1) + #3.0(#0.1 + 1)): no declaration of target windows realizes it (numbers.md §6.2): a target realizes round(F64, t) by a declaration whose ensure is r == round(F64, t), each operand a double, an integer or a constant that is a double; a rounding inside it is its own operation, and an exact interior (a term of doubles rounded once) is step 2
 == examples/native/smooth-java.oro go refused
-   gen: examples/native/smooth-java.oro: in kernel: java.`-` is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: examples/native/smooth-java.oro: in smooth_into: java.set_double is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
 == examples/native/smooth-java.oro js refused
-   gen: examples/native/smooth-java.oro: in kernel: java.`-` is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: examples/native/smooth-java.oro: in smooth_into: java.set_double is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
 == examples/native/smooth-java.oro java emitted 6b79889b5cd74f2c75520766ee975eb7794c354edd72998041b682134e3e05e8
    note: gen-smooth-alloc: 3 of 3 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-smooth-build: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/smooth-java.oro windows refused
-   gen: examples/native/smooth-java.oro: in kernel: java.`-` is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: examples/native/smooth-java.oro: in smooth_into: java.set_double is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
 == examples/native/smooth-js.oro go refused
    gen: examples/native/smooth-js.oro: in fill_into: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/smooth-js.oro js emitted ef7f910bdc6748eb26494d775b6051a2f66a4f6489ffa4ddee0f11d253754006
-   note: gen-smooth: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
-   note: gen-smooth-into: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/smooth-js.oro js emitted 6e61dec384d295118e1be4e56d02f51a6f48ab5cfb7a1c22845fc03f9aa0c24e
+   note: gen-smooth: 3 of 3 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth-into: 3 of 3 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/smooth-js.oro java refused
    gen: examples/native/smooth-js.oro: in fill_into: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -1082,6 +1006,10 @@
 == gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736
 == gauntlet/differential/cases/expect.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/f64-round.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/f64-round.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/f64-round.oro java emitted b850057c0d44cac43b9fb934bf613e121d784105384dc442dd1d81b091e8b5c7
+== gauntlet/differential/cases/f64-round.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/fnv32.oro go emitted b127e2577d6f080bf18aed22a76d7aa8d2713da3d1bb30c79879d8a9eb0bb8ac
    note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv32.oro js emitted 5e222ba488e3877508459b0d137815c701ab683361b9f22de417683ff0780d94

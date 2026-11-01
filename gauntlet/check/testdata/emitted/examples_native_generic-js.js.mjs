@@ -8,7 +8,7 @@ export function genSumOf(v0) {
 		if ((v6 >= v1)) {
 			return v5;
 		}
-		v5 = (v5 + (v0[v6]));
+		v5 = (v5 + v0[v6]);
 		continue;
 	}
 }

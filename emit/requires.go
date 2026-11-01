@@ -95,6 +95,9 @@ func installContracts(env *core.Env, prog *core.Program, w core.Word) {
 				tys[i], ranged = p.Type, true
 			} else if _, _, _, ok := core.DecRange(p.Type); ok {
 				tys[i], ranged = p.Type, true
+			} else if _, _, ok := core.F64Range(p.Type); ok {
+				// and F64 ∩ [lo, hi], decided on the doubles' intervals
+				tys[i], ranged = p.Type, true
 			}
 		}
 		if ranged {
@@ -174,6 +177,7 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 	if set == nil {
 		set = &RequireSet{}
 	}
+	t = Unscope(tgt, sig, t)
 	fails := literalFails(tgt.Word, t)
 	t, _ = set.decideAscribed(tgt.Word, t)
 	if hasRequireMarks(t) {

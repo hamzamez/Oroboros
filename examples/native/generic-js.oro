@@ -14,6 +14,8 @@
 use js
 use js/String
 
+set Entry = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
 fn reduce_over(n, get, combine, init) {
     loop acc = init, i = 0 {
         js.`>=`(i, n) -> acc
@@ -23,8 +25,10 @@ fn reduce_over(n, get, combine, init) {
 
 fn bump(o, w) { js.put(o, w, js.`+`(js.`??`(js.get(o, w), 0), 1)) }
 
-fn sum_floats(a) { reduce_over(js.len(a), fn(i) { js.at(a, i) }, js.`+`, 0.0) }
+// The language's table and its rounded sum (ADR 0086), where `js.+` over `any`
+// was: the element is a double, and the sum is round(F64, acc + x).
+fn sum_floats(a) { reduce_over(len(a), fn(i) { a[i] }, fn(acc, x) { round(F64, acc + x) }, 0) }
 
 fn tally_words(ws) { reduce_over(js.len(ws), fn(i) { js.at(ws, i) }, bump, js.object()) }
-export fn sum_of(a ∈ Any) (Any) { sum_floats(a) }
+export fn sum_of(a ∈ Array(Entry)) (F64) { sum_floats(a) }
 export fn word_tally(text ∈ Any) (Any) { tally_words(String.fields(text)) }

@@ -116,7 +116,12 @@ Two notes on the table:
   lowering classifies a call once, by the target's classification, and every analysis reads the
   operation. The 19 entries into the interval analysis and the classification by spelling in each
   consumer (research §0) have one replacement: lowering.
-- **Float arithmetic stays a call** (`call go.f+`). It is not promoted to the language.
+- **A double's arithmetic is the language's, and its realization a call** (ADR 0086, numbers.md
+  §6.2). A double is an element of F64 ⊂ N, so N's order and equality on two doubles and a double's
+  negation, under which F64 is closed, are the IR's operations (W5). Every other operation of N on
+  doubles leaves F64 and is written only under a rounding, which `SelectNumbers` makes the call of the
+  target declaration whose `ensure` states it (`call go.fadd`, `call go.fmul`). A host's own float
+  operation (`go.f+`) stays a call with the host's meaning, Tier 2.
 
 ### 1.3 Regions and terminators
 
@@ -302,8 +307,9 @@ a verifier, run after lowering and after every pass that rewrites the IR.
 - **W4 (arities).** Every terminator of one region's tree passes the same number of values: its
   owner's results for `yield` and `break`, and the loop's parameters for `continue`. An operation's
   results match Σ, and a `call`'s match the primitive's declared results.
-- **W5 (typing).** Every operation is applied to operands of the types its rule requires (§4.3), and
-  every value flowing along an edge (an operand, `yield`, `break` or `continue` into a parameter or
+- **W5 (typing).** Every operation is applied to operands of the types its rule requires (§4.3): an
+  integer operation's are integers, but for a comparison of two doubles and a double's negation, which
+  are N's on F64 (§1.2's notes, ADR 0086). Every value flowing along an edge (an operand, `yield`, `break` or `continue` into a parameter or
   result) satisfies the flow rule. Its reading depends on the stage:
   - **in IR_A it compares sorts**. Every range is read as the representation ρ_T gives it (`int`,
     `u64`, `big`), through tables and maps, and the relation is the type checker's own (types.md).
@@ -981,72 +987,61 @@ the emission baseline is the text's, through §10.4's law. A binary form is not 
 
 ### 10.3 An example
 
-`examples/native/dot-go.oro`, lowered for Go, in IR_P, as `gen -ir` writes it (2026-10-22). Lowering
+`examples/native/dot.oro`, lowered for Go, in IR_P, as `gen -ir` writes it (2026-11-01). Lowering
 writes the same text in IR_A, except for the ranges, which are `int` there and the analyses' here, and
 the `restrict`, which the rewrite of §9.4 adds. The export's `where` is assumed at entry (ADR 0028).
 The length `len %0` is measured once, before the loop, where the program's `vlen(v)` is bound (ADR
-0071), and the guard compares the index with it. Each arm renames the index (`%22`, `%25`), the
-length (`%23`, `%26`), and the table the length measures (`%24`, `%27`): a guard on a value defined
-as `len x` is a guard on x's length, as one on `(len x)` written in place is.
+0071), and the guard compares the index with it. Each arm renames the index (`%13`, `%16`), the
+length (`%14`, `%17`), and the table the length measures (`%15`, `%18`): a guard on a value defined
+as `len x` is a guard on x's length, as one on `(len x)` written in place is. The program's
+`round(F64) { … }` made the step round(F64, s + round(F64, a[i] · b[i])), and each rounding is the
+call of Go's declaration that realizes it, `go.fmul` and `go.fadd` (numbers.md §6.2).
 
 ```lisp
 (ir 1
   (target go)
   (stage P)
-  (ops const add eq lt ge call index len if loop restrict assume yield break continue branch)
+  (ops const add eq ge call index len loop restrict assume yield break continue branch)
   (func native-dot (params (%0 (array f64)) (%1 (array f64))) (results f64)
     (region
       (val (%2 (int 0 9223372036854775807)) (len %0))
       (val (%3 (int 0 9223372036854775807)) (len %1))
       (val (%4 bool) (eq %2 %3))
-      (val (%5 bool)
-        (if %4
+      (do (assume %4))
+      (val (%5 (int 0 9223372036854775807)) (len %0))
+      (val (%6 f64) (const 0.0))
+      (val (%7 (int 0 0)) (const 0))
+      (val (%8 (array f64)) (restrict %1 %5))
+      (val (%9 f64)
+        (loop (init %6 %7)
           (region
-            (pi %6 (array f64) ((len %0) eq %3))
-            (pi %7 (array f64) ((len %1) eq %2))
-            (val (%8 (int 0 65535)) (len %6))
-            (val (%9 (int 65536 65536)) (const 65536))
-            (val (%10 bool) (lt %8 %9))
-            (yield %10))
-          (region
-            (pi %11 (array f64) ((len %0) ne %3))
-            (pi %12 (array f64) ((len %1) ne %2))
-            (val (%13 bool) (const false))
-            (yield %13))))
-      (do (assume %5))
-      (val (%14 (int 0 9223372036854775807)) (len %0))
-      (val (%15 f64) (const 0.0))
-      (val (%16 (int 0 0)) (const 0))
-      (val (%17 (array f64)) (restrict %1 %14))
-      (val (%18 f64)
-        (loop (init %15 %16)
-          (region
-            (params (%19 f64) (%20 (int 0 9223372036854775807)))
-            (val (%21 bool) (ge %20 %14))
-            (branch %21
+            (params (%10 f64) (%11 (int 0 9223372036854775807)))
+            (val (%12 bool) (ge %11 %5))
+            (branch %12
               (region
-                (pi %22 (int 0 9223372036854775807) (%20 ge %14))
-                (pi %23 (int 0 9223372036854775807) (%14 le %20))
-                (pi %24 (array f64) ((len %0) le %20))
-                (break %19))
+                (pi %13 (int 0 9223372036854775807) (%11 ge %5))
+                (pi %14 (int 0 9223372036854775807) (%5 le %11))
+                (pi %15 (array f64) ((len %0) le %11))
+                (break %10))
               (region
-                (pi %25 (int 0 9223372036854775806) (%20 lt %14))
-                (pi %26 (int 1 9223372036854775807) (%14 gt %20))
-                (pi %27 (array f64) ((len %0) gt %20))
-                (val (%28 f64) (index %27 %25))
-                (val (%29 f64) (index %17 %25))
-                (val (%30 f64) (call go.f* %28 %29))
-                (val (%31 f64) (call go.f+ %19 %30))
-                (val (%32 (int 1 1)) (const 1))
-                (val (%33 (int 1 9223372036854775807)) (add exact %25 %32))
-                (continue %31 %33))))))
-      (yield %18))))
+                (pi %16 (int 0 9223372036854775806) (%11 lt %5))
+                (pi %17 (int 1 9223372036854775807) (%5 gt %11))
+                (pi %18 (array f64) ((len %0) gt %11))
+                (val (%19 f64) (index %18 %16))
+                (val (%20 f64) (index %8 %16))
+                (val (%21 f64) (call go.fmul %19 %20))
+                (val (%22 f64) (call go.fadd %10 %21))
+                (val (%23 (int 1 1)) (const 1))
+                (val (%24 (int 1 9223372036854775807)) (add exact %16 %23))
+                (continue %22 %24))))))
+      (yield %9))))
 ```
 
 What a Go printer does with it (irp2):
-- `%4` is `%5` by soleExit;
-- `%18`, the index plus one, goes to the post clause by PostVars;
-- `%1` is re-sliced to `len %0`, `%17`, because `len %0 = len %1` is the `where`'s, discharged at the
+- `%9` is the loop's result, returned by soleExit;
+- `%24`, the index plus one, goes to the post clause by PostVars;
+- `go.fmul` prints `float64(x * y)`, whose conversion stops Go fusing the product into the sum;
+- `%1` is re-sliced to `len %0`, `%8`, because `len %0 = len %1` is the `where`'s, discharged at the
   loop's entry, and the bound is the length the guard measured before the loop.
 
 The result is the loop `gen` emits today, one statement per value, at the same speed (irp2 §2:

@@ -29,6 +29,11 @@
 // did not say so.
 use go
 
+// THE ARITHMETIC IS THE LANGUAGE'S (ADR 0086): the window's sum is IEEE's,
+// round(F64) { … }, and the third is round(F64, w ÷ 3), Go's `/` found by its
+// declaration. An element's set keeps each rounding finite.
+set Entry = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
 // The delayed vector, unchanged from dot-go.oro. A library, not a primitive.
 fn vec(n, f) { fn(sel) { sel(n, f) } }
 fn vlen(v) { v(fn(n, f) { n }) }
@@ -40,20 +45,20 @@ fn vindex(v, i) { v(fn(n, f) { f })(i) }
 // loop, and the only thing left of the portable version's price is the `make`.
 fn materialize(v) {
     var d := array { 0 : _ ∈ 0..vlen(v)-1 }
-    loop i = 0 { go.`>=`(i, vlen(v)) -> d; else -> { d[i] := vindex(v, i); again(go.`+`(i, 1)) } }
+    loop i = 0 { i >= vlen(v) -> d; else -> { d[i] := vindex(v, i); again(i + 1) } }
 }
 
 // The same loop, over a destination the caller supplies. Nothing is allocated.
 fn fill_into(dst linear, v) {
     loop i = 0 {
-        go.`>=`(i, vlen(v)) -> ()
-        else -> { dst[i] := vindex(v, i); again(go.`+`(i, 1)) }
+        i >= vlen(v) -> ()
+        else -> { dst[i] := vindex(v, i); again(i + 1) }
     }
 }
 
-fn window(a, j) { go.`f+`(go.`f+`(a[j], a[go.`+`(j, 1)]), a[go.`+`(j, 2)]) }
+fn window(a, j) { round(F64) { a[j] + a[j + 1] + a[j + 2] } }
 
-fn kernel(a) { vec(go.`-`(len(a), 2), fn(j) { go.`f/`(window(a, j), 3.0) }) }
-export fn smooth(a ∈ Array(F64)) (Array(F64)) where len(a) >= 2 { materialize(kernel(a)) }
-export fn smooth_into(dst ∈ Array(F64) linear, a ∈ Array(F64)) (buffer(F64))
+fn kernel(a) { vec(len(a) - 2, fn(j) { round(F64, window(a, j) ÷ 3) }) }
+export fn smooth(a ∈ Array(Entry)) (Array(F64)) where len(a) >= 2 { materialize(kernel(a)) }
+export fn smooth_into(dst ∈ Array(F64) linear, a ∈ Array(Entry)) (buffer(F64))
     where len(a) >= 2 && len(dst) == len(a) { fill_into(dst, kernel(a)) }

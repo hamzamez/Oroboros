@@ -91,6 +91,23 @@ module go {
         host expr "func(a, m int) int { r := a % m; if r < 0 { r += m }; return r }(${a}, ${m})"
     }
 
+    // ---- THE ROUNDINGS GO REALIZES (ADR 0086, numbers.md §6.2). Each `ensure`
+    // is the language's term the host operation computes: IEEE 754's correctly
+    // rounded result under ties-to-even (§4.3.1), of operands in F64, whose
+    // rounding is finite. That finiteness, and a divisor not zero, are the
+    // rounding's own obligations, decided where the program writes it, so the
+    // host's ±∞, NaN and flags are never reached. The product's conversion is
+    // what stops fusion: Go's specification lets `x*y + z` become one fused
+    // operation, "possibly across statements", unless an explicit conversion
+    // rounds the product, and two roundings are two operations.
+    fn fadd(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a + b) { host expr "${a} + ${b}" }
+    fn fsub(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a - b) { host expr "${a} - ${b}" }
+    fn fmul(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a * b) { host expr "float64(${a} * ${b})" }
+    fn fdiv(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a ÷ b) { host expr "${a} / ${b}" }
+    // An integer within ±2⁵³ is a double, so its rounding is itself and the
+    // conversion is exact.
+    fn fint(n ∈ -2^53..2^53) (r ∈ F64) pure ensure r == round(F64, n) { host expr "float64(${n})" }
+
     // ---- float arithmetic and order: IEEE 754 binary64.
     fn `f+`(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} + ${b}" }
     fn f_(a ∈ F64, b ∈ F64) (F64) pure { host expr "${a} - ${b}" }

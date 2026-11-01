@@ -2,7 +2,7 @@ package gauntlet
 
 import "testing"
 
-// Gauntlet program 2 on the NATIVE Go target (examples/native/centroid-go.oro).
+// Gauntlet program 2 on the NATIVE Go target (examples/native/centroid.oro).
 //
 // The Church-encoded point reduces away completely and the residual is two
 // scalar accumulators. What moving the program REMOVED is `fold-range2`: it

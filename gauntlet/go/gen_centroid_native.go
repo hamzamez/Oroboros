@@ -3,25 +3,24 @@
 package gauntlet
 
 func NativeCentroid(v0 []float64, v1 []float64) float64 {
-	v8 := len(v0)
-	v9 := v1[:v8]
+	v5 := len(v0)
+	v9 := v1[:v5]
 	var v11 float64 = 0.0
 	var v12 float64 = 0.0
 	var v13 int = 0
 	var v10 float64
 	for ; ; v13 = (v13 + 1) {
-		v14 := len(v0)
-		v15 := (v13 >= v14)
-		if v15 {
+		v14 := (v13 >= v5)
+		if v14 {
 			v18 := (v11 + v12)
 			v10 = v18
 			break
 		}
-		v21 := v0[v13]
-		v22 := (v11 + v21)
+		v22 := v0[v13]
+		v23 := (v11 + v22)
 		v24 := v9[v13]
 		v25 := (v12 + v24)
-		v11, v12 = v22, v25
+		v11, v12 = v23, v25
 		continue
 	}
 	return v10

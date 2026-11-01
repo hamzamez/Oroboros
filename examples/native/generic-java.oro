@@ -1,7 +1,8 @@
 // GENERICS WITH NO GENERICS, on the native Java target.
 //
 // One definition, `reduce-over`, instantiated at two element types and two
-// accumulator types — f64 with `java.f+`, and a HashMap with a map update — with
+// accumulator types — F64 with the language's rounded sum (ADR 0086), and a
+// HashMap with a map update — with
 // NO type annotations, no monomorphization pass, no type parameters and no
 // dictionary. It has no runtime existence; the backend works out `double` for
 // one instantiation and `Map<String,Long>` for the other on its own.
@@ -9,13 +10,17 @@ use java
 use java/Map
 use java/String as Str
 
+set Entry = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
 fn reduce_over(n, get, combine, init) {
     loop acc = init, i = 0 {
         java.`>=`(i, n) -> acc
         else -> again(combine(acc, get(i)), java.`+`(i, 1))
     }
 }
-export fn sum_of(a ∈ Array(F64)) (F64) { reduce_over(len(a), fn(i) { a[i] }, java.`f+`, 0.0) }
+export fn sum_of(a ∈ Array(Entry)) (F64) {
+    reduce_over(len(a), fn(i) { a[i] }, fn(acc, x) { round(F64, acc + x) }, 0)
+}
 export fn word_tally(text ∈ String) (map_string_long) {
     ws = Str.split(text, " ")
     reduce_over(len(ws), fn(i) { ws[i] }, Map.merge, Map.new())

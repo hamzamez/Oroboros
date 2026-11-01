@@ -47,7 +47,9 @@ type unifier struct {
 	tg      *emit.Target
 	n       []tnode
 	pending [][2]int
-	elems   []string // candidate element types for inverting an alias
+	elems   []string   // candidate element types for inverting an alias
+	nsort   map[V]bool // the values whose least sort is N (numSorts)
+	dbl     map[V]bool // the values held as doubles (numSorts)
 }
 
 func newUnifier(tg *emit.Target) *unifier {
@@ -88,6 +90,8 @@ func (u *unifier) node(ty string) int {
 		return u.mk(ty)
 	case ty == core.NumType || u.tg.ValueType(ty) == core.NumType:
 		return u.mk(core.NumType) // N, a decimal grid's sort (ADR 0086)
+	case core.IsF64Set(ty):
+		return u.mk(core.F64Name) // F64 ∩ [lo, hi], held as F64 is (doubles.go)
 	}
 	if _, _, ok := core.IntRangeBig(ty); ok || ty == core.BigType {
 		switch s := sortOf(u.tg, ty); s {
@@ -321,6 +325,7 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 	// a variadic list of boxes, and took its strings, so the loop's own ints
 	// clashed in the verifier (examples/os/du.oro). In program order a value is
 	// typed where it is defined, before any use can clash with it.
+	u.nsort, u.dbl = numSorts(tg, f, decl)
 	var visit func(r *Region)
 	visit = func(r *Region) {
 		for _, pi := range r.Pis {
@@ -361,11 +366,21 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 				is(s.Res[0], "bool")
 			case ORound:
 				// A ROUNDING ONTO A SET OF INTEGERS IS AN INTEGER (numbers.md
-				// §3, least sort), and onto any other set, a number of N.
+				// §3, least sort), and onto any other set, a number of N. One
+				// the scope wrote, of an operand of sort ℤ, is that operand.
+				if s.Scoped && len(s.Args) == 1 && !u.nsort[s.Args[0]] {
+					eq(s.Res[0], s.Args[0])
+					break
+				}
 				u.numeric(node, s.Args)
-				if roundsToZ(s.Type) {
+				switch {
+				case roundsToZ(s.Type):
 					is(s.Res[0], "int")
-				} else {
+				case core.IsF64Set(s.Type):
+					// ONTO F64 the value is a double, its representation
+					// (numbers.md §5): what a realization returns (doubles.go).
+					is(s.Res[0], "f64")
+				default:
 					is(s.Res[0], core.NumType)
 				}
 			case OCall:
@@ -748,6 +763,9 @@ func absorb(ca, cb string) (lit, other string) {
 			return l, o
 		case l == litInt && o == litDec:
 			return l, o
+		case l == litInt && o == "f64":
+			// an integer literal in F64 is that double (doubles.go decides it)
+			return l, o
 		}
 	}
 	return "", ""
@@ -766,7 +784,10 @@ func numberOp(s *Stmt) bool {
 func (u *unifier) numeric(node []int, args []V) bool {
 	num := false
 	for _, a := range args {
-		if c := u.n[u.find(node[a])].con; c == core.NumType || c == litDec {
+		// A DOUBLE IS AN ELEMENT OF F64 ⊂ N (numbers.md §2), so an operation
+		// of one is N's: exact, its value no double in general, and realized
+		// only under a rounding (doubles.go).
+		if c := u.n[u.find(node[a])].con; c == core.NumType || c == litDec || c == "f64" || u.nsort[a] {
 			num = true
 		}
 	}
@@ -775,10 +796,187 @@ func (u *unifier) numeric(node []int, args []V) bool {
 	}
 	for _, a := range args {
 		if c := u.n[u.find(node[a])].con; c == litInt || c == litDec {
-			u.unify(node[a], u.mk(core.NumType))
+			// A literal's class that a double also flows into is the
+			// double's: `loop s = 0` stepped by roundings onto F64.
+			if u.dbl[a] {
+				u.unify(node[a], u.mk(core.F64Name))
+			} else {
+				u.unify(node[a], u.mk(core.NumType))
+			}
 		}
 	}
 	return true
+}
+
+// numSorts is the set of values whose least sort is N (numbers.md §1), and of
+// those held as doubles, so that
+// an operation's sort does not depend on the order the typing meets its
+// operands: `loop s = 0 { … again(round(F64, s + i)) }` makes s N's at its
+// continue, after `s + i` was met. It is the least fixed point of: a numeral;
+// a rounding onto a set not inside ℤ; a value declared a double, N or a grid
+// of N; and, closed under the dataflow, an operation of N with an operand in
+// the set, a π or an ascription of one, and a loop's or a conditional's value
+// that one of its sources is. A value is held as a double when a double flows
+// into it by those joins alone (a rounding onto F64, a value declared in F64):
+// N's operations on doubles are exact and are not.
+func numSorts(tg *emit.Target, f *Func, decl map[V]string) (map[V]bool, map[V]bool) {
+	in := map[V]bool{}
+	dbl := map[V]bool{}
+	double := func(ty string) bool { return tg.ValueType(ty) == core.F64Name || core.IsF64Set(ty) }
+	for v, ty := range decl {
+		if double(ty) || double(core.ArrayElem(ty)) {
+			dbl[v] = true
+		}
+	}
+	for _, p := range f.Params {
+		if double(f.Types[p]) || double(core.ArrayElem(f.Types[p])) {
+			dbl[p] = true
+		}
+	}
+	addD := func(v V) bool {
+		if dbl[v] {
+			return false
+		}
+		dbl[v] = true
+		return true
+	}
+	joinD := func(res []V, exits [][]V) bool {
+		changed := false
+		for _, e := range exits {
+			for j, a := range e {
+				if j < len(res) && dbl[a] {
+					changed = addD(res[j]) || changed
+				}
+			}
+		}
+		return changed
+	}
+	nsorted := func(ty string) bool {
+		v := tg.ValueType(ty)
+		_, _, _, dec := core.DecRange(ty)
+		return v == core.F64Name || v == core.NumType || core.IsF64Set(ty) || dec
+	}
+	// A TABLE is in the sets when its elements are: what an index of it reads.
+	for v, ty := range decl {
+		if nsorted(ty) || nsorted(core.ArrayElem(ty)) {
+			in[v] = true
+		}
+	}
+	for _, p := range f.Params {
+		if nsorted(f.Types[p]) || nsorted(core.ArrayElem(f.Types[p])) {
+			in[p] = true
+		}
+	}
+	add := func(v V) bool {
+		if in[v] {
+			return false
+		}
+		in[v] = true
+		return true
+	}
+	joinFrom := func(res []V, exits [][]V) bool {
+		changed := false
+		for _, e := range exits {
+			for j, a := range e {
+				if j < len(res) && in[a] {
+					changed = add(res[j]) || changed
+				}
+			}
+		}
+		return changed
+	}
+	for changed := true; changed; {
+		changed = false
+		f.Walk(func(r *Region) {
+			for _, pi := range r.Pis {
+				if in[pi.Of] {
+					changed = add(pi.V) || changed
+				}
+				if dbl[pi.Of] {
+					changed = addD(pi.V) || changed
+				}
+			}
+			for i := range r.Stmts {
+				s := &r.Stmts[i]
+				switch {
+				case s.Op == OConst && s.Lit.Kind == core.KDec:
+					changed = add(s.Res[0]) || changed
+				case (s.Op == OIndex || s.Op == ORestrict) && len(s.Res) == 1 && len(s.Args) > 0:
+					if in[s.Args[0]] {
+						changed = add(s.Res[0]) || changed
+					}
+					if dbl[s.Args[0]] {
+						changed = addD(s.Res[0]) || changed
+					}
+				case s.Op == OCall && len(s.Res) == 1 && double(tg.Prims[s.Name].Result):
+					changed = add(s.Res[0]) || changed
+					changed = addD(s.Res[0]) || changed
+				case s.Op == OSet && len(s.Res) == 1 && len(s.Args) == 3:
+					// a store's table holds what it held and what is stored
+					for _, a := range []V{s.Args[0], s.Args[2]} {
+						if in[a] {
+							changed = add(s.Res[0]) || changed
+						}
+						if dbl[a] {
+							changed = addD(s.Res[0]) || changed
+						}
+					}
+				case s.Op == OArray && len(s.Res) == 1:
+					for _, a := range s.Args {
+						if in[a] {
+							changed = add(s.Res[0]) || changed
+						}
+						if dbl[a] {
+							changed = addD(s.Res[0]) || changed
+						}
+					}
+				case s.Op == OBuild && len(s.Sub) == 1:
+					// a build's table is the buffer its region yields
+					changed = joinFrom(s.Res, exitsOf(s.Sub[0], TYield)) || changed
+					changed = joinD(s.Res, exitsOf(s.Sub[0], TYield)) || changed
+				case s.Op == OTabulate && len(s.Res) == 1 && len(s.Sub) == 1:
+					changed = joinFrom(s.Res, exitsOf(s.Sub[0], TYield)) || changed
+					changed = joinD(s.Res, exitsOf(s.Sub[0], TYield)) || changed
+				case s.Op == ORound && s.Scoped && len(s.Args) == 1 && !in[s.Args[0]]:
+					// the scope's identity on an integer: not N's, unless its operand is
+				case s.Op == ORound && !roundsToZ(s.Type):
+					changed = add(s.Res[0]) || changed
+					if core.IsF64Set(s.Type) {
+						changed = addD(s.Res[0]) || changed
+					}
+				case numberOp(s) || s.Op == OThe:
+					for _, a := range s.Args {
+						if in[a] {
+							changed = add(s.Res[0]) || changed
+							break
+						}
+					}
+					if s.Op == OThe && dbl[s.Args[0]] {
+						changed = addD(s.Res[0]) || changed
+					}
+				case s.Op == OLoop:
+					body := s.Sub[0]
+					changed = joinFrom(body.Params, [][]V{s.Args}) || changed
+					changed = joinFrom(body.Params, exitsOf(body, TContinue)) || changed
+					changed = joinFrom(s.Res, exitsOf(body, TBreak)) || changed
+					changed = joinD(body.Params, exitsOf(body, TContinue)) || changed
+					changed = joinD(s.Res, exitsOf(body, TBreak)) || changed
+					// and a loop's initial literal with its parameter's class
+					for j, a := range s.Args {
+						if j < len(body.Params) && dbl[body.Params[j]] {
+							changed = addD(a) || changed
+						}
+					}
+				case s.Op == OIf:
+					for _, sub := range s.Sub {
+						changed = joinFrom(s.Res, exitsOf(sub, TYield)) || changed
+						changed = joinD(s.Res, exitsOf(sub, TYield)) || changed
+					}
+				}
+			}
+		})
+	}
+	return in, dbl
 }
 
 // roundsToZ reports a rounding's set inside ℤ: a range, or `int` itself.

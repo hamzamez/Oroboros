@@ -20,24 +20,24 @@ func GenMain() float64 {
 	}
 	v1 = v5
 	fmt.Println("report")
-	v19 := len(v1)
-	fmt.Println(v19)
-	var v26 float64 = 0.0
-	var v27 int = 0
-	for ; ; v27 = (v27 + 1) {
-		v28 := len(v1)
-		v29 := (v27 >= v28)
-		if v29 {
+	v18 := len(v1)
+	fmt.Println(v18)
+	var v24 float64 = 0.0
+	var v25 int = 0
+	for ; ; v25 = (v25 + 1) {
+		v26 := len(v1)
+		v27 := (v25 >= v26)
+		if v27 {
 			break
 		}
-		v34 := v1[v27]
-		v35 := v1[v27]
-		v36 := (v34 * v35)
-		v37 := (v26 + v36)
-		v26 = v37
+		v32 := v1[v25]
+		v33 := v1[v25]
+		v34 := (float64(v32 * v33))
+		v35 := (v24 + v34)
+		v24 = v35
 		continue
 	}
-	fmt.Println(v26)
-	return v26
+	fmt.Println(v24)
+	return v24
 }
 

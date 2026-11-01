@@ -89,7 +89,7 @@ func method(t *testing.T, code, name string) string {
 
 // TestTheMeasuredShapes: the Java decisions of spec §9.4.
 func TestTheMeasuredShapes(t *testing.T) {
-	dot := print(t, "examples/native/dot-java.oro", "Dot")
+	dot := print(t, "examples/native/dot.oro", "Dot")
 	has(t, dot, "for (;; ", "PostVars: the index steps in the post clause")
 	if strings.Contains(dot, "(int)") {
 		t.Errorf("dot's index is not Java's int (a cast at every access):\n%s", dot)

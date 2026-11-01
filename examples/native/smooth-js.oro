@@ -14,6 +14,11 @@
 // and correct difference from Go.
 use js
 
+// THE ARITHMETIC IS THE LANGUAGE'S (ADR 0086): the window's sum is IEEE's,
+// round(F64) { … }, and the third is round(F64, w ÷ 3), where `js.+` and `js./`
+// over `any` were. An element's set keeps each rounding finite.
+set Entry = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
 fn vec(n, f) { fn(sel) { sel(n, f) } }
 fn vlen(v) { v(fn(n, f) { n }) }
 fn vindex(v, i) { v(fn(n, f) { f })(i) }
@@ -33,10 +38,10 @@ fn fill_into(dst, v) {
     }
 }
 
-fn window(a, j) { js.`+`(js.`+`(js.at(a, j), js.at(a, js.`+`(j, 1))), js.at(a, js.`+`(j, 2))) }
+fn window(a, j) { round(F64) { a[j] + a[j + 1] + a[j + 2] } }
 
-fn kernel(a) { vec(js.`-`(js.len(a), 2), fn(j) { js.`/`(window(a, j), 3.0) }) }
-export fn smooth(a ∈ Any) (Any) { materialize(kernel(a)) }
-export fn smooth_into(dst ∈ Any, a ∈ Any) (Any) where js.`===`(js.len(dst), js.len(a)) {
+fn kernel(a) { vec(len(a) - 2, fn(j) { round(F64, window(a, j) ÷ 3) }) }
+export fn smooth(a ∈ Array(Entry)) (Any) where len(a) >= 2 { materialize(kernel(a)) }
+export fn smooth_into(dst ∈ Any, a ∈ Array(Entry)) (Any) where js.`===`(js.len(dst), len(a)) && len(a) >= 2 {
     fill_into(dst, kernel(a))
 }

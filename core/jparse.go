@@ -1218,6 +1218,15 @@ func (p *parser) unary() (Expr, error) {
 			l := &Lit{T: IntLiteral(v.String())}
 			return p.postfix(l)
 		}
+		// A NEGATIVE NUMERAL is one element of N, its negation exact
+		// (ADR 0086), as a negative integer literal is: a literal, not an
+		// operation a comparison or a rounding would have to read.
+		if p.peek().kind == tFloat && p.peekN(1).text != "^" {
+			if d, err := ParseNum(p.peek().text); err == nil {
+				p.next()
+				return p.postfix(&Lit{T: Decimal(NewDec(new(big.Int).Neg(d.M), d.K))})
+			}
+		}
 		x, err := p.exprAt(pPrefix)
 		if err != nil {
 			return nil, err
@@ -1286,6 +1295,21 @@ func (p *parser) postfix(e Expr) (Expr, error) {
 				return nil, err
 			} else if ok {
 				e = call
+				continue
+			}
+			// THE SCOPE round(S) { body } (ADR 0086 item 6, numbers.md §3): IEEE's
+			// per-operation rounding, written once over a body.
+			if v, ok := e.(*Var); ok && v.Name == RoundName && len(args) == 1 && p.is("{") {
+				b, err := p.block()
+				if err != nil {
+					return nil, err
+				}
+				x, ok := b.(Expr)
+				if !ok {
+					return nil, p.errorf("round(S) { … } is a value, so its body does not jump: write the " +
+						"`again` outside it")
+				}
+				e = &Apply{Fn: &Var{Name: RoundScopeName}, Args: []Expr{args[0], x}}
 				continue
 			}
 			e = &Apply{Fn: e, Args: args}
@@ -2047,7 +2071,14 @@ func (p *parser) separation() (Expr, error) {
 	if err := p.expect("}"); err != nil {
 		return nil, err
 	}
-	return &Apply{Fn: &Var{Name: SepName}, Args: []Expr{&Var{Name: x}, s, phi}}, nil
+	sep := &Apply{Fn: &Var{Name: SepName}, Args: []Expr{&Var{Name: x}, s, phi}}
+	// F64 SEPARATED BY CONSTANT BOUNDS IS A GRID RESTRICTED TO AN INTERVAL
+	// (numbers.md §2, F64Grid): the same set, in the normal form a rounding
+	// targets and a table's element may be, with no formula left to state.
+	if lo, hi, ok := F64Grid(sep); ok {
+		return F64GridExpr(lo, hi), nil
+	}
+	return sep, nil
 }
 
 // nestedSep refuses a separation anywhere but a binder's whole set. Inside a

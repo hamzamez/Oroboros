@@ -179,6 +179,9 @@ type Stmt struct {
 	Args []V
 	Res  []V
 	Sub  []*Region
+	// Scoped marks an ORound the scope round(S) { … } wrote: the identity on an
+	// integer operand (numbers.md §3). In memory only, like ORound itself.
+	Scoped bool
 	// Src is PROVENANCE: the application this statement lowers, which a
 	// diagnostic names (a refusal says which source operation it could not
 	// prove). It is in memory only, like the facts: never printed, never read,

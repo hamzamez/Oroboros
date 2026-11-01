@@ -13,31 +13,31 @@
 # derivation jsontok-2026-08-26 §6 recorded.
 
 # Go
-go   examples/native/dot-go.oro        native      gauntlet/go/gen_dot_native.go
-go   examples/native/centroid-go.oro   native      gauntlet/go/gen_centroid_native.go
+go   examples/native/dot.oro           native      gauntlet/go/gen_dot_native.go
+go   examples/native/centroid.oro      native      gauntlet/go/gen_centroid_native.go
 go   examples/native/generic-go.oro    native      gauntlet/go/gen_generic_native.go
 go   examples/native/wordcount-go.oro  native      gauntlet/go/gen_wordcount_native.go
 go   examples/native/report-go.oro     gen         gauntlet/go/gen_report_native.go
 go   examples/native/smooth-go.oro     native      gauntlet/go/gen_smooth_native.go
-go   examples/native/search-go.oro     native      gauntlet/go/gen_search_native.go
+go   examples/native/search.oro        native      gauntlet/go/gen_search_native.go
 go   examples/json/tokenize.oro        gen         gauntlet/go/gen_jsontok.go
 go   examples/json/tree.oro            tree        gauntlet/go/gen_jsontree.go
 # JavaScript
-js   examples/native/dot-js.oro        native      gauntlet/js/gen_dot_native.mjs
-js   examples/native/centroid-js.oro   native      gauntlet/js/gen_centroid_native.mjs
+js   examples/native/dot.oro           native      gauntlet/js/gen_dot_native.mjs
+js   examples/native/centroid.oro      native      gauntlet/js/gen_centroid_native.mjs
 js   examples/native/generic-js.oro    native      gauntlet/js/gen_generic_native.mjs
 js   examples/native/wordcount-js.oro  native      gauntlet/js/gen_wordcount_native.mjs
 js   examples/native/smooth-js.oro     native      gauntlet/js/gen_smooth_native.mjs
-js   examples/native/search-js.oro     native      gauntlet/js/gen_search_native.mjs
+js   examples/native/search.oro        native      gauntlet/js/gen_search_native.mjs
 js   js:examples/json/tokenize.oro     native      gauntlet/js/gen_jsontok_native.mjs
 js   js:examples/json/tree.oro         native      gauntlet/js/gen_jsontree_native.mjs
 # Java
-java examples/native/dot-java.oro      nat-dot     gauntlet/java/gen/NatDot.java
-java examples/native/centroid-java.oro nat-centroid gauntlet/java/gen/NatCentroid.java
+java examples/native/dot.oro           nat-dot     gauntlet/java/gen/NatDot.java
+java examples/native/centroid.oro      nat-centroid gauntlet/java/gen/NatCentroid.java
 java examples/native/generic-java.oro  nat-gen     gauntlet/java/gen/NatGen.java
 java examples/native/wordcount-java.oro nat-wc     gauntlet/java/gen/NatWc.java
 java examples/native/report-java.oro   nat-rep     gauntlet/java/gen/NatRep.java
 java examples/native/smooth-java.oro   nat-sm      gauntlet/java/gen/NatSm.java
-java examples/native/search-java.oro   nat-search  gauntlet/java/gen/NatSearch.java
+java examples/native/search.oro        nat-search  gauntlet/java/gen/NatSearch.java
 java java:examples/json/tokenize.oro   gen         gauntlet/java/gen/GenJsonTok.java
 java java:examples/json/tree.oro       gen         gauntlet/java/gen/GenJsonTree.java

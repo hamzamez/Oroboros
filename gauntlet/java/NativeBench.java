@@ -166,7 +166,7 @@ public final class NativeBench {
 
         // Correctness first. A benchmark of a wrong program is not a result.
         eq(NatDot.natDotDot(A, B), dotRef(A, B), "dot");
-        eq(NatCentroid.natCentroidCentroidX(A, B), centroidRef(A, B), "centroid");
+        eq(NatCentroid.natCentroidCentroid(A, B), centroidRef(A, B), "centroid");
         if (NatSearch.natSearchFindFirst(A, 0.5) != findFirstRef(A, 0.5))
             throw new AssertionError("search");
         if (NatSearch.natSearchFindFirst(A, 2.0) != findFirstRef(A, 2.0))
@@ -184,7 +184,7 @@ public final class NativeBench {
         bench("centroid      hand-written", () -> sink = centroidRef(A, B), 500);
         bench("centroid      hand, long counter", () -> sink = centroidLongRef(A, B), 500);
         bench("centroid      GENERATED",
-                () -> sink = NatCentroid.natCentroidCentroidX(A, B), 500);
+                () -> sink = NatCentroid.natCentroidCentroid(A, B), 500);
         System.out.println();
         String text = Gauntlet.makeText(NVEC, 5);
         if (!NatWc.natWcTally(text).equals(wcRef(text))) throw new AssertionError("wordcount");

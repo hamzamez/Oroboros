@@ -1,0 +1,46 @@
+// THE ROUNDINGS ONTO F64, ON EVERY TARGET THAT REALIZES THEM (ADR 0086,
+// numbers.md §8). Each run computes one rounding a target's declaration
+// realizes, at a tie or next to one, and answers 1 when the double is the one
+// IEEE 754's round-to-nearest-even gives, compared exactly with that double's
+// numeral: a double compared with a constant is compared exactly (the Galois
+// connection, ir/doubles.go). A declaration whose `ensure` is false, a sum
+// printed as a difference or a product fused into a sum, answers 0 here.
+// inputs: 1 2 3 4 5 6 7
+// expect: 1 1 1 1 1 1 1
+// skip: windows
+//
+// windows declares no realization yet: its printer is MASM's, and ADR 0080's
+// LLVM printer is where F64's roundings are declared (Σ_LLVM, floats-research
+// §19.3), so round(F64, …) is refused there, saying so.
+//
+//   1  1 + 2⁻⁵³, a tie between 1 and 1 + 2⁻⁵²: the even one, 1
+//   2  (1 + 2⁻⁵²) + 2⁻⁵³, a tie between 1 + 2⁻⁵² and 1 + 2⁻⁵¹: the even one above
+//   3  1 ÷ 3, off a tie
+//   4  −1 ÷ 3, the same below zero
+//   5  1 · 0.1 in the scope: 0.1's nearest double, the literal rounded once
+//   6  (1 + 1 + 1) · 0.1 in the scope: 3 · 0.1 is halfway between two doubles, to the even one
+//   7  0.1 · 1 + 0.2 · 1 in the scope: IEEE's 0.30000000000000004, three roundings
+//
+// The operands come out of a buffer, because reduction does not execute a
+// build: with literals each rounding would fold when compiling, exactly, and
+// never reach a target. A table's elements are one interval (array smashing),
+// its zero fill among them, so each read is taken mod 2⁵³ − 1, inside every word and ±2⁵³, where an
+// integer is a double, and each divisor is a literal.
+fn run(n) {
+    t = { var b := array { 0 : _ ∈ 0..2 }; b[0] := 1; b[1] := 4503599627370497; b[2] := -1; b }
+    one = round(F64, t[0] % (2^53 - 1))
+    odd = round(F64, (t[1] % (2^53 - 1)) ÷ 4503599627370496)
+    minus_one = round(F64, t[2] % (2^53 - 1))
+    half_ulp = 0.00000000000000011102230246251565404236316680908203125
+    ok = case {
+        n == 1 -> round(F64, one + half_ulp) == 1
+        n == 2 -> round(F64, odd + half_ulp) == 1.000000000000000444089209850062616169452667236328125
+        n == 3 -> round(F64, one ÷ 3) == 0.333333333333333314829616256247390992939472198486328125
+        n == 4 -> round(F64, minus_one ÷ 3) == -0.333333333333333314829616256247390992939472198486328125
+        n == 5 -> round(F64) { one * 0.1 } == 0.1000000000000000055511151231257827021181583404541015625
+        n == 6 -> round(F64) { (one + one + one) * 0.1 } == 0.3000000000000000444089209850062616169452667236328125
+        n == 7 -> round(F64) { 0.1 * one + 0.2 * one } == 0.3000000000000000444089209850062616169452667236328125
+        else -> false
+    }
+    if ok { 1 } else { 0 }
+}

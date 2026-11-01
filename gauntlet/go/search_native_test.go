@@ -5,7 +5,7 @@ import "testing"
 var sinkNS int
 
 // The gauntlet's early exit on the NATIVE Go target: `loop` with two escape
-// clauses, no portable layer underneath (examples/native/search-go.oro).
+// clauses, no portable layer underneath (examples/native/search.oro).
 //
 // ADR 0015's claim was that `loop` gives early exit at parity with hand-written
 // code. It was measured on the portable layer and this is the first time it is

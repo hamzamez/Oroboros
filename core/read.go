@@ -1335,6 +1335,12 @@ func TypeName(t *Term) string {
 	// module 10⁻ᴷℤ between R's ends, "dec K LO HI". K is a constant scale, and
 	// R a range with finite ends: the grid restricted to an interval, the one
 	// shape a rounding targets.
+	// `(#f64 LO HI)` — F64 RESTRICTED TO AN INTERVAL, a separation of F64 by
+	// constant bounds as the reader normalizes it (F64Grid): "f64 LO HI".
+	if t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == F64GridName &&
+		t.Kids[1].Kind == KDec && t.Kids[2].Kind == KDec {
+		return F64Type(t.Kids[1].Dec, t.Kids[2].Dec)
+	}
 	if t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == DecSetName {
 		k, kInf, ok := endpoint(t.Kids[1])
 		r := TypeName(rangeType(t.Kids[2]))
@@ -1387,6 +1393,8 @@ var typeFormers = map[string]bool{
 	"fn": true, "record": true, "prod": true,
 	// a decimal grid, D(k, lo..hi) in a set and "dec K LO HI" canonically (ADR 0086)
 	DecSetName: true, "dec": true,
+	// F64 restricted to an interval, "f64 LO HI" canonically (F64Grid)
+	F64GridName: true,
 }
 
 // IsTypeFormer reports whether a name is one of them. The emitter asks when it

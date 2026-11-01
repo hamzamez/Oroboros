@@ -3,6 +3,7 @@ package golang
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -26,6 +27,9 @@ func print(t *testing.T, src string, checked bool) string {
 	tg, err := emit.LoadTargetLayers("go", layers, dirs)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if mutateTarget != nil {
+		mutateTarget(tg)
 	}
 	text, err := os.ReadFile(src)
 	if err != nil {
@@ -63,6 +67,9 @@ func print(t *testing.T, src string, checked bool) string {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if _, err := ir.SelectNumbers(tg, f); err != nil { // as Entry does
+			t.Fatal(err)
+		}
 		ir.Decide(tg, f, checked)
 		code, err := FromFunc(tg, f)
 		if err != nil {
@@ -71,6 +78,30 @@ func print(t *testing.T, src string, checked bool) string {
 		out.WriteString(code)
 	}
 	return out.String()
+}
+
+// mutateTarget, when set, changes the loaded target: a planted fault's hook.
+var mutateTarget func(*emit.Target)
+
+// TWO ROUNDINGS ARE TWO OPERATIONS ON GO (numbers.md §6.2): Go's specification
+// lets `x*y + z` become one fused operation, "possibly across statements",
+// unless an explicit conversion rounds the product, so dot's product prints
+// inside float64(…), and the sum after it rounds again. Planted fault: Go's
+// fmul declared without the conversion, which this test sees.
+func TestGoNeverFusesTwoRoundings(t *testing.T) {
+	rounded := regexp.MustCompile(`float64\(v\d+ \* v\d+\)`)
+	if dot := print(t, "examples/native/dot.oro", false); !rounded.MatchString(dot) {
+		t.Fatalf("dot's product is not rounded by a conversion, so Go may fuse it:\n%s", dot)
+	}
+	mutateTarget = func(tg *emit.Target) {
+		p := tg.Prims["go.fmul"]
+		p.Form = strings.Replace(p.Form, "float64(", "(", 1)
+		tg.Prims["go.fmul"] = p
+	}
+	defer func() { mutateTarget = nil }()
+	if dot := print(t, "examples/native/dot.oro", false); rounded.MatchString(dot) {
+		t.Errorf("the planted fault (fmul with no conversion) went unseen:\n%s", dot)
+	}
 }
 
 func has(t *testing.T, code, want, why string) {
@@ -83,7 +114,7 @@ func has(t *testing.T, code, want, why string) {
 // TestTheMeasuredRules: each decision of spec §9.4 the gauntlet's programs
 // exercise is visible in what is printed.
 func TestTheMeasuredRules(t *testing.T) {
-	dot := print(t, "examples/native/dot-go.oro", false)
+	dot := print(t, "examples/native/dot.oro", false)
 	has(t, dot, "[:", "bounds-check re-slicing, from the `where` len p = len q (L13)")
 	has(t, dot, "for ; ; ", "PostVars: the index moves to the post clause")
 	has(t, dot, "return v", "soleExit: the accumulator is returned, with no result temporary")

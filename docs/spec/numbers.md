@@ -1,7 +1,8 @@
 # Numbers: the ring ℤ[1/10], its sets and its rounding
 
-Status: **specified 2026-11-01 (ADR 0086)**; step 1's parts 1–3 built (§9): exact numerals, and
-decimals held as scaled words. Part 4, doubles, is not built. This file says what a number
+Status: **specified 2026-11-01 (ADR 0086)**; step 1's four parts built (§9): exact numerals,
+decimals held as scaled words, and doubles, each rounding the call of a target declaration's `ensure`.
+The host's double as its own type, and its decode, are not built (§6.3). This file says what a number
 means on every target, independently of any. [floats-research.md](../floats-research.md) is the
 derivation, and its Part III the surface. Where this file and the code disagree, this file is the
 specification and the code is wrong.
@@ -57,6 +58,12 @@ small instance (ADR 0035's "a theory checked once").
 **Every set a rounding targets is S = G ∩ [a, b]**, a grid restricted to an interval. A rounding onto
 any other set is refused, saying which.
 
+**A separation of F64 by constant bounds is F64 ∩ [lo, hi]** (`core.F64Grid`): `set { x ∈ F64 : lo <= x
+&& x <= hi }` has the characteristic function χ_F64 ∧ lo ≤ x ∧ x ≤ hi, so the reader gives it that
+canonical form, `f64 LO HI`, wherever a set may stand: a binder's set, a table's element, a named set.
+An end not written is F64's own, ±MAX, since every element of F64 lies between them, and one past it is
+clamped there; both are the same set. A strict bound, or any other formula, stays a separation.
+
 ## 3. Rounding, the one lossy operation
 
 For a grid G, closed and discrete, and x ∈ ℝ, let ⌊x⌋_G = max{g ∈ G : g ≤ x} and
@@ -93,8 +100,12 @@ In a claim they may stand anywhere, because the logic never prints. The transcen
 - every `sqrt(a)` to `round(S, sqrt(a))`;
 - every literal not in S to `round(S, literal)`.
 
-Comparisons, integer operators and calls are not rewritten, and nothing outside `body` is. Rounding an
-integer that is already in S is the identity, so a loop index inside the scope stays an integer.
+Comparisons, integer operators and calls are not rewritten, nothing outside `body` is, and a rounding
+the program wrote inside is its own, its argument left as written. **The scope rounds N's operations:
+a rewritten operation whose least sort is ℤ is the identity** (`(round S e m scope)`, decided on the
+IR's least sorts and, conservatively, on the residual), so a loop index inside the scope stays an
+integer. This is IEEE's reading, where an integer operation is not a floating one, and it keeps the
+sorts stable: round(S, t) has sort N exactly when t has, so the rewrite changes no operation's sort.
 
 ## 4. Every answer is a function of the inputs
 
@@ -106,8 +117,7 @@ arithmetic, and the result is a literal (ADR 0009).
 ## 5. Facts and representations
 
 Each value of sort N has two facts: its **scale** σ, an upper bound on its least k, and its
-**interval**. A value proven in F64 has a third, **|x| ≤ 2ᵉ**, its magnitude exponent. ρ chooses,
-cheapest first:
+**interval**. ρ chooses, cheapest first:
 
 | proven | representation | operations |
 |---|---|---|
@@ -116,18 +126,28 @@ cheapest first:
 | ∈ F64 | **a double** | a rounding realized by a target declaration (§6.2); = and < native |
 | anything else | not built in step 1 | refused: "x has no representation yet: an exact interior is step 2; round it, or write round(F64) { … }" |
 
-**The magnitude facts.** e(round(F64, t)) = e(t), because 2ᵉ ∈ F64 for e ≤ 1023 and r is monotone.
-Then:
-- e(a ± b) = max(e(a), e(b)) + 1;
-- e(a · b) = e(a) + e(b);
-- e(a ÷ c) = e(a) − ⌊log₂ c⌋ for a constant c ≥ 1;
-- e(sqrt(a)) = ⌈e(a)/2⌉;
-- e of an integer in ±2ⁿ is n.
+**A double's facts are an interval of reals with double ends** (`ir/doubles.go`), each operation's
+ends rounded outward (Moore 1966), the realized rounding of [lo, hi] being [lo, hi] itself, since r
+is monotone and fixes the ends. Every element of F64 lies in [−MAX, MAX], so that is a double's ⊤, by
+induction over an execution once every obligation is proven. A guard narrows closed: over the reals
+x < c gives x ≤ c, never c − 1. The overflow obligation of `round(F64, t)` holds when t's interval lies
+in [−MAX, MAX], since the nearest rounding overflows only from 2¹⁰²⁴ − 2⁹⁷⁰.
 
-A loop variable x updated by x ← t(x) + y, with |y| ≤ 2^e_y and a trip bound 2ᵗ the existing analysis
-proves, has e(x) = max(e(x₀), e_y + t) + 1. Otherwise its bound is +∞ and the obligation fails. The
-overflow obligation of `round(F64, t)` under `'nearest` holds when e(t) ≤ 1023, since
-2¹⁰²³ < 2¹⁰²⁴ − 2⁹⁷⁰.
+*Revised in step 1 part 4*: this section first gave a magnitude exponent, |x| ≤ 2ᵉ. The interval is
+finer at no cost, and the exponent's loop rule, e(x) = max(e(x₀), e_y + t) + 1, is false for a rounded
+accumulator: each rounding may add a relative 2⁻⁵³. The rule that holds is Theorem A.
+
+**Lemma.** For q ∈ F64 and r the nearest rounding onto F64, |r(q ± y) − q| ≤ 2|y|, and |r(q·y)| ≤ |q|
+when |y| ≤ 1. *Proof.* r(v) is an element of F64 nearest v, and q is one, so |r(q ± y) − (q ± y)| ≤ |y|;
+for the product, |q·y| ≤ |q| ∈ F64, and r is monotone, odd and fixes F64. ∎ No relative error is used,
+so it holds below the normal range and at every magnitude.
+
+**Theorem A.** Let a loop take at most T back edges, and let every continue pass for p a value built
+from p by a chain of such roundings, each addition's other operand bounded by its sup |y| at every
+iteration, and set β = 2·Σ sup|y|. Then |p| ≤ |p₀| + T·β at every iteration. *Proof.* By the lemma one
+iteration moves |p| by at most β; induct on the back edges taken. ∎ It is Theorem 1 of ir.md §7 for a
+step the rounding perturbs. T is the integer analysis's trip bound, and when the loop has none, or the
+chain multiplies by more than 1, the accumulator's bound is F64's own and its obligation fails.
 
 ## 6. Realization
 
@@ -151,23 +171,53 @@ or refuses the program. That is the soundness argument, the same as `ir/pairs.go
 
 ### 6.2 Doubles: a rounding realized by a declaration's `ensure`
 
-A target declaration with `ensure r == round(F64, t)`, where t is a term over its parameters,
-**realizes** that rounding. The pass matches each `round(F64, u)` in the program against the
-declarations, modulo the commutativity of + and · (sound, because u is an exact N-term and a ring
-identity preserves its value). Its operands must be doubles, or integers proven in ±2⁵³, which a
-conversion makes doubles exactly. The `where` clauses become obligations.
-- **No match: refused**, naming the term. JavaScript declares no `fma`, so `round(F64, a * b + c)` is
-  refused there in step 1.
-- **Two roundings are two calls, and never one.** A double rounding that the host would fuse (Go's
-  specification permits `x*y + z` to fuse unless a conversion intervenes) is prevented by the
-  declaration's template, `float64(${a} * ${b})`.
-- **A literal under a rounding** is folded when compiling (§4).
+A double represents F64 by the abstraction function d(x) = the real a finite binary64 x denotes: onto
+F64, with d(−0) = d(+0) = 0. IEEE 754 compares finite values as reals (§5.11), so **N's order and
+equality on two doubles are the host's comparisons, and negation is the host's**, F64 being closed
+under it. Every other operation leaves F64 and stands only under a rounding.
+
+A target declaration with `ensure r == round(F64, t)`, where t is a ring term over its parameters
+with at most one ÷ at its root, **realizes** that rounding: the equation round(F64, t) = f(x̄), read
+right to left (`ir/doubles.go`). Go, the JVM and JavaScript each declare `fadd`, `fsub`, `fmul`, `fdiv`
+and `fint` (`targets/*/`), IEEE's nearest-even operations and the conversion of an integer in ±2⁵³.
+- **The match is modulo the commutativity of + and ·**, sound because the program's term is an exact
+  N-term and a ring identity preserves its value.
+- **A pattern's variable binds a leaf**: a value no operation of N defines. A double binds as it is,
+  an integer by the conversion (its obligation: |n| ≤ 2⁵³), and a constant only when it is a double,
+  so `round(F64, x + 0.1)` is refused, and `round(F64) { x + 0.1 }` rounds the literal first.
+- **No match: refused**, naming the term. No target declares a fused multiply-add yet, so
+  `round(F64, a * b + c)` is refused on all three.
+- **Two roundings are two calls, and never one**, because an inner rounding is a leaf. A double
+  rounding the host would fuse is prevented by the declaration's template: Go's specification lets
+  `x*y + z` fuse "possibly across statements" unless a conversion rounds the product, so Go's `fmul`
+  is `float64(${a} * ${b})`. Java (strict since 17) and JavaScript never contract.
+- **A rounding of constants is folded when compiling** (§4), by exact rational arithmetic, to the
+  nearest double, a tie to the even one. One past F64 is refused.
+- **A comparison of a double with a constant is exact**, by a Galois connection: the inclusion
+  ι : F64 ↪ ℚ has both adjoints, ι(x) ≤ q ⟺ x ≤ ⌊q⌋ and q ≤ ι(x) ⟺ ⌈q⌉ ≤ x, so x < q is x ≤ ⌊q⌋ when
+  q ∉ F64, x = q is false there, and a constant past ±MAX gives a constant truth. A comparison of a
+  double with an integer converts the integer (|n| ≤ 2⁵³); with any other term of N it is refused.
+- **Only `'nearest`.** IEEE's directed modes are the host's dynamic state, so `round(F64, e, 'down)`
+  is refused; the error-free transformations that would realize it are not built.
+
+The obligations are decided on §5's domain: each rounding's term within ±MAX, each ÷'s divisor away
+from 0, each conversion's integer in ±2⁵³, a rounding onto F64 ∩ [lo, hi] inside it, a declared result
+F64 ∩ [lo, hi] at its definition, and a parameter F64 ∩ [lo, hi] at every call (ADR 0028). An export's
+F64 is assumed of its arguments.
 
 ### 6.3 The host's double
 
 A host's double type (`go.float64`, Java's `double`, JavaScript's `number`) holds NaN, ±∞ and −0, so it
 is not F64. F64 ⊆ it (the identity), and the way back is the decode `num.of_double`, which fails on
 NaN and ±∞ and reads −0 as 0. A host function whose result is a host double is Tier 2, as today.
+
+**Built in step 1, part 4**: the half of this that soundness needs. A double a host computed (a call
+that no realization made, a cell or a map the host wrote, and what the dataflow carries one to) is
+refused wherever a rounding's operand or N's order would read it, saying so; it may stand where the
+host's own operations read it. **Not built**: the host's double as its own type, which every target's
+float declarations and the surveys' `float64 → F64` would move to, and the decode, which needs an
+option of a double on Java and JavaScript. Until then a Tier 2 declaration types its result F64, and
+a program that returns one at an export claims, as before, the host's value.
 
 ## 7. Refusals, each with its reason
 
@@ -178,7 +228,9 @@ NaN and ±∞ and reads −0 as 0. A host function whose result is a host double
 - A rounding onto a set that is not a grid restricted to an interval.
 - A rounding's obligation unproven.
 - A value with no representation.
-- A rounding of a double term no declaration realizes.
+- A rounding of a double term no declaration realizes, or onto F64 but to the nearest.
+- A double a host computed, where the language's numbers would read it.
+- A term of doubles not rounded: an exact interior, step 2.
 
 ## 8. Conformance
 
@@ -211,26 +263,43 @@ Each Tier 1 name has a case in `gauntlet/conformance/`, run on Go, the JVM and J
    - a π-parameter on a number is realigned to one scale;
    - a D claim at a call is an obligation;
    - the thresholds are closed under the body's scalings (widening up to).
-4. **Doubles**:
-   - F64 as the language's set;
-   - the magnitude facts (§5);
-   - realization by `ensure` (§6.2), with each target's declarations;
+4. **Doubles** (built 2026-11-01, [doubles-2026-11-01](../../gauntlet/results/doubles-2026-11-01.md)):
+   - F64 as the language's set, held as a double, and F64 ∩ [lo, hi] as a separation's normal form;
+   - the doubles' interval domain and Theorem A (§5);
+   - realization by `ensure` (§6.2), with Go's, the JVM's and JavaScript's declarations, comparisons by
+     the Galois connection, and constants folded;
    - the scope;
-   - the decode;
-   - the gauntlet's six float programs (dot, centroid, generic, report, search, smooth) ported to the
-     language's numbers, one source each where the rest of the program allows, at parity.
+   - a host's double refused where the language's numbers read it (§6.3);
+   - the gauntlet's six float programs in the language's numbers: dot, centroid and search one source
+     each, generic, report and smooth one per target for their maps, printing and buffers, at parity.
 
-   Limit: two sessions.
+   Found and repaired on the way:
+   - `where len(a) < …` never reached the loop: the integer analysis narrowed a π of the table, not
+     the table (interval.go, narrowAssumed);
+   - a typing's sort depended on the order it met a value (`numSorts`, a least fixed point);
+   - doubles are names of N for the refinement layer, which read `x > 9` over ℤ;
+   - `SelectNumbers` did not renumber the values it made, so the printer did not factor through the
+     IR's text (ADR 0038).
+
+   **Not built**: the host's double as a type and its decode (§6.3); `sqrt` and a fused multiply-add,
+   which no target declares; the directed modes; F32; a rounding onto F64 of a decimal; `-checked`
+   for a rounding.
 
 **Not in step 1**: exact interiors (expansions, the accumulator, step 2), the transcendentals, F(p, …)
 other than F64 and F32, D at an entry point's boundary, Q(k, R), stochastic rounding, accuracy claims.
 
-**Planted faults** (each must fail before its rule is trusted):
+**Planted faults** (each must fail before its rule is trusted; part 4's in `ir/doubles_test.go`, Go's
+fusion in `ir/golang`, a false `ensure` by `gauntlet/differential/cases/f64-round.oro`):
 - a scaled add whose alignment overflows the word, accepted;
 - a `'nearest` tie rounded away;
 - a ÷ not at a rounding's root, accepted;
-- `round(F64, round(F64, a*b) + c)` printed as `fma`;
-- Go's `x*y + z` printed without the conversion;
-- a decode letting NaN in;
-- Go's `math.Exp` claimed as `round(F64, exp(x))`;
-- a loop accumulator's magnitude without a trip bound, accepted.
+- `round(F64, round(F64, a*b) + c)` realized as a fused operation (`plantFuseFault`);
+- Go's `x*y + z` printed without the conversion (`TestGoNeverFusesTwoRoundings`);
+- a strict comparison with a constant kept strict against ⌊q⌋ (`plantGaloisFault`);
+- a product by more than 1 taken as a link of an accumulator's chain (`plantChainFault`);
+- a host's double let into a rounding (`plantHostFault`);
+- a realization whose template computes something else: Go's sum printed as a difference answers
+  `0 0 1 1 1 0 0` in the differential case;
+- Go's `math.Exp` claimed as `round(F64, exp(x))`: not planted, since a declaration whose `ensure` is
+  no ring term realizes nothing (`ringTerm`), and no target declares one;
+- a decode letting NaN in: waits for the decode (§6.3).

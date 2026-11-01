@@ -153,7 +153,8 @@ func (v *verifier) run() {
 				switch {
 				case s.Op == OThe || s.Op == ORequire:
 					v.add("W9: (%s …) in IR_P; the step to IR_P erases it", s.Op)
-				case s.Op.IsArith() && s.Mode != MExact && s.Mode != MTrap && s.Mode != MWrap && s.Mode != MWrapPair:
+				case s.Op.IsArith() && s.Mode != MExact && s.Mode != MTrap && s.Mode != MWrap && s.Mode != MWrapPair &&
+					!(s.Op == ONeg && v.f.Types[s.Args[0]] == core.F64Name):
 					v.add("W9: (%s …) with no mode in IR_P", s.Op)
 				}
 			}
@@ -422,7 +423,18 @@ func (v *verifier) stmt(s *Stmt) {
 		v.add("W2: the global %s is not declared", s.Name)
 	}
 	// W5: operand sorts.
+	// THE DOUBLES' OWN OPERATIONS (ADR 0086, numbers.md §6.2) are those F64 is
+	// closed under, so no rounding is needed: N's order and equality on two
+	// doubles, which IEEE 754 compares as reals, and negation. Every other
+	// operation on a double is a realization's call (doubles.go).
+	doubles := len(s.Args) > 0
+	for _, a := range s.Args {
+		doubles = doubles && v.f.Types[a] == core.F64Name
+	}
 	switch {
+	case s.Op == ONeg && doubles:
+		v.flow(s.Res[0], core.F64Name, where)
+	case s.Op.IsCmp() && doubles:
 	case s.Op.IsArith():
 		for _, a := range s.Args {
 			v.flow(a, "int", where)

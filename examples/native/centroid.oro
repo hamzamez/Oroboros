@@ -1,0 +1,32 @@
+// Gauntlet program 2, a centroid over a collection of points: ONE SOURCE for
+// Go, JavaScript and Java, in the language's numbers (ADR 0086).
+//
+// Points are Church-encoded: a point is a function that hands its two fields to
+// a selector. There is no struct in the language, and this program is where
+// that stops mattering: the encoding reduces away and the residual has two
+// scalar accumulators, each IEEE's rounded sum, round(F64) { … }.
+//
+// The collection is struct-of-arrays because that is what every target holds
+// unboxed: g2 measured JavaScript losing 2.86× to an array of objects.
+//
+// A coordinate's set bounds each accumulator: it moves by at most 2·10¹⁰⁰ per
+// point (doubles.go, Theorem A), so it is within 2⁶⁴·10¹⁰⁰ after any number of
+// points the word counts, and the final sum within twice that.
+set Coord = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
+fn point(x, y) { fn(sel) { sel(x, y) } }
+fn px(p) { p(fn(x, y) { x }) }
+fn py(p) { p(fn(x, y) { y }) }
+
+// Point i out of the two arrays, as a point.
+fn pat(xs, ys, i) { point(xs[i], ys[i]) }
+
+export fn centroid(xs ∈ Array(Coord), ys ∈ Array(Coord)) (F64) where len(xs) == len(ys) {
+    n = len(xs)
+    round(F64) {
+        loop ax = 0, ay = 0, i = 0 {
+            i >= n -> ax + ay
+            else -> again(ax + px(pat(xs, ys, i)), ay + py(pat(xs, ys, i)), i + 1)
+        }
+    }
+}

@@ -94,6 +94,10 @@ func compilePath(src, target string, opt Options) (*emit.Target, *Program, error
 		if err != nil {
 			return nil, nil, err
 		}
+		// THE NUMBERS OF N, as Entry takes them (pipeline.go)
+		if _, err := SelectNumbers(tg, f); err != nil {
+			return nil, nil, err
+		}
 		if plan.Host || plan.Limbs {
 			Decide(tg, f, false)
 			if _, err := SelectRung(tg, f, sig, plan); err != nil {
@@ -110,7 +114,7 @@ func resolver(dirs []string) core.Resolver { return core.SearchPath(dirs) }
 // corpus is a spread of shapes: loops with π, a join point, tables built and
 // read, maps read and built, host calls with several results, big integers.
 var corpus = []struct{ src, target string }{
-	{"examples/native/dot-go.oro", "go"},
+	{"examples/native/dot.oro", "go"},
 	{"examples/native/generic-go.oro", "go"},
 	{"examples/native/smooth-go.oro", "go"},
 	{"examples/json/tokenize.oro", "go"},
@@ -123,7 +127,7 @@ var corpus = []struct{ src, target string }{
 	{"gauntlet/differential/cases/build-zero.oro", "js"},
 	// Three the first full sweep refused, each pinning a fix:
 	{"examples/sum/parse.oro", "go"},       // a variant at a boundary, (fn (#k) (#k tag payload)): a product by structure
-	{"examples/native/dot-js.oro", "js"},   // JavaScript's `+` over `any`: ℤ's add only on integer operands
+	{"ir/testdata/js-any-dot.oro", "js"},   // JavaScript's `+` over `any`: ℤ's add only on integer operands
 	{"examples/big/render.oro", "windows"}, // `len` of a big integer, which the limb representation has
 }
 
@@ -131,7 +135,7 @@ var corpus = []struct{ src, target string }{
 // declared over `any`, so the float accumulation in dot stays a call and the
 // index increment is promoted to the language's add.
 func TestOverloadedOperatorsAreDecidedByTheirOperands(t *testing.T) {
-	_, p := compile(t, "examples/native/dot-js.oro", "js")
+	_, p := compile(t, "ir/testdata/js-any-dot.oro", "js")
 	var calls, adds int
 	for _, f := range p.Funcs {
 		f.Walk(func(r *Region) {
@@ -235,23 +239,25 @@ func TestTypeSpellingsAreInverse(t *testing.T) {
 }
 
 // TestDotIsTheSpecExample checks the parts of spec §10.3 that lowering decides:
-// the loop's shape, its π-parameters, and the classification of go.>= and go.+
-// as the language's operations and of go.f* as a call.
+// the loop's shape, its π-parameters, the classification of >= and + on the
+// index as the language's operations, and each rounding realized as the call
+// of the declaration that states it (numbers.md §6.2).
 func TestDotIsTheSpecExample(t *testing.T) {
-	_, p := compile(t, "examples/native/dot-go.oro", "go")
+	_, p := compile(t, "examples/native/dot.oro", "go")
 	text := Print(p)
 	for _, want := range []string{
-		"(do (assume %5))",         // the export's `where`, assumed at entry (ADR 0028)
-		"(val (%14 int) (len %0))", // measured once, before the loop (ADR 0071)
-		"(loop (init %15 %16)",
-		"(val (%20 bool) (ge %19 %14))",
-		"(pi %24 int (%19 lt %14))",
-		"(pi %25 int (%14 gt %19))",
-		"(pi %26 (array f64) ((len %0) gt %19))", // a guard on a measured length guards the table
-		"(val (%27 f64) (index %26 %24))",
-		"(call go.f* %27 %28)",
-		"(add %24 %31)",
-		"(continue %30 %32)",
+		"(do (assume %4))",        // the export's `where`, assumed at entry (ADR 0028)
+		"(val (%5 int) (len %0))", // measured once, before the loop (ADR 0071)
+		"(loop (init %6 %7)",
+		"(val (%11 bool) (ge %10 %5))",
+		"(pi %15 int (%10 lt %5))",
+		"(pi %16 int (%5 gt %10))",
+		"(pi %17 (array f64) ((len %0) gt %10))", // a guard on a measured length guards the table
+		"(val (%18 f64) (index %17 %15))",
+		"(val (%20 f64) (call go.fmul %18 %19))", // round(F64, a[i] · b[i]), Go's realization
+		"(val (%21 f64) (call go.fadd %9 %20))",  // round(F64, s + …)
+		"(add %15 %22)",
+		"(continue %21 %23)",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing %s in\n%s", want, text)
@@ -299,7 +305,7 @@ func expect(t *testing.T, got, rule string) {
 }
 
 func TestPlantedFaults(t *testing.T) {
-	const dot = "examples/native/dot-go.oro"
+	const dot = "examples/native/dot.oro"
 	t.Run("W1 a value defined twice", func(t *testing.T) {
 		expect(t, plant(t, dot, func(p *Program) {
 			_, s := find(p.Funcs[0], OIndex)
@@ -379,7 +385,7 @@ func TestPlantedFaults(t *testing.T) {
 // TestPlantedLinearityFaults: W7 on hand-written IR, which also exercises the
 // reader. Each program is first shown to verify without its fault.
 func TestPlantedLinearityFaults(t *testing.T) {
-	tg, _ := compile(t, "examples/native/dot-go.oro", "go")
+	tg, _ := compile(t, "examples/native/dot.oro", "go")
 	const good = `(ir 1 (target go) (stage A)
   (ops const set build loop yield break continue branch ge add)
   (func f (params (%0 int)) (results (array int))
@@ -437,7 +443,7 @@ func TestPlantedLinearityFaults(t *testing.T) {
 // on a path that BREAKS (once), and not on one that CONTINUES (every
 // iteration). The two programs differ only in which arm stores.
 func TestLinearityAcrossIterations(t *testing.T) {
-	tg, _ := compile(t, "examples/native/dot-go.oro", "go")
+	tg, _ := compile(t, "examples/native/dot.oro", "go")
 	prog := func(breakArm, contArm string) string {
 		return `(ir 1 (target go) (stage A)
   (ops const set build loop yield break continue branch ge add)
@@ -481,7 +487,7 @@ func TestLinearityAcrossIterations(t *testing.T) {
 // TestLoweringRefusesWhatItDoesNotKnow: the IR has no opaque operation
 // (spec §8.1), so a closure is a lowering error that names it.
 func TestLoweringRefusesWhatItDoesNotKnow(t *testing.T) {
-	tg, _ := compile(t, "examples/native/dot-go.oro", "go")
+	tg, _ := compile(t, "examples/native/dot.oro", "go")
 	term, err := core.ParseTerm("(fn (x) (fn (y) y))")
 	if err != nil {
 		t.Fatal(err)
@@ -516,7 +522,7 @@ func TestRestrictNeedsItsPremise(t *testing.T) {
 		}
 		return n
 	}
-	if n := count("examples/native/dot-go.oro"); n != 1 {
+	if n := count("examples/native/dot.oro"); n != 1 {
 		t.Errorf("dot: want 1 restriction (its `where` assumes len p = len q), got %d", n)
 	}
 	if n := count("ir/testdata/count-zeros.oro"); n != 0 {
@@ -557,7 +563,7 @@ func TestTheCrashEndsItsRegion(t *testing.T) {
 		}), "W3")
 	})
 	t.Run("W3 a yielding region marked unreachable", func(t *testing.T) {
-		expect(t, plant(t, "examples/native/dot-go.oro", func(p *Program) {
+		expect(t, plant(t, "examples/native/dot.oro", func(p *Program) {
 			p.Funcs[0].Body.T = TUnreachable
 		}), "W3")
 	})

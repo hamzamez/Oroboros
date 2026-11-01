@@ -150,6 +150,7 @@ func (a *intervals) tripRefine(s *Stmt, init, cur []fact, lc *exitFacts) bool {
 		}
 	}
 	// best stays nil when no parameter ranks the loop: B = ∞ (tripInterval).
+	a.trips[s] = best
 	refined := false
 	for j, q := range body.Params {
 		if m := meetIV(cur[j].v, tripInterval(init[j].v, steps[j], best)); m != cur[j].v {

@@ -34,6 +34,19 @@ func (d *desugarer) term(a Tail) *Term {
 	return t
 }
 
+// roundSet is a rounding's set as its canonical type, a string term, as an
+// ascription's is: `Int` is the set int, as in a header.
+func (d *desugarer) roundSet(e Expr) *Term {
+	set := d.term(e)
+	if set.Kind == KName && isLangSpelling(set.Name) && set.Name != NatSet {
+		set = Name(unsetName(set.Name))
+	}
+	if ty := TypeTerm(rangeType(set)); ty != "" {
+		set = Str(ty)
+	}
+	return set
+}
+
 func (d *desugarer) terms(as []Expr) []*Term {
 	out := make([]*Term, len(as))
 	for i, a := range as {
@@ -71,14 +84,11 @@ func (d *desugarer) build(a Tail) *Term {
 		// A ROUNDING (ADR 0086, numbers.md §3), round(S, e) or round(S, e, 'm):
 		// the set is static and carried as its canonical type, as an
 		// ascription's is, and the mode as its name. (round "S" e "m").
+		if v, ok := a.Fn.(*Var); ok && v.Name == RoundScopeName && len(a.Args) == 2 {
+			return ScopeRounds(d.roundSet(a.Args[0]), d.term(a.Args[1]))
+		}
 		if v, ok := a.Fn.(*Var); ok && v.Name == RoundName && (len(a.Args) == 2 || len(a.Args) == 3) {
-			set := d.term(a.Args[0])
-			if set.Kind == KName && isLangSpelling(set.Name) && set.Name != NatSet {
-				set = Name(unsetName(set.Name)) // `Int` is the set int, as in a header
-			}
-			if ty := TypeTerm(rangeType(set)); ty != "" {
-				set = Str(ty)
-			}
+			set := d.roundSet(a.Args[0])
 			mode := Str(RoundNearest)
 			if len(a.Args) == 3 {
 				if m, ok := a.Args[2].(*Var); ok && RoundModes[m.Name] {

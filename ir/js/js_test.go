@@ -76,7 +76,7 @@ func has(t *testing.T, code, want, why string) {
 
 // TestTheMeasuredShapes: the JavaScript decisions of spec §9.4.
 func TestTheMeasuredShapes(t *testing.T) {
-	dot := print(t, "examples/native/dot-js.oro")
+	dot := print(t, "examples/native/dot.oro")
 	has(t, dot, "return v", "a tail loop returns from its exit (1.31× on V8)")
 	has(t, dot, "for (;; ", "PostVars: the index steps in the post clause")
 	if strings.Contains(dot, "break;") {

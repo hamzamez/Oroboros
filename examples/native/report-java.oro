@@ -6,12 +6,16 @@
 use java
 use java/System as Sys
 
-fn fill(n) { alloc(array { java.f64_of_int(i) : i ∈ 0..n-1 }) }
+// Each i as a double, round(F64, i), and IEEE's dot product, round(F64) { … }
+// (ADR 0086).
+fn fill(n) { alloc(array { round(F64, i) : i ∈ 0..n-1 }) }
 
 fn dot(a, b) {
-    loop acc = 0.0, i = 0 {
-        java.`>=`(i, len(a)) -> acc
-        else -> again(java.`f+`(acc, java.`f*`(a[i], b[i])), java.`+`(i, 1))
+    round(F64) {
+        loop acc = 0, i = 0 {
+            i >= len(a) -> acc
+            else -> again(acc + a[i] * b[i], i + 1)
+        }
     }
 }
 

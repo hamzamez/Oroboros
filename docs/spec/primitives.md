@@ -145,7 +145,8 @@ makes it real, and that is [g7](../derivations/g7-aliasing.md)'s open question.
 | `print-line` | **2** | `1`, `1`, `1.0` for the same value |
 | `num/*`, `logic.*` | **1** | within ±(2⁵³−1) for `int` |
 | `round(S, e, mode)`, `÷`, `sqrt` under a rounding, `round(S) { … }` | **1** | the language's (ADR 0086, [numbers.md](numbers.md)): each a function of its arguments on every target, a rounding realized by a target declaration's `ensure` or by the compiler; conformance in numbers.md §8 |
-| the host's `f+`, `f*`, `f/`, `f<` and their kin | **2** | the host's IEEE operation on its own double, with ∞ and NaN; the language's numbers reach the same instruction through `round` (ADR 0086) |
+| the host's `f+`, `f*`, `f/`, `f<` and their kin | **2** | the host's IEEE operation on its own double, with ∞ and NaN; the language's numbers reach the same instruction through `round` (ADR 0086), and a double one of these computes is refused where the language's numbers would read it (numbers.md §6.3) |
+| `fadd`, `fsub`, `fmul`, `fdiv`, `fint` on Go, the JVM and JavaScript | **1** | each a realization, `ensure r == round(F64, t)` (numbers.md §6.2): the call a rounding of the program becomes; tested by `gauntlet/differential/cases/f64-round.oro` at ties on each target |
 
 ## 7. Absent, with reasons
 

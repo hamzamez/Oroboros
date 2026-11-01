@@ -70,6 +70,10 @@ func ShowSet(ty string) string {
 		if k, lo, hi, ok := DecRange(ty); ok {
 			return "D(" + itoa(k) + ", " + endpointJ(lo.String()) + ".." + endpointJ(hi.String()) + ")"
 		}
+	case strings.HasPrefix(ty, F64Name+" "):
+		if lo, hi, ok := F64Range(ty); ok {
+			return "set { x ∈ F64 : " + lo.String() + " <= x && x <= " + hi.String() + " }"
+		}
 	case ty == NumType:
 		return "N"
 	case strings.HasPrefix(ty, "array "):

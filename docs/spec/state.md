@@ -126,7 +126,7 @@ language's signature (`core.LanguageSignature`): the names J's reader and `Load`
 | `if`, `let`, `loop` | `if c { a } else { b }`, a block, `loop` | control and binding | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md), [binding.md](binding.md), [ADR 0015](../decisions/0015-loop-and-again.md) |
 | `=` | `==` | integer equality | [match.md](match.md) |
 | `+ - * / % < <= > >=` | the same | integer arithmetic and order, found per target by spelling; `+ - *`, the order and `==` are also N's on a number of N (ℤ ≤ N), and `/` and `%` are ℤ's alone | [integers.md §0a](integers.md), [numbers.md §1](numbers.md) |
-| `round`, `÷` | `round(S, e)`, `round(S, e, 'mode)`; `a ÷ b` (`\div`) only at a rounding's root | the one lossy operation, onto a decimal grid or a range, realized by integer operations on numerators (`ir/numbers.go`); doubles not built | [numbers.md §3](numbers.md), [ADR 0086](../decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md) |
+| `round`, `÷` | `round(S, e)`, `round(S, e, 'mode)`; `a ÷ b` (`\div`) only at a rounding's root | the one lossy operation: onto a decimal grid or a range, realized by integer operations on numerators (`ir/numbers.go`); onto F64, the call of a target declaration whose `ensure` states it (`ir/doubles.go`); `round(S) { … }` rounds every operation of N in its body | [numbers.md §3](numbers.md), [ADR 0086](../decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md) |
 | `array`, `table`, `len` | `array { 2, 3 }`, `array { e : k ∈ 0..n-1 }`, `len(t)` | a table's graph, its rule and its domain bound; indexing `t[i]` is APPLICATION | [tables.md](tables.md) |
 | `alloc`, `build`, `set`, `local` | `var b := …`, `b[i] := v`, `x := v` | allocation, the scoped linear buffer, and a scope of local state | [tables.md](tables.md), [local.md](local.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md), [ADR 0047](../decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) |
 | `map`, `build-map`, `insert`, `keys` | `map { 1 : 10 }`, `var m := map(cap)`, `m[k] := v`, `keys(m)` | maps over `Int` keys | [maps.md](maps.md) |
@@ -145,7 +145,9 @@ generated from the form.
   **`Nat`** is ↑0, read as `0..` (ADR 0079).
 - **A decimal grid** `D(k, lo..hi)`, the core's `"dec K LO HI"`: the elements of 10⁻ᵏℤ between two
   integers, of sort N (the core's `num`), held as its numerator x·10ᵏ ([numbers.md §2](numbers.md)). A
-  numeral (`0.1`, `2.50`) is exact and declared at N ([numbers.md §1](numbers.md)).
+  numeral (`0.1`, `2.50`) is exact and declared at N ([numbers.md §1](numbers.md)). F64's elements are
+  held as doubles, and `set { x ∈ F64 : lo <= x && x <= hi }` is F64 ∩ [lo, hi], a set like a range,
+  usable as a table's element ([numbers.md §2](numbers.md)).
 - **A range** `LO..HI` is a set, the core's `(int LO HI)`. Its endpoints are compile-time expressions
   over literals, unary `-`, `+ - *` and `^`, and in a target file its constants. **An end may be omitted**:
   `lo..` is ↑lo and `..hi` is ↓hi, the core's `(int lo +inf)` and `(int -inf hi)` (ADR 0077).

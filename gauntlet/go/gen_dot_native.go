@@ -3,22 +3,22 @@
 package gauntlet
 
 func NativeDot(v0 []float64, v1 []float64) float64 {
-	v14 := len(v0)
-	v17 := v1[:v14]
-	var v19 float64 = 0.0
-	var v20 int = 0
-	for ; ; v20 = (v20 + 1) {
-		v21 := (v20 >= v14)
-		if v21 {
+	v5 := len(v0)
+	v8 := v1[:v5]
+	var v10 float64 = 0.0
+	var v11 int = 0
+	for ; ; v11 = (v11 + 1) {
+		v12 := (v11 >= v5)
+		if v12 {
 			break
 		}
-		v28 := v0[v20]
-		v29 := v17[v20]
-		v30 := (v28 * v29)
-		v31 := (v19 + v30)
-		v19 = v31
+		v19 := v0[v11]
+		v20 := v8[v11]
+		v21 := (float64(v19 * v20))
+		v22 := (v10 + v21)
+		v10 = v22
 		continue
 	}
-	return v19
+	return v10
 }
 

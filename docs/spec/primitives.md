@@ -90,6 +90,8 @@ measurable rather than assumed.
 
 ## 4. `sqrt`
 
+*Since ADR 0086, `sqrt(a)` is the language's, written under a rounding (`round(F64, sqrt(a))`, numbers.md §3), and this entry is how the three hosts realize it on a double.*
+
 > The IEEE-754 square root. Correctly rounded, so **exactly one** `f64` is the right answer.
 
 | Go | JS | Java |
@@ -142,6 +144,8 @@ makes it real, and that is [g7](../derivations/g7-aliasing.md)'s open question.
 | `dict-empty`, `dict-inc` | **1** behaviourally | impure; aliasing unchecked |
 | `print-line` | **2** | `1`, `1`, `1.0` for the same value |
 | `num/*`, `logic.*` | **1** | within ±(2⁵³−1) for `int` |
+| `round(S, e, mode)`, `÷`, `sqrt` under a rounding, `round(S) { … }` | **1** | the language's (ADR 0086, [numbers.md](numbers.md)): each a function of its arguments on every target, a rounding realized by a target declaration's `ensure` or by the compiler; conformance in numbers.md §8 |
+| the host's `f+`, `f*`, `f/`, `f<` and their kin | **2** | the host's IEEE operation on its own double, with ∞ and NaN; the language's numbers reach the same instruction through `round` (ADR 0086) |
 
 ## 7. Absent, with reasons
 

@@ -6,6 +6,7 @@ target triple = "x86_64-pc-windows-msvc"
 define i64 @gen_run(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
+  %.s28 = alloca i64
   %v2 = icmp sle i64 -1000, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -24,22 +25,31 @@ entry:
   %v17 = or i64 %v10, 4096
   %v18 = add nsw i64 %v15, %v17
   %v19 = add nsw i64 %v18, %v13
-  %v20 = xor i64 %v10, -1
-  %v21 = add nsw i64 %v19, %v20
-  %v23 = add nsw i64 %v0, 1000
-  %v25 = shl nuw nsw i64 %v23, 20
-  %v26 = add nsw i64 %v21, %v25
-  %v28 = ashr i64 %v10, 3
-  %v29 = add nsw i64 %v26, %v28
-  %q.21 = srem i64 %v10, 1000
-  %n.21 = icmp slt i64 %q.21, 0
-  %s.21 = add i64 %q.21, 1000
-  %v31 = select i1 %n.21, i64 %s.21, i64 %q.21
-  %v32 = add nsw i64 %v29, %v31
-  %v34 = and i64 %v13, 65535
-  %v36 = xor i64 %v34, 4294967295
-  %v37 = add nsw i64 %v32, %v36
-  ret i64 %v37
+  %v21 = xor i64 %v10, -1
+  %v22 = add nsw i64 %v19, %v21
+  %v24 = add nsw i64 %v0, 1000
+  %v26 = shl nuw nsw i64 %v24, 20
+  %v27 = add nsw i64 %v22, %v26
+  %v29 = ashr i64 %v10, 3
+  %v30 = add nsw i64 %v27, %v29
+  %v33 = icmp sgt i64 1000, 0
+  %v34 = srem i64 %v10, 1000
+  %v36 = icmp slt i64 %v34, 0
+  br i1 %v36, label %.then24, label %.else25
+.then24:
+  %v39 = add nsw i64 %v34, 1000
+  store i64 %v39, ptr %.s28
+  br label %.join26
+.else25:
+  store i64 %v34, ptr %.s28
+  br label %.join26
+.join26:
+  %v37 = load i64, ptr %.s28
+  %v41 = add nsw i64 %v30, %v37
+  %v43 = and i64 %v13, 65535
+  %v45 = xor i64 %v43, 4294967295
+  %v46 = add nsw i64 %v41, %v45
+  ret i64 %v46
 }
 
 attributes #0 = { nounwind "no-builtins" }

@@ -14,7 +14,7 @@
    note: gen-fact-limbs: 2 operation(s) in arbitrary precision
    note: gen-fact-limbs: 6 of 6 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-fact-limbs: 6 division(s) became a shift or a mask
-== examples/big/fact-limbs.oro windows-llvm emitted 900d1eceb167e980988861ad9a6754ce9f84ac0fcf751a4d3cfaf1cf944d2bb7
+== examples/big/fact-limbs.oro windows-llvm emitted 0f68e843b8c2eb4ede2aff66b9577d6a16496431d043235804ef5b6585667d27
    note: gen-fact-limbs: 2 operation(s) in arbitrary precision
    note: gen-fact-limbs: 6 of 6 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/big/fact.oro go emitted 6f01d42652b3a7d810945cf822d0faf9614a26e7ed2ebc6ab390a6d0e7ff1da7
@@ -59,7 +59,7 @@
 == examples/big/limbs.oro windows emitted c74fb5c3e60b41ec536661a07a58ec5eb2b734d8432c4040cce25f66fa1f31cf
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 4 division(s) became a shift or a mask
-== examples/big/limbs.oro windows-llvm emitted 26ff7f2280c0ae2eb33d67aa4aac6c716833eb30664b27ec1c61aefc70616aa4
+== examples/big/limbs.oro windows-llvm emitted 3b09165f5a3b54619fb40c77e0a84bbac07ceb3b1e44ec9e7eae4d11fd8ede6c
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/big/pair.oro go emitted f5a25e5ef44a810ae47053b72a628bd44e5b7f097465f4477af527aee4f299e4
    note: gen-pair: 2 operation(s) in arbitrary precision
@@ -146,7 +146,7 @@
    note: gen-quarter: 4 division(s) became a shift or a mask
 == examples/errors/expect.oro windows emitted 1c3a57469412135d5949810dae7594cd9629ef2a3c64ffad57a14d1197515e7f
    note: gen-quarter: 4 division(s) became a shift or a mask
-== examples/errors/expect.oro windows-llvm emitted 403eae386b426d577e6d784f0b6dab6230269193ff961a4bd42de90dd1d87914
+== examples/errors/expect.oro windows-llvm emitted 9ed98e979b4f7e3f04ef6a4d314c3bd3e942c43c6b5067518d644fd4ef7d2b66
 == examples/errors/ignore.oro go emitted 8884519c312e32db6c0cd9bbcd2dd117d3c623efac1601f4d377b8c523d99367
 == examples/errors/ignore.oro js emitted 07572c03a3c589d17ab47468b8b6f6a4435bf914e4d0fc3c04f490d87f5df75d
 == examples/errors/ignore.oro java emitted 4d2a4e9db2c14414fed22f576e9093afe8534cef5a610df4be299b813af8354f
@@ -168,7 +168,7 @@
 == examples/errors/slots.oro windows emitted 1efe1630b4e397210779822be30bcac2ed265f14ac3bd7fec17f295bc66aac36
    note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-save: 1 division(s) became a shift or a mask
-== examples/errors/slots.oro windows-llvm emitted 1bb5c27e494a29db1a1f0dbe55ef2b9e16002971e69db6c4cffc6bad94741ffc
+== examples/errors/slots.oro windows-llvm emitted 7142a9b66ef56bbae8208d6daa8a3463dacd5d859072eee6b7aaccb36f053ed8
    note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/hash/crc32.oro go emitted 3eeccab5f40ac6be086e7ab443b61a132bd305ea2507b502ea1853cd45595728
    note: gen-main: 53 of 53 integer operations bounded; 3 of 3 loop(s) proven terminating
@@ -1130,7 +1130,7 @@
    note: gen-run: 7 operation(s) in arbitrary precision
    note: gen-run: 21 of 21 integer operations bounded; 9 of 9 loop(s) proven terminating
    note: gen-run: 18 division(s) became a shift or a mask
-== gauntlet/differential/cases/big-divmod.oro windows-llvm emitted b27a59849f5b6b776ecc9ff8b9d6804af25ff598f519e92f855304452e7feed4
+== gauntlet/differential/cases/big-divmod.oro windows-llvm emitted ffe80156aa8e20c47bcae55c79292a88b5cb2ec4aa676890f66e746202a0ca92
    note: gen-run: 7 operation(s) in arbitrary precision
    note: gen-run: 21 of 21 integer operations bounded; 9 of 9 loop(s) proven terminating
 == gauntlet/differential/cases/big-fib.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
@@ -1205,8 +1205,8 @@
      inlined into (ADR 0028). Prove the argument in range — narrow it, or declare the range of
      what it comes from — or widen the declaration if the definition is right outside it.
      (4 obligations at calls fail; this is the first.)
-== gauntlet/differential/cases/bits-edges.oro windows-llvm emitted 217b9ec1df948801ef2a646c600559e9c0340b0ee1fd1f364ecd5146e726948b
-   note: gen-run: 47 of 47 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/bits-edges.oro windows-llvm emitted 5b8fb07fa393e75ff07164947f138120031c1bf01aa0c58580f2e144f6a65628
+   note: gen-run: 49 of 49 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/bits.oro go emitted ce492cdb0cddbcea54ca2caaa79a7e15507f74bb27783c63a388a8c8eecef058
    note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/bits.oro js emitted 33a2adc582c18324e5a9edef41534be21ec61cbdab40c307d9e029c5bd82a447
@@ -1215,7 +1215,7 @@
    note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/bits.oro windows emitted e98ce2f4f90d371f6212b6a36c98b54bc49cdd9425718d05e1336ec47ef377a4
    note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
-== gauntlet/differential/cases/bits.oro windows-llvm emitted 343ede268a3bf6c5ed1fb0210b3300384cc467feb7f900511662f6e467f5ba92
+== gauntlet/differential/cases/bits.oro windows-llvm emitted 53cd301c3f8a7fee0523bc620558057cfe1396d15f00b434f981cd195b8401ef
    note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/buffer-swap.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/buffer-swap.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
@@ -1235,7 +1235,7 @@
    note: gen-run: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
 == gauntlet/differential/cases/bytes-table.oro windows emitted 3e32e1c00866e98cc0a1c5845c6f9884f6e36bf452a6b875e227df7e77c01981
    note: gen-run: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
-== gauntlet/differential/cases/bytes-table.oro windows-llvm emitted f7bd478600be6de3b770b10f27b00731d35532725fa559fe83658a7a3d4eb532
+== gauntlet/differential/cases/bytes-table.oro windows-llvm emitted d0202370de5c21ef218cf9f3a263233eaf0f16e7c52364099e9f83236f5643fc
    note: gen-run: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
 == gauntlet/differential/cases/codecs.oro go emitted 69890e2dc089eaa48522c0925532b985a9b55399116dd760b6f575bb58d116d7
    note: gen-run: 5 operation(s) or conversion(s) in the unsigned word
@@ -1247,8 +1247,8 @@
    note: gen-run: 47 of 47 integer operations bounded; 5 of 5 loop(s) proven terminating
 == gauntlet/differential/cases/codecs.oro windows emitted f7ff04de3512877b07435754a1cb025855e833527467622b011acdb451339264
    note: gen-run: 47 of 49 integer operations bounded; 5 of 5 loop(s) proven terminating
-== gauntlet/differential/cases/codecs.oro windows-llvm emitted c51798cbec3d4cbaadf3313f26d48cb1059b0383e3bcb41b97a8f9cbe69019b9
-   note: gen-run: 47 of 49 integer operations bounded; 5 of 5 loop(s) proven terminating
+== gauntlet/differential/cases/codecs.oro windows-llvm emitted 358b69a826b9645b86ee4c0cf1936521de42d4d42698847b087f61991a8e6073
+   note: gen-run: 48 of 50 integer operations bounded; 5 of 5 loop(s) proven terminating
 == gauntlet/differential/cases/expect.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736
@@ -1267,7 +1267,7 @@
    note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv32.oro windows emitted dc58798fe48ad6a4af90711881df516c13dd6300af498588063dfc53e1b602c5
    note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
-== gauntlet/differential/cases/fnv32.oro windows-llvm emitted 53b5ec418f13171ea929a10326246176da548f8b2d86ef0ca686f90ae976c838
+== gauntlet/differential/cases/fnv32.oro windows-llvm emitted d575d9c111acf84cffe19e1dc543963f83718297e5ccdde0bf965da433e83c0e
    note: gen-run: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv64-fold.oro go emitted 67196f8dcdca62e9c7261182604bc4a3bfc5d5633d7cf0d9533e992b72151cb7
    note: gen-run: 9 operation(s) or conversion(s) in the unsigned word
@@ -1279,8 +1279,8 @@
    note: gen-run: 7 of 7 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv64-fold.oro windows emitted 6674ca505cc414bcac311fef383f4c5049bd5d6ddb9a3a300a0ddbd00253fc65
    note: gen-run: 6 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
-== gauntlet/differential/cases/fnv64-fold.oro windows-llvm emitted 8412258fa51fd376091143d4b10b36a42064e9179aec0e944461499fd2fb6533
-   note: gen-run: 6 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv64-fold.oro windows-llvm emitted bb627c7501569b8cde6dda5648df5de519ee2fa0f05d471f1b35810ba7e94ab8
+   note: gen-run: 7 of 12 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv64.oro go emitted 77523b51761ed9eac09df01d2d5e0c6d5bfecd320f08ea8cef70217c53ba34ed
    note: gen-run: 7 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -1320,7 +1320,7 @@
 == gauntlet/differential/cases/limb-subdiv.oro windows emitted 9a412313b9e54c75518848c9cf39617e19b394941cf2126fe6a5400baa80f176
    note: gen-run: 11 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: gen-run: 4 division(s) became a shift or a mask
-== gauntlet/differential/cases/limb-subdiv.oro windows-llvm emitted fa406940f6afc7cdf87c852b4989c2314b252addcd55a1fb54bafab92a35bfc8
+== gauntlet/differential/cases/limb-subdiv.oro windows-llvm emitted 2ee3983643e81e558404145f0b31000f34c6d440bc1f2ddea7fc71ce2d1725e0
    note: gen-run: 11 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
 == gauntlet/differential/cases/local-case.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/local-case.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
@@ -1443,7 +1443,7 @@
    note: gen-run: 10 operation(s) in arbitrary precision
    note: gen-run: 22 of 22 integer operations bounded; 13 of 13 loop(s) proven terminating
    note: gen-run: 26 division(s) became a shift or a mask
-== gauntlet/differential/cases/render.oro windows-llvm emitted 6229539d98445842479c826fc38b3c7340dd7a8efd4676924c67563ae80c1362
+== gauntlet/differential/cases/render.oro windows-llvm emitted 85399ad2937048557e54f59a05c40a81620f53a5db69f754def3f284f4f6c404
    note: gen-run: 10 operation(s) in arbitrary precision
    note: gen-run: 22 of 22 integer operations bounded; 13 of 13 loop(s) proven terminating
 == gauntlet/differential/cases/shift-div.oro go emitted bcc4b01b78a28453ffda15d6b2988d63ae9739255a56e5c1c5f1140e00605312
@@ -1454,8 +1454,8 @@
    note: gen-run: 0 of 7 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/shift-div.oro windows emitted 7696746284fab89f7126bcd16c81b7e699255e732f75e6b7a1d1d87c1f1f49da
    note: gen-run: 0 of 7 integer operations bounded; 0 of 0 loop(s) proven terminating
-== gauntlet/differential/cases/shift-div.oro windows-llvm emitted 51d6d66787127ea27cedcbbf92399df125e6fe38e55b3828f6e3674634bda39a
-   note: gen-run: 0 of 7 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/shift-div.oro windows-llvm emitted f6d85e9e1d7c41baf897759210009c8d6b8b0b62767baeb40ec9db0dff2d2a6e
+   note: gen-run: 2 of 9 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/string-escapes.oro go refused
    gen: gen-run: cannot determine a type for parameter 1: no header declares it, and it is never passed to an operation or a primitive whose header would fix it
 == gauntlet/differential/cases/string-escapes.oro js emitted 96d99197e25f9d7a33fc43659933cc19fe49ea27d6296314f9902ede9c0503d5
@@ -1709,6 +1709,6 @@
      `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
 == lib/win/print.oro windows refused
    gen: lib/win/print.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== lib/win/print.oro windows-llvm emitted 1656f2b554d608534400365277c1c0bc2b1ddb22a9dd3366014f4a929d4b2bcc
+== lib/win/print.oro windows-llvm emitted 429421b85a2b270b2b6986c2e18e8192d8d7e6037857dc52f4b46654d8f1df49
    note: gen-print-int: 10 of 10 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-print-str: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating

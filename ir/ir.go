@@ -182,6 +182,12 @@ type Stmt struct {
 	// Scoped marks an ORound the scope round(S) { … } wrote: the identity on an
 	// integer operand (numbers.md §3). In memory only, like ORound itself.
 	Scoped bool
+	// Via is the host operation that computes this integer operation, on a
+	// target that states its realizations (ADR 0089): one of the operation's
+	// stated realizations whose domain the facts prove, or the host operation a
+	// realization's term names. Printed, `(shl exact via llvm.shl %1 %2)`: it
+	// is the printer's input, as a mode is.
+	Via string
 	// Src is PROVENANCE: the application this statement lowers, which a
 	// diagnostic names (a refusal says which source operation it could not
 	// prove). It is in memory only, like the facts: never printed, never read,

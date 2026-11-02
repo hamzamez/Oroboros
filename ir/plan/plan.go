@@ -140,12 +140,16 @@ func Spellings(tg *emit.Target) map[ir.Op][2]string {
 	// declaration the target registered under the language's name, never by a
 	// host operator found by classifying names: JavaScript's `&` is not the and.
 	for o, name := range BitNames {
-		if q, ok := tg.Prims[name]; ok && q.Form != "" {
+		if q, ok := tg.Prims[name]; ok {
 			trap := ""
 			if c, ok := tg.Prims[q.Checked]; ok {
 				trap = c.Form // `<<`'s, where a target states one (ADR 0088)
 			}
-			out[o] = [2]string{q.Form, trap}
+			// A NAME REALIZED BY A TERM has no form of its own (ADR 0089), but
+			// its checked form is the trap of every operation in its terms.
+			if q.Form != "" || trap != "" {
+				out[o] = [2]string{q.Form, trap}
+			}
 		}
 	}
 	return out
@@ -175,6 +179,14 @@ var BitNames = map[ir.Op]string{ir.OAnd: "&", ir.OOr: "|", ir.OXor: "⊕", ir.ON
 // IR recorded one it chose by the proven result (ADR 0083 item 2), else the
 // target's for the operation.
 func (p *Plan) Form(s *ir.Stmt) [2]string {
+	// THE HOST OPERATION THE IR RECORDED (ADR 0089): a stated realization
+	// whose domain the facts prove, or one a realization's term names. A
+	// trapped operation is its language operation's checked form.
+	if s.Via != "" && s.Mode != ir.MTrap {
+		if q, ok := p.Tg.Prims[s.Via]; ok {
+			return [2]string{q.Form, ""}
+		}
+	}
 	// A FUSED OPERATION (mode wrap) is spelled by the target's wrapping form
 	// where it declares one (JavaScript's `mul_wrap`, Math.imul); elsewhere its
 	// plain operator wraps at the target's width already.

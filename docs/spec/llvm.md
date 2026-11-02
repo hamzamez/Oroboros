@@ -36,9 +36,11 @@ item 5); then it becomes `targets/windows`. Its files are the host's, under the 
   `llvm.sdiv` where b ≠ 0 and not −2⁶³ by −1. It is declared by hand, as the survey
   ([llvmsurvey-2026-10-27](../../gauntlet/results/llvmsurvey-2026-10-27.md)) classified it, and grows
   family by family;
-- `lang.oro`: the forms realizing a language name where no single instruction is its operation on the
-  whole of its domain: `~`, `<<` and `>>` past 63, `mod`, `/` and `%` at a divisor −1, the checked
-  arithmetic, `trap_if`, `abandon`, and `build`'s allocator;
+- `lang.oro`: where no single instruction is a language operation on the whole of its domain, its
+  realization as **a term over `llvm.oro`'s operations** (ADR 0089), a definition in the language:
+  `~`, `<<` and `>>` past 63, `mod`, `/` and `%` at a divisor −1. Templates remain for what the language
+  cannot yet say here: the checked arithmetic (a call with two results), `trap_if` and `abandon` (a call
+  that never returns), and `build`'s allocator (a pointer as a value);
 - `kernel32.oro`: the Win32 functions programs call, as they are, each `declare dllimport` in the
   printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count;
 - `strings.oro`: the free monoid, `string_of` and `++`, each a helper function the module defines, and
@@ -98,14 +100,16 @@ The width is read off the table's representative's type, so every alias of a tab
 | `sub exact` | `sub nsw`; `nuw` when b ≥ 0 and the result ≥ 0 | |
 | `mul exact` | `mul nsw`; `nuw` when both ≥ 0 | |
 | `neg exact a` | `sub nsw i64 0, a` | |
-| `div exact a b` | `sdiv` of a divisor −1 read as 1, negated by `select` there | b ≠ 0, its `where` |
-| `rem exact a b` | `srem` of a divisor −1 read as 1 | b ≠ 0, its `where` |
-| `mod a m` | `srem`, then `select` of it + m where it is negative | m > 0, its `where` |
+| `div a b`, b ≠ −1 or a ≠ −2⁶³ proven | `sdiv` | its domain, decided on the operands' intervals |
+| `div a b` elsewhere | the term `if b == -1 { 0 - a } else { llvm.sdiv(a, b) }` | b ≠ 0; `0 − a` decided at the site |
+| `rem a b`, the same proven | `srem` | |
+| `rem a b` elsewhere | the term `if b == -1 { 0 } else { llvm.srem(a, b) }` | b ≠ 0 |
+| `mod a m` | the term `r = llvm.srem(a, m); if r < 0 { r + m } else { r }` | m > 0, its `where` |
 | `and`, `or`, `xor`, `not` | `and`, `or`, `xor`, `xor −1` | total on ℤ (ADR 0082) |
 | `shl a k`, k proven < 64 | `shl nsw`, `nuw` when a ≥ 0 | a·2ᵏ inside the word; the realization chosen by k's proven set |
-| `shl a k` elsewhere | `shl`, and `select` 0 where k > 63 | k ≥ 0, its `where`; a·2ᵏ inside the word |
+| `shl a k` elsewhere | the term `if k <= 63 { llvm.shl(a, k) } else { 0 }`, the arm's `shl` with its flags | k ≥ 0, its `where`; a·2ᵏ inside the word |
 | `shr a k`, k proven < 64 | `ashr` | |
-| `shr a k` elsewhere | `ashr`, and `select` `ashr a, 63` where k > 63 | k ≥ 0, its `where` |
+| `shr a k` elsewhere | the term `if k <= 63 { llvm.ashr(a, k) } else { llvm.ashr(a, 63) }` | k ≥ 0, its `where` |
 | an operation in `wrap` mode | the same instruction with no flag | ADR 0082's fusion: the residue is the answer |
 | `eq` … `ge` on integers | `icmp eq/ne/slt/sle/sgt/sge` | |
 | `u64` operations | `add`/`sub`/`mul` with `nuw`, `udiv`, `urem`, `icmp ult…` | ADR 0033's word selection |
@@ -117,15 +121,15 @@ The width is read off the table's representative's type, so every alias of a tab
 | `the`, `require` | do not reach IR_P (W9) | |
 
 A shift by 64 or more is poison in LLVM, where in ℤ a·2ᵏ is 0 (a is 0, by the obligation) and
-⌊a/2ᵏ⌋ is 0 or −1; so each shift is the instruction below 64 and its limit past it, chosen by `select`,
-which takes no poison from the operand it does not choose. `>>` past a count of 63, refused on MASM, is
+⌊a/2ᵏ⌋ is 0 or −1; so each shift is the instruction below 64 and its limit past it, a branch in the
+term, which LLVM speculates into a `select` where cheaper (sound: each arm is defined where taken). `>>` past a count of 63, refused on MASM, is
 total here. Where the IR proves the count below 64, the realization is the instruction itself, chosen
 per instance by its parameters' sets (ADR 0088, ir/final.go), and `shl` takes its flags.
 
 `sdiv` and `srem` are undefined for −2⁶³ by −1 (LangRef), where ℤ's remainder is 0 and its quotient
-2⁶³ is outside the word. The language's `%` and `/` read a divisor −1 as 1: `%` gives ℤ's 0, and `/`
-gives −a, which for −2⁶³ is −2⁶³, as Go and the JVM answer. No target's analysis yet decides that the
-quotient leaves the word (llvm-2026-11-02); the operation is total here, never undefined.
+2⁶³ is outside the word. The terms give −1 its own arm: `%` gives ℤ's 0, and `/` gives `0 − a`, the
+language's `−`, decided at the site: 2⁶³ is refused, or trapped under `-checked`, as any result outside
+the word is (ADR 0019). The other targets do not yet decide it (llvm-2026-11-02).
 
 A `trap`-mode operation (`-checked`) prints LLVM's overflow intrinsic, `llvm.sadd.with.overflow.i64`
 and kin, and a branch to `llvm.trap` on overflow: the trap is the answer `-checked` asks for, and the
@@ -156,9 +160,11 @@ holds and a declaration cannot: where an `add`, `sub`, `mul` or `shl` is proven,
 after the template's first word, `add nuw nsw i64 …`. A template of several instructions takes none.
 
 **A realization is stated** (ADR 0088): `realize OP = A, B … [checked C]` in the target file names the
-declarations that interpret the language's name OP, the first everywhere and each later one where its
-parameters' sets hold the operands' proven facts, the narrowest such; C is the trap `-checked` asks
-for. A declaration in `llvm.oro` is LLVM's operation as it is and means only that; a program naming
+declarations that interpret the language's name OP: the first everywhere, a host operation or **a term
+over host operations** (ADR 0089, inlined after the decision, its header OP's domain); each later one a
+host operation, where its domain (parameters' sets and `where`) holds of the operands' proven facts,
+the narrowest such, recorded on the operation as `via` in the IR's text; C is the trap `-checked`
+asks for. Inside a term, a host operation that is a stated realization of g is g. A declaration in `llvm.oro` is LLVM's operation as it is and means only that; a program naming
 `llvm.shl` owes `shl`'s domain, whatever `<<` is realized by.
 
 A `where` is an obligation (ADR 0080 item 7). A primitive the language cannot state is a wall

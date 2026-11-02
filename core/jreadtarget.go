@@ -51,9 +51,18 @@ func (p *parser) targetItems() ([]*Term, error) {
 		if err != nil {
 			return nil, err
 		}
+		// A DEFINITION WITH A HEADER is two forms, its `sig` and its `def`.
+		if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName && t.Kids[0].Name == programGroup {
+			out = append(out, t.Kids[1:]...)
+			continue
+		}
 		out = append(out, t)
 	}
 }
+
+// programGroup wraps the forms one program definition in a target file reads
+// as (targetItem); targetItems takes them apart.
+const programGroup = "‹program›"
 
 // liftAxioms takes each inclusion out of the module J writes it in, to the
 // file's top level with its type's whole name, `(implements P.T I…)`, where the
@@ -125,7 +134,13 @@ func (p *parser) targetItem() (*Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		return DeclTerms(ds)[0], nil
+		// ALL OF ITS FORMS: a header was dropped here, taking `[0]`, so a
+		// definition with one lost its body (llvm-2026-11-02).
+		ts := DeclTerms(ds)
+		if len(ts) == 1 {
+			return ts[0], nil
+		}
+		return app(append([]*Term{Name(programGroup)}, ts...)...), nil
 	case p.is("fn"):
 		return p.hostFn()
 	case p.is("set") && p.peekN(1).kind != tSym:

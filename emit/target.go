@@ -2505,6 +2505,17 @@ func parseFact(f *core.Term, frag *Target, path string) error {
 	return nil
 }
 
+// hasHostBody reports a `sig` form carrying a `host` body: a declaration of a
+// host's, as against a definition's header.
+func hasHostBody(f *core.Term) bool {
+	for _, c := range f.Kids {
+		if formWord(c) == "host" {
+			return true
+		}
+	}
+	return false
+}
+
 // declare records one primitive under a module path. The name stored is the
 // FULLY QUALIFIED one, because that is what resolution produces and R1 requires
 // targets and libraries to key the same namespace (modules.md §5).
@@ -2512,7 +2523,9 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 	// `(def NAME term)` and `(use PATH [as A])` are `D_T`, not declarations:
 	// they are the target's own library, and they go to core rather than to the
 	// primitive table (target-system.md §6).
-	if w := formWord(f); w == "def" || w == "use" {
+	// A HEADER WITH NO HOST BODY is a definition's of the target's own library
+	// (its `def` follows): it goes with the definition, to D_T.
+	if w := formWord(f); w == "def" || w == "use" || w == "sig" && !hasHostBody(f) {
 		if modPath == "" {
 			return fmt.Errorf("%s: `%s …` is the target's own library and belongs to a module — "+
 				"write it inside `module PATH { … }` or `provides TARGET PATH { … }` (theories.md §5.4)",
@@ -4027,10 +4040,88 @@ func (tg *Target) stated(name string) (Prim, bool) {
 	}
 	p, ok := tg.Prims[names[0]]
 	if !ok {
-		return Prim{}, false
+		if !tg.IsDefinition(names[0]) {
+			return Prim{}, false
+		}
+		// A TERM REALIZES THE NAME (ADR 0089): the operation is the language's
+		// with no template of its own; the IR substitutes the term's instance
+		// for it (ir/realize.go), and a printer that meets it unsubstituted
+		// has no form and says so.
+		p = Prim{Name: name, Kind: "expr", Pure: true}
+		// ITS DOMAIN IS THE DEFINITION'S HEADER: the language operation's
+		// obligations at every site, as a declaration's `where` is on a target
+		// realizing it by a host operation (`/`'s divisor ≠ 0).
+		if sig := tg.defSig(names[0]); sig != nil {
+			p.Where = sig.Where
+			for _, sp := range sig.Params {
+				p.Names = append(p.Names, sp.Name)
+			}
+		}
 	}
 	p.Checked = checked
 	return p, true
+}
+
+// defSig is the header of a definition the target makes, or nil.
+func (tg *Target) defSig(name string) *core.Sig {
+	i := strings.LastIndex(name, ".")
+	if i < 0 {
+		return nil
+	}
+	for _, f := range tg.Defs[name[:i]] {
+		if f.Kind == "sig" && f.Name == name[i+1:] && f.Sig != nil {
+			return f.Sig
+		}
+	}
+	return nil
+}
+
+// IsDefinition reports a name the target defines in the language (D_T,
+// target-system.md §6.2), `module.local`, rather than declares as a host's.
+func (tg *Target) IsDefinition(name string) bool {
+	i := strings.LastIndex(name, ".")
+	if i < 0 {
+		return false
+	}
+	for _, f := range tg.Defs[name[:i]] {
+		if f.Kind == "def" && f.Name == name[i+1:] {
+			return true
+		}
+	}
+	return false
+}
+
+// RealizedNames is what the target states for the language's name op (ADR
+// 0088, 0089): its realizations in order, the first everywhere and each later
+// one where its domain is proven, and its checked form.
+func (tg *Target) RealizedNames(op string) ([]string, string, bool) { return tg.realizedNames(op) }
+
+// StatedOp is the language's name a declaration realizes on a target that
+// states its realizations: the language's own name for itself, and for a host
+// operation the name whose stated list holds it. This is how the IR reads a
+// host operation as the language's operation on its domain (ADR 0089): by
+// the statement, never by the host's name.
+func (tg *Target) StatedOp(name string) (string, bool) {
+	if !tg.States() {
+		return "", false
+	}
+	if _, ok := tg.Realized[name]; ok {
+		return name, true
+	}
+	ops := make([]string, 0, len(tg.Realized))
+	for op := range tg.Realized {
+		ops = append(ops, op)
+	}
+	sort.Strings(ops)
+	for _, op := range ops {
+		names, _, _ := tg.realizedNames(op)
+		for _, n := range names {
+			if n == name && !tg.IsDefinition(n) {
+				return op, true
+			}
+		}
+	}
+	return "", false
 }
 
 // statedRealizations records the realizations a target states for op, the
@@ -4074,10 +4165,16 @@ func (tg *Target) checkRealized() error {
 		if checked != "" {
 			names = append(names, checked)
 		}
-		for _, n := range names {
-			if _, ok := tg.Prims[n]; !ok {
-				return fmt.Errorf("`realize %s`: the target declares no %s", op, n)
+		for i, n := range names {
+			if _, ok := tg.Prims[n]; ok {
+				continue
 			}
+			// A TERM MAY BE THE FIRST REALIZATION OR THE CHECKED ONE (ADR 0089);
+			// a later one is a host operation, chosen where its domain is proven.
+			if tg.IsDefinition(n) && (i == 0 || n == checked) {
+				continue
+			}
+			return fmt.Errorf("`realize %s`: the target declares no %s", op, n)
 		}
 	}
 	return nil

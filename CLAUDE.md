@@ -292,7 +292,7 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **5,026 of 5,093** integer operations proven inside their target's word, the 67 left
+- **Provability**: **5,032 of 5,099** integer operations proven inside their target's word, the 67 left
   mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
   **557 of 580** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
@@ -438,9 +438,12 @@ option (b), jswitch5b-2026-10-16).
   glue within, override between ([target-system.md](docs/spec/target-system.md)).
 - **A host module's path is the host's** (`go/encoding/hex`, ADR 0025), and the file is the path; a
   companion is a child module; a bare type name resolves lexically.
-- **A target states its realization of each language name** (ADR 0088), `realize OP = A, B checked C`,
-  chosen per instance by the operands' proven sets; a host operation is declared as it is, its domain
-  its `where`. Built for `windows-llvm`; the four older targets are found by spelling until restated.
+- **A target states its realization of each language name** (ADR 0088), `realize OP = A, B checked C`:
+  an interpretation ι : Σ_L → T(Σ_H), the first a host operation or **a term over host operations**,
+  a definition the target makes, substituted after the decision (ADR 0089, `ir/realize.go`); each later
+  one a host operation chosen per instance where the facts prove its domain. A host operation is
+  declared as it is, its domain its `where`. Built for `windows-llvm`; the four older targets are found
+  by spelling until restated.
 - **Host declarations are written by hand**, by someone who read the host's source, and checked against
   it by the generator, which never claims what it cannot justify (ADR 0022, 0023;
   `gauntlet/stdlib/tooling_test.go`). `fn f(x ∈ S) (R) pure { host expr "F(${x})" import "p" }`; a
@@ -593,6 +596,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A number is an element of ℤ[1/10]; `round(S, e, mode)` is its one lossy operation, `÷` and the transcendentals at its root; the facts choose ρ; IEEE's arithmetic a static scope; no NaN or ∞; a target realizes a rounding by its `ensure` (not built) | [0086](docs/decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md) |
 | A result's set is a claim by its ends inside the word, decided on ℤ's facts before any representation; an end past the word, and a bounded range's sign end held above it, ADR 0029's at run time; amends 0029 | [0087](docs/decisions/0087-a-results-set-is-a-claim-by-its-ends-inside-the-word.md) |
 | A target states its realization of each language name, chosen per instance by proof; a host operation is declared as it is, its domain its `where` (built for windows-llvm; the others by spelling until restated) | [0088](docs/decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md) |
+| A realization is a term over the host's operations, ι : Σ_L → T(Σ_H), checked defined and agreeing, substituted after the decision; templates only for a host's own operations (amends 0088) | [0089](docs/decisions/0089-a-realization-is-a-term-over-the-hosts-operations.md) |
 
 ## Build commands
 

@@ -463,7 +463,26 @@ func neKey(t *core.Term) (string, bool) {
 	return "ne(" + a + "," + b + ")", true
 }
 
+// plantNegatedEqFault restores the bug as it shipped: ¬(a = b) an opaque
+// atom (TestTheLanguagesNotEqualIsADisequality).
+var plantNegatedEqFault bool
+
 func disequalityParts(t *core.Term) (*linear, *linear, bool) {
+	// ¬(a = b) IS a ≠ b. J's `a != b` is D's negation of `==`, `(if (= a b)
+	// false true)`, which was an opaque atom here, so a `where b != 0` in the
+	// language's own words decided nothing (llvm-2026-11-02).
+	if t.Kind == core.KApp && t.Op().Kind == core.KName && t.Op().Name == "if" && len(t.Args()) == 3 && !plantNegatedEqFault {
+		c, th, el := t.Args()[0], t.Args()[1], t.Args()[2]
+		if th.Kind == core.KBool && !th.IsTrue() && el.Kind == core.KBool && el.IsTrue() &&
+			c.Kind == core.KApp && c.Op().Kind == core.KName && isOp(c.Op().Name, "eq") && len(c.Args()) == 2 {
+			l, ok1 := asLinear(c.Args()[0])
+			r, ok2 := asLinear(c.Args()[1])
+			if ok1 && ok2 {
+				return l, r, true
+			}
+		}
+		return nil, nil, false
+	}
 	if t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 2 {
 		return nil, nil, false
 	}

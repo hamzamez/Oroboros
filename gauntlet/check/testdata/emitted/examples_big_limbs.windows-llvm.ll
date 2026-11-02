@@ -74,18 +74,12 @@ entry:
   store ptr %v15, ptr %.s20
   br label %.exit13
 .else19:
-  %m.21 = icmp eq i64 16777216, -1
-  %d.21 = select i1 %m.21, i64 1, i64 16777216
-  %v23 = srem i64 %v17, %d.21
+  %v23 = srem i64 %v17, 16777216
   %.d22 = getelementptr inbounds i8, ptr %v15, i64 8
   %.e23 = getelementptr inbounds i64, ptr %.d22, i64 %v16
   store i64 %v23, ptr %.e23
   %v26 = add nuw nsw i64 %v16, 1
-  %m.25 = icmp eq i64 16777216, -1
-  %d.25 = select i1 %m.25, i64 1, i64 16777216
-  %q.25 = sdiv i64 %v17, %d.25
-  %n.25 = sub i64 0, %q.25
-  %v28 = select i1 %m.25, i64 %n.25, i64 %q.25
+  %v28 = sdiv i64 %v17, 16777216
   store ptr %v15, ptr %.s14
   store i64 %v26, ptr %.s15
   store i64 %v28, ptr %.s16
@@ -131,18 +125,12 @@ entry:
   %v50 = load i64, ptr %.e50
   %v51 = mul nuw nsw i64 %v50, %v32
   %v52 = add nuw nsw i64 %v51, %v45
-  %m.53 = icmp eq i64 16777216, -1
-  %d.53 = select i1 %m.53, i64 1, i64 16777216
-  %v54 = srem i64 %v52, %d.53
+  %v54 = srem i64 %v52, 16777216
   %.d54 = getelementptr inbounds i8, ptr %v43, i64 8
   %.e55 = getelementptr inbounds i64, ptr %.d54, i64 %v44
   store i64 %v54, ptr %.e55
   %v57 = add nuw nsw i64 %v44, 1
-  %m.57 = icmp eq i64 16777216, -1
-  %d.57 = select i1 %m.57, i64 1, i64 16777216
-  %q.57 = sdiv i64 %v52, %d.57
-  %n.57 = sub i64 0, %q.57
-  %v59 = select i1 %m.57, i64 %n.57, i64 %q.57
+  %v59 = sdiv i64 %v52, 16777216
   store ptr %v43, ptr %.s42
   store i64 %v57, ptr %.s43
   store i64 %v59, ptr %.s44

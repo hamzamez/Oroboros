@@ -8,7 +8,9 @@ entry:
   %.s6 = alloca i1
   %.s11 = alloca i64
   %.s12 = alloca i64
-  %.s29 = alloca i64
+  %.s35 = alloca i64
+  %.s36 = alloca i64
+  %.s42 = alloca i64
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -50,9 +52,7 @@ ok.8:
   %v26 = mul i64 %v16, 7
   %v27 = add i64 %v24, %v26
   %v28 = mul nuw nsw i64 %v16, %v16
-  %m.21 = icmp eq i64 13, -1
-  %d.21 = select i1 %m.21, i64 1, i64 13
-  %v30 = srem i64 %v28, %d.21
+  %v30 = srem i64 %v28, 13
   %v31 = add i64 %v27, %v30
   %v33 = and i64 %v31, 255
   %v34 = xor i64 %v17, %v33
@@ -73,25 +73,49 @@ trap.27:
   call void @llvm.trap()
   unreachable
 ok.27:
-  %q.28 = srem i64 %v36, %v41
-  %n.28 = icmp slt i64 %q.28, 0
-  %s.28 = add i64 %q.28, %v41
-  %v42 = select i1 %n.28, i64 %s.28, i64 %q.28
+  %v43 = icmp sgt i64 %v41, 0
+  %v44 = srem i64 %v36, %v41
+  %v46 = icmp slt i64 %v44, 0
+  br i1 %v46, label %.then31, label %.else32
+.then31:
+  %o.34 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v44, i64 %v41)
+  %v49 = extractvalue {i64, i1} %o.34, 0
+  %f.34 = extractvalue {i64, i1} %o.34, 1
+  br i1 %f.34, label %trap.34, label %ok.34
+trap.34:
+  call void @llvm.trap()
+  unreachable
+ok.34:
+  store i64 %v49, ptr %.s35
+  br label %.join33
+.else32:
+  store i64 %v44, ptr %.s35
+  br label %.join33
+.join33:
+  %v47 = load i64, ptr %.s35
   store i64 %v22, ptr %.s11
-  store i64 %v42, ptr %.s12
+  store i64 %v47, ptr %.s12
   br label %.head9
 .else15:
-  store i64 %v17, ptr %.s29
+  store i64 %v17, ptr %.s36
   br label %.exit10
 .exit10:
-  %v15 = load i64, ptr %.s29
-  %s.30 = ashr i64 %v15, 32
-  %t.30 = ashr i64 %v15, 63
-  %o.30 = icmp ugt i64 32, 63
-  %v45 = select i1 %o.30, i64 %t.30, i64 %s.30
-  %v47 = and i64 %v15, 4294967295
-  %v48 = xor i64 %v45, %v47
-  ret i64 %v48
+  %v15 = load i64, ptr %.s36
+  %v54 = icmp sle i64 32, 63
+  br i1 %v54, label %.then38, label %.else39
+.then38:
+  %v57 = ashr i64 %v15, 32
+  store i64 %v57, ptr %.s42
+  br label %.join40
+.else39:
+  %v60 = ashr i64 %v15, 63
+  store i64 %v60, ptr %.s42
+  br label %.join40
+.join40:
+  %v55 = load i64, ptr %.s42
+  %v62 = and i64 %v15, 4294967295
+  %v63 = xor i64 %v55, %v62
+  ret i64 %v63
 }
 
 attributes #0 = { nounwind "no-builtins" }

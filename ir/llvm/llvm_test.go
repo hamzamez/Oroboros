@@ -207,15 +207,17 @@ func TestAShiftIsTheInstructionWhereItsCountIsProven(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "= shl nuw nsw i64") || strings.Contains(out, "select") {
+	if !strings.Contains(out, "= shl nuw nsw i64") || strings.Contains(out, ", 63") {
 		t.Errorf("a count proven below 64 should print the bare instruction with its flags:\n%s", out)
 	}
 	out, err = compile(t, "export fn g(k ∈ 0..100) (Int) { 0 << k }")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "select") {
-		t.Errorf("a count up to 100 should print the total form:\n%s", out)
+	// THE TERM, lang.shl: the count compared with 63, LLVM's shl on the arm that
+	// proves it below 64, with that arm's flags, and 0 past it.
+	if !strings.Contains(out, "icmp sle i64") || !strings.Contains(out, "= shl nuw nsw i64 0,") {
+		t.Errorf("a count up to 100 should print lang.shl's term:\n%s", out)
 	}
 	if _, err := compile(t, "use llvm\nexport fn g(k ∈ 0..100) (Int) { llvm.shl(0, k) }"); err == nil {
 		t.Errorf("llvm.shl with a count up to 100 was accepted: its domain is 0..63")
@@ -245,6 +247,13 @@ func unstated(tg *emit.Target) string {
 		}
 		first, _, _ := strings.Cut(r, "|")
 		first, _, _ = strings.Cut(first, ",")
+		// A TERM REALIZES IT (ADR 0089): no template; the IR inlines the term.
+		if tg.IsDefinition(first) {
+			if got := tg.Prims[op].Form; got != "" {
+				return fmt.Sprintf("%s is %q, want no template: %s is a term", op, got, first)
+			}
+			continue
+		}
 		if got, want := tg.Prims[op].Form, tg.Prims[first].Form; got != want || got == "" {
 			return fmt.Sprintf("%s is %q, want %s's %q", op, got, first, want)
 		}

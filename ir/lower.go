@@ -588,7 +588,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		return []V{l.one(r, Stmt{Op: OIndex, Args: l.values(args, r)})}
 	}
 	if o, mode, ok := l.integerOp(op.Name, p, len(args)); ok {
-		return []V{l.one(r, Stmt{Op: o, Mode: mode, Args: l.values(args, r), Src: l.named(t)})}
+		return []V{l.one(r, Stmt{Op: o, Mode: mode, Args: l.values(args, r), Src: l.named(t), Via: via(l.tg, o, op.Name)})}
 	}
 	v := l.call(r, op.Name, p, l.values(args, r))
 	if st := &r.Stmts[len(r.Stmts)-1]; st.Op == OCall && len(st.Res) > 0 && st.Res[0] == v {
@@ -742,6 +742,27 @@ func (l *lowerer) integerOp(name string, p emit.Prim, n int) (Op, Mode, bool) {
 // float call, and JavaScript's `+` declares `any` and is decided by its
 // operands (promote).
 func classify(tg *emit.Target, name string, p emit.Prim, n int, opt Options) (Op, Mode, bool) {
+	// A TARGET THAT STATES ITS REALIZATIONS (ADR 0088, 0089) is read by the
+	// statement: a host operation is the language's operation whose stated
+	// realizations hold it, on its domain, and nothing is read off a name.
+	if tg.States() {
+		lang, ok := tg.StatedOp(name)
+		if !ok {
+			return 0, 0, false
+		}
+		o, ok := LanguageOp[lang]
+		if !ok || (o == ONot) != (n == 1) {
+			return 0, 0, false
+		}
+		mode := MNone
+		if opt.Decided && !o.IsCmp() {
+			mode = MExact
+			if emit.IsCheckedName(name) {
+				mode = MTrap
+			}
+		}
+		return o, mode, true
+	}
 	open := func(ty string) bool { return ty == "" || ty == "any" || tg.ValueType(ty) == "int" }
 	for _, a := range p.Args {
 		if !open(a) {
@@ -781,6 +802,35 @@ func classify(tg *emit.Target, name string, p emit.Prim, n int, opt Options) (Op
 		}
 	}
 	return 0, 0, false
+}
+
+// LanguageOp is the IR's operation for each of the language's integer names.
+var LanguageOp = map[string]Op{"+": OAdd, "-": OSub, "*": OMul, "/": ODiv, "%": ORem,
+	"=": OEq, "<": OLt, "<=": OLe, ">": OGt, ">=": OGe,
+	"&": OAnd, "|": OOr, "⊕": OXor, "~": ONot, "<<": OShl, ">>": OShr, "mod": OMod}
+
+// via is the host operation a statement of o is computed by, where it is not
+// o's first stated realization: a host operation a realization's term names
+// (ADR 0089). "" elsewhere, and on a target that states nothing.
+func via(tg *emit.Target, o Op, name string) string {
+	if !tg.States() || !o.IsArith() {
+		return ""
+	}
+	lang := opLanguageName(o)
+	names, _, _ := tg.RealizedNames(lang)
+	if name == lang || len(names) == 0 || name == names[0] {
+		return ""
+	}
+	return name
+}
+
+func opLanguageName(o Op) string {
+	for n, x := range LanguageOp {
+		if x == o {
+			return n
+		}
+	}
+	return ""
 }
 
 // isLanguageTable reports whether an index primitive reads a language table,

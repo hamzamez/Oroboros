@@ -2238,3 +2238,40 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
 - emitted text changed — `lib/win/print.oro windows-llvm`
 - compiler output changed — `lib/win/print.oro windows-llvm`
+
+## 2026-11-02 — on f4d13c7, with uncommitted changes
+
+**Reason:** ADR 0089: windows-llvm's realizations that are no single LLVM operation are terms over llvm.oro, substituted after the decision; a stated host operation chosen where its domain is proven (via); ¬(a = b) a disequality
+
+765 runs: 425 emitted, 340 refused; 5032 of 5099 integer operations bounded, 557 of 580 loops proven. compiler pass, differential pass, tooling pass.
+
+18 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows-llvm`
+- emitted text changed — `examples/big/limbs.oro windows-llvm`
+- emitted text changed — `examples/errors/expect.oro windows-llvm`
+- emitted text changed — `examples/errors/slots.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/bits-edges.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/bits.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows-llvm`
+- now REFUSED — `gauntlet/differential/cases/codecs.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/fnv32.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/fnv64-fold.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
+- emitted text changed — `lib/win/print.oro windows-llvm`
+
+## 2026-11-02 — on f4d13c7, with uncommitted changes
+
+**Reason:** ADR 0089 follow-up: a name realized by a term keeps its checked form, so a trapped operation inside the term prints (codecs under -checked)
+
+765 runs: 426 emitted, 339 refused; 5032 of 5099 integer operations bounded, 557 of 580 loops proven. compiler pass, differential pass, tooling pass.
+
+1 change(s):
+
+- now emits — `gauntlet/differential/cases/codecs.oro windows-llvm`

@@ -1,7 +1,8 @@
 # 0088 — A target states its realizations of the language's names, and a host operation is declared as it is
 
 Date: 2026-11-02
-Status: Accepted (hamza, 2026-11-02: "the language operator << >> has the same meaning regardless of
+Status: Accepted, **amended by [ADR 0089](0089-a-realization-is-a-term-over-the-hosts-operations.md)**:
+a realization that is no single host operation is a term over host operations, not a template. (hamza, 2026-11-02: "the language operator << >> has the same meaning regardless of
 any target. but shl is not the language, this a target instruction. all we care about is can we
 express as is and reason about it"). Built for `windows-llvm`
 ([llvm-2026-11-02](../../gauntlet/results/llvm-2026-11-02.md)); the four targets before it are found by

@@ -184,19 +184,13 @@ entry:
   br label %.exit54
 .else76:
   %v101 = sub nuw nsw i64 20, %v76
-  %m.78 = icmp eq i64 10, -1
-  %d.78 = select i1 %m.78, i64 1, i64 10
-  %v104 = srem i64 %v75, %d.78
+  %v104 = srem i64 %v75, 10
   %v105 = add nuw nsw i64 48, %v104
   %.d80 = getelementptr inbounds i8, ptr %v74, i64 8
   %.e81 = getelementptr inbounds i8, ptr %.d80, i64 %v101
   %.z82 = trunc i64 %v105 to i8
   store i8 %.z82, ptr %.e81
-  %m.83 = icmp eq i64 10, -1
-  %d.83 = select i1 %m.83, i64 1, i64 10
-  %q.83 = sdiv i64 %v75, %d.83
-  %n.83 = sub i64 0, %q.83
-  %v108 = select i1 %m.83, i64 %n.83, i64 %q.83
+  %v108 = sdiv i64 %v75, 10
   %v110 = add nuw nsw i64 %v76, 1
   %v112 = icmp sgt i64 %v75, 0
   br i1 %v112, label %.then86, label %.else87

@@ -360,8 +360,11 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 				s.Mode, args = MWrapPair, args[1:]
 			}
 		}
-		if o.IsBit() && len(args) > 0 && args[0].Kind == core.KName && !strings.HasPrefix(args[0].Name, "%") {
+		if o.IsBit() && len(args) > 0 && args[0].Kind == core.KName && !strings.HasPrefix(args[0].Name, "%") && args[0].Name != "via" {
 			s.Name, args = args[0].Name, args[1:]
+		}
+		if len(args) > 1 && args[0].Kind == core.KName && args[0].Name == "via" && args[1].Kind == core.KName {
+			s.Via, args = args[1].Name, args[2:]
 		}
 		s.Args, err = rd.values(args)
 		return s, err

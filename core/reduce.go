@@ -801,6 +801,10 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 						m.Order = append(m.Order, f.Name)
 					}
 					m.Defs[f.Name] = f.Term
+				case "sig":
+					// A DEFINITION'S HEADER (ADR 0089's terms carry their domain
+					// in one), as a module's own `sig` is.
+					m.Sigs[f.Name] = f.Sig
 				case "variadic":
 					variadic[qualify(path, f.Name)] = int(f.Term.Int)
 				case "cells":

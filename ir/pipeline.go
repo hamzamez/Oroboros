@@ -166,5 +166,14 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	} else if changed {
 		leg = Decide(tg, f, checked)
 	}
+	// THE TARGET'S INTERPRETATION OF THE LANGUAGE (ADR 0089), on the decided
+	// function: each operation by the narrowest stated realization its facts
+	// prove, a term's instance inlined; the decision taken again decides the
+	// instances' word arithmetic under the site's facts.
+	if n, err := RealizeOps(tg, f); err != nil {
+		return nil, nil, fmt.Errorf("%s: %v", name, err)
+	} else if n > 0 {
+		leg = Decide(tg, f, checked)
+	}
 	return f, leg, nil
 }

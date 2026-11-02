@@ -213,6 +213,9 @@ func (pr *printer) op(s *Stmt) []string {
 		if s.Op.IsBit() && s.Name != "" {
 			m += " " + primText(s.Name)
 		}
+		if s.Via != "" {
+			m += " via " + primText(s.Via)
+		}
 		return []string{"(" + name + m + " " + pr.vs(s.Args) + ")"}
 	case OMap:
 		rows := make([]string, 0, len(s.Args)/2)

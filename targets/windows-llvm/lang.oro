@@ -1,50 +1,58 @@
-// THE LANGUAGE'S OPERATIONS THAT ARE NO SINGLE LLVM INSTRUCTION, each a form
-// over LLVM's own (ADR 0088). `realize` in windows-llvm.oro names these where
-// an instruction of llvm.oro is not the language's operation on its whole
-// domain; nothing here is offered as LLVM's.
+// THE TARGET'S INTERPRETATION OF THE LANGUAGE WHERE NO SINGLE LLVM OPERATION
+// IS IT (ADR 0088, 0089): each a derived operation, a term over llvm.oro's
+// operations, so ι : Σ_L → T(Σ_LLVM) is a theory interpretation (Goguen and
+// Burstall), written in the language, checked as a program is, and inlined
+// by the IR for the operation it realizes (ir/realize.go).
 //
-// A FORM AGREES WITH THE LANGUAGE'S OPERATION ON ALL OF ITS DOMAIN, the
-// instruction's own domain split off by `select`, which takes no poison from
-// the operand it does not choose (LangRef). Where the IR proves an instance
-// inside the instruction's domain, it chooses the instruction itself (a
-// second realization, chosen by its parameters' sets, ir/final.go), and the
-// form is not printed.
+// EACH TERM IS DEFINED AND AGREES WITH THE LANGUAGE ON THE OPERATION'S
+// DOMAIN, its header that domain. DEFINED: every LLVM operation in it is used
+// inside its own domain, an obligation decided once against the header, as a
+// program's are. AGREES: ⟦ι(f)⟧(x) = f(x), checked against ℤ's definition
+// (ir/realize_test.go). A term may rely on the site's own obligation, decided
+// before it is substituted: `<<`'s answers 0 past a count of 63 because a·2ᵏ is
+// in the word only for a = 0.
+//
+// LLVM computes the branch both ways and chooses with `select` where that is
+// cheaper; that is LLVM's speculation, sound because each arm is defined
+// where it is taken. Where the IR proves an instance inside an instruction's
+// own domain, the instruction is chosen for it (`realize`'s later names) and
+// no term is printed.
+//
+// THE TEMPLATES BELOW THE TERMS each wait on something the language cannot
+// yet say on this target: a call with two results (LLVM's overflow
+// intrinsics), a call that never returns (`llvm.trap`, ExitProcess), and a
+// pointer as a value (the allocator's answer, ADR 0084's LLVM part).
 module lang {
-    // ~a = a ⊕ (−1): LLVM has no `not`.
-    fn not(a ∈ Int) (Int) pure { host expr "xor ${a}, -1" }
+    use llvm
 
-    // a·2ᵏ for every k ≥ 0. Past 63 the instruction is poison, and a·2ᵏ is in
-    // the word only for a = 0, which `<<`'s own obligation makes it: so 0.
-    fn shl(a ∈ Int, b ∈ Nat) (r ∈ Int) pure {
-        host expr "%s${#} = shl ${a}, ${b:v}\n%o${#} = icmp ugt ${b}, 63\n${r} = select i1 %o${#}, i64 0, i64 %s${#}"
-    }
-    // `<<` under -checked: a trap where a·2ᵏ leaves the word, which is a count
-    // past 63 with a ≠ 0, or a shift that does not shift back to a.
-    fn shl_checked(a ∈ Int, b ∈ Nat) (r ∈ Int) pure {
-        host expr "%s${#} = shl ${a}, ${b:v}\n%c${#} = icmp ugt ${b}, 63\n%k${#} = ashr i64 %s${#}, ${b:v}\n%x${#} = icmp ne i64 %k${#}, ${a:v}\n%z${#} = icmp ne ${a}, 0\n%g${#} = and i1 %c${#}, %z${#}\n%f${#} = select i1 %c${#}, i1 %g${#}, i1 %x${#}\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:\n${r} = select i1 %c${#}, i64 0, i64 %s${#}" import "declare void @llvm.trap()"
-    }
-    // ⌊a/2ᵏ⌋ for every k ≥ 0: past 63 it is 0 or −1, which is `ashr a, 63`.
-    fn ashr(a ∈ Int, b ∈ Nat) (r ∈ Int) pure {
-        host expr "%s${#} = ashr ${a}, ${b:v}\n%t${#} = ashr ${a}, 63\n%o${#} = icmp ugt ${b}, 63\n${r} = select i1 %o${#}, i64 %t${#}, i64 %s${#}"
-    }
+    // ~a = a ⊕ (−1) = −a − 1, the complement: LLVM has no `not`.
+    fn complement(a ∈ Int) (Int) { llvm.xor(a, -1) }
+
+    // a·2ᵇ for every b ≥ 0. Past 63 the instruction is poison, and a·2ᵇ is in
+    // the word only for a = 0, which `<<`'s obligation at the site makes it.
+    fn shl(a ∈ Int, b ∈ Nat) (Int) { if b <= 63 { llvm.shl(a, b) } else { 0 } }
+
+    // ⌊a/2ᵇ⌋ for every b ≥ 0: past 63 it is 0 or −1, which is ⌊a/2⁶³⌋.
+    fn ashr(a ∈ Int, b ∈ Nat) (Int) { if b <= 63 { llvm.ashr(a, b) } else { llvm.ashr(a, 63) } }
 
     // THE EUCLIDEAN REMAINDER for a positive divisor (ADR 0082): srem takes the
     // dividend's sign, and a negative one is moved up by m.
-    fn emod(a ∈ Int, m ∈ Int) (r ∈ Int) pure where m > 0 {
-        host expr "%q${#} = srem ${a}, ${m:v}\n%n${#} = icmp slt i64 %q${#}, 0\n%s${#} = add i64 %q${#}, ${m:v}\n${r} = select i1 %n${#}, i64 %s${#}, i64 %q${#}"
+    fn emod(a ∈ Int, m ∈ Int) (Int) where m > 0 {
+        r = llvm.srem(a, m)
+        if r < 0 { r + m } else { r }
     }
 
     // ℤ'S TRUNCATING `%` AND `/` (integers.md §3) on every divisor but 0.
-    // srem and sdiv are undefined for −2⁶³ by −1; a divisor −1 is read as 1,
-    // so a % −1 is 0, ℤ's, and a / −1 is −a, which for −2⁶³ is −2⁶³ again,
-    // as Go and the JVM answer (the quotient 2⁶³ is outside the word, and the
-    // IR does not yet decide it: llvm-2026-11-02). clang folds the select for
-    // a constant divisor.
-    fn rem(a ∈ Int, b ∈ Int) (r ∈ Int) pure where llvm.ne(b, 0) {
-        host expr "%m${#} = icmp eq ${b}, -1\n%d${#} = select i1 %m${#}, i64 1, i64 ${b:v}\n${r} = srem ${a}, %d${#}"
-    }
-    fn div(a ∈ Int, b ∈ Int) (r ∈ Int) pure where llvm.ne(b, 0) {
-        host expr "%m${#} = icmp eq ${b}, -1\n%d${#} = select i1 %m${#}, i64 1, i64 ${b:v}\n%q${#} = sdiv ${a}, %d${#}\n%n${#} = sub i64 0, %q${#}\n${r} = select i1 %m${#}, i64 %n${#}, i64 %q${#}"
+    // srem and sdiv are undefined for −2⁶³ by −1, so −1 is its own arm: a % −1
+    // is 0, and a / −1 is −a, the language's `−`, so 2⁶³ is refused or trapped
+    // at the site as any result outside the word is (ADR 0019).
+    fn rem(a ∈ Int, b ∈ Int) (Int) where b != 0 { if b == -1 { 0 } else { llvm.srem(a, b) } }
+    fn div(a ∈ Int, b ∈ Int) (Int) where b != 0 { if b == -1 { 0 - a } else { llvm.sdiv(a, b) } }
+
+    // `<<` under -checked: a trap where a·2ᵇ leaves the word, which is a count
+    // past 63 with a ≠ 0, or a shift that does not shift back to a.
+    fn shl_checked(a ∈ Int, b ∈ Nat) (r ∈ Int) pure {
+        host expr "%s${#} = shl ${a}, ${b:v}\n%c${#} = icmp ugt ${b}, 63\n%k${#} = ashr i64 %s${#}, ${b:v}\n%x${#} = icmp ne i64 %k${#}, ${a:v}\n%z${#} = icmp ne ${a}, 0\n%g${#} = and i1 %c${#}, %z${#}\n%f${#} = select i1 %c${#}, i1 %g${#}, i1 %x${#}\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:\n${r} = select i1 %c${#}, i64 0, i64 %s${#}" import "declare void @llvm.trap()"
     }
 
     // THE CHECKED ARITHMETIC (-checked, ADR 0019): the overflow intrinsic, and

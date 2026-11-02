@@ -613,6 +613,11 @@ func eraseThe(f *Func) {
 // count below 32, `Math.floor` of a quotient elsewhere. A result no
 // realization holds is refused, naming the sets.
 func selectRealizations(tg *emit.Target, f *Func, fs []fact) error {
+	// A TARGET THAT STATES ITS REALIZATIONS chose them on the decided function
+	// (RealizeOps, ADR 0089).
+	if tg.States() {
+		return nil
+	}
 	var err error
 	word := func(ty string) (*big.Int, *big.Int) {
 		if lo, hi, ok := core.IntRangeBig(ty); ok && lo != nil && hi != nil {

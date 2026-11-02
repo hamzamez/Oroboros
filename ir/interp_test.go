@@ -37,6 +37,9 @@ type interp struct {
 	env   []cval
 	seen  map[V]*obs
 	steps int
+	// after, when set, sees each statement once it has run (realize_test.go
+	// checks a term's operations against their domains there).
+	after func(s *Stmt, env []cval)
 }
 
 var errUnsupported = fmt.Errorf("unsupported")
@@ -113,6 +116,9 @@ func (in *interp) region(r *Region) exit {
 func intv(x int64) cval { return cval{i: big.NewInt(x)} }
 
 func (in *interp) stmt(s *Stmt) {
+	if in.after != nil {
+		defer in.after(s, in.env)
+	}
 	a := func(k int) cval { return in.env[s.Args[k]] }
 	one := func(x cval) { in.bind(s.Res[0], x) }
 	switch s.Op {

@@ -48,17 +48,19 @@ repr big limbs
 // (llvm.md §2). A primitive that needs another library names it with `lib`.
 link "kernel32"
 
-// THE LANGUAGE'S NAMES, REALIZED (ADR 0088). A target is a model of the
-// language's signature: this is its interpretation of each name, stated, not
-// found by spelling. Where several declarations are named, the first realizes
-// the name everywhere and each later one where its parameters' sets hold the
-// operands' proven facts, the narrowest such (ir/final.go): `<<` is LLVM's own
-// `shl` where the count is proven below 64, and lang.oro's form elsewhere.
+// THE LANGUAGE'S NAMES, REALIZED (ADR 0088, 0089). A target is a model of the
+// language's signature: this is its interpretation ι of each name, stated, not
+// found by spelling. The first realizes the name everywhere: a host operation,
+// or a term over host operations (lang.oro), inlined. Each later one is a host
+// operation, chosen where its domain (its parameters' sets and its `where`)
+// holds of the operands' proven facts, the narrowest such (ir/realize.go):
+// `<<` is LLVM's own `shl` where the count is proven below 64, `/` its own
+// `sdiv` where the divisor is proven not −1 or the dividend not −2⁶³.
 realize `+` = llvm.add checked lang.add_checked
 realize `-` = llvm.sub checked lang.sub_checked
 realize `*` = llvm.mul checked lang.mul_checked
-realize `/` = lang.div
-realize `%` = lang.rem
+realize `/` = lang.div, llvm.sdiv
+realize `%` = lang.rem, llvm.srem
 realize `=` = llvm.eq
 realize `<` = llvm.slt
 realize `<=` = llvm.sle
@@ -67,7 +69,7 @@ realize `>=` = llvm.sge
 realize `&` = llvm.and
 realize `|` = llvm.or
 realize `⊕` = llvm.xor
-realize `~` = lang.not
+realize `~` = lang.complement
 realize `<<` = lang.shl, llvm.shl checked lang.shl_checked
 realize `>>` = lang.ashr, llvm.ashr
 realize mod = lang.emod

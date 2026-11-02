@@ -1,0 +1,27 @@
+// THE FREE MONOID ON THIS HOST'S STRING (strings.md), the language's `string_of`
+// and `++`, found by spelling. A string here is a table of bytes, an i64 length
+// and then its UTF-8 (llvm.md §4), so it is exactly an Array(0..255) of its
+// encoding, and `utf8` is that identity.
+//
+// EACH OPERATION IS A HELPER FUNCTION THE MODULE DEFINES, written once as an
+// `import` line and called by the template: the operation is a loop, and an
+// LLVM function is where a loop belongs (on MASM it was a template with its own
+// labels). Each allocates from the process heap, as `build` does, and is
+// `"no-builtins"`, so its byte loops are not rewritten into a call to the C
+// runtime's `memcpy`, which this target does not link (llvm.md §2).
+module win/str {
+    // η : Scalar → Scalar*, the generator injection: the UTF-8 of one scalar,
+    // its continuation bytes written from the end, then the lead byte.
+    fn string_of(a ∈ Int) (String) pure {
+        host expr "call ptr @oro.string_of(${a})" import "declare dllimport ptr @GetProcessHeap()" "declare dllimport ptr @HeapAlloc(ptr, i32, i64)" "declare void @llvm.trap()" "define internal ptr @oro.string_of(i64 %c) nounwind \"no-builtins\" {\nentry:\n  %h = call ptr @GetProcessHeap()\n  %s = call ptr @HeapAlloc(ptr %h, i32 0, i64 12)\n  %z = icmp eq ptr %s, null\n  br i1 %z, label %oom, label %ok\noom:\n  call void @llvm.trap()\n  unreachable\nok:\n  %d = getelementptr inbounds i8, ptr %s, i64 8\n  %g1 = icmp uge i64 %c, 128\n  %g2 = icmp uge i64 %c, 2048\n  %g3 = icmp uge i64 %c, 65536\n  %n1 = zext i1 %g1 to i64\n  %n2 = zext i1 %g2 to i64\n  %n3 = zext i1 %g3 to i64\n  %m1 = add i64 1, %n1\n  %m2 = add i64 %m1, %n2\n  %n = add i64 %m2, %n3\n  store i64 %n, ptr %s\n  br label %loop\nloop:\n  %i = phi i64 [ %n, %ok ], [ %j, %body ]\n  %x = phi i64 [ %c, %ok ], [ %y, %body ]\n  %j = sub i64 %i, 1\n  %more = icmp ugt i64 %j, 0\n  br i1 %more, label %body, label %lead\nbody:\n  %lo = and i64 %x, 63\n  %lb = or i64 %lo, 128\n  %t = trunc i64 %lb to i8\n  %p = getelementptr inbounds i8, ptr %d, i64 %j\n  store i8 %t, ptr %p\n  %y = lshr i64 %x, 6\n  br label %loop\nlead:\n  %k = select i1 %g3, i64 240, i64 224\n  %k2 = select i1 %g2, i64 %k, i64 192\n  %k3 = select i1 %g1, i64 %k2, i64 0\n  %f = or i64 %x, %k3\n  %fb = trunc i64 %f to i8\n  store i8 %fb, ptr %d\n  ret ptr %s\n}"
+    }
+
+    // The monoid's operation: a fresh table of both lengths, each copied in.
+    fn concat(a ∈ String, b ∈ String) (String) pure {
+        host expr "call ptr @oro.concat(${a}, ${b})" import "declare dllimport ptr @GetProcessHeap()" "declare dllimport ptr @HeapAlloc(ptr, i32, i64)" "declare void @llvm.trap()" "define internal ptr @oro.concat(ptr %a, ptr %b) nounwind \"no-builtins\" {\nentry:\n  %la = load i64, ptr %a\n  %lb = load i64, ptr %b\n  %n = add i64 %la, %lb\n  %t = add i64 %n, 8\n  %h = call ptr @GetProcessHeap()\n  %s = call ptr @HeapAlloc(ptr %h, i32 0, i64 %t)\n  %z = icmp eq ptr %s, null\n  br i1 %z, label %oom, label %ok\noom:\n  call void @llvm.trap()\n  unreachable\nok:\n  store i64 %n, ptr %s\n  %d = getelementptr inbounds i8, ptr %s, i64 8\n  %pa = getelementptr inbounds i8, ptr %a, i64 8\n  %pb = getelementptr inbounds i8, ptr %b, i64 8\n  %db = getelementptr inbounds i8, ptr %d, i64 %la\n  br label %ah\nah:\n  %i = phi i64 [ 0, %ok ], [ %i1, %ab ]\n  %ia = icmp ult i64 %i, %la\n  br i1 %ia, label %ab, label %bh\nab:\n  %qa = getelementptr inbounds i8, ptr %pa, i64 %i\n  %va = load i8, ptr %qa\n  %oa = getelementptr inbounds i8, ptr %d, i64 %i\n  store i8 %va, ptr %oa\n  %i1 = add i64 %i, 1\n  br label %ah\nbh:\n  %j = phi i64 [ 0, %ah ], [ %j1, %bb ]\n  %jb = icmp ult i64 %j, %lb\n  br i1 %jb, label %bb, label %end\nbb:\n  %qb = getelementptr inbounds i8, ptr %pb, i64 %j\n  %vb = load i8, ptr %qb\n  %ob = getelementptr inbounds i8, ptr %db, i64 %j\n  store i8 %vb, ptr %ob\n  %j1 = add i64 %j, 1\n  br label %bh\nend:\n  ret ptr %s\n}"
+    }
+
+    // A STRING'S BYTES: the same table read as its encoding, so no instruction
+    // but a pointer to itself.
+    fn utf8(s ∈ String) (Array(0..255)) pure { host expr "getelementptr i8, ${s}, i64 0" }
+}

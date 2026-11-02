@@ -62,7 +62,7 @@ import (
 // Kept as an empty map rather than deleted outright so that `render` still has
 // one place to grow if a construct ever needs per-target spelling again.
 var ops = map[string]map[string]string{
-	"go": {}, "js": {}, "java": {}, "windows": {},
+	"go": {}, "js": {}, "java": {}, "windows": {}, "windows-llvm": {},
 }
 
 // Printing is target-native on every host — it is the one thing a portable
@@ -73,6 +73,9 @@ var driver = map[string]struct{ uses, print string }{
 	"js":      {"use js\nuse js/console as console", "console.log"},
 	"java":    {"use java\nuse java/System as sys", "sys.out_println"},
 	"windows": {"use x64\nuse win/fmt", "fmt.print_int"},
+	// THE LLVM-PRINTED WINDOWS TARGET (ADR 0080, docs/spec/llvm.md) prints
+	// through lib/win/print.oro, written in the language's operators.
+	"windows-llvm": {"use win/print", "print.print_int"},
 }
 
 // AND A DRIVER THAT PRINTS A STRING, selected by `// prints: string` on a case.
@@ -98,10 +101,11 @@ var driver = map[string]struct{ uses, print string }{
 // string to one — which is strings.md §2's finding arriving in the test harness
 // rather than in a program.
 var stringDriver = map[string]struct{ uses, print string }{
-	"go":      {"use go\nuse go/fmt", "fmt.Println"},
-	"js":      {"use js\nuse js/console as console", "console.log"},
-	"java":    {"use java\nuse java/System as sys", "sys.out_println"},
-	"windows": {"use x64\nuse windows/msvcrt as crt", "crt.puts"},
+	"go":           {"use go\nuse go/fmt", "fmt.Println"},
+	"js":           {"use js\nuse js/console as console", "console.log"},
+	"java":         {"use java\nuse java/System as sys", "sys.out_println"},
+	"windows":      {"use x64\nuse windows/msvcrt as crt", "crt.puts"},
+	"windows-llvm": {"use win/print", "print.print_str"},
 }
 
 // What each target's artifact is CALLED, and how to run it.
@@ -119,9 +123,10 @@ var artifact = map[string]struct {
 	name string
 	run  func(out string) *exec.Cmd
 }{
-	"go":      {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
-	"windows": {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
-	"js":      {"out.mjs", func(o string) *exec.Cmd { return exec.Command("node", o) }},
+	"go":           {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
+	"windows":      {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
+	"windows-llvm": {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
+	"js":           {"out.mjs", func(o string) *exec.Cmd { return exec.Command("node", o) }},
 	// THE JVM PRINTS IN THE PLATFORM CHARSET unless told otherwise, so a U+FFFD
 	// came out as `?` on Windows (strings.md §5, a property of PRINTING, not of
 	// the program). The output is compared as bytes, so it is asked for in
@@ -390,7 +395,7 @@ func main() {
 		fmt.Println("work:", work)
 	}
 
-	targets := []string{"go", "js", "java", "windows"}
+	targets := []string{"go", "js", "java", "windows", "windows-llvm"}
 	fails := 0
 	for _, c := range cases {
 		name := strings.TrimSuffix(filepath.Base(c), ".oro")
@@ -412,6 +417,11 @@ func main() {
 			if strings.Contains(src, "// skip: "+t) {
 				skip[t] = true
 			}
+		}
+		// THE LLVM PRINTER IS BUILT TO WINDOWS PARITY FIRST (llvm.md §9): a case
+		// MASM cannot run waits for the step that retires MASM.
+		if skip["windows"] {
+			skip["windows-llvm"] = true
 		}
 
 		// AND A CASE MAY ASK FOR BOTH REPRESENTATIONS, which turns the suite's

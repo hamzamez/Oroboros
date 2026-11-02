@@ -1,0 +1,54 @@
+// kernel32.dll, the Win32 functions this target's programs call, each a
+// `declare dllimport` in the printed module and a call in Win64's one calling
+// convention, which LLVM's default `ccc` is on this triple.
+//
+//   (use windows/kernel32)
+//   kernel32.GetStdHandle(-11)   kernel32.WriteFile(h, b, lo, n)
+//
+// WHAT THE LANGUAGE COULD NOT SAY ON MASM, IT SAYS HERE. WriteFile's buffer was
+// a raw pointer there (`x64.lea` of the target's one scratch buffer); here it is
+// a language table, borrowed, and the bytes written are its segment b[lo, lo+n).
+// The out-parameter, the count written, is still the target's cell
+// `@__written`: the language reads nothing from it.
+module windows/kernel32 {
+    // -11 is STD_OUTPUT_HANDLE, -10 stdin, -12 stderr: a DWORD, so the i64 is
+    // truncated, which is exact on these.
+    fn GetStdHandle(n ∈ -2^31..2^31-1) (r ∈ ptr) {
+        host expr "%n${#} = trunc ${n} to i32\n${r} = call ptr @GetStdHandle(i32 %n${#})" import "declare dllimport ptr @GetStdHandle(i32)"
+    }
+
+    // WRITES b[lo, lo + n) to h, and answers whether it was written. TOTAL: a
+    // segment outside the table, or of 2³² bytes or more (one call's DWORD), is
+    // not written and the answer is false, as Win32 answers FALSE for arguments
+    // it refuses. So it carries no obligation, and the check is three
+    // comparisons, unsigned, which put a negative lo or n outside at once. The
+    // table's elements begin after its 8-byte length (llvm.md §4).
+    fn WriteFile(h ∈ ptr, b ∈ Array(0..255), lo ∈ Int, n ∈ Int) (Bool) {
+        host expr "call i1 @oro.WriteFile(${h}, ${b}, ${lo}, ${n})" import "declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)" "@__written = internal global i32 0" "define internal i1 @oro.WriteFile(ptr %h, ptr %b, i64 %lo, i64 %n) nounwind \"no-builtins\" {\nentry:\n  %len = load i64, ptr %b\n  %c1 = icmp ult i64 %n, 4294967296\n  %c2 = icmp ule i64 %lo, %len\n  %room = sub i64 %len, %lo\n  %c3 = icmp ule i64 %n, %room\n  %c12 = and i1 %c1, %c2\n  %ok = and i1 %c12, %c3\n  br i1 %ok, label %write, label %no\nno:\n  ret i1 false\nwrite:\n  %d = getelementptr inbounds i8, ptr %b, i64 8\n  %p = getelementptr inbounds i8, ptr %d, i64 %lo\n  %n32 = trunc i64 %n to i32\n  %w = call i32 @WriteFile(ptr %h, ptr %p, i32 %n32, ptr @__written, ptr null)\n  %r = icmp ne i32 %w, 0\n  ret i1 %r\n}"
+    }
+
+    fn ExitProcess(a ∈ 0..2^31-1) (Int) {
+        host stmt "%x${#} = trunc ${a} to i32\ncall void @ExitProcess(i32 %x${#})" import "declare dllimport void @ExitProcess(i32)"
+    }
+
+    // ---- THE CRASH (spec/errors.md §8): crash : E → 0. The reason's bytes to
+    // standard error (-12), a newline, and exit status 1, as on targets/windows.
+    // It never returns, and the IR ends its region with `unreachable`.
+    fn abandon(why ∈ String) (Any) {
+        host stmt "%h${#} = call ptr @GetStdHandle(i32 -12)\n%l${#} = load i64, ${why}\n%n${#} = trunc i64 %l${#} to i32\n%p${#} = getelementptr inbounds i8, ${why}, i64 8\n%w${#} = call i32 @WriteFile(ptr %h${#}, ptr %p${#}, i32 %n${#}, ptr @__written, ptr null)\n%e${#} = call i32 @WriteFile(ptr %h${#}, ptr @__nl, i32 1, ptr @__written, ptr null)\ncall void @ExitProcess(i32 1)" import "declare dllimport ptr @GetStdHandle(i32)" "declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)" "declare dllimport void @ExitProcess(i32)" "@__written = internal global i32 0" "@__nl = private unnamed_addr constant i8 10"
+    }
+
+    // ---- MEMORY: `build`'s allocator (emit.FindAlloc), of kernel32's two, each
+    // answering zeroed memory, so a table is zero on creation, its semantics.
+    // CHOSEN BY SIZE, measured (llvm-2026-11-02): VirtualAlloc hands out pages
+    // the system has already zeroed, where the heap's HEAP_ZERO_MEMORY (8)
+    // clears every byte, which made the sieve's 200 KB table 10% slower; but it
+    // reserves 64 KiB a call, which small tables in a loop would exhaust. So
+    // VirtualAlloc (MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE) from 64 KiB, the
+    // process heap below. A null answer, memory exhausted, is a trap: LLVM may
+    // assume a pointer it loads through is not null, so an unchecked one would
+    // be undefined.
+    fn alloc(n ∈ 0..2^63-1) (ptr) {
+        host expr "call ptr @oro.alloc(${n})" import "declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)" "declare dllimport ptr @GetProcessHeap()" "declare dllimport ptr @HeapAlloc(ptr, i32, i64)" "declare void @llvm.trap()" "define internal ptr @oro.alloc(i64 %n) nounwind \"no-builtins\" {\nentry:\n  %big = icmp uge i64 %n, 65536\n  br i1 %big, label %virtual, label %heap\nvirtual:\n  %v = call ptr @VirtualAlloc(ptr null, i64 %n, i32 12288, i32 4)\n  br label %done\nheap:\n  %h = call ptr @GetProcessHeap()\n  %p = call ptr @HeapAlloc(ptr %h, i32 8, i64 %n)\n  br label %done\ndone:\n  %r = phi ptr [ %v, %virtual ], [ %p, %heap ]\n  %z = icmp eq ptr %r, null\n  br i1 %z, label %oom, label %ok\noom:\n  call void @llvm.trap()\n  unreachable\nok:\n  ret ptr %r\n}"
+    }
+}

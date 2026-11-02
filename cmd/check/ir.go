@@ -12,6 +12,7 @@ import (
 	"oroboros/ir/golang"
 	"oroboros/ir/java"
 	"oroboros/ir/js"
+	"oroboros/ir/llvm"
 	"oroboros/ir/x86"
 )
 
@@ -199,6 +200,8 @@ func printText(targets map[string]*emit.Target, source, target string, p *ir.Pro
 			code, err = java.Func(tg, f)
 		case "x86-64":
 			code, err = x86.Func(tg, f)
+		case "llvm":
+			code, err = llvm.Func(tg, f)
 		case "go":
 			code, err = golang.Func(tg, f)
 		default:
@@ -216,6 +219,8 @@ func printText(targets map[string]*emit.Target, source, target string, p *ir.Pro
 		return emit.JavaFile(strings.TrimSuffix(emittedName(source, target), ".java"), funcs), nil
 	case "x86-64":
 		return emit.AsmFile(tg, funcs, ""), nil
+	case "llvm":
+		return llvm.File(tg, funcs, ""), nil
 	}
 	return emit.File("gauntlet", funcs), nil
 }

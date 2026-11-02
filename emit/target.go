@@ -1312,7 +1312,7 @@ var coreStructural = []Prim{
 // LANGUAGE's name for the equality the target already has, rather than a second
 // implementation of it. JavaScript is why the list is ordered: it declares both
 // `===` and `==`, and a tag test wants the strict one.
-var eqSpellings = []string{"===", "==", "sete"}
+var eqSpellings = []string{"===", "==", "sete", "eq"}
 
 // addCore gives every target the conditional.
 //
@@ -1674,12 +1674,12 @@ var langOps = []struct {
 	{"+", []string{"+", "add"}, "int", 2},
 	{"-", []string{"-", "sub"}, "int", 2},
 	{"*", []string{"*", "imul", "mul"}, "int", 2},
-	{"/", []string{"idiv", "/"}, "int", 2},
-	{"%", []string{"irem", "%", "rem"}, "int", 2},
-	{"<", []string{"<", "setl"}, "bool", 2},
-	{"<=", []string{"<=", "setle"}, "bool", 2},
-	{">", []string{">", "setg"}, "bool", 2},
-	{">=", []string{">=", "setge"}, "bool", 2},
+	{"/", []string{"idiv", "/", "sdiv"}, "int", 2},
+	{"%", []string{"irem", "%", "rem", "srem"}, "int", 2},
+	{"<", []string{"<", "setl", "slt"}, "bool", 2},
+	{"<=", []string{"<=", "setle", "sle"}, "bool", 2},
+	{">", []string{">", "setg", "sgt"}, "bool", 2},
+	{">=", []string{">=", "setge", "sge"}, "bool", 2},
 	// THE BOOLEAN OPERATIONS, THE SHIFTS AND THE EUCLIDEAN REMAINDER (ADR 0082),
 	// the 2-adic operations on ℤ. A word spelling comes first, so a target whose
 	// own operator means something else declares the language's under it:
@@ -1691,7 +1691,7 @@ var langOps = []struct {
 	{"⊕", []string{"xor", "^"}, "int", 2},
 	{"~", []string{"not", "~"}, "int", 1},
 	{"<<", []string{"shl", "<<"}, "int", 2},
-	{">>", []string{"sar", ">>"}, "int", 2},
+	{">>", []string{"sar", ">>", "ashr"}, "int", 2},
 	{"mod", []string{"emod"}, "int", 2},
 }
 
@@ -1769,7 +1769,7 @@ func loadTargetFile(path, name string) (*Target, error) {
 //
 // `x86-64` currently implies MASM and the Win64 ABI; splitting those out is
 // target-system.md §5.2's family question and wants a second ISA first.
-var Backends = []string{"go", "js", "java", "x86-64"}
+var Backends = []string{"go", "js", "java", "x86-64", "llvm"}
 
 func isBackend(n string) bool {
 	for _, b := range Backends {
@@ -3466,6 +3466,16 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 			return err
 		}
 		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(asmBuildScript(tg.Link, AsmLibs)), 0o644)
+
+	case "windows-llvm":
+		// One module and one batch file, as for MASM: clang compiles the module
+		// (docs/spec/llvm.md §2) and MSVC's link links it with no C runtime.
+		if err := os.WriteFile(filepath.Join(dir, "main.ll"), []byte(code), 0o644); err != nil {
+			return err
+		}
+		script := strings.Replace(asmBuildScript(tg.Link, LLVMLibs), asmAssemble, llvmCompile, 1)
+		script = strings.Replace(script, asmFind, llvmFind, 1)
+		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(script), 0o644)
 	}
 	return fmt.Errorf("target %q has no program layout", tg.Name)
 }
@@ -3492,6 +3502,17 @@ call "!VCV!" >nul || exit /b 1
 ml64 -nologo -c -Fomain.obj main.asm || exit /b 1
 link -nologo -subsystem:console -entry:main main.obj {{LIBS}} -out:main.exe || exit /b 1
 `
+
+// The LLVM target's script is the MASM one with its assembler replaced by
+// clang, found where the official release installs it or else on PATH.
+const (
+	asmAssemble = "ml64 -nologo -c -Fomain.obj main.asm || exit /b 1\n"
+	llvmCompile = "\"!CLANG!\" -O2 -Wno-override-module -c -o main.obj main.ll || exit /b 1\n"
+	asmFind     = "if not defined VCV (echo build.bat: no MSVC toolchain with ml64 was found & exit /b 1)\n"
+	llvmFind    = "if not defined VCV (echo build.bat: no MSVC toolchain with link was found & exit /b 1)\n" +
+		`set "CLANG=%LOCALAPPDATA%\Programs\LLVM\bin\clang.exe"` + "\n" +
+		`if not exist "!CLANG!" set "CLANG=clang"` + "\n"
+)
 
 // asmBuildScript fills the link line. It is `link` in declared order, then each
 // library a USED primitive names that is not already there, sorted — so the
@@ -3795,7 +3816,7 @@ func BufferRoot(t *core.Term) string {
 // are the LANGUAGE's, and where the memory comes from on this host is the
 // TARGET's. Go, JavaScript and Java have allocation as syntax and their
 // backends emit it directly; x86 has a call, and the target says which.
-var allocSpellings = []string{"VirtualAlloc", "malloc", "HeapAlloc"}
+var allocSpellings = []string{"VirtualAlloc", "malloc", "HeapAlloc", "alloc"}
 
 // findAlloc returns the target's own allocator.
 func (tg *Target) findAlloc() (Prim, bool) {
@@ -3875,12 +3896,13 @@ func allStrings(ts []*core.Term) bool {
 	return true
 }
 
-// checkExterns refuses an (import …) of several names outside the x86 backend:
-// a Go, JavaScript or Java template names one package or module, and a printer
-// that read only the first would drop the rest silently.
+// checkExterns refuses an (import …) of several names outside the x86 and LLVM
+// backends: a Go, JavaScript or Java template names one package or module, and
+// a printer that read only the first would drop the rest silently. An assembly
+// template calls several externs, and an LLVM one's imports are module lines.
 func (tg *Target) checkExterns() error {
 	b, err := tg.ResolveBackend()
-	if err != nil || b == "x86-64" {
+	if err != nil || b == "x86-64" || b == "llvm" {
 		return nil
 	}
 	names := make([]string, 0, len(tg.Prims))

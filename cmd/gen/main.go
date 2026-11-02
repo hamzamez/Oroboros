@@ -20,6 +20,7 @@ import (
 	"oroboros/ir/golang"
 	"oroboros/ir/java"
 	"oroboros/ir/js"
+	"oroboros/ir/llvm"
 	"oroboros/ir/x86"
 )
 
@@ -253,6 +254,8 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			code, err = java.FromFunc(tg, fA)
 		case "x86-64":
 			code, err = x86.FromFunc(tg, fA)
+		case "llvm":
+			code, err = llvm.FromFunc(tg, fA)
 		case "go":
 			code, err = golang.FromFunc(tg, fA)
 		default:
@@ -279,6 +282,8 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		text2 = emit.JavaFile(strings.TrimSuffix(base, ".java"), funcs)
 	case "x86-64":
 		text2 = emit.AsmFile(tg, funcs, "")
+	case "llvm":
+		text2 = llvm.File(tg, funcs, "")
 	case "go":
 		text2 = emit.File("gauntlet", funcs)
 	default:

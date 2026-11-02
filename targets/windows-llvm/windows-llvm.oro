@@ -1,0 +1,52 @@
+// The Windows target printed as LLVM IR (ADR 0080, docs/spec/llvm.md). NO
+// PORTABILITY CLAIM: it is Win32 under LLVM's own instructions. It stands beside
+// targets/windows, the MASM printer, until it is at parity there; then it becomes
+// targets/windows and MASM retires (ADR 0080 item 5).
+//
+// THREE HOSTS IN ONE TARGET, each under its own names:
+//
+//   llvm.oro       Σ_LLVM, the instructions and intrinsics (`llvm.add`, `llvm.sdiv`)
+//   kernel32.oro   the Win32 functions programs call
+//   strings.oro    the free monoid on this host's string, a byte table
+//
+// A TEMPLATE IS AN INSTRUCTION'S RIGHT-HAND SIDE (llvm.md §6). `${x}` is the
+// operand as a typed value, `i64 %v3`; `${x:v}` is its value alone, `%v3`; the
+// printer writes `%vN = ` in front. A template that names `${r}` writes its
+// result itself, so it may be several instructions; `${#}` is a number unique to
+// the expansion, for the template's own registers and blocks. An `import` is a
+// line of the module, written once: a `declare`, a global, or a helper `define`.
+backend llvm
+
+// THIS HOST SHIPS NO MAP, so the language supplies one (emit/winmap.oro), as on
+// targets/windows.
+repr `map` library
+
+// THE SORTS' REPRESENTATIONS, LLVM's types. A table and a string are pointers to
+// an i64 length followed by the elements (llvm.md §4).
+set Int = host "i64"
+// THE WORD (ADR 0026, ADR 0083): S₆₄ on this triple.
+repr -2^63..2^63-1 word
+set F64 = host "double"
+set Bool = host "i1"
+set String = host "ptr"
+set ptr = host "ptr"
+set Any = host "ptr"
+
+// AN ELEMENT HELD IN A BYTE, as targets/windows holds it: 0..255 in an i8,
+// read back with `zext`. Every other integer element is an i64.
+repr 0..255 host "i8"
+
+// THE SHIFT, THE WRAP AND THE RUNG ABOVE, as on targets/windows: a shift is
+// exact for a count up to 63; LLVM's operators without a flag wrap at 64 bits,
+// so a term under `mod 2ⁿ`, n ≤ 64, is computed in them (ADR 0082); this host
+// ships no bignum, so fixed limbs (ADR 0035) are the rung above the word.
+repr shift 63
+repr wrap 64
+repr big limbs
+
+// THE LINK LINE: kernel32 for everything this target calls, and no C runtime
+// (llvm.md §2). A primitive that needs another library names it with `lib`.
+link "kernel32"
+
+build "cmd /c .\\build.bat"
+artifact "main.exe"

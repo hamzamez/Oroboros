@@ -1191,6 +1191,10 @@ var opAlias = map[string]string{
 	// comparisons, which are a different relation on a signed value, and
 	// mapping them here would let the fragment prove something false.
 	"setl": "lt", "setle": "le", "setg": "gt", "setge": "ge",
+	// LLVM's: `sdiv` and `srem` truncate as ℤ's `/` and `%` do (integers.md
+	// §3), and `icmp`'s SIGNED predicates are the order; `ult` and kin are not
+	// here, for the reason `setb` is not.
+	"sdiv": "div", "srem": "rem", "slt": "lt", "sle": "le", "sgt": "gt", "sge": "ge",
 	// The strict branchless connectives a target may declare under its own
 	// name (ADR 0017 kept `x64.andb` for the Ada reason). As a PRECONDITION
 	// they are conjunction and disjunction like any other, and a `where`

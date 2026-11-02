@@ -26,7 +26,7 @@ func ReadTarget(src, target, dir, root string) ([]*Term, error) {
 	}
 	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[Expr]*big.Int{}, indexed: map[Expr]bool{}}
 	p.registerSets(src, dir, root)
-	p.x86 = target == "windows"
+	p.x86 = numberedHoles(target)
 	forms, err := p.targetItems()
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (p *parser) targetItem() (*Term, error) {
 		target := p.next().text
 		path := p.path()
 		saved := p.x86
-		p.x86 = target == "windows"
+		p.x86 = numberedHoles(target)
 		inner, err := p.bracedItems()
 		p.x86 = saved
 		if err != nil {
@@ -567,6 +567,11 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 	}
 	return app(out...), nil
 }
+
+// numberedHoles reports a target whose templates number their holes: the two
+// Windows models, MASM's and LLVM's (docs/spec/llvm.md §6), whose templates
+// are instruction sequences that name operands out of order and their result.
+func numberedHoles(target string) bool { return target == "windows" || target == "windows-llvm" }
 
 // positionalHoles is the inverse of named (target.go): `${x}` back to today's
 // holes. A template that splices the result or a register's view is x86's,

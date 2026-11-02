@@ -4,7 +4,9 @@ Date: 2026-10-26
 Status: Accepted (hamza, 2026-10-26: "do the research. let's try to reach the best decision", on the
 10-24 plan's item 6a). Measured in [backend-2026-10-26](../../gauntlet/results/backend-2026-10-26.md).
 Answers [ADR 0004](0004-first-targets.md)'s deferral of C; amends [ADR 0039](0039-the-targets-are-go-windows-android-and-the-browser.md)'s
-Windows target's backend. Not built.
+Windows target's backend. **Built to the windows target's parity, MASM not yet retired**: the printer
+`ir/llvm` and `targets/windows-llvm/` ([llvm.md](../spec/llvm.md),
+[llvm-2026-11-02](../../gauntlet/results/llvm-2026-11-02.md)).
 
 ## Context
 

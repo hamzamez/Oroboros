@@ -1,0 +1,63 @@
+// PRINTING ON WIN32, WRITTEN IN THE LANGUAGE'S OPERATORS (ADR 0080 item 5),
+// for the LLVM-printed Windows target.
+//
+//   (use win/print)
+//   print.print_int(2262)   print.print_str("primes:")
+//
+// Win32's output primitive is WriteFile, which takes bytes; turning 2262 into
+// the four bytes "2262" is a program, and this is it: a remainder, a quotient
+// and a byte store per digit, into a table of the language's own, written from
+// its end. lib/win/fmt.oro is the same program for the MASM target, written in
+// x86's mnemonics over the target's one scratch buffer; it retires with that
+// target, and this one takes its name.
+//
+// Nothing here names an instruction. The buffer is a language buffer, its
+// indices obligations the decision proves, and the bytes written are the
+// segment WriteFile's `where` keeps inside it.
+use windows/kernel32
+use win/str
+
+// WRITES b[lo, lo + n) to standard output (-11), answering whether it was
+// written: kernel32's WriteFile, total on this target.
+fn write(b ∈ Array(0..255), lo, n) (Bool) { kernel32.WriteFile(kernel32.GetStdHandle(-11), b, lo, n) }
+
+// A STRING AND A NEWLINE. A string is its UTF-8 bytes on this target, so the
+// bytes are written as they are.
+pub export fn print_str(s) (Bool) {
+    u = str.utf8(s)
+    write(u, 0, len(u))
+    write(array { 10 }, 0, 1)
+}
+
+// AN INTEGER IN DECIMAL, ANY ONE IN THE WORD, AND A NEWLINE.
+//
+// The digits of |n| are produced least significant first, so they are stored
+// backwards from the end of a 22-byte field, behind the newline at its end.
+// A word has at most 19 decimal digits, so the loop takes exactly 19 steps,
+// k = 0 … 18, writing digit k at 20 − k, and `top` is where the most
+// significant one went. Every index is then linear in k, which the guard
+// bounds, so each obligation is proven by the refinement layer as well as by
+// the intervals: stopping when m reached 0 bounded the index only through the
+// trip count, which the obligations at a call do not see (llvm-2026-11-02).
+// −2⁶³ has no negation in the word, and is its own clause; every other
+// negative n is a sign and the digits of −n.
+pub export fn print_int(n ∈ -2^63..2^63-1) (Bool) {
+    case {
+        n < -9223372036854775807 -> print_str("-9223372036854775808")
+        else -> {
+            (b, start) = {
+                var b := array { 0 : _ ∈ 0..21 }
+                b[21] := 10
+                loop m = if n < 0 { 0 - n } else { n }, k = 0, top = 20 {
+                    k > 18 && n < 0 -> { b[top - 1] := 45; (b, top - 1) }
+                    k > 18 -> (b, top)
+                    else -> {
+                        b[20 - k] := 48 + m % 10
+                        again(m / 10, k + 1, if m > 0 { 20 - k } else { top })
+                    }
+                }
+            }
+            write(b, start, 22 - start)
+        }
+    }
+}

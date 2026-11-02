@@ -200,10 +200,16 @@ checked. When a package hits a wall that needs language work, stop, research it,
         - grids built ([grids-2026-11-01](gauntlet/results/grids-2026-11-01.md)): one rounding procedure
           for every grid (`core/grid.go`), checked against F(p, …)'s definition and against binary64;
           ADR 0087 closed the open-range hole it found ([resultclaim-2026-11-02](gauntlet/results/resultclaim-2026-11-02.md)).
-        - **step 2 and this round's loose ends wait on a trigger** (below); next, Σ_LLVM and `ir/llvm`.
-     Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
-     widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
-     rung above as native iN, measured against the limbs.
+        - **step 2 and this round's loose ends wait on a trigger** (below).
+     **`ir/llvm`, spec first** ([llvm.md](docs/spec/llvm.md); its §9 the steps): steps 1–2 built
+     ([llvm-2026-11-02](gauntlet/results/llvm-2026-11-02.md)): `targets/windows-llvm/` beside MASM,
+     every windows differential case agreeing on it; the sieve and merge sort at 0.65 and 0.36 of
+     `ir/x86`, the sieve process 0.64 of hand-written MASM; flags only where the IR proved them, each
+     read back by a witness with a planted fault; `>>` past 63 total; `lib/win/print.oro` and
+     `emit/winmap.oro` in the language's operators. Next, §9 step 3: Σ_LLVM's stateable families
+     declared, each with a differential case; then MASM retired (step 4), with what the walls left to
+     it: LLVM's widths (native iN, i32 scalars on i686), the unsigned word on windows, and the rung
+     above as native iN, measured against the limbs.
    - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
      user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.
@@ -276,9 +282,9 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **4,801 of 4,853** integer operations proven inside their target's word, the 52 left
+- **Provability**: **5,023 of 5,090** integer operations proven inside their target's word, the 67 left
   mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
-  **502 of 525** loops proven to terminate (size-change termination). Each
+  **557 of 580** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -320,9 +326,10 @@ postconditions and a definition's claim
 (`ir/interp_test.go`) and has a planted fault.
 
 **The IR's text is the printers' whole input** (ADR 0038): `gen -ir` writes IR_P, and `cmd/check`
-reprints every program from that text alone, byte for byte. Four printers, `ir/golang`, `ir/js`,
-`ir/java` and `ir/x86` (MASM, a value's place a colouring of exact live sets, optimal by chordality;
-to be replaced by `ir/llvm`, ADR 0080), sharing `ir/plan`. The term backends and the term interval analysis are deleted (irstep4a, irstep4j).
+reprints every program from that text alone, byte for byte. Five printers, `ir/golang`, `ir/js`,
+`ir/java`, `ir/x86` (MASM, a value's place a colouring of exact live sets, optimal by chordality;
+retiring) and `ir/llvm` (LLVM IR, ADR 0080, [llvm.md](docs/spec/llvm.md): a join a slot that mem2reg
+makes a φ, and a flag only where the IR proved it), sharing `ir/plan`. The term backends and the term interval analysis are deleted (irstep4a, irstep4j).
 
 ## The language today
 
@@ -564,7 +571,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | An unbounded end is omitted, `lo..`; `Nat` is ↑0 | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
 | A module's interface is what it marks `pub`; `export` an entry point | [0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
 | A declared set is a claim, and the facts choose the representation | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
-| The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity; every LLVM primitive offered, walls to hamza (not built) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
+| The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity; every LLVM primitive offered, walls to hamza (built to windows parity, MASM not yet retired) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
 | Concurrency is typed processes: a Mealy machine, failure an effect, supervisors its handlers; Kahn networks and fork–join its fragments (the direction; not built) | [0081](docs/decisions/0081-concurrency-is-typed-processes.md) |
 | Wrapping is the residue map `mod 2ⁿ` on ℤ, not a sort; `& \| ⊕ ~ << >>` are ℤ's own; fusion computes a term under `mod 2ⁿ` in n-bit arithmetic | [0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
 | A representation is an abstraction function (H, d), chosen by place; native iN above the word on LLVM; the word S₆₄ on every triple (LLVM's part with ir/llvm) | [0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md) |
@@ -603,11 +610,11 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | | |
 |---|---|
 | `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`), σ_J (`jspell`), J in messages (`jshow`), the raw reader of core terms and the IR's text (`raw`, `read`); the trees (`abs`, `decl`) and D (`desugar`); terms, the β/δ reducer and module loading (`reduce`), variants (`sum`), hygiene, the state translation (`cell`, `place`), β's work count (`work`), Σ_L |
-| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/x86` |
+| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the five printers `ir/golang`, `ir/js`, `ir/java`, `ir/x86`, `ir/llvm` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
-| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/`; `blas` and the `tutorial*` targets parameterize the normal form for the book |
-| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` |
+| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/` (MASM), `windows-llvm/` (LLVM IR, until MASM retires); `blas` and the `tutorial*` targets parameterize the normal form for the book |
+| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators; `fmt`, MASM's) |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
 | `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `num/` (`ledger`, decimals), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
 | `gauntlet/` | hand-written references, `results/`, `check/` (the baseline), `differential/` (cases on four targets, proving their arithmetic unless `; checked:` says why), `conformance/`, `regen.txt`, `balance.py`, `surface/` (the surface's measurements) |

@@ -44,7 +44,7 @@ func arithOp(name string, n int) string {
 // uncheckedName maps a target's checked spelling back to the operation it
 // checks. The spellings are the targets' own: `add-exact` and `mul-exact` on
 // Go, `addExact` and `multiplyExact` on the JVM, `add-checked` and
-// `imul-checked` on x86, matched by their last segment.
+// `imul-checked` on x86, `mul-checked` on LLVM, matched by their last segment.
 func uncheckedName(name string) (string, bool) {
 	seg := name
 	if i := strings.LastIndex(seg, "."); i >= 0 {
@@ -55,8 +55,10 @@ func uncheckedName(name string) (string, bool) {
 		return "add", true
 	case "sub-exact", "subtractExact", "sub-checked":
 		return "sub", true
-	case "mul-exact", "multiplyExact", "imul-checked":
+	case "mul-exact", "multiplyExact", "imul-checked", "mul-checked":
 		return "mul", true
+	case "neg-checked":
+		return "neg", true
 	}
 	return "", false
 }

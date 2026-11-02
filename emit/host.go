@@ -29,8 +29,21 @@ func ResetImports() {
 	clear(JSImports)
 	clear(JavaImports)
 	clear(JavaRecords)
+	clear(LLVMImports)
+	clear(LLVMStrings)
+	clear(LLVMLibs)
 	ResetAsm()
 }
+
+// LLVMImports are the module lines an LLVM program's templates named (a
+// `declare`, a global, a helper's `define`), each written once, and
+// LLVMStrings its string literals' globals, keyed by content (ir/llvm,
+// docs/spec/llvm.md §6). LLVMLibs are the libraries a used primitive names.
+var (
+	LLVMImports = map[string]bool{}
+	LLVMStrings = map[string]string{}
+	LLVMLibs    = map[string]bool{}
+)
 
 func contains(xs []string, s string) bool {
 	for _, x := range xs {

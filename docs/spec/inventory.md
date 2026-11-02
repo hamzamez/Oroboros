@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 170 words of the core**, and j.md §1.4's keywords.
+**Result: 172 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 130 |
+| `specified` — a spec states it | 132 |
 | `recorded` — only research, a result document or code comments | 25 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -258,7 +258,9 @@ What a declaration's `host KIND …` or a `structural NAME KIND` may say.
 | word | status | where |
 |---|---|---|
 | `go`, `js`, `java`, `x86-64` | specified — the closed set of backends | [target-files.md](target-files.md) |
-| `windows` | recorded — **a finding, §6**: `WriteProgram` lays out a program's build tree by the target's NAME (`go`, `js`, `java`, `windows`), not by its backend | `emit/target.go` `WriteProgram` |
+| `llvm` | specified — the backend that prints LLVM IR (ADR 0080), beside `x86-64` until MASM retires | [llvm.md](llvm.md) |
+| `windows` | recorded — **a finding, §6**: `WriteProgram` lays out a program's build tree by the target's NAME (`go`, `js`, `java`, `windows`, `windows-llvm`), not by its backend | `emit/target.go` `WriteProgram` |
+| `windows-llvm` | specified — the Windows target printed as LLVM IR, a separate name until MASM retires (llvm.md §2); its templates number their holes, as `windows`'s do | [llvm.md](llvm.md) §2, `core/jreadtarget.go` `numberedHoles` |
 
 ### Names a target declares for the compiler to find
 
@@ -330,7 +332,7 @@ like the others and is declared in `targets/windows/`.
 ## 6. What is left
 
 1. **The program's build tree is chosen by the target's NAME.** `WriteProgram` switches on
-   `go`/`js`/`java`/`windows`, so a user target called anything else, with a perfectly good
+   `go`/`js`/`java`/`windows`/`windows-llvm`, so a user target called anything else, with a perfectly good
    `backend go`, emits its code and is then refused by `cmd/build` with `target "mygo" has no
    program layout`. It is loud rather than wrong, and it is still the shape backend-2026-09-06 fixed
    for emission, left behind in the layout step: the layout belongs to the backend. Found by the

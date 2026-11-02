@@ -28,9 +28,12 @@
 // slot is the honest price.
 //
 // OPEN ADDRESSING WITH LINEAR PROBING, and the slot count is a POWER OF TWO so
-// the hash is a mask. That matters twice: `x64.and` is one instruction where a
+// the hash is a mask. That matters twice: `&` is one instruction where a
 // remainder is a division, and masking a NEGATIVE key still lands in [0, n)
-// because the mask clears the sign bits. `-1 and 7` is 7.
+// because the mask clears the sign bits: ℤ's `&` (ADR 0082), `-1 & 7` is 7.
+//
+// IN THE LANGUAGE'S OPERATORS (ADR 0080 item 5), so one source serves both
+// Windows printers; it named x86's mnemonics until the LLVM printer needed it.
 //
 // THE PROBE IS BOUNDED BY n, which is not a safety net but the algorithm: with
 // the load factor held at 1/2 by `build-map`'s capacity, n probes is more than
@@ -43,21 +46,19 @@
 // is declared, exceeding it is a program bug, and windows has no way to grow.
 // `tree.oro`'s node cap is the same shape and CLAUDE.md celebrates it -- a
 // capacity does not create the limit, it makes it visible.
-use x64
-
 // The slot count, read back off the buffer rather than threaded through every
 // call. `(len m)` is 3n by construction, so there is nothing to carry.
-fn wm_n(m) { x64.idiv(len(m), 3) }
+fn wm_n(m) { len(m) / 3 }
 
 // The slot for key k at probe distance i, masked into [0, n).
-fn wm_s(n, k, i) { x64.and(x64.add(x64.and(k, x64.sub(n, 1)), i), x64.sub(n, 1)) }
+fn wm_s(n, k, i) { ((k & (n - 1)) + i) & (n - 1) }
 
 // A CLAMP, exactly as tree.oro uses one. `wm-s` is masked and therefore already
 // in range, but the refinement layer reasons in linear integer arithmetic and
-// `x64.and` is not linear -- so the fact is true and undischargeable, which is
+// `&` is not linear -- so the fact is true and undischargeable, which is
 // the honest limit of the domain rather than a hole in the program. Clamping
 // turns a refusal into a note and says what happens if the impossible occurs.
-fn wm_c(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else { x } }
+fn wm_c(m, x) { if x < 0 { 0 } else if x >= len(m) { 0 } else { x } }
 
 // A GUARDED READ: the cell at x, or 0 when x is outside the table. Where a clamp's
 // 0 is itself outside an EMPTY table, so a read at a clamped index is never
@@ -65,14 +66,14 @@ fn wm_c(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else 
 // 0 <= x < len m. A clamp turned a refusal into a note, and a note is a refusal
 // now (refinements.md §3a, noprop-2026-09-25); this says what happens if the
 // impossible occurs and is proven while saying it.
-fn wm_at(m, x) { if x64.setl(x, 0) { 0 } else if x64.setge(x, len(m)) { 0 } else { m[x] } }
+fn wm_at(m, x) { if x < 0 { 0 } else if x >= len(m) { 0 } else { m[x] } }
 
-fn wm_used(m, n, k, i) { m[wm_c(m, x64.imul(3, wm_s(n, k, i)))] }
-fn wm_key(m, n, k, i) { m[wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 1))] }
+fn wm_used(m, n, k, i) { m[wm_c(m, 3 * wm_s(n, k, i))] }
+fn wm_key(m, n, k, i) { m[wm_c(m, 3 * wm_s(n, k, i) + 1)] }
 
 // The index of the VALUE cell, which is what a find returns so the caller needs
 // no second computation.
-fn wm_vi(m, n, k, i) { wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 2)) }
+fn wm_vi(m, n, k, i) { wm_c(m, 3 * wm_s(n, k, i) + 2) }
 
 // FIND: the value cell's index, or -1 when the key is absent.
 //
@@ -87,10 +88,10 @@ fn wm_vi(m, n, k, i) { wm_c(m, x64.add(x64.imul(3, wm_s(n, k, i)), 2)) }
 fn wm_find(m, k) {
     n = wm_n(m)
     loop i = 0 {
-        x64.setge(i, n) -> -1
+        i >= n -> -1
         wm_used(m, n, k, i) == 0 -> -1
         wm_key(m, n, k, i) == k -> wm_vi(m, n, k, i)
-        else -> again(x64.add(i, 1))
+        else -> again(i + 1)
     }
 }
 
@@ -120,11 +121,11 @@ fn wm_find(m, k) {
 fn wm_put(m linear, k, v) {
     loop i = 0 {
         // Full. The entry is DROPPED -- see the header.
-        x64.setge(i, wm_n(m)) -> ()
+        i >= wm_n(m) -> ()
         // A free slot: claim it.
         wm_used(m, wm_n(m), k, i) == 0 -> {
-            u = wm_c(m, x64.imul(3, wm_s(wm_n(m), k, i)))
-            kc = wm_c(m, x64.add(x64.imul(3, wm_s(wm_n(m), k, i)), 1))
+            u = wm_c(m, 3 * wm_s(wm_n(m), k, i))
+            kc = wm_c(m, 3 * wm_s(wm_n(m), k, i) + 1)
             vc = wm_vi(m, wm_n(m), k, i)
             m[u] := 1
             m[kc] := k
@@ -136,7 +137,7 @@ fn wm_put(m linear, k, v) {
         // equation (growth.md §1.1) -- whether the key was present is a fact about
         // the input, and here is where the program finds out.
         wm_key(m, wm_n(m), k, i) == k -> { vc = wm_vi(m, wm_n(m), k, i); m[vc] := v; () }
-        else -> again(x64.add(i, 1))
+        else -> again(i + 1)
     }
 }
 
@@ -149,8 +150,8 @@ fn wm_put(m linear, k, v) {
 fn wm_len(m) {
     n = wm_n(m)
     loop c = 0, s = 0 {
-        x64.setge(s, n) -> c
-        else -> again(x64.add(c, m(wm_c(m, x64.imul(3, s)))), x64.add(s, 1))
+        s >= n -> c
+        else -> again(c + m(wm_c(m, 3 * s)), s + 1)
     }
 }
 
@@ -159,7 +160,7 @@ fn wm_len(m) {
 // short. Computed with a loop because the capacity may be a runtime value; when
 // it is a literal, reduction folds the whole thing away.
 fn wm_slots(cap) {
-    loop n = 1 { x64.setge(n, x64.imul(2, cap)) -> n; else -> again(x64.imul(n, 2)) }
+    loop n = 1 { n >= 2 * cap -> n; else -> again(n * 2) }
 }
 
 // FILL a table from two parallel arrays, which is how a map LITERAL is built.
@@ -171,13 +172,13 @@ fn wm_slots(cap) {
 // loop has constant register pressure however many rows there are.
 fn wm_fill(m linear, ks, vs) {
     loop i = 0 {
-        x64.setge(i, len(ks)) -> ()
+        i >= len(ks) -> ()
         // THE VALUE READ IS GUARDED, because the loop is bounded by `(len ks)` and
         // indexes `vs` as well -- two arrays under one bound, which is exactly the
         // latent bug the refinement layer found in `dot` and `centroid`. The two
         // arrays have the same length by construction here and nothing can see that,
         // so the program says what happens if they do not.
-        else -> { wm_put(m, ks[i], wm_at(vs, i)); again(x64.add(i, 1)) }
+        else -> { wm_put(m, ks[i], wm_at(vs, i)); again(i + 1) }
     }
 }
 
@@ -207,16 +208,16 @@ fn wm_fill(m linear, ks, vs) {
 // b[y] = b[x]` and silently copies. That is a real bug in the effect discipline
 // -- ADR 0010 exists to forbid exactly that reordering, and a buffer read is not
 // being judged impure. Ranking needs no swap and is correct either way.
-fn wm_used_at(m, s) { m(wm_c(m, x64.imul(3, s))) }
-fn wm_key_at(m, s) { m(wm_c(m, x64.add(x64.imul(3, s), 1))) }
+fn wm_used_at(m, s) { m(wm_c(m, 3 * s)) }
+fn wm_key_at(m, s) { m(wm_c(m, 3 * s + 1)) }
 
 // How many occupied keys are strictly less than k. With distinct keys that IS
 // the key's index in ascending order.
 fn wm_rank(m, k) {
     loop c = 0, s = 0 {
-        x64.setge(s, wm_n(m)) -> c
-        wm_used_at(m, s) == 0 -> again(c, x64.add(s, 1))
-        else -> again(if x64.setl(wm_key_at(m, s), k) { x64.add(c, 1) } else { c }, x64.add(s, 1))
+        s >= wm_n(m) -> c
+        wm_used_at(m, s) == 0 -> again(c, s + 1)
+        else -> again(if wm_key_at(m, s) < k { c + 1 } else { c }, s + 1)
     }
 }
 
@@ -226,11 +227,11 @@ fn wm_keys(m) {
     cnt = wm_len(m)
     var out := array { 0 : _ ∈ 0..cnt-1 }
     loop s = 0 {
-        x64.setge(s, wm_n(m)) -> out
-        wm_used_at(m, s) == 0 -> again(x64.add(s, 1))
+        s >= wm_n(m) -> out
+        wm_used_at(m, s) == 0 -> again(s + 1)
         else -> {
             out[wm_c(out, wm_rank(m, wm_key_at(m, s)))] := wm_key_at(m, s)
-            again(x64.add(s, 1))
+            again(s + 1)
         }
     }
 }

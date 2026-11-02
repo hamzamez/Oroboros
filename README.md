@@ -559,10 +559,13 @@ says why the next is what it is.
 7. ~~The IR's verifier checks that each branch justifies the facts it hands its arms~~ **done
    2026-11-02** ([pijustified-2026-11-02](gauntlet/results/pijustified-2026-11-02.md)): every fact an
    arm is handed must follow from the condition that enters it, so the LLVM backend can trust each one.
-8. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
+8. **A defect in the compiler's proofs**: in one program it refused to accept a fact it had already
+   established, found while building the LLVM backend (worked around there). It comes before the work
+   below, whose programs would meet it.
+9. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
    as Go is, and which costs it 16% today.
-9. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.
-10. **A slowdown in the generated JSON tokenizer on the JVM**, which runs at hand-written speed for its
+10. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.
+11. **A slowdown in the generated JSON tokenizer on the JVM**, which runs at hand-written speed for its
     first second and then three times slower, found while measuring step 2 above.
 
 ## Try it

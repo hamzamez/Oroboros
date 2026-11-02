@@ -221,12 +221,20 @@ checked. When a package hits a wall that needs language work, stop, research it,
    literal its arm's guard implies, the literals computed as a meet over the guard's routes (spec/ir.md
    §6); faults planted for the wrong table, a flipped relation, a foreign operand, a missing negation, a
    π no branch enters, and a conjunction's false side.
-8. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
+8. **The refinement layer refuses a goal it holds as a fact** (llvm-2026-11-02): `0 <= len(u)` at a
+   definition's call, refused with `-len(u) <= 0` among the known facts, only in a program that also
+   builds a table of tuples; binders renamed, it stays. A refusal of a true goal on the path every call
+   obligation takes (ADR 0028), named by a program, so item 11's rule, first: find the cause (the tuple
+   flattening's equations rewriting `len` atoms, a fact keyed by its printed form, or `-checked`'s
+   rebuild), fix it with the bug as shipped planted, then restore `lib/win/print.oro`'s declared ranges
+   if the fix makes them provable. Ahead of 9 and 10, whose programs meet call obligations; beside 6b,
+   which worked around it.
+9. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
    ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)). Research it as a join point that may jump, build
    it, measure `wc` nested.
-9. **The Go library, program first**: `cmp`, two files compared chunk by chunk.
-10. **The analysis grows only for a refusal a program names**, each rule's planted fault with it.
-11. **The JVM's generated JSON tokenizer slows from 8 to 22.5 µs mid-run** (bits-2026-10-27 §2), before
+10. **The Go library, program first**: `cmp`, two files compared chunk by chunk.
+11. **The analysis grows only for a refusal a program names**, each rule's planted fault with it.
+12. **The JVM's generated JSON tokenizer slows from 8 to 22.5 µs mid-run** (bits-2026-10-27 §2), before
     and after ADR 0083: find the cause (a deoptimization, a profile, or the emitted shape), against
     hand-written code. A gauntlet program, so ahead of new programs once 6b is done.
 

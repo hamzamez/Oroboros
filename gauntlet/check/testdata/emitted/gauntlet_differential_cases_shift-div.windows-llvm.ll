@@ -21,7 +21,11 @@ trap.2:
   call void @llvm.trap()
   unreachable
 ok.2:
-  %v7 = sdiv i64 %v4, 2
+  %m.3 = icmp eq i64 2, -1
+  %d.3 = select i1 %m.3, i64 1, i64 2
+  %q.3 = sdiv i64 %v4, %d.3
+  %n.3 = sub i64 0, %q.3
+  %v7 = select i1 %m.3, i64 %n.3, i64 %q.3
   %o.4 = call {i64, i1} @llvm.smul.with.overflow.i64(i64 %v7, i64 100)
   %v9 = extractvalue {i64, i1} %o.4, 0
   %f.4 = extractvalue {i64, i1} %o.4, 1
@@ -30,7 +34,9 @@ trap.4:
   call void @llvm.trap()
   unreachable
 ok.4:
-  %v11 = srem i64 %v4, 8
+  %m.5 = icmp eq i64 8, -1
+  %d.5 = select i1 %m.5, i64 1, i64 8
+  %v11 = srem i64 %v4, %d.5
   %o.6 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v9, i64 %v11)
   %v12 = extractvalue {i64, i1} %o.6, 0
   %f.6 = extractvalue {i64, i1} %o.6, 1
@@ -47,7 +53,11 @@ trap.7:
   call void @llvm.trap()
   unreachable
 ok.7:
-  %v16 = sdiv i64 %v14, 4
+  %m.8 = icmp eq i64 4, -1
+  %d.8 = select i1 %m.8, i64 1, i64 4
+  %q.8 = sdiv i64 %v14, %d.8
+  %n.8 = sub i64 0, %q.8
+  %v16 = select i1 %m.8, i64 %n.8, i64 %q.8
   %o.9 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v12, i64 %v16)
   %v17 = extractvalue {i64, i1} %o.9, 0
   %f.9 = extractvalue {i64, i1} %o.9, 1

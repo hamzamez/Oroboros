@@ -2213,3 +2213,28 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `lib/win/print.oro js`
 - new source — `lib/win/print.oro windows`
 - new source — `lib/win/print.oro windows-llvm`
+
+## 2026-11-02 — on d3d653c, with uncommitted changes
+
+**Reason:** ADR 0088: windows-llvm states its realizations; llvm.oro is LLVM's operations as they are; / and % total at -1; << the bare shl where the count is proven; lib/win/print guards WriteFile's domain
+
+765 runs: 426 emitted, 339 refused; 5026 of 5093 integer operations bounded, 557 of 580 loops proven. compiler pass, differential pass, tooling pass.
+
+16 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows-llvm`
+- emitted text changed — `examples/big/limbs.oro windows-llvm`
+- emitted text changed — `examples/errors/expect.oro windows-llvm`
+- emitted text changed — `examples/errors/slots.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/bits.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/fnv32.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
+- emitted text changed — `lib/win/print.oro windows-llvm`
+- compiler output changed — `lib/win/print.oro windows-llvm`

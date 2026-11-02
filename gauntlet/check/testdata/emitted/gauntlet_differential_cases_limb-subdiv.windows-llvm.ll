@@ -76,12 +76,18 @@ entry:
   store ptr %v7, ptr %.s14
   br label %.exit7
 .else13:
-  %v15 = srem i64 %v9, 16777216
+  %m.15 = icmp eq i64 16777216, -1
+  %d.15 = select i1 %m.15, i64 1, i64 16777216
+  %v15 = srem i64 %v9, %d.15
   %.d16 = getelementptr inbounds i8, ptr %v7, i64 8
   %.e17 = getelementptr inbounds i64, ptr %.d16, i64 %v8
   store i64 %v15, ptr %.e17
   %v18 = add nuw nsw i64 %v8, 1
-  %v20 = sdiv i64 %v9, 16777216
+  %m.19 = icmp eq i64 16777216, -1
+  %d.19 = select i1 %m.19, i64 1, i64 16777216
+  %q.19 = sdiv i64 %v9, %d.19
+  %n.19 = sub i64 0, %q.19
+  %v20 = select i1 %m.19, i64 %n.19, i64 %q.19
   store ptr %v7, ptr %.s8
   store i64 %v18, ptr %.s9
   store i64 %v20, ptr %.s10
@@ -110,12 +116,18 @@ entry:
   store ptr %v27, ptr %.s34
   br label %.exit27
 .else33:
-  %v35 = srem i64 %v29, 16777216
+  %m.35 = icmp eq i64 16777216, -1
+  %d.35 = select i1 %m.35, i64 1, i64 16777216
+  %v35 = srem i64 %v29, %d.35
   %.d36 = getelementptr inbounds i8, ptr %v27, i64 8
   %.e37 = getelementptr inbounds i64, ptr %.d36, i64 %v28
   store i64 %v35, ptr %.e37
   %v38 = add nuw nsw i64 %v28, 1
-  %v40 = sdiv i64 %v29, 16777216
+  %m.39 = icmp eq i64 16777216, -1
+  %d.39 = select i1 %m.39, i64 1, i64 16777216
+  %q.39 = sdiv i64 %v29, %d.39
+  %n.39 = sub i64 0, %q.39
+  %v40 = select i1 %m.39, i64 %n.39, i64 %q.39
   store ptr %v27, ptr %.s28
   store i64 %v38, ptr %.s29
   store i64 %v40, ptr %.s30
@@ -261,12 +273,18 @@ entry:
 .join110:
   %v118 = load i64, ptr %.s111
   %v130 = add nuw nsw i64 %v115, %v118
-  %v132 = sdiv i64 %v130, 7
+  %m.118 = icmp eq i64 7, -1
+  %d.118 = select i1 %m.118, i64 1, i64 7
+  %q.118 = sdiv i64 %v130, %d.118
+  %n.118 = sub i64 0, %q.118
+  %v132 = select i1 %m.118, i64 %n.118, i64 %q.118
   %.d119 = getelementptr inbounds i8, ptr %v107, i64 8
   %.e120 = getelementptr inbounds i64, ptr %.d119, i64 %v108
   store i64 %v132, ptr %.e120
   %v135 = sub nsw i64 %v108, 1
-  %v137 = srem i64 %v130, 7
+  %m.122 = icmp eq i64 7, -1
+  %d.122 = select i1 %m.122, i64 1, i64 7
+  %v137 = srem i64 %v130, %d.122
   store ptr %v107, ptr %.s99
   store i64 %v135, ptr %.s100
   store i64 %v137, ptr %.s101

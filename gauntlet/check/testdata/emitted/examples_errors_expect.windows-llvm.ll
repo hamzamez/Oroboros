@@ -49,16 +49,28 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %v10 = srem i64 %v0, 2
+  %m.7 = icmp eq i64 2, -1
+  %d.7 = select i1 %m.7, i64 1, i64 2
+  %v10 = srem i64 %v0, %d.7
   %v12 = icmp eq i64 %v10, 0
   br i1 %v12, label %.then9, label %.else10
 .then9:
-  %v14 = sdiv i64 %v0, 2
-  %v16 = srem i64 %v14, 2
+  %m.11 = icmp eq i64 2, -1
+  %d.11 = select i1 %m.11, i64 1, i64 2
+  %q.11 = sdiv i64 %v0, %d.11
+  %n.11 = sub i64 0, %q.11
+  %v14 = select i1 %m.11, i64 %n.11, i64 %q.11
+  %m.12 = icmp eq i64 2, -1
+  %d.12 = select i1 %m.12, i64 1, i64 2
+  %v16 = srem i64 %v14, %d.12
   %v18 = icmp eq i64 %v16, 0
   br i1 %v18, label %.then14, label %.else15
 .then14:
-  %v20 = sdiv i64 %v14, 2
+  %m.16 = icmp eq i64 2, -1
+  %d.16 = select i1 %m.16, i64 1, i64 2
+  %q.16 = sdiv i64 %v14, %d.16
+  %n.16 = sub i64 0, %q.16
+  %v20 = select i1 %m.16, i64 %n.16, i64 %q.16
   ret i64 %v20
 .else15:
   %h.17 = call ptr @GetStdHandle(i32 -12)

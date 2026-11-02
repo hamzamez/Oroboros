@@ -27,14 +27,9 @@ entry:
   %v20 = xor i64 %v10, -1
   %v21 = add nsw i64 %v19, %v20
   %v23 = add nsw i64 %v0, 1000
-  %s.17 = shl i64 %v23, 20
-  %o.17 = icmp ugt i64 20, 63
-  %v25 = select i1 %o.17, i64 0, i64 %s.17
+  %v25 = shl nuw nsw i64 %v23, 20
   %v26 = add nsw i64 %v21, %v25
-  %s.19 = ashr i64 %v10, 3
-  %t.19 = ashr i64 %v10, 63
-  %o.19 = icmp ugt i64 3, 63
-  %v28 = select i1 %o.19, i64 %t.19, i64 %s.19
+  %v28 = ashr i64 %v10, 3
   %v29 = add nsw i64 %v26, %v28
   %q.21 = srem i64 %v10, 1000
   %n.21 = icmp slt i64 %q.21, 0

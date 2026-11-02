@@ -34,7 +34,9 @@ entry:
   %v22 = mul i64 %v12, 7
   %v23 = add i64 %v20, %v22
   %v24 = mul nuw nsw i64 %v12, %v12
-  %v26 = srem i64 %v24, 13
+  %m.19 = icmp eq i64 13, -1
+  %d.19 = select i1 %m.19, i64 1, i64 13
+  %v26 = srem i64 %v24, %d.19
   %v27 = add i64 %v23, %v26
   %v29 = and i64 %v27, 255
   %v30 = xor i64 %v13, %v29

@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 172 words of the core**, and j.md §1.4's keywords.
+**Result: 173 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 132 |
+| `specified` — a spec states it | 133 |
 | `recorded` — only research, a result document or code comments | 25 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -208,6 +208,7 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `artifact` | specified | [build.md](build.md) |
 | `data` | specified | [windows-target.md](windows-target.md) |
 | `link` | specified | [target-files.md](target-files.md) |
+| `realize` | specified — `realize OP = A, B … [checked C]`, a target's stated interpretation of a language name (ADR 0088) | [ADR 0088](../decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md), [llvm.md](llvm.md) §6 |
 
 ### Header and host clauses
 

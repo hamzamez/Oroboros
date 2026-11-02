@@ -48,5 +48,34 @@ repr big limbs
 // (llvm.md §2). A primitive that needs another library names it with `lib`.
 link "kernel32"
 
+// THE LANGUAGE'S NAMES, REALIZED (ADR 0088). A target is a model of the
+// language's signature: this is its interpretation of each name, stated, not
+// found by spelling. Where several declarations are named, the first realizes
+// the name everywhere and each later one where its parameters' sets hold the
+// operands' proven facts, the narrowest such (ir/final.go): `<<` is LLVM's own
+// `shl` where the count is proven below 64, and lang.oro's form elsewhere.
+realize `+` = llvm.add checked lang.add_checked
+realize `-` = llvm.sub checked lang.sub_checked
+realize `*` = llvm.mul checked lang.mul_checked
+realize `/` = lang.div
+realize `%` = lang.rem
+realize `=` = llvm.eq
+realize `<` = llvm.slt
+realize `<=` = llvm.sle
+realize `>` = llvm.sgt
+realize `>=` = llvm.sge
+realize `&` = llvm.and
+realize `|` = llvm.or
+realize `⊕` = llvm.xor
+realize `~` = lang.not
+realize `<<` = lang.shl, llvm.shl checked lang.shl_checked
+realize `>>` = lang.ashr, llvm.ashr
+realize mod = lang.emod
+realize string_of = win/str.string_of
+realize concat = win/str.concat
+realize abandon = lang.abandon
+realize trap_if = lang.trap_if
+realize alloc = lang.alloc
+
 build "cmd /c .\\build.bat"
 artifact "main.exe"

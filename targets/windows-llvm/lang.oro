@@ -1,0 +1,90 @@
+// THE LANGUAGE'S OPERATIONS THAT ARE NO SINGLE LLVM INSTRUCTION, each a form
+// over LLVM's own (ADR 0088). `realize` in windows-llvm.oro names these where
+// an instruction of llvm.oro is not the language's operation on its whole
+// domain; nothing here is offered as LLVM's.
+//
+// A FORM AGREES WITH THE LANGUAGE'S OPERATION ON ALL OF ITS DOMAIN, the
+// instruction's own domain split off by `select`, which takes no poison from
+// the operand it does not choose (LangRef). Where the IR proves an instance
+// inside the instruction's domain, it chooses the instruction itself (a
+// second realization, chosen by its parameters' sets, ir/final.go), and the
+// form is not printed.
+module lang {
+    // ~a = a ⊕ (−1): LLVM has no `not`.
+    fn not(a ∈ Int) (Int) pure { host expr "xor ${a}, -1" }
+
+    // a·2ᵏ for every k ≥ 0. Past 63 the instruction is poison, and a·2ᵏ is in
+    // the word only for a = 0, which `<<`'s own obligation makes it: so 0.
+    fn shl(a ∈ Int, b ∈ Nat) (r ∈ Int) pure {
+        host expr "%s${#} = shl ${a}, ${b:v}\n%o${#} = icmp ugt ${b}, 63\n${r} = select i1 %o${#}, i64 0, i64 %s${#}"
+    }
+    // `<<` under -checked: a trap where a·2ᵏ leaves the word, which is a count
+    // past 63 with a ≠ 0, or a shift that does not shift back to a.
+    fn shl_checked(a ∈ Int, b ∈ Nat) (r ∈ Int) pure {
+        host expr "%s${#} = shl ${a}, ${b:v}\n%c${#} = icmp ugt ${b}, 63\n%k${#} = ashr i64 %s${#}, ${b:v}\n%x${#} = icmp ne i64 %k${#}, ${a:v}\n%z${#} = icmp ne ${a}, 0\n%g${#} = and i1 %c${#}, %z${#}\n%f${#} = select i1 %c${#}, i1 %g${#}, i1 %x${#}\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:\n${r} = select i1 %c${#}, i64 0, i64 %s${#}" import "declare void @llvm.trap()"
+    }
+    // ⌊a/2ᵏ⌋ for every k ≥ 0: past 63 it is 0 or −1, which is `ashr a, 63`.
+    fn ashr(a ∈ Int, b ∈ Nat) (r ∈ Int) pure {
+        host expr "%s${#} = ashr ${a}, ${b:v}\n%t${#} = ashr ${a}, 63\n%o${#} = icmp ugt ${b}, 63\n${r} = select i1 %o${#}, i64 %t${#}, i64 %s${#}"
+    }
+
+    // THE EUCLIDEAN REMAINDER for a positive divisor (ADR 0082): srem takes the
+    // dividend's sign, and a negative one is moved up by m.
+    fn emod(a ∈ Int, m ∈ Int) (r ∈ Int) pure where m > 0 {
+        host expr "%q${#} = srem ${a}, ${m:v}\n%n${#} = icmp slt i64 %q${#}, 0\n%s${#} = add i64 %q${#}, ${m:v}\n${r} = select i1 %n${#}, i64 %s${#}, i64 %q${#}"
+    }
+
+    // ℤ'S TRUNCATING `%` AND `/` (integers.md §3) on every divisor but 0.
+    // srem and sdiv are undefined for −2⁶³ by −1; a divisor −1 is read as 1,
+    // so a % −1 is 0, ℤ's, and a / −1 is −a, which for −2⁶³ is −2⁶³ again,
+    // as Go and the JVM answer (the quotient 2⁶³ is outside the word, and the
+    // IR does not yet decide it: llvm-2026-11-02). clang folds the select for
+    // a constant divisor.
+    fn rem(a ∈ Int, b ∈ Int) (r ∈ Int) pure where llvm.ne(b, 0) {
+        host expr "%m${#} = icmp eq ${b}, -1\n%d${#} = select i1 %m${#}, i64 1, i64 ${b:v}\n${r} = srem ${a}, %d${#}"
+    }
+    fn div(a ∈ Int, b ∈ Int) (r ∈ Int) pure where llvm.ne(b, 0) {
+        host expr "%m${#} = icmp eq ${b}, -1\n%d${#} = select i1 %m${#}, i64 1, i64 ${b:v}\n%q${#} = sdiv ${a}, %d${#}\n%n${#} = sub i64 0, %q${#}\n${r} = select i1 %m${#}, i64 %n${#}, i64 %q${#}"
+    }
+
+    // THE CHECKED ARITHMETIC (-checked, ADR 0019): the overflow intrinsic, and
+    // a trap where it overflowed. The value is the intrinsic's, the exact one
+    // wherever there was no trap.
+    fn add_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "%o${#} = call {i64, i1} @llvm.sadd.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
+    }
+    fn sub_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "%o${#} = call {i64, i1} @llvm.ssub.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.ssub.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
+    }
+    fn mul_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
+        host expr "%o${#} = call {i64, i1} @llvm.smul.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
+    }
+
+    // THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro): 0 when handed 0, a
+    // trap otherwise. Impure: an operation that can end the program is never
+    // moved or dropped.
+    fn trap_if(a ∈ Int) (r ∈ Int) {
+        host expr "%z${#} = icmp ne ${a}, 0\nbr i1 %z${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:\n${r} = add i64 0, 0" import "declare void @llvm.trap()"
+    }
+
+    // ---- THE CRASH (spec/errors.md §8): crash : E → 0. The reason's bytes to
+    // standard error (-12), a newline, and exit status 1, as on targets/windows.
+    // It never returns, and the IR ends its region with `unreachable`.
+    fn abandon(why ∈ String) (Any) {
+        host stmt "%h${#} = call ptr @GetStdHandle(i32 -12)\n%l${#} = load i64, ${why}\n%n${#} = trunc i64 %l${#} to i32\n%p${#} = getelementptr inbounds i8, ${why}, i64 8\n%w${#} = call i32 @WriteFile(ptr %h${#}, ptr %p${#}, i32 %n${#}, ptr @__written, ptr null)\n%e${#} = call i32 @WriteFile(ptr %h${#}, ptr @__nl, i32 1, ptr @__written, ptr null)\ncall void @ExitProcess(i32 1)" import "declare dllimport ptr @GetStdHandle(i32)" "declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)" "declare dllimport void @ExitProcess(i32)" "@__written = internal global i32 0" "@__nl = private unnamed_addr constant i8 10"
+    }
+
+    // ---- MEMORY: `build`'s allocator (emit.FindAlloc), of kernel32's two, each
+    // answering zeroed memory, so a table is zero on creation, its semantics.
+    // CHOSEN BY SIZE, measured (llvm-2026-11-02): VirtualAlloc hands out pages
+    // the system has already zeroed, where the heap's HEAP_ZERO_MEMORY (8)
+    // clears every byte, which made the sieve's 200 KB table 10% slower; but it
+    // reserves 64 KiB a call, which small tables in a loop would exhaust. So
+    // VirtualAlloc (MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE) from 64 KiB, the
+    // process heap below. A null answer, memory exhausted, is a trap: LLVM may
+    // assume a pointer it loads through is not null, so an unchecked one would
+    // be undefined.
+    fn alloc(n ∈ 0..2^63-1) (ptr) {
+        host expr "call ptr @oro.alloc(${n})" import "declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)" "declare dllimport ptr @GetProcessHeap()" "declare dllimport ptr @HeapAlloc(ptr, i32, i64)" "declare void @llvm.trap()" "define internal ptr @oro.alloc(i64 %n) nounwind \"no-builtins\" {\nentry:\n  %big = icmp uge i64 %n, 65536\n  br i1 %big, label %virtual, label %heap\nvirtual:\n  %v = call ptr @VirtualAlloc(ptr null, i64 %n, i32 12288, i32 4)\n  br label %done\nheap:\n  %h = call ptr @GetProcessHeap()\n  %p = call ptr @HeapAlloc(ptr %h, i32 8, i64 %n)\n  br label %done\ndone:\n  %r = phi ptr [ %v, %virtual ], [ %p, %heap ]\n  %z = icmp eq ptr %r, null\n  br i1 %z, label %oom, label %ok\noom:\n  call void @llvm.trap()\n  unreachable\nok:\n  ret ptr %r\n}"
+    }
+}

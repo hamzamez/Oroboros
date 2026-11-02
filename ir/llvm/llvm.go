@@ -586,7 +586,8 @@ func (p *printer) op(s *ir.Stmt) {
 // flags writes after an instruction's first word the flags the IR proved of
 // this operation: `nsw`, the result inside the word, which is what `exact`
 // means (ir.Decide); `nuw`, the same of the operands read as unsigned, from
-// their proven ranges. Only for the instruction that IS the operation: a form
+// their proven ranges. `shl` takes them only where the bare instruction is the
+// realization the IR chose, its count proven below 64 (ADR 0088). Only for the instruction that IS the operation: a form
 // of several instructions (one naming its result) takes none.
 func (p *printer) flags(s *ir.Stmt, f string) string {
 	if holes(f)['r'] {
@@ -596,7 +597,7 @@ func (p *printer) flags(s *ir.Stmt, f string) string {
 	if !ok {
 		return f
 	}
-	want := map[ir.Op]string{ir.OAdd: "add", ir.OSub: "sub", ir.OMul: "mul", ir.ONeg: "sub"}[s.Op]
+	want := map[ir.Op]string{ir.OAdd: "add", ir.OSub: "sub", ir.OMul: "mul", ir.ONeg: "sub", ir.OShl: "shl"}[s.Op]
 	if want == "" || word != want {
 		return f
 	}
@@ -607,6 +608,11 @@ func (p *printer) flags(s *ir.Stmt, f string) string {
 	switch s.Op {
 	case ir.OAdd, ir.OMul:
 		if p.lo(s.Args[0]) >= 0 && p.lo(s.Args[1]) >= 0 {
+			fl = "nuw nsw"
+		}
+	case ir.OShl:
+		// a·2ᵏ inside the word with a ≥ 0 shifts out no set bit.
+		if p.lo(s.Args[0]) >= 0 {
 			fl = "nuw nsw"
 		}
 	case ir.OSub:

@@ -144,7 +144,8 @@ assert use module provides pub export axiom true false`.
 else: `where ensure invariant pure index variadic inout out linear as host expr stmt import lib checked
 jump comma_ok success relevant`; `mod`, an operator only between two operands (ADR 0082); and the
 model's data words (`repr word niche narrow structural backend link build artifact data include fact
-underlying read write`, §2.12).
+underlying read write realize`, §2.12; the last states which declarations interpret a language name,
+ADR 0088).
 
 **Read and refused**, each with a message naming what replaced it (inventory.md §4): `the`, the core's
 ascription, refused for a binder's claim (ADR 0069); `private`, the default since ADR 0078; and the

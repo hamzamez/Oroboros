@@ -67,7 +67,9 @@ entry:
   %v22 = mul i64 %v15, 7
   %v23 = add i64 %v20, %v22
   %v24 = mul nuw nsw i64 %v15, %v15
-  %v26 = srem i64 %v24, 13
+  %m.23 = icmp eq i64 13, -1
+  %d.23 = select i1 %m.23, i64 1, i64 13
+  %v26 = srem i64 %v24, %d.23
   %v27 = add i64 %v23, %v26
   %v29 = and i64 %v27, 255
   %.d26 = getelementptr inbounds i8, ptr %v14, i64 8

@@ -50,7 +50,9 @@ ok.8:
   %v26 = mul i64 %v16, 7
   %v27 = add i64 %v24, %v26
   %v28 = mul nuw nsw i64 %v16, %v16
-  %v30 = srem i64 %v28, 13
+  %m.21 = icmp eq i64 13, -1
+  %d.21 = select i1 %m.21, i64 1, i64 13
+  %v30 = srem i64 %v28, %d.21
   %v31 = add i64 %v27, %v30
   %v33 = and i64 %v31, 255
   %v34 = xor i64 %v17, %v33

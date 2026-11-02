@@ -1,78 +1,51 @@
-// Σ_LLVM, LLVM IR's own operations under their own names (ADR 0080 item 7,
-// llvmsurvey-2026-10-27). Declared by hand, family by family; each operation's
-// undefined behaviour or poison is its `where`, an obligation the IR discharges
-// before the printer writes the instruction (llvm.md §1). A primitive the
-// language cannot state is a wall, brought to hamza, and is not declared.
+// Σ_LLVM, LLVM IR's own operations, AS THEY ARE (ADR 0080 item 7, ADR 0088,
+// llvmsurvey-2026-10-27). Declared by hand, family by family. Each says what
+// the instruction computes on i64, and its domain, the inputs where it is
+// neither poison nor undefined, is its `where` or its parameters' sets: an
+// obligation at every call, discharged by the IR or the program is refused. A
+// primitive the language cannot state is a wall, brought to hamza, and is not
+// declared.
 //
-//   (use llvm)   llvm.add(a, b)   llvm.sdiv(a, b)   llvm.slt(a, b)
+//   (use llvm)   llvm.add(a, b)   llvm.sdiv(a, b)   llvm.shl(a, b)
 //
-// THE LANGUAGE'S OPERATORS ARE FOUND HERE BY SPELLING (emit/target.go,
-// langOps), as `+` is found as `go.+` and `x64.add`: `+` is `add`, `/` is `sdiv`,
-// `<` is `slt`. A declaration says the instruction; the FLAGS are the printer's,
-// since `nsw` and `nuw` are proofs about one operation's operands, which the IR
-// holds and a declaration cannot (llvm.md §5): the printer writes them after the
-// instruction's first word where the IR proved them.
+// NOTHING HERE IS THE LANGUAGE. Which declaration computes the language's `+`
+// or `<<` on this target is said by `realize` in windows-llvm.oro; where an
+// instruction is not the language's operation on its whole domain (`shl` past
+// 63, `srem` of −2⁶³ by −1), the realization is a form in lang.oro, and the
+// instruction keeps its own domain here.
+//
+// THE FLAGS ARE THE PRINTER'S: `add` wraps, and `add nsw` is `add` on the
+// inputs whose sum is in the word. Which inputs an instance has is a proof
+// about it, which the IR holds and a declaration cannot (llvm.md §5).
 module llvm {
-    // ---- integer arithmetic on i64, which wraps: the flags make it exact.
-    fn add(a ∈ Int, b ∈ Int) (Int) pure { host expr "add ${a}, ${b:v}" checked add_checked }
-    fn sub(a ∈ Int, b ∈ Int) (Int) pure { host expr "sub ${a}, ${b:v}" checked sub_checked }
-    fn mul(a ∈ Int, b ∈ Int) (Int) pure { host expr "mul ${a}, ${b:v}" checked mul_checked }
-    fn neg(a ∈ Int) (Int) pure { host expr "sub i64 0, ${a:v}" checked neg_checked }
+    // ---- integer arithmetic on i64: the residue mod 2⁶⁴ of ℤ's result
+    // (ADR 0082), so total; ℤ's own where the result is in the word.
+    fn add(a ∈ Int, b ∈ Int) (Int) pure { host expr "add ${a}, ${b:v}" }
+    fn sub(a ∈ Int, b ∈ Int) (Int) pure { host expr "sub ${a}, ${b:v}" }
+    fn mul(a ∈ Int, b ∈ Int) (Int) pure { host expr "mul ${a}, ${b:v}" }
 
-    // sdiv and srem are undefined for a zero divisor and for −2⁶³ / −1, whose
-    // quotient leaves the word: the first is the `where`, the second the
-    // operation's own obligation, the quotient inside the word.
-    fn sdiv(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) { host expr "sdiv ${a}, ${b:v}" }
-    fn srem(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) { host expr "srem ${a}, ${b:v}" }
-
-    // THE CHECKED FORMS (-checked, ADR 0019): the overflow intrinsic, and a
-    // trap where it overflowed. The value is the intrinsic's, which is the exact
-    // one wherever there was no trap.
-    fn add_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
-        host expr "%o${#} = call {i64, i1} @llvm.sadd.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
+    // sdiv and srem truncate, as ℤ's `/` and `%` do (integers.md §3). Each is
+    // undefined for a zero divisor and for −2⁶³ by −1 (LangRef): both are the
+    // domain.
+    fn sdiv(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
+        host expr "sdiv ${a}, ${b:v}"
     }
-    fn sub_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
-        host expr "%o${#} = call {i64, i1} @llvm.ssub.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.ssub.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
-    }
-    fn mul_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
-        host expr "%o${#} = call {i64, i1} @llvm.smul.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
-    }
-    fn neg_checked(a ∈ Int) (r ∈ Int) pure {
-        host expr "%o${#} = call {i64, i1} @llvm.ssub.with.overflow.i64(i64 0, ${a})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.ssub.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
+    fn srem(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
+        host expr "srem ${a}, ${b:v}"
     }
 
-    // THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro): 0 when handed 0, a
-    // trap otherwise. Impure: an operation that can end the program is never
-    // moved or dropped.
-    fn trap_if(a ∈ Int) (r ∈ Int) {
-        host expr "%z${#} = icmp ne ${a}, 0\nbr i1 %z${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:\n${r} = add i64 0, 0" import "declare void @llvm.trap()"
-    }
-
-    // ---- ℤ's 2-adic operations (ADR 0082), total on the word.
+    // ---- the bitwise operations: ℤ's own on the word (ADR 0082), total.
     fn and(a ∈ Int, b ∈ Int) (Int) pure { host expr "and ${a}, ${b:v}" }
     fn or(a ∈ Int, b ∈ Int) (Int) pure { host expr "or ${a}, ${b:v}" }
     fn xor(a ∈ Int, b ∈ Int) (Int) pure { host expr "xor ${a}, ${b:v}" }
-    // LLVM has no `not`: it is `xor` with −1, the identity ~a = a ⊕ (−1).
-    fn not(a ∈ Int) (Int) pure { host expr "xor ${a}, -1" }
 
-    // A SHIFT BY 64 OR MORE IS POISON in LLVM; in ℤ, a·2ᵏ for a = 0 is 0 and
-    // ⌊a/2ᵏ⌋ is 0 or −1. So each is the instruction where the count is below
-    // 64 and the limit past it, chosen by `select`, which does not propagate
-    // poison from the operand it does not choose (LangRef, `select`). `<<`'s
-    // value is inside the word by its obligation, so past 63 a is 0.
-    fn shl(a ∈ Int, b ∈ Int) (r ∈ Int) pure where b >= 0 {
-        host expr "%s${#} = shl ${a}, ${b:v}\n%o${#} = icmp ugt ${b}, 63\n${r} = select i1 %o${#}, i64 0, i64 %s${#}"
-    }
-    fn ashr(a ∈ Int, b ∈ Int) (r ∈ Int) pure where b >= 0 {
-        host expr "%s${#} = ashr ${a}, ${b:v}\n%t${#} = ashr ${a}, 63\n%o${#} = icmp ugt ${b}, 63\n${r} = select i1 %o${#}, i64 %t${#}, i64 %s${#}"
-    }
-    // THE EUCLIDEAN REMAINDER for a positive divisor (ADR 0082): srem takes the
-    // dividend's sign, and a negative one is moved up by m.
-    fn emod(a ∈ Int, m ∈ Int) (r ∈ Int) pure where m > 0 {
-        host expr "%q${#} = srem ${a}, ${m:v}\n%n${#} = icmp slt i64 %q${#}, 0\n%s${#} = add i64 %q${#}, ${m:v}\n${r} = select i1 %n${#}, i64 %s${#}, i64 %q${#}"
-    }
+    // ---- shifts: poison for a count of 64 or more (LangRef), so the count's
+    // set is 0..63. `shl` is a·2ᵇ mod 2⁶⁴; `ashr` is ⌊a/2ᵇ⌋.
+    fn shl(a ∈ Int, b ∈ 0..63) (Int) pure { host expr "shl ${a}, ${b:v}" }
+    fn ashr(a ∈ Int, b ∈ 0..63) (Int) pure { host expr "ashr ${a}, ${b:v}" }
 
-    // ---- comparisons: `icmp` and its signed predicates.
+    // ---- comparisons: `icmp` with its signed predicates, the order on the
+    // word read as two's complement.
     fn eq(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp eq ${a}, ${b:v}" }
     fn ne(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp ne ${a}, ${b:v}" }
     fn slt(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp slt ${a}, ${b:v}" }

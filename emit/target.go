@@ -366,6 +366,13 @@ type Target struct {
 	// holding the results its declared result set says (ADR 0083 item 2). The
 	// IR picks the first whose result set holds the proven result.
 	Realize map[string][]string
+	// Realized is what a target STATES about the language's names (ADR 0088,
+	// `realize OP = A, B checked C`): each name's realizations, in order of
+	// preference, then "|" and its checked form. A target that states any
+	// states all, and none of its language names is found by spelling: a host
+	// operation is declared as it is, and which one realizes `<<` is said, not
+	// guessed from a name.
+	Realized map[string]string
 	// Narrow is a template `dst = src[:n]` that restricts a container to a
 	// known length. A target that declares one gets bounds-check elimination
 	// in loops (bce-2026-08-15.md); one that does not simply gets none, which
@@ -522,6 +529,9 @@ func (tg *Target) finish(wrap func(error) error) error {
 		return wrap(err)
 	}
 	if err := tg.unfoldAliases(); err != nil {
+		return wrap(err)
+	}
+	if err := tg.checkRealized(); err != nil {
 		return wrap(err)
 	}
 	tg.addCore()
@@ -1312,7 +1322,7 @@ var coreStructural = []Prim{
 // LANGUAGE's name for the equality the target already has, rather than a second
 // implementation of it. JavaScript is why the list is ordered: it declares both
 // `===` and `==`, and a tag test wants the strict one.
-var eqSpellings = []string{"===", "==", "sete", "eq"}
+var eqSpellings = []string{"===", "==", "sete"}
 
 // addCore gives every target the conditional.
 //
@@ -1349,7 +1359,7 @@ func (tg *Target) addCore() {
 	//
 	// Its emission is the target's own, found rather than written twice.
 	if _, have := tg.Prims["="]; !have {
-		if eq, ok := tg.findEq(); ok {
+		if eq, ok := tg.lookup("=", tg.findEq); ok {
 			eq.Name = "="
 			eq.Args = []string{"int", "int"}
 			eq.Result = "bool"
@@ -1368,7 +1378,7 @@ func (tg *Target) addCore() {
 	// there is refused by name — the same answer JavaScript gives for the
 	// `checked` primitive it does not declare.
 	if _, have := tg.Prims["string-of"]; !have {
-		if c, ok := tg.findBySpelling("string-of", 1); ok {
+		if c, ok := tg.lookup("string-of", func() (Prim, bool) { return tg.findBySpelling("string-of", 1) }); ok {
 			c.Name = "string-of"
 			c.Args = []string{"int"}
 			c.Result = "string"
@@ -1378,7 +1388,7 @@ func (tg *Target) addCore() {
 		}
 	}
 	if _, have := tg.Prims["concat"]; !have {
-		if c, ok := tg.findBySpelling("concat", 2); ok {
+		if c, ok := tg.lookup("concat", func() (Prim, bool) { return tg.findBySpelling("concat", 2) }); ok {
 			c.Name = "concat"
 			c.Args = []string{"string", "string"}
 			c.Result = "string"
@@ -1411,7 +1421,7 @@ func (tg *Target) addCore() {
 		if n == 0 {
 			n = 2
 		}
-		if p, ok := tg.findOpBySpelling(op.spellings, op.result, n); ok {
+		if p, ok := tg.lookup(op.name, func() (Prim, bool) { return tg.findOpBySpelling(op.spellings, op.result, n) }); ok {
 			found := p.key
 			p.Name = op.name
 			p.Args = []string{"int", "int"}[:n]
@@ -1421,7 +1431,11 @@ func (tg *Target) addCore() {
 			p.Pure = true
 			tg.Prims[op.name] = p
 			tg.Names = append(tg.Names, op.name)
-			tg.realizations(op.name, found, p, n)
+			if tg.States() {
+				tg.statedRealizations(op.name)
+			} else {
+				tg.realizations(op.name, found, p, n)
+			}
 		}
 	}
 	// ARBITRARY PRECISION, THE RUNG ABOVE THE HOST'S WORD.
@@ -1446,7 +1460,7 @@ func (tg *Target) addCore() {
 		if _, have := tg.Prims[op]; have {
 			continue
 		}
-		if p, ok := tg.findBySpelling(op, wordOpArity(op)); ok {
+		if p, ok := tg.lookup(op, func() (Prim, bool) { return tg.findBySpelling(op, wordOpArity(op)) }); ok {
 			p.Name, p.Pure = op, true
 			tg.Prims[op] = p
 			tg.Names = append(tg.Names, op)
@@ -1457,20 +1471,24 @@ func (tg *Target) addCore() {
 	// says how its host ends a process: panic, throw, ExitProcess. Impure, so
 	// it is never moved, duplicated or dropped (ADR 0010).
 	if _, have := tg.Prims["abandon"]; !have {
-		for _, p := range tg.spelled("abandon") {
-			if len(p.Args) == 1 {
-				p.Name, p.Pure = "abandon", false
-				tg.Prims["abandon"] = p
-				tg.Names = append(tg.Names, "abandon")
-				break
+		if p, ok := tg.lookup("abandon", func() (Prim, bool) {
+			for _, p := range tg.spelled("abandon") {
+				if len(p.Args) == 1 {
+					return p, true
+				}
 			}
+			return Prim{}, false
+		}); ok {
+			p.Name, p.Pure = "abandon", false
+			tg.Prims["abandon"] = p
+			tg.Names = append(tg.Names, "abandon")
 		}
 	}
 	for _, op := range bigOps {
 		if _, have := tg.Prims[op.name]; have {
 			continue
 		}
-		if p, ok := tg.findBySpelling(op.name, op.arity); ok {
+		if p, ok := tg.lookup(op.name, func() (Prim, bool) { return tg.findBySpelling(op.name, op.arity) }); ok {
 			p.Name = op.name
 			// PURITY IS NOT UNIFORM HERE, and forcing it was a bug the moment
 			// the destination forms existed: `big+` allocates a fresh result and
@@ -1674,12 +1692,12 @@ var langOps = []struct {
 	{"+", []string{"+", "add"}, "int", 2},
 	{"-", []string{"-", "sub"}, "int", 2},
 	{"*", []string{"*", "imul", "mul"}, "int", 2},
-	{"/", []string{"idiv", "/", "sdiv"}, "int", 2},
-	{"%", []string{"irem", "%", "rem", "srem"}, "int", 2},
-	{"<", []string{"<", "setl", "slt"}, "bool", 2},
-	{"<=", []string{"<=", "setle", "sle"}, "bool", 2},
-	{">", []string{">", "setg", "sgt"}, "bool", 2},
-	{">=", []string{">=", "setge", "sge"}, "bool", 2},
+	{"/", []string{"idiv", "/"}, "int", 2},
+	{"%", []string{"irem", "%", "rem"}, "int", 2},
+	{"<", []string{"<", "setl"}, "bool", 2},
+	{"<=", []string{"<=", "setle"}, "bool", 2},
+	{">", []string{">", "setg"}, "bool", 2},
+	{">=", []string{">=", "setge"}, "bool", 2},
 	// THE BOOLEAN OPERATIONS, THE SHIFTS AND THE EUCLIDEAN REMAINDER (ADR 0082),
 	// the 2-adic operations on ℤ. A word spelling comes first, so a target whose
 	// own operator means something else declares the language's under it:
@@ -1691,7 +1709,7 @@ var langOps = []struct {
 	{"⊕", []string{"xor", "^"}, "int", 2},
 	{"~", []string{"not", "~"}, "int", 1},
 	{"<<", []string{"shl", "<<"}, "int", 2},
-	{">>", []string{"sar", ">>", "ashr"}, "int", 2},
+	{">>", []string{"sar", ">>"}, "int", 2},
 	{"mod", []string{"emod"}, "int", 2},
 }
 
@@ -1952,6 +1970,12 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	if err := combineMap(tg.Niches, o.Niches, "niche", from, how); err != nil {
 		return err
 	}
+	if tg.Realized == nil && len(o.Realized) > 0 {
+		tg.Realized = map[string]string{}
+	}
+	if err := combineMap(tg.Realized, o.Realized, "realization", from, how); err != nil {
+		return err
+	}
 	for _, f := range []struct {
 		dst  *string
 		src  string
@@ -2179,6 +2203,30 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: `data \"label …\"`, got %s", path, f)
 			}
 			frag.Data = append(frag.Data, f.Kids[1].Str)
+		case "realize":
+			// (realize OP A B … (checked C)), core/jreadtarget.go's realizeForm
+			if len(f.Kids) < 3 || f.Kids[1].Kind != core.KName {
+				return nil, fmt.Errorf("%s: `realize OP = DECLARATION, …` names a language name and a declaration, got %s", path, f)
+			}
+			var names []string
+			checked := ""
+			for _, k := range f.Kids[2:] {
+				switch {
+				case k.Kind == core.KName:
+					names = append(names, k.Name)
+				case k.Kind == core.KApp && len(k.Kids) == 2 && k.Kids[0].Name == "checked" && k.Kids[1].Kind == core.KName:
+					checked = k.Kids[1].Name
+				default:
+					return nil, fmt.Errorf("%s: `realize`: %s is no declaration's name", path, k)
+				}
+			}
+			if frag.Realized == nil {
+				frag.Realized = map[string]string{}
+			}
+			if _, dup := frag.Realized[f.Kids[1].Name]; dup {
+				return nil, fmt.Errorf("%s: `%s` is realized twice", path, f.Kids[1].Name)
+			}
+			frag.Realized[f.Kids[1].Name] = strings.Join(names, ",") + "|" + checked
 		case "link":
 			if len(f.Kids) < 2 {
 				return nil, fmt.Errorf("%s: `link \"library\" …` names at least one library, got %s", path, f)
@@ -3816,10 +3864,14 @@ func BufferRoot(t *core.Term) string {
 // are the LANGUAGE's, and where the memory comes from on this host is the
 // TARGET's. Go, JavaScript and Java have allocation as syntax and their
 // backends emit it directly; x86 has a call, and the target says which.
-var allocSpellings = []string{"VirtualAlloc", "malloc", "HeapAlloc", "alloc"}
+var allocSpellings = []string{"VirtualAlloc", "malloc", "HeapAlloc"}
 
-// findAlloc returns the target's own allocator.
+// findAlloc returns the target's own allocator: the one it states as
+// `realize alloc = …` (ADR 0088), or the one found by spelling.
 func (tg *Target) findAlloc() (Prim, bool) {
+	if tg.States() {
+		return tg.stated("alloc")
+	}
 	for _, want := range allocSpellings {
 		for _, p := range tg.spelled(want) {
 			if len(p.Args) == 1 && p.Kind == "expr" {
@@ -3935,6 +3987,100 @@ func showSets(ts []string) []string {
 		out[i] = core.ShowSet(t)
 	}
 	return out
+}
+
+// PlantSpellingFault finds a stating target's names by spelling too, the
+// conflation ADR 0088 removed: LLVM's `shl` taken for the language's `<<`.
+var PlantSpellingFault bool
+
+// States reports a target that states its realizations of the language's names
+// (ADR 0088). On it nothing is found by spelling.
+func (tg *Target) States() bool { return len(tg.Realized) > 0 }
+
+// lookup is the declaration that realizes the language's name: the one the
+// target states, on a target that states them, and otherwise the one found
+// by spelling (the four targets that predate ADR 0088).
+func (tg *Target) lookup(name string, spell func() (Prim, bool)) (Prim, bool) {
+	if tg.States() && !PlantSpellingFault {
+		return tg.stated(name)
+	}
+	return spell()
+}
+
+// realizedNames splits a stated realization into its declarations, in order,
+// and its checked form.
+func (tg *Target) realizedNames(name string) ([]string, string, bool) {
+	r, ok := tg.Realized[name]
+	if !ok {
+		return nil, "", false
+	}
+	names, checked, _ := strings.Cut(r, "|")
+	return strings.Split(names, ","), checked, true
+}
+
+// stated is the first declaration a target states for the language's name,
+// carrying the stated checked form.
+func (tg *Target) stated(name string) (Prim, bool) {
+	names, checked, ok := tg.realizedNames(name)
+	if !ok {
+		return Prim{}, false
+	}
+	p, ok := tg.Prims[names[0]]
+	if !ok {
+		return Prim{}, false
+	}
+	p.Checked = checked
+	return p, true
+}
+
+// statedRealizations records the realizations a target states for op, the
+// first the default, each a declaration whose parameter and result sets say
+// where it holds (ADR 0083 item 2): the IR picks, per instance, the narrowest
+// whose sets hold the proven facts (ir/final.go's selectRealizations).
+func (tg *Target) statedRealizations(op string) {
+	names, _, _ := tg.realizedNames(op)
+	if len(names) < 2 {
+		return
+	}
+	if tg.Realize == nil {
+		tg.Realize = map[string][]string{}
+	}
+	tg.Realize[op] = names
+}
+
+// checkRealized refuses a stated realization that names a declaration the
+// target does not have, or a name the language does not have.
+func (tg *Target) checkRealized() error {
+	known := map[string]bool{"=": true, "string-of": true, "concat": true, "abandon": true, "alloc": true}
+	for _, op := range langOps {
+		known[op.name] = true
+	}
+	for _, op := range wordOps {
+		known[op] = true
+	}
+	for _, op := range bigOps {
+		known[op.name] = true
+	}
+	ops := make([]string, 0, len(tg.Realized))
+	for op := range tg.Realized {
+		ops = append(ops, op)
+	}
+	sort.Strings(ops)
+	for _, op := range ops {
+		if !known[op] {
+			return fmt.Errorf("`realize %s`: %s is not a name of the language a target realizes", op, op)
+		}
+		names, checked, _ := tg.realizedNames(op)
+		if checked != "" {
+			names = append(names, checked)
+		}
+		for _, n := range names {
+			if _, ok := tg.Prims[n]; !ok {
+				return fmt.Errorf("`realize %s`: the target declares no %s", op, n)
+			}
+		}
+	}
+	return nil
 }
 
 // realizations records the language operation op's realizations: base, the

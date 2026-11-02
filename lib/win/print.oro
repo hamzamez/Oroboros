@@ -18,8 +18,14 @@ use windows/kernel32
 use win/str
 
 // WRITES b[lo, lo + n) to standard output (-11), answering whether it was
-// written: kernel32's WriteFile, total on this target.
-fn write(b ∈ Array(0..255), lo, n) (Bool) { kernel32.WriteFile(kernel32.GetStdHandle(-11), b, lo, n) }
+// written. WriteFile's domain is a segment inside the table and a DWORD count;
+// outside it nothing is written and the answer is false, so `write` is total.
+fn write(b ∈ Array(0..255), lo, n) (Bool) {
+    case {
+        lo < 0 || n < 0 || n > 2^32 - 1 || lo + n > len(b) -> false
+        else -> kernel32.WriteFile(kernel32.GetStdHandle(-11), b, lo, n)
+    }
+}
 
 // A STRING AND A NEWLINE. A string is its UTF-8 bytes on this target, so the
 // bytes are written as they are.

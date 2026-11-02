@@ -28,14 +28,19 @@ miscompilation the optimizer is entitled to make. That is why W6 justifies every
 `targets/windows-llvm/` is the windows target with this backend, `backend llvm`, triple
 `x86_64-pc-windows-msvc`. It is a separate directory only until MASM retires at parity (ADR 0080
 item 5); then it becomes `targets/windows`. Its files are the host's, under the host's own names:
-- `windows-llvm.oro`: the sets, the word, the representations, the link line;
-- `kernel32.oro`: the Win32 functions programs call, each `declare dllimport` in the printed module,
-  and `build`'s allocator, `HeapAlloc` with `HEAP_ZERO_MEMORY`;
-- `llvm.oro`: Σ_LLVM, the instructions and intrinsics offered under their own names (`llvm.sdiv`),
-  each operation's undefined behaviour or poison its `where`. It is declared by hand, as the survey
+- `windows-llvm.oro`: the sets, the word, the representations, the link line, and **the `realize`
+  map** (ADR 0088): which declaration interprets each of the language's names, stated, never found by
+  spelling;
+- `llvm.oro`: Σ_LLVM, **LLVM's operations as they are**, each with its domain (the inputs where it is
+  neither poison nor undefined) as its `where` or its parameters' sets: `llvm.shl(a, b ∈ 0..63)`,
+  `llvm.sdiv` where b ≠ 0 and not −2⁶³ by −1. It is declared by hand, as the survey
   ([llvmsurvey-2026-10-27](../../gauntlet/results/llvmsurvey-2026-10-27.md)) classified it, and grows
-  family by family. The language's operators are found in it by spelling, as on every target: `+` is
-  `add`, `/` is `sdiv`, `<` is `slt` (emit/target.go's `langOps`);
+  family by family;
+- `lang.oro`: the forms realizing a language name where no single instruction is its operation on the
+  whole of its domain: `~`, `<<` and `>>` past 63, `mod`, `/` and `%` at a divisor −1, the checked
+  arithmetic, `trap_if`, `abandon`, and `build`'s allocator;
+- `kernel32.oro`: the Win32 functions programs call, as they are, each `declare dllimport` in the
+  printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count;
 - `strings.oro`: the free monoid, `string_of` and `++`, each a helper function the module defines, and
   `utf8`, a string's bytes.
 
@@ -93,12 +98,14 @@ The width is read off the table's representative's type, so every alias of a tab
 | `sub exact` | `sub nsw`; `nuw` when b ≥ 0 and the result ≥ 0 | |
 | `mul exact` | `mul nsw`; `nuw` when both ≥ 0 | |
 | `neg exact a` | `sub nsw i64 0, a` | |
-| `div exact a b` | `sdiv` | b ≠ 0 and not (a = −2⁶³ ∧ b = −1): the division's obligations |
-| `rem exact a b` | `srem` | the same |
+| `div exact a b` | `sdiv` of a divisor −1 read as 1, negated by `select` there | b ≠ 0, its `where` |
+| `rem exact a b` | `srem` of a divisor −1 read as 1 | b ≠ 0, its `where` |
 | `mod a m` | `srem`, then `select` of it + m where it is negative | m > 0, its `where` |
 | `and`, `or`, `xor`, `not` | `and`, `or`, `xor`, `xor −1` | total on ℤ (ADR 0082) |
-| `shl a k` | `shl`, and `select` 0 where k > 63 | k ≥ 0, its `where`; a·2ᵏ inside the word |
-| `shr a k` | `ashr`, and `select` `ashr a, 63` where k > 63 | k ≥ 0, its `where` |
+| `shl a k`, k proven < 64 | `shl nsw`, `nuw` when a ≥ 0 | a·2ᵏ inside the word; the realization chosen by k's proven set |
+| `shl a k` elsewhere | `shl`, and `select` 0 where k > 63 | k ≥ 0, its `where`; a·2ᵏ inside the word |
+| `shr a k`, k proven < 64 | `ashr` | |
+| `shr a k` elsewhere | `ashr`, and `select` `ashr a, 63` where k > 63 | k ≥ 0, its `where` |
 | an operation in `wrap` mode | the same instruction with no flag | ADR 0082's fusion: the residue is the answer |
 | `eq` … `ge` on integers | `icmp eq/ne/slt/sle/sgt/sge` | |
 | `u64` operations | `add`/`sub`/`mul` with `nuw`, `udiv`, `urem`, `icmp ult…` | ADR 0033's word selection |
@@ -112,7 +119,13 @@ The width is read off the table's representative's type, so every alias of a tab
 A shift by 64 or more is poison in LLVM, where in ℤ a·2ᵏ is 0 (a is 0, by the obligation) and
 ⌊a/2ᵏ⌋ is 0 or −1; so each shift is the instruction below 64 and its limit past it, chosen by `select`,
 which takes no poison from the operand it does not choose. `>>` past a count of 63, refused on MASM, is
-total here. `shl` carries no `nsw` in the first step: its template is several instructions (§6).
+total here. Where the IR proves the count below 64, the realization is the instruction itself, chosen
+per instance by its parameters' sets (ADR 0088, ir/final.go), and `shl` takes its flags.
+
+`sdiv` and `srem` are undefined for −2⁶³ by −1 (LangRef), where ℤ's remainder is 0 and its quotient
+2⁶³ is outside the word. The language's `%` and `/` read a divisor −1 as 1: `%` gives ℤ's 0, and `/`
+gives −a, which for −2⁶³ is −2⁶³, as Go and the JVM answer. No target's analysis yet decides that the
+quotient leaves the word (llvm-2026-11-02); the operation is total here, never undefined.
 
 A `trap`-mode operation (`-checked`) prints LLVM's overflow intrinsic, `llvm.sadd.with.overflow.i64`
 and kin, and a branch to `llvm.trap` on overflow: the trap is the answer `-checked` asks for, and the
@@ -139,8 +152,14 @@ and an instruction is
     fn sdiv(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) { host expr "sdiv ${a}, ${b:v}" }
 
 **The flags are the printer's** (§5), since they are proofs about one operation's operands, which the IR
-holds and a declaration cannot: where an `add`, `sub` or `mul` is proven, the printer writes them after
-the template's first word, `add nuw nsw i64 …`. A template of several instructions takes none.
+holds and a declaration cannot: where an `add`, `sub`, `mul` or `shl` is proven, the printer writes them
+after the template's first word, `add nuw nsw i64 …`. A template of several instructions takes none.
+
+**A realization is stated** (ADR 0088): `realize OP = A, B … [checked C]` in the target file names the
+declarations that interpret the language's name OP, the first everywhere and each later one where its
+parameters' sets hold the operands' proven facts, the narrowest such; C is the trap `-checked` asks
+for. A declaration in `llvm.oro` is LLVM's operation as it is and means only that; a program naming
+`llvm.shl` owes `shl`'s domain, whatever `<<` is realized by.
 
 A `where` is an obligation (ADR 0080 item 7). A primitive the language cannot state is a wall
 (llvmsurvey-2026-10-27 §4) and is not declared.

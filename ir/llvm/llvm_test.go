@@ -140,3 +140,114 @@ func TestThePrinterIsAFunctionOfItsInput(t *testing.T) {
 		t.Errorf("two printings differ:\n%s\n---\n%s", a, b)
 	}
 }
+
+// compile builds a J source for windows-llvm as the drivers do, and prints it.
+func compile(t *testing.T, src string) (string, error) {
+	t.Helper()
+	tg := loadTarget(t)
+	forms, err := core.Read(src)
+	if err != nil {
+		return "", err
+	}
+	prog, _, err := tg.LoadProgram(forms)
+	if err != nil {
+		return "", err
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		return "", err
+	}
+	var sigs []*core.Sig
+	for _, s := range prog.Sigs {
+		sigs = append(sigs, s)
+	}
+	if err := emit.CheckSignatures(tg, prog, env, ir.CheckClaim(tg, sigs)); err != nil {
+		return "", err
+	}
+	q := prog.Exports[0]
+	nf, err := core.Normalize(prog.Defs[q], env, core.DefaultFuel)
+	if err != nil {
+		return "", err
+	}
+	nf = emit.EtaTails(tg, nf)
+	if err := emit.CheckJoins(tg, nf); err != nil {
+		return "", err
+	}
+	f, _, err := ir.Entry(tg, q, q, prog.Sigs[q], nf, sigs, false, nil)
+	if err != nil {
+		return "", err
+	}
+	return FromFunc(tg, f)
+}
+
+// A TARGET STATES ITS REALIZATIONS (ADR 0088): each of the language's
+// operators is the declaration windows-llvm.oro names, and nothing is found by
+// spelling; LLVM's own `shl` keeps its own domain.
+func TestATargetStatesItsRealizations(t *testing.T) {
+	tg := loadTarget(t)
+	if !tg.States() {
+		t.Fatal("windows-llvm states no realization")
+	}
+	if why := unstated(tg); why != "" {
+		t.Error(why)
+	}
+	if rs := tg.Realize["<<"]; len(rs) != 2 || rs[1] != "llvm.shl" {
+		t.Errorf("<<'s realizations are %v, want lang.shl then llvm.shl", rs)
+	}
+	if c := tg.Prims["+"].Checked; c != "lang.add-checked" {
+		t.Errorf("+'s checked form is %q", c)
+	}
+}
+
+// `<<` IS LLVM's `shl` WHERE THE COUNT IS PROVEN BELOW 64, with the flags the
+// IR proved, and the total form elsewhere; a program naming `llvm.shl` owes
+// its domain.
+func TestAShiftIsTheInstructionWhereItsCountIsProven(t *testing.T) {
+	out, err := compile(t, "export fn g(a ∈ 0..1000, k ∈ 0..40) (Int) { a << k }")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "= shl nuw nsw i64") || strings.Contains(out, "select") {
+		t.Errorf("a count proven below 64 should print the bare instruction with its flags:\n%s", out)
+	}
+	out, err = compile(t, "export fn g(k ∈ 0..100) (Int) { 0 << k }")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "select") {
+		t.Errorf("a count up to 100 should print the total form:\n%s", out)
+	}
+	if _, err := compile(t, "use llvm\nexport fn g(k ∈ 0..100) (Int) { llvm.shl(0, k) }"); err == nil {
+		t.Errorf("llvm.shl with a count up to 100 was accepted: its domain is 0..63")
+	}
+	if _, err := compile(t, "use llvm\nexport fn g(k ∈ 0..63) (Int) { llvm.shl(0, k) }"); err != nil {
+		t.Errorf("llvm.shl inside its domain was refused: %v", err)
+	}
+}
+
+// THE PLANTED FAULT: names found by spelling on a stating target, so `<<` is
+// LLVM's `shl`, partial past 63. TestATargetStatesItsRealizations must see it.
+func TestASpelledRealizationIsCaught(t *testing.T) {
+	emit.PlantSpellingFault = true
+	defer func() { emit.PlantSpellingFault = false }()
+	if unstated(loadTarget(t)) == "" {
+		t.Errorf("with the spelling fault planted, every name is still the declaration stated: the check cannot fail")
+	}
+}
+
+// unstated is the first of the language's names a target realizes otherwise
+// than it states, or "".
+func unstated(tg *emit.Target) string {
+	for _, op := range []string{"+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "&", "|", "⊕", "~", "<<", ">>", "mod", "string-of", "concat", "abandon", "trap-if"} {
+		r, ok := tg.Realized[op]
+		if !ok {
+			return op + " is not stated"
+		}
+		first, _, _ := strings.Cut(r, "|")
+		first, _, _ = strings.Cut(first, ",")
+		if got, want := tg.Prims[op].Form, tg.Prims[first].Form; got != want || got == "" {
+			return fmt.Sprintf("%s is %q, want %s's %q", op, got, first, want)
+		}
+	}
+	return ""
+}

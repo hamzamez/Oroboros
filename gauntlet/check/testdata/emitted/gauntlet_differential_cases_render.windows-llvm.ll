@@ -241,12 +241,18 @@ entry:
   store ptr %v17, ptr %.s21
   br label %.exit14
 .else20:
-  %v25 = srem i64 %v19, 16777216
+  %m.22 = icmp eq i64 16777216, -1
+  %d.22 = select i1 %m.22, i64 1, i64 16777216
+  %v25 = srem i64 %v19, %d.22
   %.d23 = getelementptr inbounds i8, ptr %v17, i64 8
   %.e24 = getelementptr inbounds i64, ptr %.d23, i64 %v18
   store i64 %v25, ptr %.e24
   %v28 = add nuw nsw i64 %v18, 1
-  %v30 = sdiv i64 %v19, 16777216
+  %m.26 = icmp eq i64 16777216, -1
+  %d.26 = select i1 %m.26, i64 1, i64 16777216
+  %q.26 = sdiv i64 %v19, %d.26
+  %n.26 = sub i64 0, %q.26
+  %v30 = select i1 %m.26, i64 %n.26, i64 %q.26
   store ptr %v17, ptr %.s15
   store i64 %v28, ptr %.s16
   store i64 %v30, ptr %.s17
@@ -304,7 +310,9 @@ entry:
   store i64 0, ptr %.s60
   br label %.join59
 .else58:
-  %v68 = srem i64 %v55, 16777216
+  %m.61 = icmp eq i64 16777216, -1
+  %d.61 = select i1 %m.61, i64 1, i64 16777216
+  %v68 = srem i64 %v55, %d.61
   store i64 %v68, ptr %.s60
   br label %.join59
 .join59:
@@ -357,19 +365,27 @@ ok.68:
   store i64 0, ptr %.s85
   br label %.join84
 .else83:
-  %v100 = srem i64 %v81, 16777216
+  %m.86 = icmp eq i64 16777216, -1
+  %d.86 = select i1 %m.86, i64 1, i64 16777216
+  %v100 = srem i64 %v81, %d.86
   store i64 %v100, ptr %.s85
   br label %.join84
 .join84:
   %v95 = load i64, ptr %.s85
   %v101 = mul nuw nsw i64 %v95, %v34
   %v102 = add nuw nsw i64 %v101, %v48
-  %v104 = srem i64 %v102, 16777216
+  %m.89 = icmp eq i64 16777216, -1
+  %d.89 = select i1 %m.89, i64 1, i64 16777216
+  %v104 = srem i64 %v102, %d.89
   %.d90 = getelementptr inbounds i8, ptr %v46, i64 8
   %.e91 = getelementptr inbounds i64, ptr %.d90, i64 %v47
   store i64 %v104, ptr %.e91
   %v107 = add nuw nsw i64 %v47, 1
-  %v109 = sdiv i64 %v102, 16777216
+  %m.93 = icmp eq i64 16777216, -1
+  %d.93 = select i1 %m.93, i64 1, i64 16777216
+  %q.93 = sdiv i64 %v102, %d.93
+  %n.93 = sub i64 0, %q.93
+  %v109 = select i1 %m.93, i64 %n.93, i64 %q.93
   store ptr %v46, ptr %.s43
   store i64 %v107, ptr %.s44
   store i64 %v109, ptr %.s45
@@ -404,13 +420,19 @@ ok.68:
   store ptr %v118, ptr %.s109
   br label %.exit102
 .else108:
-  %v126 = srem i64 %v120, 16777216
+  %m.110 = icmp eq i64 16777216, -1
+  %d.110 = select i1 %m.110, i64 1, i64 16777216
+  %v126 = srem i64 %v120, %d.110
   %.d111 = getelementptr inbounds i8, ptr %v118, i64 8
   %.e112 = getelementptr inbounds i8, ptr %.d111, i64 %v119
   %.z113 = trunc i64 %v126 to i8
   store i8 %.z113, ptr %.e112
   %v129 = add nuw nsw i64 %v119, 1
-  %v131 = sdiv i64 %v120, 16777216
+  %m.115 = icmp eq i64 16777216, -1
+  %d.115 = select i1 %m.115, i64 1, i64 16777216
+  %q.115 = sdiv i64 %v120, %d.115
+  %n.115 = sub i64 0, %q.115
+  %v131 = select i1 %m.115, i64 %n.115, i64 %q.115
   store ptr %v118, ptr %.s103
   store i64 %v129, ptr %.s104
   store i64 %v131, ptr %.s105
@@ -457,7 +479,9 @@ ok.68:
   store i64 0, ptr %.s138
   br label %.join137
 .else136:
-  %v161 = srem i64 %v142, 16777216
+  %m.139 = icmp eq i64 16777216, -1
+  %d.139 = select i1 %m.139, i64 1, i64 16777216
+  %v161 = srem i64 %v142, %d.139
   store i64 %v161, ptr %.s138
   br label %.join137
 .join137:
@@ -489,7 +513,9 @@ ok.68:
   store i64 0, ptr %.s155
   br label %.join154
 .else153:
-  %v183 = srem i64 %v164, 16777216
+  %m.156 = icmp eq i64 16777216, -1
+  %d.156 = select i1 %m.156, i64 1, i64 16777216
+  %v183 = srem i64 %v164, %d.156
   store i64 %v183, ptr %.s155
   br label %.join154
 .join154:
@@ -526,7 +552,9 @@ ok.68:
   store i64 0, ptr %.s174
   br label %.join173
 .else172:
-  %v207 = srem i64 %v188, 16777216
+  %m.175 = icmp eq i64 16777216, -1
+  %d.175 = select i1 %m.175, i64 1, i64 16777216
+  %v207 = srem i64 %v188, %d.175
   store i64 %v207, ptr %.s174
   br label %.join173
 .join173:
@@ -558,7 +586,9 @@ ok.68:
   store i64 0, ptr %.s191
   br label %.join190
 .else189:
-  %v229 = srem i64 %v210, 16777216
+  %m.192 = icmp eq i64 16777216, -1
+  %d.192 = select i1 %m.192, i64 1, i64 16777216
+  %v229 = srem i64 %v210, %d.192
   store i64 %v229, ptr %.s191
   br label %.join190
 .join190:
@@ -605,13 +635,19 @@ ok.68:
   store ptr %v249, ptr %.s218
   br label %.exit211
 .else217:
-  %v257 = srem i64 %v251, 16777216
+  %m.219 = icmp eq i64 16777216, -1
+  %d.219 = select i1 %m.219, i64 1, i64 16777216
+  %v257 = srem i64 %v251, %d.219
   %.d220 = getelementptr inbounds i8, ptr %v249, i64 8
   %.e221 = getelementptr inbounds i8, ptr %.d220, i64 %v250
   %.z222 = trunc i64 %v257 to i8
   store i8 %.z222, ptr %.e221
   %v260 = add nuw nsw i64 %v250, 1
-  %v262 = sdiv i64 %v251, 16777216
+  %m.224 = icmp eq i64 16777216, -1
+  %d.224 = select i1 %m.224, i64 1, i64 16777216
+  %q.224 = sdiv i64 %v251, %d.224
+  %n.224 = sub i64 0, %q.224
+  %v262 = select i1 %m.224, i64 %n.224, i64 %q.224
   store ptr %v249, ptr %.s212
   store i64 %v260, ptr %.s213
   store i64 %v262, ptr %.s214
@@ -658,7 +694,9 @@ ok.68:
   store i64 0, ptr %.s247
   br label %.join246
 .else245:
-  %v292 = srem i64 %v273, 16777216
+  %m.248 = icmp eq i64 16777216, -1
+  %d.248 = select i1 %m.248, i64 1, i64 16777216
+  %v292 = srem i64 %v273, %d.248
   store i64 %v292, ptr %.s247
   br label %.join246
 .join246:
@@ -690,7 +728,9 @@ ok.68:
   store i64 0, ptr %.s264
   br label %.join263
 .else262:
-  %v314 = srem i64 %v295, 16777216
+  %m.265 = icmp eq i64 16777216, -1
+  %d.265 = select i1 %m.265, i64 1, i64 16777216
+  %v314 = srem i64 %v295, %d.265
   store i64 %v314, ptr %.s264
   br label %.join263
 .join263:
@@ -727,7 +767,9 @@ ok.68:
   store i64 0, ptr %.s283
   br label %.join282
 .else281:
-  %v338 = srem i64 %v319, 16777216
+  %m.284 = icmp eq i64 16777216, -1
+  %d.284 = select i1 %m.284, i64 1, i64 16777216
+  %v338 = srem i64 %v319, %d.284
   store i64 %v338, ptr %.s283
   br label %.join282
 .join282:
@@ -759,7 +801,9 @@ ok.68:
   store i64 0, ptr %.s300
   br label %.join299
 .else298:
-  %v360 = srem i64 %v341, 16777216
+  %m.301 = icmp eq i64 16777216, -1
+  %d.301 = select i1 %m.301, i64 1, i64 16777216
+  %v360 = srem i64 %v341, %d.301
   store i64 %v360, ptr %.s300
   br label %.join299
 .join299:
@@ -832,18 +876,26 @@ ok.68:
   store i64 0, ptr %.s342
   br label %.join341
 .else340:
-  %v408 = srem i64 %v389, 16777216
+  %m.343 = icmp eq i64 16777216, -1
+  %d.343 = select i1 %m.343, i64 1, i64 16777216
+  %v408 = srem i64 %v389, %d.343
   store i64 %v408, ptr %.s342
   br label %.join341
 .join341:
   %v403 = load i64, ptr %.s342
   %v409 = add nuw nsw i64 %v386, %v403
-  %v410 = sdiv i64 %v409, 100000000
+  %m.345 = icmp eq i64 100000000, -1
+  %d.345 = select i1 %m.345, i64 1, i64 100000000
+  %q.345 = sdiv i64 %v409, %d.345
+  %n.345 = sub i64 0, %q.345
+  %v410 = select i1 %m.345, i64 %n.345, i64 %q.345
   %.d346 = getelementptr inbounds i8, ptr %v378, i64 8
   %.e347 = getelementptr inbounds i64, ptr %.d346, i64 %v379
   store i64 %v410, ptr %.e347
   %v413 = sub nsw i64 %v379, 1
-  %v414 = srem i64 %v409, 100000000
+  %m.349 = icmp eq i64 100000000, -1
+  %d.349 = select i1 %m.349, i64 1, i64 100000000
+  %v414 = srem i64 %v409, %d.349
   store ptr %v378, ptr %.s320
   store i64 %v413, ptr %.s321
   store i64 %v414, ptr %.s322
@@ -872,13 +924,19 @@ ok.68:
   store ptr %v421, ptr %.s364
   br label %.exit357
 .else363:
-  %v429 = srem i64 %v423, 16777216
+  %m.365 = icmp eq i64 16777216, -1
+  %d.365 = select i1 %m.365, i64 1, i64 16777216
+  %v429 = srem i64 %v423, %d.365
   %.d366 = getelementptr inbounds i8, ptr %v421, i64 8
   %.e367 = getelementptr inbounds i8, ptr %.d366, i64 %v422
   %.z368 = trunc i64 %v429 to i8
   store i8 %.z368, ptr %.e367
   %v432 = add nuw nsw i64 %v422, 1
-  %v434 = sdiv i64 %v423, 16777216
+  %m.370 = icmp eq i64 16777216, -1
+  %d.370 = select i1 %m.370, i64 1, i64 16777216
+  %q.370 = sdiv i64 %v423, %d.370
+  %n.370 = sub i64 0, %q.370
+  %v434 = select i1 %m.370, i64 %n.370, i64 %q.370
   store ptr %v421, ptr %.s358
   store i64 %v432, ptr %.s359
   store i64 %v434, ptr %.s360
@@ -925,7 +983,9 @@ ok.68:
   store i64 0, ptr %.s393
   br label %.join392
 .else391:
-  %v464 = srem i64 %v445, 16777216
+  %m.394 = icmp eq i64 16777216, -1
+  %d.394 = select i1 %m.394, i64 1, i64 16777216
+  %v464 = srem i64 %v445, %d.394
   store i64 %v464, ptr %.s393
   br label %.join392
 .join392:
@@ -957,7 +1017,9 @@ ok.68:
   store i64 0, ptr %.s410
   br label %.join409
 .else408:
-  %v486 = srem i64 %v467, 16777216
+  %m.411 = icmp eq i64 16777216, -1
+  %d.411 = select i1 %m.411, i64 1, i64 16777216
+  %v486 = srem i64 %v467, %d.411
   store i64 %v486, ptr %.s410
   br label %.join409
 .join409:
@@ -994,7 +1056,9 @@ ok.68:
   store i64 0, ptr %.s429
   br label %.join428
 .else427:
-  %v510 = srem i64 %v491, 16777216
+  %m.430 = icmp eq i64 16777216, -1
+  %d.430 = select i1 %m.430, i64 1, i64 16777216
+  %v510 = srem i64 %v491, %d.430
   store i64 %v510, ptr %.s429
   br label %.join428
 .join428:
@@ -1026,7 +1090,9 @@ ok.68:
   store i64 0, ptr %.s446
   br label %.join445
 .else444:
-  %v532 = srem i64 %v513, 16777216
+  %m.447 = icmp eq i64 16777216, -1
+  %d.447 = select i1 %m.447, i64 1, i64 16777216
+  %v532 = srem i64 %v513, %d.447
   store i64 %v532, ptr %.s446
   br label %.join445
 .join445:
@@ -1083,13 +1149,17 @@ ok.68:
   store i64 0, ptr %.s477
   br label %.join476
 .else475:
-  %v576 = srem i64 %v557, 16777216
+  %m.478 = icmp eq i64 16777216, -1
+  %d.478 = select i1 %m.478, i64 1, i64 16777216
+  %v576 = srem i64 %v557, %d.478
   store i64 %v576, ptr %.s477
   br label %.join476
 .join476:
   %v571 = load i64, ptr %.s477
   %v577 = add nuw nsw i64 %v554, %v571
-  %v578 = srem i64 %v577, 100000000
+  %m.480 = icmp eq i64 100000000, -1
+  %d.480 = select i1 %m.480, i64 1, i64 100000000
+  %v578 = srem i64 %v577, %d.480
   store i64 %v552, ptr %.s455
   store i64 %v578, ptr %.s456
   br label %.head453
@@ -1139,12 +1209,18 @@ ok.68:
   store ptr %v580, ptr %.s489
   br label %.exit482
 .else503:
-  %v605 = srem i64 %v582, 10
+  %m.504 = icmp eq i64 10, -1
+  %d.504 = select i1 %m.504, i64 1, i64 10
+  %v605 = srem i64 %v582, %d.504
   %v606 = add nuw nsw i64 48, %v605
   %v607 = call ptr @oro.string_of(i64 %v606)
   %v608 = call ptr @oro.concat(ptr %v607, ptr %v580)
   %v610 = add nuw nsw i64 %v581, 1
-  %v612 = sdiv i64 %v582, 10
+  %m.509 = icmp eq i64 10, -1
+  %d.509 = select i1 %m.509, i64 1, i64 10
+  %q.509 = sdiv i64 %v582, %d.509
+  %n.509 = sub i64 0, %q.509
+  %v612 = select i1 %m.509, i64 %n.509, i64 %q.509
   store ptr %v608, ptr %.s483
   store i64 %v610, ptr %.s484
   store i64 %v612, ptr %.s485

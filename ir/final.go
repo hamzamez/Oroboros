@@ -633,7 +633,9 @@ func selectRealizations(tg *emit.Target, f *Func, fs []fact) error {
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
-			if !s.Op.IsBit() || len(s.Res) != 1 || err != nil {
+			// A TRAPPED OPERATION (-checked) is its default's checked form: its
+			// result is not proven, so no realization's result set holds it.
+			if !s.Op.IsBit() || len(s.Res) != 1 || err != nil || s.Mode == MTrap {
 				continue
 			}
 			rs := tg.Realize[bitName[s.Op]]
@@ -666,7 +668,9 @@ func selectRealizations(tg *emit.Target, f *Func, fs []fact) error {
 			if best > 0 {
 				s.Name = rs[best]
 			}
-			if best >= 0 {
+			// A STATED FIRST REALIZATION HOLDS EVERYWHERE (ADR 0088 item 4): the
+			// later ones are where a proof allows a narrower form.
+			if best >= 0 || tg.States() {
 				continue
 			}
 			err = fmt.Errorf("the result of `%s` lies in %s, and target %s computes `%s` only where the result is "+

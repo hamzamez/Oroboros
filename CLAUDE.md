@@ -221,14 +221,16 @@ checked. When a package hits a wall that needs language work, stop, research it,
    literal its arm's guard implies, the literals computed as a meet over the guard's routes (spec/ir.md
    §6); faults planted for the wrong table, a flipped relation, a foreign operand, a missing negation, a
    π no branch enters, and a conjunction's false side.
-8. **The refinement layer refuses a goal it holds as a fact** (llvm-2026-11-02): `0 <= len(u)` at a
-   definition's call, refused with `-len(u) <= 0` among the known facts, only in a program that also
-   builds a table of tuples; binders renamed, it stays. A refusal of a true goal on the path every call
-   obligation takes (ADR 0028), named by a program, so item 11's rule, first: find the cause (the tuple
-   flattening's equations rewriting `len` atoms, a fact keyed by its printed form, or `-checked`'s
-   rebuild), fix it with the bug as shipped planted, then restore `lib/win/print.oro`'s declared ranges
-   if the fix makes them provable. Ahead of 9 and 10, whose programs meet call obligations; beside 6b,
-   which worked around it.
+8. **Two defects the LLVM printer's programs named** (llvm-2026-11-02):
+   - ~~the refinement layer refused a goal it held as a fact~~ **fixed**: a range obligation inside the
+     word that the interval route could not lower (a table of tuples) was refused as if above the word;
+     it is decided by the facts (`emit/requires.go`, `TestARangeMarkTheIntervalsLeftIsDecidedByTheFacts`
+     with the bug planted);
+   - **−2⁶³ / −1 is decided by nothing**: ℤ's quotient 2⁶³ leaves the word, and `/` is not among the
+     operations `ir.Decide` proves inside it, so Go and the JVM answer −2⁶³, MASM traps (#DE) and LLVM's
+     `sdiv` is undefined (windows-llvm reads a divisor −1 as 1, answering Go's). Decide the quotient
+     like `+`'s result, refusing or trapping, with its planted fault; measure the corpus's refusals.
+   Ahead of 9 and 10, whose programs meet call obligations and divide.
 9. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
    ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)). Research it as a join point that may jump, build
    it, measure `wc` nested.
@@ -290,7 +292,7 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **5,023 of 5,090** integer operations proven inside their target's word, the 67 left
+- **Provability**: **5,026 of 5,093** integer operations proven inside their target's word, the 67 left
   mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
   **557 of 580** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
@@ -436,6 +438,9 @@ option (b), jswitch5b-2026-10-16).
   glue within, override between ([target-system.md](docs/spec/target-system.md)).
 - **A host module's path is the host's** (`go/encoding/hex`, ADR 0025), and the file is the path; a
   companion is a child module; a bare type name resolves lexically.
+- **A target states its realization of each language name** (ADR 0088), `realize OP = A, B checked C`,
+  chosen per instance by the operands' proven sets; a host operation is declared as it is, its domain
+  its `where`. Built for `windows-llvm`; the four older targets are found by spelling until restated.
 - **Host declarations are written by hand**, by someone who read the host's source, and checked against
   it by the generator, which never claims what it cannot justify (ADR 0022, 0023;
   `gauntlet/stdlib/tooling_test.go`). `fn f(x ∈ S) (R) pure { host expr "F(${x})" import "p" }`; a
@@ -587,6 +592,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A vector is a representation of a table, never a sort; a fold vectorizes iff its operation is associative; a float fold keeps its order (item 3 amended by 0086; not built) | [0085](docs/decisions/0085-a-vector-is-a-representation-of-a-table-and-a-fold-vectorizes-iff-it-is-a-homomorphism.md) |
 | A number is an element of ℤ[1/10]; `round(S, e, mode)` is its one lossy operation, `÷` and the transcendentals at its root; the facts choose ρ; IEEE's arithmetic a static scope; no NaN or ∞; a target realizes a rounding by its `ensure` (not built) | [0086](docs/decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md) |
 | A result's set is a claim by its ends inside the word, decided on ℤ's facts before any representation; an end past the word, and a bounded range's sign end held above it, ADR 0029's at run time; amends 0029 | [0087](docs/decisions/0087-a-results-set-is-a-claim-by-its-ends-inside-the-word.md) |
+| A target states its realization of each language name, chosen per instance by proof; a host operation is declared as it is, its domain its `where` (built for windows-llvm; the others by spelling until restated) | [0088](docs/decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md) |
 
 ## Build commands
 

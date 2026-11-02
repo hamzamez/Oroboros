@@ -11,27 +11,6 @@ declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)
 declare void @llvm.trap()
 @.str.0 = private unnamed_addr constant { i64, [20 x i8] } { i64 20, [20 x i8] c"-9223372036854775808" }, align 8
 
-define internal i1 @oro.WriteFile(ptr %h, ptr %b, i64 %lo, i64 %n) nounwind "no-builtins" {
-entry:
-  %len = load i64, ptr %b
-  %c1 = icmp ult i64 %n, 4294967296
-  %c2 = icmp ule i64 %lo, %len
-  %room = sub i64 %len, %lo
-  %c3 = icmp ule i64 %n, %room
-  %c12 = and i1 %c1, %c2
-  %ok = and i1 %c12, %c3
-  br i1 %ok, label %write, label %no
-no:
-  ret i1 false
-write:
-  %d = getelementptr inbounds i8, ptr %b, i64 8
-  %p = getelementptr inbounds i8, ptr %d, i64 %lo
-  %n32 = trunc i64 %n to i32
-  %w = call i32 @WriteFile(ptr %h, ptr %p, i32 %n32, ptr @__written, ptr null)
-  %r = icmp ne i32 %w, 0
-  ret i1 %r
-}
-
 define internal ptr @oro.alloc(i64 %n) nounwind "no-builtins" {
 entry:
   %big = icmp uge i64 %n, 65536
@@ -57,17 +36,20 @@ ok:
 define i1 @gen_print_int(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
-  %.s35 = alloca i64
-  %.s38 = alloca ptr
-  %.s39 = alloca i64
-  %.s40 = alloca i64
-  %.s41 = alloca i64
-  %.s47 = alloca i1
+  %.s15 = alloca i1
+  %.s24 = alloca i1
+  %.s52 = alloca i64
   %.s55 = alloca ptr
   %.s56 = alloca i64
+  %.s57 = alloca i64
+  %.s58 = alloca i64
+  %.s64 = alloca i1
+  %.s72 = alloca ptr
   %.s73 = alloca i64
-  %.s74 = alloca ptr
-  %.s75 = alloca i64
+  %.s90 = alloca i64
+  %.s91 = alloca ptr
+  %.s92 = alloca i64
+  %.s98 = alloca i1
   %v2 = icmp sle i64 -9223372036854775808, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -83,142 +65,267 @@ entry:
   br i1 %v10, label %.then8, label %.else9
 .then8:
   %v13 = getelementptr i8, ptr @.str.0, i64 0
-  %n.11 = trunc i64 -11 to i32
-  %v15 = call ptr @GetStdHandle(i32 %n.11)
-  %v17 = load i64, ptr %v13
-  %v18 = call i1 @oro.WriteFile(ptr %v15, ptr %v13, i64 0, i64 %v17)
-  %n.13 = trunc i64 -11 to i32
-  %v20 = call ptr @GetStdHandle(i32 %n.13)
-  %.n14 = mul i64 1, 1
-  %.n15 = add i64 %.n14, 8
-  %.t16 = call ptr @oro.alloc(i64 %.n15)
-  store i64 1, ptr %.t16
-  %.d18 = getelementptr inbounds i8, ptr %.t16, i64 8
-  %.e19 = getelementptr inbounds i8, ptr %.d18, i64 0
-  %.z20 = trunc i64 10 to i8
-  store i8 %.z20, ptr %.e19
-  %v25 = call i1 @oro.WriteFile(ptr %v20, ptr %.t16, i64 0, i64 1)
-  ret i1 %v25
+  %v14 = load i64, ptr %v13
+  %v18 = icmp slt i64 %v14, 0
+  br i1 %v18, label %.then12, label %.else13
+.then12:
+  store i1 true, ptr %.s15
+  br label %.join14
+.else13:
+  %v26 = icmp sgt i64 %v14, 4294967295
+  br i1 %v26, label %.then17, label %.else18
+.then17:
+  store i1 true, ptr %.s15
+  br label %.join14
+.else18:
+  %v31 = add nuw nsw i64 0, %v14
+  %v32 = load i64, ptr %v13
+  %v33 = icmp sgt i64 %v31, %v32
+  store i1 %v33, ptr %.s15
+  br label %.join14
+.join14:
+  %v19 = load i1, ptr %.s15
+  br i1 %v19, label %.then21, label %.else22
+.then21:
+  store i1 false, ptr %.s24
+  br label %.join23
+.else22:
+  %n.25 = trunc i64 -11 to i32
+  %v39 = call ptr @GetStdHandle(i32 %n.25)
+  %p.26 = getelementptr inbounds i8, ptr %v13, i64 8
+  %q.26 = getelementptr inbounds i8, ptr %p.26, i64 0
+  %n.26 = trunc i64 %v14 to i32
+  %w.26 = call i32 @WriteFile(ptr %v39, ptr %q.26, i32 %n.26, ptr @__written, ptr null)
+  %v41 = icmp ne i32 %w.26, 0
+  store i1 %v41, ptr %.s24
+  br label %.join23
+.join23:
+  %v34 = load i1, ptr %.s24
+  %.n27 = mul i64 1, 1
+  %.n28 = add i64 %.n27, 8
+  %.t29 = call ptr @oro.alloc(i64 %.n28)
+  store i64 1, ptr %.t29
+  %.d31 = getelementptr inbounds i8, ptr %.t29, i64 8
+  %.e32 = getelementptr inbounds i8, ptr %.d31, i64 0
+  %.z33 = trunc i64 10 to i8
+  store i8 %.z33, ptr %.e32
+  %v45 = load i64, ptr %.t29
+  %v46 = icmp sgt i64 1, %v45
+  br i1 %v46, label %.then35, label %.else36
+.then35:
+  ret i1 false
+.else36:
+  %n.37 = trunc i64 -11 to i32
+  %v51 = call ptr @GetStdHandle(i32 %n.37)
+  %p.38 = getelementptr inbounds i8, ptr %.t29, i64 8
+  %q.38 = getelementptr inbounds i8, ptr %p.38, i64 0
+  %n.38 = trunc i64 1 to i32
+  %w.38 = call i32 @WriteFile(ptr %v51, ptr %q.38, i32 %n.38, ptr @__written, ptr null)
+  %v54 = icmp ne i32 %w.38, 0
+  ret i1 %v54
 .else9:
-  %.n22 = mul i64 22, 1
-  %.n23 = add i64 %.n22, 8
-  %.t24 = call ptr @oro.alloc(i64 %.n23)
-  store i64 22, ptr %.t24
-  %.d27 = getelementptr inbounds i8, ptr %.t24, i64 8
-  %.e28 = getelementptr inbounds i8, ptr %.d27, i64 21
-  %.z29 = trunc i64 10 to i8
-  store i8 %.z29, ptr %.e28
-  %v35 = icmp slt i64 %v0, 0
-  br i1 %v35, label %.then31, label %.else32
-.then31:
-  %v39 = sub nsw i64 0, %v0
-  store i64 %v39, ptr %.s35
-  br label %.join33
-.else32:
-  store i64 %v0, ptr %.s35
-  br label %.join33
-.join33:
-  %v36 = load i64, ptr %.s35
-  store ptr %.t24, ptr %.s38
-  store i64 %v36, ptr %.s39
-  store i64 0, ptr %.s40
-  store i64 20, ptr %.s41
-  br label %.head36
-.head36:
-  %v45 = load ptr, ptr %.s38
-  %v46 = load i64, ptr %.s39
-  %v47 = load i64, ptr %.s40
-  %v48 = load i64, ptr %.s41
-  %v52 = icmp sgt i64 %v47, 18
-  br i1 %v52, label %.then43, label %.else44
-.then43:
-  %v56 = icmp slt i64 %v0, 0
-  store i1 %v56, ptr %.s47
-  br label %.join45
-.else44:
-  store i1 false, ptr %.s47
-  br label %.join45
-.join45:
-  %v53 = load i1, ptr %.s47
-  br i1 %v53, label %.then48, label %.else49
+  %.n39 = mul i64 22, 1
+  %.n40 = add i64 %.n39, 8
+  %.t41 = call ptr @oro.alloc(i64 %.n40)
+  store i64 22, ptr %.t41
+  %.d44 = getelementptr inbounds i8, ptr %.t41, i64 8
+  %.e45 = getelementptr inbounds i8, ptr %.d44, i64 21
+  %.z46 = trunc i64 10 to i8
+  store i8 %.z46, ptr %.e45
+  %v64 = icmp slt i64 %v0, 0
+  br i1 %v64, label %.then48, label %.else49
 .then48:
-  %v62 = sub nuw nsw i64 %v48, 1
-  %.d51 = getelementptr inbounds i8, ptr %v45, i64 8
-  %.e52 = getelementptr inbounds i8, ptr %.d51, i64 %v62
-  %.z53 = trunc i64 45 to i8
-  store i8 %.z53, ptr %.e52
-  %v66 = sub nuw nsw i64 %v48, 1
-  store ptr %v45, ptr %.s55
-  store i64 %v66, ptr %.s56
-  br label %.exit37
+  %v68 = sub nsw i64 0, %v0
+  store i64 %v68, ptr %.s52
+  br label %.join50
 .else49:
-  %v68 = icmp sgt i64 %v47, 18
-  br i1 %v68, label %.then58, label %.else59
-.then58:
-  store ptr %v45, ptr %.s55
-  store i64 %v48, ptr %.s56
-  br label %.exit37
-.else59:
-  %v72 = sub nuw nsw i64 20, %v47
-  %v75 = srem i64 %v46, 10
-  %v76 = add nuw nsw i64 48, %v75
-  %.d63 = getelementptr inbounds i8, ptr %v45, i64 8
-  %.e64 = getelementptr inbounds i8, ptr %.d63, i64 %v72
-  %.z65 = trunc i64 %v76 to i8
-  store i8 %.z65, ptr %.e64
-  %v79 = sdiv i64 %v46, 10
-  %v81 = add nuw nsw i64 %v47, 1
-  %v83 = icmp sgt i64 %v46, 0
-  br i1 %v83, label %.then69, label %.else70
-.then69:
-  %v87 = sub nuw nsw i64 20, %v47
-  store i64 %v87, ptr %.s73
-  br label %.join71
-.else70:
-  store i64 %v48, ptr %.s73
-  br label %.join71
-.join71:
-  %v84 = load i64, ptr %.s73
-  store ptr %v45, ptr %.s38
-  store i64 %v79, ptr %.s39
-  store i64 %v81, ptr %.s40
-  store i64 %v84, ptr %.s41
-  br label %.head36
-.exit37:
-  %v43 = load ptr, ptr %.s55
-  %v44 = load i64, ptr %.s56
-  store ptr %v43, ptr %.s74
-  store i64 %v44, ptr %.s75
-  br label %.built26
-.built26:
-  %v28 = load ptr, ptr %.s74
-  %v29 = load i64, ptr %.s75
-  %n.76 = trunc i64 -11 to i32
-  %v90 = call ptr @GetStdHandle(i32 %n.76)
-  %v92 = sub nuw nsw i64 22, %v29
-  %v93 = call i1 @oro.WriteFile(ptr %v90, ptr %v28, i64 %v29, i64 %v92)
-  ret i1 %v93
+  store i64 %v0, ptr %.s52
+  br label %.join50
+.join50:
+  %v65 = load i64, ptr %.s52
+  store ptr %.t41, ptr %.s55
+  store i64 %v65, ptr %.s56
+  store i64 0, ptr %.s57
+  store i64 20, ptr %.s58
+  br label %.head53
+.head53:
+  %v74 = load ptr, ptr %.s55
+  %v75 = load i64, ptr %.s56
+  %v76 = load i64, ptr %.s57
+  %v77 = load i64, ptr %.s58
+  %v81 = icmp sgt i64 %v76, 18
+  br i1 %v81, label %.then60, label %.else61
+.then60:
+  %v85 = icmp slt i64 %v0, 0
+  store i1 %v85, ptr %.s64
+  br label %.join62
+.else61:
+  store i1 false, ptr %.s64
+  br label %.join62
+.join62:
+  %v82 = load i1, ptr %.s64
+  br i1 %v82, label %.then65, label %.else66
+.then65:
+  %v91 = sub nuw nsw i64 %v77, 1
+  %.d68 = getelementptr inbounds i8, ptr %v74, i64 8
+  %.e69 = getelementptr inbounds i8, ptr %.d68, i64 %v91
+  %.z70 = trunc i64 45 to i8
+  store i8 %.z70, ptr %.e69
+  %v95 = sub nuw nsw i64 %v77, 1
+  store ptr %v74, ptr %.s72
+  store i64 %v95, ptr %.s73
+  br label %.exit54
+.else66:
+  %v97 = icmp sgt i64 %v76, 18
+  br i1 %v97, label %.then75, label %.else76
+.then75:
+  store ptr %v74, ptr %.s72
+  store i64 %v77, ptr %.s73
+  br label %.exit54
+.else76:
+  %v101 = sub nuw nsw i64 20, %v76
+  %m.78 = icmp eq i64 10, -1
+  %d.78 = select i1 %m.78, i64 1, i64 10
+  %v104 = srem i64 %v75, %d.78
+  %v105 = add nuw nsw i64 48, %v104
+  %.d80 = getelementptr inbounds i8, ptr %v74, i64 8
+  %.e81 = getelementptr inbounds i8, ptr %.d80, i64 %v101
+  %.z82 = trunc i64 %v105 to i8
+  store i8 %.z82, ptr %.e81
+  %m.83 = icmp eq i64 10, -1
+  %d.83 = select i1 %m.83, i64 1, i64 10
+  %q.83 = sdiv i64 %v75, %d.83
+  %n.83 = sub i64 0, %q.83
+  %v108 = select i1 %m.83, i64 %n.83, i64 %q.83
+  %v110 = add nuw nsw i64 %v76, 1
+  %v112 = icmp sgt i64 %v75, 0
+  br i1 %v112, label %.then86, label %.else87
+.then86:
+  %v116 = sub nuw nsw i64 20, %v76
+  store i64 %v116, ptr %.s90
+  br label %.join88
+.else87:
+  store i64 %v77, ptr %.s90
+  br label %.join88
+.join88:
+  %v113 = load i64, ptr %.s90
+  store ptr %v74, ptr %.s55
+  store i64 %v108, ptr %.s56
+  store i64 %v110, ptr %.s57
+  store i64 %v113, ptr %.s58
+  br label %.head53
+.exit54:
+  %v72 = load ptr, ptr %.s72
+  %v73 = load i64, ptr %.s73
+  store ptr %v72, ptr %.s91
+  store i64 %v73, ptr %.s92
+  br label %.built43
+.built43:
+  %v57 = load ptr, ptr %.s91
+  %v58 = load i64, ptr %.s92
+  %v119 = sub nuw nsw i64 22, %v58
+  %v124 = icmp slt i64 %v58, 0
+  br i1 %v124, label %.then95, label %.else96
+.then95:
+  store i1 true, ptr %.s98
+  br label %.join97
+.else96:
+  %v130 = icmp slt i64 %v119, 0
+  br i1 %v130, label %.then100, label %.else101
+.then100:
+  store i1 true, ptr %.s98
+  br label %.join97
+.else101:
+  %v135 = icmp sgt i64 %v119, 4294967295
+  br i1 %v135, label %.then103, label %.else104
+.then103:
+  store i1 true, ptr %.s98
+  br label %.join97
+.else104:
+  %v139 = add nuw nsw i64 %v58, %v119
+  %v140 = load i64, ptr %v57
+  %v141 = icmp sgt i64 %v139, %v140
+  store i1 %v141, ptr %.s98
+  br label %.join97
+.join97:
+  %v125 = load i1, ptr %.s98
+  br i1 %v125, label %.then107, label %.else108
+.then107:
+  ret i1 false
+.else108:
+  %n.109 = trunc i64 -11 to i32
+  %v147 = call ptr @GetStdHandle(i32 %n.109)
+  %p.110 = getelementptr inbounds i8, ptr %v57, i64 8
+  %q.110 = getelementptr inbounds i8, ptr %p.110, i64 %v58
+  %n.110 = trunc i64 %v119 to i32
+  %w.110 = call i32 @WriteFile(ptr %v147, ptr %q.110, i32 %n.110, ptr @__written, ptr null)
+  %v148 = icmp ne i32 %w.110, 0
+  ret i1 %v148
 }
 
 define i1 @gen_print_str(ptr %v0) #0 {
 entry:
+  %.s6 = alloca i1
+  %.s15 = alloca i1
   %v1 = getelementptr i8, ptr %v0, i64 0
-  %n.2 = trunc i64 -11 to i32
-  %v3 = call ptr @GetStdHandle(i32 %n.2)
-  %v5 = load i64, ptr %v1
-  %v6 = call i1 @oro.WriteFile(ptr %v3, ptr %v1, i64 0, i64 %v5)
-  %n.4 = trunc i64 -11 to i32
-  %v8 = call ptr @GetStdHandle(i32 %n.4)
-  %.n5 = mul i64 1, 1
-  %.n6 = add i64 %.n5, 8
-  %.t7 = call ptr @oro.alloc(i64 %.n6)
-  store i64 1, ptr %.t7
-  %.d9 = getelementptr inbounds i8, ptr %.t7, i64 8
-  %.e10 = getelementptr inbounds i8, ptr %.d9, i64 0
-  %.z11 = trunc i64 10 to i8
-  store i8 %.z11, ptr %.e10
-  %v13 = call i1 @oro.WriteFile(ptr %v8, ptr %.t7, i64 0, i64 1)
-  ret i1 %v13
+  %v2 = load i64, ptr %v1
+  %v6 = icmp slt i64 %v2, 0
+  br i1 %v6, label %.then3, label %.else4
+.then3:
+  store i1 true, ptr %.s6
+  br label %.join5
+.else4:
+  %v14 = icmp sgt i64 %v2, 4294967295
+  br i1 %v14, label %.then8, label %.else9
+.then8:
+  store i1 true, ptr %.s6
+  br label %.join5
+.else9:
+  %v19 = add nuw nsw i64 0, %v2
+  %v20 = load i64, ptr %v1
+  %v21 = icmp sgt i64 %v19, %v20
+  store i1 %v21, ptr %.s6
+  br label %.join5
+.join5:
+  %v7 = load i1, ptr %.s6
+  br i1 %v7, label %.then12, label %.else13
+.then12:
+  store i1 false, ptr %.s15
+  br label %.join14
+.else13:
+  %n.16 = trunc i64 -11 to i32
+  %v27 = call ptr @GetStdHandle(i32 %n.16)
+  %p.17 = getelementptr inbounds i8, ptr %v1, i64 8
+  %q.17 = getelementptr inbounds i8, ptr %p.17, i64 0
+  %n.17 = trunc i64 %v2 to i32
+  %w.17 = call i32 @WriteFile(ptr %v27, ptr %q.17, i32 %n.17, ptr @__written, ptr null)
+  %v29 = icmp ne i32 %w.17, 0
+  store i1 %v29, ptr %.s15
+  br label %.join14
+.join14:
+  %v22 = load i1, ptr %.s15
+  %.n18 = mul i64 1, 1
+  %.n19 = add i64 %.n18, 8
+  %.t20 = call ptr @oro.alloc(i64 %.n19)
+  store i64 1, ptr %.t20
+  %.d22 = getelementptr inbounds i8, ptr %.t20, i64 8
+  %.e23 = getelementptr inbounds i8, ptr %.d22, i64 0
+  %.z24 = trunc i64 10 to i8
+  store i8 %.z24, ptr %.e23
+  %v33 = load i64, ptr %.t20
+  %v34 = icmp sgt i64 1, %v33
+  br i1 %v34, label %.then26, label %.else27
+.then26:
+  ret i1 false
+.else27:
+  %n.28 = trunc i64 -11 to i32
+  %v39 = call ptr @GetStdHandle(i32 %n.28)
+  %p.29 = getelementptr inbounds i8, ptr %.t20, i64 8
+  %q.29 = getelementptr inbounds i8, ptr %p.29, i64 0
+  %n.29 = trunc i64 1 to i32
+  %w.29 = call i32 @WriteFile(ptr %v39, ptr %q.29, i32 %n.29, ptr @__written, ptr null)
+  %v42 = icmp ne i32 %w.29, 0
+  ret i1 %v42
 }
 
 attributes #0 = { nounwind "no-builtins" }

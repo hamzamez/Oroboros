@@ -141,7 +141,11 @@ func Spellings(tg *emit.Target) map[ir.Op][2]string {
 	// host operator found by classifying names: JavaScript's `&` is not the and.
 	for o, name := range BitNames {
 		if q, ok := tg.Prims[name]; ok && q.Form != "" {
-			out[o] = [2]string{q.Form, ""}
+			trap := ""
+			if c, ok := tg.Prims[q.Checked]; ok {
+				trap = c.Form // `<<`'s, where a target states one (ADR 0088)
+			}
+			out[o] = [2]string{q.Form, trap}
 		}
 	}
 	return out
@@ -179,7 +183,7 @@ func (p *Plan) Form(s *ir.Stmt) [2]string {
 			return [2]string{q.Form, ""}
 		}
 	}
-	if s.Op.IsBit() && s.Name != "" {
+	if s.Op.IsBit() && s.Name != "" && s.Mode != ir.MTrap {
 		if q, ok := p.Tg.Prims[s.Name]; ok {
 			return [2]string{q.Form, ""}
 		}

@@ -628,6 +628,10 @@ func residualRange(w core.Word, v span, def, param, ty string, arg *core.Term) *
 
 // ---------------------------------------------------------------- the refinement layer's half
 
+// plantRangeMarkFault restores the bug that shipped: an in-word range mark the
+// interval route left, refused as if above the word (TestARangeMarkTheIntervalsLeftIsDecidedByTheFacts).
+var plantRangeMarkFault bool
+
 // requireMark decides a mark the interval analysis left, with the facts in
 // scope, and walks on into what it wraps. Only the top-level walk records.
 func (r *refiner) requireMark(t *core.Term, f *facts) error {
@@ -655,11 +659,19 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 	if _, ok := unionMembers(t.Kids[3].Str); ok && r.tgt != nil {
 		return r.requireMark(r.tgt.unionResidual(span{}, t.Kids[1].Str, t.Kids[2].Str, t.Kids[3].Str, t.Kids[4]), f)
 	}
-	// A RANGE MARK THAT REACHES HERE IS ABOVE THE WORD. Within the word the
-	// interval analysis either proved the range or handed on the ends it could
-	// not, as a condition on a where-mark (residualRange); above it the set is
-	// bitwise, which the linear fragment cannot state, so what the interval
-	// analysis did not prove is not proven.
+	// A RANGE MARK INSIDE THE WORD THAT REACHES HERE was not handed on by the
+	// interval route, which leaves every mark of a program it cannot lower (a
+	// table of tuples, llvm-2026-11-02): it is decided as that route would hand
+	// it on, its ends a condition the facts prove (residualRange). It was read
+	// as above the word and refused with its bounds among the known facts.
+	if r.tgt != nil && !plantRangeMarkFault {
+		if res := residualRange(r.tgt.Word, span{}, t.Kids[1].Str, t.Kids[2].Str, t.Kids[3].Str, t.Kids[4]); core.IsRequireWhere(res) {
+			return r.requireMark(res, f)
+		}
+	}
+	// A RANGE MARK ABOVE THE WORD: the set is bitwise, which the linear
+	// fragment cannot state, so what the interval analysis did not prove is
+	// not proven.
 	a := t.Kids[4]
 	if err := r.walk(a, f); err != nil {
 		return err

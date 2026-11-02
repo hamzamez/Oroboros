@@ -79,12 +79,18 @@ entry:
   store ptr %v15, ptr %.s20
   br label %.exit13
 .else19:
-  %v23 = srem i64 %v17, 16777216
+  %m.21 = icmp eq i64 16777216, -1
+  %d.21 = select i1 %m.21, i64 1, i64 16777216
+  %v23 = srem i64 %v17, %d.21
   %.d22 = getelementptr inbounds i8, ptr %v15, i64 8
   %.e23 = getelementptr inbounds i64, ptr %.d22, i64 %v16
   store i64 %v23, ptr %.e23
   %v26 = add nuw nsw i64 %v16, 1
-  %v28 = sdiv i64 %v17, 16777216
+  %m.25 = icmp eq i64 16777216, -1
+  %d.25 = select i1 %m.25, i64 1, i64 16777216
+  %q.25 = sdiv i64 %v17, %d.25
+  %n.25 = sub i64 0, %q.25
+  %v28 = select i1 %m.25, i64 %n.25, i64 %q.25
   store ptr %v15, ptr %.s14
   store i64 %v26, ptr %.s15
   store i64 %v28, ptr %.s16
@@ -142,7 +148,9 @@ entry:
   store i64 0, ptr %.s59
   br label %.join58
 .else57:
-  %v66 = srem i64 %v53, 16777216
+  %m.60 = icmp eq i64 16777216, -1
+  %d.60 = select i1 %m.60, i64 1, i64 16777216
+  %v66 = srem i64 %v53, %d.60
   store i64 %v66, ptr %.s59
   br label %.join58
 .join58:
@@ -195,19 +203,27 @@ ok.67:
   store i64 0, ptr %.s84
   br label %.join83
 .else82:
-  %v98 = srem i64 %v79, 16777216
+  %m.85 = icmp eq i64 16777216, -1
+  %d.85 = select i1 %m.85, i64 1, i64 16777216
+  %v98 = srem i64 %v79, %d.85
   store i64 %v98, ptr %.s84
   br label %.join83
 .join83:
   %v93 = load i64, ptr %.s84
   %v99 = mul nuw nsw i64 %v93, %v32
   %v100 = add nuw nsw i64 %v99, %v46
-  %v102 = srem i64 %v100, 16777216
+  %m.88 = icmp eq i64 16777216, -1
+  %d.88 = select i1 %m.88, i64 1, i64 16777216
+  %v102 = srem i64 %v100, %d.88
   %.d89 = getelementptr inbounds i8, ptr %v44, i64 8
   %.e90 = getelementptr inbounds i64, ptr %.d89, i64 %v45
   store i64 %v102, ptr %.e90
   %v105 = add nuw nsw i64 %v45, 1
-  %v107 = sdiv i64 %v100, 16777216
+  %m.92 = icmp eq i64 16777216, -1
+  %d.92 = select i1 %m.92, i64 1, i64 16777216
+  %q.92 = sdiv i64 %v100, %d.92
+  %n.92 = sub i64 0, %q.92
+  %v107 = select i1 %m.92, i64 %n.92, i64 %q.92
   store ptr %v44, ptr %.s42
   store i64 %v105, ptr %.s43
   store i64 %v107, ptr %.s44

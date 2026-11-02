@@ -153,6 +153,8 @@ func (p *parser) targetItem() (*Term, error) {
 		case "repr", "include", "structural", "backend", "link", "build", "artifact", "data",
 			"underlying", "max_len", "big_repr", "int_repr", "fact", "lemma":
 			return p.modelForm()
+		case "realize":
+			return p.realizeForm()
 		}
 	}
 	return nil, p.errorf("%s begins no form of a target file", t)
@@ -847,6 +849,54 @@ func (p *parser) modelForm() (*Term, error) {
 		}
 	}
 	return app(out...), nil
+}
+
+// realizeForm reads `realize OP = A, B … [checked C]` (ADR 0088): the
+// declarations that realize the language's name OP on this target, in order,
+// and its checked form, as `(realize OP A B … (checked C))`.
+func (p *parser) realizeForm() (*Term, error) {
+	p.next()
+	t := p.next()
+	op := t.text
+	if t.kind != tQuoted {
+		op = Unspell(op)
+	}
+	if err := p.expect("="); err != nil {
+		return nil, err
+	}
+	out := []*Term{Name("realize"), Name(op)}
+	for {
+		if k := p.peek().kind; k != tIdent && k != tQuoted {
+			return nil, p.errorf("`realize %s = …` names a declaration, got %s", op, p.peek())
+		}
+		out = append(out, p.declName())
+		if !p.accept(",") {
+			break
+		}
+	}
+	if p.accept("checked") {
+		out = append(out, app(Name("checked"), p.declName()))
+	}
+	return app(out...), nil
+}
+
+// declName reads a target declaration's name, its module's path then the
+// member, `win/str.string_of`, as the declaration is keyed.
+func (p *parser) declName() *Term {
+	path := Unspell(p.next().text)
+	for p.is("/") && !p.peek().nl {
+		p.next()
+		path += "/" + Unspell(p.next().text)
+	}
+	if p.is(".") && !p.peek().nl {
+		p.next()
+		m := p.next()
+		if m.kind == tQuoted {
+			return Name(path + "." + m.text)
+		}
+		return Name(path + "." + Unspell(m.text))
+	}
+	return Name(path)
 }
 
 // suffixOf is a name's prime, "'" or "".

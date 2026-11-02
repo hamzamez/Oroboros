@@ -319,7 +319,10 @@ a verifier, run after lowering and after every pass that rewrites the IR.
   - **in IR_P it is containment**, τ ≤ σ iff ⟦τ⟧ ⊆ ⟦σ⟧ (§4.1), covariant in elements, with equal
     element representations for tables (§4.3).
 - **W6 (π).** A π's type is contained in its source's type, and its source and other operand are in
-  scope. A length π's source is a table or buffer.
+  scope. A length π's source is a table or buffer. **And its relation is justified by its arm's guard**
+  (Theorem E, §6): the arm is entered only when the guard c has the value b, and the π's literal, or
+  its flip, is among I(c, b), the literals ⟦c⟧ = b implies. A π on a region no branch enters is
+  refused.
 - **W7 (linearity).** A buffer-typed value is **consumed** (a `set`, an `insert`, a `yield` or
   `break` out of its scope, a `continue`, or a `call` declared to consume it, host-buffers.md) **at
   most once on every path**. It is read (`index`, a borrowing `call`) only before it is consumed.
@@ -538,6 +541,23 @@ the arm satisfies ⟦%M⟧ REL ⟦%K⟧.
 
 *Proof.* By §5.2 the arm runs only if ⟦c⟧ = true (or false, for the else arm with the negated
 relation). The implication is the definition of ∧ and ∨ (L10). ∎
+
+**The literals a guard implies** (W6, `ir/verify.go`). Lowering builds a guard from comparisons and
+`if`s: a ∧ b is `if a { b } else { false }`, a ∨ b `if a { true } else { b }`, ¬a
+`if a { false } else { true }`, and a chain nests further branches in an arm. So I(c, b), the set of
+literals ⟦c⟧ = b implies, is computed over that structure:
+
+    I(x REL y, b)                 = {x REL y} if b, {x ¬REL y} if not
+    I(if a {arm₀} else {arm₁}, b) = ⋂ { I(a, true) ∪ R : R a route of arm₀ to b }
+                                    ∩ ⋂ { I(a, false) ∪ R : R a route of arm₁ to b }
+
+A *route* is a path through an arm's branch tree to a `yield`: it implies the guards taken on the way
+and I(yield, b), and a constant yield is a route only when it is b. With no route the arm is
+unreachable, and every literal holds of it vacuously. Values are compared modulo π and ascription
+(L9), modulo a conversion between representations, which is the identity on the integer it holds
+(ADR 0083), and a constant by its literal. The unsigned word's comparisons are ℤ's on the integers it
+holds. So the false side of a ∧ b implies nothing atomic, since ¬a ∨ ¬b has two routes and their meet
+is empty, while the false side of a ∨ b implies both negations.
 
 **Consequence (sparse analysis).** An abstract domain gives each value **one** fact, at its
 definition, and a π's fact is its source's fact met with the guard's constraint. By Theorem E and L9

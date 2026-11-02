@@ -200,7 +200,7 @@ checked. When a package hits a wall that needs language work, stop, research it,
         - grids built ([grids-2026-11-01](gauntlet/results/grids-2026-11-01.md)): one rounding procedure
           for every grid (`core/grid.go`), checked against F(p, …)'s definition and against binary64;
           ADR 0087 closed the open-range hole it found ([resultclaim-2026-11-02](gauntlet/results/resultclaim-2026-11-02.md)).
-        - **step 2 and this round's loose ends wait on a trigger** (below); next, item 7, then Σ_LLVM.
+        - **step 2 and this round's loose ends wait on a trigger** (below); next, Σ_LLVM and `ir/llvm`.
      Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
      widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
      rung above as native iN, measured against the limbs.
@@ -210,10 +210,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
    - 6d. **Its walls, spec first, an ADR each**: the window procedure (callbacks tier 2, a function pointer
      LLVM gives its calling convention), its structs (records, laid out by the target's data layout); 32-bit
      is ADR 0080's triple.
-7. **A π is justified by its branch, and the verifier checks it**, before item 8 grows lowering. W6
-   checks a π's types, not its relation; a π on the wrong table passed it (work-2026-10-22 §5). The rule
-   is Theorem E as a W-rule, with faults planted for the wrong table, a flipped relation, a foreign
-   operand and a missing negation.
+7. ~~A π is justified by its branch, and the verifier checks it~~ **done**
+   ([pijustified-2026-11-02](gauntlet/results/pijustified-2026-11-02.md)): W6 is Theorem E, each π a
+   literal its arm's guard implies, the literals computed as a meet over the guard's routes (spec/ir.md
+   §6); faults planted for the wrong table, a flipped relation, a foreign operand, a missing negation, a
+   π no branch enters, and a conjunction's false side.
 8. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
    ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)). Research it as a join point that may jump, build
    it, measure `wc` nested.

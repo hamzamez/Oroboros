@@ -62,6 +62,18 @@ type verifier struct {
 	buf     []bool
 	alias   []V   // a π or an ascription is its source renamed (L9)
 	depth   []int // the loop depth at each value's definition (W7)
+	def     map[V]*Stmt
+	lits    map[litKey]litSet // implied's memo: a guard's literals, by its value and side
+}
+
+type litKey struct {
+	c V
+	b bool
+}
+
+type litSet struct {
+	lits      []literal
+	reachable bool
 }
 
 func (v *verifier) run() {
@@ -70,6 +82,7 @@ func (v *verifier) run() {
 	v.scope = make([]bool, nv)
 	v.depth = make([]int, nv)
 	v.alias = make([]V, nv)
+	v.def = map[V]*Stmt{}
 	for i := range v.alias {
 		v.alias[i] = V(i)
 	}
@@ -100,6 +113,7 @@ func (v *verifier) run() {
 			s := &r.Stmts[i]
 			for _, x := range s.Res {
 				def(x, d)
+				v.def[x] = s
 			}
 			if s.Op == OThe && len(s.Res) == 1 && len(s.Args) == 1 {
 				v.alias[s.Res[0]] = s.Args[0]
@@ -287,6 +301,11 @@ const (
 
 type ctx struct {
 	kind kind
+	// The arm's guard: entered only when guard has the value side (Theorem
+	// E). guarded is false for a region no branch enters.
+	guard   V
+	side    bool
+	guarded bool
 }
 
 // region walks r in scope, checks W2–W6, and returns the argument lists of the
@@ -313,12 +332,260 @@ func (v *verifier) region(r *Region, c ctx) [][]V {
 		} else if !v.agrees(v.ty(pi.V), v.ty(pi.Of)) {
 			v.add("W6: π %%%d is %s and its source %%%d is %s", pi.V, v.ty(pi.V), pi.Of, v.ty(pi.Of))
 		}
+		v.justified(pi, c)
 		v.enter(pi.V)
 	}
 	for i := range r.Stmts {
 		v.stmt(&r.Stmts[i])
 	}
 	return v.terminator(r, c)
+}
+
+// A π IS JUSTIFIED BY ITS ARM'S GUARD (Theorem E, spec §6): the region is
+// entered only when its guard c has the value b, and the π states a literal
+// ⟦c⟧ = b implies. The literals implied are a homomorphism over how lowering
+// builds a guard (implied), compared modulo π and ascription, a π being its
+// source renamed (L9), and a constant by its literal. W6 checked a π's types
+// only, and a π on the wrong table passed it (work-2026-10-22 §5).
+func (v *verifier) justified(pi Pi, c ctx) {
+	if !c.guarded {
+		v.add("W6: π %%%d is on a region no branch enters, so no guard justifies it (Theorem E)", pi.V)
+		return
+	}
+	lits, reachable := v.implied(c.guard, c.side, 0)
+	if !reachable {
+		return // no execution enters the arm: every literal holds of it
+	}
+	for _, l := range lits {
+		if v.states(pi, l) {
+			return
+		}
+	}
+	what := fmt.Sprintf("%%%d %s %%%d", pi.Of, pi.Rel, pi.Other)
+	if pi.Len {
+		what = fmt.Sprintf("(len %%%d) %s %%%d", pi.Of, pi.Rel, pi.Other)
+	}
+	side := "true"
+	if !c.side {
+		side = "false"
+	}
+	v.add("W6: π %%%d states %s, which its arm's guard %%%d = %s does not imply (Theorem E)", pi.V, what, c.guard, side)
+}
+
+// literal is x REL y.
+type literal struct {
+	x, y V
+	rel  string
+}
+
+// implied is the set of literals ⟦c⟧ = b implies. A comparison implies its
+// literal, or its negation's, and an ascription or a π its source's. A guard
+// built as `c = if a { arm₀ } else { arm₁ }` (lowering's ∧, ∨ and ¬, and
+// chains of them) implies the MEET over the routes by which c can be b: a
+// route is a path through an arm's branch tree to a yield, and implies its
+// path's guards and what its yield implies being b; a constant yield is a
+// route only if it is b.
+//
+//	I(x REL y, b) = {x REL y} if b, {x ¬REL y} if not
+//	I(if a {arm₀} else {arm₁}, b) = ⋂ { I(a, true) ∪ R : R a route of arm₀ to b }
+//	                              ∩ ⋂ { I(a, false) ∪ R : R a route of arm₁ to b }
+//
+// So a ∧ t is I(a, true) ∪ I(t, true) when true, and nothing atomic when
+// false; a ∨ e is I(a, false) ∪ I(e, false) when false. The second result is
+// false when no route reaches b: the arm is unreachable, and every literal
+// holds of it vacuously.
+func (v *verifier) implied(c V, b bool, depth int) ([]literal, bool) {
+	if depth > 64 {
+		return nil, true
+	}
+	c = v.root(c)
+	if m, ok := v.lits[litKey{c, b}]; ok {
+		return m.lits, m.reachable
+	}
+	lits, reachable := v.implied1(c, b, depth)
+	if v.lits == nil {
+		v.lits = map[litKey]litSet{}
+	}
+	v.lits[litKey{c, b}] = litSet{lits, reachable}
+	return lits, reachable
+}
+
+func (v *verifier) implied1(c V, b bool, depth int) ([]literal, bool) {
+	s := v.def[c]
+	if s == nil {
+		return nil, true
+	}
+	switch {
+	case s.Op.IsCmp() && len(s.Args) == 2:
+		rel := relOf(s.Op)
+		if !b {
+			rel = negate(rel)
+		}
+		return []literal{{s.Args[0], s.Args[1], rel}}, true
+	case s.Op == OConst && s.Lit != nil && s.Lit.Kind == core.KBool:
+		return nil, (s.Lit.Int != 0) == b
+	case s.Op == OCall && len(s.Args) == 2 && v.callRel(s.Name) != "":
+		// The unsigned word's order is ℤ's on the integers it holds (words.go),
+		// and a host's comparison is the one the target's classification says,
+		// as lowering read it when it placed the π (lower.go, cond): on a
+		// value no analysis reads as an integer, the π is idle (L9).
+		rel := v.callRel(s.Name)
+		if !b {
+			rel = negate(rel)
+		}
+		return []literal{{s.Args[0], s.Args[1], rel}}, true
+	case s.Op == OThe && len(s.Args) == 1:
+		return v.implied(s.Args[0], b, depth+1)
+	case s.Op == OIf && len(s.Sub) == 2 && len(s.Res) == 1:
+		var meet []literal
+		any := false
+		for i, arm := range s.Sub {
+			guard, ok := v.implied(s.Args[0], i == 0, depth+1)
+			if !ok {
+				continue
+			}
+			for _, route := range v.routes(arm, b, depth+1) {
+				lits := append(append([]literal(nil), guard...), route...)
+				if !any {
+					meet, any = lits, true
+				} else {
+					meet = v.intersect(meet, lits)
+				}
+			}
+		}
+		return meet, any
+	}
+	return nil, true
+}
+
+// routes are the literal sets of r's paths to a yield of a value that may be
+// b: each branch's guard on the side taken, and the yield's being b.
+func (v *verifier) routes(r *Region, b bool, depth int) [][]literal {
+	switch r.T {
+	case TBranch:
+		var out [][]literal
+		for _, side := range []struct {
+			arm  *Region
+			take bool
+		}{{r.Then, true}, {r.Else, false}} {
+			g, ok := v.implied(r.Cond, side.take, depth+1)
+			if !ok {
+				continue
+			}
+			for _, rt := range v.routes(side.arm, b, depth+1) {
+				out = append(out, append(append([]literal(nil), g...), rt...))
+			}
+		}
+		return out
+	case TYield:
+		if len(r.Args) != 1 {
+			return nil
+		}
+		lits, ok := v.implied(r.Args[0], b, depth+1)
+		if !ok {
+			return nil
+		}
+		return [][]literal{lits}
+	}
+	return nil // no value leaves it: no route
+}
+
+// intersect is the literals of a that b states too.
+func (v *verifier) intersect(a, b []literal) []literal {
+	var out []literal
+	for _, x := range a {
+		for _, y := range b {
+			if v.sameLit(x, y) {
+				out = append(out, x)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func (v *verifier) sameLit(x, y literal) bool {
+	return (x.rel == y.rel && v.same(x.x, y.x) && v.same(x.y, y.y)) ||
+		(x.rel == flip(y.rel) && v.same(x.x, y.y) && v.same(x.y, y.x))
+}
+
+// root is a value with its π-parameters and ascriptions taken off: the value
+// it renames (L9).
+func (v *verifier) root(x V) V {
+	for i := 0; i < 256 && x >= 0 && int(x) < len(v.alias); i++ {
+		if v.alias[x] != x {
+			x = v.alias[x]
+			continue
+		}
+		// A CONVERSION BETWEEN REPRESENTATIONS is the identity on the integer
+		// it holds (ADR 0083): the word selection converts only a value in
+		// U ∩ S (words.go), so its comparison's operands are the π's.
+		if s := v.def[x]; s != nil && s.Op == OCall && len(s.Args) == 1 && (s.Name == "u64-of" || s.Name == "int-of-u64") {
+			x = s.Args[0]
+			continue
+		}
+		break
+	}
+	return x
+}
+
+// callRel is a comparison call's relation: the unsigned word's (wordRel), or a
+// host primitive's by the target's classification (classify), "" for another.
+func (v *verifier) callRel(name string) string {
+	if r := wordRel[name]; r != "" {
+		return r
+	}
+	if p, ok := v.tg.Prims[name]; ok {
+		if o, _, ok := classify(v.tg, name, p, 2, Options{}); ok && o.IsCmp() {
+			return cmpRel[o]
+		}
+	}
+	return ""
+}
+
+// wordRel is the unsigned word's comparisons' relations (words.go, wordOp).
+var wordRel = map[string]string{"u64=": "eq", "u64<": "lt", "u64<=": "le", "u64>": "gt", "u64>=": "ge"}
+
+// same reports one value: equal modulo π, or two constants of one literal.
+func (v *verifier) same(a, b V) bool {
+	a, b = v.root(a), v.root(b)
+	if a == b {
+		return true
+	}
+	sa, sb := v.def[a], v.def[b]
+	if sa == nil || sb == nil || sa.Op != OConst || sb.Op != OConst || sa.Lit == nil || sb.Lit == nil ||
+		sa.Lit.String() != sb.Lit.String() {
+		return false
+	}
+	// one literal is one element of its sort: a constant's range type, which
+	// the decision gives it at IR_P, is a fact about the same integer
+	ta, tb := v.f.Types[a], v.f.Types[b]
+	return ta == tb || (isIntegerType(ta) && isIntegerType(tb))
+}
+
+func isIntegerType(ty string) bool {
+	if ty == "int" {
+		return true
+	}
+	_, _, ok := core.RangeEnds(ty)
+	return ok
+}
+
+// states reports whether π states literal l, as written or flipped: x REL y is
+// y flip(REL) x. A length π states (len Of) REL Other, so its literal's side
+// is a value defined as the length of a table that is Of, modulo π.
+func (v *verifier) states(pi Pi, l literal) bool {
+	match := func(x V, rel string, y V) bool {
+		if rel != pi.Rel || !v.same(y, pi.Other) {
+			return false
+		}
+		if !pi.Len {
+			return v.same(x, pi.Of)
+		}
+		s := v.def[v.root(x)]
+		return s != nil && s.Op == OLen && len(s.Args) == 1 && v.root(s.Args[0]) == v.root(pi.Of)
+	}
+	return match(l.x, l.rel, l.y) || match(l.y, flip(l.rel), l.x)
 }
 
 func (v *verifier) terminator(r *Region, c ctx) [][]V {
@@ -343,7 +610,10 @@ func (v *verifier) terminator(r *Region, c ctx) [][]V {
 		if !v.agrees(v.ty(r.Cond), "bool") {
 			v.add("W5: a branch on %%%d, which is %s", r.Cond, v.ty(r.Cond))
 		}
-		return append(v.region(r.Then, c), v.region(r.Else, c)...)
+		then, els := c, c
+		then.guard, then.side, then.guarded = r.Cond, true, true
+		els.guard, els.side, els.guarded = r.Cond, false, true
+		return append(v.region(r.Then, then), v.region(r.Else, els)...)
 	case TUnreachable:
 		// NO EXIT, so it contributes nothing to its owner's results. It is
 		// sound only if control really cannot fall out: the region's last
@@ -455,8 +725,8 @@ func (v *verifier) stmt(s *Stmt) {
 	// The regions, and W3/W4 at their exits.
 	switch s.Op {
 	case OIf:
-		for _, sub := range s.Sub {
-			v.results(v.region(sub, ctx{kind: kArm}), s.Res, where)
+		for i, sub := range s.Sub {
+			v.results(v.region(sub, ctx{kind: kArm, guard: s.Args[0], side: i == 0, guarded: true}), s.Res, where)
 		}
 	case OBuild, OBuildMap, OTabulate:
 		body := s.Sub[0]

@@ -568,3 +568,116 @@ func TestTheCrashEndsItsRegion(t *testing.T) {
 		}), "W3")
 	})
 }
+
+// pisOf is every π of f with the region holding it.
+func pisOf(f *Func) (out []struct {
+	r *Region
+	i int
+}) {
+	f.Walk(func(r *Region) {
+		for i := range r.Pis {
+			out = append(out, struct {
+				r *Region
+				i int
+			}{r, i})
+		}
+	})
+	return out
+}
+
+// A π IS JUSTIFIED BY ITS BRANCH (Theorem E as W6, item 7 of the 10-24 plan):
+// each fault the plan names, planted in dot's IR, which verifies before it.
+// The first is the one that shipped (work-2026-10-22 §5): a measured length
+// credited to the other table.
+func TestAPiIsJustifiedByItsBranch(t *testing.T) {
+	const dot = "examples/native/dot.oro"
+	lengthPi := func(p *Program) *Pi {
+		for _, x := range pisOf(p.Funcs[0]) {
+			if x.r.Pis[x.i].Len {
+				return &x.r.Pis[x.i]
+			}
+		}
+		t.Fatal("dot has no length π")
+		return nil
+	}
+	valuePi := func(p *Program, rel string) *Pi {
+		for _, x := range pisOf(p.Funcs[0]) {
+			if pi := &x.r.Pis[x.i]; !pi.Len && pi.Rel == rel {
+				return pi
+			}
+		}
+		t.Fatalf("dot has no %s π", rel)
+		return nil
+	}
+	t.Run("the wrong table", func(t *testing.T) {
+		got := plant(t, dot, func(p *Program) {
+			pi := lengthPi(p)
+			pi.Of = p.Funcs[0].Params[1] // b, whose length the guard did not measure
+		})
+		expect(t, got, "W6")
+		if !strings.Contains(got, "does not imply") {
+			t.Errorf("the refusal does not name Theorem E's premise: %s", got)
+		}
+	})
+	t.Run("a flipped relation", func(t *testing.T) {
+		expect(t, plant(t, dot, func(p *Program) {
+			pi := valuePi(p, "lt")
+			pi.Rel = "gt"
+		}), "W6")
+	})
+	t.Run("a foreign operand", func(t *testing.T) {
+		expect(t, plant(t, dot, func(p *Program) {
+			pi := valuePi(p, "lt")
+			pi.Other = p.Funcs[0].Params[0] // compared with a, not the measured length
+		}), "W6")
+	})
+	t.Run("a missing negation", func(t *testing.T) {
+		expect(t, plant(t, dot, func(p *Program) {
+			pi := valuePi(p, "lt") // the else arm of `i >= n`: i < n
+			pi.Rel = "ge"          // the guard as written, not its negation
+		}), "W6")
+	})
+	t.Run("a π no branch enters", func(t *testing.T) {
+		expect(t, plant(t, dot, func(p *Program) {
+			_, loop := find(p.Funcs[0], OLoop)
+			body := loop.Sub[0]
+			arm := body.Else
+			if arm == nil || len(arm.Pis) == 0 {
+				t.Fatal("the loop's continuing arm has no π")
+			}
+			body.Pis = append(body.Pis, arm.Pis[0])
+			arm.Pis = arm.Pis[1:]
+		}), "W6")
+	})
+}
+
+// THE FALSE SIDE OF A CONJUNCTION IMPLIES NO CONJUNCT'S NEGATION: ¬(a ∧ b) is
+// ¬a ∨ ¬b, so the meet over its two routes is empty. A π stating a ≥ n on the
+// else arm of `a < n && b < n` is planted, and refused; its premise is computed:
+// the program verifies before it, and the then arm's a < n is implied.
+func TestTheFalseSideOfAConjunctionImpliesNoConjunct(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "and.oro")
+	src := "export fn f(a ∈ 0..9, b ∈ 0..9, n ∈ 0..9) (Int) { if a < n && b < n { a } else { b } }\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tg, p, err := compilePath(path, "go", Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Verify(tg, p); err != nil {
+		t.Fatalf("the program verifies before the fault is planted: %v", err)
+	}
+	f := p.Funcs[0]
+	// the body ends in the branch on the conjunction: its else arm gets a ≥ n
+	if f.Body.T != TBranch {
+		t.Fatalf("the body does not end in the branch on the conjunction:\n%s", Print(p))
+	}
+	fresh := V(len(f.Types))
+	f.Types = append(f.Types, f.Types[f.Params[0]])
+	f.Body.Else.Pis = append(f.Body.Else.Pis, Pi{V: fresh, Of: f.Params[0], Other: f.Params[2], Rel: "ge"})
+	err = Verify(tg, p)
+	if err == nil || !strings.Contains(err.Error(), "W6:") {
+		t.Errorf("a ≥ n on the false side of a < n ∧ b < n was not refused: %v", err)
+	}
+}

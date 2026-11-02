@@ -552,7 +552,9 @@ says why the next is what it is.
    - then the LLVM IR backend itself, until it builds everything the MASM one does, which then retires;
    - then what TinyRetroPad needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.
-7. **The IR's verifier checks that each branch justifies the facts it hands its arms.**
+7. ~~The IR's verifier checks that each branch justifies the facts it hands its arms~~ **done
+   2026-11-02** ([pijustified-2026-11-02](gauntlet/results/pijustified-2026-11-02.md)): every fact an
+   arm is handed must follow from the condition that enters it, so the LLVM backend can trust each one.
 8. **A loop that continues after a nested loop's result is taken apart**, which `wc` needs to be written
    as Go is, and which costs it 16% today.
 9. **Go's standard library, program first**: next, `cmp`, comparing two files chunk by chunk.

@@ -197,7 +197,10 @@ checked. When a package hits a wall that needs language work, stop, research it,
           a real interval domain with Theorem A for a rounded accumulator. The gauntlet's float
           programs are the language's, dot, centroid and search one source each, at parity. A host's
           double is refused where the language's numbers read it; its type and decode are not built.
-        - next: step 2, exact interiors, which owes the cost measurement; then Σ_LLVM.
+        - grids built ([grids-2026-11-01](gauntlet/results/grids-2026-11-01.md)): one rounding procedure
+          for every grid (`core/grid.go`), checked against F(p, …)'s definition and against binary64;
+          ADR 0087 closed the open-range hole it found ([resultclaim-2026-11-02](gauntlet/results/resultclaim-2026-11-02.md)).
+        - **step 2 and this round's loose ends wait on a trigger** (below); next, item 7, then Σ_LLVM.
      Then Σ_LLVM declared and `ir/llvm` built at parity, with what the walls left to it: LLVM's
      widths (native iN, i32 scalars on i686), the unsigned word and `>>` past 63 on windows, and the
      rung above as native iN, measured against the limbs.
@@ -228,6 +231,24 @@ signed limbs (ADR 0029); the higher-order contract gap (ADR 0028); records, `wit
 what TinyRetroPad's walls need.
 
 **Waiting on a trigger** (researched, built when a program needs it):
+- **Numbers, step 2: exact interiors** (numbers.md §5, floats-research §14.5): a term of N held
+  exactly inside a program and rounded once, by expansions and Kulisch's accumulator. It owes the cost
+  measurement (an exact sum was 2.96× a naive one). Trigger: a program wanting a correctly rounded sum
+  or dot product, or an exact geometric predicate (floats-research §18.3, §18.5).
+- **Numbers, the round's loose ends** (doubles-2026-11-01, grids-2026-11-01):
+  - the host's double as its own type (`go.float64`, …) and the decode `num.of_double` (numbers.md
+    §6.3); today a host's double is refused where the language's numbers read it, and a Tier 2
+    declaration still types its result F64. Trigger: a program reading a host's double, or the next
+    change to the targets' float declarations or the surveys' `float64` map;
+  - the checker's N at its boundaries: a rounding onto F64 is typed as the double, since typing it N
+    breaks host values and `Array(F64)`; the fix is N's subsets as ADR 0033 gave ℤ's. Trigger: the
+    next defect it causes, or step 2;
+  - `F(p, emin, emax)` as a set a program names (F32, BF16, FP8): the procedure takes any p, but J has
+    no former and no target realizes those roundings. Trigger: a program needing one;
+  - `sqrt` and a fused multiply-add as realizations (`math.Sqrt`, `math.FMA`; JavaScript has no fma),
+    the directed modes onto F64, `-checked` for a rounding, a rounding onto F64 of a decimal;
+  - F(p, …)'s and D(k, R)'s definitions in `lib/num.oro`, which need replacement sets (ADR 0061), and
+    D(k, R)'s separation normal form.
 - **One integer rendering**, render : ℤ → Σ*, per representation, replacing `big-str` (declared on three
   targets, and a hidden allocation on a value that fits the word). Trigger: printing's P3.
 - **A 32-bit scalar representation** (ADR 0083 item 2's register rule): FNV-1a 32 masks each step

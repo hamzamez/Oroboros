@@ -542,7 +542,8 @@ says why the next is what it is.
         JavaScript as hand-written Go; **binary floating point built 2026-11-01**
         ([doubles-2026-11-01](gauntlet/results/doubles-2026-11-01.md)): the gauntlet's dot product, centroid
         and search are one source each for Go, Java and JavaScript, each operation IEEE's, at the speed of
-        hand-written code; next, exact sums and products inside a program, rounded once:
+        hand-written code. Exact sums and products inside a program, rounded once, wait until a program needs
+        them (2026-11-02). What the numbers are:
         - integers, decimals and floating-point values become one kind of number, with exact
           arithmetic, so `0.1 + 0.2 == 0.3`;
         - rounding is the one operation that loses information, written where the program wants it,

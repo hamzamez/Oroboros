@@ -273,6 +273,9 @@ func inlineInto(f *Func, out []Stmt, callee *Func, args, res []V, ren map[V]V) [
 	case TBranch:
 		body.Stmts = nil
 		out = append(out, Stmt{Op: OIf, Args: []V{body.Cond}, Res: res, Sub: []*Region{body.Then, body.Else}})
+	case TUnreachable:
+		// A BODY INTO ∅ (ADR 0090) never returns: its last statement ends the
+		// region it is inlined into, which is unreachable from here on.
 	}
 	return out
 }

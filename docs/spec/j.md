@@ -426,7 +426,8 @@ range       ::= expr ".." expr | expr ".." | ".." expr          an end omitted i
 
 - **A set is a static value** (ADR 0063), so a set expression is an expression: a name (`Int`,
   `Array(E)`, `fs.DirEntry`), a range `0..255`, `-2^63..2^63-1`, an unbounded one `0..` or `..0`, `Nat` (↑0, `0..` by definition,
-  TLA+'s; ADR 0079), a former, the set operators `∪ ∩ ∖ ×`,
+  TLA+'s; ADR 0079), `∅` or `\emptyset` (the empty set; a function into it never returns, ADR 0090),
+  a former, the set operators `∪ ∩ ∖ ×`,
   a set-valued application (`result.Result(FileInfo, error)`, `elems(x)`), or an arrow (§2.4).
 - **A former always has its keyword**, and braces with none are a block (ADR 0065 item 4):
   `array { 2, 3, 5 }` a table's graph; `array { e : k ∈ 0..n-1 }` a table by a rule, the ordered image;

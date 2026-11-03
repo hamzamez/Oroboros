@@ -1,29 +1,36 @@
 // THE TARGET'S INTERPRETATION OF THE LANGUAGE WHERE NO SINGLE LLVM OPERATION
-// IS IT (ADR 0088, 0089): each a derived operation, a term over llvm.oro's
-// operations, so ι : Σ_L → T(Σ_LLVM) is a theory interpretation (Goguen and
-// Burstall), written in the language, checked as a program is, and inlined
-// by the IR for the operation it realizes (ir/realize.go).
+// IS IT (ADR 0088, 0089): each a derived operation, a term over the host's
+// operations (llvm.oro, kernel32.oro), so ι : Σ_L → T(Σ_H) is a theory
+// interpretation (Goguen and Burstall), written in the language, checked as a
+// program is, and inlined by the IR for the operation it realizes
+// (ir/realize.go).
 //
 // EACH TERM IS DEFINED AND AGREES WITH THE LANGUAGE ON THE OPERATION'S
-// DOMAIN, its header that domain. DEFINED: every LLVM operation in it is used
+// DOMAIN, its header that domain. DEFINED: every host operation in it is used
 // inside its own domain, an obligation decided once against the header, as a
 // program's are. AGREES: ⟦ι(f)⟧(x) = f(x), checked against ℤ's definition
-// (ir/realize_test.go). A term may rely on the site's own obligation, decided
+// (ir/realize_test.go); a checked form agrees where f(x) is in the word and
+// traps elsewhere. A term may rely on the site's own obligation, decided
 // before it is substituted: `<<`'s answers 0 past a count of 63 because a·2ᵏ is
 // in the word only for a = 0.
 //
-// LLVM computes the branch both ways and chooses with `select` where that is
+// Two host shapes make the checked forms terms (ADR 0090): a call into a
+// PRODUCT, LLVM's overflow intrinsics answering W × 𝔹, taken apart by a tuple
+// pattern; and a call into ∅, `llvm.trap` and ExitProcess, which never return,
+// so 0 → Y types the branch they end.
+//
+// LLVM computes a branch both ways and chooses with `select` where that is
 // cheaper; that is LLVM's speculation, sound because each arm is defined
 // where it is taken. Where the IR proves an instance inside an instruction's
 // own domain, the instruction is chosen for it (`realize`'s later names) and
 // no term is printed.
 //
-// THE TEMPLATES BELOW THE TERMS each wait on something the language cannot
-// yet say on this target: a call with two results (LLVM's overflow
-// intrinsics), a call that never returns (`llvm.trap`, ExitProcess), and a
-// pointer as a value (the allocator's answer, ADR 0084's LLVM part).
+// ONE TEMPLATE REMAINS, the allocator: its answer is a pointer as a value,
+// ADR 0084's LLVM part.
 module lang {
     use llvm
+    use windows/kernel32
+    use win/str
 
     // ~a = a ⊕ (−1) = −a − 1, the complement: LLVM has no `not`.
     fn complement(a ∈ Int) (Int) { llvm.xor(a, -1) }
@@ -49,37 +56,38 @@ module lang {
     fn rem(a ∈ Int, b ∈ Int) (Int) where b != 0 { if b == -1 { 0 } else { llvm.srem(a, b) } }
     fn div(a ∈ Int, b ∈ Int) (Int) where b != 0 { if b == -1 { 0 - a } else { llvm.sdiv(a, b) } }
 
-    // `<<` under -checked: a trap where a·2ᵇ leaves the word, which is a count
-    // past 63 with a ≠ 0, or a shift that does not shift back to a.
-    fn shl_checked(a ∈ Int, b ∈ Nat) (r ∈ Int) pure {
-        host expr "%s${#} = shl ${a}, ${b:v}\n%c${#} = icmp ugt ${b}, 63\n%k${#} = ashr i64 %s${#}, ${b:v}\n%x${#} = icmp ne i64 %k${#}, ${a:v}\n%z${#} = icmp ne ${a}, 0\n%g${#} = and i1 %c${#}, %z${#}\n%f${#} = select i1 %c${#}, i1 %g${#}, i1 %x${#}\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:\n${r} = select i1 %c${#}, i64 0, i64 %s${#}" import "declare void @llvm.trap()"
-    }
+    // THE CHECKED ARITHMETIC (-checked, ADR 0019): f where ℤ's result is in the
+    // word, a trap elsewhere. The overflow intrinsic answers both the value and
+    // whether ℤ's result left the word.
+    fn add_checked(a ∈ Int, b ∈ Int) (Int) { (s, o) = llvm.sadd_with_overflow(a, b); if o { llvm.trap() } else { s } }
+    fn sub_checked(a ∈ Int, b ∈ Int) (Int) { (s, o) = llvm.ssub_with_overflow(a, b); if o { llvm.trap() } else { s } }
+    fn mul_checked(a ∈ Int, b ∈ Int) (Int) { (s, o) = llvm.smul_with_overflow(a, b); if o { llvm.trap() } else { s } }
 
-    // THE CHECKED ARITHMETIC (-checked, ADR 0019): the overflow intrinsic, and
-    // a trap where it overflowed. The value is the intrinsic's, the exact one
-    // wherever there was no trap.
-    fn add_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
-        host expr "%o${#} = call {i64, i1} @llvm.sadd.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
-    }
-    fn sub_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
-        host expr "%o${#} = call {i64, i1} @llvm.ssub.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.ssub.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
-    }
-    fn mul_checked(a ∈ Int, b ∈ Int) (r ∈ Int) pure {
-        host expr "%o${#} = call {i64, i1} @llvm.smul.with.overflow.i64(${a}, ${b})\n${r} = extractvalue {i64, i1} %o${#}, 0\n%f${#} = extractvalue {i64, i1} %o${#}, 1\nbr i1 %f${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:" import "declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)" "declare void @llvm.trap()"
+    // `<<` UNDER -checked: a·2ᵇ is in the word iff b ≤ 62 and the product a·2ᵇ
+    // does not overflow, or a = 0, or b = 63 and a = −1, whose product is −2⁶³.
+    fn shl_checked(a ∈ Int, b ∈ Nat) (Int) {
+        case {
+            b <= 62 -> { (s, o) = llvm.smul_with_overflow(a, llvm.shl(1, b)); if o { llvm.trap() } else { s } }
+            a == 0 -> 0
+            b == 63 && a == -1 -> -9223372036854775807 - 1
+            else -> llvm.trap()
+        }
     }
 
     // THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro): 0 when handed 0, a
-    // trap otherwise. Impure: an operation that can end the program is never
-    // moved or dropped.
-    fn trap_if(a ∈ Int) (r ∈ Int) {
-        host expr "%z${#} = icmp ne ${a}, 0\nbr i1 %z${#}, label %trap${#}, label %ok${#}\ntrap${#}:\ncall void @llvm.trap()\nunreachable\nok${#}:\n${r} = add i64 0, 0" import "declare void @llvm.trap()"
-    }
+    // trap otherwise.
+    fn trap_if(a ∈ Int) (Int) { if a == 0 { 0 } else { llvm.trap() } }
 
-    // ---- THE CRASH (spec/errors.md §8): crash : E → 0. The reason's bytes to
-    // standard error (-12), a newline, and exit status 1, as on targets/windows.
-    // It never returns, and the IR ends its region with `unreachable`.
-    fn abandon(why ∈ String) (Any) {
-        host stmt "%h${#} = call ptr @GetStdHandle(i32 -12)\n%l${#} = load i64, ${why}\n%n${#} = trunc i64 %l${#} to i32\n%p${#} = getelementptr inbounds i8, ${why}, i64 8\n%w${#} = call i32 @WriteFile(ptr %h${#}, ptr %p${#}, i32 %n${#}, ptr @__written, ptr null)\n%e${#} = call i32 @WriteFile(ptr %h${#}, ptr @__nl, i32 1, ptr @__written, ptr null)\ncall void @ExitProcess(i32 1)" import "declare dllimport ptr @GetStdHandle(i32)" "declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)" "declare dllimport void @ExitProcess(i32)" "@__written = internal global i32 0" "@__nl = private unnamed_addr constant i8 10"
+    // THE CRASH (spec/errors.md §8): crash : E → ∅. The reason's bytes and a
+    // newline to standard error (-12), then exit status 1, as on targets/windows.
+    // A reason past one call's DWORD count is not written; the process ends
+    // either way.
+    fn crash(why ∈ String) (∅) {
+        u = str.utf8(why)
+        h = kernel32.GetStdHandle(-12)
+        w = if len(u) <= 2^32 - 1 { kernel32.WriteFile(h, u, 0, len(u)) } else { false }
+        e = kernel32.WriteFile(h, array { 10 }, 0, 1)
+        kernel32.ExitProcess(1)
     }
 
     // ---- MEMORY: `build`'s allocator (emit.FindAlloc), of kernel32's two, each

@@ -3146,10 +3146,12 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	}
 	e.SetUnresolved(p.Unresolved)
 	e.Observe = map[string]bool{}
+	e.Bottom = map[string]bool{}
 	for _, n := range tg.Names {
 		e.Prim[n] = true
 		e.Pure[n] = tg.Prims[n].Pure
 		e.Observe[n] = tg.Observer(tg.Prims[n])
+		e.Bottom[n] = tg.IsBottom(n)
 	}
 	// `let` reaches the reducer only in a residual it produced itself, so it is
 	// primitive here without being declared. Its own application does nothing —
@@ -4055,7 +4057,9 @@ func (tg *Target) stated(name string) (Prim, bool) {
 			p.Where = sig.Where
 			for _, sp := range sig.Params {
 				p.Names = append(p.Names, sp.Name)
+				p.Args = append(p.Args, sp.Type)
 			}
+			p.Result = sig.Result
 		}
 	}
 	p.Checked = checked
@@ -4074,6 +4078,23 @@ func (tg *Target) defSig(name string) *core.Sig {
 		}
 	}
 	return nil
+}
+
+// PlantBottomFault restores the rule as it was: only `abandon` never returns.
+var PlantBottomFault bool
+
+// IsBottom reports an operation into ∅, the initial object (ADR 0090): the
+// language's `abandon`, or a declaration whose result is ∅. A call of one never
+// returns: its region ends there, and 0 → Y types any branch it ends.
+func (tg *Target) IsBottom(name string) bool {
+	if name == "abandon" {
+		return true
+	}
+	if PlantBottomFault {
+		return false
+	}
+	p, ok := tg.Prims[name]
+	return ok && p.Result == core.EmptyType
 }
 
 // IsDefinition reports a name the target defines in the language (D_T,

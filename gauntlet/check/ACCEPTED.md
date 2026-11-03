@@ -2275,3 +2275,24 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 change(s):
 
 - now emits — `gauntlet/differential/cases/codecs.oro windows-llvm`
+
+## 2026-11-03 — on ca5180f, with uncommitted changes
+
+**Reason:** ADR 0090: a call into ∅ never returns and a host's product is taken apart by its projections; windows-llvm's checked arithmetic, trap_if and crash are terms; legality counted before ι; a trapped result keeps the site's fact met with the word
+
+765 runs: 426 emitted, 339 refused; 5027 of 5093 integer operations bounded, 557 of 580 loops proven. compiler pass, differential pass, tooling pass.
+
+12 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows-llvm`
+- emitted text changed — `examples/errors/expect.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/bits-edges.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/codecs.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/fnv64-fold.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`

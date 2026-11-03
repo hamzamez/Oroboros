@@ -188,6 +188,11 @@ type Stmt struct {
 	// realization's term names. Printed, `(shl exact via llvm.shl %1 %2)`: it
 	// is the printer's input, as a mode is.
 	Via string
+	// Realized marks the ascription RealizeOps leaves where a realized
+	// operation stood, its Mode the operation's; FromTerm a statement of a
+	// realization's term. In memory only: the decision counts the program's
+	// operations by them (ADR 0089), and `the` does not reach IR_P.
+	Realized, FromTerm bool
 	// Src is PROVENANCE: the application this statement lowers, which a
 	// diagnostic names (a refusal says which source operation it could not
 	// prove). It is in memory only, like the facts: never printed, never read,

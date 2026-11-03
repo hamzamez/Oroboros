@@ -81,6 +81,10 @@ type Env struct {
 	// a bound variable is a read of a table through it, as `(b i)` is (§7c).
 	Observe map[string]bool
 	Rec     map[string]bool // recursive definitions are never δ-reduced
+	// Bottom names the operations into ∅, the initial object (ADR 0090): the
+	// language's `abandon` and every host operation declared with result ∅.
+	// Such a call never returns, so it absorbs its strict context: k ∘ h = h.
+	Bottom map[string]bool
 
 	// Word is the target's word (ADR 0026): constant folding stays inside it,
 	// because that is where the target's run time computes the same integer.
@@ -3728,8 +3732,8 @@ func (e *Env) selectTails(t *Term, sel []int, n int) (*Term, bool) {
 	switch {
 	case op.Name == "again":
 		return t, true
-	case op.Name == "abandon" && e.Prim["abandon"] && len(t.Kids) == 2:
-		return t, true // π(abandon w) = abandon w: a crash absorbs a strict context
+	case op.Name == "abandon" && e.Prim["abandon"] || e.Bottom[op.Name]:
+		return t, true // π(h w) = h w for h into ∅: a crash absorbs a strict context
 	case op.Name == RequireWhereName && len(t.Kids) == 4:
 		k, ok := e.selectTails(t.Kids[3], sel, n)
 		if !ok {
@@ -3762,10 +3766,14 @@ func (t *Term) withKid(i int, k *Term) *Term {
 	return &Term{Kind: KApp, Kids: kids}
 }
 
-// isAbandon reports whether t is an application of the language's crash.
+// isAbandon reports whether t is an application of an operation into ∅: the
+// language's crash, or a host operation declared never to return (ADR 0090).
 func isAbandon(t *Term, e *Env) bool {
-	return t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName &&
-		t.Kids[0].Name == "abandon" && e.Prim["abandon"]
+	if t.Kind != KApp || len(t.Kids) < 1 || t.Kids[0].Kind != KName {
+		return false
+	}
+	op := t.Kids[0].Name
+	return op == "abandon" && e.Prim["abandon"] || e.Bottom[op]
 }
 
 // IgnoreName is the language's discard, !_A : A → 1 (spec/errors.md §7.3).

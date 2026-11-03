@@ -105,6 +105,19 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 		// word. On a word [−2ᵏ, 2ᵏ) the Boolean ones cannot leave it, and are
 		// proven at no cost; JavaScript's word is symmetric, ±(2⁵³−1), and
 		// `~(2⁵³−1)` is −2⁵³ (integers.md §0b).
+		// A REALIZED OPERATION (ADR 0089) is counted where it stood, as the
+		// program's, with the mode its first decision gave it: legality is a
+		// statement about the program, decided before ι is applied.
+		if s.Op == OThe && s.Realized {
+			rep.Ops++
+			switch s.Mode {
+			case MExact:
+				rep.Proven++
+			case MTrap:
+				rep.Trapped++
+			}
+			return
+		}
 		arith := (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op.IsBit()) && s.Name == ""
 		word := s.Op == OCall && (s.Name == "u64+" || s.Name == "u64-" || s.Name == "u64*")
 		if !arith && !word {
@@ -114,6 +127,15 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 		proven := v.within(wLo, wHi)
 		if word {
 			proven = tg.Word.Unsigned && v.within(ep{}, u64Max)
+		}
+		// A TERM'S OWN OPERATION is the target's, counted only where it is not
+		// proven: then it is an obligation of the program at the site, as `/`'s
+		// `0 − a` at −2⁶³ is.
+		if proven && s.FromTerm {
+			if arith {
+				s.Mode = MExact
+			}
+			return
 		}
 		rep.Ops++
 		if proven {

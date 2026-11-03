@@ -6,6 +6,7 @@ declare dllimport ptr @GetProcessHeap()
 declare dllimport ptr @HeapAlloc(ptr, i32, i64)
 declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)
 declare void @llvm.trap()
+declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)
 
 define internal ptr @oro.alloc(i64 %n) nounwind "no-builtins" {
 entry:
@@ -57,7 +58,8 @@ entry:
   %.s111 = alloca i64
   %.s123 = alloca ptr
   %.s128 = alloca i64
-  %.s139 = alloca i64
+  %.s140 = alloca i64
+  %.s145 = alloca i64
   %.n1 = mul i64 3, 8
   %.n2 = add i64 %.n1, 8
   %.t3 = call ptr @oro.alloc(i64 %.n2)
@@ -297,37 +299,41 @@ entry:
   br label %.join127
 .join127:
   %v140 = load i64, ptr %.s128
-  %o.134 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v0, i64 1)
-  %v153 = extractvalue {i64, i1} %o.134, 0
-  %f.134 = extractvalue {i64, i1} %o.134, 1
-  br i1 %f.134, label %trap.134, label %ok.134
-trap.134:
+  %.agg134 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v0, i64 1)
+  %v153 = extractvalue { i64, i1 } %.agg134, 0
+  %v154 = extractvalue { i64, i1 } %.agg134, 1
+  br i1 %v154, label %.then136, label %.else137
+.then136:
   call void @llvm.trap()
   unreachable
-ok.134:
-  %v155 = icmp slt i64 %v153, 0
-  br i1 %v155, label %.then136, label %.else137
-.then136:
-  store i64 0, ptr %.s139
-  br label %.join138
 .else137:
-  %v160 = load i64, ptr %v102
-  %v161 = icmp sge i64 %v153, %v160
-  br i1 %v161, label %.then141, label %.else142
-.then141:
-  store i64 0, ptr %.s139
-  br label %.join138
-.else142:
-  %.d143 = getelementptr inbounds i8, ptr %v102, i64 8
-  %.e144 = getelementptr inbounds i64, ptr %.d143, i64 %v153
-  %v167 = load i64, ptr %.e144
-  store i64 %v167, ptr %.s139
+  store i64 %v153, ptr %.s140
   br label %.join138
 .join138:
-  %v156 = load i64, ptr %.s139
-  %v169 = mul nuw nsw i64 %v156, 100000000
-  %v170 = add nuw nsw i64 %v140, %v169
-  ret i64 %v170
+  %v155 = load i64, ptr %.s140
+  %v158 = icmp slt i64 %v155, 0
+  br i1 %v158, label %.then142, label %.else143
+.then142:
+  store i64 0, ptr %.s145
+  br label %.join144
+.else143:
+  %v163 = load i64, ptr %v102
+  %v164 = icmp sge i64 %v155, %v163
+  br i1 %v164, label %.then147, label %.else148
+.then147:
+  store i64 0, ptr %.s145
+  br label %.join144
+.else148:
+  %.d149 = getelementptr inbounds i8, ptr %v102, i64 8
+  %.e150 = getelementptr inbounds i64, ptr %.d149, i64 %v155
+  %v170 = load i64, ptr %.e150
+  store i64 %v170, ptr %.s145
+  br label %.join144
+.join144:
+  %v159 = load i64, ptr %.s145
+  %v172 = mul nuw nsw i64 %v159, 100000000
+  %v173 = add nuw nsw i64 %v140, %v172
+  ret i64 %v173
 }
 
 attributes #0 = { nounwind "no-builtins" }

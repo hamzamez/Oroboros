@@ -2,18 +2,44 @@
 
 target triple = "x86_64-pc-windows-msvc"
 
-@__nl = private unnamed_addr constant i8 10
 @__written = internal global i32 0
 declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)
+declare dllimport ptr @GetProcessHeap()
 declare dllimport ptr @GetStdHandle(i32)
+declare dllimport ptr @HeapAlloc(ptr, i32, i64)
+declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)
 declare dllimport void @ExitProcess(i32)
+declare void @llvm.trap()
 @.str.0 = private unnamed_addr constant { i64, [28 x i8] } { i64 28, [28 x i8] c"the value is never a success" }, align 8
 @.str.1 = private unnamed_addr constant { i64, [30 x i8] } { i64 30, [30 x i8] c"a multiple of four is expected" }, align 8
 @.str.2 = private unnamed_addr constant { i64, [26 x i8] } { i64 26, [26 x i8] c"an even number is expected" }, align 8
 
+define internal ptr @oro.alloc(i64 %n) nounwind "no-builtins" {
+entry:
+  %big = icmp uge i64 %n, 65536
+  br i1 %big, label %virtual, label %heap
+virtual:
+  %v = call ptr @VirtualAlloc(ptr null, i64 %n, i32 12288, i32 4)
+  br label %done
+heap:
+  %h = call ptr @GetProcessHeap()
+  %p = call ptr @HeapAlloc(ptr %h, i32 8, i64 %n)
+  br label %done
+done:
+  %r = phi ptr [ %v, %virtual ], [ %p, %heap ]
+  %z = icmp eq ptr %r, null
+  br i1 %z, label %oom, label %ok
+oom:
+  call void @llvm.trap()
+  unreachable
+ok:
+  ret ptr %r
+}
+
 define i64 @gen_always_crashes(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
+  %.s14 = alloca i1
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -25,19 +51,49 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %h.7 = call ptr @GetStdHandle(i32 -12)
-  %l.7 = load i64, ptr @.str.0
-  %n.7 = trunc i64 %l.7 to i32
-  %p.7 = getelementptr inbounds i8, ptr @.str.0, i64 8
-  %w.7 = call i32 @WriteFile(ptr %h.7, ptr %p.7, i32 %n.7, ptr @__written, ptr null)
-  %e.7 = call i32 @WriteFile(ptr %h.7, ptr @__nl, i32 1, ptr @__written, ptr null)
-  call void @ExitProcess(i32 1)
+  %v10 = getelementptr i8, ptr @.str.0, i64 0
+  %n.8 = trunc i64 -12 to i32
+  %v12 = call ptr @GetStdHandle(i32 %n.8)
+  %v13 = load i64, ptr %v10
+  %v15 = icmp sle i64 %v13, 4294967295
+  br i1 %v15, label %.then10, label %.else11
+.then10:
+  %v19 = load i64, ptr %v10
+  %p.13 = getelementptr inbounds i8, ptr %v10, i64 8
+  %q.13 = getelementptr inbounds i8, ptr %p.13, i64 0
+  %n.13 = trunc i64 %v19 to i32
+  %w.13 = call i32 @WriteFile(ptr %v12, ptr %q.13, i32 %n.13, ptr @__written, ptr null)
+  %v20 = icmp ne i32 %w.13, 0
+  store i1 %v20, ptr %.s14
+  br label %.join12
+.else11:
+  store i1 false, ptr %.s14
+  br label %.join12
+.join12:
+  %v16 = load i1, ptr %.s14
+  %.n15 = mul i64 1, 1
+  %.n16 = add i64 %.n15, 8
+  %.t17 = call ptr @oro.alloc(i64 %.n16)
+  store i64 1, ptr %.t17
+  %.d19 = getelementptr inbounds i8, ptr %.t17, i64 8
+  %.e20 = getelementptr inbounds i8, ptr %.d19, i64 0
+  %.z21 = trunc i64 10 to i8
+  store i8 %.z21, ptr %.e20
+  %p.22 = getelementptr inbounds i8, ptr %.t17, i64 8
+  %q.22 = getelementptr inbounds i8, ptr %p.22, i64 0
+  %n.22 = trunc i64 1 to i32
+  %w.22 = call i32 @WriteFile(ptr %v12, ptr %q.22, i32 %n.22, ptr @__written, ptr null)
+  %v27 = icmp ne i32 %w.22, 0
+  %x.23 = trunc i64 1 to i32
+  call void @ExitProcess(i32 %x.23)
   unreachable
 }
 
 define i64 @gen_quarter(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
+  %.s24 = alloca i1
+  %.s41 = alloca i1
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -61,22 +117,78 @@ entry:
   %v20 = sdiv i64 %v14, 2
   ret i64 %v20
 .else15:
-  %h.17 = call ptr @GetStdHandle(i32 -12)
-  %l.17 = load i64, ptr @.str.1
-  %n.17 = trunc i64 %l.17 to i32
-  %p.17 = getelementptr inbounds i8, ptr @.str.1, i64 8
-  %w.17 = call i32 @WriteFile(ptr %h.17, ptr %p.17, i32 %n.17, ptr @__written, ptr null)
-  %e.17 = call i32 @WriteFile(ptr %h.17, ptr @__nl, i32 1, ptr @__written, ptr null)
-  call void @ExitProcess(i32 1)
+  %v22 = getelementptr i8, ptr @.str.1, i64 0
+  %n.18 = trunc i64 -12 to i32
+  %v24 = call ptr @GetStdHandle(i32 %n.18)
+  %v25 = load i64, ptr %v22
+  %v27 = icmp sle i64 %v25, 4294967295
+  br i1 %v27, label %.then20, label %.else21
+.then20:
+  %v31 = load i64, ptr %v22
+  %p.23 = getelementptr inbounds i8, ptr %v22, i64 8
+  %q.23 = getelementptr inbounds i8, ptr %p.23, i64 0
+  %n.23 = trunc i64 %v31 to i32
+  %w.23 = call i32 @WriteFile(ptr %v24, ptr %q.23, i32 %n.23, ptr @__written, ptr null)
+  %v32 = icmp ne i32 %w.23, 0
+  store i1 %v32, ptr %.s24
+  br label %.join22
+.else21:
+  store i1 false, ptr %.s24
+  br label %.join22
+.join22:
+  %v28 = load i1, ptr %.s24
+  %.n25 = mul i64 1, 1
+  %.n26 = add i64 %.n25, 8
+  %.t27 = call ptr @oro.alloc(i64 %.n26)
+  store i64 1, ptr %.t27
+  %.d29 = getelementptr inbounds i8, ptr %.t27, i64 8
+  %.e30 = getelementptr inbounds i8, ptr %.d29, i64 0
+  %.z31 = trunc i64 10 to i8
+  store i8 %.z31, ptr %.e30
+  %p.32 = getelementptr inbounds i8, ptr %.t27, i64 8
+  %q.32 = getelementptr inbounds i8, ptr %p.32, i64 0
+  %n.32 = trunc i64 1 to i32
+  %w.32 = call i32 @WriteFile(ptr %v24, ptr %q.32, i32 %n.32, ptr @__written, ptr null)
+  %v39 = icmp ne i32 %w.32, 0
+  %x.33 = trunc i64 1 to i32
+  call void @ExitProcess(i32 %x.33)
   unreachable
 .else10:
-  %h.18 = call ptr @GetStdHandle(i32 -12)
-  %l.18 = load i64, ptr @.str.2
-  %n.18 = trunc i64 %l.18 to i32
-  %p.18 = getelementptr inbounds i8, ptr @.str.2, i64 8
-  %w.18 = call i32 @WriteFile(ptr %h.18, ptr %p.18, i32 %n.18, ptr @__written, ptr null)
-  %e.18 = call i32 @WriteFile(ptr %h.18, ptr @__nl, i32 1, ptr @__written, ptr null)
-  call void @ExitProcess(i32 1)
+  %v43 = getelementptr i8, ptr @.str.2, i64 0
+  %n.35 = trunc i64 -12 to i32
+  %v45 = call ptr @GetStdHandle(i32 %n.35)
+  %v46 = load i64, ptr %v43
+  %v48 = icmp sle i64 %v46, 4294967295
+  br i1 %v48, label %.then37, label %.else38
+.then37:
+  %v52 = load i64, ptr %v43
+  %p.40 = getelementptr inbounds i8, ptr %v43, i64 8
+  %q.40 = getelementptr inbounds i8, ptr %p.40, i64 0
+  %n.40 = trunc i64 %v52 to i32
+  %w.40 = call i32 @WriteFile(ptr %v45, ptr %q.40, i32 %n.40, ptr @__written, ptr null)
+  %v53 = icmp ne i32 %w.40, 0
+  store i1 %v53, ptr %.s41
+  br label %.join39
+.else38:
+  store i1 false, ptr %.s41
+  br label %.join39
+.join39:
+  %v49 = load i1, ptr %.s41
+  %.n42 = mul i64 1, 1
+  %.n43 = add i64 %.n42, 8
+  %.t44 = call ptr @oro.alloc(i64 %.n43)
+  store i64 1, ptr %.t44
+  %.d46 = getelementptr inbounds i8, ptr %.t44, i64 8
+  %.e47 = getelementptr inbounds i8, ptr %.d46, i64 0
+  %.z48 = trunc i64 10 to i8
+  store i8 %.z48, ptr %.e47
+  %p.49 = getelementptr inbounds i8, ptr %.t44, i64 8
+  %q.49 = getelementptr inbounds i8, ptr %p.49, i64 0
+  %n.49 = trunc i64 1 to i32
+  %w.49 = call i32 @WriteFile(ptr %v45, ptr %q.49, i32 %n.49, ptr @__written, ptr null)
+  %v60 = icmp ne i32 %w.49, 0
+  %x.50 = trunc i64 1 to i32
+  call void @ExitProcess(i32 %x.50)
   unreachable
 }
 

@@ -260,3 +260,21 @@ func unstated(tg *emit.Target) string {
 	}
 	return ""
 }
+
+// A CALL INTO ∅ NEVER RETURNS (ADR 0090): the branch it ends is typed by its
+// other arm, 0 → Y, and the region ends `unreachable`.
+func TestACallIntoTheEmptySetNeverReturns(t *testing.T) {
+	src := "use llvm\nexport fn g(c ∈ 0..1) (Int) { if c == 1 { llvm.trap() } else { 5 } }"
+	out, err := compile(t, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "call void @llvm.trap()\n  unreachable") {
+		t.Errorf("the trap should end its block:\n%s", out)
+	}
+	emit.PlantBottomFault = true
+	defer func() { emit.PlantBottomFault = false }()
+	if _, err := compile(t, src); err == nil {
+		t.Errorf("with only abandon never returning, a branch ending in llvm.trap was accepted: the test does not reach the rule")
+	}
+}

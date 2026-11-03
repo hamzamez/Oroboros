@@ -270,7 +270,7 @@ precision names the host rung needs: the target declares them, and the compiler 
 
 | word | status | where |
 |---|---|---|
-| `abandon` | specified — crash : E → 0, which `expect` expands into: a statement taking the reason, injected unqualified and impure; each target's own crash (panic, throw, ExitProcess after the reason on standard error). Its value is in 0: it absorbs every strict context, and the IR ends its region with `unreachable` | [errors.md](errors.md) §8–9 |
+| `abandon` | specified — crash : E → 0, which `expect` expands into: a statement taking the reason, injected unqualified and impure; each target's own crash (panic, throw, ExitProcess after the reason on standard error). Its value is in 0: it absorbs every strict context, and the IR ends its region with `unreachable`; every declaration whose result is ∅ is such an operation (ADR 0090) | [errors.md](errors.md) §8–9, [ADR 0090](../decisions/0090-a-function-into-the-empty-set-never-returns.md) |
 | `inf`, `sup` | specified — a range's least and greatest elements, static: on `lo..hi` with closed integer ends they are `lo` and `hi`, compared exactly in ℤ; a range is a static value, free to copy, and one a residual still holds is refused (Law S). No target realizes them | [typevalues.md](typevalues.md) §1; ADR 0084 |
 | `big+` | specified | [target-files.md](target-files.md) |
 | `big-fit` | specified — the bound enforced on a host bignum, [0, 2ᵏ) | [target-files.md](target-files.md), [ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md) |

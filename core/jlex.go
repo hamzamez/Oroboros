@@ -178,6 +178,14 @@ func lex(src string) ([]token, error) {
 			}
 			t.kind, t.text = tTag, src[i+1:j]
 			i = j
+		case r == '∅' || strings.HasPrefix(src[i:], `\emptyset`) && !isWordAt(src, i+len(`\emptyset`)):
+			// ∅ IS A NAME, the empty set's (ADR 0090), an operand where a set is.
+			t.kind, t.text = tIdent, EmptySet
+			if r == '∅' {
+				i += w
+			} else {
+				i += len(`\emptyset`)
+			}
 		case r == '\\':
 			matched := false
 			for spell, sym := range ascii {

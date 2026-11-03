@@ -40,6 +40,9 @@ type interp struct {
 	// after, when set, sees each statement once it has run (realize_test.go
 	// checks a term's operations against their domains there).
 	after func(s *Stmt, env []cval)
+	// host, when set, gives a host operation's stated meaning: its results,
+	// or a panic for one into ∅ (realize_test.go).
+	host func(name string, args []cval) ([]cval, bool)
 }
 
 var errUnsupported = fmt.Errorf("unsupported")
@@ -273,6 +276,20 @@ func (in *interp) stmt(s *Stmt) {
 		}
 		one(out)
 	case OCall:
+		if in.host != nil {
+			args := make([]cval, len(s.Args))
+			for k := range s.Args {
+				args[k] = a(k)
+			}
+			if out, ok := in.host(s.Name, args); ok {
+				for k, v := range s.Res {
+					if k < len(out) {
+						in.bind(v, out[k])
+					}
+				}
+				return
+			}
+		}
 		one(in.call(s, a))
 	default:
 		panic(errUnsupported)

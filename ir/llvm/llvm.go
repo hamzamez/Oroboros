@@ -207,8 +207,8 @@ func (p *printer) llty(t string) string {
 	case t == "string", ir.ElemOf(p.tg, t) != "":
 		return "ptr"
 	}
-	if _, _, ok := core.IntRangeBig(t); ok {
-		return "i64"
+	if _, _, ok := core.IntRangeBig(t); ok || core.UnboundedRange(t) {
+		return "i64" // an integer held in the word, its range a fact
 	}
 	switch p.tg.ValueType(t) {
 	case "int":
@@ -653,11 +653,32 @@ func (p *printer) call(s *ir.Stmt) {
 		p.fail("(call %s) has no template on target %s", s.Name, p.tg.Name)
 		return
 	}
-	if len(s.Res) > 1 {
-		p.fail("(call %s) has several results, which this printer does not yet receive", s.Name)
+	if q.Form == "" {
+		p.fail("(call %s) is realized by a term, which reached the printer unsubstituted (ir.RealizeOps)", s.Name)
 		return
 	}
 	p.imports(q)
+	if len(s.Res) > 1 && q.Kind != "stmt" {
+		// A HOST OPERATION INTO A PRODUCT B₁ × … × Bₙ answers LLVM's aggregate
+		// { ρB₁, …, ρBₙ }, and each result is its projection: extractvalue j,
+		// the product's universal property.
+		var ts []string
+		for _, v := range s.Res {
+			ts = append(ts, p.ty(v))
+		}
+		agg := "%" + p.fresh("agg")
+		ty := "{ " + strings.Join(ts, ", ") + " }"
+		text := p.fill(q.Form, agg, s.Args)
+		if holes(q.Form)['r'] {
+			p.lines(text)
+		} else {
+			p.line("%s = %s", agg, text)
+		}
+		for j, v := range s.Res {
+			p.line("%%v%d = extractvalue %s %s, %d", v, ty, agg, j)
+		}
+		return
+	}
 	p.expand(q.Form, q.Kind, s.Res, s.Args)
 }
 
@@ -691,6 +712,11 @@ func (p *printer) expand(form, kind string, res, args []ir.V) {
 		p.line("%s = %s", dst, text)
 		return
 	}
+	p.lines(text)
+}
+
+// lines prints a filled template of several instructions, a label as a label.
+func (p *printer) lines(text string) {
 	for _, l := range strings.Split(text, "\n") {
 		l = strings.TrimSpace(l)
 		switch {

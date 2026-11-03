@@ -49,6 +49,14 @@ func RealizeOps(tg *emit.Target, f *Func) (int, error) {
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
+			// A LANGUAGE NAME THAT IS A CALL (`abandon`, `trap-if`) realized by a
+			// term: its instance, whatever its results.
+			if s.Op == OCall && err == nil {
+				if names, _, ok := tg.RealizedNames(s.Name); ok && tg.IsDefinition(names[0]) {
+					plan[s] = names[0]
+				}
+				continue
+			}
 			if !(s.Op.IsArith() || s.Op.IsCmp()) || s.Via != "" || len(s.Res) != 1 || err != nil {
 				continue
 			}
@@ -95,7 +103,23 @@ func RealizeOps(tg *emit.Target, f *Func) (int, error) {
 				return
 			}
 			count++
-			out = inlineInto(f, out, c, s.Args, s.Res, ren)
+			if s.Op == OCall || !s.Op.IsArith() {
+				out = inlineInto(f, out, c, s.Args, s.Res, ren)
+				continue
+			}
+			// THE INTERPRETATION IS A HOMOMORPHISM, so what was proven of f(x) holds
+			// of ι(f)(x) (agreement, realize_test.go): the instance's value is
+			// ascribed the site's fact, met with the word, which a trapped
+			// operation's result is in wherever it returns. Recomputed on the
+			// term alone, a branch's join or a host result forgot it.
+			t := V(len(f.Types))
+			f.Types = append(f.Types, f.Types[s.Res[0]])
+			out = inlineInto(f, out, c, s.Args, []V{t}, ren)
+			// Counted where it stood only if the decision counts its operation:
+			// `+ − · neg` and ADR 0082's, not `/` and `%` (decide.go).
+			counted := s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op.IsBit()
+			out = append(out, Stmt{Op: OThe, Type: factType(tg, fs[s.Res[0]].v), Args: []V{t}, Res: s.Res, Src: s.Src,
+				Mode: s.Mode, Realized: counted})
 		}
 		r.Stmts = out
 		if r.T == TBranch {
@@ -111,6 +135,24 @@ func RealizeOps(tg *emit.Target, f *Func) (int, error) {
 	Canonicalize(f)
 	f.facts = nil
 	return count, nil
+}
+
+// factType is the type an interval ascribes, met with the word: an infinite
+// end is the word's.
+func factType(tg *emit.Target, v iv) string {
+	lo, hi := big.NewInt(tg.Word.Lo), big.NewInt(tg.Word.Hi)
+	if !v.bot {
+		if !v.nlo && v.lo.big().Cmp(lo) > 0 {
+			lo = v.lo.big()
+		}
+		if !v.phi && v.hi.big().Cmp(hi) < 0 {
+			hi = v.hi.big()
+		}
+	}
+	if lo.Cmp(hi) > 0 {
+		lo, hi = big.NewInt(tg.Word.Lo), big.NewInt(tg.Word.Hi)
+	}
+	return "int " + lo.String() + " " + hi.String()
 }
 
 // narrowest is the later realization whose domain holds of s's operands'
@@ -341,6 +383,7 @@ func instance(tg *emit.Target, def string) (*Func, error) {
 	c.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
+			s.FromTerm = true
 			if (s.Op.IsArith() || s.Op.IsCmp()) && s.Via == "" && err == nil {
 				if names, _, ok := tg.RealizedNames(opLanguageName(s.Op)); ok && tg.IsDefinition(names[0]) {
 					err = fmt.Errorf("its `%s` is itself realized by a term (%s); a realization is a term over the host's operations", opLanguageName(s.Op), names[0])

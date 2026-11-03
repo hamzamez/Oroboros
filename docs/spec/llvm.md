@@ -37,10 +37,10 @@ item 5); then it becomes `targets/windows`. Its files are the host's, under the 
   ([llvmsurvey-2026-10-27](../../gauntlet/results/llvmsurvey-2026-10-27.md)) classified it, and grows
   family by family;
 - `lang.oro`: where no single instruction is a language operation on the whole of its domain, its
-  realization as **a term over `llvm.oro`'s operations** (ADR 0089), a definition in the language:
-  `~`, `<<` and `>>` past 63, `mod`, `/` and `%` at a divisor −1. Templates remain for what the language
-  cannot yet say here: the checked arithmetic (a call with two results), `trap_if` and `abandon` (a call
-  that never returns), and `build`'s allocator (a pointer as a value);
+  realization as **a term over the host's operations** (ADR 0089), a definition in the language:
+  `~`, `<<` and `>>` past 63, `mod`, `/` and `%` at a divisor −1, the checked arithmetic (the overflow
+  intrinsics' two results and `llvm.trap`, ADR 0090), `trap_if`, and the crash. One template remains,
+  `build`'s allocator (a pointer as a value, ADR 0084's LLVM part);
 - `kernel32.oro`: the Win32 functions programs call, as they are, each `declare dllimport` in the
   printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count;
 - `strings.oro`: the free monoid, `string_of` and `++`, each a helper function the module defines, and
@@ -131,9 +131,9 @@ per instance by its parameters' sets (ADR 0088, ir/final.go), and `shl` takes it
 language's `−`, decided at the site: 2⁶³ is refused, or trapped under `-checked`, as any result outside
 the word is (ADR 0019). The other targets do not yet decide it (llvm-2026-11-02).
 
-A `trap`-mode operation (`-checked`) prints LLVM's overflow intrinsic, `llvm.sadd.with.overflow.i64`
-and kin, and a branch to `llvm.trap` on overflow: the trap is the answer `-checked` asks for, and the
-value is the intrinsic's, which is the exact one where there was no trap.
+A `trap`-mode operation (`-checked`) is its checked form's term (ADR 0089, 0090), `(s, o) =
+llvm.sadd_with_overflow(a, b); if o { llvm.trap() } else { s }` and kin: the trap is the answer
+`-checked` asks for, and the value is the intrinsic's, the exact one where there was no trap.
 
 ## 6. Calls: a declaration's template
 
@@ -154,6 +154,11 @@ helper's whole `define`. So a Win32 function is
 and an instruction is
 
     fn sdiv(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) { host expr "sdiv ${a}, ${b:v}" }
+
+**A host operation into a product** B₁ × … × Bₙ (`llvm.sadd_with_overflow(a, b) (Int × Bool)`)
+answers LLVM's aggregate `{ ρB₁, …, ρBₙ }`: the printer names it and binds each result to its
+projection, `extractvalue j` (ADR 0090). **A host operation into ∅** (`llvm.trap() (∅)`,
+`kernel32.ExitProcess(n) (∅)`) never returns: its region ends `unreachable` after it.
 
 **The flags are the printer's** (§5), since they are proofs about one operation's operands, which the IR
 holds and a declaration cannot: where an `add`, `sub`, `mul` or `shl` is proven, the printer writes them

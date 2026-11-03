@@ -393,8 +393,8 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	// initial object, with exactly one arrow 0 → Y into every Y. So its type is
 	// the unknown, which agrees with every demand, and a conditional's other
 	// branch types it.
-	if op.Name == "abandon" {
-		return "", nil
+	if c.tgt.IsBottom(op.Name) {
+		return "", nil // any operation into ∅ (ADR 0090), as abandon
 	}
 	// A statement's value is argument 0 (target-files.md §3), except a
 	// variadic one's, which is the unit: its argument 0 is the list
@@ -436,7 +436,7 @@ func unselected(tg *Target, t *core.Term, inLoop bool) bool {
 	switch {
 	case op.Name == "again":
 		return inLoop
-	case op.Name == "abandon":
+	case tg.IsBottom(op.Name):
 		return true
 	case op.Name == core.RequireWhereName && len(t.Kids) == 4:
 		return unselected(tg, t.Kids[3], inLoop)

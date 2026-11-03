@@ -61,8 +61,39 @@ func domainCheck(s *Stmt, env []cval) {
 	}
 }
 
+// errTrap is a call into ∅ reached: the trap a checked form answers outside
+// the word.
+var errTrap = fmt.Errorf("trap")
+
+// residue is x's signed residue mod 2⁶⁴, the word's two's complement.
+func residue(x *big.Int) *big.Int {
+	m := new(big.Int).Lsh(big.NewInt(1), 64)
+	r := new(big.Int).Mod(new(big.Int).Sub(x, wordMin), m)
+	return r.Add(r, wordMin)
+}
+
+// hostMeaning is the stated meaning of the host operations the terms call
+// that are calls on the IR: the overflow intrinsics, W × W → W × 𝔹, (a, b) ↦
+// (the residue of ℤ's result, whether ℤ's result left the word); and the trap,
+// into ∅.
+func hostMeaning(name string, args []cval) ([]cval, bool) {
+	op := map[string]func(a, b *big.Int) *big.Int{
+		"llvm.sadd-with-overflow": func(a, b *big.Int) *big.Int { return new(big.Int).Add(a, b) },
+		"llvm.ssub-with-overflow": func(a, b *big.Int) *big.Int { return new(big.Int).Sub(a, b) },
+		"llvm.smul-with-overflow": func(a, b *big.Int) *big.Int { return new(big.Int).Mul(a, b) },
+	}
+	if f, ok := op[name]; ok {
+		r := f(args[0].i, args[1].i)
+		return []cval{{i: residue(r)}, {b: !inWord(r)}}, true
+	}
+	if name == "llvm.trap" {
+		panic(errTrap)
+	}
+	return nil, false
+}
+
 func runChecked(f *Func, args []cval) (cval, error) {
-	in := &interp{f: f, env: make([]cval, f.NV()), seen: map[V]*obs{}, after: domainCheck}
+	in := &interp{f: f, env: make([]cval, f.NV()), seen: map[V]*obs{}, after: domainCheck, host: hostMeaning}
 	for i, p := range f.Params {
 		in.bind(p, args[i])
 	}
@@ -170,6 +201,110 @@ func TestTheInterpretationAgreesWithTheLanguage(t *testing.T) {
 		if err := agrees(c, sp); err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+// A CHECKED FORM AGREES WITH THE LANGUAGE WHERE f(x) IS IN THE WORD AND
+// TRAPS EVERYWHERE ELSE (ADR 0019, 0090): the overflow intrinsic's flag, and the
+// trap a call into ∅. trap-if is 0 at 0 and a trap elsewhere.
+func TestACheckedFormTrapsExactlyOutsideTheWord(t *testing.T) {
+	tg := llvmTarget(t)
+	checked := []struct {
+		op    string
+		value func(a, b *big.Int) *big.Int
+		pre   func(a, b *big.Int) bool
+	}{
+		{"+", func(a, b *big.Int) *big.Int { return new(big.Int).Add(a, b) }, func(a, b *big.Int) bool { return true }},
+		{"-", func(a, b *big.Int) *big.Int { return new(big.Int).Sub(a, b) }, func(a, b *big.Int) bool { return true }},
+		{"*", func(a, b *big.Int) *big.Int { return new(big.Int).Mul(a, b) }, func(a, b *big.Int) bool { return true }},
+		{"<<", func(a, b *big.Int) *big.Int {
+			if a.Sign() == 0 {
+				return big.NewInt(0)
+			}
+			if b.Cmp(big.NewInt(200)) > 0 {
+				b = big.NewInt(200)
+			}
+			return new(big.Int).Lsh(a, uint(b.Int64()))
+		}, func(a, b *big.Int) bool { return b.Sign() >= 0 }},
+	}
+	for _, c := range checked {
+		_, def, ok := tg.RealizedNames(c.op)
+		if !ok || !tg.IsDefinition(def) {
+			t.Errorf("%s's checked form is not a term", c.op)
+			continue
+		}
+		inst, err := Instance(tg, def)
+		if err != nil {
+			t.Errorf("%s: %v", c.op, err)
+			continue
+		}
+		if err := trapsOutside(inst, c.op, c.value, c.pre); err != nil {
+			t.Error(err)
+		}
+	}
+	names, _, _ := tg.RealizedNames("trap-if")
+	inst, err := Instance(tg, names[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range edgeSamples() {
+		got, err := runChecked(inst, []cval{{i: a}})
+		if a.Sign() == 0 && (err != nil || got.i == nil || got.i.Sign() != 0) || a.Sign() != 0 && err != errTrap {
+			t.Errorf("trap-if at %s: %v, %v", a, got.i, err)
+		}
+	}
+}
+
+// trapsOutside checks a checked form: f(x) where it is in the word, a trap
+// elsewhere, at every sample satisfying pre.
+func trapsOutside(inst *Func, op string, value func(a, b *big.Int) *big.Int, pre func(a, b *big.Int) bool) error {
+	for _, a := range edgeSamples() {
+		for _, b := range edgeSamples() {
+			if !pre(a, b) {
+				continue
+			}
+			got, err := runChecked(inst, []cval{{i: a}, {i: b}})
+			want := value(a, b)
+			switch {
+			case !inWord(want) && err != errTrap:
+				return fmt.Errorf("%s at (%s, %s): ℤ gives %s, outside the word, and the term gave %v, %v", op, a, b, want, got.i, err)
+			case inWord(want) && (err != nil || got.i == nil || got.i.Cmp(want) != 0):
+				return fmt.Errorf("%s at (%s, %s): ℤ gives %s, the term %v, %v", op, a, b, want, got.i, err)
+			}
+		}
+	}
+	return nil
+}
+
+// THE PLANTED FAULT: the checked `+` with its arms swapped, a trap where the
+// sum is in the word and the residue where it is not.
+func TestACheckedFormTrappingTheWrongWayIsCaught(t *testing.T) {
+	tg := llvmTarget(t)
+	_, def, _ := tg.RealizedNames("+")
+	inst, err := Instance(tg, def)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bad := inst.Clone()
+	swapped := false
+	bad.Walk(func(r *Region) {
+		if r.T == TBranch && !swapped {
+			r.Then, r.Else = r.Else, r.Then
+			swapped = true
+		}
+		for i := range r.Stmts {
+			if s := &r.Stmts[i]; s.Op == OIf && !swapped {
+				s.Sub[0], s.Sub[1] = s.Sub[1], s.Sub[0]
+				swapped = true
+			}
+		}
+	})
+	if !swapped {
+		t.Fatal("the checked + has no branch to plant the fault in")
+	}
+	add := func(a, b *big.Int) *big.Int { return new(big.Int).Add(a, b) }
+	if trapsOutside(bad, "+", add, func(a, b *big.Int) bool { return true }) == nil {
+		t.Error("a checked + trapping the wrong way passed: the check cannot see it")
 	}
 }
 

@@ -689,7 +689,9 @@ func (l *lowerer) call(r *Region, name string, p emit.Prim, args []V) V {
 	// A HOST CALL HAS A TEMPLATE. A primitive with none is a structural kind
 	// this lowering does not know, and printing it as a call printed `()`:
 	// the cell forms did, before their lowering existed (outcells-2026-10-09).
-	if p.Form == "" {
+	// A NAME REALIZED BY A TERM (ADR 0089) has no template: RealizeOps
+	// substitutes the term's instance for the call.
+	if p.Form == "" && !termRealized(l.tg, name) {
 		l.fail("%s has no template and no lowering: a %s is not a host call", core.ShowName(name), p.Kind)
 	}
 	n := 1
@@ -802,6 +804,13 @@ func classify(tg *emit.Target, name string, p emit.Prim, n int, opt Options) (Op
 		}
 	}
 	return 0, 0, false
+}
+
+// termRealized reports a language name whose stated first realization is a
+// term (ADR 0089).
+func termRealized(tg *emit.Target, name string) bool {
+	names, _, ok := tg.RealizedNames(name)
+	return ok && tg.IsDefinition(names[0])
 }
 
 // LanguageOp is the IR's operation for each of the language's integer names.
@@ -935,7 +944,8 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 		}
 		// ABANDON ENDS THE PROCESS (spec/errors.md §8): crash : E → 0. The call
 		// is the region's last statement, and the region has no successor.
-		if op.Name == "abandon" {
+		// A CALL INTO ∅ (ADR 0090) never returns either: 0 is initial.
+		if l.tg.IsBottom(op.Name) {
 			if p, ok := l.prim(op.Name); ok {
 				l.call(r, op.Name, p, l.values(args, r))
 				r.T, r.Args = TUnreachable, nil

@@ -292,7 +292,7 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **5,032 of 5,099** integer operations proven inside their target's word, the 67 left
+- **Provability**: **5,027 of 5,093** integer operations proven inside their target's word, the 66 left
   mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
   **557 of 580** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
@@ -438,6 +438,9 @@ option (b), jswitch5b-2026-10-16).
   glue within, override between ([target-system.md](docs/spec/target-system.md)).
 - **A host module's path is the host's** (`go/encoding/hex`, ADR 0025), and the file is the path; a
   companion is a child module; a bare type name resolves lexically.
+- **∅ is a set, and a function into it never returns** (ADR 0090): 0 is initial, so k ∘ h = h for
+  every declaration whose result is ∅, as for `abandon`; a host operation into a product is taken
+  apart by its projections (LLVM's aggregate, `extractvalue`).
 - **A target states its realization of each language name** (ADR 0088), `realize OP = A, B checked C`:
   an interpretation ι : Σ_L → T(Σ_H), the first a host operation or **a term over host operations**,
   a definition the target makes, substituted after the decision (ADR 0089, `ir/realize.go`); each later
@@ -597,6 +600,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A result's set is a claim by its ends inside the word, decided on ℤ's facts before any representation; an end past the word, and a bounded range's sign end held above it, ADR 0029's at run time; amends 0029 | [0087](docs/decisions/0087-a-results-set-is-a-claim-by-its-ends-inside-the-word.md) |
 | A target states its realization of each language name, chosen per instance by proof; a host operation is declared as it is, its domain its `where` (built for windows-llvm; the others by spelling until restated) | [0088](docs/decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md) |
 | A realization is a term over the host's operations, ι : Σ_L → T(Σ_H), checked defined and agreeing, substituted after the decision; templates only for a host's own operations (amends 0088) | [0089](docs/decisions/0089-a-realization-is-a-term-over-the-hosts-operations.md) |
+| ∅ is a set; a function into it never returns (0 initial, k ∘ h = h), every declaration not only `abandon`; a host's product taken apart by its projections; legality decided before ι | [0090](docs/decisions/0090-a-function-into-the-empty-set-never-returns.md) |
 
 ## Build commands
 

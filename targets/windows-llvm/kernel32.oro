@@ -25,7 +25,8 @@ module windows/kernel32 {
         host expr "%p${#} = getelementptr inbounds i8, ${b}, i64 8\n%q${#} = getelementptr inbounds i8, ptr %p${#}, ${lo}\n%n${#} = trunc ${n} to i32\n%w${#} = call i32 @WriteFile(${h}, ptr %q${#}, i32 %n${#}, ptr @__written, ptr null)\n${r} = icmp ne i32 %w${#}, 0" import "declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)" "@__written = internal global i32 0"
     }
 
-    fn ExitProcess(a ∈ 0..2^31-1) (Int) {
+    // DWORD → ∅: it ends the process, and never returns (ADR 0090).
+    fn ExitProcess(a ∈ 0..2^31-1) (∅) {
         host stmt "%x${#} = trunc ${a} to i32\ncall void @ExitProcess(i32 %x${#})" import "declare dllimport void @ExitProcess(i32)"
     }
 }

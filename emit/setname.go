@@ -40,6 +40,11 @@ func (tg *Target) unboundSet(ty string) string {
 	if _, ok := tg.Types[ty]; ok {
 		return ""
 	}
+	// ∅ IS THE LANGUAGE'S ON EVERY TARGET (ADR 0090): it has no element, so
+	// it needs no representation.
+	if ty == core.EmptyType {
+		return ""
+	}
 	if _, _, ok := core.IntRangeBig(ty); ok || core.UnboundedRange(ty) {
 		return ""
 	}

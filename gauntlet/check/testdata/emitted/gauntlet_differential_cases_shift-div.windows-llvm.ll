@@ -2,137 +2,176 @@
 
 target triple = "x86_64-pc-windows-msvc"
 
+declare void @llvm.trap()
+declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)
+declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)
+declare {i64, i1} @llvm.ssub.with.overflow.i64(i64, i64)
 
 define i64 @gen_run(i64 %v0) #0 {
 entry:
-  %.s7 = alloca i1
-  %.s13 = alloca i64
-  %.s20 = alloca i1
+  %.s7 = alloca i64
+  %.s14 = alloca i64
+  %.s19 = alloca i1
   %.s25 = alloca i64
-  %.s33 = alloca i1
-  %.s39 = alloca i64
-  %o.1 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v0, i64 1)
-  %v3 = extractvalue {i64, i1} %o.1, 0
-  %f.1 = extractvalue {i64, i1} %o.1, 1
-  br i1 %f.1, label %trap.1, label %ok.1
-trap.1:
+  %.s33 = alloca i64
+  %.s38 = alloca i1
+  %.s43 = alloca i64
+  %.s51 = alloca i64
+  %.s58 = alloca i64
+  %.s63 = alloca i1
+  %.s69 = alloca i64
+  %.s77 = alloca i64
+  %.s84 = alloca i64
+  %.agg1 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v0, i64 1)
+  %v3 = extractvalue { i64, i1 } %.agg1, 0
+  %v4 = extractvalue { i64, i1 } %.agg1, 1
+  br i1 %v4, label %.then3, label %.else4
+.then3:
   call void @llvm.trap()
   unreachable
-ok.1:
-  %o.2 = call {i64, i1} @llvm.ssub.with.overflow.i64(i64 0, i64 %v3)
-  %v4 = extractvalue {i64, i1} %o.2, 0
-  %f.2 = extractvalue {i64, i1} %o.2, 1
-  br i1 %f.2, label %trap.2, label %ok.2
-trap.2:
+.else4:
+  store i64 %v3, ptr %.s7
+  br label %.join5
+.join5:
+  %v5 = load i64, ptr %.s7
+  %.agg8 = call {i64, i1} @llvm.ssub.with.overflow.i64(i64 0, i64 %v5)
+  %v7 = extractvalue { i64, i1 } %.agg8, 0
+  %v8 = extractvalue { i64, i1 } %.agg8, 1
+  br i1 %v8, label %.then10, label %.else11
+.then10:
   call void @llvm.trap()
   unreachable
-ok.2:
-  %v8 = icmp eq i64 2, 0
-  br i1 %v8, label %.then4, label %.else5
-.then4:
-  store i1 false, ptr %.s7
-  br label %.join6
-.else5:
-  store i1 true, ptr %.s7
-  br label %.join6
-.join6:
-  %v9 = load i1, ptr %.s7
-  %v15 = icmp eq i64 2, -1
-  br i1 %v15, label %.then9, label %.else10
-.then9:
-  %v19 = sub nsw i64 0, %v4
-  store i64 %v19, ptr %.s13
-  br label %.join11
-.else10:
-  %v21 = sdiv i64 %v4, 2
-  store i64 %v21, ptr %.s13
-  br label %.join11
-.join11:
-  %v16 = load i64, ptr %.s13
-  %o.15 = call {i64, i1} @llvm.smul.with.overflow.i64(i64 %v16, i64 100)
-  %v23 = extractvalue {i64, i1} %o.15, 0
-  %f.15 = extractvalue {i64, i1} %o.15, 1
-  br i1 %f.15, label %trap.15, label %ok.15
-trap.15:
+.else11:
+  store i64 %v7, ptr %.s14
+  br label %.join12
+.join12:
+  %v9 = load i64, ptr %.s14
+  %v14 = icmp eq i64 2, 0
+  br i1 %v14, label %.then16, label %.else17
+.then16:
+  store i1 false, ptr %.s19
+  br label %.join18
+.else17:
+  store i1 true, ptr %.s19
+  br label %.join18
+.join18:
+  %v15 = load i1, ptr %.s19
+  %v21 = icmp eq i64 2, -1
+  br i1 %v21, label %.then21, label %.else22
+.then21:
+  %v25 = sub nsw i64 0, %v9
+  store i64 %v25, ptr %.s25
+  br label %.join23
+.else22:
+  %v27 = sdiv i64 %v9, 2
+  store i64 %v27, ptr %.s25
+  br label %.join23
+.join23:
+  %v22 = load i64, ptr %.s25
+  %.agg27 = call {i64, i1} @llvm.smul.with.overflow.i64(i64 %v22, i64 100)
+  %v29 = extractvalue { i64, i1 } %.agg27, 0
+  %v30 = extractvalue { i64, i1 } %.agg27, 1
+  br i1 %v30, label %.then29, label %.else30
+.then29:
   call void @llvm.trap()
   unreachable
-ok.15:
-  %v26 = icmp eq i64 8, 0
-  br i1 %v26, label %.then17, label %.else18
-.then17:
-  store i1 false, ptr %.s20
-  br label %.join19
-.else18:
-  store i1 true, ptr %.s20
-  br label %.join19
-.join19:
-  %v27 = load i1, ptr %.s20
-  %v33 = icmp eq i64 8, -1
-  br i1 %v33, label %.then22, label %.else23
-.then22:
-  store i64 0, ptr %.s25
-  br label %.join24
-.else23:
-  %v38 = srem i64 %v4, 8
-  store i64 %v38, ptr %.s25
-  br label %.join24
-.join24:
-  %v34 = load i64, ptr %.s25
-  %o.27 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v23, i64 %v34)
-  %v39 = extractvalue {i64, i1} %o.27, 0
-  %f.27 = extractvalue {i64, i1} %o.27, 1
-  br i1 %f.27, label %trap.27, label %ok.27
-trap.27:
-  call void @llvm.trap()
-  unreachable
-ok.27:
-  %o.28 = call {i64, i1} @llvm.smul.with.overflow.i64(i64 %v0, i64 300000000)
-  %v41 = extractvalue {i64, i1} %o.28, 0
-  %f.28 = extractvalue {i64, i1} %o.28, 1
-  br i1 %f.28, label %trap.28, label %ok.28
-trap.28:
-  call void @llvm.trap()
-  unreachable
-ok.28:
-  %v44 = icmp eq i64 4, 0
-  br i1 %v44, label %.then30, label %.else31
-.then30:
-  store i1 false, ptr %.s33
-  br label %.join32
-.else31:
-  store i1 true, ptr %.s33
-  br label %.join32
-.join32:
-  %v45 = load i1, ptr %.s33
-  %v51 = icmp eq i64 4, -1
-  br i1 %v51, label %.then35, label %.else36
+.else30:
+  store i64 %v29, ptr %.s33
+  br label %.join31
+.join31:
+  %v31 = load i64, ptr %.s33
+  %v35 = icmp eq i64 8, 0
+  br i1 %v35, label %.then35, label %.else36
 .then35:
-  %v55 = sub nsw i64 0, %v41
-  store i64 %v55, ptr %.s39
+  store i1 false, ptr %.s38
   br label %.join37
 .else36:
-  %v57 = sdiv i64 %v41, 4
-  store i64 %v57, ptr %.s39
+  store i1 true, ptr %.s38
   br label %.join37
 .join37:
-  %v52 = load i64, ptr %.s39
-  %o.41 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v39, i64 %v52)
-  %v58 = extractvalue {i64, i1} %o.41, 0
-  %f.41 = extractvalue {i64, i1} %o.41, 1
-  br i1 %f.41, label %trap.41, label %ok.41
-trap.41:
+  %v36 = load i1, ptr %.s38
+  %v42 = icmp eq i64 8, -1
+  br i1 %v42, label %.then40, label %.else41
+.then40:
+  store i64 0, ptr %.s43
+  br label %.join42
+.else41:
+  %v47 = srem i64 %v9, 8
+  store i64 %v47, ptr %.s43
+  br label %.join42
+.join42:
+  %v43 = load i64, ptr %.s43
+  %.agg45 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v31, i64 %v43)
+  %v48 = extractvalue { i64, i1 } %.agg45, 0
+  %v49 = extractvalue { i64, i1 } %.agg45, 1
+  br i1 %v49, label %.then47, label %.else48
+.then47:
   call void @llvm.trap()
   unreachable
-ok.41:
-  %o.42 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 1000000, i64 %v58)
-  %v59 = extractvalue {i64, i1} %o.42, 0
-  %f.42 = extractvalue {i64, i1} %o.42, 1
-  br i1 %f.42, label %trap.42, label %ok.42
-trap.42:
+.else48:
+  store i64 %v48, ptr %.s51
+  br label %.join49
+.join49:
+  %v50 = load i64, ptr %.s51
+  %.agg52 = call {i64, i1} @llvm.smul.with.overflow.i64(i64 %v0, i64 300000000)
+  %v53 = extractvalue { i64, i1 } %.agg52, 0
+  %v54 = extractvalue { i64, i1 } %.agg52, 1
+  br i1 %v54, label %.then54, label %.else55
+.then54:
   call void @llvm.trap()
   unreachable
-ok.42:
-  ret i64 %v59
+.else55:
+  store i64 %v53, ptr %.s58
+  br label %.join56
+.join56:
+  %v55 = load i64, ptr %.s58
+  %v59 = icmp eq i64 4, 0
+  br i1 %v59, label %.then60, label %.else61
+.then60:
+  store i1 false, ptr %.s63
+  br label %.join62
+.else61:
+  store i1 true, ptr %.s63
+  br label %.join62
+.join62:
+  %v60 = load i1, ptr %.s63
+  %v66 = icmp eq i64 4, -1
+  br i1 %v66, label %.then65, label %.else66
+.then65:
+  %v70 = sub nsw i64 0, %v55
+  store i64 %v70, ptr %.s69
+  br label %.join67
+.else66:
+  %v72 = sdiv i64 %v55, 4
+  store i64 %v72, ptr %.s69
+  br label %.join67
+.join67:
+  %v67 = load i64, ptr %.s69
+  %.agg71 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v50, i64 %v67)
+  %v73 = extractvalue { i64, i1 } %.agg71, 0
+  %v74 = extractvalue { i64, i1 } %.agg71, 1
+  br i1 %v74, label %.then73, label %.else74
+.then73:
+  call void @llvm.trap()
+  unreachable
+.else74:
+  store i64 %v73, ptr %.s77
+  br label %.join75
+.join75:
+  %v75 = load i64, ptr %.s77
+  %.agg78 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 1000000, i64 %v75)
+  %v77 = extractvalue { i64, i1 } %.agg78, 0
+  %v78 = extractvalue { i64, i1 } %.agg78, 1
+  br i1 %v78, label %.then80, label %.else81
+.then80:
+  call void @llvm.trap()
+  unreachable
+.else81:
+  store i64 %v77, ptr %.s84
+  br label %.join82
+.join82:
+  %v79 = load i64, ptr %.s84
+  ret i64 %v79
 }
 
 attributes #0 = { nounwind "no-builtins" }

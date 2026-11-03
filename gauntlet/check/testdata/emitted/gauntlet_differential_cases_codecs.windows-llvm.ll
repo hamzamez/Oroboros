@@ -6,6 +6,8 @@ declare dllimport ptr @GetProcessHeap()
 declare dllimport ptr @HeapAlloc(ptr, i32, i64)
 declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)
 declare void @llvm.trap()
+declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)
+declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)
 
 define internal ptr @oro.alloc(i64 %n) nounwind "no-builtins" {
 entry:
@@ -36,24 +38,27 @@ entry:
   %.s15 = alloca i64
   %.s30 = alloca ptr
   %.s31 = alloca ptr
-  %.s77 = alloca i64
-  %.s78 = alloca ptr
-  %.s82 = alloca ptr
+  %.s78 = alloca i64
+  %.s87 = alloca i1
   %.s97 = alloca i64
-  %.s98 = alloca ptr
-  %.s102 = alloca ptr
+  %.s105 = alloca i64
+  %.s106 = alloca ptr
   %.s110 = alloca ptr
-  %.s114 = alloca i64
-  %.s118 = alloca ptr
-  %.s119 = alloca i64
-  %.s131 = alloca ptr
-  %.s198 = alloca i64
-  %.s211 = alloca i1
-  %.s215 = alloca i64
-  %.s219 = alloca i64
-  %.s220 = alloca i64
-  %.s226 = alloca i1
-  %.s235 = alloca i64
+  %.s125 = alloca i64
+  %.s126 = alloca ptr
+  %.s130 = alloca ptr
+  %.s138 = alloca ptr
+  %.s142 = alloca i64
+  %.s146 = alloca ptr
+  %.s147 = alloca i64
+  %.s159 = alloca ptr
+  %.s226 = alloca i64
+  %.s239 = alloca i1
+  %.s243 = alloca i64
+  %.s247 = alloca i64
+  %.s248 = alloca i64
+  %.s254 = alloca i1
+  %.s263 = alloca i64
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -146,283 +151,315 @@ entry:
   %.e66 = getelementptr inbounds i8, ptr %.d65, i64 15
   %.b67 = load i8, ptr %.e66
   %v67 = zext i8 %.b67 to i64
-  %s.68 = shl i64 %v67, 56
-  %c.68 = icmp ugt i64 56, 63
-  %k.68 = ashr i64 %s.68, 56
-  %x.68 = icmp ne i64 %k.68, %v67
-  %z.68 = icmp ne i64 %v67, 0
-  %g.68 = and i1 %c.68, %z.68
-  %f.68 = select i1 %c.68, i1 %g.68, i1 %x.68
-  br i1 %f.68, label %trap.68, label %ok.68
-trap.68:
+  %v70 = icmp sle i64 56, 62
+  br i1 %v70, label %.then69, label %.else70
+.then69:
+  %v74 = shl nuw nsw i64 1, 56
+  %.agg73 = call {i64, i1} @llvm.smul.with.overflow.i64(i64 %v67, i64 %v74)
+  %v75 = extractvalue { i64, i1 } %.agg73, 0
+  %v76 = extractvalue { i64, i1 } %.agg73, 1
+  br i1 %v76, label %.then75, label %.else76
+.then75:
   call void @llvm.trap()
   unreachable
-ok.68:
-  %v69 = select i1 %c.68, i64 0, i64 %s.68
-  %o.69 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v65, i64 %v69)
-  %v70 = extractvalue {i64, i1} %o.69, 0
-  %f.69 = extractvalue {i64, i1} %o.69, 1
-  br i1 %f.69, label %trap.69, label %ok.69
-trap.69:
-  call void @llvm.trap()
-  unreachable
-ok.69:
-  %v71 = load i64, ptr %v10
-  %.n70 = mul i64 %v71, 1
-  %.n71 = add i64 %.n70, 8
-  %.t72 = call ptr @oro.alloc(i64 %.n71)
-  store i64 %v71, ptr %.t72
-  store i64 0, ptr %.s77
-  store ptr %.t72, ptr %.s78
-  br label %.head75
-.head75:
-  %v76 = load i64, ptr %.s77
-  %v77 = load ptr, ptr %.s78
-  %v78 = icmp sge i64 %v76, %v71
-  br i1 %v78, label %.then80, label %.else81
+.else76:
+  store i64 %v75, ptr %.s78
+  br label %.join71
+.else70:
+  %v80 = icmp eq i64 %v67, 0
+  br i1 %v80, label %.then80, label %.else81
 .then80:
-  store ptr %v77, ptr %.s82
-  br label %.exit76
+  store i64 0, ptr %.s78
+  br label %.join71
 .else81:
-  %v86 = add nuw nsw i64 %v76, 1
-  %.d84 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e85 = getelementptr inbounds i8, ptr %.d84, i64 %v76
-  %.b86 = load i8, ptr %.e85
-  %v87 = zext i8 %.b86 to i64
-  %.d87 = getelementptr inbounds i8, ptr %v77, i64 8
-  %.e88 = getelementptr inbounds i8, ptr %.d87, i64 %v76
-  %.z89 = trunc i64 %v87 to i8
-  store i8 %.z89, ptr %.e88
-  store i64 %v86, ptr %.s77
-  store ptr %v77, ptr %.s78
-  br label %.head75
-.exit76:
-  %v75 = load ptr, ptr %.s82
-  %v89 = load i64, ptr %v10
-  %.n90 = mul i64 %v89, 1
-  %.n91 = add i64 %.n90, 8
-  %.t92 = call ptr @oro.alloc(i64 %.n91)
-  store i64 %v89, ptr %.t92
-  store i64 0, ptr %.s97
-  store ptr %.t92, ptr %.s98
-  br label %.head95
-.head95:
-  %v94 = load i64, ptr %.s97
-  %v95 = load ptr, ptr %.s98
-  %v96 = icmp sge i64 %v94, %v89
-  br i1 %v96, label %.then100, label %.else101
-.then100:
-  store ptr %v95, ptr %.s102
-  br label %.exit96
-.else101:
-  %v104 = add nuw nsw i64 %v94, 1
-  %.d104 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e105 = getelementptr inbounds i8, ptr %.d104, i64 %v94
-  %.b106 = load i8, ptr %.e105
-  %v105 = zext i8 %.b106 to i64
-  %.d107 = getelementptr inbounds i8, ptr %v95, i64 8
-  %.e108 = getelementptr inbounds i8, ptr %.d107, i64 %v94
-  %.z109 = trunc i64 %v105 to i8
-  store i8 %.z109, ptr %.e108
-  store i64 %v104, ptr %.s97
-  store ptr %v95, ptr %.s98
-  br label %.head95
-.exit96:
-  %v93 = load ptr, ptr %.s102
-  store ptr %v93, ptr %.s110
-  br label %.built94
-.built94:
-  %v90 = load ptr, ptr %.s110
-  %v107 = load i64, ptr %v10
-  %v109 = icmp slt i64 %v107, 4
-  br i1 %v109, label %.then112, label %.else113
-.then112:
-  store i64 0, ptr %.s114
-  br label %.built74
-.else113:
-  %v115 = and i64 3735928559, 4294967295
-  store ptr %v75, ptr %.s118
-  store i64 0, ptr %.s119
-  br label %.head116
-.head116:
-  %v118 = load ptr, ptr %.s118
-  %v119 = load i64, ptr %.s119
-  %v121 = icmp slt i64 %v119, 4
-  br i1 %v121, label %.then121, label %.else122
-.then121:
-  %v124 = add nuw nsw i64 0, %v119
-  %v126 = mul nuw nsw i64 8, %v119
-  %v127 = ashr i64 %v115, %v126
-  %v129 = and i64 %v127, 255
-  %.d127 = getelementptr inbounds i8, ptr %v118, i64 8
-  %.e128 = getelementptr inbounds i8, ptr %.d127, i64 %v124
-  %.z129 = trunc i64 %v129 to i8
-  store i8 %.z129, ptr %.e128
-  %v132 = add nuw nsw i64 %v119, 1
-  store ptr %v118, ptr %.s118
-  store i64 %v132, ptr %.s119
-  br label %.head116
-.else122:
-  store ptr %v118, ptr %.s131
-  br label %.exit117
-.exit117:
-  %v117 = load ptr, ptr %.s131
-  %.d132 = getelementptr inbounds i8, ptr %v117, i64 8
-  %.e133 = getelementptr inbounds i8, ptr %.d132, i64 0
+  %v87 = icmp eq i64 56, 63
+  br i1 %v87, label %.then83, label %.else84
+.then83:
+  %v91 = icmp eq i64 %v67, -1
+  store i1 %v91, ptr %.s87
+  br label %.join85
+.else84:
+  store i1 false, ptr %.s87
+  br label %.join85
+.join85:
+  %v88 = load i1, ptr %.s87
+  br i1 %v88, label %.then88, label %.else89
+.then88:
+  store i64 -9223372036854775808, ptr %.s78
+  br label %.join71
+.else89:
+  call void @llvm.trap()
+  unreachable
+.join71:
+  %v71 = load i64, ptr %.s78
+  %.agg91 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v65, i64 %v71)
+  %v98 = extractvalue { i64, i1 } %.agg91, 0
+  %v99 = extractvalue { i64, i1 } %.agg91, 1
+  br i1 %v99, label %.then93, label %.else94
+.then93:
+  call void @llvm.trap()
+  unreachable
+.else94:
+  store i64 %v98, ptr %.s97
+  br label %.join95
+.join95:
+  %v100 = load i64, ptr %.s97
+  %v102 = load i64, ptr %v10
+  %.n98 = mul i64 %v102, 1
+  %.n99 = add i64 %.n98, 8
+  %.t100 = call ptr @oro.alloc(i64 %.n99)
+  store i64 %v102, ptr %.t100
+  store i64 0, ptr %.s105
+  store ptr %.t100, ptr %.s106
+  br label %.head103
+.head103:
+  %v107 = load i64, ptr %.s105
+  %v108 = load ptr, ptr %.s106
+  %v109 = icmp sge i64 %v107, %v102
+  br i1 %v109, label %.then108, label %.else109
+.then108:
+  store ptr %v108, ptr %.s110
+  br label %.exit104
+.else109:
+  %v117 = add nuw nsw i64 %v107, 1
+  %.d112 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e113 = getelementptr inbounds i8, ptr %.d112, i64 %v107
+  %.b114 = load i8, ptr %.e113
+  %v118 = zext i8 %.b114 to i64
+  %.d115 = getelementptr inbounds i8, ptr %v108, i64 8
+  %.e116 = getelementptr inbounds i8, ptr %.d115, i64 %v107
+  %.z117 = trunc i64 %v118 to i8
+  store i8 %.z117, ptr %.e116
+  store i64 %v117, ptr %.s105
+  store ptr %v108, ptr %.s106
+  br label %.head103
+.exit104:
+  %v106 = load ptr, ptr %.s110
+  %v120 = load i64, ptr %v10
+  %.n118 = mul i64 %v120, 1
+  %.n119 = add i64 %.n118, 8
+  %.t120 = call ptr @oro.alloc(i64 %.n119)
+  store i64 %v120, ptr %.t120
+  store i64 0, ptr %.s125
+  store ptr %.t120, ptr %.s126
+  br label %.head123
+.head123:
+  %v125 = load i64, ptr %.s125
+  %v126 = load ptr, ptr %.s126
+  %v127 = icmp sge i64 %v125, %v120
+  br i1 %v127, label %.then128, label %.else129
+.then128:
+  store ptr %v126, ptr %.s130
+  br label %.exit124
+.else129:
+  %v135 = add nuw nsw i64 %v125, 1
+  %.d132 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e133 = getelementptr inbounds i8, ptr %.d132, i64 %v125
   %.b134 = load i8, ptr %.e133
-  %v135 = zext i8 %.b134 to i64
-  %.d135 = getelementptr inbounds i8, ptr %v117, i64 8
-  %.e136 = getelementptr inbounds i8, ptr %.d135, i64 3
-  %.b137 = load i8, ptr %.e136
-  %v137 = zext i8 %.b137 to i64
-  %v139 = mul nuw nsw i64 %v137, 256
-  %v140 = add nuw nsw i64 %v135, %v139
-  %.d140 = getelementptr inbounds i8, ptr %v90, i64 8
-  %.e141 = getelementptr inbounds i8, ptr %.d140, i64 0
-  %.b142 = load i8, ptr %.e141
-  %v142 = zext i8 %.b142 to i64
-  %v144 = mul nuw nsw i64 %v142, 65536
-  %v145 = add nuw nsw i64 %v140, %v144
-  store i64 %v145, ptr %.s114
-  br label %.built74
-.built74:
-  %v72 = load i64, ptr %.s114
-  %.d145 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e146 = getelementptr inbounds i8, ptr %.d145, i64 0
-  %.b147 = load i8, ptr %.e146
-  %v147 = zext i8 %.b147 to i64
-  %.d148 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e149 = getelementptr inbounds i8, ptr %.d148, i64 1
-  %.b150 = load i8, ptr %.e149
-  %v149 = zext i8 %.b150 to i64
-  %v151 = shl nuw nsw i64 %v149, 8
-  %v152 = add nuw nsw i64 %v147, %v151
-  %.d153 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e154 = getelementptr inbounds i8, ptr %.d153, i64 1
-  %.b155 = load i8, ptr %.e154
-  %v154 = zext i8 %.b155 to i64
-  %v156 = shl nuw nsw i64 %v154, 8
-  %.d157 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e158 = getelementptr inbounds i8, ptr %.d157, i64 2
-  %.b159 = load i8, ptr %.e158
-  %v158 = zext i8 %.b159 to i64
-  %v159 = add nuw nsw i64 %v156, %v158
-  %v160 = xor i64 %v152, %v159
-  %.d162 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e163 = getelementptr inbounds i8, ptr %.d162, i64 2
-  %.b164 = load i8, ptr %.e163
-  %v162 = zext i8 %.b164 to i64
-  %.d165 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e166 = getelementptr inbounds i8, ptr %.d165, i64 3
-  %.b167 = load i8, ptr %.e166
-  %v164 = zext i8 %.b167 to i64
-  %v166 = shl nuw nsw i64 %v164, 8
-  %v167 = add nuw nsw i64 %v162, %v166
-  %v169 = xor i64 %v167, 32768
-  %v171 = sub nsw i64 %v169, 32768
-  %v173 = add i64 %v171, 32768
-  %v174 = xor i64 %v160, %v173
-  %.d174 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e175 = getelementptr inbounds i8, ptr %.d174, i64 4
-  %.b176 = load i8, ptr %.e175
-  %v176 = zext i8 %.b176 to i64
-  %.d177 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e178 = getelementptr inbounds i8, ptr %.d177, i64 5
-  %.b179 = load i8, ptr %.e178
-  %v178 = zext i8 %.b179 to i64
-  %v180 = shl nuw nsw i64 %v178, 8
-  %v181 = add nuw nsw i64 %v176, %v180
-  %.d182 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e183 = getelementptr inbounds i8, ptr %.d182, i64 6
-  %.b184 = load i8, ptr %.e183
-  %v183 = zext i8 %.b184 to i64
-  %v185 = shl nuw nsw i64 %v183, 16
-  %v186 = add nuw nsw i64 %v181, %v185
-  %.d187 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e188 = getelementptr inbounds i8, ptr %.d187, i64 7
-  %.b189 = load i8, ptr %.e188
-  %v188 = zext i8 %.b189 to i64
-  %v190 = shl nuw nsw i64 %v188, 24
-  %v191 = add nuw nsw i64 %v186, %v190
-  %v192 = xor i64 %v174, %v191
-  %v195 = icmp sle i64 32, 63
-  br i1 %v195, label %.then194, label %.else195
-.then194:
-  %v198 = ashr i64 %v70, 32
-  store i64 %v198, ptr %.s198
-  br label %.join196
-.else195:
-  %v201 = ashr i64 %v70, 63
-  store i64 %v201, ptr %.s198
-  br label %.join196
-.join196:
-  %v196 = load i64, ptr %.s198
-  %v202 = xor i64 %v192, %v196
-  %v204 = and i64 %v70, 4294967295
-  %v205 = xor i64 %v202, %v204
-  %.d203 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e204 = getelementptr inbounds i8, ptr %.d203, i64 3
-  %.b205 = load i8, ptr %.e204
-  %v207 = zext i8 %.b205 to i64
-  %v211 = icmp sle i64 0, %v207
-  br i1 %v211, label %.then207, label %.else208
-.then207:
-  %v215 = icmp sle i64 %v207, 9
-  store i1 %v215, ptr %.s211
-  br label %.join209
-.else208:
-  store i1 false, ptr %.s211
-  br label %.join209
-.join209:
-  %v212 = load i1, ptr %.s211
-  br i1 %v212, label %.then212, label %.else213
-.then212:
-  store i64 %v207, ptr %.s215
-  br label %.join214
-.else213:
-  store i64 77, ptr %.s215
-  br label %.join214
-.join214:
-  %v218 = load i64, ptr %.s215
-  %v222 = xor i64 %v205, %v218
-  store i64 0, ptr %.s219
-  store i64 0, ptr %.s220
-  br label %.head217
-.head217:
-  %v226 = load i64, ptr %.s219
-  %v227 = load i64, ptr %.s220
-  %v231 = icmp slt i64 %v226, 8
-  br i1 %v231, label %.then222, label %.else223
+  %v136 = zext i8 %.b134 to i64
+  %.d135 = getelementptr inbounds i8, ptr %v126, i64 8
+  %.e136 = getelementptr inbounds i8, ptr %.d135, i64 %v125
+  %.z137 = trunc i64 %v136 to i8
+  store i8 %.z137, ptr %.e136
+  store i64 %v135, ptr %.s125
+  store ptr %v126, ptr %.s126
+  br label %.head123
+.exit124:
+  %v124 = load ptr, ptr %.s130
+  store ptr %v124, ptr %.s138
+  br label %.built122
+.built122:
+  %v121 = load ptr, ptr %.s138
+  %v138 = load i64, ptr %v10
+  %v140 = icmp slt i64 %v138, 4
+  br i1 %v140, label %.then140, label %.else141
+.then140:
+  store i64 0, ptr %.s142
+  br label %.built102
+.else141:
+  %v146 = and i64 3735928559, 4294967295
+  store ptr %v106, ptr %.s146
+  store i64 0, ptr %.s147
+  br label %.head144
+.head144:
+  %v149 = load ptr, ptr %.s146
+  %v150 = load i64, ptr %.s147
+  %v152 = icmp slt i64 %v150, 4
+  br i1 %v152, label %.then149, label %.else150
+.then149:
+  %v155 = add nuw nsw i64 0, %v150
+  %v157 = mul nuw nsw i64 8, %v150
+  %v158 = ashr i64 %v146, %v157
+  %v160 = and i64 %v158, 255
+  %.d155 = getelementptr inbounds i8, ptr %v149, i64 8
+  %.e156 = getelementptr inbounds i8, ptr %.d155, i64 %v155
+  %.z157 = trunc i64 %v160 to i8
+  store i8 %.z157, ptr %.e156
+  %v163 = add nuw nsw i64 %v150, 1
+  store ptr %v149, ptr %.s146
+  store i64 %v163, ptr %.s147
+  br label %.head144
+.else150:
+  store ptr %v149, ptr %.s159
+  br label %.exit145
+.exit145:
+  %v148 = load ptr, ptr %.s159
+  %.d160 = getelementptr inbounds i8, ptr %v148, i64 8
+  %.e161 = getelementptr inbounds i8, ptr %.d160, i64 0
+  %.b162 = load i8, ptr %.e161
+  %v166 = zext i8 %.b162 to i64
+  %.d163 = getelementptr inbounds i8, ptr %v148, i64 8
+  %.e164 = getelementptr inbounds i8, ptr %.d163, i64 3
+  %.b165 = load i8, ptr %.e164
+  %v168 = zext i8 %.b165 to i64
+  %v170 = mul nuw nsw i64 %v168, 256
+  %v171 = add nuw nsw i64 %v166, %v170
+  %.d168 = getelementptr inbounds i8, ptr %v121, i64 8
+  %.e169 = getelementptr inbounds i8, ptr %.d168, i64 0
+  %.b170 = load i8, ptr %.e169
+  %v173 = zext i8 %.b170 to i64
+  %v175 = mul nuw nsw i64 %v173, 65536
+  %v176 = add nuw nsw i64 %v171, %v175
+  store i64 %v176, ptr %.s142
+  br label %.built102
+.built102:
+  %v103 = load i64, ptr %.s142
+  %.d173 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e174 = getelementptr inbounds i8, ptr %.d173, i64 0
+  %.b175 = load i8, ptr %.e174
+  %v178 = zext i8 %.b175 to i64
+  %.d176 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e177 = getelementptr inbounds i8, ptr %.d176, i64 1
+  %.b178 = load i8, ptr %.e177
+  %v180 = zext i8 %.b178 to i64
+  %v182 = shl nuw nsw i64 %v180, 8
+  %v183 = add nuw nsw i64 %v178, %v182
+  %.d181 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e182 = getelementptr inbounds i8, ptr %.d181, i64 1
+  %.b183 = load i8, ptr %.e182
+  %v185 = zext i8 %.b183 to i64
+  %v187 = shl nuw nsw i64 %v185, 8
+  %.d185 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e186 = getelementptr inbounds i8, ptr %.d185, i64 2
+  %.b187 = load i8, ptr %.e186
+  %v189 = zext i8 %.b187 to i64
+  %v190 = add nuw nsw i64 %v187, %v189
+  %v191 = xor i64 %v183, %v190
+  %.d190 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e191 = getelementptr inbounds i8, ptr %.d190, i64 2
+  %.b192 = load i8, ptr %.e191
+  %v193 = zext i8 %.b192 to i64
+  %.d193 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e194 = getelementptr inbounds i8, ptr %.d193, i64 3
+  %.b195 = load i8, ptr %.e194
+  %v195 = zext i8 %.b195 to i64
+  %v197 = shl nuw nsw i64 %v195, 8
+  %v198 = add nuw nsw i64 %v193, %v197
+  %v200 = xor i64 %v198, 32768
+  %v202 = sub nsw i64 %v200, 32768
+  %v204 = add i64 %v202, 32768
+  %v205 = xor i64 %v191, %v204
+  %.d202 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e203 = getelementptr inbounds i8, ptr %.d202, i64 4
+  %.b204 = load i8, ptr %.e203
+  %v207 = zext i8 %.b204 to i64
+  %.d205 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e206 = getelementptr inbounds i8, ptr %.d205, i64 5
+  %.b207 = load i8, ptr %.e206
+  %v209 = zext i8 %.b207 to i64
+  %v211 = shl nuw nsw i64 %v209, 8
+  %v212 = add nuw nsw i64 %v207, %v211
+  %.d210 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e211 = getelementptr inbounds i8, ptr %.d210, i64 6
+  %.b212 = load i8, ptr %.e211
+  %v214 = zext i8 %.b212 to i64
+  %v216 = shl nuw nsw i64 %v214, 16
+  %v217 = add nuw nsw i64 %v212, %v216
+  %.d215 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e216 = getelementptr inbounds i8, ptr %.d215, i64 7
+  %.b217 = load i8, ptr %.e216
+  %v219 = zext i8 %.b217 to i64
+  %v221 = shl nuw nsw i64 %v219, 24
+  %v222 = add nuw nsw i64 %v217, %v221
+  %v223 = xor i64 %v205, %v222
+  %v226 = icmp sle i64 32, 63
+  br i1 %v226, label %.then222, label %.else223
 .then222:
-  %v235 = icmp slt i64 %v226, 256
-  store i1 %v235, ptr %.s226
+  %v229 = ashr i64 %v100, 32
+  store i64 %v229, ptr %.s226
   br label %.join224
 .else223:
-  store i1 false, ptr %.s226
+  %v232 = ashr i64 %v100, 63
+  store i64 %v232, ptr %.s226
   br label %.join224
 .join224:
-  %v232 = load i1, ptr %.s226
-  br i1 %v232, label %.then227, label %.else228
-.then227:
-  %v241 = add nuw nsw i64 %v226, 1
-  %v243 = add nuw nsw i64 4, %v226
+  %v227 = load i64, ptr %.s226
+  %v233 = xor i64 %v223, %v227
+  %v235 = and i64 %v100, 4294967295
+  %v236 = xor i64 %v233, %v235
   %.d231 = getelementptr inbounds i8, ptr %v10, i64 8
-  %.e232 = getelementptr inbounds i8, ptr %.d231, i64 %v243
+  %.e232 = getelementptr inbounds i8, ptr %.d231, i64 3
   %.b233 = load i8, ptr %.e232
-  %v244 = zext i8 %.b233 to i64
-  %v245 = add nuw nsw i64 %v227, %v244
-  store i64 %v241, ptr %.s219
-  store i64 %v245, ptr %.s220
-  br label %.head217
-.else228:
-  store i64 %v227, ptr %.s235
-  br label %.exit218
-.exit218:
-  %v225 = load i64, ptr %.s235
-  %v246 = xor i64 %v222, %v225
-  %v247 = xor i64 %v246, %v72
-  %v249 = and i64 %v247, 4294967295
-  ret i64 %v249
+  %v238 = zext i8 %.b233 to i64
+  %v242 = icmp sle i64 0, %v238
+  br i1 %v242, label %.then235, label %.else236
+.then235:
+  %v246 = icmp sle i64 %v238, 9
+  store i1 %v246, ptr %.s239
+  br label %.join237
+.else236:
+  store i1 false, ptr %.s239
+  br label %.join237
+.join237:
+  %v243 = load i1, ptr %.s239
+  br i1 %v243, label %.then240, label %.else241
+.then240:
+  store i64 %v238, ptr %.s243
+  br label %.join242
+.else241:
+  store i64 77, ptr %.s243
+  br label %.join242
+.join242:
+  %v249 = load i64, ptr %.s243
+  %v253 = xor i64 %v236, %v249
+  store i64 0, ptr %.s247
+  store i64 0, ptr %.s248
+  br label %.head245
+.head245:
+  %v257 = load i64, ptr %.s247
+  %v258 = load i64, ptr %.s248
+  %v262 = icmp slt i64 %v257, 8
+  br i1 %v262, label %.then250, label %.else251
+.then250:
+  %v266 = icmp slt i64 %v257, 256
+  store i1 %v266, ptr %.s254
+  br label %.join252
+.else251:
+  store i1 false, ptr %.s254
+  br label %.join252
+.join252:
+  %v263 = load i1, ptr %.s254
+  br i1 %v263, label %.then255, label %.else256
+.then255:
+  %v272 = add nuw nsw i64 %v257, 1
+  %v274 = add nuw nsw i64 4, %v257
+  %.d259 = getelementptr inbounds i8, ptr %v10, i64 8
+  %.e260 = getelementptr inbounds i8, ptr %.d259, i64 %v274
+  %.b261 = load i8, ptr %.e260
+  %v275 = zext i8 %.b261 to i64
+  %v276 = add nuw nsw i64 %v258, %v275
+  store i64 %v272, ptr %.s247
+  store i64 %v276, ptr %.s248
+  br label %.head245
+.else256:
+  store i64 %v258, ptr %.s263
+  br label %.exit246
+.exit246:
+  %v256 = load i64, ptr %.s263
+  %v277 = xor i64 %v253, %v256
+  %v278 = xor i64 %v277, %v103
+  %v280 = and i64 %v278, 4294967295
+  ret i64 %v280
 }
 
 attributes #0 = { nounwind "no-builtins" }

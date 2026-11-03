@@ -44,6 +44,24 @@ module llvm {
     fn shl(a ∈ Int, b ∈ 0..63) (Int) pure { host expr "shl ${a}, ${b:v}" }
     fn ashr(a ∈ Int, b ∈ 0..63) (Int) pure { host expr "ashr ${a}, ${b:v}" }
 
+    // ---- the overflow intrinsics: W × W → W × 𝔹, (a, b) ↦ (s, o) with o
+    // true exactly when ℤ's result leaves the word, and s ℤ's result where it
+    // does not (the residue mod 2⁶⁴ where it does). Total; two results, which
+    // LLVM answers as the aggregate {i64, i1}.
+    fn sadd_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+        host expr "call {i64, i1} @llvm.sadd.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)"
+    }
+    fn ssub_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+        host expr "call {i64, i1} @llvm.ssub.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.ssub.with.overflow.i64(i64, i64)"
+    }
+    fn smul_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+        host expr "call {i64, i1} @llvm.smul.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)"
+    }
+
+    // ---- the trap: 1 → ∅. It never returns (ADR 0090); impure, so it is
+    // never moved or dropped.
+    fn trap() (∅) { host stmt "call void @llvm.trap()" import "declare void @llvm.trap()" }
+
     // ---- comparisons: `icmp` with its signed predicates, the order on the
     // word read as two's complement.
     fn eq(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp eq ${a}, ${b:v}" }

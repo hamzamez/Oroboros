@@ -618,8 +618,8 @@ func (v *verifier) terminator(r *Region, c ctx) [][]V {
 		// NO EXIT, so it contributes nothing to its owner's results. It is
 		// sound only if control really cannot fall out: the region's last
 		// statement is the crash (spec/errors.md §8).
-		if n := len(r.Stmts); n == 0 || r.Stmts[n-1].Op != OCall || r.Stmts[n-1].Name != "abandon" {
-			v.add("W3: unreachable, but the region does not end in a call to abandon, so control may fall out of it")
+		if n := len(r.Stmts); n == 0 || r.Stmts[n-1].Op != OCall || !v.tg.IsBottom(r.Stmts[n-1].Name) {
+			v.add("W3: unreachable, but the region does not end in a call into ∅ (abandon, or a declaration whose result is ∅), so control may fall out of it")
 		}
 		return nil
 	}

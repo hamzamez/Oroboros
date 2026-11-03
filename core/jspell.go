@@ -75,7 +75,15 @@ func Spell(n string) string {
 
 // langSets are the language's sets, spelled by the convention (ADR 0067 item 3).
 var langSets = map[string]string{"int": "Int", "bool": "Bool", "string": "String", "f64": "F64",
-	"any": "Any", "option": "Option", "array": "Array", "map": "Map"}
+	"any": "Any", "option": "Option", "array": "Array", "map": "Map", EmptyType: EmptySet}
+
+// THE EMPTY SET, ∅ (ADR 0090): ⊥ of the Boolean algebra of sets
+// (settypes-research §1), the initial object. A function into it never
+// returns: its result is the type of `abandon`'s value.
+const (
+	EmptySet  = "∅"
+	EmptyType = "empty"
+)
 
 // NatSet is ℕ's name, TLA+'s, read as `0..` (ADR 0077 item 5, ADR 0079 item 6).
 const NatSet = "Nat"

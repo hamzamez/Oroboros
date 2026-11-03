@@ -118,7 +118,11 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 			}
 			return
 		}
-		arith := (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op.IsBit()) && s.Name == ""
+		// `/` IS COUNTED LIKE `+` (plan item 8): |a / b| ≤ |a| for b ≠ 0, with
+		// equality iff |b| = 1, so its quotient leaves the word exactly at
+		// −2⁶³ / −1, which nothing decided: Go and the JVM answered −2⁶³ and x86
+		// trapped. `%` cannot leave it (|a rem b| < |b|), and is not counted.
+		arith := (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op == ODiv && !PlantQuotientFault || s.Op.IsBit()) && s.Name == ""
 		word := s.Op == OCall && (s.Name == "u64+" || s.Name == "u64-" || s.Name == "u64*")
 		if !arith && !word {
 			return
@@ -183,6 +187,10 @@ func inOrder(f *Func, visit func(s *Stmt)) {
 	}
 	walk(f.Body)
 }
+
+// PlantQuotientFault restores the bug as it shipped: `/` not counted, so
+// −2⁶³ / −1 is decided by nothing (TestAQuotientOutsideTheWordIsRefused).
+var PlantQuotientFault bool
 
 // Refusal is the error that refuses the program, naming it `what`, or nil
 // when every counted operation is proven (ADR 0019).

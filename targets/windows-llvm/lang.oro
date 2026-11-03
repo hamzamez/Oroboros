@@ -74,6 +74,12 @@ module lang {
         }
     }
 
+    // `/` UNDER -checked: the quotient where it is in the word, a trap at
+    // −2⁶³ / −1, the one point where it is not: there 0 − a overflows.
+    fn div_checked(a ∈ Int, b ∈ Int) (Int) where b != 0 {
+        if b == -1 { (s, o) = llvm.ssub_with_overflow(0, a); if o { llvm.trap() } else { s } } else { llvm.sdiv(a, b) }
+    }
+
     // THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro): 0 when handed 0, a
     // trap otherwise.
     fn trap_if(a ∈ Int) (Int) { if a == 0 { 0 } else { llvm.trap() } }

@@ -115,11 +115,16 @@ module x64 {
     // it is #DE, a hardware trap that ends the process and that nothing catches.
     fn idiv(a ∈ Int, b ∈ Int) (r ∈ Int) pure
         where `!=`(b, 0) {
-        host expr "mov rax, ${a}\ncqo\nmov rcx, ${b}\nidiv rcx\nmov ${r}, rax"
+        host expr "mov rax, ${a}\ncqo\nmov rcx, ${b}\nidiv rcx\nmov ${r}, rax" checked idiv
     }
+    // idiv IS ITS OWN CHECKED FORM: it raises #DE at −2⁶³ / −1, the one quotient
+    // outside the word, and so traps exactly where the checked form must.
+    // irem IS NOT idiv's REMAINDER ALONE: ℤ's −2⁶³ % −1 is 0, in the word, but
+    // idiv raises #DE there (integers.md §4a). a % −1 is 0 for every a, so −1 is
+    // its own arm, rdx zeroed and idiv skipped.
     fn irem(a ∈ Int, b ∈ Int) (r ∈ Int) pure
         where `!=`(b, 0) {
-        host expr "mov rax, ${a}\ncqo\nmov rcx, ${b}\nidiv rcx\nmov ${r}, rdx"
+        host expr "mov rax, ${a}\nmov rcx, ${b}\nxor edx, edx\ncmp rcx, -1\nje Lrem${#}\ncqo\nidiv rcx\nLrem${#}:\nmov ${r}, rdx"
     }
 
     // ---- bitwise and shifts. A variable shift count must be in cl; x86 has no

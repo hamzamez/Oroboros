@@ -165,9 +165,13 @@ Ldone44:
         mov qword ptr [rsi+rdi*8+8], r13
         sub rdi, 1
         mov rax, r12
-        cqo
         mov rcx, 7
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem49
+        cqo
         idiv rcx
+        Lrem49:
         mov r13, rdx
         mov r12, r13
         jmp Ltop39

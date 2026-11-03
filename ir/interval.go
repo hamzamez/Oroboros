@@ -285,7 +285,7 @@ func divIV(a, b iv) iv {
 	if a.bot || b.bot {
 		return ivBot
 	}
-	if !b.finite() || b.lo.sign() <= 0 || !a.finite() {
+	if !b.finite() || !a.finite() {
 		if !b.nlo && b.lo.sign() > 0 && !a.nlo && a.lo.sign() >= 0 { // a ≥ 0, b ≥ 1: 0 ≤ a/b ≤ a
 			return iv{hi: a.hi, phi: a.phi}.norm()
 		}
@@ -294,10 +294,31 @@ func divIV(a, b iv) iv {
 		// or the program refused (refinements.md §3a).
 		return dividendBound(a)
 	}
-	c := []ep{a.lo.quo(b.lo), a.lo.quo(b.hi), a.hi.quo(b.lo), a.hi.quo(b.hi)}
-	out := rangeE(c[0], c[0])
-	for _, x := range c[1:] {
-		out.lo, out.hi = minE(out.lo, x), maxE(out.hi, x)
+	// EXACT, BY MONOTONICITY: on a region where b keeps its sign, truncating
+	// division is monotone in each argument, so its extremes are at the
+	// region's corners. A divisor straddling 0 is two regions, [lo, −1] and
+	// [1, hi] (b ≠ 0 is the obligation), and the quotient's hull is theirs. So
+	// a quotient leaves the word exactly when the intervals allow a = −2⁶³ and
+	// b = −1 (plan item 8, quotient-2026-11-03).
+	var regions [][2]ep
+	if b.lo.sign() < 0 {
+		regions = append(regions, [2]ep{b.lo, minE(b.hi, ei(-1))})
+	}
+	if b.hi.sign() > 0 {
+		regions = append(regions, [2]ep{maxE(b.lo, ei(1)), b.hi})
+	}
+	if len(regions) == 0 {
+		return ivBot // b = 0: no division of it runs
+	}
+	var out iv
+	for k, rg := range regions {
+		c := []ep{a.lo.quo(rg[0]), a.lo.quo(rg[1]), a.hi.quo(rg[0]), a.hi.quo(rg[1])}
+		if k == 0 {
+			out = rangeE(c[0], c[0])
+		}
+		for _, x := range c {
+			out.lo, out.hi = minE(out.lo, x), maxE(out.hi, x)
+		}
 	}
 	return out
 }

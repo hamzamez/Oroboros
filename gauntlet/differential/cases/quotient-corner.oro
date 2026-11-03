@@ -1,0 +1,21 @@
+// THE WORD'S ONE CORNER, −2⁶³, as a dividend (plan item 8, quotient-2026-11-03).
+//
+// For b ≠ 0, |a / b| ≤ |a| with equality iff |b| = 1, so ℤ's quotient leaves
+// the word S₆₄ only at −2⁶³ / −1 (that one is refused, or trapped under
+// -checked: emit/quotient_ir_test.go). Its remainder never leaves it,
+// |a % b| < |b|, and −2⁶³ % −1 is 0; but x86's `idiv` raises #DE there and
+// LLVM's `srem` is undefined, so a target that realizes `%` by the instruction
+// alone answers a trap or anything. This case is the remainder at the corner
+// for b ∈ −4..−1, and the quotient at the corner for d ∈ −5..−2, where the
+// decision proves it inside the word by the divisor's corners.
+//
+// run(n) = −2⁶³ / (b − 1) − (−2⁶³ % b), b = −1 − n % 4, n ≥ 0 so b ∈ −4..−1
+//
+// skip: js — JavaScript's word is ±(2⁵³ − 1), symmetric, so it has no corner:
+// −2⁶³ is above it there, and a quotient of its word never leaves it.
+// expect: 4611686018427387904 3074457345618258602 2305843009213693954 1844674407370955161 3074457345618258602 4611686018427387904 3074457345618258602 3074457345618258602 2305843009213693954
+export fn run(n ∈ 0..2^20) {
+    a = (0 - 2^62) * 2
+    b = 0 - 1 - n % 4
+    a / (b - 1) - a % b
+}

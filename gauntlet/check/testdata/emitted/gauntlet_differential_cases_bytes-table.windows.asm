@@ -37,9 +37,13 @@ Ltop4:
         mov r13, rdi
         imul r13, rdi
         mov rax, r13
-        cqo
         mov rcx, 13
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem11
+        cqo
         idiv rcx
+        Lrem11:
         mov r14, rdx
         add r12, r14
         and r12, 255

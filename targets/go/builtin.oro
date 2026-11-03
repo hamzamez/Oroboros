@@ -67,7 +67,13 @@ module go {
     }
     // A zero divisor is a precondition, not a behaviour (integers.md §5): Go
     // panics, Java throws, x86 raises #DE, and JavaScript returns Infinity.
-    fn `/`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} / ${b}" }
+    fn `/`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} / ${b}" checked div_exact }
+    // THE CHECKED QUOTIENT: ℤ's a / b leaves the word only at −2⁶³ / −1, where Go
+    // answers −2⁶³. −2⁶³ is the one nonzero x with x = −x in two's complement,
+    // so the test names no constant.
+    fn div_exact(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) {
+        host expr "func(a, b int) int { if b == -1 && a != 0 && a == -a { panic(\"int overflow\") }; return a / b }(${a}, ${b})"
+    }
     fn `%`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} % ${b}" }
 
     // ---- bitwise, on Go's int. A shift's count must be non-negative (the Go

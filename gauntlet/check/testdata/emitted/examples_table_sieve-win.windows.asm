@@ -171,9 +171,13 @@ Ltop48:
         mov r13, r12
         sub r13, 1
         mov rax, rdi
-        cqo
         mov rcx, 10
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem52
+        cqo
         idiv rcx
+        Lrem52:
         mov r14, rdx
         mov r15, 48
         add r15, r14

@@ -33,9 +33,13 @@ gen_run proc
         ud2
         Lok5:
         mov rax, rdi
-        cqo
         mov rcx, 8
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem6
+        cqo
         idiv rcx
+        Lrem6:
         mov r12, rdx
         add rsi, r12
         jno Lok7

@@ -231,6 +231,34 @@ the identity holds on every target:
 Verified on Go, Java and x86. It is the same choice as C99, Java, Go and every mainstream
 instruction set, and it is not independent of §3 — pick truncation and this follows.
 
+## 4a. The quotient at the word's corner (plan item 8, quotient-2026-11-03)
+
+**Theorem.** For b ≠ 0, |a / b| ≤ |a|, with equality iff |b| = 1; and |a % b| < |b|. *Proof*:
+|a / b| = ⌊|a| / |b|⌋ under truncation, and |a| / |b| ≤ |a| with equality iff |b| = 1; the remainder
+is a − b·(a / b), of the dividend's sign and smaller than |b| (§4). ∎
+
+So on a word [−2ⁿ⁻¹, 2ⁿ⁻¹ − 1] a quotient leaves it at exactly one point, −2ⁿ⁻¹ / −1 = 2ⁿ⁻¹, and a
+remainder never does. On a symmetric word (JavaScript's ±(2⁵³ − 1)) neither leaves it.
+
+| −2⁶³ by −1 | Go | Java | x86-64 | LLVM |
+|---|---|---|---|---|
+| `/` (ℤ: 2⁶³) | −2⁶³ | −2⁶³ | #DE | `sdiv` undefined |
+| `%` (ℤ: 0) | 0 | 0 | **#DE** | `srem` undefined |
+
+**Decision: `/` is decided like `+`** (§2, ADR 0019): the quotient's interval is computed exactly and
+the operation is refused unless it is proven inside the word, or trapped under `-checked` by the
+target's checked form. The transfer is exact by monotonicity: on a region where b keeps its sign,
+truncating division is monotone in each argument, so its extremes are at the region's corners, and a
+divisor straddling 0 is two regions, [lo, −1] and [1, hi] (b ≠ 0 is §5's obligation). A quotient is
+refused exactly when the facts allow a = −2⁶³ and b = −1. **`%` is not counted**, since it cannot
+leave the word; a target whose instruction is undefined or traps at the corner realizes it with −1
+as its own arm (a % −1 = 0), as `windows-llvm`'s `lang.rem` and MASM's `irem` do.
+
+The checked forms: Go's tests `b == −1 && a != 0 && a == −a` (−2⁶³ is the one nonzero x with
+x = −x in two's complement), the JVM's `Math.negateExact` at −1 (JDK 18's `Math.divideExact`,
+written for 17), x86's `idiv` is its own (it raises #DE at the corner and nowhere else in the
+word), and LLVM's arm at −1 is `0 − a` by `ssub.with.overflow`, a trap when it overflows.
+
 ## 5. Division by zero
 
 **This is the sharpest divergence in the whole numeric story, and it does not go away.**

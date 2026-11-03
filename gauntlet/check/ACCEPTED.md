@@ -2296,3 +2296,113 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/render.oro windows-llvm`
 - emitted text changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
 - compiler output changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
+
+## 2026-11-03 — on 212a29d, with uncommitted changes
+
+**Reason:** plan item 8: / is decided like + (|a/b| <= |a|, equality iff |b| = 1, so only -2^63 / -1 leaves the word), its transfer exact by the divisor's sign regions; checked forms on Go, the JVM, x86 and LLVM; MASM's irem answers 0 at -2^63 % -1 instead of #DE; three programs dividing an unbounded Int narrowed to the symmetric word; quotient-corner added
+
+770 runs: 426 emitted, 344 refused; 5212 of 5289 integer operations bounded, 557 of 580 loops proven. compiler pass, differential pass, tooling skip.
+
+91 change(s):
+
+- compiler output changed — `examples/big/fact-limbs.oro windows`
+- compiler output changed — `examples/big/fact-limbs.oro windows-llvm`
+- compiler output changed — `examples/big/limbs.oro go`
+- compiler output changed — `examples/big/limbs.oro java`
+- compiler output changed — `examples/big/limbs.oro js`
+- compiler output changed — `examples/big/limbs.oro windows`
+- compiler output changed — `examples/big/limbs.oro windows-llvm`
+- compiler output changed — `examples/big/power.oro go`
+- compiler output changed — `examples/big/power.oro java`
+- compiler output changed — `examples/big/power.oro js`
+- compiler output changed — `examples/big/render.oro go`
+- compiler output changed — `examples/big/render.oro java`
+- compiler output changed — `examples/big/render.oro js`
+- emitted text changed — `examples/big/render.oro windows`
+- compiler output changed — `examples/big/render.oro windows`
+- compiler output changed — `examples/big/render.oro windows-llvm`
+- compiler output changed — `examples/errors/expect.oro go`
+- compiler output changed — `examples/errors/expect.oro java`
+- compiler output changed — `examples/errors/expect.oro js`
+- compiler output changed — `examples/errors/expect.oro windows`
+- compiler output changed — `examples/errors/expect.oro windows-llvm`
+- compiler output changed — `examples/int/collatz.oro go`
+- compiler output changed — `examples/int/digit-sum.oro go`
+- compiler output changed — `examples/int/power.oro go`
+- compiler output changed — `examples/io/freq.oro go`
+- compiler output changed — `examples/io/freq.oro java`
+- compiler output changed — `examples/io/freq.oro js`
+- compiler output changed — `examples/io/roundtrip.oro go`
+- compiler output changed — `examples/io/roundtrip.oro java`
+- compiler output changed — `examples/io/roundtrip.oro js`
+- compiler output changed — `examples/lines/ages.oro go`
+- compiler output changed — `examples/match/runs.oro go`
+- emitted text changed — `examples/native/divmod-go.oro go`
+- compiler output changed — `examples/native/divmod-go.oro go`
+- emitted text changed — `examples/native/divmod-java.oro java`
+- compiler output changed — `examples/native/divmod-java.oro java`
+- compiler output changed — `examples/native/shortcircuit-go.oro go`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- compiler output changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/sieve-win-bench.oro windows`
+- compiler output changed — `examples/native/sieve-win-bench.oro windows`
+- emitted text changed — `examples/native/sieve-win.oro windows`
+- compiler output changed — `examples/native/sieve-win.oro windows`
+- compiler output changed — `examples/num/ledger.oro go`
+- compiler output changed — `examples/num/ledger.oro java`
+- compiler output changed — `examples/num/ledger.oro js`
+- compiler output changed — `examples/pe/pe.oro go`
+- compiler output changed — `examples/pe/pe.oro java`
+- compiler output changed — `examples/pe/pe.oro js`
+- emitted text changed — `examples/sum/parse.oro go`
+- compiler output changed — `examples/sum/parse.oro go`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- compiler output changed — `examples/table/sieve-win.oro windows`
+- compiler output changed — `examples/u128/factorials.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-divmod.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv32.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro go`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro java`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro js`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro windows-llvm`
+- new source — `gauntlet/differential/cases/quotient-corner.oro go`
+- new source — `gauntlet/differential/cases/quotient-corner.oro java`
+- new source — `gauntlet/differential/cases/quotient-corner.oro js`
+- new source — `gauntlet/differential/cases/quotient-corner.oro windows`
+- new source — `gauntlet/differential/cases/quotient-corner.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/render.oro go`
+- compiler output changed — `gauntlet/differential/cases/render.oro java`
+- compiler output changed — `gauntlet/differential/cases/render.oro js`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- compiler output changed — `gauntlet/differential/cases/render.oro windows`
+- compiler output changed — `gauntlet/differential/cases/render.oro windows-llvm`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro go`
+- compiler output changed — `gauntlet/differential/cases/shift-div.oro go`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro java`
+- compiler output changed — `gauntlet/differential/cases/shift-div.oro java`
+- compiler output changed — `gauntlet/differential/cases/shift-div.oro js`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro windows`
+- compiler output changed — `gauntlet/differential/cases/shift-div.oro windows`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
+- compiler output changed — `gauntlet/differential/cases/shift-div.oro windows-llvm`
+- compiler output changed — `lib/num/u128.oro go`
+- emitted text changed — `lib/win/fmt.oro windows`
+- compiler output changed — `lib/win/fmt.oro windows`
+- compiler output changed — `lib/win/print.oro windows-llvm`
+
+## 2026-11-03 — on 212a29d, with uncommitted changes
+
+**Reason:** quotient-corner states its domain, n in 0..2^20, so the sweep emits it; on js its divisor is not a constant and ir/pairs refuses it as not built, where constArg read a nil constant and panicked
+
+770 runs: 430 emitted, 340 refused; 5228 of 5305 integer operations bounded, 557 of 580 loops proven. compiler pass, differential pass, tooling skip.
+
+1 change(s):
+
+- compiler output changed — `gauntlet/differential/cases/quotient-corner.oro js`

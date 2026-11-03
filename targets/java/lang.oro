@@ -67,7 +67,13 @@ module java {
     fn subtractExact(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.subtractExact(${a}, ${b})" }
     fn multiplyExact(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.multiplyExact(${a}, ${b})" }
     // A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5.
-    fn `/`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} / ${b}" }
+    fn `/`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} / ${b}" checked divideExact }
+    // THE CHECKED QUOTIENT: ℤ's a / b leaves the word only at −2⁶³ / −1, where the
+    // JVM answers −2⁶³. Math.divideExact is JDK 18's; this is its definition on
+    // 17, Math.negateExact throwing at −2⁶³.
+    fn divideExact(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) {
+        host expr "(${b} == -1L && ${a} == Long.MIN_VALUE ? Math.negateExact(${a}) : ${a} / ${b})"
+    }
     fn `%`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} % ${b}" }
     fn neg(a ∈ Int) (Int) pure { host expr "-${a}" }
 

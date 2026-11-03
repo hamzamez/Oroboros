@@ -4,12 +4,12 @@ public final class gauntlet_differential_cases_shift-div.java {
 	public static long genRun(long v0) {
 		final long v3 = (Math.addExact(v0, 1));
 		final long v4 = (Math.subtractExact(0, v3));
-		final long v7 = (v4 / 2);
+		final long v7 = ((2 == -1L && v4 == Long.MIN_VALUE ? Math.negateExact(v4) : v4 / 2));
 		final long v9 = (Math.multiplyExact(v7, 100));
 		final int v11 = (int) ((v4 % 8));
 		final long v12 = (Math.addExact(v9, v11));
 		final long v14 = (Math.multiplyExact(v0, 300000000));
-		final long v16 = (v14 / 4);
+		final long v16 = ((4 == -1L && v14 == Long.MIN_VALUE ? Math.negateExact(v14) : v14 / 4));
 		final long v17 = (Math.addExact(v12, v16));
 		final long v18 = (Math.addExact(1000000, v17));
 		return v18;

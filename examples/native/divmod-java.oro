@@ -21,7 +21,11 @@ use java
 // and the JVM wrap and JavaScript loses precision, so the program has to say
 // what it means.
 fn dm(a, b) { (java.`/`(a, b), java.`%`(a, b)) }
-export fn divmod(a ∈ Int, b ∈ Int) (Int × Int) where java.`!=`(b, 0) { dm(a, b) }
+// THE QUOTIENT NEEDS A SYMMETRIC DIVIDEND (integers.md §4a): |a / b| <= |a|
+// with equality iff |b| = 1, so ℤ's quotient leaves the word only at
+// -2^63 / -1. A dividend in -(2^63-1)..2^63-1 makes it total whatever b is;
+// with `a ∈ Int` it was emitted as the host's `/`, answering -2^63 there.
+export fn divmod(a ∈ -2^63+1..2^63-1, b ∈ Int) (Int × Int) where java.`!=`(b, 0) { dm(a, b) }
 export fn divmod_sum(a ∈ -4503599627370495..2^52-1, b ∈ Int) (Int) where java.`!=`(b, 0) {
     (q, r) = dm(a, b)
     java.`+`(q, r)

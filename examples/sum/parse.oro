@@ -9,7 +9,11 @@ use go
 
 set Result = 'ok(Int) ∪ 'err(Int)
 
-export fn step(a ∈ Int, b ∈ Int) (Result) {
+// THE QUOTIENT NEEDS A SYMMETRIC DIVIDEND (integers.md §4a): |a / b| <= |a|
+// with equality iff |b| = 1, so ℤ's quotient leaves the word only at
+// -2^63 / -1. A dividend in -(2^63-1)..2^63-1 makes it total whatever b is;
+// with `a ∈ Int` it was emitted as the host's `/`, answering -2^63 there.
+export fn step(a ∈ -2^63+1..2^63-1, b ∈ Int) (Result) {
     case {
         b == 0 -> 'err(1)
         go.`>`(go.`%`(a, b), 0) -> 'err(2)

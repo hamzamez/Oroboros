@@ -71,9 +71,13 @@ Ldone14:
         jmp Ldone17
 Lelse16:
         mov rax, r12
-        cqo
         mov rcx, 16777216
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem18
+        cqo
         idiv rcx
+        Lrem18:
         mov r13, rdx
         mov r12, r13
 Ldone17:
@@ -121,9 +125,13 @@ Ldone27:
         jmp Ldone30
 Lelse29:
         mov rax, r12
-        cqo
         mov rcx, 16777216
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem31
+        cqo
         idiv rcx
+        Lrem31:
         mov r13, rdx
         mov r12, r13
 Ldone30:
@@ -213,9 +221,13 @@ Ldone57:
         jmp Ldone60
 Lelse59:
         mov rax, r14
-        cqo
         mov rcx, 16777216
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem61
+        cqo
         idiv rcx
+        Lrem61:
         mov r15, rdx
         mov r14, r15
 Ldone60:
@@ -263,9 +275,13 @@ Ldone70:
         jmp Ldone73
 Lelse72:
         mov rax, r14
-        cqo
         mov rcx, 16777216
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem74
+        cqo
         idiv rcx
+        Lrem74:
         mov r15, rdx
         mov r14, r15
 Ldone73:
@@ -346,9 +362,13 @@ Ldone92:
         jmp Ldone95
 Lelse94:
         mov rax, r15
-        cqo
         mov rcx, 16777216
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem96
+        cqo
         idiv rcx
+        Lrem96:
         mov rdi, rdx
 Ldone95:
         add r14, rdi
@@ -360,9 +380,13 @@ Ldone95:
         mov qword ptr [r12+r13*8+8], rdi
         sub r13, 1
         mov rax, r14
-        cqo
         mov rcx, 100000000
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem100
+        cqo
         idiv rcx
+        Lrem100:
         mov rdi, rdx
         mov r14, rdi
         jmp Ltop87
@@ -521,16 +545,24 @@ Ldone145:
         jmp Ldone149
 Lelse148:
         mov rax, r15
-        cqo
         mov rcx, 16777216
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem150
+        cqo
         idiv rcx
+        Lrem150:
         mov rbx, rdx
 Ldone149:
         add r14, rbx
         mov rax, r14
-        cqo
         mov rcx, 100000000
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem152
+        cqo
         idiv rcx
+        Lrem152:
         mov rbx, rdx
         mov r14, rbx
         jmp Ltop140
@@ -549,9 +581,13 @@ Ltop153:
         jg Lexit154
 Lelse156:
         mov rax, r12
-        cqo
         mov rcx, 10
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem162
+        cqo
         idiv rcx
+        Lrem162:
         mov r14, rdx
         mov r15, 48
         add r15, r14

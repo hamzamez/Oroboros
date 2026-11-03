@@ -185,9 +185,13 @@ Ldone51:
         mov qword ptr [rsi+rdi*8+8], r13
         sub rdi, 1
         mov rax, r12
-        cqo
         mov rcx, 100000000
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem56
+        cqo
         idiv rcx
+        Lrem56:
         mov r13, rdx
         mov r12, r13
         jmp Ltop43
@@ -224,9 +228,13 @@ Lelse65:
 Ldone66:
         add r12, r13
         mov rax, r12
-        cqo
         mov rcx, 100000000
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem69
+        cqo
         idiv rcx
+        Lrem69:
         mov r13, rdx
         mov r12, r13
         jmp Ltop57

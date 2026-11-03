@@ -116,8 +116,8 @@ func RealizeOps(tg *emit.Target, f *Func) (int, error) {
 			f.Types = append(f.Types, f.Types[s.Res[0]])
 			out = inlineInto(f, out, c, s.Args, []V{t}, ren)
 			// Counted where it stood only if the decision counts its operation:
-			// `+ − · neg` and ADR 0082's, not `/` and `%` (decide.go).
-			counted := s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op.IsBit()
+			// `+ − · / neg` and ADR 0082's, not `%` (decide.go).
+			counted := s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op == ODiv || s.Op.IsBit()
 			out = append(out, Stmt{Op: OThe, Type: factType(tg, fs[s.Res[0]].v), Args: []V{t}, Res: s.Res, Src: s.Src,
 				Mode: s.Mode, Realized: counted})
 		}

@@ -142,9 +142,13 @@ Ltop32:
         mov r14, r13
         sub r14, 1
         mov rax, r12
-        cqo
         mov rcx, 10
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem36
+        cqo
         idiv rcx
+        Lrem36:
         mov r15, rdx
         mov rbx, 48
         add rbx, r15

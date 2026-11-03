@@ -221,16 +221,16 @@ checked. When a package hits a wall that needs language work, stop, research it,
    literal its arm's guard implies, the literals computed as a meet over the guard's routes (spec/ir.md
    §6); faults planted for the wrong table, a flipped relation, a foreign operand, a missing negation, a
    π no branch enters, and a conjunction's false side.
-8. **Two defects the LLVM printer's programs named** (llvm-2026-11-02):
+8. ~~Two defects the LLVM printer's programs named~~ **done** (llvm-2026-11-02,
+   [quotient-2026-11-03](gauntlet/results/quotient-2026-11-03.md)):
    - ~~the refinement layer refused a goal it held as a fact~~ **fixed**: a range obligation inside the
      word that the interval route could not lower (a table of tuples) was refused as if above the word;
      it is decided by the facts (`emit/requires.go`, `TestARangeMarkTheIntervalsLeftIsDecidedByTheFacts`
      with the bug planted);
-   - **−2⁶³ / −1 is decided by nothing**: ℤ's quotient 2⁶³ leaves the word, and `/` is not among the
-     operations `ir.Decide` proves inside it, so Go and the JVM answer −2⁶³, MASM traps (#DE) and LLVM's
-     `sdiv` is undefined (windows-llvm reads a divisor −1 as 1, answering Go's). Decide the quotient
-     like `+`'s result, refusing or trapping, with its planted fault; measure the corpus's refusals.
-   Ahead of 9 and 10, whose programs meet call obligations and divide.
+   - ~~−2⁶³ / −1 is decided by nothing~~ **fixed** (integers.md §4a): |a / b| ≤ |a| with equality iff
+     |b| = 1, so `/` is decided like `+`, its interval exact by the divisor's sign regions; a checked
+     form on every target; three programs dividing an unbounded `Int` narrowed to the symmetric word;
+     MASM's `irem` answers ℤ's 0 at −2⁶³ % −1, where `idiv` raised #DE.
 9. **An `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
    ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)). Research it as a join point that may jump, build
    it, measure `wc` nested.
@@ -292,7 +292,7 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **5,027 of 5,093** integer operations proven inside their target's word, the 66 left
+- **Provability**: **5,228 of 5,305** integer operations proven inside their target's word, the 77 left
   mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
   **557 of 580** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.

@@ -59,7 +59,7 @@ link "kernel32"
 realize `+` = llvm.add checked lang.add_checked
 realize `-` = llvm.sub checked lang.sub_checked
 realize `*` = llvm.mul checked lang.mul_checked
-realize `/` = lang.div, llvm.sdiv
+realize `/` = lang.div, llvm.sdiv checked lang.div_checked
 realize `%` = lang.rem, llvm.srem
 realize `=` = llvm.eq
 realize `<` = llvm.slt

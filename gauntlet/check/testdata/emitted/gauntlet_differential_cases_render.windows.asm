@@ -456,9 +456,13 @@ Ldone134:
         mov qword ptr [r12+r13*8+8], r15
         sub r13, 1
         mov rax, r14
-        cqo
         mov rcx, 100000000
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem139
+        cqo
         idiv rcx
+        Lrem139:
         mov r15, rdx
         mov r14, r15
         jmp Ltop126
@@ -623,9 +627,13 @@ Lelse187:
 Ldone188:
         add r14, r15
         mov rax, r14
-        cqo
         mov rcx, 100000000
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem191
+        cqo
         idiv rcx
+        Lrem191:
         mov r15, rdx
         mov r14, r15
         jmp Ltop179
@@ -649,9 +657,13 @@ Lelse194:
         jmp Lexit193
 Lelse195:
         mov rax, r14
-        cqo
         mov rcx, 10
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem201
+        cqo
         idiv rcx
+        Lrem201:
         mov r15, rdx
         mov rbx, 48
         add rbx, r15

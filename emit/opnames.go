@@ -57,6 +57,8 @@ func uncheckedName(name string) (string, bool) {
 		return "sub", true
 	case "mul-exact", "multiplyExact", "imul-checked", "mul-checked":
 		return "mul", true
+	case "div-exact", "divideExact", "div-checked":
+		return "div", true
 	}
 	return "", false
 }

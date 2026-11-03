@@ -29,9 +29,13 @@ Ltop2:
         imul r13, rsi
         add rsi, 1
         mov rax, r13
-        cqo
         mov rcx, 13
+        xor edx, edx
+        cmp rcx, -1
+        je Lrem10
+        cqo
         idiv rcx
+        Lrem10:
         mov r14, rdx
         add r12, r14
         and r12, 255

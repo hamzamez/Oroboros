@@ -677,7 +677,10 @@ func (p *pairs) arith(s *Stmt) {
 	operand := func(v V) (V, V) { return p.toPair(v, wrap || res, "an operand of "+s.Op.String()) }
 	constArg := func(v V) (int64, bool) {
 		c, ok := p.kon[p.get(v)]
-		return c.Int64(), ok && c.IsInt64()
+		if !ok || !c.IsInt64() {
+			return 0, false // not a constant: the caller refuses, it never reads c
+		}
+		return c.Int64(), true
 	}
 	switch s.Op {
 	case OAdd, OSub:

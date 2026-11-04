@@ -1,0 +1,10 @@
+// THE PROCESS'S CODE PAGE IS UTF-8 (docs/spec/llvm.md §2, mastretire-2026-11-03).
+// Win32's `A` functions read a string's bytes in the process's ANSI code page,
+// and the language's strings are UTF-8, so the two agree exactly when the code
+// page is 65001. The windows target embeds a manifest that declares it; without
+// it the code page is the system's (1252 here), and `CreateFileA("tést.txt")`
+// named a file `tÃ©st.txt`.
+use win/WinNls as n
+use win/print
+
+export fn main() { print.print_int(n.GetACP()) }

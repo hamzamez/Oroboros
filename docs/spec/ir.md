@@ -194,17 +194,18 @@ stmt     ::= (val PARAM… op)                                   one or more res
 op       ::= (const LIT) | (global NAME)
            | (ARITH [MODE] [REALIZ] %a…) | (CMP %a %b)
            | (call NAME %a…)                  ; NAME a string when no program can write it (below)
-           | (index %t %i) | (len %t) | (array %a…) | (map (%k %v)…)
+           | (index %t %i) | (len %t) | (array [STORE] %a…) | (map (%k %v)…)
            | (read %m %k) | (keys %m) | (set %b %i %x) | (insert %m %k %x)
            | (if %c region region)
            | (loop (init %a…) region)
-           | (build %n region) | (build-map %n region) | (tabulate %n region)
+           | (build [STORE] %n region) | (build-map %n region) | (tabulate [STORE] %n region)
            | (the τ %a) | (require %c) | (assume %c) | (restrict %t %n)
 term     ::= (yield %a…) | (break %a…) | (continue %a…) | (branch %c region region)
 ARITH    ::= add | sub | mul | neg | div | rem
 CMP      ::= eq | ne | lt | le | gt | ge
 MODE     ::= exact | trap                                      §4.4; absent only in IR_A
 REALIZ   ::= NAME | via NAME                                   the realization chosen, below
+STORE    ::= store %p                                          a table's storage, below
 ```
 
 **A realization the IR chose is the printers' input, as a mode is.** `NAME` after a Boolean operation's
@@ -213,6 +214,10 @@ NAME` is the host operation an integer operation is computed by on a target that
 realizations (ADR 0088, 0089): a later stated realization whose domain the facts prove, or one a
 realization's term names, `(shl exact via llvm.shl %1 %2)`. Its meaning is the operation's; `via` says
 only which host operation computes it.
+
+**A table's storage** (ADR 0092): on a target that realizes the allocator by a term, `store %p` names
+the value `alloc(n, w)` answered, the region a `build`, `tabulate` or array literal makes its table in.
+It is a use of %p, a `ptr`, defined before the statement (W2), and on no other operation (W4).
 
 `%N` is a value: a decimal id, unique in its function. `τ` is a type (§4.1), and `LIT` an integer,
 float, string or `true`/`false` literal as the reader reads one.

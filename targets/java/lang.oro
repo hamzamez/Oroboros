@@ -45,6 +45,9 @@ module java {
     // rather than `+`, which the JVM compiles through StringConcatFactory: the
     // method names the operation plainly.
     fn concat(a ∈ String, b ∈ String) (String) pure { host expr "${a}.concat(${b})" }
+    // ¬ν, ν : Σ* → (𝔹, ∨) the homomorphism true exactly on U+0000 (ADR 0091): a
+    // string is a C string iff it holds no NUL. Found by spelling.
+    fn nulfree(s ∈ String) (Bool) pure { host expr "(${s}.indexOf(0) < 0)" }
 
     // η : Scalar → Scalar*, the generator injection — the string of one scalar.
     // `toChars` yields the surrogate PAIR above the BMP, which is UTF-16's

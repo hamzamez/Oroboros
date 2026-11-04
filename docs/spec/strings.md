@@ -254,3 +254,37 @@ of a host string.
 
 **Generated declarations** spell every Go `string` as `go.bytestring`, because the generator cannot read
 a body (ADR 0023). A string constant is `string` when its value is valid UTF-8.
+
+## 9. A C string ([ADR 0091](../decisions/0091-a-c-string-is-the-kernel-of-the-nul-homomorphism.md))
+
+ν : Σ* → (𝔹, ∨, false) is the monoid homomorphism that is true exactly on the generator U+0000:
+ν(ε) = false, ν(a ++ b) = ν(a) ∨ ν(b), ν(⟨c⟩) = [c = 0]. **A C string is an element of its kernel**,
+ν⁻¹(false), the free submonoid on Σ ∖ {0}: every C API's `const char *` reads the bytes up to the first
+NUL, so it reads a string exactly when the string holds none.
+
+`nulfree(s)` is ¬ν(s), a word of Σ_L, total and pure, realized on every target (Go's
+`strings.IndexByte`, JavaScript's `includes`, the JVM's `indexOf`, windows a scan of the bytes, exact
+on UTF-8 because U+0000 is the byte 0 and every byte of a longer sequence is at least 0x80).
+
+A C-string parameter is `s ∈ String where nulfree(s)`, its set the separation {s ∈ String :
+nulfree(s)}. The obligation is decided by ν on the argument's term, which is exact because ν is a
+homomorphism:
+
+| argument | decided by |
+|---|---|
+| a literal | its scalars |
+| `a ++ b` | both |
+| `string_of(c)` | c ≠ 0 from the facts |
+| `if c { a } else { b }` | both arms |
+| anything else | an identical assumption: a guard `if nulfree(s)` on its arm |
+
+So a string from input reaches C through the guard, which scans it once; there is no other
+conversion, because the map into C strings is the identity on its domain (llvm.md §4). `-checked`
+does not apply: an unproven `where` is refused.
+
+**Not built, each with its trigger:**
+- A C string from Win32 into ours: `strlen` and a copy, total, landing in the kernel. Trigger: a call
+  returning or filling one (TinyRetroPad's `GetWindowTextA`).
+- The list of C strings, (B*₀)* → bytes, s₁ 0 … sₙ 0 0 (`lpstrFilter`, `REG_MULTI_SZ`, an environment
+  block). Trigger: TinyRetroPad's open dialog.
+- The `W` functions' UTF-16, a codec on the kernel. Trigger: a `W` function.

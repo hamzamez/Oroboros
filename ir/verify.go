@@ -647,6 +647,16 @@ func (v *verifier) stmt(s *Stmt) {
 	for _, a := range s.Args {
 		v.use(a, where)
 	}
+	// A TABLE'S STORAGE (ADR 0092): one pointer, used by a statement that makes
+	// a table.
+	if len(s.Store) > 0 {
+		if len(s.Store) != 1 || (s.Op != OBuild && s.Op != OTabulate && s.Op != OArray) {
+			v.add("W4: %s takes no storage", where)
+		}
+		for _, a := range s.Store {
+			v.use(a, where)
+		}
+	}
 	// W4: arities.
 	if s.Op == OCall {
 		p, ok := v.tg.Prims[s.Name]

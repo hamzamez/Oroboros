@@ -687,6 +687,10 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 // a disequality by either side, a linear conjunction by entailment, an opaque
 // atom by an identical assumption. It proves or it does not; it never refuses.
 func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
+	// A C STRING (ADR 0091): nulfree(s) is ν(s) = false, decided on s's term.
+	if s, ok := nulfreeArg(cond); ok && r.nulFree(s, f) {
+		return true
+	}
 	// A CLOSED COMPARISON IS DECIDED IN ℤ, exactly, as a primitive's is
 	// (discharge): a literal past the word, lib/bytes' 2^64 − 1, folds nowhere
 	// else, and folding in a proof emits nothing (ADR 0009 governs code).
@@ -715,6 +719,56 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 	}
 	return true
 }
+
+// nulfreeArg is s when cond is `nulfree(s)`.
+func nulfreeArg(cond *core.Term) (*core.Term, bool) {
+	if cond.Kind == core.KApp && len(cond.Kids) == 2 && cond.Kids[0].Kind == core.KName && cond.Kids[0].Name == "nulfree" {
+		return cond.Kids[1], true
+	}
+	return nil, false
+}
+
+// nulFree proves ν(s) = false, ν : Σ* → (𝔹, ∨, false) the monoid homomorphism
+// true exactly on U+0000 (ADR 0091). Because ν is a homomorphism the decision
+// is ν evaluated on s's term, and exact there:
+//
+//	ν(literal)       its scalars
+//	ν(a ++ b)        ν(a) ∨ ν(b)
+//	ν(string_of(c))  [c = 0], so c ≠ 0 from the facts
+//	ν(if c a b)      ν(a) ∨ ν(b)
+//
+// and any other term is the atom nulfree(s), proven only by an identical
+// assumption: a guard `if nulfree(s)` on the arm it enters (Theorem E).
+func (r *refiner) nulFree(s *core.Term, f *facts) bool {
+	if core.IsRequire(s) {
+		s = s.Kids[4]
+	}
+	switch s.Kind {
+	case core.KStr:
+		return PlantNulFault || !strings.ContainsRune(s.Str, 0)
+	case core.KApp:
+		if op := s.Kids[0]; op.Kind == core.KName {
+			switch {
+			case op.Name == "concat" && len(s.Kids) == 3:
+				return r.nulFree(s.Kids[1], f) && r.nulFree(s.Kids[2], f)
+			case op.Name == "string-of" && len(s.Kids) == 2:
+				c := s.Kids[1]
+				if core.IsRequire(c) {
+					c = c.Kids[4]
+				}
+				ne := core.App(core.Name("if"), core.App(core.Name("="), c, core.Int(0)), core.Bool(false), core.Bool(true))
+				return r.proveCond(ne, f)
+			case op.Name == "if" && len(s.Kids) == 4:
+				return r.nulFree(s.Kids[2], f) && r.nulFree(s.Kids[3], f)
+			}
+		}
+	}
+	return f.entailsOpaque(opaqueKey(core.App(core.Name("nulfree"), s)))
+}
+
+// PlantNulFault reads every literal as NUL-free, the decision without ν's
+// generator case: TestACStringIsTheKernelOfNu must then accept "a\u{0}b".
+var PlantNulFault bool
 
 // DecideRange is a range obligation ⟦a⟧ ∈ ⟦ty⟧ decided on an interval for a
 // whose ends are exact (nil for an open end; bot for no value): the sets are

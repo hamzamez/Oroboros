@@ -1,0 +1,7 @@
+// A STRING HOLDING A NUL IS NOT A C STRING (ADR 0091), and a call that hands one
+// to Win32 is refused, naming the obligation: lstrlenA would read "ab" and say 2.
+// This program must not build; tooling_test.go checks the refusal.
+use win/WinBase as w
+use win/print
+
+export fn main() { print.print_int(w.lstrlenA("ab\u{0}cd")) }

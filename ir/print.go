@@ -232,12 +232,23 @@ func (pr *printer) op(s *Stmt) []string {
 	case OLoop:
 		return wrap("(loop (init"+lead([]string{pr.vs(s.Args)})+")", pr.region(s.Sub[0]))
 	case OBuild, OBuildMap, OTabulate:
-		return wrap("("+name+" "+pr.vs(s.Args), pr.region(s.Sub[0]))
+		return wrap("("+name+pr.store(s)+" "+pr.vs(s.Args), pr.region(s.Sub[0]))
+	}
+	if s.Op == OArray && len(s.Store) > 0 {
+		return []string{"(" + name + pr.store(s) + " " + pr.vs(s.Args) + ")"}
 	}
 	if len(s.Args) == 0 {
 		return []string{"(" + name + ")"}
 	}
 	return []string{"(" + name + " " + pr.vs(s.Args) + ")"}
+}
+
+// store is a table statement's storage, ` store %p`, or nothing (ADR 0092).
+func (pr *printer) store(s *Stmt) string {
+	if len(s.Store) == 0 {
+		return ""
+	}
+	return " store " + pr.vs(s.Store)
 }
 
 // primText is a primitive's name as the reader reads it: the name, or a string
@@ -348,6 +359,7 @@ func Canonicalize(f *Func) {
 		for i := range r.Stmts {
 			r.Stmts[i].Args = ms(r.Stmts[i].Args)
 			r.Stmts[i].Res = ms(r.Stmts[i].Res)
+			r.Stmts[i].Store = ms(r.Stmts[i].Store)
 		}
 		r.Args = ms(r.Args)
 		if r.T == TBranch {

@@ -2445,3 +2445,30 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - source removed — `lib/win/fmt.oro js`
 - source removed — `lib/win/fmt.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-04 — on e4cab11, with uncommitted changes
+
+**Reason:** ADR 0091 and 0092: nulfree in Σ_L and its case; a table's storage is an IR operation and the allocator a term over kernel32 and Σ_LLVM, inlined at each table (the sieve measured unchanged, 0.68 of hand-written MASM)
+
+608 runs: 371 emitted, 237 refused; 4999 of 5059 integer operations bounded, 492 of 516 loops proven. compiler pass, differential pass, tooling skip.
+
+18 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- new source — `gauntlet/differential/cases/nulfree.oro go`
+- new source — `gauntlet/differential/cases/nulfree.oro java`
+- new source — `gauntlet/differential/cases/nulfree.oro js`
+- new source — `gauntlet/differential/cases/nulfree.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `lib/win/print.oro windows`

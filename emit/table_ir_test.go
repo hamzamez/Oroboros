@@ -120,7 +120,9 @@ func TestWindowsHasTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"call ptr @oro.alloc(",              // the target's own allocator, found not declared anew
+		"call ptr @VirtualAlloc(",           // the allocator's term (ADR 0092), inlined
+		"call ptr @HeapAlloc(",              // both of kernel32's, chosen by size
+		"mul nsw i64 %v0, 8",                // n·w, proven inside the word by the term's guard
 		"getelementptr inbounds i8, ptr %",  // the elements, past the length header
 		"getelementptr inbounds i64, ptr %", // each eight bytes
 	} {

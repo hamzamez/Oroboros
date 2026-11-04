@@ -1088,9 +1088,10 @@ func newestSDK() (string, error) {
 //	                            silent wrap
 //	a 64-bit integer            the word, as it is
 //	a pointer or a handle       `ptr`, as it is
-//	a C string                  `String`, its bytes at s + 8, NUL-terminated by
-//	                            the target's representation (llvm.md §4): exact
-//	                            on a string holding no NUL (mastretire-2026-11-03)
+//	a C string                  `String` where nulfree, its bytes at s + 8,
+//	                            NUL-terminated by the target's representation
+//	                            (llvm.md §4): exact on ν's kernel, the strings
+//	                            holding no NUL (ADR 0091)
 //
 // and a result of w < 64 bits is its C range, by `sext` or `zext`. A 64-bit
 // unsigned result at or above 2^63 reads as the signed word, as it did on MASM:
@@ -1100,6 +1101,7 @@ type llvmDecl struct {
 	result   string   // the result's set, or "" for void
 	template string
 	declare  string
+	where    []string // each C string parameter's obligation, nulfree (ADR 0091)
 }
 
 func llvmCall(f fn, structs, handles, callbacks map[string]bool, alias map[string]string) llvmDecl {
@@ -1112,7 +1114,10 @@ func llvmCall(f fn, structs, handles, callbacks map[string]bool, alias map[strin
 		reg := "%" + nm + "${#}"
 		switch classify(p.typ, structs, handles, callbacks, alias) {
 		case shString:
+			// A C STRING IS THE KERNEL OF ν (ADR 0091): the bytes at s + 8 are C's
+			// string exactly when s holds no NUL, which is the call's obligation.
 			d.sets = append(d.sets, "String")
+			d.where = append(d.where, "nulfree("+nm+")")
 			fmt.Fprintf(&pre, "%s = getelementptr inbounds i8, %s, i64 8\n", reg, h)
 			ops, tys = append(ops, "ptr "+reg), append(tys, "ptr")
 		case shPtr:
@@ -1238,7 +1243,7 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 			// refusal at the linker rather than a binding to the wrong DLL.
 			lib, _ := lk.resolve(f.name)
 			body.WriteString(jdecl.Fn{Name: f.name, Params: args, Result: res, Kind: kind,
-				Template: d.template, Import: d.declare, Lib: lib}.String())
+				Template: d.template, Import: d.declare, Lib: lib, Where: strings.Join(d.where, " && ")}.String())
 			n++
 		}
 		b.WriteString(jdecl.Module("win/"+mod, body.String()))

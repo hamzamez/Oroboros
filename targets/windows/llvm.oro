@@ -76,4 +76,6 @@ module llvm {
     // and the language cannot read through it (ADR 0084: no load without a
     // view). An instruction must name it, so it is the address null + 0.
     fn null() (ptr) pure { host expr "getelementptr i8, ptr null, i64 0" }
+    // `icmp eq` on ptr against null: whether an allocator's answer is no region.
+    fn is_null(p ∈ ptr) (Bool) pure { host expr "icmp eq ${p}, null" }
 }

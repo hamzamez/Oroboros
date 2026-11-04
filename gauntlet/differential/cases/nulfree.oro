@@ -1,0 +1,16 @@
+// ¬ν ON EVERY TARGET (ADR 0091): `nulfree(s)` is true iff s holds no U+0000,
+// realized by each host's own scan (Go's IndexByte, JavaScript's includes, the
+// JVM's indexOf) and on windows by a loop over the bytes, exact on UTF-8.
+//
+// run(n) = [nulfree("ab" ++ η(n))] + 10·[nulfree(η(955 + n) ++ "x")]
+//          + 100·[nulfree("a\u{0}" ++ η(n + 1))]
+//
+// The first is false exactly at n = 0; the second never (λ and its
+// neighbours are two bytes, none 0); the third always holds a NUL.
+// expect: 10 11 11 11 11 11 11 11 11
+export fn run(n ∈ 0..100) {
+    a = if nulfree("ab" ++ string_of(n)) { 1 } else { 0 }
+    b = if nulfree(string_of(955 + n) ++ "x") { 10 } else { 0 }
+    c = if nulfree("a\u{0}" ++ string_of(n + 1)) { 100 } else { 0 }
+    a + b + c
+}

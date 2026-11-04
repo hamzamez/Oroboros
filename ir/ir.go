@@ -193,6 +193,11 @@ type Stmt struct {
 	// realization's term. In memory only: the decision counts the program's
 	// operations by them (ADR 0089), and `the` does not reach IR_P.
 	Realized, FromTerm bool
+	// Store is the storage of a table a build, a tabulate or an array makes,
+	// on a target that realizes the allocator by a term (ADR 0092,
+	// ir/storage.go): the value `alloc` answered, one or none. Printed
+	// `store %p` after the operation's name, and renamed with Args.
+	Store []V
 	// Src is PROVENANCE: the application this statement lowers, which a
 	// diagnostic names (a refusal says which source operation it could not
 	// prove). It is in memory only, like the facts: never printed, never read,

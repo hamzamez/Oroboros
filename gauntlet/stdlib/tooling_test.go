@@ -498,6 +498,9 @@ type accept struct {
 	// what the platform says of a directory, its size, is the platform's.
 	stamp  time.Time
 	wantFn func(proj string) []string
+	// refuse, when set, is a program that must NOT build: the refusal must
+	// name it, and a build is the failure (a refusal test states its reason).
+	refuse string
 }
 
 // duTree is du's input: files at several depths, one empty, and an empty
@@ -688,6 +691,14 @@ func acceptance() map[string]accept {
 		// (docs/spec/llvm.md §4, mastretire-2026-11-03).
 		"c-string": {host: "win32", target: "windows", layer: ".", want: []string{"5", "2", "5"},
 			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		// And a string holding a NUL, refused at the C-string parameter: ν's
+		// kernel is the domain (ADR 0091).
+		"c-string-refused": {host: "win32", target: "windows", layer: ".", refuse: "nulfree",
+			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		// And the process's code page, which the `A` functions read a string's
+		// bytes in: UTF-8, 65001, by the manifest the target embeds.
+		"code-page": {host: "win32", target: "windows", layer: ".", want: []string{"65001"},
+			files: map[string]string{"windows/WinNls.oro": "WinNls.oro"}},
 		// And two libraries the target does not link by default, reached only
 		// because a generated declaration says `(lib "…")` and the link line is
 		// computed from what the program calls (linkline-2026-09-13). Against
@@ -893,7 +904,14 @@ func TestAcceptanceProgramsRun(t *testing.T) {
 			out := filepath.Join(proj, artifact[a.target].name)
 			argv := append([]string{bin}, a.flags...)
 			argv = append(argv, "-target="+a.target, "-targets", layers, "-o", out, src)
-			if _, err := command(root, argv...); err != nil {
+			_, err := command(root, argv...)
+			if a.refuse != "" {
+				if err == nil || !strings.Contains(err.Error(), a.refuse) {
+					t.Fatalf("want the build refused naming %q, got %v", a.refuse, err)
+				}
+				return
+			}
+			if err != nil {
 				t.Fatalf("build: %v", err)
 			}
 			// Run from the repository root: os-methods and io-reader read go.mod.

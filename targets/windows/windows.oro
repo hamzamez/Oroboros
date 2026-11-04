@@ -75,9 +75,10 @@ realize `>>` = lang.ashr, llvm.ashr
 realize mod = lang.emod
 realize string_of = win/str.string_of
 realize concat = win/str.concat
+realize nulfree = lang.no_nul
 realize abandon = lang.crash
 realize trap_if = lang.trap_if
-realize alloc = lang.alloc
+realize alloc = lang.allocate
 
 build "cmd /c .\\build.bat"
 artifact "main.exe"

@@ -192,6 +192,9 @@ module go {
     // ---- the language's string monoid on Go (string-operations.md §1), found by
     // spelling. V·V ⊆ V, so ours stays ours.
     fn concat(a ∈ String, b ∈ String) (String) pure { host expr "${a} + ${b}" }
+    // ¬ν, ν : Σ* → (𝔹, ∨) the homomorphism true exactly on U+0000 (ADR 0091): a
+    // string is a C string iff it holds no NUL. Found by spelling.
+    fn nulfree(s ∈ String) (Bool) pure { host expr "(strings.IndexByte(${s}, 0) < 0)" import "strings" }
     // η : Scalar → Σ*. ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF]
     // (string-operations.md §7), a disjunction decided by case split. Outside it
     // the hosts disagree observably — Go gives U+FFFD, JavaScript a lone

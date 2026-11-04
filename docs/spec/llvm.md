@@ -40,8 +40,8 @@ are the host's, under the host's own names:
 - `lang.oro`: where no single instruction is a language operation on the whole of its domain, its
   realization as **a term over the host's operations** (ADR 0089), a definition in the language:
   `~`, `<<` and `>>` past 63, `mod`, `/` and `%` at a divisor −1, the checked arithmetic (the overflow
-  intrinsics' two results and `llvm.trap`, ADR 0090), `trap_if`, and the crash. One template remains,
-  `build`'s allocator (a pointer as a value, ADR 0084's LLVM part);
+  intrinsics' two results and `llvm.trap`, ADR 0090), `trap_if`, the crash, `nulfree` (ADR 0091),
+  and the allocator (ADR 0092);
 - `kernel32.oro`: the Win32 functions programs call, as they are, each `declare dllimport` in the
   printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count. The
   rest of Win32 is the survey's generated layer (`gauntlet/stdlib/win32.go`), written the same way:
@@ -53,7 +53,12 @@ are the host's, under the host's own names:
 `lib/win/print.oro` prints integers and strings in the language's own operators over a byte table.
 
 The build compiles with `clang -O2 -c` and links with MSVC's `link`, the libraries of the link line,
-and `-entry:main`. No C runtime is linked unless a primitive names one, and
+and `-entry:main`. **The program's manifest declares UTF-8 its code page**
+(`<activeCodePage>UTF-8</activeCodePage>`, Windows 10 1903 and later), embedded by `link
+/MANIFEST:EMBED`: Win32's `A` functions read their bytes in the process's code page, so with it a
+string's bytes are the text the language means, and without it `CreateFileA("tést.txt")` named a file
+`tÃ©st.txt` (code page 1252, mastretire-2026-11-03). The language's strings are UTF-8 (strings.md),
+and this makes the identity s ↦ s + 8 the `A` functions' encoding on every string without a NUL. No C runtime is linked unless a primitive names one, and
 every function is `"no-builtins"`, so no loop becomes a call to the runtime's `memset` or `memcpy`.
 
 ## 3. Types
@@ -85,10 +90,15 @@ The width is read off the table's representative's type, so every alias of a tab
 - **`set b i x`** stores x, narrowed with `trunc` (a Boolean with `zext`), which is exact because x is
   proven inside the element's range. A buffer is linear (ADR 0018, R0–R4), so the store is in place and
   the result is b.
-- **A table's storage** is 8 + n·w bytes from kernel32, zero on creation, which is a table's semantics
-  (tables.md), so a `build`'s fill of zeros prints nothing: `VirtualAlloc` from 64 KiB, whose pages the
-  system has zeroed, and the process heap with `HEAP_ZERO_MEMORY` below, since `VirtualAlloc` reserves
-  64 KiB a call (measured, llvm-2026-11-02). A null answer is a trap, never a pointer LLVM may assume.
+- **A table's storage** is an operation of the IR (ADR 0092, `ir.Storage`): before each `build`,
+  `tabulate` and array literal of n elements of w bytes (`ir.ElemBytes`, the layout every access reads
+  by), `p = alloc(n, w)`, which the statement takes as its storage (`store %p`). ι substitutes
+  `lang.allocate`, alloc : ℕ × {1, 8} → Region, whose guard 0 ≤ n ≤ ⌊(2⁶³ − 9)/8⌋ makes n·w + 8 a
+  proven `mul nsw` and turns a larger request away as exhaustion, the trap. Its region is zero on
+  creation, which is a table's semantics (tables.md), so a `build`'s fill of zeros prints nothing:
+  `VirtualAlloc` from 64 KiB, whose pages the system has zeroed, and the process heap with
+  `HEAP_ZERO_MEMORY` below, since `VirtualAlloc` reserves 64 KiB a call (measured, llvm-2026-11-02).
+  A null answer is a trap, never a pointer LLVM may assume.
 - **`restrict t n`** is not printed in the first step, as on MASM: a restriction's length must survive
   a join, which a header-held length does not.
 - **A string** is its length, its UTF-8 bytes and a NUL after them: `{ i64 len, [len+1 x i8] }` for a

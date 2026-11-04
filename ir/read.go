@@ -321,6 +321,13 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 	s := Stmt{Op: o}
 	args := t.Kids[1:]
 	var err error
+	// A TABLE'S STORAGE (ADR 0092): `store %p` after the operation's name.
+	if (o == OBuild || o == OTabulate || o == OArray) && len(args) >= 2 && args[0].Kind == core.KName && args[0].Name == "store" {
+		if s.Store, err = rd.values(args[1:2]); err != nil {
+			return s, err
+		}
+		args = args[2:]
+	}
 	switch o {
 	case OConst:
 		if len(args) != 1 {

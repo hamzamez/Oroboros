@@ -16,7 +16,7 @@ func TestALinkLineWithNoLibsIsTheOldConstant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const old = "link -nologo -subsystem:console -entry:main main.obj kernel32.lib -out:main.exe || exit /b 1"
+	const old = "link -nologo -subsystem:console -entry:main -manifest:embed -manifestinput:main.manifest main.obj kernel32.lib -out:main.exe || exit /b 1"
 	got := buildScript(tg.Link, map[string]bool{})
 	if !strings.Contains(got, old+"\n") {
 		t.Fatalf("a program using no lib does not get the target's own link line:\n%s", got)

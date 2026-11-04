@@ -210,10 +210,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
      the language's operators; the Win32 survey writes `call` and `declare`, an integer parameter its C
      range by `trunc` and a narrow result by `sext`/`zext`, every pinned figure unchanged and the
      acceptance programs proven without `-checked`; a string carries a NUL after its bytes, so it is
-     Win32's C string. **A wall with hamza**: a C string's domain is B*₀, the strings with no NUL,
-     which the language cannot state, and the `A` functions read the ANSI code page, so a non-ASCII
-     string is misread (`tést` became `tÃ©st`) until a UTF-8 manifest or a UTF-16 codec (mastretire,
-     "A wall"). Step 3, Σ_LLVM's families, by demand,
+     Win32's C string. **The wall, decided** (ADR 0091, [cstring-2026-11-04](gauntlet/results/cstring-2026-11-04.md)):
+     a C string is the kernel of ν, the monoid homomorphism Σ* → (𝔹, ∨) true on U+0000; `nulfree` is
+     in Σ_L, an `LPCSTR` parameter `where nulfree(a)`, decided by ν on the argument's term and by a
+     guard; a UTF-8 manifest makes the `A` functions read our bytes. **The allocator is a term**
+     (ADR 0092): a table's storage is an IR operation, `alloc(n, w)`, its `n·w + 8` proven. Step 3, Σ_LLVM's families, by demand,
      TinyRetroPad's first. Left to the walls: LLVM's widths (native iN, i32 scalars on i686), the
      unsigned word on windows (its 64-bit results at or above 2⁶³ read signed, as on MASM), and the
      rung above as native iN, measured against the limbs.
@@ -273,6 +274,11 @@ what TinyRetroPad's walls need.
     the directed modes onto F64, `-checked` for a rounding, a rounding onto F64 of a decimal;
   - F(p, …)'s and D(k, R)'s definitions in `lib/num.oro`, which need replacement sets (ADR 0061), and
     D(k, R)'s separation normal form.
+- **Win32's strings, the rest of ADR 0091**: a C string from Win32 into ours (`strlen` and a copy,
+  total, into ν's kernel), trigger TinyRetroPad's `GetWindowTextA`; the list of C strings,
+  (B*₀)* → bytes, trigger its open dialog's filter; the `W` functions' UTF-16, trigger a `W` function;
+  `string_of` and `++` on windows as terms over the bytes, which need V (valid UTF-8, a submonoid by
+  ν's argument), trigger the next change to `strings.oro`.
 - **One integer rendering**, render : ℤ → Σ*, per representation, replacing `big-str` (declared on three
   targets, and a hidden allocation on a value that fits the word). Trigger: printing's P3.
 - **A 32-bit scalar representation** (ADR 0083 item 2's register rule): FNV-1a 32 masks each step
@@ -299,9 +305,9 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **4,983 of 5,043** integer operations proven inside their target's word, the 60 left
+- **Provability**: **4,999 of 5,059** integer operations proven inside their target's word, the 60 left
   mostly meant to be refused or waiting on the unsigned word on windows;
-  **489 of 513** loops proven to terminate (size-change termination). Each
+  **492 of 516** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -403,7 +409,9 @@ option (b), jswitch5b-2026-10-16).
   tag and one slot per payload type (ADR 0042, 0059).
 - **Strings** are the free monoid over Unicode scalars, `++` and `string_of`; a host's string is the
   host's (`go.bytestring`), entered by one total decode, `go.text` (ADR 0030,
-  [strings.md](docs/spec/strings.md)). **Not built**: records, symbols, `with`.
+  [strings.md](docs/spec/strings.md)). **A C string is the kernel of ν** (ADR 0091, strings.md §9):
+  `nulfree(s)` in Σ_L, a C-string parameter `where nulfree(s)`, decided by ν's homomorphism on the
+  argument's term, and by a guard. **Not built**: records, symbols, `with`.
 
 ### Integers
 
@@ -608,6 +616,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | A target states its realization of each language name, chosen per instance by proof; a host operation is declared as it is, its domain its `where` (built for windows; the others by spelling until restated) | [0088](docs/decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md) |
 | A realization is a term over the host's operations, ι : Σ_L → T(Σ_H), checked defined and agreeing, substituted after the decision; templates only for a host's own operations (amends 0088) | [0089](docs/decisions/0089-a-realization-is-a-term-over-the-hosts-operations.md) |
 | ∅ is a set; a function into it never returns (0 initial, k ∘ h = h), every declaration not only `abandon`; a host's product taken apart by its projections; legality decided before ι | [0090](docs/decisions/0090-a-function-into-the-empty-set-never-returns.md) |
+| A C string is the kernel of ν, the monoid homomorphism true on U+0000; `nulfree` in Σ_L, decided by ν on the argument's term and by a guard | [0091](docs/decisions/0091-a-c-string-is-the-kernel-of-the-nul-homomorphism.md) |
+| A table's storage is an operation of the IR, `alloc(n, w)`, and the allocator a term over the host's, total by exhaustion; ι does not change what the program proves | [0092](docs/decisions/0092-a-tables-storage-is-an-operation-and-the-allocator-a-term.md) |
 
 ## Build commands
 

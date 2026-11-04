@@ -242,10 +242,9 @@ func (p *printer) elem(tab ir.V) (string, string) {
 		p.fail("%s is not a table", t)
 		return "i64", ""
 	}
-	if e == "bool" || p.tg.ValueType(e) == "bool" {
-		return "i8", e
-	}
-	if lo, hi, ok := core.IntRange(e); ok && p.tg.ReprBytes(lo, hi) == 1 {
+	// ONE LAYOUT (ir.ElemBytes): the bytes an element takes, which the table's
+	// storage was allocated by.
+	if ir.ElemBytes(p.tg, t) == 1 {
 		return "i8", e
 	}
 	return p.llty(e), e
@@ -548,13 +547,13 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 		p.load(s.Res)
 	case ir.OBuild:
 		buf := s.Sub[0].Params[0]
-		p.names[buf] = p.table(buf, p.val(s.Args[0]))
+		p.names[buf] = p.table(buf, p.val(s.Args[0]), s.Store)
 		done := p.fresh("built")
 		p.region(s.Sub[0], inner(x, &target{slots: s.Res, label: done}))
 		p.label(done)
 		p.load(s.Res)
 	case ir.OArray:
-		t := p.table(s.Res[0], strconv.Itoa(len(s.Args)))
+		t := p.table(s.Res[0], strconv.Itoa(len(s.Args)), s.Store)
 		p.names[s.Res[0]] = t
 		for i, a := range s.Args {
 			p.storeAt(s.Res[0], strconv.Itoa(i), a)
@@ -815,20 +814,27 @@ func (p *printer) fill(form, dst string, args []ir.V) string {
 
 // ---------------------------------------------------------------- tables
 
-// table allocates a table of n elements for v's type through the target's
-// allocator (emit.FindAlloc), zero on creation, and writes its length.
-func (p *printer) table(v ir.V, n string) string {
+// table writes the length of a table of n elements for v's type into its
+// storage: the value `alloc` answered, an operation of the IR on a target that
+// realizes the allocator by a term (ADR 0092, ir/storage.go), or else the
+// target's allocator template (emit.FindAlloc), zero on creation either way.
+func (p *printer) table(v ir.V, n string, store []ir.V) string {
+	if len(store) == 1 {
+		t := p.val(store[0])
+		p.line("store i64 %s, ptr %s", n, t)
+		return t
+	}
 	q, ok := p.tg.FindAlloc()
 	if !ok {
 		p.fail("this target declares no allocator, so a table has no memory (docs/spec/tables.md §10)")
 		return "null"
 	}
 	p.imports(q)
-	et, _ := p.elem(v)
-	w := map[string]int{"i8": 1, "i1": 1}[et]
-	if w == 0 {
-		w = 8
+	if q.Form == "" {
+		p.fail("a table has no storage: the allocator is a term, and ir.Storage gave this one none (ADR 0092)")
+		return "null"
 	}
+	w := ir.ElemBytes(p.tg, p.f.Types[p.pl.Res(v)])
 	bytes := "%" + p.fresh("n")
 	p.line("%s = mul i64 %s, %d", bytes, n, w)
 	total := "%" + p.fresh("n")
@@ -915,7 +921,7 @@ func (p *printer) storeAt(tab ir.V, i string, v ir.V) {
 // over its indices, the body's yield its value.
 func (p *printer) tabulate(s *ir.Stmt, x exits) {
 	res, n, i := s.Res[0], s.Args[0], s.Sub[0].Params[0]
-	t := p.table(res, p.val(n))
+	t := p.table(res, p.val(n), s.Store)
 	p.names[res] = t
 	head, body, next, done := p.fresh("tab"), p.fresh("tabbody"), p.fresh("tabnext"), p.fresh("tabdone")
 	p.line("store i64 0, ptr %s", p.slot(i))

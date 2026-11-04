@@ -1254,6 +1254,11 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		}
 		return false, fmt.Errorf("%s requires %s, which is false at this call", core.ShowName(name), core.ShowTerm(want))
 	}
+	// A C STRING (ADR 0091): ν on the argument's term, the one decision a
+	// definition's `where` reads too (requires.go's proveCond).
+	if s, ok := nulfreeArg(want); ok && r.nulFree(s, f) {
+		return true, nil
+	}
 	// A COMPARISON OF CLOSED INTEGER TERMS IS DECIDED IN ℤ, exactly: `mod 2^64`'s
 	// divisor reaches here as 18446·10¹⁵ + 744… (a literal past int64), which
 	// the word's evaluation does not fold. Folding in a proof is no staging:

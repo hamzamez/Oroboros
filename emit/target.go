@@ -1205,6 +1205,9 @@ var coreNames = map[string]bool{
 	// renderer does. Going the other way — a whole table of scalars at once — is
 	// `alloc`'s inverse and is not built, because nothing has needed it.
 	"string-of": true,
+	// AND ¬ν, the C strings' predicate (ADR 0091): the kernel of the monoid
+	// homomorphism ν : Σ* → (𝔹, ∨) true exactly on U+0000.
+	"nulfree": true,
 	// THE WRITE SIDE — ADR 0018. Values are immutable; mutation exists only
 	// inside `build`, whose buffer is linear and is frozen on the way out.
 	//
@@ -1385,6 +1388,16 @@ func (tg *Target) addCore() {
 			c.Pure = true
 			tg.Prims["string-of"] = c
 			tg.Names = append(tg.Names, "string-of")
+		}
+	}
+	if _, have := tg.Prims["nulfree"]; !have {
+		if c, ok := tg.lookup("nulfree", func() (Prim, bool) { return tg.findBySpelling("nulfree", 1) }); ok {
+			c.Name = "nulfree"
+			c.Args = []string{"string"}
+			c.Result = "bool"
+			c.Pure = true
+			tg.Prims["nulfree"] = c
+			tg.Names = append(tg.Names, "nulfree")
 		}
 	}
 	if _, have := tg.Prims["concat"]; !have {
@@ -3526,6 +3539,9 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 		if err := os.WriteFile(filepath.Join(dir, "main.ll"), []byte(code), 0o644); err != nil {
 			return err
 		}
+		if err := os.WriteFile(filepath.Join(dir, "main.manifest"), []byte(Manifest), 0o644); err != nil {
+			return err
+		}
 		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(buildScript(tg.Link, LLVMLibs)), 0o644)
 	}
 	return fmt.Errorf("target %q has no program layout", tg.Name)
@@ -3548,7 +3564,21 @@ set "CLANG=%LOCALAPPDATA%\Programs\LLVM\bin\clang.exe"
 if not exist "!CLANG!" set "CLANG=clang"
 call "!VCV!" >nul || exit /b 1
 "!CLANG!" -O2 -Wno-override-module -c -o main.obj main.ll || exit /b 1
-link -nologo -subsystem:console -entry:main main.obj {{LIBS}} -out:main.exe || exit /b 1
+link -nologo -subsystem:console -entry:main -manifest:embed -manifestinput:main.manifest main.obj {{LIBS}} -out:main.exe || exit /b 1
+`
+
+// Manifest declares UTF-8 the process's code page (llvm.md §2): Win32's `A`
+// functions read their bytes in it, and the language's strings are UTF-8, so
+// with it a string's bytes are the text the program means. Windows 10 1903 and
+// later read it; GetACP answers 65001 (gauntlet/stdlib/acceptance/code-page.oro).
+const Manifest = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </windowsSettings>
+  </application>
+</assembly>
 `
 
 // buildScript fills the link line. It is `link` in declared order, then each
@@ -4137,7 +4167,7 @@ func (tg *Target) statedRealizations(op string) {
 // checkRealized refuses a stated realization that names a declaration the
 // target does not have, or a name the language does not have.
 func (tg *Target) checkRealized() error {
-	known := map[string]bool{"=": true, "string-of": true, "concat": true, "abandon": true, "alloc": true}
+	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "abandon": true, "alloc": true}
 	for _, op := range langOps {
 		known[op.name] = true
 	}

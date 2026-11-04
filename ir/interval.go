@@ -1310,7 +1310,9 @@ func widenFT(old, nw fact, t []ep) fact {
 
 // thresholds is the sorted set of a function's integer constants and their
 // neighbours, 0, the ends of the target's word, and U's top where the target
-// realizes U.
+// realizes U. A realization's term is not the program (FromTerm): its constants
+// and scalings would move where the program's own loops widen to, and ι must
+// not change what the program proves (ADR 0090, ADR 0092). Any set is sound.
 func thresholds(tg *emit.Target, f *Func) []ep {
 	set := map[ep]bool{ei(tg.Word.Lo): true, ei(tg.Word.Hi): true, {}: true}
 	if tg.Word.Unsigned {
@@ -1321,6 +1323,9 @@ func thresholds(tg *emit.Target, f *Func) []ep {
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
+			if s.FromTerm {
+				continue
+			}
 			if s.Op == OConst && s.Lit.Kind == core.KInt {
 				consts[s.Res[0]] = s.Lit.Int
 				k := ei(s.Lit.Int)
@@ -1345,6 +1350,9 @@ func thresholds(tg *emit.Target, f *Func) []ep {
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
+			if s.FromTerm {
+				continue
+			}
 			if s.Op == OMul && len(s.Args) == 2 {
 				for _, a := range s.Args {
 					if m, ok := consts[a]; ok && (m >= 2 || m <= -2) {

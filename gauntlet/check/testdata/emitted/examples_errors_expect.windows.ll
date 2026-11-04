@@ -14,32 +14,13 @@ declare void @llvm.trap()
 @.str.1 = private unnamed_addr constant { i64, [31 x i8] } { i64 30, [31 x i8] c"a multiple of four is expected\00" }, align 8
 @.str.2 = private unnamed_addr constant { i64, [27 x i8] } { i64 26, [27 x i8] c"an even number is expected\00" }, align 8
 
-define internal ptr @oro.alloc(i64 %n) nounwind "no-builtins" {
-entry:
-  %big = icmp uge i64 %n, 65536
-  br i1 %big, label %virtual, label %heap
-virtual:
-  %v = call ptr @VirtualAlloc(ptr null, i64 %n, i32 12288, i32 4)
-  br label %done
-heap:
-  %h = call ptr @GetProcessHeap()
-  %p = call ptr @HeapAlloc(ptr %h, i32 8, i64 %n)
-  br label %done
-done:
-  %r = phi ptr [ %v, %virtual ], [ %p, %heap ]
-  %z = icmp eq ptr %r, null
-  br i1 %z, label %oom, label %ok
-oom:
-  call void @llvm.trap()
-  unreachable
-ok:
-  ret ptr %r
-}
-
 define i64 @gen_always_crashes(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
+  %.s20 = alloca i1
+  %.s32 = alloca ptr
+  %.s39 = alloca ptr
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -71,21 +52,63 @@ entry:
   br label %.join12
 .join12:
   %v16 = load i1, ptr %.s14
-  %.n15 = mul i64 1, 1
-  %.n16 = add i64 %.n15, 8
-  %.t17 = call ptr @oro.alloc(i64 %.n16)
-  store i64 1, ptr %.t17
-  %.d19 = getelementptr inbounds i8, ptr %.t17, i64 8
-  %.e20 = getelementptr inbounds i8, ptr %.d19, i64 0
-  %.z21 = trunc i64 10 to i8
-  store i8 %.z21, ptr %.e20
-  %p.22 = getelementptr inbounds i8, ptr %.t17, i64 8
-  %q.22 = getelementptr inbounds i8, ptr %p.22, i64 0
-  %n.22 = trunc i64 1 to i32
-  %w.22 = call i32 @WriteFile(ptr %v12, ptr %q.22, i32 %n.22, ptr @__written, ptr null)
-  %v27 = icmp ne i32 %w.22, 0
-  %x.23 = trunc i64 1 to i32
-  call void @ExitProcess(i32 %x.23)
+  %v29 = icmp sge i64 1, 0
+  br i1 %v29, label %.then16, label %.else17
+.then16:
+  %v33 = icmp sle i64 1, 1152921504606846974
+  store i1 %v33, ptr %.s20
+  br label %.join18
+.else17:
+  store i1 false, ptr %.s20
+  br label %.join18
+.join18:
+  %v30 = load i1, ptr %.s20
+  br i1 %v30, label %.then21, label %.else22
+.then21:
+  %v39 = mul nuw nsw i64 1, 8
+  %v41 = add nuw nsw i64 %v39, 8
+  %v43 = icmp sge i64 %v41, 65536
+  br i1 %v43, label %.then27, label %.else28
+.then27:
+  %v46 = getelementptr i8, ptr null, i64 0
+  %t.31 = trunc i64 12288 to i32
+  %p.31 = trunc i64 4 to i32
+  %v49 = call ptr @VirtualAlloc(ptr %v46, i64 %v41, i32 %t.31, i32 %p.31)
+  store ptr %v49, ptr %.s32
+  br label %.join29
+.else28:
+  %v51 = call ptr @GetProcessHeap()
+  %f.34 = trunc i64 8 to i32
+  %v53 = call ptr @HeapAlloc(ptr %v51, i32 %f.34, i64 %v41)
+  store ptr %v53, ptr %.s32
+  br label %.join29
+.join29:
+  %v44 = load ptr, ptr %.s32
+  %v54 = icmp eq ptr %v44, null
+  br i1 %v54, label %.then36, label %.else37
+.then36:
+  call void @llvm.trap()
+  unreachable
+.else37:
+  store ptr %v44, ptr %.s39
+  br label %.join23
+.else22:
+  call void @llvm.trap()
+  unreachable
+.join23:
+  %v36 = load ptr, ptr %.s39
+  store i64 1, ptr %v36
+  %.d41 = getelementptr inbounds i8, ptr %v36, i64 8
+  %.e42 = getelementptr inbounds i8, ptr %.d41, i64 0
+  %.z43 = trunc i64 10 to i8
+  store i8 %.z43, ptr %.e42
+  %p.44 = getelementptr inbounds i8, ptr %v36, i64 8
+  %q.44 = getelementptr inbounds i8, ptr %p.44, i64 0
+  %n.44 = trunc i64 1 to i32
+  %w.44 = call i32 @WriteFile(ptr %v12, ptr %q.44, i32 %n.44, ptr @__written, ptr null)
+  %v60 = icmp ne i32 %w.44, 0
+  %x.45 = trunc i64 1 to i32
+  call void @ExitProcess(i32 %x.45)
   unreachable
 }
 
@@ -93,7 +116,13 @@ define i64 @gen_quarter(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s24 = alloca i1
-  %.s41 = alloca i1
+  %.s30 = alloca i1
+  %.s42 = alloca ptr
+  %.s49 = alloca ptr
+  %.s63 = alloca i1
+  %.s69 = alloca i1
+  %.s81 = alloca ptr
+  %.s88 = alloca ptr
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -137,58 +166,142 @@ entry:
   br label %.join22
 .join22:
   %v28 = load i1, ptr %.s24
-  %.n25 = mul i64 1, 1
-  %.n26 = add i64 %.n25, 8
-  %.t27 = call ptr @oro.alloc(i64 %.n26)
-  store i64 1, ptr %.t27
-  %.d29 = getelementptr inbounds i8, ptr %.t27, i64 8
-  %.e30 = getelementptr inbounds i8, ptr %.d29, i64 0
-  %.z31 = trunc i64 10 to i8
-  store i8 %.z31, ptr %.e30
-  %p.32 = getelementptr inbounds i8, ptr %.t27, i64 8
-  %q.32 = getelementptr inbounds i8, ptr %p.32, i64 0
-  %n.32 = trunc i64 1 to i32
-  %w.32 = call i32 @WriteFile(ptr %v24, ptr %q.32, i32 %n.32, ptr @__written, ptr null)
-  %v39 = icmp ne i32 %w.32, 0
-  %x.33 = trunc i64 1 to i32
-  call void @ExitProcess(i32 %x.33)
-  unreachable
-.else10:
-  %v43 = getelementptr i8, ptr @.str.2, i64 0
-  %n.35 = trunc i64 -12 to i32
-  %v45 = call ptr @GetStdHandle(i32 %n.35)
-  %v46 = load i64, ptr %v43
-  %v48 = icmp sle i64 %v46, 4294967295
-  br i1 %v48, label %.then37, label %.else38
+  %v41 = icmp sge i64 1, 0
+  br i1 %v41, label %.then26, label %.else27
+.then26:
+  %v45 = icmp sle i64 1, 1152921504606846974
+  store i1 %v45, ptr %.s30
+  br label %.join28
+.else27:
+  store i1 false, ptr %.s30
+  br label %.join28
+.join28:
+  %v42 = load i1, ptr %.s30
+  br i1 %v42, label %.then31, label %.else32
+.then31:
+  %v51 = mul nuw nsw i64 1, 8
+  %v53 = add nuw nsw i64 %v51, 8
+  %v55 = icmp sge i64 %v53, 65536
+  br i1 %v55, label %.then37, label %.else38
 .then37:
-  %v52 = load i64, ptr %v43
-  %p.40 = getelementptr inbounds i8, ptr %v43, i64 8
-  %q.40 = getelementptr inbounds i8, ptr %p.40, i64 0
-  %n.40 = trunc i64 %v52 to i32
-  %w.40 = call i32 @WriteFile(ptr %v45, ptr %q.40, i32 %n.40, ptr @__written, ptr null)
-  %v53 = icmp ne i32 %w.40, 0
-  store i1 %v53, ptr %.s41
+  %v58 = getelementptr i8, ptr null, i64 0
+  %t.41 = trunc i64 12288 to i32
+  %p.41 = trunc i64 4 to i32
+  %v61 = call ptr @VirtualAlloc(ptr %v58, i64 %v53, i32 %t.41, i32 %p.41)
+  store ptr %v61, ptr %.s42
   br label %.join39
 .else38:
-  store i1 false, ptr %.s41
+  %v63 = call ptr @GetProcessHeap()
+  %f.44 = trunc i64 8 to i32
+  %v65 = call ptr @HeapAlloc(ptr %v63, i32 %f.44, i64 %v53)
+  store ptr %v65, ptr %.s42
   br label %.join39
 .join39:
-  %v49 = load i1, ptr %.s41
-  %.n42 = mul i64 1, 1
-  %.n43 = add i64 %.n42, 8
-  %.t44 = call ptr @oro.alloc(i64 %.n43)
-  store i64 1, ptr %.t44
-  %.d46 = getelementptr inbounds i8, ptr %.t44, i64 8
-  %.e47 = getelementptr inbounds i8, ptr %.d46, i64 0
-  %.z48 = trunc i64 10 to i8
-  store i8 %.z48, ptr %.e47
-  %p.49 = getelementptr inbounds i8, ptr %.t44, i64 8
-  %q.49 = getelementptr inbounds i8, ptr %p.49, i64 0
-  %n.49 = trunc i64 1 to i32
-  %w.49 = call i32 @WriteFile(ptr %v45, ptr %q.49, i32 %n.49, ptr @__written, ptr null)
-  %v60 = icmp ne i32 %w.49, 0
-  %x.50 = trunc i64 1 to i32
-  call void @ExitProcess(i32 %x.50)
+  %v56 = load ptr, ptr %.s42
+  %v66 = icmp eq ptr %v56, null
+  br i1 %v66, label %.then46, label %.else47
+.then46:
+  call void @llvm.trap()
+  unreachable
+.else47:
+  store ptr %v56, ptr %.s49
+  br label %.join33
+.else32:
+  call void @llvm.trap()
+  unreachable
+.join33:
+  %v48 = load ptr, ptr %.s49
+  store i64 1, ptr %v48
+  %.d51 = getelementptr inbounds i8, ptr %v48, i64 8
+  %.e52 = getelementptr inbounds i8, ptr %.d51, i64 0
+  %.z53 = trunc i64 10 to i8
+  store i8 %.z53, ptr %.e52
+  %p.54 = getelementptr inbounds i8, ptr %v48, i64 8
+  %q.54 = getelementptr inbounds i8, ptr %p.54, i64 0
+  %n.54 = trunc i64 1 to i32
+  %w.54 = call i32 @WriteFile(ptr %v24, ptr %q.54, i32 %n.54, ptr @__written, ptr null)
+  %v72 = icmp ne i32 %w.54, 0
+  %x.55 = trunc i64 1 to i32
+  call void @ExitProcess(i32 %x.55)
+  unreachable
+.else10:
+  %v76 = getelementptr i8, ptr @.str.2, i64 0
+  %n.57 = trunc i64 -12 to i32
+  %v78 = call ptr @GetStdHandle(i32 %n.57)
+  %v79 = load i64, ptr %v76
+  %v81 = icmp sle i64 %v79, 4294967295
+  br i1 %v81, label %.then59, label %.else60
+.then59:
+  %v85 = load i64, ptr %v76
+  %p.62 = getelementptr inbounds i8, ptr %v76, i64 8
+  %q.62 = getelementptr inbounds i8, ptr %p.62, i64 0
+  %n.62 = trunc i64 %v85 to i32
+  %w.62 = call i32 @WriteFile(ptr %v78, ptr %q.62, i32 %n.62, ptr @__written, ptr null)
+  %v86 = icmp ne i32 %w.62, 0
+  store i1 %v86, ptr %.s63
+  br label %.join61
+.else60:
+  store i1 false, ptr %.s63
+  br label %.join61
+.join61:
+  %v82 = load i1, ptr %.s63
+  %v95 = icmp sge i64 1, 0
+  br i1 %v95, label %.then65, label %.else66
+.then65:
+  %v99 = icmp sle i64 1, 1152921504606846974
+  store i1 %v99, ptr %.s69
+  br label %.join67
+.else66:
+  store i1 false, ptr %.s69
+  br label %.join67
+.join67:
+  %v96 = load i1, ptr %.s69
+  br i1 %v96, label %.then70, label %.else71
+.then70:
+  %v105 = mul nuw nsw i64 1, 8
+  %v107 = add nuw nsw i64 %v105, 8
+  %v109 = icmp sge i64 %v107, 65536
+  br i1 %v109, label %.then76, label %.else77
+.then76:
+  %v112 = getelementptr i8, ptr null, i64 0
+  %t.80 = trunc i64 12288 to i32
+  %p.80 = trunc i64 4 to i32
+  %v115 = call ptr @VirtualAlloc(ptr %v112, i64 %v107, i32 %t.80, i32 %p.80)
+  store ptr %v115, ptr %.s81
+  br label %.join78
+.else77:
+  %v117 = call ptr @GetProcessHeap()
+  %f.83 = trunc i64 8 to i32
+  %v119 = call ptr @HeapAlloc(ptr %v117, i32 %f.83, i64 %v107)
+  store ptr %v119, ptr %.s81
+  br label %.join78
+.join78:
+  %v110 = load ptr, ptr %.s81
+  %v120 = icmp eq ptr %v110, null
+  br i1 %v120, label %.then85, label %.else86
+.then85:
+  call void @llvm.trap()
+  unreachable
+.else86:
+  store ptr %v110, ptr %.s88
+  br label %.join72
+.else71:
+  call void @llvm.trap()
+  unreachable
+.join72:
+  %v102 = load ptr, ptr %.s88
+  store i64 1, ptr %v102
+  %.d90 = getelementptr inbounds i8, ptr %v102, i64 8
+  %.e91 = getelementptr inbounds i8, ptr %.d90, i64 0
+  %.z92 = trunc i64 10 to i8
+  store i8 %.z92, ptr %.e91
+  %p.93 = getelementptr inbounds i8, ptr %v102, i64 8
+  %q.93 = getelementptr inbounds i8, ptr %p.93, i64 0
+  %n.93 = trunc i64 1 to i32
+  %w.93 = call i32 @WriteFile(ptr %v78, ptr %q.93, i32 %n.93, ptr @__written, ptr null)
+  %v126 = icmp ne i32 %w.93, 0
+  %x.94 = trunc i64 1 to i32
+  call void @ExitProcess(i32 %x.94)
   unreachable
 }
 

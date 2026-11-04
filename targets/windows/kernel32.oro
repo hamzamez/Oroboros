@@ -31,6 +31,18 @@ module windows/kernel32 {
         host expr "%e${#} = call i32 @GetLastError()\n${r} = zext i32 %e${#} to i64" import "declare dllimport i32 @GetLastError()"
     }
 
+    // MEMORY, as Win32 has it: VirtualAlloc(address, size, type, protection)
+    // answers fresh zeroed pages or null, GetProcessHeap the process's heap, and
+    // HeapAlloc(heap, flags, size) a block, zeroed with HEAP_ZERO_MEMORY (8), or
+    // null. A SIZE_T is the word; a DWORD its C range, by `trunc`.
+    fn VirtualAlloc(a ∈ ptr, n ∈ 0..2^63-1, t ∈ 0..2^32-1, p ∈ 0..2^32-1) (r ∈ ptr) {
+        host expr "%t${#} = trunc ${t} to i32\n%p${#} = trunc ${p} to i32\n${r} = call ptr @VirtualAlloc(${a}, ${n}, i32 %t${#}, i32 %p${#})" import "declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)"
+    }
+    fn GetProcessHeap() (r ∈ ptr) { host expr "${r} = call ptr @GetProcessHeap()" import "declare dllimport ptr @GetProcessHeap()" }
+    fn HeapAlloc(h ∈ ptr, f ∈ 0..2^32-1, n ∈ 0..2^63-1) (r ∈ ptr) {
+        host expr "%f${#} = trunc ${f} to i32\n${r} = call ptr @HeapAlloc(${h}, i32 %f${#}, ${n})" import "declare dllimport ptr @HeapAlloc(ptr, i32, i64)"
+    }
+
     // DWORD → ∅: it ends the process, and never returns (ADR 0090).
     fn ExitProcess(a ∈ 0..2^31-1) (∅) {
         host stmt "%x${#} = trunc ${a} to i32\ncall void @ExitProcess(i32 %x${#})" import "declare dllimport void @ExitProcess(i32)"

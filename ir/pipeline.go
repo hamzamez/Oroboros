@@ -170,10 +170,25 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// function: each operation by the narrowest stated realization its facts
 	// prove, a term's instance inlined; the decision taken again decides the
 	// instances' word arithmetic under the site's facts.
-	if n, err := RealizeOps(tg, f); err != nil {
-		return nil, nil, fmt.Errorf("%s: %v", name, err)
-	} else if n > 0 {
-		leg = Decide(tg, f, checked)
+	// A TABLE'S STORAGE AS AN OPERATION (ADR 0092), before ι substitutes the
+	// allocator's term into it; and again for the tables a substituted term
+	// makes (a crash's newline), until none is left: the allocator's own term
+	// makes no table, so this ends.
+	for round := 0; ; round++ {
+		tables := Storage(tg, f)
+		n, err := RealizeOps(tg, f)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: %v", name, err)
+		}
+		if n > 0 {
+			leg = Decide(tg, f, checked)
+		}
+		if tables == 0 && round > 0 || n == 0 {
+			break
+		}
+		if round == 8 {
+			return nil, nil, fmt.Errorf("%s: a table's storage and ι reach no fixed point in 8 rounds (ADR 0092)", name)
+		}
 	}
 	return f, leg, nil
 }

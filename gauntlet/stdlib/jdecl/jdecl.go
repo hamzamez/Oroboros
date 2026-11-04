@@ -96,6 +96,7 @@ type Fn struct {
 	Template string // its splices named, Hole
 	Import   string
 	Lib      string
+	Where    string // a formula over the parameters, or ""
 }
 
 // String is the declaration on one line, indented for a module's body.
@@ -108,6 +109,9 @@ func (f Fn) String() string {
 	b.WriteString("    fn " + Ident(f.Name) + "(" + strings.Join(ps, ", ") + ") (" + f.Result + ")")
 	if f.Pure {
 		b.WriteString(" pure")
+	}
+	if f.Where != "" {
+		b.WriteString(" where " + f.Where)
 	}
 	b.WriteString(" { host " + f.Kind + " " + Template(f.Template))
 	if f.Import != "" {

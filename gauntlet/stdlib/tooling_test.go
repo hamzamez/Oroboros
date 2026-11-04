@@ -664,27 +664,35 @@ func acceptance() map[string]accept {
 		"tally-java-optional": jvmTally[1],
 		// Win32: a seven-argument call with a NULL, a void statement, a SIGNED
 		// result — the one that could fail and did (win32enum-2026-09-11) — and
-		// an enum whose two values must give two different errors.
-		"wide-call": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"2"},
+		// an enum whose two values must give two different errors. None needs
+		// `-checked`: each result is declared with its C type's range, which the
+		// decision reads (mastretire-2026-11-03); on MASM every one did.
+		"wide-call": {host: "win32", target: "windows", layer: ".", want: []string{"2"},
 			files: map[string]string{"windows/fileapi.oro": "fileapi.oro", "windows/errhandlingapi.oro": "errhandlingapi.oro"}},
 		"void-stmt": {host: "win32", target: "windows", layer: ".", want: []string{"1"},
 			files: map[string]string{"windows/fileapi.oro": "fileapi.oro", "windows/errhandlingapi.oro": "errhandlingapi.oro"}},
-		"signed-result": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"1", "79"},
+		"signed-result": {host: "win32", target: "windows", layer: ".", want: []string{"1", "79"},
 			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
-		"enum-param": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"0", "24", "87"},
+		"enum-param": {host: "win32", target: "windows", layer: ".", want: []string{"0", "24", "87"},
 			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
 		// And a parameter written `TYPE *name`, which the survey read as a
 		// value by value: `IsBadReadPtr(NULL, 1)` is TRUE and
 		// `IsBadReadPtr(NULL, 0)` is FALSE, so one declaration gives two
 		// answers and the program cannot be right by accident
 		// (structval-2026-09-12).
-		"pointer-param": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"1", "0"},
+		"pointer-param": {host: "win32", target: "windows", layer: ".", want: []string{"1", "0"},
+			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		// And a language string as Win32's C string: lstrlenA of a literal, a
+		// `string_of` and a `++` is each one's length in bytes (λ is two), which
+		// holds exactly when the target writes the NUL after a string's bytes
+		// (docs/spec/llvm.md §4, mastretire-2026-11-03).
+		"c-string": {host: "win32", target: "windows", layer: ".", want: []string{"5", "2", "5"},
 			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
 		// And two libraries the target does not link by default, reached only
 		// because a generated declaration says `(lib "…")` and the link line is
 		// computed from what the program calls (linkline-2026-09-13). Against
 		// the old constant line this does not build at all.
-		"link-line": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"1", "0", "12", "28"},
+		"link-line": {host: "win32", target: "windows", layer: ".", want: []string{"1", "0", "12", "28"},
 			files: map[string]string{"windows/WinUser.oro": "WinUser.oro", "windows/securitybaseapi.oro": "securitybaseapi.oro"}},
 		// A WHOLE PACKAGE, unicode/utf8: every function and every constant,
 		// each called with a value the program computed rather than a literal

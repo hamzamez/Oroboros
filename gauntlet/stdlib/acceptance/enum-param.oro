@@ -18,18 +18,18 @@
 // host saying it read the class. The expectations above are what the host
 // answered, recorded as observed rather than dressed as predicted.
 //
-// It needs `-checked` for the reason wide-call.oro does: win/fmt.print-int does
-// arithmetic on its argument, and a host call's result has no declared range,
-// so ADR 0019 refuses to prove it in the window rather than assume it.
+// Every operation is proven: GetLastError's result is a DWORD's range, 0..2^32-1,
+// by its `zext` (mastretire-2026-11-03). On MASM it needed `-checked`, a host
+// result having no declared range.
 use win/WinBase as w
 use windows/kernel32 as k
-use x64 as x
-use win/fmt
+use llvm as x
+use win/print
 
 export fn main() {
     ok = w.GetFileInformationByHandleEx(0, 0, x.null(), 0)
-    fmt.print_int(ok)
-    fmt.print_int(k.GetLastError())
+    print.print_int(ok)
+    print.print_int(k.GetLastError())
     w.GetFileInformationByHandleEx(0, 9999, x.null(), 0)
-    fmt.print_int(k.GetLastError())
+    print.print_int(k.GetLastError())
 }

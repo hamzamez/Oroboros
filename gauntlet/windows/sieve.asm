@@ -1,6 +1,6 @@
 ; HAND-WRITTEN x86-64. This is the bar.
 ;
-; The same program as examples/native/sieve-win-bench.oro: 100 rounds of a
+; The same program as examples/table/sieve-win.oro: 100 rounds of a
 ; 200000-element sieve of Eratosthenes, summed and printed in decimal.
 ;
 ; Written the way a person writes it, NOT in the shape the emitter happens to

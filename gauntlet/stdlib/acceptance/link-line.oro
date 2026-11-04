@@ -21,16 +21,16 @@
 // symbols as unresolved. The witness fails the build rather than the output,
 // which is the failure the bug had.
 //
-// It needs `-checked` for the reason every Win32 acceptance program does:
-// win/fmt.print-int does arithmetic on its argument, and a host call's result
-// has no declared range.
+// Every operation is proven: each result carries its C type's range
+// (mastretire-2026-11-03). On MASM it needed `-checked`, a host result having no
+// declared range.
 use win/WinUser as u
 use win/securitybaseapi as s
-use win/fmt
+use win/print
 
 export fn main() {
-    fmt.print_int(u.IsCharAlphaA(65))
-    fmt.print_int(u.IsCharAlphaA(49))
-    fmt.print_int(s.GetSidLengthRequired(1))
-    fmt.print_int(s.GetSidLengthRequired(5))
+    print.print_int(u.IsCharAlphaA(65))
+    print.print_int(u.IsCharAlphaA(49))
+    print.print_int(s.GetSidLengthRequired(1))
+    print.print_int(s.GetSidLengthRequired(5))
 }

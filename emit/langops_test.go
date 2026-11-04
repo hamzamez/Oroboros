@@ -35,6 +35,15 @@ func TestEveryTargetProvidesTheLanguageOperators(t *testing.T) {
 			if len(p.Args) != 2 {
 				t.Errorf("%s: %q has %d argument(s), want 2", dir, op, len(p.Args))
 			}
+			// A TARGET THAT STATES ITS REALIZATIONS (ADR 0088) may realize an
+			// operator by a term over its host's operations (ADR 0089), which
+			// has no template: what it owes is the statement.
+			if tg.States() {
+				if _, stated := tg.Realized[op]; !stated {
+					t.Errorf("%s: %q is not stated by a `realize`", dir, op)
+				}
+				continue
+			}
 			if p.Form == "" {
 				t.Errorf("%s: %q has no emission template", dir, op)
 			}

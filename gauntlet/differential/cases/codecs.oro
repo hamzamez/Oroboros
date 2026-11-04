@@ -12,7 +12,8 @@
 //
 // The expected values are Python's.
 //
-// skip: windows — MASM has no unsigned word for the 64-bit codec; ir/llvm will
+// skip: windows — the unsigned word is not realized on windows yet (ADR 0083: it
+// comes with LLVM's native widths), so under -checked its operations trap there.
 //
 // inputs: 0 1 7 100 255
 // expect: 119043919 2795517007 2025885467 3008889943 1619046075

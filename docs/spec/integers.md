@@ -83,7 +83,7 @@ the product or the floor by the shift's power interval; `a mod m ∈ [0, m − 1
 
 **Each target realizes them** (the realization a target declares, found by spelling, ADR 0083 item 2):
 
-| | Go | Java / ART | JavaScript | windows (MASM, retiring) |
+| | Go | Java / ART | JavaScript | windows (MASM, retired 2026-11-03; LLVM's in `targets/windows/windows.oro`'s `realize`) |
 |---|---|---|---|---|
 | `&` `\|` `⊕` | `&` `\|` `^` | `&` `\|` `^` | `&` `\|` `^` where the result is proven in S₃₂; with `>>> 0` where it is proven in U₃₂; otherwise refused until the split is built | `and` `or` `xor` |
 | `~` | `^a` | `~a` | `-a - 1` | `not` |
@@ -252,12 +252,12 @@ truncating division is monotone in each argument, so its extremes are at the reg
 divisor straddling 0 is two regions, [lo, −1] and [1, hi] (b ≠ 0 is §5's obligation). A quotient is
 refused exactly when the facts allow a = −2⁶³ and b = −1. **`%` is not counted**, since it cannot
 leave the word; a target whose instruction is undefined or traps at the corner realizes it with −1
-as its own arm (a % −1 = 0), as `windows-llvm`'s `lang.rem` and MASM's `irem` do.
+as its own arm (a % −1 = 0), as windows' `lang.rem` does (and MASM's `irem` did, until it retired).
 
 The checked forms: Go's tests `b == −1 && a != 0 && a == −a` (−2⁶³ is the one nonzero x with
 x = −x in two's complement), the JVM's `Math.negateExact` at −1 (JDK 18's `Math.divideExact`,
-written for 17), x86's `idiv` is its own (it raises #DE at the corner and nowhere else in the
-word), and LLVM's arm at −1 is `0 − a` by `ssub.with.overflow`, a trap when it overflows.
+written for 17), and LLVM's arm at −1 is `0 − a` by `ssub.with.overflow`, a trap when it overflows
+(on MASM, until it retired, x86's `idiv` was its own: it raises #DE at the corner and nowhere else).
 
 ## 5. Division by zero
 

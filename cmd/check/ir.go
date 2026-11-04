@@ -13,7 +13,6 @@ import (
 	"oroboros/ir/java"
 	"oroboros/ir/js"
 	"oroboros/ir/llvm"
-	"oroboros/ir/x86"
 )
 
 // THE IR STEP (docs/spec/ir.md §11, ADR 0032).
@@ -198,8 +197,6 @@ func printText(targets map[string]*emit.Target, source, target string, p *ir.Pro
 			code, err = js.Func(tg, f)
 		case "java":
 			code, err = java.Func(tg, f)
-		case "x86-64":
-			code, err = x86.Func(tg, f)
 		case "llvm":
 			code, err = llvm.Func(tg, f)
 		case "go":
@@ -217,8 +214,6 @@ func printText(targets map[string]*emit.Target, source, target string, p *ir.Pro
 		return emit.JSFile(funcs), nil
 	case "java":
 		return emit.JavaFile(strings.TrimSuffix(emittedName(source, target), ".java"), funcs), nil
-	case "x86-64":
-		return emit.AsmFile(tg, funcs, ""), nil
 	case "llvm":
 		return llvm.File(tg, funcs, ""), nil
 	}

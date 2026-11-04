@@ -1,37 +1,39 @@
-// The portable sieve on WINDOWS — the fourth target, and the one with no host
-// compiler, no collector and no arrays.
+// The sieve on WINDOWS, the benchmark: 100 counts of the primes below 200,000.
 //
-// A table here is a pointer whose first eight bytes hold the length. That is
-// eight bytes PER ELEMENT for a boolean sieve, against the one byte
-// examples/native/sieve-win.oro uses via x64.movb — so this measures what the
-// language's uniform representation costs where nothing hides it.
-use x64
-use win/fmt
+//   build -target=windows -o sieve.exe examples/table/sieve-win.oro
+//
+// The same program as experiments/backend/sieve.oro, in the language's own
+// names, with a print: a table is a pointer whose first eight bytes hold the
+// length (docs/spec/llvm.md §4), and a table of booleans is a byte per element.
+// gauntlet/windows/sieve.asm is the hand-written reference it is timed against
+// (llvm-2026-11-02: 0.64 of its time).
+use win/print
 
 fn cross(c linear, i, n) {
-    loop j = x64.imul(i, i) { x64.setl(j, n) -> { c[j] := true; again(x64.add(j, i)) }; else -> () }
+    loop j = i * i { j < n -> { c[j] := true; again(j + i) }; else -> () }
 }
 
-fn sieve(n) {
-    var c := array { 0 : _ ∈ 0..n-1 }
+fn sieve(n ∈ 0..2^20) {
+    var c := array { false : _ ∈ 0..n-1 }
     loop i = 2 {
-        x64.setge(x64.imul(i, i), n) -> c
-        c[i] -> again(x64.add(i, 1))
-        else -> { cross(c, i, n); again(x64.add(i, 1)) }
+        i * i >= n -> c
+        c[i] -> again(i + 1)
+        else -> { cross(c, i, n); again(i + 1) }
     }
 }
-fn count_primes(n ∈ Int) (Int) where 0 <= n && n < (2^20) {
+
+fn count_primes(n ∈ 0..2^20) (Int) {
     c = sieve(n)
     loop acc = 0, k = 2 {
-        x64.setge(k, n) -> acc
-        c[k] -> again(acc, x64.add(k, 1))
-        else -> again(x64.add(acc, 1), x64.add(k, 1))
+        k >= n -> acc
+        c[k] -> again(acc, k + 1)
+        else -> again(acc + 1, k + 1)
     }
 }
 
 export fn main() {
-    fmt.print_int(loop r = 0, t = 0 {
-            x64.setge(t, 100) -> r
-            else -> again(x64.add(r, count_primes(200000)), x64.add(t, 1))
+    print.print_int(loop r = 0, t = 0 {
+            t >= 100 -> r
+            else -> again(r + count_primes(200000), t + 1)
         })
 }

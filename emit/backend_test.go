@@ -29,7 +29,7 @@ func TestTheTargetSaysWhichBackendCompilesIt(t *testing.T) {
 		{"../targets/go", "go"},
 		{"../targets/js", "js"},
 		{"../targets/java", "java"},
-		{"../targets/windows", "x86-64"},
+		{"../targets/windows", "llvm"},
 	} {
 		tg, err := LoadTarget(c.dir)
 		if err != nil {
@@ -66,7 +66,7 @@ func TestATargetWithNoBackendIsRefusedForEmission(t *testing.T) {
 		}
 		// The message has to name the fix, because the person seeing it is
 		// writing a target and has no other way to learn the set is closed.
-		for _, want := range []string{"backend NAME", "x86-64"} {
+		for _, want := range []string{"backend NAME", "llvm"} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("%s: the refusal does not mention %q:\n%s", dir, want, err)
 			}
@@ -125,14 +125,14 @@ func TestSpellingLookupIsDeterministic(t *testing.T) {
 	}
 }
 
-// AN ASSEMBLY TEMPLATE CALLS SEVERAL EXTERNS, and any other names ONE package.
-// On Win32 each function is its own extern, so `abandon` writes its reason with
-// (import "GetStdHandle" "WriteFile" "ExitProcess"); a Go printer reads only the
-// first name, so on any backend but x86-64 a second is refused, not dropped.
-func TestSeveralImportsOnlyInAnAssemblyTemplate(t *testing.T) {
+// AN LLVM TEMPLATE NAMES SEVERAL MODULE LINES, and any other names ONE package.
+// A helper's `define` needs its own `declare`s beside it (targets/windows's
+// win/str), each an import; a Go printer reads only the first name, so on any
+// backend but llvm a second is refused, not dropped.
+func TestSeveralImportsOnlyInAnLLVMTemplate(t *testing.T) {
 	for _, c := range []struct{ backend, want string }{
 		{"go", "names 2 things"},
-		{"x86-64", ""},
+		{"llvm", ""},
 	} {
 		path := filepath.Join(t.TempDir(), "t.oro")
 		src := "backend " + strings.ReplaceAll(c.backend, "-", "_") + "\nrepr -2^63..2^63-1 word\n" +

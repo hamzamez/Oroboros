@@ -15,7 +15,7 @@ import (
 func loadTarget(t *testing.T) *emit.Target {
 	t.Helper()
 	emit.ResetImports()
-	tg, err := emit.LoadTargetLayers("windows-llvm", []string{"../../targets"}, []string{"../../lib"})
+	tg, err := emit.LoadTargetLayers("windows", []string{"../../targets"}, []string{"../../lib"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func loadTarget(t *testing.T) *emit.Target {
 // whose subtrahend is at most its minuend (nuw nsw), one that may go below zero
 // (nsw), and an add fused under `mod 2ⁿ` (no flag: its residue is the answer).
 const flagsIR = `(ir 1
-  (target windows-llvm)
+  (target windows)
   (stage P)
   (ops add sub mod const yield)
   (func t-flags (params (%0 (int 0 10)) (%1 (int 0 5)) (%2 int) (%3 (int 5 9)))
@@ -141,7 +141,7 @@ func TestThePrinterIsAFunctionOfItsInput(t *testing.T) {
 	}
 }
 
-// compile builds a J source for windows-llvm as the drivers do, and prints it.
+// compile builds a J source for windows as the drivers do, and prints it.
 func compile(t *testing.T, src string) (string, error) {
 	t.Helper()
 	tg := loadTarget(t)
@@ -181,12 +181,12 @@ func compile(t *testing.T, src string) (string, error) {
 }
 
 // A TARGET STATES ITS REALIZATIONS (ADR 0088): each of the language's
-// operators is the declaration windows-llvm.oro names, and nothing is found by
+// operators is the declaration windows.oro names, and nothing is found by
 // spelling; LLVM's own `shl` keeps its own domain.
 func TestATargetStatesItsRealizations(t *testing.T) {
 	tg := loadTarget(t)
 	if !tg.States() {
-		t.Fatal("windows-llvm states no realization")
+		t.Fatal("windows states no realization")
 	}
 	if why := unstated(tg); why != "" {
 		t.Error(why)

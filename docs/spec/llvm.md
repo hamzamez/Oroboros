@@ -1,8 +1,9 @@
 # The LLVM printer: IR_P into LLVM IR
 
-Status: **specified 2026-11-02 (ADR 0080, step 6b)**; §9's first two steps built
-([llvm-2026-11-02](../../gauntlet/results/llvm-2026-11-02.md)): every differential case MASM runs agrees
-on `windows-llvm`, and the sieve and merge sort run at 0.65 and 0.36 of MASM. This file says what each IR_P construct prints as, and why the printed program means what
+Status: **specified 2026-11-02 (ADR 0080, step 6b)**; §9's steps 1, 2 and 4 built: every differential
+case MASM ran agreed, the sieve and merge sort ran at 0.65 and 0.36 of MASM
+([llvm-2026-11-02](../../gauntlet/results/llvm-2026-11-02.md)), and MASM is retired: this printer is
+the windows target's ([mastretire-2026-11-03](../../gauntlet/results/mastretire-2026-11-03.md)). This file says what each IR_P construct prints as, and why the printed program means what
 the IR means. Where this file and the code disagree, this file is the specification.
 
 ## 1. What the printer is
@@ -25,10 +26,10 @@ miscompilation the optimizer is entitled to make. That is why W6 justifies every
 
 ## 2. The target
 
-`targets/windows-llvm/` is the windows target with this backend, `backend llvm`, triple
-`x86_64-pc-windows-msvc`. It is a separate directory only until MASM retires at parity (ADR 0080
-item 5); then it becomes `targets/windows`. Its files are the host's, under the host's own names:
-- `windows-llvm.oro`: the sets, the word, the representations, the link line, and **the `realize`
+`targets/windows/` is the windows target, `backend llvm`, triple `x86_64-pc-windows-msvc` (until
+2026-11-03 `targets/windows-llvm/`, beside MASM, which retired at parity, ADR 0080 item 5). Its files
+are the host's, under the host's own names:
+- `windows.oro`: the sets, the word, the representations, the link line, and **the `realize`
   map** (ADR 0088): which declaration interprets each of the language's names, stated, never found by
   spelling;
 - `llvm.oro`: Σ_LLVM, **LLVM's operations as they are**, each with its domain (the inputs where it is
@@ -42,15 +43,17 @@ item 5); then it becomes `targets/windows`. Its files are the host's, under the 
   intrinsics' two results and `llvm.trap`, ADR 0090), `trap_if`, and the crash. One template remains,
   `build`'s allocator (a pointer as a value, ADR 0084's LLVM part);
 - `kernel32.oro`: the Win32 functions programs call, as they are, each `declare dllimport` in the
-  printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count;
+  printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count. The
+  rest of Win32 is the survey's generated layer (`gauntlet/stdlib/win32.go`), written the same way:
+  an integer of w < 64 bits passed by `trunc` from its C range and returned by `sext` or `zext` into
+  it, a pointer as `ptr`, a C string as a string's bytes (§4);
 - `strings.oro`: the free monoid, `string_of` and `++`, each a helper function the module defines, and
   `utf8`, a string's bytes.
 
-`lib/win/print.oro` prints integers and strings in the language's own operators over a byte table,
-where `lib/win/fmt.oro` names x86's mnemonics; it takes that name when MASM retires.
+`lib/win/print.oro` prints integers and strings in the language's own operators over a byte table.
 
 The build compiles with `clang -O2 -c` and links with MSVC's `link`, the libraries of the link line,
-and `-entry:main`, as the MASM target links. No C runtime is linked unless a primitive names one, and
+and `-entry:main`. No C runtime is linked unless a primitive names one, and
 every function is `"no-builtins"`, so no loop becomes a call to the runtime's `memset` or `memcpy`.
 
 ## 3. Types
@@ -72,8 +75,7 @@ step: every integer value is `i64`, and a table's element is the width §4 gives
 ## 4. Tables
 
 A table is a pointer to a header and its elements: an `i64` length, then the elements, each of its
-element type's width. An element is held as `ir/x86` holds it, in the representation the target
-declares for its range: `repr 0..255 host "i8"` is the one this target declares, so 0..255 is an `i8`
+element type's width. An element is held in the representation the target declares for its range: `repr 0..255 host "i8"` is the one this target declares, so 0..255 is an `i8`
 and every other integer an `i64`; a `bool` is an `i8`; a `f64` a `double`; a table or a string a `ptr`.
 The width is read off the table's representative's type, so every alias of a table reads it alike.
 - **`len t`** is the `i64` at t.
@@ -89,7 +91,12 @@ The width is read off the table's representative's type, so every alias of a tab
   64 KiB a call (measured, llvm-2026-11-02). A null answer is a trap, never a pointer LLVM may assume.
 - **`restrict t n`** is not printed in the first step, as on MASM: a restriction's length must survive
   a join, which a header-held length does not.
-- **A string literal** is a private constant `{ i64 len, [len x i8] }`, its bytes UTF-8.
+- **A string** is its length, its UTF-8 bytes and a NUL after them: `{ i64 len, [len+1 x i8] }` for a
+  literal, and the same layout from `string_of` and `++`, the only other operations that make one
+  (`targets/windows/strings.oro`). The NUL is outside the length, so the abstraction function
+  (ADR 0083's d) ignores it and nothing the language computes reads it; it is there so that a
+  string's bytes, at s + 8, are the C string Win32's `LPCSTR` reads, exactly when the string holds no
+  NUL itself (B*₀, the free submonoid on the non-NUL scalars; mastretire-2026-11-03).
 
 ## 5. Operations
 
@@ -205,15 +212,20 @@ its IR name with `-` made `_`.
 
 ## 9. Built in order, each with a time limit
 
-1. **The printer and the target, for the differential suite's windows cases** (one session): §3–§8 for
+1. ~~**The printer and the target, for the differential suite's windows cases**~~ **built** (llvm-2026-11-02): §3–§8 for
    the operations those cases use. `targets/windows-llvm/` with `kernel32.oro`, and `lib/win/fmt`'s
    printing written in the language's operators over a byte table, as ADR 0080 item 5 says programs
    naming x86 instructions move. The differential runner gains the target, and every case that runs on
    windows runs on it with one answer.
-2. **The gauntlet's sieve at parity** with hand-written MASM and with `ir/x86` (one session).
-3. **Σ_LLVM's stateable families declared** (`llvm.oro`), each with a differential case.
-4. **MASM retired** (ADR 0080 item 5): `ir/x86` and `x64.oro` deleted, `windows-llvm` renamed
-   `windows`, the programs naming x86 instructions ported.
+2. ~~**The gauntlet's sieve at parity**~~ **built** (llvm-2026-11-02): 0.65 of `ir/x86`, 0.64 of
+   hand-written MASM.
+3. **Σ_LLVM's stateable families declared** (`llvm.oro`), each with a differential case: **after step 4,
+   and by demand** (hamza agreed the order, 2026-11-03): a family is declared when a program needs it,
+   TinyRetroPad's first (CLAUDE.md 6c), each with its case.
+4. ~~**MASM retired**~~ **built** (ADR 0080 item 5, mastretire-2026-11-03): `ir/x86`, `x64.oro`,
+   `msvcrt.oro` and `lib/win/fmt.oro` deleted, `windows-llvm` renamed `windows`, the programs naming
+   x86 instructions ported to the language's operators, and the Win32 survey's writer to `call` and
+   `declare`.
 
 **Not in these steps**: the narrow scalar widths (ADR 0083's register rule), `noalias` on buffers
 (ADR 0080 item 2's next flag, measured when printed), 32-bit (`i686`, ADR 0080 item 3), the rung above

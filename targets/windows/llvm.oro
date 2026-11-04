@@ -1,0 +1,79 @@
+// Σ_LLVM, LLVM IR's own operations, AS THEY ARE (ADR 0080 item 7, ADR 0088,
+// llvmsurvey-2026-10-27). Declared by hand, family by family. Each says what
+// the instruction computes on i64, and its domain, the inputs where it is
+// neither poison nor undefined, is its `where` or its parameters' sets: an
+// obligation at every call, discharged by the IR or the program is refused. A
+// primitive the language cannot state is a wall, brought to hamza, and is not
+// declared.
+//
+//   (use llvm)   llvm.add(a, b)   llvm.sdiv(a, b)   llvm.shl(a, b)
+//
+// NOTHING HERE IS THE LANGUAGE. Which declaration computes the language's `+`
+// or `<<` on this target is said by `realize` in windows.oro; where an
+// instruction is not the language's operation on its whole domain (`shl` past
+// 63, `srem` of −2⁶³ by −1), the realization is a form in lang.oro, and the
+// instruction keeps its own domain here.
+//
+// THE FLAGS ARE THE PRINTER'S: `add` wraps, and `add nsw` is `add` on the
+// inputs whose sum is in the word. Which inputs an instance has is a proof
+// about it, which the IR holds and a declaration cannot (llvm.md §5).
+module llvm {
+    // ---- integer arithmetic on i64: the residue mod 2⁶⁴ of ℤ's result
+    // (ADR 0082), so total; ℤ's own where the result is in the word.
+    fn add(a ∈ Int, b ∈ Int) (Int) pure { host expr "add ${a}, ${b:v}" }
+    fn sub(a ∈ Int, b ∈ Int) (Int) pure { host expr "sub ${a}, ${b:v}" }
+    fn mul(a ∈ Int, b ∈ Int) (Int) pure { host expr "mul ${a}, ${b:v}" }
+
+    // sdiv and srem truncate, as ℤ's `/` and `%` do (integers.md §3). Each is
+    // undefined for a zero divisor and for −2⁶³ by −1 (LangRef): both are the
+    // domain.
+    fn sdiv(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
+        host expr "sdiv ${a}, ${b:v}"
+    }
+    fn srem(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
+        host expr "srem ${a}, ${b:v}"
+    }
+
+    // ---- the bitwise operations: ℤ's own on the word (ADR 0082), total.
+    fn and(a ∈ Int, b ∈ Int) (Int) pure { host expr "and ${a}, ${b:v}" }
+    fn or(a ∈ Int, b ∈ Int) (Int) pure { host expr "or ${a}, ${b:v}" }
+    fn xor(a ∈ Int, b ∈ Int) (Int) pure { host expr "xor ${a}, ${b:v}" }
+
+    // ---- shifts: poison for a count of 64 or more (LangRef), so the count's
+    // set is 0..63. `shl` is a·2ᵇ mod 2⁶⁴; `ashr` is ⌊a/2ᵇ⌋.
+    fn shl(a ∈ Int, b ∈ 0..63) (Int) pure { host expr "shl ${a}, ${b:v}" }
+    fn ashr(a ∈ Int, b ∈ 0..63) (Int) pure { host expr "ashr ${a}, ${b:v}" }
+
+    // ---- the overflow intrinsics: W × W → W × 𝔹, (a, b) ↦ (s, o) with o
+    // true exactly when ℤ's result leaves the word, and s ℤ's result where it
+    // does not (the residue mod 2⁶⁴ where it does). Total; two results, which
+    // LLVM answers as the aggregate {i64, i1}.
+    fn sadd_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+        host expr "call {i64, i1} @llvm.sadd.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)"
+    }
+    fn ssub_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+        host expr "call {i64, i1} @llvm.ssub.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.ssub.with.overflow.i64(i64, i64)"
+    }
+    fn smul_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+        host expr "call {i64, i1} @llvm.smul.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)"
+    }
+
+    // ---- the trap: 1 → ∅. It never returns (ADR 0090); impure, so it is
+    // never moved or dropped.
+    fn trap() (∅) { host stmt "call void @llvm.trap()" import "declare void @llvm.trap()" }
+
+    // ---- comparisons: `icmp` with its signed predicates, the order on the
+    // word read as two's complement.
+    fn eq(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp eq ${a}, ${b:v}" }
+    fn ne(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp ne ${a}, ${b:v}" }
+    fn slt(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp slt ${a}, ${b:v}" }
+    fn sle(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp sle ${a}, ${b:v}" }
+    fn sgt(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp sgt ${a}, ${b:v}" }
+    fn sge(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp sge ${a}, ${b:v}" }
+
+    // ---- the null pointer, LLVM's constant `null` of type ptr: 1 → ptr. It is
+    // what Win32 takes where SAL says a pointer is `_opt_` or `_Reserved_`,
+    // and the language cannot read through it (ADR 0084: no load without a
+    // view). An instruction must name it, so it is the address null + 0.
+    fn null() (ptr) pure { host expr "getelementptr i8, ptr null, i64 0" }
+}

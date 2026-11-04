@@ -1,8 +1,9 @@
-// THE X86 ELEMENT WIDTH (wintables-2026-08-25 §4a).
+// THE NATIVE ELEMENT WIDTH (wintables-2026-08-25 §4a).
 // expect: 0 2 5
 //
-// A boolean table is one byte per element on x86 and eight on the other three,
-// because that host has no types and the width has to be carried. Losing it at a
+// A boolean table is one byte per element on windows (an `i8`) and the host's
+// own on the other three, because a native target has no types of its own and
+// the width has to be carried. Losing it at a
 // binder reads the array as qwords — seven bytes of the following elements per
 // access — which is a wrong answer rather than a slow one.
 //

@@ -1,5 +1,8 @@
 # The windows target: a host with no expressions
 
+**Superseded 2026-11-03: MASM retired** (ADR 0080 item 5, mastretire-2026-11-03). `targets/windows/`
+is now printed as LLVM IR ([llvm.md](llvm.md)), and this document is the record of the MASM target.
+
 **Status, 2026-08-19. Built and measured.** `targets/windows/` emits x86-64 assembly, MASM
 assembles it, `link` produces a `.exe`. Three programs build and run:
 `examples/native/hello-win.oro`, `sieve-win.oro` (prints 2262, the same answer as the Go, JS and

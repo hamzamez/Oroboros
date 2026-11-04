@@ -7,10 +7,11 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 	"oroboros/ir/golang"
 	"oroboros/ir/java"
 	"oroboros/ir/js"
-	"oroboros/ir/x86"
+	"oroboros/ir/llvm"
 )
 
 func genOn(t *testing.T, target, src, name string) (string, error) {
@@ -42,7 +43,11 @@ func genOn(t *testing.T, target, src, name string) (string, error) {
 	case "java":
 		return java.FromResidual(tg, name, prog.Sigs[q], nf)
 	case "windows":
-		return x86.FromResidual(tg, name, prog.Sigs[q], nf)
+		f, _, err := ir.Entry(tg, name, name, prog.Sigs[q], nf, nil, false, nil)
+		if err != nil {
+			return "", err
+		}
+		return llvm.FromFunc(tg, f)
 	default:
 		return golang.FromResidual(tg, name, prog.Sigs[q], nf)
 	}
@@ -78,9 +83,8 @@ func TestEveryTargetHasMultipleResults(t *testing.T) {
 			`return \{f0: \(v\d+ \+ v\d+\), f1: \(v\d+ - v\d+\)\};`},
 		{"java", "use java\nexport fn d(a ∈ Int, b ∈ Int) (Int × Int) where java.`!=`(b, 0) { (java.`/`(a, b), java.`%`(a, b)) }",
 			`return new Tup_long_long\(`},
-		{"windows", `use x64
-export fn d(a ∈ Int, b ∈ Int) (Int × Int) { (x64.idiv(a, b), x64.irem(a, b)) }`,
-			`mov rdx,`},
+		{"windows", "export fn d(a ∈ -2^63+1..2^63-1, b ∈ Int) (Int × Int) where b != 0 { (a / b, a % b) }",
+			`ret \{ i64, i64 \} %`},
 	}
 	for _, c := range cases {
 		code, err := genOn(t, c.target, c.src, "d")
@@ -91,32 +95,6 @@ export fn d(a ∈ Int, b ∈ Int) (Int × Int) { (x64.idiv(a, b), x64.irem(a, b)
 		if !regexp.MustCompile(c.want).MatchString(code) {
 			t.Errorf("%s: missing %s:\n%s", c.target, c.want, code)
 		}
-	}
-}
-
-// x86 needs TWO PASSES, and the first draft had one. Placing a result in its
-// return register as it is computed clobbers the earlier ones, because rax and
-// rdx are `idiv`'s own operands. The bug was visible in the emitted assembly:
-//
-//	mov rdi, rax     ; quotient held
-//	mov rax, rdi     ; result 0 placed
-//	mov rax, rbx     ; ...and immediately destroyed
-//
-// So no write to a convention register may appear before the last computation.
-func TestAsmPlacesResultsAfterComputing(t *testing.T) {
-	code, err := genOn(t, "windows", `use x64
-export fn d(a ∈ Int, b ∈ Int) (Int × Int) { (x64.idiv(a, b), x64.irem(a, b)) }`, "d")
-	if err != nil {
-		t.Fatal(err)
-	}
-	lastIdiv := strings.LastIndex(code, "idiv")
-	firstPlace := strings.Index(code, "mov rax, rdi")
-	if lastIdiv < 0 {
-		t.Fatalf("expected an idiv:\n%s", code)
-	}
-	if firstPlace >= 0 && firstPlace < lastIdiv {
-		t.Errorf("a result is placed in rax before the last computation, "+
-			"which clobbers it:\n%s", code)
 	}
 }
 
@@ -202,10 +180,7 @@ func TestMatchReachesEveryBackend(t *testing.T) {
 		{"go", "use go\nexport fn g(s ∈ Int, n ∈ Int) (Int) {\n    loop s = s, n = n { s == 0 -> again(1, go.`-`(n, 1)); else -> n }\n}", "for "},
 		{"js", "use js\nexport fn g(s ∈ Any, n ∈ Any) (Any) {\n    loop s = s, n = n { s == 0 -> again(1, js.`-`(n, 1)); else -> n }\n}", "for (;"},
 		{"java", "use java\nexport fn g(s ∈ Int, n ∈ Int) (Int) {\n    loop s = s, n = n { s == 0 -> again(1, java.`-`(n, 1)); else -> n }\n}", "for (;"},
-		{"windows", `use x64
-export fn g(s ∈ Int, n ∈ Int) (Int) {
-    loop s = s, n = n { s == 0 -> again(1, x64.sub(n, 1)); else -> n }
-}`, "Ltop"},
+		{"windows", "export fn g(s ∈ -2^63..2^63-1, n ∈ -2^63+1..2^63-1) (Int) {\n    loop s = s, n = n { s == 0 -> again(1, n - 1); else -> n }\n}", "br label %.head"},
 	}
 	for _, c := range cases {
 		code, err := genOn(t, c.target, c.src, "g")
@@ -234,10 +209,8 @@ func TestSumCrossesEveryBoundary(t *testing.T) {
 			[]string{`return \{f0: 1, f1: 0\};`, `return \{f0: 0, f1: \(v\d+ / v\d+\)\};`}},
 		{"java", "use java\nset Result = 'ok(Int) ∪ 'err(Int)\nexport fn d(a ∈ Int, b ∈ Int) (Result) { if b == 0 { 'err(0) } else { 'ok(java.`/`(a, b)) } }",
 			[]string{`Tup_long_long`, `return new Tup_long_long\(1, 0\);`}},
-		{"windows", `use x64
-set Result = 'ok(Int) ∪ 'err(Int)
-export fn d(a ∈ Int, b ∈ Int) (Result) { if b == 0 { 'err(0) } else { 'ok(x64.idiv(a, b)) } }`,
-			[]string{`mov rax, 1`, `mov rdx,`}},
+		{"windows", "set Result = 'ok(Int) ∪ 'err(Int)\nexport fn d(a ∈ -2^63+1..2^63-1, b ∈ Int) (Result) { if b == 0 { 'err(0) } else { 'ok(a / b) } }",
+			[]string{`insertvalue \{ i64, i64 \} undef, i64 1, 0`, `insertvalue \{ i64, i64 \} undef, i64 0, 0`}},
 	}
 	for _, c := range cases {
 		code, err := genOn(t, c.target, c.src, "d")

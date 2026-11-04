@@ -588,7 +588,7 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 // numberedHoles reports a target whose templates number their holes: the two
 // Windows models, MASM's and LLVM's (docs/spec/llvm.md §6), whose templates
 // are instruction sequences that name operands out of order and their result.
-func numberedHoles(target string) bool { return target == "windows" || target == "windows-llvm" }
+func numberedHoles(target string) bool { return target == "windows" }
 
 // positionalHoles is the inverse of named (target.go): `${x}` back to today's
 // holes. A template that splices the result or a register's view is x86's,

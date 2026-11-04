@@ -25,7 +25,7 @@ claim:
 | `targets/go/builtin.oro` | `&`, `\|`, `^`, `&^`, `<<`, `>>` on `int` |
 | `targets/java/lang.oro` | `&`, `\|`, `^`, `~`, `<<`, `>>`, `>>>` on `long` |
 | `targets/js/builtin.oro` | `&`, `\|`, `^`, `~`, `<<`, `>>`, `>>>` on **`any`** |
-| `targets/windows/x64.oro` | `and`, `or`, `xor`, `not`, `shl`, `shr`, `sar` on 64-bit registers |
+| `targets/windows/llvm.oro` | `and`, `or`, `xor`, `shl`, `lshr`, `ashr` on `i64` (MASM's `x64.oro` until it retired) |
 
 So the operations are reachable, and `targets/js/builtin.oro` does already note that JavaScript's
 "coerce to int32 in JS, which is a real semantic edge". What does not exist is any **portable**

@@ -16,13 +16,14 @@
 //
 // `print-int` is not asked to print the negative itself: win/fmt.print-int
 // prints a blank line for one, and is within its rights (refinements.md §6b).
-// It needs `-checked`, because a host call's result has no declared range and
-// ADR 0019 refuses arithmetic on it otherwise.
+// Every operation is proven: MulDiv's result is declared -2^31..2^31-1, an int's
+// range, by its `sext` (mastretire-2026-11-03). On MASM it needed `-checked`,
+// a host result having no declared range.
 use win/WinBase as w
-use win/fmt
+use win/print
 
 export fn main() {
     r = w.MulDiv(0 - 7, 6, 2)
-    fmt.print_int(if r < 0 { 1 } else { 0 })
-    fmt.print_int(r + 100)
+    print.print_int(if r < 0 { 1 } else { 0 })
+    print.print_int(r + 100)
 }

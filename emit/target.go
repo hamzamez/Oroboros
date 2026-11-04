@@ -420,7 +420,7 @@ type Target struct {
 	// resolves imports at link time — what the backend's own code needs and
 	// what the target's hand-written runtime assumes. A primitive's `lib` adds
 	// to it only when the program uses that primitive (target-files.md §6a).
-	// It was a constant in asmBuildBat, which is a host fact living in Go.
+	// It was a constant in the build script, which is a host fact living in Go.
 	Link []string
 
 	// Build is the host toolchain command: %s is the artifact path, %s the
@@ -1785,9 +1785,9 @@ func loadTargetFile(path, name string) (*Target, error) {
 // `𝔅`. A backend emits control flow and binds variables, which is why a target
 // file may not add one and why `(structural …)` is closed for the same reason.
 //
-// `x86-64` currently implies MASM and the Win64 ABI; splitting those out is
-// target-system.md §5.2's family question and wants a second ISA first.
-var Backends = []string{"go", "js", "java", "x86-64", "llvm"}
+// `llvm` prints LLVM IR for a triple (ADR 0080); the native targets are its
+// triples, and MASM's `x86-64` retired at parity (ADR 0080 item 5).
+var Backends = []string{"go", "js", "java", "llvm"}
 
 func isBackend(n string) bool {
 	for _, b := range Backends {
@@ -3518,39 +3518,22 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 		return os.WriteFile(filepath.Join(dir, "Main.java"), []byte(b.String()), 0o644)
 
 	case "windows":
-		// One translation unit and one batch file. The batch file exists
-		// because of a limitation this target was the first to hit: Build is
-		// split on whitespace and run without a shell, and every Windows
-		// toolchain lives under `C:\Program Files\`. `go`, `node` and `javac`
-		// are all bare words on PATH, so no target had ever needed a path with
-		// a space in it. Discovery moves into the batch file, which is a
-		// workaround and is recorded as one (windows-target.md 6).
-		if err := os.WriteFile(filepath.Join(dir, "main.asm"), []byte(code), 0o644); err != nil {
-			return err
-		}
-		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(asmBuildScript(tg.Link, AsmLibs)), 0o644)
-
-	case "windows-llvm":
-		// One module and one batch file, as for MASM: clang compiles the module
-		// (docs/spec/llvm.md §2) and MSVC's link links it with no C runtime.
+		// One module and one batch file: clang compiles the module
+		// (docs/spec/llvm.md §2) and MSVC's link links it with no C runtime. The
+		// batch file exists because Build is split on whitespace and run without
+		// a shell, and the Windows toolchains live under paths with spaces in
+		// them (windows-target.md 6), so discovery moves into the script.
 		if err := os.WriteFile(filepath.Join(dir, "main.ll"), []byte(code), 0o644); err != nil {
 			return err
 		}
-		script := strings.Replace(asmBuildScript(tg.Link, LLVMLibs), asmAssemble, llvmCompile, 1)
-		script = strings.Replace(script, asmFind, llvmFind, 1)
-		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(script), 0o644)
+		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(buildScript(tg.Link, LLVMLibs)), 0o644)
 	}
 	return fmt.Errorf("target %q has no program layout", tg.Name)
 }
 
-// asmBuildBat finds MASM and the linker, then runs them.
-//
-// It exists because Build is split on whitespace and run without a shell, and
-// every Windows toolchain lives under a path with a space in it. `go`, `node`
-// and `javac` are bare words on PATH, so no target had ever needed more than
-// one command or a quoted path. Discovery therefore moves into a script the
-// target writes — which works, and is a workaround (windows-target.md 6).
-const asmBuildBat = `@echo off
+// buildBat finds MSVC's link and clang, then runs them: clang where the official
+// LLVM release installs it, or else on PATH.
+const buildBat = `@echo off
 setlocal enabledelayedexpansion
 set "VCV="
 for %%p in ("%ProgramFiles%\Microsoft Visual Studio" "%ProgramFiles(x86)%\Microsoft Visual Studio") do (
@@ -3560,31 +3543,22 @@ for %%p in ("%ProgramFiles%\Microsoft Visual Studio" "%ProgramFiles(x86)%\Micros
     )
   )
 )
-if not defined VCV (echo build.bat: no MSVC toolchain with ml64 was found & exit /b 1)
+if not defined VCV (echo build.bat: no MSVC toolchain with link was found & exit /b 1)
+set "CLANG=%LOCALAPPDATA%\Programs\LLVM\bin\clang.exe"
+if not exist "!CLANG!" set "CLANG=clang"
 call "!VCV!" >nul || exit /b 1
-ml64 -nologo -c -Fomain.obj main.asm || exit /b 1
+"!CLANG!" -O2 -Wno-override-module -c -o main.obj main.ll || exit /b 1
 link -nologo -subsystem:console -entry:main main.obj {{LIBS}} -out:main.exe || exit /b 1
 `
 
-// The LLVM target's script is the MASM one with its assembler replaced by
-// clang, found where the official release installs it or else on PATH.
-const (
-	asmAssemble = "ml64 -nologo -c -Fomain.obj main.asm || exit /b 1\n"
-	llvmCompile = "\"!CLANG!\" -O2 -Wno-override-module -c -o main.obj main.ll || exit /b 1\n"
-	asmFind     = "if not defined VCV (echo build.bat: no MSVC toolchain with ml64 was found & exit /b 1)\n"
-	llvmFind    = "if not defined VCV (echo build.bat: no MSVC toolchain with link was found & exit /b 1)\n" +
-		`set "CLANG=%LOCALAPPDATA%\Programs\LLVM\bin\clang.exe"` + "\n" +
-		`if not exist "!CLANG!" set "CLANG=clang"` + "\n"
-)
-
-// asmBuildScript fills the link line. It is `link` in declared order, then each
+// buildScript fills the link line. It is `link` in declared order, then each
 // library a USED primitive names that is not already there, sorted — so the
 // script is a function of the program and the target, and a program that calls
 // nothing new gets exactly the line it always had.
 //
 // Windows library names are case-insensitive, so presence is decided on the
 // lowercase spelling; the declared spelling is what is written.
-func asmBuildScript(link []string, used map[string]bool) string {
+func buildScript(link []string, used map[string]bool) string {
 	var libs []string
 	have := map[string]bool{}
 	for _, l := range link {
@@ -3604,7 +3578,7 @@ func asmBuildScript(link []string, used map[string]bool) string {
 	for _, l := range extra {
 		libs = append(libs, l+".lib")
 	}
-	return strings.Replace(asmBuildBat, "{{LIBS}}", strings.Join(libs, " "), 1)
+	return strings.Replace(buildBat, "{{LIBS}}", strings.Join(libs, " "), 1)
 }
 
 func sortedSet(m map[string]bool) []string {
@@ -3963,13 +3937,13 @@ func allStrings(ts []*core.Term) bool {
 	return true
 }
 
-// checkExterns refuses an (import …) of several names outside the x86 and LLVM
-// backends: a Go, JavaScript or Java template names one package or module, and
-// a printer that read only the first would drop the rest silently. An assembly
-// template calls several externs, and an LLVM one's imports are module lines.
+// checkExterns refuses an (import …) of several names outside the LLVM
+// backend: a Go, JavaScript or Java template names one package or module, and
+// a printer that read only the first would drop the rest silently. An LLVM
+// template's imports are module lines, several by design.
 func (tg *Target) checkExterns() error {
 	b, err := tg.ResolveBackend()
-	if err != nil || b == "x86-64" || b == "llvm" {
+	if err != nil || b == "llvm" {
 		return nil
 	}
 	names := make([]string, 0, len(tg.Prims))

@@ -59,7 +59,7 @@ func CheckLinear(t *core.Term, tgt *Target, sig *core.Sig) error {
 	// boundary and its occurrences are already in the residual, where `scan`
 	// decides them against the `build` that made the buffer.
 	if t != nil && t.Kind == core.KFn {
-		body, raw, _ := openFresh(t, taken, asmIdent)
+		body, raw, _ := openFresh(t, taken, sameName)
 		bufs := make([]bool, len(raw))
 		for i, name := range raw {
 			if sig == nil || i >= len(sig.Params) || !core.IsBuffer(sig.Params[i].Type) {
@@ -109,7 +109,7 @@ func (c *linChecker) scan(t *core.Term, env, taken map[string]bool) error {
 		return nil
 	}
 	if t.Kind == core.KFn {
-		body, raw, _ := openFresh(t, taken, asmIdent)
+		body, raw, _ := openFresh(t, taken, sameName)
 		defer bindBufs(env, raw, make([]bool, len(raw)))()
 		return c.scan(body, env, taken)
 	}
@@ -124,7 +124,7 @@ func (c *linChecker) scan(t *core.Term, env, taken map[string]bool) error {
 		if err := c.bufferArgs(p, as, env, taken); err != nil {
 			return err
 		}
-		body, raw, _ := openFresh(k, taken, asmIdent)
+		body, raw, _ := openFresh(k, taken, sameName)
 		bufs := make([]bool, len(raw))
 		for i, name := range raw {
 			if i < len(p.Results) && core.IsBuffer(p.Results[i]) {
@@ -146,7 +146,7 @@ func (c *linChecker) scan(t *core.Term, env, taken map[string]bool) error {
 		if err := c.scan(t.Kids[1], env, taken); err != nil {
 			return err
 		}
-		body, raw, _ := openFresh(t.Kids[2], taken, asmIdent)
+		body, raw, _ := openFresh(t.Kids[2], taken, sameName)
 		if err := c.walk(body, raw[0], &linState{}); err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func (c *linChecker) scan(t *core.Term, env, taken map[string]bool) error {
 			return err
 		}
 		buf := c.isBuf(t.Kids[1], env, taken)
-		body, raw, _ := openFresh(t.Kids[2], taken, asmIdent)
+		body, raw, _ := openFresh(t.Kids[2], taken, sameName)
 		if buf {
 			if err := c.walk(body, raw[0], &linState{origin: "a `let`"}); err != nil {
 				return err
@@ -178,7 +178,7 @@ func (c *linChecker) scan(t *core.Term, env, taken map[string]bool) error {
 			}
 			bufs[i] = c.isBuf(z, env, taken)
 		}
-		body, raw, _ := openFresh(t.Kids[1], taken, asmIdent)
+		body, raw, _ := openFresh(t.Kids[1], taken, sameName)
 		for i, name := range raw {
 			if bufs[i] {
 				if err := c.walk(body, name, &linState{origin: "a loop"}); err != nil {
@@ -284,7 +284,7 @@ func (c *linChecker) isBuf(t *core.Term, env, taken map[string]bool) bool {
 		if len(t.Kids) != 3 || t.Kids[2].Kind != core.KFn || len(t.Kids[2].Params) != 1 {
 			return false
 		}
-		body, raw, _ := openFresh(t.Kids[2], taken, asmIdent)
+		body, raw, _ := openFresh(t.Kids[2], taken, sameName)
 		defer bindBufs(env, raw, []bool{c.isBuf(t.Kids[1], env, taken)})()
 		return c.isBuf(body, env, taken)
 	case "iterate":
@@ -295,7 +295,7 @@ func (c *linChecker) isBuf(t *core.Term, env, taken map[string]bool) bool {
 		for i, z := range t.Kids[2:] {
 			bufs[i] = c.isBuf(z, env, taken)
 		}
-		body, raw, _ := openFresh(t.Kids[1], taken, asmIdent)
+		body, raw, _ := openFresh(t.Kids[1], taken, sameName)
 		defer bindBufs(env, raw, bufs)()
 		return c.exitIsBuf(body, env, taken)
 	}
@@ -514,3 +514,7 @@ func (c *linChecker) dead(name, how string, st *linState) error {
 		"  Reading a buffer is fine and does not consume it; using it after a store\n"+
 		"  or after passing it on is not.", core.ShowName(name), how, where)
 }
+
+// sameName is the identity spelling: a check that opens a binder only to read
+// it needs the raw names, not a host's.
+func sameName(s string) string { return s }

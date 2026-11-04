@@ -1,0 +1,19 @@
+// A LANGUAGE STRING IS A C STRING ON WINDOWS (docs/spec/llvm.md §4,
+// mastretire-2026-11-03): its bytes at s + 8 are followed by a NUL, outside its
+// length, so Win32's LPCSTR reads exactly the string. lstrlenA counts bytes up
+// to the first NUL, so it equals the length exactly when the sentinel is there,
+// for each of the three ways this target makes a string: a literal,
+// `string_of`, and `++`. Without the sentinel it reads past the string into
+// whatever follows it, and the answer is not the length.
+//
+// Exact only on a string holding no NUL itself (B*₀): a string with a NUL
+// inside is read by C up to it, which the language cannot state yet, and is a
+// wall (mastretire-2026-11-03).
+use win/WinBase as w
+use win/print
+
+export fn main() {
+    print.print_int(w.lstrlenA("hello"))
+    print.print_int(w.lstrlenA(string_of(955)))
+    print.print_int(w.lstrlenA("ab" ++ string_of(99) ++ "de"))
+}

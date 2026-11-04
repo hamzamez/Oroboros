@@ -19,7 +19,7 @@
 //
 // run(n) = 1000000 + ((0-(n+1)) / 2) * 100 + ((0-(n+1)) % 8) + (n * 300000000) / 4
 //
-// THE OFFSET IS THE HARNESS, NOT THE TEST. `win/fmt.print-int` prints a blank
+// THE OFFSET IS THE HARNESS, NOT THE TEST. `win/fmt.print-int`, MASM's printer until it retired, prints a blank
 // line for a negative number and is within its rights (refinements.md §6b names
 // it as the gap inlining cannot reach), so a case whose RESULT goes negative
 // loses a line on that target and looks like a disagreement. The negative

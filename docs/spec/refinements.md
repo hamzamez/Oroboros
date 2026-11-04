@@ -564,6 +564,7 @@ a direct call by name. A range with an infinite endpoint keeps its finite side, 
 - **No refinement inference.** A `where` is declared, never guessed. Liquid Types infers them by
   Horn-clause fixpoint; that is a larger machine and no program has asked.
 - **No enforcement of a precondition that states MEANING.** §6b: a definition whose body is total
-  and merely wrong outside its domain has nothing to catch. `win/fmt.print-int` is the instance.
+  and merely wrong outside its domain has nothing to catch. `win/fmt.print-int` was the instance
+  (MASM's printer; `lib/win/print`, which replaced it, prints any word).
 - **Not applied to the integer range yet.** §1's second hole needs `int` literals to carry ranges,
   which touches every arithmetic primitive. One hole at a time.

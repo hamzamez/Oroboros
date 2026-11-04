@@ -37,7 +37,7 @@ import (
 // changed its wording shows too.
 
 var targets = []struct{ name, ext string }{
-	{"go", "go"}, {"js", "mjs"}, {"java", "java"}, {"windows", "asm"}, {"windows-llvm", "ll"},
+	{"go", "go"}, {"js", "mjs"}, {"java", "java"}, {"windows", "ll"},
 }
 
 type outcome struct {

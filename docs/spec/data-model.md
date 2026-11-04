@@ -157,7 +157,7 @@ everywhere else** — which means it is not one implementation, it is four. And 
 hosts' own four are better: `math/big`, `BigInteger`, `BigInt`, and nothing.
 
 **Except on windows, where there is no host implementation at all.** That target would need one
-written, exactly as `lib/win/fmt.oro` is written. That is the honest asymmetry: three targets have
+written, exactly as `lib/win/print.oro` is written. That is the honest asymmetry: three targets have
 a bignum to parasitize and one does not.
 
 **Is `math/big` the best way on Go?**
@@ -287,7 +287,7 @@ unbounded integers are bad — because *hiding what they cost* is.
 allocating), the Haskell/Java split.
 *For:* satisfies §0 by construction — the price is the name. A program that needs exactness says
 so and pays. *Against:* on the windows target `bignum` is not a host feature at all; it would have
-to be *written*, like `lib/win/fmt.oro`. That is a real cost and it is the honest kind: a target
+to be *written*, like `lib/win/print.oro`. That is a real cost and it is the honest kind: a target
 that cannot provide it says so, and covering reports it.
 
 **N-E — Range-typed integers, the declared direction.** `(sig f ((n (int 0 65535))) …)`, with the

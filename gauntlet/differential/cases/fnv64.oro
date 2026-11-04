@@ -4,7 +4,8 @@
 // never held: the xor and the multiply are the word's wrapping operators, and
 // `mod 2^64` is the residue map into the unsigned word, `uint64(x)` on Go.
 //
-// skip: windows — MASM realizes no unsigned word; ir/llvm will
+// skip: windows — the unsigned word is not realized on windows yet (ADR 0083: it
+// comes with LLVM's native widths), so under -checked its operations trap there.
 //
 // inputs: 0 1 7 100 255
 // expect: 461012207434663396 8405117280599655890 15165116331320844334 10683267473116825228 12973567403027353118

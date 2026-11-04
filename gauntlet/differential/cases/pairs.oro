@@ -11,7 +11,8 @@
 // wrapped, and the loop variable a pair at its join. The expected values are
 // Python's.
 //
-// skip: windows — MASM realizes no unsigned word; ir/llvm will
+// skip: windows — the unsigned word is not realized on windows yet (ADR 0083: it
+// comes with LLVM's native widths), so under -checked its operations trap there.
 //
 // inputs: 0 1 2 3 4 5 6 7 8 9
 // expect: 899588809 3022664801 2796196182 4086836550 933114002 2650989795 2471589099 2077010205 1677399926 1519270277

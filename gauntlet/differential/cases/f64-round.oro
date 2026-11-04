@@ -9,9 +9,9 @@
 // expect: 1 1 1 1 1 1 1
 // skip: windows
 //
-// windows declares no realization yet: its printer is MASM's, and ADR 0080's
-// LLVM printer is where F64's roundings are declared (Σ_LLVM, floats-research
-// §19.3), so round(F64, …) is refused there, saying so.
+// windows declares no realization of a rounding onto F64 yet: Σ_LLVM's `fadd`,
+// `fmul`, … are where they will be declared, each with its `ensure`
+// (floats-research §19.3), so round(F64, …) is refused there, saying so.
 //
 //   1  1 + 2⁻⁵³, a tie between 1 and 1 + 2⁻⁵²: the even one, 1
 //   2  (1 + 2⁻⁵²) + 2⁻⁵³, a tie between 1 + 2⁻⁵² and 1 + 2⁻⁵¹: the even one above

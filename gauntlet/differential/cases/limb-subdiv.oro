@@ -27,9 +27,9 @@
 //   q in base 2^24 = [2255158, 8514949, 0, …]
 // ONE INPUT, AND BOTH SIGNIFICANT LIMBS IN ONE NUMBER. The harness inlines `run`
 // at every call site, so three inputs is three copies of two `build`s and two
-// loops — and on x86 that exceeds what the register allocator can place, which
-// is a PRE-EXISTING backend ceiling (`x64.movb has more spilled operands than
-// there are scratch registers`) and reproduces with this work reverted. The
+// loops — and on MASM, the windows printer until it retired, that exceeded what
+// its register allocator could place, a backend ceiling (`x64.movb has more
+// spilled operands than there are scratch registers`). The
 // differential README already names that ceiling and says provoking it from a
 // harness measures the harness, so the answer is one call whose result encodes
 // what three would have checked.

@@ -7,8 +7,10 @@ the canonical printer and reader, in `ir/`. Every program that emits is lowered 
 printing IR_P, at parity on the gauntlet. **Step 3 is built**
 ([irstep3-2026-09-25](../../gauntlet/results/irstep3-2026-09-25.md)): the decisions every printer
 shares are `ir/plan`, and the JavaScript backend is `ir/js`. The Java backend is `ir/java`
-([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)), and the x86 backend is
-`ir/x86` ([irstep3x86-2026-09-26](../../gauntlet/results/irstep3x86-2026-09-26.md)). It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
+([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)), and the native backend is
+`ir/llvm` ([llvm.md](llvm.md)), which replaced the x86 backend `ir/x86`
+([irstep3x86-2026-09-26](../../gauntlet/results/irstep3x86-2026-09-26.md)) when MASM retired
+(ADR 0080 item 5, mastretire-2026-11-03). It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
 backend interface is a file format and never wrote the format. **Every printer factors through the
 text** ([ADR 0038](../decisions/0038-the-irs-text-is-read-not-written.md),
 [irtext-2026-10-04](../../gauntlet/results/irtext-2026-10-04.md)): the IR_P file and the target's
@@ -910,6 +912,10 @@ in an order the host randomises (CLAUDE.md, "the emitter must be a function of i
 the same: print twice and compare.
 
 ### 9.6 The x86 printer: a value's place is a colour of an interval graph
+
+**Retired 2026-11-03 with MASM** (ADR 0080 item 5): `ir/x86` is deleted, and this section is the
+record of what it was. On LLVM a value's place is an `alloca` that mem2reg makes a register or a φ
+(llvm.md §7), and the allocation is LLVM's.
 
 x86 is the one host with no variables, so its printer decides where each value lives: a callee-saved
 register (rbx, rsi, rdi, r12–r15; xmm6–xmm13 for `f64`), an immediate, or a frame slot. The other

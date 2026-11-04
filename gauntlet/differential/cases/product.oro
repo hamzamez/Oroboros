@@ -25,7 +25,7 @@
 // program was run.
 //
 // The `+ 14` is a bias that keeps every term positive, and it is here for a
-// target rather than for the arithmetic: `win/fmt.print-int` prints a blank line
+// target rather than for the arithmetic: `win/fmt.print-int`, MASM's printer until it retired, prints a blank line
 // for a negative number and is within its rights (refinements.md §6b names that
 // exact gap). Without it windows built, ran, exited 0 and printed nothing.
 cap = 12

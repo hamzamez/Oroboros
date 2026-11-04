@@ -122,9 +122,8 @@ checked. When a package hits a wall that needs language work, stop, research it,
      no worse speed); C carries less of the IR's proofs (0.55 against 0.35 under one compiler) and its speed
      is one compiler's heuristics. LLVM adds no check: its undefined behaviour is what the IR proves absent,
      so the proofs become `nsw`, `nuw`, `inbounds`, `select`. 32-bit is a triple.
-   - 6b. **`ir/llvm`, spec first**: the printer of ADR 0080 at the corpus's windows parity (the
-     differential suite's windows cases and the gauntlet's sieve), then `ir/x86` and `x64.oro`'s vocabulary
-     retired and their programs ported to the language's operators. **LLVM IR is a host like any other, and
+   - 6b. **`ir/llvm`, spec first**: the printer of ADR 0080 at the corpus's windows parity, then MASM
+     retired, **both done** (below). **LLVM IR is a host like any other, and
      its target offers every primitive it has** (hamza, 2026-10-27; ADR 0080 item 7): Σ_LLVM declared by
      hand, each operation's undefined behaviour its `where`; **a primitive the language cannot state is a
      wall, brought to hamza** before anything is built for it. LLVM 23.1.4, the official release, is
@@ -201,15 +200,23 @@ checked. When a package hits a wall that needs language work, stop, research it,
           for every grid (`core/grid.go`), checked against F(p, …)'s definition and against binary64;
           ADR 0087 closed the open-range hole it found ([resultclaim-2026-11-02](gauntlet/results/resultclaim-2026-11-02.md)).
         - **step 2 and this round's loose ends wait on a trigger** (below).
-     **`ir/llvm`, spec first** ([llvm.md](docs/spec/llvm.md); its §9 the steps): steps 1–2 built
-     ([llvm-2026-11-02](gauntlet/results/llvm-2026-11-02.md)): `targets/windows-llvm/` beside MASM,
-     every windows differential case agreeing on it; the sieve and merge sort at 0.65 and 0.36 of
+     **`ir/llvm`, spec first** ([llvm.md](docs/spec/llvm.md); its §9 the steps): steps 1, 2 and 4
+     built. **The windows target prints LLVM IR** ([llvm-2026-11-02](gauntlet/results/llvm-2026-11-02.md)):
+     every windows differential case agreed with MASM; the sieve and merge sort at 0.65 and 0.36 of
      `ir/x86`, the sieve process 0.64 of hand-written MASM; flags only where the IR proved them, each
-     read back by a witness with a planted fault; `>>` past 63 total; `lib/win/print.oro` and
-     `emit/winmap.oro` in the language's operators. Next, §9 step 3: Σ_LLVM's stateable families
-     declared, each with a differential case; then MASM retired (step 4), with what the walls left to
-     it: LLVM's widths (native iN, i32 scalars on i686), the unsigned word on windows, and the rung
-     above as native iN, measured against the limbs.
+     read back by a witness with a planted fault; `>>` past 63 total. **MASM retired**
+     ([mastretire-2026-11-03](gauntlet/results/mastretire-2026-11-03.md)): `ir/x86`, `x64.oro`,
+     `msvcrt.oro` and `lib/win/fmt.oro` deleted; the programs naming x86 instructions ported by ι⁻¹ to
+     the language's operators; the Win32 survey writes `call` and `declare`, an integer parameter its C
+     range by `trunc` and a narrow result by `sext`/`zext`, every pinned figure unchanged and the
+     acceptance programs proven without `-checked`; a string carries a NUL after its bytes, so it is
+     Win32's C string. **A wall with hamza**: a C string's domain is B*₀, the strings with no NUL,
+     which the language cannot state, and the `A` functions read the ANSI code page, so a non-ASCII
+     string is misread (`tést` became `tÃ©st`) until a UTF-8 manifest or a UTF-16 codec (mastretire,
+     "A wall"). Step 3, Σ_LLVM's families, by demand,
+     TinyRetroPad's first. Left to the walls: LLVM's widths (native iN, i32 scalars on i686), the
+     unsigned word on windows (its 64-bit results at or above 2⁶³ read signed, as on MASM), and the
+     rung above as native iN, measured against the limbs.
    - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
      user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.
@@ -291,10 +298,10 @@ what TinyRetroPad's walls need.
   [gauntlet-2026-09-29](gauntlet/results/gauntlet-2026-09-29.md): geometric means 0.990, 0.977, 0.987,
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
-  `gauntlet` step. The Windows sieve is 0.98× hand-written MASM.
-- **Provability**: **5,228 of 5,305** integer operations proven inside their target's word, the 77 left
-  mostly meant to be refused or waiting on MASM's unsigned word (which `ir/llvm` replaces);
-  **557 of 580** loops proven to terminate (size-change termination). Each
+  `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
+- **Provability**: **4,983 of 5,043** integer operations proven inside their target's word, the 60 left
+  mostly meant to be refused or waiting on the unsigned word on windows;
+  **489 of 513** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -336,10 +343,10 @@ postconditions and a definition's claim
 (`ir/interp_test.go`) and has a planted fault.
 
 **The IR's text is the printers' whole input** (ADR 0038): `gen -ir` writes IR_P, and `cmd/check`
-reprints every program from that text alone, byte for byte. Five printers, `ir/golang`, `ir/js`,
-`ir/java`, `ir/x86` (MASM, a value's place a colouring of exact live sets, optimal by chordality;
-retiring) and `ir/llvm` (LLVM IR, ADR 0080, [llvm.md](docs/spec/llvm.md): a join a slot that mem2reg
-makes a φ, and a flag only where the IR proved it), sharing `ir/plan`. The term backends and the term interval analysis are deleted (irstep4a, irstep4j).
+reprints every program from that text alone, byte for byte. Four printers, `ir/golang`, `ir/js`,
+`ir/java` and `ir/llvm` (LLVM IR, ADR 0080, [llvm.md](docs/spec/llvm.md): a join a slot that mem2reg
+makes a φ, and a flag only where the IR proved it), sharing `ir/plan`. The term backends, the term
+interval analysis and `ir/x86` (MASM) are deleted (irstep4a, irstep4j, mastretire-2026-11-03).
 
 ## The language today
 
@@ -445,7 +452,7 @@ option (b), jswitch5b-2026-10-16).
   an interpretation ι : Σ_L → T(Σ_H), the first a host operation or **a term over host operations**,
   a definition the target makes, substituted after the decision (ADR 0089, `ir/realize.go`); each later
   one a host operation chosen per instance where the facts prove its domain. A host operation is
-  declared as it is, its domain its `where`. Built for `windows-llvm`; the four older targets are found
+  declared as it is, its domain its `where`. Built for `windows`; Go, JavaScript and the JVM are found
   by spelling until restated.
 - **Host declarations are written by hand**, by someone who read the host's source, and checked against
   it by the generator, which never claims what it cannot justify (ADR 0022, 0023;
@@ -590,7 +597,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | An unbounded end is omitted, `lo..`; `Nat` is ↑0 | [0077](docs/decisions/0077-an-unbounded-end-is-omitted.md) |
 | A module's interface is what it marks `pub`; `export` an entry point | [0078](docs/decisions/0078-a-modules-interface-is-what-it-marks-pub.md) |
 | A declared set is a claim, and the facts choose the representation | [0079](docs/decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) |
-| The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity; every LLVM primitive offered, walls to hamza (built to windows parity, MASM not yet retired) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
+| The native targets print LLVM IR, stating the IR's proofs; MASM retired at parity; every LLVM primitive offered, walls to hamza (built; MASM retired 2026-11-03) | [0080](docs/decisions/0080-the-native-targets-print-llvm-ir.md) |
 | Concurrency is typed processes: a Mealy machine, failure an effect, supervisors its handlers; Kahn networks and fork–join its fragments (the direction; not built) | [0081](docs/decisions/0081-concurrency-is-typed-processes.md) |
 | Wrapping is the residue map `mod 2ⁿ` on ℤ, not a sort; `& \| ⊕ ~ << >>` are ℤ's own; fusion computes a term under `mod 2ⁿ` in n-bit arithmetic | [0082](docs/decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
 | A representation is an abstraction function (H, d), chosen by place; native iN above the word on LLVM; the word S₆₄ on every triple (LLVM's part with ir/llvm) | [0083](docs/decisions/0083-a-representation-is-an-abstraction-function-chosen-by-place.md) |
@@ -598,7 +605,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A vector is a representation of a table, never a sort; a fold vectorizes iff its operation is associative; a float fold keeps its order (item 3 amended by 0086; not built) | [0085](docs/decisions/0085-a-vector-is-a-representation-of-a-table-and-a-fold-vectorizes-iff-it-is-a-homomorphism.md) |
 | A number is an element of ℤ[1/10]; `round(S, e, mode)` is its one lossy operation, `÷` and the transcendentals at its root; the facts choose ρ; IEEE's arithmetic a static scope; no NaN or ∞; a target realizes a rounding by its `ensure` (not built) | [0086](docs/decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md) |
 | A result's set is a claim by its ends inside the word, decided on ℤ's facts before any representation; an end past the word, and a bounded range's sign end held above it, ADR 0029's at run time; amends 0029 | [0087](docs/decisions/0087-a-results-set-is-a-claim-by-its-ends-inside-the-word.md) |
-| A target states its realization of each language name, chosen per instance by proof; a host operation is declared as it is, its domain its `where` (built for windows-llvm; the others by spelling until restated) | [0088](docs/decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md) |
+| A target states its realization of each language name, chosen per instance by proof; a host operation is declared as it is, its domain its `where` (built for windows; the others by spelling until restated) | [0088](docs/decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md) |
 | A realization is a term over the host's operations, ι : Σ_L → T(Σ_H), checked defined and agreeing, substituted after the decision; templates only for a host's own operations (amends 0088) | [0089](docs/decisions/0089-a-realization-is-a-term-over-the-hosts-operations.md) |
 | ∅ is a set; a function into it never returns (0 initial, k ∘ h = h), every declaration not only `abandon`; a host's product taken apart by its projections; legality decided before ι | [0090](docs/decisions/0090-a-function-into-the-empty-set-never-returns.md) |
 
@@ -632,11 +639,11 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | | |
 |---|---|
 | `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`), σ_J (`jspell`), J in messages (`jshow`), the raw reader of core terms and the IR's text (`raw`, `read`); the trees (`abs`, `decl`) and D (`desugar`); terms, the β/δ reducer and module loading (`reduce`), variants (`sum`), hygiene, the state translation (`cell`, `place`), β's work count (`work`), Σ_L |
-| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the five printers `ir/golang`, `ir/js`, `ir/java`, `ir/x86`, `ir/llvm` |
+| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/llvm` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
-| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/` (MASM), `windows-llvm/` (LLVM IR, until MASM retires); `blas` and the `tutorial*` targets parameterize the normal form for the book |
-| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators; `fmt`, MASM's) |
+| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/` (LLVM IR: `llvm` Σ_LLVM, `lang` its terms, `kernel32`, `strings`); `blas` and the `tutorial*` targets parameterize the normal form for the book |
+| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators) |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
 | `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `num/` (`ledger`, decimals), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
 | `gauntlet/` | hand-written references, `results/`, `check/` (the baseline), `differential/` (cases on four targets, proving their arithmetic unless `; checked:` says why), `conformance/`, `regen.txt`, `balance.py`, `surface/` (the surface's measurements) |

@@ -105,28 +105,24 @@ func TestAllocEmitsAFillLoop(t *testing.T) {
 // WINDOWS HAS TABLES NOW, which is what makes "a construct promoted to the
 // language works on every target" true again rather than aspirational.
 //
-// A table here is ONE REGISTER: a pointer whose first eight bytes hold the
-// length, elements from offset 8. A fat pointer would need two registers and
-// would stop a table being a value, since this convention passes one value per
-// register. The header costs nothing to skip — `[rbx+rcx*8+8]` is the same
-// instruction as `[rbx+rcx*8]`, because the displacement is part of x86's
-// addressing mode.
+// A table here is ONE POINTER whose first eight bytes hold the length, elements
+// from offset 8 (docs/spec/llvm.md §4): one value, so a table is a value. The
+// header is a constant offset, folded into the address.
 func TestWindowsHasTables(t *testing.T) {
-	code, err := genOn(t, "windows", `use x64
-export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
-    v = alloc(array { x64.imul(i, i) : i ∈ 0..n-1 })
+	code, err := genOn(t, "windows", `export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
+    v = alloc(array { i * i : i ∈ 0..n-1 })
     loop acc = 0, i = 0 {
-        x64.setge(i, len(v)) -> acc
-        else -> again(x64.add(acc, v[i]), x64.add(i, 1))
+        i >= len(v) -> acc
+        else -> again(acc + v[i], i + 1)
     }
 }`, "f")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"call VirtualAlloc", // the target's own allocator, found not declared anew
-		"mov qword ptr [",   // the length header, at whichever register holds the table
-		"*8+8]",             // elements past it, at no cost
+		"call ptr @oro.alloc(",              // the target's own allocator, found not declared anew
+		"getelementptr inbounds i8, ptr %",  // the elements, past the length header
+		"getelementptr inbounds i64, ptr %", // each eight bytes
 	} {
 		if !strings.Contains(code, want) {
 			t.Errorf("wanted %q in:\n%s", want, code)
@@ -139,15 +135,14 @@ export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
 // wintables-2026-08-25 measured eight bytes per element against one at **3x**
 // on a boolean sieve. Go never showed it because Go has a `bool` and `[]bool`
 // is one byte — three hosts were sizing our elements for us through their own
-// type systems, and x86 is where the choice became ours.
+// type systems, and a native target is where the choice is ours.
 func TestWindowsSizesABooleanTableByTheByte(t *testing.T) {
-	code, err := genOn(t, "windows", `use x64
-export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
+	code, err := genOn(t, "windows", `export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
     b = build(n,
         fn(c) {
             loop c = c, i = 0 {
-                x64.setge(i, n) -> c
-                else -> again(store(c, i, true), x64.add(i, 1))
+                i >= n -> c
+                else -> again(store(c, i, true), i + 1)
             }
         })
     if b(0) { 1 } else { 0 }
@@ -155,29 +150,28 @@ export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A byte store, a byte-wide read, and a scale of ONE rather than eight.
-	if !strings.Contains(code, "mov byte ptr [") {
+	// A byte store, a byte read, and an element of ONE byte rather than eight.
+	if !strings.Contains(code, "store i8 ") {
 		t.Errorf("a boolean table stores one byte:\n%s", code)
 	}
-	if !strings.Contains(code, "movzx") {
-		t.Errorf("and reads it zero-extended, so a bool comes back as 0 or 1:\n%s", code)
+	if !strings.Contains(code, "load i8, ptr ") {
+		t.Errorf("and reads one byte back:\n%s", code)
 	}
-	if strings.Contains(code, "*8+8]") {
-		t.Errorf("a byte table must not be indexed at a scale of eight:\n%s", code)
+	if strings.Contains(code, "getelementptr inbounds i64") {
+		t.Errorf("a byte table must not be indexed by eight-byte elements:\n%s", code)
 	}
 }
 
 // An INT table keeps the wide form, because that is what an int needs.
 func TestWindowsKeepsEightBytesForInts(t *testing.T) {
-	code, err := genOn(t, "windows", `use x64
-export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
-    v = alloc(array { x64.imul(i, i) : i ∈ 0..n-1 })
-    v(0)
+	code, err := genOn(t, "windows", `export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
+    v = alloc(array { i * i : i ∈ 0..n-1 })
+    if 0 < len(v) { v(0) } else { 0 }
 }`, "f")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(code, "*8+8]") {
+	if !strings.Contains(code, "getelementptr inbounds i64") {
 		t.Errorf("an int table is eight bytes an element:\n%s", code)
 	}
 }
@@ -187,19 +181,18 @@ export fn f(n ∈ Int) (Int) where 0 < n && n < 1000 {
 // any one of those reads a byte array as qwords — seven bytes of the following
 // elements per access, which is a wrong answer rather than a slow one.
 func TestTheElementWidthSurvivesABinder(t *testing.T) {
-	code, err := genOn(t, "windows", `use x64
-export fn f(n ∈ Int) (Int) where 2 < n && n < 1000 {
+	code, err := genOn(t, "windows", `export fn f(n ∈ Int) (Int) where 2 < n && n < 1000 {
     b = build(n,
         fn(c) {
             loop c = c, i = 0 {
-                x64.setge(i, n) -> c
-                else -> again(store(c, i, true), x64.add(i, 1))
+                i >= n -> c
+                else -> again(store(c, i, true), i + 1)
             }
         })
     loop acc = 0, k = 0 {
-        x64.setge(k, len(b)) -> acc
-        b[k] -> again(x64.add(acc, 1), x64.add(k, 1))
-        else -> again(acc, x64.add(k, 1))
+        k >= len(b) -> acc
+        b[k] -> again(acc + 1, k + 1)
+        else -> again(acc, k + 1)
     }
 }`, "f")
 	if err != nil {
@@ -207,7 +200,7 @@ export fn f(n ∈ Int) (Int) where 2 < n && n < 1000 {
 	}
 	// The COUNTING loop is behind a `let` whose value is a `build` term, not a
 	// name — which is the case the first version missed.
-	if strings.Contains(code, "*8+8]") {
+	if strings.Contains(code, "getelementptr inbounds i64") {
 		t.Errorf("the width was lost crossing a binder:\n%s", code)
 	}
 }

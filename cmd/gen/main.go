@@ -21,7 +21,6 @@ import (
 	"oroboros/ir/java"
 	"oroboros/ir/js"
 	"oroboros/ir/llvm"
-	"oroboros/ir/x86"
 )
 
 func main() {
@@ -252,8 +251,6 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			code, err = js.FromFunc(tg, fA)
 		case "java":
 			code, err = java.FromFunc(tg, fA)
-		case "x86-64":
-			code, err = x86.FromFunc(tg, fA)
 		case "llvm":
 			code, err = llvm.FromFunc(tg, fA)
 		case "go":
@@ -280,8 +277,6 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	case "java":
 		base := filepath.Base(out)
 		text2 = emit.JavaFile(strings.TrimSuffix(base, ".java"), funcs)
-	case "x86-64":
-		text2 = emit.AsmFile(tg, funcs, "")
 	case "llvm":
 		text2 = llvm.File(tg, funcs, "")
 	case "go":

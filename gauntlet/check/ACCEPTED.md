@@ -2406,3 +2406,42 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 change(s):
 
 - compiler output changed — `gauntlet/differential/cases/quotient-corner.oro js`
+
+## 2026-11-04 — on 8ac2003, with uncommitted changes
+
+**Reason:** MASM retired (ADR 0080 item 5): windows prints LLVM IR; a string carries a NUL after its bytes, so it is Win32's C string; ported programs emit on windows; MASM-only sources removed
+
+604 runs: 367 emitted, 237 refused; 4983 of 5043 integer operations bounded, 489 of 513 loops proven. compiler pass, differential pass, tooling skip.
+
+30 change(s):
+
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/errors/slots.oro windows`
+- compiler output changed — `examples/native/hello-win.oro go`
+- compiler output changed — `examples/native/hello-win.oro java`
+- compiler output changed — `examples/native/hello-win.oro js`
+- now emits — `examples/native/hello-win.oro windows`
+- compiler output changed — `examples/native/shortcircuit-win.oro go`
+- compiler output changed — `examples/native/shortcircuit-win.oro java`
+- compiler output changed — `examples/native/shortcircuit-win.oro js`
+- now emits — `examples/native/shortcircuit-win.oro windows`
+- source removed — `examples/native/sieve-win-bench.oro go`
+- source removed — `examples/native/sieve-win-bench.oro java`
+- source removed — `examples/native/sieve-win-bench.oro js`
+- source removed — `examples/native/sieve-win-bench.oro windows`
+- source removed — `examples/native/sieve-win.oro go`
+- source removed — `examples/native/sieve-win.oro java`
+- source removed — `examples/native/sieve-win.oro js`
+- source removed — `examples/native/sieve-win.oro windows`
+- compiler output changed — `examples/table/sieve-win.oro go`
+- compiler output changed — `examples/table/sieve-win.oro java`
+- compiler output changed — `examples/table/sieve-win.oro js`
+- now emits — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `gauntlet/differential/cases/string-escapes.oro windows`
+- emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
+- source removed — `lib/win/fmt.oro go`
+- source removed — `lib/win/fmt.oro java`
+- source removed — `lib/win/fmt.oro js`
+- source removed — `lib/win/fmt.oro windows`
+- emitted text changed — `lib/win/print.oro windows`

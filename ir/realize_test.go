@@ -10,7 +10,7 @@ import (
 )
 
 // THE INTERPRETATION AGREES WITH THE LANGUAGE (ADR 0089): for each operation
-// windows-llvm realizes by a term, ⟦ι(f)⟧(x) = f(x) at every sample x of f's
+// windows realizes by a term, ⟦ι(f)⟧(x) = f(x) at every sample x of f's
 // domain, and every operation of the term stays inside its own domain there:
 // its result in the word, and a host operation's count, divisor and dividend
 // where LLVM defines it. The samples are the domain's edges, where a term is
@@ -19,7 +19,7 @@ import (
 func llvmTarget(t *testing.T) *emit.Target {
 	t.Helper()
 	emit.ResetImports()
-	tg, err := emit.LoadTargetLayers("windows-llvm", []string{"../targets"}, []string{"../lib"})
+	tg, err := emit.LoadTargetLayers("windows", []string{"../targets"}, []string{"../lib"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestTheInterpretationAgreesWithTheLanguage(t *testing.T) {
 	for _, sp := range termSpecs {
 		names, _, ok := tg.RealizedNames(sp.op)
 		if !ok || !tg.IsDefinition(names[0]) {
-			t.Errorf("%s is not realized by a term on windows-llvm", sp.op)
+			t.Errorf("%s is not realized by a term on windows", sp.op)
 			continue
 		}
 		c, err := Instance(tg, names[0])

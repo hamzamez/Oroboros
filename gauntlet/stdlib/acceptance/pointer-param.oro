@@ -26,10 +26,10 @@
 // 0 in its place the FIXED declaration refuses it. The two spellings and the two
 // declarations are each other's negative.
 use win/WinBase as w
-use x64 as x
-use win/fmt
+use llvm as x
+use win/print
 
 export fn main() {
-    fmt.print_int(w.IsBadReadPtr(x.null(), 1))
-    fmt.print_int(w.IsBadReadPtr(x.null(), 0))
+    print.print_int(w.IsBadReadPtr(x.null(), 1))
+    print.print_int(w.IsBadReadPtr(x.null(), 0))
 }

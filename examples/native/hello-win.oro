@@ -1,18 +1,11 @@
-// The first Oroboros program that becomes machine code without a compiler in
-// between. It emits x86-64 assembly; MASM and link turn that into an .exe.
+// Hello on Windows: a program in the language's own names, printed as LLVM IR
+// and linked against kernel32 alone, with no C runtime (docs/spec/llvm.md §2).
 //
 //   build -target=windows -o hello.exe examples/native/hello-win.oro
 //
-// There is no `print` here and no `Println`, because Win32 has neither. It has
-// WriteFile over bytes, and `puts` below is the program that stands where
-// `fmt.Println` stands on Go — written in the language, out of one API call and
-// one template that happens to contain a loop.
-use x64
-use windows/kernel32
+// Win32 has no `print`. It has WriteFile over bytes, and lib/win/print.oro is the
+// program that stands where `fmt.Println` stands on Go: written in the language,
+// out of WriteFile and GetStdHandle, each declared as Win32 has it.
+use win/print
 
-fn puts(s) {
-    h = kernel32.GetStdHandle(-11)
-    kernel32.WriteFile(h, s, x64.strlen(s))
-}
-
-export fn main() { puts("hello from oroboros\n") }
+export fn main() { print.print_str("hello from oroboros") }

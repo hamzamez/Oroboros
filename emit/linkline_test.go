@@ -7,21 +7,19 @@ import (
 	"oroboros/core"
 )
 
-// THE LINK LINE MOVED FROM A CONSTANT TO DATA, and the claim that nothing moved
-// with it is the one worth pinning: a program that calls no primitive naming a
-// `lib` must get exactly the build script it always got. The literal below is
-// the line emit/target.go carried until linkline-2026-09-13, copied rather than
-// derived, because a test that computes its expectation from the code under
-// test cannot fail.
+// THE LINK LINE IS DATA, and a program that calls no primitive naming a `lib`
+// gets the target's own line: kernel32 and nothing else, no C runtime
+// (docs/spec/llvm.md §2). The literal is copied rather than derived, because a
+// test that computes its expectation from the code under test cannot fail.
 func TestALinkLineWithNoLibsIsTheOldConstant(t *testing.T) {
 	tg, err := LoadTarget("../targets/windows")
 	if err != nil {
 		t.Fatal(err)
 	}
-	const old = "link -nologo -subsystem:console -entry:main main.obj kernel32.lib msvcrt.lib ucrt.lib vcruntime.lib legacy_stdio_definitions.lib -out:main.exe || exit /b 1"
-	got := asmBuildScript(tg.Link, map[string]bool{})
+	const old = "link -nologo -subsystem:console -entry:main main.obj kernel32.lib -out:main.exe || exit /b 1"
+	got := buildScript(tg.Link, map[string]bool{})
 	if !strings.Contains(got, old+"\n") {
-		t.Fatalf("a program using no lib no longer gets the old link line:\n%s", got)
+		t.Fatalf("a program using no lib does not get the target's own link line:\n%s", got)
 	}
 	if strings.Contains(got, "{{LIBS}}") {
 		t.Fatalf("the placeholder survived:\n%s", got)
@@ -34,14 +32,14 @@ func TestALinkLineWithNoLibsIsTheOldConstant(t *testing.T) {
 func TestUsedLibrariesJoinTheLineSortedAndOnce(t *testing.T) {
 	link := []string{"kernel32", "msvcrt"}
 	used := map[string]bool{"user32": true, "advapi32": true, "KERNEL32": true}
-	got := asmBuildScript(link, used)
+	got := buildScript(link, used)
 	want := "main.obj kernel32.lib msvcrt.lib advapi32.lib user32.lib -out:main.exe"
 	if !strings.Contains(got, want) {
 		t.Fatalf("want %q in:\n%s", want, got)
 	}
 	// And it is a function of its input: map order must not reach the output.
 	for i := 0; i < 20; i++ {
-		if asmBuildScript(link, used) != got {
+		if buildScript(link, used) != got {
 			t.Fatal("two calls with the same input built different scripts")
 		}
 	}
@@ -57,7 +55,7 @@ func TestLibAndLinkParse(t *testing.T) {
 		}
 		return parseTarget(terms[0], "t.oro")
 	}
-	tg, err := parse(`backend x86_64
+	tg, err := parse(`backend llvm
 link "kernel32" "ucrt"
 link "vcruntime"
 fn f(a ∈ Int) (Int) { host expr "call F" import "F" lib "user32" }`)

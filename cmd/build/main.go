@@ -22,7 +22,6 @@ import (
 	"oroboros/ir/java"
 	"oroboros/ir/js"
 	"oroboros/ir/llvm"
-	"oroboros/ir/x86"
 )
 
 func main() {
@@ -224,11 +223,6 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		code, err = js.FromFunc(tg, fA)
 	case "java":
 		code, err = java.FromFunc(tg, fA)
-	case "x86-64":
-		code, err = x86.FromFunc(tg, fA)
-		if err == nil {
-			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
-		}
 	case "llvm":
 		code, err = llvm.FromFunc(tg, fA)
 		if err == nil {

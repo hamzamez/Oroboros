@@ -106,18 +106,15 @@ func baseOr(b string) string {
 	return b
 }
 
-// resultMove says how a result reaches our register, and it is a CORRECTNESS
-// question rather than a cosmetic one. Under Win64 an integer result narrower
-// than 64 bits is in EAX, AX or AL and the rest of RAX is not part of it -- and
-// writing EAX ZERO-extends, so `mov %r, rax` turned every negative `int` into a
-// large positive one. `MulDiv(-7, 6, 2)` read 4294967275, and every failing
-// `HRESULT`, whose failure IS the negative value, read as a success. Measured,
-// not inferred: gauntlet/stdlib/acceptance/signed-result.oro.
-//
-// The C type decides, after the alias chain and after an enum becomes its base.
-// A type this cannot place keeps the full register, which is right for every
-// pointer, handle and 64-bit word.
-func resultMove(t string, alias map[string]string) string {
+// cInt is a C integer type's width in bits and whether it is signed, after the
+// alias chain and after an enum becomes its base; known is false for a type it
+// cannot place, which is held as the full word, right for every pointer, handle
+// and 64-bit word. The width is a CORRECTNESS question: under Win64 an integer
+// narrower than 64 bits is the low bits of its register, so MulDiv(-7, 6, 2)
+// read as the whole of RAX was 4294967275, and every failing HRESULT, whose
+// failure IS the negative value, read as a success (signed-result.oro). LLVM
+// says it with a type: the call returns i32 and `sext` makes it the integer.
+func cInt(t string, alias map[string]string) (w int, signed, known bool) {
 	for i := 0; i < 8; i++ {
 		b := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(t), "_"))
 		for _, q := range []string{"CONST ", "const ", "volatile ", "enum ", "struct ", "union "} {
@@ -125,7 +122,7 @@ func resultMove(t string, alias map[string]string) string {
 		}
 		b = strings.TrimSpace(b)
 		if strings.HasSuffix(b, "*") {
-			return "mov ${r}, rax"
+			return 64, true, false
 		}
 		// `unsigned` is a qualifier classify1 strips because the SHAPE does not
 		// depend on it, and here it is the whole answer: `unsigned int`
@@ -145,30 +142,15 @@ func resultMove(t string, alias map[string]string) string {
 			if unsigned {
 				signed = false
 			}
-			switch {
-			case w == 64:
-				return "mov ${r}, rax"
-			case w == 32 && signed:
-				return "movsxd ${r}, eax"
-			case w == 32:
-				return "mov ${r:e}, eax"
-			case w == 16 && signed:
-				return "movsx ${r}, ax"
-			case w == 16:
-				return "movzx ${r:e}, ax"
-			case w == 8 && signed:
-				return "movsx ${r}, al"
-			default:
-				return "movzx ${r:e}, al"
-			}
+			return w, signed, true
 		}
 		nxt, have := alias[b]
 		if !have || nxt == b {
-			return "mov ${r}, rax"
+			return 64, true, false
 		}
 		t = nxt
 	}
-	return "mov ${r}, rax"
+	return 64, true, false
 }
 
 // intWidth gives a Win64 integer type's width in bits and whether it is signed.
@@ -226,20 +208,20 @@ const (
 	rVariadic reason = "variadic"
 	// A `void` result is refused only when there is no argument either. With
 	// one, the format already says it: `stmt`'s value IS argument 0, which is
-	// how `Sleep` and `WriteFile` are declared in targets/windows/kernel32.oro
-	// today. Refusing all of them attributed 3.5% of the API to the format when
+	// how `ExitProcess` is declared in targets/windows/kernel32.oro. Refusing
+	// all of them attributed 3.5% of the API to the format when
 	// the format could say it — the survey talking about itself for the third
 	// time, after methods-at-0% in the Go survey and the typedef residue here.
 	rVoidRes   reason = "void result and no argument"
 	rOutParam  reason = "out-parameter"   // the result comes back through a pointer
 	rStructVal reason = "struct by value" // does not fit one register
-	// FLOATING POINT is passed and returned in XMM registers under Win64,
-	// and the generated template moves arguments into RCX/RDX/R8/R9 and
-	// reads RAX. `FLOAT` and `DOUBLE` sat in the word table, so every one of
-	// these was declared and would have passed and read the wrong register
-	// -- a claim this generator cannot justify, so it is refused until a
-	// template says which XMM register. targets/windows/msvcrt.oro writes
-	// printf's double by hand, `movsd xmm1`, which is the shape it wants.
+	// FLOATING POINT. On MASM the generated template moved arguments into
+	// RCX/RDX/R8/R9 and read RAX, and a double travels in XMM, so a float
+	// was refused until a template said which register. On LLVM a `double`
+	// is a type and its register is LLVM's to choose, so the reason now is
+	// the language's: a host's double is not yet a type it holds (numbers.md
+	// §6.3, waiting on a program that reads one), and a FLOAT is a rounding
+	// onto F(24, …) that no target realizes (ADR 0086).
 	rFloat reason = "floating point"
 
 	// The LANGUAGE cannot say it.
@@ -810,9 +792,10 @@ func main() {
 	// the language has no null, an integer literal is an `int` and the checker
 	// refuses it where `ptr` is required, and the target declared nothing. So
 	// 17% of the callable number was a claim about a capability nobody had.
-	// `(x64.null)` is one line of target data, added 2026-09-08.
+	// `llvm.null`, Σ_LLVM's own constant, is one line of target data (MASM's
+	// `x64.null`, added 2026-09-08, until it retired).
 	fmt.Printf("  of the callable, %d reach it only by passing NULL where SAL says _opt_/_Reserved_\n", nullPassed)
-	fmt.Printf("  — writable since 2026-09-08 as (x64.null); before that the count was aspirational\n\n")
+	fmt.Printf("  — writable since 2026-09-08, now as llvm.null; before that the count was aspirational\n\n")
 
 	// ARITY WAS A REAL CEILING ON A HOST WITH NO EXPRESSIONS, and it is not one
 	// any more. The three limits this reported — four for the Win64 register
@@ -1093,36 +1076,95 @@ func newestSDK() (string, error) {
 	return "", fmt.Errorf("no Windows SDK found; pass -sdk")
 }
 
-// win64 writes the call the way the windows target actually declares one:
-// arguments into rcx/rdx/r8/r9 and then the reserved home space, the call, and
-// rax into the destination the emitter allocated. Entirely mechanical, which is
-// the point — this is what "a line of data per name" costs on a host with no
-// expressions.
-func win64(name string, params []string) (string, bool) {
-	n := len(params)
-	// NO ARITY CEILING. There was one at fourteen, "the widest entry point in
-	// the SDK" -- true until enums stopped being refused as structs, when the
-	// widest became SEVENTEEN and six names were counted declarable and never
-	// emitted. The limit was already stale: emit/asm.go's asmShadowFor sizes
-	// each procedure's reserved home from the widest prim that procedure
-	// calls, with no cap, and the %{10} hole names any operand. A name
-	// counted declarable and never emitted is a claim, and the two counts
-	// agree again.
-	regs := []string{"rcx", "rdx", "r8", "r9"}
-	// Every operand's hole is NAMED (ADR 0066 item 9), so a tenth needs no
-	// braces: the positional `%12` could not mean operand 12 in a template with
-	// fewer operands, and a name means one binder whatever the arity.
-	hole := func(i int) string { return jdecl.Hole(params[i]) }
-	var b strings.Builder
-	for i := 0; i < n; i++ {
-		if i < 4 {
-			fmt.Fprintf(&b, "mov %s, %s\n", regs[i], hole(i))
-		} else {
-			fmt.Fprintf(&b, "mov rax, %s\nmov [rsp+%d], rax\n", hole(i), 32+8*(i-4))
+// llvmCall writes a Win32 function as the windows target declares one (ADR 0080,
+// docs/spec/llvm.md §6): each operand made from the language's value, one
+// `call`, and the result made the language's, with the `declare` the module
+// needs. The calling convention is LLVM's to lower (Win64's on this triple), so
+// what is left here is the one question that is ours, each value's set:
+//
+//	an integer of w < 64 bits   its C range, passed by `trunc`, which is exact on
+//	                            it (trunc ∘ embed is the identity there); MASM
+//	                            passed the register's low bits of any `Int`, a
+//	                            silent wrap
+//	a 64-bit integer            the word, as it is
+//	a pointer or a handle       `ptr`, as it is
+//	a C string                  `String`, its bytes at s + 8, NUL-terminated by
+//	                            the target's representation (llvm.md §4): exact
+//	                            on a string holding no NUL (mastretire-2026-11-03)
+//
+// and a result of w < 64 bits is its C range, by `sext` or `zext`. A 64-bit
+// unsigned result at or above 2^63 reads as the signed word, as it did on MASM:
+// exact below 2^63, and the unsigned word on windows (ADR 0083) makes it exact.
+type llvmDecl struct {
+	sets     []string // each parameter's set
+	result   string   // the result's set, or "" for void
+	template string
+	declare  string
+}
+
+func llvmCall(f fn, structs, handles, callbacks map[string]bool, alias map[string]string) llvmDecl {
+	var d llvmDecl
+	var pre strings.Builder
+	var ops, tys []string
+	for k, p := range f.params {
+		nm := paramName(k)
+		h := jdecl.Hole(nm)
+		reg := "%" + nm + "${#}"
+		switch classify(p.typ, structs, handles, callbacks, alias) {
+		case shString:
+			d.sets = append(d.sets, "String")
+			fmt.Fprintf(&pre, "%s = getelementptr inbounds i8, %s, i64 8\n", reg, h)
+			ops, tys = append(ops, "ptr "+reg), append(tys, "ptr")
+		case shPtr:
+			d.sets = append(d.sets, "ptr")
+			ops, tys = append(ops, h), append(tys, "ptr")
+		default:
+			if w, signed, known := cInt(p.typ, alias); known && w < 64 {
+				d.sets = append(d.sets, cRange(w, signed))
+				fmt.Fprintf(&pre, "%s = trunc %s to i%d\n", reg, h, w)
+				ops, tys = append(ops, fmt.Sprintf("i%d %s", w, reg)), append(tys, fmt.Sprintf("i%d", w))
+			} else {
+				d.sets = append(d.sets, wordSet)
+				ops, tys = append(ops, h), append(tys, "i64")
+			}
 		}
 	}
-	fmt.Fprintf(&b, "call %s\nmov ${r}, rax", name)
-	return b.String(), true
+	args := strings.Join(ops, ", ")
+	ret := "i64"
+	switch classify(f.result, structs, handles, callbacks, alias) {
+	case shVoid:
+		ret = "void"
+		d.template = pre.String() + fmt.Sprintf("call void @%s(%s)", f.name, args)
+	case shPtr, shString:
+		ret, d.result = "ptr", "ptr"
+		d.template = pre.String() + fmt.Sprintf("${r} = call ptr @%s(%s)", f.name, args)
+	default:
+		if w, signed, known := cInt(f.result, alias); known && w < 64 {
+			ret, d.result = fmt.Sprintf("i%d", w), cRange(w, signed)
+			ext := "zext"
+			if signed {
+				ext = "sext"
+			}
+			d.template = pre.String() + fmt.Sprintf("%%r${#} = call %s @%s(%s)\n${r} = %s %s %%r${#} to i64",
+				ret, f.name, args, ext, ret)
+		} else {
+			d.result = wordSet
+			d.template = pre.String() + fmt.Sprintf("${r} = call i64 @%s(%s)", f.name, args)
+		}
+	}
+	d.declare = fmt.Sprintf("declare dllimport %s @%s(%s)", ret, f.name, strings.Join(tys, ", "))
+	return d
+}
+
+// wordSet is the windows target's word, S₆₄ (ADR 0083), the set of a 64-bit value.
+const wordSet = "-2^63..2^63-1"
+
+// cRange is the set of a C integer type of w bits.
+func cRange(w int, signed bool) string {
+	if signed {
+		return fmt.Sprintf("-2^%d..2^%d-1", w-1, w-1)
+	}
+	return fmt.Sprintf("0..2^%d-1", w)
 }
 
 // paramName is the k-th parameter's name: a, b, c, … past r, the result's.
@@ -1177,47 +1219,18 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 		for _, f := range list {
 			// The C prototype's parameters are unnamed: they are a, b, c, …,
 			// as the hand files name them, and `r` is the result.
+			d := llvmCall(f, structs, handles, callbacks, alias)
 			var args []jdecl.Param
-			var names []string
-			for k, p := range f.params {
-				nm := paramName(k)
-				names = append(names, nm)
-				set := "Int"
-				switch classify(p.typ, structs, handles, callbacks, alias) {
-				case shString:
-					set = "String"
-				case shPtr:
-					set = "ptr"
-				}
-				args = append(args, jdecl.Param{Name: nm, Set: set})
+			for k := range f.params {
+				args = append(args, jdecl.Param{Name: paramName(k), Set: d.sets[k]})
 			}
-			res, kind := "Int", "expr"
-			switch classify(f.result, structs, handles, callbacks, alias) {
-			case shPtr:
-				res = "ptr"
-			case shVoid:
+			res, kind := "r ∈ "+d.result, "expr"
+			if d.result == "" {
 				// THE RESULT OF A STATEMENT IS ITS FIRST ARGUMENT, on every
 				// target, so a void entry point is declared `stmt` and typed by
-				// the argument it hands back. `Sleep` and `WriteFile` in
-				// targets/windows/kernel32.oro are hand-written this way and
-				// always were; this tool refused 409 of them.
+				// the argument it hands back; its template writes no `${r}`,
+				// since the emitter allocates none.
 				res, kind = args[0].Set, "stmt"
-			}
-			tmpl, okArity := win64(f.name, names)
-			if !okArity {
-				continue
-			}
-			// A RESULT IS READ AT ITS C WIDTH AND SIGNEDNESS -- see resultMove.
-			if kind == "expr" && res == "Int" {
-				tmpl = strings.TrimSuffix(tmpl, "mov ${r}, rax") + resultMove(f.result, alias)
-			}
-			if kind == "stmt" {
-				// A statement's template must not write `${r}`: the emitter takes
-				// the value from argument 0 and allocates no result register,
-				// so `${r}` would have nothing to expand to.
-				tmpl = strings.TrimSuffix(tmpl, "\nmov ${r}, rax")
-			} else {
-				res = "r ∈ " + res
 			}
 			// THE LIBRARY THAT RESOLVES IT, when exactly one can be named
 			// honestly (linkage.resolve). A declaration with none still loads
@@ -1225,7 +1238,7 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 			// refusal at the linker rather than a binding to the wrong DLL.
 			lib, _ := lk.resolve(f.name)
 			body.WriteString(jdecl.Fn{Name: f.name, Params: args, Result: res, Kind: kind,
-				Template: tmpl, Import: f.name, Lib: lib}.String())
+				Template: d.template, Import: d.declare, Lib: lib}.String())
 			n++
 		}
 		b.WriteString(jdecl.Module("win/"+mod, body.String()))
@@ -1960,7 +1973,7 @@ func writeSizes(path, sdkVer string, names []string, hdrs map[string]string) err
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
-// probeBat finds MSVC the way emit/target.go's asmBuildBat does, because that
+// probeBat finds MSVC the way emit/target.go's buildBat does, because that
 // is the discovery this project already relies on.
 const probeBat = `@echo off
 setlocal enabledelayedexpansion

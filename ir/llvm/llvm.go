@@ -100,8 +100,9 @@ func File(tg *emit.Target, funcs map[string]string, entry string) string {
 	})
 	strs := make([]string, 0, len(emit.LLVMStrings))
 	for s, name := range emit.LLVMStrings {
-		strs = append(strs, fmt.Sprintf("%s = private unnamed_addr constant { i64, [%d x i8] } { i64 %d, [%d x i8] c\"%s\" }, align 8",
-			name, len(s), len(s), len(s), cbytes(s)))
+		// A STRING CARRIES A NUL AFTER ITS BYTES (llvm.md §4), outside its length.
+		strs = append(strs, fmt.Sprintf("%s = private unnamed_addr constant { i64, [%d x i8] } { i64 %d, [%d x i8] c\"%s\\00\" }, align 8",
+			name, len(s)+1, len(s), len(s)+1, cbytes(s)))
 	}
 	sort.Strings(strs)
 	for _, l := range lines {

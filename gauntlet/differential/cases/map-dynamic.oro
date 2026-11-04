@@ -18,7 +18,7 @@
 // since `k in dom m` is set membership and no fragment we have decides it.
 //
 // ABSENCE IS 0 AND NOT -1, which is a fact about the HARNESS rather than about
-// maps: `win/fmt.print-int` prints a blank line for a negative number and is
+// maps: `win/fmt.print-int`, MASM's printer until it retired, prints a blank line for a negative number and is
 // within its rights to (refinements.md §6b names exactly this as the gap
 // inlining cannot reach). A -1 here made windows look like it had lost entries
 // when it had computed them correctly and could not print them.

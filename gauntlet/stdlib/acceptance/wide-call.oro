@@ -7,10 +7,10 @@
 //
 // Opening a file that does not exist must set ERROR_FILE_NOT_FOUND, which is 2.
 use windows/kernel32 as k
-use x64 as x
+use llvm as x
 use win/fileapi as f
-use win/fmt
+use win/print
 export fn main() {
     f.CreateFileA("no-such-file-here.txt", 2^31, 0, x.null(), 3, 128, 0)
-    fmt.print_int(k.GetLastError())
+    print.print_int(k.GetLastError())
 }

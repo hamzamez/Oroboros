@@ -98,6 +98,11 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
+	// THE LLVM LAYER'S PARAMETER IS IN SCOPE OF THE RUN (ADR 0093): the entry is
+	// composed with Σ_OS's exit below, so its module is loaded with the program.
+	if b, _ := tg.ResolveBackend(); b == "llvm" {
+		forms = append([]core.Form{{Kind: "use", Name: "llvm/os", Alias: "#llvm-os"}}, forms...)
+	}
 	prog, _, err := core.LoadWithDefs(forms, core.SearchPath(libDirs(src, path)), tg.Defs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
@@ -144,7 +149,16 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	// A DEFINITION'S CONTRACT IS CHECKED AT ITS CALLS (ADR 0028): decided
 	// here, immediately after reduction, and erased before anything else runs.
 	reqs := emit.InstallRequires(env, prog)
-	nf, err := core.Normalize(prog.Defs[entry], env, core.DefaultFuel)
+	// A RUN IS exit(0) ∘ main on a target printed as LLVM IR (ADR 0093): ending
+	// the process is the operating system's, Σ_OS's `exit`, which the OS layer
+	// defines. So the entry is the composition λ(). (λ_. exit(0)) (main()), its
+	// argument evaluated first (β's effect rule), and it never returns.
+	root := prog.Defs[entry]
+	if b, _ := tg.ResolveBackend(); b == "llvm" {
+		run := core.App(core.Fn([]string{"_"}, core.App(core.Name("llvm/os.exit"), core.Int(0))), core.App(root))
+		root = core.Fn(nil, run)
+	}
+	nf, err := core.Normalize(root, env, core.DefaultFuel)
 	if err != nil {
 		return err
 	}

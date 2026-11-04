@@ -1,0 +1,79 @@
+// THE LLVM LAYER (ADR 0080, 0093, docs/spec/llvm.md): every target printed as
+// LLVM IR glues these fragments, `glue llvm`, and adds its triple and its
+// operating system. It is a THEORY WITH A PARAMETER, T_LLVM[Σ_OS]:
+//
+//   instructions.oro   Σ_LLVM, LLVM IR's own operations as they are
+//   lang.oro           ι's terms, the language's names over Σ_LLVM and Σ_OS
+//   os.oro             Σ_OS, the parameter: three headers an OS layer defines
+//   str.oro            a string's bytes, the layout this layer prints
+//
+// Alone it is not a model, and loading it as a target is refused, naming the
+// three operations its parameter lacks: no LLVM instruction gets memory or
+// ends a process.
+//
+// A TEMPLATE IS AN INSTRUCTION'S RIGHT-HAND SIDE (llvm.md §6). `${x}` is the
+// operand as a typed value, `i64 %v3`; `${x:v}` is its value alone, `%v3`; the
+// printer writes `%vN = ` in front. A template that names `${r}` writes its
+// result itself, so it may be several instructions; `${#}` is a number unique to
+// the expansion, for the template's own registers and blocks. An `import` is a
+// line of the module, written once: a `declare`, a global, or a helper `define`.
+backend llvm
+
+// NO HOST SHIPS A MAP AT THIS LAYER, so the language supplies one
+// (emit/winmap.oro).
+repr `map` library
+
+// THE SORTS' REPRESENTATIONS, LLVM's types. A table and a string are pointers to
+// an i64 length followed by the elements (llvm.md §4).
+set Int = host "i64"
+// THE WORD (ADR 0026, ADR 0083): S₆₄ on every triple.
+repr -2^63..2^63-1 word
+set F64 = host "double"
+set Bool = host "i1"
+set String = host "ptr"
+set ptr = host "ptr"
+set Any = host "ptr"
+
+// AN ELEMENT HELD IN A BYTE: 0..255 in an i8, read back with `zext`. Every
+// other integer element is an i64.
+repr 0..255 host "i8"
+
+// THE SHIFT, THE WRAP AND THE RUNG ABOVE: a shift is exact for a count up to 63;
+// LLVM's operators without a flag wrap at 64 bits, so a term under `mod 2ⁿ`,
+// n ≤ 64, is computed in them (ADR 0082); no host bignum, so fixed limbs (ADR
+// 0035) are the rung above the word.
+repr shift 63
+repr wrap 64
+repr big limbs
+
+// THE LANGUAGE'S NAMES, REALIZED (ADR 0088, 0089). A target is a model of the
+// language's signature: this is its interpretation ι of each name, stated, not
+// found by spelling. The first realizes the name everywhere: a host operation,
+// or a term over host operations (lang.oro), inlined. Each later one is a host
+// operation, chosen where its domain (its parameters' sets and its `where`)
+// holds of the operands' proven facts, the narrowest such (ir/realize.go):
+// `<<` is LLVM's own `shl` where the count is proven below 64, `/` its own
+// `sdiv` where the divisor is proven not −1 or the dividend not −2⁶³. The
+// string monoid's two are an OS layer's while their helpers allocate (ADR 0093
+// item 6).
+realize `+` = llvm.add checked lang.add_checked
+realize `-` = llvm.sub checked lang.sub_checked
+realize `*` = llvm.mul checked lang.mul_checked
+realize `/` = lang.div, llvm.sdiv checked lang.div_checked
+realize `%` = lang.rem, llvm.srem
+realize `=` = llvm.eq
+realize `<` = llvm.slt
+realize `<=` = llvm.sle
+realize `>` = llvm.sgt
+realize `>=` = llvm.sge
+realize `&` = llvm.and
+realize `|` = llvm.or
+realize `⊕` = llvm.xor
+realize `~` = lang.complement
+realize `<<` = lang.shl, llvm.shl checked lang.shl_checked
+realize `>>` = lang.ashr, llvm.ashr
+realize mod = lang.emod
+realize nulfree = lang.no_nul
+realize abandon = lang.crash
+realize trap_if = lang.trap_if
+realize alloc = lang.allocate

@@ -57,6 +57,6 @@ written past its end.
 
 ## Consequences
 
-- `targets/windows/lang.oro` has no template but strings' two helpers, which wait on V, the
-  valid-UTF-8 refinement (ADR 0091's consequences).
+- No template remains among ι's terms; the windows target keeps two, `strings.oro`'s helpers for
+  `string_of` and `++`, which wait on V, the valid-UTF-8 refinement (ADR 0091's consequences).
 - A table on windows is allocated by an inlined term, and its size is a proven `mul nsw`.

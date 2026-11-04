@@ -118,7 +118,7 @@
 == examples/errors/expect.oro java emitted b11e1f6c751ecf716f412f2c279060f09cf87a4e91bbc469afa98842f49e732e
    note: gen-quarter: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-quarter: 4 division(s) became a shift or a mask
-== examples/errors/expect.oro windows emitted cda617ed35a7ea7777feaadc7b8f0e28503c39dfa70474e3db69fc9d39d505f2
+== examples/errors/expect.oro windows emitted 0cdb31638882d25e19ba8aefaccb13c07830f0f200ea24d9e68a27431e71a0b7
    note: gen-quarter: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/errors/ignore.oro go emitted 8884519c312e32db6c0cd9bbcd2dd117d3c623efac1601f4d377b8c523d99367
 == examples/errors/ignore.oro js emitted 07572c03a3c589d17ab47468b8b6f6a4435bf914e4d0fc3c04f490d87f5df75d
@@ -539,14 +539,14 @@
    gen: examples/native/generic-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/hello-win.oro go refused
-   gen: examples/native/hello-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/native/hello-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/native/hello-win.oro js refused
-   gen: examples/native/hello-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/native/hello-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/native/hello-win.oro java refused
-   gen: examples/native/hello-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/native/hello-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/native/hello-win.oro windows emitted 0f40add815597d8390c84ad2f1dc81e055ac4ce6a30c737b6b1571266eee9d19
    note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/native/report-go.oro go emitted a24ccc4c1179e9ebfac86c64188cb79c9512a63b8bf8ee6676508fecef0099d3
@@ -602,14 +602,14 @@
    gen: examples/native/shortcircuit-go.oro: in main: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/native/shortcircuit-win.oro go refused
-   gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/native/shortcircuit-win.oro js refused
-   gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/native/shortcircuit-win.oro java refused
-   gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/native/shortcircuit-win.oro windows emitted 9144dfa7b4fd6c4103dbaa5dca72083c1d0e07c98f511104daea700268533e0c
    note: gen-main: 13 of 13 integer operations bounded; 1 of 2 loop(s) proven terminating
 == examples/native/sieve-java.oro go refused
@@ -808,14 +808,14 @@
    gen: examples/table/dot.oro: in dot: go.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/table/sieve-win.oro go refused
-   gen: examples/table/sieve-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/table/sieve-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/table/sieve-win.oro js refused
-   gen: examples/table/sieve-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/table/sieve-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/table/sieve-win.oro java refused
-   gen: examples/table/sieve-win.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: examples/table/sieve-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == examples/table/sieve-win.oro windows emitted 6b555c2be0271884b27949663df560d3c5c44ed14f7719261a637ab893e1401d
    note: gen-main: 21 of 21 integer operations bounded; 5 of 5 loop(s) proven terminating
 == examples/table/sieve.oro go emitted 70ded90d18b2255c033bcade21ecfc9eb8618f0d7ed9428f853afdcca895e28a
@@ -1341,14 +1341,14 @@
 == lib/result.oro java emitted a55a9cbbc8e4476b44bc5819ff933436d0f1a40a1bd6826111f247eb036c690a
 == lib/result.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == lib/win/print.oro go refused
-   gen: lib/win/print.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: lib/win/print.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == lib/win/print.oro js refused
-   gen: lib/win/print.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: lib/win/print.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == lib/win/print.oro java refused
-   gen: lib/win/print.oro: in `win/print`.print_str: `win/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use win/str` matched no file on the search path and this target provides no module win/str either, so every name from it is unbound. Check the path.
+   gen: lib/win/print.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
 == lib/win/print.oro windows emitted 27ee7138bae6682ce91e8a0ee43a17ffe8892d752315c1a92f3b4e909e780ef1
    note: gen-print-int: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-print-str: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating

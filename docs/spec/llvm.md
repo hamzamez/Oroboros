@@ -26,29 +26,34 @@ miscompilation the optimizer is entitled to make. That is why W6 justifies every
 
 ## 2. The target
 
-`targets/windows/` is the windows target, `backend llvm`, triple `x86_64-pc-windows-msvc` (until
-2026-11-03 `targets/windows-llvm/`, beside MASM, which retired at parity, ADR 0080 item 5). Its files
-are the host's, under the host's own names:
-- `windows.oro`: the sets, the word, the representations, the link line, and **the `realize`
-  map** (ADR 0088): which declaration interprets each of the language's names, stated, never found by
+**Two layers** (ADR 0093). `targets/llvm/` is the LLVM layer, a theory with a parameter,
+T_LLVM[Σ_OS], the same on every triple:
+- `llvm.oro`: `backend llvm`, the sets, the word, the representations, and **the `realize` map**
+  (ADR 0088): which declaration interprets each of the language's names, stated, never found by
   spelling;
-- `llvm.oro`: Σ_LLVM, **LLVM's operations as they are**, each with its domain (the inputs where it is
-  neither poison nor undefined) as its `where` or its parameters' sets: `llvm.shl(a, b ∈ 0..63)`,
-  `llvm.sdiv` where b ≠ 0 and not −2⁶³ by −1. It is declared by hand, as the survey
-  ([llvmsurvey-2026-10-27](../../gauntlet/results/llvmsurvey-2026-10-27.md)) classified it, and grows
-  family by family;
+- `instructions.oro`: Σ_LLVM, **LLVM's operations as they are**, each with its domain (the inputs
+  where it is neither poison nor undefined) as its `where` or its parameters' sets:
+  `llvm.shl(a, b ∈ 0..63)`, `llvm.sdiv` where b ≠ 0 and not −2⁶³ by −1. It is declared by hand, as the
+  survey ([llvmsurvey-2026-10-27](../../gauntlet/results/llvmsurvey-2026-10-27.md)) classified it, and
+  grows family by family;
 - `lang.oro`: where no single instruction is a language operation on the whole of its domain, its
-  realization as **a term over the host's operations** (ADR 0089), a definition in the language:
-  `~`, `<<` and `>>` past 63, `mod`, `/` and `%` at a divisor −1, the checked arithmetic (the overflow
-  intrinsics' two results and `llvm.trap`, ADR 0090), `trap_if`, the crash, `nulfree` (ADR 0091),
-  and the allocator (ADR 0092);
+  realization as **a term over the host's operations** (ADR 0089): `~`, `<<` and `>>` past 63, `mod`,
+  `/` and `%` at a divisor −1, the checked arithmetic (the overflow intrinsics' two results and
+  `llvm.trap`, ADR 0090), `trap_if`, `nulfree` (ADR 0091), the crash, and the allocator (ADR 0092);
+- `os.oro`: **Σ_OS, the parameter**: `region`, `write_err` and `exit`, three headers with no body,
+  what ι's terms need from an operating system and no instruction computes;
+- `str.oro`: a string's bytes, the layout this layer prints (§4).
+
+Loaded alone it is refused, naming the three operations. `targets/windows/` is a member of its
+family: `glue llvm`, `triple "x86_64-pc-windows-msvc"`, the link line and the build, and
+- `os.oro`: the view Σ_OS → Win32, the three definitions over kernel32;
 - `kernel32.oro`: the Win32 functions programs call, as they are, each `declare dllimport` in the
   printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count. The
-  rest of Win32 is the survey's generated layer (`gauntlet/stdlib/win32.go`), written the same way:
-  an integer of w < 64 bits passed by `trunc` from its C range and returned by `sext` or `zext` into
-  it, a pointer as `ptr`, a C string as a string's bytes (§4);
-- `strings.oro`: the free monoid, `string_of` and `++`, each a helper function the module defines, and
-  `utf8`, a string's bytes.
+  rest of Win32 is the survey's generated layer (`gauntlet/stdlib/win32.go`), written the same way;
+- `strings.oro`: the free monoid's helpers, `string_of` and `++`, which allocate from the process heap.
+
+**A run is exit(0) ∘ main**: `cmd/build` composes the entry with Σ_OS's `exit`, so the printer's
+`main` only calls it.
 
 `lib/win/print.oro` prints integers and strings in the language's own operators over a byte table.
 
@@ -186,7 +191,7 @@ declarations that interpret the language's name OP: the first everywhere, a host
 over host operations** (ADR 0089, inlined after the decision, its header OP's domain); each later one a
 host operation, where its domain (parameters' sets and `where`) holds of the operands' proven facts,
 the narrowest such, recorded on the operation as `via` in the IR's text; C is the trap `-checked`
-asks for. Inside a term, a host operation that is a stated realization of g is g. A declaration in `llvm.oro` is LLVM's operation as it is and means only that; a program naming
+asks for. Inside a term, a host operation that is a stated realization of g is g. A declaration in `instructions.oro` is LLVM's operation as it is and means only that; a program naming
 `llvm.shl` owes `shl`'s domain, whatever `<<` is realized by.
 
 A `where` is an obligation (ADR 0080 item 7). A primitive the language cannot state is a wall
@@ -229,7 +234,7 @@ its IR name with `-` made `_`.
    windows runs on it with one answer.
 2. ~~**The gauntlet's sieve at parity**~~ **built** (llvm-2026-11-02): 0.65 of `ir/x86`, 0.64 of
    hand-written MASM.
-3. **Σ_LLVM's stateable families declared** (`llvm.oro`), each with a differential case: **after step 4,
+3. **Σ_LLVM's stateable families declared** (`instructions.oro`), each with a differential case: **after step 4,
    and by demand** (hamza agreed the order, 2026-11-03): a family is declared when a program needs it,
    TinyRetroPad's first (CLAUDE.md 6c), each with its case.
 4. ~~**MASM retired**~~ **built** (ADR 0080 item 5, mastretire-2026-11-03): `ir/x86`, `x64.oro`,

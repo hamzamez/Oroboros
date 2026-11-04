@@ -1,6 +1,7 @@
 // THE TARGET'S INTERPRETATION OF THE LANGUAGE WHERE NO SINGLE LLVM OPERATION
 // IS IT (ADR 0088, 0089): each a derived operation, a term over the host's
-// operations (llvm.oro, kernel32.oro), so ι : Σ_L → T(Σ_H) is a theory
+// operations (instructions.oro, and os.oro's Σ_OS, ADR 0093), so
+// ι : Σ_L → T(Σ_LLVM + Σ_OS) is a theory
 // interpretation (Goguen and Burstall), written in the language, checked as a
 // program is, and inlined by the IR for the operation it realizes
 // (ir/realize.go).
@@ -16,8 +17,8 @@
 //
 // Two host shapes make the checked forms terms (ADR 0090): a call into a
 // PRODUCT, LLVM's overflow intrinsics answering W × 𝔹, taken apart by a tuple
-// pattern; and a call into ∅, `llvm.trap` and ExitProcess, which never return,
-// so 0 → Y types the branch they end.
+// pattern; and a call into ∅, `llvm.trap` and Σ_OS's `exit`, which never
+// return, so 0 → Y types the branch they end.
 //
 // LLVM computes a branch both ways and chooses with `select` where that is
 // cheaper; that is LLVM's speculation, sound because each arm is defined
@@ -26,11 +27,13 @@
 // no term is printed.
 //
 // THE ALLOCATOR IS A TERM too (ADR 0092): a table's storage is an operation of
-// the IR, so ι reaches it, and its arithmetic is decided at the site.
+// the IR, so ι reaches it, and its arithmetic is decided at the site. Its
+// region, like the crash's write and exit, is the operating system's: Σ_OS,
+// this layer's parameter, which an OS layer defines (ADR 0093).
 module lang {
     use llvm
-    use windows/kernel32
-    use win/str
+    use llvm/os as os
+    use llvm/str as str
 
     // ¬ν (ADR 0091): no byte of the string is 0. Exact on UTF-8, where U+0000 is
     // the byte 0 and every byte of a longer sequence is at least 0x80, so
@@ -93,15 +96,11 @@ module lang {
     fn trap_if(a ∈ Int) (Int) { if a == 0 { 0 } else { llvm.trap() } }
 
     // THE CRASH (spec/errors.md §8): crash : E → ∅. The reason's bytes and a
-    // newline to standard error (-12), then exit status 1, as on targets/windows.
-    // A reason past one call's DWORD count is not written; the process ends
-    // either way.
+    // newline to standard error, then exit status 1, every step Σ_OS's.
     fn crash(why ∈ String) (∅) {
-        u = str.utf8(why)
-        h = kernel32.GetStdHandle(-12)
-        w = if len(u) <= 2^32 - 1 { kernel32.WriteFile(h, u, 0, len(u)) } else { false }
-        e = kernel32.WriteFile(h, array { 10 }, 0, 1)
-        kernel32.ExitProcess(1)
+        w = os.write_err(str.utf8(why))
+        e = os.write_err(array { 10 })
+        os.exit(1)
     }
 
     // ---- MEMORY (ADR 0092): ι(alloc), alloc : ℕ × {1, 8} → Region, a table of
@@ -115,21 +114,8 @@ module lang {
     // whatever facts the site has (a length a trapped operation computed).
     fn allocate(n ∈ Nat, w ∈ 1..8) (ptr) {
         case {
-            n >= 0 && n <= (2^63 - 9) / 8 -> region(n * w + 8)
+            n >= 0 && n <= (2^63 - 9) / 8 -> os.region(n * w + 8)
             else -> llvm.trap()
         }
-    }
-
-    // A REGION OF b ZEROED BYTES, of kernel32's two allocators, CHOSEN BY SIZE,
-    // measured (llvm-2026-11-02): VirtualAlloc hands out pages the system has
-    // already zeroed, where the heap's HEAP_ZERO_MEMORY (8) clears every byte,
-    // which made the sieve's 200 KB table 10% slower; but it reserves 64 KiB a
-    // call, which small tables in a loop would exhaust. So VirtualAlloc
-    // (MEM_COMMIT | MEM_RESERVE = 12288, PAGE_READWRITE = 4) from 64 KiB, the
-    // process heap below. A null answer is exhaustion, the trap: LLVM may assume
-    // a pointer it loads through is not null.
-    fn region(b ∈ 0..2^63-1) (ptr) {
-        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, b) }
-        if llvm.is_null(p) { llvm.trap() } else { p }
     }
 }

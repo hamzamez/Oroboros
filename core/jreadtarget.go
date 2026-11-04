@@ -165,7 +165,7 @@ func (p *parser) targetItem() (*Term, error) {
 	}
 	if t.kind == tIdent {
 		switch t.text {
-		case "repr", "include", "structural", "backend", "link", "build", "artifact", "data",
+		case "repr", "include", "structural", "backend", "link", "build", "artifact", "data", "glue", "triple",
 			"underlying", "max_len", "big_repr", "int_repr", "fact", "lemma":
 			return p.modelForm()
 		case "realize":
@@ -523,6 +523,12 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 		}
 		break
 	}
+	// A HEADER WITH NO BODY is an operation symbol (ADR 0093): f ∈ (S → R) and
+	// nothing more, which a glued fragment defines under the same header, or the
+	// target is refused when it is loaded (emit's requirementsMet).
+	if !p.is("{") {
+		return app(sig...), nil
+	}
 	if err := p.expect("{"); err != nil {
 		return nil, err
 	}
@@ -585,10 +591,12 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 	return app(out...), nil
 }
 
-// numberedHoles reports a target whose templates number their holes: the two
-// Windows models, MASM's and LLVM's (docs/spec/llvm.md §6), whose templates
-// are instruction sequences that name operands out of order and their result.
-func numberedHoles(target string) bool { return target == "windows" }
+// numberedHoles reports a target whose templates number their holes: the LLVM
+// layer and the target that glues it (docs/spec/llvm.md §6, ADR 0093), whose
+// templates are instruction sequences that name operands out of order and their
+// result. By name, as WriteProgram's layout is (inventory.md §6's finding): the
+// reader runs before a fragment's backend is known.
+func numberedHoles(target string) bool { return target == "windows" || target == "llvm" }
 
 // positionalHoles is the inverse of named (target.go): `${x}` back to today's
 // holes. A template that splices the result or a register's view is x86's,

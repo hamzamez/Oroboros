@@ -135,7 +135,7 @@ func TestSeveralImportsOnlyInAnLLVMTemplate(t *testing.T) {
 		{"llvm", ""},
 	} {
 		path := filepath.Join(t.TempDir(), "t.oro")
-		src := "backend " + strings.ReplaceAll(c.backend, "-", "_") + "\nrepr -2^63..2^63-1 word\n" +
+		src := "backend " + strings.ReplaceAll(c.backend, "-", "_") + "\nrepr -2^63..2^63-1 word\n" + triple(c.backend) +
 			"fn f(a ∈ Int) (Int) { host expr \"f(${a})\" import \"a\" \"b\" }\n"
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)
@@ -150,4 +150,12 @@ func TestSeveralImportsOnlyInAnLLVMTemplate(t *testing.T) {
 			t.Errorf("%s: want a refusal mentioning %q, got %v", c.backend, c.want, err)
 		}
 	}
+}
+
+// triple is an LLVM target's `triple` line, which it must name (ADR 0093).
+func triple(backend string) string {
+	if backend == "llvm" {
+		return "triple \"x86_64-pc-windows-msvc\"\n"
+	}
+	return ""
 }

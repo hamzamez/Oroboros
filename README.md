@@ -560,6 +560,11 @@ says why the next is what it is.
      hold no NUL character, which the compiler now proves or refuses, and Windows reads its bytes as
      UTF-8; and the memory a table lives in is obtained by a program in the language's own terms,
      whose size arithmetic is checked like any other;
+   - **then the LLVM target, fully, before the Windows app** (2026-11-04): the LLVM backend is its own
+     layer that every LLVM-based target shares, with Windows one of them
+     ([layers-2026-11-04](gauntlet/results/layers-2026-11-04.md), done); then Windows' functions
+     described as C prototypes so the calls are derived rather than written one by one; then every test
+     program running on Windows, and the benchmarks at hand-written speed there; then 32-bit Windows;
    - then what TinyRetroPad needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.
 7. ~~The IR's verifier checks that each branch justifies the facts it hands its arms~~ **done

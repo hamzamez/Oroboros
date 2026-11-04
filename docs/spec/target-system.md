@@ -31,7 +31,7 @@ set: targets and libraries name into it identically, which is
 **Declarations.** `Decl` is what a target says about one name: an arity, argument
 and result types, a kind, a template, purity, imports, and contracts.
 
-**Backends.** `𝔅 = {go, js, java, x86-64}` is a **finite closed set**, and it is
+**Backends.** `𝔅 = {go, js, java, llvm}` is a **finite closed set** (MASM's `x86-64` retired, ADR 0080), and it is
 compiler code rather than data. A backend is the thing that emits control flow
 and binds variables, which is why [target-files.md §8](target-files.md) refuses
 new structural kinds: a template cannot express a binder.
@@ -90,6 +90,11 @@ vocabulary calls both "merge".
 `(Φ, ⊔, ∅)` is a **partial commutative idempotent monoid**. Partial because
 disagreement is an error, not a resolution; commutative and idempotent because
 agreement is symmetric.
+
+**A header is a section too** (ADR 0093). `fn f(x ∈ S) (R)` with no body says f ∈ (S → R) and
+nothing more: an operation symbol. It agrees with a definition of f exactly when their headers are
+equal, and their glue is the definition. A header no fragment defines is a requirement unmet, refused
+when the target is loaded: a theory with a parameter is not a model until the parameter is given.
 
 Equivalently and more usefully: **declarations form a sheaf over `N`.** A fragment
 is a section over a subset of `N`, and fragments glue exactly when they agree on
@@ -224,6 +229,23 @@ because `mov %r, %1` is x86 and not AArch64.
 So this family is not a gluing at all. It is a **fibration**: the map
 `Δ ↦ π ∘ Δ` has base `Σ_win32`, and each member is a choice of section over it.
 
+### 5.2a With LLVM, the fibre is a triple — **BUILT 2026-11-04** (ADR 0093)
+
+LLVM IR is one backend for every instruction set, so the ISA is no longer the fibre's axis: a member
+is a triple and an operating system's layer.
+
+```
+    T_LLVM[Σ_OS]  = Σ_LLVM, ι's terms, the representations      targets/llvm/, a theory with a parameter
+    windows-x64   = (llvm, T_LLVM[Σ_OS ↦ Win32] ⊔ Σ_win32, x86_64-pc-windows-msvc)
+    windows-x86   = (llvm, the same,                          i686-pc-windows-msvc)
+    linux-x64     = (llvm, T_LLVM[Σ_OS ↦ POSIX] ⊔ Σ_posix,    x86_64-linux-gnu)
+```
+
+Σ_OS is what ι's terms need from an operating system and no instruction computes: `region`,
+`write_err`, `exit`. `glue llvm` makes T_LLVM a fragment of the windows target (§2.1's ⊔), and
+windows' module `llvm/os` is the view that gives the parameter. Windows-x86 is the next member, the
+one §5.4 asked for.
+
 ### 5.3 The general statement
 
 > **A target family over an interface `σ : N ⇀ Σ` is the set of targets
@@ -256,9 +278,10 @@ The obligation is then checkable rather than promised: two members of a family
 that disagree about an arity or a result type are a conflict the loader can
 report, where today they are two unrelated files.
 
-**Recommended and not built.** The measurement that should precede it is a second
-Windows ISA, because a family with one member proves nothing — the same rule this
-project applied to `int-repr` and `big-repr`.
+**Built as headers, not as a form** (ADR 0093): the interface is a layer's headers with no body,
+and gluing checks agreement. The measurement that should follow it is a second member, a second
+triple, because a family with one member proves nothing — the same rule this project applied to
+`int-repr` and `big-repr`.
 
 ---
 

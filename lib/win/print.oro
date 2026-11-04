@@ -15,7 +15,7 @@
 // indices obligations the decision proves, and the bytes written are the
 // segment WriteFile's `where` keeps inside it.
 use windows/kernel32
-use win/str
+use llvm/str as str
 
 // WRITES b[lo, lo + n) to standard output (-11), answering whether it was
 // written. WriteFile's domain is a segment inside the table and a DWORD count;

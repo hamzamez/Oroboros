@@ -1,0 +1,30 @@
+// THE VIEW Σ_OS → WIN32 (ADR 0093): the LLVM layer's three headers
+// (targets/llvm/os.oro), each defined here under the same header, over
+// kernel32's functions as Win32 has them. Gluing checks the headers agree; each
+// definition is checked as a program is, and meets its header's contract.
+module llvm/os {
+    use llvm
+    use windows/kernel32
+
+    // A REGION OF b ZEROED BYTES, of kernel32's two allocators, CHOSEN BY SIZE,
+    // measured (llvm-2026-11-02): VirtualAlloc hands out pages the system has
+    // already zeroed, where the heap's HEAP_ZERO_MEMORY (8) clears every byte,
+    // which made the sieve's 200 KB table 10% slower; but it reserves 64 KiB a
+    // call, which small tables in a loop would exhaust. So VirtualAlloc
+    // (MEM_COMMIT | MEM_RESERVE = 12288, PAGE_READWRITE = 4) from 64 KiB, the
+    // process heap below. A null answer is exhaustion, the trap: LLVM may assume
+    // a pointer it loads through is not null.
+    fn region(b ∈ 0..2^63-1) (ptr) {
+        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, b) }
+        if llvm.is_null(p) { llvm.trap() } else { p }
+    }
+
+    // THE BYTES TO STANDARD ERROR (-12). A table past one call's DWORD count is
+    // not written, and the answer is false.
+    fn write_err(b ∈ Array(0..255)) (Bool) {
+        if len(b) <= 2^32 - 1 { kernel32.WriteFile(kernel32.GetStdHandle(-12), b, 0, len(b)) } else { false }
+    }
+
+    // ExitProcess ends every thread and the process; its UINT holds 0..255.
+    fn exit(code ∈ 0..255) (∅) { kernel32.ExitProcess(code) }
+}

@@ -1,0 +1,7 @@
+// A STRING'S BYTES (llvm.md §4): a string here is a table of bytes, an i64
+// length and then its UTF-8, with a NUL after them outside the length, so it is
+// exactly an Array(0..255) of its encoding, and `utf8` is that identity. The
+// layout is this layer's, on every triple (ADR 0093 item 6).
+module llvm/str {
+    fn utf8(s ∈ String) (Array(0..255)) pure { host expr "getelementptr i8, ${s}, i64 0" }
+}

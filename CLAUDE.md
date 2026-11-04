@@ -214,10 +214,26 @@ checked. When a package hits a wall that needs language work, stop, research it,
      a C string is the kernel of ν, the monoid homomorphism Σ* → (𝔹, ∨) true on U+0000; `nulfree` is
      in Σ_L, an `LPCSTR` parameter `where nulfree(a)`, decided by ν on the argument's term and by a
      guard; a UTF-8 manifest makes the `A` functions read our bytes. **The allocator is a term**
-     (ADR 0092): a table's storage is an IR operation, `alloc(n, w)`, its `n·w + 8` proven. Step 3, Σ_LLVM's families, by demand,
-     TinyRetroPad's first. Left to the walls: LLVM's widths (native iN, i32 scalars on i686), the
-     unsigned word on windows (its 64-bit results at or above 2⁶³ read signed, as on MASM), and the
-     rung above as native iN, measured against the limbs.
+     (ADR 0092): a table's storage is an IR operation, `alloc(n, w)`, its `n·w + 8` proven.
+   - **6b′. The LLVM target, fully, before the Windows app** (hamza, 2026-11-04; ahead of 6c and 6d). "Fully" is
+     measured, not a count of declarations: every differential case runs on windows (no `skip:
+     windows`), the gauntlet's seven programs run there at parity, and a second triple runs the suite.
+     In steps:
+     1. ~~**The layering**~~ **done** (ADR 0093, [layers-2026-11-04](gauntlet/results/layers-2026-11-04.md)):
+        `targets/llvm/` is T_LLVM[Σ_OS], a theory with a parameter (Σ_LLVM, ι's terms, the
+        representations, and Σ_OS's three headers, `region`, `write_err`, `exit`); `targets/windows/`
+        glues it (`glue llvm`, §2.1's ⊔), names its `triple`, and defines Σ_OS over kernel32; a header
+        with no body is an operation symbol a glued layer must define; a run is exit(0) ∘ main.
+     2. **The C ABI in the layer**: Win32 as C prototypes, each call derived from the prototype and
+        the triple's data layout, not 10,479 templates; the survey regenerated, its figures unchanged.
+     3. **The layer's missing pieces, program first**, each skipped case un-skipped in turn: the unsigned
+        word and LLVM's widths (`codecs`, `fnv64`, `fnv64-fold`, `pairs`; the C ABI needs them), F64's
+        roundings (`f64-round`), `big_str` (seven cases), `os` on windows (`read-loop`, `text-of`); then
+        the gauntlet's programs on windows.
+     4. **The second triple**: `i686-pc-windows-msvc` runs the suite (TinyRetroPad is 32-bit).
+     Left to the walls: LLVM's widths (native iN, i32 scalars on i686), the unsigned word on windows
+     (its 64-bit results at or above 2⁶³ read signed, as on MASM), and the rung above as native iN,
+     measured against the limbs.
    - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
      user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time.
@@ -618,6 +634,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | ∅ is a set; a function into it never returns (0 initial, k ∘ h = h), every declaration not only `abandon`; a host's product taken apart by its projections; legality decided before ι | [0090](docs/decisions/0090-a-function-into-the-empty-set-never-returns.md) |
 | A C string is the kernel of ν, the monoid homomorphism true on U+0000; `nulfree` in Σ_L, decided by ν on the argument's term and by a guard | [0091](docs/decisions/0091-a-c-string-is-the-kernel-of-the-nul-homomorphism.md) |
 | A table's storage is an operation of the IR, `alloc(n, w)`, and the allocator a term over the host's, total by exhaustion; ι does not change what the program proves | [0092](docs/decisions/0092-a-tables-storage-is-an-operation-and-the-allocator-a-term.md) |
+| The LLVM layer is a theory with a parameter, Σ_OS (`region`, `write_err`, `exit`), and an OS target instantiates it by gluing; a header with no body is an operation symbol; the triple is target data | [0093](docs/decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md) |
 
 ## Build commands
 
@@ -652,7 +669,7 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/llvm` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
-| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `windows/` (LLVM IR: `llvm` Σ_LLVM, `lang` its terms, `kernel32`, `strings`); `blas` and the `tutorial*` targets parameterize the normal form for the book |
+| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `windows/` (glues `llvm`: its triple, `os` the view over kernel32, `kernel32`, `strings`); `blas` and the `tutorial*` targets parameterize the normal form for the book |
 | `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators) |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
 | `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `num/` (`ledger`, decimals), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |

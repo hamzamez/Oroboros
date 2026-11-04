@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 172 words of the core**, and j.md §1.4's keywords.
+**Result: 174 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 133 |
+| `specified` — a spec states it | 135 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -210,6 +210,8 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `data` | specified | [windows-target.md](windows-target.md) |
 | `link` | specified | [target-files.md](target-files.md) |
 | `realize` | specified — `realize OP = A, B … [checked C]`, a target's stated interpretation of a language name (ADR 0088) | [ADR 0088](../decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md), [llvm.md](llvm.md) §6 |
+| `glue` | specified — `glue TARGET`, that target's fragments glued into this one (⊔, agreement required); a header with no body is an operation a glued layer must define | [ADR 0093](../decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md), [target-system.md](target-system.md) §2.1, §5.2a |
+| `triple` | specified — an LLVM target's triple, target data, never a default | [ADR 0093](../decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md), [llvm.md](llvm.md) §2 |
 
 ### Header and host clauses
 

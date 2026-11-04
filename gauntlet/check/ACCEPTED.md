@@ -2472,3 +2472,25 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/nulfree.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-04 — on 1641719, with uncommitted changes
+
+**Reason:** ADR 0093: the LLVM layer glued into windows; the crash is Σ_OS's write_err and exit, each write getting its handle; refusals name llvm/str
+
+608 runs: 371 emitted, 237 refused; 4999 of 5059 integer operations bounded, 492 of 516 loops proven. compiler pass, differential pass, tooling skip.
+
+13 change(s):
+
+- emitted text changed — `examples/errors/expect.oro windows`
+- compiler output changed — `examples/native/hello-win.oro go`
+- compiler output changed — `examples/native/hello-win.oro java`
+- compiler output changed — `examples/native/hello-win.oro js`
+- compiler output changed — `examples/native/shortcircuit-win.oro go`
+- compiler output changed — `examples/native/shortcircuit-win.oro java`
+- compiler output changed — `examples/native/shortcircuit-win.oro js`
+- compiler output changed — `examples/table/sieve-win.oro go`
+- compiler output changed — `examples/table/sieve-win.oro java`
+- compiler output changed — `examples/table/sieve-win.oro js`
+- compiler output changed — `lib/win/print.oro go`
+- compiler output changed — `lib/win/print.oro java`
+- compiler output changed — `lib/win/print.oro js`

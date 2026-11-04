@@ -366,6 +366,13 @@ type Target struct {
 	// holding the results its declared result set says (ADR 0083 item 2). The
 	// IR picks the first whose result set holds the proven result.
 	Realize map[string][]string
+	// Glue is the targets whose fragments this one glues in, found beside it on
+	// the same layer (ADR 0093): Δ = Δ_NAME ⊔ Δ_self, §2.1's agreement, never an
+	// override. Resolved when the fragment is loaded (glueIn).
+	Glue []string
+	// Triple is the LLVM target triple the printer writes (ADR 0093 item 5),
+	// target data, never a default.
+	Triple string
 	// Realized is what a target STATES about the language's names (ADR 0088,
 	// `realize OP = A, B checked C`): each name's realizations, in order of
 	// preference, then "|" and its checked form. A target that states any
@@ -475,6 +482,10 @@ func LoadTarget(path string) (*Target, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := tg.glueIn(filepath.Dir(strings.TrimSuffix(path, string(filepath.Separator))), path,
+		map[string]bool{filepath.Base(strings.TrimSuffix(path, ".oro")): true}); err != nil {
+		return nil, err
+	}
 	tg.LibDirs = siblingLib(path)
 	if err := tg.finish(func(err error) error { return fmt.Errorf("%s: %w", path, err) }); err != nil {
 		return nil, err
@@ -518,6 +529,14 @@ func siblingLib(path string) []string {
 func (tg *Target) finish(wrap func(error) error) error {
 	if err := tg.resolveDeferred(); err != nil {
 		return err
+	}
+	// A THEORY WITH A PARAMETER IS NOT A MODEL (ADR 0093): every header is defined.
+	if err := tg.requirementsMet(); err != nil {
+		return wrap(err)
+	}
+	// AN LLVM MODULE NAMES ITS TRIPLE, and no default is right (ADR 0093 item 5).
+	if b, err := tg.ResolveBackend(); err == nil && b == "llvm" && tg.Triple == "" {
+		return wrap(fmt.Errorf("target %s prints LLVM IR and names no `triple`", tg.Name))
 	}
 	// ONE NAMESPACE (spec/typevalues.md §2): a type is a value of the static
 	// level, so a module's type and value names are one set of names.
@@ -1074,6 +1093,9 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 			if os.IsNotExist(err) {
 				continue // this layer does not have it
 			}
+			return nil, err
+		}
+		if err := frag.glueIn(d, p, map[string]bool{name: true}); err != nil {
 			return nil, err
 		}
 		found = append(found, p)
@@ -2003,6 +2025,7 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 		{&tg.Narrow, o.Narrow, "narrow"},
 		{&tg.Artifact, o.Artifact, "artifact"},
 		{&tg.Build, o.Build, "build"},
+		{&tg.Triple, o.Triple, "triple"},
 	} {
 		if err := combineOne(f.dst, f.src, f.what, from, how); err != nil {
 			return err
@@ -2073,12 +2096,24 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 			tg.Defs = map[string][]core.Form{}
 		}
 		have := map[string]bool{}
+		headers := map[string]*core.Sig{}
 		for _, g := range tg.Defs[path] {
 			if g.Kind == "def" {
 				have[g.Name] = true
 			}
+			if g.Kind == "sig" && g.Sig != nil {
+				headers[g.Name] = g.Sig
+			}
 		}
 		for _, f := range fs {
+			// A HEADER IS A SECTION (ADR 0093, target-system.md §2.1): two of one
+			// name agree when they are the same header, and under glue they
+			// must; the definition's then completes the other.
+			if f.Kind == "sig" && f.Sig != nil && headers[f.Name] != nil && how == glue && !PlantGlueFault {
+				if a, b := sigText(headers[f.Name]), sigText(f.Sig); a != b {
+					return fmt.Errorf("%s: %s's headers disagree: %s and %s", from, qualify(path, f.Name), a, b)
+				}
+			}
 			if f.Kind == "def" && have[f.Name] {
 				if how == glue {
 					return fmt.Errorf("%s: %s is defined twice in this target", from,
@@ -2091,6 +2126,11 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	}
 	// A library is a set member, so two layers naming one is not a collision.
 	tg.Link = append(tg.Link, o.Link...)
+	for _, g := range o.Glue {
+		if !contains(tg.Glue, g) {
+			tg.Glue = append(tg.Glue, g)
+		}
+	}
 	// A PRIMITIVE IS STRICTER THAN THE SHEAF CONDITION UNDER GLUE, deliberately:
 	// two identical declarations of one name in a single layer are a mistake
 	// rather than a coincidence, and saying so has caught real ones. Between
@@ -2107,6 +2147,93 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 		tg.Names = append(tg.Names, n)
 	}
 	return nil
+}
+
+// PlantGlueFault glues two headers of one name without comparing them, the
+// sheaf condition dropped: TestATargetIsTheGlueOfItsLayers must catch it.
+var PlantGlueFault bool
+
+// sigText is a header as its agreement is judged: each parameter's name and
+// set, the result, the `where` and the `ensure`.
+func sigText(s *core.Sig) string {
+	var b strings.Builder
+	for _, p := range s.Params {
+		fmt.Fprintf(&b, "%s ∈ %s, ", p.Name, p.Type)
+	}
+	fmt.Fprintf(&b, "→ %s %v", s.Result, s.Results)
+	if s.Where != nil {
+		b.WriteString(" where " + core.ShowTerm(s.Where))
+	}
+	if s.Ensures != nil {
+		b.WriteString(" ensure " + core.ShowTerm(s.Ensures))
+	}
+	return b.String()
+}
+
+// glueIn glues the fragments of the targets this one names (ADR 0093), each
+// found in dir, the layer this fragment came from, and each glued once; the
+// glued targets' own `glue` lines are followed, and a cycle is refused.
+func (tg *Target) glueIn(dir, from string, seen map[string]bool) error {
+	done := map[string]bool{}
+	for {
+		var next string
+		for _, g := range tg.Glue {
+			if !done[g] {
+				next = g
+				break
+			}
+		}
+		if next == "" {
+			return nil
+		}
+		done[next] = true
+		if seen[next] {
+			return fmt.Errorf("%s: `glue %s` is a cycle: %s glues itself", from, next, next)
+		}
+		frag, err := loadFragment(filepath.Join(dir, next))
+		if err != nil {
+			return fmt.Errorf("%s: `glue %s`: %w", from, next, err)
+		}
+		inner := map[string]bool{}
+		for k := range seen {
+			inner[k] = true
+		}
+		inner[next] = true
+		if err := frag.glueIn(dir, filepath.Join(dir, next), inner); err != nil {
+			return err
+		}
+		for _, g := range frag.Glue {
+			done[g] = true
+		}
+		if err := tg.combine(frag, filepath.Join(dir, next), glue); err != nil {
+			return err
+		}
+	}
+}
+
+// requirementsMet refuses a header no fragment defines (ADR 0093): a theory
+// with a parameter is not a model until the parameter is given.
+func (tg *Target) requirementsMet() error {
+	var unmet []string
+	for path, fs := range tg.Defs {
+		defined := map[string]bool{}
+		for _, f := range fs {
+			if f.Kind == "def" {
+				defined[f.Name] = true
+			}
+		}
+		for _, f := range fs {
+			if f.Kind == "sig" && !defined[f.Name] && !contains(unmet, qualify(path, f.Name)) {
+				unmet = append(unmet, qualify(path, f.Name))
+			}
+		}
+	}
+	if len(unmet) == 0 {
+		return nil
+	}
+	sort.Strings(unmet)
+	return fmt.Errorf("target %s requires %s, and no fragment defines it: a header with no body is "+
+		"an operation a glued layer must give (ADR 0093)", tg.Name, strings.Join(unmet, ", "))
 }
 
 func parseTarget(t *core.Term, path string) (*Target, error) {
@@ -2206,6 +2333,22 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: `artifact \"name\"`, got %s", path, f)
 			}
 			frag.Artifact = f.Kids[1].Str
+		case "glue":
+			// (glue NAME …) — ADR 0093: these targets' fragments are this one's.
+			if len(f.Kids) < 2 {
+				return nil, fmt.Errorf("%s: `glue TARGET …` names at least one target, got %s", path, f)
+			}
+			for _, k := range f.Kids[1:] {
+				if k.Kind != core.KName {
+					return nil, fmt.Errorf("%s: `glue TARGET …` takes target names, got %s", path, f)
+				}
+				frag.Glue = append(frag.Glue, k.Name)
+			}
+		case "triple":
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
+				return nil, fmt.Errorf("%s: `triple \"arch-vendor-os-abi\"`, got %s", path, f)
+			}
+			frag.Triple = f.Kids[1].Str
 		case "build":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: `build \"cmd %%s %%s\"`, got %s", path, f)

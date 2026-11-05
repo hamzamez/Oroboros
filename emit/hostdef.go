@@ -66,8 +66,15 @@ func hostDef(f *core.Term, p Prim, path string) (*core.DefDecl, error) {
 		case w == "inplace" && len(k.Kids) == 3 && k.Kids[1].Kind == core.KInt && k.Kids[2].Kind == core.KInt:
 			h.InPlace = append(h.InPlace, [2]int{int(k.Kids[1].Int), int(k.Kids[2].Int)})
 		case w == "host":
-			h.Kind, h.Template = k.Kids[1].Name, k.Kids[2].Str
-			for _, hc := range k.Kids[3:] {
+			// A C FUNCTION (ADR 0094) has no template: its `(call "F" conv)` is a
+			// clause like any other, and the rest follow it.
+			clauses := k.Kids[3:]
+			if formWord(k.Kids[2]) == "call" {
+				h.Kind, clauses = k.Kids[1].Name, k.Kids[2:]
+			} else {
+				h.Kind, h.Template = k.Kids[1].Name, k.Kids[2].Str
+			}
+			for _, hc := range clauses {
 				e, err := core.TermTree(hc)
 				if err != nil {
 					return nil, fmt.Errorf("%s: sig %s: %w", path, p.Name, err)

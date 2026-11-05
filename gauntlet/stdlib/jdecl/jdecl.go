@@ -97,6 +97,9 @@ type Fn struct {
 	Import   string
 	Lib      string
 	Where    string // a formula over the parameters, or ""
+	// Call is a C function's symbol, `host KIND call "F" [Conv]` (ADR 0094): its
+	// call derived from its sets, so it has no Template and no Import.
+	Call, Conv string
 }
 
 // String is the declaration on one line, indented for a module's body.
@@ -113,7 +116,14 @@ func (f Fn) String() string {
 	if f.Where != "" {
 		b.WriteString(" where " + f.Where)
 	}
-	b.WriteString(" { host " + f.Kind + " " + Template(f.Template))
+	if f.Call != "" {
+		b.WriteString(" { host " + f.Kind + " call " + Quote(f.Call))
+		if f.Conv != "" {
+			b.WriteString(" " + f.Conv)
+		}
+	} else {
+		b.WriteString(" { host " + f.Kind + " " + Template(f.Template))
+	}
 	if f.Import != "" {
 		b.WriteString(" import " + Quote(f.Import))
 	}

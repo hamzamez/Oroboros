@@ -648,6 +648,10 @@ func (p *printer) call(s *ir.Stmt) {
 		p.fail("(call %s) has no template on target %s", s.Name, p.tg.Name)
 		return
 	}
+	if q.CSym != "" {
+		p.cCall(q, s)
+		return
+	}
 	if q.Form == "" {
 		p.fail("(call %s) is realized by a term, which reached the printer unsubstituted (ir.RealizeOps)", s.Name)
 		return
@@ -675,6 +679,61 @@ func (p *printer) call(s *ir.Stmt) {
 		return
 	}
 	p.expand(q.Form, q.Kind, s.Res, s.Args)
+}
+
+// cCall prints a C function's call by its prototype (ADR 0094, llvm.md §6a):
+// out ∘ F ∘ (in × … × in), each map the C ABI's for the declared set on this
+// triple. `trunc` is exact on a narrow integer's set and `sext`/`zext` its
+// embedding back; a C string's bytes are at s + 8, NUL-ended (§4).
+func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
+	var ops, tys []string
+	for i, a := range s.Args {
+		ll, cross, _, _ := p.tg.CType(q.Args[i])
+		v := p.val(a)
+		switch cross {
+		case "trunc":
+			r := "%" + p.fresh("c")
+			p.line("%s = trunc i64 %s to %s", r, v, ll)
+			v = r
+		case "cstr":
+			r := "%" + p.fresh("c")
+			p.line("%s = getelementptr inbounds i8, ptr %s, i64 8", r, v)
+			v = r
+		}
+		ops, tys = append(ops, ll+" "+v), append(tys, ll)
+	}
+	ret, cross, signed := "void", "", false
+	if q.Kind != "stmt" {
+		ret, cross, signed, _ = p.tg.CType(q.Result)
+	}
+	// WHAT THE PROTOTYPE DOES NOT SAY, THE TRIPLE DOES: a DLL's function is
+	// imported on Windows, and `stdcall` is a convention only on i686.
+	storage, cc := "", ""
+	if strings.Contains(p.tg.Triple, "-windows") {
+		storage = "dllimport "
+	}
+	if q.CConv == "stdcall" && (strings.HasPrefix(p.tg.Triple, "i686-") || strings.HasPrefix(p.tg.Triple, "i386-")) {
+		cc = "x86_stdcallcc "
+	}
+	emit.LLVMImports[fmt.Sprintf("declare %s%s%s @%s(%s)", storage, cc, ret, q.CSym, strings.Join(tys, ", "))] = true
+	if q.Lib != "" {
+		emit.LLVMLibs[q.Lib] = true
+	}
+	call := fmt.Sprintf("call %s%s @%s(%s)", cc, ret, q.CSym, strings.Join(ops, ", "))
+	switch {
+	case ret == "void" || len(s.Res) == 0:
+		p.line("%s", call)
+	case cross == "trunc":
+		r := "%" + p.fresh("c")
+		p.line("%s = %s", r, call)
+		ext := "zext"
+		if signed {
+			ext = "sext"
+		}
+		p.line("%%v%d = %s %s %s to i64", s.Res[0], ext, ret, r)
+	default:
+		p.line("%%v%d = %s", s.Res[0], call)
+	}
 }
 
 func (p *printer) imports(q emit.Prim) {

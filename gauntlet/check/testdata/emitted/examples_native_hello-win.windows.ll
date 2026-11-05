@@ -16,7 +16,7 @@ entry:
   %.s6 = alloca i1
   %.s15 = alloca i1
   %.s23 = alloca i1
-  %.s35 = alloca ptr
+  %.s36 = alloca ptr
   %.s42 = alloca ptr
   %v1 = getelementptr i8, ptr @.str.0, i64 0
   %v2 = load i64, ptr %v1
@@ -44,8 +44,8 @@ entry:
   store i1 false, ptr %.s15
   br label %.join14
 .else13:
-  %n.16 = trunc i64 -11 to i32
-  %v27 = call ptr @GetStdHandle(i32 %n.16)
+  %.c16 = trunc i64 4294967285 to i32
+  %v27 = call ptr @GetStdHandle(i32 %.c16)
   %p.17 = getelementptr inbounds i8, ptr %v1, i64 8
   %q.17 = getelementptr inbounds i8, ptr %p.17, i64 0
   %n.17 = trunc i64 %v2 to i32
@@ -74,19 +74,19 @@ entry:
   br i1 %v50, label %.then30, label %.else31
 .then30:
   %v53 = getelementptr i8, ptr null, i64 0
-  %t.34 = trunc i64 12288 to i32
-  %p.34 = trunc i64 4 to i32
-  %v56 = call ptr @VirtualAlloc(ptr %v53, i64 %v48, i32 %t.34, i32 %p.34)
-  store ptr %v56, ptr %.s35
+  %.c34 = trunc i64 12288 to i32
+  %.c35 = trunc i64 4 to i32
+  %v56 = call ptr @VirtualAlloc(ptr %v53, i64 %v48, i32 %.c34, i32 %.c35)
+  store ptr %v56, ptr %.s36
   br label %.join32
 .else31:
   %v58 = call ptr @GetProcessHeap()
-  %f.37 = trunc i64 8 to i32
-  %v60 = call ptr @HeapAlloc(ptr %v58, i32 %f.37, i64 %v48)
-  store ptr %v60, ptr %.s35
+  %.c37 = trunc i64 8 to i32
+  %v60 = call ptr @HeapAlloc(ptr %v58, i32 %.c37, i64 %v48)
+  store ptr %v60, ptr %.s36
   br label %.join32
 .join32:
-  %v51 = load ptr, ptr %.s35
+  %v51 = load ptr, ptr %.s36
   %v61 = icmp eq ptr %v51, null
   br i1 %v61, label %.then39, label %.else40
 .then39:
@@ -111,8 +111,8 @@ entry:
 .then48:
   ret i1 false
 .else49:
-  %n.50 = trunc i64 -11 to i32
-  %v72 = call ptr @GetStdHandle(i32 %n.50)
+  %.c50 = trunc i64 4294967285 to i32
+  %v72 = call ptr @GetStdHandle(i32 %.c50)
   %p.51 = getelementptr inbounds i8, ptr %v43, i64 8
   %q.51 = getelementptr inbounds i8, ptr %p.51, i64 0
   %n.51 = trunc i64 1 to i32

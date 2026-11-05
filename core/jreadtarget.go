@@ -558,7 +558,19 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 	if p.is("expr") || p.is("stmt") {
 		out = append(out, Name(p.next().text))
 	}
-	if p.peek().kind == tString {
+	// A C FUNCTION BY ITS SYMBOL (ADR 0094): `call "F" [stdcall | cdecl]`, its
+	// instructions the C ABI's, derived from the header's sets on the triple.
+	if p.is("call") {
+		p.next()
+		if p.peek().kind != tString {
+			return nil, p.errorf("`host expr call \"SYMBOL\"` names the C function, got %s", p.peek())
+		}
+		c := []*Term{Name("call"), Str(p.next().text)}
+		if p.is("stdcall") || p.is("cdecl") {
+			c = append(c, Name(p.next().text))
+		}
+		out = append(out, app(c...))
+	} else if p.peek().kind == tString {
 		out = append(out, Str(positionalHoles(p.next().text, params, statics, result, p.x86, p.resultHoles)))
 	}
 	for !p.is("}") && !p.lineEnds() {

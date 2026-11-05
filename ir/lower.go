@@ -690,8 +690,9 @@ func (l *lowerer) call(r *Region, name string, p emit.Prim, args []V) V {
 	// this lowering does not know, and printing it as a call printed `()`:
 	// the cell forms did, before their lowering existed (outcells-2026-10-09).
 	// A NAME REALIZED BY A TERM (ADR 0089) has no template: RealizeOps
-	// substitutes the term's instance for the call.
-	if p.Form == "" && !termRealized(l.tg, name) {
+	// substitutes the term's instance for the call. Nor has a C function (ADR
+	// 0094), whose call the printer derives from its prototype.
+	if p.Form == "" && p.CSym == "" && !termRealized(l.tg, name) {
 		l.fail("%s has no template and no lowering: a %s is not a host call", core.ShowName(name), p.Kind)
 	}
 	n := 1

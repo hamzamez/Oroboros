@@ -109,7 +109,7 @@ define ptr @gen_run(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s13 = alloca i1
-  %.s25 = alloca ptr
+  %.s26 = alloca ptr
   %.s32 = alloca ptr
   %.s37 = alloca ptr
   %.s38 = alloca i64
@@ -120,7 +120,7 @@ entry:
   %.s53 = alloca i64
   %.s57 = alloca ptr
   %.s63 = alloca i1
-  %.s75 = alloca ptr
+  %.s76 = alloca ptr
   %.s82 = alloca ptr
   %.s87 = alloca ptr
   %.s88 = alloca i64
@@ -134,7 +134,7 @@ entry:
   %.s134 = alloca i64
   %.s143 = alloca ptr
   %.s150 = alloca i1
-  %.s162 = alloca ptr
+  %.s163 = alloca ptr
   %.s169 = alloca ptr
   %.s174 = alloca ptr
   %.s175 = alloca i64
@@ -155,7 +155,7 @@ entry:
   %.s274 = alloca ptr
   %.s275 = alloca i64
   %.s281 = alloca i1
-  %.s293 = alloca ptr
+  %.s294 = alloca ptr
   %.s300 = alloca ptr
   %.s305 = alloca ptr
   %.s306 = alloca i64
@@ -174,7 +174,7 @@ entry:
   %.s393 = alloca i64
   %.s402 = alloca ptr
   %.s411 = alloca i1
-  %.s423 = alloca ptr
+  %.s424 = alloca ptr
   %.s430 = alloca ptr
   %.s435 = alloca ptr
   %.s436 = alloca i64
@@ -184,7 +184,7 @@ entry:
   %.s457 = alloca i64
   %.s465 = alloca ptr
   %.s471 = alloca i1
-  %.s483 = alloca ptr
+  %.s484 = alloca ptr
   %.s490 = alloca ptr
   %.s495 = alloca ptr
   %.s496 = alloca i64
@@ -243,19 +243,19 @@ entry:
   br i1 %v31, label %.then20, label %.else21
 .then20:
   %v34 = getelementptr i8, ptr null, i64 0
-  %t.24 = trunc i64 12288 to i32
-  %p.24 = trunc i64 4 to i32
-  %v37 = call ptr @VirtualAlloc(ptr %v34, i64 %v29, i32 %t.24, i32 %p.24)
-  store ptr %v37, ptr %.s25
+  %.c24 = trunc i64 12288 to i32
+  %.c25 = trunc i64 4 to i32
+  %v37 = call ptr @VirtualAlloc(ptr %v34, i64 %v29, i32 %.c24, i32 %.c25)
+  store ptr %v37, ptr %.s26
   br label %.join22
 .else21:
   %v39 = call ptr @GetProcessHeap()
-  %f.27 = trunc i64 8 to i32
-  %v41 = call ptr @HeapAlloc(ptr %v39, i32 %f.27, i64 %v29)
-  store ptr %v41, ptr %.s25
+  %.c27 = trunc i64 8 to i32
+  %v41 = call ptr @HeapAlloc(ptr %v39, i32 %.c27, i64 %v29)
+  store ptr %v41, ptr %.s26
   br label %.join22
 .join22:
-  %v32 = load ptr, ptr %.s25
+  %v32 = load ptr, ptr %.s26
   %v42 = icmp eq ptr %v32, null
   br i1 %v42, label %.then29, label %.else30
 .then29:
@@ -331,19 +331,19 @@ entry:
   br i1 %v91, label %.then70, label %.else71
 .then70:
   %v94 = getelementptr i8, ptr null, i64 0
-  %t.74 = trunc i64 12288 to i32
-  %p.74 = trunc i64 4 to i32
-  %v97 = call ptr @VirtualAlloc(ptr %v94, i64 %v89, i32 %t.74, i32 %p.74)
-  store ptr %v97, ptr %.s75
+  %.c74 = trunc i64 12288 to i32
+  %.c75 = trunc i64 4 to i32
+  %v97 = call ptr @VirtualAlloc(ptr %v94, i64 %v89, i32 %.c74, i32 %.c75)
+  store ptr %v97, ptr %.s76
   br label %.join72
 .else71:
   %v99 = call ptr @GetProcessHeap()
-  %f.77 = trunc i64 8 to i32
-  %v101 = call ptr @HeapAlloc(ptr %v99, i32 %f.77, i64 %v89)
-  store ptr %v101, ptr %.s75
+  %.c77 = trunc i64 8 to i32
+  %v101 = call ptr @HeapAlloc(ptr %v99, i32 %.c77, i64 %v89)
+  store ptr %v101, ptr %.s76
   br label %.join72
 .join72:
-  %v92 = load ptr, ptr %.s75
+  %v92 = load ptr, ptr %.s76
   %v102 = icmp eq ptr %v92, null
   br i1 %v102, label %.then79, label %.else80
 .then79:
@@ -493,19 +493,19 @@ entry:
   br i1 %v202, label %.then157, label %.else158
 .then157:
   %v205 = getelementptr i8, ptr null, i64 0
-  %t.161 = trunc i64 12288 to i32
-  %p.161 = trunc i64 4 to i32
-  %v208 = call ptr @VirtualAlloc(ptr %v205, i64 %v200, i32 %t.161, i32 %p.161)
-  store ptr %v208, ptr %.s162
+  %.c161 = trunc i64 12288 to i32
+  %.c162 = trunc i64 4 to i32
+  %v208 = call ptr @VirtualAlloc(ptr %v205, i64 %v200, i32 %.c161, i32 %.c162)
+  store ptr %v208, ptr %.s163
   br label %.join159
 .else158:
   %v210 = call ptr @GetProcessHeap()
-  %f.164 = trunc i64 8 to i32
-  %v212 = call ptr @HeapAlloc(ptr %v210, i32 %f.164, i64 %v200)
-  store ptr %v212, ptr %.s162
+  %.c164 = trunc i64 8 to i32
+  %v212 = call ptr @HeapAlloc(ptr %v210, i32 %.c164, i64 %v200)
+  store ptr %v212, ptr %.s163
   br label %.join159
 .join159:
-  %v203 = load ptr, ptr %.s162
+  %v203 = load ptr, ptr %.s163
   %v213 = icmp eq ptr %v203, null
   br i1 %v213, label %.then166, label %.else167
 .then166:
@@ -736,19 +736,19 @@ entry:
   br i1 %v365, label %.then288, label %.else289
 .then288:
   %v368 = getelementptr i8, ptr null, i64 0
-  %t.292 = trunc i64 12288 to i32
-  %p.292 = trunc i64 4 to i32
-  %v371 = call ptr @VirtualAlloc(ptr %v368, i64 %v363, i32 %t.292, i32 %p.292)
-  store ptr %v371, ptr %.s293
+  %.c292 = trunc i64 12288 to i32
+  %.c293 = trunc i64 4 to i32
+  %v371 = call ptr @VirtualAlloc(ptr %v368, i64 %v363, i32 %.c292, i32 %.c293)
+  store ptr %v371, ptr %.s294
   br label %.join290
 .else289:
   %v373 = call ptr @GetProcessHeap()
-  %f.295 = trunc i64 8 to i32
-  %v375 = call ptr @HeapAlloc(ptr %v373, i32 %f.295, i64 %v363)
-  store ptr %v375, ptr %.s293
+  %.c295 = trunc i64 8 to i32
+  %v375 = call ptr @HeapAlloc(ptr %v373, i32 %.c295, i64 %v363)
+  store ptr %v375, ptr %.s294
   br label %.join290
 .join290:
-  %v366 = load ptr, ptr %.s293
+  %v366 = load ptr, ptr %.s294
   %v376 = icmp eq ptr %v366, null
   br i1 %v376, label %.then297, label %.else298
 .then297:
@@ -978,19 +978,19 @@ entry:
   br i1 %v525, label %.then418, label %.else419
 .then418:
   %v528 = getelementptr i8, ptr null, i64 0
-  %t.422 = trunc i64 12288 to i32
-  %p.422 = trunc i64 4 to i32
-  %v531 = call ptr @VirtualAlloc(ptr %v528, i64 %v523, i32 %t.422, i32 %p.422)
-  store ptr %v531, ptr %.s423
+  %.c422 = trunc i64 12288 to i32
+  %.c423 = trunc i64 4 to i32
+  %v531 = call ptr @VirtualAlloc(ptr %v528, i64 %v523, i32 %.c422, i32 %.c423)
+  store ptr %v531, ptr %.s424
   br label %.join420
 .else419:
   %v533 = call ptr @GetProcessHeap()
-  %f.425 = trunc i64 8 to i32
-  %v535 = call ptr @HeapAlloc(ptr %v533, i32 %f.425, i64 %v523)
-  store ptr %v535, ptr %.s423
+  %.c425 = trunc i64 8 to i32
+  %v535 = call ptr @HeapAlloc(ptr %v533, i32 %.c425, i64 %v523)
+  store ptr %v535, ptr %.s424
   br label %.join420
 .join420:
-  %v526 = load ptr, ptr %.s423
+  %v526 = load ptr, ptr %.s424
   %v536 = icmp eq ptr %v526, null
   br i1 %v536, label %.then427, label %.else428
 .then427:
@@ -1087,19 +1087,19 @@ entry:
   br i1 %v601, label %.then478, label %.else479
 .then478:
   %v604 = getelementptr i8, ptr null, i64 0
-  %t.482 = trunc i64 12288 to i32
-  %p.482 = trunc i64 4 to i32
-  %v607 = call ptr @VirtualAlloc(ptr %v604, i64 %v599, i32 %t.482, i32 %p.482)
-  store ptr %v607, ptr %.s483
+  %.c482 = trunc i64 12288 to i32
+  %.c483 = trunc i64 4 to i32
+  %v607 = call ptr @VirtualAlloc(ptr %v604, i64 %v599, i32 %.c482, i32 %.c483)
+  store ptr %v607, ptr %.s484
   br label %.join480
 .else479:
   %v609 = call ptr @GetProcessHeap()
-  %f.485 = trunc i64 8 to i32
-  %v611 = call ptr @HeapAlloc(ptr %v609, i32 %f.485, i64 %v599)
-  store ptr %v611, ptr %.s483
+  %.c485 = trunc i64 8 to i32
+  %v611 = call ptr @HeapAlloc(ptr %v609, i32 %.c485, i64 %v599)
+  store ptr %v611, ptr %.s484
   br label %.join480
 .join480:
-  %v602 = load ptr, ptr %.s483
+  %v602 = load ptr, ptr %.s484
   %v612 = icmp eq ptr %v602, null
   br i1 %v612, label %.then487, label %.else488
 .then487:

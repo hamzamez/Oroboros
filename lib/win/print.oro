@@ -23,7 +23,7 @@ use llvm/str as str
 fn write(b ∈ Array(0..255), lo, n) (Bool) {
     case {
         lo < 0 || n < 0 || n > 2^32 - 1 || lo + n > len(b) -> false
-        else -> kernel32.WriteFile(kernel32.GetStdHandle(-11), b, lo, n)
+        else -> kernel32.WriteFile(kernel32.GetStdHandle(4294967285), b, lo, n)
     }
 }
 

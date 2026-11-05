@@ -173,10 +173,12 @@ func intWidth(b string) (int, bool, bool) {
 		return 8, true, true
 	case "BYTE", "UCHAR", "BOOLEAN", "UINT8", "bool":
 		return 8, false, true
-	case "LONGLONG", "ULONGLONG", "DWORDLONG", "INT64", "UINT64", "LONG64", "ULONG64",
-		"DWORD64", "SHORT64", "INT_PTR", "UINT_PTR", "LONG_PTR", "ULONG_PTR", "DWORD_PTR",
-		"SIZE_T", "SSIZE_T", "LRESULT", "LPARAM", "WPARAM", "size_t", "__int64", "long long":
+	case "LONGLONG", "INT64", "LONG64", "SHORT64", "INT_PTR", "LONG_PTR", "SSIZE_T", "LRESULT",
+		"LPARAM", "__int64", "long long":
 		return 64, true, true
+	case "ULONGLONG", "DWORDLONG", "UINT64", "ULONG64", "DWORD64", "UINT_PTR", "ULONG_PTR",
+		"DWORD_PTR", "SIZE_T", "WPARAM", "size_t":
+		return 64, false, true
 	}
 	return 0, false, false
 }
@@ -253,6 +255,9 @@ type fn struct {
 	result   string
 	params   []param
 	variadic bool
+	// conv is the calling convention its macro names (ADR 0094): WINAPIV is
+	// __cdecl, and WINAPI, APIENTRY, NTAPI and STDAPICALLTYPE are __stdcall.
+	conv string
 }
 
 var (
@@ -260,7 +265,7 @@ var (
 	// calling convention and the name on separate lines, which is what makes
 	// this tractable without a C parser.
 	reFn = regexp.MustCompile(
-		`(?s)([A-Za-z_][A-Za-z0-9_ *]*?)\s+(?:WINAPI|APIENTRY|NTAPI|STDAPICALLTYPE|WINAPIV)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^;{}]*)\)\s*;`)
+		`(?s)([A-Za-z_][A-Za-z0-9_ *]*?)\s+(WINAPI|APIENTRY|NTAPI|STDAPICALLTYPE|WINAPIV)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^;{}]*)\)\s*;`)
 	// STDAPI expands to EXTERN_C HRESULT STDAPICALLTYPE, so the result is
 	// implicit. STDAPI_(t) names it.
 	reStdapi = regexp.MustCompile(
@@ -566,8 +571,12 @@ func main() {
 						r = ""
 					}
 				}
-				ps, va := parseParams(m[3])
-				fns = append(fns, fn{base, m[2], r, ps, va})
+				ps, va := parseParams(m[4])
+				conv := "stdcall"
+				if m[2] == "WINAPIV" {
+					conv = "cdecl"
+				}
+				fns = append(fns, fn{base, m[3], r, ps, va, conv})
 			}
 			for _, m := range reStdapi.FindAllStringSubmatch(src, -1) {
 				r := "HRESULT"
@@ -575,7 +584,7 @@ func main() {
 					r = strings.TrimSpace(m[2])
 				}
 				ps, va := parseParams(m[4])
-				fns = append(fns, fn{base, m[3], r, ps, va})
+				fns = append(fns, fn{base, m[3], r, ps, va, "stdcall"})
 			}
 		}
 	}
@@ -1076,88 +1085,60 @@ func newestSDK() (string, error) {
 	return "", fmt.Errorf("no Windows SDK found; pass -sdk")
 }
 
-// llvmCall writes a Win32 function as the windows target declares one (ADR 0080,
-// docs/spec/llvm.md §6): each operand made from the language's value, one
-// `call`, and the result made the language's, with the `declare` the module
-// needs. The calling convention is LLVM's to lower (Win64's on this triple), so
-// what is left here is the one question that is ours, each value's set:
+// llvmCall is a Win32 function's prototype as the windows target declares one
+// (ADR 0094): its sets, which ARE its C types, and its C strings' obligations.
+// Its call is the C ABI's, derived by the LLVM printer on the triple, so nothing
+// here writes an instruction. Each value's set:
 //
-//	an integer of w < 64 bits   its C range, passed by `trunc`, which is exact on
-//	                            it (trunc ∘ embed is the identity there); MASM
-//	                            passed the register's low bits of any `Int`, a
-//	                            silent wrap
-//	a 64-bit integer            the word, as it is
-//	a pointer or a handle       `ptr`, as it is
-//	a C string                  `String` where nulfree, its bytes at s + 8,
-//	                            NUL-terminated by the target's representation
-//	                            (llvm.md §4): exact on ν's kernel, the strings
-//	                            holding no NUL (ADR 0091)
+//	an integer of w < 64 bits   its C type's full range: the width is the ABI,
+//	                            and a subset does not determine it
+//	a 64-bit integer            the word, signed; a parameter of an unsigned
+//	                            64-bit type 0..2^63-1, the type in the word
+//	a pointer or a handle       `ptr`
+//	a C string                  `String` where nulfree (ADR 0091)
 //
-// and a result of w < 64 bits is its C range, by `sext` or `zext`. A 64-bit
-// unsigned result at or above 2^63 reads as the signed word, as it did on MASM:
-// exact below 2^63, and the unsigned word on windows (ADR 0083) makes it exact.
+// A 64-bit unsigned RESULT at or above 2^63 reads as the signed word, as it did
+// on MASM: exact below 2^63, and the unsigned word on windows (ADR 0083) makes
+// it exact.
 type llvmDecl struct {
-	sets     []string // each parameter's set
-	result   string   // the result's set, or "" for void
-	template string
-	declare  string
-	where    []string // each C string parameter's obligation, nulfree (ADR 0091)
+	sets   []string // each parameter's set
+	result string   // the result's set, or "" for void
+	where  []string // each C string parameter's obligation, nulfree (ADR 0091)
 }
 
 func llvmCall(f fn, structs, handles, callbacks map[string]bool, alias map[string]string) llvmDecl {
 	var d llvmDecl
-	var pre strings.Builder
-	var ops, tys []string
 	for k, p := range f.params {
 		nm := paramName(k)
-		h := jdecl.Hole(nm)
-		reg := "%" + nm + "${#}"
 		switch classify(p.typ, structs, handles, callbacks, alias) {
 		case shString:
-			// A C STRING IS THE KERNEL OF ν (ADR 0091): the bytes at s + 8 are C's
-			// string exactly when s holds no NUL, which is the call's obligation.
 			d.sets = append(d.sets, "String")
 			d.where = append(d.where, "nulfree("+nm+")")
-			fmt.Fprintf(&pre, "%s = getelementptr inbounds i8, %s, i64 8\n", reg, h)
-			ops, tys = append(ops, "ptr "+reg), append(tys, "ptr")
 		case shPtr:
 			d.sets = append(d.sets, "ptr")
-			ops, tys = append(ops, h), append(tys, "ptr")
 		default:
-			if w, signed, known := cInt(p.typ, alias); known && w < 64 {
+			w, signed, known := cInt(p.typ, alias)
+			switch {
+			case known && w < 64:
 				d.sets = append(d.sets, cRange(w, signed))
-				fmt.Fprintf(&pre, "%s = trunc %s to i%d\n", reg, h, w)
-				ops, tys = append(ops, fmt.Sprintf("i%d %s", w, reg)), append(tys, fmt.Sprintf("i%d", w))
-			} else {
+			case known && !signed:
+				d.sets = append(d.sets, "0..2^63-1")
+			default:
 				d.sets = append(d.sets, wordSet)
-				ops, tys = append(ops, h), append(tys, "i64")
 			}
 		}
 	}
-	args := strings.Join(ops, ", ")
-	ret := "i64"
 	switch classify(f.result, structs, handles, callbacks, alias) {
 	case shVoid:
-		ret = "void"
-		d.template = pre.String() + fmt.Sprintf("call void @%s(%s)", f.name, args)
 	case shPtr, shString:
-		ret, d.result = "ptr", "ptr"
-		d.template = pre.String() + fmt.Sprintf("${r} = call ptr @%s(%s)", f.name, args)
+		d.result = "ptr"
 	default:
 		if w, signed, known := cInt(f.result, alias); known && w < 64 {
-			ret, d.result = fmt.Sprintf("i%d", w), cRange(w, signed)
-			ext := "zext"
-			if signed {
-				ext = "sext"
-			}
-			d.template = pre.String() + fmt.Sprintf("%%r${#} = call %s @%s(%s)\n${r} = %s %s %%r${#} to i64",
-				ret, f.name, args, ext, ret)
+			d.result = cRange(w, signed)
 		} else {
 			d.result = wordSet
-			d.template = pre.String() + fmt.Sprintf("${r} = call i64 @%s(%s)", f.name, args)
 		}
 	}
-	d.declare = fmt.Sprintf("declare dllimport %s @%s(%s)", ret, f.name, strings.Join(tys, ", "))
 	return d
 }
 
@@ -1243,7 +1224,7 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 			// refusal at the linker rather than a binding to the wrong DLL.
 			lib, _ := lk.resolve(f.name)
 			body.WriteString(jdecl.Fn{Name: f.name, Params: args, Result: res, Kind: kind,
-				Template: d.template, Import: d.declare, Lib: lib, Where: strings.Join(d.where, " && ")}.String())
+				Call: f.name, Conv: f.conv, Lib: lib, Where: strings.Join(d.where, " && ")}.String())
 			n++
 		}
 		b.WriteString(jdecl.Module("win/"+mod, body.String()))

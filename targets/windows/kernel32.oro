@@ -1,9 +1,11 @@
-// kernel32.dll, the Win32 functions this target's programs call, each a
-// `declare dllimport` in the printed module and a call in Win64's one calling
-// convention, which LLVM's default `ccc` is on this triple.
+// kernel32.dll, the Win32 functions this target's programs call, each declared
+// by its PROTOTYPE (ADR 0094): `host expr call "F" stdcall`, the sets its C
+// types, a narrow integer's full range, and its call derived by the C ABI on
+// the triple (llvm.md §6a): `declare dllimport`, `trunc` in and `sext`/`zext`
+// out, and `stdcall` x86_stdcallcc on i686 and nothing on x86-64.
 //
 //   (use windows/kernel32)
-//   kernel32.GetStdHandle(-11)   kernel32.WriteFile(h, b, lo, n)
+//   kernel32.GetStdHandle(4294967285)   kernel32.WriteFile(h, b, lo, n)
 //
 // WHAT THE LANGUAGE COULD NOT SAY ON MASM, IT SAYS HERE. WriteFile's buffer was
 // a raw pointer there (`x64.lea` of the target's one scratch buffer); here it is
@@ -11,11 +13,10 @@
 // The out-parameter, the count written, is still the target's cell
 // `@__written`: the language reads nothing from it.
 module windows/kernel32 {
-    // -11 is STD_OUTPUT_HANDLE, -10 stdin, -12 stderr: a DWORD, so the i64 is
-    // truncated, which is exact on these.
-    fn GetStdHandle(n ∈ -2^31..2^31-1) (r ∈ ptr) {
-        host expr "%n${#} = trunc ${n} to i32\n${r} = call ptr @GetStdHandle(i32 %n${#})" import "declare dllimport ptr @GetStdHandle(i32)"
-    }
+    // A DWORD, so its full range: STD_INPUT_HANDLE, STD_OUTPUT_HANDLE and
+    // STD_ERROR_HANDLE are ((DWORD)-10), ((DWORD)-11) and ((DWORD)-12), the
+    // integers 4294967286, 4294967285 and 4294967284.
+    fn GetStdHandle(n ∈ 0..2^32-1) (r ∈ ptr) { host expr call "GetStdHandle" stdcall }
 
     // WRITES b[lo, lo + n) to h, and answers whether Win32 reported success.
     // Win32's WriteFile(h, p, n, &written, NULL), with the buffer p the segment
@@ -27,24 +28,16 @@ module windows/kernel32 {
 
     // THE CALLING THREAD'S LAST ERROR, a DWORD, so `zext` and its C range: the
     // same `declare` the Win32 survey writes for it, so the two never disagree.
-    fn GetLastError() (r ∈ 0..2^32-1) {
-        host expr "%e${#} = call i32 @GetLastError()\n${r} = zext i32 %e${#} to i64" import "declare dllimport i32 @GetLastError()"
-    }
+    fn GetLastError() (r ∈ 0..2^32-1) { host expr call "GetLastError" stdcall }
 
     // MEMORY, as Win32 has it: VirtualAlloc(address, size, type, protection)
     // answers fresh zeroed pages or null, GetProcessHeap the process's heap, and
     // HeapAlloc(heap, flags, size) a block, zeroed with HEAP_ZERO_MEMORY (8), or
     // null. A SIZE_T is the word; a DWORD its C range, by `trunc`.
-    fn VirtualAlloc(a ∈ ptr, n ∈ 0..2^63-1, t ∈ 0..2^32-1, p ∈ 0..2^32-1) (r ∈ ptr) {
-        host expr "%t${#} = trunc ${t} to i32\n%p${#} = trunc ${p} to i32\n${r} = call ptr @VirtualAlloc(${a}, ${n}, i32 %t${#}, i32 %p${#})" import "declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)"
-    }
-    fn GetProcessHeap() (r ∈ ptr) { host expr "${r} = call ptr @GetProcessHeap()" import "declare dllimport ptr @GetProcessHeap()" }
-    fn HeapAlloc(h ∈ ptr, f ∈ 0..2^32-1, n ∈ 0..2^63-1) (r ∈ ptr) {
-        host expr "%f${#} = trunc ${f} to i32\n${r} = call ptr @HeapAlloc(${h}, i32 %f${#}, ${n})" import "declare dllimport ptr @HeapAlloc(ptr, i32, i64)"
-    }
+    fn VirtualAlloc(a ∈ ptr, n ∈ 0..2^63-1, t ∈ 0..2^32-1, p ∈ 0..2^32-1) (r ∈ ptr) { host expr call "VirtualAlloc" stdcall }
+    fn GetProcessHeap() (r ∈ ptr) { host expr call "GetProcessHeap" stdcall }
+    fn HeapAlloc(h ∈ ptr, f ∈ 0..2^32-1, n ∈ 0..2^63-1) (r ∈ ptr) { host expr call "HeapAlloc" stdcall }
 
-    // DWORD → ∅: it ends the process, and never returns (ADR 0090).
-    fn ExitProcess(a ∈ 0..2^31-1) (∅) {
-        host stmt "%x${#} = trunc ${a} to i32\ncall void @ExitProcess(i32 %x${#})" import "declare dllimport void @ExitProcess(i32)"
-    }
+    // UINT → ∅: it ends the process, and never returns (ADR 0090).
+    fn ExitProcess(a ∈ 0..2^32-1) (∅) { host expr call "ExitProcess" stdcall }
 }

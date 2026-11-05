@@ -224,8 +224,13 @@ checked. When a package hits a wall that needs language work, stop, research it,
         representations, and Σ_OS's three headers, `region`, `write_err`, `exit`); `targets/windows/`
         glues it (`glue llvm`, §2.1's ⊔), names its `triple`, and defines Σ_OS over kernel32; a header
         with no body is an operation symbol a glued layer must define; a run is exit(0) ∘ main.
-     2. **The C ABI in the layer**: Win32 as C prototypes, each call derived from the prototype and
-        the triple's data layout, not 10,479 templates; the survey regenerated, its figures unchanged.
+     2. ~~**The C ABI in the layer**~~ **done** (ADR 0094, [cabi-2026-11-05](gauntlet/results/cabi-2026-11-05.md)):
+        a C function is `host expr call "F" [stdcall | cdecl]`, its sets its C types (over C's integer
+        types the full range determines the type, so a narrow integer's set is its full range and a
+        narrower domain a `where`), its call out ∘ F ∘ in derived by the printer on the triple
+        (`trunc` in, `sext`/`zext` out, a C string at s + 8, `dllimport` on Windows, `stdcall`
+        x86_stdcallcc on i686); a prototype checked at load, a C string's `nulfree` required; the
+        survey writes 10,479 prototypes and no template, its figures unchanged.
      3. **The layer's missing pieces, program first**, each skipped case un-skipped in turn: the unsigned
         word and LLVM's widths (`codecs`, `fnv64`, `fnv64-fold`, `pairs`; the C ABI needs them), F64's
         roundings (`f64-round`), `big_str` (seven cases), `os` on windows (`read-loop`, `text-of`); then
@@ -635,6 +640,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A C string is the kernel of ν, the monoid homomorphism true on U+0000; `nulfree` in Σ_L, decided by ν on the argument's term and by a guard | [0091](docs/decisions/0091-a-c-string-is-the-kernel-of-the-nul-homomorphism.md) |
 | A table's storage is an operation of the IR, `alloc(n, w)`, and the allocator a term over the host's, total by exhaustion; ι does not change what the program proves | [0092](docs/decisions/0092-a-tables-storage-is-an-operation-and-the-allocator-a-term.md) |
 | The LLVM layer is a theory with a parameter, Σ_OS (`region`, `write_err`, `exit`), and an OS target instantiates it by gluing; a header with no body is an operation symbol; the triple is target data | [0093](docs/decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md) |
+| A C function is declared by its prototype, its sets its C types (a narrow integer's full range); its call derived by the C ABI on the triple | [0094](docs/decisions/0094-a-c-function-is-declared-by-its-prototype-and-the-c-abi-is-derived.md) |
 
 ## Build commands
 

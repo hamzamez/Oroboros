@@ -11,7 +11,7 @@ define i64 @gen_run(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1
-  %.s24 = alloca ptr
+  %.s25 = alloca ptr
   %.s31 = alloca ptr
   %.s36 = alloca ptr
   %.s37 = alloca i64
@@ -50,19 +50,19 @@ entry:
   br i1 %v28, label %.then19, label %.else20
 .then19:
   %v31 = getelementptr i8, ptr null, i64 0
-  %t.23 = trunc i64 12288 to i32
-  %p.23 = trunc i64 4 to i32
-  %v34 = call ptr @VirtualAlloc(ptr %v31, i64 %v26, i32 %t.23, i32 %p.23)
-  store ptr %v34, ptr %.s24
+  %.c23 = trunc i64 12288 to i32
+  %.c24 = trunc i64 4 to i32
+  %v34 = call ptr @VirtualAlloc(ptr %v31, i64 %v26, i32 %.c23, i32 %.c24)
+  store ptr %v34, ptr %.s25
   br label %.join21
 .else20:
   %v36 = call ptr @GetProcessHeap()
-  %f.26 = trunc i64 8 to i32
-  %v38 = call ptr @HeapAlloc(ptr %v36, i32 %f.26, i64 %v26)
-  store ptr %v38, ptr %.s24
+  %.c26 = trunc i64 8 to i32
+  %v38 = call ptr @HeapAlloc(ptr %v36, i32 %.c26, i64 %v26)
+  store ptr %v38, ptr %.s25
   br label %.join21
 .join21:
-  %v29 = load ptr, ptr %.s24
+  %v29 = load ptr, ptr %.s25
   %v39 = icmp eq ptr %v29, null
   br i1 %v39, label %.then28, label %.else29
 .then28:

@@ -11,7 +11,7 @@ define ptr @gen_mac_fresh(ptr %v0, ptr %v1) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1
-  %.s24 = alloca ptr
+  %.s25 = alloca ptr
   %.s31 = alloca ptr
   %.s36 = alloca ptr
   %.s37 = alloca i64
@@ -49,19 +49,19 @@ entry:
   br i1 %v31, label %.then19, label %.else20
 .then19:
   %v34 = getelementptr i8, ptr null, i64 0
-  %t.23 = trunc i64 12288 to i32
-  %p.23 = trunc i64 4 to i32
-  %v37 = call ptr @VirtualAlloc(ptr %v34, i64 %v29, i32 %t.23, i32 %p.23)
-  store ptr %v37, ptr %.s24
+  %.c23 = trunc i64 12288 to i32
+  %.c24 = trunc i64 4 to i32
+  %v37 = call ptr @VirtualAlloc(ptr %v34, i64 %v29, i32 %.c23, i32 %.c24)
+  store ptr %v37, ptr %.s25
   br label %.join21
 .else20:
   %v39 = call ptr @GetProcessHeap()
-  %f.26 = trunc i64 8 to i32
-  %v41 = call ptr @HeapAlloc(ptr %v39, i32 %f.26, i64 %v29)
-  store ptr %v41, ptr %.s24
+  %.c26 = trunc i64 8 to i32
+  %v41 = call ptr @HeapAlloc(ptr %v39, i32 %.c26, i64 %v29)
+  store ptr %v41, ptr %.s25
   br label %.join21
 .join21:
-  %v32 = load ptr, ptr %.s24
+  %v32 = load ptr, ptr %.s25
   %v42 = icmp eq ptr %v32, null
   br i1 %v42, label %.then28, label %.else29
 .then28:

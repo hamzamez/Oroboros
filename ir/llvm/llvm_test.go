@@ -144,7 +144,12 @@ func TestThePrinterIsAFunctionOfItsInput(t *testing.T) {
 // compile builds a J source for windows as the drivers do, and prints it.
 func compile(t *testing.T, src string) (string, error) {
 	t.Helper()
-	tg := loadTarget(t)
+	return compileOn(t, loadTarget(t), src)
+}
+
+// compileOn is compile on a given target.
+func compileOn(t *testing.T, tg *emit.Target, src string) (string, error) {
+	t.Helper()
 	forms, err := core.Read(src)
 	if err != nil {
 		return "", err
@@ -277,4 +282,56 @@ func TestACallIntoTheEmptySetNeverReturns(t *testing.T) {
 	if _, err := compile(t, src); err == nil {
 		t.Errorf("with only abandon never returning, a branch ending in llvm.trap was accepted: the test does not reach the rule")
 	}
+}
+
+// A C FUNCTION'S CALL IS DERIVED FROM ITS PROTOTYPE ON THE TRIPLE (ADR 0094,
+// llvm.md §6a): out ∘ F ∘ in. A DWORD result is zext, an int's sext, each
+// narrow argument trunc; the declare is the prototype's image, dllimport on a
+// Windows triple; and `stdcall` is x86_stdcallcc on i686 and nothing on x86-64.
+func TestACCallIsDerivedFromItsPrototype(t *testing.T) {
+	src := "use windows/kernel32 as k\nexport fn f() (Int) { k.GetLastError() + k.MulDivProbe(7) }\n"
+	at := func(triple string) string {
+		t.Helper()
+		tg := loadTarget(t)
+		tg.Triple = triple
+		q := tg.Prims["windows/kernel32.GetLastError"]
+		// A copy of GetLastError with an int's argument and result, to see the
+		// signed maps, under a name no file declares.
+		q.Name, q.CSym = "windows/kernel32.MulDivProbe", "MulDivProbe"
+		q.Args, q.Names, q.Result = []string{"int -2147483648 2147483647"}, []string{"a"}, "int -2147483648 2147483647"
+		tg.Prims[q.Name] = q
+		tg.Names = append(tg.Names, q.Name)
+		code, err := compileOn(t, tg, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return code + "\n" + strings.Join(emitImports(), "\n")
+	}
+	x64 := at("x86_64-pc-windows-msvc")
+	for _, want := range []string{
+		"declare dllimport i32 @GetLastError()",
+		"call i32 @GetLastError()",
+		"zext i32",
+		"trunc i64 7 to i32",
+		"call i32 @MulDivProbe(i32 ",
+		"sext i32",
+	} {
+		if !strings.Contains(x64, want) {
+			t.Errorf("x86-64: want %q in:\n%s", want, x64)
+		}
+	}
+	if strings.Contains(x64, "x86_stdcallcc") {
+		t.Errorf("x86-64 has one convention, so stdcall is none:\n%s", x64)
+	}
+	if i686 := at("i686-pc-windows-msvc"); !strings.Contains(i686, "call x86_stdcallcc i32 @GetLastError()") {
+		t.Errorf("i686: a WINAPI function is stdcall:\n%s", i686)
+	}
+}
+
+func emitImports() []string {
+	var out []string
+	for l := range emit.LLVMImports {
+		out = append(out, l)
+	}
+	return out
 }

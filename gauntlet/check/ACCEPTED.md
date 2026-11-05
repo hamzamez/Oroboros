@@ -2494,3 +2494,26 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `lib/win/print.oro go`
 - compiler output changed — `lib/win/print.oro java`
 - compiler output changed — `lib/win/print.oro js`
+
+## 2026-11-05 — on a314bab, with uncommitted changes
+
+**Reason:** ADR 0094: Win32 calls derived from C prototypes by the C ABI; register names only, the instructions identical
+
+608 runs: 371 emitted, 237 refused; 4999 of 5059 integer operations bounded, 492 of 516 loops proven. compiler pass, differential pass, tooling skip.
+
+14 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `lib/win/print.oro windows`

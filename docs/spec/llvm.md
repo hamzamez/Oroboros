@@ -197,6 +197,28 @@ asks for. Inside a term, a host operation that is a stated realization of g is g
 A `where` is an obligation (ADR 0080 item 7). A primitive the language cannot state is a wall
 (llvmsurvey-2026-10-27 §4) and is not declared.
 
+## 6a. A C function: its call derived from its prototype (ADR 0094)
+
+`fn F(a ∈ S₁, …) (r ∈ S) { host expr call "F" [stdcall | cdecl] }` declares a C function by its
+symbol, and the sets are its prototype: over C's integer types the full range determines the type,
+so a C integer's set is its type's full range, and a narrower domain is a `where`.
+
+| set | C type, LLVM type | into the call | out of it |
+|---|---|---|---|
+| −2^(w−1)..2^(w−1)−1, w ∈ {8, 16, 32} | signed, `iw` | `trunc` from i64 | `sext` to i64 |
+| 0..2^w−1, w ∈ {8, 16, 32} | unsigned, `iw` | `trunc` from i64 | `zext` to i64 |
+| −2⁶³..2⁶³−1 | 64-bit, `i64` | as it is | as it is |
+| 0..2⁶³−1 | 64-bit unsigned, in the word, `i64` | as it is | as it is |
+| `ptr` | a pointer, `ptr` | as it is | as it is |
+| `String`, `where nulfree(a)` | `const char *`, `ptr` | its bytes, s + 8 (§4) | — |
+| ∅, or `host stmt` | `void` | — | — |
+
+`trunc` is exact on the set it is applied to, and `sext` and `zext` are the embedding back, so the
+call is ℤ's: out ∘ F ∘ in. The `declare` is the prototype's image, `dllimport` on a Windows triple,
+and the convention is the triple's: `stdcall` is `x86_stdcallcc` on i686 and the C convention on
+x86-64. A set that is no C type is refused when the target loads, and so is a C-string parameter
+without `where nulfree`.
+
 ## 7. Control: regions into blocks
 
 Structured SSA (ADR 0032) prints as basic blocks, and a region's parameters and an operation's results

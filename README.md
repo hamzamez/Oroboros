@@ -468,7 +468,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-04.* The current assessment,
+*Updated with the plan; last updated 2026-11-05.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
@@ -562,8 +562,9 @@ says why the next is what it is.
      whose size arithmetic is checked like any other;
    - **then the LLVM target, fully, before the Windows app** (2026-11-04): the LLVM backend is its own
      layer that every LLVM-based target shares, with Windows one of them
-     ([layers-2026-11-04](gauntlet/results/layers-2026-11-04.md), done); then Windows' functions
-     described as C prototypes so the calls are derived rather than written one by one; then every test
+     ([layers-2026-11-04](gauntlet/results/layers-2026-11-04.md), done); Windows' functions described as
+     C prototypes, so each call is derived rather than written ([cabi-2026-11-05](gauntlet/results/cabi-2026-11-05.md),
+     done 2026-11-05); then every test
      program running on Windows, and the benchmarks at hand-written speed there; then 32-bit Windows;
    - then what TinyRetroPad needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.

@@ -49,6 +49,10 @@ type Prim struct {
 	// backend accepts more than one name (finish refuses it elsewhere): on Win32
 	// each function is its own extern.
 	Externs []string
+	// CSym is a C function's symbol, `host expr call "F"` (ADR 0094): its call
+	// is derived by the C ABI from the declaration's sets on the triple, so Form
+	// is empty. CConv is its convention, "stdcall", "cdecl" or "".
+	CSym, CConv string
 	// Lib is the import library that RESOLVES Import on a host that links —
 	// `(lib "user32")`. Collected exactly as Import is, from primitives the
 	// program uses, so the link line is computed rather than a constant that
@@ -532,6 +536,10 @@ func (tg *Target) finish(wrap func(error) error) error {
 	}
 	// A THEORY WITH A PARAMETER IS NOT A MODEL (ADR 0093): every header is defined.
 	if err := tg.requirementsMet(); err != nil {
+		return wrap(err)
+	}
+	// A C FUNCTION'S PROTOTYPE IS ITS SETS (ADR 0094), each one a C type.
+	if err := tg.cPrototypes(); err != nil {
 		return wrap(err)
 	}
 	// AN LLVM MODULE NAMES ITS TRIPLE, and no default is right (ADR 0093 item 5).
@@ -2149,6 +2157,116 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	return nil
 }
 
+// CType is the C type a set is (ADR 0094, llvm.md §6a): its LLVM type and how a
+// value crosses, "trunc" for a narrow integer, "cstr" for a C string, "" as it
+// is, and whether a narrow integer is signed. Over C's integer types the map
+// from type to range is injective, so the set determines the type. ok is false
+// for a set that is no C type.
+func (tg *Target) CType(set string) (ll, cross string, signed, ok bool) {
+	switch set {
+	case "ptr":
+		return "ptr", "", false, true
+	case "string":
+		return "ptr", "cstr", false, true
+	case "empty":
+		return "void", "", false, true
+	}
+	lo, hi, isInt := core.IntRange(set)
+	if !isInt {
+		return "", "", false, false
+	}
+	// THE 64-BIT TYPES: the word, and a 64-bit unsigned type restricted to it,
+	// SIZE_T on a target without the unsigned word.
+	if lo == tg.Word.Lo && hi == tg.Word.Hi {
+		return "i64", "", true, true
+	}
+	if lo == 0 && hi == tg.Word.Hi {
+		return "i64", "", false, true
+	}
+	for _, w := range []uint{8, 16, 32} {
+		if lo == -(int64(1)<<(w-1)) && hi == int64(1)<<(w-1)-1 {
+			return fmt.Sprintf("i%d", w), "trunc", true, true
+		}
+		if lo == 0 && hi == int64(1)<<w-1 {
+			return fmt.Sprintf("i%d", w), "trunc", false, true
+		}
+	}
+	return "", "", false, false
+}
+
+// PlantCStringFault accepts a C-string parameter with no `where nulfree`, the
+// obligation dropped: TestACFunctionIsItsPrototype must catch it.
+var PlantCStringFault bool
+
+// cPrototypes checks every C function's prototype (ADR 0094): each set a C
+// type, and each C string's parameter `where nulfree(p)`, since its bytes are
+// C's string only on ν's kernel (ADR 0091).
+func (tg *Target) cPrototypes() error {
+	names := make([]string, 0, len(tg.Prims))
+	for n, q := range tg.Prims {
+		if q.CSym != "" {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		q := tg.Prims[n]
+		if b, err := tg.ResolveBackend(); err != nil || b != "llvm" {
+			return fmt.Errorf("%s: `host … call` is a C function, which only an LLVM target calls", core.ShowName(n))
+		}
+		for i, a := range q.Args {
+			_, cross, _, ok := tg.CType(a)
+			if !ok {
+				return fmt.Errorf("%s: argument %d's set %s is no C type: a C integer's set is its type's full "+
+					"range, −2^(w−1)..2^(w−1)−1 or 0..2^w−1 for w ∈ {8, 16, 32}, the word, or 0..2^63−1, and a "+
+					"narrower domain is a `where`; a pointer is ptr; a C string is String (ADR 0094)",
+					core.ShowName(n), i+1, core.ShowSet(a))
+			}
+			if cross == "cstr" && !PlantCStringFault {
+				if i >= len(q.Names) || !hasConjunct(q.Where, "nulfree", q.Names[i]) {
+					return fmt.Errorf("%s: argument %d is a C string, so it needs `where nulfree(%s)`: its bytes are "+
+						"C's string only when it holds no NUL (ADR 0091)", core.ShowName(n), i+1, nameAt(q.Names, i))
+				}
+			}
+		}
+		if q.Result != "" && q.Kind != "stmt" {
+			if ll, cross, _, ok := tg.CType(q.Result); !ok || cross == "cstr" || ll == "void" && q.Result != "empty" {
+				return fmt.Errorf("%s: its result's set %s is no C type it can return (ADR 0094)", core.ShowName(n), core.ShowSet(q.Result))
+			}
+		}
+	}
+	return nil
+}
+
+func nameAt(names []string, i int) string {
+	if i < len(names) {
+		return names[i]
+	}
+	return fmt.Sprintf("argument %d", i+1)
+}
+
+// hasConjunct reports `pred(name)` among where's conjuncts, `a && b` being D's
+// `if a { b } else { false }`.
+func hasConjunct(where *core.Term, pred, name string) bool {
+	if where == nil || where.Kind != core.KApp || len(where.Kids) == 0 || where.Kids[0].Kind != core.KName {
+		return false
+	}
+	k := where.Kids
+	switch {
+	case k[0].Name == pred && len(k) == 2 && k[1].Kind == core.KName && k[1].Name == name:
+		return true
+	case k[0].Name == "and":
+		for _, x := range k[1:] {
+			if hasConjunct(x, pred, name) {
+				return true
+			}
+		}
+	case k[0].Name == "if" && len(k) == 4 && k[3].Kind == core.KBool && !k[3].IsTrue():
+		return hasConjunct(k[1], pred, name) || hasConjunct(k[2], pred, name)
+	}
+	return false
+}
+
 // PlantGlueFault glues two headers of one name without comparing them, the
 // sheaf condition dropped: TestATargetIsTheGlueOfItsLayers must catch it.
 var PlantGlueFault bool
@@ -2770,7 +2888,7 @@ var respelled = map[string]string{
 // what makes "no host clause" mean "no claim about any host".
 var (
 	sigWords  = map[string]bool{"pure": true, "variadic": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true, "inplace": true}
-	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true, "comma-ok": true}
+	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true, "comma-ok": true, "call": true}
 )
 
 // constSig elaborates a constant to the declaration it means (theories.md §8.3):
@@ -2874,8 +2992,10 @@ func parseSig(f *core.Term, path string) (Prim, error) {
 		return Prim{}, fmt.Errorf("%s: %s has no `host` body. A target REALIZES a declaration, "+
 			"and one with no realization belongs in a module (theories.md §5.2)", path, core.ShowTerm(name))
 	}
-	if len(host.Kids) < 3 || host.Kids[2].Kind != core.KStr {
-		return Prim{}, fmt.Errorf("%s: %s: `host KIND \"template\" …`, got %s", path, core.ShowTerm(name), host)
+	// A TEMPLATE, or a C function by its symbol (ADR 0094), `(call "F" conv)`.
+	isCall := len(host.Kids) >= 3 && formWord(host.Kids[2]) == "call"
+	if len(host.Kids) < 3 || host.Kids[2].Kind != core.KStr && !isCall {
+		return Prim{}, fmt.Errorf("%s: %s: `host KIND \"template\" …` or `host KIND call \"SYMBOL\" …`, got %s", path, core.ShowTerm(name), host)
 	}
 	for _, c := range host.Kids[3:] {
 		if !hostWords[formWord(c)] {
@@ -3139,6 +3259,13 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "lib" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
 			p.Lib = rest.Kids[1].Str
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName && rest.Kids[0].Name == "call" &&
+			len(rest.Kids) >= 2 && rest.Kids[1].Kind == core.KStr:
+			// (call "F" [stdcall|cdecl]) — a C function by its symbol (ADR 0094).
+			p.CSym = rest.Kids[1].Str
+			if len(rest.Kids) == 3 && rest.Kids[2].Kind == core.KName {
+				p.CConv = rest.Kids[2].Name
+			}
 		case rest.Kind == core.KApp && len(rest.Kids) == 1 && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "comma-ok":
 			p.CommaOk = true
@@ -3146,7 +3273,7 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			return Prim{}, fmt.Errorf("%s: %s has an unexpected trailing form %s", path, p.Name, rest)
 		}
 	}
-	if !structuralKinds[p.Kind] && p.Form == "" {
+	if !structuralKinds[p.Kind] && p.Form == "" && p.CSym == "" {
 		return Prim{}, fmt.Errorf("%s: %s is %s and needs an emission template", path, p.Name, p.Kind)
 	}
 	if err := checkVariadic(p, path); err != nil {

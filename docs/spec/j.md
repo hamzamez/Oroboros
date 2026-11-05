@@ -141,7 +141,7 @@ a tag and must be.
 assert use module provides pub export axiom true false`.
 
 **Contextual**, keywords only in the clause positions the grammar gives them, identifiers everywhere
-else: `where ensure invariant pure index variadic inout out linear as host expr stmt import lib checked
+else: `where ensure invariant pure index variadic inout out linear as host expr stmt call stdcall cdecl import lib checked
 jump comma_ok success relevant`; `mod`, an operator only between two operands (ADR 0082); and the
 model's data words (`repr word niche narrow structural backend link build artifact data include fact
 underlying read write realize glue triple`, §2.12; `realize` states which declarations interpret a

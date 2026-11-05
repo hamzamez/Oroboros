@@ -11,7 +11,7 @@ define ptr @gen_fact_limbs(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1
-  %.s24 = alloca ptr
+  %.s25 = alloca ptr
   %.s31 = alloca ptr
   %.s36 = alloca ptr
   %.s37 = alloca i64
@@ -22,7 +22,7 @@ entry:
   %.s52 = alloca i64
   %.s56 = alloca ptr
   %.s62 = alloca i1
-  %.s74 = alloca ptr
+  %.s75 = alloca ptr
   %.s81 = alloca ptr
   %.s86 = alloca ptr
   %.s87 = alloca i64
@@ -65,19 +65,19 @@ entry:
   br i1 %v29, label %.then19, label %.else20
 .then19:
   %v32 = getelementptr i8, ptr null, i64 0
-  %t.23 = trunc i64 12288 to i32
-  %p.23 = trunc i64 4 to i32
-  %v35 = call ptr @VirtualAlloc(ptr %v32, i64 %v27, i32 %t.23, i32 %p.23)
-  store ptr %v35, ptr %.s24
+  %.c23 = trunc i64 12288 to i32
+  %.c24 = trunc i64 4 to i32
+  %v35 = call ptr @VirtualAlloc(ptr %v32, i64 %v27, i32 %.c23, i32 %.c24)
+  store ptr %v35, ptr %.s25
   br label %.join21
 .else20:
   %v37 = call ptr @GetProcessHeap()
-  %f.26 = trunc i64 8 to i32
-  %v39 = call ptr @HeapAlloc(ptr %v37, i32 %f.26, i64 %v27)
-  store ptr %v39, ptr %.s24
+  %.c26 = trunc i64 8 to i32
+  %v39 = call ptr @HeapAlloc(ptr %v37, i32 %.c26, i64 %v27)
+  store ptr %v39, ptr %.s25
   br label %.join21
 .join21:
-  %v30 = load ptr, ptr %.s24
+  %v30 = load ptr, ptr %.s25
   %v40 = icmp eq ptr %v30, null
   br i1 %v40, label %.then28, label %.else29
 .then28:
@@ -153,19 +153,19 @@ entry:
   br i1 %v89, label %.then69, label %.else70
 .then69:
   %v92 = getelementptr i8, ptr null, i64 0
-  %t.73 = trunc i64 12288 to i32
-  %p.73 = trunc i64 4 to i32
-  %v95 = call ptr @VirtualAlloc(ptr %v92, i64 %v87, i32 %t.73, i32 %p.73)
-  store ptr %v95, ptr %.s74
+  %.c73 = trunc i64 12288 to i32
+  %.c74 = trunc i64 4 to i32
+  %v95 = call ptr @VirtualAlloc(ptr %v92, i64 %v87, i32 %.c73, i32 %.c74)
+  store ptr %v95, ptr %.s75
   br label %.join71
 .else70:
   %v97 = call ptr @GetProcessHeap()
-  %f.76 = trunc i64 8 to i32
-  %v99 = call ptr @HeapAlloc(ptr %v97, i32 %f.76, i64 %v87)
-  store ptr %v99, ptr %.s74
+  %.c76 = trunc i64 8 to i32
+  %v99 = call ptr @HeapAlloc(ptr %v97, i32 %.c76, i64 %v87)
+  store ptr %v99, ptr %.s75
   br label %.join71
 .join71:
-  %v90 = load ptr, ptr %.s74
+  %v90 = load ptr, ptr %.s75
   %v100 = icmp eq ptr %v90, null
   br i1 %v100, label %.then78, label %.else79
 .then78:

@@ -21,7 +21,7 @@ entry:
   %.d8 = getelementptr inbounds i8, ptr %v0, i64 8
   %.e9 = getelementptr inbounds double, ptr %.d8, i64 %v4
   %v12 = load double, ptr %.e9
-  %v13 = icmp sgt double %v12, %v1
+  %v13 = fcmp ogt double %v12, %v1
   br i1 %v13, label %.then11, label %.else12
 .then11:
   store i64 %v4, ptr %.s7

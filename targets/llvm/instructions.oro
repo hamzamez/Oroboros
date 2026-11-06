@@ -98,6 +98,33 @@ module llvm {
     fn u_of(x ∈ Int) (u64) pure { host expr "or ${x}, 0" }
     fn int_of_u(x ∈ u64) (Int) pure { host expr "or ${x}, 0" }
 
+    // ---- THE ROUNDINGS ONTO F64 (ADR 0086, numbers.md §6.2, llvm.md §3b).
+    // LLVM's default floating-point environment rounds to nearest, ties to
+    // even, with traps disabled and the status flags not observed (LangRef,
+    // "Floating-Point Environment"). There, `fadd`, `fsub`, `fmul` and `fdiv` on
+    // `double` with no fast-math flag are IEEE 754 binary64's correctly
+    // rounded operations (§4.3.1), and without `contract` no two of them
+    // fuse: two roundings stay two instructions. Each `ensure` is the term the
+    // instruction computes, on operands in F64 whose rounding is finite; that
+    // finiteness and a divisor not zero are the rounding's own obligations,
+    // decided where the program writes it, so ±∞, NaN and −0 are never made.
+    fn fadd(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a + b) { host expr "fadd ${a}, ${b:v}" }
+    fn fsub(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a - b) { host expr "fsub ${a}, ${b:v}" }
+    fn fmul(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a * b) { host expr "fmul ${a}, ${b:v}" }
+    fn fdiv(a ∈ F64, b ∈ F64) (r ∈ F64) pure ensure r == round(F64, a ÷ b) { host expr "fdiv ${a}, ${b:v}" }
+    // An integer within ±2⁵³ is a double, so `sitofp` of it is exact: its
+    // rounding is itself.
+    fn fint(n ∈ -2^53..2^53) (r ∈ F64) pure ensure r == round(F64, n) { host expr "sitofp ${n} to double" }
+    // N's order on F64 is IEEE's on finite doubles, which compares them as
+    // reals (§5.11): `fcmp oeq` reads −0 = +0, as d does. With NaN not in F64,
+    // an ordered predicate and its unordered twin agree on every pair; the
+    // ordered one is false on NaN, so it claims nothing of a value F64 lacks.
+    fn f_eq(a ∈ F64, b ∈ F64) (Bool) pure { host expr "fcmp oeq ${a}, ${b:v}" }
+    fn f_lt(a ∈ F64, b ∈ F64) (Bool) pure { host expr "fcmp olt ${a}, ${b:v}" }
+    fn f_le(a ∈ F64, b ∈ F64) (Bool) pure { host expr "fcmp ole ${a}, ${b:v}" }
+    fn f_gt(a ∈ F64, b ∈ F64) (Bool) pure { host expr "fcmp ogt ${a}, ${b:v}" }
+    fn f_ge(a ∈ F64, b ∈ F64) (Bool) pure { host expr "fcmp oge ${a}, ${b:v}" }
+
     // ---- the null pointer, LLVM's constant `null` of type ptr: 1 → ptr. It is
     // what Win32 takes where SAL says a pointer is `_opt_` or `_Reserved_`,
     // and the language cannot read through it (ADR 0084: no load without a

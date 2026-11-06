@@ -7,11 +7,11 @@
 // printed as a difference or a product fused into a sum, answers 0 here.
 // inputs: 1 2 3 4 5 6 7
 // expect: 1 1 1 1 1 1 1
-// skip: windows
 //
-// windows declares no realization of a rounding onto F64 yet: Σ_LLVM's `fadd`,
-// `fmul`, … are where they will be declared, each with its `ensure`
-// (floats-research §19.3), so round(F64, …) is refused there, saying so.
+// On windows each rounding is Σ_LLVM's instruction in LLVM's default
+// floating-point environment, `fadd fsub fmul fdiv` and `sitofp`, each declared
+// with its `ensure`, and a comparison `fcmp` with its ordered predicate (llvm.md
+// §3b); the case was skipped there until llvmf64-2026-11-06.
 //
 //   1  1 + 2⁻⁵³, a tie between 1 and 1 + 2⁻⁵²: the even one, 1
 //   2  (1 + 2⁻⁵²) + 2⁻⁵³, a tie between 1 + 2⁻⁵² and 1 + 2⁻⁵¹: the even one above

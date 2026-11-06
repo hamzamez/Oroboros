@@ -191,8 +191,8 @@ checked. When a package hits a wall that needs language work, stop, research it,
           (`emit/numnames.go`), and the thresholds are closed under the body's scalings;
         - part 4 built ([doubles-2026-11-01](gauntlet/results/doubles-2026-11-01.md)): F64 a set held as
           a double, F64 ∩ [lo, hi] a separation's normal form; a rounding onto F64 the call of the
-          declaration whose `ensure` states it (`ir/doubles.go`, `fadd fsub fmul fdiv fint` on three
-          targets), comparisons with constants exact by a Galois connection, the scope, obligations on
+          declaration whose `ensure` states it (`ir/doubles.go`, `fadd fsub fmul fdiv fint` on four
+          targets, LLVM's since llvmf64-2026-11-06), comparisons with constants exact by a Galois connection, the scope, obligations on
           a real interval domain with Theorem A for a rounded accumulator. The gauntlet's float
           programs are the language's, dot, centroid and search one source each, at parity. A host's
           double is refused where the language's numbers read it; its type and decode are not built.
@@ -239,8 +239,22 @@ checked. When a package hits a wall that needs language work, stop, research it,
           call's facts choosing S or U. `codecs`, `fnv64`, `fnv64-fold`, `pairs`, `u64-digits`,
           `u64-square`, `u64-values` run on windows (the last three on the JVM too, a stale skip);
           `codecs` under `checked: windows` (the intervals' threshold rounds, below);
-        - F64's roundings (`f64-round`), `big_str` (seven cases), `os` on windows (`read-loop`,
-          `text-of`); then the gauntlet's programs on windows.
+        - ~~F64's roundings~~ **done** ([llvmf64-2026-11-06](gauntlet/results/llvmf64-2026-11-06.md)):
+          Σ_LLVM's `fadd fsub fmul fdiv sitofp`, each with its `ensure`, in LLVM's default environment
+          (llvm.md §3b); a comparison is N's at its sort, `fcmp` with the ordered predicate where the
+          operands are doubles, an operation at a sort no realization takes refused (`sortsHold`), and
+          a comparison's realization in IR_P's text (`(gt via llvm.f-gt …)`). `f64-round` runs on
+          windows, and the gauntlet's float programs (dot, centroid, smooth, search) emit there;
+        - `big_str` (seven cases), `os` on windows (`read-loop`, `text-of`); then the gauntlet's
+          programs on windows;
+        - **then a skip states a true reason** (hamza, 2026-11-06): the differential runs every skipped
+          case × target and reports each that now agrees, a stale skip. Three skipped the JVM for a
+          month after its unsigned word was built (llvm64-2026-11-06); step 4 adds a triple's skips.
+          Whether `cmd/check` runs it (a stale skip failing the step, with a planted one caught first)
+          or it is a periodic tool is decided by its measured cost. **And an emitted file is
+          assembled**: the emission step compares text, so `search`'s windows output was accepted
+          printing `icmp sgt double`, which clang refuses (llvmf64-2026-11-06); every windows `.ll` the
+          sweep writes goes through `clang -c`, at its measured cost.
      4. **The second triple**: `i686-pc-windows-msvc` runs the suite (TinyRetroPad is 32-bit).
      Left to the walls: LLVM's widths (native iN, i32 scalars on i686) and the rung above as native iN,
      measured against the limbs.
@@ -335,10 +349,10 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **4,999 of 5,053** integer operations proven inside their target's word, the 54 left
+- **Provability**: **5,009 of 5,063** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **493 of 517** loops proven to terminate (size-change termination). Each
+  **497 of 521** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared

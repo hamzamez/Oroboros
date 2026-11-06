@@ -240,6 +240,11 @@ func (pr *printer) op(s *Stmt) []string {
 	if len(s.Args) == 0 {
 		return []string{"(" + name + ")"}
 	}
+	// A COMPARISON'S REALIZATION, where the IR chose a later one (a sort's,
+	// llvm.md §3b), is the printer's input as an operation's is (ADR 0038).
+	if s.Op.IsCmp() && s.Via != "" {
+		return []string{"(" + name + " via " + primText(s.Via) + " " + pr.vs(s.Args) + ")"}
+	}
 	return []string{"(" + name + " " + pr.vs(s.Args) + ")"}
 }
 

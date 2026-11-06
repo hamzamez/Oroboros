@@ -2540,3 +2540,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - now emits — `gauntlet/differential/cases/pairs.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
 - compiler output changed — `lib/win/print.oro windows`
+
+## 2026-11-06 — on 2d98293, with uncommitted changes
+
+**Reason:** 6b′ step 3, F64's roundings on windows (llvmf64-2026-11-06): Σ_LLVM's fadd fsub fmul fdiv sitofp with their ensures, a comparison realized at its sort (fcmp at F64); dot, centroid and smooth-go now emit on windows, and search's comparison is fcmp ogt where the baseline printed icmp sgt double, which clang refuses
+
+608 runs: 376 emitted, 232 refused; 5009 of 5063 integer operations bounded, 497 of 521 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- now emits — `examples/native/centroid.oro windows`
+- now emits — `examples/native/dot.oro windows`
+- emitted text changed — `examples/native/search.oro windows`
+- now emits — `examples/native/smooth-go.oro windows`

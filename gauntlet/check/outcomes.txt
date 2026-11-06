@@ -457,8 +457,8 @@
    note: gen-centroid: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/centroid.oro java emitted ceddeb61e2f02427b60cc06bc0ebbc952db600d65abb3357e220db239b3ce589
    note: gen-centroid: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/centroid.oro windows refused
-   gen: gen-centroid: gen-centroid: round(F64, #0.0 + #0.1): no declaration of target windows realizes it (numbers.md §6.2): a target realizes round(F64, t) by a declaration whose ensure is r == round(F64, t), each operand a double, an integer or a constant that is a double; a rounding inside it is its own operation, and an exact interior (a term of doubles rounded once) is step 2
+== examples/native/centroid.oro windows emitted 59f2ce66fecfce61720489cf86b8c27d1ee60de83f664e8945d3718deec4d176
+   note: gen-centroid: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/divmod-go.oro go emitted 1eaac434a610d2d54d92e0fe4b305486c70a540741e8011b145772420ac20f96
    note: gen-divmod: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-divmod-sum: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -489,8 +489,8 @@
    note: gen-dot: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/dot.oro java emitted 4b86c7a29278224eee8b927138d326728274bf4a9a74c8a6241bee705715dd5a
    note: gen-dot: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/dot.oro windows refused
-   gen: gen-dot: gen-dot: round(F64, #2.0(#0.1) * #2.1(#0.1)): no declaration of target windows realizes it (numbers.md §6.2): a target realizes round(F64, t) by a declaration whose ensure is r == round(F64, t), each operand a double, an integer or a constant that is a double; a rounding inside it is its own operation, and an exact interior (a term of doubles rounded once) is step 2
+== examples/native/dot.oro windows emitted e382cb1fb737fbd5163d0be3aa11e191060ec803d450bc445321a594ce70f1fe
+   note: gen-dot: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/filter-go.oro go emitted 2c02bae9b20fbbeeb5c7a81858e8032a1929db70ba5ab4a2b2dba1fbba87823f
    note: gen-sum-positive: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/filter-go.oro js refused
@@ -588,7 +588,7 @@
    note: gen-find-first: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/search.oro java emitted f3f8e10f653d6c158a779bf872ae846e9d1cb59abc88d24a1fbc1f2a0db9d542
    note: gen-find-first: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/search.oro windows emitted 16cfe96d09c780c3d50a40d9a8c794694329a92cc0f9e7bc9c55ce69a2dce969
+== examples/native/search.oro windows emitted cccb1a0b90b0eed02046a20d3ad68d6a124ba9a8e7183371c707f26407115c48
    note: gen-find-first: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/shortcircuit-go.oro go emitted f3d4226707bef28fea7c5caa95638dcebfa95a03809bb372f6981669683fb718
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -644,8 +644,9 @@
 == examples/native/smooth-go.oro java emitted c1cb30ebc0b398b17927237b5fb75d3291a56b0c25b9dafdf9ca87ed01202a2d
    note: gen-smooth: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/smooth-go.oro windows refused
-   gen: gen-smooth: gen-smooth: round(F64, #3.0(#0.1) + #3.0(#0.1 + 1)): no declaration of target windows realizes it (numbers.md §6.2): a target realizes round(F64, t) by a declaration whose ensure is r == round(F64, t), each operand a double, an integer or a constant that is a double; a rounding inside it is its own operation, and an exact interior (a term of doubles rounded once) is step 2
+== examples/native/smooth-go.oro windows emitted 4b77f3d25c0ddcbfadecf2ffcfd400cba5b68d7c14d0444cf80a4437b1640902
+   note: gen-smooth: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/smooth-java.oro go refused
    gen: examples/native/smooth-java.oro: in smooth_into: java.set_double is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.

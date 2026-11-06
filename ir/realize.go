@@ -70,8 +70,16 @@ func RealizeOps(tg *emit.Target, f *Func) (int, error) {
 				}
 				continue
 			}
-			if v := narrowest(tg, names[1:], s, fs); v != "" {
+			if v := narrowest(tg, f, names[1:], s, fs); v != "" {
 				s.Via = v
+				continue
+			}
+			// THE FIRST REALIZES THE NAME AT ITS OWN SORT ONLY: an operation of N
+			// at F64 that no later realization's domain holds is not the word's
+			// operation, and printing it so would read a double as an integer.
+			if q, ok := tg.Prims[names[0]]; ok && !PlantSortFault && !sortsHold(f, q, s) {
+				err = fmt.Errorf("%s on F64: no realization of target %s takes operands of that sort (ADR 0088; llvm.md §3b)",
+					opLanguageName(s.Op), tg.Name)
 				continue
 			}
 			if tg.IsDefinition(names[0]) {
@@ -155,18 +163,42 @@ func factType(tg *emit.Target, v iv) string {
 	return "int " + lo.String() + " " + hi.String()
 }
 
+// PlantSortFault skips the sort test on a statement's first realization: an
+// operation on doubles is then printed as the word's.
+var PlantSortFault = false
+
+// sortsHold reports that each of s's operands is of its parameter's sort in
+// q: F64's are the values the IR types as doubles, and an integer set's are
+// the others. A set is a sort before it is a range (numbers.md §2): the
+// interval test below reads integers' facts, which a double has none of.
+func sortsHold(f *Func, q emit.Prim, s *Stmt) bool {
+	if len(q.Args) != len(s.Args) {
+		return false
+	}
+	for k, a := range s.Args {
+		if (q.Args[k] == core.F64Name) != (f.Types[a] == core.F64Name) {
+			return false
+		}
+	}
+	return true
+}
+
 // narrowest is the later realization whose domain holds of s's operands'
-// facts with the least total width of its parameters' sets, or "".
-func narrowest(tg *emit.Target, names []string, s *Stmt, fs []fact) string {
+// facts with the least total width of its parameters' sets, or "": each
+// operand of its parameter's sort, then within its set and its `where`.
+func narrowest(tg *emit.Target, f *Func, names []string, s *Stmt, fs []fact) string {
 	best, bestW := "", (*big.Int)(nil)
 	for _, n := range names {
 		q, ok := tg.Prims[n]
-		if !ok || len(q.Args) != len(s.Args) {
+		if !ok || !sortsHold(f, q, s) {
 			continue
 		}
 		w := new(big.Int)
 		fits := true
 		for k, a := range s.Args {
+			if q.Args[k] == core.F64Name {
+				continue
+			}
 			lo, hi := setEnds(tg, q.Args[k])
 			if !fs[a].v.within(lo.ep, hi.ep) {
 				fits = false

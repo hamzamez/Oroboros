@@ -92,6 +92,29 @@ r, and they are U's own instructions: `icmp ult ule ugt uge`, `udiv`, `urem`, `l
 two readings agree, so a value moves between S₆₄ and U₆₄ as its bits. A shift past 63 is poison and
 ℤ/2⁶⁴'s answer is 0, so `u64<<` and `u64>>` are terms over the instructions, as `<<` is (§5).
 
+### 3b. Doubles, F64 (ADR 0086, numbers.md §6.2)
+
+F64 is `double`, by d: a finite binary64 denotes its real, ±0 both 0. A constant prints as its exact
+64-bit pattern, `0x3FB999999999999A`, never a decimal LLVM would round.
+
+**A rounding is an instruction.** LLVM's default floating-point environment rounds to nearest, ties to
+even, with traps disabled and the status flags unobserved (LangRef). There, `fadd`, `fsub`, `fmul` and
+`fdiv` with no fast-math flag are IEEE 754's correctly rounded operations, so each realizes
+round(F64, a ∘ b) by its `ensure` (`instructions.oro`). Without `contract`, no two fuse: two roundings
+stay two instructions. `sitofp` of an integer in ±2⁵³ is exact, round(F64, n) = n. The obligations,
+each rounding finite and each divisor not zero, are decided where the program writes the rounding, so
+no instruction makes ±∞, NaN or −0.
+
+**A comparison is N's order at the sort F64.** The language's `= < <= > >=` are N's, used at two
+sorts, the word and F64. An interpretation of a many-sorted signature maps each operation at each
+sort, so `=` at F64 is its own realization, a later one in `realize` (`llvm.f_eq`, …). A realization's
+parameter set is its sort before its range: F64 holds of exactly the operands the IR types as doubles,
+and an integer set of none of them (`sortsHold`, ir/realize.go). So `fcmp` is chosen where the operands
+are doubles, and `icmp` where they are integers. An operation at F64 that no realization's sort holds
+is refused, never printed as the word's. IEEE compares finite values as reals (§5.11), and `fcmp oeq`
+reads −0 = +0, as d does. NaN is not in F64, so an ordered predicate (`oeq olt ole ogt oge`) and its
+unordered twin agree on every pair; the ordered one is chosen because it claims nothing of NaN.
+
 ## 4. Tables
 
 A table is a pointer to a header and its elements: an `i64` length, then the elements, each of its

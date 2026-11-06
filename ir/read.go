@@ -444,6 +444,9 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 		s.Sub = []*Region{r}
 		return s, nil
 	}
+	if o.IsCmp() && len(args) > 1 && args[0].Kind == core.KName && args[0].Name == "via" && args[1].Kind == core.KName {
+		s.Via, args = args[1].Name, args[2:]
+	}
 	s.Args, err = rd.values(args)
 	return s, err
 }

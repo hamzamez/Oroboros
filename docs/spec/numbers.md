@@ -195,8 +195,9 @@ under it. Every other operation leaves F64 and stands only under a rounding.
 
 A target declaration with `ensure r == round(F64, t)`, where t is a ring term over its parameters
 with at most one ÷ at its root, **realizes** that rounding: the equation round(F64, t) = f(x̄), read
-right to left (`ir/doubles.go`). Go, the JVM and JavaScript each declare `fadd`, `fsub`, `fmul`, `fdiv`
-and `fint` (`targets/*/`), IEEE's nearest-even operations and the conversion of an integer in ±2⁵³.
+right to left (`ir/doubles.go`). Go, the JVM, JavaScript and LLVM each declare `fadd`, `fsub`, `fmul`,
+`fdiv` and `fint` (`targets/*/`, LLVM's in `instructions.oro`, llvm.md §3b), IEEE's nearest-even
+operations and the conversion of an integer in ±2⁵³.
 - **The match is modulo the commutativity of + and ·**, sound because the program's term is an exact
   N-term and a ring identity preserves its value.
 - **A pattern's variable binds a leaf**: a value no operation of N defines. A double binds as it is,

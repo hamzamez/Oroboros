@@ -150,39 +150,46 @@ func compile(t *testing.T, src string) (string, error) {
 // compileOn is compile on a given target.
 func compileOn(t *testing.T, tg *emit.Target, src string) (string, error) {
 	t.Helper()
-	forms, err := core.Read(src)
+	f, err := lowerOn(t, tg, src)
 	if err != nil {
 		return "", err
+	}
+	return FromFunc(tg, f)
+}
+
+// lowerOn is the IR function compileOn prints, before IR_P.
+func lowerOn(t *testing.T, tg *emit.Target, src string) (*ir.Func, error) {
+	t.Helper()
+	forms, err := core.Read(src)
+	if err != nil {
+		return nil, err
 	}
 	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	env, err := tg.Env(prog)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	var sigs []*core.Sig
 	for _, s := range prog.Sigs {
 		sigs = append(sigs, s)
 	}
 	if err := emit.CheckSignatures(tg, prog, env, ir.CheckClaim(tg, sigs)); err != nil {
-		return "", err
+		return nil, err
 	}
 	q := prog.Exports[0]
 	nf, err := core.Normalize(prog.Defs[q], env, core.DefaultFuel)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	nf = emit.EtaTails(tg, nf)
 	if err := emit.CheckJoins(tg, nf); err != nil {
-		return "", err
+		return nil, err
 	}
 	f, _, err := ir.Entry(tg, q, q, prog.Sigs[q], nf, sigs, false, nil)
-	if err != nil {
-		return "", err
-	}
-	return FromFunc(tg, f)
+	return f, err
 }
 
 // A TARGET STATES ITS REALIZATIONS (ADR 0088): each of the language's
@@ -334,4 +341,65 @@ func emitImports() []string {
 		out = append(out, l)
 	}
 	return out
+}
+
+// A COMPARISON IS REALIZED AT ITS SORT (llvm.md §3b): N's `<` and `=` at the
+// word are `icmp`, at F64 `fcmp` with the ordered predicate. A target whose
+// only realization of `<` is the word's refuses `<` on doubles, naming the
+// sort, where it had printed `icmp slt double`, an integer reading of a
+// double (LLVM refused it; a host without types would not).
+func TestAComparisonIsRealizedAtItsSort(t *testing.T) {
+	const src = "export fn g(a ∈ F64, b ∈ F64, k ∈ 0..9) (Int) {\n" +
+		"    if a < b { 1 } else { if a == b { 2 } else { if k < 3 { 3 } else { 4 } } }\n}\n"
+	out, err := compile(t, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"fcmp olt double", "fcmp oeq double", "icmp slt i64"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("want %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "icmp slt double") || strings.Contains(out, "icmp eq double") {
+		t.Errorf("a double compared as an integer:\n%s", out)
+	}
+
+	// AND IT IS IN THE TEXT (ADR 0038): the printer reads a comparison's
+	// realization from IR_P's text alone, `(lt via llvm.f-lt …)`, and writes
+	// the same function from it.
+	f, err := lowerOn(t, loadTarget(t), src)
+	if err == nil {
+		err = ir.ToP(loadTarget(t), f)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := ir.Print(&ir.Program{Target: "windows", Stage: ir.StageP, Funcs: []*ir.Func{f}})
+	if !strings.Contains(text, "via llvm.f-lt") {
+		t.Errorf("the IR's text does not carry the comparison's realization:\n%s", text)
+	}
+	back, err := ir.Read(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err1 := Func(loadTarget(t), f)
+	b, err2 := Func(loadTarget(t), back.Funcs[0])
+	if err1 != nil || err2 != nil || a != b {
+		t.Errorf("the printer does not factor through the text (%v, %v):\n%s\n---\n%s", err1, err2, a, b)
+	}
+
+	// F64's realization taken away: refused, naming the sort.
+	tg := loadTarget(t)
+	tg.Realized["<"] = "llvm.slt"
+	if _, err := compileOn(t, tg, src); err == nil || !strings.Contains(err.Error(), "on F64") {
+		t.Errorf("< on doubles with only the word's realization: want the sort's refusal, got %v", err)
+	}
+	// THE PLANTED FAULT: with the first realization's sort not tested, the
+	// double is printed as an integer, which is what the refusal prevents.
+	ir.PlantSortFault = true
+	defer func() { ir.PlantSortFault = false }()
+	out, err = compileOn(t, tg, src)
+	if err != nil || !strings.Contains(out, "icmp slt double") {
+		t.Errorf("with the sort test skipped, want `icmp slt double` printed; got %v", err)
+	}
 }

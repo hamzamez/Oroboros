@@ -58,7 +58,9 @@ repr big limbs
 // operation, chosen where its domain (its parameters' sets and its `where`)
 // holds of the operands' proven facts, the narrowest such (ir/realize.go):
 // `<<` is LLVM's own `shl` where the count is proven below 64, `/` its own
-// `sdiv` where the divisor is proven not −1 or the dividend not −2⁶³. The
+// `sdiv` where the divisor is proven not −1 or the dividend not −2⁶³. A
+// comparison is N's at two sorts, the word and F64, and a parameter's set is
+// its sort: `fcmp` where the operands are doubles (llvm.md §3b). The
 // string monoid's two are an OS layer's while their helpers allocate (ADR 0093
 // item 6).
 realize `+` = llvm.add checked lang.add_checked
@@ -66,11 +68,11 @@ realize `-` = llvm.sub checked lang.sub_checked
 realize `*` = llvm.mul checked lang.mul_checked
 realize `/` = lang.div, llvm.sdiv checked lang.div_checked
 realize `%` = lang.rem, llvm.srem
-realize `=` = llvm.eq
-realize `<` = llvm.slt
-realize `<=` = llvm.sle
-realize `>` = llvm.sgt
-realize `>=` = llvm.sge
+realize `=` = llvm.eq, llvm.f_eq
+realize `<` = llvm.slt, llvm.f_lt
+realize `<=` = llvm.sle, llvm.f_le
+realize `>` = llvm.sgt, llvm.f_gt
+realize `>=` = llvm.sge, llvm.f_ge
 realize `&` = llvm.and
 realize `|` = llvm.or
 realize `⊕` = llvm.xor

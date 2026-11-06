@@ -34,6 +34,11 @@ set String = host "ptr"
 set ptr = host "ptr"
 set Any = host "ptr"
 
+// AND U₆₄ = [0, 2⁶⁴), the same i64 read UNSIGNED (ADR 0083, llvm.md §3a): its
+// operations are Σ_LLVM's instructions under that reading (instructions.oro).
+repr 0..2^64-1 word
+set u64 = host "i64"
+
 // AN ELEMENT HELD IN A BYTE: 0..255 in an i8, read back with `zext`. Every
 // other integer element is an i64.
 repr 0..255 host "i8"
@@ -77,3 +82,24 @@ realize nulfree = lang.no_nul
 realize abandon = lang.crash
 realize trap_if = lang.trap_if
 realize alloc = lang.allocate
+
+// THE UNSIGNED WORD'S OPERATIONS (llvm.md §3a), found by the representation
+// pass (ir/words.go) under these names: the ring's and the bits' the same
+// instructions, order, quotient, remainder and right shift U's own.
+realize `u64+` = llvm.u_add
+realize `u64-` = llvm.u_sub
+realize `u64*` = llvm.u_mul
+realize `u64/` = llvm.u_div
+realize `u64%` = llvm.u_rem
+realize `u64<` = llvm.u_lt
+realize `u64<=` = llvm.u_le
+realize `u64>` = llvm.u_gt
+realize `u64>=` = llvm.u_ge
+realize `u64=` = llvm.u_eq
+realize u64_of = llvm.u_of
+realize int_of_u64 = llvm.int_of_u
+realize `u64&` = llvm.u_and
+realize `u64|` = llvm.u_or
+realize `u64^` = llvm.u_xor
+realize `u64<<` = lang.u_shl
+realize `u64>>` = lang.u_shr

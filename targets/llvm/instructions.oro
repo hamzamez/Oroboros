@@ -71,6 +71,33 @@ module llvm {
     fn sgt(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp sgt ${a}, ${b:v}" }
     fn sge(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp sge ${a}, ${b:v}" }
 
+    // ---- THE SAME INSTRUCTIONS READ UNSIGNED, on U₆₄ = [0, 2⁶⁴) (ADR 0083,
+    // llvm.md §3a). i64 carries no sign, so the ring's and the bits' operations
+    // are the instructions above under U's reading, ℤ/2⁶⁴'s, and ℤ's own where
+    // the result is proven in U; order, the quotient, the remainder and the right
+    // shift are U's own instructions. A value moves between S₆₄ and U₆₄ as its
+    // bits, which is the integer on [0, 2⁶³).
+    fn u_add(a ∈ u64, b ∈ u64) (u64) pure { host expr "add ${a}, ${b:v}" }
+    fn u_sub(a ∈ u64, b ∈ u64) (u64) pure { host expr "sub ${a}, ${b:v}" }
+    fn u_mul(a ∈ u64, b ∈ u64) (u64) pure { host expr "mul ${a}, ${b:v}" }
+    // udiv and urem are undefined for a zero divisor, the one point of their domain.
+    fn u_div(a ∈ u64, b ∈ u64) (u64) pure where `!=`(b, 0) { host expr "udiv ${a}, ${b:v}" }
+    fn u_rem(a ∈ u64, b ∈ u64) (u64) pure where `!=`(b, 0) { host expr "urem ${a}, ${b:v}" }
+    fn u_lt(a ∈ u64, b ∈ u64) (Bool) pure { host expr "icmp ult ${a}, ${b:v}" }
+    fn u_le(a ∈ u64, b ∈ u64) (Bool) pure { host expr "icmp ule ${a}, ${b:v}" }
+    fn u_gt(a ∈ u64, b ∈ u64) (Bool) pure { host expr "icmp ugt ${a}, ${b:v}" }
+    fn u_ge(a ∈ u64, b ∈ u64) (Bool) pure { host expr "icmp uge ${a}, ${b:v}" }
+    fn u_eq(a ∈ u64, b ∈ u64) (Bool) pure { host expr "icmp eq ${a}, ${b:v}" }
+    fn u_and(a ∈ u64, b ∈ u64) (u64) pure { host expr "and ${a}, ${b:v}" }
+    fn u_or(a ∈ u64, b ∈ u64) (u64) pure { host expr "or ${a}, ${b:v}" }
+    fn u_xor(a ∈ u64, b ∈ u64) (u64) pure { host expr "xor ${a}, ${b:v}" }
+    // shl and lshr are poison past a count of 63, their domain's end.
+    fn u_shl(a ∈ u64, b ∈ 0..63) (u64) pure { host expr "shl ${a}, ${b:v}" }
+    fn u_lshr(a ∈ u64, b ∈ 0..63) (u64) pure { host expr "lshr ${a}, ${b:v}" }
+    // The bits, unchanged, under the other reading: the identity on [0, 2⁶³).
+    fn u_of(x ∈ Int) (u64) pure { host expr "or ${x}, 0" }
+    fn int_of_u(x ∈ u64) (Int) pure { host expr "or ${x}, 0" }
+
     // ---- the null pointer, LLVM's constant `null` of type ptr: 1 → ptr. It is
     // what Win32 takes where SAL says a pointer is `_opt_` or `_Reserved_`,
     // and the language cannot read through it (ADR 0084: no load without a

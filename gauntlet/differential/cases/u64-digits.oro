@@ -8,12 +8,12 @@
 // remainder, proven in [0, 9], comes back to `int`. The loop is proven to
 // terminate (geometric descent through the conversions) and the sum bounded.
 //
-// Go only, for now: the JVM's realization of U (a `long` holding the residue,
-// u64repr-2026-09-22) and windows' unsigned qword are not built, and JavaScript
-// would hold the value as a BigInt. All three are named in the result.
+// U is the JVM's `long` read unsigned (bits-2026-10-27) and windows' `i64` read
+// unsigned (llvm.md §3a); the skips on both were stale or lifted in
+// llvm64-2026-11-06.
 // skip: js
-// skip: java
-// skip: windows
+// — JavaScript holds U as two 32-bit digits (ir/pairs.go), where a comparison of a pair and a
+// division by a non-power of two are not built (pairs-2026-10-28).
 //
 // inputs: 0 1 7 13 99 100
 // expect: 87 86 89 83 87 86

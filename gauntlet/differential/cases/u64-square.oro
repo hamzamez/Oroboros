@@ -6,10 +6,11 @@
 // what finds it: the multiplication is unproven in the signed word with its
 // interval in U, and the driver selects the unsigned word and checks again. On Go
 // the product is `uint64(a) * uint64(a)`, and the quotient, proven under 2^63,
-// returns to `int`.
+// returns to `int`. On the JVM and windows U is the 64 bits read unsigned
+// (bits-2026-10-27, llvm64-2026-11-06).
 // skip: js
-// skip: java
-// skip: windows
+// — JavaScript holds U as two 32-bit digits (ir/pairs.go), where a comparison of a pair and a
+// division by a non-power of two are not built (pairs-2026-10-28).
 //
 // inputs: 0 1 7 65535 4294967295 4294967294
 // expect: 0 0 16 1431612075 6148914688373205675 6148914685509894145

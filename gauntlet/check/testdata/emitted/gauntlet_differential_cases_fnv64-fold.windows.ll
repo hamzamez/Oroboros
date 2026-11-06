@@ -2,22 +2,14 @@
 
 target triple = "x86_64-pc-windows-msvc"
 
-declare void @llvm.trap()
-declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)
-declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)
 
 define i64 @gen_run(i64 %v0) #0 {
 entry:
   %.s6 = alloca i1
-  %.s13 = alloca i64
-  %.s20 = alloca i64
-  %.s23 = alloca i64
-  %.s24 = alloca i64
-  %.s44 = alloca i64
-  %.s51 = alloca i64
-  %.s59 = alloca i64
-  %.s60 = alloca i64
-  %.s66 = alloca i64
+  %.s14 = alloca i64
+  %.s15 = alloca i64
+  %.s31 = alloca i64
+  %.s37 = alloca i64
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -29,109 +21,57 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %.agg7 = call {i64, i1} @llvm.smul.with.overflow.i64(i64 14695, i64 1000000000000000)
-  %v12 = extractvalue { i64, i1 } %.agg7, 0
-  %v13 = extractvalue { i64, i1 } %.agg7, 1
-  br i1 %v13, label %.then9, label %.else10
-.then9:
-  call void @llvm.trap()
-  unreachable
-.else10:
-  store i64 %v12, ptr %.s13
-  br label %.join11
-.join11:
-  %v14 = load i64, ptr %.s13
-  %.agg14 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v14, i64 981039346656037)
-  %v17 = extractvalue { i64, i1 } %.agg14, 0
-  %v18 = extractvalue { i64, i1 } %.agg14, 1
-  br i1 %v18, label %.then16, label %.else17
-.then16:
-  call void @llvm.trap()
-  unreachable
-.else17:
-  store i64 %v17, ptr %.s20
-  br label %.join18
-.join18:
-  %v19 = load i64, ptr %.s20
-  store i64 0, ptr %.s23
-  store i64 %v19, ptr %.s24
-  br label %.head21
-.head21:
-  %v22 = load i64, ptr %.s23
-  %v23 = load i64, ptr %.s24
-  %v25 = icmp slt i64 %v22, 64
-  br i1 %v25, label %.then26, label %.else27
-.then26:
-  %v28 = add nuw nsw i64 %v22, 1
-  %v30 = mul i64 %v0, 31
-  %v32 = mul i64 %v22, 7
-  %v33 = add i64 %v30, %v32
-  %v34 = mul nuw nsw i64 %v22, %v22
-  %v36 = srem i64 %v34, 13
-  %v37 = add i64 %v33, %v36
-  %v39 = and i64 %v37, 255
-  %v40 = xor i64 %v23, %v39
-  %v42 = mul i64 %v40, 1099511628211
-  %.agg38 = call {i64, i1} @llvm.smul.with.overflow.i64(i64 18446, i64 1000000000000000)
-  %v45 = extractvalue { i64, i1 } %.agg38, 0
-  %v46 = extractvalue { i64, i1 } %.agg38, 1
-  br i1 %v46, label %.then40, label %.else41
-.then40:
-  call void @llvm.trap()
-  unreachable
-.else41:
-  store i64 %v45, ptr %.s44
-  br label %.join42
-.join42:
-  %v47 = load i64, ptr %.s44
-  %.agg45 = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %v47, i64 744073709551616)
-  %v50 = extractvalue { i64, i1 } %.agg45, 0
-  %v51 = extractvalue { i64, i1 } %.agg45, 1
-  br i1 %v51, label %.then47, label %.else48
-.then47:
-  call void @llvm.trap()
-  unreachable
-.else48:
-  store i64 %v50, ptr %.s51
-  br label %.join49
-.join49:
-  %v52 = load i64, ptr %.s51
-  %v55 = icmp sgt i64 %v52, 0
-  %v56 = srem i64 %v42, %v52
-  %v58 = icmp slt i64 %v56, 0
-  br i1 %v58, label %.then55, label %.else56
-.then55:
-  %v61 = add nsw i64 %v56, %v52
-  store i64 %v61, ptr %.s59
-  br label %.join57
-.else56:
-  store i64 %v56, ptr %.s59
-  br label %.join57
-.join57:
-  %v59 = load i64, ptr %.s59
-  store i64 %v28, ptr %.s23
-  store i64 %v59, ptr %.s24
-  br label %.head21
-.else27:
-  store i64 %v23, ptr %.s60
-  br label %.exit22
-.exit22:
-  %v21 = load i64, ptr %.s60
-  %v66 = icmp sle i64 32, 63
-  br i1 %v66, label %.then62, label %.else63
-.then62:
-  %v69 = ashr i64 %v21, 32
-  store i64 %v69, ptr %.s66
-  br label %.join64
-.else63:
-  %v72 = ashr i64 %v21, 63
-  store i64 %v72, ptr %.s66
-  br label %.join64
-.join64:
-  %v67 = load i64, ptr %.s66
-  %v74 = and i64 %v21, 4294967295
-  %v75 = xor i64 %v67, %v74
-  ret i64 %v75
+  %v12 = or i64 14695, 0
+  %v13 = or i64 1000000000000000, 0
+  %v14 = mul i64 %v12, %v13
+  %v16 = or i64 981039346656037, 0
+  %v17 = add i64 %v14, %v16
+  store i64 0, ptr %.s14
+  store i64 %v17, ptr %.s15
+  br label %.head12
+.head12:
+  %v19 = load i64, ptr %.s14
+  %v20 = load i64, ptr %.s15
+  %v22 = icmp slt i64 %v19, 64
+  br i1 %v22, label %.then17, label %.else18
+.then17:
+  %v25 = add nuw nsw i64 %v19, 1
+  %v27 = mul i64 %v0, 31
+  %v29 = mul i64 %v19, 7
+  %v30 = add i64 %v27, %v29
+  %v31 = mul nuw nsw i64 %v19, %v19
+  %v33 = srem i64 %v31, 13
+  %v34 = add i64 %v30, %v33
+  %v36 = and i64 %v34, 255
+  %v37 = or i64 %v20, 0
+  %v38 = xor i64 %v37, %v36
+  %v40 = mul i64 %v38, 1099511628211
+  %v41 = or i64 %v40, 0
+  store i64 %v25, ptr %.s14
+  store i64 %v41, ptr %.s15
+  br label %.head12
+.else18:
+  store i64 %v20, ptr %.s31
+  br label %.exit13
+.exit13:
+  %v18 = load i64, ptr %.s31
+  %v45 = icmp sle i64 32, 63
+  br i1 %v45, label %.then33, label %.else34
+.then33:
+  %v48 = lshr i64 %v18, 32
+  store i64 %v48, ptr %.s37
+  br label %.join35
+.else34:
+  %v51 = or i64 0, 0
+  store i64 %v51, ptr %.s37
+  br label %.join35
+.join35:
+  %v46 = load i64, ptr %.s37
+  %v52 = or i64 %v46, 0
+  %v54 = or i64 %v18, 0
+  %v55 = and i64 %v54, 4294967295
+  %v56 = xor i64 %v52, %v55
+  ret i64 %v56
 }
 
 attributes #0 = { nounwind "no-builtins" }

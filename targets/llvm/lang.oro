@@ -50,6 +50,11 @@ module lang {
     // the word only for a = 0, which `<<`'s obligation at the site makes it.
     fn shl(a ∈ Int, b ∈ Nat) (Int) { if b <= 63 { llvm.shl(a, b) } else { 0 } }
 
+    // ON U₆₄ (llvm.md §3a): a·2ᵇ mod 2⁶⁴ and ⌊a/2ᵇ⌋ for every b ≥ 0, each 0
+    // past 63, where the instruction is poison.
+    fn u_shl(a ∈ u64, b ∈ Nat) (u64) { if b <= 63 { llvm.u_shl(a, b) } else { llvm.u_of(0) } }
+    fn u_shr(a ∈ u64, b ∈ Nat) (u64) { if b <= 63 { llvm.u_lshr(a, b) } else { llvm.u_of(0) } }
+
     // ⌊a/2ᵇ⌋ for every b ≥ 0: past 63 it is 0 or −1, which is ⌊a/2⁶³⌋.
     fn ashr(a ∈ Int, b ∈ Nat) (Int) { if b <= 63 { llvm.ashr(a, b) } else { llvm.ashr(a, 63) } }
 

@@ -2517,3 +2517,26 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-06 — on 75fa4e5, with uncommitted changes
+
+**Reason:** 6b′ step 3, the unsigned word on windows (llvm64-2026-11-06): U₆₄ as i64 read unsigned; fnv64, fnv64-fold, pairs, codecs, u64-digits, u64-square and u64-values run there (the u64 cases on java too, their skip stale since bits-2026-10-27); a comparison the facts decide is its constant; print_int claims ℤ and is inlined (no longer emitted alone; 20 digit steps, so sieve-win and shortcircuit-win compare k with 19)
+
+608 runs: 373 emitted, 235 refused; 4999 of 5053 integer operations bounded, 493 of 517 loops proven. compiler pass, differential pass, tooling pass.
+
+14 change(s):
+
+- compiler output changed — `examples/big/fact.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- compiler output changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows`
+- compiler output changed — `gauntlet/differential/cases/fnv64-fold.oro windows`
+- now emits — `gauntlet/differential/cases/fnv64.oro windows`
+- now emits — `gauntlet/differential/cases/pairs.oro windows`
+- emitted text changed — `lib/win/print.oro windows`
+- compiler output changed — `lib/win/print.oro windows`

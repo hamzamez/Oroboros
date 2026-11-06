@@ -23,7 +23,7 @@
    note: gen-fact: 1 operation(s) in arbitrary precision
    note: gen-fact: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/fact.oro windows refused
-   gen: fact: acc needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
+   gen: fact: acc needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/fib.oro go emitted a30ed197be9c09f62bb7819fae5ab10392088365a8a3510a00c1d5ce53045f99
    note: gen-fib: 1 operation(s) in arbitrary precision
@@ -35,7 +35,7 @@
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/fib.oro windows refused
-   gen: fib: a needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
+   gen: fib: a needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/limbs.oro go emitted 8159406788a85d98f07c02fff1f82d54695fbf44bcf1efbe0273fe9777b1da5e
    note: gen-limb: 7 of 7 integer operations bounded; 3 of 3 loop(s) proven terminating
@@ -58,7 +58,7 @@
    note: gen-pair: 2 operation(s) in arbitrary precision
    note: gen-pair: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/pair.oro windows refused
-   gen: pair: b needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
+   gen: pair: b needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/power.oro go emitted 7a15610ef53b8c1055c013e4ecaeff42edef2f2ab2a6fe6aa19b298e3538a840
    note: gen-power: 3 operation(s) in arbitrary precision
@@ -73,7 +73,7 @@
    note: gen-power: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-power: 3 division(s) became a shift or a mask
 == examples/big/power.oro windows refused
-   gen: power: acc needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
+   gen: power: acc needs arbitrary precision — Nat is above the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/render.oro go emitted 414470f0d10dca6e778c64c8b199c66819dce4cc3cf8ceb14b83ae1d831ba07b
    note: gen-render: 5 operation(s) in arbitrary precision
@@ -610,7 +610,7 @@
 == examples/native/shortcircuit-win.oro java refused
    gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
-== examples/native/shortcircuit-win.oro windows emitted 00664179a94a11713710cc3a1578e569cb43f0fde8c89e3678ac53cc01adc935
+== examples/native/shortcircuit-win.oro windows emitted 4a60cb05ac33dba7e498ea2d05a3324bc142d3df9ab2e7bf6d57c1f17cc4df23
    note: gen-main: 13 of 13 integer operations bounded; 1 of 2 loop(s) proven terminating
 == examples/native/sieve-java.oro go refused
    gen: examples/native/sieve-java.oro: in cross: java.`<` is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -816,7 +816,7 @@
 == examples/table/sieve-win.oro java refused
    gen: examples/table/sieve-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
-== examples/table/sieve-win.oro windows emitted 959428946abff5cee68610720414c920f102f2b281a1ff5da51da747f8c76d14
+== examples/table/sieve-win.oro windows emitted d8342ed9de63f424683cac803a7ab3a729951eed039503c6dd34b73a3a5232ba
    note: gen-main: 21 of 21 integer operations bounded; 5 of 5 loop(s) proven terminating
 == examples/table/sieve.oro go emitted 70ded90d18b2255c033bcade21ecfc9eb8618f0d7ed9428f853afdcca895e28a
    note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
@@ -976,8 +976,9 @@
 == gauntlet/differential/cases/codecs.oro java emitted 3b3d5eabd76c9258e9f1a58f3b5a079ab2d1e63e64fb06f0516f7fc5a036d054
    note: gen-run: 5 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 47 of 47 integer operations bounded; 5 of 5 loop(s) proven terminating
-== gauntlet/differential/cases/codecs.oro windows emitted 0859122e5b0c5fbed864e4e6878dd8cae00f8cab753adb5b9100712fae3c85d9
-   note: gen-run: 47 of 49 integer operations bounded; 5 of 5 loop(s) proven terminating
+== gauntlet/differential/cases/codecs.oro windows emitted 09fa8da003d502ffb559c30bae5c943286b553e37b3680363f352f09a623b891
+   note: gen-run: 5 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 47 of 47 integer operations bounded; 5 of 5 loop(s) proven terminating
 == gauntlet/differential/cases/expect.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736
@@ -1002,8 +1003,9 @@
 == gauntlet/differential/cases/fnv64-fold.oro java emitted 18b3cc911a8772fc3a6f97708ad5c9965faeb668545ef5c792a927881ec27857
    note: gen-run: 9 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 7 of 7 integer operations bounded; 1 of 1 loop(s) proven terminating
-== gauntlet/differential/cases/fnv64-fold.oro windows emitted b259205cf2fd23a42a8e8584209ef3a5a87f4045749f82fed63d3e21adcbf68c
-   note: gen-run: 7 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
+== gauntlet/differential/cases/fnv64-fold.oro windows emitted ba77a84751550882ac0ca9cb3c526e2455a04dbb8a280526712d6aa3765cf23f
+   note: gen-run: 9 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 7 of 7 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/fnv64.oro go emitted 77523b51761ed9eac09df01d2d5e0c6d5bfecd320f08ea8cef70217c53ba34ed
    note: gen-run: 7 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -1012,8 +1014,9 @@
 == gauntlet/differential/cases/fnv64.oro java emitted c801f2f593486d0490337470c4a8895dfde03b745f5d9c15136e317de55fad18
    note: gen-run: 7 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
-== gauntlet/differential/cases/fnv64.oro windows refused
-   gen: data: data: lowering: a table rule that was never allocated (tables.md §2): table(64, fn(k) { (#1.0 * 31 + k * 7 + k * k % 13) mod 256 })
+== gauntlet/differential/cases/fnv64.oro windows emitted 90cf1d5b04adf45c90b83de024e5190a11735bc088720e9068b4ce90a1e11745
+   note: gen-run: 7 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/json-tokenize.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/json-tokenize.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/json-tokenize.oro java emitted c1da358348d4706072b906ded86469c965cd23b8b3aff4461fd9d979468f77f6
@@ -1105,9 +1108,9 @@
 == gauntlet/differential/cases/pairs.oro java emitted 4e8fa413faa843f9739b94be05759e715b2b25390c9e95990b9208395dc2e222
    note: gen-run: 33 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
-== gauntlet/differential/cases/pairs.oro windows refused
-   gen: mix: an operand of mod is held in arbitrary precision, which is WIDER than the word of target windows, [-9223372036854775808, 9223372036854775807], so on this target it is not an `int` — it is a rung above the host's word (ADR 0026, docs/unbounded-rung.md).
-     A range above the word is a WIDENING, not a refinement: a value that may leave the machine word cannot silently be used where an `int` is required, and this refusal is where that is said. Widen the destination, or take the value to a string with `big-str`.
+== gauntlet/differential/cases/pairs.oro windows emitted 93c99897447968bd24ba6919b2d1306249c73bfae0e6b647a3b6cb971e908651
+   note: gen-run: 33 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
 == gauntlet/differential/cases/prod-count.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/prod-count.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/prod-count.oro java emitted 2443ffc1b8a0b1d3f5aa26784e16db16a2b04c7af0e545253ee996d954e0f4a2
@@ -1349,6 +1352,5 @@
 == lib/win/print.oro java refused
    gen: lib/win/print.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
-== lib/win/print.oro windows emitted eaa611d80a436acf6a3988b7140e20ea09d8bb062e9f514a4ab964d699d53e2c
-   note: gen-print-int: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
+== lib/win/print.oro windows emitted 2f5525621a14e31f77cda2e7f92bb2b46d1fd19efe857d8d3619cafd5703c634
    note: gen-print-str: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating

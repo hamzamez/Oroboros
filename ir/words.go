@@ -54,6 +54,7 @@ func SelectWords(tg *emit.Target, f *Func) (bool, error) {
 	if w.err != nil {
 		return false, w.err
 	}
+	dropDecidedPis(f, w.decidedGuards, w.decidedPairs)
 	if w.rewrote == 0 && w.retyped == 0 {
 		return false, nil
 	}
@@ -80,6 +81,10 @@ type words struct {
 	// its source: u64-of ∘ int-of-u64 is the identity on U, and the reverse on
 	// S.
 	convOf map[V]V
+	// decidedGuards are the comparisons the facts decided, now constants, and
+	// decidedPairs their operands, the literal a π may have stated.
+	decidedGuards map[V]bool
+	decidedPairs  [][2]V
 	// rewrote counts conversions inserted and operations moved into U;
 	// retyped, values whose type is set to their chosen realization.
 	rewrote, retyped int
@@ -382,6 +387,19 @@ func (w *words) stmt(s *Stmt) {
 			w.stmts = append(w.stmts, Stmt{Op: OCall, Name: name, Args: s.Args, Res: []V{q}})
 			w.stmts = append(w.stmts, Stmt{Op: OCall, Name: "int-of-u64", Args: []V{q}, Res: []V{res}})
 			w.convOf[res] = q
+		case s.Op.IsCmp() && len(s.Res) == 1 && (w.u[a] || w.u[b]) && decided(s.Op, w.fs[a].v, w.fs[b].v) != nil && !PlantDecidedFault:
+			// A COMPARISON THE FACTS DECIDE needs no word holding both operands:
+			// x ∈ [0, 2⁶⁴) against c < 0 is x < c false whatever x is. It is
+			// its truth value, a constant (render's sign test on a U value).
+			// Only where a U value is involved, which is where it would be
+			// refused: elsewhere the comparison is left for the decision.
+			w.rewrote++
+			if w.decidedGuards == nil {
+				w.decidedGuards = map[V]bool{}
+			}
+			w.decidedGuards[s.Res[0]] = true
+			w.decidedPairs = append(w.decidedPairs, [2]V{a, b})
+			w.stmts = append(w.stmts, Stmt{Op: OConst, Lit: core.Bool(*decided(s.Op, w.fs[a].v, w.fs[b].v)), Res: s.Res, Src: s.Src})
 		default:
 			// NO REALIZATION HOLDS BOTH (a value past 2⁶³ against a possibly
 			// negative one): q preserves order and division in neither, so the
@@ -494,4 +512,107 @@ func isWordName(name string) bool {
 		}
 	}
 	return false
+}
+
+// PlantPiFault keeps the πs a decided comparison stated, which its constant no
+// longer implies: TestAComparisonTheFactsDecideIsItsValue must see W6 refuse.
+var PlantPiFault bool
+
+// PlantDecidedFault refuses a comparison the facts decide, as the pass did:
+// TestAComparisonTheFactsDecideIsItsValue must then see the refusal.
+var PlantDecidedFault bool
+
+// decided is x op y's truth value when the intervals decide it, whatever the
+// operands are inside them: x < y is true when x's greatest is below y's
+// least, and false when x's least is at or above y's greatest. nil otherwise.
+func decided(op Op, x, y iv) *bool {
+	if x.bot || y.bot {
+		return nil
+	}
+	t, f := true, false
+	below := func(a, b iv) bool { return !a.phi && !b.nlo && a.hi.lt(b.lo) }  // every a < every b
+	atMost := func(a, b iv) bool { return !a.phi && !b.nlo && a.hi.le(b.lo) } // every a ≤ every b
+	switch op {
+	case OLt:
+		switch {
+		case below(x, y):
+			return &t
+		case atMost(y, x):
+			return &f
+		}
+	case OLe:
+		switch {
+		case atMost(x, y):
+			return &t
+		case below(y, x):
+			return &f
+		}
+	case OGt:
+		return decided(OLt, y, x)
+	case OGe:
+		return decided(OLe, y, x)
+	case OEq:
+		if below(x, y) || below(y, x) {
+			return &f
+		}
+	case ONe:
+		if below(x, y) || below(y, x) {
+			return &t
+		}
+	}
+	return nil
+}
+
+// dropDecidedPis drops the π-parameters whose literal is a comparison the facts
+// decided (Theorem E): a π states a literal its arm's guard implies, and a
+// guard that is, or is a connective over, a constant no longer implies it,
+// though the facts make it true. So every π of a branch on a decided guard, and
+// every π stating a decided comparison's operands (x rel c, either order), as
+// one of a disjunction's literals does. A π is a renaming with a fact, so its
+// uses become the value it renamed; dropping a fact only weakens, never unsounds.
+func dropDecidedPis(f *Func, guards map[V]bool, pairs [][2]V) {
+	if len(guards) == 0 || PlantPiFault {
+		return
+	}
+	ren := map[V]V{}
+	drop := func(r *Region) {
+		if r == nil {
+			return
+		}
+		for _, pi := range r.Pis {
+			ren[pi.V] = pi.Of
+		}
+		r.Pis = nil
+	}
+	stated := func(pi Pi) bool {
+		for _, p := range pairs {
+			if pi.Of == p[0] && pi.Other == p[1] || pi.Of == p[1] && pi.Other == p[0] {
+				return true
+			}
+		}
+		return false
+	}
+	f.Walk(func(r *Region) {
+		var keep []Pi
+		for _, pi := range r.Pis {
+			if stated(pi) {
+				ren[pi.V] = pi.Of
+				continue
+			}
+			keep = append(keep, pi)
+		}
+		r.Pis = keep
+		for i := range r.Stmts {
+			if s := &r.Stmts[i]; s.Op == OIf && len(s.Args) == 1 && guards[s.Args[0]] {
+				for _, sub := range s.Sub {
+					drop(sub)
+				}
+			}
+		}
+		if r.T == TBranch && guards[r.Cond] {
+			drop(r.Then)
+			drop(r.Else)
+		}
+	})
+	renameAway(f, ren)
 }

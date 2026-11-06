@@ -82,6 +82,16 @@ A value's IR_P type is its representation ρ (ADR 0083), and h_L maps it to an L
 The narrower widths (`i8`, `i16`, `i32` scalars, ADR 0083's register rule) are not printed in the first
 step: every integer value is `i64`, and a table's element is the width §4 gives it.
 
+### 3a. The unsigned word, U₆₄ (ADR 0083)
+
+U₆₄ = [0, 2⁶⁴) is `i64` read unsigned: (H, d) with H the 64 bits and d their unsigned reading. `i64`
+carries no sign, so the residue map r : ℤ → ℤ/2⁶⁴ is a ring homomorphism under both readings: `add`,
+`sub`, `mul`, `and`, `or`, `xor` and `shl` are the same instructions on U as on S₆₄, ℤ's own where the
+result is proven inside U. Order, the quotient, the remainder and the right shift do not commute with
+r, and they are U's own instructions: `icmp ult ule ugt uge`, `udiv`, `urem`, `lshr`. On [0, 2⁶³) the
+two readings agree, so a value moves between S₆₄ and U₆₄ as its bits. A shift past 63 is poison and
+ℤ/2⁶⁴'s answer is 0, so `u64<<` and `u64>>` are terms over the instructions, as `<<` is (§5).
+
 ## 4. Tables
 
 A table is a pointer to a header and its elements: an `i64` length, then the elements, each of its

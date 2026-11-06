@@ -35,19 +35,24 @@ pub export fn print_str(s) (Bool) {
     write(array { 10 }, 0, 1)
 }
 
-// AN INTEGER IN DECIMAL, ANY ONE IN THE WORD, AND A NEWLINE.
+// AN INTEGER IN DECIMAL, AND A NEWLINE: render : ℤ → Σ*, render(n) = the sign
+// of n and the digits of |n|, defined on every integer. The header claims ℤ,
+// which has no end to enforce, so each call's facts choose the representation
+// (ADR 0079): the signed word at most calls, the unsigned word at one whose
+// value is in [0, 2⁶⁴) (a 64-bit hash), where the sign tests are decided false
+// by the facts alone.
 //
 // The digits of |n| are produced least significant first, so they are stored
 // backwards from the end of a 22-byte field, behind the newline at its end.
-// A word has at most 19 decimal digits, so the loop takes exactly 19 steps,
-// k = 0 … 18, writing digit k at 20 − k, and `top` is where the most
-// significant one went. Every index is then linear in k, which the guard
-// bounds, so each obligation is proven by the refinement layer as well as by
-// the intervals: stopping when m reached 0 bounded the index only through the
-// trip count, which the obligations at a call do not see (llvm-2026-11-02).
-// −2⁶³ has no negation in the word, and is its own clause; every other
-// negative n is a sign and the digits of −n.
-pub export fn print_int(n ∈ -2^63..2^63-1) (Bool) {
+// A value of either word has at most 20 decimal digits (2⁶⁴ − 1 has 20), so the
+// loop takes exactly 20 steps, k = 0 … 19, writing digit k at 20 − k, and `top`
+// is where the most significant one went. Every index is then linear in k,
+// which the guard bounds, so each obligation is proven by the refinement layer
+// as well as by the intervals: stopping when m reached 0 bounded the index only
+// through the trip count, which the obligations at a call do not see
+// (llvm-2026-11-02). −2⁶³ has no negation in the word, and is its own clause;
+// every other negative n is a sign and the digits of −n, at most 19.
+pub fn print_int(n ∈ Int) (Bool) {
     case {
         n < -9223372036854775807 -> print_str("-9223372036854775808")
         else -> {
@@ -55,8 +60,8 @@ pub export fn print_int(n ∈ -2^63..2^63-1) (Bool) {
                 var b := array { 0 : _ ∈ 0..21 }
                 b[21] := 10
                 loop m = if n < 0 { 0 - n } else { n }, k = 0, top = 20 {
-                    k > 18 && n < 0 -> { b[top - 1] := 45; (b, top - 1) }
-                    k > 18 -> (b, top)
+                    k > 19 && n < 0 -> { b[top - 1] := 45; (b, top - 1) }
+                    k > 19 -> (b, top)
                     else -> {
                         b[20 - k] := 48 + m % 10
                         again(m / 10, k + 1, if m > 0 { 20 - k } else { top })

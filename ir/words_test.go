@@ -102,26 +102,36 @@ x %% (2^64-1) / %d
 }
 
 // NO REALIZATION HOLDS BOTH: a value past 2⁶³ compared with one that may be
-// negative is refused by name, not left to fail verification.
+// negative is refused by name, not left to fail verification, when the facts do
+// not decide the comparison. The premise is computed: x ∈ [2⁶³ − 808, 2⁶³ + 392]
+// and y ∈ [−6, 2⁶³ − 14] overlap, so x > y is true at some n and false at
+// others. Where they do not overlap (y ∈ [−6, 6]), x > y is true whatever n is,
+// the constant (llvm64-2026-11-06), and the program is accepted.
 func TestAnOrderNoRealizationHoldsIsRefused(t *testing.T) {
 	dir := t.TempDir()
-	src := `export fn run(n ∈ 0..12) (Int) {
-    x = 9223372036854775000 + n * 100
-    y = n - 6
-    if x > y { 1 } else { 0 }
-}
-`
-	path := filepath.Join(dir, "r.oro")
-	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
-		t.Fatal(err)
+	run := func(y string) error {
+		t.Helper()
+		src := "export fn run(n ∈ 0..12) (Int) {\n" +
+			"    x = 9223372036854775000 + n * 100\n" +
+			"    y = " + y + "\n" +
+			"    if x > y { 1 } else { 0 }\n}\n"
+		path := filepath.Join(dir, "r.oro")
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		tg, p, err := compilePath(path, "go", Options{Decided: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := p.Funcs[0]
+		Decide(tg, f, false)
+		_, err = SelectWords(tg, f)
+		return err
 	}
-	tg, p, err := compilePath(path, "go", Options{Decided: true})
-	if err != nil {
-		t.Fatal(err)
+	if err := run("n * 768614336404564650 - 6"); err == nil || !strings.Contains(err.Error(), "no realization holds both") {
+		t.Errorf("a U value against a possibly negative one the facts do not order: %v", err)
 	}
-	f := p.Funcs[0]
-	Decide(tg, f, false)
-	if _, err := SelectWords(tg, f); err == nil || !strings.Contains(err.Error(), "no realization holds both") {
-		t.Errorf("a U value against a possibly negative one: %v", err)
+	if err := run("n - 6"); err != nil {
+		t.Errorf("a U value against a possibly negative one the facts order is the constant: %v", err)
 	}
 }

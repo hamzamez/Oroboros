@@ -147,8 +147,8 @@ checked. When a package hits a wall that needs language work, stop, research it,
         ([pairs-2026-10-28](gauntlet/results/pairs-2026-10-28.md)): U as two 32-bit digits, every
         operation expanded on the IR (`ir/pairs.go`) and proven by the decision; FNV-1a 64 runs there at
         0.80 of a hand-written pair. Not built on the pair: a comparison of two pairs, a shift by a
-        variable count, a division by a non-power of two. LLVM's widths, the unsigned word on windows
-        and `>>` past a count of 63 there come with `ir/llvm` (below).
+        variable count, a division by a non-power of two. `>>` past a count of 63 on windows came with
+        `ir/llvm`, the unsigned word there with 6b′ step 3 (llvm64-2026-11-06); LLVM's widths wait.
      3. ~~**Pointers**~~ **decided** ([ADR 0084](docs/decisions/0084-an-address-is-an-integer-and-ownership-is-a-view.md),
         [pointers-research.md](docs/pointers-research.md)): an address is an integer offset in a region,
         ownership a linear **view** in the logic (Theorem V: with views, memory is values). **The portable
@@ -231,13 +231,18 @@ checked. When a package hits a wall that needs language work, stop, research it,
         (`trunc` in, `sext`/`zext` out, a C string at s + 8, `dllimport` on Windows, `stdcall`
         x86_stdcallcc on i686); a prototype checked at load, a C string's `nulfree` required; the
         survey writes 10,479 prototypes and no template, its figures unchanged.
-     3. **The layer's missing pieces, program first**, each skipped case un-skipped in turn: the unsigned
-        word and LLVM's widths (`codecs`, `fnv64`, `fnv64-fold`, `pairs`; the C ABI needs them), F64's
-        roundings (`f64-round`), `big_str` (seven cases), `os` on windows (`read-loop`, `text-of`); then
-        the gauntlet's programs on windows.
+     3. **The layer's missing pieces, program first**, each skipped case un-skipped in turn:
+        - ~~the unsigned word~~ **done** ([llvm64-2026-11-06](gauntlet/results/llvm64-2026-11-06.md)):
+          U₆₄ is `i64` read unsigned (llvm.md §3a), the ring and bit operations S₆₄'s instructions, order,
+          quotient, remainder and `>>` U's own; a comparison the facts decide is its truth value and its
+          πs are dropped (Theorem E); render : ℤ → Σ* (`print_int`) is defined on ℤ and inlined, each
+          call's facts choosing S or U. `codecs`, `fnv64`, `fnv64-fold`, `pairs`, `u64-digits`,
+          `u64-square`, `u64-values` run on windows (the last three on the JVM too, a stale skip);
+          `codecs` under `checked: windows` (the intervals' threshold rounds, below);
+        - F64's roundings (`f64-round`), `big_str` (seven cases), `os` on windows (`read-loop`,
+          `text-of`); then the gauntlet's programs on windows.
      4. **The second triple**: `i686-pc-windows-msvc` runs the suite (TinyRetroPad is 32-bit).
-     Left to the walls: LLVM's widths (native iN, i32 scalars on i686), the unsigned word on windows
-     (its 64-bit results at or above 2⁶³ read signed, as on MASM), and the rung above as native iN,
+     Left to the walls: LLVM's widths (native iN, i32 scalars on i686) and the rung above as native iN,
      measured against the limbs.
    - 6c. **TinyRetroPad's Win32 surface, measured**: downloaded 2026-10-24 at `42f4c6c` as data, never
      built or run; 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over kernel32,
@@ -302,6 +307,10 @@ what TinyRetroPad's walls need.
   ν's argument), trigger the next change to `strings.oro`.
 - **One integer rendering**, render : ℤ → Σ*, per representation, replacing `big-str` (declared on three
   targets, and a hidden allocation on a value that fits the word). Trigger: printing's P3.
+- **Per-loop widening thresholds** (llvm64-2026-11-06): the intervals take 16 threshold rounds per
+  function, and `codecs`' main, with `print_int` inlined five times, has so many constants that a
+  loop's variable is widened before reaching its bound (32 rounds prove all 337 operations). Trigger:
+  a second program refused or trapped for it, or the next change to the widening.
 - **A 32-bit scalar representation** (ADR 0083 item 2's register rule): FNV-1a 32 masks each step
   with `& 0xFFFFFFFF` where a `uint32` would not (1.08–1.12, inside the noise floor). Trigger: a loop
   whose mask is measured above the noise floor, or `ir/llvm`'s i32.
@@ -326,9 +335,10 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **4,999 of 5,059** integer operations proven inside their target's word, the 60 left
-  mostly meant to be refused or waiting on the unsigned word on windows;
-  **492 of 516** loops proven to terminate (size-change termination). Each
+- **Provability**: **4,999 of 5,053** integer operations proven inside their target's word, the 54 left
+  meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
+  **493 of 517** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -438,7 +448,7 @@ option (b), jswitch5b-2026-10-16).
 
 - **An `Int` is an integer** (ADR 0026), and a range `lo..hi` is a set; an end may be omitted, `lo..` and
   `..hi` (ADR 0077), and **`Nat`** is ↑0. Each target declares its word as data, `repr LO..HI word`:
-  int64 on Go, the JVM and windows, ±(2⁵³−1) on JavaScript; Go also realizes 0..2^64-1 as `uint64`.
+  int64 on Go, the JVM and windows, ±(2⁵³−1) on JavaScript; Go realizes 0..2^64-1 as `uint64`, and windows as `i64` read unsigned.
   Legality is per (program, target), portability computed (`go run ./cmd/portable`).
 - **Bounded by default** (ADR 0019): an operation not proven inside the word is refused, cleared by
   narrowing a range, a claim above the word, or `-checked`.

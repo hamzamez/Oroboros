@@ -6,8 +6,9 @@
 // JVM's `>>>` on a long), and `h mod 2^32` is `h & (2^32 − 1)`, which takes h by
 // the residue map. Both results are in [0, 2^32), and so is their xor.
 //
-// skip: windows — the unsigned word is not realized on windows yet (ADR 0083: it
-// comes with LLVM's native widths), so under -checked its operations trap there.
+// On windows the unsigned word is i64 read unsigned (llvm.md §3a), its order,
+// quotient, remainder and right shift LLVM's unsigned instructions; the case ran
+// there first in llvm64-2026-11-06, where it had been skipped.
 //
 // inputs: 0 1 7 100 255
 // expect: 4213628364 419904624 1404039386 2212467110 1526927566

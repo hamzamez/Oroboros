@@ -807,6 +807,9 @@ func renameAway(f *Func, ren map[V]V) {
 			for j, a := range r.Stmts[i].Args {
 				r.Stmts[i].Args[j] = m(a)
 			}
+			for j, a := range r.Stmts[i].Store {
+				r.Stmts[i].Store[j] = m(a)
+			}
 		}
 		for j, a := range r.Args {
 			r.Args[j] = m(a)

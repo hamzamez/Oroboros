@@ -373,7 +373,7 @@ entry:
   %v217 = load i64, ptr %.s177
   %v218 = load i64, ptr %.s178
   %v219 = load i64, ptr %.s179
-  %v223 = icmp sgt i64 %v218, 18
+  %v223 = icmp sgt i64 %v218, 19
   br i1 %v223, label %.then181, label %.else182
 .then181:
   %v227 = icmp slt i64 %v2, 0
@@ -396,7 +396,7 @@ entry:
   store i64 %v237, ptr %.s194
   br label %.exit175
 .else187:
-  %v239 = icmp sgt i64 %v218, 18
+  %v239 = icmp sgt i64 %v218, 19
   br i1 %v239, label %.then196, label %.else197
 .then196:
   store ptr %v216, ptr %.s193

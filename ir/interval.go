@@ -466,7 +466,11 @@ type intervals struct {
 	loops  []*exitFacts
 	def    map[V]*Stmt
 	piOf   map[V]V // a π-parameter's source: the same value, renamed on an arm
-	thresh []ep    // the widening's thresholds (widenIVT)
+	thresh []ep    // the widening's thresholds (widenIVT), the function's
+	// loopT is each loop's own structural thresholds, its constants and its
+	// guards' images (loopThresholds); consts the function's integer constants.
+	loopT  map[*Stmt][]ep
+	consts map[V]int64
 	// halts is each loop's termination verdict (sct.go), from its last
 	// evaluation, which is the one under the final facts.
 	halts map[*Stmt]bool
@@ -972,6 +976,7 @@ func (a *intervals) loop(s *Stmt) {
 	body := s.Sub[0]
 	delete(a.trips, s)
 	init := a.facts(s.Args)
+	lt := a.loopThresholds(s)
 	cur := append([]fact(nil), init...)
 	lc := &exitFacts{}
 	a.loops = append(a.loops, lc)
@@ -994,7 +999,7 @@ func (a *intervals) loop(s *Stmt) {
 			if it >= 3+thresholdRounds {
 				next[i] = widenF(cur[i], joinF(cur[i], next[i]))
 			} else if it >= 3 {
-				next[i] = widenFT(cur[i], joinF(cur[i], next[i]), a.thresh)
+				next[i] = widenFT(cur[i], joinF(cur[i], next[i]), lt)
 			} else {
 				next[i] = joinF(cur[i], next[i])
 			}
@@ -1991,4 +1996,174 @@ func (a *intervals) hostWrites(r *Region) (iv, bool) {
 		}
 	}
 	return out, any
+}
+
+// PlantLoopThresholdFault widens every loop up to the function's thresholds,
+// as before per-loop thresholds: render's `top`, three instances in one
+// function, then loses its lower end (llvm-render-2026-11-07).
+var PlantLoopThresholdFault = false
+
+// PER-LOOP THRESHOLDS (Blanchet et al. 2003, §7.1.2; Lakhdar-Chaouch, Jeannet
+// and Girault 2011). A loop's fixed point can stop only where its own
+// transfer can: at a constant the loop uses, at an end of a fact it reads from
+// outside, a neighbour of either, or a guard's image under its own scalings.
+// A constant used only elsewhere in the function bounds nothing here, and
+// stopping at it costs a round: an end descends one threshold per round, so a
+// function that inlines render three times ran out of rounds before `top`
+// reached 0 (llvm-render-2026-11-07), as codecs had (llvm64-2026-11-06).
+//
+//	T(L) = B ∪ N(C_L) ∪ N(E_L) ∪ G_L,   N(x) = {x − 1, x, x + 1}
+//
+// B is 0, the word's ends and U's top; C_L the integer constants L uses; E_L
+// the finite ends, at entry, of the facts of the values L uses and does not
+// define (its initial values among them); G_L L's guards' constants scaled by
+// L's constant multipliers, once. Any threshold set is sound, the result being
+// a post-fixpoint; this one only decides where the widening stops. A
+// realization's statements (FromTerm) count as the function's do not.
+func (a *intervals) loopThresholds(s *Stmt) []ep {
+	if PlantLoopThresholdFault {
+		return a.thresh
+	}
+	if a.consts == nil {
+		a.consts = map[V]int64{}
+		a.f.Walk(func(r *Region) {
+			for i := range r.Stmts {
+				t := &r.Stmts[i]
+				if t.Op == OConst && t.Lit.Kind == core.KInt && !t.FromTerm {
+					a.consts[t.Res[0]] = t.Lit.Int
+				}
+			}
+		})
+	}
+	if a.loopT == nil {
+		a.loopT = map[*Stmt][]ep{}
+	}
+	near := func(set map[ep]bool, k ep) {
+		set[k] = true
+		if d, ok := k.sub(ei(1)); ok {
+			set[d] = true
+		}
+		if u, ok := k.add(ei(1)); ok {
+			set[u] = true
+		}
+	}
+	defined := map[V]bool{}
+	var used []V
+	var walk func(r *Region)
+	walk = func(r *Region) {
+		for _, p := range r.Params {
+			defined[p] = true
+		}
+		for _, pi := range r.Pis {
+			defined[pi.V] = true
+			used = append(used, pi.Of)
+			if pi.Other >= 0 {
+				used = append(used, pi.Other)
+			}
+		}
+		for i := range r.Stmts {
+			t := &r.Stmts[i]
+			for _, v := range t.Res {
+				defined[v] = true
+			}
+			used = append(used, t.Args...)
+			used = append(used, t.Store...)
+			for _, sb := range t.Sub {
+				walk(sb)
+			}
+		}
+		used = append(used, r.Args...)
+		if r.T == TBranch {
+			used = append(used, r.Cond)
+			walk(r.Then)
+			walk(r.Else)
+		}
+	}
+	walk(s.Sub[0])
+	used = append(used, s.Args...)
+	base, ok := a.loopT[s]
+	if !ok {
+		set := map[ep]bool{ei(a.tg.Word.Lo): true, ei(a.tg.Word.Hi): true, {}: true}
+		if a.tg.Word.Unsigned {
+			set[u64Max] = true
+		}
+		guards, muls := map[int64]bool{}, map[int64]bool{}
+		var scan func(r *Region)
+		scan = func(r *Region) {
+			for i := range r.Stmts {
+				t := &r.Stmts[i]
+				if t.FromTerm {
+					continue
+				}
+				for _, x := range t.Args {
+					c, isC := a.consts[x]
+					if !isC {
+						continue
+					}
+					near(set, ei(c))
+					if t.Op.IsCmp() {
+						guards[c] = true
+					}
+					if t.Op == OMul && (c >= 2 || c <= -2) {
+						muls[c] = true
+					}
+				}
+				for _, sb := range t.Sub {
+					scan(sb)
+				}
+			}
+			if r.T == TBranch {
+				scan(r.Then)
+				scan(r.Else)
+			}
+		}
+		scan(s.Sub[0])
+		for _, x := range s.Args {
+			if c, isC := a.consts[x]; isC {
+				near(set, ei(c))
+			}
+		}
+		if len(muls) <= 16 {
+			for g := range guards {
+				for m := range muls {
+					if p, ok := ei(g).mul(ei(m)); ok {
+						set[p] = true
+					}
+				}
+			}
+		}
+		base = make([]ep, 0, len(set))
+		for k := range set {
+			base = append(base, k)
+		}
+		a.loopT[s] = base
+	}
+	set := map[ep]bool{}
+	for _, k := range base {
+		set[k] = true
+	}
+	for _, v := range used {
+		if v < 0 || defined[v] || int(v) >= len(a.fs) {
+			continue
+		}
+		if _, isC := a.consts[v]; isC {
+			continue
+		}
+		x := a.fs[v].v
+		if x.bot {
+			continue
+		}
+		if !x.nlo {
+			near(set, x.lo)
+		}
+		if !x.phi {
+			near(set, x.hi)
+		}
+	}
+	out := make([]ep, 0, len(set))
+	for k := range set {
+		out = append(out, k)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].lt(out[j]) })
+	return out
 }

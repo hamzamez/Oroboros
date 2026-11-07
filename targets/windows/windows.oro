@@ -21,6 +21,7 @@ link "kernel32"
 // THE STRING MONOID on this target, its helpers the process heap's (strings.oro).
 realize string_of = win/str.string_of
 realize concat = win/str.concat
+realize ascii = win/str.ascii
 
 build "cmd /c .\\build.bat"
 artifact "main.exe"

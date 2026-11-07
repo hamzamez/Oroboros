@@ -44,6 +44,7 @@ var limbSigs = map[string]struct {
 	"ge":        {[]string{"array int", "array int"}, "bool", false},
 	"eq":        {[]string{"array int", "array int"}, "bool", false},
 	"to-host":   {[]string{"array int"}, core.BigType, false},
+	"render":    {[]string{"array int"}, "string", false},
 }
 
 // LimbInstance is one definition specialised to (n, lim): a closed function of
@@ -119,6 +120,14 @@ func limbFunc(tgt *Target, fn string, n int, lim int64) (*LimbInstance, error) {
 	}
 	if err := Check(tgt, name, nf); err != nil {
 		return nil, fail(err)
+	}
+	// A HOST CALL'S CONTRACT IN THE BODY (ADR 0028): render's ι carries
+	// lo + n ≤ len(b) and its domain, obligations of the theory like its
+	// indices, decided here once per width by the refinement layer.
+	if HasRequireMarks(nf) {
+		if nf, err = DischargeRequires(nil, tgt, name, sig, nf, nil); err != nil {
+			return nil, fail(err)
+		}
 	}
 	if err := CheckAgainstSig(tgt, name, sig, nf); err != nil {
 		return nil, fail(err)

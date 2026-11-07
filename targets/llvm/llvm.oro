@@ -84,6 +84,9 @@ realize nulfree = lang.no_nul
 realize abandon = lang.crash
 realize trap_if = lang.trap_if
 realize alloc = lang.allocate
+// RENDERING, ℤ's at every sort (ADR 0095): this term at the word's; a value
+// held as limbs is the limb library's render (ir/limbs.go).
+realize big_str = lang.render
 
 // THE UNSIGNED WORD'S OPERATIONS (llvm.md §3a), found by the representation
 // pass (ir/words.go) under these names: the ring's and the bits' the same

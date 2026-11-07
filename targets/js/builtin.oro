@@ -56,6 +56,13 @@ module js {
     fn nulfree(s ∈ String) (Bool) pure { host expr "!${s}.includes(String.fromCharCode(0))" }
 
     // η : Scalar → Scalar*, the generator injection — the string of one scalar.
+    // ι : (B₇)* ↪ Σ*, ASCII's inclusion (ADR 0095, strings.md §10): the word
+    // b[lo, lo+n) of scalars below 128 as text. UTF-8 is the identity there, so
+    // the platform's UTF-8 decode of the bytes is exact. A byte table may be a
+    // typed array or not, so it is taken as one, as os's decode does.
+    fn ascii(b ∈ Array(0..127), lo ∈ 0..2^63-1, n ∈ 0..2^63-1) (String) pure where lo + n <= len(b) {
+        host expr "new TextDecoder().decode(Uint8Array.from(${b}.slice(${lo}, (${lo}) + (${n}))))"
+    }
     // `fromCodePoint` and NOT `fromCharCode`, which takes a UTF-16 code unit and
     // would truncate every scalar above the BMP.
     // ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF] (string-operations.md §7),

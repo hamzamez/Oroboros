@@ -89,6 +89,19 @@ func hostMeaning(name string, args []cval) ([]cval, bool) {
 	if name == "llvm.trap" {
 		panic(errTrap)
 	}
+	// Σ_OS's exit is a call into ∅ too (ADR 0090, 0093), the crash a term ends
+	// with; on windows its view is ExitProcess, inlined. What the crash writes
+	// first, the reason to standard error, is an effect this interpreter does
+	// not observe: the encoding, the handle and the write are stated as values,
+	// and only the non-return is checked.
+	switch name {
+	case "windows/kernel32.ExitProcess":
+		panic(errTrap)
+	case "windows/kernel32.WriteFile":
+		return []cval{{b: true}}, true
+	case "windows/kernel32.GetStdHandle", "llvm/str.utf8":
+		return []cval{{}}, true
+	}
 	return nil, false
 }
 

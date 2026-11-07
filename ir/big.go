@@ -704,6 +704,14 @@ func (g *bigs) stmt(s *Stmt) {
 			if j >= len(p.Args) || p.Kind == "stmt" {
 				continue
 			}
+			// RENDERING IS ℤ's AT EVERY SORT (ADR 0095): on a target with no
+			// bignum, `big-str` is realized per representation, the limb
+			// library's render on a value held exactly (LowerLimbs) and the
+			// word's digit loop elsewhere (its stated term), so its argument
+			// keeps the representation its facts gave it.
+			if s.Name == "big-str" && !g.tg.HasBig() {
+				continue
+			}
 			what := fmt.Sprintf("argument %d of %s", j+1, s.Name)
 			switch ty := p.Args[j]; {
 			case g.bigType(ty):

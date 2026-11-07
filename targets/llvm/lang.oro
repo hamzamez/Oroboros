@@ -96,9 +96,12 @@ module lang {
         if b == -1 { (s, o) = llvm.ssub_with_overflow(0, a); if o { llvm.trap() } else { s } } else { llvm.sdiv(a, b) }
     }
 
-    // THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro): 0 when handed 0, a
-    // trap otherwise.
-    fn trap_if(a ∈ Int) (Int) { if a == 0 { 0 } else { llvm.trap() } }
+    // THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro): 0 when handed 0, and
+    // otherwise the crash with the bound's reason, the words every host's
+    // `big-fit` and `trap-if` say (ADR 0029: the program's one set, enforced
+    // with one outcome on every representation). crash : E → ∅, so the branch
+    // is typed by its other arm (ADR 0090).
+    fn trap_if(a ∈ Int) (Int) { if a == 0 { 0 } else { crash("bignum overflow: the declared range is too small") } }
 
     // THE CRASH (spec/errors.md §8): crash : E → ∅. The reason's bytes and a
     // newline to standard error, then exit status 1, every step Σ_OS's.
@@ -106,6 +109,33 @@ module lang {
         w = os.write_err(str.utf8(why))
         e = os.write_err(array { 10 })
         os.exit(1)
+    }
+
+    // ---- RENDERING (ADR 0095): render : ℤ → Σ*, the sign of n and the digits of
+    // |n|, by Euclidean division, at the signed word's sort S; a value held as
+    // limbs is the limb library's (ir/limbs.go), this layer having no bignum.
+    // A realization is a term over the host's operations (ADR 0089), so the
+    // quotient and remainder by 10 are LLVM's `sdiv` and `srem`, inside their
+    // domain (10 is neither 0 nor −1) and ℤ's truncated division on S. A word
+    // has at most 19 digits: digit k at 19 − k, `top` the most significant,
+    // every index linear in k. −2⁶³ has no negation in the word and is its own
+    // numeral; every other negative n is a sign and the digits of −n. The
+    // digits are ASCII, so the text is ι of them, taken while b is live.
+    fn render(n ∈ -2^63..2^63-1) (String) {
+        case {
+            n < -9223372036854775807 -> "-9223372036854775808"
+            else -> {
+                var b := array { 48 : _ ∈ 0..19 }
+                loop m = if n < 0 { 0 - n } else { n }, k = 0, top = 19 {
+                    k > 18 && n < 0 -> { b[top - 1] := 45; ascii(b, top - 1, 21 - top) }
+                    k > 18 -> ascii(b, top, 20 - top)
+                    else -> {
+                        b[19 - k] := 48 + llvm.srem(m, 10)
+                        again(llvm.sdiv(m, 10), k + 1, if m > 0 { 19 - k } else { top })
+                    }
+                }
+            }
+        }
     }
 
     // ---- MEMORY (ADR 0092): ι(alloc), alloc : ℕ × {1, 8} → Region, a table of

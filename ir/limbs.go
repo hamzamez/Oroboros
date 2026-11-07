@@ -31,6 +31,10 @@ import (
 // ErrNoLimbForm; a driver then takes the host's bignum for the program where
 // the target has one.
 
+// PlantRenderEverywhere renders through the limb library on every target, a
+// host bignum or not: a witness that render agrees with each host's numeral.
+var PlantRenderEverywhere = false
+
 // ErrNoLimbForm says the limb library has no instance for an operation.
 var ErrNoLimbForm = errors.New("the limb library has no form for an operation")
 
@@ -95,12 +99,16 @@ func LowerLimbs(tg *emit.Target, f *Func, bits int) (int, error) {
 			case "big%":
 				err = fmt.Errorf("%w: the remainder by another arbitrary-precision value", ErrNoLimbForm)
 			case "big-str":
-				if !tg.HasBig() {
-					err = fmt.Errorf("this program renders a fixed-limb bignum as a string, and target %s "+
-						"declares no arbitrary-precision integer to convert it through.\n"+
-						"  The arithmetic works there; only the rendering does not. Decimal conversion from\n"+
-						"  limbs needs a string surface this language does not have yet (docs/spec/strings.md)", tg.Name)
-					return
+				// THE RENDERING: through the host's bignum where the target has
+				// one, whose own numeral is its toString; elsewhere the limb
+				// library's render, ι of the digits (ADR 0095).
+				if !tg.HasBig() || PlantRenderEverywhere {
+					// only a value held as limbs: one the facts kept in the
+					// word is rendered by the word's term (RealizeOps)
+					if f.Types[s.Args[0]] == core.BigType {
+						plan[s] = use{"render", s.Args}
+					}
+					continue
 				}
 				plan[s] = use{"to-host", s.Args}
 			case "big-fit", "big-fit-signed":

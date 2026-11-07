@@ -33,6 +33,15 @@ import (
 // G7) and an impure call keep their rules exactly: none of them is pure with
 // scalar results.
 func (tg *Target) Observer(p Prim) bool {
+	// ι, ASCII'S INCLUSION (ADR 0095), IS ONE BY ITS MEANING: ι(b[lo, lo+n)) is
+	// the element of Σ* those bytes spell at the call, a value, so its result
+	// holds no part of the buffer whatever realizes it. Each realization copies
+	// (strings.md §10), and the differential checks that it does. The name, not
+	// the host's declaration, carries the claim, so no other string result
+	// becomes an observer.
+	if p.Name == "ascii" && p.Pure && !PlantObserverFault {
+		return true
+	}
 	if !p.Pure || p.Kind != "expr" || p.Form == "" {
 		return false
 	}
@@ -70,3 +79,7 @@ func (tg *Target) scalar(ty string) bool {
 func (tg *Target) observes(p Prim, i int) bool {
 	return i < len(p.Args) && strings.HasPrefix(p.Args[i], "array ") && tg.Observer(p)
 }
+
+// PlantObserverFault takes ι's observer away: a second ι of one live buffer is
+// then refused as a use after the buffer was handed on.
+var PlantObserverFault = false

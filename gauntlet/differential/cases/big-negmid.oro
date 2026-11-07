@@ -11,10 +11,11 @@
 // and Java's `bitLength` read a magnitude and printed a. Whether a program
 // answered depended on where it ran and how its integers were stored.
 //
-// skip: windows
 //
-// windows is skipped for printing, as big-subdiv is: fixed limbs have no
-// decimal conversion there yet.
+// On windows, which has no bignum, rendering is ℤ's at each sort (ADR 0095): the
+// limb library's render on a value held as limbs, ι of its digits, and the
+// word's digit loop (targets/llvm/lang.oro) on one the facts keep in the word;
+// the case ran there first in llvm-render-2026-11-07.
 //
 // big-repr: both
 // inputs: 0 5 6

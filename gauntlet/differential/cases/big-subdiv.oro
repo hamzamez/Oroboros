@@ -16,16 +16,14 @@
 // agreement is not correctness: a bug in the promotion would be shared by all
 // six variants.
 //
-// skip: windows
 //
-// windows is skipped and the reason is a CAPABILITY, not a disagreement: it can
-// now do this arithmetic and still cannot print the answer. `big-str` needs a
-// host bignum to convert through and that target declares none, so rendering
-// waits on decimal conversion from limbs, which waits on a string surface
-// (docs/spec/strings.md). The arithmetic reaching that host at all is the point
-// of the change this case tests.
+// On windows, which has no bignum, rendering is ℤ's at each sort (ADR 0095): the
+// limb library's render on a value held as limbs, ι of its digits, and the
+// word's digit loop (targets/llvm/lang.oro) on one the facts keep in the word;
+// the case ran there first in llvm-render-2026-11-07.
 //
 // big-repr: both
+// prints: string
 // expect: 216049380697530863994753086400 246913577925925925692592592570 277777775154320987390432098740 308641972382716049088271604910 370370366839506172483950617250 462962958524691357577469135760 617283944666666666066666666610 864197522493827159649382715970 1265432086462962961721296296180
 export fn calc(n ∈ 0..100) (0..2^300) {
     a = 123456789012345678901234567890 * (n + 7)

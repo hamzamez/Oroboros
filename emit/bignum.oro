@@ -331,3 +331,38 @@ fn rem_small(n, lim, a, k) {
         else -> { cur = r * (2^24) + at(a, i); again(i - 1, cur % k) }
     }
 }
+
+// ------------------------------------------------------------------ decimal
+//
+// render : V_n → Σ*, a magnitude's decimal numeral (ADR 0095, strings.md §10).
+// Positional notation in base 10 is a bijection between ℕ and the digit
+// strings with no leading zero, by Euclidean division, so the digits are the
+// remainders of repeated division by 10, least significant first.
+//
+// IT DIVIDES THE LIMBS BY 10⁷, NOT BY 10: `div-small` and `rem-small` are the
+// one-pass quotient and remainder by a word k < 2²⁸, and 10⁷ is the largest
+// power of ten under it. So one pass over the limbs yields seven digits, and
+// the six after the first come off that word c by c % 10 and c / 10.
+//
+// THE FIELD IS STATIC: a value under 2^(24n) has at most ⌊24n·log₁₀2⌋ + 1
+// digits, and 30103/100000 > log₁₀2, so w below is at least that, rounded up to
+// a multiple of 7. Digit k is stored at w − 1 − k, every index linear in k, and
+// `top` is the least index holding a non-zero digit, so the numeral starts
+// there and 0 is "0". The digits are ASCII, so the text is ι(b[top, w)), taken
+// while b is live (ADR 0069).
+fn render(n, lim, a) {
+    w = 7 * ((24 * n * 30103 / 100000 + 7) / 7)
+    var b := array { 48 : _ ∈ 0..w-1 }
+    loop k = 0, q = a, r = 0, top = w - 1 {
+        k >= w -> ascii(b, top, w - top)
+        k % 7 == 0 -> {
+            c = rem_small(n, lim, q, 10000000)
+            b[w - 1 - k] := 48 + c % 10
+            again(k + 1, div_small(n, lim, q, 10000000), c / 10, if c % 10 > 0 { w - 1 - k } else { top })
+        }
+        else -> {
+            b[w - 1 - k] := 48 + r % 10
+            again(k + 1, q, r / 10, if r % 10 > 0 { w - 1 - k } else { top })
+        }
+    }
+}

@@ -238,15 +238,25 @@ checked. When a package hits a wall that needs language work, stop, research it,
           πs are dropped (Theorem E); render : ℤ → Σ* (`print_int`) is defined on ℤ and inlined, each
           call's facts choosing S or U. `codecs`, `fnv64`, `fnv64-fold`, `pairs`, `u64-digits`,
           `u64-square`, `u64-values` run on windows (the last three on the JVM too, a stale skip);
-          `codecs` under `checked: windows` (the intervals' threshold rounds, below);
         - ~~F64's roundings~~ **done** ([llvmf64-2026-11-06](gauntlet/results/llvmf64-2026-11-06.md)):
           Σ_LLVM's `fadd fsub fmul fdiv sitofp`, each with its `ensure`, in LLVM's default environment
           (llvm.md §3b); a comparison is N's at its sort, `fcmp` with the ordered predicate where the
           operands are doubles, an operation at a sort no realization takes refused (`sortsHold`), and
           a comparison's realization in IR_P's text (`(gt via llvm.f-gt …)`). `f64-round` runs on
           windows, and the gauntlet's float programs (dot, centroid, smooth, search) emit there;
-        - `big_str` (seven cases), `os` on windows (`read-loop`, `text-of`); then the gauntlet's
-          programs on windows;
+        - ~~`big_str`~~ **five of seven done** (ADR 0095, [llvm-render-2026-11-07](gauntlet/results/llvm-render-2026-11-07.md)):
+          ι : (B₇)* ↪ Σ*, `ascii(b, lo, n)` in Σ_L, text from ASCII bytes, one copy on every target
+          and an observer of a live buffer by its meaning; render : ℤ → Σ* per representation, the
+          limb library's (`rem_small`/`div_small` by 10⁷, then ι) on limbs and the word's digit loop
+          (`realize big_str = lang.render`) in the word; per-loop widening thresholds (below), which
+          also prove `codecs` on windows. `big-mul`, `big-negmid`, `big-select`, `big-subdiv`,
+          `word-wide` run there. **Two walls, with hamza**: `big-fib` declares an unbounded ℤ, which
+          needs a bignum written in the language (ADR 0019); `big-sign` a signed range above the
+          word, which needs signed limbs (ADR 0029 decision 4, deliberately not next). And
+          `u128-fact`, `u128-ops` test a Go-only library (`lib/num/u128` over `go/math/bits`), so
+          skip every target but Go: whether they count against "fully" is hamza's;
+        - `os` on windows (`read-loop`, `text-of`): its walls are a host call into a sum and Win32's
+          out-parameters; then the gauntlet's programs on windows;
         - **then a skip states a true reason** (hamza, 2026-11-06): the differential runs every skipped
           case × target and reports each that now agrees, a stale skip. Three skipped the JVM for a
           month after its unsigned word was built (llvm64-2026-11-06); step 4 adds a triple's skips.
@@ -319,12 +329,9 @@ what TinyRetroPad's walls need.
   (B*₀)* → bytes, trigger its open dialog's filter; the `W` functions' UTF-16, trigger a `W` function;
   `string_of` and `++` on windows as terms over the bytes, which need V (valid UTF-8, a submonoid by
   ν's argument), trigger the next change to `strings.oro`.
-- **One integer rendering**, render : ℤ → Σ*, per representation, replacing `big-str` (declared on three
-  targets, and a hidden allocation on a value that fits the word). Trigger: printing's P3.
-- **Per-loop widening thresholds** (llvm64-2026-11-06): the intervals take 16 threshold rounds per
-  function, and `codecs`' main, with `print_int` inlined five times, has so many constants that a
-  loop's variable is widened before reaching its bound (32 rounds prove all 337 operations). Trigger:
-  a second program refused or trapped for it, or the next change to the widening.
+- **One integer rendering on every target**, render : ℤ → Σ* per representation (ADR 0095 built it on
+  windows): on Go, the JVM and JavaScript a word value is still widened to the host's bignum to be
+  printed, a hidden allocation. Trigger: printing's P3.
 - **A 32-bit scalar representation** (ADR 0083 item 2's register rule): FNV-1a 32 masks each step
   with `& 0xFFFFFFFF` where a `uint32` would not (1.08–1.12, inside the noise floor). Trigger: a loop
   whose mask is measured above the noise floor, or `ir/llvm`'s i32.
@@ -349,10 +356,10 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **5,009 of 5,063** integer operations proven inside their target's word, the 54 left
+- **Provability**: **5,120 of 5,174** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **497 of 521** loops proven to terminate (size-change termination). Each
+  **522 of 546** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -384,7 +391,9 @@ every backend reads.
 bounds, the relational difference) and refuses the program or, under `-checked`, traps; size-change
 termination (`ir/sct.go`); the representations, the unsigned word (`ir/words.go`, ADR 0033), the rung
 above the word as a least fixed point of supply and demand (`ir/big.go`, ADR 0034, 0079), fusion under
-`mod 2ⁿ` (`ir/fuse.go`, ADR 0082), the unsigned word as a pair of digits on a narrower word (`ir/pairs.go`,
+`mod 2ⁿ` (`ir/fuse.go`, ADR 0082), widening with each loop's own thresholds (Blanchet et al. 2003:
+its constants, the ends of what it reads from outside, its guards' images; `ir/interval.go`,
+llvm-render-2026-11-07), the unsigned word as a pair of digits on a narrower word (`ir/pairs.go`,
 ADR 0083), fixed limbs as
 instances of a theory checked once (`ir/limbs.go`, ADR 0035), N's decimals as scaled words
 (`ir/numbers.go`) and its doubles, each rounding onto F64 the call of a target declaration whose
@@ -456,7 +465,9 @@ option (b), jswitch5b-2026-10-16).
   host's (`go.bytestring`), entered by one total decode, `go.text` (ADR 0030,
   [strings.md](docs/spec/strings.md)). **A C string is the kernel of ν** (ADR 0091, strings.md §9):
   `nulfree(s)` in Σ_L, a C-string parameter `where nulfree(s)`, decided by ν's homomorphism on the
-  argument's term, and by a guard. **Not built**: records, symbols, `with`.
+  argument's term, and by a guard. **ι : (B₇)* ↪ Σ\*** (ADR 0095, strings.md §10): `ascii(b, lo, n)`,
+  a table of scalars below 128 as text, total, one copy on every target, an observer of a live
+  buffer by its meaning; what render ends in. **Not built**: records, symbols, `with`.
 
 ### Integers
 
@@ -665,6 +676,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A table's storage is an operation of the IR, `alloc(n, w)`, and the allocator a term over the host's, total by exhaustion; ι does not change what the program proves | [0092](docs/decisions/0092-a-tables-storage-is-an-operation-and-the-allocator-a-term.md) |
 | The LLVM layer is a theory with a parameter, Σ_OS (`region`, `write_err`, `exit`), and an OS target instantiates it by gluing; a header with no body is an operation symbol; the triple is target data | [0093](docs/decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md) |
 | A C function is declared by its prototype, its sets its C types (a narrow integer's full range); its call derived by the C ABI on the triple | [0094](docs/decisions/0094-a-c-function-is-declared-by-its-prototype-and-the-c-abi-is-derived.md) |
+| Text from ASCII is the inclusion ι : (B₇)* ↪ Σ*, `ascii(b, lo, n)` in Σ_L; rendering is ℤ's at every sort, the host's numeral, the limb library's render, or the word's digit loop, each ending in ι | [0095](docs/decisions/0095-text-from-ascii-is-the-inclusion-and-rendering-is-integers-at-every-sort.md) |
 
 ## Build commands
 

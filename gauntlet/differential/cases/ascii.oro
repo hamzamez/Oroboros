@@ -1,0 +1,19 @@
+// ι : (B₇)* ↪ Σ*, ASCII'S INCLUSION, ON EVERY TARGET (ADR 0095, strings.md §10).
+//
+// A word of scalars below 128, held in a byte table, is text as it is: UTF-8
+// is the identity on them, so each target's realization copies the bytes once.
+// The table is a buffer, live while ι observes it (ADR 0069), and each call
+// takes a segment b[lo, lo+n): a sign at 0 and two digits at 8, joined by the
+// monoid's own `++`. Its elements are one interval, [45, 57] (array
+// smashing), inside 0..127, which is ι's domain decided by the facts.
+//
+// prints: string
+// inputs: 0 1 7 12 99
+// expect: -00 -01 -07 -12 -99
+fn run(n ∈ 0..99) (String) {
+    var b := array { 48 : _ ∈ 0..9 }
+    b[0] := 45
+    b[8] := 48 + n / 10
+    b[9] := 48 + n % 10
+    ascii(b, 0, 1) ++ ascii(b, 8, 2)
+}

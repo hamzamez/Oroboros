@@ -16,11 +16,6 @@
 // quotient, remainder and right shift LLVM's unsigned instructions; the case ran
 // there first in llvm64-2026-11-06, where it had been skipped.
 //
-// checked: windows — print_int, inlined five times, gives main so many constants that the intervals'
-// 16 threshold rounds end before the leading digit's position, `top`, descends to its bound, and plain
-// widening loses it (22 − start unbounded); 32 rounds prove all 337 operations (llvm64-2026-11-06).
-// Per-loop thresholds are the analysis's fix, waiting on a program that names it.
-//
 // inputs: 0 1 7 100 255
 // expect: 119043919 2795517007 2025885467 3008889943 1619046075
 use bytes

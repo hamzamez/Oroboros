@@ -288,3 +288,34 @@ does not apply: an unproven `where` is refused.
 - The list of C strings, (B*₀)* → bytes, s₁ 0 … sₙ 0 0 (`lpstrFilter`, `REG_MULTI_SZ`, an environment
   block). Trigger: TinyRetroPad's open dialog.
 - The `W` functions' UTF-16, a codec on the kernel. Trigger: a `W` function.
+
+## 10. Text from ASCII ([ADR 0095](../decisions/0095-text-from-ascii-is-the-inclusion-and-rendering-is-integers-at-every-sort.md))
+
+ASCII* is the free monoid on the 128 scalars below 128, a submonoid of Σ*, and UTF-8 is the identity
+on it: each such scalar is one byte, its own value. **ι : (B₇)* ↪ Σ\* is the inclusion**, a word of
+Σ_L:
+
+    ascii(b ∈ Array(0..127), lo, n) ∈ String     where lo + n ≤ len(b)
+
+the word b[lo, lo+n) as text. It is total and a monoid homomorphism, ι(uv) = ι(u) ++ ι(v), so it
+needs no validation; its domain is the table's element set, one interval, which the decision proves
+(a table that may hold 200 is refused, naming 0..127 and [0, 200]).
+
+| target | realization, one copy |
+|---|---|
+| Go | `string(b[lo:lo+n])` |
+| JVM | `new String(b, lo, n, US_ASCII)` |
+| JavaScript | `new TextDecoder().decode(Uint8Array.from(b.slice(lo, lo+n)))` |
+| windows | a helper copying n bytes behind an i64 length and before the NUL (§9) |
+
+ι(b[lo, lo+n)) is a value of Σ*, so its result holds no part of b on any target, and ι **observes a
+live buffer** (ADR 0069): a renderer calls it on its digit buffer while the buffer is in scope.
+
+It is what every renderer's output needs: an integer's numeral, and later a double's shortest
+round trip (printing-research §2.3), are ASCII. **render : ℤ → Σ\*** is realized per representation,
+the host's numeral on a host bignum, the limb library's render on fixed limbs, and the word's digit
+loop in the word, each ending in ι (ADR 0095).
+
+**Not built**: the general map Scalar^[0,n) → Σ*, the free monoid's universal map of which ι is the
+restriction, whose domain (a union of two intervals) a table's one element interval cannot state;
+ν on ι (`nulfree(ascii(b, lo, n))` by b's elements being at least 1).

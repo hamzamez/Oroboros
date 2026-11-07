@@ -1238,6 +1238,10 @@ var coreNames = map[string]bool{
 	// AND ¬ν, the C strings' predicate (ADR 0091): the kernel of the monoid
 	// homomorphism ν : Σ* → (𝔹, ∨) true exactly on U+0000.
 	"nulfree": true,
+	// AND ι : (B₇)* ↪ Σ*, ASCII's inclusion (ADR 0095): the free monoid on
+	// the scalars below 128 is a submonoid of Σ*, and its words are tables of
+	// those scalars, so a renderer's digits become text at once.
+	"ascii": true,
 	// THE WRITE SIDE — ADR 0018. Values are immutable; mutation exists only
 	// inside `build`, whose buffer is linear and is frozen on the way out.
 	//
@@ -1428,6 +1432,15 @@ func (tg *Target) addCore() {
 			c.Pure = true
 			tg.Prims["nulfree"] = c
 			tg.Names = append(tg.Names, "nulfree")
+		}
+	}
+	if _, have := tg.Prims["ascii"]; !have {
+		if c, ok := tg.lookup("ascii", func() (Prim, bool) { return tg.findBySpelling("ascii", 3) }); ok {
+			c.Name = "ascii"
+			c.Result = "string"
+			c.Pure = true
+			tg.Prims["ascii"] = c
+			tg.Names = append(tg.Names, "ascii")
 		}
 	}
 	if _, have := tg.Prims["concat"]; !have {
@@ -4437,7 +4450,7 @@ func (tg *Target) statedRealizations(op string) {
 // checkRealized refuses a stated realization that names a declaration the
 // target does not have, or a name the language does not have.
 func (tg *Target) checkRealized() error {
-	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "abandon": true, "alloc": true}
+	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "abandon": true, "alloc": true, "big-str": true}
 	for _, op := range langOps {
 		known[op.name] = true
 	}

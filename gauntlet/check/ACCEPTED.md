@@ -2553,3 +2553,32 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - now emits — `examples/native/dot.oro windows`
 - emitted text changed — `examples/native/search.oro windows`
 - now emits — `examples/native/smooth-go.oro windows`
+
+## 2026-11-07 — on 824586d, with uncommitted changes
+
+**Reason:** 6b′ step 3, big_str on windows (ADR 0095, llvm-render-2026-11-07): ι : (B₇)* ↪ Σ*, ascii(b, lo, n), in Σ_L on four targets; render per representation (the limb library's on limbs, the word's digit loop in the word); per-loop widening thresholds; the limb rung's trap crashes with the bound's reason on windows. big-mul, big-negmid, big-select, big-subdiv, word-wide now emit there; fact-limbs, big-divmod, render carry the crash's reason; counts 5,120 of 5,174 and 522 of 546
+
+612 runs: 386 emitted, 226 refused; 5120 of 5174 integer operations bounded, 522 of 546 loops proven. compiler pass, differential pass, tooling pass.
+
+14 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- new source — `gauntlet/differential/cases/ascii.oro go`
+- new source — `gauntlet/differential/cases/ascii.oro java`
+- new source — `gauntlet/differential/cases/ascii.oro js`
+- new source — `gauntlet/differential/cases/ascii.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- now emits — `gauntlet/differential/cases/big-fib.oro windows`
+- now emits — `gauntlet/differential/cases/big-mul.oro windows`
+- now emits — `gauntlet/differential/cases/big-negmid.oro windows`
+- now emits — `gauntlet/differential/cases/big-select.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-sign.oro windows`
+- now emits — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- now emits — `gauntlet/differential/cases/word-wide.oro windows`
+
+3 compile(s) recorded FASTER:
+
+- `examples/io/freq.oro go` 20906 → 13187 ms, 0.63x
+- `examples/io/freq.oro js` 20750 → 12671 ms, 0.61x
+- `examples/io/freq.oro java` 21375 → 14093 ms, 0.66x

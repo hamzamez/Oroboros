@@ -1274,7 +1274,7 @@ var LanguageSignature = map[string]bool{
 	"array": true, "table": true, "len": true, "alloc": true, "build": true, "set": true,
 	"map": true, "build-map": true, "insert": true, "keys": true,
 	// strings (string-operations.md)
-	"concat": true, "string-of": true, "nulfree": true,
+	"concat": true, "string-of": true, "nulfree": true, "ascii": true,
 	// a range on a term, the discard, and the crash `expect` expands into
 	AscribeName: true, IgnoreName: true, "abandon": true,
 	// the least and greatest elements of a range, static (ADR 0084's build)

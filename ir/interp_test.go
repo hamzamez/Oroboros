@@ -131,6 +131,10 @@ func (in *interp) stmt(s *Stmt) {
 			one(cval{b: s.Lit.Int == 1})
 		case core.KInt:
 			one(intv(s.Lit.Int))
+		case core.KStr:
+			// A string is opaque here: what reads one is a host operation,
+			// stated by the caller's meanings or unsupported.
+			one(cval{})
 		default:
 			panic(errUnsupported)
 		}

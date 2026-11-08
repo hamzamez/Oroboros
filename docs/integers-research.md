@@ -19,6 +19,10 @@ left: `big-fib` and `big-sign`). 6b′ step 3.
   representation would make the leak unbounded too. The values are immutable, first-order and
   acyclic, so the IR knows exactly when each is dead. **Free at death, with same-size reuse**, decided
   by the IR's liveness, reclaims all of it with no counts and no collector (§5).
+- **The views (ADR 0084) decide safety and an exclusive region's death; they leave a frozen value's
+  storage**, whose persistent permission is linear logic's !A, droppable and so never freed. Counted
+  fractions in its place make free at death the views' own `free` rule (§5.6). Goose's model adds
+  where storage lives: by size class, so a fixed limb value needs no allocation at all (§5.7).
 - **Recommended order** (§8): reclamation, then Z(V_n), then the variable-length magnitudes and Z
   over them.
 
@@ -349,6 +353,114 @@ Release is an operation of the IR, as `alloc` is (ADR 0092), and each target rea
 - **Go, the JVM, JavaScript**: nothing. The host's collector owns the region's `free`, so release is
   realized by the empty term, and their emission does not change.
 
+### 5.6 The views (ADR 0084): what they decide, and what they leave
+
+ADR 0084 made ownership a **view**: a claim in the logic, erased, that a scope may access a range of
+a region with a permission. Views form a separation algebra (Calcagno, O'Hearn and Yang 2007); a
+linear view must be consumed. The permissions are exclusive, fraction, persistent and device.
+`free` is an axiom that takes the full permission (pointers-research §12):
+
+    { r[0..n) ↦₁ _ }   free(r)   { emp }
+
+**What the views decide:**
+- **Safety of every access.** There is no load or store without a view, so a use after free, a
+  double free or an access out of range cannot be written (pointers-research §14.1).
+- **When an exclusive region dies.** A `var` buffer's view is consumed at its scope's end, which is
+  Tofte and Talpin's `letregion`: the end of the scope is the point of `free`. Nothing implements it
+  on LLVM yet, which is part of the leak.
+- **No leak of an exclusive region.** A linear view cannot be dropped (§13.3), so for every region a
+  program owns exclusively the reclamation point exists and is unique.
+- **What memory means**: under an exclusive view memory is a value (Theorem V), which is why every
+  fact about buffers survives.
+- **The host's side**: what a host lends for a call, keeps, fills, or returns as owned (P2–P6).
+
+**What they leave: the persistent permission.** Freezing a buffer makes a value, and its view becomes
+**persistent**: readable and duplicable (ADR 0084's table: "a frozen buffer, a constant"). In linear
+logic that is the exponential !A, which admits contraction (copy) and weakening (drop) (Girard 1987).
+Weakening means a persistent view may vanish without being consumed, so the logic never reaches a
+point where `free`'s full permission is in hand. **Every value the leak of §5.1 holds is behind a
+persistent view**: a limb result, a frozen table, a string. The views were designed for safety, and
+for values they say "never freed", as Rust's `'static` does.
+
+**Closing it inside the algebra.** A frozen region does not need !A. It needs **counted fractions**
+(Boyland 2003; counting permissions, Bornat, Calcagno, O'Hearn and Parkinson 2005):
+- freezing splits ↦₁ into one fraction per reference;
+- each reference's death returns its fraction;
+- the fractions sum to 1 again at the last death, and `free`'s precondition holds there.
+
+The count is static where the references are SSA names. Their number and their deaths are the IR's
+liveness, and that is Proposition 3: **free at death is the views' own `free` rule, applied to a
+frozen region whose fractions are counted at compile time.** Where a reference's death is not static
+(a value inside another value, read out and kept), the count is a run-time number, and that is
+reference counting (L2): the same fraction algebra, executed. So L1 and L2 are not two models, but
+one algebra decided statically or dynamically. pointers-research §14.16's counted view is that run-time
+case. **Persistent** stays for what is never freed: constants and static data.
+
+**And where the region lives** is the one question views do not ask: a region is a name, and its
+allocator a term (ADR 0092). The heap is one realization. §5.7's are cheaper.
+
+### 5.7 Goose's memory model, evaluated
+
+[Goose](https://github.com/aardappel/goose) (van Oortmerssen; its spec is `docs/goose_spec.md`) is a
+whole-program, memory-safe systems language that compiles to C, "no heap allocator, garbage collector,
+or lifetime annotations". Its model, from the spec:
+
+| Goose | the rule | in this document's terms |
+|---|---|---|
+| **N data stacks** (§1.2, §1.3) | each a reserved range with a bump pointer; values pushed in lifetime order and popped together at scope exit; "the only deallocation is resetting stack pointers at scope exit" | regions as a stack of regions, Tofte and Talpin's `letregion`, with bump allocation |
+| **at most one resizable value per stack, on top** | growth is a pointer bump with no capacity check, and never moves memory | a growable region must end its stack |
+| **N computed statically** (§10.3) | each simultaneously live resizable gets the lowest index not in use; an index frees at its scope's exit | greedy colouring of an interval graph, which is optimal: interval graphs are perfect, so the colours used equal the largest set of simultaneously live values (Gavril 1972; Golumbic 1980), as in SSA register allocation (Hack, Grund and Goos 2006) |
+| **size classes** (§1.1, §1.3 item 5) | fixed-size values on the native stack or in registers; variable ones on data stacks | storage chosen by whether the size is static |
+| **construction in place** (§4.3, §7.3) | a variable-size result is built in its receiver's storage, through calls, and the callee is specialized by the destination stack | destination-passing style (Minamide 1998; Shaikhha et al. 2017) |
+| **roots** (§9.2) | every reference has static roots; a store is allowed only if the pointee outlives the container; roots inferred per specialization | region lifetimes and Cyclone's "outlives" (Grossman et al. 2002), inferred by monomorphization |
+| **no exclusivity** (§9.1) | aliased mutation allowed, since threads share nothing | none: this language keeps exclusivity |
+| **pools** (§5.4) | a freelist over a typed array for lifetimes that do not nest; a stale reference reads "a same-typed value", "type-safe reuse, never memory corruption" | pointers-research §14.3's arena with integer links, which concluded the same: a reused slot is a logic error, not a memory error |
+| **relative references** (§3.9) | 1-, 2- or 4-byte offsets, position-independent, checked on load | ADR 0084 item 1: an address is an integer offset into a region |
+| **the address-space bound** (§10.4) | every length, index and offset in [0, 2⁴⁸], so "size arithmetic cannot overflow" | a fact of the target |
+| **threads** (§11.2) | separate programs, no shared mutable memory, flat values through typed queues | ADR 0081's processes |
+| **recursion** (§7.8) | no call into a cycle while a non-fixed local is live, so the stack count stays static | this language has no recursion at all (ADR 0014) |
+
+**Where Goose and this project already agree**, reached independently: offsets instead of addresses,
+type-safe reuse of a pool slot as a logic error, threads that share nothing, and no collector. That is
+evidence for ADR 0084 and ADR 0081, not something to take.
+
+**What not to take:**
+- **Aliased mutation without exclusivity.** Goose is sound without it because it gives up equational
+  reasoning about memory. This project's facts rest on Theorem V, which needs the exclusive view.
+- **Specialization per root and per destination.** It exists because Goose compiles functions
+  separately. Here β inlines every call of the program into its entry point (ADR 0071), so every
+  value's destination is already in the one function the IR sees.
+- **Goose's open items** name its unsolved cases: "a move operation for resizables" (B.3), lifetime
+  precision across long-distance returns (B.0d), pool garbage collection (B.7). Its stacks do not
+  handle a loop-carried value whose size changes: assigning to a resizable is "clear-then-construct",
+  and the right-hand side "may not use the array being rebuilt" (§4.4). That is exactly `big-fib`'s
+  (a, b) → (b, a + b) on variable-length digits. So the heap with free at death (§5.4) stays for that
+  case.
+
+**What to take, three things:**
+1. **Storage by size class.** The heap is the realization of last resort, not the default.
+   - **A table whose length is static after staging** is a fixed-size value, an element of Vⁿ.
+     Every fixed-limb value is one, since there is one width per program. Its storage is a frame slot
+     (LLVM `alloca`), which a loop carries as it carries any loop variable (a join is a slot,
+     llvm.md), and the frame frees it. That is **zero allocation calls**, where §5.4's reuse still
+     calls `HeapAlloc` once per live value. §5.1's loop needs none at all.
+   - **A table of run-time length that dies inside the IR region that made it** goes on a data stack:
+     a bump to allocate, and the region's exit pops it with everything made after it. The IR's regions
+     are structured (ADR 0032), so lifetimes that end at a region's exit nest, which is Goose's §1.3
+     invariant. Tables here never grow after they are made (a table is born full, ADR 0084 item 8), so
+     one stack suffices where Goose needs N for its resizables.
+   - **A value that escapes its region**, yielded to a join or carried by a loop, with a run-time
+     length: the heap, freed at death (Proposition 3), reused where it fits. That is the case Goose
+     leaves open.
+2. **Construction in place at a join.** A value yielded out of a region can be built in the outer
+   region's storage when its length is known on entry (Goose §4.3). That removes the copy a join
+   makes today.
+3. **The address-space bound as a fact.** x64's user space is 2⁴⁷ bytes, so on windows every table has
+   len(t) ≤ 2⁴⁷ − 9, a fact of the host, as the JVM declares `fact max_len … len(a) <= (2^31-1)`
+   (targets/java/java.oro). Then n·w + 8 is in the word for every table, by the facts alone. ADR 0092's
+   guard on the allocator becomes a theorem, not a case. On i686, user space is at most 2³² bytes.
+   windows declares no such fact today.
+
 ---
 
 ## 6. What each target does
@@ -377,11 +489,17 @@ Release is an operation of the IR, as `alloc` is (ADR 0092), and each target rea
 
 ## 8. Recommendations
 
-1. **R1, reclamation first**: free at death by the IR's liveness, with same-size reuse, on the LLVM
-   layer. `release` is an IR operation, a term over Σ_OS's new `release` on LLVM and the empty term on
-   the collected hosts. It fixes today's leak for every table and every fixed limb value, before
-   anything new is allocated. A value inside another is borrowed when liveness proves the borrow,
-   and copied otherwise.
+1. **R1, reclamation first, by size class and lifetime** (§5.4, §5.6, §5.7), on the LLVM layer:
+   - a table of static length, every fixed limb value among them, in a frame slot: no allocation;
+   - a table of run-time length that dies in its region, on a data stack, popped at the region's exit;
+   - one that escapes its region, on the heap, freed at death by the IR's liveness (the views' `free`
+     with statically counted fractions) and reused where it fits;
+   - a value inside another, borrowed when liveness proves the borrow, copied otherwise, and counted
+     only if a program measures the copy as too dear.
+
+   `release` is an IR operation, a term over Σ_OS's new `release` on LLVM and the empty term on the
+   collected hosts. With it, the target fact len(t) ≤ 2⁴⁷ − 9 on x64. It fixes today's leak for every
+   table and every fixed limb value before anything new is allocated.
 2. **R2, Z(M), the group completion over magnitudes**, one construction. Its first instance is Z(V_n)
    over the existing fixed limbs, which amends ADR 0029 decision 4 and runs `big-sign`.
 3. **R3, variable-length magnitudes ℕ\***: normal forms (t, m), base 2³² over U₆₄ on LLVM, Knuth's
@@ -394,7 +512,9 @@ Release is an operation of the IR, as `alloc` is (ADR 0092), and each target rea
 over operations that exist. R3 is a library, and without R1 it would leak without bound.
 
 **Questions for hamza**:
-- **Q1**: R1, free at death with reuse (L1), rather than reference counts (L2) or regions (L3)?
+- **Q1**: R1, storage by size class (frame, data stack, heap) with free at death and reuse for what
+  escapes, rather than reference counts (L2) or regions copied per iteration (L3)? And the persistent
+  permission narrowed to constants, a frozen value's view being counted fractions (§5.6)?
 - **Q2**: R2, sign-magnitude Z(M), rather than two's complement fixed limbs?
 - **Q3**: R3's base, 2³² over U₆₄ first, with i128 measured after?
 - **Q4**: the order, R1 then R2 then R3, each with its ADR, result document and planted faults?
@@ -404,14 +524,23 @@ over operations that exist. R3 is a library, and without R1 it would leak withou
 ## References
 
 - Appel, A. W. *Modern Compiler Implementation in ML*, Cambridge 1998, ch. 10 (liveness).
+- Bornat, R., Calcagno, C., O'Hearn, P. and Parkinson, M. "Permission accounting in separation logic",
+  POPL 2005.
+- Boyland, J. "Checking interference with fractional permissions", SAS 2003.
 - Boehm, H.-J. and Weiser, M. "Garbage collection in an uncooperative environment", SP&E 18(9), 1988.
 - Bourbaki, N. *Algebra I*, ch. I (the symmetrization of a commutative monoid).
 - Boute, R. T. "The Euclidean definition of the functions div and mod", TOPLAS 14(2), 1992.
 - Brent, R. P. and Zimmermann, P. *Modern Computer Arithmetic*, Cambridge 2010.
+- Calcagno, C., O'Hearn, P. and Yang, H. "Local action and abstract separation logic", LICS 2007.
 - Collins, G. E. "A method for overlapping and erasure of lists", CACM 3(12), 1960.
+- Gavril, F. "Algorithms for minimum coloring, maximum clique, minimum covering by cliques, and maximum
+  independent set of a chordal graph", SIAM J. Comput. 1(2), 1972.
+- Girard, J.-Y. "Linear logic", Theoretical Computer Science 50, 1987.
+- Golumbic, M. C. *Algorithmic Graph Theory and Perfect Graphs*, Academic Press 1980.
 - Granlund, T. and Montgomery, P. L. "Division by invariant integers using multiplication", PLDI 1994.
 - Granlund, T. et al. *The GNU Multiple Precision Arithmetic Library*, manual, "Integer Internals".
 - Grossman, D. et al. "Region-based memory management in Cyclone", PLDI 2002.
+- Hack, S., Grund, D. and Goos, G. "Register allocation for programs in SSA-form", CC 2006.
 - Hoare, C. A. R. "Proof of correctness of data representations", Acta Informatica 1, 1972.
 - Jones, R., Hosking, A. and Moss, E. *The Garbage Collection Handbook*, CRC 2011.
 - Karatsuba, A. and Ofman, Yu. "Multiplication of many-digital numbers by automatic computers",
@@ -422,11 +551,16 @@ over operations that exist. R3 is a library, and without R1 it would leak withou
 - Lorenzen, A., Leijen, D. and Swierstra, W. "FP²: Fully in-place functional programming", ICFP 2023.
 - McCarthy, J. "Recursive functions of symbolic expressions and their computation by machine, part I",
   CACM 3(4), 1960.
+- Minamide, Y. "A functional representation of data structures with a hole", POPL 1998.
 - Möller, N. and Granlund, T. "Improved division by invariant integers", IEEE TC 60(2), 2011.
 - Proust, R. L. "ASAP: As Static As Possible memory management", Cambridge UCAM-CL-TR-908, 2017.
 - Reinking, A., Xie, N., de Moura, L. and Leijen, D. "Perceus: garbage free reference counting with
   reuse", PLDI 2021.
+- Shaikhha, A., Fitzgibbon, A., Peyton Jones, S. and Vytiniotis, D. "Destination-passing style for
+  efficient memory management", FHPC 2017.
 - Tofte, M. and Talpin, J.-P. "Region-based memory management", Information and Computation 132(2),
   1997.
 - Ullrich, S. and de Moura, L. "Counting immutable beans: reference counting optimized for purely
   functional programming", IFL 2019.
+- van Oortmerssen, W. Goose, https://github.com/aardappel/goose, `docs/goose_spec.md` (§1–§11,
+  Appendices B and C), read 2026-11-08.

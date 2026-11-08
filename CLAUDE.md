@@ -250,9 +250,12 @@ checked. When a package hits a wall that needs language work, stop, research it,
           limb library's (`rem_small`/`div_small` by 10⁷, then ι) on limbs and the word's digit loop
           (`realize big_str = lang.render`) in the word; per-loop widening thresholds (below), which
           also prove `codecs` on windows. `big-mul`, `big-negmid`, `big-select`, `big-subdiv`,
-          `word-wide` run there. **Two walls, with hamza**: `big-fib` declares an unbounded ℤ, which
-          needs a bignum written in the language (ADR 0019); `big-sign` a signed range above the
-          word, which needs signed limbs (ADR 0029 decision 4, deliberately not next). And
+          `word-wide` run there. **Two walls, researched** ([integers-research.md](docs/integers-research.md),
+          hamza's decision owed on Q1–Q4): `big-fib`'s unbounded ℤ needs a representation whose image
+          is ℤ, so variable length (Proposition 1), and `big-sign`'s signed range is the same
+          construction, Z(M), the group completion of the magnitudes, over V_n and over ℕ*. **Found
+          there: nothing on the LLVM layer frees a table** (10⁶ limb additions hold 252 MB, 10⁷
+          2.7 GB); recommended first, free at death by the IR's liveness with same-size reuse. And
           `u128-fact`, `u128-ops` test a Go-only library (`lib/num/u128` over `go/math/bits`), so
           skip every target but Go: whether they count against "fully" is hamza's;
         - `os` on windows (`read-loop`, `text-of`): its walls are a host call into a sum and Win32's

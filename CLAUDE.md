@@ -277,8 +277,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
               construction, a build by the written prefix (`ir/fill.go`); `alloc-raw`, `reuse-raw`.
               10⁷ limb additions 136–143 ms, the no-zeroing bound (0.08× the original leak). Frame
               slots wait on a nested loop that measures its first iteration;
-            - R1d. a table of run-time length that dies in its region on a data stack;
-            - R1e. strings and containment (a value inside another, borrowed or copied);
+            - R1d, R1e **wait on a trigger** (hamza, 2026-11-09): a data stack for tables of
+              run-time length, and strings and containment. Counted on the 44 allocations of the
+              windows corpus, 43 have a static size and 1 a run-time one, outside any loop; 3
+              programs call the string helpers, a fixed few times each. Trigger: input-driven
+              programs on windows (`os` there), which bring run-time sizes and strings;
           - **R2, Z(V_n)**, the sign layer over the fixed limbs (amends ADR 0029 decision 4): `big-sign`;
           - **R3, ℕ* and Z(ℕ*)**, variable-length magnitudes in base 2³² over U₆₄, Knuth's A, S, M
             and D, render by 10⁹: `big-fib`; M3 and M4 measure it against `math/big` and i128;
@@ -363,6 +366,10 @@ what TinyRetroPad's walls need.
 - **One integer rendering on every target**, render : ℤ → Σ* per representation (ADR 0095 built it on
   windows): on Go, the JVM and JavaScript a word value is still widened to the host's bignum to be
   printed, a hidden allocation. Trigger: printing's P3.
+- **Storage, the rest of R1** (ADR 0096, 0097): a data stack for a table of run-time length that dies
+  in its region (R1d); strings from the helpers and a table inside a table, borrowed or copied (R1e);
+  frame slots for a nested loop's first iteration; a token across sizes not static. Trigger:
+  input-driven programs on windows, or a measurement naming one.
 - **A 32-bit scalar representation** (ADR 0083 item 2's register rule): FNV-1a 32 masks each step
   with `& 0xFFFFFFFF` where a `uint32` would not (1.08–1.12, inside the noise floor). Trigger: a loop
   whose mask is measured above the noise floor, or `ir/llvm`'s i32.

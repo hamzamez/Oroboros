@@ -576,7 +576,8 @@ says why the next is what it is.
      and its storage handed to the next table of its size
      ([reuse-2026-11-09](gauntlet/results/reuse-2026-11-09.md): the same loop in 0.11× its old time),
      and not zeroed when every element is written before any is read
-     ([fill-2026-11-09](gauntlet/results/fill-2026-11-09.md): 0.08×); then signed integers above
+     ([fill-2026-11-09](gauntlet/results/fill-2026-11-09.md): 0.08×); the rest waits for programs that read
+     input; then signed integers above
      the word, then integers of any size ([integers-research.md](docs/integers-research.md)); then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is

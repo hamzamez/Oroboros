@@ -42,6 +42,9 @@ module windows/kernel32 {
     // block HeapAlloc made. Each answers a BOOL, an int, by `sext`.
     fn VirtualFree(a ∈ ptr, n ∈ 0..2^63-1, t ∈ 0..2^32-1) (r ∈ -2^31..2^31-1) { host expr call "VirtualFree" stdcall }
     fn HeapFree(h ∈ ptr, f ∈ 0..2^32-1, p ∈ ptr) (r ∈ -2^31..2^31-1) { host expr call "HeapFree" stdcall }
+    // RtlZeroMemory(destination, length) writes length zero bytes; kernel32
+    // forwards it to ntdll. A function, so no C runtime's memset is linked.
+    fn RtlZeroMemory(p ∈ ptr, n ∈ 0..2^63-1) (Bool) { host stmt call "RtlZeroMemory" stdcall }
 
     // UINT → ∅: it ends the process, and never returns (ADR 0090).
     fn ExitProcess(a ∈ 0..2^32-1) (∅) { host expr call "ExitProcess" stdcall }

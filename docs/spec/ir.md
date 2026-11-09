@@ -359,6 +359,13 @@ a verifier, run after lowering and after every pass that rewrites the IR.
   - **nothing uses t after the release**, on any path: no later operation in its region, none after
     it in an enclosing region, and the release is not inside a loop that t's definition is outside of;
   - **at most one release of t on every path**.
+- **W12 (reuse).** A `call` of `reuse(tok, n, w)` takes a dead table's region as the storage of a new
+  table of n elements of w bytes (ADR 0096's reuse), and the verifier re-derives it:
+  - n and w are static, and tok is **null**, or **the storage of a table of the same size** (n·w + 8
+    bytes), used by nothing after its storage was taken and released by nothing;
+  - a loop's token parameter is **linear**: on every path through the body it is consumed exactly
+    once, by one `reuse` or one `discard` (its release unless null), and every source of it, the
+    loop's `init` and each `continue`, is null or such a storage.
 
 ---
 

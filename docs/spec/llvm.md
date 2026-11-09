@@ -40,8 +40,8 @@ T_LLVM[Σ_OS], the same on every triple:
   realization as **a term over the host's operations** (ADR 0089): `~`, `<<` and `>>` past 63, `mod`,
   `/` and `%` at a divisor −1, the checked arithmetic (the overflow intrinsics' two results and
   `llvm.trap`, ADR 0090), `trap_if`, `nulfree` (ADR 0091), the crash, and the allocator (ADR 0092);
-- `os.oro`: **Σ_OS, the parameter**: `region`, `release` (ADR 0096), `write_err` and `exit`, four
-  headers with no body,
+- `os.oro`: **Σ_OS, the parameter**: `region`, `release` and `zero` (ADR 0096), `write_err` and
+  `exit`, five headers with no body,
   what ι's terms need from an operating system and no instruction computes;
 - `str.oro`: a string's bytes, the layout this layer prints (§4).
 
@@ -145,6 +145,14 @@ The width is read off the table's representative's type, so every alias of a tab
   `VirtualFree(p, 0, MEM_RELEASE)` from 64 KiB and `HeapFree` below, so release ∘ region is the
   identity on the heap. A table that is not owned, being shared, inside another value, a host's or a
   constant, is not released. The verifier's W11 re-derives every release (ir.md §3).
+- **A dead table's region is reused** by the next table of its size (ADR 0096, `ir.Reuse`):
+  release(p, b) followed by region(b) is p zeroed, up to its address, since nothing reaches p after its
+  release. Locally, a release followed in its region by an allocation of its size becomes that
+  allocation's token. Across a loop's back edge, the body takes a token parameter, null on entry, which
+  every path consumes once: `reuse` (lang.reuse: the token zeroed by Σ_OS's `zero`, windows'
+  `RtlZeroMemory`, or `allocate` when it is null), or `discard` (its release unless null) at the start
+  of an arm that makes no table of its size. Each continuing arm passes a released table's storage, or
+  null. Sizes are static. W12 re-derives every token (ir.md §3).
 - **`restrict t n`** is not printed in the first step, as on MASM: a restriction's length must survive
   a join, which a header-held length does not.
 - **A string** is its length, its UTF-8 bytes and a NUL after them: `{ i64 len, [len+1 x i8] }` for a

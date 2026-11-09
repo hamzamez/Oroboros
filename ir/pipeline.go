@@ -183,6 +183,13 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 			if err := CheckReleases(tg, f); err != nil {
 				return nil, nil, fmt.Errorf("%s: %v", name, err)
 			}
+			// AND A DEAD TABLE'S STORAGE TAKEN BY THE NEXT TABLE OF ITS SIZE
+			// (R1b), checked by W12.
+			if Reuse(tg, f) > 0 {
+				if err := CheckReuse(tg, f); err != nil {
+					return nil, nil, fmt.Errorf("%s: %v", name, err)
+				}
+			}
 		}
 		n, err := RealizeOps(tg, f)
 		if err != nil {

@@ -118,6 +118,23 @@ module lang {
     // ir.Release places the call, and the verifier's W11 checks it.
     fn release(t ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (Bool) { os.release(t, n * w + 8) }
 
+    // REUSE (ADR 0096): release(p, b) followed by region(b) is the region p,
+    // zeroed, up to its address, since nothing reaches p after its release
+    // (W11). So an allocation handed a dead region's token of its own size
+    // takes the token, zeroed, and allocates only when the token is null (a
+    // loop's first iteration). ir.Reuse hands tokens only of equal size, and
+    // W12 checks it.
+    fn reuse(tok ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
+        if llvm.is_null(tok) { allocate(n, w) } else { z = os.zero(tok, n * w + 8); tok }
+    }
+
+    // A TOKEN GIVEN BACK (ADR 0096's reuse): on an iteration's arm that makes
+    // no table of its size, the token it was handed is released, unless it is
+    // null, so a token is consumed once on every path.
+    fn discard(tok ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (Bool) {
+        if llvm.is_null(tok) { true } else { release(tok, n, w) }
+    }
+
     // ---- RENDERING (ADR 0095): render : ℤ → Σ*, the sign of n and the digits of
     // |n|, by Euclidean division, at the signed word's sort S; a value held as
     // limbs is the limb library's (ir/limbs.go), this layer having no bignum.

@@ -3,8 +3,9 @@
 Date: 2026-11-09
 Status: Accepted (hamza, 2026-11-09: "I agree to the recommendations. add the steps to the plan. and
 do the first one", on [integers-research.md](../integers-research.md) R1–R4 and Q1–Q4). Being built in
-steps; the first, release at death on the heap, with
-[release-2026-11-09](../../gauntlet/results/release-2026-11-09.md). Amends
+steps: release at death on the heap
+([release-2026-11-09](../../gauntlet/results/release-2026-11-09.md)), then same-size reuse
+([reuse-2026-11-09](../../gauntlet/results/reuse-2026-11-09.md)). Amends
 [ADR 0084](0084-an-address-is-an-integer-and-ownership-is-a-view.md)'s persistent permission.
 
 ## Context

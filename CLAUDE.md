@@ -264,7 +264,12 @@ checked. When a package hits a wall that needs language work, stop, research it,
               x64. M1: 10⁶ and 10⁷ limb additions peak at 3.5 MB (were 278 MB and 2.7 GB), 0.69× and
               0.58× the time; the sieve 1.007×. Not released: a function's result, the crash's
               newline, the helpers' strings (R1e);
-            - R1b. same-size reuse of a dead value's storage;
+            - R1b. ~~same-size reuse~~ **done** ([reuse-2026-11-09](gauntlet/results/reuse-2026-11-09.md)):
+              release ; region(b) ≡ zero, so a dead region is a linear token, handed locally to the
+              next allocation of its size and across a back edge as a body parameter (null on entry,
+              consumed once on every path, by `reuse` or by `discard`); Σ_OS's `zero` is
+              RtlZeroMemory; W12 re-derives every token. 10⁷ limb additions 186 ms (were 900 with
+              release, 1,672 leaking); the sieve 0.89×. Static sizes only;
             - R1c. a table of static length in a frame slot (every fixed limb value): no allocation;
             - R1d. a table of run-time length that dies in its region on a data stack;
             - R1e. strings and containment (a value inside another, borrowed or copied);

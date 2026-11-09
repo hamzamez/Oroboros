@@ -2605,3 +2605,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-09 — on a75d0c9, with uncommitted changes
+
+**Reason:** R1b, a dead table's storage reused by the next table of its size (ADR 0096, reuse-2026-11-09): linear tokens, local and across back edges, reuse/discard over Σ_OS's zero (RtlZeroMemory), W12; 7 limb programs and the sieve take tokens; counts unchanged; the sieve 0.89x
+
+612 runs: 386 emitted, 226 refused; 5120 of 5174 integer operations bounded, 522 of 546 loops proven. compiler pass, differential pass, tooling pass.
+
+8 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`

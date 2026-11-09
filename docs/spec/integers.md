@@ -169,6 +169,27 @@ ADR 0019's rung above the word, chosen on the IR (ADR 0034, 0035). What decides 
 | `fn grow(n ∈ Nat) (Nat) { n * n }` used on `x ∈ 0..2^40` | exact, consented by grow's claim |
 | `export fn h(x ∈ 0..2^40) { x * x }` | refused: no claim above the word |
 
+## 1b. Above the word on fixed limbs: magnitudes, and the group completion over them
+
+On a target with no bignum, a value held exactly is held in **fixed limbs** (ADR 0019, 0035): V_n,
+n limbs of 24 bits, d(t) = Σ_{i<n} tᵢ·2²⁴ⁱ, which realizes N_k = [0, 2ᵏ) for k ≤ 24n. A signed set
+Z_k = (−2ᵏ, 2ᵏ) is realized by **Z(V_n)**, the group completion of the magnitudes in its sign-magnitude
+normal form (ADR 0098): a table of n + 1 entries, the magnitude in [0, n) and the sign in entry n, 0 or
+1, with sign 0 when the magnitude is 0.
+
+| ℤ | on Z(V_n) |
+|---|---|
+| a + b, equal signs | that sign, \|a\| + \|b\| |
+| a + b, different signs | the larger magnitude's sign, the larger minus the smaller |
+| a − b | a + (−b) |
+| a · b | the product of the signs, \|a\| · \|b\| |
+| a / k, a % k, k a word in [0, 2²⁸) | the magnitudes' quotient and remainder, the dividend's sign on both (truncated); a negative k is a · k's sign on the quotient, not built (signlimbs-2026-11-09) |
+| a < b | by sign, then by magnitude, reversed when both are negative |
+| render(a) | "−" when negative, then the magnitude's numeral |
+
+The bound |x| < 2ᵏ is the magnitude's, so Z_k's enforcement is N_k's on the magnitude (ADR 0029).
+A target with a bignum takes it for a signed program instead.
+
 ## 2. Overflow
 
 **Decision: outside the window there is no portable meaning, and the compiler can be asked to say

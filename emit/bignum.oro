@@ -366,3 +366,117 @@ fn render(n, lim, a) {
         }
     }
 }
+
+// ------------------------------------------- the group completion, Z(V_n)
+//
+// ℤ is the group completion of (ℕ, +): pairs (a, b) for a − b, (a, b) ~ (c, d)
+// iff a + d = b + c, each class with one normal form, a sign and a magnitude
+// (ADR 0098, integers.md §1b). So a signed value here is a table of n + 1
+// entries: the magnitude's n limbs, and the sign, 0 or 1, in entry n, which is
+// 0 when the magnitude is 0. Every magnitude operation above reads entries
+// [0, n) through `at` and so applies to a signed table unchanged; each signed
+// operation is its magnitude operation, a comparison where the signs differ,
+// and the normal form. The bound |x| < 2^k is the magnitude's, so `guard` is
+// Z_k's as it is N_k's.
+fn is_zero(n, m) { loop i = 0 { i >= n -> true; at(m, i) != 0 -> false; else -> again(i + 1) } }
+
+// the normal form: magnitude m's n limbs and sign s, 0 when m is 0. One loop
+// over all n + 1 entries, so the table is born full (the written prefix).
+fn with_sign(n, m, s) {
+    t = if is_zero(n, m) { 0 } else { s }
+    var o := array { 0 : _ ∈ 0..n }
+    loop i = 0 { i >= n + 1 -> o; else -> { o[i] := if i < n { at(m, i) } else { t }; again(i + 1) } }
+}
+
+fn sgn(n, a) { at(a, n) }
+
+// a word of either sign: its digits are those of |v|, taken as −(r % 2^24)
+// and r / 2^24, both truncated, so v itself is never negated and −2^63 is exact
+fn sof(n, lim, v) {
+    case {
+        v >= 0 -> with_sign(n, of(n, lim, v), 0)
+        else -> {
+            var b := array { 0 : _ ∈ 0..n }
+            loop i = 0, r = v {
+                i >= n -> { b[n] := 1; b }
+                else -> { b[i] := 0 - r % (2^24); again(i + 1, r / (2^24)) }
+            }
+        }
+    }
+}
+
+fn sadd(n, lim, a, b) {
+    sa = sgn(n, a)
+    sb = sgn(n, b)
+    case {
+        sa == sb -> with_sign(n, add(n, lim, a, b), sa)
+        ge(n, lim, a, b) -> with_sign(n, sub(n, lim, a, b), sa)
+        else -> with_sign(n, sub(n, lim, b, a), sb)
+    }
+}
+
+fn ssub(n, lim, a, b) {
+    sa = sgn(n, a)
+    sb = sgn(n, b)
+    case {
+        sa != sb -> with_sign(n, add(n, lim, a, b), sa)
+        ge(n, lim, a, b) -> with_sign(n, sub(n, lim, a, b), sa)
+        else -> with_sign(n, sub(n, lim, b, a), 1 - sa)
+    }
+}
+
+fn smul(n, lim, a, b) { with_sign(n, mul(n, lim, a, b), (sgn(n, a) + sgn(n, b)) % 2) }
+
+// by a word k ≥ 0, which is what the lowering chooses these forms for
+fn smul_small(n, lim, a, k) { with_sign(n, mul_small(n, lim, a, k), sgn(n, a)) }
+fn sdiv_small(n, lim, a, k) { with_sign(n, div_small(n, lim, a, k), sgn(n, a)) }
+fn srem_small(n, lim, a, k) {
+    r = rem_small(n, lim, a, k)
+    if sgn(n, a) == 1 { 0 - r } else { r }
+}
+
+// order by sign, then by magnitude, reversed when both are negative
+fn slt(n, lim, a, b) {
+    sa = sgn(n, a)
+    sb = sgn(n, b)
+    case { sa != sb -> sa == 1; sa == 0 -> lt(n, lim, a, b); else -> gt(n, lim, a, b) }
+}
+fn sle(n, lim, a, b) {
+    sa = sgn(n, a)
+    sb = sgn(n, b)
+    case { sa != sb -> sa == 1; sa == 0 -> le(n, lim, a, b); else -> ge(n, lim, a, b) }
+}
+fn sgt(n, lim, a, b) {
+    sa = sgn(n, a)
+    sb = sgn(n, b)
+    case { sa != sb -> sb == 1; sa == 0 -> gt(n, lim, a, b); else -> lt(n, lim, a, b) }
+}
+fn sge(n, lim, a, b) {
+    sa = sgn(n, a)
+    sb = sgn(n, b)
+    case { sa != sb -> sb == 1; sa == 0 -> ge(n, lim, a, b); else -> le(n, lim, a, b) }
+}
+fn seq(n, lim, a, b) { sgn(n, a) == sgn(n, b) && eq(n, lim, a, b) }
+
+// render, signed: render's digits and its `top`, in a field one wider at the
+// front, so digit k is at w − k and the most significant at top + 1; the sign
+// goes at top, which render's proof bounds below by 0
+fn srender(n, lim, a) {
+    w = 7 * ((24 * n * 30103 / 100000 + 7) / 7)
+    var b := array { 48 : _ ∈ 0..w }
+    loop k = 0, q = a, r = 0, top = w - 1 {
+        k >= w -> {
+            b[top] := 45
+            if sgn(n, a) == 1 { ascii(b, top, w - top + 1) } else { ascii(b, top + 1, w - top) }
+        }
+        k % 7 == 0 -> {
+            c = rem_small(n, lim, q, 10000000)
+            b[w - k] := 48 + c % 10
+            again(k + 1, div_small(n, lim, q, 10000000), c / 10, if c % 10 > 0 { w - 1 - k } else { top })
+        }
+        else -> {
+            b[w - k] := 48 + r % 10
+            again(k + 1, q, r / 10, if r % 10 > 0 { w - 1 - k } else { top })
+        }
+    }
+}

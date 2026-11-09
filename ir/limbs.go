@@ -35,6 +35,17 @@ import (
 // host bignum or not: a witness that render agrees with each host's numeral.
 var PlantRenderEverywhere = false
 
+// PlantSignFault takes the magnitude's `add` for a signed sum, ignoring the
+// signs: TestASignedSumIsTheGroupCompletions must see the wrong numeral.
+var PlantSignFault bool
+
+// signedLimb is each magnitude instance's form on Z(V_n) (ADR 0098).
+var signedLimb = map[string]string{
+	"of": "sof", "add": "sadd", "sub": "ssub", "mul": "smul", "mul-small": "smul-small",
+	"div-small": "sdiv-small", "rem-small": "srem-small",
+	"lt": "slt", "le": "sle", "gt": "sgt", "ge": "sge", "eq": "seq", "render": "srender",
+}
+
 // ErrNoLimbForm says the limb library has no instance for an operation.
 var ErrNoLimbForm = errors.New("the limb library has no form for an operation")
 
@@ -44,7 +55,7 @@ var smallWord = ei(1<<28 - 1)
 // LowerLimbs replaces f's bignum operations by instances of the limb library at
 // the width the program's one set gives (emit.LimbWidth). It reports how many
 // it replaced.
-func LowerLimbs(tg *emit.Target, f *Func, bits int) (int, error) {
+func LowerLimbs(tg *emit.Target, f *Func, bits int, signed bool) (int, error) {
 	n, lim := emit.LimbWidth(bits)
 	fs := analyse(tg, f)
 	def := map[V]*Stmt{}
@@ -141,12 +152,26 @@ func LowerLimbs(tg *emit.Target, f *Func, bits int) (int, error) {
 			continue
 		}
 		v := s.Args[0]
-		if !fs[v].v.within(ep{}, u64Max) {
+		if !signed && !fs[v].v.within(ep{}, u64Max) {
 			return 0, fmt.Errorf("a value widened into arbitrary precision is %s, which may be negative, and "+
 				"target %s holds arbitrary precision as fixed limbs, which hold a magnitude: they "+
 				"realize [0, 2^k) and nothing signed (ADR 0029)", termShow(fs[v].v), tg.Name)
 		}
 		plan[s] = use{"of", s.Args}
+	}
+	// THE SIGNED PROGRAM, Z(V_n) (ADR 0098): each magnitude instance is its
+	// signed one, the same shape over a table one entry longer.
+	if signed {
+		for s, u := range plan {
+			sf, ok := signedLimb[u.fn]
+			if PlantSignFault && u.fn == "add" {
+				sf = "add"
+			}
+			if !ok {
+				return 0, fmt.Errorf("internal: the limb library's %s has no signed form", u.fn)
+			}
+			plan[s] = use{sf, u.args}
+		}
 	}
 	if len(plan) == 0 {
 		return 0, nil
@@ -360,7 +385,7 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 	if _, err := SelectBig(tg, f, sig, 0, false); err != nil {
 		return 0, err
 	}
-	n, err := LowerLimbs(tg, f, plan.Bits)
+	n, err := LowerLimbs(tg, f, plan.Bits, plan.Signed)
 	if !errors.Is(err, ErrNoLimbForm) {
 		return n, err
 	}

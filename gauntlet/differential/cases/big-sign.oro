@@ -10,12 +10,10 @@
 // limbs refused every negative value, so the first answer already trapped.
 // Four representations, three outcomes, from one legal program.
 //
-// skip: windows
-//
-// windows is skipped for a CAPABILITY: fixed limbs hold a magnitude, so a signed
-// range above the word is refused there at compile time (ADR 0029, decision 4),
-// and the target has no bignum to take it to. The same reason is why this case
-// is not `big-repr: both`: on a target with a bignum, a signed program takes it.
+// On windows, which has no bignum, the set is Z(V_9), the group completion over
+// nine limbs (ADR 0098): a sign entry over a magnitude, Z_201 enforced on the
+// magnitude's bit length, so the third answer traps there too. The case is not
+// `big-repr: both`: on a target with a bignum, a signed program takes it.
 // inputs: 0 1 2
 // prints: string
 // expect: -1606938044258990275541962092341162602522202993782792835301376 -3213876088517980551083924184682325205044405987565585670602751 trap

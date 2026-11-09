@@ -273,17 +273,10 @@ func PlanBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (BigPla
 		return BigPlan{}, nil
 	}
 	if limbs {
-		if signed {
-			// BigRepr keeps a signed program on limbs only when the target has
-			// no bignum to take it to (ADR 0029, decision 4).
-			return BigPlan{}, fmt.Errorf("this program declares a range above the word that "+
-				"admits NEGATIVE values.\n"+
-				"  Target %s stores such a value as fixed limbs, which hold a magnitude:\n"+
-				"  they realize [0, 2^k) and nothing signed, and it declares no bignum of\n"+
-				"  its own. Refused here rather than trapping on a declared value at run\n"+
-				"  time (ADR 0029).", tgt.Name)
-		}
-		return BigPlan{Limbs: true, Bits: bits}, nil
+		// BigRepr keeps a signed program on limbs only when the target has no
+		// bignum to take it to, and there it is Z(V_n), the group completion
+		// over the magnitudes (ADR 0098, amending ADR 0029 decision 4).
+		return BigPlan{Limbs: true, Bits: bits, Signed: signed}, nil
 	}
 	if bits > 0 {
 		if _, err := fitBig(tgt, nil, bits, signed); err != nil {

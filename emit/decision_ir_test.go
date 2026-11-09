@@ -348,9 +348,11 @@ const signedProgram = `export fn f(n ∈ 0..10) (0 - pow(2, 200)..2^200) { 0 - (
 const naturalProgram = `export fn f(n ∈ 0..10) (0..2^200) { (2^200) + n }`
 
 // THE ENFORCED SET HAS A SIGN (ADR 0029): the host's bignum checks a signed
-// program with big-fit-signed and a non-negative one with big-fit, and the
-// limb rung, which holds a magnitude, refuses a signed one by name.
-func TestTheLimbsHoldOnlyANonNegativeSet(t *testing.T) {
+// program with big-fit-signed and a non-negative one with big-fit; the limb
+// rung holds a non-negative one on V_n and a signed one on Z(V_n), the group
+// completion over it (ADR 0098). Both are limb tables; the values are
+// TestASignedSumIsTheGroupCompletions' (cmd/build) and the differential's.
+func TestTheLimbsHoldASignedSetByTheGroupCompletion(t *testing.T) {
 	f, err := rungOn(t, goNative(t), signedProgram)
 	if err != nil || !strings.Contains(printed(f), "big-fit-signed") {
 		t.Errorf("a signed program is enforced by big-fit-signed: %v", err)
@@ -359,11 +361,13 @@ func TestTheLimbsHoldOnlyANonNegativeSet(t *testing.T) {
 	if err != nil || !strings.Contains(printed(f), "(call big-fit ") {
 		t.Errorf("a non-negative program is enforced by big-fit: %v", err)
 	}
-	if _, err := rungOn(t, winTarget(t), signedProgram); err == nil || !strings.Contains(err.Error(), "NEGATIVE") {
-		t.Errorf("windows has only limbs, so a signed range above the word is refused; got %v", err)
+	f, err = rungOn(t, winTarget(t), signedProgram)
+	if err != nil || !strings.Contains(printed(f), "(results (array int))") {
+		t.Errorf("windows takes a signed range above the word on Z(V_n), a limb table: %v", err)
 	}
-	if _, err := rungOn(t, winTarget(t), naturalProgram); err != nil {
-		t.Errorf("windows takes a non-negative range above the word on limbs: %v", err)
+	f, err = rungOn(t, winTarget(t), naturalProgram)
+	if err != nil || !strings.Contains(printed(f), "(results (array int))") {
+		t.Errorf("windows takes a non-negative range above the word on V_n, a limb table: %v", err)
 	}
 }
 

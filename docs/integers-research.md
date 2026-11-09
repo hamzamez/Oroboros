@@ -501,7 +501,8 @@ evidence for ADR 0084 and ADR 0081, not something to take.
    collected hosts. With it, the target fact len(t) ≤ 2⁴⁷ − 9 on x64. It fixes today's leak for every
    table and every fixed limb value before anything new is allocated.
 2. **R2, Z(M), the group completion over magnitudes**, one construction. Its first instance is Z(V_n)
-   over the existing fixed limbs, which amends ADR 0029 decision 4 and runs `big-sign`.
+   over the existing fixed limbs, which amends ADR 0029 decision 4 and runs `big-sign`. **Built**
+   (ADR 0098, [signlimbs-2026-11-09](../gauntlet/results/signlimbs-2026-11-09.md)).
 3. **R3, variable-length magnitudes ℕ\***: normal forms (t, m), base 2³² over U₆₄ on LLVM, Knuth's
    Algorithms A, S, M and D, and render by 10⁹; schoolbook first, with Karatsuba and native i128 only
    after M3 and M4. Z(ℕ*) is ℤ on LLVM, and runs `big-fib`.

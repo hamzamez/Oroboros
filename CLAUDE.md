@@ -282,9 +282,20 @@ checked. When a package hits a wall that needs language work, stop, research it,
               windows corpus, 43 have a static size and 1 a run-time one, outside any loop; 3
               programs call the string helpers, a fixed few times each. Trigger: input-driven
               programs on windows (`os` there), which bring run-time sizes and strings;
-          - **R2, Z(V_n)**, the sign layer over the fixed limbs (amends ADR 0029 decision 4): `big-sign`;
+          - ~~**R2, Z(V_n)**~~ **done** (ADR 0098, amends ADR 0029 decision 4;
+            [signlimbs-2026-11-09](gauntlet/results/signlimbs-2026-11-09.md)): a signed value a table
+            of n + 1 entries, the sign in entry n, 0 at 0; every operation the magnitudes' under a case
+            on the signs, Z_k enforced on the magnitude. `big-sign` and `big-signed-ops` run on
+            windows; `ir.PlantSignFault` its witness's fault. Measured: 10⁷ signed additions 1,219 ms
+            against 139 unsigned (8.5×), because **an allocation inside a statement-level `if` takes
+            no token** (R1b and W12 walk only the terminator tree) and `with_sign` copies the
+            magnitude. Not built: a quotient by a negative word (refused by name);
           - **R3, ℕ* and Z(ℕ*)**, variable-length magnitudes in base 2³² over U₆₄, Knuth's A, S, M
-            and D, render by 10⁹: `big-fib`; M3 and M4 measure it against `math/big` and i128;
+            and D, render by 10⁹: `big-fib`; M3 and M4 measure it against `math/big` and i128. Its
+            storage takes R2's finding first: a linear token through a branch (used once in every
+            arm, an `if` yielding one where both arms release its size) and the sign written by the
+            magnitude's own build (deforestation, the zero test an OR-fold), measured on R2's loop;
+            run-time lengths meet R1d there;
           - **R4**: nothing enters the language; ρ gains the representations.
 
           And `u128-fact`, `u128-ops` test a Go-only library (`lib/num/u128` over `go/math/bits`),
@@ -394,10 +405,10 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **5,120 of 5,174** integer operations proven inside their target's word, the 54 left
+- **Provability**: **5,943 of 5,997** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **522 of 546** loops proven to terminate (size-change termination). Each
+  **866 of 890** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
@@ -434,7 +445,7 @@ ADR 0096, W11 its check), widening with each loop's own thresholds (Blanchet et 
 its constants, the ends of what it reads from outside, its guards' images; `ir/interval.go`,
 llvm-render-2026-11-07), the unsigned word as a pair of digits on a narrower word (`ir/pairs.go`,
 ADR 0083), fixed limbs as
-instances of a theory checked once (`ir/limbs.go`, ADR 0035), N's decimals as scaled words
+instances of a theory checked once (`ir/limbs.go`, ADR 0035; signed, Z(V_n), ADR 0098), N's decimals as scaled words
 (`ir/numbers.go`) and its doubles, each rounding onto F64 the call of a target declaration whose
 `ensure` states it and its obligations decided on a real interval domain (`ir/doubles.go`, ADR 0086);
 postconditions and a definition's claim
@@ -520,7 +531,8 @@ option (b), jswitch5b-2026-10-16).
   [integers.md §1a](docs/spec/integers.md)): ρ of a value is its proven fact's, the word, the unsigned
   word, or the rung above; a claim above the word is the consent to that rung, and the representation
   itself only at an entry point's parameter or result. Above the word a target chooses `repr big host`
-  or `repr big limbs`, and the program's one set is enforced on both, by sign and bit length (ADR 0029).
+  or `repr big limbs`, and the program's one set is enforced on both, by sign and bit length (ADR 0029);
+  a signed set on limbs is Z(V_n), a sign entry over the magnitude, the group completion (ADR 0098).
 - **Staging never changes an answer** (ADR 0009): integers fold only inside the word, checked, never
   dividing by zero; floats fold through explicit `float64`.
 
@@ -649,7 +661,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | An `int` is an integer; each target realizes what it can; portability is reported | [0026](docs/decisions/0026-an-int-is-an-integer.md) |
 | A host call's continuation is a tail | [0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) |
 | A definition's parameter range and `where` are obligations at its calls | [0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md) |
-| Above the word, one set decided by sign and bit length, enforced on every representation | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
+| Above the word, one set decided by sign and bit length, enforced on every representation (decision 4 amended by 0098) | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
 | A host's string is the host's; ours is entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
 | A `build`'s result is a product of frozen buffers and values | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
 | The IR is structured SSA with π-parameters; every backend prints from it | [0032](docs/decisions/0032-the-ir-is-structured-ssa.md) |
@@ -718,6 +730,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | Text from ASCII is the inclusion ι : (B₇)* ↪ Σ*, `ascii(b, lo, n)` in Σ_L; rendering is ℤ's at every sort, the host's numeral, the limb library's render, or the word's digit loop, each ending in ι | [0095](docs/decisions/0095-text-from-ascii-is-the-inclusion-and-rendering-is-integers-at-every-sort.md) |
 | A frozen value's view is counted fractions, not persistent; an owned table is released at its death, `release` an IR operation over Σ_OS; storage chosen by size class (frame, data stack, heap), built in steps; W11 checks every release | [0096](docs/decisions/0096-a-values-storage-is-chosen-by-size-class-and-released-at-its-death.md) |
 | A table born full takes a region with no zero fill: region = zero ∘ region_raw, a rule and a literal by construction, a build by the written prefix; replaces R1c's frame slots | [0097](docs/decisions/0097-a-table-born-full-takes-a-region-with-no-zero-fill.md) |
+| Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 
 ## Build commands
 

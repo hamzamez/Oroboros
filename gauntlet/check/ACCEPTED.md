@@ -2647,3 +2647,21 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-09 — on 3e3b82c, with uncommitted changes
+
+**Reason:** R2, Z(V_n), signed limbs (ADR 0098, signlimbs-2026-11-09): a signed set above the word on a target with no bignum is a sign entry over the magnitude, every operation derived from the magnitudes'. big-sign now emits on windows (it was refused there), big-signed-ops is new on four targets and agrees with Python; every added operation and loop is proven (counts 5,943 of 5,997 and 866 of 890, the unproven 54 and 24 unchanged). big-sign's windows compile is 687 ms against a refusal's 15: linear in its 19,399 emitted lines, each limb instance inlined at its use (not next: an instance emitted once as a function). No benchmark program changed.
+
+616 runs: 391 emitted, 225 refused; 5943 of 5997 integer operations bounded, 866 of 890 loops proven. compiler pass, differential pass, tooling skip.
+
+5 change(s):
+
+- now emits — `gauntlet/differential/cases/big-sign.oro windows`
+- new source — `gauntlet/differential/cases/big-signed-ops.oro go`
+- new source — `gauntlet/differential/cases/big-signed-ops.oro java`
+- new source — `gauntlet/differential/cases/big-signed-ops.oro js`
+- new source — `gauntlet/differential/cases/big-signed-ops.oro windows`
+
+1 compile(s) accepted SLOWER — compile time 1.00x the baseline (median of 20 compiles over 300 ms); a second sweep kept 3 of 3 suspect(s); paired serially against the baseline's binary (5134167), 1 confirmed, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.06x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 0.87x paired:
+
+- `gauntlet/differential/cases/big-sign.oro windows` 31 → 1671 ms, 53.93x; paired 15 → 718 ms, 46.00x

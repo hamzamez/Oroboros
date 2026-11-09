@@ -1,0 +1,37 @@
+// EVERY OPERATION OF Z(V_n), THE GROUP COMPLETION OVER THE LIMBS (ADR 0098).
+//
+// ℤ is the group completion of (ℕ, +), its normal form a sign and a magnitude,
+// and on windows, which has no bignum, a signed range above the word is a table
+// of n limbs and a sign entry. Each input takes one derived operation against
+// the hosts' own bignums, which are sign-magnitude too:
+//
+//   0  a + b, signs different, |a| > |b|: a's sign, |a| − |b|
+//   1  b + b − a, all negative: the magnitudes added
+//   2  a · (n − 9), by a negative word widened into Z(V_n) (`sof`)
+//   3  (−a) / 1000003, truncated: the dividend's sign
+//   4  (−a) % 1000003, truncated: the dividend's sign, a word
+//   5  −a < b, both negative: the order of the magnitudes reversed
+//   6  −2⁶³ · 3⁴⁰, both above JavaScript's word: the product of two signs
+//
+// The expected values are Python's.
+//
+// prints: string
+// inputs: 0 1 2 3 4 5 6
+// expect: 515376653370273342632913923803380576748738381376 -515379255455487307843555541690102664608845803251 -3607642645124079317255227908359348908914752654007 -515375974604087518773904808051197119110750 -189751 1 -112134671628500858351345486069873246208
+export fn calc(n ∈ 0..6) (0 - pow(2, 200)..2^200) {
+    a = 3^100
+    b = 0 - 5^60
+    c = 3^40
+    m = 0 - 2^63
+    case {
+        n == 0 -> a + b
+        n == 1 -> b + b - a
+        n == 2 -> a * (n - 9)
+        n == 3 -> (0 - a) / 1000003
+        n == 4 -> (0 - a) % 1000003
+        n == 5 -> if 0 - a < b { 1 } else { 0 }
+        else -> m * c
+    }
+}
+
+fn run(n) { big_str(calc(n)) }

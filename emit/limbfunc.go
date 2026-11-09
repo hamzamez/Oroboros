@@ -45,6 +45,20 @@ var limbSigs = map[string]struct {
 	"eq":        {[]string{"array int", "array int"}, "bool", false},
 	"to-host":   {[]string{"array int"}, core.BigType, false},
 	"render":    {[]string{"array int"}, "string", false},
+	// Z(V_n), the group completion (ADR 0098): the same shapes, signed
+	"sof":        {[]string{"int"}, "array int", false},
+	"sadd":       {[]string{"array int", "array int"}, "array int", false},
+	"ssub":       {[]string{"array int", "array int"}, "array int", false},
+	"smul":       {[]string{"array int", "array int"}, "array int", false},
+	"smul-small": {[]string{"array int", "int"}, "array int", false},
+	"sdiv-small": {[]string{"array int", "int"}, "array int", true},
+	"srem-small": {[]string{"array int", "int"}, "int", true},
+	"slt":        {[]string{"array int", "array int"}, "bool", false},
+	"sle":        {[]string{"array int", "array int"}, "bool", false},
+	"sgt":        {[]string{"array int", "array int"}, "bool", false},
+	"sge":        {[]string{"array int", "array int"}, "bool", false},
+	"seq":        {[]string{"array int", "array int"}, "bool", false},
+	"srender":    {[]string{"array int"}, "string", false},
 }
 
 // LimbInstance is one definition specialised to (n, lim): a closed function of

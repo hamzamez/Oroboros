@@ -1,5 +1,5 @@
 // Σ_OS, THE LAYER'S PARAMETER (ADR 0093): what ι's terms need from an operating
-// system and no LLVM instruction computes. Three operation symbols, each a
+// system and no LLVM instruction computes. Four operation symbols, each a
 // header with no body: an OS layer that glues `llvm` defines each, under the
 // same header, and a target that defines none of them is refused when it is
 // loaded. Their contracts are what lang.oro's terms rely on, so they hold of
@@ -7,11 +7,15 @@
 //
 //   region     b fresh bytes, every one 0, or the trap (exhaustion): a table is
 //              zero on creation (tables.md); never a null an access could reach
+//   release    the region of b bytes at p, which `region` answered for b, given
+//              back (ADR 0096): release ∘ region is the identity on the heap,
+//              and nothing reads the region after
 //   write_err  the bytes to standard error, answering whether they were written
 //   exit       the process ends with the code; it never returns (ADR 0090). The
 //              codes are 0..255, those every host reports the same way.
 module llvm/os {
     fn region(b ∈ 0..2^63-1) (ptr)
+    fn release(p ∈ ptr, b ∈ 0..2^63-1) (Bool)
     fn write_err(b ∈ Array(0..255)) (Bool)
     fn exit(code ∈ 0..255) (∅)
 }

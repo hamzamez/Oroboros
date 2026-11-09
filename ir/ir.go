@@ -85,6 +85,11 @@ const (
 	// Lower and SelectNumbers (numbers.go), which realizes it, so the verifier
 	// refuses one.
 	ORound
+	// OStorage is a table's storage, the region its `store` took (ADR 0092,
+	// 0096): storage : Table → Region, the inverse projection of `store`, so
+	// storage(t) = p for the table made at p. It exists only where a table is
+	// released (ir/release.go), on a target whose tables are their regions.
+	OStorage
 	numOps
 )
 
@@ -98,7 +103,7 @@ var opNames = [numOps]string{
 	OIf: "if", OLoop: "loop", OBuild: "build", OBuildMap: "build-map", OTabulate: "tabulate",
 	OThe: "the", ORequire: "require", OZero: "zero",
 	OCellRef: "cell-ref", OCellFresh: "cell-fresh", OCellGet: "cell-get",
-	ORestrict: "restrict", OAssume: "assume", ORound: "round",
+	ORestrict: "restrict", OAssume: "assume", ORound: "round", OStorage: "storage",
 }
 
 func (o Op) String() string {

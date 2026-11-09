@@ -14,6 +14,11 @@ glue llvm
 // MSVC's ABI. 32-bit Windows is `i686-pc-windows-msvc`, another member.
 triple "x86_64-pc-windows-msvc"
 
+// THE ADDRESS SPACE BOUNDS EVERY TABLE (ADR 0096): x64's user space is 2⁴⁷ bytes,
+// and a table of n elements of w ≥ 1 bytes occupies n·w + 8 of them, so n ≤ 2⁴⁷ − 9.
+// A fact of the host, as the JVM's `arraylength` is (java.oro).
+fact max_len (a ∈ Array(A)) len(a) <= (2^47-9)
+
 // THE LINK LINE: kernel32 for everything this target calls, and no C runtime
 // (llvm.md §2). A primitive that needs another library names it with `lib`.
 link "kernel32"

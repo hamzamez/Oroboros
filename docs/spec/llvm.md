@@ -40,7 +40,8 @@ T_LLVM[Σ_OS], the same on every triple:
   realization as **a term over the host's operations** (ADR 0089): `~`, `<<` and `>>` past 63, `mod`,
   `/` and `%` at a divisor −1, the checked arithmetic (the overflow intrinsics' two results and
   `llvm.trap`, ADR 0090), `trap_if`, `nulfree` (ADR 0091), the crash, and the allocator (ADR 0092);
-- `os.oro`: **Σ_OS, the parameter**: `region`, `write_err` and `exit`, three headers with no body,
+- `os.oro`: **Σ_OS, the parameter**: `region`, `release` (ADR 0096), `write_err` and `exit`, four
+  headers with no body,
   what ι's terms need from an operating system and no instruction computes;
 - `str.oro`: a string's bytes, the layout this layer prints (§4).
 
@@ -137,6 +138,13 @@ The width is read off the table's representative's type, so every alias of a tab
   `VirtualAlloc` from 64 KiB, whose pages the system has zeroed, and the process heap with
   `HEAP_ZERO_MEMORY` below, since `VirtualAlloc` reserves 64 KiB a call (measured, llvm-2026-11-02).
   A null answer is a trap, never a pointer LLVM may assume.
+- **A table's release** is an operation of the IR too (ADR 0096, `ir.Release`): after an owned table's
+  last use on each path where it is not moved, `release(t, len t, w)`. ι substitutes `lang.release`,
+  whose b = n·w + 8 is proven from the fact `len(t) ≤ 2⁴⁷ − 9`, x64's user space (windows.oro), and
+  which calls Σ_OS's `release(p, b)`. windows defines that by the rule `region` chooses by,
+  `VirtualFree(p, 0, MEM_RELEASE)` from 64 KiB and `HeapFree` below, so release ∘ region is the
+  identity on the heap. A table that is not owned, being shared, inside another value, a host's or a
+  constant, is not released. The verifier's W11 re-derives every release (ir.md §3).
 - **`restrict t n`** is not printed in the first step, as on MASM: a restriction's length must survive
   a join, which a header-held length does not.
 - **A string** is its length, its UTF-8 bytes and a NUL after them: `{ i64 len, [len+1 x i8] }` for a

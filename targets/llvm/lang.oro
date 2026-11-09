@@ -111,6 +111,13 @@ module lang {
         os.exit(1)
     }
 
+    // ---- RELEASE (ADR 0096): a table's storage given back at its death, the
+    // inverse of `allocate`. n is len(t) and w its element width, so the region
+    // is n·w + 8 bytes, the size `allocate` asked `region` for; n ≤ 2⁴⁷ − 9 by
+    // the address space (windows.oro's max_len), so the size is in the word.
+    // ir.Release places the call, and the verifier's W11 checks it.
+    fn release(t ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (Bool) { os.release(t, n * w + 8) }
+
     // ---- RENDERING (ADR 0095): render : ℤ → Σ*, the sign of n and the digits of
     // |n|, by Euclidean division, at the signed word's sort S; a value held as
     // limbs is the limb library's (ir/limbs.go), this layer having no bignum.

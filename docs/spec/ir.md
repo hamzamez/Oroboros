@@ -350,6 +350,15 @@ a verifier, run after lowering and after every pass that rewrites the IR.
   operation has a mode, and every type in it is final (§7): no `any`.
 - **W10 (covering).** Every operation used is in the header's `ops`, and every `call` names a
   primitive the target declares (ADR 0002).
+- **W11 (release).** A `call` of `release` on a table t (ADR 0096) frees t's storage, so it needs
+  every reference to it dead, which the verifier re-derives independently of the pass that placed it:
+  - t is **owned**: a `build`, `tabulate` or array literal with its storage, a `the` of an owned value,
+    or a parameter or result every one of whose incoming values is owned and moved in, moved once,
+    with no loop between its definition and that move;
+  - t itself is **moved nowhere**: no `init`, `continue`, `break`, `yield` or `the` passes it on;
+  - **nothing uses t after the release**, on any path: no later operation in its region, none after
+    it in an enclosing region, and the release is not inside a loop that t's definition is outside of;
+  - **at most one release of t on every path**.
 
 ---
 

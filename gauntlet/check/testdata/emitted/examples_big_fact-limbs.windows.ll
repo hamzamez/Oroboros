@@ -3,6 +3,8 @@
 target triple = "x86_64-pc-windows-msvc"
 
 @__written = internal global i32 0
+declare dllimport i32 @HeapFree(ptr, i32, ptr)
+declare dllimport i32 @VirtualFree(ptr, i64, i32)
 declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)
 declare dllimport ptr @GetProcessHeap()
 declare dllimport ptr @GetStdHandle(i32)
@@ -45,6 +47,10 @@ entry:
   %.s167 = alloca i64
   %.s177 = alloca i64
   %.s186 = alloca ptr
+  %.s192 = alloca i1
+  %.s200 = alloca i1
+  %.s209 = alloca i64
+  %.s216 = alloca i1
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -390,9 +396,67 @@ entry:
   br label %.built83
 .built83:
   %v103 = load ptr, ptr %.s186
-  %v241 = add nuw nsw i64 %v64, 1
+  %v240 = getelementptr i8, ptr %v63, i64 0
+  %v241 = load i64, ptr %v63
+  %v246 = icmp sle i64 0, %v241
+  br i1 %v246, label %.then188, label %.else189
+.then188:
+  %v250 = icmp sle i64 %v241, 140737488355319
+  store i1 %v250, ptr %.s192
+  br label %.join190
+.else189:
+  store i1 false, ptr %.s192
+  br label %.join190
+.join190:
+  %v247 = load i1, ptr %.s192
+  br i1 %v247, label %.then193, label %.else194
+.then193:
+  %v257 = icmp sle i64 1, 8
+  br i1 %v257, label %.then197, label %.else198
+.then197:
+  %v260 = icmp sle i64 8, 8
+  store i1 %v260, ptr %.s200
+  br label %.join195
+.else198:
+  store i1 false, ptr %.s200
+  br label %.join195
+.else194:
+  store i1 false, ptr %.s200
+  br label %.join195
+.join195:
+  %v253 = load i1, ptr %.s200
+  %v264 = mul nuw nsw i64 %v241, 8
+  %v266 = add nuw nsw i64 %v264, 8
+  %v268 = icmp sge i64 %v266, 65536
+  br i1 %v268, label %.then204, label %.else205
+.then204:
+  %.c207 = trunc i64 32768 to i32
+  %.c208 = call i32 @VirtualFree(ptr %v240, i64 0, i32 %.c207)
+  %v272 = sext i32 %.c208 to i64
+  store i64 %v272, ptr %.s209
+  br label %.join206
+.else205:
+  %v273 = call ptr @GetProcessHeap()
+  %.c210 = trunc i64 0 to i32
+  %.c211 = call i32 @HeapFree(ptr %v273, i32 %.c210, ptr %v240)
+  %v275 = sext i32 %.c211 to i64
+  store i64 %v275, ptr %.s209
+  br label %.join206
+.join206:
+  %v269 = load i64, ptr %.s209
+  %v277 = icmp eq i64 %v269, 0
+  br i1 %v277, label %.then213, label %.else214
+.then213:
+  store i1 false, ptr %.s216
+  br label %.join215
+.else214:
+  store i1 true, ptr %.s216
+  br label %.join215
+.join215:
+  %v278 = load i1, ptr %.s216
+  %v284 = add nuw nsw i64 %v64, 1
   store ptr %v103, ptr %.s51
-  store i64 %v241, ptr %.s52
+  store i64 %v284, ptr %.s52
   br label %.head49
 .exit50:
   %v62 = load ptr, ptr %.s56

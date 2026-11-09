@@ -2582,3 +2582,26 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - `examples/io/freq.oro go` 20906 → 13187 ms, 0.63x
 - `examples/io/freq.oro js` 20750 → 12671 ms, 0.61x
 - `examples/io/freq.oro java` 21375 → 14093 ms, 0.66x
+
+## 2026-11-09 — on 3576918, with uncommitted changes
+
+**Reason:** R1a, a table released at its death on windows (ADR 0096, release-2026-11-09): ownership by birth, one move and borrow, decided by the IR's liveness; release(storage(t), len t, w) over Σ_OS's release (VirtualFree/HeapFree by region's rule); W11; fact max_len 2^47-9. 14 windows programs gain their releases; counts unchanged; the sieve 1.007x
+
+612 runs: 386 emitted, 226 refused; 5120 of 5174 integer operations bounded, 522 of 546 loops proven. compiler pass, differential pass, tooling pass.
+
+14 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `lib/win/print.oro windows`

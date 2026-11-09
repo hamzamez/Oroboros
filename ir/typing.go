@@ -410,6 +410,8 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 				is(s.Args[1], "int")
 			case OLen:
 				is(s.Res[0], "int")
+			case OStorage:
+				is(s.Res[0], "ptr")
 			case OArray:
 				e := u.fresh()
 				for _, a := range s.Args {

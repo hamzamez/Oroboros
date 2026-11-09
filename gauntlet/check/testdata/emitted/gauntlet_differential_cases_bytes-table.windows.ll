@@ -2,6 +2,8 @@
 
 target triple = "x86_64-pc-windows-msvc"
 
+declare dllimport i32 @HeapFree(ptr, i32, ptr)
+declare dllimport i32 @VirtualFree(ptr, i64, i32)
 declare dllimport ptr @GetProcessHeap()
 declare dllimport ptr @HeapAlloc(ptr, i32, i64)
 declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)
@@ -20,6 +22,10 @@ entry:
   %.s56 = alloca i64
   %.s57 = alloca i64
   %.s68 = alloca i64
+  %.s74 = alloca i1
+  %.s82 = alloca i1
+  %.s91 = alloca i64
+  %.s98 = alloca i1
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -136,6 +142,64 @@ entry:
   br label %.exit55
 .exit55:
   %v68 = load i64, ptr %.s68
+  %v85 = getelementptr i8, ptr %v42, i64 0
+  %v86 = load i64, ptr %v42
+  %v91 = icmp sle i64 0, %v86
+  br i1 %v91, label %.then70, label %.else71
+.then70:
+  %v95 = icmp sle i64 %v86, 140737488355319
+  store i1 %v95, ptr %.s74
+  br label %.join72
+.else71:
+  store i1 false, ptr %.s74
+  br label %.join72
+.join72:
+  %v92 = load i1, ptr %.s74
+  br i1 %v92, label %.then75, label %.else76
+.then75:
+  %v102 = icmp sle i64 1, 8
+  br i1 %v102, label %.then79, label %.else80
+.then79:
+  %v105 = icmp sle i64 8, 8
+  store i1 %v105, ptr %.s82
+  br label %.join77
+.else80:
+  store i1 false, ptr %.s82
+  br label %.join77
+.else76:
+  store i1 false, ptr %.s82
+  br label %.join77
+.join77:
+  %v98 = load i1, ptr %.s82
+  %v109 = mul nuw nsw i64 %v86, 8
+  %v111 = add nuw nsw i64 %v109, 8
+  %v113 = icmp sge i64 %v111, 65536
+  br i1 %v113, label %.then86, label %.else87
+.then86:
+  %.c89 = trunc i64 32768 to i32
+  %.c90 = call i32 @VirtualFree(ptr %v85, i64 0, i32 %.c89)
+  %v117 = sext i32 %.c90 to i64
+  store i64 %v117, ptr %.s91
+  br label %.join88
+.else87:
+  %v118 = call ptr @GetProcessHeap()
+  %.c92 = trunc i64 0 to i32
+  %.c93 = call i32 @HeapFree(ptr %v118, i32 %.c92, ptr %v85)
+  %v120 = sext i32 %.c93 to i64
+  store i64 %v120, ptr %.s91
+  br label %.join88
+.join88:
+  %v114 = load i64, ptr %.s91
+  %v122 = icmp eq i64 %v114, 0
+  br i1 %v122, label %.then95, label %.else96
+.then95:
+  store i1 false, ptr %.s98
+  br label %.join97
+.else96:
+  store i1 true, ptr %.s98
+  br label %.join97
+.join97:
+  %v123 = load i1, ptr %.s98
   ret i64 %v68
 }
 

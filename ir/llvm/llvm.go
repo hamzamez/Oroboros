@@ -516,6 +516,10 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 		p.index(s)
 	case ir.OLen:
 		p.line("%%v%d = load i64, ptr %s", s.Res[0], p.val(s.Args[0]))
+	case ir.OStorage:
+		// A table is its region here (llvm.md §4): the identity, as a no-op
+		// address the optimizer folds.
+		p.line("%%v%d = getelementptr i8, ptr %s, i64 0", s.Res[0], p.val(s.Args[0]))
 	case ir.OSet:
 		p.store(s.Args[0], s.Args[1], s.Args[2])
 	case ir.OIf:

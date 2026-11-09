@@ -221,7 +221,7 @@ checked. When a package hits a wall that needs language work, stop, research it,
      In steps:
      1. ~~**The layering**~~ **done** (ADR 0093, [layers-2026-11-04](gauntlet/results/layers-2026-11-04.md)):
         `targets/llvm/` is T_LLVM[Σ_OS], a theory with a parameter (Σ_LLVM, ι's terms, the
-        representations, and Σ_OS's three headers, `region`, `write_err`, `exit`); `targets/windows/`
+        representations, and Σ_OS's headers, `region`, `write_err`, `exit`, and `release` since ADR 0096); `targets/windows/`
         glues it (`glue llvm`, §2.1's ⊔), names its `triple`, and defines Σ_OS over kernel32; a header
         with no body is an operation symbol a glued layer must define; a run is exit(0) ∘ main.
      2. ~~**The C ABI in the layer**~~ **done** (ADR 0094, [cabi-2026-11-05](gauntlet/results/cabi-2026-11-05.md)):
@@ -250,14 +250,31 @@ checked. When a package hits a wall that needs language work, stop, research it,
           limb library's (`rem_small`/`div_small` by 10⁷, then ι) on limbs and the word's digit loop
           (`realize big_str = lang.render`) in the word; per-loop widening thresholds (below), which
           also prove `codecs` on windows. `big-mul`, `big-negmid`, `big-select`, `big-subdiv`,
-          `word-wide` run there. **Two walls, researched** ([integers-research.md](docs/integers-research.md),
-          hamza's decision owed on Q1–Q4): `big-fib`'s unbounded ℤ needs a representation whose image
-          is ℤ, so variable length (Proposition 1), and `big-sign`'s signed range is the same
-          construction, Z(M), the group completion of the magnitudes, over V_n and over ℕ*. **Found
-          there: nothing on the LLVM layer frees a table** (10⁶ limb additions hold 252 MB, 10⁷
-          2.7 GB); recommended first, free at death by the IR's liveness with same-size reuse. And
-          `u128-fact`, `u128-ops` test a Go-only library (`lib/num/u128` over `go/math/bits`), so
-          skip every target but Go: whether they count against "fully" is hamza's;
+          `word-wide` run there. The two walls were researched ([integers-research.md](docs/integers-research.md))
+          and **decided** (hamza, 2026-11-09, R1–R4): `big-fib`'s unbounded ℤ needs a representation
+          whose image is ℤ, so variable length (Proposition 1), and `big-sign`'s signed range is the
+          same construction, Z(M), the group completion of the magnitudes. Found there: **nothing on
+          the LLVM layer frees a table** (10⁶ limb additions hold 252 MB, 10⁷ 2.7 GB). In order:
+          - **R1, storage by size class, released at death** (ADR 0096):
+            - R1a. ~~release at death on the heap~~ **done** ([release-2026-11-09](gauntlet/results/release-2026-11-09.md)):
+              ownership the greatest fixed point of birth, one move and borrow, a π the same
+              reference; `release(storage(t), len t, w)` after the last use on each path not moving
+              it, `storage` the IR's inverse of `store`, Σ_OS's fourth header `release` (VirtualFree
+              or HeapFree by `region`'s rule); W11 re-derives each release; len ≤ 2⁴⁷ − 9 a fact of
+              x64. M1: 10⁶ and 10⁷ limb additions peak at 3.5 MB (were 278 MB and 2.7 GB), 0.69× and
+              0.58× the time; the sieve 1.007×. Not released: a function's result, the crash's
+              newline, the helpers' strings (R1e);
+            - R1b. same-size reuse of a dead value's storage;
+            - R1c. a table of static length in a frame slot (every fixed limb value): no allocation;
+            - R1d. a table of run-time length that dies in its region on a data stack;
+            - R1e. strings and containment (a value inside another, borrowed or copied);
+          - **R2, Z(V_n)**, the sign layer over the fixed limbs (amends ADR 0029 decision 4): `big-sign`;
+          - **R3, ℕ* and Z(ℕ*)**, variable-length magnitudes in base 2³² over U₆₄, Knuth's A, S, M
+            and D, render by 10⁹: `big-fib`; M3 and M4 measure it against `math/big` and i128;
+          - **R4**: nothing enters the language; ρ gains the representations.
+
+          And `u128-fact`, `u128-ops` test a Go-only library (`lib/num/u128` over `go/math/bits`),
+          so skip every target but Go: whether they count against "fully" is hamza's, after R1–R4;
         - `os` on windows (`read-loop`, `text-of`): its walls are a host call into a sum and Win32's
           out-parameters; then the gauntlet's programs on windows;
         - **then a skip states a true reason** (hamza, 2026-11-06): the differential runs every skipped
@@ -394,7 +411,8 @@ every backend reads.
 bounds, the relational difference) and refuses the program or, under `-checked`, traps; size-change
 termination (`ir/sct.go`); the representations, the unsigned word (`ir/words.go`, ADR 0033), the rung
 above the word as a least fixed point of supply and demand (`ir/big.go`, ADR 0034, 0079), fusion under
-`mod 2ⁿ` (`ir/fuse.go`, ADR 0082), widening with each loop's own thresholds (Blanchet et al. 2003:
+`mod 2ⁿ` (`ir/fuse.go`, ADR 0082), a table released at its death on the LLVM layer (`ir/release.go`,
+ADR 0096, W11 its check), widening with each loop's own thresholds (Blanchet et al. 2003:
 its constants, the ends of what it reads from outside, its guards' images; `ir/interval.go`,
 llvm-render-2026-11-07), the unsigned word as a pair of digits on a narrower word (`ir/pairs.go`,
 ADR 0083), fixed limbs as
@@ -680,6 +698,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | The LLVM layer is a theory with a parameter, Σ_OS (`region`, `write_err`, `exit`), and an OS target instantiates it by gluing; a header with no body is an operation symbol; the triple is target data | [0093](docs/decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md) |
 | A C function is declared by its prototype, its sets its C types (a narrow integer's full range); its call derived by the C ABI on the triple | [0094](docs/decisions/0094-a-c-function-is-declared-by-its-prototype-and-the-c-abi-is-derived.md) |
 | Text from ASCII is the inclusion ι : (B₇)* ↪ Σ*, `ascii(b, lo, n)` in Σ_L; rendering is ℤ's at every sort, the host's numeral, the limb library's render, or the word's digit loop, each ending in ι | [0095](docs/decisions/0095-text-from-ascii-is-the-inclusion-and-rendering-is-integers-at-every-sort.md) |
+| A frozen value's view is counted fractions, not persistent; an owned table is released at its death, `release` an IR operation over Σ_OS; storage chosen by size class (frame, data stack, heap), built in steps; W11 checks every release | [0096](docs/decisions/0096-a-values-storage-is-chosen-by-size-class-and-released-at-its-death.md) |
 
 ## Build commands
 

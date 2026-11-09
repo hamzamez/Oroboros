@@ -176,6 +176,14 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// makes no table, so this ends.
 	for round := 0; ; round++ {
 		tables := Storage(tg, f)
+		// A TABLE'S RELEASE AT ITS DEATH (ADR 0096), placed once the program's
+		// tables have their storage and before ι substitutes the terms, and
+		// checked there by W11, independently of the pass.
+		if round == 0 && Release(tg, f) > 0 {
+			if err := CheckReleases(tg, f); err != nil {
+				return nil, nil, fmt.Errorf("%s: %v", name, err)
+			}
+		}
 		n, err := RealizeOps(tg, f)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %v", name, err)

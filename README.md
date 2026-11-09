@@ -470,7 +470,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-07.* The current assessment,
+*Updated with the plan; last updated 2026-11-09.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
@@ -570,8 +570,12 @@ says why the next is what it is.
      program running on Windows (the 64-bit unsigned numbers, which the hashes need, since 2026-11-06,
      [llvm64-2026-11-06](gauntlet/results/llvm64-2026-11-06.md)), and the roundings of IEEE doubles since the
      same day ([llvmf64-2026-11-06](gauntlet/results/llvmf64-2026-11-06.md)), and printing integers too large for
-     a machine word since 2026-11-07 ([llvm-render-2026-11-07](gauntlet/results/llvm-render-2026-11-07.md)),
-     and the benchmarks at hand-written speed there;
+     a machine word since 2026-11-07 ([llvm-render-2026-11-07](gauntlet/results/llvm-render-2026-11-07.md));
+     next **memory on Windows** (2026-11-09, ADR 0096): each table is now released when it dies
+     ([release-2026-11-09](gauntlet/results/release-2026-11-09.md): a loop that held 2.7 GB holds 3.5 MB),
+     and next kept off the heap where its size allows; then signed integers above
+     the word, then integers of any size ([integers-research.md](docs/integers-research.md)); then file
+     access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
      found, and assembling every Windows file it writes; then 32-bit Windows;
    - then what TinyRetroPad needs from Win32 against what is declared, callable and linkable today;

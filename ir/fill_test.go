@@ -64,7 +64,16 @@ func TestTheWrittenPrefixTheorem(t *testing.T) {
 		{"descending, div_small's shape", "export fn f(n ∈ 1..100, k ∈ 0..1000) (Int) {\n" +
 			"    t = { var o := array { 0 : _ ∈ 0..n-1 }; loop i = n - 1, r = k { i < 0 -> o; else -> { o[i] := r % 7; again(i - 1, r / 7) } } }\n" +
 			"    t[0]\n}\n", true},
-		{"a read of the buffer before it is full", "export fn f(n ∈ 2..100, k ∈ 0..1000) (Int) {\n" +
+		{"two continuing arms, each writing at the counter: the sign entry's shape", "export fn f(n ∈ 1..100, k ∈ 0..1000) (Int) {\n" +
+			"    t = { var o := array { 0 : _ ∈ 0..n }; loop i = 0, c = k { i >= n + 1 -> o; i == n -> { o[i] := 1; again(i + 1, c) }; else -> { o[i] := c % 7; again(i + 1, c / 7) } } }\n" +
+			"    t[0]\n}\n", true},
+		{"two continuing arms, one not writing", "export fn f(n ∈ 1..100, k ∈ 0..1000) (Int) {\n" +
+			"    t = { var o := array { 0 : _ ∈ 0..n }; loop i = 0, c = k { i >= n + 1 -> o; i == n -> again(i + 1, c); else -> { o[i] := c % 7; again(i + 1, c / 7) } } }\n" +
+			"    t[0] + t[n]\n}\n", false},
+		{"a second exit before the table is full", "export fn f(n ∈ 2..100, k ∈ 0..1000) (Int) {\n" +
+			"    t = { var o := array { 0 : _ ∈ 0..n-1 }; loop i = 0, c = k { i >= n -> o; c == 3 -> o; else -> { o[i] := c % 7; again(i + 1, c / 7) } } }\n" +
+			"    t[n - 1]\n}\n", false},
+		{"a read of the buffer before it is full","export fn f(n ∈ 2..100, k ∈ 0..1000) (Int) {\n" +
 			"    t = { var o := array { 0 : _ ∈ 0..n-1 }; loop i = 0 { i >= n -> o; else -> { o[i] := (o[n - 1] + k) % 7; again(i + 1) } } }\n" +
 			"    t[0]\n}\n", false},
 		{"a fill read where nothing wrote, the sieve's shape", "export fn f(n ∈ 2..100, k ∈ 0..99) (Int) {\n" +

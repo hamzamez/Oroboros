@@ -2665,3 +2665,21 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) accepted SLOWER — compile time 1.00x the baseline (median of 20 compiles over 300 ms); a second sweep kept 3 of 3 suspect(s); paired serially against the baseline's binary (5134167), 1 confirmed, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.06x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 0.87x paired:
 
 - `gauntlet/differential/cases/big-sign.oro windows` 31 → 1671 ms, 53.93x; paired 15 → 718 ms, 46.00x
+
+## 2026-11-09 — on 93f928e, with uncommitted changes
+
+**Reason:** R3a (signfuse-2026-11-09): the signed sum on fixed limbs as one recurrence, x + σ·y with carries in {−1, 0, 1}, the sign case data inside the build (a conditional commutes with a table's construction), sof and smul_small fused likewise; the written-prefix theorem on each path of a terminator tree, counts equal by congruence. Only big-sign and big-signed-ops change, on windows, agreeing on four targets; counts 5,656 of 5,710 and 638 of 662, the unproven 54 and 24 unchanged; both compile faster (0.64x, 0.62x). 10^7 signed additions 214 ms, were 1,219.
+
+616 runs: 391 emitted, 225 refused; 5656 of 5710 integer operations bounded, 638 of 662 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+
+2 compile(s) recorded FASTER:
+
+- `gauntlet/differential/cases/big-sign.oro windows` 1671 → 1000 ms, 0.60x
+- `gauntlet/differential/cases/big-signed-ops.oro windows` 3296 → 1906 ms, 0.58x

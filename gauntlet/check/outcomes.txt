@@ -925,9 +925,9 @@
    note: gen-calc: 9 operation(s) in arbitrary precision
 == gauntlet/differential/cases/big-sign.oro java emitted c23aafecab1abf3d2d20c583b8f438af7d3c6457110202037e743c92b5b9f792
    note: gen-calc: 9 operation(s) in arbitrary precision
-== gauntlet/differential/cases/big-sign.oro windows emitted e1f2d51046a2495de52cb23f184ae20f4d154895a33840e73df9c596fc5edec2
+== gauntlet/differential/cases/big-sign.oro windows emitted 8ebba0953cf5af289ff693968eb4e45f3bfd108cdfad99b47846b35c46b9379c
    note: gen-calc: 19 operation(s) in arbitrary precision
-   note: gen-calc: 246 of 246 integer operations bounded; 102 of 102 loop(s) proven terminating
+   note: gen-calc: 160 of 160 integer operations bounded; 34 of 34 loop(s) proven terminating
 == gauntlet/differential/cases/big-signed-ops.oro go emitted fe2630e092a30179ec416caa8456c354e5ae392d1dc237e95137c78278f6c105
    note: gen-calc: 24 operation(s) in arbitrary precision
    note: gen-calc: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -937,9 +937,9 @@
 == gauntlet/differential/cases/big-signed-ops.oro java emitted 317b60bc4861c589a062b4ec6b038a2c2ecf4217d0c6bbb9a530da60ee1c34ff
    note: gen-calc: 24 operation(s) in arbitrary precision
    note: gen-calc: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-== gauntlet/differential/cases/big-signed-ops.oro windows emitted 937698cbd8800294c833461a4932f35b075aa9973647a9533eff1469c6c8403b
+== gauntlet/differential/cases/big-signed-ops.oro windows emitted b5a6e6aaaef07de556710472993d685503dcf02091966c42f00f3818ac09d678
    note: gen-calc: 47 operation(s) in arbitrary precision
-   note: gen-calc: 574 of 574 integer operations bounded; 242 of 242 loop(s) proven terminating
+   note: gen-calc: 373 of 373 integer operations bounded; 82 of 82 loop(s) proven terminating
 == gauntlet/differential/cases/big-subdiv.oro go emitted 23265d8ea698b59f54053d18cbf3c9b8243962ddd16931ed787bdf7f40b15120
    note: gen-calc: 8 operation(s) in arbitrary precision
    note: gen-calc: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating

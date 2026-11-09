@@ -49,14 +49,29 @@ func fillDead(f *Func, s *Stmt) bool {
 		}
 		return 0, false
 	}
-	// n and m denote the same count: one value, or two equal constants
-	same := func(a, b V) bool {
+	// n and m denote the same count: one value, two equal constants, or by
+	// CONGRUENCE one pure arithmetic operation on the same counts (in SSA an
+	// operation is a function, so equal arguments give equal results): the
+	// count n + 1 and a guard's own n + 1
+	var same func(a, b V) bool
+	same = func(a, b V) bool {
 		if a == b {
 			return true
 		}
 		x, ok1 := konst(a)
 		y, ok2 := konst(b)
-		return ok1 && ok2 && x == y
+		if ok1 || ok2 {
+			return ok1 && ok2 && x == y
+		}
+		da, db := def[a], def[b]
+		if da == nil || db == nil || da.Op != db.Op || len(da.Args) != 2 || len(db.Args) != 2 {
+			return false
+		}
+		switch da.Op {
+		case OAdd, OSub, OMul:
+			return same(da.Args[0], db.Args[0]) && same(da.Args[1], db.Args[1])
+		}
+		return false
 	}
 	n := s.Args[0]
 	// the buffer chain: b0, and every `set` result and loop result made from it
@@ -128,7 +143,7 @@ func loopWritesAll(l *Stmt, k int, n V, same func(a, b V) bool, konst func(V) (i
 			j = x
 		}
 	}
-	if j < 0 || body.Then.T != TBreak || body.Else.T != TContinue {
+	if j < 0 || body.Then.T != TBreak {
 		return false
 	}
 	// the counter starts at 0 ascending, at n − 1 descending
@@ -148,12 +163,37 @@ func loopWritesAll(l *Stmt, k int, n V, same func(a, b V) bool, konst func(V) (i
 			return false
 		}
 	}
-	// the continuing arm: the buffer written at the counter, not read, and the
-	// counter stepped by one; a π names the counter within the arm
-	arm := body.Else
+	// THE CONTINUING SIDE IS A TERMINATOR TREE, and the induction step holds
+	// on each of its paths: every leaf continues (or is unreachable), and on
+	// the path to it the buffer is written at the counter, not read, and the
+	// counter stepped by one; a π names the counter within the path.
+	var path []*Region
+	var walk func(r *Region) bool
+	walk = func(r *Region) bool {
+		path = append(path, r)
+		defer func() { path = path[:len(path)-1] }()
+		switch r.T {
+		case TBranch:
+			return walk(r.Then) && walk(r.Else)
+		case TUnreachable:
+			return true
+		case TContinue:
+			return pathWritesAt(path, bp, k, j, ip, asc, konst, def)
+		}
+		return false // a second exit could leave before [0, n) is written
+	}
+	return walk(body.Else)
+}
+
+// pathWritesAt is the induction step on one path through the continuing
+// side, ending in a continue: the buffer (parameter bp, the k-th) written at
+// the counter ip without being read, and the counter (the j-th) stepped by one.
+func pathWritesAt(path []*Region, bp V, k, j int, ip V, asc bool, konst func(V) (int64, bool), def map[V]*Stmt) bool {
 	alias := map[V]V{}
-	for _, pi := range arm.Pis {
-		alias[pi.V] = pi.Of
+	for _, r := range path {
+		for _, pi := range r.Pis {
+			alias[pi.V] = pi.Of
+		}
 	}
 	root := func(v V) V {
 		for {
@@ -166,26 +206,29 @@ func loopWritesAll(l *Stmt, k int, n V, same func(a, b V) bool, konst func(V) (i
 	}
 	chain := map[V]bool{bp: true}
 	wrote := false
-	for i := range arm.Stmts {
-		st := &arm.Stmts[i]
-		touches := false
-		for _, a := range st.Args {
-			touches = touches || chain[a]
-		}
-		if !touches {
-			continue
-		}
-		switch {
-		case st.Op == OSet && chain[st.Args[0]] && !chain[st.Args[2]]:
-			if root(st.Args[1]) == ip {
-				wrote = true
+	for _, r := range path {
+		for i := range r.Stmts {
+			st := &r.Stmts[i]
+			touches := false
+			for _, a := range st.Args {
+				touches = touches || chain[a]
 			}
-			chain[st.Res[0]] = true
-		case st.Op == OLen:
-		default:
-			return false // a read of the buffer, or a write we do not model
+			if !touches {
+				continue
+			}
+			switch {
+			case st.Op == OSet && chain[st.Args[0]] && !chain[st.Args[2]]:
+				if root(st.Args[1]) == ip {
+					wrote = true
+				}
+				chain[st.Res[0]] = true
+			case st.Op == OLen:
+			default:
+				return false // a read of the buffer, or a write we do not model
+			}
 		}
 	}
+	arm := path[len(path)-1]
 	if !wrote || len(arm.Args) <= j || !chain[arm.Args[k]] {
 		return false
 	}

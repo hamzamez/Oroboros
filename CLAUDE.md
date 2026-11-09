@@ -290,12 +290,20 @@ checked. When a package hits a wall that needs language work, stop, research it,
             against 139 unsigned (8.5×), because **an allocation inside a statement-level `if` takes
             no token** (R1b and W12 walk only the terminator tree) and `with_sign` copies the
             magnitude. Not built: a quotient by a negative word (refused by name);
-          - **R3, ℕ* and Z(ℕ*)**, variable-length magnitudes in base 2³² over U₆₄, Knuth's A, S, M
-            and D, render by 10⁹: `big-fib`; M3 and M4 measure it against `math/big` and i128. Its
-            storage takes R2's finding first: a linear token through a branch (used once in every
-            arm, an `if` yielding one where both arms release its size) and the sign written by the
-            magnitude's own build (deforestation, the zero test an OR-fold), measured on R2's loop;
-            run-time lengths meet R1d there;
+          - **R3, K(ℕ\*)** (ADR 0099), in steps:
+            - R3a. ~~R2's storage finding~~ **done** ([signfuse-2026-11-09](gauntlet/results/signfuse-2026-11-09.md)):
+              a conditional commutes with a table's construction, so the sign case is data inside one
+              recurrence, x + σ·y with carries in {−1, 0, 1}, and the normal form's zero test an OR-fold
+              (`addsub`, `sof`, `smul_small`); the written-prefix theorem holds on each path of a
+              terminator tree, counts equal by congruence. 10⁷ signed additions 214 ms (were 1,219),
+              1.55× unsigned, every allocation a token; no pass changed. Not built: a token through a
+              branch, which nothing now needs;
+            - R3b. **ℕ\* and K(ℕ\*)**, `emit/natnum.oro`: digits in base 2³² over U₆₄, the signed
+              size h = ±m in the last entry (GMP's), so every build is born full; Knuth's A and S as
+              one recurrence, M, the word forms, render by 10⁹ in place; an unbounded set on a target
+              with no bignum takes it: `big-fib`;
+            - R3c. Algorithm D, a quotient by a numeral, on both rungs; M3 and M4 measure K(ℕ\*)
+              against `math/big` and against V_n for a bounded set;
           - **R4**: nothing enters the language; ρ gains the representations.
 
           And `u128-fact`, `u128-ops` test a Go-only library (`lib/num/u128` over `go/math/bits`),
@@ -405,10 +413,10 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **5,943 of 5,997** integer operations proven inside their target's word, the 54 left
+- **Provability**: **5,656 of 5,710** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **866 of 890** loops proven to terminate (size-change termination). Each
+  **638 of 662** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared

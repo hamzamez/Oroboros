@@ -93,7 +93,7 @@ entry:
   br label %.join15
 .else14:
   %v28 = call ptr @GetProcessHeap()
-  %.c20 = trunc i64 8 to i32
+  %.c20 = trunc i64 0 to i32
   %v30 = call ptr @HeapAlloc(ptr %v28, i32 %.c20, i64 %v18)
   store ptr %v30, ptr %.s19
   br label %.join15
@@ -169,7 +169,7 @@ entry:
   br label %.join57
 .else56:
   %v80 = call ptr @GetProcessHeap()
-  %.c62 = trunc i64 8 to i32
+  %.c62 = trunc i64 0 to i32
   %v82 = call ptr @HeapAlloc(ptr %v80, i32 %.c62, i64 %v70)
   store ptr %v82, ptr %.s61
   br label %.join57
@@ -245,7 +245,7 @@ entry:
   br label %.join99
 .else98:
   %v132 = call ptr @GetProcessHeap()
-  %.c104 = trunc i64 8 to i32
+  %.c104 = trunc i64 0 to i32
   %v134 = call ptr @HeapAlloc(ptr %v132, i32 %.c104, i64 %v122)
   store ptr %v134, ptr %.s103
   br label %.join99

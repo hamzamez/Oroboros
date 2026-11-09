@@ -270,7 +270,13 @@ checked. When a package hits a wall that needs language work, stop, research it,
               consumed once on every path, by `reuse` or by `discard`); Σ_OS's `zero` is
               RtlZeroMemory; W12 re-derives every token. 10⁷ limb additions 186 ms (were 900 with
               release, 1,672 leaking); the sieve 0.89×. Static sizes only;
-            - R1c. a table of static length in a frame slot (every fixed limb value): no allocation;
+            - R1c. ~~a table of static length in a frame slot~~ **replaced by fill elision** (hamza,
+              2026-11-09; ADR 0097, [fill-2026-11-09](gauntlet/results/fill-2026-11-09.md)): after
+              R1b no steady state allocates, and zeroing was the 21% left. region = zero ∘
+              region_raw, the zero dead when a table is born full: a rule or an array literal by
+              construction, a build by the written prefix (`ir/fill.go`); `alloc-raw`, `reuse-raw`.
+              10⁷ limb additions 136–143 ms, the no-zeroing bound (0.08× the original leak). Frame
+              slots wait on a nested loop that measures its first iteration;
             - R1d. a table of run-time length that dies in its region on a data stack;
             - R1e. strings and containment (a value inside another, borrowed or copied);
           - **R2, Z(V_n)**, the sign layer over the fixed limbs (amends ADR 0029 decision 4): `big-sign`;
@@ -704,6 +710,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A C function is declared by its prototype, its sets its C types (a narrow integer's full range); its call derived by the C ABI on the triple | [0094](docs/decisions/0094-a-c-function-is-declared-by-its-prototype-and-the-c-abi-is-derived.md) |
 | Text from ASCII is the inclusion ι : (B₇)* ↪ Σ*, `ascii(b, lo, n)` in Σ_L; rendering is ℤ's at every sort, the host's numeral, the limb library's render, or the word's digit loop, each ending in ι | [0095](docs/decisions/0095-text-from-ascii-is-the-inclusion-and-rendering-is-integers-at-every-sort.md) |
 | A frozen value's view is counted fractions, not persistent; an owned table is released at its death, `release` an IR operation over Σ_OS; storage chosen by size class (frame, data stack, heap), built in steps; W11 checks every release | [0096](docs/decisions/0096-a-values-storage-is-chosen-by-size-class-and-released-at-its-death.md) |
+| A table born full takes a region with no zero fill: region = zero ∘ region_raw, a rule and a literal by construction, a build by the written prefix; replaces R1c's frame slots | [0097](docs/decisions/0097-a-table-born-full-takes-a-region-with-no-zero-fill.md) |
 
 ## Build commands
 

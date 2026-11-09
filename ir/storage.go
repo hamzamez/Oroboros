@@ -62,7 +62,14 @@ func Storage(tg *emit.Target, f *Func) int {
 			var wv V
 			out, wv = konst(out, w)
 			p := fresh("ptr")
-			out = append(out, Stmt{Op: OCall, Name: "alloc", Args: []V{count, wv}, Res: []V{p}, Src: s.Src, FromTerm: true})
+			// A TABLE BORN FULL takes a region with no zeroing (ir/fill.go):
+			// a rule and an array literal by construction, a build by the
+			// written-prefix theorem.
+			name := "alloc"
+			if termRealized(tg, "alloc-raw") && (s.Op != OBuild || fillDead(f, &s)) {
+				name = "alloc-raw"
+			}
+			out = append(out, Stmt{Op: OCall, Name: name, Args: []V{count, wv}, Res: []V{p}, Src: s.Src, FromTerm: true})
 			s.Store = []V{p}
 			out = append(out, s)
 			n++

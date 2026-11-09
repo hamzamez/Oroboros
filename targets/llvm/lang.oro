@@ -177,4 +177,19 @@ module lang {
             else -> llvm.trap()
         }
     }
+
+    // A TABLE BORN FULL (ADR 0084's U3, fill-2026-11-09): region = zero ∘ raw,
+    // and when every element is written before any is read, the zero is a dead
+    // store. So a rule, an array literal, and a build whose written-prefix
+    // theorem holds (ir/fill.go) take a region with no zeroing, and a token
+    // without it.
+    fn allocate_raw(n ∈ Nat, w ∈ 1..8) (ptr) {
+        case {
+            n >= 0 && n <= (2^63 - 9) / 8 -> os.region_raw(n * w + 8)
+            else -> llvm.trap()
+        }
+    }
+    fn reuse_raw(tok ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
+        if llvm.is_null(tok) { allocate_raw(n, w) } else { tok }
+    }
 }

@@ -2622,3 +2622,28 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
 - emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
+
+## 2026-11-09 — on a170386, with uncommitted changes
+
+**Reason:** R1c replaced by fill elision (ADR 0097, fill-2026-11-09): region = zero ∘ region_raw; a rule, an array literal, and a build proven by the written prefix take alloc-raw/reuse-raw; 16 windows programs; counts unchanged; the limb loop at the no-zeroing bound
+
+612 runs: 386 emitted, 226 refused; 5120 of 5174 integer operations bounded, 522 of 546 loops proven. compiler pass, differential pass, tooling pass.
+
+16 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/smooth-go.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `lib/win/print.oro windows`

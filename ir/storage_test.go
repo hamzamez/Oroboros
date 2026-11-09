@@ -53,7 +53,7 @@ func TestATablesStorageIsItsLayout(t *testing.T) {
 				if s.Op == OConst && s.Lit.Kind == core.KInt {
 					konst[s.Res[0]] = s.Lit.Int
 				}
-				if s.Op == OCall && s.Name == "alloc" {
+				if s.Op == OCall && (s.Name == "alloc" || s.Name == "alloc-raw") {
 					out = append(out, konst[s.Args[1]])
 				}
 			}

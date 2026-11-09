@@ -186,7 +186,7 @@ entry:
   br label %.join69
 .else68:
   %v101 = call ptr @GetProcessHeap()
-  %.c74 = trunc i64 8 to i32
+  %.c74 = trunc i64 0 to i32
   %v103 = call ptr @HeapAlloc(ptr %v101, i32 %.c74, i64 %v91)
   store ptr %v103, ptr %.s73
   br label %.join69

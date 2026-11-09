@@ -1,4 +1,4 @@
-// THE VIEW Σ_OS → WIN32 (ADR 0093): the LLVM layer's five headers
+// THE VIEW Σ_OS → WIN32 (ADR 0093): the LLVM layer's six headers
 // (targets/llvm/os.oro), each defined here under the same header, over
 // kernel32's functions as Win32 has them. Gluing checks the headers agree; each
 // definition is checked as a program is, and meets its header's contract.
@@ -26,6 +26,14 @@ module llvm/os {
     fn release(p ∈ ptr, b ∈ 0..2^63-1) (Bool) {
         r = if b >= 65536 { kernel32.VirtualFree(p, 0, 32768) } else { kernel32.HeapFree(kernel32.GetProcessHeap(), 0, p) }
         r != 0
+    }
+
+    // A REGION OF ANY CONTENTS, by `region`'s rule: VirtualAlloc's pages from
+    // 64 KiB (zero anyway), the heap without HEAP_ZERO_MEMORY below, so
+    // release ∘ region_raw is the identity on the heap too.
+    fn region_raw(b ∈ 0..2^63-1) (ptr) {
+        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 0, b) }
+        if llvm.is_null(p) { llvm.trap() } else { p }
     }
 
     // A DEAD REGION MADE FRESH: its b bytes zero, as `region` answers them.

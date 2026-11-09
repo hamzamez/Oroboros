@@ -89,6 +89,15 @@ func terminalArms(body *Region) []*Region {
 	return arms
 }
 
+// reuseOf is the reuse an allocation becomes: one that zeroes the token for a
+// table that reads its fill, and one that does not for a table born full.
+func reuseOf(alloc string) string {
+	if alloc == "alloc-raw" {
+		return "reuse-raw"
+	}
+	return "reuse"
+}
+
 // Reuse is the pass. It reports how many allocations take a token.
 func Reuse(tg *emit.Target, f *Func) int {
 	if !termRealized(tg, "reuse") || !termRealized(tg, "discard") {
@@ -120,7 +129,7 @@ func Reuse(tg *emit.Target, f *Func) int {
 	}
 	isAlloc := func(r *Region, i int) (allocStmt, bool) {
 		s := &r.Stmts[i]
-		if s.Op != OCall || s.Name != "alloc" || len(s.Args) != 2 {
+		if s.Op != OCall || (s.Name != "alloc" && s.Name != "alloc-raw") || len(s.Args) != 2 {
 			return allocStmt{}, false
 		}
 		return allocStmt{r, i, size(s.Args[0], s.Args[1])}, true
@@ -147,7 +156,7 @@ func Reuse(tg *emit.Target, f *Func) int {
 				for k, rel := range pending {
 					if fits(rel.size, a.size) {
 						s := &r.Stmts[i]
-						s.Name, s.Args = "reuse", []V{rel.p, s.Args[0], s.Args[1]}
+						s.Name, s.Args = reuseOf(s.Name), []V{rel.p, s.Args[0], s.Args[1]}
 						use(rel.r, rel.i)
 						pending = append(pending[:k], pending[k+1:]...)
 						n++
@@ -243,7 +252,7 @@ func Reuse(tg *emit.Target, f *Func) int {
 					arm.Stmts = append(arm.Stmts, Stmt{Op: OCall, Name: "llvm.null", Res: []V{nv}, FromTerm: true})
 					arm.Args = append(arm.Args, nv)
 				}
-				as.Name, as.Args = "reuse", []V{tok, count, wv}
+				as.Name, as.Args = reuseOf(as.Name), []V{tok, count, wv}
 				n++
 			}
 		}
@@ -347,7 +356,7 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
-			if err != nil || s.Op != OCall || s.Name != "reuse" || len(s.Args) != 3 {
+			if err != nil || s.Op != OCall || (s.Name != "reuse" && s.Name != "reuse-raw") || len(s.Args) != 3 {
 				continue
 			}
 			b, ok := sizeOf(s)
@@ -384,7 +393,7 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 				uses := 0
 				for p := arm; ; {
 					for _, st := range p.Stmts {
-						if st.Op == OCall && (st.Name == "reuse" || st.Name == "discard") && len(st.Args) > 0 && st.Args[0] == tok {
+						if st.Op == OCall && (st.Name == "reuse" || st.Name == "reuse-raw" || st.Name == "discard") && len(st.Args) > 0 && st.Args[0] == tok {
 							uses++
 						}
 					}

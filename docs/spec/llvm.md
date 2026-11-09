@@ -153,6 +153,12 @@ The width is read off the table's representative's type, so every alias of a tab
   `RtlZeroMemory`, or `allocate` when it is null), or `discard` (its release unless null) at the start
   of an arm that makes no table of its size. Each continuing arm passes a released table's storage, or
   null. Sizes are static. W12 re-derives every token (ir.md §3).
+- **A table born full takes a region with no zero fill** (ADR 0097, `ir/fill.go`): region = zero ∘
+  region_raw, and the zero is a dead store when every element is written before any is read. A rule and
+  an array literal are born full by construction, and a build by the written prefix: its loop writes
+  b[i] at a counter from 0 up to its length, or down from n − 1, on every continuing path, without
+  reading b. Such a table is allocated by `alloc-raw` over Σ_OS's `region_raw` (`HeapAlloc` without
+  `HEAP_ZERO_MEMORY`) and reused by `reuse-raw`, which does not zero its token.
 - **`restrict t n`** is not printed in the first step, as on MASM: a restriction's length must survive
   a join, which a header-held length does not.
 - **A string** is its length, its UTF-8 bytes and a NUL after them: `{ i64 len, [len+1 x i8] }` for a

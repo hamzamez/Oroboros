@@ -84,8 +84,10 @@ realize nulfree = lang.no_nul
 realize abandon = lang.crash
 realize trap_if = lang.trap_if
 realize alloc = lang.allocate
+realize alloc_raw = lang.allocate_raw
 realize release = lang.release
 realize reuse = lang.reuse
+realize reuse_raw = lang.reuse_raw
 realize discard = lang.discard
 // RENDERING, ℤ's at every sort (ADR 0095): this term at the word's; a value
 // held as limbs is the limb library's render (ir/limbs.go).

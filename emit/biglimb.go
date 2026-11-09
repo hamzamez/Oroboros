@@ -78,6 +78,33 @@ var bigLimbSrc string
 //go:embed bignum-host.oro
 var bigLimbHostSrc string
 
+// natNumSrc is K(ℕ*), numerals of any length in base 2³² with the signed
+// size last (ADR 0099): the integers on a target with no bignum, for a set
+// with no bound.
+//
+//go:embed natnum.oro
+var natNumSrc string
+
+// natPrefix is the module natnum.oro declares.
+const natPrefix = "big/nat."
+
+// loadNatLib is K(ℕ*)'s library, as loadLimbLib.
+func loadNatLib(tgt *Target) (*limbLib, error) {
+	forms, err := core.ReadModule(natNumSrc, "emit/natnum.oro", "big/nat")
+	if err != nil {
+		return nil, fmt.Errorf("the built-in K(ℕ*) does not parse: %w", err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		return nil, fmt.Errorf("the built-in K(ℕ*) does not load: %w", err)
+	}
+	env, err := tgt.Env(prog)
+	if err != nil {
+		return nil, fmt.Errorf("the built-in K(ℕ*) does not cover on %s: %w", tgt.Name, err)
+	}
+	return &limbLib{prog: prog, env: env}, nil
+}
+
 // limbBits is the base's exponent. See bignum.oro: a limb product plus its
 // carry must stay inside ADR 0012's window, so 2W < 53 and W = 24 leaves four
 // bits of headroom.

@@ -87,8 +87,8 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s: %w", name, err)
 	}
-	checking := emit.KeepSortAscriptions(tg.Word, plan.Host || plan.Limbs, nf)
-	if plan.Host || plan.Limbs {
+	checking := emit.KeepSortAscriptions(tg.Word, plan.Holds(), nf)
+	if plan.Holds() {
 		nf = emit.EraseWordAscriptions(tg.Word, nf)
 	} else {
 		nf = emit.EraseAscriptionsButClaims(tg.Word, nf)
@@ -140,7 +140,7 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// THE RUNG ABOVE THE WORD: the least set of values held exactly, on the
 	// decided function's facts; decided again after, where no operation held
 	// exactly is counted.
-	if plan.Host || plan.Limbs {
+	if plan.Holds() {
 		n, err := SelectRung(tg, f, sig, plan)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %v", name, err)

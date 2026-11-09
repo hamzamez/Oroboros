@@ -14,16 +14,14 @@
 // identically and agree while both being wrong. They do, at 100: Go and the JVM
 // both give 3736710778780434371.
 //
+// prints: string
 // inputs: 0 1 2 10 50 90 100 200
 // expect: 0 1 1 55 12586269025 2880067194370816120 354224848179261915075 280571172992510140037611932413038677189525
 //
-// `; skip: windows` -- THE TARGET DECLARES NO BIGNUM, and that is the capability
-// model answering rather than a hole. Go has `math/big`, the JVM has
-// `BigInteger`, V8 has `BigInt` in the language; windows ships none, so it
-// declares none, exactly as JavaScript declares no CHECKED primitive and for the
-// same reason. ADR 0019 already says what is owed there: a bignum written in
-// Oroboros, the way `win/map` is.
-// skip: windows
+// ON WINDOWS, WHICH DECLARES NO BIGNUM, the set is ℤ and no finite carrier
+// holds it, so the values are K(ℕ*), numerals of any length in base 2^32 with
+// their signed size last, a library written in the language and checked as a
+// theory (ADR 0099, emit/natnum.oro). The program names none of it.
 //
 // `big-str` is the boundary, and it is not decoration: no host prints a value
 // past 2^53 as an `int`, so a program has to name arbitrary precision here

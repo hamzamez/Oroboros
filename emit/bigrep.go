@@ -256,19 +256,31 @@ func eraseAscriptions(t *core.Term) *core.Term {
 // program's one set (ADR 0029); Bits 0 enforces nothing.
 type BigPlan struct {
 	Host, Limbs bool
-	Bits        int
-	Signed      bool
+	// Var is K(ℕ*), numerals of any length (ADR 0099): an unbounded set on a
+	// target with no bignum.
+	Var    bool
+	Bits   int
+	Signed bool
 }
+
+// Holds says the plan holds some value exactly, on any rung.
+func (p BigPlan) Holds() bool { return p.Host || p.Limbs || p.Var }
 
 // PlanBig decides the rung, with promoteBig's refusals: a signed program on
 // limbs, and a finite bound the host's bignum cannot enforce.
 func PlanBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (BigPlan, error) {
 	sigs := append([]*core.Sig{sig}, all...)
 	limbs, _, bits := BigRepr(tgt, sigs...)
+	_, signed, bounded := BigHull(tgt.Word, sigs...)
 	if !limbs && !tgt.HasBig() {
+		// AN UNBOUNDED SET ON A TARGET WITH NO BIGNUM is K(ℕ*) (ADR 0099):
+		// no finite carrier holds it, so its numerals are of any length. A
+		// program that holds nothing exactly keeps the empty plan.
+		if !bounded && (DeclaresBig(tgt.Word, sig) || MentionsBig(tgt.Word, t)) {
+			return BigPlan{Var: true, Signed: true}, nil
+		}
 		return BigPlan{}, nil
 	}
-	_, signed, _ := BigHull(tgt.Word, sigs...)
 	if bits == 0 && !DeclaresBig(tgt.Word, sig) && !MentionsBig(tgt.Word, t) {
 		return BigPlan{}, nil
 	}

@@ -906,6 +906,10 @@
 == gauntlet/differential/cases/big-mul.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/big-mul.oro java emitted 38190a308ca417699c2b1bd13fedb153e497e6ad73028aa84d25303a14fd9472
 == gauntlet/differential/cases/big-mul.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
+== gauntlet/differential/cases/big-nat-ops.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/big-nat-ops.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/big-nat-ops.oro java emitted eb02e1b06b7d29cfdfc76be12ee718854d6ca4064e4207ebb599d31ac7903dc6
+== gauntlet/differential/cases/big-nat-ops.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/big-negmid.oro go emitted c62f9230eb4d6e58408f60fd8bb06c89633cb751334127a7a0b01b91be7ad359
    note: gen-calc: 5 operation(s) in arbitrary precision
 == gauntlet/differential/cases/big-negmid.oro js emitted 44359ec34e83cafdad84d1d71df17422a8a00bb565d913ef5dab870c6ea102ca

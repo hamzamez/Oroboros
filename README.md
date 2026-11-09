@@ -580,9 +580,12 @@ says why the next is what it is.
      input; **signed integers above the word** on Windows since 2026-11-09, as a sign over the
      magnitude, every operation derived from the unsigned ones
      ([ADR 0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md),
-     [signlimbs-2026-11-09](gauntlet/results/signlimbs-2026-11-09.md)): correct on every target, but
-     8.5× slower than unsigned, since storage made inside a branch is not yet reused; next integers of
-     any size ([integers-research.md](docs/integers-research.md)), whose storage starts with that; then file
+     [signlimbs-2026-11-09](gauntlet/results/signlimbs-2026-11-09.md)), now 1.55× unsigned
+     ([signfuse-2026-11-09](gauntlet/results/signfuse-2026-11-09.md)); **integers of any size** on
+     Windows since 2026-11-10, numerals in base 2³² written in the language
+     ([ADR 0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md),
+     [natnum-2026-11-10](gauntlet/results/natnum-2026-11-10.md)): fib(100,000) agrees with Go's and
+     Python's, at about 8× Go's `math/big`; next division by a big integer, and that speed; then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
      found, and assembling every Windows file it writes; then 32-bit Windows;

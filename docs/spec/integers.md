@@ -190,6 +190,35 @@ normal form (ADR 0098): a table of n + 1 entries, the magnitude in [0, n) and th
 The bound |x| < 2ᵏ is the magnitude's, so Z_k's enforcement is N_k's on the magnitude (ADR 0029).
 A target with a bignum takes it for a signed program instead.
 
+## 1c. ℤ on a target with no bignum: numerals of any length (ADR 0099)
+
+A set with no bound has no representation of finite carrier (integers-research Proposition 1). So on
+a target with no bignum, a value held exactly whose set is unbounded is held in **K(ℕ\*)**, the group
+completion over the positional numerals in base B = 2³²:
+- **a value is one table t**, digit i at t[i] for i < len t − 1;
+- **its last entry is the signed size h = ±m**, where m is 1 + the index of the top nonzero digit, or 0;
+- every slot from m to len t − 2 holds 0;
+- d(t) = sgn(h) · Σ_{i < len t − 1} t[i]·Bⁱ, and zero is h = 0, its one representative.
+
+len t is a capacity, computed by each operation from its operands' sizes. Every operation builds its
+result by writing [0, len t) at its counter, the header last, so a result is born full (ADR 0097).
+
+| ℤ | on K(ℕ\*) | capacity |
+|---|---|---|
+| a ± b | one recurrence x + σ·y, carries in {−1, 0, 1}, σ and the order chosen by the signs and \|a\| against \|b\| (Knuth's A and S) | max(m_a, m_b) + 2 |
+| a · b | schoolbook rows into a zero table, uᵢ·vⱼ + w + k ≤ B² − 1 in U₆₄ (Knuth's M) | m_a + m_b + 1 |
+| a · k, k a word in [0, 2²⁸) | one pass | m_a + 2 |
+| a / k, a % k, k a word in [1, 2²⁸) | one pass from the top, the dividend's sign; the quotient's size m_a or m_a − 1 by a's top digit against k | m_a + 1 |
+| a / b, a % b, b above the word | Knuth's D; **not built**, refused by name (R3c) | |
+| a < b | by sign, then size, then digits from the top | |
+| render(a) | \|a\| divided by 10⁹, nine digits per division, the quotient carried; the numeral found on the frozen field and copied once | a field of 10·len a + 9 |
+
+ℤ has no bound, and the finite end of an unbounded set, such as `Nat`'s 0, lies inside the word,
+where ADR 0087 decides it at the definition. What is checked at run time is the machine's: a numeral
+is held while its table fits, len t ≤ max_len, and a capacity past it is a crash, never a numeral cut
+short. A bounded set keeps the fixed limbs (§1b). `big-str`'s argument is demanded on every target,
+since render is ℤ's; a word value still renders in the word where the target has no bignum.
+
 ## 2. Overflow
 
 **Decision: outside the window there is no portable meaning, and the compiler can be asked to say

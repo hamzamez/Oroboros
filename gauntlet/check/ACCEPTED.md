@@ -2683,3 +2683,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - `gauntlet/differential/cases/big-sign.oro windows` 1671 → 1000 ms, 0.60x
 - `gauntlet/differential/cases/big-signed-ops.oro windows` 3296 → 1906 ms, 0.58x
+
+## 2026-11-09 — on a81ac96, with uncommitted changes
+
+**Reason:** R3b (natnum-2026-11-10, ADR 0099): K(ℕ*), numerals of any length in base 2^32 with the signed size last, on a target with no bignum for an unbounded set; big-str's argument demanded on every target (render is ℤ's); Houdini's frame template both ways. Only the new case big-nat-ops changes, a new source on four targets agreeing with Python; big-fib now runs on windows and agrees; no existing emission changed; counts unchanged at 5,656 of 5,710 and 638 of 662.
+
+620 runs: 395 emitted, 225 refused; 5656 of 5710 integer operations bounded, 638 of 662 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/big-nat-ops.oro go`
+- new source — `gauntlet/differential/cases/big-nat-ops.oro java`
+- new source — `gauntlet/differential/cases/big-nat-ops.oro js`
+- new source — `gauntlet/differential/cases/big-nat-ops.oro windows`

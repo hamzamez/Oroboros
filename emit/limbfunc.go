@@ -100,16 +100,88 @@ func limbFunc(tgt *Target, fn string, n int, lim int64) (*LimbInstance, error) {
 	if err != nil {
 		return nil, err
 	}
-	name := "limb-" + fn
-	// THE SPECIALISATION IS AN η-EXPANSION, λx̄. f n lim x̄, normalised: a
-	// definition takes all its arguments, and n and lim are literals, so every
-	// loop bound and buffer length in the result is a constant.
-	def, ok := lib.prog.Defs[limbPrefix+fn]
-	if !ok || def.Kind != core.KFn || len(def.Params) != 2+len(ty.params) {
-		return nil, fmt.Errorf("the limb library's %s is not a function of %d parameter(s)", fn, 2+len(ty.params))
+	fail := func(err error) error {
+		return fmt.Errorf("the built-in bignum's %s does not check at %d limbs: %w", fn, n, err)
 	}
-	xs := def.Params[2:]
-	app := []*core.Term{core.Name(limbPrefix + fn), core.Int(int64(n)), core.Int(lim)}
+	return libFunc(tgt, lib, limbPrefix, "limb-", fn, ty, []*core.Term{core.Int(int64(n)), core.Int(lim)}, fail)
+}
+
+// natSigs is K(ℕ*)'s definitions' types (ADR 0099): limbSigs' shapes, signed
+// by construction, with no width.
+var natSigs = map[string]struct {
+	params  []string
+	result  string
+	divisor bool
+}{
+	"of":        limbSigs["of"],
+	"add":       limbSigs["add"],
+	"sub":       limbSigs["sub"],
+	"mul":       limbSigs["mul"],
+	"mul-small": limbSigs["mul-small"],
+	"div-small": limbSigs["div-small"],
+	"rem-small": limbSigs["rem-small"],
+	"lt":        limbSigs["lt"],
+	"le":        limbSigs["le"],
+	"gt":        limbSigs["gt"],
+	"ge":        limbSigs["ge"],
+	"eq":        limbSigs["eq"],
+	"render":    limbSigs["render"],
+}
+
+// NatFunc is K(ℕ*)'s definition fn, checked as a theory once per target, as
+// LimbFunc checks the fixed limbs' once per width.
+func NatFunc(tgt *Target, fn string) (*LimbInstance, error) {
+	key := fmt.Sprintf("%p|nat|%s", tgt, fn)
+	if v, ok := limbCache.Load(key); ok {
+		if err, bad := v.(error); bad {
+			return nil, err
+		}
+		return v.(*LimbInstance), nil
+	}
+	inst, err := natFunc(tgt, fn)
+	if err != nil {
+		limbCache.Store(key, err)
+		return nil, err
+	}
+	limbCache.Store(key, inst)
+	return inst, nil
+}
+
+func natFunc(tgt *Target, fn string) (*LimbInstance, error) {
+	ty, ok := natSigs[fn]
+	if !ok {
+		return nil, fmt.Errorf("the built-in K(ℕ*) has no %s", fn)
+	}
+	lib, err := loadNatLib(tgt)
+	if err != nil {
+		return nil, err
+	}
+	fail := func(err error) error {
+		return fmt.Errorf("the built-in K(ℕ*)'s %s does not check: %w", fn, err)
+	}
+	// the machine's bound, max_len, is the first argument: a numeral is held
+	// while its table fits (natnum.oro's room)
+	return libFunc(tgt, lib, natPrefix, "nat-", fn, ty, []*core.Term{core.Int(tgt.MaxLenOf())}, fail)
+}
+
+// libFunc specialises a library definition to its leading arguments pre and
+// checks it as a theory: the type checker, a host call's contract, linearity
+// and the refinement layer, under the precondition.
+func libFunc(tgt *Target, lib *limbLib, prefix, inst, fn string, ty struct {
+	params  []string
+	result  string
+	divisor bool
+}, pre []*core.Term, fail func(error) error) (*LimbInstance, error) {
+	name := inst + fn
+	// THE SPECIALISATION IS AN η-EXPANSION, λx̄. f pre x̄, normalised: a
+	// definition takes all its arguments, and pre are literals, so every
+	// loop bound and buffer length that depends only on them is a constant.
+	def, ok := lib.prog.Defs[prefix+fn]
+	if !ok || def.Kind != core.KFn || len(def.Params) != len(pre)+len(ty.params) {
+		return nil, fmt.Errorf("the library's %s is not a function of %d parameter(s)", fn, len(pre)+len(ty.params))
+	}
+	xs := def.Params[len(pre):]
+	app := append([]*core.Term{core.Name(prefix + fn)}, pre...)
 	for _, x := range xs {
 		app = append(app, core.Name(x))
 	}
@@ -129,15 +201,12 @@ func limbFunc(tgt *Target, fn string, n int, lim int64) (*LimbInstance, error) {
 		sig.Where = core.App(core.Name("!="), core.Name(nf.Params[1]), core.Int(0))
 	}
 	// THE THEORY IS CHECKED HERE, ONCE. A failure is the library's, and says so.
-	fail := func(err error) error {
-		return fmt.Errorf("the built-in bignum's %s does not check at %d limbs: %w", fn, n, err)
-	}
 	if err := Check(tgt, name, nf); err != nil {
 		return nil, fail(err)
 	}
 	// A HOST CALL'S CONTRACT IN THE BODY (ADR 0028): render's ι carries
 	// lo + n ≤ len(b) and its domain, obligations of the theory like its
-	// indices, decided here once per width by the refinement layer.
+	// indices, decided here once by the refinement layer.
 	if HasRequireMarks(nf) {
 		if nf, err = DischargeRequires(nil, tgt, name, sig, nf, nil); err != nil {
 			return nil, fail(err)
@@ -152,7 +221,7 @@ func limbFunc(tgt *Target, fn string, n int, lim int64) (*LimbInstance, error) {
 	if _, err := Refine(tgt, name, sig, nf); err != nil {
 		return nil, fail(err)
 	}
-	return &LimbInstance{Name: strings.TrimPrefix(fn, limbPrefix), Term: nf, Sig: sig}, nil
+	return &LimbInstance{Name: strings.TrimPrefix(fn, prefix), Term: nf, Sig: sig}, nil
 }
 
 // LimbShape reports how the limb rung takes a host-shaped bignum operation:

@@ -249,6 +249,14 @@ func (g *bigs) collect(sig *core.Sig) {
 						g.dem[a] = true
 					}
 				}
+				// RENDER IS ℤ's, render : ℤ → Σ*, so its argument is demanded on
+				// every target, whatever a target declares its parameter to be
+				// (ADR 0099): in B iff its fact leaves S. Only the widening of a
+				// word value is the target's question, and on a target with no
+				// bignum the word renders itself (below, ADR 0095).
+				if s.Name == "big-str" && len(s.Args) == 1 {
+					g.dem[s.Args[0]] = true
+				}
 				for j, v := range s.Res {
 					ty := p.Result
 					if len(p.Results) >= 2 && j < len(p.Results) {

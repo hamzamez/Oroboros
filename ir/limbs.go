@@ -39,6 +39,10 @@ var PlantRenderEverywhere = false
 // signs: TestASignedSumIsTheGroupCompletions must see the wrong numeral.
 var PlantSignFault bool
 
+// PlantNatFault takes K(ℕ*)'s sum for its difference:
+// TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength must see the wrong numeral.
+var PlantNatFault bool
+
 // signedLimb is each magnitude instance's form on Z(V_n) (ADR 0098).
 var signedLimb = map[string]string{
 	"of": "sof", "add": "sadd", "sub": "ssub", "mul": "smul", "mul-small": "smul-small",
@@ -53,9 +57,12 @@ var ErrNoLimbForm = errors.New("the limb library has no form for an operation")
 var smallWord = ei(1<<28 - 1)
 
 // LowerLimbs replaces f's bignum operations by instances of the limb library at
-// the width the program's one set gives (emit.LimbWidth). It reports how many
-// it replaced.
-func LowerLimbs(tg *emit.Target, f *Func, bits int, signed bool) (int, error) {
+// the width the program's one set gives (emit.LimbWidth), or, for an unbounded
+// set (rung.Var), by instances of K(ℕ*), numerals of any length (ADR 0099),
+// which are signed by construction and have no width. It reports how many it
+// replaced.
+func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
+	bits, signed, nat := rung.Bits, rung.Signed, rung.Var
 	n, lim := emit.LimbWidth(bits)
 	fs := analyse(tg, f)
 	def := map[V]*Stmt{}
@@ -152,7 +159,7 @@ func LowerLimbs(tg *emit.Target, f *Func, bits int, signed bool) (int, error) {
 			continue
 		}
 		v := s.Args[0]
-		if !signed && !fs[v].v.within(ep{}, u64Max) {
+		if !signed && !nat && !fs[v].v.within(ep{}, u64Max) {
 			return 0, fmt.Errorf("a value widened into arbitrary precision is %s, which may be negative, and "+
 				"target %s holds arbitrary precision as fixed limbs, which hold a magnitude: they "+
 				"realize [0, 2^k) and nothing signed (ADR 0029)", termShow(fs[v].v), tg.Name)
@@ -161,7 +168,7 @@ func LowerLimbs(tg *emit.Target, f *Func, bits int, signed bool) (int, error) {
 	}
 	// THE SIGNED PROGRAM, Z(V_n) (ADR 0098): each magnitude instance is its
 	// signed one, the same shape over a table one entry longer.
-	if signed {
+	if signed && !nat {
 		for s, u := range plan {
 			sf, ok := signedLimb[u.fn]
 			if PlantSignFault && u.fn == "add" {
@@ -182,12 +189,21 @@ func LowerLimbs(tg *emit.Target, f *Func, bits int, signed bool) (int, error) {
 			return c, nil
 		}
 		inst, err := emit.LimbFunc(tg, fn, n, lim)
+		prefix := "limb-"
+		if nat {
+			nf := fn
+			if PlantNatFault && fn == "sub" {
+				nf = "add"
+			}
+			inst, err = emit.NatFunc(tg, nf)
+			prefix = "nat-"
+		}
 		if err != nil {
 			return nil, err
 		}
-		c, err := Lower(tg, "limb-"+fn, inst.Sig, inst.Term, Options{Decided: true})
+		c, err := Lower(tg, prefix+fn, inst.Sig, inst.Term, Options{Decided: true})
 		if err != nil {
-			return nil, fmt.Errorf("lowering the limb library's %s: %v", fn, err)
+			return nil, fmt.Errorf("lowering the library's %s: %v", fn, err)
 		}
 		callees[fn] = c
 		return c, nil
@@ -385,7 +401,7 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 	if _, err := SelectBig(tg, f, sig, 0, false); err != nil {
 		return 0, err
 	}
-	n, err := LowerLimbs(tg, f, plan.Bits, plan.Signed)
+	n, err := LowerLimbs(tg, f, plan)
 	if !errors.Is(err, ErrNoLimbForm) {
 		return n, err
 	}
@@ -432,7 +448,7 @@ func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.
 			return nil
 		}
 		plan, err := emit.PlanBig(tg, sig, nf, all...)
-		if err != nil || (!plan.Host && !plan.Limbs) {
+		if err != nil || !plan.Holds() {
 			return err
 		}
 		nf = emit.EraseWordAscriptions(tg.Word, nf)

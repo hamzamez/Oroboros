@@ -1,0 +1,47 @@
+// EVERY OPERATION OF K(ℕ*), THE INTEGERS OF ANY LENGTH (ADR 0099).
+//
+// The set here is ℤ, so on windows, which has no bignum, every value held
+// exactly is a numeral in base 2^32 with its signed size in the last entry
+// (emit/natnum.oro). Each input takes one operation against the hosts' own
+// bignums:
+//
+//   0  a + b, signs different: Algorithms A and S as one recurrence
+//   1  b + b − a, all negative
+//   2  a · b, Algorithm M, 63 digits by 9
+//   3  b · (n − 9), a negative word widened, `of` at either sign
+//   4  a / 1000003, a word quotient, its size by a's top digit against k
+//   5  b % 1000003, the dividend's sign
+//   6  b < a, by sign
+//   7  a − a, zero, the one representative h = 0, rendered "0"
+//   8  −2⁶³ · 3⁴⁰, `of` at the word's corner
+//   9  a³, 951 bits, the render's carried quotient over 30 digits
+//  10  b / 7, a negative quotient
+//  11  b ≤ b, b² > a, not a < b: the order on sizes, then digits
+//
+// The expected values are Python's.
+//
+// prints: string
+// inputs: 0 1 2 3 4 5 6 7 8 9 10 11
+// expect: 265613988875874769327330844441458582469893325939849349897520956915807512043087616622264459016752 -265613988875874769361682277224421715547913706080484788128682971385662448617731315738625179098499 -3041407028361443166354064482231003261045150440633004652166702419791201939210188578650235945543372733349241002321028100417655038578340348178345177029869163561411344489983249 68702865565926266156040760281270876462324028939709873149287398232721440163494 265613192036298660442799993635798719433075153427934212171938445923754719637143271564570005 -99261 1 0 -112134671628500858351345486069873246208 18739277038847939886754019920358123424308469030992781557966909983211910963157763678726120154469030856807730587971859910379069087693119051085139566217370635083384943613868029545256897117998608156843699465093293765833141309526696357142600866935689483770877815014461194837692223879905132001 -1635782513474434908477160959077878011007714974754996979744938053160034289607 1
+fn calc(n ∈ 0..11) (Int) {
+    a = 3^200
+    b = 0 - 7^90
+    c = 3^40
+    m = 0 - 2^63
+    case {
+        n == 0 -> a + b
+        n == 1 -> b + b - a
+        n == 2 -> a * b
+        n == 3 -> b * (n - 9)
+        n == 4 -> a / 1000003
+        n == 5 -> b % 1000003
+        n == 6 -> if b < a { 1 } else { 0 }
+        n == 7 -> a - a
+        n == 8 -> m * c
+        n == 9 -> a * a * a
+        n == 10 -> b / 7
+        else -> if b <= b && b * b > a && !(a < b) { 1 } else { 0 }
+    }
+}
+
+fn run(n) { big_str(calc(n)) }

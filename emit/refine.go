@@ -1946,7 +1946,7 @@ func replaceTerm(t, old, new *core.Term) *core.Term {
 // templates fixed before the fixpoint — Sankaranarayanan, Sipma & Manna's shape:
 //
 //	0 ≤ v          v ≤ s,  s ≤ v   for s a linear side of a guard in the clause chain
-//	z ≤ v          for z an initial value naming no loop variable (a frame term)
+//	z ≤ v, v ≤ z   for z an initial value naming no loop variable (a frame term)
 //	u ≤ v          for two loop variables — the difference template, count ≤ trips
 //
 // Discarding only weakens the hypotheses, so the iteration is monotone and stops
@@ -1997,6 +1997,10 @@ type loopEntry struct {
 // candidate survives only if it holds in every entry and every back edge keeps
 // it. templ are the values the `z ≤ v` templates draw on, one vector per entry.
 // It assumes the survivors into g and returns them.
+// PlantNoUpperFrame drops the v ≤ z frame template: TestAFallingCounterIsBoundedByItsStart
+// must see a proof fail.
+var PlantNoUpperFrame bool
+
 func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEntry, g *facts) (kept []*core.Term) {
 	params := lam.Params
 	var cands []*core.Term
@@ -2032,9 +2036,17 @@ func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEn
 			add(v, sd)
 			add(sd, v)
 		}
+		// THE FRAME TEMPLATES, both directions: z ≤ v for a counter that only
+		// rises from z, and v ≤ z for one that only falls from it (the first
+		// under x ↦ −x). Houdini checks each, so a direction a loop does not
+		// keep is discarded, never assumed (natnum-2026-11-10: render's scan
+		// from n − 1 down).
 		for _, inits := range templ {
 			if i < len(inits) && !mentionsAny(inits[i], params) {
 				add(inits[i], v)
+				if !PlantNoUpperFrame {
+					add(v, inits[i])
+				}
 			}
 		}
 		for _, u := range params {

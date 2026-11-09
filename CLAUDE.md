@@ -298,10 +298,14 @@ checked. When a package hits a wall that needs language work, stop, research it,
               terminator tree, counts equal by congruence. 10⁷ signed additions 214 ms (were 1,219),
               1.55× unsigned, every allocation a token; no pass changed. Not built: a token through a
               branch, which nothing now needs;
-            - R3b. **ℕ\* and K(ℕ\*)**, `emit/natnum.oro`: digits in base 2³² over U₆₄, the signed
-              size h = ±m in the last entry (GMP's), so every build is born full; Knuth's A and S as
-              one recurrence, M, the word forms, render by 10⁹ in place; an unbounded set on a target
-              with no bignum takes it: `big-fib`;
+            - R3b. ~~ℕ\* and K(ℕ\*)~~ **done** ([natnum-2026-11-10](gauntlet/results/natnum-2026-11-10.md)):
+              `emit/natnum.oro`, digits in base 2³² over U₆₄, the signed size h = ±m last (GMP's), every
+              build born full; A and S as one recurrence, M, the word forms, render by 10⁹; an unbounded
+              set on a target with no bignum plans `Var`; `big-str`'s argument demanded on every target
+              (render is ℤ's); the machine's bound len t ≤ max_len a crash past it, as a case's guard;
+              Houdini's frame template both ways (v ≤ z, `PlantNoUpperFrame`). `big-fib` and
+              `big-nat-ops` run on windows. fib(10⁵) 257 ms against `math/big`'s 29–35 (≈ 8×). Not
+              built: D, an entry point's K(ℕ\*) parameter, render in place;
             - R3c. Algorithm D, a quotient by a numeral, on both rungs; M3 and M4 measure K(ℕ\*)
               against `math/big` and against V_n for a bounded set;
           - **R4**: nothing enters the language; ρ gains the representations.
@@ -453,7 +457,8 @@ ADR 0096, W11 its check), widening with each loop's own thresholds (Blanchet et 
 its constants, the ends of what it reads from outside, its guards' images; `ir/interval.go`,
 llvm-render-2026-11-07), the unsigned word as a pair of digits on a narrower word (`ir/pairs.go`,
 ADR 0083), fixed limbs as
-instances of a theory checked once (`ir/limbs.go`, ADR 0035; signed, Z(V_n), ADR 0098), N's decimals as scaled words
+instances of a theory checked once (`ir/limbs.go`, ADR 0035; signed, Z(V_n), ADR 0098; of any length,
+K(ℕ\*), ADR 0099), N's decimals as scaled words
 (`ir/numbers.go`) and its doubles, each rounding onto F64 the call of a target declaration whose
 `ensure` states it and its obligations decided on a real interval domain (`ir/doubles.go`, ADR 0086);
 postconditions and a definition's claim
@@ -540,7 +545,8 @@ option (b), jswitch5b-2026-10-16).
   word, or the rung above; a claim above the word is the consent to that rung, and the representation
   itself only at an entry point's parameter or result. Above the word a target chooses `repr big host`
   or `repr big limbs`, and the program's one set is enforced on both, by sign and bit length (ADR 0029);
-  a signed set on limbs is Z(V_n), a sign entry over the magnitude, the group completion (ADR 0098).
+  a signed set on limbs is Z(V_n), a sign entry over the magnitude, the group completion (ADR 0098); an
+  unbounded set on a target with no bignum is K(ℕ\*), numerals of any length (ADR 0099, `emit/natnum.oro`).
 - **Staging never changes an answer** (ADR 0009): integers fold only inside the word, checked, never
   dividing by zero; floats fold through explicit `float64`.
 
@@ -738,6 +744,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | Text from ASCII is the inclusion ι : (B₇)* ↪ Σ*, `ascii(b, lo, n)` in Σ_L; rendering is ℤ's at every sort, the host's numeral, the limb library's render, or the word's digit loop, each ending in ι | [0095](docs/decisions/0095-text-from-ascii-is-the-inclusion-and-rendering-is-integers-at-every-sort.md) |
 | A frozen value's view is counted fractions, not persistent; an owned table is released at its death, `release` an IR operation over Σ_OS; storage chosen by size class (frame, data stack, heap), built in steps; W11 checks every release | [0096](docs/decisions/0096-a-values-storage-is-chosen-by-size-class-and-released-at-its-death.md) |
 | A table born full takes a region with no zero fill: region = zero ∘ region_raw, a rule and a literal by construction, a build by the written prefix; replaces R1c's frame slots | [0097](docs/decisions/0097-a-table-born-full-takes-a-region-with-no-zero-fill.md) |
+| An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄, its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 
 ## Build commands

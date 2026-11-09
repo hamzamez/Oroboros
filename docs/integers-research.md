@@ -505,7 +505,8 @@ evidence for ADR 0084 and ADR 0081, not something to take.
    (ADR 0098, [signlimbs-2026-11-09](../gauntlet/results/signlimbs-2026-11-09.md)).
 3. **R3, variable-length magnitudes ℕ\***: normal forms (t, m), base 2³² over U₆₄ on LLVM, Knuth's
    Algorithms A, S, M and D, and render by 10⁹; schoolbook first, with Karatsuba and native i128 only
-   after M3 and M4. Z(ℕ*) is ℤ on LLVM, and runs `big-fib`.
+   after M3 and M4. Z(ℕ*) is ℤ on LLVM, and runs `big-fib`. **Built** but D (ADR 0099,
+   [natnum-2026-11-10](../gauntlet/results/natnum-2026-11-10.md)).
 4. **R4, nothing in the language**: no new type, keyword or set. The rung above the word (ADR 0034)
    gains two representations on LLVM, and ρ chooses among them from the facts, as it does today.
 

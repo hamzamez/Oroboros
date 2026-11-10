@@ -228,6 +228,23 @@ func TestSubstitutionCannotCapture(t *testing.T) {
 t = { x = a; y = x; fn(x) { f(y, x) } }`, "default", "(fn (x) (f a x))")
 }
 
+// The same shape with an argument that is an application, so β binds it under
+// the parameter's name and substitutes that name (the many-occurrence path):
+// the name x then stands under a λ whose own parameter is spelled x. It is
+// free there, since a bound variable is an index, and the binding must stay.
+// `occurrences` opened each λ by its hints and read a parameter of the name's
+// spelling as shadowing it, so it counted none, the recount dropped the
+// binding as pure and unread, and the residual held a name nothing bound:
+// (fn (x1) (f x x1)). Found by the book's chapter 1, on its capture example.
+func TestABindingIsKeptUnderABinderOfItsSpelling(t *testing.T) {
+	check(t, `(prim f g)
+t = { x = g(1); y = x; fn(x) { f(y, x) } }`, "default", "(let (g 1) (fn (x) (fn (x1) (f x x1))))")
+	// Read once and not under a λ, it is substituted, as β's one-occurrence
+	// rule has it; the inner parameter's spelling changes nothing.
+	check(t, `(prim f g)
+t = { x = g(1); y = x; fn(x) { f(x, x) }(y) }`, "default", "(let (g 1) (fn (x) (f x x)))")
+}
+
 // ---------------------------------------------------------------- normal form
 
 func TestResidualNamesReported(t *testing.T) {

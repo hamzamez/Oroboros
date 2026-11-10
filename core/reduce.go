@@ -3053,12 +3053,13 @@ func occurrences(t *Term, name string) int {
 	case KInt, KDec, KStr, KBool, KBound:
 		return 0
 	case KFn:
-		for _, p := range t.Params {
-			if p == name {
-				return 0 // shadowed
-			}
-		}
-		return occurrences(t.Body(), name)
+		// The CLOSED body, as subst reads it: a bound variable is an index, so
+		// every name inside is free and no parameter shadows one. Opening the
+		// body by its hints and reading a parameter of this spelling as a
+		// shadow counted no occurrence of a name β had put under such a λ, and
+		// the recount dropped a binding that was read
+		// (TestABindingIsKeptUnderABinderOfItsSpelling).
+		return occurrences(t.Kids[0], name)
 	}
 	n := 0
 	for _, k := range t.Kids {

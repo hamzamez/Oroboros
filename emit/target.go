@@ -1706,6 +1706,11 @@ func (tg *Target) HasBig() bool {
 	return ok
 }
 
+// HoldsZ says the target has a representation of ℤ: its own bignum, or, on a
+// target that declares the limb rung, K(ℕ*), numerals of any length written in
+// the language (ADR 0099). A target with neither cannot hold an unbounded set.
+func (tg *Target) HoldsZ() bool { return tg.HasBig() || tg.BigRepr == "limbs" }
+
 // langOps are the integer operators the LANGUAGE owns, with how a host may
 // spell each — most preferred first, so a target that has both keeps the one
 // its own programmers would write.

@@ -371,13 +371,22 @@ func TestTheLimbsHoldASignedSetByTheGroupCompletion(t *testing.T) {
 	}
 }
 
-// AN OPERATION THE LIMB LIBRARY LACKS IS REFUSED BY NAME on a target with no
-// bignum to fall back to, and the refusal says what the library does have.
+// AN OPERATION THE FIXED LIMBS LACK MOVES THE PROGRAM TO K(ℕ*) on a target
+// with no bignum (ADR 0099), so windows accepts it; kept on the fixed limbs
+// (ir.PlantNoNatFallback), it is refused by name, saying what they do have.
 func TestAnUnsupportedLimbOperationIsRefusedByName(t *testing.T) {
 	tg := winTarget(t)
 	if tg.HasBig() {
-		t.Skip("windows now declares a bignum; this test has done its job")
+		t.Fatal("windows declares a host bignum; restate this test")
 	}
+	for _, body := range []string{"a % b", "a / b"} {
+		src := "export fn f(a ∈ 0..2^200, b ∈ 1..2^200) (0..2^200) { " + body + " }\n"
+		if _, err := rungOn(t, tg, src); err != nil {
+			t.Errorf("%s: windows does not move it to K(ℕ*): %v", body, err)
+		}
+	}
+	ir.PlantNoNatFallback = true
+	defer func() { ir.PlantNoNatFallback = false }()
 	for _, c := range []struct{ body, want string }{
 		{"a % b", "the remainder by another arbitrary-precision value"},
 		{"a / b", "division by another arbitrary-precision value"},

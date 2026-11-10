@@ -43,6 +43,11 @@ var PlantSignFault bool
 // TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength must see the wrong numeral.
 var PlantNatFault bool
 
+// PlantNoNatFallback keeps a bounded program the fixed limbs cannot finish on
+// them, refused: TestABoundedQuotientMovesToTheNumeralsOfAnyLength must see the
+// refusal.
+var PlantNoNatFallback bool
+
 // signedLimb is each magnitude instance's form on Z(V_n) (ADR 0098).
 var signedLimb = map[string]string{
 	"of": "sof", "add": "sadd", "sub": "ssub", "mul": "smul", "mul-small": "smul-small",
@@ -111,11 +116,18 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			case "big/":
 				if k, ok := widened(s.Args[1]); ok {
 					plan[s] = use{"div-small", []V{s.Args[0], k}}
+				} else if nat {
+					// Algorithm D, by a numeral (ADR 0099)
+					plan[s] = use{"div", s.Args}
 				} else {
 					err = fmt.Errorf("%w: division by another arbitrary-precision value", ErrNoLimbForm)
 				}
 			case "big%":
-				err = fmt.Errorf("%w: the remainder by another arbitrary-precision value", ErrNoLimbForm)
+				if nat {
+					plan[s] = use{"rem", s.Args}
+				} else {
+					err = fmt.Errorf("%w: the remainder by another arbitrary-precision value", ErrNoLimbForm)
+				}
 			case "big-str":
 				// THE RENDERING: through the host's bignum where the target has
 				// one, whose own numeral is its toString; elsewhere the limb
@@ -130,7 +142,12 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 				}
 				plan[s] = use{"to-host", s.Args}
 			case "big-fit", "big-fit-signed":
-				err = fmt.Errorf("internal: a bound check on the fixed-limb rung, whose instances enforce the bound themselves")
+				if nat {
+					// a bounded program on K(ℕ*): its one set, by sign and bit length
+					plan[s] = use{strings.TrimPrefix(s.Name, "big-"), s.Args}
+				} else {
+					err = fmt.Errorf("internal: a bound check on the fixed-limb rung, whose instances enforce the bound themselves")
+				}
 			default:
 				if fn := emit.LimbShape(s.Name, false); fn != "" && isBigName(s.Name) {
 					plan[s] = use{fn, s.Args}
@@ -404,6 +421,17 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 	n, err := LowerLimbs(tg, f, plan)
 	if !errors.Is(err, ErrNoLimbForm) {
 		return n, err
+	}
+	// NO HOST BIGNUM: K(ℕ*), the general representation, takes the program
+	// whole, as a host's bignum would (ADR 0099). V_n's carrier lies inside
+	// K(ℕ*)'s and both are injective into ℤ, so the move changes no answer; the
+	// program's one set is enforced there by its sign and bit length.
+	if !tg.HasBig() && !PlantNoNatFallback {
+		*f = *keep
+		if _, err := SelectBig(tg, f, sig, plan.Bits, plan.Signed); err != nil {
+			return 0, err
+		}
+		return LowerLimbs(tg, f, emit.BigPlan{Var: true, Bits: plan.Bits, Signed: plan.Signed})
 	}
 	if !tg.HasBig() {
 		return 0, fmt.Errorf("this program needs %s.\n"+

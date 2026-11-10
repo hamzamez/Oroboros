@@ -209,14 +209,15 @@ result by writing [0, len t) at its counter, the header last, so a result is bor
 | a · b | schoolbook rows into a zero table, uᵢ·vⱼ + w + k ≤ B² − 1 in U₆₄ (Knuth's M) | m_a + m_b + 1 |
 | a · k, k a word in [0, 2²⁸) | one pass | m_a + 2 |
 | a / k, a % k, k a word in [1, 2²⁸) | one pass from the top, the dividend's sign; the quotient's size m_a or m_a − 1 by a's top digit against k | m_a + 1 |
-| a / b, a % b, b above the word | Knuth's D; **not built**, refused by name (R3c) | |
+| a / b, a % b, b above the word | Knuth's D: the Mealy machine of long division over the digits from the top, q̂ by Theorem B and D3, at most two add-backs a step | m_a − m_b + 2 |
 | a < b | by sign, then size, then digits from the top | |
 | render(a) | \|a\| divided by 10⁹, nine digits per division, the quotient carried; the numeral found on the frozen field and copied once | a field of 10·len a + 9 |
 
 ℤ has no bound, and the finite end of an unbounded set, such as `Nat`'s 0, lies inside the word,
 where ADR 0087 decides it at the definition. What is checked at run time is the machine's: a numeral
 is held while its table fits, len t ≤ max_len, and a capacity past it is a crash, never a numeral cut
-short. A bounded set keeps the fixed limbs (§1b). `big-str`'s argument is demanded on every target,
+short. A bounded set keeps the fixed limbs (§1b), and moves to K(ℕ\*) whole when it uses an operation
+they lack, its set enforced by sign and bit length (ADR 0029). `big-str`'s argument is demanded on every target,
 since render is ℤ's; a word value still renders in the word where the target has no bignum.
 
 ## 2. Overflow

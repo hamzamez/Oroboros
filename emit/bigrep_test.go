@@ -24,26 +24,40 @@ const factSrc = "export fn fact(n ∈ 0..30) (0..) {\n    loop acc = 1, i = 1 { 
 //
 // The refusal has to NAME the target, because "int 0 <302 digits> is required
 // here" is true and explains nothing about whose limitation it is.
+//
+// THE CAPABILITY IS THE TARGET'S DECLARATION (ADR 0099): windows has no host
+// bignum but declares the limb rung, so it holds ℤ as K(ℕ*) and accepts; the
+// same target with its limb rung removed holds ℤ in nothing, and refuses.
 func TestATargetWithoutABignumRefusesAndSaysSo(t *testing.T) {
+	check := func(tg *Target) error {
+		forms, _ := core.Read(factSrc)
+		prog, _, err := core.Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		env, err := tg.Env(prog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return CheckSignatures(tg, prog, env, nil)
+	}
 	tg, err := LoadTarget("../targets/windows")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tg.HasBig() {
-		t.Skip("windows now declares a bignum; this test has done its job")
+	if tg.HasBig() || !tg.HoldsZ() {
+		t.Fatalf("windows should hold ℤ by its limb rung and no host bignum: HasBig %v, HoldsZ %v", tg.HasBig(), tg.HoldsZ())
 	}
-	forms, _ := core.Read(factSrc)
-	prog, _, err := core.Load(forms)
-	if err != nil {
-		t.Fatal(err)
+	if err := check(tg); err != nil {
+		t.Errorf("windows, which holds ℤ as K(ℕ*), refused a program needing it: %v", err)
 	}
-	env, err := tg.Env(prog)
-	if err != nil {
-		t.Fatal(err)
+	tg.BigRepr = ""
+	if tg.HoldsZ() {
+		t.Fatal("with no limb rung and no bignum the target still holds ℤ")
 	}
-	err = CheckSignatures(tg, prog, env, nil)
+	err = check(tg)
 	if err == nil {
-		t.Fatal("windows accepted a program needing arbitrary precision")
+		t.Fatal("a target holding ℤ in nothing accepted a program needing arbitrary precision")
 	}
 	if !strings.Contains(err.Error(), "declares none") ||
 		!strings.Contains(err.Error(), "windows") {

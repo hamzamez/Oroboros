@@ -1,9 +1,13 @@
 package main
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"oroboros/emit"
 	"oroboros/ir"
 )
 
@@ -54,4 +58,79 @@ func TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength(t *testing.T) {
 	if err == nil && strings.Join(strings.Fields(out), " ") == want {
 		t.Errorf("with the sum for the difference, the numerals are still right: the witness cannot fail")
 	}
+}
+
+// A QUOTIENT BY A NUMERAL IS ALGORITHM D's (ADR 0099, R3c): on windows, x1 / y1
+// and x2 % y2 are inputs a model of the library's algorithm found to take the
+// add-back, D6, and they print Python's numerals. THE PLANTED FAULT drops the
+// add-back, so q̂ one too large stays, and must print others.
+func TestAQuotientByANumeralIsAlgorithmDs(t *testing.T) {
+	const src = "use win/print\n" +
+		"fn calc(n ∈ 0..1) (Int) {\n" +
+		"    x1 = 1461501638011467652005947678376676693685842214910\n" +
+		"    y1 = 39614081275578912870481526782\n" +
+		"    x2 = 13479973327298218161946826780014308280492230177364949862681617104896\n" +
+		"    y2 = 170141183460469231740910675750591397887\n" +
+		"    if n == 0 { x1 / y1 } else { x2 % y2 }\n}\n" +
+		"export fn main() {\n" +
+		"    print.print_str(big_str(calc(0)))\n" +
+		"    print.print_str(big_str(calc(1)))\n}\n"
+	want := "36893488147419103231 170141183460469231639453583347336347652"
+	out, err := buildAndRun(t, src, "windows", "")
+	if err != nil || strings.Join(strings.Fields(out), " ") != want {
+		t.Errorf("Algorithm D on windows: %q, %v; want %s", out, err, want)
+	}
+	emit.PlantNoAddBack = true
+	defer func() { emit.PlantNoAddBack = false }()
+	out, err = buildAndRun(t, src, "windows", "")
+	if err == nil && strings.Join(strings.Fields(out), " ") == want {
+		t.Errorf("without the add-back the numerals are still right: the witness cannot fail")
+	}
+}
+
+// A BOUNDED QUOTIENT MOVES TO THE NUMERALS OF ANY LENGTH (ADR 0099, R3c): on
+// windows, which has no bignum, a program in 0..2^300 that divides by a big
+// value is beyond the fixed limbs, and K(ℕ*) takes it whole, its one set
+// enforced by sign and bit length: the quotients print Python's numerals, and
+// a value past 2^300 crashes with the bound's reason. THE PLANTED FAULT keeps
+// the program on the fixed limbs, where it must be refused.
+func TestABoundedQuotientMovesToTheNumeralsOfAnyLength(t *testing.T) {
+	const src = "use win/print\n" +
+		"fn calc(n ∈ 0..2) (0..2^300) {\n" +
+		"    a = 3^180\n" +
+		"    b = 7^40 + n\n" +
+		"    if n == 2 { a * a / b } else { a / b + a % b }\n}\n" +
+		"export fn main() {\n" +
+		"    print.print_str(big_str(calc(0)))\n" +
+		"    print.print_str(big_str(calc(1)))\n" +
+		"    print.print_str(big_str(calc(2)))\n}\n"
+	want := "11964767091463786734584556628644403953403431640331601 " +
+		"11964767091463786734582602581825694949127182091174155"
+	out, built, err := buildAndCrash(t, src)
+	if !built || err == nil || !strings.HasPrefix(strings.Join(strings.Fields(out), " "), want) ||
+		!strings.Contains(out, "the declared range is too small") {
+		t.Errorf("a bounded quotient on windows: %q, built %v, %v; want %s, then the bound's crash", out, built, err, want)
+	}
+	ir.PlantNoNatFallback = true
+	defer func() { ir.PlantNoNatFallback = false }()
+	if out, built, _ := buildAndCrash(t, src); built && strings.HasPrefix(strings.Join(strings.Fields(out), " "), want) {
+		t.Errorf("kept on the fixed limbs, the quotient still runs: the witness cannot fail")
+	}
+}
+
+// buildAndCrash builds src for windows and runs it, a non-zero exit allowed:
+// its output, whether it built, and the run's error.
+func buildAndCrash(t *testing.T, src string) (string, bool, error) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "p.oro")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(dir, "p.exe")
+	if err := run("../../targets", path, "windows", exe, "../../lib", false, false, ""); err != nil {
+		return err.Error(), false, err
+	}
+	out, err := exec.Command(exe).CombinedOutput()
+	return string(out), true, err
 }

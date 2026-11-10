@@ -277,7 +277,8 @@ checked. When a package hits a wall that needs language work, stop, research it,
               construction, a build by the written prefix (`ir/fill.go`); `alloc-raw`, `reuse-raw`.
               10⁷ limb additions 136–143 ms, the no-zeroing bound (0.08× the original leak). Frame
               slots wait on a nested loop that measures its first iteration;
-            - R1d, R1e **wait on a trigger** (hamza, 2026-11-09): a data stack for tables of
+            - R1d, R1e **waited on a trigger** (hamza, 2026-11-09); **R1d's is met** (natdiv-2026-11-10:
+              K(ℕ\*)'s results are heap tables of run-time size, no token reuses them, 4.4× V₉): a data stack for tables of
               run-time length, and strings and containment. Counted on the 44 allocations of the
               windows corpus, 43 have a static size and 1 a run-time one, outside any loop; 3
               programs call the string helpers, a fixed few times each. Trigger: input-driven
@@ -306,8 +307,13 @@ checked. When a package hits a wall that needs language work, stop, research it,
               Houdini's frame template both ways (v ≤ z, `PlantNoUpperFrame`). `big-fib` and
               `big-nat-ops` run on windows. fib(10⁵) 257 ms against `math/big`'s 29–35 (≈ 8×). Not
               built: D, an entry point's K(ℕ\*) parameter, render in place;
-            - R3c. Algorithm D, a quotient by a numeral, on both rungs; M3 and M4 measure K(ℕ\*)
-              against `math/big` and against V_n for a bounded set;
+            - R3c. ~~Algorithm D~~ **done** ([natdiv-2026-11-10](gauntlet/results/natdiv-2026-11-10.md)):
+              long division a Mealy machine whose state is the partial remainder, q̂ by Theorem B and
+              D3, at most two add-backs (`PlantNoAddBack`); a bounded program V_n cannot finish
+              **moves to K(ℕ\*) whole**, its set enforced by sign and bit length (`fit`,
+              `PlantNoNatFallback`); `HoldsZ`, the capability read off the declaration. M3: fact 11.3×,
+              D 3.1×, fib 8.9× `math/big`; V₉ 4.4× faster than K(ℕ\*) on bounded additions, so V_n stays,
+              and R1d's trigger is met. `examples/big/` emit on windows. Not built: M4 (needs native iN);
           - **R4**: nothing enters the language; ρ gains the representations.
 
           And `u128-fact`, `u128-ops` test a Go-only library (`lib/num/u128` over `go/math/bits`),
@@ -417,10 +423,10 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **5,656 of 5,710** integer operations proven inside their target's word, the 54 left
+- **Provability**: **6,070 of 6,124** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **638 of 662** loops proven to terminate (size-change termination). Each
+  **662 of 686** loops proven to terminate (size-change termination). Each
   program's share is in its result document; both counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared

@@ -126,6 +126,13 @@ var natSigs = map[string]struct {
 	"ge":        limbSigs["ge"],
 	"eq":        limbSigs["eq"],
 	"render":    limbSigs["render"],
+	// Algorithm D, by a numeral: the divisor's zero is the program's own
+	// division obligation, discharged before the rung is chosen
+	"div": {[]string{"array int", "array int"}, "array int", false},
+	"rem": {[]string{"array int", "array int"}, "array int", false},
+	// the one set, a bounded program's on K(ℕ*) (ADR 0029): the bound's bits
+	"fit":        {[]string{"array int", "int"}, "array int", false},
+	"fit-signed": {[]string{"array int", "int"}, "array int", false},
 }
 
 // NatFunc is K(ℕ*)'s definition fn, checked as a theory once per target, as

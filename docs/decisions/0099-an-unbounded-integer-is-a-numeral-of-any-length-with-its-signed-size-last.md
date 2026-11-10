@@ -3,7 +3,8 @@
 Date: 2026-11-09
 Status: Accepted (hamza, 2026-11-09: R3 of [integers-research.md](../integers-research.md), agreed
 with R1–R4). Built in steps: [signfuse-2026-11-09](../../gauntlet/results/signfuse-2026-11-09.md)
-(R3a), [natnum-2026-11-10](../../gauntlet/results/natnum-2026-11-10.md) (R3b); D is R3c.
+(R3a), [natnum-2026-11-10](../../gauntlet/results/natnum-2026-11-10.md) (R3b),
+[natdiv-2026-11-10](../../gauntlet/results/natdiv-2026-11-10.md) (R3c, D, the move, M3).
 
 ## Context
 
@@ -44,11 +45,18 @@ H holds strings of every length, and **the representation is variable length**.
    - comparison by sign, then size, then digits from the top;
    - render by 10⁹, nine decimal digits per division: r·B + digit < 10⁹·2³² < 2⁶².
 
-   D, division by a numeral, is the next step: a quotient by a bignum is refused by name until it
-   is built. Every operation is checked once as a theory (ADR 0035), in `emit/natnum.oro`.
+   - D, division by a numeral: long division is a Mealy machine whose state is the partial
+     remainder, its output computed from q̂ with q̂ − 2 ≤ q ≤ q̂ (Theorem B) and D3's test, at most
+     two add-backs a step; a one-digit divisor is the same machine.
+
+   Every operation is checked once as a theory (ADR 0035), in `emit/natnum.oro`.
 5. **Which rung.** On a target with no bignum, a program whose one set is bounded keeps the fixed
-   limbs, V_n or Z(V_n). A program whose set has no bound, on either side, takes K(ℕ\*). Choosing
-   K(ℕ\*) for a bounded set too is a measurement (integers-research M3), not assumed.
+   limbs, V_n or Z(V_n); measured, V₉ is 4.4× faster than K(ℕ\*) on the same additions
+   (natdiv-2026-11-10). A program whose set has no bound, on either side, takes K(ℕ\*). **A bounded
+   program using an operation V_n lacks** (a quotient by a big value) **moves to K(ℕ\*) whole**, as
+   on a host it moves to the host's bignum: V_n's carrier lies inside K(ℕ\*)'s and both are
+   injective into ℤ, so no answer changes, and its one set is enforced by sign and bit length,
+   ADR 0029's two observables, read off the header and the top digit.
 6. **Nothing is enforced at run time** beyond item 7. ℤ has no bound. A finite end of an unbounded set, such as
    `Nat`'s 0, is inside the word, and ADR 0087 decides it at the definition, statically.
 7. **No machine represents ℤ**, and the library says where it stops: a numeral is held while its

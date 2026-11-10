@@ -2696,3 +2696,25 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/big-nat-ops.oro java`
 - new source — `gauntlet/differential/cases/big-nat-ops.oro js`
 - new source — `gauntlet/differential/cases/big-nat-ops.oro windows`
+
+## 2026-11-10 — on 4fa4c02, with uncommitted changes
+
+**Reason:** R3c (natdiv-2026-11-10, ADR 0099): Algorithm D on K(ℕ*), and a bounded program the fixed limbs cannot finish moves to K(ℕ*) whole with its set enforced by sign and bit length; HoldsZ reads ℤ's capability off the target's declaration. examples/big fact, fib, pair, power now emit on windows (were refused by the stale premise) and their functions print what Go prints; their compile times are against refusals (pair 500 ms, power 921 ms paired), the inlined instances' cost; big-nat-div new on four targets, agreeing with Python; counts 6,070 of 6,124 and 662 of 686, the unproven 54 and 24 unchanged.
+
+624 runs: 403 emitted, 221 refused; 6070 of 6124 integer operations bounded, 662 of 686 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- now emits — `examples/big/fact.oro windows`
+- now emits — `examples/big/fib.oro windows`
+- now emits — `examples/big/pair.oro windows`
+- now emits — `examples/big/power.oro windows`
+- new source — `gauntlet/differential/cases/big-nat-div.oro go`
+- new source — `gauntlet/differential/cases/big-nat-div.oro java`
+- new source — `gauntlet/differential/cases/big-nat-div.oro js`
+- new source — `gauntlet/differential/cases/big-nat-div.oro windows`
+
+2 compile(s) accepted SLOWER — compile time 0.93x the baseline (median of 24 compiles over 300 ms); a second sweep kept 5 of 6 suspect(s); paired serially against the baseline's binary (4fa4c02), 2 confirmed, examples/big/fib.oro windows cleared at 10.00x paired, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.00x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 1.00x paired:
+
+- `examples/big/pair.oro windows` 15 → 1375 ms, 91.67x; paired 15 → 515 ms, 33.00x
+- `examples/big/power.oro windows` 15 → 2312 ms, 154.17x; paired 0 → 890 ms

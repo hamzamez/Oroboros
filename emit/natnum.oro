@@ -169,14 +169,16 @@ fn mul_small(ml, a, k) {
 // digit is at least k, and ma − 1 otherwise, since then the next quotient
 // digit is at least B / k > 1. So the descending build writes its header first,
 // at the counter.
-fn div_small(ml, a, k) {
+fn div_small(ml, a, k) { qsmall(ml, a, k, sgn(a)) }
+// |a| / k with the sign s, k ∈ [1, B)
+fn qsmall(ml, a, k, s) {
     ma = size(a)
     cap = ma + 1
     m = if ma == 0 { 0 } else if dig(a, ma - 1) >= k { ma } else { ma - 1 }
     var o := array { 0 : _ ∈ 0..cap-1 }
     loop i = cap - 1, r = 0 {
         i < 0 -> o
-        i == cap - 1 -> { o[i] := signed(sgn(a), m); again(i - 1, r) }
+        i == cap - 1 -> { o[i] := signed(s, m); again(i - 1, r) }
         else -> { cur = r * (2^32) + dig(a, i); o[i] := cur / k; again(i - 1, cur % k) }
     }
 }
@@ -254,4 +256,222 @@ fn render(ml, a) {
             }
         }
     }
+}
+
+// ------------------------------------------------------------ Algorithm D
+//
+// LONG DIVISION IS A MEALY MACHINE over the dividend's digits from the top:
+// its state is the partial remainder r ∈ [0, v), the window W = r·B + d, the
+// output q = ⌊W / v⌋ and the next state W − q·v, the Euclidean step folded
+// over the digits. Knuth's D (TAOCP 2 §4.3.1) computes the output cheaply:
+// with v normalized by f = 2^s so its top digit is at least B/2, the estimate
+// q̂ = min(⌊(W_n·B + W_{n−1}) / v_{n−1}⌋, B − 1) satisfies q̂ − 2 ≤ q ≤ q̂
+// (Theorem B), and D3's test q̂·v_{n−2} > r̂·B + W_{n−2} removes every q̂ two
+// too large when q̂ is not capped. So each step adds v back at most twice, and
+// usually never. Every intermediate is below B^2 = 2^64, so all of it is
+// U64's. Normalizing leaves the quotient alone and scales the remainder by f,
+// which it divides by at the end. A divisor of one digit is the same machine:
+// v_{n−2} = W_{n−2} = 0, and q̂ is exact.
+
+// a digit of a plain table, no header: the remainder's and the window's
+fn pdig(t, i) {
+    v = if i < 0 { 0 } else if i >= len(t) { 0 } else { t[i] }
+    if v < 0 { 0 } else { v % (2^32) }
+}
+// W = r·B + d: digit 0 is d, digit i the remainder's digit i − 1
+fn wdig(r, d, i) { if i == 0 { d } else { pdig(r, i - 1) } }
+
+// f = 2^s, the least power of two that puts v's top digit vt at or above B/2;
+// s ≤ 31 is the loop's measure, rising by one toward its guard, and f's own
+// guard is f's interval
+fn nfactor(vt) { loop s = 0, f = 1, t = vt { s >= 31 -> f; f >= 2^31 -> f; t >= 2^31 -> f; else -> again(s + 1, f * 2, t * 2) } }
+
+// D3. q̂ = ⌊top / vt⌋ when below B, with r̂ = top mod vt, so r̂ < vt; then
+// lowered while q̂·v_{n−2} > r̂·B + W_{n−2}, twice at most, the second time
+// only while r̂ + vt < B: after it q̂ − q ∈ {0, 1}. Capped at B − 1, it is
+// within 2 of q. vt is at least B/2 for a normalized v; a vt of 0 is outside
+// the theory's domain, and answers 0.
+fn qhat(v, n, r, d) {
+    vt = pdig(v, n - 1)
+    v2 = pdig(v, n - 2)
+    top = wdig(r, d, n) * 2^32 + wdig(r, d, n - 1)
+    w2 = wdig(r, d, n - 2)
+    q0 = if vt < 1 { 0 } else { top / vt }
+    rh = if vt < 1 { 0 } else { top % vt }
+    case {
+        vt < 1 -> 0
+        q0 > 2^32 - 1 -> 2^32 - 1
+        else -> {
+            case {
+                q0 >= 1 && q0 * v2 > rh * 2^32 + w2 -> {
+                    q1 = q0 - 1
+                    rh1 = rh + vt
+                    if rh1 < 2^32 && q1 >= 1 && q1 * v2 > rh1 * 2^32 + w2 { q1 - 1 } else { q1 }
+                }
+                else -> q0
+            }
+        }
+    }
+}
+
+// D4: T = W − q·v over the window's n + 1 digits, the product's carry and the
+// subtraction's borrow apart, in B^{n+1}'s complement; entry n + 1 is the
+// sign, 1 when T < 0, which is when q was too large
+fn msub(ml, v, n, r, d, q) {
+    case {
+        n + 2 > ml -> abandon("out of memory: an integer longer than the largest table")
+        else -> {
+            var o := array { 0 : _ ∈ 0..n + 1 }
+            loop i = 0, pc = 0, bw = 0 {
+                i >= n + 2 -> o
+                i == n + 1 -> { o[i] := bw; again(i + 1, pc, bw) }
+                else -> {
+                    p = q * pdig(v, i) + pc
+                    t = wdig(r, d, i) - p % (2^32) - bw
+                    o[i] := if t < 0 { t + 2^32 } else { t }
+                    again(i + 1, p / (2^32), if t < 0 { 1 } else { 0 })
+                }
+            }
+        }
+    }
+}
+
+// D6, for a T < 0: T + v over n + 1 digits; the carry out is what cancels T's
+// complement, so the sign entry is 1 − carry, still 1 when T + v < 0
+fn addv(ml, t, v, n) {
+    case {
+        n + 2 > ml -> abandon("out of memory: an integer longer than the largest table")
+        else -> {
+            var o := array { 0 : _ ∈ 0..n + 1 }
+            loop i = 0, c = 0 {
+                i >= n + 2 -> o
+                i == n + 1 -> { o[i] := 1 - c; again(i + 1, c) }
+                else -> { x = pdig(t, i) + pdig(v, i) + c; o[i] := x % (2^32); again(i + 1, x / (2^32)) }
+            }
+        }
+    }
+}
+
+// the step's corrections, at most two by Theorem B: T, then T + v, then
+// T + 2v, each taken only while the sign entry says the last was negative
+fn fix1(ml, t, v, n) { if pdig(t, n + 1) == 1 { addv(ml, t, v, n) } else { t } }
+fn back(t, n) { if pdig(t, n + 1) == 1 { 1 } else { 0 } }
+
+// u's n digits from j against v's, from the top
+fn topcmp(u, v, n, j) {
+    loop i = n - 1 {
+        i < 0 -> 0
+        dig(u, j + i) < pdig(v, i) -> 0 - 1
+        dig(u, j + i) > pdig(v, i) -> 1
+        else -> again(i - 1)
+    }
+}
+
+// k digits of u from lo, a plain table: the machine's first state
+fn slice(u, lo, k) {
+    var o := array { 0 : _ ∈ 0..k }
+    loop i = 0 { i >= k + 1 -> o; else -> { o[i] := if i < k { dig(u, lo + i) } else { 0 }; again(i + 1) } }
+}
+
+// D8: the normalized remainder r over n digits divided by f, in K(ℕ*) with
+// the sign s: digit i of ⌊r / f⌋ is ⌊(r_{i+1}·B + r_i) / f⌋ mod B, for f ≤ B,
+// every intermediate below B^2
+fn unnorm(ml, r, n, f, s) {
+    var o := array { 0 : _ ∈ 0..n }
+    loop i = 0, top = 0 {
+        i >= n + 1 -> o
+        i == n -> { o[i] := signed(s, top); again(i + 1, top) }
+        else -> {
+            x = (pdig(r, i + 1) * 2^32 + pdig(r, i)) / f % (2^32)
+            o[i] := x
+            again(i + 1, if x != 0 { i + 1 } else { top })
+        }
+    }
+}
+
+// TRUNCATED DIVISION BY A NUMERAL: |a| div |b| with the product of the signs
+// (0 at zero, by the header). u = |a|·f and v = |b|·f; the machine starts in
+// u's top n − 1 digits, and the kq = m_u − n + 1 quotient digits are its
+// outputs, written from the top by a descending build whose header goes
+// first: the quotient's size is kq when u's top n digits are at least v, and
+// kq − 1 otherwise.
+fn div(ml, a, b) {
+    n = size(b)
+    s = (sgn(a) + sgn(b)) % 2
+    case {
+        n < 1 -> abandon("division by zero")
+        mcmp(ml, a, b) < 0 -> of(ml, 0)
+        else -> {
+            f = nfactor(dig(b, n - 1))
+            v = mul_small(ml, b, f)
+            u = mul_small(ml, a, f)
+            kq = size(u) - n + 1
+            case {
+                kq < 1 -> of(ml, 0)
+                else -> {
+                    mq = if topcmp(u, v, n, kq - 1) < 0 { kq - 1 } else { kq }
+                    var o := array { 0 : _ ∈ 0..kq }
+                    loop i = kq, r = slice(u, kq, n - 1) {
+                        i < 0 -> o
+                        i == kq -> { o[i] := signed(s, mq); again(i - 1, r) }
+                        else -> {
+                            d = dig(u, i)
+                            q = qhat(v, n, r, d)
+                            t0 = msub(ml, v, n, r, d, q)
+                            t1 = fix1(ml, t0, v, n)
+                            o[i] := q - back(t0, n) - back(t1, n)
+                            again(i - 1, fix1(ml, t1, v, n))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// THE REMAINDER: the machine's last state, divided by f, with the dividend's
+// sign
+fn rem(ml, a, b) {
+    n = size(b)
+    case {
+        n < 1 -> abandon("division by zero")
+        mcmp(ml, a, b) < 0 -> a
+        else -> {
+            f = nfactor(dig(b, n - 1))
+            v = mul_small(ml, b, f)
+            u = mul_small(ml, a, f)
+            kq = size(u) - n + 1
+            case {
+                kq < 1 -> a
+                else -> loop i = kq - 1, r = slice(u, kq, n - 1) {
+                    i < 0 -> unnorm(ml, r, n, f, sgn(a))
+                    else -> {
+                        d = dig(u, i)
+                        t0 = msub(ml, v, n, r, d, qhat(v, n, r, d))
+                        again(i - 1, fix1(ml, fix1(ml, t0, v, n), v, n))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------ the one set
+//
+// A BOUNDED SET ON K(ℕ*) (ADR 0029): a program whose set is N_k or Z_k, moved
+// to K(ℕ*) because the fixed limbs lack an operation it uses, is enforced by
+// the set's two observables, the sign and the bit length, read off the header
+// and the top digit: bitlen = 32·(m − 1) + bitlen(top digit).
+fn blen(x) { loop b = 0, y = x { b >= 32 -> b; y < 1 -> b; else -> again(b + 1, y / 2) } }
+fn bitlen(a) {
+    m = size(a)
+    if m < 1 { 0 } else { 32 * (m - 1) + blen(dig(a, m - 1)) }
+}
+// N_k = [0, 2^k): a when 0 ≤ a < 2^k, the bound's crash otherwise
+fn fit(ml, a, k) {
+    case { sgn(a) == 1 || bitlen(a) > k -> abandon("bignum overflow: the declared range is too small"); else -> a }
+}
+// Z_k = (−2^k, 2^k): a when |a| < 2^k
+fn fit_signed(ml, a, k) {
+    case { bitlen(a) > k -> abandon("bignum overflow: the declared range is too small"); else -> a }
 }

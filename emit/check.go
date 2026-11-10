@@ -514,9 +514,10 @@ func (c *checker) agree(what, got, want string) error {
 	// CHECKED primitive it does not declare. Naming the target is the whole value
 	// of the message.
 	// A FINITE range is served by the fixed-limb rung on EVERY target, including
-	// the one with no bignum — that is what the rung is for. Only ℤ needs the
-	// host's own, so only ℤ can be refused for its absence.
-	if c.tgt.ValueType(want) == core.BigType && !c.tgt.HasBig() &&
+	// the one with no bignum — that is what the rung is for. ℤ needs the host's
+	// own or, where the target declares the limb rung, K(ℕ*) (ADR 0099), so only
+	// a target with neither is refused for its absence.
+	if c.tgt.ValueType(want) == core.BigType && !c.tgt.HoldsZ() &&
 		(core.UnboundedRange(want) || want == core.BigType) {
 		return fmt.Errorf("%s needs arbitrary precision — %s is above the word of "+
 			"target %s, %s — and the target declares none.\n"+
@@ -1000,7 +1001,7 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 // bignum, which is a capability and not a representation.
 func intSortsAgree(tg *Target, got, want string) bool {
 	return isIntSort(tg, got) && isIntSort(tg, want) &&
-		!(tg.ValueType(want) == core.BigType && !tg.HasBig() &&
+		!(tg.ValueType(want) == core.BigType && !tg.HoldsZ() &&
 			(core.UnboundedRange(want) || want == core.BigType))
 }
 

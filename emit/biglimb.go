@@ -1,6 +1,7 @@
 package emit
 
 import (
+	"strings"
 	_ "embed"
 	"fmt"
 	"math/big"
@@ -88,9 +89,19 @@ var natNumSrc string
 // natPrefix is the module natnum.oro declares.
 const natPrefix = "big/nat."
 
+// PlantNoAddBack drops Algorithm D's add-back, D6: every q̂ one too large
+// stays, and TestAQuotientByANumeralIsAlgorithmDs must see the wrong numeral.
+var PlantNoAddBack bool
+
 // loadNatLib is K(ℕ*)'s library, as loadLimbLib.
 func loadNatLib(tgt *Target) (*limbLib, error) {
-	forms, err := core.ReadModule(natNumSrc, "emit/natnum.oro", "big/nat")
+	src := natNumSrc
+	if PlantNoAddBack {
+		src = strings.Replace(src, "fn fix1(ml, t, v, n) { if pdig(t, n + 1) == 1 { addv(ml, t, v, n) } else { t } }",
+			"fn fix1(ml, t, v, n) { t }", 1)
+		src = strings.Replace(src, "fn back(t, n) { if pdig(t, n + 1) == 1 { 1 } else { 0 } }", "fn back(t, n) { 0 }", 1)
+	}
+	forms, err := core.ReadModule(src, "emit/natnum.oro", "big/nat")
 	if err != nil {
 		return nil, fmt.Errorf("the built-in K(ℕ*) does not parse: %w", err)
 	}

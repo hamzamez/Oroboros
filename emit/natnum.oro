@@ -112,28 +112,92 @@ fn mcmp(ml, a, b) {
     }
 }
 
-// ALGORITHMS A AND S AS ONE RECURRENCE (signfuse-2026-11-09): x + σ·y, σ = −1
-// when neg (and then |x| ≥ |y|), x, y = a, b or b, a when sw. The column
-// t = x + σ·y + c is in [−B, 2B), its digit t mod B, its carry ⌊t / B⌋ in
-// {−1, 0, 1}; m + 1 digits hold the sum, and top, the size, is the index past
-// the last nonzero digit.
+// ALGORITHMS A AND S, EACH ITS OWN LOOP. The group completion's case is on the
+// signs, and only a difference needs its operands ordered: x + y = y + x, so A
+// takes the longer first for nothing, and S the larger, |x| ≥ |y|. The choice
+// is in which tables are passed, so no table is chosen by an `if`, and the one
+// allocation stays before the case, where a dead region's token reaches it
+// (ADR 0100). The loops write through a borrow, as macrow does.
+
+// A: x + y with mx ≥ my. The index domain splits at my, [0, my) ∪ [my, mx),
+// so every read is in bounds by its arm's own guard. Its size is mx + c by the
+// final carry: x is normal, so with no carry out digit mx − 1 is at least x's
+// top digit, which is not 0. The carry goes at mx and the header at mx + 1.
+fn addlp(o linear, x, mx0, y, my0, s) {
+    // the sizes against what the loop reads and writes, once: the identity on
+    // every numeral (its size is below its length), and each read's bound a
+    // path fact
+    lx = len(x) - 1
+    ly = len(y) - 1
+    n2 = len(o) - 2
+    m1 = if mx0 > lx { lx } else { mx0 }
+    mx = if m1 > n2 { n2 } else { m1 }
+    k1 = if my0 > ly { ly } else { my0 }
+    my = if k1 > mx { mx } else { k1 }
+    loop i = 0, c = 0 {
+        i >= mx -> { o[mx] := c; o[mx + 1] := signed(s, mx + c); () }
+        i < my -> {
+            t = x[i] + y[i] + c
+            o[i] := if t >= 2^32 { t - 2^32 } else { t }
+            again(i + 1, if t >= 2^32 { 1 } else { 0 })
+        }
+        else -> {
+            t = x[i] + c
+            o[i] := if t >= 2^32 { t - 2^32 } else { t }
+            again(i + 1, if t >= 2^32 { 1 } else { 0 })
+        }
+    }
+}
+
+// S: x − y with |x| ≥ |y|, the same split, the borrow in {0, 1} and never
+// out of the top. A difference's size is not its operands': the size is the
+// index past its last nonzero digit, tracked as it goes.
+fn sublp(o linear, x, mx0, y, my0, s) {
+    // the sizes against what the loop reads and writes, once: the identity on
+    // every numeral (its size is below its length), and each read's bound a
+    // path fact
+    lx = len(x) - 1
+    ly = len(y) - 1
+    n2 = len(o) - 2
+    m1 = if mx0 > lx { lx } else { mx0 }
+    mx = if m1 > n2 { n2 } else { m1 }
+    k1 = if my0 > ly { ly } else { my0 }
+    my = if k1 > mx { mx } else { k1 }
+    loop i = 0, bw = 0, top = 0 {
+        i >= mx -> { o[mx] := 0; o[mx + 1] := signed(s, top); () }
+        i < my -> {
+            t = x[i] - y[i] - bw
+            d = if t < 0 { t + 2^32 } else { t }
+            o[i] := d
+            again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
+        }
+        else -> {
+            t = x[i] - bw
+            d = if t < 0 { t + 2^32 } else { t }
+            o[i] := d
+            again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
+        }
+    }
+}
+
+// x ± y over the magnitudes into one table of max(ma, mb) + 2 entries: σ = −1
+// when neg, and then sw says |b| > |a|. The capacity is the case's guard, so
+// mx + 1 < cap is a path fact (render's form).
 fn addsub(ml, a, b, sw, neg, s) {
     ma = size(a)
     mb = size(b)
-    cap = room(ml, if ma > mb { ma + 2 } else { mb + 2 })
-    la = len(a) - 1
-    lb = len(b) - 1
-    var o := array { 0 : _ ∈ 0..cap-1 }
-    loop i = 0, c = 0, top = 0 {
-        i >= cap -> o
-        i == cap - 1 -> { o[i] := signed(s, top); again(i + 1, c, top) }
+    mx = if ma > mb { ma } else { mb }
+    case {
+        mx + 2 > ml || mx + 2 > 2^31 -> abandon("out of memory: an integer longer than the largest table")
         else -> {
-            x = if sw { dg(b, lb, i) } else { dg(a, la, i) }
-            y = if sw { dg(a, la, i) } else { dg(b, lb, i) }
-            t = if neg { x - y + c } else { x + y + c }
-            d = if t < 0 { t + 2^32 } else if t >= 2^32 { t - 2^32 } else { t }
-            o[i] := d
-            again(i + 1, if t < 0 { 0 - 1 } else if t >= 2^32 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
+            var o := array { 0 : _ ∈ 0..mx + 1 }
+            case {
+                !neg && ma >= mb -> addlp(o, a, ma, b, mb, s)
+                !neg -> addlp(o, b, mb, a, ma, s)
+                sw -> sublp(o, b, mb, a, ma, s)
+                else -> sublp(o, a, ma, b, mb, s)
+            }
+            o
         }
     }
 }

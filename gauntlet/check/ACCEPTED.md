@@ -2763,3 +2763,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/big/pair.oro windows`
 - emitted text changed — `examples/big/power.oro windows`
 - compiler output changed — `examples/big/power.oro windows`
+
+## 2026-11-10 — on c12cc7f, with uncommitted changes
+
+**Reason:** items 3 and 5 (addsub-2026-11-10): Knuth's A and S each its own loop in K(N*), A's size from its carry, the index domain split at the shorter size; only examples/big fib and pair change on windows, printing what Go prints; counts 6,178 of 6,232 and 668 of 692, the unproven 54 and 24 unchanged; fib 27% faster; examples/big/fib's compile 2.15x paired, inside the gate's margin, the four inlined cases per sum.
+
+624 runs: 403 emitted, 221 refused; 6178 of 6232 integer operations bounded, 668 of 692 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- emitted text changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+
+1 compile(s) accepted SLOWER — compile time 1.04x the baseline (median of 26 compiles over 300 ms); a second sweep kept 3 of 3 suspect(s); paired serially against the baseline's binary (c12cc7f), 1 confirmed, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.06x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 0.94x paired:
+
+- `examples/big/fib.oro windows` 15 → 1015 ms, 67.71x; paired 203 → 453 ms, 2.23x

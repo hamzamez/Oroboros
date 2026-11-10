@@ -1,0 +1,6 @@
+export fn skip(n ∈ 0..10) (Int) {
+    loop i = 0 {
+        i < n -> if i == 5 { again(i + 2) } else { again(i + 1) }
+        else  -> i
+    }
+}

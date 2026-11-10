@@ -1,0 +1,8 @@
+codes = map { 200 : 1, 404 : 2, 500 : 3 }
+
+export fn known(code ∈ 0..999) (Int) {
+    case codes[code] {
+        'some(v) -> v
+        'none    -> 0
+    }
+}

@@ -1,0 +1,5 @@
+fn twice(f, x) { f(f(x)) }
+
+export fn add6(n ∈ 0..100) (Int) { twice(fn(x) { x + 3 }, n) }
+
+export fn shout(s ∈ String) (String) { twice(fn(x) { x ++ "!" }, s) }

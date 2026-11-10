@@ -1,0 +1,1 @@
+export fn adder(n ∈ 0..10) { fn(x) { x + n } }

@@ -1,0 +1,7 @@
+use shapes
+
+export fn square_area(side ∈ 0..1000) (Int) { shapes.area(shapes.'square(side)) }
+
+export fn pick(n ∈ 0..1000) (Int) {
+    shapes.area(if n < 10 { shapes.'point } else { shapes.'circle(n) })
+}

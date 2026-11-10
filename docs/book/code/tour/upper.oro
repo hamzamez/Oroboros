@@ -1,0 +1,6 @@
+use go/strings
+use go/fmt
+
+export fn main() {
+    fmt.Println(strings.ToUpper("quiet"), 6 * 7)
+}

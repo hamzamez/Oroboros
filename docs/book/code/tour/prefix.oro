@@ -1,0 +1,7 @@
+export fn prefix_sums(t ∈ Array(0..255)) (Array(Int)) where len(t) <= 2^20 {
+    var s := array { 0 : _ ∈ 0..len(t)-1 }
+    loop i = 0, acc = 0 {
+        i < len(t) -> { s[i] := acc + t[i]; again(i + 1, acc + t[i]) }
+        else -> s
+    }
+}

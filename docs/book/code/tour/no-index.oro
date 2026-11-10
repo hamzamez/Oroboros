@@ -1,0 +1,1 @@
+export fn third(t ∈ Array(Int)) (Int) { t[2] }

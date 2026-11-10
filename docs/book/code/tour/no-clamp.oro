@@ -1,0 +1,1 @@
+export fn clamp(n ∈ 0..1000) (0..255) { n }

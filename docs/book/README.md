@@ -3,11 +3,25 @@
 Chapters, in order. Each is written for someone learning the language — human or model — and
 leans on examples rather than explanation.
 
-**Every reduction shown in a chapter is real output**, and that is checkable rather than asserted:
-chapters 0–4 were re-run against the compiler on **2026-10-06** and every reduction in them is the
-byte-for-byte output of running the example. Chapter 5 is the exception and says so at its head.
+**Where the book stands, 2026-11-10.** The surface is J ([spec/j.md](../spec/j.md), ADR 0068), and
+the chapters are being rewritten for it in order:
 
-**Every reduction shown in a chapter is real output.** The examples run against
+| chapter | written in | checked |
+|---|---|---|
+| 0 | J, the language as decided and built | 2026-11-10, by `check.go` (below): 58 blocks, every source, emitted function, refusal and output |
+| 1–4 | the notation J replaced (git `1e2bdcd`) | 2026-10-06, in that notation; their examples no longer read |
+| 5 | the notation J replaced | its examples did not run even then; see its banner |
+
+```bash
+go run docs/book/check.go docs/book/00-tour.md      # from the repository's root
+```
+
+[check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
+comment naming a file, a `gen`, a `run` or a `portable`), runs it, and compares; a block with no
+directive is counted and reported, not passed. It was trusted after seven planted faults, one of
+each kind, each failed. `cmd/check` does not run it.
+
+**Chapters 1–4 teach reduction**, and their examples run against
 [`targets/tutorial.oro`](../../targets/tutorial.oro), a target that exists to teach: it spells
 arithmetic `+ - * /` so a chapter need not also be about module paths, and it declares `f`, `g`,
 `h`, `x`, `y`, `z` as primitives so reduction halts exactly where a lesson wants it to.
@@ -21,7 +35,7 @@ choosing where reduction stops is choosing a target.
 
 | | |
 |---|---|
-| [0. syntax](00-syntax.md) | s-expressions: one character moves, application as the only compound form, the parenthesis count, why not postfix, no precedence, the whole grammar, names, comments, the history, the pros and cons, and what the notation buys *this* language |
+| [0. a tour](00-tour.md) | the whole language for someone arriving from Go, Python, JavaScript, Java, C or Rust: what is like those and what is not. Hello on two hosts, one function on four, blocks, types as sets, integers that are integers, functions that vanish, `loop` and `again`, state and tables, variants, failures as values, tuples, bits, modules and the host, what is absent, and a table from familiar spellings to this one |
 | [1. `fn`](01-fn.md) | functions, parameters, binding, shadowing, capture, what survives |
 | [2. `def`](02-def.md) | naming a term, δ, why a definition duplicates, why a primitive wins, recursion, and what λ-calculus alone can do |
 | [3. modules](03-modules.md) | `module`, `use`, `export`, the four cells, one namespace for targets and libraries, and why a functor is just a function |
@@ -30,9 +44,10 @@ choosing where reduction stops is choosing a target.
 
 Planned: targets.
 
-Chapter 0 needs no target: it is about the reader, so its examples are reductions on `tutorial` and
-a handful of read errors. It is addressed to someone arriving from Python or JavaScript, and it is
-deliberately the one chapter that teaches a notation rather than a language.
+Chapter 0 uses the real targets, not the teaching one: its sources are in [code/tour/](code/tour/),
+compiled with `cmd/gen`, built and run with `cmd/build`, and measured with `cmd/portable`. A file
+named `no-…` is meant to be refused, and the chapter prints the refusal. The chapter it replaced was
+about s-expressions, the notation before J, and is in git at `a50bd47`.
 
 Chapter 5 uses `cmd/gen` and `cmd/build` rather than `oro`, because the checker lives at the
 emission boundary and the teaching target emits nothing. That is the lesson, not a workaround.
@@ -114,14 +129,27 @@ assumption outside the decidable fragment was dropped rather than propagated, so
 reported `known: nothing` about a program that plainly declared a `where`. Thirteen bugs from five
 chapters.
 
-Chapter 0 found none in the compiler, which is itself a result worth recording: it is the one chapter
-about the **reader**, and the reader is the most-exercised code in the project — every target file,
-every `provides` fragment and every program goes through it. Writing it did turn up one corrupted
-file and one missing one (both in the list above), and it found that the single most interesting
-thing about the notation is not a syntax argument at all: **`+` can be a `sig` in a data file only
-because application is the only compound form**, so the parenthesised prefix notation is what makes
-ADR 0002's parameter expressible. That is §0.17, and it is the chapter's reason for existing rather
-than being an appendix.
+The tour (chapter 0, 2026-11-10) found seven, by writing each example the way a newcomer would
+first. None is fixed here; each is a defect or a question for its own step:
+
+1. **`len(s)` of a `String` compiles, to three different answers**: Go's `len` (bytes), and `.length`
+   on JavaScript and Java (UTF-16 units). [state.md §3](../spec/state.md) says string length is not in
+   the language because the hosts disagree. `s[0]` is likewise taken as an indexing with an
+   obligation, not refused as text.
+2. **A dropped `relevant` value is accepted when a definition of the program made it**:
+   `half(n); 0` and `r = half(n); 0` compile, with `half` returning a `result.Result`. A host call's
+   result dropped the same way is refused (`examples/errors/discard.oro`).
+3. **A big value passed to `io.print_int` is refused by the IR's verifier in its own words**:
+   `IR_P does not verify: W5: %14 is big and flows into io.print-int's argument 1, which is int`.
+4. **`x := e` on a name bound with `=` is refused as a store into a table**: *a store writes into 1,
+   which is a frozen table*, where the fault is that `x` is not a `var`.
+5. **`-n` on a variable is refused** (`` `-` takes 2 argument(s), given 1 ``), though j.md §3 lists
+   prefix `-`; only a literal's sign reads.
+6. **A table by a rule as an export's result is refused in the IR's words**, *a table rule that was
+   never allocated*, with `#0.0` in the term it quotes; bound with `var` it compiles.
+7. **Three diagnostics quote the notation J replaced or an internal name**: a variant's payload that
+   is a range (`` `(ok int)`; got (circle (int 0 1000)) ``), the closure refusal's `#1.0` (finding 4
+   of the list above, still there), and the word-overflow hint's `acc + t(i)` for `t[i]`.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

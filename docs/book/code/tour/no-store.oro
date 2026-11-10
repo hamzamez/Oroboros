@@ -1,0 +1,4 @@
+export fn first_one(t ∈ Array(Int)) (Int) where len(t) > 0 {
+    t[0] := 1
+    t[0]
+}

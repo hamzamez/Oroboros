@@ -1,0 +1,8 @@
+fn divmod(a, b) { (a / b, a % b) }
+
+export fn clock(seconds ∈ 0..86399) (String) {
+    (m, s) = divmod(seconds, 60)
+    (h, min) = divmod(m, 60)
+    string_of(48 + h / 10) ++ string_of(48 + h % 10) ++ ":" ++
+        string_of(48 + min / 10) ++ string_of(48 + min % 10)
+}

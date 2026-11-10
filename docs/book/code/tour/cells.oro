@@ -1,0 +1,10 @@
+export fn count_even(t ∈ Array(0..255)) (Int) {
+    var n := 0
+    loop i = 0 {
+        i < len(t) -> {
+            if t[i] % 2 == 0 { n := n + 1 }
+            again(i + 1)
+        }
+        else -> n
+    }
+}

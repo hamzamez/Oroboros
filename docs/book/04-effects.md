@@ -400,7 +400,7 @@ Sequencing looks like a language feature and is not:
 it. The reader rewrites it and nothing downstream has heard of `seq`.
 
 The binder's spelling is `#_`, and the `#` is deliberate: `#` is not an identifier character, so **no
-source term can contain one** ([chapter 0 §0.10](00-syntax.md)). The reader uses the prefix for the
+source term can contain one** ([spec/j.md §1.3](../spec/j.md): `#` begins no identifier). The reader uses the prefix for the
 binders it manufactures — this one, and the `#k` a tuple pattern desugars to — which is what
 guarantees the name it invents cannot capture a name you wrote.
 

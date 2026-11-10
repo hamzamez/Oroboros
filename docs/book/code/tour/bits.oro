@@ -1,0 +1,8 @@
+export fn clear?(flags ∈ 0..255, mask ∈ 0..255) (Bool) { flags & mask == 0 }
+
+export fn fnv32(src ∈ Array(0..255)) (0..2^32-1) {
+    loop i = 0, h = 0x811C9DC5 {
+        i < len(src) -> again(i + 1, ((h ⊕ src[i]) * 16777619) mod 2^32)
+        else -> h
+    }
+}

@@ -1,0 +1,20 @@
+use io
+
+fn fact(n ∈ 0..1000) (Nat) {
+    loop i = 1, acc = 1 {
+        i <= n -> again(i + 1, acc * i)
+        else   -> acc
+    }
+}
+
+export fn gcd(a ∈ 0..10^6, b ∈ 0..10^6) (Int) {
+    loop x = a, y = b {
+        y == 0 -> x
+        else   -> again(y, x % y)
+    }
+}
+
+export fn main() {
+    io.print_int(gcd(1071, 462))
+    io.print_line(big_str(fact(30)))
+}

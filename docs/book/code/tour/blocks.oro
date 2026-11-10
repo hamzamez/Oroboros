@@ -1,0 +1,17 @@
+export fn hyp2(a ∈ 0..1000, b ∈ 0..1000) (Int) {
+    aa = a * a
+    bb = b * b
+    aa + bb
+}
+
+export fn grade(score ∈ 0..100) (String) {
+    if score >= 90 { "A" } else if score >= 80 { "B" } else { "C" }
+}
+
+export fn sign(n ∈ -1000..1000) (-1..1) {
+    case {
+        n < 0  -> -1
+        n == 0 -> 0
+        else   -> 1
+    }
+}

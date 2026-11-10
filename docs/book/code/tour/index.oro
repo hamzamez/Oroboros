@@ -1,0 +1,5 @@
+export fn third(t ∈ Array(Int)) (Int) where len(t) >= 3 { t[2] }
+
+export fn third_or_zero(t ∈ Array(Int)) (Int) {
+    if len(t) > 2 { t[2] } else { 0 }
+}

@@ -1,0 +1,8 @@
+use shapes
+
+export fn round?(s ∈ shapes.Shape) (Bool) {
+    case s {
+        shapes.'circle(r) -> true
+        shapes.'point     -> false
+    }
+}

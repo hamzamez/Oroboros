@@ -1,0 +1,11 @@
+primes = array { 2, 3, 5, 7, 11 }
+
+export fn third_prime() (Int) { primes[2] }
+
+export fn sum_squares(n ∈ 0..1000) (Int) {
+    sq = array { k * k : k ∈ 0..n-1 }
+    loop i = 0, acc = 0 {
+        i < n -> again(i + 1, acc + sq[i])
+        else  -> acc
+    }
+}

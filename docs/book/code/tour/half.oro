@@ -1,0 +1,21 @@
+use result
+
+fn half(n ∈ 0..1000000) (result.Result(Int, Int)) {
+    if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) }
+}
+
+fn quarter(n ∈ 0..1000000) (result.Result(Int, Int)) {
+    try result.'ok(h) = half(n) { half(h) }
+}
+
+export fn quarter_or_zero(n ∈ 0..1000000) (Int) {
+    case quarter(n) {
+        result.'ok(q)  -> q
+        result.'err(e) -> { ignore(e); 0 }
+    }
+}
+
+export fn quarter_or_crash(n ∈ 0..1000000) (Int) {
+    expect result.'ok(q) = quarter(n) else "a multiple of four is expected"
+    q
+}

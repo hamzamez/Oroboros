@@ -511,7 +511,7 @@ going to write, with the recursion spelled `again`. Two consequences:
 - **`again` stands only where the loop's turn ends**: as an arm's value, or last in an arm's block.
   It may not sit under an `if`:
 
-<!-- file docs/book/code/tour/no-again.oro -->
+<!-- file docs/book/code/tour/no-again.oro.txt -->
 ```go
 export fn skip(n ∈ 0..10) (Int) {
     loop i = 0 {
@@ -521,9 +521,9 @@ export fn skip(n ∈ 0..10) (Int) {
 }
 ```
 
-<!-- gen go docs/book/code/tour/no-again.oro -->
+<!-- gen go docs/book/code/tour/no-again.oro.txt -->
 ```
-gen: docs/book/code/tour/no-again.oro: line 3: `again` under an if (ADR 0015)
+gen: docs/book/code/tour/no-again.oro.txt: line 3: `again` under an if (ADR 0015)
 ```
 
 The condition belongs in the guards: `i < n && i == 5 -> again(i + 2)`, then `i < n ->

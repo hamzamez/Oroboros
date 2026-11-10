@@ -1,0 +1,18 @@
+export fn greek() { fn(Δ) { Δ * 2 } }
+
+export fn predicate() { fn(ok?) { h(ok?, 1) } }
+
+export fn snake() { fn(sub_total) { sub_total + 1 } }
+
+export fn cased() { fn(x1, X1) { h(x1, X1) } }
+
+export fn ignored() { fn(_, b) { b } }
+
+export fn both_ignored() { fn(_, _) { 7 }(1, 2) }
+
+export fn spread_out() {
+    fn(
+        first,
+        second,
+    ) { h(first, second) }
+}

@@ -1,0 +1,9 @@
+export fn one() { fn(n) { h(n, n) }(7) }
+
+export fn two() { fn(a, b) { h(a, b) }(2, 3) }
+
+export fn nullary() { fn() { h(1, 2) }() }
+
+fn pair(a, b) { h(a, b) }
+
+export fn named() { pair(2, 3) }

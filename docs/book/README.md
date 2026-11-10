@@ -9,17 +9,26 @@ the chapters are being rewritten for it in order:
 | chapter | written in | checked |
 |---|---|---|
 | 0 | J, the language as decided and built | 2026-11-10, by `check.go` (below): 58 blocks, every source, emitted function, refusal and output |
-| 1–4 | the notation J replaced (git `1e2bdcd`) | 2026-10-06, in that notation; their examples no longer read |
+| 1 | J | 2026-11-10, by `check.go`: 76 blocks, every source, reduction, emitted function and refusal |
+| 2–4 | the notation J replaced (git `1e2bdcd`) | 2026-10-06, in that notation; their examples no longer read |
 | 5 | the notation J replaced | its examples did not run even then; see its banner |
 
 ```bash
 go run docs/book/check.go docs/book/00-tour.md      # from the repository's root
+go run docs/book/check.go docs/book/01-fn.md
 ```
 
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
-comment naming a file, a `gen`, a `run` or a `portable`), runs it, and compares; a block with no
-directive is counted and reported, not passed. It was trusted after seven planted faults, one of
-each kind, each failed. `cmd/check` does not run it.
+comment naming a file, a `gen`, an `oro`, a `run` or a `portable`), runs it, and compares; a block
+with no directive is counted and reported, not passed. It was trusted after planted faults failed:
+seven in chapter 0 and six in chapter 1, covering each kind of directive but `part`. `cmd/check`
+does not run it.
+
+**A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
+notation (`core.ShowTerm`, [spec/j.md §6.1](../spec/j.md)), where `oro` alone writes the core term.
+**A source the reader refuses is not `.oro`**: `core`'s `TestEveryCorpusFileReadsInJ` requires every
+`.oro` file in the repository to read, so an example whose refusal is the reader's ends in
+`.oro.txt`. A `no-….oro` reads, and is refused by a later stage.
 
 **Chapters 1–4 teach reduction**, and their examples run against
 [`targets/tutorial.oro`](../../targets/tutorial.oro), a target that exists to teach: it spells
@@ -36,7 +45,7 @@ choosing where reduction stops is choosing a target.
 | | |
 |---|---|
 | [0. a tour](00-tour.md) | the whole language for someone arriving from Go, Python, JavaScript, Java, C or Rust: what is like those and what is not. Hello on two hosts, one function on four, blocks, types as sets, integers that are integers, functions that vanish, `loop` and `again`, state and tables, variants, failures as values, tuples, bits, modules and the host, what is absent, and a table from familiar spellings to this one |
-| [1. `fn`](01-fn.md) | functions, parameters, binding, shadowing, capture, what survives |
+| [1. `fn`](01-fn.md) | the first brick: a function is a value, β, what folds and what waits, what a parameter may be, bound and free names, shadowing and α, capture, exact arity, reduction under a binder, functions as arguments and results and the closure that is refused, how often an argument is evaluated with and without an effect, a block as an applied function, a named function's header and its claims, and Ω |
 | [2. `def`](02-def.md) | naming a term, δ, why a definition duplicates, why a primitive wins, recursion, and what λ-calculus alone can do |
 | [3. modules](03-modules.md) | `module`, `use`, `export`, the four cells, one namespace for targets and libraries, and why a functor is just a function |
 | [4. effects](04-effects.md) | one declared bit, the β side condition, `seq`, and the substructural logic it turns out to be |
@@ -150,6 +159,23 @@ first. None is fixed here; each is a defect or a question for its own step:
 7. **Three diagnostics quote the notation J replaced or an internal name**: a variant's payload that
    is a range (`` `(ok int)`; got (circle (int 0 1000)) ``), the closure refusal's `#1.0` (finding 4
    of the list above, still there), and the word-overflow hint's `acc + t(i)` for `t[i]`.
+
+Chapter 1 in J (2026-11-10) found one in the reducer, fixed with the chapter, and three more left
+as they are:
+
+8. **β dropped a binding that was read, and left its variable unbound** (fixed). In
+   `fn(n) { fn(m) { fn(n) { h(m, n) } }(n) }(x())`, the chapter's capture example, the residual was
+   `fn(n1) { h(n, n1) }` with no binding of `n`. `occurrences` opened each λ by its hints and read a
+   parameter spelled like the name as shadowing it, so β's recount counted no use and dropped the
+   binding as pure and unread. It now reads the closed body, as `subst` does
+   (`TestABindingIsKeptUnderABinderOfItsSpelling`); emission is byte-identical. The lesson is
+   CLAUDE.md's own, *a context keyed by name is captured by the name alone*.
+9. **A telescope in a program's header is refused**, `fn at(a ∈ Array(Int), i ∈ 0..len(a)-1)`:
+   *sig at: (int 0 (- (len a) 1)) is not a type*, in the notation J replaced. j.md's status lists a
+   telescope as built.
+10. **A result declared `()` accepts a body that yields a value**: `export fn nothing(n ∈ 0..9) () { n }`
+    compiles and returns `n`.
+11. **The step limit's message quotes a core term**: *last term head: (fn () (fn (k) k))*.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

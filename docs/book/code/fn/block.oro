@@ -1,0 +1,13 @@
+export fn as_a_block() { n = f(2); h(n, n) }
+
+export fn as_a_fn() { fn(n) { h(n, n) }(f(2)) }
+
+export fn in_sequence() { a = f(1); b = h(a, a); h(b, b) }
+
+export fn rebound() { a = f(1); a = g(a); a }
+
+export fn a_statement() { shout(1); 2 }
+
+export fn a_pair() { (q, r) = (f(1), g(2)); h(q, r) }
+
+export fn a_local_fn() { sq = fn(n) { h(n, n) }; sq(sq(3)) }

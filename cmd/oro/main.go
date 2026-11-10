@@ -24,6 +24,7 @@ func main() {
 	path := flag.String("path", "lib", "search path for imported modules")
 	steps := flag.Bool("steps", false, "print each top-level term before and after reduction")
 	fuel := flag.Int("fuel", core.DefaultFuel, "maximum reduction steps")
+	asJ := flag.Bool("j", false, "print terms in J, the surface (spec/j.md §6.1), not as core terms")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: oro [-target=NAME] [-steps] FILE\n\n")
 		flag.PrintDefaults()
@@ -34,13 +35,13 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), *target, *fuel, *steps, *path); err != nil {
+	if err := run(*dir, flag.Arg(0), *target, *fuel, *steps, *path, *asJ); err != nil {
 		fmt.Fprintf(os.Stderr, "oro: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, src, target string, fuel int, steps bool, path string) error {
+func run(targetDir, src, target string, fuel int, steps bool, path string, asJ bool) error {
 	text, err := os.ReadFile(src)
 	if err != nil {
 		return err
@@ -89,12 +90,24 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 		terms = append(terms, prog.Defs[q])
 	}
 
+	// A term is printed as the core's s-expression, or under -j as J's
+	// expression for it, the notation a source file is written in.
+	show := func(t *core.Term) string {
+		if asJ {
+			return core.ShowTerm(t)
+		}
+		return t.String()
+	}
 	for i, t := range terms {
 		if labels[i] != "" {
-			fmt.Printf("%s =\n", labels[i])
+			if asJ {
+				fmt.Printf("%s =\n", core.ShowName(labels[i]))
+			} else {
+				fmt.Printf("%s =\n", labels[i])
+			}
 		}
 		if steps {
-			fmt.Printf("     %s\n", t)
+			fmt.Printf("     %s\n", show(t))
 		}
 		out, err := core.Normalize(t, env, fuel)
 		if err != nil {
@@ -103,7 +116,7 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 		if steps {
 			fmt.Printf("  ⟶  ")
 		}
-		fmt.Println(out)
+		fmt.Println(show(out))
 
 		if left := core.Residual(out, env); len(left) > 0 {
 			fmt.Fprintf(os.Stderr,

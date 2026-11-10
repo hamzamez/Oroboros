@@ -1,0 +1,1 @@
+export fn run() { fn(a, b) { h(a, b) }(1, 2, 3) }

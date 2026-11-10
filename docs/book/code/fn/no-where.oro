@@ -1,0 +1,3 @@
+fn span(lo ∈ Int, hi ∈ Int) (Int) where lo <= hi { hi - lo }
+
+export fn run(a ∈ 0..10, b ∈ 0..10) (Int) { span(a, b) }

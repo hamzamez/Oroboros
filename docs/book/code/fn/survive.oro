@@ -1,0 +1,5 @@
+fn compose(p, q) { fn(v) { p(q(v)) } }
+
+export fn unapplied() { compose(f, g) }
+
+export fn half_applied() { fn(a) { fn(b) { h(a, b) } }(x()) }

@@ -1,0 +1,9 @@
+export fn once() { fn(n) { h(n, 2) }(f(9)) }
+
+export fn twice() { fn(n) { h(n, n) }(f(9)) }
+
+export fn never() { fn(n) { h(1, 2) }(f(9)) }
+
+export fn a_value(a) { fn(n) { h(n, n) }(a) }
+
+export fn in_a_branch(c) { fn(n) { if c { n } else { 0 } }(f(1)) }

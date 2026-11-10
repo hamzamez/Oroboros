@@ -1,0 +1,1 @@
+export fn inc(n) { n + 1 }

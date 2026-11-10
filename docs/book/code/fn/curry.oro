@@ -1,0 +1,3 @@
+export fn both() { fn(a) { fn(b) { h(a, b) } }(1)(2) }
+
+export fn first_only() { fn(a) { fn(b) { h(a, b) } }(1) }

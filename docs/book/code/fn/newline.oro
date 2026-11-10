@@ -1,0 +1,11 @@
+export fn one_line() { f (1) }
+
+export fn two_lines() {
+    f
+    (1)
+}
+
+export fn arguments_wrap() {
+    h(1,
+      2)
+}

@@ -1,0 +1,1 @@
+export fn run() { fn(k) { k(k) }(fn(k) { k(k) }) }

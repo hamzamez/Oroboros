@@ -1,0 +1,5 @@
+export fn run(n) { fn(m) { m * m }(n) }
+
+fn square(v) { v * v }
+
+export fn fourth(n) { square(square(n)) }

@@ -1,0 +1,3 @@
+fn never_called(n) { n + totl }
+
+export fn run() { 7 }

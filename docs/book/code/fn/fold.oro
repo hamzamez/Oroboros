@@ -1,0 +1,11 @@
+export fn literal() { fn(n) { n * n }(7) }
+
+export fn unknown() { fn(n) { n * n }(x()) }
+
+export fn compare() { 3 < 4 }
+
+export fn choose() { if 3 < 4 { f(1) } else { g(1) } }
+
+export fn by_zero() { 7 / 0 }
+
+export fn too_big() { 2^62 * 4 }

@@ -1,0 +1,27 @@
+fn twice(k, v) { k(k(v)) }
+
+export fn with_a_name() { twice(f, 3) }
+
+export fn with_a_fn() { twice(fn(v) { h(v, 1) }, 3) }
+
+fn compose(p, q) { fn(v) { p(q(v)) } }
+
+export fn composed() { compose(f, g)(1) }
+
+export fn composed_twice() { compose(compose(f, g), f)(z()) }
+
+fn flip(k) { fn(a, b) { k(b, a) } }
+
+export fn flipped() { flip(h)(1, 2) }
+
+fn id(v) { v }
+
+export fn identity() { id(id)(id)(7) }
+
+fn pick(c, a, b) { if c { a } else { b } }
+
+export fn picked() { pick(true, f, g)(1) }
+
+export fn picked_later(c) { pick(c, f, g)(1) }
+
+export fn used_twice() { fn(k) { h(k(1), k(2)) }(fn(v) { shout(v) }) }

@@ -1,0 +1,5 @@
+fn digit(d ∈ 0..9) (Int) { d * 2 }
+
+export fn run(n ∈ 0..100) (Int) {
+    if n < 10 { digit(n) } else { 0 }
+}

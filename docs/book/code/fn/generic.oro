@@ -1,0 +1,5 @@
+fn first(a, b) { a }
+
+export fn of_ints(n ∈ 0..9) (Int) { first(n, 0) }
+
+export fn of_strings(s ∈ String) (String) { first(s, "") }

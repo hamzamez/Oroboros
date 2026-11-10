@@ -1,0 +1,4 @@
+export fn run() {
+    fn sq(n) { h(n, n) }
+    sq(3)
+}

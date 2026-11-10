@@ -1,0 +1,11 @@
+export fn never() { fn(n) { h(1, 2) }(shout(9)) }
+
+export fn once() { fn(n) { h(n, 2) }(shout(9)) }
+
+export fn twice() { fn(n) { h(n, n) }(shout(9)) }
+
+export fn in_order() { fn(a, b) { h(b, a) }(shout(1), shout(2)) }
+
+fn pick(c, a, b) { if c { a } else { b } }
+
+export fn not_lazy() { pick(true, 1, shout(2)) }

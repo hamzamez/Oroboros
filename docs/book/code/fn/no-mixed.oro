@@ -1,0 +1,3 @@
+fn double(n) { n + n }
+
+export fn of_strings(s ∈ String) (String) { double(s) }

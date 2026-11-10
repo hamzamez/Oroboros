@@ -12,10 +12,12 @@
 //	<!-- part PATH -->                 the block is a run of the file's lines
 //	<!-- gen TARGET PATH [-checked] -->  the block is a run of lines of what `gen`
 //	                                   printed, or of the file it emitted
+//	<!-- oro TARGET PATH -->           the block is a run of lines of what `oro -j`
+//	                                   printed: each export reduced, in J
 //	<!-- run TARGET PATH -->           the block is what the built program printed
 //	<!-- portable PATH -->             the block is a run of lines of `portable`
 //
-// In a `part`, `gen` or `portable` block a line holding only `…` stands for
+// In a `part`, `gen`, `oro` or `portable` block a line holding only `…` stands for
 // lines left out: the pieces around it must appear in that order. Tabs compare
 // as four spaces and trailing blanks are dropped; nothing else is forgiven.
 //
@@ -33,7 +35,7 @@ import (
 	"strings"
 )
 
-var directive = regexp.MustCompile(`^<!--\s+(file|part|gen|run|portable)\s+(.*?)\s*-->$`)
+var directive = regexp.MustCompile(`^<!--\s+(file|part|gen|oro|run|portable)\s+(.*?)\s*-->$`)
 
 func norm(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
@@ -102,7 +104,7 @@ func main() {
 	}
 	defer os.RemoveAll(tmp)
 	tool := map[string]string{}
-	for _, t := range []string{"gen", "build", "portable"} {
+	for _, t := range []string{"gen", "build", "portable", "oro"} {
 		tool[t] = filepath.Join(tmp, t+".exe")
 		if out := run("go", "build", "-o", tool[t], "./cmd/"+t); out != "" {
 			fmt.Fprint(os.Stderr, out)
@@ -148,7 +150,9 @@ func main() {
 		case "gen":
 			out := filepath.Join(tmp, "out.txt")
 			os.Remove(out)
-			a := []string{"-name", "tour"}
+			// The chapter's own command: `-name` is the source's directory,
+			// `tour` or `fn`, and it prefixes each emitted function's name.
+			a := []string{"-name", filepath.Base(filepath.Dir(args[1]))}
 			if len(args) > 2 {
 				a = append(a, args[2:]...)
 			}
@@ -156,6 +160,9 @@ func main() {
 			said = strings.ReplaceAll(said, filepath.ToSlash(out), "OUT")
 			emitted, _ := os.ReadFile(out)
 			got = norm(said) + "\n" + norm(string(emitted))
+			ok = within(block, got)
+		case "oro":
+			got = norm(run(tool["oro"], "-j", "-target="+args[0], args[1]))
 			ok = within(block, got)
 		case "run":
 			var exe string

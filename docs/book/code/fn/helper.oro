@@ -1,0 +1,5 @@
+fn square(v) { v * v }
+
+fn twice(k, v) { k(k(v)) }
+
+export fn fourth(n ∈ 0..100) (Int) { twice(square, n) }

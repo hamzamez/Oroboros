@@ -1,0 +1,1 @@
+export fn apply(k, n ∈ 0..9) (Int) { k(n) }

@@ -39,6 +39,10 @@ var PlantRenderEverywhere = false
 // signs: TestASignedSumIsTheGroupCompletions must see the wrong numeral.
 var PlantSignFault bool
 
+// PlantInlineAll inlines every K(ℕ*) instance, as before ADR 0101: a
+// measurement's baseline.
+var PlantInlineAll bool
+
 // PlantNatFault takes K(ℕ*)'s sum for its difference:
 // TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength must see the wrong numeral.
 var PlantNatFault bool
@@ -250,6 +254,18 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			u, ok := plan[s]
 			if !ok {
 				out = append(out, *s)
+				continue
+			}
+			// A LIBRARY INSTANCE IS A FUNCTION OF THE PROGRAM (ADR 0101): the
+			// large ones are called, decided once under their parameters' sets.
+			if nat && natCalled[u.fn] && !PlantInlineAll {
+				name, e := natCallee(tg, u.fn)
+				if e != nil {
+					err = e
+					return
+				}
+				count++
+				out = append(out, Stmt{Op: OCall, Name: name, Args: u.args, Res: s.Res, Src: s.Src})
 				continue
 			}
 			c, e := callee(u.fn)

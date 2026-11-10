@@ -233,7 +233,13 @@ checked. When a package hits a wall that needs language work, stop, research it,
      loop (x + y = y + x, so only S orders its operands), A's size its carry's, the index domain split
      at the shorter size; fib 27% faster, at four inlined loop cases per sum (the division program
      21,102 → 29,579 operations, ten minutes in clang); the same split owed for `mul_small`, `qsmall`,
-     `rem_small`, `qrem` and `macrow`; the library's operations as functions now measured twice; M4's 64-bit digits with `uadd.with.overflow` and i128 (native
+     `rem_small`, `qrem` and `macrow`; ~~the library's operations as functions~~, step 1 done (ADR 0101,
+     [progfunc-2026-11-10](gauntlet/results/progfunc-2026-11-10.md)): K(ℕ\*)'s large instances are
+     functions of the program, decided once under their parameters' sets (a numeral's table
+     `array int 0 4294967295`), the call's obligation its arguments in them, the frame rule
+     (arguments borrowed, result a birth; W13 the callee's side); the division program 10 min → 19.5 s
+     to compile, 483 → 73 KB, 10% faster to run; `examples/big/` 0.22–0.63× to compile; reuse across a
+     call (destination-passing) and parameter `noalias` are steps 2 and 3; M4's 64-bit digits with `uadd.with.overflow` and i128 (native
      iN); a sum's size from its carry; render ~~two passes per chunk~~, one since
      [printpass-2026-11-10](gauntlet/results/printpass-2026-11-10.md) (fact 23% faster, now 9.0×); its
      divide and conquer gains nothing over quadratic D (m²/2 against chunking's 0.53m²), so it waits on
@@ -389,7 +395,7 @@ checked. When a package hits a wall that needs language work, stop, research it,
 **Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;
 a join across representations; hoisting or CSE on the IR (it would reach two premises witnessed only on
-hand-built IR); a limb instance emitted once as a function; per-result enforcement above the word and
+hand-built IR); per-result enforcement above the word and
 signed limbs (ADR 0029); the higher-order contract gap (ADR 0028); records, `with` and named views beyond
 what TinyRetroPad's walls need.
 
@@ -447,11 +453,13 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **6,178 of 6,232** integer operations proven inside their target's word, the 54 left
+- **Provability**: **5,717 of 5,771** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **668 of 692** loops proven to terminate (size-change termination). Each
-  program's share is in its result document; both counts are pinned by `cmd/check`.
+  **649 of 673** loops proven to terminate (size-change termination). Each
+  program's share is in its result document; both counts are pinned by `cmd/check`. A program
+  function's operations (ADR 0101) are proven once per target, under its parameters' sets, and a
+  program calling one it could not prove is refused, so they are not counted per program.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
   share of the Go packages with a file, with a cause for every missing name
@@ -775,6 +783,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A frozen value's view is counted fractions, not persistent; an owned table is released at its death, `release` an IR operation over Σ_OS; storage chosen by size class (frame, data stack, heap), built in steps; W11 checks every release | [0096](docs/decisions/0096-a-values-storage-is-chosen-by-size-class-and-released-at-its-death.md) |
 | A table born full takes a region with no zero fill: region = zero ∘ region_raw, a rule and a literal by construction, a build by the written prefix; replaces R1c's frame slots | [0097](docs/decisions/0097-a-table-born-full-takes-a-region-with-no-zero-fill.md) |
 | A dead region serves a request it fits: release ; region(b′) ≡ zero for b′ ≤ b of one class (Σ_OS's `class`), the token carrying its table's count, compared at run time; replaces R1d's data stack (amends 0096 item 6) | [0100](docs/decisions/0100-a-dead-region-serves-a-request-it-fits.md) |
+| A library instance is a function of the program, decided once under its parameters' sets, the call's obligation its arguments in them, the frame rule its ownership (W13); amends 0035 | [0101](docs/decisions/0101-a-library-instance-is-a-function-of-the-program.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄, its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

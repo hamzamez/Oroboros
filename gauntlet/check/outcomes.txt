@@ -22,9 +22,9 @@
 == examples/big/fact.oro java emitted 730d462280befebf92e518dae2a094e0ebadf5ff61a5942eb34f7ffbca3a7181
    note: gen-fact: 1 operation(s) in arbitrary precision
    note: gen-fact: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/fact.oro windows emitted fd0b1195af5548818f09a6f3dabd540295a2a6506bfa75aad97ceba0f0b783c5
+== examples/big/fact.oro windows emitted c40ac2b4a0d08ba9a735cfc69f1394444de4049ed02dd5c61b66c9bca5e197e3
    note: gen-fact: 2 operation(s) in arbitrary precision
-   note: gen-fact: 26 of 26 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-fact: 9 of 9 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/big/fib.oro go emitted a30ed197be9c09f62bb7819fae5ab10392088365a8a3510a00c1d5ce53045f99
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -34,9 +34,9 @@
 == examples/big/fib.oro java emitted a3e50b5b7cd0a7b19d187ef08d6009c9e243f2f027f38c9cd760846de5ec4cd2
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/fib.oro windows emitted e46a3fd6449b82b90150c2bd0556bff4bf95bc556462c52d039bbf19c152b24c
+== examples/big/fib.oro windows emitted 3400d0a2b2dd04d733c054d71176d36384b66f30df69531ba2f0fc0ad6027c7b
    note: gen-fib: 3 operation(s) in arbitrary precision
-   note: gen-fib: 105 of 105 integer operations bounded; 8 of 8 loop(s) proven terminating
+   note: gen-fib: 17 of 17 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/big/limbs.oro go emitted 8159406788a85d98f07c02fff1f82d54695fbf44bcf1efbe0273fe9777b1da5e
    note: gen-limb: 7 of 7 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 4 division(s) became a shift or a mask
@@ -57,10 +57,9 @@
 == examples/big/pair.oro java emitted b4071583637e65459ce13cc0fca5dc3dd4e77d4560de59f8747374adfb52212a
    note: gen-pair: 2 operation(s) in arbitrary precision
    note: gen-pair: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/pair.oro windows emitted 9fe3d78ca1fe977dcc407203d25458b261f02f63223600aad49fbdbfb757dd49
+== examples/big/pair.oro windows emitted 11f6f11a82088cf8ec2f1d066e6e904be04cac2fc5cb041c4cab2785dffbda01
    note: gen-pair: 4 operation(s) in arbitrary precision
-   note: gen-pair: 24 operation(s) or conversion(s) in the unsigned word
-   note: gen-pair: 172 of 172 integer operations bounded; 10 of 10 loop(s) proven terminating
+   note: gen-pair: 17 of 17 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/big/power.oro go emitted 7a15610ef53b8c1055c013e4ecaeff42edef2f2ab2a6fe6aa19b298e3538a840
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -73,10 +72,9 @@
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-power: 3 division(s) became a shift or a mask
-== examples/big/power.oro windows emitted 81ed6c6cac590c405b4017f1a4c5228c86528070ab3361409a994872bb341e80
+== examples/big/power.oro windows emitted a24ca53200c774e239821095285227774919265ddcbdc89d4170ac652f0e2ea5
    note: gen-power: 5 operation(s) in arbitrary precision
-   note: gen-power: 72 operation(s) or conversion(s) in the unsigned word
-   note: gen-power: 219 of 219 integer operations bounded; 9 of 9 loop(s) proven terminating
+   note: gen-power: 18 of 18 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/big/render.oro go emitted 414470f0d10dca6e778c64c8b199c66819dce4cc3cf8ceb14b83ae1d831ba07b
    note: gen-render: 5 operation(s) in arbitrary precision
    note: gen-render: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating

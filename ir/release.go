@@ -37,6 +37,9 @@ var (
 	// PlantReleaseInLoop admits a move inside a loop the value is defined
 	// outside, so one storage is moved, and released, once per iteration.
 	PlantReleaseInLoop bool
+	// PlantCallArgsEscape reads a program function's call as a host's, its
+	// arguments escaping and its result owned by nobody: every result leaks.
+	PlantCallArgsEscape bool
 )
 
 // A loc is a point of the function: a statement of a region, or its
@@ -158,6 +161,20 @@ func newRelCtx(tg *emit.Target, f *Func) *relCtx {
 			case OLen, OStorage:
 				add(s.Args[0], use{at: at, kind: useBorrow})
 			case OCall:
+				// A PROGRAM FUNCTION'S CALL IS THE FRAME RULE (ADR 0101): its
+				// arguments are borrowed and its result is a birth, owned here;
+				// W13 checks the callee returns no argument of its own.
+				if tg.Prims[s.Name].Program && !PlantCallArgsEscape {
+					for _, a := range s.Args {
+						add(a, use{at: at, kind: useBorrow})
+					}
+					for _, r := range s.Res {
+						if c.table(r) {
+							c.births[r] = true
+						}
+					}
+					continue
+				}
 				ret := false
 				for _, r := range s.Res {
 					ret = ret || c.table(r) || strings.HasPrefix(f.Types[r], "buffer")

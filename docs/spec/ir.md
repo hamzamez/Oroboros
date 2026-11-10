@@ -297,6 +297,26 @@ A global is a **closed constant**: an `array` or `map` graph of literals, named 
 because staging did not substitute it into every use. A free name that is not one is a closure, which
 callbacks.md refuses before lowering.
 
+### 2.5 Program functions (ADR 0101)
+
+A **program function** is a function of the program's text that another one calls: an instance of a
+compiler library (ADR 0035), checked once as a theory, closed and first-order. `call f ā` applies it,
+and it is ⟦f⟧(ā), the same value β-reducing its body into the call would give. Not inlining is
+semantically free; what it changes is where the arithmetic is decided:
+
+- **its parameters and result have declared sets**, a numeral's table `(array (int 0 4294967295))`;
+- **an argument's fact must lie in its parameter's set**, an obligation at each call (§7), decided or
+  refused there;
+- **the callee is decided once, under its parameters' sets**, and its result's set is a claim its
+  body proves, a table's element range by its stores (ADR 0072, on a table);
+- **ownership is the frame rule**: the arguments are borrowed and the result is a birth, owned by the
+  caller (ADR 0096). W13 checks the callee's side: every table it returns is born in it, never an
+  argument or a part of one.
+
+A program function is named in the target's primitives with its signature and a flag saying an IR
+function defines it, so every pass reads it as it reads a call; its body is in the program's text, so
+a printer reprints from the text alone (ADR 0038).
+
 ---
 
 ## 3. Static semantics: well-formed programs
@@ -534,7 +554,7 @@ if ⟦c⟧ = true and R₂'s otherwise.
 - **Integer operations** are ℤ's, computed exactly (ADR 0026). In IR_P mode `exact`, the result is in
   ⟦τ⟧ by proof. In mode `trap`, a result outside ρ_T is Trap.
 - **`call p ā`** is the target's primitive: its model is the host's function (ADR 0021, "a target is a
-  model"), and its purity is its declared bit.
+  model"), and its purity is its declared bit. A program function's call is its body applied (§2.5).
 - **`index t i`** is t(i). It is defined only on 0 ≤ i < len t. That is its domain, which in IR_P is
   **discharged** (refinements.md §3a), so a printer may emit an unchecked access, and a host's own
   check is never relied on (noprop-2026-09-25).

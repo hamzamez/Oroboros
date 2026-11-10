@@ -232,6 +232,7 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	// (win32-2026-09-06 §6). There is no default now: a target that cannot say
 	// which backend compiles it is refused before any work is done.
 	var code string
+	var calleeIR []*ir.Func
 	switch backend {
 	case "js":
 		code, err = js.FromFunc(tg, fA)
@@ -240,7 +241,14 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	case "llvm":
 		code, err = llvm.FromFunc(tg, fA)
 		if err == nil {
-			code = llvm.File(tg, map[string]string{"oro-main": code}, "oro-main")
+			// AND EACH PROGRAM FUNCTION IT CALLS (ADR 0101), defined once
+			funcs := map[string]string{"oro-main": code}
+			var cs map[string]string
+			cs, calleeIR, err = llvm.Callees(tg, fA)
+			for n, c := range cs {
+				funcs[n] = c
+			}
+			code = llvm.File(tg, funcs, "oro-main")
 		}
 	case "go":
 		code, err = golang.FromFunc(tg, fA)
@@ -254,7 +262,7 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	// writes it. The differential runner reads it: its cases' entry points are
 	// compiled here and never by the emission sweep.
 	if irOut != "" {
-		p := &ir.Program{Target: target, Stage: ir.StageP, Funcs: []*ir.Func{fA.Clone()}}
+		p := &ir.Program{Target: target, Stage: ir.StageP, Funcs: append([]*ir.Func{fA.Clone()}, calleeIR...)}
 		_ = ir.WriteFile(irOut, tg, p, nil)
 	}
 

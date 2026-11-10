@@ -59,6 +59,10 @@ type Prim struct {
 	// silently reached 666 of 4,093 callable Win32 names (target-files.md §6a).
 	Lib  string
 	Pure bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
+	// Program is a function of the program, an IR function the program's text
+	// holds (ADR 0101, ir.md §2.5): a library instance called, not inlined. Its
+	// arguments are borrowed and its result is a birth (the frame rule).
+	Program bool
 	// Variadic is declared `variadic`: the host function takes a LIST as its
 	// last parameter, f : X × T* → B, the parameter a table and the template
 	// spreading it (`%s...`). A call's trailing arguments are the list, and

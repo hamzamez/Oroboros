@@ -349,7 +349,7 @@ fn qrem(ml, a, off, k) {
     var o := array { 0 : _ ∈ 0..cap-1 }
     loop i = cap - 1, r = 0 {
         i < 0 -> o
-        i == cap - 1 -> { o[i] := 2 * m2; again(i - 1, r) }
+        i == cap - 1 -> { o[i] := signed(0, m2); again(i - 1, r) }
         i == 0 -> { o[i] := r; again(i - 1, r) }
         else -> { cur = r * (2^32) + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
     }
@@ -568,20 +568,28 @@ fn div(ml, a, b) {
     }
 }
 
+// a copy of a numeral: a function's result is born in it (W13, ADR 0101), so
+// one that would answer its argument answers this
+fn copy(ml, a) {
+    n = len(a)
+    var o := array { 0 : _ ∈ 0..n - 1 }
+    loop i = 0 { i >= n -> o; else -> { o[i] := a[i]; again(i + 1) } }
+}
+
 // THE REMAINDER: the machine's last state, divided by f, with the dividend's
 // sign
 fn rem(ml, a, b) {
     n = size(b)
     case {
         n < 1 -> abandon("division by zero")
-        mcmp(ml, a, b) < 0 -> a
+        mcmp(ml, a, b) < 0 -> copy(ml, a)
         else -> {
             f = nfactor(dig(b, n - 1))
             v = mul_small(ml, b, f)
             u = mul_small(ml, a, f)
             kq = size(u) - n + 1
             case {
-                kq < 1 -> a
+                kq < 1 -> copy(ml, a)
                 else -> {
                   lu = len(u) - 1
                   loop i = kq - 1, r = slice(u, kq, n - 1) {

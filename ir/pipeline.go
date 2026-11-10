@@ -150,10 +150,21 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 		}
 		leg = Decide(tg, f, checked)
 	}
+	leg, err = afterRung(tg, f, name, checked, leg, note)
+	if err != nil {
+		return nil, nil, err
+	}
+	return f, leg, nil
+}
+
+// afterRung is the pipeline after the rung above the word, shared by an entry
+// and a program function (ADR 0101): the unsigned word, its pair, storage,
+// release, reuse and the target's interpretation, each decided again.
+func afterRung(tg *emit.Target, f *Func, name string, checked bool, leg *Legality, note func(Note)) (*Legality, error) {
 	// THE UNSIGNED WORD: each integer value's realization is ρ of its fact;
 	// the decision is taken again on the selected function.
 	if changed, err := SelectWords(tg, f); err != nil {
-		return nil, nil, fmt.Errorf("%s: %v", name, err)
+		return nil, fmt.Errorf("%s: %v", name, err)
 	} else if changed {
 		note(Note{Kind: NoteWord, N: WordOps(f)})
 		leg = Decide(tg, f, checked)
@@ -162,7 +173,7 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// is narrower: every value held there, and every operation on one, expanded
 	// into the halves' operations, which the decision then proves.
 	if changed, err := SelectPairs(tg, f); err != nil {
-		return nil, nil, fmt.Errorf("%s: %v", name, err)
+		return nil, fmt.Errorf("%s: %v", name, err)
 	} else if changed {
 		leg = Decide(tg, f, checked)
 	}
@@ -181,19 +192,19 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 		// checked there by W11, independently of the pass.
 		if round == 0 && Release(tg, f) > 0 {
 			if err := CheckReleases(tg, f); err != nil {
-				return nil, nil, fmt.Errorf("%s: %v", name, err)
+				return nil, fmt.Errorf("%s: %v", name, err)
 			}
 			// AND A DEAD TABLE'S STORAGE TAKEN BY THE NEXT TABLE OF ITS SIZE
 			// (R1b), checked by W12.
 			if Reuse(tg, f) > 0 {
 				if err := CheckReuse(tg, f); err != nil {
-					return nil, nil, fmt.Errorf("%s: %v", name, err)
+					return nil, fmt.Errorf("%s: %v", name, err)
 				}
 			}
 		}
 		n, err := RealizeOps(tg, f)
 		if err != nil {
-			return nil, nil, fmt.Errorf("%s: %v", name, err)
+			return nil, fmt.Errorf("%s: %v", name, err)
 		}
 		if n > 0 {
 			leg = Decide(tg, f, checked)
@@ -202,8 +213,13 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 			break
 		}
 		if round == 8 {
-			return nil, nil, fmt.Errorf("%s: a table's storage and ι reach no fixed point in 8 rounds (ADR 0092)", name)
+			return nil, fmt.Errorf("%s: a table's storage and ι reach no fixed point in 8 rounds (ADR 0092)", name)
 		}
 	}
-	return f, leg, nil
+	// THE OBLIGATION AT EACH CALL OF A PROGRAM FUNCTION (ADR 0101): its
+	// arguments in its parameters' sets, on the function's final facts.
+	if err := CheckCallSets(tg, f); err != nil {
+		return nil, fmt.Errorf("%s: %v", name, err)
+	}
+	return leg, nil
 }

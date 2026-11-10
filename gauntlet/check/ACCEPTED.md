@@ -2780,3 +2780,25 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) accepted SLOWER — compile time 1.04x the baseline (median of 26 compiles over 300 ms); a second sweep kept 3 of 3 suspect(s); paired serially against the baseline's binary (c12cc7f), 1 confirmed, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.06x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 0.94x paired:
 
 - `examples/big/fib.oro windows` 15 → 1015 ms, 67.71x; paired 203 → 453 ms, 2.23x
+
+## 2026-11-10 — on 3b6709f, with uncommitted changes
+
+**Reason:** ADR 0101 step 1 (progfunc-2026-11-10): K(N*)'s large instances are functions of the program, decided once under their parameters' sets, the call's obligation its arguments in them, the frame rule its ownership (W13 the callee's side). Only examples/big's four windows programs change, printing what Go prints, and compile faster (0.22-0.63x); every printer reprints the 241 functions from the text; counts 5,717 of 5,771 and 649 of 673, a callee's operations proven once per target and not counted per program, the unproven 54 and 24 unchanged.
+
+624 runs: 403 emitted, 221 refused; 5717 of 5771 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- emitted text changed — `examples/big/fact.oro windows`
+- compiler output changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- compiler output changed — `examples/big/power.oro windows`
+
+2 compile(s) recorded FASTER:
+
+- `examples/big/pair.oro windows` 1843 → 1078 ms, 0.58x
+- `examples/big/power.oro windows` 2093 → 265 ms, 0.13x

@@ -1,7 +1,7 @@
 # 0035 — A compiler library is a theory checked once; a use is an instance, inlined on the IR
 
 Date: 2026-09-28
-Status: Accepted. Realized for the fixed-limb bignum (`emit/bignum.oro`) in irstep4i.
+Status: Accepted. Realized for the fixed-limb bignum (`emit/bignum.oro`) in irstep4i. **Amended by [ADR 0101](0101-a-library-instance-is-a-function-of-the-program.md)**: a use of K(ℕ*)'s large instances is a call of a function of the program, decided once under its parameters' sets.
 
 ## Context
 

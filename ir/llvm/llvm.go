@@ -998,3 +998,21 @@ func (p *printer) tabulate(s *ir.Stmt, x exits) {
 	p.line("br label %%%s", head)
 	p.label(done)
 }
+
+// Callees prints the program functions f calls (ADR 0101), each from a clone
+// of its built function, so a cached callee is never changed: their LLVM
+// definitions by name, and their IR_P functions for the program's text.
+func Callees(tg *emit.Target, f *ir.Func) (map[string]string, []*ir.Func, error) {
+	codes := map[string]string{}
+	var funcs []*ir.Func
+	for _, c := range ir.Callees(tg, f) {
+		cl := c.Clone()
+		code, err := FromFunc(tg, cl)
+		if err != nil {
+			return nil, nil, err
+		}
+		codes[cl.Name] = code
+		funcs = append(funcs, cl)
+	}
+	return codes, funcs, nil
+}

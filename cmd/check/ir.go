@@ -185,6 +185,9 @@ func printText(targets map[string]*emit.Target, source, target string, p *ir.Pro
 	if err := tg.Instances(p.Calls()); err != nil {
 		return "", err
 	}
+	// A PROGRAM FUNCTION IS IN THE TEXT (ADR 0101): registered from its own
+	// signature before any call to it is verified or printed.
+	ir.RegisterProgram(tg, p)
 	if err := ir.Verify(tg, p); err != nil {
 		return "", err
 	}

@@ -183,6 +183,9 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	sort.SliceStable(units, func(i, j int) bool { return units[i].name < units[j].name })
 	funcs := map[string]string{}
 	irProg := &ir.Program{Target: target, Stage: ir.StageP}
+	// the program functions the entries call (ADR 0101), each once
+	calleeSeen := map[string]bool{}
+	var calleeFuncs []*ir.Func
 	var irErrs []string
 	for _, u := range units {
 		nf, err := core.Normalize(u.term, env, core.DefaultFuel)
@@ -253,6 +256,23 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			code, err = java.FromFunc(tg, fA)
 		case "llvm":
 			code, err = llvm.FromFunc(tg, fA)
+			// AND EACH PROGRAM FUNCTION IT CALLS (ADR 0101), once per program
+			if err == nil {
+				var cs map[string]string
+				var cf []*ir.Func
+				cs, cf, err = llvm.Callees(tg, fA)
+				for n, c := range cs {
+					if _, have := funcs[n]; !have {
+						funcs[n] = c
+					}
+				}
+				for _, c := range cf {
+					if !calleeSeen[c.Name] {
+						calleeSeen[c.Name] = true
+						calleeFuncs = append(calleeFuncs, c)
+					}
+				}
+			}
 		case "go":
 			code, err = golang.FromFunc(tg, fA)
 		default:
@@ -270,6 +290,9 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		}
 	}
 
+	if irOut != "" {
+		irProg.Funcs = append(irProg.Funcs, calleeFuncs...)
+	}
 	var text2 string
 	switch backend {
 	case "js":

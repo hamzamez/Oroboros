@@ -227,8 +227,10 @@ checked. When a package hits a wall that needs language work, stop, research it,
      immutable value), not by `noalias`, whose scoped form is unsound for inlined code and whose
      parameter form waits on instances as functions; the digit's invariant as a fact in place of its
      mask; the sign case unswitched; M4's 64-bit digits with `uadd.with.overflow` and i128 (native
-     iN); a sum's size from its carry; **render**, 62% of fact: quotient and remainder in one pass,
-     then divide and conquer (Brent and Zimmermann §1.7).
+     iN); a sum's size from its carry; render ~~two passes per chunk~~, one since
+     [printpass-2026-11-10](gauntlet/results/printpass-2026-11-10.md) (fact 23% faster, now 9.0×); its
+     divide and conquer gains nothing over quadratic D (m²/2 against chunking's 0.53m²), so it waits on
+     **Karatsuba and recursive division** (Burnikel and Ziegler 1998), owed for every large product.
      In steps:
      1. ~~**The layering**~~ **done** (ADR 0093, [layers-2026-11-04](gauntlet/results/layers-2026-11-04.md)):
         `targets/llvm/` is T_LLVM[Σ_OS], a theory with a parameter (Σ_LLVM, ι's terms, the

@@ -236,9 +236,8 @@ fn gt(ml, a, b) { lt(ml, b, a) }
 fn ge(ml, a, b) { le(ml, b, a) }
 fn eq(ml, a, b) { hdr(a) == hdr(b) && mcmp(ml, a, b) == 0 }
 
-// RENDER BY 10^9, nine decimal digits per division of |a|, the quotient
-// carried as a table (the fixed limbs' shape; one copy divided in place is a
-// measured improvement, not yet built). A value below B^m has at most
+// RENDER BY 10^9, nine decimal digits per division of |a|, the quotient and
+// the remainder carried together in one table (qrem), one pass per chunk. A value below B^m has at most
 // ⌊32m·log10 2⌋ + 1 ≤ 9.6330m + 1 decimal digits, and m ≤ len a − 1, so a
 // field of n = 10·len a + 9 entries holds them, digit k at n − 1 − k for
 // k < n − 1. The numeral's length is found on the frozen field by a scan
@@ -257,6 +256,27 @@ fn numeral(f, n, w, s) {
     }
 }
 
+// QUOTIENT AND REMAINDER IN ONE PASS. A short division is a Mealy machine
+// whose final state is the remainder, so one fold gives both. They are packed
+// in one table, [r, q_0, …, q_{m−1}, header]: the division runs from the top
+// digit down, and the descending build writes slot 0 last, when r is known,
+// so the table is born full. The dividend's digit j is at a[off + j], off 0
+// for a numeral and 1 for a packed quotient; its size is its header's either
+// way. The quotient's size m2 is known first, as qsmall's.
+fn qrem(ml, a, off, k) {
+    m = size(a)
+    la = len(a)
+    m2 = if m == 0 { 0 } else if pg(a, la, off + m - 1) >= k { m } else { m - 1 }
+    cap = room(ml, m + 2)
+    var o := array { 0 : _ ∈ 0..cap-1 }
+    loop i = cap - 1, r = 0 {
+        i < 0 -> o
+        i == cap - 1 -> { o[i] := m2; again(i - 1, r) }
+        i == 0 -> { o[i] := r; again(i - 1, r) }
+        else -> { cur = r * (2^32) + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
+    }
+}
+
 fn render(ml, a) {
     n = 10 * len(a) + 9
     case {
@@ -264,17 +284,17 @@ fn render(ml, a) {
         else -> {
             f = {
                 var b := array { 48 : _ ∈ 0..n - 1 }
-                loop k = 0, q = a, r = 0 {
+                loop k = 0, q = a, off = 0, r = 0 {
                     k >= n - 1 -> b
                     k % 9 == 0 -> {
-                        c = rem_small(ml, q, 1000000000)
-                        d = if c < 0 { 0 - c } else { c }
+                        q2 = qrem(ml, q, off, 1000000000)
+                        d = pg(q2, len(q2), 0)
                         b[n - 1 - k] := 48 + d % 10
-                        again(k + 1, div_small(ml, q, 1000000000), d / 10)
+                        again(k + 1, q2, 1, d / 10)
                     }
                     else -> {
                         b[n - 1 - k] := 48 + r % 10
-                        again(k + 1, q, r / 10)
+                        again(k + 1, q, off, r / 10)
                     }
                 }
             }

@@ -391,6 +391,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
 12. **The JVM's generated JSON tokenizer slows from 8 to 22.5 µs mid-run** (bits-2026-10-27 §2), before
     and after ADR 0083: find the cause (a deoptimization, a profile, or the emitted shape), against
     hand-written code. A gauntlet program, so ahead of new programs once 6b is done.
+13. **When to reduce and when to call**, researched, **awaiting hamza's Q1–Q4**
+    ([specialization-research.md](docs/specialization-research.md), 2026-11-10): the choice of what to
+    unfold never changes a meaning (Theorem 1), only proofs, size and time; the static level is always
+    unfolded; interval analysis is not distributive, so one contract proves less than the sites
+    (Theorem 3, `t * k`), and lifting a function's unproven obligations to its callers as preconditions
+    recovers them where expressible (Theorem 4, ADR 0037 at a boundary); folding by pattern after
+    reduction is the NP-hard smallest-grammar problem, folding by origin linear and exact. Recommended:
+    a choice of K never changes a verdict (Q1); M-S1 and M-S2 first, a program's own definitions kept
+    on a trigger (Q2); contracts completed by lifting (Q3); no folding by pattern (Q4). Nothing built.
 
 **Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;

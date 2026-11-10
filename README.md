@@ -587,7 +587,11 @@ says why the next is what it is.
      [natnum-2026-11-10](gauntlet/results/natnum-2026-11-10.md)): fib(100,000) agrees with Go's and
      Python's, at about 8× Go's `math/big`; division by a big integer since the same day
      ([natdiv-2026-11-10](gauntlet/results/natdiv-2026-11-10.md)), Knuth's algorithm, 3.1× `math/big`;
-     next the storage those numbers need, then file
+     and a dead table's memory reused by the next one it fits since the same day
+     ([ADR 0100](docs/decisions/0100-a-dead-region-serves-a-request-it-fits.md),
+     [fitreuse-2026-11-10](gauntlet/results/fitreuse-2026-11-10.md)), which showed the memory was
+     not where the time goes: the work per digit is, and **the goal is Windows faster than Go**
+     (hamza, 2026-11-10), so those causes are owed; then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
      found, and assembling every Windows file it writes; then 32-bit Windows;

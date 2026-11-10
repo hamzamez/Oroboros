@@ -4455,7 +4455,7 @@ func (tg *Target) statedRealizations(op string) {
 // checkRealized refuses a stated realization that names a declaration the
 // target does not have, or a name the language does not have.
 func (tg *Target) checkRealized() error {
-	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "abandon": true, "alloc": true, "release": true, "reuse": true, "discard": true, "alloc-raw": true, "reuse-raw": true, "big-str": true}
+	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "abandon": true, "alloc": true, "release": true, "reuse": true, "discard": true, "alloc-raw": true, "reuse-raw": true, "reuse-fit": true, "reuse-fit-raw": true, "big-str": true}
 	for _, op := range langOps {
 		known[op.name] = true
 	}

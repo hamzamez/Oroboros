@@ -2718,3 +2718,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - `examples/big/pair.oro windows` 15 → 1375 ms, 91.67x; paired 15 → 515 ms, 33.00x
 - `examples/big/power.oro windows` 15 → 2312 ms, 154.17x; paired 0 → 890 ms
+
+## 2026-11-10 — on 57c3ef2, with uncommitted changes
+
+**Reason:** R1d (fitreuse-2026-11-10, ADR 0100): a dead region serves a request it fits, release ; region(b') = zero for b' <= b of one class (Sigma_OS's class), the token carrying its table's count, compared at run time; W12 re-derives each. Only examples/big's four windows programs change (their K(N*) loops now reuse by fit), and their functions print what Go prints; counts unchanged at 6,070 of 6,124 and 662 of 686; fib 6% faster, the rest unchanged.
+
+624 runs: 403 emitted, 221 refused; 6070 of 6124 integer operations bounded, 662 of 686 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`

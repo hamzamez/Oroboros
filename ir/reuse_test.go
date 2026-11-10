@@ -103,3 +103,50 @@ func TestAReuseW12RefusesIsAFault(t *testing.T) {
 		}
 	}
 }
+
+// fitSrc carries a table whose length is a parameter's round a loop, each
+// successor one shorter on odd rounds than the dead one: a size of the run's,
+// so its token goes by fit, its count beside it (R1d), and the request's count
+// is not the token's, which the planted fault must be told apart from.
+const fitSrc = "export fn f(n ∈ 0..100, m ∈ 1..1000) (Int) {\n" +
+	"    loop k = 0, t = { var a := array { 0 : _ ∈ 0..m-1 }; a } {\n" +
+	"        k >= n -> len(t)\n" +
+	"        else -> {\n" +
+	"            c = if len(t) > 1 { len(t) - k % 2 } else { len(t) }\n" +
+	"            again(k + 1, { var b := array { 0 : _ ∈ 0..c-1 }; b })\n" +
+	"        }\n" +
+	"    }\n}\n"
+
+// A DEAD REGION SERVES A REQUEST IT FITS (R1d): the carried table of a
+// run-time length crosses the back edge with its count, and its successor
+// takes it by fit, zeroed; W12 accepts it.
+func TestADeadRegionServesARequestItFits(t *testing.T) {
+	zeros, _, err := reuseEntry(t, fitSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if zeros < 1 {
+		t.Errorf("want the carried table's region taken by fit, zeroed at least once; got %d", zeros)
+	}
+}
+
+// THE PLANTED FAULTS of R1d, each refused by W12: a token handed with the
+// request's count rather than its table's (a region too small taken as
+// fitting), and a token of a run-time size taken unchecked by `reuse`.
+func TestAFitW12RefusesIsAFault(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		plant *bool
+		why   string
+	}{
+		{"the request's count as the token's", &PlantFitCount, "is not its length"},
+		{"a run-time size taken unchecked", &PlantFitUnchecked, "size is not static"},
+	} {
+		*c.plant = true
+		_, _, err := reuseEntry(t, fitSrc)
+		*c.plant = false
+		if err == nil || !strings.Contains(err.Error(), "W12") || !strings.Contains(err.Error(), c.why) {
+			t.Errorf("%s: want W12's refusal (%q), got %v", c.name, c.why, err)
+		}
+	}
+}

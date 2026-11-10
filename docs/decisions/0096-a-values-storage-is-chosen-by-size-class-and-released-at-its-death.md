@@ -1,7 +1,7 @@
 # 0096 — A value's storage is chosen by its size class and released at its death
 
 Date: 2026-11-09
-Status: Accepted (hamza, 2026-11-09: "I agree to the recommendations. add the steps to the plan. and
+Status: Accepted (hamza, 2026-11-09: "I agree to the recommendations. add the steps to the plan. and **Item 6's data stack replaced by [ADR 0100](0100-a-dead-region-serves-a-request-it-fits.md)**: a run-time size takes a dead region by fit.
 do the first one", on [integers-research.md](../integers-research.md) R1–R4 and Q1–Q4). Being built in
 steps: release at death on the heap
 ([release-2026-11-09](../../gauntlet/results/release-2026-11-09.md)), then same-size reuse

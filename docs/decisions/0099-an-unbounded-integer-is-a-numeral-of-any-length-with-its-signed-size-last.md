@@ -88,8 +88,7 @@ H holds strings of every length, and **the representation is variable length**.
 ## Consequences
 
 - `big-fib` runs on windows, and so does every program over an unbounded `Int`.
-- A value's storage is a run-time size. It is released at its death (ADR 0096, R1a) but not reused,
-  since R1b's tokens are static. Reusing it is R1d's data stack, measured on the first program
-  that pays for it.
+- A value's storage is a run-time size. It is released at its death (ADR 0096, R1a), and reused by
+  fit since ADR 0100: a dead region serves any request it fits, compared at run time.
 - Operations whose result length depends on the operands, which is all of them, compute a capacity
   first, which is O(1) from the headers.

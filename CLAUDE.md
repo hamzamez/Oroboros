@@ -218,10 +218,16 @@ checked. When a package hits a wall that needs language work, stop, research it,
    - **6b′. The LLVM target, fully, before the Windows app** (hamza, 2026-11-04; ahead of 6c and 6d). "Fully" is
      measured, not a count of declarations: every differential case runs on windows (no `skip:
      windows`), the gauntlet's seven programs run there at parity, and a second triple runs the suite.
+     **The standing measure** (hamza, 2026-11-10): **the windows implementation is faster than the Go
+     one**; as long as it is slower, the gap is work owed, done now or not. Today it is slower on every
+     K(ℕ\*) program (fact 9.6×, D 2.8×, fib 7.2× `math/big`, fitreuse-2026-11-10), its causes named
+     there by expected gain: `noalias` from the views on `alloc` and borrowed parameters, the digit's
+     invariant as a fact in place of its mask, the sign case unswitched, M4's 64-bit digits with
+     `uadd.with.overflow` and i128 (native iN), a sum's size from its carry.
      In steps:
      1. ~~**The layering**~~ **done** (ADR 0093, [layers-2026-11-04](gauntlet/results/layers-2026-11-04.md)):
         `targets/llvm/` is T_LLVM[Σ_OS], a theory with a parameter (Σ_LLVM, ι's terms, the
-        representations, and Σ_OS's headers, `region`, `write_err`, `exit`, and `release` since ADR 0096); `targets/windows/`
+        representations, and Σ_OS's headers, `region`, `write_err`, `exit`, `release`, `zero` and `region_raw` since ADR 0096 and 0097, `class` since ADR 0100); `targets/windows/`
         glues it (`glue llvm`, §2.1's ⊔), names its `triple`, and defines Σ_OS over kernel32; a header
         with no body is an operation symbol a glued layer must define; a run is exit(0) ∘ main.
      2. ~~**The C ABI in the layer**~~ **done** (ADR 0094, [cabi-2026-11-05](gauntlet/results/cabi-2026-11-05.md)):
@@ -277,12 +283,17 @@ checked. When a package hits a wall that needs language work, stop, research it,
               construction, a build by the written prefix (`ir/fill.go`); `alloc-raw`, `reuse-raw`.
               10⁷ limb additions 136–143 ms, the no-zeroing bound (0.08× the original leak). Frame
               slots wait on a nested loop that measures its first iteration;
-            - R1d, R1e **waited on a trigger** (hamza, 2026-11-09); **R1d's is met** (natdiv-2026-11-10:
-              K(ℕ\*)'s results are heap tables of run-time size, no token reuses them, 4.4× V₉): a data stack for tables of
-              run-time length, and strings and containment. Counted on the 44 allocations of the
-              windows corpus, 43 have a static size and 1 a run-time one, outside any loop; 3
-              programs call the string helpers, a fixed few times each. Trigger: input-driven
-              programs on windows (`os` there), which bring run-time sizes and strings;
+            - R1d. ~~a data stack~~ **replaced by reuse by fit** (ADR 0100,
+              [fitreuse-2026-11-10](gauntlet/results/fitreuse-2026-11-10.md)): release(p, b) ;
+              region(b′) ≡ zero(p, b′) for b′ ≤ b of one class, Σ_OS's seventh symbol `class`; the
+              token carries its table's count k, `reuse_fit` compares at run time; W12 re-derives each
+              (`PlantFitCount`, `PlantFitUnchecked`). K(ℕ\*)'s loops are not LIFO, so no stack holds
+              them. Measured: fib 6% faster, the rest unchanged; **the allocation was not K(ℕ\*)'s
+              cost** (natdiv's 4.4× read as R1d's trigger was wrong): its per-digit computation is,
+              named under the standing measure (6b′);
+            - R1e **waits on a trigger** (hamza, 2026-11-09): strings and containment. 3 programs call
+              the string helpers, a fixed few times each. Trigger: input-driven programs on windows
+              (`os` there), which bring strings;
           - ~~**R2, Z(V_n)**~~ **done** (ADR 0098, amends ADR 0029 decision 4;
             [signlimbs-2026-11-09](gauntlet/results/signlimbs-2026-11-09.md)): a signed value a table
             of n + 1 entries, the sign in entry n, 0 at 0; every operation the magnitudes' under a case
@@ -395,10 +406,9 @@ what TinyRetroPad's walls need.
 - **One integer rendering on every target**, render : ℤ → Σ* per representation (ADR 0095 built it on
   windows): on Go, the JVM and JavaScript a word value is still widened to the host's bignum to be
   printed, a hidden allocation. Trigger: printing's P3.
-- **Storage, the rest of R1** (ADR 0096, 0097): a data stack for a table of run-time length that dies
-  in its region (R1d); strings from the helpers and a table inside a table, borrowed or copied (R1e);
-  frame slots for a nested loop's first iteration; a token across sizes not static. Trigger:
-  input-driven programs on windows, or a measurement naming one.
+- **Storage, the rest of R1** (ADR 0096, 0097, 0100): strings from the helpers and a table inside a
+  table, borrowed or copied (R1e); frame slots for a nested loop's first iteration; a token across a
+  branch. Trigger: input-driven programs on windows, or a measurement naming one.
 - **A 32-bit scalar representation** (ADR 0083 item 2's register rule): FNV-1a 32 masks each step
   with `& 0xFFFFFFFF` where a `uint32` would not (1.08–1.12, inside the noise floor). Trigger: a loop
   whose mask is measured above the noise floor, or `ir/llvm`'s i32.
@@ -750,6 +760,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | Text from ASCII is the inclusion ι : (B₇)* ↪ Σ*, `ascii(b, lo, n)` in Σ_L; rendering is ℤ's at every sort, the host's numeral, the limb library's render, or the word's digit loop, each ending in ι | [0095](docs/decisions/0095-text-from-ascii-is-the-inclusion-and-rendering-is-integers-at-every-sort.md) |
 | A frozen value's view is counted fractions, not persistent; an owned table is released at its death, `release` an IR operation over Σ_OS; storage chosen by size class (frame, data stack, heap), built in steps; W11 checks every release | [0096](docs/decisions/0096-a-values-storage-is-chosen-by-size-class-and-released-at-its-death.md) |
 | A table born full takes a region with no zero fill: region = zero ∘ region_raw, a rule and a literal by construction, a build by the written prefix; replaces R1c's frame slots | [0097](docs/decisions/0097-a-table-born-full-takes-a-region-with-no-zero-fill.md) |
+| A dead region serves a request it fits: release ; region(b′) ≡ zero for b′ ≤ b of one class (Σ_OS's `class`), the token carrying its table's count, compared at run time; replaces R1d's data stack (amends 0096 item 6) | [0100](docs/decisions/0100-a-dead-region-serves-a-request-it-fits.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄, its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

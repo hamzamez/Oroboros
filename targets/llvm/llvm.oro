@@ -88,6 +88,8 @@ realize alloc_raw = lang.allocate_raw
 realize release = lang.release
 realize reuse = lang.reuse
 realize reuse_raw = lang.reuse_raw
+realize reuse_fit = lang.reuse_fit
+realize reuse_fit_raw = lang.reuse_fit_raw
 realize discard = lang.discard
 // RENDERING, ℤ's at every sort (ADR 0095): this term at the word's; a value
 // held as limbs is the limb library's render (ir/limbs.go).

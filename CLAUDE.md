@@ -225,8 +225,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
      (fitreuse-2026-11-10, lenonce-2026-11-10):
      ~~each operand's length reloaded per digit~~, done by β (a length is a pure function of an
      immutable value), not by `noalias`, whose scoped form is unsound for inlined code and whose
-     parameter form waits on instances as functions; the digit's invariant as a fact in place of its
-     mask; the sign case unswitched; M4's 64-bit digits with `uadd.with.overflow` and i128 (native
+     parameter form waits on instances as functions; ~~the digit's mask~~, done
+     ([digitfacts-2026-11-10](gauntlet/results/digitfacts-2026-11-10.md)): the digit's range is its table's
+     element type, every store proven in [0, B) once the header is 2m + s (m < 2³¹, the machine's
+     bound stated where it is written); the bounds tests left, owed as the index domain split; the
+     sign case unswitched; M4's 64-bit digits with `uadd.with.overflow` and i128 (native
      iN); a sum's size from its carry; render ~~two passes per chunk~~, one since
      [printpass-2026-11-10](gauntlet/results/printpass-2026-11-10.md) (fact 23% faster, now 9.0×); its
      divide and conquer gains nothing over quadratic D (m²/2 against chunking's 0.53m²), so it waits on
@@ -440,7 +443,7 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **6,062 of 6,116** integer operations proven inside their target's word, the 54 left
+- **Provability**: **6,080 of 6,134** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
   **662 of 686** loops proven to terminate (size-change termination). Each

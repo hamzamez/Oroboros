@@ -4,10 +4,15 @@
 // a nonzero top digit; ℤ is K(ℕ*), the group completion over them, a sign and
 // a magnitude with one zero. A value is one table t:
 //   - digit i at t[i], for i < len t − 1;
-//   - the last entry the signed size h = ±m (GMP's _mp_size), m = 1 + the
-//     index of the top nonzero digit, or 0, so h = 0 is the one zero;
+//   - the last entry the header h = 2m + s, m = 1 + the index of the top
+//     nonzero digit, or 0, and s the sign, 1 for a negative value; s is 0 when
+//     m is, so h = 0 is the one zero;
 //   - every slot from m to len t − 2 holds 0;
-//   - d(t) = sgn(h) · Σ_{i < len t − 1} t[i]·B^i.
+//   - d(t) = (−1)^s · Σ_{i < len t − 1} t[i]·B^i.
+// EVERY ENTRY IS IN [0, B): a table is a function [0, len) → [0, B), and its
+// codomain is its element type, derived by the IR from the stores (each one
+// proven in [0, B)) and read back as every digit's fact. The header lies in it
+// iff m < 2^31, which `room` makes the machine's bound beside max_len.
 // len t is a capacity each operation computes from its operands' sizes. Every
 // build writes [0, len t) at its counter, so a result is born full (ADR 0097).
 //
@@ -19,23 +24,32 @@
 // THE READS, each stating the representation's invariant as its mask, as the
 // fixed limbs' `at` does: a digit is in [0, B), the size in [0, len t − 1].
 fn hdr(t) { n = len(t); if n < 1 { 0 } else { t[n - 1] } }
-fn sgn(t) { if hdr(t) < 0 { 1 } else { 0 } }
+fn sgn(t) { if hdr(t) % 2 == 1 { 1 } else { 0 } }
 fn size(t) {
     n = len(t)
-    h = hdr(t)
-    m = if h < 0 { if h < 1 - n { n - 1 } else { 0 - h } } else { if h > n - 1 { n - 1 } else { h } }
+    h = hdr(t) / 2
+    m = if h > n - 1 { n - 1 } else { h }
     if m < 0 { 0 } else { m }
 }
 fn dig(t, i) {
     v = if i < 0 { 0 } else if i >= len(t) - 1 { 0 } else { t[i] }
-    if v < 0 { 0 } else { v % (2^32) }
+    v
 }
 // a digit of a buffer being built, read back
 fn rd(o linear, i) {
     v = if i < 0 { 0 } else if i >= len(o) { 0 } else { o[i] }
-    if v < 0 { 0 } else { v % (2^32) }
+    v
 }
-fn signed(s, m) { if s == 1 { 0 - m } else { m } }
+// the header 2m + s, in [0, B) by the machine's bound m < 2^31, stated where it
+// is written: room makes it true, and this makes it the stored value's fact
+fn signed(s, m) {
+    case {
+        m < 1 -> 0
+        m > 2^31 - 1 -> abandon("out of memory: an integer longer than the largest table")
+        s == 1 -> 2 * m + 1
+        else -> 2 * m
+    }
+}
 
 // THE LENGTH READ ONCE. A table's length is fixed at its birth and the table
 // is immutable, so len(t) is a pure function of the value: bound once before
@@ -44,15 +58,15 @@ fn signed(s, m) { if s == 1 { 0 - m } else { m } }
 // with n = len o.
 fn dg(t, n1, i) {
     v = if i < 0 { 0 } else if i >= n1 { 0 } else { t[i] }
-    if v < 0 { 0 } else { v % (2^32) }
+    v
 }
 fn pg(t, n, i) {
     v = if i < 0 { 0 } else if i >= n { 0 } else { t[i] }
-    if v < 0 { 0 } else { v % (2^32) }
+    v
 }
 fn rg(o linear, n, i) {
     v = if i < 0 { 0 } else if i >= n { 0 } else { o[i] }
-    if v < 0 { 0 } else { v % (2^32) }
+    v
 }
 fn wg(r, nr, d, i) { if i == 0 { d } else { pg(r, nr, i - 1) } }
 
@@ -60,7 +74,7 @@ fn wg(r, nr, d, i) { if i == 0 { d } else { pg(r, nr, i - 1) } }
 // its table fits, len t ≤ ml, the target's max_len, which is each definition's
 // first argument. A capacity past it is a crash, as a host bignum's allocation
 // failure is, never a numeral cut short; on the path that continues, c ≤ ml.
-fn room(ml, c) { if c > ml { abandon("out of memory: an integer longer than the largest table") } else { c } }
+fn room(ml, c) { if c > ml || c > 2^31 { abandon("out of memory: an integer longer than the largest table") } else { c } }
 
 // a word of either sign: the digits of |v|, taken as −(r % B) and r / B, both
 // truncated, so v is never negated and −2^63 is exact
@@ -68,7 +82,7 @@ fn of(ml, v) {
     var o := array { 0 : _ ∈ 0..2 }
     loop i = 0, r = v, m = 0 {
         i >= 3 -> o
-        i == 2 -> { o[i] := if v < 0 { 0 - m } else { m }; again(i + 1, r, m) }
+        i == 2 -> { o[i] := signed(if v < 0 { 1 } else { 0 }, m); again(i + 1, r, m) }
         else -> {
             d = if v < 0 { 0 - r % (2^32) } else { r % (2^32) }
             o[i] := d
@@ -271,7 +285,7 @@ fn qrem(ml, a, off, k) {
     var o := array { 0 : _ ∈ 0..cap-1 }
     loop i = cap - 1, r = 0 {
         i < 0 -> o
-        i == cap - 1 -> { o[i] := m2; again(i - 1, r) }
+        i == cap - 1 -> { o[i] := 2 * m2; again(i - 1, r) }
         i == 0 -> { o[i] := r; again(i - 1, r) }
         else -> { cur = r * (2^32) + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
     }
@@ -326,7 +340,7 @@ fn render(ml, a) {
 // a digit of a plain table, no header: the remainder's and the window's
 fn pdig(t, i) {
     v = if i < 0 { 0 } else if i >= len(t) { 0 } else { t[i] }
-    if v < 0 { 0 } else { v % (2^32) }
+    v
 }
 // W = r·B + d: digit 0 is d, digit i the remainder's digit i − 1
 fn wdig(r, d, i) { if i == 0 { d } else { pdig(r, i - 1) } }
@@ -399,7 +413,7 @@ fn addv(ml, t, v, n) {
             var o := array { 0 : _ ∈ 0..n + 1 }
             loop i = 0, c = 0 {
                 i >= n + 2 -> o
-                i == n + 1 -> { o[i] := 1 - c; again(i + 1, c) }
+                i == n + 1 -> { o[i] := if c > 0 { 0 } else { 1 }; again(i + 1, c) }
                 else -> { x = pg(t, nt, i) + pg(v, nv, i) + c; o[i] := x % (2^32); again(i + 1, x / (2^32)) }
             }
         }
@@ -478,7 +492,9 @@ fn div(ml, a, b) {
                             q = qhat(v, n, r, d)
                             t0 = msub(ml, v, n, r, d, q)
                             t1 = fix1(ml, t0, v, n)
-                            o[i] := q - back(t0, n) - back(t1, n)
+                            // ≥ 0, since a correction means q̂ ≥ 1: a total extension below it
+                            qd = q - back(t0, n) - back(t1, n)
+                            o[i] := if qd < 0 { 0 } else { qd }
                             again(i - 1, fix1(ml, t1, v, n))
                         }
                     }

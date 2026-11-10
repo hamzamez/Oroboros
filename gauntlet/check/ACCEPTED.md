@@ -2746,3 +2746,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/big/pair.oro windows`
 - compiler output changed — `examples/big/pair.oro windows`
 - emitted text changed — `examples/big/power.oro windows`
+
+## 2026-11-10 — on 3f771d8, with uncommitted changes
+
+**Reason:** item 2 (digitfacts-2026-11-10): K(N*)'s digit reads unmasked, the digit's range its table's element fact derived from stores all proven in [0, B), the header now 2m + s with m < 2^31 stated where it is written. Only examples/big's four windows programs change, printing what Go prints; counts 6,080 of 6,134, the unproven 54 and 24 unchanged; fib 8-11% and D 11% faster.
+
+624 runs: 403 emitted, 221 refused; 6080 of 6134 integer operations bounded, 662 of 686 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- emitted text changed — `examples/big/fact.oro windows`
+- compiler output changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- compiler output changed — `examples/big/power.oro windows`

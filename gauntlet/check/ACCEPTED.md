@@ -2731,3 +2731,18 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/big/fib.oro windows`
 - emitted text changed — `examples/big/pair.oro windows`
 - emitted text changed — `examples/big/power.oro windows`
+
+## 2026-11-10 — on 1f2c141, with uncommitted changes
+
+**Reason:** item 1 (lenonce-2026-11-10): K(N*)'s library binds each operand's length once before its digit loop, by beta (a length is a pure function of an immutable value); noalias not used, its scoped form being unsound for inlined code. Only examples/big's four windows programs change, printing what Go prints; counts 6,062 of 6,116, the unproven 54 and 24 unchanged; fib 6.5% and D about 5% faster.
+
+624 runs: 403 emitted, 221 refused; 6062 of 6116 integer operations bounded, 662 of 686 loops proven. compiler pass, differential pass, tooling skip.
+
+6 change(s):
+
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`

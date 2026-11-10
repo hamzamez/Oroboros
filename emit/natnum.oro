@@ -37,6 +37,25 @@ fn rd(o linear, i) {
 }
 fn signed(s, m) { if s == 1 { 0 - m } else { m } }
 
+// THE LENGTH READ ONCE. A table's length is fixed at its birth and the table
+// is immutable, so len(t) is a pure function of the value: bound once before
+// a loop, it is the same number at every digit (β), and the loop reads no
+// header. dg is dig with n1 = len t − 1 given, pg pdig with n = len t, rg rd
+// with n = len o.
+fn dg(t, n1, i) {
+    v = if i < 0 { 0 } else if i >= n1 { 0 } else { t[i] }
+    if v < 0 { 0 } else { v % (2^32) }
+}
+fn pg(t, n, i) {
+    v = if i < 0 { 0 } else if i >= n { 0 } else { t[i] }
+    if v < 0 { 0 } else { v % (2^32) }
+}
+fn rg(o linear, n, i) {
+    v = if i < 0 { 0 } else if i >= n { 0 } else { o[i] }
+    if v < 0 { 0 } else { v % (2^32) }
+}
+fn wg(r, nr, d, i) { if i == 0 { d } else { pg(r, nr, i - 1) } }
+
 // THE MACHINE'S BOUND. No machine represents ℤ: a numeral is held only while
 // its table fits, len t ≤ ml, the target's max_len, which is each definition's
 // first argument. A capacity past it is a crash, as a host bignum's allocation
@@ -66,11 +85,15 @@ fn mcmp(ml, a, b) {
     case {
         ma < mb -> 0 - 1
         ma > mb -> 1
-        else -> loop i = ma - 1 {
-            i < 0 -> 0
-            dig(a, i) < dig(b, i) -> 0 - 1
-            dig(a, i) > dig(b, i) -> 1
-            else -> again(i - 1)
+        else -> {
+            la = len(a) - 1
+            lb = len(b) - 1
+            loop i = ma - 1 {
+                i < 0 -> 0
+                dg(a, la, i) < dg(b, lb, i) -> 0 - 1
+                dg(a, la, i) > dg(b, lb, i) -> 1
+                else -> again(i - 1)
+            }
         }
     }
 }
@@ -84,13 +107,15 @@ fn addsub(ml, a, b, sw, neg, s) {
     ma = size(a)
     mb = size(b)
     cap = room(ml, if ma > mb { ma + 2 } else { mb + 2 })
+    la = len(a) - 1
+    lb = len(b) - 1
     var o := array { 0 : _ ∈ 0..cap-1 }
     loop i = 0, c = 0, top = 0 {
         i >= cap -> o
         i == cap - 1 -> { o[i] := signed(s, top); again(i + 1, c, top) }
         else -> {
-            x = if sw { dig(b, i) } else { dig(a, i) }
-            y = if sw { dig(a, i) } else { dig(b, i) }
+            x = if sw { dg(b, lb, i) } else { dg(a, la, i) }
+            y = if sw { dg(a, la, i) } else { dg(b, lb, i) }
             t = if neg { x - y + c } else { x + y + c }
             d = if t < 0 { t + 2^32 } else if t >= 2^32 { t - 2^32 } else { t }
             o[i] := d
@@ -118,11 +143,11 @@ fn sub(ml, a, b) {
 // ALGORITHM M's row: o += |a| · y · B^j. Column i + j is t = u·y + w + k ≤
 // B^2 − 1; the row's last carry goes to column ma + j, which no earlier row
 // reached, so it is written, not added.
-fn macrow(ml, o linear, a, ma, y, j) {
+fn macrow(ml, o linear, no, a, la, ma, y, j) {
     loop i = 0, k = 0 {
         i >= ma -> { o[i + j] := k; () }
         else -> {
-            t = dig(a, i) * y + rd(o, i + j) + k
+            t = dg(a, la, i) * y + rg(o, no, i + j) + k
             o[i + j] := t % (2^32)
             again(i + 1, t / (2^32))
         }
@@ -135,6 +160,8 @@ fn mul(ml, a, b) {
     ma = size(a)
     mb = size(b)
     cap = room(ml, ma + mb + 1)
+    la = len(a) - 1
+    lb = len(b) - 1
     var o := array { 0 : _ ∈ 0..cap-1 }
     loop j = 0 {
         j >= mb -> {
@@ -142,7 +169,7 @@ fn mul(ml, a, b) {
             o[cap - 1] := signed((sgn(a) + sgn(b)) % 2, m)
             o
         }
-        else -> { macrow(ml, o, a, ma, dig(b, j), j); again(j + 1) }
+        else -> { macrow(ml, o, cap, a, la, ma, dg(b, lb, j), j); again(j + 1) }
     }
 }
 
@@ -151,12 +178,13 @@ fn mul_small(ml, a, k) {
     ma = size(a)
     cap = room(ml, ma + 2)
     s = sgn(a)
+    la = len(a) - 1
     var o := array { 0 : _ ∈ 0..cap-1 }
     loop i = 0, c = 0, top = 0 {
         i >= cap -> o
         i == cap - 1 -> { o[i] := signed(s, top); again(i + 1, c, top) }
         else -> {
-            t = dig(a, i) * k + c
+            t = dg(a, la, i) * k + c
             d = t % (2^32)
             o[i] := d
             again(i + 1, t / (2^32), if d != 0 { i + 1 } else { top })
@@ -175,18 +203,20 @@ fn qsmall(ml, a, k, s) {
     ma = size(a)
     cap = ma + 1
     m = if ma == 0 { 0 } else if dig(a, ma - 1) >= k { ma } else { ma - 1 }
+    la = len(a) - 1
     var o := array { 0 : _ ∈ 0..cap-1 }
     loop i = cap - 1, r = 0 {
         i < 0 -> o
         i == cap - 1 -> { o[i] := signed(s, m); again(i - 1, r) }
-        else -> { cur = r * (2^32) + dig(a, i); o[i] := cur / k; again(i - 1, cur % k) }
+        else -> { cur = r * (2^32) + dg(a, la, i); o[i] := cur / k; again(i - 1, cur % k) }
     }
 }
 // the remainder by a word k ∈ [1, B), the dividend's sign
 fn rem_small(ml, a, k) {
+    la = len(a) - 1
     r = loop i = size(a) - 1, r = 0 {
         i < 0 -> r
-        else -> again(i - 1, (r * (2^32) + dig(a, i)) % k)
+        else -> again(i - 1, (r * (2^32) + dg(a, la, i)) % k)
     }
     if sgn(a) == 1 { 0 - r } else { r }
 }
@@ -321,13 +351,15 @@ fn msub(ml, v, n, r, d, q) {
     case {
         n + 2 > ml -> abandon("out of memory: an integer longer than the largest table")
         else -> {
+            nv = len(v)
+            nr = len(r)
             var o := array { 0 : _ ∈ 0..n + 1 }
             loop i = 0, pc = 0, bw = 0 {
                 i >= n + 2 -> o
                 i == n + 1 -> { o[i] := bw; again(i + 1, pc, bw) }
                 else -> {
-                    p = q * pdig(v, i) + pc
-                    t = wdig(r, d, i) - p % (2^32) - bw
+                    p = q * pg(v, nv, i) + pc
+                    t = wg(r, nr, d, i) - p % (2^32) - bw
                     o[i] := if t < 0 { t + 2^32 } else { t }
                     again(i + 1, p / (2^32), if t < 0 { 1 } else { 0 })
                 }
@@ -342,11 +374,13 @@ fn addv(ml, t, v, n) {
     case {
         n + 2 > ml -> abandon("out of memory: an integer longer than the largest table")
         else -> {
+            nt = len(t)
+            nv = len(v)
             var o := array { 0 : _ ∈ 0..n + 1 }
             loop i = 0, c = 0 {
                 i >= n + 2 -> o
                 i == n + 1 -> { o[i] := 1 - c; again(i + 1, c) }
-                else -> { x = pdig(t, i) + pdig(v, i) + c; o[i] := x % (2^32); again(i + 1, x / (2^32)) }
+                else -> { x = pg(t, nt, i) + pg(v, nv, i) + c; o[i] := x % (2^32); again(i + 1, x / (2^32)) }
             }
         }
     }
@@ -359,30 +393,34 @@ fn back(t, n) { if pdig(t, n + 1) == 1 { 1 } else { 0 } }
 
 // u's n digits from j against v's, from the top
 fn topcmp(u, v, n, j) {
+    lu = len(u) - 1
+    nv = len(v)
     loop i = n - 1 {
         i < 0 -> 0
-        dig(u, j + i) < pdig(v, i) -> 0 - 1
-        dig(u, j + i) > pdig(v, i) -> 1
+        dg(u, lu, j + i) < pg(v, nv, i) -> 0 - 1
+        dg(u, lu, j + i) > pg(v, nv, i) -> 1
         else -> again(i - 1)
     }
 }
 
 // k digits of u from lo, a plain table: the machine's first state
 fn slice(u, lo, k) {
+    lu = len(u) - 1
     var o := array { 0 : _ ∈ 0..k }
-    loop i = 0 { i >= k + 1 -> o; else -> { o[i] := if i < k { dig(u, lo + i) } else { 0 }; again(i + 1) } }
+    loop i = 0 { i >= k + 1 -> o; else -> { o[i] := if i < k { dg(u, lu, lo + i) } else { 0 }; again(i + 1) } }
 }
 
 // D8: the normalized remainder r over n digits divided by f, in K(ℕ*) with
 // the sign s: digit i of ⌊r / f⌋ is ⌊(r_{i+1}·B + r_i) / f⌋ mod B, for f ≤ B,
 // every intermediate below B^2
 fn unnorm(ml, r, n, f, s) {
+    nr = len(r)
     var o := array { 0 : _ ∈ 0..n }
     loop i = 0, top = 0 {
         i >= n + 1 -> o
         i == n -> { o[i] := signed(s, top); again(i + 1, top) }
         else -> {
-            x = (pdig(r, i + 1) * 2^32 + pdig(r, i)) / f % (2^32)
+            x = (pg(r, nr, i + 1) * 2^32 + pg(r, nr, i)) / f % (2^32)
             o[i] := x
             again(i + 1, if x != 0 { i + 1 } else { top })
         }
@@ -410,12 +448,13 @@ fn div(ml, a, b) {
                 kq < 1 -> of(ml, 0)
                 else -> {
                     mq = if topcmp(u, v, n, kq - 1) < 0 { kq - 1 } else { kq }
+                    lu = len(u) - 1
                     var o := array { 0 : _ ∈ 0..kq }
                     loop i = kq, r = slice(u, kq, n - 1) {
                         i < 0 -> o
                         i == kq -> { o[i] := signed(s, mq); again(i - 1, r) }
                         else -> {
-                            d = dig(u, i)
+                            d = dg(u, lu, i)
                             q = qhat(v, n, r, d)
                             t0 = msub(ml, v, n, r, d, q)
                             t1 = fix1(ml, t0, v, n)
@@ -443,13 +482,16 @@ fn rem(ml, a, b) {
             kq = size(u) - n + 1
             case {
                 kq < 1 -> a
-                else -> loop i = kq - 1, r = slice(u, kq, n - 1) {
+                else -> {
+                  lu = len(u) - 1
+                  loop i = kq - 1, r = slice(u, kq, n - 1) {
                     i < 0 -> unnorm(ml, r, n, f, sgn(a))
                     else -> {
-                        d = dig(u, i)
+                        d = dg(u, lu, i)
                         t0 = msub(ml, v, n, r, d, qhat(v, n, r, d))
                         again(i - 1, fix1(ml, fix1(ml, t0, v, n), v, n))
                     }
+                  }
                 }
             }
         }

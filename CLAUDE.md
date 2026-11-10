@@ -220,10 +220,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
      windows`), the gauntlet's seven programs run there at parity, and a second triple runs the suite.
      **The standing measure** (hamza, 2026-11-10): **the windows implementation is faster than the Go
      one**; as long as it is slower, the gap is work owed, done now or not. Today it is slower on every
-     K(ℕ\*) program (fact 9.6×, D 2.8×, fib 7.2× `math/big`, fitreuse-2026-11-10), its causes named
-     there by expected gain: `noalias` from the views on `alloc` and borrowed parameters, the digit's
-     invariant as a fact in place of its mask, the sign case unswitched, M4's 64-bit digits with
-     `uadd.with.overflow` and i128 (native iN), a sum's size from its carry.
+     K(ℕ\*) program (fact 11×, its product 4.4×; D 2.8×; fib 7.7× `math/big`,
+     [lenonce-2026-11-10](gauntlet/results/lenonce-2026-11-10.md)). Its causes, by expected gain
+     (fitreuse-2026-11-10, lenonce-2026-11-10):
+     ~~each operand's length reloaded per digit~~, done by β (a length is a pure function of an
+     immutable value), not by `noalias`, whose scoped form is unsound for inlined code and whose
+     parameter form waits on instances as functions; the digit's invariant as a fact in place of its
+     mask; the sign case unswitched; M4's 64-bit digits with `uadd.with.overflow` and i128 (native
+     iN); a sum's size from its carry; **render**, 62% of fact: quotient and remainder in one pass,
+     then divide and conquer (Brent and Zimmermann §1.7).
      In steps:
      1. ~~**The layering**~~ **done** (ADR 0093, [layers-2026-11-04](gauntlet/results/layers-2026-11-04.md)):
         `targets/llvm/` is T_LLVM[Σ_OS], a theory with a parameter (Σ_LLVM, ι's terms, the
@@ -433,7 +438,7 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **6,070 of 6,124** integer operations proven inside their target's word, the 54 left
+- **Provability**: **6,062 of 6,116** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
   **662 of 686** loops proven to terminate (size-change termination). Each

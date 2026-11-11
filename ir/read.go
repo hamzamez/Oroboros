@@ -365,6 +365,8 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 				s.Mode, args = MWrap, args[1:]
 			case "wrap64":
 				s.Mode, args = MWrapPair, args[1:]
+			case "double":
+				s.Mode, args = MDouble, args[1:]
 			}
 		}
 		if o.IsBit() && len(args) > 0 && args[0].Kind == core.KName && !strings.HasPrefix(args[0].Name, "%") && args[0].Name != "via" {

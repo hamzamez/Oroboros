@@ -51,7 +51,7 @@ func FromFunc(tg *emit.Target, f *ir.Func) (string, error) {
 // Func prints one IR_P function as an LLVM `define`. The module lines its
 // templates name go to emit.LLVMImports, which File writes.
 func Func(tg *emit.Target, f *ir.Func) (string, error) {
-	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), slots: map[ir.V]string{}, names: map[ir.V]string{}}
+	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), slots: map[ir.V]string{}, names: map[ir.V]string{}, dbl: ir.Doubles(f)}
 	out := p.function()
 	if p.err != nil {
 		return "", fmt.Errorf("%s: %w", f.Name, p.err)
@@ -173,6 +173,7 @@ type printer struct {
 	allocas []string
 	slots   map[ir.V]string // a joined value's alloca
 	names   map[ir.V]string // a value spelled other than %vN: a new table's pointer
+	dbl     map[ir.V]bool   // the values held in the double word, i128 (ADR 0103)
 	n       int
 	err     error
 }
@@ -509,6 +510,10 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem,
 		ir.OAnd, ir.OOr, ir.OXor, ir.ONot, ir.OShl, ir.OShr, ir.OMod,
 		ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:
+		if p.readsDouble(s) {
+			p.dop(s)
+			return
+		}
 		p.op(s)
 	case ir.OCall:
 		p.call(s)
@@ -561,6 +566,93 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 		p.tabulate(s, x)
 	default:
 		p.fail("(%s …) is not printed on LLVM", s.Op)
+	}
+}
+
+// readsDouble says s is an operation of the double word: it computes an
+// intermediate there, or reads one back (ADR 0103).
+func (p *printer) readsDouble(s *ir.Stmt) bool {
+	if s.Mode == ir.MDouble {
+		return true
+	}
+	for _, a := range s.Args {
+		if p.dbl[a] || p.dbl[p.pl.Res(a)] {
+			return true
+		}
+	}
+	return false
+}
+
+// dop prints an operation of the double word (ADR 0103, llvm.md §3c) in
+// i128: a word operand extended by its sign, an intermediate kept there, any
+// other result truncated back to the word, a comparison an i1. Every
+// intermediate is in E = (−2¹²⁶, 2¹²⁶), which the decision proved, so `nsw`
+// holds of each, and `nuw` where the operands and the result are ≥ 0; a
+// quotient, remainder or shift of a natural is LLVM's unsigned one.
+func (p *printer) dop(s *ir.Stmt) {
+	opnd := func(v ir.V) string {
+		x := p.val(v)
+		if p.dbl[v] || p.dbl[p.pl.Res(v)] || !strings.HasPrefix(x, "%") {
+			return x // an intermediate, or a literal, the same spelling at i128
+		}
+		t := "%" + p.fresh("dw")
+		p.line("%s = sext i64 %s to i128", t, x)
+		return t
+	}
+	args := make([]string, len(s.Args))
+	for i, a := range s.Args {
+		args[i] = opnd(a)
+	}
+	nat := func(v ir.V) bool { return p.lo(v) >= 0 }
+	r := "%" + p.fresh("dr")
+	if s.Mode == ir.MDouble {
+		r = fmt.Sprintf("%%v%d", s.Res[0])
+	}
+	fl := "nsw"
+	switch s.Op {
+	case ir.OAdd, ir.OMul:
+		if nat(s.Args[0]) && nat(s.Args[1]) || plantNuwFault {
+			fl = "nuw nsw"
+		}
+		p.line("%s = %s %s i128 %s, %s", r, map[ir.Op]string{ir.OAdd: "add", ir.OMul: "mul"}[s.Op], fl, args[0], args[1])
+	case ir.OSub:
+		p.line("%s = sub %s i128 %s, %s", r, fl, args[0], args[1])
+	case ir.ONeg:
+		p.line("%s = sub %s i128 0, %s", r, fl, args[0])
+	case ir.ODiv, ir.ORem:
+		u := map[ir.Op]string{ir.ODiv: "udiv", ir.ORem: "urem"}[s.Op]
+		if !nat(s.Args[0]) || !nat(s.Args[1]) {
+			u = map[ir.Op]string{ir.ODiv: "sdiv", ir.ORem: "srem"}[s.Op]
+		}
+		p.line("%s = %s i128 %s, %s", r, u, args[0], args[1])
+	case ir.OMod:
+		// the Euclidean residue by a positive constant: urem of a natural, and
+		// otherwise srem lifted into [0, m)
+		if nat(s.Args[0]) {
+			p.line("%s = urem i128 %s, %s", r, args[0], args[1])
+			break
+		}
+		t, n, a := "%"+p.fresh("dm"), "%"+p.fresh("dn"), "%"+p.fresh("da")
+		p.line("%s = srem i128 %s, %s", t, args[0], args[1])
+		p.line("%s = icmp slt i128 %s, 0", n, t)
+		p.line("%s = add nsw i128 %s, %s", a, t, args[1])
+		p.line("%s = select i1 %s, i128 %s, i128 %s", r, n, a, t)
+	case ir.OShr:
+		sh := "ashr"
+		if nat(s.Args[0]) {
+			sh = "lshr"
+		}
+		p.line("%s = %s i128 %s, %s", r, sh, args[0], args[1])
+	case ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:
+		pred := map[ir.Op]string{ir.OEq: "eq", ir.ONe: "ne", ir.OLt: "slt", ir.OLe: "sle", ir.OGt: "sgt", ir.OGe: "sge"}[s.Op]
+		p.line("%%v%d = icmp %s i128 %s, %s", s.Res[0], pred, args[0], args[1])
+		return
+	default:
+		p.fail("(%s …) of the double word is not printed on LLVM", s.Op)
+		return
+	}
+	if s.Mode != ir.MDouble {
+		p.line("%%v%d = trunc i128 %s to i64", s.Res[0], r)
 	}
 }
 

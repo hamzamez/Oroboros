@@ -1109,6 +1109,10 @@
 == gauntlet/differential/cases/merge-sort.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/merge-sort.oro java emitted 7ac67ed4f523d872ab9363a29204d308551d54f7ba63aa62395d7f4ad5c25f5f
 == gauntlet/differential/cases/merge-sort.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
+== gauntlet/differential/cases/mersenne-hash.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/mersenne-hash.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/mersenne-hash.oro java emitted 997cd175453dd1f3c2700812e6cafc2f6702408ff19d696e715951d17c1c30f0
+== gauntlet/differential/cases/mersenne-hash.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/narrow-from-wide.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/narrow-from-wide.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/narrow-from-wide.oro java emitted 0032b6c2baa84a6de25e749e6dbc7137fccb49bc938b67ade555bdc9c87cd09d

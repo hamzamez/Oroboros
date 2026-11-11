@@ -132,6 +132,19 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 		if word {
 			proven = tg.Word.Unsigned && v.within(ep{}, u64Max)
 		}
+		// AN INTERMEDIATE IN THE DOUBLE WORD (ADR 0103) is proven where its
+		// fact is finite: every finite end lies in E = (−2¹²⁶, 2¹²⁶), which the
+		// double word holds exactly; it keeps its mode, which says where it is
+		// computed.
+		if s.Mode == MDouble {
+			rep.Ops++
+			if v.finite() || PlantDoubleUnbounded {
+				rep.Proven++
+				return
+			}
+			rep.Unproven = append(rep.Unproven, unprovenLine(s, v))
+			return
+		}
 		// A TERM'S OWN OPERATION is the target's, counted only where it is not
 		// proven: then it is an obligation of the program at the site, as `/`'s
 		// `0 − a` at −2⁶³ is.

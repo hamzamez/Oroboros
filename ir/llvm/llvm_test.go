@@ -2,6 +2,7 @@ package llvm
 
 import (
 	"fmt"
+	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,20 +26,26 @@ func loadTarget(t *testing.T) *emit.Target {
 // flagsIR has one operation of each kind the flags rule decides: an add of two
 // non-negative operands (nuw nsw), one of an unbounded operand (nsw), a sub
 // whose subtrahend is at most its minuend (nuw nsw), one that may go below zero
-// (nsw), and an add fused under `mod 2ⁿ` (no flag: its residue is the answer).
+// (nsw), an add fused under `mod 2ⁿ` (no flag: its residue is the answer), and
+// a product in the double word (nuw nsw at i128, its proof in E; ADR 0103),
+// read back by a remainder.
 const flagsIR = `(ir 1
   (target windows)
   (stage P)
-  (ops add sub mod const yield)
+  (ops add sub mul rem mod const yield)
   (func t-flags (params (%0 (int 0 10)) (%1 (int 0 5)) (%2 int) (%3 (int 5 9)))
-    (results int int int int int)
+    (results int int int int int int)
     (region
+      (val (%10 (int 9223372036854775807 9223372036854775807)) (const 9223372036854775807))
+      (val (%9 (int 0 92233720368547758070)) (mul double %0 %10))
+      (val (%12 (int 10 10)) (const 10))
+      (val (%11 (int 0 9)) (rem exact %9 %12))
       (val (%4 (int 0 15)) (add exact %0 %1))
       (val (%5 int) (add exact %2 %1))
       (val (%6 (int 0 9)) (sub exact %3 %1))
       (val (%7 (int -5 10)) (sub exact %0 %1))
       (val (%8 int) (add wrap %2 %2))
-      (yield %4 %5 %6 %7 %8))))
+      (yield %4 %5 %6 %7 %8 %11))))
 `
 
 // unjustified checks every flag printed on an add or sub against the IR's own
@@ -55,13 +62,16 @@ func unjustified(f *ir.Func, out string) string {
 		}
 	})
 	ends := func(v ir.V) (float64, float64) {
-		lo, hi, ok := core.IntRange(f.Types[v])
-		if !ok {
+		lo, hi, ok := core.IntRangeBig(f.Types[v])
+		if !ok || lo == nil || hi == nil {
 			return -1e300, 1e300
 		}
-		return float64(lo), float64(hi)
+		l, _ := new(big.Float).SetInt(lo).Float64()
+		h, _ := new(big.Float).SetInt(hi).Float64()
+		return l, h
 	}
-	re := regexp.MustCompile(`%v(\d+) = (add|sub|mul)((?: nuw| nsw)*) i64`)
+	// at i64 the word's operations, at i128 the double word's (ADR 0103)
+	re := regexp.MustCompile(`%v(\d+) = (add|sub|mul)((?: nuw| nsw)*) i(?:64|128)`)
 	for _, m := range re.FindAllStringSubmatch(out, -1) {
 		n, _ := strconv.Atoi(m[1])
 		s := def[ir.V(n)]
@@ -69,7 +79,7 @@ func unjustified(f *ir.Func, out string) string {
 			continue
 		}
 		fl := m[3]
-		if strings.Contains(fl, "nsw") && s.Mode != ir.MExact {
+		if strings.Contains(fl, "nsw") && s.Mode != ir.MExact && s.Mode != ir.MDouble {
 			return fmt.Sprintf("%%v%d: nsw on a %s operation", n, s.Mode)
 		}
 		if strings.Contains(fl, "nuw") {
@@ -111,6 +121,8 @@ func TestAFlagIsTheIRsProof(t *testing.T) {
 		"%v6 = sub nuw nsw i64 %v3, %v1",
 		"%v7 = sub nsw i64 %v0, %v1",
 		"%v8 = add i64 %v2, %v2",
+		"%v9 = mul nuw nsw i128 ",
+		"= urem i128 %v9, 10",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("want %q in\n%s", want, out)

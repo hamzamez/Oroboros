@@ -2834,3 +2834,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
 - emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
+
+## 2026-11-11 — on 30e5793, with uncommitted changes
+
+**Reason:** the double word (ADR 0103): mersenne-hash, a new case, emitted on windows and refused on go, js, java
+
+628 runs: 407 emitted, 221 refused; 5717 of 5771 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/mersenne-hash.oro go`
+- new source — `gauntlet/differential/cases/mersenne-hash.oro java`
+- new source — `gauntlet/differential/cases/mersenne-hash.oro js`
+- new source — `gauntlet/differential/cases/mersenne-hash.oro windows`

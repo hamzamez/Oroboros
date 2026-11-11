@@ -45,10 +45,25 @@ func RealizeOps(tg *emit.Target, f *Func) (int, error) {
 	}
 	fs := analyse(tg, f)
 	plan := map[*Stmt]string{}
+	// THE DOUBLE WORD'S OPERATIONS are the printer's, in i128 (ADR 0103): an
+	// MDouble operation and every one that reads an intermediate back. ι's
+	// terms are over the word's instructions, and none takes an i128.
+	dbl := Doubles(f)
+	readsDouble := func(s *Stmt) bool {
+		for _, a := range s.Args {
+			if dbl[a] {
+				return true
+			}
+		}
+		return s.Mode == MDouble
+	}
 	var err error
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
+			if readsDouble(s) {
+				continue
+			}
 			// A LANGUAGE NAME THAT IS A CALL (`abandon`, `trap-if`) realized by a
 			// term: its instance, whatever its results.
 			if s.Op == OCall && err == nil {

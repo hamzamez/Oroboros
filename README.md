@@ -595,7 +595,10 @@ says why the next is what it is.
      ([llvm-udiv-2026-11-11](gauntlet/results/llvm-udiv-2026-11-11.md)): a division of
      non-negative numbers now uses the processor's unsigned division, which needs no sign
      correction, and multiplying big integers takes half its time, 1.4× Go's; printing them is
-     what is left; then file
+     what is left; next, digits of 63 bits instead of 32, which needs a product of two digits held
+     in 128 bits: built the same day
+     ([doubleword-2026-11-11](gauntlet/results/doubleword-2026-11-11.md)), and a hash modulo a
+     large prime now runs on Windows in half the time of idiomatic Go; then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
      found, and assembling every Windows file it writes; then 32-bit Windows;

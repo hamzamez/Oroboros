@@ -116,6 +116,35 @@ is refused, never printed as the word's. IEEE compares finite values as reals (�
 reads −0 = +0, as d does. NaN is not in F64, so an ordered predicate (`oeq olt ole ogt oge`) and its
 unordered twin agree on every pair; the ordered one is chosen because it claims nothing of NaN.
 
+### 3c. The double word, an intermediate in i128 (ADR 0103)
+
+`repr double 128` declares it. The residue map r: ℤ → ℤ/2¹²⁸ is a ring homomorphism, injective on
+(−2¹²⁷, 2¹²⁷). So a term of +, −, · and neg whose every intermediate the decision proves in
+E = (−2¹²⁶, 2¹²⁶), the domain of its finite ends, is computed exactly in i128: each step's residue is
+its value's, and the lift of a residue in E is unique.
+
+An intermediate is a value outside the word whose every use reads it back inside the term:
+- + − · neg, its result again an intermediate or in the word;
+- a quotient, remainder, `mod` or right shift of which it is the dividend, by a positive constant;
+- a comparison;
+- a π, the same integer refined, whose uses are its own.
+
+It is never a table's element, a call's argument, a loop variable, a branch's condition or a region's
+exit (W14), so no value of the program leaves the word and no claim above the word is needed
+(ADR 0079). `ir.SelectDouble` chooses them, a greatest fixed point, and marks each `double` in IR_P,
+typed by its proven range.
+
+| IR_P | LLVM |
+|---|---|
+| `add double a b`, `sub`, `mul`, `neg` | `add nsw i128`, … ; `nuw` on `add` and `mul` of naturals |
+| a word operand of one | `sext i64 a to i128` |
+| a quotient, remainder, `mod` or shift reading one | `udiv`, `urem`, `lshr` i128 of a natural, else `sdiv`, `srem`, `ashr`; `mod` of an integer `srem` lifted into [0, m); then `trunc i128 … to i64` |
+| a comparison reading one | `icmp` on i128 |
+
+The divisor is a constant because LLVM divides an i128 by a variable in a library call (`__udivti3`).
+By a constant, clang multiplies by its reciprocal, inline. A quotient by a run-time word is the
+library's, by its precomputed reciprocal (Möller and Granlund 2011).
+
 ## 4. Tables
 
 A table is a pointer to a header and its elements: an `i64` length, then the elements, each of its

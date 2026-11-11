@@ -64,6 +64,7 @@ type verifier struct {
 	depth   []int // the loop depth at each value's definition (W7)
 	def     map[V]*Stmt
 	lits    map[litKey]litSet // implied's memo: a guard's literals, by its value and side
+	dbl     map[V]bool        // the double word's intermediates (ADR 0103, W14)
 }
 
 type litKey struct {
@@ -141,6 +142,7 @@ func (v *verifier) run() {
 		}
 	}
 	v.buf = buffers(v.tg, v.f)
+	v.double()
 
 	// W2–W6: one walk, with the scope and the region's kind.
 	for _, x := range v.f.Params {
@@ -167,7 +169,7 @@ func (v *verifier) run() {
 				switch {
 				case s.Op == OThe || s.Op == ORequire:
 					v.add("W9: (%s …) in IR_P; the step to IR_P erases it", s.Op)
-				case s.Op.IsArith() && s.Mode != MExact && s.Mode != MTrap && s.Mode != MWrap && s.Mode != MWrapPair &&
+				case s.Op.IsArith() && s.Mode != MExact && s.Mode != MTrap && s.Mode != MWrap && s.Mode != MWrapPair && s.Mode != MDouble &&
 					!(s.Op == ONeg && v.f.Types[s.Args[0]] == core.F64Name):
 					v.add("W9: (%s …) with no mode in IR_P", s.Op)
 				}
@@ -201,6 +203,51 @@ func (v *verifier) ty(x V) string {
 		return ""
 	}
 	return v.f.Types[x]
+}
+
+// double is W14 (ADR 0103): a value of the double word is read only inside
+// its term, by + − · neg, by a quotient, remainder, `mod` or right shift of
+// which it is the dividend, by a comparison, or by a π, itself the double
+// word's; never by a table, a call, a branch or a region's exit, which would hold an integer above the word
+// in a word. And it is held there only on a target that declares the double
+// word. It re-derives what SelectDouble chose, independently of it.
+func (v *verifier) double() {
+	v.dbl = Doubles(v.f)
+	if len(v.dbl) == 0 {
+		return
+	}
+	if v.tg.DoubleWidth != 128 {
+		v.add("W14: an operation in the double word on target %s, which declares none", v.tg.Name)
+	}
+	v.f.Walk(func(r *Region) {
+		for _, a := range r.Args {
+			if v.dbl[a] {
+				v.add("W14: the double word's %%%d leaves its term through a region's exit", a)
+			}
+		}
+		if r.T == TBranch && v.dbl[r.Cond] {
+			v.add("W14: a branch on the double word's %%%d", r.Cond)
+		}
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			for j, a := range s.Args {
+				if !v.dbl[a] {
+					continue
+				}
+				ok := s.Name == "" && s.Via == "" && len(s.Res) == 1
+				switch s.Op {
+				case OAdd, OSub, OMul, ONeg, OEq, ONe, OLt, OLe, OGt, OGe:
+				case ODiv, ORem, OMod, OShr:
+					ok = ok && j == 0
+				default:
+					ok = false
+				}
+				if !ok {
+					v.add("W14: the double word's %%%d leaves its term through (%s …)", a, s.Op)
+				}
+			}
+		}
+	})
 }
 
 // flow is W5's flow rule on one edge: the checker's own relation (types.md),
@@ -717,11 +764,15 @@ func (v *verifier) stmt(s *Stmt) {
 	case s.Op.IsCmp() && doubles:
 	case s.Op.IsArith():
 		for _, a := range s.Args {
-			v.flow(a, "int", where)
+			if !v.dbl[a] { // a double-word intermediate is W14's
+				v.flow(a, "int", where)
+			}
 		}
 	case s.Op.IsCmp():
 		for _, a := range s.Args {
-			v.flow(a, "int", where)
+			if !v.dbl[a] {
+				v.flow(a, "int", where)
+			}
 		}
 	case s.Op == OIf || s.Op == ORequire || s.Op == OAssume:
 		v.flow(s.Args[0], "bool", where)

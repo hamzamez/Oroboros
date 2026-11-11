@@ -49,6 +49,9 @@ repr 0..255 host "i8"
 // 0035) are the rung above the word.
 repr shift 63
 repr wrap 64
+// an intermediate the decision proves in E = (−2¹²⁶, 2¹²⁶), read back into the
+// word, computed in i128 (ADR 0103, llvm.md §3c)
+repr double 128
 repr big limbs
 
 // THE LANGUAGE'S NAMES, REALIZED (ADR 0088, 0089). A target is a model of the

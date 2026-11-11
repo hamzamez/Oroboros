@@ -158,6 +158,11 @@ const (
 	// U as a pair (JavaScript): the unsigned residue mod 2⁶⁴ of ℤ's result,
 	// which ir/pairs.go expands into the halves' operations.
 	MWrapPair
+	// MDouble is an intermediate above the word computed in the double word
+	// (ADR 0103, SelectDouble): ℤ's own result, which the decision proves in
+	// E = (−2¹²⁶, 2¹²⁶), held in i128, and read only by operations whose
+	// results are back in the word.
+	MDouble
 )
 
 func (m Mode) String() string {
@@ -170,6 +175,8 @@ func (m Mode) String() string {
 		return "wrap"
 	case MWrapPair:
 		return "wrap64"
+	case MDouble:
+		return "double"
 	}
 	return ""
 }

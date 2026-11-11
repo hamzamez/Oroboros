@@ -356,6 +356,13 @@ type Target struct {
 	// fusion, and a term under `mod` is computed exactly.
 	WrapWidth int64
 
+	// DoubleWidth is 128 on a target that computes an intermediate above the
+	// word in a double word (ADR 0103): a term whose intermediates the decision
+	// proves in E = (−2¹²⁶, 2¹²⁶), read back into the word by a quotient,
+	// remainder or shift by a constant or a comparison, is computed in i128,
+	// since the residue map ℤ → ℤ/2¹²⁸ is injective on E. Zero: none.
+	DoubleWidth int64
+
 	// Word is the widest interval this target's native integer arithmetic is
 	// exact on — ADR 0026, declared as `(repr (int LO HI) word)`. It is the
 	// realization of `int`, and it decides, ON THIS TARGET, what the window used
@@ -2068,6 +2075,7 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	}{
 		{&tg.ShiftWidth, o.ShiftWidth, "shift-width"},
 		{&tg.WrapWidth, o.WrapWidth, "wrap-width"},
+		{&tg.DoubleWidth, o.DoubleWidth, "double-width"},
 		{&tg.MaxLen, o.MaxLen, "max-len"},
 	} {
 		if err := combineOne(f.dst, f.src, f.what, from, how); err != nil {
@@ -2690,13 +2698,20 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 			return bad("(repr wrap W) with W 32 or 64")
 		}
 		frag.WrapWidth = choice.Int
+	case "double":
+		// the double word (ADR 0103): 128, the width in which the decision's E
+		// is exact
+		if subj.Kind != core.KName || choice.Kind != core.KInt || choice.Int != 128 {
+			return bad("(repr double 128)")
+		}
+		frag.DoubleWidth = choice.Int
 	case "narrow":
 		if subj.Kind != core.KName || !hosted {
 			return bad(`(repr narrow (host "dst = src[:n]"))`)
 		}
 		frag.Narrow = spelling
 	default:
-		return bad("(repr (int LO HI) | (ref T) | big | map | shift | wrap | narrow  CHOICE)")
+		return bad("(repr (int LO HI) | (ref T) | big | map | shift | wrap | double | narrow  CHOICE)")
 	}
 	return nil
 }

@@ -197,6 +197,12 @@ func afterRung(tg *emit.Target, f *Func, name string, checked bool, leg *Legalit
 	} else if changed {
 		leg = Decide(tg, f, checked)
 	}
+	// THE DOUBLE WORD (ADR 0103, ir/double.go): an intermediate above the word
+	// that its term reads back into the word, computed in i128 where the
+	// decision proves it in E; decided again, each proven there.
+	if SelectDouble(tg, f) > 0 {
+		leg = Decide(tg, f, checked)
+	}
 	// THE TARGET'S INTERPRETATION OF THE LANGUAGE (ADR 0089), on the decided
 	// function: each operation by the narrowest stated realization its facts
 	// prove, a term's instance inlined; the decision taken again decides the

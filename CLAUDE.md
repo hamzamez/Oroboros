@@ -224,7 +224,13 @@ checked. When a package hits a wall that needs language work, stop, research it,
      [llvm-udiv-2026-11-11](gauntlet/results/llvm-udiv-2026-11-11.md); fact's printing is 73% of it).
      ~~A quotient by 2³² as `sdiv`/`srem`~~, done there: on ℕ ∩ S₆₄ `/` and `%` are `udiv` and
      `urem` (truncation is the floor; the bits read alike), `llvm.udiv_nat`/`urem_nat` chosen by
-     ADR 0088's narrowest domain, the product 0.55× its time. Its causes, by expected gain
+     ADR 0088's narrowest domain, the product 0.55× its time. **M4, 64-bit digits, in steps**:
+     ~~M4a, the double word~~ done (ADR 0103, [doubleword-2026-11-11](gauntlet/results/doubleword-2026-11-11.md)):
+     an intermediate the decision proves in E = (−2¹²⁶, 2¹²⁶), read back into the word, is i128
+     (`ir/double.go`, W14), so B = 2⁶³ is the largest base whose multiply-accumulate is proven; the
+     Mersenne hash 0.49× idiomatic Go; **M4b, K(ℕ\*) over B = 2⁶³, next**: a short division by
+     k < 2²⁸ two word divisions, D's q̂ the triple's 2-by-1 division (x86-64's `divq`, its quotient
+     proven in the word), render by 10¹⁸. Its causes, by expected gain
      (fitreuse-2026-11-10, lenonce-2026-11-10):
      ~~each operand's length reloaded per digit~~, done by β (a length is a pure function of an
      immutable value), not by `noalias`, whose scoped form is unsound for inlined code and whose
@@ -806,6 +812,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A dead region serves a request it fits: release ; region(b′) ≡ zero for b′ ≤ b of one class (Σ_OS's `class`), the token carrying its table's count, compared at run time; replaces R1d's data stack (amends 0096 item 6) | [0100](docs/decisions/0100-a-dead-region-serves-a-request-it-fits.md) |
 | A library instance is a function of the program, decided once under its parameters' sets, the call's obligation its arguments in them, the frame rule its ownership (W13); amends 0035 | [0101](docs/decisions/0101-a-library-instance-is-a-function-of-the-program.md) |
 | Factoring never changes an answer or a verdict: a definition kept as a function only where its contract, completed by lifted preconditions, proves it, inlined otherwise; the static level always unfolded; no folding by pattern; amends 0101 | [0102](docs/decisions/0102-factoring-never-changes-an-answer-or-a-verdict.md) |
+| An intermediate above the word is computed in the double word, i128, where the decision proves it in E and its uses read it back into the word; no program value leaves the word (W14); a divisor a constant; extends 0082's fusion, builds 0083 item 3 for intermediates | [0103](docs/decisions/0103-an-intermediate-above-the-word-is-computed-in-the-double-word.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄, its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

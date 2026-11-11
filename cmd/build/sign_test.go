@@ -60,22 +60,23 @@ func TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength(t *testing.T) {
 	}
 }
 
-// A QUOTIENT BY A NUMERAL IS ALGORITHM D's (ADR 0099, R3c): on windows, x1 / y1
-// and x2 % y2 are inputs a model of the library's algorithm found to take the
-// add-back, D6, and they print Python's numerals. THE PLANTED FAULT drops the
-// add-back, so q̂ one too large stays, and must print others.
+// A QUOTIENT BY A NUMERAL IS ALGORITHM D's (ADR 0099, R3c): on windows, x / y
+// and x % y take the add-back, D6, and print Python's numerals. At B = 2⁶³ an
+// add-back is about 2/B likely, so the pair is CONSTRUCTED: y = (v_t, v₂, B − 1)
+// normalized, and x = q·(v_t·B² + v₂·B), whose top digits give q̂ = q and pass
+// D3's two-digit test while x − q·y = −q·(B − 1) < 0 (an exact model of the
+// library's loop counts the add-back). THE PLANTED FAULT drops the add-back,
+// so q̂ one too large stays, and must print others.
 func TestAQuotientByANumeralIsAlgorithmDs(t *testing.T) {
 	const src = "use win/print\n" +
 		"fn calc(n ∈ 0..1) (Int) {\n" +
-		"    x1 = 1461501638011467652005947678376676693685842214910\n" +
-		"    y1 = 39614081275578912870481526782\n" +
-		"    x2 = 13479973327298218161946826780014308280492230177364949862681617104896\n" +
-		"    y2 = 170141183460469231740910675750591397887\n" +
-		"    if n == 0 { x1 / y1 } else { x2 % y2 }\n}\n" +
+		"    x = 1176956575385002643219210516851437453019191645837006471168\n" +
+		"    y = 392318858461667547739736838950479151015620587315856932863\n" +
+		"    if n == 0 { x / y } else { x % y }\n}\n" +
 		"export fn main() {\n" +
 		"    print.print_str(big_str(calc(0)))\n" +
 		"    print.print_str(big_str(calc(1)))\n}\n"
-	want := "36893488147419103231 170141183460469231639453583347336347652"
+	want := "2 392318858461667547739736838950479150987950471205292605442"
 	out, err := buildAndRun(t, src, "windows", "")
 	if err != nil || strings.Join(strings.Fields(out), " ") != want {
 		t.Errorf("Algorithm D on windows: %q, %v; want %s", out, err, want)

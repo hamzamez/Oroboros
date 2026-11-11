@@ -141,9 +141,13 @@ typed by its proven range.
 | a quotient, remainder, `mod` or shift reading one | `udiv`, `urem`, `lshr` i128 of a natural, else `sdiv`, `srem`, `ashr`; `mod` of an integer `srem` lifted into [0, m); then `trunc i128 … to i64` |
 | a comparison reading one | `icmp` on i128 |
 
-The divisor is a constant because LLVM divides an i128 by a variable in a library call (`__udivti3`).
-By a constant, clang multiplies by its reciprocal, inline. A quotient by a run-time word is the
-library's, by its precomputed reciprocal (Möller and Granlund 2011).
+A divisor is a constant, or a positive word where the decision proves the quotient a digit (ADR 0104).
+By a constant, clang multiplies by its reciprocal, inline; by a word, LLVM would call `__udivti3`, so
+the triple's 2-by-1 division is used (x86-64's `divq`, `llvm/isa.udiv-2by1`, its domain hi < d),
+on the dividend's two halves. The quotient's digit bound is the two-digit lemma, a transfer of the
+decision: t = u·C + w with w < C and u a π of u < d has ⌊t/d⌋ < C. The double word also reads back
+by `&` with a constant mask (ℤ's & is 2-adic, so t & (2ᵏ − 1) = t mod 2ᵏ) and by a right shift by a
+word count in [0, 127].
 
 ## 4. Tables
 

@@ -96,3 +96,31 @@ func TestAnIntermediateOutsideEIsRefused(t *testing.T) {
 		t.Errorf("with any fact taken into the double word the product is still refused: the witness cannot fail")
 	}
 }
+
+// THE TWO-DIGIT LEMMA (Knuth): for t = u·B + w, w < B, 0 ≤ u < d, ⌊t/d⌋ < B, so
+// the quotient is a word and the triple's 2-by-1 division computes it. With
+// u ≤ d it may be B, and the program is refused. THE PLANTED FAULT drops the
+// premise u < d, and the refusal goes.
+func TestATwoDigitQuotientNeedsItsTopDigitBelowTheDivisor(t *testing.T) {
+	const body = "(u * 4611686018427387904 * 2 + w) / d"
+	src := func(guard string) string {
+		return "export fn f(u ∈ 0..2^62, w ∈ 0..2^62, d ∈ 1..2^62) (Int) { if " + guard + " { " + body + " } else { 0 } }\n"
+	}
+	tg, f, leg := doubleEntry(t, src("u < d"))
+	if err := leg.Refusal("f", tg); err != nil {
+		t.Fatalf("a window whose top digit is below the divisor: want a one-digit quotient, got %v", err)
+	}
+	if err := verifyOne(tg, f); err != nil {
+		t.Errorf("does not verify: %v", err)
+	}
+	tg, _, leg = doubleEntry(t, src("u <= d"))
+	if leg.Refusal("f", tg) == nil {
+		t.Fatal("a top digit that may equal the divisor: want the quotient refused")
+	}
+	PlantQuotientUnasked = true
+	defer func() { PlantQuotientUnasked = false }()
+	tg, _, leg = doubleEntry(t, src("u <= d"))
+	if leg.Refusal("f", tg) != nil {
+		t.Errorf("with the premise unasked the quotient is still refused: the witness cannot fail")
+	}
+}

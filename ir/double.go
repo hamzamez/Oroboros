@@ -70,7 +70,7 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 		}
 	})
 	ring := func(s *Stmt) bool {
-		return (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg) && s.Name == "" && len(s.Res) == 1
+		return (s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg || s.Op == OShr) && s.Name == "" && len(s.Res) == 1
 	}
 	cand := map[V]bool{}
 	f.Walk(func(r *Region) {
@@ -93,6 +93,28 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 	}
 	// an operand of a double-word computation: a word, or a candidate
 	operand := func(v V) bool { return cand[v] || inWord(v) }
+	// THE 2-BY-1 DIVISION, where the triple has one (targets/windows/x64.oro):
+	// a natural by a positive word whose quotient the decision proves in the
+	// word (the two-digit lemma, numeralQuotient), its remainder by the same
+	// proof. quot holds the (dividend, divisor) pairs so proven.
+	_, twoByOne := tg.Prims[TwoByOne]
+	nat := func(v V) bool { x := fs[v].v; return x.finite() && !x.lo.lt(ei(0)) }
+	quot := map[[2]V]bool{}
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op == ODiv && len(s.Res) == 1 && inWord(s.Res[0]) && fs[s.Res[0]].v.within(ei(0), ei(tg.Word.Hi)) {
+				quot[[2]V{s.Args[0], s.Args[1]}] = true
+			}
+		}
+	})
+	byWord := func(s *Stmt) bool {
+		d := s.Args[1]
+		if !twoByOne || cand[d] || !fs[d].v.within(ei(1), ei(tg.Word.Hi)) || !nat(s.Args[0]) {
+			return false
+		}
+		return quot[[2]V{s.Args[0], d}]
+	}
 	var allowed func(u use) bool
 	allowed = func(u use) bool {
 		s := u.s
@@ -119,9 +141,20 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 		case OAdd, OSub, OMul, ONeg:
 			return cand[s.Res[0]] || inWord(s.Res[0])
 		case ODiv, ORem, OMod:
+			if u.j == 0 && (s.Op == ODiv || s.Op == ORem) && !positive(s.Args[1], 1<<62) {
+				return byWord(s) && inWord(s.Res[0])
+			}
 			return u.j == 0 && positive(s.Args[1], 1<<62) && inWord(s.Res[0])
+		case OAnd:
+			// t & m for a constant m ≥ 0 is t mod 2ᵏ where m = 2ᵏ − 1, and in
+			// [0, m] whatever m: ℤ's & is 2-adic, the same on its i128 residue
+			return positive(s.Args[1-u.j], 1<<63-1) && inWord(s.Res[0])
 		case OShr:
-			return u.j == 0 && positive(s.Args[1], 127) && inWord(s.Res[0])
+			// by a count in [0, 127], a constant or a word: `lshr i128` by a
+			// register is an instruction, not a call; the result an intermediate
+			// or back in the word
+			k := s.Args[1]
+			return u.j == 0 && !cand[k] && fs[k].v.within(ei(0), ei(127)) && (cand[s.Res[0]] || inWord(s.Res[0]))
 		case OEq, ONe, OLt, OLe, OGt, OGe:
 			return true
 		}
@@ -156,11 +189,27 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 			f.Types[v] = fmt.Sprintf("int %d %d", r.lo, r.hi)
 		}
 	}
+	// A QUOTIENT OR REMAINDER BY A WORD reads an intermediate back by the
+	// triple's 2-by-1 division, whose domain is its quotient in the word: typed
+	// by its proven range, which W14 reads
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if (s.Op == ODiv || s.Op == ORem) && len(s.Res) == 1 && cand[s.Args[0]] && !positive(s.Args[1], 1<<62) {
+				if x := fs[s.Res[0]].v; x.finite() {
+					f.Types[s.Res[0]] = fmt.Sprintf("int %d %d", x.lo, x.hi)
+				}
+			}
+		}
+	})
 	if len(cand) > 0 {
 		f.facts = nil
 	}
 	return len(cand)
 }
+
+// TwoByOne is the triple's 2-by-1 division, x86-64's `divq`.
+const TwoByOne = "llvm/isa.udiv-2by1"
 
 // PlantDoubleEscape lets a double-word intermediate reach any use, a table or
 // a result included: TestADoubleWordNeverLeavesItsTerm must see it refused

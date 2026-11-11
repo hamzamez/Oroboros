@@ -2847,3 +2847,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/mersenne-hash.oro java`
 - new source — `gauntlet/differential/cases/mersenne-hash.oro js`
 - new source — `gauntlet/differential/cases/mersenne-hash.oro windows`
+
+## 2026-11-11 — on 3640a0c, with uncommitted changes
+
+**Reason:** K(N*) over B = 2^63 (M4b): every digit step of the double word, a short quotient by a word the triple's 2-by-1 division where the two-digit lemma proves its quotient a digit, render by 10^18; naturals extended by zero
+
+628 runs: 407 emitted, 221 refused; 5710 of 5764 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- emitted text changed — `examples/big/fact.oro windows`
+- compiler output changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- compiler output changed — `examples/big/power.oro windows`

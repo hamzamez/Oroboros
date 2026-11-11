@@ -15,7 +15,7 @@ import (
 // (ADR 0035). Calling it and β-reducing it into the site are the same
 // application, so a use may be `call f ā`: what changes is where its
 // arithmetic is decided. The callee is decided once, under its parameters'
-// sets, a numeral's table `array int 0 4294967295` (its header is 2m + s,
+// sets, a numeral's table `array int 0 9223372036854775807` (its header is 2m + s,
 // digitfacts-2026-11-10), and its result's element range is what its stores
 // prove. Ownership across the call is the frame rule: the arguments borrowed,
 // the result a birth (W13 checks the callee's side).
@@ -26,8 +26,8 @@ import (
 // (ADR 0038), registering the functions it finds there first.
 
 // NumeralType is a numeral's table as a program function's parameter and
-// result: the codomain [0, B), B = 2³², of every entry.
-const NumeralType = "array int 0 4294967295"
+// result: the codomain [0, B), B = 2⁶³ (M4b), of every entry.
+const NumeralType = "array int 0 9223372036854775807"
 
 // natPrefix names K(ℕ*)'s program functions.
 const natPrefix = "nat."
@@ -102,13 +102,11 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 		case sig.Params[i].Type == "array int":
 			sig.Params[i].Type = NumeralType
 		// THE WORD OPERAND'S SET is the one the plan chose the one-pass form for
-		// (limbs.go's widened: k ∈ [0, 2²⁸)), a divisor's without its zero
-		case sig.Params[i].Type == "int" && (fn == "mul-small" || fn == "div-small"):
-			lo := 0
-			if fn == "div-small" {
-				lo = 1
-			}
-			sig.Params[i].Type = fmt.Sprintf("int %d %d", lo, 1<<28-1)
+		// (limbs.go): a product's any natural word, a divisor's [1, 2²⁸)
+		case sig.Params[i].Type == "int" && fn == "mul-small":
+			sig.Params[i].Type = fmt.Sprintf("int 0 %d", int64(1<<63-1))
+		case sig.Params[i].Type == "int" && fn == "div-small":
+			sig.Params[i].Type = fmt.Sprintf("int 1 %d", 1<<28-1)
 		}
 	}
 	f, err := Lower(tg, name, &sig, inst.Term, Options{Decided: true})
@@ -132,7 +130,7 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 	// returned table's elements in [0, B), by its stores, before the callers
 	// may read it as a numeral's
 	if len(f.Results) == 1 && f.Results[0] == "array int" {
-		if err := proveResultElems(tg, f, 0, 1<<32-1); err != nil {
+		if err := proveResultElems(tg, f, 0, 1<<63-1); err != nil {
 			return nil, fmt.Errorf("the built-in K(ℕ*)'s %s: %v", fn, err)
 		}
 		f.Results[0] = NumeralType

@@ -220,17 +220,21 @@ checked. When a package hits a wall that needs language work, stop, research it,
      windows`), the gauntlet's seven programs run there at parity, and a second triple runs the suite.
      **The standing measure** (hamza, 2026-11-10): **the windows implementation is faster than the Go
      one**; as long as it is slower, the gap is work owed, done now or not. Today it is slower on every
-     K(ℕ\*) program (fact 5.0×, its product 1.43×; D 1.7×; fib 3.6× `math/big`,
-     [llvm-udiv-2026-11-11](gauntlet/results/llvm-udiv-2026-11-11.md); fact's printing is 73% of it).
+     K(ℕ\*) program but one (fact 2.9×, its product 1.5×; fib 1.8× `math/big`; **the 2,000-quotient
+     program 0.85×, faster than Go**, [natword-2026-11-11](gauntlet/results/natword-2026-11-11.md)).
      ~~A quotient by 2³² as `sdiv`/`srem`~~, done there: on ℕ ∩ S₆₄ `/` and `%` are `udiv` and
      `urem` (truncation is the floor; the bits read alike), `llvm.udiv_nat`/`urem_nat` chosen by
      ADR 0088's narrowest domain, the product 0.55× its time. **M4, 64-bit digits, in steps**:
      ~~M4a, the double word~~ done (ADR 0103, [doubleword-2026-11-11](gauntlet/results/doubleword-2026-11-11.md)):
      an intermediate the decision proves in E = (−2¹²⁶, 2¹²⁶), read back into the word, is i128
      (`ir/double.go`, W14), so B = 2⁶³ is the largest base whose multiply-accumulate is proven; the
-     Mersenne hash 0.49× idiomatic Go; **M4b, K(ℕ\*) over B = 2⁶³, next**: a short division by
-     k < 2²⁸ two word divisions, D's q̂ the triple's 2-by-1 division (x86-64's `divq`, its quotient
-     proven in the word), render by 10¹⁸. Its causes, by expected gain
+     Mersenne hash 0.49× idiomatic Go; ~~M4b, K(ℕ\*) over B = 2⁶³~~ done (ADR 0104,
+     [natword-2026-11-11](gauntlet/results/natword-2026-11-11.md)): every step reduced by t & (B − 1)
+     and t >> 63, D's q̂ the triple's 2-by-1 division (`divq`, `targets/windows/x64.oro`) where the
+     two-digit lemma (a transfer for `/`) proves it a digit, render by 10¹⁸; fib 0.46×, fact 0.57×,
+     D 0.50× their time. **Left, by the machine code**: B = 2⁶⁴'s halves for the product's and the
+     sum's carry chains (each 63-bit step's `shld` and `and`), then Karatsuba and recursive
+     division for fact's quadratic printing. Its causes, by expected gain
      (fitreuse-2026-11-10, lenonce-2026-11-10):
      ~~each operand's length reloaded per digit~~, done by β (a length is a pure function of an
      immutable value), not by `noalias`, whose scoped form is unsound for inlined code and whose
@@ -341,7 +345,7 @@ checked. When a package hits a wall that needs language work, stop, research it,
               1.55× unsigned, every allocation a token; no pass changed. Not built: a token through a
               branch, which nothing now needs;
             - R3b. ~~ℕ\* and K(ℕ\*)~~ **done** ([natnum-2026-11-10](gauntlet/results/natnum-2026-11-10.md)):
-              `emit/natnum.oro`, digits in base 2³² over U₆₄, the signed size h = ±m last (GMP's), every
+              `emit/natnum.oro`, digits in base 2³² over U₆₄ (2⁶³ since ADR 0104), the signed size h = ±m last (GMP's), every
               build born full; A and S as one recurrence, M, the word forms, render by 10⁹; an unbounded
               set on a target with no bignum plans `Var`; `big-str`'s argument demanded on every target
               (render is ℤ's); the machine's bound len t ≤ max_len a crash past it, as a case's guard;
@@ -480,7 +484,7 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **5,717 of 5,771** integer operations proven inside their target's word, the 54 left
+- **Provability**: **5,710 of 5,764** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
   **649 of 673** loops proven to terminate (size-change termination). Each
@@ -813,7 +817,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | A library instance is a function of the program, decided once under its parameters' sets, the call's obligation its arguments in them, the frame rule its ownership (W13); amends 0035 | [0101](docs/decisions/0101-a-library-instance-is-a-function-of-the-program.md) |
 | Factoring never changes an answer or a verdict: a definition kept as a function only where its contract, completed by lifted preconditions, proves it, inlined otherwise; the static level always unfolded; no folding by pattern; amends 0101 | [0102](docs/decisions/0102-factoring-never-changes-an-answer-or-a-verdict.md) |
 | An intermediate above the word is computed in the double word, i128, where the decision proves it in E and its uses read it back into the word; no program value leaves the word (W14); a divisor a constant; extends 0082's fusion, builds 0083 item 3 for intermediates | [0103](docs/decisions/0103-an-intermediate-above-the-word-is-computed-in-the-double-word.md) |
-| An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄, its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
+| K(ℕ\*) is in base 2⁶³, the largest the decision proves (B² − 1 ∈ E); the two-digit lemma a transfer for `/`; a quotient by a word the triple's 2-by-1 division; reverses 0099 item 3, amends 0103 item 4 | [0104](docs/decisions/0104-k-n-star-is-in-base-2-63-the-largest-base-the-decision-proves.md) |
+| An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶³ since 0104), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 
 ## Build commands

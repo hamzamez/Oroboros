@@ -1,0 +1,13 @@
+// THE x86-64 INSTRUCTION SET'S OWN OPERATIONS (ADR 0103): what this triple has
+// beyond LLVM's target-independent instructions, each declared as it is, its
+// domain its `where`. 32-bit Windows is another member, with its own.
+module llvm/isa {
+    // DIVQ, THE 2-BY-1 DIVISION (Knuth's primitive, TAOCP 2 §4.3.1; Go's
+    // bits.Div64): RDX:RAX = hi·2⁶⁴ + lo by a word d, the quotient in RAX and
+    // the remainder in RDX. The quotient past 2⁶⁴ raises #DE, so hi < d is the
+    // domain; the double word asks it of a quotient the decision proves in the
+    // word (llvm.md §3c).
+    fn udiv_2by1(lo ∈ u64, hi ∈ 0..2^63-1, d ∈ 1..2^63-1) (u64 × u64) pure where hi < d {
+        host expr "call { i64, i64 } asm \"divq $4\", \"={rax},={rdx},0,1,r,~{dirflag},~{fpsr},~{flags}\"(${lo}, ${hi}, ${d})"
+    }
+}

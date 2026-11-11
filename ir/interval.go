@@ -466,6 +466,7 @@ type intervals struct {
 	loops  []*exitFacts
 	def    map[V]*Stmt
 	piOf   map[V]V // a π-parameter's source: the same value, renamed on an arm
+	piRel  map[V]Pi // a π-parameter itself: its guard's relation and other side
 	thresh []ep    // the widening's thresholds (widenIVT), the function's
 	// loopT is each loop's own structural thresholds, its constants and its
 	// guards' images (loopThresholds); consts the function's integer constants.
@@ -533,6 +534,10 @@ func newIntervals(tg *emit.Target, f *Func) *intervals {
 	f.Walk(func(r *Region) {
 		for _, pi := range r.Pis {
 			a.piOf[pi.V] = pi.Of
+			if a.piRel == nil {
+				a.piRel = map[V]Pi{}
+			}
+			a.piRel[pi.V] = pi
 		}
 		for i := range r.Stmts {
 			for _, v := range r.Stmts[i].Res {
@@ -716,7 +721,11 @@ func (a *intervals) stmt(s *Stmt) {
 	case ONeg:
 		one(fact{v: negIV(args[0].v)})
 	case ODiv:
-		one(fact{v: divIV(args[0].v, args[1].v)})
+		q := divIV(args[0].v, args[1].v)
+		if top, ok := a.numeralQuotient(s.Args[0], s.Args[1]); ok {
+			q = meetIV(q, rangeIV(0, top))
+		}
+		one(fact{v: q})
 	case ORem:
 		one(fact{v: remIV(args[0].v, args[1].v)})
 	case OAnd:
@@ -1526,6 +1535,71 @@ func (a *intervals) dead(r *Region) {
 	walk(r)
 }
 
+// THE QUOTIENT OF A TWO-DIGIT NUMERAL (Knuth, TAOCP 2 §4.3.1): for
+// t = u·C + w with C a positive constant, w ∈ [0, C) and 0 ≤ u < d, the guard
+// u < d a π of the divisor d itself,
+//
+//	t ≤ (d − 1)·C + (C − 1) = d·C − 1 < d·C,   so   0 ≤ ⌊t/d⌋ ≤ C − 1.
+//
+// It is relational, the ratio of t's end to d's being no bound at all, and it
+// is what Algorithm D's estimate needs: a window whose top digit is below the
+// divisor's has a one-digit quotient. numeralQuotient answers C − 1, the
+// largest digit, where it applies; C is a product of constants, as a power
+// past the word is written, and C − 1 a word (C ≤ 2⁶³).
+func (a *intervals) numeralQuotient(t, d V) (int64, bool) {
+	dt := a.def[a.pl(t)]
+	if dt == nil || dt.Op != OAdd || len(dt.Args) != 2 {
+		return 0, false
+	}
+	for k := 0; k < 2; k++ {
+		m, w := dt.Args[k], dt.Args[1-k]
+		u, c, ok := a.scaled(m)
+		if !ok || c.Sign() <= 0 {
+			continue
+		}
+		top := new(big.Int).Sub(c, big.NewInt(1))
+		if !top.IsInt64() {
+			continue
+		}
+		fw, fu, fd := a.fs[w].v, a.fs[u].v, a.fs[d].v
+		if !fw.within(ei(0), ei(top.Int64())) || !fu.within(ei(0), wordTop) || !fd.within(ei(1), wordTop) {
+			continue
+		}
+		pi, isPi := a.piRel[u]
+		below := isPi && a.pl(pi.Other) == a.pl(d) && pi.Rel == "lt"
+		if below || PlantQuotientUnasked {
+			return top.Int64(), true
+		}
+	}
+	return 0, false
+}
+
+// PlantQuotientUnasked applies the two-digit lemma without its premise
+// u < d: TestATwoDigitQuotientNeedsItsTopDigitBelowTheDivisor must see a
+// window whose top digit equals the divisor proven to a one-digit quotient.
+var PlantQuotientUnasked bool
+
+// wordTop is S₆₄'s top, a digit's and a divisor's bound here.
+var wordTop = ei(1<<63 - 1)
+
+// scaled reads m as u·C, C a product of positive constants, as a power past
+// the word is written (2^63 is 2^62 · 2): (u, C).
+func (a *intervals) scaled(m V) (V, *big.Int, bool) {
+	d := a.def[a.pl(m)]
+	if d == nil || d.Op != OMul || len(d.Args) != 2 {
+		return 0, nil, false
+	}
+	for k := 0; k < 2; k++ {
+		if c, ok := a.constOf(d.Args[1-k]); ok && c > 0 {
+			if u, c2, ok := a.scaled(d.Args[k]); ok {
+				return u, new(big.Int).Mul(big.NewInt(c), c2), true
+			}
+			return d.Args[k], big.NewInt(c), true
+		}
+	}
+	return 0, nil, false
+}
+
 // pl is a value's π-source, so x·x through two π-renamings is still a square.
 func (a *intervals) pl(v V) V {
 	for {
@@ -1908,6 +1982,11 @@ func evalTerm(t *core.Term, env map[string]iv) iv {
 			return remIV(evalTerm(xs[0], env), evalTerm(xs[1], env))
 		case "neg":
 			return negIV(evalTerm(xs[0], env))
+		case "shr":
+			// ℤ's own (ADR 0082), so a host shift can state its law
+			return shrZ(evalTerm(xs[0], env), evalTerm(xs[1], env))
+		case "and":
+			return andZ(evalTerm(xs[0], env), evalTerm(xs[1], env))
 		}
 	}
 	return ivTop

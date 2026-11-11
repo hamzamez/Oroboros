@@ -595,8 +595,14 @@ func (p *printer) dop(s *ir.Stmt) {
 		if p.dbl[v] || p.dbl[p.pl.Res(v)] || !strings.HasPrefix(x, "%") {
 			return x // an intermediate, or a literal, the same spelling at i128
 		}
+		// a natural's zero and sign extensions agree, and `zext` says it is one:
+		// the product of two is then one unsigned multiply
+		ext := "sext"
+		if p.lo(v) >= 0 {
+			ext = "zext"
+		}
 		t := "%" + p.fresh("dw")
-		p.line("%s = sext i64 %s to i128", t, x)
+		p.line("%s = %s i64 %s to i128", t, ext, x)
 		return t
 	}
 	args := make([]string, len(s.Args))
@@ -620,6 +626,23 @@ func (p *printer) dop(s *ir.Stmt) {
 	case ir.ONeg:
 		p.line("%s = sub %s i128 0, %s", r, fl, args[0])
 	case ir.ODiv, ir.ORem:
+		if d := p.pl.Const[p.pl.Res(s.Args[1])]; d == nil {
+			// BY A WORD: the triple's 2-by-1 division on the dividend's halves,
+			// its quotient proven in the word (llvm.md §3c)
+			q, ok := p.tg.Prims[ir.TwoByOne]
+			if !ok {
+				p.fail("a quotient of the double word by a word, and no 2-by-1 division on target %s", p.tg.Name)
+				return
+			}
+			lo, h, hi, qr := "%"+p.fresh("dl"), "%"+p.fresh("dh"), "%"+p.fresh("dhi"), "%"+p.fresh("dqr")
+			p.line("%s = trunc i128 %s to i64", lo, args[0])
+			p.line("%s = lshr i128 %s, 64", h, args[0])
+			p.line("%s = trunc i128 %s to i64", hi, h)
+			p.imports(q)
+			p.line("%s = %s", qr, p.fillOps(q.Form, qr, []string{"i64 " + lo, "i64 " + hi, p.typed(s.Args[1])}))
+			p.line("%%v%d = extractvalue { i64, i64 } %s, %d", s.Res[0], qr, map[ir.Op]int{ir.ODiv: 0, ir.ORem: 1}[s.Op])
+			return
+		}
 		u := map[ir.Op]string{ir.ODiv: "udiv", ir.ORem: "urem"}[s.Op]
 		if !nat(s.Args[0]) || !nat(s.Args[1]) {
 			u = map[ir.Op]string{ir.ODiv: "sdiv", ir.ORem: "srem"}[s.Op]
@@ -637,6 +660,8 @@ func (p *printer) dop(s *ir.Stmt) {
 		p.line("%s = icmp slt i128 %s, 0", n, t)
 		p.line("%s = add nsw i128 %s, %s", a, t, args[1])
 		p.line("%s = select i1 %s, i128 %s, i128 %s", r, n, a, t)
+	case ir.OAnd:
+		p.line("%s = and i128 %s, %s", r, args[0], args[1])
 	case ir.OShr:
 		sh := "ashr"
 		if nat(s.Args[0]) {
@@ -1004,6 +1029,19 @@ func (p *printer) table(v ir.V, n string, store []ir.V) string {
 	}
 	p.line("store i64 %s, ptr %s", n, t)
 	return t
+}
+
+// fillOps fills a template whose operands are already spelled, typed: `%N`
+// operand N, `%vN` its value alone, `%r` the result, `%u` the expansion's
+// number.
+func (p *printer) fillOps(form, dst string, ops []string) string {
+	p.n++
+	pairs := []string{"%%", "%", "%r", dst, "%u", fmt.Sprintf(".%d", p.n)}
+	for i := len(ops); i >= 1; i-- {
+		v := ops[i-1]
+		pairs = append(pairs, fmt.Sprintf("%%v%d", i), v[strings.LastIndexByte(v, ' ')+1:], fmt.Sprintf("%%%d", i), v)
+	}
+	return strings.NewReplacer(pairs...).Replace(form)
 }
 
 // fillRaw fills a template whose one operand is already spelled.

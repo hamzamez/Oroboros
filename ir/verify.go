@@ -237,7 +237,19 @@ func (v *verifier) double() {
 				ok := s.Name == "" && s.Via == "" && len(s.Res) == 1
 				switch s.Op {
 				case OAdd, OSub, OMul, ONeg, OEq, ONe, OLt, OLe, OGt, OGe:
-				case ODiv, ORem, OMod, OShr:
+				case OAnd:
+					// by a constant mask, the other operand
+					d := v.def[s.Args[1-j]]
+					ok = ok && d != nil && d.Op == OConst
+				case ODiv, ORem:
+					// by a constant, or by a word through the triple's 2-by-1
+					// division, whose quotient's type says it is a word
+					ok = ok && j == 0
+					if d := v.def[s.Args[1]]; ok && (d == nil || d.Op != OConst) {
+						_, two := v.tg.Prims[TwoByOne]
+						ok = two && !v.dbl[s.Args[1]] && v.quotientInWord(s.Args[0], s.Args[1])
+					}
+				case OMod, OShr:
 					ok = ok && j == 0
 				default:
 					ok = false
@@ -248,6 +260,23 @@ func (v *verifier) double() {
 			}
 		}
 	})
+}
+
+// quotientInWord says some quotient of t by d in f is typed inside [0, 2⁶³):
+// the 2-by-1 division's domain, which a remainder shares with its quotient.
+func (v *verifier) quotientInWord(t, d V) bool {
+	found := false
+	v.f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op == ODiv && len(s.Args) == 2 && s.Args[0] == t && s.Args[1] == d && len(s.Res) == 1 {
+				if lo, _, ok := core.IntRange(v.f.Types[s.Res[0]]); ok && lo >= 0 {
+					found = true
+				}
+			}
+		}
+	})
+	return found
 }
 
 // flow is W5's flow rule on one edge: the checker's own relation (types.md),

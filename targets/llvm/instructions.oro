@@ -99,7 +99,9 @@ module llvm {
     fn u_xor(a ∈ u64, b ∈ u64) (u64) pure { host expr "xor ${a}, ${b:v}" }
     // shl and lshr are poison past a count of 63, their domain's end.
     fn u_shl(a ∈ u64, b ∈ 0..63) (u64) pure { host expr "shl ${a}, ${b:v}" }
-    fn u_lshr(a ∈ u64, b ∈ 0..63) (u64) pure { host expr "lshr ${a}, ${b:v}" }
+    // on its domain the floor of a / 2ᵇ, ℤ's >> of a natural: stated, so a
+    // realized shift keeps its fact (a carry t >> 63 is 0 or 1)
+    fn u_lshr(a ∈ u64, b ∈ 0..63) (r ∈ u64) pure ensure r == a >> b { host expr "lshr ${a}, ${b:v}" }
     // The bits, unchanged, under the other reading: the identity on [0, 2⁶³).
     fn u_of(x ∈ Int) (u64) pure { host expr "or ${x}, 0" }
     fn int_of_u(x ∈ u64) (Int) pure { host expr "or ${x}, 0" }

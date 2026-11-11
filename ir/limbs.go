@@ -86,15 +86,24 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			}
 		}
 	})
-	// widened is k when v = big-of k with k ∈ [0, 2²⁸).
-	widened := func(v V) (V, bool) {
+	// widened is k when v = big-of k with k ∈ [0, 2²⁸), the one-pass bound of
+	// the fixed limbs' base 2³²; product is the same for a product's operand,
+	// which on K(ℕ*), base 2⁶³, is any natural word: a·k + c ≤ (B − 1)² +
+	// (B − 1) is the double word's (ADR 0103).
+	widenedTo := func(v V, bound ep) (V, bool) {
 		s := def[v]
 		if s == nil || s.Op != OCall || s.Name != "big-of" || len(s.Args) != 1 {
 			return -1, false
 		}
 		k := s.Args[0]
-		return k, fs[k].v.within(ep{}, smallWord)
+		return k, fs[k].v.within(ep{}, bound)
 	}
+	widened := func(v V) (V, bool) { return widenedTo(v, smallWord) }
+	productBound := smallWord
+	if nat {
+		productBound = wordTop
+	}
+	product := func(v V) (V, bool) { return widenedTo(v, productBound) }
 	// THE PLAN: for each call, the instance and its arguments.
 	type use struct {
 		fn   string
@@ -114,9 +123,9 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 				widenings = append(widenings, s)
 			case "big*":
 				a, b := s.Args[0], s.Args[1]
-				if k, ok := widened(b); ok {
+				if k, ok := product(b); ok {
 					plan[s] = use{"mul-small", []V{a, k}}
-				} else if k, ok := widened(a); ok {
+				} else if k, ok := product(a); ok {
 					plan[s] = use{"mul-small", []V{b, k}}
 				} else {
 					plan[s] = use{"mul", s.Args}

@@ -79,9 +79,12 @@ func TestACallOutsideItsContractIsInlined(t *testing.T) {
 }
 
 // AND WHEN THE CONTRACT DOES NOT PROVE THE INSTANCE (ADR 0102, P4): div-small's
-// quotient is bounded relationally, so as a function its result's claim is
-// refused (progfunc-2026-11-10). Made a program function, it is inlined, and
-// the program is accepted. THE PLANTED FAULT refuses with the callee's reason.
+// quotient digit is ⌊(r·B + u)/k⌋, below B because r < k, a relation no
+// declared set states. Inlined, the site's constant k bounds it; as a function
+// under k ∈ [1, 2²⁸) nothing does, so its double-word step is unproven
+// (M4b; at base 2³² its result's claim refused it, progfunc-2026-11-10). Made a
+// program function, it is inlined, and the program is accepted. THE PLANTED
+// FAULT refuses with the callee's reason.
 func TestAnInstanceItsContractDoesNotProveIsInlined(t *testing.T) {
 	const src = "export fn f(n ∈ 0..100) (String) {\n" +
 		"    big_str(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) } / 7)\n}\n"
@@ -98,7 +101,7 @@ func TestAnInstanceItsContractDoesNotProveIsInlined(t *testing.T) {
 	}
 	PlantNoInlineFallback = true
 	defer func() { PlantNoInlineFallback = false }()
-	if _, err := callsOn(t, src); err == nil || !strings.Contains(err.Error(), "div-small: its result's elements") {
+	if _, err := callsOn(t, src); err == nil || !strings.Contains(err.Error(), "div-small is not decided under its parameters' sets") {
 		t.Errorf("with the fallback removed: want div-small's own refusal, got %v: the witness cannot fail", err)
 	}
 }

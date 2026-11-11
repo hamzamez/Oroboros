@@ -1,6 +1,6 @@
 // K(ℕ*), THE INTEGERS ON A TARGET WITH NO BIGNUM (ADR 0099).
 //
-// ℕ* is the positional numerals in base B = 2^32, each m ∈ ℕ one numeral with
+// ℕ* is the positional numerals in base B = 2^63, each m ∈ ℕ one numeral with
 // a nonzero top digit; ℤ is K(ℕ*), the group completion over them, a sign and
 // a magnitude with one zero. A value is one table t:
 //   - digit i at t[i], for i < len t − 1;
@@ -16,10 +16,17 @@
 // len t is a capacity each operation computes from its operands' sizes. Every
 // build writes [0, len t) at its counter, so a result is born full (ADR 0097).
 //
-// B = 2^32 over U64: Algorithm M's step u·v + w + k is at most
-// (B − 1)^2 + 2(B − 1) = B^2 − 1, exact in [0, 2^64), which windows holds as
-// i64 read unsigned. The operations are Knuth's (TAOCP 2 §4.3.1), each checked
-// once as a theory (ADR 0035), each use an inlined instance.
+// B = 2^63, THE LARGEST BASE WHOSE DIGITS ARE WORDS AND WHOSE STEP IS PROVEN
+// (ADR 0103, M4b): a digit is a non-negative word, and Algorithm M's step
+// u·v + w + k is at most (B − 1)^2 + 2(B − 1) = B^2 − 1 = 2^126 − 1, inside
+// the decision's E, so it is an intermediate of the double word, read back as
+// t >> 63 and t & (B − 1). A digit sum x + y + c is below 2^64, the unsigned
+// word's. B itself is no word, so it is written 2^62 · 2, and B − 1 is `bm`.
+// The operations are Knuth's (TAOCP 2 §4.3.1), each checked once as a theory
+// (ADR 0035), the large ones functions of the program (ADR 0101).
+
+// B − 1, the largest digit and the word's top
+bm = 9223372036854775807
 
 // THE READS, each stating the representation's invariant as its mask, as the
 // fixed limbs' `at` does: a digit is in [0, B), the size in [0, len t − 1].
@@ -79,15 +86,16 @@ fn room(ml, c) { if c > ml || c > 2^31 { abandon("out of memory: an integer long
 // a word of either sign: the digits of |v|, taken as −(r % B) and r / B, both
 // truncated, so v is never negated and −2^63 is exact
 fn of(ml, v) {
+    least = 0 - bm - 1
     var o := array { 0 : _ ∈ 0..2 }
-    loop i = 0, r = v, m = 0 {
+    loop i = 0 {
         i >= 3 -> o
-        i == 2 -> { o[i] := signed(if v < 0 { 1 } else { 0 }, m); again(i + 1, r, m) }
-        else -> {
-            d = if v < 0 { 0 - r % (2^32) } else { r % (2^32) }
-            o[i] := d
-            again(i + 1, r / (2^32), if d != 0 { i + 1 } else { m })
+        i == 2 -> {
+            o[i] := signed(if v < 0 { 1 } else { 0 }, if v == 0 { 0 } else if v == least { 2 } else { 1 })
+            again(i + 1)
         }
+        i == 1 -> { o[i] := if v == least { 1 } else { 0 }; again(i + 1) }
+        else -> { o[i] := if v == least { 0 } else if v < 0 { 0 - v } else { v }; again(i + 1) }
     }
 }
 
@@ -119,6 +127,10 @@ fn mcmp(ml, a, b) {
 // allocation stays before the case, where a dead region's token reaches it
 // (ADR 0100). The loops write through a borrow, as macrow does.
 
+// THE DIGIT'S REDUCTION, one form for A, S, M and D: t mod B = t & (B − 1),
+// since ℤ's & is 2-adic, and the carry ⌊t / B⌋ = t >> 63, for any t a step
+// makes: x + y + c < 2^64, x − y − b ∈ [−B, B), u·v + w + k < B^2.
+
 // A: x + y with mx ≥ my. The index domain splits at my, [0, my) ∪ [my, mx),
 // so every read is in bounds by its arm's own guard. Its size is mx + c by the
 // final carry: x is normal, so with no carry out digit mx − 1 is at least x's
@@ -138,13 +150,13 @@ fn addlp(o linear, x, mx0, y, my0, s) {
         i >= mx -> { o[mx] := c; o[mx + 1] := signed(s, mx + c); () }
         i < my -> {
             t = x[i] + y[i] + c
-            o[i] := if t >= 2^32 { t - 2^32 } else { t }
-            again(i + 1, if t >= 2^32 { 1 } else { 0 })
+            o[i] := t & bm
+            again(i + 1, t >> 63)
         }
         else -> {
             t = x[i] + c
-            o[i] := if t >= 2^32 { t - 2^32 } else { t }
-            again(i + 1, if t >= 2^32 { 1 } else { 0 })
+            o[i] := t & bm
+            again(i + 1, t >> 63)
         }
     }
 }
@@ -167,13 +179,13 @@ fn sublp(o linear, x, mx0, y, my0, s) {
         i >= mx -> { o[mx] := 0; o[mx + 1] := signed(s, top); () }
         i < my -> {
             t = x[i] - y[i] - bw
-            d = if t < 0 { t + 2^32 } else { t }
+            d = t & bm
             o[i] := d
             again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
         }
         else -> {
             t = x[i] - bw
-            d = if t < 0 { t + 2^32 } else { t }
+            d = t & bm
             o[i] := d
             again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
         }
@@ -226,8 +238,8 @@ fn macrow(ml, o linear, no, a, la, ma, y, j) {
         i >= ma -> { o[i + j] := k; () }
         else -> {
             t = dg(a, la, i) * y + rg(o, no, i + j) + k
-            o[i + j] := t % (2^32)
-            again(i + 1, t / (2^32))
+            o[i + j] := t & bm
+            again(i + 1, t >> 63)
         }
     }
 }
@@ -251,7 +263,8 @@ fn mul(ml, a, b) {
     }
 }
 
-// BY A WORD k ∈ [0, B): one pass, the carry below B. The index domain is
+// BY A WORD k ∈ [0, B): one pass, the carry below B, each step in the double
+// word. The index domain is
 // [0, ma) ⊔ {ma, ma + 1}: on [0, ma) a digit is read by the arm's guard, ma
 // being below a's length (the identity on every numeral, a path fact here);
 // at ma the last carry, at ma + 1 the header. THE SIZE IS THE CARRY'S: for a
@@ -275,8 +288,8 @@ fn mul_small(ml, a, k) {
                 }
                 else -> {
                     t = a[i] * k + c
-                    o[i] := t % (2^32)
-                    again(i + 1, t / (2^32))
+                    o[i] := t & bm
+                    again(i + 1, t >> 63)
                 }
             }
         }
@@ -299,7 +312,7 @@ fn qsmall(ml, a, k, s) {
     loop i = cap - 1, r = 0 {
         i < 0 -> o
         i == cap - 1 -> { o[i] := signed(s, m); again(i - 1, r) }
-        else -> { cur = r * (2^32) + dg(a, la, i); o[i] := cur / k; again(i - 1, cur % k) }
+        else -> { cur = r * 4611686018427387904 * 2 + dg(a, la, i); o[i] := cur / k; again(i - 1, cur % k) }
     }
 }
 // the remainder by a word k ∈ [1, B), the dividend's sign
@@ -307,7 +320,7 @@ fn rem_small(ml, a, k) {
     la = len(a) - 1
     r = loop i = size(a) - 1, r = 0 {
         i < 0 -> r
-        else -> again(i - 1, (r * (2^32) + dg(a, la, i)) % k)
+        else -> again(i - 1, (r * 4611686018427387904 * 2 + dg(a, la, i)) % k)
     }
     if sgn(a) == 1 { 0 - r } else { r }
 }
@@ -327,10 +340,10 @@ fn gt(ml, a, b) { lt(ml, b, a) }
 fn ge(ml, a, b) { le(ml, b, a) }
 fn eq(ml, a, b) { hdr(a) == hdr(b) && mcmp(ml, a, b) == 0 }
 
-// RENDER BY 10^9, nine decimal digits per division of |a|, the quotient and
+// RENDER BY 10^18, eighteen decimal digits per division of |a|, the quotient and
 // the remainder carried together in one table (qrem), one pass per chunk. A value below B^m has at most
-// ⌊32m·log10 2⌋ + 1 ≤ 9.6330m + 1 decimal digits, and m ≤ len a − 1, so a
-// field of n = 10·len a + 9 entries holds them, digit k at n − 1 − k for
+// ⌊63m·log10 2⌋ + 1 ≤ 18.9649m + 1 decimal digits, and m ≤ len a − 1, so a
+// field of n = 19·len a + 18 entries holds them, digit k at n − 1 − k for
 // k < n − 1. The numeral's length is found on the frozen field by a scan
 // descending from n − 1 to the first slot not '0' (or to 1, for 0), and the
 // sign and the digits are copied once, in the scan's exits, where the length
@@ -364,12 +377,12 @@ fn qrem(ml, a, off, k) {
         i < 0 -> o
         i == cap - 1 -> { o[i] := signed(0, m2); again(i - 1, r) }
         i == 0 -> { o[i] := r; again(i - 1, r) }
-        else -> { cur = r * (2^32) + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
+        else -> { cur = r * 4611686018427387904 * 2 + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
     }
 }
 
 fn render(ml, a) {
-    n = 10 * len(a) + 9
+    n = 19 * len(a) + 18
     case {
         n > ml -> abandon("out of memory: an integer longer than the largest table")
         else -> {
@@ -377,8 +390,8 @@ fn render(ml, a) {
                 var b := array { 48 : _ ∈ 0..n - 1 }
                 loop k = 0, q = a, off = 0, r = 0 {
                     k >= n - 1 -> b
-                    k % 9 == 0 -> {
-                        q2 = qrem(ml, q, off, 1000000000)
+                    k % 18 == 0 -> {
+                        q2 = qrem(ml, q, off, 1000000000000000000)
                         d = pg(q2, len(q2), 0)
                         b[n - 1 - k] := 48 + d % 10
                         again(k + 1, q2, 1, d / 10)
@@ -422,10 +435,9 @@ fn pdig(t, i) {
 // W = r·B + d: digit 0 is d, digit i the remainder's digit i − 1
 fn wdig(r, d, i) { if i == 0 { d } else { pdig(r, i - 1) } }
 
-// f = 2^s, the least power of two that puts v's top digit vt at or above B/2;
-// s ≤ 31 is the loop's measure, rising by one toward its guard, and f's own
-// guard is f's interval
-fn nfactor(vt) { loop s = 0, f = 1, t = vt { s >= 31 -> f; f >= 2^31 -> f; t >= 2^31 -> f; else -> again(s + 1, f * 2, t * 2) } }
+// s, the least shift that puts v's top digit vt at or above B/2 = 2^62, so
+// f = 2^s; s ≤ 62 is the loop's measure, rising by one toward its guard
+fn nshift(vt) { loop s = 0, t = vt { s >= 62 -> s; t >= 2^62 -> s; else -> again(s + 1, t * 2) } }
 
 // D3. q̂ = ⌊top / vt⌋ when below B, with r̂ = top mod vt, so r̂ < vt; then
 // lowered while q̂·v_{n−2} > r̂·B + W_{n−2}, twice at most, the second time
@@ -435,19 +447,24 @@ fn nfactor(vt) { loop s = 0, f = 1, t = vt { s >= 31 -> f; f >= 2^31 -> f; t >= 
 fn qhat(v, n, r, d) {
     vt = pdig(v, n - 1)
     v2 = pdig(v, n - 2)
-    top = wdig(r, d, n) * 2^32 + wdig(r, d, n - 1)
+    wn = wdig(r, d, n)
+    w1 = wdig(r, d, n - 1)
     w2 = wdig(r, d, n - 2)
-    q0 = if vt < 1 { 0 } else { top / vt }
-    rh = if vt < 1 { 0 } else { top % vt }
+    // q̂ ≥ B exactly when wn ≥ vt: then B − 1. Otherwise the window's top two
+    // digits over vt have a one-digit quotient (the two-digit lemma), the
+    // triple's 2-by-1 division
     case {
         vt < 1 -> 0
-        q0 > 2^32 - 1 -> 2^32 - 1
+        wn >= vt -> bm
         else -> {
+            top = wn * 4611686018427387904 * 2 + w1
+            q0 = top / vt
+            rh = top % vt
             case {
-                q0 >= 1 && q0 * v2 > rh * 2^32 + w2 -> {
+                q0 >= 1 && q0 * v2 > rh * 4611686018427387904 * 2 + w2 -> {
                     q1 = q0 - 1
                     rh1 = rh + vt
-                    if rh1 < 2^32 && q1 >= 1 && q1 * v2 > rh1 * 2^32 + w2 { q1 - 1 } else { q1 }
+                    if rh1 <= bm && q1 >= 1 && q1 * v2 > rh1 * 4611686018427387904 * 2 + w2 { q1 - 1 } else { q1 }
                 }
                 else -> q0
             }
@@ -470,9 +487,9 @@ fn msub(ml, v, n, r, d, q) {
                 i == n + 1 -> { o[i] := bw; again(i + 1, pc, bw) }
                 else -> {
                     p = q * pg(v, nv, i) + pc
-                    t = wg(r, nr, d, i) - p % (2^32) - bw
-                    o[i] := if t < 0 { t + 2^32 } else { t }
-                    again(i + 1, p / (2^32), if t < 0 { 1 } else { 0 })
+                    t = wg(r, nr, d, i) - (p & bm) - bw
+                    o[i] := t & bm
+                    again(i + 1, p >> 63, if t < 0 { 1 } else { 0 })
                 }
             }
         }
@@ -491,7 +508,7 @@ fn addv(ml, t, v, n) {
             loop i = 0, c = 0 {
                 i >= n + 2 -> o
                 i == n + 1 -> { o[i] := if c > 0 { 0 } else { 1 }; again(i + 1, c) }
-                else -> { x = pg(t, nt, i) + pg(v, nv, i) + c; o[i] := x % (2^32); again(i + 1, x / (2^32)) }
+                else -> { x = pg(t, nt, i) + pg(v, nv, i) + c; o[i] := x & bm; again(i + 1, x >> 63) }
             }
         }
     }
@@ -521,17 +538,17 @@ fn slice(u, lo, k) {
     loop i = 0 { i >= k + 1 -> o; else -> { o[i] := if i < k { dg(u, lu, lo + i) } else { 0 }; again(i + 1) } }
 }
 
-// D8: the normalized remainder r over n digits divided by f, in K(ℕ*) with
-// the sign s: digit i of ⌊r / f⌋ is ⌊(r_{i+1}·B + r_i) / f⌋ mod B, for f ≤ B,
-// every intermediate below B^2
-fn unnorm(ml, r, n, f, s) {
+// D8: the normalized remainder r over n digits divided by f = 2^sh, in K(ℕ*)
+// with the sign s: digit i of ⌊r / f⌋ is ((r_{i+1}·B + r_i) >> sh) & (B − 1),
+// a shift of the double word by a word
+fn unnorm(ml, r, n, sh, s) {
     nr = len(r)
     var o := array { 0 : _ ∈ 0..n }
     loop i = 0, top = 0 {
         i >= n + 1 -> o
         i == n -> { o[i] := signed(s, top); again(i + 1, top) }
         else -> {
-            x = (pg(r, nr, i + 1) * 2^32 + pg(r, nr, i)) / f % (2^32)
+            x = ((pg(r, nr, i + 1) * 4611686018427387904 * 2 + pg(r, nr, i)) >> sh) & bm
             o[i] := x
             again(i + 1, if x != 0 { i + 1 } else { top })
         }
@@ -551,9 +568,9 @@ fn div(ml, a, b) {
         n < 1 -> abandon("division by zero")
         mcmp(ml, a, b) < 0 -> of(ml, 0)
         else -> {
-            f = nfactor(dig(b, n - 1))
-            v = mul_small(ml, b, f)
-            u = mul_small(ml, a, f)
+            sh = nshift(dig(b, n - 1))
+            v = mul_small(ml, b, 1 << sh)
+            u = mul_small(ml, a, 1 << sh)
             kq = size(u) - n + 1
             case {
                 kq < 1 -> of(ml, 0)
@@ -597,16 +614,16 @@ fn rem(ml, a, b) {
         n < 1 -> abandon("division by zero")
         mcmp(ml, a, b) < 0 -> copy(ml, a)
         else -> {
-            f = nfactor(dig(b, n - 1))
-            v = mul_small(ml, b, f)
-            u = mul_small(ml, a, f)
+            sh = nshift(dig(b, n - 1))
+            v = mul_small(ml, b, 1 << sh)
+            u = mul_small(ml, a, 1 << sh)
             kq = size(u) - n + 1
             case {
                 kq < 1 -> copy(ml, a)
                 else -> {
                   lu = len(u) - 1
                   loop i = kq - 1, r = slice(u, kq, n - 1) {
-                    i < 0 -> unnorm(ml, r, n, f, sgn(a))
+                    i < 0 -> unnorm(ml, r, n, sh, sgn(a))
                     else -> {
                         d = dg(u, lu, i)
                         t0 = msub(ml, v, n, r, d, qhat(v, n, r, d))
@@ -624,11 +641,11 @@ fn rem(ml, a, b) {
 // A BOUNDED SET ON K(ℕ*) (ADR 0029): a program whose set is N_k or Z_k, moved
 // to K(ℕ*) because the fixed limbs lack an operation it uses, is enforced by
 // the set's two observables, the sign and the bit length, read off the header
-// and the top digit: bitlen = 32·(m − 1) + bitlen(top digit).
-fn blen(x) { loop b = 0, y = x { b >= 32 -> b; y < 1 -> b; else -> again(b + 1, y / 2) } }
+// and the top digit: bitlen = 63·(m − 1) + bitlen(top digit).
+fn blen(x) { loop b = 0, y = x { b >= 63 -> b; y < 1 -> b; else -> again(b + 1, y / 2) } }
 fn bitlen(a) {
     m = size(a)
-    if m < 1 { 0 } else { 32 * (m - 1) + blen(dig(a, m - 1)) }
+    if m < 1 { 0 } else { 63 * (m - 1) + blen(dig(a, m - 1)) }
 }
 // N_k = [0, 2^k): a when 0 ≤ a < 2^k, the bound's crash otherwise
 fn fit(ml, a, k) {

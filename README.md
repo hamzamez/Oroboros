@@ -470,7 +470,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-10.* The current assessment,
+*Updated with the plan; last updated 2026-11-11.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
@@ -611,11 +611,12 @@ says why the next is what it is.
 11. **A slowdown in the generated JSON tokenizer on the JVM**, which runs at hand-written speed for its
     first second and then three times slower, found while measuring step 2 above.
 12. **When the compiler copies a function into each place it is called, and when it calls it**:
-    researched 2026-11-10 ([specialization-research.md](docs/specialization-research.md)), waiting for
-    hamza's decision. The choice never changes what a program computes, only what the compiler can
-    prove about it, how large the code is, and how long it takes to compile and run; the document
-    derives when each wins, and recommends that the choice may never change whether a program is
-    accepted.
+    decided 2026-11-11 ([ADR 0102](docs/decisions/0102-factoring-never-changes-an-answer-or-a-verdict.md),
+    [specialization-research.md](docs/specialization-research.md)). The choice never changes what a
+    program computes, only what the compiler can prove about it, how large the code is, and how long it
+    takes to compile and run; and it may never change whether a program is accepted, which the
+    compiler now guarantees for the functions it already keeps. Next, two measurements: how much code
+    repeats across the programs, and how many proofs survive being decided once as a function.
 
 ## Try it
 

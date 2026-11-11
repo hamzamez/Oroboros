@@ -304,7 +304,7 @@ compiler library (ADR 0035), checked once as a theory, closed and first-order. `
 and it is ⟦f⟧(ā), the same value β-reducing its body into the call would give. Not inlining is
 semantically free; what it changes is where the arithmetic is decided:
 
-- **its parameters and result have declared sets**, a numeral's table `(array (int 0 4294967295))`;
+- **its parameters and result have declared sets**, a numeral's table `array int 0 4294967295`;
 - **an argument's fact must lie in its parameter's set**, an obligation at each call (§7), decided or
   refused there;
 - **the callee is decided once, under its parameters' sets**, and its result's set is a claim its
@@ -312,6 +312,12 @@ semantically free; what it changes is where the arithmetic is decided:
 - **ownership is the frame rule**: the arguments are borrowed and the result is a birth, owned by the
   caller (ADR 0096). W13 checks the callee's side: every table it returns is born in it, never an
   argument or a part of one.
+
+**Keeping an instance never changes a verdict** (ADR 0102, P4). An instance its contract does not
+prove, and one whose call a program cannot make (an argument outside its parameter's set), is inlined
+at its sites and decided there, as before ADR 0101. So a program is accepted wherever inlining accepts
+it. `Entry` takes the entry through the pipeline again with that instance inlined, at most once per
+instance.
 
 A program function is named in the target's primitives with its signature and a flag saying an IR
 function defines it, so every pass reads it as it reads a call; its body is in the program's text, so

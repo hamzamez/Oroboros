@@ -1,7 +1,8 @@
 # When to reduce, and when to call
 
-Date: 2026-11-10. Research only: nothing here is built, and nothing should be built until hamza answers
-§10. Asked by hamza after ADR 0101: "when to reduce and inline everything, and when not? and should we
+Date: 2026-11-10. **Decided** (hamza, 2026-11-11, Q1–Q4 as recommended):
+[ADR 0102](decisions/0102-factoring-never-changes-an-answer-or-a-verdict.md), which built P4 for
+ADR 0101's instances; M-S1 and M-S2 are next. Asked by hamza after ADR 0101: "when to reduce and inline everything, and when not? and should we
 reduce everything down, and then turn every repeated pattern into a function up?"
 
 **The answer in one paragraph.** Whether a call is unfolded never changes what a program means

@@ -6,7 +6,9 @@ addsub-2026-11-10 measured the cost of inlining twice). **Amends
 [ADR 0035](0035-a-compiler-library-is-a-theory-checked-once.md)**: "a use is an inlined instance"
 becomes "a use is a call of the instance, a function of the program". Moves "a limb instance emitted
 once as a function" off the plan's deliberately-not-next list. Built in steps; see the plan in
-CLAUDE.md.
+CLAUDE.md. **Amended by [ADR 0102](0102-factoring-never-changes-an-answer-or-a-verdict.md)**: a
+call whose argument is outside its parameter's set, and an instance its contract does not prove, is
+inlined, never refused.
 
 ## Context
 

@@ -189,7 +189,6 @@ func unionBound(c *core.Term, names, args []string) (int, []string, bool) {
 	return at, members, true
 }
 
-
 // whereConjuncts flattens a conjunction, (if a b false), into its conjuncts.
 func whereConjuncts(t *core.Term) []*core.Term {
 	if a, b, ok := erasedAnd(t); ok {

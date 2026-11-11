@@ -39,12 +39,16 @@ const natPrefix = "nat."
 // relationally (a remainder below its divisor, a short quotient's digit below B
 // because its partial remainder is below the divisor), which no declared set
 // can say. Inlined, the site's facts bound them, as before ADR 0101.
+//
+// A test may add an instance its contract does not prove (div-small): P4 then
+// inlines it (ADR 0102).
 var natCalled = map[string]bool{"add": true, "sub": true, "mul": true, "mul-small": true,
 	"div": true, "rem": true, "render": true}
 
 type calleeKey struct {
-	tg *emit.Target
-	fn string
+	tg     *emit.Target
+	fn     string
+	narrow bool // PlantNarrowNumeral's contract, cached apart
 }
 
 var (
@@ -57,7 +61,7 @@ var (
 // registered once: its name, or an error the instance's own.
 func natCallee(tg *emit.Target, fn string) (string, error) {
 	name := natPrefix + fn
-	k := calleeKey{tg, fn}
+	k := calleeKey{tg, fn, PlantNarrowNumeral}
 	calleeMu.Lock()
 	defer calleeMu.Unlock()
 	if _, ok := callees[k]; ok {
@@ -93,6 +97,8 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 	sig.Params = append([]core.SigParam(nil), inst.Sig.Params...)
 	for i := range sig.Params {
 		switch {
+		case sig.Params[i].Type == "array int" && PlantNarrowNumeral:
+			sig.Params[i].Type = "array int 0 1"
 		case sig.Params[i].Type == "array int":
 			sig.Params[i].Type = NumeralType
 		// THE WORD OPERAND'S SET is the one the plan chose the one-pass form for
@@ -287,6 +293,23 @@ func returns(f *Func, r *Region) bool {
 // PlantNoCallSets admits every argument to a program function, its set unasked.
 var PlantNoCallSets bool
 
+// PlantNarrowNumeral declares a numeral parameter's elements 0..1, a contract
+// stronger than the sites': every call's obligation then fails, which P4 must
+// answer by inlining (ADR 0102).
+var PlantNarrowNumeral bool
+
+// CallSetError is a call whose argument is not in its parameter's set; Entry
+// inlines that instance instead (ADR 0102, P4).
+type CallSetError struct {
+	Callee string // the program function's name, nat.f
+	Msg    string
+}
+
+func (e *CallSetError) Error() string { return e.Msg }
+
+// instance is the K(ℕ*) instance a program function realizes.
+func (e *CallSetError) instance() string { return strings.TrimPrefix(e.Callee, natPrefix) }
+
 // CheckCallSets is the obligation at each call of a program function: every
 // table argument's element fact lies in its parameter's declared element set,
 // which the callee was decided under (ir.md §2.5). A fact outside it is a
@@ -311,8 +334,8 @@ func CheckCallSets(tg *emit.Target, f *Func) error {
 				// A SCALAR's fact in its parameter's range
 				if lo, hi, ok := core.IntRange(p.Args[j]); ok {
 					if !x.v.within(ei(lo), ei(hi)) {
-						err = fmt.Errorf("argument %d of %s is %s, not inside its parameter's %d..%d "+
-							"(ADR 0101: a program function is decided under its parameters' sets)", j+1, s.Name, termShow(x.v), lo, hi)
+						err = &CallSetError{s.Name, fmt.Sprintf("argument %d of %s is %s, not inside its parameter's %d..%d "+
+							"(ADR 0101: a program function is decided under its parameters' sets)", j+1, s.Name, termShow(x.v), lo, hi)}
 						return
 					}
 					continue
@@ -323,8 +346,8 @@ func CheckCallSets(tg *emit.Target, f *Func) error {
 					continue
 				}
 				if !x.hasEl || !x.el.within(ei(lo), ei(hi)) {
-					err = fmt.Errorf("argument %d of %s is a table whose elements are %s, not inside its parameter's %d..%d "+
-						"(ADR 0101: a program function is decided under its parameters' sets)", j+1, s.Name, termShow(x.el), lo, hi)
+					err = &CallSetError{s.Name, fmt.Sprintf("argument %d of %s is a table whose elements are %s, not inside its parameter's %d..%d "+
+						"(ADR 0101: a program function is decided under its parameters' sets)", j+1, s.Name, termShow(x.el), lo, hi)}
 					return
 				}
 			}

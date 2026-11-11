@@ -261,6 +261,10 @@ type BigPlan struct {
 	Var    bool
 	Bits   int
 	Signed bool
+	// Inline are the instances this program inlines although they are
+	// program functions elsewhere: a call whose arguments are not in its
+	// parameters' sets is inlined, never refused (ADR 0102, P4).
+	Inline map[string]bool
 }
 
 // Holds says the plan holds some value exactly, on any rung.

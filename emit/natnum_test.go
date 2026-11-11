@@ -18,4 +18,3 @@ func TestTheNumeralsOfAnyLengthCheckAsATheory(t *testing.T) {
 		}
 	}
 }
-

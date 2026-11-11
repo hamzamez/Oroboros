@@ -43,6 +43,10 @@ var PlantSignFault bool
 // measurement's baseline.
 var PlantInlineAll bool
 
+// PlantNoInlineFallback refuses a program whose K(ℕ*) instance cannot be a
+// function, as ADR 0101 did, instead of inlining it (ADR 0102, P4).
+var PlantNoInlineFallback bool
+
 // PlantNatFault takes K(ℕ*)'s sum for its difference:
 // TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength must see the wrong numeral.
 var PlantNatFault bool
@@ -258,15 +262,22 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			}
 			// A LIBRARY INSTANCE IS A FUNCTION OF THE PROGRAM (ADR 0101): the
 			// large ones are called, decided once under their parameters' sets.
-			if nat && natCalled[u.fn] && !PlantInlineAll {
+			// AN INSTANCE ITS CONTRACT DOES NOT PROVE IS INLINED (ADR 0102, P4):
+			// which definitions are kept never changes a verdict, so a callee
+			// refused under its parameters' sets is decided at its sites, as
+			// before ADR 0101, and so is one whose call this program could not
+			// make (rung.Inline).
+			if nat && natCalled[u.fn] && !PlantInlineAll && !rung.Inline[u.fn] {
 				name, e := natCallee(tg, u.fn)
-				if e != nil {
+				if e == nil {
+					count++
+					out = append(out, Stmt{Op: OCall, Name: name, Args: u.args, Res: s.Res, Src: s.Src})
+					continue
+				}
+				if PlantNoInlineFallback {
 					err = e
 					return
 				}
-				count++
-				out = append(out, Stmt{Op: OCall, Name: name, Args: u.args, Res: s.Res, Src: s.Src})
-				continue
 			}
 			c, e := callee(u.fn)
 			if e != nil {
@@ -447,7 +458,7 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 		if _, err := SelectBig(tg, f, sig, plan.Bits, plan.Signed); err != nil {
 			return 0, err
 		}
-		return LowerLimbs(tg, f, emit.BigPlan{Var: true, Bits: plan.Bits, Signed: plan.Signed})
+		return LowerLimbs(tg, f, emit.BigPlan{Var: true, Bits: plan.Bits, Signed: plan.Signed, Inline: plan.Inline})
 	}
 	if !tg.HasBig() {
 		return 0, fmt.Errorf("this program needs %s.\n"+

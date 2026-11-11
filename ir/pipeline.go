@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"errors"
 	"fmt"
 
 	"oroboros/core"
@@ -65,11 +66,29 @@ type Note struct {
 // Entry takes one entry point through the pipeline. name is the unit's name,
 // for messages and the checks; irName is the lowered function's. note receives
 // each note as it is made, so a refusal later still follows the notes before it.
+//
+// WHICH DEFINITIONS ARE KEPT NEVER CHANGES A VERDICT (ADR 0102, P4): a call of
+// a program function whose arguments are not in its parameters' sets inlines
+// that instance, and the entry is taken through the pipeline again, at most
+// once per instance, so the program is accepted wherever inlining accepts it.
 func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, all []*core.Sig,
 	checked bool, note func(Note)) (*Func, *Legality, error) {
 	if note == nil {
 		note = func(Note) {}
 	}
+	inline := map[string]bool{}
+	for {
+		f, leg, err := entry(tg, name, irName, sig, nf, all, checked, note, inline)
+		var cs *CallSetError
+		if err == nil || PlantNoInlineFallback || !errors.As(err, &cs) || inline[cs.instance()] {
+			return f, leg, err
+		}
+		inline[cs.instance()] = true
+	}
+}
+
+func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, all []*core.Sig,
+	checked bool, note func(Note), inline map[string]bool) (*Func, *Legality, error) {
 	// AN OBLIGATION IS DECIDED BEFORE ANYTHING ELSE READS THE RESIDUAL. A driver
 	// that reports on the marks decides them itself, first, and then there are
 	// none here; any other caller's are decided now, by the same routes.
@@ -87,6 +106,7 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s: %w", name, err)
 	}
+	plan.Inline = inline
 	checking := emit.KeepSortAscriptions(tg.Word, plan.Holds(), nf)
 	if plan.Holds() {
 		nf = emit.EraseWordAscriptions(tg.Word, nf)
@@ -219,7 +239,7 @@ func afterRung(tg *emit.Target, f *Func, name string, checked bool, leg *Legalit
 	// THE OBLIGATION AT EACH CALL OF A PROGRAM FUNCTION (ADR 0101): its
 	// arguments in its parameters' sets, on the function's final facts.
 	if err := CheckCallSets(tg, f); err != nil {
-		return nil, fmt.Errorf("%s: %v", name, err)
+		return nil, fmt.Errorf("%s: %w", name, err)
 	}
 	return leg, nil
 }

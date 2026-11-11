@@ -1,10 +1,10 @@
 package emit
 
 import (
-	"strings"
 	_ "embed"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"oroboros/core"
 )

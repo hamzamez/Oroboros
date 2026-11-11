@@ -81,6 +81,10 @@ type Env struct {
 	// a bound variable is a read of a table through it, as `(b i)` is (§7c).
 	Observe map[string]bool
 	Rec     map[string]bool // recursive definitions are never δ-reduced
+	// Unfolds, when not nil, counts each δ by name: π(f), the paths from the
+	// root to f in the call graph, as the reducer takes them (a measurement,
+	// specialization-research.md §4; nil in every compile).
+	Unfolds map[string]int
 	// Bottom names the operations into ∅, the initial object (ADR 0090): the
 	// language's `abandon` and every host operation declared with result ∅.
 	// Such a call never returns, so it absorbs its strict context: k ∘ h = h.
@@ -2073,6 +2077,9 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 
 	case KName:
 		if e.unfoldable(t.Name) { // δ
+			if e.Unfolds != nil {
+				e.Unfolds[t.Name]++
+			}
 			return normalize(e.Defs[t.Name], e, fuel)
 		}
 		return t, nil

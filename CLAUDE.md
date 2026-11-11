@@ -399,9 +399,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
     recovers them where expressible (Theorem 4, ADR 0037 at a boundary); folding by pattern after
     reduction is the NP-hard smallest-grammar problem, folding by origin linear and exact. **Factoring
     never changes an answer or a verdict** (P4, built for ADR 0101's instances: a callee its contract
-    does not prove, or a call outside it, is inlined; `PlantNoInlineFallback`); contracts completed by
-    lifting (P3) and a program's own definitions kept (P8) wait on **M-S1 and M-S2, next** (five hours);
-    no folding by pattern.
+    does not prove, or a call outside it, is inlined; `PlantNoInlineFallback`); no folding by pattern.
+    **M-S1, M-S2, M-S4 measured** ([factoring-2026-11-11](gauntlet/results/factoring-2026-11-11.md),
+    `gauntlet/factoring/measure.go`): keeping the headed definitions saves 2.5–3% of `examples/`'
+    residual, every dynamic one 30–36% (headerless: `json/tree`'s `parse` and `walk` ×4); 87% (Go) and
+    70% (windows) of headed definitions are proven under their contract, the rest an obligation over
+    the parameters Theorem 4 lifts (4), ρ at the boundary (1), or higher-order by result (2: dynamic
+    means first-order in the whole type); no widening non-monotonicity found; the 2,000-quotient
+    program inlined is 7.1–7.6 min, 70–74% clang's. **P8's trigger is not met**, so P3 and P8 wait on
+    it; M-S3 comes with P8's first program (`json/tree` the likeliest).
 
 **Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;

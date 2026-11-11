@@ -615,8 +615,11 @@ says why the next is what it is.
     [specialization-research.md](docs/specialization-research.md)). The choice never changes what a
     program computes, only what the compiler can prove about it, how large the code is, and how long it
     takes to compile and run; and it may never change whether a program is accepted, which the
-    compiler now guarantees for the functions it already keeps. Next, two measurements: how much code
-    repeats across the programs, and how many proofs survive being decided once as a function.
+    compiler now guarantees for the functions it already keeps. Measured the same day
+    ([factoring-2026-11-11](gauntlet/results/factoring-2026-11-11.md)): in today's programs, keeping
+    the functions that declare their argument ranges would save about 3% of the code, too little to
+    build on yet; most of those functions are proven correct on their own, and every one that is not
+    has a reason the research predicted.
 
 ## Try it
 

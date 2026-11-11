@@ -2,7 +2,8 @@
 
 Date: 2026-11-10. **Decided** (hamza, 2026-11-11, Q1–Q4 as recommended):
 [ADR 0102](decisions/0102-factoring-never-changes-an-answer-or-a-verdict.md), which built P4 for
-ADR 0101's instances; M-S1 and M-S2 are next. Asked by hamza after ADR 0101: "when to reduce and inline everything, and when not? and should we
+ADR 0101's instances. **M-S1, M-S2 and M-S4 measured** (factoring-2026-11-11): P8's trigger is not
+met. Asked by hamza after ADR 0101: "when to reduce and inline everything, and when not? and should we
 reduce everything down, and then turn every repeated pattern into a function up?"
 
 **The answer in one paragraph.** Whether a call is unfolded never changes what a program means
@@ -99,6 +100,11 @@ it by generalization (Turchin 1986; Sørensen, Glück and Jones 1996). This lang
 (ADR 0014), so the call graph is a DAG, and a DAG reaches finitely many static configurations. No
 generalization is needed. The open question is therefore only the **dynamic** level: a definition whose
 parameters are all dynamic, which may be inlined or called.
+
+**Corrected by M-S2** (factoring-2026-11-11): a definition is dynamic only if its **whole type** is
+first-order, its result included. One that returns a table rule, or a sum in its continuation-passing
+encoding, returns a λ, which is a static value. Kept, it would allocate what inlining fuses into its
+consumer, a hidden allocation (`data` in three differential cases; `os.ReadAt`).
 
 ## 4. Size: why inlining everything cannot be the rule
 

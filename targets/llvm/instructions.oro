@@ -33,6 +33,12 @@ module llvm {
     fn srem(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
         host expr "srem ${a}, ${b:v}"
     }
+    // udiv and urem on ℕ ∩ S₆₄: for 0 ≤ a < 2⁶³ and b > 0, truncation is the
+    // floor, so a / b = ⌊a/b⌋ and a % b = a mod b, and an i64 in [0, 2⁶³) has
+    // the same bits read signed or unsigned. So they are ℤ's `/` and `%` on
+    // this domain, with no sign to fix up: by 2^k, `lshr` and `and`.
+    fn udiv_nat(a ∈ 0..2^63-1, b ∈ 1..2^63-1) (0..2^63-1) pure { host expr "udiv ${a}, ${b:v}" }
+    fn urem_nat(a ∈ 0..2^63-1, b ∈ 1..2^63-1) (0..2^63-2) pure { host expr "urem ${a}, ${b:v}" }
 
     // ---- the bitwise operations: ℤ's own on the word (ADR 0082), total.
     fn and(a ∈ Int, b ∈ Int) (Int) pure { host expr "and ${a}, ${b:v}" }

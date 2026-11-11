@@ -251,21 +251,34 @@ fn mul(ml, a, b) {
     }
 }
 
-// by a word k ∈ [0, B): one pass, the carry below B
+// BY A WORD k ∈ [0, B): one pass, the carry below B. The index domain is
+// [0, ma) ⊔ {ma, ma + 1}: on [0, ma) a digit is read by the arm's guard, ma
+// being below a's length (the identity on every numeral, a path fact here);
+// at ma the last carry, at ma + 1 the header. THE SIZE IS THE CARRY'S: for a
+// normal a and 1 ≤ k < B, B^(ma−1) ≤ a ≤ a·k < B^(ma+1), so a·k has ma digits,
+// or ma + 1 exactly when the last carry is not 0, and none when k or a is 0.
+// The capacity is the case's guard, so the table's length is ma + 2.
 fn mul_small(ml, a, k) {
-    ma = size(a)
-    cap = room(ml, ma + 2)
-    s = sgn(a)
+    m0 = size(a)
     la = len(a) - 1
-    var o := array { 0 : _ ∈ 0..cap-1 }
-    loop i = 0, c = 0, top = 0 {
-        i >= cap -> o
-        i == cap - 1 -> { o[i] := signed(s, top); again(i + 1, c, top) }
+    ma = if m0 > la { la } else { m0 }
+    s = sgn(a)
+    case {
+        ma + 2 > ml || ma + 2 > 2^31 -> abandon("out of memory: an integer longer than the largest table")
         else -> {
-            t = dg(a, la, i) * k + c
-            d = t % (2^32)
-            o[i] := d
-            again(i + 1, t / (2^32), if d != 0 { i + 1 } else { top })
+            var o := array { 0 : _ ∈ 0..ma + 1 }
+            loop i = 0, c = 0 {
+                i >= ma -> {
+                    o[ma] := c
+                    o[ma + 1] := signed(s, if k == 0 || ma == 0 { 0 } else if c != 0 { ma + 1 } else { ma })
+                    o
+                }
+                else -> {
+                    t = a[i] * k + c
+                    o[i] := t % (2^32)
+                    again(i + 1, t / (2^32))
+                }
+            }
         }
     }
 }

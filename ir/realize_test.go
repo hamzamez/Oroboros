@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	"oroboros/core"
@@ -58,6 +59,66 @@ func domainCheck(s *Stmt, env []cval) {
 		if b.Sign() == 0 || a.Cmp(wordMin) == 0 && b.Cmp(big.NewInt(-1)) == 0 {
 			panic(fmt.Errorf("%s of %s by %s: undefined in LLVM", s.Via, a, b))
 		}
+		// udiv and urem read the bits unsigned: ℤ's `/` and `%` only on ℕ, a
+		// positive divisor (instructions.oro)
+		if (s.Via == "llvm.udiv-nat" || s.Via == "llvm.urem-nat") && (a.Sign() < 0 || b.Sign() <= 0) {
+			panic(fmt.Errorf("%s of %s by %s: unsigned, not ℤ's, outside ℕ", s.Via, a, b))
+		}
+	}
+}
+
+// ON ℕ, `/` AND `%` ARE `udiv` AND `urem` (instructions.oro): chosen where both
+// operands are proven in ℕ, a positive divisor, and nowhere else. A possibly
+// negative dividend keeps `sdiv`, which truncates as ℤ does. THE PLANTED FAULT
+// chooses a realization without asking its sets, and `udiv` meets −7.
+func TestADivisionInNIsUnsignedAndOnlyThere(t *testing.T) {
+	via := func(src string) (*Func, map[string]bool) {
+		tg, f := lowerOn(t, src)
+		Decide(tg, f, false)
+		if _, err := RealizeOps(tg, f); err != nil {
+			t.Fatal(err)
+		}
+		vs := map[string]bool{}
+		f.Walk(func(r *Region) {
+			for _, s := range r.Stmts {
+				if s.Op == ODiv || s.Op == ORem {
+					vs[s.Via] = true
+				}
+			}
+		})
+		return f, vs
+	}
+	const nat = "export fn f(x ∈ 0..1000, k ∈ 1..9) (Int) { x / k + x % k }\n"
+	const signed = "export fn f(x ∈ -1000..1000, k ∈ 1..9) (Int) { x / k + x % k }\n"
+	if _, vs := via(nat); !vs["llvm.udiv-nat"] || !vs["llvm.urem-nat"] {
+		t.Errorf("on ℕ: want udiv and urem, got %v", vs)
+	}
+	check := func() error {
+		f, _ := via(signed)
+		for _, x := range []int64{-1000, -7, -1, 0, 7, 1000} {
+			for _, k := range []int64{1, 2, 9} {
+				got, err := runChecked(f, []cval{{i: big.NewInt(x)}, {i: big.NewInt(k)}})
+				if err != nil {
+					return err
+				}
+				want := new(big.Int).Add(new(big.Int).Quo(big.NewInt(x), big.NewInt(k)), new(big.Int).Rem(big.NewInt(x), big.NewInt(k)))
+				if got.i.Cmp(want) != 0 {
+					return fmt.Errorf("at (%d, %d): %s, ℤ gives %s", x, k, got.i, want)
+				}
+			}
+		}
+		return nil
+	}
+	if _, vs := via(signed); vs["llvm.udiv-nat"] || vs["llvm.urem-nat"] {
+		t.Errorf("a possibly negative dividend: want sdiv and srem, got %v", vs)
+	}
+	if err := check(); err != nil {
+		t.Errorf("a possibly negative dividend: %v", err)
+	}
+	PlantRealizeUnasked = true
+	defer func() { PlantRealizeUnasked = false }()
+	if err := check(); err == nil || !strings.Contains(err.Error(), "outside ℕ") {
+		t.Errorf("with the sets unasked: want udiv caught outside ℕ, got %v: the witness cannot fail", err)
 	}
 }
 

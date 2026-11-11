@@ -75,7 +75,7 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %v10 = srem i64 %v0, 2
+  %v10 = urem i64 %v0, 2
   %v12 = icmp eq i64 %v10, 0
   br i1 %v12, label %.then9, label %.else10
 .then9:

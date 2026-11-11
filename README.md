@@ -591,7 +591,11 @@ says why the next is what it is.
      ([ADR 0100](docs/decisions/0100-a-dead-region-serves-a-request-it-fits.md),
      [fitreuse-2026-11-10](gauntlet/results/fitreuse-2026-11-10.md)), which showed the memory was
      not where the time goes: the work per digit is, and **the goal is Windows faster than Go**
-     (hamza, 2026-11-10), so those causes are owed; then file
+     (hamza, 2026-11-10), so those causes are owed; the first paid 2026-11-11
+     ([llvm-udiv-2026-11-11](gauntlet/results/llvm-udiv-2026-11-11.md)): a division of
+     non-negative numbers now uses the processor's unsigned division, which needs no sign
+     correction, and multiplying big integers takes half its time, 1.4× Go's; printing them is
+     what is left; then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
      found, and assembling every Windows file it writes; then 32-bit Windows;

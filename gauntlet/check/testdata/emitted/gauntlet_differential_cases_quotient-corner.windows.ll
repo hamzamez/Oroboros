@@ -19,7 +19,7 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %v11 = srem i64 %v0, 4
+  %v11 = urem i64 %v0, 4
   %v12 = sub nsw i64 -1, %v11
   %v15 = sub nsw i64 %v12, 1
   %v16 = sdiv i64 -9223372036854775808, %v15

@@ -127,12 +127,12 @@ entry:
   store ptr %v39, ptr %.s36
   br label %.exit29
 .else35:
-  %v47 = srem i64 %v41, 16777216
+  %v47 = urem i64 %v41, 16777216
   %.d38 = getelementptr inbounds i8, ptr %v39, i64 8
   %.e39 = getelementptr inbounds i64, ptr %.d38, i64 %v40
   store i64 %v47, ptr %.e39
   %v50 = add nuw nsw i64 %v40, 1
-  %v52 = sdiv i64 %v41, 16777216
+  %v52 = udiv i64 %v41, 16777216
   store ptr %v39, ptr %.s30
   store i64 %v50, ptr %.s31
   store i64 %v52, ptr %.s32
@@ -203,12 +203,12 @@ entry:
   store ptr %v91, ptr %.s78
   br label %.exit71
 .else77:
-  %v99 = srem i64 %v93, 16777216
+  %v99 = urem i64 %v93, 16777216
   %.d80 = getelementptr inbounds i8, ptr %v91, i64 8
   %.e81 = getelementptr inbounds i64, ptr %.d80, i64 %v92
   store i64 %v99, ptr %.e81
   %v102 = add nuw nsw i64 %v92, 1
-  %v104 = sdiv i64 %v93, 16777216
+  %v104 = udiv i64 %v93, 16777216
   store ptr %v91, ptr %.s72
   store i64 %v102, ptr %.s73
   store i64 %v104, ptr %.s74
@@ -534,12 +534,12 @@ entry:
 .join247:
   %v319 = load i64, ptr %.s248
   %v331 = add nuw nsw i64 %v316, %v319
-  %v333 = sdiv i64 %v331, 7
+  %v333 = udiv i64 %v331, 7
   %.d256 = getelementptr inbounds i8, ptr %v308, i64 8
   %.e257 = getelementptr inbounds i64, ptr %.d256, i64 %v309
   store i64 %v333, ptr %.e257
   %v336 = sub nsw i64 %v309, 1
-  %v338 = srem i64 %v331, 7
+  %v338 = urem i64 %v331, 7
   store ptr %v308, ptr %.s236
   store i64 %v336, ptr %.s237
   store i64 %v338, ptr %.s238

@@ -279,12 +279,12 @@ entry:
   %v152 = icmp slt i64 0, 0
   br i1 %v152, label %.then115, label %.else116
 .then115:
-  %v157 = srem i64 %v50, 4294967296
+  %v157 = urem i64 %v50, 4294967296
   %v158 = sub nsw i64 0, %v157
   store i64 %v158, ptr %.s120
   br label %.join117
 .else116:
-  %v161 = srem i64 %v50, 4294967296
+  %v161 = urem i64 %v50, 4294967296
   store i64 %v161, ptr %.s120
   br label %.join117
 .join117:
@@ -293,7 +293,7 @@ entry:
   %.e123 = getelementptr inbounds i64, ptr %.d122, i64 %v49
   store i64 %v153, ptr %.e123
   %v164 = add nuw nsw i64 %v49, 1
-  %v166 = sdiv i64 %v50, 4294967296
+  %v166 = udiv i64 %v50, 4294967296
   %v168 = icmp eq i64 %v153, 0
   br i1 %v168, label %.then127, label %.else128
 .then127:
@@ -519,12 +519,12 @@ entry:
   %v317 = icmp slt i64 1, 0
   br i1 %v317, label %.then241, label %.else242
 .then241:
-  %v322 = srem i64 %v215, 4294967296
+  %v322 = urem i64 %v215, 4294967296
   %v323 = sub nsw i64 0, %v322
   store i64 %v323, ptr %.s246
   br label %.join243
 .else242:
-  %v326 = srem i64 %v215, 4294967296
+  %v326 = urem i64 %v215, 4294967296
   store i64 %v326, ptr %.s246
   br label %.join243
 .join243:
@@ -533,7 +533,7 @@ entry:
   %.e249 = getelementptr inbounds i64, ptr %.d248, i64 %v214
   store i64 %v318, ptr %.e249
   %v329 = add nuw nsw i64 %v214, 1
-  %v331 = sdiv i64 %v215, 4294967296
+  %v331 = udiv i64 %v215, 4294967296
   %v333 = icmp eq i64 %v318, 0
   br i1 %v333, label %.then253, label %.else254
 .then253:
@@ -832,7 +832,7 @@ entry:
   br label %.join4
 .join4:
   %v5 = load i64, ptr %.s5
-  %v15 = srem i64 %v5, 2
+  %v15 = urem i64 %v5, 2
   %v17 = icmp eq i64 %v15, 1
   br i1 %v17, label %.then11, label %.else12
 .then11:
@@ -858,7 +858,7 @@ entry:
   br label %.join18
 .join18:
   %v24 = load i64, ptr %.s19
-  %v34 = srem i64 %v24, 2
+  %v34 = urem i64 %v24, 2
   %v36 = icmp eq i64 %v34, 1
   br i1 %v36, label %.then25, label %.else26
 .then25:
@@ -897,7 +897,7 @@ entry:
   br label %.join40
 .join40:
   %v53 = load i64, ptr %.s41
-  %v63 = sdiv i64 %v53, 2
+  %v63 = udiv i64 %v53, 2
   %v65 = sub nsw i64 %v49, 1
   %v66 = icmp sgt i64 %v63, %v65
   br i1 %v66, label %.then48, label %.else49
@@ -936,7 +936,7 @@ entry:
   br label %.join61
 .join61:
   %v82 = load i64, ptr %.s62
-  %v92 = sdiv i64 %v82, 2
+  %v92 = udiv i64 %v82, 2
   %v94 = sub nsw i64 %v78, 1
   %v95 = icmp sgt i64 %v92, %v94
   br i1 %v95, label %.then69, label %.else70
@@ -1126,7 +1126,7 @@ entry:
   br label %.join158
 .join158:
   %v209 = load i64, ptr %.s159
-  %v219 = sdiv i64 %v209, 2
+  %v219 = udiv i64 %v209, 2
   %v221 = sub nsw i64 %v205, 1
   %v222 = icmp sgt i64 %v219, %v221
   br i1 %v222, label %.then166, label %.else167
@@ -1165,7 +1165,7 @@ entry:
   br label %.join179
 .join179:
   %v238 = load i64, ptr %.s180
-  %v248 = sdiv i64 %v238, 2
+  %v248 = udiv i64 %v238, 2
   %v250 = sub nsw i64 %v234, 1
   %v251 = icmp sgt i64 %v248, %v250
   br i1 %v251, label %.then187, label %.else188

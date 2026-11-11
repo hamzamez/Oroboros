@@ -151,16 +151,16 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %v10 = srem i64 %v0, 2
+  %v10 = urem i64 %v0, 2
   %v12 = icmp eq i64 %v10, 0
   br i1 %v12, label %.then9, label %.else10
 .then9:
-  %v14 = sdiv i64 %v0, 2
-  %v16 = srem i64 %v14, 2
+  %v14 = udiv i64 %v0, 2
+  %v16 = urem i64 %v14, 2
   %v18 = icmp eq i64 %v16, 0
   br i1 %v18, label %.then14, label %.else15
 .then14:
-  %v20 = sdiv i64 %v14, 2
+  %v20 = udiv i64 %v14, 2
   ret i64 %v20
 .else15:
   %v22 = getelementptr i8, ptr @.str.1, i64 0

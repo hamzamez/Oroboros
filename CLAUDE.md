@@ -220,8 +220,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
      windows`), the gauntlet's seven programs run there at parity, and a second triple runs the suite.
      **The standing measure** (hamza, 2026-11-10): **the windows implementation is faster than the Go
      one**; as long as it is slower, the gap is work owed, done now or not. Today it is slower on every
-     K(ℕ\*) program (fact 11×, its product 4.4×; D 2.8×; fib 7.7× `math/big`,
-     [lenonce-2026-11-10](gauntlet/results/lenonce-2026-11-10.md)). Its causes, by expected gain
+     K(ℕ\*) program (fact 5.0×, its product 1.43×; D 1.7×; fib 3.6× `math/big`,
+     [llvm-udiv-2026-11-11](gauntlet/results/llvm-udiv-2026-11-11.md); fact's printing is 73% of it).
+     ~~A quotient by 2³² as `sdiv`/`srem`~~, done there: on ℕ ∩ S₆₄ `/` and `%` are `udiv` and
+     `urem` (truncation is the floor; the bits read alike), `llvm.udiv_nat`/`urem_nat` chosen by
+     ADR 0088's narrowest domain, the product 0.55× its time. Its causes, by expected gain
      (fitreuse-2026-11-10, lenonce-2026-11-10):
      ~~each operand's length reloaded per digit~~, done by β (a length is a pure function of an
      immutable value), not by `noalias`, whose scoped form is unsound for inlined code and whose
@@ -232,8 +235,9 @@ checked. When a package hits a wall that needs language work, stop, research it,
      done ([addsub-2026-11-10](gauntlet/results/addsub-2026-11-10.md)): Knuth's A and S each its own
      loop (x + y = y + x, so only S orders its operands), A's size its carry's, the index domain split
      at the shorter size; fib 27% faster, at four inlined loop cases per sum (the division program
-     21,102 → 29,579 operations, ten minutes in clang); the same split owed for `mul_small`, `qsmall`,
-     `rem_small`, `qrem` and `macrow`; ~~the library's operations as functions~~, step 1 done (ADR 0101,
+     21,102 → 29,579 operations, ten minutes in clang); ~~the same split for `mul_small`, `qsmall`,
+     `rem_small`, `qrem` and `macrow`~~, measured on `mul_small` inside the noise (its size now its
+     carry's) and not owed: the cost was the signed quotient (llvm-udiv-2026-11-11); ~~the library's operations as functions~~, step 1 done (ADR 0101,
      [progfunc-2026-11-10](gauntlet/results/progfunc-2026-11-10.md)): K(ℕ\*)'s large instances are
      functions of the program, decided once under their parameters' sets (a numeral's table
      `array int 0 4294967295`), the call's obligation its arguments in them, the frame rule

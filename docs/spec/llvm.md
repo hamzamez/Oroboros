@@ -178,6 +178,7 @@ The width is read off the table's representative's type, so every alias of a tab
 | `mul exact` | `mul nsw`; `nuw` when both ≥ 0 | |
 | `neg exact a` | `sub nsw i64 0, a` | |
 | `div a b`, b ≠ −1 or a ≠ −2⁶³ proven | `sdiv` | its domain, decided on the operands' intervals |
+| `div a b`, `rem a b`, a ≥ 0 and b ≥ 1 proven | `udiv`, `urem`, by 2ᵏ LLVM's `lshr` and `and` | on ℕ ∩ S₆₄ truncation is the floor and the bits read alike signed or unsigned; the narrowest realization the facts prove (llvm-udiv-2026-11-11) |
 | `div a b` elsewhere | the term `if b == -1 { 0 - a } else { llvm.sdiv(a, b) }` | b ≠ 0; `0 − a` decided at the site |
 | `rem a b`, the same proven | `srem` | |
 | `rem a b` elsewhere | the term `if b == -1 { 0 } else { llvm.srem(a, b) }` | b ≠ 0 |

@@ -300,12 +300,12 @@ entry:
   %v166 = icmp slt i64 1, 0
   br i1 %v166, label %.then123, label %.else124
 .then123:
-  %v171 = srem i64 %v64, 4294967296
+  %v171 = urem i64 %v64, 4294967296
   %v172 = sub nsw i64 0, %v171
   store i64 %v172, ptr %.s128
   br label %.join125
 .else124:
-  %v175 = srem i64 %v64, 4294967296
+  %v175 = urem i64 %v64, 4294967296
   store i64 %v175, ptr %.s128
   br label %.join125
 .join125:
@@ -314,7 +314,7 @@ entry:
   %.e131 = getelementptr inbounds i64, ptr %.d130, i64 %v63
   store i64 %v167, ptr %.e131
   %v178 = add nuw nsw i64 %v63, 1
-  %v180 = sdiv i64 %v64, 4294967296
+  %v180 = udiv i64 %v64, 4294967296
   %v182 = icmp eq i64 %v167, 0
   br i1 %v182, label %.then135, label %.else136
 .then135:
@@ -540,12 +540,12 @@ entry:
   %v330 = icmp slt i64 %v0, 0
   br i1 %v330, label %.then249, label %.else250
 .then249:
-  %v335 = srem i64 %v228, 4294967296
+  %v335 = urem i64 %v228, 4294967296
   %v336 = sub nsw i64 0, %v335
   store i64 %v336, ptr %.s254
   br label %.join251
 .else250:
-  %v339 = srem i64 %v228, 4294967296
+  %v339 = urem i64 %v228, 4294967296
   store i64 %v339, ptr %.s254
   br label %.join251
 .join251:
@@ -554,7 +554,7 @@ entry:
   %.e257 = getelementptr inbounds i64, ptr %.d256, i64 %v227
   store i64 %v331, ptr %.e257
   %v342 = add nuw nsw i64 %v227, 1
-  %v344 = sdiv i64 %v228, 4294967296
+  %v344 = udiv i64 %v228, 4294967296
   %v346 = icmp eq i64 %v331, 0
   br i1 %v346, label %.then261, label %.else262
 .then261:
@@ -649,7 +649,7 @@ entry:
   store ptr %v353, ptr %.s305
   br label %.exit268
 .else274:
-  %v404 = srem i64 %v355, 2
+  %v404 = urem i64 %v355, 2
   %v406 = icmp eq i64 %v404, 1
   br i1 %v406, label %.then308, label %.else309
 .then308:
@@ -713,7 +713,7 @@ entry:
   br label %.join340
 .join340:
   %v447 = load i1, ptr %.s341
-  %v453 = sdiv i64 %v355, 2
+  %v453 = udiv i64 %v355, 2
   store ptr %v407, ptr %.s269
   store ptr %v408, ptr %.s270
   store i64 %v453, ptr %.s271
@@ -778,7 +778,7 @@ entry:
   br label %.join372
 .join372:
   %v493 = load i1, ptr %.s373
-  %v499 = sdiv i64 %v355, 2
+  %v499 = udiv i64 %v355, 2
   store ptr %v353, ptr %.s269
   store ptr %v454, ptr %.s270
   store i64 %v499, ptr %.s271
@@ -873,7 +873,7 @@ entry:
   br label %.join4
 .join4:
   %v6 = load i64, ptr %.s5
-  %v16 = sdiv i64 %v6, 2
+  %v16 = udiv i64 %v6, 2
   %v18 = sub nsw i64 %v2, 1
   %v19 = icmp sgt i64 %v16, %v18
   br i1 %v19, label %.then12, label %.else13
@@ -912,7 +912,7 @@ entry:
   br label %.join25
 .join25:
   %v35 = load i64, ptr %.s26
-  %v45 = sdiv i64 %v35, 2
+  %v45 = udiv i64 %v35, 2
   %v47 = sub nsw i64 %v31, 1
   %v48 = icmp sgt i64 %v45, %v47
   br i1 %v48, label %.then33, label %.else34
@@ -1251,7 +1251,7 @@ entry:
   br label %.join212
 .join212:
   %v289 = load i64, ptr %.s213
-  %v299 = srem i64 %v289, 2
+  %v299 = urem i64 %v289, 2
   %v301 = icmp eq i64 %v299, 1
   br i1 %v301, label %.then219, label %.else220
 .then219:
@@ -1277,7 +1277,7 @@ entry:
   br label %.join226
 .join226:
   %v308 = load i64, ptr %.s227
-  %v318 = srem i64 %v308, 2
+  %v318 = urem i64 %v308, 2
   %v320 = icmp eq i64 %v318, 1
   br i1 %v320, label %.then233, label %.else234
 .then233:
@@ -1289,7 +1289,7 @@ entry:
 .join235:
   %v321 = load i64, ptr %.s236
   %v324 = add nsw i64 %v302, %v321
-  %v326 = srem i64 %v324, 2
+  %v326 = urem i64 %v324, 2
   %v328 = icmp eq i64 %v326, 1
   br i1 %v328, label %.then240, label %.else241
 .then240:
@@ -1433,7 +1433,7 @@ entry:
   br label %.join309
 .join309:
   %v422 = load i64, ptr %.s310
-  %v432 = srem i64 %v422, 2
+  %v432 = urem i64 %v422, 2
   %v434 = icmp eq i64 %v432, 1
   br i1 %v434, label %.then316, label %.else317
 .then316:
@@ -1459,7 +1459,7 @@ entry:
   br label %.join323
 .join323:
   %v441 = load i64, ptr %.s324
-  %v451 = srem i64 %v441, 2
+  %v451 = urem i64 %v441, 2
   %v453 = icmp eq i64 %v451, 1
   br i1 %v453, label %.then330, label %.else331
 .then330:
@@ -1471,7 +1471,7 @@ entry:
 .join332:
   %v454 = load i64, ptr %.s333
   %v457 = add nuw nsw i64 %v435, %v454
-  %v459 = srem i64 %v457, 2
+  %v459 = urem i64 %v457, 2
   %v461 = icmp eq i64 %v459, 1
   br i1 %v461, label %.then337, label %.else338
 .then337:
@@ -1617,7 +1617,7 @@ entry:
   br label %.join408
 .join408:
   %v555 = load i64, ptr %.s409
-  %v565 = srem i64 %v555, 2
+  %v565 = urem i64 %v555, 2
   %v567 = icmp eq i64 %v565, 1
   br i1 %v567, label %.then415, label %.else416
 .then415:
@@ -1643,7 +1643,7 @@ entry:
   br label %.join422
 .join422:
   %v574 = load i64, ptr %.s423
-  %v584 = srem i64 %v574, 2
+  %v584 = urem i64 %v574, 2
   %v586 = icmp eq i64 %v584, 1
   br i1 %v586, label %.then429, label %.else430
 .then429:
@@ -1655,7 +1655,7 @@ entry:
 .join431:
   %v587 = load i64, ptr %.s432
   %v590 = add nuw nsw i64 %v568, %v587
-  %v592 = srem i64 %v590, 2
+  %v592 = urem i64 %v590, 2
   %v594 = icmp eq i64 %v592, 1
   br i1 %v594, label %.then436, label %.else437
 .then436:
@@ -1794,7 +1794,7 @@ entry:
   br label %.join501
 .join501:
   %v681 = load i64, ptr %.s502
-  %v691 = srem i64 %v681, 2
+  %v691 = urem i64 %v681, 2
   %v693 = icmp eq i64 %v691, 1
   br i1 %v693, label %.then508, label %.else509
 .then508:
@@ -1820,7 +1820,7 @@ entry:
   br label %.join515
 .join515:
   %v700 = load i64, ptr %.s516
-  %v710 = srem i64 %v700, 2
+  %v710 = urem i64 %v700, 2
   %v712 = icmp eq i64 %v710, 1
   br i1 %v712, label %.then522, label %.else523
 .then522:
@@ -1832,7 +1832,7 @@ entry:
 .join524:
   %v713 = load i64, ptr %.s525
   %v716 = add nuw nsw i64 %v694, %v713
-  %v718 = srem i64 %v716, 2
+  %v718 = urem i64 %v716, 2
   %v720 = icmp eq i64 %v718, 1
   br i1 %v720, label %.then529, label %.else530
 .then529:
@@ -1919,12 +1919,12 @@ entry:
   %v778 = add nsw i64 %v777, 0
   %v779 = add nsw i64 %v778, %v748
   %v780 = add nuw nsw i64 %v747, %v182
-  %v782 = srem i64 %v779, 4294967296
+  %v782 = urem i64 %v779, 4294967296
   %.d580 = getelementptr inbounds i8, ptr %v746, i64 8
   %.e581 = getelementptr inbounds i64, ptr %.d580, i64 %v780
   store i64 %v782, ptr %.e581
   %v785 = add nuw nsw i64 %v747, 1
-  %v787 = sdiv i64 %v779, 4294967296
+  %v787 = udiv i64 %v779, 4294967296
   store ptr %v746, ptr %.s548
   store i64 %v785, ptr %.s549
   store i64 %v787, ptr %.s550

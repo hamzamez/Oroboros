@@ -199,12 +199,12 @@ entry:
   store ptr %v48, ptr %.s43
   br label %.exit36
 .else42:
-  %v56 = srem i64 %v50, 16777216
+  %v56 = urem i64 %v50, 16777216
   %.d45 = getelementptr inbounds i8, ptr %v48, i64 8
   %.e46 = getelementptr inbounds i64, ptr %.d45, i64 %v49
   store i64 %v56, ptr %.e46
   %v59 = add nuw nsw i64 %v49, 1
-  %v61 = sdiv i64 %v50, 16777216
+  %v61 = udiv i64 %v50, 16777216
   store ptr %v48, ptr %.s37
   store i64 %v59, ptr %.s38
   store i64 %v61, ptr %.s39
@@ -402,7 +402,7 @@ entry:
   store i64 0, ptr %.s156
   br label %.join155
 .else154:
-  %v199 = srem i64 %v186, 16777216
+  %v199 = urem i64 %v186, 16777216
   store i64 %v199, ptr %.s156
   br label %.join155
 .join155:
@@ -548,19 +548,19 @@ entry:
   store i64 0, ptr %.s230
   br label %.join229
 .else228:
-  %v299 = srem i64 %v280, 16777216
+  %v299 = urem i64 %v280, 16777216
   store i64 %v299, ptr %.s230
   br label %.join229
 .join229:
   %v294 = load i64, ptr %.s230
   %v300 = mul nuw nsw i64 %v294, 999983
   %v301 = add nuw nsw i64 %v300, %v179
-  %v303 = srem i64 %v301, 16777216
+  %v303 = urem i64 %v301, 16777216
   %.d235 = getelementptr inbounds i8, ptr %v177, i64 8
   %.e236 = getelementptr inbounds i64, ptr %.d235, i64 %v178
   store i64 %v303, ptr %.e236
   %v306 = add nuw nsw i64 %v178, 1
-  %v308 = sdiv i64 %v301, 16777216
+  %v308 = udiv i64 %v301, 16777216
   store ptr %v177, ptr %.s139
   store i64 %v306, ptr %.s140
   store i64 %v308, ptr %.s141
@@ -667,18 +667,18 @@ entry:
   store i64 0, ptr %.s292
   br label %.join291
 .else290:
-  %v383 = srem i64 %v364, 16777216
+  %v383 = urem i64 %v364, 16777216
   store i64 %v383, ptr %.s292
   br label %.join291
 .join291:
   %v378 = load i64, ptr %.s292
   %v384 = add nuw nsw i64 %v361, %v378
-  %v385 = sdiv i64 %v384, 100000000
+  %v385 = udiv i64 %v384, 100000000
   %.d296 = getelementptr inbounds i8, ptr %v353, i64 8
   %.e297 = getelementptr inbounds i64, ptr %.d296, i64 %v354
   store i64 %v385, ptr %.e297
   %v388 = sub nsw i64 %v354, 1
-  %v389 = srem i64 %v384, 100000000
+  %v389 = urem i64 %v384, 100000000
   store ptr %v353, ptr %.s270
   store i64 %v388, ptr %.s271
   store i64 %v389, ptr %.s272
@@ -729,13 +729,13 @@ entry:
   store i64 0, ptr %.s325
   br label %.join324
 .else323:
-  %v425 = srem i64 %v406, 16777216
+  %v425 = urem i64 %v406, 16777216
   store i64 %v425, ptr %.s325
   br label %.join324
 .join324:
   %v420 = load i64, ptr %.s325
   %v426 = add nuw nsw i64 %v403, %v420
-  %v427 = srem i64 %v426, 100000000
+  %v427 = urem i64 %v426, 100000000
   store i64 %v401, ptr %.s303
   store i64 %v427, ptr %.s304
   br label %.head301
@@ -836,12 +836,12 @@ entry:
   store ptr %v491, ptr %.s381
   br label %.exit374
 .else380:
-  %v499 = srem i64 %v493, 16777216
+  %v499 = urem i64 %v493, 16777216
   %.d383 = getelementptr inbounds i8, ptr %v491, i64 8
   %.e384 = getelementptr inbounds i64, ptr %.d383, i64 %v492
   store i64 %v499, ptr %.e384
   %v502 = add nuw nsw i64 %v492, 1
-  %v504 = sdiv i64 %v493, 16777216
+  %v504 = udiv i64 %v493, 16777216
   store ptr %v491, ptr %.s375
   store i64 %v502, ptr %.s376
   store i64 %v504, ptr %.s377
@@ -1039,7 +1039,7 @@ entry:
   store i64 0, ptr %.s494
   br label %.join493
 .else492:
-  %v642 = srem i64 %v629, 16777216
+  %v642 = urem i64 %v629, 16777216
   store i64 %v642, ptr %.s494
   br label %.join493
 .join493:
@@ -1185,19 +1185,19 @@ entry:
   store i64 0, ptr %.s568
   br label %.join567
 .else566:
-  %v742 = srem i64 %v723, 16777216
+  %v742 = urem i64 %v723, 16777216
   store i64 %v742, ptr %.s568
   br label %.join567
 .join567:
   %v737 = load i64, ptr %.s568
   %v743 = mul nuw nsw i64 %v737, 999983
   %v744 = add nuw nsw i64 %v743, %v622
-  %v746 = srem i64 %v744, 16777216
+  %v746 = urem i64 %v744, 16777216
   %.d573 = getelementptr inbounds i8, ptr %v620, i64 8
   %.e574 = getelementptr inbounds i64, ptr %.d573, i64 %v621
   store i64 %v746, ptr %.e574
   %v749 = add nuw nsw i64 %v621, 1
-  %v751 = sdiv i64 %v744, 16777216
+  %v751 = udiv i64 %v744, 16777216
   store ptr %v620, ptr %.s477
   store i64 %v749, ptr %.s478
   store i64 %v751, ptr %.s479
@@ -1253,7 +1253,7 @@ entry:
   store i64 0, ptr %.s600
   br label %.join599
 .else598:
-  %v786 = srem i64 %v767, 16777216
+  %v786 = urem i64 %v767, 16777216
   store i64 %v786, ptr %.s600
   br label %.join599
 .join599:
@@ -1284,7 +1284,7 @@ entry:
   store i64 0, ptr %.s616
   br label %.join615
 .else614:
-  %v808 = srem i64 %v789, 16777216
+  %v808 = urem i64 %v789, 16777216
   store i64 %v808, ptr %.s616
   br label %.join615
 .join615:
@@ -1321,7 +1321,7 @@ entry:
   store i64 0, ptr %.s635
   br label %.join634
 .else633:
-  %v832 = srem i64 %v813, 16777216
+  %v832 = urem i64 %v813, 16777216
   store i64 %v832, ptr %.s635
   br label %.join634
 .join634:
@@ -1352,7 +1352,7 @@ entry:
   store i64 0, ptr %.s651
   br label %.join650
 .else649:
-  %v854 = srem i64 %v835, 16777216
+  %v854 = urem i64 %v835, 16777216
   store i64 %v854, ptr %.s651
   br label %.join650
 .join650:

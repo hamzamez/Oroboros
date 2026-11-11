@@ -183,6 +183,11 @@ func sortsHold(f *Func, q emit.Prim, s *Stmt) bool {
 	return true
 }
 
+// PlantRealizeUnasked chooses a later realization without asking whether the
+// operands lie in its parameters' sets: TestADivisionInNIsUnsignedAndOnlyThere
+// must see `udiv` reach a negative dividend.
+var PlantRealizeUnasked bool
+
 // narrowest is the later realization whose domain holds of s's operands'
 // facts with the least total width of its parameters' sets, or "": each
 // operand of its parameter's sort, then within its set and its `where`.
@@ -200,7 +205,7 @@ func narrowest(tg *emit.Target, f *Func, names []string, s *Stmt, fs []fact) str
 				continue
 			}
 			lo, hi := setEnds(tg, q.Args[k])
-			if !fs[a].v.within(lo.ep, hi.ep) {
+			if !fs[a].v.within(lo.ep, hi.ep) && !PlantRealizeUnasked {
 				fits = false
 				break
 			}

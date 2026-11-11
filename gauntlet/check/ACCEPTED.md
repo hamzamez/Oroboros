@@ -2802,3 +2802,35 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - `examples/big/pair.oro windows` 1843 → 1078 ms, 0.58x
 - `examples/big/power.oro windows` 2093 → 265 ms, 0.13x
+
+## 2026-11-11 — on 92c9134, with uncommitted changes
+
+**Reason:** on N, / and % are udiv and urem (llvm.udiv_nat, urem_nat, chosen where both operands are proven in N with a positive divisor); mul_small split at its size, its size its carry's
+
+624 runs: 403 emitted, 221 refused; 5717 of 5771 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling skip.
+
+23 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/errors/slots.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv32.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv64.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`

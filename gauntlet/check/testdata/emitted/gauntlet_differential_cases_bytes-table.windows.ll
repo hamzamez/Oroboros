@@ -96,7 +96,7 @@ entry:
   %v54 = mul i64 %v47, 7
   %v55 = add i64 %v52, %v54
   %v56 = mul nuw nsw i64 %v47, %v47
-  %v58 = srem i64 %v56, 13
+  %v58 = urem i64 %v56, 13
   %v59 = add i64 %v55, %v58
   %v61 = and i64 %v59, 255
   %.d48 = getelementptr inbounds i8, ptr %v46, i64 8

@@ -650,13 +650,13 @@ entry:
   br label %.exit289
 .else311:
   %v405 = sub nuw nsw i64 20, %v380
-  %v408 = srem i64 %v379, 10
+  %v408 = urem i64 %v379, 10
   %v409 = add nuw nsw i64 48, %v408
   %.d315 = getelementptr inbounds i8, ptr %v378, i64 8
   %.e316 = getelementptr inbounds i8, ptr %.d315, i64 %v405
   %.z317 = trunc i64 %v409 to i8
   store i8 %.z317, ptr %.e316
-  %v412 = sdiv i64 %v379, 10
+  %v412 = udiv i64 %v379, 10
   %v414 = add nuw nsw i64 %v380, 1
   %v416 = icmp sgt i64 %v379, 0
   br i1 %v416, label %.then321, label %.else322

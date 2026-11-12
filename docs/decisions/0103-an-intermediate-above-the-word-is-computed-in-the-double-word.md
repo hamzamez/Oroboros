@@ -1,7 +1,7 @@
 # 0103 — An intermediate above the word is computed in the double word
 
 Date: 2026-11-11
-Status: Accepted (hamza, 2026-11-11: "go ahead with M4", the standing measure's 64-bit digits, which **Item 4 amended by [ADR 0104](0104-k-n-star-is-in-base-2-63-the-largest-base-the-decision-proves.md)**: a divisor may be a positive word, through the triple's 2-by-1 division, where the quotient is proven a digit.
+Status: Accepted (hamza, 2026-11-11: "go ahead with M4", the standing measure's 64-bit digits, which **Item 4 amended by [ADR 0104](0104-k-n-star-is-in-base-2-63-the-largest-base-the-decision-proves.md)**: a divisor may be a positive word, through the triple's 2-by-1 division, where the quotient is proven a digit. **Its domain amended by [ADR 0105](0105-the-decisions-ends-are-192-bit-and-the-double-word-has-two-readings.md)**: (−2¹²⁷, 2¹²⁷) ∪ [0, 2¹²⁸), with E widened to 2¹⁹⁰.
 need it). Builds the first part of [ADR 0083](0083-a-representation-is-an-abstraction-function-chosen-by-place.md)
 item 3, native iN above the word on LLVM, for intermediates, and extends
 [ADR 0082](0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md)'s fusion.

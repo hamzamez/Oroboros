@@ -79,10 +79,11 @@ func TestADoubleWordNeverLeavesItsTerm(t *testing.T) {
 	}
 }
 
-// E BOUNDS THE DOUBLE WORD: a product of three words reaches 2¹⁸⁶, its fact is
-// unbounded, and the program is refused, though what reads it is a
-// comparison, whose result is a Boolean whatever the operand's fact. THE
-// PLANTED FAULT takes any fact into the double word, and the refusal goes.
+// THE DOUBLE WORD'S DOMAIN BOUNDS IT, (−2¹²⁷, 2¹²⁷) ∪ [0, 2¹²⁸): a product of
+// three words reaches 2¹⁸⁶, finite in E (ADR 0105) and outside both readings,
+// and the program is refused, though what reads it is a comparison, whose
+// result is a Boolean whatever the operand's fact. THE PLANTED FAULT takes any
+// fact into the double word, and the refusal goes.
 func TestAnIntermediateOutsideEIsRefused(t *testing.T) {
 	const src = "export fn f(x ∈ 0..2^62, y ∈ 0..2^62, z ∈ 0..2^62) (Int) { if x * y * z > 5 { 1 } else { 0 } }\n"
 	tg, _, leg := doubleEntry(t, src)

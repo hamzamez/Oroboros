@@ -234,8 +234,11 @@ checked. When a package hits a wall that needs language work, stop, research it,
      two-digit lemma (a transfer for `/`) proves it a digit, render by 10¹⁸; fib 0.46×, fact 0.57×,
      D 0.50× their time. **Left, measured** ([carrysplit-2026-11-12](gauntlet/results/carrysplit-2026-11-12.md)):
      the `shld` splitting each step's t in the product, the sum and D4, a row 1.11 ns per digit
-     against **0.37 with B = 2⁶⁴** (C, both forms); so **M4c, B = 2⁶⁴, next**: E widened to 192-bit
-     ends, the double word read unsigned on naturals, digits in U₆₄. Divide-and-conquer printing
+     against **0.37 with B = 2⁶⁴** (C, both forms); so **M4c, B = 2⁶⁴**, in steps: ~~1. E widened to
+     192-bit ends and the double word's two readings~~ done (ADR 0105; the corpus byte-identical,
+     compile 1.01×); **2. digits in U₆₄** as the double word's operands and results (SelectDouble
+     before SelectWords, which leaves the double word's operations alone; `t & (2⁶⁴ − 1)` and
+     `t >> 64` its halves), **3. the library at B = 2⁶⁴**, render by 10¹⁹. Divide-and-conquer printing
      measured at about 1.8× before Karatsuba, not more, while a D step costs 12 cycles (D4 split by
      its index domain, kept, inside the noise). Its causes, by expected gain
      (fitreuse-2026-11-10, lenonce-2026-11-10):
@@ -821,6 +824,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | Factoring never changes an answer or a verdict: a definition kept as a function only where its contract, completed by lifted preconditions, proves it, inlined otherwise; the static level always unfolded; no folding by pattern; amends 0101 | [0102](docs/decisions/0102-factoring-never-changes-an-answer-or-a-verdict.md) |
 | An intermediate above the word is computed in the double word, i128, where the decision proves it in E and its uses read it back into the word; no program value leaves the word (W14); a divisor a constant; extends 0082's fusion, builds 0083 item 3 for intermediates | [0103](docs/decisions/0103-an-intermediate-above-the-word-is-computed-in-the-double-word.md) |
 | K(ℕ\*) is in base 2⁶³, the largest the decision proves (B² − 1 ∈ E); the two-digit lemma a transfer for `/`; a quotient by a word the triple's 2-by-1 division; reverses 0099 item 3, amends 0103 item 4 | [0104](docs/decisions/0104-k-n-star-is-in-base-2-63-the-largest-base-the-decision-proves.md) |
+| The decision's ends are 192-bit, E = (−2¹⁹⁰, 2¹⁹⁰); the double word has two readings, (−2¹²⁷, 2¹²⁷) signed and [0, 2¹²⁸) unsigned; amends 0103 | [0105](docs/decisions/0105-the-decisions-ends-are-192-bit-and-the-double-word-has-two-readings.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶³ since 0104), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

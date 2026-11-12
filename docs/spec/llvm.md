@@ -118,10 +118,12 @@ unordered twin agree on every pair; the ordered one is chosen because it claims 
 
 ### 3c. The double word, an intermediate in i128 (ADR 0103)
 
-`repr double 128` declares it. The residue map r: ℤ → ℤ/2¹²⁸ is a ring homomorphism, injective on
-(−2¹²⁷, 2¹²⁷). So a term of +, −, · and neg whose every intermediate the decision proves in
-E = (−2¹²⁶, 2¹²⁶), the domain of its finite ends, is computed exactly in i128: each step's residue is
-its value's, and the lift of a residue in E is unique.
+`repr double 128` declares it. The residue map r: ℤ → ℤ/2¹²⁸ is a ring homomorphism, injective on any
+interval of 2¹²⁸ integers. So a term of +, −, · and neg whose every intermediate the decision proves in
+one of i128's two readings, (−2¹²⁷, 2¹²⁷) signed or [0, 2¹²⁸) unsigned (ADR 0105), is computed exactly
+in i128: each step's residue is its value's, and the lift of a residue in its reading is unique. Each
+value is read by its own fact: `nsw` only inside the signed range, `nuw` on naturals, a comparison of
+naturals unsigned. E itself is (−2¹⁹⁰, 2¹⁹⁰) since ADR 0105.
 
 An intermediate is a value outside the word whose every use reads it back inside the term:
 - + − · neg, its result again an intermediate or in the word;

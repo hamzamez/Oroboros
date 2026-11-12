@@ -132,13 +132,12 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 		if word {
 			proven = tg.Word.Unsigned && v.within(ep{}, u64Max)
 		}
-		// AN INTERMEDIATE IN THE DOUBLE WORD (ADR 0103) is proven where its
-		// fact is finite: every finite end lies in E = (−2¹²⁶, 2¹²⁶), which the
-		// double word holds exactly; it keeps its mode, which says where it is
-		// computed.
+		// AN INTERMEDIATE IN THE DOUBLE WORD (ADR 0103, 0105) is proven where its
+		// fact lies in one of i128's readings, (−2¹²⁷, 2¹²⁷) or [0, 2¹²⁸); it
+		// keeps its mode, which says where it is computed.
 		if s.Mode == MDouble {
 			rep.Ops++
-			if v.finite() || PlantDoubleUnbounded {
+			if inDouble(v) || PlantDoubleUnbounded {
 				rep.Proven++
 				return
 			}

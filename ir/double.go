@@ -79,7 +79,7 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 			// unproven is its fact outside the word, whatever placeholder mode it
 			// carries (`exact` without -checked, `trap` with it)
 			if ring(s) && s.Mode != MWrap && s.Mode != MWrapPair && s.Via == "" &&
-				(fs[s.Res[0]].v.finite() || PlantDoubleUnbounded) && !inWord(s.Res[0]) {
+				(inDouble(fs[s.Res[0]].v) || PlantDoubleUnbounded) && !inWord(s.Res[0]) {
 				cand[s.Res[0]] = true
 			}
 		}
@@ -156,7 +156,11 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 			k := s.Args[1]
 			return u.j == 0 && !cand[k] && fs[k].v.within(ei(0), ei(127)) && (cand[s.Res[0]] || inWord(s.Res[0]))
 		case OEq, ONe, OLt, OLe, OGt, OGe:
-			return true
+			// one reading for both sides: naturals compared unsigned, or both
+			// inside (−2¹²⁷, 2¹²⁷) compared signed
+			a, b := fs[s.Args[0]].v, fs[s.Args[1]].v
+			return a.within(ei(0), u128) && b.within(ei(0), u128) || a.within(s128.neg(), s128) && b.within(s128.neg(), s128) ||
+				PlantDoubleUnbounded
 		}
 		return false
 	}
@@ -206,6 +210,14 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 		f.facts = nil
 	}
 	return len(cand)
+}
+
+// inDouble says an interval is the double word's: inside one of i128's two
+// readings, (−2¹²⁷, 2¹²⁷) signed or [0, 2¹²⁸) unsigned. The residue map
+// ℤ → ℤ/2¹²⁸ is injective on any interval of 2¹²⁸ integers, so either is exact
+// (ADR 0105); each value is read by its own fact.
+func inDouble(x iv) bool {
+	return x.finite() && (x.within(s128.neg(), s128) || x.within(ei(0), u128))
 }
 
 // TwoByOne is the triple's 2-by-1 division, x86-64's `divq`.

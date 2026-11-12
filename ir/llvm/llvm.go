@@ -569,6 +569,20 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 	}
 }
 
+var bigS128 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 127), big.NewInt(1))
+
+// ends are a value's proven ends, exact, from its IR_P type or its literal;
+// nil where unbounded.
+func (p *printer) ends(v ir.V) (*big.Int, *big.Int) {
+	if lo, hi, ok := core.IntRangeBig(p.f.Types[v]); ok {
+		return lo, hi
+	}
+	if d := p.pl.Const[p.pl.Res(v)]; d != nil && d.Kind == core.KInt {
+		return big.NewInt(d.Int), big.NewInt(d.Int)
+	}
+	return nil, nil
+}
+
 // readsDouble says s is an operation of the double word: it computes an
 // intermediate there, or reads one back (ADR 0103).
 func (p *printer) readsDouble(s *ir.Stmt) bool {
@@ -614,17 +628,33 @@ func (p *printer) dop(s *ir.Stmt) {
 	if s.Mode == ir.MDouble {
 		r = fmt.Sprintf("%%v%d", s.Res[0])
 	}
-	fl := "nsw"
+	// THE FLAGS BY THE READING (ADR 0105): `nsw` where the result is inside
+	// (−2¹²⁷, 2¹²⁷), an intermediate's by its proven range and a result back in
+	// the word always; `nuw` where the operands and the result are naturals
+	res := s.Res[0]
+	lo, hi := p.ends(res)
+	signedOK := s.Mode != ir.MDouble || lo != nil && hi != nil && lo.CmpAbs(bigS128) <= 0 && hi.CmpAbs(bigS128) <= 0
+	natRes := s.Mode != ir.MDouble || lo != nil && lo.Sign() >= 0
+	flags := func(nuw bool) string {
+		f := []string{}
+		if nuw && natRes || plantNuwFault {
+			f = append(f, "nuw")
+		}
+		if signedOK {
+			f = append(f, "nsw")
+		}
+		return strings.Join(f, " ")
+	}
 	switch s.Op {
 	case ir.OAdd, ir.OMul:
-		if nat(s.Args[0]) && nat(s.Args[1]) || plantNuwFault {
-			fl = "nuw nsw"
-		}
-		p.line("%s = %s %s i128 %s, %s", r, map[ir.Op]string{ir.OAdd: "add", ir.OMul: "mul"}[s.Op], fl, args[0], args[1])
+		p.line("%s = %s %s i128 %s, %s", r, map[ir.Op]string{ir.OAdd: "add", ir.OMul: "mul"}[s.Op], flags(nat(s.Args[0]) && nat(s.Args[1])), args[0], args[1])
 	case ir.OSub:
-		p.line("%s = sub %s i128 %s, %s", r, fl, args[0], args[1])
+		// a − b leaves no unsigned wrap when 0 ≤ b ≤ a
+		_, bh := p.ends(s.Args[1])
+		al, _ := p.ends(s.Args[0])
+		p.line("%s = sub %s i128 %s, %s", r, flags(nat(s.Args[1]) && al != nil && bh != nil && al.Cmp(bh) >= 0), args[0], args[1])
 	case ir.ONeg:
-		p.line("%s = sub %s i128 0, %s", r, fl, args[0])
+		p.line("%s = sub %s i128 0, %s", r, flags(false), args[0])
 	case ir.ODiv, ir.ORem:
 		if d := p.pl.Const[p.pl.Res(s.Args[1])]; d == nil {
 			// BY A WORD: the triple's 2-by-1 division on the dividend's halves,
@@ -670,6 +700,10 @@ func (p *printer) dop(s *ir.Stmt) {
 		p.line("%s = %s i128 %s, %s", r, sh, args[0], args[1])
 	case ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:
 		pred := map[ir.Op]string{ir.OEq: "eq", ir.ONe: "ne", ir.OLt: "slt", ir.OLe: "sle", ir.OGt: "sgt", ir.OGe: "sge"}[s.Op]
+		if nat(s.Args[0]) && nat(s.Args[1]) {
+			// naturals, which may pass 2¹²⁷: the unsigned order
+			pred = map[ir.Op]string{ir.OEq: "eq", ir.ONe: "ne", ir.OLt: "ult", ir.OLe: "ule", ir.OGt: "ugt", ir.OGe: "uge"}[s.Op]
+		}
 		p.line("%%v%d = icmp %s i128 %s, %s", s.Res[0], pred, args[0], args[1])
 		return
 	default:

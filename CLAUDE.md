@@ -232,9 +232,12 @@ checked. When a package hits a wall that needs language work, stop, research it,
      [natword-2026-11-11](gauntlet/results/natword-2026-11-11.md)): every step reduced by t & (B − 1)
      and t >> 63, D's q̂ the triple's 2-by-1 division (`divq`, `targets/windows/x64.oro`) where the
      two-digit lemma (a transfer for `/`) proves it a digit, render by 10¹⁸; fib 0.46×, fact 0.57×,
-     D 0.50× their time. **Left, by the machine code**: B = 2⁶⁴'s halves for the product's and the
-     sum's carry chains (each 63-bit step's `shld` and `and`), then Karatsuba and recursive
-     division for fact's quadratic printing. Its causes, by expected gain
+     D 0.50× their time. **Left, measured** ([carrysplit-2026-11-12](gauntlet/results/carrysplit-2026-11-12.md)):
+     the `shld` splitting each step's t in the product, the sum and D4, a row 1.11 ns per digit
+     against **0.37 with B = 2⁶⁴** (C, both forms); so **M4c, B = 2⁶⁴, next**: E widened to 192-bit
+     ends, the double word read unsigned on naturals, digits in U₆₄. Divide-and-conquer printing
+     measured at about 1.8× before Karatsuba, not more, while a D step costs 12 cycles (D4 split by
+     its index domain, kept, inside the noise). Its causes, by expected gain
      (fitreuse-2026-11-10, lenonce-2026-11-10):
      ~~each operand's length reloaded per digit~~, done by β (a length is a pure function of an
      immutable value), not by `noalias`, whose scoped form is unsound for inlined code and whose

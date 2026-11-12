@@ -474,20 +474,35 @@ fn qhat(v, n, r, d) {
 
 // D4: T = W − q·v over the window's n + 1 digits, the product's carry and the
 // subtraction's borrow apart, in B^{n+1}'s complement; entry n + 1 is the
-// sign, 1 when T < 0, which is when q was too large
+// sign, 1 when T < 0, which is when q was too large. THE INDEX DOMAIN SPLITS
+// by what each index reads, [0, n + 2) = {0} ⊔ [1, n) ⊔ {n} ⊔ {n + 1}: the new
+// digit d at 0, r_{i−1} and v_i on [1, n), r_{n−1} alone at n (v_n = 0), the
+// sign at n + 1; so no read is guarded.
 fn msub(ml, v, n, r, d, q) {
+    nv = len(v)
+    nr = len(r)
     case {
         n + 2 > ml -> abandon("out of memory: an integer longer than the largest table")
+        // the divisor's table holds its n digits, its zero carry and its
+        // header, and the window's its n digits: every call's, so the reads
+        // below are in bounds by the loop's own guard
+        n < 1 || n + 2 > nv || n > nr -> abandon("internal: Algorithm D's divisor or window is shorter than its size")
         else -> {
-            nv = len(v)
-            nr = len(r)
             var o := array { 0 : _ ∈ 0..n + 1 }
-            loop i = 0, pc = 0, bw = 0 {
-                i >= n + 2 -> o
-                i == n + 1 -> { o[i] := bw; again(i + 1, pc, bw) }
+            p0 = q * v[0]
+            t0 = d - (p0 & bm)
+            o[0] := t0 & bm
+            loop i = 1, pc = p0 >> 63, bw = if t0 < 0 { 1 } else { 0 } {
+                i >= n -> {
+                    // v_n = 0: a normalized divisor carries nothing out
+                    t = r[n - 1] - pc - bw
+                    o[n] := t & bm
+                    o[n + 1] := if t < 0 { 1 } else { 0 }
+                    o
+                }
                 else -> {
-                    p = q * pg(v, nv, i) + pc
-                    t = wg(r, nr, d, i) - (p & bm) - bw
+                    p = q * v[i] + pc
+                    t = r[i - 1] - (p & bm) - bw
                     o[i] := t & bm
                     again(i + 1, p >> 63, if t < 0 { 1 } else { 0 })
                 }

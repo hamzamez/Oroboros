@@ -3,6 +3,7 @@ package ir
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"oroboros/core"
@@ -238,9 +239,9 @@ func (v *verifier) double() {
 				switch s.Op {
 				case OAdd, OSub, OMul, ONeg, OEq, ONe, OLt, OLe, OGt, OGe:
 				case OAnd:
-					// by a constant mask, the other operand
-					d := v.def[s.Args[1-j]]
-					ok = ok && d != nil && d.Op == OConst
+					// by a natural mask, the other operand, a word's
+					m := s.Args[1-j]
+					ok = ok && !v.dbl[m] && v.natural(m)
 				case ODiv, ORem:
 					// by a constant, or by a word through the triple's 2-by-1
 					// division, whose quotient's type says it is a word
@@ -262,6 +263,30 @@ func (v *verifier) double() {
 	})
 }
 
+// readsDouble says s computes in the double word or reads it back.
+func (v *verifier) readsDouble(s *Stmt) bool {
+	if s.Mode == MDouble {
+		return true
+	}
+	for _, a := range s.Args {
+		if v.dbl[a] {
+			return true
+		}
+	}
+	return false
+}
+
+// natural says x's type holds only naturals below 2⁶⁴: the unsigned word, or a
+// range in [0, 2⁶⁴).
+func (v *verifier) natural(x V) bool {
+	ty := v.f.Types[x]
+	if ty == "u64" || v.tg.ValueType(ty) == core.U64Type {
+		return true
+	}
+	lo, hi, ok := core.IntRangeBig(ty)
+	return ok && lo != nil && hi != nil && lo.Sign() >= 0 && hi.Cmp(new(big.Int).SetUint64(1<<64-1)) <= 0
+}
+
 // quotientInWord says some quotient of t by d in f is typed inside [0, 2⁶³):
 // the 2-by-1 division's domain, which a remainder shares with its quotient.
 func (v *verifier) quotientInWord(t, d V) bool {
@@ -270,7 +295,7 @@ func (v *verifier) quotientInWord(t, d V) bool {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
 			if s.Op == ODiv && len(s.Args) == 2 && s.Args[0] == t && s.Args[1] == d && len(s.Res) == 1 {
-				if lo, _, ok := core.IntRange(v.f.Types[s.Res[0]]); ok && lo >= 0 {
+				if v.natural(s.Res[0]) {
 					found = true
 				}
 			}
@@ -791,17 +816,16 @@ func (v *verifier) stmt(s *Stmt) {
 	case s.Op == ONeg && doubles:
 		v.flow(s.Res[0], core.F64Name, where)
 	case s.Op.IsCmp() && doubles:
+	case (s.Op.IsArith() || s.Op.IsCmp()) && v.readsDouble(s):
+		// the double word's operation: its operands are W14's, a natural or a
+		// signed word each, extended by the printer (ADR 0105)
 	case s.Op.IsArith():
 		for _, a := range s.Args {
-			if !v.dbl[a] { // a double-word intermediate is W14's
-				v.flow(a, "int", where)
-			}
+			v.flow(a, "int", where)
 		}
 	case s.Op.IsCmp():
 		for _, a := range s.Args {
-			if !v.dbl[a] {
-				v.flow(a, "int", where)
-			}
+			v.flow(a, "int", where)
 		}
 	case s.Op == OIf || s.Op == ORequire || s.Op == OAssume:
 		v.flow(s.Args[0], "bool", where)

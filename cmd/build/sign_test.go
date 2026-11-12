@@ -61,7 +61,7 @@ func TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength(t *testing.T) {
 }
 
 // A QUOTIENT BY A NUMERAL IS ALGORITHM D's (ADR 0099, R3c): on windows, x / y
-// and x % y take the add-back, D6, and print Python's numerals. At B = 2⁶³ an
+// and x % y take the add-back, D6, and print Python's numerals. At B = 2⁶⁴ an
 // add-back is about 2/B likely, so the pair is CONSTRUCTED: y = (v_t, v₂, B − 1)
 // normalized, and x = q·(v_t·B² + v₂·B), whose top digits give q̂ = q and pass
 // D3's two-digit test while x − q·y = −q·(B − 1) < 0 (an exact model of the
@@ -70,13 +70,13 @@ func TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength(t *testing.T) {
 func TestAQuotientByANumeralIsAlgorithmDs(t *testing.T) {
 	const src = "use win/print\n" +
 		"fn calc(n ∈ 0..1) (Int) {\n" +
-		"    x = 1176956575385002643219210516851437453019191645837006471168\n" +
-		"    y = 392318858461667547739736838950479151015620587315856932863\n" +
+		"    x = 9415652603080021145753684134811499624153533166696051769344\n" +
+		"    y = 3138550867693340381917894711603833208069624466305726808063\n" +
 		"    if n == 0 { x / y } else { x % y }\n}\n" +
 		"export fn main() {\n" +
 		"    print.print_str(big_str(calc(0)))\n" +
 		"    print.print_str(big_str(calc(1)))\n}\n"
-	want := "2 392318858461667547739736838950479150987950471205292605442"
+	want := "2 3138550867693340381917894711603833208014284234084598153218"
 	out, err := buildAndRun(t, src, "windows", "")
 	if err != nil || strings.Join(strings.Fields(out), " ") != want {
 		t.Errorf("Algorithm D on windows: %q, %v; want %s", out, err, want)

@@ -194,8 +194,9 @@ A target with a bignum takes it for a signed program instead.
 
 A set with no bound has no representation of finite carrier (integers-research Proposition 1). So on
 a target with no bignum, a value held exactly whose set is unbounded is held in **K(ℕ\*)**, the group
-completion over the positional numerals in base B = 2⁶³ (ADR 0104; 2³² until then), the largest base
-whose digits are words and whose step u·v + w + k ≤ B² − 1 the decision proves, in the double word:
+completion over the positional numerals in base B = 2⁶⁴ (ADR 0106; 2⁶³ under ADR 0104, 2³² before), a
+digit a natural of the unsigned word and every step u·v + w + k ≤ B² − 1 the double word's, read
+unsigned (ADR 0105):
 - **a value is one table t**, digit i at t[i] for i < len t − 1;
 - **its last entry is the signed size h = ±m**, where m is 1 + the index of the top nonzero digit, or 0;
 - every slot from m to len t − 2 holds 0;

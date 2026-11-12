@@ -15,7 +15,7 @@ import (
 // (ADR 0035). Calling it and β-reducing it into the site are the same
 // application, so a use may be `call f ā`: what changes is where its
 // arithmetic is decided. The callee is decided once, under its parameters'
-// sets, a numeral's table `array int 0 9223372036854775807` (its header is 2m + s,
+// sets, a numeral's table `array int 0 18446744073709551615` (its header is 2m + s,
 // digitfacts-2026-11-10), and its result's element range is what its stores
 // prove. Ownership across the call is the frame rule: the arguments borrowed,
 // the result a birth (W13 checks the callee's side).
@@ -26,8 +26,8 @@ import (
 // (ADR 0038), registering the functions it finds there first.
 
 // NumeralType is a numeral's table as a program function's parameter and
-// result: the codomain [0, B), B = 2⁶³ (M4b), of every entry.
-const NumeralType = "array int 0 9223372036854775807"
+// result: the codomain [0, B), B = 2⁶⁴ (ADR 0105), of every entry.
+const NumeralType = "array int 0 18446744073709551615"
 
 // natPrefix names K(ℕ*)'s program functions.
 const natPrefix = "nat."
@@ -102,9 +102,9 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 		case sig.Params[i].Type == "array int":
 			sig.Params[i].Type = NumeralType
 		// THE WORD OPERAND'S SET is the one the plan chose the one-pass form for
-		// (limbs.go): a product's any natural word, a divisor's [1, 2²⁸)
+		// (limbs.go): a product's any natural below 2⁶⁴, a divisor's [1, 2²⁸)
 		case sig.Params[i].Type == "int" && fn == "mul-small":
-			sig.Params[i].Type = fmt.Sprintf("int 0 %d", int64(1<<63-1))
+			sig.Params[i].Type = "int 0 18446744073709551615"
 		case sig.Params[i].Type == "int" && fn == "div-small":
 			sig.Params[i].Type = fmt.Sprintf("int 1 %d", 1<<28-1)
 		}
@@ -130,7 +130,7 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 	// returned table's elements in [0, B), by its stores, before the callers
 	// may read it as a numeral's
 	if len(f.Results) == 1 && f.Results[0] == "array int" {
-		if err := proveResultElems(tg, f, 0, 1<<63-1); err != nil {
+		if err := proveResultElems(tg, f, ei(0), u64Max); err != nil {
 			return nil, fmt.Errorf("the built-in K(ℕ*)'s %s: %v", fn, err)
 		}
 		f.Results[0] = NumeralType
@@ -145,7 +145,7 @@ var PlantResultUnproven bool
 
 // proveResultElems requires every table f returns to have its elements in
 // [lo, hi] by f's own facts.
-func proveResultElems(tg *emit.Target, f *Func, lo, hi int64) error {
+func proveResultElems(tg *emit.Target, f *Func, lo, hi ep) error {
 	if PlantResultUnproven {
 		return nil
 	}
@@ -156,8 +156,8 @@ func proveResultElems(tg *emit.Target, f *Func, lo, hi int64) error {
 			return
 		}
 		for _, a := range r.Args {
-			if x := fs[a]; !x.hasEl || !x.el.within(ei(lo), ei(hi)) {
-				err = fmt.Errorf("its result's elements are %s, not inside %d..%d, which its callers would read", termShow(x.el), lo, hi)
+			if x := fs[a]; !x.hasEl || !x.el.within(lo, hi) {
+				err = fmt.Errorf("its result's elements are %s, not inside %v..%v, which its callers would read", termShow(x.el), lo, hi)
 				return
 			}
 		}
@@ -288,6 +288,21 @@ func returns(f *Func, r *Region) bool {
 	return found
 }
 
+// setEndsExact is a set's ends as the decision's, exact past int64: a range of
+// any size, or the unsigned word, [0, 2⁶⁴) (a base-2⁶⁴ digit's set, ADR 0105).
+func setEndsExact(tg *emit.Target, ty string) (ep, ep, bool) {
+	if ty == "u64" || tg.ValueType(ty) == core.U64Type {
+		return ei(0), u64Max, true
+	}
+	l, h, ok := core.IntRangeBig(ty)
+	if !ok || l == nil || h == nil {
+		return ep{}, ep{}, false
+	}
+	lo, ok1 := fromBig(l)
+	hi, ok2 := fromBig(h)
+	return lo, hi, ok1 && ok2
+}
+
 // PlantNoCallSets admits every argument to a program function, its set unasked.
 var PlantNoCallSets bool
 
@@ -330,21 +345,21 @@ func CheckCallSets(tg *emit.Target, f *Func) error {
 				}
 				x := fs[a]
 				// A SCALAR's fact in its parameter's range
-				if lo, hi, ok := core.IntRange(p.Args[j]); ok {
-					if !x.v.within(ei(lo), ei(hi)) {
-						err = &CallSetError{s.Name, fmt.Sprintf("argument %d of %s is %s, not inside its parameter's %d..%d "+
+				if lo, hi, ok := setEndsExact(tg, p.Args[j]); ok {
+					if !x.v.within(lo, hi) {
+						err = &CallSetError{s.Name, fmt.Sprintf("argument %d of %s is %s, not inside its parameter's %v..%v "+
 							"(ADR 0101: a program function is decided under its parameters' sets)", j+1, s.Name, termShow(x.v), lo, hi)}
 						return
 					}
 					continue
 				}
 				// A TABLE's elements in its parameter's element range
-				lo, hi, ok := core.IntRange(ElemOf(tg, unbuffer(p.Args[j])))
+				lo, hi, ok := setEndsExact(tg, ElemOf(tg, unbuffer(p.Args[j])))
 				if !ok {
 					continue
 				}
-				if !x.hasEl || !x.el.within(ei(lo), ei(hi)) {
-					err = &CallSetError{s.Name, fmt.Sprintf("argument %d of %s is a table whose elements are %s, not inside its parameter's %d..%d "+
+				if !x.hasEl || !x.el.within(lo, hi) {
+					err = &CallSetError{s.Name, fmt.Sprintf("argument %d of %s is a table whose elements are %s, not inside its parameter's %v..%v "+
 						"(ADR 0101: a program function is decided under its parameters' sets)", j+1, s.Name, termShow(x.el), lo, hi)}
 					return
 				}

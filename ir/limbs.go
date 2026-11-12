@@ -101,7 +101,7 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 	widened := func(v V) (V, bool) { return widenedTo(v, smallWord) }
 	productBound := smallWord
 	if nat {
-		productBound = wordTop
+		productBound = u64Max
 	}
 	product := func(v V) (V, bool) { return widenedTo(v, productBound) }
 	// THE PLAN: for each call, the instance and its arguments.

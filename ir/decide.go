@@ -97,6 +97,7 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 	})
 	spec := specOnly(f)
 	wLo, wHi := ei(tg.Word.Lo), ei(tg.Word.Hi)
+	dbl := Doubles(f)
 	inOrder(f, func(s *Stmt) {
 		if len(s.Res) != 1 || spec[s.Res[0]] || s.Mode == MWrap || s.Mode == MWrapPair {
 			return // a fused operation is read only through its `mod` (Fuse)
@@ -131,6 +132,15 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 		proven := v.within(wLo, wHi)
 		if word {
 			proven = tg.Word.Unsigned && v.within(ep{}, u64Max)
+		}
+		// A READING-BACK OF THE DOUBLE WORD into the unsigned word (ADR 0105):
+		// its result is held in U where the target realizes U, and is ℤ's there
+		if !proven && tg.Word.Unsigned && v.within(ep{}, u64Max) && s.Mode != MDouble {
+			for _, a := range s.Args {
+				if dbl[a] {
+					proven = true
+				}
+			}
 		}
 		// AN INTERMEDIATE IN THE DOUBLE WORD (ADR 0103, 0105) is proven where its
 		// fact lies in one of i128's readings, (−2¹²⁷, 2¹²⁷) or [0, 2¹²⁸); it

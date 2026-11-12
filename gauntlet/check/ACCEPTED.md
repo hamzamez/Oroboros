@@ -2864,3 +2864,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/big/pair.oro windows`
 - emitted text changed — `examples/big/power.oro windows`
 - compiler output changed — `examples/big/power.oro windows`
+
+## 2026-11-12 — on e42ad22, with uncommitted changes
+
+**Reason:** K(N*) over B = 2^64 (ADR 0106): digits in U64, every step the double word's, read back by its halves; the double word before the unsigned word; a table's elements by their hull
+
+632 runs: 407 emitted, 225 refused; 5710 of 5764 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- now REFUSED — `examples/big/fact.oro windows`
+- now REFUSED — `examples/big/fib.oro windows`
+- now REFUSED — `examples/big/pair.oro windows`
+- now REFUSED — `examples/big/power.oro windows`
+- new source — `gauntlet/differential/cases/u64-mulhi.oro go`
+- new source — `gauntlet/differential/cases/u64-mulhi.oro java`
+- new source — `gauntlet/differential/cases/u64-mulhi.oro js`
+- new source — `gauntlet/differential/cases/u64-mulhi.oro windows`

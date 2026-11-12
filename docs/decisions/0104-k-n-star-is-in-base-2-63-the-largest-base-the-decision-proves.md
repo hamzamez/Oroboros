@@ -6,7 +6,7 @@ Status: Accepted (hamza, 2026-11-11: "go ahead with M4"). **Reverses
 (B = 2³² over U₆₄), which said the wider digit would be measured against it when built. **Amends
 [ADR 0103](0103-an-intermediate-above-the-word-is-computed-in-the-double-word.md) item 4**: a divisor
 may be a positive word where the triple has a 2-by-1 division and the decision proves the quotient a
-digit.
+digit. **Item 1 reversed by [ADR 0106](0106-k-n-star-is-in-base-2-64-the-machines-digit.md)**: B = 2⁶⁴, on ADR 0105's wider ends.
 
 ## Context
 

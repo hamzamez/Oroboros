@@ -601,7 +601,10 @@ says why the next is what it is.
      large prime now runs on Windows in half the time of idiomatic Go; and then the digits
      themselves ([natword-2026-11-11](gauntlet/results/natword-2026-11-11.md)): dividing big
      integers is now faster on Windows than in Go, and adding, multiplying and printing them about
-     twice as fast as before; then file
+     twice as fast as before; since 2026-11-12 each digit is a full 64-bit word
+     ([nat64-2026-11-12](gauntlet/results/nat64-2026-11-12.md)), which makes the inner
+     multiplication loop the machine's own; what is left is allocation and the addition's carry;
+     then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
      found, and assembling every Windows file it writes; then 32-bit Windows;

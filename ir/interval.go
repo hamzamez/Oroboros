@@ -723,7 +723,7 @@ func (a *intervals) stmt(s *Stmt) {
 	case ODiv:
 		q := divIV(args[0].v, args[1].v)
 		if top, ok := a.numeralQuotient(s.Args[0], s.Args[1]); ok {
-			q = meetIV(q, rangeIV(0, top))
+			q = meetIV(q, rangeE(ei(0), top))
 		}
 		one(fact{v: q})
 	case ORem:
@@ -1545,11 +1545,12 @@ func (a *intervals) dead(r *Region) {
 // is what Algorithm D's estimate needs: a window whose top digit is below the
 // divisor's has a one-digit quotient. numeralQuotient answers C − 1, the
 // largest digit, where it applies; C is a product of constants, as a power
-// past the word is written, and C − 1 a word (C ≤ 2⁶³).
-func (a *intervals) numeralQuotient(t, d V) (int64, bool) {
+// past the word is written, at most 2⁶⁴ (base 2⁶⁴'s digit is the unsigned
+// word's, ADR 0105).
+func (a *intervals) numeralQuotient(t, d V) (ep, bool) {
 	dt := a.def[a.pl(t)]
 	if dt == nil || dt.Op != OAdd || len(dt.Args) != 2 {
-		return 0, false
+		return ep{}, false
 	}
 	for k := 0; k < 2; k++ {
 		m, w := dt.Args[k], dt.Args[1-k]
@@ -1557,21 +1558,21 @@ func (a *intervals) numeralQuotient(t, d V) (int64, bool) {
 		if !ok || c.Sign() <= 0 {
 			continue
 		}
-		top := new(big.Int).Sub(c, big.NewInt(1))
-		if !top.IsInt64() {
+		top, ok := fromBig(new(big.Int).Sub(c, big.NewInt(1)))
+		if !ok || u64Max.lt(top) {
 			continue
 		}
 		fw, fu, fd := a.fs[w].v, a.fs[u].v, a.fs[d].v
-		if !fw.within(ei(0), ei(top.Int64())) || !fu.within(ei(0), wordTop) || !fd.within(ei(1), wordTop) {
+		if !fw.within(ei(0), top) || !fu.within(ei(0), u64Max) || !fd.within(ei(1), u64Max) {
 			continue
 		}
 		pi, isPi := a.piRel[u]
 		below := isPi && a.pl(pi.Other) == a.pl(d) && pi.Rel == "lt"
 		if below || PlantQuotientUnasked {
-			return top.Int64(), true
+			return top, true
 		}
 	}
-	return 0, false
+	return ep{}, false
 }
 
 // PlantQuotientUnasked applies the two-digit lemma without its premise

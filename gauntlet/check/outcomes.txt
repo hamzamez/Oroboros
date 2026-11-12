@@ -22,9 +22,12 @@
 == examples/big/fact.oro java emitted 730d462280befebf92e518dae2a094e0ebadf5ff61a5942eb34f7ffbca3a7181
    note: gen-fact: 1 operation(s) in arbitrary precision
    note: gen-fact: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/fact.oro windows emitted 4d3ef48f4e3331bc5c932573e9a91daea1eca30b1a2bf3932d71761d3ee5d153
+== examples/big/fact.oro windows refused
    note: gen-fact: 2 operation(s) in arbitrary precision
+   note: gen-fact: 1 operation(s) or conversion(s) in the unsigned word
    note: gen-fact: 8 of 8 integer operations bounded; 2 of 2 loop(s) proven terminating
+   gen: gen-fact: IR_P does not verify:
+   gen-fact: W5: %175 is array int and flows into nat.mul-small's argument 1, which is array int 0 18446744073709551615
 == examples/big/fib.oro go emitted a30ed197be9c09f62bb7819fae5ab10392088365a8a3510a00c1d5ce53045f99
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -34,9 +37,12 @@
 == examples/big/fib.oro java emitted a3e50b5b7cd0a7b19d187ef08d6009c9e243f2f027f38c9cd760846de5ec4cd2
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/fib.oro windows emitted 70958e29c79155f30d59dbf289675af7406306e2c4ee26fc1695b096516e7b52
+== examples/big/fib.oro windows refused
    note: gen-fib: 3 operation(s) in arbitrary precision
    note: gen-fib: 15 of 15 integer operations bounded; 3 of 3 loop(s) proven terminating
+   gen: gen-fib: IR_P does not verify:
+   gen-fib: W5: %339 is array int and flows into nat.add's argument 1, which is array int 0 18446744073709551615
+   gen-fib: W5: %340 is array int and flows into nat.add's argument 2, which is array int 0 18446744073709551615
 == examples/big/limbs.oro go emitted 8159406788a85d98f07c02fff1f82d54695fbf44bcf1efbe0273fe9777b1da5e
    note: gen-limb: 7 of 7 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 4 division(s) became a shift or a mask
@@ -57,9 +63,12 @@
 == examples/big/pair.oro java emitted b4071583637e65459ce13cc0fca5dc3dd4e77d4560de59f8747374adfb52212a
    note: gen-pair: 2 operation(s) in arbitrary precision
    note: gen-pair: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/pair.oro windows emitted 263e0825bb0dfe847e90ae4ccbf3011a76ac175b14c41eda4be8c94a4b8e1edc
+== examples/big/pair.oro windows refused
    note: gen-pair: 4 operation(s) in arbitrary precision
    note: gen-pair: 15 of 15 integer operations bounded; 3 of 3 loop(s) proven terminating
+   gen: gen-pair: IR_P does not verify:
+   gen-pair: W5: %340 is array int and flows into nat.mul's argument 2, which is array int 0 18446744073709551615
+   gen-pair: W5: %340 is array int and flows into nat.add's argument 1, which is array int 0 18446744073709551615
 == examples/big/power.oro go emitted 7a15610ef53b8c1055c013e4ecaeff42edef2f2ab2a6fe6aa19b298e3538a840
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -72,9 +81,11 @@
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-power: 3 division(s) became a shift or a mask
-== examples/big/power.oro windows emitted 03acc3770c6f9897042541a3c3b07a9832a7139d3fc040195c6c15b2413ab338
+== examples/big/power.oro windows refused
    note: gen-power: 5 operation(s) in arbitrary precision
    note: gen-power: 16 of 16 integer operations bounded; 3 of 3 loop(s) proven terminating
+   gen: gen-power: IR_P does not verify:
+   gen-power: W5: %351 is array int and flows into nat.mul's argument 1, which is array int 0 18446744073709551615
 == examples/big/render.oro go emitted 414470f0d10dca6e778c64c8b199c66819dce4cc3cf8ceb14b83ae1d831ba07b
    note: gen-render: 5 operation(s) in arbitrary precision
    note: gen-render: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating
@@ -1248,6 +1259,10 @@
 == gauntlet/differential/cases/u64-digits.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/u64-digits.oro java emitted 0b849a9640399b67648eedcb0362062262e217013422917d9e0b6f3a6e202f3d
 == gauntlet/differential/cases/u64-digits.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
+== gauntlet/differential/cases/u64-mulhi.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/u64-mulhi.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/u64-mulhi.oro java emitted a5b5ff2a7cd4c06563fa49c6a65c95a7d1fa8c3f279133a0726b2df7e431c96b
+== gauntlet/differential/cases/u64-mulhi.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/u64-square.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/u64-square.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/u64-square.oro java emitted cd9c8e5e65cc66eb021822eaec144164237786fe5e2ce1e26a170c953266f42a

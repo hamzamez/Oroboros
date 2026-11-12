@@ -1,0 +1,18 @@
+// THE HALVES OF A PRODUCT OF NATURALS (ADR 0105): for a, b ∈ [0, 2^64),
+// a·b ∈ [0, 2^128 − 2^65 + 1] is the double word's read unsigned, past 2^127,
+// and its halves are ⌊a·b / 2^64⌋ = a·b >> 64 and a·b mod 2^64 = a·b & (2^64 − 1),
+// what Go's bits.Mul64 answers; a sum's carry is (a + b) >> 64. The result is
+// a natural below 2^64, the unsigned word's. The double word is LLVM's, so the
+// product is refused on Go, the JVM and JavaScript, as a product above the word
+// is (ADR 0019).
+//
+// expect: 16045690984505281791 16045690984516814724 16045690984511570442 16045690984506326160 16045690984512614810 16045690984496881964 16045690984504214984 16045690984495815158 16045690984477971137
+// skip: go
+// skip: js
+// skip: java
+fn run(n) {
+    a = 18446744073709551615 - n * 1000003
+    b = 16045690984503098046 + n * 7
+    p = a * b
+    (p >> 64) + ((p & 18446744073709551615) >> 40) + ((a + b) >> 64)
+}

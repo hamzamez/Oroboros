@@ -1,6 +1,6 @@
 // K(ℕ*), THE INTEGERS ON A TARGET WITH NO BIGNUM (ADR 0099).
 //
-// ℕ* is the positional numerals in base B = 2^63, each m ∈ ℕ one numeral with
+// ℕ* is the positional numerals in base B = 2^64, each m ∈ ℕ one numeral with
 // a nonzero top digit; ℤ is K(ℕ*), the group completion over them, a sign and
 // a magnitude with one zero. A value is one table t:
 //   - digit i at t[i], for i < len t − 1;
@@ -16,17 +16,18 @@
 // len t is a capacity each operation computes from its operands' sizes. Every
 // build writes [0, len t) at its counter, so a result is born full (ADR 0097).
 //
-// B = 2^63, THE LARGEST BASE WHOSE DIGITS ARE WORDS AND WHOSE STEP IS PROVEN
-// (ADR 0103, M4b): a digit is a non-negative word, and Algorithm M's step
-// u·v + w + k is at most (B − 1)^2 + 2(B − 1) = B^2 − 1 = 2^126 − 1, inside
-// the decision's E, so it is an intermediate of the double word, read back as
-// t >> 63 and t & (B − 1). A digit sum x + y + c is below 2^64, the unsigned
-// word's. B itself is no word, so it is written 2^62 · 2, and B − 1 is `bm`.
+// B = 2^64, THE MACHINE'S OWN DIGIT (ADR 0105, M4c): a digit is a natural of
+// the unsigned word, and every step is an intermediate of the double word,
+// read back by its two halves, t & (B − 1) and t >> 64, which are rax and rdx:
+// Algorithm M's u·v + w + k ≤ B^2 − 1 = 2^128 − 1 read unsigned, A's
+// x + y + c < 2^65, S's x − y − b ∈ [−B, B) read signed. B itself is no word,
+// so it is written 2^62 · 4, and B − 1 is `dm`, a constant of the unsigned
+// word.
 // The operations are Knuth's (TAOCP 2 §4.3.1), each checked once as a theory
 // (ADR 0035), the large ones functions of the program (ADR 0101).
 
-// B − 1, the largest digit and the word's top
-bm = 9223372036854775807
+// B − 1, the largest digit, the unsigned word's top
+dm = 18446744073709551615
 
 // THE READS, each stating the representation's invariant as its mask, as the
 // fixed limbs' `at` does: a digit is in [0, B), the size in [0, len t − 1].
@@ -84,18 +85,15 @@ fn wg(r, nr, d, i) { if i == 0 { d } else { pg(r, nr, i - 1) } }
 fn room(ml, c) { if c > ml || c > 2^31 { abandon("out of memory: an integer longer than the largest table") } else { c } }
 
 // a word of either sign: the digits of |v|, taken as −(r % B) and r / B, both
-// truncated, so v is never negated and −2^63 is exact
+// truncated: every word is one digit, since |v| ≤ 2^63 < B, and |−2^63| is the
+// unsigned word's
 fn of(ml, v) {
-    least = 0 - bm - 1
     var o := array { 0 : _ ∈ 0..2 }
     loop i = 0 {
         i >= 3 -> o
-        i == 2 -> {
-            o[i] := signed(if v < 0 { 1 } else { 0 }, if v == 0 { 0 } else if v == least { 2 } else { 1 })
-            again(i + 1)
-        }
-        i == 1 -> { o[i] := if v == least { 1 } else { 0 }; again(i + 1) }
-        else -> { o[i] := if v == least { 0 } else if v < 0 { 0 - v } else { v }; again(i + 1) }
+        i == 2 -> { o[i] := signed(if v < 0 { 1 } else { 0 }, if v == 0 { 0 } else { 1 }); again(i + 1) }
+        i == 1 -> { o[i] := 0; again(i + 1) }
+        else -> { o[i] := if v < 0 { 0 - v } else { v }; again(i + 1) }
     }
 }
 
@@ -128,8 +126,8 @@ fn mcmp(ml, a, b) {
 // (ADR 0100). The loops write through a borrow, as macrow does.
 
 // THE DIGIT'S REDUCTION, one form for A, S, M and D: t mod B = t & (B − 1),
-// since ℤ's & is 2-adic, and the carry ⌊t / B⌋ = t >> 63, for any t a step
-// makes: x + y + c < 2^64, x − y − b ∈ [−B, B), u·v + w + k < B^2.
+// since ℤ's & is 2-adic, and the carry ⌊t / B⌋ = t >> 64, for any t a step
+// makes: x + y + c < 2^65, x − y − b ∈ [−B, B), u·v + w + k < B^2.
 
 // A: x + y with mx ≥ my. The index domain splits at my, [0, my) ∪ [my, mx),
 // so every read is in bounds by its arm's own guard. Its size is mx + c by the
@@ -150,13 +148,13 @@ fn addlp(o linear, x, mx0, y, my0, s) {
         i >= mx -> { o[mx] := c; o[mx + 1] := signed(s, mx + c); () }
         i < my -> {
             t = x[i] + y[i] + c
-            o[i] := t & bm
-            again(i + 1, t >> 63)
+            o[i] := t & dm
+            again(i + 1, t >> 64)
         }
         else -> {
             t = x[i] + c
-            o[i] := t & bm
-            again(i + 1, t >> 63)
+            o[i] := t & dm
+            again(i + 1, t >> 64)
         }
     }
 }
@@ -179,13 +177,13 @@ fn sublp(o linear, x, mx0, y, my0, s) {
         i >= mx -> { o[mx] := 0; o[mx + 1] := signed(s, top); () }
         i < my -> {
             t = x[i] - y[i] - bw
-            d = t & bm
+            d = t & dm
             o[i] := d
             again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
         }
         else -> {
             t = x[i] - bw
-            d = t & bm
+            d = t & dm
             o[i] := d
             again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
         }
@@ -238,8 +236,8 @@ fn macrow(ml, o linear, no, a, la, ma, y, j) {
         i >= ma -> { o[i + j] := k; () }
         else -> {
             t = dg(a, la, i) * y + rg(o, no, i + j) + k
-            o[i + j] := t & bm
-            again(i + 1, t >> 63)
+            o[i + j] := t & dm
+            again(i + 1, t >> 64)
         }
     }
 }
@@ -288,8 +286,8 @@ fn mul_small(ml, a, k) {
                 }
                 else -> {
                     t = a[i] * k + c
-                    o[i] := t & bm
-                    again(i + 1, t >> 63)
+                    o[i] := t & dm
+                    again(i + 1, t >> 64)
                 }
             }
         }
@@ -312,7 +310,7 @@ fn qsmall(ml, a, k, s) {
     loop i = cap - 1, r = 0 {
         i < 0 -> o
         i == cap - 1 -> { o[i] := signed(s, m); again(i - 1, r) }
-        else -> { cur = r * 4611686018427387904 * 2 + dg(a, la, i); o[i] := cur / k; again(i - 1, cur % k) }
+        else -> { cur = r * 4611686018427387904 * 4 + dg(a, la, i); o[i] := cur / k; again(i - 1, cur % k) }
     }
 }
 // the remainder by a word k ∈ [1, B), the dividend's sign
@@ -320,7 +318,7 @@ fn rem_small(ml, a, k) {
     la = len(a) - 1
     r = loop i = size(a) - 1, r = 0 {
         i < 0 -> r
-        else -> again(i - 1, (r * 4611686018427387904 * 2 + dg(a, la, i)) % k)
+        else -> again(i - 1, (r * 4611686018427387904 * 4 + dg(a, la, i)) % k)
     }
     if sgn(a) == 1 { 0 - r } else { r }
 }
@@ -340,10 +338,11 @@ fn gt(ml, a, b) { lt(ml, b, a) }
 fn ge(ml, a, b) { le(ml, b, a) }
 fn eq(ml, a, b) { hdr(a) == hdr(b) && mcmp(ml, a, b) == 0 }
 
-// RENDER BY 10^18, eighteen decimal digits per division of |a|, the quotient and
+// RENDER BY 10^18, eighteen decimal digits per division of |a| (10^19 is past
+// the signed word, no literal divisor), the quotient and
 // the remainder carried together in one table (qrem), one pass per chunk. A value below B^m has at most
-// ⌊63m·log10 2⌋ + 1 ≤ 18.9649m + 1 decimal digits, and m ≤ len a − 1, so a
-// field of n = 19·len a + 18 entries holds them, digit k at n − 1 − k for
+// ⌊64m·log10 2⌋ + 1 ≤ 19.2660m + 1 decimal digits, and m ≤ len a − 1, so a
+// field of n = 20·len a + 18 entries holds them, digit k at n − 1 − k for
 // k < n − 1. The numeral's length is found on the frozen field by a scan
 // descending from n − 1 to the first slot not '0' (or to 1, for 0), and the
 // sign and the digits are copied once, in the scan's exits, where the length
@@ -377,12 +376,12 @@ fn qrem(ml, a, off, k) {
         i < 0 -> o
         i == cap - 1 -> { o[i] := signed(0, m2); again(i - 1, r) }
         i == 0 -> { o[i] := r; again(i - 1, r) }
-        else -> { cur = r * 4611686018427387904 * 2 + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
+        else -> { cur = r * 4611686018427387904 * 4 + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
     }
 }
 
 fn render(ml, a) {
-    n = 19 * len(a) + 18
+    n = 20 * len(a) + 18
     case {
         n > ml -> abandon("out of memory: an integer longer than the largest table")
         else -> {
@@ -435,9 +434,10 @@ fn pdig(t, i) {
 // W = r·B + d: digit 0 is d, digit i the remainder's digit i − 1
 fn wdig(r, d, i) { if i == 0 { d } else { pdig(r, i - 1) } }
 
-// s, the least shift that puts v's top digit vt at or above B/2 = 2^62, so
-// f = 2^s; s ≤ 62 is the loop's measure, rising by one toward its guard
-fn nshift(vt) { loop s = 0, t = vt { s >= 62 -> s; t >= 2^62 -> s; else -> again(s + 1, t * 2) } }
+// s, the least shift that puts v's top digit vt at or above B/2 = 2^63, so
+// f = 2^s, the unsigned word's at s = 63; s ≤ 63 is the loop's measure, rising
+// by one toward its guard
+fn nshift(vt) { loop s = 0, t = vt { s >= 63 -> s; t > 9223372036854775807 -> s; else -> again(s + 1, t * 2) } }
 
 // D3. q̂ = ⌊top / vt⌋ when below B, with r̂ = top mod vt, so r̂ < vt; then
 // lowered while q̂·v_{n−2} > r̂·B + W_{n−2}, twice at most, the second time
@@ -455,16 +455,16 @@ fn qhat(v, n, r, d) {
     // triple's 2-by-1 division
     case {
         vt < 1 -> 0
-        wn >= vt -> bm
+        wn >= vt -> dm
         else -> {
-            top = wn * 4611686018427387904 * 2 + w1
+            top = wn * 4611686018427387904 * 4 + w1
             q0 = top / vt
             rh = top % vt
             case {
-                q0 >= 1 && q0 * v2 > rh * 4611686018427387904 * 2 + w2 -> {
+                q0 >= 1 && q0 * v2 > rh * 4611686018427387904 * 4 + w2 -> {
                     q1 = q0 - 1
                     rh1 = rh + vt
-                    if rh1 <= bm && q1 >= 1 && q1 * v2 > rh1 * 4611686018427387904 * 2 + w2 { q1 - 1 } else { q1 }
+                    if rh1 <= dm && q1 >= 1 && q1 * v2 > rh1 * 4611686018427387904 * 4 + w2 { q1 - 1 } else { q1 }
                 }
                 else -> q0
             }
@@ -490,21 +490,21 @@ fn msub(ml, v, n, r, d, q) {
         else -> {
             var o := array { 0 : _ ∈ 0..n + 1 }
             p0 = q * v[0]
-            t0 = d - (p0 & bm)
-            o[0] := t0 & bm
-            loop i = 1, pc = p0 >> 63, bw = if t0 < 0 { 1 } else { 0 } {
+            t0 = d - (p0 & dm)
+            o[0] := t0 & dm
+            loop i = 1, pc = p0 >> 64, bw = if t0 < 0 { 1 } else { 0 } {
                 i >= n -> {
                     // v_n = 0: a normalized divisor carries nothing out
                     t = r[n - 1] - pc - bw
-                    o[n] := t & bm
+                    o[n] := t & dm
                     o[n + 1] := if t < 0 { 1 } else { 0 }
                     o
                 }
                 else -> {
                     p = q * v[i] + pc
-                    t = r[i - 1] - (p & bm) - bw
-                    o[i] := t & bm
-                    again(i + 1, p >> 63, if t < 0 { 1 } else { 0 })
+                    t = r[i - 1] - (p & dm) - bw
+                    o[i] := t & dm
+                    again(i + 1, p >> 64, if t < 0 { 1 } else { 0 })
                 }
             }
         }
@@ -523,7 +523,7 @@ fn addv(ml, t, v, n) {
             loop i = 0, c = 0 {
                 i >= n + 2 -> o
                 i == n + 1 -> { o[i] := if c > 0 { 0 } else { 1 }; again(i + 1, c) }
-                else -> { x = pg(t, nt, i) + pg(v, nv, i) + c; o[i] := x & bm; again(i + 1, x >> 63) }
+                else -> { x = pg(t, nt, i) + pg(v, nv, i) + c; o[i] := x & dm; again(i + 1, x >> 64) }
             }
         }
     }
@@ -563,7 +563,7 @@ fn unnorm(ml, r, n, sh, s) {
         i >= n + 1 -> o
         i == n -> { o[i] := signed(s, top); again(i + 1, top) }
         else -> {
-            x = ((pg(r, nr, i + 1) * 4611686018427387904 * 2 + pg(r, nr, i)) >> sh) & bm
+            x = ((pg(r, nr, i + 1) * 4611686018427387904 * 4 + pg(r, nr, i)) >> sh) & dm
             o[i] := x
             again(i + 1, if x != 0 { i + 1 } else { top })
         }
@@ -601,9 +601,15 @@ fn div(ml, a, b) {
                             q = qhat(v, n, r, d)
                             t0 = msub(ml, v, n, r, d, q)
                             t1 = fix1(ml, t0, v, n)
-                            // ≥ 0, since a correction means q̂ ≥ 1: a total extension below it
-                            qd = q - back(t0, n) - back(t1, n)
-                            o[i] := if qd < 0 { 0 } else { qd }
+                            // q̂ − b, b ∈ {0, 1, 2} corrections, and q̂ ≥ b whenever b > 0
+                            // (Theorem B). Split on a constant, which intervals see: for
+                            // q̂ ≥ 2 the difference is in [0, B), and below 2 a word, whose
+                            // clamp at 0 is the identity on every execution
+                            b = back(t0, n) + back(t1, n)
+                            o[i] := case {
+                                q >= 2 -> q - b
+                                else -> { qs = q - b; if qs < 0 { 0 } else { qs } }
+                            }
                             again(i - 1, fix1(ml, t1, v, n))
                         }
                     }
@@ -656,11 +662,11 @@ fn rem(ml, a, b) {
 // A BOUNDED SET ON K(ℕ*) (ADR 0029): a program whose set is N_k or Z_k, moved
 // to K(ℕ*) because the fixed limbs lack an operation it uses, is enforced by
 // the set's two observables, the sign and the bit length, read off the header
-// and the top digit: bitlen = 63·(m − 1) + bitlen(top digit).
-fn blen(x) { loop b = 0, y = x { b >= 63 -> b; y < 1 -> b; else -> again(b + 1, y / 2) } }
+// and the top digit: bitlen = 64·(m − 1) + bitlen(top digit).
+fn blen(x) { loop b = 0, y = x { b >= 64 -> b; y < 1 -> b; else -> again(b + 1, y / 2) } }
 fn bitlen(a) {
     m = size(a)
-    if m < 1 { 0 } else { 63 * (m - 1) + blen(dig(a, m - 1)) }
+    if m < 1 { 0 } else { 64 * (m - 1) + blen(dig(a, m - 1)) }
 }
 // N_k = [0, 2^k): a when 0 ≤ a < 2^k, the bound's crash otherwise
 fn fit(ml, a, k) {

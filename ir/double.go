@@ -39,6 +39,10 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 	fs := analyse(tg, f)
 	wLo, wHi := ei(tg.Word.Lo), ei(tg.Word.Hi)
 	inWord := func(v V) bool { return fs[v].v.within(wLo, wHi) }
+	// inU is the unsigned word's, which holds its own values (ADR 0033)
+	inU := func(v V) bool { return fs[v].v.within(ei(0), u64Max) }
+	// back says a reading-back's result is a word's, signed or unsigned
+	back := func(v V) bool { return inWord(v) || inU(v) }
 	def := map[V]*Stmt{}
 	// a use is a statement's operand j, a π (the same integer refined by its
 	// arm's guard, whose own uses are then the value's), or anything else
@@ -79,7 +83,7 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 			// unproven is its fact outside the word, whatever placeholder mode it
 			// carries (`exact` without -checked, `trap` with it)
 			if ring(s) && s.Mode != MWrap && s.Mode != MWrapPair && s.Via == "" &&
-				(inDouble(fs[s.Res[0]].v) || PlantDoubleUnbounded) && !inWord(s.Res[0]) {
+				(inDouble(fs[s.Res[0]].v) || PlantDoubleUnbounded) && !inWord(s.Res[0]) && !inU(s.Res[0]) {
 				cand[s.Res[0]] = true
 			}
 		}
@@ -91,8 +95,9 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 		d := def[v]
 		return d != nil && d.Op == OConst && d.Lit != nil && d.Lit.Kind == core.KInt && d.Lit.Int > 0 && d.Lit.Int <= max
 	}
-	// an operand of a double-word computation: a word, or a candidate
-	operand := func(v V) bool { return cand[v] || inWord(v) }
+	// an operand of a double-word computation: a word, signed or unsigned
+	// (a natural's zero extension is exact), or a candidate
+	operand := func(v V) bool { return cand[v] || inWord(v) || inU(v) }
 	// THE 2-BY-1 DIVISION, where the triple has one (targets/windows/x64.oro):
 	// a natural by a positive word whose quotient the decision proves in the
 	// word (the two-digit lemma, numeralQuotient), its remainder by the same
@@ -103,14 +108,14 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
-			if s.Op == ODiv && len(s.Res) == 1 && inWord(s.Res[0]) && fs[s.Res[0]].v.within(ei(0), ei(tg.Word.Hi)) {
+			if s.Op == ODiv && len(s.Res) == 1 && inU(s.Res[0]) {
 				quot[[2]V{s.Args[0], s.Args[1]}] = true
 			}
 		}
 	})
 	byWord := func(s *Stmt) bool {
 		d := s.Args[1]
-		if !twoByOne || cand[d] || !fs[d].v.within(ei(1), ei(tg.Word.Hi)) || !nat(s.Args[0]) {
+		if !twoByOne || cand[d] || !fs[d].v.within(ei(1), u64Max) || !nat(s.Args[0]) {
 			return false
 		}
 		return quot[[2]V{s.Args[0], d}]
@@ -139,22 +144,24 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 		}
 		switch s.Op {
 		case OAdd, OSub, OMul, ONeg:
-			return cand[s.Res[0]] || inWord(s.Res[0])
+			return cand[s.Res[0]] || back(s.Res[0])
 		case ODiv, ORem, OMod:
 			if u.j == 0 && (s.Op == ODiv || s.Op == ORem) && !positive(s.Args[1], 1<<62) {
-				return byWord(s) && inWord(s.Res[0])
+				return byWord(s) && back(s.Res[0])
 			}
-			return u.j == 0 && positive(s.Args[1], 1<<62) && inWord(s.Res[0])
+			return u.j == 0 && positive(s.Args[1], 1<<62) && back(s.Res[0])
 		case OAnd:
-			// t & m for a constant m ≥ 0 is t mod 2ᵏ where m = 2ᵏ − 1, and in
-			// [0, m] whatever m: ℤ's & is 2-adic, the same on its i128 residue
-			return positive(s.Args[1-u.j], 1<<63-1) && inWord(s.Res[0])
+			// t & m for m >= 0, a word or the unsigned word's (2⁶⁴ − 1 is no
+			// literal): in [0, m] whatever m, and t mod 2ᵏ where m = 2ᵏ − 1;
+			// ℤ's & is 2-adic, the same on its i128 residue
+			m := s.Args[1-u.j]
+			return !cand[m] && inU(m) && back(s.Res[0])
 		case OShr:
 			// by a count in [0, 127], a constant or a word: `lshr i128` by a
 			// register is an instruction, not a call; the result an intermediate
 			// or back in the word
 			k := s.Args[1]
-			return u.j == 0 && !cand[k] && fs[k].v.within(ei(0), ei(127)) && (cand[s.Res[0]] || inWord(s.Res[0]))
+			return u.j == 0 && !cand[k] && fs[k].v.within(ei(0), ei(127)) && (cand[s.Res[0]] || back(s.Res[0]))
 		case OEq, ONe, OLt, OLe, OGt, OGe:
 			// one reading for both sides: naturals compared unsigned, or both
 			// inside (−2¹²⁷, 2¹²⁷) compared signed
@@ -192,6 +199,19 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 		if r := fs[v].v; r.finite() {
 			f.Types[v] = fmt.Sprintf("int %d %d", r.lo, r.hi)
 		}
+	}
+	// AND ITS πs, the same integers refined by their arms' guards: typed as
+	// their sources, which W6 asks of a π
+	for grew := len(cand) > 0; grew; {
+		grew = false
+		f.Walk(func(r *Region) {
+			for _, pi := range r.Pis {
+				if (cand[pi.Of] || Doubles(f)[pi.Of]) && f.Types[pi.V] != f.Types[pi.Of] {
+					f.Types[pi.V] = f.Types[pi.Of]
+					grew = true
+				}
+			}
+		})
 	}
 	// A QUOTIENT OR REMAINDER BY A WORD reads an intermediate back by the
 	// triple's 2-by-1 division, whose domain is its quotient in the word: typed

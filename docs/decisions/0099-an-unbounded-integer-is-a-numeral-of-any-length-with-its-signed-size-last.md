@@ -1,10 +1,10 @@
 # 0099 — An unbounded integer is a numeral of any length, its signed size last
 
 Date: 2026-11-09
-Status: Accepted (hamza, 2026-11-09: R3 of [integers-research.md](../integers-research.md), agreed **Item 3 reversed by [ADR 0104](0104-k-n-star-is-in-base-2-63-the-largest-base-the-decision-proves.md)**: B = 2⁶³, the double word's.
+Status: Accepted (hamza, 2026-11-09: R3 of [integers-research.md](../integers-research.md), agreed
 with R1–R4). Built in steps: [signfuse-2026-11-09](../../gauntlet/results/signfuse-2026-11-09.md)
 (R3a), [natnum-2026-11-10](../../gauntlet/results/natnum-2026-11-10.md) (R3b),
-[natdiv-2026-11-10](../../gauntlet/results/natdiv-2026-11-10.md) (R3c, D, the move, M3).
+[natdiv-2026-11-10](../../gauntlet/results/natdiv-2026-11-10.md) (R3c, D, the move, M3). **Item 3 reversed by [ADR 0104](0104-k-n-star-is-in-base-2-63-the-largest-base-the-decision-proves.md)**: B = 2⁶³, the double word's.
 
 ## Context
 

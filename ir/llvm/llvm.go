@@ -571,9 +571,18 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 
 var bigS128 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 127), big.NewInt(1))
 
+// unsigned says v is held in the unsigned word: a natural below 2⁶⁴.
+func (p *printer) unsigned(v ir.V) bool {
+	ty := p.f.Types[v]
+	return ty == "u64" || p.tg.ValueType(ty) == core.U64Type
+}
+
 // ends are a value's proven ends, exact, from its IR_P type or its literal;
 // nil where unbounded.
 func (p *printer) ends(v ir.V) (*big.Int, *big.Int) {
+	if p.unsigned(v) {
+		return big.NewInt(0), new(big.Int).SetUint64(1<<64 - 1)
+	}
 	if lo, hi, ok := core.IntRangeBig(p.f.Types[v]); ok {
 		return lo, hi
 	}
@@ -776,6 +785,9 @@ func (p *printer) flags(s *ir.Stmt, f string) string {
 
 // lo and hi are a value's proven ends, from its IR_P type, ±∞ when unbounded.
 func (p *printer) lo(v ir.V) float64 {
+	if p.unsigned(v) {
+		return 0
+	}
 	if lo, _, ok := core.IntRangeBig(p.f.Types[v]); ok && lo != nil {
 		f, _ := new(big.Float).SetInt(lo).Float64()
 		return f

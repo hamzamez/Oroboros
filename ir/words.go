@@ -81,6 +81,9 @@ type words struct {
 	// its source: u64-of ∘ int-of-u64 is the identity on U, and the reverse on
 	// S.
 	convOf map[V]V
+	// dbl are the double word's values (ADR 0105), whose operations are left
+	// as they are
+	dbl map[V]bool
 	// decidedGuards are the comparisons the facts decided, now constants, and
 	// decidedPairs their operands, the literal a π may have stated.
 	decidedGuards map[V]bool
@@ -290,6 +293,22 @@ func (w *words) rewrite() {
 }
 
 func (w *words) stmt(s *Stmt) {
+	// THE DOUBLE WORD'S OPERATIONS are its own (ADR 0105): their operands are
+	// naturals or signed words the printer extends, and their results' types
+	// are ρ of their facts, set in choose; nothing is converted.
+	if w.dbl == nil {
+		w.dbl = Doubles(w.f)
+	}
+	if s.Mode == MDouble {
+		w.stmts = append(w.stmts, *s)
+		return
+	}
+	for _, a := range s.Args {
+		if w.dbl[a] {
+			w.stmts = append(w.stmts, *s)
+			return
+		}
+	}
 	switch {
 	case (s.Op == OAdd || s.Op == OSub || s.Op == OMul) && s.Name == "" && len(s.Res) == 1:
 		toU := w.u[s.Res[0]]
@@ -436,7 +455,10 @@ func (w *words) stmt(s *Stmt) {
 	case s.Op == OIndex || s.Op == OSet:
 		s.Args[1] = w.conv(s.Args[1], false, true, "an index")
 		if s.Op == OSet {
-			s.Args[2] = w.conv(s.Args[2], false, true, "a stored value")
+			// A TABLE'S ELEMENTS ARE ρ OF ITS ELEMENT SET (ADR 0083 item 5,
+			// Theorem D′): a set inside U and outside S is held in U, the same
+			// i64 read unsigned, as a base-2⁶⁴ digit's is (ADR 0105)
+			s.Args[2] = w.conv(s.Args[2], w.elemU(s), true, "a stored value")
 		}
 		w.stmts = append(w.stmts, *s)
 	case s.Op == OBuild || s.Op == OTabulate || s.Op == OBuildMap:
@@ -481,6 +503,18 @@ func (w *words) stmt(s *Stmt) {
 	default:
 		w.stmts = append(w.stmts, *s)
 	}
+}
+
+// elemU says the table a store makes has its element set in U and not in S,
+// so its elements are held in the unsigned word: the hull of what its flow
+// class stores (Theorem D′), the fact of the table after the store, which
+// includes the stored value.
+func (w *words) elemU(s *Stmt) bool {
+	if len(s.Res) != 1 || int(s.Res[0]) >= len(w.fs) {
+		return false
+	}
+	x := w.fs[s.Res[0]]
+	return x.hasEl && x.el.within(ep{}, u64Max) && !x.el.within(w.s, w.S)
 }
 
 func (w *words) recvOf(res []V) []bool {

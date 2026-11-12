@@ -181,6 +181,14 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 // and a program function (ADR 0101): the unsigned word, its pair, storage,
 // release, reuse and the target's interpretation, each decided again.
 func afterRung(tg *emit.Target, f *Func, name string, checked bool, leg *Legality, note func(Note)) (*Legality, error) {
+	// THE DOUBLE WORD (ADR 0103, 0105, ir/double.go), FIRST: an intermediate
+	// outside both words that its term reads back into one, computed in i128
+	// where the decision proves it in one of i128's readings; decided again.
+	// The unsigned word then holds what lies in U, the double word's naturals
+	// among them, and leaves the double word's operations alone.
+	if SelectDouble(tg, f) > 0 {
+		leg = Decide(tg, f, checked)
+	}
 	// THE UNSIGNED WORD: each integer value's realization is ρ of its fact;
 	// the decision is taken again on the selected function.
 	if changed, err := SelectWords(tg, f); err != nil {
@@ -195,12 +203,6 @@ func afterRung(tg *emit.Target, f *Func, name string, checked bool, leg *Legalit
 	if changed, err := SelectPairs(tg, f); err != nil {
 		return nil, fmt.Errorf("%s: %v", name, err)
 	} else if changed {
-		leg = Decide(tg, f, checked)
-	}
-	// THE DOUBLE WORD (ADR 0103, ir/double.go): an intermediate above the word
-	// that its term reads back into the word, computed in i128 where the
-	// decision proves it in E; decided again, each proven there.
-	if SelectDouble(tg, f) > 0 {
 		leg = Decide(tg, f, checked)
 	}
 	// THE TARGET'S INTERPRETATION OF THE LANGUAGE (ADR 0089), on the decided

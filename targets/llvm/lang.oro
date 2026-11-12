@@ -193,22 +193,23 @@ module lang {
         if llvm.is_null(tok) { allocate_raw(n, w) } else { tok }
     }
 
-    // A DEAD REGION SERVES A REQUEST IT FITS (R1d): a token of k elements of
-    // width w was a table of k·w + 8 bytes, and release(p, b) ; region(b') ≡
-    // zero(p, b') for b' ≤ b of one class (os.class). So it is taken when the
-    // n elements fit and the class agrees, and given back otherwise; the sizes
-    // are the run's, compared here, where R1b's were equal by the facts.
+    // A DEAD REGION SERVES A REQUEST OF ITS CLASS (R1d, ADR 0107): a token of k
+    // elements of width w was a table of k·w + 8 bytes, and release(p, b) ;
+    // region(b') ≡ zero(p, b') whenever class(b') = class(b) (os.class, the
+    // block's capacity). So it is taken when the classes agree, a longer
+    // table included, and given back otherwise; the sizes are the run's,
+    // compared here, where R1b's were equal by the facts.
     fn reuse_fit(tok ∈ ptr, k ∈ 0..2^47-9, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
         case {
             llvm.is_null(tok) -> allocate(n, w)
-            n <= k && os.class(n * w + 8) == os.class(k * w + 8) -> { z = os.zero(tok, n * w + 8); tok }
+            os.class(n * w + 8) == os.class(k * w + 8) -> { z = os.zero(tok, n * w + 8); tok }
             else -> { r = release(tok, k, w); allocate(n, w) }
         }
     }
     fn reuse_fit_raw(tok ∈ ptr, k ∈ 0..2^47-9, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
         case {
             llvm.is_null(tok) -> allocate_raw(n, w)
-            n <= k && os.class(n * w + 8) == os.class(k * w + 8) -> tok
+            os.class(n * w + 8) == os.class(k * w + 8) -> tok
             else -> { r = release(tok, k, w); allocate_raw(n, w) }
         }
     }

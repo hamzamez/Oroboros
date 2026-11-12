@@ -15,10 +15,10 @@
 //   region_raw b fresh bytes of any contents, or the trap: region = zero ∘
 //              region_raw, for a table every element of which is written before
 //              any is read
-//   class      the size class `region` and `release` choose their allocator by:
-//              a region answered for b serves any b' ≤ b with class(b') =
-//              class(b), and release(p, b') then gives it back (R1d's reuse by
-//              fit: the class is kept by every reuse, so it is the region's)
+//   class      the capacity class: class(b') = class(b) means a region answered
+//              for b holds b' bytes and release(p, b') gives it back (R1d's
+//              reuse by fit, ADR 0100, 0107): a reuse keeps the class, so it
+//              stays the region's
 //   write_err  the bytes to standard error, answering whether they were written
 //   exit       the process ends with the code; it never returns (ADR 0090). The
 //              codes are 0..255, those every host reports the same way.
@@ -27,7 +27,7 @@ module llvm/os {
     fn release(p ∈ ptr, b ∈ 0..2^63-1) (Bool)
     fn zero(p ∈ ptr, b ∈ 0..2^63-1) (Bool)
     fn region_raw(b ∈ 0..2^63-1) (ptr)
-    fn class(b ∈ 0..2^63-1) (0..1)
+    fn class(b ∈ 0..2^63-1) (-2^63..65536)
     fn write_err(b ∈ Array(0..255)) (Bool)
     fn exit(code ∈ 0..255) (∅)
 }

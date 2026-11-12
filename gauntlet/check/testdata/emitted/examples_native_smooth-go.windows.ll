@@ -11,11 +11,12 @@ define ptr @gen_smooth(ptr %v0) #0 {
 entry:
   %.s8 = alloca i1
   %.s21 = alloca ptr
-  %.s27 = alloca ptr
-  %.s32 = alloca ptr
-  %.s33 = alloca i64
-  %.s37 = alloca ptr
-  %.s52 = alloca ptr
+  %.s26 = alloca i64
+  %.s59 = alloca ptr
+  %.s64 = alloca ptr
+  %.s65 = alloca i64
+  %.s69 = alloca ptr
+  %.s84 = alloca ptr
   %v1 = load i64, ptr %v0
   %v3 = icmp sge i64 %v1, 2
   %v4 = load i64, ptr %v0
@@ -46,66 +47,130 @@ entry:
   br label %.join17
 .else16:
   %v33 = call ptr @GetProcessHeap()
-  %.c22 = trunc i64 0 to i32
-  %v35 = call ptr @HeapAlloc(ptr %v33, i32 %.c22, i64 %v23)
-  store ptr %v35, ptr %.s21
+  %v36 = icmp sle i64 %v23, 64
+  br i1 %v36, label %.then23, label %.else24
+.then23:
+  store i64 64, ptr %.s26
+  br label %.join25
+.else24:
+  %v42 = icmp sle i64 %v23, 128
+  br i1 %v42, label %.then28, label %.else29
+.then28:
+  store i64 128, ptr %.s26
+  br label %.join25
+.else29:
+  %v47 = icmp sle i64 %v23, 256
+  br i1 %v47, label %.then31, label %.else32
+.then31:
+  store i64 256, ptr %.s26
+  br label %.join25
+.else32:
+  %v52 = icmp sle i64 %v23, 512
+  br i1 %v52, label %.then34, label %.else35
+.then34:
+  store i64 512, ptr %.s26
+  br label %.join25
+.else35:
+  %v57 = icmp sle i64 %v23, 1024
+  br i1 %v57, label %.then37, label %.else38
+.then37:
+  store i64 1024, ptr %.s26
+  br label %.join25
+.else38:
+  %v62 = icmp sle i64 %v23, 2048
+  br i1 %v62, label %.then40, label %.else41
+.then40:
+  store i64 2048, ptr %.s26
+  br label %.join25
+.else41:
+  %v67 = icmp sle i64 %v23, 4096
+  br i1 %v67, label %.then43, label %.else44
+.then43:
+  store i64 4096, ptr %.s26
+  br label %.join25
+.else44:
+  %v72 = icmp sle i64 %v23, 8192
+  br i1 %v72, label %.then46, label %.else47
+.then46:
+  store i64 8192, ptr %.s26
+  br label %.join25
+.else47:
+  %v77 = icmp sle i64 %v23, 16384
+  br i1 %v77, label %.then49, label %.else50
+.then49:
+  store i64 16384, ptr %.s26
+  br label %.join25
+.else50:
+  %v82 = icmp sle i64 %v23, 32768
+  br i1 %v82, label %.then52, label %.else53
+.then52:
+  store i64 32768, ptr %.s26
+  br label %.join25
+.else53:
+  store i64 65536, ptr %.s26
+  br label %.join25
+.join25:
+  %v37 = load i64, ptr %.s26
+  %.c54 = trunc i64 0 to i32
+  %v87 = call ptr @HeapAlloc(ptr %v33, i32 %.c54, i64 %v37)
+  store ptr %v87, ptr %.s21
   br label %.join17
 .join17:
   %v26 = load ptr, ptr %.s21
-  %v36 = icmp eq ptr %v26, null
-  br i1 %v36, label %.then24, label %.else25
-.then24:
+  %v88 = icmp eq ptr %v26, null
+  br i1 %v88, label %.then56, label %.else57
+.then56:
   call void @llvm.trap()
   unreachable
-.else25:
-  store ptr %v26, ptr %.s27
+.else57:
+  store ptr %v26, ptr %.s59
   br label %.join11
 .else10:
   call void @llvm.trap()
   unreachable
 .join11:
-  %v18 = load ptr, ptr %.s27
+  %v18 = load ptr, ptr %.s59
   store i64 %v6, ptr %v18
-  store ptr %v18, ptr %.s32
-  store i64 0, ptr %.s33
-  br label %.head30
-.head30:
-  %v43 = load ptr, ptr %.s32
-  %v44 = load i64, ptr %.s33
-  %v45 = icmp sge i64 %v44, %v6
-  br i1 %v45, label %.then35, label %.else36
-.then35:
-  store ptr %v43, ptr %.s37
-  br label %.exit31
-.else36:
-  %.d38 = getelementptr inbounds i8, ptr %v0, i64 8
-  %.e39 = getelementptr inbounds double, ptr %.d38, i64 %v44
-  %v50 = load double, ptr %.e39
-  %v52 = add nuw nsw i64 %v44, 1
-  %.d41 = getelementptr inbounds i8, ptr %v0, i64 8
-  %.e42 = getelementptr inbounds double, ptr %.d41, i64 %v52
-  %v53 = load double, ptr %.e42
-  %v54 = fadd double %v50, %v53
-  %v56 = add nuw nsw i64 %v44, 2
-  %.d45 = getelementptr inbounds i8, ptr %v0, i64 8
-  %.e46 = getelementptr inbounds double, ptr %.d45, i64 %v56
-  %v57 = load double, ptr %.e46
-  %v58 = fadd double %v54, %v57
-  %v60 = fdiv double %v58, 0x4008000000000000
-  %.d49 = getelementptr inbounds i8, ptr %v43, i64 8
-  %.e50 = getelementptr inbounds double, ptr %.d49, i64 %v44
-  store double %v60, ptr %.e50
-  %v63 = add nuw nsw i64 %v44, 1
-  store ptr %v43, ptr %.s32
-  store i64 %v63, ptr %.s33
-  br label %.head30
-.exit31:
-  %v42 = load ptr, ptr %.s37
-  store ptr %v42, ptr %.s52
-  br label %.built29
-.built29:
-  %v39 = load ptr, ptr %.s52
-  ret ptr %v39
+  store ptr %v18, ptr %.s64
+  store i64 0, ptr %.s65
+  br label %.head62
+.head62:
+  %v95 = load ptr, ptr %.s64
+  %v96 = load i64, ptr %.s65
+  %v97 = icmp sge i64 %v96, %v6
+  br i1 %v97, label %.then67, label %.else68
+.then67:
+  store ptr %v95, ptr %.s69
+  br label %.exit63
+.else68:
+  %.d70 = getelementptr inbounds i8, ptr %v0, i64 8
+  %.e71 = getelementptr inbounds double, ptr %.d70, i64 %v96
+  %v102 = load double, ptr %.e71
+  %v104 = add nuw nsw i64 %v96, 1
+  %.d73 = getelementptr inbounds i8, ptr %v0, i64 8
+  %.e74 = getelementptr inbounds double, ptr %.d73, i64 %v104
+  %v105 = load double, ptr %.e74
+  %v106 = fadd double %v102, %v105
+  %v108 = add nuw nsw i64 %v96, 2
+  %.d77 = getelementptr inbounds i8, ptr %v0, i64 8
+  %.e78 = getelementptr inbounds double, ptr %.d77, i64 %v108
+  %v109 = load double, ptr %.e78
+  %v110 = fadd double %v106, %v109
+  %v112 = fdiv double %v110, 0x4008000000000000
+  %.d81 = getelementptr inbounds i8, ptr %v95, i64 8
+  %.e82 = getelementptr inbounds double, ptr %.d81, i64 %v96
+  store double %v112, ptr %.e82
+  %v115 = add nuw nsw i64 %v96, 1
+  store ptr %v95, ptr %.s64
+  store i64 %v115, ptr %.s65
+  br label %.head62
+.exit63:
+  %v94 = load ptr, ptr %.s69
+  store ptr %v94, ptr %.s84
+  br label %.built61
+.built61:
+  %v91 = load ptr, ptr %.s84
+  ret ptr %v91
 }
 
 define ptr @gen_smooth_into(ptr %v0, ptr %v1) #0 {

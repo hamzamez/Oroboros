@@ -220,8 +220,8 @@ checked. When a package hits a wall that needs language work, stop, research it,
      windows`), the gauntlet's seven programs run there at parity, and a second triple runs the suite.
      **The standing measure** (hamza, 2026-11-10): **the windows implementation is faster than the Go
      one**; as long as it is slower, the gap is work owed, done now or not. Today it is slower on every
-     K(ℕ\*) program but one (fact 3.2×, its product 1.8×; fib 1.9× `math/big`; **the 2,000-quotient
-     program 0.78×, faster than Go**, [nat64-2026-11-12](gauntlet/results/nat64-2026-11-12.md)).
+     K(ℕ\*) program but two (fact 2.7×; fib 1.9× `math/big`; **the 2,000-quotient program 0.92× and
+     the product of a numeral by a word 0.99×**, [class-2026-11-12](gauntlet/results/class-2026-11-12.md)).
      ~~A quotient by 2³² as `sdiv`/`srem`~~, done there: on ℕ ∩ S₆₄ `/` and `%` are `udiv` and
      `urem` (truncation is the floor; the bits read alike), `llvm.udiv_nat`/`urem_nat` chosen by
      ADR 0088's narrowest domain, the product 0.55× its time. **M4, 64-bit digits, in steps**:
@@ -239,10 +239,12 @@ checked. When a package hits a wall that needs language work, stop, research it,
      compile 1.01×); ~~2–3. digits in U₆₄, the library at B = 2⁶⁴~~ done (ADR 0106,
      [nat64-2026-11-12](gauntlet/results/nat64-2026-11-12.md)): the double word chooses first, a
      table's elements by their hull, the product's row the machine's (`mulq`, `add`, `adc`); the
-     2,000 quotients 0.78× Go, the product 1.8×, fib 1.9×, fact 3.2×. **Next, by the machine code**:
-     storage for a growing numeral (reuse across a call, ADR 0101 step 2, and a capacity class a
-     one-digit-longer numeral fits), then the sum's carry kept in the flags, then divide-and-conquer
-     printing. Divide-and-conquer printing
+     2,000 quotients 0.78× Go, the product 1.8×, fib 1.9×, fact 3.2×. ~~Storage for a growing
+     numeral~~ done (ADR 0107, [class-2026-11-12](gauntlet/results/class-2026-11-12.md)): a heap
+     region a block of its power-of-two class, Σ_OS's `class` the capacity, a dead region serving
+     every request of its class; the product 0.99× Go, fact 2.7×; reuse across a call not needed.
+     **Next, by the machine code**: the sum's carry kept in the flags (fib), then divide-and-conquer
+     printing (fact). Divide-and-conquer printing
      measured at about 1.8× before Karatsuba, not more, while a D step costs 12 cycles (D4 split by
      its index domain, kept, inside the noise). Its causes, by expected gain
      (fitreuse-2026-11-10, lenonce-2026-11-10):
@@ -271,7 +273,7 @@ checked. When a package hits a wall that needs language work, stop, research it,
      In steps:
      1. ~~**The layering**~~ **done** (ADR 0093, [layers-2026-11-04](gauntlet/results/layers-2026-11-04.md)):
         `targets/llvm/` is T_LLVM[Σ_OS], a theory with a parameter (Σ_LLVM, ι's terms, the
-        representations, and Σ_OS's headers, `region`, `write_err`, `exit`, `release`, `zero` and `region_raw` since ADR 0096 and 0097, `class` since ADR 0100); `targets/windows/`
+        representations, and Σ_OS's headers, `region`, `write_err`, `exit`, `release`, `zero` and `region_raw` since ADR 0096 and 0097, `class` since ADR 0100, the capacity since ADR 0107); `targets/windows/`
         glues it (`glue llvm`, §2.1's ⊔), names its `triple`, and defines Σ_OS over kernel32; a header
         with no body is an operation symbol a glued layer must define; a run is exit(0) ∘ main.
      2. ~~**The C ABI in the layer**~~ **done** (ADR 0094, [cabi-2026-11-05](gauntlet/results/cabi-2026-11-05.md)):
@@ -334,7 +336,8 @@ checked. When a package hits a wall that needs language work, stop, research it,
               (`PlantFitCount`, `PlantFitUnchecked`). K(ℕ\*)'s loops are not LIFO, so no stack holds
               them. Measured: fib 6% faster, the rest unchanged; **the allocation was not K(ℕ\*)'s
               cost** (natdiv's 4.4× read as R1d's trigger was wrong): its per-digit computation is,
-              named under the standing measure (6b′);
+              named under the standing measure (6b′); a growing numeral's was, at exact sizes, until ADR 0107's
+              classes;
             - R1e **waits on a trigger** (hamza, 2026-11-09): strings and containment. 3 programs call
               the string helpers, a fixed few times each. Trigger: input-driven programs on windows
               (`os` there), which bring strings;
@@ -830,6 +833,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | K(ℕ\*) is in base 2⁶³, the largest the decision proves (B² − 1 ∈ E); the two-digit lemma a transfer for `/`; a quotient by a word the triple's 2-by-1 division; reverses 0099 item 3, amends 0103 item 4 | [0104](docs/decisions/0104-k-n-star-is-in-base-2-63-the-largest-base-the-decision-proves.md) |
 | The decision's ends are 192-bit, E = (−2¹⁹⁰, 2¹⁹⁰); the double word has two readings, (−2¹²⁷, 2¹²⁷) signed and [0, 2¹²⁸) unsigned; amends 0103 | [0105](docs/decisions/0105-the-decisions-ends-are-192-bit-and-the-double-word-has-two-readings.md) |
 | K(ℕ\*) is in base 2⁶⁴, a digit a natural of U₆₄, every step the double word's read back by its halves; the double word chooses before the unsigned word; a table's elements by their hull; reverses 0104 item 1 | [0106](docs/decisions/0106-k-n-star-is-in-base-2-64-the-machines-digit.md) |
+| A region is answered by its capacity class: a heap block of 2^⌈log₂ b⌉ bytes, Σ_OS's `class` the capacity, a dead region serving every request of its class; amends 0100 | [0107](docs/decisions/0107-a-region-is-answered-by-its-capacity-class.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

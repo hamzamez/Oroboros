@@ -15,8 +15,33 @@ module llvm/os {
     // process heap below. A null answer is exhaustion, the trap: LLVM may assume
     // a pointer it loads through is not null.
     fn region(b ∈ 0..2^63-1) (ptr) {
-        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, b) }
+        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, heapclass(b)) }
         if llvm.is_null(p) { llvm.trap() } else { p }
+    }
+
+    // THE HEAP'S SIZE CLASSES, segregated fits (Knowlton 1965; Wilson et al.
+    // 1995): a heap request of b bytes takes c(b) = 2^⌈log₂ b⌉, at least 64. c is
+    // monotone and idempotent, so a block freed at class c serves every later
+    // request of class c from the heap's own free list, and internal
+    // fragmentation is below 2×. A numeral one digit longer than the one just
+    // freed is the same class, where an exact size never fits (measured cold:
+    // the growing product's allocations 66–81 ms exact, 19 ms by class). c is a
+    // case on b's thresholds, so its range is the decision's, the join of its
+    // arms' constants.
+    fn heapclass(b ∈ 0..65535) (64..65536) {
+        case {
+            b <= 64 -> 64
+            b <= 128 -> 128
+            b <= 256 -> 256
+            b <= 512 -> 512
+            b <= 1024 -> 1024
+            b <= 2048 -> 2048
+            b <= 4096 -> 4096
+            b <= 8192 -> 8192
+            b <= 16384 -> 16384
+            b <= 32768 -> 32768
+            else -> 65536
+        }
     }
 
     // A REGION GIVEN BACK, by the rule `region` chose its allocator by, the size
@@ -32,15 +57,18 @@ module llvm/os {
     // 64 KiB (zero anyway), the heap without HEAP_ZERO_MEMORY below, so
     // release ∘ region_raw is the identity on the heap too.
     fn region_raw(b ∈ 0..2^63-1) (ptr) {
-        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 0, b) }
+        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 0, heapclass(b)) }
         if llvm.is_null(p) { llvm.trap() } else { p }
     }
 
-    // THE SIZE CLASS, `region`'s and `release`'s rule: VirtualAlloc from 64 KiB,
-    // the process heap below. HeapFree and VirtualFree with MEM_RELEASE free a
-    // whole block whatever its size, so a region serves any smaller request of
-    // its class and is given back by it.
-    fn class(b ∈ 0..2^63-1) (0..1) { if b >= 65536 { 1 } else { 0 } }
+    // THE CAPACITY CLASS, the kernel of the block a request is answered with:
+    // the heap's c(b), a power of two from 64, and VirtualAlloc's committed
+    // pages, ⌈b/4096⌉, negated so that the two allocators' classes are
+    // disjoint. Equal classes are one allocator and one capacity, at least
+    // either request; HeapFree and VirtualFree with MEM_RELEASE free a whole
+    // block whatever its size, so either request gives it back. ⌈b/4096⌉ is
+    // ⌊(b − 1)/4096⌋ + 1, written so that no step leaves the word.
+    fn class(b ∈ 0..2^63-1) (-2^63..65536) { if b >= 65536 { -1 - llvm.udiv_nat(b - 1, 4096) } else { heapclass(b) } }
 
     // A DEAD REGION MADE FRESH: its b bytes zero, as `region` answers them.
     fn zero(p ∈ ptr, b ∈ 0..2^63-1) (Bool) {

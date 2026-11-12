@@ -2881,3 +2881,35 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/u64-mulhi.oro java`
 - new source — `gauntlet/differential/cases/u64-mulhi.oro js`
 - new source — `gauntlet/differential/cases/u64-mulhi.oro windows`
+
+## 2026-11-12 — on e173ef0, with uncommitted changes
+
+**Reason:** ADR 0107: a heap region is a block of its power-of-two capacity class, and a dead region serves every request of its class; the windows allocator changes in every program with a table
+
+632 runs: 407 emitted, 225 refused; 5710 of 5764 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling pass.
+
+23 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- compiler output changed — `examples/big/fact.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/smooth-go.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `lib/win/print.oro windows`

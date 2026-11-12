@@ -603,7 +603,9 @@ says why the next is what it is.
      integers is now faster on Windows than in Go, and adding, multiplying and printing them about
      twice as fast as before; since 2026-11-12 each digit is a full 64-bit word
      ([nat64-2026-11-12](gauntlet/results/nat64-2026-11-12.md)), which makes the inner
-     multiplication loop the machine's own; what is left is allocation and the addition's carry;
+     multiplication loop the machine's own, and since then memory is handed out in power-of-two
+     sizes ([class-2026-11-12](gauntlet/results/class-2026-11-12.md)), which brings multiplying a big
+     integer by a word level with Go; what is left is the addition's carry and printing;
      then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is

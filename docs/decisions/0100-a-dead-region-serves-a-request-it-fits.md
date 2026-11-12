@@ -1,7 +1,7 @@
 # 0100 — A dead region serves a request it fits
 
 Date: 2026-11-10
-Status: Accepted (hamza, 2026-11-10: "go ahead with R1d"). **Amends
+Status: Accepted (hamza, 2026-11-10: "go ahead with R1d"). **Amends **The fit amended by [ADR 0107](0107-a-region-is-answered-by-its-capacity-class.md)**: class equality, `class` the capacity, a longer request of the class included.
 [ADR 0096](0096-a-values-storage-is-chosen-by-size-class-and-released-at-its-death.md) item 6**: a
 table of run-time length takes a dead region by fit, in place of the data stack. Built with
 [fitreuse-2026-11-10](../../gauntlet/results/fitreuse-2026-11-10.md).

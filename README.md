@@ -470,7 +470,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-11.* The current assessment,
+*Updated with the plan; last updated 2026-11-13.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
@@ -605,7 +605,11 @@ says why the next is what it is.
      ([nat64-2026-11-12](gauntlet/results/nat64-2026-11-12.md)), which makes the inner
      multiplication loop the machine's own, and since then memory is handed out in power-of-two
      sizes ([class-2026-11-12](gauntlet/results/class-2026-11-12.md)), which brings multiplying a big
-     integer by a word level with Go; what is left is the addition's carry and printing;
+     integer by a word level with Go; since 2026-11-13 each digit of a sum is the processor's own
+     add-with-carry, the carry kept in its flag
+     ([carry-2026-11-13](gauntlet/results/carry-2026-11-13.md)), which takes a third off adding
+     big integers (Fibonacci's 100,000th number 1.23× Go's time, from 1.9×); what is left is printing,
+     which needs a faster multiplication (Karatsuba's) first;
      then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is

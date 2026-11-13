@@ -129,10 +129,54 @@ fn mcmp(ml, a, b) {
 // since ℤ's & is 2-adic, and the carry ⌊t / B⌋ = t >> 64, for any t a step
 // makes: x + y + c < 2^65, x − y − b ∈ [−B, B), u·v + w + k < B^2.
 
-// A: x + y with mx ≥ my. The index domain splits at my, [0, my) ∪ [my, mx),
-// so every read is in bounds by its arm's own guard. Its size is mx + c by the
-// final carry: x is normal, so with no carry out digit mx − 1 is at least x's
-// top digit, which is not 0. The carry goes at mx and the header at mx + 1.
+// A's and S's second loops, over [my, mx), each a call borrowing o, the
+// state the first fold ends in its arguments: the carry or borrow, in {0, 1}
+// by its set (a claim each call discharges), and S's size so far. Each loop
+// bounds what it reads once, as its caller does.
+fn addhi(o linear, x, j0, mx0, c0, s) {
+    lx = len(x) - 1
+    n2 = len(o) - 2
+    m1 = if mx0 > lx { lx } else { mx0 }
+    mx = if m1 > n2 { n2 } else { m1 }
+    j = if j0 < 0 { 0 } else { j0 }
+    loop i = j, c = c0 {
+        i >= mx -> { wr(o, mx, c); wr(o, mx + 1, signed(s, mx + c)) }
+        else -> {
+            t = x[i] + c
+            o[i] := t & dm
+            again(i + 1, t >> 64)
+        }
+    }
+}
+fn subhi(o linear, x, j0, mx0, b0, top0, s) {
+    lx = len(x) - 1
+    n2 = len(o) - 2
+    m1 = if mx0 > lx { lx } else { mx0 }
+    mx = if m1 > n2 { n2 } else { m1 }
+    j = if j0 < 0 { 0 } else { j0 }
+    loop i = j, bw = b0, top = top0 {
+        i >= mx -> { wr(o, mx, 0); wr(o, mx + 1, signed(s, top)) }
+        else -> {
+            t = x[i] - bw
+            d = t & dm
+            o[i] := d
+            again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
+        }
+    }
+}
+// a digit of a buffer being built, written where it is in the table: the dual
+// of rd, the identity off its domain
+fn wr(o linear, i, v) { if i >= 0 && i < len(o) { o[i] := v } else { () } }
+
+// A: x + y with mx ≥ my. The index domain splits at my, [0, my) ⊔ [my, mx),
+// and A is a fold over it, so it is two loops in sequence, the carry passed
+// from the first to the second: a fold over a concatenation is the composite
+// of the folds, End(S)'s product. Each loop's step is then one full adder,
+// with no clause testing i < my at every digit (carry-2026-11-13: one loop
+// with that test is no faster with the machine's carry, two are 2×). Every
+// read is in bounds by its loop's own guard. Its size is mx + c by the final
+// carry: x is normal, so with no carry out digit mx − 1 is at least x's top
+// digit, which is not 0. The carry goes at mx and the header at mx + 1.
 fn addlp(o linear, x, mx0, y, my0, s) {
     // the sizes against what the loop reads and writes, once: the identity on
     // every numeral (its size is below its length), and each read's bound a
@@ -145,23 +189,18 @@ fn addlp(o linear, x, mx0, y, my0, s) {
     k1 = if my0 > ly { ly } else { my0 }
     my = if k1 > mx { mx } else { k1 }
     loop i = 0, c = 0 {
-        i >= mx -> { o[mx] := c; o[mx + 1] := signed(s, mx + c); () }
-        i < my -> {
-            t = x[i] + y[i] + c
-            o[i] := t & dm
-            again(i + 1, t >> 64)
-        }
+        i >= my -> addhi(o, x, my, mx, c, s)
         else -> {
-            t = x[i] + c
+            t = x[i] + y[i] + c
             o[i] := t & dm
             again(i + 1, t >> 64)
         }
     }
 }
 
-// S: x − y with |x| ≥ |y|, the same split, the borrow in {0, 1} and never
-// out of the top. A difference's size is not its operands': the size is the
-// index past its last nonzero digit, tracked as it goes.
+// S: x − y with |x| ≥ |y|, the same split into two loops, the borrow in
+// {0, 1} and never out of the top. A difference's size is not its operands':
+// the size is the index past its last nonzero digit, tracked as it goes.
 fn sublp(o linear, x, mx0, y, my0, s) {
     // the sizes against what the loop reads and writes, once: the identity on
     // every numeral (its size is below its length), and each read's bound a
@@ -174,15 +213,9 @@ fn sublp(o linear, x, mx0, y, my0, s) {
     k1 = if my0 > ly { ly } else { my0 }
     my = if k1 > mx { mx } else { k1 }
     loop i = 0, bw = 0, top = 0 {
-        i >= mx -> { o[mx] := 0; o[mx + 1] := signed(s, top); () }
-        i < my -> {
-            t = x[i] - y[i] - bw
-            d = t & dm
-            o[i] := d
-            again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })
-        }
+        i >= my -> subhi(o, x, my, mx, bw, top, s)
         else -> {
-            t = x[i] - bw
+            t = x[i] - y[i] - bw
             d = t & dm
             o[i] := d
             again(i + 1, if t < 0 { 1 } else { 0 }, if d != 0 { i + 1 } else { top })

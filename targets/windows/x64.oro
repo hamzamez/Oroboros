@@ -12,4 +12,20 @@ module llvm/isa {
     fn udiv_2by1(lo ∈ u64, hi ∈ u64, d ∈ u64) (u64 × u64) pure {
         host expr "call { i64, i64 } asm \"divq $4\", \"={rax},={rdx},0,1,r,~{dirflag},~{fpsr},~{flags}\"(${lo}, ${hi}, ${d})"
     }
+
+    // THE FULL ADDER, ADC AND SBB (ADR 0108; Knuth's A and S, TAOCP 2 §4.3.1):
+    // φ(x + y + c) = ((x + y + c) mod 2⁶⁴, ⌊(x + y + c) / 2⁶⁴⌋) and φ(x − y − b)
+    // = ((x − y − b) mod 2⁶⁴, [x − y − b < 0]), the carry or borrow kept in the
+    // flag across a chain of them. LLVM's target-independent uadd.with.overflow
+    // pair is not combined into adc (0.88 ns a digit, against 0.33; carry-2026-
+    // 11-13), so the triple's own. The carry in is an i8 that the machine reads
+    // as c ≠ 0, so c ∈ {0, 1} is its domain, which the printer reads off the
+    // types (llvm.md §3d); stated there, as divq's, since no call site but the
+    // printer's reaches it.
+    fn add_carry(c ∈ 0..1, x ∈ u64, y ∈ u64) (0..1 × u64) pure {
+        host expr "call { i8, i64 } @llvm.x86.addcarry.64(${c}, ${x}, ${y})" import "declare { i8, i64 } @llvm.x86.addcarry.64(i8, i64, i64)"
+    }
+    fn sub_borrow(b ∈ 0..1, x ∈ u64, y ∈ u64) (0..1 × u64) pure {
+        host expr "call { i8, i64 } @llvm.x86.subborrow.64(${b}, ${x}, ${y})" import "declare { i8, i64 } @llvm.x86.subborrow.64(i8, i64, i64)"
+    }
 }

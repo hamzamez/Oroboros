@@ -52,6 +52,7 @@ func FromFunc(tg *emit.Target, f *ir.Func) (string, error) {
 // templates name go to emit.LLVMImports, which File writes.
 func Func(tg *emit.Target, f *ir.Func) (string, error) {
 	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), slots: map[ir.V]string{}, names: map[ir.V]string{}, dbl: ir.Doubles(f)}
+	p.adders()
 	out := p.function()
 	if p.err != nil {
 		return "", fmt.Errorf("%s: %w", f.Name, p.err)
@@ -174,8 +175,12 @@ type printer struct {
 	slots   map[ir.V]string // a joined value's alloca
 	names   map[ir.V]string // a value spelled other than %vN: a new table's pointer
 	dbl     map[ir.V]bool   // the values held in the double word, i128 (ADR 0103)
-	n       int
-	err     error
+	// the full adders (ADR 0108, carry.go): a top statement's result → its
+	// adder, and the inner sums they absorb
+	adder    map[ir.V]*adder
+	absorbed map[*ir.Stmt]bool
+	n        int
+	err      error
 }
 
 func (p *printer) fail(format string, args ...any) {
@@ -510,6 +515,9 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem,
 		ir.OAnd, ir.OOr, ir.OXor, ir.ONot, ir.OShl, ir.OShr, ir.OMod,
 		ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:
+		if p.adderStmt(s) {
+			return
+		}
 		if p.readsDouble(s) {
 			p.dop(s)
 			return

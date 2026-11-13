@@ -151,6 +151,33 @@ decision: t = u·C + w with w < C and u a π of u < d has ⌊t/d⌋ < C. The dou
 by `&` with a constant mask (ℤ's & is 2-adic, so t & (2ᵏ − 1) = t mod 2ᵏ) and by a right shift by a
 word count in [0, 127].
 
+### 3d. The full adder, the triple's add-with-carry (ADR 0108)
+
+φ reads an integer by its two halves: t ↦ (t mod B, ⌊t/B⌋) on [0, 2B), and t ↦ (t mod B, [t < 0]) on
+[−B, B), B = 2⁶⁴. Each is a bijection onto [0, B) × {0, 1}. The machine's add-with-carry is φ ∘ (+)
+on [0, B)² × {0, 1}: adc(c, x, y) = φ(x + y + c) and sbb(b, x, y) = φ(x − y − b). The printer prints a
+term of the double word as the triple's adder (`llvm/isa.add-carry`, `sub-borrow`,
+`targets/windows/x64.oro`) when IR_P's types prove the premise:
+
+- it is x + y + c, x + c, x − y − b or x − b, each inner + or − used by it alone, with x, y in [0, B)
+  and c, b in [0, 1];
+- its every use reads it by φ: t & m for a word m, which is (t mod B) & m since & is 2-adic; t >> 64
+  of a sum; t < 0 of a difference.
+
+| IR_P | LLVM |
+|---|---|
+| the top `add double` or `sub double` | `%c = trunc i64 c to i8`; `call { i8, i64 } @llvm.x86.addcarry.64(i8 %c, i64 x, i64 y)` (`subborrow`) |
+| an inner one | nothing |
+| `and t m` | `extractvalue …, 1`, then `and i64 …, m` |
+| `shr t 64` | `extractvalue …, 0`, then `zext i8 … to i64` |
+| `lt t 0` | `extractvalue …, 0`, then `icmp ne i8 …, 0` |
+
+The IR is unchanged, and the choice is a function of IR_P's text. It pays only where the fold has no
+clause testing the index at every digit: K(ℕ\*)'s A and S are two loops in sequence for that reason
+(natnum.oro). LLVM's target-independent `uadd.with.overflow` is not combined into `adc`
+(carry-2026-11-13), so the triple's own operation is used. The planted faults are `PlantAdderFault` (a
+bit leaf in [0, 2]) and `PlantAdderReadFault` (any shift read as the carry).
+
 ## 4. Tables
 
 A table is a pointer to a header and its elements: an `i64` length, then the elements, each of its

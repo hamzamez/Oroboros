@@ -613,7 +613,8 @@ says why the next is what it is.
      then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
-     found, and assembling every Windows file it writes; then 32-bit Windows;
+     found, assembling every Windows file it writes, and comparing the Windows text of the
+     big-integer library, which no compared file holds today; then 32-bit Windows;
    - then what TinyRetroPad needs from Win32 against what is declared, callable and linkable today;
    - then its walls (a window procedure, Win32's structs, 32-bit code), each specified first.
 7. ~~The IR's verifier checks that each branch justifies the facts it hands its arms~~ **done

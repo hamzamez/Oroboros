@@ -392,7 +392,13 @@ checked. When a package hits a wall that needs language work, stop, research it,
           or it is a periodic tool is decided by its measured cost. **And an emitted file is
           assembled**: the emission step compares text, so `search`'s windows output was accepted
           printing `icmp sgt double`, which clang refuses (llvmf64-2026-11-06); every windows `.ll` the
-          sweep writes goes through `clang -c`, at its measured cost.
+          sweep writes goes through `clang -c`, at its measured cost. **And the text that matters is
+          compared** (carry-2026-11-13): none of the 83 windows files the emission step compares holds
+          a K(ℕ\*) function or an i128 (a differential case's `run` is not exported; `examples/big/`
+          fib and pair are refused by `gen` at W5 on `nat.add`'s argument, though `cmd/build` builds
+          them), so the double word's and the full adder's text is checked only by behavior: find
+          `gen`'s W5 (a wrong rule or a wrong input), and compare a program whose text holds the sum,
+          the difference and D;
      4. **The second triple**: `i686-pc-windows-msvc` runs the suite (TinyRetroPad is 32-bit).
      Left to the walls: LLVM's widths (native iN, i32 scalars on i686) and the rung above as native iN,
      measured against the limbs.

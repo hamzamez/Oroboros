@@ -221,6 +221,7 @@ func (c *checker) pairSuspects(suspects []slowCompile) (kept, cleared []slowComp
 	if err != nil {
 		return suspects, nil, "; not paired against the baseline's binary: " + err.Error()
 	}
+	tb := time.Now()
 	tree := filepath.Join(c.work, "baseline-tree")
 	defer os.RemoveAll(tree)
 	if err := extractCommit(c.root, commit, tree); err != nil {
@@ -235,6 +236,7 @@ func (c *checker) pairSuspects(suspects []slowCompile) (kept, cleared []slowComp
 	if out, err := build.CombinedOutput(); err != nil {
 		return suspects, nil, fmt.Sprintf("; not paired: building gen at %s: %v %s", commit[:7], err, strings.TrimSpace(string(out)))
 	}
+	c.phases = append(c.phases, fmt.Sprintf("the baseline's gen extracted and built %s", time.Since(tb).Round(time.Second)))
 	gen := filepath.Join(c.work, "bin", "gen")
 	if runtime.GOOS == "windows" {
 		gen += ".exe"

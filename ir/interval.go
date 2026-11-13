@@ -465,9 +465,9 @@ type intervals struct {
 	fs     []fact
 	loops  []*exitFacts
 	def    map[V]*Stmt
-	piOf   map[V]V // a π-parameter's source: the same value, renamed on an arm
+	piOf   map[V]V  // a π-parameter's source: the same value, renamed on an arm
 	piRel  map[V]Pi // a π-parameter itself: its guard's relation and other side
-	thresh []ep    // the widening's thresholds (widenIVT), the function's
+	thresh []ep     // the widening's thresholds (widenIVT), the function's
 	// loopT is each loop's own structural thresholds, its constants and its
 	// guards' images (loopThresholds); consts the function's integer constants.
 	loopT  map[*Stmt][]ep

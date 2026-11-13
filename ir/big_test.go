@@ -113,6 +113,7 @@ func lowerUnselectedAs(src, target, repr string) (*emit.Target, []bigUnit, error
 // outside the loop, and a parameter read after the operation that would write
 // into it.
 func TestTheBigSelectionKeepsEveryAnswer(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	dir := t.TempDir()
 	r := rand.New(rand.NewSource(29))
 	k := func(lo, n int) int { return lo + r.Intn(n) }

@@ -1,9 +1,9 @@
-# The check in 7 minutes: the differential in parallel, and the steps at once
+# The check in 4½ minutes: the differential in parallel, the steps at once, the ir tests in parallel
 
 Date: 2026-11-13 (hamza: "go ahead with 1 and 2 now", after asking whether 50 minutes for a full check
-was too long). **A full `go run ./cmd/check` took 49m 49s on 2026-11-13 and takes 7m 5s now**, every
-verdict the same: the differential's output byte-identical to its serial run, the emission
-byte-identical to its baseline. No compiler code changed.
+was too long; then "go ahead with 3 and 4 too"). **A full `go run ./cmd/check` took 49m 49s on
+2026-11-13 and takes 4m 25s now**, every verdict the same: the differential's output byte-identical
+to its serial run, the emission byte-identical to its baseline. No compiler code changed.
 
 ## What was measured first
 
@@ -90,13 +90,71 @@ The whole check, after the change:
   2,500): that baseline is the slow sweep the last accept recorded, so the note is the machine, not
   the code. It is a note, not a failure.
 
+## Items 3 and 4
+
+**3. The `ir` tests in parallel.** Go runs a test marked `t.Parallel()` only beside other parallel
+tests, after every serial test's body has returned. So a test may be parallel exactly when it writes
+no state another test reads, and the serial tests that plant faults never overlap one. The 14 tests
+over a second (203 of the package's 242 serial seconds) were checked for that, since the race
+detector needs cgo and this machine has no C compiler:
+- by a script over the test files, transitively through their helpers, for any write to a
+  package-level variable, the `Plant*` switches included;
+- by hand, for writes through a pointer (`*p = true` over `&PlantX`), which the script cannot see:
+  these appear only in `localtab`, `release` and `reuse` tests, which stay serial;
+- on the compiler's side, the package-level variables written at run time: `callees` and `calleeEr`
+  (under `calleeMu`), three `sync.Map`s, and the printers' import sets, which no `ir` test reaches.
+  Every test loads its own target, and `emit` caches none.
+
+The package then took 56 s alone (about 250 s before), and passed three times running (`-count=3`,
+235 s). Under the full check's load it is 199 s, and the compiler step 3m 24s (5m 57s before).
+`ir/interval.go`'s comment alignment, which `gofmt -l` listed at HEAD, was fixed in passing.
+
+**4. The emission step's phases**, now printed in its note every run ("the step's phases: …"):
+
+| run | sweep | second sweep | baseline `gen` built | pairs |
+|---|---|---|---|---|
+| this check | 21 s | 22 s | 8 s | 2 pairs, 14 s |
+| against e173ef0's times (a throwaway branch), quiet | 29 s | 18 s | 8 s | 4 pairs, 27 s |
+| the 19-minute run (carry-2026-11-13), by estimate | about 1 min | about 1 min | | 50 pairs, about 15 min |
+
+A pair costs about 7 s on a quiet machine. So the emission step is about one minute plus 7 s a
+suspect. The past accept runs in ACCEPTED.md paired 1, 1, 3, 3 and 5 suspects; the 50 is the outlier.
+Against the same stale baseline, a quiet machine finds 4 suspects, so the outlier needed a noisy
+machine as well as a stale baseline. The stale baseline was this session's: at class-2026-11-12,
+`compiletime.txt` was restored rather than recorded from a slow sweep. That avoided writing noise
+into the baseline, but left it a compiler behind. Re-recording it with `-accept "why" -retime` on a quiet machine
+is the remedy, and is now said in gauntlet/check/README.md.
+
+**No sound way to cut the pairs was found.** Each pair's verdict is min(now)/min(base) over its
+rounds. Under the gate's noise model (an observation is t·m·(1 + ε) with ε ≥ 0, unbounded), a later
+round can lower either minimum by any amount. So no round can be skipped in either direction: a
+suspect cleared after one round could still be confirmed after three. Pairs running at once, each
+pinned to one of the four P-cores, would share caches and turbo frequency. That is the contention
+compiletime-2026-09-25 found moves a compile by 1.6×, and would need its own validation against
+identical binaries. Deliberately not built: the cost it removes appears only on a noisy day.
+
+## The check, step by step, at the end
+
+| step | before (serial) | 1 and 2 | **1–4** |
+|---|---|---|---|
+| emission, alone | 19m 13s | 1m 4s | 57 s |
+| compiler | 8m 19s | 5m 57s | **3m 24s** |
+| differential | 16m 44s | 1m 46s | 2m 16s |
+| tooling | 5m 13s | 2m 37s | 3m 9s |
+| vet, gauntlet, ir | 23 s | 31 s | 32 s |
+| **total** | **49m 49s** | **7m 5s** | **4m 25s** |
+
+The steps beside the emission step now finish within 80 s of one another, all CPU-bound on 16
+threads. A shorter check now needs less work, not more parallelism. `cmd/build`'s tests (192 s) and
+`emit`'s (188 s) are the next critical paths. `cmd/build`'s build programs in-process through the
+printers' global import sets (`emit.LLVMImports`, which the adder's witness reads), so they cannot be
+parallel until that state is per build.
+
 ## What was not built
 
-- **The `ir` tests in parallel** (item 3): many tests set and reset the `Plant*` switches, and a test
-  planting a fault must not run beside one trusting the clean rule. Only tests that touch no switch can
-  be parallel, a list to derive from the code.
-- **Fewer or cheaper pairs in the emission step** (item 4): first its phases timed (sweep, second
-  sweep, pairs), so the 1-to-19-minute range is explained by a measurement, not by this estimate.
+- **Concurrent pairs** in the emission step, above.
+- **`cmd/build`'s and `emit`'s tests in parallel**: the printers' import sets are global, and the
+  tests that plant faults would need the same analysis as `ir`'s.
 - **A planted disagreement between targets**: the disagreement path reports through the same
   `return false` the witness's wrong answer does. A case whose targets differ needs a target-specific
   bug to plant, and no fault switch makes one.

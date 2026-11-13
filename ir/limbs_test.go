@@ -29,6 +29,7 @@ func limbValue(arr []*big.Int) *big.Int {
 // word and their full-width counterparts, a widening that stays limbs, a
 // subtraction that keeps a magnitude, the comparisons, and a word result.
 func TestTheLimbRungKeepsEveryAnswer(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	dir := t.TempDir()
 	r := rand.New(rand.NewSource(41))
 	k := func(lo, n int) int { return lo + r.Intn(n) }

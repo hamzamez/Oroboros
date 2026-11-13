@@ -20,7 +20,9 @@ go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline
 **The emission step runs first and alone**, since its compile-time gate measures CPU time, which a
 neighbour's load moves; **the other six then run at once**, each a verdict no load changes, and each is
 reported as it finishes (differential-2026-11-13). A full check took about 50 minutes run step by step,
-and 7 so; the emission step itself takes 1 to 19 minutes, by how many suspects its gate pairs serially.
+and about 4½ so. The emission step is about a minute plus 7 s for each suspect its gate pairs serially
+(its note prints its phases); its baseline should be the current compiler's, so after an accept on a
+slow machine leaves `compiletime.txt` behind, re-record it with `-accept "why" -retime` on a quiet one.
 
 **Every step runs**, whatever the others did, so one run reports everything. Exit codes:
 `0` all pass and emission is byte-identical, `1` a step failed, `2` emission changed or a compile got slower, and needs review.

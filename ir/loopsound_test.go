@@ -273,6 +273,7 @@ t[0] + t[%d]
 }
 
 func TestTheLoopRulesAreSound(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	dir := t.TempDir()
 	r := rand.New(rand.NewSource(7))
 	const cases = 396

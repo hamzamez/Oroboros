@@ -167,6 +167,7 @@ func emitArith(name string) bool {
 // TestCorpusLowersAndVerifies is spec §11's first two rows on a sample; the
 // cmd/check `ir` step is the same on every program the sweep emits.
 func TestCorpusLowersAndVerifies(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	for _, c := range corpus {
 		t.Run(filepath.Base(c.src)+"/"+c.target, func(t *testing.T) {
 			tg, p := compile(t, c.src, c.target)
@@ -191,6 +192,7 @@ func TestCorpusLowersAndVerifies(t *testing.T) {
 
 // TestRoundTrip: print ∘ read ∘ print = print, and what is read verifies.
 func TestRoundTrip(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	for _, c := range corpus {
 		t.Run(filepath.Base(c.src)+"/"+c.target, func(t *testing.T) {
 			tg, p := compile(t, c.src, c.target)
@@ -305,6 +307,7 @@ func expect(t *testing.T, got, rule string) {
 }
 
 func TestPlantedFaults(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	const dot = "examples/native/dot.oro"
 	t.Run("W1 a value defined twice", func(t *testing.T) {
 		expect(t, plant(t, dot, func(p *Program) {

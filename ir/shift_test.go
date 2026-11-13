@@ -15,6 +15,7 @@ import (
 // constants; its IR is run before and after the rewrite, and every input must
 // give the same answer. The anti-vacuity guard asks that the rewrite fired.
 func TestTheShiftRewriteKeepsEveryAnswer(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	dir := t.TempDir()
 	r := rand.New(rand.NewSource(11))
 	rewrote := 0

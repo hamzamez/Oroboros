@@ -271,10 +271,12 @@ func (c *checker) compileTime(baseDir string, outs []outcome) (note string, slow
 		// A SUSPECT EXPLAINS ITSELF before it is recorded: the same sweep again, the
 		// per-compile minimum, and the rule applied to that. A real regression
 		// survives; a neighbour's GC does not.
+		t0 := time.Now()
 		if err := c.secondSweep(outs); err != nil {
 			return "", nil, err
 		}
 		now = c.times
+		c.phases = append(c.phases, fmt.Sprintf("second sweep %s", time.Since(t0).Round(time.Second)))
 		confirmed = fmt.Sprintf("; a second sweep kept %d of %d suspect(s)", len(slower(base, now)), first)
 	}
 	slow = slower(base, now)
@@ -283,7 +285,10 @@ func (c *checker) compileTime(baseDir string, outs []outcome) (note string, slow
 		// sweeps sample the same afternoon; a pair measures both compilers in it.
 		var cleared []slowCompile
 		var pnote string
+		t1 := time.Now()
+		n := len(slow)
 		slow, cleared, pnote = c.pairSuspects(slow)
+		c.phases = append(c.phases, fmt.Sprintf("%d pair(s) × %d rounds %s", n, pairRounds, time.Since(t1).Round(time.Second)))
 		confirmed += pnote
 		// A cleared compile keeps its baseline time. The sweep's was inflated by
 		// whatever the pair cancelled, and -accept recording it would widen the

@@ -95,7 +95,8 @@ type checker struct {
 	retime         bool          // -retime: re-record the time baseline though nothing crossed the rule
 	timeNote       string
 	noTimeBaseline bool
-	swept2         bool // a second sweep has run, so c.times is a minimum of two
+	swept2         bool     // a second sweep has run, so c.times is a minimum of two
+	phases         []string // the emission step's phases and what each took
 }
 
 var stepNames = []string{"vet", "compiler", "emission", "gauntlet", "ir", "differential", "tooling"}

@@ -391,10 +391,12 @@ func countEmitted(list []outcome) (emitted, refused int) {
 func (c *checker) emission() result {
 	baseDir := filepath.Join(c.root, "gauntlet", "check")
 	newDir := filepath.Join(c.work, "emitted")
+	t0 := time.Now()
 	outs, err := c.sweep(newDir)
 	if err != nil {
 		return result{status: fail, detail: err.Error()}
 	}
+	c.phases = append(c.phases, fmt.Sprintf("sweep %s", time.Since(t0).Round(time.Second)))
 	c.emissionRan, c.emitted = true, outs
 	if err := os.WriteFile(filepath.Join(c.work, "outcomes.txt"), []byte(formatOutcomes(outs)), 0o644); err != nil {
 		return result{status: fail, detail: err.Error()}
@@ -411,6 +413,8 @@ func (c *checker) emission() result {
 	if err != nil {
 		return result{status: fail, detail: err.Error()}
 	}
+	// WHERE THE STEP'S TIME WENT, phase by phase (differential-2026-11-13)
+	note += "; the step's phases: " + strings.Join(c.phases, ", ")
 	c.timeNote, c.slow = note, slow
 
 	baseText, err := os.ReadFile(filepath.Join(baseDir, "outcomes.txt"))

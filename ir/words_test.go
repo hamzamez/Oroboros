@@ -18,6 +18,7 @@ import (
 // The programs cross 2⁶³ with sums, products, comparisons, division and
 // remainder, digit loops over U, and results brought back into S.
 func TestTheWordSelectionKeepsEveryAnswer(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	dir := t.TempDir()
 	r := rand.New(rand.NewSource(17))
 	shapes := []func() string{

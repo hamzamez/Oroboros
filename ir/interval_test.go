@@ -162,6 +162,7 @@ var maskShiftRows = []binRow{
 // TestTheMaskAndTheShiftAreSound: andIV and shrIV against ℤ's operations,
 // exhaustively on the test domains and on shift counts up to 62.
 func TestTheMaskAndTheShiftAreSound(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	ds := domains()
 	ks := []iv{rangeIV(0, 0), rangeIV(1, 1), rangeIV(0, 3), rangeIV(5, 62), rangeIV(62, 62), rangeIV(2, 6)}
 	for _, a := range ds {
@@ -175,6 +176,7 @@ func TestTheMaskAndTheShiftAreSound(t *testing.T) {
 }
 
 func TestIntervalSoundnessExhaustive(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	ds := domains()
 	for _, r := range binRows {
 		for _, a := range ds {
@@ -195,6 +197,7 @@ func TestIntervalSoundnessExhaustive(t *testing.T) {
 }
 
 func TestIntervalSoundnessRandom(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	rng := rand.New(rand.NewSource(1))
 	pick := func() iv {
 		x, y := rng.Int63n(1<<20)-1<<19, rng.Int63n(1<<20)-1<<19
@@ -217,6 +220,7 @@ func TestIntervalSoundnessRandom(t *testing.T) {
 // TestNarrowIsSound: a π's fact (Theorem E). For x ∈ a and o ∈ b with
 // `x rel o`, x ∈ narrow(a, rel, b).
 func TestNarrowIsSound(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	rels := map[string]func(c int) bool{
 		"lt": func(c int) bool { return c < 0 }, "le": func(c int) bool { return c <= 0 },
 		"gt": func(c int) bool { return c > 0 }, "ge": func(c int) bool { return c >= 0 },
@@ -364,6 +368,7 @@ func TestTheBackwardRulesAreSound(t *testing.T) {
 // S = [−2⁶³, 2⁶³), over every sample of every domain, U's values past int64
 // included (an infinite top end holds them).
 func TestTheUnsignedTransfersAreTheResidueMap(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	two64 := new(big.Int).Lsh(big.NewInt(1), 64)
 	two63 := new(big.Int).Lsh(big.NewInt(1), 63)
 	rU := func(x *big.Int) *big.Int { return new(big.Int).Mod(x, two64) }
@@ -467,6 +472,7 @@ var bitRows = []binRow{
 // against ℤ's operations, exhaustively on the test domains and their shift
 // counts, and at random; and not, which reverses the order, on every domain.
 func TestTheBitOperationsAreSound(t *testing.T) {
+	t.Parallel() // writes no switch and no package variable (differential-2026-11-13)
 	ds := domains()
 	ks := []iv{rangeIV(0, 0), rangeIV(1, 1), rangeIV(0, 3), rangeIV(5, 62), rangeIV(62, 70), rangeIV(2, 6), rangeIV(100, 130)}
 	for _, r := range bitRows {

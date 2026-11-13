@@ -534,8 +534,8 @@ what TinyRetroPad's walls need.
 ## The compiler
 
 `go run ./cmd/check` passes every step: vet, compiler, emission, gauntlet, ir, differential, tooling;
-emission first and alone (its gate times compiles), the rest at once, about 7 minutes, more when the
-compile-time gate pairs many suspects (differential-2026-11-13).
+emission first and alone (its gate times compiles), the rest at once, about 4½ minutes, plus 7 s for
+each suspect the compile-time gate pairs (differential-2026-11-13).
 
 **The pipeline.** J's reader (`core/jlex.go`, `jparse.go`, `jreadtarget.go`) builds abstract Oroboros's
 trees, and D (`core/desugar.go`) makes the core term; `Load` resolves modules, expands `case`, `try` and

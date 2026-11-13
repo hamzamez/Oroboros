@@ -17,7 +17,12 @@ go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline
 | `differential` | `gauntlet/differential/run.go`: build, **run** and agree on four targets |
 | `tooling` | `go test ./gauntlet/stdlib/`: the surveys twice, the pins, the acceptance programs, the hand declarations against the host |
 
-**Every step runs**, whatever the ones before it did, so one run reports everything. Exit codes:
+**The emission step runs first and alone**, since its compile-time gate measures CPU time, which a
+neighbour's load moves; **the other six then run at once**, each a verdict no load changes, and each is
+reported as it finishes (differential-2026-11-13). A full check took about 50 minutes run step by step,
+and 7 so; the emission step itself takes 1 to 19 minutes, by how many suspects its gate pairs serially.
+
+**Every step runs**, whatever the others did, so one run reports everything. Exit codes:
 `0` all pass and emission is byte-identical, `1` a step failed, `2` emission changed or a compile got slower, and needs review.
 **Under `go run` a non-zero code shows as 1**, with the real one on the last line (`exit status 2`).
 The summary's `REVIEW` or `FAIL` is what to read; `go build ./cmd/check` gives a binary whose exit code

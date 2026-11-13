@@ -33,7 +33,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"oroboros/ir"
@@ -242,11 +244,11 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool
 	// compiled only here, never by the emission sweep, so this is where the
 	// IR's totality on these programs is checked. A case whose IR is refused
 	// fails, naming the rule.
-	args := []string{"run", "./cmd/build", "-checked", "-target=" + target, "-ir", out + ".ir"}
+	args := []string{"-checked", "-target=" + target, "-ir", out + ".ir"}
 	if bigRepr != "" {
 		args = append(args, "-big-repr="+bigRepr)
 	}
-	cmd := exec.Command("go", append(args, "-o", out, oro)...)
+	cmd := exec.Command(buildBin, append(args, "-o", out, oro)...)
 	cmd.Dir = repoRoot()
 	bout, err := cmd.CombinedOutput()
 	if err != nil {
@@ -356,16 +358,179 @@ func repoRoot() string {
 	return filepath.Join(wd, "..", "..")
 }
 
+// targets are the four every case runs on.
+var targets = []string{"go", "js", "java", "windows"}
+
+// buildBin is cmd/build, built once into the work directory; caseDir holds
+// the cases (`-cases DIR`, for the harness's own test).
+var buildBin, caseDir = "", "cases"
+
+// runCase builds case c on every target it does not skip, runs each, and
+// writes its report to w: true when the targets agree, the answer is the one
+// the case expects, and what is proven is what it says.
+func runCase(w *strings.Builder, c, work string, keep bool) bool {
+	name := strings.TrimSuffix(filepath.Base(c), ".oro")
+	raw, err := os.ReadFile(c)
+	if err != nil {
+		panic(err)
+	}
+	src := string(raw)
+
+	// A case may exclude a target, with the reason in the file. That is a
+	// real answer — a program using a host's own name is not portable and
+	// this suite is not the place to pretend otherwise — but it has to be
+	// SAID, not achieved by the case quietly not being run anywhere.
+	skip := map[string]bool{}
+	for _, t := range targets {
+		if strings.Contains(src, "// skip: "+t) {
+			skip[t] = true
+		}
+	}
+
+	// AND A CASE MAY ASK FOR BOTH REPRESENTATIONS, which turns the suite's
+	// question from "four hosts agree" into "four hosts and two storage
+	// choices agree".
+	//
+	// That is the property the representation policy claims: a range is
+	// SEMANTICS, the target picks the storage, and picking differently
+	// changes what a program COSTS and not what it computes. Without this
+	// the limb rung lost its cross-target coverage the moment three of the
+	// four targets declared `(big-repr host)` — the code would still be
+	// emitted and nothing would run it.
+	//
+	// Fixed limbs need a host bignum only to RENDER the result, so windows
+	// takes that variant alone; the set is hardcoded here the way the
+	// drivers and artifacts above are, because this is test infrastructure.
+	variants := map[string][]string{}
+	for _, t := range targets {
+		variants[t] = []string{""}
+	}
+	if strings.Contains(src, "// big-repr: both") {
+		for _, t := range []string{"go", "js", "java"} {
+			variants[t] = []string{"host", "limbs"}
+		}
+	}
+
+	outs := map[string]string{}
+	trapped := map[string]bool{} // label -> -checked took a trap
+	var order []string
+	var errs []string
+	for _, t := range targets {
+		if skip[t] {
+			continue
+		}
+		for _, rep := range variants[t] {
+			label := t
+			if rep != "" {
+				label = t + "/" + rep
+			}
+			order = append(order, label)
+			o, traps, err := build(name, src, t, rep, work, keep)
+			if err != nil {
+				errs = append(errs, fmt.Sprintf("  %s: %v", label, err))
+				continue
+			}
+			outs[label] = o
+			trapped[label] = traps
+		}
+	}
+	if len(errs) > 0 {
+		fmt.Fprintf(w, "FAIL %s\n%s\n", name, strings.Join(errs, "\n"))
+		return false
+	}
+	// Every target must agree, and the first one alphabetically is only the
+	// one the differences are reported against — no target is the oracle.
+	var ref string
+	var refT string
+	agree := true
+	for _, t := range order {
+		o, ok := outs[t]
+		if !ok {
+			continue
+		}
+		if ref == "" && refT == "" {
+			ref, refT = o, t
+			continue
+		}
+		if o != ref {
+			agree = false
+		}
+	}
+	if !agree {
+		fmt.Fprintf(w, "FAIL %s — targets disagree\n", name)
+		for _, t := range targets {
+			if o, ok := outs[t]; ok {
+				fmt.Fprintf(w, "  %-8s %s\n", t, strings.ReplaceAll(o, "\n", " "))
+			}
+		}
+		return false
+	}
+	if want := expectFor(src); want != "" {
+		got := strings.ReplaceAll(ref, "\n", " ")
+		if got != want {
+			fmt.Fprintf(w, "FAIL %s — every target agrees, and all of them are wrong\n", name)
+			fmt.Fprintf(w, "  expected  %s\n  got       %s\n", want, got)
+			return false
+		}
+	} else {
+		fmt.Fprintf(w, "FAIL %s — no `// expect:` line. Agreement is not correctness;\n"+
+			"  a bug in the reader or the reducer is shared by every backend.\n", name)
+		return false
+	}
+	// PROVEN, UNLESS SAID OTHERWISE, AND SAID ONLY WHERE TRUE.
+	allowed, err := checkedFor(src)
+	if err != nil {
+		fmt.Fprintf(w, "FAIL %s — %v\n", name, err)
+		return false
+	}
+	var proof []string
+	for _, label := range order {
+		t, _, _ := strings.Cut(label, "/")
+		switch {
+		case trapped[label] && !allowed[t]:
+			proof = append(proof, fmt.Sprintf("  %s: an integer operation is a trap, not a proof (built with -checked).\n"+
+				"    Prove it (a signature on run, a narrower range), or declare `// checked: %s — why`.", label, t))
+		case !trapped[label] && allowed[t]:
+			proof = append(proof, fmt.Sprintf("  %s: `// checked:` names %s, and every operation there is proven. Remove it.", label, t))
+		}
+	}
+	if len(proof) > 0 {
+		fmt.Fprintf(w, "FAIL %s — what is proven is not what the case says\n%s\n", name, strings.Join(proof, "\n"))
+		return false
+	}
+	var ran []string
+	for _, t := range order {
+		if _, ok := outs[t]; ok {
+			ran = append(ran, t)
+		}
+	}
+	fmt.Fprintf(w, "ok   %-22s %s  [%s]\n", name,
+		strings.ReplaceAll(ref, "\n", " "), strings.Join(ran, " "))
+	return true
+}
+
 func main() {
-	filter, keep := "", false
-	for _, a := range os.Args[1:] {
-		if a == "-keep" {
+	filter, keep, jobs := "", false, max(runtime.NumCPU()/2, 1)
+	for i := 1; i < len(os.Args); i++ {
+		switch a := os.Args[i]; {
+		case a == "-keep":
 			keep = true
-		} else {
+		case a == "-j" && i+1 < len(os.Args):
+			n, err := strconv.Atoi(os.Args[i+1])
+			if err != nil || n < 1 {
+				fmt.Fprintln(os.Stderr, "-j takes a positive count")
+				os.Exit(2)
+			}
+			jobs = n
+			i++
+		case a == "-cases" && i+1 < len(os.Args):
+			caseDir = os.Args[i+1]
+			i++
+		default:
 			filter = a
 		}
 	}
-	cases, err := filepath.Glob("cases/*.oro")
+	cases, err := filepath.Glob(filepath.Join(caseDir, "*.oro"))
 	if err != nil || len(cases) == 0 {
 		fmt.Fprintln(os.Stderr, "no cases found in cases/")
 		os.Exit(1)
@@ -381,155 +546,56 @@ func main() {
 		fmt.Println("work:", work)
 	}
 
-	targets := []string{"go", "js", "java", "windows"}
-	fails := 0
+	// THE COMPILER IS BUILT ONCE, not by `go run` at every case × target: some
+	// 300 builds, each paying a link (differential-2026-11-13).
+	buildBin = filepath.Join(work, "oro-build.exe")
+	gb := exec.Command("go", "build", "-o", buildBin, "./cmd/build")
+	gb.Dir = repoRoot()
+	if out, err := gb.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "building cmd/build: %v\n%s", err, out)
+		os.Exit(1)
+	}
+
+	// THE CASES RUN IN PARALLEL, `jobs` at a time. Each builds into its own
+	// directories under work and its verdict is a function of its source alone,
+	// so the order they run in changes none; each report is printed in the
+	// cases' order, as soon as every case before it is done.
+	var todo []string
 	for _, c := range cases {
-		name := strings.TrimSuffix(filepath.Base(c), ".oro")
-		if filter != "" && !strings.Contains(name, filter) {
-			continue
+		if name := strings.TrimSuffix(filepath.Base(c), ".oro"); filter == "" || strings.Contains(name, filter) {
+			todo = append(todo, c)
 		}
-		raw, err := os.ReadFile(c)
-		if err != nil {
-			panic(err)
-		}
-		src := string(raw)
-
-		// A case may exclude a target, with the reason in the file. That is a
-		// real answer — a program using a host's own name is not portable and
-		// this suite is not the place to pretend otherwise — but it has to be
-		// SAID, not achieved by the case quietly not being run anywhere.
-		skip := map[string]bool{}
-		for _, t := range targets {
-			if strings.Contains(src, "// skip: "+t) {
-				skip[t] = true
+	}
+	reports := make([]string, len(todo))
+	oks := make([]bool, len(todo))
+	done := make([]chan struct{}, len(todo))
+	for i := range done {
+		done[i] = make(chan struct{})
+	}
+	next := make(chan int)
+	for k := 0; k < jobs; k++ {
+		go func() {
+			for i := range next {
+				var b strings.Builder
+				oks[i] = runCase(&b, todo[i], work, keep)
+				reports[i] = b.String()
+				close(done[i])
 			}
+		}()
+	}
+	go func() {
+		for i := range todo {
+			next <- i
 		}
-
-		// AND A CASE MAY ASK FOR BOTH REPRESENTATIONS, which turns the suite's
-		// question from "four hosts agree" into "four hosts and two storage
-		// choices agree".
-		//
-		// That is the property the representation policy claims: a range is
-		// SEMANTICS, the target picks the storage, and picking differently
-		// changes what a program COSTS and not what it computes. Without this
-		// the limb rung lost its cross-target coverage the moment three of the
-		// four targets declared `(big-repr host)` — the code would still be
-		// emitted and nothing would run it.
-		//
-		// Fixed limbs need a host bignum only to RENDER the result, so windows
-		// takes that variant alone; the set is hardcoded here the way the
-		// drivers and artifacts above are, because this is test infrastructure.
-		variants := map[string][]string{}
-		for _, t := range targets {
-			variants[t] = []string{""}
-		}
-		if strings.Contains(src, "// big-repr: both") {
-			for _, t := range []string{"go", "js", "java"} {
-				variants[t] = []string{"host", "limbs"}
-			}
-		}
-
-		outs := map[string]string{}
-		trapped := map[string]bool{} // label -> -checked took a trap
-		var order []string
-		var errs []string
-		for _, t := range targets {
-			if skip[t] {
-				continue
-			}
-			for _, rep := range variants[t] {
-				label := t
-				if rep != "" {
-					label = t + "/" + rep
-				}
-				order = append(order, label)
-				o, traps, err := build(name, src, t, rep, work, keep)
-				if err != nil {
-					errs = append(errs, fmt.Sprintf("  %s: %v", label, err))
-					continue
-				}
-				outs[label] = o
-				trapped[label] = traps
-			}
-		}
-		if len(errs) > 0 {
+		close(next)
+	}()
+	fails := 0
+	for i := range todo {
+		<-done[i]
+		fmt.Print(reports[i])
+		if !oks[i] {
 			fails++
-			fmt.Printf("FAIL %s\n%s\n", name, strings.Join(errs, "\n"))
-			continue
 		}
-		// Every target must agree, and the first one alphabetically is only the
-		// one the differences are reported against — no target is the oracle.
-		var ref string
-		var refT string
-		agree := true
-		for _, t := range order {
-			o, ok := outs[t]
-			if !ok {
-				continue
-			}
-			if ref == "" && refT == "" {
-				ref, refT = o, t
-				continue
-			}
-			if o != ref {
-				agree = false
-			}
-		}
-		if !agree {
-			fails++
-			fmt.Printf("FAIL %s — targets disagree\n", name)
-			for _, t := range targets {
-				if o, ok := outs[t]; ok {
-					fmt.Printf("  %-8s %s\n", t, strings.ReplaceAll(o, "\n", " "))
-				}
-			}
-			continue
-		}
-		if want := expectFor(src); want != "" {
-			got := strings.ReplaceAll(ref, "\n", " ")
-			if got != want {
-				fails++
-				fmt.Printf("FAIL %s — every target agrees, and all of them are wrong\n", name)
-				fmt.Printf("  expected  %s\n  got       %s\n", want, got)
-				continue
-			}
-		} else {
-			fails++
-			fmt.Printf("FAIL %s — no `// expect:` line. Agreement is not correctness;\n"+
-				"  a bug in the reader or the reducer is shared by every backend.\n", name)
-			continue
-		}
-		// PROVEN, UNLESS SAID OTHERWISE, AND SAID ONLY WHERE TRUE.
-		allowed, err := checkedFor(src)
-		if err != nil {
-			fails++
-			fmt.Printf("FAIL %s — %v\n", name, err)
-			continue
-		}
-		var proof []string
-		for _, label := range order {
-			t, _, _ := strings.Cut(label, "/")
-			switch {
-			case trapped[label] && !allowed[t]:
-				proof = append(proof, fmt.Sprintf("  %s: an integer operation is a trap, not a proof (built with -checked).\n"+
-					"    Prove it (a signature on run, a narrower range), or declare `// checked: %s — why`.", label, t))
-			case !trapped[label] && allowed[t]:
-				proof = append(proof, fmt.Sprintf("  %s: `// checked:` names %s, and every operation there is proven. Remove it.", label, t))
-			}
-		}
-		if len(proof) > 0 {
-			fails++
-			fmt.Printf("FAIL %s — what is proven is not what the case says\n%s\n", name, strings.Join(proof, "\n"))
-			continue
-		}
-		var ran []string
-		for _, t := range order {
-			if _, ok := outs[t]; ok {
-				ran = append(ran, t)
-			}
-		}
-		fmt.Printf("ok   %-22s %s  [%s]\n", name,
-			strings.ReplaceAll(ref, "\n", " "), strings.Join(ran, " "))
 	}
 	if fails > 0 {
 		fmt.Printf("\n%d case(s) failed\n", fails)

@@ -7,8 +7,11 @@
 //	go run ./cmd/check -accept "why"     keep this run's emission as the baseline, and log why
 //	go run ./cmd/check -regen DIR        write the gauntlet's generated files under DIR, and exit
 //
-// THE STEPS, in order. Every step runs, whatever the ones before it did, so one
-// run reports everything:
+// THE STEPS. Every step runs, whatever the others did, so one run reports
+// everything. The emission step runs FIRST AND ALONE, because its compile-time
+// gate measures CPU time, which a neighbour's load moves (compiletime.go); the
+// rest run AT ONCE after it, each a verdict no load changes, the ir step
+// reading the emission step's output (differential-2026-11-13):
 //
 //	vet          go vet ./...
 //	compiler     go test ./core/ ./emit/ ./ir/... ./cmd/...
@@ -47,6 +50,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -63,6 +67,7 @@ type result struct {
 	status status
 	detail string
 	took   time.Duration
+	log    string // a failing command's tail, printed under its header
 }
 
 type step struct {
@@ -140,7 +145,9 @@ func main() {
 	steps := []step{
 		{"vet", func(c *checker) result { return c.command("vet", c.root, "go", "vet", "./...") }},
 		{"compiler", func(c *checker) result {
-			return c.command("compiler", c.root, "go", "test", "-count=1", "./core/", "./emit/", "./ir/...", "./cmd/...")
+			// a package's own timeout is 10 minutes, and ir's tests take about 8
+			// under the load of the steps beside them
+			return c.command("compiler", c.root, "go", "test", "-count=1", "-timeout", "40m", "./core/", "./emit/", "./ir/...", "./cmd/...")
 		}},
 		{"emission", (*checker).emission},
 		{"gauntlet", (*checker).gauntlet},
@@ -163,18 +170,50 @@ func main() {
 		os.Exit(2)
 	}
 
-	for _, s := range steps {
-		if (len(only) > 0 && !only[s.name]) || skipped[s.name] {
-			c.results[s.name] = result{status: skip}
-			continue
-		}
-		fmt.Printf("── %s\n", s.name)
+	// THE EMISSION STEP ALONE, then every other step at once, each reported as it
+	// finishes; a step's own lines on a failure come before its result.
+	var mu sync.Mutex
+	runStep := func(s step) {
 		start := time.Now()
 		r := s.run(c)
 		r.took = time.Since(start).Round(time.Second)
+		mu.Lock()
 		c.results[s.name] = r
+		fmt.Printf("── %s\n", s.name)
+		if r.log != "" {
+			fmt.Println(r.log)
+		}
 		fmt.Printf("   %s  %s  %s\n", r.status, r.took, r.detail)
+		mu.Unlock()
 	}
+	var rest []step
+	for _, s := range steps {
+		switch {
+		case (len(only) > 0 && !only[s.name]) || skipped[s.name]:
+			c.results[s.name] = result{status: skip}
+		case s.name == "emission":
+			fmt.Println("── emission, alone")
+			runStep(s)
+		default:
+			rest = append(rest, s)
+		}
+	}
+	if len(rest) > 0 {
+		names := make([]string, len(rest))
+		for i, s := range rest {
+			names[i] = s.name
+		}
+		fmt.Printf("── at once: %s\n", strings.Join(names, ", "))
+	}
+	var wg sync.WaitGroup
+	for _, s := range rest {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runStep(s)
+		}()
+	}
+	wg.Wait()
 
 	if *accept != "" {
 		c.acceptRun(*accept)
@@ -264,8 +303,7 @@ func (c *checker) command(name, dir string, argv ...string) result {
 	_ = os.WriteFile(logPath, out.Bytes(), 0o644)
 	rel, _ := filepath.Rel(c.root, logPath)
 	if err != nil {
-		fmt.Println(tail(out.String(), 30))
-		return result{status: fail, detail: fmt.Sprintf("%v — %s", err, filepath.ToSlash(rel))}
+		return result{status: fail, detail: fmt.Sprintf("%v — %s", err, filepath.ToSlash(rel)), log: tail(out.String(), 30)}
 	}
 	return result{status: pass, detail: filepath.ToSlash(rel)}
 }

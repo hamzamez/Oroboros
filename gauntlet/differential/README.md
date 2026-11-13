@@ -7,7 +7,13 @@ cd gauntlet/differential
 go run run.go              # every case, every target
 go run run.go match        # cases whose name contains "match"
 go run run.go -keep        # leave the work directories to look at
+go run run.go -j 4         # cases at once (default: half the cores)
+go run run.go -cases DIR   # another directory of cases (the harness's own test)
 ```
+
+The cases run in parallel, `cmd/build` built once; each report is printed in the cases' order, and a
+verdict depends on nothing but its case (`cmd/check`'s `TestTheParallelDifferentialStillFails` plants a
+wrong answer among them; differential-2026-11-13).
 
 ## Why this exists
 

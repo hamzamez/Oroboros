@@ -201,6 +201,48 @@ Divide-and-conquer radix conversion (Brent and Zimmermann 2010, §1.7) and Burni
 recursive division (1998) are both products of large numerals, each a balanced recursion with the
 same level structure. `fact`'s printing (2.7× Go) waits on them.
 
+## 12. Squaring: the quadratic form, by polarization
+
+hamza, 2026-11-14: "go ahead with squaring". μ is a symmetric bilinear form on ℤ[x], and the square is
+its quadratic form, q(a) = μ(a, a). Polarization recovers μ from q, μ(a, b) = (q(a + b) − q(a) −
+q(b))/2. Read the other way, it says what q costs: on digits,
+
+    a² = Σ_i a_i² B^{2i} + 2 Σ_{i<j} a_i a_j B^{i+j},
+
+which is m(m + 1)/2 products (the diagonal's m and the triangle's m(m − 1)/2) against M's m². GMP
+and Go keep a separate `sqr` for this reason (`mpn_sqr_basecase`, `nat.sqr`).
+
+**Karatsuba's square is the tensor power's diagonal.** μ₂(a, a) = W((Ua) ⊙ (Ua)), and the three
+evaluations of a square are squares: (lo, lo), (lo + hi, lo + hi), (hi, hi). By induction every
+node of every level is a square, so:
+- one operand table goes down, which halves the down pass;
+- every leaf is a square, which halves the leaves;
+- the up pass is the product's, unchanged, since W does not know its inputs were squares.
+
+**The schoolbook square, in two passes over frozen tables**:
+1. the triangle T = Σ_{i<j} a_i a_j B^{i+j} by rows, row i being a_i times digits i + 1.. at offset
+   2i + 1, which is Algorithm M's row with fewer columns;
+2. 2T + the diagonal, two digits a step: t = 2T_{2i} + (a_i² mod B) + c, then t′ = 2T_{2i+1} +
+   ⌊a_i²/B⌋ + ⌊t/B⌋.
+
+Each step is below 2(B − 1) + (B − 1) + 2 < 3B, so the carry stays in [0, 2], and the square has 2m
+digits or one fewer.
+
+**The selection is an identity of terms**: x·x of one value. A residual's binders are named apart
+(ADR 0036), so one SSA value used twice is one integer, and the plan reads it off the IR (`ir/limbs.go`,
+`big*` with equal operands). Two equal values computed apart are not recognized. GMP tests pointer
+equality at run time, and the language has no pointer, so the static identity is what is decidable.
+
+**Cost.** Fast doubling is two squares and one product a bit. With the leaves 68% and the down pass
+21% of a product (§9's C model), squaring saves about (2/3)·(1/2)·(0.68 + 0.21) ≈ 30% of the
+products.
+
+**Not built: the interval of a square.** The decision's product of intervals treats x·x as
+independent factors (interval arithmetic's dependency problem). So `fn sq(x) (Nat) { x * x }` is
+refused for an unbounded x, although x² ≥ 0 in any ordered ring. The exact transfer is the image of
+x ↦ x², [l, h] ↦ [0 if l ≤ 0 ≤ h else min(l², h²), max(l², h²)]. Its trigger is a program that
+claims a square's set.
+
 ## References
 
 - Karatsuba, A. and Ofman, Yu. "Multiplication of multidigit numbers on automata", Soviet Physics

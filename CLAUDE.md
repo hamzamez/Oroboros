@@ -252,9 +252,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
      evaluation at 0, 1, ∞ and interpolation by a unimodular W, its levels a tensor power walked as
      three loops (down, leaves, up), each pass one loop over nodes × digits (nested, deciding
      `nat.mul` took 53 s; flat, 1.5 s); a rule's elements are ρ of their hull (`ir/words.go`).
-     fib(10⁶) by fast doubling 4.1× → 1.67× Go. **Next, by the machine code**: squaring by
-     polarization (a² halves the leaves; fast doubling is two squares a bit), then divide-and-conquer
-     printing (fact) as a scaled remainder tree over the products. The leaf division cannot be
+     fib(10⁶) by fast doubling 4.1× → 1.67× Go. ~~Squaring by polarization~~ done (ADR 0110,
+     [squaring-2026-11-14](gauntlet/results/squaring-2026-11-14.md)): x·x of one value is the
+     quadratic form, a² = Σ aᵢ²B²ⁱ + 2Σ_{i<j} aᵢaⱼBⁱ⁺ʲ, Karatsuba's square the tensor power's diagonal;
+     a square 0.54 of a product, fast doubling 1.57× Go. **Measured per operation, ours is 3.1× Go's
+     square and 4.1× its product at 10,400 words**: the leaf row is one carry chain, 0.88 ns a step,
+     against `math/big`'s assembly at about 0.3. **Next, by the machine code**: the leaf row as two
+     carry chains (o + L + B·H, x86's `mulx`/`adcx`/`adox`, a target feature the triple does not
+     assume), research first; then divide-and-conquer printing (fact) as a scaled remainder tree over
+     the products. The leaf division cannot be
      cheapened: `divq` 12.1 ns a step, Möller–Granlund's reciprocal 12.0, both latency-bound
      (carry-2026-11-13, §printing's leaf). Divide-and-conquer printing
      measured at about 1.8× before Karatsuba, not more, while a D step costs 12 cycles (D4 split by
@@ -856,6 +862,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A region is answered by its capacity class: a heap block of 2^⌈log₂ b⌉ bytes, Σ_OS's `class` the capacity, a dead region serving every request of its class; amends 0100 | [0107](docs/decisions/0107-a-region-is-answered-by-its-capacity-class.md) |
 | The full adder is the triple's (`adc`, `sbb`), printed where IR_P's types prove φ(x ± y ± c), c ∈ {0, 1}, every use a half; a fold over a split index domain is two loops | [0108](docs/decisions/0108-the-full-adder-is-the-triples-and-a-fold-over-a-split-domain-is-two-loops.md) |
 | A product of numerals above 64 digits is Karatsuba's, evaluation at 0, 1, ∞ and a unimodular interpolation; its levels a tensor power, one loop a pass over nodes × digits; a rule's elements ρ of their hull | [0109](docs/decisions/0109-a-product-is-evaluation-and-interpolation-and-its-levels-are-a-tensor-power.md) |
+| A square is the product's quadratic form, by polarization (half the digit products), recognized by its operands' identity; Karatsuba's square is the tensor power's diagonal; each pass reads frozen tables | [0110](docs/decisions/0110-a-square-is-the-products-quadratic-form-by-polarization.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

@@ -2946,3 +2946,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/big/fib.oro windows` 4515 → 1750 ms, 0.39x
+
+## 2026-11-14 — on e5d5f84, with uncommitted changes
+
+**Reason:** karatsuba-research.md 12: x*x of one value is the square by polarization on K(N*), schoolbook and Karatsuba's diagonal; big-sqr is a new differential case; programs squaring a numeral compile nat.sqr (squaring-2026-11-14)
+
+640 runs: 415 emitted, 225 refused; 5710 of 5764 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/big-sqr.oro go`
+- new source — `gauntlet/differential/cases/big-sqr.oro java`
+- new source — `gauntlet/differential/cases/big-sqr.oro js`
+- new source — `gauntlet/differential/cases/big-sqr.oro windows`
+
+1 compile(s) accepted SLOWER — compile time 1.04x the baseline (median of 25 compiles over 300 ms); a second sweep kept 3 of 3 suspect(s); paired serially against the baseline's binary (e5d5f84), 1 confirmed, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.00x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 1.00x paired; the step's phases: sweep 22s, second sweep 18s, the baseline's gen extracted and built 10s, 3 pair(s) × 3 rounds 30s:
+
+- `examples/big/power.oro windows` 3796 → 5890 ms, 1.55x; paired 1656 → 2718 ms, 1.64x

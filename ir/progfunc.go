@@ -42,7 +42,7 @@ const natPrefix = "nat."
 //
 // A test may add an instance its contract does not prove (div-small): P4 then
 // inlines it (ADR 0102).
-var natCalled = map[string]bool{"add": true, "sub": true, "mul": true, "mul-small": true,
+var natCalled = map[string]bool{"add": true, "sub": true, "mul": true, "sqr": true, "mul-small": true,
 	"div": true, "rem": true, "render": true}
 
 type calleeKey struct {

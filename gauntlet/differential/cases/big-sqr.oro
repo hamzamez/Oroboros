@@ -1,0 +1,35 @@
+// THE SQUARE ON EVERY SIZE IT DISPATCHES ON (karatsuba-research.md §12): x·x
+// of one value is the square, polarization's 2T + the diagonal, the schoolbook
+// square below 64 digits and Karatsuba's above, whose children are squares.
+// Sizes 1, 2 and 3 (the triangle empty, one product, three), 63, 64 (one leaf),
+// 65, 128, 129, 200 and 1000 (depth 4), each twice: all-ones digits (B^k − 1),
+// the doubling's and the carries' worst case, and powers of 3. The answers are
+// Python's.
+//
+// expect: 437878684 894966493 317941993 682589513 724095108 974642458 357319709 309569788 995847928 583103839
+// inputs: 0 1 2 3 4 5 6 7 8 9
+fn ones(k ∈ 0..2000) (Nat) {
+    loop x = 0, i = 0 { i >= k -> x; else -> again(x * 4294967296 * 4294967296 + 18446744073709551615, i + 1) }
+}
+
+fn p3(k ∈ 0..4000) (Nat) { loop x = 1, i = 0 { i >= k -> x; else -> again(x * 3486784401, i + 1) } }
+
+fn sq(x) { x * x }
+
+fn kk(n ∈ 0..9) (0..2000) {
+    case {
+        n == 0 -> 1
+        n == 1 -> 2
+        n == 2 -> 3
+        n == 3 -> 63
+        n == 4 -> 64
+        n == 5 -> 65
+        n == 6 -> 128
+        n == 7 -> 129
+        n == 8 -> 200
+        n == 9 -> 1000
+        else -> 1
+    }
+}
+
+fn run(n ∈ 0..9) (0..1000000006) { (sq(ones(kk(n))) + sq(p3(2 * kk(n)))) % 1000000007 }

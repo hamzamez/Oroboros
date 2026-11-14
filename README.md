@@ -611,8 +611,10 @@ says why the next is what it is.
      big integers (Fibonacci's 100,000th number 1.23× Go's time, from 1.9×); since 2026-11-14 a
      product of two long numbers is Karatsuba's
      ([karatsuba-2026-11-14](gauntlet/results/karatsuba-2026-11-14.md)), which takes the millionth
-     Fibonacci number by doubling from 4.1× Go's time to 1.67×; next, squaring with half the work,
-     then printing big numbers by divide and conquer;
+     Fibonacci number by doubling from 4.1× Go's time to 1.67×; and since the same day a square takes
+     about half a product's work ([squaring-2026-11-14](gauntlet/results/squaring-2026-11-14.md)),
+     1.57×; per operation it is still 3–4× Go's, the inner loop of a product, so next that loop with
+     two carry chains, then printing big numbers by divide and conquer;
      then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is

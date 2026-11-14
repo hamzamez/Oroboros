@@ -113,10 +113,12 @@ var natSigs = map[string]struct {
 	result  string
 	divisor bool
 }{
-	"of":        limbSigs["of"],
-	"add":       limbSigs["add"],
-	"sub":       limbSigs["sub"],
-	"mul":       limbSigs["mul"],
+	"of":  limbSigs["of"],
+	"add": limbSigs["add"],
+	"sub": limbSigs["sub"],
+	"mul": limbSigs["mul"],
+	// the square, μ(a, a) by polarization (karatsuba-research.md §12)
+	"sqr":       {[]string{"array int"}, "array int", false},
 	"mul-small": limbSigs["mul-small"],
 	"div-small": limbSigs["div-small"],
 	"rem-small": limbSigs["rem-small"],

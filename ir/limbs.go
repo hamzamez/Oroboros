@@ -123,7 +123,12 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 				widenings = append(widenings, s)
 			case "big*":
 				a, b := s.Args[0], s.Args[1]
-				if k, ok := product(b); ok {
+				if nat && a == b {
+					// x·x IS THE SQUARE, q(x) = μ(x, x): one value twice, so the
+					// identity of its operands is a fact of the term, and
+					// polarization halves its products (karatsuba-research.md §12)
+					plan[s] = use{"sqr", []V{a}}
+				} else if k, ok := product(b); ok {
 					plan[s] = use{"mul-small", []V{a, k}}
 				} else if k, ok := product(a); ok {
 					plan[s] = use{"mul-small", []V{b, k}}

@@ -963,6 +963,10 @@
 == gauntlet/differential/cases/big-signed-ops.oro windows emitted dfef548c128f075b55517cd9aedf2bbab2caa88e322a0fe1328a06d2a06a9181
    note: gen-calc: 47 operation(s) in arbitrary precision
    note: gen-calc: 373 of 373 integer operations bounded; 82 of 82 loop(s) proven terminating
+== gauntlet/differential/cases/big-sqr.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/big-sqr.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/big-sqr.oro java emitted 8f89352d37d97291f34c4ab25774d95ec490062726b79d27dd950091c3ed8b76
+== gauntlet/differential/cases/big-sqr.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/big-subdiv.oro go emitted 23265d8ea698b59f54053d18cbf3c9b8243962ddd16931ed787bdf7f40b15120
    note: gen-calc: 8 operation(s) in arbitrary precision
    note: gen-calc: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating

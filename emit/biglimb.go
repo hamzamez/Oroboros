@@ -98,11 +98,23 @@ var PlantNoAddBack bool
 // a wrong answer, which also shows its programs take the Karatsuba path.
 var PlantKaratsubaFault bool
 
+// PlantSquareFault drops polarization's factor 2 from the square's diagonal
+// pass, schoolbook and Karatsuba's leaves alike: TestASquareIsPolarizations must
+// see every square of two digits or more go wrong.
+var PlantSquareFault bool
+
 // loadNatLib is K(ℕ*)'s library, as loadLimbLib.
 func loadNatLib(tgt *Target) (*limbLib, error) {
 	src := natNumSrc
 	if PlantKaratsubaFault {
 		src = strings.Replace(src, " - kslot(q, b2, w2, i - h) + c", " + c", 1)
+	}
+	if PlantSquareFault {
+		// T + diagonal, not 2T + diagonal: polarization's factor 2 dropped
+		src = strings.Replace(src, "t = 2 * kat(tr, 2 * i) + (p & dm) + c", "t = kat(tr, 2 * i) + (p & dm) + c", 1)
+		src = strings.Replace(src, "u = 2 * kat(tr, 2 * i + 1) + (p >> 64) + (t >> 64)", "u = kat(tr, 2 * i + 1) + (p >> 64) + (t >> 64)", 1)
+		src = strings.Replace(src, "t = 2 * kslot(tr, b, 2 * m, 2 * i) + (p & dm) + c", "t = kslot(tr, b, 2 * m, 2 * i) + (p & dm) + c", 1)
+		src = strings.Replace(src, "u = 2 * kslot(tr, b, 2 * m, 2 * i + 1) + (p >> 64) + (t >> 64)", "u = kslot(tr, b, 2 * m, 2 * i + 1) + (p >> 64) + (t >> 64)", 1)
 	}
 	if PlantNoAddBack {
 		src = strings.Replace(src, "fn fix1(ml, t, v, n) { if pdig(t, n + 1) == 1 { addv(ml, t, v, n) } else { t } }",

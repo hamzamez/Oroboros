@@ -274,10 +274,18 @@ fn macrow(ml, o linear, no, a, la, ma, y, j) {
         }
     }
 }
+// THE PRODUCT: Karatsuba's where both factors are long and of one size within
+// a factor of two, Algorithm M otherwise (karatsuba-research.md).
+fn mul(ml, a, b) {
+    ma = size(a)
+    mb = size(b)
+    if ma >= kt && mb >= kt && ma <= 2 * mb && mb <= 2 * ma { kmul(ml, a, b) } else { mulm(ml, a, b) }
+}
+
 // ALGORITHM M: the rows into a zero table of ma + mb digits, then the header.
 // The product's size is ma + mb, or one less when its top digit is 0, and 0
 // when either factor is.
-fn mul(ml, a, b) {
+fn mulm(ml, a, b) {
     ma = size(a)
     mb = size(b)
     cap = room(ml, ma + mb + 1)
@@ -292,6 +300,144 @@ fn mul(ml, a, b) {
         }
         else -> { macrow(ml, o, cap, a, la, ma, dg(b, lb, j), j); again(j + 1) }
     }
+}
+
+
+// KARATSUBA (karatsuba-research.md). A numeral is its polynomial at B, and a
+// product is μ₂'s bilinear algorithm of rank 3, W((Ua) ⊙ (Ub)), evaluation at
+// 0, 1, ∞ and interpolation by the unimodular W, exact over ℤ. D levels are the
+// D-th tensor power, which factors into one pass a level (I ⊗ U ⊗ I, then
+// I ⊗ W ⊗ I), so the algorithm is three loops: down, the leaves by Algorithm M,
+// up. A level is one table of 3^L slots of one size s_L, s_{L+1} = ⌈s_L/2⌉ + 1
+// (§5): lo, hi and lo + hi each fit s_{L+1} digits, a node's product its 2s_L,
+// so the combine's last carry is 0.
+
+// the threshold T, a leaf's largest size (measured: carry-2026-11-13's C model
+// at 64–128, karatsuba-2026-11-13)
+kt = 64
+// the levels' node count is held below 3^12, so every offset j·s is a word:
+// a product past that size takes longer leaves, which is exact
+kn = 177147
+
+// a digit of a frozen table, 0 off its domain: a slot's zero extension
+fn kat(t, i) {
+    v = if i < 0 { 0 } else if i >= len(t) { 0 } else { t[i] }
+    v
+}
+// digit i of the slot of w digits at b, 0 off it
+fn kslot(t, b, w, i) { if i < 0 || i >= w { 0 } else { kat(t, b + i) } }
+
+// THE DOWN PASS, one level: nodes slots of s digits to 3·nodes slots of
+// s2 = ⌈s/2⌉ + 1, each node's lo, lo + hi and hi, lo + hi by the full adder
+// (ADR 0108). ONE LOOP over the level's nodes × digits, (j, i) its state and
+// the carry reset at each node's start: the product of the two index domains is
+// one domain, so the pass is one fold, not a fold of folds, and the decision
+// analyses no loop inside another.
+fn kdown(ml, x, nodes, s) {
+    h = (s + 1) / 2
+    s2 = h + 1
+    n = room(ml, 3 * nodes * s2)
+    var y := array { 0 : _ ∈ 0..n - 1 }
+    loop j = 0, i = 0, c = 0 {
+        j >= nodes -> y
+        i >= s2 -> again(j + 1, 0, 0)
+        else -> {
+            bx = j * s
+            by = 3 * j * s2
+            lo = kslot(x, bx, h, i)
+            hi = kslot(x, bx + h, s - h, i)
+            t = lo + hi + c
+            wr(y, by + i, lo)
+            wr(y, by + s2 + i, t & dm)
+            wr(y, by + 2 * s2 + i, hi)
+            again(j, i + 1, t >> 64)
+        }
+    }
+}
+
+// THE LEAVES: Algorithm M's rows at the slots' offsets, u·v + w + k < B^2.
+// The row bounds what it reads and writes once (the library's idiom): the
+// identity on every node, since a slot lies inside its level's table (§5), so
+// every access is proven by the loop's guard and none is tested per digit.
+fn kmac(o linear, x, ox0, m0, y, oo0) {
+    ox = if ox0 < 0 { 0 } else { ox0 }
+    oo = if oo0 < 0 { 0 } else { oo0 }
+    lx = len(x) - ox
+    lo = len(o) - oo - 1
+    m1 = if m0 > lx { lx } else { m0 }
+    m = if m1 > lo { lo } else { m1 }
+    loop i = 0, k = 0 {
+        i >= m -> wr(o, oo + m, k)
+        else -> {
+            t = x[ox + i] * y + o[oo + i] + k
+            o[oo + i] := t & dm
+            again(i + 1, t >> 64)
+        }
+    }
+}
+// the leaves' rows, (node j, row r) one loop
+fn kleaves(ml, xa, xb, nodes, m) {
+    n = room(ml, 2 * nodes * m)
+    var o := array { 0 : _ ∈ 0..n - 1 }
+    loop j = 0, r = 0 {
+        j >= nodes -> o
+        r >= m -> again(j + 1, 0)
+        else -> { kmac(o, xa, j * m, m, kslot(xb, j * m, m, r), 2 * j * m + r); again(j, r + 1) }
+    }
+}
+
+// THE UP PASS, one level: 3·nodes products of 2s2 digits to nodes of 2s.
+// Digit i of node j is the coefficient of B^i in P₀ + (P₁ − P₀ − P₂)·B^h +
+// P₂·B^2h: three terms add and two subtract, so with the carry in [−2, 2] each
+// step is in [−2B, 3B) and its carry ⌊t / B⌋ again in [−2, 2] (§6). One loop
+// over nodes × digits, as the down pass.
+fn kup(ml, q, nodes, s) {
+    h = (s + 1) / 2
+    w2 = 2 * (h + 1)
+    w = 2 * s
+    n = room(ml, nodes * w)
+    var p := array { 0 : _ ∈ 0..n - 1 }
+    loop j = 0, i = 0, c = 0 {
+        j >= nodes -> p
+        i >= w -> again(j + 1, 0, 0)
+        else -> {
+            b0 = 3 * j * w2
+            b1 = b0 + w2
+            b2 = b1 + w2
+            t = kslot(q, b0, w2, i) + kslot(q, b2, w2, i - 2 * h) + kslot(q, b1, w2, i - h) - kslot(q, b0, w2, i - h) - kslot(q, b2, w2, i - h) + c
+            wr(p, j * w + i, t & dm)
+            again(j, i + 1, t >> 64)
+        }
+    }
+}
+
+// s_L, from s_0 by L halvings
+fn klev(s0, l0) { loop l = l0, s = s0 { l <= 0 -> s; else -> again(l - 1, (s + 1) / 2 + 1) } }
+
+// THE THREE PHASES IN SEQUENCE, each a loop over levels whose values are
+// frozen tables (only a pass's own buffer is written), so no phase's loop is
+// analysed inside another's
+fn kmul(ml, a, b) {
+    ma = size(a)
+    mb = size(b)
+    s0 = room(ml, if ma > mb { ma } else { mb })
+    la = len(a) - 1
+    lb = len(b) - 1
+    x0 = alloc(array { dg(a, la, i) : i ∈ 0..s0 - 1 })
+    y0 = alloc(array { dg(b, lb, i) : i ∈ 0..s0 - 1 })
+    (d, s, nodes, xa, xb) = loop d = 0, s = s0, nodes = 1, xa = x0, xb = y0 {
+        s <= kt || nodes >= kn -> (d, s, nodes, xa, xb)
+        else -> again(d + 1, (s + 1) / 2 + 1, 3 * nodes, kdown(ml, xa, nodes, s), kdown(ml, xb, nodes, s))
+    }
+    leaves = kleaves(ml, xa, xb, nodes, s)
+    p = loop l = d - 1, q = leaves, k = nodes / 3 {
+        l < 0 -> q
+        else -> again(l - 1, kup(ml, q, k, klev(s0, l)), k / 3)
+    }
+    cap = room(ml, ma + mb + 1)
+    m = if kat(p, ma + mb - 1) == 0 { ma + mb - 1 } else { ma + mb }
+    h = signed((sgn(a) + sgn(b)) % 2, m)
+    alloc(array { if i == cap - 1 { h } else { kat(p, i) } : i ∈ 0..cap - 1 })
 }
 
 // BY A WORD k ∈ [0, B): one pass, the carry below B, each step in the double

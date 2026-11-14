@@ -470,7 +470,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-13.* The current assessment,
+*Updated with the plan; last updated 2026-11-14.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
@@ -608,8 +608,11 @@ says why the next is what it is.
      integer by a word level with Go; since 2026-11-13 each digit of a sum is the processor's own
      add-with-carry, the carry kept in its flag
      ([carry-2026-11-13](gauntlet/results/carry-2026-11-13.md)), which takes a third off adding
-     big integers (Fibonacci's 100,000th number 1.23× Go's time, from 1.9×); what is left is printing,
-     which needs a faster multiplication (Karatsuba's) first;
+     big integers (Fibonacci's 100,000th number 1.23× Go's time, from 1.9×); since 2026-11-14 a
+     product of two long numbers is Karatsuba's
+     ([karatsuba-2026-11-14](gauntlet/results/karatsuba-2026-11-14.md)), which takes the millionth
+     Fibonacci number by doubling from 4.1× Go's time to 1.67×; next, squaring with half the work,
+     then printing big numbers by divide and conquer;
      then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is

@@ -465,6 +465,12 @@ func (w *words) stmt(s *Stmt) {
 		s.Args[0] = w.conv(s.Args[0], false, true, "a size")
 		w.stmts = append(w.stmts, *s)
 		recv := w.recvOf(s.Res)
+		if s.Op == OTabulate && !PlantRuleElemSigned {
+			// A RULE'S BODY IS ITS TABLE'S ELEMENTS, as a store's value is (ADR
+			// 0083 item 5, ADR 0106): its yield is received by ρ of the table's
+			// element hull, the body's image, not by the table value itself
+			recv = []bool{w.elemU(s)}
+		}
 		for _, sub := range s.Sub {
 			w.region(sub, recv)
 		}
@@ -505,10 +511,15 @@ func (w *words) stmt(s *Stmt) {
 	}
 }
 
-// elemU says the table a store makes has its element set in U and not in S,
-// so its elements are held in the unsigned word: the hull of what its flow
-// class stores (Theorem D′), the fact of the table after the store, which
-// includes the stored value.
+// PlantRuleElemSigned receives a rule's body by the table value, the signed
+// word, as before karatsuba-2026-11-14: TestARulesElementsAreTheUnsignedWord
+// must see the refusal come back.
+var PlantRuleElemSigned bool
+
+// elemU says the table a store or a rule makes has its element set in U and
+// not in S, so its elements are held in the unsigned word: the hull of what its
+// flow class stores (Theorem D′), the fact of the table after the store, which
+// includes the stored value; a rule's, its body's image.
 func (w *words) elemU(s *Stmt) bool {
 	if len(s.Res) != 1 || int(s.Res[0]) >= len(w.fs) {
 		return false

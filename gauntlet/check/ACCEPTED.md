@@ -2925,3 +2925,24 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - `examples/big/fib.oro windows` 546 → 4515 ms, 8.27x; paired 234 → 1000 ms, 4.27x
 - `examples/big/pair.oro windows` 1046 → 5625 ms, 5.38x; paired 1328 → 3593 ms, 2.71x
+
+## 2026-11-14 — on 93e2461, with uncommitted changes
+
+**Reason:** ADR 0109: K(N*)'s product is Karatsuba's above 64 digits; big-kara is a new differential case; power and pair on windows compile slower by nat.mul's larger decision, about 1.5 s (karatsuba-2026-11-14)
+
+636 runs: 411 emitted, 225 refused; 5710 of 5764 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/big-kara.oro go`
+- new source — `gauntlet/differential/cases/big-kara.oro java`
+- new source — `gauntlet/differential/cases/big-kara.oro js`
+- new source — `gauntlet/differential/cases/big-kara.oro windows`
+
+1 compile(s) accepted SLOWER — compile time 0.88x the baseline (median of 43 compiles over 300 ms); a second sweep kept 3 of 3 suspect(s); paired serially against the baseline's binary (c248a20), 1 confirmed, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.00x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 1.05x paired; 1 compile(s) FASTER than the baseline — -accept records them, so a regression back to the old time is caught; the step's phases: sweep 23s, second sweep 23s, the baseline's gen extracted and built 6s, 3 pair(s) × 3 rounds 26s:
+
+- `examples/big/power.oro windows` 640 → 3796 ms, 5.93x; paired 296 → 2218 ms, 7.47x
+
+1 compile(s) recorded FASTER:
+
+- `examples/big/fib.oro windows` 4515 → 1750 ms, 0.39x

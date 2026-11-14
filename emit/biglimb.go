@@ -93,9 +93,17 @@ const natPrefix = "big/nat."
 // stays, and TestAQuotientByANumeralIsAlgorithmDs must see the wrong numeral.
 var PlantNoAddBack bool
 
+// PlantKaratsubaFault drops −P₂ from Karatsuba's combine, so the middle
+// coefficient is A₀B₁ + A₁B₀ + A₁B₁: TestKaratsubasProductIsTheIntegers must see
+// a wrong answer, which also shows its programs take the Karatsuba path.
+var PlantKaratsubaFault bool
+
 // loadNatLib is K(ℕ*)'s library, as loadLimbLib.
 func loadNatLib(tgt *Target) (*limbLib, error) {
 	src := natNumSrc
+	if PlantKaratsubaFault {
+		src = strings.Replace(src, " - kslot(q, b2, w2, i - h) + c", " + c", 1)
+	}
 	if PlantNoAddBack {
 		src = strings.Replace(src, "fn fix1(ml, t, v, n) { if pdig(t, n + 1) == 1 { addv(ml, t, v, n) } else { t } }",
 			"fn fix1(ml, t, v, n) { t }", 1)

@@ -1,0 +1,47 @@
+// KARATSUBA'S PRODUCT ON EVERY SIZE IT DISPATCHES ON (karatsuba-research.md):
+// at the threshold (64 digits) and one past it, at depths 1, 2 and 4, two
+// factors of unequal size within the factor of two, and one just below the
+// threshold, which is Algorithm M's. Each pair twice: all-ones digits, (B^k − 1),
+// the carries' worst case in the down pass's sums and the combine's signed
+// steps; and powers of 3, whose digits are no pattern. Every target agrees with
+// its own bignum's product, and the answers were computed by Python's.
+//
+// expect: 724095108 44503966 357319709 508393940 995847928 921519971 583103839 328888809 775788203
+// inputs: 0 1 2 3 4 5 6 7 8
+fn ones(k ∈ 0..2000) (Nat) {
+    loop x = 0, i = 0 { i >= k -> x; else -> again(x * 4294967296 * 4294967296 + 18446744073709551615, i + 1) }
+}
+
+fn p3(k ∈ 0..4000) (Nat) { loop x = 1, i = 0 { i >= k -> x; else -> again(x * 3486784401, i + 1) } }
+
+fn ka(n ∈ 0..8) (0..2000) {
+    case {
+        n == 0 -> 64
+        n == 1 -> 65
+        n == 2 -> 128
+        n == 3 -> 129
+        n == 4 -> 200
+        n == 5 -> 190
+        n == 6 -> 1000
+        n == 7 -> 777
+        n == 8 -> 63
+        else -> 1
+    }
+}
+
+fn kb(n ∈ 0..8) (0..2000) {
+    case {
+        n == 0 -> 64
+        n == 1 -> 64
+        n == 2 -> 128
+        n == 3 -> 100
+        n == 4 -> 200
+        n == 5 -> 100
+        n == 6 -> 1000
+        n == 7 -> 500
+        n == 8 -> 64
+        else -> 1
+    }
+}
+
+fn run(n ∈ 0..8) (0..1000000006) { (ones(ka(n)) * ones(kb(n)) + p3(2 * ka(n)) * p3(2 * kb(n))) % 1000000007 }

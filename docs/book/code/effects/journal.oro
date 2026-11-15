@@ -1,0 +1,3 @@
+pub fn note(n) { shout(n) }
+
+pub fn twice(n) { n + n }

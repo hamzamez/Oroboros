@@ -1,0 +1,9 @@
+export fn three() { shout(1); whisper(2); tick() }
+
+export fn pure_statement() { f(1); h(1, 2) }
+
+export fn in_a_branch(c) { if c { shout(1); f(2) } else { g(3) } }
+
+export fn one_armed(c) { if c { shout(1) }; tick() }
+
+export fn forgot_the_call() { shout; 7 }

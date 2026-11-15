@@ -42,7 +42,7 @@ module math/trig {
 }
 
 // The impure primitives. Reduction may not copy, drop or reorder these,
-// which is the whole of chapter 4.
+// which is the whole of chapter 5.
 fn shout(a ∈ num) (num) { host stmt "shout(${a})" }
 fn whisper(a ∈ num) (num) { host stmt "whisper(${a})" }
 fn tick() (num) { host stmt "tick()" }

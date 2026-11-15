@@ -1,0 +1,6 @@
+use io
+
+export fn main() {
+    io.print_line("one")
+    io.print_line("two")
+}

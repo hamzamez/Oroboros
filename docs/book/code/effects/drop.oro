@@ -1,0 +1,7 @@
+export fn all_pure() { a = f(1); b = g(a); c = h(a, b); 7 }
+
+export fn one_effect() { a = f(1); b = shout(a); c = g(b); 7 }
+
+export fn unused_and_first() { fn(a, b) { b }(shout(1), whisper(2)) }
+
+export fn clock_unread() { fn(t) { 7 }(tick()) }

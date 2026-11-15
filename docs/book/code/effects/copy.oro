@@ -1,0 +1,11 @@
+export fn a_literal() { fn(n) { h(n, n) }(5) }
+
+export fn a_name(v) { fn(n) { h(n, n) }(v) }
+
+export fn costly() { fn(n) { h(n, n) }(f(9)) }
+
+export fn loud() { fn(n) { h(n, n) }(shout(9)) }
+
+export fn costly_once() { fn(n) { h(n, 2) }(f(9)) }
+
+export fn loud_once() { fn(n) { h(n, 2) }(shout(9)) }

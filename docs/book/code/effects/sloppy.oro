@@ -1,0 +1,5 @@
+export fn unused() { fn(n) { 7 }(x() * 4) }
+
+export fn swapped() { fn(a, b) { b + a }(x() * 2, y() * 4) }
+
+export fn literals() { 3 * 4 }

@@ -17,7 +17,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 2 | [Definitions](02-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-15 |
 | 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 52 blocks checked 2026-11-15 |
 | 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 52 blocks checked 2026-11-15 |
-| 5 | [Effects](05-effects.md) | what β may not move; a statement is a binding nobody reads | **the notation J replaced**; next |
+| 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-15 |
 | | **II. What a program computes with** | | |
 | 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | a stub holding one section moved from chapter 1; 14 blocks checked |
 | 7 | Bits | the bits are the integer's; wrapping is `mod 2ⁿ` | not written |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3 and seven in chapter 4, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4 and nine in chapter 5, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -114,7 +114,8 @@ Five more findings, from running things rather than reading them:
    a constant. Recorded in chapter 4 §4.10 as a question, not fixed: nothing in the corpus declares
    arithmetic impure, and which of the two decisions should give way is a design call. **Answered
    2026-11-15** ([ADR 0114](../decisions/0114-a-fold-is-an-equation-between-pure-terms.md)): a fold
-   is an equation between pure terms, so `(* 1 2)` stays a call there; §4.10's question can say so.
+   is an equation between pure terms, so `(* 1 2)` stays a call there, and the rewritten chapter
+   (now 5, §5.13) shows it.
 4. **The closure refusal prints `#1.0`.** `gen: clo-mk: lowering: a λ in value position is a closure
    (callbacks.md): (fn (v) (* v #1.0))` — an internal bound-variable spelling in a user-facing
    diagnostic. Two of chapter 2's diagnostics had the same bug and were fixed when it was written;
@@ -233,13 +234,22 @@ Chapter 4, Choice (2026-11-15), found one in the reader, fixed with the chapter,
 21. **The equality refusal names a deleted host operation**: *name it: go.`==`, js.`===`,
     java.`==`, x64.sete*, and `x64` went with MASM.
 
+Chapter 5, Effects (2026-11-15), found none in the compiler and leaves one question:
+
+22. **A function named with no parentheses, on a line of its own, vanishes without a word.**
+    `io.print_line` between two prints compiles and prints two lines; `shout; 7` reduces to `7`.
+    It follows from the rules (a function is a value, a pure statement is dropped), and it is the
+    likeliest mistake a newcomer from C makes. A question, not a defect: should a statement whose
+    value is a function be refused, as Go refuses *f evaluated but not used*? Chapter 5 §5.11
+    teaches it as a trap.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
+Boole's algebra and partial evaluation; chapter 5's is referential transparency, thunks, and
 substructural logic, because the effect rule derived from three concrete hazards turns out to be
-Lambek's ordered fragment, named in 1958; chapter 5's is Presburger arithmetic and Liquid Types,
-almost all of which we decline, and the reason why.
+Lambek's ordered fragment, named in 1958.
 
-Chapter 4 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
+Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a
 forgotten purity marker can be shown rather than asserted.

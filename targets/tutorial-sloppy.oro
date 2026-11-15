@@ -1,5 +1,5 @@
 // targets/tutorial.oro with ONE word deleted: `*` is no longer marked `pure`.
-// Chapter 4 uses it to show what a forgotten purity marker costs — which is
+// Chapter 5 uses it to show what a forgotten purity marker costs — which is
 // speed, never correctness, and that asymmetry is why the default is impure.
 //
 // The normal form is a parameter (ADR 0002), so a *teaching* target is just
@@ -44,7 +44,7 @@ module math/trig {
 }
 
 // The impure primitives. Reduction may not copy, drop or reorder these,
-// which is the whole of chapter 4.
+// which is the whole of chapter 5.
 fn shout(a ∈ num) (num) { host stmt "shout(${a})" }
 fn whisper(a ∈ num) (num) { host stmt "whisper(${a})" }
 fn tick() (num) { host stmt "tick()" }

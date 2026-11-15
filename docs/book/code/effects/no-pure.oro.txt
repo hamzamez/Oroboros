@@ -1,0 +1,3 @@
+fn mine(n) pure { f(n) }
+
+export fn run() { mine(1) }

@@ -1,0 +1,11 @@
+export fn before_the_choice(c) { fn(n) { if c { n } else { 0 } }(shout(5)) }
+
+export fn pure_goes_in(c) { fn(n) { if c { n } else { 0 } }(f(5)) }
+
+export fn a_block_too(c) { n = shout(5); if c { n } else { 0 } }
+
+export fn written_inside(c) { if c { shout(1) } else { whisper(2) } }
+
+export fn in_the_condition() { if shout(1) < 2 { f(1) } else { g(1) } }
+
+export fn known() { if 1 < 2 { shout(1) } else { whisper(2) } }

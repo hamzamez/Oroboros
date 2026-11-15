@@ -1,0 +1,20 @@
+use io
+
+export fn report(a ∈ 0..100, b ∈ 0..100) (Int) {
+    io.print_line("adding")
+    sum = a + b
+    io.print_int(sum)
+    io.print_line("done")
+    sum
+}
+
+export fn wasted(a ∈ 0..100, b ∈ 0..100) (Int) {
+    product = a * b
+    shown = io.print_int(a)
+    b
+}
+
+export fn shown_twice(a ∈ 0..100) (Int) {
+    n = io.print_int(a)
+    n + n
+}

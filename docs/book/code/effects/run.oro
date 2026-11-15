@@ -1,0 +1,14 @@
+use io
+
+fn second(a, b) { b }
+
+fn announce(n) { io.print_int(n) }
+
+export fn main() {
+    io.print_line("start")
+    kept = second(announce(1), announce(2))
+    io.print_int(kept)
+    unused = announce(3)
+    io.print_int(announce(4) + announce(5))
+    io.print_line("end")
+}

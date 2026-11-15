@@ -1,0 +1,9 @@
+export fn mixed() { fn(a, b, c) { h(a, h(b, c)) }(shout(1), f(2), whisper(3)) }
+
+export fn as_written() { fn(a, b) { h(a, b) }(whisper(2), shout(1)) }
+
+export fn in_place() { h(shout(1), whisper(2)) }
+
+export fn operands() { shout(1) + whisper(2) }
+
+export fn inner_first() { h(f(shout(1)), g(whisper(2))) }

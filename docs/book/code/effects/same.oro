@@ -1,0 +1,7 @@
+export fn pure_named() { t = f(1); t - t }
+
+export fn pure_written_twice() { f(1) - f(1) }
+
+export fn clock_named() { t = tick(); t - t }
+
+export fn clock_written_twice() { tick() - tick() }

@@ -1,0 +1,9 @@
+export fn dropped() { fn(n) { h(1, 2) }(f(9)) }
+
+export fn not_dropped() { fn(n) { h(1, 2) }(shout(9)) }
+
+export fn shared() { fn(n) { h(n, n) }(shout(9)) }
+
+export fn moved() { fn(a, b) { h(b, a) }(f(1), g(2)) }
+
+export fn not_moved() { fn(a, b) { h(b, a) }(shout(1), whisper(2)) }

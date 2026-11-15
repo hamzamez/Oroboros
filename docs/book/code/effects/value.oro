@@ -1,0 +1,15 @@
+fn ignore_it(a) { h(1, 2) }
+
+fn twice(k, v) { h(k(v), k(v)) }
+
+fn pick(c, a, b) { if c { a } else { b } }
+
+fn pick_later(c, a, b) { if c { a() } else { b() } }
+
+export fn never_applied() { ignore_it(fn(v) { shout(v) }) }
+
+export fn applied_twice() { twice(fn(v) { shout(v) }, 3) }
+
+export fn both_run(c) { pick(c, shout(1), whisper(2)) }
+
+export fn one_runs(c) { pick_later(c, fn() { shout(1) }, fn() { whisper(2) }) }

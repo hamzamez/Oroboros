@@ -1,0 +1,19 @@
+use journal
+
+fn loud(n) { shout(n) }
+
+fn quiet(n) { f(n) }
+
+fn deep(n) { quiet(loud(n)) }
+
+fn ignore_it(a) { h(1, 2) }
+
+export fn calls_quiet() { ignore_it(quiet(5)) }
+
+export fn calls_loud() { ignore_it(loud(5)) }
+
+export fn calls_deep() { ignore_it(deep(5)) }
+
+export fn from_a_module() { ignore_it(journal.note(5)) }
+
+export fn pure_from_a_module() { ignore_it(journal.twice(x())) }

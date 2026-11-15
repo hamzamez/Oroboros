@@ -1,0 +1,8 @@
+use io
+
+fn probe(tag ∈ String, v ∈ Bool) (Bool) { io.print_line(tag); v }
+
+export fn main() {
+    if probe("a", false) && probe("b", true) { io.print_line("both") } else { io.print_line("not both") }
+    if probe("c", true) || probe("d", true) { io.print_line("either") } else { io.print_line("neither") }
+}

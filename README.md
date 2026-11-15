@@ -508,15 +508,16 @@ since today reads files through code written in the language itself. It also say
    - a big value printed;
    - an unread binding left in the reduced program;
    - five diagnostics quoting internal names or the old notation;
-5. **the book's chapters 5 and 6** (added 2026-11-15, its findings 22–29; each reproduces):
-   - two places where the compiler breaks rules already decided: on JavaScript an export declared
-     `Int` can return a `BigInt` (Go refuses the same program), and a value computed above the
-     machine word cannot come back into it even where it provably fits;
-   - three correct programs refused: a product of naturals not known to be a natural, a function
-     with no declared result returning a computed pair, and an empty range;
-   - three refusals that give the wrong reason;
-   - two questions: whether a statement whose value is an unused function should be refused, and
-     whether numbers may be written `1_000_000` or `0b101`;
+5. ~~**the book's chapters 5 and 6**~~ **done 2026-11-15** ([chapters56-2026-11-15](gauntlet/results/chapters56-2026-11-15.md)):
+   - a value computed above the machine word comes back into it where it provably fits, and on
+     JavaScript an export declared `Int` no longer returns a `BigInt`;
+   - a product of naturals is known to be a natural, and a function with no declared result may
+     return a computed pair;
+   - an empty range, and JavaScript's quotient and midpoint, are refused for their true reason;
+   - a function named on a line of its own is refused, since it does nothing
+     ([ADR 0116](docs/decisions/0116-a-statement-whose-value-is-a-function-is-refused.md));
+     `1_000_000` and `0b101` wait until a program needs them;
+   - no program's code changed;
 6. benchmark the seven gauntlet programs on all four targets again;
 7. make the test harness catch stale skips and assemble every Windows file, and run the book's
    checker in it;

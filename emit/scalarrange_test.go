@@ -99,7 +99,7 @@ func TestAScalarRangeIsAnIntNotAWidth(t *testing.T) {
 // producer of a signature with named parameters and therefore the only place a
 // range's premise half can be desugared. Building a `core.Sig` literal here
 // would test a path no program takes.
-// AN EMPTY RANGE IS NOT A TYPE. `(int 100 0)` denotes ∅: no value inhabits it,
+// AN EMPTY RANGE IS NOT A TYPE. `100..0` denotes ∅: no value inhabits it,
 // so a parameter declared with one can never be called. It is a transposition
 // typo, and it used to flow on as the string "int 100 0" and surface much later
 // as "n is int 100 0, but int is required here" — a type mismatch reported
@@ -107,7 +107,7 @@ func TestAScalarRangeIsAnIntNotAWidth(t *testing.T) {
 func TestAnEmptyRangeIsRefusedWhereItIsWritten(t *testing.T) {
 	if _, err := core.Read("fn f(n ∈ 100..0) (Int) { n }"); err == nil {
 		t.Error("an empty range was accepted as a type")
-	} else if !strings.Contains(err.Error(), "(int 100 0)") {
+	} else if !strings.Contains(err.Error(), "the set 100..0 is empty") {
 		t.Errorf("the error does not name the range that is wrong: %v", err)
 	}
 	// The control: a single-point range is legal and must stay legal, or the

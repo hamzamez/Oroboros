@@ -725,6 +725,7 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 // a disequality by either side, a linear conjunction by entailment, an opaque
 // atom by an identical assumption. It proves or it does not; it never refuses.
 func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
+	f = claimBounds(cond, f)
 	// A C STRING (ADR 0091): nulfree(s) is ν(s) = false, decided on s's term.
 	if s, ok := nulfreeArg(cond); ok && r.nulFree(s, f) {
 		return true

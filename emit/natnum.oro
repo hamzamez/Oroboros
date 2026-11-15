@@ -97,6 +97,22 @@ fn of(ml, v) {
     }
 }
 
+// THE RETRACTION r : ℤ ⇀ S onto the signed word, the partial inverse of `of`
+// (ADR 0079 item 4): called only where the decision proves |a| inside S, so a
+// is at most one digit d, and a = ±d; the reads state S as their masks
+fn word(ml, a) {
+    // the digit's invariant, d ∈ [0, B), stated where its table's element
+    // type does not carry it (a numeral built by an inlined loop)
+    d = dig(a, 0) & dm
+    // nested, so each arm's guard is a conjunct its π narrows: the negation
+    // of a conjunction is a disjunction, which narrows nothing
+    if sgn(a) == 1 {
+        if d > 9223372036854775807 { 0 - 9223372036854775807 - 1 } else { 0 - d }
+    } else {
+        d % 9223372036854775808
+    }
+}
+
 // |a| against |b|: the size first, which the normal form makes decisive, then
 // the digits from the top
 fn mcmp(ml, a, b) {

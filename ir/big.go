@@ -516,10 +516,37 @@ func useCounts(f *Func) map[V]int {
 	return n
 }
 
-// word is the obligation at a position declared in the word: a value of B
-// may not reach it, because a range above the word is a widening and not a
-// refinement (unbounded-rung.md §3, and the checker's message before ADR 0033).
-func (g *bigs) word(v V, where string) {
+// word is the obligation at a position declared in the word, answering the
+// value the position receives. A value of B reaches it only where its fact is
+// inside the signed word S (ADR 0079 item 4): there it is r(v), the retraction
+// ℤ ⇀ S the target realizes as `big-word`, the identity on S, so nothing is
+// lost. A value whose fact may leave S is refused: a range above the word is a
+// widening, not a refinement (unbounded-rung.md §3), and no narrowing may lose
+// an integer. Before the fact was read, `square(n) / 2^40`, proven in
+// [0, 2^40], was refused (book finding 28).
+func (g *bigs) word(v V, where string) V {
+	if v < 0 || !g.isB(v) || g.err != nil {
+		return v
+	}
+	if g.fits(v) && !PlantNarrowRefused {
+		if _, ok := g.tg.Prims["big-word"]; ok || !g.tg.HasBig() {
+			out := g.fresh("int")
+			g.fs[out] = fact{v: g.fs[v].v} // r is the identity on S
+			g.stmts = append(g.stmts, Stmt{Op: OCall, Name: "big-word", Args: []V{v}, Res: []V{out}})
+			return out
+		}
+	}
+	g.refuseWord(v, where)
+	return v
+}
+
+// PlantNarrowRefused refuses every value of B at a word position, its fact
+// unread, as before (TestAValueProvenInTheWordComesBackIntoIt).
+var PlantNarrowRefused bool
+
+// refuseWord is word's refusal: a value of B at a word position, its fact
+// not inside the word.
+func (g *bigs) refuseWord(v V, where string) {
 	if v < 0 || !g.isB(v) || g.err != nil {
 		return
 	}
@@ -604,7 +631,7 @@ func (g *bigs) region(r *Region, recv []bool) {
 			if j < len(recv) && recv[j] {
 				args[j] = g.widen(a, what)
 			} else {
-				g.word(a, what)
+				args[j] = g.word(a, what)
 			}
 		}
 	}
@@ -645,12 +672,12 @@ func (g *bigs) stmt(s *Stmt) {
 	case s.Op.IsBit():
 		// ADR 0082'S OPERATIONS ARE NOT BUILT ABOVE THE WORD: an operand or a
 		// result held there is refused, as a target's own operator's is.
-		for _, a := range s.Args {
-			g.word(a, "an operand of "+s.Op.String())
+		for k, a := range s.Args {
+			s.Args[k] = g.word(a, "an operand of "+s.Op.String())
 		}
 		for _, v := range s.Res {
 			if g.isB(v) {
-				g.word(v, "the result of "+s.Op.String())
+				g.refuseWord(v, "the result of "+s.Op.String())
 			}
 		}
 		g.stmts = append(g.stmts, *s)
@@ -685,8 +712,8 @@ func (g *bigs) stmt(s *Stmt) {
 			g.ops++
 			g.stmts = append(g.stmts, Stmt{Op: OCall, Name: "big%-small", Args: s.Args, Res: s.Res, Src: s.Src})
 		default:
-			for _, a := range s.Args {
-				g.word(a, "an operand of a target's own operator")
+			for k, a := range s.Args {
+				s.Args[k] = g.word(a, "an operand of a target's own operator")
 			}
 			g.stmts = append(g.stmts, *s)
 		}
@@ -697,8 +724,8 @@ func (g *bigs) stmt(s *Stmt) {
 		}
 		name, ok := bigCmp[s.Op]
 		if !ok || !langOp(s) {
-			g.word(s.Args[0], "an operand of "+s.Op.String())
-			g.word(s.Args[1], "an operand of "+s.Op.String())
+			s.Args[0] = g.word(s.Args[0], "an operand of "+s.Op.String())
+			s.Args[1] = g.word(s.Args[1], "an operand of "+s.Op.String())
 			g.stmts = append(g.stmts, *s)
 			return
 		}
@@ -729,7 +756,7 @@ func (g *bigs) stmt(s *Stmt) {
 			case g.bigType(ty):
 				s.Args[j] = g.widen(a, what)
 			case ty == "int" || g.tg.ValueType(ty) == "int" || g.tg.ValueType(ty) == core.U64Type:
-				g.word(a, what)
+				s.Args[j] = g.word(a, what)
 			}
 		}
 		for _, v := range s.Res {
@@ -756,7 +783,7 @@ func (g *bigs) stmt(s *Stmt) {
 				if g.isB(body.Params[j]) {
 					s.Args[j] = g.widen(a, "a loop's initial value")
 				} else {
-					g.word(a, "a loop's initial value")
+					s.Args[j] = g.word(a, "a loop's initial value")
 				}
 			}
 		}
@@ -773,9 +800,9 @@ func (g *bigs) stmt(s *Stmt) {
 	default:
 		// Every other position is the word's: an index, a stored value, a size,
 		// a key, a table's element.
-		for _, a := range s.Args {
+		for k, a := range s.Args {
 			if g.integer(a) {
-				g.word(a, "an operand of "+s.Op.String())
+				s.Args[k] = g.word(a, "an operand of "+s.Op.String())
 			}
 		}
 		g.stmts = append(g.stmts, *s)

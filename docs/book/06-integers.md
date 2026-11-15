@@ -904,20 +904,26 @@ func IntegersWide(v0 int) *big.Int {
 }
 ```
 
-**A value above the word does not come back down by itself.** Squaring and then dividing gives
-a number that would fit, and it is still refused as a word:
+**A value above the word comes back down where it is proven to fit.** Squaring and then
+dividing gives a number in [0, 2⁴⁰], and the compiler brings it back into the word by the
+inclusion's inverse, `Int64`, which loses nothing on a value proven inside the word
+([ADR 0079](../decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)
+item 4):
 
-<!-- file docs/book/code/integers/no-down.oro -->
+<!-- file docs/book/code/integers/down.oro -->
 ```go
 fn square(n ∈ Nat) (Nat) { n * n }
 
 export fn scaled(n ∈ 0..2^40) (0..2^40) { square(n) / 2^40 }
 ```
 
-<!-- gen go docs/book/code/integers/no-down.oro -->
-```
-gen: scaled: a result is held in arbitrary precision, which is WIDER than the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615], so on this target it is not an `int` — it is a rung above the host's word (ADR 0026, docs/unbounded-rung.md).
+<!-- gen go docs/book/code/integers/down.oro -->
+```go
 …
+    v14 := (new(big.Int).Quo(v11, v13))
+    v15 := (int(v14.Int64()))
+    return v15
+}
 ```
 
 ### The compiler's own arithmetic obeys the rule

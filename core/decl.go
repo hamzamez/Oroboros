@@ -133,7 +133,14 @@ func (d *desugarer) sig(name string, c *Claim) *Term {
 		}
 		params.Kids = append(params.Kids, &Term{Kind: KApp, Kids: []*Term{Name(p.Name), set(p.Set)}})
 	}
-	t := &Term{Kind: KApp, Kids: []*Term{Name("sig"), Name(name), params, set(c.Result)}}
+	// AN UNSTATED RESULT IS NO CLAIM, not the claim `Any`: `(Any)` states one
+	// result of any set, and a header that states none leaves the arity to
+	// the body (book finding 24). The core spells it `_`, read as Unstated.
+	result := Name(UnstatedResult)
+	if c.Result != nil {
+		result = d.term(c.Result)
+	}
+	t := &Term{Kind: KApp, Kids: []*Term{Name("sig"), Name(name), params, result}}
 	if c.Pre != nil {
 		t.Kids = append(t.Kids, &Term{Kind: KApp, Kids: []*Term{Name("where"), d.term(c.Pre)}})
 	}

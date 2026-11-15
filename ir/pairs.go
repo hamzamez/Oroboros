@@ -40,7 +40,7 @@ import (
 // parameter held as a pair. A pair reaching a host argument of any type is
 // boxed (`pair-box`, a decimal string), and an entry point's result is the
 // host's BigInt (`pair-bigint`), the representation a caller holds it in.
-func SelectPairs(tg *emit.Target, f *Func) (bool, error) {
+func SelectPairs(tg *emit.Target, f *Func, sig *core.Sig) (bool, error) {
 	if !tg.Word.Pair {
 		return false, nil
 	}
@@ -49,7 +49,10 @@ func SelectPairs(tg *emit.Target, f *Func) (bool, error) {
 		fs = analyse(tg, f)
 	}
 	p := &pairs{tg: tg, f: f, fs: fs, pair: map[V]bool{}, halves: map[V][2]V{}, kon: map[V]*big.Int{},
-		sub: map[V]V{}, def: map[V]*Stmt{}, nv: f.NV()}
+		sub: map[V]V{}, def: map[V]*Stmt{}, nv: f.NV(),
+		// a header that states its result: an unstated one claims nothing
+		// (ADR 0062 item 8), so its type is typing's and no declared set
+		stated: sig != nil && (len(sig.Results) > 0 || sig.Result != "" && sig.Result != "any")}
 	p.classify()
 	if p.err != nil {
 		return false, p.err
@@ -88,6 +91,7 @@ type pairs struct {
 	sub    map[V]V        // a value replaced by another
 	def    map[V]*Stmt
 	resPar []bool // the function's results held as pairs
+	stated bool   // the header states the results
 	nv     int    // the values before the pass, whose facts are the decision's
 	out    []Stmt
 	err    error
@@ -249,6 +253,22 @@ func (p *pairs) classify() {
 			}
 		}
 	}
+	// A RESULT HELD AS A PAIR LEAVES AS U ONLY WHERE IT IS DECLARED IN U (ADR
+	// 0033, 0079 item 3): an entry point's result takes its representation from
+	// its declared set, so a declared Int is the word on every target, and a
+	// value of U is refused there, as Go's, the JVM's and windows' are. Taken
+	// as the pair's BigInt, an export declared Int returned a BigInt or a
+	// number by its facts (book finding 27).
+	for j, held := range p.resPar {
+		if held && p.stated && j < len(f.Results) && p.tg.ValueType(f.Results[j]) != core.U64Type && !PlantPairResultAnySet {
+			p.fail("a result is held in the unsigned word, which target %s holds as a pair, and is "+
+				"declared %s, not in the unsigned word: an entry point's result takes its representation "+
+				"from its declared set, so it is refused here, as a value of the unsigned word is at a "+
+				"declared Int on every target (ADR 0033, ADR 0079). Prove it inside the word, or declare "+
+				"the result's range, 0..N, to return it in the unsigned word",
+				p.tg.Name, core.ShowSet(f.Results[j]))
+		}
+	}
 	for v := range p.pair {
 		if !p.inU(v) && p.def[v] != nil && p.def[v].Mode != MWrapPair {
 			p.fail("%s joins a value held in the unsigned word as a pair, and may lie outside it, %s; "+
@@ -404,6 +424,17 @@ func (p *pairs) toPair(v V, residue bool, what string) (V, V) {
 		// x mod 2⁶⁴ for an x that may be negative: the 2-adic digits, ⌊x/B⌋
 		// and x masked, each reduced mod B
 		return p.and(p.shr(v, 32), pairMask), p.and(v, pairMask)
+	}
+	// THE TRUE REASON, by the interval (book finding 26): a value that may be
+	// negative has no pair; a non-negative one above the word was computed by
+	// no pair's operations, which is how a value enters the pair, and a
+	// parameter there is not built on this target
+	if !iv.nlo && iv.lo.sign() >= 0 {
+		p.fail("%s, %s, lies above the word target %s holds exactly, [%d, %d], and no operation of the "+
+			"unsigned word's pair computed it: a value enters the pair from operations proven in "+
+			"[0, 2^64), and a parameter in the unsigned word is not built on %s (ir/pairs.go). Narrow "+
+			"the parameter to the word", what, termShow(iv), p.tg.Name, p.tg.Word.Lo, p.tg.Word.Hi, p.tg.Name)
+		return v, v
 	}
 	p.fail("%s, %s, may be negative, and would be held in the unsigned word as a pair; a value there must be "+
 		"proven non-negative (ir/pairs.go)", what, termShow(iv))
@@ -821,3 +852,8 @@ func (p *pairs) arith(s *Stmt) {
 	}
 	p.out = append(p.out, *s)
 }
+
+// PlantPairResultAnySet returns a result held as a pair whatever its declared
+// set, as before: an export declared Int then returns a BigInt on JavaScript
+// (TestAnEntryPointsResultIsItsDeclaredSets).
+var PlantPairResultAnySet bool

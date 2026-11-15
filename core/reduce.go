@@ -86,6 +86,9 @@ type Env struct {
 	// they are is the compiler's choice and changes no answer (ADR 0102,
 	// Theorem 1).
 	Kept map[string]bool
+	// Callable are the primitives that take arguments: a function, where a
+	// nullary one may be a host's constant (ADR 0116, a statement's value)
+	Callable map[string]bool
 	// Unfolds, when not nil, counts each δ by name: π(f), the paths from the
 	// root to f in the call graph, as the reducer takes them (a measurement,
 	// specialization-research.md §4; nil in every compile).
@@ -2509,6 +2512,18 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			fnArgs := make([]bool, len(args))
 			for i, a := range args {
 				fnArgs[i] = a.Kind == KFn
+			}
+			// A STATEMENT WHOSE VALUE IS A FUNCTION (ADR 0116): a statement is
+			// a binding whose name is discarded (ADR 0054), and a function has
+			// no effect until it is applied, so discarding one is dead code no
+			// program can mean (`io.print_line` on a line of its own, book
+			// finding 22). ignore(f) is the discard that says so.
+			for i, p := range op.Params {
+				if strings.HasPrefix(p, "#_") && e.isFunctionValue(args[i]) && !PlantFunctionStatement {
+					return nil, fmt.Errorf("a statement's value is a function, %s, which does nothing until it is "+
+						"applied: call it, `f(…)`, or discard it on purpose with ignore(…) (ADR 0116)",
+						ShowTerm(args[i]))
+				}
 			}
 			relevant := func(i int, val *Term) error {
 				p := op.Params[i]
@@ -4934,3 +4949,25 @@ var PlantRelevanceShallow bool
 // PlantKeepDeadLet keeps a pure binding its body's normal form no longer
 // reads, as before (TestADeadPureBindingIsDropped).
 var PlantKeepDeadLet bool
+
+// isFunctionValue says t is a function: a λ that is no tuple (the unit and a
+// tuple are λk. k v⃗), a definition that is one, or a primitive that takes
+// arguments, named without them.
+func (e *Env) isFunctionValue(t *Term) bool {
+	switch t.Kind {
+	case KFn:
+		return len(t.Params) != 1 || !IsTupleBinder(t.Params[0]) && t.Params[0] != "#k"
+	case KName:
+		if e.Callable[t.Name] {
+			return true
+		}
+		if d, ok := e.Defs[t.Name]; ok && e.unfoldable(t.Name) && d.Kind == KFn && len(d.Params) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantFunctionStatement accepts a statement whose value is a function, as
+// before: it is then dropped without a word (TestAFunctionStatementIsRefused).
+var PlantFunctionStatement bool

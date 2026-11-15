@@ -135,6 +135,9 @@ var natSigs = map[string]struct {
 	// the one set, a bounded program's on K(ℕ*) (ADR 0029): the bound's bits
 	"fit":        {[]string{"array int", "int"}, "array int", false},
 	"fit-signed": {[]string{"array int", "int"}, "array int", false},
+	// r : ℤ ⇀ S onto the signed word, the partial inverse of `of`, called only
+	// where the value is proven in S (ADR 0079 item 4)
+	"word": {[]string{"array int"}, "int", false},
 }
 
 // NatFunc is K(ℕ*)'s definition fn, checked as a theory once per target, as

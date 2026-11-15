@@ -115,7 +115,7 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 		return nil, fmt.Errorf("the built-in K(ℕ*)'s %s as a function: %v", fn, err)
 	}
 	leg := Decide(tg, f, false)
-	if leg, err = afterRung(tg, f, name, false, leg, func(Note) {}); err != nil {
+	if leg, err = afterRung(tg, f, name, &sig, false, leg, func(Note) {}); err != nil {
 		return nil, err
 	}
 	if err := leg.Refusal(name, tg); err != nil {

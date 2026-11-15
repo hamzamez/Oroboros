@@ -161,6 +161,15 @@ ADR 0019's rung above the word, chosen on the IR (ADR 0034, 0035). What decides 
   parameter when the definition is checked alone at its claim (ADR 0072). Inlined, a definition's
   parameter is its argument's fact.
 - **A result that claims nothing** (ADR 0062 item 8) is held as its yields are: exactly when one is.
+- **A value held above the word comes back into it where its fact is inside the word** (ADR 0079
+  item 4; built 2026-11-15, [chapters56-2026-11-15](../../gauntlet/results/chapters56-2026-11-15.md)):
+  at a word position, a value whose proven fact is in S is r(v), `big-word`, the retraction ℤ ⇀ S that
+  is the inclusion `big-of`'s partial inverse, so r ∘ ι = id_S and r is the identity on every value
+  the decision lets reach it. It is not the silent narrowing [unbounded-rung.md](../unbounded-rung.md)
+  §3 refuses: that one is applied without a proof and loses a value; this one is applied only with
+  one and loses nothing. Each host's is exact on S (`Int64()`, `Number`, `longValue()`; K(ℕ\*)'s
+  `word` reads its first digit and its sign). A value whose fact leaves the word is refused as
+  before. From fixed limbs it is refused by name, owed.
 
 | | ρ |
 |---|---|

@@ -121,6 +121,15 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			switch s.Name {
 			case "big-of":
 				widenings = append(widenings, s)
+			case "big-word":
+				// r onto the word (ADR 0079 item 4): K(ℕ*)'s one digit and its
+				// sign; fixed limbs, whose word the instance does not know,
+				// have none yet
+				if nat {
+					plan[s] = use{"word", s.Args}
+				} else {
+					err = fmt.Errorf("%w: a value above the word brought back into it, from fixed limbs", ErrNoLimbForm)
+				}
 			case "big*":
 				a, b := s.Args[0], s.Args[1]
 				if nat && a == b {

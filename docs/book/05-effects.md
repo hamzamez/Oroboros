@@ -616,7 +616,7 @@ fn(c) { if c { #_ = shout(1); f(2) } else { g(3) } }
 one_armed =
 fn(c) { #_ = if c { shout(1) } else { () }; tick() }
 forgot_the_call =
-fn() { 7 }
+oro: a statement's value is a function, shout, which does nothing until it is applied: call it, `f(…)`, or discard it on purpose with ignore(…) (ADR 0116)
 ```
 
 - `three`: "do this, then that" is two bindings to names nobody reads (printed `#_`, a name no
@@ -628,10 +628,10 @@ fn() { 7 }
 - `in_a_branch`: a branch is a block, so it may hold statements.
 - `one_armed`: an `if` with no `else` is a statement. Its missing branch is `()`, the value that
   carries no information (§4.9).
-- `forgot_the_call` is a trap, and worth meeting here rather than in a real program. `shout`
-  without parentheses is the function, not a call of it. A function is a value, a value has no
-  effect, so the line vanishes and nothing is said. If a line that should print does not, look
-  for missing parentheses.
+- `forgot_the_call` was a trap, and is now refused. `shout` without parentheses is the function,
+  not a call of it, and a function has no effect until it is applied, so the statement could only
+  be dead code. Before [ADR 0116](../decisions/0116-a-statement-whose-value-is-a-function-is-refused.md)
+  the line vanished and nothing was said; `ignore(shout)` is the discard that means it.
 
 Languages descended from Algol have two kinds of thing, expressions (which have values) and
 statements (which do something), with separate rules for each. Here there is one kind. A

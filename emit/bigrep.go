@@ -76,7 +76,7 @@ import (
 var bigOpNames = map[string]bool{
 	"big+": true, "big-": true, "big*": true, "big/": true, "big%": true,
 	"big<": true, "big<=": true, "big>": true, "big>=": true, "big=": true,
-	"big-of": true, "big-of-small": true, "big-str": true,
+	"big-of": true, "big-of-small": true, "big-str": true, "big-word": true,
 	"big%-small": true,
 }
 

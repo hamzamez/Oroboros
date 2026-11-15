@@ -103,7 +103,10 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 		// arity and printed `func Three(a int) (int, int)` for a declared
 		// (tuple int int int) (irstep4a-2026-09-26).
 		declared := len(sig.Results)
-		if declared == 0 && sig.Result != "" {
+		// A HEADER THAT STATES NO RESULT CLAIMS NOTHING (`any`, ADR 0062 item
+		// 8): the results are the body's, a product's factors included (book
+		// finding 24, where a computed pair met a declared arity of one)
+		if declared == 0 && sig.Result != "" && (!sig.Unstated || PlantAnyIsOneResult) {
 			declared = 1
 		}
 		// A BODY THAT NEVER YIELDS ends every path in `unreachable` (the crash,
@@ -1427,3 +1430,7 @@ func opName(t *core.Term) string {
 // bitOps are the language's Boolean operations, shifts and Euclidean remainder
 // by their core names (ADR 0082; core.LanguageSignature).
 var bitOps = map[string]Op{"&": OAnd, "|": OOr, "⊕": OXor, "~": ONot, "<<": OShl, ">>": OShr, "mod": OMod}
+
+// PlantAnyIsOneResult counts a header's unstated result as one declared, as
+// before: a computed pair is then refused (TestAnUnstatedResultIsTheBodys).
+var PlantAnyIsOneResult bool

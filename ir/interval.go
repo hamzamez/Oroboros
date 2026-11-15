@@ -781,6 +781,15 @@ func (a *intervals) stmt(s *Stmt) {
 				}
 			}
 			switch s.Name {
+			case "big-of", "big-word":
+				// the inclusion ι : S ↪ ℤ and its retraction r on S: each the
+				// identity on the integer, so the result's fact is the
+				// argument's (ADR 0079 item 4; r is placed only where that
+				// fact is inside S)
+				if len(args) == 1 {
+					one(fact{v: args[0].v})
+					return
+				}
 			case "u64-of", "int-of-u64":
 				if len(args) == 1 {
 					if s.Name == "u64-of" {

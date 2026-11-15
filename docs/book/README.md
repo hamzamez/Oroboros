@@ -236,7 +236,10 @@ Chapter 4, Choice (2026-11-15), found one in the reader, fixed with the chapter,
 21. **The equality refusal names a deleted host operation**: *name it: go.`==`, js.`===`,
     java.`==`, x64.sete*, and `x64` went with MASM.
 
-Chapter 5, Effects (2026-11-15), found none in the compiler and leaves one question:
+Chapter 5, Effects (2026-11-15), found none in the compiler and leaves one question, **decided and
+built 2026-11-15** ([ADR 0116](../decisions/0116-a-statement-whose-value-is-a-function-is-refused.md),
+[chapters56-2026-11-15](../../gauntlet/results/chapters56-2026-11-15.md)): the statement is refused,
+`ignore(f)` its discard:
 
 22. **A function named with no parentheses, on a line of its own, vanishes without a word.**
     `io.print_line` between two prints compiles and prints two lines; `shout; 7` reduces to `7`.
@@ -246,7 +249,10 @@ Chapter 5, Effects (2026-11-15), found none in the compiler and leaves one quest
     teaches it as a trap.
 
 Chapter 6, Integers (2026-11-15), found seven, none fixed; the chapter avoids each. **Planned
-2026-11-15** with chapter 5's (README.md's "Current work", item 5). Read against the decisions, 27
+2026-11-15** with chapter 5's (README.md's "Current work", item 5), and **fixed 2026-11-15**
+([chapters56-2026-11-15](../../gauntlet/results/chapters56-2026-11-15.md), each with a planted
+fault): 23–28 build or are refused for their true reason, and 29 is deferred until a program needs
+it. Read against the decisions, 27
 and 28 are defects, not questions: ADR 0033 refuses Go's version of 27, and ADR 0079 item 4 decides
 28 (a value above the word reaches the word where its fact is inside it):
 

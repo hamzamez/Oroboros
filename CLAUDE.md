@@ -97,9 +97,9 @@ wrong about half the time.
 **The current assessment is [assessment-2026-11-15.md](docs/assessment-2026-11-15.md)**; read it
 before planning. Its plan (§5): ~~P8 with its ledger~~ done, steps 1 and 3
 ([p8-2026-11-15](gauntlet/results/p8-2026-11-15.md), [p8step3-2026-11-15](gauntlet/results/p8step3-2026-11-15.md)),
-then two items added from the book's findings ([docs/book/README.md](docs/book/README.md), its
-items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), then the book's chapters 5 and 6
-(its items 22–29, below), then the gauntlet on four targets,
+~~two items added from the book's findings~~ done ([docs/book/README.md](docs/book/README.md), its
+items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), ~~the book's chapters 5 and 6~~ done
+(its items 22–29, below), **next the gauntlet on four targets**,
 the harness (with `docs/book/check.go` run by `cmd/check`), the file programs on windows (with
 P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md as state again.
 - ~~**The book's wrong answers**~~ **done** ([bookfix-2026-11-15](gauntlet/results/bookfix-2026-11-15.md),
@@ -128,25 +128,17 @@ P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md
   - a pure unread binding kept (12);
   - the diagnostics in J: 4, 7 (the closure's `#1.0`), 11, 21 (`x64.sete`), and core-0's "six term
     kinds".
-- **The book's chapters 5 and 6** (items 22–29, each reproduced at `fe38917`), in this order:
-  - two rules already decided that the code breaks:
-    - 28: ADR 0079 item 4 says a value held above the word reaches a word position where its fact is
-      inside the word, and `big.go`'s `word()` refuses without reading the fact (`square(n) / 2^40`,
-      fact [0, 2⁴⁰]);
-    - 27: ADR 0033 refuses a value of U at a declared `Int` (Go, the JVM and windows refuse
-      `n + n`), but JavaScript's pair path skips the rule, so an export's host type is a `BigInt`
-      or a number by its facts;
-  - correct programs refused:
-    - 23: ℕ is closed under ·, the rule of signs as a homomorphism to ({−, 0, +}, ·), and a closed
-      comparison of big literals is decided by evaluation;
-    - 24: an unstated result is the body's, so a computed product is several results;
-  - diagnostics in J or with the true reason: 25 (an empty range), 26 (JavaScript's division by 3
-    on the pair, not "may be negative"; its `>>` interval), 23's `the("int 0 +inf", …)`;
-  - questions, each with its recommendation:
-    - 22: refuse a statement whose value is a function. A λ has no effect until applied, so the
-      statement is dead and cannot be meant; `ignore(f)` is the discard, and a pure statement of
-      any other sort is measured on the corpus before it is refused too. An ADR;
-    - 29: `1_000_000` and `0b101`, not now: j.md promises neither, and no program needs one.
+- ~~**The book's chapters 5 and 6**~~ **done** ([chapters56-2026-11-15](gauntlet/results/chapters56-2026-11-15.md),
+  ADR 0116 for 22; emission byte-identical), each with a planted fault:
+  - 28: a value above the word whose fact is in S is r(v), `big-word`, the retraction ℤ ⇀ S
+    (r ∘ ι = id_S, integers.md §1a); from fixed limbs owed;
+  - 27, 26: a value of U at a declared `Int` is refused on JavaScript's pair as on the other three;
+  - 23: a claim the(S, e) is an atom in S for the linear fragment (ADR 0049);
+  - 24: an unstated result (D's `_`, `Sig.Unstated`) is the body's, `(Any)` one result;
+  - 25: an empty range is said to be empty, in J;
+  - 22: a statement whose value is a function is refused, `ignore(f)` the discard;
+  - 29 deferred. Owed: windows' K(ℕ\*) division of a square by 2⁴⁰ and an export's K(ℕ\*) result
+    (W5), a JavaScript parameter above the word at `% 2` (W5).
   Previous:
 [10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
 [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
@@ -962,6 +954,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A program's definitions are kept as functions where the target prints them (windows), the compiler choosing K by pays and proofs; a kept definition is {P ∧ φ} f {ψ}: φ marked at each call and completed by lifting, ψ derived by Houdini, ℤ the instance's S ∩ W; a verdict is monotone in K | [0113](docs/decisions/0113-a-programs-definitions-are-kept-as-functions-where-the-target-prints-them.md) |
 | A fold is an equation between pure terms: the language's operators fold only where the primitive is pure | [0114](docs/decisions/0114-a-fold-is-an-equation-between-pure-terms.md) |
 | A rule at an export's boundary is its extension, `alloc(rule)`; in the interior a rule fuses or the author writes `alloc` | [0115](docs/decisions/0115-a-rule-at-an-exports-boundary-is-its-extension.md) |
+| A statement whose value is a function is refused; `ignore(f)` is the discard | [0116](docs/decisions/0116-a-statement-whose-value-is-a-function-is-refused.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

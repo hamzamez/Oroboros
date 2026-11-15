@@ -956,6 +956,10 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 		return variable(t.Name), true
 	case core.KApp:
 		op := t.Op()
+		// A REDEX'S VALUE IS ITS BODY'S, ((fn (x) b) v), as a let's (below)
+		if op.Kind == core.KFn && len(op.Params) == 1 && len(t.Args()) == 1 && !PlantClaimOpaque {
+			return asLinearIn(pure, op.Body())
+		}
 		if op.Kind != core.KName {
 			return nil, false
 		}
@@ -965,7 +969,18 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 			return asLinearIn(pure, args[0]) // the identity on every value it converts
 		case op.Name == core.AscribeName && len(args) == 2 && args[0].Kind == core.KStr:
 			// (the S e) is e's value: a claim is decided apart (desugar.go).
-			return asLinearIn(pure, args[1])
+			if l, ok := asLinearIn(pure, args[1]); ok || PlantClaimOpaque {
+				return l, ok
+			}
+			// AND WHERE e IS NO LINEAR TERM (m · m), the claim is the atom
+			// it names, in S by the claim itself (claimBounds): decided apart,
+			// or the program is refused (book finding 23)
+			return variable(claimAtom(t)), true
+		case op.Name == "let" && len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1 &&
+			!PlantClaimOpaque:
+			// A LET'S VALUE IS ITS BODY'S: the binder is named apart (ADR
+			// 0036), so the body's form with it free assumes nothing of it
+			return asLinearIn(pure, args[1].Body())
 		case op.Name == core.RequireWhereName && len(args) == 3:
 			// AN OBLIGATION'S WHERE-MARK IS ITS BODY'S VALUE, (#reqw "def" cond body):
 			// cond is decided apart, and an undecided one refuses the program, so
@@ -1322,3 +1337,58 @@ func (f *facts) hasLength(tg *Target, t string) bool {
 	}
 	return false
 }
+
+// claimAtom names a claim (the S e) whose e is no linear term, as the atom
+// the linear fragment reasons about.
+func claimAtom(t *core.Term) string { return "the" + t.String() }
+
+// claimBounds is f with each claim in t whose value is no linear term
+// bounded by its own set: lo ≤ (the S e) ≤ hi. A claim is an obligation
+// decided apart (ADR 0049; desugar.go), so in a program that is accepted it
+// holds, as a proven assertion does. f is cloned only where there is one.
+func claimBounds(t *core.Term, f *facts) *facts {
+	if PlantClaimOpaque {
+		return f
+	}
+	g := f
+	var walk func(t *core.Term)
+	walk = func(t *core.Term) {
+		if t == nil {
+			return
+		}
+		if t.Kind == core.KFn {
+			walk(t.Body()) // a let's or a redex's body, as asLinearIn reads it
+			return
+		}
+		if t.Kind != core.KApp {
+			return
+		}
+		if op := t.Op(); op.Kind == core.KName && op.Name == core.AscribeName && len(t.Args()) == 2 &&
+			t.Args()[0].Kind == core.KStr {
+			if _, linear := asLinearIn(f.pure, t.Args()[1]); !linear {
+				if lo, hi, ok := core.RangeEnds(t.Args()[0].Str); ok {
+					if g == f {
+						g = f.clone()
+					}
+					x := variable(claimAtom(t))
+					if lo != nil && lo.IsInt64() {
+						g.assumeLE(constant(lo.Int64()).addScaled(x, -1), "a claim's set")
+					}
+					if hi != nil && hi.IsInt64() {
+						g.assumeLE(x.addScaled(constant(hi.Int64()), -1), "a claim's set")
+					}
+				}
+			}
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+	return g
+}
+
+// PlantClaimOpaque reads a claim whose value is no linear term as nothing,
+// as before: `0 <= the(Nat, m * m)` then does not follow
+// (TestAClaimIsInItsSet).
+var PlantClaimOpaque bool

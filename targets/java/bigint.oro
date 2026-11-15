@@ -73,6 +73,11 @@ module java {
     //
     // It is also what decimal rendering is made of: printing needs each digit
     // group as a word.
+    // THE RETRACTION r : ℤ ⇀ S, the partial inverse of `big-of`, defined on the
+    // signed word S and used only where the decision proves the value inside
+    // it (ADR 0079 item 4, ir/big.go's word): r ∘ ι = id, so nothing is lost.
+    fn `big-word`(a ∈ big) (Int) pure { host expr "${a}.longValue()" }
+
     fn `big%-small`(a ∈ big, k ∈ Int) (Int) pure {
         host expr "${a}.remainder(java.math.BigInteger.valueOf(${k})).longValue()"
     }

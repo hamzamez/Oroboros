@@ -170,7 +170,7 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 		}
 		leg = Decide(tg, f, checked)
 	}
-	leg, err = afterRung(tg, f, name, checked, leg, note)
+	leg, err = afterRung(tg, f, name, sig, checked, leg, note)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -180,7 +180,7 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 // afterRung is the pipeline after the rung above the word, shared by an entry
 // and a program function (ADR 0101): the unsigned word, its pair, storage,
 // release, reuse and the target's interpretation, each decided again.
-func afterRung(tg *emit.Target, f *Func, name string, checked bool, leg *Legality, note func(Note)) (*Legality, error) {
+func afterRung(tg *emit.Target, f *Func, name string, sig *core.Sig, checked bool, leg *Legality, note func(Note)) (*Legality, error) {
 	// THE DOUBLE WORD (ADR 0103, 0105, ir/double.go), FIRST: an intermediate
 	// outside both words that its term reads back into one, computed in i128
 	// where the decision proves it in one of i128's readings; decided again.
@@ -200,7 +200,7 @@ func afterRung(tg *emit.Target, f *Func, name string, checked bool, leg *Legalit
 	// THE UNSIGNED WORD AS A PAIR (ADR 0083, ir/pairs.go), on a target whose word
 	// is narrower: every value held there, and every operation on one, expanded
 	// into the halves' operations, which the decision then proves.
-	if changed, err := SelectPairs(tg, f); err != nil {
+	if changed, err := SelectPairs(tg, f, sig); err != nil {
 		return nil, fmt.Errorf("%s: %v", name, err)
 	} else if changed {
 		leg = Decide(tg, f, checked)

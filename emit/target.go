@@ -1615,6 +1615,10 @@ var bigOps = []struct {
 	{"big+", 2, true}, {"big-", 2, true}, {"big*", 2, true}, {"big/", 2, true}, {"big%", 2, true},
 	{"big<", 2, true}, {"big<=", 2, true}, {"big>", 2, true}, {"big>=", 2, true}, {"big=", 2, true},
 	{"big-of", 1, true}, {"big-str", 1, true},
+	// and its retraction r : ℤ ⇀ S, used only where the value is proven in S
+	// (ADR 0079 item 4): not a narrowing of a value that may leave the word,
+	// which unbounded-rung.md §3 forbids, but the identity on S
+	{"big-word", 1, true},
 
 	// `big-of-small` is deliberately NOT here. No target declares it: it is a
 	// marker the representation pass writes and the fixed-limb lowering removes
@@ -3521,6 +3525,12 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	e.Bottom = map[string]bool{}
 	for _, n := range tg.Names {
 		e.Prim[n] = true
+		if len(tg.Prims[n].Args) > 0 {
+			if e.Callable == nil {
+				e.Callable = map[string]bool{}
+			}
+			e.Callable[n] = true
+		}
 		e.Pure[n] = tg.Prims[n].Pure
 		e.Observe[n] = tg.Observer(tg.Prims[n])
 		e.Bottom[n] = tg.IsBottom(n)

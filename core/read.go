@@ -54,6 +54,9 @@ func isIdentContinue(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r)
 }
 
+// UnstatedResult is D's spelling of a result the header does not state.
+const UnstatedResult = "_"
+
 // A Sig is a declared signature on a module export: argument names and types,
 // and a result type. The names are carried even though nothing reads them yet,
 // because a refinement attaches to a NAME — `(where (= (alen a) (alen b)))` —
@@ -68,7 +71,11 @@ type Sig struct {
 	// (data-structures.md section 4.5): three of our four targets have a
 	// native form and it is not a tuple.
 	Results []string
-	Where   *Term // a boolean term over the parameter names, or nil
+	// Unstated is a header that states no result: no claim (ADR 0062 item 8),
+	// so the result's arity is the body's. Result is then `any`, as every
+	// reader of an absent type expects; `(Any)` written is one result.
+	Unstated bool
+	Where    *Term // a boolean term over the parameter names, or nil
 	// Written is the `where` as the programmer wrote it, before each parameter's
 	// range was desugared into it. The two are one denotation; they are kept
 	// apart because ADR 0028 checks a finite range on the ARGUMENT (the set it
@@ -378,6 +385,8 @@ func toForm(t *Term) (Form, error) {
 		}
 		sig := &Sig{}
 		switch r := t.Kids[3]; {
+		case r.Kind == KName && r.Name == UnstatedResult:
+			sig.Result, sig.Unstated = "any", true
 		case r.Kind == KName:
 			sig.Result = r.Name
 		case r.Kind != KName && TypeName(r) != "": // a tuple type reads as a function term
@@ -406,11 +415,11 @@ func toForm(t *Term) (Form, error) {
 		case r.Kind == KFn && IsProd(TypeTerm(r)): // a product of results, one an applied type
 			sig.Results = ProdTypes(TypeTerm(r))
 		case r.Kind == KFn: // a tuple type TypeName refused, such as one nested in another
-			return Form{}, fmt.Errorf("sig %s: %s is not a type", t.Kids[1].Name, r)
+			return Form{}, notAType(t.Kids[1].Name, r)
 		case r.Kind == KApp && len(r.Kids) > 0 && r.Kids[0].Kind == KName &&
 			(r.Kids[0].Name == "tuple" || r.Kids[0].Name == "array" || r.Kids[0].Name == "buffer" ||
 				r.Kids[0].Name == "map" || r.Kids[0].Name == "int"):
-			return Form{}, fmt.Errorf("sig %s: %s is not a type", t.Kids[1].Name, r)
+			return Form{}, notAType(t.Kids[1].Name, r)
 		case r.Kind == KApp:
 			return Form{}, fmt.Errorf("sig %s: a result list is a tuple type — write (tuple A B …) "+
 				"(spec/data.md §10), got %s", t.Kids[1].Name, r)
@@ -455,7 +464,7 @@ func toForm(t *Term) (Form, error) {
 						sig.Params = append(sig.Params, SigParam{a.Kids[0].Name, ty})
 						continue
 					}
-					return Form{}, fmt.Errorf("sig %s: %s is not a type", t.Kids[1].Name, a.Kids[1])
+					return Form{}, notAType(t.Kids[1].Name, a.Kids[1])
 				default:
 					return Form{}, fmt.Errorf("sig %s: a parameter is TYPE or (name TYPE), got %s",
 						t.Kids[1].Name, a)
@@ -1847,3 +1856,22 @@ func WhereIsRanges(sig *Sig) bool {
 // PlantUnitNoClaim reads a declared `()` result as no claim, as before: a body
 // returning a value must then be accepted (TestTheUnitIsNoInteger).
 var PlantUnitNoClaim bool
+
+// notAType is a header's set that is no type, said in J. A range whose ends
+// are reversed is the empty set: no integer lies between them, so no value
+// inhabits it (book finding 25, where the message printed (int 9 0)).
+func notAType(name string, ty *Term) error {
+	if ty.Kind == KApp && len(ty.Kids) == 3 && ty.Kids[0].Kind == KName && ty.Kids[0].Name == "int" {
+		lo, ok1 := EvalEndpoint(ty.Kids[1])
+		hi, ok2 := EvalEndpoint(ty.Kids[2])
+		if ok1 && ok2 && lo.Cmp(hi) > 0 {
+			return fmt.Errorf("%s: the set %s..%s is empty: no integer is at least %s and at most %s, "+
+				"so no value inhabits it. Write the smaller end first", ShowName(name), lo, hi, lo, hi)
+		}
+	}
+	shown := ShowTerm(ty)
+	if ty.Kind == KApp && len(ty.Kids) == 3 && ty.Kids[0].Kind == KName && ty.Kids[0].Name == "int" {
+		shown = ShowTerm(ty.Kids[1]) + ".." + ShowTerm(ty.Kids[2]) // the range as J writes it
+	}
+	return fmt.Errorf("%s: %s is not a type", ShowName(name), shown)
+}

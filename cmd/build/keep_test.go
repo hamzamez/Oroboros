@@ -391,3 +391,20 @@ export fn main() {
 		t.Errorf("with the call on literals opaque: width kept; want the net to inline it")
 	}
 }
+
+// THE RETRACTION COMPUTES THE INTEGER (finding 28, ADR 0079 item 4): g(37) is
+// 2^70 + 37 − 2^70 computed above the word and brought back into it by r, and
+// it prints 37 on Go, through math/big's Int64, and on windows, through
+// K(ℕ*)'s one digit.
+func TestTheRetractionComputesTheInteger(t *testing.T) {
+	src := func(print string) string {
+		return print + "\n\nfn g(n ∈ 0..100) (0..100) {\n    t ∈ Nat = 2^70 + n\n    t - 2^70\n}\n\n" +
+			"export fn main() {\n    ignore(" + strings.TrimPrefix(print, "use ") + ".print_int(g(37)))\n}\n"
+	}
+	for tg, lib := range map[string]string{"go": "use io", "windows": "use win/print"} {
+		out, err := buildAndRun(t, strings.Replace(src(lib), "win/print.print_int", "print.print_int", 1), tg, "")
+		if err != nil || strings.TrimSpace(out) != "37" {
+			t.Errorf("g(37) on %s: %q, %v; want 37", tg, out, err)
+		}
+	}
+}

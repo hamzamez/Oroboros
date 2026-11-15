@@ -1,0 +1,1 @@
+export fn between(a ∈ 0..9, b ∈ 0..9, c ∈ 0..9) (Bool) { a < b < c }

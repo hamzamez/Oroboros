@@ -1,0 +1,9 @@
+fn both(p, q) { if p { q } else { false } }
+
+fn either(p, q) { if p { true } else { q } }
+
+fn inv(p) { if p { false } else { true } }
+
+export fn written_out(p, q) { both(p, either(q, inv(p))) }
+
+export fn built_in(p, q) { p && (q || !p) }

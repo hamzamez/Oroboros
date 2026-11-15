@@ -244,7 +244,7 @@ reason this passes the test at all.
 
 ## 7b. Contraction is easy to grant by accident
 
-**2026-08-16, found writing [chapter 4](../book/04-effects.md).** Everything in this document is
+**2026-08-16, found writing [chapter 4](../book/05-effects.md).** Everything in this document is
 about stopping *reduction* from duplicating an effect. The **emitter** was duplicating work one
 layer down, for a reason that rhymes: the value of a `stmt` primitive is its first argument, and
 the emitter returned that argument's *expression* rather than binding it.

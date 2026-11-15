@@ -1,0 +1,5 @@
+export fn same(p ∈ Bool, q ∈ Bool) (Bool) { if p { q } else { !q } }
+
+export fn differ(p ∈ Bool, q ∈ Bool) (Bool) { if p { !q } else { q } }
+
+export fn implies(p ∈ Bool, q ∈ Bool) (Bool) { !p || q }

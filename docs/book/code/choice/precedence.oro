@@ -1,0 +1,7 @@
+export fn and_first(p, q, r) { p || q && r }
+
+export fn grouped(p, q, r) { (p || q) && r }
+
+export fn not_first(p, q) { !p && q }
+
+export fn not_grouped(p, q) { !(p && q) }

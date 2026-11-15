@@ -1,0 +1,13 @@
+export fn nested(c, d) { if c { 1 } else { if d { 2 } else { 3 } } }
+
+export fn else_if(c, d) { if c { 1 } else if d { 2 } else { 3 } }
+
+export fn guards(c, d) {
+    case {
+        c    -> 1
+        d    -> 2
+        else -> 3
+    }
+}
+
+export fn on_one_line(c, d) { case { c -> 1; d -> 2; else -> 3 } }

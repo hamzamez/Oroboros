@@ -1,0 +1,1 @@
+export fn unsafe(a ∈ 0..100, b ∈ 0..100) (Bool) { a / b > 2 && b != 0 }

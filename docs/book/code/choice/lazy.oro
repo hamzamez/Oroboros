@@ -1,0 +1,7 @@
+fn choose(c, a, b) { if c { a } else { b } }
+
+export fn with_if(c) { if c { shout(1) } else { shout(2) } }
+
+export fn with_a_function(c) { choose(c, shout(1), shout(2)) }
+
+export fn pure_arguments(c) { choose(c, f(1), g(2)) }

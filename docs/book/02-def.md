@@ -983,6 +983,4 @@ the target's operations are left. The language's own tuples, variants and tables
 - **Functions and definitions alone can encode booleans, pairs, numbers and lists**, and here the
   encodings cost nothing, because whatever takes one apart is known at compile time.
 
-Next: [modules](03-modules.md), how a name in another file is reached. That chapter and the two
-after it are still in the notation this surface replaced, and are being brought up to date in
-order.
+Next: [modules](03-modules.md), how a name in another file is reached.

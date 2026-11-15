@@ -1,0 +1,1 @@
+export fn run(c, d) { case { c -> 1; d -> 2 } }

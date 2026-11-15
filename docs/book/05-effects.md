@@ -1,4 +1,8 @@
-# 4. Effects
+# 5. Effects
+
+> **This chapter is in the notation J replaced** (git `1e2bdcd`), and its section numbers and
+> cross-references are the old order's. It was chapter 4 until the book was reordered
+> (2026-11-15), and is rewritten when its turn comes ([README](README.md)).
 
 Chapters 1–3 built the language: [`fn`](01-fn.md), [`def`](02-def.md), [modules](03-modules.md).
 This chapter is not a fourth form. **There is no effect form.** No `IO`, no `!`, no `do`, no

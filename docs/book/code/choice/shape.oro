@@ -1,0 +1,14 @@
+export fn in_parentheses(c) { if (c) { 1 } else { 2 } }
+
+export fn with_a_block(c) {
+    if c {
+        a = f(1)
+        h(a, a)
+    } else {
+        0
+    }
+}
+
+export fn as_an_operand(c) { 10 + (if c { 1 } else { 2 }) }
+
+export fn as_an_argument(c) { h(if c { 1 } else { 2 }, 3) }

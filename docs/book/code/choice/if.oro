@@ -1,0 +1,9 @@
+export fn taken() { if true { f(1) } else { g(1) } }
+
+export fn not_taken() { if false { f(1) } else { g(1) } }
+
+export fn computed() { if 3 < 4 { f(1) } else { g(1) } }
+
+export fn waits(c) { if c { f(1) } else { g(1) } }
+
+export fn waits_too() { if x() < y() { f(1) } else { g(1) } }

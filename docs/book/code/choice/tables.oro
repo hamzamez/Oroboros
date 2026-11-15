@@ -1,0 +1,19 @@
+export fn and_tt() { true && true }
+
+export fn and_tf() { true && false }
+
+export fn and_ft() { false && true }
+
+export fn and_ff() { false && false }
+
+export fn or_tt() { true || true }
+
+export fn or_tf() { true || false }
+
+export fn or_ft() { false || true }
+
+export fn or_ff() { false || false }
+
+export fn not_t() { !true }
+
+export fn not_f() { !false }

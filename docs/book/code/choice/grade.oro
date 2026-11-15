@@ -1,0 +1,17 @@
+export fn grade(score ∈ 0..100) (String) {
+    case {
+        score >= 90 -> "A"
+        score >= 80 -> "B"
+        score >= 70 -> "C"
+        else        -> "F"
+    }
+}
+
+export fn wrong_order(score ∈ 0..100) (String) {
+    case {
+        score >= 70 -> "C"
+        score >= 80 -> "B"
+        score >= 90 -> "A"
+        else        -> "F"
+    }
+}

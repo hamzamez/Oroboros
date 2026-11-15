@@ -1,0 +1,1 @@
+export fn run(n ∈ 0..9) (Int) { if n { 1 } else { 0 } }

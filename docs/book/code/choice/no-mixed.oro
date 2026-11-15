@@ -1,0 +1,1 @@
+export fn run(c ∈ Bool) { if c { 1 } else { "two" } }

@@ -1,0 +1,9 @@
+export fn applied(c) { (if c { f } else { g })(7) }
+
+export fn if_of_if(c, d) { if (if c { d } else { false }) { f(1) } else { g(1) } }
+
+export fn used_once(c) { v = if c { 1 } else { 2 }; f(v) }
+
+export fn used_twice(c) { v = if c { 1 } else { 2 }; h(v, v) }
+
+export fn same_test_twice(c) { if c { if c { f(1) } else { g(1) } } else { g(2) } }

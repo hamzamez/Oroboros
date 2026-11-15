@@ -1,0 +1,11 @@
+export fn and_waits(c) { c && shout(1) < 2 }
+
+export fn or_waits(c) { c || shout(1) < 2 }
+
+export fn never_reached() { false && shout(1) < 2 }
+
+export fn never_needed() { true || shout(1) < 2 }
+
+fn both(p, q) { if p { q } else { false } }
+
+export fn a_function_is_eager(c) { both(c, shout(1) < 2) }

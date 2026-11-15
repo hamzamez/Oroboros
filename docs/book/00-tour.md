@@ -1056,6 +1056,6 @@ exact list.
 - **`pub` is for other modules, `export` is for the host.** A host's library is used under its own
   names, and how portable that leaves a program is computed.
 
-Next: [`fn`](01-fn.md), and how reduction does all of this. Chapters 1 to 5 are still written in
-the notation this surface replaced, and are being brought up to date in order; until each is, read
-its examples for their content and this chapter for the spelling.
+Next: [`fn`](01-fn.md), and how reduction does all of this. From there the book goes one brick at a
+time, each chapter using only what the ones before it introduced; [the book's README](README.md)
+lists the chapters and says which are written.

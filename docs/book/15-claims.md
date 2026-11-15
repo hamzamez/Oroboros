@@ -1,4 +1,8 @@
-# 5. Types
+# 15. Claims
+
+> **This chapter is in the notation J replaced** (git `1e2bdcd`), and its section numbers and
+> cross-references are the old order's. It was chapter 5, "Types", until the book was reordered
+> (2026-11-15), and is rewritten when its turn comes ([README](README.md)).
 
 > ## ⚠ Status, 2026-10-06: this chapter's examples do not run
 >

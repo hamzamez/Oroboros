@@ -1,0 +1,1 @@
+export fn safe(a ∈ 0..100, b ∈ 0..100) (Bool) { b != 0 && a / b > 2 }

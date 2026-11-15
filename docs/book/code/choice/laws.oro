@@ -1,0 +1,21 @@
+export fn and_true(c) { c && true }
+
+export fn true_and(c) { true && c }
+
+export fn and_false(c) { c && false }
+
+export fn or_false(c) { c || false }
+
+export fn or_true(c) { c || true }
+
+export fn if_true_false(c) { if c { true } else { false } }
+
+export fn if_false_true(c) { if c { false } else { true } }
+
+export fn same_branches(c) { if c { f(1) } else { f(1) } }
+
+export fn double_negation(c) { !!c }
+
+export fn de_morgan_left(p, q) { !(p && q) }
+
+export fn de_morgan_right(p, q) { !p || !q }

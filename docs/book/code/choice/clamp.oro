@@ -1,0 +1,9 @@
+fn max(a, b) { if a < b { b } else { a } }
+
+fn min(a, b) { if a < b { a } else { b } }
+
+fn clamp(v, lo, hi) { max(lo, min(v, hi)) }
+
+export fn all_known() { clamp(15, 0, 10) }
+
+export fn one_unknown(v) { clamp(v, 0, 10) }

@@ -3,29 +3,48 @@
 Chapters, in order. Each is written for someone learning the language — human or model — and
 leans on examples rather than explanation.
 
-**Where the book stands, 2026-11-10.** The surface is J ([spec/j.md](../spec/j.md), ADR 0068), and
-the chapters are being rewritten for it in order:
+**Where the book stands, 2026-11-15.** The surface is J ([spec/j.md](../spec/j.md), ADR 0068). The
+book introduces the language **one brick at a time**: a chapter uses only what the chapters before
+it introduced, opens with the question the last one left, and shows a thing refused before it
+shows it working (hamza, 2026-11-15: the order of Feynman's lectures, where nothing is used before
+it is explained). Chapter 0 is the exception, a tour that may show everything.
 
-| chapter | written in | checked |
-|---|---|---|
-| 0 | J, the language as decided and built | 2026-11-10, by `check.go` (below): 58 blocks, every source, emitted function, refusal and output |
-| 1 | J | 2026-11-10, by `check.go`: 76 blocks, every source, reduction, emitted function and refusal |
-| 2 | J | 2026-11-15, by `check.go`: 71 blocks |
-| 3 | J | 2026-11-15, by `check.go`: 52 blocks |
-| 4 | the notation J replaced (git `1e2bdcd`) | 2026-10-06, in that notation; its examples no longer read |
-| 5 | the notation J replaced | its examples did not run even then; see its banner |
+| | chapter | the one idea | state |
+|---|---|---|---|
+| 0 | [A tour](00-tour.md) | the map | J; 58 blocks checked 2026-11-10 |
+| | **I. How a program is reduced** | | |
+| 1 | [`fn`](01-fn.md) | β; reduction is compilation | J; 62 blocks checked 2026-11-15 |
+| 2 | [Definitions](02-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-15 |
+| 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 52 blocks checked 2026-11-15 |
+| 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 52 blocks checked 2026-11-15 |
+| 5 | [Effects](05-effects.md) | what β may not move; a statement is a binding nobody reads | **the notation J replaced**; next |
+| | **II. What a program computes with** | | |
+| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | a stub holding one section moved from chapter 1; 14 blocks checked |
+| 7 | Bits | the bits are the integer's; wrapping is `mod 2ⁿ` | not written |
+| 8 | Numbers with a point | exact decimals; `round` the one place precision is lost; `F64` | not written |
+| 9 | Text | strings as sequences, `++`, the host's strings, bytes | not written |
+| 10 | Tuples and variants | "and" and "or" of data; `case` with patterns | not written |
+| | **III. Repetition and storage** | | |
+| 11 | `loop` | the one iteration; termination | not written |
+| 12 | Tables | a table is a function on `0..len-1`; an index is proven; fusion | not written |
+| 13 | State | `var`, buffers, maps; why a table never changes under you | not written |
+| 14 | Failures | `Result`, `try`, `expect`, `relevant` | not written |
+| | **IV. Claims and hosts** | | |
+| 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | **the notation J replaced**, and its examples did not run even in it; see its banner |
+| 16 | Targets | host modules, writing a declaration, portability computed | not written |
+| 17 | A whole program | one real program read line by line | not written |
+
+Nothing specified and not built gets a chapter (records, callbacks, concurrency, `spec` and
+`lemma`); each is named in a line where it would belong.
 
 ```bash
-go run docs/book/check.go docs/book/00-tour.md      # from the repository's root
-go run docs/book/check.go docs/book/01-fn.md
-go run docs/book/check.go docs/book/02-def.md
-go run docs/book/check.go docs/book/03-modules.md
+go run docs/book/check.go docs/book/04-choice.md      # from the repository's root; any written chapter
 ```
 
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2 and seven in chapter 3, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3 and seven in chapter 4, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -34,7 +53,7 @@ notation (`core.ShowTerm`, [spec/j.md §6.1](../spec/j.md)), where `oro` alone w
 `.oro` file in the repository to read, so an example whose refusal is the reader's ends in
 `.oro.txt`. A `no-….oro` reads, and is refused by a later stage.
 
-**Chapters 1–4 teach reduction**, and their examples run against
+**Chapters 1–5 teach reduction**, and their examples run against
 [`targets/tutorial.oro`](../../targets/tutorial.oro), a target that exists to teach: it spells
 arithmetic `+ - * /` so a chapter need not also be about module paths, and it declares `f`, `g`,
 `h`, `x`, `y`, `z` as primitives so reduction halts exactly where a lesson wants it to.
@@ -46,23 +65,12 @@ go run ./cmd/oro -target=tutorial FILE.oro
 That a teaching target is *possible* is the thesis in miniature: the normal form is a parameter, so
 choosing where reduction stops is choosing a target.
 
-| | |
-|---|---|
-| [0. a tour](00-tour.md) | the whole language for someone arriving from Go, Python, JavaScript, Java, C or Rust: what is like those and what is not. Hello on two hosts, one function on four, blocks, types as sets, integers that are integers, functions that vanish, `loop` and `again`, state and tables, variants, failures as values, tuples, bits, modules and the host, what is absent, and a table from familiar spellings to this one |
-| [1. `fn`](01-fn.md) | the first brick: a function is a value, β, what folds and what waits, what a parameter may be, bound and free names, shadowing and α, capture, exact arity, reduction under a binder, functions as arguments and results and the closure that is refused, how often an argument is evaluated with and without an effect, a block as an applied function, a named function's header and its claims, and Ω |
-| [2. definitions](02-def.md) | the second brick: naming a term, with no keyword; δ; a definition copied where a binding is shared; an effect refused; what a name may be, and the names the language owns; every definition checked; parameter, then target, then definition, and why the target winning is the design; no recursion, by a cycle of any length; what reaches the host and what copying costs; then Church's booleans, pairs, numerals and lists, SKK, Kleene's predecessor, Y, and the Church pair in the library |
-| [3. modules](03-modules.md) | the third brick: a file is a module named by its path; `.` and `/`; `use` and why imports stay qualified; `pub` against `export`; the entry file and the files it uses; several modules in one file, a diamond, one member name in two modules; modules in a cycle; resolution, not reduction; a module the target provides; the four cells and the one namespace; and what a module is not, with the functor that is a function |
-| [4. effects](04-effects.md) | one declared bit, the β side condition, `seq`, and the substructural logic it turns out to be |
-| [5. types](05-types.md) | the checker that is not in the language, `sig` checked in two directions, refinements, and why our proofs do not transfer — **its examples do not run; see the banner at its head** |
-
-Planned: targets.
-
 Chapter 0 uses the real targets, not the teaching one: its sources are in [code/tour/](code/tour/),
 compiled with `cmd/gen`, built and run with `cmd/build`, and measured with `cmd/portable`. A file
 named `no-…` is meant to be refused, and the chapter prints the refusal. The chapter it replaced was
 about s-expressions, the notation before J, and is in git at `a50bd47`.
 
-Chapter 5 uses `cmd/gen` and `cmd/build` rather than `oro`, because the checker lives at the
+Chapter 15, as it was written, uses `cmd/gen` and `cmd/build` rather than `oro`, because the checker lives at the
 emission boundary and the teaching target emits nothing. That is the lesson, not a workaround.
 
 Chapter 3's library files are real and live in [code/](code/). Its examples run against two
@@ -205,6 +213,19 @@ Chapter 3 in J (2026-11-15) found three, none fixed:
     `zz_b7.oro` is unreachable, and the refusal suggests the `use` that fails.
 17. **`use Geometry` finds `geometry.oro` on Windows**, whose file system ignores case; the same
     program is refused where it does not.
+
+Chapter 4, Choice (2026-11-15), found one in the reader, fixed with the chapter, and three left:
+
+18. **A guarded choice with no `else` read its last guard as one, and an arm after `else` crashed
+    the reader** (fixed). `case { c -> 1; d -> 2 }` answered 2 where neither guard held, and
+    `case { else -> 2; c -> 1 }` was a nil dereference in D's chain. The reader checked W4 for a
+    loop's arms and not a `case { … }`'s; it now does (`TestAGuardedChoicesLastArmIsElse`);
+    emission is byte-identical, so no corpus program relied on it.
+19. **A one-armed `if`'s unit passes as an integer.** `export fn f(c ∈ Bool) (Int) { if c { 1 } }`
+    compiles, and returns 0 where `c` is false. The same family as item 10.
+20. **`true = 1` at a file's top level is accepted and ignored.** The literal stays `true`.
+21. **The equality refusal names a deleted host operation**: *name it: go.`==`, js.`===`,
+    java.`==`, x64.sete*, and `x64` went with MASM.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

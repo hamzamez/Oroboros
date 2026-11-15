@@ -723,5 +723,5 @@ can also write into. That is §3.10, and it is the reason modules exist.
   fallback for a target's own operation.
 - **A functor is a function.** Modules stayed small because `fn` had already done the hard part.
 
-Next: [effects](04-effects.md), the one thing β may not move. That chapter and the one after it are
-still in the notation this surface replaced, and are being brought up to date in order.
+Next: [choice](04-choice.md), the first piece of data: a value that is one of two, and what a
+program does with it.

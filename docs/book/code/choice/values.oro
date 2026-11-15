@@ -1,0 +1,7 @@
+export fn yes() { true }
+
+export fn smaller() { 3 < 4 }
+
+export fn larger() { 4 < 3 }
+
+export fn unknown() { x() < y() }

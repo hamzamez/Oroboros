@@ -549,10 +549,6 @@ func (tg *Target) finish(wrap func(error) error) error {
 	if err := tg.requirementsMet(); err != nil {
 		return wrap(err)
 	}
-	// A C FUNCTION'S PROTOTYPE IS ITS SETS (ADR 0094), each one a C type.
-	if err := tg.cPrototypes(); err != nil {
-		return wrap(err)
-	}
 	// AN LLVM MODULE NAMES ITS TRIPLE, and no default is right (ADR 0093 item 5).
 	if b, err := tg.ResolveBackend(); err == nil && b == "llvm" && tg.Triple == "" {
 		return wrap(fmt.Errorf("target %s prints LLVM IR and names no `triple`", tg.Name))
@@ -567,6 +563,11 @@ func (tg *Target) finish(wrap func(error) error) error {
 		return wrap(err)
 	}
 	if err := tg.unfoldAliases(); err != nil {
+		return wrap(err)
+	}
+	// A C FUNCTION'S PROTOTYPE IS ITS SETS (ADR 0094), each one a C type, read
+	// through their definitions: Win32's DWORD is 0..2^32-1 (ADR 0112).
+	if err := tg.cPrototypes(); err != nil {
 		return wrap(err)
 	}
 	if err := tg.checkRealized(); err != nil {
@@ -1016,6 +1017,9 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 			if !core.IsFragment(string(src)) {
 				return nil
 			}
+			if PlantFragment != nil {
+				src = []byte(PlantFragment(filepath.ToSlash(fp), string(src)))
+			}
 			terms, err := core.ReadTargetSource(string(src), fp, "")
 			if err != nil {
 				return fmt.Errorf("%s: a library fragment does not parse, so nothing it provides "+
@@ -1253,6 +1257,11 @@ var coreNames = map[string]bool{
 	// the scalars below 128 is a submonoid of Σ*, and its words are tables of
 	// those scalars, so a renderer's digits become text at once.
 	"ascii": true,
+	// AND V, THE VALID UTF-8, with its inclusion ι_V : V ↪ Σ* (ADR 0112): V is
+	// recognized by the transition monoid of Table 3-7's automaton, and
+	// utf8-text is e⁻¹ on it, e Σ*'s UTF-8.
+	"utf8-valid": true,
+	"utf8-text":  true,
 	// THE WRITE SIDE — ADR 0018. Values are immutable; mutation exists only
 	// inside `build`, whose buffer is linear and is frozen on the way out.
 	//
@@ -1443,6 +1452,24 @@ func (tg *Target) addCore() {
 			c.Pure = true
 			tg.Prims["nulfree"] = c
 			tg.Names = append(tg.Names, "nulfree")
+		}
+	}
+	if _, have := tg.Prims["utf8-valid"]; !have {
+		if c, ok := tg.lookup("utf8-valid", func() (Prim, bool) { return tg.findBySpelling("utf8-valid", 1) }); ok {
+			c.Name = "utf8-valid"
+			c.Result = "bool"
+			c.Pure = true
+			tg.Prims["utf8-valid"] = c
+			tg.Names = append(tg.Names, "utf8-valid")
+		}
+	}
+	if _, have := tg.Prims["utf8-text"]; !have {
+		if c, ok := tg.lookup("utf8-text", func() (Prim, bool) { return tg.findBySpelling("utf8-text", 1) }); ok {
+			c.Name = "utf8-text"
+			c.Result = "string"
+			c.Pure = true
+			tg.Prims["utf8-text"] = c
+			tg.Names = append(tg.Names, "utf8-text")
 		}
 	}
 	if _, have := tg.Prims["ascii"]; !have {
@@ -2187,6 +2214,11 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	return nil
 }
 
+// PlantFragment rewrites a library fragment's source as it is read, a test's
+// planted fault in a cell written in J (ADR 0112's repair):
+// TestTheRepairsGuardCatchesAWrongRepair sets it.
+var PlantFragment func(path, src string) string
+
 // CType is the C type a set is (ADR 0094, llvm.md §6a): its LLVM type and how a
 // value crosses, "trunc" for a narrow integer, "cstr" for a C string, "" as it
 // is, and whether a narrow integer is signed. Over C's integer types the map
@@ -2200,6 +2232,23 @@ func (tg *Target) CType(set string) (ll, cross string, signed, ok bool) {
 		return "ptr", "cstr", false, true
 	case "empty":
 		return "void", "", false, true
+	}
+	// AN OUT-PARAMETER IS A CELL (ADR 0048, 0112): T* for a C integer T, the
+	// address of the slot the printer allocates.
+	if core.IsCell(set) {
+		if ll, _, _, ok := tg.CType(core.CellElem(set)); ok && ll != "ptr" && ll != "void" {
+			return "ptr", "", false, true
+		}
+		return "", "", false, false
+	}
+	// A TABLE OF BYTES IS C's ARRAY OF THEM, decayed to its first element's
+	// address (C11 §6.3.2.1): s + 8, after the length (llvm.md §4), as a C
+	// string's bytes are, with no NUL asked of it (ADR 0112).
+	if e := core.ArrayElem(set); e != "" {
+		if lo, hi, ok := core.IntRange(e); ok && (lo == 0 && hi == 255 || lo == -128 && hi == 127) {
+			return "ptr", "elems", false, true
+		}
+		return "", "", false, false
 	}
 	lo, hi, isInt := core.IntRange(set)
 	if !isInt {
@@ -4474,7 +4523,7 @@ func (tg *Target) statedRealizations(op string) {
 // checkRealized refuses a stated realization that names a declaration the
 // target does not have, or a name the language does not have.
 func (tg *Target) checkRealized() error {
-	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "abandon": true, "alloc": true, "release": true, "reuse": true, "discard": true, "alloc-raw": true, "reuse-raw": true, "reuse-fit": true, "reuse-fit-raw": true, "big-str": true}
+	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "utf8-valid": true, "utf8-text": true, "abandon": true, "alloc": true, "release": true, "reuse": true, "discard": true, "alloc-raw": true, "reuse-raw": true, "reuse-fit": true, "reuse-fit-raw": true, "big-str": true}
 	for _, op := range langOps {
 		known[op.name] = true
 	}

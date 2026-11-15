@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 177 words of the core**, and j.md §1.4's keywords.
+**Result: 179 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 138 |
+| `specified` — a spec states it | 140 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -172,6 +172,8 @@ A target may not declare one, and declaring one is an **error**.
 | `concat`, `string-of` | recorded — the free monoid's operation and its generator, J's `++` and `string_of`; derived in research and built, and no spec in `docs/spec/` states them | [string-operations.md](../string-operations.md), [render-2026-09-04](../../gauntlet/results/render-2026-09-04.md) |
 | `ascii` | specified — ι : (B₇)* ↪ Σ*, ASCII's inclusion: the word b[lo, lo+n) of a table whose elements are proven in 0..127, as text, total, a monoid homomorphism, one copy on every target; an observer of a live buffer by its meaning | [strings.md](strings.md) §10, [ADR 0095](../decisions/0095-text-from-ascii-is-the-inclusion-and-rendering-is-integers-at-every-sort.md) |
 | `nulfree` | specified — ¬ν, the C strings' predicate: ν the monoid homomorphism true exactly on U+0000, decided by structure at a `where` | [strings.md](strings.md) §9, [ADR 0091](../decisions/0091-a-c-string-is-the-kernel-of-the-nul-homomorphism.md) |
+| `utf8-text` | specified — ι_V : V ↪ Σ*, the inverse of Σ*'s UTF-8 on the valid UTF-8: a byte table proven in V as text, `where utf8_valid(b)`, one copy on every target | [strings.md](strings.md) §11, [ADR 0112](../decisions/0112-os-on-windows-is-a-library-over-kernel32-and-valid-utf-8-is-recognized-by-its-monoid.md) |
+| `utf8-valid` | specified — V's predicate, V = φ⁻¹(F) for φ into the transition monoid of Table 3-7's automaton; decided by φ on an array literal, else by a guard | [strings.md](strings.md) §11, [ADR 0112](../decisions/0112-os-on-windows-is-a-library-over-kernel32-and-valid-utf-8-is-recognized-by-its-monoid.md) |
 | `the` | recorded — a range ascribed to a term, erased at emission; J refuses `the`, and writes a binder's claim `b ∈ S = e` (ADR 0069); the construct owes a spec | [ascribe-2026-09-03](../../gauntlet/results/ascribe-2026-09-03.md), [inlining-and-declarations.md](../inlining-and-declarations.md) |
 
 **Indexing has no word at all.** `t[i]` is an application, because a table *is* a function with a

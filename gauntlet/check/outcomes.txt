@@ -118,8 +118,7 @@
 == examples/errors/discard.oro java refused
    gen: the result of os.WriteFile is a value of a relevant type (spec/errors.md §7), and it is discarded: use it, or discard it with ignore(…)
 == examples/errors/discard.oro windows refused
-   gen: examples/errors/discard.oro: in os.Args: `os/host`.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use os/host` matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
+   gen: the result of os.WriteFile is a value of a relevant type (spec/errors.md §7), and it is discarded: use it, or discard it with ignore(…)
 == examples/errors/expect.oro go emitted 6a54c8469b0a2c954b3fb2c9db96ffe1be796f102ce548d3abbdd08bf3fbd677
    note: gen-quarter: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-quarter: 4 division(s) became a shift or a mask
@@ -134,9 +133,8 @@
 == examples/errors/ignore.oro go emitted 8884519c312e32db6c0cd9bbcd2dd117d3c623efac1601f4d377b8c523d99367
 == examples/errors/ignore.oro js emitted 07572c03a3c589d17ab47468b8b6f6a4435bf914e4d0fc3c04f490d87f5df75d
 == examples/errors/ignore.oro java emitted 4d2a4e9db2c14414fed22f576e9093afe8534cef5a610df4be299b813af8354f
-== examples/errors/ignore.oro windows refused
-   gen: examples/errors/ignore.oro: in os.Args: `os/host`.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use os/host` matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
+== examples/errors/ignore.oro windows emitted 26d1bf5c45189f02b9e5e66d307f1cbba0b69108f538797a78c3df9cbef2833a
+   note: gen-save: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
 == examples/errors/slots.oro go emitted ff43289ca71c3b6e1e854207dc57767b42a21209b34bbdbbb8b8a0416c4fcc43
    note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-save: 1 division(s) became a shift or a mask
@@ -156,9 +154,8 @@
 == examples/hash/crc32.oro java emitted 10648d0b9cb3ab25d1aa21670099cb927c8209877d4c9b89981b9c6686cd4679
    note: gen-main: 53 of 53 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-main: 3 division(s) became a shift or a mask
-== examples/hash/crc32.oro windows refused
-   gen: examples/hash/crc32.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+== examples/hash/crc32.oro windows emitted 5f2ae2d9ddda914a900daf1b9fca90fb64f6f178e5b63ed5329e7eb69ed3c0c9
+   note: gen-main: 357 of 357 integer operations bounded; 21 of 22 loop(s) proven terminating
 == examples/hash/fnv.oro go emitted cb63694a0e2d51472ba4ca8e0da1e228b7f5509928c875be3992724210e37e6f
    note: gen-main: 18 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 15 of 15 integer operations bounded; 4 of 4 loop(s) proven terminating
@@ -169,9 +166,9 @@
    note: gen-main: 18 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 15 of 15 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: gen-main: 3 division(s) became a shift or a mask
-== examples/hash/fnv.oro windows refused
-   gen: examples/hash/fnv.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+== examples/hash/fnv.oro windows emitted ba89c52b06a441c04a2bc16838438234a3b40a0ac4752d66cc9e5931a07cf0be
+   note: gen-main: 26 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 180 of 180 integer operations bounded; 26 of 27 loop(s) proven terminating
 == examples/hello.oro go emitted 4253337bb028043a77dae438338113454d3ba311208574d916d1ca0bff961b27
    note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/hello.oro js refused
@@ -290,9 +287,8 @@
    note: gen-main: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/count.oro java emitted 2825d1b1b1340477ae8d1d1d1b0fb0b4227316f5fc2a11142aa9b6540ad62159
    note: gen-main: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/count.oro windows refused
-   gen: examples/io/count.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+== examples/io/count.oro windows emitted a0abd695f80393f257aedf136055247a072b4096db408f68f2f1669d43f6bd69
+   note: gen-main: 312 of 312 integer operations bounded; 26 of 27 loop(s) proven terminating
 == examples/io/freq.oro go emitted 2ab5a85e6fdb8453bfa9047759ba01eee3e1a309fb4443d702a3d9e7d92df1c1
    note: gen-main: 67 product access(es) flattened
    note: gen-main: 228 of 228 integer operations bounded; 25 of 29 loop(s) proven terminating
@@ -306,17 +302,20 @@
    note: gen-main: 228 of 228 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 2 division(s) became a shift or a mask
 == examples/io/freq.oro windows refused
-   gen: examples/io/freq.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+   gen: gen-main: `os/host`.put's parameter v, declared in 0..255, requires 0 <= b(i) && b(i) <= 255 at a call, which does not follow
+     known: assumed -len(cmd) <= 0 (fact len-nonneg), assumed -len(ends) <= 0 (fact len-nonneg), assumed -len(o) <= 0 (fact len-nonneg), assumed -len(b) <= 0 (fact len-nonneg), assumed -len(#vo) <= 0 (fact len-nonneg), assumed -len(#vo1) <= 0 (fact len-nonneg), assumed -len(#vo2) <= 0 (fact len-nonneg), assumed -len(o1) <= 0 (fact len-nonneg), assumed -len(av) <= 0 (fact len-nonneg), assumed -len(u) <= 0 (fact len-nonneg), assumed -len(b1) <= 0 (fact len-nonneg), assumed -len(sp) <= 0 (fact len-nonneg), assumed -len(#vb) <= 0 (fact len-nonneg), assumed -len(#nl133) <= 0 (fact len-nonneg), assumed -len(t) <= 0 (fact len-nonneg), assumed -len(#nl150) <= 0 (fact len-nonneg), assumed -rem(ns, 2) + -1 <= 0 (fact rem-divisor-pos), assumed rem(ns, 2) + -1 <= 0 (fact rem-divisor-pos), assumed -rem(app(/ x p), 10) + -9 <= 0 (fact rem-divisor-pos), assumed rem(app(/ x p), 10) + -9 <= 0 (fact rem-divisor-pos), n joined over its branches, n joined over its branches, n joined over its branches, n joined over its branches, n joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, n1 joined over its branches, 0 <= j, j < na, assumed n2 + -46912496118439 <= 0, assumed n2 + -46912496118439 <= 0, 0 <= i, assumed i + -len(#vo) <= 0, assumed i + -n2 <= 0, assumed -i + s <= 0, assumed -k <= 0, assumed -s <= 0, assumed -len(#vo) + s <= 0, assumed -n2 + s <= 0, assumed -m <= 0, assumed -len(#vo) + m <= 0, assumed -lo + m <= 0, assumed -hi + m <= 0, assumed m + -128 <= 0, assumed m + -194 <= 0, assumed m + -224 <= 0, assumed m + -237 <= 0, assumed m + -240 <= 0, assumed m + -244 <= 0, assumed -lo <= 0, assumed -hi + lo <= 0, assumed -lo + +1 <= 0, assumed -lo + +128 <= 0, assumed lo + -194 <= 0, assumed lo + -224 <= 0, assumed lo + -237 <= 0, assumed lo + -240 <= 0, assumed lo + -244 <= 0, assumed -hi <= 0, assumed -hi + +1 <= 0, assumed -hi + +128 <= 0, assumed hi + -194 <= 0, assumed hi + -224 <= 0, assumed hi + -237 <= 0, assumed hi + -240 <= 0, assumed hi + -244 <= 0, assumed hi + -191 <= 0, assumed k + -len(#vo) + +1 <= 0, assumed k + -len(#vo) + +1 <= 0, assumed -k <= 0, assumed -k <= 0, assumed i + -n2 + +1 <= 0, assumed i + -n2 + +1 <= 0
+     A definition's declared parameter range and `where` are obligations at every call it is
+     inlined into (ADR 0028). Prove the argument in range — narrow it, or declare the range of
+     what it comes from — or widen the declaration if the definition is right outside it.
+     (3 obligations at calls fail; this is the first.)
 == examples/io/jsonfmt.oro go emitted df696b6aa8a22503b56e047ce6c61fcbc3aa35256d5d64218a091e9dcae18ef4
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro js emitted e4b53e205be6001187f7441d149a414b693fdff923b4a86e73b6b5e2579522ee
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro java emitted abe38cf4dcf8b80a2d86efa965e10f3550170a80b8335d078923a92b8ce98009
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
-== examples/io/jsonfmt.oro windows refused
-   gen: examples/io/jsonfmt.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+== examples/io/jsonfmt.oro windows emitted a2c5ff74e510e911c533c945af5495d8e0427f1a8febdcde7e0d7fa5261862e2
+   note: gen-main: 742 of 742 integer operations bounded; 86 of 87 loop(s) proven terminating
 == examples/io/roundtrip.oro go emitted 6bac65e06db7a15d3e39d210dbd2f238999fb31ea986a5bbff80596cdc06e565
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro js emitted 68da44043bb587fda190dad9069c23af84871cfc5faae157af826df3ca52de3b
@@ -324,17 +323,15 @@
 == examples/io/roundtrip.oro java emitted 684eab54733c432238e8d818181fc4c639b8bd5d689e008d975d8abcedfa726e
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro windows refused
-   gen: examples/io/roundtrip.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+   gen: reduction did not terminate within the step limit; last term head: (fn () (fn (av) (fn (path) (fn (data) (fn (c) (fn (#t #p #p1) (fn (h) (fn (c) (fn (#s2) (fn (ok) (fn (sz) (fn (e) (fn (#nl98) (fn (b) (fn (#t #p #p1) (fn (#_) (fn (#_) (fn (#_) (fn (buf) (fn (#s4) (fn (#vbuf) (fn (read #vbuf) (fn (n r) (fn (#_ #vbuf) (fn (#k) (fn (path) (fn (path) (fn (h) (fn (#s2) (fn (ok) (fn (sz) (fn (b) (fn (#vb lo got e) (fn (rest) rest))))))))))))))))))))))))))))))))))
 == examples/io/wc.oro go emitted 4128f5f943ad24a4c024a2434263b0d4ffce81004ded9beef723a5bbcc7214d5
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro js emitted 34405ec116db4bf524f4c747cfe658248385f9a725dced72a2355ef7e4d672dd
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro java emitted 2ba7739feb419abbde64a65d97ce245e504047ab21dcfecf90a93012ca9a2c07
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/wc.oro windows refused
-   gen: examples/io/wc.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+== examples/io/wc.oro windows emitted cb62269748793e7be92b21634f6a6bfe99e48ab2d893ca405dd811e1da1baf4f
+   note: gen-main: 157 of 157 integer operations bounded; 16 of 17 loop(s) proven terminating
 == examples/json/tokenize.oro go emitted 2832e34e080fc7845f5083c93ea2c55d6d6d1f98dbdf9c8e28fc7c6b6fb237c5
    note: gen-run: 116 of 116 integer operations bounded; 16 of 16 loop(s) proven terminating
    note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
@@ -725,8 +722,7 @@
 == examples/num/ledger.oro java emitted 7efb56bc871a96fce55720e29f5808c33b959ad4abb436386121798b16ea2e58
    note: gen-main: 268 of 268 integer operations bounded; 7 of 7 loop(s) proven terminating
 == examples/num/ledger.oro windows refused
-   gen: examples/num/ledger.oro: in main: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+   gen: reduction did not terminate within the step limit; last term head: (fn () (fn (av) (fn (path) (fn (h) (fn (c) (fn (#s2) (fn (ok) (fn (sz) (fn (#nl145 #nl146 #nl147) (fn (#nl99) (fn (t) (fn (#t #p #p1) (fn (#s54) (fn (digits) (fn (#s52 digits) (fn (digits places point qty field sum bad i) (fn (b) (+ sum (* (if (= (#req "price" "places" "int 0 2" places) 2) (* (#req "price" "digits" "int 0 10000000" digits) 0.01) (if (= (#req "price" "places" "int 0 2" places) 1) (* (#req "price" "digits" "int 0 10000000" digits) 0.1) (* (#req "price" "digits" "int 0 10000000" digits) 1.0))) qty)))))))))))))))))))
 == examples/os/du.oro go emitted 80877d4d1aae758f8df4b718dd063985deca223fc4eb671f7fc02d35ab91ecc3
    note: gen-main: 19 of 19 integer operations bounded; 1 of 2 loop(s) proven terminating
 == examples/os/du.oro js refused
@@ -772,8 +768,7 @@
    note: gen-main: 341 of 341 integer operations bounded; 20 of 20 loop(s) proven terminating
    note: gen-main: 44 division(s) became a shift or a mask
 == examples/pe/pe.oro windows refused
-   gen: examples/pe/pe.oro: in check: io.print_line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use io` matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+   gen: reduction did not terminate within the step limit; last term head: (fn () (fn (av) (fn (buf) (fn (#s4) (fn (#vbuf) (fn (path) (fn (h) (fn (c) (fn (read #vbuf) (fn (n r) (fn (#t #p #p1) (fn (#k) (fn (h av) (fn (p) (fn (n) (fn (opt) (fn (o) (fn (s) (fn (#_) (fn (#_) (fn (#_) (fn (#_) (fn (m) (fn (#_) (fn (#_) (fn (#_) (fn (#_) (fn (av at stored) (fn (path) (fn (h) (fn (#s2) (fn (ok) (fn (sz) (fn (#nl549) (fn (b) (fn (#t #p #p1) (fn (c) (fn (#_) (fn (#n) (fn (r) (fn (b) (fn (#s2) (fn (#vb) (fn (#vb) (fn (path) (fn (h) (fn (c) (fn (lo put e) (fn (rest) let)))))))))))))))))))))))))))))))))))))))))))))))))
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
@@ -867,8 +862,8 @@
    gen: examples/tally/tally.oro: in `tally/host`.capture: `java/java/util/regex/Matcher`.find is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use java/java/util/regex/Matcher` matched no file on the search path and this target provides no module java/java/util/regex/Matcher either, so every name from it is unbound. Check the path.
 == examples/tally/tally.oro windows refused
-   gen: examples/tally/tally.oro: in os.Args: `os/host`.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use os/host` matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
+   gen: examples/tally/tally.oro: in tally: `tally/host`.show is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use tally/host` matched no file on the search path and this target provides no module tally/host either, so every name from it is unbound. Check the path.
 == examples/u128/factorials.oro go emitted f04f04d3dc075e217961d8dc69de73e63c6c8028056ad27f4a6b5d177fc1246c
    note: gen-main: 20 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 5 of 5 integer operations bounded; 2 of 3 loop(s) proven terminating
@@ -1192,9 +1187,7 @@
 == gauntlet/differential/cases/read-loop.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/read-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/read-loop.oro java emitted 2c615804f5a7f837419d164183a56ccc495300334ce2c96776998db46f9e8217
-== gauntlet/differential/cases/read-loop.oro windows refused
-   gen: gauntlet/differential/cases/read-loop.oro: in os.Args: `os/host`.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use os/host` matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
+== gauntlet/differential/cases/read-loop.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/render.oro go emitted 41889973290d8539832bb5d51cd4ee1ed142ad211e6f246c18c56b8c62470059
    note: gen-run: 6 operation(s) in arbitrary precision
    note: gen-run: 6 of 6 integer operations bounded; 3 of 3 loop(s) proven terminating
@@ -1240,9 +1233,7 @@
 == gauntlet/differential/cases/text-of.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/text-of.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/text-of.oro java emitted 8e88511073a195d1f5869f40b97ca76bae26158bb1700689f1d9dd4042192e8f
-== gauntlet/differential/cases/text-of.oro windows refused
-   gen: gauntlet/differential/cases/text-of.oro: in os.Args: `os/host`.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use os/host` matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
+== gauntlet/differential/cases/text-of.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/try-loop.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/try-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/try-loop.oro java emitted 0d2df652fd04367563a95b0f092084f9880180667dd3303f18b15171dedc0b05
@@ -1316,7 +1307,7 @@
 == lib/io/go.oro java refused
    gen: lib\io\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/go.oro windows refused
-   gen: lib/io/go.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
+   gen: lib\io\windows.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/java.oro go refused
    gen: lib\io\go.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/java.oro js refused
@@ -1324,7 +1315,7 @@
 == lib/io/java.oro java refused
    gen: lib\io\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/java.oro windows refused
-   gen: lib/io/java.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
+   gen: lib\io\windows.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/js.oro go refused
    gen: lib\io\go.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/js.oro js refused
@@ -1332,7 +1323,15 @@
 == lib/io/js.oro java refused
    gen: lib\io\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/io/js.oro windows refused
-   gen: lib/io/js.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
+   gen: lib\io\windows.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
+== lib/io/windows.oro go refused
+   gen: lib\io\go.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
+== lib/io/windows.oro js refused
+   gen: lib\io\js.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
+== lib/io/windows.oro java refused
+   gen: lib\io\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
+== lib/io/windows.oro windows refused
+   gen: lib\io\windows.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/num.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == lib/num.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == lib/num.oro java emitted 7ee875b9aaefa008f6b40ad47d54fed65cba07d29e0e51acac58d24fe131b61b
@@ -1367,9 +1366,7 @@
 == lib/os.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == lib/os.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == lib/os.oro java emitted 113520fdc630d7533f2dc37b0c1bd77e81b95d1aee78fc9e2ab38cfb2cacebc5
-== lib/os.oro windows refused
-   gen: lib/os.oro: in os.Args: `os/host`.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use os/host` matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
+== lib/os.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == lib/os/go.oro go refused
    gen: lib\os\go.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/go.oro js refused
@@ -1377,7 +1374,7 @@
 == lib/os/go.oro java refused
    gen: lib\os\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/go.oro windows refused
-   gen: lib/os/go.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
+   gen: lib\os\windows.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/java.oro go refused
    gen: lib\os\go.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/java.oro js refused
@@ -1385,7 +1382,7 @@
 == lib/os/java.oro java refused
    gen: lib\os\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/java.oro windows refused
-   gen: lib/os/java.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
+   gen: lib\os\windows.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/js.oro go refused
    gen: lib\os\go.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/js.oro js refused
@@ -1393,7 +1390,15 @@
 == lib/os/js.oro java refused
    gen: lib\os\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/os/js.oro windows refused
-   gen: lib/os/js.oro is a target fragment — it declares provides … and nothing else, so there is no program here to build
+   gen: lib\os\windows.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
+== lib/os/windows.oro go refused
+   gen: lib\os\go.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
+== lib/os/windows.oro js refused
+   gen: lib\os\js.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
+== lib/os/windows.oro java refused
+   gen: lib\os\java.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
+== lib/os/windows.oro windows refused
+   gen: lib\os\windows.oro holds a library's fragment (`provides T M { … }`), not a target's own forms; a fragment is read from the library path
 == lib/result.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == lib/result.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == lib/result.oro java emitted a55a9cbbc8e4476b44bc5819ff933436d0f1a40a1bd6826111f247eb036c690a

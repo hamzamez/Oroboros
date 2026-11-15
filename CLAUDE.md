@@ -405,8 +405,14 @@ checked. When a package hits a wall that needs language work, stop, research it,
 
           And `u128-fact`, `u128-ops` test a Go-only library (`lib/num/u128` over `go/math/bits`),
           so skip every target but Go: whether they count against "fully" is hamza's, after R1–R4;
-        - `os` on windows (`read-loop`, `text-of`): its walls are a host call into a sum and Win32's
-          out-parameters; then the gauntlet's programs on windows;
+        - ~~`os` on windows (`read-loop`, `text-of`)~~ **done** (ADR 0112, [oswin-research.md](docs/oswin-research.md),
+          [oswin-2026-11-15](gauntlet/results/oswin-2026-11-15.md)): `lib/os/windows.oro` and `lib/io/windows.oro`,
+          the first cells written in J over kernel32. A Win32 failure is a term (the sentinel, then
+          GetLastError, each name's sum built once at its tail); an out-parameter is ADR 0048's cell, an
+          `alloca` on LLVM; V, the valid UTF-8, is recognized by its monoid, `utf8_valid` and `utf8_text`
+          in Σ_L (strings.md §11), text_of = ι_V ∘ r. Both cases run on four targets. **`roundtrip.oro`
+          on windows waits on ADR 0102's P8**: nine inlined J definitions pass `core.MaxDepth`. Then the
+          gauntlet's programs on windows, which meet the same scale;
         - **then a skip states a true reason** (hamza, 2026-11-06): the differential runs every skipped
           case × target and reports each that now agrees, a stale skip. Three skipped the JVM for a
           month after its unsigned word was built (llvm64-2026-11-06); step 4 adds a triple's skips.
@@ -468,8 +474,9 @@ checked. When a package hits a wall that needs language work, stop, research it,
     70% (windows) of headed definitions are proven under their contract, the rest an obligation over
     the parameters Theorem 4 lifts (4), ρ at the boundary (1), or higher-order by result (2: dynamic
     means first-order in the whole type); no widening non-monotonicity found; the 2,000-quotient
-    program inlined is 7.1–7.6 min, 70–74% clang's. **P8's trigger is not met**, so P3 and P8 wait on
-    it; M-S3 comes with P8's first program (`json/tree` the likeliest).
+    program inlined is 7.1–7.6 min, 70–74% clang's. **P8's trigger is met** (oswin-2026-11-15):
+    windows' `os` cell is J inlined at every call, and `roundtrip.oro`'s nine calls pass the reducer's
+    depth; P3 and P8 are owed, M-S3 with P8's first program.
 
 **Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;
@@ -532,10 +539,12 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **5,710 of 5,764** integer operations proven inside their target's word, the 54 left
+- **Provability**: **7,462 of 7,516** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **649 of 673** loops proven to terminate (size-change termination). Each
+  **826 of 856** loops proven to terminate (size-change termination; six of the thirty left are
+  windows' `os` cell's read and write loops, whose progress is a count the host returns; the counts
+  rose with the programs `os` let emit on windows, oswin-2026-11-15). Each
   program's share is in its result document; both counts are pinned by `cmd/check`. A program
   function's operations (ADR 0101) are proven once per target, under its parameters' sets, and an
   instance its contract does not prove is inlined (ADR 0102), so they are not counted per program.
@@ -875,6 +884,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A product of numerals above 64 digits is Karatsuba's, evaluation at 0, 1, ∞ and a unimodular interpolation; its levels a tensor power, one loop a pass over nodes × digits; a rule's elements ρ of their hull | [0109](docs/decisions/0109-a-product-is-evaluation-and-interpolation-and-its-levels-are-a-tensor-power.md) |
 | A square is the product's quadratic form, by polarization (half the digit products), recognized by its operands' identity; Karatsuba's square is the tensor power's diagonal; each pass reads frozen tables | [0110](docs/decisions/0110-a-square-is-the-products-quadratic-form-by-polarization.md) |
 | Printing is a tree of divisions by β^(2^j), β = 10¹⁸, each node Algorithm D in place: the digit stored in its window's top word, q̂ in the free word 2k, a node from its first nonzero window; extends 0095 | [0111](docs/decisions/0111-printing-is-a-tree-of-divisions-each-node-algorithm-d-in-place.md) |
+| `os` on windows is J over kernel32: a Win32 failure is a term, an out-parameter ADR 0048's cell (an alloca), V the valid UTF-8 recognized by its monoid, `utf8_valid` and `utf8_text` in Σ_L, text_of = ι_V ∘ r | [0112](docs/decisions/0112-os-on-windows-is-a-library-over-kernel32-and-valid-utf-8-is-recognized-by-its-monoid.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

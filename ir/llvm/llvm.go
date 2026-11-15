@@ -204,6 +204,8 @@ func (p *printer) fresh(stem string) string { p.n++; return fmt.Sprintf(".%s%d",
 // llty is the LLVM type of a value of IR_P type t (llvm.md §3).
 func (p *printer) llty(t string) string {
 	switch {
+	case core.IsCell(t):
+		return "ptr" // a cell is its slot's address (ADR 0048, 0112)
 	case t == "bool":
 		return "i1"
 	case t == "string", ir.ElemOf(p.tg, t) != "":
@@ -572,9 +574,67 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 		}
 	case ir.OTabulate:
 		p.tabulate(s, x)
+	case ir.OCellRef, ir.OCellFresh:
+		// A CELL A HOST WRITES IS A SLOT (ADR 0048 item 6, ADR 0112): f : X × T* →
+		// R that keeps no address is X × T → R × T, so the reference is the
+		// address of a fresh copy, an alloca of the cell's C type in the entry
+		// block (Go's variable declared once at the top, for the same reason),
+		// written here with the copy's value, or the type's zero.
+		ll, trunc, _ := p.cellTy(p.f.Types[s.Res[0]])
+		c := "%" + p.fresh("cell")
+		p.allocas = append(p.allocas, fmt.Sprintf("  %s = alloca %s", c, ll))
+		v := "0"
+		if s.Op == ir.OCellRef {
+			v = p.val(s.Args[0])
+			if trunc {
+				r := "%" + p.fresh("c")
+				p.line("%s = trunc i64 %s to %s", r, v, ll)
+				v = r
+			}
+		}
+		p.line("store %s %s, ptr %s", ll, v, c)
+		p.line("%%v%d = getelementptr i8, ptr %s, i64 0", s.Res[0], c)
+	case ir.OCellGet:
+		// WHAT THE HOST WROTE, read back at the cell's C type and embedded in
+		// the word by its signedness, as a C result is (ADR 0094).
+		ll, trunc, signed := p.cellTy(p.f.Types[p.pl.Res(s.Args[0])])
+		from := p.val(s.Args[0])
+		if PlantCellUnread {
+			// the planted fault: a fresh slot holding 0, not the host's
+			from = "%" + p.fresh("lost")
+			p.allocas = append(p.allocas, fmt.Sprintf("  %s = alloca %s", from, ll))
+			p.line("store %s 0, ptr %s", ll, from)
+		}
+		if !trunc {
+			p.line("%%v%d = load %s, ptr %s", s.Res[0], ll, from)
+			return
+		}
+		r := "%" + p.fresh("c")
+		p.line("%s = load %s, ptr %s", r, ll, from)
+		ext := "zext"
+		if signed {
+			ext = "sext"
+		}
+		p.line("%%v%d = %s %s %s to i64", s.Res[0], ext, ll, r)
 	default:
 		p.fail("(%s …) is not printed on LLVM", s.Op)
 	}
+}
+
+// PlantCellUnread reads a cell back from a fresh slot holding 0, as if the
+// host's write through the reference were lost: TestAnOutParameterIsACell must
+// see GetFileSizeEx's size come back 0.
+var PlantCellUnread bool
+
+// cellTy is a cell's C type (ADR 0094's map on its element's set): its LLVM
+// type, whether a value crosses by trunc, and whether it is signed.
+func (p *printer) cellTy(t string) (string, bool, bool) {
+	ll, cross, signed, ok := p.tg.CType(core.CellElem(t))
+	if !ok || ll == "void" || ll == "ptr" {
+		p.fail("a cell of %s has no C integer type on target %s (ADR 0112)", core.CellElem(t), p.tg.Name)
+		return "i64", false, true
+	}
+	return ll, cross == "trunc", signed
 }
 
 var bigS128 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 127), big.NewInt(1))
@@ -870,7 +930,7 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 			r := "%" + p.fresh("c")
 			p.line("%s = trunc i64 %s to %s", r, v, ll)
 			v = r
-		case "cstr":
+		case "cstr", "elems":
 			r := "%" + p.fresh("c")
 			p.line("%s = getelementptr inbounds i8, ptr %s, i64 8", r, v)
 			v = r
@@ -1010,7 +1070,13 @@ func (p *printer) fill(form, dst string, args []ir.V) string {
 		case c == '%':
 			b.WriteByte('%')
 		case c == 'r':
+			// `%r0` is `%r` at arity one: a write-borrow's declaration names its
+			// result after the handed-back buffer, which is the argument's own
+			// storage (ADR 0070), so the call has one result (ADR 0112's ReadFile).
 			b.WriteString(dst)
+			if i+1 < len(form) && form[i+1] == '0' {
+				i++
+			}
 		case c == 'u':
 			b.WriteString(u)
 		case c == 's':

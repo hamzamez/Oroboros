@@ -2976,3 +2976,53 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/big-render.oro java`
 - new source — `gauntlet/differential/cases/big-render.oro js`
 - new source — `gauntlet/differential/cases/big-render.oro windows`
+
+## 2026-11-15 — on 9abbe97, with uncommitted changes
+
+**Reason:** os on windows (ADR 0112): lib/os/windows.oro and lib/io/windows.oro in J over kernel32; wc, count, jsonfmt, fnv, crc32, ignore, read-loop, text-of and lib/os now emit on windows (wc and count equal Go's output); roundtrip, ledger and pe reach the reducer's depth (ADR 0102 P8), freq a repair obligation; compile-time rises are refusals become compiles; Go, JS and JVM text unchanged
+
+652 runs: 428 emitted, 224 refused; 7462 of 7516 integer operations bounded, 826 of 856 loops proven. compiler pass, differential pass, tooling pass.
+
+29 change(s):
+
+- compiler output changed — `examples/errors/discard.oro windows`
+- now emits — `examples/errors/ignore.oro windows`
+- now emits — `examples/hash/crc32.oro windows`
+- now emits — `examples/hash/fnv.oro windows`
+- now emits — `examples/io/count.oro windows`
+- compiler output changed — `examples/io/freq.oro windows`
+- now emits — `examples/io/jsonfmt.oro windows`
+- compiler output changed — `examples/io/roundtrip.oro windows`
+- now emits — `examples/io/wc.oro windows`
+- compiler output changed — `examples/num/ledger.oro windows`
+- compiler output changed — `examples/pe/pe.oro windows`
+- compiler output changed — `examples/tally/tally.oro windows`
+- now emits — `gauntlet/differential/cases/read-loop.oro windows`
+- now emits — `gauntlet/differential/cases/text-of.oro windows`
+- compiler output changed — `lib/io/go.oro windows`
+- compiler output changed — `lib/io/java.oro windows`
+- compiler output changed — `lib/io/js.oro windows`
+- new source — `lib/io/windows.oro go`
+- new source — `lib/io/windows.oro java`
+- new source — `lib/io/windows.oro js`
+- new source — `lib/io/windows.oro windows`
+- now emits — `lib/os.oro windows`
+- compiler output changed — `lib/os/go.oro windows`
+- compiler output changed — `lib/os/java.oro windows`
+- compiler output changed — `lib/os/js.oro windows`
+- new source — `lib/os/windows.oro go`
+- new source — `lib/os/windows.oro java`
+- new source — `lib/os/windows.oro js`
+- new source — `lib/os/windows.oro windows`
+
+9 compile(s) accepted SLOWER — compile time 1.04x the baseline (median of 35 compiles over 300 ms); a second sweep kept 12 of 15 suspect(s); paired serially against the baseline's binary (9abbe97), 9 confirmed, examples/errors/discard.oro windows cleared at 7.00x paired, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.05x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 1.06x paired; the step's phases: sweep 26s, second sweep 27s, the baseline's gen extracted and built 7s, 12 pair(s) × 3 rounds 1m43s:
+
+- `examples/hash/crc32.oro windows` 15 → 2234 ms, 148.96x; paired 15 → 1046 ms, 67.00x
+- `examples/hash/fnv.oro windows` 31 → 2375 ms, 76.61x; paired 15 → 1031 ms, 66.00x
+- `examples/io/count.oro windows` 15 → 4000 ms, 266.67x; paired 15 → 1734 ms, 111.00x
+- `examples/io/freq.oro windows` 31 → 27375 ms, 883.06x; paired 15 → 18812 ms, 1204.00x
+- `examples/io/jsonfmt.oro windows` 31 → 9781 ms, 315.52x; paired 15 → 4406 ms, 282.00x
+- `examples/io/roundtrip.oro windows` 46 → 640 ms, 13.93x; paired 15 → 296 ms, 19.00x
+- `examples/io/wc.oro windows` 31 → 2656 ms, 85.69x; paired 15 → 1156 ms, 74.00x
+- `examples/num/ledger.oro windows` 46 → 562 ms, 12.23x; paired 0 → 281 ms
+- `examples/pe/pe.oro windows` 31 → 1781 ms, 57.46x; paired 15 → 750 ms, 48.00x

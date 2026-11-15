@@ -393,8 +393,11 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 			l.push([]V{-1}, t.Params)
 			comps := t.Closed().Kids[1:]
 			out := make([]V, 0, len(comps))
+			// A FACTOR THAT IS SEVERAL VALUES, a sum's tag and slots, is its
+			// values in order: A × (B × C) ≅ A × B × C, the flattening a
+			// header with such a factor states (ADR 0112).
 			for _, c := range comps {
-				out = append(out, l.single(c, r))
+				out = append(out, l.value(c, r)...)
 			}
 			l.pop()
 			return out
@@ -514,6 +517,29 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		l.emit(r, Stmt{Op: o, Args: []V{n}, Res: res, Sub: []*Region{body}})
 		return res
 	case p.Kind == "table-alloc" && len(args) == 1:
+		// A RULE η-REDUCED TO A TABLE, (table n s): reduction writes
+		// `array { s[i] : i ∈ 0..n - 1 }` so, a table being its function. It
+		// is i ↦ s(i) on [0, n), the prefix of s, each read its obligation
+		// (ADR 0112's ReadFile, the first program allocating one).
+		if a := args[0]; a.Kind == core.KApp && len(a.Kids) == 3 && a.Kids[0].Kind == core.KName && a.Kids[2].Kind != core.KFn {
+			if q, ok := l.prim(a.Kids[0].Name); ok && q.Kind == "table" {
+				nv := l.single(a.Kids[1], r)
+				body := &Region{Params: l.freshN(1)}
+				switch f := a.Kids[2]; f.Kind {
+				case core.KInt, core.KBool, core.KStr, core.KDec:
+					// A CONSTANT RULE, i ↦ c: `array { 0 : _ ∈ 0..n - 1 }` reaches
+					// here with the constant in the function's place.
+					e := l.single(f, body)
+					body.T, body.Args = TYield, []V{e}
+				default:
+					s := l.single(f, r)
+					e := l.fresh()
+					body.Stmts = []Stmt{{Op: OIndex, Args: []V{s, body.Params[0]}, Res: []V{e}}}
+					body.T, body.Args = TYield, []V{e}
+				}
+				return []V{l.one(r, Stmt{Op: OTabulate, Args: []V{nv}, Sub: []*Region{body}})}
+			}
+		}
 		if rule, n, ok := l.tableRule(args[0]); ok {
 			nv := l.single(n, r)
 			body := &Region{Params: l.freshN(1)}
@@ -540,8 +566,9 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case p.Kind == "cell-ref" && len(args) == 1:
 		return []V{l.one(r, Stmt{Op: OCellRef, Args: []V{l.single(args[0], r)}})}
 	case p.Kind == "cell-fresh" && len(args) == 1 && args[0].Kind == core.KStr:
-		v := l.one(r, Stmt{Op: OCellFresh, Type: args[0].Str})
-		l.decl[v] = "cell " + args[0].Str
+		ty := l.tg.UnfoldType("", args[0].Str) // a manifest set is its definition (ADR 0112)
+		v := l.one(r, Stmt{Op: OCellFresh, Type: ty})
+		l.decl[v] = "cell " + ty
 		return []V{v}
 	case p.Kind == "cell-get" && len(args) == 1:
 		return []V{l.one(r, Stmt{Op: OCellGet, Args: []V{l.single(args[0], r)}})}

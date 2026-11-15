@@ -58,6 +58,15 @@ module java {
     // surrogate or a RangeError, Java an exception or a lone char — so the
     // language's operation states one domain on every target
     // (gotarget-2026-09-30).
+    // V, THE VALID UTF-8 (ADR 0112, strings.md §11): the platform's decoder with
+    // REPORT on malformed input rejects exactly what Table 3-7 rejects.
+    fn utf8_valid(b ∈ Array(0..255)) (Bool) pure {
+        host expr "((java.util.function.Predicate<byte[]>) ($oroA) -> { try { java.nio.charset.StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap($oroA)); return true; } catch (java.nio.charset.CharacterCodingException $oroE) { return false; } }).test(${b})"
+    }
+    // ι_V : V ↪ Σ*: the decode, exact on V, one copy.
+    fn utf8_text(b ∈ Array(0..255)) (String) pure where utf8_valid(b) {
+        host expr "new String(${b}, java.nio.charset.StandardCharsets.UTF_8)"
+    }
     // ι : (B₇)* ↪ Σ*, ASCII's inclusion (ADR 0095, strings.md §10): the word
     // b[lo, lo+n) of scalars below 128 as text. UTF-8 is the identity there, so
     // the platform's US-ASCII decode of the bytes is exact: one copy.

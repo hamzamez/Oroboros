@@ -195,6 +195,12 @@ module go {
     // ¬ν, ν : Σ* → (𝔹, ∨) the homomorphism true exactly on U+0000 (ADR 0091): a
     // string is a C string iff it holds no NUL. Found by spelling.
     fn nulfree(s ∈ String) (Bool) pure { host expr "(strings.IndexByte(${s}, 0) < 0)" import "strings" }
+    // V, THE VALID UTF-8 (ADR 0112, strings.md §11): Table 3-7's automaton, which
+    // Go's utf8.Valid runs. Found by spelling, as the next one is.
+    fn utf8_valid(b ∈ Array(0..255)) (Bool) pure { host expr "utf8.Valid(${b})" import "unicode/utf8" }
+    // ι_V : V ↪ Σ*, Σ*'s UTF-8 inverted on V. Go's string is UTF-8, so the
+    // conversion of the bytes is exact: one copy.
+    fn utf8_text(b ∈ Array(0..255)) (String) pure where utf8_valid(b) { host expr "string(${b})" }
     // ι : (B₇)* ↪ Σ*, ASCII's inclusion (ADR 0095, strings.md §10): the word
     // b[lo, lo+n) of scalars below 128 as text. UTF-8 is the identity there, so
     // Go's conversion of the bytes is exact: one copy.

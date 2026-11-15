@@ -40,6 +40,11 @@ func (tg *Target) unboundSet(ty string) string {
 	if _, ok := tg.Types[ty]; ok {
 		return ""
 	}
+	// A MANIFEST SET denotes what its definition denotes (windows' `error`, the
+	// DWORDs, ADR 0112).
+	if def, ok := tg.Aliases[ty]; ok {
+		return tg.unboundSet(def)
+	}
 	// ∅ IS THE LANGUAGE'S ON EVERY TARGET (ADR 0090): it has no element, so
 	// it needs no representation.
 	if ty == core.EmptyType {

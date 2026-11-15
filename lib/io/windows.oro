@@ -1,0 +1,31 @@
+// io, on windows — the console at the two types every host agrees on, over
+// Win32's WriteFile to standard output (ADR 0112). The other cells are a host
+// statement each; Win32's output primitive takes bytes, so each name here is a
+// short program, as lib/win/print's are, which these reuse.
+//
+// A string is its UTF-8 bytes on this target, so it is written as it is; an
+// integer is win/print's render, its digits and a newline. Each name's value is
+// its argument, as a host statement's is (plan's alias).
+provides windows io {
+    use win/print
+    use windows/kernel32
+    use llvm/str as str
+
+    fn print_line(s ∈ String) (String) {
+        ignore(print.print_str(s))
+        s
+    }
+
+    // the same without the newline: the bytes alone, at most one DWORD's count
+    fn print(s ∈ String) (String) {
+        u = str.utf8(s)
+        ok = if len(u) <= 2^32 - 1 { kernel32.WriteFile(kernel32.GetStdHandle(4294967285), u, 0, len(u)) } else { false }
+        ignore(ok)
+        s
+    }
+
+    fn print_int(n ∈ Int) (Int) {
+        ignore(print.print_int(n))
+        n
+    }
+}

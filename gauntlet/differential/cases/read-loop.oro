@@ -11,9 +11,8 @@
 //
 //   run n = the number of successful reads among n, alternating = ⌈n/2⌉
 //
-// windows declares no host call with several results, and `lib/os` has no
-// windows file.
-// skip: windows
+// On windows the cell is J over kernel32 (lib/os/windows.oro, ADR 0112): the
+// sum is built where CreateFileA's sentinel is tested, its code GetLastError's.
 //
 // inputs: 0 1 2 7 10
 // expect: 0 1 1 4 5

@@ -91,9 +91,21 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 			return exec.Command("java", "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8",
 				"-Dsun.stdout.encoding=UTF-8", "-cp", a, "Main")
 		}},
+		// windows: its cells are J over kernel32 (lib/os/windows.oro, ADR 0112).
+		{"windows", "rt.exe", nil, func(a string) *exec.Cmd { return exec.Command(a) }},
 	}
+	// WHAT WAITS, SAID (oswin-2026-11-15): on windows every portable name is a J
+	// definition inlined at its call, and roundtrip's chain of nine calls passes
+	// the reducer's depth bound (core.MaxDepth); each name runs alone and with
+	// the others but Args (read-loop, text-of, the cell's own programs). The
+	// algebra's answer is ADR 0102's P8, a headed definition kept as a function
+	// decided once, which this is the trigger of.
+	waits := map[string]string{"windows": "roundtrip inlines nine J definitions past core.MaxDepth; waits on ADR 0102's P8"}
 	for _, h := range hosts {
 		t.Run(h.target, func(t *testing.T) {
+			if why, ok := waits[h.target]; ok {
+				t.Skip(why)
+			}
 			for _, tool := range h.tools {
 				if _, err := exec.LookPath(tool); err != nil {
 					t.Skipf("%s is not on the path", tool)

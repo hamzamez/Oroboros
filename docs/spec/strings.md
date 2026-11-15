@@ -319,3 +319,51 @@ loop in the word, each ending in ι (ADR 0095).
 **Not built**: the general map Scalar^[0,n) → Σ*, the free monoid's universal map of which ι is the
 restriction, whose domain (a union of two intervals) a table's one element interval cannot state;
 ν on ι (`nulfree(ascii(b, lo, n))` by b's elements being at least 1).
+
+## 11. Text from valid UTF-8 ([ADR 0112](../decisions/0112-os-on-windows-is-a-library-over-kernel32-and-valid-utf-8-is-recognized-by-its-monoid.md))
+
+UTF-8 is a code: the map e : Σ\* → B\*, each scalar to its one to four bytes, is an injective monoid
+homomorphism, and its image V ⊂ B\*, **the valid UTF-8**, is the free submonoid on the scalars'
+encodings. V is recognizable: the Unicode Standard's Table 3-7 is an automaton A over bytes, and
+V = φ⁻¹(F) for φ : B\* → M, the homomorphism into A's transition monoid, F the transformations that
+take the start state to itself. A's states are (k, lo, hi), k continuation bytes still owed and the
+next one's range, and its transitions are Table 3-7's rows:
+
+| byte c, owing nothing | next state |
+|---|---|
+| 00–7F | owing nothing |
+| C2–DF | (1, 80, BF) |
+| E0 | (2, A0, BF) |
+| E1–EC, EE–EF | (2, 80, BF) |
+| ED | (2, 80, 9F) |
+| F0 | (3, 90, BF) |
+| F1–F3 | (3, 80, BF) |
+| F4 | (3, 80, 8F) |
+| anything else | rejected |
+
+and owing k ≥ 1, a byte in [lo, hi] goes to (k − 1, 80, BF) and any other is rejected. Two words of
+Σ_L, total and pure:
+
+    utf8_valid(b ∈ Array(0..255)) ∈ Bool           b ∈ V
+    utf8_text(b ∈ Array(0..255)) ∈ String          where utf8_valid(b)
+
+(the core's `utf8-valid` and `utf8-text`, J's spelling by σ_J.)
+
+utf8_text is ι_V = e⁻¹ on V, the inverse of the representation, one copy on every target. Its
+obligation is decided as `nulfree`'s (§9): on an array literal by φ, its bytes run through A, and on
+anything else only by an identical assumption, a guard `if utf8_valid(b)` on its arm. `-checked` does
+not apply.
+
+| target | `utf8_valid` | `utf8_text` |
+|---|---|---|
+| Go | `utf8.Valid(b)` | `string(b)` |
+| JVM | a decoder with `REPORT` on malformed input | `new String(b, UTF_8)` |
+| JavaScript | `TextDecoder` with `fatal: true` | `TextDecoder`'s decode |
+| windows | A as a loop in J (`lang.utf8_valid`) | a helper copying the bytes before the NUL |
+
+d, the maximal-subpart decode B\* → Σ\* (§8, ADR 0030), is ι_V ∘ r for the repair r : B\* → V that
+replaces each maximal ill-formed subpart by EF BF BD. On windows, where Σ\* is held as its UTF-8,
+`os.text_of` is that composite written in J (`lib/os/windows.oro`), each ι_V behind its guard.
+
+**Not built**: the decision proving r's image in V (rational transductions preserve regularity, so
+r(B\*) ⊆ V is decidable), which would prove the repair's guard; ν on ι_V.

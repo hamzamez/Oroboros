@@ -187,6 +187,12 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 		}
 		if k != nil {
 			inner := after(body, append(append([]string(nil), outParams...), cellNames...), append(outs, cells...))
+			if d.Arity == 1 {
+				// ONE RESULT IS NO PRODUCT, so its elimination is a let: the call,
+				// impure, is bound first (ADR 0010), and the cells are read after it
+				// (ADR 0112; every Go cell call so far answered a product).
+				return App(Fn(resParams, inner), call)
+			}
 			return App(App(Name(ElimName), call), Fn(resParams, inner))
 		}
 		// AS A VALUE: the call's own value, or the out cells' values then the

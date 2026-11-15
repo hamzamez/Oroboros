@@ -963,6 +963,27 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 				}
 			}
 			if len(sig.Results) > 0 {
+				// A PRODUCT WITH A SUM AMONG ITS FACTORS: each sum is its tag and
+				// its slots, and a product of products is their concatenation
+				// (products.md, flattened by currying), so the factors are
+				// flattened in order (ADR 0112's windows ReadAt, (n, r)).
+				var flat []string
+				changed := false
+				for _, r := range sig.Results {
+					inst, err := m.instance(q, r, byPath)
+					if err != nil {
+						return nil, nil, err
+					}
+					if inst == nil {
+						flat = append(flat, r)
+						continue
+					}
+					changed = true
+					flat = append(append(flat, "int"), inst.slots...)
+				}
+				if changed {
+					sig.Results = flat
+				}
 				continue
 			}
 			inst, err := m.instance(q, sig.Result, byPath)
@@ -1094,7 +1115,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	for changed := true; changed; {
 		changed = false
 		for _, q := range p.Order {
-			d, ok := BorrowsOf(p.Defs[q], borrows)
+			d, ok := BorrowsOf(p.Defs[q], borrows, declaresProduct(p.Sigs[q]))
 			if !ok {
 				continue
 			}
@@ -1105,14 +1126,14 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		}
 	}
 	for _, q := range p.Order {
-		t, err := translateCells(p.Defs[q], cells, borrows)
+		t, err := translateCells(p.Defs[q], cells, borrows, declaresProduct(p.Sigs[q]))
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", q, err)
 		}
 		p.Defs[q] = t
 	}
 	for i, t := range terms {
-		out, err := translateCells(t, cells, borrows)
+		out, err := translateCells(t, cells, borrows, false)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1279,11 +1300,17 @@ var LanguageSignature = map[string]bool{
 	"map": true, "build-map": true, "insert": true, "keys": true,
 	// strings (string-operations.md)
 	"concat": true, "string-of": true, "nulfree": true, "ascii": true,
+	// valid UTF-8 and its inclusion into Σ* (ADR 0112, strings.md §11)
+	"utf8-valid": true, "utf8-text": true,
 	// a range on a term, the discard, and the crash `expect` expands into
 	AscribeName: true, IgnoreName: true, "abandon": true,
 	// the least and greatest elements of a range, static (ADR 0084's build)
 	"inf": true, "sup": true,
 }
+
+// declaresProduct reports a header whose result is a product of several
+// factors, A₁ × … × Aₙ (ADR 0112).
+func declaresProduct(s *Sig) bool { return s != nil && len(s.Results) > 1 }
 
 // langSums are `lang`'s variant types, by key. The key of a `lang` declaration
 // is its bare name, qualify("", name), which is why the main module — also

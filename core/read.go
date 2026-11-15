@@ -397,6 +397,8 @@ func toForm(t *Term) (Form, error) {
 			}
 		case r.Kind == KApp && TypeTerm(r) != "": // a variant type applied to its arguments
 			sig.Result = TypeTerm(r)
+		case r.Kind == KFn && IsProd(TypeTerm(r)): // a product of results, one an applied type
+			sig.Results = ProdTypes(TypeTerm(r))
 		case r.Kind == KFn: // a tuple type TypeName refused, such as one nested in another
 			return Form{}, fmt.Errorf("sig %s: %s is not a type", t.Kids[1].Name, r)
 		case r.Kind == KApp && len(r.Kids) > 0 && r.Kids[0].Kind == KName &&
@@ -1368,6 +1370,22 @@ func TypeTerm(t *Term) string {
 	if ty := TypeName(t); ty != "" {
 		return ty
 	}
+	// A PRODUCT IN A RESULT is a product of results, so each factor is read in
+	// the result's position too: `0..N × result.Result((), E)` (ADR 0112's
+	// windows ReadAt, the first J definition answering one).
+	if t != nil && t.Kind == KFn && len(t.Params) == 1 && t.Params[0] == "#k" {
+		if b := t.Body(); b.Kind == KApp && len(b.Kids) >= 3 && b.Kids[0].Kind == KName && b.Kids[0].Name == "#k" {
+			parts := make([]string, 0, len(b.Kids)-1)
+			for _, k := range b.Kids[1:] {
+				e := TypeTerm(k)
+				if e == "" || IsProd(e) {
+					return ""
+				}
+				parts = append(parts, e)
+			}
+			return "prod(" + strings.Join(parts, ", ") + ")"
+		}
+	}
 	if t == nil || t.Kind != KApp || len(t.Kids) < 2 || t.Kids[0].Kind != KName || typeFormers[t.Kids[0].Name] {
 		return ""
 	}
@@ -1710,7 +1728,24 @@ func ProdTypes(ty string) []string {
 	if inner == "" {
 		return nil
 	}
-	parts := strings.Split(inner, ", ")
+	// AT DEPTH ZERO, as Applied splits: a factor may be an applied type
+	// `F(A, B)`, whose commas are its own (ADR 0112).
+	var parts []string
+	depth, start := 0, 0
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 && i+1 < len(inner) && inner[i+1] == ' ' {
+				parts = append(parts, inner[start:i])
+				start = i + 2
+			}
+		}
+	}
+	parts = append(parts, inner[start:])
 	for _, p := range parts {
 		if p == "" {
 			return nil

@@ -33,6 +33,9 @@ set Bool = host "i1"
 set String = host "ptr"
 set ptr = host "ptr"
 set Any = host "ptr"
+// A CELL A HOST WRITES IS ITS SLOT'S ADDRESS (ADR 0048, 0112): an alloca of the
+// cell's C type, whatever A is, so every cell is a ptr.
+set cell(A) = host "ptr"
 
 // AND U₆₄ = [0, 2⁶⁴), the same i64 read UNSIGNED (ADR 0083, llvm.md §3a): its
 // operations are Σ_LLVM's instructions under that reading (instructions.oro).
@@ -85,6 +88,7 @@ realize `<<` = lang.shl, llvm.shl checked lang.shl_checked
 realize `>>` = lang.ashr, llvm.ashr
 realize mod = lang.emod
 realize nulfree = lang.no_nul
+realize utf8_valid = lang.v_accepts
 realize abandon = lang.crash
 realize trap_if = lang.trap_if
 realize alloc = lang.allocate

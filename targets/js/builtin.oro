@@ -55,6 +55,18 @@ module js {
     // string is a C string iff it holds no NUL. Found by spelling.
     fn nulfree(s ∈ String) (Bool) pure { host expr "!${s}.includes(String.fromCharCode(0))" }
 
+    // V, THE VALID UTF-8 (ADR 0112, strings.md §11): the WHATWG decoder with
+    // `fatal` rejects exactly what Table 3-7 rejects (overlongs, surrogates, past
+    // U+10FFFF, a truncated sequence).
+    fn utf8_valid(b ∈ Array(0..255)) (Bool) pure {
+        host expr "(() => { try { new TextDecoder(\"utf-8\", { fatal: true }).decode(Uint8Array.from(${b})); return true; } catch (e) { return false; } })()"
+    }
+    // ι_V : V ↪ Σ*: the decode, exact on V. `ignoreBOM`, because a leading
+    // U+FEFF is a scalar of the text, which the decoder otherwise drops.
+    fn utf8_text(b ∈ Array(0..255)) (String) pure where utf8_valid(b) {
+        host expr "new TextDecoder(\"utf-8\", { ignoreBOM: true }).decode(Uint8Array.from(${b}))"
+    }
+
     // η : Scalar → Scalar*, the generator injection — the string of one scalar.
     // ι : (B₇)* ↪ Σ*, ASCII's inclusion (ADR 0095, strings.md §10): the word
     // b[lo, lo+n) of scalars below 128 as text. UTF-8 is the identity there, so

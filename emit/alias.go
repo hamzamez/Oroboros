@@ -65,6 +65,8 @@ func mapTypeNames(ty string, f func(string) string) string {
 		return "array " + mapTypeNames(ty[len("array "):], f)
 	case strings.HasPrefix(ty, "buffer "):
 		return "buffer " + mapTypeNames(ty[len("buffer "):], f)
+	case core.IsCell(ty):
+		return "cell " + mapTypeNames(core.CellElem(ty), f)
 	case strings.HasPrefix(ty, "map "):
 		if k, v, ok := core.MapTypes(ty); ok {
 			return "map " + mapTypeNames(k, f) + " " + mapTypeNames(v, f)
@@ -199,3 +201,45 @@ func baseOf(n string) string {
 // definiens, for booleans.md's reason one level up: a host does not get to say
 // what `int` means.
 var langTypes = map[string]bool{"int": true, "f64": true, "bool": true, "string": true}
+
+// unfoldSig reads a program's header through the target's manifest sets, as
+// unfoldAliases reads the target's own declarations: a definition a target
+// fragment provides names them bare (windows' `error`, the DWORDs, ADR 0112),
+// and a claim compares the sets they denote. δ to a fixpoint, bounded: the
+// definitions are acyclic, which unfoldAliases already checked.
+func (tg *Target) unfoldSig(name string, sig *core.Sig) {
+	if len(tg.Aliases) == 0 || sig == nil {
+		return
+	}
+	mod := moduleOf(name)
+	sub := func(ty string) string { return tg.UnfoldType(mod, ty) }
+	sig.Result = sub(sig.Result)
+	for i := range sig.Results {
+		sig.Results[i] = sub(sig.Results[i])
+	}
+	for i := range sig.Params {
+		sig.Params[i].Type = sub(sig.Params[i].Type)
+	}
+}
+
+// UnfoldType is a set read through the target's manifest sets from module mod:
+// δ to a fixpoint, bounded, the definitions acyclic (unfoldAliases). A set no
+// alias names is itself.
+func (tg *Target) UnfoldType(mod, ty string) string {
+	if len(tg.Aliases) == 0 {
+		return ty
+	}
+	for i := 0; i < 16; i++ {
+		next := mapTypeNames(ty, func(m string) string {
+			if _, def, ok := tg.alias(mod, m); ok {
+				return def
+			}
+			return m
+		})
+		if next == ty {
+			break
+		}
+		ty = next
+	}
+	return ty
+}

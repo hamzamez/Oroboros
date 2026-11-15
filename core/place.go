@@ -78,7 +78,12 @@ func isBorrowScope(t *Term) bool {
 // BorrowsOf is what a definition's value says it borrows, when it is a λ whose
 // body is a borrow scope: its places' parameter indices, and whether its body
 // is a unit, by the declarations known so far.
-func BorrowsOf(def *Term, known map[string]BorrowDecl) (BorrowDecl, bool) {
+//
+// product says the definition's header declares a product result, A₁ × … × Aₙ:
+// then, as a host call declaring n results, it hands back its n factors after
+// the buffers, flat (ADR 0112). Without such a header its value is one
+// component, whatever it is, so a caller binds it whole.
+func BorrowsOf(def *Term, known map[string]BorrowDecl, product bool) (BorrowDecl, bool) {
 	if def == nil || def.Kind != KFn {
 		return BorrowDecl{}, false
 	}
@@ -97,8 +102,91 @@ func BorrowsOf(def *Term, known map[string]BorrowDecl) (BorrowDecl, bool) {
 	}
 	if !unitBody(lam.Body(), known) {
 		d.Results = 1
+		// A BODY WHOSE VALUE IS A PRODUCT hands back its factors after the
+		// buffers, as a host call with several results does (ADR 0112).
+		if n := tailArity(lam.Body()); product && n > 1 {
+			d.Results = n
+		}
 	}
 	return d, true
+}
+
+// tailArity is n when every tail of a body is an n-tuple, λk. k a₁ … aₙ, and 0
+// otherwise: the body's value is then a product of n factors, B₁ × … × Bₙ.
+// The tails are unitBody's: an `if`'s arms, a let's body, an elimination's
+// continuations (a `case`'s arms among them), a loop's exits; a crash
+// (abandon) is in every product (0 is initial, ADR 0090), so it agrees with any.
+func tailArity(t *Term) int {
+	switch {
+	case t.Kind == KFn && len(t.Params) == 1 && strings.HasPrefix(t.Params[0], "#k"):
+		if b := t.Body(); b.Kind == KApp && len(b.Kids) >= 3 && b.Kids[0].Kind == KName && b.Kids[0].Name == t.Params[0] {
+			return len(b.Kids) - 1
+		}
+		return 0
+	case t.Kind != KApp || len(t.Kids) == 0:
+		return 0
+	case headIs(t, "abandon"), isAgain(t):
+		return -1 // no value here: a crash, or a jump back into the loop
+	}
+	op, args := t.Kids[0], t.Kids[1:]
+	join := func(ts ...*Term) int {
+		n := -1
+		for _, x := range ts {
+			m := tailArity(x)
+			switch {
+			case m == 0:
+				return 0
+			case m < 0:
+			case n < 0:
+				n = m
+			case m != n:
+				return 0
+			}
+		}
+		return n
+	}
+	switch {
+	case headIs(t, "if") && len(args) == 3:
+		return join(args[1], args[2])
+	case headIs(t, "loop") && len(args) >= 1 && args[0].Kind == KFn:
+		return exitArity(args[0].Body())
+	case op.Kind == KFn && len(op.Params) == len(args): // a let, a seq
+		return tailArity(op.Body())
+	}
+	// AN ELIMINATION: each λ argument is a continuation, a case's arms
+	var ks []*Term
+	for _, a := range args {
+		if a.Kind != KFn {
+			return 0
+		}
+		ks = append(ks, a.Body())
+	}
+	if len(ks) == 0 {
+		return 0
+	}
+	return join(ks...)
+}
+
+// exitArity is tailArity over a loop's chain: every exit, the jumps aside.
+func exitArity(t *Term) int {
+	switch {
+	case isAgain(t):
+		return -1
+	case headIs(t, "if") && len(t.Kids) == 4:
+		a, b := exitArity(t.Kids[2]), exitArity(t.Kids[3])
+		switch {
+		case a == 0 || b == 0:
+			return 0
+		case a < 0:
+			return b
+		case b < 0 || a == b:
+			return a
+		}
+		return 0
+	case t.Kind == KApp && len(t.Kids) >= 2 && t.Kids[0].Kind == KFn && len(t.Kids[0].Params) == len(t.Kids)-1:
+		return exitArity(t.Kids[0].Body())
+	}
+	return tailArity(t)
 }
 
 // unitBody reports whether a body's value is the unit at every tail: `()`, a
@@ -257,12 +345,42 @@ func (c *cellTr) translateBorrow(call *Term, d BorrowDecl, k *Term, inLoop bool,
 	for _, i := range d.Params {
 		lent = append(lent, call.Kids[i+1].Name)
 	}
-	var body *Term
-	if k != nil {
-		if len(k.Params) != d.Results {
-			return nil, fmt.Errorf("%s hands back its buffer, and its result has %d component(s); the λ it "+
-				"is applied to takes %d (spec/local.md §2.1)", ShowTerm(call), d.Results, len(k.Params))
+	// A BORROW THAT ALSO FILLS OUT-CELLS (ADR 0048, 0112): f : B × X × T* → R,
+	// keeping no address, is observably B × X × T → B × T × R, so the call's
+	// value is the lent buffers' versions, then the out-cells' values, then the
+	// declared result's components. Each `out S` is a fresh cell, read after
+	// the call; a cell in scope beside a borrow is not built.
+	args := append([]*Term(nil), call.Kids[1:]...)
+	var outAt []int
+	if cd, ok := c.cellCall(call); ok {
+		for i, a := range args {
+			if !cd.at(i) {
+				continue
+			}
+			if !isOut(a) {
+				return nil, fmt.Errorf("%s lends a buffer and fills a cell; beside a borrow a cell argument is "+
+					"`out S` (a cell in scope there is not built, ADR 0112)", ShowTerm(call))
+			}
+			ty := TypeName(a.Kids[1])
+			if ty == "" {
+				return nil, fmt.Errorf("%s: `out S` takes a set, got %s", ShowTerm(call), ShowTerm(a.Kids[1]))
+			}
+			args[i] = App(Name(FreshName), Str(ty))
+			outAt = append(outAt, i)
 		}
+		if len(outAt) > 0 && k == nil {
+			return nil, fmt.Errorf("%s lends a buffer and fills a cell, so its value is the cells' and the "+
+				"result's: bind them, `(c, r) = …` (spec/local.md §6)", ShowTerm(call))
+		}
+	}
+	var body *Term
+	var outParams, resParams []string
+	if k != nil {
+		if len(k.Params) != len(outAt)+d.Results {
+			return nil, fmt.Errorf("%s hands back its buffer, and its result has %d component(s); the λ it "+
+				"is applied to takes %d (spec/local.md §2.1)", ShowTerm(call), len(outAt)+d.Results, len(k.Params))
+		}
+		outParams, resParams = k.Params[:len(outAt)], k.Params[len(outAt):]
 		for _, p := range k.Params {
 			c.locals[p] = true
 		}
@@ -273,14 +391,23 @@ func (c *cellTr) translateBorrow(call *Term, d BorrowDecl, k *Term, inLoop bool,
 		body = b
 	}
 	head := call.Kids[0]
-	return c.thread(call.Kids[1:], inLoop, carried, true, func(vs []*Term) *Term {
+	return c.thread(args, inLoop, carried, true, func(vs []*Term) *Term {
 		call := App(head, vs...)
 		if k != nil {
 			binders := make([]string, len(lent))
 			for j, b := range lent {
 				binders[j] = c.in(b) // the place's state, rebound to the handed-back version
 			}
-			return App(call, Fn(append(binders, k.Params...), body))
+			inner := body
+			if len(outAt) > 0 {
+				// AFTER THE CALL, each out-cell's value, read through its reference.
+				outs := make([]*Term, len(outAt))
+				for j, i := range outAt {
+					outs[j] = App(Name(DerefName), vs[i])
+				}
+				inner = App(Fn(outParams, body), outs...)
+			}
+			return App(call, Fn(append(binders, resParams...), inner))
 		}
 		if d.Results == 0 && len(lent) == 1 {
 			// THE HANDED-BACK BUFFER ALONE goes in its place's slot of the state,

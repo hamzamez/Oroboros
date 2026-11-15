@@ -326,7 +326,9 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		}
 	case "cell-fresh":
 		if len(args) == 1 && args[0].Kind == core.KStr {
-			res := "cell " + args[0].Str
+			// `out S` names S as written; a target's manifest set is its
+			// definition (ADR 0112: kernel32's DWORD is 0..2^32-1).
+			res := "cell " + c.tgt.UnfoldType("", args[0].Str)
 			return res, c.agree(core.ShowName(op.Name), res, want)
 		}
 	case "ascribe":
@@ -872,6 +874,8 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env,
 				continue // reduction already reports this better
 			}
 			nf = EtaTails(tgt, nf) // η for products (tables.md §2.5)
+			// A TARGET'S MANIFEST SETS ARE THEIR DEFINITIONS here too (ADR 0112).
+			tgt.unfoldSig(n, sig)
 			// EVERY SET THE HEADER NAMES DENOTES ONE (ADR 0073), decided before
 			// the claim is compared with the body: a claim about a name that is
 			// no set says nothing. After the body normalizes, so a body's own

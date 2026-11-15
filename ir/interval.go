@@ -883,8 +883,14 @@ func (a *intervals) stmt(s *Stmt) {
 		one(topFact) // an address: no integer
 	case OCellGet:
 		// WHAT THE HOST WROTE (spec/local.md §5): a value of the cell's type,
-		// and nothing more is known of it.
-		one(a.declared(a.f.Types[s.Res[0]]))
+		// and nothing more is known of it. The cell's element set is that type
+		// (a C type's full range on LLVM, ADR 0112), where the read's own type
+		// may be the bare word.
+		if e := core.CellElem(a.f.Types[s.Args[0]]); e != "" {
+			one(a.declared(e))
+		} else {
+			one(a.declared(a.f.Types[s.Res[0]]))
+		}
 	case OThe:
 		// ABOVE THE WORD an ascription tells only the one set the program
 		// enforces (ADR 0029), which this domain does not know: its own type

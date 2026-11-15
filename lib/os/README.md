@@ -89,10 +89,18 @@ failed call's value is bound only in its success arm.
 | `Getenv` | a read of the environment, absent ↦ `""`. Impure, because `go/os.Setenv` writes what it reads |
 | `io.print-line`, `io.print`, `io.print-int` | UTF-8 bytes to standard output, LF on every host |
 
-## What is missing
+## windows
 
-**windows.** `kernel32.ReadFile` is the handle-based API, so `os.ReadFile` there
-is `CreateFileA` + `GetFileSizeEx` + a `build` + `ReadFile` + `CloseHandle` — a
-LIBRARY written in the language, `lib/win/fmt.oro`'s shape, not a template. `io`
-is the same story and `lib/win/fmt.oro` already has the arithmetic half. Neither
-is a language question.
+**Built** (ADR 0112, oswin-2026-11-15): `lib/os/windows.oro` and `lib/io/windows.oro`
+are the first cells written in J, each name a short program over kernel32, as
+this section once predicted. Three things it took:
+- a Win32 failure is a term: CreateFileA's sentinel tested, then GetLastError,
+  each name's sum built once at its tail, as a retraction builds it;
+- an out-parameter is a cell (ADR 0048), an `alloca` on LLVM;
+- `text_of` is ι_V ∘ r: the maximal-subpart repair written in J, then the
+  inclusion of the valid UTF-8, `utf8_text`, behind its guard `utf8_valid`, two
+  words of Σ_L (strings.md §11).
+
+`read-loop` and `text-of` run there. What waits: `roundtrip.oro` inlines all nine J
+definitions into one `main` past the reducer's depth, so its windows run waits on
+ADR 0102's P8, a headed definition kept as a function.

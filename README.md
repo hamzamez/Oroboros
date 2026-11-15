@@ -410,11 +410,11 @@ The full, current description is [docs/spec/state.md](docs/spec/state.md), and t
 | | how | measured |
 |---|---|---|
 | Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript and Java | geometric mean of generated over hand-written **0.990** on Go, **0.977** on JavaScript, **0.987** on Java, over 35 comparisons from **0.87×** to **1.21×**; the three above 1.10× each explained, the largest a JavaScript module boundary ([gauntlet-2026-09-29](gauntlet/results/gauntlet-2026-09-29.md)). On Android's runtime, in the emulator, 9 of 10 pairs are at parity and the stencil is 1.17–1.19× ([android-2026-10-05](gauntlet/results/android-2026-10-05.md)). The newest program, a table-shape tool reading its own 64 KB buffer, is at 1.11× its hand-written Go ([observer-2026-10-21](gauntlet/results/observer-2026-10-21.md)) |
-| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **5,710 of 5,764** operations proven across the corpus, every quotient included; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
+| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **7,462 of 7,516** operations proven across the corpus, every quotient included; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
 | Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
 | A function is only called inside its declared domain | every declared parameter range and `where` is proven at every call, above the machine word as the set its enforcement decides, by sign and bit length ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | 346 range obligations in the corpus measured before it was switched on; one program was missing a declaration ([requires](gauntlet/results/requires-2026-09-24.md), [contracts](gauntlet/results/contracts-2026-09-24.md)) |
 | A string is always text | every value typed `String` is a sequence of Unicode scalar values: a host's string is its own type (`go.bytestring`), entered only by the standard's decode, which is the same function on every host ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md)) | 57 Go declarations read one at a time; `text_of` agrees on Go, JS and Java over 18 ill-formed sequences ([hoststring](gauntlet/results/hoststring-2026-09-24.md)) |
-| Loops terminate | size-change termination on the IR | **649 of 673** loops proven; the rest are driven by input or the file system |
+| Loops terminate | size-change termination on the IR | **826 of 856** loops proven; the rest are driven by input or the file system |
 | Every host agrees | 54 programs built and **run** on every target that accepts them (39 on all four), required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
 | Each rule that decides legality is tested against a broken copy of itself | a fault is planted in the rule, and its test must fail | each result in [gauntlet/results/](gauntlet/results/) lists its faults and the test that caught each |
 | The compiler's output never drifts by accident | every emitted file, proof count and error message compared with a committed baseline | `go run ./cmd/check` |
@@ -619,8 +619,12 @@ says why the next is what it is.
      as assembly. That is decided and postponed; since 2026-11-15 big numbers are printed by divide
      and conquer, each division done in place
      ([radix-2026-11-15](gauntlet/results/radix-2026-11-15.md)), which takes 20,000! from 2.8× Go's
-     time to 1.3× and printing the millionth Fibonacci number from 502 ms to 106; then file
-     access, and the benchmarks at hand-written speed there;
+     time to 1.3× and printing the millionth Fibonacci number from 502 ms to 106; since the same
+     day files and the command line work on Windows too
+     ([oswin-2026-11-15](gauntlet/results/oswin-2026-11-15.md)), written in the language itself
+     over the Windows API, but a program calling all of them at once is still too large for the
+     compiler's inliner, which waits on keeping such definitions as functions; then the
+     benchmarks that read files, at hand-written speed;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
      found, assembling every Windows file it writes, and comparing the Windows text of the
      big-integer library, which no compared file holds today; then 32-bit Windows;

@@ -14,9 +14,8 @@
 // expected answer below was computed by an implementation of d written from the
 // table, and checked against TextDecoder, not taken from any host.
 //
-// skip: windows
-//
-// windows has no `os` cell: it has no file I/O yet, so nothing there decodes.
+// On windows Σ* is held as its UTF-8, and text_of is d = ι_V ∘ r, the repair
+// written in J and each inclusion behind utf8_valid's guard (ADR 0112).
 use os
 
 // prints: string

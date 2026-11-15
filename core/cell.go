@@ -32,9 +32,9 @@ import (
 // then every call of a declaration with cell parameters the scopes did not
 // reach: one outside any scope, or inside a λ a scope passes as a value
 // (spec/local.md §5, §6). decls holds those declarations by qualified name.
-func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl) (*Term, error) {
+func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, product bool) (*Term, error) {
 	t = writtenCells(t, borrows)
-	t, err := translateScopes(t, decls, borrows)
+	t, err := translateScopes(t, decls, borrows, product)
 	if err != nil {
 		return nil, err
 	}
@@ -49,16 +49,17 @@ func newCellTr(decls map[string]CellDecl, borrows map[string]BorrowDecl) *cellTr
 	return &cellTr{locals: map[string]bool{}, places: map[string]bool{}, maps: map[string]bool{}, decls: decls, borrows: borrows}
 }
 
-func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl) (*Term, error) {
+func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, product bool) (*Term, error) {
 	if t == nil || len(t.Kids) == 0 {
 		return t, nil
 	}
 	if isCellScope(t) || isBorrowScope(t) {
 		c := newCellTr(decls, borrows)
+		c.product = product
 		return c.st(t, false) // with no cell in scope, a scope's tuple is its value alone
 	}
 	if t.Kind == KFn {
-		body, err := translateScopes(t.Body(), decls, borrows)
+		body, err := translateScopes(t.Body(), decls, borrows, product)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +67,7 @@ func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]Borr
 	}
 	kids := make([]*Term, len(t.Kids))
 	for i, k := range t.Kids {
-		x, err := translateScopes(k, decls, borrows)
+		x, err := translateScopes(k, decls, borrows, false)
 		if err != nil {
 			return nil, err
 		}
@@ -156,6 +157,9 @@ type cellTr struct {
 	places  map[string]bool
 	maps    map[string]bool // the places whose value is a map
 	borrows map[string]BorrowDecl
+	// product: the definition's header declares a product result, so its
+	// borrow scope hands back the factors flat (ADR 0112)
+	product bool
 }
 
 func (c *cellTr) fresh() string {
@@ -195,6 +199,111 @@ func (c *cellTr) state() []*Term {
 		out[i] = Name(x)
 	}
 	return out
+}
+
+// spliceTails rewrites each tail (#k v x₁ … xₖ p₁ … pₘ) of a translated borrow
+// body, v a written tuple (v₁ … vₙ), to ((p₁ … pₘ, v₁ … vₙ), x₁ … xₖ): the
+// borrow scope's value with v's factors in place (ADR 0112). The tails are
+// tailArity's: an `if`'s arms, a let's body, each continuation of an
+// elimination, a loop's exits; a jump or a crash is left as it is. ok is false
+// at a tail of any other shape.
+func spliceTails(t *Term, k, m int) (*Term, bool) {
+	if t.Kind == KFn && len(t.Params) == 1 && t.Params[0] == "#k" {
+		b := t.Body()
+		if b.Kind != KApp || len(b.Kids) != 2+k+m || b.Kids[0].Kind != KName || b.Kids[0].Name != "#k" {
+			return nil, false
+		}
+		return spliceValue(b.Kids[1], b.Kids[2:2+k], b.Kids[2+k:])
+	}
+	if t.Kind != KApp || len(t.Kids) == 0 {
+		return nil, false
+	}
+	if headIs(t, "abandon") || isAgain(t) {
+		return t, true
+	}
+	op, args := t.Kids[0], t.Kids[1:]
+	switch {
+	case headIs(t, "if") && len(args) == 3:
+		a, ok1 := spliceTails(args[1], k, m)
+		b, ok2 := spliceTails(args[2], k, m)
+		if !ok1 || !ok2 {
+			return nil, false
+		}
+		return App(op, args[0], a, b), true
+	case headIs(t, "loop") && len(args) >= 1 && args[0].Kind == KFn:
+		ch, ok := spliceTails(args[0].Body(), k, m)
+		if !ok {
+			return nil, false
+		}
+		return App(op, append([]*Term{Fn(args[0].Params, ch)}, args[1:]...)...), true
+	case op.Kind == KFn && len(op.Params) == 1 && strings.HasPrefix(op.Params[0], "#k") &&
+		len(args) == 1 && args[0].Kind == KFn:
+		// A TUPLE APPLIED TO ITS CONTINUATION, the state translation's let:
+		// the continuation's body is the tail.
+		nb, ok := spliceTails(args[0].Body(), k, m)
+		if !ok {
+			return nil, false
+		}
+		return App(op, Fn(args[0].Params, nb)), true
+	case op.Kind == KFn && len(op.Params) == len(args): // a let, a seq
+		nb, ok := spliceTails(op.Body(), k, m)
+		if !ok {
+			return nil, false
+		}
+		return App(Fn(op.Params, nb), args...), true
+	}
+	// AN ELIMINATION: each λ argument is a continuation, a case's arms.
+	var out []*Term
+	any := false
+	for _, a := range args {
+		if a.Kind != KFn {
+			return nil, false
+		}
+		nb, ok := spliceTails(a.Body(), k, m)
+		if !ok {
+			return nil, false
+		}
+		out = append(out, Fn(a.Params, nb))
+		any = true
+	}
+	if !any {
+		return nil, false
+	}
+	return App(op, out...), true
+}
+
+// spliceValue is the tail (v, st…, ps…) rewritten to ((ps…, v₁ … vₙ), st…)
+// where v is a written tuple, or a let, a seq or an `if` whose own tails are:
+// the rewrite goes down v's tails, which see st and ps unchanged (their names
+// are the translation's, which a program cannot bind).
+func spliceValue(v *Term, st, ps []*Term) (*Term, bool) {
+	switch {
+	case v.Kind == KFn && len(v.Params) == 1 && strings.HasPrefix(v.Params[0], "#k"):
+		vb := v.Body()
+		if vb.Kind != KApp || len(vb.Kids) < 3 || vb.Kids[0].Kind != KName || vb.Kids[0].Name != v.Params[0] {
+			return nil, false
+		}
+		val := append(append([]*Term(nil), ps...), vb.Kids[1:]...)
+		return tupOf(tupleTerm(val), st), true
+	case v.Kind != KApp || len(v.Kids) == 0:
+		return nil, false
+	case headIs(v, "abandon"):
+		return v, true
+	case headIs(v, "if") && len(v.Kids) == 4:
+		a, ok1 := spliceValue(v.Kids[2], st, ps)
+		b, ok2 := spliceValue(v.Kids[3], st, ps)
+		if !ok1 || !ok2 {
+			return nil, false
+		}
+		return App(v.Kids[0], v.Kids[1], a, b), true
+	case v.Kids[0].Kind == KFn && len(v.Kids[0].Params) == len(v.Kids)-1: // a let, a seq
+		nb, ok := spliceValue(v.Kids[0].Body(), st, ps)
+		if !ok {
+			return nil, false
+		}
+		return App(Fn(v.Kids[0].Params, nb), v.Kids[1:]...), true
+	}
+	return nil, false
 }
 
 // tupOf is the flat tuple (v, x₁ … xₖ) over the given state. With no cell in
@@ -424,6 +533,21 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		val := make([]*Term, 0, len(ps)+1)
 		for _, p := range ips {
 			val = append(val, Name(p))
+		}
+		// A PRODUCT VALUE v = (v₁ … vₙ) hands back its factors, (p…, v₁ … vₙ),
+		// as a host call with n results does (ADR 0112). A name holds one value,
+		// so v is not bound and then taken apart: each tail (v, x…, p…) of the
+		// translated body is rewritten in place to ((p…, v₁ … vₙ), x…), and no
+		// tuple nests in another where a join point binds it (tables.md §2.5).
+		if !unit && c.product {
+			if n := tailArity(body); n > 1 {
+				if out, ok := spliceTails(tb, len(outer), len(ips)); ok {
+					return App(Fn(ips, out), args[:len(args)-1]...), nil
+				}
+				return nil, fmt.Errorf("a definition that lends a buffer and answers a product of %d "+
+					"values reaches a tail that is no tuple; each tail is (v₁, …, v%d) written out "+
+					"(spec/local.md §2.1, ADR 0112)", n, n)
+			}
 		}
 		if !unit {
 			val = append(val, Name(r))

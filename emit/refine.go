@@ -1259,6 +1259,18 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 	if s, ok := nulfreeArg(want); ok && r.nulFree(s, f) {
 		return true, nil
 	}
+	// A CONJUNCTION WITH AN ATOM AMONG ITS CONJUNCTS: Γ ⊢ a ∧ b iff Γ ⊢ a and
+	// Γ ⊢ b, each by its own route, so `nulfree(k) && n <= len(b)` is ν and the
+	// linear fragment (ADR 0112). A conjunction of linear goals alone keeps the
+	// fragment's own route below.
+	if a, b, ok := conjunction(want); ok && (hasAtom(a) || hasAtom(b)) {
+		if r.proveCond(a, f) && r.proveCond(b, f) {
+			return true, nil
+		}
+	}
+	if b, ok := utf8ValidArg(want); ok && utf8Valid(b, f) {
+		return true, nil
+	}
 	// A COMPARISON OF CLOSED INTEGER TERMS IS DECIDED IN ℤ, exactly: `mod 2^64`'s
 	// divisor reaches here as 18446·10¹⁵ + 744… (a literal past int64), which
 	// the word's evaluation does not fold. Folding in a proof is no staging:

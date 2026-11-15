@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"unicode/utf8"
 
 	"oroboros/core"
 )
@@ -691,6 +692,10 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 	if s, ok := nulfreeArg(cond); ok && r.nulFree(s, f) {
 		return true
 	}
+	// VALID UTF-8 (ADR 0112): φ on an array literal, else an identical guard.
+	if b, ok := utf8ValidArg(cond); ok && utf8Valid(b, f) {
+		return true
+	}
 	// A CLOSED COMPARISON IS DECIDED IN ℤ, exactly, as a primitive's is
 	// (discharge): a literal past the word, lib/bytes' 2^64 − 1, folds nowhere
 	// else, and folding in a proof emits nothing (ADR 0009 governs code).
@@ -699,6 +704,10 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 	}
 	if lo, hi, isNe := disequality(cond); isNe {
 		return f.entailsEither(lo, hi)
+	}
+	// Γ ⊢ a ∧ b iff Γ ⊢ a and Γ ⊢ b, when a conjunct is an atom (ADR 0112).
+	if a, b, ok := conjunction(cond); ok && (hasAtom(a) || hasAtom(b)) {
+		return r.proveCond(a, f) && r.proveCond(b, f)
 	}
 	goals, ok := f.oblig(cond)
 	if !ok {
@@ -719,6 +728,65 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 	}
 	return true
 }
+
+// conjunction is (a, b) when cond is a ∧ b, `(if a b false)`.
+func conjunction(cond *core.Term) (*core.Term, *core.Term, bool) {
+	if cond.Kind == core.KApp && len(cond.Kids) == 4 && cond.Kids[0].Kind == core.KName && cond.Kids[0].Name == "if" &&
+		cond.Kids[3].Kind == core.KBool && !cond.Kids[3].IsTrue() {
+		return cond.Kids[1], cond.Kids[2], true
+	}
+	return nil, nil, false
+}
+
+// hasAtom reports a conjunct that is one of the decision's atoms: `nulfree` or
+// `utf8_valid`, or a conjunction holding one.
+func hasAtom(t *core.Term) bool {
+	if _, ok := nulfreeArg(t); ok {
+		return true
+	}
+	if _, ok := utf8ValidArg(t); ok {
+		return true
+	}
+	if a, b, ok := conjunction(t); ok {
+		return hasAtom(a) || hasAtom(b)
+	}
+	return false
+}
+
+// utf8ValidArg is b when cond is `utf8_valid(b)`.
+func utf8ValidArg(cond *core.Term) (*core.Term, bool) {
+	if cond.Kind == core.KApp && len(cond.Kids) == 2 && cond.Kids[0].Kind == core.KName && cond.Kids[0].Name == "utf8-valid" {
+		return cond.Kids[1], true
+	}
+	return nil, false
+}
+
+// utf8Valid proves b ∈ V, the valid UTF-8 (ADR 0112, strings.md §11). V =
+// φ⁻¹(F) for φ into the transition monoid of Table 3-7's automaton, so on an
+// array literal of byte constants the decision is φ itself, the bytes run
+// through the automaton (Go's utf8.Valid is that automaton). Any other term is
+// the atom utf8_valid(b), proven only by an identical assumption: a guard
+// `if utf8_valid(b)` on the arm it enters (Theorem E).
+func utf8Valid(b *core.Term, f *facts) bool {
+	if core.IsRequire(b) {
+		b = b.Kids[4]
+	}
+	if b.Kind == core.KApp && len(b.Kids) >= 1 && b.Kids[0].Kind == core.KName && b.Kids[0].Name == "array" {
+		bs := make([]byte, 0, len(b.Kids)-1)
+		for _, k := range b.Kids[1:] {
+			if k.Kind != core.KInt || k.Int < 0 || k.Int > 255 {
+				return f.entailsOpaque(opaqueKey(core.App(core.Name("utf8-valid"), b)))
+			}
+			bs = append(bs, byte(k.Int))
+		}
+		return PlantUTF8Fault || utf8.Valid(bs)
+	}
+	return f.entailsOpaque(opaqueKey(core.App(core.Name("utf8-valid"), b)))
+}
+
+// PlantUTF8Fault reads every byte literal as valid UTF-8, the decision without
+// φ: TestValidUTF8IsRecognizedByItsMonoid must then accept an overlong.
+var PlantUTF8Fault bool
 
 // nulfreeArg is s when cond is `nulfree(s)`.
 func nulfreeArg(cond *core.Term) (*core.Term, bool) {

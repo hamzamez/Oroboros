@@ -521,7 +521,8 @@ func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.
 			return err
 		}
 		nf = emit.EraseWordAscriptions(tg.Word, nf)
-		f, err := Lower(tg, name, sig, nf, Options{Decided: true})
+		lsig, _ := lentSig(sig)
+		f, err := Lower(tg, name, lsig, nf, Options{Decided: true})
 		if err != nil {
 			return err
 		}
@@ -529,6 +530,28 @@ func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.
 		_, err = SelectBig(tg, f, sig, 0, false)
 		return err
 	}
+}
+
+// lentSig is the header of a borrowing definition's body as lowered: the lent
+// buffers' versions, then the declared result (spec/local.md §2.1), and how many
+// buffers lead. A definition that lends nothing is its own header.
+func lentSig(sig *core.Sig) (*core.Sig, int) {
+	var bufs []string
+	for _, p := range sig.Params {
+		if core.IsBuffer(p.Type) {
+			bufs = append(bufs, p.Type)
+		}
+	}
+	if len(bufs) == 0 {
+		return sig, 0
+	}
+	s := *sig
+	res := s.Results
+	if len(res) == 0 && s.Result != "" {
+		res = []string{s.Result}
+	}
+	s.Results, s.Result = append(bufs, res...), ""
+	return &s, len(bufs)
 }
 
 // checkResultClaim decides a definition's postcondition, its result's set
@@ -599,6 +622,16 @@ func checkResultClaim(tg *emit.Target, name string, sig *core.Sig, nf *core.Term
 	} else if k > 0 {
 		nf, fsig = nfl, s
 	}
+	// A BORROWING BODY'S VALUE IS ITS LENT BUFFERS' VERSIONS, THEN THE DECLARED
+	// RESULT (spec/local.md §2.1): the claim is about the factors after them
+	// (ADR 0112's windows ReadAt and readinto).
+	lent := 0
+	if !ensures {
+		fsig, lent = lentSig(fsig)
+		for i := range factors {
+			factors[i].j += lent
+		}
+	}
 	f, err := Lower(tg, name, fsig, nf, Options{Decided: true})
 	if err != nil {
 		return fmt.Errorf("its declared result is a claim, decided on its body alone (ADR 0072), "+
@@ -622,7 +655,7 @@ func checkResultClaim(tg *emit.Target, name string, sig *core.Sig, nf *core.Term
 	}
 	for _, c := range factors {
 		if r, ok := resultWithin(tg, f, c.j, c.lo, c.hi); !ok {
-			what := fmt.Sprintf("component %d of its result", c.j+1)
+			what := fmt.Sprintf("component %d of its result", c.j-lent+1)
 			if len(sig.Results) <= 1 {
 				what = "its result"
 			}

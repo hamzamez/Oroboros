@@ -169,7 +169,10 @@ func proveResultElems(tg *emit.Target, f *Func, lo, hi ep) error {
 // registerProgramFunc names f among the target's primitives: its signature
 // its own, pure, and a call's spelling on LLVM.
 func registerProgramFunc(tg *emit.Target, f *Func) {
-	if q, ok := tg.Prims[f.Name]; ok && q.Program {
+	// K(ℕ*)'s instances are the target's, one per name; a kept definition's
+	// name is its program's, so a registration replaces another program's
+	// (cmd/check reprints every program's text on one target)
+	if q, ok := tg.Prims[f.Name]; ok && q.Program && strings.HasPrefix(f.Name, natPrefix) {
 		return
 	}
 	var args, holes []string

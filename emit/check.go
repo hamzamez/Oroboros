@@ -1113,3 +1113,19 @@ func (c *checker) maybeNum(t *core.Term) bool {
 	}
 	return false
 }
+
+// ParamTypes are the types a residual λ's parameters take from their use, the
+// checker's first pass, "" where use says nothing: what Proposition D reads to
+// know an unannotated parameter is an integer (ADR 0113).
+func ParamTypes(tgt *Target, t *core.Term) []string {
+	if t == nil || t.Kind != core.KFn {
+		return nil
+	}
+	c := &checker{tgt: tgt, types: map[string]string{}}
+	_, _ = c.walk(t, "")
+	out := make([]string, len(t.Params))
+	for i, p := range t.Params {
+		out[i] = c.types[p]
+	}
+	return out
+}

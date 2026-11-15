@@ -892,6 +892,13 @@ func (p *printer) call(s *ir.Stmt) {
 		return
 	}
 	p.imports(q)
+	// A PROGRAM FUNCTION WITH NO RESULT (ADR 0113: a kept definition that
+	// writes its lent buffer and answers ()): its call is `call void`, which
+	// LLVM names nothing, and the unit the IR binds is read by nothing
+	if q.Program && q.Result == "" && len(q.Results) == 0 {
+		p.lines(p.fill(q.Form, "", s.Args))
+		return
+	}
 	if len(s.Res) > 1 && q.Kind != "stmt" {
 		// A HOST OPERATION INTO A PRODUCT B₁ × … × Bₙ answers LLVM's aggregate
 		// { ρB₁, …, ρBₙ }, and each result is its projection: extractvalue j,

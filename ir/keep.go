@@ -3,6 +3,7 @@ package ir
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"sort"
 	"strings"
@@ -70,6 +71,18 @@ var keptLeg = map[*emit.Target][]KeptCount{}
 // callees first.
 func KeptCounts(tg *emit.Target) []KeptCount { return keptLeg[tg] }
 
+// LastKept are the definitions the most recent Keep kept, on any target: what
+// a test of the choice reads.
+func LastKept() map[string]bool {
+	out := map[string]bool{}
+	for _, kc := range lastKept {
+		out[kc.Name] = true
+	}
+	return out
+}
+
+var lastKept []KeptCount
+
 // Keep chooses K for a program's entries on tg, builds each kept definition
 // once (callees first), registers it as a program function, and marks it kept
 // in env, so the entries' reduction calls it. drop is what earlier attempts
@@ -86,6 +99,15 @@ func Keep(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.Require
 	}
 	keptOn[tg] = nil
 	keptLeg[tg] = nil
+	lastKept = nil
+	for name, w := range liftedWheres[env] {
+		if w == nil {
+			delete(env.Wheres, name)
+		} else {
+			env.Wheres[name] = *w
+		}
+	}
+	delete(liftedWheres, env)
 	env.Kept = map[string]bool{}
 	if !PrintsFunctions(tg) {
 		return nil, nil
@@ -98,11 +120,12 @@ func Keep(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.Require
 		env.Kept[n] = true
 	}
 	for _, n := range calleesFirst(prog, K) {
-		f, lent, leg, err := buildKept(tg, prog, env, reqs, n, all)
+		f, lent, leg, post, err := buildKept(tg, prog, env, reqs, n, all)
 		if err != nil {
 			return nil, &KeepDrop{n, err}
 		}
 		keptLeg[tg] = append(keptLeg[tg], KeptCount{n, leg})
+		lastKept = keptLeg[tg]
 		calleeMu.Lock()
 		callees[calleeKey{tg, f.Name, false}] = f
 		calleeMu.Unlock()
@@ -111,6 +134,16 @@ func Keep(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.Require
 		if len(lent) > 0 {
 			registerThreaded(tg, n, f, lent)
 			keptOn[tg] = append(keptOn[tg], n)
+		}
+		// ψ, assumed at each call where its `where` held (ADR 0028's Lemma 1;
+		// the call's mark decides φ, or the program is refused)
+		if p := tg.Prims[n]; post.core != nil {
+			p.Names, p.Ensures = post.names, post.core
+			tg.Prims[n] = p
+		}
+		if p := tg.Prims[f.Name]; f.Name != n && post.ir != nil {
+			p.Names, p.Ensures = post.names, post.ir
+			tg.Prims[f.Name] = p
 		}
 	}
 	return K, nil
@@ -132,12 +165,14 @@ func chooseKept(env *core.Env, prog *core.Program, entries []string, drop map[st
 			continue
 		}
 		sig := prog.Sigs[n]
-		if sig == nil || !core.WhereIsRanges(sig) || len(sig.Params) != len(body.Params) {
+		// ANY `where`: a kept call carries it, decided at the call (the
+		// reducer's mark, ADR 0028), and the body assumes it
+		if sig == nil || len(sig.Params) != len(body.Params) {
 			continue
 		}
 		ok := true
 		for _, p := range sig.Params {
-			if p.Type == "" || p.Type == "any" || strings.HasPrefix(p.Type, "fn") {
+			if strings.HasPrefix(p.Type, "fn") {
 				ok = false
 			}
 		}
@@ -271,7 +306,7 @@ func termSize(t *core.Term) int {
 // storage, and the function returns R alone. lent are those parameters'
 // indices, in order.
 func buildKept(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.RequireSet,
-	n string, all []*core.Sig) (*Func, []int, *Legality, error) {
+	n string, all []*core.Sig) (*Func, []int, *Legality, keptPost, error) {
 	sig := prog.Sigs[n]
 	var lent []int
 	for i, p := range sig.Params {
@@ -300,40 +335,308 @@ func buildKept(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.Re
 	}
 	nf, err := core.Normalize(prog.Defs[n], env, core.DefaultFuel)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, keptPost{}, err
 	}
 	nf = emit.EtaTails(tg, nf)
 	if err := emit.CheckJoins(tg, nf); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, keptPost{}, err
 	}
-	if nf, err = emit.DischargeRequires(reqs, tg, n, esig, nf,
-		func(x *core.Term) *core.Term { return DischargeRanges(tg, esig, x) }); err != nil {
-		return nil, nil, nil, err
-	}
-	if left := core.Residual(nf, env); len(left) > 0 {
-		return nil, nil, nil, fmt.Errorf("not in normal form: %s", strings.Join(left, ", "))
-	}
-	f, leg, err := Entry(tg, n, name, esig, nf, all, false, nil)
-	if err != nil {
-		return nil, nil, nil, err
+	esig = wordInstance(tg, esig, nf)
+	// THEOREM 4, LIFTING: an obligation the body leaves unproven, over the
+	// parameters alone, becomes a conjunct of φ, assumed here and decided at
+	// each call (the kept call's where-mark). One over anything else leaves f
+	// inlined.
+	body := nf
+	var f *Func
+	var leg *Legality
+	for round := 0; ; round++ {
+		nf, err = emit.DischargeRequires(reqs, tg, n, esig, body,
+			func(x *core.Term) *core.Term { return DischargeRanges(tg, esig, x) })
+		if err == nil {
+			if left := core.Residual(nf, env); len(left) > 0 {
+				return nil, nil, nil, keptPost{}, fmt.Errorf("not in normal form: %s", strings.Join(left, ", "))
+			}
+			f, leg, err = Entry(tg, n, name, esig, nf, all, false, nil)
+		}
+		if err == nil {
+			break
+		}
+		lifted, ok := liftable(env, body, err)
+		if !ok || round >= 4 || !sameNames(esig, body) {
+			return nil, nil, nil, keptPost{}, err
+		}
+		esig = lift(env, n, esig, lifted)
 	}
 	if err := leg.Refusal(n, tg); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, keptPost{}, err
 	}
 	if err := leg.SizeRefusal(n, tg); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, keptPost{}, err
 	}
 	if len(lent) > 0 {
 		if err := inPlace(tg, f, lent); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, keptPost{}, err
 		}
 	}
 	if err := CheckBornIn(tg, f); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, keptPost{}, err
 	}
 	resultElems(tg, f, unstated)
 	SelectShifts(tg, f)
-	return f, lent, leg, nil
+	return f, lent, leg, derivePost(tg, prog.Sigs[n], nf, f, len(lent)), nil
+}
+
+// liftable are the conditions of a refusal of a kept body that are formulas
+// over its parameters alone (Theorem 4), or ok false if any is not: a
+// condition naming a local, a bound above the word (no term), or a body whose
+// parameters are not its header's names.
+func liftable(env *core.Env, body *core.Term, err error) ([]*core.Term, bool) {
+	var re *emit.RequireError
+	if !errors.As(err, &re) || body.Kind != core.KFn {
+		return nil, false
+	}
+	params := map[string]bool{}
+	for _, p := range body.Params {
+		params[p] = true
+	}
+	var out []*core.Term
+	for _, f := range re.Fails {
+		if f.Cond == nil || !overParams(env, f.Cond, params) {
+			return nil, false
+		}
+		out = append(out, core.StripRequires(f.Cond))
+	}
+	return out, len(out) > 0
+}
+
+// sameNames says a body's parameters are its header's names, so a condition
+// over the one is a condition over the other.
+func sameNames(sig *core.Sig, body *core.Term) bool {
+	if len(sig.Params) != len(body.Params) {
+		return false
+	}
+	for i, p := range sig.Params {
+		if p.Name != body.Params[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func overParams(env *core.Env, t *core.Term, params map[string]bool) bool {
+	switch t.Kind {
+	case core.KName:
+		return params[t.Name] || env.Prim[t.Name]
+	case core.KFn:
+		return false
+	}
+	for _, k := range t.Kids {
+		if !overParams(env, k, params) {
+			return false
+		}
+	}
+	return true
+}
+
+// liftedWheres are the contracts lifting extended, as they were before, per
+// environment: restored when Keep starts, so a definition dropped from K is
+// held at an inlined call to its own `where` only, as with K = ∅.
+var liftedWheres = map[*core.Env]map[string]*core.WhereContract{}
+
+// lift conjoins conds to f's `where`: in sig, which its body assumes, and in
+// env's contract, which each kept call's mark instantiates.
+func lift(env *core.Env, n string, sig *core.Sig, conds []*core.Term) *core.Sig {
+	c := *sig
+	ps := make([]string, len(sig.Params))
+	for i, p := range sig.Params {
+		ps[i] = p.Name
+	}
+	w, had := env.Wheres[n]
+	if liftedWheres[env] == nil {
+		liftedWheres[env] = map[string]*core.WhereContract{}
+	}
+	if _, saved := liftedWheres[env][n]; !saved {
+		if had {
+			orig := w
+			liftedWheres[env][n] = &orig
+		} else {
+			liftedWheres[env][n] = nil
+		}
+	}
+	if !had {
+		w = core.WhereContract{Params: ps}
+	}
+	for _, q := range conds {
+		c.Where = conjoin(c.Where, q)
+		if !PlantLiftUnmarked {
+			w.Cond = conjoin(w.Cond, q)
+		}
+	}
+	if w.Cond != nil {
+		if env.Wheres == nil {
+			env.Wheres = map[string]core.WhereContract{}
+		}
+		env.Wheres[n] = w
+	}
+	return &c
+}
+
+func conjoin(a, b *core.Term) *core.Term {
+	if a == nil {
+		return b
+	}
+	return core.App(core.Name("if"), a, b, core.Bool(false))
+}
+
+// PlantLiftUnmarked lifts into the body's assumptions but not into the call's
+// mark: a call outside the lifted precondition must then be accepted.
+var PlantLiftUnmarked bool
+
+// PROPOSITION D, THE INSTANCE (f, W) (p8-research §9). An integer parameter
+// whose declared set exceeds every word the target holds an integer in,
+// [−2⁶³, 2⁶⁴ − 1] on a 64-bit triple, is held in the word at a call the facts
+// keep there (ADR 0079): ℤ (`Int`), a set above the words, and a parameter
+// with no set at all whose use makes it an integer (emit.ParamTypes). Its
+// instance's set is S ∩ W, W the signed word, assumed in the body as the
+// parameter's type and its premise, and decided at each call by the
+// arguments' sets (CheckCallSets): a call above the word fails it, and P4
+// inlines f. A set inside the words is left to the facts, which choose S or U.
+// Instances for U and the rung above are further keys of ρ⃗, not built.
+func wordInstance(tg *emit.Target, sig *core.Sig, nf *core.Term) *core.Sig {
+	if PlantNoWordInstance {
+		return sig
+	}
+	used := emit.ParamTypes(tg, nf)
+	wlo, whi := big.NewInt(tg.Word.Lo), big.NewInt(tg.Word.Hi)
+	ulo, uhi := wlo, new(big.Int).Lsh(big.NewInt(1), 64)
+	uhi.Sub(uhi, big.NewInt(1))
+	var out *core.Sig
+	for i, p := range sig.Params {
+		unannotated := p.Type == "" || p.Type == "any"
+		isInt := unannotated && i < len(used) && (used[i] == "int" || strings.HasPrefix(used[i], "int "))
+		lo, hi, ranged := core.RangeEnds(p.Type)
+		if !isInt && !(ranged || p.Type == "int") {
+			continue
+		}
+		if ranged && lo != nil && hi != nil && lo.Cmp(ulo) >= 0 && hi.Cmp(uhi) <= 0 {
+			continue // inside the words: the facts choose
+		}
+		l, h := wlo, whi
+		if ranged && lo != nil && lo.Cmp(l) > 0 {
+			l = lo
+		}
+		if ranged && hi != nil && hi.Cmp(h) < 0 {
+			h = hi
+		}
+		if l.Cmp(h) > 0 || p.Name == "" {
+			continue
+		}
+		if out == nil {
+			c := *sig
+			c.Params = append([]core.SigParam(nil), sig.Params...)
+			out = &c
+		}
+		out.Params[i].Type = fmt.Sprintf("int %s %s", l, h)
+		prem := core.App(core.Name("if"), core.App(core.Name("<="), core.Int(l.Int64()), core.Name(p.Name)),
+			core.App(core.Name("<="), core.Name(p.Name), core.Int(h.Int64())), core.Bool(false))
+		if out.Where == nil {
+			out.Where = prem
+		} else {
+			out.Where = core.App(core.Name("if"), out.Where, prem, core.Bool(false))
+		}
+	}
+	if out == nil {
+		return sig
+	}
+	return out
+}
+
+// PlantNoWordInstance leaves an unstated or unbounded integer parameter
+// without the word's set: write, slice and print_int are then refused under
+// their contracts and inlined (TestAnUnannotatedParameterIsTheWords).
+var PlantNoWordInstance bool
+
+// keptPost is a kept definition's derived postcondition: core over the
+// threaded view's components (the core's call), ir over the function's own
+// results (the IR's call, when they differ), both over names, the body's
+// parameters.
+type keptPost struct {
+	core, ir *core.Term
+	names    []string
+}
+
+// derivePost is ψ (p8-research §9): the constant length hull the IR proves of
+// each table result, and the greatest subset of T the refinement layer decides
+// at every return (emit.ProvePostconditions, Houdini). T, over the integer
+// parameters x and the table parameters p, is r ≤ x and r ≤ len(p) for an
+// integer result, and len(r) = x, len(r) ≤ x, len(r) = len(p), len(r) ≤ len(p)
+// for a table result. k is the count of lent buffers, the first components of
+// the core's view, whose length is the arrow's theorem and needs no candidate.
+func derivePost(tg *emit.Target, sig *core.Sig, nf *core.Term, f *Func, k int) keptPost {
+	if nf == nil || nf.Kind != core.KFn || len(nf.Params) != len(f.Params) {
+		return keptPost{}
+	}
+	comps := k + len(f.Results)
+	isInt := func(ty string) bool { return ty == "int" || strings.HasPrefix(ty, "int ") }
+	isTab := func(ty string) bool { return strings.HasPrefix(ty, "array") || strings.HasPrefix(ty, "buffer") }
+	lenOf := func(t *core.Term) *core.Term { return core.App(core.Name("len"), t) }
+	var cands []*core.Term
+	for c := k; c < comps; c++ {
+		rt := f.Results[c-k]
+		r := core.Name(emit.PostResult(c))
+		for i, pv := range f.Params {
+			x := core.Name(nf.Params[i])
+			switch pt := f.Types[pv]; {
+			case isInt(rt) && isInt(pt):
+				cands = append(cands, core.App(core.Name("<="), r, x))
+			case isInt(rt) && isTab(pt):
+				cands = append(cands, core.App(core.Name("<="), r, lenOf(x)))
+			case isTab(rt) && isInt(pt):
+				cands = append(cands, core.App(core.Name("="), lenOf(r), x), core.App(core.Name("<="), lenOf(r), x))
+			case isTab(rt) && isTab(pt):
+				cands = append(cands, core.App(core.Name("="), lenOf(r), lenOf(x)), core.App(core.Name("<="), lenOf(r), lenOf(x)))
+			}
+		}
+	}
+	holds := emit.ProvePostconditions(tg, sig, nf, comps, cands)
+	// THE CONSTANT LENGTH HULL, the IR's: decided there, so no candidate
+	fs := analyse(tg, f)
+	for j, rt := range f.Results {
+		if !isTab(rt) {
+			continue
+		}
+		hull, any, ok := ivBot, false, true
+		f.Walk(func(r *Region) {
+			if !ok || r.T != TYield || !returns(f, r) || j >= len(r.Args) {
+				return
+			}
+			x := fs[r.Args[j]]
+			if !x.hasLn {
+				ok = false
+				return
+			}
+			hull, any = joinIV(hull, x.ln), true
+		})
+		if !ok || !any || hull.bot || hull.nlo || hull.phi {
+			continue
+		}
+		lo, okl := hull.lo.i64()
+		hi, okh := hull.hi.i64()
+		if okl && okh {
+			r := lenOf(core.Name(emit.PostResult(k + j)))
+			cands = append(cands, core.App(core.Name("<="), core.Int(lo), r), core.App(core.Name("<="), r, core.Int(hi)))
+			holds = append(holds, true, true)
+		}
+	}
+	one := -1
+	if comps == 1 {
+		one = 0
+	}
+	out := keptPost{names: append([]string(nil), nf.Params...), core: emit.Proven(cands, holds, comps, one)}
+	if k > 0 && len(f.Results) == 1 {
+		out.ir = emit.Proven(cands, holds, comps, k)
+	}
+	return out
 }
 
 // PlantNotInPlace accepts a kept definition's handed-back buffer without asking
@@ -558,6 +861,17 @@ func KeptCallee(err error, K map[string]bool) (string, bool) {
 	var cs *CallSetError
 	if errors.As(err, &cs) && K[cs.Callee] {
 		return cs.Callee, true
+	}
+	// AN OBLIGATION OF A KEPT DEFINITION'S CONTRACT that does not follow at a
+	// call, its `where` (lifted conjuncts included) or a parameter's range: the
+	// refinement layer names the definition, and P4 inlines that one alone
+	var re *emit.RequireError
+	if errors.As(err, &re) {
+		for _, f := range re.Fails {
+			if K[f.Def] {
+				return f.Def, true
+			}
+		}
 	}
 	return "", false
 }

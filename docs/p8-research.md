@@ -198,3 +198,51 @@ copies and its depth, small at π ≤ 15.
    precondition a site fails, which must refuse or inline that site, never assume it.
 4. **The ledger closed** in `p8-2026-MM-DD.md`, with emitted text compared, proof counts unchanged,
    and run time on windows' running programs.
+
+## 9. Step 3: the contract completed (2026-11-15, after step 1)
+
+Step 1 measured where a kept definition loses to its sites: five windows programs fall back to
+K = ∅, four of them on a fact the body proves of its result and the caller cannot read
+(p8-2026-11-15). A kept definition is a Hoare triple {P ∧ φ} f {ψ}: P its parameters' sets, φ its
+precondition, ψ its postcondition. A call decides P(a⃗) ∧ φ(a⃗) and assumes ψ(a⃗, r).
+- **Soundness** is the triple's: the definition is decided under P ∧ φ, and ψ is decided at every
+  return.
+- **Completeness relative to inlining** is Theorem 3's question. Inlined, a site knows sp(body, Γ),
+  the strongest postcondition under its own facts. Kept, it knows Γ ∧ ψ. So ψ should be the
+  strongest we can decide, and φ the weakest the body needs.
+
+Step 3 completes the contract on both sides, in the logic that decides the residual's obligations
+(the refinement layer, ADR 0037). The IR's intervals are a projection of it.
+
+1. **φ, decided at the call** (ADR 0028, already the rule for an inlined call). The reducer marks a
+   kept call with the definition's instantiated `where`, `(#reqw f φ[a⃗] (f a⃗))`, as `markWhere`
+   marks an unfolded one. The refiner decides the mark with the call's facts. A failure names f, and
+   the driver inlines f alone (P4, finer than step 1's net).
+2. **φ completed by lifting** (Theorem 4). An obligation the body leaves unproven whose formula is
+   over the parameters alone becomes a conjunct of φ, decided at each call. Lifting an obligation
+   that sits under a guard g lifts o, not g → o. That is a stronger precondition (o ⊨ g → o), so it
+   stays sound and can only make a call fail, which P4 then inlines. An obligation over anything
+   else leaves f inlined.
+3. **ψ derived, never declared** (prefer deriving a fact over declaring it). ψ is the greatest
+   subset of a finite template set T that holds at every return: Houdini (Flanagan and Leino 2001),
+   the greatest fixed point on the lattice 2^T.
+   - Each candidate is decided by a where-mark at every value tail of the body, with the facts
+     there, a loop's invariants included.
+   - A failing candidate is removed and the rest decided again. Since a decided mark is assumed
+     beneath it, the iteration stops only when no candidate fails.
+   - T, over integer parameters x, table parameters p and results r:
+     - for an integer result: r ≤ x and r ≤ len(p);
+     - for a table result: len(r) = x, len(r) = len(p), len(r) ≤ x and len(r) ≤ len(p);
+     - and the constant hulls the IR proves: lo ≤ r ≤ hi, and lo ≤ len(r) ≤ hi.
+   - A lent buffer needs none: len(b′) = len(b) is the arrow's theorem (step 1).
+4. **Proposition D, the instance (f, W)**. An integer parameter whose declared set is unstated, or
+   wider than the word (ℤ), is held in the word at a call the facts keep there (ADR 0079), so the
+   instance's set is S ∩ W. The call decides a⃗ ∈ W (`CheckCallSets`). A call outside it, a value
+   above the word, fails its contract and P4 inlines f. Instances for the unsigned word (`print_int`
+   at a 64-bit hash) and the rung above are further keys of ρ⃗, owed until a program needs one kept.
+
+Witnesses, each with its planted fault:
+- a call that violates a kept `where` is refused (the mark skipped: accepted);
+- a lifted precondition a call fails inlines f (the lift unmarked: the call accepted outside it);
+- a derived ψ is assumed at a call (every candidate accepted unchecked: a false ψ proves an
+  out-of-range index).

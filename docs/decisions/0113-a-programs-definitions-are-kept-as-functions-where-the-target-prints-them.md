@@ -82,6 +82,28 @@ The build corrected four premises above. Each is stated here, and the research i
   on an obligation the long inlined residual loses, and accepted with K, where the contract proves it
   once. That acceptance is by a proof, so it is sound.
 
+## As built, step 3 (p8step3-2026-11-15)
+
+The contract is completed as a Hoare triple {P ∧ φ} f {ψ} (p8-research.md §9):
+- **φ at the call.** The reducer marks a kept call with the definition's instantiated `where`, as β
+  marks an unfolded one (ADR 0028). The refiner decides the mark, and a failure is typed
+  (`emit.RequireError`) and names its definition, so P4 inlines that one alone. Item 3's "no
+  `where`" falls.
+- **φ by lifting** (item 5): a refusal of the body whose conditions are all over the parameters is
+  conjoined into φ, assumed in the body and marked at each call.
+  - An index's domain condition is typed for it too.
+  - A lifted conjunct is undone when its definition is dropped, so an inlined call is held to what
+    K = ∅ holds it to.
+- **ψ derived** (an extension of item 6, not in the decision above): the greatest subset of a
+  template set decided at every value tail of the body, by Houdini over where-marks, together with
+  the IR's constant length hulls. It is assumed at a call through the primitive's `ensure` (Lemma 1:
+  its `where` held there).
+- **Proposition D** (item 4) as the instance (f, W): a parameter's set wider than every word the
+  target holds (ℤ, unstated, above the words) is narrowed to S ∩ W. A set inside the words is left
+  to the facts.
+- **A call on literals is unfolded**, and its normal form taken if it is a literal: a closed term is
+  staging's to evaluate (ADR 0009), and kept, it was an unknown to its callers' obligations.
+
 ## Consequences
 
 - Steps (p8-research.md §8), each with its ledger in its result document:

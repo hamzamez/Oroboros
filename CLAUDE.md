@@ -95,10 +95,10 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 wrong about half the time.
 
 **The current assessment is [assessment-2026-11-15.md](docs/assessment-2026-11-15.md)**; read it
-before planning. Its plan (§5): ~~P8 with its ledger~~ step 1 done
-([p8-2026-11-15](gauntlet/results/p8-2026-11-15.md); step 3, Proposition D, lifting and a kept
-definition's derived postcondition, owed), the gauntlet on four targets, the harness, the file
-programs on windows, the second triple, TinyRetroPad, then CLAUDE.md as state again. Previous:
+before planning. Its plan (§5): ~~P8 with its ledger~~ done, steps 1 and 3
+([p8-2026-11-15](gauntlet/results/p8-2026-11-15.md), [p8step3-2026-11-15](gauntlet/results/p8step3-2026-11-15.md)),
+the gauntlet on four targets, the harness, the file programs on windows, the second triple,
+TinyRetroPad, then CLAUDE.md as state again. Previous:
 [10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
 [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
 [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md),
@@ -492,8 +492,16 @@ checked. When a package hits a wall that needs language work, stop, research it,
     with K = ∅ is accepted, with the same answer, by P4's net. An unstated result's type is its hull,
     never typing's (`PlantTypingResult`), and a lent buffer is written in place (`sameStorage`, never
     pure). `roundtrip`, `ledger` and `freq` emit on windows; run time 0.985–1.03; Go, JavaScript and
-    the JVM byte-identical. Owed (step 3): Proposition D, lifting, J's `ensure` on named results, and
-    a kept definition's derived postcondition (len(r) = n), which four programs fall back on.
+    the JVM byte-identical. **Step 3, built** ([p8step3-2026-11-15](gauntlet/results/p8step3-2026-11-15.md)):
+    the contract is a Hoare triple {P ∧ φ} f {ψ}, each half decided by the refinement layer. A kept
+    call carries its `where` as a mark, decided with the call's facts, and a refusal names its
+    definition, so P4 inlines that one alone. An obligation over the parameters is lifted into φ. ψ is
+    Houdini's greatest subset of templates (len(r) = x, r ≤ len(p), …) decided at every value tail. ℤ
+    or an unstated integer is the instance's S ∩ W (Proposition D), and a call on literals is its
+    value. The net catches 2 programs, not 5; no verdict or unproven count changed; run time
+    0.97–1.03. Found there: `hostWrites` never read a `branch` arm (`PlantWritesNoBranch`). Owed:
+    `readinto`'s n ≤ len(b) (a relational loop invariant, so `readfile`'s clamp stays), a segment at
+    a kept boundary (`pe`), affine templates, instances for U, and per-call fallback.
 
 **Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;
@@ -556,13 +564,13 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **7,293 of 7,347** integer operations proven inside their target's word, the 54 left
+- **Provability**: **6,977 of 7,031** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **762 of 800** loops proven to terminate (size-change termination; fourteen of the 38 left are
+  **747 of 785** loops proven to terminate (size-change termination; fourteen of the 38 left are
   windows' `os` cell's read and write loops, whose progress is a count the host returns). A
   definition windows keeps as a function (ADR 0113) is counted once per program, so the totals fell
-  with P8 while no program's unproven count rose (p8-2026-11-15). Each program's share is in its
+  with P8 while no program's unproven count rose (p8-2026-11-15, p8step3-2026-11-15). Each program's share is in its
   result document; both counts are pinned by `cmd/check`. K(ℕ\*)'s instances (ADR 0101) are proven
   once per target, under their parameters' sets, and are not counted per program.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%

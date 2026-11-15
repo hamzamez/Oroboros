@@ -3071,3 +3071,43 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - `examples/hash/fnv.oro windows` 2375 → 1515 ms, 0.64x
 - `examples/io/jsonfmt.oro windows` 9781 → 2750 ms, 0.28x
+
+## 2026-11-15 — on e3d964a, with uncommitted changes
+
+**Reason:** P8 step 3 (ADR 0113): a kept call carries its where; preconditions lifted; postconditions derived by Houdini; Proposition D's word instance; a call on literals is its value; hostWrites reads branch arms; windows only, no verdict changed, unproven counts unchanged, run time 0.97-1.03 (p8step3-2026-11-15)
+
+652 runs: 431 emitted, 221 refused; 6977 of 7031 integer operations bounded, 747 of 785 loops proven. compiler pass, differential pass, tooling pass.
+
+23 change(s):
+
+- emitted text changed — `examples/hash/crc32.oro windows`
+- compiler output changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- compiler output changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- compiler output changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- compiler output changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- compiler output changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- compiler output changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- compiler output changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- compiler output changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+- compiler output changed — `examples/num/ledger.oro windows`
+- compiler output changed — `examples/pe/pe.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- compiler output changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- compiler output changed — `gauntlet/differential/cases/codecs.oro windows`
+
+1 compile(s) accepted SLOWER — compile time 1.00x the baseline (median of 40 compiles over 300 ms); a second sweep kept 4 of 4 suspect(s); paired serially against the baseline's binary (f6a8ff3), 1 confirmed, examples/io/freq.oro windows cleared at 1.08x paired, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.00x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 0.95x paired; 1 compile(s) FASTER than the baseline — -accept records them, so a regression back to the old time is caught; the step's phases: sweep 40s, second sweep 38s, the baseline's gen extracted and built 6s, 4 pair(s) × 3 rounds 3m22s:
+
+- `examples/num/ledger.oro windows` 2484 → 3859 ms, 1.55x; paired 1109 → 1750 ms, 1.58x
+
+1 compile(s) recorded FASTER:
+
+- `examples/hash/crc32.oro windows` 3562 → 2187 ms, 0.61x

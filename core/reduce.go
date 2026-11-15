@@ -2175,6 +2175,11 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				callee = t.Op().Name
 			}
 		}
+		// A KEPT CALL (ADR 0113): keptCall, out of line, so this recursive
+		// frame stays small (Ω must exhaust its fuel before the stack).
+		if t.Op().Kind == KName && e.Kept[t.Op().Name] {
+			return e.keptCall(t, callee, fuel)
+		}
 		if IsRequireWhere(t) {
 			b, err := normalize(t.Kids[3], e, fuel)
 			if err != nil {
@@ -4782,4 +4787,87 @@ func (e *Env) infSup(op, arg *Term, fuel *int) (*Term, error) {
 		}
 	}
 	return &Term{Kind: KApp, Kids: []*Term{op, na}}, nil
+}
+
+// PlantKeptNoWhere leaves a kept call without its definition's `where`:
+// TestAKeptCallCarriesItsWhere must then see a call outside it accepted.
+var PlantKeptNoWhere bool
+
+// PlantKeptNoFold keeps a kept call on literals as a call: codecs' width_of is
+// then no constant at its callers (TestAKeptCallOnLiteralsIsItsValue).
+var PlantKeptNoFold bool
+
+// isLiteral is a closed value: a literal, or an integer past int64 as the
+// reader spells it, a closed term over + − · (bigLiteral).
+func isLiteral(t *Term) bool {
+	if t == nil {
+		return false
+	}
+	switch t.Kind {
+	case KInt, KBool, KStr, KDec:
+		return true
+	case KApp:
+		if op := t.Op(); op.Kind == KName && (op.Name == "+" || op.Name == "-" || op.Name == "*") {
+			for _, a := range t.Args() {
+				if !isLiteral(a) || a.Kind == KBool || a.Kind == KStr {
+					return false
+				}
+			}
+			return len(t.Args()) > 0
+		}
+	}
+	return false
+}
+
+func allLiteral(ts []*Term) bool {
+	for _, t := range ts {
+		if !isLiteral(t) {
+			return false
+		}
+	}
+	return true
+}
+
+// keptCall normalizes a call of a kept definition (ADR 0113). It carries its
+// definition's `where` (ADR 0028): the call is not unfolded, so the mark β
+// would put around the body goes around the call, φ instantiated with the
+// arguments, decided with the call's facts. An impure argument is no term a
+// condition may copy (it would be read twice), so its mark is false and P4
+// inlines the definition. callee is the name when it has a `where`, else "".
+func (e *Env) keptCall(t *Term, callee string, fuel *int) (*Term, error) {
+	name := t.Op().Name
+	kids := []*Term{t.Op()}
+	pure := true
+	for _, a := range t.Args() {
+		na, err := normalize(a, e, fuel)
+		if err != nil {
+			return nil, err
+		}
+		pure = pure && e.pureTerm(na, map[string]bool{})
+		kids = append(kids, na)
+	}
+	call := &Term{Kind: KApp, Kids: kids}
+	// A CALL ON LITERALS IS A CLOSED TERM, and staging evaluates it
+	// (ADR 0009): `bytes.width_of(0, 2^64 - 1)` is 8 inlined, and kept it
+	// was an unknown its callers' obligations could not read. It is
+	// unfolded, and kept only if its normal form is no literal.
+	if allLiteral(kids[1:]) && !PlantKeptNoFold {
+		if def, ok := e.Defs[name]; ok && def.Kind == KFn && len(def.Params) == len(kids)-1 {
+			v, err := normalize(&Term{Kind: KApp, Kids: append([]*Term{def}, kids[1:]...)}, e, fuel)
+			if err == nil && isLiteral(v) {
+				if callee == "" {
+					return v, nil
+				}
+				return e.markWhere(callee, kids[1:], kids[1:], v, fuel)
+			}
+		}
+	}
+	if callee == "" || PlantKeptNoWhere {
+		return call, nil
+	}
+	if !pure {
+		return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(callee),
+			App(Name(RequireFalseName), e.Wheres[callee].Cond), call}}, nil
+	}
+	return e.markWhere(callee, kids[1:], kids[1:], call, fuel)
 }

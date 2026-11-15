@@ -75,6 +75,9 @@ type refiner struct {
 	// fresh dry one, so without this a nested loop's fixpoint restarted from
 	// nothing in every round of the loop around it.
 	memo *refineMemo
+	// rangeDef is the definition a residual range mark belongs to, while its
+	// where-mark form is decided (requireMark): its label is a sentence.
+	rangeDef string
 }
 
 // refineMemo holds what one Refine computes more than once and may reuse.
@@ -2992,7 +2995,7 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			if r.probe {
 				continue
 			}
-			return fmt.Errorf("%s is an indexing, and %s is not proven\n"+
+			return indexRefusal(want, "%s is an indexing, and %s is not proven\n"+
 				"  known: %s\n"+
 				"  The index is outside the linear fragment, and neither a proof by cases nor a\n"+
 				"  content fact about a table bounds it. A table is a function with a finite\n"+
@@ -3013,7 +3016,7 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			if f.entails(g) || r.probe {
 				continue
 			}
-			return fmt.Errorf("%s is an indexing, and %s does not follow\n"+
+			return indexRefusal(want, "%s is an indexing, and %s does not follow\n"+
 				"  known: %s\n"+
 				"  A table is a function with a finite domain, so 0 <= i < len is the\n"+
 				"  condition for the application to be DEFINED — not a check bolted on\n"+
@@ -3021,6 +3024,12 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 		}
 	}
 	return nil
+}
+
+// indexRefusal is an index's domain condition that does not follow, typed so
+// that a kept definition's lifting reads the condition (Theorem 4, ADR 0113).
+func indexRefusal(cond *core.Term, format string, args ...any) error {
+	return &RequireError{msg: fmt.Sprintf(format, args...), Fails: []RequireFailure{{Cond: cond}}}
 }
 
 // markBound records the parameter names of any abstraction sitting directly

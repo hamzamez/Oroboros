@@ -36,7 +36,29 @@ type RequireSet struct {
 type requireFail struct {
 	def, param, ty, arg, got, known string
 	literal                         bool
+	// raw is the definition whose contract the mark is, as the program names
+	// it, and cond the obligation as a term: what a kept definition's lifting
+	// reads (ADR 0113, Theorem 4), and what names the definition P4 inlines.
+	raw  string
+	cond *core.Term
 }
+
+// RequireError is a residual's obligation that does not follow: its message,
+// and every distinct failure as its definition and its condition.
+type RequireError struct {
+	msg   string
+	Fails []RequireFailure
+}
+
+// RequireFailure is one obligation that does not follow: Def the definition
+// whose contract it is (a callee's name, or a label for an obligation of no
+// definition), Cond its condition, nil where it is no term (above the word).
+type RequireFailure struct {
+	Def  string
+	Cond *core.Term
+}
+
+func (e *RequireError) Error() string { return e.msg }
 
 // InstallRequires is the program's RequireSet: E_P, the one set it enforces
 // above the word. The contract tables themselves are the environment's, put
@@ -142,11 +164,12 @@ func literalFails(w core.Word, t *core.Term) []requireFail {
 		case core.IsRequire(x):
 			if a := x.Kids[4]; a.Kind == core.KInt && !literalIn(w, x.Kids[3].Str, big.NewInt(a.Int)) {
 				out = append(out, requireFail{def: x.Kids[1].Str, param: x.Kids[2].Str, ty: x.Kids[3].Str,
-					arg: core.ShowTerm(a), literal: true})
+					arg: core.ShowTerm(a), literal: true, raw: x.Kids[1].Str})
 			}
 		case core.IsRequireWhere(x):
 			if clause, isFalse := core.IsRequireFalse(x.Kids[2]); isFalse {
-				out = append(out, requireFail{def: x.Kids[1].Str, param: "where", arg: core.ShowTerm(clause), literal: true})
+				out = append(out, requireFail{def: x.Kids[1].Str, param: "where", arg: core.ShowTerm(clause), literal: true,
+					raw: x.Kids[1].Str, cond: clause})
 			}
 		}
 		for _, k := range x.Kids {
@@ -218,7 +241,11 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 		}
 	}
 	if len(distinct) > 0 {
-		return nil, fmt.Errorf("%s: %s", what, distinct[0].message(len(distinct)))
+		e := &RequireError{msg: fmt.Sprintf("%s: %s", what, distinct[0].message(len(distinct)))}
+		for _, f := range distinct {
+			e.Fails = append(e.Fails, RequireFailure{Def: f.raw, Cond: f.cond})
+		}
+		return nil, e
 	}
 	return core.StripRequires(t), nil
 }
@@ -650,8 +677,12 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 		g := f.clone()
 		r.collectEnsures(cond, g)
 		if r.requires != nil && !r.proveCond(cond, g) {
+			raw := t.Kids[1].Str
+			if r.rangeDef != "" {
+				raw = r.rangeDef
+			}
 			*r.requires = append(*r.requires, requireFail{def: t.Kids[1].Str, param: "where",
-				arg: core.ShowTerm(cond), known: f.known()})
+				arg: core.ShowTerm(cond), known: f.known(), raw: raw, cond: cond})
 		}
 		return r.walk(t.Kids[3], f)
 	}
@@ -667,7 +698,13 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 	// as above the word and refused with its bounds among the known facts.
 	if r.tgt != nil && !plantRangeMarkFault {
 		if res := residualRange(r.tgt.Word, span{}, t.Kids[1].Str, t.Kids[2].Str, t.Kids[3].Str, t.Kids[4]); core.IsRequireWhere(res) {
-			return r.requireMark(res, f)
+			// the condition's label is a sentence; the failure keeps the
+			// definition's own name (raw)
+			saved := r.rangeDef
+			r.rangeDef = t.Kids[1].Str
+			err := r.requireMark(res, f)
+			r.rangeDef = saved
+			return err
 		}
 	}
 	// A RANGE MARK ABOVE THE WORD: the set is bitwise, which the linear
@@ -679,7 +716,7 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 	}
 	if r.requires != nil {
 		*r.requires = append(*r.requires, requireFail{def: t.Kids[1].Str, param: t.Kids[2].Str,
-			ty: t.Kids[3].Str, arg: core.ShowTerm(a), known: f.known()})
+			ty: t.Kids[3].Str, arg: core.ShowTerm(a), known: f.known(), raw: t.Kids[1].Str})
 	}
 	return nil
 }

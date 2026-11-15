@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"oroboros/core"
 	"oroboros/emit"
 	"oroboros/ir"
 )
@@ -171,5 +172,222 @@ export fn main() {
 	defer func() { ir.PlantKeepNothing = false }()
 	if _, err := buildAndRunNoExec(t, src, "windows"); err == nil || !strings.Contains(err.Error(), "depth") && !strings.Contains(err.Error(), "step limit") {
 		t.Errorf("with K = ∅: %v; want the reducer's depth or step limit passed", err)
+	}
+}
+
+// spanSrc is a kept definition with a relational `where`, called at x, y.
+func spanSrc(x, y string) string {
+	return `use win/print
+
+fn span(lo ∈ 0..1000, hi ∈ 0..1000) (Int) where lo <= hi {
+    loop i = lo, s = 0 {
+        i < hi -> {
+            t = if i % 3 == 0 { (s + i * 3 + 1) % 1000 } else if i % 3 == 1 { (s * 7 + i) % 1000 } else { (s + 11) % 1000 }
+            again(i + 1, t)
+        }
+        else -> (s + hi - lo) % 1000
+    }
+}
+
+export fn main() {
+    ignore(print.print_int(span(` + x + `, ` + y + `)))
+}
+`
+}
+
+// A KEPT CALL CARRIES ITS DEFINITION'S WHERE (ADR 0028, 0113): span is kept,
+// so no β puts its `where` around an unfolded body, and the reducer marks the
+// call with lo <= hi instantiated. span(3, 7) is inside it and runs; span(7, 3)
+// is refused. THE PLANTED FAULT leaves the kept call unmarked: span(7, 3) is
+// then accepted.
+func TestAKeptCallCarriesItsWhere(t *testing.T) {
+	out, err := buildAndRun(t, spanSrc("3", "7"), "windows", "")
+	if err != nil || strings.TrimSpace(out) == "" {
+		t.Fatalf("span(3, 7): %q, %v", out, err)
+	}
+	if _, err := buildAndRunNoExec(t, spanSrc("7", "3"), "windows"); err == nil || !strings.Contains(err.Error(), "where") {
+		t.Fatalf("span(7, 3): %v; want its where refused", err)
+	}
+	core.PlantKeptNoWhere = true
+	defer func() { core.PlantKeptNoWhere = false }()
+	if _, err := buildAndRunNoExec(t, spanSrc("7", "3"), "windows"); err != nil {
+		t.Errorf("with the kept call unmarked: %v; want span(7, 3) accepted", err)
+	}
+}
+
+// getSrc is a kept definition whose index t[i] its body leaves unproven: an
+// obligation over its parameters, i < len(t), which lifting makes a conjunct
+// of its `where`, called at i.
+func getSrc(i string) string {
+	return `use win/print
+
+fn get(t ∈ Array(0..255), i ∈ 0..1000) (Int) {
+    loop j = 0, s = 0 {
+        j < 8 -> {
+            u = if j % 3 == 0 { (s + j * 3 + 1) % 1000 } else if j % 3 == 1 { (s * 7 + j) % 1000 } else { (s + 11) % 1000 }
+            again(j + 1, u)
+        }
+        else -> (s + t[i]) % 1000
+    }
+}
+
+export fn main() {
+    t = array { 1, 2, 3, 4, 5 }
+    ignore(print.print_int(get(t, ` + i + `)))
+}
+`
+}
+
+// A LIFTED PRECONDITION IS DECIDED AT THE CALL (Theorem 4, ADR 0113): get's
+// t[i] is proven by no fact of its body, and it is a formula over its
+// parameters, so it becomes a conjunct of get's `where`, i < len(t), assumed in
+// the body and decided at each call by the kept call's mark. get(t, 2) on a
+// table of five runs; get(t, 7) is refused. THE PLANTED FAULT lifts into the
+// body's assumptions and not into the call's mark: get(t, 7) is then accepted.
+func TestALiftedPreconditionIsDecidedAtTheCall(t *testing.T) {
+	out, err := buildAndRun(t, getSrc("2"), "windows", "")
+	if err != nil || strings.TrimSpace(out) == "" {
+		t.Fatalf("get(t, 2): %q, %v", out, err)
+	}
+	if _, err := buildAndRunNoExec(t, getSrc("7"), "windows"); err == nil {
+		t.Fatalf("get(t, 7) on a table of five: accepted; want it refused")
+	}
+	ir.PlantLiftUnmarked = true
+	defer func() { ir.PlantLiftUnmarked = false }()
+	if _, err := buildAndRunNoExec(t, getSrc("7"), "windows"); err != nil {
+		t.Errorf("with the lift unmarked at the call: %v; want get(t, 7) accepted", err)
+	}
+}
+
+// mkSrc is a kept definition returning a table over 0..hi, indexed at k.
+func mkSrc(hi, k string) string {
+	return `use win/print
+
+fn mk(n ∈ 2..1000) {
+    var c := array { 0 : _ ∈ 0..` + hi + ` }
+    loop i = 0 {
+        i >= len(c) -> c
+        else -> {
+            c[i] := if i % 3 == 0 { (i * 7 + 1) % 200 } else if i % 3 == 1 { (i * 5 + 3) % 200 } else if i % 5 == 2 { (i * i + 9) % 200 } else { (i + 11) % 200 }
+            again(i + 1)
+        }
+    }
+}
+
+export fn main() {
+    c = mk(10)
+    ignore(print.print_int(c[` + k + `]))
+}
+`
+}
+
+// A KEPT RESULT CARRIES ITS POSTCONDITION (Houdini, ADR 0113, p8-research §9):
+// mk(n) over 0..n - 1 has len(r) = n at its return, decided there, and assumed
+// at the call, so c[9] after mk(10) is defined. Over 0..n - 2 only len(r) ≤ n
+// holds, and c[9] is refused. THE PLANTED FAULT accepts every candidate
+// unchecked: the false len(r) = n then proves c[9], past the table's end.
+func TestAKeptResultCarriesItsPostcondition(t *testing.T) {
+	if out, err := buildAndRun(t, mkSrc("n - 1", "9"), "windows", ""); err != nil || strings.TrimSpace(out) == "" {
+		t.Fatalf("c[9] after mk(10) over 0..n - 1: %q, %v", out, err)
+	}
+	if !ir.LastKept()["mk"] {
+		t.Errorf("mk over 0..n - 1: not kept; kept %v", ir.LastKept())
+	}
+	if _, err := buildAndRunNoExec(t, mkSrc("n - 2", "9"), "windows"); err == nil {
+		t.Fatalf("c[9] after mk(10) over 0..n - 2: accepted; want the index refused")
+	}
+	emit.PlantPostUnchecked = true
+	defer func() { emit.PlantPostUnchecked = false }()
+	if _, err := buildAndRunNoExec(t, mkSrc("n - 2", "9"), "windows"); err != nil {
+		t.Errorf("with every candidate unchecked: %v; want c[9] accepted", err)
+	}
+}
+
+// AN INTEGER PARAMETER WIDER THAN THE WORDS IS THE WORD'S AT ITS INSTANCE
+// (Proposition D, ADR 0113): print_int(n ∈ Int) claims ℤ, and its instance
+// (print_int, W) has n ∈ W, so its body, written for the word, is proven and
+// it is kept where its calls pass word values. A hash in [0, 2^64) is held in
+// the unsigned word (ADR 0079), outside W: that call is not the instance's
+// (CheckCallSets and ADR 0033's conversion both refuse it), so P4 inlines
+// print_int, and windows prints the hash as Go computes it. This is the rule's
+// completeness, the soundness being those two checks' own witnesses: THE
+// PLANTED FAULT leaves ℤ unnarrowed, and print_int is no longer kept.
+func TestAnUnboundedParameterIsTheWordsAtItsInstance(t *testing.T) {
+	const word = "use win/print\n\nexport fn main() {\n    ignore(print.print_int(len(array { 1, 2, 3 }) * 7))\n}\n"
+	if out, err := buildAndRun(t, word, "windows", ""); err != nil || strings.TrimSpace(out) != "21" {
+		t.Fatalf("print_int(21): %q, %v", out, err)
+	}
+	if !ir.LastKept()["win/print.print-int"] {
+		t.Errorf("print_int at a word value: not kept; kept %v", ir.LastKept())
+	}
+	const src = `use win/print
+
+export fn main() {
+    h = loop i = 0, h = 14695981039346656037 {
+        i < 3 -> again(i + 1, (h * 1099511628211 + 97) mod 2^64)
+        else -> h
+    }
+    ignore(print.print_int(h))
+}
+`
+	h := uint64(14695981039346656037)
+	for i := 0; i < 3; i++ {
+		h = h*1099511628211 + 97
+	}
+	if got, err := buildAndRun(t, src, "windows", ""); err != nil || strings.TrimSpace(got) != strconv.FormatUint(h, 10) {
+		t.Fatalf("print_int of a hash: %q, %v; want %d", got, err, h)
+	}
+	ir.PlantNoWordInstance = true
+	defer func() { ir.PlantNoWordInstance = false }()
+	if _, err := buildAndRun(t, word, "windows", ""); err != nil {
+		t.Fatal(err)
+	}
+	if ir.LastKept()["win/print.print-int"] {
+		t.Errorf("with ℤ unnarrowed: print_int kept; want it inlined, its body unproven under ℤ")
+	}
+}
+
+// A KEPT CALL ON LITERALS IS ITS VALUE (ADR 0009, 0113): width(lo, hi) is
+// kept, and width(0, 300) is a closed term, which staging evaluates to 2, so
+// t[width(0, 300)] into a table of three is proven at the call as it was
+// inlined. THE PLANTED FAULT leaves the call opaque: its caller knows only its
+// result's hull, 1..8, the index is refused with K, and P4's net empties K.
+func TestAKeptCallOnLiteralsIsItsValue(t *testing.T) {
+	const src = `use win/print
+
+fn width(lo, hi) (1..8) {
+    case {
+        lo >= 0 && hi <= 255 -> 1
+        lo >= 0 && hi <= 65535 -> 2
+        lo >= 0 && hi <= 16777215 -> 3
+        lo >= 0 && hi <= 4294967295 -> 4
+        lo >= 0 && hi <= 1099511627775 -> 5
+        lo >= 0 && hi <= 281474976710655 -> 6
+        lo >= 0 && hi <= 72057594037927935 -> 7
+        lo >= 0 -> 8
+        lo >= -128 && hi <= 127 -> 1
+        lo >= -32768 && hi <= 32767 -> 2
+        else -> 4
+    }
+}
+
+export fn main() {
+    t = array { 10, 20, 30 }
+    ignore(print.print_int(t[width(0, 300)]))
+}
+`
+	if out, err := buildAndRun(t, src, "windows", ""); err != nil || strings.TrimSpace(out) != "30" {
+		t.Fatalf("t[width(0, 300)]: %q, %v; want 30", out, err)
+	}
+	if !ir.LastKept()["width"] {
+		t.Fatalf("width: not kept; kept %v", ir.LastKept())
+	}
+	core.PlantKeptNoFold = true
+	defer func() { core.PlantKeptNoFold = false }()
+	if _, err := buildAndRunNoExec(t, src, "windows"); err != nil {
+		t.Fatal(err)
+	}
+	if ir.LastKept()["width"] {
+		t.Errorf("with the call on literals opaque: width kept; want the net to inline it")
 	}
 }

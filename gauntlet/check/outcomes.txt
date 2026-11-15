@@ -157,9 +157,19 @@
 == examples/hash/crc32.oro java emitted 10648d0b9cb3ab25d1aa21670099cb927c8209877d4c9b89981b9c6686cd4679
    note: gen-main: 53 of 53 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-main: 3 division(s) became a shift or a mask
-== examples/hash/crc32.oro windows emitted 2aad58931e40f4d61e0635b4beca92c9bd7a12a74827333c53cba5935f7a83d1
-   note: every definition inlined: kept, gen-main: tab[(crc ⊕ #nl123(i)) & 255] is an indexing, and (crc ⊕ #nl123(i)) & 255 < len(tab) does not follow
-   note: gen-main: 357 of 357 integer operations bounded; 21 of 22 loop(s) proven terminating
+== examples/hash/crc32.oro windows emitted 96107bde371b03f51c97407731b247932f34da4699e63d867cc015db05004bf8
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: gen-main: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 9 definition(s) kept as functions, 1 inlined by their contracts
+   note: os/host.readinto (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: os/host.Args (kept): 39 of 39 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: step (kept): 5 of 5 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: hex (kept): 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: crc-table (kept): 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/hash/fnv.oro go emitted cb63694a0e2d51472ba4ca8e0da1e228b7f5509928c875be3992724210e37e6f
    note: gen-main: 18 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 15 of 15 integer operations bounded; 4 of 4 loop(s) proven terminating
@@ -170,14 +180,18 @@
    note: gen-main: 18 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 15 of 15 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: gen-main: 3 division(s) became a shift or a mask
-== examples/hash/fnv.oro windows emitted fa750d382f35809373c543cd2c4fa0ee343ba7284492d100ebf1898b64986cd1
+== examples/hash/fnv.oro windows emitted 36e29ff6ed9293dcdbfc0e1ce8516bff98ed5862543ade0dc0332c3423ba7e5a
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 8 operation(s) or conversion(s) in the unsigned word
-   note: gen-main: 9 of 9 integer operations bounded; 2 of 2 loop(s) proven terminating
-   note: 5 definition(s) kept as functions, 0 inlined by their contracts
+   note: gen-main: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
+   note: 8 definition(s) kept as functions, 1 inlined by their contracts
    note: os/host.readinto (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: hex (kept): 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/hello.oro go emitted 4253337bb028043a77dae438338113454d3ba311208574d916d1ca0bff961b27
    note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -297,14 +311,18 @@
    note: gen-main: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/count.oro java emitted 2825d1b1b1340477ae8d1d1d1b0fb0b4227316f5fc2a11142aa9b6540ad62159
    note: gen-main: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/count.oro windows emitted 59ad02e80ec4a8490a6e2b3656ec1b96a5ba4380aee94b813ecc23ac9810ee77
-   note: win/print.print-int is inlined: win/print.print-int: 1 of 12 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-   note: gen-main: 47 of 47 integer operations bounded; 4 of 4 loop(s) proven terminating
-   note: 4 definition(s) kept as functions, 1 inlined by their contracts
+== examples/io/count.oro windows emitted a4bda940490117c52923684467b31b1c607018ffd405d09d77dadd58f213715c
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: gen-main: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 8 definition(s) kept as functions, 1 inlined by their contracts
    note: os/host.readinto (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: win/print.print-int (kept): 9 of 9 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/freq.oro go emitted 2ab5a85e6fdb8453bfa9047759ba01eee3e1a309fb4443d702a3d9e7d92df1c1
    note: gen-main: 67 product access(es) flattened
    note: gen-main: 228 of 228 integer operations bounded; 25 of 29 loop(s) proven terminating
@@ -317,13 +335,16 @@
    note: gen-main: 67 product access(es) flattened
    note: gen-main: 228 of 228 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 2 division(s) became a shift or a mask
-== examples/io/freq.oro windows emitted 60721434addc62474560bc32accf615ab95f4709a1c2601ea9fd73b725609469
+== examples/io/freq.oro windows emitted 7a19d24c147bba21a256780524087a82efdc749a4a655ae7f7c46360ed19478f
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 67 product access(es) flattened
-   note: gen-main: 231 of 231 integer operations bounded; 27 of 31 loop(s) proven terminating
-   note: 4 definition(s) kept as functions, 0 inlined by their contracts
+   note: gen-main: 228 of 228 integer operations bounded; 27 of 31 loop(s) proven terminating
+   note: 6 definition(s) kept as functions, 1 inlined by their contracts
    note: os/host.readinto (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/io/jsonfmt.oro go emitted df696b6aa8a22503b56e047ce6c61fcbc3aa35256d5d64218a091e9dcae18ef4
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
@@ -331,12 +352,15 @@
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro java emitted abe38cf4dcf8b80a2d86efa965e10f3550170a80b8335d078923a92b8ce98009
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
-== examples/io/jsonfmt.oro windows emitted 24300e8a1b3914c8b8fe3c972c89170d41d70fc7deb4049ea924a4217b5f477f
-   note: gen-main: 98 of 98 integer operations bounded; 15 of 15 loop(s) proven terminating
-   note: 4 definition(s) kept as functions, 0 inlined by their contracts
+== examples/io/jsonfmt.oro windows emitted 289e08da10e2d63a005586e7993f8ef38c7f13805d1c8a758bb95848619c2b69
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: gen-main: 95 of 95 integer operations bounded; 15 of 15 loop(s) proven terminating
+   note: 6 definition(s) kept as functions, 1 inlined by their contracts
    note: os/host.readinto (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/io/roundtrip.oro go emitted 6bac65e06db7a15d3e39d210dbd2f238999fb31ea986a5bbff80596cdc06e565
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -344,34 +368,42 @@
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro java emitted 684eab54733c432238e8d818181fc4c639b8bd5d689e008d975d8abcedfa726e
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
-== examples/io/roundtrip.oro windows emitted b1c679290427bf3854072032bb4b5ff4fa563600b6fded9ed6ccfccdc2b59784
-   note: win/print.print-int is inlined: win/print.print-int: 1 of 12 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-   note: gen-main: 25 of 25 integer operations bounded; 1 of 1 loop(s) proven terminating
-   note: 10 definition(s) kept as functions, 1 inlined by their contracts
+== examples/io/roundtrip.oro windows emitted 977807c2b09f164a81e1fef5f0ba5c426357e4c2c01d763c894db8f9683397d9
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: 14 definition(s) kept as functions, 1 inlined by their contracts
    note: os/host.failed (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.readinto (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.writeall (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
    note: os/host.open (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.readat (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.text-of (kept): 0 of 0 integer operations bounded; 2 of 2 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Getenv (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.print-int (kept): 9 of 9 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro go emitted 4128f5f943ad24a4c024a2434263b0d4ffce81004ded9beef723a5bbcc7214d5
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro js emitted 34405ec116db4bf524f4c747cfe658248385f9a725dced72a2355ef7e4d672dd
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro java emitted 2ba7739feb419abbde64a65d97ce245e504047ab21dcfecf90a93012ca9a2c07
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/wc.oro windows emitted 553e33dc789e1ae4a4aa0ba793588d52d57d3e700a744cdbfd79e1c5370b7a8a
-   note: win/print.print-int is inlined: win/print.print-int: 1 of 12 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-   note: gen-main: 16 of 16 integer operations bounded; 2 of 2 loop(s) proven terminating
-   note: 4 definition(s) kept as functions, 1 inlined by their contracts
+== examples/io/wc.oro windows emitted 2ede7556196bbc28b3acfb6932f9b27f9ecb49c6e2e6632d7273c598a332d275
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 8 definition(s) kept as functions, 1 inlined by their contracts
    note: os/host.readinto (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: win/print.print-int (kept): 9 of 9 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/json/tokenize.oro go emitted 2832e34e080fc7845f5083c93ea2c55d6d6d1f98dbdf9c8e28fc7c6b6fb237c5
    note: gen-run: 116 of 116 integer operations bounded; 16 of 16 loop(s) proven terminating
    note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
@@ -658,9 +690,11 @@
 == examples/native/shortcircuit-win.oro java refused
    gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
-== examples/native/shortcircuit-win.oro windows emitted c95c5f0823e7e783f3d74a57f16e10513f1c29d212bea79f5fb8029633ffc26a
-   note: win/print.print-int is inlined: win/print.print-int: 1 of 12 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-   note: gen-main: 13 of 13 integer operations bounded; 1 of 2 loop(s) proven terminating
+== examples/native/shortcircuit-win.oro windows emitted 4e4b3803cbec79abd0834627a64e3517db799281cc8ccb49afcc91366dce8c27
+   note: gen-main: 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 9 of 9 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/sieve-java.oro go refused
    gen: examples/native/sieve-java.oro: in cross: java.`<` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use java` matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
@@ -762,14 +796,19 @@
    note: gen-main: 268 of 268 integer operations bounded; 7 of 7 loop(s) proven terminating
 == examples/num/ledger.oro java emitted 7efb56bc871a96fce55720e29f5808c33b959ad4abb436386121798b16ea2e58
    note: gen-main: 268 of 268 integer operations bounded; 7 of 7 loop(s) proven terminating
-== examples/num/ledger.oro windows emitted 0f538c3ddb8c184c54bd4d3568728ca4400fbc928dea49588a96e9d9c55c98d3
-   note: gen-main: 257 of 257 integer operations bounded; 1 of 1 loop(s) proven terminating
-   note: 5 definition(s) kept as functions, 0 inlined by their contracts
+== examples/num/ledger.oro windows emitted 8e3cbe36dec7de82663c92ec0a4a261db1ee654f8a0112c676d395517298c85c
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: num.decimal is inlined: num.decimal: num.digits's parameter n, declared in 0..2^63-1, requires a / p <= 9223372036854775807 at a call, which does not follow
+   note: gen-main: 250 of 250 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 8 definition(s) kept as functions, 2 inlined by their contracts
    note: os/host.readinto (kept): 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: num.digits (kept): 3 of 3 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/os/du.oro go emitted 80877d4d1aae758f8df4b718dd063985deca223fc4eb671f7fc02d35ab91ecc3
    note: gen-main: 19 of 19 integer operations bounded; 1 of 2 loop(s) proven terminating
 == examples/os/du.oro js refused
@@ -815,10 +854,12 @@
    note: gen-main: 341 of 341 integer operations bounded; 20 of 20 loop(s) proven terminating
    note: gen-main: 44 division(s) became a shift or a mask
 == examples/pe/pe.oro windows refused
-   note: checksum is inlined: checksum: fold's parameter x, declared in 0..2^20, requires sum + { a = 2 * j; k = bytes.width_of(0, 65535); case { k == 1 -> the("int 0 255", src(a)); k == 2 -> the("int 0 65535", src(a) + src(a + 1) << 8); k == 3 -> the("int 0 16777215", src(a) + src(a + 1) << 8 + src(a + 2) << 16); k == 4 -> the("int 0 4294967295", src(a) + src(a + 1) << 8 + src(a + 2) << 16 + src(a + 3) << 24); k == 5 -> the("int 0 1099511627775", src(a) + src(a + 1) << 8 + src(a + 2) << 16 + src(a + 3) << 24 + src(a + 4) << 32); k == 6 -> the("int 0 281474976710655", src(a) + src(a + 1) << 8 + src(a + 2) << 16 + src(a + 3) << 24 + src(a + 4) << 32 + src(a + 5) << 40); k == 7 -> the("int 0 72057594037927935", src(a) + src(a + 1) << 8 + src(a + 2) << 16 + src(a + 3) << 24 + src(a + 4) << 32 + src(a + 5) << 40 + src(a + 6) << 48); else -> the("int 0 18446744073709551615", src(a) + src(a + 1) << 8 + src(a + 2) << 16 + src(a + 3) << 24 + src(a + 4) << 32 + src(a + 5) << 40 + src(a + 6) << 48 + src(a + 7) << 56) } } <= 1048576 at a call, which does not follow
-   note: check is inlined: check: fold's parameter x, declared in 0..2^20, requires sum + { a = 2 * j; k = bytes.width_of(0, 65535); case { k == 1 -> the("int 0 255", #nl413(a)); k == 2 -> the("int 0 65535", #nl413(a) + #nl413(a + 1) << 8); k == 3 -> the("int 0 16777215", #nl413(a) + #nl413(a + 1) << 8 + #nl413(a + 2) << 16); k == 4 -> the("int 0 4294967295", #nl413(a) + #nl413(a + 1) << 8 + #nl413(a + 2) << 16 + #nl413(a + 3) << 24); k == 5 -> the("int 0 1099511627775", #nl413(a) + #nl413(a + 1) << 8 + #nl413(a + 2) << 16 + #nl413(a + 3) << 24 + #nl413(a + 4) << 32); k == 6 -> the("int 0 281474976710655", #nl413(a) + #nl413(a + 1) << 8 + #nl413(a + 2) << 16 + #nl413(a + 3) << 24 + #nl413(a + 4) << 32 + #nl413(a + 5) << 40); k == 7 -> the("int 0 72057594037927935", #nl413(a) + #nl413(a + 1) << 8 + #nl413(a + 2) << 16 + #nl413(a + 3) << 24 + #nl413(a + 4) << 32 + #nl413(a + 5) << 40 + #nl413(a + 6) << 48); else -> the("int 0 18446744073709551615", #nl413(a) + #nl413(a + 1) << 8 + #nl413(a + 2) << 16 + #nl413(a + 3) << 24 + #nl413(a + 4) << 32 + #nl413(a + 5) << 40 + #nl413(a + 6) << 48 + #nl413(a + 7) << 56) } } <= 1048576 at a call, which does not follow
-   note: every definition inlined: kept, gen-main: bytes.get requires 0 + bytes.width_of(0, 65535) <= #nl496 - 0 && { k = bytes.width_of(0, 65535); 65535 == (case { #req("bytes.maxu", "k", "int 1 8", k) == 1 -> 255; #req("bytes.maxu", "k", "int 1 8", k) == 2 -> 65535; #req("bytes.maxu", "k", "int 1 8", k) == 3 -> 16777215; #req("bytes.maxu", "k", "int 1 8", k) == 4 -> 4294967295; #req("bytes.maxu", "k", "int 1 8", k) == 5 -> 1099511627775; #req("bytes.maxu", "k", "int 1 8", k) == 6 -> 281474976710655; #req("bytes.maxu", "k", "int 1 8", k) == 7 -> 72057594037927935; else -> 18446744073709551615 }) } at a call, which does not follow
-   gen: reduction did not terminate within the step limit; last term head: (fn () (fn (av) (fn (buf) (fn (#s4) (fn (#vbuf) (fn (path) (fn (h) (fn (c) (fn (read #vbuf) (fn (n r) (fn (#t #p #p1) (fn (#k) (fn (h av) (fn (p) (fn (n) (fn (opt) (fn (o) (fn (s) (fn (#_) (fn (#_) (fn (#_) (fn (#_) (fn (m) (fn (#_) (fn (#_) (fn (#_) (fn (#_) (fn (av at stored) (fn (path) (fn (h) (fn (#s2) (fn (ok) (fn (sz) (fn (#nl679) (fn (b) (fn (#t #p #p1) (fn (c) (fn (#_) (fn (#n) (fn (r) (fn (b) (fn (#s2) (fn (#vb) (fn (#_ #vb) (fn (path data) (fn (#t #p #p1) (fn (e) if)))))))))))))))))))))))))))))))))))))))))))))))
+   note: bytes.codec is inlined: inf takes a range with literal ends, lo..hi, and gives its least element at compile time; here its argument is not one, so it has no value
+   note: bytes.get is inlined: bytes.get: the claim v ∈ 0..255 is not proven: 0 <= b(a) && b(a) <= 255 does not follow
+   note: bytes.put is inlined: bytes.put: bytes.maxu's parameter k, declared in 1..8, requires 1 <= k && k <= 8 at a call, which does not follow
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: every definition inlined: kept, gen-main: lowering: a table rule that was never allocated (tables.md §2): table(#0.1 - 0, fn(#nl518) { #1.0(0 + #nl518) })
+   gen: reduction did not terminate within the step limit; last term head: (fn () (fn (av) (fn (buf) (fn (#s4) (fn (#vbuf) (fn (path) (fn (h) (fn (c) (fn (read #vbuf) (fn (n r) (fn (#t #p #p1) (fn (#k) (fn (h av) (fn (p) (fn (n) (fn (opt) (fn (o) (fn (s) (fn (#_) (fn (#_) (fn (#_) (fn (#_) (fn (m) (fn (#_) (fn (#_) (fn (#_) (fn (#_) (fn (av at stored) (fn (path) (fn (h) (fn (#s2) (fn (ok) (fn (sz) (fn (#nl730) (fn (b) (fn (#t #p #p1) (fn (c) (fn (#_) (fn (#n) (fn (r) (fn (b) (fn (#s2) (fn (#vb) (fn (#_ #vb) (fn (path data) (fn (#t #p #p1) (fn (e) if)))))))))))))))))))))))))))))))))))))))))))))))
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
@@ -873,10 +914,12 @@
 == examples/table/sieve-win.oro java refused
    gen: examples/table/sieve-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
-== examples/table/sieve-win.oro windows emitted c574dd920f1f1a034cbeabbe762f7e62bc2f661b277250061ad40b00578e2039
-   note: win/print.print-int is inlined: win/print.print-int: 1 of 12 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-   note: every definition inlined: kept, gen-main: c[k] is an indexing, and k < len(c) does not follow
-   note: gen-main: 21 of 21 integer operations bounded; 5 of 5 loop(s) proven terminating
+== examples/table/sieve-win.oro windows emitted 35ad2d34383ece8f8e364e73a2c4bd95c75e243f2a6595c6a61c26a051553d46
+   note: gen-main: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
+   note: 3 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: sieve (kept): 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
+   note: win/print.print-int (kept): 9 of 9 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/table/sieve.oro go emitted 70ded90d18b2255c033bcade21ecfc9eb8618f0d7ed9428f853afdcca895e28a
    note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/table/sieve.oro js refused
@@ -1073,11 +1116,15 @@
 == gauntlet/differential/cases/codecs.oro java emitted 3b3d5eabd76c9258e9f1a58f3b5a079ab2d1e63e64fb06f0516f7fc5a036d054
    note: gen-run: 5 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 47 of 47 integer operations bounded; 5 of 5 loop(s) proven terminating
-== gauntlet/differential/cases/codecs.oro windows emitted 391b4d82349c485dcad7c1989bd6ade074b920aaac3d8e8f4826e4b3796e558f
-   note: copies is inlined: copies: bytes.put requires 0 + bytes.width_of(0, 4294967295) <= len(a) at a call, which does not follow
-   note: every definition inlined: kept, gen-run: bytes.get requires 8 + bytes.width_of(0, 18446744073709551615) <= len(d) && { k = bytes.width_of(0, 18446744073709551615); 18446744073709551615 == (case { #req("bytes.maxu", "k", "int 1 8", k) == 1 -> 255; #req("bytes.maxu", "k", "int 1 8", k) == 2 -> 65535; #req("bytes.maxu", "k", "int 1 8", k) == 3 -> 16777215; #req("bytes.maxu", "k", "int 1 8", k) == 4 -> 4294967295; #req("bytes.maxu", "k", "int 1 8", k) == 5 -> 1099511627775; #req("bytes.maxu", "k", "int 1 8", k) == 6 -> 281474976710655; #req("bytes.maxu", "k", "int 1 8", k) == 7 -> 72057594037927935; else -> 18446744073709551615 }) } at a call, which does not follow
+== gauntlet/differential/cases/codecs.oro windows emitted 8ecb7bced1f48003aef58b4aba9a9de09dd84747254a135130c1139ec302fc79
+   note: bytes.codec is inlined: inf takes a range with literal ends, lo..hi, and gives its least element at compile time; here its argument is not one, so it has no value
+   note: bytes.put is inlined: bytes.put: bytes.maxu's parameter k, declared in 1..8, requires 1 <= k && k <= 8 at a call, which does not follow
    note: gen-run: 5 operation(s) or conversion(s) in the unsigned word
-   note: gen-run: 47 of 47 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-run: 32 of 32 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 3 definition(s) kept as functions, 2 inlined by their contracts
+   note: bytes.width-of (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: fill (kept): 3 of 3 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: copies (kept): 12 of 12 integer operations bounded; 3 of 3 loop(s) proven terminating
 == gauntlet/differential/cases/expect.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736

@@ -2081,8 +2081,24 @@ func (a *intervals) hostWrites(r *Region) (iv, bool) {
 			}
 		}
 	}
+	// AND A BRANCH'S ARMS, which are no statement's: "at any depth" is the
+	// region tree, terminators included. A buffer written by a call in a
+	// `branch` arm was read as its zero fill (p8-2026-11-15: windows' repair,
+	// writing through a kept `put` in every arm of its automaton).
+	if r.T == TBranch && !PlantWritesNoBranch {
+		for _, arm := range []*Region{r.Then, r.Else} {
+			if w, ok := a.hostWrites(arm); ok {
+				out, any = joinIV(out, w), true
+			}
+		}
+	}
 	return out, any
 }
+
+// PlantWritesNoBranch restores the walk that shipped, statements' regions
+// only: TestABranchArmsWriteIsSeen must then see a host's write in an arm
+// read as the zero fill.
+var PlantWritesNoBranch bool
 
 // PlantLoopThresholdFault widens every loop up to the function's thresholds,
 // as before per-loop thresholds: render's `top`, three instances in one

@@ -1,0 +1,1 @@
+export fn square(n ∈ 0..2^32-1) (Int) { n * n }

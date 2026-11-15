@@ -1,0 +1,1 @@
+export fn negative_divisor(a ∈ -2^63..2^63-1, b ∈ -9..-1) (Int) { a / b }

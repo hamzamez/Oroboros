@@ -1,0 +1,9 @@
+export fn sum(a ∈ 0..100, b ∈ 1..50) (1..150) { a + b }
+
+export fn difference(a ∈ 0..100, b ∈ 1..50) (-50..99) { a - b }
+
+export fn product(a ∈ -10..10, b ∈ -3..7) (-70..70) { a * b }
+
+export fn quotient(a ∈ 0..100, b ∈ 1..50) (0..100) { a / b }
+
+export fn remainder(a ∈ 0..100, b ∈ 1..50) (0..49) { a % b }

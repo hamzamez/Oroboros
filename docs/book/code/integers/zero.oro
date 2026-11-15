@@ -1,0 +1,7 @@
+export fn guarded(total ∈ 0..100, people ∈ 0..100) (Int) {
+    if people != 0 { total / people } else { 0 }
+}
+
+export fn by_its_set(total ∈ 0..100, people ∈ 1..100) (Int) { total / people }
+
+export fn by_a_where(total ∈ 0..100, people ∈ 0..100) (Int) where people > 0 { total / people }

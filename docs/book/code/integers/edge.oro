@@ -1,0 +1,1 @@
+export fn next(n ∈ 0..2^63-2) (Int) { n + 1 }

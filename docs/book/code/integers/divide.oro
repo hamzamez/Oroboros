@@ -1,0 +1,16 @@
+use io
+
+export fn main() {
+    io.print_int(7 / 2)
+    io.print_int(-7 / 2)
+    io.print_int(7 / -2)
+    io.print_int(-7 / -2)
+    io.print_line("remainders")
+    io.print_int(7 % 2)
+    io.print_int(-7 % 2)
+    io.print_int(7 % -2)
+    io.print_int(-7 % -2)
+    io.print_line("mod")
+    io.print_int(7 mod 2)
+    io.print_int(-7 mod 2)
+}

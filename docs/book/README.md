@@ -19,7 +19,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 52 blocks checked 2026-11-15 |
 | 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-15 |
 | | **II. What a program computes with** | | |
-| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | a stub holding one section moved from chapter 1; 14 blocks checked |
+| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 82 blocks checked 2026-11-15 |
 | 7 | Bits | the bits are the integer's; wrapping is `mod 2ⁿ` | not written |
 | 8 | Numbers with a point | exact decimals; `round` the one place precision is lost; `F64` | not written |
 | 9 | Text | strings as sequences, `++`, the host's strings, bytes | not written |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4 and nine in chapter 5, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5 and ten in chapter 6, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -242,6 +242,36 @@ Chapter 5, Effects (2026-11-15), found none in the compiler and leaves one quest
     likeliest mistake a newcomer from C makes. A question, not a defect: should a statement whose
     value is a function be refused, as Go refuses *f evaluated but not used*? Chapter 5 §5.11
     teaches it as a trap.
+
+Chapter 6, Integers (2026-11-15), found seven, none fixed; the chapter avoids each:
+
+23. **A product of naturals is not proven a natural.** With `fn square(n ∈ Nat) (Nat) { n * n }`,
+    `square(square(10^20))` is refused: *square requires 0 <= { n1 = 100000000000000000000;
+    the("int 0 +inf", n1 * n1) } at a call, which does not follow*. The obligation is nonlinear,
+    the fact (a square is not negative) is not derived, and the message prints a core term.
+24. **An export with no declared result may not yield a tuple of computed values.**
+    `export fn ops(a ∈ 0..100, b ∈ 1..100) { (a + b, a - b) }` is refused, *declares 1 result(s)
+    and does not produce them: the body yields 2*, while a tuple of literals with no declared
+    result is accepted and returns several values.
+25. **An empty range's refusal is in the notation J replaced**: `n ∈ 9..0` gives *sig emp: (int 9
+    0) is not a type*. The same family as items 4, 7, 11 and 21.
+26. **Two of JavaScript's refusals say the wrong thing.** `export fn third(n ∈ 0..2^60) (Int)
+    { n / 3 }`: *an operand of div, [0, 1152921504606846976], may be negative*, of an interval
+    that starts at 0. And `(lo + hi) / 2` over `0..2^63-1`: *the result of `>>` lies in [0,
+    2147483647]*, an interval the program does not have. Both refusals may be right; their
+    reasons are not the ones printed.
+27. **On JavaScript a declared `Int` result can be a `BigInt`.** `export fn medium(n ∈ 0..2^31)
+    (Int) { n * n }` is accepted there, computed as a pair of 32-bit digits and returned as a
+    `BigInt`; `(n ∈ 0..2^53-1) (Int) { n + 1 }` likewise. On Go the analogous program, a result in
+    the unsigned word declared `Int`, is refused (*held in the UNSIGNED word, not an `Int`*). A
+    question: which of the two is the rule at an entry point?
+28. **A value above the word cannot come back into it.** `square(n) / 2^40` with `n ∈ 0..2^40`
+    and a result declared `0..2^40` is refused as *WIDER than the word*, though its value fits.
+    The message spells `big-str` (it is `big_str` in J) and cites `docs/unbounded-rung.md`. A
+    question for the plan: a narrowing a claim could consent to, as a claim consents to the
+    widening.
+29. **No digit separator, and no binary literal**: `1_000_000` and `0b101` are refused by the
+    reader as two tokens. A question, not a defect; j.md does not promise either.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

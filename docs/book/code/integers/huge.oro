@@ -1,0 +1,12 @@
+use io
+
+fn square(n ∈ Nat) (Nat) { n * n }
+
+export fn main() {
+    io.print_line(big_str(2^64))
+    io.print_line(big_str(2^200))
+    io.print_line(big_str(square(10^20) + 1))
+    io.print_line(big_str(2^200 / 10^50))
+    io.print_line(big_str(2^200 % 10^9))
+    io.print_line(big_str(2^64 - 2^65))
+}

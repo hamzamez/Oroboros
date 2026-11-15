@@ -1,0 +1,13 @@
+set Digit = 0..9
+
+set Byte = 0..2^8-1
+
+export fn percent(n ∈ 0..100) (Int) { n }
+
+export fn any(n ∈ Int) (Int) { n }
+
+export fn one_point(n ∈ 7..7) (Int) { n + n }
+
+export fn complement(d ∈ Digit) (Digit) { 9 - d }
+
+export fn high_bit(b ∈ Byte) (0..1) { b / 128 }

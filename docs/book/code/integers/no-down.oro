@@ -1,0 +1,3 @@
+fn square(n ∈ Nat) (Nat) { n * n }
+
+export fn scaled(n ∈ 0..2^40) (0..2^40) { square(n) / 2^40 }

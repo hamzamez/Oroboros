@@ -1,0 +1,1 @@
+export fn power(n ∈ 0..10) (Int) { 2^n }

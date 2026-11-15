@@ -1,0 +1,1 @@
+export fn million() (Int) { 1_000_000 }

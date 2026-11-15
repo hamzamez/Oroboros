@@ -1,0 +1,1 @@
+export fn one_over_nothing() (Int) { 1 / 0 }

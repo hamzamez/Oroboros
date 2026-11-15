@@ -1,0 +1,7 @@
+export fn back_again(a ∈ -1000..1000, b ∈ 1..1000) (Int) { (a / b) * b + a % b }
+
+export fn is_even(n ∈ Int) (Bool) { n % 2 == 0 }
+
+export fn last_digit(n ∈ Nat) (0..9) { n % 10 }
+
+export fn clock(hour ∈ -1000..1000) (0..23) { hour mod 24 }

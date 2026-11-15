@@ -1,0 +1,1 @@
+export fn grows(a ∈ 0..9, b ∈ 0..9) (r ∈ Int) ensure r >= a { a + b }

@@ -1,0 +1,5 @@
+export fn natural(n ∈ Nat) (Nat) { n + 1 }
+
+export fn from_five(n ∈ 5..) (5..) { n }
+
+export fn up_to_five(n ∈ ..5) (..5) { n }

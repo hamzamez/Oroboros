@@ -1,0 +1,1 @@
+export fn mid(lo ∈ Int, hi ∈ Int) (Int) { (lo + hi) / 2 }

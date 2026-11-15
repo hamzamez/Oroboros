@@ -1,0 +1,1 @@
+export fn too_tight(a ∈ 0..100, b ∈ 1..50) (1..149) { a + b }

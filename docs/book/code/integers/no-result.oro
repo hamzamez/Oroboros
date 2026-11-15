@@ -1,0 +1,1 @@
+export fn result(n ∈ 0..9) (0..5) { n }

@@ -1,0 +1,1 @@
+export fn share(total ∈ 0..100, people ∈ 0..100) (Int) { total / people }

@@ -1700,6 +1700,7 @@ func (p *parser) valueBlock() (Expr, error) {
 // `case e { p -> b … }`, whose arms may be tails (ADR 0076): a Case when every
 // arm is an expression, a TCase when one is not.
 func (p *parser) caseAny() (Tail, error) {
+	line := p.peek().line
 	if p.is("{") {
 		p.next()
 		p.open(false)
@@ -1727,6 +1728,19 @@ func (p *parser) caseAny() (Tail, error) {
 			arms = append(arms, CondArm{Guard: guard, Body: b})
 		}
 		p.close()
+		// The last arm is `else`, and only the last, as a loop's is (booleans.md
+		// §4, abstract.md W4): D's chain takes the last body as its tail with no
+		// test, so a last guard would be dropped, and one after an `else` has
+		// nothing to be the tail of.
+		if len(arms) == 0 {
+			return nil, fmt.Errorf("line %d: the last arm of case must be `else`, and this case has no arm", line)
+		}
+		for i, arm := range arms {
+			if (arm.Guard == nil) != (i == len(arms)-1) {
+				return nil, fmt.Errorf("line %d: the last arm of case must be `else`, and only the last, "+
+					"so that the choice has a value whatever its guards are (booleans.md §4)", line)
+			}
+		}
 		return &Cond{Arms: arms}, nil
 	}
 	scrut, err := p.expr()

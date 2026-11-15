@@ -113,3 +113,26 @@ func TestALoopsLastArmIsElse(t *testing.T) {
 		t.Errorf("an else last is a loop: %v", err)
 	}
 }
+
+// A GUARDED CHOICE'S LAST ARM IS `else`, AND ONLY ITS LAST, as a loop's is
+// (booleans.md §4: first match wins, `else` required; abstract.md W4). The
+// reader checked a loop's arms and not a `case { … }`'s, so a chain with no
+// `else` read its last guard as one, and `case { c -> 1; d -> 2 }` answered 2
+// where neither held; an arm after `else` reached D's chain with no guard and
+// the reader crashed; and no arm at all indexed an empty list. Found by the
+// book's chapter 4.
+func TestAGuardedChoicesLastArmIsElse(t *testing.T) {
+	for _, src := range []string{"case { c -> 1; d -> 2 }", "case { else -> 2; c -> 1 }",
+		"case { c -> 1; else -> 2; else -> 3 }", "case { }"} {
+		_, err := ReadTerm("fn(c, d) { " + src + " }")
+		if err == nil || !strings.Contains(err.Error(), "the last arm of case must be `else`") {
+			t.Errorf("%s: want the last-arm refusal, got %v", src, err)
+		}
+	}
+	if _, err := ReadTerm("fn(c, d) { case { c -> 1; d -> 2; else -> 3 } }"); err != nil {
+		t.Errorf("an else last is a choice: %v", err)
+	}
+	if _, err := ReadTerm("fn(c) { case { else -> 3 } }"); err != nil {
+		t.Errorf("an else alone is a choice: %v", err)
+	}
+}

@@ -470,7 +470,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-14.* The current assessment,
+*Updated with the plan; last updated 2026-11-15.* The current assessment,
 [docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
 defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
 says why the next is what it is.
@@ -613,8 +613,10 @@ says why the next is what it is.
      ([karatsuba-2026-11-14](gauntlet/results/karatsuba-2026-11-14.md)), which takes the millionth
      Fibonacci number by doubling from 4.1× Go's time to 1.67×; and since the same day a square takes
      about half a product's work ([squaring-2026-11-14](gauntlet/results/squaring-2026-11-14.md)),
-     1.57×; per operation it is still 3–4× Go's, the inner loop of a product, so next that loop with
-     two carry chains, then printing big numbers by divide and conquer;
+     1.57×; per operation it is still 3–4× Go's, the inner loop of a product
+     ([kernels-research.md](docs/kernels-research.md)): that loop can be written in the language,
+     and LLVM cannot keep its two carries in two flags, so a target that names its CPU will print it
+     as assembly. That is decided and postponed; next is printing big numbers by divide and conquer;
      then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is

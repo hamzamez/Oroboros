@@ -1,6 +1,6 @@
 # Reaching the full host: why K(ℕ\*)'s inner loop is 3–4× `math/big`'s, and the ways out
 
-Date: 2026-11-14. hamza: "I see this as a test of the language and the compiler. We expect to be able
+Date: 2026-11-14; decided 2026-11-15 (§6). hamza: "I see this as a test of the language and the compiler. We expect to be able
 to reach for LLVM instructions and take advantage of the full host. If we are failing to do so, this
 is the time to think, research and decide. What are the roadblocks, and what are the ways to fix
 them?" This is a research document. Nothing in it is built, and it ends with the decisions.
@@ -140,3 +140,36 @@ The full host is then the target's own code, declared and stated. It is not more
   2. then F2 and F3 for `addmul_1` alone, program first (fast doubling);
   3. then `add_n`/`sub_n`, and F5's Toom-3 and offsets;
   4. then divide-and-conquer printing.
+
+## 6. Decided (hamza, 2026-11-15)
+
+- **Q2: yes.** A target may name its CPU and features, and that is a feature, not a defect. Naming
+  more of the machine makes a program less portable and faster, and the choice is the target's
+  data, as the triple is. Baseline stays the default.
+- **Q1: the kernel is written in the language**, and hamza asked whether that is possible now or
+  ever. It is possible under the decisions already made:
+  - **The algorithm** is expressible today. o + y·x = o + L + B·H is two folds over one index
+    domain, each a full adder with its carry in {0, 1}: one loop with two carry states, unrolled by
+    hand if wanted.
+  - **The proofs** are the decision's today: each carry in {0, 1} and each step below 2B, as for
+    ADR 0108's adder. The offsets are bounded by the leaf row's clamps.
+  - **A carry held in a flag** is ADR 0108's representation, and two chains in two flags (CF, OF)
+    are that decision twice. **The CPU's features** are Q2. **Vectors** are ADR 0085's
+    representation of a table; a library of explicit vector operations is later work on top of it.
+  - **The one thing missing is below the language.** LLVM IR has a single carry and never selects
+    `adox` (R2), and an `asm` statement carries no flag out (R4). Under ADR 0080 item 7 (LLVM IR is
+    a host like any other) and ADR 0088/0089 (a target realizes a language operation by a term over
+    the host's operations), the target realizes what its host lacks one level up: **a loop whose
+    IR_P proves the premises is printed as one inline assembly block** inside the LLVM function. The
+    printer once printed MASM (retired, mastretire-2026-11-03). The kernel's source stays the
+    language's loop; only its printing changes. It is checked as the adder is: premises read off
+    IR_P, a witness, a planted fault.
+- **Q3 falls away.** A kernel written in the language means what the language says, so no trusted
+  contract through ε is needed. The new trust is the printer's, as every printer's is.
+- **Q4: postponed.** No language change is needed, so the work waits in the plan, in this order:
+  1. the bound measured on a quiet machine (Go's and GMP's own kernels);
+  2. Q2's CPU features as target data;
+  3. the two-chain row in the language;
+  4. the loop's realization as assembly where LLVM cannot select it.
+
+  Toom-3 and the copy-free down pass (F5) go with it.

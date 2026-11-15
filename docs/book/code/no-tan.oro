@@ -1,0 +1,3 @@
+use math/trig
+
+export fn run(u) { trig.tan(u) }

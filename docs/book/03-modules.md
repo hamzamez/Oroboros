@@ -1,547 +1,522 @@
 # 3. Modules
 
-Two chapters, two forms. [`fn`](01-fn.md) makes a function; [`def`](02-def.md) gives a term a name.
-Everything so far has lived in one file, and every name has been a single word.
+Two chapters, two bricks. [`fn`](01-fn.md) makes a function, and a [definition](02-def.md) gives a
+term a name. Everything so far has lived in one file, and every name has been one word.
 
-This chapter is about the third brick: **where a name lives**. It adds three forms — `module`,
-`use`, `export` — and one character, `.`.
+This chapter is the third brick: **where a name lives.** It adds three words, `use`, `pub` and
+`module`, and one character, `.`.
 
-It also answers a question chapter 2 left open. §2.7 said a target primitive beats a definition and
-called that the whole design. It never said *how* a library definition and a target primitive can
-possibly be the same name. This chapter is that mechanism.
+It also answers a question chapter 2 left open. §2.7 said the target's own name beats a
+definition, and called that the design. It did not say how a library's definition and a target's
+operation can be *the same name* in the first place. This chapter is that mechanism.
 
-Examples run against real files in [docs/book/code/](code/):
+The examples are files in [code/](code/), run as before:
 
 ```bash
-go run ./cmd/oro -target=tutorial docs/book/code/box.oro
+go run ./cmd/oro -j -target=tutorial docs/book/code/area.oro
 ```
 
-Two targets appear: `tutorial` from chapters 1 and 2, and `tutorial-native`, which is the same file
-plus **one capability**. §3.10 is what that line does.
-
-## 3.0 One thing to keep in mind
-
-As in [chapter 2](02-def.md), **integer arithmetic on two literals folds**
-([ADR 0009](../decisions/0009-staging-preserves-results.md)), so an example applied to `3` and `4`
-comes back as a number and shows nothing about where the definition came from. This chapter is about
-*resolution*, so most examples below are applied to `(x)` and `(y)` — the target's opaque values —
-and what comes back is the shape the import produced.
+Two targets appear: `tutorial`, from chapters 1 and 2, and `tutorial-native`, which is the same
+target with one more declaration; §3.10 is what that declaration does. A file named `no-…` is
+meant to be refused. `go run docs/book/check.go docs/book/03-modules.md` re-runs every block.
+Checked 2026-11-15.
 
 ---
 
-## Two kinds of file
+## 3.1 A file is a module
 
-The rest of this chapter keeps saying *entry file* and *library file*. They are not two syntaxes —
-any `.oro` file can be either — they are two **roles**, and which role a file is in is decided by
-one thing:
+Here is a file, [code/geometry.oro](code/geometry.oro):
 
-> The **entry file** is the one you name on the command line. A **library file** is one reached by
-> following a `(use …)` from it.
+<!-- file docs/book/code/geometry.oro -->
+```go
+pub fn area(w, h) { w * h }
 
-```bash
-go run ./cmd/oro -target=tutorial docs/book/code/box.oro
-#                                 ^ entry file. geometry.oro, reached by its
-#                                   (use geometry), is a library file.
+pub fn perimeter(w, h) { 2 * (w + h) }
+
+pub fn scale(k, w, h) { area(k * w, k * h) }
+
+fn twice(n) { 2 * n }
 ```
 
-Five things follow from that, and they are the whole distinction:
+And another, beside it, that uses it:
 
-| | entry file | library file |
-|---|---|---|
-| how it is found | you name it | by its path, `PATH.oro` on the search path |
-| `(module …)` | optional, and it may declare **several** | **exactly one**, and it must match the path (§3.4) |
-| bare top-level terms | reduced and printed | **discarded** |
-| `(export …)` | these are the program's entry points | visibility only — not the program's entry points |
-| `(export main)` | this is what `build` compiles | ignored; a library cannot supply a program's `main` |
+<!-- file docs/book/code/area.oro -->
+```go
+use geometry
 
-The last three are worth seeing rather than reading. A library with terms lying around at the top
-level:
+export fn area(u, v) { geometry.area(u, v) }
 
-```lisp
-;; code/noisy-lib.oro
-(module noisy-lib)
-(export k)
-(def k (n) (* n 3))
-(+ 1 2)
-(* 9 9)
+export fn around(u, v) { geometry.perimeter(u, v) }
+
+export fn scaled(u, v) { geometry.scale(2, u, v) }
 ```
 
-```lisp
-;; code/noisy-prog.oro
-(use noisy-lib)
-(noisy-lib.k (x))
+<!-- oro tutorial docs/book/code/area.oro -->
+```go
+area =
+fn(u, v) { u * v }
+around =
+fn(u, v) { 2 * (u + v) }
+scaled =
+fn(u, v) { 2 * u * (2 * v) }
 ```
 
-```bash
-go run ./cmd/oro -target=tutorial docs/book/code/noisy-prog.oro
+Four things happened.
+
+- **`geometry.oro` is the module `geometry` because that is its name.** It has no header, no
+  `package` line and no `module` declaration. A file is a module, named by its path.
+- **`use geometry` found the file**, beside the one that asked for it.
+- **`geometry.area` names a member of it.** The dot separates a module from one of its
+  definitions.
+- **The definition unfolded exactly as in chapter 2.** δ does not care which file a name came
+  from. `scale` calls `area` by its plain name, since inside a module its definitions see each
+  other unqualified, and both unfolded.
+
+`area.oro` defines its own `area`, and that is no conflict with `geometry.area`: they are
+different names. A module is a namespace.
+
+## 3.2 Paths
+
+A module in a directory is named by its path, with `/`:
+
+<!-- file docs/book/code/shapes/circle.oro -->
+```go
+use math/trig
+
+pub fn area(r) { 3 * (r * r) }
+
+pub fn point_at(r, ang) { r * trig.cos(ang) }
 ```
 
-```lisp
-⟶   (* (x) 3)
+<!-- file docs/book/code/round.oro -->
+```go
+use shapes/circle
+
+export fn run(r) { circle.area(r) }
+
+export fn point(r, a) { circle.point_at(r, a) }
 ```
 
-`(+ 1 2)` and `(* 9 9)` produced nothing, and neither did `noisy-lib`'s export of `k` — only the
-entry file's own term was reduced. Compare with the same import and no use of it at all:
-
-```lisp
-(use noisy-lib)
-(h 1 1)
+<!-- oro tutorial docs/book/code/round.oro -->
+```go
+run =
+fn(r) { 3 * (r * r) }
+point =
+fn(r, a) { r * `math/trig`.cos(a) }
 ```
 
-```lisp
-⟶   (h 1 1)
+- **`shapes/circle` is the file `shapes/circle.oro`.** Nesting is directories; the language has
+  none of its own.
+- **`use shapes/circle` binds the last segment**, `circle`. The path is the module's identity;
+  the last segment is the local name it is used by.
+- **`/` separates a path's segments, and `.` separates a module from a member.** They are
+  different characters doing different jobs, which is why chapters 1 and 2 refused `a.b` as a
+  parameter and as a definition's name: it already means *member b of module a*.
+
+One spelling rule, because you will meet it. A file's name may hold a hyphen; a name in a program
+may not, since `-` there is subtraction. So a `-` in a path is written `_` wherever the program
+uses the name:
+
+<!-- file docs/book/code/noisy-prog.oro -->
+```go
+use noisy-lib
+
+export fn main() { noisy_lib.k(x()) }
 ```
 
-That is what makes `(use …)` a **dependency** rather than a textual inclusion. `#include` pastes a
-file in and everything in it becomes yours; `(use …)` says *this program needs that module*, and
-nothing crosses but the names you ask for by path.
-
-The same rule decides where a program starts. A library that exports `main` does not give you one:
-
-```lisp
-;; libmain.oro
-(module libmain)
-(export main)
-(def main (fn () 1))
+<!-- oro tutorial docs/book/code/noisy-prog.oro -->
+```go
+main =
+fn() { x() * 3 }
 ```
 
-```lisp
-(use libmain)
-(* 1 1)
+The `use` spells the path as the file system does, `noisy-lib`; the program calls it `noisy_lib`.
+
+## 3.3 `use`
+
+```go
+use PATH            // binds PATH's last segment
+use PATH as NAME    // binds NAME
 ```
 
-```
-build: has no entry point: a program needs `(export main)` where main is `(fn () …)`
-```
+<!-- file docs/book/code/alias.oro -->
+```go
+use geometry as g
+use geometry
 
-A program has exactly one entry file, and the entry point is *its* export. Otherwise adding a
-dependency could change where your program starts, which is a fine way to lose an afternoon.
+export fn short(u, v) { g.area(u, v) }
 
-> **A file does not know which it is.** [code/geometry.oro](code/geometry.oro) is a library here
-> because `box.oro` imports it; run `oro` on it directly and it is an entry file, and its `(export
-> area perimeter scale)` becomes the list of things to reduce. Role, not kind.
-
----
-
-## 3.1 A name with a dot in it
-
-Here is a library file, [code/geometry.oro](code/geometry.oro):
-
-```lisp
-(module geometry)
-
-(export area perimeter scale)
-
-(def area      (w h) (* w h))
-(def perimeter (w h) (* 2 (+ w h)))
-(def scale     (k w h) (area (* k w) (* k h)))
-
-(def twice (n) (* 2 n))
+export fn either(u, v) { h(geometry.area(u, v), g.perimeter(u, v)) }
 ```
 
-And a program that uses it:
-
-```lisp
-(use geometry)
-(geometry.area (x) (y))
+<!-- oro tutorial docs/book/code/alias.oro -->
+```go
+short =
+fn(u, v) { u * v }
+either =
+fn(u, v) { h(u * v, 2 * (u + v)) }
 ```
 
-```lisp
-⟶   (* (x) (y))
+Two names for one module are allowed, if a little pointless. Like definitions, the `use` lines are
+part of a set: one may come after the code that needs it
+([code/late.oro](code/late.oro) puts it last, and reduces the same).
+
+**Imports stay qualified.** There is no `from geometry import area`, no `import *`, and no way to
+make a bare `area` mean `geometry.area`:
+
+<!-- file docs/book/code/no-unqualified.oro -->
+```go
+use geometry
+
+export fn run(u, v) { area(u, v) }
 ```
 
-Three things happened. `(use geometry)` found the file. `geometry.area` named a member of it. And
-the definition **unfolded exactly as in chapter 2** — δ does not care that the name came from
-another file.
-
-```lisp
-(use geometry)
-(geometry.perimeter (x) (y))
+<!-- oro tutorial docs/book/code/no-unqualified.oro -->
+```
+oro: docs/book/code/no-unqualified.oro: in run: area is not bound — it is not a parameter, not a definition, and not a primitive on this target
 ```
 
-```lisp
-⟶   (* 2 (+ (x) (y)))
+That is a refusal on purpose. In this language what a name means can already depend on the target
+you build for (§3.10). An unqualified import would add a second, invisible source of the same
+dependence: a bare `area` whose meaning changes when a library you use adds a definition.
+Qualified, every name says where it came from, at the place it is used.
+
+Forgetting the `use` is an error that names the repair:
+
+<!-- file docs/book/code/no-import.oro -->
+```go
+export fn run(u, v) { geometry.area(u, v) }
 ```
 
-Definitions inside a module see each other unqualified. `scale` calls `area` by its plain name, and
-both unfold:
-
-```lisp
-(use geometry)
-(geometry.scale 2 (x) (y))
+<!-- oro tutorial docs/book/code/no-import.oro -->
+```
+oro: docs/book/code/no-import.oro: run: geometry is not imported: add `use geometry` or `use PATH as geometry`
 ```
 
-```lisp
-⟶   (* (* 2 (x)) (* 2 (y)))
+And one local name for two modules is the one naming conflict the system can produce:
+
+<!-- file docs/book/code/no-clash.oro -->
+```go
+use geometry as g
+use shapes/circle as g
+
+export fn run(u) { g.area(u) }
 ```
 
-## 3.2 `.` and `/` are different characters, and the difference is the whole grammar
-
-> **`.` separates a module from a member. `/` is an ordinary letter.**
-
-`shapes/circle` is **one name** — one module path with a slash in it, not two of anything. The
-member comes after the dot:
-
-```lisp
-(use shapes/circle)
-(circle.area 2)
+<!-- oro tutorial docs/book/code/no-clash.oro -->
+```
+oro: docs/book/code/no-clash.oro: the program binds g to both geometry and shapes/circle — give one of them a different alias, `use … as …`
 ```
 
-```lisp
-⟶   12
+Both modules really do have an `area`, so `g.area` would have meant whichever import was noticed
+first.
+
+## 3.4 `pub`: what another module may name
+
+`geometry` defines four things and marks three `pub`. The fourth is private:
+
+<!-- file docs/book/code/no-private.oro -->
+```go
+use geometry
+
+export fn run(u) { geometry.twice(u) }
 ```
 
-(Applied to a literal, so the unfolded `(* 3 (* 2 2))` folds — see §3.0's note. Apply it to `(x)`
-instead and the shape stays, at the cost of a `let`, because `r` appears twice in `area`'s body.)
-
-A path maps to a file the obvious way: `shapes/circle` is found at `shapes/circle.oro` under a
-search-path root. Nesting is directories; the language has none of its own.
-
-This is why chapters 1 and 2 kept saying a binder must be a *simple* name. `(fn (a.b) …)` and
-`(def a.b …)` are errors because `a.b` already means something — a member of module `a` — and a
-function cannot bind into a module. `/` is fine in a binder, because it means nothing:
-
-```lisp
-(fn (a/b) a/b)      ;; legal: a/b is one ordinary name
-(fn (a.b) a.b)      ;; error: a binder is a simple name
+<!-- oro tutorial docs/book/code/no-private.oro -->
 ```
-
-## 3.3 `use` — importing
-
-```lisp
-(use PATH)              ;; binds the LAST SEGMENT of PATH as the alias
-(use PATH as ALIAS)     ;; binds ALIAS
-```
-
-`(use shapes/circle)` binds `circle`, not `shapes/circle`. The alias is a local nickname; the path
-is the identity.
-
-```lisp
-(use geometry as g)
-(g.area (x) (y))
-```
-
-```lisp
-⟶   (* (x) (y))
-```
-
-**Imports stay qualified.** There is no `from geometry import area`, no wildcard, no way to make
-`area` mean `geometry.area` without saying so at the use site. That is a deliberate refusal, and
-its reason is the one in §3.9: on this system a name's meaning already depends on which target you
-build for, and an unqualified import would add a second, invisible source of the same
-dependence.
-
-Forgetting the import is an error, and it names the repair:
-
-```lisp
-(geometry.area 3 4)
-```
-
-```
-geometry is not imported: add (use geometry) or (use PATH as geometry)
-```
-
-Two aliases for the same module are fine, if a little pointless:
-
-```lisp
-(use geometry)
-(use geometry as geo)
-(h (geometry.area (x) (y)) (geo.perimeter (x) (y)))
-```
-
-```lisp
-⟶   (h (* (x) (y)) (* 2 (+ (x) (y))))
-```
-
-Two modules under **one** alias is not:
-
-```lisp
-(use geometry as g)
-(use shapes/circle as g)
-(g.area 3)
-```
-
-```
-the program binds g to both geometry and shapes/circle — give one of them a
-different (use … as …) alias
-```
-
-That error exists because `g.area` would otherwise mean whichever import the reader happened to
-notice — and both modules really do have an `area`.
-
-## 3.4 `module` — declaring
-
-```lisp
-(module PATH)
-```
-
-Everything after it belongs to that module, until the next `(module …)`. A file with no `(module …)`
-is one anonymous scope, which is what chapters 1 and 2 were writing all along.
-
-**A library file declares exactly one module, and it is the one its path names.** Three ways to get
-that wrong, three messages:
-
-```lisp
-;; nodecl.oro — no header at all
-(def area (fn (w h) (* w h)))
-```
-
-```
-nodecl: a library file must declare (module nodecl) before its definitions
-```
-
-```lisp
-;; mixup.oro — declares a different module than its path
-(module geo)
-(export a)
-(def a 1)
-```
-
-```
-mixup declares (module geo); a library file's module must be the path that imports it
-```
-
-```lisp
-;; sub/one.oro — declares its own module and a second one
-(module sub/one) (export k) (def k 1)
-(module sub/two) (export j) (def j 2)
-```
-
-```
-sub/one also declares (module sub/two); a library file declares one module, and it is
-the one its path names — put sub/two in its own file, or its members are reachable only
-after something else has imported this one
-```
-
-That last message says why the rule exists, and it is worth reading twice. Before the rule,
-`(use sub/two)` **failed on its own and succeeded if `(use sub/one)` came first** — the same
-program, two meanings, decided by load order. A module system whose visibility depends on what
-else you imported is not doing the job a module system exists to do.
-
-### The entry file is different
-
-The file you actually run is not found by path, so it may declare as many modules as it likes.
-This is one file:
-
-```lisp
-(module left)
-(use geometry)
-(export twice-area)
-(def twice-area (fn (w h) (* 2 (geometry.area w h))))
-
-(module right)
-(use geometry)
-(export half-area)
-(def half-area (fn (w h) (/ (geometry.area w h) 2)))
-
-(module top)
-(use left)
-(use right)
-(export both)
-(def both (fn (w h) (+ (left.twice-area w h) (right.half-area w h))))
-```
-
-```lisp
-left.twice-area =
-(fn (w h) (* 2 (* w h)))
-right.half-area =
-(fn (w h) (/ (* w h) 2))
-top.both =
-(fn (w h) (+ (* 2 (* w h)) (/ (* w h) 2)))
-```
-
-That is a **diamond** — `top` reaches `geometry` by two routes — and nothing about it is special.
-`geometry` is loaded once, `geometry.area` is one name, and the two paths to it agree because there
-is only one thing there to disagree about.
-
-`(module …)` in an entry file also names its exports:
-
-```lisp
-(module app)
-(use geometry)
-(export main-area)
-(def main-area (fn () (geometry.area 3 4)))
-```
-
-```lisp
-app.main-area =
-(fn () (* 3 4))
-```
-
-## 3.5 `export` — what is visible
-
-`geometry` exports three names and defines four. The fourth is private:
-
-```lisp
-(use geometry)
-(geometry.twice 5)
-```
-
-```
-module geometry defines twice but does not export it; add it to that module's (export …)
+oro: docs/book/code/no-private.oro: run: module geometry defines twice and does not make it `pub`: a declaration is private to its module unless marked `pub` (ADR 0078)
 ```
 
 A name that was never there gets a different message, because it is a different mistake:
 
-```lisp
-(use geometry)
-(geometry.volume 3 4)
+<!-- file docs/book/code/no-member.oro -->
+```go
+use geometry
+
+export fn run(u) { geometry.volume(u, u) }
 ```
 
+<!-- oro tutorial docs/book/code/no-member.oro -->
 ```
-module geometry has no member volume
-```
-
-`twice` is not useless — `scale` could call it, because inside the module every definition is in
-scope. Export controls the *outside* view only.
-
-> **A module with no `(export …)` at all exports everything.** That is a transitional convenience
-> and not a design: it means "no signature has been written yet". Write the list.
-
-Exporting a name you did not define is an error, from [chapter 2 §2.9](02-def.md):
-
-```
-the program exports are, which it does not define
+oro: docs/book/code/no-member.oro: run: module geometry has no member volume
 ```
 
-## 3.6 Two modules may use the same member name
+- **Private is the default.** A module's interface is exactly what it marks
+  ([ADR 0078](../decisions/0078-a-modules-interface-is-what-it-marks-pub.md)). `pub` goes on a
+  function, a value or a `set`.
+- **`pub` controls only the outside view.** Inside the module every definition is in scope: a
+  `pub` function may call a private one, and the private one is unfolded into the caller's code
+  like any other.
+- **Case means nothing.** There is no capital-letter rule as in Go, and no leading underscore as
+  in Python.
 
-```lisp
-(module alpha)
-(export area)
-(def area (fn (n) (* n n)))
+**`pub` and `export` answer different questions**, and neither implies the other. `pub`: *may
+another module name this?* `export`: *does the host get a function for this?* (§3.5). `box.oro`
+exports `box` and does not mark it `pub`:
 
-(module beta)
-(export area)
-(def area (fn (n) (+ n n)))
+<!-- file docs/book/code/no-exported.oro -->
+```go
+use box
 
-(module main-mod)
-(use alpha)
-(use beta)
-(export both)
-(def both (fn (n) (+ (alpha.area n) (beta.area n))))
+export fn run(u) { box.box(u, u) }
 ```
 
-```lisp
-alpha.area =
-(fn (n) (* n n))
-beta.area =
-(fn (n) (+ n n))
-main-mod.both =
-(fn (n) (+ (* n n) (+ n n)))
+<!-- oro tutorial docs/book/code/no-exported.oro -->
+```
+oro: docs/book/code/no-exported.oro: run: module box defines box and does not make it `pub`: a declaration is private to its module unless marked `pub` (ADR 0078)
 ```
 
-No clash, no renaming, no import order to reason about. This is the entire benefit of qualified
-imports, and it is why the alias-collision error in §3.3 is the *only* naming conflict the system
-can produce.
+## 3.5 The file you run, and the files it uses
 
-## 3.7 Cycles are fine
+Any `.oro` file can be either of two things, and which one is decided by how it was reached:
 
-```lisp
-;; cyc/a.oro
-(module cyc/a)
-(use cyc/b)
-(export f)
-(def f (n) (b.g n))
+> The **entry file** is the one named on the command line. A **library file** is one reached from
+> it by `use`.
+
+They are roles, not kinds. `geometry.oro` is a library when `area.oro` uses it, and an entry file
+when you run it directly; then it has no `export`, and nothing to print.
+
+| | entry file | library file |
+|---|---|---|
+| found by | being named | its path: beside the entry file, then on the search path (`lib/`) |
+| its `export`s | the program's entry points | not the program's |
+| `export fn main()` | where a built program starts | ignored |
+
+A library with entry points of its own:
+
+<!-- file docs/book/code/lib-main.oro -->
+```go
+pub fn k(n) { n }
+
+export fn main() { 1 }
+
+export fn other() { 2 }
 ```
 
-```lisp
-;; cyc/b.oro
-(module cyc/b)
-(use cyc/a)
-(export g)
-(def g (n) (* n 2))
+<!-- file docs/book/code/uses-lib.oro -->
+```go
+use lib-main
+
+export fn run() { lib_main.k(5) }
 ```
 
-```lisp
-(use cyc/a)
-(a.f (x))
+<!-- gen go docs/book/code/uses-lib.oro -->
+```go
+func CodeRun() int {
+    return 5
+}
 ```
 
-```lisp
-⟶   (* (x) 2)
+One Go function, the entry file's. `lib-main`'s `main` and `other` are not there. **`use` is a
+dependency, not an inclusion**: C's `#include` pastes a file in and everything in it becomes
+yours; `use` says *this program needs that module*, and nothing crosses but the definitions you
+name, each unfolded where you named it.
+
+The same rule decides where a program starts. A library's `main` does not give you one:
+
+<!-- file docs/book/code/no-entry.oro -->
+```go
+use lib-main
+
+fn unused() { lib_main.k(1) }
 ```
 
-Imports are followed to a fixpoint and a module already in scope is never re-read, so a cycle
-terminates by itself. There is no header-guard, no forward declaration, no ordering constraint.
-
-Two mutually recursive **modules** are fine. Two mutually recursive **definitions** are still an
-error ([chapter 2 §2.8](02-def.md)) — different question, different answer.
-
-## 3.8 What the reducer sees: nothing
-
-Here is the claim that makes all of the above cheap.
-
-> **Modules are resolution, not reduction.** By the time reduction starts, every name is fully
-> qualified and there are no modules left. The reducer cannot tell they ever existed.
-
-You can see it in the output. `circle.point-at` calls `trig.cos`, and the residual says:
-
-```lisp
-(use shapes/circle)
-(circle.point-at 2 1)
+<!-- build go docs/book/code/no-entry.oro -->
+```
+build: docs/book/code/no-entry.oro has no entry point: a program needs `export fn main() { … }`
 ```
 
-```lisp
-⟶   (* 2 (math/trig.cos 1))
+Otherwise adding a dependency could change where your program begins.
+
+## 3.6 Several modules in one file
+
+A file reached by `use` is one module. The entry file may hold several, each in a `module` block:
+
+<!-- file docs/book/code/diamond.oro -->
+```go
+module left {
+    use geometry
+
+    pub fn twice_area(w, h) { 2 * geometry.area(w, h) }
+}
+
+module right {
+    use geometry
+
+    pub fn half_area(w, h) { geometry.area(w, h) / 2 }
+}
+
+module top {
+    use left
+    use right
+
+    export fn both(w, h) { left.twice_area(w, h) + right.half_area(w, h) }
+}
 ```
 
-`math/trig.cos` — the **full path**, not the alias `trig` that the source wrote. Aliases are a
-source-level convenience that resolution erases. What survives is one flat namespace of qualified
-names, exactly as if you had written them by hand.
-
-This is why chapters 1 and 2 needed no revision to accommodate modules. `core/reduce.go` gained no
-rule, no term kind, and no parameter. δ unfolds `geometry.area` for the same reason it unfolds
-`square`: it is a name with a definition.
-
-## 3.9 A module the *target* provides
-
-```lisp
-(use math/trig)
-(trig.sin 1)
+<!-- oro tutorial docs/book/code/diamond.oro -->
+```go
+top.both =
+fn(w, h) { 2 * (w * h) + w * h / 2 }
 ```
 
-```lisp
-⟶   (math/trig.sin 1)
+- **Each block is a module like any other**: its own `use` lines, its own `pub` marks, its own
+  namespace. `top` must `use left` to name it, although they share a file.
+- **An export in a module carries the module's name**, `top.both`.
+- **This is a diamond**: `top` reaches `geometry` by two routes. Nothing about that is special.
+  There is one `geometry.area`, and two paths to it agree because there is only one thing there.
+
+Write every declaration of such a file inside a block. (Today a declaration written outside them,
+in a file that also has `module` blocks, is read into the last block; that is a defect, and is
+recorded in the book's README.)
+
+Two modules may give their members the same name, and nothing needs renaming:
+
+<!-- file docs/book/code/same-name.oro -->
+```go
+module alpha {
+    pub fn area(n) { n * n }
+}
+
+module beta {
+    pub fn area(n) { n + n }
+}
+
+module top {
+    use alpha
+    use beta
+
+    export fn both(n) { h(alpha.area(n), beta.area(n)) }
+}
 ```
 
-There is no `math/trig.oro` anywhere. The import found no file — **and that is not an error**. It
-means `math/trig` is a module the *target* implements natively, and `targets/tutorial.oro` says so:
-
-```lisp
-(module math/trig
-  (prim sin (num) num expr "sin(%s)" pure)
-  (prim cos (num) num expr "cos(%s)" pure))
+<!-- oro tutorial docs/book/code/same-name.oro -->
+```go
+top.both =
+fn(n) { h(n * n, n + n) }
 ```
 
-Reduction stops on `math/trig.sin` because it is a primitive — chapter 1's rule, unchanged.
+That is the whole benefit of qualified names, and it is why §3.3's alias clash is the only naming
+conflict there is.
 
-**But "no file" is also what a typo looks like**, and for a long time the two were
-indistinguishable until much later:
+## 3.7 Modules may use each other
 
-```lisp
-(use geometrie)
-(geometrie.area 3 4)
+<!-- file docs/book/code/cyc/a.oro -->
+```go
+use cyc/b
+pub fn f(n) { b.g(n) }
 ```
 
-```
-at the top level: geometrie.area is not bound — it is not a parameter, not a definition,
-and not a primitive on this target
-  (use geometrie) matched no file on the search path and this target provides no module
-  geometrie either, so every name from it is unbound. Check the path.
-```
-
-The first line blames `geometrie.area`; the second says the problem is the half before the dot. A
-module that *does* exist but lacks the member gets no hint, because there the first line is right:
-
-```lisp
-(use math/trig)
-(trig.tan 1)
+<!-- file docs/book/code/cyc/b.oro -->
+```go
+use cyc/a
+pub fn g(n) { n * 2 }
 ```
 
+<!-- file docs/book/code/cycle.oro -->
+```go
+use cyc/a
+
+export fn run(u) { a.f(u) }
 ```
-at the top level: math/trig.tan is not bound — it is not a parameter, not a definition,
-and not a primitive on this target
+
+<!-- oro tutorial docs/book/code/cycle.oro -->
+```go
+run =
+fn(u) { u * 2 }
+```
+
+`cyc/a` uses `cyc/b`, which uses `cyc/a`. Imports are followed until nothing new is found, and a
+module already loaded is not read again, so the cycle ends by itself. There are no header guards,
+no forward declarations, and no order to get right.
+
+Two modules that *use* each other are fine. Two definitions that *mention* each other are still
+recursion, and still refused (§2.8). They are different questions: one is about where names are
+found, the other about whether unfolding ends.
+
+## 3.8 What reduction sees: nothing
+
+> **Modules are resolution, not reduction**
+> ([ADR 0011](../decisions/0011-modules-add-nothing-to-the-reducer.md)). Before reduction starts,
+> every name has been replaced by its full, qualified one, and there are no modules left. β and δ
+> cannot tell that they ever existed.
+
+You have already seen the evidence. `circle.point_at` calls `trig.cos`, and §3.2's output says:
+
+<!-- oro tutorial docs/book/code/round.oro -->
+```go
+point =
+fn(r, a) { r * `math/trig`.cos(a) }
+```
+
+`` `math/trig`.cos ``: the **full path**, not the `trig` the source wrote. (It is in backquotes
+because a path with a `/` is not an identifier.) An alias is a convenience of one file, and
+resolution erases it. What reaches reduction is one flat set of fully named definitions, as if
+you had written every name out by hand.
+
+This is why chapters 1 and 2 needed nothing added. δ unfolds `geometry.area` for the reason it
+unfolds `square`: it is a name with a definition.
+
+## 3.9 A module the target provides
+
+<!-- file docs/book/code/trig.oro -->
+```go
+use math/trig
+
+export fn run(u) { trig.sin(u) }
+```
+
+<!-- oro tutorial docs/book/code/trig.oro -->
+```go
+run =
+fn(u) { `math/trig`.sin(u) }
+```
+
+There is no `math/trig.oro` anywhere. The `use` found no file, **and that is not an error**:
+`math/trig` is a module the *target* supplies. In [targets/tutorial.oro](../../targets/tutorial.oro):
+
+<!-- part targets/tutorial.oro -->
+```go
+module math/trig {
+    fn sin(a ∈ num) (num) pure { host expr "sin(${a})" }
+    fn cos(a ∈ num) (num) pure { host expr "cos(${a})" }
+}
+```
+
+Each of those is a declaration with a host's code for a body, which is what a target is made of.
+Reduction stops at `math/trig.sin` because it is the target's own, chapter 1's rule unchanged.
+Chapter 0's `use go/strings` was this: Go's `strings` package, as a module the `go` target
+provides.
+
+But *no file* is also what a typo looks like:
+
+<!-- file docs/book/code/no-typo.oro -->
+```go
+use geometrie
+
+export fn run(u) { geometrie.area(u, u) }
+```
+
+<!-- oro tutorial docs/book/code/no-typo.oro -->
+```
+oro: docs/book/code/no-typo.oro: in run: geometrie.area is not bound — it is not a parameter, not a definition, and not a primitive on this target
+  `use geometrie` matched no file on the search path and this target provides no module geometrie either, so every name from it is unbound. Check the path.
+```
+
+The first line blames `geometrie.area`; the second says the trouble is the half before the dot. A
+module that does exist and lacks the member gets no such hint, because there the first line is
+right:
+
+<!-- file docs/book/code/no-tan.oro -->
+```go
+use math/trig
+
+export fn run(u) { trig.tan(u) }
+```
+
+<!-- oro tutorial docs/book/code/no-tan.oro -->
+```
+oro: docs/book/code/no-tan.oro: in run: `math/trig`.tan is not bound — it is not a parameter, not a definition, and not a primitive on this target
 ```
 
 ## 3.10 The four cells
@@ -549,185 +524,204 @@ and not a primitive on this target
 Everything in this chapter has been building one table. A qualified name can be **defined by a
 library**, **provided by a target**, both, or neither:
 
-| | target provides it | target does not |
+| | the target provides it | the target does not |
 |---|---|---|
-| **a library defines it** | the target's wins; the definition is a fallback | the definition unfolds |
-| **no definition** | it is a primitive; reduction stops | **error** — unbound |
+| **a library defines it** | the target's is used; the definition is the fallback | the definition unfolds |
+| **nothing defines it** | it is the target's; reduction stops | **refused**: not bound |
 
-Row 1 is the interesting one, and here it is running. [code/box.oro](code/box.oro) mentions no
-target at all:
+Three of the cells you have seen: `geometry.area` on `tutorial` (top right), `math/trig.sin`
+(bottom left), `geometrie.area` (bottom right). The fourth is the one the language is for.
+[code/box.oro](code/box.oro) names no target:
 
-```lisp
-(use geometry)
-(export box)
-(def box (fn (w h) (geometry.area w h)))
+<!-- file docs/book/code/box.oro -->
+```go
+use geometry
+
+export fn box(w, h) { geometry.area(w, h) }
 ```
 
-```bash
-go run ./cmd/oro -target=tutorial docs/book/code/box.oro
-```
-
-```lisp
+<!-- oro tutorial docs/book/code/box.oro -->
+```go
 box =
-(fn (w h) (* w h))
+fn(w, h) { w * h }
 ```
 
-```bash
-go run ./cmd/oro -target=tutorial-native docs/book/code/box.oro
+<!-- oro tutorial-native docs/book/code/box.oro -->
 ```
-
-```
-note: geometry.area is defined here and provided natively by target "tutorial-native";
-the target's is used
-```
-```lisp
+note: geometry.area is defined here and provided natively by target "tutorial-native"; the target's is used
 box =
-(fn (w h) (geometry.area w h))
+fn(w, h) { geometry.area(w, h) }
 ```
 
-One source. Two targets. Two normal forms — the library's arithmetic on one, a call into the
-target's own implementation on the other. And the difference between the two target files is
-**one declaration**:
+One source, two targets, two results: the library's arithmetic on one, a call to the target's own
+implementation on the other. The whole difference between the two target files is one
+declaration:
 
-```lisp
-(module geometry
-  (prim area (num num) num expr "area(%s, %s)" pure))
+<!-- part targets/tutorial-native.oro -->
+```go
+module geometry {
+    fn area(a ∈ num, b ∈ num) (num) pure { host expr "area(${a}, ${b})" }
+}
 ```
 
-That is the mechanism chapter 2 §2.7 promised and could not show, and it only works because of a
-rule this chapter has been assuming all along:
+That is what §2.7 promised and could not show, and it works because of a rule this chapter has
+assumed throughout:
 
-> **One namespace.** A target and a library name into the *same* qualified namespace. The target
-> declares `geometry.area`; the library defines `geometry.area`; they are the same name.
+> **One namespace.** A target and a library name into the *same* space of qualified names. The
+> target declares `geometry.area`; the library defines `geometry.area`; they are one name.
 
-If targets and libraries had separate namespaces the intersection would be permanently empty, every
-program would silently get the portable fallback, and no target's native implementation would ever
-be reachable. The whole system would still typecheck and still run — and would quietly never do the
-one thing it exists to do.
+Were they separate, no library definition could ever coincide with a target's operation, every
+program would quietly get the portable fallback, and no host's own implementation would be
+reachable. Everything would still compile and run, and the language would never do the one thing
+it exists to do.
 
-Scaling that up is what the language is for. Write `num/vec.dot` once; on a plain target it fuses
-into a loop, on a target with BLAS it becomes `cblas_ddot`. [examples/modules.oro](../../examples/modules.oro)
-is that program, and `-target=go` versus `-target=blas` is that pair.
+The portable libraries are built this way. `io`, from chapter 0, is a module with no definitions
+at all, only what each target provides for it, written beside the library and not in the target:
+
+<!-- part lib/io/go.oro -->
+```go
+provides go io {
+    fn print_line(s ∈ String) (String) { host stmt "fmt.Println(${s})" import "fmt" }
+```
+
+`provides go io { … }` says: *on the target `go`, the module `io` has these.* There is one such
+file for each target `io` supports, and a program that says `io.print_line` gets Go's
+`fmt.Println` on one and `console.log` on another, having named neither.
 
 ---
 
-## 3.11 Everything a module is not
+## 3.11 What a module is not
 
-This section is the honest part. Modules here are much less than the word usually implies, and the
-gaps are load-bearing rather than accidental.
+Modules here are much less than the word usually promises, and the gaps hold weight.
 
 ### Not a unit of compilation
 
-In Modula-2, Ada, and every language that followed them, a module is a **separately compilable
-unit**: compile it once, ship the object file, and a consumer needs only its interface. That is the
-reason modules were invented, and this language does not do it.
+In Modula-2, Ada and most languages since, a module is something compiled *separately*: compile it
+once, ship the result, and a user needs only its interface. That is what modules were invented
+for, and this language does not do it.
 
 It cannot. Reduction needs the *body* of `geometry.area` to unfold it, and unfolding is the whole
-compilation strategy — the reason a helper function costs nothing is that it disappears. An
-interface without a body would preserve exactly the call this language exists to remove.
+compilation strategy; a helper costs nothing because it disappears into its caller. An interface
+without a body would preserve exactly the call the language exists to remove.
 
-So compilation here is **whole-program**, and that is a real trade with a real cost: you cannot
-distribute a compiled library, and build time grows with everything you depend on. What you get for
-it is chapter 2 §1.8 — abstraction that vanishes. It is not obvious that the trade is right in
-general; it is right *here*, because parity with hand-written code is the requirement and a
-preserved call is a lost one.
+So compilation is **whole-program**, and that is a real trade: no compiled library to hand
+someone, and build time that grows with everything you use. What it buys is chapter 1's free
+abstraction. It is right *here*, because parity with hand-written code is the requirement.
 
-### Not first-class
+### Not a value
 
-You cannot pass a module to a function, store one, or return one. `(use …)` takes a literal path,
-and a module is not a value. Modules exist at resolution time and nothing at reduction time can
-refer to one — that is §3.8 restated as a limitation.
+You cannot pass a module to a function, store one or return one. `use` takes a path written out,
+and nothing at reduction time can refer to a module, which is §3.8 said as a limitation.
 
-### No functors — and none needed
+### No functors, and none needed
 
-ML's answer to parameterised modules is the **functor**: a function from structures to structures,
-with its own type system, its own application syntax, and a well-known reputation for being the
-hardest part of the language.
+ML's parameterised module is the **functor**: a function from modules to modules, with its own
+typing and its own syntax, and a reputation as the hardest part of the language. We cannot have
+one, since a module is not a value. But look at what a functor *does*: it takes the operations you
+are parameterised over and gives back what you built from them. That is a function returning a
+function, and chapter 1 had those.
 
-We cannot have one, since modules are not values. But look at what a functor *does* — take the
-operations you are parameterised over, return the operations you built from them — and then look at
-chapter 2 again. That is a function returning a record. And a record is a function
-([chapter 2 §2.11](02-def.md)).
+<!-- file docs/book/code/functor.oro -->
+```go
+fn accumulate(combine, unit) {
+    fn(a, b, c) { combine(combine(combine(unit, a), b), c) }
+}
 
-```lisp
-(def accumulate (fn (combine unit)
-  (fn (a b c) (combine (combine (combine unit a) b) c))))
+fn add(p, q) { p + q }
 
-((accumulate + 0) (x) (y) (z))
-((accumulate * 1) (x) (y) (z))
-((accumulate h 0) (x) (y) (z))
+fn mul(p, q) { p * q }
+
+export fn sum(u, v, w) { accumulate(add, 0)(u, v, w) }
+
+export fn product(u, v, w) { accumulate(mul, 1)(u, v, w) }
+
+export fn opaque(u, v, w) { accumulate(h, 0)(u, v, w) }
 ```
 
-```lisp
-⟶   (+ (+ (+ 0 (x)) (y)) (z))
-⟶   (* (* (* 1 (x)) (y)) (z))
-⟶   (h (h (h 0 (x)) (y)) (z))
+<!-- oro tutorial docs/book/code/functor.oro -->
+```go
+sum =
+fn(u, v, w) { 0 + u + v + w }
+product =
+fn(u, v, w) { 1 * u * v * w }
+opaque =
+fn(u, v, w) { h(h(h(0, u), v), w) }
 ```
 
-One definition, instantiated at addition, at multiplication, and at an operation the compiler knows
-nothing about. That is a functor applied three times, and **nothing survives the application** — no
-dictionary, no vtable, no indirection, not even a mention of `accumulate`.
+One definition, instantiated at addition, at multiplication, and at an operation the compiler
+knows nothing about. In algebra's words, `accumulate` is written over any monoid, and each line
+hands it one. **Nothing survives the application**: no dictionary, no table of functions, no
+indirection, and no mention of `accumulate`.
 
-A structure with several members works the same way, because a Church record has as many fields as
-you like:
+A structure with several members works the same way, because §2.10's Church pair holds as many
+things as you like:
 
-```lisp
-(def make-vec2 (fn (add mul)
-  (fn (xx yy) (fn (sel) (sel xx yy add mul)))))
+<!-- file docs/book/code/vec2.oro -->
+```go
+fn add(p, q) { p + q }
 
-(def dot2 (fn (v w)
-  (v (fn (a b add mul) (w (fn (c d _ __) (add (mul a c) (mul b d))))))))
+fn mul(p, q) { p * q }
 
-(dot2 ((make-vec2 + *) (x) (y)) ((make-vec2 + *) (z) 4))
-(dot2 ((make-vec2 h *) (x) (y)) ((make-vec2 h *) (z) 4))
+fn make_vec2(plus, times) {
+    fn(a, b) { fn(sel) { sel(a, b, plus, times) } }
+}
+
+fn dot2(v, w) {
+    v(fn(a, b, plus, times) {
+        w(fn(c, d, _, _) { plus(times(a, c), times(b, d)) })
+    })
+}
+
+export fn ordinary(p, q, r) { dot2(make_vec2(add, mul)(p, q), make_vec2(add, mul)(r, 4)) }
+
+export fn strange(p, q, r) { dot2(make_vec2(h, mul)(p, q), make_vec2(h, mul)(r, 4)) }
 ```
 
-```lisp
-⟶   (+ (* (x) (z)) (* (y) 4))
-⟶   (h (* (x) (z)) (* (y) 4))
+<!-- oro tutorial docs/book/code/vec2.oro -->
+```go
+ordinary =
+fn(p, q, r) { p * r + q * 4 }
+strange =
+fn(p, q, r) { h(p * r, q * 4) }
 ```
 
-`make-vec2` is a functor: it takes an addition and a multiplication and returns a vector structure
-carrying both. `dot2` is a client of that structure. The result is a dot product with the arithmetic
-substituted in — and the structure, the closure, and the parameterisation are all gone.
+`make_vec2` takes an addition and a multiplication and gives back a maker of vectors that carry
+both; `dot2` is a client of that structure. What is left is a dot product with the arithmetic put
+in, and the structure and the parameterisation are gone.
 
-**So the feature that costs ML a second language costs us nothing, because we already had it.** A
-functor is a function, applied at compile time, over a record that is also a function. `fn` and
-`def` were enough; modules never needed to grow to reach it.
-
-What modules give that `fn` and `def` cannot is the thing functors were never about: **a namespace
-that a target can also write into**. That is §3.10, and it is the only reason this form exists.
+**So what costs ML a second language costs nothing here, because it was already there.** What
+modules give that functions cannot is the thing functors were never about: a namespace a target
+can also write into. That is §3.10, and it is the reason modules exist.
 
 ### Not `import *`, not `#include`, not a package manager
 
 - No unqualified import, by refusal (§3.3).
-- `(use …)` is a **dependency**, not a textual inclusion. A library's own bare terms and exports are
-  not the program's; only the entry file contributes entry points.
-- Where files are found is a search path (`-path`, default `lib`, entry file's own directory first)
-  and nothing more. Versioning, fetching and publishing do not exist and are not designed.
+- `use` is a dependency, not a textual inclusion (§3.5).
+- A module is found on a search path, the entry file's own directory and then `lib/` (or what
+  `-path` names), and that is all. Versions, fetching and publishing do not exist and are not
+  designed.
 
 ---
 
 ## What to remember
 
-- **`.` separates module from member; `/` is an ordinary letter.** `shapes/circle` is one name.
-- **Entry file and library file are roles, not kinds.** The entry file is the one you name on the
-  command line; a library file is one a `(use …)` reached. Only the entry file's exports are the
-  program's, only its bare terms reduce, and only its `main` starts the program.
-- **`(use PATH)` binds the last segment**; `(use PATH as A)` binds `A`. Imports stay qualified.
-- **`(module PATH)` opens a scope.** A library file declares exactly one, and it is the one its path
-  names. The entry file may declare many.
-- **`(export …)` is the outside view.** Inside a module every definition is in scope. No list at all
-  means everything is public, which means the list has not been written yet.
-- **Cycles and diamonds are fine.** Mutually recursive modules yes; mutually recursive definitions
-  no.
-- **Modules are resolution, not reduction.** They are gone before β and δ start; the residual shows
-  full paths, never aliases.
-- **An import that finds no file is a module the target provides** — and the error for a misspelled
-  path says so, because those two look identical from the outside.
-- **One namespace for targets and libraries.** That is what lets a definition be a fallback for the
-  target's own implementation, and it is the point of the whole form.
-- **A functor is just a function.** Modules stayed small because `fn` had already done the hard
-  part.
+- **A file is a module, named by its path.** It has no header.
+- **`.` separates a module from a member; `/` separates a path's segments.** A `-` in a file's
+  name is `_` in the program.
+- **`use PATH` binds the last segment; `use PATH as N` binds `N`.** Imports stay qualified, always.
+- **`pub` is the interface, and private is the default.** `export` is a different question: what
+  the host gets.
+- **The entry file is the one you name; a library is one a `use` reached.** Only the entry file's
+  exports are the program's, and only its `main` starts it.
+- **The entry file may hold several modules**, each in a `module { … }` block.
+- **Modules may use each other in a cycle.** Definitions still may not.
+- **Modules are resolution, not reduction.** They are gone before β and δ start, and what is left
+  shows full paths.
+- **A `use` that finds no file names a module the target provides**, and a misspelled path is
+  reported as that.
+- **One namespace for targets and libraries.** That is what lets a library's definition be the
+  fallback for a target's own operation.
+- **A functor is a function.** Modules stayed small because `fn` had already done the hard part.
 
-Next chapter: effects — the one thing β is not allowed to move.
+Next: [effects](04-effects.md), the one thing β may not move. That chapter and the one after it are
+still in the notation this surface replaced, and are being brought up to date in order.

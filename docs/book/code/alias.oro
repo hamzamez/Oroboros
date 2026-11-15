@@ -1,0 +1,6 @@
+use geometry as g
+use geometry
+
+export fn short(u, v) { g.area(u, v) }
+
+export fn either(u, v) { h(geometry.area(u, v), g.perimeter(u, v)) }

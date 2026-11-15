@@ -1,7 +1,5 @@
-// A module whose path has two segments. `/` is an ordinary identifier
-// character, so `shapes/circle` is ONE name, and the file is at
-// shapes/circle.oro relative to a search-path root.
 use math/trig
 
-fn area(r) { 3 * (r * r) }
-fn point_at(r, ang) { r * trig.cos(ang) }
+pub fn area(r) { 3 * (r * r) }
+
+pub fn point_at(r, ang) { r * trig.cos(ang) }

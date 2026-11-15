@@ -1,0 +1,3 @@
+use geometrie
+
+export fn run(u) { geometrie.area(u, u) }

@@ -1,0 +1,7 @@
+use geometry
+
+export fn area(u, v) { geometry.area(u, v) }
+
+export fn around(u, v) { geometry.perimeter(u, v) }
+
+export fn scaled(u, v) { geometry.scale(2, u, v) }

@@ -1,0 +1,3 @@
+use lib-main
+
+export fn run() { lib_main.k(5) }

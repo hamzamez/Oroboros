@@ -1,0 +1,3 @@
+use box
+
+export fn run(u) { box.box(u, u) }

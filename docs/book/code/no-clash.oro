@@ -1,0 +1,4 @@
+use geometry as g
+use shapes/circle as g
+
+export fn run(u) { g.area(u) }

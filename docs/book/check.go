@@ -14,6 +14,8 @@
 //	                                   printed, or of the file it emitted
 //	<!-- oro TARGET PATH -->           the block is a run of lines of what `oro -j`
 //	                                   printed: each export reduced, in J
+//	<!-- build TARGET PATH -->         the block is a run of lines of what `build`
+//	                                   printed: a program it refuses to build
 //	<!-- run TARGET PATH -->           the block is what the built program printed
 //	<!-- portable PATH -->             the block is a run of lines of `portable`
 //
@@ -35,7 +37,7 @@ import (
 	"strings"
 )
 
-var directive = regexp.MustCompile(`^<!--\s+(file|part|gen|oro|run|portable)\s+(.*?)\s*-->$`)
+var directive = regexp.MustCompile(`^<!--\s+(file|part|gen|oro|build|run|portable)\s+(.*?)\s*-->$`)
 
 func norm(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
@@ -163,6 +165,11 @@ func main() {
 			ok = within(block, got)
 		case "oro":
 			got = norm(run(tool["oro"], "-j", "-target="+args[0], args[1]))
+			ok = within(block, got)
+		case "build":
+			exe := filepath.Join(tmp, "refused.exe")
+			os.Remove(exe)
+			got = norm(run(tool["build"], "-target="+args[0], "-o", exe, args[1]))
 			ok = within(block, got)
 		case "run":
 			var exe string

@@ -1,0 +1,5 @@
+pub fn k(n) { n }
+
+export fn main() { 1 }
+
+export fn other() { 2 }

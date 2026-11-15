@@ -1,0 +1,14 @@
+module alpha {
+    pub fn area(n) { n * n }
+}
+
+module beta {
+    pub fn area(n) { n + n }
+}
+
+module top {
+    use alpha
+    use beta
+
+    export fn both(n) { h(alpha.area(n), beta.area(n)) }
+}

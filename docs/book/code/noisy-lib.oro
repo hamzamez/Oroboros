@@ -1,10 +1,1 @@
-// Chapter 3 §3.1: a library, to show what a library file contributes to a
-// program: its declarations, and nothing else.
-//
-//   go run ./cmd/oro -target=tutorial docs/book/code/noisy-prog.oro
-//
-// Today's notation let a library leave bare terms lying around at the top
-// level, `(+ 1 2)` and `(* 9 9)`, reduced by nobody and printed by nobody. J
-// has no such thing: a file is a theory and holds declarations, and a bare
-// expression at the top level is refused (ADR 0064).
 pub fn k(n) { n * 3 }

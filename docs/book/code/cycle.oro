@@ -1,0 +1,3 @@
+use cyc/a
+
+export fn run(u) { a.f(u) }

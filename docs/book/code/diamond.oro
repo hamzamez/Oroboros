@@ -1,0 +1,18 @@
+module left {
+    use geometry
+
+    pub fn twice_area(w, h) { 2 * geometry.area(w, h) }
+}
+
+module right {
+    use geometry
+
+    pub fn half_area(w, h) { geometry.area(w, h) / 2 }
+}
+
+module top {
+    use left
+    use right
+
+    export fn both(w, h) { left.twice_area(w, h) + right.half_area(w, h) }
+}

@@ -1,0 +1,5 @@
+use shapes/circle
+
+export fn run(r) { circle.area(r) }
+
+export fn point(r, a) { circle.point_at(r, a) }

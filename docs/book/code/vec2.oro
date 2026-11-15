@@ -1,0 +1,17 @@
+fn add(p, q) { p + q }
+
+fn mul(p, q) { p * q }
+
+fn make_vec2(plus, times) {
+    fn(a, b) { fn(sel) { sel(a, b, plus, times) } }
+}
+
+fn dot2(v, w) {
+    v(fn(a, b, plus, times) {
+        w(fn(c, d, _, _) { plus(times(a, c), times(b, d)) })
+    })
+}
+
+export fn ordinary(p, q, r) { dot2(make_vec2(add, mul)(p, q), make_vec2(add, mul)(r, 4)) }
+
+export fn strange(p, q, r) { dot2(make_vec2(h, mul)(p, q), make_vec2(h, mul)(r, 4)) }

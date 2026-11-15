@@ -1,0 +1,13 @@
+fn accumulate(combine, unit) {
+    fn(a, b, c) { combine(combine(combine(unit, a), b), c) }
+}
+
+fn add(p, q) { p + q }
+
+fn mul(p, q) { p * q }
+
+export fn sum(u, v, w) { accumulate(add, 0)(u, v, w) }
+
+export fn product(u, v, w) { accumulate(mul, 1)(u, v, w) }
+
+export fn opaque(u, v, w) { accumulate(h, 0)(u, v, w) }

@@ -1,0 +1,1 @@
+export fn run(u, v) { geometry.area(u, v) }

@@ -114,7 +114,9 @@ P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md
   - a literal of Σ_L is not definable (20);
   - an impure primitive is not folded (10-06 #3). The algebra decides it: an effectful application
     is not its value, so the fold consults the purity bit.
-- **The surface's promises and its diagnostics**, where j.md says built and the reader refuses:
+- ~~**The surface's promises and its diagnostics**~~ **done** ([surface-2026-11-15](gauntlet/results/surface-2026-11-15.md),
+  ADR 0115 for the boundary; a range payload refused in J and owed), where j.md says built and the
+  reader refused:
   - prefix `-` (5);
   - a telescope and a constant in a header's range (9, 13);
   - a top-level claim value (14);
@@ -938,6 +940,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | `os` on windows is J over kernel32: a Win32 failure is a term, an out-parameter ADR 0048's cell (an alloca), V the valid UTF-8 recognized by its monoid, `utf8_valid` and `utf8_text` in Σ_L, text_of = ι_V ∘ r | [0112](docs/decisions/0112-os-on-windows-is-a-library-over-kernel32-and-valid-utf-8-is-recognized-by-its-monoid.md) |
 | A program's definitions are kept as functions where the target prints them (windows), the compiler choosing K by pays and proofs; a kept definition is {P ∧ φ} f {ψ}: φ marked at each call and completed by lifting, ψ derived by Houdini, ℤ the instance's S ∩ W; a verdict is monotone in K | [0113](docs/decisions/0113-a-programs-definitions-are-kept-as-functions-where-the-target-prints-them.md) |
 | A fold is an equation between pure terms: the language's operators fold only where the primitive is pure | [0114](docs/decisions/0114-a-fold-is-an-equation-between-pure-terms.md) |
+| A rule at an export's boundary is its extension, `alloc(rule)`; in the interior a rule fuses or the author writes `alloc` | [0115](docs/decisions/0115-a-rule-at-an-exports-boundary-is-its-extension.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

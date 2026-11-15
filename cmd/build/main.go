@@ -375,6 +375,7 @@ func reduceAndLower(tg *emit.Target, prog *core.Program, env *core.Env, reqs *em
 	// pass walks a clause chain.
 	// η FOR PRODUCTS (tables.md §2.5), as cmd/gen.
 	nf = emit.EtaTails(tg, nf)
+	nf = emit.MaterializeResult(nf)
 	if err := emit.CheckJoins(tg, nf); err != nil {
 		return nil, nil, nil, fmt.Errorf("%s: %w", entry, err)
 	}

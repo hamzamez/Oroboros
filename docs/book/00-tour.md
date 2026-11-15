@@ -434,13 +434,12 @@ export fn adder(n ∈ 0..10) { fn(x) { x + n } }
 
 <!-- gen go docs/book/code/tour/no-closure.oro -->
 ```
-gen: tour-adder: lowering: a λ in value position is a closure (callbacks.md): fn(x) { x + #1.0 }
+gen: tour-adder: lowering: a λ in value position is a closure (callbacks.md): fn(x) { x + n }
 ```
 
 **A function may not survive to run time.** Returning one to the host, or storing one in a table,
 would need a closure, a hidden allocation, and hidden allocation is what this language exists to
-avoid. (The `#1.0` in
-that message is the compiler's internal name for `n`, a wart in the diagnostic.) Handing a function
+avoid. Handing a function
 to a host API that takes a callback is specified and not built.
 
 ## 0.7 One loop, and no recursion
@@ -666,7 +665,7 @@ export fn prefix_sums(t ∈ Array(0..255)) (Array(Int)) {
 
 <!-- gen go docs/book/code/tour/no-prefix.oro -->
 ```
-  + [0, 2351959869397967831040] in acc + t(i)
+  + [0, 2351959869397967831040] in acc + t[i]
 ```
 
 because a table may be as long as memory allows, and that many bytes sum past 2⁶³. The compiler

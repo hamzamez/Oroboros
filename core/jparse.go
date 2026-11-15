@@ -19,7 +19,13 @@ type parser struct {
 	// mods are the `module { }` blocks the parser is inside, innermost last:
 	// a block's scope is its braces (j.md §2.1), so its close restores the
 	// enclosing module (book finding 15)
-	mods   []string
+	mods []string
+	// consts are the file's integer constants by J name, `cap = 100`, which
+	// a range's end may name (Padoa's eliminability, as setDefs)
+	consts map[string]*big.Int
+	// target is a target file's reading (jreadtarget.go), whose `NAME ∈ S =
+	// host …` is a host constant it reads itself
+	target bool
 	toks   []token
 	i      int
 	parens []bool // the open brackets: true for ( and [, where a line break is a space
@@ -297,8 +303,14 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 		p.next()
 		path := p.path()
 		u := &UseDecl{Path: path, At: p.nextAt()}
+		// THE PATH IS A FILE'S NAME, kept as written; THE ALIAS IS AN
+		// IDENTIFIER, spelled by σ_J⁻¹ as every reference to it is: `zz_b7.k`
+		// reads as `zz-b7.k`, so `use zz_b7`'s alias is `zz-b7`, and a file
+		// named with `_` is reachable (book finding 16)
 		if p.accept("as") {
-			u.As = p.next().text
+			u.As = Unspell(p.next().text)
+		} else if seg := path[strings.LastIndex(path, "/")+1:]; Unspell(seg) != seg && !PlantAliasRaw {
+			u.As = Unspell(seg)
 		}
 		return []Decl{u}, nil, nil
 	case p.is("module"):
@@ -385,6 +397,26 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 			}
 		}
 		return []Decl{v}, marked, nil
+	case (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == "∈" && !p.target && !PlantTopClaimRefused:
+		// A VALUE WITH ITS SET, `cap ∈ 0..100 = 64` (j.md §2.2's value_decl,
+		// a binder): the(S; e), the claim a block's binder makes, here at the
+		// file's level (book finding 14)
+		name := p.name()
+		p.next()
+		set, err := p.expr()
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := p.expect("="); err != nil {
+			return nil, nil, err
+		}
+		e, err := p.expr()
+		if err != nil {
+			return nil, nil, err
+		}
+		p.constant(t.text, e)
+		public(name)
+		return []Decl{&DefDecl{Name: name, Value: &The{Set: p.toSet(set, ""), E: e, Name: name}, At: p.nextAt()}}, marked, nil
 	case (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == "=" && p.peekN(1).kind == tSym:
 		name := p.name()
 		p.next()
@@ -392,6 +424,7 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+		p.constant(t.text, e)
 		public(name)
 		return []Decl{&DefDecl{Name: name, Value: e, At: p.nextAt()}}, marked, nil
 	}
@@ -661,7 +694,20 @@ func (p *parser) set(e Expr) Expr {
 		}
 		switch v.Name {
 		case "..":
-			return &Apply{Fn: &Var{Name: "int"}, Args: e.Args}
+			// AN INTEGER CONSTANT AT A RANGE'S END IS ITS VALUE: a constant is
+			// an abbreviation, eliminable by unfolding (Padoa), as a set
+			// definition is, so `0..cap` with `cap = 100` is the type 0..100
+			// (book finding 13)
+			ends := make([]Expr, len(e.Args))
+			for i, a := range e.Args {
+				ends[i] = a
+				if c, ok := a.(*Var); ok && !PlantConstEndOpaque {
+					if v, ok := p.consts[c.Name]; ok {
+						ends[i] = p.fold(new(big.Int).Set(v))
+					}
+				}
+			}
+			return &Apply{Fn: &Var{Name: "int"}, Args: ends}
 		case "×":
 			return &Apply{Fn: &Var{Name: "tuple"}, Args: args}
 		case "tuple":
@@ -1255,7 +1301,13 @@ func (p *parser) unary() (Expr, error) {
 		if v, ok := p.folded[x]; ok {
 			return p.fold(new(big.Int).Neg(v)), nil
 		}
-		return &Apply{Fn: &Var{Name: "-"}, Args: []Expr{x}}, nil
+		// −x IS THE ADDITIVE INVERSE, 0 − x in the ring: `-` is binary, and
+		// applied to x alone it was refused, though j.md §3 lists prefix `-`
+		// (book finding 5)
+		if PlantPrefixMinusUnary {
+			return &Apply{Fn: &Var{Name: "-"}, Args: []Expr{x}}, nil
+		}
+		return &Apply{Fn: &Var{Name: "-"}, Args: []Expr{&Lit{T: IntLiteral("0")}, x}}, nil
 	case p.is("!"):
 		p.next()
 		x, err := p.exprAt(pPrefix)
@@ -2321,3 +2373,32 @@ func mentions(e Expr, x string) bool {
 // PlantModuleNoClose leaves a block's close unmarked, as before: a declaration
 // after `module inner { … }` is then read into inner (TestAModuleBlockEndsAtItsBrace).
 var PlantModuleNoClose bool
+
+// PlantAliasRaw leaves a `use`'s alias as its path's last segment, as before:
+// `use zz_b7` is then unreachable from `zz_b7.k` (TestAModuleFileMayHoldAnUnderscore).
+var PlantAliasRaw bool
+
+// PlantPrefixMinusUnary reads -x as `-` applied to x alone, as before: it is
+// then refused for its arity (TestPrefixMinusIsTheAdditiveInverse).
+var PlantPrefixMinusUnary bool
+
+// constant records a top-level value whose expression folds to an integer, by
+// its J name: an end of a range may name it (set's `..`).
+func (p *parser) constant(jn string, e Expr) {
+	v, ok := p.literal(e)
+	if !ok {
+		return
+	}
+	if p.consts == nil {
+		p.consts = map[string]*big.Int{}
+	}
+	p.consts[jn] = v
+}
+
+// PlantTopClaimRefused refuses a top-level `NAME ∈ S = e`, as before
+// (TestATopLevelValueMayClaimItsSet).
+var PlantTopClaimRefused bool
+
+// PlantConstEndOpaque leaves a constant at a range's end unfolded, as before:
+// `0..cap` is then no type (TestAConstantInARangeIsItsValue).
+var PlantConstEndOpaque bool

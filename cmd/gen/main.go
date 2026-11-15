@@ -224,6 +224,7 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 				// η FOR PRODUCTS (tables.md §2.5): a host call's several results at a
 				// producer's exit become the tuple a tuple pattern takes apart.
 				nf = emit.EtaTails(tg, nf)
+				nf = emit.MaterializeResult(nf)
 				if err := emit.CheckJoins(tg, nf); err != nil {
 					return fmt.Errorf("%s: %w", u.name, err)
 				}

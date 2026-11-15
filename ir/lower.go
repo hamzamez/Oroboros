@@ -270,6 +270,11 @@ func (l *lowerer) named(t *core.Term) *core.Term {
 			for i, k := range t.Kids {
 				kids[i] = walk(k, depth)
 			}
+			// A VARIABLE APPLIED TO ONE ARGUMENT IS A READ: the residual is
+			// first-order, so it is a table's element, which J writes t[i]
+			if len(t.Kids) == 2 && t.Kids[0].Kind == core.KBound {
+				return core.App(core.Name(core.IndexShow), kids[0], kids[1])
+			}
 			return &core.Term{Kind: core.KApp, Kids: kids}
 		}
 		return t
@@ -402,7 +407,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 			l.pop()
 			return out
 		}
-		l.fail("a λ in value position is a closure (callbacks.md): %s", core.ShowTerm(t))
+		l.fail("a λ in value position is a closure (callbacks.md): %s", core.ShowTerm(l.named(t)))
 	}
 	op, args := t.Kids[0], t.Kids[1:]
 	switch op.Kind {

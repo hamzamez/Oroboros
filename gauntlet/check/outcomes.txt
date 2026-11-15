@@ -431,9 +431,9 @@
 == examples/kara/core.oro go refused
    note: gen-main: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
    gen: gen-main: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-     go.+ [0, +inf] in go.`+`(#vout2({ k = go.`+`(i, j); case { go.`<`(k, 0) -> 0; g...
+     go.+ [0, +inf] in go.`+`(#vout2[{ k = go.`+`(i, j); case { go.`<`(k, 0) -> 0; g...
      go.* [0, +inf] in go.`*`(acc, 100)
-     go.+ [0, +inf] in go.`+`(go.`*`(acc, 100), p(i))
+     go.+ [0, +inf] in go.`+`(go.`*`(acc, 100), p[i])
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
      this is refused rather than noted (ADR 0019, ADR 0026).
@@ -859,7 +859,7 @@
    note: bytes.put is inlined: bytes.put: bytes.maxu's parameter k, declared in 1..8, requires 1 <= k && k <= 8 at a call, which does not follow
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: every definition inlined: kept, gen-main: lowering: a table rule that was never allocated (tables.md §2): table(#0.1 - 0, fn(#nl518) { #1.0(0 + #nl518) })
-   gen: reduction did not terminate within the step limit; last term head: (fn () (fn (av) (fn (buf) (fn (#s4) (fn (#vbuf) (fn (path) (fn (h) (fn (c) (fn (read #vbuf) (fn (n r) (fn (#t #p #p1) (fn (#k) (fn (h av) (fn (p) (fn (n) (fn (opt) (fn (o) (fn (s) (fn (#_) (fn (#_) (fn (#_) (fn (#_) (fn (m) (fn (#_) (fn (#_) (fn (#_) (fn (#_) (fn (av at stored) (fn (path) (fn (h) (fn (#s2) (fn (ok) (fn (sz) (fn (#nl730) (fn (b) (fn (#t #p #p1) (fn (c) (fn (#_) (fn (#n) (fn (r) (fn (b) (fn (#s2) (fn (#vb) (fn (#_ #vb) (fn (path data) (fn (#t #p #p1) (fn (e) if)))))))))))))))))))))))))))))))))))))))))))))))
+   gen: reduction did not terminate within the step limit; last term head: fn() { fn(av) { fn(buf) { fn(#s4) { fn(#vbuf) { fn(path) { fn(h) { fn(c) { fn(read, #vbuf) { fn(n, r) { fn(#t, #p, #p1) { fn(#k) { fn(h, av) { fn(p) { fn(n) …
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.

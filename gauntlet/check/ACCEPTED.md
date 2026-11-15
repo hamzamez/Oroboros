@@ -3111,3 +3111,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/hash/crc32.oro windows` 3562 → 2187 ms, 0.61x
+
+## 2026-11-15 — on ac2b8b7, with uncommitted changes
+
+**Reason:** plan item 4, the book's surface findings: a read in a diagnostic is t[i], and the step limit's term head is J (findings 7, 11); no emitted code changed
+
+652 runs: 431 emitted, 221 refused; 6977 of 7031 integer operations bounded, 747 of 785 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- compiler output changed — `examples/kara/core.oro go`
+- compiler output changed — `examples/pe/pe.oro windows`

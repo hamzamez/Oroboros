@@ -3497,6 +3497,9 @@ func parseStructural(f *core.Term, path string) (Prim, error) {
 // `effect` marker under the opposite default would get a silent miscompilation.
 // The default must be the one whose failure mode is slow, not wrong.
 func (tg *Target) Env(p *core.Program) (*core.Env, error) {
+	for n, sig := range p.Sigs {
+		p.Sigs[n] = hullSig(tg, sig)
+	}
 	e := &core.Env{
 		Defs: p.Defs,
 		Prim: map[string]bool{},

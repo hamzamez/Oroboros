@@ -1998,7 +1998,7 @@ type FuelError struct{ Term *Term }
 
 func (f *FuelError) Error() string {
 	return fmt.Sprintf("reduction did not terminate within the step limit; last term head: %s",
-		head(f.Term))
+		headJ(f.Term))
 }
 
 func (f *FuelError) reclose(params []string) error {
@@ -2034,6 +2034,20 @@ func head(t *Term) string {
 		t = t.Op()
 	}
 	return t.String()
+}
+
+// headJ is a term's head as J writes it, for a message (book finding 11: the
+// step limit's quoted the core term), cut where it is long. head stays the
+// core's spelling, which readers compare (jreadtarget's liftAxioms).
+func headJ(t *Term) string {
+	for t.Kind == KApp {
+		t = t.Op()
+	}
+	s := ShowTerm(t)
+	if r := []rune(s); len(r) > 160 {
+		s = string(r[:157]) + "…"
+	}
+	return s
 }
 
 // Normalize reduces t to normal form: no reducible β-redex and no name outside
@@ -3524,6 +3538,15 @@ func (e *Env) reduceLet(op *Term, args []*Term, fuel *int) (*Term, error) {
 	if err != nil {
 		return nil, err
 	}
+	// AND AFTER THE BODY'S NORMAL FORM: the uses counted above were the body
+	// as written, and normalizing it can remove every one (a pair's component
+	// read under the selector its consumer applies). A pure value nothing reads
+	// is then dropped, β's rule once more (book finding 12: `snd(pair(x(),
+	// y()))` left `{ a = x(); y() }`).
+	if b := k.Closed(); !PlantKeepDeadLet && !IsRequire(v) && !IsRequireWhere(v) &&
+		e.pureTerm(v, map[string]bool{}) && boundOccurrences(b, 0, 0) == 0 {
+		return k.OpenWith([]*Term{v}), nil
+	}
 	// THE RIGHT UNIT LAW, m >>= return = m: `(let v (fn (x) x))` is v,
 	// whatever v's effects, since they run once, in place, either way.
 	if b := k.Closed(); b.Kind == KBound && b.Depth == 0 && b.Index == 0 {
@@ -4907,3 +4930,7 @@ var PlantLiteralsDefinable bool
 // definition is a constructor, as before: `half(n); 0` must then be accepted
 // (TestADefinitionsRelevantResultIsNotDropped).
 var PlantRelevanceShallow bool
+
+// PlantKeepDeadLet keeps a pure binding its body's normal form no longer
+// reads, as before (TestADeadPureBindingIsDropped).
+var PlantKeepDeadLet bool

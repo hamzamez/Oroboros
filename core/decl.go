@@ -339,15 +339,113 @@ func separated(c *Claim) *Claim {
 	}
 	out := *c
 	out.Params = append([]ClaimParam(nil), c.Params...)
+	earlier := map[string]bool{}
 	for i, p := range out.Params {
 		if x, s, phi, ok := sep(p.Set); ok && p.Name != "" {
 			out.Params[i].Set = s
 			out.Pre = and(renameExpr(phi, map[string]string{x: p.Name}), out.Pre)
 		}
+		// A TELESCOPE, `i ∈ 0..len(a)-1`: a range whose end is a term over
+		// the earlier parameters is a separation, lo..hi = {x ∈ ℤ : lo ≤ x ≤
+		// hi}, so its set is the range with that end open and its formula a
+		// conjunct of the `where` (book finding 9; ADR 0061)
+		if s, phi, ok := openRange(p.Set, &Var{Name: p.Name}, earlier); ok && p.Name != "" && !PlantTelescopeRefused {
+			out.Params[i].Set = s
+			out.Pre = and(phi, out.Pre)
+		}
+		earlier[p.Name] = true
 	}
 	if x, s, phi, ok := sep(out.Result); ok {
 		out.Result = s
 		out.Post = and(renameExpr(phi, map[string]string{x: ResultName}), out.Post)
 	}
 	return &out
+}
+
+// openRange is a range with an end that is no literal, int(lo, hi), as its
+// separation: the range with that end infinite, and the formula lo ≤ x, x ≤ hi
+// of each such end. A telescope is a dependent product, Π(a ∈ A) Π(i ∈ S(a)),
+// so an end may name only the parameters before it (earlier); ok is false for
+// an end naming anything else, for any other set, and for a literal range.
+func openRange(set Expr, x Expr, earlier map[string]bool) (Expr, Expr, bool) {
+	a, isApp := set.(*Apply)
+	if !isApp || len(a.Args) != 2 {
+		return nil, nil, false
+	}
+	if v, ok := a.Fn.(*Var); !ok || v.Name != "int" {
+		return nil, nil, false
+	}
+	lo, hi := a.Args[0], a.Args[1]
+	for _, end := range []Expr{lo, hi} {
+		if !literalEnd(end) && !namesOnly(end, earlier) {
+			return nil, nil, false
+		}
+	}
+	var phi Expr
+	and := func(q Expr) {
+		if phi == nil {
+			phi = q
+		} else {
+			phi = &And{Xs: []Expr{phi, q}}
+		}
+	}
+	if !literalEnd(lo) {
+		and(&Apply{Fn: &Var{Name: "<="}, Args: []Expr{lo, x}})
+		lo = &Var{Name: "-inf"}
+	}
+	if !literalEnd(hi) {
+		and(&Apply{Fn: &Var{Name: "<="}, Args: []Expr{x, hi}})
+		hi = &Var{Name: "+inf"}
+	}
+	if phi == nil {
+		return nil, nil, false
+	}
+	return &Apply{Fn: a.Fn, Args: []Expr{lo, hi}}, phi, true
+}
+
+// literalEnd is an end no variable stands in: a literal, an infinity, or an
+// arithmetic of literals the reader folds (`2^20`).
+func literalEnd(e Expr) bool {
+	switch e := e.(type) {
+	case *Lit:
+		return true
+	case *Var:
+		return e.Name == "+inf" || e.Name == "-inf"
+	case *Apply:
+		if _, ok := e.Fn.(*Var); !ok {
+			return false
+		}
+		for _, a := range e.Args {
+			if !literalEnd(a) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// PlantTelescopeRefused leaves a range with a term end as it is written, as
+// before: `i ∈ 0..len(a)-1` is then no type (TestATelescopeIsASeparation).
+var PlantTelescopeRefused bool
+
+// namesOnly says every variable standing in e's arguments is one of names.
+func namesOnly(e Expr, names map[string]bool) bool {
+	switch e := e.(type) {
+	case *Lit:
+		return true
+	case *Var:
+		return names[e.Name] || e.Name == "+inf" || e.Name == "-inf"
+	case *Apply:
+		if _, ok := e.Fn.(*Var); !ok {
+			return false
+		}
+		for _, a := range e.Args {
+			if !namesOnly(a, names) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }

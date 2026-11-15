@@ -212,10 +212,19 @@ func showAt(t *Term, min int) string {
 		if v, ok := bigLiteralValue(t); ok {
 			return v
 		}
+		// A READ, as J writes it (IndexShow): `t[i]`, not the application
+		if len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == IndexShow {
+			return ShowIndex(t.Kids[1], t.Kids[2])
+		}
 		return showApp(t, min)
 	}
 	return t.String()
 }
+
+// IndexShow marks, for a message only, an application that is a table's read:
+// in a first-order residual a variable applied to one argument is one, and J
+// writes it `t[i]` (book finding 7: the word-overflow hint's `acc + t(i)`).
+const IndexShow = "#index-show"
 
 // bigLiteralValue is a literal past int64, which the core holds as Horner's
 // spine over 10¹⁵ (bigLiteral), as the decimal it was written as. Only the
@@ -481,4 +490,22 @@ func quoteJ(s string) string {
 	}
 	b.WriteByte('"')
 	return b.String()
+}
+
+// SetJName is a variant's name as J writes it, the inverse of the reader's
+// unsetName: each `-`-separated part of the last segment capitalized and
+// joined, `os-error` is OsError and `shape` Shape.
+func SetJName(n string) string {
+	prefix, last := "", n
+	if i := strings.LastIndex(n, "."); i >= 0 {
+		prefix, last = n[:i+1], n[i+1:]
+	}
+	var b strings.Builder
+	for _, part := range strings.Split(last, "-") {
+		if part == "" {
+			continue
+		}
+		b.WriteString(strings.ToUpper(part[:1]) + part[1:])
+	}
+	return prefix + b.String()
 }

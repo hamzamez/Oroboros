@@ -815,9 +815,18 @@ func readSum(t *Term) (*Sum, error) {
 		case k.Kind == KApp && len(k.Kids) == 2 &&
 			k.Kids[0].Kind == KName && k.Kids[1].Kind == KName:
 			v = Variant{Name: k.Kids[0].Name, Payload: k.Kids[1].Name}
+		// A PAYLOAD THAT IS A RANGE is a set the constructor would have to
+		// enforce on its argument, a contract no constructor has yet, so it is
+		// refused, in J (book finding 7)
+		case k.Kind == KApp && len(k.Kids) == 2 && k.Kids[0].Kind == KName && TypeName(k.Kids[1]) != "":
+			return nil, fmt.Errorf("set %s: a constructor's payload is a set's name, as in 'ok(Int); "+
+				"'%s(%s) gives a range, which a payload does not take: a constructor has no contract "+
+				"to decide it. Name the set, Int, and claim the range where the value is made, "+
+				"`r ∈ %s = …`", SetJName(sum.Name), ShowName(k.Kids[0].Name), ShowSet(TypeName(k.Kids[1])),
+				ShowSet(TypeName(k.Kids[1])))
 		default:
-			return nil, fmt.Errorf("variant %s: a constructor is a name, or a name and one "+
-				"payload type — `(ok int)`; got %s", sum.Name, k)
+			return nil, fmt.Errorf("set %s: a constructor is a tag, or a tag and one payload set, as in "+
+				"'ok(Int); got %s", SetJName(sum.Name), ShowTerm(k))
 		}
 		if seen[v.Name] {
 			return nil, fmt.Errorf("variant %s: %s is declared twice", sum.Name, v.Name)

@@ -496,7 +496,9 @@ since today reads files through code written in the language itself. It also say
    - `use Geometry` finding `geometry.oro` only on Windows;
    - `true = 1` accepted and ignored;
    - an impure primitive evaluated at compile time;
-4. **what the grammar promises and the reader refuses, and the diagnostics** (same list):
+4. ~~**what the grammar promises and the reader refuses, and the diagnostics**~~ **done 2026-11-15**
+   ([surface-2026-11-15](gauntlet/results/surface-2026-11-15.md)): each of these now builds, or is
+   refused in the program's own notation, and no program's code changed:
    - prefix `-n`;
    - a range bounded by a parameter or a constant (`i ∈ 0..len(a)-1`, `0..cap`);
    - a top-level value with a claim;

@@ -219,6 +219,14 @@ func (c *linChecker) storeTarget(p Prim, args []*core.Term, env, taken map[strin
 	if (p.Kind != "table-set" && p.Kind != "map-insert") || len(args) == 0 || c.isBuf(args[0], env, taken) {
 		return nil
 	}
+	// `x := v` WITH NO INDEX writes a cell, a `var`'s (the two-argument set,
+	// desugar.go): its place is no table, and the fault is that it is no
+	// `var` (book finding 4), where the message below said "a frozen table"
+	if p.Kind == "table-set" && len(args) == 2 {
+		return fmt.Errorf("`:=` writes a `var`, and the place written here, %s, is none: a name bound "+
+			"with `=` is a value, which never changes (ADR 0047). Declare it with `var x := …` where it "+
+			"is bound, or bind the new value to a new name", core.ShowTerm(args[0]))
+	}
 	what, scope := "table", "`var b := array { 0 : _ ∈ 0..n-1 }`"
 	if p.Kind == "map-insert" {
 		what, scope = "map", "`var m := map(cap)`"

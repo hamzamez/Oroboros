@@ -148,12 +148,17 @@ term    ::= name                                 ; variable or global reference
           | "(" "seq" term term+ ")"             ; sugar:  (seq a b) ⟶ ((fn (_) b) a)
           | "(" term term* ")"                   ; application
 
-literal ::= integer | float | string
+literal ::= integer | numeral | string | boolean
 ```
 
-**Six term kinds** — name, integer, float, string, abstraction, application. (The *representation*
-has a seventh, `KBound`, which no program can write; see [state.md §1](state.md).) `let` and `seq` are
-erased by the reader and never reach the reducer.
+**Seven term kinds** — name, integer, numeral, string, Boolean, abstraction, application, as
+[state.md §1](state.md) reads them off the code. This section first said six: `true` and `false`
+became a kind of their own with [ADR 0017](../decisions/0017-booleans-are-in-the-language.md), and
+the float became the numeral, an exact element of ℤ[1/10], with
+[ADR 0086](../decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md)
+(corrected 2026-11-15, the book's 10-06 pass, finding 5). The *representation* has an eighth,
+`KBound`, which no program can write. `let` and `seq` are erased by the reader and never reach the
+reducer.
 
 `()` is **not a term**, and **is** a legal parameter list: `(fn () b)` is the nullary abstraction a
 program's entry point has to be ([build.md §2](build.md)).

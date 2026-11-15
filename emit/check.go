@@ -399,7 +399,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 					"Floats are excluded because NaN is not an equivalence relation, "+
 					"and strings because no two of the four targets agree on comparing "+
 					"them (docs/spec/strings.md). For a host's own equality, name it: "+
-					"go.`==`, js.`===`, java.`==`, x64.sete — that is target-native "+
+					"go.`==`, js.`===` or java.`==` — that is target-native "+
 					"and carries no portability claim", i+1, err)
 			}
 			return "", fmt.Errorf("in argument %d of %s: %w", i+1, core.ShowName(spelled(op.Name)), err)

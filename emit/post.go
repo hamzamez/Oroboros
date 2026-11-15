@@ -219,3 +219,57 @@ func mentionsOtherComponent(t *core.Term, comps, one int) bool {
 	}
 	return false
 }
+
+// A RULE AT AN EXPORT'S BOUNDARY IS ITS EXTENSION (ADR 0115, book finding 6).
+// "Representation is free in the interior and fixed at the boundary" (g5 §1):
+// a table an export returns is the host's array, so a rule `table(n, f)` in its
+// result position is `alloc(table(n, f))`, the one representation the boundary
+// has. In the interior a rule is fused or the author writes `alloc`, where the
+// cost is a choice (construction.md); a kept function's boundary is the
+// compiler's, so it is not rewritten there, and P4 inlines instead.
+func MaterializeResult(t *core.Term) *core.Term {
+	if PlantRuleAtBoundary || t == nil || t.Kind != core.KFn {
+		return t
+	}
+	return core.Fn(t.Params, materialize(t.Body()))
+}
+
+// PlantRuleAtBoundary leaves a rule in an export's result as it is: lowering
+// then refuses it as never allocated (TestARuleAtTheBoundaryIsItsExtension).
+var PlantRuleAtBoundary bool
+
+func materialize(t *core.Term) *core.Term {
+	if t == nil {
+		return t
+	}
+	if t.Kind == core.KFn && len(t.Params) == 1 {
+		// a tuple, λk. k v⃗: each component is a tail
+		if b := t.Body(); b.Kind == core.KApp && b.Op().Kind == core.KName && b.Op().Name == t.Params[0] {
+			kids := []*core.Term{b.Kids[0]}
+			for _, v := range b.Args() {
+				kids = append(kids, materialize(v))
+			}
+			return core.Fn(t.Params, &core.Term{Kind: core.KApp, Kids: kids})
+		}
+		return t
+	}
+	if t.Kind != core.KApp {
+		return t
+	}
+	op, args := t.Op(), t.Args()
+	switch {
+	case op.Kind == core.KName && op.Name == "table" && len(args) == 2:
+		return core.App(core.Name("alloc"), t)
+	case op.Kind == core.KName && op.Name == "if" && len(args) == 3:
+		return core.App(op, args[0], materialize(args[1]), materialize(args[2]))
+	case op.Kind == core.KName && op.Name == "let" && len(args) == 2 && args[1].Kind == core.KFn:
+		return core.App(op, args[0], core.Fn(args[1].Params, materialize(args[1].Body())))
+	case core.IsRequireWhere(t):
+		return &core.Term{Kind: core.KApp, Kids: []*core.Term{t.Kids[0], t.Kids[1], t.Kids[2], materialize(t.Kids[3])}}
+	case op.Kind == core.KFn && len(op.Params) == len(args):
+		return &core.Term{Kind: core.KApp, Kids: append([]*core.Term{core.Fn(op.Params, materialize(op.Body()))}, args...)}
+	case op.Kind == core.KApp && len(args) == 1 && args[0].Kind == core.KFn:
+		return core.App(op, core.Fn(args[0].Params, materialize(args[0].Body())))
+	}
+	return t
+}

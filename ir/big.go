@@ -528,7 +528,7 @@ func (g *bigs) word(v V, where string) {
 		"docs/unbounded-rung.md).\n"+
 		"  A range above the word is a WIDENING, not a refinement: a value that may leave the machine "+
 		"word cannot silently be used where an `int` is required, and this refusal is where that is "+
-		"said. Widen the destination, or take the value to a string with `big-str`.",
+		"said. Widen the destination, or take the value to a string with `big_str`.",
 		where, g.tg.Name, g.tg.Word)
 }
 
@@ -709,7 +709,11 @@ func (g *bigs) stmt(s *Stmt) {
 	case s.Op == OCall:
 		p := g.tg.Prims[s.Name]
 		for j, a := range s.Args {
-			if j >= len(p.Args) || p.Kind == "stmt" {
+			// A STATEMENT'S TEMPLATE READS ITS ARGUMENTS as an expression's
+			// does, so its word parameter demands the word too: skipped, a big
+			// value reached Go's `fmt.Println(${n})` and was refused by W5 in
+			// the verifier's words (book finding 3)
+			if j >= len(p.Args) || (p.Kind == "stmt" && PlantStmtArgsUnasked) {
 				continue
 			}
 			// RENDERING IS ℤ's AT EVERY SORT (ADR 0095): on a target with no
@@ -720,7 +724,7 @@ func (g *bigs) stmt(s *Stmt) {
 			if s.Name == "big-str" && !g.tg.HasBig() {
 				continue
 			}
-			what := fmt.Sprintf("argument %d of %s", j+1, s.Name)
+			what := fmt.Sprintf("argument %d of %s", j+1, core.ShowName(s.Name))
 			switch ty := p.Args[j]; {
 			case g.bigType(ty):
 				s.Args[j] = g.widen(a, what)
@@ -864,3 +868,8 @@ func BigOps(f *Func) int {
 	})
 	return n
 }
+
+// PlantStmtArgsUnasked skips a statement primitive's arguments, as before: a
+// big value then reaches a word parameter, refused only by W5
+// (TestABigValueAtAWordParameterIsRefusedInTheProgramsTerms).
+var PlantStmtArgsUnasked bool

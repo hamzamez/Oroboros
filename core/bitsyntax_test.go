@@ -23,7 +23,7 @@ func TestTheBitOperatorsReadAtGosLevels(t *testing.T) {
 		"a ⊕ b * c":         "(⊕ a (* b c))",
 		"a + b << 2":        "(+ a (<< b 2))",
 		"(h ⊕ b) * p mod m": "(mod (* (⊕ h b) p) m)",
-		"-x & y":            "(& (- x) y)",
+		"-x & y":            "(& (- 0 x) y)", // −x is 0 − x, the additive inverse (book finding 5)
 	} {
 		term, err := ReadTerm(src)
 		if err != nil {

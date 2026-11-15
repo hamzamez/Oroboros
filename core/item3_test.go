@@ -65,3 +65,33 @@ func TestAModulePathIsResolvedCaseExactly(t *testing.T) {
 		t.Errorf("with the file system's comparison, on a case-insensitive one: Geometry not found; want geometry.oro")
 	}
 }
+
+// A DEAD PURE BINDING IS DROPPED (the book's finding 12, ADR 0071). β binds a
+// pure argument used under a λ; once staging applies the λ the use may be gone,
+// and a pure value nothing reads is dropped after the body's normal form, as
+// before it: snd(pair(x(), y())) is y(). THE PLANTED FAULT keeps the binding.
+func TestADeadPureBindingIsDropped(t *testing.T) {
+	reduce := func() string {
+		forms, err := Read("fn pair(a, b) { fn(sel) { sel(a, b) } }\nfn snd(p) { p(fn(a, b) { b }) }\nt = fn() { snd(pair(x(), y())) }\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		prog, _, err := Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nf, err := Normalize(prog.Defs["t"], testEnv(prog, "x", "y"), DefaultFuel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ShowTerm(nf)
+	}
+	if got := reduce(); strings.Contains(got, "x()") {
+		t.Errorf("snd(pair(x(), y())): %s, want y() alone", got)
+	}
+	PlantKeepDeadLet = true
+	defer func() { PlantKeepDeadLet = false }()
+	if got := reduce(); !strings.Contains(got, "x()") {
+		t.Errorf("with the dead binding kept: %s, want x() bound", got)
+	}
+}

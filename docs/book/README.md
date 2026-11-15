@@ -158,7 +158,9 @@ first. None is fixed here; each is a defect or a question for its own step. **Pl
 (README.md's "Current work"): the wrong answers, 1, 2, 10, 15, 17, 19, 20 and the 10-06 pass's 3,
 were its item 3, and are **fixed 2026-11-15** ([bookfix-2026-11-15](../../gauntlet/results/bookfix-2026-11-15.md),
 each with a planted fault); the surface's promises and the diagnostics, 3–7, 9, 11–14, 16, 21 and
-the 10-06 pass's 4–5, are its item 4. 8 and 18 were fixed with their chapters.
+the 10-06 pass's 4–5, were its item 4, and are **fixed 2026-11-15**
+([surface-2026-11-15](../../gauntlet/results/surface-2026-11-15.md)), except 7's range payload, refused
+now in J until a constructor has a contract. 8 and 18 were fixed with their chapters.
 
 1. **`len(s)` of a `String` compiles, to three different answers**: Go's `len` (bytes), and `.length`
    on JavaScript and Java (UTF-16 units). [state.md §3](../spec/state.md) says string length is not in

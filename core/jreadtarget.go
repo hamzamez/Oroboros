@@ -24,7 +24,7 @@ func ReadTarget(src, target, dir, root string) ([]*Term, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[Expr]*big.Int{}, indexed: map[Expr]bool{}}
+	p := &parser{toks: toks, sets: map[string]string{"Option": "option"}, folded: map[Expr]*big.Int{}, indexed: map[Expr]bool{}, target: true}
 	p.registerSets(src, dir, root)
 	p.x86 = numberedHoles(target)
 	forms, err := p.targetItems()

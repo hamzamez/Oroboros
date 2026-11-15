@@ -653,7 +653,12 @@ fn qrem(ml, a, off, k) {
     }
 }
 
-fn render(ml, a) {
+// RENDER, the change of basis to β = 10^18 (radix-research.md, ADR 0111): by
+// the tree of divisions from rt words, by repeated short division below
+rt = 32
+fn render(ml, a) { if size(a) >= rt { render2(ml, a) } else { render1(ml, a) } }
+
+fn render1(ml, a) {
     n = 20 * len(a) + 18
     case {
         n > ml -> abandon("out of memory: an integer longer than the largest table")
@@ -887,6 +892,295 @@ fn div(ml, a, b) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+// THE TREE OF DIVISIONS (radix-research.md §4). Printing is ε_β⁻¹ ∘ ε_B, β =
+// 10^18, and with P_j = β^(2^j), x = q·P_j + r splits x's base-β digits in
+// two: r's the low 2^j, q's the high. Recursing gives a balanced tree whose
+// shape is x's size's alone, so it is a loop over levels (ADR 0014): level L
+// is one table of 2^L slots, each node below P_{J−L}², split by P_{J−L} with
+// Algorithm D in place (below), the low child the remainder and the high the
+// quotient. The last level splits nodes below β² by
+// β, one 2-by-1 division a node. The powers come by squaring (ADR 0110).
+
+// β = 10^18, the largest power of 10 below 2^62: a constant divisor the
+// double word takes directly (10^19 is above it, a word for the 2-by-1
+// division, whose premise a rule's body did not carry)
+kb = 1000000000000000000
+
+// the powers P_0 … P_J, each in a slot of w words: its size, then its digits
+fn kpows(ml, jt, w) {
+    n = room(ml, (jt + 1) * w)
+    var o := array { 0 : _ ∈ 0..n - 1 }
+    loop j = 0, p = of(ml, kb) {
+        j > jt -> o
+        else -> { kput(o, p, j * w, w); again(j + 1, sqr(ml, p)) }
+    }
+}
+fn kput(o linear, p, b0, w) {
+    m = size(p)
+    b = if b0 < 0 { 0 } else { b0 }
+    loop i = 0 {
+        i > m || i >= w -> ()
+        else -> { wr(o, b + i, if i == 0 { m } else { dig(p, i - 1) }); again(i + 1) }
+    }
+}
+// P_j's size, from its slot, against the slot's width once
+fn ksz(pt, j, w) { m = kat(pt, j * w); if m > w - 1 { w - 1 } else { m } }
+// P_j as a numeral, from its slot
+fn kpow(pt, j, w) {
+    m = ksz(pt, j, w)
+    alloc(array { if i == m { signed(0, m) } else { kat(pt, j * w + 1 + i) } : i ∈ 0..m })
+}
+
+// ALGORITHM D IN PLACE, a level at a time (radix-research.md §4). A node u of
+// level j is below P_j² ≤ P_j·B^k, k = size(P_j), so u′ = u·2^s < v·B^k for the
+// normalized divisor v = P_j·2^s: u′'s word 2k is 0, the quotient has k digits,
+// positions k − 1 down to 0, and the window of step jq is U[jq .. jq + k]. After
+// the step the window is below v < B^k, so its top word U[jq + k] is 0, and the
+// quotient digit is stored there: at the node's end its slot holds the
+// remainder·2^s in words 0 .. k − 1 and the quotient in words k .. 2k − 1. No
+// step allocates. D4 leaves the window in (−2v, v), so in k + 1 words of
+// complement it is negative exactly when its top word is not 0: D6 adds v back
+// while it is, at most twice (Theorem B). Word 2k, 0 in u′ and below every
+// window, holds q̂ while D6 counts it down, (q̂ − 1) mod B, so no loop variable
+// carries a digit (one in [0, 2^64) is no `Int`).
+
+// the normalized node: u′_i = ((u_i·B + u_{i−1}) >> (64 − s)) mod B, pointwise,
+// the slot's digits 0 off it
+fn kun(t, w, w2, sh, i) {
+    b = (i / w2) * w
+    p = i % w2
+    hi = kslot(t, b, w, p) & dm
+    lo = kslot(t, b, w, p - 1) & dm
+    ((hi * 4611686018427387904 * 4 + lo) >> (64 - sh)) & dm
+}
+
+// D3: q̂ from the window's top three words and v's top two, at most B − 1,
+// refined twice; the reads state the digit's invariant as their mask
+fn kq4(u2, u1, u0, v, k) {
+    vt = pdig(v, k - 1) & dm
+    v2 = pdig(v, k - 2) & dm
+    w2 = u2 & dm
+    w1 = u1 & dm
+    w0 = u0 & dm
+    case {
+        vt < 1 -> 0
+        w2 >= vt -> dm
+        else -> {
+            top = w2 * 4611686018427387904 * 4 + w1
+            q0 = top / vt
+            rh = top % vt
+            case {
+                q0 >= 1 && q0 * v2 > rh * 4611686018427387904 * 4 + w0 -> {
+                    q1 = q0 - 1
+                    rh1 = rh + vt
+                    if rh1 <= dm && q1 >= 1 && q1 * v2 > rh1 * 4611686018427387904 * 4 + w0 { q1 - 1 } else { q1 }
+                }
+                else -> q0
+            }
+        }
+    }
+}
+
+// D4: U[b .. b + k] −= q·v, the borrow chained into the top word. The row bounds
+// what it reads and writes once (kmac's idiom), the identity on every node.
+fn kmsubrow(o linear, b0, v, k0, q) {
+    b = if b0 < 0 { 0 } else { b0 }
+    lo = len(o) - b - 1
+    lv = len(v) - 1
+    k1 = if k0 > lo { lo } else { k0 }
+    k = if k1 > lv { lv } else { k1 }
+    loop i = 0, pc = 0, bw = 0 {
+        i >= k -> if b + k >= 0 { t = o[b + k] - pc - bw; o[b + k] := t & dm } else { () }
+        else -> {
+            p = q * v[i] + pc
+            t = o[b + i] - (p & dm) - bw
+            o[b + i] := t & dm
+            again(i + 1, p >> 64, if t < 0 { 1 } else { 0 })
+        }
+    }
+}
+
+// D6: U[b .. b + k] += v, the carry into the top word, mod B there: it cancels
+// the complement
+fn kaddrow(o linear, b0, v, k0) {
+    b = if b0 < 0 { 0 } else { b0 }
+    lo = len(o) - b - 1
+    lv = len(v) - 1
+    k1 = if k0 > lo { lo } else { k0 }
+    k = if k1 > lv { lv } else { k1 }
+    loop i = 0, c = 0 {
+        i >= k -> if b + k >= 0 { o[b + k] := (o[b + k] + c) & dm } else { () }
+        else -> {
+            t = o[b + i] + v[i] + c
+            o[b + i] := t & dm
+            again(i + 1, t >> 64)
+        }
+    }
+}
+
+// the next level from the divided one: slot 2j node j's remainder, unnormalized,
+// ((r′_{i+1}·B + r′_i) >> s) mod B, r′'s word k being 0; slot 2j + 1 its quotient
+fn kout(u, w2, k, sh, w1, i) {
+    j = i / (2 * w1)
+    x = i % (2 * w1)
+    b = j * w2
+    case {
+        x < w1 && x < k -> {
+            cur = kslot(u, b, w2, x) & dm
+            nxt = if x + 1 < k { kslot(u, b, w2, x + 1) & dm } else { 0 }
+            ((nxt * 4611686018427387904 * 4 + cur) >> sh) & dm
+        }
+        x < w1 -> 0
+        x - w1 < k -> kslot(u, b, w2, k + x - w1) & dm
+        else -> 0
+    }
+}
+
+// a node's significant length L, from the frozen level: u′ < B^(L+1) and v ≥
+// B^(k−1)·2^63, so q < B^(L−k+2), and the steps above jq₀ = min(k − 1, L + 1 − k)
+// are of a zero window, q̂ = 0, their digit's word already 0: the first step
+// of node j is jq₀, and jq₀ < 0 is a node below P_j, its quotient 0
+fn knlen(t, b, w) {
+    loop i = w - 1 {
+        i < 0 -> 0
+        (kslot(t, b, w, i) & dm) != 0 -> i + 1
+        else -> again(i - 1)
+    }
+}
+fn kst(sz, j, k) {
+    l = if j >= 0 && j < len(sz) { sz[j] } else { 2 * k }
+    s = l + 1 - k
+    if s > k - 1 { k - 1 } else { s }
+}
+
+// ONE LEVEL: every node of t (slots of 2k words) divided by P_j, whose
+// normalized form is v (k ≥ 2 digits, shift s), into 2·nodes slots of w1 words.
+// One loop over nodes × quotient digits, each step D3 and D4 then D6 until the
+// window's top word is 0, then the digit stored there.
+fn kdlevel(ml, t, nodes, v, k, sh, w0) {
+    // w0 = 2·size(P_{j−1}) ≥ 2: the clamp is the identity, stated for kout's /
+    w1 = if w0 < 1 { 1 } else { w0 }
+    w = 2 * k
+    w2 = 2 * k + 1
+    n = room(ml, nodes * w2)
+    sz = alloc(array { knlen(t, j * w, w) : j ∈ 0..room(ml, nodes) - 1 })
+    u = {
+        var o := array { kun(t, w, w2, sh, i) : i ∈ 0..n }
+        // the slot's base sb = j·w2 is carried, so every index is linear in
+        // it: sb + w2 ≤ n and jq ≤ k − 1 put the window's top, sb + jq + k ≤
+        // sb + w2 − 2, inside the buffer, and k ≥ 2 (P_j ≥ β² > B) its
+        // bottom, sb + jq + k − 2 ≥ 0
+        loop j = 0, sb = 0, jq = kst(sz, 0, k), ph = 0 {
+            k < 2 || sb + w2 > n -> o
+            jq < 0 -> again(j + 1, sb + w2, kst(sz, j + 1, k), 0)
+            ph == 0 -> {
+                tp = sb + jq + k
+                qh = kq4(o[tp], o[tp - 1], o[tp - 2], v, k)
+                o[sb + w] := qh
+                kmsubrow(o, sb + jq, v, k, qh)
+                again(j, sb, jq, 1)
+            }
+            o[sb + jq + k] != 0 -> {
+                o[sb + w] := (o[sb + w] - 1) & dm
+                kaddrow(o, sb + jq, v, k)
+                again(j, sb, jq, 1)
+            }
+            else -> {
+                o[sb + jq + k] := o[sb + w] & dm
+                again(j, sb, jq - 1, 0)
+            }
+        }
+    }
+    n1 = room(ml, 2 * nodes * w1)
+    alloc(array { kout(u, w2, k, sh, w1, i) : i ∈ 0..n1 - 1 })
+}
+
+// THE LAST LEVEL: nodes below β² (slots of 2 words) split by β, the 2-by-1
+// division: digit 2j the remainder, digit 2j + 1 the quotient, so the table is
+// x's base-β digits, least significant first. Each read states the digit's
+// invariant as its mask (the reads' idiom above), since the level loop's
+// table carries no element bound across its iterations; and a node below β²
+// has hi < β, the 2-by-1 division's domain (the two-digit lemma), stated as
+// the guard qhat states it, its other arm unreached by any node
+fn kdlast(ml, t, nodes) {
+    n = room(ml, 2 * nodes)
+    alloc(array {
+        {
+            hi = kslot(t, 2 * (i / 2), 2, 1) & dm
+            lo = kslot(t, 2 * (i / 2), 2, 0) & dm
+            case {
+                hi >= kb -> 0
+                else -> {
+                    u = hi * 4611686018427387904 * 4 + lo
+                    q = u / kb
+                    r = u % kb
+                    if i % 2 == 0 { r } else { q }
+                }
+            }
+        }
+        : i ∈ 0..n - 1 })
+}
+
+// x's base-β digits, least significant first, by the tree of divisions
+fn kdigits(ml, a) {
+    m = size(a)
+    // the base-β digits number at most m + m/14 + 1 (log_β B = 64/59.79 <
+    // 1 + 1/14), and x < P_J² once 2^(J+1) reaches it
+    lim = m + m / 14 + 1
+    jt0 = loop t = 0, p = 1 { p >= lim || t >= 40 -> t; else -> again(t + 1, 2 * p) }
+    jt = if jt0 < 1 { 0 } else { jt0 - 1 }
+    pw = room(ml, m + 2)
+    pt = kpows(ml, jt, pw)
+    kj = ksz(pt, jt, pw)
+    t0 = alloc(array { dg(a, len(a) - 1, i) : i ∈ 0..2 * kj - 1 })
+    loop j = jt, t = t0, nodes = 1 {
+        // the machine's bound, as room's: 2^24 nodes are 2^24 base-β digits
+        nodes > 16777216 -> abandon("out of memory: an integer longer than the largest table")
+        j < 1 -> kdlast(ml, t, nodes)
+        else -> {
+            p = kpow(pt, j, pw)
+            k = size(p)
+            sh = nshift(dig(p, k - 1))
+            v = mul_small(ml, p, 1 << sh)
+            cw = 2 * ksz(pt, j - 1, pw)
+            again(j - 1, kdlevel(ml, t, nodes, v, k, sh, cw), 2 * nodes)
+        }
+    }
+}
+
+// the text of x from its base-β digits: 18 characters a digit, most
+// significant first, then render1's stripping of leading zeros and the sign
+fn render2(ml, a) {
+    dt = kdigits(ml, a)
+    n = 18 * len(dt) + 20
+    case {
+        n > ml -> abandon("out of memory: an integer longer than the largest table")
+        else -> {
+            f = {
+                var b := array { 48 : _ ∈ 0..n - 1 }
+                loop k = 0, r = 0 {
+                    k >= n - 1 -> b
+                    k % 18 == 0 -> {
+                        d = kat(dt, k / 18)
+                        b[n - 1 - k] := 48 + d % 10
+                        again(k + 1, d / 10)
+                    }
+                    else -> {
+                        b[n - 1 - k] := 48 + r % 10
+                        again(k + 1, r / 10)
+                    }
+                }
+            }
+            neg = sgn(a) == 1
+            loop l = n - 1 {
+                l <= 1 -> if neg { numeral(f, n, 2, 1) } else { numeral(f, n, 1, 0) }
+                f[n - l] != 48 -> if neg { numeral(f, n, l + 1, 1) } else { numeral(f, n, l, 0) }
+                else -> again(l - 1)
             }
         }
     }

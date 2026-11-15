@@ -2963,3 +2963,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) accepted SLOWER — compile time 1.04x the baseline (median of 25 compiles over 300 ms); a second sweep kept 3 of 3 suspect(s); paired serially against the baseline's binary (e5d5f84), 1 confirmed, gauntlet/differential/cases/big-negmid.oro windows cleared at 1.00x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 1.00x paired; the step's phases: sweep 22s, second sweep 18s, the baseline's gen extracted and built 10s, 3 pair(s) × 3 rounds 30s:
 
 - `examples/big/power.oro windows` 3796 → 5890 ms, 1.55x; paired 1656 → 2718 ms, 1.64x
+
+## 2026-11-15 — on de44be9, with uncommitted changes
+
+**Reason:** big-render: K(N*)'s render by a tree of divisions, Algorithm D in place at each node (ADR 0111, radix-2026-11-15); a new differential case on four targets, no other file changed
+
+644 runs: 419 emitted, 225 refused; 5710 of 5764 integer operations bounded, 649 of 673 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/big-render.oro go`
+- new source — `gauntlet/differential/cases/big-render.oro java`
+- new source — `gauntlet/differential/cases/big-render.oro js`
+- new source — `gauntlet/differential/cases/big-render.oro windows`

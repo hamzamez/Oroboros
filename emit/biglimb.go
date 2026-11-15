@@ -103,6 +103,12 @@ var PlantKaratsubaFault bool
 // see every square of two digits or more go wrong.
 var PlantSquareFault bool
 
+// PlantTreeNoAddBack drops the tree of divisions' add-back, D6 in place
+// (radix-research.md §4): q̂ is stored as the digit and the negative window
+// kept. TestPrintingIsATreeOfDivisions must see exactly the two inputs whose
+// nodes are c·P_j − 1, the add-back's shape, go wrong.
+var PlantTreeNoAddBack bool
+
 // loadNatLib is K(ℕ*)'s library, as loadLimbLib.
 func loadNatLib(tgt *Target) (*limbLib, error) {
 	src := natNumSrc
@@ -115,6 +121,14 @@ func loadNatLib(tgt *Target) (*limbLib, error) {
 		src = strings.Replace(src, "u = 2 * kat(tr, 2 * i + 1) + (p >> 64) + (t >> 64)", "u = kat(tr, 2 * i + 1) + (p >> 64) + (t >> 64)", 1)
 		src = strings.Replace(src, "t = 2 * kslot(tr, b, 2 * m, 2 * i) + (p & dm) + c", "t = kslot(tr, b, 2 * m, 2 * i) + (p & dm) + c", 1)
 		src = strings.Replace(src, "u = 2 * kslot(tr, b, 2 * m, 2 * i + 1) + (p >> 64) + (t >> 64)", "u = kslot(tr, b, 2 * m, 2 * i + 1) + (p >> 64) + (t >> 64)", 1)
+	}
+	if PlantTreeNoAddBack {
+		src = strings.Replace(src, `            o[sb + jq + k] != 0 -> {
+                o[sb + w] := (o[sb + w] - 1) & dm
+                kaddrow(o, sb + jq, v, k)
+                again(j, sb, jq, 1)
+            }
+`, "", 1)
 	}
 	if PlantNoAddBack {
 		src = strings.Replace(src, "fn fix1(ml, t, v, n) { if pdig(t, n + 1) == 1 { addv(ml, t, v, n) } else { t } }",

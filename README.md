@@ -616,8 +616,10 @@ says why the next is what it is.
      1.57×; per operation it is still 3–4× Go's, the inner loop of a product
      ([kernels-research.md](docs/kernels-research.md)): that loop can be written in the language,
      and LLVM cannot keep its two carries in two flags, so a target that names its CPU will print it
-     as assembly. That is decided and postponed; next is printing big numbers by divide and conquer;
-     then file
+     as assembly. That is decided and postponed; since 2026-11-15 big numbers are printed by divide
+     and conquer, each division done in place
+     ([radix-2026-11-15](gauntlet/results/radix-2026-11-15.md)), which takes 20,000! from 2.8× Go's
+     time to 1.3× and printing the millionth Fibonacci number from 502 ms to 106; then file
      access, and the benchmarks at hand-written speed there;
      then the test harness re-running what it skips, so that a skip whose reason is no longer true is
      found, assembling every Windows file it writes, and comparing the Windows text of the

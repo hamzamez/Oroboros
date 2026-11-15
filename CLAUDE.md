@@ -62,6 +62,13 @@ program may or may not have, and the compiler computes it.
   shipped included; a refusal test states its reason, is checked for it, and computes its premise; a
   check refuses something false before it is trusted to pass something true.
 - **Every experiment gets a time limit.**
+- **Every step keeps a ledger** (hamza, 2026-11-15: "if we are going to pay a cost, I would like we
+  know what we paid, and what for"): a result document's **Paid and bought** names compile time, run
+  time, code size, proofs, refusals changed, compiler and language lines, emitted text changed per
+  target, and any rule made less general, each measured or named as owed. An unmeasured cost is not
+  zero.
+- **An assessment at least every ten days or 30 commits**, whichever comes first, even when a plan
+  has grown rather than finished (assessment-2026-11-15 §3.4).
 - **Keep documents current.** A stale status line is worse than none; fix it when the thing ships.
 
 ## Primary documents
@@ -87,8 +94,10 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 [gauntlet/results/](gauntlet/results/) are the authority: every design claim here not measured has been
 wrong about half the time.
 
-**The current assessment is [assessment-2026-10-24.md](docs/assessment-2026-10-24.md)**; read it
-before planning. Previous: [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
+**The current assessment is [assessment-2026-11-15.md](docs/assessment-2026-11-15.md)**; read it
+before planning. Its plan (§5): P8 with its ledger, the gauntlet on four targets, the harness, the
+file programs on windows, the second triple, TinyRetroPad, then CLAUDE.md as state again. Previous:
+[10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
 [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
 [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md),
 [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md),

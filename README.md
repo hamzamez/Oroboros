@@ -471,9 +471,20 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 ## Current work
 
 *Updated with the plan; last updated 2026-11-15.* The current assessment,
-[docs/assessment-2026-10-24.md](docs/assessment-2026-10-24.md), scores the last plan (finished: two
-defects every program had fixed, two kinds of claim made true, and `wc`, a word count over files) and
-says why the next is what it is.
+[docs/assessment-2026-11-15.md](docs/assessment-2026-11-15.md), scores the 10-24 plan below. Over three
+weeks Windows became a real target: it prints LLVM IR, runs big integers without a host library, and
+since today reads files through code written in the language itself. It also says what did not move.
+**The next plan**, in order:
+1. keep a ledger of what each step costs and what it buys;
+2. let the compiler keep a program's definitions as functions instead of copying them into every
+   call (P8), its costs measured, so that the file programs can build on Windows;
+3. benchmark the seven gauntlet programs on all four targets again;
+4. make the test harness catch stale skips and assemble every Windows file;
+5. run the file programs on Windows at hand-written speed;
+6. 32-bit Windows;
+7. TinyRetroPad's Windows surface, then its walls.
+
+The 10-24 plan, as it stands:
 
 1. ~~**The documents tell the truth.**~~ **Done 2026-10-25**
    ([docs-2026-10-25](gauntlet/results/docs-2026-10-25.md)): the grammar's status says what is built and

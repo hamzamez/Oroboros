@@ -1,0 +1,8 @@
+fn total(n) {
+    loop i = 0, acc = 0 {
+        i < n -> again(i + 1, h(acc, i))
+        else  -> acc
+    }
+}
+
+export fn run(n) { total(n) }

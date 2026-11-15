@@ -1,0 +1,11 @@
+fn nil(c, n) { n }
+
+fn cons(hd, tl) { fn(c, n) { c(hd, tl(c, n)) } }
+
+fn total(l) { l(fn(a, b) { h(a, b) }, 0) }
+
+fn mapl(k, l) { fn(c, n) { l(fn(a, b) { c(k(a), b) }, n) } }
+
+export fn summed() { total(cons(1, cons(2, cons(3, nil)))) }
+
+export fn mapped(u, v) { total(mapl(g, cons(u, cons(v, nil)))) }

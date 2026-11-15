@@ -1,0 +1,7 @@
+fn double(n) { h(n, 2) }
+
+export fn plain() { double(5) }
+
+export fn a_parameter() { fn(double) { double(5) } }
+
+export fn a_binding() { double = f; double(5) }

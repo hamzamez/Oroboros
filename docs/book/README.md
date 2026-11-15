@@ -10,18 +10,20 @@ the chapters are being rewritten for it in order:
 |---|---|---|
 | 0 | J, the language as decided and built | 2026-11-10, by `check.go` (below): 58 blocks, every source, emitted function, refusal and output |
 | 1 | J | 2026-11-10, by `check.go`: 76 blocks, every source, reduction, emitted function and refusal |
-| 2–4 | the notation J replaced (git `1e2bdcd`) | 2026-10-06, in that notation; their examples no longer read |
+| 2 | J | 2026-11-15, by `check.go`: 71 blocks |
+| 3–4 | the notation J replaced (git `1e2bdcd`) | 2026-10-06, in that notation; their examples no longer read |
 | 5 | the notation J replaced | its examples did not run even then; see its banner |
 
 ```bash
 go run docs/book/check.go docs/book/00-tour.md      # from the repository's root
 go run docs/book/check.go docs/book/01-fn.md
+go run docs/book/check.go docs/book/02-def.md
 ```
 
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0 and six in chapter 1, covering each kind of directive but `part`. `cmd/check`
+seven in chapter 0, six in chapter 1 and six in chapter 2, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -46,7 +48,7 @@ choosing where reduction stops is choosing a target.
 |---|---|
 | [0. a tour](00-tour.md) | the whole language for someone arriving from Go, Python, JavaScript, Java, C or Rust: what is like those and what is not. Hello on two hosts, one function on four, blocks, types as sets, integers that are integers, functions that vanish, `loop` and `again`, state and tables, variants, failures as values, tuples, bits, modules and the host, what is absent, and a table from familiar spellings to this one |
 | [1. `fn`](01-fn.md) | the first brick: a function is a value, β, what folds and what waits, what a parameter may be, bound and free names, shadowing and α, capture, exact arity, reduction under a binder, functions as arguments and results and the closure that is refused, how often an argument is evaluated with and without an effect, a block as an applied function, a named function's header and its claims, and Ω |
-| [2. `def`](02-def.md) | naming a term, δ, why a definition duplicates, why a primitive wins, recursion, and what λ-calculus alone can do |
+| [2. definitions](02-def.md) | the second brick: naming a term, with no keyword; δ; a definition copied where a binding is shared; an effect refused; what a name may be, and the names the language owns; every definition checked; parameter, then target, then definition, and why the target winning is the design; no recursion, by a cycle of any length; what reaches the host and what copying costs; then Church's booleans, pairs, numerals and lists, SKK, Kleene's predecessor, Y, and the Church pair in the library |
 | [3. modules](03-modules.md) | `module`, `use`, `export`, the four cells, one namespace for targets and libraries, and why a functor is just a function |
 | [4. effects](04-effects.md) | one declared bit, the β side condition, `seq`, and the substructural logic it turns out to be |
 | [5. types](05-types.md) | the checker that is not in the language, `sig` checked in two directions, refinements, and why our proofs do not transfer — **its examples do not run; see the banner at its head** |
@@ -176,6 +178,19 @@ as they are:
 10. **A result declared `()` accepts a body that yields a value**: `export fn nothing(n ∈ 0..9) () { n }`
     compiles and returns `n`.
 11. **The step limit's message quotes a core term**: *last term head: (fn () (fn (k) k))*.
+
+Chapter 2 in J (2026-11-15) found three, none fixed:
+
+12. **A pure binding nothing reads is left in the residual.** With `fn pair(a, b) { fn(sel) { sel(a, b) } }`
+    and `fn snd(p) { p(fn(a, b) { b }) }`, `snd(pair(x(), y()))` reduces to `{ a = x(); y() }`: the
+    argument was bound because its use stood under a λ, and the binding is kept after the use
+    reduced away. The same before and after item 8's fix.
+13. **A constant in a header's range is refused**, `export fn small(n ∈ 0..1000) (0..cap)` with
+    `cap = 100`: *sig small: (int 0 cap) is not a type*. The same refusal as item 9's telescope: a
+    range's end in a program's header takes literals only.
+14. **A top-level value with a claim is refused by the reader**, `cap ∈ 0..100 = 64`: *"cap" begins
+    no declaration*. j.md §2.2 gives `value_decl ::= binder "=" …`; only a target file's host
+    constant reads so.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

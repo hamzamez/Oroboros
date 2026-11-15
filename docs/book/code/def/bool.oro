@@ -1,0 +1,21 @@
+fn yes(t, e) { t }
+
+fn no(t, e) { e }
+
+fn inv(b) { b(no, yes) }
+
+fn conj(p, q) { p(q, no) }
+
+fn disj(p, q) { p(yes, q) }
+
+fn excl(p, q) { p(q(no, yes), q) }
+
+export fn yes_xor_yes(a, b) { excl(yes, yes)(a, b) }
+
+export fn yes_xor_no(a, b) { excl(yes, no)(a, b) }
+
+export fn no_or_no(a, b) { disj(no, no)(a, b) }
+
+export fn yes_and_yes(a, b) { conj(yes, yes)(a, b) }
+
+export fn not_yes() { inv(yes) }

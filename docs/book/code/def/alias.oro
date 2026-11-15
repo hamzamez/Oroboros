@@ -1,0 +1,5 @@
+fn square(n) { h(n, n) }
+
+area = square
+
+export fn run() { area(3) }

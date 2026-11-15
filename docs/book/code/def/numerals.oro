@@ -1,0 +1,19 @@
+fn zero(s, z) { z }
+
+fn two(s, z) { s(s(z)) }
+
+fn three(s, z) { s(s(s(z))) }
+
+fn plus(m, n) { fn(s, z) { m(s, n(s, z)) } }
+
+fn mult(m, n) { fn(s, z) { m(fn(a) { n(s, a) }, z) } }
+
+export fn show_three() { three(g, 0) }
+
+export fn show_zero() { zero(g, 0) }
+
+export fn two_plus_three() { plus(two, three)(g, 0) }
+
+export fn two_times_three() { mult(two, three)(g, 0) }
+
+export fn really_six() { mult(two, three)(fn(n) { n + 1 }, 0) }

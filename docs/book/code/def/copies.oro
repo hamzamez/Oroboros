@@ -1,0 +1,8 @@
+fn sum_below(n ∈ 0..65536) (Int) {
+    loop i = 0, acc = 0 {
+        i < n -> again(i + 1, acc + i)
+        else  -> acc
+    }
+}
+
+export fn both(a ∈ 0..65536, b ∈ 0..65536) (Int) { sum_below(a) - sum_below(b) }

@@ -1,0 +1,5 @@
+fn two(s, z) { s(s(z)) }
+
+fn exp(m, n) { n(m) }
+
+export fn run() { exp(two, two)(g, 0) }

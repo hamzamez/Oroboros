@@ -1,0 +1,5 @@
+fn even?(n) { odd?(n) }
+
+fn odd?(n) { even?(n) }
+
+export fn run() { even?(3) }

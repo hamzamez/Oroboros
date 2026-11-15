@@ -1,0 +1,3 @@
+noisy = shout(1)
+
+export fn run() { h(noisy, noisy) }

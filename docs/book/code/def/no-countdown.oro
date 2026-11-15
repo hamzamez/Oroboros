@@ -1,0 +1,3 @@
+fn countdown(n) { if n < 1 { 0 } else { countdown(n - 1) } }
+
+export fn run() { countdown(3) }

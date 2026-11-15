@@ -1,0 +1,9 @@
+fn three(s) { fn(z) { s(s(s(z))) } }
+
+fn pred(n) {
+    fn(s) {
+        fn(z) { n(fn(p) { fn(q) { q(p(s)) } })(fn(u) { z })(fn(u) { u }) }
+    }
+}
+
+export fn run() { pred(three)(g)(0) }

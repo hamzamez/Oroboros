@@ -1,0 +1,5 @@
+fn sq(n) { n * n }
+
+fn sq(n) { n + n }
+
+export fn run() { sq(1) }

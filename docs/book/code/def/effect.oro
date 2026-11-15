@@ -1,0 +1,5 @@
+fn noisy() { shout(1) }
+
+export fn run() { h(noisy(), noisy()) }
+
+export fn once() { n = noisy(); h(n, n) }

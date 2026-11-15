@@ -1,0 +1,3 @@
+fn `+`(p, q) { p - q }
+
+export fn run() { 10 + 1 }

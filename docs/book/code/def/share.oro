@@ -1,0 +1,5 @@
+costly = h(1, 2)
+
+export fn at_the_top() { h(costly, costly) }
+
+export fn in_a_block() { c = h(1, 2); h(c, c) }

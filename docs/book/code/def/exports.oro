@@ -1,0 +1,9 @@
+export limit = 64
+
+export fn double(n) { n * 2 }
+
+fn used(n) { h(n, limit) }
+
+fn never_used(n) { g(n) }
+
+export fn run() { used(1) }

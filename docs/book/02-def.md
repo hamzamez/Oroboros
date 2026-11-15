@@ -1,884 +1,988 @@
-# 2. `def`
+# 2. Definitions
 
-[Chapter 1](01-fn.md) was about `fn`, which makes a function but does not name one. This chapter
-is about the form that gives a term a name — and about what a name *is* here, which is not what it
-is in most languages.
+[Chapter 1](01-fn.md) was about `fn`, which makes a function and gives it no name. This chapter is
+the second brick: **giving a term a name.** It is a smaller step than it sounds, and a stranger
+one, because a name here is not what it is in most languages. It is not a variable, not a memory
+location, and not a function the program calls. It is an abbreviation.
 
-Every reduction below was produced by running the example:
+There is no keyword for it. A definition is written the way mathematics writes one, a name and
+what it stands for:
 
-```bash
-go run ./cmd/oro -target=tutorial FILE.oro
+```go
+two = 2                      // a value
+fn square(n) { n * n }       // a function; the same as  square = fn(n) { n * n }
 ```
 
-The `tutorial` target is the one from chapter 1 ([targets/tutorial.oro](../../targets/tutorial.oro)):
-`+ - * /` and `<` are arithmetic, `f`, `g`, `h` are opaque functions, `x`, `y`, `z` are opaque
-values, `shout` is the one impure primitive, and `if`, `let` and `fold-range` are structural.
+Inside the compiler this form is called `def`, and the rule that uses one is called **δ**. Those
+two words are all this chapter adds to chapter 1's β.
 
-One thing from [chapter 1](01-fn.md) to keep in mind throughout, because it is visible in almost
-every output below: **integer arithmetic on two literals folds**, inside the target's word
-([ADR 0009](../decisions/0009-staging-preserves-results.md)). So `(* 7 7)` comes back as `49`, and
-where a lesson is about the *shape* of what reduction leaves rather than about a number, this chapter
-reaches for `h`, `x` and `y` — which never fold, because only the host knows what they do.
+The examples are files in [code/def/](code/def/), run as chapter 1's were:
+
+```bash
+go run ./cmd/oro -j -target=tutorial docs/book/code/def/name.oro
+```
+
+`oro` reduces each `export` and prints what is left. The `tutorial` target supplies arithmetic,
+the opaque functions `f`, `g` (one argument) and `h` (two), the opaque values `x()`, `y()`, `z()`,
+and `shout`, which has an effect. A file named `no-…` is meant to be refused; one the reader
+itself refuses ends in `.oro.txt`. `go run docs/book/check.go docs/book/02-def.md` re-runs every
+block. Checked 2026-11-15.
 
 ---
 
 ## 2.1 Naming a term
 
-```lisp
-(def square (fn (n) (* n n)))
-(square 7)
+<!-- file docs/book/code/def/name.oro -->
+```go
+fn square(n) { n * n }
+
+cube = fn(n) { n * n * n }
+
+two = 2
+
+export fn run() { h(square(two), cube(two)) }
 ```
 
-```lisp
-⟶   49
+<!-- oro tutorial docs/book/code/def/name.oro -->
+```go
+run =
+fn() { h(4, 8) }
 ```
 
-`(def NAME TERM)` associates a name with a term. Using the name is the same as writing the term — so
-that line is `((fn (n) (* n n)) 7)`, which β turns into `(* 7 7)`, which folds.
+Three definitions and one use of each. Using a name is the same as writing its term, so
+`square(two)` is `fn(n) { n * n }(2)`, which β turns into `2 * 2`, which is `4`.
 
-A definition whose term is a function is so common that it has a shorthand, which is the way
-mathematics writes an equation — `f(n) = n²`:
+- `fn square(n) { … }` and `cube = fn(n) { … }` are one form in two spellings. The first is the
+  usual one for a function, and it is the way mathematics writes an equation, *f(n) = n²*.
+- A definition's term need not be a function. `two` is a number.
+- **A definition is not a computation.** It contributes a name to the file. Nothing happens
+  because it is there, and `oro` printed only `run`.
 
-```lisp
-(def square (n) (* n n))
+A file holds declarations and nothing else. An expression on its own at the top level has nowhere
+to go:
+
+<!-- file docs/book/code/def/no-bare.oro.txt -->
+```go
+h(1, 2)
+
+export fn run() { 1 }
 ```
 
-That is the **same definition**, read as the one above before anything else looks at it. The
-parameter list is a list of names, and there is one body; `(fn …)` is still there to be written
-whenever a function is wanted somewhere other than a definition.
-
-The term does not have to be a function:
-
-```lisp
-(def two 2)
-(* two two)
+<!-- oro tutorial docs/book/code/def/no-bare.oro.txt -->
 ```
-
-```lisp
-⟶   4
+oro: docs/book/code/def/no-bare.oro.txt: line 1: "h" begins no declaration; a file holds fn, set, use, module and NAME = e (ADR 0064)
 ```
-
-A `def` on its own prints nothing, because a `def` **is not a computation**. It contributes a name
-to a scope. Only terms get reduced.
 
 ## 2.2 Order does not matter
 
-```lisp
-(square 7)
-(def square (fn (n) (* n n)))
+<!-- file docs/book/code/def/order.oro -->
+```go
+export fn run() { outer(4) }
+
+fn outer(n) { inner(n) }
+
+fn inner(m) { h(m, 3) }
 ```
 
-```lisp
-⟶   49
+<!-- oro tutorial docs/book/code/def/order.oro -->
+```go
+run =
+fn() { h(4, 3) }
 ```
 
-Definitions are a set, not a sequence. Use a name before you define it, define things in whatever
-order reads best. This is different from `let`, which is an application and therefore ordered.
+A file's definitions are a **set**, not a sequence. Use a name before its definition, and put
+definitions in whatever order reads best; there are no forward declarations and no prototypes.
+This is the difference from a block (§1.12), whose bindings are applications, one inside the
+other, and so are ordered.
 
-Definitions may refer to each other in any direction:
-
-```lisp
-(def outer (fn (n) (inner n)))
-(def inner (fn (m) (* m 3)))
-(outer 4)
-```
-
-```lisp
-⟶   12
-```
-
-## 2.3 A `def` is unfolded, not stored
+## 2.3 A definition is unfolded, not stored
 
 This is the one that surprises people, so here it is early.
 
-```lisp
-(def one 1)
-(def two  (h one one))
-(def four (h two two))
-four
+<!-- file docs/book/code/def/unfold.oro -->
+```go
+one = 1
+
+two = h(one, one)
+
+four = h(two, two)
+
+export fn run() { four }
 ```
 
-```lisp
-⟶   (h (h 1 1) (h 1 1))
+<!-- oro tutorial docs/book/code/def/unfold.oro -->
+```go
+run =
+fn() { h(h(1, 1), h(1, 1)) }
 ```
 
-(`h` rather than `+` precisely so the shape survives — written with `+` the whole thing folds to
-`4` and there is nothing to look at.)
-
-`two` appeared **twice** in the output. A definition is not a variable holding a value; it is a
-name for a term, and every use is replaced by that term. That step is called **δ** — the second of
-the language's two reduction rules, the first being β from chapter 1.
-
-Compare with a `let`, which is an application, and which chapter 1 showed is shared:
-
-```lisp
-(def costly (h 1 2))
-(+ costly costly)
-```
-
-```lisp
-⟶   (+ (h 1 2) (h 1 2))
-```
-
-```lisp
-((fn (costly) (+ costly costly)) (h 1 2))
-```
-
-```lisp
-⟶   (let (h 1 2) (fn (costly) (+ costly costly)))
-```
-
-Same-looking source, different output. **`def` duplicates; β shares.**
-
-> **Which do you want?** Usually `def`, because most definitions are functions, and duplicating a
-> function is how the function disappears. When a definition names *work* rather than a function —
-> a specific computation you want performed once — bind it with `fn` at the point of use.
-
-The compiler does not let this become a correctness problem. If the body has an **effect**,
-duplicating it would duplicate the effect, so it is refused outright:
-
-```lisp
-(def noisy (shout 1))
-(+ noisy noisy)
-```
+`h(1, 1)` is there **twice**. `two` is not a variable holding a value that was computed once; it
+is a name for the term `h(one, one)`, and each use of the name is replaced by the term. That
+replacement is δ:
 
 ```
-the body of noisy is a computation, not a value, so unfolding it would repeat its effects
-  Give it an empty parameter list — (def noisy () …) — and apply it,
-  or bind it with let at the point of use.
+name   ⟶   the term it is defined as
 ```
 
-The error names both repairs. An empty parameter list makes it a function, and a function may be
-duplicated freely because duplicating it does not run it.
+Compare a name bound in a block, which chapter 1 showed is an application and is shared:
+
+<!-- file docs/book/code/def/share.oro -->
+```go
+costly = h(1, 2)
+
+export fn at_the_top() { h(costly, costly) }
+
+export fn in_a_block() { c = h(1, 2); h(c, c) }
+```
+
+<!-- oro tutorial docs/book/code/def/share.oro -->
+```go
+at_the_top =
+fn() { h(h(1, 2), h(1, 2)) }
+in_a_block =
+fn() { c = h(1, 2); h(c, c) }
+```
+
+The two sources read alike and mean different programs. **A definition is copied; a binding is
+shared.** Both are written `name = term`, and what tells them apart is where they stand: at a
+file's top level, or inside braces.
+
+> **Which do you want?** For a function, a definition: copying a function is how it disappears
+> into its uses. For a constant, a definition: copying `64` costs nothing. For a piece of *work*
+> you want done once, a binding in a block, at the place the work belongs.
+
+The compiler does not let the difference become a wrong answer. If a definition's term has an
+effect, copying it would repeat the effect, so it is refused:
+
+<!-- file docs/book/code/def/no-effect.oro -->
+```go
+noisy = shout(1)
+
+export fn run() { h(noisy, noisy) }
+```
+
+<!-- oro tutorial docs/book/code/def/no-effect.oro -->
+```
+oro: docs/book/code/def/no-effect.oro: the body of noisy is a computation, not a value, so unfolding it would repeat its effects
+  Give it an empty parameter list — fn noisy() { … } — and apply it,
+  or bind it in a block at the point of use.
+```
+
+The message names both repairs, and they are different programs:
+
+<!-- file docs/book/code/def/effect.oro -->
+```go
+fn noisy() { shout(1) }
+
+export fn run() { h(noisy(), noisy()) }
+
+export fn once() { n = noisy(); h(n, n) }
+```
+
+<!-- oro tutorial docs/book/code/def/effect.oro -->
+```go
+run =
+fn() { h(shout(1), shout(1)) }
+once =
+fn() { n = shout(1); h(n, n) }
+```
+
+A function may always be copied, because copying one runs nothing; the effect happens where it is
+*applied*. `run` applies it twice and shouts twice, which is what it says. `once` applies it once
+and uses the answer twice.
 
 ## 2.4 What can be a name
 
-The same rules as a `fn` parameter, for the same reason: a name is a name.
+The rules are a parameter's (§1.4): a letter or `_`, then letters, digits and `_`, an optional
+final `?`. Letters are Unicode's.
 
-**A literal cannot be one.**
+<!-- file docs/book/code/def/unicode.oro -->
+```go
+Δ = 3
 
-```lisp
-(def 1 (fn (n) n))
-;; def takes a name and one term: (def 1 (fn (n) n))
+half_Δ = Δ / 2
+
+fn small?(n) { n < half_Δ }
+
+export fn run() { small?(0) }
 ```
 
-**A qualified name cannot be one.**
-
-```lisp
-(def a.b (fn (n) n))
-;; def a.b: a definition names a member of this module,
-;;          and `.` qualifies a member of an imported one
+<!-- oro tutorial docs/book/code/def/unicode.oro -->
+```go
+run =
+fn() { true }
 ```
 
-`.` always means "member of an imported module". A definition names a member of *this* one, so the
-two cannot both be true. Before this rule existed, `(def a.b …)` was accepted and then unreachable:
-you could define it, and no term could ever mention it.
+(`3 / 2` is `1`: `/` is integer division.) What a definition's name may not be:
 
-**The form takes exactly two things.**
+**A literal, a qualified name, or a name with a hyphen.** Each is refused by the reader in the same
+words, since none of them begins a declaration: `a.b` is a member of *another* module, and
+`half-x` is `half` minus `x`.
 
-```lisp
-(def)                                  ;; def takes a name and one term: (def)
-(def square)                           ;; def takes a name and one term: (def square)
-(def square (fn (n) n) (fn (m) m))
-;; def takes a name and one term: (def square (fn (n) n) (fn (m) m))
+<!-- oro tutorial docs/book/code/def/no-literal.oro.txt -->
+```
+oro: docs/book/code/def/no-literal.oro.txt: line 1: "1" begins no declaration; a file holds fn, set, use, module and NAME = e (ADR 0064)
 ```
 
-There is no multi-value `def` and no implicit body sequence. One name, one term.
-
-**A name may be defined only once.**
-
-```lisp
-(def sq (fn (n) (* n n)))
-(def sq (fn (n) (+ n n)))
-(sq 1)
+<!-- oro tutorial docs/book/code/def/no-qualified.oro.txt -->
+```
+oro: docs/book/code/def/no-qualified.oro.txt: line 1: "a" begins no declaration; a file holds fn, set, use, module and NAME = e (ADR 0064)
 ```
 
+<!-- oro tutorial docs/book/code/def/no-hyphen.oro.txt -->
 ```
-sq is defined twice
-```
-
-No redefinition, no "last one wins". Two definitions of a name is a merge conflict, not a feature.
-
-**Anything else that is a legal name is a legal definition name.** Hyphens, `?`, `!`, and
-non-ASCII are ordinary letters, exactly as in chapter 1:
-
-```lisp
-(def Δ 3)
-(def half-Δ (/ Δ 2))
-half-Δ
+oro: docs/book/code/def/no-hyphen.oro.txt: line 1: "half" begins no declaration; a file holds fn, set, use, module and NAME = e (ADR 0064)
 ```
 
-```lisp
-⟶   1
+**A name already defined.**
+
+<!-- file docs/book/code/def/no-twice.oro -->
+```go
+fn sq(n) { n * n }
+
+fn sq(n) { n + n }
+
+export fn run() { sq(1) }
 ```
 
-(Integer division, folded — `(/ 3 2)` is `1`.)
-
-## 2.5 Free names inside a definition
-
-A definition's body follows chapter 1's rule: every free name must be a parameter, another
-definition, or a primitive on the target. What is new is **when** it is checked.
-
-```lisp
-(def helper (fn (n) (+ n qq)))
-(* 1 2)
+<!-- oro tutorial docs/book/code/def/no-twice.oro -->
+```
+oro: docs/book/code/def/no-twice.oro: sq is defined twice
 ```
 
-```
-in helper: qq is not bound — it is not a parameter, not a definition,
-           and not a primitive on this target
-```
+There is no redefinition and no "last one wins". A name means one thing in a file, and there is
+no overloading either: `sq` cannot be one function on integers and another on strings.
 
-Note what was reduced here: `(* 1 2)`. `helper` is never used. It is checked anyway.
+**A name the language owns.** `len`, `if` and the operators are among the language's
+own vocabulary, the same on every target, and a program may not redefine them:
 
-```lisp
-(def unused (fn (n) (nope n)))
-(+ 1 2)
-```
+<!-- file docs/book/code/def/no-language.oro -->
+```go
+len = 3
 
-```
-in unused: nope is not bound — it is not a parameter, not a definition,
-           and not a primitive on this target
+export fn run() { len }
 ```
 
-**Every definition is checked, not only the ones reduction reaches.** A typo in a function you
-have not called yet is still a typo. This was not always true, and a misspelled name in dead code
-was invisible until something called it.
-
-## 2.6 Names shadow in a fixed order
-
-Three things can supply a name. When more than one does, the order is always the same:
-
-> **parameter** beats **definition** beats **primitive**.
-
-A `fn` parameter wins over a definition:
-
-```lisp
-(def double (fn (n) (* n 2)))
-(fn (double) (double 5))
+<!-- oro tutorial docs/book/code/def/no-language.oro -->
+```
+oro: docs/book/code/def/no-language.oro: the program defines len, which is the language's own: J's reader writes its constructs with these names (`if c { a } else { b }` is `if`, `a + b` is `+`), so a definition would capture them in its module or be ignored beside the target's. A definition introduces a fresh name; choose another
 ```
 
-```lisp
-⟶   (fn (double) (double 5))
+That includes the operators. §1.6 showed a *parameter* named `` `+` ``, which shadows addition
+inside one function, where you can see it. A *definition* of `+` would change what `a + b` means
+in every line of the file:
+
+<!-- file docs/book/code/def/no-operator.oro -->
+```go
+fn `+`(p, q) { p - q }
+
+export fn run() { 10 + 1 }
 ```
 
-`double` inside is the parameter, so nothing unfolds. Legal, and almost never what you meant —
-chapter 1's advice about shadowing applies here too.
-
-**Nothing warns you about this**, and that is a decision rather than an omission
-([def.md §11](../spec/def.md)): shadow warnings have a famously low true-positive rate, the meaning
-is the same on every target, and the shape that actually breaks is caught later by the type
-checker. Prefer distinct names; the compiler will not remind you.
-
-The third rule is the interesting one. It runs the other way, and it *is* reported.
-
-## 2.7 A target primitive beats a definition — and that is the whole design
-
-`f` is a primitive on the `tutorial` target. Define it anyway:
-
-```lisp
-(def f (fn (n) (* n 2)))
-(f 5)
+<!-- oro tutorial docs/book/code/def/no-operator.oro -->
+```
+oro: docs/book/code/def/no-operator.oro: the program defines `+`, which is the language's own: J's reader writes its constructs with these names (`if c { a } else { b }` is `if`, `a + b` is `+`), so a definition would capture them in its module or be ignored beside the target's. A definition introduces a fresh name; choose another
 ```
 
+**There is no operator overloading**, and this is where it is refused.
+
+## 2.5 Every definition is checked
+
+A definition's body follows §1.5's rule: each free name must be a parameter, a definition, or the
+target's. And it is checked whether or not anything uses it.
+
+<!-- file docs/book/code/def/no-helper.oro -->
+```go
+fn helper(n) { n + qq }
+
+export fn run() { 1 * 2 }
+```
+
+<!-- oro tutorial docs/book/code/def/no-helper.oro -->
+```
+oro: docs/book/code/def/no-helper.oro: in helper: qq is not bound — it is not a parameter, not a definition, and not a primitive on this target
+```
+
+`run` never mentions `helper`. A typo in a function you have not called yet is still a typo.
+
+## 2.6 Which meaning a name has
+
+Three things can give a name its meaning. When more than one does, the nearest wins.
+
+<!-- file docs/book/code/def/shadow.oro -->
+```go
+fn double(n) { h(n, 2) }
+
+export fn plain() { double(5) }
+
+export fn a_parameter() { fn(double) { double(5) } }
+
+export fn a_binding() { double = f; double(5) }
+```
+
+<!-- oro tutorial docs/book/code/def/shadow.oro -->
+```go
+plain =
+fn() { h(5, 2) }
+a_parameter =
+fn() { fn(double) { double(5) } }
+a_binding =
+fn() { f(5) }
+```
+
+- In `plain`, `double` is the definition, and it unfolded.
+- In `a_parameter`, `double` is the parameter. Nothing unfolds: the definition is not what is
+  meant there.
+- In `a_binding`, `double` is the block's binding, which is a parameter too (§1.12).
+
+> **A parameter or a binding beats a definition.**
+
+Nothing warns you when this happens, and that is a decision ([def.md §11](../spec/def.md)): the
+meaning is the same on every target, and a program that shadows by mistake usually fails to type
+check a line later. Prefer distinct names.
+
+The third thing that can supply a name is the target, and there the order runs the other way.
+
+## 2.7 The target's own beats a definition, and that is the design
+
+`f` is one of the `tutorial` target's own names. Define it anyway:
+
+<!-- file docs/book/code/def/override.oro -->
+```go
+fn f(n) { n * 2 }
+
+export fn run() { f(5) }
+```
+
+<!-- oro tutorial docs/book/code/def/override.oro -->
 ```
 note: f is defined here and provided natively by target "tutorial"; the target's is used
-⟶   (f 5)
+run =
+fn() { f(5) }
 ```
 
-The definition was **ignored**. δ does not unfold a name the target declares primitive, and the
-note is the compiler saying so.
-
-That looks like a trap and is in fact the central mechanism of the language. Here it is doing real
-work, on a pair of targets kept for exactly this
+The definition was not used. δ does not unfold a name the target provides, and the note is the
+compiler saying so. That looks like a trap. It is the central mechanism of the language, and here
+it is doing its work, on two targets that differ by one declaration
 ([targets/tutorial.oro](../../targets/tutorial.oro) and
-[targets/tutorial-native.oro](../../targets/tutorial-native.oro), which differ by **one line**).
+[targets/tutorial-native.oro](../../targets/tutorial-native.oro)).
 
-A library defines `geometry.area` out of arithmetic the target does know
-([code/geometry.oro](code/geometry.oro)):
+A library defines `area` out of arithmetic every target has ([code/geometry.oro](code/geometry.oro)):
 
-```lisp
-(module geometry)
-(export area perimeter scale)
-(def area (w h) (* w h))
+<!-- part docs/book/code/geometry.oro -->
+```go
+pub fn area(w, h) { w * h }
 ```
 
-A program names only the library ([code/box.oro](code/box.oro)) — never a target:
+A program uses the library, and names no target ([code/box.oro](code/box.oro)):
 
-```lisp
-(use geometry)
-(export box)
-(def box (w h) (geometry.area w h))
+<!-- part docs/book/code/box.oro -->
+```go
+use geometry
+
+export fn box(w, h) { geometry.area(w, h) }
 ```
 
-On a target that has no `geometry.area`, the definition unfolds:
+On a target with no `geometry.area` of its own, the definition unfolds:
 
-```bash
-go run ./cmd/oro -target=tutorial docs/book/code/box.oro
-```
-
-```lisp
+<!-- oro tutorial docs/book/code/box.oro -->
+```go
 box =
-(fn (w h) (* w h))
+fn(w, h) { w * h }
 ```
 
-On a target that declares `geometry.area` natively, the *same two files* stop one step earlier:
+On a target that provides `geometry.area`, the same two files stop one step earlier:
 
-```bash
-go run ./cmd/oro -target=tutorial-native docs/book/code/box.oro
-```
-
+<!-- oro tutorial-native docs/book/code/box.oro -->
 ```
 note: geometry.area is defined here and provided natively by target "tutorial-native"; the target's is used
-```
-```lisp
 box =
-(fn (w h) (geometry.area w h))
+fn(w, h) { geometry.area(w, h) }
 ```
 
-One line of difference between the two target files decides between code the compiler assembles and a
-call into the target's own implementation. **A definition is a fallback lowering for targets that
-lack the name**, and "primitive beats definition" is how the compiler reaches for the target's
-version when there is one.
+Chapter 1 said reduction runs until only the target's own operations remain. This is the other
+half of that sentence: **which names are the target's own is the target's choice**, so the same
+program reduces to different things on different targets, each as far as that target needs.
 
-The same mechanism on something less toy: [targets/blas.oro](../../targets/blas.oro) declares
-`num/vec.dot`, so [lib/num/vec.oro](../../lib/num/vec.oro)'s definition of it — a fused loop over
-`f64.add` and `f64.mul` — is never unfolded there, and the program calls the tuned library instead:
+> **A definition is the fallback for a target that lacks the name.** Where a host already has the
+> operation, tuned and native, the program reaches it; where it does not, the definition is the
+> implementation.
 
-```bash
-go run ./cmd/oro -target=blas examples/modules.oro
+That is how one source file becomes idiomatic code on four hosts without a line of it mentioning
+a host. It is reported as a note, not an error, because being overridden is the intended outcome;
+and it is reported at all because the file that decides it is one your program never names.
+
+So the full order is:
+
+> **parameter or binding**, then **the target**, then **definition**.
+
+## 2.8 A definition may not mention itself
+
+<!-- file docs/book/code/def/no-countdown.oro -->
+```go
+fn countdown(n) { if n < 1 { 0 } else { countdown(n - 1) } }
+
+export fn run() { countdown(3) }
 ```
 
-```lisp
-note: num/vec.dot is defined here and provided natively by target "blas"; the target's is used
+<!-- oro tutorial docs/book/code/def/no-countdown.oro -->
+```
+oro: docs/book/code/def/no-countdown.oro: countdown is recursive: it is defined in terms of itself, and recursion is not in the language, since δ unfolds a definition and a cycle has no normal form (ADR 0014). Iteration is `loop` with `again` (ADR 0015).
+  If the self-reference was not deliberate, this definition is shadowing the countdown you meant.
+```
+
+**Recursion is not in the language**, and §2.3 is why. A definition is an abbreviation, and δ
+replaces it by what it abbreviates. An abbreviation that contains itself never finishes being
+written out, and since reduction is compilation, a term that never finishes reducing is a program
+that never finishes compiling. It is refused at the definition, before anything reduces.
+
+A cycle of any length is found the same way, through functions or values:
+
+<!-- file docs/book/code/def/no-mutual.oro -->
+```go
+fn even?(n) { odd?(n) }
+
+fn odd?(n) { even?(n) }
+
+export fn run() { even?(3) }
+```
+
+<!-- oro tutorial docs/book/code/def/no-mutual.oro -->
+```
+oro: docs/book/code/def/no-mutual.oro: even?, odd? are mutually recursive, and recursion is not in the language, since δ unfolds a definition and a cycle has no normal form (ADR 0014). Iteration is `loop` with `again` (ADR 0015)
+```
+
+<!-- file docs/book/code/def/no-cycle.oro -->
+```go
+fn a() { b }
+
+b = a
+
+export fn run() { 1 }
+```
+
+<!-- oro tutorial docs/book/code/def/no-cycle.oro -->
+```
+oro: docs/book/code/def/no-cycle.oro: a, b are mutually recursive, and recursion is not in the language, since δ unfolds a definition and a cycle has no normal form (ADR 0014). Iteration is `loop` with `again` (ADR 0015)
+```
+
+There is a second reason, about the hosts. A recursive function emitted as a host function that
+calls itself can go only as deep as that host's stack, and that depth differs by orders of
+magnitude between Go, the JVM and a browser, none of which promises tail calls. One program and
+one input would finish on one target and crash on another, which is the thing this language
+exists to prevent ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)).
+
+Repetition is `loop`, which the language owns and every target turns into its own loop:
+
+<!-- file docs/book/code/def/loop.oro -->
+```go
+fn total(n) {
+    loop i = 0, acc = 0 {
+        i < n -> again(i + 1, h(acc, i))
+        else  -> acc
+    }
+}
+
+export fn run(n) { total(n) }
+```
+
+<!-- oro tutorial docs/book/code/def/loop.oro -->
+```go
+run =
+fn(n) { loop i = 0, acc = 0 { i < n -> again(i + 1, h(acc, i)); else -> acc } }
+```
+
+`total` unfolded and the `loop` stayed: it is what runs.
+
+The refusal's second sentence is for a case that has nothing to do with recursion:
+
+<!-- file docs/book/code/def/no-size.oro -->
+```go
+fn size(v) { size(v) }
+
+export fn run() { 3 }
+```
+
+That is rarely a recursive `size`. It is a `size` meant to call some *other* `size`, one you
+forgot to `use` or spelled differently, and the definition being written took its name. The
+message says so, and, as in §2.5, it says so though nothing calls `size`.
+
+## 2.9 What reaches the host
+
+`export` marks the definitions a host can call. `oro` prints them; a real target emits one host
+function for each.
+
+<!-- file docs/book/code/def/exports.oro -->
+```go
+export limit = 64
+
+export fn double(n) { n * 2 }
+
+fn used(n) { h(n, limit) }
+
+fn never_used(n) { g(n) }
+
+export fn run() { used(1) }
+```
+
+<!-- oro tutorial docs/book/code/def/exports.oro -->
+```go
+limit =
+64
+double =
+fn(n) { n * 2 }
+run =
+fn() { h(1, 64) }
+```
+
+`used` is inside `run`, unfolded. `never_used` is nowhere. **A definition that is not exported
+exists only in the places it was used.** Compiled for Go:
+
+<!-- file docs/book/code/def/emitted.oro -->
+```go
+cap = 100
+
+fn clamp(n) { if n > cap { cap } else { n } }
+
+fn nobody_calls_this(n) { n + 1 }
+
+export fn small(n ∈ 0..1000) (0..100) { clamp(n) }
+
+export fn halved(n ∈ 0..1000) (0..100) { clamp(n / 2) }
+```
+
+<!-- gen go docs/book/code/def/emitted.oro -->
+```go
+func DefHalved(v0 int) int {
+    v10 := (v0 >> 1)
+    v12 := (v10 > 100)
+    if v12 {
+        return 100
+    }
+    return v10
+}
 …
-main.run =
-(fn (p q) (num/vec.dot p q))
+func DefSmall(v0 int) int {
+    v10 := (v0 > 100)
+    if v10 {
+        return 100
+    }
+    return v0
+}
 ```
 
-> **A note on that file.** `examples/modules.oro` used to show the other arm too, on `-target=go`.
-> It no longer does, and the reason is a real event rather than a bug: the **portable layer was
-> deleted** ([portable-2026-09-29](../../gauntlet/results/portable-2026-09-29.md)), so `num/f64` is
-> a module only `blas` provides and the file is now *refused* on Go, JavaScript, Java and `windows`
-> alike — a refusal the emission baseline pins
-> ([gauntlet/check/outcomes.txt](../../gauntlet/check/outcomes.txt)). The book's demonstration moved
-> to the tutorial pair above, which the repository maintains for the book and which runs.
+Two exports, two Go functions. There is no `clamp`, no `cap` and no `nobody_calls_this`: the
+constant is the literal `100` in each place, and `clamp`'s body is in both. Each copy was then
+compiled for where it stands, which is why one of them begins with a shift.
 
-So it is not a shadowing hazard, it is the point. It becomes a hazard only when the collision is
-accidental — and because the file that decides it is one your program never names, this is the one
-substitution the compiler tells you about:
+**Copying is real**, and you should know its price. A definition with a loop in it, used twice:
 
-```
-note: num/vec.dot is defined here and provided natively by target "blas"; the target's is used
-```
+<!-- file docs/book/code/def/copies.oro -->
+```go
+fn sum_below(n ∈ 0..65536) (Int) {
+    loop i = 0, acc = 0 {
+        i < n -> again(i + 1, acc + i)
+        else  -> acc
+    }
+}
 
-A note, not an error: being overridden is the intended outcome. It is printed by `oro`, `gen` and
-`build` alike, and it fires only where a definition and a target primitive actually collide — one
-line on `blas`, none on `go`.
-
-## 2.8 A definition that mentions itself
-
-```lisp
-(def countdown (fn (n) (if (< n 1) 0 (countdown (- n 1)))))
-(countdown 3)
+export fn both(a ∈ 0..65536, b ∈ 0..65536) (Int) { sum_below(a) - sum_below(b) }
 ```
 
-```
-countdown is recursive: it is defined in terms of itself, and recursion is not in
-the language — iteration is fold-range (ADR 0014).
-  If the self-reference was not deliberate, this definition is shadowing the
-  countdown you meant.
-```
-
-**Recursion is not in the language.** Not "unsupported for now" in the sense of something that
-half-works — it is rejected, at the definition, before anything reduces. Mutual recursion is found
-the same way, however long the cycle:
-
-```lisp
-(def even? (fn (n) (odd? n)))
-(def odd?  (fn (n) (even? n)))
-(even? 3)
-```
-
-```
-even?, odd? are mutually recursive, and recursion is not in the language —
-iteration is fold-range (ADR 0014)
-```
-
-The reason is worth knowing, because it is not "recursion is bad".
-
-Underneath, a recursive definition reduces *correctly*: δ declines to unfold a cycle, which is the
-right answer, since a recursive equation generally has no normal form and this calculus's whole job
-is to reach one. What it cannot do is **compile**. Emitting it means emitting a host function that
-calls itself, and how deep that can go before it fails differs by orders of magnitude across Go,
-the JVM and JavaScript — none of which guarantees tail calls. That would be one program, one
-input, terminating on one target and crashing on another, which is the single thing this language
-exists not to do. [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md) has the
-argument and what would reopen it.
-
-Iteration is a primitive instead:
-
-```lisp
-(def total  (fn (n)   (fold-range 0 n (fn (acc i) (+ acc i)))))
-(def scaled (fn (n k) (fold-range 0 n (fn (acc i) (+ acc (* k i))))))
-(scaled 10 3)
+<!-- gen go docs/book/code/def/copies.oro -->
+```go
+func DefBoth(v0 int, v1 int) int {
+    var v26 int = 0
+    var v27 int = 0
+    for ; ; v26 = (v26 + 1) {
+        v28 := (v26 < v0)
+        if v28 {
+            v33 := (v27 + v26)
+            v27 = v33
+            continue
+        }
+        break
+    }
+    var v39 int = 0
+    var v40 int = 0
+    for ; ; v39 = (v39 + 1) {
+        v41 := (v39 < v1)
+        if v41 {
+            v46 := (v40 + v39)
+            v40 = v46
+            continue
+        }
+        break
+    }
+    v49 := (v27 - v40)
+    return v49
+}
 ```
 
-```lisp
-⟶   (fold-range 0 10 (fn (acc i) (+ acc (* 3 i))))
+Two loops, because the name was used twice. Nothing ran twice that the source did not ask to run
+twice; what doubled is the *code*. For most definitions that is the right trade: no call, and
+each copy proven and optimized for its own arguments. Where it is not, the compiler may keep a
+large definition as one host function, on a target and for a definition where it can prove that
+changes no answer and no verdict
+([ADR 0113](../decisions/0113-a-programs-definitions-are-kept-as-functions-where-the-target-prints-them.md));
+the source says nothing either way, and means the same.
+
+A definition can also be an alias, which costs nothing and leaves no trace:
+
+<!-- file docs/book/code/def/alias.oro -->
+```go
+fn square(n) { h(n, n) }
+
+area = square
+
+export fn run() { area(3) }
 ```
 
-`fold-range` is what the target turns into a `for`.
-
-The error's second sentence is there for a case that has nothing to do with recursion:
-
-```lisp
-(def size (fn (v) (size v)))
-(size 3)
+<!-- oro tutorial docs/book/code/def/alias.oro -->
+```go
+run =
+fn() { h(3, 3) }
 ```
-
-That is almost never a recursive `size`. It is a `size` meant to call some *other* `size` — one you
-forgot to import, or spelled differently — and the definition being written is shadowing it. The
-message says so, because until this rule existed the program reduced to `(size 3)` and told you
-nothing.
-
-**Every definition is checked**, so this fires even if nothing calls `size`, exactly as with the
-typos in §2.5.
-
-## 2.9 `export` and `sig`
-
-A definition is private until exported. `export` picks the entry points:
-
-```lisp
-(def area (fn (w hh) (* w hh)))
-(export area)
-```
-
-```lisp
-area =
-(fn (w hh) (* w hh))
-```
-
-Exported names are what a backend emits — one function per export, named after it. A definition
-that nothing exports and nothing uses simply never appears.
-
-Exporting something you did not define is an error:
-
-```lisp
-(def area (fn (w hh) (* w hh)))
-(export are)
-```
-
-```
-the program exports are, which it does not define
-```
-
-That message used to not exist: the typo was silently dropped, and the program was built with no
-entry points at all.
-
-`sig` attaches a type to a definition:
-
-```lisp
-(sig area ((w num) (hh num)) num)
-(def area (fn (w hh) (* w hh)))
-(export area)
-```
-
-Parameters are **named**, not just typed, because a refinement — the `(where …)` clause — has to
-say *which* parameter it is about. A `sig` for a name you did not define is an error too:
-
-```lisp
-(def area (fn (w hh) (* w hh)))
-(sig aera ((w num) (hh num)) num)
-(export area)
-```
-
-```
-the program declares (sig aera …) but does not define aera
-```
-
-Signatures are chapter 5's subject; what matters here is that `sig` and `export` both attach to a
-`def` and neither can float free.
-
-## 2.10 Legal, and still a mistake
-
-**Defining a name the language uses in a form.** `def`, `fn` and `use` are special only as the
-*first* element of a form. Everywhere else they are ordinary names:
-
-```lisp
-(def def 1)
-(h def def)
-```
-
-```lisp
-⟶   (h 1 1)
-```
-
-```lisp
-(def fn 1)
-(h fn fn)
-```
-
-```lisp
-⟶   (h 1 1)
-```
-
-Both reduce. Neither should be written.
-
-**Defining an operator.**
-
-```lisp
-(def + (fn (p q) (- p q)))
-(+ 10 1)
-```
-
-```
-note: + is defined here and provided natively by target "tutorial"; the target's is used
-⟶   11
-```
-
-`+` is a name, so it can be defined — and on this target it is also a primitive, so §2.7 applies,
-the definition is dead, the note says so, and `11` is addition's answer rather than subtraction's.
-On a target without `+` the definition would be live, and addition would mean subtraction.
-
-**Aliasing.** A definition's body can be a bare name:
-
-```lisp
-(def square (fn (n) (h n n)))
-(def area square)
-(area 3)
-```
-
-```lisp
-⟶   (h 3 3)
-```
-
-Free, since δ unfolds both. Also invisible in the output, so a reader of the generated code has no
-way to know `area` existed.
-
-**Naming a definition after a `fn` parameter you will also use.** §2.6 says the parameter wins.
-Nothing warns you.
 
 ---
 
-## 2.11 Everything from nothing
+## 2.10 Everything from nothing
 
 Now the part that is not about this language.
 
-λ-calculus has no numbers, no booleans, no pairs, no lists, and no data structures of any kind. It
-has functions. In the 1930s Church showed that this is not a limitation: every one of those things
-can be *encoded* as a function. Nearly a century of people have been finding out how far that goes.
+The λ-calculus has no numbers, no booleans, no pairs and no lists. It has functions. In the 1930s
+Church showed that this is no limitation: each of those can be *encoded* as a function. We have
+`fn` and definitions, which is enough to try it, and there is a reason to try it here and not on
+paper, which the end of this section is about.
 
-We have `fn` and `def`. That is enough to try it. And there is a reason to try it here rather than
-on paper, which the last example in this section is about.
-
-> **A note on the names below, which is a lesson about the language rather than about Church.** The
-> textbook spellings are mostly taken. `true` and `false` are **literals** now, not names
-> ([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)), so `(def true …)` is refused
-> outright: *"def takes a name and one term"*. `and`, `or`, `not` and `cond` are **reader sugar**, so
-> defining them collides. `sum` is how the reader used to spell `variant` and is reserved. And `map`
-> is injected into every target, so a definition of it is overridden with a note (§2.7). So the
-> encodings below are spelled `yes`/`no`, `conj`/`disj`/`inv`/`excl`, `total` and `mapl`. The shapes
-> are what Church's are; only the spellings moved.
+The textbook names are mostly taken: `true` and `false` are literals here, and §2.4 forbids
+redefining what the language owns. So the encodings below are spelled `yes` and `no`, `inv`,
+`conj`, `disj`, `excl`. The shapes are Church's.
 
 ### Booleans
 
 A boolean is a choice between two things. So *be* the choice:
 
-```lisp
-(def yes (fn (t e) t))
-(def no  (fn (t e) e))
+<!-- file docs/book/code/def/bool.oro -->
+```go
+fn yes(t, e) { t }
+
+fn no(t, e) { e }
+
+fn inv(b) { b(no, yes) }
+
+fn conj(p, q) { p(q, no) }
+
+fn disj(p, q) { p(yes, q) }
+
+fn excl(p, q) { p(q(no, yes), q) }
+
+export fn yes_xor_yes(a, b) { excl(yes, yes)(a, b) }
+
+export fn yes_xor_no(a, b) { excl(yes, no)(a, b) }
+
+export fn no_or_no(a, b) { disj(no, no)(a, b) }
+
+export fn yes_and_yes(a, b) { conj(yes, yes)(a, b) }
+
+export fn not_yes() { inv(yes) }
 ```
 
-`yes` takes two arguments and returns the first. `no` returns the second. Now conditionals are
-just application, and the logical operators are one-line definitions:
-
-```lisp
-(def inv  (fn (b)   (b no yes)))
-(def conj (fn (p q) (p q no)))
-(def disj (fn (p q) (p yes q)))
-(def excl (fn (p q) (p (q no yes) q)))
-
-((excl yes yes) (x) (y))
-((excl yes no)  (x) (y))
-((disj no  no)  (x) (y))
+<!-- oro tutorial docs/book/code/def/bool.oro -->
+```go
+yes_xor_yes =
+fn(a, b) { b }
+yes_xor_no =
+fn(a, b) { a }
+no_or_no =
+fn(a, b) { b }
+yes_and_yes =
+fn(a, b) { a }
+not_yes =
+fn() { fn(t, e) { e } }
 ```
 
-```lisp
-⟶   (y)
-⟶   (x)
-⟶   (y)
-```
-
-Those are correct answers to `yes xor yes = no`, `yes xor no = yes`, `no or no = no` — computed with
-no boolean type anywhere, by a language whose target declares `bool`, and which has `true`, `false`
-and `if` of its own, none of which was used.
+`yes` takes two things and gives the first; `no` gives the second. A conditional is then just
+application, and each connective is one line. Read the answers by which argument came back: *yes
+xor yes* chose the second, so it is `no`; *yes xor no* is `yes`; *not yes* reduced to `no` itself,
+printed as the function it is. No boolean type was involved, and the language's own `true`,
+`false` and `if` were not used.
 
 ### Pairs
 
 A pair is something that hands both halves to whoever asks:
 
-```lisp
-(def pair (fn (a b) (fn (sel) (sel a b))))
-(def fst  (fn (p) (p (fn (a b) a))))
-(def snd  (fn (p) (p (fn (a b) b))))
+<!-- file docs/book/code/def/pair.oro -->
+```go
+fn pair(a, b) { fn(sel) { sel(a, b) } }
 
-(fst (pair (x) (y)))
-(snd (pair (x) (y)))
+fn fst(p) { p(fn(a, b) { a }) }
+
+fn snd(p) { p(fn(a, b) { b }) }
+
+fn swap(p) { pair(snd(p), fst(p)) }
+
+export fn first(u, v) { fst(pair(u, v)) }
+
+export fn second(u, v) { snd(pair(u, v)) }
+
+export fn swapped(u, v) { fst(swap(pair(u, v))) }
 ```
 
-```lisp
-⟶   (x)
-⟶   (y)
+<!-- oro tutorial docs/book/code/def/pair.oro -->
+```go
+first =
+fn(u, v) { u }
+second =
+fn(u, v) { v }
+swapped =
+fn(u, v) { v }
 ```
 
-And they compose:
-
-```lisp
-(def swap (fn (p) (pair (p (fn (a b) b)) (p (fn (a b) a)))))
-(fst (swap (pair (x) (y))))
-```
-
-```lisp
-⟶   (y)
-```
+Build a pair, swap it, take the first: `v`. No pair was ever built.
 
 ### Numbers
 
-A Church numeral is "apply this function *n* times":
+A Church numeral is *apply this function n times*:
 
-```lisp
-(def zero  (fn (s z) z))
-(def three (fn (s z) (s (s (s z)))))
+<!-- file docs/book/code/def/numerals.oro -->
+```go
+fn zero(s, z) { z }
+
+fn two(s, z) { s(s(z)) }
+
+fn three(s, z) { s(s(s(z))) }
+
+fn plus(m, n) { fn(s, z) { m(s, n(s, z)) } }
+
+fn mult(m, n) { fn(s, z) { m(fn(a) { n(s, a) }, z) } }
+
+export fn show_three() { three(g, 0) }
+
+export fn show_zero() { zero(g, 0) }
+
+export fn two_plus_three() { plus(two, three)(g, 0) }
+
+export fn two_times_three() { mult(two, three)(g, 0) }
+
+export fn really_six() { mult(two, three)(fn(n) { n + 1 }, 0) }
 ```
 
-To see what one *is*, apply it to a real successor and a real zero:
-
-```lisp
-(def inc (fn (n) (g n)))
-(three inc 0)
-(zero  inc 0)
+<!-- oro tutorial docs/book/code/def/numerals.oro -->
+```go
+show_three =
+fn() { g(g(g(0))) }
+show_zero =
+fn() { 0 }
+two_plus_three =
+fn() { g(g(g(g(g(0))))) }
+two_times_three =
+fn() { g(g(g(g(g(g(0)))))) }
+really_six =
+fn() { 6 }
 ```
 
-```lisp
-⟶   (g (g (g 0)))
-⟶   0
-```
-
-(`g`, the opaque successor, rather than `(+ n 1)` — written with `+` the whole composition folds to
-a number and there is nothing left to count.)
-
-Arithmetic on them is arithmetic on function composition:
-
-```lisp
-(def plus (fn (m n) (fn (s z) (m s (n s z)))))
-(def mult (fn (m n) (fn (s z) (m (fn (a) (n s a)) z))))
-
-((plus two three) inc 0)
-((mult two three) inc 0)
-```
-
-```lisp
-⟶   (g (g (g (g (g 0)))))
-⟶   (g (g (g (g (g (g 0))))))
-```
-
-Five `g`s and six `g`s. `2 + 3 = 5` and `2 × 3 = 6`, done by a compiler that has not been told what
-addition is.
+To see what a numeral is, hand it a successor and a zero. With the opaque `g` you can count: five
+`g`s for 2 + 3, six for 2 × 3. With a real successor, `n + 1`, the six applications fold, and the
+answer is the integer `6`: arithmetic done by a compiler that was never told what addition of
+these numerals is.
 
 ### Lists
 
-The list encoding is "be your own `fold`" — a list is the function that folds itself. (This is
-Böhm–Berarducci encoding; the numerals above are its special case for a type with two
-constructors.)
+A list is the function that folds itself (the Böhm–Berarducci encoding, 1985; the numerals are its
+special case):
 
-```lisp
-(def nil   (fn (c n) n))
-(def cons  (fn (hd tl) (fn (c n) (c hd (tl c n)))))
-(def total (fn (l) (l (fn (a b) (h a b)) 0)))
+<!-- file docs/book/code/def/list.oro -->
+```go
+fn nil(c, n) { n }
 
-(total (cons 1 (cons 2 (cons 3 nil))))
+fn cons(hd, tl) { fn(c, n) { c(hd, tl(c, n)) } }
+
+fn total(l) { l(fn(a, b) { h(a, b) }, 0) }
+
+fn mapl(k, l) { fn(c, n) { l(fn(a, b) { c(k(a), b) }, n) } }
+
+export fn summed() { total(cons(1, cons(2, cons(3, nil)))) }
+
+export fn mapped(u, v) { total(mapl(g, cons(u, cons(v, nil)))) }
 ```
 
-```lisp
-⟶   (h 1 (h 2 (h 3 0)))
+<!-- oro tutorial docs/book/code/def/list.oro -->
+```go
+summed =
+fn() { h(1, h(2, h(3, 0))) }
+mapped =
+fn(u, v) { h(g(u), h(g(v), 0)) }
 ```
 
-`mapl` is a wrapper that changes what the fold sees:
-
-```lisp
-(def mapl (fn (k l) (fn (c n) (l (fn (a b) (c (k a) b)) n))))
-(total (mapl g (cons (x) (cons (y) nil))))
-```
-
-```lisp
-⟶   (h (g (x)) (h (g (y)) 0))
-```
-
-**Look at what is not there.** No list. No cons cells. No intermediate list between `map` and
-`sum`. In a language with runtime lists this program allocates a list, walks it, allocates a
-*second* list, and walks that. Here the two traversals fused into one expression and the data
-structure never existed. Compiler people call this deforestation and write papers about doing it;
-here it fell out of β and δ, because reduction happens at compile time and there is no runtime for
-the list to exist in.
+**Look at what is not there.** No list, no cells, and no second list between the `mapl` and the
+`total`. In a language with lists at run time, `mapped` allocates a list, walks it to build
+another, and walks that. Here the two traversals became one expression and the structure never
+existed. Compiler writers call that *deforestation* (Wadler 1990) and write passes to do it; here
+it is β and δ, because the list was only ever a way of writing the program.
 
 ### Combinators
 
-The three that generate everything (Schönfinkel, 1924; Curry):
+Three functions generate everything (Schönfinkel 1924; Curry):
 
-```lisp
-(def I (fn (a) a))
-(def K (fn (a) (fn (b) a)))
-(def S (fn (a) (fn (b) (fn (c) ((a c) (b c))))))
+<!-- file docs/book/code/def/ski.oro -->
+```go
+fn I(a) { a }
+
+fn K(a) { fn(b) { a } }
+
+fn S(a) { fn(b) { fn(c) { a(c)(b(c)) } } }
+
+export fn skk() { S(K)(K) }
+
+export fn skk_of(v) { S(K)(K)(v) }
 ```
 
-`S K K` is the classic identity of combinatory logic:
-
-```lisp
-((S K) K)
-(((S K) K) (x))
+<!-- oro tutorial docs/book/code/def/ski.oro -->
+```go
+skk =
+fn() { fn(c) { c } }
+skk_of =
+fn(v) { v }
 ```
 
-```lisp
-⟶   (fn (c) c)
-⟶   (x)
-```
-
-The first line is worth pausing on. `((S K) K)` reduced to `(fn (c) c)` — the compiler *proved*
-`SKK = I`, with no arguments in sight, because reduction goes under binders. That is chapter 1
-§1.8 doing algebra.
+`S(K)(K)` reduced to `fn(c) { c }`, the identity. The compiler proved *SKK = I* with no argument
+in sight, because reduction goes inside functions (§1.9).
 
 ### Where it stops
 
 Two limits, and both are honest.
 
-**Exact arity.** Textbook λ-calculus is curried: every function takes one argument. Ours does not
-(chapter 1 §1.7), and the classic encodings assume currying. So the two-parameter numerals above
-break the moment something applies one partially — `exp = λm.λn. n m` relies on it:
+**Arity is exact** (§1.8). The textbook calculus is curried, every function taking one argument,
+and some classic encodings lean on it. Exponentiation, *exp m n = n m*, applies a two-parameter
+numeral to one argument:
 
-```lisp
-(def exp (fn (m n) (n m)))
-((exp two two) (fn (n) (+ n 1)) 0)
+<!-- file docs/book/code/def/no-exp.oro -->
+```go
+fn two(s, z) { s(s(z)) }
+
+fn exp(m, n) { n(m) }
+
+export fn run() { exp(two, two)(g, 0) }
 ```
 
+<!-- oro tutorial docs/book/code/def/no-exp.oro -->
 ```
-arity: expects 2 argument(s), given 1, in: (fn (s z) (s (s z)))
-```
-
-Same for `S K K` written with a three-parameter `S`:
-
-```lisp
-(def S (fn (a b c) (a c (b c))))
-(S K K)
+oro: arity: expects 2 argument(s), given 1, in: fn() { fn(s, z) { s(s(z)) } }
 ```
 
-```
-arity: expects 3 argument(s), given 2, in: (fn (a b c) (a c (b c)))
-```
+Nothing is lost: write the currying yourself, as `S` and `K` do above, and everything works.
+Kleene's predecessor, famously the hard one, with curried numerals:
 
-Nothing is lost — write the currying yourself, as the `S` and `K` above do, and everything works.
-Kleene's predecessor, famously the hard one, works too:
+<!-- file docs/book/code/def/pred.oro -->
+```go
+fn three(s) { fn(z) { s(s(s(z))) } }
 
-```lisp
-(def three (fn (s) (fn (z) (s (s (s z))))))
-(def inc (fn (n) (g n)))
-(def pred (fn (n) (fn (s) (fn (z)
-  (((n (fn (gg) (fn (hh) (hh (gg s))))) (fn (u) z)) (fn (u) u))))))
-(((pred three) inc) 0)
-```
+fn pred(n) {
+    fn(s) {
+        fn(z) { n(fn(p) { fn(q) { q(p(s)) } })(fn(u) { z })(fn(u) { u }) }
+    }
+}
 
-```lisp
-⟶   (g (g 0))
+export fn run() { pred(three)(g)(0) }
 ```
 
-Two. Currying is a representation choice, not a semantic one — but it is a choice you have to
-write down here.
-
-**Terms with no normal form.** The smallest divergent term is Ω, the self-application of
-self-application:
-
-```lisp
-(def omega (fn (a) (a a)))
-(omega omega)
+<!-- oro tutorial docs/book/code/def/pred.oro -->
+```go
+run =
+fn() { g(g(0)) }
 ```
 
-```
-reduction did not terminate within the step limit; last term head: (fn (a) a)
-```
+Two.
 
-And the famous one, the **Y combinator** — the fixed-point operator that gives untyped λ-calculus
-its recursion:
+**A term with no normal form does not compile.** The fixed-point combinator Y is how the untyped
+calculus gets recursion without naming anything:
 
-```lisp
-(def Y (fn (ff) ((fn (a) (ff (a a))) (fn (a) (ff (a a))))))
-(Y f)
-```
+<!-- file docs/book/code/def/no-y.oro -->
+```go
+fn Y(k) { fn(a) { k(a(a)) }(fn(a) { k(a(a)) }) }
 
-```
-reduction did not terminate within the step limit; last term head: (fn (ff) (fn (a) (ff (a a))))
+export fn run() { Y(f) }
 ```
 
-This is not a bug and not a missing feature — it is the reason §2.8 exists. `Y f` has **no normal
-form**. Reduction here *is* compilation, so a term with no normal form is a program that will not
-finish compiling. That is why recursion is a named definition the reducer declines to unfold rather
-than a combinator you can write, and why iteration is `fold-range`. The step limit is the guardrail
-in front of the same fact.
-
-### The encoding that is actually in the compiler
-
-Here is why this section is not a curiosity. Look again at the pair from earlier and then at
-[lib/num/vec.oro](../../lib/num/vec.oro), which is real, shipped library code:
-
-```lisp
-(def vec      (n f) (fn (sel) (sel n f)))
-(def vlen     (v)   (v (fn (n f) n)))
-(def vindex   (v i) ((v (fn (n f) f)) i))
+<!-- oro tutorial docs/book/code/def/no-y.oro -->
+```
+oro: reduction did not terminate within the step limit; last term head: (fn () (fn (k) (fn (a) a)))
 ```
 
-(Verbatim, lines 23–25 — and written in §2.1's shorthand, which is how the corpus writes a
-definition whose term is a function.)
+No definition there mentions itself, so §2.8's check has nothing to refuse; but `Y(f)` unfolds to
+`f(f(f(…)))` without end, and the step limit is the guard in front of that. It is the same fact as
+§2.8, met from the other side: recursion is not a thing you can smuggle in, because what is missing
+is not a keyword but a normal form.
 
-**That is a Church pair.** `vec` holds a length and an index function, and the language's entire
-vector type is those three lines and nothing else. Give it a use:
+### The encoding that is in the library
 
-```lisp
-(def scale (fn (v k) (vec (vlen v) (fn (i) (* k (vindex v i))))))
+This section is not a curiosity. Look at the pair again, and then at three lines of
+[lib/num/vec.oro](../../lib/num/vec.oro), which is library code:
 
-(vindex (scale (vec 10 (fn (i) (h i i))) 3) 4)
-(vlen   (scale (vec 10 (fn (i) (h i i))) 3))
+<!-- part lib/num/vec.oro -->
+```go
+pub fn vec(n, f) { fn(sel) { sel(n, f) } }
+pub fn vlen(v) { v(fn(n, f) { n }) }
+pub fn vindex(v, i) { v(fn(n, f) { f })(i) }
 ```
 
-```lisp
-⟶   (* 3 (h 4 4))
-⟶   10
+**That is a Church pair**: a length and a function from index to element. Give it a use:
+
+<!-- file docs/book/code/def/vec.oro -->
+```go
+fn vec(n, f) { fn(sel) { sel(n, f) } }
+
+fn vlen(v) { v(fn(n, f) { n }) }
+
+fn vindex(v, i) { v(fn(n, f) { f })(i) }
+
+fn scale(v, k) { vec(vlen(v), fn(i) { k * vindex(v, i) }) }
+
+export fn element() { vindex(scale(vec(10, fn(i) { h(i, i) }), 3), 4) }
+
+export fn length() { vlen(scale(vec(10, fn(i) { h(i, i) }), 3)) }
 ```
 
-Reading element 4 of a scaled 10-element vector compiles to `(* 3 (h 4 4))`. The vector was never
-built, the scaling never ran over anything, and asking for the length is a compile-time constant.
+<!-- oro tutorial docs/book/code/def/vec.oro -->
+```go
+element =
+fn() { 3 * h(4, 4) }
+length =
+fn() { 10 }
+```
 
-An encoding costs nothing **when the thing that takes it apart is known at compile time** — and
-here it always is, because reduction runs until only primitives remain. Church's encodings are
-usually taught as a proof of expressiveness and dismissed as impossibly slow. In a language that
-reduces at compile time they are not slow; they are *free*, and they are how the standard library
-is written.
+Element 4 of a ten-element vector scaled by 3 compiles to `3 * h(4, 4)`. The vector was never
+built, the scaling never ran over anything, and the length is a constant.
 
-The catch, and it is a real one: a vector must eventually become memory. That is what
-`materialize` is for, and what it costs is measured in
-[docs/spec/construction.md](../spec/construction.md). Free until it has to be real.
+Church's encodings are usually taught as a proof that functions are enough, and then dismissed as
+hopelessly slow. That is true where they run. **An encoding costs nothing when the thing that takes
+it apart is known at compile time**, and here it always is, since reduction continues until only
+the target's operations are left. The language's own tuples, variants and tables by a rule
+(chapter 0) are this idea, given syntax.
 
 ---
 
 ## What to remember
 
-- **`def` names a term, and every use is replaced by that term** — δ. It duplicates; β shares.
-- **Definitions are a set.** Order does not matter, mutual reference is fine.
-- **A definition with an effect in its body is refused**, because unfolding it would repeat it.
-- **Every definition is checked**, including ones nothing uses.
-- **Parameter beats definition beats primitive** — and the last of those is the whole parasite
-  model: a definition is the fallback for targets that lack the name.
-- **Recursion reduces and does not compile.** Iteration is `fold-range`.
-- **`export` chooses entry points; `sig` types them.** Neither can name something undefined.
-- **`fn` and `def` alone are Turing-complete**, and the encodings that prove it cost nothing here,
-  because the eliminator is always known at compile time. The library uses this on purpose.
+- **A definition names a term**: `name = term`, or `fn name(…) { … }` for a function. There is no
+  keyword, and it is not a computation.
+- **δ: a name is replaced by its term, at every use.** A definition is copied; a binding in a
+  block is shared.
+- **A definition with an effect in it is refused**, since copying it would repeat the effect. Make
+  it a function, or bind it where it is used.
+- **A file's definitions are a set.** Order does not matter; a name is defined once; there is no
+  overloading, of names or of operators.
+- **Every definition is checked**, used or not.
+- **A parameter or a binding beats the target's own name, which beats a definition.** The last is
+  the design: a definition is the fallback for a target that lacks the name.
+- **No definition may mention itself**, directly or round a cycle. An abbreviation that contains
+  itself has no end; repetition is `loop`.
+- **Only `export`s reach the host.** Every other definition exists only where it was used, and a
+  definition used twice is code written twice.
+- **Functions and definitions alone can encode booleans, pairs, numbers and lists**, and here the
+  encodings cost nothing, because whatever takes one apart is known at compile time.
 
-Next chapter: `use`, `module`, and how a name gets a qualified spelling.
+Next: [modules](03-modules.md), how a name in another file is reached. That chapter and the two
+after it are still in the notation this surface replaced, and are being brought up to date in
+order.

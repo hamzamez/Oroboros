@@ -1,0 +1,3 @@
+fn helper(n) { n + qq }
+
+export fn run() { 1 * 2 }

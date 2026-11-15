@@ -1,0 +1,13 @@
+fn pair(a, b) { fn(sel) { sel(a, b) } }
+
+fn fst(p) { p(fn(a, b) { a }) }
+
+fn snd(p) { p(fn(a, b) { b }) }
+
+fn swap(p) { pair(snd(p), fst(p)) }
+
+export fn first(u, v) { fst(pair(u, v)) }
+
+export fn second(u, v) { snd(pair(u, v)) }
+
+export fn swapped(u, v) { fst(swap(pair(u, v))) }

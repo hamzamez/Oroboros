@@ -1,0 +1,3 @@
+fn Y(k) { fn(a) { k(a(a)) }(fn(a) { k(a(a)) }) }
+
+export fn run() { Y(f) }

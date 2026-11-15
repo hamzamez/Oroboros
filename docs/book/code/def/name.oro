@@ -1,0 +1,7 @@
+fn square(n) { n * n }
+
+cube = fn(n) { n * n * n }
+
+two = 2
+
+export fn run() { h(square(two), cube(two)) }

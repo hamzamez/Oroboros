@@ -1,0 +1,9 @@
+cap = 100
+
+fn clamp(n) { if n > cap { cap } else { n } }
+
+fn nobody_calls_this(n) { n + 1 }
+
+export fn small(n ∈ 0..1000) (0..100) { clamp(n) }
+
+export fn halved(n ∈ 0..1000) (0..100) { clamp(n / 2) }

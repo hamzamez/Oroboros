@@ -1,0 +1,7 @@
+Δ = 3
+
+half_Δ = Δ / 2
+
+fn small?(n) { n < half_Δ }
+
+export fn run() { small?(0) }

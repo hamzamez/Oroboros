@@ -1,0 +1,5 @@
+fn a() { b }
+
+b = a
+
+export fn run() { 1 }

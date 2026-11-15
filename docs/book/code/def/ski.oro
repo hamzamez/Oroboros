@@ -1,0 +1,9 @@
+fn I(a) { a }
+
+fn K(a) { fn(b) { a } }
+
+fn S(a) { fn(b) { fn(c) { a(c)(b(c)) } } }
+
+export fn skk() { S(K)(K) }
+
+export fn skk_of(v) { S(K)(K)(v) }

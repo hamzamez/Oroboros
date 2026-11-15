@@ -545,6 +545,18 @@ func lentSig(sig *core.Sig) (*core.Sig, int) {
 	if len(bufs) == 0 {
 		return sig, 0
 	}
+	// IDEMPOTENT: a header whose results already lead with its buffers is one
+	if len(sig.Results) >= len(bufs) {
+		lead := true
+		for j, b := range bufs {
+			if sig.Results[j] != b {
+				lead = false
+			}
+		}
+		if lead {
+			return sig, len(bufs)
+		}
+	}
 	s := *sig
 	res := s.Results
 	if len(res) == 0 && s.Result != "" {

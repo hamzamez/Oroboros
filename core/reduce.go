@@ -81,6 +81,11 @@ type Env struct {
 	// a bound variable is a read of a table through it, as `(b i)` is (§7c).
 	Observe map[string]bool
 	Rec     map[string]bool // recursive definitions are never δ-reduced
+	// Kept names the definitions kept as functions (ADR 0113, P8): never
+	// δ-reduced at a call, each normalized once as its own function. Which
+	// they are is the compiler's choice and changes no answer (ADR 0102,
+	// Theorem 1).
+	Kept map[string]bool
 	// Unfolds, when not nil, counts each δ by name: π(f), the paths from the
 	// root to f in the call graph, as the reducer takes them (a measurement,
 	// specialization-research.md §4; nil in every compile).
@@ -1976,7 +1981,7 @@ func foldInt(op string, a, b int64, w Word) (*Term, bool) {
 }
 
 func (e *Env) unfoldable(name string) bool {
-	if e.Prim[name] || e.Rec[name] {
+	if e.Prim[name] || e.Rec[name] || e.Kept[name] {
 		return false
 	}
 	_, ok := e.Defs[name]
@@ -3222,7 +3227,7 @@ func Residual(t *Term, e *Env) []string {
 			if bound[t.Name] || (t.Name == "again" && inLoop) {
 				return
 			}
-			if !e.Prim[t.Name] && !e.Rec[t.Name] {
+			if !e.Prim[t.Name] && !e.Rec[t.Name] && !e.Kept[t.Name] {
 				found[t.Name] = true
 			}
 		case KInt, KDec, KStr, KBool, KBound:
@@ -3523,7 +3528,7 @@ func (e *Env) reduceLet(op *Term, args []*Term, fuel *int) (*Term, error) {
 func isMultiApp(t *Term, e *Env) bool {
 	return t.Kind == KApp && len(t.Kids) == 2 && t.Kids[1].Kind == KFn &&
 		t.Kids[0].Kind == KApp && len(t.Kids[0].Kids) >= 1 &&
-		t.Kids[0].Kids[0].Kind == KName && e.Prim[t.Kids[0].Kids[0].Name]
+		t.Kids[0].Kids[0].Kind == KName && (e.Prim[t.Kids[0].Kids[0].Name] || e.Kept[t.Kids[0].Kids[0].Name])
 }
 
 // isLetApp reports whether t is a residual `let` — a binding β introduced
@@ -3635,7 +3640,7 @@ func (e *Env) tupleTails(t *Term, inLoop bool) (int, bool) {
 	}
 	// A host call's continuation: ((p a…) (fn (x̄) M)), which runs once, now.
 	if op := t.Kids[0]; op.Kind == KApp && len(op.Kids) > 0 && op.Kids[0].Kind == KName &&
-		e.Prim[op.Kids[0].Name] && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		(e.Prim[op.Kids[0].Name] || e.Kept[op.Kids[0].Name]) && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
 		return e.tupleTails(t.Kids[1].Closed(), inLoop)
 	}
 	op := t.Kids[0]
@@ -3758,7 +3763,7 @@ func (e *Env) selectTails(t *Term, sel []int, n int) (*Term, bool) {
 	}
 	op := t.Kids[0]
 	if op.Kind == KApp && len(op.Kids) > 0 && op.Kids[0].Kind == KName &&
-		e.Prim[op.Kids[0].Name] && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		(e.Prim[op.Kids[0].Name] || e.Kept[op.Kids[0].Name]) && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
 		return under(1) // a host call's continuation
 	}
 	if op.Kind != KName {
@@ -3855,7 +3860,7 @@ func (e *Env) relevant(t *Term, inLoop bool) bool {
 	}
 	op := t.Kids[0]
 	if op.Kind == KApp && len(op.Kids) > 0 && op.Kids[0].Kind == KName &&
-		e.Prim[op.Kids[0].Name] && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		(e.Prim[op.Kids[0].Name] || e.Kept[op.Kids[0].Name]) && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
 		return e.relevant(t.Kids[1].Closed(), inLoop) // a host call's continuation
 	}
 	if op.Kind != KName {

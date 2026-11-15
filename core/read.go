@@ -1790,3 +1790,28 @@ func at(line int) string {
 	}
 	return fmt.Sprintf("line %d: ", line)
 }
+
+// WhereIsRanges says a header's `where` is no more than its parameters' range
+// premises, the conjunction the reader desugars each named parameter's range
+// into: its contract is then the parameters' sets alone, which a call decides by
+// its arguments (ADR 0028, 0101), and a `where` beyond them is a formula a call
+// must decide as such (ADR 0102's P3).
+func WhereIsRanges(sig *Sig) bool {
+	if sig.Where == nil {
+		return true
+	}
+	var out *Term
+	for _, pm := range sig.Params {
+		if pm.Name == "" {
+			continue
+		}
+		if c := rangePremise(pm.Type, Name(pm.Name)); c != nil {
+			if out == nil {
+				out = c
+			} else {
+				out = conj(out, c)
+			}
+		}
+	}
+	return out != nil && sig.Where.Equal(out)
+}

@@ -507,6 +507,21 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 				g = f.clone()
 				assume(g, q)
 			}
+			// A WRITE-BORROW HANDS BACK ITS ARGUMENT'S OWN STORAGE (ADR 0070):
+			// B ⊸ B ⊗ R's B is the identity on the argument, so its length is
+			// the argument's, a theorem of the arrow and no declaration's
+			// `ensure`, true whatever the precondition. Without it a buffer read
+			// after os.ReadAt, or after a kept definition that lends it
+			// (ADR 0113), had no length (roundtrip's buf[0], pe's bytes.get).
+			for _, ip := range pr.InPlace {
+				if !PlantInPlaceNoLength && ip.Result < len(k.Params) && ip.Arg < len(args) {
+					if g == f {
+						g = f.clone()
+					}
+					assume(g, core.App(core.Name("="), core.App(core.Name("len"), core.Name(k.Params[ip.Result])),
+						core.App(core.Name("len"), args[ip.Arg])))
+				}
+			}
 			for i, n := range k.Params {
 				if i >= len(pr.Results) {
 					break

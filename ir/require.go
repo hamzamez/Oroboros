@@ -54,6 +54,13 @@ func MeasureRanges(tg *emit.Target, sig *core.Sig, t *core.Term) []RangeVerdict 
 // decideMarks is the decision of DischargeRanges: each decided mark's
 // replacement, and each mark's verdict.
 func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*core.Term, []RangeVerdict) {
+	// A BORROWING BODY yields its lent buffers' versions, then the declared
+	// result (lentSig): lowered against the result alone it failed, and every
+	// range mark of such a definition fell to the refinement layer, which knew
+	// none of the IR's facts (ADR 0113).
+	if sig != nil {
+		sig, _ = lentSig(sig)
+	}
 	f, err := Lower(tg, "require", sig, t, Options{})
 	if err != nil || len(f.marks) == 0 {
 		return nil, nil

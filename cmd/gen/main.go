@@ -6,6 +6,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -181,115 +182,169 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	// numbered across the file, and in export order two programs' files were not
 	// a function of their IR (irtext-2026-10-04).
 	sort.SliceStable(units, func(i, j int) bool { return units[i].name < units[j].name })
-	funcs := map[string]string{}
-	irProg := &ir.Program{Target: target, Stage: ir.StageP}
-	// the program functions the entries call (ADR 0101), each once
-	calleeSeen := map[string]bool{}
-	var calleeFuncs []*ir.Func
-	var irErrs []string
+	// THE DEFINITIONS KEPT AS FUNCTIONS (ADR 0113), as cmd/build: chosen once for
+	// every entry, one that cannot be kept dropped and the program emitted again
+	// with it inlined (P4).
+	var entries []string
 	for _, u := range units {
-		nf, err := core.Normalize(u.term, env, core.DefaultFuel)
-		if err != nil {
-			return err
-		}
-		// A JOIN POINT IS NOT JUMPED OUT OF (tables.md §2.5): refused before any
-		// pass walks a clause chain.
-		// η FOR PRODUCTS (tables.md §2.5): a host call's several results at a
-		// producer's exit become the tuple a tuple pattern takes apart.
-		nf = emit.EtaTails(tg, nf)
-		if err := emit.CheckJoins(tg, nf); err != nil {
-			return fmt.Errorf("%s: %w", u.name, err)
-		}
-		if reportRequires {
-			reportResidual(reqs, tg, prog.Sigs[u.qual], nf)
-		}
-		if nf, err = emit.DischargeRequires(reqs, tg, u.name, prog.Sigs[u.qual], nf,
-			func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[u.qual], x) }); err != nil {
-			return err
-		}
-		fname := u.name
-		// THE PIPELINE (ir.Entry): products, the rung above the word, the checks
-		// on terms, the decision, the unsigned word and the postcondition, as
-		// every driver takes them.
-		fA, leg, err := ir.Entry(tg, fname, fname, prog.Sigs[u.qual], nf, allSigs(prog), checked,
-			func(n ir.Note) {
-				switch n.Kind {
-				case ir.NoteFlattened:
-					fmt.Fprintf(os.Stderr, "note: %s: %d product access(es) flattened\n", fname, n.N)
-				case ir.NoteRefine:
-					fmt.Fprintln(os.Stderr, "note:", n.Text)
-				case ir.NoteBig:
-					fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n.N)
-				case ir.NoteWord:
-					fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) or conversion(s) in the unsigned word\n", fname, n.N)
-				}
-			})
-		if err != nil {
-			return err
-		}
-		if leg.Ops > 0 || leg.Loops > 0 {
-			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+
-				"%d of %d loop(s) proven terminating\n",
-				fname, leg.Proven, leg.Ops, leg.Halts, leg.Loops)
-		}
-		// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: the
-		// IR has written `trap` where the proof failed.
-		if !checked {
-			if err := leg.Refusal(fname, tg); err != nil {
-				return err
-			}
-		}
-		if err := leg.SizeRefusal(fname, tg); err != nil {
-			return err
-		}
-		// DIVISION BY A POWER OF TWO IS A SHIFT where the decision's facts put
-		// the dividend in [0, 2^shift-width) (shiftdiv-2026-09-03, ir/shift.go).
-		if shifts := ir.SelectShifts(tg, fA); shifts > 0 {
-			fmt.Fprintf(os.Stderr, "note: %s: %d division(s) became a shift or a mask\n", fname, shifts)
-		}
-		// The BACKEND, not the flag — see cmd/build and target-system.md §1.1.
-		var code string
-		switch backend {
-		case "js":
-			code, err = js.FromFunc(tg, fA)
-		case "java":
-			code, err = java.FromFunc(tg, fA)
-		case "llvm":
-			code, err = llvm.FromFunc(tg, fA)
-			// AND EACH PROGRAM FUNCTION IT CALLS (ADR 0101), once per program
-			if err == nil {
-				var cs map[string]string
-				var cf []*ir.Func
-				cs, cf, err = llvm.Callees(tg, fA)
-				for n, c := range cs {
-					if _, have := funcs[n]; !have {
-						funcs[n] = c
-					}
-				}
-				for _, c := range cf {
-					if !calleeSeen[c.Name] {
-						calleeSeen[c.Name] = true
-						calleeFuncs = append(calleeFuncs, c)
-					}
-				}
-			}
-		case "go":
-			code, err = golang.FromFunc(tg, fA)
-		default:
-			return fmt.Errorf("no code generator for backend %q", backend)
-		}
-		if err != nil {
-			return err
-		}
-		funcs[fname] = code
-		// THE IR (ADR 0032, ADR 0038): the IR_P the printer just read, which is
-		// the published contract. It is written beside the code; cmd/check's
-		// `ir` step reads it and prints it again (docs/spec/ir.md §10, §11).
-		if irOut != "" {
-			irProg.Funcs = append(irProg.Funcs, fA.Clone())
+		if u.qual != "" {
+			entries = append(entries, u.qual)
 		}
 	}
-
+	drop := map[string]bool{}
+	var funcs map[string]string
+	var irProg *ir.Program
+	var calleeFuncs []*ir.Func
+	var irErrs []string
+	for {
+		K, kerr := ir.Keep(tg, prog, env, reqs, entries, allSigs(prog), drop)
+		var kd *ir.KeepDrop
+		if errors.As(kerr, &kd) {
+			drop[kd.Name] = true
+			fmt.Fprintf(os.Stderr, "note: %s\n", firstLine(kd.Error()))
+			continue
+		}
+		if kerr != nil {
+			return kerr
+		}
+		funcs = map[string]string{}
+		irProg = &ir.Program{Target: target, Stage: ir.StageP}
+		// the program functions the entries call (ADR 0101), each once
+		calleeSeen := map[string]bool{}
+		calleeFuncs = nil
+		irErrs = nil
+		err := func() error {
+			for _, u := range units {
+				nf, err := core.Normalize(u.term, env, core.DefaultFuel)
+				if err != nil {
+					return err
+				}
+				// A JOIN POINT IS NOT JUMPED OUT OF (tables.md §2.5): refused before any
+				// pass walks a clause chain.
+				// η FOR PRODUCTS (tables.md §2.5): a host call's several results at a
+				// producer's exit become the tuple a tuple pattern takes apart.
+				nf = emit.EtaTails(tg, nf)
+				if err := emit.CheckJoins(tg, nf); err != nil {
+					return fmt.Errorf("%s: %w", u.name, err)
+				}
+				if reportRequires {
+					reportResidual(reqs, tg, prog.Sigs[u.qual], nf)
+				}
+				if nf, err = emit.DischargeRequires(reqs, tg, u.name, prog.Sigs[u.qual], nf,
+					func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[u.qual], x) }); err != nil {
+					return err
+				}
+				fname := u.name
+				// THE PIPELINE (ir.Entry): products, the rung above the word, the checks
+				// on terms, the decision, the unsigned word and the postcondition, as
+				// every driver takes them.
+				fA, leg, err := ir.Entry(tg, fname, fname, prog.Sigs[u.qual], nf, allSigs(prog), checked,
+					func(n ir.Note) {
+						switch n.Kind {
+						case ir.NoteFlattened:
+							fmt.Fprintf(os.Stderr, "note: %s: %d product access(es) flattened\n", fname, n.N)
+						case ir.NoteRefine:
+							fmt.Fprintln(os.Stderr, "note:", n.Text)
+						case ir.NoteBig:
+							fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n.N)
+						case ir.NoteWord:
+							fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) or conversion(s) in the unsigned word\n", fname, n.N)
+						}
+					})
+				if err != nil {
+					return err
+				}
+				if leg.Ops > 0 || leg.Loops > 0 {
+					fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+
+						"%d of %d loop(s) proven terminating\n",
+						fname, leg.Proven, leg.Ops, leg.Halts, leg.Loops)
+				}
+				// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: the
+				// IR has written `trap` where the proof failed.
+				if !checked {
+					if err := leg.Refusal(fname, tg); err != nil {
+						return err
+					}
+				}
+				if err := leg.SizeRefusal(fname, tg); err != nil {
+					return err
+				}
+				// DIVISION BY A POWER OF TWO IS A SHIFT where the decision's facts put
+				// the dividend in [0, 2^shift-width) (shiftdiv-2026-09-03, ir/shift.go).
+				if shifts := ir.SelectShifts(tg, fA); shifts > 0 {
+					fmt.Fprintf(os.Stderr, "note: %s: %d division(s) became a shift or a mask\n", fname, shifts)
+				}
+				// The BACKEND, not the flag — see cmd/build and target-system.md §1.1.
+				var code string
+				switch backend {
+				case "js":
+					code, err = js.FromFunc(tg, fA)
+				case "java":
+					code, err = java.FromFunc(tg, fA)
+				case "llvm":
+					code, err = llvm.FromFunc(tg, fA)
+					// AND EACH PROGRAM FUNCTION IT CALLS (ADR 0101), once per program
+					if err == nil {
+						var cs map[string]string
+						var cf []*ir.Func
+						cs, cf, err = llvm.Callees(tg, fA)
+						for n, c := range cs {
+							if _, have := funcs[n]; !have {
+								funcs[n] = c
+							}
+						}
+						for _, c := range cf {
+							if !calleeSeen[c.Name] {
+								calleeSeen[c.Name] = true
+								calleeFuncs = append(calleeFuncs, c)
+							}
+						}
+					}
+				case "go":
+					code, err = golang.FromFunc(tg, fA)
+				default:
+					return fmt.Errorf("no code generator for backend %q", backend)
+				}
+				if err != nil {
+					return err
+				}
+				funcs[fname] = code
+				// THE IR (ADR 0032, ADR 0038): the IR_P the printer just read, which is
+				// the published contract. It is written beside the code; cmd/check's
+				// `ir` step reads it and prints it again (docs/spec/ir.md §10, §11).
+				if irOut != "" {
+					irProg.Funcs = append(irProg.Funcs, fA.Clone())
+				}
+			}
+			return nil
+		}()
+		if n, ok := ir.KeptCallee(err, K); ok {
+			drop[n] = true
+			continue
+		}
+		// P4'S NET (ADR 0102, 0113): a contract proves less than its sites
+		// (Theorem 3), so a refusal with K ≠ ∅ may be K's. K = ∅ is then the
+		// verdict, and no definition is kept.
+		if err != nil && len(K) > 0 {
+			for n := range K {
+				drop[n] = true
+			}
+			fmt.Fprintf(os.Stderr, "note: every definition inlined: kept, %s\n", firstLine(err.Error()))
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if len(K) > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d definition(s) kept as functions, %d inlined by their contracts\n", len(K), len(drop))
+			// each kept definition's proofs, once, as an entry's are reported
+			for _, kc := range ir.KeptCounts(tg) {
+				fmt.Fprintf(os.Stderr, "note: %s (kept): %d of %d integer operations bounded; "+
+					"%d of %d loop(s) proven terminating\n", kc.Name, kc.Proven, kc.Ops, kc.Halts, kc.Loops)
+			}
+		}
+		break
+	}
 	if irOut != "" {
 		irProg.Funcs = append(irProg.Funcs, calleeFuncs...)
 	}
@@ -347,4 +402,12 @@ func allSigs(p *core.Program) []*core.Sig {
 		out = append(out, s)
 	}
 	return out
+}
+
+// firstLine is a message's first line: a definition's fallback reason, said once.
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
 }

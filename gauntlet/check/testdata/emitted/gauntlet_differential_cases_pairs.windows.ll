@@ -8,11 +8,8 @@ entry:
   %.s6 = alloca i1
   %.s11 = alloca i64
   %.s12 = alloca i64
-  %.s41 = alloca i64
-  %.s51 = alloca i64
-  %.s84 = alloca i64
-  %.s89 = alloca i64
-  %.s95 = alloca i64
+  %.s18 = alloca i64
+  %.s24 = alloca i64
   %v2 = icmp sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
@@ -36,118 +33,127 @@ entry:
   br i1 %v17, label %.then14, label %.else15
 .then14:
   %v20 = add nuw nsw i64 %v14, 1
-  %v22 = or i64 %v15, 0
-  %v23 = mul i64 %v22, -7046029254386353131
-  %v24 = add i64 %v23, %v14
-  %v25 = or i64 %v24, 0
-  %v27 = or i64 %v25, 0
-  %v28 = shl i64 %v27, 13
-  %v29 = or i64 %v25, 0
-  %v30 = xor i64 %v29, %v28
-  %v31 = or i64 %v30, 0
-  %v33 = or i64 %v31, 0
-  %v34 = add i64 %v33, 8589934591
-  %v35 = or i64 %v34, 0
-  %v36 = or i64 %v35, 0
-  %v37 = or i64 %v25, 0
-  %v38 = sub i64 %v36, %v37
-  %v39 = or i64 %v38, 0
-  %v40 = or i64 %v39, 0
-  %v42 = xor i64 %v40, -1
-  %v43 = or i64 %v42, 0
-  %v46 = icmp sle i64 7, 63
-  br i1 %v46, label %.then37, label %.else38
-.then37:
-  %v49 = lshr i64 %v43, 7
-  store i64 %v49, ptr %.s41
-  br label %.join39
-.else38:
-  %v52 = or i64 0, 0
-  store i64 %v52, ptr %.s41
-  br label %.join39
-.join39:
-  %v47 = load i64, ptr %.s41
-  %v53 = or i64 %v47, 0
-  %v54 = or i64 %v43, 0
-  %v55 = xor i64 %v54, %v53
-  %v58 = icmp sle i64 33, 63
-  br i1 %v58, label %.then47, label %.else48
-.then47:
-  %v61 = lshr i64 %v43, 33
-  store i64 %v61, ptr %.s51
-  br label %.join49
-.else48:
-  %v64 = or i64 0, 0
-  store i64 %v64, ptr %.s51
-  br label %.join49
-.join49:
-  %v59 = load i64, ptr %.s51
-  %v65 = or i64 %v59, 0
-  %v66 = xor i64 %v55, %v65
-  %v68 = or i64 %v25, 0
-  %v69 = shl i64 %v68, 32
-  %v70 = or i64 %v69, 0
-  %v71 = or i64 %v70, 0
-  %v72 = xor i64 %v66, %v71
-  %v74 = or i64 1024, 0
-  %v75 = udiv i64 %v43, %v74
-  %v76 = or i64 %v75, 0
-  %v78 = and i64 %v76, 65535
-  %v79 = xor i64 %v72, %v78
-  %v81 = or i64 %v43, 0
-  %v82 = and i64 %v81, 65535
-  %v83 = xor i64 %v79, %v82
-  %v84 = or i64 %v25, 0
-  %v85 = or i64 %v25, 0
-  %v86 = mul i64 %v84, %v85
-  %v87 = or i64 %v86, 0
-  %v88 = or i64 %v87, 0
-  %v89 = xor i64 %v83, %v88
-  %v90 = or i64 %v25, 0
-  %v91 = or i64 %v31, 0
-  %v92 = or i64 %v90, %v91
-  %v94 = and i64 %v92, 1085102592571150095
-  %v95 = xor i64 %v89, %v94
-  %v98 = icmp sle i64 63, 63
-  br i1 %v98, label %.then80, label %.else81
-.then80:
-  %v101 = lshr i64 %v39, 63
-  store i64 %v101, ptr %.s84
-  br label %.join82
-.else81:
-  %v104 = or i64 0, 0
-  store i64 %v104, ptr %.s84
-  br label %.join82
-.join82:
-  %v99 = load i64, ptr %.s84
-  %v105 = or i64 %v99, 0
-  %v106 = xor i64 %v95, %v105
-  %v107 = or i64 %v106, 0
+  %v21 = call i64 @mix(i64 %v15, i64 %v14)
   store i64 %v20, ptr %.s11
-  store i64 %v107, ptr %.s12
+  store i64 %v21, ptr %.s12
   br label %.head9
 .else15:
-  store i64 %v15, ptr %.s89
+  store i64 %v15, ptr %.s18
   br label %.exit10
 .exit10:
-  %v13 = load i64, ptr %.s89
-  %v111 = icmp sle i64 32, 63
-  br i1 %v111, label %.then91, label %.else92
-.then91:
-  %v114 = lshr i64 %v13, 32
-  store i64 %v114, ptr %.s95
-  br label %.join93
-.else92:
-  %v117 = or i64 0, 0
-  store i64 %v117, ptr %.s95
-  br label %.join93
-.join93:
-  %v112 = load i64, ptr %.s95
-  %v118 = or i64 %v112, 0
-  %v120 = or i64 %v13, 0
-  %v121 = and i64 %v120, 4294967295
-  %v122 = xor i64 %v118, %v121
-  ret i64 %v122
+  %v13 = load i64, ptr %.s18
+  %v25 = icmp sle i64 32, 63
+  br i1 %v25, label %.then20, label %.else21
+.then20:
+  %v28 = lshr i64 %v13, 32
+  store i64 %v28, ptr %.s24
+  br label %.join22
+.else21:
+  %v31 = or i64 0, 0
+  store i64 %v31, ptr %.s24
+  br label %.join22
+.join22:
+  %v26 = load i64, ptr %.s24
+  %v32 = or i64 %v26, 0
+  %v34 = or i64 %v13, 0
+  %v35 = and i64 %v34, 4294967295
+  %v36 = xor i64 %v32, %v35
+  ret i64 %v36
+}
+
+define i64 @mix(i64 %v0, i64 %v1) #0 {
+entry:
+  %.s25 = alloca i64
+  %.s35 = alloca i64
+  %.s68 = alloca i64
+  %v3 = or i64 %v0, 0
+  %v4 = mul i64 %v3, -7046029254386353131
+  %v5 = add i64 %v4, %v1
+  %v6 = or i64 %v5, 0
+  %v8 = or i64 %v6, 0
+  %v9 = shl i64 %v8, 13
+  %v10 = or i64 %v6, 0
+  %v11 = xor i64 %v10, %v9
+  %v12 = or i64 %v11, 0
+  %v14 = or i64 %v12, 0
+  %v15 = add i64 %v14, 8589934591
+  %v16 = or i64 %v15, 0
+  %v17 = or i64 %v16, 0
+  %v18 = or i64 %v6, 0
+  %v19 = sub i64 %v17, %v18
+  %v20 = or i64 %v19, 0
+  %v21 = or i64 %v20, 0
+  %v23 = xor i64 %v21, -1
+  %v24 = or i64 %v23, 0
+  %v27 = icmp sle i64 7, 63
+  br i1 %v27, label %.then21, label %.else22
+.then21:
+  %v30 = lshr i64 %v24, 7
+  store i64 %v30, ptr %.s25
+  br label %.join23
+.else22:
+  %v33 = or i64 0, 0
+  store i64 %v33, ptr %.s25
+  br label %.join23
+.join23:
+  %v28 = load i64, ptr %.s25
+  %v34 = or i64 %v28, 0
+  %v35 = or i64 %v24, 0
+  %v36 = xor i64 %v35, %v34
+  %v39 = icmp sle i64 33, 63
+  br i1 %v39, label %.then31, label %.else32
+.then31:
+  %v42 = lshr i64 %v24, 33
+  store i64 %v42, ptr %.s35
+  br label %.join33
+.else32:
+  %v45 = or i64 0, 0
+  store i64 %v45, ptr %.s35
+  br label %.join33
+.join33:
+  %v40 = load i64, ptr %.s35
+  %v46 = or i64 %v40, 0
+  %v47 = xor i64 %v36, %v46
+  %v49 = or i64 %v6, 0
+  %v50 = shl i64 %v49, 32
+  %v51 = or i64 %v50, 0
+  %v52 = or i64 %v51, 0
+  %v53 = xor i64 %v47, %v52
+  %v55 = or i64 1024, 0
+  %v56 = udiv i64 %v24, %v55
+  %v57 = or i64 %v56, 0
+  %v59 = and i64 %v57, 65535
+  %v60 = xor i64 %v53, %v59
+  %v62 = or i64 %v24, 0
+  %v63 = and i64 %v62, 65535
+  %v64 = xor i64 %v60, %v63
+  %v65 = or i64 %v6, 0
+  %v66 = or i64 %v6, 0
+  %v67 = mul i64 %v65, %v66
+  %v68 = or i64 %v67, 0
+  %v69 = or i64 %v68, 0
+  %v70 = xor i64 %v64, %v69
+  %v71 = or i64 %v6, 0
+  %v72 = or i64 %v12, 0
+  %v73 = or i64 %v71, %v72
+  %v75 = and i64 %v73, 1085102592571150095
+  %v76 = xor i64 %v70, %v75
+  %v79 = icmp sle i64 63, 63
+  br i1 %v79, label %.then64, label %.else65
+.then64:
+  %v82 = lshr i64 %v20, 63
+  store i64 %v82, ptr %.s68
+  br label %.join66
+.else65:
+  %v85 = or i64 0, 0
+  store i64 %v85, ptr %.s68
+  br label %.join66
+.join66:
+  %v80 = load i64, ptr %.s68
+  %v86 = or i64 %v80, 0
+  %v87 = xor i64 %v76, %v86
+  %v88 = or i64 %v87, 0
+  ret i64 %v88
 }
 
 attributes #0 = { nounwind "no-builtins" }

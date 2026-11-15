@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -177,12 +178,67 @@ func registerProgramFunc(tg *emit.Target, f *Func) {
 		holes = append(holes, fmt.Sprintf("%%%d", i+1))
 	}
 	res := ""
-	if len(f.Results) == 1 {
+	var results []string
+	ret := "void"
+	switch len(f.Results) {
+	case 0:
+	case 1:
 		res = f.Results[0]
+		ret = llvmType(res)
+	default:
+		// SEVERAL RESULTS are the product's factors (ADR 0113, Proposition C): an
+		// aggregate the call's projections take apart (ir/llvm's call)
+		results = append(results, f.Results...)
+		var ts []string
+		for _, r := range f.Results {
+			ts = append(ts, llvmType(r))
+		}
+		ret = "{ " + strings.Join(ts, ", ") + " }"
 	}
-	tg.Prims[f.Name] = emit.Prim{Name: f.Name, Args: args, Result: res, Kind: "expr", Pure: true, Program: true,
-		Form: fmt.Sprintf("call %s %s(%s)", llvmType(res), llvmName(f.Name), strings.Join(holes, ", "))}
+	tg.Prims[f.Name] = emit.Prim{Name: f.Name, Args: args, Result: res, Results: results, Kind: "expr",
+		Pure: strings.HasPrefix(f.Name, natPrefix) || funcPure(tg, f), Program: true,
+		Form: fmt.Sprintf("call %s %s(%s)", ret, llvmName(f.Name), strings.Join(holes, ", "))}
+	programFuncs[f.Name] = true
 }
+
+// funcPure says f's body calls nothing impure: a call of it is then pure, and
+// otherwise it keeps its place among its caller's effects (ADR 0010, 0113).
+func funcPure(tg *emit.Target, f *Func) bool {
+	if PlantLentPure {
+		goto calls
+	}
+	// A LENT BUFFER IS WRITTEN: B ⊸ B ⊗ R is an effect on it, so a caller's
+	// facts of its contents must take the callee's writes (hostWrites joins a
+	// buffer argument's declared elements at an impure call), and a call that
+	// lends one is never pure, whatever else its body does (ADR 0113).
+	for _, p := range f.Params {
+		if strings.HasPrefix(f.Types[p], "buffer") {
+			return false
+		}
+	}
+calls:
+	pure := true
+	f.Walk(func(r *Region) {
+		for _, s := range r.Stmts {
+			if s.Op == OCall {
+				if q, ok := tg.Prims[s.Name]; !ok || !q.Pure {
+					pure = false
+				}
+			}
+		}
+	})
+	return pure
+}
+
+// PlantLentPure lets a call that lends a buffer be pure when its body calls
+// nothing impure: TestALentBufferIsWrittenByItsCall must then see the caller
+// keep its buffer's element facts across the write and accept an index the
+// callee's write has put out of range.
+var PlantLentPure bool
+
+// programFuncs are the program functions registered on any target: K(ℕ*)'s
+// instances and the definitions a program keeps (ADR 0113).
+var programFuncs = map[string]bool{}
 
 // llvmType is an IR type's LLVM type, as ir/llvm spells it for a program
 // function's signature: a table, a string and a pointer are `ptr`.
@@ -196,30 +252,52 @@ func llvmType(t string) string {
 	return "ptr"
 }
 
-// llvmName is ir/llvm.Name, here because ir/llvm imports ir.
-func llvmName(n string) string { return "@" + strings.ReplaceAll(n, "-", "_") }
+// llvmName is ir/llvm.Name, here because ir/llvm imports ir: `-` made `_`,
+// and quoted where the name holds anything else (a qualified definition's
+// `os/host.ReadFile`, ADR 0113).
+func llvmName(n string) string {
+	n = strings.ReplaceAll(n, "-", "_")
+	for _, c := range n {
+		if !(c == '_' || c == '.' || c == '$' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') {
+			return "@" + strconv.Quote(n)
+		}
+	}
+	return "@" + n
+}
 
-// IsProgramFunc says name is a program function's.
-func IsProgramFunc(name string) bool { return strings.HasPrefix(name, natPrefix) }
+// IsProgramFunc says name is a program function's: K(ℕ*)'s, or a kept
+// definition's (ADR 0113).
+func IsProgramFunc(name string) bool { return strings.HasPrefix(name, natPrefix) || programFuncs[name] }
 
 // Callees are the program functions f calls, built for tg, in name order.
 func Callees(tg *emit.Target, f *Func) []*Func {
-	seen := map[string]bool{}
-	f.Walk(func(r *Region) {
-		for _, s := range r.Stmts {
-			if s.Op == OCall && IsProgramFunc(s.Name) {
-				seen[s.Name] = true
-			}
-		}
-	})
+	// TRANSITIVELY: a kept definition may call another (ADR 0113), each defined
+	// once in the module
 	calleeMu.Lock()
 	defer calleeMu.Unlock()
-	var out []*Func
+	byName := map[string]*Func{}
 	for k, c := range callees {
-		if k.tg == tg && seen[c.Name] {
-			out = append(out, c)
+		if k.tg == tg {
+			byName[c.Name] = c
 		}
 	}
+	seen := map[string]bool{}
+	var out []*Func
+	var visit func(g *Func)
+	visit = func(g *Func) {
+		g.Walk(func(r *Region) {
+			for _, s := range r.Stmts {
+				if s.Op == OCall && IsProgramFunc(s.Name) && !seen[s.Name] {
+					if c, ok := byName[s.Name]; ok {
+						seen[s.Name] = true
+						out = append(out, c)
+						visit(c)
+					}
+				}
+			}
+		})
+	}
+	visit(f)
 	sortFuncs(out)
 	return out
 }
@@ -235,8 +313,20 @@ func sortFuncs(fs []*Func) {
 // RegisterProgram registers every program function a program's text holds,
 // so a printer reprints a call from the text alone (ADR 0038).
 func RegisterProgram(tg *emit.Target, p *Program) {
+	// A FUNCTION ANOTHER FUNCTION OF THE TEXT CALLS is a program function: K(ℕ*)'s
+	// instances by their prefix, a kept definition by being called (ADR 0113).
+	called := map[string]bool{}
 	for _, f := range p.Funcs {
-		if IsProgramFunc(f.Name) {
+		f.Walk(func(r *Region) {
+			for _, s := range r.Stmts {
+				if s.Op == OCall {
+					called[s.Name] = true
+				}
+			}
+		})
+	}
+	for _, f := range p.Funcs {
+		if IsProgramFunc(f.Name) || called[f.Name] {
 			registerProgramFunc(tg, f)
 		}
 	}

@@ -8,6 +8,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -158,45 +159,54 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		run := core.App(core.Fn([]string{"_"}, core.App(core.Name("llvm/os.exit"), core.Int(0))), core.App(root))
 		root = core.Fn(nil, run)
 	}
-	nf, err := core.Normalize(root, env, core.DefaultFuel)
-	if err != nil {
-		return err
-	}
-	// A JOIN POINT IS NOT JUMPED OUT OF (tables.md §2.5): refused before any
-	// pass walks a clause chain.
-	// η FOR PRODUCTS (tables.md §2.5), as cmd/gen.
-	nf = emit.EtaTails(tg, nf)
-	if err := emit.CheckJoins(tg, nf); err != nil {
-		return fmt.Errorf("%s: %w", entry, err)
-	}
-	if nf, err = emit.DischargeRequires(reqs, tg, entry, prog.Sigs[entry], nf,
-		func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[entry], x) }); err != nil {
-		return err
-	}
-	if nf.Kind != core.KFn || len(nf.Params) != 0 {
-		return fmt.Errorf("main must take no arguments, got %s", nf)
-	}
-	if left := core.Residual(nf, env); len(left) > 0 {
-		return fmt.Errorf("not in normal form for target %q: %s", target, strings.Join(left, ", "))
-	}
-
-	// THE PIPELINE (ir.Entry) — see cmd/gen.
-	fA, leg, err := ir.Entry(tg, entry, "oro-main", prog.Sigs[entry], nf, allSigs(prog), checked,
-		func(n ir.Note) {
-			switch n.Kind {
-			case ir.NoteFlattened:
-				fmt.Fprintf(os.Stderr, "note: %d product access(es) flattened\n", n.N)
-			case ir.NoteRefine:
-				fmt.Fprintln(os.Stderr, "note:", n.Text)
-			case ir.NoteBig:
-				fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n.N)
-			case ir.NoteWord:
-				fmt.Fprintf(os.Stderr, "note: %d operation(s) or conversion(s) in the unsigned word\n", n.N)
+	// THE DEFINITIONS KEPT AS FUNCTIONS (ADR 0113): chosen by the compiler,
+	// each built once under its contract; one that cannot be kept, or whose
+	// call is outside its contract, is dropped and the program built again
+	// with it inlined (P4), so no verdict depends on the choice.
+	drop := map[string]bool{}
+	var nf *core.Term
+	var fA *ir.Func
+	var leg *ir.Legality
+	for {
+		K, err := ir.Keep(tg, prog, env, reqs, []string{entry}, allSigs(prog), drop)
+		var kd *ir.KeepDrop
+		if errors.As(err, &kd) {
+			drop[kd.Name] = true
+			fmt.Fprintf(os.Stderr, "note: %v\n", firstLine(kd.Error()))
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		nf, fA, leg, err = reduceAndLower(tg, prog, env, reqs, entry, root, target, checked)
+		if n, ok := ir.KeptCallee(err, K); ok {
+			drop[n] = true
+			continue
+		}
+		// P4'S NET (ADR 0102, 0113): a contract proves less than its sites
+		// (Theorem 3), so a refusal with K ≠ ∅ may be K's. K = ∅ is then the
+		// verdict, and no definition is kept.
+		if err != nil && len(K) > 0 {
+			for n := range K {
+				drop[n] = true
 			}
-		})
-	if err != nil {
-		return err
+			fmt.Fprintf(os.Stderr, "note: every definition inlined: kept, %s\n", firstLine(err.Error()))
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if len(K) > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d definition(s) kept as functions, %d inlined by their contracts\n", len(K), len(drop))
+			// each kept definition's proofs, once, as an entry's are reported
+			for _, kc := range ir.KeptCounts(tg) {
+				fmt.Fprintf(os.Stderr, "note: %s (kept): %d of %d integer operations bounded; "+
+					"%d of %d loop(s) proven terminating\n", kc.Name, kc.Proven, kc.Ops, kc.Halts, kc.Loops)
+			}
+		}
+		break
 	}
+	_ = nf
 	if leg.Ops > 0 || leg.Loops > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+
 			"%d of %d loop(s) proven terminating\n",
@@ -352,3 +362,67 @@ func allSigs(p *core.Program) []*core.Sig {
 
 // irOut is -ir's file.
 var irOut string
+
+// reduceAndLower is the entry's reduction and the pipeline after it, with the
+// kept definitions left as calls.
+func reduceAndLower(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.RequireSet,
+	entry string, root *core.Term, target string, checked bool) (*core.Term, *ir.Func, *ir.Legality, error) {
+	nf, err := core.Normalize(root, env, core.DefaultFuel)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	// A JOIN POINT IS NOT JUMPED OUT OF (tables.md §2.5): refused before any
+	// pass walks a clause chain.
+	// η FOR PRODUCTS (tables.md §2.5), as cmd/gen.
+	nf = emit.EtaTails(tg, nf)
+	if err := emit.CheckJoins(tg, nf); err != nil {
+		return nil, nil, nil, fmt.Errorf("%s: %w", entry, err)
+	}
+	if nf, err = emit.DischargeRequires(reqs, tg, entry, prog.Sigs[entry], nf,
+		func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[entry], x) }); err != nil {
+		return nil, nil, nil, err
+	}
+	if nf.Kind != core.KFn || len(nf.Params) != 0 {
+		return nil, nil, nil, fmt.Errorf("main must take no arguments, got %s", nf)
+	}
+	if left := core.Residual(nf, env); len(left) > 0 {
+		return nil, nil, nil, fmt.Errorf("not in normal form for target %q: %s", target, strings.Join(left, ", "))
+	}
+
+	// THE PIPELINE (ir.Entry) — see cmd/gen.
+	fA, leg, err := ir.Entry(tg, entry, "oro-main", prog.Sigs[entry], nf, allSigs(prog), checked,
+		func(n ir.Note) {
+			switch n.Kind {
+			case ir.NoteFlattened:
+				fmt.Fprintf(os.Stderr, "note: %d product access(es) flattened\n", n.N)
+			case ir.NoteRefine:
+				fmt.Fprintln(os.Stderr, "note:", n.Text)
+			case ir.NoteBig:
+				fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n.N)
+			case ir.NoteWord:
+				fmt.Fprintf(os.Stderr, "note: %d operation(s) or conversion(s) in the unsigned word\n", n.N)
+			}
+		})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	// BOUNDED BY DEFAULT (ADR 0019), decided here so a refusal K caused is
+	// retried with K = ∅ (P4).
+	if !checked {
+		if err := leg.Refusal(entry, tg); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	if err := leg.SizeRefusal(entry, tg); err != nil {
+		return nil, nil, nil, err
+	}
+	return nf, fA, leg, nil
+}
+
+// firstLine is a message's first line: a definition's fallback reason, said once.
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}

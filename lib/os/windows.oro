@@ -82,7 +82,11 @@ provides windows os/host {
                                 (b, m, e) = readall(h, sz)
                                 ignore(kernel32.CloseHandle(h))
                                 // the file shrank while it was read: its first m bytes
-                                t = if m >= len(b) { b } else { alloc(array { b[i] : i ∈ 0..m - 1 }) }
+                                // m ≤ len(b) is readinto's result relation, which a call of it
+                        // as a function does not carry (its `ensure` waits on P3's
+                        // relational results, ADR 0113): stated here, the identity
+                        m1 = if m > len(b) { len(b) } else if m < 0 { 0 } else { m }
+                        t = if m1 >= len(b) { b } else { alloc(array { b[i] : i ∈ 0..m1 - 1 }) }
                                 (t, e)
                             }
                         }
@@ -347,11 +351,12 @@ provides windows os/host {
     // k ≤ 3i ≤ 3n is the output's invariant, linear but no difference, which
     // the intervals do not keep: each store is guarded by its index's range,
     // the identity on every path the invariant allows, and so is the prefix's
-    // length. Past (2^47 − 13)/3 input bytes the output cannot be held.
+    // length. Past ⌊(2^47 − 13)/3⌋ input bytes the output cannot be held (the
+    // bound one more was off by one, found under the contract, ADR 0113).
     fn repair(b ∈ Array(0..255)) {
         n = len(b)
         case {
-            n > 46912496118439 -> abandon("out of memory: text longer than the largest table")
+            n > 46912496118438 -> abandon("out of memory: text longer than the largest table")
             else -> {
                 (o, k) = {
                     var o := array { 0 : _ ∈ 0..3 * n + 3 }

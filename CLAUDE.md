@@ -95,8 +95,10 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 wrong about half the time.
 
 **The current assessment is [assessment-2026-11-15.md](docs/assessment-2026-11-15.md)**; read it
-before planning. Its plan (§5): P8 with its ledger, the gauntlet on four targets, the harness, the
-file programs on windows, the second triple, TinyRetroPad, then CLAUDE.md as state again. Previous:
+before planning. Its plan (§5): ~~P8 with its ledger~~ step 1 done
+([p8-2026-11-15](gauntlet/results/p8-2026-11-15.md); step 3, Proposition D, lifting and a kept
+definition's derived postcondition, owed), the gauntlet on four targets, the harness, the file
+programs on windows, the second triple, TinyRetroPad, then CLAUDE.md as state again. Previous:
 [10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
 [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
 [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md),
@@ -419,9 +421,9 @@ checked. When a package hits a wall that needs language work, stop, research it,
           the first cells written in J over kernel32. A Win32 failure is a term (the sentinel, then
           GetLastError, each name's sum built once at its tail); an out-parameter is ADR 0048's cell, an
           `alloca` on LLVM; V, the valid UTF-8, is recognized by its monoid, `utf8_valid` and `utf8_text`
-          in Σ_L (strings.md §11), text_of = ι_V ∘ r. Both cases run on four targets. **`roundtrip.oro`
-          on windows waits on ADR 0102's P8**: nine inlined J definitions pass `core.MaxDepth`. Then the
-          gauntlet's programs on windows, which meet the same scale;
+          in Σ_L (strings.md §11), text_of = ι_V ∘ r. Both cases run on four targets. `roundtrip.oro`,
+          `ledger` and `freq` emit on windows since P8 (ADR 0113, p8-2026-11-15), the cell's definitions
+          kept as functions. Then the gauntlet's programs on windows, which meet the same scale;
         - **then a skip states a true reason** (hamza, 2026-11-06): the differential runs every skipped
           case × target and reports each that now agrees, a stale skip. Three skipped the JVM for a
           month after its unsigned word was built (llvm64-2026-11-06); step 4 adds a triple's skips.
@@ -483,9 +485,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
     70% (windows) of headed definitions are proven under their contract, the rest an obligation over
     the parameters Theorem 4 lifts (4), ρ at the boundary (1), or higher-order by result (2: dynamic
     means first-order in the whole type); no widening non-monotonicity found; the 2,000-quotient
-    program inlined is 7.1–7.6 min, 70–74% clang's. **P8's trigger is met** (oswin-2026-11-15):
-    windows' `os` cell is J inlined at every call, and `roundtrip.oro`'s nine calls pass the reducer's
-    depth; P3 and P8 are owed, M-S3 with P8's first program.
+    program inlined is 7.1–7.6 min, 70–74% clang's. **P8, step 1, built** (ADR 0113,
+    [p8-2026-11-15](gauntlet/results/p8-2026-11-15.md)): on a target whose printer prints functions
+    (windows), the compiler keeps each dynamic definition that pays (|f| · max(π − 1, 1) ≥ 64) and that
+    its contract proves. The source names nothing. A verdict is monotone in K: every program accepted
+    with K = ∅ is accepted, with the same answer, by P4's net. An unstated result's type is its hull,
+    never typing's (`PlantTypingResult`), and a lent buffer is written in place (`sameStorage`, never
+    pure). `roundtrip`, `ledger` and `freq` emit on windows; run time 0.985–1.03; Go, JavaScript and
+    the JVM byte-identical. Owed (step 3): Proposition D, lifting, J's `ensure` on named results, and
+    a kept definition's derived postcondition (len(r) = n), which four programs fall back on.
 
 **Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;
@@ -548,15 +556,15 @@ what TinyRetroPad's walls need.
   three residues above 1.10× each explained. The 26 files its harnesses call are listed in
   `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
   `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **7,462 of 7,516** integer operations proven inside their target's word, the 54 left
+- **Provability**: **7,293 of 7,347** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **826 of 856** loops proven to terminate (size-change termination; six of the thirty left are
-  windows' `os` cell's read and write loops, whose progress is a count the host returns; the counts
-  rose with the programs `os` let emit on windows, oswin-2026-11-15). Each
-  program's share is in its result document; both counts are pinned by `cmd/check`. A program
-  function's operations (ADR 0101) are proven once per target, under its parameters' sets, and an
-  instance its contract does not prove is inlined (ADR 0102), so they are not counted per program.
+  **762 of 800** loops proven to terminate (size-change termination; fourteen of the 38 left are
+  windows' `os` cell's read and write loops, whose progress is a count the host returns). A
+  definition windows keeps as a function (ADR 0113) is counted once per program, so the totals fell
+  with P8 while no program's unproven count rose (p8-2026-11-15). Each program's share is in its
+  result document; both counts are pinned by `cmd/check`. K(ℕ\*)'s instances (ADR 0101) are proven
+  once per target, under their parameters' sets, and are not counted per program.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
   declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
   share of the Go packages with a file, with a cause for every missing name
@@ -927,7 +935,7 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | | |
 |---|---|
 | `core/` | J's reader (`jlex`, `jparse`, `jreadtarget`), σ_J (`jspell`), J in messages (`jshow`), the raw reader of core terms and the IR's text (`raw`, `read`); the trees (`abs`, `decl`) and D (`desugar`); terms, the β/δ reducer and module loading (`reduce`), variants (`sum`), hygiene, the state translation (`cell`, `place`), β's work count (`work`), Σ_L |
-| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/llvm` |
+| `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the definitions kept as functions (`keep`, ADR 0113); the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/llvm` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
 | `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `windows/` (glues `llvm`: its triple, `os` the view over kernel32, `kernel32`, `strings`); `blas` and the `tutorial*` targets parameterize the normal form for the book |

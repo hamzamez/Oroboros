@@ -617,6 +617,12 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	if o, mode, ok := l.integerOp(op.Name, p, len(args)); ok {
 		return []V{l.one(r, Stmt{Op: o, Mode: mode, Args: l.values(args, r), Src: l.named(t), Via: via(l.tg, o, op.Name)})}
 	}
+	// A CALL WHOSE ONE RESULT IS THE BUFFER IT WRITES IN PLACE (a kept
+	// definition answering nothing but its lent buffer, ADR 0113): the value
+	// is the argument's own storage, and the call is the host's (threadedCall).
+	if p.Host != "" && len(p.Results) == 0 && len(p.InPlace) == 1 {
+		return l.threadedCall(r, op.Name, p, l.values(args, r))[:1]
+	}
 	v := l.call(r, op.Name, p, l.values(args, r))
 	if st := &r.Stmts[len(r.Stmts)-1]; st.Op == OCall && len(st.Res) > 0 && st.Res[0] == v {
 		st.Src = l.named(t) // an overloaded operator promoted after typing keeps it too
@@ -692,7 +698,11 @@ func (l *lowerer) threadedCall(r *Region, name string, p emit.Prim, args []V) []
 	for _, ip := range p.InPlace {
 		arg[ip.Result] = ip.Arg
 	}
-	out := make([]V, len(p.Results))
+	n := len(p.Results)
+	if n == 0 && p.Result != "" {
+		n = 1 // the buffer alone, written in place (a kept definition's, ADR 0113)
+	}
+	out := make([]V, n)
 	next := 0
 	for j := range out {
 		if i, in := arg[j]; in {

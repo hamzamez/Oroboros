@@ -89,3 +89,8 @@ func (tg *Target) hostPrims() error {
 	}
 	return nil
 }
+
+// PlantInPlaceNoLength forgets that a write-borrow's handed-back buffer has its
+// argument's length: TestAWriteBorrowKeepsItsLength must then see an index into
+// the buffer after the call refused.
+var PlantInPlaceNoLength bool

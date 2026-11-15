@@ -151,7 +151,10 @@ reported `known: nothing` about a program that plainly declared a `where`. Thirt
 chapters.
 
 The tour (chapter 0, 2026-11-10) found seven, by writing each example the way a newcomer would
-first. None is fixed here; each is a defect or a question for its own step:
+first. None is fixed here; each is a defect or a question for its own step. **Planned 2026-11-15**
+(README.md's "Current work"): the wrong answers, 1, 2, 10, 15, 17, 19, 20 and the 10-06 pass's 3,
+are its item 3; the surface's promises and the diagnostics, 3–7, 9, 11–14, 16, 21 and the 10-06
+pass's 4–5, are its item 4. 8 and 18 are fixed.
 
 1. **`len(s)` of a `String` compiles, to three different answers**: Go's `len` (bytes), and `.length`
    on JavaScript and Java (UTF-16 units). [state.md §3](../spec/state.md) says string length is not in

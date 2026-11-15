@@ -485,11 +485,32 @@ since today reads files through code written in the language itself. It also say
    unchanged. A kept function now carries what its body proves about its result and what it needs
    of its arguments, so only two programs still fall back to copying. What it cost is in the
    results;
-3. benchmark the seven gauntlet programs on all four targets again;
-4. make the test harness catch stale skips and assemble every Windows file;
-5. run the file programs on Windows at hand-written speed;
-6. 32-bit Windows;
-7. TinyRetroPad's Windows surface, then its walls.
+3. **the wrong answers the book found** (added 2026-11-15, from [docs/book/README.md](docs/book/README.md)'s
+   list; each still reproduces). These are programs the compiler accepts and should not:
+   - `if c { 1 }` returned as an `Int` (0 when `c` is false);
+   - a result declared `()` that returns a value;
+   - `len(s)` of a string, three different answers on three hosts;
+   - a definition's `Result` dropped unused;
+   - a declaration after a `module { }` block read into it;
+   - `use Geometry` finding `geometry.oro` only on Windows;
+   - `true = 1` accepted and ignored;
+   - an impure primitive evaluated at compile time;
+4. **what the grammar promises and the reader refuses, and the diagnostics** (same list):
+   - prefix `-n`;
+   - a range bounded by a parameter or a constant (`i ∈ 0..len(a)-1`, `0..cap`);
+   - a top-level value with a claim;
+   - a module file with `_` in its name;
+   - a table given by a rule returned from an export, the same boundary a segment passed to a kept
+     function meets;
+   - a big value printed;
+   - an unread binding left in the reduced program;
+   - five diagnostics quoting internal names or the old notation;
+5. benchmark the seven gauntlet programs on all four targets again;
+6. make the test harness catch stale skips and assemble every Windows file, and run the book's
+   checker in it;
+7. run the file programs on Windows at hand-written speed;
+8. 32-bit Windows;
+9. TinyRetroPad's Windows surface, then its walls.
 
 The 10-24 plan, as it stands:
 

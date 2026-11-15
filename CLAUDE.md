@@ -97,8 +97,33 @@ wrong about half the time.
 **The current assessment is [assessment-2026-11-15.md](docs/assessment-2026-11-15.md)**; read it
 before planning. Its plan (§5): ~~P8 with its ledger~~ done, steps 1 and 3
 ([p8-2026-11-15](gauntlet/results/p8-2026-11-15.md), [p8step3-2026-11-15](gauntlet/results/p8step3-2026-11-15.md)),
-the gauntlet on four targets, the harness, the file programs on windows, the second triple,
-TinyRetroPad, then CLAUDE.md as state again. Previous:
+then two items added from the book's findings ([docs/book/README.md](docs/book/README.md), its
+items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), then the gauntlet on four targets,
+the harness (with `docs/book/check.go` run by `cmd/check`), the file programs on windows (with
+P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md as state again.
+- **The book's wrong answers**, accepted today, each with a planted fault:
+  - the unit is no integer: a one-armed `if` is `if c {a} else {()}`, typed A ∨ 1, so it is no
+    `Int` (19), and a declared `()` is a claim (10, ADR 0072);
+  - `len` and indexing of a `String` are refused, as state.md §3 decides, since three hosts answer
+    three ways (1); the scalar count, len : Σ\* → (ℕ, +) a homomorphism every host computes, is
+    strings.md's question for hamza;
+  - relevance through a program's own definition (2, ADR 0043);
+  - a `module { }` block's scope ends at its brace (15);
+  - a module path resolved case-exactly (17);
+  - a literal of Σ_L is not definable (20);
+  - an impure primitive is not folded (10-06 #3). The algebra decides it: an effectful application
+    is not its value, so the fold consults the purity bit.
+- **The surface's promises and its diagnostics**, where j.md says built and the reader refuses:
+  - prefix `-` (5);
+  - a telescope and a constant in a header's range (9, 13);
+  - a top-level claim value (14);
+  - `_` in a module file's name, σ_J⁻¹ (16);
+  - a rule as an export's result (6), one construction with `pe`'s segment at a kept boundary: a
+    rule crossing a function boundary is allocated or passed as a view;
+  - a big value to `print_int` refused by W5 (3);
+  - a pure unread binding kept (12);
+  - the diagnostics in J: 4, 7 (the closure's `#1.0`), 11, 21 (`x64.sete`), and core-0's "six term
+    kinds". Previous:
 [10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
 [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
 [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md),

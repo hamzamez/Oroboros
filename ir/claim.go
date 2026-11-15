@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"strings"
+
 	"oroboros/core"
 	"oroboros/emit"
 )
@@ -24,6 +26,12 @@ import (
 // claimSorts reports that a yield of type got meets a declared result want.
 func claimSorts(tg *emit.Target, got, want string) bool {
 	if got == "" || want == "" || got == "any" || want == "any" || tg.Agrees(got, want) {
+		return true
+	}
+	// THE UNIT'S REPRESENTATION is {0} ⊂ int (data.md §3.6, settleZeros): a
+	// result declared () is met by an integer yield here, its sort already
+	// decided where 1 is a sort of its own (emit's checker, book finding 10)
+	if want == core.UnitType && (got == "int" || strings.HasPrefix(got, "int ")) {
 		return true
 	}
 	ge, gt := tableOf(tg, got)

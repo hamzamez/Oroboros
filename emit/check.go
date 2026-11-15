@@ -140,6 +140,16 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		return got, c.agree(core.ShowName(t.Name), got, want)
 
 	case core.KFn:
+		// THE UNIT IS 1's ONE VALUE, the empty tuple λk. k (data.md §3.6): its
+		// type is the terminal object, which no other sort's demand agrees
+		// with. Typed unknown, it agreed with every demand, so a one-armed
+		// `if c { 1 }`, `if c {1} else {()}`, joined to Int and returned 0
+		// (book finding 19), and a body `()` passed a declared Int.
+		if !PlantUnitUnknown && len(t.Params) == 1 {
+			if b := t.Body(); b.Kind == core.KApp && len(b.Kids) == 1 && b.Kids[0].Kind == core.KName && b.Kids[0].Name == t.Params[0] {
+				return core.UnitType, c.agree("the unit ()", core.UnitType, want)
+			}
+		}
 		// Walk the body. The top-level term of every residual is an
 		// abstraction, so skipping these checked nothing at all — which is
 		// what the first run of this checker did.
@@ -280,6 +290,10 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		if ty, bound := c.types[op.Name]; bound && len(t.Args()) == 1 {
 			if e, table := c.tgt.tableElem(ty); table {
 				return c.read(op.Name, e, t.Args()[0], want)
+			}
+			// and text is no table: s[i] is no read (book finding 1)
+			if isText(c.tgt, ty) && !PlantStringIsTable {
+				return "", textIsNoTable("indexing, " + core.ShowName(op.Name) + "[…],")
 			}
 		}
 		return "", nil // not a primitive, so no signature fixes the type
@@ -1129,3 +1143,7 @@ func ParamTypes(tgt *Target, t *core.Term) []string {
 	}
 	return out
 }
+
+// PlantUnitUnknown types the unit as the unknown, as before: a one-armed
+// `if c { 1 }` returned as an Int must then be accepted (TestTheUnitIsNoInteger).
+var PlantUnitUnknown bool

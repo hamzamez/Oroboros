@@ -1042,7 +1042,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// the target's (ADR 0002's ▷), a definition with no effect. Both are refused.
 	for _, m := range mods {
 		for _, n := range m.Order {
-			if LanguageSignature[n] {
+			if LanguageSignature[n] && !(PlantLiteralsDefinable && (n == "true" || n == "false")) {
 				return nil, nil, fmt.Errorf("%s defines %s, which is the language's own: J's reader "+
 					"writes its constructs with these names (`if c { a } else { b }` is `if`, `a + b` is "+
 					"`+`), so a definition would capture them in its module or be ignored beside the "+
@@ -1291,6 +1291,10 @@ func OptionSum() *Sum {
 // language works on every target, and neither a target nor a program may
 // declare it.
 var LanguageSignature = map[string]bool{
+	// the Boolean literals (ADR 0017): a term kind of their own, so a
+	// definition of `true` is read by nothing, accepted and ignored (book
+	// finding 20)
+	"true": true, "false": true,
 	// control and binding (ADR 0015, 0017), and the connectives D erases
 	"if": true, "let": true, "loop": true, "and": true, "or": true, "not": true, "cond": true,
 	// the integer operators and equality (ADR 0026, match.md)
@@ -2762,7 +2766,11 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		// became the LANGUAGE's. That order matters: folding `go.+` would have
 		// meant assuming a particular host's semantics, and `+` has semantics
 		// the language defines and integers.md verified on all four.
-		if op.Kind == KName && langFoldable[op.Name] && e.Prim[op.Name] && len(args) == 2 {
+		// ONLY A PURE ONE (ADR 0010): an effectful application is not its
+		// value, so folding it erased its effect. A target declaring `*` impure
+		// had `1 * 2` folded to 2 and `fn(n) { 7 }(3 * 4)` left binding 12, the
+		// call gone and its binding kept (book, the 10-06 pass's finding 3).
+		if op.Kind == KName && langFoldable[op.Name] && e.Prim[op.Name] && (e.Pure[op.Name] || PlantFoldImpure) && len(args) == 2 {
 			a, err := normalize(args[0], e, fuel)
 			if err != nil {
 				return nil, err
@@ -3873,7 +3881,21 @@ func (e *Env) relevant(t *Term, inLoop bool) bool {
 	}
 	switch {
 	case !e.Prim[op.Name]:
-		return e.unfoldable(op.Name) && ctor(e.Defs[op.Name], len(t.Kids)-1)
+		d, def := e.Defs[op.Name]
+		if !def || !(e.unfoldable(op.Name) || e.Kept[op.Name]) {
+			return false
+		}
+		if ctor(d, len(t.Kids)-1) {
+			return true
+		}
+		// A CALL OF A DEFINITION HAS ITS BODY'S TYPE, so it is relevant when a
+		// tail of the body is (book finding 2: `half(n); 0` dropped the Result
+		// a definition of the program made, where a host's was refused). The
+		// walk ends: no definition recurs (ADR 0014).
+		if !PlantRelevanceShallow && d.Kind == KFn && len(d.Params) == len(t.Kids)-1 {
+			return e.relevant(d.Closed(), inLoop)
+		}
+		return false
 	case op.Name == RequireWhereName && len(t.Kids) == 4:
 		return e.relevant(t.Kids[3], inLoop)
 	case op.Name == "if" && len(t.Kids) == 4:
@@ -4871,3 +4893,17 @@ func (e *Env) keptCall(t *Term, callee string, fuel *int) (*Term, error) {
 	}
 	return e.markWhere(callee, kids[1:], kids[1:], call, fuel)
 }
+
+// PlantFoldImpure folds the language's integer operators whatever their
+// purity, as before: 1 * 2 on targets/tutorial-sloppy.oro is then 2
+// (TestAnImpureApplicationIsNotFolded).
+var PlantFoldImpure bool
+
+// PlantLiteralsDefinable leaves `true` and `false` out of Σ_L, as before:
+// `true = 1` must then be accepted (TestALiteralIsNotDefinable).
+var PlantLiteralsDefinable bool
+
+// PlantRelevanceShallow reads a call of a definition as relevant only when the
+// definition is a constructor, as before: `half(n); 0` must then be accepted
+// (TestADefinitionsRelevantResultIsNotDropped).
+var PlantRelevanceShallow bool

@@ -16,6 +16,10 @@ import (
 // whose D-image is the same (spec/j.md §7); today's reader is deleted (step 5b).
 
 type parser struct {
+	// mods are the `module { }` blocks the parser is inside, innermost last:
+	// a block's scope is its braces (j.md §2.1), so its close restores the
+	// enclosing module (book finding 15)
+	mods   []string
 	toks   []token
 	i      int
 	parens []bool // the open brackets: true for ( and [, where a line break is a space
@@ -180,6 +184,9 @@ func declStart(toks []token, i int) bool {
 // them, read from its source in J: lib/PATH.oro, or PATH.oro beside the file.
 func importedVariants(path, dir, root string) []string {
 	for _, file := range []string{filepath.Join(root, "lib", path+".oro"), filepath.Join(dir, filepath.Base(path)+".oro")} {
+		if !ExactFile(filepath.Dir(file), filepath.Base(file)) {
+			continue
+		}
 		b, err := os.ReadFile(file)
 		if err != nil {
 			continue
@@ -302,7 +309,13 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 		}
 		p.open(false)
 		m := &ModuleDecl{Path: path, At: p.nextAt()}
+		enclosing := ""
+		if n := len(p.mods); n > 0 {
+			enclosing = p.mods[n-1]
+		}
+		p.mods = append(p.mods, path)
 		inner, names, err := p.items()
+		p.mods = p.mods[:len(p.mods)-1]
 		if err != nil {
 			return nil, nil, err
 		}
@@ -311,7 +324,15 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 			return nil, nil, err
 		}
 		out := append([]Decl{m}, p.interfaceDecls(true, names)...)
-		return append(out, inner...), nil, nil
+		out = append(out, inner...)
+		// THE BLOCK'S CLOSE IS ITS SCOPE'S END: the core's `(module X)`, which
+		// D makes of the block, runs to the next one, so the enclosing module
+		// is opened again here, and a declaration after the block is its, not
+		// the block's
+		if !PlantModuleNoClose {
+			out = append(out, &ModuleDecl{Path: enclosing, At: p.nextAt()})
+		}
+		return out, nil, nil
 	case p.is("fn") && p.peekN(1).text != "(":
 		p.next()
 		name := p.name()
@@ -2296,3 +2317,7 @@ func mentions(e Expr, x string) bool {
 	walk(reflect.ValueOf(e))
 	return found
 }
+
+// PlantModuleNoClose leaves a block's close unmarked, as before: a declaration
+// after `module inner { … }` is then read into inner (TestAModuleBlockEndsAtItsBrace).
+var PlantModuleNoClose bool

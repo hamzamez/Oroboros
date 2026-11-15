@@ -112,7 +112,9 @@ Five more findings, from running things rather than reading them:
    because the primitive is impure, the call itself evaluated away because the fold is a property of
    the language's integer operators and does not consult the purity bit. The `let` left behind binds
    a constant. Recorded in chapter 4 §4.10 as a question, not fixed: nothing in the corpus declares
-   arithmetic impure, and which of the two decisions should give way is a design call.
+   arithmetic impure, and which of the two decisions should give way is a design call. **Answered
+   2026-11-15** ([ADR 0114](../decisions/0114-a-fold-is-an-equation-between-pure-terms.md)): a fold
+   is an equation between pure terms, so `(* 1 2)` stays a call there; §4.10's question can say so.
 4. **The closure refusal prints `#1.0`.** `gen: clo-mk: lowering: a λ in value position is a closure
    (callbacks.md): (fn (v) (* v #1.0))` — an internal bound-variable spelling in a user-facing
    diagnostic. Two of chapter 2's diagnostics had the same bug and were fixed when it was written;
@@ -153,8 +155,9 @@ chapters.
 The tour (chapter 0, 2026-11-10) found seven, by writing each example the way a newcomer would
 first. None is fixed here; each is a defect or a question for its own step. **Planned 2026-11-15**
 (README.md's "Current work"): the wrong answers, 1, 2, 10, 15, 17, 19, 20 and the 10-06 pass's 3,
-are its item 3; the surface's promises and the diagnostics, 3–7, 9, 11–14, 16, 21 and the 10-06
-pass's 4–5, are its item 4. 8 and 18 are fixed.
+were its item 3, and are **fixed 2026-11-15** ([bookfix-2026-11-15](../../gauntlet/results/bookfix-2026-11-15.md),
+each with a planted fault); the surface's promises and the diagnostics, 3–7, 9, 11–14, 16, 21 and
+the 10-06 pass's 4–5, are its item 4. 8 and 18 were fixed with their chapters.
 
 1. **`len(s)` of a `String` compiles, to three different answers**: Go's `len` (bytes), and `.length`
    on JavaScript and Java (UTF-16 units). [state.md §3](../spec/state.md) says string length is not in

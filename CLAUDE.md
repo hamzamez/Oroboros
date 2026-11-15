@@ -101,7 +101,8 @@ then two items added from the book's findings ([docs/book/README.md](docs/book/R
 items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), then the gauntlet on four targets,
 the harness (with `docs/book/check.go` run by `cmd/check`), the file programs on windows (with
 P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md as state again.
-- **The book's wrong answers**, accepted today, each with a planted fault:
+- ~~**The book's wrong answers**~~ **done** ([bookfix-2026-11-15](gauntlet/results/bookfix-2026-11-15.md),
+  ADR 0114 for the fold; emission byte-identical), each with a planted fault:
   - the unit is no integer: a one-armed `if` is `if c {a} else {()}`, typed A ∨ 1, so it is no
     `Int` (19), and a declared `()` is a claim (10, ADR 0072);
   - `len` and indexing of a `String` are refused, as state.md §3 decides, since three hosts answer
@@ -935,6 +936,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | A square is the product's quadratic form, by polarization (half the digit products), recognized by its operands' identity; Karatsuba's square is the tensor power's diagonal; each pass reads frozen tables | [0110](docs/decisions/0110-a-square-is-the-products-quadratic-form-by-polarization.md) |
 | Printing is a tree of divisions by β^(2^j), β = 10¹⁸, each node Algorithm D in place: the digit stored in its window's top word, q̂ in the free word 2k, a node from its first nonzero window; extends 0095 | [0111](docs/decisions/0111-printing-is-a-tree-of-divisions-each-node-algorithm-d-in-place.md) |
 | `os` on windows is J over kernel32: a Win32 failure is a term, an out-parameter ADR 0048's cell (an alloca), V the valid UTF-8 recognized by its monoid, `utf8_valid` and `utf8_text` in Σ_L, text_of = ι_V ∘ r | [0112](docs/decisions/0112-os-on-windows-is-a-library-over-kernel32-and-valid-utf-8-is-recognized-by-its-monoid.md) |
+| A program's definitions are kept as functions where the target prints them (windows), the compiler choosing K by pays and proofs; a kept definition is {P ∧ φ} f {ψ}: φ marked at each call and completed by lifting, ψ derived by Houdini, ℤ the instance's S ∩ W; a verdict is monotone in K | [0113](docs/decisions/0113-a-programs-definitions-are-kept-as-functions-where-the-target-prints-them.md) |
+| A fold is an equation between pure terms: the language's operators fold only where the primitive is pure | [0114](docs/decisions/0114-a-fold-is-an-equation-between-pure-terms.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

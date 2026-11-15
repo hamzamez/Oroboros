@@ -400,8 +400,12 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 		if len(args) != 1 {
 			return "", false, nil
 		}
-		if _, err := c.walk(args[0], ""); err != nil {
+		ty, err := c.walk(args[0], "")
+		if err != nil {
 			return "", true, err
+		}
+		if isText(c.tgt, ty) && !PlantStringIsTable {
+			return "", true, textIsNoTable("len(…)")
 		}
 		return "int", true, c.agree("len(…)", "int", want)
 
@@ -437,3 +441,24 @@ func joinOf(a, b string) string {
 	}
 	return a
 }
+
+// A STRING IS NO TABLE (strings.md, state.md §3): Σ* is the free monoid over
+// Unicode scalars, and a table is a function on 0..len − 1. Its length and
+// its indexing are not in the language because the hosts answer three ways,
+// Go's bytes and JavaScript's and the JVM's UTF-16 units, and `len(s)`
+// compiled to each (book finding 1). The scalar count, a homomorphism
+// Σ* → (ℕ, +) every host computes, is strings.md's question.
+func isText(tg *Target, ty string) bool {
+	return ty == "string" || tg != nil && tg.ValueType(ty) == "string"
+}
+
+func textIsNoTable(what string) error {
+	return fmt.Errorf("%s is a table's, and a String is text, the free monoid over Unicode scalars, not "+
+		"a table: its length and its indexing are not in the language, because Go counts bytes and "+
+		"JavaScript and the JVM UTF-16 units (state.md §3, strings.md). Read its bytes with a "+
+		"declaration that says which encoding, or keep the text whole", what)
+}
+
+// PlantStringIsTable lets len and an indexing take a String, as before: three
+// targets then answer three ways (TestAStringIsNoTable).
+var PlantStringIsTable bool

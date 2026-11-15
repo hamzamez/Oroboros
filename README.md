@@ -485,8 +485,9 @@ since today reads files through code written in the language itself. It also say
    unchanged. A kept function now carries what its body proves about its result and what it needs
    of its arguments, so only two programs still fall back to copying. What it cost is in the
    results;
-3. **the wrong answers the book found** (added 2026-11-15, from [docs/book/README.md](docs/book/README.md)'s
-   list; each still reproduces). These are programs the compiler accepts and should not:
+3. ~~**the wrong answers the book found**~~ **done 2026-11-15** ([bookfix-2026-11-15](gauntlet/results/bookfix-2026-11-15.md)):
+   each of these programs is now refused, or computed as the language says, and no program that
+   built before changed:
    - `if c { 1 }` returned as an `Int` (0 when `c` is false);
    - a result declared `()` that returns a value;
    - `len(s)` of a string, three different answers on three hosts;

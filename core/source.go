@@ -73,12 +73,51 @@ func IsFragment(text string) bool {
 	return false
 }
 
+// ExactFile reports that rel names a file under dir with every segment spelled
+// as the directory spells it. A module path is resolved by the source alone
+// (ADR 0025): on a file system that ignores case, `use Geometry` read
+// geometry.oro, and the same program was refused where case matters (book
+// finding 17). So a name that differs only in case is no file.
+func ExactFile(dir, rel string) bool {
+	if PlantCaseBlind {
+		_, err := os.Stat(filepath.Join(dir, rel))
+		return err == nil
+	}
+	d := dir
+	for _, seg := range strings.Split(filepath.ToSlash(rel), "/") {
+		entries, err := os.ReadDir(d)
+		if err != nil {
+			return false
+		}
+		found := false
+		for _, e := range entries {
+			if e.Name() == seg {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+		d = filepath.Join(d, seg)
+	}
+	return true
+}
+
+// PlantCaseBlind resolves a module path by the file system's own comparison,
+// as before: `use Geometry` then reads geometry.oro on Windows
+// (TestAModulePathIsResolvedCaseExactly).
+var PlantCaseBlind bool
+
 // SearchPath finds a module on a search path, `use num/vec` in DIR/num/vec.oro,
 // and reads it in J. A path with no file is one the target provides.
 func SearchPath(dirs []string) Resolver {
 	return func(path string) ([]Form, bool, error) {
 		for _, d := range dirs {
 			file := filepath.Join(d, filepath.FromSlash(path)+".oro")
+			if !ExactFile(d, path+".oro") {
+				continue
+			}
 			b, err := os.ReadFile(file)
 			if err == nil {
 				forms, err := ReadModule(string(b), file, path)

@@ -500,6 +500,9 @@ func (tg *Target) variantShape(head string, args []*core.Term, mod string) (*sha
 func (tg *Target) readVariant(path, name string) (*core.Sum, error) {
 	for _, d := range tg.LibDirs {
 		file := filepath.Join(d, filepath.FromSlash(path)+".oro")
+		if !core.ExactFile(d, path+".oro") {
+			continue
+		}
 		b, err := os.ReadFile(file)
 		if err != nil {
 			continue

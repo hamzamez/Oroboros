@@ -390,7 +390,13 @@ func toForm(t *Term) (Form, error) {
 			// SEVERAL RESULTS ARE A TUPLE (spec/data.md §3.3): a function whose
 			// result is `(tuple A B)` returns two, which is values.md's negative
 			// product at the one position a product becomes the host's own form.
-			if ty := TypeName(r); IsProd(ty) {
+			if ty := TypeName(r); ty == UnitType && !PlantUnitNoClaim {
+				// THE EMPTY PRODUCT IS ONE RESULT, the terminal object 1 = {()},
+				// not none: `fn f(n) () { n }` claims its value is (), a claim
+				// decided at the definition (ADR 0072). Read as a product's no
+				// components it was no claim, and f returned n (book finding 10).
+				sig.Result = UnitType
+			} else if IsProd(ty) {
 				sig.Results = ProdTypes(ty)
 			} else {
 				sig.Result = ty
@@ -453,6 +459,19 @@ func toForm(t *Term) (Form, error) {
 				default:
 					return Form{}, fmt.Errorf("sig %s: a parameter is TYPE or (name TYPE), got %s",
 						t.Kids[1].Name, a)
+				}
+			}
+		}
+		// A LENDING HEADER'S UNIT IS NO FACTOR: B × X → B × R with R = 1 is
+		// B × X → B, since B × 1 ≅ B, and the state translation's value is the
+		// buffers alone (spec/local.md §2.1). A declared `()` beside a lent
+		// buffer adds no component; a body yielding a value there still meets
+		// the arity check, (b, v) against b.
+		if sig.Result == UnitType {
+			for _, p := range sig.Params {
+				if IsBuffer(p.Type) {
+					sig.Result = ""
+					break
 				}
 			}
 		}
@@ -1815,3 +1834,7 @@ func WhereIsRanges(sig *Sig) bool {
 	}
 	return out != nil && sig.Where.Equal(out)
 }
+
+// PlantUnitNoClaim reads a declared `()` result as no claim, as before: a body
+// returning a value must then be accepted (TestTheUnitIsNoInteger).
+var PlantUnitNoClaim bool

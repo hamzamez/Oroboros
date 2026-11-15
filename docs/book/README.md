@@ -245,7 +245,10 @@ Chapter 5, Effects (2026-11-15), found none in the compiler and leaves one quest
     value is a function be refused, as Go refuses *f evaluated but not used*? Chapter 5 §5.11
     teaches it as a trap.
 
-Chapter 6, Integers (2026-11-15), found seven, none fixed; the chapter avoids each:
+Chapter 6, Integers (2026-11-15), found seven, none fixed; the chapter avoids each. **Planned
+2026-11-15** with chapter 5's (README.md's "Current work", item 5). Read against the decisions, 27
+and 28 are defects, not questions: ADR 0033 refuses Go's version of 27, and ADR 0079 item 4 decides
+28 (a value above the word reaches the word where its fact is inside it):
 
 23. **A product of naturals is not proven a natural.** With `fn square(n ∈ Nat) (Nat) { n * n }`,
     `square(square(10^20))` is refused: *square requires 0 <= { n1 = 100000000000000000000;

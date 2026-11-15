@@ -98,7 +98,8 @@ wrong about half the time.
 before planning. Its plan (§5): ~~P8 with its ledger~~ done, steps 1 and 3
 ([p8-2026-11-15](gauntlet/results/p8-2026-11-15.md), [p8step3-2026-11-15](gauntlet/results/p8step3-2026-11-15.md)),
 then two items added from the book's findings ([docs/book/README.md](docs/book/README.md), its
-items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), then the gauntlet on four targets,
+items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), then the book's chapters 5 and 6
+(its items 22–29, below), then the gauntlet on four targets,
 the harness (with `docs/book/check.go` run by `cmd/check`), the file programs on windows (with
 P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md as state again.
 - ~~**The book's wrong answers**~~ **done** ([bookfix-2026-11-15](gauntlet/results/bookfix-2026-11-15.md),
@@ -126,7 +127,27 @@ P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md
   - a big value to `print_int` refused by W5 (3);
   - a pure unread binding kept (12);
   - the diagnostics in J: 4, 7 (the closure's `#1.0`), 11, 21 (`x64.sete`), and core-0's "six term
-    kinds". Previous:
+    kinds".
+- **The book's chapters 5 and 6** (items 22–29, each reproduced at `fe38917`), in this order:
+  - two rules already decided that the code breaks:
+    - 28: ADR 0079 item 4 says a value held above the word reaches a word position where its fact is
+      inside the word, and `big.go`'s `word()` refuses without reading the fact (`square(n) / 2^40`,
+      fact [0, 2⁴⁰]);
+    - 27: ADR 0033 refuses a value of U at a declared `Int` (Go, the JVM and windows refuse
+      `n + n`), but JavaScript's pair path skips the rule, so an export's host type is a `BigInt`
+      or a number by its facts;
+  - correct programs refused:
+    - 23: ℕ is closed under ·, the rule of signs as a homomorphism to ({−, 0, +}, ·), and a closed
+      comparison of big literals is decided by evaluation;
+    - 24: an unstated result is the body's, so a computed product is several results;
+  - diagnostics in J or with the true reason: 25 (an empty range), 26 (JavaScript's division by 3
+    on the pair, not "may be negative"; its `>>` interval), 23's `the("int 0 +inf", …)`;
+  - questions, each with its recommendation:
+    - 22: refuse a statement whose value is a function. A λ has no effect until applied, so the
+      statement is dead and cannot be meant; `ignore(f)` is the discard, and a pure statement of
+      any other sort is measured on the corpus before it is refused too. An ADR;
+    - 29: `1_000_000` and `0b101`, not now: j.md promises neither, and no program needs one.
+  Previous:
 [10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
 [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
 [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md),

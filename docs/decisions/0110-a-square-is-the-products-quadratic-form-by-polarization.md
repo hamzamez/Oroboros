@@ -44,5 +44,6 @@ product a bit, and Go squares with half the work (`nat.sqr`, `karatsubaSqr`).
 - `big-sqr`, a differential case on four targets. `PlantSquareFault` drops the factor 2, and
   every square of two digits or more goes wrong.
 - **Measured against `math/big` per operation**: our square is 3.1× Go's and our product 4.1×, at
-  10,402 words. The gap is the leaf row's carry chain, our 0.88 ns a step against assembly's ~0.3,
-  and the passes. That is the next step's question.
+  10,402 words (4.2× and 3.3× re-measured on a quiet machine). The leaf row's own gap is 1.3–1.6×,
+  and the rest is the Karatsuba design: larger leaves, copies, the additive form
+  (kernels-research.md §7).

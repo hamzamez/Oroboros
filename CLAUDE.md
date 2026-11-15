@@ -255,15 +255,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
      fib(10⁶) by fast doubling 4.1× → 1.67× Go. ~~Squaring by polarization~~ done (ADR 0110,
      [squaring-2026-11-14](gauntlet/results/squaring-2026-11-14.md)): x·x of one value is the
      quadratic form, a² = Σ aᵢ²B²ⁱ + 2Σ_{i<j} aᵢaⱼBⁱ⁺ʲ, Karatsuba's square the tensor power's diagonal;
-     a square 0.54 of a product, fast doubling 1.57× Go. **Measured per operation, ours is 3.1× Go's
-     square and 4.1× its product at 10,400 words**: the leaf row is one carry chain, 0.88 ns a step,
-     against `math/big`'s assembly at about 0.3. **Researched and decided** ([kernels-research.md](docs/kernels-research.md),
-     hamza 2026-11-15): a target may name its CPU and features (Q2, a feature: less portable, faster);
-     a kernel is written **in the language** (Q1). The two-chain row o + L + B·H, its proofs and its
-     carries as flags are all within today's decisions; what is missing is below the language, since
-     LLVM IR has one carry and never selects `adox`, so the target realizes such a proven loop as one
-     inline assembly block. Q3 (ε in the logic) falls away. **Postponed** to future work, in that
-     order with Toom-3 and the copy-free down pass. **Next, by the machine code**: divide-and-conquer
+     a square 0.54 of a product, fast doubling 1.57× Go. **Per operation, on a quiet machine, ours is
+     4.2× Go's product and 3.3× its square at 10,400 words, and the C model of our design is already
+     3×** (kernels-research.md §7). The leaf row alone is 1.6× Go's assembly, and LLVM's own `mul
+     i4096` gets it to 1.3×. LLVM IR expresses two carry chains; its x86 code generator never selects
+     `adcx`/`adox`. **Decided** (hamza 2026-11-15): a target may name its CPU and features (Q2, a
+     feature: less portable, faster); a kernel is written **in the language** (Q1), reaching most of
+     the gap through LLVM IR, with assembly only if a measurement still asks; Q3 falls away.
+     **Postponed** to future work, in order: the design (subtractive, in place, the threshold
+     re-measured), the leaf as LLVM's wide product, then assembly if needed; with Toom-3. **Next, by the machine code**: divide-and-conquer
      printing (fact) as a scaled remainder tree over the products. The leaf division cannot be
      cheapened: `divq` 12.1 ns a step, Möller–Granlund's reciprocal 12.0, both latency-bound
      (carry-2026-11-13, §printing's leaf). Divide-and-conquer printing

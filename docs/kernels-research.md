@@ -173,3 +173,54 @@ The full host is then the target's own code, declared and stated. It is not more
   4. the loop's realization as assembly where LLVM cannot select it.
 
   Toom-3 and the copy-free down pass (F5) go with it.
+
+## 7. Re-measured on a quiet machine, and R2 corrected (2026-11-15)
+
+hamza found the measurements of §1 and §2 taken while the machine trained a model, and doubted R2.
+Both doubts were right.
+
+**R2 as stated was wrong.** LLVM IR expresses two carry chains: they are two i1 values, and a wide
+product is one `mul iN`. What does not exist is in LLVM's x86 code generator, which never selects
+`adcx` or `adox`. Measured with every feature this CPU has (`"target-cpu"="alderlake"`, ADX and
+BMI2; scratchpad `kara/ir/wide.ll`), on three IR forms:
+
+| IR form | `mulx` | `adc` | `setb` | `adcx` | `adox` |
+|---|---|---|---|---|---|
+| LLVM's own `mul i512` | 32 | 52 | 13 | 0 | 0 |
+| a row of 4 digits as `mul i320` + `add` | 4 | 14 | 6 | 0 | 0 |
+| two interleaved `uadd.with.overflow` chains | 0 | 6 | 6 | 0 | 0 |
+
+The likely reason is that the backend models EFLAGS as one register, so two carries cannot both live
+in it. That is from LLVM's design, not measured here.
+
+**The leaf's gap is 1.3–1.6×, not 3×.** A 32-digit leaf, where Go's product is its assembly
+`basicMul` (below its Karatsuba threshold of 40), in ns per digit product:
+
+| form | ns |
+|---|---|
+| our row, as emitted (the C `u128` form) | 0.61 |
+| the same compiled for this CPU (`-march=native`) | 0.57 |
+| **LLVM's own `mul i4096`** (the whole leaf as one IR product) | **0.50** |
+| Go `math/big`, assembly | 0.38 |
+
+**The per-operation gap is mostly the design.** At 10,402 words, on the quiet machine:
+- our product 23 ms and square 12.5 ms;
+- Go's 5.5 and 3.8 (4.2× and 3.3×);
+- **the C model of our design 17 ms**.
+
+So about 3× of the 4× is how our Karatsuba is built, not the instruction selection:
+- **Larger leaves.** T = 64, and the additive form adds a digit a level, so our leaves are about 45
+  digits; Go's go one level deeper, below 40.
+- **Copies.** Our down pass copies lo and hi, and Go's Karatsuba works in place.
+- **The form.** Go's is the subtractive one (|x₁ − x₀|, |y₀ − y₁|), so its operands do not grow.
+- **The passes.** Guarded reads, and an allocation a level.
+
+**What this changes.** Q1 stands and is stronger: a kernel written in the language reaches most of
+the gap through LLVM IR alone. The postponed work is reordered:
+1. **The design**: the subtractive form, in place, with the threshold re-measured. Pure algebra in
+   the language.
+2. **The leaf as LLVM's own wide product**: a fixed-size `mul i(64T)` over a zero-padded slot,
+   which is exact. It is 1.2× our row, at 35 KB of code for a 32-digit leaf; its code size and
+   compile time are the cost to measure. This is a representation choice in the printer, with no
+   assembly.
+3. **Assembly** for the last 1.3× of the leaf, only if a measurement then still asks for it.

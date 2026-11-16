@@ -260,9 +260,12 @@ application.**
    - **i32 scalars** (ADR 0083 item 2), whose trigger `wc` met.
 
    Program first: the suite run on the triple, every failure classified, before anything is built.
-5. **TinyRetroPad, 6c then 6d**: its Win32 surface measured, then its walls (the window procedure,
+5. **φ maximal** (added 2026-11-16, hamza): the facts the decision proves, printed in LLVM's attribute
+   lattice where it can express them, one kind at a time, each with its planted fault. With item 4,
+   Win32 by header (W1), the DLL each declaration's `lib`.
+6. **TinyRetroPad, 6c then 6d**: its Win32 surface measured, then its walls (the window procedure,
    records), spec first.
-6. **CLAUDE.md as state**, under 8,000 words.
+7. **CLAUDE.md as state**, under 8,000 words.
 
 **The measure of the round**:
 - the four wrong answers fixed, each with its witness;

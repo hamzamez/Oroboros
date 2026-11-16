@@ -488,9 +488,14 @@ plan**, in order:
 3. **two checks for this round's mistakes**: line endings, and tests that plant a fault confirming
    they planted it;
 4. **32-bit Windows**, starting with what a second processor changes (the sizes of C's types, the
-   digit size of big integers), the choices brought to hamza before anything is built;
-5. **TinyRetroPad's Windows surface, then its walls**;
-6. **the guidance file shortened to the project's current state**.
+   digit size of big integers), the choices brought to hamza before anything is built; with it, the
+   Windows API grouped as its documentation groups it, by header, each function still naming its
+   DLL;
+5. **tell LLVM everything the compiler proves** (that a value is never undefined, that two buffers
+   never overlap, a number's range, that a loop ends), one kind of fact at a time, each checked and
+   measured against C;
+6. **TinyRetroPad's Windows surface, then its walls**;
+7. **the guidance file shortened to the project's current state**.
 
 **The 11-15 plan, as it stands**:
 1. keep a ledger of what each step costs and what it buys;

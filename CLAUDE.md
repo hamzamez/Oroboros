@@ -105,9 +105,17 @@ before planning. **Its plan (§5)**, in order:
 3. **two checks**: no carriage return in a tracked text file; a planted source rewrite asserts it
    happened;
 4. **the second triple**, research first (the data model, K(ℕ\*)'s base per triple, `max_len`,
-   `x64.oro` split, i32 scalars), hamza's decisions, then built;
-5. **TinyRetroPad**, 6c then 6d;
-6. **CLAUDE.md as state**, under 8,000 words.
+   `x64.oro` split, i32 scalars), hamza's decisions, then built. With it, **Win32 by header** (W1,
+   hamza 2026-11-16): a module is a theory and the header is C's unit of declaration, so a module is
+   the header (`windows/fileapi`), and the DLL, where a symbol is realized, is each declaration's
+   `lib`; an ADR at that step, the data model's type names (`DWORD`, `SIZE_T`) in their headers;
+5. **φ maximal** (hamza 2026-11-16): every fact the decision proves that LLVM's attribute lattice
+   expresses is printed (`noundef`, `noalias`, `nonnull`/`dereferenceable`, `range`, `nneg`,
+   `disjoint`, `exact`, `samesign`, `memory(…)`, `mustprogress`/`willreturn`), one kind at a time,
+   each a soundness rule with its planted fault, measured against C; an intrinsic only where a
+   measurement shows LLVM does not recognize the idiom (ADR 0008);
+6. **TinyRetroPad**, 6c then 6d;
+7. **CLAUDE.md as state**, under 8,000 words.
 
 **A wrong answer, wherever found, goes ahead of the plan** (assessment-2026-11-16 §3.4), and the
 book's findings index is read at each item's end.

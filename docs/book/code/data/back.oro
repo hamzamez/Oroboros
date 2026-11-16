@@ -1,0 +1,6 @@
+fn divmod(a ∈ 0..1000, b ∈ 1..1000) { (a / b, a % b) }
+
+export fn back(a ∈ 0..1000, b ∈ 1..1000) (Int) {
+    (q, r) = divmod(a, b)
+    q * b + r
+}

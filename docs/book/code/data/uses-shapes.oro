@@ -1,0 +1,10 @@
+use io
+use shapes
+
+fn corners(s) { case s { shapes.'circle(r) -> 0; shapes.'square(w) -> 4; shapes.'point -> 1 } }
+
+export fn main() {
+    io.print_int(shapes.area(shapes.'square(5)))
+    io.print_int(corners(shapes.'square(5)))
+    io.print_int(corners(shapes.'point))
+}

@@ -1,0 +1,18 @@
+use io
+
+fn divmod(a ∈ 0..1000, b ∈ 1..1000) { (a / b, a % b) }
+
+fn hours_minutes(minutes ∈ 0..1439) { divmod(minutes, 60) }
+
+export fn main() {
+    (q, r) = divmod(17, 5)
+    io.print_int(q)
+    io.print_int(r)
+
+    (h, m) = hours_minutes(135)
+    io.print_int(h)
+    io.print_int(m)
+
+    (n, word, yes) = (1, "two", true)
+    io.print_line(word)
+}

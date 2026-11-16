@@ -1,0 +1,3 @@
+set List = 'empty ∪ 'more(List)
+
+export fn zero(n ∈ 0..9) (Int) { 0 }

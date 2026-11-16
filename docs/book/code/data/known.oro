@@ -1,0 +1,9 @@
+set Shape = 'circle(Int) ∪ 'square(Int) ∪ 'point
+
+fn area(s) { case s { 'circle(r) -> 3 * r * r; 'square(w) -> w * w; 'point -> 0 } }
+
+fn make(n) { case { n == 0 -> 'point; n < 50 -> 'circle(n); else -> 'square(n) } }
+
+export fn fixed() (Int) { area('square(4)) }
+
+export fn through(n ∈ 0..100) (Int) { area(make(n)) }

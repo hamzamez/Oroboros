@@ -1,0 +1,12 @@
+set Light = 'red ∪ 'green ∪ 'amber
+
+set Maybe(T) = 'just(T) ∪ 'nothing
+
+fn signal(n) { case { n == 0 -> 'nothing; n == 1 -> 'just('red); else -> 'just('green) } }
+
+export fn code(n ∈ 0..2) (Int) {
+    case signal(n) {
+        'nothing -> 0
+        'just(l) -> case l { 'red -> 1; 'green -> 2; 'amber -> 3 }
+    }
+}

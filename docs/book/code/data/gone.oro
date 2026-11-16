@@ -1,0 +1,9 @@
+fn pair(a, b) { (a, b) }
+
+export fn first(u, v) { (a, b) = pair(u, v); a }
+
+export fn swap(u, v) { (a, b) = (u, v); (b, a) }
+
+export fn chosen(c, u, v) { (a, b) = if c { (u, v) } else { (v, u) }; h(a, b) }
+
+export fn once(u) { (a, b) = (x(u), y(u)); h(a, a) }

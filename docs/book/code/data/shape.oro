@@ -1,0 +1,14 @@
+use io
+
+set Shape = 'circle(Int) ∪ 'square(Int) ∪ 'point
+
+fn area(s) { case s { 'circle(r) -> 3 * r * r; 'square(w) -> w * w; 'point -> 0 } }
+
+fn name(s) { case s { 'circle(r) -> "circle"; 'square(w) -> "square"; 'point -> "point" } }
+
+export fn main() {
+    io.print_int(area('circle(10)))
+    io.print_int(area('square(4)))
+    io.print_int(area('point))
+    io.print_line(name('square(4)))
+}

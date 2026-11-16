@@ -1,0 +1,4 @@
+export fn or_zero(n ∈ 0..9) (Int) {
+    found = if n > 4 { 'some(n) } else { 'none }
+    case found { 'some(v) -> v; 'none -> 0 }
+}

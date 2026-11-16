@@ -1,0 +1,6 @@
+set Light = 'red ∪ 'green ∪ 'amber
+
+export fn stop(n ∈ 0..2) (Bool) {
+    l = case { n == 0 -> 'red; n == 1 -> 'green; else -> 'amber }
+    case l { 'red -> true; 'green -> false; 'yellow -> false }
+}

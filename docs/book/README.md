@@ -23,7 +23,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ` | J; 61 blocks checked 2026-11-16 |
 | 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-16 |
 | 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-16 |
-| 10 | Tuples and variants | "and" and "or" of data; `case` with patterns | not written |
+| 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-16 |
 | | **III. Repetition and storage** | | |
 | 11 | `loop` | the one iteration; termination | not written |
 | 12 | Tables | a table is a function on `0..len-1`; an index is proven; fusion | not written |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8 and fourteen in chapter 9, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9 and twelve in chapter 10, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -414,6 +414,54 @@ equality; strings.md §4, state.md), so chapter 9 says so plainly, and its only 
 searching is `go/strings` in §9.12, marked Go-only by `portable`. §9.10 uses `array { … }`
 three chapters early, as a way to write bytes down, and says so.
 
+Chapter 10, Tuples and variants (2026-11-16), found one wrong answer and five smaller, none
+fixed, each avoided in the chapter:
+
+53. **Two payloads in scope are one name: a wrong answer.** With `set Maybe(T) = 'just(T) ∪
+    'nothing` and `fn digit_of(c ∈ 0..127) { if c >= 48 && c <= 57 { 'just(c - 48) } else
+    { 'nothing } }`,
+
+        case digit_of(a) {
+            'nothing -> -1
+            'just(x) -> case digit_of(b) { 'nothing -> -1; 'just(y) -> 10 * x + y }
+        }
+
+    computes `10 * (b - 48) + (b - 48)`: for the characters `4` and `2` it prints 22 on Go,
+    JavaScript and windows, where 42 is right. `oro -j` shows the residual:
+    `#p = … b - 48; 10 * #p + #p`. Each constructor's payload is let-bound under the one
+    spelling `#p`, and the inner binding captures the outer use; binding the two results to
+    names first (`p = digit_of(a); q = digit_of(b)`) changes nothing. The same program with
+    tuples for the results is right. It is CLAUDE.md's *a context keyed by name is captured by
+    the name alone*, in sums.md §5's recount. Chapter 10 uses one payload at a time; chapter 14
+    (`try` chains two results) cannot be written around it.
+54. **A variant's name is no set at a parameter.** `fn warm(c ∈ Colour)` is refused, exported or
+    not: *its header's parameter c names colour, which is no set: not one of the language's and
+    not declared by target go (ADR 0073)*. `(Colour)` as a result's set compiles. A tuple at a
+    parameter, `p ∈ Int × Int`, is refused in the notation J replaced: *sig take: prod(int, int)
+    is a product, and a product is an ELEMENT type — a TABLE of them is `(array (tuple int
+    int))`*. The chapter's functions over variants take a parameter with no set.
+55. **A `case` with a scrutinee needs `=`, which the tutorial target lacks.** `oro -j
+    -target=tutorial` on `case s { 'circle(r) -> … }` with `s` unknown: *in area: `=` is not
+    bound*. So the chapter shows a variant's reduction on Go's emitted code, not as a residual.
+56. **A constructor's payload takes a set's name only**, by design (item 7), but a second
+    payload is a reader's error with no reason: `'rect(Int, Int)` gives *line 1: "," where ")"
+    was expected*.
+57. **Unchecked shapes.** A pattern may omit a payload's binder, `'circle -> 1` for
+    `'circle(Int)`, and compiles. `s = 'circle; 0` (a constructor never applied) compiles. A
+    non-variant in an arm of a function whose result is declared a variant, `n == 1 -> 5` under
+    `(Colour)`, is *lowering: an application of 5*; `case n { 'red -> … }` on an integer is the
+    closure refusal with `fn(#t, #p)` in it.
+58. **Messages.** A variant's name is printed in lower case (*case on light*, *variant list*).
+    `set A = 'x ∪ 'y` and `set B = 'x ∪ 'z` in one module: *x is defined twice — sum b declares a
+    variant of that name*. A pattern with two binders: *a clause pattern is a constructor, a
+    constructor and one binding — `(ok v)` — or `else`; got (circle a b)*. `'circle(n, n)` and
+    `(x, y, z) = (a, 1)`: *arity: expects 1 argument(s), given 2, in: fn(n) { fn(#p) { (0, #p)
+    } }*. `p[0]` on a tuple: *lowering: an application of 0*. `(a, b) == (b, a)` and `'red ==
+    'red`: *(#1.0, #1.1) is 2 values where one is wanted*. `'circle("big")` under a declared
+    `(Shape)`: *p_f: its header declares result Int, and the body yields String*.
+
+Also: `export fn unit(a ∈ 0..9) () { () }` emits a Go function returning `int`, `return 0`.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -425,7 +473,9 @@ is a ring homomorphism; chapter 8's is which fractions terminate in a base, fixe
 floating point, the bias of rounding a half upward, and what IEEE 754's arithmetic is once it is
 written out: a rounding after every operation; chapter 9's is ASCII's layout, Unicode's scalar
 values and the surrogates' hole, UTF-8 and UTF-16, the free monoid, and a homomorphism as the
-shape of a property that is proven piece by piece (`nulfree`, beside chapter 7's remainder).
+shape of a property that is proven piece by piece (`nulfree`, beside chapter 7's remainder);
+chapter 10's is state machines, Hoare's null, case-of-case as one law shared with a tuple's
+pattern, and counting values, which is why the two are called products and sums.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

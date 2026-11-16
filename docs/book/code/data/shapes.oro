@@ -1,0 +1,3 @@
+pub set Shape = 'circle(Int) ∪ 'square(Int) ∪ 'point
+
+pub fn area(s) { case s { 'circle(r) -> 3 * r * r; 'square(w) -> w * w; 'point -> 0 } }

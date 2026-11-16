@@ -1,0 +1,7 @@
+set Maybe(T) = 'just(T) ∪ 'nothing
+
+fn digit_of(c ∈ 0..127) { if c >= 48 && c <= 57 { 'just(c - 48) } else { 'nothing } }
+
+export fn value(c ∈ 0..127) (0..9) {
+    case digit_of(c) { 'just(d) -> d; 'nothing -> 0 }
+}

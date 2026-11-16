@@ -1,0 +1,11 @@
+set Light = 'red ∪ 'green ∪ 'amber
+
+set Shape = 'circle(Int) ∪ 'square(Int) ∪ 'point
+
+set Msg = 'text(String) ∪ 'count(Int) ∪ 'quiet
+
+export fn pick(n ∈ 0..2) (Light) { case { n == 0 -> 'red; n == 1 -> 'green; else -> 'amber } }
+
+export fn make(n ∈ 0..100) (Shape) { case { n == 0 -> 'point; n < 50 -> 'circle(n); else -> 'square(n) } }
+
+export fn label(n ∈ 0..10) (Msg) { case { n > 5 -> 'text("big"); n > 2 -> 'count(n); else -> 'quiet } }

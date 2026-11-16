@@ -1,0 +1,18 @@
+use io
+
+set Maybe(T) = 'just(T) ∪ 'nothing
+
+fn digit_of(c ∈ 0..127) { if c >= 48 && c <= 57 { 'just(c - 48) } else { 'nothing } }
+
+fn show(m) {
+    case m {
+        'just(d) -> io.print_int(d)
+        'nothing -> io.print_line("not a digit")
+    }
+}
+
+export fn main() {
+    show(digit_of(55))
+    show(digit_of(65))
+    show(digit_of(48))
+}

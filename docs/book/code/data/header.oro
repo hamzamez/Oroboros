@@ -1,0 +1,5 @@
+export fn divmod(a ∈ 0..1000, b ∈ 1..1000) (Int, Int) { (a / b, a % b) }
+
+export fn swap(a ∈ Int, b ∈ Int) (Int, Int) { (b, a) }
+
+export fn three(a ∈ 0..9) (Int, Bool, String) { (a, a > 4, "x") }

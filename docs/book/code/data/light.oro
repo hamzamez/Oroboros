@@ -1,0 +1,17 @@
+use io
+
+set Light = 'red ∪ 'green ∪ 'amber
+
+fn next(l) { case l { 'red -> 'green; 'green -> 'amber; 'amber -> 'red } }
+
+fn name(l) { case l { 'red -> "red"; 'green -> "green"; 'amber -> "amber" } }
+
+fn seconds(l) { case l { 'red -> 30; 'green -> 25; 'amber -> 5 } }
+
+export fn main() {
+    io.print_line(name('red))
+    io.print_line(name(next('red)))
+    io.print_line(name(next(next('red))))
+    io.print_line(name(next(next(next('red)))))
+    io.print_int(seconds('red) + seconds('green) + seconds('amber))
+}

@@ -1093,5 +1093,5 @@ far from where it was made.
   nulfree(b)`: a property proven piece by piece.
 - **A host's string is the host's** (`go.bytestring`); `go.text` brings one into `String`.
 
-Next: chapter 10, Tuples and variants. Two values at once, and one value out of several
+Next: [chapter 10](10-data.md), Tuples and variants. Two values at once, and one value out of several
 kinds.

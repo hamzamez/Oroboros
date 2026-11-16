@@ -22,7 +22,12 @@
 // within its rights to (refinements.md §6b names exactly this as the gap
 // inlining cannot reach). A -1 here made windows look like it had lost entries
 // when it had computed them correctly and could not print them.
-fn run(n) {
-    m = { var m := map(8); loop i = 0 { i >= n -> m; else -> { m[i] := i * 10; again(i + 1) } } }
+// THE CAPACITY IS A CLAIM ON len (maps.md §6): n inserts of distinct keys need
+// a capacity of n, and this case's largest input is 9, so it declares 16, and
+// its header says how many it is run with. It declared 8 and was run with 9
+// until a map's capacity was decided (2026-11-16): Go grew the map and windows
+// had the slots for it, so nothing noticed.
+fn run(n ∈ 0..16) {
+    m = { var m := map(16); loop i = 0 { i >= n -> m; else -> { m[i] := i * 10; again(i + 1) } } }
     case m[2] { 'some(v) -> v; 'none -> 0 }
 }

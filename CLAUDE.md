@@ -105,9 +105,10 @@ before planning. **Its plan (§5)**, in order:
    tuple, a product's eliminator its projections, ⌈q⌉ for all four relations with a decimal, a
    refusal that crashed, the corpus read from git's index); ~~the windows map realized after the
    decision~~ done (ADR 0120, [maprealize-2026-11-16](gauntlet/results/maprealize-2026-11-16.md):
-   `emit/winmap.go` deleted, finding 72 closed, the map 1.22× Go's, owed); **next, 71's capacity**
-   (hamza's B′, the capacity a claim on `len`, `set { m ∈ Map(K, V) : len(m) <= c }`): an insert is
-   defined iff k ∈ dom m or |dom m| < c (maps.md §6), its obligation a mark S writes at each write;
+   `emit/winmap.go` deleted, finding 72 closed, the map 1.22× Go's, owed); ~~71's capacity~~ done
+   (ADR 0121, [capacity-2026-11-16](gauntlet/results/capacity-2026-11-16.md): hamza's B′, Map_c =
+   {m : len(m) ≤ c}, each insert marked len(m) < c by S; presence, a borrowed map's capacity and an
+   O(1) windows `len` owed). **Item 1 is done**; next item 2;
 2. **j.md's two promises**: `invariant`, Hoare's rule for `loop`, which also pays `readinto`'s owed
    invariant; `try` with several binds, a derived form;
 3. **two checks**: no carriage return in a tracked text file; a planted source rewrite asserts it
@@ -1001,6 +1002,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A C call's arguments are a linear term over its parameters: each a parameter, `elem(b, lo)` (&b[lo], defined where the `where` states lo ≤ len(b)) or `null`, every parameter exactly once; one Win32 function one declaration; `store8` split into single instructions; amends 0094 | [0118](docs/decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md) |
 | A store owes its table's domain, 0 <= i < len, as a read does; lang's guarded facts instantiated where an obligation is; a square an atom (F12); where the fragment cannot bound a store the program guards it, a missing proof (the builder, K(ℕ\*)'s carrier owed) | [0119](docs/decisions/0119-a-store-owes-its-tables-domain.md) |
 | A map on the LLVM layer is the table of its cells, each operation a term realized after the decision on the IR; the pre-reduction rewrite and `repr map library` retired | [0120](docs/decisions/0120-a-map-on-the-llvm-layer-is-realized-after-the-decision.md) |
+| A map of capacity c is in {m ∈ Map(K, V) : len(m) ≤ c}, a claim; S marks each insert len(m) < c, decided from |dom| = 0 at map(c), an insert adding at most one key, and Houdini's |dom m| ≤ i | [0121](docs/decisions/0121-a-maps-capacity-is-a-claim-on-its-len.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

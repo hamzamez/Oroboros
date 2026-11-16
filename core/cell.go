@@ -119,8 +119,9 @@ func (c *cellTr) calls(t *Term) (*Term, error) {
 }
 
 func isCellScope(t *Term) bool {
-	return t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName &&
-		(t.Kids[0].Name == CellName || t.Kids[0].Name == PlaceName || t.Kids[0].Name == MapPlaceName) &&
+	return t.Kind == KApp && t.Kids[0].Kind == KName &&
+		(len(t.Kids) == 3 && (t.Kids[0].Name == CellName || t.Kids[0].Name == PlaceName || t.Kids[0].Name == MapPlaceName) ||
+			len(t.Kids) == 4 && t.Kids[0].Name == MapPlaceName) &&
 		t.Kids[2].Kind == KFn && len(t.Kids[2].Params) == 1
 }
 
@@ -156,6 +157,10 @@ type cellTr struct {
 	// (spec/local.md §2.1), and borrows the callees that borrow one.
 	places  map[string]bool
 	maps    map[string]bool // the places whose value is a map
+	// caps are the map places' capacities, the c of their `map(c)`: a map of
+	// capacity c is in {m : len(m) <= c} (maps.md §6, hamza's B′), so each
+	// insert into one is marked with that claim.
+	caps    map[string]*Term
 	borrows map[string]BorrowDecl
 	// product: the definition's header declares a product result, so its
 	// borrow scope hands back the factors flat (ADR 0112)
@@ -486,6 +491,12 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		}
 		if headIs(t, MapPlaceName) {
 			c.maps[y] = true // its element write is insert (ADR 0058)
+			if len(args) == 3 {
+				if c.caps == nil {
+					c.caps = map[string]*Term{}
+				}
+				c.caps[y] = args[2] // its capacity, which each insert's mark claims
+			}
 		}
 		iy := c.in(y)
 		outer := append([]string(nil), c.xs...)
@@ -586,7 +597,7 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 				after := c.state()
 				for i, n := range c.xs {
 					if n == c.in(x) {
-						after[i] = App(Name(store), vs...)
+						after[i] = c.capacityMark(x, App(Name(store), vs...))
 					}
 				}
 				return tupOf(Unit(), after)
@@ -1082,4 +1093,28 @@ func scalarLiteral(t *Term) bool {
 		return true
 	}
 	return false
+}
+
+// MapCapacityDef labels the obligation an insert into a map carries, its
+// binder's claim |dom m| < c before the insert (maps.md §6).
+const MapCapacityDef = "a map's capacity"
+
+// PlantCapacityUnmarked writes no capacity mark at an insert, so a map may
+// take more keys than its capacity: TestAMapsCapacityIsAClaimOnLen must catch
+// it.
+var PlantCapacityUnmarked bool
+
+// capacityMark is an insert into the map place x, under its binder's claim (B′):
+// a map of capacity c is in {m : len(m) <= c}, so insert(m, k, v) stays in it
+// when len(m) < c, a sufficient condition for its domain k ∈ dom m ∨ |dom m| < c
+// (the presence of k is a fact this layer does not have). The mark is ADR
+// 0028's: decided apart, its value the insert's, an undecided one refusing the
+// program; its condition is never run, so repeating c there costs nothing.
+func (c *cellTr) capacityMark(x string, ins *Term) *Term {
+	cap, ok := c.caps[x]
+	if !ok || !headIs(ins, "insert") || len(ins.Kids) != 4 || PlantCapacityUnmarked {
+		return ins
+	}
+	cond := App(Name("<"), App(Name("len"), ins.Kids[1]), cap)
+	return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(MapCapacityDef), cond, ins}}
 }

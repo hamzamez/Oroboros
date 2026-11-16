@@ -43,6 +43,13 @@ func TestAStoreIntoAFrozenValueIsRefused(t *testing.T) {
 			t.Errorf("a store into a live buffer was refused: %v\n%s", err, ok)
 		}
 	}
+	// THE PLANTED FAULT: a map's capacity mark read as no buffer (maps.md §6),
+	// so the legal map's second insert writes into a "frozen" map.
+	PlantMarkOpaqueToLinearity = true
+	defer func() { PlantMarkOpaqueToLinearity = false }()
+	if err := linearOn(t, `export fn f(n) { len({ var m := map(8); m[1] := n; m[2] := n; m }) }`); err == nil {
+		t.Error("with the capacity's mark opaque the legal map should be refused, so the test reaches the rule")
+	}
 }
 
 // A MAP BUFFER IS LINEAR. Used twice, the second `insert` wrote into the

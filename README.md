@@ -486,8 +486,10 @@ plan**, in order:
    - ~~the size of a map is wrong on Windows~~ **fixed**, and Windows' map is now built from the
      language's own definitions after the compiler has checked the program, as every other
      Windows operation is, so programs that read a map inside a function now build there
-     ([maprealize-2026-11-16](gauntlet/results/maprealize-2026-11-16.md)); a map's declared
-     capacity, which no target enforces yet, is next;
+     ([maprealize-2026-11-16](gauntlet/results/maprealize-2026-11-16.md)); ~~a map's declared
+     capacity~~ **enforced** on every target, a program inserting more keys than its map holds now
+     refused, where Go grew the map and Windows dropped the key
+     ([capacity-2026-11-16](gauntlet/results/capacity-2026-11-16.md));
    - ~~a pair read from a table produces wrong Go~~ **fixed**;
    - ~~with them, a compiler crash, a self-check that rejects a valid program, and a test that
      fails one run in five~~ **fixed** ([bookfaults-2026-11-16](gauntlet/results/bookfaults-2026-11-16.md));

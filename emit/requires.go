@@ -228,6 +228,7 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 				assume(f, sig.Where)
 			}
 			seedFacts(f, rest, langFacts)
+			seedInsertSizes(tgt, f, rest)
 			_ = r.walk(rest, f) // a dry walk: only the marks decide, in r.requires
 			fails = append(fails, *r.requires...)
 		}

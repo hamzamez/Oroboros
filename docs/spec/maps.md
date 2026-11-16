@@ -267,6 +267,19 @@ ADR 0019 alike.
 
 A **literal** map's capacity is its size, so §3.1 needs nothing.
 
+**Decided (ADR 0121, hamza's B′): the capacity is a claim on `len`.** A map of capacity c is in
+Map_c = {m ∈ Map(K, V) : len(m) ≤ c}, so `var m := map(c)` gives m that set, and a binder may state
+it as a separation, `set { m ∈ Map(Int, Int) : len(m) <= 16 }`. An insert is partial on Map_c,
+m[k ↦ v] ∈ Map_c iff k ∈ dom m or |dom m| < c, and the state translation marks each insert into a map
+place with the claim len(m) < c, decided as a store's domain is (ADR 0119):
+- from |dom m| = 0 at `map(c)`;
+- from an insert adding at most one key, len(m) ≤ len(m′) ≤ len(m) + 1;
+- from Houdini's |dom m| ≤ i for a loop that threads the map.
+
+A program past its capacity is refused on every target, where Go grew the map and windows dropped
+the key. Presence, the k ∈ dom m half, is not yet a fact, so filling a map exactly and then updating
+its keys is refused (capacity-2026-11-16).
+
 ---
 
 ## 7. Iteration, derived

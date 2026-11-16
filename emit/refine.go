@@ -27,6 +27,11 @@ type refiner struct {
 	// store and not indexing (indexWhat).
 	storing bool
 
+	// mapBinders are the names bound to a map, a build-map's binder and the
+	// loop variables it threads: Houdini's |dom m| ≤ v template is asked of
+	// these (maps.md §6).
+	mapBinders map[string]bool
+
 	// bound is every name introduced by a binder. It is what tells a TABLE
 	// from anything else in operator position: `(a i)` is an indexing when `a`
 	// is a local, and `(again …)` is a jump. Without it `again` looked like a
@@ -224,6 +229,7 @@ func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, er
 	// the two facts share no variable: the quotient is an unknown, and nothing
 	// says it has anything to do with the length it came from.
 	seedFacts(f, t, langFacts)
+	seedInsertSizes(r.tgt, f, t)
 
 	if err := r.walk(t, f); err != nil {
 		return r.notes, fmt.Errorf("%s: %w", what, err)
@@ -674,6 +680,22 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 				}
 				return r.walk(args[1].Body(), inner)
 			}
+		case "map-build":
+			// `(build-map c (fn (m) …))` binds the EMPTY map: |dom m| = 0, the
+			// first fact of a map's capacity (maps.md §6, hamza's B′). Each insert
+			// adds at most one key (lang-facts.oro's insert_size), and S marks
+			// each insert with its binder's claim len(m) < c (core/cell.go).
+			if len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1 && !PlantMapNotEmpty {
+				inner := f.clone()
+				name := args[1].Params[0]
+				r.assumeLengthEq(inner, name, constant(0))
+				r.markName(name)
+				r.markMap(name)
+				if err := r.walk(args[0], f); err != nil {
+					return err
+				}
+				return r.walk(args[1].Body(), inner)
+			}
 		case "iterate":
 			return r.iterate(args, f)
 		case "cond":
@@ -753,6 +775,10 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 	return nil
 }
 
+// PlantMapNotEmpty forgets that a fresh map is empty, |dom m| = 0:
+// TestAMapsCapacityIsAClaimOnLen must catch it.
+var PlantMapNotEmpty bool
+
 // PlantStoreUnchecked owes nothing at a store, finding 70's hole:
 // TestAStoreIsDefinedOnItsTablesDomain must catch it.
 var PlantStoreUnchecked bool
@@ -793,6 +819,11 @@ func (r *refiner) bind(f *facts, step *core.Term, count *core.Term) *facts {
 // It re-discharges the precondition against the same facts the call site had,
 // which is what Lemma 1 requires and is cheap: the fragment is tiny.
 func (r *refiner) ensuresOf(call *core.Term, result *core.Term, f *facts) *core.Term {
+	// A MARK'S VALUE IS ITS BODY'S (#reqw def cond body): the capacity's mark
+	// on an insert (maps.md §6) leaves the insert's postcondition the binder's.
+	for call != nil && core.IsRequireWhere(call) {
+		call = call.Kids[3]
+	}
 	if call == nil || call.Kind != core.KApp || call.Op().Kind != core.KName {
 		return nil
 	}
@@ -1975,6 +2006,19 @@ func (r *refiner) firstAlien(t *core.Term, f *facts) *core.Term {
 		if loopKinds[op.Name] {
 			return t
 		}
+		// A LENGTH IS AN ATOM OF ITS SUBJECT (lengthVar): what lies inside the
+		// subject says nothing to the linear goal, and splitting on it rewrites
+		// the subject, so no fact keyed by it matches (a map's insert under its
+		// capacity's mark, whose value holds a conditional). Only a conditional
+		// SUBJECT is split, len(if c a b) = if c len(a) len(b).
+		if isLenOp(op.Name) && len(t.Args()) == 1 && !PlantSplitInsideLen {
+			if s := lengthSubject(t.Args()[0]); s.Kind == core.KApp && s.Op().Kind == core.KName {
+				if p, known := r.tgt.Prims[s.Op().Name]; known && p.Kind == "cond" && len(s.Args()) == 3 {
+					return s
+				}
+			}
+			return nil
+		}
 	}
 	for _, a := range t.Args() {
 		if found := r.firstAlien(a, f); found != nil {
@@ -2082,6 +2126,14 @@ var PlantNoUpperFrame bool
 
 func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEntry, g *facts) (kept []*core.Term) {
 	params := lam.Params
+	// A LOOP VARIABLE THREADS A MAP when its initial value is one.
+	for _, inits := range templ {
+		for i, z := range inits {
+			if i < len(params) && r.isMapTerm(z) {
+				r.markMap(params[i])
+			}
+		}
+	}
 	var cands []*core.Term
 	seen := map[string]bool{}
 	add := func(a, b *core.Term) {
@@ -2141,6 +2193,15 @@ func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEn
 		for _, t := range params {
 			if t != n && g.hasLength(r.tgt, t) {
 				add(v, core.App(core.Name("len"), core.Name(t)))
+			}
+		}
+		// |dom t| ≤ v FOR t A LOOP VARIABLE THREADING A MAP (maps.md §6): the
+		// map grows by at most one key a back edge (insert's postcondition) and
+		// starts empty, so a loop that inserts once a step keeps its size below
+		// its counter, the invariant each insert's capacity mark needs.
+		for _, t := range params {
+			if t != n && r.mapBinders[t] && !PlantNoMapTemplate {
+				add(core.App(core.Name("len"), core.Name(t)), v)
 			}
 		}
 	}
@@ -3178,6 +3239,40 @@ func (r *refiner) markBound(t *core.Term) {
 	}
 }
 
+// isMapTerm reports a term whose value is a map: a name bound to one, or an
+// insert, under its capacity's mark or not.
+func (r *refiner) isMapTerm(t *core.Term) bool {
+	for t != nil && core.IsRequireWhere(t) {
+		t = t.Kids[3]
+	}
+	switch {
+	case t == nil:
+		return false
+	case t.Kind == core.KName:
+		return r.mapBinders[t.Name]
+	case t.Kind == core.KApp && t.Op().Kind == core.KName:
+		p, ok := r.tgt.Prims[t.Op().Name]
+		return ok && p.Kind == "map-insert"
+	}
+	return false
+}
+
+// PlantSplitInsideLen splits on a term inside a length's subject, as before:
+// TestAMapsCapacityIsAClaimOnLen must see a proof fail.
+var PlantSplitInsideLen bool
+
+// PlantNoMapTemplate drops Houdini's |dom t| ≤ v template: a loop's inserts are
+// then bounded by nothing, and TestAMapsCapacityIsAClaimOnLen must see it.
+var PlantNoMapTemplate bool
+
+// markMap records n as bound to a map (mapBinders).
+func (r *refiner) markMap(n string) {
+	if r.mapBinders == nil {
+		r.mapBinders = map[string]bool{}
+	}
+	r.mapBinders[n] = true
+}
+
 func (r *refiner) markName(n string) {
 	if r.bound == nil {
 		r.bound = map[string]bool{}
@@ -3260,3 +3355,45 @@ func isComparison(name string) bool {
 // strings-2026-11-16: lang.div's sdiv is then refused, its ne(b, −1) unmatched
 // by its guard's.
 var PlantNeGoalUnmatched bool
+
+// seedInsertSizes instantiates an insert's law on every insert present in t:
+// dom(m[k ↦ v]) = dom(m) ∪ {k}, so len(m) <= len(X) <= len(m) + 1 for
+// X = insert(m, k, v) (maps.md §6, hamza's B′). It holds of every insert's
+// value, the insert being impure for sequencing and not for its value, so it is
+// an unguarded instance on a present term, a local extension's instance as a
+// fact's is; it is not a fact of lang's because insert inside len is not flat
+// (F-B, condition 2). The state translation passes an insert straight to a back
+// edge, which is no β-redex, so the postcondition at a binder never reaches it.
+func seedInsertSizes(tg *Target, f *facts, t *core.Term) {
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil {
+			return
+		}
+		if x.Kind == core.KFn {
+			walk(x.Body())
+			return
+		}
+		if x.Kind == core.KApp && len(x.Kids) == 4 && x.Kids[0].Kind == core.KName {
+			if p, ok := tg.Prims[x.Kids[0].Name]; ok && p.Kind == "map-insert" {
+				lm := core.App(core.Name("len"), x.Kids[1])
+				lx := core.App(core.Name("len"), x)
+				laws := []*core.Term{core.App(core.Name("<="), lm, lx)}
+				if !PlantInsertUnbounded {
+					laws = append(laws, core.App(core.Name("<="), lx, core.App(core.Name("+"), lm, core.Int(1))))
+				}
+				for _, law := range laws {
+					if goals, ok := f.oblig(law); ok {
+						for _, g := range goals {
+							f.assumeLE(g, "assumed "+g.String()+" <= 0 (an insert adds at most one key)")
+						}
+					}
+				}
+			}
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+}

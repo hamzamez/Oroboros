@@ -564,8 +564,9 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
     `var m := map(2)` with three stores gives `len(m)` 3 on Go and JavaScript (maps.md §6
     chose a declared capacity so that all targets agree) and **12** on windows. **`len` fixed**
     2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): 3 on
-    windows, a map handed on through a tuple now tracked; the capacity is not enforced yet, its own
-    step.
+    windows, a map handed on through a tuple now tracked; **the capacity fixed** 2026-11-16
+    ([capacity-2026-11-16](../../gauntlet/results/capacity-2026-11-16.md), ADR 0121): a map of
+    capacity c is in {m : len(m) <= c}, so the three stores into `map(2)` are refused on every target.
 72. **A map read does not build on windows.** A program that reads a map built in a block:
     *(read …) is not printed on LLVM*; one that reads it in a loop: *1 of 97 integer
     operation(s) cannot be proven … llvm.sdiv [0, +inf] in llvm.sdiv(a, b)*, an operation of

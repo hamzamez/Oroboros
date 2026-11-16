@@ -159,12 +159,19 @@ func (d *desugarer) build(a Tail) *Term {
 	case *Write:
 		return d.write(a)
 	case *BuildMap:
+		// A MAP OF CAPACITY c IS IN {m : len(m) <= c} (maps.md §6, hamza's B′),
+		// so the capacity is bound once, where the program wrote it, and the
+		// place's scope carries it: each insert S writes is marked with the
+		// binder's claim. `#cap-m` is apart along the scope chain, since a `var`
+		// may not be shadowed inside its own scope (noShadow).
 		t := d.term(a.Body)
 		for i := len(a.Names) - 1; i >= 0; i-- {
+			cv := CapacityPrefix + a.Names[i]
 			if a.Place {
-				t = App(Name(MapPlaceName), Name(a.Names[i]), Fn([]string{a.Names[i]}, t))
+				t = &Term{Kind: KApp, Kids: []*Term{Name(MapPlaceName), Name(a.Names[i]), Fn([]string{a.Names[i]}, t), Name(cv)}}
 			}
-			t = &Term{Kind: KApp, Kids: []*Term{Name("build-map"), d.term(a.Caps[i]), Fn([]string{a.Names[i]}, t)}}
+			t = &Term{Kind: KApp, Kids: []*Term{Name("build-map"), Name(cv), Fn([]string{a.Names[i]}, t)}}
+			t = App(Fn([]string{cv}, t), d.term(a.Caps[i]))
 		}
 		return t
 	case *The:

@@ -273,6 +273,12 @@ func (c *linChecker) isBuf(t *core.Term, env, taken map[string]bool) bool {
 	if t == nil {
 		return false
 	}
+	// A MARK'S VALUE IS ITS BODY'S (#reqw def cond body, ADR 0028): its condition
+	// is decided and never run, so a map's capacity mark on an insert is the
+	// insert, a buffer (maps.md §6).
+	if core.IsRequireWhere(t) && !PlantMarkOpaqueToLinearity {
+		return c.isBuf(t.Kids[3], env, taken)
+	}
 	if t.Kind == core.KName {
 		return env[t.Name]
 	}
@@ -327,6 +333,11 @@ func (c *linChecker) exitIsBuf(t *core.Term, env, taken map[string]bool) bool {
 	}
 	return c.isBuf(t, env, taken)
 }
+
+// PlantMarkOpaqueToLinearity reads a mark around a store as no buffer, so a
+// map's second insert writes into a "frozen" map: TestAStoreIntoAFrozenValueIsRefused
+// must see the legal program refused.
+var PlantMarkOpaqueToLinearity bool
 
 type linState struct {
 	moved bool

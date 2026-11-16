@@ -40,6 +40,10 @@ const BorrowName = "#borrow"
 // `insert` where a table's is `set`.
 const MapPlaceName = "#mapplace"
 
+// CapacityPrefix spells the binder of a map place's capacity, `#cap-m` for the
+// place m: `(#mapplace m (fn (m) body) #cap-m)` carries it (maps.md §6).
+const CapacityPrefix = "#cap-"
+
 // localPlace is a program-order buffer's binder: build's region for the
 // initializer, as localBinder makes it, with the region's binder a place.
 func localPlace(x string, e, body *Term) *Term {

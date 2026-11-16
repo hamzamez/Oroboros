@@ -1345,7 +1345,12 @@ var coreStructural = []Prim{
 	// input (growth.md §1.1). Append keeps an equation; insert keeps only an
 	// interval, and claiming the equation here would be unsound.
 	{Name: "build-map", Kind: "map-build"},
-	{Name: "insert", Kind: "map-insert"},
+	// AN INSERT ADDS AT MOST ONE KEY: dom(m[k ↦ v]) = dom(m) ∪ {k}, so
+	// len(m) <= len(m′) <= len(m) + 1, the law that bounds a map by its inserts
+	// (maps.md §6, hamza's B′). Attached at the insert's binder (Lemma 2), which
+	// ADR 0010 guarantees, an impure argument being let-bound; not a fact of
+	// lang's, which must be flat (insert inside len is not).
+	{Name: "insert", Kind: "map-insert", Names: []string{"m", "k", "v"}, Ensures: insertSize()},
 	// `keys : Map K V → Array K`, IN ASCENDING KEY ORDER, and both halves are
 	// derived rather than chosen (maps.md §7).
 	//
@@ -2977,6 +2982,21 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 // lenEquals is a length postcondition built as a term: `len(result) = arg` for
 // a count, `len(result) = len(arg)` for a pass-through — the two shapes
 // refine.go's lengthContract reads, for the compiler's own structural tables.
+// insertSize is insert's postcondition, len(m) <= len(r) <= len(m) + 1.
+func insertSize() *core.Term {
+	r := core.App(core.Name("len"), core.Name(core.ResultName))
+	m := core.App(core.Name("len"), core.Name("m"))
+	if PlantInsertUnbounded {
+		return core.App(core.Name("<="), m, r)
+	}
+	return core.App(core.Name("if"), core.App(core.Name("<="), m, r),
+		core.App(core.Name("<="), r, core.App(core.Name("+"), m, core.Int(1))), core.Bool(false))
+}
+
+// PlantInsertUnbounded keeps only len(m) <= len(r): a map is then bounded by
+// nothing, and TestAMapsCapacityIsAClaimOnLen must see a proof fail.
+var PlantInsertUnbounded bool
+
 func lenEquals(arg string, count bool) *core.Term {
 	rhs := core.Name(arg)
 	if !count {
@@ -2997,7 +3017,7 @@ var respelled = map[string]string{
 	"array-type":  "`set Array(A) = host \"spelling\"`",
 	"map-type":    "`set Map(K, V) = host \"spelling\"`",
 	"boxed":       "`repr ref(T) host \"spelling\"`",
-	"builtin-map": "`repr map library`",
+	"builtin-map": "nothing: a map is realized by `realize` lines (ADR 0120)",
 	"narrow":      "`repr narrow host \"spelling\"`",
 }
 

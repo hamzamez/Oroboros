@@ -113,6 +113,14 @@ func TestABufferInProgramOrderMeansTheThreadedBuffer(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// THE THEOREM IS ABOUT COMPUTATION, so it holds after erasure ε
+			// (ADR 0050): a map's capacity mark is logic, decided and never run
+			// (maps.md §6), and the threaded definition states no claim. The map's
+			// mark must be there before erasure.
+			if strings.Contains(c.j, "map(") && !strings.Contains(fj.String(), RequireWhereName) {
+				t.Errorf("a map's store carries no capacity mark: %s", fj)
+			}
+			fj = eraseMarks(fj)
 			if !fj.Equal(ft) {
 				t.Errorf("program order and threading differ:\n  J        %s\n  threaded %s", fj, ft)
 			}
@@ -158,4 +166,23 @@ func TestEachRuleOfAPlaceRefusesWhatItForbids(t *testing.T) {
 			}
 		})
 	}
+}
+
+// eraseMarks is ε on where-marks: each (#reqw def cond body) is its body.
+func eraseMarks(t *Term) *Term {
+	if t == nil {
+		return t
+	}
+	if IsRequireWhere(t) {
+		return eraseMarks(t.Kids[3])
+	}
+	if len(t.Kids) == 0 {
+		return t
+	}
+	out := *t
+	out.Kids = make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		out.Kids[i] = eraseMarks(k)
+	}
+	return &out
 }

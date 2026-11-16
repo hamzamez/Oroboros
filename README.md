@@ -511,7 +511,11 @@ plan**, in order:
    never overlap, a number's range, that a loop ends), one kind of fact at a time, each checked and
    measured against C;
 6. **TinyRetroPad's Windows surface, then its walls**;
-7. **the guidance file shortened to the project's current state**.
+7. ~~**the guidance file shortened to the project's current state**~~ **done** (2026-11-16):
+   CLAUDE.md is 7,761 words, from 14,242, the history left to the assessments, the results and git;
+- also found and fixed, from the book: ~~a false statement about a value's range accepted when the
+  range's ends were variables, or when nothing read the value~~ **fixed**
+  ([claims-2026-11-16](gauntlet/results/claims-2026-11-16.md)).
 
 **The 11-15 plan, as it stands**:
 1. keep a ledger of what each step costs and what it buys;

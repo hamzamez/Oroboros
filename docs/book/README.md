@@ -644,9 +644,15 @@ J replaced and with no running example, is in git at `98ff798`). It found five, 
     dropped claim is not used as a fact either (`t[k]` after `k ∈ 0..len(t)-1 = i` is still
     refused), so no access is wrongly proven; what is lost is that a false statement in the
     source is accepted without a word. In a function with no header sets the same claim is
-    *build: not in normal form for target "go": int*.
+    *build: not in normal form for target "go": int*. **Fixed** 2026-11-16
+    ([claims-2026-11-16](../../gauntlet/results/claims-2026-11-16.md)): x ∈ lo..hi with a term
+    at an end is the formula lo <= x && x <= hi, decided as any claim.
 81. **A binder's claim on a name nothing reads is not checked**: `k ∈ 0..5 = n; 0` and
-    `s ∈ String = n; 0` compile, with `n ∈ 0..100`. The family of item 45.
+    `s ∈ String = n; 0` compile, with `n ∈ 0..100`. The family of item 45. **Half fixed** 2026-11-16
+    ([claims-2026-11-16](../../gauntlet/results/claims-2026-11-16.md)): an unread binding's range
+    claims stay, moved onto the scope's body, so `k ∈ 0..5 = n; 0` is refused; `s ∈ String = n; 0`
+    still compiles, a typing claim the checker decides on a residual that no longer holds it. Item
+    45, a top-level constant nothing reads, is still open.
 82. **A result's claim and a binder's claim are decided by different procedures.**
     `(0..100) where a <= b { b - a }` is refused, *its result is [-100, 100]* (intervals alone;
     `(Nat)` likewise), and `d ∈ 0..100 = b - a; d` under the same header is proven by the

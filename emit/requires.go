@@ -296,6 +296,11 @@ func (f requireFail) message(n int) string {
 			"  assuming I; then it holds at every iteration. Prove it, strengthen it until it is kept, or\n"+
 			"  drop it.", f.arg, f.known)
 		return b.String()
+	case f.param == "where" && f.literal && strings.HasPrefix(f.def, "the claim "):
+		fmt.Fprintf(&b, "%s is false: %s\n"+
+			"  A binder's claim, `b ∈ S = e`, is an obligation: proven of e, or the program is refused\n"+
+			"  (ADR 0049), whoever reads b.", f.def, f.arg)
+		return b.String()
 	case f.param == "where" && f.literal:
 		fmt.Fprintf(&b, "%s's `where` is false at a call: %s", f.def, f.arg)
 	case f.param == "where" && strings.HasPrefix(f.def, "the claim "):

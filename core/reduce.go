@@ -2163,16 +2163,8 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 	case KApp:
 		// A BINDER'S CLAIM, ITS SET CANONICAL NOW: the mark a range claim needs, as
 		// D makes it for a set it can spell (desugar.go).
-		if t.Op().Kind == KName && t.Op().Name == ClaimName && len(t.Kids) == 4 && t.Kids[1].Kind == KStr {
-			set, err := normalize(t.Kids[2], e, fuel)
-			if err != nil {
-				return nil, err
-			}
-			ty := TypeTerm(set)
-			if _, _, isRange := IntRangeBig(ty); isRange {
-				return normalize(&Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(ClaimDef), t.Kids[1], Str(ty), t.Kids[3]}}, e, fuel)
-			}
-			return normalize(t.Kids[3], e, fuel)
+		if t.Op().Kind == KName && t.Op().Name == ClaimName && (len(t.Kids) == 4 || len(t.Kids) == 5) && t.Kids[1].Kind == KStr {
+			return e.claimSet(t, fuel)
 		}
 		// AN ASCRIPTION'S SET IS ITS CANONICAL SPELLING (desugar.go), once a
 		// constant in it is unfolded.
@@ -2183,6 +2175,11 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			}
 			if ty := TypeTerm(set); ty != "" {
 				return normalize(&Term{Kind: KApp, Kids: []*Term{t.Kids[0], Str(ty), t.Kids[2]}}, e, fuel)
+			}
+			// A RANGE WITH A TERM AT AN END HAS NO REPRESENTATION: its claim is
+			// the where-mark above, logic, and the ascription is its value.
+			if _, _, ok := termEnds(set); ok && !PlantClaimEndsDropped {
+				return normalize(t.Kids[2], e, fuel)
 			}
 		}
 		if e.Requires != nil && t.Op().Kind == KName {
@@ -2504,6 +2501,9 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			// more than once: the impure and the table-read bindings are not in
 			// it, and never will be substituted.
 			recount := map[string]bool{}
+			// deadClaims are the arguments no evaluation reads that hold a
+			// claim, normalized so their obligations can move onto the body.
+			var deadClaims []*Term
 			// Names already chosen for bindings of THIS application, so two
 			// parameters cannot be renamed onto each other.
 			used := map[string]bool{}
@@ -2646,7 +2646,16 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				// the program wrote it once (ADR 0071, core/work.go), so it takes
 				// the many-occurrence path below, which substitutes a value and
 				// binds anything else where it was written.
-				if e.workOccurrences(op.Closed(), 0, i, fnArgs) <= 1 {
+				if n := e.workOccurrences(op.Closed(), 0, i, fnArgs); n <= 1 {
+					// NONE, AND A CLAIM IN IT: the value goes, its claim stays
+					// (the book's 81, hoistObligations below).
+					if n == 0 && holdsClaim(args[i]) && !PlantDeadClaimDropped {
+						na, err := normalize(args[i], e, fuel)
+						if err != nil {
+							return nil, err
+						}
+						deadClaims = append(deadClaims, na)
+					}
 					subs[i] = args[i]
 					continue
 				}
@@ -2695,6 +2704,9 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			if err != nil {
 				return nil, err
 			}
+			for _, d := range deadClaims {
+				body = e.hoistObligations(d, body, fuel)
+			}
 			// THE RECOUNT. The occurrences above were counted in the body BEFORE
 			// it was normalised, and normalising can remove some: a sum's
 			// eliminator names its payload in every arm, and folding the known
@@ -2715,7 +2727,15 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				if recount[b.name] {
 					switch occurrences(body, b.name) {
 					case 0:
-						continue // pure and unread: dropped, as β drops an unused pure argument
+						// pure and unread: dropped, as β drops an unused pure
+						// argument, but not its obligations (the book's 81):
+						// they are statements of the program, owed where written
+						// whoever reads the value, so each moves onto the body,
+						// whose value a mark leaves alone.
+						if !PlantDeadClaimDropped {
+							body = e.hoistObligations(b.val, body, fuel)
+						}
+						continue
 					case 1:
 						// Once in the text, and once in evaluation: not under a
 						// loop's body or a table's rule (ADR 0071).
@@ -4764,7 +4784,17 @@ func needsReduction(t *Term) bool {
 	if t == nil {
 		return false
 	}
-	if IsRequireWhere(t) {
+	// A GROUND CONDITION is decided by evaluation, as markWhere decides one
+	// at a call: a claim made under a binder becomes ground when its value is
+	// substituted (the book's 81), and was then left to the refinement layer,
+	// "0 <= 50 && 50 <= 5 does not follow".
+	if _, decided := IsRequireFalse(t); decided {
+		return false // decided false already, its condition as written kept
+	}
+	if t.Kind == KApp && ground(t) && !PlantClaimEndsDropped {
+		return true
+	}
+	if IsRequireWhere(t) || IsRequire(t) {
 		return true
 	}
 	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == "len" &&
@@ -4805,10 +4835,29 @@ var wordBound = new(big.Int).Lsh(big.NewInt(1), 64)
 func (e *Env) reduceCondition(t, b *Term, fuel *int) *Term {
 	var inner []*Term
 	cond := hoistWheres(t.Kids[2], &inner)
+	written := cond
 	if c, err := normalize(cond, e, fuel); err == nil {
 		cond = c
 	}
-	m := &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], cond, b}}
+	// DECIDED BY EVALUATION, as markWhere decides a call's: true is the
+	// body, false the mark of the condition as written, for its message.
+	if pc := StripRequires(cond); pc.Kind == KBool && !PlantClaimEndsDropped {
+		if pc.IsTrue() {
+			return e.hoistObligations(cond, wrapWheres(b, inner), fuel)
+		}
+		m := &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], App(Name(RequireFalseName), StripRequires(written)), b}}
+		return e.hoistObligations(cond, wrapWheres(m, inner), fuel)
+	}
+	// A RANGE MARK IN THE CONDITION (an argument substituted into it, as a
+	// call's into a claim's end): the condition reads its value, and the mark
+	// becomes its own formula's where-mark around this one, so the call's
+	// obligation is kept and this one is not an opaque atom.
+	var m *Term
+	if containsRequire(cond) && !PlantClaimEndsDropped {
+		m = e.hoistObligations(cond, &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], StripRequires(cond), b}}, fuel)
+	} else {
+		m = &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], cond, b}}
+	}
 	return wrapWheres(m, inner)
 }
 
@@ -4981,3 +5030,191 @@ func (e *Env) isFunctionValue(t *Term) bool {
 // PlantFunctionStatement accepts a statement whose value is a function, as
 // before: it is then dropped without a word (TestAFunctionStatementIsRefused).
 var PlantFunctionStatement bool
+
+// termEnds reads a range (int lo hi) whose ends are terms, not both integer
+// literals: a claim's set at a variable end. An omitted end is nil.
+func termEnds(set *Term) (lo, hi *Term, ok bool) {
+	if set == nil || set.Kind != KApp || len(set.Kids) != 3 || set.Kids[0].Kind != KName || set.Kids[0].Name != "int" {
+		return nil, nil, false
+	}
+	end := func(t *Term) *Term {
+		if t.Kind == KName && (t.Name == "inf" || t.Name == "-inf" || t.Name == "+inf") {
+			return nil
+		}
+		return t
+	}
+	lo, hi = end(set.Kids[1]), end(set.Kids[2])
+	if (lo == nil || lo.Kind == KInt) && (hi == nil || hi.Kind == KInt) {
+		return nil, nil, false // constant: TypeTerm's, a #req mark
+	}
+	return lo, hi, true
+}
+
+// showEnds spells lo..hi in J, an omitted end left out.
+func showEnds(lo, hi *Term) string {
+	s := ""
+	if lo != nil {
+		s = ShowTerm(lo)
+	}
+	s += ".."
+	if hi != nil {
+		s += ShowTerm(hi)
+	}
+	return s
+}
+
+// hoistObligations wraps body in every obligation mark of v outside a λ: a
+// range mark (#req d p ty a) as the where-mark of its formula, lo <= a <= hi,
+// and a where-mark as itself. v is a pure value nothing reads, about to be
+// dropped; its marks' conditions name only what is in scope at body, since v
+// was bound there. A range not in the word's int64 ends, or a loop's
+// invariant, keeps nothing (neither is written of a dead value in the corpus).
+func (e *Env) hoistObligations(v, body *Term, fuel *int) *Term {
+	if v == nil || v.Kind != KApp {
+		return body
+	}
+	for _, k := range v.Kids {
+		body = e.hoistObligations(k, body, fuel)
+	}
+	switch {
+	case IsRequire(v):
+		lo, hi, ok := IntRangeBig(v.Kids[3].Str)
+		if !ok || !lo.IsInt64() || !hi.IsInt64() {
+			return body
+		}
+		a := StripRequires(v.Kids[4])
+		cond := App(Name("if"), App(Name("<="), Int(lo.Int64()), a), App(Name("<="), a, Int(hi.Int64())), Bool(false))
+		label := ShowName(v.Kids[1].Str) + "'s parameter " + ShowName(v.Kids[2].Str) + ", declared in " + ShowSet(v.Kids[3].Str) + ","
+		if v.Kids[1].Str == ClaimDef {
+			label = "the claim " + ShowName(v.Kids[2].Str) + " ∈ " + ShowSet(v.Kids[3].Str)
+		}
+		return e.reduceCondition(&Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(label), cond, body}}, body, fuel)
+	case IsRequireWhere(v) && !IsInvariantMark(v):
+		return &Term{Kind: KApp, Kids: []*Term{v.Kids[0], v.Kids[1], v.Kids[2], body}}
+	}
+	return body
+}
+
+// ground says whether t is an application of operators to literals only.
+func ground(t *Term) bool {
+	switch t.Kind {
+	case KInt, KBool:
+		return true
+	case KApp:
+		if t.Kids[0].Kind != KName {
+			return false
+		}
+		for _, k := range t.Kids[1:] {
+			if !ground(k) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// containsRequire says whether t holds a range mark outside a λ.
+func containsRequire(t *Term) bool {
+	if t == nil || t.Kind != KApp {
+		return false
+	}
+	if IsRequire(t) {
+		return true
+	}
+	for _, k := range t.Kids {
+		if containsRequire(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// holdsClaim says whether t holds a binder's claim, made or still to be:
+// the arguments whose obligations an unread binding must not take with it.
+func holdsClaim(t *Term) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == KApp && len(t.Kids) > 1 && t.Kids[0].Kind == KName {
+		switch {
+		case t.Kids[0].Name == ClaimName,
+			t.Kids[0].Name == RequireName && t.Kids[1].Kind == KStr && t.Kids[1].Str == ClaimDef:
+			return true
+		}
+	}
+	for _, k := range t.Kids {
+		if holdsClaim(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantClaimEndsDropped drops a claim whose range has a term at an end, as
+// before: `k ∈ 0..n = i` compiles again (TestEveryClaimIsDecidedWhereWritten).
+var PlantClaimEndsDropped bool
+
+// PlantDeadClaimDropped drops an unread binding's obligations with it, as
+// before: `k ∈ 0..5 = n; 0` compiles again.
+var PlantDeadClaimDropped bool
+
+// claimSet is a binder's claim whose set is now canonical, (#claim-set "b" S e
+// "spelling"): a constant range's mark, a range with a term at an end as its
+// formula's where-mark, or e. Out of normalizeStep, so its frame stays small.
+//
+//go:noinline
+func (e *Env) claimSet(t *Term, fuel *int) (*Term, error) {
+	set, err := normalize(t.Kids[2], e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	ty := TypeTerm(set)
+	if _, _, isRange := IntRangeBig(ty); isRange {
+		return normalize(&Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(ClaimDef), t.Kids[1], Str(ty), t.Kids[3]}}, e, fuel)
+	}
+	// A RANGE WHOSE ENDS ARE TERMS (the book's finding 80): x ∈ lo..hi is
+	// the formula lo <= x && x <= hi, an obligation of its own as a
+	// constant range's is, so it rides a where-mark on the value (as
+	// residualRange's, emit/requires.go). Dropped, `k ∈ 0..n = i`
+	// compiled and returned i.
+	if lo, hi, ok := termEnds(set); ok && !PlantClaimEndsDropped {
+		v, err := normalize(t.Kids[3], e, fuel)
+		if err != nil {
+			return nil, err
+		}
+		// THE CONDITION READS THE VALUES, not their marks: a mark is the
+		// identity on its value and decided on its own, and in a
+		// condition it is an opaque atom (residualRange). An end's own
+		// marks move onto the value, so no obligation goes with them.
+		pv := StripRequires(v)
+		for _, end := range []*Term{lo, hi} {
+			if end != nil {
+				v = e.hoistObligations(end, v, fuel)
+			}
+		}
+		var cond *Term
+		if lo != nil {
+			lo = StripRequires(lo)
+			cond = App(Name("<="), lo, pv)
+		}
+		if hi != nil {
+			hi = StripRequires(hi)
+			c := App(Name("<="), pv, hi)
+			if cond == nil {
+				cond = c
+			} else {
+				cond = App(Name("if"), cond, c, Bool(false))
+			}
+		}
+		if cond == nil {
+			return v, nil
+		}
+		label := "the claim " + ShowName(t.Kids[1].Str) + " ∈ " + showEnds(lo, hi)
+		if len(t.Kids) == 5 && t.Kids[4].Kind == KStr {
+			label = "the claim " + ShowName(t.Kids[1].Str) + " ∈ " + t.Kids[4].Str
+		}
+		return e.reduceCondition(&Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(label), cond, v}}, v, fuel), nil
+	}
+	return normalize(t.Kids[3], e, fuel)
+}

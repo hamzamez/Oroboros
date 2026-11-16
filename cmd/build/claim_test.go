@@ -1,0 +1,69 @@
+package main
+
+import (
+	"strings"
+	"testing"
+
+	"oroboros/core"
+)
+
+// EVERY CLAIM IS DECIDED WHERE IT IS WRITTEN (ADR 0049; the book's findings
+// 80 and 81). A binder's claim `b ∈ S = e` is the formula e ∈ S, an
+// obligation of the program's text, so it does not depend on whether S's ends
+// are constants or on whether anything reads b:
+//   - a range with a term at an end, lo..hi, is lo <= e && e <= hi, a
+//     where-mark on the value; it was dropped, so `k ∈ 0..n = i` returned i;
+//   - an unread binding's value goes, and its claims move onto the scope's
+//     body, whose value a mark leaves alone; they went with it.
+//
+// False claims are refused saying so, true ones build, on Go and windows.
+// Two planted faults restore each hole.
+func TestEveryClaimIsDecidedWhereWritten(t *testing.T) {
+	const io = "use io\n\n"
+	false_ := map[string]struct{ src, says string }{
+		"a variable end, at a call": {io + "fn f(n ∈ 0..10, i ∈ 0..100) (Int) {\n    k ∈ 0..n = i\n    k\n}\n\n" +
+			"export fn main() { io.print_int(f(3, 50)) }\n", "the claim k ∈ 0..n is false"},
+		"a variable end, unproven": {io + "fn f(n ∈ 0..10, i ∈ 0..100) (Int) {\n    k ∈ 0..n = i\n    k\n}\n\n" +
+			"export fn main() {\n    loop r = 0 { r >= 3 -> (); else -> { io.print_int(f(3, r * 40)); again(r + 1) } }\n}\n",
+			"the claim k ∈ 0..n is not proven"},
+		"the midpoint at lo == hi": {io + "fn mid(lo ∈ 0..100, hi ∈ 0..100) (Int) where lo <= hi {\n" +
+			"    m ∈ lo..hi-1 = lo + (hi - lo) / 2\n    m\n}\n\nexport fn main() { io.print_int(mid(5, 5)) }\n",
+			"the claim m ∈ lo..hi - 1 is false"},
+		"a claim nothing reads": {io + "fn f(n ∈ 0..100) (Int) {\n    k ∈ 0..5 = n\n    0\n}\n\n" +
+			"export fn main() { io.print_int(f(50)) }\n", "the claim k ∈ 0..5 is false"},
+	}
+	true_ := map[string]struct{ src, out string }{
+		"a variable end its where proves": {io + "fn f(n ∈ 0..10, i ∈ 0..100) (Int) where i <= n {\n    k ∈ 0..n = i\n    k\n}\n\n" +
+			"export fn main() { io.print_int(f(9, 4)) }\n", "4"},
+		"the midpoint, its upper end hi": {io + "fn mid(lo ∈ 0..100, hi ∈ 0..100) (Int) where lo <= hi {\n" +
+			"    m ∈ lo..hi = lo + (hi - lo) / 2\n    m\n}\n\nexport fn main() { io.print_int(mid(5, 5)) }\n", "5"},
+		"a true claim nothing reads": {io + "fn f(n ∈ 0..100) (Int) {\n    k ∈ 0..100 = n\n    0\n}\n\n" +
+			"export fn main() { io.print_int(f(50)) }\n", "0"},
+	}
+	for _, target := range []string{"go", "windows"} {
+		for what, c := range false_ {
+			if _, err := buildAndRunNoExec(t, c.src, target); err == nil || !strings.Contains(err.Error(), c.says) {
+				t.Errorf("%s, %s: want it refused saying %q, got %v", target, what, c.says, err)
+			}
+		}
+		for what, c := range true_ {
+			if out, err := buildAndRun(t, c.src, target, ""); err != nil || strings.TrimSpace(out) != c.out {
+				t.Errorf("%s, %s: %q, %v; want %s", target, what, out, err, c.out)
+			}
+		}
+	}
+	for name, c := range map[string]struct {
+		plant *bool
+		src   string
+	}{
+		"a variable end dropped":         {&core.PlantClaimEndsDropped, false_["a variable end, at a call"].src},
+		"a dead binding's claim dropped": {&core.PlantDeadClaimDropped, false_["a claim nothing reads"].src},
+	} {
+		*c.plant = true
+		_, err := buildAndRunNoExec(t, c.src, "go")
+		*c.plant = false
+		if err != nil {
+			t.Errorf("with %s the false claim should build again, so the test reaches the rule; got %v", name, err)
+		}
+	}
+}

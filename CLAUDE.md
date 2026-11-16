@@ -133,7 +133,10 @@ before planning. **Its plan (§5)**, in order:
 7. **CLAUDE.md as state**, under 8,000 words.
 
 **A wrong answer, wherever found, goes ahead of the plan** (assessment-2026-11-16 §3.4), and the
-book's findings index is read at each item's end.
+book's findings index is read at each item's end. Read after item 3: ~~80/81, a false claim
+accepted (a variable end; an unread binder's range)~~ done ([claims-2026-11-16](gauntlet/results/claims-2026-11-16.md));
+an unread binder's typing claim (`s ∈ String = n; 0`), 45 (an unread top-level constant's claim)
+and a dead call's contract owed.
 
 The 11-15 plan (assessment-2026-11-15 §5) is done but for its last three items, which the plan
 above carries: P8 (steps 1–3), the book's findings 1–28 (below), the gauntlet on four targets

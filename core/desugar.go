@@ -196,7 +196,9 @@ func (d *desugarer) build(a Tail) *Term {
 		} else if ty == "" && a.Name != "" {
 			// A SET NAMING A CONSTANT, `0..size_buf`, is canonical only once
 			// reduction has unfolded it: the reducer makes the mark then (ClaimName).
-			e = &Term{Kind: KApp, Kids: []*Term{Name(ClaimName), Str(a.Name), d.term(a.Set), e}}
+			// Its J spelling rides along: the reducer meets the set's ends as
+			// bound terms, which print as indices.
+			e = &Term{Kind: KApp, Kids: []*Term{Name(ClaimName), Str(a.Name), d.term(a.Set), e, Str(showSetTerm(d.term(a.Set)))}}
 		}
 		return &Term{Kind: KApp, Kids: []*Term{Name(AscribeName), set, e}}
 	case *Case:
@@ -398,4 +400,19 @@ func matchGuard(pats []Pat, vars []string) (*Term, map[string]string) {
 		guard = &Term{Kind: KApp, Kids: []*Term{Name("if"), tests[i], guard, Bool(false)}}
 	}
 	return guard, binds
+}
+
+// showSetTerm spells a claim's set as J writes it: a range lo..hi, or the
+// term's J otherwise.
+func showSetTerm(t *Term) string {
+	if t != nil && t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == "int" {
+		end := func(k *Term) *Term {
+			if k.Kind == KName && (k.Name == "inf" || k.Name == "-inf" || k.Name == "+inf") {
+				return nil
+			}
+			return k
+		}
+		return showEnds(end(t.Kids[1]), end(t.Kids[2]))
+	}
+	return ShowTerm(t)
 }

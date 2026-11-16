@@ -1,0 +1,1 @@
+export fn letter(i ∈ 0..25) (String) { string_of(97 + i) }

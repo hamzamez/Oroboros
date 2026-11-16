@@ -1,0 +1,10 @@
+use io
+
+export fn main() {
+    io.print_line("hello, world")
+    io.print_line("")
+    io.print("no line break after this, ")
+    io.print("so this continues it")
+    io.print_line("")
+    io.print_line("café 日本 🙂")
+}

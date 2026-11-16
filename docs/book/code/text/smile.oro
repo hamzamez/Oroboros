@@ -1,0 +1,1 @@
+export fn smile() (String) { "caf\u{E9} \u{1F642}" }

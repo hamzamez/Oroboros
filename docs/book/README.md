@@ -22,7 +22,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 87 blocks checked 2026-11-16 |
 | 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ` | J; 61 blocks checked 2026-11-16 |
 | 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-16 |
-| 9 | Text | strings as sequences, `++`, the host's strings, bytes | not written |
+| 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-16 |
 | 10 | Tuples and variants | "and" and "or" of data; `case` with patterns | not written |
 | | **III. Repetition and storage** | | |
 | 11 | `loop` | the one iteration; termination | not written |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7 and fifteen in chapter 8, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8 and fourteen in chapter 9, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -385,6 +385,35 @@ Doing that found three more, none fixed:
     refused as *gen: one-or-nothing: the unit () is (), but Int is required here*. The family
     of items 4, 7 and 21.
 
+Chapter 9, Text (2026-11-16), found five, none fixed, each avoided in the chapter:
+
+48. **windows does not check `string_of`'s precondition.** `export fn any(n ∈ Int) (String)
+    { string_of(n) }` and `wide(n ∈ 0..70000)` are refused on Go and JavaScript (*string_of's
+    parameter c, declared in 0..1114111 …*, *requires n <= 55295 || n >= 57344*) and compile on
+    windows, to a call of `@oro.string_of` on any i64. A soundness hole: a surrogate or a
+    negative number reaches the encoder. The chapter's two refusals are shown on Go.
+49. **A disjunction does not prove the hole.** `if n < 0xD800 || n > 0xDFFF { string_of(n) }`
+    is refused, *requires n <= 55295 || n >= 57344 … known: … assumed (if (< n 55296) true
+    (> n 57343))*: the assumption is the obligation, held as a core term and not matched. Two
+    `case` arms, one per side, prove it, and the chapter's `hole.oro` is written so.
+50. **`s[0]` on a string bound in a block is refused in the lowering's words**: with
+    `s = "abc"`, *lowering: an application of "abc"*. On a `String` parameter it is item 1's
+    message.
+51. **Messages.** `++` is named `concat` (*in argument 2 of concat*). `utf8_text` of bytes that
+    are not valid says *requires utf8_valid(`array`(230, 151)), which is outside the decided
+    fragment*, where the literal was decided and is false. `ascii(array { 72, 200 }, 0, 2)`:
+    *a literal table's element 200 lies outside its declared element 0..127, which decides at a
+    boundary (literal-elements.md)*. `'single'` in place of a string: *`single'` is not bound*.
+    One failing `string_of` call reports *(2 obligations at calls fail …)* or 3.
+52. **A join of two literals is not folded**: `"report" ++ ".txt"` reaches Go as
+    `("report" + ".txt")`, and `string_of(99)` as `string(rune(99))`. Go folds the first itself;
+    on windows each is a heap allocation at run time.
+
+Teaching, not defects: nothing in the language takes a `String` apart (no length, index or
+equality; strings.md §4, state.md), so chapter 9 says so plainly, and its only counting and
+searching is `go/strings` in §9.12, marked Go-only by `portable`. §9.10 uses `array { … }`
+three chapters early, as a way to write bytes down, and says so.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -394,7 +423,9 @@ Lambek's ordered fragment, named in 1958; chapter 7's is positional notation, th
 and Gauss's congruences, because "the machine may wrap early" is the statement that a remainder
 is a ring homomorphism; chapter 8's is which fractions terminate in a base, fixed point against
 floating point, the bias of rounding a half upward, and what IEEE 754's arithmetic is once it is
-written out: a rounding after every operation.
+written out: a rounding after every operation; chapter 9's is ASCII's layout, Unicode's scalar
+values and the surrogates' hole, UTF-8 and UTF-16, the free monoid, and a homomorphism as the
+shape of a property that is proven piece by piece (`nulfree`, beside chapter 7's remainder).
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

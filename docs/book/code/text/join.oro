@@ -1,0 +1,9 @@
+use io
+
+export fn main() {
+    io.print_line("rail" ++ "road")
+    io.print_line("road" ++ "rail")
+    io.print_line(("a" ++ "b") ++ "c")
+    io.print_line("a" ++ ("b" ++ "c"))
+    io.print_line("" ++ "same" ++ "")
+}

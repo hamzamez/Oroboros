@@ -1,0 +1,7 @@
+fn open_name(s ∈ String) (String) where nulfree(s) { s }
+
+export fn fixed() (String) { open_name("report" ++ ".txt") }
+
+export fn checked(s ∈ String) (String) {
+    if nulfree(s) { open_name(s ++ ".txt") } else { "" }
+}

@@ -1,0 +1,14 @@
+use io
+
+fn bracket(s ∈ String) (String) { "[" ++ s ++ "]" }
+
+fn twice(s ∈ String) (String) { s ++ s }
+
+fn row(a ∈ String, b ∈ String) (String) { a ++ "\t" ++ b ++ "\n" }
+
+export fn main() {
+    io.print_line(bracket("x"))
+    io.print_line(bracket(""))
+    io.print_line(bracket(twice(twice("ab"))))
+    io.print(row("name", "age") ++ row("Ada", "36") ++ row("Alan", "41"))
+}

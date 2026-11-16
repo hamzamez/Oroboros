@@ -1,0 +1,10 @@
+use io
+use go
+use go/strings
+
+export fn main() {
+    io.print_line(strings.ToUpper("stra\u{DF}e caf\u{E9}"))
+    io.print_int(strings.Count("banana", "an"))
+    io.print_int(strings.Index("chicken", "ken"))
+    io.print_line(go.text(strings.Repeat("ab", 3)) ++ "!")
+}

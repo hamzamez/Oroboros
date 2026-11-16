@@ -1308,5 +1308,5 @@ rounding mode. It is the same rule, found at run time instead of when compiling.
   double. Outside the block nothing is.
 - **No NaN, no infinity, no −0.** Overflow and a zero divisor are things to prove.
 
-Next: chapter 9, Text. What a string is made of, and why its length is a harder question than
+Next: [chapter 9](09-text.md), Text. What a string is made of, and why its length is a harder question than
 it looks.

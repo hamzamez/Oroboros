@@ -1,0 +1,3 @@
+export fn greet(name ∈ String) (String) { "hello, " ++ name ++ "!" }
+
+export fn answer(c ∈ Bool) (String) { if c { "yes" } else { "no" } }

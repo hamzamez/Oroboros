@@ -1,0 +1,16 @@
+use io
+
+fn digit(d ∈ 0..9) (String) { string_of(48 + d) }
+
+fn letter(i ∈ 0..25) (String) { string_of(97 + i) }
+
+fn capital(i ∈ 0..25) (String) { string_of(65 + i) }
+
+fn other_case(c ∈ 65..122) (String) { string_of(c ⊕ 32) }
+
+export fn main() {
+    io.print_line(digit(0) ++ digit(7) ++ digit(9))
+    io.print_line(letter(0) ++ letter(1) ++ letter(25))
+    io.print_line(capital(0) ++ capital(1) ++ capital(25))
+    io.print_line(other_case(97) ++ other_case(65) ++ other_case(122))
+}

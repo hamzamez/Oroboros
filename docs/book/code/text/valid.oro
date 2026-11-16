@@ -1,0 +1,12 @@
+use io
+
+fn bit(c ∈ Bool) (0..1) { if c { 1 } else { 0 } }
+
+export fn main() {
+    io.print_int(bit(utf8_valid(array { 0xE6, 0x97, 0xA5 })))
+    io.print_int(bit(utf8_valid(array { 0xE6, 0x97 })))
+    io.print_int(bit(utf8_valid(array { 0xA5 })))
+    io.print_int(bit(utf8_valid(array { 0xC0, 0x80 })))
+    io.print_int(bit(utf8_valid(array { 0xED, 0xA0, 0x80 })))
+    io.print_int(bit(utf8_valid(array { 0xFF })))
+}

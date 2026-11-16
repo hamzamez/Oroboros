@@ -1,0 +1,10 @@
+use io
+
+export fn main() {
+    io.print_line("a \"quoted\" word")
+    io.print_line("a back\\slash")
+    io.print_line("name\tage")
+    io.print_line("line one\nline two")
+    io.print_line("caf\u{E9}, \u{65E5}\u{672C}, \u{1F642}")
+    io.print_line("\u{41}\u{0041}\u{000041}")
+}

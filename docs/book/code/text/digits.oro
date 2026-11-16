@@ -1,0 +1,21 @@
+use io
+
+fn digit(d ∈ 0..9) (String) { string_of(48 + d) }
+
+fn two(n ∈ 0..99) (String) { digit(n / 10) ++ digit(n % 10) }
+
+fn three(n ∈ 0..999) (String) { digit(n / 100) ++ two(n % 100) }
+
+fn clock(h ∈ 0..23, m ∈ 0..59) (String) { two(h) ++ ":" ++ two(m) }
+
+fn date(y ∈ 1000..9999, m ∈ 1..12, d ∈ 1..31) (String) {
+    two(y / 100) ++ two(y % 100) ++ "-" ++ two(m) ++ "-" ++ two(d)
+}
+
+export fn main() {
+    io.print_line(two(7))
+    io.print_line(three(42))
+    io.print_line(clock(7, 5))
+    io.print_line(clock(23, 59))
+    io.print_line(date(2026, 11, 16))
+}

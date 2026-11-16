@@ -1,0 +1,8 @@
+use io
+
+export fn main() {
+    io.print_line("\u{E9}")
+    io.print_line("e\u{301}")
+    io.print_line("\u{1F1EB}\u{1F1F7}")
+    io.print_line("\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}")
+}

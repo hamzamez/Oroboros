@@ -1,0 +1,1 @@
+export fn any(n ∈ Int) (String) { string_of(n) }

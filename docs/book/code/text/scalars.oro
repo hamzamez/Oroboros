@@ -1,0 +1,10 @@
+use io
+
+export fn main() {
+    io.print_line(string_of(65))
+    io.print_line(string_of(0x41))
+    io.print_line(string_of(0xE9))
+    io.print_line(string_of(0x3B1))
+    io.print_line(string_of(0x4E2D))
+    io.print_line(string_of(0x1F642))
+}

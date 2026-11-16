@@ -1,0 +1,9 @@
+use io
+
+fn bit(c ∈ Bool) (0..1) { if c { 1 } else { 0 } }
+
+export fn main() {
+    io.print_int(bit(nulfree("report.txt")))
+    io.print_int(bit(nulfree("report\u{0}.txt")))
+    io.print_int(bit(nulfree("")))
+}

@@ -1,0 +1,10 @@
+use io
+use num
+
+fn price(cents ∈ 0..10^9) (String) { "$" ++ num.decimal(cents * 0.01, 2) }
+
+export fn main() {
+    io.print_line(price(1250))
+    io.print_line(price(5))
+    io.print_line("total: " ++ price(1250 + 5))
+}

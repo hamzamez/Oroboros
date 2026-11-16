@@ -1,0 +1,7 @@
+export fn wide(n ∈ 0..70000) (String) {
+    case {
+        n < 0xD800 -> string_of(n)
+        n > 0xDFFF -> string_of(n)
+        else -> "?"
+    }
+}

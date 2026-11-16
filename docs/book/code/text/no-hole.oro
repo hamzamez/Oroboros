@@ -1,0 +1,1 @@
+export fn wide(n ∈ 0..70000) (String) { string_of(n) }

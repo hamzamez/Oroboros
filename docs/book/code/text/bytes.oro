@@ -1,0 +1,10 @@
+use io
+
+export fn main() {
+    io.print_line(utf8_text(array { 0x41 }))
+    io.print_line(utf8_text(array { 0xC3, 0xA9 }))
+    io.print_line(utf8_text(array { 0xE6, 0x97, 0xA5 }))
+    io.print_line(utf8_text(array { 0xF0, 0x9F, 0x99, 0x82 }))
+    io.print_line(utf8_text(array { 0x63, 0x61, 0x66, 0xC3, 0xA9 }))
+    io.print_line(ascii(array { 72, 105, 33 }, 0, 3))
+}

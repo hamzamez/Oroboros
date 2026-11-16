@@ -183,7 +183,7 @@ export fn f(m ∈ 2..100, a ∈ Array(Int)) (Int) where len(a) == 2 {
 	}
 	// The control: the same value is bound and bounded, s ∈ [0, 1], so the
 	// refusal above is not the rule failing to see the loop at all.
-	if _, err := entryGo(t, strings.Replace(src, "a[s - m]", "a[s]", 1)); err != nil {
+	if _, err := entryGo(t, plantOnce(t, src, "a[s - m]", "a[s]")); err != nil {
 		t.Errorf("s is 0 or 1 and the table has two elements: %v", err)
 	}
 }

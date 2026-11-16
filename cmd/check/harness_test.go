@@ -72,7 +72,7 @@ func TestABookBlockIsChecked(t *testing.T) {
 	if err := run(chapter("right.md", string(hello))); err != nil {
 		t.Errorf("the block quoted right: %v", err)
 	}
-	wrong := strings.Replace(string(hello), "The first Oroboros program", "The second Oroboros program", 1)
+	wrong := plantOnce(t, string(hello), "The first Oroboros program", "The second Oroboros program")
 	if err := run(chapter("wrong.md", wrong)); err == nil {
 		t.Errorf("a block that misquotes its file passed the book's checker")
 	}

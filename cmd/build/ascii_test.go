@@ -43,7 +43,7 @@ func TestASCIIsDomainIsDecided(t *testing.T) {
 	if err != nil || strings.TrimSpace(out) != "0900" {
 		t.Errorf("ι of [48, 57, 48, 48]: %q, %v", out, err)
 	}
-	bad := strings.Replace(ok, "b[1] := 57", "b[1] := 200", 1)
+	bad := plantOnce(t, ok, "b[1] := 57", "b[1] := 200")
 	if _, err := buildAndRun(t, bad, "windows", ""); err == nil || !strings.Contains(err.Error(), "0..127") || !strings.Contains(err.Error(), "[0, 200]") {
 		t.Errorf("ι of a table that may hold 200: want its domain 0..127 refused against [0, 200]; got %v", err)
 	}

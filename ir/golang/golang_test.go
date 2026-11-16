@@ -95,7 +95,7 @@ func TestGoNeverFusesTwoRoundings(t *testing.T) {
 	}
 	mutateTarget = func(tg *emit.Target) {
 		p := tg.Prims["go.fmul"]
-		p.Form = strings.Replace(p.Form, "float64(", "(", 1)
+		p.Form = plantOnce(t, p.Form, "float64(", "(")
 		tg.Prims["go.fmul"] = p
 	}
 	defer func() { mutateTarget = nil }()

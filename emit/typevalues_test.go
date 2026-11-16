@@ -95,7 +95,7 @@ func TestAnInstanceIsMadeByApplication(t *testing.T) {
 // refused one is made.
 func TestTheBoundIsMembership(t *testing.T) {
 	refusedAt := func(tg *emit.Target, set string) error {
-		_, _, err := normalizeOn(t, tg, strings.Replace(asType, "sc.NumError", set, 1))
+		_, _, err := normalizeOn(t, tg, plantOnce(t, asType, "sc.NumError", set))
 		return err
 	}
 	if err := refusedAt(goNative(t), "sc.NumError"); err != nil {
@@ -192,9 +192,13 @@ export fn f(x ∈ 0..9) (Int) { if x < most { x } else { most } }`); err != nil 
 // A STATIC λ (§6): a definition whose parameter is a set, applied to one; β
 // gives the set and then the instance is made, with no rule but application.
 func TestAStaticLambdaPassesASetOn(t *testing.T) {
-	src := strings.Replace(asType, `fn f(e) { case errors.AsType(sc.NumError)(e) { 'some(n) -> true; 'none -> false } }`,
-		`fn is_a(E) { fn(e) { case errors.AsType(E)(e) { 'some(n) -> true; 'none -> false } } }
-fn f(e) { is_a(sc.NumError)(e) }`, 1)
+	// The rewrite matched nothing from 6a5c112 (2026-10-16, the snippets moved
+	// to J) until plantOnce: the test read asType's direct call and passed
+	// without a static λ in it.
+	src := plantOnce(t, asType, `export fn f(e ∈ error) (Bool) {
+    case errors.AsType(sc.NumError)(e) { 'some(n) -> true; 'none -> false }
+}`, `fn is_a(E) { fn(e) { case errors.AsType(E)(e) { 'some(n) -> true; 'none -> false } } }
+export fn f(e ∈ error) (Bool) { is_a(sc.NumError)(e) }`)
 	tg := goNative(t)
 	_, nf, err := normalizeOn(t, tg, src)
 	if err != nil {

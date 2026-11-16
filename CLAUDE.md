@@ -114,9 +114,11 @@ before planning. **Its plan (§5)**, in order:
    kept as a fact once proven (`"a loop's invariant, proven"`, read by the refinement walk, erased
    by lowering); readfile's clamp gone, what readinto owed being an out cell's set and a version's
    len t = len z, not the rule; an allocated rule's length its count; `try b₁, …, bₙ { e }` the
-   nested bind. An invariant over a buffer's elements owed. Next item 3;
-3. **two checks**: no carriage return in a tracked text file; a planted source rewrite asserts it
-   happened;
+   nested bind. An invariant over a buffer's elements owed;
+3. ~~**two checks**~~ done ([checks-2026-11-16](gauntlet/results/checks-2026-11-16.md)): `cmd/check`'s
+   `endings` step (five working-tree files were CRLF, clean to git); every planted rewrite through
+   `plantOnce`, its fragment exactly once (one witness vacuous since 10-16, restated);
+   `PlantLoopThresholdFault` reaches no program, its witness owed. Next item 4;
 4. **the second triple**, research first (the data model, K(ℕ\*)'s base per triple, `max_len`,
    `x64.oro` split, i32 scalars), hamza's decisions, then built. With it, **Win32 by header** (W1,
    hamza 2026-11-16): a module is a theory and the header is C's unit of declaration, so a module is
@@ -677,7 +679,8 @@ what TinyRetroPad's walls need.
 
 ## The compiler
 
-`go run ./cmd/check` passes every step: vet, compiler, emission, gauntlet, ir, differential, tooling;
+`go run ./cmd/check` passes every step: vet, endings, compiler, emission, gauntlet, ir, assemble,
+differential, book, tooling;
 emission first and alone (its gate times compiles), the rest at once, about 4½ minutes, plus 7 s for
 each suspect the compile-time gate pairs (differential-2026-11-13).
 

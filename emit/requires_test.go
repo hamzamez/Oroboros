@@ -90,20 +90,17 @@ func TestARangeAboveTheWordIsItsBitLength(t *testing.T) {
 }
 fn render(x ∈ 0..RANGE) (Int) { if x == 0 { 0 } else { 1 } }
 export fn f(n ∈ 0..15) (Int) { render(fact(25 + n)) }`
-	if _, err := dischargeGo(t, strings.Replace(src, "RANGE", "2^200", 1)); err != nil {
+	if _, err := dischargeGo(t, plantOnce(t, src, "RANGE", "2^200")); err != nil {
 		t.Errorf("the same type as argument and as result is one set: %v", err)
 	}
-	if _, err := dischargeGo(t, strings.Replace(src, "RANGE", "2^100", 1)); err == nil {
+	if _, err := dischargeGo(t, plantOnce(t, src, "RANGE", "2^100")); err == nil {
 		t.Error("a 201-bit result does not fit a 101-bit parameter")
 	}
 	// Where bit length and exactness DISAGREE: a result declared up to 2^201 − 1
 	// into a parameter declared up to 2^200. Exactly, [0, 2^201 − 1] ⊄ [0, 2^200];
 	// by enforcement both are "at most 201 bits", one set.
-	wider := strings.Replace(strings.Replace(src, "RANGE", "2^200", 1),
-		"fn fact(n ∈ 0..40) (0..2^200)", "fn fact(n ∈ 0..40) (0..2^201-1)", 1)
-	if !strings.Contains(wider, "(0..2^201-1)") {
-		t.Fatal("the test did not rewrite the result range")
-	}
+	wider := plantOnce(t, plantOnce(t, src, "RANGE", "2^200"),
+		"fn fact(n ∈ 0..40) (0..2^200)", "fn fact(n ∈ 0..40) (0..2^201-1)")
 	if _, err := dischargeGo(t, wider); err != nil {
 		t.Errorf("two ranges of one bit length are one set above the word: %v", err)
 	}
@@ -180,8 +177,8 @@ export fn f(a ∈ 0..100, b ∈ 1..100) (Int) { ({ (q, r) = dm(a, b); q + r }) +
 // an interval the analysis found.
 func TestTheSignIsPartOfAParametersSet(t *testing.T) {
 	const g = "fn g(x ∈ LO..2^200) (Int) { if x == 0 { 0 } else { 1 } }\nexport fn f(n ∈ -5..5) (Int) "
-	nat := strings.Replace(g, "LO", "0", 1)
-	zed := strings.Replace(g, "LO", "-2^200", 1)
+	nat := plantOnce(t, g, "LO", "0")
+	zed := plantOnce(t, g, "LO", "-2^200")
 	if _, err := dischargeGo(t, nat+`{ g(-5) }`); err == nil || !strings.Contains(err.Error(), "a call passes -5") {
 		t.Errorf("-5 is not in [0, 2^201); got %v", err)
 	}
@@ -205,26 +202,20 @@ func TestADeclaredResultIsAFactAboutTheProgramsSet(t *testing.T) {
 	const src = `fn h(n ∈ 0..1) (0..2^100) { (2^150) * (n + 1) }
 fn g(x ∈ 0..2^100) (0..2^200) { x + 0 }
 export fn calc(n ∈ 0..1) (0..2^WIDEST) { g(h(n)) }`
-	if _, err := dischargeGo(t, strings.Replace(src, "WIDEST", "200", 1)); err == nil || !strings.Contains(err.Error(), "g's parameter x") {
+	if _, err := dischargeGo(t, plantOnce(t, src, "WIDEST", "200")); err == nil || !strings.Contains(err.Error(), "g's parameter x") {
 		t.Errorf("h's 2^100 is enforced only at the program's 2^201; got %v", err)
 	}
 	// With nothing wider than 2^100 in the program, E_P = [0, 2^101) = g's set.
-	one := strings.Replace(strings.Replace(src, "WIDEST", "100", 1),
-		"fn g(x ∈ 0..2^100) (0..2^200)", "fn g(x ∈ 0..2^100) (0..2^100)", 1)
-	if !strings.Contains(one, "fn g(x ∈ 0..2^100) (0..2^100)") {
-		t.Fatal("the test did not narrow g's result")
-	}
+	one := plantOnce(t, plantOnce(t, src, "WIDEST", "100"),
+		"fn g(x ∈ 0..2^100) (0..2^200)", "fn g(x ∈ 0..2^100) (0..2^100)")
 	if _, err := dischargeGo(t, one); err != nil {
 		t.Errorf("one bound in the program: the ascription is its set: %v", err)
 	}
 	// And the sign: once the program enforces (−2^101, 2^101), h's non-negative
 	// declaration is not enforced as non-negative, so it proves nothing about
 	// g's [0, 2^101).
-	signed := strings.Replace(one, "export fn calc(n ∈ 0..1) (0..2^100)",
-		"export fn calc(n ∈ 0..1) (-2^100..2^100)", 1)
-	if signed == one {
-		t.Fatal("the test did not sign calc's result")
-	}
+	signed := plantOnce(t, one, "export fn calc(n ∈ 0..1) (0..2^100)",
+		"export fn calc(n ∈ 0..1) (-2^100..2^100)")
 	if _, err := dischargeGo(t, signed); err == nil || !strings.Contains(err.Error(), "g's parameter x") {
 		t.Errorf("a signed program's ascription does not prove a non-negative set; got %v", err)
 	}

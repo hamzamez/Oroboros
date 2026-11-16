@@ -32,8 +32,8 @@ func TestTheParallelDifferentialStillFails(t *testing.T) {
 		}
 	}
 	write("a-right", string(good))
-	write("b-wrong", strings.Replace(string(good), "// expect: 7 7\n", "// expect: 7 9\n", 1))
-	write("c-unexpected", strings.Replace(string(good), "// expect: 7 7\n", "", 1))
+	write("b-wrong", plantOnce(t, string(good), "// expect: 7 7\n", "// expect: 7 9\n"))
+	write("c-unexpected", plantOnce(t, string(good), "// expect: 7 7\n", ""))
 	cmd := exec.Command("go", "run", "run.go", "-j", "4", "-cases", dir)
 	cmd.Dir = "../../gauntlet/differential"
 	out, err := cmd.CombinedOutput()
@@ -88,7 +88,7 @@ func TestASkipIsACheckedClaim(t *testing.T) {
 	}
 	write("a-control", digits)
 	write("b-stale", "// skip: java because \"anything\"\n"+good)
-	write("c-wrong-reason", strings.Replace(digits, skip, "// skip: js because \"a reason it does not have\"", 1))
+	write("c-wrong-reason", plantOnce(t, digits, skip, "// skip: js because \"a reason it does not have\""))
 	write("d-no-reason", "// skip: windows\n"+good)
 	cmd := exec.Command("go", "run", "run.go", "-j", "4", "-cases", dir)
 	cmd.Dir = "../../gauntlet/differential"

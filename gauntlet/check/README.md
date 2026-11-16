@@ -10,6 +10,7 @@ go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline
 | step | what it runs |
 |---|---|
 | `vet` | `go vet ./...` |
+| `endings` | no carriage return in a tracked `eol=lf` text file **as the working tree holds it**, the set read off `git ls-files --eol` (checks-2026-11-16): git keeps the repository LF, but a file a tool rewrote with CRLF stays clean to git and is what the tests read |
 | `compiler` | `go test ./core/ ./emit/ ./ir/... ./cmd/...` |
 | `emission` | every `.oro` under `examples/`, `lib/` and `gauntlet/differential/cases/`, on every target, compared with the baseline in this directory — its output byte for byte, and what each compile cost |
 | `gauntlet` | the 33 files the gauntlet's harnesses call, regenerated from [`gauntlet/regen.txt`](../regen.txt) (target, source, `-name`, output) and compared byte for byte with the committed copies. A difference fails, naming the file: run `bash gauntlet/regen.sh`, then time the harnesses that call it, as the rule for emission asks |

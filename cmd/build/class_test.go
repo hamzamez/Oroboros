@@ -77,10 +77,7 @@ func TestARegionIsAnsweredByItsCapacityClass(t *testing.T) {
 		t.Fatal(err)
 	}
 	const sized = "kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, heapclass(b))"
-	if strings.Count(string(text), sized) != 1 {
-		t.Fatalf("windows/os.oro's region no longer asks the heap for heapclass(b): restate the planted fault")
-	}
-	exact := strings.Replace(string(text), sized, "kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, b)", 1)
+	exact := plantOnce(t, string(text), sized, "kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, b)")
 	if err := os.WriteFile(osFile, []byte(exact), 0o644); err != nil {
 		t.Fatal(err)
 	}

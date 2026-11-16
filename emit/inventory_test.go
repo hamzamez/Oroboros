@@ -529,10 +529,10 @@ var jReaders = []string{"../core/jparse.go", "../core/jreadtarget.go"}
 // jNotRead are the words j.md §1.4 lists and the reader does not compare a token
 // against, with why. An entry the reader starts taking is stale, and the test says so.
 var jNotRead = map[string]string{
-	"spec":      "ADR 0062's spec is not built (j.md's status)",
-	"assert":    "ADR 0062's assert is not built (j.md's status)",
-	"word":      "an operand of `repr`, read as an expression and dispatched on by the target loader (inventory.md §2)",
-	"narrow":    "an operand of `repr`, read as an expression and dispatched on by the target loader (inventory.md §2)",
+	"spec":   "ADR 0062's spec is not built (j.md's status)",
+	"assert": "ADR 0062's assert is not built (j.md's status)",
+	"word":   "an operand of `repr`, read as an expression and dispatched on by the target loader (inventory.md §2)",
+	"narrow": "an operand of `repr`, read as an expression and dispatched on by the target loader (inventory.md §2)",
 }
 
 // readerKeywords collects the identifier-shaped literals a J reader compares a

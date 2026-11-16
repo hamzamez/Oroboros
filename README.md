@@ -498,8 +498,11 @@ plan**, in order:
    invariant, which the compiler proves and then uses, so an index that only that relation bounds
    is accepted; `try` takes several results at once. The library's run-time clamp is gone, though it
    needed two facts the compiler was missing rather than the invariant;
-3. **two checks for this round's mistakes**: line endings, and tests that plant a fault confirming
-   they planted it;
+3. ~~**two checks for this round's mistakes**~~ **done**
+   ([checks-2026-11-16](gauntlet/results/checks-2026-11-16.md)): the full check now refuses a
+   Windows line ending in a tracked text file (it found five), and a test that plants a fault by
+   rewriting a source fails if the rewrite found nothing (it found one test that had checked nothing
+   for a month);
 4. **32-bit Windows**, starting with what a second processor changes (the sizes of C's types, the
    digit size of big integers), the choices brought to hamza before anything is built; with it, the
    Windows API grouped as its documentation groups it, by header, each function still naming its

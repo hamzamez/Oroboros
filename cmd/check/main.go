@@ -102,7 +102,7 @@ type checker struct {
 	phases         []string // the emission step's phases and what each took
 }
 
-var stepNames = []string{"vet", "compiler", "emission", "gauntlet", "ir", "assemble", "differential", "book", "tooling"}
+var stepNames = []string{"vet", "endings", "compiler", "emission", "gauntlet", "ir", "assemble", "differential", "book", "tooling"}
 
 func main() {
 	skipList := flag.String("skip", "", "comma-separated steps to skip")
@@ -148,6 +148,7 @@ func main() {
 
 	steps := []step{
 		{"vet", func(c *checker) result { return c.command("vet", c.root, "go", "vet", "./...") }},
+		{"endings", (*checker).endings},
 		{"compiler", func(c *checker) result {
 			// a package's own timeout is 10 minutes, and ir's tests take about 8
 			// under the load of the steps beside them

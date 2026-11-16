@@ -14,7 +14,7 @@ of each form through desugaring (2026-10-25):
 | §2.4 headers | binders with sets and modes, a telescope, the three result forms, `where`, `ensure`, `pure`, `index`, `variadic`; `x'` in a host result (ADR 0070); a `linear` result, a region moved to the caller (ADR 0084) | **a ⊆-binder in a program** (built in a target file's host declaration, `errors.AsType(E ⊆ error)`); **the arrow** as a binder's set (ADR 0053); **`x'` in a program's `ensure`**, read and then refused as outside what the compiler decides |
 | §2.6 blocks | `=`, `var … :=`, writes, concurrent (G5) and into a record (G6), a binder's claim, `expect`, a one-armed `if` | **`assert`**; **a local named `fn`** |
 | §2.7 expressions | application, indexing, a segment `b[lo:hi]` and `b[lo:]`, tags, tuples, `++`, `!=`, `out S` (G1; on a set of tables, a fresh region, ADR 0084), `xs...` (G2), `fn(a, b) { e }`, `inf(S)` and `sup(S)` of a range; `round(S, e)`, `round(S, e, 'mode)`, `a ÷ b` (`\div`) at a rounding's root, and the scope `round(S) { … }` (ADR 0086, numbers.md §3) | **a λ's header**: a claimed parameter or result on an anonymous `fn`; **membership `e ∈ S` as a test**, χ_S(e), refused with what it is, in a computation and in a claim's formula (defects-2026-10-26) |
-| §2.8 choice and iteration | `case` with and without a scrutinee, a pattern a tag with one binder per payload, or `else`; `loop`, `again`; a case in a tail (ADR 0076); `try` without a handler | **a pattern that is a literal, `_` or `x ∈ S`**; **a case arm's guard `p if φ`**; **`invariant`**; **`try`'s handlers** (`else`, ADR 0057) |
+| §2.8 choice and iteration | `case` with and without a scrutinee, a pattern a tag with one binder per payload, or `else`; `loop`, `again`; a case in a tail (ADR 0076); `try` without a handler, with several binds; `invariant`, Hoare's rule (a buffer or cell in scope only as its `len`) | **a pattern that is a literal, `_` or `x ∈ S`**; **a case arm's guard `p if φ`**; **`try`'s handlers** (`else`, ADR 0057); **an invariant over a buffer's elements or a cell's value** |
 | §2.9 sets | names, ranges, `Array`, `Map`, `∪`, `×`, `array { … }` both shapes, `map { k : v }`, `map(cap)`, separation `set { x ∈ S : φ }` as a binder's whole set (ADR 0061, 0084), and anywhere when it is F64 by constant bounds, F64 ∩ [lo, hi] (numbers.md §2) | **replacement `set { e : x ∈ S }`** (ADR 0061); **any other separation inside a former**, a ∀ over its elements |
 | §2.10 formulas | the computation's boolean expressions in `where` and `ensure` | **`∀`, `∃`, `⇒`, `⇔`** |
 | §6 printing | §6.1, show_J for messages | **print_J**, the lossless printer: it was the translator's and went with it |
@@ -404,7 +404,11 @@ pattern     ::= "_" | ident | literal | ( ident "." )? tag ( "(" pattern,* ")" )
   guard; with none, `case { … }` is the guarded choice and an arm is a guard. `else` is the last arm.
 - **A loop's variables are definitional**, bound at entry and at each `again` by application (ADR 0055):
   `loop i = 0, s = 0 { … }`. Its arms are guards over them; `again(…)` is positional and appears only in
-  a tail (abstract.md W3). An invariant is optional, `invariant I`, absent meaning ⊤.
+  a tail (abstract.md W3). An invariant is optional, `invariant I`, absent meaning ⊤. It is a claim
+  decided at the loop by Hoare's rule: I(z⃗) on the initial values, and I(x⃗′) at every `again` assuming
+  I and the arm's guard; then I holds at every iteration and is assumed in the body. Its variables are
+  the loop's; a buffer or cell in scope appears in I only as `len(b)`, which no store changes. A
+  claim never prints: I is logic, decided and erased (ADR 0049).
 - **A tail** is an expression, an `again`, a block whose statements end in a tail, a `try` whose body
   is a tail, or a `case` on a scrutinee whose arms are tails (ADR 0076): the tail sort is closed under a
   sum's eliminator, each arm running once. A `case` with an arm that jumps stands only where a tail may.
@@ -412,7 +416,8 @@ pattern     ::= "_" | ident | literal | ( ident "." )? tag ( "(" pattern,* ")" )
   tails too, when handlers are built). `again` is never under an `if` (ADR 0015): an `if`'s condition
   belongs in the loop's guards, and only a pattern's binders need the case.
 - **`try p₁ = e₁ [else h₁], … { body } [else h]`** is the handled bind, a group of n binders n nested
-  binds; with no handler a failure passes through re-built (ADR 0057 items 1–2).
+  binds; with no handler a failure passes through re-built (ADR 0057 items 1–2). Bind is associative,
+  so `try b₁, …, bₙ { e }` = `try b₁ { try b₂, …, bₙ { e } }`, each bᵢ seeing the names bound before it.
 - **A pattern's name always binds and a tag never does** (ADR 0059 item 1); `x ∈ S` binds x at S's sort.
 
 ### 2.9 Sets

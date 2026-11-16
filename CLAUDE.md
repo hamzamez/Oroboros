@@ -108,9 +108,13 @@ before planning. **Its plan (§5)**, in order:
    `emit/winmap.go` deleted, finding 72 closed, the map 1.22× Go's, owed); ~~71's capacity~~ done
    (ADR 0121, [capacity-2026-11-16](gauntlet/results/capacity-2026-11-16.md): hamza's B′, Map_c =
    {m : len(m) ≤ c}, each insert marked len(m) < c by S; presence, a borrowed map's capacity and an
-   O(1) windows `len` owed). **Item 1 is done**; next item 2;
-2. **j.md's two promises**: `invariant`, Hoare's rule for `loop`, which also pays `readinto`'s owed
-   invariant; `try` with several binds, a derived form;
+   O(1) windows `len` owed). **Item 1 is done**;
+2. ~~**j.md's two promises**~~ done ([invariant-2026-11-16](gauntlet/results/invariant-2026-11-16.md)):
+   `invariant I` is Hoare's rule, I's conjuncts Houdini's required candidates, decided at entry and
+   kept as a fact once proven (`"a loop's invariant, proven"`, read by the refinement walk, erased
+   by lowering); readfile's clamp gone, what readinto owed being an out cell's set and a version's
+   len t = len z, not the rule; an allocated rule's length its count; `try b₁, …, bₙ { e }` the
+   nested bind. An invariant over a buffer's elements owed. Next item 3;
 3. **two checks**: no carriage return in a tracked text file; a planted source rewrite asserts it
    happened;
 4. **the second triple**, research first (the data model, K(ℕ\*)'s base per triple, `max_len`,

@@ -474,11 +474,45 @@ func (r *refiner) letInner(v *core.Term, x string, f *facts) *facts {
 		inner.assumeEQ(x, e)
 	}
 	r.assumeLength(inner, x, v)
+	r.assumeCellValue(inner, x, v)
 	r.joinConditional(inner, x, v, f)
 	r.summarizeLoop(inner, x, v)
 	r.bindContent(inner, x, v, f)
 	return inner
 }
+
+// assumeCellValue gives a cell's value its cell's set. A name bound to
+// (#fresh "τ") is a reference to a cell of τ, and a host writes through it a
+// value of τ, so (#deref r) is in τ (ADR 0048; a set is its C type's full
+// range, ADR 0094): ReadFile's count, written through its DWORD*, is in
+// 0..2^32-1. Only a fresh cell's set is read, the one `out τ` names; a
+// reference to a copy, (#ref v), holds what the host wrote, typed by the
+// parameter's set, which this does not assume.
+func (r *refiner) assumeCellValue(inner *facts, x string, v *core.Term) {
+	if v == nil || v.Kind != core.KApp || len(v.Kids) != 2 || v.Op().Kind != core.KName {
+		return
+	}
+	a := v.Kids[1]
+	switch {
+	case v.Op().Name == core.FreshName && a.Kind == core.KStr:
+		if r.cellSets == nil {
+			r.cellSets = map[string]string{}
+		}
+		r.cellSets[x] = r.tgt.UnfoldType("", a.Str)
+	case v.Op().Name == core.DerefName && a.Kind == core.KName && !PlantCellValueUnbounded:
+		lo, hi, haveLo, haveHi := core.RangeBounds(r.cellSets[a.Name])
+		if haveLo {
+			inner.assumeLE(constant(lo).addScaled(variable(x), -1), fmt.Sprintf("%d <= %s (its cell's set)", lo, x))
+		}
+		if haveHi {
+			inner.assumeLE(variable(x).addScaled(constant(hi), -1), fmt.Sprintf("%s <= %d (its cell's set)", x, hi))
+		}
+	}
+}
+
+// PlantCellValueUnbounded forgets a cell's set at its read, so readinto's
+// count from ReadFile is unbounded below and its invariant 0 <= lo is lost.
+var PlantCellValueUnbounded bool
 
 // bindContent gives a let-bound name what is known of its value: the instances of
 // a proven read of a table with content (Theorem D, stated about the binder, the

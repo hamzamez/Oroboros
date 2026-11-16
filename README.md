@@ -493,9 +493,11 @@ plan**, in order:
    - ~~a pair read from a table produces wrong Go~~ **fixed**;
    - ~~with them, a compiler crash, a self-check that rejects a valid program, and a test that
      fails one run in five~~ **fixed** ([bookfaults-2026-11-16](gauntlet/results/bookfaults-2026-11-16.md));
-2. **build two things the grammar promises and the compiler refuses**: a loop's stated invariant,
-   checked by the compiler (which also lets one library drop a run-time clamp), and `try` over
-   several results at once;
+2. ~~**build two things the grammar promises and the compiler refuses**~~ **done**
+   ([invariant-2026-11-16](gauntlet/results/invariant-2026-11-16.md)): a loop may state its
+   invariant, which the compiler proves and then uses, so an index that only that relation bounds
+   is accepted; `try` takes several results at once. The library's run-time clamp is gone, though it
+   needed two facts the compiler was missing rather than the invariant;
 3. **two checks for this round's mistakes**: line endings, and tests that plant a fault confirming
    they planted it;
 4. **32-bit Windows**, starting with what a second processor changes (the sizes of C's types, the

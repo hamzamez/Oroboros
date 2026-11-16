@@ -1891,6 +1891,13 @@ func (p *parser) loop() (Expr, error) {
 			break
 		}
 	}
+	if p.accept("invariant") {
+		inv, err := p.expr()
+		if err != nil {
+			return nil, err
+		}
+		l.Invariant = inv
+	}
 	if err := p.expect("{"); err != nil {
 		return nil, err
 	}
@@ -2039,29 +2046,54 @@ func strayAgain(line int) error {
 		"the clause list stays the loop's whole control flow", line)
 }
 
-// try reads `try p = e { body }`, the handled bind with no handler: try's law,
-// a failure passes through re-built (ADR 0057).
+// PlantTryCommaReversed nests the binds last-first, so a bind meets a name an
+// earlier one binds before it exists: TestTryWithSeveralBindsIsNested must
+// catch it.
+var PlantTryCommaReversed bool
+
+// try reads `try p = e, … { body }`, the handled bind with no handler: try's
+// law, a failure passes through re-built (ADR 0057). Several binds are nested
+// binds, try b₁, …, bₙ { e } = try b₁ { try b₂, …, bₙ { e } }: bind is
+// associative (the monad law), so the comma is sequence, each bind seeing the
+// names bound before it, the first failure the result (j.md §2.8).
 func (p *parser) try() (Tail, error) {
 	p.next()
-	pat, err := p.exprAt(pCmp + 1)
-	if err != nil {
-		return nil, err
-	}
-	if err := p.expect("="); err != nil {
-		return nil, err
-	}
-	v, err := p.expr()
-	if err != nil {
-		return nil, err
+	var binds [][2]Expr
+	for {
+		pat, err := p.exprAt(pCmp + 1)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.expect("="); err != nil {
+			return nil, err
+		}
+		v, err := p.expr()
+		if err != nil {
+			return nil, err
+		}
+		binds = append(binds, [2]Expr{pat, v})
+		if !p.accept(",") {
+			break
+		}
 	}
 	body, err := p.block()
 	if err != nil {
 		return nil, err
 	}
-	if b, ok := body.(Expr); ok {
-		return &Monad{Form: "try", Items: []Expr{pat, v}, Body: b}, nil
+	if PlantTryCommaReversed {
+		for i, j := 0, len(binds)-1; i < j; i, j = i+1, j-1 {
+			binds[i], binds[j] = binds[j], binds[i]
+		}
 	}
-	return &TMonad{Form: "try", Items: []Expr{pat, v}, Body: body}, nil
+	for i := len(binds) - 1; i >= 0; i-- {
+		pat, v := binds[i][0], binds[i][1]
+		if b, ok := body.(Expr); ok {
+			body = &Monad{Form: "try", Items: []Expr{pat, v}, Body: b}
+		} else {
+			body = &TMonad{Form: "try", Items: []Expr{pat, v}, Body: body}
+		}
+	}
+	return body, nil
 }
 
 // isVariantAt reports whether a set declaration's right side, after its

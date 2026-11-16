@@ -478,7 +478,10 @@ Chapter 11, `loop` (2026-11-16), found five, none fixed, each avoided in the cha
     status lists the loop as built; `loop i = 1, p = 1 invariant p <= N {` is *"invariant"
     where "{" was expected*. So a bound the interval analysis cannot find is stated as a guard
     that runs (§11.7's `p <= 4 * 10^17`), which is CLAUDE.md's "a clamp in a program is a
-    missing proof", taught as the tool there is.
+    missing proof", taught as the tool there is. **Fixed** 2026-11-16
+    ([invariant-2026-11-16](../../gauntlet/results/invariant-2026-11-16.md)): `invariant I` is read
+    and decided by Hoare's rule. §11.7's bound stays a guard, because p · i ≤ N does not follow
+    from p ≤ N: the invariant that carries it is p = (i − 1)!, outside the linear fragment.
 61. **A `case` on a loop's variant result must have arms of one type**, where the same `case`
     on a function's variant result need not: `'some(r) -> io.print_int(r); 'none ->
     io.print_line("no")` is accepted after `digit_of` (chapter 10's `maybe.oro`, where
@@ -613,7 +616,9 @@ more, none fixed:
     22. The chapter's §14.4 is written that way and carries a boxed warning to the reader.
 77. **`try` with several binds is not read.** j.md §2.8: `try_expr ::= "try" t_bind,+ block`.
     `try result.'ok(x) = half(a), result.'ok(y) = half(b) { … }` is *"," where "{" was
-    expected*. The handler, `else`, is listed as not built.
+    expected*. The handler, `else`, is listed as not built. **Fixed** 2026-11-16
+    ([invariant-2026-11-16](../../gauntlet/results/invariant-2026-11-16.md)): the binds nest,
+    `try b₁, …, bₙ { e }` = `try b₁ { try b₂, …, bₙ { e } }`.
 78. **The flaky test is a race between two packages.** `go test ./core/ ./cmd/gen/` fails about
     one run in five with *TestEveryCorpusFileReadsInJ: open ..\cmd\gen\booktest3866318782\
     p.oro: The system cannot find the path specified*: `core`'s corpus walk lists a temporary

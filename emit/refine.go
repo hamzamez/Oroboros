@@ -27,6 +27,13 @@ type refiner struct {
 	// store and not indexing (indexWhat).
 	storing bool
 
+	// A STATED LOOP INVARIANT (j.md §2.8): nextInv is handed from its mark to
+	// the loop under it, loopInv and peelInv set around that loop's Houdini
+	// calls, and invKept says whether every conjunct survived them.
+	nextInv, loopInv, peelInv *core.Term
+	cellSets                  map[string]string // a fresh cell's set, by its reference's name
+	invKept                   bool
+
 	// mapBinders are the names bound to a map, a build-map's binder and the
 	// loop variables it threads: Houdini's |dom m| ≤ v template is asked of
 	// these (maps.md §6).
@@ -916,6 +923,7 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 		inner.assumeEQ(k.Params[0], e)
 	}
 	r.assumeLength(inner, k.Params[0], args[0])
+	r.assumeCellValue(inner, k.Params[0], args[0])
 	r.joinConditional(inner, k.Params[0], args[0], f)
 	r.summarizeLoop(inner, k.Params[0], args[0])
 	r.bindContent(inner, k.Params[0], args[0], f)
@@ -1555,6 +1563,11 @@ func (r *refiner) ensured(p Prim, args []*core.Term, result *core.Term,
 // Ordinary Hoare logic, and the loop variables are bound to their initial
 // values on entry, which is what makes `(int.lt i (alen a))` usable at all.
 func (r *refiner) iterate(args []*core.Term, f *facts) error {
+	// THIS LOOP'S STATED INVARIANT, if its mark handed one on (invariantMark):
+	// taken here so no inner loop sees it, and set only around this loop's own
+	// Houdini calls.
+	inv := r.nextInv
+	r.nextInv = nil
 	if len(args) < 2 || args[0].Kind != core.KFn {
 		return nil
 	}
@@ -1600,7 +1613,9 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 			r.assumeLengthEq(g, n, lens[i])
 		}
 	}
+	r.loopInv = inv
 	r.loopInvariants(lam, inits, f, g)
+	r.loopInv = nil
 	r.contentInvariants(lam, inits, f, g)
 	if r.bodyFacts == nil {
 		r.bodyFacts = map[string]*facts{}
@@ -1617,7 +1632,10 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	// walk above refuses, so a program that compiles today pays nothing for it.
 	refused := append([]string(nil), r.notes[notes:]...)
 	r.notes = r.notes[:notes]
-	if r.peeled(lam, inits, f, g) == nil {
+	r.peelInv = inv
+	ok := r.peeled(lam, inits, f, g) == nil
+	r.peelInv = nil
+	if ok {
 		return nil
 	}
 	r.notes = append(r.notes[:notes], refused...)
@@ -1674,7 +1692,9 @@ func (r *refiner) peeled(lam *core.Term, inits []*core.Term, f, g *facts) error 
 	}
 	later := g.clone()
 	if len(entries) > 0 {
+		r.loopInv = r.peelInv
 		r.houdini(lam, templ, entries, later)
+		r.loopInv = nil
 	}
 	return r.clauses(lam.Body(), later)
 }
@@ -2090,7 +2110,9 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 	// THE MEMO (refineMemo). Keyed before g is touched; every exit below records
 	// what it assumed into g, which is the whole of the answer.
 	var key string
-	if r.memo != nil {
+	// A loop with a stated invariant is decided afresh: the memo's answer
+	// records what was kept, not whether the invariant was (invKept).
+	if r.memo != nil && r.loopInv == nil {
 		key = fmt.Sprintf("%s%d:%s|%d", loopKey(lam, inits, f), len(g.fingerprint()), g.fingerprint(), r.probeDepth)
 		if kept, hit := r.memo.houdini[key]; hit {
 			for _, c := range kept {
@@ -2104,7 +2126,7 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 		entry[n] = inits[i]
 	}
 	kept := r.houdini(lam, [][]*core.Term{inits}, []loopEntry{{entry, f}}, g)
-	if r.memo != nil {
+	if r.memo != nil && key != "" {
 		r.memo.houdini[key] = kept
 	}
 }
@@ -2126,6 +2148,42 @@ var PlantNoUpperFrame bool
 
 func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEntry, g *facts) (kept []*core.Term) {
 	params := lam.Params
+	// A STATED INVARIANT'S CONJUNCTS ARE CANDIDATES THAT MUST SURVIVE (j.md
+	// §2.8): Houdini keeps the greatest set inductive under itself, so a
+	// conjunct kept is preserved by every back edge assuming the kept set, which
+	// is Hoare's induction step; one dropped is no invariant. Kept, they are
+	// assumed in the body with the rest. Its variables are the loop's of the
+	// same name (invariantPositions).
+	var required []*core.Term
+	if inv := r.loopInv; inv != nil {
+		r.loopInv = nil
+		at := invariantPositions(inv, params)
+		if at == nil {
+			at = []int{}
+		}
+		names := make([]string, len(at))
+		for i, j := range at {
+			names[i] = params[j]
+		}
+		if len(names) == len(inv.Params) {
+			required = append(required, conjuncts(inv.OpenWith(namesOf(names)))...)
+		} else {
+			required = append(required, core.Bool(false)) // unmatched: never kept
+		}
+		defer func() {
+			all := true
+			for _, c := range required {
+				in := false
+				for _, k := range kept {
+					if k.String() == c.String() {
+						in = true
+					}
+				}
+				all = all && in
+			}
+			r.invKept = all || PlantInvariantUnchecked
+		}()
+	}
 	// A LOOP VARIABLE THREADS A MAP when its initial value is one.
 	for _, inits := range templ {
 		for i, z := range inits {
@@ -2154,6 +2212,25 @@ func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEn
 			}
 		}
 		cands = append(cands, c)
+	}
+	// The stated conjuncts first, checked on entry and every back edge as any
+	// candidate is; a comparison is a candidate as written.
+	for _, c := range required {
+		k := c.String()
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		ok := true
+		for _, e := range entries {
+			budget := splitBudget
+			if !r.provedBySplit(core.Rename2(c, e.sub), e.at, &budget) {
+				ok = false
+			}
+		}
+		if ok {
+			cands = append(cands, c)
+		}
 	}
 	zero := &core.Term{Kind: core.KInt}
 	sides := r.guardSides(lam.Body())
@@ -2202,6 +2279,22 @@ func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEn
 		for _, t := range params {
 			if t != n && r.mapBinders[t] && !PlantNoMapTemplate {
 				add(core.App(core.Name("len"), core.Name(t)), v)
+			}
+		}
+	}
+	// A THREADED VERSION KEEPS ITS LENGTH: len ∘ set = len ∘ π₁ (the store
+	// law), so a buffer threaded through a loop as its version t, from z, has
+	// len t = len z at every iteration where each back edge hands on a store
+	// chain over t. Houdini checks both halves. A stated invariant reads the
+	// buffer by its name in scope, len(b), and the body's facts are about its
+	// version at the loop head, len(#vb): this equation joins them (readinto).
+	for i, n := range params {
+		for _, inits := range templ {
+			if i < len(inits) && inits[i].Kind == core.KName && !mentionsAny(inits[i], params) &&
+				readsLen(lam.Body(), n) && !PlantNoVersionLength {
+				lt, lz := core.App(core.Name("len"), core.Name(n)), core.App(core.Name("len"), inits[i])
+				add(lt, lz)
+				add(lz, lt)
 			}
 		}
 	}
@@ -2810,6 +2903,16 @@ func (r *refiner) valueLength(t *core.Term, env lenEnv, depth int) (*linear, boo
 	// usable as a loop variable.
 	case declared && !count && at < len(args):
 		return r.valueLength(args[at], env, depth+1)
+	// A RULE (table n λ) IS THE FUNCTION λ ON [0, n) (tables.md §2), so its
+	// length is its count, read where the value is used as a count is. A rule
+	// that fuses never needs it; one allocated, alloc(rule) (ADR 0115), is as
+	// long as the rule by alloc's pass-through, and had no length at all.
+	case p.Kind == "table" && len(args) == 2 && !PlantRuleNoLength:
+		c, closed := env.close(args[0])
+		if !closed {
+			return nil, false
+		}
+		return r.lin(c)
 	case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1:
 		inner := r.bindLen(env, args[1].Params[0], args[0], depth+1)
 		return r.valueLength(args[1].Body(), inner, depth+1)
@@ -3397,3 +3500,50 @@ func seedInsertSizes(tg *Target, f *facts, t *core.Term) {
 	}
 	walk(t)
 }
+
+// conjuncts are a formula's conjuncts, `a && b` being D's (if a b false).
+func conjuncts(t *core.Term) []*core.Term {
+	if a, b, ok := conjunction(t); ok {
+		return append(conjuncts(a), conjuncts(b)...)
+	}
+	return []*core.Term{t}
+}
+
+// namesOf is each name as a term.
+func namesOf(ns []string) []*core.Term {
+	out := make([]*core.Term, len(ns))
+	for i, n := range ns {
+		out[i] = core.Name(n)
+	}
+	return out
+}
+
+// PlantInvariantUnchecked reads a stated invariant as kept whatever Houdini
+// found: TestALoopsInvariantIsHoaresRule must see a false one accepted.
+var PlantInvariantUnchecked bool
+
+// readsLen says whether t reads len(x): a loop variable whose length its body
+// reads is a table, the filter for the version-length candidates.
+func readsLen(t *core.Term, x string) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && (isOp(t.Kids[0].Name, "alen") || isOp(t.Kids[0].Name, "slen")) &&
+		t.Kids[1].Kind == core.KName && t.Kids[1].Name == x {
+		return true
+	}
+	for _, k := range t.Kids {
+		if readsLen(k, x) {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantNoVersionLength withholds len t = len z for a buffer threaded as t from
+// z, so readinto's invariant lo <= len(b) is not kept across its back edge.
+var PlantNoVersionLength bool
+
+// PlantRuleNoLength forgets that a rule (table n λ) is n long, so an
+// allocated rule indexed below its count is refused again.
+var PlantRuleNoLength bool

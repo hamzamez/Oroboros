@@ -147,7 +147,7 @@
 == examples/hash/crc32.oro java emitted 10648d0b9cb3ab25d1aa21670099cb927c8209877d4c9b89981b9c6686cd4679
    note: gen-main: 53 of 53 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-main: 3 division(s) became a shift or a mask
-== examples/hash/crc32.oro windows emitted d6940c0efaf84def609c926559bddd5d3d394bc9fdfffc9ed87c3f2d5600b586
+== examples/hash/crc32.oro windows emitted dcb23c03039ef0c7c17b730d477bd80656af62a9973cd0b0492f2bd852242f9b
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 9 definition(s) kept as functions, 1 inlined by their contracts
@@ -170,7 +170,7 @@
    note: gen-main: 18 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 15 of 15 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: gen-main: 3 division(s) became a shift or a mask
-== examples/hash/fnv.oro windows emitted 65cdc3164bee9690366006f5d28f03c5ad72354127dcf9249b795c6dc312ca95
+== examples/hash/fnv.oro windows emitted ebf9da756831480a2d731efe9667dbbc60ee2be1b3534f1d75df7caf1b70a0e2
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 8 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
@@ -301,7 +301,7 @@
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/count.oro java emitted cfc88cb19afa7614eae88169876f1ea6676164ff0c295a29d98b367f7219f0bd
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/count.oro windows emitted 0765107e300179f0216edeaeb40ceda45e450e42c7a202a10214c11085288120
+== examples/io/count.oro windows emitted f3f17ce3c3e4aeb0d0ff55df2f2fe915eecf0006d4e67b9d75d6fe3377f9f8e7
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 8 definition(s) kept as functions, 1 inlined by their contracts
@@ -325,7 +325,7 @@
    note: gen-main: 67 product access(es) flattened
    note: gen-main: 228 of 228 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 2 division(s) became a shift or a mask
-== examples/io/freq.oro windows emitted 7c39bd18a6e456ccde2f85a641ce1666c9cf7f15c8762cb2aa32544aa004da30
+== examples/io/freq.oro windows emitted a300222639d42c5791017d8583499ba2a70075fafaa438f0d2f90e0934ece278
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 67 product access(es) flattened
    note: gen-main: 228 of 228 integer operations bounded; 29 of 33 loop(s) proven terminating
@@ -342,7 +342,7 @@
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro java emitted 6e6d97574cf72d9fc8e91165d3234c8bae6f1307cf23158c8ee7b393a3d6dba0
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
-== examples/io/jsonfmt.oro windows emitted 1d4786001ef3bb8f346c5e18c9bd37e52b5222a97608ccbb04ad1601a79035b2
+== examples/io/jsonfmt.oro windows emitted 4b36bb75dcfbd0234d576792e9f6ab4557debc7ef849b3bb181f6bf6a4079c79
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 95 of 95 integer operations bounded; 17 of 17 loop(s) proven terminating
    note: 6 definition(s) kept as functions, 1 inlined by their contracts
@@ -358,7 +358,7 @@
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro java emitted 684eab54733c432238e8d818181fc4c639b8bd5d689e008d975d8abcedfa726e
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
-== examples/io/roundtrip.oro windows emitted 541605e6fecc1be5578bf45ab5f7008837752495345b6a7f5d77d28d8fb86afe
+== examples/io/roundtrip.oro windows emitted f02b5db6a1231f06ba85c6c15c8cfcb24d4d08b175c7e6de265a013c89203260
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 6 of 6 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: 14 definition(s) kept as functions, 1 inlined by their contracts
@@ -382,7 +382,7 @@
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro java emitted efb6505e22e12d685df6ac563163e6115d6a54d3f5edcbb729c7383731353e2e
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/wc.oro windows emitted 2ae857bdcb7539eaca63d533cb48442d0768461810b92b2a5c30bbc856970697
+== examples/io/wc.oro windows emitted 4b5cd922994e68ee799ead2ed424334c711df96741bed4bbb6caa79e31b92eb2
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 8 definition(s) kept as functions, 1 inlined by their contracts
@@ -795,7 +795,7 @@
    note: gen-main: 268 of 268 integer operations bounded; 7 of 7 loop(s) proven terminating
 == examples/num/ledger.oro java emitted 7efb56bc871a96fce55720e29f5808c33b959ad4abb436386121798b16ea2e58
    note: gen-main: 268 of 268 integer operations bounded; 7 of 7 loop(s) proven terminating
-== examples/num/ledger.oro windows emitted 8926c752a41ee7ce55612e344d536d42f39cdc1839e7a628c4690848190b412a
+== examples/num/ledger.oro windows emitted ae50caffa3e12fd04a915636b4f76c193ce3496a5842f85fc8ca458d90f0c149
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: num.decimal is inlined: num.decimal: num.digits's parameter n, declared in 0..2^63-1, requires a / p <= 9223372036854775807 at a call, which does not follow
    note: gen-main: 250 of 250 integer operations bounded; 1 of 1 loop(s) proven terminating

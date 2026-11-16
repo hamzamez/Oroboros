@@ -146,6 +146,10 @@ func tailArity(t *Term) int {
 		return n
 	}
 	switch {
+	case headIs(t, RequireWhereName) && len(args) == 3:
+		// A MARK'S VALUE IS ITS BODY'S (ADR 0028): a loop's invariant (j.md
+		// §2.8) wraps the loop it states, and its condition is never run.
+		return tailArity(args[2])
 	case headIs(t, "if") && len(args) == 3:
 		return join(args[1], args[2])
 	case headIs(t, "loop") && len(args) >= 1 && args[0].Kind == KFn:
@@ -522,6 +526,11 @@ func (pc *placeCheck) walk(t *Term, tail bool) error {
 	}
 	op, args := t.Kids[0], t.Kids[1:]
 	switch {
+	case headIs(t, RequireWhereName) && len(args) == 3 && !PlantMarkIsAClosure:
+		// A MARK'S CONDITION IS LOGIC (ADR 0049), decided and never run, so a
+		// buffer it mentions, a loop's invariant over len(b) (j.md §2.8), is no
+		// use of the buffer and no closure over it: only its body is a value.
+		return pc.walk(args[2], tail)
 	case headIs(t, "set") && len(args) == 2 && pc.is(args[0]):
 		// A WRITE of b: an element's, b := set(b, i, v) or set((b i), j, v); a
 		// move in a concurrent assignment, b := #w; nothing else (R0).
@@ -674,3 +683,8 @@ func (pc *placeCheck) writesItself(t *Term) bool {
 		return false
 	}
 }
+
+// PlantMarkIsAClosure reads a mark's condition as a value, so an invariant over
+// a buffer is refused as a closure over it (R3): TestALoopsInvariantIsHoaresRule
+// must catch it.
+var PlantMarkIsAClosure bool

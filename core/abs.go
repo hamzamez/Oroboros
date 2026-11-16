@@ -152,6 +152,10 @@ type Loop struct {
 	Inits []Expr
 	Arms  []LoopArm
 	Match bool
+	// Invariant is `invariant I`, a formula over Vars, or nil for ⊤ (j.md
+	// §2.8): Hoare's rule, I at entry, kept by every `again`, assumed in the
+	// body. Logic, decided and never run.
+	Invariant Expr
 }
 
 // LoopArm is one guarded alternative. A loop's clause has a Guard; a match's

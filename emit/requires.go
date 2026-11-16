@@ -290,6 +290,12 @@ func (f requireFail) message(n int) string {
 		b.WriteString("\n  A binder's claim, `b ∈ S = e`, is an obligation: proven of e, or the program is refused\n" +
 			"  (ADR 0049). Prove it — narrow what e comes from — or drop the claim.")
 		return b.String()
+	case f.raw == core.LoopInvariantDef:
+		fmt.Fprintf(&b, "a loop's invariant does not hold %s\n  known: %s\n"+
+			"  `invariant I` is Hoare's rule (j.md §2.8): I holds on entry and is kept by every `again`,\n"+
+			"  assuming I; then it holds at every iteration. Prove it, strengthen it until it is kept, or\n"+
+			"  drop it.", f.arg, f.known)
+		return b.String()
 	case f.param == "where" && f.literal:
 		fmt.Fprintf(&b, "%s's `where` is false at a call: %s", f.def, f.arg)
 	case f.param == "where" && strings.HasPrefix(f.def, "the claim "):
@@ -409,6 +415,9 @@ func HasRequireMarks(t *core.Term) bool { return hasRequireMarks(t) }
 func hasRequireMarks(t *core.Term) bool {
 	if t == nil {
 		return false
+	}
+	if core.IsProvenInvariant(t) {
+		return hasRequireMarks(t.Kids[3]) // decided: a fact, no obligation
 	}
 	if core.IsRequire(t) || core.IsRequireWhere(t) {
 		return true
@@ -671,6 +680,9 @@ var plantRangeMarkFault bool
 // requireMark decides a mark the interval analysis left, with the facts in
 // scope, and walks on into what it wraps. Only the top-level walk records.
 func (r *refiner) requireMark(t *core.Term, f *facts) error {
+	if core.IsInvariantMark(t) {
+		return r.invariantMark(t, f)
+	}
 	// A CALL'S ARGUMENTS ARE EVALUATED BEFORE IT, so the guarantees of the pure
 	// calls inside them are in scope — collected on a copy, as `walk` collects
 	// them before a primitive's `where` (refine.go), so they reach this goal and
@@ -727,6 +739,88 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 			ty: t.Kids[3].Str, arg: core.ShowTerm(a), known: f.known(), raw: t.Kids[1].Str})
 	}
 	return nil
+}
+
+// invariantMark decides a loop's invariant by Hoare's rule (j.md §2.8): the
+// mark (#reqw "a loop's invariant" (fn (x⃗) I) (loop (fn (x⃗ …) B) z⃗ …)) holds
+// when I(z⃗) holds on entry and I is kept by every `again` assuming I, the
+// induction step; then I holds at every iteration and is assumed in the body.
+// The entry is decided here; I is handed to the loop's Houdini as candidates
+// that must survive (houdini), which is exactly the induction step, its back
+// edges checked under the kept set. The invariant's variables are matched to
+// the loop's by name (invariantPositions): the state translation threads a
+// buffer's version or a cell beside the program's own variables. Once decided,
+// the mark stays as LoopInvariantProven, a fact of the loop: the refinement
+// layer's later walk hands it to Houdini again and owes nothing.
+func (r *refiner) invariantMark(t *core.Term, f *facts) error {
+	inv, body := t.Kids[2], t.Kids[3]
+	fail := func(what string, cond *core.Term) {
+		if r.requires != nil {
+			*r.requires = append(*r.requires, requireFail{def: core.LoopInvariantDef, param: "where",
+				arg: what + core.ShowTerm(cond), known: f.known(), raw: core.LoopInvariantDef, cond: cond})
+		}
+	}
+	if body.Kind == core.KApp && body.Op().Kind == core.KName && loopKinds[body.Op().Name] &&
+		len(body.Args()) >= 1 && body.Args()[0].Kind == core.KFn {
+		lam, inits := body.Args()[0], body.Args()[1:]
+		at := invariantPositions(inv, lam.Params)
+		if at == nil || len(inits) < len(lam.Params) {
+			fail("as stated: its variables are not the loop's, ", inv.Body())
+			return r.walk(body, f)
+		}
+		zs := make([]*core.Term, len(at))
+		for i, j := range at {
+			zs[i] = inits[j]
+		}
+		// DECIDED (core.LoopInvariantProven): a fact of the loop, handed to its
+		// Houdini so the body assumes it, and owed nothing again.
+		proven := core.IsProvenInvariant(t)
+		entry := inv.OpenWith(zs)
+		if !proven && !r.proveCond(entry, f.clone()) {
+			fail("on entry: ", entry)
+		}
+		r.nextInv, r.invKept = inv, false
+		err := r.walk(body, f)
+		r.nextInv = nil
+		if err == nil && !r.invKept && !proven {
+			fail("at every iteration: it is not kept by every `again`, ", inv.Body())
+		}
+		return err
+	}
+	// NO LOOP REMAINS (nothing jumped back, so D made it a let): I is a claim
+	// on the initial values alone.
+	if body.Kind == core.KApp && len(body.Kids) == 1+len(inv.Params) && body.Kids[0].Kind == core.KFn && !core.IsProvenInvariant(t) {
+		entry := inv.OpenWith(body.Kids[1:])
+		if !r.proveCond(entry, f.clone()) {
+			fail("on entry: ", entry)
+		}
+	}
+	return r.walk(body, f)
+}
+
+// invariantPositions is, for each of a stated invariant's variables, the
+// position of the loop's parameter it is: the one of the same name, since the
+// translations that thread a buffer or a cell through the loop add parameters
+// beside the program's own and keep their spelling; or, failing a name, the
+// same position when the counts agree. nil when neither matches.
+func invariantPositions(inv *core.Term, params []string) []int {
+	at := make([]int, len(inv.Params))
+	for i, n := range inv.Params {
+		at[i] = -1
+		for j, p := range params {
+			if p == n {
+				at[i] = j
+				break
+			}
+		}
+		if at[i] < 0 {
+			if len(inv.Params) != len(params) {
+				return nil
+			}
+			at[i] = i
+		}
+	}
+	return at
 }
 
 // proveCond is discharge's decision for a condition that is not a primitive's:

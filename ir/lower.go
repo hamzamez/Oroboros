@@ -367,6 +367,9 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		l.marks[t] = append(l.marks[t], vs...)
 		return vs
 	}
+	if core.IsProvenInvariant(t) {
+		return l.value(t.Kids[3], r) // a fact, decided: never printed
+	}
 	if core.IsRequireWhere(t) {
 		l.undecided++
 		return l.value(t.Kids[3], r)
@@ -975,6 +978,10 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 	}
 	if t.Kind != core.KApp || core.IsRequire(t) {
 		leaf(l.value(t, r))
+		return
+	}
+	if core.IsProvenInvariant(t) {
+		l.tail(t.Kids[3], r, loop)
 		return
 	}
 	if core.IsRequireWhere(t) {

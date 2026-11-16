@@ -451,22 +451,32 @@ func (e *Env) markWhere(def string, subs, args []*Term, body *Term, fuel *int) (
 }
 
 // StripRequires erases every measurement mark, leaving the argument it wrapped.
-func StripRequires(t *Term) *Term {
+// A loop's invariant, decided, stays as its proven mark (LoopInvariantProven).
+func StripRequires(t *Term) *Term { return stripMarks(t, !PlantInvariantErased) }
+
+// PlantInvariantErased erases a decided invariant with the other marks, so the
+// refinement layer's walk no longer assumes it in the loop's body.
+var PlantInvariantErased bool
+
+func stripMarks(t *Term, keepInv bool) *Term {
 	if t == nil {
 		return nil
 	}
 	switch t.Kind {
 	case KApp:
 		if IsRequire(t) {
-			return StripRequires(t.Kids[4])
+			return stripMarks(t.Kids[4], keepInv)
+		}
+		if IsInvariantMark(t) && keepInv {
+			return &Term{Kind: KApp, Kids: []*Term{t.Kids[0], Str(LoopInvariantProven), t.Kids[2], stripMarks(t.Kids[3], keepInv)}}
 		}
 		if IsRequireWhere(t) {
-			return StripRequires(t.Kids[3])
+			return stripMarks(t.Kids[3], keepInv)
 		}
 		kids := make([]*Term, len(t.Kids))
 		changed := false
 		for i, k := range t.Kids {
-			kids[i] = StripRequires(k)
+			kids[i] = stripMarks(k, keepInv)
 			changed = changed || kids[i] != k
 		}
 		if !changed {
@@ -476,7 +486,7 @@ func StripRequires(t *Term) *Term {
 		c.Kids = kids
 		return &c
 	case KFn:
-		b := StripRequires(t.Kids[0])
+		b := stripMarks(t.Kids[0], keepInv)
 		if b == t.Kids[0] {
 			return t
 		}

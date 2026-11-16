@@ -81,12 +81,9 @@ provides windows os/host {
                             else -> {
                                 (b, m, e) = readall(h, sz)
                                 ignore(kernel32.CloseHandle(h))
-                                // the file shrank while it was read: its first m bytes
-                                // m ≤ len(b) is readinto's result relation, which a call of it
-                        // as a function does not carry (its `ensure` waits on P3's
-                        // relational results, ADR 0113): stated here, the identity
-                        m1 = if m > len(b) { len(b) } else if m < 0 { 0 } else { m }
-                        t = if m1 >= len(b) { b } else { alloc(array { b[i] : i ∈ 0..m1 - 1 }) }
+                                // the file shrank while it was read: its first m bytes,
+                                // m ≤ len(b) by readinto's invariant (j.md §2.8)
+                                t = if m >= len(b) { b } else { alloc(array { b[i] : i ∈ 0..m - 1 }) }
                                 (t, e)
                             }
                         }
@@ -112,10 +109,11 @@ provides windows os/host {
     // read's outcome is carried to the next round, where the clauses decide it:
     // its count (0 ends the file) and its failure's code, read right after the
     // call. A failure that set no code is ERROR_GEN_FAILURE (31).
-    // Its count is at most len(b) (k ≤ n ≤ len(b) − lo, a relation); the
-    // intervals prove lo + k ≤ 2^47 + 2^30, so the claim is 0..2^48.
+    // Its count is at most len(b): k ≤ n ≤ len(b) − lo each round, so
+    // lo ≤ len(b) at every iteration, a relation the intervals lose across the
+    // loop and Hoare's rule keeps (`invariant`, j.md §2.8); the claim is 0..2^48.
     fn readinto(h ∈ ptr, b ∈ Array(0..255) linear) (0..2^48 × error) {
-        loop lo = 0, got = 1, e = 0 {
+        loop lo = 0, got = 1, e = 0 invariant 0 <= lo && lo <= len(b) {
             e != 0 -> (lo, e)
             got == 0 || lo >= len(b) -> (lo, 0)
             else -> {

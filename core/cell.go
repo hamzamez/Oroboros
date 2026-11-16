@@ -155,8 +155,8 @@ type cellTr struct {
 	decls  map[string]CellDecl
 	// places are the state binders whose value is a buffer, in program order
 	// (spec/local.md §2.1), and borrows the callees that borrow one.
-	places  map[string]bool
-	maps    map[string]bool // the places whose value is a map
+	places map[string]bool
+	maps   map[string]bool // the places whose value is a map
 	// caps are the map places' capacities, the c of their `map(c)`: a map of
 	// capacity c is in {m : len(m) <= c} (maps.md §6, hamza's B′), so each
 	// insert into one is marked with that claim.
@@ -228,6 +228,13 @@ func spliceTails(t *Term, k, m int) (*Term, bool) {
 	}
 	op, args := t.Kids[0], t.Kids[1:]
 	switch {
+	case headIs(t, RequireWhereName) && len(args) == 3:
+		// a mark's value is its body's, a loop's invariant around its loop
+		nb, ok := spliceTails(args[2], k, m)
+		if !ok {
+			return nil, false
+		}
+		return App(op, args[0], args[1], nb), true
 	case headIs(t, "if") && len(args) == 3:
 		a, ok1 := spliceTails(args[1], k, m)
 		b, ok2 := spliceTails(args[2], k, m)
@@ -828,6 +835,25 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		return c.bind(th, s, App(mark(Name(s)), k)), nil
 	}
 
+	// A LOOP'S INVARIANT (j.md §2.8) is logic over the loop's state, decided and
+	// never run. A cell or buffer in scope may appear in it only under `len`,
+	// which no store changes (len ∘ set = len ∘ π₁, the store law), so len(b)
+	// at the loop head is len of every version and the λ is kept as written;
+	// only its body, the loop, is translated. An element of a buffer would need
+	// the loop head's version, which is not built.
+	if headIs(t, RequireWhereName) && len(t.Kids) == 4 && t.Kids[1].Kind == KStr && t.Kids[1].Str == LoopInvariantDef &&
+		t.Kids[2].Kind == KFn && !PlantMarkIsAClosure {
+		if bad := c.cellOffLen(t.Kids[2].Body()); bad != "" {
+			return nil, fmt.Errorf("a loop's invariant mentions %s other than through its length: an invariant is a "+
+				"formula over the loop's variables, and a buffer or cell in scope may appear in it only as "+
+				"len(%s), which no store changes (j.md §2.8)", ShowName(bad), ShowName(bad))
+		}
+		body, err := c.stLoop(t.Kids[3], inLoop, carried)
+		if err != nil {
+			return nil, err
+		}
+		return &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], t.Kids[2], body}}, nil
+	}
 	// Any other application: every argument in order, then the call.
 	for _, a := range t.Kids {
 		if a.Kind == KFn && c.mentionsCells(a) {
@@ -1117,4 +1143,29 @@ func (c *cellTr) capacityMark(x string, ins *Term) *Term {
 	}
 	cond := App(Name("<"), App(Name("len"), ins.Kids[1]), cap)
 	return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(MapCapacityDef), cond, ins}}
+}
+
+// cellOffLen is a cell or buffer in scope that t mentions other than as the
+// argument of `len`, or "".
+func (c *cellTr) cellOffLen(t *Term) string {
+	if t == nil {
+		return ""
+	}
+	switch {
+	case t.Kind == KName:
+		if c.isCell(t.Name) || c.places[t.Name] {
+			return t.Name
+		}
+		return ""
+	case t.Kind == KFn:
+		return c.cellOffLen(t.Body())
+	case headIs(t, "len") && len(t.Kids) == 2 && t.Kids[1].Kind == KName:
+		return ""
+	}
+	for _, k := range t.Kids {
+		if n := c.cellOffLen(k); n != "" {
+			return n
+		}
+	}
+	return ""
 }

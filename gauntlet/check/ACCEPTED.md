@@ -3352,3 +3352,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/native/shortcircuit-win.oro windows`
 - emitted text changed — `examples/table/sieve-win.oro windows`
 - compiler output changed — `examples/table/sieve-win.oro windows`
+
+## 2026-11-16 — on eab367c, with uncommitted changes
+
+**Reason:** readfile's clamp removed on windows: m <= len(b) is proven from readinto (an out cell's set, a buffer version's length; invariant-2026-11-16), 19 lines per readfile instance deleted, nothing added
+
+656 runs: 445 emitted, 211 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+8 change(s):
+
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`

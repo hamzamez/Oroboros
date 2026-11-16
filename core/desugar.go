@@ -308,7 +308,36 @@ func (d *desugarer) loop(a *Loop) *Term {
 			bodies[i] = renameFree(d.term(arm.Body), binds)
 		}
 	}
-	return loopOrLet(a.Vars, chain(guards, bodies), d.terms(a.Inits))
+	t := loopOrLet(a.Vars, chain(guards, bodies), d.terms(a.Inits))
+	if a.Invariant != nil {
+		// HOARE'S RULE (j.md §2.8): `invariant I` is the mark of a claim over the
+		// loop's state, I as a λ over its variables, decided by the refinement
+		// layer: I(z⃗) at entry, kept by every `again`, assumed in the body. A
+		// mark's value is its body's, and its condition is never run.
+		t = &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(LoopInvariantDef), Fn(a.Vars, d.term(a.Invariant)), t}}
+	}
+	return t
+}
+
+// LoopInvariantDef labels a loop's invariant's mark, whose condition is the
+// invariant as a λ over the loop's variables (j.md §2.8).
+const LoopInvariantDef = "a loop's invariant"
+
+// LoopInvariantProven labels the same mark once decided. A proven claim is a
+// fact (ADR 0049), and Hoare's rule assumes I in the body, so the decided mark
+// is not erased with the others (StripRequires): the refinement layer reads it,
+// as it reads a claim's set, and lowering reads it as its body.
+const LoopInvariantProven = "a loop's invariant, proven"
+
+// IsProvenInvariant says whether t is a decided invariant's mark.
+func IsProvenInvariant(t *Term) bool {
+	return IsRequireWhere(t) && t.Kids[1].Kind == KStr && t.Kids[1].Str == LoopInvariantProven
+}
+
+// IsInvariantMark says whether t is an invariant's mark, decided or not.
+func IsInvariantMark(t *Term) bool {
+	return IsRequireWhere(t) && t.Kids[1].Kind == KStr && t.Kids[2].Kind == KFn &&
+		(t.Kids[1].Str == LoopInvariantDef || t.Kids[1].Str == LoopInvariantProven)
 }
 
 // matchArm is a match arm's guard, its patterns' tests conjoined with its

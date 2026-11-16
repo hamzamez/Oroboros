@@ -366,7 +366,7 @@ faults caught in the new blocks:
 - 5: the tour's `abs` and chapter 6's `magnitude` write `-n`, and the two notes saying a name
   cannot be negated are gone;
 - 13, 14, 25: chapter 6 §6.3 shows the empty range's refusal, a constant as a range's end, and
-  a constant carrying its own claim (`limit.oro`, `no-limit.oro`, `no-empty.oro`);
+  a constant carrying its own claim (`limit.oro`, `no-limit.oro`, `no-empty.oro.txt`);
 - 15: chapter 3 §3.6 says a block's scope ends at its brace and shows the `use` a declaration
   after the blocks needs (`after-blocks.oro`, `no-after-blocks.oro`), in place of the defect's
   note;

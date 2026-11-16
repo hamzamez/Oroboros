@@ -290,14 +290,14 @@ the compiler chooses how to hold them. All five functions above take a Go `int`.
 
 **A range may not be empty**, since no call could ever supply a member:
 
-<!-- file docs/book/code/integers/no-empty.oro -->
+<!-- file docs/book/code/integers/no-empty.oro.txt -->
 ```go
 export fn nobody(n ∈ 9..0) (Int) { n }
 ```
 
-<!-- gen go docs/book/code/integers/no-empty.oro -->
+<!-- gen go docs/book/code/integers/no-empty.oro.txt -->
 ```
-gen: docs/book/code/integers/no-empty.oro: nobody: the set 9..0 is empty: no integer is at least 9 and at most 0, so no value inhabits it. Write the smaller end first
+gen: docs/book/code/integers/no-empty.oro.txt: nobody: the set 9..0 is empty: no integer is at least 9 and at most 0, so no value inhabits it. Write the smaller end first
 ```
 
 **An end may be a constant the program named**, and a constant may carry a claim of its own,

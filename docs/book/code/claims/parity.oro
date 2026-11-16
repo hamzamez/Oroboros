@@ -1,0 +1,1 @@
+export fn parity(n ∈ 0..100, t ∈ Array(Int)) (Int) where len(t) == 2 { t[n % 2] }

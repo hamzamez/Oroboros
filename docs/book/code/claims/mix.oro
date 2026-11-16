@@ -1,0 +1,5 @@
+export fn mix(a ∈ 0..10, b ∈ 5..7, c ∈ Bool) (-8..33) {
+    s = a + b
+    d = if c { s * 2 } else { 3 - a }
+    d - 1
+}

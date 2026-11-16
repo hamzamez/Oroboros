@@ -1,0 +1,1 @@
+export fn ratio(a ∈ 0..9, b ∈ 0..9) (Int) where a != b { 100 / (a - b) }

@@ -1,0 +1,1 @@
+export fn strict(a ∈ 0..100, b ∈ 0..100) (Int) where a <= b { 1000 / (b - a) }

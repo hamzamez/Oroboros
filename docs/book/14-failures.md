@@ -907,4 +907,4 @@ passes it on with one word.
 - **It costs nothing inside a program**: the variants dissolve and the early exits are plain
   returns.
 
-Next: chapter 15, Claims. How the compiler proves what a header says.
+Next: [chapter 15](15-claims.md), Claims. How the compiler proves what a header says.

@@ -1,0 +1,4 @@
+export fn gap(a ∈ 0..100, b ∈ 0..100) (0..100) where a <= b {
+    d ∈ 0..100 = b - a
+    d
+}

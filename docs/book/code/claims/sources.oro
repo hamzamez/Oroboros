@@ -1,0 +1,22 @@
+fn at(t ∈ Array(Int), i ∈ 0..len(t)-1) (Int) { t[i] }
+
+export fn third(t ∈ Array(Int)) (Int) where len(t) >= 3 { at(t, 2) }
+
+export fn either(n ∈ 0..100, t ∈ Array(Int)) (Int) where len(t) >= 51 {
+    if n > 50 { t[n - 50] } else { t[n] }
+}
+
+export fn equation(x ∈ 0..100) (Int) {
+    y = x + 1
+    z = y - x
+    array { 10, 20 }[z]
+}
+
+export fn element(t ∈ Array(0..9)) (0..18) where len(t) > 0 { t[0] * 2 }
+
+export fn counted(n ∈ 0..1000) (0..1000) {
+    loop i = 0 {
+        i < n -> again(i + 1)
+        else -> i
+    }
+}

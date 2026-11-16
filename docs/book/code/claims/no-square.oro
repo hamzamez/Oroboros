@@ -1,0 +1,1 @@
+export fn square(n ∈ -1000..1000) (r ∈ Int) ensure r >= 0 { n * n }

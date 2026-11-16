@@ -1,0 +1,3 @@
+fn at(t ∈ Array(Int), i ∈ 0..len(t)-1) (Int) { t[i] }
+
+export fn third(t ∈ Array(Int)) (Int) where len(t) >= 2 { at(t, 2) }

@@ -1,0 +1,1 @@
+export fn name(n ∈ 0..9) (String) { n }

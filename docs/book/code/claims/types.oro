@@ -1,0 +1,3 @@
+set Small = set { n ∈ Int : 0 <= n && n < 10 }
+
+export fn twice(n ∈ Small) (0..18) { n + n }

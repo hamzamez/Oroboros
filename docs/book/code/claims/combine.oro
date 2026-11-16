@@ -1,0 +1,5 @@
+export fn combine(x ∈ 0..100, y ∈ 0..100, t ∈ Array(Int)) (Int) where 2 * x + 3 * y < len(t) {
+    t[x + y]
+}
+
+export fn strict(a ∈ 0..100, b ∈ 0..100) (Int) where a < b { 1000 / (b - a) }

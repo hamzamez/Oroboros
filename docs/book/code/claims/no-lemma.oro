@@ -1,0 +1,4 @@
+export fn total(n ∈ 0..100, m ∈ 0..100) (Int) {
+    s ∈ 0..150 = n + m
+    s
+}

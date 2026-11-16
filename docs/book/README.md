@@ -30,7 +30,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 13 | [State](13-state.md) | `var`, buffers, maps; why a table never changes under you | J; 45 blocks checked 2026-11-16 |
 | 14 | [Failures](14-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 42 blocks checked 2026-11-16 |
 | | **IV. Claims and hosts** | | |
-| 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | **the notation J replaced**, and its examples did not run even in it; see its banner |
+| 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 49 blocks checked 2026-11-16 |
 | 16 | Targets | host modules, writing a declaration, portability computed | not written |
 | 17 | A whole program | one real program read line by line | not written |
 
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12, fifteen in chapter 13 and thirteen in chapter 14, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12, fifteen in chapter 13, thirteen in chapter 14 and thirteen in chapter 15, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -616,6 +616,40 @@ Teaching: `expect`'s crash is shown on windows, where the output is the reason a
 JavaScript's carry a stack trace with temporary paths, so they are shown as emitted code.
 `examples/errors/` already held `discard`, `ignore` and `expect`; the chapter's are its own.
 
+Chapter 15, Claims (2026-11-16), rewritten in J from nothing (the old chapter, in the notation
+J replaced and with no running example, is in git at `98ff798`). It found five, none fixed:
+
+80. **A binder's claim with a variable end is not checked.** `k ∈ 0..n = i` with `i ∈ Int`
+    compiles and returns `i`. `where lo <= hi { m ∈ lo..hi-1 = lo + (hi - lo) / 2; m }` compiles,
+    and the claim is false at `lo == hi`. With constant ends the same construct is checked and
+    refused properly (*the claim s ∈ 0..150 is not proven: n + m <= 150 does not follow*). The
+    dropped claim is not used as a fact either (`t[k]` after `k ∈ 0..len(t)-1 = i` is still
+    refused), so no access is wrongly proven; what is lost is that a false statement in the
+    source is accepted without a word. In a function with no header sets the same claim is
+    *build: not in normal form for target "go": int*.
+81. **A binder's claim on a name nothing reads is not checked**: `k ∈ 0..5 = n; 0` and
+    `s ∈ String = n; 0` compile, with `n ∈ 0..100`. The family of item 45.
+82. **A result's claim and a binder's claim are decided by different procedures.**
+    `(0..100) where a <= b { b - a }` is refused, *its result is [-100, 100]* (intervals alone;
+    `(Nat)` likewise), and `d ∈ 0..100 = b - a; d` under the same header is proven by the
+    refinement layer and then satisfies the same result claim. The chapter teaches the binder
+    as the way to carry a relational fact to a result, which is a workaround presented as a
+    technique.
+83. **Three facts the layer does not have**, each shown refused in §15.8: `n mod 2 >= 0`
+    (`mod` is defined as never negative, integers.md; `n % 2` on a non-negative `n` is
+    proven); `a - b != 0` from `where a != b`, with *assumed ne(a,b)* printed among the known
+    facts (refinements.md §3c covers a disequality beside an order); `n * n >= 0`.
+84. **Messages.** A union of ranges at a parameter, `n ∈ 0..9 ∪ 20..29`: *sets takes a ∪(int 0
+    9, int 20 29). A variant type crosses a boundary as a RESULT today; as a parameter it is
+    not built*. An index through a claimed binder prints the core's `the`: *t[the("int 0
+    999999", r * w)] is an indexing*. The `known:` line prints `+ +1` and `+ -100`; the chapter
+    teaches the reader to read it as it is.
+
+Teaching: `cmd/intervals` is named in one sentence and not shown, since `check.go` has no
+directive for it and it prints only what it could not bound. The chapter has no run block:
+every example is a `gen`, because its subject is what the compiler decides, and a proven
+claim leaves nothing to run.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -639,7 +673,9 @@ chapter 13's is `=` against `:=`, static single assignment, aliasing as the bug 
 removes, gather against scatter, insertion sort, and Eratosthenes' sieve; chapter 14's is the
 three older answers to failure (a sentinel, a flag, an exception) and Ariane 501, the exception
 monad said as "the first stop wins", relevance as chapter 5's no-dropping rule on a value, and
-Erlang's let-it-crash as the case for `expect`.
+Erlang's let-it-crash as the case for `expect`; chapter 15's is testing, typing and proving as
+three kinds of knowledge, Fourier–Motzkin elimination by adding inequalities, invariants, and
+sound against complete with Presburger, Matiyasevich and Rice as the reason for the wall.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

@@ -1,700 +1,858 @@
 # 15. Claims
 
-> **This chapter is in the notation J replaced** (git `1e2bdcd`), and its section numbers and
-> cross-references are the old order's. It was chapter 5, "Types", until the book was reordered
-> (2026-11-15), and is rewritten when its turn comes ([README](README.md)).
+Since chapter 6 this book has leaned on one sentence: *the compiler proves it, or refuses the
+program.* An addition fits the word. A divisor is not zero. A position is inside its table. A
+rounding lands in its set. A string has no zero in it. Each time the text said "proven" and
+moved on, and each refusal ended with a line beginning `known:` that was never explained.
 
-> ## ⚠ Status, 2026-10-06: this chapter's examples do not run
+This chapter opens the box. The question is: **when the compiler says "proven" or "does not
+follow", what did it actually do, and what can you do when it is wrong to refuse?**
+
+The answer is three sentences.
+
+> **Every claim becomes an obligation**: a statement that must be true at one place in the
+> program, for every input the headers allow.
 >
-> Every example below is written against the **portable layer** — `num/f64`, `num/int`, `logic.and`,
-> `aindex`, `alen`, `fold-range`. That layer was **deleted**
-> ([portable-2026-09-29](../../gauntlet/results/portable-2026-09-29.md)), and `fold-range` is gone
-> from the Go target too, where `loop` subsumes it
-> ([targets/go/go.oro](../../targets/go/go.oro)). So the fifty-odd fragments here name things no
-> target provides, and each one is refused before the checker this chapter is about ever runs:
+> **The compiler gathers facts and tries two methods**: intervals, which track the range of
+> each value, and linear arithmetic, which combines facts like `i < n` and `n <= len`.
 >
-> ```
-> gen: in main: num/f64.add is not bound — it is not a parameter, not a definition,
->      and not a primitive on this target
->   (use num/f64) matched no file on the search path and this target provides no
->   module num/f64 either, so every name from it is unbound. Check the path.
-> ```
->
-> **Everything the chapter says about the checker is still true** — the type rules, the two
-> directions of a `sig`, the refinement layer, Presburger, what does and does not transfer. What is
-> stale is the *spelling* of every example. §5.1's opening program, written against today's targets,
-> is this:
->
-> ```lisp
-> (use io)
-> (export main)
-> (def main () (io.print-line (+ "hello" 1)))
-> ```
->
-> ```bash
-> go run ./cmd/gen -path lib FILE.oro go OUT.go
-> ```
->
-> ```
-> gen: u-main: in argument 1 of io.print-line: in argument 1 of +:
->      a string literal is string, but int is required here
-> ```
->
-> — the same refusal, from the same checker, and identical on Go, JavaScript and Java. Rewriting the
-> rest against `loop`, the language's `+ - * / < =` and `go.*` is a job of its own, because several
-> examples' *outputs* change with them and each needs re-measuring. Until then, read this chapter
-> for what the checker does and not for what to type.
->
-> This banner is here rather than nothing because a stale document that looks current is worse than
-> one that says so ([CLAUDE.md](../../CLAUDE.md)).
+> **It never accepts a false claim, and it sometimes refuses a true one.** When it does, you
+> tell it more.
 
-Four chapters in, and nothing has had a type. `fn` takes any argument, `def` names any term, β and
-δ never ask what anything is. That was not an oversight — the calculus genuinely does not need
-types to reduce.
+Along the way: three ways of knowing a program is right and what each is worth, a method for
+solving inequalities that is two hundred years old, the theorem that says where every such
+checker must stop, and a way to ask the compiler what it knows.
 
-This chapter is about the checker that exists anyway, and it starts from an uncomfortable place:
-**for most of this project's life, whether a type error was caught depended on which target you
-compiled for.** Not "was caught late". Was caught *at all*.
-
-Two things about it are unusual enough to say up front:
-
-- **It is not in the language.** No annotations on `fn`, no types on terms. It runs after
-  reduction, over the residual, and the language has no idea it is there.
-- **It checks a claim in two directions**, and one of those directions is a job no host compiler
-  can do, because the two things being compared live on different targets.
-
-Everything below runs. Chapters 1–4 used `oro`, which only reduces; a type checker exists at the
-*emission* boundary, so this chapter uses the commands that emit:
-
-```bash
-go run ./cmd/gen -path lib FILE.oro go OUT.go
-go run ./cmd/build -target=go -o prog FILE.oro
-```
-
-Later fragments show only the lines under discussion; each still needs its `(use num/f64)`,
-`(use num/int)` and so on, exactly as [chapter 3](03-modules.md) requires.
-
-That change of command is itself the first lesson. There is no `oro -typecheck`, because until you
-are emitting there is nothing a type is *for*.
+The examples are in [code/claims/](code/claims/). `go run docs/book/check.go
+docs/book/15-claims.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 5.1 The measurement that made the case
-
-```lisp
-(use num/f64)
-(use io)
-(export main)
-(def main (fn () (io.print-line (f64.add "hello" 1.0))))
-```
-
-Adding a string to a float. Reduction is perfectly happy:
-
-```bash
-go run ./cmd/oro -target=go FILE.oro
-```
-
-```lisp
-main =
-(fn () (io.print-line (num/f64.add "hello" 1.0)))
-```
-
-Of course it is — β and δ are untyped, and `num/f64.add` is just a name reduction stops on. Now
-emit it, on each of the three targets, *before this checker existed*:
-
-| | |
-|---|---|
-| Go | build fails, with the error pointing at **generated** code |
-| Java | build fails |
-| **JavaScript** | **builds, runs, prints `hello1`** |
-
-Three targets, three different amounts of safety, from one source file. That is the exact opposite
-of what this project claims to sell, and it is the whole argument for a checker of our own — a
-**measurement**, not a principle. There is no host to delegate to when one of your hosts is
-JavaScript.
-
-Today, all three say the same thing:
-
-```
-gen: gen-main: in argument 1 of io.print-line: in argument 1 of num/f64.add:
-     a string literal is string, but f64 is required here
-```
-
-One checker, three targets, including the one with no type layer at all. There are **four** backends
-now — `windows` joined them, and it prints x86-64 assembly with no type layer whatsoever
-([ADR 0032](../decisions/0032-the-ir-is-structured-ssa.md)) — and it does not appear in the table
-above only because it has no `io` to print with. The argument is unchanged and stronger: of four
-hosts, exactly one would have caught this for us.
-
-> A bug from building it is worth recording. The first version skipped `KFn`, reasoning that a bare
-> abstraction is an escaping closure the emitter rejects anyway. But **the top-level term of every
-> residual is an abstraction** — so it checked nothing, and passed the very program it was written
-> for. A checker that accepts everything is indistinguishable from a correct one until you have a
-> case it must reject.
-
-## 5.2 What is checked: the residual
-
-> **The residual, before emission.** Not the source.
-
-This is the choice that makes the whole thing small, and it is worth seeing why.
-
-By the time reduction finishes, the term is:
-
-- **monomorphic** — every generic definition has been specialised by β and δ. Chapter 3's
-  `accumulate` instantiated at `+` and at `*` produced two *different residuals*, each with one
-  arithmetic in it. There is no polymorphism left to check.
-- **first-order** — every backend refuses an escaping closure, so no function is being passed
-  around at runtime.
-- **closed** — every name is a parameter, a primitive, or gone.
-
-So the checker needs **no type schemes, no generalisation, and no unification**. It is a walk. The
-whole of Hindley–Milner — the algorithm every ML-family language is built on — exists to handle
-exactly the three things reduction has already removed.
-
-That is not a claim that types are easy. It is a claim about *where* we put the checker: after the
-hard part has already been done for a different reason.
-
-## 5.3 The judgement, in one table
-
-A type is one of the target's declared type names, or **unknown**.
-
-```
-type(integer literal)  = int
-type(float literal)    = f64
-type(string literal)   = string
-type(name)             = whatever has been demanded of it, or unknown
-type((p a…))           = p's declared result type
-```
-
-At every primitive application each argument is **demanded** to have the primitive's declared
-argument type. Four cases:
-
-| the argument's type | what happens |
-|---|---|
-| equal to the demand | fine |
-| **unknown**, and it is a name | the name is **bound** to the demand — this is the inference half |
-| unknown, otherwise | fine; nothing learned |
-| a **different** concrete type | **error** |
-
-Two parameters typed purely by use:
-
-```lisp
-(use num/f64)
-(export f)
-(def f (fn (a b) (f64.add a b)))
-```
-
-```
-wrote out.go
-```
-
-`a` and `b` were unknown; `num/f64.add` demanded `f64` of both; both are now `f64`. No annotation
-anywhere.
-
-Demand the same name twice, differently, and the second demand is the error:
-
-```lisp
-(use num/f64)
-(use num/int)
-(export f)
-(def f (fn (a) (f64.add a (int.add a 1))))
-```
-
-```
-gen-f: in argument 2 of num/f64.add: in argument 1 of num/int.add:
-       a is f64, but int is required here
-```
-
-> **Inference and checking are the same walk.** The emitters had always inferred this way and kept
-> the first answer they found. The only change the checker makes is that a second, *different*
-> answer is an error instead of being quietly discarded.
-
-There is **no implicit conversion**:
-
-```lisp
-(def f (fn (a) (f64.add a 1)))     ;; an integer literal is int, but f64 is required here
-(def f (fn (a) (f64.add a 1.0)))   ;; fine
-```
-
-`1` and `1.0` are different literals of different types, in a language where
-[compile-time arithmetic must be bit-identical to runtime](../decisions/0009-staging-preserves-results.md).
-Silent numeric coercion is exactly how that promise gets broken.
-
-And `any` demands nothing, so it never conflicts and never binds:
-
-```lisp
-(use io)
-(export f)
-(def f (fn (a) (io.print-line a)))
-```
-
-```
-wrote out.go
-```
-
-## 5.4 The structural primitives
-
-`if`, `fold-range`, `let` and `make-vec` are implemented in the backend rather than declared in a
-target file ([chapter 3](03-modules.md) explained why targets are data — these are the exception),
-so the checker knows their types the same way the emitter does.
-
-**A conditional's branches must agree:**
-
-```lisp
-(def f (fn (a b) (if (f64.gt a b) a 1)))
-```
-
-```
-gen-f: the branches of a conditional are f64 and int
-```
-
-**And its condition must be `bool`:**
-
-```lisp
-(def f (fn (a b) (if 1.0 a b)))
-```
-
-```
-gen-f: in a condition: a float literal is f64, but bool is required here
-```
-
-**A loop's bound is `int`, its index is `int`, and its body must match its accumulator:**
-
-```lisp
-(def f (fn (n) (fold-range 0.0 n (fn (acc i) (f64.add acc i)))))
-```
-
-```
-gen-f: in a loop body: in argument 2 of num/f64.add: i is int, but f64 is required here
-```
-
-The accumulator starts at `0.0`, so the body must produce `f64`; `i` is the index, so it is `int`.
-Both facts come from the loop itself, not from any table.
-
-## 5.5 `sig` — a claim, checked in two directions
-
-Everything so far was inferred. `sig` is the one place you *state* something:
-
-```lisp
-(sig dot ((p vec-f64) (q vec-f64)) f64)
-```
-
-It attaches to a definition, and it is checked against **both** implementations of that name.
-
-### Direction one — against the definition
-
-```lisp
-(use num/f64)
-(export f)
-(sig f ((a vec-f64) (b vec-f64)) int)
-(def f (fn (a b) (f64.mul (aindex a 0) (aindex b 0))))
-```
-
-```
-gen: f: num/f64.mul is f64, but int is required here
-```
-
-The parameters take their declared types and the body must produce the declared result. Arity is
-checked too:
-
-```lisp
-(sig f ((a vec-f64)) f64)
-(def f (fn (a b) (f64.add (aindex a 0) (aindex b 0))))
-```
-
-```
-gen: f takes 2 argument(s), but its signature declares 1
-```
-
-### Direction two — against the target
-
-This is the interesting one.
-
-[examples/dot.oro](../../examples/dot.oro) declares `(sig dot ((p vec-f64) (q vec-f64)) f64 …)` and
-defines `dot` in terms of `num/vec.dot`. On a plain target, `num/vec.dot` is the library's
-definition and unfolds into a loop. On `blas` it is a **primitive the target provides**, declared
-in `targets/blas.oro`:
-
-```lisp
-(module num/vec
-  (prim dot (vec-f64 vec-f64) f64 expr "cblas_ddot(%s.n, %s, 1, %s, 1)" pure))
-```
-
-Break that declaration — change `vec-f64` to `int` in the target file — and:
-
-```
-gen: num/vec.dot: argument 2 is int in target blas, but vec-f64 in its signature
-```
-
-**No host compiler can produce that message.** The library's definition and the target's native
-declaration are two implementations of one claim, and they live on *different targets*. A Go
-compiler sees the Go one. A C compiler sees `cblas_ddot`. Nothing sees both — except the compiler
-that owns the substitution, which is this one.
-
-That is chapter 3's four cells becoming machine-checked. Until this existed, the only evidence
-that a target's native implementation agreed with the library's was a conformance suite that ran
-the code — and [chapter 3 §3.10](03-modules.md)'s whole mechanism rests on them agreeing.
-
-### Parameters are named, and it matters
-
-```lisp
-(sig dot ((p vec-f64) (q vec-f64)) f64)     ;; not (vec-f64 vec-f64)
-```
-
-Names were added before anything read them, because a refinement attaches to a **name** —
-`(where (int.eq (alen p) (alen q)))` — and adding names later would change the one thing that
-cannot be taken back. §5.7 is what they are for.
-
-### And the claim is used, not just checked
-
-```lisp
-(use num/f64)
-(export f)
-(sig f ((n int)) f64)
-(def f (fn (n) (fold-range 0.0 n (fn (acc i) (f64.add acc 1.0)))))
-```
-
-```go
-func GenF(n int64) float64 {
-	acc := 0.0
-	var n1 int64 = n
-	for i := int64(0); i < n1; i++ {
-		acc = (acc + 1.0)
-	}
-	return acc
-}
-```
-
-Drop the `sig` and the same program does not compile:
-
-```
-gen: cannot determine a Go type for parameter "n"; it is never passed to a primitive
-     whose signature would fix it
-```
-
-`n` is used only as a loop bound, and a loop is a structural primitive with no table entry, so use
-alone never types it. This is the shape a signature exists for — and until this chapter was
-written, the signature was **checked and then thrown away**: the compiler verified the claim and
-then refused the program anyway. Two inference passes, and only one of them had been told.
-
-## 5.6 What it deliberately does not do
-
-- **No polymorphism.** The residual has none left. The *source* does — chapter 3's `accumulate` is
-  genuinely generic — and checking source would need the whole ML machine. We check after
-  specialisation instead, which is why one instantiation being wrong is caught and the general
-  definition is never typed at all.
-- **No inference of function types.** There are no function types; there are no functions left.
-- **No proofs.** §5.7 checks refinements; it does not carry evidence.
-- **Nothing in the language.** You cannot annotate a `fn`. `sig` attaches to a definition and is
-  the entire surface.
-
-And one rule the checker had to satisfy before it could ship, which is more interesting than the
-negative tests:
-
-> **It must reject nothing that was already correct.** Every example, every gauntlet program, every
-> generated file, unchanged.
-
-That held — and it was a live risk, because a target file is a *claim* about a host and this
-project has had three false ones: `fold-range`'s declared type was wrong for months, `stmt`'s
-result type was never implemented, and `loop2`'s was right only by luck. A checker is also a test
-of the target files.
+## 15.1 Three ways of knowing
+
+How do you know a function is right?
+
+**You can test it.** Run it on some inputs and look. Every working programmer does, and it
+catches a great deal. Its limit was put in one sentence by Edsger Dijkstra in 1969: *testing
+shows the presence of bugs, never their absence.* A function with two 64-bit parameters has
+more possible inputs than there are atoms in a mountain. You tried twelve.
+
+**You can give it a type.** Say `n` is an `int` and `s` is a `string`, and the compiler
+refuses `n + s` for every input at once, without running anything. That is knowledge of a
+different kind: about *all* inputs. Its limit is that the statements are coarse. "This is an
+integer" does not say "this is a valid position in that table", and the bugs that hurt are
+of the second kind.
+
+**You can prove it.** State exactly what must hold, `0 <= i < len(t)`, and show it follows
+from what is known. This is as strong as a type and as fine as you like. Its limit is that
+proofs are work, and that some true things are hard to prove.
+
+This language's bet is that the third kind can be made nearly as cheap as the second, for
+the statements that matter most in ordinary programs, if the compiler does the proving and
+the statements are kept to a kind it is good at. That kind is what this chapter describes.
 
 ---
 
-## 5.7 Refinements: the type that carries a proposition
+## 15.2 What gets proven
 
-Now the other half, and the part with the war story.
+Here is every obligation this book has met, in one table. Each row is something that must
+be true at a particular place, and each was a refusal you have seen.
 
-A type says `int`. A **refinement** says `int, and it is in bounds`:
+| where | what must hold | chapter |
+|---|---|---|
+| `a + b`, `a * b`, `a - b` | the result fits the target's word | 6 |
+| `a / b`, `a % b` | `b` is not zero | 6 |
+| `a << k`, `a >> k` | `k` is not negative | 7 |
+| a result declared `(S)` | the body's value is in `S` | 6 |
+| `ensure ψ` | ψ holds of the result | 6 |
+| a call `f(e)` where `f(x ∈ S)` | `e` is in `S` | 6 |
+| a call of `f … where φ` | φ holds of the arguments | 6 |
+| `round(S, e)` | the rounded value is in `S` | 8 |
+| `round(F64, x + y)` | the sum is within the doubles' range | 8 |
+| `string_of(n)` | `n` is a scalar value | 9 |
+| a call needing `nulfree(s)` | `s` has no character 0 | 9 |
+| `t[i]` | `0 <= i` and `i < len(t)` | 12 |
+| `x ∈ S = e` | `e` is in `S` | this chapter |
 
-```lisp
-(prim aindex ((v vec-f64) (i int)) f64 expr "%s[%s]" pure index
-  (where (logic.and (int.le 0 i) (int.lt i (alen v)))))
-```
+They look different and are one thing. Each is a *formula*, a statement that is true or
+false, about the values at that point. An **obligation** is a formula the compiler must show
+to be true there, whatever the inputs. If it can, the program is accepted and the formula is
+thrown away: nothing of it reaches the emitted code. If it cannot, the program is refused,
+and the message names the formula.
 
-That is `targets/go.oro`. Reading an array is Tier 1 — portable, same meaning everywhere — **only
-within bounds**. Outside them, Go panics, Java throws, and **JavaScript silently returns
-`undefined`**. It is the one place in the language where a portable primitive is portable
-*conditionally*, and the condition was unchecked.
+Where a claim is checked depends on which side of it you are on:
 
-### The obligation, discharged
-
-```lisp
-(use num/f64)
-(export f)
-(sig f ((a vec-f64)) f64)
-(def f (fn (a) (fold-range 0.0 (alen a) (fn (acc i) (f64.add acc (aindex a i))))))
-```
-
-```
-wrote out.go
-```
-
-The loop is bounded by `(alen a)`, so `0 ≤ i` and `i < alen a`, so `(aindex a i)` is in bounds. The
-facts come from the loop, and the loop was already there.
-
-### The obligation, not discharged
-
-```lisp
-(sig f ((a vec-f64) (k int)) f64)
-(def f (fn (a k) (aindex a k)))
-```
-
-```
-gen-f: aindex requires -k <= 0, which does not follow
-  known: nothing
-```
-
-`k` is any integer. Nothing says it is in bounds, and the checker will not pretend otherwise. Say
-it and the program compiles:
-
-```lisp
-(sig f ((a vec-f64) (k int)) f64
-  (where (logic.and (int.le 0 k) (int.lt k (alen a)))))
-(def f (fn (a k) (aindex a k)))
-```
-
-```
-wrote out.go
-```
-
-The obligation moved to the caller, which is what a precondition is.
-
-### The bug it found
-
-This is the one worth the whole feature. Here is a dot product — two arrays, one loop:
-
-```lisp
-(use num/f64)
-(export f)
-(sig f ((a vec-f64) (b vec-f64)) f64)
-(def f (fn (a b)
-  (fold-range 0.0 (alen a) (fn (acc i) (f64.add acc (f64.mul (aindex a i) (aindex b i)))))))
-```
-
-```
-gen-f: aindex requires -alen(b) + i + +1 <= 0, which does not follow
-  known: 0 <= i, i < alen(a)
-```
-
-Read the `known:` line. We know `i < alen a`. We are indexing **`b`**. Nothing relates the two
-lengths.
-
-**This was a real, latent bug in this repository**, in `dot` and in `centroid`, written by someone
-who knew exactly what they were doing and never noticed. Pass two arrays of different lengths and
-you get a panic on Go, an exception on Java, and `undefined` quietly poisoning an arithmetic result
-on JavaScript.
-
-The fix is one line, and it is the reason parameters are named:
-
-```lisp
-(sig f ((a vec-f64) (b vec-f64)) f64
-  (where (int.eq (alen a) (alen b))))
-```
-
-```
-wrote out.go
-```
-
-`(alen a) = (alen b)` is recorded as a *substitution*, so the obligation about `b` is discharged by
-the fact about `a`. [examples/dot.oro](../../examples/dot.oro) carries that clause today, and its
-comment says why.
-
-The same shape catches a window walking off the end:
-
-```lisp
-(def f (fn (a) (fold-range 0.0 (alen a) (fn (acc i) (f64.add acc (aindex a (int.add i 1)))))))
-```
-
-```
-gen-f: aindex requires -alen(a) + i + +2 <= 0, which does not follow
-  known: 0 <= i, i < alen(a)
-```
-
-Bound the loop correctly — `(int.sub (alen a) 2)` — and `i + 2 < alen a` follows. That is
-[examples/smooth.oro](../../examples/smooth.oro)'s stencil, and it passes.
-
-### Where facts come from
-
-There are only five sources, and none of them is a proof you have to write:
-
-| | fact |
-|---|---|
-| `(fold-range z n f)` binding `i` | `0 ≤ i`, `i < n` |
-| `(make-vec n f)` binding `i` | `0 ≤ i`, `i < n` |
-| a `let` binding `x` to a linear `e` | `x = e` |
-| the enclosing `sig`'s own `where` | assumed |
-| `alen`, `slen` | `0 ≤ alen v` |
-
-The last is free and worth having: a length is never negative on any target.
-
-## 5.8 Classify, do not restrict
-
-The decidable fragment is **linear integer arithmetic over difference constraints**, which is what
-every bounds obligation actually is. So what happens when you write something outside it?
-
-Not a syntax error:
-
-> **Any boolean term may appear in a `where`. A term inside the fragment is *proven*. A term
-> outside it is an *opaque atom* — propagated and matched by name, never decided.**
-
-```lisp
-(sig f ((a vec-f64) (k int)) f64
-  (where (ascii? k)))
-(def f (fn (a k) (aindex a k)))
-```
-
-```
-gen-f: aindex requires -k <= 0, which does not follow
-  known: assumed (ascii? k)
-```
-
-The assumption is *kept and reported* — it just cannot decide a linear obligation, so the program
-is refused. It is never assumed true, and it never silently discharges anything.
-
-Three consequences, all wanted: nothing is rejected for being too expressive; it is always sound;
-and the fragment can grow later without any program changing.
-
-> Until this chapter, that assumption was **dropped**, and the diagnostic said `known: nothing`
-> while the source plainly declared a `where`. The spec said "propagated and matched by name"; the
-> code recognised the linear shapes and silently returned for everything else. Writing down what a
-> system does is not the same as it doing it.
-
-There is also **no predicate syntax**. A refinement is an ordinary boolean term — the predicate
-language is a *fragment of the term language*. `logic.and`, `int.le`, `int.eq` are the same names
-a program uses. That is why nothing had to be added to the reader for any of this.
-
-### Deliberately incomplete
-
-The entailment check is not Fourier–Motzkin and is not an SMT solver. Facts are normalised to
-`e ≤ 0`; an obligation is discharged if, after substituting known equalities, a *single* fact
-implies it.
-
-That is much weaker than the literature. **Presburger arithmetic** — integer linear arithmetic with
-quantifiers — is decidable, a result from 1929, and there are excellent solvers for it. Liquid
-Types (Rondon, Kawaguchi & Jhala, 2008) go further and *infer* refinements by Horn-clause fixpoint;
-Dependent ML and F\* go further still.
-
-We take almost none of it, on purpose:
-
-- **Incomplete is safe here** because an undischarged obligation is **reported, never assumed**. The
-  failure mode of a weak solver is a false alarm you fix by writing a `where`. The failure mode of
-  an unsound one is a silent `undefined` on JavaScript.
-- **No refinement inference.** A `where` is declared, never guessed. Liquid Types' fixpoint is a
-  much larger machine and no program here has asked for it.
-- **No quantifiers.** `∀i. a[i] > 0` is a whole-array property; every obligation this language
-  generates is per-index.
-- **No non-linear arithmetic.** Undecidable over the integers — Hilbert's tenth problem — and
-  nothing needs it.
-
-The rule is: build the smallest thing that decides the obligations this language actually
-generates, and make being wrong about the boundary *safe*.
-
-### One thing that is opaque by necessity
-
-`num/f64.eq` is not usable as an equality fact, and not for want of effort. **IEEE-754 equality is
-not reflexive** — `NaN ≠ NaN` — so it is not an equivalence relation, and a solver that treated it
-as one would be unsound about float comparisons in a language whose
-[staging rules](../decisions/0009-staging-preserves-results.md) are built on IEEE semantics being
-exact. It is an opaque atom forever.
+- A function's **parameter sets and `where`** are obligations at every place it is *called*,
+  and facts *inside* its body.
+- Its **result set and `ensure`** are obligations inside its body, and facts for its callers.
+- For an **exported** function the caller is outside the program, where nothing can be
+  checked. So an export's parameter claims are simply assumed, and they are the program's
+  statement to the outside world of what it accepts.
 
 ---
 
-## 5.9 The measurement that limits all of this
+## 15.3 The first method: intervals
 
-A closing result, because it is the one that decides how much a type system here can ever be worth.
+Chapter 6 introduced this, and it is worth doing once slowly. For every value in the program
+the compiler keeps the smallest and largest it could be.
 
-You might expect proving `i` in bounds to *remove* the bounds check. It does not:
-
-> **Our proofs do not transfer.** We emit host source. Go's bounds-check elimination runs on Go's
-> own analysis and has never heard of us. A theorem in our checker removes exactly zero
-> instructions.
-
-The only thing that works is emitting a **shape the host re-proves for itself**:
-
+<!-- file docs/book/code/claims/mix.oro -->
 ```go
-func GenDot(p []float64, q []float64) float64 {
-	acc := 0.0
-	var n1 int64 = (int64(len(p)))
-	p = p[:n1]        // ← this
-	q = q[:n1]        // ← and this
-	for i := int64(0); i < n1; i++ {
-		acc = (acc + ((p[i]) * (q[i])))
-	}
-	return acc
+export fn mix(a ∈ 0..10, b ∈ 5..7, c ∈ Bool) (-8..33) {
+    s = a + b
+    d = if c { s * 2 } else { 3 - a }
+    d - 1
 }
 ```
 
-Two assignments, and Go's own BCE now proves what we already knew. **Worth 1.96× on compute-bound
-loops — and nothing at all on memory-bound ones**, which is the condition an earlier write-up left
-off and which matters more than the number.
-
-Three things about that are worth carrying away.
-
-**It needed no types.** The pattern is declared as data — one `(narrow "%s = %s[:%s]")` line in
-`targets/go.oro`, plus `index` on `aindex` — and a target that declares no `narrow` gets no
-transformation. Which is correct for JavaScript (no bounds checks to remove):
-
-```javascript
-export function genDot(p, q) {
-	let acc = 0;
-	const n1 = (p.length);
-	for (let i = 0; i < n1; i++) {
-		acc = (acc + ((p[i]) * (q[i])));
-	}
-	return acc;
-}
+<!-- gen go docs/book/code/claims/mix.oro -->
+```
+note: claims-mix: 4 of 4 integer operations bounded; 0 of 0 loop(s) proven terminating
 ```
 
-**It is conservative by construction.** A container is narrowed only if *every* occurrence of it in
-the loop body is indexed by the bare loop variable. The stencil indexes `a` at `i`, `i+1`, `i+2`,
-so `a` is left alone — correctly, since `a = a[:n]` would break `a[i+2]`:
+Follow it by hand:
 
+| value | reasoning | interval |
+|---|---|---|
+| `a` | its header | 0..10 |
+| `b` | its header | 5..7 |
+| `s = a + b` | smallest plus smallest, largest plus largest | 5..17 |
+| `s * 2` | both ends doubled | 10..34 |
+| `3 - a` | 3 minus the *largest* `a`, 3 minus the *smallest* | −7..3 |
+| `d` | either branch: the smallest of both, the largest of both | −7..34 |
+| `d - 1` | | −8..33 |
+
+and −8..33 is what the header claims, so the claim holds. Each operation has a small rule
+for how intervals pass through it. Subtraction crosses the ends over. An `if` takes the
+*union* of its branches, because the compiler does not know which one runs. A condition
+narrows: inside `if n < 10 { … }`, the interval of `n` is cut off at 9.
+
+Intervals are fast, simple and good enough for most of the arithmetic obligations in a
+program: "does it fit the word" is a question about how big a value can get, and that is
+what an interval records. The count in the note line, *4 of 4 integer operations bounded*,
+is intervals at work. (`go run ./cmd/intervals -v FILE TARGET` prints that count for a file,
+with every operation it could not bound.)
+
+They have one blind spot, and it is a large one. **An interval describes each value alone.**
+It cannot record that two values are related.
+
+<!-- file docs/book/code/claims/no-gap.oro -->
 ```go
-func GenSmooth(a []float64) []float64 {
-	var n1 int64 = ((int64(len(a))) - 2)
-	v2 := make([]float64, n1)
-	for i := int64(0); i < n1; i++ {
-		v2[i] = ((((a[i]) + (a[(i + 1)])) + (a[(i + 2)])) / 3.0)
-	}
-	return v2
+export fn gap(a ∈ 0..100, b ∈ 0..100) (0..100) where a <= b { b - a }
+```
+
+<!-- gen go docs/book/code/claims/no-gap.oro -->
+```
+gen: gap: the body does not establish 0 <= result && result <= 100; its result is [-100, 100]
+```
+
+`b - a`, with `a <= b`, is plainly between 0 and 100. But as intervals, `b` is 0..100 and
+`a` is 0..100, and 0..100 minus 0..100 is −100..100: the smallest `b` minus the largest `a`.
+The fact that makes the claim true, `a <= b`, is a relation *between* the two, and an
+interval has nowhere to put it. A function's result claim is decided by intervals, so this
+one is refused.
+
+---
+
+## 15.4 The second method: facts
+
+For relations the compiler keeps a second thing: a list of **facts**, formulas known to be
+true at a point. Here is the same function, with the claim moved onto a binding:
+
+<!-- file docs/book/code/claims/gap.oro -->
+```go
+export fn gap(a ∈ 0..100, b ∈ 0..100) (0..100) where a <= b {
+    d ∈ 0..100 = b - a
+    d
 }
 ```
 
-**And it settles what the refinement checker is for.** Not speed — the speed was already collected
-without types. The checker is a **correctness deliverable**: it closes the hole where a Tier 1
-primitive was Tier 1 only conditionally, and it found a live bug in two programs on its first run.
+<!-- gen go docs/book/code/claims/gap.oro -->
+```go
+func ClaimsGap(v0 int, v1 int) int {
+    v31 := (v1 - v0)
+    return v31
+}
+```
 
-The general principle is worth more than the number:
+`d ∈ 0..100 = b - a` is a binding with a claim: *`d` is `b - a`, and I say it is in 0..100.*
+A claim on a binding is decided by the second method, which can use `a <= b`. It is proven,
+`d` is then known to be in 0..100, and the result claim follows. (Section 15.6 is about this
+construct.)
 
-> **A proof you can state and no host can re-derive is decoration.** On a compiler that emits
-> source, the useful theorem is the one you can shape the output around.
+Take the `where` away to see what the compiler was working with:
 
-Still open, and named rather than hidden: the *other* refinement-shaped hole. `int` is exact within
-±(2⁵³−1), and outside it Go and the JVM wrap while **JavaScript silently rounds**. Closing that
-needs integer literals to carry ranges, which touches every arithmetic primitive.
-[One hole at a time.](../spec/refinements.md)
+<!-- file docs/book/code/claims/no-gap-fact.oro -->
+```go
+export fn gap(a ∈ 0..100, b ∈ 0..100) (0..100) {
+    d ∈ 0..100 = b - a
+    d
+}
+```
+
+<!-- gen go docs/book/code/claims/no-gap-fact.oro -->
+```
+gen: claims-gap: the claim d ∈ 0..100 is not proven: 0 <= b - a does not follow
+  known: assumed -a <= 0, assumed a + -100 <= 0, assumed -b <= 0, assumed b + -100 <= 0
+```
+
+That is the `known:` line, and now it can be read. It lists the facts in force, each
+rewritten into one standard shape, *something `<= 0`*:
+
+| as printed | as you would write it | from |
+|---|---|---|
+| `-a <= 0` | `0 <= a` | `a ∈ 0..100` |
+| `a + -100 <= 0` | `a <= 100` | `a ∈ 0..100` |
+| `-b <= 0` | `0 <= b` | `b ∈ 0..100` |
+| `b + -100 <= 0` | `b <= 100` | `b ∈ 0..100` |
+
+"assumed" means *taken from a header*, as opposed to derived. The goal was `0 <= b - a`, and
+from these four facts it does not follow: `a` could be 100 and `b` 0. With the `where`, a
+fifth fact joins the list, `a + -b <= 0`, which is `a <= b`, which is the goal itself.
+
+When you meet a refusal, read this line first. It tells you exactly what the compiler knew.
+The fix is nearly always to add the one fact that is missing.
+
+### Combining facts
+
+The method earns its keep when no single fact is the goal and several together are.
+
+<!-- file docs/book/code/claims/chain.oro -->
+```go
+export fn chain(i ∈ Int, n ∈ Int, t ∈ Array(Int)) (Int) where 0 <= i && i < n && n <= len(t) {
+    t[i]
+}
+```
+
+<!-- gen go docs/book/code/claims/chain.oro -->
+```go
+func ClaimsChain(v0 int, v1 int, v2 []int) int {
+    _ = v1
+    v17 := v2[v0]
+    return v17
+}
+```
+
+`t[i]` needs `i < len(t)`. Nothing says that. What is known is `i < n` and `n <= len(t)`,
+and the conclusion follows from the two *together*: `i` is below `n`, which is at most
+`len(t)`.
+
+How does a program find that? By adding inequalities, the way you would solve them on
+paper. In whole numbers `i < n` is `i + 1 <= n`. Write the two facts with everything on the
+left:
+
+```
+   i - n + 1  <=  0            (i < n)
+   n - len    <=  0            (n <= len)
+   ─────────────────  add them: the n cancels
+   i - len + 1  <=  0          which is  i < len
+```
+
+To prove a goal, the compiler *assumes the opposite* and looks for a contradiction, adding
+facts so as to cancel one unknown at a time. If it reaches something absurd, like `1 <= 0`,
+the opposite was impossible and the goal holds. If every unknown is eliminated and no
+absurdity appears, the goal does not follow. The method is **Fourier–Motzkin elimination**:
+Joseph Fourier described it in 1826 and Theodore Motzkin rediscovered it in 1936. It is
+schoolroom algebra, done exhaustively.
+
+Weaken one fact by one character and the proof is gone:
+
+<!-- file docs/book/code/claims/no-chain.oro -->
+```go
+export fn chain(i ∈ Int, n ∈ Int, t ∈ Array(Int)) (Int) where 0 <= i && i <= n && n <= len(t) {
+    t[i]
+}
+```
+
+<!-- gen go docs/book/code/claims/no-chain.oro -->
+```
+gen: claims-chain: t[i] is an indexing, and i < len(t) does not follow
+  known: assumed -i <= 0, assumed i + -n <= 0, assumed -len(t) + n <= 0
+```
+
+With `i <= n` the sum of the two facts gives only `i <= len(t)`, which allows `i == len(t)`,
+one past the end. The refusal is correct, and it is chapter 12's off-by-one again.
+
+Facts may carry multipliers, as long as each term is a number times an unknown:
+
+<!-- file docs/book/code/claims/combine.oro -->
+```go
+export fn combine(x ∈ 0..100, y ∈ 0..100, t ∈ Array(Int)) (Int) where 2 * x + 3 * y < len(t) {
+    t[x + y]
+}
+
+export fn strict(a ∈ 0..100, b ∈ 0..100) (Int) where a < b { 1000 / (b - a) }
+```
+
+<!-- gen go docs/book/code/claims/combine.oro -->
+```go
+func ClaimsCombine(v0 int, v1 int, v2 []int) int {
+    v34 := (v0 + v1)
+    v35 := v2[v34]
+    return v35
+}
+
+func ClaimsStrict(v0 int, v1 int) int {
+    v32 := (v1 - v0)
+    v33 := (1000 / v32)
+    return v33
+}
+```
+
+- `combine`: is `x + y < len(t)`? Known: `2x + 3y < len(t)`, and `x` and `y` are not
+  negative. Then `x + y <= 2x + 3y`, since the right side only adds more of each. Proven.
+- `strict`: is `b - a` nonzero? Known: `a < b`, so `b - a >= 1`. Proven.
+
+And each fails the moment the facts stop reaching:
+
+<!-- file docs/book/code/claims/no-combine.oro -->
+```go
+export fn combine(x ∈ 0..100, y ∈ 0..100, t ∈ Array(Int)) (Int) where x + y < len(t) {
+    t[2 * x]
+}
+```
+
+<!-- gen go docs/book/code/claims/no-combine.oro -->
+```
+gen: claims-combine: t[2 * x] is an indexing, and 2 * x < len(t) does not follow
+  known: assumed -len(t) + x + y + +1 <= 0, assumed -x <= 0, assumed x + -100 <= 0, assumed -y <= 0, assumed y + -100 <= 0
+```
+
+<!-- file docs/book/code/claims/no-strict.oro -->
+```go
+export fn strict(a ∈ 0..100, b ∈ 0..100) (Int) where a <= b { 1000 / (b - a) }
+```
+
+<!-- gen go docs/book/code/claims/no-strict.oro -->
+```
+gen: claims-strict: `/` requires b - a != 0, which does not follow
+  known: assumed a + -b <= 0, assumed -a <= 0, assumed a + -100 <= 0, assumed -b <= 0, assumed b + -100 <= 0
+```
+
+`x + y < len` says nothing about `2 * x` when `y` is 0 and `x` is large. And `a <= b` allows
+`a == b`, a division by zero. Both programs are wrong, and the compiler found the input that
+shows it without running anything.
+
+---
+
+## 15.5 Where facts come from
+
+You have written facts in headers. Most of them the compiler collects for itself.
+
+<!-- file docs/book/code/claims/sources.oro -->
+```go
+fn at(t ∈ Array(Int), i ∈ 0..len(t)-1) (Int) { t[i] }
+
+export fn third(t ∈ Array(Int)) (Int) where len(t) >= 3 { at(t, 2) }
+
+export fn either(n ∈ 0..100, t ∈ Array(Int)) (Int) where len(t) >= 51 {
+    if n > 50 { t[n - 50] } else { t[n] }
+}
+
+export fn equation(x ∈ 0..100) (Int) {
+    y = x + 1
+    z = y - x
+    array { 10, 20 }[z]
+}
+
+export fn element(t ∈ Array(0..9)) (0..18) where len(t) > 0 { t[0] * 2 }
+
+export fn counted(n ∈ 0..1000) (0..1000) {
+    loop i = 0 {
+        i < n -> again(i + 1)
+        else -> i
+    }
+}
+```
+
+<!-- gen go docs/book/code/claims/sources.oro -->
+```go
+func ClaimsEither(v0 int, v1 []int) int {
+    v17 := (v0 > 50)
+    if v17 {
+        v20 := (v0 - 50)
+        v21 := v1[v20]
+        return v21
+    }
+    v23 := v1[v0]
+    return v23
+}
+
+func ClaimsElement(v0 []byte) int {
+    v5 := int(v0[0])
+    v7 := (v5 * 2)
+    return v7
+}
+
+func ClaimsEquation(v0 int) int {
+    v11 := []byte{10, 20}
+    v13 := (v0 + 1)
+    v14 := (v13 - v0)
+    v15 := int(v11[v14])
+    return v15
+}
+
+func ClaimsThird(v0 []int) int {
+    v5 := v0[2]
+    return v5
+}
+```
+
+Five sources, one function each.
+
+**Headers.** `at` says its `i` is in `0..len(t)-1`. A set's end may mention an earlier
+parameter: the range of `i` depends on `t`. Inside `at` that is a fact, and `t[i]` is
+proven. At the call `at(t, 2)` it is an obligation, `2 <= len(t) - 1`, and `third`'s own
+`where len(t) >= 3` proves it. Ask for position 2 of a table known only to have two values:
+
+<!-- file docs/book/code/claims/no-third.oro -->
+```go
+fn at(t ∈ Array(Int), i ∈ 0..len(t)-1) (Int) { t[i] }
+
+export fn third(t ∈ Array(Int)) (Int) where len(t) >= 2 { at(t, 2) }
+```
+
+<!-- gen go docs/book/code/claims/no-third.oro -->
+```
+gen: claims-third: at requires 2 <= len(t) - 1 at a call, which does not follow
+  known: assumed -len(t) + +2 <= 0, assumed -len(t) <= 0 (fact len-nonneg)
+```
+
+**Conditions.** In `either`, the `if` splits the facts. In the first branch `n > 50`, so
+`n - 50` is in 1..50. In the second `n <= 50`. With `len(t) >= 51` both lookups are inside.
+Every `if`, every `case` arm and every loop guard adds a fact to its own branch and the
+opposite fact to what follows.
+
+**Equations.** `y = x + 1` is a fact too, an exact one. So `z = y - x` is known to be
+exactly 1, whatever `x` is, and position 1 of a two-element table is inside. Intervals alone
+would say `z` is somewhere in −99..101.
+
+**The data's own laws.** The message above shows one: `-len(t) <= 0 (fact len-nonneg)`. A
+length is never negative, and the compiler knows it without being told. `element` uses
+another: a value read from an `Array(0..9)` is in 0..9, so twice it is in 0..18.
+
+**Loops.** `counted` claims its result is in 0..1000, and the result is `i` on the way out.
+What is known about a loop variable? It is different every time round. The compiler looks
+for something true *every* time: an **invariant**. It guesses candidates of simple shapes
+(`0 <= i`, `i <= n`), checks that each holds on entry and that each trip round preserves
+it, and keeps the ones that survive. Here both do: `i` starts at 0, and it is increased only
+when `i < n`, so it never passes `n`. With `n <= 1000`, the claim follows. This is what was
+happening in chapter 11 every time a sum in a loop was "bounded by the number of trips", and
+in chapter 12 when "the loop's own test is the proof".
+
+---
+
+## 15.6 A claim on a binding
+
+`x ∈ S = e` binds `x` to `e` and claims `e` is in `S`. Section 15.4 used one to get a
+relational fact to a result. It has a second use that is worth more: it is how you *ask the
+compiler what it knows*.
+
+<!-- file docs/book/code/claims/lemma.oro -->
+```go
+export fn total(n ∈ 0..100, m ∈ 0..100) (Int) {
+    s ∈ 0..200 = n + m
+    s
+}
+```
+
+<!-- gen go docs/book/code/claims/lemma.oro -->
+```go
+func ClaimsTotal(v0 int, v1 int) int {
+    v23 := (v0 + v1)
+    return v23
+}
+```
+
+The claim was checked and has left no trace. It is not an `assert` that runs: there is no
+test in the Go. Now claim something false:
+
+<!-- file docs/book/code/claims/no-lemma.oro -->
+```go
+export fn total(n ∈ 0..100, m ∈ 0..100) (Int) {
+    s ∈ 0..150 = n + m
+    s
+}
+```
+
+<!-- gen go docs/book/code/claims/no-lemma.oro -->
+```
+gen: claims-total: the claim s ∈ 0..150 is not proven: n + m <= 150 does not follow
+  known: assumed -n <= 0, assumed n + -100 <= 0, assumed -m <= 0, assumed m + -100 <= 0
+```
+
+When a refusal deep in a function puzzles you, this is the tool. Somewhere above it, write
+down a thing you believe as a claim on a binding. If it is accepted, your belief is right
+and the trouble is further down. If it is refused, you have found where your picture and
+the compiler's part ways, and the `known:` line shows the compiler's.
+
+Mathematicians do the same and call the intermediate statement a *lemma*: a small thing
+proven on the way to a larger one. Proving the lemma once, and then using it, is often what
+turns a proof that will not go through into one that does.
+
+Two limits today. The claim's set must have constant ends, `0..200`: with ends that mention
+other values, `lo..hi-1`, the claim is not checked (README item 80). And a claim on a
+binding that nothing reads is not checked either (item 81). Claim things you use.
+
+---
+
+## 15.7 `ensure`
+
+A header's `ensure` states something about the result by name:
+
+<!-- file docs/book/code/claims/ensure.oro -->
+```go
+export fn abs(n ∈ -1000..1000) (r ∈ Int) ensure r >= 0 {
+    if n < 0 { -n } else { n }
+}
+```
+
+<!-- gen go docs/book/code/claims/ensure.oro -->
+```go
+func ClaimsAbs(v0 int) int {
+    v10 := (v0 < 0)
+    if v10 {
+        v13 := (0 - v0)
+        return v13
+    }
+    return v0
+}
+```
+
+In the first branch `n < 0`, so `-n` is positive. In the second `n >= 0`. Either way the
+result is not negative, and the interval of the result shows it.
+
+What `ensure` can say today is narrow: the result compared with *constants*. A promise
+that relates the result to the parameters is refused as outside what is decided:
+
+<!-- file docs/book/code/claims/no-ensure.oro -->
+```go
+export fn clamp(x ∈ Int, lo ∈ Int, hi ∈ Int) (r ∈ Int) where lo <= hi ensure lo <= r && r <= hi {
+    case { x < lo -> lo; x > hi -> hi; else -> x }
+}
+```
+
+<!-- gen go docs/book/code/claims/no-ensure.oro -->
+```
+gen: clamp: the postcondition lo <= result && result <= hi is outside what the compiler decides (constant bounds on the result, and their conjunctions); an obligation is discharged or the program is refused (refinements.md §3a)
+```
+
+`clamp` is correct, and "the result is between `lo` and `hi`" is exactly what one wants to
+say about it. The message is honest about why it is refused: not "this is false" but "this
+is outside what I decide". It matters less than it looks, because a function inside a
+program is unfolded where it is called (chapter 2), and the caller then sees the *body*, not
+a summary of it: every fact the body establishes is available. `ensure` is for the edge,
+where a promise is made to someone who cannot see inside.
+
+---
+
+## 15.8 The edge of the method
+
+The two methods are strong on one kind of statement: sums of unknowns, each multiplied by a
+constant, compared with `<=`, `<`, `==`. That is called **linear** arithmetic. Outside it
+the compiler knows less than you do, and it is worth collecting, in one place, every wall
+this book has walked into.
+
+| the true thing | why it is not found | seen in |
+|---|---|---|
+| `n * n >= 0` | a product of two unknowns is not linear | below |
+| `row * width + col >= 0` | the same | 12 |
+| `p * i` stays small over 20 trips | intervals multiply the bounds: 20²⁰ | 11 |
+| `(hi - lo) / 2 >= 0` in a loop | little is known about a quotient | 12 |
+| `n mod 2` is 0 or 1, as a position | the same, for `mod` | below |
+| `a != b` gives `a - b != 0` | "not equal" is two cases, not one inequality | below |
+| `n < 0xD800 \|\| n > 0xDFFF` | an "or" in a fact is two cases | 9 |
+| `hi - lo` shrinks from both ends | termination looks for one variable moving | 12 |
+
+<!-- file docs/book/code/claims/no-square.oro -->
+```go
+export fn square(n ∈ -1000..1000) (r ∈ Int) ensure r >= 0 { n * n }
+```
+
+<!-- gen go docs/book/code/claims/no-square.oro -->
+```
+gen: square: the body does not establish result >= 0; its result is [-1000000, 1000000]
+```
+
+A square is never negative, and a child knows it. As intervals, −1000..1000 times
+−1000..1000 is −1000000..1000000, because the method does not know the two factors are the
+same number.
+
+<!-- file docs/book/code/claims/no-mod.oro -->
+```go
+export fn parity(n ∈ 0..100, t ∈ Array(Int)) (Int) where len(t) == 2 { t[n mod 2] }
+```
+
+<!-- gen go docs/book/code/claims/no-mod.oro -->
+```
+gen: claims-parity: t[n mod 2] is an indexing, and 0 <= n mod 2 does not follow
+  known: assumed -n <= 0, assumed n + -100 <= 0
+```
+
+Chapter 6 said `mod` is the remainder that is *never negative*. That is its definition, and
+here it is not known. The other remainder is, for a dividend that is not negative, so this
+compiles:
+
+<!-- file docs/book/code/claims/parity.oro -->
+```go
+export fn parity(n ∈ 0..100, t ∈ Array(Int)) (Int) where len(t) == 2 { t[n % 2] }
+```
+
+<!-- gen go docs/book/code/claims/parity.oro -->
+```go
+func ClaimsParity(v0 int, v1 []int) int {
+    v17 := (v0 & 1)
+    v18 := v1[v17]
+    return v18
+}
+```
+
+<!-- file docs/book/code/claims/no-unequal.oro -->
+```go
+export fn ratio(a ∈ 0..9, b ∈ 0..9) (Int) where a != b { 100 / (a - b) }
+```
+
+<!-- gen go docs/book/code/claims/no-unequal.oro -->
+```
+gen: claims-ratio: `/` requires a - b != 0, which does not follow
+  known: assumed ne(a,b), assumed -a <= 0, assumed a + -9 <= 0, assumed -b <= 0, assumed b + -9 <= 0
+```
+
+The fact is right there in the list, `ne(a,b)`, and the goal is the same statement moved
+across the equals sign. "Not equal" means "less *or* greater", two cases, and the method
+works with single inequalities. Write `a < b` (15.4's `strict`) and it is one.
+
+Some of these are gaps that will close: nothing deep stops a compiler learning that a
+square is not negative. But the wall as a whole is not an accident, and the next section is
+why.
+
+---
+
+## 15.9 Sound, and not complete
+
+Two words describe any checker.
+
+It is **sound** if everything it accepts is true. It is **complete** if everything true is
+accepted.
+
+This compiler aims to be sound and makes no attempt to be complete. That is a choice, and
+it is forced. In 1929 Mojżesz Presburger proved that statements of linear arithmetic over
+the whole numbers, the kind in 15.4, can *always* be decided: there is a procedure that
+answers true or false for every one. Add multiplication of unknowns and the picture
+changes completely. In 1970 Yuri Matiyasevich finished the proof that no procedure can
+decide whether an equation in whole numbers with multiplication has a solution. And in 1953
+Henry Rice had shown the general case: *every* interesting question about what a program
+computes is undecidable. Chapter 11's halting problem was the first instance.
+
+So any checker for a real language faces the same three-way choice, and can have only two:
+
+| | accepts only true claims | accepts every true claim | always answers |
+|---|---|---|---|
+| a checker that guesses | no | yes | yes |
+| a prover that searches forever | yes | yes | no |
+| **this compiler** | **yes** | **no** | **yes** |
+
+It always answers, quickly, and "proven" is always right. The price is the third thing: it
+sometimes answers "does not follow" about something true.
+
+That changes how to read a refusal. **"Does not follow" is not "this is wrong".** It is "I
+could not show this from what I have". Sometimes the program is wrong, and the compiler has
+just saved you (15.4's `no-strict`, every off-by-one in chapter 12). Sometimes the program
+is right and the compiler is short of a fact or of a method. You have three responses, and
+you have used all three.
+
+**Say more in a header.** Narrow a parameter's set, add a `where`. It costs nothing at run
+time and makes the function's assumptions part of its interface. Most refusals end here.
+
+**Test.** Write the condition as a guard: `if 0 <= k && k < len(t) { … } else { … }`. The
+test runs, so it costs a comparison, and it makes the program say what happens when the
+condition is false. Chapter 11's "a guard you are sure of" and chapter 12's binary search
+are this. It is the right answer when the fact comes from outside, and an honest answer
+when it is true but beyond the method.
+
+**Ask for a trap.** For arithmetic that might leave the word, the `-checked` flag emits the
+host's own overflow check in place of a proof:
+
+<!-- file docs/book/code/claims/no-add.oro -->
+```go
+export fn add(a ∈ Int, b ∈ Int) (Int) { a + b }
+```
+
+<!-- gen go docs/book/code/claims/no-add.oro -->
+```
+gen: claims-add: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+  + [-inf, +inf] in a + b
+```
+
+<!-- gen go docs/book/code/claims/no-add.oro -checked -->
+```go
+func ClaimsAdd(v0 int, v1 int) int {
+    v2 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v0, v1))
+    return v2
+}
+```
+
+Any two integers may overflow when added, so without the flag the function is refused. With
+it, the addition is done and then checked, and the program stops if it wrapped. That is
+chapter 14's `expect`, supplied by the build line: the program still never computes a wrong
+number, it has only traded a proof for a possible stop. `-checked` covers arithmetic and
+nothing else. A position in a table or a divisor is proven, or guarded by a test you write.
+
+The order of those three is the order to try them in.
+
+---
+
+## 15.10 A type is a set
+
+One more thing was quietly true all along. This book has never used the word *type* for
+something separate from *set*. In `fn f(n ∈ 0..9, s ∈ String, t ∈ Array(Int))`, the three
+things after `∈` are all sets, written in the same place in the same way: a range, a named
+set, a set of tables. There is no second language for types.
+
+The coarse sets are checked first, and a mismatch between them is what other languages call
+a type error:
+
+<!-- file docs/book/code/claims/no-text.oro -->
+```go
+export fn plus(n ∈ 0..9) (Int) { n + "one" }
+```
+
+<!-- gen go docs/book/code/claims/no-text.oro -->
+```
+gen: plus: in argument 2 of `+`: a string literal is String, but Int is required here
+```
+
+<!-- file docs/book/code/claims/no-number.oro -->
+```go
+export fn name(n ∈ 0..9) (String) { n }
+```
+
+<!-- gen go docs/book/code/claims/no-number.oro -->
+```
+gen: name: n is 0..9, but String is required here
+```
+
+<!-- file docs/book/code/claims/no-table.oro -->
+```go
+export fn bump(t ∈ Array(Int)) (Int) { t + 1 }
+```
+
+<!-- gen go docs/book/code/claims/no-table.oro -->
+```
+gen: bump: in argument 1 of `+`: t is Array(Int), but Int is required here
+```
+
+"`n` is 0..9, but String is required": a number is not a member of the set of strings. That
+is the same *kind* of statement as "5 is not a member of 0..3", only coarser, and settled by
+a cheaper check that needs no arithmetic. A classical type system is the part of this
+chapter that stops at the coarse sets. This language keeps going.
+
+Sets are built with the notation chapter 6 began:
+
+| written | the set |
+|---|---|
+| `Int`, `Nat`, `Bool`, `String`, `F64` | the basic ones |
+| `lo..hi`, `lo..`, `..hi` | a range of integers |
+| `D(k, lo..hi)` | decimals with `k` places (chapter 8) |
+| `Array(S)` | tables with elements in `S` |
+| `S × T` | pairs (chapter 10) |
+| `'a ∪ 'b(T)` | a variant (chapter 10) |
+| `set { x ∈ S : φ }` | the members of `S` for which φ holds |
+
+The last is the general one, and it is how mathematics writes a set by a property:
+
+<!-- file docs/book/code/claims/types.oro -->
+```go
+set Small = set { n ∈ Int : 0 <= n && n < 10 }
+
+export fn twice(n ∈ Small) (0..18) { n + n }
+```
+
+<!-- gen go docs/book/code/claims/types.oro -->
+```go
+func ClaimsTwice(v0 int) int {
+    v9 := (v0 + v0)
+    return v9
+}
+```
+
+`Small` is "the integers `n` with `0 <= n < 10`", and the compiler read it as the range
+0..9: `n + n` was proven in 0..18. A set written by a property is a claim like any other.
+Its formula becomes a fact where a value is known to be in the set, and an obligation where
+a value must be shown to be.
+
+---
+
+## 15.11 What it costs
+
+Go back through this chapter's emitted code and look for the claims. `chain`'s three-part
+`where` is one table read. `gap`'s claim on a binding is one subtraction. `third`'s header,
+the call's obligation and `at`'s range are `v0[2]`. `twice`'s set is `v0 + v0`.
+
+**A claim that is proven is erased.** It is used once, while compiling, and then it is
+gone. The program that runs is the program you would have written in C with no checks at
+all, and the difference is that someone checked.
+
+That is the other half of chapter 6's bargain. A language that checks at run time (Go's
+index checks, Java's exceptions) pays a little on every operation, forever, and still finds
+the bug only when the bad input arrives, in production. A language that does not check (C)
+pays nothing and finds the bug when an attacker does. Proof is the one arrangement that
+costs nothing at run time and finds the bug before the program exists. What it costs is
+this chapter: a compiler that sometimes needs to be told a thing you consider obvious.
+
+---
+
+## 15.12 What other languages do
+
+| | what can be stated | who checks | when | if it cannot be shown |
+|---|---|---|---|---|
+| Oroboros | sets, ranges, linear relations | the compiler's own procedures | compiling | refused; add a fact, a test or `-checked` |
+| C, Go, Java | coarse types | a type checker | compiling | n/a: finer facts cannot be stated |
+| Eiffel, and `assert` anywhere | any condition | the running program | at run time | the program stops |
+| Ada SPARK, Dafny, Why3 | any formula | an external theorem prover (SMT) | compiling | a timeout or "unknown"; add annotations |
+| Liquid Haskell, F* | types refined by formulas | an SMT solver | compiling | the same |
+| Rust | types, ownership, lifetimes | the compiler | compiling | refused for ownership; bounds are checked at run time |
+| Coq, Lean, Agda | anything | a small trusted kernel | compiling | you write the proof yourself |
+
+The nearest relatives are in the fourth and fifth rows: languages where a claim is a
+formula and a machine proves it. They state far more than this language can (loop
+invariants of any shape, properties of data structures), and they pay with an external
+solver whose answers depend on its version and its time limit. A proof that went through
+yesterday can time out today.
+
+This language chose the other side of that trade. It decides a smaller class of statements,
+with procedures that are part of the compiler, always finish and give the same answer every
+time. What it cannot decide it says so, in a message that lists what it knew.
+
+The idea that a type can be a set with a formula attached, checked by a decision procedure,
+is called *refinement types* and dates from 1991 (Freeman and Pfenning). The procedure for
+linear integer arithmetic that the compiler's is checked against is William Pugh's *Omega
+test* (1991), a descendant of Fourier's.
 
 ---
 
 ## What to remember
 
-- **The checker is not in the language.** No annotations, no types on terms. It runs on the
-  residual, at the emission boundary, and `oro` never invokes it.
-- **It exists because of a measurement**, not a principle: the same bad program failed on Go, failed
-  on Java, and printed `hello1` on JavaScript.
-- **Checking the residual is cheap** because reduction already made it monomorphic, first-order and
-  closed — the three things Hindley–Milner exists to handle.
-- **Inference and checking are one walk.** A second, different demand on a name is the error.
-- **`sig` is a claim checked in two directions**, and the direction no host compiler can check —
-  library definition against target primitive — is the one that keeps chapter 3's four cells honest.
-- **Parameters are named because refinements attach to names.**
-- **A refinement is an ordinary boolean term.** No predicate language, no new syntax.
-- **Classify, do not restrict.** Outside the fragment a term is opaque: kept, reported, never
-  decided, never assumed.
-- **Incompleteness is safe; unsoundness is not.** An undischarged obligation is reported.
-- **Our proofs do not transfer.** The emitted shape has to let the host re-prove them, and that
-  pattern needed no type system at all.
+- **Every claim is an obligation**: a formula that must hold at one place for every input
+  the headers allow. Proven, or the program is refused.
+- **Parameter sets and `where` are obligations at calls and facts in the body.** Result sets
+  and `ensure` are the reverse. An export's parameter claims are assumed.
+- **Intervals** track each value's least and greatest. They decide most arithmetic, and a
+  function's result claim. They cannot see that two values are related.
+- **Facts** are formulas known at a point, shown on the `known:` line in the form `… <= 0`.
+  The compiler combines them by adding inequalities to cancel unknowns.
+- **Facts come from** headers, conditions, equations (`y = x + 1`), the data's own laws
+  (`len(t) >= 0`, an element's set), and loop invariants the compiler finds.
+- **`x ∈ S = e` claims a binding.** Use it to get a relational fact to a result, and to ask
+  the compiler what it knows.
+- **`ensure` compares the result with constants.**
+- **The methods are for linear arithmetic.** Products of unknowns, quotients, `mod`, "not
+  equal" and "or" are where true things get refused.
+- **The compiler is sound and not complete.** "Does not follow" means "I could not show
+  it". Then: say more in a header; or test, and say what happens otherwise; or, for
+  arithmetic, build with `-checked`.
+- **A type is a set.** A type error is the coarsest kind of refused membership.
+- **A proven claim is erased.** It costs nothing at run time.
 
-Next chapter: targets — the file a third party writes, and the only thing standing between this
-language and a host it has never heard of.
+Next: chapter 16, Targets. Where `io.print_line` comes from, and how to describe a host's
+function so that the compiler can check what you say about it.

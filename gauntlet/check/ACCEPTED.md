@@ -3167,3 +3167,50 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - now emits — `examples/big/fib.oro windows`
 - now emits — `examples/big/pair.oro windows`
 - now emits — `examples/big/power.oro windows`
+
+## 2026-11-16 — on a2ca218, with uncommitted changes
+
+**Reason:** files-2026-11-16: a table's storage is its final layout (Theorem D's class), so windows allocates a byte table in bytes and its release agrees with its allocation across a kept function (freq and jsonfmt had faulted past 8 KiB); wc's and count's stale clamps removed, every target proving them; measured no slower: sieve 0.999, tokenizer 0.925, tree 0.994, wc and count 0.94-0.98 on four targets
+
+656 runs: 445 emitted, 211 refused; 8857 of 8911 integer operations bounded, 886 of 924 loops proven. compiler pass, differential pass, tooling pass.
+
+38 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/count.oro go`
+- compiler output changed — `examples/io/count.oro go`
+- emitted text changed — `examples/io/count.oro java`
+- compiler output changed — `examples/io/count.oro java`
+- emitted text changed — `examples/io/count.oro js`
+- compiler output changed — `examples/io/count.oro js`
+- emitted text changed — `examples/io/count.oro windows`
+- compiler output changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro go`
+- emitted text changed — `examples/io/wc.oro java`
+- emitted text changed — `examples/io/wc.oro js`
+- emitted text changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/json/tokenize.oro windows`
+- emitted text changed — `examples/json/tree.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `lib/win/print.oro windows`

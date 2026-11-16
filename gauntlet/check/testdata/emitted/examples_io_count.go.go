@@ -41,49 +41,25 @@ func GenMain() int {
 			}
 			v41 := int(v11[v30])
 			v43 := (v41 == 10)
+			var v44 int
 			if v43 {
-				v46 := (v27 < 16777216)
-				var v47 int
-				if v46 {
-					v50 := (v27 + 1)
-					v47 = v50
-				} else {
-					v47 = v27
-				}
-				v56 := (v41 == 32)
-				v57 := (v56 || ((v41 >= 9) && (v41 <= 13)))
-				if v57 {
-					v27, v29 = v47, false
-					continue
-				}
-				if v29 {
-					v27 = v47
-					continue
-				}
-				v75 := (v28 < 16777216)
-				if v75 {
-					v78 := (v28 + 1)
-					v27, v28, v29 = v47, v78, true
-					continue
-				}
-				v27 = v47
-				continue
+				v47 := (v27 + 1)
+				v44 = v47
+			} else {
+				v44 = v27
 			}
-			v90 := (v41 == 32)
-			v91 := (v90 || ((v41 >= 9) && (v41 <= 13)))
-			if v91 {
-				v29 = false
+			v53 := (v41 == 32)
+			v54 := (v53 || ((v41 >= 9) && (v41 <= 13)))
+			if v54 {
+				v27, v29 = v44, false
 				continue
 			}
 			if v29 {
+				v27 = v44
 				continue
 			}
-			v109 := (v28 < 16777216)
-			if v109 {
-				v112 := (v28 + 1)
-				v28, v29 = v112, true
-				continue
-			}
+			v72 := (v28 + 1)
+			v27, v28, v29 = v44, v72, true
 			continue
 		}
 		return v26

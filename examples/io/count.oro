@@ -26,9 +26,10 @@
 // through every clause.
 //
 // THE LIMIT IS STATED, as wc's and freq's are: a file under 2^24 bytes has
-// fewer lines and words than that, and the guards say so to the analysis,
-// which cannot bound a counter incremented under a condition by its loop's own
-// guard (wc.oro).
+// fewer lines and words than that. The counters' guards, which said so to the
+// analysis, went with wc's (files-2026-11-16): each counter grows by at most one
+// a byte, so the IR's trip bounds hold it below len(src), and every target
+// proves the program without them.
 use os
 use io
 use result
@@ -59,12 +60,11 @@ export fn main() {
                         }
                         else -> {
                             b = src[i]
-                            if b == 10 && lines < cap_in { lines := lines + 1 }
+                            if b == 10 { lines := lines + 1 }
                             case {
                                 space?(b) -> { in_word := false }
                                 in_word -> ()
-                                words < cap_in -> { in_word := true; words := words + 1 }
-                                else -> ()
+                                else -> { in_word := true; words := words + 1 }
                             }
                             again(i + 1)
                         }

@@ -67,7 +67,7 @@ entry:
   %v30 = load i1, ptr %.s20
   br i1 %v30, label %.then21, label %.else22
 .then21:
-  %v39 = mul nuw nsw i64 1, 8
+  %v39 = mul nuw nsw i64 1, 1
   %v41 = add nuw nsw i64 %v39, 8
   %v43 = icmp sge i64 %v41, 65536
   br i1 %v43, label %.then27, label %.else28
@@ -263,7 +263,7 @@ entry:
   %v42 = load i1, ptr %.s30
   br i1 %v42, label %.then31, label %.else32
 .then31:
-  %v51 = mul nuw nsw i64 1, 8
+  %v51 = mul nuw nsw i64 1, 1
   %v53 = add nuw nsw i64 %v51, 8
   %v55 = icmp sge i64 %v53, 65536
   br i1 %v55, label %.then37, label %.else38
@@ -420,7 +420,7 @@ entry:
   %v157 = load i1, ptr %.s107
   br i1 %v157, label %.then108, label %.else109
 .then108:
-  %v166 = mul nuw nsw i64 1, 8
+  %v166 = mul nuw nsw i64 1, 1
   %v168 = add nuw nsw i64 %v166, 8
   %v170 = icmp sge i64 %v168, 65536
   br i1 %v170, label %.then114, label %.else115

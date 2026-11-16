@@ -20,7 +20,7 @@ export function genMain() {
 				console.log(v26);
 				break;
 			}
-			v26 = ((v26 < 16777216) ? ((v11[v25] === 10) ? (v26 + 1) : v26) : v26);
+			v26 = ((v11[v25] === 10) ? (v26 + 1) : v26);
 			continue;
 		}
 		return v26;

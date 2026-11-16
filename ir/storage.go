@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"strings"
+
 	"oroboros/core"
 	"oroboros/emit"
 )
@@ -24,6 +26,18 @@ var PlantStorageFault bool
 func Storage(tg *emit.Target, f *Func) int {
 	if !termRealized(tg, "alloc") {
 		return 0
+	}
+	// A TABLE'S STORAGE IS ITS FINAL LAYOUT (Theorem D′, final.go): its class's
+	// representation, decided on the whole function, not the type the table
+	// had before the classes were taken. Sized by the latter, readfile's buffer
+	// was allocated 8 bytes an element and printed 1, and the caller, which
+	// holds the result by its declared type, released it as 1: 8 191 bytes took
+	// VirtualAlloc's region (8 191·8 + 8 = 2¹⁶) and gave it to HeapFree, which
+	// faulted (files-2026-11-16). The classes are computed on a copy and every
+	// table's type written back, so the allocation, every release, every token
+	// and the printer read one layout.
+	if !PlantStorageWidthIRA {
+		finalTableTypes(tg, f)
 	}
 	n := 0
 	fresh := func(ty string) V {
@@ -91,4 +105,33 @@ func ElemBytes(tg *emit.Target, t string) int {
 		return 1
 	}
 	return 8
+}
+
+// PlantStorageWidthIRA sizes each table by its type before Theorem D′'s
+// classes, as before files-2026-11-16: a kept function's byte table is then
+// allocated 8 bytes an element and released by its caller as 1.
+var PlantStorageWidthIRA bool
+
+// finalTableTypes writes onto each table of f the type Finalize will give it:
+// Theorem D′ computed on a copy of f, whose numbering is f's. A function
+// Finalize would refuse keeps its types; the refusal is Finalize's to make.
+func finalTableTypes(tg *emit.Target, f *Func) {
+	c := f.Clone()
+	c.facts = f.facts
+	if err := finalizeFunc(tg, c); err != nil || len(c.Types) < len(f.Types) {
+		return
+	}
+	// A PARAMETER'S TYPE IS ITS DECLARATION, the callers' contract (ADR 0101,
+	// 0113): narrowing a kept definition's buffer parameter to its body's hull
+	// made every caller owe it, and P4 inlined them. It is never a birth this
+	// function stores or releases, so no width needs it.
+	param := map[V]bool{}
+	for _, x := range f.Params {
+		param[x] = true
+	}
+	for v, t := range f.Types {
+		if !param[V(v)] && (strings.HasPrefix(t, "array ") || strings.HasPrefix(t, "buffer ")) {
+			f.Types[v] = c.Types[v]
+		}
+	}
 }

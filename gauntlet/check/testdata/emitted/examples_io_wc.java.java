@@ -33,21 +33,16 @@ public final class examples_io_wc.java {
 					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v26 + "\n");
 					break;
 				}
-				final boolean v37 = (v26 < 16777216);
-				int v38 = 0;
-				if (v37) {
-					final int v40 = (v11[v25] & 0xFF);
-					final boolean v42 = (v40 == 10);
-					if (v42) {
-						final int v44 = (v26 + 1);
-						v38 = v44;
-					} else {
-						v38 = v26;
-					}
+				final int v36 = (v11[v25] & 0xFF);
+				final boolean v38 = (v36 == 10);
+				int v39 = 0;
+				if (v38) {
+					final int v41 = (v26 + 1);
+					v39 = v41;
 				} else {
-					v38 = v26;
+					v39 = v26;
 				}
-				v26 = v38;
+				v26 = v39;
 				continue;
 			}
 			return v26;

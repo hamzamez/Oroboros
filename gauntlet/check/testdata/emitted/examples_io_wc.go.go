@@ -32,21 +32,16 @@ func GenMain() int {
 				fmt.Println(v26)
 				break
 			}
-			v37 := (v26 < 16777216)
-			var v38 int
-			if v37 {
-				v40 := int(v11[v25])
-				v42 := (v40 == 10)
-				if v42 {
-					v44 := (v26 + 1)
-					v38 = v44
-				} else {
-					v38 = v26
-				}
+			v36 := int(v11[v25])
+			v38 := (v36 == 10)
+			var v39 int
+			if v38 {
+				v41 := (v26 + 1)
+				v39 = v41
 			} else {
-				v38 = v26
+				v39 = v26
 			}
-			v26 = v38
+			v26 = v39
 			continue
 		}
 		return v26

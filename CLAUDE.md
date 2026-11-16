@@ -102,8 +102,9 @@ items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), ~~the book's 
 (its items 22–29, below), ~~the gauntlet on four targets~~ done
 ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md): parity on all four, a windows leak
 found and fixed, two windows walls named), ~~the harness~~ done ([harness-2026-11-16](gauntlet/results/harness-2026-11-16.md): skips checked, windows
-files assembled, K(ℕ\*)'s text compared, the route's error carried, the book run), **next the file programs on windows** (with
-P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md as state again.
+files assembled, K(ℕ\*)'s text compared, the route's error carried, the book run), ~~the file programs on windows~~ done ([files-2026-11-16](gauntlet/results/files-2026-11-16.md): `freq` and
+`jsonfmt` crashed past 8 KiB and are fixed, a table's storage its final layout; faster than Go by hand
+as processes, `wc`'s counter width the residue; `readinto`'s invariant still owed), **next the second triple**, TinyRetroPad, then CLAUDE.md as state again.
 - ~~**The book's wrong answers**~~ **done** ([bookfix-2026-11-15](gauntlet/results/bookfix-2026-11-15.md),
   ADR 0114 for the fold; emission byte-identical), each with a planted fault:
   - the unit is no integer: a one-armed `if` is `if c {a} else {()}`, typed A ∨ 1, so it is no
@@ -584,7 +585,9 @@ what TinyRetroPad's walls need.
   branch. Trigger: input-driven programs on windows, or a measurement naming one.
 - **A 32-bit scalar representation** (ADR 0083 item 2's register rule): FNV-1a 32 masks each step
   with `& 0xFFFFFFFF` where a `uint32` would not (1.08–1.12, inside the noise floor). Trigger: a loop
-  whose mask is measured above the noise floor, or `ir/llvm`'s i32.
+  whose mask is measured above the noise floor, or `ir/llvm`'s i32. **Met** (files-2026-11-16): `wc`'s
+  newline count is 64-bit lanes where C's is 32, 1.43× C's work, the whole gap (a C `long long`
+  counter does the same); the second triple needs i32 scalars too.
 - **The Boolean operations above the word** (ADR 0082): an operand or result held in arbitrary
   precision is refused. Trigger: a program needing the bits of a big value (`math/big`'s `And`).
 - **Integers' four old mechanisms re-declared as (H, d) data** (ADR 0083 item 1; Hoare 1972): the new
@@ -607,7 +610,7 @@ what TinyRetroPad's walls need.
   seven (G4 and G3's tally need a dictionary keyed by strings, G5 F64's rendering: walls). The 33
   files its harnesses call are listed in `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and
   regenerated and compared by `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **8,881 of 8,935** integer operations proven inside their target's word, the 54 left
+- **Provability**: **8,857 of 8,911** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
   **886 of 924** loops proven to terminate (size-change termination; fourteen of the 38 left are

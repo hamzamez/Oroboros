@@ -260,7 +260,7 @@ entry:
   %v145 = load i1, ptr %.s103
   br i1 %v145, label %.then104, label %.else105
 .then104:
-  %v154 = mul nuw nsw i64 1, 8
+  %v154 = mul nuw nsw i64 1, 1
   %v156 = add nsw i64 %v154, 8
   %v158 = icmp sge i64 %v156, 65536
   br i1 %v158, label %.then110, label %.else111
@@ -627,7 +627,7 @@ entry:
   %v413 = load i1, ptr %.s293
   br i1 %v413, label %.then294, label %.else295
 .then294:
-  %v422 = mul nuw nsw i64 1, 8
+  %v422 = mul nuw nsw i64 1, 1
   %v424 = add nsw i64 %v422, 8
   %v426 = icmp sge i64 %v424, 65536
   br i1 %v426, label %.then300, label %.else301
@@ -1620,7 +1620,7 @@ entry:
   %v328 = load i1, ptr %.s251
   br i1 %v328, label %.then252, label %.else253
 .then252:
-  %v337 = mul nuw nsw i64 1, 8
+  %v337 = mul nuw nsw i64 1, 1
   %v339 = add nuw nsw i64 %v337, 8
   %v341 = icmp sge i64 %v339, 65536
   br i1 %v341, label %.then258, label %.else259
@@ -2044,7 +2044,7 @@ entry:
   %v639 = load i1, ptr %.s477
   br i1 %v639, label %.then478, label %.else479
 .then478:
-  %v648 = mul nuw nsw i64 1, 8
+  %v648 = mul nuw nsw i64 1, 1
   %v650 = add nsw i64 %v648, 8
   %v652 = icmp sge i64 %v650, 65536
   br i1 %v652, label %.then484, label %.else485
@@ -2432,7 +2432,7 @@ entry:
   %v916 = load i1, ptr %.s686
   br i1 %v916, label %.then687, label %.else688
 .then687:
-  %v925 = mul nuw nsw i64 1, 8
+  %v925 = mul nuw nsw i64 1, 1
   %v927 = add nsw i64 %v925, 8
   %v929 = icmp sge i64 %v927, 65536
   br i1 %v929, label %.then693, label %.else694
@@ -2860,7 +2860,7 @@ entry:
   %v1219 = load i1, ptr %.s912
   br i1 %v1219, label %.then913, label %.else914
 .then913:
-  %v1228 = mul nuw nsw i64 1, 8
+  %v1228 = mul nuw nsw i64 1, 1
   %v1230 = add nsw i64 %v1228, 8
   %v1232 = icmp sge i64 %v1230, 65536
   br i1 %v1232, label %.then919, label %.else920
@@ -3285,7 +3285,7 @@ entry:
   %v1519 = load i1, ptr %.s1137
   br i1 %v1519, label %.then1138, label %.else1139
 .then1138:
-  %v1528 = mul nuw nsw i64 1, 8
+  %v1528 = mul nuw nsw i64 1, 1
   %v1530 = add nsw i64 %v1528, 8
   %v1532 = icmp sge i64 %v1530, 65536
   br i1 %v1532, label %.then1144, label %.else1145
@@ -4071,7 +4071,7 @@ entry:
   %v192 = load i1, ptr %.s140
   br i1 %v192, label %.then141, label %.else142
 .then141:
-  %v201 = mul nuw nsw i64 1, 8
+  %v201 = mul nuw nsw i64 1, 1
   %v203 = add nuw nsw i64 %v201, 8
   %v205 = icmp sge i64 %v203, 65536
   br i1 %v205, label %.then147, label %.else148
@@ -4652,7 +4652,7 @@ entry:
   %v616 = load i1, ptr %.s457
   br i1 %v616, label %.then458, label %.else459
 .then458:
-  %v625 = mul nuw nsw i64 1, 8
+  %v625 = mul nuw nsw i64 1, 1
   %v627 = add nuw nsw i64 %v625, 8
   %v629 = icmp sge i64 %v627, 65536
   br i1 %v629, label %.then464, label %.else465
@@ -5485,7 +5485,7 @@ entry:
   %v1262 = load i1, ptr %.s901
   br i1 %v1262, label %.then902, label %.else903
 .then902:
-  %v1271 = mul nuw nsw i64 1, 8
+  %v1271 = mul nuw nsw i64 1, 1
   %v1273 = add nuw nsw i64 %v1271, 8
   %v1275 = icmp sge i64 %v1273, 65536
   br i1 %v1275, label %.then908, label %.else909
@@ -6329,7 +6329,7 @@ entry:
   %v1902 = load i1, ptr %.s1342
   br i1 %v1902, label %.then1343, label %.else1344
 .then1343:
-  %v1911 = mul nuw nsw i64 1, 8
+  %v1911 = mul nuw nsw i64 1, 1
   %v1913 = add nuw nsw i64 %v1911, 8
   %v1915 = icmp sge i64 %v1913, 65536
   br i1 %v1915, label %.then1349, label %.else1350
@@ -6977,7 +6977,7 @@ entry:
   %v2383 = load i1, ptr %.s1694
   br i1 %v2383, label %.then1695, label %.else1696
 .then1695:
-  %v2392 = mul nuw nsw i64 1, 8
+  %v2392 = mul nuw nsw i64 1, 1
   %v2394 = add nuw nsw i64 %v2392, 8
   %v2396 = icmp sge i64 %v2394, 65536
   br i1 %v2396, label %.then1701, label %.else1702
@@ -7905,7 +7905,7 @@ entry:
   %v3095 = load i1, ptr %.s2190
   br i1 %v3095, label %.then2191, label %.else2192
 .then2191:
-  %v3104 = mul nuw nsw i64 1, 8
+  %v3104 = mul nuw nsw i64 1, 1
   %v3106 = add nuw nsw i64 %v3104, 8
   %v3108 = icmp sge i64 %v3106, 65536
   br i1 %v3108, label %.then2197, label %.else2198
@@ -8110,7 +8110,7 @@ entry:
   %v3245 = load i1, ptr %.s2296
   br i1 %v3245, label %.then2297, label %.else2298
 .then2297:
-  %v3254 = mul nuw nsw i64 1, 8
+  %v3254 = mul nuw nsw i64 1, 1
   %v3256 = add nuw nsw i64 %v3254, 8
   %v3258 = icmp sge i64 %v3256, 65536
   br i1 %v3258, label %.then2303, label %.else2304
@@ -8996,7 +8996,7 @@ entry:
   %v3915 = load i1, ptr %.s2772
   br i1 %v3915, label %.then2773, label %.else2774
 .then2773:
-  %v3924 = mul nuw nsw i64 1, 8
+  %v3924 = mul nuw nsw i64 1, 1
   %v3926 = add nuw nsw i64 %v3924, 8
   %v3928 = icmp sge i64 %v3926, 65536
   br i1 %v3928, label %.then2779, label %.else2780
@@ -9318,7 +9318,7 @@ entry:
   %v4168 = load i1, ptr %.s2947
   br i1 %v4168, label %.then2948, label %.else2949
 .then2948:
-  %v4177 = mul nuw nsw i64 1, 8
+  %v4177 = mul nuw nsw i64 1, 1
   %v4179 = add nsw i64 %v4177, 8
   %v4181 = icmp sge i64 %v4179, 65536
   br i1 %v4181, label %.then2954, label %.else2955
@@ -9564,7 +9564,7 @@ entry:
   %v4353 = load i1, ptr %.s3076
   br i1 %v4353, label %.then3077, label %.else3078
 .then3077:
-  %v4362 = mul nuw nsw i64 1, 8
+  %v4362 = mul nuw nsw i64 1, 1
   %v4364 = add nuw nsw i64 %v4362, 8
   %v4366 = icmp sge i64 %v4364, 65536
   br i1 %v4366, label %.then3083, label %.else3084
@@ -9820,7 +9820,7 @@ entry:
   %v4546 = load i1, ptr %.s3215
   br i1 %v4546, label %.then3216, label %.else3217
 .then3216:
-  %v4555 = mul nuw nsw i64 1, 8
+  %v4555 = mul nuw nsw i64 1, 1
   %v4557 = add nuw nsw i64 %v4555, 8
   %v4559 = icmp sge i64 %v4557, 65536
   br i1 %v4559, label %.then3222, label %.else3223
@@ -10068,7 +10068,7 @@ entry:
   %v4731 = load i1, ptr %.s3347
   br i1 %v4731, label %.then3348, label %.else3349
 .then3348:
-  %v4740 = mul nuw nsw i64 1, 8
+  %v4740 = mul nuw nsw i64 1, 1
   %v4742 = add nuw nsw i64 %v4740, 8
   %v4744 = icmp sge i64 %v4742, 65536
   br i1 %v4744, label %.then3354, label %.else3355

@@ -193,7 +193,12 @@ The width is read off the table's representative's type, so every alias of a tab
   the result is b.
 - **A table's storage** is an operation of the IR (ADR 0092, `ir.Storage`): before each `build`,
   `tabulate` and array literal of n elements of w bytes (`ir.ElemBytes`, the layout every access reads
-  by), `p = alloc(n, w)`, which the statement takes as its storage (`store %p`). ι substitutes
+  by), `p = alloc(n, w)`, which the statement takes as its storage (`store %p`). **w is the table's
+  final layout**: its class's representation by Theorem D′ (`ir/final.go`), computed before the
+  storage and written onto every table but a parameter, so the allocation, every release, every
+  token and the printer read one width, in a function and across a kept one's boundary. Taken from
+  the type before the classes, a byte table was allocated 8 bytes an element and released as 1, and
+  past 8 191 bytes the two chose different allocators (files-2026-11-16). ι substitutes
   `lang.allocate`, alloc : ℕ × {1, 8} → Region, whose guard 0 ≤ n ≤ ⌊(2⁶³ − 9)/8⌋ makes n·w + 8 a
   proven `mul nsw` and turns a larger request away as exhaustion, the trap. Its region is zero on
   creation, which is a table's semantics (tables.md), so a `build`'s fill of zeros prints nothing:

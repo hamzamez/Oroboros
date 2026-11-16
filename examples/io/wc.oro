@@ -41,17 +41,13 @@ cap_in = 2^24
 // it is a `lib/` module a program cannot turn its own answer into text, which is
 // why `print-int` exists beside `print-line` at all.
 //
-// AND THE SECOND GUARD CANNOT FIRE. A file under the cap has fewer than that
-// many newlines, so `(< lines cap-in)` is true at every iteration — it is there
-// because the ANALYSIS needs it, not the program: a counter incremented under a
-// condition has no bound from the loop's own guard, and `(+ lines 1)` was the one
-// operation of two this program could not prove. tree.oro's node cap, jsonfmt's
-// document cap and freq's derived word cap are all this same move.
-//
-// It is the OUTER test, and that is not a style choice: `(and a b)` erases to
-// `(if a b false)` (ADR 0017), so writing the two conditions as one conjunction
-// makes the enclosing `if`'s condition a nested `if` rather than a comparison,
-// and the refinement layer reads facts off comparisons.
+// THERE WAS A SECOND GUARD, `lines < cap_in`, which could not fire: a file under
+// the cap has fewer newlines than that. It was there because the analysis
+// needed it, a counter incremented under a condition having no bound from the
+// loop's own guard. The IR's trip bounds now give it one, lines ≤ i < len(src),
+// so the guard was a clamp, a proof missing no longer, and it went
+// (files-2026-11-16): every target proves the program without it, and on
+// windows it cost 0.45 ms of an 8 MiB file's 6.
 //
 // The byte range is DECLARED on `ReadFile`, so `src` is a `[]byte` on Go, a
 // packed array on V8 and a `short[]` on the JVM — where a file byte does not fit
@@ -75,10 +71,7 @@ export fn main() {
                     else -> loop i = 0, lines = 0 {
                         i >= len(src) -> io.print_int(lines)
                         else ->
-                            again(i + 1,
-                                if lines < cap_in {
-                                    if src[i] == 10 { lines + 1 } else { lines }
-                                } else { lines })
+                            again(i + 1, if src[i] == 10 { lines + 1 } else { lines })
                     }
                 }
         }

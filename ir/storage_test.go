@@ -64,9 +64,14 @@ func TestATablesStorageIsItsLayout(t *testing.T) {
 		what, src string
 		want      int64
 	}{
+		// THE LAYOUT IS THE CLASS'S FINAL REPRESENTATION (Theorem D′,
+		// files-2026-11-16): a table whose elements are proven bytes is held in
+		// bytes and allocated so, one past the byte in words
 		{"a Boolean table", "export fn f(n ∈ 1..100) (Bool) { var t := array { false : _ ∈ 0..n-1 }; t[0] := true; t[0] }", 1},
-		{"an integer table", "export fn f(n ∈ 1..100) (Int) { var t := array { 0 : _ ∈ 0..n-1 }; t[0] := n; t[0] }", 8},
-		{"an array literal", "export fn f(n ∈ 0..1) (Int) { t = array { 5, 6, 7 }; t[n] }", 8},
+		{"a table of bytes", "export fn f(n ∈ 1..100) (Int) { var t := array { 0 : _ ∈ 0..n-1 }; t[0] := n; t[0] }", 1},
+		{"a table of words", "export fn f(n ∈ 1..100) (Int) { var t := array { 0 : _ ∈ 0..n-1 }; t[0] := n * 1000; t[0] }", 8},
+		{"an array literal of bytes", "export fn f(n ∈ 0..1) (Int) { t = array { 5, 6, 7 }; t[n] }", 1},
+		{"an array literal of words", "export fn f(n ∈ 0..1) (Int) { t = array { 500, 6, 7 }; t[n] }", 8},
 	} {
 		got := widths(c.src)
 		if len(got) != 1 || got[0] != c.want {
@@ -77,7 +82,15 @@ func TestATablesStorageIsItsLayout(t *testing.T) {
 	// THE PLANTED FAULT: every table one byte an element.
 	PlantStorageFault = true
 	defer func() { PlantStorageFault = false }()
-	if got := widths("export fn f(n ∈ 1..100) (Int) { var t := array { 0 : _ ∈ 0..n-1 }; t[0] := n; t[0] }"); len(got) == 1 && got[0] == 8 {
+	if got := widths("export fn f(n ∈ 1..100) (Int) { var t := array { 0 : _ ∈ 0..n-1 }; t[0] := n * 1000; t[0] }"); len(got) == 1 && got[0] == 8 {
 		t.Error("with every table one byte an element the integer table's width should be wrong, so the test reaches the pass")
+	}
+	PlantStorageFault = false
+	// AND THE SECOND PLANTED FAULT, the width taken before Theorem D′'s classes:
+	// the table of bytes is allocated 8 bytes an element again
+	PlantStorageWidthIRA = true
+	defer func() { PlantStorageWidthIRA = false }()
+	if got := widths("export fn f(n ∈ 1..100) (Int) { var t := array { 0 : _ ∈ 0..n-1 }; t[0] := n; t[0] }"); len(got) != 1 || got[0] != 8 {
+		t.Errorf("with the width taken before the classes the table of bytes asked %v; want [8], the fault", got)
 	}
 }

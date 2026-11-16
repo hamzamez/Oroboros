@@ -410,7 +410,7 @@ The full, current description is [docs/spec/state.md](docs/spec/state.md), and t
 | | how | measured |
 |---|---|---|
 | Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript, Java, and C on Windows by the same compiler | geometric mean of generated over hand-written **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows, over 45 comparisons from **0.85×** to **1.18×**; each above 1.05× explained, the largest a JavaScript module boundary ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)). Windows runs five of the seven: word count needs a dictionary keyed by strings, the report printing of floats. On Android's runtime, in the emulator, 9 of 10 pairs are at parity and the stencil is 1.17–1.19× ([android-2026-10-05](gauntlet/results/android-2026-10-05.md)). The newest program, a table-shape tool reading its own 64 KB buffer, is at 1.11× its hand-written Go ([observer-2026-10-21](gauntlet/results/observer-2026-10-21.md)) |
-| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **8,881 of 8,935** operations proven across the corpus, every quotient included; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
+| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **8,857 of 8,911** operations proven across the corpus, every quotient included; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
 | Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
 | A function is only called inside its declared domain | every declared parameter range and `where` is proven at every call, above the machine word as the set its enforcement decides, by sign and bit length ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | 346 range obligations in the corpus measured before it was switched on; one program was missing a declaration ([requires](gauntlet/results/requires-2026-09-24.md), [contracts](gauntlet/results/contracts-2026-09-24.md)) |
 | A string is always text | every value typed `String` is a sequence of Unicode scalar values: a host's string is its own type (`go.bytestring`), entered only by the standard's decode, which is the same function on every host ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md)) | 57 Go declarations read one at a time; `text_of` agrees on Go, JS and Java over 18 ill-formed sequences ([hoststring](gauntlet/results/hoststring-2026-09-24.md)) |
@@ -530,7 +530,12 @@ since today reads files through code written in the language itself. It also say
    fails for that reason (one no longer failed at all); every Windows file is assembled; the book's
    examples are re-run on every check. On the way, four programs that return big numbers from a
    function now build on Windows, and a refusal names its real cause instead of a symptom;
-8. run the file programs on Windows at hand-written speed;
+8. ~~run the file programs on Windows at hand-written speed~~ **done 2026-11-16**
+   ([files-2026-11-16](gauntlet/results/files-2026-11-16.md)): two of them crashed on Windows on any
+   file over 8 KB, because a table was given back to a different allocator than the one that made
+   it; fixed. As whole programs, all five now run faster than the same programs written by hand in
+   Go, and four of five faster than C. What is left is measured and explained: counting in 64-bit
+   words where C uses 32-bit ones, and sorting where Go uses a hash table;
 9. 32-bit Windows;
 10. TinyRetroPad's Windows surface, then its walls.
 

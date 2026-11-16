@@ -255,7 +255,7 @@ entry:
   %v145 = load i1, ptr %.s103
   br i1 %v145, label %.then104, label %.else105
 .then104:
-  %v154 = mul nuw nsw i64 1, 8
+  %v154 = mul nuw nsw i64 1, 1
   %v156 = add nsw i64 %v154, 8
   %v158 = icmp sge i64 %v156, 65536
   br i1 %v158, label %.then110, label %.else111
@@ -622,7 +622,7 @@ entry:
   %v413 = load i1, ptr %.s293
   br i1 %v413, label %.then294, label %.else295
 .then294:
-  %v422 = mul nuw nsw i64 1, 8
+  %v422 = mul nuw nsw i64 1, 1
   %v424 = add nsw i64 %v422, 8
   %v426 = icmp sge i64 %v424, 65536
   br i1 %v426, label %.then300, label %.else301
@@ -1556,7 +1556,7 @@ entry:
   %v328 = load i1, ptr %.s251
   br i1 %v328, label %.then252, label %.else253
 .then252:
-  %v337 = mul nuw nsw i64 1, 8
+  %v337 = mul nuw nsw i64 1, 1
   %v339 = add nuw nsw i64 %v337, 8
   %v341 = icmp sge i64 %v339, 65536
   br i1 %v341, label %.then258, label %.else259
@@ -1980,7 +1980,7 @@ entry:
   %v639 = load i1, ptr %.s477
   br i1 %v639, label %.then478, label %.else479
 .then478:
-  %v648 = mul nuw nsw i64 1, 8
+  %v648 = mul nuw nsw i64 1, 1
   %v650 = add nsw i64 %v648, 8
   %v652 = icmp sge i64 %v650, 65536
   br i1 %v652, label %.then484, label %.else485
@@ -2368,7 +2368,7 @@ entry:
   %v916 = load i1, ptr %.s686
   br i1 %v916, label %.then687, label %.else688
 .then687:
-  %v925 = mul nuw nsw i64 1, 8
+  %v925 = mul nuw nsw i64 1, 1
   %v927 = add nsw i64 %v925, 8
   %v929 = icmp sge i64 %v927, 65536
   br i1 %v929, label %.then693, label %.else694
@@ -2796,7 +2796,7 @@ entry:
   %v1219 = load i1, ptr %.s912
   br i1 %v1219, label %.then913, label %.else914
 .then913:
-  %v1228 = mul nuw nsw i64 1, 8
+  %v1228 = mul nuw nsw i64 1, 1
   %v1230 = add nsw i64 %v1228, 8
   %v1232 = icmp sge i64 %v1230, 65536
   br i1 %v1232, label %.then919, label %.else920
@@ -3221,7 +3221,7 @@ entry:
   %v1519 = load i1, ptr %.s1137
   br i1 %v1519, label %.then1138, label %.else1139
 .then1138:
-  %v1528 = mul nuw nsw i64 1, 8
+  %v1528 = mul nuw nsw i64 1, 1
   %v1530 = add nsw i64 %v1528, 8
   %v1532 = icmp sge i64 %v1530, 65536
   br i1 %v1532, label %.then1144, label %.else1145

@@ -28,38 +28,19 @@ export function genMain() {
 				break;
 			}
 			const v41 = v11[v30];
-			if ((v41 === 10)) {
-				const v47 = ((v27 < 16777216) ? (v27 + 1) : v27);
-				if (((v41 === 32) || ((v41 >= 9) && (v41 <= 13)))) {
-					v27 = v47;
-					v29 = false;
-					continue;
-				}
-				if (v29) {
-					v27 = v47;
-					continue;
-				}
-				if ((v28 < 16777216)) {
-					v27 = v47;
-					v28 = (v28 + 1);
-					v29 = true;
-					continue;
-				}
-				v27 = v47;
-				continue;
-			}
+			const v44 = ((v41 === 10) ? (v27 + 1) : v27);
 			if (((v41 === 32) || ((v41 >= 9) && (v41 <= 13)))) {
+				v27 = v44;
 				v29 = false;
 				continue;
 			}
 			if (v29) {
+				v27 = v44;
 				continue;
 			}
-			if ((v28 < 16777216)) {
-				v28 = (v28 + 1);
-				v29 = true;
-				continue;
-			}
+			v27 = v44;
+			v28 = (v28 + 1);
+			v29 = true;
 			continue;
 		}
 		return v26;

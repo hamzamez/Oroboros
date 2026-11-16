@@ -42,53 +42,28 @@ public final class examples_io_count.java {
 				}
 				final int v41 = (v11[v30] & 0xFF);
 				final boolean v43 = (v41 == 10);
+				int v44 = 0;
 				if (v43) {
-					final boolean v46 = (v27 < 16777216);
-					int v47 = 0;
-					if (v46) {
-						final int v50 = (v27 + 1);
-						v47 = v50;
-					} else {
-						v47 = v27;
-					}
-					final boolean v56 = (v41 == 32);
-					final boolean v57 = (v56 || ((v41 >= 9) && (v41 <= 13)));
-					if (v57) {
-						v27 = v47;
-						v29 = false;
-						continue;
-					}
-					if (v29) {
-						v27 = v47;
-						continue;
-					}
-					final boolean v75 = (v28 < 16777216);
-					if (v75) {
-						final long v78 = (v28 + 1);
-						v27 = v47;
-						v28 = (int) (v78);
-						v29 = true;
-						continue;
-					}
-					v27 = v47;
-					continue;
+					final int v47 = (v27 + 1);
+					v44 = v47;
+				} else {
+					v44 = v27;
 				}
-				final boolean v90 = (v41 == 32);
-				final boolean v91 = (v90 || ((v41 >= 9) && (v41 <= 13)));
-				if (v91) {
+				final boolean v53 = (v41 == 32);
+				final boolean v54 = (v53 || ((v41 >= 9) && (v41 <= 13)));
+				if (v54) {
+					v27 = v44;
 					v29 = false;
 					continue;
 				}
 				if (v29) {
+					v27 = v44;
 					continue;
 				}
-				final boolean v109 = (v28 < 16777216);
-				if (v109) {
-					final int v112 = (v28 + 1);
-					v28 = v112;
-					v29 = true;
-					continue;
-				}
+				final int v72 = (v28 + 1);
+				v27 = v44;
+				v28 = v72;
+				v29 = true;
 				continue;
 			}
 			return v26;

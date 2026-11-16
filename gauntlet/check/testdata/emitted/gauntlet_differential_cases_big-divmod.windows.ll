@@ -592,7 +592,7 @@ entry:
   %v337 = load i1, ptr %.s246
   br i1 %v337, label %.then247, label %.else248
 .then247:
-  %v346 = mul nuw nsw i64 1, 8
+  %v346 = mul nuw nsw i64 1, 1
   %v348 = add nuw nsw i64 %v346, 8
   %v350 = icmp sge i64 %v348, 65536
   br i1 %v350, label %.then253, label %.else254
@@ -1485,7 +1485,7 @@ entry:
   %v988 = load i1, ptr %.s712
   br i1 %v988, label %.then713, label %.else714
 .then713:
-  %v997 = mul nuw nsw i64 1, 8
+  %v997 = mul nuw nsw i64 1, 1
   %v999 = add nuw nsw i64 %v997, 8
   %v1001 = icmp sge i64 %v999, 65536
   br i1 %v1001, label %.then719, label %.else720

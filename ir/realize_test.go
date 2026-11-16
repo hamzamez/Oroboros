@@ -409,3 +409,59 @@ func TestATermPastItsHostDomainIsCaught(t *testing.T) {
 		t.Error("a guard at 64 passed: the check cannot see a term past its host's domain")
 	}
 }
+
+// A TERM'S HOST `where` IS DECIDED, and V's SUBMONOID DECIDES `++`
+// (strings-2026-11-16). lang.cat realizes the free monoid's operation as the
+// rule x·y read back by ρ⁻¹ = llvm/str.text, whose `where` is utf8_valid: the
+// refinement layer must decide it on the instance, and does, by V's being a
+// submonoid of B*. THE PLANTED FAULTS: without the submonoid's case the
+// instance is refused, its concatenation unproven; and without the refinement
+// layer on the instance, the hole as it was, the same unproven term is
+// inlined.
+func TestATermsHostWhereIsDecided(t *testing.T) {
+	load := func() *emit.Target {
+		emit.ResetImports()
+		tg, err := emit.LoadTargetLayers("windows", []string{"../targets"}, []string{"../lib"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tg
+	}
+	if _, err := Instance(load(), "lang.cat"); err != nil {
+		t.Fatalf("lang.cat: %v", err)
+	}
+	emit.PlantCatValid = true
+	defer func() { emit.PlantCatValid = false }()
+	if _, err := Instance(load(), "lang.cat"); err == nil || !strings.Contains(err.Error(), "utf8_valid") {
+		t.Errorf("without the submonoid: %v; want ρ⁻¹'s utf8_valid refused", err)
+	}
+	PlantTermWhereUnchecked = true
+	defer func() { PlantTermWhereUnchecked = false }()
+	if _, err := Instance(load(), "lang.cat"); err != nil {
+		t.Errorf("with the term's where unchecked the instance should be accepted, the hole: %v", err)
+	}
+}
+
+// A GOAL ≠ IS ITS ATOM UP TO ≠'S SYMMETRY (strings-2026-11-16): lang.div's
+// guard `b == -1` gives ne(b, −1) on its other arm, and sdiv's `where` asks it
+// inside a disjunction, ne(a, −2⁶³) ∨ ne(b, −1). Once a term's host `where`
+// is decided, the instance is proven so. THE PLANTED FAULT leaves a goal ≠
+// to its two strict sides, which no fact gives: the instance is refused.
+func TestAGoalDisequalityIsItsAtom(t *testing.T) {
+	load := func() *emit.Target {
+		emit.ResetImports()
+		tg, err := emit.LoadTargetLayers("windows", []string{"../targets"}, []string{"../lib"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tg
+	}
+	if _, err := Instance(load(), "lang.div"); err != nil {
+		t.Fatalf("lang.div: %v", err)
+	}
+	emit.PlantNeGoalUnmatched = true
+	defer func() { emit.PlantNeGoalUnmatched = false }()
+	if _, err := Instance(load(), "lang.div"); err == nil || !strings.Contains(err.Error(), "sdiv") {
+		t.Errorf("with a goal ≠ left to its strict sides: %v; want sdiv's where refused", err)
+	}
+}

@@ -64,6 +64,65 @@ module lang {
         }
     }
 
+    // ---- THE FREE MONOID Σ* ON THIS LAYER (strings-2026-11-16): a string is
+    // the table of its UTF-8, ρ : Σ* ≅ V ⊂ B* (str.oro), so each of the
+    // language's string operations is a table's, restricted to V, read back by
+    // ρ⁻¹ = str.text. Each table is the allocator's, so it carries the zero
+    // past its bytes, the C string's NUL, and is a table like any other to the
+    // decision, the storage and the printer. These replace four functions
+    // written as LLVM text the compiler could not read (ADR 0089).
+
+    // η : Scalar → Σ*, the generator: a scalar's UTF-8, Table 3-7's rows, under
+    // the scalars' domain, U+0000..U+10FFFF less the surrogates, which every
+    // target states (Go's `string(rune(c))`). A realization is a term over the
+    // host's operations (ADR 0089), so the digits base 64 are LLVM's `sdiv` and
+    // `srem`, inside their domain (the divisors are powers of two, c ≥ 0, where
+    // truncation is the floor). The bytes are computed, and V on
+    // computed bytes needs a fact per position the decision does not keep, so a
+    // guard of at most four of V's steps decides it; the agreement test runs
+    // every scalar, so the arm that abandons is dead (TestEveryScalarEncodes).
+    fn encode(c ∈ Int) (String) where c >= 0 && c <= 1114111 && (c <= 55295 || c >= 57344) {
+        b = case {
+            c < 128 -> alloc(array { c })
+            c < 2048 -> alloc(array { 192 + llvm.sdiv(c, 64), 128 + llvm.srem(c, 64) })
+            c < 65536 -> alloc(array { 224 + llvm.sdiv(c, 4096), 128 + llvm.srem(llvm.sdiv(c, 64), 64), 128 + llvm.srem(c, 64) })
+            else -> alloc(array { 240 + llvm.sdiv(c, 262144), 128 + llvm.srem(llvm.sdiv(c, 4096), 64),
+                128 + llvm.srem(llvm.sdiv(c, 64), 64), 128 + llvm.srem(c, 64) })
+        }
+        if utf8_valid(b) { str.text(b) } else { abandon("string_of: a scalar's UTF-8 is not valid UTF-8") }
+    }
+
+    // ·, the monoid's operation, on V: x·y, a rule over both tables. V is a
+    // submonoid of B* (V = φ⁻¹(F) with F = {q₀}, q₀ initial: δ(q₀, xy) =
+    // δ(δ(q₀, x), y) = q₀), so x·y ∈ V of x, y ∈ V, and the obligation is
+    // decided by that theorem on the rule (emit/requires.go), with no pass.
+    // Two strings each as long as a table may be have no table their length:
+    // a join past os.max_len is exhaustion, as allocate's request past it is.
+    fn cat(a ∈ String, b ∈ String) (String) {
+        x = str.utf8(a)
+        y = str.utf8(b)
+        n = len(x) + len(y)
+        case {
+            n <= os.max_len() -> str.text(alloc(array { if k < len(x) { x[k] } else { y[k - len(x)] } : k ∈ 0..n - 1 }))
+            else -> llvm.trap()
+        }
+    }
+
+    // ι : (B₇)* ↪ Σ* (ADR 0095): the word b[lo, lo + n) as text, a copy of the
+    // segment into a table of its own, ASCII's ρ⁻¹.
+    fn ascii_of(b ∈ Array(0..127), lo ∈ 0..2^63-1, n ∈ 0..2^63-1) (String) where lo + n <= len(b) {
+        str.text_ascii(alloc(array { b[lo + i] : i ∈ 0..n - 1 }))
+    }
+
+    // ι_V : V ↪ Σ* (ADR 0112): valid UTF-8 as text, a copy of the table, which
+    // is b extensionally, so the copy is in V by b's own `where`. The copy is
+    // the table's own storage for the string, not the NUL's, which every
+    // table has: ι_V as the identity, b moved into its string, is the step
+    // after this one (owed).
+    fn text_v(b ∈ Array(0..255)) (String) where utf8_valid(b) {
+        str.text(alloc(array { b[i] : i ∈ 0..len(b) - 1 }))
+    }
+
     // ~a = a ⊕ (−1) = −a − 1, the complement: LLVM has no `not`.
     fn complement(a ∈ Int) (Int) { llvm.xor(a, -1) }
 
@@ -132,12 +191,22 @@ module lang {
         os.exit(1)
     }
 
+    // ---- A TABLE'S REGION: its 8-byte length, its n elements of w bytes, and
+    // ONE ZERO BYTE past them (strings-2026-11-16). The zero is what makes a
+    // table of bytes a C string, x·0 with x its bytes: a string here is the
+    // table of its UTF-8 (V ⊂ B*), so a string's NUL, which Win32's LPCSTR reads
+    // (ADR 0091), is the allocator's, and making a string from bytes copies
+    // nothing for it. b(n, w) = n·w + 9 is every term's size below, one
+    // definition, so an allocation and its release ask one size.
+    // n ≤ ⌊(2⁶³ − 9)/8⌋, allocate's own bound, so n·w + 9 is in the word
+    fn bytes(n ∈ 0..1152921504606846974, w ∈ 1..8) (Nat) { n * w + 9 }
+
     // ---- RELEASE (ADR 0096): a table's storage given back at its death, the
     // inverse of `allocate`. n is len(t) and w its element width, so the region
-    // is n·w + 8 bytes, the size `allocate` asked `region` for; n ≤ 2⁴⁷ − 9 by
+    // is b(n, w) bytes, the size `allocate` asked `region` for; n ≤ 2⁴⁷ − 9 by
     // the address space (windows.oro's max_len), so the size is in the word.
     // ir.Release places the call, and the verifier's W11 checks it.
-    fn release(t ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (Bool) { os.release(t, n * w + 8) }
+    fn release(t ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (Bool) { os.release(t, bytes(n, w)) }
 
     // REUSE (ADR 0096): release(p, b) followed by region(b) is the region p,
     // zeroed, up to its address, since nothing reaches p after its release
@@ -146,7 +215,7 @@ module lang {
     // loop's first iteration). ir.Reuse hands tokens only of equal size, and
     // W12 checks it.
     fn reuse(tok ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
-        if llvm.is_null(tok) { allocate(n, w) } else { z = os.zero(tok, n * w + 8); tok }
+        if llvm.is_null(tok) { allocate(n, w) } else { z = os.zero(tok, bytes(n, w)); tok }
     }
 
     // A TOKEN GIVEN BACK (ADR 0096's reuse): on an iteration's arm that makes
@@ -194,7 +263,7 @@ module lang {
     // whatever facts the site has (a length a trapped operation computed).
     fn allocate(n ∈ Nat, w ∈ 1..8) (ptr) {
         case {
-            n >= 0 && n <= (2^63 - 9) / 8 -> os.region(n * w + 8)
+            n >= 0 && n <= (2^63 - 9) / 8 -> os.region(bytes(n, w))
             else -> llvm.trap()
         }
     }
@@ -203,10 +272,16 @@ module lang {
     // and when every element is written before any is read, the zero is a dead
     // store. So a rule, an array literal, and a build whose written-prefix
     // theorem holds (ir/fill.go) take a region with no zeroing, and a token
-    // without it.
+    // without it. No element store reaches the byte past the elements, so the
+    // raw region's zero there is written here, one byte; a token of the same
+    // size holds its predecessor's, untouched since.
     fn allocate_raw(n ∈ Nat, w ∈ 1..8) (ptr) {
         case {
-            n >= 0 && n <= (2^63 - 9) / 8 -> os.region_raw(n * w + 8)
+            n >= 0 && n <= (2^63 - 9) / 8 -> {
+                p = os.region_raw(bytes(n, w))
+                z = llvm.store8(p, n * w + 8, 0)
+                p
+            }
             else -> llvm.trap()
         }
     }
@@ -215,7 +290,7 @@ module lang {
     }
 
     // A DEAD REGION SERVES A REQUEST OF ITS CLASS (R1d, ADR 0107): a token of k
-    // elements of width w was a table of k·w + 8 bytes, and release(p, b) ;
+    // elements of width w was a table of b(k, w) bytes, and release(p, b) ;
     // region(b') ≡ zero(p, b') whenever class(b') = class(b) (os.class, the
     // block's capacity). So it is taken when the classes agree, a longer
     // table included, and given back otherwise; the sizes are the run's,
@@ -223,14 +298,15 @@ module lang {
     fn reuse_fit(tok ∈ ptr, k ∈ 0..2^47-9, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
         case {
             llvm.is_null(tok) -> allocate(n, w)
-            os.class(n * w + 8) == os.class(k * w + 8) -> { z = os.zero(tok, n * w + 8); tok }
+            os.class(bytes(n, w)) == os.class(bytes(k, w)) -> { z = os.zero(tok, bytes(n, w)); tok }
             else -> { r = release(tok, k, w); allocate(n, w) }
         }
     }
     fn reuse_fit_raw(tok ∈ ptr, k ∈ 0..2^47-9, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
         case {
             llvm.is_null(tok) -> allocate_raw(n, w)
-            os.class(n * w + 8) == os.class(k * w + 8) -> tok
+            // a shorter table's end falls inside its predecessor's elements
+            os.class(bytes(n, w)) == os.class(bytes(k, w)) -> { z = llvm.store8(tok, n * w + 8, 0); tok }
             else -> { r = release(tok, k, w); allocate_raw(n, w) }
         }
     }

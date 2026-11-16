@@ -574,9 +574,11 @@ what TinyRetroPad's walls need.
     D(k, R)'s separation normal form.
 - **Win32's strings, the rest of ADR 0091**: a C string from Win32 into ours (`strlen` and a copy,
   total, into ν's kernel), trigger TinyRetroPad's `GetWindowTextA`; the list of C strings,
-  (B*₀)* → bytes, trigger its open dialog's filter; the `W` functions' UTF-16, trigger a `W` function;
-  `string_of` and `++` on windows as terms over the bytes, which need V (valid UTF-8, a submonoid by
-  ν's argument), trigger the next change to `strings.oro`.
+  (B*₀)* → bytes, trigger its open dialog's filter; the `W` functions' UTF-16, trigger a `W` function.
+  ~~`string_of` and `++` on windows as terms over the bytes~~ **done** (ADR 0117,
+  [strings-2026-11-16](gauntlet/results/strings-2026-11-16.md)): the four string operations are
+  definitions in the language on the LLVM layer, V a submonoid deciding `++`, η agreeing on every
+  scalar, the NUL the allocator's; owed: ι_V as the identity, large string terms called as functions.
 - **One integer rendering on every target**, render : ℤ → Σ* per representation (ADR 0095 built it on
   windows): on Go, the JVM and JavaScript a word value is still widened to the host's bignum to be
   printed, a hidden allocation. Trigger: printing's P3.
@@ -613,7 +615,7 @@ what TinyRetroPad's walls need.
 - **Provability**: **8,857 of 8,911** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **886 of 924** loops proven to terminate (size-change termination; fourteen of the 38 left are
+  **924 of 962** loops proven to terminate (size-change termination; fourteen of the 38 left are
   windows' `os` cell's read and write loops, whose progress is a count the host returns). A
   definition windows keeps as a function (ADR 0113) is counted once per program, so the totals fell
   with P8 while no program's unproven count rose (p8-2026-11-15, p8step3-2026-11-15); they rose with the
@@ -962,6 +964,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A fold is an equation between pure terms: the language's operators fold only where the primitive is pure | [0114](docs/decisions/0114-a-fold-is-an-equation-between-pure-terms.md) |
 | A rule at an export's boundary is its extension, `alloc(rule)`; in the interior a rule fuses or the author writes `alloc` | [0115](docs/decisions/0115-a-rule-at-an-exports-boundary-is-its-extension.md) |
 | A statement whose value is a function is refused; `ignore(f)` is the discard | [0116](docs/decisions/0116-a-statement-whose-value-is-a-function-is-refused.md) |
+| A string is the table of its UTF-8 on the LLVM layer, its four operations definitions in the language read back by ρ⁻¹ (V a submonoid decides `++`, η agrees on every scalar); every table's region one zero byte past it, the C string's NUL; a realization's host `where` decided; an identity coercion a move | [0117](docs/decisions/0117-a-string-is-the-table-of-its-utf-8-and-its-operations-are-the-languages.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

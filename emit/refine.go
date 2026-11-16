@@ -865,6 +865,11 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 	r.joinConditional(inner, k.Params[0], args[0], f)
 	r.summarizeLoop(inner, k.Params[0], args[0])
 	r.bindContent(inner, k.Params[0], args[0], f)
+	// A NAME BOUND TO A TERM IN V IS IN V (strings-2026-11-16): the structural
+	// decision, made once on the bound term, is the name's from here on.
+	if !PlantCatValid && r.utf8Valid(args[0], f) {
+		assume(inner, core.App(core.Name("utf8-valid"), core.Name(k.Params[0])))
+	}
 	// A POSTCONDITION ATTACHES TO THE NAME, not to the call (Lemma 2). Two
 	// occurrences of an impure call denote different values and the fact layer
 	// is keyed by printed term, so the only sound anchor is the binder — which
@@ -1286,7 +1291,7 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 			return true, nil
 		}
 	}
-	if b, ok := utf8ValidArg(want); ok && utf8Valid(b, f) {
+	if b, ok := utf8ValidArg(want); ok && r.utf8Valid(b, f) {
 		return true, nil
 	}
 	// A COMPARISON OF CLOSED INTEGER TERMS IS DECIDED IN ℤ, exactly: `mod 2^64`'s
@@ -1444,6 +1449,14 @@ func (r *refiner) goalHolds(t *core.Term, f *facts) bool {
 		return f.entailsOpaque(opaqueKey(t)) || r.goalHolds(a, f) || r.goalHolds(b, f)
 	}
 	if lo, hi, isNe := disequality(t); isNe {
+		// A ≠ IS A DISJUNCTION the fragment cannot hold, so an assumed one is
+		// an atom under neKey, its two sides ordered by ≠'s symmetry. A goal
+		// ≠, a disjunct among them, is that atom too (strings-2026-11-16): a
+		// realization's `b == -1` guard gives ne(b, −1), which sdiv's `where`
+		// asks inside a disjunction, and only the two strict sides were tried.
+		if k, ok := neKey(t); ok && f.entailsOpaque(k) && !PlantNeGoalUnmatched {
+			return true
+		}
 		return f.entailsEither(lo, hi)
 	}
 	if goals, ok := f.oblig(t); ok {
@@ -3122,3 +3135,8 @@ func isComparison(name string) bool {
 	}
 	return false
 }
+
+// PlantNeGoalUnmatched leaves a goal ≠ to its two strict sides, as before
+// strings-2026-11-16: lang.div's sdiv is then refused, its ne(b, −1) unmatched
+// by its guard's.
+var PlantNeGoalUnmatched bool

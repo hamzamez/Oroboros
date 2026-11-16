@@ -1,7 +1,22 @@
 // A STRING'S BYTES (llvm.md §4): a string here is a table of bytes, an i64
-// length and then its UTF-8, with a NUL after them outside the length, so it is
-// exactly an Array(0..255) of its encoding, and `utf8` is that identity. The
-// layout is this layer's, on every triple (ADR 0093 item 6).
+// length and then its UTF-8, the allocator's zero after them outside the
+// length, so it is exactly an Array(0..255) of its encoding. UTF-8 is a monoid
+// isomorphism ρ : Σ* ≅ V onto the valid UTF-8 V ⊂ B*, and on this layer ρ is
+// the identity on the representation: `utf8` is ρ, and `text` its inverse on
+// V. The layout is this layer's, on every triple (ADR 0093 item 6).
 module llvm/str {
-    fn utf8(s ∈ String) (Array(0..255)) pure { host expr "getelementptr i8, ${s}, i64 0" }
+    // ρ's image is V: a string's bytes are valid UTF-8, its `ensure`, assumed
+    // at every call as a host operation's is.
+    fn utf8(s ∈ String) (r ∈ Array(0..255)) pure ensure utf8_valid(r) { host expr "getelementptr i8, ${s}, i64 0" }
+
+    // ρ⁻¹ : V → Σ*, the identity on the representation. Its domain is V, its
+    // `where`: a table of bytes is a string exactly when it is valid UTF-8, and
+    // the obligation is decided as utf8_valid is (emit/requires.go: φ on a
+    // literal, V's submonoid on a concatenation, a string's own bytes), or by a
+    // guard. The table becomes the string: it is moved, not borrowed.
+    fn text(b ∈ Array(0..255)) (String) pure where utf8_valid(b) { host expr "getelementptr i8, ${b}, i64 0" }
+
+    // ρ⁻¹ on (B₇)*, ASCII: V's automaton loops at its start on every byte
+    // below 128, so (B₇)* ⊆ V and the obligation is the element set itself.
+    fn text_ascii(b ∈ Array(0..127)) (String) pure { host expr "getelementptr i8, ${b}, i64 0" }
 }

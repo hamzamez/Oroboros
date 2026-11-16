@@ -45,7 +45,7 @@ entry:
   br i1 %v15, label %.then13, label %.else14
 .then13:
   %v24 = mul nuw nsw i64 64, 1
-  %v26 = add nuw nsw i64 %v24, 8
+  %v26 = add nuw nsw i64 %v24, 9
   %v28 = icmp sge i64 %v26, 65536
   br i1 %v28, label %.then19, label %.else20
 .then19:
@@ -255,7 +255,7 @@ entry:
 .join31:
   %v42 = load i1, ptr %.s36
   %v53 = mul nuw nsw i64 %v30, 1
-  %v55 = add nuw nsw i64 %v53, 8
+  %v55 = add nuw nsw i64 %v53, 9
   %v57 = icmp sge i64 %v55, 65536
   br i1 %v57, label %.then40, label %.else41
 .then40:

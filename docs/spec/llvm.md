@@ -51,7 +51,6 @@ family: `glue llvm`, `triple "x86_64-pc-windows-msvc"`, the link line and the bu
 - `kernel32.oro`: the Win32 functions programs call, as they are, each `declare dllimport` in the
   printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count. The
   rest of Win32 is the survey's generated layer (`gauntlet/stdlib/win32.go`), written the same way;
-- `strings.oro`: the free monoid's helpers, `string_of` and `++`, which allocate from the process heap.
 
 **A run is exit(0) ∘ main**: `cmd/build` composes the entry with Σ_OS's `exit`, so the printer's
 `main` only calls it.
@@ -228,12 +227,15 @@ The width is read off the table's representative's type, so every alias of a tab
   `HEAP_ZERO_MEMORY`) and reused by `reuse-raw`, which does not zero its token.
 - **`restrict t n`** is not printed in the first step, as on MASM: a restriction's length must survive
   a join, which a header-held length does not.
-- **A string** is its length, its UTF-8 bytes and a NUL after them: `{ i64 len, [len+1 x i8] }` for a
-  literal, and the same layout from `string_of` and `++`, the only other operations that make one
-  (`targets/windows/strings.oro`). The NUL is outside the length, so the abstraction function
-  (ADR 0083's d) ignores it and nothing the language computes reads it; it is there so that a
-  string's bytes, at s + 8, are the C string Win32's `LPCSTR` reads, exactly when the string holds no
-  NUL itself (B*₀, the free submonoid on the non-NUL scalars; mastretire-2026-11-03).
+- **A string is the table of its UTF-8** (ADR 0117): UTF-8 is a monoid isomorphism ρ : Σ\* ≅ V onto
+  the valid UTF-8 V ⊂ B\*, and here ρ is the identity on the representation, `llvm/str.utf8` (whose
+  `ensure` states ρ's image is V) and its inverse `llvm/str.text` (whose `where` is V). Every table's
+  region holds one zero byte past its elements, b(n, w) = n·w + 9 (`lang.bytes`), written by the
+  allocator: so a string's bytes, at s + 8, are the C string Win32's `LPCSTR` reads, exactly when the
+  string holds no NUL itself (B\*₀; ADR 0091), and nothing the language computes reads the zero. A
+  literal is `{ i64 len, [len+1 x i8] }`. `string_of`, `++`, ι and ι_V are definitions in the language
+  (`targets/llvm/lang.oro`: `encode`, `cat`, `ascii_of`, `text_v`), each a table read back by ρ⁻¹;
+  ρ⁻¹ is the identity, so its table becomes the string, and the release pass reads it as a move.
 
 ## 5. Operations
 

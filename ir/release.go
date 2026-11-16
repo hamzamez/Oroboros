@@ -339,6 +339,17 @@ func newRelCtx(tg *emit.Target, f *Func) *relCtx {
 			case OLen, OStorage:
 				add(s.Args[0], use{at: at, kind: useBorrow})
 			case OCall:
+				// AN IDENTITY COERCION IS A RENAMING, as a π is
+				// (strings-2026-11-16): llvm/str.text's term is its argument, so
+				// its String is the table's own storage. A String is no table
+				// this pass follows, so the table escapes into it and is never
+				// released, where a borrow would free it under the string.
+				if identityCoercion(tg.Prims[s.Name]) && !PlantCoercionBorrows {
+					for _, a := range s.Args {
+						add(a, use{at: at, kind: useEscape})
+					}
+					continue
+				}
 				// A PROGRAM FUNCTION'S CALL IS THE FRAME RULE (ADR 0101): its
 				// arguments are borrowed and its result is a birth, owned here;
 				// W13 checks the callee returns no argument of its own.
@@ -914,3 +925,17 @@ func stmtAt(at loc) *Stmt {
 	}
 	return nil
 }
+
+// identityCoercion is a host operation whose term is its one argument's
+// address, `getelementptr i8, ${x}, i64 0` (loaded as `%1`), from a table to
+// a value this pass does not follow: its result is that table's own storage.
+func identityCoercion(q emit.Prim) bool {
+	if len(q.Args) != 1 || q.Result == "" || strings.HasPrefix(q.Result, "array") {
+		return false
+	}
+	return strings.TrimSpace(q.Form) == "getelementptr i8, %1, i64 0"
+}
+
+// PlantCoercionBorrows reads llvm/str.text as borrowing its table, as before
+// strings-2026-11-16: a program's table is then released under its string.
+var PlantCoercionBorrows bool

@@ -12,11 +12,12 @@ entry:
   %.s8 = alloca i1
   %.s21 = alloca ptr
   %.s26 = alloca i64
-  %.s59 = alloca ptr
+  %.s60 = alloca ptr
   %.s64 = alloca ptr
-  %.s65 = alloca i64
   %.s69 = alloca ptr
-  %.s84 = alloca ptr
+  %.s70 = alloca i64
+  %.s74 = alloca ptr
+  %.s89 = alloca ptr
   %v1 = load i64, ptr %v0
   %v3 = icmp sge i64 %v1, 2
   %v4 = load i64, ptr %v0
@@ -35,7 +36,7 @@ entry:
   br i1 %v12, label %.then9, label %.else10
 .then9:
   %v21 = mul nsw i64 %v6, 8
-  %v23 = add nuw nsw i64 %v21, 8
+  %v23 = add nuw nsw i64 %v21, 9
   %v25 = icmp sge i64 %v23, 65536
   br i1 %v25, label %.then15, label %.else16
 .then15:
@@ -123,54 +124,64 @@ entry:
   call void @llvm.trap()
   unreachable
 .else57:
-  store ptr %v26, ptr %.s59
+  store ptr %v26, ptr %.s60
+  br label %.join58
+.join58:
+  %v89 = load ptr, ptr %.s60
+  %v91 = mul nsw i64 %v6, 8
+  %v93 = add nuw nsw i64 %v91, 8
+  %a.63 = getelementptr inbounds i8, ptr %v89, i64 %v93
+  %c.63 = trunc i64 0 to i8
+  store i8 %c.63, ptr %a.63
+  %v95 = icmp eq i64 0, 0
+  store ptr %v89, ptr %.s64
   br label %.join11
 .else10:
   call void @llvm.trap()
   unreachable
 .join11:
-  %v18 = load ptr, ptr %.s59
+  %v18 = load ptr, ptr %.s64
   store i64 %v6, ptr %v18
-  store ptr %v18, ptr %.s64
-  store i64 0, ptr %.s65
-  br label %.head62
-.head62:
-  %v95 = load ptr, ptr %.s64
-  %v96 = load i64, ptr %.s65
-  %v97 = icmp sge i64 %v96, %v6
-  br i1 %v97, label %.then67, label %.else68
-.then67:
-  store ptr %v95, ptr %.s69
-  br label %.exit63
-.else68:
-  %.d70 = getelementptr inbounds i8, ptr %v0, i64 8
-  %.e71 = getelementptr inbounds double, ptr %.d70, i64 %v96
-  %v102 = load double, ptr %.e71
-  %v104 = add nuw nsw i64 %v96, 1
-  %.d73 = getelementptr inbounds i8, ptr %v0, i64 8
-  %.e74 = getelementptr inbounds double, ptr %.d73, i64 %v104
-  %v105 = load double, ptr %.e74
-  %v106 = fadd double %v102, %v105
-  %v108 = add nuw nsw i64 %v96, 2
-  %.d77 = getelementptr inbounds i8, ptr %v0, i64 8
-  %.e78 = getelementptr inbounds double, ptr %.d77, i64 %v108
-  %v109 = load double, ptr %.e78
-  %v110 = fadd double %v106, %v109
-  %v112 = fdiv double %v110, 0x4008000000000000
-  %.d81 = getelementptr inbounds i8, ptr %v95, i64 8
-  %.e82 = getelementptr inbounds double, ptr %.d81, i64 %v96
-  store double %v112, ptr %.e82
-  %v115 = add nuw nsw i64 %v96, 1
-  store ptr %v95, ptr %.s64
-  store i64 %v115, ptr %.s65
-  br label %.head62
-.exit63:
-  %v94 = load ptr, ptr %.s69
-  store ptr %v94, ptr %.s84
-  br label %.built61
-.built61:
-  %v91 = load ptr, ptr %.s84
-  ret ptr %v91
+  store ptr %v18, ptr %.s69
+  store i64 0, ptr %.s70
+  br label %.head67
+.head67:
+  %v101 = load ptr, ptr %.s69
+  %v102 = load i64, ptr %.s70
+  %v103 = icmp sge i64 %v102, %v6
+  br i1 %v103, label %.then72, label %.else73
+.then72:
+  store ptr %v101, ptr %.s74
+  br label %.exit68
+.else73:
+  %.d75 = getelementptr inbounds i8, ptr %v0, i64 8
+  %.e76 = getelementptr inbounds double, ptr %.d75, i64 %v102
+  %v108 = load double, ptr %.e76
+  %v110 = add nuw nsw i64 %v102, 1
+  %.d78 = getelementptr inbounds i8, ptr %v0, i64 8
+  %.e79 = getelementptr inbounds double, ptr %.d78, i64 %v110
+  %v111 = load double, ptr %.e79
+  %v112 = fadd double %v108, %v111
+  %v114 = add nuw nsw i64 %v102, 2
+  %.d82 = getelementptr inbounds i8, ptr %v0, i64 8
+  %.e83 = getelementptr inbounds double, ptr %.d82, i64 %v114
+  %v115 = load double, ptr %.e83
+  %v116 = fadd double %v112, %v115
+  %v118 = fdiv double %v116, 0x4008000000000000
+  %.d86 = getelementptr inbounds i8, ptr %v101, i64 8
+  %.e87 = getelementptr inbounds double, ptr %.d86, i64 %v102
+  store double %v118, ptr %.e87
+  %v121 = add nuw nsw i64 %v102, 1
+  store ptr %v101, ptr %.s69
+  store i64 %v121, ptr %.s70
+  br label %.head67
+.exit68:
+  %v100 = load ptr, ptr %.s74
+  store ptr %v100, ptr %.s89
+  br label %.built66
+.built66:
+  %v97 = load ptr, ptr %.s89
+  ret ptr %v97
 }
 
 define ptr @native_smooth_into(ptr %v0, ptr %v1) #0 {

@@ -7,7 +7,6 @@
 //   os.oro         the view Σ_OS → Win32: region, write_err and exit over
 //                  kernel32, the definitions the layer's headers require
 //   kernel32.oro   the Win32 functions programs call, as Win32 has them
-//   strings.oro    the free monoid's helpers, which allocate from the heap
 glue llvm
 
 // THE TRIPLE (ADR 0093 item 5), what the printer writes: 64-bit Windows,
@@ -27,12 +26,6 @@ link "kernel32"
 // failed. Win32 has no type-wide niche: a failure is each function's sentinel,
 // and a failing call need not set the code, so 0 is a code like any other.
 set error = 0..2^32-1
-
-// THE STRING MONOID on this target, its helpers the process heap's (strings.oro).
-realize string_of = win/str.string_of
-realize concat = win/str.concat
-realize ascii = win/str.ascii
-realize utf8_text = win/str.utf8_text
 
 build "cmd /c .\\build.bat"
 artifact "main.exe"

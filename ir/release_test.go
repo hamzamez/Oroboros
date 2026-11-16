@@ -171,3 +171,35 @@ func TestABuildsBufferNotFrozenOutIsReleased(t *testing.T) {
 		t.Errorf("with a frozen build's storage released: %v; want W11's refusal", err)
 	}
 }
+
+// coerceSrc computes a table, makes it a string by ρ⁻¹ (ASCII's, which needs no
+// obligation), and uses the string after: the table is the string's storage.
+const coerceSrc = "use io\n" +
+	"use llvm/str as str\n" +
+	"export fn f(n ∈ 0..100) (Int) {\n" +
+	"    b = alloc(array { 104 + k % 2 : k ∈ 0..n })\n" +
+	"    s = str.text_ascii(b)\n" +
+	"    io.print_line(s ++ s)\n" +
+	"    n\n" +
+	"}\n"
+
+// AN IDENTITY COERCION MOVES ITS TABLE (strings-2026-11-16): llvm/str.text is
+// the identity on the representation, so the string is the table's storage
+// and the table must not be released while the string lives. THE PLANTED
+// FAULT reads the coercion as a borrow: the table is then released, one free
+// more, under its string.
+func TestAnIdentityCoercionMovesItsTable(t *testing.T) {
+	_, moved, err := releaseCounts(t, coerceSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	PlantCoercionBorrows = true
+	defer func() { PlantCoercionBorrows = false }()
+	_, borrowed, err := releaseCounts(t, coerceSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if borrowed != moved+1 {
+		t.Errorf("frees with the coercion a move %d, a borrow %d; want the borrow to free the string's table, one more", moved, borrowed)
+	}
+}

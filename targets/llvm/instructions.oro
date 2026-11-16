@@ -145,4 +145,13 @@ module llvm {
     // sentinel that is no address is recognized, Win32's INVALID_HANDLE_VALUE,
     // (HANDLE)−1 (ADR 0112), and the language reads nothing through it.
     fn address(p ∈ ptr) (-2^63..2^63-1) pure { host expr "ptrtoint ${p} to i64" }
+    // `store i8` at p + o: one byte written through a pointer, LLVM's own
+    // `getelementptr` and `store`. The allocator's term writes a raw region's
+    // last byte with it, the zero past a table that makes a table of bytes a C
+    // string (files-2026-11-16's successor, strings-2026-11-16); o inside p's
+    // region is that term's premise, as `zero`'s count is (ADR 0084: an
+    // address is an offset in a region).
+    fn store8(p ∈ ptr, o ∈ 0..2^63-1, v ∈ 0..255) (r ∈ Bool) {
+        host expr "%a${#} = getelementptr inbounds i8, ${p}, ${o}\n%c${#} = trunc ${v} to i8\nstore i8 %c${#}, ptr %a${#}\n${r} = icmp eq i64 0, 0"
+    }
 }

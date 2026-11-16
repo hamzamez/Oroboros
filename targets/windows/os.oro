@@ -14,6 +14,10 @@ module llvm/os {
     // (MEM_COMMIT | MEM_RESERVE = 12288, PAGE_READWRITE = 4) from 64 KiB, the
     // process heap below. A null answer is exhaustion, the trap: LLVM may assume
     // a pointer it loads through is not null.
+    // THE LONGEST TABLE, windows.oro's `fact max_len`: x64's 2⁴⁷-byte user space
+    // less a table's 8-byte length and its zero byte.
+    fn max_len() (0..2^63-1) { 140737488355319 }
+
     fn region(b ∈ 0..2^63-1) (ptr) {
         p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, heapclass(b)) }
         if llvm.is_null(p) { llvm.trap() } else { p }

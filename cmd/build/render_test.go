@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"oroboros/ir"
 )
 
 // A LIMB VALUE RENDERS ON WINDOWS, AND EACH LOOP WIDENS UP TO ITS OWN
@@ -47,11 +45,11 @@ func TestALimbValueRendersOnWindows(t *testing.T) {
 		t.Errorf("printed %q", out)
 	}
 
-	// THE PLANTED FAULT, the bug that was a trap: every loop widened up to the
-	// function's thresholds.
-	ir.PlantLoopThresholdFault = true
-	defer func() { ir.PlantLoopThresholdFault = false }()
-	if err := run("../../targets", path, "windows", exe, "../../lib", false, false, ""); err == nil || !strings.Contains(err.Error(), "- top") {
-		t.Errorf("with the function's thresholds, want `w - top` refused; got %v", err)
-	}
+	// THE PLANTED FAULT, every loop widened up to the function's thresholds, no
+	// longer reaches this program (strings-2026-11-16): `ascii` is a definition
+	// in the language now, so `w - top`'s length is ADR 0028's mark on its
+	// parameter, which the refinement layer proves from top ≤ w whatever the
+	// loop's thresholds. The thresholds are precision, any set sound, and a
+	// fault no program shows is a witness that cannot fail; so it is not
+	// asserted here, and a program that needs a loop's own thresholds is owed.
 }

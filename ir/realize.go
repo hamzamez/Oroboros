@@ -426,6 +426,17 @@ func instance(tg *emit.Target, def string) (*Func, error) {
 	if err != nil {
 		return nil, err
 	}
+	// DEFINEDNESS COVERS EVERY HOST OPERATION'S `where`, not only the integer
+	// operations the IR decides (strings-2026-11-16): the refinement layer
+	// decides a host call's condition, `str.text`'s utf8_valid and `ascii`'s
+	// lo + n ≤ len(b) among them, as ir.Entry has it decide a program's. An
+	// instance had skipped it, so a term could call a host operation outside
+	// its domain and be inlined anyway.
+	if !PlantTermWhereUnchecked {
+		if _, err := emit.Refine(tg, def, sig, nf); err != nil {
+			return nil, err
+		}
+	}
 	c, err := Lower(tg, "realize-"+def, sig, nf, Options{Decided: true})
 	if err != nil {
 		return nil, err
@@ -454,3 +465,8 @@ func lastDot(s string) int {
 	}
 	return len(s)
 }
+
+// PlantTermWhereUnchecked skips the refinement layer on a realization's
+// instance, as before strings-2026-11-16: a term that calls str.text on bytes
+// nothing proves valid is inlined.
+var PlantTermWhereUnchecked bool

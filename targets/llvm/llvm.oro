@@ -99,6 +99,12 @@ realize reuse_raw = lang.reuse_raw
 realize reuse_fit = lang.reuse_fit
 realize reuse_fit_raw = lang.reuse_fit_raw
 realize discard = lang.discard
+// THE STRING MONOID Σ*, on the table of its UTF-8 (strings-2026-11-16): each a
+// definition in the language, every OS layer's.
+realize string_of = lang.encode
+realize concat = lang.cat
+realize ascii = lang.ascii_of
+realize utf8_text = lang.text_v
 // RENDERING, ℤ's at every sort (ADR 0095): this term at the word's; a value
 // held as limbs is the limb library's render (ir/limbs.go).
 realize big_str = lang.render

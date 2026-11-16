@@ -738,7 +738,7 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 		return true
 	}
 	// VALID UTF-8 (ADR 0112): φ on an array literal, else an identical guard.
-	if b, ok := utf8ValidArg(cond); ok && utf8Valid(b, f) {
+	if b, ok := utf8ValidArg(cond); ok && r.utf8Valid(b, f) {
 		return true
 	}
 	// A CLOSED COMPARISON IS DECIDED IN ℤ, exactly, as a primitive's is
@@ -809,12 +809,41 @@ func utf8ValidArg(cond *core.Term) (*core.Term, bool) {
 // utf8Valid proves b ∈ V, the valid UTF-8 (ADR 0112, strings.md §11). V =
 // φ⁻¹(F) for φ into the transition monoid of Table 3-7's automaton, so on an
 // array literal of byte constants the decision is φ itself, the bytes run
-// through the automaton (Go's utf8.Valid is that automaton). Any other term is
-// the atom utf8_valid(b), proven only by an identical assumption: a guard
-// `if utf8_valid(b)` on the arm it enters (Theorem E).
-func utf8Valid(b *core.Term, f *facts) bool {
+// through the automaton (Go's utf8.Valid is that automaton). And because φ is
+// a homomorphism with F = {q₀}, q₀ initial, V is a SUBMONOID of B*:
+// δ(q₀, xy) = δ(δ(q₀, x), y) = q₀ (strings-2026-11-16). So, on b's term:
+//
+//	φ(literal)                             the bytes run through the automaton
+//	alloc(e)                               e's: the allocation is its extension
+//	table(n, k ↦ if k < len x {x(k)} else {y(k − len x)}), n = len x + len y
+//	                                       x·y, in V of x, y ∈ V (the submonoid)
+//	table(n, i ↦ x(i)), n = len x          x itself, extensionally
+//	if c a b                               both arms
+//
+// and a name is in V by an identical assumption: a guard `if utf8_valid(b)`
+// on the arm it enters (Theorem E), a `let` whose bound term is in V (walk),
+// or a declaration's `ensure` (str.utf8's, ρ's image). Any other term is the
+// atom utf8_valid(b).
+func (r *refiner) utf8Valid(b *core.Term, f *facts) bool {
 	if core.IsRequire(b) {
 		b = b.Kids[4]
+	}
+	if b.Kind == core.KApp && len(b.Kids) >= 2 && b.Kids[0].Kind == core.KName && !PlantCatValid {
+		args := b.Kids[1:]
+		switch op := b.Kids[0].Name; {
+		case op == "alloc" && len(args) == 1:
+			return r.utf8Valid(args[0], f)
+		case op == "if" && len(args) == 3:
+			return r.utf8Valid(args[1], f) && r.utf8Valid(args[2], f)
+		case op == "table" && len(args) == 2:
+			if x, y, ok := catRule(args[1]); ok {
+				sum := core.App(core.Name("+"), core.App(core.Name("len"), x), core.App(core.Name("len"), y))
+				return r.proveCond(core.App(core.Name("="), args[0], sum), f) && r.utf8Valid(x, f) && r.utf8Valid(y, f)
+			}
+			if x, ok := copyRule(args[1]); ok {
+				return r.proveCond(core.App(core.Name("="), args[0], core.App(core.Name("len"), x)), f) && r.utf8Valid(x, f)
+			}
+		}
 	}
 	if b.Kind == core.KApp && len(b.Kids) >= 1 && b.Kids[0].Kind == core.KName && b.Kids[0].Name == "array" {
 		bs := make([]byte, 0, len(b.Kids)-1)
@@ -832,6 +861,71 @@ func utf8Valid(b *core.Term, f *facts) bool {
 // PlantUTF8Fault reads every byte literal as valid UTF-8, the decision without
 // φ: TestValidUTF8IsRecognizedByItsMonoid must then accept an overlong.
 var PlantUTF8Fault bool
+
+// PlantCatValid drops the structural cases, the submonoid's among them:
+// lang.cat's ρ⁻¹ is then refused, its concatenation unproven.
+var PlantCatValid bool
+
+// catRule is (x, y) when body is k ↦ if k < len(x) { x(k) } else { y(k − len(x)) },
+// the rule whose table is x·y when its length is len(x) + len(y).
+func catRule(body *core.Term) (*core.Term, *core.Term, bool) {
+	if body.Kind != core.KFn || len(body.Params) != 1 {
+		return nil, nil, false
+	}
+	k := body.Params[0]
+	e := body.Body()
+	if e.Kind != core.KApp || len(e.Kids) != 4 || e.Kids[0].Kind != core.KName || e.Kids[0].Name != "if" {
+		return nil, nil, false
+	}
+	c, th, el := e.Kids[1], e.Kids[2], e.Kids[3]
+	// k < len(x)
+	if c.Kind != core.KApp || len(c.Kids) != 3 || c.Kids[0].Kind != core.KName || c.Kids[0].Name != "<" ||
+		!isName(c.Kids[1], k) || !isLen(c.Kids[2]) {
+		return nil, nil, false
+	}
+	x := c.Kids[2].Kids[1]
+	// x(k)
+	if th.Kind != core.KApp || len(th.Kids) != 2 || !sameTerm(th.Kids[0], x) || !isName(th.Kids[1], k) {
+		return nil, nil, false
+	}
+	// y(k − len(x))
+	if el.Kind != core.KApp || len(el.Kids) != 2 {
+		return nil, nil, false
+	}
+	d := el.Kids[1]
+	if d.Kind != core.KApp || len(d.Kids) != 3 || d.Kids[0].Kind != core.KName || d.Kids[0].Name != "-" ||
+		!isName(d.Kids[1], k) || !isLen(d.Kids[2]) || !sameTerm(d.Kids[2].Kids[1], x) {
+		return nil, nil, false
+	}
+	return x, el.Kids[0], true
+}
+
+// copyRule is x when body is i ↦ x(i), the rule whose table is x itself when
+// its length is len(x), or x itself, the rule η-reduced: a table is the
+// function it is (tables.md).
+func copyRule(body *core.Term) (*core.Term, bool) {
+	if body.Kind == core.KName {
+		return body, true
+	}
+	if body.Kind != core.KFn || len(body.Params) != 1 {
+		return nil, false
+	}
+	e := body.Body()
+	if e.Kind != core.KApp || len(e.Kids) != 2 || !isName(e.Kids[1], body.Params[0]) {
+		return nil, false
+	}
+	return e.Kids[0], true
+}
+
+func isName(t *core.Term, n string) bool { return t.Kind == core.KName && t.Name == n }
+
+func isLen(t *core.Term) bool {
+	return t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "len"
+}
+
+// sameTerm is syntactic identity, which in a residual whose binders are named
+// apart (ADR 0036) is the same value.
+func sameTerm(a, b *core.Term) bool { return a.String() == b.String() }
 
 // nulfreeArg is s when cond is `nulfree(s)`.
 func nulfreeArg(cond *core.Term) (*core.Term, bool) {

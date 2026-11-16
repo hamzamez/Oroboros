@@ -1,0 +1,5 @@
+use ledger
+
+export fn main() {
+    ledger.run("docs/book/code/whole/purchases.txt")
+}

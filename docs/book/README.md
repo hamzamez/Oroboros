@@ -32,7 +32,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | | **IV. Claims and hosts** | | |
 | 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 49 blocks checked 2026-11-16 |
 | 16 | [Targets](16-targets.md) | host modules, writing a declaration, portability computed | J; 22 blocks checked 2026-11-16 |
-| 17 | A whole program | one real program read line by line | not written |
+| 17 | [A whole program](17-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-16 |
 
 Nothing specified and not built gets a chapter (records, callbacks, concurrency, `spec` and
 `lemma`); each is named in a line where it would belong.
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12, fifteen in chapter 13, thirteen in chapter 14, thirteen in chapter 15 and ten in chapter 16, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12, fifteen in chapter 13, thirteen in chapter 14, thirteen in chapter 15, ten in chapter 16 and ten in chapter 17, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -670,6 +670,30 @@ as the one way a silent wrong answer enters a program whose proofs are all valid
 are `part`s of the repository's own target and library files (`lib/io/go.oro`, `lib/io/js.oro`,
 `lib/io/windows.oro`, `targets/go/strings.oro`, `targets/go/go.oro`, `targets/js/js.oro`), so
 a change to those lines fails this chapter's check, which is intended: the chapter quotes them.
+
+Chapter 17, A whole program (2026-11-16), reads a 74-line ledger (adapted from
+`examples/num/ledger.oro`) line by line, runs it on three targets, and removes five of its
+guards to show each refusal. It found four, none fixed:
+
+88. **Three calls of one 40-line function exceed the reducer's step limit.** A `main` that
+    called the ledger on three files was *reduction did not terminate within the step limit*,
+    on every target (windows, which keeps definitions as functions, included). One call
+    builds. The chapter's three cases are three entry programs over one module.
+89. **74 lines of source emit 1,553 lines of Go** (595 of JavaScript): the chain of arms is
+    copied where a cell's write is specialized. The chapter says so in §17.8.
+90. **In a whole program a refusal names the compiler's binder and lists every fact.**
+    `src[i]` unguarded is *#nl15[i] is an indexing, and i < len(#nl15) does not follow*, and
+    its `known:` line runs to some forty facts, most of them `num.decimal`'s. A bound removed
+    from the parser (`digits < 10^6`, `qty < 100`) is refused inside `num.digits`, *requires a
+    / 100 <= 9223372036854775807*, the first place the unbounded value fails to fit. The
+    chapter shows the first line of two such messages and says what the names are.
+91. **Without the file-size test the program is refused on JavaScript for the pair again**:
+    *a comparison of a value held in the unsigned word as a pair is not built* (item 42), where
+    the cause is that the subtotal's numerator may pass 2⁵³. `portable` gives the right
+    verdict, and the chapter shows that line.
+
+Teaching: the chapter introduces nothing. Its sections follow the file, each `part` block a
+run of the program's own lines, each paragraph naming the chapter that taught the construct.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

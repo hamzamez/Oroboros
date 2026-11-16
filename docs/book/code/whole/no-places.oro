@@ -1,0 +1,78 @@
+// ledger: the subtotal, tax and total of a file of lines `PRICE QUANTITY`.
+//
+// A price has at most two places after its point (`12.50`, `3`, `0.99`) and a
+// quantity is a whole number. The tax is 8.25% of the subtotal, rounded to the
+// cent, a half going away from zero. Every amount is exact.
+use io
+use os
+use num
+use result
+
+cap_in = 2^16
+
+fn digit?(b) { b >= 48 && b <= 57 }
+
+// The number written by `digits` with `places` of them after the point:
+// 1250 with two places is 12.50.
+fn price(digits ∈ 0..10^7, places ∈ 0..2) {
+    case {
+        places == 2 -> digits * 0.01
+        places == 1 -> digits * 0.1
+        else -> digits * 1.0
+    }
+}
+
+fn report(sum) {
+    tax = round(D(2, 0..10^10), sum * 0.0825, 'half_away)
+    io.print_line("subtotal " ++ num.decimal(sum, 2))
+    io.print_line("tax      " ++ num.decimal(tax, 2))
+    io.print_line("total    " ++ num.decimal(sum + tax, 2))
+}
+
+fn ledger(src) {
+    var digits := 0
+    var places := 0
+    var point := false
+    var qty := 0
+    var field := 0
+    var sum := 0.0
+    var bad := false
+    loop i = 0 {
+        i > len(src) -> if bad { io.print_line("a line is not PRICE QUANTITY") } else { report(sum) }
+        else -> {
+            b = if i < len(src) { src[i] } else { 10 }
+            case {
+                b == 10 -> {
+                    if field == 1 && sum < 10^10 { sum := sum + price(digits, places) * qty }
+                    if field == 0 && digits > 0 { bad := true }
+                    digits := 0
+                    places := 0
+                    point := false
+                    qty := 0
+                    field := 0
+                }
+                b == 32 && field == 0 -> { field := 1 }
+                b == 46 && field == 0 && !point -> { point := true }
+                digit?(b) && field == 0 && digits < 10^6 -> {
+                    digits := digits * 10 + (b - 48)
+                    if point { places := places + 1 }
+                }
+                digit?(b) && field == 1 && qty < 100 -> { qty := qty * 10 + (b - 48) }
+                b == 13 -> ()
+                else -> { bad := true }
+            }
+            again(i + 1)
+        }
+    }
+}
+
+fn run(path) {
+    case os.ReadFile(path) {
+        result.'err(why) -> io.print_line("cannot read that file")
+        result.'ok(src) -> if len(src) >= cap_in { io.print_line("file is too large") } else { ledger(src) }
+    }
+}
+
+export fn main() {
+    run("docs/book/code/whole/purchases.txt")
+}

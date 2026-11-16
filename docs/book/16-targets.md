@@ -555,4 +555,4 @@ program, which hosts a given program is native to.
   data files, not compiler code.
 - **Language names mean the same everywhere. A host's own names carry no such claim.**
 
-Next: chapter 17, A whole program. One real program, read from its first line to its last.
+Next: [chapter 17](17-whole.md), A whole program. One real program, read from its first line to its last.

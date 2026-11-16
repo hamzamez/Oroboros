@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -30,7 +29,6 @@ import (
 // regenEntry is one line of gauntlet/regen.txt.
 type regenEntry struct {
 	target, source, name, out string
-	host                      string // "js" or "java" for a ported source, else ""
 	line                      int
 }
 
@@ -51,25 +49,9 @@ func readRegenList(root string) ([]regenEntry, error) {
 		if len(fs) != 4 {
 			return nil, fmt.Errorf("gauntlet/regen.txt:%d: want target, source, name and output, got %q", n, line)
 		}
-		e := regenEntry{target: fs[0], source: fs[1], name: fs[2], out: fs[3], line: n}
-		for _, h := range []string{"js", "java"} {
-			if p, ok := strings.CutPrefix(e.source, h+":"); ok {
-				e.host, e.source = h, p
-			}
-		}
-		out = append(out, e)
+		out = append(out, regenEntry{target: fs[0], source: fs[1], name: fs[2], out: fs[3], line: n})
 	}
 	return out, sc.Err()
-}
-
-// useGo is a line importing Go's root module.
-var useGo = regexp.MustCompile(`(?m)^use go$`)
-
-// port is a program written against Go's names, read with host's: the import of
-// Go's root module becomes host's, and every `go.` prefix host's (jsontok-2026-08-26
-// §6). It is regen.sh's former `sed -e 's/^use go$/use H/' -e 's/go[.]/H./g'`.
-func port(src, host string) string {
-	return strings.ReplaceAll(useGo.ReplaceAllString(src, "use "+host), "go.", host+".")
 }
 
 // buildGen builds cmd/gen into the work directory.
@@ -89,13 +71,6 @@ func (c *checker) buildGen() (string, error) {
 // regenerate writes G(e) under dir for every entry, in parallel, and returns the
 // first failure of each entry that failed.
 func (c *checker) regenerate(gen, dir string, entries []regenEntry) []error {
-	scratch := filepath.Join(c.work, "gauntlet-ported")
-	if err := os.RemoveAll(scratch); err != nil {
-		return []error{err}
-	}
-	if err := os.MkdirAll(scratch, 0o755); err != nil {
-		return []error{err}
-	}
 	errs := make([]error, len(entries))
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, max(c.jobs, 1))
@@ -105,7 +80,7 @@ func (c *checker) regenerate(gen, dir string, entries []regenEntry) []error {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			errs[i] = c.regenerateOne(gen, dir, scratch, e)
+			errs[i] = c.regenerateOne(gen, dir, e)
 		}()
 	}
 	wg.Wait()
@@ -118,19 +93,12 @@ func (c *checker) regenerate(gen, dir string, entries []regenEntry) []error {
 	return out
 }
 
-func (c *checker) regenerateOne(gen, dir, scratch string, e regenEntry) error {
+func (c *checker) regenerateOne(gen, dir string, e regenEntry) error {
 	src, err := os.ReadFile(filepath.Join(c.root, e.source))
 	if err != nil {
 		return fmt.Errorf("gauntlet/regen.txt:%d: %v", e.line, err)
 	}
 	path := e.source
-	if e.host != "" {
-		base := strings.TrimSuffix(filepath.Base(e.source), ".oro")
-		path = filepath.Join(scratch, base+"-"+e.host+".oro")
-		if err := os.WriteFile(path, []byte(port(string(src), e.host)), 0o644); err != nil {
-			return err
-		}
-	}
 	first, _, _ := strings.Cut(string(src), "\n")
 	var args []string
 	if needsChecked(e.source, first) {

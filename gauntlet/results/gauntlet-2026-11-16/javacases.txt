@@ -1,0 +1,39 @@
+NativeBench|dot  n=65536  hand-written
+NativeBench|dot  n=65536  hand, long counter
+NativeBench|dot  n=65536  GENERATED
+NativeBench|dot  n=1024   hand-written
+NativeBench|dot  n=1024   hand, long counter
+NativeBench|dot  n=1024   GENERATED
+NativeBench|centroid      hand-written
+NativeBench|centroid      hand, long counter
+NativeBench|centroid      GENERATED
+NativeBench|wordcount     hand, unfused
+NativeBench|wordcount     hand, FUSED merge
+NativeBench|wordcount     hand, long counter
+NativeBench|wordcount     hand, Integer unfused
+NativeBench|wordcount     hand, Integer MERGE
+NativeBench|wordcount     GENERATED
+NativeBench|search early  hand-written
+NativeBench|search early  hand, long counter
+NativeBench|search early  GENERATED
+NativeBench|search late   hand-written
+NativeBench|search late   hand, long counter
+NativeBench|search late   hand, result+break
+NativeBench|search late   GENERATED
+NativeBench2|sum-of      hand-written
+NativeBench2|sum-of      GENERATED
+NativeBench2|alloc       hand-written
+NativeBench2|alloc       GENERATED
+NativeBench2|build       GENERATED
+NativeBench2|into (reuse) hand-written
+NativeBench2|into (reuse) GENERATED
+JsonTokBench|J  tokenize String     hand
+JsonTokBench|J  tokenize byte[]     hand
+JsonTokBench|J  tokenize long[]     hand
+JsonTokBench|J  tokenize long[]/long idx hand
+JsonTokBench|J  tokenize short[]    hand
+JsonTokBench|J  tokenize short[]    GEN 
+JsonTreeBench|T  tree recursive     hand
+JsonTreeBench|T  tree flat          hand
+JsonTreeBench|T  tree flat int[]    hand
+JsonTreeBench|T  tree flat          GEN 

@@ -1,0 +1,20 @@
+// Gauntlet program 3 — one generic operation — on the windows target.
+//
+// generic-go.oro's `reduce_over` in the language's operators, its comparison and
+// increment ι⁻¹ of Go's (gauntlet-2026-11-16). On windows it has one instantiation,
+// F64 elements into an F64 accumulator. The second, string elements into a map
+// accumulator, needs a dictionary keyed by strings. The language's maps are keyed
+// by integers (maps.md), and on windows no host has a dictionary, so that
+// instantiation is program 4's wall, measured there and not here.
+
+set Entry = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
+fn reduce_over(n, get, combine, init) {
+    loop acc = init, i = 0 {
+        i >= n -> acc
+        else -> again(combine(acc, get(i)), i + 1)
+    }
+}
+
+fn sum_floats(a) { reduce_over(len(a), fn(i) { a[i] }, fn(acc, x) { round(F64, acc + x) }, 0) }
+export fn sum_of(a ∈ Array(Entry)) (F64) { sum_floats(a) }

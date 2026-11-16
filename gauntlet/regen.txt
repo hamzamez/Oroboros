@@ -7,10 +7,9 @@
 # (cmd/check/gauntlet.go).
 #
 # A source whose first line says "BUILT WITH `-checked`" is compiled with it, the
-# rule the emission sweep uses. A source written `js:PATH` or `java:PATH` is
-# PATH, a program written against Go's names, with the host prefix substituted:
-# a line `use go` becomes `use HOST`, and every `go.` becomes `HOST.`, the
-# derivation jsontok-2026-08-26 §6 recorded.
+# rule the emission sweep uses. Every source is compiled as it is: the JSON
+# programs' JavaScript and Java lines were once a port of Go's names (`js:PATH`,
+# jsontok-2026-08-26 §6), and are the language's operators since gauntlet-2026-11-16.
 
 # Go
 go   examples/native/dot.oro           native      gauntlet/go/gen_dot_native.go
@@ -29,8 +28,8 @@ js   examples/native/generic-js.oro    native      gauntlet/js/gen_generic_nativ
 js   examples/native/wordcount-js.oro  native      gauntlet/js/gen_wordcount_native.mjs
 js   examples/native/smooth-js.oro     native      gauntlet/js/gen_smooth_native.mjs
 js   examples/native/search.oro        native      gauntlet/js/gen_search_native.mjs
-js   js:examples/json/tokenize.oro     native      gauntlet/js/gen_jsontok_native.mjs
-js   js:examples/json/tree.oro         native      gauntlet/js/gen_jsontree_native.mjs
+js   examples/json/tokenize.oro        native      gauntlet/js/gen_jsontok_native.mjs
+js   examples/json/tree.oro            native      gauntlet/js/gen_jsontree_native.mjs
 # Java
 java examples/native/dot.oro           nat-dot     gauntlet/java/gen/NatDot.java
 java examples/native/centroid.oro      nat-centroid gauntlet/java/gen/NatCentroid.java
@@ -39,5 +38,17 @@ java examples/native/wordcount-java.oro nat-wc     gauntlet/java/gen/NatWc.java
 java examples/native/report-java.oro   nat-rep     gauntlet/java/gen/NatRep.java
 java examples/native/smooth-java.oro   nat-sm      gauntlet/java/gen/NatSm.java
 java examples/native/search.oro        nat-search  gauntlet/java/gen/NatSearch.java
-java java:examples/json/tokenize.oro   gen         gauntlet/java/gen/GenJsonTok.java
-java java:examples/json/tree.oro       gen         gauntlet/java/gen/GenJsonTree.java
+java examples/json/tokenize.oro        gen         gauntlet/java/gen/GenJsonTok.java
+java examples/json/tree.oro            gen         gauntlet/java/gen/GenJsonTree.java
+# Windows: LLVM IR, compiled with hand-written C by gauntlet/windows/bench.sh. The
+# JSON programs are the language's operators since gauntlet-2026-11-16, one
+# source for four targets; smooth-go.oro names no Go operation, so it is
+# windows' too. Word count, generic's tally and the report have no windows
+# form: a dictionary keyed by strings, and F64's rendering (gauntlet-2026-11-16).
+windows examples/native/dot.oro         native     gauntlet/windows/gen_dot_native.ll
+windows examples/native/centroid.oro    native     gauntlet/windows/gen_centroid_native.ll
+windows examples/native/generic-win.oro native     gauntlet/windows/gen_generic_native.ll
+windows examples/native/smooth-go.oro   native     gauntlet/windows/gen_smooth_native.ll
+windows examples/native/search.oro      native     gauntlet/windows/gen_search_native.ll
+windows examples/json/tokenize.oro      tokenize   gauntlet/windows/gen_jsontok.ll
+windows examples/json/tree.oro          tree       gauntlet/windows/gen_jsontree.ll

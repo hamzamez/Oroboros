@@ -99,8 +99,9 @@ before planning. Its plan (§5): ~~P8 with its ledger~~ done, steps 1 and 3
 ([p8-2026-11-15](gauntlet/results/p8-2026-11-15.md), [p8step3-2026-11-15](gauntlet/results/p8step3-2026-11-15.md)),
 ~~two items added from the book's findings~~ done ([docs/book/README.md](docs/book/README.md), its
 items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), ~~the book's chapters 5 and 6~~ done
-(its items 22–29, below), **next the gauntlet on four targets**,
-the harness (with `docs/book/check.go` run by `cmd/check`), the file programs on windows (with
+(its items 22–29, below), ~~the gauntlet on four targets~~ done
+([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md): parity on all four, a windows leak
+found and fixed, two windows walls named), **next the harness** (with `docs/book/check.go` run by `cmd/check`), the file programs on windows (with
 P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md as state again.
 - ~~**The book's wrong answers**~~ **done** ([bookfix-2026-11-15](gauntlet/results/bookfix-2026-11-15.md),
   ADR 0114 for the fold; emission byte-identical), each with a planted fault:
@@ -395,7 +396,10 @@ checked. When a package hits a wall that needs language work, stop, research it,
               it, `storage` the IR's inverse of `store`, Σ_OS's fourth header `release` (VirtualFree
               or HeapFree by `region`'s rule); W11 re-derives each release; len ≤ 2⁴⁷ − 9 a fact of
               x64. M1: 10⁶ and 10⁷ limb additions peak at 3.5 MB (were 278 MB and 2.7 GB), 0.69× and
-              0.58× the time; the sieve 1.007×. Not released: a function's result, the crash's
+              0.58× the time; the sieve 1.007×. **And a build's buffer frozen into none of its
+              results** (gauntlet-2026-11-16): own(b), the buffer's descendants closed by
+              position, none yielded, so `release(p, n, w)` after the build; the JSON tree had
+              leaked 18 KiB a call. W11 and W12 re-derive it. Not released: a function's result, the crash's
               newline, the helpers' strings (R1e);
             - R1b. ~~same-size reuse~~ **done** ([reuse-2026-11-09](gauntlet/results/reuse-2026-11-09.md)):
               release ; region(b) ≡ zero, so a dead region is a linear token, handed locally to the
@@ -600,18 +604,21 @@ what TinyRetroPad's walls need.
 ### What is measured
 
 - **The gauntlet** ([docs/gauntlet.md](docs/gauntlet.md)), the one fixed commitment: seven programs at
-  parity with hand-written code on Go, JavaScript and Java. Last full benchmark
-  [gauntlet-2026-09-29](gauntlet/results/gauntlet-2026-09-29.md): geometric means 0.990, 0.977, 0.987,
-  three residues above 1.10× each explained. The 26 files its harnesses call are listed in
-  `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and regenerated and compared by `cmd/check`'s
-  `gauntlet` step. The Windows sieve is 0.68× hand-written MASM (LLVM IR, mastretire-2026-11-03).
-- **Provability**: **6,977 of 7,031** integer operations proven inside their target's word, the 54 left
+  parity with hand-written code. Last full benchmark [gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md),
+  on four targets: geometric means Go 1.001, JavaScript 0.965, Java 1.012, windows 0.978 (against
+  hand-written C by the same clang), each residue above 1.05× explained. Windows runs five of the
+  seven (G4 and G3's tally need a dictionary keyed by strings, G5 F64's rendering: walls). The 33
+  files its harnesses call are listed in `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and
+  regenerated and compared by `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
+- **Provability**: **8,881 of 8,935** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
-  **747 of 785** loops proven to terminate (size-change termination; fourteen of the 38 left are
+  **886 of 924** loops proven to terminate (size-change termination; fourteen of the 38 left are
   windows' `os` cell's read and write loops, whose progress is a count the host returns). A
   definition windows keeps as a function (ADR 0113) is counted once per program, so the totals fell
-  with P8 while no program's unproven count rose (p8-2026-11-15, p8step3-2026-11-15). Each program's share is in its
+  with P8 while no program's unproven count rose (p8-2026-11-15, p8step3-2026-11-15); they rose with the
+  JSON programs and `generic-win` emitting on more targets, the unproven unchanged (gauntlet-2026-11-16).
+  Each program's share is in its
   result document; both counts are pinned by `cmd/check`. K(ℕ\*)'s instances (ADR 0101) are proven
   once per target, under their parameters' sets, and are not counted per program.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
@@ -972,7 +979,7 @@ go run ./cmd/oro -target=go examples/native/dot.oro          # reduce to normal 
 go run ./cmd/gen -ir dot.ir -name native examples/native/dot.oro go dot.go   # emit, and write the IR
 go run ./cmd/intervals -v examples/table/sieve.oro go           # what the decision proves, and what not
 go run ./cmd/portable examples/io/wc.oro                        # which targets accept a program, and why
-bash gauntlet/regen.sh                                          # regenerate the gauntlet's 26 files
+bash gauntlet/regen.sh                                          # regenerate the gauntlet's 33 files
 cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5   # generated vs hand-written
 ```
 

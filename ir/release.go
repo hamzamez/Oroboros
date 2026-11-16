@@ -40,7 +40,185 @@ var (
 	// PlantCallArgsEscape reads a program function's call as a host's, its
 	// arguments escaping and its result owned by nobody: every result leaks.
 	PlantCallArgsEscape bool
+	// PlantReleaseFrozenBuild releases every build's storage after the build,
+	// its buffer frozen into a result or not: freed, then read.
+	PlantReleaseFrozenBuild bool
 )
+
+// A BUILD'S BUFFER NOT FROZEN OUT DIES AT THE BUILD'S END (gauntlet-2026-11-16).
+// A build's region holds its buffer's full view, and the region's yield is the
+// build's value (ADR 0031): a product of frozen buffers and values. A buffer the
+// yield freezes passes its view on, as a table, a birth the rules above follow.
+// One the yield does not freeze returns the view at the region's end, and
+// nothing outside the region names it, so its storage is dead right after the
+// build: release(p, n, w), with p, n, w its allocation's own. Until this rule a
+// buffer whose scope's value was an integer (a stack, a worklist) was never
+// released: the JSON tree leaked 18 KiB a call on windows.
+//
+// own(b) is the least set holding the region's buffer parameter and closed
+// under each statement's results: a result that is a buffer or a table and
+// has an argument in own; by position, a loop's body parameter whose initial
+// value or any continuing value is in own and a loop's, an if's or a nested
+// build's result whose breaking or yielded value is; a π of a value in own. An
+// integer read from the buffer is no member. Taking a member too many only
+// keeps a storage alive, so own may over-approximate b's descendants and never
+// under-approximate them: the build is dead at its end iff no value its region
+// yields to it is in own.
+func ownOf(f *Func, b *Stmt) map[V]bool {
+	if len(b.Sub) == 0 || len(b.Sub[0].Params) == 0 {
+		return nil
+	}
+	own := map[V]bool{b.Sub[0].Params[0]: true}
+	tableOrBuffer := func(v V) bool {
+		return v >= 0 && int(v) < len(f.Types) &&
+			(strings.HasPrefix(f.Types[v], "array") || strings.HasPrefix(f.Types[v], "buffer"))
+	}
+	mark := func(v V) bool {
+		if own[v] || !tableOrBuffer(v) {
+			return false
+		}
+		own[v] = true
+		return true
+	}
+	var exits func(r *Region, t Term, on func(*Region))
+	exits = func(r *Region, t Term, on func(*Region)) {
+		if r.T == TBranch {
+			exits(r.Then, t, on)
+			exits(r.Else, t, on)
+		} else if r.T == t {
+			on(r)
+		}
+	}
+	// by position: result j is in own when some terminator of kind t yields a
+	// member at j
+	byPos := func(sub *Region, t Term, res []V) bool {
+		changed := false
+		exits(sub, t, func(x *Region) {
+			for j, a := range x.Args {
+				if own[a] && j < len(res) && mark(res[j]) {
+					changed = true
+				}
+			}
+		})
+		return changed
+	}
+	for changed := true; changed; {
+		changed = false
+		var walk func(r *Region)
+		walk = func(r *Region) {
+			for _, p := range r.Pis {
+				if own[p.Of] && mark(p.V) {
+					changed = true
+				}
+			}
+			for i := range r.Stmts {
+				s := &r.Stmts[i]
+				switch {
+				case s.Op == OLoop:
+					body := s.Sub[0]
+					for j, a := range s.Args {
+						if own[a] && j < len(body.Params) && mark(body.Params[j]) {
+							changed = true
+						}
+					}
+					changed = byPos(body, TContinue, body.Params) || changed
+					changed = byPos(body, TBreak, s.Res) || changed
+				case s.Op == OIf || s.Op == OBuild || s.Op == OBuildMap:
+					for _, sub := range s.Sub {
+						changed = byPos(sub, TYield, s.Res) || changed
+					}
+				case len(s.Sub) > 0:
+					// an operation with a region this rule does not name: every
+					// result a member when anything it reads or yields is one
+					hit := false
+					for _, a := range s.Args {
+						hit = hit || own[a]
+					}
+					for _, sub := range s.Sub {
+						for _, t := range []Term{TYield, TBreak, TContinue} {
+							exits(sub, t, func(x *Region) {
+								for _, a := range x.Args {
+									hit = hit || own[a]
+								}
+							})
+						}
+					}
+					for _, v := range s.Res {
+						if hit && mark(v) {
+							changed = true
+						}
+					}
+				default:
+					for _, a := range s.Args {
+						if own[a] {
+							for _, v := range s.Res {
+								if mark(v) {
+									changed = true
+								}
+							}
+							break
+						}
+					}
+				}
+				for _, sub := range s.Sub {
+					walk(sub)
+				}
+			}
+			if r.T == TBranch {
+				walk(r.Then)
+				walk(r.Else)
+			}
+		}
+		walk(b.Sub[0])
+	}
+	return own
+}
+
+// deadBuild reports a build whose region yields it no member of own: its
+// buffer is frozen into none of its results.
+func deadBuild(f *Func, b *Stmt) bool {
+	if b.Op != OBuild || len(b.Store) != 1 {
+		return false
+	}
+	if PlantReleaseFrozenBuild {
+		return true
+	}
+	own := ownOf(f, b)
+	if own == nil {
+		return false
+	}
+	dead := true
+	var exits func(r *Region)
+	exits = func(r *Region) {
+		if r.T == TBranch {
+			exits(r.Then)
+			exits(r.Else)
+			return
+		}
+		if r.T == TYield {
+			for _, a := range r.Args {
+				dead = dead && !own[a]
+			}
+		}
+	}
+	exits(b.Sub[0])
+	return dead
+}
+
+// allocOf is the statement in r before index i that allocates p: `alloc` or
+// `alloc-raw` of (n, w), which Storage places before the build it serves.
+func allocOf(r *Region, i int, p V) *Stmt {
+	for k := i - 1; k >= 0; k-- {
+		s := &r.Stmts[k]
+		if len(s.Res) == 1 && s.Res[0] == p {
+			if s.Op == OCall && (s.Name == "alloc" || s.Name == "alloc-raw") && len(s.Args) == 2 {
+				return s
+			}
+			return nil
+		}
+	}
+	return nil
+}
 
 // A loc is a point of the function: a statement of a region, or its
 // terminator at index len(Stmts).
@@ -500,6 +678,28 @@ func Release(tg *emit.Target, f *Func) int {
 		f.Types = append(f.Types, ty)
 		return v
 	}
+	// a build's buffer frozen into none of its results, released right after
+	// the build by its allocation's own (n, w)
+	dead := map[*Region]map[int]*Stmt{}
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if !deadBuild(f, s) {
+				continue
+			}
+			if a := allocOf(r, i, s.Store[0]); a != nil {
+				if dead[r] == nil {
+					dead[r] = map[int]*Stmt{}
+				}
+				dead[r][i] = a
+			}
+		}
+	})
+	for r := range dead { // a region with a dead build and no table's release
+		if _, ok := plan[r]; !ok {
+			plan[r] = nil
+		}
+	}
 	for r, is := range plan {
 		at := map[int][]V{}
 		for _, x := range is {
@@ -520,6 +720,12 @@ func Release(tg *emit.Target, f *Func) int {
 		for i := range r.Stmts {
 			emitAt(i)
 			out = append(out, r.Stmts[i])
+			if a := dead[r][i]; a != nil {
+				ok := fresh("bool")
+				out = append(out, Stmt{Op: OCall, Name: "release", Args: []V{r.Stmts[i].Store[0], a.Args[0], a.Args[1]},
+					Res: []V{ok}, FromTerm: true})
+				n++
+			}
 		}
 		emitAt(len(r.Stmts))
 		r.Stmts = out
@@ -552,7 +758,12 @@ func CheckReleases(tg *emit.Target, f *Func) error {
 			s := &r.Stmts[i]
 			// release(storage(t), len t, w): the table released is the one
 			// whose storage the first argument is
-			if s.Op == OCall && s.Name == "release" && len(s.Args) == 3 && i >= 3 {
+			if s.Op == OCall && s.Name == "release" && len(s.Args) == 3 && i >= 1 &&
+				r.Stmts[i-1].Op == OBuild && len(r.Stmts[i-1].Store) == 1 && r.Stmts[i-1].Store[0] == s.Args[0] {
+				if err := checkDeadBuildRelease(f, r, i); err != nil {
+					errs = append(errs, err.Error())
+				}
+			} else if s.Op == OCall && s.Name == "release" && len(s.Args) == 3 && i >= 3 {
 				if st := &r.Stmts[i-3]; st.Op == OStorage && len(st.Res) == 1 && st.Res[0] == s.Args[0] {
 					at := loc{r, i}
 					rels = append(rels, at)
@@ -643,6 +854,56 @@ func CheckReleases(tg *emit.Target, f *Func) error {
 				return fmt.Errorf("W11: %%%d is released twice on one path", v)
 			}
 		}
+	}
+	return nil
+}
+
+// checkDeadBuildRelease is W11 for a build's storage released after it,
+// re-derived: the region freezes no member of own(b), the release's size is
+// the allocation's own (n, w), and nothing else in the function names p, so
+// this release is its one death and nothing reads it after.
+func checkDeadBuildRelease(f *Func, r *Region, i int) error {
+	b, rel := &r.Stmts[i-1], &r.Stmts[i]
+	p := rel.Args[0]
+	own := ownOf(f, b)
+	frozen := own == nil
+	var exits func(x *Region)
+	exits = func(x *Region) {
+		if x.T == TBranch {
+			exits(x.Then)
+			exits(x.Else)
+		} else if x.T == TYield {
+			for _, a := range x.Args {
+				frozen = frozen || own[a]
+			}
+		}
+	}
+	exits(b.Sub[0])
+	if frozen {
+		return fmt.Errorf("W11: the storage of a build is released after it, and its buffer is frozen into the build's value")
+	}
+	a := allocOf(r, i-1, p)
+	if a == nil || a.Args[0] != rel.Args[1] || a.Args[1] != rel.Args[2] {
+		return fmt.Errorf("W11: a build's storage %%%d is released by a size that is not its allocation's", p)
+	}
+	names := 0
+	f.Walk(func(x *Region) {
+		for k := range x.Stmts {
+			s := &x.Stmts[k]
+			for _, v := range append(append([]V(nil), s.Args...), s.Store...) {
+				if v == p {
+					names++
+				}
+			}
+		}
+		for _, v := range x.Args {
+			if v == p {
+				names++
+			}
+		}
+	})
+	if names != 2 { // the build's store and the release
+		return fmt.Errorf("W11: a build's storage %%%d is named %d times, not by its build and its release alone", p, names)
 	}
 	return nil
 }

@@ -1,0 +1,6 @@
+1,old,JsonTokBench:J tokenize GEN,7626.4
+1,new,JsonTokBench:J tokenize GEN,7874.8
+2,new,JsonTokBench:J tokenize GEN,7993.7
+2,old,JsonTokBench:J tokenize GEN,7912.0
+3,old,JsonTokBench:J tokenize GEN,7919.8
+3,new,JsonTokBench:J tokenize GEN,7938.6

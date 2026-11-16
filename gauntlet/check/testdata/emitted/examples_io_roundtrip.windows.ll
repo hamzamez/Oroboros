@@ -217,12 +217,16 @@ entry:
   %.s505 = alloca i1
   %.s514 = alloca i64
   %.s521 = alloca i1
-  %.s526 = alloca i1
-  %.s534 = alloca ptr
-  %.s539 = alloca i1
-  %.s555 = alloca i1
-  %.s563 = alloca ptr
-  %.s568 = alloca i1
+  %.s527 = alloca i1
+  %.s535 = alloca i1
+  %.s544 = alloca i64
+  %.s551 = alloca i1
+  %.s556 = alloca i1
+  %.s564 = alloca ptr
+  %.s569 = alloca i1
+  %.s585 = alloca i1
+  %.s593 = alloca ptr
+  %.s598 = alloca i1
   %v0 = call ptr @"os/host.Args"()
   %v1 = load i64, ptr %v0
   %v3 = icmp slt i64 %v1, 2
@@ -1123,28 +1127,24 @@ entry:
   br label %.built302
 .built302:
   %v411 = load i64, ptr %.s399
-  ret i64 %v411
-.else201:
-  %v705 = getelementptr i8, ptr %v259, i64 0
-  %v706 = load i64, ptr %v259
-  %v711 = icmp sle i64 0, %v706
-  br i1 %v711, label %.then493, label %.else494
+  %v707 = icmp sle i64 0, 4
+  br i1 %v707, label %.then493, label %.else494
 .then493:
-  %v715 = icmp sle i64 %v706, 140737488355319
-  store i1 %v715, ptr %.s497
+  %v711 = icmp sle i64 4, 140737488355319
+  store i1 %v711, ptr %.s497
   br label %.join495
 .else494:
   store i1 false, ptr %.s497
   br label %.join495
 .join495:
-  %v712 = load i1, ptr %.s497
-  br i1 %v712, label %.then498, label %.else499
+  %v708 = load i1, ptr %.s497
+  br i1 %v708, label %.then498, label %.else499
 .then498:
-  %v722 = icmp sle i64 1, 1
-  br i1 %v722, label %.then502, label %.else503
+  %v718 = icmp sle i64 1, 8
+  br i1 %v718, label %.then502, label %.else503
 .then502:
-  %v725 = icmp sle i64 1, 8
-  store i1 %v725, ptr %.s505
+  %v721 = icmp sle i64 8, 8
+  store i1 %v721, ptr %.s505
   br label %.join500
 .else503:
   store i1 false, ptr %.s505
@@ -1153,28 +1153,28 @@ entry:
   store i1 false, ptr %.s505
   br label %.join500
 .join500:
-  %v718 = load i1, ptr %.s505
-  %v729 = mul nuw nsw i64 %v706, 1
-  %v731 = add nuw nsw i64 %v729, 8
-  %v733 = icmp sge i64 %v731, 65536
-  br i1 %v733, label %.then509, label %.else510
+  %v714 = load i1, ptr %.s505
+  %v725 = mul nuw nsw i64 4, 8
+  %v727 = add nuw nsw i64 %v725, 8
+  %v729 = icmp sge i64 %v727, 65536
+  br i1 %v729, label %.then509, label %.else510
 .then509:
   %.c512 = trunc i64 32768 to i32
-  %.c513 = call i32 @VirtualFree(ptr %v705, i64 0, i32 %.c512)
-  %v737 = sext i32 %.c513 to i64
-  store i64 %v737, ptr %.s514
+  %.c513 = call i32 @VirtualFree(ptr %v338, i64 0, i32 %.c512)
+  %v733 = sext i32 %.c513 to i64
+  store i64 %v733, ptr %.s514
   br label %.join511
 .else510:
-  %v738 = call ptr @GetProcessHeap()
+  %v734 = call ptr @GetProcessHeap()
   %.c515 = trunc i64 0 to i32
-  %.c516 = call i32 @HeapFree(ptr %v738, i32 %.c515, ptr %v705)
-  %v740 = sext i32 %.c516 to i64
-  store i64 %v740, ptr %.s514
+  %.c516 = call i32 @HeapFree(ptr %v734, i32 %.c515, ptr %v338)
+  %v736 = sext i32 %.c516 to i64
+  store i64 %v736, ptr %.s514
   br label %.join511
 .join511:
-  %v734 = load i64, ptr %.s514
-  %v742 = icmp eq i64 %v734, 0
-  br i1 %v742, label %.then518, label %.else519
+  %v730 = load i64, ptr %.s514
+  %v738 = icmp eq i64 %v730, 0
+  br i1 %v738, label %.then518, label %.else519
 .then518:
   store i1 false, ptr %.s521
   br label %.join520
@@ -1182,121 +1182,181 @@ entry:
   store i1 true, ptr %.s521
   br label %.join520
 .join520:
-  %v743 = load i1, ptr %.s521
-  %v753 = icmp eq i64 %v260, 2
-  br i1 %v753, label %.then523, label %.else524
+  %v739 = load i1, ptr %.s521
+  ret i64 %v411
+.else201:
+  %v745 = getelementptr i8, ptr %v259, i64 0
+  %v746 = load i64, ptr %v259
+  %v751 = icmp sle i64 0, %v746
+  br i1 %v751, label %.then523, label %.else524
 .then523:
-  store i1 true, ptr %.s526
+  %v755 = icmp sle i64 %v746, 140737488355319
+  store i1 %v755, ptr %.s527
   br label %.join525
 .else524:
-  %v759 = icmp eq i64 %v260, 3
-  br i1 %v759, label %.then528, label %.else529
-.then528:
-  store i1 true, ptr %.s526
-  br label %.join525
-.else529:
-  %v764 = icmp eq i64 %v260, 53
-  store i1 %v764, ptr %.s526
+  store i1 false, ptr %.s527
   br label %.join525
 .join525:
-  %v754 = load i1, ptr %.s526
-  br i1 %v754, label %.then531, label %.else532
-.then531:
-  store ptr @.str.5, ptr %.s534
-  br label %.join533
-.else532:
-  %v774 = icmp eq i64 %v260, 80
-  br i1 %v774, label %.then536, label %.else537
-.then536:
-  store i1 true, ptr %.s539
-  br label %.join538
-.else537:
-  %v780 = icmp eq i64 %v260, 183
-  br i1 %v780, label %.then541, label %.else542
-.then541:
-  store i1 true, ptr %.s539
-  br label %.join538
-.else542:
-  %v785 = icmp eq i64 %v260, 145
-  store i1 %v785, ptr %.s539
-  br label %.join538
-.join538:
-  %v775 = load i1, ptr %.s539
-  br i1 %v775, label %.then544, label %.else545
-.then544:
-  store ptr @.str.6, ptr %.s534
-  br label %.join533
-.else545:
-  %v791 = icmp eq i64 %v260, 5
-  br i1 %v791, label %.then547, label %.else548
-.then547:
-  store ptr @.str.7, ptr %.s534
-  br label %.join533
-.else548:
-  store ptr @.str.8, ptr %.s534
-  br label %.join533
-.join533:
-  %v765 = load ptr, ptr %.s534
-  %v796 = call ptr @oro.concat(ptr @.str.9, ptr %v765)
-  %v797 = call i1 @"win/print.print_str"(ptr %v796)
+  %v752 = load i1, ptr %.s527
+  br i1 %v752, label %.then528, label %.else529
+.then528:
+  %v762 = icmp sle i64 1, 1
+  br i1 %v762, label %.then532, label %.else533
+.then532:
+  %v765 = icmp sle i64 1, 8
+  store i1 %v765, ptr %.s535
+  br label %.join530
+.else533:
+  store i1 false, ptr %.s535
+  br label %.join530
+.else529:
+  store i1 false, ptr %.s535
+  br label %.join530
+.join530:
+  %v758 = load i1, ptr %.s535
+  %v769 = mul nuw nsw i64 %v746, 1
+  %v771 = add nuw nsw i64 %v769, 8
+  %v773 = icmp sge i64 %v771, 65536
+  br i1 %v773, label %.then539, label %.else540
+.then539:
+  %.c542 = trunc i64 32768 to i32
+  %.c543 = call i32 @VirtualFree(ptr %v745, i64 0, i32 %.c542)
+  %v777 = sext i32 %.c543 to i64
+  store i64 %v777, ptr %.s544
+  br label %.join541
+.else540:
+  %v778 = call ptr @GetProcessHeap()
+  %.c545 = trunc i64 0 to i32
+  %.c546 = call i32 @HeapFree(ptr %v778, i32 %.c545, ptr %v745)
+  %v780 = sext i32 %.c546 to i64
+  store i64 %v780, ptr %.s544
+  br label %.join541
+.join541:
+  %v774 = load i64, ptr %.s544
+  %v782 = icmp eq i64 %v774, 0
+  br i1 %v782, label %.then548, label %.else549
+.then548:
+  store i1 false, ptr %.s551
+  br label %.join550
+.else549:
+  store i1 true, ptr %.s551
+  br label %.join550
+.join550:
+  %v783 = load i1, ptr %.s551
+  %v793 = icmp eq i64 %v260, 2
+  br i1 %v793, label %.then553, label %.else554
+.then553:
+  store i1 true, ptr %.s556
+  br label %.join555
+.else554:
+  %v799 = icmp eq i64 %v260, 3
+  br i1 %v799, label %.then558, label %.else559
+.then558:
+  store i1 true, ptr %.s556
+  br label %.join555
+.else559:
+  %v804 = icmp eq i64 %v260, 53
+  store i1 %v804, ptr %.s556
+  br label %.join555
+.join555:
+  %v794 = load i1, ptr %.s556
+  br i1 %v794, label %.then561, label %.else562
+.then561:
+  store ptr @.str.5, ptr %.s564
+  br label %.join563
+.else562:
+  %v814 = icmp eq i64 %v260, 80
+  br i1 %v814, label %.then566, label %.else567
+.then566:
+  store i1 true, ptr %.s569
+  br label %.join568
+.else567:
+  %v820 = icmp eq i64 %v260, 183
+  br i1 %v820, label %.then571, label %.else572
+.then571:
+  store i1 true, ptr %.s569
+  br label %.join568
+.else572:
+  %v825 = icmp eq i64 %v260, 145
+  store i1 %v825, ptr %.s569
+  br label %.join568
+.join568:
+  %v815 = load i1, ptr %.s569
+  br i1 %v815, label %.then574, label %.else575
+.then574:
+  store ptr @.str.6, ptr %.s564
+  br label %.join563
+.else575:
+  %v831 = icmp eq i64 %v260, 5
+  br i1 %v831, label %.then577, label %.else578
+.then577:
+  store ptr @.str.7, ptr %.s564
+  br label %.join563
+.else578:
+  store ptr @.str.8, ptr %.s564
+  br label %.join563
+.join563:
+  %v805 = load ptr, ptr %.s564
+  %v836 = call ptr @oro.concat(ptr @.str.9, ptr %v805)
+  %v837 = call i1 @"win/print.print_str"(ptr %v836)
   ret i64 1
 .else196:
-  %v805 = icmp eq i64 %v104, 2
-  br i1 %v805, label %.then552, label %.else553
-.then552:
-  store i1 true, ptr %.s555
-  br label %.join554
-.else553:
-  %v811 = icmp eq i64 %v104, 3
-  br i1 %v811, label %.then557, label %.else558
-.then557:
-  store i1 true, ptr %.s555
-  br label %.join554
-.else558:
-  %v816 = icmp eq i64 %v104, 53
-  store i1 %v816, ptr %.s555
-  br label %.join554
-.join554:
-  %v806 = load i1, ptr %.s555
-  br i1 %v806, label %.then560, label %.else561
-.then560:
-  store ptr @.str.5, ptr %.s563
-  br label %.join562
-.else561:
-  %v826 = icmp eq i64 %v104, 80
-  br i1 %v826, label %.then565, label %.else566
-.then565:
-  store i1 true, ptr %.s568
-  br label %.join567
-.else566:
-  %v832 = icmp eq i64 %v104, 183
-  br i1 %v832, label %.then570, label %.else571
-.then570:
-  store i1 true, ptr %.s568
-  br label %.join567
-.else571:
-  %v837 = icmp eq i64 %v104, 145
-  store i1 %v837, ptr %.s568
-  br label %.join567
-.join567:
-  %v827 = load i1, ptr %.s568
-  br i1 %v827, label %.then573, label %.else574
-.then573:
-  store ptr @.str.6, ptr %.s563
-  br label %.join562
-.else574:
-  %v843 = icmp eq i64 %v104, 5
-  br i1 %v843, label %.then576, label %.else577
-.then576:
-  store ptr @.str.7, ptr %.s563
-  br label %.join562
-.else577:
-  store ptr @.str.8, ptr %.s563
-  br label %.join562
-.join562:
-  %v817 = load ptr, ptr %.s563
-  %v848 = call ptr @oro.concat(ptr @.str.10, ptr %v817)
-  %v849 = call i1 @"win/print.print_str"(ptr %v848)
+  %v845 = icmp eq i64 %v104, 2
+  br i1 %v845, label %.then582, label %.else583
+.then582:
+  store i1 true, ptr %.s585
+  br label %.join584
+.else583:
+  %v851 = icmp eq i64 %v104, 3
+  br i1 %v851, label %.then587, label %.else588
+.then587:
+  store i1 true, ptr %.s585
+  br label %.join584
+.else588:
+  %v856 = icmp eq i64 %v104, 53
+  store i1 %v856, ptr %.s585
+  br label %.join584
+.join584:
+  %v846 = load i1, ptr %.s585
+  br i1 %v846, label %.then590, label %.else591
+.then590:
+  store ptr @.str.5, ptr %.s593
+  br label %.join592
+.else591:
+  %v866 = icmp eq i64 %v104, 80
+  br i1 %v866, label %.then595, label %.else596
+.then595:
+  store i1 true, ptr %.s598
+  br label %.join597
+.else596:
+  %v872 = icmp eq i64 %v104, 183
+  br i1 %v872, label %.then600, label %.else601
+.then600:
+  store i1 true, ptr %.s598
+  br label %.join597
+.else601:
+  %v877 = icmp eq i64 %v104, 145
+  store i1 %v877, ptr %.s598
+  br label %.join597
+.join597:
+  %v867 = load i1, ptr %.s598
+  br i1 %v867, label %.then603, label %.else604
+.then603:
+  store ptr @.str.6, ptr %.s593
+  br label %.join592
+.else604:
+  %v883 = icmp eq i64 %v104, 5
+  br i1 %v883, label %.then606, label %.else607
+.then606:
+  store ptr @.str.7, ptr %.s593
+  br label %.join592
+.else607:
+  store ptr @.str.8, ptr %.s593
+  br label %.join592
+.join592:
+  %v857 = load ptr, ptr %.s593
+  %v888 = call ptr @oro.concat(ptr @.str.10, ptr %v857)
+  %v889 = call i1 @"win/print.print_str"(ptr %v888)
   ret i64 1
 }
 

@@ -37,6 +37,14 @@ const loopMoveSrc = "export fn f(n ∈ 0..100) (Int) {\n" +
 // releaseEntry runs the windows pipeline on src and counts the frees printed.
 func releaseEntry(t *testing.T, src string) (int, error) {
 	t.Helper()
+	_, frees, err := releaseCounts(t, src)
+	return frees, err
+}
+
+// releaseCounts runs the windows pipeline on src and counts the allocations
+// and the frees printed.
+func releaseCounts(t *testing.T, src string) (int, int, error) {
+	t.Helper()
 	emit.ResetImports()
 	tg, err := emit.LoadTargetLayers("windows", []string{"../targets"}, []string{"../lib"})
 	if err != nil {
@@ -61,20 +69,23 @@ func releaseEntry(t *testing.T, src string) (int, error) {
 	}
 	f, _, err := Entry(tg, q, q, prog.Sigs[q], emit.EtaTails(tg, nf), nil, false, nil)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	if err := ToP(tg, f); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	frees := 0
+	allocs, frees := 0, 0
 	f.Walk(func(r *Region) {
 		for _, s := range r.Stmts {
 			if s.Op == OCall && strings.HasSuffix(s.Name, "HeapFree") {
 				frees++
 			}
+			if s.Op == OCall && strings.HasSuffix(s.Name, "HeapAlloc") {
+				allocs++
+			}
 		}
 	})
-	return frees, nil
+	return allocs, frees, nil
 }
 
 // A TABLE IS RELEASED AT ITS DEATH (ADR 0096): the carried table on the arm
@@ -115,5 +126,48 @@ func TestAReleaseW11RefusesIsAFault(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "W11") {
 			t.Errorf("%s: want W11's refusal, got %v", c.name, err)
 		}
+	}
+}
+
+// deadBuildSrc is a buffer whose scope's value is an integer, a read of it,
+// and nestedBuildSrc the JSON tree's shape: a stack inside the build of a node
+// table, its scope's value the node table frozen, the stack frozen into
+// nothing. Each allocation has its release.
+const deadBuildSrc = "export fn f(n ∈ 0..100) (Int) {\n" +
+	"    var stk := array { 0 : _ ∈ 0..31 }\n" +
+	"    stk[n % 32] := n\n" +
+	"    stk[(n + 1) % 32]\n" +
+	"}\n"
+
+const nestedBuildSrc = "export fn f(n ∈ 0..100) (Int) {\n" +
+	"    t = {\n" +
+	"        var nodes := array { 0 : _ ∈ 0..9 }\n" +
+	"        var stk := array { 0 : _ ∈ 0..3 }\n" +
+	"        stk[n % 4] := n % 10\n" +
+	"        nodes[stk[n % 4]] := 1\n" +
+	"        nodes\n" +
+	"    }\n" +
+	"    t[n % 10]\n" +
+	"}\n"
+
+// A BUILD'S BUFFER NOT FROZEN OUT DIES AT THE BUILD'S END (gauntlet-2026-11-16):
+// the windows JSON tree leaked its stack and its worklist, 18 KiB a call,
+// because no table value carried their storage out of their builds. THE
+// PLANTED FAULT releases every build's storage, the node table's too, which is
+// frozen into the outer build's value and read after: W11 refuses it.
+func TestABuildsBufferNotFrozenOutIsReleased(t *testing.T) {
+	for _, c := range []struct{ name, src string }{{"an integer scope", deadBuildSrc}, {"a stack inside a node table's build", nestedBuildSrc}} {
+		allocs, frees, err := releaseCounts(t, c.src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if allocs == 0 || frees != allocs {
+			t.Errorf("%s: %d allocation(s) and %d release(s), want one release each", c.name, allocs, frees)
+		}
+	}
+	PlantReleaseFrozenBuild = true
+	defer func() { PlantReleaseFrozenBuild = false }()
+	if _, _, err := releaseCounts(t, nestedBuildSrc); err == nil || !strings.Contains(err.Error(), "W11") {
+		t.Errorf("with a frozen build's storage released: %v; want W11's refusal", err)
 	}
 }

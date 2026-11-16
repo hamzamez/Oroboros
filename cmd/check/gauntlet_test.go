@@ -7,18 +7,10 @@ import (
 	"testing"
 )
 
-// The port is regen.sh's former sed, line for line: the import of Go's root
-// module, and every `go.` prefix, and nothing else.
-func TestThePortRenamesGosPrefixAndImport(t *testing.T) {
-	src := "use go\nuse go/os\nfn f(c) { go.byte_at(c) }\n// use go stays in a comment line? no: only a whole line\n  use go\n"
-	got := port(src, "js")
-	want := "use js\nuse go/os\nfn f(c) { js.byte_at(c) }\n// use go stays in a comment line? no: only a whole line\n  use go\n"
-	if got != want {
-		t.Errorf("port:\n got %q\nwant %q", got, want)
-	}
-}
-
-// The list is the 26 files, each source present, each output under gauntlet/.
+// The list is the 33 files, each source present, each output under gauntlet/:
+// 26 for Go, JavaScript and Java, 7 for windows (gauntlet-2026-11-16). The
+// JSON programs' JavaScript and Java lines once named a port of Go's names;
+// since they are the language's operators every line is its source as it is.
 func TestTheRegenListNamesItsSources(t *testing.T) {
 	root, err := repoRoot()
 	if err != nil {
@@ -28,8 +20,8 @@ func TestTheRegenListNamesItsSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 26 {
-		t.Errorf("gauntlet/regen.txt lists %d files; the harnesses call 26", len(entries))
+	if len(entries) != 33 {
+		t.Errorf("gauntlet/regen.txt lists %d files; the harnesses call 33", len(entries))
 	}
 	seen := map[string]bool{}
 	for _, e := range entries {

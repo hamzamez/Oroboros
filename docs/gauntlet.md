@@ -119,6 +119,14 @@ someone else's compiler release ([ADR 0008](decisions/0008-measurement-over-prin
 **Built and measured, 2026-08-13.** Code in [`gauntlet/`](../gauntlet/), results in
 [`gauntlet/results/baseline-2026-08-13.md`](../gauntlet/results/baseline-2026-08-13.md).
 
+**On four targets since 2026-11-16** ([gauntlet-2026-11-16](../gauntlet/results/gauntlet-2026-11-16.md)):
+Go, JavaScript, Java and windows, whose reference is hand-written C compiled by the same clang
+([gauntlet/windows/](../gauntlet/windows/README.md)). Windows runs five of the seven: program 4
+and program 3's second instantiation need a dictionary keyed by strings, which the language's
+integer-keyed maps are not and no windows host has, and program 5 prints an F64, whose rendering
+is not built there. For program 4 that is the parasite test's own question on a host with no
+dictionary to emit.
+
 - [x] Reference implementations in Go
 - [x] Reference implementations in JavaScript
 - [x] Reference implementations in Java

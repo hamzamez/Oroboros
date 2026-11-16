@@ -38,6 +38,10 @@ entry:
   %.s225 = alloca i1
   %.s234 = alloca i64
   %.s241 = alloca i1
+  %.s249 = alloca i1
+  %.s257 = alloca i1
+  %.s266 = alloca i64
+  %.s273 = alloca i1
   %v1 = load i64, ptr %v0
   %v6 = icmp sge i64 %v1, 0
   br i1 %v6, label %.then2, label %.else3
@@ -486,6 +490,62 @@ entry:
   br label %.built59
 .built59:
   %v86 = load i64, ptr %.s183
+  %v333 = icmp sle i64 0, %v1
+  br i1 %v333, label %.then245, label %.else246
+.then245:
+  %v337 = icmp sle i64 %v1, 140737488355319
+  store i1 %v337, ptr %.s249
+  br label %.join247
+.else246:
+  store i1 false, ptr %.s249
+  br label %.join247
+.join247:
+  %v334 = load i1, ptr %.s249
+  br i1 %v334, label %.then250, label %.else251
+.then250:
+  %v344 = icmp sle i64 1, 8
+  br i1 %v344, label %.then254, label %.else255
+.then254:
+  %v347 = icmp sle i64 8, 8
+  store i1 %v347, ptr %.s257
+  br label %.join252
+.else255:
+  store i1 false, ptr %.s257
+  br label %.join252
+.else251:
+  store i1 false, ptr %.s257
+  br label %.join252
+.join252:
+  %v340 = load i1, ptr %.s257
+  %v351 = mul nuw nsw i64 %v1, 8
+  %v353 = add nuw nsw i64 %v351, 8
+  %v355 = icmp sge i64 %v353, 65536
+  br i1 %v355, label %.then261, label %.else262
+.then261:
+  %.c264 = trunc i64 32768 to i32
+  %.c265 = call i32 @VirtualFree(ptr %v13, i64 0, i32 %.c264)
+  %v359 = sext i32 %.c265 to i64
+  store i64 %v359, ptr %.s266
+  br label %.join263
+.else262:
+  %v360 = call ptr @GetProcessHeap()
+  %.c267 = trunc i64 0 to i32
+  %.c268 = call i32 @HeapFree(ptr %v360, i32 %.c267, ptr %v13)
+  %v362 = sext i32 %.c268 to i64
+  store i64 %v362, ptr %.s266
+  br label %.join263
+.join263:
+  %v356 = load i64, ptr %.s266
+  %v364 = icmp eq i64 %v356, 0
+  br i1 %v364, label %.then270, label %.else271
+.then270:
+  store i1 false, ptr %.s273
+  br label %.join272
+.else271:
+  store i1 true, ptr %.s273
+  br label %.join272
+.join272:
+  %v365 = load i1, ptr %.s273
   ret i64 %v86
 }
 

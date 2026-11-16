@@ -3122,3 +3122,35 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - compiler output changed — `examples/kara/core.oro go`
 - compiler output changed — `examples/pe/pe.oro windows`
+
+## 2026-11-16 — on 080d6bb, with uncommitted changes
+
+**Reason:** gauntlet-2026-11-16: a build's buffer frozen into none of its results is released at the build's end (W11, W12), roundtrip and codecs on windows gain those releases, roundtrip's output identical to Go's; the JSON programs in the language's operators emit on four targets, the tree's constants folded on Go (0.91x its old time on JavaScript, 1.00 on Go, 1.01 on the JVM); generic-win.oro new; the six slower compiles are refusals that became emissions
+
+656 runs: 441 emitted, 215 refused; 8881 of 8935 integer operations bounded, 886 of 924 loops proven. compiler pass, differential pass, tooling pass.
+
+14 change(s):
+
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- now emits — `examples/json/tokenize.oro java`
+- now emits — `examples/json/tokenize.oro js`
+- now emits — `examples/json/tokenize.oro windows`
+- emitted text changed — `examples/json/tree.oro go`
+- compiler output changed — `examples/json/tree.oro go`
+- now emits — `examples/json/tree.oro java`
+- now emits — `examples/json/tree.oro js`
+- now emits — `examples/json/tree.oro windows`
+- new source — `examples/native/generic-win.oro go`
+- new source — `examples/native/generic-win.oro java`
+- new source — `examples/native/generic-win.oro js`
+- new source — `examples/native/generic-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+
+6 compile(s) accepted SLOWER — compile time 1.02x the baseline (median of 44 compiles over 300 ms); a second sweep kept 9 of 9 suspect(s); paired serially against the baseline's binary (fe38917), 6 confirmed, examples/io/freq.oro windows cleared at 1.00x paired, gauntlet/differential/cases/big-negmid.oro windows cleared at 0.96x paired, gauntlet/differential/cases/big-subdiv.oro windows cleared at 1.05x paired; the step's phases: sweep 1m15s, second sweep 1m15s, the baseline's gen extracted and built 6s, 9 pair(s) × 3 rounds 7m44s:
+
+- `examples/json/tokenize.oro js` 31 → 1468 ms, 47.38x; paired 15 → 640 ms, 41.00x
+- `examples/json/tokenize.oro java` 46 → 1453 ms, 31.59x; paired 15 → 671 ms, 43.00x
+- `examples/json/tokenize.oro windows` 31 → 1609 ms, 51.92x; paired 15 → 781 ms, 50.00x
+- `examples/json/tree.oro js` 31 → 1859 ms, 59.98x; paired 15 → 859 ms, 55.00x
+- `examples/json/tree.oro java` 15 → 1984 ms, 132.29x; paired 15 → 843 ms, 54.00x
+- `examples/json/tree.oro windows` 62 → 2343 ms, 37.80x; paired 31 → 1093 ms, 35.00x

@@ -12,7 +12,7 @@ go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline
 | `vet` | `go vet ./...` |
 | `compiler` | `go test ./core/ ./emit/ ./ir/... ./cmd/...` |
 | `emission` | every `.oro` under `examples/`, `lib/` and `gauntlet/differential/cases/`, on every target, compared with the baseline in this directory — its output byte for byte, and what each compile cost |
-| `gauntlet` | the 26 files the gauntlet's harnesses call, regenerated from [`gauntlet/regen.txt`](../regen.txt) (target, source, `-name`, output) and compared byte for byte with the committed copies. A difference fails, naming the file: run `bash gauntlet/regen.sh`, then time the harnesses that call it, as the rule for emission asks |
+| `gauntlet` | the 33 files the gauntlet's harnesses call, regenerated from [`gauntlet/regen.txt`](../regen.txt) (target, source, `-name`, output) and compared byte for byte with the committed copies. A difference fails, naming the file: run `bash gauntlet/regen.sh`, then time the harnesses that call it, as the rule for emission asks |
 | `ir` | the IR ([docs/spec/ir.md](../../docs/spec/ir.md) §11): the sweep runs `gen -ir`, so every program that emits is also lowered, verified (W1–W10) and printed to `.check/ir/`. This step fails if a program that emitted has no IR, a refused one has one, or `print ∘ read ∘ print ≠ print`. It keeps no baseline of its own until a printer reads the IR |
 | `differential` | `gauntlet/differential/run.go`: build, **run** and agree on four targets |
 | `tooling` | `go test ./gauntlet/stdlib/`: the surveys twice, the pins, the acceptance programs, the hand declarations against the host |

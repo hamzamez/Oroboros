@@ -56,7 +56,10 @@
 // RETURNS its subtree and the caller appends it; here nothing returns, so the
 // parser has to remember where to point next. That is the whole difference, and
 // it costs one machine word per level of depth.
-use go
+//
+// ONE SOURCE FOR FOUR TARGETS (gauntlet-2026-11-16): written in the language's
+// operators, ι⁻¹ of the Go ones it was first written in, so Go, JavaScript, the
+// JVM and windows compile this file as it is.
 
 // `measure` is exported for benchmarking: it takes its source as a PARAMETER,
 // which is what stops reduction from folding the whole parse away. `run` feeds
@@ -76,8 +79,8 @@ dmax = 32  // nesting depth
 
 // --- byte classes -----------------------------------------------------------
 fn space?(c) { c == 32 || c == 9 || c == 10 || c == 13 }
-fn digit?(c) { go.`>=`(c, 48) && go.`<=`(c, 57) }
-fn alpha?(c) { go.`>=`(c, 97) && go.`<=`(c, 122) }
+fn digit?(c) { c >= 48 && c <= 57 }
+fn alpha?(c) { c >= 97 && c <= 122 }
 fn numeric?(c) { digit?(c) || c == 45 || c == 43 || c == 46 || c == 101 || c == 69 }
 fn opener?(c) { c == 123 || c == 91 }
 fn closer?(c) { c == 125 || c == 93 }
@@ -95,7 +98,7 @@ fn scalar?(c) { c == 34 || numeric?(c) || alpha?(c) }
 // analysis with MORE undischarged obligations rather than fewer — 110 against
 // 40 — because a clamp hides the fact instead of establishing it. What made the
 // proven form possible is one Farkas multiplier in the decision procedure: a
-// strided index `(go.* 4 k)` has a coefficient the guard bounding `k` does not,
+// strided index `4 * k` has a coefficient the guard bounding `k` does not,
 // so `k < nmax` could not discharge `4k < 4*nmax` until `entails` learned to
 // scale a fact (json-tree-bench-2026-08-26).
 //
@@ -107,27 +110,27 @@ fn scalar?(c) { c == 34 || numeric?(c) || alpha?(c) }
 // node table's slot 1 holds token lengths up to 1023 and the worklist's slot 1
 // holds depths — so a fact about the whole table could not state it; a fact about
 // the residue class of the index can (compfacts-2026-09-17).
-fn nsl(k, o) { go.`+`(go.`*`(4, k), o) }
-fn ssl(d, o) { go.`+`(go.`*`(2, d), o) }
+fn nsl(k, o) { 4 * k + o }
+fn ssl(d, o) { 2 * d + o }
 
 // --- scanners ---------------------------------------------------------------
 fn scan_string(src, i) {
-    loop j = go.`+`(i, 1) {
+    loop j = i + 1 {
         // `j >= i + 1` is relational and the interval analysis is not, so
         // non-negativity is stated (json-2026-08-26 §2).
-        go.`<`(j, 0) -> j
-        go.`>=`(j, len(src)) -> j
-        src[j] == 92 -> again(go.`+`(j, 2))
-        src[j] == 34 -> go.`+`(j, 1)
-        else -> again(go.`+`(j, 1))
+        j < 0 -> j
+        j >= len(src) -> j
+        src[j] == 92 -> again(j + 2)
+        src[j] == 34 -> j + 1
+        else -> again(j + 1)
     }
 }
 
 fn scan_run(src, i, pred) {
     loop j = i {
-        go.`<`(j, 0) -> j
-        go.`>=`(j, len(src)) -> j
-        pred(src[j]) -> again(go.`+`(j, 1))
+        j < 0 -> j
+        j >= len(src) -> j
+        pred(src[j]) -> again(j + 1)
         else -> j
     }
 }
@@ -139,15 +142,15 @@ fn scan_run(src, i, pred) {
 // records the new child so the following one knows where to attach; `push` opens
 // a level. A recursive parser expresses all three by returning a value.
 fn link(nodes linear, stk, sp, k) {
-    if go.`<`(sp, 1) { () } else {
-        lc = stk[ssl(go.`-`(sp, 1), 1)]
-        if lc == 0 { nodes[nsl(stk[ssl(go.`-`(sp, 1), 0)], 2)] := k } else {
+    if sp < 1 { () } else {
+        lc = stk[ssl(sp - 1, 1)]
+        if lc == 0 { nodes[nsl(stk[ssl(sp - 1, 0)], 2)] := k } else {
             nodes[nsl(lc, 3)] := k
         }
     }
 }
 
-fn mark(stk linear, sp, k) { if go.`<`(sp, 1) { () } else { stk[ssl(go.`-`(sp, 1), 1)] := k } }
+fn mark(stk linear, sp, k) { if sp < 1 { () } else { stk[ssl(sp - 1, 1)] := k } }
 
 fn push(stk linear, sp, k) {
     stk[ssl(sp, 0)] := k
@@ -156,22 +159,22 @@ fn push(stk linear, sp, k) {
 
 // --- the parser -------------------------------------------------------------
 fn parse(src) {
-    var nodes := array { 0 : _ ∈ 0..go.`*`(4, nmax)-1 }
-    var stk := array { 0 : _ ∈ 0..go.`*`(2, dmax)-1 }
+    var nodes := array { 0 : _ ∈ 0..(4 * nmax)-1 }
+    var stk := array { 0 : _ ∈ 0..(2 * dmax)-1 }
     loop i = 0, nn = 1, sp = 0, ok = 1 {
         // A scanner's result is opaque to the analysis (json-2026-08-26 §2).
-        go.`<`(i, 0) -> (nodes, nn, 0)
-        go.`>=`(i, len(src)) -> (nodes, nn, if sp == 0 { ok } else { 0 })
+        i < 0 -> (nodes, nn, 0)
+        i >= len(src) -> (nodes, nn, if sp == 0 { ok } else { 0 })
         // THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. A store into
         // `nodes` carries an obligation nothing can discharge, because both `nn`
         // and `sp` grow with the input — so the program has to say what happens when
         // a document has more nodes than the table, or nests deeper than the
         // stack. A recursive-descent parser has both limits too; the heap and
         // the C stack. It is never asked about either.
-        go.`>=`(nn, nmax) -> (nodes, nn, 0)
-        go.`>=`(sp, dmax) -> (nodes, nn, 0)
-        space?(src[i]) -> again(go.`+`(i, 1), nn, sp, ok)
-        punct?(src[i]) -> again(go.`+`(i, 1), nn, sp, ok)
+        nn >= nmax -> (nodes, nn, 0)
+        sp >= dmax -> (nodes, nn, 0)
+        space?(src[i]) -> again(i + 1, nn, sp, ok)
+        punct?(src[i]) -> again(i + 1, nn, sp, ok)
         // An opener allocates a container, attaches it, and opens a level. The
         // order is forced: `mark` records it as the last child at the CURRENT
         // depth, and only then does `push` move down.
@@ -181,14 +184,14 @@ fn parse(src) {
             link(nodes, stk, sp, nn)
             mark(stk, sp, nn)
             push(stk, sp, nn)
-            again(go.`+`(i, 1), go.`+`(nn, 1), go.`+`(sp, 1), ok)
+            again(i + 1, nn + 1, sp + 1, ok)
         }
         // A closer pops, and checks that what it closes is what was opened —
         // read back out of the node table, which is the first time the parser
         // reads a node it wrote earlier.
         closer?(src[i]) ->
-            again(go.`+`(i, 1), nn, if go.`<`(sp, 1) { 0 } else { go.`-`(sp, 1) },
-                if go.`<`(sp, 1) { 0 } else if nodes[nsl(stk[ssl(go.`-`(sp, 1), 0)], 0)] ==
+            again(i + 1, nn, if sp < 1 { 0 } else { sp - 1 },
+                if sp < 1 { 0 } else if nodes[nsl(stk[ssl(sp - 1, 0)], 0)] ==
                 if src[i] == 125 { 5 } else { 4 } { ok } else { 0 })
         // ONE CLAUSE FOR ALL THREE SCALARS, and ADR 0015 is why. `again` may not
         // go under an `if`, so three clauses would each have to repeat the whole
@@ -204,20 +207,20 @@ fn parse(src) {
             }
             ni = case {
                 src[i] == 34 -> scan_string(src, i)
-                numeric?(src[i]) -> scan_run(src, go.`+`(i, 1), numeric?)
-                else -> scan_run(src, go.`+`(i, 1), alpha?)
+                numeric?(src[i]) -> scan_run(src, i + 1, numeric?)
+                else -> scan_run(src, i + 1, alpha?)
             }
             // Scanning starts PAST the byte the guard already matched: identical
             // answers, and it is what makes the loop provable. Starting at `i` a
             // scanner may return `i`, so monotonicity gives only `i' >= i` and
             // there is no strict descent (monotone-2026-08-27).
             nodes[nsl(nn, 0)] := tg
-            nodes[nsl(nn, 1)] := go.`-`(ni, i)
+            nodes[nsl(nn, 1)] := ni - i
             link(nodes, stk, sp, nn)
             mark(stk, sp, nn)
-            again(ni, go.`+`(nn, 1), sp, ok)
+            again(ni, nn + 1, sp, ok)
         }
-        else -> again(go.`+`(i, 1), nn, sp, 0)
+        else -> again(i + 1, nn, sp, 0)
     }
 }
 
@@ -235,30 +238,30 @@ fn parse(src) {
 // table would spin, so the walk says what it does about that.
 // The worklist is indexed by SLOT, not by depth, and it can hold one entry per
 // node — a tree shaped like a list pushes a sibling at every step.
-fn ssl2(k, o) { go.`+`(go.`*`(2, k), o) }
+fn ssl2(k, o) { 2 * k + o }
 
 fn walk(nodes) {
-    var wl := array { 0 : _ ∈ 0..go.`*`(2, nmax)-1 }
+    var wl := array { 0 : _ ∈ 0..(2 * nmax)-1 }
     wl[0] := 1
     wl[1] := 1
     loop sp = 1, seen = 0, acc = 0, steps = 0 {
-        go.`>=`(steps, go.`*`(2, nmax)) -> go.`+`(go.`*`(seen, 1000), acc)
-        go.`<`(sp, 1) -> go.`+`(go.`*`(seen, 1000), acc)
+        steps >= 2 * nmax -> seen * 1000 + acc
+        sp < 1 -> seen * 1000 + acc
         // The worklist has the same shape of limit the parser's two do, and for
         // the same reason: `sp` grows with the tree and nothing can bound it, so
         // the program has to say what it does when the worklist fills.
-        go.`>=`(sp, nmax) -> go.`+`(go.`*`(seen, 1000), acc)
+        sp >= nmax -> seen * 1000 + acc
         else -> {
-            n = wl[ssl2(go.`-`(sp, 1), 0)]
-            d = wl[ssl2(go.`-`(sp, 1), 1)]
+            n = wl[ssl2(sp - 1, 0)]
+            d = wl[ssl2(sp - 1, 1)]
             sb = nodes(nsl(n, 3))
             kd = nodes(nsl(n, 2))
-            s1 = go.`-`(sp, 1)
+            s1 = sp - 1
             if sb == 0 { () } else { wl[ssl2(s1, 0)] := sb; wl[ssl2(s1, 1)] := d }
-            s2 = if sb == 0 { s1 } else { go.`+`(s1, 1) }
-            if kd == 0 { () } else { wl[ssl2(s2, 0)] := kd; wl[ssl2(s2, 1)] := go.`+`(d, 1) }
-            s3 = if kd == 0 { s2 } else { go.`+`(s2, 1) }
-            again(s3, go.`+`(seen, 1), go.`+`(acc, go.`*`(nodes(nsl(n, 0)), d)), go.`+`(steps, 1))
+            s2 = if sb == 0 { s1 } else { s1 + 1 }
+            if kd == 0 { () } else { wl[ssl2(s2, 0)] := kd; wl[ssl2(s2, 1)] := d + 1 }
+            s3 = if kd == 0 { s2 } else { s2 + 1 }
+            again(s3, seen + 1, acc + nodes(nsl(n, 0)) * d, steps + 1)
         }
     }
 }
@@ -284,9 +287,9 @@ d3 = array { 123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 1
 
 fn report(src) {
     (nodes, nn, ok) = parse(src)
-    go.`+`(go.`*`(go.`-`(nn, 1), 1000000), go.`+`(go.`*`(walk(nodes), 10), ok))
+    (nn - 1) * 1000000 + (walk(nodes) * 10 + ok)
 }
-export fn measure(src ∈ Array(0..255)) (Int) where go.`<`(len(src), 1024) {
+export fn measure(src ∈ Array(0..255)) (Int) where len(src) < 1024 {
     (nodes, nn, ok) = parse(src)
     walk(nodes)
 }

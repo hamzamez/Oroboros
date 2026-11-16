@@ -104,6 +104,37 @@ func TestAReuseW12RefusesIsAFault(t *testing.T) {
 	}
 }
 
+// deadLoopSrc builds a stack in every iteration whose scope's value is an
+// integer: its region dies at the build's end (release.go), and the next
+// iteration's stack takes it across the back edge.
+const deadLoopSrc = "export fn f(n ∈ 0..100) (Int) {\n" +
+	"    loop k = 0, acc = 0 {\n" +
+	"        k >= n -> acc\n" +
+	"        else -> {\n" +
+	"            v = { var s := array { 0 : _ ∈ 0..7 }; s[0] := k; s[0] + s[1] }\n" +
+	"            again(k + 1, (acc + v) % 1000)\n" +
+	"        }\n" +
+	"    }\n" +
+	"}\n"
+
+// A DEAD BUILD'S REGION IS A TOKEN LIKE A TABLE'S (gauntlet-2026-11-16): W12
+// accepts it handed across the back edge, and THE PLANTED FAULT, the region
+// handed on and its release kept, is refused for it as for a table's.
+func TestADeadBuildsRegionIsAToken(t *testing.T) {
+	zeros, _, err := reuseEntry(t, deadLoopSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if zeros < 1 {
+		t.Errorf("want the dead stack's region reused by the next iteration's; got %d", zeros)
+	}
+	PlantReuseKeepRelease = true
+	defer func() { PlantReuseKeepRelease = false }()
+	if _, _, err := reuseEntry(t, deadLoopSrc); err == nil || !strings.Contains(err.Error(), "W12") || !strings.Contains(err.Error(), "released too") {
+		t.Errorf("a dead build's region handed on and released: %v; want W12's refusal", err)
+	}
+}
+
 // fitSrc carries a table whose length is a parameter's round a loop, each
 // successor one shorter on odd rounds than the dead one: a size of the run's,
 // so its token goes by fit, its count beside it (R1d), and the request's count

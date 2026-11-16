@@ -368,7 +368,7 @@
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro java emitted 684eab54733c432238e8d818181fc4c639b8bd5d689e008d975d8abcedfa726e
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
-== examples/io/roundtrip.oro windows emitted 977807c2b09f164a81e1fef5f0ba5c426357e4c2c01d763c894db8f9683397d9
+== examples/io/roundtrip.oro windows emitted 86fb7334a0cb7e9642596a88648052a0375fc3f851e7a0ec9d587cf6e369679e
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: 14 definition(s) kept as functions, 1 inlined by their contracts
@@ -407,27 +407,27 @@
 == examples/json/tokenize.oro go emitted 2832e34e080fc7845f5083c93ea2c55d6d6d1f98dbdf9c8e28fc7c6b6fb237c5
    note: gen-run: 116 of 116 integer operations bounded; 16 of 16 loop(s) proven terminating
    note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
-== examples/json/tokenize.oro js refused
-   gen: examples/json/tokenize.oro: in alpha?: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tokenize.oro java refused
-   gen: examples/json/tokenize.oro: in alpha?: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tokenize.oro windows refused
-   gen: examples/json/tokenize.oro: in alpha?: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tree.oro go emitted 463215b7c4de24a006fa7eac8e75f63234c79c25d34e11967eaa847d0d634379
-   note: gen-measure: 99 of 99 integer operations bounded; 5 of 5 loop(s) proven terminating
-   note: gen-run: 416 of 416 integer operations bounded; 20 of 20 loop(s) proven terminating
-== examples/json/tree.oro js refused
-   gen: examples/json/tree.oro: in alpha?: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tree.oro java refused
-   gen: examples/json/tree.oro: in alpha?: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tree.oro windows refused
-   gen: examples/json/tree.oro: in alpha?: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/json/tokenize.oro js emitted ec0147258ebea37b2d2edf293695100286c413e335d545138a5393ce06604225
+   note: gen-run: 116 of 116 integer operations bounded; 16 of 16 loop(s) proven terminating
+   note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/json/tokenize.oro java emitted 87ec4fe2cc2e26b55ee02468b123382b41df0d2042ccff83a5203bca2b11002b
+   note: gen-run: 116 of 116 integer operations bounded; 16 of 16 loop(s) proven terminating
+   note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/json/tokenize.oro windows emitted 9878b288907d5ccdcbcfc85c7a972c0574a9981ab8124c1a0b59d34ed8baf745
+   note: gen-run: 116 of 116 integer operations bounded; 16 of 16 loop(s) proven terminating
+   note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/json/tree.oro go emitted 826ef77d935416b8795679c16c30e7f0556dcd84eedb588b9e19d9d08cccd5ad
+   note: gen-measure: 95 of 95 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-run: 400 of 400 integer operations bounded; 20 of 20 loop(s) proven terminating
+== examples/json/tree.oro js emitted 2308764dae7525eb8f1977068b43d9dea09f0158f8783618187034c6b006e2f6
+   note: gen-measure: 95 of 95 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-run: 400 of 400 integer operations bounded; 20 of 20 loop(s) proven terminating
+== examples/json/tree.oro java emitted 2b54093e7243197b290b57f369e0ea6496809becf4bfa1e17ae620ca689d803a
+   note: gen-measure: 95 of 95 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-run: 400 of 400 integer operations bounded; 20 of 20 loop(s) proven terminating
+== examples/json/tree.oro windows emitted c520611cc82c6b9152f3f0284a686be2ff38ccc385b3d22ba142cf59f14f72e6
+   note: gen-measure: 95 of 95 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-run: 400 of 400 integer operations bounded; 20 of 20 loop(s) proven terminating
 == examples/kara/core.oro go refused
    note: gen-main: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
    gen: gen-main: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
@@ -618,6 +618,14 @@
 == examples/native/generic-js.oro windows refused
    gen: examples/native/generic-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/native/generic-win.oro go emitted 59e845d7487bd04e81d28ea43f4d22b46de72125abcda7126e65fdbdc4f5c13c
+   note: gen-sum-of: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/generic-win.oro js emitted 6226573e5aa33b6f1a8998df087065aa65f3d497f57a7567fdb6c3aaa432170c
+   note: gen-sum-of: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/generic-win.oro java emitted 5a903ae98de33c11347b9e434372f183911f158b9601f1adb596c6a6e5c556ff
+   note: gen-sum-of: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/generic-win.oro windows emitted 99842104eba57c0b210c9e57e5d6933e2bbd4363623d4ca08dc37d4f4363033c
+   note: gen-sum-of: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/hello-win.oro go refused
    gen: examples/native/hello-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
@@ -1116,7 +1124,7 @@
 == gauntlet/differential/cases/codecs.oro java emitted 3b3d5eabd76c9258e9f1a58f3b5a079ab2d1e63e64fb06f0516f7fc5a036d054
    note: gen-run: 5 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 47 of 47 integer operations bounded; 5 of 5 loop(s) proven terminating
-== gauntlet/differential/cases/codecs.oro windows emitted 8ecb7bced1f48003aef58b4aba9a9de09dd84747254a135130c1139ec302fc79
+== gauntlet/differential/cases/codecs.oro windows emitted f7df407198f6b4a668618749f756f6fa6720ced42edaf5e855e80d565f967223
    note: bytes.codec is inlined: inf takes a range with literal ends, lo..hi, and gives its least element at compile time; here its argument is not one, so it has no value
    note: bytes.put is inlined: bytes.put: bytes.maxu's parameter k, declared in 1..8, requires 1 <= k && k <= 8 at a call, which does not follow
    note: gen-run: 5 operation(s) or conversion(s) in the unsigned word

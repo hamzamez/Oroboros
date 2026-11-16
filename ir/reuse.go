@@ -128,6 +128,16 @@ func fitOf(alloc string) string {
 	return "reuse-fit"
 }
 
+// regionOp reports an operation that answers a fresh region of (n, w), its
+// last two arguments: an allocation, or a reuse of a token for one.
+func regionOp(name string) bool {
+	switch name {
+	case "alloc", "alloc-raw", "reuse", "reuse-raw", "reuse-fit", "reuse-fit-raw":
+		return true
+	}
+	return false
+}
+
 // Reuse is the pass. It reports how many allocations take a token.
 func Reuse(tg *emit.Target, f *Func) int {
 	if !termRealized(tg, "reuse") || !termRealized(tg, "discard") {
@@ -362,7 +372,8 @@ func Reuse(tg *emit.Target, f *Func) int {
 
 // CheckReuse is W12, re-derived apart from the pass: every token is null, or
 // the storage of a table no one uses after it was taken and whose region
-// nothing else releases, of the size its allocation asks for; and a loop's
+// nothing else releases, or a dead build's region (release.go), each of the
+// size its allocation asks for; and a loop's
 // token is consumed, by one `reuse` or one `discard`, exactly once on every
 // path through the body.
 func CheckReuse(tg *emit.Target, f *Func) error {
@@ -394,10 +405,79 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 		}
 	})
 	c := newRelCtx(tg, f)
+	// A DEAD BUILD'S REGION (release.go): allocated for a build whose buffer
+	// is frozen into none of its results, by `alloc` or by a `reuse` that took
+	// a token for it (a region of the same size), named by nothing but that
+	// build and the one point that hands it on; its size, (n, w), its
+	// allocation's last two arguments
+	deadRegion := func(v V) (*Stmt, error) {
+		a := def[v]
+		at := defAt[v]
+		if released[v] {
+			return nil, fmt.Errorf("W12: a dead build's region %%%d is handed on as a token and released too", v)
+		}
+		if at.i+1 >= len(at.r.Stmts) {
+			return nil, fmt.Errorf("W12: a token %%%d allocated for no build", v)
+		}
+		b := &at.r.Stmts[at.i+1]
+		if b.Op != OBuild || len(b.Store) != 1 || b.Store[0] != v {
+			return nil, fmt.Errorf("W12: a token %%%d allocated for no build", v)
+		}
+		own := ownOf(f, b)
+		frozen := own == nil
+		var exits func(x *Region)
+		exits = func(x *Region) {
+			if x.T == TBranch {
+				exits(x.Then)
+				exits(x.Else)
+			} else if x.T == TYield {
+				for _, y := range x.Args {
+					frozen = frozen || own[y]
+				}
+			}
+		}
+		exits(b.Sub[0])
+		if frozen {
+			return nil, fmt.Errorf("W12: the region of a build whose buffer is frozen into its value is handed on as a token")
+		}
+		names := 0
+		f.Walk(func(x *Region) {
+			for k := range x.Stmts {
+				for _, y := range append(append([]V(nil), x.Stmts[k].Args...), x.Stmts[k].Store...) {
+					if y == v {
+						names++
+					}
+				}
+			}
+			for _, y := range x.Args {
+				if y == v {
+					names++
+				}
+			}
+		})
+		if names != 2 { // its build and the point that hands it on
+			return nil, fmt.Errorf("W12: a dead build's region %%%d is named %d times, not by its build and one hand-on", v, names)
+		}
+		return a, nil
+	}
 	token := func(v V, b int64) error {
 		s := def[v]
 		switch {
 		case s != nil && s.Op == OCall && s.Name == "llvm.null":
+			return nil
+		case s != nil && s.Op == OCall && regionOp(s.Name):
+			a, err := deadRegion(v)
+			if err != nil {
+				return err
+			}
+			k, ok1 := staticInt(def, fs, a.Args[len(a.Args)-2])
+			w, ok2 := staticInt(def, fs, a.Args[len(a.Args)-1])
+			if !ok1 || !ok2 {
+				return fmt.Errorf("W12: a dead build's region %%%d of a size not static, so its token fits nothing", v)
+			}
+			if k*w+8 != b {
+				return fmt.Errorf("W12: a token of %d bytes is handed to an allocation of %d", k*w+8, b)
+			}
 			return nil
 		case s != nil && s.Op == OStorage:
 			t := c.rootOf(s.Args[0])
@@ -439,6 +519,20 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 		s := def[v]
 		switch {
 		case s != nil && s.Op == OCall && s.Name == "llvm.null":
+			return nil
+		case s != nil && s.Op == OCall && regionOp(s.Name):
+			a, err := deadRegion(v)
+			if err != nil {
+				return err
+			}
+			if k != a.Args[len(a.Args)-2] {
+				return fmt.Errorf("W12: the count handed with a dead build's region %%%d is not its allocation's", v)
+			}
+			x, ok1 := staticInt(def, fs, w)
+			y, ok2 := staticInt(def, fs, a.Args[len(a.Args)-1])
+			if !ok1 || !ok2 || x != y {
+				return fmt.Errorf("W12: a token of a dead build's width is handed to an allocation of another")
+			}
 			return nil
 		case s != nil && s.Op == OStorage:
 			t := c.rootOf(s.Args[0])

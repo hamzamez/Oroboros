@@ -1,0 +1,1 @@
+export fn sometimes(c ∈ Bool) (Int) { if c { 1 } }

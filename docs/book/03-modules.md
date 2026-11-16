@@ -366,9 +366,32 @@ fn(w, h) { 2 * (w * h) + w * h / 2 }
 - **This is a diamond**: `top` reaches `geometry` by two routes. Nothing about that is special.
   There is one `geometry.area`, and two paths to it agree because there is only one thing there.
 
-Write every declaration of such a file inside a block. (Today a declaration written outside them,
-in a file that also has `module` blocks, is read into the last block; that is a defect, and is
-recorded in the book's README.)
+**A block's scope ends at its brace.** What is written outside every block belongs to the file's
+own module, and that module is like any other: it sees a block only by `use`.
+
+<!-- file docs/book/code/after-blocks.oro -->
+```go
+module inner {
+    pub fn k(u) { h(u, 1) }
+}
+
+use inner
+
+export fn run(u) { inner.k(u) }
+```
+
+<!-- oro tutorial docs/book/code/after-blocks.oro -->
+```go
+run =
+fn(u) { h(u, 1) }
+```
+
+Without the `use` line, `run` cannot name `inner`, although it is a few lines up in the same file:
+
+<!-- oro tutorial docs/book/code/no-after-blocks.oro -->
+```
+oro: docs/book/code/no-after-blocks.oro: run: inner is not imported: add `use inner` or `use PATH as inner`
+```
 
 Two modules may give their members the same name, and nothing needs renaming:
 

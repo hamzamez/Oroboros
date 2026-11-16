@@ -59,7 +59,8 @@ export fn main() {
 18
 ```
 
-- A literal is decimal, or hexadecimal after `0x`. A minus sign in front makes it negative.
+- A literal is decimal, or hexadecimal after `0x`. A minus sign in front makes it negative, and
+  so does one in front of a name or a parenthesis: `-n`, `-(a + b)`.
 - **`^` is a power**, as in mathematics, and it binds tighter than `*`: `2 * 3^2` is 18. It is
   for writing constants, `2^10`, `10^6`, `2^63-1`, and both sides must be known when the program
   is compiled. (In C and its descendants `^` is "exclusive or". That operation is `⊕` here, and
@@ -88,8 +89,7 @@ gen: docs/book/code/integers/no-power.oro: in power: `^` is not bound — it is 
 
 There is no digit separator: a million is `1000000` or `10^6`. And `^` with an exponent the
 compiler does not know is not an operation any target has; a power of a variable is a loop
-([chapter 11](README.md)). One more: a minus sign in front of a *name* is not built yet, so the
-negative of `n` is written `0 - n`.
+([chapter 11](README.md)).
 
 ## 6.2 Division, and what is left over
 
@@ -288,7 +288,55 @@ What a set is *not* is a size in memory. In C, `short`, `int` and `long` say how
 value occupies, and the range follows from that. Here the source says what the values are, and
 the compiler chooses how to hold them. All five functions above take a Go `int`.
 
-**A range may not be empty**: `9..0` is refused, since no call could ever supply a member.
+**A range may not be empty**, since no call could ever supply a member:
+
+<!-- file docs/book/code/integers/no-empty.oro -->
+```go
+export fn nobody(n ∈ 9..0) (Int) { n }
+```
+
+<!-- gen go docs/book/code/integers/no-empty.oro -->
+```
+gen: docs/book/code/integers/no-empty.oro: nobody: the set 9..0 is empty: no integer is at least 9 and at most 0, so no value inhabits it. Write the smaller end first
+```
+
+**An end may be a constant the program named**, and a constant may carry a claim of its own,
+written like a parameter's:
+
+<!-- file docs/book/code/integers/limit.oro -->
+```go
+cap = 100
+
+half ∈ 0..cap = cap / 2
+
+export fn below_cap(n ∈ 0..cap) (0..cap) { cap - n }
+
+export fn near_half(n ∈ 0..cap) (Bool) { half - 5 <= n && n <= half + 5 }
+```
+
+<!-- gen go docs/book/code/integers/limit.oro -->
+```go
+func IntegersBelowCap(v0 int) int {
+    v10 := (100 - v0)
+    return v10
+}
+
+func IntegersNearHalf(v0 int) bool {
+    v11 := (50 - 5)
+    v12 := (v11 <= v0)
+    return (v12 && (v0 <= (50 + 5)))
+}
+```
+
+`cap` is written once and the three ranges follow it. `half ∈ 0..cap = cap / 2` says what
+`half` is and which set it must be in, and the Go shows it was computed: 50. Change the
+definition to `cap * 2` and the function that reads it is refused, for the constant's reason
+and not for anything in the function:
+
+<!-- gen go docs/book/code/integers/no-limit.oro -->
+```
+gen: integers-near-half: the claim half ∈ 0..100 is false: its value is 200
+```
 
 ## 6.4 The machine's integer
 
@@ -419,7 +467,7 @@ operation.
 ```go
 export fn distance(n ∈ 0..100) (0..50) { if n > 50 { n - 50 } else { 50 - n } }
 
-export fn magnitude(n ∈ -9..9) (0..9) { if n < 0 { 0 - n } else { n } }
+export fn magnitude(n ∈ -9..9) (0..9) { if n < 0 { -n } else { n } }
 
 export fn both_sides(n ∈ Int) (Int) { if n >= 0 && n < 1000 { n * n } else { 0 } }
 
@@ -450,7 +498,7 @@ func IntegersBothSides(v0 int) int {
 
 - `distance`: in the first branch `n > 50` is known, so `n` is in 51..100 and `n - 50` in 1..50.
   In the other, `n` is in 0..50 and `50 - n` in 0..50. The claim `(0..50)` holds on both.
-- `magnitude`: the absolute value. Where `n < 0`, `0 - n` is in 1..9.
+- `magnitude`: the absolute value. Where `n < 0`, `-n` is in 1..9.
 - `both_sides`: this is `square` from §6.4, **compiling**. `n` is any integer, and inside the
   branch it is in 0..999, so the product is under a million. A test you would have written
   anyway is the proof.

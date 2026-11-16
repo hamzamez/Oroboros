@@ -628,10 +628,12 @@ oro: a statement's value is a function, shout, which does nothing until it is ap
 - `in_a_branch`: a branch is a block, so it may hold statements.
 - `one_armed`: an `if` with no `else` is a statement. Its missing branch is `()`, the value that
   carries no information (§4.9).
-- `forgot_the_call` was a trap, and is now refused. `shout` without parentheses is the function,
-  not a call of it, and a function has no effect until it is applied, so the statement could only
-  be dead code. Before [ADR 0116](../decisions/0116-a-statement-whose-value-is-a-function-is-refused.md)
-  the line vanished and nothing was said; `ignore(shout)` is the discard that means it.
+- `forgot_the_call` is refused. `shout` without parentheses is the function, not a call of it,
+  and a function has no effect until it is applied, so the statement could only be dead code. It
+  is the likeliest slip of someone arriving from a language where a bare name can be a call, and
+  a line that silently did nothing would be the worst way to learn it. If you do mean to name a
+  function and drop it, `ignore(shout)` says so
+  ([ADR 0116](../decisions/0116-a-statement-whose-value-is-a-function-is-refused.md)).
 
 Languages descended from Algol have two kinds of thing, expressions (which have values) and
 statements (which do something), with separate rules for each. Here there is one kind. A

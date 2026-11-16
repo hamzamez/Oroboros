@@ -726,6 +726,23 @@ something or not, where the something is done for its effect and nobody wants a 
 shout or stay quiet. `then_more` is how it is used: on a line of its own, followed by what comes
 next.
 
+So a one-armed `if` is not a way to produce a number sometimes. Its value is either the branch's
+or `()`, and `()` is not an integer:
+
+<!-- file docs/book/code/choice/no-one-arm.oro -->
+```go
+export fn sometimes(c ∈ Bool) (Int) { if c { 1 } }
+```
+
+<!-- gen go docs/book/code/choice/no-one-arm.oro -->
+```
+gen: sometimes: the unit () is (), but Int is required here
+```
+
+C would return whatever was lying in a register, and Go refuses with *missing return*. The reason
+here is the same as Go's, said as a fact about values: the function claims an `Int`, and on one
+path it has nothing to give.
+
 ## 4.10 A choice moves to where it is needed
 
 Reduction rearranges choices, and each rearrangement is a small theorem about `if`.

@@ -15,11 +15,11 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | | **I. How a program is reduced** | | |
 | 1 | [`fn`](01-fn.md) | β; reduction is compilation | J; 62 blocks checked 2026-11-15 |
 | 2 | [Definitions](02-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-15 |
-| 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 52 blocks checked 2026-11-15 |
-| 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 52 blocks checked 2026-11-15 |
+| 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 55 blocks checked 2026-11-16 |
+| 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 54 blocks checked 2026-11-16 |
 | 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-15 |
 | | **II. What a program computes with** | | |
-| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 82 blocks checked 2026-11-15 |
+| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 87 blocks checked 2026-11-16 |
 | 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ` | J; 61 blocks checked 2026-11-16 |
 | 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-16 |
 | 9 | Text | strings as sequences, `++`, the host's strings, bytes | not written |
@@ -359,6 +359,31 @@ Chapter 8 (2026-11-16) found eight, none fixed, each avoided in the chapter:
 One thing compiles that the specification says is not built: `export fn f(p ∈ D(2, 0..1000))`
 takes `p` as its numerator, an `int`, on Go (numbers.md §9: "D at an entry point's boundary"
 is not in step 1). The chapter's exports take integers and doubles only.
+
+**The chapters after the fixes (2026-11-16).** With items 1–28 fixed, every chapter was re-run
+(all nine pass) and the passages that worked around a fixed item were rewritten, seven planted
+faults caught in the new blocks:
+- 5: the tour's `abs` and chapter 6's `magnitude` write `-n`, and the two notes saying a name
+  cannot be negated are gone;
+- 13, 14, 25: chapter 6 §6.3 shows the empty range's refusal, a constant as a range's end, and
+  a constant carrying its own claim (`limit.oro`, `no-limit.oro`, `no-empty.oro`);
+- 15: chapter 3 §3.6 says a block's scope ends at its brace and shows the `use` a declaration
+  after the blocks needs (`after-blocks.oro`, `no-after-blocks.oro`), in place of the defect's
+  note;
+- 19: chapter 4 §4.9 shows a one-armed `if` refused at an `Int` (`no-one-arm.oro`);
+- 22: chapter 5 states the refusal in the present tense.
+
+Doing that found three more, none fixed:
+
+45. **A claimed constant is checked only where it is read.** With `half ∈ 0..cap = cap * 2`,
+    a program that never reads `half` compiles; one that reads it is refused under the reader's
+    name, *integers-near-half: the claim half ∈ 0..100 is false*. ADR 0072 decides a declared
+    result at its definition; a constant's claim is the same kind of statement.
+46. **A claimed constant is not folded.** `half - 5 <= n` with `half ∈ 0..cap = cap / 2` emits
+    `v11 := (50 - 5)` on Go, where the unclaimed constant gives `45`.
+47. **A refusal names a definition in the core's spelling**: `export fn one_or_nothing` is
+    refused as *gen: one-or-nothing: the unit () is (), but Int is required here*. The family
+    of items 4, 7 and 21.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

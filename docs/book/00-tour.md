@@ -254,7 +254,7 @@ can return 1000, and that is a false statement. Make it true:
 export fn clamp(n ∈ 0..1000) (0..255) { if n > 255 { 255 } else { n } }
 
 export fn abs(n ∈ -1000..1000) (r ∈ Int) ensure r >= 0 {
-    if n < 0 { 0 - n } else { n }
+    if n < 0 { -n } else { n }
 }
 ```
 
@@ -276,9 +276,6 @@ same way, *the body does not establish result > 0; its result is [0, 1000]*, bec
 Inside a body almost nothing is annotated. `aa = a * a` has no type written on it and needs none;
 when you do want to state a set for a local, the binder takes one, `end ∈ 0..n = t + got`, and that
 too is proven or refused.
-
-(A `-` directly before a literal is part of the literal, `-1`. Negating a variable is written
-`0 - n` today.)
 
 ## 0.5 An integer is an integer
 

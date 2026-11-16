@@ -1,0 +1,7 @@
+cap = 100
+
+half ∈ 0..cap = cap * 2
+
+export fn below_cap(n ∈ 0..cap) (0..cap) { cap - n }
+
+export fn near_half(n ∈ 0..cap) (Bool) { half - 5 <= n && n <= half + 5 }

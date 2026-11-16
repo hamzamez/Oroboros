@@ -1,6 +1,6 @@
 export fn distance(n ∈ 0..100) (0..50) { if n > 50 { n - 50 } else { 50 - n } }
 
-export fn magnitude(n ∈ -9..9) (0..9) { if n < 0 { 0 - n } else { n } }
+export fn magnitude(n ∈ -9..9) (0..9) { if n < 0 { -n } else { n } }
 
 export fn both_sides(n ∈ Int) (Int) { if n >= 0 && n < 1000 { n * n } else { 0 } }
 

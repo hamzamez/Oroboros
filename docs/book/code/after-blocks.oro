@@ -1,0 +1,7 @@
+module inner {
+    pub fn k(u) { h(u, 1) }
+}
+
+use inner
+
+export fn run(u) { inner.k(u) }

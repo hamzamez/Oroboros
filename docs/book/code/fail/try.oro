@@ -1,0 +1,21 @@
+use io
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+fn show(r) { case r { result.'ok(v) -> io.print_int(v); result.'err(e) -> io.print_int(-e) } }
+
+fn eighth(n ∈ 0..1000000) {
+    try result.'ok(a) = half(n) {
+        try result.'ok(b) = half(a) {
+            half(b)
+        }
+    }
+}
+
+export fn main() {
+    show(eighth(80))
+    show(eighth(20))
+    show(eighth(6))
+    show(eighth(7))
+}

@@ -1,0 +1,25 @@
+use io
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+fn show(r) { case r { result.'ok(v) -> io.print_int(v); result.'err(e) -> io.print_int(-e) } }
+
+fn small(v) { if 0 <= v && v <= 1000000 { v } else { 1 } }
+
+fn halves(t) {
+    loop i = 0, acc = 0 {
+        i >= len(t) || acc > 1000000 -> result.'ok(acc)
+        else -> {
+            try result.'ok(h) = half(small(t[i])) {
+                again(i + 1, acc + h)
+            }
+        }
+    }
+}
+
+export fn main() {
+    show(halves(array { 2, 4, 6 }))
+    show(halves(array { 2, 5, 6 }))
+    show(halves(array { }))
+}

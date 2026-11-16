@@ -1,0 +1,8 @@
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+export fn f(n ∈ 0..1000000, loud ∈ Bool) (Int) {
+    r = half(n)
+    if loud { case r { result.'ok(v) -> v; result.'err(e) -> -1 } } else { 0 }
+}

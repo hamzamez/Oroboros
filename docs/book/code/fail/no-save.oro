@@ -1,0 +1,6 @@
+use os
+
+export fn save(path ∈ String, data ∈ Array(0..255)) (Int) {
+    os.WriteFile(path, data)
+    0
+}

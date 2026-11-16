@@ -1,0 +1,13 @@
+set Parsed = 'value(Int) ∪ 'empty ∪ 'bad(Int) success 'value relevant
+
+fn digit(c ∈ 0..127) {
+    case {
+        c == 0 -> 'empty
+        c >= 48 && c <= 57 -> 'value(c - 48)
+        else -> 'bad(c)
+    }
+}
+
+export fn twice(c ∈ 0..127) (Parsed) {
+    try 'value(d) = digit(c) { 'value(2 * d) }
+}

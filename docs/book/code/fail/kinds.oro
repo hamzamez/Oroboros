@@ -1,0 +1,15 @@
+use result
+
+set Why = 'odd(Int) ∪ 'too_big
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+fn check(n ∈ 0..1000000) { if n > 1000 { result.'err('too_big) } else { result.'ok(n) } }
+
+export fn code(n ∈ 0..1000000) (Int) {
+    r = try result.'ok(m) = check(n) { result.err_map(fn(e) { 'odd(e) }, half(m)) }
+    case r {
+        result.'ok(v) -> v
+        result.'err(why) -> case why { 'odd(k) -> -1; 'too_big -> -2 }
+    }
+}

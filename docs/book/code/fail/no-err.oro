@@ -1,0 +1,7 @@
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+export fn f(n ∈ 0..1000000) (result.Result(Int, Int)) {
+    try result.'err(e) = half(n) { result.'ok(e) }
+}

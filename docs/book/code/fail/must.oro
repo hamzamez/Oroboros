@@ -1,0 +1,8 @@
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+export fn must(n ∈ 0..1000000) (Int) {
+    expect result.'ok(h) = half(n) else "an even number is expected"
+    h
+}

@@ -1,0 +1,5 @@
+set Light = 'red ∪ 'green
+
+fn pick(n ∈ 0..1) { if n == 0 { 'red } else { 'green } }
+
+export fn f(n ∈ 0..1) (Light) { try 'red = pick(n) { 'green } }

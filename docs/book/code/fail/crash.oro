@@ -1,0 +1,12 @@
+use io
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+export fn main() {
+    expect result.'ok(h) = half(10) else "ten is even"
+    io.print_int(h)
+    expect result.'ok(k) = half(7) else "seven is not even"
+    io.print_int(k)
+    io.print_line("never printed")
+}

@@ -28,7 +28,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 11 | [`loop`](11-loop.md) | the one iteration; termination | J; 53 blocks checked 2026-11-16 |
 | 12 | [Tables](12-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 60 blocks checked 2026-11-16 |
 | 13 | [State](13-state.md) | `var`, buffers, maps; why a table never changes under you | J; 45 blocks checked 2026-11-16 |
-| 14 | Failures | `Result`, `try`, `expect`, `relevant` | not written |
+| 14 | [Failures](14-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 42 blocks checked 2026-11-16 |
 | | **IV. Claims and hosts** | | |
 | 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | **the notation J replaced**, and its examples did not run even in it; see its banner |
 | 16 | Targets | host modules, writing a declaration, portability computed | not written |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12 and fifteen in chapter 13, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12, fifteen in chapter 13 and thirteen in chapter 14, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -577,11 +577,42 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
     copy, where ADR 0052's R0 says "the copy is explicit"; the chapter writes the rule.
 
 A flaky test, seen twice (chapters 8 and 13): `go test ./core/` reports FAIL once and then
-passes three times running, with no change between. Not captured; worth running it in a loop.
+passes three times running, with no change between. Identified in chapter 14: item 78.
 
 Teaching: cells are taught as a notation for new names (static single assignment said as the
 meaning, not as an optimization), and the chapter's question, "why a value you hold never
 changes", is answered by R1 before `linear` is introduced.
+
+Chapter 14, Failures (2026-11-16), confirmed item 53 where it matters most and found three
+more, none fixed:
+
+76. **Item 53 is a wrong answer in the plainest `try` chain.** With `half` returning
+    `result.'ok(n / 2)` or `result.'err(n)`,
+
+        try result.'ok(x) = half(a) { try result.'ok(y) = half(b) { result.'ok(x + y) } }
+
+    gives 4 for a = 40, b = 4 (Go: `v32 := (v1 >> 1); v33 := (v32 + v32)`), where 22 is right.
+    A chain where each step feeds the next (`try 'ok(a) = half(n) { try 'ok(b) = half(a)
+    { half(b) } }`) is right, and so is the two-answer form when the first answer is passed to
+    a function as a parameter (`fn add_half(x, b) { try 'ok(y) = half(b) { 'ok(x + y) } }`):
+    22. The chapter's §14.4 is written that way and carries a boxed warning to the reader.
+77. **`try` with several binds is not read.** j.md §2.8: `try_expr ::= "try" t_bind,+ block`.
+    `try result.'ok(x) = half(a), result.'ok(y) = half(b) { … }` is *"," where "{" was
+    expected*. The handler, `else`, is listed as not built.
+78. **The flaky test is a race between two packages.** `go test ./core/ ./cmd/gen/` fails about
+    one run in five with *TestEveryCorpusFileReadsInJ: open ..\cmd\gen\booktest3866318782\
+    p.oro: The system cannot find the path specified*: `core`'s corpus walk lists a temporary
+    directory that `cmd/gen`'s tests make under their own package and remove while the walk is
+    reading. Either test alone passes every time. (This is the failure noted under chapters 8
+    and 13.)
+79. **Messages.** *try: variant light declares no (success …) constructor, so it is not a model
+    of the exception monad* is in the notation J replaced and names the variant in lower case.
+    The relevance refusals name no function they occur in (*gen: the result of half is a value
+    of a relevant type …*, with no `f:`).
+
+Teaching: `expect`'s crash is shown on windows, where the output is the reason alone; Go's and
+JavaScript's carry a stack trace with temporary paths, so they are shown as emitted code.
+`examples/errors/` already held `discard`, `ignore` and `expect`; the chapter's are its own.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
@@ -603,7 +634,10 @@ Collatz as the loop nobody can prove; chapter 12's is zero-based and half-open r
 as an unchecked index, fusion as β on a table given by a rule, binary search with its invariant,
 and positions in place of pointers (struct of arrays, a list by `next`, a grid by `r·w + c`);
 chapter 13's is `=` against `:=`, static single assignment, aliasing as the bug the one-name rule
-removes, gather against scatter, insertion sort, and Eratosthenes' sieve.
+removes, gather against scatter, insertion sort, and Eratosthenes' sieve; chapter 14's is the
+three older answers to failure (a sentinel, a flag, an exception) and Ariane 501, the exception
+monad said as "the first stop wins", relevance as chapter 5's no-dropping rule on a value, and
+Erlang's let-it-crash as the case for `expect`.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

@@ -1030,4 +1030,4 @@ is the logic chapter 5 met: a thing that must be used exactly once.
 - **A map is a table with integer keys you choose.** `m[k] := v` stores, `m[k]` gives
   `'some(v)` or `'none`, `keys(m)` is the keys in ascending order.
 
-Next: chapter 14, Failures. What a function says when it cannot do what it was asked.
+Next: [chapter 14](14-failures.md), Failures. What a function says when it cannot do what it was asked.

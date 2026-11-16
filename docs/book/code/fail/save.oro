@@ -1,0 +1,6 @@
+use os
+use result
+
+export fn save(path ∈ String, data ∈ Array(0..255)) (Int) {
+    case os.WriteFile(path, data) { result.'ok(u) -> 0; result.'err(why) -> 1 }
+}

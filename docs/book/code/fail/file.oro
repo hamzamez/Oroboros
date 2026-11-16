@@ -1,0 +1,24 @@
+use io
+use os
+use result
+
+fn size(path) {
+    try result.'ok(data) = os.ReadFile(path) { result.'ok(len(data)) }
+}
+
+fn report(r) {
+    case r {
+        result.'ok(n) -> io.print_int(n)
+        result.'err(why) -> case why {
+            os.'not_found -> io.print_int(-1)
+            os.'exists -> io.print_int(-2)
+            os.'permission -> io.print_int(-3)
+            os.'other(e) -> io.print_int(-4)
+        }
+    }
+}
+
+export fn main() {
+    report(size("docs/book/code/fail/hello.txt"))
+    report(size("docs/book/code/fail/no-such-file.txt"))
+}

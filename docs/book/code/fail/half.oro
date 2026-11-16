@@ -1,0 +1,12 @@
+use io
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+fn show(r) { case r { result.'ok(v) -> io.print_int(v); result.'err(e) -> io.print_int(-e) } }
+
+export fn main() {
+    show(half(10))
+    show(half(7))
+    show(half(0))
+}

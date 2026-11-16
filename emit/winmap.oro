@@ -221,6 +221,10 @@ fn wm_rank(m, k) {
     }
 }
 
+// A GUARDED STORE, the dual of the guarded read: the identity off the table's
+// domain, so the guard is the store's proof.
+fn wm_w(out linear, i, v) { if i >= 0 && i < len(out) { out[i] := v } else { () } }
+
 // One pass over the slots, each occupied key written to its own rank. `out` is
 // only ever WRITTEN here and `m` only ever READ, so no store can shadow a read.
 fn wm_keys(m) {
@@ -229,8 +233,13 @@ fn wm_keys(m) {
     loop s = 0 {
         s >= wm_n(m) -> out
         wm_used_at(m, s) == 0 -> again(s + 1)
+        // A GUARDED STORE (wm_w): a store owes its index since the book's
+        // finding 70, and wm_c's 0 is outside an empty `out`. The rank is below
+        // cnt = len(out), a count of the occupied slots the refinement layer
+        // does not relate to this loop, so the guard never skips a key; it is a
+        // missing proof (store-2026-11-16).
         else -> {
-            out[wm_c(out, wm_rank(m, wm_key_at(m, s)))] := wm_key_at(m, s)
+            wm_w(out, wm_rank(m, wm_key_at(m, s)), wm_key_at(m, s))
             again(s + 1)
         }
     }

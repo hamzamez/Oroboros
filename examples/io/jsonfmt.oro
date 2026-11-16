@@ -140,14 +140,34 @@ fn outlen(src) {
 // cannot hand back both the buffer and a new offset, so the arithmetic stays
 // with the caller — which turns out to read better than the alternative, because
 // the offset and the length contribution then sit side by side.
-fn put(out linear, op, c) { out[op] := c }
+//
+// EACH STORE IS GUARDED, and each guard is a missing proof (the book's finding
+// 70: a store owes 0 <= o < len(out), as a read does). The offset stays below
+// len(out) because render and outlen compute one recurrence, outlen = len ∘
+// render, a relation between two loops that the refinement layer does not
+// derive. Counted right, the guards are never taken; one taken would drop a
+// byte. Giving up there instead, `abandon` in the guard's arm, is what a missing
+// proof should do, and it does not compile yet: an arm into ∅ in a borrowed
+// buffer's code freezes the buffer, or makes a join point a loop cannot leave
+// (store-2026-11-16). The guards go when the output is written as a fold of
+// pieces, whose length is the homomorphism's image.
+fn put(out linear, op, c) {
+    case {
+        op < 0 || op >= len(out) -> ()
+        else -> { out[op] := c }
+    }
+}
 
 fn spaces(out linear, op, n) {
-    loop k = 0, o = op { k >= n -> (); else -> { out[o] := 32; again(k + 1, o + 1) } }
+    loop k = 0, o = op {
+        k >= n -> ()
+        o < 0 || o >= len(out) -> ()
+        else -> { out[o] := 32; again(k + 1, o + 1) }
+    }
 }
 
 fn nl(out linear, op, d) {
-    out[op] := 10
+    put(out, op, 10)
     spaces(out, op + 1, 2 * d)
 }
 
@@ -159,6 +179,7 @@ fn copyr(out linear, op, src, a, b) {
     loop k = a, o = op {
         k >= b -> ()
         k >= len(src) -> ()
+        o < 0 || o >= len(out) -> ()
         else -> { out[o] := src[k]; again(k + 1, o + 1) }
     }
 }

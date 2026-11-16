@@ -106,11 +106,12 @@ func TestRefineAcceptsASecondArrayGivenAPrecondition(t *testing.T) {
 // §3 — an assumption OUTSIDE the fragment must be kept, not dropped. It cannot
 // decide a linear obligation, and the diagnostic must still say it was there:
 // `known: nothing` was a lie whenever a program declared a `where` the solver
-// could not read. A product of two variables is outside the linear fragment.
+// could not read. A product of two variables is outside the linear fragment
+// (a square of one is an atom since F12, lang-facts.oro, so the two differ).
 func TestOpaqueAssumptionIsKept(t *testing.T) {
-	err := refineSrc(t, `export fn f(a ∈ Array(F64), k ∈ 0..1000) (F64) where len(a) < k * k { a[k] }`)
+	err := refineSrc(t, `export fn f(a ∈ Array(F64), k ∈ 0..1000, m ∈ 0..1000) (F64) where len(a) < k * m { a[k] }`)
 	refused(t, err, "an index under an opaque assumption")
-	if err != nil && !strings.Contains(err.Error(), "assumed (lt (len a) (* k k))") {
+	if err != nil && !strings.Contains(err.Error(), "assumed (lt (len a) (* k m))") {
 		t.Errorf("the diagnostic must report what was assumed; got %v", err)
 	}
 }

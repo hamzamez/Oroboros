@@ -3322,3 +3322,33 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
 - compiler output changed — `lib/win/print.oro windows`
+
+## 2026-11-16 — on 38db616, with uncommitted changes
+
+**Reason:** ADR 0119: a store owes its table's domain (the book's finding 70); lang's guarded facts instantiated where an obligation is (finding 67's midpoint, windows argv); F12 0<=x*x, x<=x*x with the square an atom (the sieve); guards where the fragment cannot bound a store (jsonfmt, freq, K(N*)'s row once a row, winmap keys), each a missing proof; print_int restated; run time 0.99-1.02 (store-2026-11-16)
+
+656 runs: 445 emitted, 211 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+21 change(s):
+
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- compiler output changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro go`
+- emitted text changed — `examples/io/jsonfmt.oro java`
+- emitted text changed — `examples/io/jsonfmt.oro js`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- compiler output changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- compiler output changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- compiler output changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- compiler output changed — `examples/table/sieve-win.oro windows`

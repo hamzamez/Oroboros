@@ -18,6 +18,13 @@ fact len_nonneg (t ∈ Array(A)) 0 <= len(t)
 fact div_floor (x ∈ Int, k ∈ Int) when(0 <= x, 1 <= k) k * (x / k) <= x && x <=
 k * (x / k) + (k - 1)
 
+// F12 — A SQUARE. For every integer x, 0 <= x·x and x <= x·x: for x <= 0,
+// x <= 0 <= x²; for x >= 1, x² = x·x >= x. (Over ℚ the second fails on (0, 1),
+// so it is a fact of ℤ.) The square is an atom keyed by its operand (linear.go),
+// so this is F-B with trigger x·x. The sieve's crossing loop starts at i·i, and
+// 0 <= j at its entry is this fact.
+fact square (x ∈ Int) 0 <= x * x && x <= x * x
+
 // F6, F7, F8 — THE REMAINDER, one law that was three encodings in Go. Truncating
 // division gives a = b·q + r with |r| < |b| and r taking a's sign (integers.md §4,
 // measured agreeing on all four hosts). Written as four clauses because |·| is

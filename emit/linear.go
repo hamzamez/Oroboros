@@ -1012,6 +1012,16 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 					return constant(0).addScaled(a, args[1].Int), true
 				}
 			}
+			// A SQUARE IS AN ATOM, keyed by its operand's linear form as a
+			// quotient is, so lang's square fact (F12: 0 <= x·x and x <= x·x)
+			// can conclude about it: the sieve's crossing loop starts at
+			// j = i·i, and 0 <= j at its entry is that fact (a store owes its
+			// index since the book's finding 70).
+			if args[0].String() == args[1].String() && !PlantSquareOpaque {
+				if a, ok := asLinearIn(pure, args[0]); ok {
+					return variable(quotVar("sq", a, 2)), true
+				}
+			}
 		case isLenOp(op.Name) && len(args) == 1:
 			// A TABLE WRITTEN AS ITS GRAPH has its element count as its
 			// length, a constant (tables.md §2); a buffer initialized from one
@@ -1392,3 +1402,7 @@ func claimBounds(t *core.Term, f *facts) *facts {
 // as before: `0 <= the(Nat, m * m)` then does not follow
 // (TestAClaimIsInItsSet).
 var PlantClaimOpaque bool
+
+// PlantSquareOpaque keeps a square outside the fragment, so F12 concludes
+// nothing: TestASquareIsAtLeastItsRoot must catch it.
+var PlantSquareOpaque bool

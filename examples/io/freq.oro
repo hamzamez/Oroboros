@@ -369,11 +369,25 @@ fn outlen(sp, dt, ord2, nd) {
 //
 // Every helper returns the BUFFER and nothing else, and the caller advances the
 // offset itself -- ADR 0018's linearity making the interface, exactly as it did
-// in jsonfmt. The stores are not clamped into the output: the offsets are proven
-// inside it (claimsdemand-2026-10-13 found the four clamps here stale).
+// in jsonfmt. EACH STORE INTO THE OUTPUT IS GUARDED, and each guard is a
+// missing proof. claimsdemand-2026-10-13 found the four clamps here "stale",
+// but only because a store owed nothing: "not refused" was read as "proven".
+// Since the book's finding 70 a store owes 0 <= o < len(out), and the offset
+// is below len(out) because report and outlen compute one recurrence, a
+// relation between two loops the refinement layer does not derive. Counted
+// right, the guards are never taken; one taken would drop a byte, since an
+// `abandon` there does not compile yet (store-2026-11-16).
+fn putc(out linear, o, c) {
+    case {
+        o < 0 || o >= len(out) -> ()
+        else -> { out[o] := c }
+    }
+}
+
 fn putnum(out linear, o, v) {
     loop o = o, p = pow10(ndigits(v)), x = v {
         p < 1 -> ()
+        o < 0 || o >= len(out) -> ()
         else -> { out[o] := 48 + x / p % 10; again(o + 1, p / 10, x) }
     }
 }
@@ -393,6 +407,7 @@ fn putword(out linear, o, src, sp, w) {
         //
         // So the case fold belongs where it is needed -- in the COMPARISON -- and the
         // report copies the source bytes. Which is what a reader wants anyway.
+        o < 0 || o >= len(out) -> ()
         else -> { out[o] := src[sbeg(sp, w) + k]; again(o + 1, k + 1) }
     }
 }
@@ -401,9 +416,9 @@ fn putline(out linear, o, src, sp, dt, d) {
     c = dcount(dt, d)
     w = dword(sp, dt, d)
     putnum(out, o, c)
-    out[o + ndigits(c)] := 32
+    putc(out, o + ndigits(c), 32)
     putword(out, o + (ndigits(c) + 1), src, sp, w)
-    out[o + (linelen(sp, dt, d) - 1)] := 10
+    putc(out, o + (linelen(sp, dt, d) - 1), 10)
 }
 
 fn report(src, sp, dt, ord2, nd) {

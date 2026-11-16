@@ -944,11 +944,13 @@ export fn search(t ∈ Array(Int), x ∈ Int) (Int) where len(t) <= 10^9 {
 
 <!-- gen go docs/book/code/tables/no-search.oro -->
 ```
-gen: tables-search: t[lo + (hi - lo) / 2] is an indexing, and 0 <= lo + (hi - lo) / 2 does not follow
+gen: tables-search: 16 of 16 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
 ```
 
-`lo` is not negative and `hi - lo` is positive, so half of it is not negative either. You
-can see that. The compiler, today, cannot.
+`lo` is not negative and `hi - lo` is positive, so half of it is not negative either. The
+compiler sees that much now (it once refused the index for it, the book's finding 67). What it
+still cannot see, without the guard, is that `lo` and `hi` stay between `0` and `len(t)` from
+one time round to the next, so it cannot bound the arithmetic on them inside the word.
 
 And one more honest line. Here is what it says about the version that compiles:
 

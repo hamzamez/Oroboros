@@ -96,10 +96,13 @@ wrong about half the time.
 
 **The current assessment is [assessment-2026-11-16.md](docs/assessment-2026-11-16.md)**; read it
 before planning. **Its plan (§5)**, in order:
-1. **the book's wrong answers and faults**, each with a planted fault: 53/76, two payloads under one
-   name (22 for "42"); 70, a store's index unchecked (windows writes past the block); 71, `len` of a
-   map 12 on windows; 64, a tuple read from a table as a map's comma-ok; 39 and 40, a verifier failure
-   and a crash; 78, the flaky test ([docs/book/README.md](docs/book/README.md));
+1. **the book's wrong answers and faults**, each with a planted fault: ~~53/76, two payloads under
+   one name~~ done ([capture-2026-11-16](gauntlet/results/capture-2026-11-16.md)); ~~70, a store's
+   index unchecked~~ done (ADR 0119, [store-2026-11-16](gauntlet/results/store-2026-11-16.md): the
+   guards it needed are missing proofs, the builder and K(ℕ\*)'s carrier owed, and an `abandon` arm in
+   a borrowed buffer's code a defect); 71, `len` of a map 12 on windows; 64, a tuple read from a table
+   as a map's comma-ok; 39 and 40, a verifier failure and a crash; 78, the flaky test
+   ([docs/book/README.md](docs/book/README.md));
 2. **j.md's two promises**: `invariant`, Hoare's rule for `loop`, which also pays `readinto`'s owed
    invariant; `try` with several binds, a derived form;
 3. **two checks**: no carriage return in a tracked text file; a planted source rewrite asserts it
@@ -637,7 +640,7 @@ what TinyRetroPad's walls need.
   seven (G4 and G3's tally need a dictionary keyed by strings, G5 F64's rendering: walls). The 33
   files its harnesses call are listed in `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and
   regenerated and compared by `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **8,857 of 8,911** integer operations proven inside their target's word, the 54 left
+- **Provability**: **8,852 of 8,906** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`);
   **924 of 962** loops proven to terminate (size-change termination; fourteen of the 38 left are
@@ -991,6 +994,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A statement whose value is a function is refused; `ignore(f)` is the discard | [0116](docs/decisions/0116-a-statement-whose-value-is-a-function-is-refused.md) |
 | A string is the table of its UTF-8 on the LLVM layer, its four operations definitions in the language read back by ρ⁻¹ (V a submonoid decides `++`, η agrees on every scalar); every table's region one zero byte past it, the C string's NUL; a realization's host `where` decided; an identity coercion a move | [0117](docs/decisions/0117-a-string-is-the-table-of-its-utf-8-and-its-operations-are-the-languages.md) |
 | A C call's arguments are a linear term over its parameters: each a parameter, `elem(b, lo)` (&b[lo], defined where the `where` states lo ≤ len(b)) or `null`, every parameter exactly once; one Win32 function one declaration; `store8` split into single instructions; amends 0094 | [0118](docs/decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md) |
+| A store owes its table's domain, 0 <= i < len, as a read does; lang's guarded facts instantiated where an obligation is; a square an atom (F12); where the fragment cannot bound a store the program guards it, a missing proof (the builder, K(ℕ\*)'s carrier owed) | [0119](docs/decisions/0119-a-store-owes-its-tables-domain.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

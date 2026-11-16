@@ -520,7 +520,10 @@ Chapter 12, Tables (2026-11-16), found six, none fixed, each avoided in the chap
 67. **Division has no sign fact, so binary search cannot be written as it is taught.** With
     `0 <= lo`, `lo < hi` and `hi <= len(t)` all among the known facts, `t[lo + (hi - lo) / 2]`
     is refused, *0 <= lo + (hi - lo) / 2 does not follow*: x ≥ 0 ⇒ x / k ≥ 0 is not derived
-    (products.md §6 added k·(x/k) ≤ x and no more). `(lo + hi) / 2`, `>> 1` and a length-based
+    (products.md §6 added k·(x/k) ≤ x and no more). **The midpoint is proven** 2026-11-16 (store-2026-11-16): div_floor's guard
+    holds only under the loop's guards, and lang's facts are now instantiated where an obligation
+    is, so both `lo + (hi - lo) / 2` bounds follow; chapter 12's `no-search.oro` is refused now for
+    its arithmetic in the word, and its passage says so. `(lo + hi) / 2`, `>> 1` and a length-based
     form fail alike. The chapter carries the midpoint as a third loop variable under a guard;
     its termination is then *0 of 1 proven* (a measure of two variables), which the chapter
     argues by hand. The same gap refuses `grid[r * w + c]` at `0 <= r * w + c`.
@@ -554,7 +557,9 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
     refused (chapter 12). tables.md §6 says the obligation was needed "in three places", `build`
     among them, and maps.md §6 cites `(set stk sp …)` carrying `sp < cap`; nothing enforces it
     now. Chapter 13 §13.3 tells the reader of the gap in so many words, and every store in its
-    examples is under a guard that would prove it.
+    examples is under a guard that would prove it. **Fixed** 2026-11-16 ([store-2026-11-16](../../gauntlet/results/store-2026-11-16.md),
+    ADR 0119): a store owes 0 <= i < len as a read does, so all three are refused, on every target;
+    §13.3's sentence about the gap is the book's to update.
 71. **A map's declared capacity is not enforced, and `len` of a map is wrong on windows.**
     `var m := map(2)` with three stores gives `len(m)` 3 on Go and JavaScript (maps.md §6
     chose a declared capacity so that all targets agree) and **12** on windows.

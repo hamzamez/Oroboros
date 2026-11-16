@@ -280,13 +280,25 @@ fn sub(ml, a, b) {
 // ALGORITHM M's row: o += |a| · y · B^j. Column i + j is t = u·y + w + k ≤
 // B^2 − 1; the row's last carry goes to column ma + j, which no earlier row
 // reached, so it is written, not added.
+// THE ROW'S INDICES ARE AN INTERVAL, [j, j + ma], so its stores are inside o iff
+// 0 <= j and j + ma < len(o): two comparisons on the ends, checked once a row
+// rather than once a digit (a store owes its index since the book's finding
+// 70). It holds, len(o) = ma + mb + 1 with j < mb, but the copies of ma and mb
+// the row sees are not related to the length the caller built, so the check is
+// a missing proof, its arm never taken (store-2026-11-16). Per digit it cost the
+// 32-word product 8%.
 fn macrow(ml, o linear, no, a, la, ma, y, j) {
-    loop i = 0, k = 0 {
-        i >= ma -> { o[i + j] := k; () }
+    case {
+        j < 0 || j + ma >= len(o) -> ()
         else -> {
-            t = dg(a, la, i) * y + rg(o, no, i + j) + k
-            o[i + j] := t & dm
-            again(i + 1, t >> 64)
+            loop i = 0, k = 0 {
+                i >= ma -> { o[i + j] := k; () }
+                else -> {
+                    t = dg(a, la, i) * y + rg(o, no, i + j) + k
+                    o[i + j] := t & dm
+                    again(i + 1, t >> 64)
+                }
+            }
         }
     }
 }
@@ -309,6 +321,13 @@ fn mulm(ml, a, b) {
     lb = len(b) - 1
     var o := array { 0 : _ ∈ 0..cap-1 }
     loop j = 0 {
+        // A NUMERAL'S TABLE HOLDS ITS SIGNED SIZE, so cap = ma + mb + 1 >= 1 and
+        // the size's store at cap - 1 is inside o. That needs size's result
+        // >= 0, which the refinement layer loses where size joins its branches,
+        // so it is checked here (a store owes its index since the book's
+        // finding 70). Never taken; it goes when the carrier {t : len t >= 1}
+        // is a set and the join keeps size's hull (store-2026-11-16).
+        j >= mb && cap < 1 -> abandon("not a numeral: a numeral's table holds its signed size")
         j >= mb -> {
             m = if ma == 0 || mb == 0 { 0 } else if rd(o, ma + mb - 1) == 0 { ma + mb - 1 } else { ma + mb }
             o[cap - 1] := signed((sgn(a) + sgn(b)) % 2, m)
@@ -565,6 +584,8 @@ fn mul_small(ml, a, k) {
     s = sgn(a)
     case {
         ma + 2 > ml || ma + 2 > 2^31 -> abandon("out of memory: an integer longer than the largest table")
+        // len(a) >= 1 for a numeral, so ma >= 0: room's carrier, checked here
+        ma < 0 -> abandon("not a numeral: a numeral's table holds its signed size")
         else -> {
             var o := array { 0 : _ ∈ 0..ma + 1 }
             loop i = 0, c = 0 {

@@ -144,7 +144,7 @@ const nestedBuildSrc = "export fn f(n ∈ 0..100) (Int) {\n" +
 	"        var nodes := array { 0 : _ ∈ 0..9 }\n" +
 	"        var stk := array { 0 : _ ∈ 0..3 }\n" +
 	"        stk[n % 4] := n % 10\n" +
-	"        nodes[stk[n % 4]] := 1\n" +
+	"        nodes[n % 10] := stk[n % 4]\n" +
 	"        nodes\n" +
 	"    }\n" +
 	"    t[n % 10]\n" +

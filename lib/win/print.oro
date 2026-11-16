@@ -48,13 +48,18 @@ pub export fn print_str(s) (Bool) {
 // The digits of |n| are produced least significant first, so they are stored
 // backwards from the end of a 22-byte field, behind the newline at its end.
 // A value of either word has at most 20 decimal digits (2⁶⁴ − 1 has 20), so the
-// loop takes exactly 20 steps, k = 0 … 19, writing digit k at 20 − k, and `top`
-// is where the most significant one went. Every index is then linear in k,
-// which the guard bounds, so each obligation is proven by the refinement layer
-// as well as by the intervals: stopping when m reached 0 bounded the index only
+// loop takes exactly 20 steps, k = 0 … 19, writing digit k at 20 − k, and `p`
+// is the slot just before the most significant one: 19 − k for the last
+// nonzero digit k, or 19 for n = 0. Every digit's index is linear in k, which
+// the guard bounds, so each obligation is proven by the refinement layer as
+// well as by the intervals: stopping when m reached 0 bounded the index only
 // through the trip count, which the obligations at a call do not see
-// (llvm-2026-11-02). −2⁶³ has no negation in the word, and is its own clause;
-// every other negative n is a sign and the digits of −n, at most 19.
+// (llvm-2026-11-02). The sign's slot p is proven by the invariant 0 <= p <= 19,
+// which Houdini's templates give (0 <= v and the frame v <= z), where carrying
+// the digit's own slot top = p + 1 needed 1 <= top, which no template states
+// (a store owes its index since the book's finding 70). −2⁶³ has no negation in
+// the word, and is its own clause; every other negative n is a sign and the
+// digits of −n, at most 19.
 pub fn print_int(n ∈ Int) (Bool) {
     case {
         n < -9223372036854775807 -> print_str("-9223372036854775808")
@@ -62,12 +67,12 @@ pub fn print_int(n ∈ Int) (Bool) {
             (b, start) = {
                 var b := array { 0 : _ ∈ 0..21 }
                 b[21] := 10
-                loop m = if n < 0 { 0 - n } else { n }, k = 0, top = 20 {
-                    k > 19 && n < 0 -> { b[top - 1] := 45; (b, top - 1) }
-                    k > 19 -> (b, top)
+                loop m = if n < 0 { 0 - n } else { n }, k = 0, p = 19 {
+                    k > 19 && n < 0 -> { b[p] := 45; (b, p) }
+                    k > 19 -> (b, p + 1)
                     else -> {
                         b[20 - k] := 48 + m % 10
-                        again(m / 10, k + 1, if m > 0 { 20 - k } else { top })
+                        again(m / 10, k + 1, if m > 0 { 19 - k } else { p })
                     }
                 }
             }

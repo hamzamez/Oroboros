@@ -23,6 +23,10 @@ type refiner struct {
 	tgt   *Target
 	notes []string // refinements propagated rather than proven
 
+	// storing is set while a store's domain is owed, so its refusal says
+	// store and not indexing (indexWhat).
+	storing bool
+
 	// bound is every name introduced by a binder. It is what tells a TABLE
 	// from anything else in operator position: `(a i)` is an indexing when `a`
 	// is a local, and `(again …)` is a jump. Without it `again` looked like a
@@ -726,6 +730,21 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			return err
 		}
 	}
+	// A STORE IS DEFINED ON ITS TABLE'S DOMAIN (the book's finding 70).
+	// set(f, i, x) = f[i ↦ x], the function f updated at one point of its
+	// domain [0, len f): outside it there is no such function of that length,
+	// so 0 <= i < len(c) is the condition for the store to be defined, exactly
+	// as for the application f(i) above (tables.md §6). Unowed, `b[n] := 1`
+	// compiled on every target: Go panicked, JavaScript's array grew, and
+	// windows wrote past the region.
+	if known && p.Kind == "table-set" && len(args) == 3 && !PlantStoreUnchecked {
+		r.storing = true
+		err := r.indexObligation(args[0], args[1], f)
+		r.storing = false
+		if err != nil {
+			return err
+		}
+	}
 	for _, a := range args {
 		if err := r.walk(a, f); err != nil {
 			return err
@@ -733,6 +752,10 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 	}
 	return nil
 }
+
+// PlantStoreUnchecked owes nothing at a store, finding 70's hole:
+// TestAStoreIsDefinedOnItsTablesDomain must catch it.
+var PlantStoreUnchecked bool
 
 // loopLike collects `0 <= i` and `i < count` for a bound index, which is where
 // almost every fact in a real program comes from.
@@ -1656,6 +1679,19 @@ var plantPeelFault = false
 // leaves — because it is exponential in the number of aliens, and a goal with
 // more is left to the note.
 func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
+	// Under the given facts first, and with the guarded facts instantiated on
+	// the goal's terms only if that fails (instantiatedAt): most goals need
+	// none, and the instances cost an entailment per guard.
+	if r.provedBySplitIn(goal, f, budget) {
+		return true
+	}
+	if g := instantiatedAt(f, goal); g != f {
+		return r.provedBySplitIn(goal, g, budget)
+	}
+	return false
+}
+
+func (r *refiner) provedBySplitIn(goal *core.Term, f *facts, budget *int) bool {
 	if *budget <= 0 {
 		return false
 	}
@@ -1681,7 +1717,7 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 		x := fmt.Sprintf("#s%d", r.splitFresh)
 		inner := f.clone()
 		r.summarizeNamed(inner, x, alien, f)
-		return r.provedBySplit(replaceTerm(goal, alien, core.Name(x)), inner, budget)
+		return r.provedBySplitIn(replaceTerm(goal, alien, core.Name(x)), inner, budget)
 	}
 	if v, lam, isLet := asLet(r.tgt, alien); isLet {
 		r.splitFresh++
@@ -1693,18 +1729,18 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 			r.joinConditional(inner, x, v, f)
 		}
 		body := lam.OpenWith([]*core.Term{core.Name(x)})
-		return r.provedBySplit(replaceTerm(goal, alien, body), inner, budget)
+		return r.provedBySplitIn(replaceTerm(goal, alien, body), inner, budget)
 	}
 	args := alien.Args()
 	c := args[0]
 	taken := f.clone()
 	r.guard(taken, c, true)
-	if !r.provedBySplit(replaceTerm(goal, alien, args[1]), taken, budget) {
+	if !r.provedBySplitIn(replaceTerm(goal, alien, args[1]), taken, budget) {
 		return false
 	}
 	missed := f.clone()
 	r.guard(missed, c, false)
-	return r.provedBySplit(replaceTerm(goal, alien, args[2]), missed, budget)
+	return r.provedBySplitIn(replaceTerm(goal, alien, args[2]), missed, budget)
 }
 
 // guard assumes a clause guard — or its negation — with every alien subterm of
@@ -2134,12 +2170,21 @@ func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEn
 					sub[n] = args[i]
 				}
 			}
+			// THE INSTANCES ONCE PER BACK EDGE: a candidate renamed by this edge
+			// mentions the edge's arguments and the templates' constants, so lang's
+			// guarded facts are instantiated on the arguments here, once, and every
+			// candidate is checked against them with no retry (instantiatedAt). Per
+			// candidate it doubled every failing check, which is most of them, and
+			// windows' os programs compiled 1.7 times slower.
+			if len(args) >= len(params) && len(args) > 0 {
+				at = instantiatedAt(at, core.App(core.Name("again"), args...))
+			}
 			for i, c := range cands {
 				if failed[i] {
 					continue
 				}
 				budget := splitBudget
-				if len(args) < len(params) || !dry.provedBySplit(core.Rename2(c, sub), at, &budget) {
+				if len(args) < len(params) || !dry.provedBySplitIn(core.Rename2(c, sub), at, &budget) {
 					failed[i] = true
 				}
 			}
@@ -2988,6 +3033,7 @@ func (r *refiner) undeclaredNote(tab *core.Term) string {
 // every spelling the target declares as well — because a program may state its
 // precondition with either, and `lengthVar` keys on the name it finds.
 func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
+	f = instantiatedAt(f, idx)
 	lo := &core.Term{Kind: core.KApp, Kids: []*core.Term{
 		core.Name("<="), &core.Term{Kind: core.KInt}, idx}}
 	hi := &core.Term{Kind: core.KApp, Kids: []*core.Term{
@@ -3008,14 +3054,14 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			if r.probe {
 				continue
 			}
-			return indexRefusal(want, "%s is an indexing, and %s is not proven\n"+
+			return indexRefusal(want, "%s, and %s is not proven\n"+
 				"  known: %s\n"+
 				"  The index is outside the linear fragment, and neither a proof by cases nor a\n"+
 				"  content fact about a table bounds it. A table is a function with a finite\n"+
 				"  domain, so 0 <= i < len is the condition for the application to be DEFINED,\n"+
 				"  and an application not known to be defined is refused (docs/spec/tables.md §6,\n"+
 				"  refinements.md §3a). A guard that tests the index against len(%s) is a proof.%s",
-				core.ShowIndex(tab, idx), core.ShowTerm(want), f.known(), core.ShowTerm(tab), r.undeclaredNote(tab))
+				r.indexWhat(tab, idx), core.ShowTerm(want), f.known(), core.ShowTerm(tab), r.undeclaredNote(tab))
 		}
 		// A READ IN THE GOAL is a linear atom (refinements.md §5e), and its
 		// table's content facts reach the goal only by naming it: the split.
@@ -3029,14 +3075,88 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			if f.entails(g) || r.probe {
 				continue
 			}
-			return indexRefusal(want, "%s is an indexing, and %s does not follow\n"+
+			return indexRefusal(want, "%s, and %s does not follow\n"+
 				"  known: %s\n"+
 				"  A table is a function with a finite domain, so 0 <= i < len is the\n"+
 				"  condition for the application to be DEFINED — not a check bolted on\n"+
-				"  (docs/spec/tables.md §6).%s", core.ShowIndex(tab, idx), core.ShowTerm(want), f.known(), r.undeclaredNote(tab))
+				"  (docs/spec/tables.md §6).%s", r.indexWhat(tab, idx), core.ShowTerm(want), f.known(), r.undeclaredNote(tab))
 		}
 	}
 	return nil
+}
+
+// instantiatedAt is f with lang's facts instantiated on t's terms where their
+// guards hold in f. The root instantiates once, with the root's facts, so a
+// guarded fact whose guard holds only inside a branch or a loop was never
+// instantiated there: (hi − lo) / 2 under `lo < hi`, ns / 2 under an invariant
+// 0 <= ns (the book's finding 67, argv's quote). σ(G → C) is valid
+// everywhere, so assuming C where G is entailed is sound; the clone keeps the
+// instances in the scope that entails their guards. PlantNoLocalInstances
+// keeps only the root's.
+//
+// Only a GUARDED fact can be missing: the root's walk visits every subterm,
+// under every λ, and instantiates each unguarded one there. So the facts are
+// cloned only when a guarded fact's trigger occurs in t with its guards
+// entailed in f, which a goal with no `/`, `%` or `&` never has.
+func instantiatedAt(f *facts, t *core.Term) *facts {
+	if PlantNoLocalInstances || t == nil || t.Kind != core.KApp {
+		return f
+	}
+	var g *facts
+	var walk func(x *core.Term)
+	walk = func(x *core.Term) {
+		if x == nil || x.Kind != core.KApp {
+			return
+		}
+		for _, fact := range guardedFacts() {
+			sigma := map[string]*core.Term{}
+			if !matchFact(fact.Trigger, x, fact.Params, sigma) || !instanceHolds(f, fact, sigma) {
+				continue
+			}
+			goals, ok := f.oblig(core.Rename2(fact.Concl, sigma))
+			if !ok {
+				continue
+			}
+			if g == nil {
+				g = f.clone()
+			}
+			for _, e := range goals {
+				g.assumeLE(e, fmt.Sprintf("assumed %s <= 0 (fact %s, here)", e, fact.Name))
+			}
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+	if g == nil {
+		return f
+	}
+	return g
+}
+
+// guardedFacts are lang's facts with a guard.
+func guardedFacts() []*Fact {
+	var out []*Fact
+	for _, fact := range langFacts {
+		if len(fact.Guards) > 0 {
+			out = append(out, fact)
+		}
+	}
+	return out
+}
+
+// PlantNoLocalInstances instantiates lang's facts at the root alone:
+// TestTheMidpointNeedsTheQuotientsSign must catch it.
+var PlantNoLocalInstances bool
+
+// indexWhat names the application whose domain is owed: a read t[i], or a
+// store into it, f[i ↦ x], whose domain is the same.
+func (r *refiner) indexWhat(tab, idx *core.Term) string {
+	if r.storing {
+		return core.ShowIndex(tab, idx) + " := … is a store, defined only on its table's domain"
+	}
+	return core.ShowIndex(tab, idx) + " is an indexing"
 }
 
 // indexRefusal is an index's domain condition that does not follow, typed so

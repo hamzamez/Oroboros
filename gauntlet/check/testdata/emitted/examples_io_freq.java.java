@@ -1115,173 +1115,217 @@ public final class examples_io_freq.java {
 					if (v1351) {
 						break;
 					}
-					final int v1355 = (v1349 / v1348);
-					final int v1357 = (v1355 % 10);
-					final int v1358 = (48 + v1357);
-					v1346[v1347] = (byte) v1358;
-					final int v1363 = (v1348 / 10);
-					v1348 = v1363;
+					final boolean v1355 = (v1347 < 0);
+					if (v1355) {
+						break;
+					}
+					final int v1358 = v1346.length;
+					final boolean v1359 = (v1347 >= v1358);
+					if (v1359) {
+						break;
+					}
+					final int v1365 = (v1349 / v1348);
+					final int v1367 = (v1365 % 10);
+					final int v1368 = (48 + v1367);
+					v1346[v1347] = (byte) v1368;
+					final int v1373 = (v1348 / 10);
+					v1348 = v1373;
 					continue;
 				}
-				int v1366 = 1;
-				int v1367 = v1303;
-				for (;; v1366 = (v1366 + 1)) {
-					final boolean v1369 = (v1367 < 10);
-					if (v1369) {
+				int v1376 = 1;
+				int v1377 = v1303;
+				for (;; v1376 = (v1376 + 1)) {
+					final boolean v1379 = (v1377 < 10);
+					if (v1379) {
 						break;
 					}
-					final boolean v1373 = (v1366 >= 8);
-					if (v1373) {
+					final boolean v1383 = (v1376 >= 8);
+					if (v1383) {
 						break;
 					}
-					final int v1379 = (v1367 / 10);
-					v1367 = v1379;
+					final int v1389 = (v1377 / 10);
+					v1377 = v1389;
 					continue;
 				}
-				final int v1380 = (v1282 + v1366);
-				v1346[v1380] = (byte) 32;
-				int v1385 = 1;
-				int v1386 = v1303;
-				for (;; v1385 = (v1385 + 1)) {
-					final boolean v1388 = (v1386 < 10);
-					if (v1388) {
-						break;
-					}
-					final boolean v1392 = (v1385 >= 8);
-					if (v1392) {
-						break;
-					}
-					final int v1398 = (v1386 / 10);
-					v1386 = v1398;
-					continue;
-				}
-				final int v1400 = (v1385 + 1);
-				final int v1401 = (v1282 + v1400);
-				byte[] v1404 = v1346;
-				int v1405 = v1401;
-				int v1406 = 0;
-				for (;; v1405 = (v1405 + 1), v1406 = (v1406 + 1)) {
-					final int v1408 = (2 * v1306);
-					final int v1410 = (v1408 + 1);
-					final int v1411 = v101[v1410];
-					final int v1413 = (2 * v1306);
-					final int v1414 = v101[v1413];
-					final int v1415 = (v1411 - v1414);
-					final boolean v1417 = (v1415 < 0);
-					int v1418 = 0;
-					if (v1417) {
-						v1418 = 0;
+				final int v1390 = (v1282 + v1376);
+				final boolean v1392 = (v1390 < 0);
+				byte[] v1393 = null;
+				if (v1392) {
+					v1393 = v1346;
+				} else {
+					final int v1396 = v1346.length;
+					final boolean v1397 = (v1390 >= v1396);
+					if (v1397) {
+						v1393 = v1346;
 					} else {
-						final boolean v1423 = (v1415 >= 65536);
-						if (v1423) {
-							v1418 = (int) (0);
+						v1346[v1390] = (byte) 32;
+						v1393 = v1346;
+					}
+				}
+				int v1406 = 1;
+				int v1407 = v1303;
+				for (;; v1406 = (v1406 + 1)) {
+					final boolean v1409 = (v1407 < 10);
+					if (v1409) {
+						break;
+					}
+					final boolean v1413 = (v1406 >= 8);
+					if (v1413) {
+						break;
+					}
+					final int v1419 = (v1407 / 10);
+					v1407 = v1419;
+					continue;
+				}
+				final int v1421 = (v1406 + 1);
+				final int v1422 = (v1282 + v1421);
+				byte[] v1425 = v1393;
+				int v1426 = v1422;
+				int v1427 = 0;
+				for (;; v1426 = (v1426 + 1), v1427 = (v1427 + 1)) {
+					final int v1429 = (2 * v1306);
+					final int v1431 = (v1429 + 1);
+					final int v1432 = v101[v1431];
+					final int v1434 = (2 * v1306);
+					final int v1435 = v101[v1434];
+					final int v1436 = (v1432 - v1435);
+					final boolean v1438 = (v1436 < 0);
+					int v1439 = 0;
+					if (v1438) {
+						v1439 = 0;
+					} else {
+						final boolean v1444 = (v1436 >= 65536);
+						if (v1444) {
+							v1439 = (int) (0);
 						} else {
-							v1418 = v1415;
+							v1439 = v1436;
 						}
 					}
-					final boolean v1427 = (v1406 >= v1418);
-					if (v1427) {
+					final boolean v1448 = (v1427 >= v1439);
+					if (v1448) {
 						break;
 					}
-					final int v1431 = (2 * v1306);
-					final int v1432 = v101[v1431];
-					final int v1433 = (v1432 + v1406);
-					final int v1434 = (v10[v1433] & 0xFF);
-					v1404[v1405] = (byte) v1434;
+					final boolean v1452 = (v1426 < 0);
+					if (v1452) {
+						break;
+					}
+					final int v1455 = v1425.length;
+					final boolean v1456 = (v1426 >= v1455);
+					if (v1456) {
+						break;
+					}
+					final int v1462 = (2 * v1306);
+					final int v1463 = v101[v1462];
+					final int v1464 = (v1463 + v1427);
+					final int v1465 = (v10[v1464] & 0xFF);
+					v1425[v1426] = (byte) v1465;
 					continue;
 				}
-				final int v1442 = (2 * v1298);
-				final int v1444 = (v1442 + 1);
-				final int v1445 = v685[v1444];
-				int v1447 = 1;
-				int v1448 = v1445;
-				for (;; v1447 = (v1447 + 1)) {
-					final boolean v1450 = (v1448 < 10);
-					if (v1450) {
-						break;
-					}
-					final boolean v1454 = (v1447 >= 8);
-					if (v1454) {
-						break;
-					}
-					final int v1460 = (v1448 / 10);
-					v1448 = v1460;
-					continue;
-				}
-				final int v1463 = (2 * v1298);
-				final int v1464 = v685[v1463];
-				final int v1466 = (2 * v1464);
-				final int v1468 = (v1466 + 1);
-				final int v1469 = v101[v1468];
-				final int v1471 = (2 * v1464);
-				final int v1472 = v101[v1471];
-				final int v1473 = (v1469 - v1472);
-				final boolean v1475 = (v1473 < 0);
-				int v1476 = 0;
-				if (v1475) {
-					v1476 = 0;
-				} else {
-					final boolean v1481 = (v1473 >= 65536);
+				final int v1473 = (2 * v1298);
+				final int v1475 = (v1473 + 1);
+				final int v1476 = v685[v1475];
+				int v1478 = 1;
+				int v1479 = v1476;
+				for (;; v1478 = (v1478 + 1)) {
+					final boolean v1481 = (v1479 < 10);
 					if (v1481) {
-						v1476 = (int) (0);
-					} else {
-						v1476 = v1473;
-					}
-				}
-				final int v1485 = (2 + v1476);
-				final int v1486 = (v1447 + v1485);
-				final int v1488 = (v1486 - 1);
-				final int v1489 = (v1282 + v1488);
-				v1404[v1489] = (byte) 10;
-				final int v1494 = (2 * v1298);
-				final int v1496 = (v1494 + 1);
-				final int v1497 = v685[v1496];
-				int v1499 = 1;
-				int v1500 = v1497;
-				for (;; v1499 = (v1499 + 1)) {
-					final boolean v1502 = (v1500 < 10);
-					if (v1502) {
 						break;
 					}
-					final boolean v1506 = (v1499 >= 8);
-					if (v1506) {
+					final boolean v1485 = (v1478 >= 8);
+					if (v1485) {
 						break;
 					}
-					final int v1512 = (v1500 / 10);
-					v1500 = v1512;
+					final int v1491 = (v1479 / 10);
+					v1479 = v1491;
 					continue;
 				}
-				final int v1515 = (2 * v1298);
-				final int v1516 = v685[v1515];
-				final int v1518 = (2 * v1516);
-				final int v1520 = (v1518 + 1);
-				final int v1521 = v101[v1520];
-				final int v1523 = (2 * v1516);
-				final int v1524 = v101[v1523];
-				final int v1525 = (v1521 - v1524);
-				final boolean v1527 = (v1525 < 0);
-				int v1528 = 0;
-				if (v1527) {
-					v1528 = 0;
+				final int v1494 = (2 * v1298);
+				final int v1495 = v685[v1494];
+				final int v1497 = (2 * v1495);
+				final int v1499 = (v1497 + 1);
+				final int v1500 = v101[v1499];
+				final int v1502 = (2 * v1495);
+				final int v1503 = v101[v1502];
+				final int v1504 = (v1500 - v1503);
+				final boolean v1506 = (v1504 < 0);
+				int v1507 = 0;
+				if (v1506) {
+					v1507 = 0;
 				} else {
-					final boolean v1533 = (v1525 >= 65536);
-					if (v1533) {
-						v1528 = (int) (0);
+					final boolean v1512 = (v1504 >= 65536);
+					if (v1512) {
+						v1507 = (int) (0);
 					} else {
-						v1528 = v1525;
+						v1507 = v1504;
 					}
 				}
-				final int v1537 = (2 + v1528);
-				final int v1538 = (v1499 + v1537);
-				final int v1539 = (v1282 + v1538);
-				v1281 = v1404;
-				v1282 = v1539;
+				final int v1516 = (2 + v1507);
+				final int v1517 = (v1478 + v1516);
+				final int v1519 = (v1517 - 1);
+				final int v1520 = (v1282 + v1519);
+				final boolean v1522 = (v1520 < 0);
+				byte[] v1523 = null;
+				if (v1522) {
+					v1523 = v1425;
+				} else {
+					final int v1526 = v1425.length;
+					final boolean v1527 = (v1520 >= v1526);
+					if (v1527) {
+						v1523 = v1425;
+					} else {
+						v1425[v1520] = (byte) 10;
+						v1523 = v1425;
+					}
+				}
+				final int v1536 = (2 * v1298);
+				final int v1538 = (v1536 + 1);
+				final int v1539 = v685[v1538];
+				int v1541 = 1;
+				int v1542 = v1539;
+				for (;; v1541 = (v1541 + 1)) {
+					final boolean v1544 = (v1542 < 10);
+					if (v1544) {
+						break;
+					}
+					final boolean v1548 = (v1541 >= 8);
+					if (v1548) {
+						break;
+					}
+					final int v1554 = (v1542 / 10);
+					v1542 = v1554;
+					continue;
+				}
+				final int v1557 = (2 * v1298);
+				final int v1558 = v685[v1557];
+				final int v1560 = (2 * v1558);
+				final int v1562 = (v1560 + 1);
+				final int v1563 = v101[v1562];
+				final int v1565 = (2 * v1558);
+				final int v1566 = v101[v1565];
+				final int v1567 = (v1563 - v1566);
+				final boolean v1569 = (v1567 < 0);
+				int v1570 = 0;
+				if (v1569) {
+					v1570 = 0;
+				} else {
+					final boolean v1575 = (v1567 >= 65536);
+					if (v1575) {
+						v1570 = (int) (0);
+					} else {
+						v1570 = v1567;
+					}
+				}
+				final int v1579 = (2 + v1570);
+				final int v1580 = (v1541 + v1579);
+				final int v1581 = (v1282 + v1580);
+				v1281 = v1523;
+				v1282 = v1581;
 				continue;
 			}
 			v1276 = v1281;
-			final String v1542 = (((java.util.function.Function<byte[],String>) ($oroA) -> { final byte[] $oroB = $oroA; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v1276));
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v1542);
-			return v1542;
+			final String v1584 = (((java.util.function.Function<byte[],String>) ($oroA) -> { final byte[] $oroB = $oroA; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(v1276));
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v1584);
+			return v1584;
 		}
 		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("freq: cannot read that file" + "\n");
 		return "freq: cannot read that file";

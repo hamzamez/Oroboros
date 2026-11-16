@@ -1,0 +1,32 @@
+use io
+
+fn divmod(a ∈ 0..10^6, b ∈ 1..10^6) {
+    loop q = 0, r = a {
+        r >= b -> again(q + 1, r - b)
+        else -> (q, r)
+    }
+}
+
+fn root(n ∈ 0..10^6) {
+    loop r = 0 {
+        r > 1000 -> 'none
+        r * r == n -> 'some(r)
+        r * r > n -> 'none
+        else -> again(r + 1)
+    }
+}
+
+fn show(found) {
+    case found {
+        'some(r) -> io.print_int(r)
+        'none -> io.print_int(-1)
+    }
+}
+
+export fn main() {
+    (q, r) = divmod(17, 5)
+    io.print_int(q)
+    io.print_int(r)
+    show(root(144))
+    show(root(145))
+}

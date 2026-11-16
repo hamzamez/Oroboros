@@ -1,0 +1,12 @@
+export fn pairs(n ∈ 0..100) (Int) {
+    loop i = 0, total = 0 {
+        i < n -> {
+            row = loop j = 0, s = 0 {
+                j < i -> again(j + 1, s + j)
+                else -> s
+            }
+            again(i + 1, total + row)
+        }
+        else -> total
+    }
+}

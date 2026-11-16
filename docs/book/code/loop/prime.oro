@@ -1,0 +1,22 @@
+use io
+
+fn smallest_divisor(n ∈ 2..10^12) (Int) {
+    loop d = 2 {
+        d > 10^6 -> n
+        d * d > n -> n
+        n % d == 0 -> d
+        else -> again(d + 1)
+    }
+}
+
+fn bit(c ∈ Bool) (0..1) { if c { 1 } else { 0 } }
+
+fn prime?(n ∈ 2..10^12) (Bool) { smallest_divisor(n) == n }
+
+export fn main() {
+    io.print_int(smallest_divisor(91))
+    io.print_int(smallest_divisor(97))
+    io.print_int(bit(prime?(97)))
+    io.print_int(bit(prime?(1000000007)))
+    io.print_int(smallest_divisor(999999999989))
+}

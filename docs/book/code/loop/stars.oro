@@ -1,0 +1,16 @@
+use io
+
+fn stars(n ∈ 0..80) (String) {
+    loop i = 0, s = "" {
+        i < n -> again(i + 1, s ++ "*")
+        else -> s
+    }
+}
+
+export fn main() {
+    io.print_line(stars(1))
+    io.print_line(stars(2))
+    io.print_line(stars(3))
+    io.print_line(stars(10))
+    io.print_line("[" ++ stars(0) ++ "]")
+}

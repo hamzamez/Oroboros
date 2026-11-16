@@ -1,0 +1,17 @@
+use io
+
+fn collatz(n ∈ 1..10^6) (Int) {
+    loop x = n, steps = 0 {
+        x == 1 -> steps
+        x > 10^15 || steps >= 10000 -> -1
+        x % 2 == 0 -> again(x / 2, steps + 1)
+        else -> again(3 * x + 1, steps + 1)
+    }
+}
+
+export fn main() {
+    io.print_int(collatz(1))
+    io.print_int(collatz(6))
+    io.print_int(collatz(27))
+    io.print_int(collatz(837799))
+}

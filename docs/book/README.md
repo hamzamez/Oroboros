@@ -25,7 +25,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-16 |
 | 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-16 |
 | | **III. Repetition and storage** | | |
-| 11 | `loop` | the one iteration; termination | not written |
+| 11 | [`loop`](11-loop.md) | the one iteration; termination | J; 53 blocks checked 2026-11-16 |
 | 12 | Tables | a table is a function on `0..len-1`; an index is proven; fusion | not written |
 | 13 | State | `var`, buffers, maps; why a table never changes under you | not written |
 | 14 | Failures | `Result`, `try`, `expect`, `relevant` | not written |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9 and twelve in chapter 10, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10 and thirteen in chapter 11, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -462,6 +462,38 @@ fixed, each avoided in the chapter:
 
 Also: `export fn unit(a ∈ 0..9) () { () }` emits a Go function returning `int`, `return 0`.
 
+Chapter 11, `loop` (2026-11-16), found five, none fixed, each avoided in the chapter:
+
+59. **On windows a `main` whose value is a loop's `()` does not lower.** `export fn main() {
+    loop i = 1 { i <= 3 -> { io.print_int(i); again(i + 1) }; else -> () } }` builds on Go and
+    JavaScript and on windows is refused: *lowering: an application whose operator is an
+    application, and not an eliminator: loop row = 1 { … }(fn() { `windows/kernel32`.
+    ExitProcess(0) })*. The run's continuation, exit(0) ∘ main, is applied to the loop. With a
+    statement after the loop (`count.oro` ends in a `print_line` arm) it builds.
+60. **`invariant` is not read.** j.md §2.8's grammar has `loop … invariant I { … }` and its
+    status lists the loop as built; `loop i = 1, p = 1 invariant p <= N {` is *"invariant"
+    where "{" was expected*. So a bound the interval analysis cannot find is stated as a guard
+    that runs (§11.7's `p <= 4 * 10^17`), which is CLAUDE.md's "a clamp in a program is a
+    missing proof", taught as the tool there is.
+61. **A `case` on a loop's variant result must have arms of one type**, where the same `case`
+    on a function's variant result need not: `'some(r) -> io.print_int(r); 'none ->
+    io.print_line("no")` is accepted after `digit_of` (chapter 10's `maybe.oro`, where
+    case-of-case removes it) and refused after a loop, *the branches of a conditional are Int
+    and String*. Both are statements whose value nobody reads.
+62. **`fib` and `fact` to the word's edge are refused on JavaScript for the wrong reason**:
+    `b <= 4 * 10^18` there is *a comparison of a value held in the unsigned word as a pair is
+    not built*, and an exported `fact` *a result is held in the unsigned word … declared Int*
+    (item 42's family). The chapter runs them on Go and names no other target.
+63. **The compiler's method for a product is the product of the bounds**, 20²⁰ for `fact(20)`,
+    so `p * i` over `n ∈ 0..20` is refused though 20! fits. Not a defect (the result is a claim
+    the analysis cannot make), and the chapter says so; recorded because the natural first
+    loop after a sum is a product, and the reader meets the refusal on page two.
+
+Teaching: termination is reported and not required (*n of m loop(s) proven terminating*), and
+the chapter shows a stuck loop compiling with *0 of 1* beside the halting problem. A loop of
+static trip count is not unrolled (`three()` emits a loop), which the chapter uses to say what
+the dynamic level is.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -475,7 +507,10 @@ written out: a rounding after every operation; chapter 9's is ASCII's layout, Un
 values and the surrogates' hole, UTF-8 and UTF-16, the free monoid, and a homomorphism as the
 shape of a property that is proven piece by piece (`nulfree`, beside chapter 7's remainder);
 chapter 10's is state machines, Hoare's null, case-of-case as one law shared with a tuple's
-pattern, and counting values, which is why the two are called products and sums.
+pattern, and counting values, which is why the two are called products and sums; chapter 11's is
+Euclid's algorithm with his termination proof, Steele's tail call, a measure as the one argument
+that a loop ends, the halting problem as the reason termination is counted and not required, and
+Collatz as the loop nobody can prove.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

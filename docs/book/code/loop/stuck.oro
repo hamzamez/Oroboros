@@ -1,0 +1,6 @@
+export fn stuck(n ∈ 0..9) (Int) {
+    loop i = 0 {
+        i < n -> again(i)
+        else -> i
+    }
+}

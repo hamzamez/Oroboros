@@ -1,0 +1,16 @@
+use io
+
+fn fib(n ∈ 0..90) (Int) {
+    loop i = 0, a = 0, b = 1 {
+        i < n && b <= 4 * 10^18 -> again(i + 1, b, a + b)
+        else -> a
+    }
+}
+
+export fn main() {
+    io.print_int(fib(0))
+    io.print_int(fib(1))
+    io.print_int(fib(2))
+    io.print_int(fib(10))
+    io.print_int(fib(90))
+}

@@ -903,4 +903,4 @@ payloads, and a comment asking you to check the tag before reading the union.
   impossible states.
 - **No recursive variants, no one-case variants, no records yet.** Unbounded data is a table.
 
-Next: chapter 11, `loop`. Doing something more than once, and knowing that it stops.
+Next: [chapter 11](11-loop.md), `loop`. Doing something more than once, and knowing that it stops.

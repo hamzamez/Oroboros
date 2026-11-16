@@ -1,0 +1,15 @@
+use io
+
+fn gcd(a ∈ 0..10^9, b ∈ 0..10^9) (Int) {
+    loop x = a, y = b {
+        y == 0 -> x
+        else -> again(y, x % y)
+    }
+}
+
+export fn main() {
+    io.print_int(gcd(48, 18))
+    io.print_int(gcd(17, 5))
+    io.print_int(gcd(1000000000, 999999937))
+    io.print_int(gcd(0, 7))
+}

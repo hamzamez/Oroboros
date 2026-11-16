@@ -1,0 +1,5 @@
+export fn count(n ∈ 0..9) (Int) {
+    loop i = 0 {
+        else -> if i < n { again(i + 1) } else { i }
+    }
+}

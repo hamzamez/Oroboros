@@ -1,0 +1,21 @@
+use io
+
+fn fact(n ∈ 0..20) (Int) {
+    loop i = 1, p = 1 {
+        i <= n && p <= 4 * 10^17 -> again(i + 1, p * i)
+        else -> p
+    }
+}
+
+fn big_fact(n ∈ 0..30) (Nat) {
+    loop i = 1, p = 1 {
+        i <= n -> again(i + 1, p * i)
+        else -> p
+    }
+}
+
+export fn main() {
+    io.print_int(fact(5))
+    io.print_int(fact(20))
+    io.print_line(big_str(big_fact(25)))
+}

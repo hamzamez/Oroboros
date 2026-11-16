@@ -1,0 +1,15 @@
+use io
+
+fn digits(n ∈ 0..10^15) (String) {
+    loop m = n, s = "" {
+        m >= 10 -> again(m / 10, string_of(48 + m % 10) ++ s)
+        else -> string_of(48 + m) ++ s
+    }
+}
+
+export fn main() {
+    io.print_line(digits(0))
+    io.print_line(digits(7))
+    io.print_line(digits(1234567890))
+    io.print_line("total: " ++ digits(40 + 2) ++ " items")
+}

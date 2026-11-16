@@ -1,0 +1,6 @@
+export fn gcd(a ∈ 0..10^9, b ∈ 0..10^9) (Int) {
+    loop x = a, y = b {
+        y == 0 -> x
+        else -> again(y, x % y)
+    }
+}

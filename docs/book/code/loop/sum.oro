@@ -1,0 +1,6 @@
+export fn sum_to(n ∈ 0..1000) (Int) {
+    loop i = 1, s = 0 {
+        i <= n -> again(i + 1, s + i)
+        else -> s
+    }
+}

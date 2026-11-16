@@ -1,0 +1,27 @@
+export fn up(n ∈ 0..1000) (Int) {
+    loop i = 0 {
+        i < n -> again(i + 1)
+        else -> i
+    }
+}
+
+export fn down(n ∈ 0..1000) (Int) {
+    loop i = n, s = 0 {
+        i > 0 -> again(i - 1, s + i)
+        else -> s
+    }
+}
+
+export fn halvings(n ∈ 1..10^9) (Int) {
+    loop x = n, k = 0 {
+        x > 1 -> again(x / 2, k + 1)
+        else -> k
+    }
+}
+
+export fn meet(n ∈ 0..100) (Int) {
+    loop i = 0, j = n {
+        i < j -> again(i + 1, j - 1)
+        else -> i
+    }
+}

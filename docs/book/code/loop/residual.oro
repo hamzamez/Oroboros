@@ -1,0 +1,6 @@
+export fn fold(u) {
+    loop i = 0, s = u {
+        i < 3 -> again(i + 1, h(s, i))
+        else -> s
+    }
+}

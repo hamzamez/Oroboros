@@ -591,10 +591,40 @@ func (d *doubles) pass(r *Region, ty string, v V, src *core.Term) V {
 	return res
 }
 
+// constant is the double c, hoisted to the function's top.
+func (d *doubles) constant(c float64) V {
+	cv := d.fresh(core.F64Name)
+	d.hoisted = append(d.hoisted, Stmt{Op: OConst, Lit: core.Decimal(core.DecOfFloat64(c)), Res: []V{cv}})
+	d.lit[cv] = core.DecOfFloat64(c).Rat()
+	return cv
+}
+
+// PlantGaloisTwoEnds maps x ≤ q to x ≤ ⌊q⌋ and x > q to x ≥ ⌈q⌉, two constants
+// for one q: TestOneDoubleComparedThriceVerifies must catch it.
+var PlantGaloisTwoEnds bool
+
 func (d *doubles) fresh(ty string) V {
 	d.f.Types = append(d.f.Types, ty)
 	return V(len(d.f.Types) - 1)
 }
+
+// srcOf is the program's term for s, as J writes it, or, where lowering attached
+// none, the operation itself: a refusal must not dereference a term it was not
+// given (the book's finding 40, a double compared with a rounded decimal,
+// crashed the compiler in its own message).
+func srcOf(s Stmt) string {
+	if s.Src != nil || PlantSrcUnguarded {
+		return core.ShowTerm(s.Src)
+	}
+	if sym, ok := map[Op]string{OLt: "<", OLe: "<=", OGt: ">", OGe: ">=", OEq: "==", ONe: "!="}[s.Op]; ok {
+		return "a comparison by " + sym
+	}
+	return "a " + opNames[s.Op]
+}
+
+// PlantSrcUnguarded shows an absent term, finding 40's crash:
+// TestADoubleBesideARoundedDecimalIsRefused must catch it.
+var PlantSrcUnguarded bool
 
 func showSrc(s Stmt) string {
 	if s.Src != nil && s.Src.Kind == core.KApp && len(s.Src.Kids) >= 3 {
@@ -623,9 +653,7 @@ func (d *doubles) compare(r *Region, s Stmt) {
 			r.Stmts = append(r.Stmts, Stmt{Op: OConst, Lit: core.Bool(*k), Res: s.Res, Src: s.Src})
 			return
 		}
-		cv := d.fresh(core.F64Name)
-		r.Stmts = append(r.Stmts, Stmt{Op: OConst, Lit: core.Decimal(core.DecOfFloat64(c)), Res: []V{cv}})
-		d.lit[cv] = core.DecOfFloat64(c).Rat()
+		cv := d.constant(c)
 		op, _ := OpNamed(nrel)
 		r.Stmts = append(r.Stmts, Stmt{Op: op, Args: []V{a, cv}, Res: s.Res, Src: s.Src})
 		return
@@ -636,7 +664,7 @@ func (d *doubles) compare(r *Region, s Stmt) {
 		return
 	}
 	d.fail("%s: %s compares a double with an exact term of N: not built, a number of N made from doubles and "+
-		"not rounded is an exact interior, step 2 (numbers.md §9); round it, round(F64, …)", d.f.Name, core.ShowTerm(s.Src))
+		"not rounded is an exact interior, step 2 (numbers.md §9); round it, round(F64, …)", d.f.Name, srcOf(s))
 	r.Stmts = append(r.Stmts, s)
 }
 
@@ -671,7 +699,16 @@ func galois(rel string, q *big.Rat) (string, float64, *bool) {
 		if plantGaloisFault && rel == "lt" {
 			return "lt", lo, nil // the planted fault: false of x = ⌊q⌋
 		}
-		return "le", lo, nil
+		// ONE CONSTANT FOR ALL FOUR RELATIONS, ⌈q⌉: no double lies between ⌊q⌋
+		// and ⌈q⌉, so x < q ⟺ x ≤ q ⟺ x < ⌈q⌉, and x > q ⟺ x ≥ q ⟺ x ≥ ⌈q⌉
+		// (below). Then galois commutes with negation, ¬(x < ⌈q⌉) = x ≥ ⌈q⌉, and
+		// a branch's π, rewritten apart from its guard, is the guard's literal or
+		// its negation, as W6 asks (Theorem E). Mapping ≤ to x ≤ ⌊q⌋ was true too,
+		// but no literal of the guard x ≥ ⌈q⌉ (the book's finding 39).
+		if PlantGaloisTwoEnds {
+			return "le", lo, nil
+		}
+		return "lt", hi, nil
 	case "gt", "ge":
 		if exact {
 			return rel, lo, nil
@@ -733,9 +770,7 @@ func (d *doubles) pis(r *Region) {
 			drop = append(drop, pi)
 			continue
 		}
-		cv := d.fresh(core.F64Name)
-		d.hoisted = append(d.hoisted, Stmt{Op: OConst, Lit: core.Decimal(core.DecOfFloat64(c)), Res: []V{cv}})
-		d.lit[cv] = core.DecOfFloat64(c).Rat()
+		cv := d.constant(c)
 		pi.Rel, pi.Other = nrel, cv
 		kept = append(kept, pi)
 	}
@@ -804,7 +839,7 @@ func (d *doubles) residue() {
 				if d.isDouble(a) {
 					d.fail("%s: %s is a number of N made from doubles and not rounded: no representation holds "+
 						"it yet, an exact interior is step 2 (numbers.md §5, §9); round it, round(F64, …), or "+
-						"write round(F64) { … }", d.f.Name, core.ShowTerm(s.Src))
+						"write round(F64) { … }", d.f.Name, srcOf(*s))
 					return
 				}
 			}
@@ -921,7 +956,7 @@ func (d *doubles) hostDoubles() {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
 			if s.Op.IsCmp() && (d.isDouble(s.Args[0]) || d.isDouble(s.Args[1])) && (host[s.Args[0]] || host[s.Args[1]]) {
-				refuse("the comparison " + core.ShowTerm(s.Src))
+				refuse("the comparison " + srcOf(*s))
 				return
 			}
 		}

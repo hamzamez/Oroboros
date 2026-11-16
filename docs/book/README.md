@@ -331,10 +331,10 @@ Chapter 8 (2026-11-16) found eight, none fixed, each avoided in the chapter:
 39. **Three comparisons of one folded double do not verify.** `x = round(F64, 0.1)` followed by
     `x > 0.1`, `x < 0.1` and `x == 0.1` in one `main` is refused with *IR_P does not verify: W6: π
     … which its arm's guard %6 = false does not imply (Theorem E)*. Any one of the three alone
-    compiles and answers correctly.
+    compiles and answers correctly. **Fixed** 2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): one constant, ⌈q⌉, for all four relations, so a branch's π is its guard's literal.
 40. **A double compared with a rounded decimal crashes the compiler.**
     `round(F64, 1 ÷ 3) < round(D(18, 0..1), 1 ÷ 3)` on JavaScript: a nil dereference in
-    `core.showAt`. numbers.md §6.2 says this comparison is refused.
+    `core.showAt`. numbers.md §6.2 says this comparison is refused. **Fixed** 2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): refused for its reason, the message no longer showing an absent term.
 41. **`round` onto `Nat` or `0..`.** `round(Int, 5.5)` and `round(0..10, 5.5)` are integers.
     `io.print_int(round(Nat, 5.5))` is refused with *a rounding is N, but Int is required here*,
     and `x = round(0.., 5.5)` with *round onto Nat: a rounding's set is a grid restricted to an
@@ -505,7 +505,7 @@ Chapter 12, Tables (2026-11-16), found six, none fixed, each avoided in the chap
     `v15, ok14 := v0[v7]` followed by `v14 := 1; if ok14 { v14 = 0 }`: a map's comma-ok read of
     a slice, and `x` taken as its success flag. With `Array(Int × Int)` it is refused, *cannot
     determine a type for the value of (read …), of type any*. `p[i][0]` and `p[i][1]` are
-    right, and the chapter reads pairs that way.
+    right, and the chapter reads pairs that way. **Fixed** 2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): the product's eliminator is its projections, k·i + j.
 65. **Two `each` composed are refused.** With `fn each(f, t) { array { f(t[i]) : i ∈
     0..len(t)-1 } }`, `total(each(f, each(g, t)))` is *an index into a table given by a rule
     requires #req("an index into a table given by a rule", "index", "int 0
@@ -562,7 +562,10 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
     §13.3's sentence about the gap is the book's to update.
 71. **A map's declared capacity is not enforced, and `len` of a map is wrong on windows.**
     `var m := map(2)` with three stores gives `len(m)` 3 on Go and JavaScript (maps.md §6
-    chose a declared capacity so that all targets agree) and **12** on windows.
+    chose a declared capacity so that all targets agree) and **12** on windows. **`len` fixed**
+    2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): 3 on
+    windows, a map handed on through a tuple now tracked; the capacity is not enforced yet, its own
+    step.
 72. **A map read does not build on windows.** A program that reads a map built in a block:
     *(read …) is not printed on LLVM*; one that reads it in a loop: *1 of 97 integer
     operation(s) cannot be proven … llvm.sdiv [0, +inf] in llvm.sdiv(a, b)*, an operation of
@@ -613,7 +616,7 @@ more, none fixed:
     p.oro: The system cannot find the path specified*: `core`'s corpus walk lists a temporary
     directory that `cmd/gen`'s tests make under their own package and remove while the walk is
     reading. Either test alone passes every time. (This is the failure noted under chapters 8
-    and 13.)
+    and 13.) **Fixed** 2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): the corpus is read from git's index.
 79. **Messages.** *try: variant light declares no (success …) constructor, so it is not a model
     of the exception monad* is in the notation J replaced and names the variant in lower case.
     The relevance refusals name no function they occur in (*gen: the result of half is a value

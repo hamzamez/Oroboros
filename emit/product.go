@@ -243,6 +243,26 @@ func (f *flattener) walk(t *core.Term) (*core.Term, error) {
 		return nil, nil
 	}
 
+	// ELIMINATION — `((t i) (fn (x₀ … xₖ₋₁) M))`, a tuple pattern on an element,
+	// `(x, y) = p[i]`. By η for products, p = ⟨π₀ p, …, πₖ₋₁ p⟩, so the
+	// eliminator applied to an element is the continuation applied to its
+	// projections, each then uncurried below: (λx⃗. M) (t (k·i + 0)) … The index
+	// is pure here (an impure argument is let-bound by β, ADR 0010), so it may be
+	// repeated. Missing, the pair reached lowering as an application and was
+	// read as a map's (present, value), x the flag (the book's finding 64).
+	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[1].Kind == core.KFn && !PlantNoProductElim {
+		inner, k := t.Kids[0], t.Kids[1]
+		if inner.Kind == core.KApp && len(inner.Kids) == 2 && inner.Kids[0].Kind == core.KName {
+			if n, ok := f.arity[inner.Kids[0].Name]; ok && len(k.Params) == n {
+				projs := make([]*core.Term, n)
+				for j := range projs {
+					projs[j] = core.App(inner, core.Int(int64(j)))
+				}
+				return f.walk(core.App(k, projs...))
+			}
+		}
+	}
+
 	// PROJECTION — `((t i) j)`, the curried form, uncurried.
 	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[1].Kind == core.KInt {
 		inner := t.Kids[0]
@@ -551,3 +571,8 @@ func (f *flattener) storedArity(body *core.Term, name string) int {
 	}
 	return found
 }
+
+// PlantNoProductElim leaves a tuple pattern on a table's element un-flattened,
+// finding 64's shape: TestATuplePatternOnAnElementIsItsProjections must catch
+// it.
+var PlantNoProductElim bool

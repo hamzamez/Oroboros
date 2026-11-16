@@ -933,7 +933,10 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 			return out, true
 		}
 	}
-	// A map read under its eliminator: `((m k) (fn (#t #p) b))`.
+	// A map read under its eliminator: `((m k) (fn (#t #p) b))`. A table of
+	// pairs' element taken apart has the same shape, and the flattening pass
+	// rewrites it to its projections before it reaches here (emit/product.go,
+	// the book's finding 64).
 	if op.Kind == core.KApp && len(op.Kids) == 2 && len(k.Params) == 2 && op.Kids[0].Kind != core.KName {
 		m := l.single(op.Kids[0], r)
 		key := l.single(op.Kids[1], r)

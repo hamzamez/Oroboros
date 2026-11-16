@@ -100,9 +100,12 @@ before planning. **Its plan (§5)**, in order:
    one name~~ done ([capture-2026-11-16](gauntlet/results/capture-2026-11-16.md)); ~~70, a store's
    index unchecked~~ done (ADR 0119, [store-2026-11-16](gauntlet/results/store-2026-11-16.md): the
    guards it needed are missing proofs, the builder and K(ℕ\*)'s carrier owed, and an `abandon` arm in
-   a borrowed buffer's code a defect); 71, `len` of a map 12 on windows; 64, a tuple read from a table
-   as a map's comma-ok; 39 and 40, a verifier failure and a crash; 78, the flaky test
-   ([docs/book/README.md](docs/book/README.md));
+   a borrowed buffer's code a defect); ~~71's `len`, 64, 39, 40, 78~~ done
+   ([bookfaults-2026-11-16](gauntlet/results/bookfaults-2026-11-16.md): a map handed on through a
+   tuple, a product's eliminator its projections, ⌈q⌉ for all four relations with a decimal, a
+   refusal that crashed, the corpus read from git's index); **next, 71's capacity**: an insert is
+   defined iff k ∈ dom m or |dom m| < c (maps.md §6), its obligation needing |dom m|'s facts and,
+   on windows, a count cell for an O(1) `len`;
 2. **j.md's two promises**: `invariant`, Hoare's rule for `loop`, which also pays `readinto`'s owed
    invariant; `try` with several binds, a derived form;
 3. **two checks**: no carriage return in a tracked text file; a planted source rewrite asserts it

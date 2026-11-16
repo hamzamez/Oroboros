@@ -360,6 +360,28 @@ func (e mapEnv) at(t *core.Term, i int) mapEnv {
 		return out
 	}
 	op := t.Op()
+	// A TUPLE TAKEN APART, (λk. k e₁ … eₙ)(λx₁ … xₙ. M), which is how the state
+	// translation hands a borrow's buffer on: a borrowing call answers the
+	// pair (result, buffer) and its continuation binds the buffer again. β of
+	// a tuple is M[x⃗ := e⃗], so xⱼ holds a map exactly when eⱼ is one. Without
+	// it a `var m := map(c)` buffer was lost at its first store, and `len(m)`
+	// was the backing table's length, 12 for three keys at capacity 2 (the
+	// book's finding 71).
+	if i == 1 && op.Kind == core.KFn && len(op.Params) == 1 && !PlantMapTupleLost {
+		if body := op.Closed(); body.Kind == core.KApp && len(body.Kids) > 1 &&
+			body.Kids[0].Kind == core.KBound && body.Kids[0].Depth == 0 && body.Kids[0].Index == 0 {
+			which := map[int]bool{}
+			for j, a := range body.Kids[1:] {
+				if e.isMapValue(a) {
+					which[j] = true
+				}
+			}
+			if len(which) > 0 {
+				out.pending = which
+			}
+			return out
+		}
+	}
 	// A PLAIN BETA-REDEX, which is what a source `let` actually is. The reader
 	// does NOT keep `(let V K)`: it produces `((fn (x) body) V)`, so the binder
 	// is the OPERATOR and the value is an operand. Matching on the name `let`
@@ -544,3 +566,8 @@ func suffix(qualified string) string {
 	}
 	return qualified
 }
+
+// PlantMapTupleLost forgets a map handed on through a tuple's elimination,
+// finding 71's `len` of the backing table: TestAMapsLenIsItsDomainsSize must
+// catch it.
+var PlantMapTupleLost bool

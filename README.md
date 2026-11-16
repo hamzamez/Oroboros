@@ -483,10 +483,11 @@ plan**, in order:
      table, as a read already was; three programs whose proof is out of the compiler's reach today
      check their writes instead, at no measurable cost, and the proof that would remove those checks
      is owed;
-   - the size of a map is wrong on Windows;
-   - a pair read from a table produces wrong Go;
-   - with them, a compiler crash, a self-check that rejects a valid program, and a test that
-     fails one run in five;
+   - ~~the size of a map is wrong on Windows~~ **fixed**; a map's declared capacity, which no
+     target enforces yet, is next;
+   - ~~a pair read from a table produces wrong Go~~ **fixed**;
+   - ~~with them, a compiler crash, a self-check that rejects a valid program, and a test that
+     fails one run in five~~ **fixed** ([bookfaults-2026-11-16](gauntlet/results/bookfaults-2026-11-16.md));
 2. **build two things the grammar promises and the compiler refuses**: a loop's stated invariant,
    checked by the compiler (which also lets one library drop a run-time clamp), and `try` over
    several results at once;

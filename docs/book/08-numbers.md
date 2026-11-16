@@ -1093,17 +1093,20 @@ export fn below(x ∈ Small) (Bool) { x < 0.1 }
 <!-- gen go docs/book/code/numbers/below.oro -->
 ```go
 func NumbersBelow(v0 float64) bool {
-    v2 := (v0 <= 0.09999999999999999)
+    v2 := (v0 < 0.1)
     return v2
 }
 ```
 
 The `0.1` in this program is one tenth, the real one, and `x` is a double. The host cannot
-compare a double with one tenth, because it cannot hold one tenth. But "x is below one tenth"
-is the same as "x is at most the largest double below one tenth", and that double is
-`0.09999999999999999`. The compiler found it and changed `<` into `<=`. A C programmer who
-writes `x < 0.1` is comparing with the double *above* a tenth, and gets true for the double
-nearest to 0.1 itself. Here the comparison means what it says.
+compare a double with one tenth, because it cannot hold one tenth. One tenth lies between two
+doubles, `0.09999999999999999` and the double written `0.1`, which is a little above it, and no
+double lies between them. So "x is below one tenth" is the same as "x is below the double
+`0.1`", and the compiler writes that, the host's own `<`. It is `<=` where a C programmer's
+reading and this one part: C's `x <= 0.1` is true for the double nearest to 0.1, which lies
+above one tenth, and `x <= 0.1` here is false for it, and is written `x < 0.1`. Every
+comparison with a decimal the host cannot hold becomes a comparison with the one double just
+above it, so a comparison and its negation use the same constant.
 
 ### An integer becomes a double when it is one
 

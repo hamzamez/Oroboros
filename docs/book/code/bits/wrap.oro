@@ -1,0 +1,7 @@
+set U32 = 0..2^32-1
+
+export fn step(h ∈ U32, b ∈ 0..255) (U32) { ((h ⊕ b) * 16777619) mod 2^32 }
+
+export fn add32(a ∈ U32, b ∈ U32) (U32) { (a + b) mod 2^32 }
+
+export fn sub32(a ∈ U32, b ∈ U32) (U32) { (a - b) mod 2^32 }

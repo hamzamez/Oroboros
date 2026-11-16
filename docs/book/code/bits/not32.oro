@@ -1,0 +1,13 @@
+use io
+
+set U32 = 0..2^32-1
+
+fn flip(a ∈ U32) (U32) { a ⊕ 0xFFFFFFFF }
+
+fn flip_wrapped(a ∈ U32) (U32) { ~a mod 2^32 }
+
+export fn main() {
+    io.print_int(~0x0000FFFF)
+    io.print_int(flip(0x0000FFFF))
+    io.print_int(flip_wrapped(0x0000FFFF))
+}

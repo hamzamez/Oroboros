@@ -1,0 +1,12 @@
+use io
+
+set U32 = 0..2^32-1
+
+fn rotl8(x ∈ U32) (U32) { (x << 8 | x >> 24) mod 2^32 }
+
+export fn main() {
+    io.print_int(rotl8(0x12345678))
+    io.print_int(0x34567812)
+}
+
+export fn turn(x ∈ U32) (U32) { rotl8(x) }

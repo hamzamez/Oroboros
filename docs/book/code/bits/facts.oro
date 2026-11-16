@@ -1,0 +1,11 @@
+set Word = -2^63..2^63-1
+
+export fn low(n ∈ Word) (0..255) { n & 255 }
+
+export fn low_mod(n ∈ Word) (0..255) { n mod 256 }
+
+export fn top(n ∈ 0..2^32-1) (0..255) { n >> 24 }
+
+export fn join(a ∈ 0..255, b ∈ 0..255) (0..255) { a | b }
+
+export fn differ(a ∈ 0..255, b ∈ 0..255) (0..255) { a ⊕ b }

@@ -1,0 +1,11 @@
+use io
+
+export fn main() {
+    io.print_int(12 & 10)
+    io.print_int(12 | 10)
+    io.print_int(12 ⊕ 10)
+    io.print_int(12 \oplus 10)
+    io.print_int(0xF0 & 0x3C)
+    io.print_int(0xF0 | 0x3C)
+    io.print_int(0xF0 ⊕ 0x3C)
+}

@@ -1,0 +1,24 @@
+use io
+
+set Byte = 0..255
+set Colour = 0..2^24-1
+
+fn rgb(r ∈ Byte, g ∈ Byte, b ∈ Byte) (Colour) { r << 16 | g << 8 | b }
+
+fn red(c ∈ Colour) (Byte) { c >> 16 }
+
+fn green(c ∈ Colour) (Byte) { c >> 8 & 255 }
+
+fn blue(c ∈ Colour) (Byte) { c & 255 }
+
+export fn main() {
+    c = rgb(0x33, 0x99, 0xFF)
+    io.print_int(c)
+    io.print_int(red(c))
+    io.print_int(green(c))
+    io.print_int(blue(c))
+}
+
+export fn pack(r ∈ Byte, g ∈ Byte, b ∈ Byte) (Colour) { rgb(r, g, b) }
+
+export fn middle(c ∈ Colour) (Byte) { green(c) }

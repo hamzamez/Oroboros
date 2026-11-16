@@ -63,7 +63,7 @@ export fn main() {
 - **`^` is a power**, as in mathematics, and it binds tighter than `*`: `2 * 3^2` is 18. It is
   for writing constants, `2^10`, `10^6`, `2^63-1`, and both sides must be known when the program
   is compiled. (In C and its descendants `^` is "exclusive or". That operation is `⊕` here, and
-  [chapter 7](README.md) is about it.)
+  [chapter 7](07-bits.md) is about it.)
 - `*`, `/` and `%` bind tighter than `+` and `-`, and operators of the same strength group from
   the left: `10 - 3 - 2` is `(10 - 3) - 2`, and `100 / 10 / 5` is `(100 / 10) / 5`. That is the
   convention of school arithmetic and of nearly every language.

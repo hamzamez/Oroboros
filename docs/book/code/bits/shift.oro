@@ -1,0 +1,13 @@
+use io
+
+export fn main() {
+    io.print_int(1 << 10)
+    io.print_int(3 << 4)
+    io.print_int(-3 << 4)
+    io.print_int(1000 >> 3)
+    io.print_int(1000 / 8)
+    io.print_int(-7 >> 1)
+    io.print_int(-7 / 2)
+    io.print_int(5 >> 100)
+    io.print_int(-5 >> 100)
+}

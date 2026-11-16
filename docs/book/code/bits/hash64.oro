@@ -1,0 +1,11 @@
+use io
+
+set U64 = 0..2^64-1
+
+fn step(h ∈ U64, b ∈ 0..255) (U64) { ((h ⊕ b) * 1099511628211) mod 2^64 }
+
+export fn main() {
+    h = step(step(step(0xCBF29CE484222325, 97), 98), 99)
+    io.print_int(h >> 32)
+    io.print_int(h & 0xFFFFFFFF)
+}

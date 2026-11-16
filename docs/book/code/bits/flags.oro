@@ -1,0 +1,28 @@
+use io
+
+fn bit(c ∈ Bool) (0..1) { if c { 1 } else { 0 } }
+
+set Rights = 0..7
+
+read = 1
+write = 2
+run = 4
+
+fn may?(r ∈ Rights, what ∈ Rights) (Bool) { r & what != 0 }
+
+fn grant(r ∈ Rights, what ∈ Rights) (Rights) { r | what }
+
+fn revoke(r ∈ Rights, what ∈ Rights) (Rights) { r & ~what }
+
+fn flip(r ∈ Rights, what ∈ Rights) (Rights) { r ⊕ what }
+
+export fn main() {
+    r = grant(read, write)
+    io.print_int(r)
+    io.print_int(bit(may?(r, write)))
+    io.print_int(bit(may?(r, run)))
+    io.print_int(grant(r, run))
+    io.print_int(revoke(r, write))
+    io.print_int(revoke(r, run))
+    io.print_int(flip(r, read | run))
+}

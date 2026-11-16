@@ -1,0 +1,1 @@
+export fn scale(n ∈ 0..255, k ∈ 0..64) (Int) { n << k }

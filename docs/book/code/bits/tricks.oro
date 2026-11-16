@@ -1,0 +1,20 @@
+use io
+
+fn bit(c ∈ Bool) (0..1) { if c { 1 } else { 0 } }
+
+fn even?(n ∈ 0..2^62) (Bool) { n & 1 == 0 }
+
+fn power_of_two?(n ∈ 1..2^62) (Bool) { n & (n - 1) == 0 }
+
+fn lowest(n ∈ 1..2^62) (Int) { n & -n }
+
+fn without_lowest(n ∈ 1..2^62) (Int) { n & (n - 1) }
+
+export fn main() {
+    io.print_int(bit(even?(10)))
+    io.print_int(bit(even?(7)))
+    io.print_int(bit(power_of_two?(64)))
+    io.print_int(bit(power_of_two?(96)))
+    io.print_int(lowest(96))
+    io.print_int(without_lowest(96))
+}

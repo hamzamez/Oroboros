@@ -20,7 +20,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-15 |
 | | **II. What a program computes with** | | |
 | 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 82 blocks checked 2026-11-15 |
-| 7 | Bits | the bits are the integer's; wrapping is `mod 2ⁿ` | not written |
+| 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ` | J; 61 blocks checked 2026-11-16 |
 | 8 | Numbers with a point | exact decimals; `round` the one place precision is lost; `F64` | not written |
 | 9 | Text | strings as sequences, `++`, the host's strings, bytes | not written |
 | 10 | Tuples and variants | "and" and "or" of data; `case` with patterns | not written |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5 and ten in chapter 6, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6 and eleven in chapter 7, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -284,12 +284,47 @@ and 28 are defects, not questions: ADR 0033 refuses Go's version of 27, and ADR 
 29. **No digit separator, and no binary literal**: `1_000_000` and `0b101` are refused by the
     reader as two tokens. A question, not a defect; j.md does not promise either.
 
+Chapter 7 (2026-11-16) found seven, none fixed, each avoided in the chapter:
+
+30. **A file named after a target, beside the source, is read as that target.** With a `js.oro`
+    in the program's directory, every build of a neighbour for `js` fails: *js.oro: line 1:
+    "export" begins no form of a target file*. The program's directory is searched for the target
+    before `targets/`. The chapter's file is `narrow.oro` for that reason.
+31. **JavaScript's refusal of a bit operation on an unbounded operand gives a reason that is
+    false.** `export fn low(n ∈ Int) (0..255) { n & 255 }`: *the result of `&` lies in [0, 255],
+    and target js computes `&` only where the result is proven in one of -2147483648..2147483647,
+    0..4294967295*. [0, 255] is inside both. With `n ∈ -2^63..2^63-1` the message is the true one,
+    *an operand of and is held in arbitrary precision*. The family of item 26.
+32. **An unsigned 64-bit value at a JavaScript export is refused for a `>>` the program does not
+    have.** `export fn mix(a ∈ 0..2^64-1, b ∈ 0..2^64-1) (0..2^64-1) { a ⊕ b }`: *the result of
+    `>>` lies in [0, 4294967295], and target js computes `>>` only where …*. The refusal may be
+    right (JavaScript has no such number to pass); the reason is the pair expansion's, not the
+    program's. Inside a program the same value works, and chapter 7's `hash64.oro` runs there.
+33. **A value in the unsigned word cannot be printed whole.** `io.print_int(h)` with
+    `h ∈ 0..2^64-1` prints on windows, and on Go is refused by the verifier in its own words,
+    *IR_P does not verify: W5: %13 is u64 and flows into io.print-int's argument 1, which is int*
+    (item 3 fixed this for a big value, not for U). `big_str(h)` is refused on all three as
+    *WIDER than the word*. The chapter prints `h >> 32` and `h & 0xFFFFFFFF`.
+34. **`mod` of a value in the unsigned word is refused where `%` compiles**, on Go:
+    `(a * b) mod 7` with `a, b ∈ 0..2^32-1` is *held in the UNSIGNED word, not an `Int`*, and
+    `(a * b) % 7` is accepted. And `(a * b / 3) mod 2^64` over `0..2^64-1` is refused with the
+    advice *reduce it with `mod 2^64`*, which the program does.
+35. **A shift count declared `Nat` is refused**, *an operand of shr is held in arbitrary
+    precision*, though integers.md §0b gives `>>`'s count no upper bound; `k ∈ 0..1000` compiles.
+    A question: a count past the word is decided by saturation, so the count's representation
+    need not matter.
+36. **Two small ones.** There is no way to print a `Bool` (`io` has no `print_bool`; the chapter
+    defines `bit`). And `export fn f(k ∈ 0..64) (0..2^64) { 1 << k }` is refused with `big-of` in
+    the message, a core name (it is the family of item 28's `big-str`).
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
 Boole's algebra and partial evaluation; chapter 5's is referential transparency, thunks, and
 substructural logic, because the effect rule derived from three concrete hazards turns out to be
-Lambek's ordered fragment, named in 1958.
+Lambek's ordered fragment, named in 1958; chapter 7's is positional notation, the adder's identity
+and Gauss's congruences, because "the machine may wrap early" is the statement that a remainder
+is a ring homomorphism.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

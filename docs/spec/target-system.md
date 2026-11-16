@@ -292,14 +292,14 @@ language should we allow in?"*
 
 ### 6.1 It is already happening, in Go rather than in data
 
-Three Oroboros libraries ship **inside the compiler**, embedded and spliced by
-compiler code:
+Three Oroboros libraries shipped **inside the compiler**, embedded and spliced by
+compiler code (the map has since moved, below):
 
 | file | what it is |
 |---|---|
 | `emit/bignum.oro` | the fixed-limb bignum — windows' arbitrary precision |
 | `emit/bignum-host.oro` | the same operations over a host bignum |
-| `emit/winmap.oro` | open addressing over `build` — windows' map |
+| ~~`emit/winmap.oro`~~ | open addressing over `build` — windows' map; since ADR 0120 the LLVM layer's `map_*` terms, realized after the decision |
 
 Each exists because a host lacks a capability and the language can supply it.
 Each is reached by a `//go:embed` and a Go pass. That is the exact shape this

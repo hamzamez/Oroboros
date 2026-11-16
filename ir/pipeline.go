@@ -215,6 +215,15 @@ func afterRung(tg *emit.Target, f *Func, name string, sig *core.Sig, checked boo
 	} else if changed {
 		leg = Decide(tg, f, checked)
 	}
+	// THE MAP, REALIZED AFTER THE DECISION (ADR 0120): on a target with no host
+	// map, each map operation becomes its term over the table of its cells, the
+	// decision having seen the map; before storage, so a build-map's table is
+	// allocated and released as every table is.
+	if n, err := RealizeMaps(tg, f); err != nil {
+		return nil, fmt.Errorf("%s: %v", name, err)
+	} else if n > 0 {
+		leg = Decide(tg, f, checked)
+	}
 	// THE TARGET'S INTERPRETATION OF THE LANGUAGE (ADR 0089), on the decided
 	// function: each operation by the narrowest stated realization its facts
 	// prove, a term's instance inlined; the decision taken again decides the

@@ -10,8 +10,8 @@
 //   JavaScript  m[k], and undefined means absent
 //   Java        m.get(k), and null means absent
 //   windows     NO HOST MAP AT ALL -- open addressing over a `build` buffer,
-//               written in Oroboros (emit/winmap.oro) and lowered before
-//               reduction, so nothing below that file learns maps exist
+//               each operation a term in Oroboros (targets/llvm/lang.oro's
+//               map_*), realized after the decision (ADR 0120)
 //
 // F2 REMOVES an obligation rather than adding one: the option makes the program
 // say what happens when the key is absent, which is the only thing that can,

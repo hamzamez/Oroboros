@@ -86,7 +86,7 @@ func TestReprAndFactAreRefusedOffTheirShapes(t *testing.T) {
 		`repr big medium`:                   "(repr big host) or (repr big limbs)",
 		`repr 5..1 host "x"`:                "is empty",
 		`repr shift 64`:                     "1 <= N <= 63",
-		"repr `map` hash":                   "(repr map host) or (repr map library)",
+		"repr `map` hash":                   "`repr map` is retired",
 		`repr float host "double"`:          "(repr (int LO HI)",
 		`fact f (a ∈ Array(A)) len(a) < 3`:  "facts are specified",
 		`fact f (a ∈ Array(A)) len(b) <= 3`: "facts are specified",
@@ -109,28 +109,6 @@ set Map(K, V) = host "M<${K},${V}>"`)
 	if tg.BigRepr != "limbs" || tg.ShiftWidth != 31 || tg.Boxed["int"] != "Long" ||
 		tg.MaxLen != 2147483647 || tg.MapType != "M<%s,%s>" {
 		t.Errorf("a declaration was lost: %+v", tg)
-	}
-}
-
-// THE MAP REPRESENTATION COMPOSES BY OVERRIDE (theories.md §5.8). It was a flag
-// joined with ||, so a nearer layer could turn the language's own map on and
-// never off.
-func TestANearerLayerCanTurnTheLibraryMapOff(t *testing.T) {
-	root := t.TempDir()
-	host, lib := filepath.Join(root, "host"), filepath.Join(root, "lib")
-	writeTarget(t, filepath.Join(host, "x"), "a", "repr `map` host")
-	writeTarget(t, filepath.Join(lib, "x"), "a", "repr `map` library")
-	for _, c := range []struct {
-		layers []string
-		want   bool
-	}{{[]string{host, lib}, false}, {[]string{lib, host}, true}} {
-		tg, err := LoadTargetLayers("x", c.layers)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := tg.NeedsMapImpl(); got != c.want {
-			t.Errorf("layers %v: NeedsMapImpl is %v, want %v — the nearer layer must win", c.layers, got, c.want)
-		}
 	}
 }
 

@@ -398,8 +398,8 @@ func (c *linChecker) walk(t *core.Term, name string, st *linState) error {
 	// write: `set` passes its buffer's length through (LengthOf 1), and a call
 	// that grows a buffer hands on a new one, leaving the old name's extent as it
 	// was. What linearity forbids is seeing a store through a dead name, and a
-	// length sees none. The Windows map library needs exactly this: it stores and
-	// then indexes by `(len m)` in one expression (emit/winmap.oro). `alloc`
+	// length sees none. The LLVM layer's map terms need exactly this: they store
+	// and then index by `len(t)` in one expression (targets/llvm/lang.oro). `alloc`
 	// copies the contents, so it is an ordinary read and must come first.
 	if c.isKind(t, "len") && len(t.Kids) == 2 && t.Kids[1].Kind == core.KName &&
 		t.Kids[1].Name == name {

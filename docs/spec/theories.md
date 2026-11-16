@@ -315,43 +315,29 @@ niche encoding is specified, it should be specified from this instance:
 That also names the JVM hazard: unboxing a `null` throws, which is the extra point escaping into a
 position that has no room for it.
 
-### 5.8 A language type realized by a library: `(repr map library)`, today's `builtin-map`
+### 5.8 A language type realized by terms: the map on the LLVM layer (ADR 0120)
 
 **What it is.** A target may not decline `map` (ADR 0017's rule for language constructs). Go, Java
-and JavaScript each realize it with the host's hash map. **windows has none**, so the language
-supplies one: `emit/winmap.oro`, open addressing over an ordinary `build` buffer. It is lowered by
-`emit/winmap.go` before reduction, so nothing downstream learns maps exist.
+and JavaScript each realize it with the host's hash map. **The LLVM layer has none**, so the language
+supplies one, the table of the map's cells, and each map operation is a term over it, stated as every
+other realization is:
 
-```lisp
-(repr map library)                                ; today's (builtin-map)
-(repr map host)                                   ; the default: the target's own map
-(repr big limbs)                                  ; today's (big-repr limbs): the same kind of choice
-(repr big host)
+```
+realize build_map = lang.map_cells
+realize insert = lang.map_put
+realize read = lang.map_get
+realize keys = lang.map_keys
+realize map_len = lang.map_size
+realize map = lang.map_of
 ```
 
-`builtin-map` and `(big-repr limbs)` are one kind of declaration: *realize this language type by the
-language's own library rather than by the host*. They were spelled two ways only because they
-arrived separately.
+They are substituted on the IR after the decision (ADR 0089's order), so the decision and the
+refinement layer see the map on every target. `(repr map library)`, which said the same thing a second
+way and had the map rewritten before reduction, is retired, and the loader refuses it naming ADR 0120.
+Its composition by override (2026-09-15) went with it, and its one test.
 
-**Why it is declared, not inferred** (the reason in `winmap.go`, kept): an empty map spelling means
-*no map* on windows and *no types at all* on JavaScript, which has a good map. Inferring it would
-have given JavaScript our hash table, which measured 3.67× slower than its own.
-
-**A composition bug the new loader fixes — fixed 2026-09-15.** Two fragments combined as
-`BuiltinMap = a || b`, whose comment called it monotone. That is a join on `false < true`, not §4's
-override: a nearer layer could turn the built-in map on and **never turn it off**. It is now
-`Target.MapRepr`, a word composed by override like every other declaration, so a project layer's
-`(repr map host)` wins (`TestANearerLayerCanTurnTheLibraryMapOff`). No program depended on the old
-behaviour.
-
-**Where it is used today:** one declaration ([windows.oro:49](../../targets/windows/windows.oro)),
-one check (`NeedsMapImpl`, read by `lowerMaps`), one test (`emit/winmap_test.go`).
-
-**Where it goes after the loader:** into `targets/windows/` as the target's own library, a `provides`
-holding `def`s (§5.4), with the `//go:embed` deleted. target-system.md §6.1 already lists `winmap.oro`
-among three libraries *"in the wrong place"*. That move waits on one question: a map read is written
-as application and has no name for δ to unfold. Today `winmap.go`'s rewrite gives it one, so the
-library route needs map operations to have names before reduction.
+`(repr big limbs)` remains the one declaration of this kind: realize this language type by the
+language's own library rather than by the host.
 
 ### 5.9 `narrow`
 

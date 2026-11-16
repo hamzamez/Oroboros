@@ -9,7 +9,7 @@
 //
 // It is written here as an ordinary program first, because the question that
 // decides everything downstream is whether the language can express it at all.
-// general-purpose.md claims it can; `emit/winmap.oro` is the one existing piece
+// general-purpose.md claims it can; the LLVM layer's map (targets/llvm/lang.oro) is the one existing piece
 // of evidence, and a hash table is a much easier shape than a carry chain.
 //
 // ═══ BASE 2^24, AND THE BASE IS FORCED RATHER THAN CHOSEN

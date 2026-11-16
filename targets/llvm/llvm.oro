@@ -19,9 +19,9 @@
 // line of the module, written once: a `declare`, a global, or a helper `define`.
 backend llvm
 
-// NO HOST SHIPS A MAP AT THIS LAYER, so the language supplies one
-// (emit/winmap.oro).
-repr `map` library
+// NO HOST SHIPS A MAP AT THIS LAYER, so the language supplies one: the table
+// of its cells, each operation a term (lang.oro's map_*), realized after the
+// decision (ADR 0120).
 
 // THE SORTS' REPRESENTATIONS, LLVM's types. A table and a string are pointers to
 // an i64 length followed by the elements (llvm.md §4).
@@ -108,6 +108,15 @@ realize utf8_text = lang.text_v
 // RENDERING, ℤ's at every sort (ADR 0095): this term at the word's; a value
 // held as limbs is the limb library's render (ir/limbs.go).
 realize big_str = lang.render
+
+// THE MAP (ADR 0120): each operation a term over the table of its cells,
+// substituted after the decision (ir/maps.go), so the decision sees the map.
+realize build_map = lang.map_cells
+realize insert = lang.map_put
+realize read = lang.map_get
+realize keys = lang.map_keys
+realize map_len = lang.map_size
+realize map = lang.map_of
 
 // THE UNSIGNED WORD'S OPERATIONS (llvm.md §3a), found by the representation
 // pass (ir/words.go) under these names: the ring's and the bits' the same

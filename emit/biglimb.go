@@ -59,11 +59,10 @@ import (
 //
 // ═══ HOW THE LIBRARY GETS IN
 //
-// It is spliced and REDUCED at each site, rather than injected before reduction
-// the way `win/map` is. The difference is forced: a map operation is visible in
-// the source, so `lowerMaps` can rewrite it before the reducer runs — but which
-// `+` is a bignum is decided by a solver that needs the RESIDUAL, so by the
-// time the answer exists reduction is over. Normalising `(of w v)` at the site
+// It is spliced and REDUCED at each site. Which `+` is a bignum is decided by
+// a solver that needs the RESIDUAL, so by the time the answer exists reduction
+// is over. (The LLVM layer's map, which was injected before reduction, is
+// realized after the decision now, ADR 0120.) Normalising `(of w v)` at the site
 // is what inlines it, and `core.Normalize` on an application of a closed
 // definition to residual arguments is exactly that.
 

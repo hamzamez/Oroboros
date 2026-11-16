@@ -432,6 +432,15 @@ It is also the first library the language writes for itself, which is a real tes
 
 The capacity decision of §6 is what makes this writable at all.
 
+**Realized after the decision (ADR 0120).** The map is the table of its cells, ρ_M : Map(K, V) →
+Table(ℤ), slot s holding the used flag at 3s, the key at 3s + 1 and the value at 3s + 2, n = slots(c)
+= min{2ʲ ≥ 2c}; its abstraction d(t) = {(t[3s + 1], t[3s + 2]) : t[3s] = 1}. Each operation is a term
+over that table (`targets/llvm/lang.oro`'s `map_*`), stated by a `realize` line and substituted on the
+IR after the decision (`ir/maps.go`), so every statement about a map, its capacity included, is
+decided on the map, the same on all four targets. Until 2026-11-16 the map was rewritten into the
+table before reduction (`emit/winmap.go`, deleted), by a tracker of which binders hold maps, and the
+tracker's loss of a `var` buffer was the book's finding 71.
+
 ---
 
 ## 9. What it costs the analyses

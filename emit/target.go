@@ -263,21 +263,6 @@ type Target struct {
 	// `boxed` falls through to `ty` and nothing changes.
 	Boxed map[string]string
 
-	// MapRepr is how this model realizes `map`: "library" when this host ships
-	// no map of its own, so the language supplies one — `emit/winmap.oro`,
-	// lowered into buffers and loops before reduction — and "host" or "" for the
-	// host's own. `(repr map library)`, theories.md §5.8.
-	//
-	// Declared rather than inferred, because there is nothing to infer it from:
-	// an empty `MapType` means "no map" on windows and "no TYPES" on
-	// JavaScript, which has a perfectly good map and spells nothing. A host
-	// fact belongs in a target file whichever way it points.
-	//
-	// A WORD AND NOT A FLAG, because it composes by override. It was a bool
-	// joined with `||`, so a nearer layer could turn the library map on and never
-	// off; "" is "not declared here", which is what lets `▷` see a choice.
-	MapRepr string
-
 	// Reprs are the integer representations this target can store, narrowest
 	// first, declared as `(int-repr LO HI "spelling")`. A range type selects
 	// the first one that CONTAINS it — ADR 0003's "the compiler selects the
@@ -2090,7 +2075,6 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 		src  string
 		what string
 	}{
-		{&tg.MapRepr, o.MapRepr, "map representation"},
 		{&tg.ArrayType, o.ArrayType, "array-type"},
 		{&tg.CellType, o.CellType, "cell-type"},
 		{&tg.MapType, o.MapType, "map-type"},
@@ -2777,11 +2761,10 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 		}
 		frag.BigRepr = w
 	case "map":
-		w, ok := word("host", "library")
-		if !ok {
-			return bad("(repr map host) or (repr map library)")
-		}
-		frag.MapRepr = w
+		// RETIRED (ADR 0120): a target realizes the map by its `realize` lines,
+		// terms substituted after the decision, so there is no second statement
+		// of it to keep in agreement.
+		return bad("nothing: a map is realized by `realize` lines (ADR 0120); `repr map` is retired")
 	case "shift":
 		// N is a number of bits, and the upper limit is the portable window's own:
 		// a host that claimed to shift values it cannot represent exactly would be
@@ -3633,11 +3616,8 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	e.Instantiate = tg.Instantiate
 	tg.hostRequires(e)
 	installContracts(e, p, tg.Word)
-	// A TARGET WITH NO MAP GETS OURS, rewritten into buffers and loops before
-	// reduction so that nothing downstream learns maps exist (winmap.go).
-	if err := lowerMaps(tg, p); err != nil {
-		return nil, err
-	}
+	// A TARGET WITH NO MAP REALIZES IT BY TERMS AFTER THE DECISION (ADR 0120,
+	// ir/maps.go), so the map reaches the decision as a map on every target.
 	e.Defs = p.Defs
 	e.MarkRecursive()
 	return e, e.CheckDefs()
@@ -4588,7 +4568,9 @@ func (tg *Target) statedRealizations(op string) {
 // checkRealized refuses a stated realization that names a declaration the
 // target does not have, or a name the language does not have.
 func (tg *Target) checkRealized() error {
-	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "utf8-valid": true, "utf8-text": true, "abandon": true, "alloc": true, "release": true, "reuse": true, "discard": true, "alloc-raw": true, "reuse-raw": true, "reuse-fit": true, "reuse-fit-raw": true, "big-str": true}
+	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "utf8-valid": true, "utf8-text": true, "abandon": true, "alloc": true, "release": true, "reuse": true, "discard": true, "alloc-raw": true, "reuse-raw": true, "reuse-fit": true, "reuse-fit-raw": true, "big-str": true,
+		// the map's operations, realized as terms over the table of its cells (ADR 0120)
+		"build-map": true, "insert": true, "read": true, "keys": true, "map-len": true, "map": true}
 	for _, op := range langOps {
 		known[op.name] = true
 	}

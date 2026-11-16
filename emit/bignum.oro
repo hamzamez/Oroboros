@@ -8,7 +8,7 @@
 // and on the last two it is the ONLY way there, because those bignums are
 // immutable.
 //
-// It is a LIBRARY and not compiler code, for the reason `emit/winmap.oro` is:
+// It is a LIBRARY and not compiler code, for the reason the LLVM layer's map is:
 // adding a case to `emit/*.go` for something that is a library is the single
 // most common way to get this architecture wrong. It is embedded rather than
 // sitting in `lib/` because a program must not have to import it -- a range is
@@ -70,7 +70,7 @@
 // refused by name on a target with none): the REMAINDER, whose result is a word
 // rather than a limb table and so a change of type; the COMPARISONS; and
 // big-by-big DIVISION, which needs a quotient estimate.
-// A CLAMP, exactly as tree.oro, winmap.oro and kara/core.oro use one. Every
+// A CLAMP, exactly as tree.oro and kara/core.oro use one. Every
 // index here is derived from a loop bound over a DIFFERENT table than the one
 // being read -- two operands under one bound, which is the latent bug the
 // refinement layer found in `dot` and `centroid`. The tables have the same

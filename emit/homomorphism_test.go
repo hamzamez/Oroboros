@@ -34,7 +34,6 @@ func TestSplittingAFileChangesNothing(t *testing.T) {
 		{`fact max_len (a ∈ Array(A)) len(a) <= 10`, `fact max_len (a ∈ Array(A)) len(a) <= 20`},
 		{`repr shift 31`, `repr shift 63`},
 		{`repr big host`, `repr big limbs`},
-		{"repr `map` host", "repr `map` library"},
 		{`build "a %s %s"`, `build "b %s %s"`},
 		{`fn f(a ∈ Int) (Int) pure { host expr "A(${a})" }`, `fn f(a ∈ Int) (Int) pure { host expr "B(${a})" }`},
 		// agreements and ordered data: both must load, to one target

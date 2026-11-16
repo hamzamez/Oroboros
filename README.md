@@ -483,8 +483,11 @@ plan**, in order:
      table, as a read already was; three programs whose proof is out of the compiler's reach today
      check their writes instead, at no measurable cost, and the proof that would remove those checks
      is owed;
-   - ~~the size of a map is wrong on Windows~~ **fixed**; a map's declared capacity, which no
-     target enforces yet, is next;
+   - ~~the size of a map is wrong on Windows~~ **fixed**, and Windows' map is now built from the
+     language's own definitions after the compiler has checked the program, as every other
+     Windows operation is, so programs that read a map inside a function now build there
+     ([maprealize-2026-11-16](gauntlet/results/maprealize-2026-11-16.md)); a map's declared
+     capacity, which no target enforces yet, is next;
    - ~~a pair read from a table produces wrong Go~~ **fixed**;
    - ~~with them, a compiler crash, a self-check that rejects a valid program, and a test that
      fails one run in five~~ **fixed** ([bookfaults-2026-11-16](gauntlet/results/bookfaults-2026-11-16.md));

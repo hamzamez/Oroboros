@@ -569,7 +569,9 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
 72. **A map read does not build on windows.** A program that reads a map built in a block:
     *(read …) is not printed on LLVM*; one that reads it in a loop: *1 of 97 integer
     operation(s) cannot be proven … llvm.sdiv [0, +inf] in llvm.sdiv(a, b)*, an operation of
-    the map library's and not the program's. The chapter's map blocks run on Go and JavaScript.
+    the map library's and not the program's. The chapter's map blocks run on Go and JavaScript. **Fixed** 2026-11-16 ([maprealize-2026-11-16](../../gauntlet/results/maprealize-2026-11-16.md),
+    ADR 0120): the map is realized after the decision, so a read in a block or a function builds on
+    windows; chapter 13's maps may run there now, which is the book's to say.
 73. **A loop that answers `()` freezes the buffer it wrote.** `var b := …; loop i = 0 { i < 5 ->
     { b[i] := 5 - i; again(i + 1) }; else -> () }; b[0] := 100` is *a store writes into #nl2,
     which is a frozen table*. The same loop inside a function that takes `b` `linear`, called

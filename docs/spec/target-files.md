@@ -43,7 +43,7 @@ decl        ::= (backend NAME)                   ; which code generator compiles
               | (repr (int LO HI) (host "spelling"))
               | (repr (ref T) (host "spelling")) ; the boxed spelling, theories.md §5.7
               | (repr big host) | (repr big limbs)
-              | (repr map host) | (repr map library)
+              ; (repr map …) is retired: a map is realized by `realize` lines (ADR 0120)
               | (repr shift N)
               | (repr narrow (host "template"))  ; how this host restricts a container
               | (repr TYPE (niche (host expr "template")))  ; TYPE is 1 + E: its absent point (errors.md §4.1)

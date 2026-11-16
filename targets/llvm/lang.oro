@@ -310,4 +310,131 @@ module lang {
             else -> { r = release(tok, k, w); allocate_raw(n, w) }
         }
     }
+
+    // ---- THE MAP (ADR 0120). ρ_M takes a map of capacity c to the table t of
+    // 3n cells, n = slots(c) = min{2ʲ ≥ 2c}: slot s holds the used flag t[3s],
+    // the key t[3s + 1] and the value t[3s + 2]; its abstraction is
+    // d(t) = {(t[3s + 1], t[3s + 2]) : t[3s] = 1}. Open addressing with linear
+    // probing, hash k & (n − 1): n is a power of two, so the mask lands in
+    // [0, n) for every k, negative ones too (ℤ's `&`, ADR 0082), and the load
+    // factor is at most 1/2. Each term below is a homomorphism,
+    // d(h(op(m))) = op(d(m)), substituted after the decision (ir/maps.go), so
+    // the decision sees the map and not this table. A build zero-fills, so a
+    // fresh table is the empty map: every used flag 0.
+
+    // slots(c), total: a capacity past 2⁴⁵ asks for more than an address space
+    // holds, and the allocator answers that with exhaustion, so n stops there.
+    // n − c ≥ c is n ≥ 2c without forming 2c.
+    fn map_slots(c ∈ Nat) (1..2^46) {
+        loop n = 1 { n - c >= c || n >= 2^45 -> n; else -> again(n * 2) }
+    }
+    // the cell count, build-map's realization: build-map(c) is build(cells(c))
+    fn map_cells(c ∈ Nat) (3..3 * 2^46) { 3 * map_slots(c) }
+    // the slot count, read off the table: len(t) = 3n by construction. LLVM's
+    // sdiv, whose domain a divisor of 3 decides (b ≠ 0, b ≠ −1), and for
+    // len(t) ≥ 0 truncation is the floor
+    fn map_n(t ∈ Array(Int)) (Int) { llvm.sdiv(len(t), 3) }
+    // the slot for key k at probe distance i, in [0, n)
+    fn map_slot(n ∈ 1..2^46, k ∈ Int, i ∈ 0..2^46) (Int) { llvm.and(llvm.and(k, n - 1) + i, n - 1) }
+    // a cell, 0 off the table: the slot's mask is not linear, so the guard is
+    // the read's proof (refinements.md §3a)
+    fn map_at(t ∈ Array(Int), x ∈ Int) (Int) { if x < 0 || x >= len(t) { 0 } else { t[x] } }
+
+    // FIND: the value cell of k, or −1 when k is absent. Linear probing leaves no
+    // gap before a key it stored, so an empty slot ends the probe, and n probes
+    // visit every slot. n ≤ 2⁴⁶ (map_slots makes at most 2⁴⁵), stated in the
+    // probe's guard since a table's length has no upper bound here.
+    fn map_find(t ∈ Array(Int), k ∈ Int) (-1..2^63-1) {
+        n = map_n(t)
+        loop i = 0 {
+            i >= n || n < 1 || n > 2^46 -> -1
+            map_at(t, 3 * map_slot(n, k, i)) == 0 -> -1
+            map_at(t, 3 * map_slot(n, k, i) + 1) == k -> {
+                x = 3 * map_slot(n, k, i) + 2
+                if x >= 0 && x < len(t) { x } else { -1 }
+            }
+            else -> again(i + 1)
+        }
+    }
+
+    // INSERT, m[k ↦ v]: the slot holding k is overwritten, or the first empty
+    // one on k's probe claimed. A full table keeps m, which the capacity's
+    // obligation (maps.md §6) makes unreachable. The table is lent and written
+    // in place; every index is computed before the first store.
+    fn map_put(t ∈ Array(Int) linear, k ∈ Int, v ∈ Int) {
+        n = map_n(t)
+        loop i = 0 {
+            i >= n || n < 1 || n > 2^46 -> ()
+            map_at(t, 3 * map_slot(n, k, i)) == 0 -> {
+                u = 3 * map_slot(n, k, i)
+                case {
+                    u < 0 || u + 2 >= len(t) -> ()
+                    else -> { t[u] := 1; t[u + 1] := k; t[u + 2] := v; () }
+                }
+            }
+            map_at(t, 3 * map_slot(n, k, i) + 1) == k -> {
+                x = 3 * map_slot(n, k, i) + 2
+                case {
+                    x < 0 || x >= len(t) -> ()
+                    else -> { t[x] := v; () }
+                }
+            }
+            else -> again(i + 1)
+        }
+    }
+
+    // READ, m[k] : Option(V): the option's tag and payload, 1 and 0 when k is
+    // absent, 0 and the value when present (the sum's encoding, ADR 0042).
+    fn map_get(t ∈ Array(Int), k ∈ Int) {
+        f = map_find(t, k)
+        if f < 0 { (1, 0) } else { (0, map_at(t, f)) }
+    }
+
+    // |dom m|, the used flags counted
+    fn map_size(t ∈ Array(Int)) (0..2^63-1) {
+        n = map_n(t)
+        loop c = 0, s = 0 {
+            s >= n -> c
+            else -> again(c + (if map_at(t, 3 * s) == 1 { 1 } else { 0 }), s + 1)
+        }
+    }
+
+    // How many keys of m lie below k: with distinct keys, k's index in
+    // ascending order.
+    fn map_rank(t ∈ Array(Int), k ∈ Int) (0..2^63-1) {
+        n = map_n(t)
+        loop c = 0, s = 0 {
+            s >= n -> c
+            map_at(t, 3 * s) == 0 -> again(c, s + 1)
+            else -> again(if map_at(t, 3 * s + 1) < k { c + 1 } else { c }, s + 1)
+        }
+    }
+
+    // a store guarded by its table's domain, the identity off it
+    fn map_w(o ∈ Array(Int) linear, i ∈ Int, v ∈ Int) { if i >= 0 && i < len(o) { o[i] := v } else { () } }
+
+    // KEYS, ascending: a map's keys are distinct, so each key's sorted position
+    // is its rank, written in one pass with no exchange. The rank is below
+    // |dom m| = len(o), a count the refinement layer does not relate to the
+    // loop, so the store is guarded (a missing proof, store-2026-11-16).
+    fn map_keys(t ∈ Array(Int)) {
+        cnt = map_size(t)
+        n = map_n(t)
+        var o := array { 0 : _ ∈ 0..cnt-1 }
+        loop s = 0 {
+            s >= n -> o
+            map_at(t, 3 * s) == 0 -> again(s + 1)
+            else -> { map_w(o, map_rank(t, map_at(t, 3 * s + 1)), map_at(t, 3 * s + 1)); again(s + 1) }
+        }
+    }
+
+    // A LITERAL, map { k : v, … }: its capacity is its size (maps.md §6), its
+    // table filled by one loop, so one probe site whatever its size.
+    fn map_of(ks ∈ Array(Int), vs ∈ Array(Int)) {
+        var t := array { 0 : _ ∈ 0..map_cells(len(ks)) - 1 }
+        loop i = 0 {
+            i >= len(ks) -> t
+            else -> { map_put(t, ks[i], map_at(vs, i)); again(i + 1) }
+        }
+    }
 }

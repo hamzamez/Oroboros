@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 144 |
+| `specified` — a spec states it | 143 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -255,7 +255,6 @@ What a declaration's `host KIND …` or a `structural NAME KIND` may say.
 | `ref` | specified — `(repr (ref T) (host …))`, a boxed representation | [target-files.md](target-files.md), [theories.md](theories.md) |
 | `big` | specified — `repr big host` or `repr big limbs` | [target-files.md](target-files.md) |
 | `limbs` | specified | [target-files.md](target-files.md) |
-| `library` | specified — `(repr map library)`: a map written in Oroboros | [target-files.md](target-files.md) |
 | `shift` | specified — `(repr shift N)` | [theories.md](theories.md) |
 | `narrow` | specified — `(repr narrow (host …))` | [theories.md](theories.md) |
 | `read`, `write` | specified — `repr LO..HI host "T" read "…" write "…"`, a host type's second reading (ADR 0083) | [integers.md](integers.md) §0b |

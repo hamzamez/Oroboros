@@ -1,0 +1,4 @@
+provides js clock {
+    fn seconds() (0..2^52) { host expr "Math.floor(Date.now() / 1000)" }
+    fn year_of(s ∈ 0..2^52) (1970..9999) pure { host expr "new Date(${s} * 1000).getUTCFullYear()" }
+}

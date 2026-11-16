@@ -1,0 +1,15 @@
+use clock
+
+export fn stamp() (Int) { clock.seconds() }
+
+export fn elapsed() (Int) {
+    start = clock.seconds()
+    finish = clock.seconds()
+    finish - start
+}
+
+export fn unused() (Int) {
+    clock.seconds()
+    clock.year_of(0)
+    7
+}

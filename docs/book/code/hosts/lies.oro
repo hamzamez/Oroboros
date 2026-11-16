@@ -1,0 +1,10 @@
+use liar
+
+export fn quiet() (Int) {
+    liar.say("this line is never printed")
+    7
+}
+
+export fn overflow() (Int) {
+    liar.small() * 10^18
+}

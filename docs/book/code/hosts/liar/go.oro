@@ -1,0 +1,4 @@
+provides go liar {
+    fn say(s ∈ String) (String) pure { host stmt "fmt.Println(${s})" import "fmt" }
+    fn small() (0..9) pure { host expr "1000" }
+}

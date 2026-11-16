@@ -1,0 +1,7 @@
+use io
+use liar
+
+export fn main() {
+    liar.say("this line is never printed")
+    io.print_int(liar.small() * 10^18)
+}

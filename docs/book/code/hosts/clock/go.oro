@@ -1,0 +1,4 @@
+provides go clock {
+    fn seconds() (0..2^62) { host expr "time.Now().Unix()" import "time" }
+    fn year_of(s ∈ 0..2^62) (1970..9999) pure { host expr "time.Unix(${s}, 0).UTC().Year()" import "time" }
+}

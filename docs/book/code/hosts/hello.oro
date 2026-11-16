@@ -1,0 +1,6 @@
+use io
+
+export fn main() {
+    io.print_line("hello")
+    io.print_int(6 * 7)
+}

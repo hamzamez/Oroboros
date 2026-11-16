@@ -854,5 +854,5 @@ test* (1991), a descendant of Fourier's.
 - **A type is a set.** A type error is the coarsest kind of refused membership.
 - **A proven claim is erased.** It costs nothing at run time.
 
-Next: chapter 16, Targets. Where `io.print_line` comes from, and how to describe a host's
+Next: [chapter 16](16-targets.md), Targets. Where `io.print_line` comes from, and how to describe a host's
 function so that the compiler can check what you say about it.

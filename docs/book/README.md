@@ -31,7 +31,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 14 | [Failures](14-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 42 blocks checked 2026-11-16 |
 | | **IV. Claims and hosts** | | |
 | 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 49 blocks checked 2026-11-16 |
-| 16 | Targets | host modules, writing a declaration, portability computed | not written |
+| 16 | [Targets](16-targets.md) | host modules, writing a declaration, portability computed | J; 22 blocks checked 2026-11-16 |
 | 17 | A whole program | one real program read line by line | not written |
 
 Nothing specified and not built gets a chapter (records, callbacks, concurrency, `spec` and
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12, fifteen in chapter 13, thirteen in chapter 14 and thirteen in chapter 15, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12, fifteen in chapter 13, thirteen in chapter 14, thirteen in chapter 15 and ten in chapter 16, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -650,6 +650,27 @@ directive for it and it prints only what it could not bound. The chapter has no 
 every example is a `gen`, because its subject is what the compiler decides, and a proven
 claim leaves nothing to run.
 
+Chapter 16, Targets (2026-11-16), found three, none fixed:
+
+85. **A host declaration's result set is a fact for the intervals and not for the refinement
+    layer.** With `fn small() (0..9) pure { host expr "1000" }`, `small() * 10^18` is *1 of 1
+    integer operations bounded*, and `array { 0, …, 9 }[small()]` is refused, *0 <= liar.small()
+    does not follow; known: nothing*. The same split as item 82, at the trusted base: one
+    procedure believes the header and the other has not been told.
+86. **Any directory named `targets` is read as target files by the corpus test.** The chapter's
+    examples were first in `docs/book/code/targets/`, and `TestEveryCorpusFileReadsInJ` failed
+    on each program there, *line 3: "export" begins no form of a target file*. They are in
+    `code/hosts/`. The family of item 30 (a file named after a target).
+87. **Java's emitted class is named after the output file**: `gen … java g.out` writes `public
+    final class g.out`, which is not Java. `-name` prefixes the functions and not the class.
+
+Teaching: §16.5 lies to the compiler on purpose, with a `pure` on a print and a result claimed
+`0..9` that is 1000, and shows the dropped line and the wrapped product (3875820019684212736)
+as the one way a silent wrong answer enters a program whose proofs are all valid. Five blocks
+are `part`s of the repository's own target and library files (`lib/io/go.oro`, `lib/io/js.oro`,
+`lib/io/windows.oro`, `targets/go/strings.oro`, `targets/go/go.oro`, `targets/js/js.oro`), so
+a change to those lines fails this chapter's check, which is intended: the chapter quotes them.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -675,7 +696,9 @@ three older answers to failure (a sentinel, a flag, an exception) and Ariane 501
 monad said as "the first stop wins", relevance as chapter 5's no-dropping rule on a value, and
 Erlang's let-it-crash as the case for `expect`; chapter 15's is testing, typing and proving as
 three kinds of knowledge, Fourier–Motzkin elimination by adding inequalities, invariants, and
-sound against complete with Presburger, Matiyasevich and Rice as the reason for the wall.
+sound against complete with Presburger, Matiyasevich and Rice as the reason for the wall;
+chapter 16's is the foreign function interface, the trusted base (with TypeScript's declaration
+files as the same idea), and one virtual machine against being native to each host.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

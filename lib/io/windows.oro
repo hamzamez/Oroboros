@@ -19,8 +19,10 @@ provides windows io {
     // the same without the newline: the bytes alone, at most one DWORD's count
     fn print(s ∈ String) (String) {
         u = str.utf8(s)
-        ok = if len(u) <= 2^32 - 1 { kernel32.WriteFile(kernel32.GetStdHandle(4294967285), u, 0, len(u)) } else { false }
-        ignore(ok)
+        if len(u) <= 2^32 - 1 {
+            (w, r) = kernel32.WriteFile(kernel32.GetStdHandle(4294967285), u, 0, len(u), out kernel32.DWORD)
+            ignore(r)
+        }
         s
     }
 

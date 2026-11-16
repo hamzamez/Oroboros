@@ -170,7 +170,7 @@ provides windows os/host {
             else -> {
                 rest = len(data) - lo
                 n = if rest > 1073741824 { 1073741824 } else if rest < 1 { 0 } else { rest }
-                (p, r) = kernel32.WriteFileC(h, data, lo, n, out kernel32.DWORD)
+                (p, r) = kernel32.WriteFile(h, data, lo, n, out kernel32.DWORD)
                 c = if r == 0 { failed(kernel32.GetLastError()) } else { 0 }
                 k = if p > n { n } else { p }
                 again(lo + k, k, c)

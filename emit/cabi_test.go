@@ -52,3 +52,59 @@ func TestACFunctionIsItsPrototype(t *testing.T) {
 		t.Errorf("with the obligation not required the declaration should load, so the test reaches the rule; got %v", err)
 	}
 }
+
+// A C CALL'S ARGUMENTS ARE TERMS OVER ITS PARAMETERS (ADR 0118): each a
+// parameter, elem(b, lo) the address &b[lo] of a table of bytes, or null; each
+// parameter used exactly once, so in : params → C's arguments is a function of
+// all of them; elem defined only where the `where` states lo <= len(b).
+func TestACCallsArgumentsAreTermsOverItsParameters(t *testing.T) {
+	load := func(decl string) error {
+		t.Helper()
+		dir := t.TempDir()
+		src := "backend llvm\ntriple \"x86_64-pc-windows-msvc\"\nset Int = host \"i64\"\nrepr -2^63..2^63-1 word\n" +
+			"set ptr = host \"ptr\"\nset String = host \"ptr\"\nmodule k {\n" + decl + "\n}\n"
+		if err := os.WriteFile(filepath.Join(dir, "t.oro"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := LoadTarget(filepath.Join(dir, "t.oro"))
+		return err
+	}
+	const head = `    fn W(h ∈ ptr, b ∈ Array(0..255), lo ∈ 0..2^63-1, n ∈ 0..2^32-1) (r ∈ -2^31..2^31-1) `
+	for what, decl := range map[string]string{
+		"a segment's address, the count and null": head + `where lo + n <= len(b) { host expr call "W"(h, elem(b, lo), n, null) stdcall }`,
+		"the arguments reordered":                 head + `where n + lo <= len(b) { host expr call "W"(n, elem(b, lo), h) }`,
+		"lo bounded alone":                        head + `where n >= 1 && lo <= len(b) { host expr call "W"(h, elem(b, lo), n) }`,
+	} {
+		if err := load(decl); err != nil {
+			t.Errorf("%s: want it loaded, got %v", what, err)
+		}
+	}
+	for _, c := range []struct{ what, decl, reason string }{
+		{"a parameter left out", head + `where lo + n <= len(b) { host expr call "W"(h, elem(b, lo), null) }`, "appears 0 times"},
+		{"a parameter twice", head + `where lo + n <= len(b) { host expr call "W"(h, elem(b, lo), n, n) }`, "appears 2 times"},
+		{"a name no parameter", head + `where lo + n <= len(b) { host expr call "W"(h, elem(b, lo), n, m) }`, "which is no parameter"},
+		{"elem of no table", `    fn W(h ∈ ptr, lo ∈ 0..2^63-1) (ptr) { host expr call "W"(elem(h, lo)) }`, "not a table of bytes"},
+		{"elem of a table of words", `    fn W(b ∈ Array(Int), lo ∈ 0..2^63-1) (ptr) where lo <= len(b) { host expr call "W"(elem(b, lo)) }`, "not a table of bytes"},
+		{"a signed offset", `    fn W(b ∈ Array(0..255), lo ∈ -1..9) (ptr) where lo <= len(b) { host expr call "W"(elem(b, lo)) }`, "not a natural"},
+		{"elem with no bound on lo", head + `where n <= len(b) { host expr call "W"(h, elem(b, lo), n) }`, "defined for lo <= len(b)"},
+		{"lo bounded through a signed m", `    fn W(b ∈ Array(0..255), lo ∈ 0..2^63-1, m ∈ -9..9) (ptr) where lo + m <= len(b) { host expr call "W"(elem(b, lo), m) }`, "defined for lo <= len(b)"},
+	} {
+		err := load(c.decl)
+		if err == nil || !strings.Contains(err.Error(), c.reason) {
+			t.Errorf("%s: want it refused naming %q, got %v", c.what, c.reason, err)
+		}
+	}
+
+	// THE PLANTED FAULTS: a parameter dropped from the call, and elem's bound
+	// not required; each refusal above must then be lost.
+	PlantCArgDropped = true
+	if err := load(head + `where lo + n <= len(b) { host expr call "W"(h, elem(b, lo), null) }`); err != nil {
+		t.Errorf("with a dropped parameter allowed the declaration should load, so the test reaches the rule; got %v", err)
+	}
+	PlantCArgDropped = false
+	PlantElemUnbounded = true
+	defer func() { PlantElemUnbounded = false }()
+	if err := load(head + `where n <= len(b) { host expr call "W"(h, elem(b, lo), n) }`); err != nil {
+		t.Errorf("with elem's bound not required the declaration should load, so the test reaches the rule; got %v", err)
+	}
+}

@@ -929,9 +929,12 @@ func (p *printer) call(s *ir.Stmt) {
 // embedding back; a C string's bytes are at s + 8, NUL-ended (§4).
 func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 	var ops, tys []string
-	for i, a := range s.Args {
+	// in, ADR 0094's argument conversion: a parameter by its C type, a table
+	// of bytes decayed to its first element (s + 8, after the length, llvm.md
+	// §4), a C string the same address with its NUL past the bytes.
+	param := func(i int) string {
 		ll, cross, _, _ := p.tg.CType(q.Args[i])
-		v := p.val(a)
+		v := p.val(s.Args[i])
 		switch cross {
 		case "trunc":
 			r := "%" + p.fresh("c")
@@ -942,7 +945,30 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 			p.line("%s = getelementptr inbounds i8, ptr %s, i64 8", r, v)
 			v = r
 		}
-		ops, tys = append(ops, ll+" "+v), append(tys, ll)
+		tys = append(tys, ll)
+		return ll + " " + v
+	}
+	if q.CArgs == nil {
+		for i := range s.Args {
+			ops = append(ops, param(i))
+		}
+	}
+	// THE ARGUMENTS AS TERMS over the parameters: elem(b, lo) is &b[lo], the
+	// decayed table offset by lo bytes, `inbounds` because the declaration's
+	// `where` states lo <= len(b) (emit.boundsElem), so it lies in the region
+	// or one past it; null is C's null pointer.
+	for _, c := range q.CArgs {
+		switch c.Kind {
+		case emit.CParam:
+			ops = append(ops, param(c.I))
+		case emit.CElem:
+			b := param(c.I)
+			r := "%" + p.fresh("c")
+			p.line("%s = getelementptr inbounds i8, %s, i64 %s", r, b, p.val(s.Args[c.J]))
+			ops = append(ops, "ptr "+r)
+		case emit.CNull:
+			ops, tys = append(ops, "ptr null"), append(tys, "ptr")
+		}
 	}
 	ret, cross, signed := "void", "", false
 	if q.Kind != "stmt" {

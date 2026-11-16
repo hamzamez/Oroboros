@@ -214,6 +214,12 @@ func (in *interp) stmt(s *Stmt) {
 		}
 		t.arr[k.Int64()] = a(2).i
 		one(t)
+	// A CELL IS A REFERENCE TO ONE SLOT (ADR 0048), which a host operation
+	// writes through: a table of one entry, shared by its copies.
+	case OCellFresh:
+		one(cval{arr: []*big.Int{big.NewInt(0)}})
+	case OCellGet:
+		one(cval{i: a(0).arr[0]})
 	case OThe:
 		one(a(0))
 	case ORequire, OAssume:

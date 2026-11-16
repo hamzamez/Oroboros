@@ -579,6 +579,10 @@ what TinyRetroPad's walls need.
   [strings-2026-11-16](gauntlet/results/strings-2026-11-16.md)): the four string operations are
   definitions in the language on the LLVM layer, V a submonoid deciding `++`, η agreeing on every
   scalar, the NUL the allocator's; owed: ι_V as the identity, large string terms called as functions.
+  ~~kernel32's segment calls as text~~ **done** (ADR 0118, [cabi2-2026-11-16](gauntlet/results/cabi2-2026-11-16.md)):
+  a C call's arguments are a linear term over its parameters, `elem(b, lo)` and `null` among them,
+  so `ReadFile` and `WriteFile` are derived and `@__written` is gone; no template in the LLVM or
+  windows layers is longer than one instruction (`divq` the one that is no LLVM instruction).
 - **One integer rendering on every target**, render : ℤ → Σ* per representation (ADR 0095 built it on
   windows): on Go, the JVM and JavaScript a word value is still widened to the host's bignum to be
   printed, a hidden allocation. Trigger: printing's P3.
@@ -965,6 +969,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A rule at an export's boundary is its extension, `alloc(rule)`; in the interior a rule fuses or the author writes `alloc` | [0115](docs/decisions/0115-a-rule-at-an-exports-boundary-is-its-extension.md) |
 | A statement whose value is a function is refused; `ignore(f)` is the discard | [0116](docs/decisions/0116-a-statement-whose-value-is-a-function-is-refused.md) |
 | A string is the table of its UTF-8 on the LLVM layer, its four operations definitions in the language read back by ρ⁻¹ (V a submonoid decides `++`, η agrees on every scalar); every table's region one zero byte past it, the C string's NUL; a realization's host `where` decided; an identity coercion a move | [0117](docs/decisions/0117-a-string-is-the-table-of-its-utf-8-and-its-operations-are-the-languages.md) |
+| A C call's arguments are a linear term over its parameters: each a parameter, `elem(b, lo)` (&b[lo], defined where the `where` states lo ≤ len(b)) or `null`, every parameter exactly once; one Win32 function one declaration; `store8` split into single instructions; amends 0094 | [0118](docs/decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md) |
 | An unbounded integer on a target with no bignum is K(ℕ\*): a numeral of any length in base 2³² over U₆₄ (base 2⁶⁴ since 0106), its signed size last; Knuth's algorithms; render demands an exact integer on every target; a numeral held while its table fits, a crash past it | [0099](docs/decisions/0099-an-unbounded-integer-is-a-numeral-of-any-length-with-its-signed-size-last.md) |
 | Fixed limbs realize a signed set by the group completion: Z(V_n), a sign entry over the magnitude, sign 0 at 0, every operation derived from the magnitudes', Z_k enforced on the magnitude; amends 0029 decision 4 | [0098](docs/decisions/0098-fixed-limbs-realize-a-signed-set-by-the-group-completion.md) |
 

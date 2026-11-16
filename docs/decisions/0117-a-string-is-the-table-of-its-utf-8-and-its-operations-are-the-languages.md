@@ -57,7 +57,7 @@ four stayed text. Measured, that cost (strings-2026-11-16):
    encodes as Go's `string(rune(c))` (`TestEveryScalarEncodes`), so the guard's other arm is dead.
 4. **A string's NUL is the allocator's.** Every table's region holds one zero byte past its elements,
    b(n, w) = n·w + 9 (`lang.bytes`, one definition for allocation, release and reuse). It is written
-   by `region`'s zero fill, and in a raw region by one `store8`. So a table of bytes is a C string,
+   by `region`'s zero fill, and in a raw region by one `store8` (since ADR 0118, `store_zero ∘ offset`). So a table of bytes is a C string,
    x·0, and ADR 0091's LPCSTR and ADR 0094's `s + 8` hold unchanged, with no copy for the NUL.
    Σ_OS gains `max_len`, the longest table, which `cat` compares a join's length with: past it is
    exhaustion.

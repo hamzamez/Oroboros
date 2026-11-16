@@ -68,5 +68,6 @@ meant rewriting all of them. And none was checked against anything: a template i
 
 - The Win32 layer the survey writes has no templates. A second triple re-derives every call.
 - `targets/windows/kernel32.oro` keeps one template, `WriteFile` (its buffer is a segment), and the
-  target's own `@__written` cell.
+  target's own `@__written` cell. (Since ADR 0118, a call's arguments are a linear term over its parameters,
+  elem(b, lo) a segment's address, and kernel32 has no template and no global.)
 - The survey's figures are a property of the API and the language, so they are unchanged.

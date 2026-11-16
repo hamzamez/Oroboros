@@ -344,6 +344,19 @@ and the convention is the triple's: `stdcall` is `x86_stdcallcc` on i686 and the
 x86-64. A set that is no C type is refused when the target loads, and so is a C-string parameter
 without `where nulfree`.
 
+**The arguments as a term** (ADR 0118). `host expr call "F"(t₁, …, t_k)`, read as `(call "F" (args t₁ …))`, writes C's arguments as a
+linear term over the parameters, each parameter in exactly one tⱼ:
+
+| term | C argument | printed |
+|---|---|---|
+| `x` | the parameter, by its C type (the table above) | as above |
+| `elem(b, lo)`, b a table of bytes, lo ∈ ℕ ∩ W, `where` lo ≤ len(b) | &b[lo] | `getelementptr inbounds i8, ptr s, i64 8`, then `getelementptr inbounds i8, ptr %c, i64 lo` |
+| `null` | `NULL` | `ptr null` |
+
+A parameter unused or used twice, elem of a table that is not of bytes, a signed offset, and a
+`where` that does not bound lo by len(b) (directly, or as lo + m ≤ len(b) with m natural) are each
+refused when the target loads.
+
 ## 7. Control: regions into blocks
 
 Structured SSA (ADR 0032) prints as basic blocks, and a region's parameters and an operation's results

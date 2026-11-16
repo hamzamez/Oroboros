@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 141 |
+| `specified` — a spec states it | 144 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -228,6 +228,9 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `import` | specified | [target-files.md](target-files.md) |
 | `lib` | specified | [target-files.md](target-files.md) |
 | `call` | specified — `host KIND call "SYMBOL" [stdcall \| cdecl]`, a C function by its prototype, its call derived by the C ABI on the triple | [ADR 0094](../decisions/0094-a-c-function-is-declared-by-its-prototype-and-the-c-abi-is-derived.md), [llvm.md](llvm.md) §6a |
+| `args` | specified — the reader's form for a C call's written arguments, `(call "SYMBOL" (args t…) CONV)`, each t a parameter, `elem` or `null`, every parameter in exactly one | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
+| `elem` | specified — `elem(b, lo)`, a C argument: &b[lo], a table of bytes decayed and offset by lo, defined where the `where` states lo ≤ len(b) | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
+| `null` | specified — a C argument, C's `NULL` | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
 | `checked` | specified | [target-files.md](target-files.md) |
 | `jump` | specified | [windows-target.md](windows-target.md) |
 | `comma-ok` | specified — J's `comma_ok`: the host gives a declared `(option E)` as Go's pair (v, ok): H = [E, bool], r(e, b) = `some e` if b, else `none` | [typevalues.md](typevalues.md) §7 |

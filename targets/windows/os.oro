@@ -83,7 +83,10 @@ module llvm/os {
     // THE BYTES TO STANDARD ERROR (-12). A table past one call's DWORD count is
     // not written, and the answer is false.
     fn write_err(b ∈ Array(0..255)) (Bool) {
-        if len(b) <= 2^32 - 1 { kernel32.WriteFile(kernel32.GetStdHandle(4294967284), b, 0, len(b)) } else { false }
+        if len(b) <= 2^32 - 1 {
+            (w, r) = kernel32.WriteFile(kernel32.GetStdHandle(4294967284), b, 0, len(b), out kernel32.DWORD)
+            r != 0
+        } else { false }
     }
 
     // ExitProcess ends every thread and the process; its UINT holds 0..255.

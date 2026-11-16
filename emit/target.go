@@ -53,6 +53,12 @@ type Prim struct {
 	// is derived by the C ABI from the declaration's sets on the triple, so Form
 	// is empty. CConv is its convention, "stdcall", "cdecl" or "".
 	CSym, CConv string
+	// CArgs are the C arguments as terms over the parameters, when the
+	// declaration writes them, `call "F"(h, elem(b, lo), n, got, null)`: the
+	// C ABI's in is then no product of per-parameter maps, a segment's address
+	// being two parameters' (cPrototypes resolves cargTerm into them).
+	CArgs    []CArg
+	cargTerm *core.Term
 	// Lib is the import library that RESOLVES Import on a host that links —
 	// `(lib "user32")`. Collected exactly as Import is, from primitives the
 	// program uses, so the link line is computed rather than a constant that
@@ -2297,6 +2303,45 @@ func (tg *Target) cPrototypes() error {
 		if b, err := tg.ResolveBackend(); err != nil || b != "llvm" {
 			return fmt.Errorf("%s: `host … call` is a C function, which only an LLVM target calls", core.ShowName(n))
 		}
+		// THE C ARGUMENTS AS TERMS (files' successor, ADR 0094's in): each a
+		// parameter, elem(b, lo) or null, and every parameter in exactly one
+		// of them, so the call's inputs are a function of all the declared
+		// ones and of nothing else. elem's table is a table of bytes, C's
+		// array of them, and its offset an integer: &b[lo], whose extent the
+		// declaration's `where` states.
+		if q.cargTerm != nil {
+			args, err := resolveCArgs(q)
+			if err != nil {
+				return fmt.Errorf("%s: %v", core.ShowName(n), err)
+			}
+			q.CArgs = args
+			tg.Prims[n] = q
+			for _, c := range args {
+				switch c.Kind {
+				case CElem:
+					if _, cross, _, ok := tg.CType(q.Args[c.I]); !ok || cross != "elems" {
+						return fmt.Errorf("%s: elem's table %s is %s, not a table of bytes (ADR 0094)", core.ShowName(n), q.Names[c.I], core.ShowSet(q.Args[c.I]))
+					}
+					if lo, hi, ok := core.IntRange(q.Args[c.J]); !ok || lo < 0 || hi > tg.Word.Hi {
+						return fmt.Errorf("%s: elem's offset %s is %s, not a natural inside the word", core.ShowName(n), q.Names[c.J], core.ShowSet(q.Args[c.J]))
+					}
+					// elem : Table(B) × ℕ ⇀ B*, &b[lo], is defined on lo ≤ len b (one
+					// past the end included, C11 §6.5.6¶8), so the declaration's
+					// `where` must state it, as lo ≤ len(b) or lo + m ≤ len(b) for a
+					// natural m; its calls then decide it (ADR 0028).
+					if !boundsElem(q, c.I, c.J) && !PlantElemUnbounded {
+						return fmt.Errorf("%s: elem(%s, %s) is &%s[%s], defined for %s <= len(%s): the `where` must state it", core.ShowName(n), q.Names[c.I], q.Names[c.J], q.Names[c.I], q.Names[c.J], q.Names[c.J], q.Names[c.I])
+					}
+				case CParam:
+					if _, cross, _, ok := tg.CType(q.Args[c.I]); !ok {
+						return fmt.Errorf("%s: argument %s's set %s is no C type (ADR 0094)", core.ShowName(n), q.Names[c.I], core.ShowSet(q.Args[c.I]))
+					} else if cross == "cstr" && !hasConjunct(q.Where, "nulfree", q.Names[c.I]) && !PlantCStringFault {
+						return fmt.Errorf("%s: %s is a C string, so it needs `where nulfree(%s)` (ADR 0091)", core.ShowName(n), q.Names[c.I], q.Names[c.I])
+					}
+				}
+			}
+			goto result
+		}
 		for i, a := range q.Args {
 			_, cross, _, ok := tg.CType(a)
 			if !ok {
@@ -2312,6 +2357,7 @@ func (tg *Target) cPrototypes() error {
 				}
 			}
 		}
+	result:
 		if q.Result != "" && q.Kind != "stmt" {
 			if ll, cross, _, ok := tg.CType(q.Result); !ok || cross == "cstr" || ll == "void" && q.Result != "empty" {
 				return fmt.Errorf("%s: its result's set %s is no C type it can return (ADR 0094)", core.ShowName(n), core.ShowSet(q.Result))
@@ -3351,10 +3397,16 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			p.Lib = rest.Kids[1].Str
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName && rest.Kids[0].Name == "call" &&
 			len(rest.Kids) >= 2 && rest.Kids[1].Kind == core.KStr:
-			// (call "F" [stdcall|cdecl]) — a C function by its symbol (ADR 0094).
+			// (call "F" [(args …)] [stdcall|cdecl]) — a C function by its symbol
+			// (ADR 0094), its arguments terms over the parameters when written.
 			p.CSym = rest.Kids[1].Str
-			if len(rest.Kids) == 3 && rest.Kids[2].Kind == core.KName {
-				p.CConv = rest.Kids[2].Name
+			for _, k := range rest.Kids[2:] {
+				switch {
+				case k.Kind == core.KName:
+					p.CConv = k.Name
+				case k.Kind == core.KApp && len(k.Kids) >= 1 && k.Kids[0].Kind == core.KName && k.Kids[0].Name == "args":
+					p.cargTerm = k
+				}
 			}
 		case rest.Kind == core.KApp && len(rest.Kids) == 1 && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "comma-ok":
@@ -4594,4 +4646,133 @@ func (tg *Target) realizations(op, base string, p Prim, n int) {
 		tg.Realize = map[string][]string{}
 	}
 	tg.Realize[op] = append([]string{base}, more...)
+}
+
+// CArg is one C argument of a call written as a term over its parameters
+// (ADR 0094's in): CParam, parameter I by its C type; CElem, the address of
+// element J of the byte table I, &I[J]; CNull, the null pointer.
+type CArg struct {
+	Kind CArgKind
+	I, J int
+}
+
+// CArgKind is a C argument term's form.
+type CArgKind int
+
+const (
+	CParam CArgKind = iota // a parameter, by its C type
+	CElem                  // elem(b, lo), &b[lo]
+	CNull                  // null, C's NULL
+)
+
+// PlantCArgDropped accepts a C call whose argument terms leave a parameter
+// out: TestACCallsArgumentsAreTermsOverItsParameters must catch it.
+var PlantCArgDropped bool
+
+// resolveCArgs is q's written C arguments, each name a parameter's index, and
+// every parameter used exactly once among them.
+func resolveCArgs(q Prim) ([]CArg, error) {
+	index := map[string]int{}
+	for i, n := range q.Names {
+		if n != "" {
+			index[n] = i
+		}
+	}
+	used := make([]int, len(q.Args))
+	at := func(t *core.Term) (int, error) {
+		if t.Kind != core.KName {
+			return 0, fmt.Errorf("a C argument %s is no parameter", t)
+		}
+		i, ok := index[t.Name]
+		if !ok {
+			return 0, fmt.Errorf("a C argument names %s, which is no parameter", core.ShowName(t.Name))
+		}
+		used[i]++
+		return i, nil
+	}
+	var out []CArg
+	for _, t := range q.cargTerm.Kids[1:] {
+		switch {
+		case t.Kind == core.KName && t.Name == "null":
+			out = append(out, CArg{Kind: CNull})
+		case t.Kind == core.KApp && len(t.Kids) == 3 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "elem":
+			b, err := at(t.Kids[1])
+			if err != nil {
+				return nil, err
+			}
+			lo, err := at(t.Kids[2])
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, CArg{Kind: CElem, I: b, J: lo})
+		default:
+			i, err := at(t)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, CArg{Kind: CParam, I: i})
+		}
+	}
+	for i, u := range used {
+		if u != 1 && !(u == 0 && PlantCArgDropped) {
+			return nil, fmt.Errorf("its parameter %s appears %d times among the C arguments; each is used exactly once, so the call is a function of all of them and of nothing else", core.ShowName(nameAt(q.Names, i)), u)
+		}
+	}
+	return out, nil
+}
+
+// PlantElemUnbounded accepts elem(b, lo) under a `where` that does not bound
+// lo by len(b): TestACCallsArgumentsAreTermsOverItsParameters must catch it.
+var PlantElemUnbounded bool
+
+// boundsElem reports a conjunct of q's `where` stating lo ≤ len(b): lo <=
+// len(b), or lo + m <= len(b) (either order) for a parameter m whose set is a
+// natural's, so that lo ≤ lo + m.
+func boundsElem(q Prim, b, lo int) bool {
+	isName := func(t *core.Term, i int) bool {
+		return t != nil && t.Kind == core.KName && i < len(q.Names) && t.Name == q.Names[i]
+	}
+	natural := func(t *core.Term) bool {
+		if t == nil || t.Kind != core.KName {
+			return false
+		}
+		for i, n := range q.Names {
+			if n == t.Name {
+				l, _, ok := core.IntRange(q.Args[i])
+				return ok && l >= 0
+			}
+		}
+		return false
+	}
+	var walk func(w *core.Term) bool
+	walk = func(w *core.Term) bool {
+		if w == nil || w.Kind != core.KApp || len(w.Kids) == 0 || w.Kids[0].Kind != core.KName {
+			return false
+		}
+		k := w.Kids
+		switch {
+		case k[0].Name == "and":
+			for _, x := range k[1:] {
+				if walk(x) {
+					return true
+				}
+			}
+		case k[0].Name == "if" && len(k) == 4 && k[3].Kind == core.KBool && !k[3].IsTrue():
+			return walk(k[1]) || walk(k[2])
+		case k[0].Name == "<=" && len(k) == 3:
+			r := k[2]
+			if r.Kind != core.KApp || len(r.Kids) != 2 || r.Kids[0].Kind != core.KName || r.Kids[0].Name != "len" || !isName(r.Kids[1], b) {
+				return false
+			}
+			l := k[1]
+			if isName(l, lo) {
+				return true
+			}
+			if l.Kind == core.KApp && len(l.Kids) == 3 && l.Kids[0].Kind == core.KName && l.Kids[0].Name == "+" {
+				return isName(l.Kids[1], lo) && natural(l.Kids[2]) || isName(l.Kids[2], lo) && natural(l.Kids[1])
+			}
+		}
+		return false
+	}
+	return walk(q.Where)
 }

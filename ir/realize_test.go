@@ -159,7 +159,10 @@ func hostMeaning(name string, args []cval) ([]cval, bool) {
 	case "windows/kernel32.ExitProcess":
 		panic(errTrap)
 	case "windows/kernel32.WriteFile":
-		return []cval{{b: true}}, true
+		// a synchronous write of n bytes that succeeds: n through the cell,
+		// and a nonzero BOOL
+		args[4].arr[0] = new(big.Int).Set(args[3].i)
+		return []cval{{i: big.NewInt(1)}}, true
 	case "windows/kernel32.GetStdHandle", "llvm/str.utf8":
 		return []cval{{}}, true
 	}

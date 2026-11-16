@@ -14,11 +14,11 @@ entry:
   %.s25 = alloca ptr
   %.s30 = alloca i64
   %.s64 = alloca ptr
-  %.s68 = alloca ptr
-  %.s73 = alloca ptr
-  %.s74 = alloca i64
-  %.s78 = alloca ptr
-  %.s89 = alloca ptr
+  %.s69 = alloca ptr
+  %.s74 = alloca ptr
+  %.s75 = alloca i64
+  %.s79 = alloca ptr
+  %.s90 = alloca ptr
   %v3 = load i64, ptr %v0
   %v4 = icmp sle i64 65536, %v3
   br i1 %v4, label %.then2, label %.else3
@@ -140,52 +140,50 @@ entry:
   %v95 = load ptr, ptr %.s64
   %v97 = mul nuw nsw i64 65536, 8
   %v99 = add nuw nsw i64 %v97, 8
-  %a.67 = getelementptr inbounds i8, ptr %v95, i64 %v99
-  %c.67 = trunc i64 0 to i8
-  store i8 %c.67, ptr %a.67
-  %v101 = icmp eq i64 0, 0
-  store ptr %v95, ptr %.s68
+  %v100 = getelementptr inbounds i8, ptr %v95, i64 %v99
+  store i8 0, ptr %v100
+  store ptr %v95, ptr %.s69
   br label %.join15
 .else14:
   call void @llvm.trap()
   unreachable
 .join15:
-  %v24 = load ptr, ptr %.s68
+  %v24 = load ptr, ptr %.s69
   store i64 65536, ptr %v24
-  store ptr %v24, ptr %.s73
-  store i64 0, ptr %.s74
-  br label %.head71
-.head71:
-  %v107 = load ptr, ptr %.s73
-  %v108 = load i64, ptr %.s74
+  store ptr %v24, ptr %.s74
+  store i64 0, ptr %.s75
+  br label %.head72
+.head72:
+  %v107 = load ptr, ptr %.s74
+  %v108 = load i64, ptr %.s75
   %v110 = icmp sge i64 %v108, 65536
-  br i1 %v110, label %.then76, label %.else77
-.then76:
-  store ptr %v107, ptr %.s78
-  br label %.exit72
-.else77:
-  %.d79 = getelementptr inbounds i8, ptr %v0, i64 8
-  %.e80 = getelementptr inbounds i8, ptr %.d79, i64 %v108
-  %.b81 = load i8, ptr %.e80
-  %v113 = zext i8 %.b81 to i64
-  %.d82 = getelementptr inbounds i8, ptr %v1, i64 8
-  %.e83 = getelementptr inbounds i8, ptr %.d82, i64 %v108
-  %.b84 = load i8, ptr %.e83
-  %v114 = zext i8 %.b84 to i64
+  br i1 %v110, label %.then77, label %.else78
+.then77:
+  store ptr %v107, ptr %.s79
+  br label %.exit73
+.else78:
+  %.d80 = getelementptr inbounds i8, ptr %v0, i64 8
+  %.e81 = getelementptr inbounds i8, ptr %.d80, i64 %v108
+  %.b82 = load i8, ptr %.e81
+  %v113 = zext i8 %.b82 to i64
+  %.d83 = getelementptr inbounds i8, ptr %v1, i64 8
+  %.e84 = getelementptr inbounds i8, ptr %.d83, i64 %v108
+  %.b85 = load i8, ptr %.e84
+  %v114 = zext i8 %.b85 to i64
   %v115 = mul nuw nsw i64 %v113, %v114
-  %.d86 = getelementptr inbounds i8, ptr %v107, i64 8
-  %.e87 = getelementptr inbounds i64, ptr %.d86, i64 %v108
-  store i64 %v115, ptr %.e87
+  %.d87 = getelementptr inbounds i8, ptr %v107, i64 8
+  %.e88 = getelementptr inbounds i64, ptr %.d87, i64 %v108
+  store i64 %v115, ptr %.e88
   %v118 = add nuw nsw i64 %v108, 1
-  store ptr %v107, ptr %.s73
-  store i64 %v118, ptr %.s74
-  br label %.head71
-.exit72:
-  %v106 = load ptr, ptr %.s78
-  store ptr %v106, ptr %.s89
-  br label %.built70
-.built70:
-  %v103 = load ptr, ptr %.s89
+  store ptr %v107, ptr %.s74
+  store i64 %v118, ptr %.s75
+  br label %.head72
+.exit73:
+  %v106 = load ptr, ptr %.s79
+  store ptr %v106, ptr %.s90
+  br label %.built71
+.built71:
+  %v103 = load ptr, ptr %.s90
   ret ptr %v103
 }
 

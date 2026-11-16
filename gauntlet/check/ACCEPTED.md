@@ -3276,3 +3276,49 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - `examples/big/render.oro windows` 640 → 1687 ms, 2.64x; paired 281 → 578 ms, 2.06x
 - `examples/pe/pe.oro windows` 6062 → 9125 ms, 1.51x; paired 2484 → 3765 ms, 1.52x
 - `gauntlet/differential/cases/render.oro windows` 968 → 1875 ms, 1.94x; paired 375 → 734 ms, 1.96x
+
+## 2026-11-16 — on a41cd01, with uncommitted changes
+
+**Reason:** ADR 0118: a C call's arguments are a linear term over its parameters; kernel32's ReadFile and WriteFile derived (elem(b, lo), null, the count's cell), @__written and WriteFileC deleted; store8 split into offset and store_zero. Windows only; proofs unchanged; compile 1.01x; run time inside the noise (cabi2-2026-11-16)
+
+656 runs: 445 emitted, 211 refused; 8857 of 8911 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+37 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/errors/ignore.oro windows`
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/json/tokenize.oro windows`
+- emitted text changed — `examples/json/tree.oro windows`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- compiler output changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/smooth-go.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/nulfree.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
+- emitted text changed — `lib/win/print.oro windows`
+- compiler output changed — `lib/win/print.oro windows`

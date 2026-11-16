@@ -566,6 +566,41 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 			return nil, p.errorf("`host expr call \"SYMBOL\"` names the C function, got %s", p.peek())
 		}
 		c := []*Term{Name("call"), Str(p.next().text)}
+		// THE C ARGUMENTS AS TERMS OVER THE PARAMETERS, when they are not the
+		// parameters one to one (files' successor, ADR 0094's in): a parameter,
+		// `elem(b, lo)` the address of table b's element lo, or `null`.
+		if p.accept("(") {
+			args := []*Term{Name("args")}
+			for !p.is(")") {
+				if p.peek().kind != tIdent {
+					return nil, p.errorf("a C argument is a parameter, elem(TABLE, OFFSET) or null, got %s", p.peek())
+				}
+				w := p.next().text
+				if w == "elem" && p.accept("(") {
+					if p.peek().kind != tIdent {
+						return nil, p.errorf("elem(TABLE, OFFSET) takes two parameters, got %s", p.peek())
+					}
+					b := Unspell(p.next().text)
+					if !p.accept(",") || p.peek().kind != tIdent {
+						return nil, p.errorf("elem(TABLE, OFFSET) takes two parameters")
+					}
+					lo := Unspell(p.next().text)
+					if !p.accept(")") {
+						return nil, p.errorf("elem(TABLE, OFFSET) takes two parameters")
+					}
+					args = append(args, app(Name("elem"), Name(b), Name(lo)))
+				} else {
+					args = append(args, Name(Unspell(w)))
+				}
+				if !p.accept(",") {
+					break
+				}
+			}
+			if !p.accept(")") {
+				return nil, p.errorf("a C call's arguments end with `)`, got %s", p.peek())
+			}
+			c = append(c, app(args...))
+		}
 		if p.is("stdcall") || p.is("cdecl") {
 			c = append(c, Name(p.next().text))
 		}

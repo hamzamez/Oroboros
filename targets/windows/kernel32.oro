@@ -5,13 +5,13 @@
 // out, and `stdcall` x86_stdcallcc on i686 and nothing on x86-64.
 //
 //   (use windows/kernel32)
-//   kernel32.GetStdHandle(4294967285)   kernel32.WriteFile(h, b, lo, n)
+//   kernel32.GetStdHandle(4294967285)   kernel32.WriteFile(h, b, lo, n, out kernel32.DWORD)
 //
 // WHAT THE LANGUAGE COULD NOT SAY ON MASM, IT SAYS HERE. WriteFile's buffer was
 // a raw pointer there (`x64.lea` of the target's one scratch buffer); here it is
-// a language table, borrowed, and the bytes written are its segment b[lo, lo+n).
-// The out-parameter, the count written, is still the target's cell
-// `@__written`: the language reads nothing from it.
+// a language table, borrowed, and the bytes written are its segment b[lo, lo+n),
+// whose address is the argument term elem(b, lo) (ADR 0118); the count written
+// is the caller's cell.
 module windows/kernel32 {
     // WIN32'S INTEGER TYPES, its own names for C's: an out-parameter's cell is
     // named by its type (ADR 0048, 0112), and a C integer's set is its full range.
@@ -23,12 +23,13 @@ module windows/kernel32 {
     // integers 4294967286, 4294967285 and 4294967284.
     fn GetStdHandle(n ∈ 0..2^32-1) (r ∈ ptr) { host expr call "GetStdHandle" stdcall }
 
-    // WRITES b[lo, lo + n) to h, and answers whether Win32 reported success.
-    // Win32's WriteFile(h, p, n, &written, NULL), with the buffer p the segment
-    // of a table: its elements begin after the 8-byte length (llvm.md §4). Its
-    // domain is the segment inside the table and a count that is a DWORD.
-    fn WriteFile(h ∈ ptr, b ∈ Array(0..255), lo ∈ 0..2^63-1, n ∈ 0..2^32-1) (r ∈ Bool) where lo + n <= len(b) {
-        host expr "%p${#} = getelementptr inbounds i8, ${b}, i64 8\n%q${#} = getelementptr inbounds i8, ptr %p${#}, ${lo}\n%n${#} = trunc ${n} to i32\n%w${#} = call i32 @WriteFile(${h}, ptr %q${#}, i32 %n${#}, ptr @__written, ptr null)\n${r} = icmp ne i32 %w${#}, 0" import "declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)" "@__written = internal global i32 0"
+    // WRITES b[lo, lo + n) to h, the count written through its DWORD*, a cell
+    // (ADR 0048, 0112): WriteFile(h, &b[lo], n, &written, NULL), its argument
+    // terms over the parameters (ADR 0118), elem(b, lo) the segment's address.
+    // Its domain is the segment inside the table and a count that is a DWORD;
+    // its answer a BOOL, nonzero on success.
+    fn WriteFile(h ∈ ptr, b ∈ Array(0..255), lo ∈ 0..2^63-1, n ∈ 0..2^32-1, put ∈ cell(DWORD)) (r ∈ -2^31..2^31-1) where lo + n <= len(b) {
+        host expr call "WriteFile"(h, elem(b, lo), n, put, null) stdcall
     }
 
     // THE CALLING THREAD'S LAST ERROR, a DWORD, so `zext` and its C range: the
@@ -69,15 +70,11 @@ module windows/kernel32 {
     fn SetFilePointerEx(h ∈ ptr, d ∈ -2^63..2^63-1, np ∈ ptr, m ∈ 0..2^32-1) (r ∈ -2^31..2^31-1) { host expr call "SetFilePointerEx" stdcall }
     fn CloseHandle(h ∈ ptr) (r ∈ -2^31..2^31-1) { host expr call "CloseHandle" stdcall }
     // READS n BYTES into b[lo, lo + n), the count read through its DWORD*, a
-    // cell: ReadFile(h, p, n, &read, NULL), the buffer the segment's address,
-    // which is no C type, so the host's operation is its template (ADR 0089). A
-    // synchronous read of a file returns fewer than n only at its end.
+    // cell: ReadFile(h, &b[lo], n, &read, NULL). The table is lent, `linear`,
+    // so the write is the caller's to see (ADR 0084). A synchronous read of a
+    // file returns fewer than n only at its end.
     fn ReadFile(h ∈ ptr, b ∈ Array(0..255) linear, lo ∈ 0..2^63-1, n ∈ 0..2^32-1, got ∈ cell(DWORD)) (r ∈ -2^31..2^31-1) where lo + n <= len(b) {
-        host expr "%p${#} = getelementptr inbounds i8, ${b}, i64 8\n%q${#} = getelementptr inbounds i8, ptr %p${#}, ${lo}\n%n${#} = trunc ${n} to i32\n%w${#} = call i32 @ReadFile(${h}, ptr %q${#}, i32 %n${#}, ${got}, ptr null)\n${r} = sext i32 %w${#} to i64" import "declare dllimport i32 @ReadFile(ptr, ptr, i32, ptr, ptr)"
-    }
-    // WRITES n BYTES of b[lo, lo + n), the count written through a cell.
-    fn WriteFileC(h ∈ ptr, b ∈ Array(0..255), lo ∈ 0..2^63-1, n ∈ 0..2^32-1, put ∈ cell(DWORD)) (r ∈ -2^31..2^31-1) where lo + n <= len(b) {
-        host expr "%p${#} = getelementptr inbounds i8, ${b}, i64 8\n%q${#} = getelementptr inbounds i8, ptr %p${#}, ${lo}\n%n${#} = trunc ${n} to i32\n%w${#} = call i32 @WriteFile(${h}, ptr %q${#}, i32 %n${#}, ${put}, ptr null)\n${r} = sext i32 %w${#} to i64" import "declare dllimport i32 @WriteFile(ptr, ptr, i32, ptr, ptr)"
+        host expr call "ReadFile"(h, elem(b, lo), n, got, null) stdcall
     }
     // THE COMMAND LINE, a C string Win32 owns (the process's, never freed).
     fn GetCommandLineA() (r ∈ ptr) { host expr call "GetCommandLineA" stdcall }

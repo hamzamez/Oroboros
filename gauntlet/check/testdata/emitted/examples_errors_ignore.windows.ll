@@ -139,8 +139,8 @@ entry:
   %.s12 = alloca i64
   %.s21 = alloca i64
   %.cell25 = alloca i32
-  %.s36 = alloca i64
-  %.s41 = alloca i64
+  %.s39 = alloca i64
+  %.s44 = alloca i64
   store i64 0, ptr %.s3
   store i64 1, ptr %.s4
   store i64 0, ptr %.s5
@@ -185,41 +185,41 @@ entry:
   %v28 = load i64, ptr %.s21
   store i32 0, ptr %.cell25
   %v37 = getelementptr i8, ptr %.cell25, i64 0
-  %p.26 = getelementptr inbounds i8, ptr %v1, i64 8
-  %q.26 = getelementptr inbounds i8, ptr %p.26, i64 %v6
-  %n.26 = trunc i64 %v28 to i32
-  %w.26 = call i32 @WriteFile(ptr %v0, ptr %q.26, i32 %n.26, ptr %v37, ptr null)
-  %v38 = sext i32 %w.26 to i64
-  %.c27 = load i32, ptr %v37
-  %v39 = zext i32 %.c27 to i64
+  %.c26 = getelementptr inbounds i8, ptr %v1, i64 8
+  %.c27 = getelementptr inbounds i8, ptr %.c26, i64 %v6
+  %.c28 = trunc i64 %v28 to i32
+  %.c29 = call i32 @WriteFile(ptr %v0, ptr %.c27, i32 %.c28, ptr %v37, ptr null)
+  %v38 = sext i32 %.c29 to i64
+  %.c30 = load i32, ptr %v37
+  %v39 = zext i32 %.c30 to i64
   %v41 = icmp eq i64 %v38, 0
-  br i1 %v41, label %.then29, label %.else30
-.then29:
-  %.c32 = call i32 @GetLastError()
-  %v44 = zext i32 %.c32 to i64
+  br i1 %v41, label %.then32, label %.else33
+.then32:
+  %.c35 = call i32 @GetLastError()
+  %v44 = zext i32 %.c35 to i64
   %v46 = icmp eq i64 %v44, 0
-  br i1 %v46, label %.then34, label %.else35
-.then34:
-  store i64 31, ptr %.s36
-  br label %.join31
-.else35:
-  store i64 %v44, ptr %.s36
-  br label %.join31
-.else30:
-  store i64 0, ptr %.s36
-  br label %.join31
-.join31:
-  %v42 = load i64, ptr %.s36
+  br i1 %v46, label %.then37, label %.else38
+.then37:
+  store i64 31, ptr %.s39
+  br label %.join34
+.else38:
+  store i64 %v44, ptr %.s39
+  br label %.join34
+.else33:
+  store i64 0, ptr %.s39
+  br label %.join34
+.join34:
+  %v42 = load i64, ptr %.s39
   %v52 = icmp sgt i64 %v39, %v28
-  br i1 %v52, label %.then38, label %.else39
-.then38:
-  store i64 %v28, ptr %.s41
-  br label %.join40
-.else39:
-  store i64 %v39, ptr %.s41
-  br label %.join40
-.join40:
-  %v53 = load i64, ptr %.s41
+  br i1 %v52, label %.then41, label %.else42
+.then41:
+  store i64 %v28, ptr %.s44
+  br label %.join43
+.else42:
+  store i64 %v39, ptr %.s44
+  br label %.join43
+.join43:
+  %v53 = load i64, ptr %.s44
   %v58 = add nuw nsw i64 %v6, %v53
   store i64 %v58, ptr %.s3
   store i64 %v53, ptr %.s4

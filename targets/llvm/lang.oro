@@ -279,7 +279,7 @@ module lang {
         case {
             n >= 0 && n <= (2^63 - 9) / 8 -> {
                 p = os.region_raw(bytes(n, w))
-                z = llvm.store8(p, n * w + 8, 0)
+                z = llvm.store_zero(llvm.offset(p, n * w + 8))
                 p
             }
             else -> llvm.trap()
@@ -306,7 +306,7 @@ module lang {
         case {
             llvm.is_null(tok) -> allocate_raw(n, w)
             // a shorter table's end falls inside its predecessor's elements
-            os.class(bytes(n, w)) == os.class(bytes(k, w)) -> { z = llvm.store8(tok, n * w + 8, 0); tok }
+            os.class(bytes(n, w)) == os.class(bytes(k, w)) -> { z = llvm.store_zero(llvm.offset(tok, n * w + 8)); tok }
             else -> { r = release(tok, k, w); allocate_raw(n, w) }
         }
     }

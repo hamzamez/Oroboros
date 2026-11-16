@@ -536,6 +536,13 @@ since today reads files through code written in the language itself. It also say
    it; fixed. As whole programs, all five now run faster than the same programs written by hand in
    Go, and four of five faster than C. What is left is measured and explained: counting in 64-bit
    words where C uses 32-bit ones, and sorting where Go uses a hash table;
+   - ~~then the last code written as LLVM text in the Windows layers~~ **done 2026-11-16**
+     ([strings-2026-11-16](gauntlet/results/strings-2026-11-16.md),
+     [cabi2-2026-11-16](gauntlet/results/cabi2-2026-11-16.md)): the string operations are now
+     written in the language, and Win32's file reads and writes are derived from their C
+     prototypes. Every remaining host template is a single instruction. Doing it found a wrong
+     answer (a character code outside Unicode accepted on Windows) and three gaps in the checks,
+     all fixed; one global counter shared by every write became a per-call one;
 9. 32-bit Windows;
 10. TinyRetroPad's Windows surface, then its walls.
 

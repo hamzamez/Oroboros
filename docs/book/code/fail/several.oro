@@ -1,0 +1,23 @@
+use io
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+fn show(r) { case r { result.'ok(v) -> io.print_int(v); result.'err(e) -> io.print_int(-e) } }
+
+fn sum_halves(a ∈ 0..1000000, b ∈ 0..1000000) {
+    try result.'ok(x) = half(a), result.'ok(y) = half(b) { result.'ok(x + y) }
+}
+
+fn three(a ∈ 0..1000000, b ∈ 0..1000000) {
+    try result.'ok(x) = half(a), result.'ok(y) = half(b), result.'ok(z) = half(y) {
+        result.'ok(x + y + z)
+    }
+}
+
+export fn main() {
+    show(sum_halves(40, 4))
+    show(three(40, 4))
+    show(three(40, 6))
+    show(three(41, 6))
+}

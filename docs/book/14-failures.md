@@ -304,8 +304,8 @@ The result exists only at the export's edge, as chapter 10's tag and slots: 0 or
 ## 14.4 A step that needs an earlier answer
 
 In `eighth` each step used the answer of the one just before. Often a later step needs
-answers from *two* earlier ones: half of `a` plus half of `b`. Give the second step its own
-function, and pass it what it needs:
+answers from *two* earlier ones: half of `a` plus half of `b`. Put one `try` inside the
+other, and the inner block can see both names:
 
 <!-- file docs/book/code/fail/both.oro -->
 ```go
@@ -316,12 +316,10 @@ fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'e
 
 fn show(r) { case r { result.'ok(v) -> io.print_int(v); result.'err(e) -> io.print_int(-e) } }
 
-fn add_half(x ∈ 0..1000000, b ∈ 0..1000000) {
-    try result.'ok(y) = half(b) { result.'ok(x + y) }
-}
-
 fn sum_halves(a ∈ 0..1000000, b ∈ 0..1000000) {
-    try result.'ok(x) = half(a) { add_half(x, b) }
+    try result.'ok(x) = half(a) {
+        try result.'ok(y) = half(b) { result.'ok(x + y) }
+    }
 }
 
 export fn main() {
@@ -339,14 +337,65 @@ export fn main() {
 ```
 
 20 + 2 is 22. When the second number is odd the failure names it, and when the first is odd
-the second is never looked at.
+the second is never looked at: the outer `try` has already given its answer.
 
-> **A warning, for today's compiler.** The obvious way to write `sum_halves` is one `try`
-> inside another, with the inner block using both names: `try 'ok(x) = half(a) { try 'ok(y) =
-> half(b) { 'ok(x + y) } }`. That compiles, and **computes the wrong answer**: it uses `y`
-> twice and prints 4 for `sum_halves(40, 4)`. It is a compiler defect (README item 53). Until
-> it is fixed, do not use the answers of two `try` or `case` steps in one expression. Pass
-> the first into a function, as `add_half` takes `x`, and the result is right.
+Read the nesting as a sentence. "Try for `x`. If that worked, try for `y`. If that worked
+too, the answer is `x + y`." Each `try` is one place the function may leave, and the block
+after it is everything that happens if it does not.
+
+### Several steps in one `try`
+
+Three steps would be three levels of braces, and ten would march off the right edge of the
+page. So a `try` takes a list. The steps are separated by commas, run from left to right,
+and the first that is not a success is the answer:
+
+<!-- file docs/book/code/fail/several.oro -->
+```go
+use io
+use result
+
+fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'err(n) } }
+
+fn show(r) { case r { result.'ok(v) -> io.print_int(v); result.'err(e) -> io.print_int(-e) } }
+
+fn sum_halves(a ∈ 0..1000000, b ∈ 0..1000000) {
+    try result.'ok(x) = half(a), result.'ok(y) = half(b) { result.'ok(x + y) }
+}
+
+fn three(a ∈ 0..1000000, b ∈ 0..1000000) {
+    try result.'ok(x) = half(a), result.'ok(y) = half(b), result.'ok(z) = half(y) {
+        result.'ok(x + y + z)
+    }
+}
+
+export fn main() {
+    show(sum_halves(40, 4))
+    show(three(40, 4))
+    show(three(40, 6))
+    show(three(41, 6))
+}
+```
+
+<!-- run go docs/book/code/fail/several.oro -->
+```
+22
+23
+-3
+-41
+```
+
+`sum_halves` is the function above with one pair of braces fewer. The two spellings mean
+exactly the same thing: a `try` with a list *is* the nested `try`s, written flat.
+
+`three` shows what that buys. Its third step is `half(y)`, and `y` is the name the second
+step bound: **each step can use the names of the steps before it.** With 40 and 4 the
+halves are 20 and 2, and half of 2 is 1, so 23. With 40 and 6 the second step gives 3, and 3
+has no half: the third step fails and names the 3. With 41 the first step fails, and neither
+of the others is run.
+
+This is the shape most real work has: open the file, then read it, then parse what was
+read, then check the total. Each step needs what the one before produced, any of them can
+fail, and the reader should be able to see the whole sequence at a glance.
 
 ---
 
@@ -893,8 +942,8 @@ passes it on with one word.
 - **`try 'ok(x) = e { … }`** continues on success with `x`, and gives any other case as the
   answer, unchanged. It is a `case` with the pass-it-on arms written for you.
 - **Each place a function can leave early says `try`.** Nothing leaves invisibly.
-- **Today, do not use the answers of two `try` steps in one expression** (README item 53).
-  Pass the first into a function.
+- **`try a, b, c { … }`** is several steps in order, each seeing the names bound before
+  it. The first that is not a success is the answer.
 - **A `relevant` value must be used on every path.** `ignore(e)` discards one on purpose.
 - **`expect 'ok(x) = e else "why"`** continues on success and stops the program otherwise,
   printing the reason. Use it when failing means the program is wrong, and write a reason

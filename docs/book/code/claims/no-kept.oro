@@ -1,0 +1,7 @@
+export fn walk(board ∈ Array(0..9), turns ∈ 0..100) (Int) where len(board) == 201 {
+    loop i = 0, s = 0 invariant 0 <= s && s <= i {
+        i >= turns -> s
+        board[s] > 4 -> again(i + 1, s + 2)
+        else -> again(i + 1, s + 1)
+    }
+}

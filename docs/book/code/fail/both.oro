@@ -5,12 +5,10 @@ fn half(n ∈ 0..1000000) { if n % 2 == 0 { result.'ok(n / 2) } else { result.'e
 
 fn show(r) { case r { result.'ok(v) -> io.print_int(v); result.'err(e) -> io.print_int(-e) } }
 
-fn add_half(x ∈ 0..1000000, b ∈ 0..1000000) {
-    try result.'ok(y) = half(b) { result.'ok(x + y) }
-}
-
 fn sum_halves(a ∈ 0..1000000, b ∈ 0..1000000) {
-    try result.'ok(x) = half(a) { add_half(x, b) }
+    try result.'ok(x) = half(a) {
+        try result.'ok(y) = half(b) { result.'ok(x + y) }
+    }
 }
 
 export fn main() {

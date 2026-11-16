@@ -350,11 +350,35 @@ Chapter 12's rule for reading, "`t[i]` only where `i` is proven a position", is 
 writing as well, with more at stake: reading past the end leaks a secret, and writing past
 the end corrupts whatever is there.
 
-Be warned of a gap. **Today the compiler proves the position of every read and does not
-check the position of a store** (README item 70). `b[n] := 1` on a buffer of length `n`
-compiles. On Go it then stops the program when it runs, and on JavaScript it quietly makes
-the table longer. Until that is fixed the proof is yours: write every store under a guard
-that puts its position inside, as `histogram` does and as every example here does.
+So the compiler proves it, the same way. A buffer of length `n` has positions 0 to `n - 1`,
+and this writes one past the last:
+
+<!-- file docs/book/code/state/no-past.oro -->
+```go
+export fn seven(n ∈ 1..100) (Int) {
+    t = {
+        var b := array { 0 : _ ∈ 0..n-1 }
+        b[n] := 7
+        b
+    }
+    t[0]
+}
+```
+
+<!-- gen go docs/book/code/state/no-past.oro -->
+```
+gen: state-seven: b[n] := … is a store, defined only on its table's domain, and n < len(b) does not follow
+  known: assumed -n + +1 <= 0, assumed n + -100 <= 0
+```
+
+"A store, defined only on its table's domain": a table is a function on its positions, and
+a store that names a position outside them does not mean anything. In C this line compiles,
+runs, and overwrites whatever happens to sit after the buffer. That one mistake, the
+**buffer overflow**, has been the most exploited class of defect in software for forty
+years. Here it is not a program.
+
+That is why `histogram` has its second arm, and why every store in this chapter stands
+under a test that puts its position inside.
 
 ---
 
@@ -947,15 +971,157 @@ it on purpose so that nobody relies on it. A program whose output depended on th
 would not mean one thing. Sorted keys cost a sort, and the same program prints the same lines
 everywhere.
 
+On windows there is no map to borrow: the target is LLVM, and LLVM has integers and memory.
+The compiler builds the map from a table and the program does not change:
+
+<!-- run windows docs/book/code/state/tally.oro -->
+```
+7
+3
+0
+1
+2
+3
+4
+5
+6
+9
+end
+```
+
+### The capacity is a promise
+
+The 16 in `map(16)` is the most keys the map will ever hold. Go's maps and JavaScript's
+grow without limit, so why say it? Because a map that grows is an allocation nobody wrote,
+somewhere in the middle of a loop, and because on a target with no map of its own the
+compiler builds one from a table, and a table has a length. One declared number makes the
+map the same thing everywhere.
+
+And a promise in this language is proven. Three keys do not go into a map of two:
+
+<!-- file docs/book/code/state/no-full.oro -->
+```go
+use io
+
+export fn main() {
+    var m := map(2)
+    m[1] := 10
+    m[2] := 20
+    m[3] := 30
+    io.print_int(len(m))
+}
+```
+
+<!-- gen go docs/book/code/state/no-full.oro -->
+```
+gen: state-main: a map's capacity requires len(#vm1) < 2 at a call, which does not follow
+```
+
+(`#vm1` is the compiler's name for the map as it stands after the second store.) Before each
+store the compiler must know that there is room: that the map holds fewer keys than its
+capacity. It counts. An empty map has none, and a store adds at most one: at most, because
+storing to a key already present adds nothing. After two stores there may be two, and two
+is not less than two.
+
+In a loop the count is the loop's:
+
+<!-- file docs/book/code/state/distinct.oro -->
+```go
+export fn distinct(t ∈ Array(Int)) (Int) where len(t) <= 16 {
+    var m := map(16)
+    loop i = 0 {
+        i >= len(t) -> len(m)
+        else -> { m[t[i]] := 1; again(i + 1) }
+    }
+}
+```
+
+<!-- gen go docs/book/code/state/distinct.oro -->
+```go
+note: state-distinct: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+…
+func StateDistinct(v0 []int) int {
+    v6 := make(map[int]int, 16)
+    var v5 int
+    v9 := v6
+    var v10 int = 0
+    var v8 int
+    for ; ; v10 = (v10 + 1) {
+        v11 := len(v0)
+        v12 := (v10 >= v11)
+        if v12 {
+            v15 := len(v9)
+            v8 = v15
+            break
+        }
+        v18 := v0[v10]
+        v9[v18] = 1
+        continue
+    }
+    v5 = v8
+    return v5
+}
+```
+
+How many different values are in a table? Store each as a key and count the keys. The
+header says the table has at most 16 values. After `i` trips the map has at most `i` keys
+(the compiler finds that for itself: it is true at the start and each trip keeps it), `i`
+is less than `len(t)` inside the arm, and `len(t)` is at most 16. So there is room, every
+time, and the Go has no test for it. `make(map[int]int, 16)` is Go being told the size in
+advance.
+
+Let the table be one longer and the same loop is refused:
+
+<!-- file docs/book/code/state/no-distinct.oro -->
+```go
+export fn distinct(t ∈ Array(Int)) (Int) where len(t) <= 17 {
+    var m := map(16)
+    loop i = 0 {
+        i >= len(t) -> len(m)
+        else -> { m[t[i]] := 1; again(i + 1) }
+    }
+}
+```
+
+<!-- gen go docs/book/code/state/no-distinct.oro -->
+```
+gen: state-distinct: a map's capacity requires len(#vm) < 16 at a call, which does not follow
+```
+
+Seventeen different values would be seventeen keys. When nothing bounds the input, ask the
+map itself, and decide what the program does when it is full:
+
+<!-- file docs/book/code/state/distinct-guard.oro -->
+```go
+export fn distinct(t ∈ Array(Int)) (Int) {
+    var m := map(16)
+    loop i = 0 {
+        i >= len(t) -> len(m)
+        len(m) < 16 -> { m[t[i]] := 1; again(i + 1) }
+        else -> -1
+    }
+}
+```
+
+<!-- gen go docs/book/code/state/distinct-guard.oro -->
+```go
+note: state-distinct: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+```
+
+`len(m) < 16` is the fact the store needs, tested where it is needed, and the `else` arm is
+the program's answer to "too many": here −1. That is not a way round the rule. It is what
+the rule is for: the question "what if there are more than I planned for?" has to be
+answered by somebody, and the only choice is whether it is answered in the source or
+discovered in production.
+
+`tally` above needed neither a header nor a test, because it is called on a table written
+out in the program, eleven values long, and the compiler can count to eleven.
+
 What maps do not do today, plainly:
 
 - **Keys are integers.** A map needs `==` on its keys, and chapter 9 said strings have none
   yet. A program that counts words keeps them in a sorted table instead.
 - **A value looked up has no known range**, which is why `tally` needs its guard.
-- **They run on Go and JavaScript.** The windows target does not build a program that reads
-  a map (README item 72), and this section's blocks are not run there.
-- **The declared capacity, the 8 in `map(8)`, is not enforced** on Go or JavaScript, whose
-  maps grow (README item 71).
 
 ---
 
@@ -1017,7 +1183,8 @@ is the logic chapter 5 met: a thing that must be used exactly once.
 - **A `var` holding a table is a buffer**: `var b := array { 0 : _ ∈ 0..n-1 }`, then
   `b[i] := v`. Stores go into one block of memory, in place.
 - **A rule gathers, a buffer scatters.** Use a buffer when the data decides where to write.
-- **A store's position must be inside the buffer.** Write it under a guard that proves it.
+- **A store's position must be inside the buffer**, proven as a read's is. One past the end
+  is refused.
 - **When its scope ends, a buffer is frozen into a table.** Freezing is free and final. A
   table, a parameter included, cannot be stored into. To change one, copy it into a new
   buffer.
@@ -1029,5 +1196,7 @@ is the logic chapter 5 met: a thing that must be used exactly once.
   it is full.
 - **A map is a table with integer keys you choose.** `m[k] := v` stores, `m[k]` gives
   `'some(v)` or `'none`, `keys(m)` is the keys in ascending order.
+- **`map(c)` holds at most `c` keys, and each store is proven to have room**: from a bound on
+  the input, or under `len(m) < c`.
 
 Next: [chapter 14](14-failures.md), Failures. What a function says when it cannot do what it was asked.

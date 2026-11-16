@@ -440,6 +440,165 @@ when `i < n`, so it never passes `n`. With `n <= 1000`, the claim follows. This 
 happening in chapter 11 every time a sum in a loop was "bounded by the number of trips", and
 in chapter 12 when "the loop's own test is the proof".
 
+### Stating an invariant yourself
+
+The compiler's guesses have simple shapes: a variable against a constant, a variable against
+another variable. Sometimes what is true every time round has a shape it does not guess. A
+counter moves along a board of 201 squares. Each square holds a digit, and the digit says
+how far to move: two squares if it is more than 4, one otherwise. Where is the counter after
+some number of turns, at most 100?
+
+<!-- file docs/book/code/claims/no-walk.oro -->
+```go
+export fn walk(board ∈ Array(0..9), turns ∈ 0..100) (Int) where len(board) == 201 {
+    loop i = 0, s = 0 {
+        i >= turns -> s
+        board[s] > 4 -> again(i + 1, s + 2)
+        else -> again(i + 1, s + 1)
+    }
+}
+```
+
+<!-- gen go docs/book/code/claims/no-walk.oro -->
+```
+gen: claims-walk: board[s] is an indexing, and s < len(board) does not follow
+  known: assumed -turns <= 0, assumed turns + -100 <= 0, 0 <= i, 0 <= s, assumed i + -turns <= 0, assumed i + -s <= 0, assumed i + -turns + +1 <= 0, assumed i + -turns + +1 <= 0
+```
+
+You can see why it is safe. The counter moves at most two squares a turn, so after `i` turns
+it is at most at square `2 * i`, and with at most 100 turns that is square 200, the last
+one. Now look at what the compiler found on its own, in the `known:` line: `0 <= i`,
+`0 <= s`, and `i + -s <= 0`, which is `i <= s`, the counter has moved at least one square a
+turn. All true, and none of them is the one that matters. "At most *twice* `i`" has a 2 in
+it, and the compiler does not try every multiplier there is.
+
+So say it. A loop may state its invariant, after its variables and before its brace:
+
+<!-- file docs/book/code/claims/walk.oro -->
+```go
+use io
+
+export fn walk(board ∈ Array(0..9), turns ∈ 0..100) (Int) where len(board) == 201 {
+    loop i = 0, s = 0 invariant 0 <= s && s <= 2 * i {
+        i >= turns -> s
+        board[s] > 4 -> again(i + 1, s + 2)
+        else -> again(i + 1, s + 1)
+    }
+}
+
+export fn main() {
+    board = array { k % 10 : k ∈ 0..200 }
+    io.print_int(walk(board, 7))
+    io.print_int(walk(board, 100))
+}
+```
+
+<!-- run go docs/book/code/claims/walk.oro -->
+```
+9
+142
+```
+
+`invariant 0 <= s && s <= 2 * i` is a claim like every other in this chapter: proven, or
+the program is refused. The proof has two parts, and they are the two parts of every proof
+by induction you have ever seen.
+
+- **It holds on entry.** `i` and `s` start at 0, and `0 <= 0 && 0 <= 2 * 0`.
+- **Every `again` keeps it.** Suppose it holds now, `s <= 2 * i`. One arm goes round with
+  `i + 1` and `s + 2`: is `s + 2 <= 2 * (i + 1)`? That is `s + 2 <= 2 * i + 2`, which is what
+  was supposed. The other goes round with `s + 1`, which is smaller still.
+
+True at the start, and never broken by a step: so true every time. And then it is a *fact*
+inside the loop. With `i < turns` (the first arm was not taken) and `turns <= 100`, `s` is
+at most 198, and `board[s]` is inside.
+
+<!-- gen go docs/book/code/claims/walk.oro -->
+```go
+note: claims-main: 8 of 8 integer operations bounded; 2 of 2 loop(s) proven terminating
+note: claims-walk: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+…
+func ClaimsWalk(v0 []byte, v1 int) int {
+    var v19 int = 0
+    var v20 int = 0
+    for ; ; v19 = (v19 + 1) {
+        v21 := (v19 >= v1)
+        if v21 {
+            break
+        }
+        v26 := int(v0[v20])
+        v28 := (v26 > 4)
+        if v28 {
+            v32 := (v20 + 2)
+            v20 = v32
+            continue
+        }
+        v36 := (v20 + 1)
+        v20 = v36
+        continue
+    }
+    return v20
+}
+```
+
+The invariant is nowhere in the Go. It is not a test that runs: it was a statement to the
+compiler, checked once, and then it was gone. That is the difference from chapter 11's
+stated bounds, `p <= 4 * 10^17` in the factorial, which are real tests in the loop and
+which stop it early if they are ever false. A guard says "stop if this fails". An invariant
+says "this does not fail", and has to be right.
+
+Each half of the proof can go wrong, and each has its own refusal. Claim too much, that the
+counter moves at most one square a turn:
+
+<!-- file docs/book/code/claims/no-kept.oro -->
+```go
+export fn walk(board ∈ Array(0..9), turns ∈ 0..100) (Int) where len(board) == 201 {
+    loop i = 0, s = 0 invariant 0 <= s && s <= i {
+        i >= turns -> s
+        board[s] > 4 -> again(i + 1, s + 2)
+        else -> again(i + 1, s + 1)
+    }
+}
+```
+
+<!-- gen go docs/book/code/claims/no-kept.oro -->
+```
+gen: claims-walk: a loop's invariant does not hold at every iteration: it is not kept by every `again`, 0 <= s && s <= i
+```
+
+It holds on entry, and the arm that adds 2 breaks it. Or claim something false from the
+first moment:
+
+<!-- file docs/book/code/claims/no-entry.oro -->
+```go
+export fn walk(board ∈ Array(0..9), turns ∈ 0..100) (Int) where len(board) == 201 {
+    loop i = 0, s = 0 invariant 1 <= s && s <= 2 * i {
+        i >= turns -> s
+        board[s] > 4 -> again(i + 1, s + 2)
+        else -> again(i + 1, s + 1)
+    }
+}
+```
+
+<!-- gen go docs/book/code/claims/no-entry.oro -->
+```
+gen: claims-walk: a loop's invariant does not hold on entry: 1 <= 0 && 0 <= 2 * 0
+```
+
+The message has put the starting values in for you: `s` is 0, and 1 is not at most 0.
+
+Finding the invariant is the hard part of proving anything about a loop, and it is a skill.
+The statement must be *weak enough to be true at the start*, *strong enough to give what
+you want at the end*, and *of a shape each step preserves*. Robert Floyd in 1967 and Tony
+Hoare in 1969 made this the foundation of reasoning about programs, and it is still how
+every proof of a loop goes, by hand or by machine. Most loops in this book needed no stated
+invariant because theirs was one of the simple shapes. When a loop of yours is refused, ask
+what is true every time round, and whether the `known:` line has it.
+
+An invariant here is linear arithmetic over the loop's variables, like every fact in this
+chapter. The factorial's real invariant, "`p` is the factorial of `i - 1`", is not that, so
+chapter 11's guard stays a guard. And an invariant cannot yet speak of what a buffer
+*holds*, only of its length.
+
 ---
 
 ## 15.6 A claim on a binding
@@ -490,9 +649,45 @@ Mathematicians do the same and call the intermediate statement a *lemma*: a smal
 proven on the way to a larger one. Proving the lemma once, and then using it, is often what
 turns a proof that will not go through into one that does.
 
-Two limits today. The claim's set must have constant ends, `0..200`: with ends that mention
-other values, `lo..hi-1`, the claim is not checked (README item 80). And a claim on a
-binding that nothing reads is not checked either (item 81). Claim things you use.
+The set's ends may mention other values, as a header's may. This claims that `i` lies in a
+window of the table, and nothing says so:
+
+<!-- file docs/book/code/claims/no-between.oro -->
+```go
+export fn pick(t ∈ Array(Int), lo ∈ Int, hi ∈ Int, i ∈ Int) (Int) where 0 <= lo && lo <= hi && hi <= len(t) {
+    k ∈ lo..hi-1 = i
+    t[k]
+}
+```
+
+<!-- gen go docs/book/code/claims/no-between.oro -->
+```
+gen: claims-pick: the claim k ∈ lo..hi - 1 is not proven: lo <= i && i <= hi - 1 does not follow
+  known: assumed -lo <= 0, assumed -hi + lo <= 0, assumed hi + -len(t) <= 0
+```
+
+The message turns the set into the two inequalities it stands for. Add `lo <= i && i < hi`
+to the `where` and the claim is proven, and with it `t[k]`.
+
+And a claim is checked whether or not anything uses the name:
+
+<!-- file docs/book/code/claims/no-idle.oro -->
+```go
+export fn f(n ∈ 0..100) (Int) {
+    k ∈ 0..5 = n
+    0
+}
+```
+
+<!-- gen go docs/book/code/claims/no-idle.oro -->
+```
+gen: claims-f: the claim k ∈ 0..5 is not proven: 0 <= n && n <= 5 does not follow
+  known: assumed -n <= 0, assumed n + -100 <= 0
+```
+
+`k` is never read, and the answer is 0 whatever `n` is. The program is refused anyway,
+because it says something false. A claim is not a comment: every one in the source is true,
+or there is no program.
 
 ---
 
@@ -558,7 +753,6 @@ this book has walked into.
 | `n * n >= 0` | a product of two unknowns is not linear | below |
 | `row * width + col >= 0` | the same | 12 |
 | `p * i` stays small over 20 trips | intervals multiply the bounds: 20²⁰ | 11 |
-| `(hi - lo) / 2 >= 0` in a loop | little is known about a quotient | 12 |
 | `n mod 2` is 0 or 1, as a position | the same, for `mod` | below |
 | `a != b` gives `a - b != 0` | "not equal" is two cases, not one inequality | below |
 | `n < 0xD800 \|\| n > 0xDFFF` | an "or" in a fact is two cases | 9 |
@@ -843,6 +1037,9 @@ test* (1991), a descendant of Fourier's.
   The compiler combines them by adding inequalities to cancel unknowns.
 - **Facts come from** headers, conditions, equations (`y = x + 1`), the data's own laws
   (`len(t) >= 0`, an element's set), and loop invariants the compiler finds.
+- **`loop … invariant I { … }`** states an invariant the compiler did not guess. It must
+  hold on entry and be kept by every `again`. Then it is a fact in the loop, and it never
+  runs.
 - **`x ∈ S = e` claims a binding.** Use it to get a relational fact to a result, and to ask
   the compiler what it knows.
 - **`ensure` compares the result with constants.**

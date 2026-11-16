@@ -1,0 +1,8 @@
+export fn distinct(t ∈ Array(Int)) (Int) {
+    var m := map(16)
+    loop i = 0 {
+        i >= len(t) -> len(m)
+        len(m) < 16 -> { m[t[i]] := 1; again(i + 1) }
+        else -> -1
+    }
+}

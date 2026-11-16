@@ -1,0 +1,4 @@
+export fn pick(t ∈ Array(Int), lo ∈ Int, hi ∈ Int, i ∈ Int) (Int) where 0 <= lo && lo <= hi && hi <= len(t) {
+    k ∈ lo..hi-1 = i
+    t[k]
+}

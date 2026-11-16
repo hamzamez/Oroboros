@@ -722,6 +722,10 @@ Be honest with yourself about such a guard. If it *could* be false, the loop sto
 returns a wrong answer without a word. Writing it is a claim that it cannot, and the claim is
 yours.
 
+(Chapter 15 has the other tool: a loop may state an *invariant*, which the compiler proves
+and which never runs. It is for statements about sums. This one is about a product, and
+stays a guard.)
+
 **Or leave the word.** Chapter 6's other answer: declare a result that does not fit, and the
 value is held with as many digits as it needs.
 

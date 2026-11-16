@@ -1167,6 +1167,51 @@ to end. Pair `i` is at positions `2 * i` and `2 * i + 1`, and the number of pair
 byte count halved (`>> 1`). It is 12.11's grid, two wide, worked out for you, with every
 index proven from the one guard `i < len(sides)`.
 
+Chapter 10's pattern takes a pair apart by name, here as anywhere:
+
+<!-- file docs/book/code/tables/pairs-named.oro -->
+```go
+export fn area(sides ∈ Array(0..100 × 0..100)) (Int) where len(sides) <= 1000 {
+    loop i = 0, s = 0 {
+        i < len(sides) -> { (w, h) = sides[i]; again(i + 1, s + w * h) }
+        else -> s
+    }
+}
+```
+
+<!-- gen go docs/book/code/tables/pairs-named.oro -->
+```go
+note: tables-area: 3 product access(es) flattened
+note: tables-area: 7 of 7 integer operations bounded; 1 of 1 loop(s) proven terminating
+note: tables-area: 1 division(s) became a shift or a mask
+…
+func TablesArea(v0 []byte) int {
+    var v7 int = 0
+    var v8 int = 0
+    for ; ; v7 = (v7 + 1) {
+        v9 := len(v0)
+        v11 := (v9 >> 1)
+        v12 := (v7 < v11)
+        if v12 {
+            v15 := (2 * v7)
+            v16 := int(v0[v15])
+            v18 := (2 * v7)
+            v20 := (v18 + 1)
+            v21 := int(v0[v20])
+            v24 := (v16 * v21)
+            v25 := (v8 + v24)
+            v8 = v25
+            continue
+        }
+        break
+    }
+    return v8
+}
+```
+
+`(w, h) = sides[i]` names the two parts, and the Go is the same two reads. No pair was
+built in order to be taken apart: a pattern on a table's element is its two positions.
+
 ---
 
 ## 12.12 What is not here

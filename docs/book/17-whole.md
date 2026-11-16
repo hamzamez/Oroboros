@@ -566,8 +566,7 @@ rejected. If something in this language seemed strange to you (no recursion, no 
 length, a guard where you wanted an assertion), the reason is written down there, and so is
 the argument against it.
 
-**What is not built.** Records, callbacks, concurrency, text you can take apart, loop
-invariants you can state. Each is specified or researched and waiting for a program that
+**What is not built.** Records, callbacks, concurrency, text you can take apart. Each is specified or researched and waiting for a program that
 needs it. This book's own [README](README.md) lists, by number, every place where writing a
 chapter found the compiler doing something other than what the specification says. It is a
 long list. A language whose book is checked against its compiler has one.

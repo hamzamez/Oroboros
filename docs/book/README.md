@@ -26,11 +26,11 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-16 |
 | | **III. Repetition and storage** | | |
 | 11 | [`loop`](11-loop.md) | the one iteration; termination | J; 53 blocks checked 2026-11-16 |
-| 12 | [Tables](12-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 60 blocks checked 2026-11-16 |
-| 13 | [State](13-state.md) | `var`, buffers, maps; why a table never changes under you | J; 45 blocks checked 2026-11-16 |
-| 14 | [Failures](14-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 42 blocks checked 2026-11-16 |
+| 12 | [Tables](12-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 62 blocks checked 2026-11-16 |
+| 13 | [State](13-state.md) | `var`, buffers, maps; why a table never changes under you | J; 56 blocks checked 2026-11-16 |
+| 14 | [Failures](14-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 44 blocks checked 2026-11-16 |
 | | **IV. Claims and hosts** | | |
-| 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 49 blocks checked 2026-11-16 |
+| 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 62 blocks checked 2026-11-16 |
 | 16 | [Targets](16-targets.md) | host modules, writing a declaration, portability computed | J; 22 blocks checked 2026-11-16 |
 | 17 | [A whole program](17-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-16 |
 
@@ -562,7 +562,7 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
     now. Chapter 13 §13.3 tells the reader of the gap in so many words, and every store in its
     examples is under a guard that would prove it. **Fixed** 2026-11-16 ([store-2026-11-16](../../gauntlet/results/store-2026-11-16.md),
     ADR 0119): a store owes 0 <= i < len as a read does, so all three are refused, on every target;
-    §13.3's sentence about the gap is the book's to update.
+    §13.3 now shows the refusal.
 71. **A map's declared capacity is not enforced, and `len` of a map is wrong on windows.**
     `var m := map(2)` with three stores gives `len(m)` 3 on Go and JavaScript (maps.md §6
     chose a declared capacity so that all targets agree) and **12** on windows. **`len` fixed**
@@ -575,7 +575,7 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
     operation(s) cannot be proven … llvm.sdiv [0, +inf] in llvm.sdiv(a, b)*, an operation of
     the map library's and not the program's. The chapter's map blocks run on Go and JavaScript. **Fixed** 2026-11-16 ([maprealize-2026-11-16](../../gauntlet/results/maprealize-2026-11-16.md),
     ADR 0120): the map is realized after the decision, so a read in a block or a function builds on
-    windows; chapter 13's maps may run there now, which is the book's to say.
+    windows; chapter 13's `tally` runs there now.
 73. **A loop that answers `()` freezes the buffer it wrote.** `var b := …; loop i = 0 { i < 5 ->
     { b[i] := 5 - i; again(i + 1) }; else -> () }; b[0] := 100` is *a store writes into #nl2,
     which is a frozen table*. The same loop inside a function that takes `b` `linear`, called
@@ -718,6 +718,40 @@ guards to show each refusal. It found four, none fixed:
 
 Teaching: the chapter introduces nothing. Its sections follow the file, each `part` block a
 run of the program's own lines, each paragraph naming the chapter that taught the construct.
+
+**The chapters after the second round of fixes (2026-11-16).** With items 39, 40, 48, 53/76, 60,
+64, 67, 70, 71, 72, 77, 78, 80 and half of 81 fixed, every chapter was re-run against the
+compiler at `f0b5a62` (all eighteen pass) and the passages that worked around a
+fixed item were rewritten, sixteen planted faults caught in the new blocks:
+- 53/76, 77: chapter 14 §14.4 is one `try` inside another, then `try a, b, c { … }` with a later
+  step reading an earlier name (`both.oro` rewritten, `several.oro`); the boxed warning and its
+  line in "What to remember" are gone;
+- 70: chapter 13 §13.3 shows a store one past the end refused (`no-past.oro`) in place of the
+  warning about the gap;
+- 71, 72: chapter 13 §13.9 has a section on the capacity as a claim (`no-full.oro`,
+  `distinct.oro` proven from `len(t) <= 16`, `no-distinct.oro` at 17, `distinct-guard.oro` under
+  `len(m) < 16`), `tally` runs on windows, and the two lines of "what maps do not do" are gone;
+- 60: chapter 15 §15.5 has "Stating an invariant yourself" (`no-walk.oro`, `walk.oro`,
+  `no-kept.oro`, `no-entry.oro`): s <= 2 * i, a coefficient no template guesses; chapter 11 §11.7
+  points at it and says why the factorial's bound stays a guard; chapter 17's "not built" list
+  no longer names it;
+- 80, 81: chapter 15 §15.6 shows a claim with terms at its ends and a claim on a name nothing
+  reads, each refused (`no-between.oro`, `no-idle.oro`), in place of "two limits today";
+- 64: chapter 12 §12.11 takes a pair apart by pattern (`pairs-named.oro`), the same two reads;
+- 67: chapter 15 §15.8's table loses the quotient's row (chapter 12 was updated with the fix).
+
+Chapters 8 (39, 40) and 12 (67) had been updated with their fixes. Chapter 9 shows 48's two
+refusals on Go and needed nothing; chapter 10 never worked around 53 in its text. Probed and
+still open, so their passages stay: 37, 49, 54, 66, 73.
+
+Doing that found one more, not fixed:
+
+92. **A map's capacity refusal names the compiler's version of the map and lists every insert.**
+    Three stores into `map(2)`: *a map's capacity requires len(#vm1) < 2 at a call, which does
+    not follow*, where the source's name is `m`, and "at a call" where the source has a store;
+    its `known:` line has fourteen facts over `#vm`, `#vm1`, `#vm2` and `(insert m 1 10)` in the
+    core's notation, then ADR 0028's advice about a definition's parameter range. The chapter
+    shows the first line and says what `#vm1` is. The family of item 90.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

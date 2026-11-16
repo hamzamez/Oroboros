@@ -1,0 +1,9 @@
+use io
+
+export fn main() {
+    var m := map(2)
+    m[1] := 10
+    m[2] := 20
+    m[3] := 30
+    io.print_int(len(m))
+}

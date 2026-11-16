@@ -196,27 +196,97 @@ func caseForm(t *Term, look ctorLookup) (*Term, error) {
 		ctor, _ := look(c.variant)
 		return on.sum.SlotOf(ctor.local)
 	}
+	// THE BINDERS ARE FRESH FOR THE CLAUSES (Barendregt's convention, ADR 0036).
+	// A clause's pattern variable is renamed to its slot's binder, and a clause
+	// body may hold another `case`, already expanded, whose own binders carry
+	// the same compiler spellings. Renamed to `#p` under an inner `#p`, the outer
+	// payload is a term no source can write, and every pass that opens a λ and
+	// closes it again by its hints (`Fn(t.Params, f(t.Body()))`) then captures
+	// it: `'just(x) -> case … { 'just(y) -> 10 * x + y }` computed 10 * y + y
+	// (the book's finding 53). So the spellings are the first generation k none
+	// of the bodies mentions, and a case with no case inside keeps `#t`, `#p`.
+	k := freshGeneration(cls, len(on.sum.Slots()), func(c clause) *Term { return c.body })
+	if PlantCaseBinderCaptures {
+		k = 0
+	}
+	tag := tagName(k)
 	last := cls[len(cls)-1]
-	body := renameFree(last.body, bindOf(last.bind, slotOf(last)))
+	body := renameFree(last.body, bindOf(last.bind, slotOf(last), k))
 	for i := len(cls) - 2; i >= 0; i-- {
 		c := cls[i]
 		test := &Term{Kind: KApp, Kids: []*Term{
-			Name("="), Name("#t"), Name(c.tag)}}
+			Name("="), Name(tag), Name(c.tag)}}
 		body = &Term{Kind: KApp, Kids: []*Term{
-			Name("if"), test, renameFree(c.body, bindOf(c.bind, slotOf(c))), body}}
+			Name("if"), test, renameFree(c.body, bindOf(c.bind, slotOf(c), k)), body}}
 	}
-	params := []string{"#t"}
+	params := []string{tag}
 	for j := range on.sum.Slots() {
-		params = append(params, SlotName(j))
+		params = append(params, slotName(j, k))
 	}
 	return &Term{Kind: KApp, Kids: []*Term{scrut, Fn(params, body)}}, nil
 }
 
-func bindOf(name string, slot int) map[string]string {
+// PlantCaseBinderCaptures gives every case the generation-0 spellings, the
+// capture of finding 53: TestTwoPayloadsInScopeAreTwoNames must catch it.
+var PlantCaseBinderCaptures bool
+
+// tagName and slotName are a case's binders in generation k: `#t` and
+// SlotName(j) in generation 0, so a case with no case inside is unchanged.
+func tagName(k int) string {
+	if k == 0 {
+		return "#t"
+	}
+	return fmt.Sprintf("#t-%d", k)
+}
+
+func slotName(j, k int) string {
+	if k == 0 {
+		return SlotName(j)
+	}
+	return fmt.Sprintf("%s-%d", SlotName(j), k)
+}
+
+// freshGeneration is the least k whose binders (the tag's and n slots') occur
+// in none of the bodies, as a free name or as a binder's hint: fresh for
+// every term they will be closed over and apart from every binder inside.
+func freshGeneration[C any](cls []C, n int, body func(C) *Term) int {
+	seen := map[string]bool{}
+	for _, c := range cls {
+		namesIn(body(c), seen)
+	}
+	for k := 0; ; k++ {
+		clash := seen[tagName(k)]
+		for j := 0; j < n && !clash; j++ {
+			clash = seen[slotName(j, k)]
+		}
+		if !clash {
+			return k
+		}
+	}
+}
+
+// namesIn adds every name t mentions to seen: its free names and every
+// binder's hint.
+func namesIn(t *Term, seen map[string]bool) {
+	if t == nil {
+		return
+	}
+	if t.Kind == KName {
+		seen[t.Name] = true
+	}
+	for _, p := range t.Params {
+		seen[p] = true
+	}
+	for _, k := range t.Kids {
+		namesIn(k, seen)
+	}
+}
+
+func bindOf(name string, slot, k int) map[string]string {
 	if name == "" || slot < 0 {
 		return nil
 	}
-	return map[string]string{name: SlotName(slot)}
+	return map[string]string{name: slotName(slot, k)}
 }
 
 // instantiate is σ = [A⃗/T⃗] applied to a declaration: every payload that names a

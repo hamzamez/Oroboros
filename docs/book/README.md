@@ -434,7 +434,9 @@ fixed, each avoided in the chapter:
     spelling `#p`, and the inner binding captures the outer use; binding the two results to
     names first (`p = digit_of(a); q = digit_of(b)`) changes nothing. The same program with
     tuples for the results is right. It is CLAUDE.md's *a context keyed by name is captured by
-    the name alone*, in sums.md §5's recount. Chapter 10 uses one payload at a time; chapter 14
+    the name alone*, in sums.md §5's recount. **Fixed** 2026-11-16 ([capture-2026-11-16](../../gauntlet/results/capture-2026-11-16.md)):
+    a `case`'s binders are fresh for its clauses (Barendregt's convention, ADR 0036), so 42; item
+    76's `try` chain gives 22. Chapter 10 uses one payload at a time; chapter 14
     (`try` chains two results) cannot be written around it.
 54. **A variant's name is no set at a parameter.** `fn warm(c ∈ Colour)` is refused, exported or
     not: *its header's parameter c names colour, which is no set: not one of the language's and

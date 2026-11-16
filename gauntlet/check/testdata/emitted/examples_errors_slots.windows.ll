@@ -6,7 +6,7 @@ target triple = "x86_64-pc-windows-msvc"
 @.str.1 = private unnamed_addr constant { i64, [1 x i8] } { i64 0, [1 x i8] c"\00" }, align 8
 @.str.2 = private unnamed_addr constant { i64, [10 x i8] } { i64 9, [10 x i8] c"too large\00" }, align 8
 
-define { i64, ptr } @gen_label(i64 %v0) #0 {
+define { i64, ptr } @gen_label(i64 range(i64 0, 11) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %v2 = icmp sle i64 0, %v0
@@ -32,7 +32,7 @@ entry:
   ret { i64, ptr } %.r13
 }
 
-define { i64, i64, ptr } @gen_parse(i64 %v0) #0 {
+define { i64, i64, ptr } @gen_parse(i64 range(i64 0, 101) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %v2 = icmp sle i64 0, %v0
@@ -61,7 +61,7 @@ entry:
   ret { i64, i64, ptr } %.r16
 }
 
-define { i64, i64, i64 } @gen_save(i64 %v0) #0 {
+define { i64, i64, i64 } @gen_save(i64 range(i64 0, 101) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %v2 = icmp sle i64 0, %v0

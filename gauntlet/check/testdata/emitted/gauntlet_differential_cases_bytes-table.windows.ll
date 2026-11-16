@@ -9,7 +9,7 @@ declare dllimport ptr @HeapAlloc(ptr, i32, i64)
 declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)
 declare void @llvm.trap()
 
-define ptr @fill(i64 %v0) #0 {
+define ptr @fill(i64 range(i64 0, 256) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1
@@ -177,7 +177,7 @@ entry:
   ret ptr %v94
 }
 
-define i64 @gen_run(i64 %v0) #0 {
+define i64 @gen_run(i64 range(i64 0, 256) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s10 = alloca i64

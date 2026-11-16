@@ -15,7 +15,7 @@ declare { i8, i64 } @llvm.x86.addcarry.64(i8, i64, i64)
 declare { i8, i64 } @llvm.x86.subborrow.64(i8, i64, i64)
 @.str.0 = private unnamed_addr constant { i64, [56 x i8] } { i64 55, [56 x i8] c"out of memory: an integer longer than the largest table\00" }, align 8
 
-define ptr @gen_fib(i64 %v0) #0 {
+define ptr @gen_fib(i64 range(i64 0, 1001) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1

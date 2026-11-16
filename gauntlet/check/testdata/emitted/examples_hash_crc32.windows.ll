@@ -1734,7 +1734,7 @@ entry:
   ret i64 0
 }
 
-define ptr @hex(i64 %v0) #0 {
+define ptr @hex(i64 range(i64 0, 4294967296) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s9 = alloca i64
@@ -7938,7 +7938,7 @@ entry:
   ret ptr %v547
 }
 
-define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 %v2) #0 {
+define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
@@ -10654,7 +10654,7 @@ entry:
   ret ptr %v504
 }
 
-define i64 @step(i64 %v0) #0 {
+define range(i64 0, 4294967296) i64 @step(i64 range(i64 0, 4294967296) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %v2 = icmp sle i64 0, %v0

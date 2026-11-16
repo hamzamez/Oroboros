@@ -132,7 +132,7 @@ entry:
   ret i1 %v73
 }
 
-define ptr @sieve(i64 %v0) #0 {
+define ptr @sieve(i64 range(i64 0, 1048577) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1

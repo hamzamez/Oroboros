@@ -9442,7 +9442,7 @@ entry:
   ret ptr %v547
 }
 
-define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 %v2) #0 {
+define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1

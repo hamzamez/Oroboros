@@ -3,7 +3,7 @@
 target triple = "x86_64-pc-windows-msvc"
 
 
-define i64 @gen_run(i64 %v0) #0 {
+define i64 @gen_run(i64 range(i64 0, 10) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s11 = alloca i64
@@ -61,7 +61,7 @@ entry:
   ret i64 %v36
 }
 
-define i64 @mix(i64 %v0, i64 %v1) #0 {
+define i64 @mix(i64 %v0, i64 range(i64 0, 16) %v1) #0 {
 entry:
   %.s25 = alloca i64
   %.s35 = alloca i64

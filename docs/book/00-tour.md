@@ -127,7 +127,7 @@ export function tourSumTo(v0) {
 
 <!-- gen windows docs/book/code/tour/sum.oro -->
 ```llvm
-define i64 @tour_sum_to(i64 %v0) #0 {
+define i64 @tour_sum_to(i64 range(i64 0, 65537) %v0) #0 {
 …
   %v17 = add nuw nsw i64 %v12, %v13
   %v19 = add nuw nsw i64 %v13, 1

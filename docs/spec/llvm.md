@@ -385,6 +385,14 @@ LLVM's for a single result and an anonymous struct for several. The entry point 
 `define void @main()`, ending in `ExitProcess(0)`; every function is `nounwind`. A function's name is
 its IR name with `-` made `_`.
 
+**φ, the facts printed as LLVM's attributes** (assessment-2026-11-16 item 5, one kind at a time):
+- **`range(i64 lo, hi + 1)`** on a parameter or the single result whose IR_P type is a range
+  narrower than the word (phi-range-2026-11-17). A printed function is a kept definition or a library
+  instance, whose parameters' sets are proven at every call (or the call is inlined, P4) and whose
+  result's set is the claim decided at the definition (ADR 0072). So no argument or return lies
+  outside, and the attribute adds no poison. The unsigned word, a Boolean, a pointer and the whole
+  word have none.
+
 ## 9. Built in order, each with a time limit
 
 1. ~~**The printer and the target, for the differential suite's windows cases**~~ **built** (llvm-2026-11-02): §3–§8 for

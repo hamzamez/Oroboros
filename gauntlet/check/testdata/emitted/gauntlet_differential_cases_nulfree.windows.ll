@@ -14,7 +14,7 @@ declare void @llvm.trap()
 @.str.2 = private unnamed_addr constant { i64, [2 x i8] } { i64 1, [2 x i8] c"x\00" }, align 8
 @.str.3 = private unnamed_addr constant { i64, [3 x i8] } { i64 2, [3 x i8] c"a\00\00" }, align 8
 
-define i64 @gen_run(i64 %v0) #0 {
+define i64 @gen_run(i64 range(i64 0, 101) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s17 = alloca i1

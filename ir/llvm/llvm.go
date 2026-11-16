@@ -339,9 +339,14 @@ func (p *printer) load(vs []ir.V) {
 func (p *printer) function() string {
 	var params []string
 	for _, v := range p.f.Params {
-		params = append(params, fmt.Sprintf("%s %%v%d", p.ty(v), v))
+		params = append(params, fmt.Sprintf("%s%s %%v%d", p.ty(v), p.rangeAttr(p.f.Types[v]), v))
 	}
 	ret := p.retType()
+	if len(p.f.Results) == 1 {
+		if a := p.rangeAttr(p.f.Results[0]); a != "" {
+			ret = a[1:] + " " + ret
+		}
+	}
 	p.region(p.f.Body, exits{ret: true})
 	var out strings.Builder
 	fmt.Fprintf(&out, "define internal %s %s(%s) #0 {\nentry:\n", ret, Name(p.f.Name), strings.Join(params, ", "))
@@ -352,6 +357,54 @@ func (p *printer) function() string {
 	out.WriteString("}\n")
 	return out.String()
 }
+
+// rangeAttr is φ's first kind (φ maximal, assessment-2026-11-16 item 5):
+// LLVM's `range(i64 a, b)` attribute, the half-open [a, b), on a parameter or
+// a result whose IR_P type is a range lo..hi narrower than the word, a = lo and
+// b = hi + 1 (wrapping at 2⁶³, so [0, 2⁶³) is `range(i64 0, -2^63)`).
+//
+// THEOREM (the attribute is the contract). A function the printer prints is a
+// kept definition or a library instance (ADR 0101, 0113); its parameters' types
+// are its contract's sets S ∩ W, assumed in the body and proven at every call,
+// or the call is inlined (P4, ADR 0102), and its result's type is the claim
+// ADR 0072 decides at the definition. So every value a parameter or the result
+// takes lies in lo..hi: an argument or a return outside it, which `range` makes
+// poison, never occurs. ∎ An unsigned word, a Boolean, a pointer or the whole
+// word has no attribute: it says nothing a type does not.
+func (p *printer) rangeAttr(ty string) string {
+	if PlantNoRangeAttr {
+		return ""
+	}
+	lo, hi, ok := core.IntRangeBig(ty)
+	if !ok || p.llty(ty) != "i64" || p.tg.ValueType(ty) == core.U64Type {
+		return ""
+	}
+	min := new(big.Int).Lsh(big.NewInt(1), 63)
+	min.Neg(min)
+	max := new(big.Int).Sub(new(big.Int).Neg(min), big.NewInt(1))
+	if lo.Cmp(min) < 0 || hi.Cmp(max) > 0 || (lo.Cmp(min) == 0 && hi.Cmp(max) == 0) {
+		return ""
+	}
+	b := new(big.Int).Add(hi, big.NewInt(1))
+	if PlantRangeAttrNarrow {
+		b.Sub(b, big.NewInt(1)) // [lo, hi): the set's top end left out
+	}
+	if b.Cmp(max) > 0 {
+		b = min // hi = 2⁶³ − 1: [lo, 2⁶³) wraps to the word's least
+	}
+	if b.Cmp(lo) == 0 {
+		return "" // empty under the fault: LLVM refuses an empty range
+	}
+	return fmt.Sprintf(" range(i64 %s, %s)", lo, b)
+}
+
+// PlantRangeAttrNarrow prints each range attribute one narrower, [lo, hi),
+// so a function called at its set's top end computes with a poison value:
+// TestARangeAttributeIsTheContract must see the answer change.
+var PlantRangeAttrNarrow bool
+
+// PlantNoRangeAttr prints none, the printer before φ's first kind.
+var PlantNoRangeAttr bool
 
 func (p *printer) retType() string {
 	switch len(p.f.Results) {

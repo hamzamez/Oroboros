@@ -16,7 +16,7 @@ declare { i8, i64 } @llvm.x86.addcarry.64(i8, i64, i64)
 @.str.0 = private unnamed_addr constant { i64, [56 x i8] } { i64 55, [56 x i8] c"out of memory: an integer longer than the largest table\00" }, align 8
 @.str.1 = private unnamed_addr constant { i64, [55 x i8] } { i64 54, [55 x i8] c"not a numeral: a numeral's table holds its signed size\00" }, align 8
 
-define ptr @gen_power(i64 %v0, i64 %v1) #0 {
+define ptr @gen_power(i64 range(i64 0, 1001) %v0, i64 range(i64 0, 65) %v1) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1

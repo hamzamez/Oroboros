@@ -5691,7 +5691,7 @@ entry:
   ret i64 0
 }
 
-define ptr @num.digits(i64 %v0, i64 %v1) #0 {
+define ptr @num.digits(i64 range(i64 0, -9223372036854775808) %v0, i64 range(i64 0, 20) %v1) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
@@ -10161,7 +10161,7 @@ entry:
   ret ptr %v547
 }
 
-define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 %v2) #0 {
+define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1

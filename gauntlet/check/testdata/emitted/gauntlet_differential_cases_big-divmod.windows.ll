@@ -13,7 +13,7 @@ declare dllimport void @ExitProcess(i32)
 declare void @llvm.trap()
 @.str.0 = private unnamed_addr constant { i64, [49 x i8] } { i64 48, [49 x i8] c"bignum overflow: the declared range is too small\00" }, align 8
 
-define i64 @gen_run(i64 %v0) #0 {
+define i64 @gen_run(i64 range(i64 0, 51) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s13 = alloca i1

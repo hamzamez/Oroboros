@@ -3369,3 +3369,46 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/io/roundtrip.oro windows`
 - emitted text changed — `examples/io/wc.oro windows`
 - emitted text changed — `examples/num/ledger.oro windows`
+
+## 2026-11-16 — on 65a0cff, with uncommitted changes
+
+**Reason:** φ's first kind (phi-range-2026-11-17): a kept definition's parameters and result carry LLVM's range attribute, the contract's sets; attributes only, every changed line normalized equal; run time 0.995-1.019 on fact, fib, sieve and wc, code size identical
+
+656 runs: 445 emitted, 211 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+34 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/errors/ignore.oro windows`
+- emitted text changed — `examples/errors/slots.oro windows`
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv32.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv64.oro windows`
+- emitted text changed — `gauntlet/differential/cases/nulfree.oro windows`
+- emitted text changed — `gauntlet/differential/cases/pairs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`

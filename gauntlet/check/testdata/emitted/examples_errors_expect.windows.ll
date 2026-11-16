@@ -13,7 +13,7 @@ declare void @llvm.trap()
 @.str.1 = private unnamed_addr constant { i64, [31 x i8] } { i64 30, [31 x i8] c"a multiple of four is expected\00" }, align 8
 @.str.2 = private unnamed_addr constant { i64, [27 x i8] } { i64 26, [27 x i8] c"an even number is expected\00" }, align 8
 
-define i64 @gen_always_crashes(i64 %v0) #0 {
+define i64 @gen_always_crashes(i64 range(i64 0, 11) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.cell13 = alloca i32
@@ -222,7 +222,7 @@ entry:
   unreachable
 }
 
-define i64 @gen_quarter(i64 %v0) #0 {
+define i64 @gen_quarter(i64 range(i64 0, 1000001) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.cell23 = alloca i32

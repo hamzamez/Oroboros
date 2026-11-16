@@ -11596,7 +11596,7 @@ entry:
   ret ptr @.str.12
 }
 
-define i64 @"os/host.failed"(i64 %v0) #0 {
+define range(i64 1, 4294967296) i64 @"os/host.failed"(i64 range(i64 0, 4294967296) %v0) #0 {
 entry:
   %v2 = icmp eq i64 %v0, 0
   br i1 %v2, label %.then2, label %.else3
@@ -11606,7 +11606,7 @@ entry:
   ret i64 %v0
 }
 
-define { ptr, i64 } @"os/host.open"(ptr %v0, i64 %v1, i64 %v2) #0 {
+define { ptr, i64 } @"os/host.open"(ptr %v0, i64 range(i64 0, 4294967296) %v1, i64 range(i64 0, 4294967296) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
@@ -11697,7 +11697,7 @@ entry:
   ret { ptr, i64 } %.r51
 }
 
-define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 %v2) #0 {
+define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
@@ -11746,7 +11746,7 @@ entry:
   ret void
 }
 
-define { i64, i64 } @"os/host.readat~lent"(ptr %v0, i64 %v1, ptr %v2) #0 {
+define { i64, i64 } @"os/host.readat~lent"(ptr %v0, i64 range(i64 0, 4611686018427387905) %v1, ptr %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s10 = alloca i64
@@ -15018,7 +15018,7 @@ entry:
   unreachable
 }
 
-define i64 @"os/host.writeall"(ptr %v0, ptr %v1) #0 {
+define range(i64 0, 4294967296) i64 @"os/host.writeall"(ptr %v0, ptr %v1) #0 {
 entry:
   %.s3 = alloca i64
   %.s4 = alloca i64

@@ -131,7 +131,7 @@ entry:
   ret i64 0
 }
 
-define i64 @"os/host.writeall"(ptr %v0, ptr %v1) #0 {
+define range(i64 0, 4294967296) i64 @"os/host.writeall"(ptr %v0, ptr %v1) #0 {
 entry:
   %.s3 = alloca i64
   %.s4 = alloca i64

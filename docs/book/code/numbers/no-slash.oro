@@ -1,0 +1,6 @@
+use io
+
+export fn main() {
+    half = 7 * 0.5
+    io.print_int(half / 2)
+}

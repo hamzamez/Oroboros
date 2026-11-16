@@ -1,0 +1,6 @@
+use io
+use num
+
+export fn main() {
+    io.print_line(num.decimal(round(D(2, 0..1), 5.5), 2))
+}

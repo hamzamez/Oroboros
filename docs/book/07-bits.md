@@ -1203,5 +1203,5 @@ says it computes that meaning.
 - **On JavaScript** the compiler uses the host's 32-bit operators only where the result is
   proven to fit, and something exact elsewhere.
 
-Next: chapter 8, Numbers with a point. What 0.1 + 0.2 is, and the one operation that is
+Next: [chapter 8](08-numbers.md), Numbers with a point. What 0.1 + 0.2 is, and the one operation that is
 allowed to lose anything.

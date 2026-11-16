@@ -1,0 +1,3 @@
+set Small = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
+export fn below(x ∈ Small) (Bool) { x < 0.1 }

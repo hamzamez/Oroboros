@@ -1,0 +1,7 @@
+set Money = D(2, 0..10^9)
+
+fn twice(a ∈ Money) { a + a }
+
+export fn over(mills ∈ 0..1000) (Bool) {
+    twice(mills * 0.001) > 3
+}

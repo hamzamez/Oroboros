@@ -1,0 +1,12 @@
+use io
+use num
+
+export fn main() {
+    share = round(D(2, 0..100), 100 ÷ 3)
+    io.print_line(num.decimal(share, 2))
+    io.print_line(num.decimal(100 - 3 * share, 2))
+
+    generous = round(D(2, 0..100), 100 ÷ 3, 'up)
+    io.print_line(num.decimal(generous, 2))
+    io.print_line(num.decimal(100 - 3 * generous, 2))
+}

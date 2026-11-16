@@ -1,0 +1,5 @@
+set Small = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
+export fn mean(x ∈ Small, y ∈ Small) (F64) {
+    round(F64) { (x + y) ÷ 2 }
+}

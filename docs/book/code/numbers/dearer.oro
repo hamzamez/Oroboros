@@ -1,0 +1,5 @@
+fn money(cents ∈ 0..10^9) { cents * 0.01 }
+
+export fn dearer(a ∈ 0..10^9, b ∈ 0..10^9) (Bool) {
+    money(a) + 0.005 < money(b) * 1.5
+}

@@ -1,0 +1,7 @@
+set Money = D(2, 0..10^9)
+
+fn add(a ∈ Money, b ∈ Money) (D(2, 0..2 * 10^9)) { a + b }
+
+export fn over(cents ∈ 0..1000) (Bool) {
+    add(cents * 0.01, 0.5) > 3
+}

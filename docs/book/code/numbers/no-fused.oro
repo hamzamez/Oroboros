@@ -1,0 +1,5 @@
+set Small = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
+export fn fused(a ∈ Small, b ∈ Small, c ∈ Small) (F64) {
+    round(F64, a * b + c)
+}

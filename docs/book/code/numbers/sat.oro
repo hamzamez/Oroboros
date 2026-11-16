@@ -1,0 +1,10 @@
+use io
+use num
+
+export fn main() {
+    io.print_line(num.decimal(round(D(2, 0..1), 5.5, 'sat), 2))
+    io.print_line(num.decimal(round(D(2, 0..1), 0.555, 'sat), 2))
+    io.print_int(round(0..255, 300.7, 'sat))
+    io.print_int(round(0..255, -4.2, 'sat))
+    io.print_int(round(0..255, 127.5, 'sat))
+}

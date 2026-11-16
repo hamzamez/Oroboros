@@ -1,0 +1,12 @@
+use io
+
+export fn main() {
+    io.print_int(round(Int, 2.4))
+    io.print_int(round(Int, 2.6))
+    io.print_int(round(Int, 2.5))
+    io.print_int(round(Int, 3.5))
+    io.print_int(round(Int, 2.4, 'away))
+    io.print_int(round(Int, 2.4, 'half_away))
+    io.print_int(round(Int, 7))
+    io.print_int(round(Int, round(Int, 2.6)))
+}

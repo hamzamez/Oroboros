@@ -21,7 +21,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | | **II. What a program computes with** | | |
 | 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 82 blocks checked 2026-11-15 |
 | 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ` | J; 61 blocks checked 2026-11-16 |
-| 8 | Numbers with a point | exact decimals; `round` the one place precision is lost; `F64` | not written |
+| 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-16 |
 | 9 | Text | strings as sequences, `++`, the host's strings, bytes | not written |
 | 10 | Tuples and variants | "and" and "or" of data; `case` with patterns | not written |
 | | **III. Repetition and storage** | | |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6 and eleven in chapter 7, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7 and fifteen in chapter 8, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -317,6 +317,49 @@ Chapter 7 (2026-11-16) found seven, none fixed, each avoided in the chapter:
     defines `bit`). And `export fn f(k ∈ 0..64) (0..2^64) { 1 << k }` is refused with `big-of` in
     the message, a core name (it is the family of item 28's `big-str`).
 
+Chapter 8 (2026-11-16) found eight, none fixed, each avoided in the chapter:
+
+37. **`÷` on exact numbers does not compile for Go or windows.** `round(Int, c ÷ 3, 'down)` with
+    `c ∈ 0..10^9`, and `round(D(2, 0..100), 100 ÷ 3)`, are refused by the printers: *the target
+    has no spelling for neg* (Go), *for (neg exact)* (windows). JavaScript and the JVM compile
+    them. So the chapter's two `÷` programs on decimals, `split.oro` and `quotient.oro`, run on
+    JavaScript only, and the chapter says so. `÷` under a rounding onto `F64` is unaffected.
+38. **JavaScript prints `--7` for a rounded quotient of a negative literal.**
+    `round(Int, -7 ÷ 2, 'zero)`, or the same through a function called with `0 - 7`, emits
+    `v = (--7);`, which is not JavaScript; `build` catches it only because it runs `node --check`.
+    The chapter divides positive literals.
+39. **Three comparisons of one folded double do not verify.** `x = round(F64, 0.1)` followed by
+    `x > 0.1`, `x < 0.1` and `x == 0.1` in one `main` is refused with *IR_P does not verify: W6: π
+    … which its arm's guard %6 = false does not imply (Theorem E)*. Any one of the three alone
+    compiles and answers correctly.
+40. **A double compared with a rounded decimal crashes the compiler.**
+    `round(F64, 1 ÷ 3) < round(D(18, 0..1), 1 ÷ 3)` on JavaScript: a nil dereference in
+    `core.showAt`. numbers.md §6.2 says this comparison is refused.
+41. **`round` onto `Nat` or `0..`.** `round(Int, 5.5)` and `round(0..10, 5.5)` are integers.
+    `io.print_int(round(Nat, 5.5))` is refused with *a rounding is N, but Int is required here*,
+    and `x = round(0.., 5.5)` with *round onto Nat: a rounding's set is a grid restricted to an
+    interval, D(k, lo..hi) or a range*, though `Nat` is a range.
+42. **`num.decimal` on JavaScript, and a numerator past 2⁵³.** `num.decimal(x, 18)` is refused
+    there: *mod of a value held in the unsigned word as a pair, by 10, not a power of two: not
+    built*; small `k` works, so `sum.oro` and `ring.oro` run on Go and windows. And a decimal
+    whose numerator passes 2⁵³ (`n * 0.01 + 0.005 < 3`, `n ∈ 0..10^15`) is refused on JavaScript
+    as *a comparison of a value held in the unsigned word as a pair is not built*, not as an
+    operation outside the word, so `portable` reports a wall where the reader expects a width.
+43. **A double cannot be printed.** `num.decimal(round(F64, 0.1), 3)` is refused with
+    `num.digits`'s internal obligations (*requires 0 <= a / 1000 …*), and no library renders a
+    double (the gauntlet's wall G5). The chapter compares doubles with exact numerals instead.
+44. **Messages.** `3.5 / 2` and `2.0 << 1` say *a float literal is F64, but Int is required
+    here*: a literal is an exact number (numbers.md §1), and the same refusal on `7 * 0.5` says
+    N. The doubles' refusals name parameters `#0.0` and `#0.1` (item 7's closure names). A bare
+    `1 ÷ 3` passed to `num.decimal` is refused with `num.digits`'s obligation instead of the `÷`
+    rule. `0.5 + 0.5` at `io.print_int` on windows is refused inside the printer's own loop: *in
+    again's argument 1: in a store's value: … m is N*. And `round(F64, 1e400)` prints all 401
+    digits of the literal.
+
+One thing compiles that the specification says is not built: `export fn f(p ∈ D(2, 0..1000))`
+takes `p` as its numerator, an `int`, on Go (numbers.md §9: "D at an entry point's boundary"
+is not in step 1). The chapter's exports take integers and doubles only.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -324,7 +367,9 @@ Boole's algebra and partial evaluation; chapter 5's is referential transparency,
 substructural logic, because the effect rule derived from three concrete hazards turns out to be
 Lambek's ordered fragment, named in 1958; chapter 7's is positional notation, the adder's identity
 and Gauss's congruences, because "the machine may wrap early" is the statement that a remainder
-is a ring homomorphism.
+is a ring homomorphism; chapter 8's is which fractions terminate in a base, fixed point against
+floating point, the bias of rounding a half upward, and what IEEE 754's arithmetic is once it is
+written out: a rounding after every operation.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

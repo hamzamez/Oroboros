@@ -1,0 +1,3 @@
+export fn tax(cents ∈ 0..10^9) (0..10^9) {
+    round(Int, cents * 0.08, 'down)
+}

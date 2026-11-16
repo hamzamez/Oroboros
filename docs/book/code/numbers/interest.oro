@@ -1,0 +1,11 @@
+use io
+use num
+
+fn year(balance) { round(D(2, 0..10^6), balance * 1.05) }
+fn year_up(balance) { round(D(2, 0..10^6), balance * 1.05, 'half_away) }
+
+export fn main() {
+    io.print_line(num.decimal(1000 * 1.05 * 1.05 * 1.05, 6))
+    io.print_line(num.decimal(year(year(year(1000))), 2))
+    io.print_line(num.decimal(year_up(year_up(year_up(1000))), 2))
+}

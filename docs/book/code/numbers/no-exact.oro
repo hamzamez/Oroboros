@@ -1,0 +1,3 @@
+export fn half(n ∈ 0..2^60) (F64) {
+    round(F64, n ÷ 2)
+}

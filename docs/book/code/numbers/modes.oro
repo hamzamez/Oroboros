@@ -1,0 +1,17 @@
+use io
+
+export fn main() {
+    io.print_int(round(Int, 2.5, 'down))
+    io.print_int(round(Int, 2.5, 'up))
+    io.print_int(round(Int, 2.5, 'zero))
+    io.print_int(round(Int, 2.5, 'away))
+    io.print_int(round(Int, 2.5, 'nearest))
+    io.print_int(round(Int, 2.5, 'half_away))
+    io.print_line("--")
+    io.print_int(round(Int, -2.5, 'down))
+    io.print_int(round(Int, -2.5, 'up))
+    io.print_int(round(Int, -2.5, 'zero))
+    io.print_int(round(Int, -2.5, 'away))
+    io.print_int(round(Int, -2.5, 'nearest))
+    io.print_int(round(Int, -2.5, 'half_away))
+}

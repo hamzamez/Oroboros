@@ -1,0 +1,11 @@
+use io
+use num
+
+export fn main() {
+    io.print_line(num.decimal(1.5 + 2.25, 2))
+    io.print_line(num.decimal(1 - 0.9, 18))
+    io.print_line(num.decimal(1.5 * 1.5, 2))
+    io.print_line(num.decimal(0.25 * 0.25, 4))
+    io.print_line(num.decimal(0.1 * 0.1 * 0.1, 3))
+    io.print_line(num.decimal(1000 * 1.05 * 1.05 * 1.05, 3))
+}

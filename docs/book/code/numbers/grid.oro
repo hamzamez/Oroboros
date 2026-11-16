@@ -1,0 +1,11 @@
+use io
+use num
+
+export fn main() {
+    io.print_line(num.decimal(round(D(2, 0..10), 3.14159), 2))
+    io.print_line(num.decimal(round(D(4, 0..10), 3.14159), 4))
+    io.print_line(num.decimal(round(D(1, 0..10), 3.14159, 'up), 1))
+    io.print_line(num.decimal(round(D(2, 0..10), 2.675), 2))
+    io.print_line(num.decimal(round(D(2, 0..10), 2.665), 2))
+    io.print_line(num.decimal(round(D(2, 0..10), 2.665, 'half_away), 2))
+}

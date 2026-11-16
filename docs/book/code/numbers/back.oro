@@ -1,0 +1,7 @@
+use io
+
+export fn main() {
+    io.print_int(round(Int, 0.5 + 0.5))
+    io.print_int(round(Int, 4.35 * 100))
+    io.print_int(round(Int, 2.0) << 3)
+}

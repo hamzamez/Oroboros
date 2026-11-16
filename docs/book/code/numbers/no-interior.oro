@@ -1,0 +1,3 @@
+set Small = set { x ∈ F64 : -1e100 <= x && x <= 1e100 }
+
+export fn positive(x ∈ Small, y ∈ Small) (Bool) { x + y > 0 }

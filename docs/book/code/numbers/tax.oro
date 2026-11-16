@@ -1,0 +1,12 @@
+use io
+use num
+
+fn tax(amount) { round(D(2, 0..10^6), amount * 0.0825, 'half_away) }
+
+export fn main() {
+    price = 0.99
+    io.print_line(num.decimal(price * 0.0825, 6))
+    io.print_line(num.decimal(tax(price), 2))
+    io.print_line(num.decimal(tax(price) + tax(price) + tax(price), 2))
+    io.print_line(num.decimal(tax(price + price + price), 2))
+}

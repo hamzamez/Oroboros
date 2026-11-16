@@ -391,7 +391,9 @@ Chapter 9, Text (2026-11-16), found five, none fixed, each avoided in the chapte
     { string_of(n) }` and `wide(n ∈ 0..70000)` are refused on Go and JavaScript (*string_of's
     parameter c, declared in 0..1114111 …*, *requires n <= 55295 || n >= 57344*) and compile on
     windows, to a call of `@oro.string_of` on any i64. A soundness hole: a surrogate or a
-    negative number reaches the encoder. The chapter's two refusals are shown on Go.
+    negative number reaches the encoder. The chapter's two refusals are shown on Go. **Fixed**
+    2026-11-16 ([strings-2026-11-16](../../gauntlet/results/strings-2026-11-16.md), ADR 0117):
+    windows' `string_of` is now a definition stating the scalars' domain, so both are refused there.
 49. **A disjunction does not prove the hole.** `if n < 0xD800 || n > 0xDFFF { string_of(n) }`
     is refused, *requires n <= 55295 || n >= 57344 … known: … assumed (if (< n 55296) true
     (> n 57343))*: the assumption is the obligation, held as a core term and not matched. Two

@@ -94,17 +94,30 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 [gauntlet/results/](gauntlet/results/) are the authority: every design claim here not measured has been
 wrong about half the time.
 
-**The current assessment is [assessment-2026-11-15.md](docs/assessment-2026-11-15.md)**; read it
-before planning. Its plan (§5): ~~P8 with its ledger~~ done, steps 1 and 3
-([p8-2026-11-15](gauntlet/results/p8-2026-11-15.md), [p8step3-2026-11-15](gauntlet/results/p8step3-2026-11-15.md)),
-~~two items added from the book's findings~~ done ([docs/book/README.md](docs/book/README.md), its
-items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), ~~the book's chapters 5 and 6~~ done
-(its items 22–29, below), ~~the gauntlet on four targets~~ done
-([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md): parity on all four, a windows leak
-found and fixed, two windows walls named), ~~the harness~~ done ([harness-2026-11-16](gauntlet/results/harness-2026-11-16.md): skips checked, windows
-files assembled, K(ℕ\*)'s text compared, the route's error carried, the book run), ~~the file programs on windows~~ done ([files-2026-11-16](gauntlet/results/files-2026-11-16.md): `freq` and
-`jsonfmt` crashed past 8 KiB and are fixed, a table's storage its final layout; faster than Go by hand
-as processes, `wc`'s counter width the residue; `readinto`'s invariant still owed), **next the second triple**, TinyRetroPad, then CLAUDE.md as state again.
+**The current assessment is [assessment-2026-11-16.md](docs/assessment-2026-11-16.md)**; read it
+before planning. **Its plan (§5)**, in order:
+1. **the book's wrong answers and faults**, each with a planted fault: 53/76, two payloads under one
+   name (22 for "42"); 70, a store's index unchecked (windows writes past the block); 71, `len` of a
+   map 12 on windows; 64, a tuple read from a table as a map's comma-ok; 39 and 40, a verifier failure
+   and a crash; 78, the flaky test ([docs/book/README.md](docs/book/README.md));
+2. **j.md's two promises**: `invariant`, Hoare's rule for `loop`, which also pays `readinto`'s owed
+   invariant; `try` with several binds, a derived form;
+3. **two checks**: no carriage return in a tracked text file; a planted source rewrite asserts it
+   happened;
+4. **the second triple**, research first (the data model, K(ℕ\*)'s base per triple, `max_len`,
+   `x64.oro` split, i32 scalars), hamza's decisions, then built;
+5. **TinyRetroPad**, 6c then 6d;
+6. **CLAUDE.md as state**, under 8,000 words.
+
+**A wrong answer, wherever found, goes ahead of the plan** (assessment-2026-11-16 §3.4), and the
+book's findings index is read at each item's end.
+
+The 11-15 plan (assessment-2026-11-15 §5) is done but for its last three items, which the plan
+above carries: P8 (steps 1–3), the book's findings 1–28 (below), the gauntlet on four targets
+([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)), the harness
+([harness-2026-11-16](gauntlet/results/harness-2026-11-16.md)), the file programs on windows
+([files-2026-11-16](gauntlet/results/files-2026-11-16.md)), and, at hamza's question, the LLVM layer's
+last templates (ADR 0117, 0118).
 - ~~**The book's wrong answers**~~ **done** ([bookfix-2026-11-15](gauntlet/results/bookfix-2026-11-15.md),
   ADR 0114 for the fold; emission byte-identical), each with a planted fault:
   - the unit is no integer: a one-armed `if` is `if c {a} else {()}`, typed A ∨ 1, so it is no
@@ -144,7 +157,7 @@ as processes, `wc`'s counter width the residue; `readinto`'s invariant still owe
     JavaScript parameter above the word at `% 2` (W5). An export's K(ℕ\*) result was fixed by the
     harness (harness-2026-11-16).
   Previous:
-[10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
+[11-15](docs/assessment-2026-11-15.md), [10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
 [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
 [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md),
 [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md),

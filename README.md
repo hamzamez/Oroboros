@@ -471,10 +471,28 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 ## Current work
 
 *Updated with the plan; last updated 2026-11-16.* The current assessment,
-[docs/assessment-2026-11-15.md](docs/assessment-2026-11-15.md), scores the 10-24 plan below. Over three
-weeks Windows became a real target: it prints LLVM IR, runs big integers without a host library, and
-since today reads files through code written in the language itself. It also says what did not move.
-**The next plan**, in order:
+[docs/assessment-2026-11-16.md](docs/assessment-2026-11-16.md), scores the 11-15 plan below: done but
+for its last three items. It also finds that the language's own book, in its later chapters, came
+across four programs the compiler accepts and gets wrong, which every check had passed. **The next
+plan**, in order:
+1. **fix the book's wrong answers**, each with a test that fails before the fix:
+   - two results taken apart in one expression are confused (it prints 22 for "42");
+   - a write past the end of a table compiles, and on Windows writes outside it;
+   - the size of a map is wrong on Windows;
+   - a pair read from a table produces wrong Go;
+   - with them, a compiler crash, a self-check that rejects a valid program, and a test that
+     fails one run in five;
+2. **build two things the grammar promises and the compiler refuses**: a loop's stated invariant,
+   checked by the compiler (which also lets one library drop a run-time clamp), and `try` over
+   several results at once;
+3. **two checks for this round's mistakes**: line endings, and tests that plant a fault confirming
+   they planted it;
+4. **32-bit Windows**, starting with what a second processor changes (the sizes of C's types, the
+   digit size of big integers), the choices brought to hamza before anything is built;
+5. **TinyRetroPad's Windows surface, then its walls**;
+6. **the guidance file shortened to the project's current state**.
+
+**The 11-15 plan, as it stands**:
 1. keep a ledger of what each step costs and what it buys;
 2. ~~let the compiler keep a program's definitions as functions instead of copying them into every
    call (P8), its costs measured~~ **done 2026-11-15**
@@ -543,8 +561,8 @@ since today reads files through code written in the language itself. It also say
      prototypes. Every remaining host template is a single instruction. Doing it found a wrong
      answer (a character code outside Unicode accepted on Windows) and three gaps in the checks,
      all fixed; one global counter shared by every write became a per-call one;
-9. 32-bit Windows;
-10. TinyRetroPad's Windows surface, then its walls.
+9. 32-bit Windows (carried: item 4 above);
+10. TinyRetroPad's Windows surface, then its walls (carried: item 5 above).
 
 The 10-24 plan, as it stands:
 

@@ -22,12 +22,10 @@
 == examples/big/fact.oro java emitted 730d462280befebf92e518dae2a094e0ebadf5ff61a5942eb34f7ffbca3a7181
    note: gen-fact: 1 operation(s) in arbitrary precision
    note: gen-fact: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/fact.oro windows refused
+== examples/big/fact.oro windows emitted 88533d5c6008ebd6bc5eb060f8395ff728e83c83b845cb38889e91ebdeb2d18e
    note: gen-fact: 2 operation(s) in arbitrary precision
    note: gen-fact: 1 operation(s) or conversion(s) in the unsigned word
    note: gen-fact: 8 of 8 integer operations bounded; 2 of 2 loop(s) proven terminating
-   gen: gen-fact: IR_P does not verify:
-   gen-fact: W5: %279 is array int and flows into nat.mul-small's argument 1, which is array int 0 18446744073709551615
 == examples/big/fib.oro go emitted a30ed197be9c09f62bb7819fae5ab10392088365a8a3510a00c1d5ce53045f99
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -37,12 +35,9 @@
 == examples/big/fib.oro java emitted a3e50b5b7cd0a7b19d187ef08d6009c9e243f2f027f38c9cd760846de5ec4cd2
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/fib.oro windows refused
+== examples/big/fib.oro windows emitted 824b4cb49cd05b8faa519775df8252d0fd25c94bd9cf394316f442929b8f0fc9
    note: gen-fib: 3 operation(s) in arbitrary precision
    note: gen-fib: 15 of 15 integer operations bounded; 3 of 3 loop(s) proven terminating
-   gen: gen-fib: IR_P does not verify:
-   gen-fib: W5: %547 is array int and flows into nat.add's argument 1, which is array int 0 18446744073709551615
-   gen-fib: W5: %548 is array int and flows into nat.add's argument 2, which is array int 0 18446744073709551615
 == examples/big/limbs.oro go emitted 8159406788a85d98f07c02fff1f82d54695fbf44bcf1efbe0273fe9777b1da5e
    note: gen-limb: 7 of 7 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 4 division(s) became a shift or a mask
@@ -63,12 +58,9 @@
 == examples/big/pair.oro java emitted b4071583637e65459ce13cc0fca5dc3dd4e77d4560de59f8747374adfb52212a
    note: gen-pair: 2 operation(s) in arbitrary precision
    note: gen-pair: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/big/pair.oro windows refused
+== examples/big/pair.oro windows emitted 4bc5aeabb107590b83d06a4bdc2a2502e39724b7da81bcdf8aefbdcbe7f381c9
    note: gen-pair: 4 operation(s) in arbitrary precision
    note: gen-pair: 15 of 15 integer operations bounded; 3 of 3 loop(s) proven terminating
-   gen: gen-pair: IR_P does not verify:
-   gen-pair: W5: %548 is array int and flows into nat.mul's argument 2, which is array int 0 18446744073709551615
-   gen-pair: W5: %548 is array int and flows into nat.add's argument 1, which is array int 0 18446744073709551615
 == examples/big/power.oro go emitted 7a15610ef53b8c1055c013e4ecaeff42edef2f2ab2a6fe6aa19b298e3538a840
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -81,11 +73,9 @@
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-power: 3 division(s) became a shift or a mask
-== examples/big/power.oro windows refused
+== examples/big/power.oro windows emitted e2c05636de41e1745791860a178fb02003d5aff3d370116b6ba193d3039b564a
    note: gen-power: 5 operation(s) in arbitrary precision
    note: gen-power: 16 of 16 integer operations bounded; 3 of 3 loop(s) proven terminating
-   gen: gen-power: IR_P does not verify:
-   gen-power: W5: %559 is array int and flows into nat.mul's argument 1, which is array int 0 18446744073709551615
 == examples/big/render.oro go emitted 414470f0d10dca6e778c64c8b199c66819dce4cc3cf8ceb14b83ae1d831ba07b
    note: gen-render: 5 operation(s) in arbitrary precision
    note: gen-render: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating

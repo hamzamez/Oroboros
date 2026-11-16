@@ -461,3 +461,8 @@ func CheckCallSets(tg *emit.Target, f *Func) error {
 	})
 	return err
 }
+
+// PlantNumeralResultInt declares a K(ℕ*) result held exactly `array int`, as
+// before gauntlet-2026-11-16's harness: a second fixed representation in its
+// class, so W5 refuses examples/big's fib on windows again.
+var PlantNumeralResultInt bool

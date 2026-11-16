@@ -380,7 +380,7 @@ func reduceAndLower(tg *emit.Target, prog *core.Program, env *core.Env, reqs *em
 		return nil, nil, nil, fmt.Errorf("%s: %w", entry, err)
 	}
 	if nf, err = emit.DischargeRequires(reqs, tg, entry, prog.Sigs[entry], nf,
-		func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[entry], x) }); err != nil {
+		func(x *core.Term) (*core.Term, error) { return ir.DischargeRanges(tg, prog.Sigs[entry], x) }); err != nil {
 		return nil, nil, nil, err
 	}
 	if nf.Kind != core.KFn || len(nf.Params) != 0 {

@@ -263,9 +263,20 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			f.Types[v] = "array int"
 		}
 	}
+	// AND ON K(ℕ*) A RESULT HELD EXACTLY IS A NUMERAL'S TABLE, its digits in
+	// [0, 2⁶⁴): the type each instance's own result and parameters have
+	// (progfunc.go). Declared `array int`, an export's result was a second fixed
+	// representation in the class of the tables it joins (Theorem D′, final.go),
+	// which W5 reported: gen refused examples/big's fib, pair, fact and power
+	// on windows while their code was sound (gauntlet-2026-11-16's harness). It
+	// is a claim, proven after the rung's decision by the body's own facts
+	// (pipeline.go), as an instance's is.
 	for j, ty := range f.Results {
 		if ty == core.BigType {
 			f.Results[j] = "array int"
+			if nat && !PlantNumeralResultInt {
+				f.Results[j] = NumeralType
+			}
 		}
 	}
 	ren := map[V]V{}

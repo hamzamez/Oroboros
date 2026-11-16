@@ -70,7 +70,7 @@ func compilePath(src, target string, opt Options) (*emit.Target, *Program, error
 		}
 		nf = emit.EtaTails(tg, nf)
 		if nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf,
-			func(x *core.Term) *core.Term { return DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
+			func(x *core.Term) (*core.Term, error) { return DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
 			return nil, nil, err
 		}
 		sig := prog.Sigs[q]

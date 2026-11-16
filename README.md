@@ -524,8 +524,12 @@ since today reads files through code written in the language itself. It also say
    compiled by the same compiler. It found a memory leak there, fixed: a temporary table such as a
    parser's stack was never freed. Two programs cannot run on Windows yet: counting words needs a
    dictionary keyed by strings, and the report needs printing of floating-point numbers;
-7. make the test harness catch stale skips and assemble every Windows file, and run the book's
-   checker in it;
+7. ~~make the test harness catch stale skips and assemble every Windows file, and run the book's
+   checker in it~~ **done 2026-11-16** ([harness-2026-11-16](gauntlet/results/harness-2026-11-16.md)):
+   a test that skips a target must now say why, and the check runs it anyway to confirm it still
+   fails for that reason (one no longer failed at all); every Windows file is assembled; the book's
+   examples are re-run on every check. On the way, four programs that return big numbers from a
+   function now build on Windows, and a refusal names its real cause instead of a symptom;
 8. run the file programs on Windows at hand-written speed;
 9. 32-bit Windows;
 10. TinyRetroPad's Windows surface, then its walls.

@@ -101,7 +101,8 @@ before planning. Its plan (§5): ~~P8 with its ledger~~ done, steps 1 and 3
 items 1–21 and the 10-06 pass's 3–5, ordered here 2026-11-15), ~~the book's chapters 5 and 6~~ done
 (its items 22–29, below), ~~the gauntlet on four targets~~ done
 ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md): parity on all four, a windows leak
-found and fixed, two windows walls named), **next the harness** (with `docs/book/check.go` run by `cmd/check`), the file programs on windows (with
+found and fixed, two windows walls named), ~~the harness~~ done ([harness-2026-11-16](gauntlet/results/harness-2026-11-16.md): skips checked, windows
+files assembled, K(ℕ\*)'s text compared, the route's error carried, the book run), **next the file programs on windows** (with
 P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md as state again.
 - ~~**The book's wrong answers**~~ **done** ([bookfix-2026-11-15](gauntlet/results/bookfix-2026-11-15.md),
   ADR 0114 for the fold; emission byte-identical), each with a planted fault:
@@ -138,8 +139,9 @@ P8's owed `readinto` invariant), the second triple, TinyRetroPad, then CLAUDE.md
   - 24: an unstated result (D's `_`, `Sig.Unstated`) is the body's, `(Any)` one result;
   - 25: an empty range is said to be empty, in J;
   - 22: a statement whose value is a function is refused, `ignore(f)` the discard;
-  - 29 deferred. Owed: windows' K(ℕ\*) division of a square by 2⁴⁰ and an export's K(ℕ\*) result
-    (W5), a JavaScript parameter above the word at `% 2` (W5).
+  - 29 deferred. Owed: windows' K(ℕ\*) division of a square by 2⁴⁰ (an unrealizable comparison), a
+    JavaScript parameter above the word at `% 2` (W5). An export's K(ℕ\*) result was fixed by the
+    harness (harness-2026-11-16).
   Previous:
 [10-24](docs/assessment-2026-10-24.md), [10-21](docs/assessment-2026-10-21.md), [10-20](docs/assessment-2026-10-20.md),
 [10-14](docs/assessment-2026-10-14.md), [10-03](docs/assessment-2026-10-03.md),
@@ -469,20 +471,15 @@ checked. When a package hits a wall that needs language work, stop, research it,
           in Σ_L (strings.md §11), text_of = ι_V ∘ r. Both cases run on four targets. `roundtrip.oro`,
           `ledger` and `freq` emit on windows since P8 (ADR 0113, p8-2026-11-15), the cell's definitions
           kept as functions. Then the gauntlet's programs on windows, which meet the same scale;
-        - **then a skip states a true reason** (hamza, 2026-11-06): the differential runs every skipped
-          case × target and reports each that now agrees, a stale skip. Three skipped the JVM for a
-          month after its unsigned word was built (llvm64-2026-11-06); step 4 adds a triple's skips.
-          Whether `cmd/check` runs it (a stale skip failing the step, with a planted one caught first)
-          or it is a periodic tool is decided by its measured cost. **And an emitted file is
-          assembled**: the emission step compares text, so `search`'s windows output was accepted
-          printing `icmp sgt double`, which clang refuses (llvmf64-2026-11-06); every windows `.ll` the
-          sweep writes goes through `clang -c`, at its measured cost. **And the text that matters is
-          compared** (carry-2026-11-13): none of the 83 windows files the emission step compares holds
-          a K(ℕ\*) function or an i128 (a differential case's `run` is not exported; `examples/big/`
-          fib and pair are refused by `gen` at W5 on `nat.add`'s argument, though `cmd/build` builds
-          them), so the double word's and the full adder's text is checked only by behavior: find
-          `gen`'s W5 (a wrong rule or a wrong input), and compare a program whose text holds the sum,
-          the difference and D;
+        - ~~**then a skip states a true reason**~~ **done** ([harness-2026-11-16](gauntlet/results/harness-2026-11-16.md)):
+          a skip is a claim, `// skip: T because "TEXT"`, evaluated on every run: the skipped
+          target is built and run, a stale skip or a wrong reason fails the case (one found stale,
+          `word-wide-native` on JavaScript); `cmd/check`'s `assemble` step puts every windows `.ll`
+          through clang (105 files, 3 s); an export's K(ℕ\*) natural is a numeral's table, its
+          digits proven by its stores, so examples/big's fib, pair, fact and power emit on windows
+          and their files hold `nat.add`'s full adder, the product and D (W5 had reported two fixed
+          representations in Theorem D′'s class); the interval route's lowering error is joined to
+          the refusal it causes; `book` runs every committed chapter. Each with a planted fault.
      4. **The second triple**: `i686-pc-windows-msvc` runs the suite (TinyRetroPad is 32-bit).
      Left to the walls: LLVM's widths (native iN, i32 scalars on i686) and the rung above as native iN,
      measured against the limbs.

@@ -351,7 +351,7 @@ func buildKept(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.Re
 	var leg *Legality
 	for round := 0; ; round++ {
 		nf, err = emit.DischargeRequires(reqs, tg, n, esig, body,
-			func(x *core.Term) *core.Term { return DischargeRanges(tg, esig, x) })
+			func(x *core.Term) (*core.Term, error) { return DischargeRanges(tg, esig, x) })
 		if err == nil {
 			if left := core.Residual(nf, env); len(left) > 0 {
 				return nil, nil, nil, keptPost{}, fmt.Errorf("not in normal form: %s", strings.Join(left, ", "))

@@ -12,9 +12,9 @@
 // a tuple pattern whose body — the `again` — is Mul64's and Add64's continuations.
 //
 // Go only: the module uses go/math/bits and go/strconv, which resolve on Go.
-// skip: js
-// skip: java
-// skip: windows
+// skip: js because "`go/math/bits`.Add64 is not bound"
+// skip: java because "`go/math/bits`.Add64 is not bound"
+// skip: windows because "`go/math/bits`.Add64 is not bound"
 //
 // prints: string
 // inputs: 0 1 20 21 25 34 35

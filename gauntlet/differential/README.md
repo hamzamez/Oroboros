@@ -75,16 +75,18 @@ the success, and every target writes the reason to standard error. A case names 
 A case defines `run`, and nothing else. The harness supplies the `main` that prints, because
 printing is target-native on every host and is the one thing a portable program cannot do.
 
-```lisp
-; expect: 0 1 2 3 4 4 4 4 4
-; inputs: 0 1 2 3 5 8 13 21 34     (optional; this is the default)
-; skip: windows                     (optional; say why in the comment)
+```
+// expect: 0 1 2 3 4 4 4 4 4
+// inputs: 0 1 2 3 5 8 13 21 34          (optional; this is the default)
+// skip: windows because "TEXT"          (optional: TEXT is a part of the failure)
 
-(def run (fn (n)
-  (loop ((acc 0) (i 0))
-    (@ge i n)   acc
-    (@gt i 3)   (again acc (@add i 1))
-    else        (again (@add acc 1) (@add i 1)))))
+fn run(n) {
+    loop acc = 0, i = 0 {
+        i >= n -> acc
+        i > 3 -> again(acc, i + 1)
+        else -> again(acc + 1, i + 1)
+    }
+}
 ```
 
 `@add @sub @mul @lt @le @gt @ge` are replaced with each target's own spelling — `go.+`, `js.+`,
@@ -99,9 +101,14 @@ build a table is nine tables in one procedure, which on x86 is more spilled oper
 scratch registers. A heavy case uses fewer inputs. That ceiling is real and belongs to the backend;
 provoking it from a test harness measures the harness.
 
-`; skip:` is a real answer — a program using a host's own name is not portable and this is not the
+`// skip:` is a real answer — a program using a host's own name is not portable and this is not the
 place to pretend otherwise — but it has to be **said**, not achieved by a case quietly running
-nowhere.
+nowhere. **And it is a claim, checked** (the harness, 2026-11-16): `// skip: T because "TEXT"`
+says the case fails on T, and TEXT is a part of the failure, an error's text or the output. The
+skipped target is still built and run. If it builds and agrees, the skip is **stale** and the case
+fails; if it fails some other way, the case fails too, naming what it did. A skip with no reason is
+refused. Three skips hid the JVM's unsigned word for a month (llvm64-2026-11-06), and the first run
+of the check found one more, `word-wide-native` on JavaScript.
 
 ## What it covers
 

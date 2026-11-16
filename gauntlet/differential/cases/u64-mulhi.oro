@@ -7,9 +7,9 @@
 // is (ADR 0019).
 //
 // expect: 16045690984505281791 16045690984516814724 16045690984511570442 16045690984506326160 16045690984512614810 16045690984496881964 16045690984504214984 16045690984495815158 16045690984477971137
-// skip: go
-// skip: js
-// skip: java
+// skip: go because "where shr is not built (ADR 0082)"
+// skip: js because "lies above the word target js holds exactly"
+// skip: java because "where shr is not built (ADR 0082)"
 fn run(n) {
     a = 18446744073709551615 - n * 1000003
     b = 16045690984503098046 + n * 7

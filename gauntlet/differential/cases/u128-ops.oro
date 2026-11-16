@@ -16,9 +16,9 @@
 // results of `add` and `divw`.
 //
 // Go only, as num/u128 is.
-// skip: js
-// skip: java
-// skip: windows
+// skip: js because "`go/math/bits`.Add64 is not bound"
+// skip: java because "`go/math/bits`.Add64 is not bound"
+// skip: windows because "`go/math/bits`.Add64 is not bound"
 //
 // prints: string
 // inputs: 0 20 21 33 34

@@ -232,7 +232,7 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 					reportResidual(reqs, tg, prog.Sigs[u.qual], nf)
 				}
 				if nf, err = emit.DischargeRequires(reqs, tg, u.name, prog.Sigs[u.qual], nf,
-					func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[u.qual], x) }); err != nil {
+					func(x *core.Term) (*core.Term, error) { return ir.DischargeRanges(tg, prog.Sigs[u.qual], x) }); err != nil {
 					return err
 				}
 				fname := u.name

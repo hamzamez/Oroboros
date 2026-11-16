@@ -3154,3 +3154,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - `examples/json/tree.oro js` 31 → 1859 ms, 59.98x; paired 15 → 859 ms, 55.00x
 - `examples/json/tree.oro java` 15 → 1984 ms, 132.29x; paired 15 → 843 ms, 54.00x
 - `examples/json/tree.oro windows` 62 → 2343 ms, 37.80x; paired 31 → 1093 ms, 35.00x
+
+## 2026-11-16 — on 9c01d65, with uncommitted changes
+
+**Reason:** the harness (plan item 7): a K(ℕ*) result held exactly is declared a numeral's table and proven by its stores, so examples/big's fact, fib, pair and power emit on windows (W5 had refused a second fixed representation in Theorem D′'s class); their files hold nat.add's full adder, the product and D, now compared
+
+656 runs: 445 emitted, 211 refused; 8881 of 8935 integer operations bounded, 886 of 924 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- now emits — `examples/big/fact.oro windows`
+- now emits — `examples/big/fib.oro windows`
+- now emits — `examples/big/pair.oro windows`
+- now emits — `examples/big/power.oro windows`

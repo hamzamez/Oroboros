@@ -55,7 +55,7 @@ func print(t *testing.T, src string) string {
 			t.Fatal(err)
 		}
 		if nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf,
-			func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
+			func(x *core.Term) (*core.Term, error) { return ir.DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
 			t.Fatal(err)
 		}
 		code, err := FromResidual(tg, name, prog.Sigs[q], nf)

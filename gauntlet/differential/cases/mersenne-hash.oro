@@ -4,13 +4,15 @@
 // only thing that reads it is the remainder by p, a constant: an intermediate
 // the double word computes (ADR 0103), with every value of the program a word.
 // Go, the JVM and JavaScript hold no double word, so the product is refused
-// there, as a product above the word is (ADR 0019).
+// there, as a product above the word is (ADR 0019); under this harness's
+// -checked it is a trap, which fires at the fourth input on Go and the JVM, and
+// on JavaScript the remainder of a pair by p is not built. Each skip says which.
 //
 // inputs: 0 1 2 100 100000
 // expect: 0 0 1 371942649230435435 695070068227922815
-// skip: go
-// skip: js
-// skip: java
+// skip: go because "panic: int overflow"
+// skip: js because "not a power of two: not built (ir/pairs.go)"
+// skip: java because "long overflow"
 fn run(n) {
     loop i = 0, h = 0 { i >= n -> h; else -> again(i + 1, (h * 1234567890123456789 + i % 251) % (2^61 - 1)) }
 }

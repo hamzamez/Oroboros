@@ -56,3 +56,62 @@ func TestTheParallelDifferentialStillFails(t *testing.T) {
 		at += i + len(w)
 	}
 }
+
+// A SKIP IS A CHECKED CLAIM (gauntlet-2026-11-16's successor, the harness): the
+// skipped target is built and run, and must fail for the reason the skip
+// states. u64-digits, refused on JavaScript for a comparison of pairs, is the
+// control, and passes. THE PLANTED FAULTS: a skip on a case that agrees on
+// every target (stale, the species that hid the JVM's unsigned word for a
+// month), the control's skip given a reason that is not its failure, and a
+// skip that states none.
+func TestASkipIsACheckedClaim(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds four cases on four targets")
+	}
+	read := func(name string) string {
+		b, err := os.ReadFile("../../gauntlet/differential/cases/" + name + ".oro")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	good, digits := read("alloc-copies"), read("u64-digits")
+	const skip = "// skip: js because \"a comparison of a value held in the unsigned word as a pair is not built\""
+	if !strings.Contains(digits, skip+"\n") {
+		t.Fatal("u64-digits no longer skips JavaScript for a comparison of pairs: restate the control")
+	}
+	dir := t.TempDir()
+	write := func(name, src string) {
+		if err := os.WriteFile(filepath.Join(dir, name+".oro"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("a-control", digits)
+	write("b-stale", "// skip: java because \"anything\"\n"+good)
+	write("c-wrong-reason", strings.Replace(digits, skip, "// skip: js because \"a reason it does not have\"", 1))
+	write("d-no-reason", "// skip: windows\n"+good)
+	cmd := exec.Command("go", "run", "run.go", "-j", "4", "-cases", dir)
+	cmd.Dir = "../../gauntlet/differential"
+	out, err := cmd.CombinedOutput()
+	text := string(out)
+	if err == nil {
+		t.Fatalf("a stale skip, a wrong reason and none passed:\n%s", text)
+	}
+	want := []string{
+		"ok   a-control",
+		"FAIL b-stale — a skip is not what the target does",
+		"java: skipped because \"anything\", and it builds, runs and agrees: a stale skip",
+		"FAIL c-wrong-reason — a skip is not what the target does",
+		"js: skipped because \"a reason it does not have\", and it fails otherwise",
+		"FAIL d-no-reason — `// skip: windows` states no reason",
+		"3 case(s) failed",
+	}
+	at := 0
+	for _, w := range want {
+		i := strings.Index(text[at:], w)
+		if i < 0 {
+			t.Fatalf("want %q after offset %d, in the cases' order:\n%s", w, at, text)
+		}
+		at += i + len(w)
+	}
+}

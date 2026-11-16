@@ -37,7 +37,7 @@ func dischargeGo(t *testing.T, src string) (*core.Term, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return emit.DischargeRequires(reqs, tg, q, prog.Sigs[q], nf, func(x *core.Term) *core.Term {
+	return emit.DischargeRequires(reqs, tg, q, prog.Sigs[q], nf, func(x *core.Term) (*core.Term, error) {
 		return ir.DischargeRanges(tg, prog.Sigs[q], x)
 	})
 }

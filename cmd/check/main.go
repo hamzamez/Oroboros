@@ -21,7 +21,10 @@
 //	             gauntlet/regen.txt and compared byte for byte with the committed copies
 //	ir           every program that emitted, lowered to the IR and verified; the
 //	             canonical printing round-trips (docs/spec/ir.md §11)
-//	differential gauntlet/differential: build, RUN and agree on four targets
+//	assemble     every windows file the sweep emitted, through clang -O2 -c
+//	differential gauntlet/differential: build, RUN and agree on four targets, and
+//	             every skipped case × target run, its skip a claim checked
+//	book         every committed chapter of docs/book, re-run by docs/book/check.go
 //	tooling      gauntlet/stdlib: the surveys twice, the pins, the acceptance programs
 //
 // THE RULE FOR EMISSION (gauntlet/check/README.md). Emitted code is compared byte
@@ -99,7 +102,7 @@ type checker struct {
 	phases         []string // the emission step's phases and what each took
 }
 
-var stepNames = []string{"vet", "compiler", "emission", "gauntlet", "ir", "differential", "tooling"}
+var stepNames = []string{"vet", "compiler", "emission", "gauntlet", "ir", "assemble", "differential", "book", "tooling"}
 
 func main() {
 	skipList := flag.String("skip", "", "comma-separated steps to skip")
@@ -153,9 +156,11 @@ func main() {
 		{"emission", (*checker).emission},
 		{"gauntlet", (*checker).gauntlet},
 		{"ir", (*checker).ir},
+		{"assemble", (*checker).assemble},
 		{"differential", func(c *checker) result {
 			return c.command("differential", filepath.Join(c.root, "gauntlet", "differential"), "go", "run", "run.go")
 		}},
+		{"book", (*checker).book},
 		{"tooling", func(c *checker) result {
 			return c.command("tooling", c.root, "go", "test", "-count=1", "-timeout", "60m", "./gauntlet/stdlib/")
 		}},

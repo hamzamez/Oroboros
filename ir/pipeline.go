@@ -43,7 +43,7 @@ func DecideMarks(tg *emit.Target, name string, sig *core.Sig, nf *core.Term, all
 		return nf, nil
 	}
 	return emit.DischargeRequires(emit.RequiresOf(tg.Word, all...), tg, name, sig, nf,
-		func(x *core.Term) *core.Term { return DischargeRanges(tg, sig, x) })
+		func(x *core.Term) (*core.Term, error) { return DischargeRanges(tg, sig, x) })
 }
 
 // NoteKind is which step a note comes from, so a driver can phrase it.
@@ -169,6 +169,16 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 			note(Note{Kind: NoteBig, N: n})
 		}
 		leg = Decide(tg, f, checked)
+		// A NUMERAL'S RESULT IS A CLAIM ITS BODY PROVES (ADR 0072, on a
+		// table): every returned table's digits in [0, 2⁶⁴), by its stores
+		for _, r := range f.Results {
+			if r == NumeralType {
+				if err := proveResultElems(tg, f, ei(0), u64Max); err != nil {
+					return nil, nil, fmt.Errorf("%s: a result held as a numeral: %v", name, err)
+				}
+				break
+			}
+		}
 	}
 	leg, err = afterRung(tg, f, name, sig, checked, leg, note)
 	if err != nil {

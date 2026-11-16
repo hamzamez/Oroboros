@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"fmt"
 	"math/big"
 
 	"oroboros/core"
@@ -30,13 +31,27 @@ import (
 // every route. A residual that cannot
 // be lowered yet (a table of products, before FlattenProducts) has nothing
 // decided: that is sound, the refinement route still sees every mark.
-func DischargeRanges(tg *emit.Target, sig *core.Sig, t *core.Term) *core.Term {
-	out, _ := decideMarks(tg, sig, t)
-	if len(out) == 0 {
-		return t
+//
+// AND ITS REASON IS RETURNED, NOT SWALLOWED (the harness, plan item 7): the
+// route is a partial function, T → T ⊎ E, and when it is undefined the
+// refinement layer is asked alone. If that layer then refuses, the refusal
+// names an obligation the IR might have proven, and the cause, the residual
+// that did not lower, was lost: it misled oswin-2026-11-15's diagnosis twice.
+// So the error comes back with the residual, for a refusal to carry.
+func DischargeRanges(tg *emit.Target, sig *core.Sig, t *core.Term) (*core.Term, error) {
+	out, _, err := decideMarks(tg, sig, t)
+	if PlantRangeRouteSilent {
+		err = nil
 	}
-	return replaceMarks(t, out)
+	if len(out) == 0 {
+		return t, err
+	}
+	return replaceMarks(t, out), err
 }
+
+// PlantRangeRouteSilent swallows the route's lowering error again: the
+// refusal that follows names the obligation alone.
+var PlantRangeRouteSilent bool
 
 // RangeVerdict is one range mark's verdict, for gen's -report-requires.
 type RangeVerdict struct {
@@ -47,13 +62,13 @@ type RangeVerdict struct {
 // MeasureRanges reports the verdict DischargeRanges reaches on each range mark,
 // and changes nothing.
 func MeasureRanges(tg *emit.Target, sig *core.Sig, t *core.Term) []RangeVerdict {
-	_, vs := decideMarks(tg, sig, t)
+	_, vs, _ := decideMarks(tg, sig, t)
 	return vs
 }
 
 // decideMarks is the decision of DischargeRanges: each decided mark's
 // replacement, and each mark's verdict.
-func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*core.Term, []RangeVerdict) {
+func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*core.Term, []RangeVerdict, error) {
 	// A BORROWING BODY yields its lent buffers' versions, then the declared
 	// result (lentSig): lowered against the result alone it failed, and every
 	// range mark of such a definition fell to the refinement layer, which knew
@@ -62,8 +77,11 @@ func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*
 		sig, _ = lentSig(sig)
 	}
 	f, err := Lower(tg, "require", sig, t, Options{})
-	if err != nil || len(f.marks) == 0 {
-		return nil, nil
+	if err != nil {
+		return nil, nil, fmt.Errorf("the residual does not lower: %v", err)
+	}
+	if len(f.marks) == 0 {
+		return nil, nil, nil
 	}
 	// A mark's argument computed from numbers of N is decided on their
 	// numerators' facts, as the pipeline will hold them (numbers.go).
@@ -71,7 +89,7 @@ func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*
 	// one unproven must not take every other mark's decision with it.
 	nums, dbl, _, err := selectBoth(tg, f, false)
 	if err != nil {
-		return nil, nil
+		return nil, nil, fmt.Errorf("its numbers' representations: %v", err)
 	}
 	fs := analyse(tg, f)
 	var reals *dfacts
@@ -141,7 +159,7 @@ func decideMarks(tg *emit.Target, sig *core.Sig, t *core.Term) (map[*core.Term]*
 		verdicts = append(verdicts, RangeVerdict{Def: m.Kids[1].Str, Param: m.Kids[2].Str, Type: m.Kids[3].Str,
 			Arg: m.Kids[4].String(), Got: termShow(x), Proven: proven})
 	}
-	return out, verdicts
+	return out, verdicts, nil
 }
 
 // replaceMarks replaces each decided mark: a proven one by its argument, and

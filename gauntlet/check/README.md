@@ -14,11 +14,13 @@ go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline
 | `emission` | every `.oro` under `examples/`, `lib/` and `gauntlet/differential/cases/`, on every target, compared with the baseline in this directory — its output byte for byte, and what each compile cost |
 | `gauntlet` | the 33 files the gauntlet's harnesses call, regenerated from [`gauntlet/regen.txt`](../regen.txt) (target, source, `-name`, output) and compared byte for byte with the committed copies. A difference fails, naming the file: run `bash gauntlet/regen.sh`, then time the harnesses that call it, as the rule for emission asks |
 | `ir` | the IR ([docs/spec/ir.md](../../docs/spec/ir.md) §11): the sweep runs `gen -ir`, so every program that emits is also lowered, verified (W1–W10) and printed to `.check/ir/`. This step fails if a program that emitted has no IR, a refused one has one, or `print ∘ read ∘ print ≠ print`. It keeps no baseline of its own until a printer reads the IR |
-| `differential` | `gauntlet/differential/run.go`: build, **run** and agree on four targets |
+| `assemble` | every windows `.ll` the sweep emitted, through `clang -O2 -Wno-override-module -c`, the flags the target's own build uses: text the emission step compares can still be text clang refuses (llvmf64-2026-11-06's `icmp sgt double`) |
+| `differential` | `gauntlet/differential/run.go`: build, **run** and agree on four targets, and every skipped case × target built and run too, its skip a claim that must fail for its stated reason ([README](../differential/README.md)) |
+| `book` | every committed chapter of [docs/book](../../docs/book/README.md), re-run by `docs/book/check.go`: each example's file, output, refusal and emitted code against what the chapter prints |
 | `tooling` | `go test ./gauntlet/stdlib/`: the surveys twice, the pins, the acceptance programs, the hand declarations against the host |
 
 **The emission step runs first and alone**, since its compile-time gate measures CPU time, which a
-neighbour's load moves; **the other six then run at once**, each a verdict no load changes, and each is
+neighbour's load moves; **the other eight then run at once**, each a verdict no load changes, and each is
 reported as it finishes (differential-2026-11-13). A full check took about 50 minutes run step by step,
 and about 4½ so. The emission step is about a minute plus 7 s for each suspect its gate pairs serially
 (its note prints its phases); its baseline should be the current compiler's, so after an accept on a

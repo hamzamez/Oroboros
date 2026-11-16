@@ -93,7 +93,7 @@ func run(targetDir, src, target, path string, verbose bool) error {
 		sig := u.sig
 		nf = emit.EtaTails(tg, nf)
 		if nf, err = emit.DischargeRequires(reqs, tg, u.name, sig, nf,
-			func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, sig, x) }); err != nil {
+			func(x *core.Term) (*core.Term, error) { return ir.DischargeRanges(tg, sig, x) }); err != nil {
 			return err
 		}
 		_, leg, err := ir.Entry(tg, u.name, u.name, sig, nf, all, false, nil)

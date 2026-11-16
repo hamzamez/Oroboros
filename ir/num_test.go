@@ -76,7 +76,7 @@ func eachEntry(src, target string, use func(*emit.Target, string, *core.Sig, *co
 		nf = emit.EtaTails(tg, nf)
 		sig := prog.Sigs[q]
 		if nf, err = emit.DischargeRequires(reqs, tg, name, sig, nf,
-			func(x *core.Term) *core.Term { return DischargeRanges(tg, sig, x) }); err != nil {
+			func(x *core.Term) (*core.Term, error) { return DischargeRanges(tg, sig, x) }); err != nil {
 			return err
 		}
 		nf = emit.EraseWordAscriptions(tg.Word, nf)

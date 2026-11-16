@@ -58,7 +58,7 @@ func print(t *testing.T, src string, checked bool) string {
 			t.Fatal(err)
 		}
 		if nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf,
-			func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
+			func(x *core.Term) (*core.Term, error) { return ir.DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
 			t.Fatal(err)
 		}
 		// THE DECIDED PATH, as the drivers take it: under -checked the decision

@@ -2,11 +2,11 @@
 //
 // On Go, the JVM and windows the result range [0, 2^63−1] is the word, so the
 // value is a machine integer and each host prints it natively — this is the case
-// that covers windows, where `word-wide` cannot render. JavaScript is skipped
-// for a reason that is about printing and not about the integer: there the value
-// is a BigInt, and `console.log` presents one as `343n` (targets/js/bigint.oro).
-// `word-wide` checks the same integers on JavaScript through `big-str`.
-// skip: js
+// that covers windows, where `word-wide` cannot render. JavaScript was skipped
+// for a reason about printing, `console.log` presenting a BigInt as `343n`
+// (targets/js/bigint.oro); the harness found the skip stale, the case agreeing
+// there, when every skip became a checked claim (gauntlet's plan item 7), so it
+// runs on four targets.
 //
 // inputs: 0 1 7 1000000 999999 2097151
 // expect: 0 1 343 1000000000000000000 999997000002999999 9223358842721533951

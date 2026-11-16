@@ -11,7 +11,7 @@
 // U is the JVM's `long` read unsigned (bits-2026-10-27) and windows' `i64` read
 // unsigned (llvm.md §3a); the skips on both were stale or lifted in
 // llvm64-2026-11-06.
-// skip: js
+// skip: js because "a comparison of a value held in the unsigned word as a pair is not built"
 // — JavaScript holds U as two 32-bit digits (ir/pairs.go), where a comparison of a pair and a
 // division by a non-power of two are not built (pairs-2026-10-28).
 //

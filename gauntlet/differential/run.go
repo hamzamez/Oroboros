@@ -33,7 +33,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -380,11 +382,23 @@ func runCase(w *strings.Builder, c, work string, keep bool) bool {
 	// real answer — a program using a host's own name is not portable and
 	// this suite is not the place to pretend otherwise — but it has to be
 	// SAID, not achieved by the case quietly not being run anywhere.
+	//
+	// AND A SKIP IS A CLAIM, CHECKED (the harness, gauntlet's plan item 7): the
+	// proposition that the case FAILS on the target, `// skip: T because
+	// "TEXT"`, where TEXT is a substring of the failure. Every skipped target is
+	// still built and run below, and the claim is evaluated. A target that
+	// builds and agrees is a STALE skip, and fails the case (three skipped the
+	// JVM for a month after its unsigned word was built, llvm64-2026-11-06); a
+	// target that fails otherwise than its reason says fails it too, so a skip
+	// cannot stay true for a reason no longer the one written.
+	skips, err := skipsOf(src)
+	if err != nil {
+		fmt.Fprintf(w, "FAIL %s — %v\n", name, err)
+		return false
+	}
 	skip := map[string]bool{}
-	for _, t := range targets {
-		if strings.Contains(src, "// skip: "+t) {
-			skip[t] = true
-		}
+	for t := range skips {
+		skip[t] = true
 	}
 
 	// AND A CASE MAY ASK FOR BOTH REPRESENTATIONS, which turns the suite's
@@ -498,15 +512,82 @@ func runCase(w *strings.Builder, c, work string, keep bool) bool {
 		fmt.Fprintf(w, "FAIL %s — what is proven is not what the case says\n%s\n", name, strings.Join(proof, "\n"))
 		return false
 	}
+	// EACH SKIP, EVALUATED: built and run as the others are, it must fail, and
+	// for the reason it states.
+	var stale []string
+	for _, t := range targets {
+		why, ok := skips[t]
+		if !ok {
+			continue
+		}
+		o, traps, err := build(name, src, t, "", work, keep)
+		var failure string
+		switch {
+		case err != nil:
+			failure = err.Error()
+		case o != ref:
+			failure = "output: " + strings.ReplaceAll(o, "\n", " ")
+		case traps && !allowed[t]:
+			failure = "an integer operation is a trap, not a proof (built with -checked)"
+		}
+		switch {
+		case failure == "":
+			stale = append(stale, fmt.Sprintf("  %s: skipped because %q, and it builds, runs and agrees: a stale skip. Remove it.", t, why))
+		case !strings.Contains(failure, why):
+			var lines []string
+			for _, l := range strings.Split(strings.TrimSpace(failure), "\n") {
+				if l = strings.TrimSpace(l); l != "" && len(lines) < 4 {
+					lines = append(lines, "      "+l[:min(len(l), 240)])
+				}
+			}
+			stale = append(stale, fmt.Sprintf("  %s: skipped because %q, and it fails otherwise:\n%s", t, why, strings.Join(lines, "\n")))
+		}
+	}
+	if len(stale) > 0 {
+		fmt.Fprintf(w, "FAIL %s — a skip is not what the target does\n%s\n", name, strings.Join(stale, "\n"))
+		return false
+	}
 	var ran []string
 	for _, t := range order {
 		if _, ok := outs[t]; ok {
 			ran = append(ran, t)
 		}
 	}
+	for _, t := range targets {
+		if _, ok := skips[t]; ok {
+			ran = append(ran, t+"(skipped, checked)")
+		}
+	}
 	fmt.Fprintf(w, "ok   %-22s %s  [%s]\n", name,
 		strings.ReplaceAll(ref, "\n", " "), strings.Join(ran, " "))
 	return true
+}
+
+// skipRe is a skip with its reason: `// skip: T because "TEXT"`.
+var skipRe = regexp.MustCompile(`(?m)^// skip: (\w+) because "([^"]+)"`)
+
+// skipsOf is a case's skips, each target's reason; a skip that states none,
+// or a target no case runs on, is refused.
+func skipsOf(src string) (map[string]string, error) {
+	out := map[string]string{}
+	for _, m := range skipRe.FindAllStringSubmatch(src, -1) {
+		if !slices.Contains(targets, m[1]) {
+			return nil, fmt.Errorf("`// skip: %s` names no target (%s)", m[1], strings.Join(targets, ", "))
+		}
+		out[m[1]] = m[2]
+	}
+	for _, line := range strings.Split(src, "\n") {
+		rest, ok := strings.CutPrefix(line, "// skip: ")
+		if !ok {
+			continue
+		}
+		t, _, _ := strings.Cut(rest, " ")
+		if _, ok := out[t]; !ok {
+			return nil, fmt.Errorf("`%s` states no reason: write `// skip: %s because \"TEXT\"`, "+
+				"TEXT a part of the failure, which the harness checks", strings.TrimSpace(line), t)
+		}
+	}
+	return out, nil
 }
 
 func main() {

@@ -195,14 +195,17 @@ func conjTerm(a, b *core.Term) *core.Term {
 // ranges is the interval route: it returns the residual with every range mark
 // it proves replaced by its argument (ir.DischargeRanges, the IR's facts since
 // irstep4f). nil decides no range there, which is sound: the refinement route
-// still sees every mark.
+// still sees every mark. The route's own error, a residual it could not lower,
+// decides nothing either, and is the cause of any refusal that follows: it is
+// joined to that refusal, and dropped when nothing is refused.
 func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig, t *core.Term,
-	ranges func(*core.Term) *core.Term) (*core.Term, error) {
+	ranges func(*core.Term) (*core.Term, error)) (*core.Term, error) {
 	if set == nil {
 		set = &RequireSet{}
 	}
 	t = Unscope(tgt, sig, t)
 	fails := literalFails(tgt.Word, t)
+	var routeErr error
 	t, _ = set.decideAscribed(tgt.Word, t)
 	if hasRequireMarks(t) {
 		// The interval route decides the ranges it can and leaves every mark it
@@ -210,7 +213,7 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 		// decide: it has nothing to say about a `where`.
 		rest := t
 		if hasRangeMarks(t) && ranges != nil {
-			rest = ranges(t)
+			rest, routeErr = ranges(t)
 		}
 		// A CLOSED CONDITION NEEDS NO CONTEXT. `(go.< 20 1048576)` — a length
 		// that folded, against a literal — is decided with no facts at all, and
@@ -242,6 +245,10 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 	}
 	if len(distinct) > 0 {
 		e := &RequireError{msg: fmt.Sprintf("%s: %s", what, distinct[0].message(len(distinct)))}
+		if routeErr != nil {
+			e.msg += fmt.Sprintf("\n  The IR's intervals decided none of the ranges here, so the refinement layer was asked alone:\n"+
+				"  %v\n  That is the error to fix first: the IR may prove what the refinement layer cannot.", routeErr)
+		}
 		for _, f := range distinct {
 			e.Fails = append(e.Fails, RequireFailure{Def: f.raw, Cond: f.cond})
 		}

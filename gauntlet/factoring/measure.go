@@ -435,7 +435,7 @@ func measure(src, target string) (*row, error) {
 func verdict(l *loaded, name string, sig *core.Sig, nf *core.Term) (bool, string) {
 	nf = emit.EtaTails(l.tg, nf)
 	nf, err := emit.DischargeRequires(l.reqs, l.tg, name, sig, nf,
-		func(x *core.Term) *core.Term { return ir.DischargeRanges(l.tg, sig, x) })
+		func(x *core.Term) (*core.Term, error) { return ir.DischargeRanges(l.tg, sig, x) })
 	if err != nil {
 		return false, trim(firstLine(err))
 	}
@@ -466,7 +466,7 @@ func decideOnce(l *loaded, n string) string {
 	}
 	nf = emit.EtaTails(l.tg, nf)
 	nf, err = emit.DischargeRequires(l.reqs, l.tg, n, sig, nf,
-		func(x *core.Term) *core.Term { return ir.DischargeRanges(l.tg, sig, x) })
+		func(x *core.Term) (*core.Term, error) { return ir.DischargeRanges(l.tg, sig, x) })
 	if err != nil {
 		return "not an entry: " + firstLine(err)
 	}

@@ -1,0 +1,12 @@
+export fn sum_of_squares(n ∈ 0..1000) (Int) {
+    sq = array { i * i : i ∈ 0..n-1 }
+    loop i = 0, s = 0 {
+        i < len(sq) -> again(i + 1, s + sq[i])
+        else -> s
+    }
+}
+
+export fn two_of_them(n ∈ 0..99) (Int) {
+    sq = array { i * i : i ∈ 0..99 }
+    sq[n] + sq[3]
+}

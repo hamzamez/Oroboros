@@ -26,7 +26,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-16 |
 | | **III. Repetition and storage** | | |
 | 11 | [`loop`](11-loop.md) | the one iteration; termination | J; 53 blocks checked 2026-11-16 |
-| 12 | Tables | a table is a function on `0..len-1`; an index is proven; fusion | not written |
+| 12 | [Tables](12-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 60 blocks checked 2026-11-16 |
 | 13 | State | `var`, buffers, maps; why a table never changes under you | not written |
 | 14 | Failures | `Result`, `try`, `expect`, `relevant` | not written |
 | | **IV. Claims and hosts** | | |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10 and thirteen in chapter 11, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11 and sixteen in chapter 12, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -494,6 +494,48 @@ the chapter shows a stuck loop compiling with *0 of 1* beside the halting proble
 static trip count is not unrolled (`three()` emits a loop), which the chapter uses to say what
 the dynamic level is.
 
+Chapter 12, Tables (2026-11-16), found six, none fixed, each avoided in the chapter:
+
+64. **A tuple pattern on a table's element emits code that is not Go.** `export fn width(p ∈
+    Array(0..100 × 0..100)) … { (x, y) = p[i]; again(i + 1, s + x * y) }` emits
+    `v15, ok14 := v0[v7]` followed by `v14 := 1; if ok14 { v14 = 0 }`: a map's comma-ok read of
+    a slice, and `x` taken as its success flag. With `Array(Int × Int)` it is refused, *cannot
+    determine a type for the value of (read …), of type any*. `p[i][0]` and `p[i][1]` are
+    right, and the chapter reads pairs that way.
+65. **Two `each` composed are refused.** With `fn each(f, t) { array { f(t[i]) : i ∈
+    0..len(t)-1 } }`, `total(each(f, each(g, t)))` is *an index into a table given by a rule
+    requires #req("an index into a table given by a rule", "index", "int 0
+    9223372036854775807", i) < len(t) at a call, which does not follow*, with `i < len(t)`
+    among the facts it lists. One `each` fuses, and the same two rules bound to names in one
+    body fuse (`chain.oro`). So the chapter's library section composes nothing.
+66. **A table of tuples cannot be written, and a table of tables not at all.** `array { (1, 2),
+    (3, 4) }` is *lowering: (1, 2) is 2 values where one is wanted*; `Array(Array(Int))` and
+    `array { array { 1, 2 }, … }[i][j]` are *lowering: an application whose operator is an
+    application, and not an eliminator*. So chapter 10's promised rectangle and list are two
+    parallel tables, which the chapter presents as the struct-of-arrays layout it is.
+67. **Division has no sign fact, so binary search cannot be written as it is taught.** With
+    `0 <= lo`, `lo < hi` and `hi <= len(t)` all among the known facts, `t[lo + (hi - lo) / 2]`
+    is refused, *0 <= lo + (hi - lo) / 2 does not follow*: x ≥ 0 ⇒ x / k ≥ 0 is not derived
+    (products.md §6 added k·(x/k) ≤ x and no more). `(lo + hi) / 2`, `>> 1` and a length-based
+    form fail alike. The chapter carries the midpoint as a third loop variable under a guard;
+    its termination is then *0 of 1 proven* (a measure of two variables), which the chapter
+    argues by hand. The same gap refuses `grid[r * w + c]` at `0 <= r * w + c`.
+68. **Segments and `alloc` at a boundary.** `t[lo:hi]` as an export's result with `where lo <=
+    hi && hi <= len(t)`: *1 table allocation(s) cannot be proven to have a size in [0, …]:
+    tabulate size [-1000000, 1000000]: below 0*, the `where` unused. With `lo ∈ Int`: *`a
+    segment b[lo:hi]`'s parameter lo, declared in 0..2^63-1, requires lo <= 9223372036854775807*.
+    And `sq = alloc(array { i * i : i ∈ 0..99 }); sq[n]` with `n ∈ 0..99`: *n < len(sq) does not
+    follow*. The chapter uses a segment inside a body and does not teach `alloc`.
+69. **Messages.** An out-of-range literal index prints the core's table, *`array`(2, 3, 5, 7,
+    11)[5] is an indexing*; a rule's fact prints as *i < (len t)*. `map` and `table` are names
+    of Σ_L, so the two natural names for this chapter's helpers are refused (*the program
+    defines `map`, which is the language's own*); the chapter's is `each`. A guard `steps >=
+    len(next)` is not taken as a trip bound where `steps >= 1000` is.
+
+Teaching: chapter 9's and chapter 10's debts are paid here (bytes as a table; a variant
+carrying a position), and chapter 11's guard-as-stated-bound returns twice (`len(t) <= 10^6`
+in a header, binary search's second arm).
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -510,7 +552,9 @@ chapter 10's is state machines, Hoare's null, case-of-case as one law shared wit
 pattern, and counting values, which is why the two are called products and sums; chapter 11's is
 Euclid's algorithm with his termination proof, Steele's tail call, a measure as the one argument
 that a loop ends, the halting problem as the reason termination is counted and not required, and
-Collatz as the loop nobody can prove.
+Collatz as the loop nobody can prove; chapter 12's is zero-based and half-open ranges, Heartbleed
+as an unchecked index, fusion as β on a table given by a rule, binary search with its invariant,
+and positions in place of pointers (struct of arrays, a list by `next`, a grid by `r·w + c`).
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

@@ -1,0 +1,22 @@
+use io
+
+fn half(lo, hi) { lo + (hi - lo) / 2 }
+
+fn search(t, x) {
+    loop lo = 0, hi = len(t), m = len(t) / 2 {
+        lo >= hi -> -1
+        lo < 0 || m < lo || m >= hi || hi > len(t) -> -1
+        t[m] < x -> again(m + 1, hi, half(m + 1, hi))
+        t[m] > x -> again(lo, m, half(lo, m))
+        else -> m
+    }
+}
+
+export fn main() {
+    primes = array { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 }
+    io.print_int(search(primes, 17))
+    io.print_int(search(primes, 2))
+    io.print_int(search(primes, 29))
+    io.print_int(search(primes, 18))
+    io.print_int(search(array { }, 5))
+}

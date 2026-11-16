@@ -1,0 +1,17 @@
+use io
+
+fn total(t) { loop i = 0, s = 0 { i < len(t) -> again(i + 1, s + t[i]); else -> s } }
+
+fn each(f, t) { array { f(t[i]) : i ∈ 0..len(t)-1 } }
+
+fn reversed(t) { array { t[len(t) - 1 - i] : i ∈ 0..len(t)-1 } }
+
+export fn main() {
+    t = array { 3, 1, 4, 1, 5, 9, 2, 6 }
+    io.print_int(total(t))
+    io.print_int(total(each(fn(x) { x * x }, t)))
+    io.print_int(total(each(fn(x) { if x % 2 == 0 { x } else { 0 } }, t)))
+    r = reversed(t)
+    io.print_int(r[0])
+    io.print_int(r[7])
+}

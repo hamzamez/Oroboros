@@ -1,0 +1,7 @@
+export fn first_space(b ∈ Array(0..255)) (Int) {
+    loop i = 0 {
+        i >= len(b) -> i
+        b[i] == 32 -> i
+        else -> again(i + 1)
+    }
+}

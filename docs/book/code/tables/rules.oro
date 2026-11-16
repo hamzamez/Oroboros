@@ -1,0 +1,9 @@
+export fn doubled(t ∈ Array(0..1000)) (Array(Int)) { array { 2 * t[i] : i ∈ 0..len(t)-1 } }
+
+export fn reversed(t ∈ Array(Int)) (Array(Int)) { array { t[len(t) - 1 - i] : i ∈ 0..len(t)-1 } }
+
+export fn gaps(t ∈ Array(0..1000)) (Array(Int)) where len(t) >= 2 {
+    array { t[i + 1] - t[i] : i ∈ 0..len(t)-2 }
+}
+
+export fn evens(n ∈ 0..1000) (Array(Bool)) { array { i % 2 == 0 : i ∈ 0..n-1 } }

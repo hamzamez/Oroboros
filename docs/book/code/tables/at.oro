@@ -1,0 +1,14 @@
+export fn promised(t ∈ Array(Int), i ∈ Int) (Int) where 0 <= i && i < len(t) { t[i] }
+
+export fn tested(t ∈ Array(Int), i ∈ Int) (Int) {
+    if 0 <= i && i < len(t) { t[i] } else { 0 }
+}
+
+export fn maybe(t ∈ Array(Int), i ∈ Int) (Int) {
+    found = if 0 <= i && i < len(t) { 'some(t[i]) } else { 'none }
+    case found { 'some(v) -> v; 'none -> -1 }
+}
+
+export fn first(t ∈ Array(Int)) (Int) where len(t) > 0 { t[0] }
+
+export fn last(t ∈ Array(Int)) (Int) where len(t) > 0 { t[len(t) - 1] }

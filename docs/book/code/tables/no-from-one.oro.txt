@@ -1,0 +1,1 @@
+export fn count_up(n ∈ 0..100) (Array(Int)) { array { k : k ∈ 1..n } }

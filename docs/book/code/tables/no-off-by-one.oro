@@ -1,0 +1,6 @@
+export fn total(t ∈ Array(0..1000)) (Int) where len(t) <= 10^6 {
+    loop i = 0, s = 0 {
+        i <= len(t) -> again(i + 1, s + t[i])
+        else -> s
+    }
+}

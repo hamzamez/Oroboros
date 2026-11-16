@@ -1,0 +1,20 @@
+use io
+
+set Shape = 'circle(Int) ∪ 'rect(Int) ∪ 'point
+
+fn area(s, widths, heights) {
+    case s {
+        'circle(r) -> 3 * r * r
+        'rect(k) -> if 0 <= k && k < len(widths) && k < len(heights) { widths[k] * heights[k] } else { 0 }
+        'point -> 0
+    }
+}
+
+export fn main() {
+    widths = array { 3, 10 }
+    heights = array { 4, 2 }
+    io.print_int(area('rect(0), widths, heights))
+    io.print_int(area('rect(1), widths, heights))
+    io.print_int(area('circle(2), widths, heights))
+    io.print_int(area('rect(7), widths, heights))
+}

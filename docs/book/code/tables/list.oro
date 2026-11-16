@@ -1,0 +1,16 @@
+use io
+
+fn walk(value, next, start) {
+    loop at = start, s = 0, steps = 0 {
+        at < 0 || at >= len(next) || at >= len(value) || steps >= 1000 -> s
+        else -> again(next[at], s + value[at], steps + 1)
+    }
+}
+
+export fn main() {
+    value = array { 30, 10, 20 }
+    next = array { -1, 2, 0 }
+    io.print_int(walk(value, next, 1))
+    io.print_int(walk(value, next, 0))
+    io.print_int(walk(value, next, 7))
+}

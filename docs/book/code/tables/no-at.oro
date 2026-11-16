@@ -1,0 +1,1 @@
+export fn at(t ∈ Array(Int), i ∈ Int) (Int) { t[i] }

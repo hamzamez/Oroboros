@@ -1,0 +1,1 @@
+export fn first(t ∈ Array(Int)) (Int) { t[0] }

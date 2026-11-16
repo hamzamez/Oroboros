@@ -1,0 +1,17 @@
+use io
+
+fn count(b, x) {
+    loop i = 0, n = 0 {
+        i >= len(b) -> n
+        b[i] == x -> again(i + 1, n + 1)
+        else -> again(i + 1, n)
+    }
+}
+
+export fn main() {
+    text = array { 104, 101, 108, 108, 111 }
+    io.print_line(utf8_text(text))
+    io.print_int(len(text))
+    io.print_int(count(text, 108))
+    io.print_line(ascii(text, 1, 3))
+}

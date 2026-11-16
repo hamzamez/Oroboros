@@ -1,0 +1,6 @@
+export fn area(sides ∈ Array(0..100 × 0..100)) (Int) where len(sides) <= 1000 {
+    loop i = 0, s = 0 {
+        i < len(sides) -> again(i + 1, s + sides[i][0] * sides[i][1])
+        else -> s
+    }
+}

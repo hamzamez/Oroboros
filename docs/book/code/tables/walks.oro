@@ -1,0 +1,23 @@
+export fn biggest(t ∈ Array(0..1000)) (0..1000) {
+    loop i = 0, m = 0 {
+        i >= len(t) -> m
+        t[i] > m -> again(i + 1, t[i])
+        else -> again(i + 1, m)
+    }
+}
+
+export fn position(t ∈ Array(Int), x ∈ Int) (Int) {
+    loop i = 0 {
+        i >= len(t) -> -1
+        t[i] == x -> i
+        else -> again(i + 1)
+    }
+}
+
+export fn how_many(t ∈ Array(Bool)) (Int) where len(t) <= 10^6 {
+    loop i = 0, n = 0 {
+        i >= len(t) -> n
+        t[i] -> again(i + 1, n + 1)
+        else -> again(i + 1, n)
+    }
+}

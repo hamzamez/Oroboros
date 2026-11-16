@@ -1101,4 +1101,4 @@ rest: it proves what it can, refuses nothing on that ground, and tells you the s
 - **When no measure exists, make one**: count the steps and give up at a limit.
 - **The compiler does not run loops.** They are what is left for the machine.
 
-Next: chapter 12, Tables. Many values of one kind, and how an index is proven to be inside.
+Next: [chapter 12](12-tables.md), Tables. Many values of one kind, and how an index is proven to be inside.

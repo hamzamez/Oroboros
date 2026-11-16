@@ -1,0 +1,14 @@
+use io
+
+export fn main() {
+    primes = array { 2, 3, 5, 7, 11 }
+    io.print_int(primes[0])
+    io.print_int(primes[4])
+    io.print_int(len(primes))
+
+    days = array { "mon", "tue", "wed", "thu", "fri", "sat", "sun" }
+    io.print_line(days[1])
+    io.print_line(days[len(days) - 1])
+
+    io.print_int(len(array { }))
+}

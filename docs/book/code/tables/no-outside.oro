@@ -1,0 +1,6 @@
+use io
+
+export fn main() {
+    primes = array { 2, 3, 5, 7, 11 }
+    io.print_int(primes[5])
+}

@@ -1,0 +1,6 @@
+export fn dot(a ∈ Array(0..1000), b ∈ Array(0..1000)) (Int) where len(a) <= 10^6 {
+    loop i = 0, s = 0 {
+        i < len(a) -> again(i + 1, s + a[i] * b[i])
+        else -> s
+    }
+}

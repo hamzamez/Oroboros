@@ -1,0 +1,7 @@
+export fn all_but_first(t ∈ Array(0..1000)) (Int) where 0 < len(t) && len(t) <= 10^6 {
+    rest = t[1:]
+    loop i = 0, s = 0 {
+        i < len(rest) -> again(i + 1, s + rest[i])
+        else -> s
+    }
+}

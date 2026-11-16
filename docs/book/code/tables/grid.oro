@@ -1,0 +1,4 @@
+export fn cell(grid ∈ Array(Int), width ∈ 1..1000, row ∈ 0..999, col ∈ 0..999) (Int) {
+    k = row * width + col
+    if 0 <= k && k < len(grid) { grid[k] } else { 0 }
+}

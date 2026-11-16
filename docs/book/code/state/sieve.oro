@@ -1,0 +1,30 @@
+use io
+
+fn cross(c ∈ Array(Bool) linear, i ∈ 2..10000, n ∈ 2..10000) {
+    loop j = i * i {
+        j > n || j >= len(c) -> ()
+        else -> { c[j] := true; again(j + i) }
+    }
+}
+
+fn sieve(n ∈ 2..10000) {
+    var composite := array { false : _ ∈ 0..n }
+    loop i = 2 {
+        i * i > n -> composite
+        composite[i] -> again(i + 1)
+        else -> { cross(composite, i, n); again(i + 1) }
+    }
+}
+
+fn count(c) {
+    loop k = 2, n = 0 {
+        k >= len(c) -> n
+        c[k] -> again(k + 1, n)
+        else -> again(k + 1, n + 1)
+    }
+}
+
+export fn main() {
+    io.print_int(count(sieve(100)))
+    io.print_int(count(sieve(10000)))
+}

@@ -1,0 +1,9 @@
+export fn seven(n ∈ 1..100) (Int) {
+    t = {
+        var b := array { 0 : _ ∈ 0..n-1 }
+        b[0] := 7
+        b
+    }
+    t[0] := 8
+    t[0]
+}

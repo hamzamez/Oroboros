@@ -1,0 +1,5 @@
+export fn zero_first(t ∈ Array(Int)) (Array(Int)) where len(t) > 0 {
+    var b := array { t[i] : i ∈ 0..len(t)-1 }
+    b[0] := 0
+    b
+}

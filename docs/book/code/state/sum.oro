@@ -1,0 +1,7 @@
+export fn sum_to(n ∈ 0..1000) (Int) {
+    var s := 0
+    loop i = 1 {
+        i <= n -> { s := s + i; again(i + 1) }
+        else -> s
+    }
+}

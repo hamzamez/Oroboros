@@ -1,0 +1,19 @@
+use io
+
+export fn main() {
+    var x := 1
+    io.print_int(x)
+    x := x + 10
+    io.print_int(x)
+    x := x * 2
+    io.print_int(x)
+
+    var name := "a"
+    name := name ++ "b"
+    name := name ++ "c"
+    io.print_line(name)
+
+    var on := false
+    on := !on
+    if on { io.print_line("on") }
+}

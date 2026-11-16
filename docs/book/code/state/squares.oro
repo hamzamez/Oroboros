@@ -1,0 +1,7 @@
+export fn squares(n ∈ 0..1000) (Array(Int)) {
+    var b := array { 0 : _ ∈ 0..n-1 }
+    loop i = 0 {
+        i < n -> { b[i] := i * i; again(i + 1) }
+        else -> b
+    }
+}

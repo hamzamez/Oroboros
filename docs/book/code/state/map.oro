@@ -1,0 +1,21 @@
+use io
+
+fn look(m, k) { case m[k] { 'some(v) -> v; 'none -> -1 } }
+
+export fn main() {
+    m = {
+        var m := map(8)
+        m[42] := 1
+        m[7] := 2
+        m[42] := 3
+        m
+    }
+    io.print_int(look(m, 42))
+    io.print_int(look(m, 7))
+    io.print_int(look(m, 5))
+    io.print_int(len(m))
+
+    codes = map { 200 : 1, 404 : 2, 500 : 3 }
+    io.print_int(look(codes, 404))
+    io.print_int(look(codes, 418))
+}

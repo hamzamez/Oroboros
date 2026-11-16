@@ -1,0 +1,19 @@
+use io
+
+fn evens(t) {
+    var b := array { 0 : _ ∈ 0..9 }
+    var n := 0
+    loop i = 0 {
+        i >= len(t) || n >= 10 -> (b, n)
+        t[i] % 2 == 0 -> { b[n] := t[i]; n := n + 1; again(i + 1) }
+        else -> again(i + 1)
+    }
+}
+
+export fn main() {
+    (found, n) = evens(array { 3, 1, 4, 1, 5, 9, 2, 6 })
+    io.print_int(n)
+    io.print_int(found[0])
+    io.print_int(found[1])
+    io.print_int(found[2])
+}

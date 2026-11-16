@@ -1223,5 +1223,5 @@ the rule that takes no memory until needed is from APL (1962) and its descendant
   compiler cannot find as a guard, and check termination yourself where it says "0 of 1".
 - **For records, lists, trees and grids, hold positions where others hold pointers.**
 
-Next: chapter 13, State. Building a table a piece at a time, and why a table still never
+Next: [chapter 13](13-state.md), State. Building a table a piece at a time, and why a table still never
 changes under you.

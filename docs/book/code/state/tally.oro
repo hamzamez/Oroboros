@@ -1,0 +1,27 @@
+use io
+
+fn look(m, k) { case m[k] { 'some(v) -> v; 'none -> 0 } }
+
+fn tally(t) {
+    var m := map(16)
+    loop i = 0 {
+        i >= len(t) -> m
+        else -> {
+            c = look(m, t[i])
+            m[t[i]] := if 0 <= c && c < 1000000 { c + 1 } else { c }
+            again(i + 1)
+        }
+    }
+}
+
+export fn main() {
+    m = tally(array { 3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5 })
+    io.print_int(len(m))
+    io.print_int(look(m, 5))
+    io.print_int(look(m, 7))
+    ks = keys(m)
+    loop j = 0 {
+        j < len(ks) -> { io.print_int(ks[j]); again(j + 1) }
+        else -> io.print_line("end")
+    }
+}

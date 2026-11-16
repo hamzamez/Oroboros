@@ -1,0 +1,30 @@
+use io
+
+fn sink(b ∈ Array(Int) linear, start) {
+    loop j = start {
+        j <= 0 || j >= len(b) -> ()
+        b[j - 1] <= b[j] -> ()
+        else -> {
+            tmp = b[j]
+            b[j] := b[j - 1]
+            b[j - 1] := tmp
+            again(j - 1)
+        }
+    }
+}
+
+fn sort(b ∈ Array(Int) linear) {
+    loop i = 1 {
+        i >= len(b) -> ()
+        else -> { sink(b, i); again(i + 1) }
+    }
+}
+
+export fn main() {
+    var b := array { 3, 1, 4, 1, 5, 9, 2, 6 }
+    sort(b)
+    loop i = 0 {
+        i < len(b) -> { io.print_int(b[i]); again(i + 1) }
+        else -> io.print_line("sorted")
+    }
+}

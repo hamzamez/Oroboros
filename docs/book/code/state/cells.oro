@@ -1,0 +1,13 @@
+export fn bonus(n ∈ 0..100) (Int) {
+    var total := 0
+    if n > 50 { total := total + 100 }
+    total := total + n
+    total
+}
+
+export fn snapshot(n ∈ 0..100) (Int) {
+    var x := 1
+    y = x
+    x := n
+    y + x
+}

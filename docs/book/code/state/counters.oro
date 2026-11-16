@@ -1,0 +1,12 @@
+export fn summary(n ∈ 0..100) (Int) {
+    var count := 0
+    var total := 0
+    loop i = 0 {
+        i >= n -> total * 1000 + count
+        else -> {
+            total := total + i
+            if i % 3 == 0 { count := count + 1 }
+            again(i + 1)
+        }
+    }
+}

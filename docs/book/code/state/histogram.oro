@@ -1,0 +1,18 @@
+use io
+
+fn histogram(t) {
+    var h := array { 0 : _ ∈ 0..9 }
+    loop i = 0 {
+        i >= len(t) -> h
+        t[i] < 0 || t[i] > 9 -> again(i + 1)
+        else -> { h[t[i]] := h[t[i]] + 1; again(i + 1) }
+    }
+}
+
+export fn main() {
+    h = histogram(array { 3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5 })
+    io.print_int(h[1])
+    io.print_int(h[5])
+    io.print_int(h[7])
+    io.print_int(len(h))
+}

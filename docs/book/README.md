@@ -27,7 +27,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 | | **III. Repetition and storage** | | |
 | 11 | [`loop`](11-loop.md) | the one iteration; termination | J; 53 blocks checked 2026-11-16 |
 | 12 | [Tables](12-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 60 blocks checked 2026-11-16 |
-| 13 | State | `var`, buffers, maps; why a table never changes under you | not written |
+| 13 | [State](13-state.md) | `var`, buffers, maps; why a table never changes under you | J; 45 blocks checked 2026-11-16 |
 | 14 | Failures | `Result`, `try`, `expect`, `relevant` | not written |
 | | **IV. Claims and hosts** | | |
 | 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | **the notation J replaced**, and its examples did not run even in it; see its banner |
@@ -44,7 +44,7 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11 and sixteen in chapter 12, covering each kind of directive. `cmd/check`
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12 and fifteen in chapter 13, covering each kind of directive. `cmd/check`
 does not run it.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -536,6 +536,53 @@ Teaching: chapter 9's and chapter 10's debts are paid here (bytes as a table; a 
 carrying a position), and chapter 11's guard-as-stated-bound returns twice (`len(t) <= 10^6`
 in a header, binary search's second arm).
 
+Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fixed:
+
+70. **A store's position is not checked.** Each of these compiles, on Go, JavaScript and
+    windows:
+
+        var b := array { 0 : _ ∈ 0..n-1 };  b[n] := 1                       // one past the end
+        var b := array { 0 : _ ∈ 0..n-1 };  b[i] := 1                       // i ∈ Int
+        loop i = 0 { i <= n -> { b[i] := i; again(i + 1) }; else -> b }      // the off-by-one
+
+    Go emits `v10[v0] = 1` and panics at run time (*index out of range [5] with length 5*);
+    JavaScript's array grows; windows writes past the block. The same index in a *read* is
+    refused (chapter 12). tables.md §6 says the obligation was needed "in three places", `build`
+    among them, and maps.md §6 cites `(set stk sp …)` carrying `sp < cap`; nothing enforces it
+    now. Chapter 13 §13.3 tells the reader of the gap in so many words, and every store in its
+    examples is under a guard that would prove it.
+71. **A map's declared capacity is not enforced, and `len` of a map is wrong on windows.**
+    `var m := map(2)` with three stores gives `len(m)` 3 on Go and JavaScript (maps.md §6
+    chose a declared capacity so that all targets agree) and **12** on windows.
+72. **A map read does not build on windows.** A program that reads a map built in a block:
+    *(read …) is not printed on LLVM*; one that reads it in a loop: *1 of 97 integer
+    operation(s) cannot be proven … llvm.sdiv [0, +inf] in llvm.sdiv(a, b)*, an operation of
+    the map library's and not the program's. The chapter's map blocks run on Go and JavaScript.
+73. **A loop that answers `()` freezes the buffer it wrote.** `var b := …; loop i = 0 { i < 5 ->
+    { b[i] := 5 - i; again(i + 1) }; else -> () }; b[0] := 100` is *a store writes into #nl2,
+    which is a frozen table*. The same loop inside a function that takes `b` `linear`, called
+    from that place, is accepted, and so are straight-line stores. So two passes over one
+    buffer need two borrowed functions (the chapter's `sort` and `sieve` are written so).
+74. **A map's value has no set, and a read of a live map is fragile.** `m[k] := look(m, k) + 1`
+    is refused as unbounded, and a guard written as its own arm (`look(m, k) >= 1000 ->`) does
+    not help, since two reads of one key are two terms; binding the read first and storing
+    `if 0 <= c && c < N { c + 1 } else { c }` works (`tally.oro`). `case m[42] { 'some(v) ->
+    io.print_int(v); … }` as a statement is *lowering: … is 2 values where one is wanted*, and
+    with `seen = case m[t[i]] { … }` inside the building loop, *a tuple pattern of 2 names
+    takes apart a `build` or a `loop`*.
+75. **Messages.** The alias refusal prints the core's term, *R1: the buffer b is bound to
+    another name …: { d = b; b := store(b, 0, 7); d(0) }*. A `fn` inside a block that writes
+    the block's cell: *`:=` writes a `var`, and the place written here, 0, is none*, which is
+    the refusal for a name bound with `=`. `var b := t`, with `t` a parameter, compiles to a
+    copy, where ADR 0052's R0 says "the copy is explicit"; the chapter writes the rule.
+
+A flaky test, seen twice (chapters 8 and 13): `go test ./core/` reports FAIL once and then
+passes three times running, with no change between. Not captured; worth running it in a loop.
+
+Teaching: cells are taught as a notation for new names (static single assignment said as the
+meaning, not as an optimization), and the chapter's question, "why a value you hold never
+changes", is answered by R1 before `linear` is introduced.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -554,7 +601,9 @@ Euclid's algorithm with his termination proof, Steele's tail call, a measure as 
 that a loop ends, the halting problem as the reason termination is counted and not required, and
 Collatz as the loop nobody can prove; chapter 12's is zero-based and half-open ranges, Heartbleed
 as an unchecked index, fusion as β on a table given by a rule, binary search with its invariant,
-and positions in place of pointers (struct of arrays, a list by `next`, a grid by `r·w + c`).
+and positions in place of pointers (struct of arrays, a list by `next`, a grid by `r·w + c`);
+chapter 13's is `=` against `:=`, static single assignment, aliasing as the bug the one-name rule
+removes, gather against scatter, insertion sort, and Eratosthenes' sieve.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a

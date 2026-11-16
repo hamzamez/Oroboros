@@ -1,0 +1,13 @@
+use io
+
+fn total(t) { loop i = 0, s = 0 { i < len(t) -> again(i + 1, s + t[i]); else -> s } }
+
+export fn main() {
+    var b := array { 0 : _ ∈ 0..3 }
+    b[0] := 5
+    io.print_int(total(b))
+    b[1] := 6
+    io.print_int(total(b))
+    b[0] := 0
+    io.print_int(total(b))
+}

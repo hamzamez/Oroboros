@@ -1,0 +1,4 @@
+export fn zero_first(t ∈ Array(Int)) (Array(Int)) where len(t) > 0 {
+    t[0] := 0
+    t
+}

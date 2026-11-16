@@ -1,0 +1,6 @@
+fn mix(a ∈ Array(Int) linear, c ∈ Array(Int) linear) { 0 }
+
+export fn both(n ∈ 0..100) (Int) {
+    var b := array { 0 : _ ∈ 0..n }
+    mix(b, b)
+}

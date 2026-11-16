@@ -1,0 +1,6 @@
+export fn two_names(n ∈ 1..100) (Int) {
+    var b := array { 0 : _ ∈ 0..n-1 }
+    d = b
+    b[0] := 7
+    d[0]
+}

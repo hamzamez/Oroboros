@@ -105,10 +105,14 @@ before planning. **Its plan (§5)**, in order:
    `invariant I`, Hoare's rule; `try` with several binds;
 3. ~~**two checks**~~ done ([checks](gauntlet/results/checks-2026-11-16.md)): `cmd/check`'s
    `endings` step; every planted rewrite through `plantOnce`;
-4. **the second triple**, `i686-pc-windows-msvc`, research first, then hamza's decisions, then built:
-   the data model (C type names as sets per data model), K(ℕ\*)'s base per triple, `max_len`,
-   `x64.oro` split, i32 scalars; with it **Win32 by header** (W1, hamza 2026-11-16): a module is the
-   header (`windows/fileapi`), the DLL each declaration's `lib`, the type names in their headers;
+4. **the second triple**, `i686-pc-windows-msvc`: **research done, decisions with hamza**
+   ([triple-research.md](docs/triple-research.md), `experiments/i686/`): 63 of 74 cases already pass
+   on 32-bit Windows, the 9 failing in three classes (the address-space bound, x86-64's own
+   operations, the 64-bit division helpers); D1–D7 (the data model's type names in their headers,
+   the digit base per triple, the bound on bytes, the ISA split, i32 scalars at 2.6× on i686,
+   `/` and `%` on i686, the target `windows32`), each with a recommendation; then built, with
+   **Win32 by header** (W1, hamza 2026-11-16): a module is the header (`windows/fileapi`), the DLL
+   each declaration's `lib`, the type names in their headers;
 5. **φ maximal** (hamza 2026-11-16): every fact the decision proves that LLVM's attribute lattice
    expresses is printed (`noundef`, `noalias`, `nonnull`/`dereferenceable`, `range`, `nneg`,
    `disjoint`, `exact`, `samesign`, `memory(…)`, `mustprogress`/`willreturn`), one kind at a time,

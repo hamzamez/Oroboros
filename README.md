@@ -506,7 +506,9 @@ plan**, in order:
 4. **32-bit Windows**, starting with what a second processor changes (the sizes of C's types, the
    digit size of big integers), the choices brought to hamza before anything is built; with it, the
    Windows API grouped as its documentation groups it, by header, each function still naming its
-   DLL;
+   DLL. **The research is done** ([triple-research.md](docs/triple-research.md)): 63 of the 74 test
+   programs already run correctly on 32-bit Windows, and the rest fail for three reasons, each
+   with a choice for hamza; one measurement says 32-bit integers would make i686 loops 2.6× faster;
 5. **tell LLVM everything the compiler proves** (that a value is never undefined, that two buffers
    never overlap, a number's range, that a loop ends), one kind of fact at a time, each checked and
    measured against C;

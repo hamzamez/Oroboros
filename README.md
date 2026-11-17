@@ -511,7 +511,12 @@ plan**, in order:
    with a choice for hamza; one measurement says 32-bit integers would make i686 loops 2.6× faster;
 5. **tell LLVM everything the compiler proves** (that a value is never undefined, that two buffers
    never overlap, a number's range, that a loop ends), one kind of fact at a time, each checked and
-   measured against C;
+   measured against C. **Four kinds done** (2026-11-17): a function's argument and result ranges,
+   comparisons of numbers of one sign, a table's pointer, and a buffer no other argument shares
+   (phi-range, phi-samesign, phi-ptr, phi-noalias). None changed the speed of the programs
+   measured, because LLVM had derived the same facts there. Found while measuring, and set aside
+   for hamza: one division by a constant runs 1.42× C's time and reaches C with a signed
+   instruction;
 6. **TinyRetroPad's Windows surface, then its walls**;
 7. ~~**the guidance file shortened to the project's current state**~~ **done** (2026-11-16):
    CLAUDE.md is 7,761 words, from 14,242, the history left to the assessments, the results and git;

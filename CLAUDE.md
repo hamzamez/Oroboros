@@ -103,9 +103,11 @@ order:
    ADR 0035's "checked once" is now a check: every called K(ℕ\*) instance decided on every target it
    serves (`TestTheLibraryIsDecidedOnEveryTargetItServes`); refusing the program and bounding the
    work join ADR 0102's "Why not";
-2. **φ's `!range` on a load**, then D4's `divl` for q̂: windows32's 7.9× Go/386 on 20000! is its
-   64-bit digit step, a full 64×64 multiply over 8-byte digits (d2 §4), and the division a few
-   percent;
+2. ~~**φ's `!range` on a load**, then D4's `divl`~~ measured, not built
+   ([rangeload](gauntlet/results/rangeload-2026-11-17.md)): LLVM 23's i686 backend ignores `!range`
+   and `range` for an i64's high half and reads `zext`/`and`; the representation form (`load i32`,
+   one `mull`, D5's) buys 4% on 20000!, whose product alone is 8.3× Go/386. The cause is outside the
+   multiply, owed to a measurement (allocation per step the candidate); `divl` a few percent, waiting;
 3. **D1 by header (W1) with TinyRetroPad 6c**: Win32's type names in their headers
    (`windows/basetsd`, `windows/minwindef`), one per data model, and the 67 functions TinyRetroPad
    calls (downloaded 2026-10-24 at `42f4c6c` as data, never built or run) declared by header and

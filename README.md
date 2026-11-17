@@ -480,8 +480,10 @@ the round: a file path could run on past its end into whatever memory followed. 
    ([noend-2026-11-17](gauntlet/results/noend-2026-11-17.md)): measured, every compilation does
    finish. The twenty minutes came from a library function the compiler had not proven on 32-bit
    Windows. Such a function is now checked on every target it serves, before any program meets it;
-2. **tell LLVM a digit's range where it is read**: big integers on 32-bit Windows take 7.9× Go's
-   time, because each 32-bit digit is multiplied as 64 bits; then the 32-bit division step;
+2. ~~**tell LLVM a digit's range where it is read**~~ **measured, not built**
+   ([rangeload-2026-11-17](gauntlet/results/rangeload-2026-11-17.md)): the 32-bit compiler LLVM
+   provides ignores that fact, and making the multiplication what Go's is bought 4%. Big integers on
+   32-bit Windows are slow for another reason, still to be measured;
 3. **the Windows API by header**, with TinyRetroPad's own calls declared that way;
 4. **32-bit integers** on 32-bit Windows;
 5. **the remaining facts for LLVM**, one kind at a time;

@@ -3,7 +3,7 @@
 2026-11-17. Item 6 of [assessment-2026-11-17](assessment-2026-11-17.md) §5, TinyRetroPad 6d, its first
 wall. hamza: "Go with records first, always mathematical and algebraic. check the repo because we
 asked this question before see what was decided, what was researched and not. and reach for the
-literature". **Research, no decision; nothing built.** The measurements in §2 were made with clang
+literature". **Decided by [ADR 0128](decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md)** (hamza, 2026-11-17, §8.1–8.2); not yet built. The measurements in §2 were made with clang
 23.1.4 and the Windows SDK 10.0.26100.0 on both triples. TinyRetroPad's source was read as data
 (commit `42f4c6c`, never built or run).
 

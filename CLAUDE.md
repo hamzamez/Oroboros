@@ -131,8 +131,9 @@ order:
    module, `noundef` changes 3 of 105 files, neutral; kernel32's effects stated, neutral too. Each
    kind's theorem is kept for its trigger (a module boundary, LTO, a freeze that costs);
 6. **TinyRetroPad 6d**: its walls, spec first, an ADR each (the window procedure: callbacks tier 2;
-   its structs: records laid out by the data layout). Records researched first
-   ([records-research.md](docs/records-research.md)), its six decisions with hamza; `wsprintfA` is
+   its structs: records laid out by the data layout). Records decided
+   ([records-research.md](docs/records-research.md), ADR 0128, hamza: "the whole record, and yes to
+   r with {}"), being built: the record in the language first, then the host struct; `wsprintfA` is
    no wall (two integer renderings, ADR 0095).
 
 **Done in the 11-16 plan** (assessment-2026-11-17 §1): the book's wrong answers and faults
@@ -597,6 +598,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A dead region crosses a call as the callee's token: release(p) ; f(x) = f′(x, p), an instance's variant `f~tok` storing its result by fit; W12 across the call | [0125](docs/decisions/0125-a-dead-region-crosses-a-call-as-the-callees-token.md) |
 | Win32 is by header (`windows/H`, each declaration's `lib` its DLL); a C type name is its typedef, a set, and a data model interprets basetsd.h's four pointer-width names; a C integer's set is its type's whole value set, U₆₄ for a 64-bit unsigned type (amends 0094); the unsigned word chosen on ι's image | [0126](docs/decisions/0126-win32-is-by-header-and-a-c-type-name-is-its-whole-value-set.md) |
 | A scalar proven in S₃₂ is an i32 where the triple prefers 32 bits (`repr scalar 32`, windows32): ρ₃₂ read off IR_P's range by the printer, an operation at 32 bits iff its operands, result and 32-bit domain are proven, every other statement the word's in a wide scope | [0127](docs/decisions/0127-a-scalar-in-s32-is-held-in-an-i32-where-the-triple-prefers-it.md) |
+| A record is built whole: `record { l ∈ S }` a set, `record { l : e }` a value, `r.l`, `r with { p : e }` an override along prefix-free paths, `zero(T)`; wherever a tuple goes, three positions lifted; a host struct is its layout, derived (Theorem L, pack the data model's) and checked against clang; a determined field the declaration's (Theorem F) | [0128](docs/decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md) |
 
 ## Build commands
 

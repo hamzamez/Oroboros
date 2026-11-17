@@ -265,7 +265,7 @@ entry:
 
 define i64 @"rt/i686.udiv"(i64 %v0, i64 %v1) #0 {
 entry:
-  %.s67 = alloca i64
+  %.s69 = alloca i64
   %v3 = or i64 4294967296, 0
   %v4 = icmp ult i64 %v1, %v3
   br i1 %v4, label %.then3, label %.else4
@@ -313,11 +313,13 @@ entry:
   %v54 = udiv i64 %v1, %v53
   %v55 = or i64 %v54, 0
   %v56 = call i64 @llvm.ctlz.i64(i64 %v55, i1 true)
-  %v58 = sub nuw nsw i64 %v56, 32
+  %v56.n = trunc i64 %v56 to i32
+  %v58 = sub nuw nsw i32 %v56.n, 32
   %v60 = or i64 2, 0
   %v61 = udiv i64 %v0, %v60
   %v62 = or i64 %v61, 0
-  %v64 = shl nuw nsw i64 1, %v58
+  %.w48 = sext i32 %v58 to i64
+  %v64 = shl nuw nsw i64 1, %.w48
   %v65 = or i64 %v1, 0
   %v66 = mul i64 %v65, %v64
   %v67 = or i64 %v66, 0
@@ -328,32 +330,33 @@ entry:
   %v74 = or i64 4294967296, 0
   %v75 = urem i64 %v72, %v74
   %v76 = or i64 %v75, 0
-  %v78 = shl nuw nsw i64 1, %v58
+  %.w60 = sext i32 %v58 to i64
+  %v78 = shl nuw nsw i64 1, %.w60
   %v79 = mul nuw nsw i64 %v76, %v78
   %v81 = udiv i64 %v79, 2147483648
   %v83 = icmp samesign sgt i64 %v81, 0
-  br i1 %v83, label %.then63, label %.else64
-.then63:
+  br i1 %v83, label %.then65, label %.else66
+.then65:
   %v87 = sub nuw nsw i64 %v81, 1
-  store i64 %v87, ptr %.s67
-  br label %.join65
-.else64:
-  store i64 0, ptr %.s67
-  br label %.join65
-.join65:
-  %v84 = load i64, ptr %.s67
+  store i64 %v87, ptr %.s69
+  br label %.join67
+.else66:
+  store i64 0, ptr %.s69
+  br label %.join67
+.join67:
+  %v84 = load i64, ptr %.s69
   %v90 = or i64 %v1, 0
   %v91 = mul i64 %v84, %v90
   %v92 = or i64 %v0, 0
   %v93 = sub i64 %v92, %v91
   %v94 = or i64 %v93, 0
   %v95 = icmp uge i64 %v94, %v1
-  br i1 %v95, label %.then74, label %.else75
-.then74:
+  br i1 %v95, label %.then76, label %.else77
+.then76:
   %v98 = add nuw nsw i64 %v84, 1
   %v99 = or i64 %v98, 0
   ret i64 %v99
-.else75:
+.else77:
   %v101 = or i64 %v84, 0
   ret i64 %v101
 }

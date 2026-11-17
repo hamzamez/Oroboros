@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 145 |
+| `specified` — a spec states it | 146 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -262,6 +262,7 @@ What a declaration's `host KIND …` or a `structural NAME KIND` may say.
 | `pair` | specified — `repr 0..2^64-1 pair`, the unsigned word as two 32-bit digits of a narrower word (ADR 0083, `ir/pairs.go`) | [integers.md](integers.md) §0b |
 | `wrap` | specified — `(repr wrap W)`, the width a target's operators wrap at (ADR 0082) | [integers.md](integers.md) §0b |
 | `double` | specified — `(repr double 128)`, the double word an intermediate above the word is computed in (ADR 0103) | [llvm.md](llvm.md) §3c |
+| `scalar` | specified — `(repr scalar 32)`, a member whose preferred scalar width is 32 holds a value proven in S₃₂ in an i32 (ADR 0127) | [llvm.md](llvm.md) §3e |
 | `niche` | specified — `(repr TYPE (niche (host expr "…")))`: the host type is 1 + E, its absent point inside its own values; a fallible declaration's failure is read through it | [errors.md](errors.md) §4.1 |
 | `word` | specified — `repr LO..HI word`, the target's word | [ADR 0026](../decisions/0026-an-int-is-an-integer.md) |
 

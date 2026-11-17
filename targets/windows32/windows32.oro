@@ -21,6 +21,11 @@ triple "i686-pc-windows-msvc"
 // n + 9 of them, so n ≤ 2³¹ − 9.
 fact max_len (a ∈ Array(A)) len(a) <= (2^31-9)
 
+// THE PREFERRED REGISTER WIDTH (ADR 0127, ADR 0083 item 2): i686's registers
+// are 32 bits, and the word is a pair of them, so a value proven in S₃₂ is
+// held in an i32, its operations printed there where proven exact.
+repr scalar 32
+
 // THE TRIPLE'S RUNTIME (ADR 0123): LLVM's i686 code generator calls __alldiv,
 // __aulldiv, __allrem and __aullrem for a 64-bit division it does not expand.
 // lib/rt/i686.oro defines them over divl, and every program links

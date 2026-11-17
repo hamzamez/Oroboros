@@ -51,7 +51,7 @@ func FromFunc(tg *emit.Target, f *ir.Func) (string, error) {
 // Func prints one IR_P function as an LLVM `define`. The module lines its
 // templates name go to emit.LLVMImports, which File writes.
 func Func(tg *emit.Target, f *ir.Func) (string, error) {
-	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), slots: map[ir.V]string{}, names: map[ir.V]string{}, dbl: ir.Doubles(f)}
+	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), slots: map[ir.V]string{}, names: map[ir.V]string{}, dbl: ir.Doubles(f), wideNow: map[ir.V]bool{}}
 	p.adders()
 	out := p.function()
 	if p.err != nil {
@@ -175,6 +175,8 @@ type printer struct {
 	slots   map[ir.V]string // a joined value's alloca
 	names   map[ir.V]string // a value spelled other than %vN: a new table's pointer
 	dbl     map[ir.V]bool   // the values held in the double word, i128 (ADR 0103)
+	// wideNow are the values a wide scope holds at the word (scalar.go, ADR 0127)
+	wideNow map[ir.V]bool
 	// the full adders (ADR 0108, carry.go): a top statement's result → its
 	// adder, and the inner sums they absorb
 	adder    map[ir.V]*adder
@@ -232,7 +234,12 @@ func (p *printer) llty(t string) string {
 	return "i64"
 }
 
-func (p *printer) ty(v ir.V) string { return p.llty(p.f.Types[v]) }
+func (p *printer) ty(v ir.V) string {
+	if p.s32(v) {
+		return "i32" // ρ₃₂ of its range (scalar.go, ADR 0127)
+	}
+	return p.llty(p.f.Types[v])
+}
 
 // elem is a table's element type in memory: an i8 for a Boolean or a range
 // the target holds in a byte, a double, a pointer for a table or a string, and
@@ -339,7 +346,14 @@ func (p *printer) load(vs []ir.V) {
 func (p *printer) function() string {
 	var params []string
 	for _, v := range p.f.Params {
-		params = append(params, fmt.Sprintf("%s%s%s %%v%d", p.ty(v), p.rangeAttr(p.f.Types[v]), p.tableAttr(p.f.Types[v], true), v))
+		params = append(params, fmt.Sprintf("%s%s%s %%v%d", p.llty(p.f.Types[v]), p.rangeAttr(p.f.Types[v]), p.tableAttr(p.f.Types[v], true), v))
+		// A PARAMETER IN S₃₂ is the word at the boundary and an i32 inside it
+		// (ADR 0127): narrowed once, exactly, at entry
+		if p.s32(v) {
+			n := fmt.Sprintf("%%v%d.n", v)
+			p.line("%s = trunc i64 %%v%d to i32", n, v)
+			p.names[v] = n
+		}
 	}
 	ret := p.retType()
 	if len(p.f.Results) == 1 {
@@ -481,13 +495,13 @@ func (p *printer) ret(args []ir.V) {
 	case 0:
 		p.line("ret void")
 	case 1:
-		p.line("ret %s %s", p.llty(p.f.Results[0]), p.val(args[0]))
+		p.line("ret %s %s", p.llty(p.f.Results[0]), p.as(args[0], p.llty(p.f.Results[0])))
 	default:
 		rt := p.retType()
 		acc := "undef"
 		for i, a := range args {
 			r := "%" + p.fresh("r")
-			p.line("%s = insertvalue %s %s, %s %s, %d", r, rt, acc, p.llty(p.f.Results[i]), p.val(a), i)
+			p.line("%s = insertvalue %s %s, %s %s, %d", r, rt, acc, p.llty(p.f.Results[i]), p.as(a, p.llty(p.f.Results[i])), i)
 			acc = r
 		}
 		p.line("ret %s %s", rt, acc)
@@ -522,7 +536,8 @@ func (p *printer) send(t *target, args []ir.V) {
 		return
 	}
 	for i, a := range args {
-		p.line("store %s %s, ptr %s", p.ty(t.slots[i]), p.val(a), p.slot(t.slots[i]))
+		ty := p.ty(t.slots[i])
+		p.line("store %s %s, ptr %s", ty, p.asTo(a, ty, t.slots[i]), p.slot(t.slots[i]))
 	}
 	p.line("br label %%%s", t.label)
 }
@@ -602,7 +617,7 @@ func (p *printer) selects(r *ir.Region, cont *target) {
 	}
 	for i := range r.Then.Args {
 		ty := p.ty(cont.slots[i])
-		a, b := p.val(r.Then.Args[i]), p.val(r.Else.Args[i])
+		a, b := p.asTo(r.Then.Args[i], ty, cont.slots[i]), p.asTo(r.Else.Args[i], ty, cont.slots[i])
 		v := a
 		if a != b {
 			v = "%" + p.fresh("sel")
@@ -626,19 +641,31 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem,
 		ir.OAnd, ir.OOr, ir.OXor, ir.ONot, ir.OShl, ir.OShr, ir.OMod,
 		ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:
-		if p.adderStmt(s) {
+		if p.adder != nil && p.wide(s, func() bool { return p.adderStmt(s) }) {
 			return
 		}
 		if p.readsDouble(s) {
-			p.dop(s)
+			p.wide(s, func() bool { p.dop(s); return true })
 			return
 		}
-		p.op(s)
+		if p.narrow(s) {
+			p.op(s) // at 32 bits: its operands and result are i32 (ADR 0127)
+			return
+		}
+		p.wide(s, func() bool { p.op(s); return true })
 	case ir.OCall:
-		p.call(s)
+		p.wide(s, func() bool { p.call(s); return true })
 	case ir.OIndex:
 		p.index(s)
 	case ir.OLen:
+		if p.s32(s.Res[0]) {
+			// a length in S₃₂ (every one, on a triple whose address space is
+			// 2³¹ bytes): the stored i64, truncated exactly
+			n := "%" + p.fresh("len")
+			p.line("%s = load i64, ptr %s", n, p.val(s.Args[0]))
+			p.line("%%v%d = trunc i64 %s to i32", s.Res[0], n)
+			return
+		}
 		p.line("%%v%d = load i64, ptr %s", s.Res[0], p.val(s.Args[0]))
 	case ir.OStorage:
 		// A table is its region here (llvm.md §4): the identity, as a no-op
@@ -660,7 +687,8 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 		body := s.Sub[0]
 		head, exit := p.fresh("head"), p.fresh("exit")
 		for i, a := range s.Args {
-			p.line("store %s %s, ptr %s", p.ty(body.Params[i]), p.val(a), p.slot(body.Params[i]))
+			ty := p.ty(body.Params[i])
+			p.line("store %s %s, ptr %s", ty, p.asTo(a, ty, body.Params[i]), p.slot(body.Params[i]))
 		}
 		p.line("br label %%%s", head)
 		p.label(head)
@@ -670,7 +698,7 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 		p.load(s.Res)
 	case ir.OBuild:
 		buf := s.Sub[0].Params[0]
-		p.names[buf] = p.table(buf, p.val(s.Args[0]), s.Store)
+		p.names[buf] = p.table(buf, p.as(s.Args[0], "i64"), s.Store)
 		done := p.fresh("built")
 		p.region(s.Sub[0], inner(x, &target{slots: s.Res, label: done}))
 		p.label(done)
@@ -683,6 +711,16 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 		}
 	case ir.OTabulate:
 		p.tabulate(s, x)
+	case ir.OCellRef, ir.OCellFresh, ir.OCellGet:
+		p.wide(s, func() bool { p.cell(s); return true })
+	default:
+		p.fail("(%s …) is not printed on LLVM", s.Op)
+	}
+}
+
+// cell prints a cell's statement at the word, in a wide scope (ADR 0127).
+func (p *printer) cell(s *ir.Stmt) {
+	switch s.Op {
 	case ir.OCellRef, ir.OCellFresh:
 		// A CELL A HOST WRITES IS A SLOT (ADR 0048 item 6, ADR 0112): f : X × T* →
 		// R that keeps no address is X × T → R × T, so the reference is the
@@ -1370,9 +1408,16 @@ func (p *printer) addr(tab ir.V, i, et string) string {
 
 func (p *printer) index(s *ir.Stmt) {
 	et, _ := p.elem(s.Args[0])
-	e := p.addr(s.Args[0], p.val(s.Args[1]), et)
+	e := p.addr(s.Args[0], p.as(s.Args[1], "i64"), et)
 	res := fmt.Sprintf("%%v%d", s.Res[0])
 	if et != "i8" {
+		if et == "i64" && p.s32(s.Res[0]) {
+			// a word element proven in S₃₂, truncated exactly (ADR 0127)
+			w := "%" + p.fresh("ld")
+			p.line("%s = load i64, ptr %s", w, e)
+			p.line("%s = trunc i64 %s to i32", res, w)
+			return
+		}
 		p.line("%s = load %s, ptr %s", res, et, e)
 		return
 	}
@@ -1381,11 +1426,11 @@ func (p *printer) index(s *ir.Stmt) {
 	if p.ty(s.Res[0]) == "i1" {
 		p.line("%s = icmp ne i8 %s, 0", res, b)
 	} else {
-		p.line("%s = zext i8 %s to i64", res, b)
+		p.line("%s = zext i8 %s to %s", res, b, p.ty(s.Res[0]))
 	}
 }
 
-func (p *printer) store(tab, i, v ir.V) { p.storeAt(tab, p.val(i), v) }
+func (p *printer) store(tab, i, v ir.V) { p.storeAt(tab, p.as(i, "i64"), v) }
 
 // storeAt writes one element. A narrow one is narrowed: a Boolean widened to
 // its byte, an integer truncated, exactly, since it is proven in the
@@ -1394,14 +1439,17 @@ func (p *printer) storeAt(tab ir.V, i string, v ir.V) {
 	et, _ := p.elem(tab)
 	e := p.addr(tab, i, et)
 	x := p.val(v)
-	if et == "i8" {
+	switch {
+	case et == "i8":
 		z := "%" + p.fresh("z")
 		if p.ty(v) == "i1" {
 			p.line("%s = zext i1 %s to i8", z, x)
 		} else {
-			p.line("%s = trunc i64 %s to i8", z, x)
+			p.line("%s = trunc %s %s to i8", z, p.ty(v), x)
 		}
 		x = z
+	case et == "i64":
+		x = p.as(v, "i64") // an i32 element widened by its sign (ADR 0127)
 	}
 	p.line("store %s %s, ptr %s", et, x, e)
 }
@@ -1410,22 +1458,35 @@ func (p *printer) storeAt(tab ir.V, i string, v ir.V) {
 // over its indices, the body's yield its value.
 func (p *printer) tabulate(s *ir.Stmt, x exits) {
 	res, n, i := s.Res[0], s.Args[0], s.Sub[0].Params[0]
-	t := p.table(res, p.val(n), s.Store)
+	t := p.table(res, p.as(n, "i64"), s.Store)
 	p.names[res] = t
+	// THE INDEX is held as its range is (ADR 0127): [0, len) is S₃₂'s on a
+	// triple whose address space is 2³¹ bytes
+	it := p.ty(i)
+	cmpTy, iv := it, fmt.Sprintf("%%v%d", i)
+	if it == "i32" && !p.s32(n) {
+		cmpTy = "i64" // n may be 2³¹, which no i32 holds: compared at the word
+	}
+	bound := p.as(n, cmpTy)
 	head, body, next, done := p.fresh("tab"), p.fresh("tabbody"), p.fresh("tabnext"), p.fresh("tabdone")
-	p.line("store i64 0, ptr %s", p.slot(i))
+	p.line("store %s 0, ptr %s", it, p.slot(i))
 	p.line("br label %%%s", head)
 	p.label(head)
 	p.load([]ir.V{i})
 	c := "%" + p.fresh("c")
-	p.line("%s = icmp slt i64 %%v%d, %s", c, i, p.val(n))
+	if cmpTy != it {
+		w := "%" + p.fresh("w")
+		p.line("%s = sext i32 %s to i64", w, iv)
+		iv = w
+	}
+	p.line("%s = icmp slt %s %s, %s", c, cmpTy, iv, bound)
 	p.line("br i1 %s, label %%%s, label %%%s", c, body, done)
 	p.label(body)
 	p.region(s.Sub[0], exits{brk: x.brk, cont: x.cont, tab: &tabulate{tab: res, idx: i, next: next}})
 	p.label(next)
 	k := "%" + p.fresh("k")
-	p.line("%s = add nuw nsw i64 %%v%d, 1", k, i)
-	p.line("store i64 %s, ptr %s", k, p.slot(i))
+	p.line("%s = add nuw nsw %s %%v%d, 1", k, it, i)
+	p.line("store %s %s, ptr %s", it, k, p.slot(i))
 	p.line("br label %%%s", head)
 	p.label(done)
 }

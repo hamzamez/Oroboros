@@ -193,6 +193,29 @@ clause testing the index at every digit: K(ℕ\*)'s A and S are two loops in seq
 (carry-2026-11-13), so the triple's own operation is used. The planted faults are `PlantAdderFault` (a
 bit leaf in [0, 2]) and `PlantAdderReadFault` (any shift read as the carry).
 
+### 3e. The 32-bit scalar, S₃₂ (ADR 0127)
+
+On a target declaring `repr scalar 32` (windows32), a value whose representative's IR_P range lies in
+S₃₂ = [−2³¹, 2³¹) is an `i32`: ρ₃₂ of the proven range, read off the IR's text, a π sharing its
+source's. The residue map ℤ → ℤ/2³² is a ring homomorphism injective on S₃₂, so an operation is
+printed at 32 bits iff
+- each integer operand and an integer result are `i32`;
+- its spelling names no literal type and no `${r}`;
+- its 32-bit domain holds by the ranges: `sdiv`/`srem` exclude (−2³¹, −1), and a shift's count
+  lies in [0, 31].
+
+Its flags are the word's reasoning at 32 bits: `nsw` because the result is in S₃₂, `nuw` where the
+operands and result are naturals, `samesign` as before.
+
+Every other statement is printed at the word in a **wide scope**: each `i32` operand is `sext` to a
+temporary first, and an integer result in S₃₂ is `trunc`ed after, to `%vN.n`. Both are the
+identity on ℤ.
+
+A join converts by `sext` or `trunc` into its slot's type, a `trunc` exact by the destination's
+range. A table keeps its layout (an i64 or i8 element, the index and the size `sext` for the
+address). A function's boundary stays the word's: a parameter in S₃₂ is narrowed at entry, and a
+result widened at `ret`.
+
 ## 4. Tables
 
 A table is a pointer to a header and its elements: an `i64` length, then the elements, each of its

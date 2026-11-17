@@ -121,7 +121,10 @@ order:
    against its prototype and 17 called by a program on both triples; a data model is basetsd.h's
    four pointer-width names, and a C integer's set its type's whole value set (SIZE_T U₆₄ on LLP64);
    the other 20 are 6d's walls;
-4. **D5, i32 scalars** (ADR 0083 item 2), its own ADR: 2.6× on i686 loops by the research;
+4. ~~**D5, i32 scalars**~~ done ([d5](gauntlet/results/d5-2026-11-17.md), ADR 0127): on windows32 a
+   value proven in S₃₂ is an i32, ρ₃₂ read off IR_P's range by the printer, an operation at 32 bits
+   where exact; every program measured 0.59–0.88×, the loop at the hand form's speed; x86-64 measured
+   and not declared (the gauntlet's JSON 1.04–1.06×);
 5. **φ's remaining kinds**: `noundef`, `memory(…)`, `mustprogress`/`willreturn`, one at a time,
    each a soundness rule with its planted fault, measured against C;
 6. **TinyRetroPad 6d**: its walls, spec first, an ADR each (the window procedure: callbacks tier 2;
@@ -198,8 +201,11 @@ contract gap (ADR 0028); records, `with` and named views beyond what TinyRetroPa
 - **storage, the rest of R1** (ADR 0096, 0097, 0100): the helpers' strings, a table inside a table,
   frame slots for a nested loop's first iteration, a token across a branch; trigger input-driven
   programs on windows, or a measurement naming one;
-- **a 32-bit scalar representation** (ADR 0083 item 2): **met** by `wc` (files-2026-11-16: its
-  newline count in 64-bit lanes, 1.43× C's work) and needed by the second triple, so item 4's;
+- **a 32-bit scalar on x86-64** (ADR 0127 item 5): built for i686 only; `wc`'s 64-bit lanes
+  (files-2026-11-16, 1.43× C's work) are a vector's width (ADR 0085), and a scalar by use, never an
+  address, is the measured candidate; trigger a program the gauntlet's JSON does not slow;
+- **U₃₂ on i686** (ADR 0127's "Why not"): K(ℕ\*)'s digit in an i32 read unsigned; trigger the next
+  measurement of windows32's big-integer gap;
 - **the Boolean operations above the word** (ADR 0082); trigger a program needing a big value's bits;
 - **integers' four old mechanisms as (H, d) data** (ADR 0083 item 1); trigger the next change to any
   of them, or a second string encoding;
@@ -585,6 +591,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | K(ℕ\*)'s base is the triple's native word, 2⁶⁴ on x86_64 and 2³² on i686, one parameter block; the two-digit lemma reads the unsigned word; amends 0106 | [0124](docs/decisions/0124-k-n-stars-base-is-the-triples-native-word.md) |
 | A dead region crosses a call as the callee's token: release(p) ; f(x) = f′(x, p), an instance's variant `f~tok` storing its result by fit; W12 across the call | [0125](docs/decisions/0125-a-dead-region-crosses-a-call-as-the-callees-token.md) |
 | Win32 is by header (`windows/H`, each declaration's `lib` its DLL); a C type name is its typedef, a set, and a data model interprets basetsd.h's four pointer-width names; a C integer's set is its type's whole value set, U₆₄ for a 64-bit unsigned type (amends 0094); the unsigned word chosen on ι's image | [0126](docs/decisions/0126-win32-is-by-header-and-a-c-type-name-is-its-whole-value-set.md) |
+| A scalar proven in S₃₂ is an i32 where the triple prefers 32 bits (`repr scalar 32`, windows32): ρ₃₂ read off IR_P's range by the printer, an operation at 32 bits iff its operands, result and 32-bit domain are proven, every other statement the word's in a wide scope | [0127](docs/decisions/0127-a-scalar-in-s32-is-held-in-an-i32-where-the-triple-prefers-it.md) |
 
 ## Build commands
 

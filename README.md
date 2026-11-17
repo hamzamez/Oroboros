@@ -499,7 +499,11 @@ the round: a file path could run on past its end into whatever memory followed. 
    32-bit and 64-bit Windows alike. The other 20 need structures, a callback or a variable
    argument list (item 6). On the way, the survey of the Windows API learned to see 802 functions
    it had missed;
-4. **32-bit integers** on 32-bit Windows;
+4. ~~**32-bit integers** on 32-bit Windows~~ **done**
+   ([d5-2026-11-17](gauntlet/results/d5-2026-11-17.md)): a number the compiler proves fits in 32
+   bits is now held in a 32-bit register there, and computed at 32 bits wherever that gives the same
+   answer. Every program measured on 32-bit Windows got faster, from 12% to 41%, and none changed its
+   output. 64-bit Windows was measured too; it doesn't help there yet, so it stays as it is;
 5. **the remaining facts for LLVM**, one kind at a time;
 6. **TinyRetroPad's walls**: the window procedure and its structures.
 

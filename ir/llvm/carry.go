@@ -207,18 +207,20 @@ func (p *printer) adderStmt(s *ir.Stmt) bool {
 			}
 			q := p.tg.Prims[name]
 			p.imports(q)
+			// THE ADDER'S OWN VALUES are the absorbed sums' operands, not only
+			// this statement's, so each is read at the word here (ADR 0127)
 			c := p.val(a.c)
 			if p.pl.Const[p.pl.Res(a.c)] == nil {
 				c8 := "%" + p.fresh("ci")
-				p.line("%s = trunc i64 %s to i8", c8, c)
+				p.line("%s = trunc %s %s to i8", c8, p.ty(a.c), c)
 				c = c8
 			}
 			y := "0"
 			if a.y >= 0 {
-				y = p.val(a.y)
+				y = p.as(a.y, "i64")
 			}
 			a.call = "%" + p.fresh("fa")
-			p.line("%s = %s", a.call, p.fillOps(q.Form, a.call, []string{"i8 " + c, "i64 " + p.val(a.x), "i64 " + y}))
+			p.line("%s = %s", a.call, p.fillOps(q.Form, a.call, []string{"i8 " + c, "i64 " + p.as(a.x, "i64"), "i64 " + y}))
 			return true
 		}
 	}
@@ -235,7 +237,7 @@ func (p *printer) adderStmt(s *ir.Stmt) bool {
 			}
 			lo := "%" + p.fresh("lo")
 			p.line("%s = extractvalue { i8, i64 } %s, 1", lo, a.call)
-			p.line("%%v%d = and i64 %s, %s", s.Res[0], lo, p.val(m))
+			p.line("%%v%d = and i64 %s, %s", s.Res[0], lo, p.as(m, "i64"))
 		case ir.OShr:
 			k := "%" + p.fresh("co")
 			p.line("%s = extractvalue { i8, i64 } %s, 0", k, a.call)

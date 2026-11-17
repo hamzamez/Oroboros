@@ -12,7 +12,9 @@ waiting item "a representation as an instance of a type's signature". **Built** 
 [ADR 0082](0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md), program first
 ([bits-2026-10-27](../../gauntlet/results/bits-2026-10-27.md)): the JVM's unsigned word and its byte
 read unsigned, JavaScript's typed arrays and int32 shifts, and JavaScript's split pair
-([pairs-2026-10-28](../../gauntlet/results/pairs-2026-10-28.md)). Not built: a 32-bit scalar representation, the old mechanisms re-declared as (H, d), and items 3, 4 and 6's LLVM part,
+([pairs-2026-10-28](../../gauntlet/results/pairs-2026-10-28.md)). The 32-bit scalar of items 2
+and 4 built for i686 by [ADR 0127](0127-a-scalar-in-s32-is-held-in-an-i32-where-the-triple-prefers-it.md).
+Not built: the old mechanisms re-declared as (H, d), and items 3, 4 and 6's LLVM part,
 which come with `ir/llvm`.
 
 ## Context

@@ -354,6 +354,14 @@ type Target struct {
 	// since the residue map ℤ → ℤ/2¹²⁸ is injective on E. Zero: none.
 	DoubleWidth int64
 
+	// ScalarWidth is 32 on a target whose preferred register width for a
+	// scalar is narrower than the word (ADR 0127, ADR 0083 item 2): a value
+	// whose proven range lies in S₃₂ = [−2³¹, 2³¹) is held in an i32, the
+	// residue map ℤ → ℤ/2³² being injective there, and an operation is
+	// printed at 32 bits where its operands, its result and its 32-bit domain
+	// are proven. Zero: every integer is held in the word.
+	ScalarWidth int64
+
 	// Word is the widest interval this target's native integer arithmetic is
 	// exact on — ADR 0026, declared as `(repr (int LO HI) word)`. It is the
 	// realization of `int`, and it decides, ON THIS TARGET, what the window used
@@ -2124,6 +2132,7 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 		{&tg.ShiftWidth, o.ShiftWidth, "shift-width"},
 		{&tg.WrapWidth, o.WrapWidth, "wrap-width"},
 		{&tg.DoubleWidth, o.DoubleWidth, "double-width"},
+		{&tg.ScalarWidth, o.ScalarWidth, "scalar-width"},
 		{&tg.MaxLen, o.MaxLen, "max-len"},
 	} {
 		if err := combineOne(f.dst, f.src, f.what, from, how); err != nil {
@@ -2828,13 +2837,20 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 			return bad("(repr double 128)")
 		}
 		frag.DoubleWidth = choice.Int
+	case "scalar":
+		// a scalar's preferred register width, narrower than the word (ADR
+		// 0127): 32, the width where S₃₂ is a system of representatives
+		if subj.Kind != core.KName || choice.Kind != core.KInt || choice.Int != 32 {
+			return bad("(repr scalar 32)")
+		}
+		frag.ScalarWidth = choice.Int
 	case "narrow":
 		if subj.Kind != core.KName || !hosted {
 			return bad(`(repr narrow (host "dst = src[:n]"))`)
 		}
 		frag.Narrow = spelling
 	default:
-		return bad("(repr (int LO HI) | (ref T) | big | map | shift | wrap | double | narrow  CHOICE)")
+		return bad("(repr (int LO HI) | (ref T) | big | map | shift | wrap | double | scalar | narrow  CHOICE)")
 	}
 	return nil
 }

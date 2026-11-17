@@ -329,7 +329,7 @@ statement   ::= binder "=" expr                       a definitional binder
               | "expect" pattern "=" expr "else" expr
               | "assert" formula
               | expr
-place       ::= ident ( "[" expr "]" )*                a whole value, an element, a record's component (G6)
+place       ::= ident ( "[" expr "]" | "." ident )*    a whole value, an element, a record's component (G6, ADR 0128)
 ```
 
 - **A block is scope(b̄; e)** (ADR 0054): its binders are definitional (`=`) or state (`var … :=`), in one
@@ -358,11 +358,15 @@ expr        ::= literal | name | qualified | tag_expr | prime
               | "(" ")" | "(" expr ")" | "(" expr "," expr,+ ")"
               | expr "(" arg,* ")"                     application
               | expr "[" expr "]"                      indexing
+              | expr "." ident                         a record's projection (ADR 0128)
+              | expr "with" "{" path ":" expr ("," path ":" expr)* "}"   override (ADR 0128)
+              | "zero" "(" set_expr ")"                a record set's zero (ADR 0128)
               | lambda | former | "map" "(" expr ")"
               | if_expr | case_expr | loop_expr | try_expr | block
               | prefix expr | expr infix expr
               | quantified                             (in a claim position only)
-qualified   ::= ident ( "." member )+
+qualified   ::= ident ( "." member )+                  a module's member, when ident names a module
+path        ::= ident ( "." ident )*
 member      ::= ident | quoted | reserved_word
 tag_expr    ::= ( ident "." )? tag ( "(" expr,* ")" )?
 prime       ::= ident "'"                              (in an `ensure` only)
@@ -376,6 +380,9 @@ if_expr     ::= "if" expr block ( "else" ( block | if_expr ) )?
   application, `errors.AsType(strconv.NumError)(err)`, and an inferable static argument may be omitted
   (ADR 0066 item 2).
 - **A tuple is `(a, b)`, the unit `()`**; `(e)` is grouping. String concatenation is `++`.
+- **A record is `record { l : e, … }`**, projected `r.l`, updated `r with { l : e, l.m : e }` along
+  prefix-free paths, its zero `zero(T)` (ADR 0128, data.md §4). `a.b` is a projection when `a` is a
+  value and a member when `a` names a module: one namespace, the binder decides.
 - **A tag is `'name`**, an imported one `alias.'name`, a module's own and the language's unqualified
   (ADR 0059, 0060): `result.'err(e)`, `'some(v)`, `'none`.
 - **A one-armed `if c { a }` is if(c; a; ())**, a statement whose value is the unit (ADR 0056 item 6).
@@ -428,6 +435,8 @@ set_expr    ::= expr                                   an expression whose value
 former      ::= "array" "{" ( expr,* | expr ":" binder ) "}"
               | "set" "{" ( expr,* | binder ":" formula | expr ":" binder,+ ) "}"
               | "map" "{" ( expr ":" expr ),* "}"
+              | "record" "{" ( ident "∈" set_expr ),+ "}"       a record set (ADR 0128)
+              | "record" "{" ( ident ":" expr ),+ "}"           a record value, its graph
 range       ::= expr ".." expr | expr ".." | ".." expr          an end omitted is unbounded (ADR 0077)
 ```
 

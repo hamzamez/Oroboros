@@ -1003,6 +1003,9 @@ emitted program changes without a word.
 | X6 | a heterogeneous `(array …)` literal | P | *"write `(tuple …)`"* |
 | X7 | a symbol reaches the residual (data.md §2.4) | P | the symbol, and the export being built |
 | X8 | `(t (fn (x…) …))` whose arity is not the tuple's | P | both arities |
+| X9 | a record former mixing a set's `l ∈ S` and a value's `l : e` (ADR 0128) | L | the label of each kind |
+| X10 | a `with` whose paths are not prefix-free: one repeats, or is another's prefix (ADR 0128) | P | both paths |
+| X11 | `zero(T)` where a component's set has no zero (ADR 0128) | P | the component and its set |
 | X9 | a `case` that misses a constructor | P | the missing constructors (sums.md's rule, kept) |
 
 #### Covering

@@ -3,6 +3,8 @@
 **Status, 2026-09-17: partly built.** `variant` (with type arguments) and `tuple` are built under these
 names ([respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md),
 [typeargs-2026-09-15](../../gauntlet/results/typeargs-2026-09-15.md)); records, symbols and `with` are not.
+**2026-11-17: §4 is restated in J and extended by [ADR 0128](../decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md)**
+(the whole record: override along paths, `zero`, three positions lifted for tuples too), being built.
 Written when four of the six forms existed only under older spellings. This document fixes the spelling, and says what each form is and what it
 lowers to. The design came from [theories.md](../theories.md) §4 and
 [theories-b-or-c.md](../theories-b-or-c.md) §8, and the vocabulary was agreed with hamza on
@@ -202,9 +204,9 @@ This is products.md §3, unchanged, and the reasons are unchanged:
 | consumed within one reduction | yes | nothing: it reduces away (β, β-tab) |
 | a function's result | yes | several results (values.md): Go's multiple returns, a generated Java `record`, a JS object, `rax`/`rdx` |
 | an element of `(array …)` or `(buffer …)` | yes | the flat stride (products.md §4) |
-| a parameter at an export | **no** | a bare product has no width caller and callee could agree on |
-| a value in a `(map K …)` | **no** | a map is not an array, so the stride does not apply |
-| a component that is itself a product, at a representation position | **no** | the nested layout products.md §7 defers |
+| a parameter at an export | **yes**, ADR 0128 (was no: "a bare product has no width caller and callee could agree on") | per component by ρ (ADR 0079): a record's labels and sets are the agreement; Go a struct, Java a record class, JavaScript an object, LLVM its components |
+| a value in a `map` | **yes**, ADR 0128 (was no: a map is not an array) | its components' cells (ADR 0120 on LLVM), the host's struct value elsewhere |
+| a component that is itself a product, at a representation position | **yes**, ADR 0128 (was deferred by products.md §7) | flattened by associativity, A × (B × C) ≅ A × B × C |
 
 ### 3.4 Reduction
 
@@ -292,83 +294,141 @@ written with a pattern that binds nothing, `(try (result.ok _) (os.WriteFile p d
 
 ## 4. Records
 
+J's spelling ([ADR 0128](../decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md)).
+The core forms below are what D writes; no program writes them.
+
 ### 4.1 Surface
 
-| | |
-|---|---|
-| type | `(record ('l₁ T₁) … ('lₙ Tₙ))`, n ≥ 1, labels distinct symbols |
-| introduction | `(record ('l₁ e₁) … ('lₙ eₙ))`, every label of the type given once |
-| projection | `(r 'l)` |
-| update | `(with r ('l e) …)` |
-| a name for a record type | `(type point (record ('x f64) ('y f64)))`, an abbreviation (theories.md) |
+| | J | the core (D's) |
+|---|---|---|
+| the set | `record { l₁ ∈ S₁, …, lₙ ∈ Sₙ }`, n ≥ 1, labels distinct identifiers | the type `record(l₁: S₁, …, lₙ: Sₙ)`, labels in ascending order |
+| a value | `record { l₁ : e₁, …, lₙ : eₙ }`, every label of its set given once | `(#rec "l₁ … lₙ" e₁ … eₙ)`, labels ascending, components in their order |
+| projection | `r.l`, and through nested records `r.l.m` | `(#get "l" r)` |
+| update | `r with { p₁ : e₁, …, pₖ : eₖ }`, each pᵢ a path `l` or `l.m…` | `(#with "l" r e)`, a path composed (§4.3) |
+| the zero | `zero(T)` | the value of §4.6, computed from T |
+| a name | `set point = record { x ∈ Int, y ∈ Int }`, an abbreviation (ADR 0073) | |
+| a cell's component | `p.l := e`, `p.l.m := e` (G6's place, extended) | the state translation's `with` |
 
-`(p 'x)` is application because a record is a function on its labels. It is the same form as array
-indexing and map lookup, and it needs no name of its own (tables.md §3).
+`r.l` is application to a label. A record is a function on its labels, and TLA+ writes `r.l` for
+`r["l"]` (*Specifying Systems* §5.2). The binder decides what `a.b` is: a value is projected, and a
+module is qualified (one namespace, typevalues.md §2).
+
+The token after a label in a former tells a set from a value:
+- `∈` makes a set, a family of membership claims;
+- `:` makes a value, a graph (ADR 0061's pair).
+
+**A former mixing the two is refused** (X9).
 
 ### 4.2 Well-formedness, derived rather than listed
 
 A record is a function on its label set. Each rule below is what that sentence means:
 
-- **A label may not appear twice** in a type or a literal. A function has one value at each point.
-- **A literal gives every label.** A record is *total* on its labels; a partial one would be a map.
-- **Projection of a label not in the type is a type error.** It is application outside the domain,
-  and the domain is known statically, so it is caught statically.
-- **A label is a literal symbol.** A label computed at run time would be a dynamic index, which
-  forces homogeneity (§3.2); that is `(map K V)`.
+- **A label may not appear twice** in a set, a value or a `with` (X1). A function has one value at
+  each point.
+- **A value gives every label** (X2). A record is *total* on its labels; a partial one would be a
+  map. A default is written `zero(T) with` (§4.6), never as an omitted label.
+- **Projection of a label not in the set is refused** (X3). It is application outside the domain,
+  and the domain is known statically.
+- **A label is an identifier, never computed** (X4). A label computed at run time would be a dynamic
+  index, which forces homogeneity (§3.2): that is a `map`.
 
-### 4.3 Update is TLA+'s `EXCEPT`
+### 4.3 Update is override, along paths
 
-`(with r ('l e))` is the record equal to `r` at every label except `l`, where it is `e`. It is TLA+'s
-`[r EXCEPT !.l = e]` and F#'s `{ r with l = e }`. Several updates in one `with` apply to distinct
-labels, so their order is irrelevant; a repeated label is an error.
-
-The result has **the type of `r`**. `e` must be compatible with the label's component type, and a
-component declared with a range makes that an obligation, like any other value flowing into a
-declared range.
-
-`with` is not `set`. `set` stores into a **linear buffer** and consumes it (ADR 0018). `with`
-builds a **new immutable value** and consumes nothing. The two are the same mathematics (a function
-equal to another except at one point), and the distinction is ADR 0018's between a buffer and a
-value. products.md's `(set (b i) j v)`, a store into a table of products, is unchanged.
-
-**Laws.** Projection and update form a *very well-behaved lens* (Foster, Greenwald, Moore, Pierce &
-Schmitt, *Combinators for bidirectional tree transformations*, TOPLAS 2007):
+`r with { l : e }` is the record equal to `r` at every label except `l`, where it is `e`. That is
+**function override**:
 
 ```
-((with r ('l e)) 'l)          = e                          put–get
-((with r ('l e)) 'm)          = (r 'm)          for m ≠ l
-(with r ('l (r 'l)))          = r                          get–put
-(with (with r ('l e)) ('l f)) = (with r ('l f))            put–put
+(f ⊕ g)(x) = g(x)   for x ∈ dom g
+           = f(x)   otherwise
 ```
 
-### 4.4 Record types are structural, and their order is canonical
+It is TLA+'s `[r EXCEPT !.l = e]`, Z's ⊕ and B's `<+`.
 
-Two record types are **equal** when they have the same label set and equal component types at each
-label. The order in which labels are written is not part of the type:
-`(record ('x int) ('y f64))` and `(record ('y f64) ('x int))` are one type. A record is a function,
-and a function does not have an order on its domain.
+Its operand is a family of (path, value) pairs:
+- **A path composes lenses** (Foster et al., TOPLAS 2007: lenses compose). `r with { l.m : e }` is
+  `r with { l : r.l with { m : e } }`, TLA+'s `!.l.m`.
+- **The paths are prefix-free**: none repeats, and none is another's prefix (X10). The pairs then
+  touch disjoint parts of `r` and commute (records-research Lemma 3.1), so their order is irrelevant.
+  A prefix is put–put on one component, and is refused as a repeated label is.
+- **The result has `r`'s set.** Each `e` owes its component's set, like any value flowing into a
+  declared set.
+
+`with` is not a store:
+- `b[i] := v` writes a **linear buffer** in program order (ADR 0052);
+- `with` builds a **new value** and consumes nothing;
+- a cell's component write `p.l := e` is that cell's `with` in program order, by the state
+  translation (ADR 0047).
+
+**Laws.** Override on the functions on L is a monoid, associative, with the empty family as its
+unit. Projection and update are a *very well-behaved lens*:
+
+```
+(r with { l : e }).l                          = e                  put–get
+(r with { l : e }).m                          = r.m       (m ≠ l)
+r with { l : r.l }                            = r                  get–put
+(r with { l : e }) with { l : f }             = r with { l : f }   put–put
+```
+
+### 4.4 Record sets are structural, and their order is canonical
+
+Two record sets are **equal** when they have the same labels and equal sets at each label. The order
+in which labels are written is not part of the set: `record { x ∈ Int, y ∈ F64 }` and
+`record { y ∈ F64, x ∈ Int }` are one set. A record is a function, and a function has no order on
+its domain.
 
 **Why structural, and not nominal as in F#.** F# makes records nominal so that type inference can
-tell which record a field name belongs to. This compiler never needs to know that before reduction.
-The residual is monomorphic, so every record's type is known exactly by the time anything checks it
-(decidability-map.md). Structural records cost no inference here, and they are what TLA+ has.
-`(type point …)` names a record type as an **abbreviation** and creates no new type.
+tell which record a field name belongs to. This compiler never needs to know that before reduction:
+the residual is monomorphic, so every record's set is known exactly by the time anything checks it.
+`set point = …` names a record set as an **abbreviation** (ADR 0073) and creates no new set.
 
 **Representation needs an order, and the order is canonical.** A record is lowered as the tuple of
-its components **in ascending label order** (§2.5). That order is a bijection from the label set to
-`{0 … n−1}`, which is products.md §1's *"a record is a tuple up to a bijection on the index set"*.
-Once the bijection is fixed, the tuple's positions and lowerings (§3.3) apply unchanged.
+its components **in ascending label order**. That order is a bijection from the label set to
+`{0 … n−1}`, products.md §1's *"a record is a tuple up to a bijection on the index set"*. Once the
+bijection is fixed, the tuple's positions and lowerings (§3.3) apply unchanged.
 
-**The hazard, stated because a conformance case must catch it:** an emitter that used *written*
-order would store a record literal written `('x 1) ('y 2)` and read one written `('y …) ('x …)` at
-the wrong slots. That is a silent wrong answer on every target at once, which the differential
-suite would not see as a disagreement. §9 names the case that catches it.
+**The hazard, stated because a conformance case must catch it.** An emitter that used *written*
+order would store a record value written `record { x : 1, y : 2 }` and read one written
+`record { y : …, x : … }` at the wrong slots. That is a silent wrong answer on every target at once,
+which the differential suite would not see as a disagreement. §9's `record-order` catches it.
 
 ### 4.5 Where a record may appear
 
-Exactly where a tuple may (§3.3), because it *is* one after the bijection.
+**Wherever a tuple may (§3.3).** ADR 0128 item 7 also lifts §3.3's three refused positions, for
+records and tuples both:
+- a product nested in a product;
+- an export's parameter;
+- a map's value.
 
----
+### 4.6 The zero
+
+`zero(T)` is the record whose every component is its set's zero:
+- 0, where 0 ∈ S_l;
+- `none`, where S_l is an `Option`;
+- `zero(S_l)`, where S_l is a record.
+
+It is defined iff every component has one, and is otherwise refused, naming the component (X11): a
+default exists only where it is derived. `zero(T) with { … }` is C's `T x = {0}` followed by its
+writes.
+
+### 4.7 Where labels become positions
+
+Projection needs the operand's label set, as in every structural record calculus (TAPL §11.8). It is
+known statically in two places:
+- **In the reducer, at a visible value.** `(#get "l" (#rec L e…))` reduces to the component, and
+  `(#with "l" (#rec L e…) x)` to the value with x in l's place. These are the lens laws read as
+  δ-rules, and they erase every record built and consumed in one reduction, as a tuple's β does.
+- **On the residual, by the set of each term**, computed forward from its values, its declared sets
+  and its loops' initializers. The residual is closed, first-order and monomorphic (ADR 0036), so
+  each term's label set is determined.
+
+At the residual, the bijection of §4.4 is applied once, **before the checker, where products.md's
+flattening pass runs**:
+- `#rec` becomes the tuple of its canonical order;
+- `#get` becomes the projection at its label's position;
+- `#with` becomes the tuple rebuilt;
+- each record set becomes a product.
+
+No backend learns that records exist.
 
 ## 5. Variants
 
@@ -622,7 +682,7 @@ results. Arity was asked to carry a meaning that a name should carry.
 **No backend learns anything.** After reduction:
 - a tuple is what `values` or a flattened product already is;
 - a record is a tuple under §4.4's bijection, done before the type checker, exactly where
-  products.md's flattening pass runs;
+  products.md's flattening pass runs (§4.7);
 - a variant is what `sum` already generates;
 - a symbol has been consumed or refused (§2.4).
 
@@ -653,6 +713,10 @@ against the bug it exists for:
 |---|---|---|
 | `record-order` | a table of records filled with literals written in one label order and read through literals and projections written in the other | an emitter using written order: wrong slots on every target |
 | `record-lens` | each of the four lens laws evaluated on a record whose fields have *different* values | an update that writes the wrong label, or all of them |
+| `record-path` | a `with` along two disjoint paths into nested records, against nested `with`s | a path composed in the wrong order, or applied to the outer record |
+| `record-zero` | `zero(T) with { … }` on a record with a nested record and an `Option` | a zero that is not every component's |
+| `record-loop` | a record carried by a loop and by a cell, its projections read after | labels lost at a residual variable |
+| `product-nested`, `product-export`, `product-map` | each lifted position of §3.3, for a tuple and for a record | the position's representation on each target |
 | `tuple-destructure` | a function returning a tuple, consumed once by projection and once by destructuring, both printed | the two eliminators disagreeing about position |
 | `variant-payloads` | a constructor with two payloads, matched and printed in both orders | payload order swapped |
 | `respell` | not a program: every existing example respelled, emitted, and compared byte for byte | any change in emission |
@@ -688,5 +752,4 @@ operations.
 - **Nested products at representation positions** (products.md §7): unchanged, and still waiting for
   a program that wants one.
 - **A symbol that survives staging**: no representation until a program needs one.
-- **A `with` that changes several levels at once** (`(with r ('a ('b e)))`): not specified. Nested
-  updates are written as nested `with`s.
+- ~~**A `with` that changes several levels at once**~~: decided, a path (§4.3, ADR 0128).

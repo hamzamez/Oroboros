@@ -1609,7 +1609,7 @@ func (a *intervals) numeralQuotient(t, d V) (ep, bool) {
 
 // isAdd and isMul are ℤ's + and ·, and the unsigned word's, which are ℤ's on
 // the integers it holds; PlantQuotientWordOnly reads ℤ's alone, as before ADR
-// 0124, and TestTheTwoDigitLemmaReadsTheUnsignedWord must see windows32's
+// 0124, and TestTheLibraryIsDecidedOnEveryTargetItServes must see windows32's
 // Algorithm D undecided.
 func (a *intervals) isAdd(d *Stmt) bool {
 	return d.Op == OAdd || !PlantQuotientWordOnly && d.Op == OCall && d.Name == "u64+"

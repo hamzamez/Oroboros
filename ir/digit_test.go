@@ -1,34 +1,87 @@
 package ir
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"oroboros/emit"
 )
 
-// THE TWO-DIGIT LEMMA READS THE UNSIGNED WORD (ADR 0124). At B = 2³²
-// Algorithm D's window is the word's: q̂ = ⌊(w_n·B + w_{n−1}) / v_{n−1}⌋ is
-// `u64/` of `u64+` of a `u64*` by B, its operands converted into the unsigned
-// word, and the lemma bounds it below B as it does ℤ's own division. With it,
-// windows32's K(ℕ*) `div` and `render` are decided under their parameters'
-// sets, so each is one function of the program, as on x86_64. THE PLANTED
-// FAULT reads the lemma on ℤ's operations alone, as before: `div` is then not
-// decided, q̂'s bound lost to the signed reading of the unsigned word.
-func TestTheTwoDigitLemmaReadsTheUnsignedWord(t *testing.T) {
-	tg, err := emit.LoadTargetLayers("windows32", []string{"../targets"}, []string{"../lib"})
+// numeralTargets are the targets whose integers above the word are K(ℕ*):
+// those of ../targets that load, have no bignum and hold ℤ by the limb rung
+// (Target.HoldsZ). Derived, so a new member is checked when it is added.
+func numeralTargets(t *testing.T) []*emit.Target {
+	t.Helper()
+	ents, err := os.ReadDir("../targets")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fn := range []string{"div", "render"} {
+	var out []*emit.Target
+	for _, e := range ents {
+		if !e.IsDir() {
+			continue
+		}
+		tg, err := emit.LoadTargetLayers(e.Name(), []string{"../targets"}, []string{"../lib"})
+		if err != nil {
+			continue // a layer (llvm, win32) is no target alone
+		}
+		if !tg.HasBig() && tg.HoldsZ() {
+			out = append(out, tg)
+		}
+	}
+	return out
+}
+
+// undecidedInstances is every called K(ℕ*) instance (natCalled) that is not
+// decided under its parameters' sets on tg, with its reason.
+func undecidedInstances(tg *emit.Target) []string {
+	var bad []string
+	for fn := range natCalled {
 		if _, err := buildNatCallee(tg, fn, "nat."+fn); err != nil {
-			t.Errorf("windows32's K(ℕ*) %s is not decided under its parameters' sets: %v", fn, err)
+			s := err.Error()
+			if i := strings.Index(s, "\n"); i > 0 {
+				s = s[:i]
+			}
+			bad = append(bad, tg.Name+": "+s)
+		}
+	}
+	return bad
+}
+
+// THE LIBRARY IS A THEORY CHECKED ONCE, ON EVERY TARGET IT SERVES (ADR 0035,
+// 0101, noend-2026-11-17). Every instance a program calls is decided under its
+// parameters' sets on every target whose integers above the word are K(ℕ*).
+// P4 inlines an instance that is not (ADR 0102), which keeps every program's
+// verdict, but hides the library's defect and makes each program pay for it:
+// windows32's `div`, undecided before ADR 0124's lemma, made two programs
+// compile for over 20 minutes. So the theory is checked here, once, and not by
+// the program that happens to call it. THE PLANTED FAULT reads the two-digit
+// lemma on ℤ's operations alone: windows32's `div` is then undecided, and the
+// check reports it.
+func TestTheLibraryIsDecidedOnEveryTargetItServes(t *testing.T) {
+	tgs := numeralTargets(t)
+	var names []string
+	for _, tg := range tgs {
+		names = append(names, tg.Name)
+	}
+	if !strings.Contains(" "+strings.Join(names, " ")+" ", " windows32 ") || len(tgs) < 2 {
+		t.Fatalf("K(ℕ*)'s targets should include windows and windows32, got %v", names)
+	}
+	for _, tg := range tgs {
+		for _, b := range undecidedInstances(tg) {
+			t.Errorf("an instance a program calls is not decided: %s", b)
 		}
 	}
 	PlantQuotientWordOnly = true
-	_, err = buildNatCallee(tg, "div", "nat.div")
-	PlantQuotientWordOnly = false
-	if err == nil || !strings.Contains(err.Error(), "cannot be proven") {
-		t.Errorf("with the lemma on ℤ's operations alone, windows32's div should not be decided, so the test reaches the rule; got %v", err)
+	defer func() { PlantQuotientWordOnly = false }()
+	for _, tg := range tgs {
+		if tg.Name != "windows32" {
+			continue
+		}
+		_, err := buildNatCallee(tg, "div", "nat.div")
+		if err == nil || !strings.Contains(err.Error(), "K(ℕ*)'s div is not decided") {
+			t.Errorf("with the lemma on ℤ's operations alone windows32's div should be undecided, so the check reaches the rule; got %v", err)
+		}
 	}
 }

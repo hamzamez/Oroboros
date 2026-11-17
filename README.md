@@ -476,8 +476,10 @@ three items and its last done, 32-bit Windows built as far as its arithmetic (72
 programs run there), and four kinds of fact told to LLVM. It found one wrong answer, older than
 the round: a file path could run on past its end into whatever memory followed. **The next plan**
 (hamza, 2026-11-17), in order:
-1. **a compilation that never finishes is refused**, rather than left running: two programs did,
-   for over twenty minutes;
+1. ~~**a compilation that never finishes is refused**~~ **done, the other way round**
+   ([noend-2026-11-17](gauntlet/results/noend-2026-11-17.md)): measured, every compilation does
+   finish. The twenty minutes came from a library function the compiler had not proven on 32-bit
+   Windows. Such a function is now checked on every target it serves, before any program meets it;
 2. **tell LLVM a digit's range where it is read**: big integers on 32-bit Windows take 7.9× Go's
    time, because each 32-bit digit is multiplied as 64 bits; then the 32-bit division step;
 3. **the Windows API by header**, with TinyRetroPad's own calls declared that way;

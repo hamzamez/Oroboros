@@ -97,9 +97,12 @@ wrong about half the time.
 **The current assessment is [assessment-2026-11-17.md](docs/assessment-2026-11-17.md)**; read it
 before planning. **Its plan (§5)**, approved by hamza 2026-11-17 ("Go with the proposed plan"), in
 order:
-1. **a compile that does not end is a refusal**: two K(ℕ\*) programs compiled for over 20 minutes
-   on windows32 when an undecided instance was inlined (d2-2026-11-17 §3). Research first: bound
-   the work per program, or refuse a program whose needed instance is not decided;
+1. ~~**a compile that does not end is a refusal**~~ done, its premise reversed
+   ([noend](gauntlet/results/noend-2026-11-17.md)): every loop of the compile has a measure, so it
+   ends; the 20 minutes were windows32's `div` undecided and inlined (P4, right for the program).
+   ADR 0035's "checked once" is now a check: every called K(ℕ\*) instance decided on every target it
+   serves (`TestTheLibraryIsDecidedOnEveryTargetItServes`); refusing the program and bounding the
+   work join ADR 0102's "Why not";
 2. **φ's `!range` on a load**, then D4's `divl` for q̂: windows32's 7.9× Go/386 on 20000! is its
    64-bit digit step, a full 64×64 multiply over 8-byte digits (d2 §4), and the division a few
    percent;

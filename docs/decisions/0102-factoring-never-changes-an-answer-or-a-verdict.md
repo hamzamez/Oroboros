@@ -80,6 +80,16 @@ depend on a choice invisible to meaning.
   definitions the compiler kept, which Theorem 1 says is not part of the program's meaning.
 - **Emit everything as functions and let the host inline.** The host cannot decide our obligations, so
   every definition would be proven by its contract alone, which is separate compilation again.
+- **Refuse a program whose library instance is not decided** (raised 2026-11-17, noend-2026-11-17,
+  after windows32's undecided `div` made two programs compile for over 20 minutes). The verdict
+  would depend on the library's proofs on the target, which are no part of the program's meaning,
+  and inlined the program is decided and right. The defect is the library's on that target: ADR
+  0035's "checked once" is enforced instead by a check of the compiler, every called instance
+  decided on every target K(ℕ\*) serves.
+- **Bound the compile's work per program** (raised then too). The compile already ends: reduction
+  runs on fuel, `Keep` drops a definition per retry, `Entry` reruns at most once per instance, storage
+  and ι stop at 8 rounds, and the decision widens. A further constant would refuse a long compile of
+  a program inlining accepts, a verdict changed by a measure of effort.
 - **A learned inlining policy** (MLGO). It cannot be derived or explained, and it answers only run time,
   never what is proven.
 

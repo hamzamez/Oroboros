@@ -1,0 +1,21 @@
+// processenv.h (ADR 0126): THE PROCESS'S ENVIRONMENT, its standard handles,
+// its command line and its variables.
+module windows/processenv {
+    use windows/minwindef
+    use windows/winnt
+
+    // A DWORD, so its full range: STD_INPUT_HANDLE, STD_OUTPUT_HANDLE and
+    // STD_ERROR_HANDLE are ((DWORD)-10), ((DWORD)-11) and ((DWORD)-12), the
+    // integers 4294967286, 4294967285 and 4294967284.
+    fn GetStdHandle(n ∈ minwindef.DWORD) (r ∈ winnt.HANDLE) { host expr call "GetStdHandle" stdcall lib "kernel32" }
+
+    // THE COMMAND LINE, a C string Win32 owns (the process's, never freed).
+    fn GetCommandLineA() (r ∈ ptr) { host expr call "GetCommandLineA" stdcall lib "kernel32" }
+
+    // GetEnvironmentVariableA(name, buffer, size): the length without the NUL
+    // when it fits, the size it needs with the NUL when not, 0 when absent or
+    // empty (ERROR_ENVVAR_NOT_FOUND 203 tells them apart).
+    fn GetEnvironmentVariableA(k ∈ String, b ∈ Array(0..255) linear, n ∈ minwindef.DWORD) (r ∈ minwindef.DWORD) where nulfree(k) && n <= len(b) {
+        host expr call "GetEnvironmentVariableA" stdcall lib "kernel32"
+    }
+}

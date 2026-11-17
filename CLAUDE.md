@@ -114,10 +114,13 @@ order:
    tail~~ ([filltail](gauntlet/results/filltail-2026-11-17.md), ADR 0097's proof extended);
    ~~a dead region across a call~~ ([reusecall](gauntlet/results/reusecall-2026-11-17.md), ADR
    0125): 22 allocations where there were 20,000;
-3. **D1 by header (W1) with TinyRetroPad 6c**: Win32's type names in their headers
-   (`windows/basetsd`, `windows/minwindef`), one per data model, and the 67 functions TinyRetroPad
-   calls (downloaded 2026-10-24 at `42f4c6c` as data, never built or run) declared by header and
-   checked;
+3. ~~**D1 by header (W1) with TinyRetroPad 6c**~~ done
+   ([tinyretropad](gauntlet/results/tinyretropad-2026-11-17.md),
+   [byheader](gauntlet/results/byheader-2026-11-17.md), ADR 0126): of the 67 imports 47 are
+   reachable, declared by header (61 declarations in 14 headers with kernel32's), each checked
+   against its prototype and 17 called by a program on both triples; a data model is basetsd.h's
+   four pointer-width names, and a C integer's set its type's whole value set (SIZE_T U₆₄ on LLP64);
+   the other 20 are 6d's walls;
 4. **D5, i32 scalars** (ADR 0083 item 2), its own ADR: 2.6× on i686 loops by the research;
 5. **φ's remaining kinds**: `noundef`, `memory(…)`, `mustprogress`/`willreturn`, one at a time,
    each a soundness rule with its planted fault, measured against C;
@@ -230,7 +233,8 @@ contract gap (ADR 0028); records, `with` and named views beyond what TinyRetroPa
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
   `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints, `math/bits`, `io`'s
   interfaces; **partial and checked**: `os`, `strings`, `io`, `fmt`, `errors`, `io/fs`,
-  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`. The portable `os` (`lib/os.oro`) runs
+  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 61 functions in 14
+  headers (ADR 0126, `TestWin32DeclarationsAreTheirPrototypes`). The portable `os` (`lib/os.oro`) runs
   on Go, JavaScript and Java with one output.
 - **The balance**, named in every assessment: the compiler grows faster than the code written in the
   language. `python gauntlet/balance.py [--nodes] [REV…]` reproduces every assessment's table; the
@@ -580,6 +584,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A triple's runtime, what its code generator calls (i686's 64-bit division), is a library in the language linked into every program; a host result's set is a refinement fact | [0123](docs/decisions/0123-a-triples-runtime-is-a-library-in-the-language.md) |
 | K(ℕ\*)'s base is the triple's native word, 2⁶⁴ on x86_64 and 2³² on i686, one parameter block; the two-digit lemma reads the unsigned word; amends 0106 | [0124](docs/decisions/0124-k-n-stars-base-is-the-triples-native-word.md) |
 | A dead region crosses a call as the callee's token: release(p) ; f(x) = f′(x, p), an instance's variant `f~tok` storing its result by fit; W12 across the call | [0125](docs/decisions/0125-a-dead-region-crosses-a-call-as-the-callees-token.md) |
+| Win32 is by header (`windows/H`, each declaration's `lib` its DLL); a C type name is its typedef, a set, and a data model interprets basetsd.h's four pointer-width names; a C integer's set is its type's whole value set, U₆₄ for a 64-bit unsigned type (amends 0094); the unsigned word chosen on ι's image | [0126](docs/decisions/0126-win32-is-by-header-and-a-c-type-name-is-its-whole-value-set.md) |
 
 ## Build commands
 
@@ -616,9 +621,9 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the definitions kept as functions (`keep`, ADR 0113); the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/llvm` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
-| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `win32/` (the windows family's base, ADR 0122: glues `llvm`; `os` the view over kernel32, `kernel32`), `windows/` (the x86_64 member: glues `win32`; its triple, its address space, `x64.oro` the ISA's operations), `windows32/` (the i686 member: `x86.oro`'s `divl`, `runtime "rt/i686.ll"`); `blas` and the `tutorial*` targets parameterize the normal form for the book |
+| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `win32/` (the windows family's base, ADR 0122: glues `llvm`; `os` the view over kernel32; Win32 by header, ADR 0126: `minwindef`, `winnt`, `windef`, `basetsd` the type names, `fileapi`, `heapapi`, `winuser`, `wingdi` … the functions), `windows/` (the x86_64 member: glues `win32`; its triple, LLP64's four names in `model.oro`, its address space, `x64.oro` the ISA's operations), `windows32/` (the i686 member: ILP32's four, `x86.oro`'s `divl`, `runtime "rt/i686.ll"`); `blas` and the `tutorial*` targets parameterize the normal form for the book |
 | `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators), `rt` (`i686.oro`: windows32's runtime, ADR 0123) |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
 | `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `num/` (`ledger`, decimals), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
 | `gauntlet/` | hand-written references, `results/`, `check/` (the baseline), `differential/` (cases on four targets, proving their arithmetic unless `; checked:` says why), `conformance/`, `regen.txt`, `balance.py`, `surface/` (the surface's measurements) |
-| `gauntlet/stdlib/` | the four host surveys (writing J through `jdecl`), `coverage.go`, `callbacks.go`, twenty acceptance programs, and `tooling_test.go`, which checks every hand declaration against its host |
+| `gauntlet/stdlib/` | the four host surveys (writing J through `jdecl`), `coverage.go`, `callbacks.go`, 24 acceptance programs, `tooling_test.go`, which checks every hand declaration against its host, and `win32hand_test.go`, Win32's against its prototypes |

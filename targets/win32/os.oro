@@ -4,7 +4,13 @@
 // definition is checked as a program is, and meets its header's contract.
 module llvm/os {
     use llvm
-    use windows/kernel32
+    use windows/fileapi
+    use windows/heapapi
+    use windows/memoryapi
+    use windows/minwindef
+    use windows/processenv
+    use windows/processthreadsapi
+    use windows/winnt
 
     // A REGION OF b ZEROED BYTES, of kernel32's two allocators, CHOSEN BY SIZE,
     // measured (llvm-2026-11-02): VirtualAlloc hands out pages the system has
@@ -18,7 +24,7 @@ module llvm/os {
     // item 3): targets/windows/space.oro, targets/windows32/space.oro.
 
     fn region(b ∈ 0..2^63-1) (ptr) where b <= max_bytes() {
-        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, heapclass(b)) }
+        p = if b >= 65536 { memoryapi.VirtualAlloc(llvm.null(), b, 12288, 4) } else { heapapi.HeapAlloc(heapapi.GetProcessHeap(), 8, heapclass(b)) }
         if llvm.is_null(p) { llvm.trap() } else { p }
     }
 
@@ -52,7 +58,7 @@ module llvm/os {
     // releases the whole reservation, HeapFree on the process heap below. So
     // release ∘ region is the identity on the heap (ADR 0096).
     fn release(p ∈ ptr, b ∈ 0..2^63-1) (Bool) {
-        r = if b >= 65536 { kernel32.VirtualFree(p, 0, 32768) } else { kernel32.HeapFree(kernel32.GetProcessHeap(), 0, p) }
+        r = if b >= 65536 { memoryapi.VirtualFree(p, 0, 32768) } else { heapapi.HeapFree(heapapi.GetProcessHeap(), 0, p) }
         r != 0
     }
 
@@ -60,7 +66,7 @@ module llvm/os {
     // 64 KiB (zero anyway), the heap without HEAP_ZERO_MEMORY below, so
     // release ∘ region_raw is the identity on the heap too.
     fn region_raw(b ∈ 0..2^63-1) (ptr) where b <= max_bytes() {
-        p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 0, heapclass(b)) }
+        p = if b >= 65536 { memoryapi.VirtualAlloc(llvm.null(), b, 12288, 4) } else { heapapi.HeapAlloc(heapapi.GetProcessHeap(), 0, heapclass(b)) }
         if llvm.is_null(p) { llvm.trap() } else { p }
     }
 
@@ -75,7 +81,7 @@ module llvm/os {
 
     // A DEAD REGION MADE FRESH: its b bytes zero, as `region` answers them.
     fn zero(p ∈ ptr, b ∈ 0..2^63-1) (Bool) where b <= max_bytes() {
-        z = kernel32.RtlZeroMemory(p, b)
+        z = winnt.RtlZeroMemory(p, b)
         true
     }
 
@@ -83,11 +89,11 @@ module llvm/os {
     // not written, and the answer is false.
     fn write_err(b ∈ Array(0..255)) (Bool) {
         if len(b) <= 2^32 - 1 {
-            (w, r) = kernel32.WriteFile(kernel32.GetStdHandle(4294967284), b, 0, len(b), out kernel32.DWORD)
+            (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967284), b, 0, len(b), out minwindef.DWORD)
             r != 0
         } else { false }
     }
 
     // ExitProcess ends every thread and the process; its UINT holds 0..255.
-    fn exit(code ∈ 0..255) (∅) { kernel32.ExitProcess(code) }
+    fn exit(code ∈ 0..255) (∅) { processthreadsapi.ExitProcess(code) }
 }

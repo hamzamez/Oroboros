@@ -9,7 +9,7 @@
 // Exact only on a string holding no NUL itself (B*₀): a string with a NUL
 // inside is read by C up to it, which the language cannot state yet, and is a
 // wall (mastretire-2026-11-03).
-use win/WinBase as w
+use win/winbase as w
 use win/print
 
 export fn main() {

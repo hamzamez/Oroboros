@@ -19,7 +19,7 @@
 // Every operation is proven: MulDiv's result is declared -2^31..2^31-1, an int's
 // range, by its `sext` (mastretire-2026-11-03). On MASM it needed `-checked`,
 // a host result having no declared range.
-use win/WinBase as w
+use win/winbase as w
 use win/print
 
 export fn main() {

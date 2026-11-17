@@ -1,0 +1,60 @@
+// WinUser.h (ADR 0126): WINDOWS, MENUS AND MESSAGES, the 26 of TinyRetroPad's
+// 37 user32 functions a program can call today (tinyretropad-2026-11-17), each
+// its prototype in the Windows SDK 10.0.26100.0, its sets the prototype's type
+// names. The other eleven take a record (MSG, RECT, PAINTSTRUCT, WNDCLASSA) or
+// a callback (DLGPROC), or are variadic (wsprintfA): 6d's walls.
+//
+// A C STRING IS NEVER NULL here (ADR 0091): where the header lets a string be
+// NULL (a window's name, a caption), a program passes one, and the null case
+// waits on an optional C string. A pointer to a RECT the call ignores or reads
+// as "the whole" when null (TrackPopupMenu, InvalidateRect) is `ptr`.
+module windows/winuser {
+    use windows/basetsd
+    use windows/minwindef
+    use windows/windef
+    use windows/winnt
+
+    // WINDOWS. CreateWindowExA(exstyle, class, name, style, x, y, w, h, parent,
+    // menu, instance, param) answers the window or null; DestroyWindow ends one.
+    fn CreateWindowExA(xs ∈ minwindef.DWORD, c ∈ String, t ∈ String, s ∈ minwindef.DWORD, x ∈ minwindef.INT, y ∈ minwindef.INT, w ∈ minwindef.INT, h ∈ minwindef.INT, p ∈ windef.HWND, m ∈ windef.HMENU, i ∈ minwindef.HINSTANCE, a ∈ ptr) (r ∈ windef.HWND) where nulfree(c) && nulfree(t) {
+        host expr call "CreateWindowExA" stdcall lib "user32"
+    }
+    fn DestroyWindow(w ∈ windef.HWND) (r ∈ minwindef.BOOL) { host expr call "DestroyWindow" stdcall lib "user32" }
+    fn ShowWindow(w ∈ windef.HWND, c ∈ minwindef.INT) (r ∈ minwindef.BOOL) { host expr call "ShowWindow" stdcall lib "user32" }
+    fn SetWindowPos(w ∈ windef.HWND, after ∈ windef.HWND, x ∈ minwindef.INT, y ∈ minwindef.INT, cx ∈ minwindef.INT, cy ∈ minwindef.INT, f ∈ minwindef.UINT) (r ∈ minwindef.BOOL) { host expr call "SetWindowPos" stdcall lib "user32" }
+    fn SetWindowTextA(w ∈ windef.HWND, t ∈ String) (r ∈ minwindef.BOOL) where nulfree(t) { host expr call "SetWindowTextA" stdcall lib "user32" }
+    fn SetFocus(w ∈ windef.HWND) (r ∈ windef.HWND) { host expr call "SetFocus" stdcall lib "user32" }
+    fn InvalidateRect(w ∈ windef.HWND, rc ∈ ptr, e ∈ minwindef.BOOL) (r ∈ minwindef.BOOL) { host expr call "InvalidateRect" stdcall lib "user32" }
+
+    // MESSAGES. SendMessageA(window, message, wparam, lparam) answers the
+    // window procedure's LRESULT; DefWindowProcA(…) is the default procedure's
+    // answer to the same four. WPARAM, LPARAM and LRESULT are the data model's
+    // (basetsd.h by way of minwindef.h).
+    fn SendMessageA(w ∈ windef.HWND, m ∈ minwindef.UINT, wp ∈ minwindef.WPARAM, lp ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT) { host expr call "SendMessageA" stdcall lib "user32" }
+    fn DefWindowProcA(w ∈ windef.HWND, m ∈ minwindef.UINT, wp ∈ minwindef.WPARAM, lp ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT) { host expr call "DefWindowProcA" stdcall lib "user32" }
+    fn PostQuitMessage(c ∈ minwindef.INT) (Bool) { host stmt call "PostQuitMessage" stdcall lib "user32" }
+    fn RegisterWindowMessageA(s ∈ String) (r ∈ minwindef.UINT) where nulfree(s) { host expr call "RegisterWindowMessageA" stdcall lib "user32" }
+    fn GetMessagePos() (r ∈ minwindef.DWORD) { host expr call "GetMessagePos" stdcall lib "user32" }
+
+    // MENUS. A menu is a handle; CheckMenuItem answers the item's previous
+    // check state (MF_CHECKED 8 or MF_UNCHECKED 0), or −1 as a DWORD, 2³² − 1,
+    // when there is no such item.
+    fn CreateMenu() (r ∈ windef.HMENU) { host expr call "CreateMenu" stdcall lib "user32" }
+    fn CreatePopupMenu() (r ∈ windef.HMENU) { host expr call "CreatePopupMenu" stdcall lib "user32" }
+    fn DestroyMenu(m ∈ windef.HMENU) (r ∈ minwindef.BOOL) { host expr call "DestroyMenu" stdcall lib "user32" }
+    fn AppendMenuA(m ∈ windef.HMENU, f ∈ minwindef.UINT, id ∈ basetsd.UINT_PTR, t ∈ String) (r ∈ minwindef.BOOL) where nulfree(t) { host expr call "AppendMenuA" stdcall lib "user32" }
+    fn CheckMenuItem(m ∈ windef.HMENU, id ∈ minwindef.UINT, c ∈ minwindef.UINT) (r ∈ minwindef.DWORD) { host expr call "CheckMenuItem" stdcall lib "user32" }
+    fn GetMenu(w ∈ windef.HWND) (r ∈ windef.HMENU) { host expr call "GetMenu" stdcall lib "user32" }
+    fn SetMenu(w ∈ windef.HWND, m ∈ windef.HMENU) (r ∈ minwindef.BOOL) { host expr call "SetMenu" stdcall lib "user32" }
+    fn GetSystemMenu(w ∈ windef.HWND, revert ∈ minwindef.BOOL) (r ∈ windef.HMENU) { host expr call "GetSystemMenu" stdcall lib "user32" }
+    fn TrackPopupMenu(m ∈ windef.HMENU, f ∈ minwindef.UINT, x ∈ minwindef.INT, y ∈ minwindef.INT, z ∈ minwindef.INT, w ∈ windef.HWND, rc ∈ ptr) (r ∈ minwindef.BOOL) { host expr call "TrackPopupMenu" stdcall lib "user32" }
+
+    // DIALOGS AND THE REST. GetDlgItemInt's BOOL* is whether the text was a
+    // number, a cell (ADR 0048); EndDialog's result is an INT_PTR, the data
+    // model's.
+    fn GetDlgItemInt(d ∈ windef.HWND, id ∈ minwindef.INT, ok ∈ cell(minwindef.BOOL), signed ∈ minwindef.BOOL) (r ∈ minwindef.UINT) { host expr call "GetDlgItemInt" stdcall lib "user32" }
+    fn EndDialog(d ∈ windef.HWND, n ∈ basetsd.INT_PTR) (r ∈ minwindef.BOOL) { host expr call "EndDialog" stdcall lib "user32" }
+    fn MessageBoxA(w ∈ windef.HWND, t ∈ String, c ∈ String, u ∈ minwindef.UINT) (r ∈ minwindef.INT) where nulfree(t) && nulfree(c) { host expr call "MessageBoxA" stdcall lib "user32" }
+    fn GetKeyState(k ∈ minwindef.INT) (r ∈ winnt.SHORT) { host expr call "GetKeyState" stdcall lib "user32" }
+    fn GetSysColorBrush(i ∈ minwindef.INT) (r ∈ windef.HBRUSH) { host expr call "GetSysColorBrush" stdcall lib "user32" }
+}

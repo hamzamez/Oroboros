@@ -1,0 +1,21 @@
+// wingdi.h (ADR 0126): DRAWING AND PRINTING, the 7 of TinyRetroPad's 8 gdi32
+// functions a program can call today; StartDocA takes a DOCINFOA, a record
+// (6d). Each its prototype in the Windows SDK 10.0.26100.0.
+module windows/wingdi {
+    use windows/minwindef
+    use windows/windef
+
+    fn DeleteDC(d ∈ windef.HDC) (r ∈ minwindef.BOOL) { host expr call "DeleteDC" stdcall lib "gdi32" }
+    fn GetDeviceCaps(d ∈ windef.HDC, i ∈ minwindef.INT) (r ∈ minwindef.INT) { host expr call "GetDeviceCaps" stdcall lib "gdi32" }
+    fn SetBkMode(d ∈ windef.HDC, m ∈ minwindef.INT) (r ∈ minwindef.INT) { host expr call "SetBkMode" stdcall lib "gdi32" }
+    fn StartPage(d ∈ windef.HDC) (r ∈ minwindef.INT) { host expr call "StartPage" stdcall lib "gdi32" }
+    fn EndPage(d ∈ windef.HDC) (r ∈ minwindef.INT) { host expr call "EndPage" stdcall lib "gdi32" }
+    fn EndDoc(d ∈ windef.HDC) (r ∈ minwindef.INT) { host expr call "EndDoc" stdcall lib "gdi32" }
+
+    // TextOutA(dc, x, y, s, c) draws the c characters at s, which need no NUL:
+    // the segment b[lo, lo + n) of a table, at &b[lo] (ADR 0118), as WriteFile's
+    // bytes are, its count an int.
+    fn TextOutA(d ∈ windef.HDC, x ∈ minwindef.INT, y ∈ minwindef.INT, b ∈ Array(0..255), lo ∈ 0..2^63-1, n ∈ minwindef.INT) (r ∈ minwindef.BOOL) where lo <= len(b) && n >= 0 && lo + n <= len(b) {
+        host expr call "TextOutA"(d, x, y, elem(b, lo), n) stdcall lib "gdi32"
+    }
+}

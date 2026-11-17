@@ -1,0 +1,10 @@
+// windef.h, THE WINDOW SYSTEM'S HANDLES (ADR 0126), each a DECLARE_HANDLE
+// in the Windows SDK 10.0.26100.0's shared/windef.h, so `ptr`; and COLORREF,
+// typedef DWORD COLORREF.
+module windows/windef {
+    set HWND = ptr
+    set HDC = ptr
+    set HMENU = ptr
+    set HBRUSH = ptr
+    set COLORREF = 0..2^32-1
+}

@@ -1,0 +1,54 @@
+// fileapi.h (ADR 0126): FILES, by handle (ADR 0112). Each declaration is its
+// prototype in the Windows SDK 10.0.26100.0, its sets the prototype's type
+// names (ADR 0094), and its call derived by the C ABI on the triple
+// (llvm.md §6a): `declare dllimport`, `trunc` in and `sext`/`zext` out, and
+// `stdcall` x86_stdcallcc on i686 and nothing on x86-64.
+//
+//   use windows/fileapi
+//   fileapi.WriteFile(h, b, lo, n, out minwindef.DWORD)
+module windows/fileapi {
+    use windows/minwindef
+    use windows/winnt
+
+    // CreateFileA(path, access, share, security, disposition, flags, template)
+    // answers a HANDLE, INVALID_HANDLE_VALUE ((HANDLE)−1) on failure, the reason
+    // in GetLastError. The path is a C string, read as UTF-8 under the
+    // manifest's code page (ADR 0091).
+    fn CreateFileA(p ∈ String, a ∈ minwindef.DWORD, s ∈ minwindef.DWORD, sa ∈ ptr, d ∈ minwindef.DWORD, f ∈ minwindef.DWORD, t ∈ winnt.HANDLE) (r ∈ winnt.HANDLE) where nulfree(p) {
+        host expr call "CreateFileA" stdcall lib "kernel32"
+    }
+
+    // WRITES b[lo, lo + n) to h, the count written through its DWORD*, a cell
+    // (ADR 0048, 0112): WriteFile(h, &b[lo], n, &written, NULL), its argument
+    // terms over the parameters (ADR 0118), elem(b, lo) the segment's address.
+    // Its domain is the segment inside the table and a count that is a DWORD;
+    // its answer a BOOL, nonzero on success.
+    //
+    // WHAT THE LANGUAGE COULD NOT SAY ON MASM, IT SAYS HERE: the buffer was a
+    // raw pointer there (`x64.lea` of the target's one scratch buffer); here it
+    // is a language table, borrowed.
+    fn WriteFile(h ∈ winnt.HANDLE, b ∈ Array(0..255), lo ∈ 0..2^63-1, n ∈ minwindef.DWORD, put ∈ cell(minwindef.DWORD)) (r ∈ minwindef.BOOL) where lo + n <= len(b) {
+        host expr call "WriteFile"(h, elem(b, lo), n, put, null) stdcall lib "kernel32"
+    }
+
+    // READS n BYTES into b[lo, lo + n), the count read through its DWORD*, a
+    // cell: ReadFile(h, &b[lo], n, &read, NULL). The table is lent, `linear`,
+    // so the write is the caller's to see (ADR 0084). A synchronous read of a
+    // file returns fewer than n only at its end.
+    fn ReadFile(h ∈ winnt.HANDLE, b ∈ Array(0..255) linear, lo ∈ 0..2^63-1, n ∈ minwindef.DWORD, got ∈ cell(minwindef.DWORD)) (r ∈ minwindef.BOOL) where lo + n <= len(b) {
+        host expr call "ReadFile"(h, elem(b, lo), n, got, null) stdcall lib "kernel32"
+    }
+
+    // GetFileSizeEx(h, &size): a BOOL, and the size through its LARGE_INTEGER*,
+    // an out-parameter, so a cell (ADR 0048).
+    fn GetFileSizeEx(h ∈ winnt.HANDLE, n ∈ cell(winnt.LARGE_INTEGER)) (r ∈ minwindef.BOOL) { host expr call "GetFileSizeEx" stdcall lib "kernel32" }
+
+    // GetFileSize(h, &high): the size's low DWORD, its high one through the
+    // cell; INVALID_FILE_SIZE (2³² − 1) with GetLastError nonzero on failure.
+    fn GetFileSize(h ∈ winnt.HANDLE, hi ∈ cell(minwindef.DWORD)) (r ∈ minwindef.DWORD) { host expr call "GetFileSize" stdcall lib "kernel32" }
+
+    // SetFilePointerEx(h, distance, &new, method): the LARGE_INTEGER by value,
+    // eight bytes in one register on x86-64 and two stack slots on i686, as an
+    // i64 is; the new position not asked for (null), FILE_BEGIN 0.
+    fn SetFilePointerEx(h ∈ winnt.HANDLE, d ∈ winnt.LARGE_INTEGER, np ∈ ptr, m ∈ minwindef.DWORD) (r ∈ minwindef.BOOL) { host expr call "SetFilePointerEx" stdcall lib "kernel32" }
+}

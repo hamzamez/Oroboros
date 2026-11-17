@@ -491,7 +491,14 @@ the round: a file path could run on past its end into whatever memory followed. 
   [reusecall-2026-11-17](gauntlet/results/reusecall-2026-11-17.md)): a result the compiler proves
   fully written is no longer zeroed first, and a value's memory freed at one step now holds the
   next step's result, so 20000! allocates 22 times instead of 20,000;
-3. **the Windows API by header**, with TinyRetroPad's own calls declared that way;
+3. ~~**the Windows API by header**, with TinyRetroPad's own calls declared that way~~ **done**
+   ([tinyretropad-2026-11-17](gauntlet/results/tinyretropad-2026-11-17.md),
+   [byheader-2026-11-17](gauntlet/results/byheader-2026-11-17.md)): of the 67 functions
+   TinyRetroPad imports, 47 can be called today, and each is declared as its header writes it and
+   checked against Microsoft's own prototype; one program calls 17 and prints what C prints, on
+   32-bit and 64-bit Windows alike. The other 20 need structures, a callback or a variable
+   argument list (item 6). On the way, the survey of the Windows API learned to see 802 functions
+   it had missed;
 4. **32-bit integers** on 32-bit Windows;
 5. **the remaining facts for LLVM**, one kind at a time;
 6. **TinyRetroPad's walls**: the window procedure and its structures.

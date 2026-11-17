@@ -35,7 +35,7 @@ reached through its import-table slot, `[_imp__Name@n]`.
 
 | class | n | which | what it needs |
 |---|---|---|---|
-| usable | 43 | 29 of user32's 37, all 7 of gdi32's but `StartDocA`, 10 of kernel32's, `ShellExecuteA` | nothing new |
+| usable | 43 | 25 of user32's 37, 7 of gdi32's 8 (all but `StartDocA`), 10 of kernel32's 14, `ShellExecuteA` | nothing new |
 | an answer through an out-parameter | 3 | `WriteFile`, `GetFileSize`, `GetDlgItemInt` | ADR 0048's cell, built (`WriteFile` is used today) |
 | an unresolved typedef to the survey | 1 | `ReadFile` (`LPOVERLAPPED`) | declared by hand already |
 | **a pointer to a record** | 18 | `BeginPaint`, `EndPaint` (`PAINTSTRUCT`), `GetMessageA`, `DispatchMessageA`, `TranslateMessage`, `IsDialogMessageA` (`MSG`), `GetClientRect`, `FillRect` (`RECT`), `RegisterClassA` (`WNDCLASSA`), `GetLocalTime` (`SYSTEMTIME`), `StartDocA` (`DOCINFOA`), `GetOpenFileNameA`, `GetSaveFileNameA` (`OPENFILENAMEA`), `ChooseFontW` (`CHOOSEFONTW`), `FindTextA`, `ReplaceTextA` (`FINDREPLACEA`), `PrintDlgA` (`PRINTDLGA`), `PageSetupDlgA` (`PAGESETUPDLGA`) | records laid out by the data layout (6d) |

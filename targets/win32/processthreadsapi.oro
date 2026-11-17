@@ -1,0 +1,7 @@
+// processthreadsapi.h (ADR 0126): the process's end. UINT → ∅: it ends the
+// process, and never returns (ADR 0090).
+module windows/processthreadsapi {
+    use windows/minwindef
+
+    fn ExitProcess(a ∈ minwindef.UINT) (∅) { host expr call "ExitProcess" stdcall lib "kernel32" }
+}

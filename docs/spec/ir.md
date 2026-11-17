@@ -739,7 +739,12 @@ is refused otherwise, whatever the build mode.
 representation is ρ of its fact, S preferred, or a declaration's. + − · compute in their result's
 realization by the homomorphism; / % and the orders in one holding both operands; every other
 crossing is an obligation. The function is then decided again. W5 treats S and U as different
-representations.
+representations. **On ι's image** (`SelectWordsOnImage`, ADR 0126), after each round of the
+target's realizations, every value keeps the realization its type already is, and only a flow into
+a declared position of the other one is converted: a substituted term's host call, such as
+`region`'s HeapAlloc, whose SIZE_T is U on LLP64. Choosing again from the facts would re-derive
+what the first selection fixed, on facts the decision recomputed less tightly (the factorial
+loop's digits were refused so).
 
 **The rung above the word** (`SelectBig`, ADR 0034), on a target holding it in the host's bignum, runs
 before the unsigned word. B, the values held exactly, is the least set closed under two rules.

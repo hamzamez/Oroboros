@@ -1,0 +1,14 @@
+// basetsd.h, THE NAMES THE DATA MODEL DECIDES (ADR 0122 item 2, ADR 0126).
+// A C type name is a set, its type's whole value set, and a header's typedef
+// is a definition: `typedef ULONG_PTR SIZE_T` is `set SIZE_T = ULONG_PTR`. The
+// typedefs are a definitional extension of C's base types, so a data model,
+// which interprets only the base types, interprets every name, and two models
+// differ exactly on the names whose definition reaches a pointer-width type.
+// In basetsd.h those are the four of its `#if defined(_WIN64)` branch,
+// INT_PTR, UINT_PTR, LONG_PTR and ULONG_PTR, which each member defines (its
+// model.oro); every other name here is defined once, through them.
+module windows/basetsd {
+    set SIZE_T = ULONG_PTR
+    set SSIZE_T = LONG_PTR
+    set DWORD_PTR = ULONG_PTR
+}

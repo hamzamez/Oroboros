@@ -2271,16 +2271,24 @@ func (tg *Target) CType(set string) (ll, cross string, signed, ok bool) {
 		}
 		return "", "", false, false
 	}
+	// A C INTEGER TYPE'S SET IS ITS WHOLE VALUE SET (ADR 0126), at an argument
+	// as at a result: a 64-bit unsigned type is 0..2^64-1, the unsigned word on
+	// a target that realizes it (ADR 0083), and nowhere else a C type. A
+	// subset is no type: at a result it would be a claim no C function makes
+	// (HeapSize's (SIZE_T)−1), at an argument a domain, which is a `where`.
+	if blo, bhi, ok := core.IntRangeBig(set); ok && tg.Word.Unsigned && blo.Sign() == 0 && bhi.Cmp(u64Max) == 0 {
+		return "i64", "", false, true
+	}
 	lo, hi, isInt := core.IntRange(set)
 	if !isInt {
 		return "", "", false, false
 	}
-	// THE 64-BIT TYPES: the word, and a 64-bit unsigned type restricted to it,
-	// SIZE_T on a target without the unsigned word.
+	// THE 64-BIT SIGNED TYPE is the word. The word's naturals, 0..2^63-1, were
+	// a 64-bit unsigned type's argument set until ADR 0126, a planted fault now.
 	if lo == tg.Word.Lo && hi == tg.Word.Hi {
 		return "i64", "", true, true
 	}
-	if lo == 0 && hi == tg.Word.Hi {
+	if lo == 0 && hi == tg.Word.Hi && PlantNaturalsCType {
 		return "i64", "", false, true
 	}
 	for _, w := range []uint{8, 16, 32} {
@@ -2357,7 +2365,8 @@ func (tg *Target) cPrototypes() error {
 			_, cross, _, ok := tg.CType(a)
 			if !ok {
 				return fmt.Errorf("%s: argument %d's set %s is no C type: a C integer's set is its type's full "+
-					"range, −2^(w−1)..2^(w−1)−1 or 0..2^w−1 for w ∈ {8, 16, 32}, the word, or 0..2^63−1, and a "+
+					"range, −2^(w−1)..2^(w−1)−1 or 0..2^w−1 for w ∈ {8, 16, 32}, the word, or 0..2^64−1 where the target "+
+					"realizes the unsigned word, and a "+
 					"narrower domain is a `where`; a pointer is ptr; a C string is String (ADR 0094)",
 					core.ShowName(n), i+1, core.ShowSet(a))
 			}
@@ -4878,3 +4887,11 @@ func boundsElem(q Prim, b, lo int) bool {
 // name alone, as before ADR 0122: a member gluing win32 then finds no `os` or
 // `io` of the base's, and TestAGluedBasesProvidesServeItsMembers must see it.
 var PlantProvidesOwnNameOnly bool
+
+// PlantNaturalsCType restores 0..2^63-1 as a C type, ADR 0094's reading of a
+// 64-bit unsigned argument before ADR 0126: TestACFunctionIsItsPrototype must
+// see a result so declared load.
+var PlantNaturalsCType bool
+
+// u64Max is 2⁶⁴ − 1, the top of a 64-bit unsigned C type's set.
+var u64Max = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(1))

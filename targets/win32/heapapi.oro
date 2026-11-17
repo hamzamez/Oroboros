@@ -1,0 +1,16 @@
+// heapapi.h (ADR 0126): THE PROCESS'S HEAP. GetProcessHeap answers it,
+// HeapAlloc(heap, flags, size) a block, zeroed with HEAP_ZERO_MEMORY (8), or
+// null, HeapFree(heap, flags, block) gives one back, answering a BOOL, and
+// HeapSize(heap, flags, block) the bytes it holds for its caller, or
+// (SIZE_T)−1, 2⁶⁴ − 1 on LLP64 and 2³² − 1 on ILP32: SIZE_T is the data
+// model's (basetsd.h), the whole of its C type at a result as at an argument.
+module windows/heapapi {
+    use windows/basetsd
+    use windows/minwindef
+    use windows/winnt
+
+    fn GetProcessHeap() (r ∈ winnt.HANDLE) { host expr call "GetProcessHeap" stdcall lib "kernel32" }
+    fn HeapAlloc(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, n ∈ basetsd.SIZE_T) (r ∈ ptr) { host expr call "HeapAlloc" stdcall lib "kernel32" }
+    fn HeapFree(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, p ∈ ptr) (r ∈ minwindef.BOOL) { host expr call "HeapFree" stdcall lib "kernel32" }
+    fn HeapSize(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, p ∈ ptr) (r ∈ basetsd.SIZE_T) { host expr call "HeapSize" stdcall lib "kernel32" }
+}

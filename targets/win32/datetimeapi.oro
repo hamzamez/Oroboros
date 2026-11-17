@@ -1,0 +1,17 @@
+// datetimeapi.h (ADR 0126): A DATE OR A TIME, FORMATTED. GetDateFormatA(locale,
+// flags, date, format, buffer, size) writes the date's text and a NUL into the
+// table the program lends and answers the count written with the NUL, or 0;
+// a size of 0 asks for the count needed. The date is a SYSTEMTIME*, a record,
+// so the declaration takes null, the current local date (its record is 6d's);
+// GetTimeFormatA likewise for the time.
+module windows/datetimeapi {
+    use windows/minwindef
+    use windows/winnt
+
+    fn GetDateFormatA(l ∈ winnt.LCID, f ∈ minwindef.DWORD, d ∈ ptr, p ∈ String, b ∈ Array(0..255) linear, n ∈ minwindef.INT) (r ∈ minwindef.INT) where nulfree(p) && n >= 0 && n <= len(b) {
+        host expr call "GetDateFormatA" stdcall lib "kernel32"
+    }
+    fn GetTimeFormatA(l ∈ winnt.LCID, f ∈ minwindef.DWORD, t ∈ ptr, p ∈ String, b ∈ Array(0..255) linear, n ∈ minwindef.INT) (r ∈ minwindef.INT) where nulfree(p) && n >= 0 && n <= len(b) {
+        host expr call "GetTimeFormatA" stdcall lib "kernel32"
+    }
+}

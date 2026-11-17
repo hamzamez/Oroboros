@@ -16,11 +16,11 @@ import (
 // It prints the count of sizes for which the law fails.
 const classSrc = "use win/print\n" +
 	"use llvm/os\n" +
-	"use windows/kernel32\n" +
+	"use windows/heapapi\n" +
 	"\n" +
-	"fn heapsize(b ∈ 0..65535) (Int) {\n" +
+	"fn heapsize(b ∈ 0..65535) {\n" +
 	"    p = os.region(b)\n" +
-	"    s = kernel32.HeapSize(kernel32.GetProcessHeap(), 0, p)\n" +
+	"    s = heapapi.HeapSize(heapapi.GetProcessHeap(), 0, p)\n" +
 	"    r = os.release(p, b)\n" +
 	"    s\n" +
 	"}\n" +
@@ -76,8 +76,8 @@ func TestARegionIsAnsweredByItsCapacityClass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const sized = "kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, heapclass(b))"
-	exact := plantOnce(t, string(text), sized, "kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, b)")
+	const sized = "heapapi.HeapAlloc(heapapi.GetProcessHeap(), 8, heapclass(b))"
+	exact := plantOnce(t, string(text), sized, "heapapi.HeapAlloc(heapapi.GetProcessHeap(), 8, b)")
 	if err := os.WriteFile(osFile, []byte(exact), 0o644); err != nil {
 		t.Fatal(err)
 	}

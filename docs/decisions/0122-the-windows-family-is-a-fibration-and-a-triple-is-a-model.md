@@ -47,7 +47,9 @@ triple.
    - ILP32: `SIZE_T ↦ 0..2³²−1`.
 
    The names the two models agree on (`DWORD`, `BOOL`) are the base's. The names live in their
-   headers' modules, which is W1: Win32 by header, built as a later step of this ADR.
+   headers' modules, which is W1: Win32 by header, built by
+   [ADR 0126](0126-win32-is-by-header-and-a-c-type-name-is-its-whole-value-set.md), where the
+   models differ on exactly basetsd.h's four pointer-width names.
 3. **The address space bounds bytes** (D3). Σ_OS gains `max_bytes`, A_t, and `region`, `region_raw` and
    `zero` require b ≤ max_bytes(), a precondition of the operation. `allocate` proves n·w + 9 ≤ A_t
    from its guard, so on i686 the byte count passed to a 32-bit `SIZE_T` is a theorem, not a trap.

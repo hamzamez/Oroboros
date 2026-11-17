@@ -26,12 +26,12 @@ func TestAnOutParameterIsACell(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := "use win/print\nuse windows/kernel32\nuse llvm\n\n" +
+	src := "use win/print\nuse windows/fileapi\nuse windows/handleapi\nuse windows/winnt\nuse llvm\n\n" +
 		"export fn main() {\n" +
-		"    h = kernel32.CreateFileA(\"" + filepath.ToSlash(self) + "\", 2147483648, 1, llvm.null(), 3, 128, llvm.null())\n" +
-		"    (sz, ok) = kernel32.GetFileSizeEx(h, out kernel32.LARGE_INTEGER)\n" +
+		"    h = fileapi.CreateFileA(\"" + filepath.ToSlash(self) + "\", 2147483648, 1, llvm.null(), 3, 128, llvm.null())\n" +
+		"    (sz, ok) = fileapi.GetFileSizeEx(h, out winnt.LARGE_INTEGER)\n" +
 		"    ignore(print.print_int(sz))\n" +
-		"    ignore(kernel32.CloseHandle(h))\n}\n"
+		"    ignore(handleapi.CloseHandle(h))\n}\n"
 	out, err := buildAndRun(t, src, "windows", "")
 	if err != nil || strings.TrimSpace(out) != strconv.FormatInt(info.Size(), 10) {
 		t.Fatalf("GetFileSizeEx's size: %q, %v; want %d", out, err, info.Size())

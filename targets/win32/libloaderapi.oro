@@ -1,0 +1,10 @@
+// libloaderapi.h (ADR 0126): MODULES. GetModuleHandleA(name) a loaded module's
+// handle, the process's own image under a null name, which a C string cannot
+// be, so TinyRetroPad's call waits on an optional C string; LoadLibraryA(name)
+// loads one (TinyRetroPad's "Msftedit", for RICHEDIT50W), each null on failure.
+module windows/libloaderapi {
+    use windows/minwindef
+
+    fn GetModuleHandleA(p ∈ String) (r ∈ minwindef.HMODULE) where nulfree(p) { host expr call "GetModuleHandleA" stdcall lib "kernel32" }
+    fn LoadLibraryA(p ∈ String) (r ∈ minwindef.HMODULE) where nulfree(p) { host expr call "LoadLibraryA" stdcall lib "kernel32" }
+}

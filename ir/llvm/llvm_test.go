@@ -309,15 +309,15 @@ func TestACallIntoTheEmptySetNeverReturns(t *testing.T) {
 // narrow argument trunc; the declare is the prototype's image, dllimport on a
 // Windows triple; and `stdcall` is x86_stdcallcc on i686 and nothing on x86-64.
 func TestACCallIsDerivedFromItsPrototype(t *testing.T) {
-	src := "use windows/kernel32 as k\nexport fn f() (Int) { k.GetLastError() + k.MulDivProbe(7) }\n"
+	src := "use windows/errhandlingapi as k\nexport fn f() (Int) { k.GetLastError() + k.MulDivProbe(7) }\n"
 	at := func(triple string) string {
 		t.Helper()
 		tg := loadTarget(t)
 		tg.Triple = triple
-		q := tg.Prims["windows/kernel32.GetLastError"]
+		q := tg.Prims["windows/errhandlingapi.GetLastError"]
 		// A copy of GetLastError with an int's argument and result, to see the
 		// signed maps, under a name no file declares.
-		q.Name, q.CSym = "windows/kernel32.MulDivProbe", "MulDivProbe"
+		q.Name, q.CSym = "windows/errhandlingapi.MulDivProbe", "MulDivProbe"
 		q.Args, q.Names, q.Result = []string{"int -2147483648 2147483647"}, []string{"a"}, "int -2147483648 2147483647"
 		tg.Prims[q.Name] = q
 		tg.Names = append(tg.Names, q.Name)

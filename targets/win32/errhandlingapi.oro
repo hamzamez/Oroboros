@@ -1,0 +1,8 @@
+// errhandlingapi.h (ADR 0126): THE CALLING THREAD'S LAST ERROR, a DWORD, so
+// `zext` and its C range: the same `declare` the Win32 survey writes for it,
+// so the two never disagree.
+module windows/errhandlingapi {
+    use windows/minwindef
+
+    fn GetLastError() (r ∈ minwindef.DWORD) { host expr call "GetLastError" stdcall lib "kernel32" }
+}

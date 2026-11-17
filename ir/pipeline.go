@@ -187,6 +187,10 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	return f, leg, nil
 }
 
+// PlantNoWordsOnImage leaves the unsigned word unchosen on ι's image, as
+// before ADR 0126: TestTheWordsAreChosenOnTheRealizationsImage must see W5.
+var PlantNoWordsOnImage bool
+
 // afterRung is the pipeline after the rung above the word, shared by an entry
 // and a program function (ADR 0101): the unsigned word, its pair, storage,
 // release, reuse and the target's interpretation, each decided again.
@@ -265,6 +269,17 @@ func afterRung(tg *emit.Target, f *Func, name string, sig *core.Sig, checked boo
 		}
 		if n > 0 {
 			leg = Decide(tg, f, checked)
+			// ι's IMAGE IS AN IR LIKE ANY OTHER: a substituted term's host call
+			// may take the unsigned word (a 64-bit unsigned C type, ADR 0126:
+			// region's HeapAlloc and VirtualAlloc, whose SIZE_T is 0..2^64-1 on
+			// LLP64), so the realization of each value is chosen on it too.
+			if !PlantNoWordsOnImage {
+				if changed, err := SelectWordsOnImage(tg, f); err != nil {
+					return nil, fmt.Errorf("%s: %v", name, err)
+				} else if changed {
+					leg = Decide(tg, f, checked)
+				}
+			}
 		}
 		if tables == 0 && round > 0 || n == 0 {
 			break

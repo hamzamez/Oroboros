@@ -37,7 +37,18 @@ import (
 // SelectWords chooses the realization of f's integer values and rewrites f to
 // match. It reports whether anything changed, or the first obligation no fact
 // discharges.
-func SelectWords(tg *emit.Target, f *Func) (bool, error) {
+func SelectWords(tg *emit.Target, f *Func) (bool, error) { return selectWords(tg, f, false) }
+
+// SelectWordsOnImage is the selection on ι's image (ADR 0126): the values the
+// first selection typed keep their realization, since the type is the
+// representation (ADR 0032), and only a flow into a declared position of the
+// other realization is converted: a substituted term's host call, whose
+// parameter may be the unsigned word (a SIZE_T on LLP64). Choosing again from
+// the facts would re-derive a realization the first selection already fixed,
+// on facts the decision recomputed less tightly.
+func SelectWordsOnImage(tg *emit.Target, f *Func) (bool, error) { return selectWords(tg, f, true) }
+
+func selectWords(tg *emit.Target, f *Func, keep bool) (bool, error) {
 	if !tg.Word.Unsigned {
 		return false, nil
 	}
@@ -45,7 +56,7 @@ func SelectWords(tg *emit.Target, f *Func) (bool, error) {
 	if len(fs) != f.NV() {
 		fs = analyse(tg, f)
 	}
-	w := &words{tg: tg, f: f, fs: fs, u: map[V]bool{}, s: ei(tg.Word.Lo), S: ei(tg.Word.Hi), convOf: map[V]V{}}
+	w := &words{tg: tg, f: f, fs: fs, u: map[V]bool{}, s: ei(tg.Word.Lo), S: ei(tg.Word.Hi), convOf: map[V]V{}, keep: keep}
 	w.choose()
 	if !w.any {
 		return false, nil
@@ -88,6 +99,8 @@ type words struct {
 	// decidedPairs their operands, the literal a π may have stated.
 	decidedGuards map[V]bool
 	decidedPairs  [][2]V
+	// keep: the realization of every value is its type's (SelectWordsOnImage)
+	keep bool
 	// rewrote counts conversions inserted and operations moved into U;
 	// retyped, values whose type is set to their chosen realization.
 	rewrote, retyped int
@@ -164,6 +177,15 @@ func (w *words) choose() {
 		}
 		w.u[v] = w.u[of]
 	}
+	// ON ι's IMAGE the type already is the representation: kept.
+	if w.keep {
+		w.u = map[V]bool{}
+		for v := 0; v < f.NV(); v++ {
+			if x := V(v); w.integer(x) && (w.isU(f.Types[x]) || f.Types[x] == "u64") {
+				w.u[x] = true
+			}
+		}
+	}
 	// THE TYPE IS THE REPRESENTATION (ADR 0032): every integer value's type is
 	// set to the realization chosen here. Unification typed a value u64 when it
 	// flows from a U declaration, and ρ of its fact may be S; the choice is
@@ -184,7 +206,9 @@ func (w *words) choose() {
 			w.retyped++
 		}
 	}
-	w.any = len(w.u) > 0 || w.retyped > 0
+	// ON ι's IMAGE a declared position may disagree with a value no selection
+	// made U, so the rewrite always runs; it reports whether it converted.
+	w.any = len(w.u) > 0 || w.retyped > 0 || w.keep
 }
 
 // fresh is a new value of the given type.

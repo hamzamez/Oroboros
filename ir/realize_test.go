@@ -156,14 +156,14 @@ func hostMeaning(name string, args []cval) ([]cval, bool) {
 	// not observe: the encoding, the handle and the write are stated as values,
 	// and only the non-return is checked.
 	switch name {
-	case "windows/kernel32.ExitProcess":
+	case "windows/processthreadsapi.ExitProcess":
 		panic(errTrap)
-	case "windows/kernel32.WriteFile":
+	case "windows/fileapi.WriteFile":
 		// a synchronous write of n bytes that succeeds: n through the cell,
 		// and a nonzero BOOL
 		args[4].arr[0] = new(big.Int).Set(args[3].i)
 		return []cval{{i: big.NewInt(1)}}, true
-	case "windows/kernel32.GetStdHandle", "llvm/str.utf8":
+	case "windows/processenv.GetStdHandle", "llvm/str.utf8":
 		return []cval{{}}, true
 	}
 	return nil, false

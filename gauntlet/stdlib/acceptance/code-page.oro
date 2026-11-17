@@ -4,7 +4,7 @@
 // page is 65001. The windows target embeds a manifest that declares it; without
 // it the code page is the system's (1252 here), and `CreateFileA("tést.txt")`
 // named a file `tÃ©st.txt`.
-use win/WinNls as n
+use win/winnls as n
 use win/print
 
 export fn main() { print.print_int(n.GetACP()) }

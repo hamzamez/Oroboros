@@ -2,7 +2,10 @@
 
 Date: 2026-11-05
 Status: Accepted (hamza, 2026-11-05: "go ahead, with step 2. always mathematical and algebraic", 6b′
-step 2). Built with [cabi-2026-11-05](../../gauntlet/results/cabi-2026-11-05.md).
+step 2). Built with [cabi-2026-11-05](../../gauntlet/results/cabi-2026-11-05.md). Decision 1's
+64-bit unsigned sets (0..2⁶³−1 at an argument, the word at a result) amended by
+[ADR 0126](0126-win32-is-by-header-and-a-c-type-name-is-its-whole-value-set.md): a C integer's set
+is its type's whole value set, 0..2⁶⁴−1 at both.
 
 ## Context
 

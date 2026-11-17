@@ -21,15 +21,15 @@
 // Every operation is proven: GetLastError's result is a DWORD's range, 0..2^32-1,
 // by its `zext` (mastretire-2026-11-03). On MASM it needed `-checked`, a host
 // result having no declared range.
-use win/WinBase as w
-use windows/kernel32 as k
+use win/winbase as w
+use windows/errhandlingapi
 use llvm as x
 use win/print
 
 export fn main() {
-    ok = w.GetFileInformationByHandleEx(0, 0, x.null(), 0)
+    ok = w.GetFileInformationByHandleEx(x.null(), 0, x.null(), 0)
     print.print_int(ok)
-    print.print_int(k.GetLastError())
-    w.GetFileInformationByHandleEx(0, 9999, x.null(), 0)
-    print.print_int(k.GetLastError())
+    print.print_int(errhandlingapi.GetLastError())
+    w.GetFileInformationByHandleEx(x.null(), 9999, x.null(), 0)
+    print.print_int(errhandlingapi.GetLastError())
 }

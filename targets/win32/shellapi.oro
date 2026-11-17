@@ -1,0 +1,12 @@
+// shellapi.h (ADR 0126): ShellExecuteA(window, verb, file, parameters,
+// directory, show) answers an HINSTANCE greater than 32 on success, an error
+// code below it otherwise. Its strings may each be NULL in C, a case that
+// waits on an optional C string; here each is a C string (ADR 0091).
+module windows/shellapi {
+    use windows/minwindef
+    use windows/windef
+
+    fn ShellExecuteA(w ∈ windef.HWND, op ∈ String, f ∈ String, a ∈ String, d ∈ String, show ∈ minwindef.INT) (r ∈ minwindef.HINSTANCE) where nulfree(op) && nulfree(f) && nulfree(a) && nulfree(d) {
+        host expr call "ShellExecuteA" stdcall lib "shell32"
+    }
+}

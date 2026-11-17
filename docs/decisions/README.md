@@ -156,4 +156,5 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0123](0123-a-triples-runtime-is-a-library-in-the-language.md) | A triple's runtime is a library in the language, linked into every program |
 | [0124](0124-k-n-stars-base-is-the-triples-native-word.md) | K(ℕ\*)'s base is the triple's native word; amends 0106 |
 | [0125](0125-a-dead-region-crosses-a-call-as-the-callees-token.md) | A dead region crosses a call as the callee's token |
+| [0126](0126-win32-is-by-header-and-a-c-type-name-is-its-whole-value-set.md) | Win32 is by header, and a C type name is its type's whole value set, which the data model interprets |
 | [0047](0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) | `local` is a scope of local state: the initializer decides buffer (a table) or cell (anything else); cells are loop variables by the state-passing translation in the loader; an elimination it assumes is marked and decided by the reducer on a normal form; a projection of a loop moves into its exits; generalizes 0018's scope and respells `build`'s binder |

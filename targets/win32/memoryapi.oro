@@ -1,0 +1,11 @@
+// memoryapi.h (ADR 0126): PAGES. VirtualAlloc(address, size, type, protection)
+// answers fresh zeroed pages or null, and VirtualFree(address, 0, MEM_RELEASE
+// = 32768) releases a whole reservation VirtualAlloc made, answering a BOOL. A
+// SIZE_T is the data model's (basetsd.h, ADR 0122 item 2).
+module windows/memoryapi {
+    use windows/basetsd
+    use windows/minwindef
+
+    fn VirtualAlloc(a ∈ ptr, n ∈ basetsd.SIZE_T, t ∈ minwindef.DWORD, p ∈ minwindef.DWORD) (r ∈ ptr) { host expr call "VirtualAlloc" stdcall lib "kernel32" }
+    fn VirtualFree(a ∈ ptr, n ∈ basetsd.SIZE_T, t ∈ minwindef.DWORD) (r ∈ minwindef.BOOL) { host expr call "VirtualFree" stdcall lib "kernel32" }
+}

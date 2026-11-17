@@ -14,7 +14,9 @@
 // Nothing here names an instruction. The buffer is a language buffer, its
 // indices obligations the decision proves, and the bytes written are the
 // segment WriteFile's `where` keeps inside it.
-use windows/kernel32
+use windows/fileapi
+use windows/minwindef
+use windows/processenv
 use llvm/str as str
 
 // WRITES b[lo, lo + n) to standard output (-11), answering whether it was
@@ -24,7 +26,7 @@ fn write(b ∈ Array(0..255), lo, n) (Bool) {
     case {
         lo < 0 || n < 0 || n > 2^32 - 1 || lo + n > len(b) -> false
         else -> {
-            (w, r) = kernel32.WriteFile(kernel32.GetStdHandle(4294967285), b, lo, n, out kernel32.DWORD)
+            (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), b, lo, n, out minwindef.DWORD)
             r != 0
         }
     }

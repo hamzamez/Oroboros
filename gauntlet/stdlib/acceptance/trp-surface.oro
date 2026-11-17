@@ -1,0 +1,59 @@
+// ACCEPTANCE: TinyRetroPad's Win32 calls, by header (ADR 0126,
+// tinyretropad-2026-11-17), from the HAND declarations in targets/win32, with
+// no generated layer. Each call answers what the same call answers from C on
+// this host, on x86-64 and on i686 alike (both run before this was written):
+//
+//   a hidden STATIC window      created; its text's length 5 by SendMessageA,
+//                               3 by DefWindowProcA after SetWindowTextA
+//                               ("abc"); moved; destroyed
+//   a popup menu                an item appended; CheckMenuItem's previous
+//                               state 0 (MF_UNCHECKED), then 8 (MF_CHECKED),
+//                               then 2^32 - 1 for an item it lacks, the DWORD's
+//                               −1; destroyed
+//   the global heap             a block, and GlobalFree's null for success
+//   a date's text               GetDateFormatA's count with the NUL: "yyyy" is 5
+//   a brush, a library, a name  GetSysColorBrush, LoadLibraryA("Msftedit") for
+//                               RICHEDIT50W, and a registered message in
+//                               0xC000..0xFFFF
+//
+// The window is WS_POPUP (2^31) and never WS_VISIBLE, so nothing is shown.
+// WPARAM, LPARAM and LRESULT are the data model's (basetsd.h), 0 a value of
+// each; CheckMenuItem's DWORD is 0..2^32-1, so its −1 prints as 4294967295.
+use windows/datetimeapi
+use windows/libloaderapi
+use windows/winbase
+use windows/winuser
+use llvm as x
+use win/print
+
+fn bit(b ∈ Bool) { if b { 1 } else { 0 } }
+
+export fn main() {
+    w = winuser.CreateWindowExA(0, "STATIC", "hello", 2^31, 0, 0, 10, 10, x.null(), x.null(), x.null(), x.null())
+    print.print_int(bit(!x.is_null(w)))
+    print.print_int(winuser.SendMessageA(w, 14, 0, 0)) // WM_GETTEXTLENGTH
+    print.print_int(bit(winuser.SetWindowTextA(w, "abc") != 0))
+    print.print_int(winuser.DefWindowProcA(w, 14, 0, 0))
+    print.print_int(bit(winuser.SetWindowPos(w, x.null(), 0, 0, 20, 20, 20) != 0)) // SWP_NOZORDER | SWP_NOACTIVATE
+    print.print_int(bit(winuser.DestroyWindow(w) != 0))
+
+    m = winuser.CreatePopupMenu()
+    print.print_int(bit(winuser.AppendMenuA(m, 0, 7, "item") != 0)) // MF_STRING
+    print.print_int(winuser.CheckMenuItem(m, 7, 8))
+    print.print_int(winuser.CheckMenuItem(m, 7, 0))
+    print.print_int(winuser.CheckMenuItem(m, 99, 8))
+    print.print_int(bit(winuser.DestroyMenu(m) != 0))
+
+    g = winbase.GlobalAlloc(64, 16) // GMEM_FIXED | GMEM_ZEROINIT
+    print.print_int(bit(!x.is_null(g)))
+    print.print_int(bit(x.is_null(winbase.GlobalFree(g))))
+
+    var b := array { 0 : _ ∈ 0..15 }
+    n = datetimeapi.GetDateFormatA(127, 0, x.null(), "yyyy", b, 16) // LOCALE_INVARIANT
+    print.print_int(n)
+
+    print.print_int(bit(!x.is_null(winuser.GetSysColorBrush(5)))) // COLOR_WINDOW
+    print.print_int(bit(!x.is_null(libloaderapi.LoadLibraryA("Msftedit"))))
+    r = winuser.RegisterWindowMessageA("oroboros-trp")
+    print.print_int(bit(r >= 49152 && r <= 65535))
+}

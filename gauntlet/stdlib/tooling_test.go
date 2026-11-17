@@ -672,41 +672,47 @@ func acceptance() map[string]accept {
 		// an enum whose two values must give two different errors. None needs
 		// `-checked`: each result is declared with its C type's range, which the
 		// decision reads (mastretire-2026-11-03); on MASM every one did.
-		"wide-call": {host: "win32", target: "windows", layer: ".", want: []string{"2"},
-			files: map[string]string{"windows/fileapi.oro": "fileapi.oro", "windows/errhandlingapi.oro": "errhandlingapi.oro"}},
-		"void-stmt": {host: "win32", target: "windows", layer: ".", want: []string{"1"},
-			files: map[string]string{"windows/fileapi.oro": "fileapi.oro", "windows/errhandlingapi.oro": "errhandlingapi.oro"}},
-		"signed-result": {host: "win32", target: "windows", layer: ".", want: []string{"1", "79"},
-			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
-		"enum-param": {host: "win32", target: "windows", layer: ".", want: []string{"0", "24", "87"},
-			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		"wide-call": {host: "win32", target: "windows", layer: "tg", want: []string{"2"},
+			files: map[string]string{"tg/windows/fileapi.oro": "fileapi.oro", "tg/windows/errhandlingapi.oro": "errhandlingapi.oro"}},
+		"void-stmt": {host: "win32", target: "windows", layer: "tg", want: []string{"1"},
+			files: map[string]string{"tg/windows/fileapi.oro": "fileapi.oro", "tg/windows/errhandlingapi.oro": "errhandlingapi.oro"}},
+		"signed-result": {host: "win32", target: "windows", layer: "tg", want: []string{"1", "79"},
+			files: map[string]string{"tg/windows/winbase.oro": "winbase.oro"}},
+		"enum-param": {host: "win32", target: "windows", layer: "tg", want: []string{"0", "24", "87"},
+			files: map[string]string{"tg/windows/winbase.oro": "winbase.oro"}},
 		// And a parameter written `TYPE *name`, which the survey read as a
 		// value by value: `IsBadReadPtr(NULL, 1)` is TRUE and
 		// `IsBadReadPtr(NULL, 0)` is FALSE, so one declaration gives two
 		// answers and the program cannot be right by accident
 		// (structval-2026-09-12).
-		"pointer-param": {host: "win32", target: "windows", layer: ".", want: []string{"1", "0"},
-			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		"pointer-param": {host: "win32", target: "windows", layer: "tg", want: []string{"1", "0"},
+			files: map[string]string{"tg/windows/winbase.oro": "winbase.oro"}},
 		// And a language string as Win32's C string: lstrlenA of a literal, a
 		// `string_of` and a `++` is each one's length in bytes (λ is two), which
 		// holds exactly when the target writes the NUL after a string's bytes
 		// (docs/spec/llvm.md §4, mastretire-2026-11-03).
-		"c-string": {host: "win32", target: "windows", layer: ".", want: []string{"5", "2", "5"},
-			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		"c-string": {host: "win32", target: "windows", layer: "tg", want: []string{"5", "2", "5"},
+			files: map[string]string{"tg/windows/winbase.oro": "winbase.oro"}},
 		// And a string holding a NUL, refused at the C-string parameter: ν's
 		// kernel is the domain (ADR 0091).
-		"c-string-refused": {host: "win32", target: "windows", layer: ".", refuse: "nulfree",
-			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		"c-string-refused": {host: "win32", target: "windows", layer: "tg", refuse: "nulfree",
+			files: map[string]string{"tg/windows/winbase.oro": "winbase.oro"}},
 		// And the process's code page, which the `A` functions read a string's
 		// bytes in: UTF-8, 65001, by the manifest the target embeds.
-		"code-page": {host: "win32", target: "windows", layer: ".", want: []string{"65001"},
-			files: map[string]string{"windows/WinNls.oro": "WinNls.oro"}},
+		"code-page": {host: "win32", target: "windows", layer: "tg", want: []string{"65001"},
+			files: map[string]string{"tg/windows/winnls.oro": "winnls.oro"}},
 		// And two libraries the target does not link by default, reached only
 		// because a generated declaration says `(lib "…")` and the link line is
 		// computed from what the program calls (linkline-2026-09-13). Against
 		// the old constant line this does not build at all.
-		"link-line": {host: "win32", target: "windows", layer: ".", want: []string{"1", "0", "12", "28"},
-			files: map[string]string{"windows/WinUser.oro": "WinUser.oro", "windows/securitybaseapi.oro": "securitybaseapi.oro"}},
+		// TINYRETROPAD'S CALLS BY HEADER (ADR 0126), from the hand declarations
+		// alone, on both members of the family: what the same calls print from
+		// C on each triple, run before the program was written.
+		"trp-surface": {host: "win32", target: "windows", layer: "tg", want: trpSurface},
+		"trp-surface-i686": {host: "win32", target: "windows32", layer: "tg", want: trpSurface,
+			srcs: []string{"gauntlet/stdlib/acceptance/trp-surface.oro"}},
+		"link-line": {host: "win32", target: "windows", layer: "tg", want: []string{"1", "0", "12", "28"},
+			files: map[string]string{"tg/windows/winuser.oro": "winuser.oro", "tg/windows/securitybaseapi.oro": "securitybaseapi.oro"}},
 		// A WHOLE PACKAGE, unicode/utf8: every function and every constant,
 		// each called with a value the program computed rather than a literal
 		// (gostd-utf8-2026-09-13). The expected lines are computed by the real
@@ -796,10 +802,11 @@ var artifact = map[string]struct {
 	name string
 	run  func(o string) []string
 }{
-	"go":      {"out.exe", func(o string) []string { return []string{o} }},
-	"windows": {"out.exe", func(o string) []string { return []string{o} }},
-	"js":      {"out.mjs", func(o string) []string { return []string{"node", o} }},
-	"java":    {"classes", func(o string) []string { return []string{"java", "-cp", o, "Main"} }},
+	"go":        {"out.exe", func(o string) []string { return []string{o} }},
+	"windows":   {"out.exe", func(o string) []string { return []string{o} }},
+	"windows32": {"out.exe", func(o string) []string { return []string{o} }},
+	"js":        {"out.mjs", func(o string) []string { return []string{"node", o} }},
+	"java":      {"classes", func(o string) []string { return []string{"java", "-cp", o, "Main"} }},
 }
 
 var (

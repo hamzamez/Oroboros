@@ -47,10 +47,13 @@ T_LLVM[Σ_OS], the same on every triple:
 
 Loaded alone it is refused, naming the three operations. `targets/windows/` is a member of its
 family: `glue llvm`, `triple "x86_64-pc-windows-msvc"`, the link line and the build, and
-- `os.oro`: the view Σ_OS → Win32, the three definitions over kernel32;
-- `kernel32.oro`: the Win32 functions programs call, as they are, each `declare dllimport` in the
-  printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count. The
-  rest of Win32 is the survey's generated layer (`gauntlet/stdlib/win32.go`), written the same way;
+- `os.oro`: the view Σ_OS → Win32, the definitions over kernel32's functions;
+- **Win32 by header** (ADR 0126): `windows/H` is the SDK's header H.h, its type names (`minwindef`,
+  `winnt`, `windef`, `basetsd`, the last's four pointer-width names the member's `model.oro`) and the
+  functions programs call (`fileapi`, `heapapi`, `winuser`, …), each `declare dllimport` in the
+  printed module and its `lib` the DLL that resolves it: `WriteFile` writes a table's segment, its
+  domain the segment and a DWORD count. Each is checked against the survey's generated `win/H`
+  (`TestWin32DeclarationsAreTheirPrototypes`), which is the rest of Win32, written the same way;
 
 **A triple's runtime, Σ_RT** (ADR 0123): the symbols its code generator calls for an instruction it
 does not expand. Measured with LLVM 23 at -O2:
@@ -347,15 +350,18 @@ A `where` is an obligation (ADR 0080 item 7). A primitive the language cannot st
 ## 6a. A C function: its call derived from its prototype (ADR 0094)
 
 `fn F(a ∈ S₁, …) (r ∈ S) { host expr call "F" [stdcall | cdecl] }` declares a C function by its
-symbol, and the sets are its prototype: over C's integer types the full range determines the type,
-so a C integer's set is its type's full range, and a narrower domain is a `where`.
+symbol, and the sets are its prototype: over C's integer types the whole value set determines the
+type, so a C integer's set is its type's whole value set, at an argument as at a result, and a
+narrower domain is a `where` (ADR 0126). On Win32 the sets are the header's own type names
+(`minwindef.DWORD`, `basetsd.SIZE_T`), each defined as its typedef, the data model's four by the
+triple (ADR 0126).
 
 | set | C type, LLVM type | into the call | out of it |
 |---|---|---|---|
 | −2^(w−1)..2^(w−1)−1, w ∈ {8, 16, 32} | signed, `iw` | `trunc` from i64 | `sext` to i64 |
 | 0..2^w−1, w ∈ {8, 16, 32} | unsigned, `iw` | `trunc` from i64 | `zext` to i64 |
 | −2⁶³..2⁶³−1 | 64-bit, `i64` | as it is | as it is |
-| 0..2⁶³−1 | 64-bit unsigned, in the word, `i64` | as it is | as it is |
+| 0..2⁶⁴−1, where the target realizes the unsigned word | 64-bit unsigned, `i64` | the unsigned word, `u64-of` from the word | the unsigned word |
 | `ptr` | a pointer, `ptr` | as it is | as it is |
 | `String`, `where nulfree(a)` | `const char *`, `ptr` | its bytes, s + 8 (§4) | — |
 | ∅, or `host stmt` | `void` | — | — |
@@ -364,7 +370,9 @@ so a C integer's set is its type's full range, and a narrower domain is a `where
 call is ℤ's: out ∘ F ∘ in. The `declare` is the prototype's image, `dllimport` on a Windows triple,
 and the convention is the triple's: `stdcall` is `x86_stdcallcc` on i686 and the C convention on
 x86-64. A set that is no C type is refused when the target loads, and so is a C-string parameter
-without `where nulfree`.
+without `where nulfree`. The word's naturals, 0..2⁶³−1, are no C type: until ADR 0126 they were a
+64-bit unsigned argument's set, with the signed word its result's, two sets for one type, and at a
+result a claim no C function makes (HeapSize's (SIZE_T)−1).
 
 **The arguments as a term** (ADR 0118). `host expr call "F"(t₁, …, t_k)`, read as `(call "F" (args t₁ …))`, writes C's arguments as a
 linear term over the parameters, each parameter in exactly one tⱼ:

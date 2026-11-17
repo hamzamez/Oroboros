@@ -4,7 +4,6 @@
 // Win32 API that the survey refused and the target format could always say: a
 // statement's value IS its first argument. Round-tripped through `GetLastError`,
 // which was already declarable, so the answer is checked rather than assumed.
-use windows/kernel32 as k
 use win/errhandlingapi as e
 use win/print
 // The comparison rather than the value, because a host result is unbounded and
@@ -12,5 +11,5 @@ use win/print
 // located, and not what this test is about.
 export fn main() {
     e.SetLastError(4242)
-    print.print_int(if k.GetLastError() == 4242 { 1 } else { 0 })
+    print.print_int(if e.GetLastError() == 4242 { 1 } else { 0 })
 }

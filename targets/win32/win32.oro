@@ -8,7 +8,11 @@
 //                  glued: agreement required, nothing of it replaced
 //   os.oro         the view Σ_OS → Win32: region, write_err and exit over
 //                  kernel32, the definitions the layer's headers require
-//   kernel32.oro   the Win32 functions programs call, as Win32 has them
+//   H.oro          WIN32 BY HEADER (ADR 0126): `windows/H` is the SDK's H.h,
+//                  its type names, each its typedef (minwindef, winnt, windef,
+//                  basetsd, whose four pointer-width names are the member's
+//                  model.oro), and the functions programs call (fileapi,
+//                  heapapi, winuser, …), each its prototype and its DLL
 glue llvm
 
 // THE LINK LINE: kernel32 for everything this target calls, and no C runtime

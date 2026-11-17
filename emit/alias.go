@@ -176,9 +176,42 @@ func (tg *Target) unfoldAliases() error {
 func (tg *Target) alias(mod, n string) (string, string, bool) {
 	k, ok := resolveIn(mod, n, func(k string) bool { _, ok := tg.Aliases[k]; return ok })
 	if !ok {
-		return "", "", false
+		// A QUALIFIED NAME THROUGH A `use` of the module or an enclosing one,
+		// `basetsd.SIZE_T` under `use windows/basetsd`, as a term name resolves
+		// (ADR 0073: a set's name denotes a set, and names have one rule).
+		if k, ok = tg.aliasThroughUse(mod, n); !ok {
+			return "", "", false
+		}
 	}
 	return k, tg.Aliases[k], true
+}
+
+// aliasThroughUse resolves q.X, where q is a `use`'s alias (its path's last
+// segment when it names none) in mod or a module enclosing it, to that path's X.
+func (tg *Target) aliasThroughUse(mod, n string) (string, bool) {
+	q, x := moduleOf(n), baseOf(n)
+	if q == "" {
+		return "", false
+	}
+	for m := mod; ; m = moduleOf(m) {
+		for _, f := range tg.Defs[m] {
+			if f.Kind != "use" {
+				continue
+			}
+			a := f.Alias
+			if a == "" {
+				a = f.Name[strings.LastIndex(f.Name, "/")+1:]
+			}
+			if a == q {
+				if _, ok := tg.Aliases[f.Name+"."+x]; ok {
+					return f.Name + "." + x, true
+				}
+			}
+		}
+		if m == "" {
+			return "", false
+		}
+	}
 }
 
 // moduleOf and baseOf split a qualified name. A module path may contain `/` and

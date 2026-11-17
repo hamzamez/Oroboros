@@ -1,0 +1,24 @@
+// minwindef.h, WIN32'S BASIC TYPE NAMES (ADR 0126), each its typedef read off
+// the Windows SDK 10.0.26100.0's shared/minwindef.h: a C integer type's name
+// is its whole value set, a handle's is `ptr`, and a name defined through
+// another is defined through it, so WPARAM, LPARAM and LRESULT are the data
+// model's by way of basetsd.h's four (targets/win32/basetsd.oro). Each name is
+// one a declaration here states; the header has more.
+module windows/minwindef {
+    use windows/basetsd
+    use windows/winnt
+
+    set DWORD = 0..2^32-1          // typedef unsigned long DWORD (long is 32 bits on both models)
+    set BOOL = -2^31..2^31-1       // typedef int BOOL
+    set BYTE = 0..255              // typedef unsigned char BYTE
+    set WORD = 0..2^16-1           // typedef unsigned short WORD
+    set INT = -2^31..2^31-1        // typedef int INT
+    set UINT = 0..2^32-1           // typedef unsigned int UINT
+    set WPARAM = basetsd.UINT_PTR  // typedef UINT_PTR WPARAM
+    set LPARAM = basetsd.LONG_PTR  // typedef LONG_PTR LPARAM
+    set LRESULT = basetsd.LONG_PTR // typedef LONG_PTR LRESULT
+    set ATOM = WORD                // typedef WORD ATOM
+    set HGLOBAL = winnt.HANDLE     // typedef HANDLE HGLOBAL
+    set HINSTANCE = ptr            // DECLARE_HANDLE(HINSTANCE)
+    set HMODULE = HINSTANCE        // typedef HINSTANCE HMODULE
+}

@@ -21,7 +21,13 @@ provides win32 os/host {
     use result
     use llvm
     use llvm/os as los
-    use windows/kernel32
+    use windows/errhandlingapi
+    use windows/fileapi
+    use windows/handleapi
+    use windows/minwindef
+    use windows/processenv
+    use windows/winbase
+    use windows/winnt
 
     // Win32's constants are written where they are used, named in a comment:
     // a fragment holds declarations only. The codes this cell answers itself
@@ -49,8 +55,8 @@ provides win32 os/host {
         loop once = 0 {
             else -> {
                 if nulfree(path) {
-                    h = kernel32.CreateFileA(path, a, 1, llvm.null(), d, 128, llvm.null()) // FILE_SHARE_READ, FILE_ATTRIBUTE_NORMAL
-                    if llvm.is_all_ones(h) { (h, failed(kernel32.GetLastError())) } else { (h, 0) }
+                    h = fileapi.CreateFileA(path, a, 1, llvm.null(), d, 128, llvm.null()) // FILE_SHARE_READ, FILE_ATTRIBUTE_NORMAL
+                    if llvm.is_all_ones(h) { (h, failed(errhandlingapi.GetLastError())) } else { (h, 0) }
                 } else {
                     (llvm.null(), 123)
                 }
@@ -74,14 +80,14 @@ provides win32 os/host {
                 case {
                     c != 0 -> (alloc(array { 0 : _ ∈ 0..-1 }), c)
                     else -> {
-                        (sz, ok) = kernel32.GetFileSizeEx(h, out kernel32.LARGE_INTEGER)
+                        (sz, ok) = fileapi.GetFileSizeEx(h, out winnt.LARGE_INTEGER)
                         case {
-                            ok == 0 -> { e = failed(kernel32.GetLastError()); ignore(kernel32.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), e) }
+                            ok == 0 -> { e = failed(errhandlingapi.GetLastError()); ignore(handleapi.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), e) }
                             // ERROR_NOT_ENOUGH_MEMORY: past the largest table this cell reads
-                            sz < 0 || sz > los.max_len() -> { ignore(kernel32.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), 8) }
+                            sz < 0 || sz > los.max_len() -> { ignore(handleapi.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), 8) }
                             else -> {
                                 (b, m, e) = readall(h, sz)
-                                ignore(kernel32.CloseHandle(h))
+                                ignore(handleapi.CloseHandle(h))
                                 // the file shrank while it was read: its first m bytes,
                                 // m ≤ len(b) by readinto's invariant (j.md §2.8)
                                 t = if m >= len(b) { b } else { alloc(array { b[i] : i ∈ 0..m - 1 }) }
@@ -122,8 +128,8 @@ provides win32 os/host {
                 // relation the intervals lose across the loop, stated here
                 rest = len(b) - lo
                 n = if rest > 1073741824 { 1073741824 } else if rest < 1 { 0 } else { rest }
-                (g, r) = kernel32.ReadFile(h, b, lo, n, out kernel32.DWORD)
-                c = if r == 0 { failed(kernel32.GetLastError()) } else { 0 }
+                (g, r) = fileapi.ReadFile(h, b, lo, n, out minwindef.DWORD)
+                c = if r == 0 { failed(errhandlingapi.GetLastError()) } else { 0 }
                 k = if g > n { n } else { g }
                 again(lo + k, k, c)
             }
@@ -146,10 +152,10 @@ provides win32 os/host {
                     c != 0 -> c
                     else -> {
                         e = writeall(h, data)
-                        k = kernel32.CloseHandle(h)
+                        k = handleapi.CloseHandle(h)
                         case {
                             e != 0 -> e
-                            k == 0 -> failed(kernel32.GetLastError())
+                            k == 0 -> failed(errhandlingapi.GetLastError())
                             else -> 0
                         }
                     }
@@ -169,8 +175,8 @@ provides win32 os/host {
             else -> {
                 rest = len(data) - lo
                 n = if rest > 1073741824 { 1073741824 } else if rest < 1 { 0 } else { rest }
-                (p, r) = kernel32.WriteFile(h, data, lo, n, out kernel32.DWORD)
-                c = if r == 0 { failed(kernel32.GetLastError()) } else { 0 }
+                (p, r) = fileapi.WriteFile(h, data, lo, n, out minwindef.DWORD)
+                c = if r == 0 { failed(errhandlingapi.GetLastError()) } else { 0 }
                 k = if p > n { n } else { p }
                 again(lo + k, k, c)
             }
@@ -198,16 +204,16 @@ provides win32 os/host {
         loop once = 0 {
             else -> {
                 if nulfree(path) {
-                    h = kernel32.CreateFileA(path, 2147483648, 1, llvm.null(), 3, 128, llvm.null()) // GENERIC_READ, OPEN_EXISTING
+                    h = fileapi.CreateFileA(path, 2147483648, 1, llvm.null(), 3, 128, llvm.null()) // GENERIC_READ, OPEN_EXISTING
                     case {
-                        llvm.is_all_ones(h) -> (0, failed(kernel32.GetLastError()))
+                        llvm.is_all_ones(h) -> (0, failed(errhandlingapi.GetLastError()))
                         else -> {
-                            s = kernel32.SetFilePointerEx(h, off, llvm.null(), 0) // FILE_BEGIN
+                            s = fileapi.SetFilePointerEx(h, off, llvm.null(), 0) // FILE_BEGIN
                             case {
-                                s == 0 -> { e = failed(kernel32.GetLastError()); ignore(kernel32.CloseHandle(h)); (0, e) }
+                                s == 0 -> { e = failed(errhandlingapi.GetLastError()); ignore(handleapi.CloseHandle(h)); (0, e) }
                                 else -> {
                                     (m, e) = readinto(h, b)
-                                    ignore(kernel32.CloseHandle(h))
+                                    ignore(handleapi.CloseHandle(h))
                                     (if m > len(b) { len(b) } else if m < 0 { 0 } else { m }, e)
                                 }
                             }
@@ -231,13 +237,13 @@ provides win32 os/host {
     // table (lstrlenA, RtlMoveMemory), split by Go-on-Windows' own rule
     // (os.commandLineToArgv), each argument then text by d, as Go's are.
     fn Args() (Array(String)) {
-        p = kernel32.GetCommandLineA()
-        n0 = kernel32.lstrlenA(p)
+        p = processenv.GetCommandLineA()
+        n0 = winbase.lstrlenA(p)
         // a command line is at most 32,767 bytes (CreateProcess's limit)
         n = if n0 < 0 { 0 } else if n0 > 32767 { 32767 } else { n0 }
         cmd = {
             var c := array { 0 : _ ∈ 0..n }
-            ignore(kernel32.lstrcpynA(c, p, n + 1))
+            ignore(winbase.lstrcpynA(c, p, n + 1))
             c
         }
         (o, ends, na) = argv(cmd, n)
@@ -318,7 +324,7 @@ provides win32 os/host {
     // caller's guard decides
     fn fetch(k ∈ String, m ∈ 1..32768) where nulfree(k) {
         var v := array { 0 : _ ∈ 0..m - 1 }
-        g = kernel32.GetEnvironmentVariableA(k, v, m)
+        g = processenv.GetEnvironmentVariableA(k, v, m)
         (v, g)
     }
     fn prefix(b ∈ Array(0..255), r) {

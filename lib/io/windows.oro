@@ -8,7 +8,9 @@
 // its argument, as a host statement's is (plan's alias).
 provides win32 io {
     use win/print
-    use windows/kernel32
+    use windows/fileapi
+    use windows/minwindef
+    use windows/processenv
     use llvm/str as str
 
     fn print_line(s ∈ String) (String) {
@@ -20,7 +22,7 @@ provides win32 io {
     fn print(s ∈ String) (String) {
         u = str.utf8(s)
         if len(u) <= 2^32 - 1 {
-            (w, r) = kernel32.WriteFile(kernel32.GetStdHandle(4294967285), u, 0, len(u), out kernel32.DWORD)
+            (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), u, 0, len(u), out minwindef.DWORD)
             ignore(r)
         }
         s

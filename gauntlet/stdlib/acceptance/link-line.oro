@@ -24,7 +24,7 @@
 // Every operation is proven: each result carries its C type's range
 // (mastretire-2026-11-03). On MASM it needed `-checked`, a host result having no
 // declared range.
-use win/WinUser as u
+use win/winuser as u
 use win/securitybaseapi as s
 use win/print
 

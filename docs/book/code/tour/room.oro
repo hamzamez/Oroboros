@@ -1,7 +1,7 @@
 use shapes
 use io
 
-export fn floor(side ∈ 0..1000) (Int) { shapes.area(shapes.'square(side)) }
+fn floor(side ∈ 0..1000) (Int) { shapes.area(shapes.'square(side)) }
 
 export fn main() {
     io.print_int(floor(12))

@@ -384,32 +384,34 @@ var published = map[string][]string{
 		"integer constant whose value is per-platform 50",
 		"emitted 5280 primitives",
 	},
-	"win32": { // win32-2026-09-08, win32enum-2026-09-11, structval-2026-09-12
-		"FLAT C API: 11575",
-		"declarable as a (prim …): 10479 90.5%",
-		"callable by a program: 4093 35.4%",
-		"and the call says it all: 3756 32.4%",
+	"win32": { // win32-2026-09-08, win32enum-2026-09-11, structval-2026-09-12; the universe
+		// grew by 802 when the parser read STDAPI's shell and utility siblings and
+		// CALLBACK (tinyretropad-2026-11-17)
+		"FLAT C API: 12377",
+		"declarable as a (prim …): 11270 91.1%",
+		"callable by a program: 4474 36.1%",
+		"and the call says it all: 4111 33.2%",
 		"(widest is 17 arguments)",
 		"ENUMS: 10109 enum type names; 6031 of them",
-		"struct by value 140 1.2%",
-		"floating point 29 0.3%",
-		"emitted 10479 primitives",
+		"struct by value 144 1.2%",
+		"floating point 31 0.3%",
+		"emitted 11270 primitives",
 		// structval-2026-09-12. The bucket that was the largest refusal at
 		// 945, and what the ABI does with what is left of it.
-		"STRUCT BY VALUE: 24 aggregate types across 140 refusals",
-		"1/2/4/8 bytes — one register 12 77 7",
-		"other — by reference / RCX 12 55 1",
+		"STRUCT BY VALUE: 24 aggregate types across 144 refusals",
+		"1/2/4/8 bytes — one register 12 80 7",
+		"other — by reference / RCX 12 56 1",
 		// And the ceiling nobody had measured: a callable name in a library
 		// the link line does not name is a claim. linkline-2026-09-13 computes
 		// the line from the declarations, and these are what that buys and
 		// what it deliberately refuses.
-		"by a library the target always links: 666 16.3%",
-		"bound to ONE DLL by every library: 2927 71.5%",
-		"refused: bound to two or more DLLs: 155 3.8%",
-		"refused: only through an API set: 61 1.5%",
+		"by a library the target always links: 666 14.9%",
+		"bound to ONE DLL by every library: 3297 73.7%",
+		"refused: bound to two or more DLLs: 157 3.5%",
+		"refused: only through an API set: 61 1.4%",
 		"refused: listed and bound to no DLL: 17 0.4%",
-		"in no import library at all: 267 6.5%",
-		"CALLABLE AND IT LINKS: 3593 31.0% of the flat API",
+		"in no import library at all: 276 6.2%",
+		"CALLABLE AND IT LINKS: 3963 32.0% of the flat API",
 	},
 	"jvm": { // surveys-2026-09-10, corrected by tooling-2026-09-11
 		"4508 public types",

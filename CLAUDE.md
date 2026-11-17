@@ -224,8 +224,8 @@ contract gap (ADR 0028); records, `with` and named views beyond what TinyRetroPa
   loops, whose progress is a count the host returns). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
   counts are pinned by `cmd/check`.
-- **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 90.5%
-  declarable and 31.0% callable and linkable; `go run gauntlet/stdlib/coverage.go` gives the declared
+- **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.1%
+  declarable and 32.0% callable and linkable (12,377 entry points, tinyretropad-2026-11-17); `go run gauntlet/stdlib/coverage.go` gives the declared
   share of the Go packages with a file ([gocoverage-2026-10-06](gauntlet/results/gocoverage-2026-10-06.md)).
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
   `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints, `math/bits`, `io`'s

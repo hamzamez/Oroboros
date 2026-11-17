@@ -256,7 +256,8 @@ type fn struct {
 	params   []param
 	variadic bool
 	// conv is the calling convention its macro names (ADR 0094): WINAPIV is
-	// __cdecl, and WINAPI, APIENTRY, NTAPI and STDAPICALLTYPE are __stdcall.
+	// __cdecl, and WINAPI, APIENTRY, NTAPI, STDAPICALLTYPE and CALLBACK are
+	// __stdcall.
 	conv string
 }
 
@@ -264,12 +265,25 @@ var (
 	// A flat C entry point. The SDK writes the decoration, the result, the
 	// calling convention and the name on separate lines, which is what makes
 	// this tractable without a C parser.
+	// CALLBACK is __stdcall too, and declares exported functions as well as
+	// callback types: `LRESULT CALLBACK DefWindowProcA(…);` (tinyretropad-
+	// 2026-11-17). A typedef's `(CALLBACK *T)` has no name before its `(`.
 	reFn = regexp.MustCompile(
-		`(?s)([A-Za-z_][A-Za-z0-9_ *]*?)\s+(WINAPI|APIENTRY|NTAPI|STDAPICALLTYPE|WINAPIV)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^;{}]*)\)\s*;`)
+		`(?s)([A-Za-z_][A-Za-z0-9_ *]*?)\s+(WINAPI|APIENTRY|NTAPI|STDAPICALLTYPE|WINAPIV|CALLBACK)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^;{}]*)\)\s*;`)
 	// STDAPI expands to EXTERN_C HRESULT STDAPICALLTYPE, so the result is
-	// implicit. STDAPI_(t) names it.
+	// implicit. STDAPI_(t) names it. The shell's, the light-weight utility
+	// library's and the property system's macros are the same expansion under
+	// their own names (shellapi.h's SHSTDAPI_(HINSTANCE) ShellExecuteA, shlwapi.h's
+	// LWSTDAPI, propsys.h's PSSTDAPI): 773 entry points the survey did not see
+	// until tinyretropad-2026-11-17.
 	reStdapi = regexp.MustCompile(
-		`(?s)\bSTDAPI(_\(([^)]*)\))?\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^;{}]*)\)\s*;`)
+		`(?s)\b(?:STDAPI|SHSTDAPI|LWSTDAPI|PSSTDAPI|SHFOLDERAPI|SHDOCAPI)(_\(([^)]*)\))?\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^;{}]*)\)\s*;`)
+	// a convention the preprocessor chooses before a name, read as the native
+	// Windows build's branch: outside /clr:pure, CALLBACK; and with _MAC
+	// undefined, the first branch, `#ifndef _MAC LRESULT WINAPI #else LRESULT
+	// CALLBACK #endif DefWindowProcA(…)` (WinUser.h)
+	reCeePure  = regexp.MustCompile(`#ifdef _M_CEE_PURE\s+WINAPI\s+#else\s+CALLBACK\s+#endif`)
+	reMac      = regexp.MustCompile(`#ifndef _MAC\s+([^#]*?)\bWINAPI\s+#else\s+[^#]*?\bCALLBACK\s+#endif`)
 	reComment  = regexp.MustCompile(`(?s)/\*.*?\*/`)
 	reLine     = regexp.MustCompile(`//[^\n]*`)
 	reCallback = regexp.MustCompile(`\b(?:CALLBACK|STDMETHODCALLTYPE)\b`)
@@ -529,6 +543,7 @@ func main() {
 	checkEnums := flag.Bool("check-enums", false, "ask MSVC to confirm every enum a declaration relies on is an integer type")
 	sizeTab := flag.String("sizetable", sizeTableFile, "read aggregate sizes from FILE")
 	org := flag.Bool("org", false, "report how the SDK's functions partition by header and by DLL, and stop")
+	namesFile := flag.String("names", "", "for each entry point FILE names (one a line, `_imp__` and `@n` stripped), print its header, verdict, arity and DLL by this survey's own rules, and stop")
 	flag.Parse()
 	readSizes(*sizeTab)
 
@@ -559,6 +574,8 @@ func main() {
 			}
 			files++
 			src := reLine.ReplaceAllString(reComment.ReplaceAllString(string(b), " "), " ")
+			src = reCeePure.ReplaceAllString(src, "CALLBACK")
+			src = reMac.ReplaceAllString(src, "${1}WINAPI")
 			base := filepath.Base(h)
 			collectTypes(base, src, structs, handles, callbacks, alias)
 			comMethods += len(reCallback.FindAllString(src, -1))
@@ -653,6 +670,8 @@ func main() {
 	nullPassed := 0
 	arity := map[int]int{}
 	var decls []fn
+	// each entry point's verdict by the rules below, for -names
+	verdictOf := map[string]string{}
 
 	for _, f := range fns {
 		why := ok
@@ -713,6 +732,7 @@ func main() {
 		}
 		if why != ok {
 			byReason[why]++
+			verdictOf[f.name] = "not declarable: " + string(why)
 			continue
 		}
 		declarable++
@@ -721,10 +741,12 @@ func main() {
 
 		reach := true
 		usedNull := false
+		blocked := ""
 		for _, p := range f.params {
 			sh := classify(p.typ, structs, handles, callbacks, alias)
 			if !canPass(p, sh) {
 				reach = false
+				blocked = p.typ + " " + p.sal
 				break
 			}
 			if sh == shPtr {
@@ -733,6 +755,7 @@ func main() {
 		}
 		if !reach {
 			byGap[rOutParam]++
+			verdictOf[f.name] = "declarable, not callable: an argument it cannot pass, " + strings.TrimSpace(blocked)
 			continue
 		}
 		callable++
@@ -745,8 +768,10 @@ func main() {
 		// means the answer came back through memory we cannot read.
 		if anyOutParam {
 			byGap[rOutParam]++
+			verdictOf[f.name] = "callable, its answer through an out-parameter"
 			continue
 		}
+		verdictOf[f.name] = "usable"
 		usable++
 	}
 
@@ -864,6 +889,14 @@ func main() {
 		fmt.Printf("  %-24s %6d  %5.1f%%   [%s]\n", x.r, x.n, pct(x.n, len(fns)), blame(x.r))
 	}
 
+	if *namesFile != "" {
+		lk, lkErr := loadLinkage(dir)
+		if err := reportNames(*namesFile, fns, verdictOf, lk, lkErr); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	reportStructs(argOf, resOf, structFns)
 	lk, lkErr := loadLinkage(dir)
 	reportLinking(lk, lkErr, callableNames, len(fns))
@@ -2239,4 +2272,45 @@ func reportOrganization(fns []fn, lk *linkage) {
 			}
 		}
 	}
+}
+
+// reportNames is -names: each listed entry point's header, verdict, arity and
+// DLL, one a line, tab-separated, by the survey's own rules, so a program's
+// surface is measured as the SDK's was (tinyretropad-2026-11-17).
+func reportNames(file string, fns []fn, verdictOf map[string]string, lk *linkage, lkErr error) error {
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	byName := map[string]fn{}
+	for _, f := range fns {
+		if _, dup := byName[f.name]; !dup {
+			byName[f.name] = f
+		}
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		n := strings.TrimSpace(line)
+		n = strings.TrimPrefix(n, "_imp__")
+		if i := strings.IndexByte(n, '@'); i >= 0 {
+			n = n[:i]
+		}
+		if n == "" {
+			continue
+		}
+		f, ok := byName[n]
+		if !ok {
+			fmt.Printf("%s\t-\tnot among the SDK's entry points\t-\t-\n", n)
+			continue
+		}
+		dll := "-"
+		if lkErr == nil {
+			lib, why := lk.resolve(n)
+			dll = lib
+			if lib == "" {
+				dll = why
+			}
+		}
+		fmt.Printf("%s\t%s\t%s\t%d\t%s\n", n, f.hdr, verdictOf[n], len(f.params), dll)
+	}
+	return nil
 }

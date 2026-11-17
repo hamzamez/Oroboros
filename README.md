@@ -427,7 +427,7 @@ Surveys read each host's own API list and count what the declaration format can 
 |---|---:|---:|
 | Go standard library | 87.8% | 60.5% |
 | JVM (JDK) | 81.4% | 60.9% |
-| Win32 | 90.5% | 31.0% callable *and* linkable |
+| Win32 | 91.1% | 32.0% callable *and* linkable |
 | JavaScript (Node's `globalThis`) | 100% | not a meaningful number: every value has one type. The browser's Web APIs are not surveyed yet |
 
 "Declarable" is not "supported". A package is supported when every function is declared **by hand**,

@@ -32,7 +32,7 @@ entry:
   %v27 = add nsw i64 %v22, %v26
   %v29 = ashr i64 %v10, 3
   %v30 = add nsw i64 %v27, %v29
-  %v33 = icmp sgt i64 1000, 0
+  %v33 = icmp samesign sgt i64 1000, 0
   %v34 = srem i64 %v10, 1000
   %v36 = icmp slt i64 %v34, 0
   br i1 %v36, label %.then24, label %.else25

@@ -9,10 +9,10 @@ target triple = "x86_64-pc-windows-msvc"
 define { i64, ptr } @gen_label(i64 range(i64 0, 11) %v0) #0 {
 entry:
   %.s6 = alloca i1
-  %v2 = icmp sle i64 0, %v0
+  %v2 = icmp samesign sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
-  %v6 = icmp sle i64 %v0, 10
+  %v6 = icmp samesign sle i64 %v0, 10
   store i1 %v6, ptr %.s6
   br label %.join4
 .else3:
@@ -20,7 +20,7 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %v10 = icmp sgt i64 %v0, 5
+  %v10 = icmp samesign sgt i64 %v0, 5
   br i1 %v10, label %.then8, label %.else9
 .then8:
   %.r10 = insertvalue { i64, ptr } undef, i64 0, 0
@@ -35,10 +35,10 @@ entry:
 define { i64, i64, ptr } @gen_parse(i64 range(i64 0, 101) %v0) #0 {
 entry:
   %.s6 = alloca i1
-  %v2 = icmp sle i64 0, %v0
+  %v2 = icmp samesign sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
-  %v6 = icmp sle i64 %v0, 100
+  %v6 = icmp samesign sle i64 %v0, 100
   store i1 %v6, ptr %.s6
   br label %.join4
 .else3:
@@ -46,7 +46,7 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %v10 = icmp slt i64 %v0, 50
+  %v10 = icmp samesign slt i64 %v0, 50
   br i1 %v10, label %.then8, label %.else9
 .then8:
   %v13 = mul nuw nsw i64 %v0, 2
@@ -64,10 +64,10 @@ entry:
 define { i64, i64, i64 } @gen_save(i64 range(i64 0, 101) %v0) #0 {
 entry:
   %.s6 = alloca i1
-  %v2 = icmp sle i64 0, %v0
+  %v2 = icmp samesign sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
-  %v6 = icmp sle i64 %v0, 100
+  %v6 = icmp samesign sle i64 %v0, 100
   store i1 %v6, ptr %.s6
   br label %.join4
 .else3:

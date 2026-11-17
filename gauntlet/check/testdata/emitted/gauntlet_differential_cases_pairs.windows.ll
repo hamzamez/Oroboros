@@ -10,10 +10,10 @@ entry:
   %.s12 = alloca i64
   %.s18 = alloca i64
   %.s24 = alloca i64
-  %v2 = icmp sle i64 0, %v0
+  %v2 = icmp samesign sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
-  %v6 = icmp sle i64 %v0, 9
+  %v6 = icmp samesign sle i64 %v0, 9
   store i1 %v6, ptr %.s6
   br label %.join4
 .else3:
@@ -29,7 +29,7 @@ entry:
 .head9:
   %v14 = load i64, ptr %.s11
   %v15 = load i64, ptr %.s12
-  %v17 = icmp slt i64 %v14, 4
+  %v17 = icmp samesign slt i64 %v14, 4
   br i1 %v17, label %.then14, label %.else15
 .then14:
   %v20 = add nuw nsw i64 %v14, 1
@@ -42,7 +42,7 @@ entry:
   br label %.exit10
 .exit10:
   %v13 = load i64, ptr %.s18
-  %v25 = icmp sle i64 32, 63
+  %v25 = icmp samesign sle i64 32, 63
   br i1 %v25, label %.then20, label %.else21
 .then20:
   %v28 = lshr i64 %v13, 32
@@ -85,7 +85,7 @@ entry:
   %v21 = or i64 %v20, 0
   %v23 = xor i64 %v21, -1
   %v24 = or i64 %v23, 0
-  %v27 = icmp sle i64 7, 63
+  %v27 = icmp samesign sle i64 7, 63
   br i1 %v27, label %.then21, label %.else22
 .then21:
   %v30 = lshr i64 %v24, 7
@@ -100,7 +100,7 @@ entry:
   %v34 = or i64 %v28, 0
   %v35 = or i64 %v24, 0
   %v36 = xor i64 %v35, %v34
-  %v39 = icmp sle i64 33, 63
+  %v39 = icmp samesign sle i64 33, 63
   br i1 %v39, label %.then31, label %.else32
 .then31:
   %v42 = lshr i64 %v24, 33
@@ -138,7 +138,7 @@ entry:
   %v73 = or i64 %v71, %v72
   %v75 = and i64 %v73, 1085102592571150095
   %v76 = xor i64 %v70, %v75
-  %v79 = icmp sle i64 63, 63
+  %v79 = icmp samesign sle i64 63, 63
   br i1 %v79, label %.then64, label %.else65
 .then64:
   %v82 = lshr i64 %v20, 63

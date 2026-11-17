@@ -8,10 +8,10 @@ entry:
   %.s6 = alloca i1
   %.s15 = alloca i1
   %.s20 = alloca i64
-  %v2 = icmp sle i64 0, %v0
+  %v2 = icmp samesign sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
-  %v6 = icmp sle i64 %v0, 1048576
+  %v6 = icmp samesign sle i64 %v0, 1048576
   store i1 %v6, ptr %.s6
   br label %.join4
 .else3:

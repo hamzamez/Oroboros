@@ -240,7 +240,8 @@ func TestAShiftIsTheInstructionWhereItsCountIsProven(t *testing.T) {
 	}
 	// THE TERM, lang.shl: the count compared with 63, LLVM's shl on the arm that
 	// proves it below 64, with that arm's flags, and 0 past it.
-	if !strings.Contains(out, "icmp sle i64") || !strings.Contains(out, "= shl nuw nsw i64 0,") {
+	// (k ≥ 0 and 63 are both natural, so the comparison takes samesign, φ)
+	if !regexp.MustCompile(`icmp (samesign )?sle i64`).MatchString(out) || !strings.Contains(out, "= shl nuw nsw i64 0,") {
 		t.Errorf("a count up to 100 should print lang.shl's term:\n%s", out)
 	}
 	if _, err := compile(t, "use llvm\nexport fn g(k ∈ 0..100) (Int) { llvm.shl(0, k) }"); err == nil {
@@ -367,8 +368,8 @@ func TestAComparisonIsRealizedAtItsSort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"fcmp olt double", "fcmp oeq double", "icmp slt i64"} {
-		if !strings.Contains(out, want) {
+	for _, want := range []string{"fcmp olt double", "fcmp oeq double", `icmp (samesign )?slt i64`} {
+		if !regexp.MustCompile(want).MatchString(out) {
 			t.Errorf("want %q:\n%s", want, out)
 		}
 	}

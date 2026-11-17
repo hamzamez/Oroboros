@@ -21,7 +21,7 @@ entry:
   %v10 = load double, ptr %.s4
   %v11 = load double, ptr %.s5
   %v12 = load i64, ptr %.s6
-  %v13 = icmp sge i64 %v12, %v5
+  %v13 = icmp samesign sge i64 %v12, %v5
   br i1 %v13, label %.then8, label %.else9
 .then8:
   %v17 = fadd double %v10, %v11

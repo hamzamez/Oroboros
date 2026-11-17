@@ -9,10 +9,10 @@ entry:
   %.s9 = alloca i64
   %.s10 = alloca i64
   %.s25 = alloca i64
-  %v2 = icmp sle i64 0, %v0
+  %v2 = icmp samesign sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
-  %v6 = icmp sle i64 %v0, 255
+  %v6 = icmp samesign sle i64 %v0, 255
   store i1 %v6, ptr %.s6
   br label %.join4
 .else3:
@@ -26,7 +26,7 @@ entry:
 .head7:
   %v12 = load i64, ptr %.s9
   %v13 = load i64, ptr %.s10
-  %v15 = icmp slt i64 %v12, 64
+  %v15 = icmp samesign slt i64 %v12, 64
   br i1 %v15, label %.then12, label %.else13
 .then12:
   %v18 = add nuw nsw i64 %v12, 1

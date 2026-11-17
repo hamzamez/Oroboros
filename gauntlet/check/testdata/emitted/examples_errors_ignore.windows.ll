@@ -19,7 +19,7 @@ entry:
 .head2:
   %v5 = load i64, ptr %.s4
   %v6 = load i64, ptr %v2
-  %v7 = icmp sge i64 %v5, %v6
+  %v7 = icmp samesign sge i64 %v5, %v6
   br i1 %v7, label %.then6, label %.else7
 .then6:
   store i1 true, ptr %.s8
@@ -153,7 +153,7 @@ entry:
   br i1 %v10, label %.then7, label %.else8
 .then7:
   %v12 = load i64, ptr %v1
-  %v13 = icmp sge i64 %v6, %v12
+  %v13 = icmp samesign sge i64 %v6, %v12
   br i1 %v13, label %.then10, label %.else11
 .then10:
   store i64 0, ptr %.s12
@@ -210,7 +210,7 @@ entry:
   br label %.join34
 .join34:
   %v42 = load i64, ptr %.s39
-  %v52 = icmp sgt i64 %v39, %v28
+  %v52 = icmp samesign sgt i64 %v39, %v28
   br i1 %v52, label %.then41, label %.else42
 .then41:
   store i64 %v28, ptr %.s44

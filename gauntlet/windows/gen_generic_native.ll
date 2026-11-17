@@ -15,7 +15,7 @@ entry:
 .head1:
   %v5 = load double, ptr %.s3
   %v6 = load i64, ptr %.s4
-  %v7 = icmp sge i64 %v6, %v1
+  %v7 = icmp samesign sge i64 %v6, %v1
   br i1 %v7, label %.then6, label %.else7
 .then6:
   store double %v5, ptr %.s8

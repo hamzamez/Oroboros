@@ -392,6 +392,10 @@ its IR name with `-` made `_`.
   result's set is the claim decided at the definition (ADR 0072). So no argument or return lies
   outside, and the attribute adds no poison. The unsigned word, a Boolean, a pointer and the whole
   word have none.
+- **`icmp samesign`** on a signed order whose two operands the IR proves on one side of 0, both
+  lo ≥ 0 or both hi < 0 (phi-samesign-2026-11-17). There the signed and unsigned orders agree, so
+  LLVM may read the comparison either way, and the flag's poison, operands of differing signs,
+  never occurs.
 
 ## 9. Built in order, each with a time limit
 

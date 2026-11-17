@@ -281,10 +281,10 @@ entry:
   %.s2284 = alloca i1
   %.s2293 = alloca i64
   %.s2300 = alloca i1
-  %v2 = icmp sle i64 0, %v0
+  %v2 = icmp samesign sle i64 0, %v0
   br i1 %v2, label %.then2, label %.else3
 .then2:
-  %v6 = icmp sle i64 %v0, 6
+  %v6 = icmp samesign sle i64 %v0, 6
   store i1 %v6, ptr %.s6
   br label %.join4
 .else3:
@@ -292,10 +292,10 @@ entry:
   br label %.join4
 .join4:
   %v3 = load i1, ptr %.s6
-  %v15 = icmp sge i64 9, 0
+  %v15 = icmp samesign sge i64 9, 0
   br i1 %v15, label %.then8, label %.else9
 .then8:
-  %v19 = icmp sle i64 9, 1152921504606846974
+  %v19 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v19, ptr %.s12
   br label %.join10
 .else9:
@@ -307,7 +307,7 @@ entry:
 .then13:
   %v25 = mul nuw nsw i64 9, 8
   %v27 = add nuw nsw i64 %v25, 9
-  %v29 = icmp sge i64 %v27, 65536
+  %v29 = icmp samesign sge i64 %v27, 65536
   br i1 %v29, label %.then19, label %.else20
 .then19:
   %v32 = getelementptr i8, ptr null, i64 0
@@ -318,13 +318,13 @@ entry:
   br label %.join21
 .else20:
   %v37 = call ptr @GetProcessHeap()
-  %v40 = icmp sle i64 %v27, 64
+  %v40 = icmp samesign sle i64 %v27, 64
   br i1 %v40, label %.then27, label %.else28
 .then27:
   store i64 64, ptr %.s30
   br label %.join29
 .else28:
-  %v46 = icmp sle i64 %v27, 128
+  %v46 = icmp samesign sle i64 %v27, 128
   br i1 %v46, label %.then32, label %.else33
 .then32:
   store i64 128, ptr %.s30
@@ -418,7 +418,7 @@ entry:
   %v105 = load ptr, ptr %.s74
   %v106 = load i64, ptr %.s75
   %v107 = load i64, ptr %.s76
-  %v109 = icmp sge i64 %v106, 9
+  %v109 = icmp samesign sge i64 %v106, 9
   br i1 %v109, label %.then78, label %.else79
 .then78:
   store ptr %v105, ptr %.s80
@@ -440,10 +440,10 @@ entry:
   br label %.built71
 .built71:
   %v101 = load ptr, ptr %.s86
-  %v125 = icmp sge i64 9, 0
+  %v125 = icmp samesign sge i64 9, 0
   br i1 %v125, label %.then88, label %.else89
 .then88:
-  %v129 = icmp sle i64 9, 1152921504606846974
+  %v129 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v129, ptr %.s92
   br label %.join90
 .else89:
@@ -455,7 +455,7 @@ entry:
 .then93:
   %v135 = mul nuw nsw i64 9, 8
   %v137 = add nuw nsw i64 %v135, 9
-  %v139 = icmp sge i64 %v137, 65536
+  %v139 = icmp samesign sge i64 %v137, 65536
   br i1 %v139, label %.then99, label %.else100
 .then99:
   %v142 = getelementptr i8, ptr null, i64 0
@@ -466,13 +466,13 @@ entry:
   br label %.join101
 .else100:
   %v147 = call ptr @GetProcessHeap()
-  %v150 = icmp sle i64 %v137, 64
+  %v150 = icmp samesign sle i64 %v137, 64
   br i1 %v150, label %.then107, label %.else108
 .then107:
   store i64 64, ptr %.s110
   br label %.join109
 .else108:
-  %v156 = icmp sle i64 %v137, 128
+  %v156 = icmp samesign sle i64 %v137, 128
   br i1 %v156, label %.then112, label %.else113
 .then112:
   store i64 128, ptr %.s110
@@ -566,7 +566,7 @@ entry:
   %v215 = load ptr, ptr %.s154
   %v216 = load i64, ptr %.s155
   %v217 = load i64, ptr %.s156
-  %v219 = icmp sge i64 %v216, 9
+  %v219 = icmp samesign sge i64 %v216, 9
   br i1 %v219, label %.then158, label %.else159
 .then158:
   store ptr %v215, ptr %.s160
@@ -588,10 +588,10 @@ entry:
   br label %.built151
 .built151:
   %v211 = load ptr, ptr %.s166
-  %v234 = icmp sge i64 9, 0
+  %v234 = icmp samesign sge i64 9, 0
   br i1 %v234, label %.then168, label %.else169
 .then168:
-  %v238 = icmp sle i64 9, 1152921504606846974
+  %v238 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v238, ptr %.s172
   br label %.join170
 .else169:
@@ -603,7 +603,7 @@ entry:
 .then173:
   %v244 = mul nuw nsw i64 9, 8
   %v246 = add nuw nsw i64 %v244, 9
-  %v248 = icmp sge i64 %v246, 65536
+  %v248 = icmp samesign sge i64 %v246, 65536
   br i1 %v248, label %.then179, label %.else180
 .then179:
   %v251 = getelementptr i8, ptr null, i64 0
@@ -614,13 +614,13 @@ entry:
   br label %.join181
 .else180:
   %v256 = call ptr @GetProcessHeap()
-  %v259 = icmp sle i64 %v246, 64
+  %v259 = icmp samesign sle i64 %v246, 64
   br i1 %v259, label %.then187, label %.else188
 .then187:
   store i64 64, ptr %.s190
   br label %.join189
 .else188:
-  %v265 = icmp sle i64 %v246, 128
+  %v265 = icmp samesign sle i64 %v246, 128
   br i1 %v265, label %.then192, label %.else193
 .then192:
   store i64 128, ptr %.s190
@@ -704,7 +704,7 @@ entry:
 .head226:
   %v318 = load ptr, ptr %.s228
   %v319 = load i64, ptr %.s229
-  %v321 = icmp sge i64 %v319, 9
+  %v321 = icmp samesign sge i64 %v319, 9
   br i1 %v321, label %.then231, label %.else232
 .then231:
   store ptr %v318, ptr %.s233
@@ -718,11 +718,11 @@ entry:
   %v327 = load ptr, ptr %.s236
   %v328 = load i64, ptr %.s237
   %v329 = load i64, ptr %.s238
-  %v331 = icmp sge i64 %v328, 9
+  %v331 = icmp samesign sge i64 %v328, 9
   br i1 %v331, label %.then240, label %.else241
 .then240:
   %v334 = load i64, ptr %v327
-  %v335 = icmp sge i64 8, %v334
+  %v335 = icmp samesign sge i64 8, %v334
   br i1 %v335, label %.then243, label %.else244
 .then243:
   store i64 0, ptr %.s246
@@ -735,7 +735,7 @@ entry:
   br label %.join245
 .join245:
   %v336 = load i64, ptr %.s246
-  %v343 = icmp slt i64 %v336, 0
+  %v343 = icmp samesign slt i64 %v336, 0
   br i1 %v343, label %.then250, label %.else251
 .then250:
   store i64 0, ptr %.s253
@@ -746,7 +746,7 @@ entry:
   br label %.join252
 .join252:
   %v344 = load i64, ptr %.s253
-  %v351 = icmp slt i64 %v344, 512
+  %v351 = icmp samesign slt i64 %v344, 512
   br i1 %v351, label %.then256, label %.else257
 .then256:
   store i64 0, ptr %.s259
@@ -765,7 +765,7 @@ entry:
 .else263:
   %v363 = getelementptr i8, ptr @.str.0, i64 0
   %v364 = load i64, ptr %v363
-  %v366 = icmp sle i64 %v364, 4294967295
+  %v366 = icmp samesign sle i64 %v364, 4294967295
   br i1 %v366, label %.then268, label %.else269
 .then268:
   %.c271 = trunc i64 4294967284 to i32
@@ -793,10 +793,10 @@ entry:
   br label %.join270
 .join270:
   %v367 = load i1, ptr %.s281
-  %v390 = icmp sge i64 1, 0
+  %v390 = icmp samesign sge i64 1, 0
   br i1 %v390, label %.then283, label %.else284
 .then283:
-  %v394 = icmp sle i64 1, 1152921504606846974
+  %v394 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v394, ptr %.s287
   br label %.join285
 .else284:
@@ -808,7 +808,7 @@ entry:
 .then288:
   %v400 = mul nuw nsw i64 1, 8
   %v402 = add nuw nsw i64 %v400, 9
-  %v404 = icmp sge i64 %v402, 65536
+  %v404 = icmp samesign sge i64 %v402, 65536
   br i1 %v404, label %.then294, label %.else295
 .then294:
   %v407 = getelementptr i8, ptr null, i64 0
@@ -819,7 +819,7 @@ entry:
   br label %.join296
 .else295:
   %v412 = call ptr @GetProcessHeap()
-  %v415 = icmp sle i64 %v402, 64
+  %v415 = icmp samesign sle i64 %v402, 64
   br i1 %v415, label %.then302, label %.else303
 .then302:
   store i64 64, ptr %.s305
@@ -916,7 +916,7 @@ entry:
   %.z348 = trunc i64 10 to i8
   store i8 %.z348, ptr %.e347
   %v477 = load i64, ptr %v397
-  %v479 = icmp sle i64 %v477, 4294967295
+  %v479 = icmp samesign sle i64 %v477, 4294967295
   br i1 %v479, label %.then350, label %.else351
 .then350:
   %.c353 = trunc i64 4294967284 to i32
@@ -954,11 +954,11 @@ entry:
   br label %.exit235
 .else241:
   %v502 = add nuw nsw i64 %v319, %v328
-  %v504 = icmp sge i64 %v502, 9
+  %v504 = icmp samesign sge i64 %v502, 9
   br i1 %v504, label %.then369, label %.else370
 .then369:
   %v506 = load i64, ptr %v327
-  %v507 = icmp sge i64 8, %v506
+  %v507 = icmp samesign sge i64 8, %v506
   br i1 %v507, label %.then372, label %.else373
 .then372:
   store i64 0, ptr %.s375
@@ -971,7 +971,7 @@ entry:
   br label %.join374
 .join374:
   %v508 = load i64, ptr %.s375
-  %v515 = icmp slt i64 %v508, 0
+  %v515 = icmp samesign slt i64 %v508, 0
   br i1 %v515, label %.then379, label %.else380
 .then379:
   store i64 0, ptr %.s382
@@ -982,7 +982,7 @@ entry:
   br label %.join381
 .join381:
   %v516 = load i64, ptr %.s382
-  %v523 = icmp slt i64 %v516, 512
+  %v523 = icmp samesign slt i64 %v516, 512
   br i1 %v523, label %.then385, label %.else386
 .then385:
   store i64 0, ptr %.s388
@@ -1001,7 +1001,7 @@ entry:
 .else392:
   %v535 = getelementptr i8, ptr @.str.0, i64 0
   %v536 = load i64, ptr %v535
-  %v538 = icmp sle i64 %v536, 4294967295
+  %v538 = icmp samesign sle i64 %v536, 4294967295
   br i1 %v538, label %.then397, label %.else398
 .then397:
   %.c400 = trunc i64 4294967284 to i32
@@ -1029,10 +1029,10 @@ entry:
   br label %.join399
 .join399:
   %v539 = load i1, ptr %.s410
-  %v562 = icmp sge i64 1, 0
+  %v562 = icmp samesign sge i64 1, 0
   br i1 %v562, label %.then412, label %.else413
 .then412:
-  %v566 = icmp sle i64 1, 1152921504606846974
+  %v566 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v566, ptr %.s416
   br label %.join414
 .else413:
@@ -1044,7 +1044,7 @@ entry:
 .then417:
   %v572 = mul nuw nsw i64 1, 8
   %v574 = add nuw nsw i64 %v572, 9
-  %v576 = icmp sge i64 %v574, 65536
+  %v576 = icmp samesign sge i64 %v574, 65536
   br i1 %v576, label %.then423, label %.else424
 .then423:
   %v579 = getelementptr i8, ptr null, i64 0
@@ -1055,7 +1055,7 @@ entry:
   br label %.join425
 .else424:
   %v584 = call ptr @GetProcessHeap()
-  %v587 = icmp sle i64 %v574, 64
+  %v587 = icmp samesign sle i64 %v574, 64
   br i1 %v587, label %.then431, label %.else432
 .then431:
   store i64 64, ptr %.s434
@@ -1152,7 +1152,7 @@ entry:
   %.z477 = trunc i64 10 to i8
   store i8 %.z477, ptr %.e476
   %v649 = load i64, ptr %v569
-  %v651 = icmp sle i64 %v649, 4294967295
+  %v651 = icmp samesign sle i64 %v649, 4294967295
   br i1 %v651, label %.then479, label %.else480
 .then479:
   %.c482 = trunc i64 4294967284 to i32
@@ -1186,14 +1186,14 @@ entry:
 .join393:
   %v530 = load i64, ptr %.s394
   %v672 = icmp eq i64 %v530, 0
-  %v674 = icmp slt i64 %v319, 0
+  %v674 = icmp samesign slt i64 %v319, 0
   br i1 %v674, label %.then496, label %.else497
 .then496:
   store i64 0, ptr %.s499
   br label %.join498
 .else497:
   %v679 = load i64, ptr %v101
-  %v680 = icmp sge i64 %v319, %v679
+  %v680 = icmp samesign sge i64 %v319, %v679
   br i1 %v680, label %.then501, label %.else502
 .then501:
   store i64 0, ptr %.s499
@@ -1206,7 +1206,7 @@ entry:
   br label %.join498
 .join498:
   %v675 = load i64, ptr %.s499
-  %v688 = icmp slt i64 %v675, 0
+  %v688 = icmp samesign slt i64 %v675, 0
   br i1 %v688, label %.then506, label %.else507
 .then506:
   store i64 0, ptr %.s509
@@ -1217,14 +1217,14 @@ entry:
   br label %.join508
 .join508:
   %v689 = load i64, ptr %.s509
-  %v696 = icmp slt i64 %v328, 0
+  %v696 = icmp samesign slt i64 %v328, 0
   br i1 %v696, label %.then512, label %.else513
 .then512:
   store i64 0, ptr %.s515
   br label %.join514
 .else513:
   %v701 = load i64, ptr %v211
-  %v702 = icmp sge i64 %v328, %v701
+  %v702 = icmp samesign sge i64 %v328, %v701
   br i1 %v702, label %.then517, label %.else518
 .then517:
   store i64 0, ptr %.s515
@@ -1237,7 +1237,7 @@ entry:
   br label %.join514
 .join514:
   %v697 = load i64, ptr %.s515
-  %v710 = icmp slt i64 %v697, 0
+  %v710 = icmp samesign slt i64 %v697, 0
   br i1 %v710, label %.then522, label %.else523
 .then522:
   store i64 0, ptr %.s525
@@ -1250,7 +1250,7 @@ entry:
   %v711 = load i64, ptr %.s525
   %v717 = mul nuw nsw i64 %v689, %v711
   %v719 = load i64, ptr %v327
-  %v720 = icmp sge i64 8, %v719
+  %v720 = icmp samesign sge i64 8, %v719
   br i1 %v720, label %.then529, label %.else530
 .then529:
   store i64 0, ptr %.s532
@@ -1263,7 +1263,7 @@ entry:
   br label %.join531
 .join531:
   %v721 = load i64, ptr %.s532
-  %v728 = icmp slt i64 %v721, 0
+  %v728 = icmp samesign slt i64 %v721, 0
   br i1 %v728, label %.then536, label %.else537
 .then536:
   store i64 0, ptr %.s539
@@ -1274,7 +1274,7 @@ entry:
   br label %.join538
 .join538:
   %v729 = load i64, ptr %.s539
-  %v736 = icmp slt i64 %v729, 512
+  %v736 = icmp samesign slt i64 %v729, 512
   br i1 %v736, label %.then542, label %.else543
 .then542:
   store i64 0, ptr %.s545
@@ -1293,7 +1293,7 @@ entry:
 .else549:
   %v748 = getelementptr i8, ptr @.str.0, i64 0
   %v749 = load i64, ptr %v748
-  %v751 = icmp sle i64 %v749, 4294967295
+  %v751 = icmp samesign sle i64 %v749, 4294967295
   br i1 %v751, label %.then554, label %.else555
 .then554:
   %.c557 = trunc i64 4294967284 to i32
@@ -1321,10 +1321,10 @@ entry:
   br label %.join556
 .join556:
   %v752 = load i1, ptr %.s567
-  %v775 = icmp sge i64 1, 0
+  %v775 = icmp samesign sge i64 1, 0
   br i1 %v775, label %.then569, label %.else570
 .then569:
-  %v779 = icmp sle i64 1, 1152921504606846974
+  %v779 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v779, ptr %.s573
   br label %.join571
 .else570:
@@ -1336,7 +1336,7 @@ entry:
 .then574:
   %v785 = mul nuw nsw i64 1, 8
   %v787 = add nuw nsw i64 %v785, 9
-  %v789 = icmp sge i64 %v787, 65536
+  %v789 = icmp samesign sge i64 %v787, 65536
   br i1 %v789, label %.then580, label %.else581
 .then580:
   %v792 = getelementptr i8, ptr null, i64 0
@@ -1347,7 +1347,7 @@ entry:
   br label %.join582
 .else581:
   %v797 = call ptr @GetProcessHeap()
-  %v800 = icmp sle i64 %v787, 64
+  %v800 = icmp samesign sle i64 %v787, 64
   br i1 %v800, label %.then588, label %.else589
 .then588:
   store i64 64, ptr %.s591
@@ -1444,7 +1444,7 @@ entry:
   %.z634 = trunc i64 10 to i8
   store i8 %.z634, ptr %.e633
   %v862 = load i64, ptr %v782
-  %v864 = icmp sle i64 %v862, 4294967295
+  %v864 = icmp samesign sle i64 %v862, 4294967295
   br i1 %v864, label %.then636, label %.else637
 .then636:
   %.c639 = trunc i64 4294967284 to i32
@@ -1485,14 +1485,14 @@ entry:
   br label %.head234
 .else370:
   %v889 = add nuw nsw i64 %v319, %v328
-  %v891 = icmp slt i64 %v889, 0
+  %v891 = icmp samesign slt i64 %v889, 0
   br i1 %v891, label %.then655, label %.else656
 .then655:
   store i64 0, ptr %.s658
   br label %.join657
 .else656:
   %v896 = load i64, ptr %v327
-  %v897 = icmp sge i64 %v889, %v896
+  %v897 = icmp samesign sge i64 %v889, %v896
   br i1 %v897, label %.then660, label %.else661
 .then660:
   store i64 0, ptr %.s658
@@ -1505,7 +1505,7 @@ entry:
   br label %.join657
 .join657:
   %v892 = load i64, ptr %.s658
-  %v905 = icmp slt i64 %v892, 0
+  %v905 = icmp samesign slt i64 %v892, 0
   br i1 %v905, label %.then665, label %.else666
 .then665:
   store i64 0, ptr %.s668
@@ -1516,14 +1516,14 @@ entry:
   br label %.join667
 .join667:
   %v906 = load i64, ptr %.s668
-  %v913 = icmp slt i64 %v319, 0
+  %v913 = icmp samesign slt i64 %v319, 0
   br i1 %v913, label %.then671, label %.else672
 .then671:
   store i64 0, ptr %.s674
   br label %.join673
 .else672:
   %v918 = load i64, ptr %v101
-  %v919 = icmp sge i64 %v319, %v918
+  %v919 = icmp samesign sge i64 %v319, %v918
   br i1 %v919, label %.then676, label %.else677
 .then676:
   store i64 0, ptr %.s674
@@ -1536,7 +1536,7 @@ entry:
   br label %.join673
 .join673:
   %v914 = load i64, ptr %.s674
-  %v927 = icmp slt i64 %v914, 0
+  %v927 = icmp samesign slt i64 %v914, 0
   br i1 %v927, label %.then681, label %.else682
 .then681:
   store i64 0, ptr %.s684
@@ -1547,14 +1547,14 @@ entry:
   br label %.join683
 .join683:
   %v928 = load i64, ptr %.s684
-  %v935 = icmp slt i64 %v328, 0
+  %v935 = icmp samesign slt i64 %v328, 0
   br i1 %v935, label %.then687, label %.else688
 .then687:
   store i64 0, ptr %.s690
   br label %.join689
 .else688:
   %v940 = load i64, ptr %v211
-  %v941 = icmp sge i64 %v328, %v940
+  %v941 = icmp samesign sge i64 %v328, %v940
   br i1 %v941, label %.then692, label %.else693
 .then692:
   store i64 0, ptr %.s690
@@ -1567,7 +1567,7 @@ entry:
   br label %.join689
 .join689:
   %v936 = load i64, ptr %.s690
-  %v949 = icmp slt i64 %v936, 0
+  %v949 = icmp samesign slt i64 %v936, 0
   br i1 %v949, label %.then697, label %.else698
 .then697:
   store i64 0, ptr %.s700
@@ -1608,10 +1608,10 @@ entry:
   %v970 = load i64, ptr %v101
   %v972 = getelementptr i8, ptr %v211, i64 0
   %v973 = load i64, ptr %v211
-  %v980 = icmp sle i64 0, 9
+  %v980 = icmp samesign sle i64 0, 9
   br i1 %v980, label %.then714, label %.else715
 .then714:
-  %v984 = icmp sle i64 9, 140737488355319
+  %v984 = icmp samesign sle i64 9, 140737488355319
   store i1 %v984, ptr %.s718
   br label %.join716
 .else715:
@@ -1621,10 +1621,10 @@ entry:
   %v981 = load i1, ptr %.s718
   br i1 %v981, label %.then719, label %.else720
 .then719:
-  %v991 = icmp sle i64 1, 8
+  %v991 = icmp samesign sle i64 1, 8
   br i1 %v991, label %.then723, label %.else724
 .then723:
-  %v994 = icmp sle i64 8, 8
+  %v994 = icmp samesign sle i64 8, 8
   store i1 %v994, ptr %.s726
   br label %.join721
 .else724:
@@ -1638,10 +1638,10 @@ entry:
   %v998 = icmp eq ptr %v969, null
   br i1 %v998, label %.then728, label %.else729
 .then728:
-  %v1003 = icmp sge i64 9, 0
+  %v1003 = icmp samesign sge i64 9, 0
   br i1 %v1003, label %.then732, label %.else733
 .then732:
-  %v1007 = icmp sle i64 9, 1152921504606846974
+  %v1007 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v1007, ptr %.s736
   br label %.join734
 .else733:
@@ -1653,7 +1653,7 @@ entry:
 .then737:
   %v1012 = mul nuw nsw i64 9, 8
   %v1014 = add nuw nsw i64 %v1012, 9
-  %v1016 = icmp sge i64 %v1014, 65536
+  %v1016 = icmp samesign sge i64 %v1014, 65536
   br i1 %v1016, label %.then742, label %.else743
 .then742:
   %v1019 = getelementptr i8, ptr null, i64 0
@@ -1664,13 +1664,13 @@ entry:
   br label %.join744
 .else743:
   %v1024 = call ptr @GetProcessHeap()
-  %v1027 = icmp sle i64 %v1014, 64
+  %v1027 = icmp samesign sle i64 %v1014, 64
   br i1 %v1027, label %.then750, label %.else751
 .then750:
   store i64 64, ptr %.s753
   br label %.join752
 .else751:
-  %v1033 = icmp sle i64 %v1014, 128
+  %v1033 = icmp samesign sle i64 %v1014, 128
   br i1 %v1033, label %.then755, label %.else756
 .then755:
   store i64 128, ptr %.s753
@@ -1767,11 +1767,11 @@ entry:
   %v1093 = load ptr, ptr %.s797
   %v1094 = load i64, ptr %.s798
   %v1095 = load i64, ptr %.s799
-  %v1097 = icmp sge i64 %v1094, 9
+  %v1097 = icmp samesign sge i64 %v1094, 9
   br i1 %v1097, label %.then801, label %.else802
 .then801:
   %v1100 = load i64, ptr %v1093
-  %v1101 = icmp sge i64 8, %v1100
+  %v1101 = icmp samesign sge i64 8, %v1100
   br i1 %v1101, label %.then804, label %.else805
 .then804:
   store i64 0, ptr %.s807
@@ -1784,7 +1784,7 @@ entry:
   br label %.join806
 .join806:
   %v1102 = load i64, ptr %.s807
-  %v1109 = icmp slt i64 %v1102, 0
+  %v1109 = icmp samesign slt i64 %v1102, 0
   br i1 %v1109, label %.then811, label %.else812
 .then811:
   store i64 0, ptr %.s814
@@ -1795,7 +1795,7 @@ entry:
   br label %.join813
 .join813:
   %v1110 = load i64, ptr %.s814
-  %v1117 = icmp slt i64 %v1110, 512
+  %v1117 = icmp samesign slt i64 %v1110, 512
   br i1 %v1117, label %.then817, label %.else818
 .then817:
   store i64 0, ptr %.s820
@@ -1814,7 +1814,7 @@ entry:
 .else824:
   %v1129 = getelementptr i8, ptr @.str.0, i64 0
   %v1130 = load i64, ptr %v1129
-  %v1132 = icmp sle i64 %v1130, 4294967295
+  %v1132 = icmp samesign sle i64 %v1130, 4294967295
   br i1 %v1132, label %.then829, label %.else830
 .then829:
   %.c832 = trunc i64 4294967284 to i32
@@ -1842,10 +1842,10 @@ entry:
   br label %.join831
 .join831:
   %v1133 = load i1, ptr %.s842
-  %v1156 = icmp sge i64 1, 0
+  %v1156 = icmp samesign sge i64 1, 0
   br i1 %v1156, label %.then844, label %.else845
 .then844:
-  %v1160 = icmp sle i64 1, 1152921504606846974
+  %v1160 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v1160, ptr %.s848
   br label %.join846
 .else845:
@@ -1857,7 +1857,7 @@ entry:
 .then849:
   %v1166 = mul nuw nsw i64 1, 8
   %v1168 = add nuw nsw i64 %v1166, 9
-  %v1170 = icmp sge i64 %v1168, 65536
+  %v1170 = icmp samesign sge i64 %v1168, 65536
   br i1 %v1170, label %.then855, label %.else856
 .then855:
   %v1173 = getelementptr i8, ptr null, i64 0
@@ -1868,7 +1868,7 @@ entry:
   br label %.join857
 .else856:
   %v1178 = call ptr @GetProcessHeap()
-  %v1181 = icmp sle i64 %v1168, 64
+  %v1181 = icmp samesign sle i64 %v1168, 64
   br i1 %v1181, label %.then863, label %.else864
 .then863:
   store i64 64, ptr %.s866
@@ -1965,7 +1965,7 @@ entry:
   %.z909 = trunc i64 10 to i8
   store i8 %.z909, ptr %.e908
   %v1243 = load i64, ptr %v1163
-  %v1245 = icmp sle i64 %v1243, 4294967295
+  %v1245 = icmp samesign sle i64 %v1243, 4294967295
   br i1 %v1245, label %.then911, label %.else912
 .then911:
   %.c914 = trunc i64 4294967284 to i32
@@ -2002,14 +2002,14 @@ entry:
   store ptr %v1093, ptr %.s927
   br label %.exit796
 .else802:
-  %v1269 = icmp slt i64 %v1094, 0
+  %v1269 = icmp samesign slt i64 %v1094, 0
   br i1 %v1269, label %.then929, label %.else930
 .then929:
   store i64 0, ptr %.s932
   br label %.join931
 .else930:
   %v1274 = load i64, ptr %v314
-  %v1275 = icmp sge i64 %v1094, %v1274
+  %v1275 = icmp samesign sge i64 %v1094, %v1274
   br i1 %v1275, label %.then934, label %.else935
 .then934:
   store i64 0, ptr %.s932
@@ -2022,7 +2022,7 @@ entry:
   br label %.join931
 .join931:
   %v1270 = load i64, ptr %.s932
-  %v1283 = icmp slt i64 %v1270, 0
+  %v1283 = icmp samesign slt i64 %v1270, 0
   br i1 %v1283, label %.then939, label %.else940
 .then939:
   store i64 0, ptr %.s942
@@ -2053,10 +2053,10 @@ entry:
   %v1088 = load ptr, ptr %.s951
   %v1299 = getelementptr i8, ptr %v314, i64 0
   %v1300 = load i64, ptr %v314
-  %v1308 = icmp sle i64 0, 9
+  %v1308 = icmp samesign sle i64 0, 9
   br i1 %v1308, label %.then953, label %.else954
 .then953:
-  %v1312 = icmp sle i64 9, 140737488355319
+  %v1312 = icmp samesign sle i64 9, 140737488355319
   store i1 %v1312, ptr %.s957
   br label %.join955
 .else954:
@@ -2066,10 +2066,10 @@ entry:
   %v1309 = load i1, ptr %.s957
   br i1 %v1309, label %.then958, label %.else959
 .then958:
-  %v1319 = icmp sle i64 1, 8
+  %v1319 = icmp samesign sle i64 1, 8
   br i1 %v1319, label %.then962, label %.else963
 .then962:
-  %v1322 = icmp sle i64 8, 8
+  %v1322 = icmp samesign sle i64 8, 8
   store i1 %v1322, ptr %.s965
   br label %.join960
 .else963:
@@ -2083,10 +2083,10 @@ entry:
   %v1326 = icmp eq ptr %v972, null
   br i1 %v1326, label %.then967, label %.else968
 .then967:
-  %v1331 = icmp sge i64 9, 0
+  %v1331 = icmp samesign sge i64 9, 0
   br i1 %v1331, label %.then971, label %.else972
 .then971:
-  %v1335 = icmp sle i64 9, 1152921504606846974
+  %v1335 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v1335, ptr %.s975
   br label %.join973
 .else972:
@@ -2098,7 +2098,7 @@ entry:
 .then976:
   %v1340 = mul nuw nsw i64 9, 8
   %v1342 = add nuw nsw i64 %v1340, 9
-  %v1344 = icmp sge i64 %v1342, 65536
+  %v1344 = icmp samesign sge i64 %v1342, 65536
   br i1 %v1344, label %.then981, label %.else982
 .then981:
   %v1347 = getelementptr i8, ptr null, i64 0
@@ -2109,13 +2109,13 @@ entry:
   br label %.join983
 .else982:
   %v1352 = call ptr @GetProcessHeap()
-  %v1355 = icmp sle i64 %v1342, 64
+  %v1355 = icmp samesign sle i64 %v1342, 64
   br i1 %v1355, label %.then989, label %.else990
 .then989:
   store i64 64, ptr %.s992
   br label %.join991
 .else990:
-  %v1361 = icmp sle i64 %v1342, 128
+  %v1361 = icmp samesign sle i64 %v1342, 128
   br i1 %v1361, label %.then994, label %.else995
 .then994:
   store i64 128, ptr %.s992
@@ -2212,7 +2212,7 @@ entry:
   %v1420 = load ptr, ptr %.s1036
   %v1421 = load i64, ptr %.s1037
   %v1422 = load i64, ptr %.s1038
-  %v1424 = icmp sge i64 %v1421, 9
+  %v1424 = icmp samesign sge i64 %v1421, 9
   br i1 %v1424, label %.then1040, label %.else1041
 .then1040:
   store ptr %v1420, ptr %.s1042
@@ -2234,10 +2234,10 @@ entry:
   br label %.built1033
 .built1033:
   %v1416 = load ptr, ptr %.s1048
-  %v1440 = icmp sle i64 0, 9
+  %v1440 = icmp samesign sle i64 0, 9
   br i1 %v1440, label %.then1050, label %.else1051
 .then1050:
-  %v1444 = icmp sle i64 9, 140737488355319
+  %v1444 = icmp samesign sle i64 9, 140737488355319
   store i1 %v1444, ptr %.s1054
   br label %.join1052
 .else1051:
@@ -2247,10 +2247,10 @@ entry:
   %v1441 = load i1, ptr %.s1054
   br i1 %v1441, label %.then1055, label %.else1056
 .then1055:
-  %v1451 = icmp sle i64 1, 8
+  %v1451 = icmp samesign sle i64 1, 8
   br i1 %v1451, label %.then1059, label %.else1060
 .then1059:
-  %v1454 = icmp sle i64 8, 8
+  %v1454 = icmp samesign sle i64 8, 8
   store i1 %v1454, ptr %.s1062
   br label %.join1057
 .else1060:
@@ -2264,10 +2264,10 @@ entry:
   %v1458 = icmp eq ptr %v1299, null
   br i1 %v1458, label %.then1064, label %.else1065
 .then1064:
-  %v1463 = icmp sge i64 9, 0
+  %v1463 = icmp samesign sge i64 9, 0
   br i1 %v1463, label %.then1068, label %.else1069
 .then1068:
-  %v1467 = icmp sle i64 9, 1152921504606846974
+  %v1467 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v1467, ptr %.s1072
   br label %.join1070
 .else1069:
@@ -2279,7 +2279,7 @@ entry:
 .then1073:
   %v1472 = mul nuw nsw i64 9, 8
   %v1474 = add nuw nsw i64 %v1472, 9
-  %v1476 = icmp sge i64 %v1474, 65536
+  %v1476 = icmp samesign sge i64 %v1474, 65536
   br i1 %v1476, label %.then1078, label %.else1079
 .then1078:
   %v1479 = getelementptr i8, ptr null, i64 0
@@ -2290,13 +2290,13 @@ entry:
   br label %.join1080
 .else1079:
   %v1484 = call ptr @GetProcessHeap()
-  %v1487 = icmp sle i64 %v1474, 64
+  %v1487 = icmp samesign sle i64 %v1474, 64
   br i1 %v1487, label %.then1086, label %.else1087
 .then1086:
   store i64 64, ptr %.s1089
   br label %.join1088
 .else1087:
-  %v1493 = icmp sle i64 %v1474, 128
+  %v1493 = icmp samesign sle i64 %v1474, 128
   br i1 %v1493, label %.then1091, label %.else1092
 .then1091:
   store i64 128, ptr %.s1089
@@ -2393,7 +2393,7 @@ entry:
   %v1552 = load ptr, ptr %.s1133
   %v1553 = load i64, ptr %.s1134
   %v1554 = load i64, ptr %.s1135
-  %v1556 = icmp sge i64 %v1553, 9
+  %v1556 = icmp samesign sge i64 %v1553, 9
   br i1 %v1556, label %.then1137, label %.else1138
 .then1137:
   store ptr %v1552, ptr %.s1139
@@ -2415,10 +2415,10 @@ entry:
   br label %.built1130
 .built1130:
   %v1548 = load ptr, ptr %.s1145
-  %v1571 = icmp sge i64 9, 0
+  %v1571 = icmp samesign sge i64 9, 0
   br i1 %v1571, label %.then1147, label %.else1148
 .then1147:
-  %v1575 = icmp sle i64 9, 1152921504606846974
+  %v1575 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v1575, ptr %.s1151
   br label %.join1149
 .else1148:
@@ -2430,7 +2430,7 @@ entry:
 .then1152:
   %v1581 = mul nuw nsw i64 9, 8
   %v1583 = add nuw nsw i64 %v1581, 9
-  %v1585 = icmp sge i64 %v1583, 65536
+  %v1585 = icmp samesign sge i64 %v1583, 65536
   br i1 %v1585, label %.then1158, label %.else1159
 .then1158:
   %v1588 = getelementptr i8, ptr null, i64 0
@@ -2441,13 +2441,13 @@ entry:
   br label %.join1160
 .else1159:
   %v1593 = call ptr @GetProcessHeap()
-  %v1596 = icmp sle i64 %v1583, 64
+  %v1596 = icmp samesign sle i64 %v1583, 64
   br i1 %v1596, label %.then1166, label %.else1167
 .then1166:
   store i64 64, ptr %.s1169
   br label %.join1168
 .else1167:
-  %v1602 = icmp sle i64 %v1583, 128
+  %v1602 = icmp samesign sle i64 %v1583, 128
   br i1 %v1602, label %.then1171, label %.else1172
 .then1171:
   store i64 128, ptr %.s1169
@@ -2531,7 +2531,7 @@ entry:
 .head1205:
   %v1655 = load ptr, ptr %.s1207
   %v1656 = load i64, ptr %.s1208
-  %v1658 = icmp sge i64 %v1656, 9
+  %v1658 = icmp samesign sge i64 %v1656, 9
   br i1 %v1658, label %.then1210, label %.else1211
 .then1210:
   store ptr %v1655, ptr %.s1212
@@ -2545,11 +2545,11 @@ entry:
   %v1664 = load ptr, ptr %.s1215
   %v1665 = load i64, ptr %.s1216
   %v1666 = load i64, ptr %.s1217
-  %v1668 = icmp sge i64 %v1665, 9
+  %v1668 = icmp samesign sge i64 %v1665, 9
   br i1 %v1668, label %.then1219, label %.else1220
 .then1219:
   %v1671 = load i64, ptr %v1664
-  %v1672 = icmp sge i64 8, %v1671
+  %v1672 = icmp samesign sge i64 8, %v1671
   br i1 %v1672, label %.then1222, label %.else1223
 .then1222:
   store i64 0, ptr %.s1225
@@ -2562,7 +2562,7 @@ entry:
   br label %.join1224
 .join1224:
   %v1673 = load i64, ptr %.s1225
-  %v1680 = icmp slt i64 %v1673, 0
+  %v1680 = icmp samesign slt i64 %v1673, 0
   br i1 %v1680, label %.then1229, label %.else1230
 .then1229:
   store i64 0, ptr %.s1232
@@ -2573,7 +2573,7 @@ entry:
   br label %.join1231
 .join1231:
   %v1681 = load i64, ptr %.s1232
-  %v1688 = icmp slt i64 %v1681, 512
+  %v1688 = icmp samesign slt i64 %v1681, 512
   br i1 %v1688, label %.then1235, label %.else1236
 .then1235:
   store i64 0, ptr %.s1238
@@ -2592,7 +2592,7 @@ entry:
 .else1242:
   %v1700 = getelementptr i8, ptr @.str.0, i64 0
   %v1701 = load i64, ptr %v1700
-  %v1703 = icmp sle i64 %v1701, 4294967295
+  %v1703 = icmp samesign sle i64 %v1701, 4294967295
   br i1 %v1703, label %.then1247, label %.else1248
 .then1247:
   %.c1250 = trunc i64 4294967284 to i32
@@ -2620,10 +2620,10 @@ entry:
   br label %.join1249
 .join1249:
   %v1704 = load i1, ptr %.s1260
-  %v1727 = icmp sge i64 1, 0
+  %v1727 = icmp samesign sge i64 1, 0
   br i1 %v1727, label %.then1262, label %.else1263
 .then1262:
-  %v1731 = icmp sle i64 1, 1152921504606846974
+  %v1731 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v1731, ptr %.s1266
   br label %.join1264
 .else1263:
@@ -2635,7 +2635,7 @@ entry:
 .then1267:
   %v1737 = mul nuw nsw i64 1, 8
   %v1739 = add nuw nsw i64 %v1737, 9
-  %v1741 = icmp sge i64 %v1739, 65536
+  %v1741 = icmp samesign sge i64 %v1739, 65536
   br i1 %v1741, label %.then1273, label %.else1274
 .then1273:
   %v1744 = getelementptr i8, ptr null, i64 0
@@ -2646,7 +2646,7 @@ entry:
   br label %.join1275
 .else1274:
   %v1749 = call ptr @GetProcessHeap()
-  %v1752 = icmp sle i64 %v1739, 64
+  %v1752 = icmp samesign sle i64 %v1739, 64
   br i1 %v1752, label %.then1281, label %.else1282
 .then1281:
   store i64 64, ptr %.s1284
@@ -2743,7 +2743,7 @@ entry:
   %.z1327 = trunc i64 10 to i8
   store i8 %.z1327, ptr %.e1326
   %v1814 = load i64, ptr %v1734
-  %v1816 = icmp sle i64 %v1814, 4294967295
+  %v1816 = icmp samesign sle i64 %v1814, 4294967295
   br i1 %v1816, label %.then1329, label %.else1330
 .then1329:
   %.c1332 = trunc i64 4294967284 to i32
@@ -2781,11 +2781,11 @@ entry:
   br label %.exit1214
 .else1220:
   %v1839 = add nuw nsw i64 %v1656, %v1665
-  %v1841 = icmp sge i64 %v1839, 9
+  %v1841 = icmp samesign sge i64 %v1839, 9
   br i1 %v1841, label %.then1348, label %.else1349
 .then1348:
   %v1843 = load i64, ptr %v1664
-  %v1844 = icmp sge i64 8, %v1843
+  %v1844 = icmp samesign sge i64 8, %v1843
   br i1 %v1844, label %.then1351, label %.else1352
 .then1351:
   store i64 0, ptr %.s1354
@@ -2798,7 +2798,7 @@ entry:
   br label %.join1353
 .join1353:
   %v1845 = load i64, ptr %.s1354
-  %v1852 = icmp slt i64 %v1845, 0
+  %v1852 = icmp samesign slt i64 %v1845, 0
   br i1 %v1852, label %.then1358, label %.else1359
 .then1358:
   store i64 0, ptr %.s1361
@@ -2809,7 +2809,7 @@ entry:
   br label %.join1360
 .join1360:
   %v1853 = load i64, ptr %.s1361
-  %v1860 = icmp slt i64 %v1853, 512
+  %v1860 = icmp samesign slt i64 %v1853, 512
   br i1 %v1860, label %.then1364, label %.else1365
 .then1364:
   store i64 0, ptr %.s1367
@@ -2828,7 +2828,7 @@ entry:
 .else1371:
   %v1872 = getelementptr i8, ptr @.str.0, i64 0
   %v1873 = load i64, ptr %v1872
-  %v1875 = icmp sle i64 %v1873, 4294967295
+  %v1875 = icmp samesign sle i64 %v1873, 4294967295
   br i1 %v1875, label %.then1376, label %.else1377
 .then1376:
   %.c1379 = trunc i64 4294967284 to i32
@@ -2856,10 +2856,10 @@ entry:
   br label %.join1378
 .join1378:
   %v1876 = load i1, ptr %.s1389
-  %v1899 = icmp sge i64 1, 0
+  %v1899 = icmp samesign sge i64 1, 0
   br i1 %v1899, label %.then1391, label %.else1392
 .then1391:
-  %v1903 = icmp sle i64 1, 1152921504606846974
+  %v1903 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v1903, ptr %.s1395
   br label %.join1393
 .else1392:
@@ -2871,7 +2871,7 @@ entry:
 .then1396:
   %v1909 = mul nuw nsw i64 1, 8
   %v1911 = add nuw nsw i64 %v1909, 9
-  %v1913 = icmp sge i64 %v1911, 65536
+  %v1913 = icmp samesign sge i64 %v1911, 65536
   br i1 %v1913, label %.then1402, label %.else1403
 .then1402:
   %v1916 = getelementptr i8, ptr null, i64 0
@@ -2882,7 +2882,7 @@ entry:
   br label %.join1404
 .else1403:
   %v1921 = call ptr @GetProcessHeap()
-  %v1924 = icmp sle i64 %v1911, 64
+  %v1924 = icmp samesign sle i64 %v1911, 64
   br i1 %v1924, label %.then1410, label %.else1411
 .then1410:
   store i64 64, ptr %.s1413
@@ -2979,7 +2979,7 @@ entry:
   %.z1456 = trunc i64 10 to i8
   store i8 %.z1456, ptr %.e1455
   %v1986 = load i64, ptr %v1906
-  %v1988 = icmp sle i64 %v1986, 4294967295
+  %v1988 = icmp samesign sle i64 %v1986, 4294967295
   br i1 %v1988, label %.then1458, label %.else1459
 .then1458:
   %.c1461 = trunc i64 4294967284 to i32
@@ -3013,14 +3013,14 @@ entry:
 .join1372:
   %v1867 = load i64, ptr %.s1373
   %v2009 = icmp eq i64 %v1867, 0
-  %v2011 = icmp slt i64 %v1656, 0
+  %v2011 = icmp samesign slt i64 %v1656, 0
   br i1 %v2011, label %.then1475, label %.else1476
 .then1475:
   store i64 0, ptr %.s1478
   br label %.join1477
 .else1476:
   %v2016 = load i64, ptr %v1416
-  %v2017 = icmp sge i64 %v1656, %v2016
+  %v2017 = icmp samesign sge i64 %v1656, %v2016
   br i1 %v2017, label %.then1480, label %.else1481
 .then1480:
   store i64 0, ptr %.s1478
@@ -3033,7 +3033,7 @@ entry:
   br label %.join1477
 .join1477:
   %v2012 = load i64, ptr %.s1478
-  %v2025 = icmp slt i64 %v2012, 0
+  %v2025 = icmp samesign slt i64 %v2012, 0
   br i1 %v2025, label %.then1485, label %.else1486
 .then1485:
   store i64 0, ptr %.s1488
@@ -3044,14 +3044,14 @@ entry:
   br label %.join1487
 .join1487:
   %v2026 = load i64, ptr %.s1488
-  %v2033 = icmp slt i64 %v1665, 0
+  %v2033 = icmp samesign slt i64 %v1665, 0
   br i1 %v2033, label %.then1491, label %.else1492
 .then1491:
   store i64 0, ptr %.s1494
   br label %.join1493
 .else1492:
   %v2038 = load i64, ptr %v1548
-  %v2039 = icmp sge i64 %v1665, %v2038
+  %v2039 = icmp samesign sge i64 %v1665, %v2038
   br i1 %v2039, label %.then1496, label %.else1497
 .then1496:
   store i64 0, ptr %.s1494
@@ -3064,7 +3064,7 @@ entry:
   br label %.join1493
 .join1493:
   %v2034 = load i64, ptr %.s1494
-  %v2047 = icmp slt i64 %v2034, 0
+  %v2047 = icmp samesign slt i64 %v2034, 0
   br i1 %v2047, label %.then1501, label %.else1502
 .then1501:
   store i64 0, ptr %.s1504
@@ -3077,7 +3077,7 @@ entry:
   %v2048 = load i64, ptr %.s1504
   %v2054 = mul nuw nsw i64 %v2026, %v2048
   %v2056 = load i64, ptr %v1664
-  %v2057 = icmp sge i64 8, %v2056
+  %v2057 = icmp samesign sge i64 8, %v2056
   br i1 %v2057, label %.then1508, label %.else1509
 .then1508:
   store i64 0, ptr %.s1511
@@ -3090,7 +3090,7 @@ entry:
   br label %.join1510
 .join1510:
   %v2058 = load i64, ptr %.s1511
-  %v2065 = icmp slt i64 %v2058, 0
+  %v2065 = icmp samesign slt i64 %v2058, 0
   br i1 %v2065, label %.then1515, label %.else1516
 .then1515:
   store i64 0, ptr %.s1518
@@ -3101,7 +3101,7 @@ entry:
   br label %.join1517
 .join1517:
   %v2066 = load i64, ptr %.s1518
-  %v2073 = icmp slt i64 %v2066, 512
+  %v2073 = icmp samesign slt i64 %v2066, 512
   br i1 %v2073, label %.then1521, label %.else1522
 .then1521:
   store i64 0, ptr %.s1524
@@ -3120,7 +3120,7 @@ entry:
 .else1528:
   %v2085 = getelementptr i8, ptr @.str.0, i64 0
   %v2086 = load i64, ptr %v2085
-  %v2088 = icmp sle i64 %v2086, 4294967295
+  %v2088 = icmp samesign sle i64 %v2086, 4294967295
   br i1 %v2088, label %.then1533, label %.else1534
 .then1533:
   %.c1536 = trunc i64 4294967284 to i32
@@ -3148,10 +3148,10 @@ entry:
   br label %.join1535
 .join1535:
   %v2089 = load i1, ptr %.s1546
-  %v2112 = icmp sge i64 1, 0
+  %v2112 = icmp samesign sge i64 1, 0
   br i1 %v2112, label %.then1548, label %.else1549
 .then1548:
-  %v2116 = icmp sle i64 1, 1152921504606846974
+  %v2116 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v2116, ptr %.s1552
   br label %.join1550
 .else1549:
@@ -3163,7 +3163,7 @@ entry:
 .then1553:
   %v2122 = mul nuw nsw i64 1, 8
   %v2124 = add nuw nsw i64 %v2122, 9
-  %v2126 = icmp sge i64 %v2124, 65536
+  %v2126 = icmp samesign sge i64 %v2124, 65536
   br i1 %v2126, label %.then1559, label %.else1560
 .then1559:
   %v2129 = getelementptr i8, ptr null, i64 0
@@ -3174,7 +3174,7 @@ entry:
   br label %.join1561
 .else1560:
   %v2134 = call ptr @GetProcessHeap()
-  %v2137 = icmp sle i64 %v2124, 64
+  %v2137 = icmp samesign sle i64 %v2124, 64
   br i1 %v2137, label %.then1567, label %.else1568
 .then1567:
   store i64 64, ptr %.s1570
@@ -3271,7 +3271,7 @@ entry:
   %.z1613 = trunc i64 10 to i8
   store i8 %.z1613, ptr %.e1612
   %v2199 = load i64, ptr %v2119
-  %v2201 = icmp sle i64 %v2199, 4294967295
+  %v2201 = icmp samesign sle i64 %v2199, 4294967295
   br i1 %v2201, label %.then1615, label %.else1616
 .then1615:
   %.c1618 = trunc i64 4294967284 to i32
@@ -3312,14 +3312,14 @@ entry:
   br label %.head1213
 .else1349:
   %v2226 = add nuw nsw i64 %v1656, %v1665
-  %v2228 = icmp slt i64 %v2226, 0
+  %v2228 = icmp samesign slt i64 %v2226, 0
   br i1 %v2228, label %.then1634, label %.else1635
 .then1634:
   store i64 0, ptr %.s1637
   br label %.join1636
 .else1635:
   %v2233 = load i64, ptr %v1664
-  %v2234 = icmp sge i64 %v2226, %v2233
+  %v2234 = icmp samesign sge i64 %v2226, %v2233
   br i1 %v2234, label %.then1639, label %.else1640
 .then1639:
   store i64 0, ptr %.s1637
@@ -3332,7 +3332,7 @@ entry:
   br label %.join1636
 .join1636:
   %v2229 = load i64, ptr %.s1637
-  %v2242 = icmp slt i64 %v2229, 0
+  %v2242 = icmp samesign slt i64 %v2229, 0
   br i1 %v2242, label %.then1644, label %.else1645
 .then1644:
   store i64 0, ptr %.s1647
@@ -3343,14 +3343,14 @@ entry:
   br label %.join1646
 .join1646:
   %v2243 = load i64, ptr %.s1647
-  %v2250 = icmp slt i64 %v1656, 0
+  %v2250 = icmp samesign slt i64 %v1656, 0
   br i1 %v2250, label %.then1650, label %.else1651
 .then1650:
   store i64 0, ptr %.s1653
   br label %.join1652
 .else1651:
   %v2255 = load i64, ptr %v1416
-  %v2256 = icmp sge i64 %v1656, %v2255
+  %v2256 = icmp samesign sge i64 %v1656, %v2255
   br i1 %v2256, label %.then1655, label %.else1656
 .then1655:
   store i64 0, ptr %.s1653
@@ -3363,7 +3363,7 @@ entry:
   br label %.join1652
 .join1652:
   %v2251 = load i64, ptr %.s1653
-  %v2264 = icmp slt i64 %v2251, 0
+  %v2264 = icmp samesign slt i64 %v2251, 0
   br i1 %v2264, label %.then1660, label %.else1661
 .then1660:
   store i64 0, ptr %.s1663
@@ -3374,14 +3374,14 @@ entry:
   br label %.join1662
 .join1662:
   %v2265 = load i64, ptr %.s1663
-  %v2272 = icmp slt i64 %v1665, 0
+  %v2272 = icmp samesign slt i64 %v1665, 0
   br i1 %v2272, label %.then1666, label %.else1667
 .then1666:
   store i64 0, ptr %.s1669
   br label %.join1668
 .else1667:
   %v2277 = load i64, ptr %v1548
-  %v2278 = icmp sge i64 %v1665, %v2277
+  %v2278 = icmp samesign sge i64 %v1665, %v2277
   br i1 %v2278, label %.then1671, label %.else1672
 .then1671:
   store i64 0, ptr %.s1669
@@ -3394,7 +3394,7 @@ entry:
   br label %.join1668
 .join1668:
   %v2273 = load i64, ptr %.s1669
-  %v2286 = icmp slt i64 %v2273, 0
+  %v2286 = icmp samesign slt i64 %v2273, 0
   br i1 %v2286, label %.then1676, label %.else1677
 .then1676:
   store i64 0, ptr %.s1679
@@ -3435,10 +3435,10 @@ entry:
   %v2307 = load i64, ptr %v1416
   %v2309 = getelementptr i8, ptr %v1548, i64 0
   %v2310 = load i64, ptr %v1548
-  %v2317 = icmp sle i64 0, 9
+  %v2317 = icmp samesign sle i64 0, 9
   br i1 %v2317, label %.then1693, label %.else1694
 .then1693:
-  %v2321 = icmp sle i64 9, 140737488355319
+  %v2321 = icmp samesign sle i64 9, 140737488355319
   store i1 %v2321, ptr %.s1697
   br label %.join1695
 .else1694:
@@ -3448,10 +3448,10 @@ entry:
   %v2318 = load i1, ptr %.s1697
   br i1 %v2318, label %.then1698, label %.else1699
 .then1698:
-  %v2328 = icmp sle i64 1, 8
+  %v2328 = icmp samesign sle i64 1, 8
   br i1 %v2328, label %.then1702, label %.else1703
 .then1702:
-  %v2331 = icmp sle i64 8, 8
+  %v2331 = icmp samesign sle i64 8, 8
   store i1 %v2331, ptr %.s1705
   br label %.join1700
 .else1703:
@@ -3465,10 +3465,10 @@ entry:
   %v2335 = icmp eq ptr %v2306, null
   br i1 %v2335, label %.then1707, label %.else1708
 .then1707:
-  %v2340 = icmp sge i64 9, 0
+  %v2340 = icmp samesign sge i64 9, 0
   br i1 %v2340, label %.then1711, label %.else1712
 .then1711:
-  %v2344 = icmp sle i64 9, 1152921504606846974
+  %v2344 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v2344, ptr %.s1715
   br label %.join1713
 .else1712:
@@ -3480,7 +3480,7 @@ entry:
 .then1716:
   %v2349 = mul nuw nsw i64 9, 8
   %v2351 = add nuw nsw i64 %v2349, 9
-  %v2353 = icmp sge i64 %v2351, 65536
+  %v2353 = icmp samesign sge i64 %v2351, 65536
   br i1 %v2353, label %.then1721, label %.else1722
 .then1721:
   %v2356 = getelementptr i8, ptr null, i64 0
@@ -3491,13 +3491,13 @@ entry:
   br label %.join1723
 .else1722:
   %v2361 = call ptr @GetProcessHeap()
-  %v2364 = icmp sle i64 %v2351, 64
+  %v2364 = icmp samesign sle i64 %v2351, 64
   br i1 %v2364, label %.then1729, label %.else1730
 .then1729:
   store i64 64, ptr %.s1732
   br label %.join1731
 .else1730:
-  %v2370 = icmp sle i64 %v2351, 128
+  %v2370 = icmp samesign sle i64 %v2351, 128
   br i1 %v2370, label %.then1734, label %.else1735
 .then1734:
   store i64 128, ptr %.s1732
@@ -3594,11 +3594,11 @@ entry:
   %v2430 = load ptr, ptr %.s1776
   %v2431 = load i64, ptr %.s1777
   %v2432 = load i64, ptr %.s1778
-  %v2434 = icmp sge i64 %v2431, 9
+  %v2434 = icmp samesign sge i64 %v2431, 9
   br i1 %v2434, label %.then1780, label %.else1781
 .then1780:
   %v2437 = load i64, ptr %v2430
-  %v2438 = icmp sge i64 8, %v2437
+  %v2438 = icmp samesign sge i64 8, %v2437
   br i1 %v2438, label %.then1783, label %.else1784
 .then1783:
   store i64 0, ptr %.s1786
@@ -3611,7 +3611,7 @@ entry:
   br label %.join1785
 .join1785:
   %v2439 = load i64, ptr %.s1786
-  %v2446 = icmp slt i64 %v2439, 0
+  %v2446 = icmp samesign slt i64 %v2439, 0
   br i1 %v2446, label %.then1790, label %.else1791
 .then1790:
   store i64 0, ptr %.s1793
@@ -3622,7 +3622,7 @@ entry:
   br label %.join1792
 .join1792:
   %v2447 = load i64, ptr %.s1793
-  %v2454 = icmp slt i64 %v2447, 512
+  %v2454 = icmp samesign slt i64 %v2447, 512
   br i1 %v2454, label %.then1796, label %.else1797
 .then1796:
   store i64 0, ptr %.s1799
@@ -3641,7 +3641,7 @@ entry:
 .else1803:
   %v2466 = getelementptr i8, ptr @.str.0, i64 0
   %v2467 = load i64, ptr %v2466
-  %v2469 = icmp sle i64 %v2467, 4294967295
+  %v2469 = icmp samesign sle i64 %v2467, 4294967295
   br i1 %v2469, label %.then1808, label %.else1809
 .then1808:
   %.c1811 = trunc i64 4294967284 to i32
@@ -3669,10 +3669,10 @@ entry:
   br label %.join1810
 .join1810:
   %v2470 = load i1, ptr %.s1821
-  %v2493 = icmp sge i64 1, 0
+  %v2493 = icmp samesign sge i64 1, 0
   br i1 %v2493, label %.then1823, label %.else1824
 .then1823:
-  %v2497 = icmp sle i64 1, 1152921504606846974
+  %v2497 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v2497, ptr %.s1827
   br label %.join1825
 .else1824:
@@ -3684,7 +3684,7 @@ entry:
 .then1828:
   %v2503 = mul nuw nsw i64 1, 8
   %v2505 = add nuw nsw i64 %v2503, 9
-  %v2507 = icmp sge i64 %v2505, 65536
+  %v2507 = icmp samesign sge i64 %v2505, 65536
   br i1 %v2507, label %.then1834, label %.else1835
 .then1834:
   %v2510 = getelementptr i8, ptr null, i64 0
@@ -3695,7 +3695,7 @@ entry:
   br label %.join1836
 .else1835:
   %v2515 = call ptr @GetProcessHeap()
-  %v2518 = icmp sle i64 %v2505, 64
+  %v2518 = icmp samesign sle i64 %v2505, 64
   br i1 %v2518, label %.then1842, label %.else1843
 .then1842:
   store i64 64, ptr %.s1845
@@ -3792,7 +3792,7 @@ entry:
   %.z1888 = trunc i64 10 to i8
   store i8 %.z1888, ptr %.e1887
   %v2580 = load i64, ptr %v2500
-  %v2582 = icmp sle i64 %v2580, 4294967295
+  %v2582 = icmp samesign sle i64 %v2580, 4294967295
   br i1 %v2582, label %.then1890, label %.else1891
 .then1890:
   %.c1893 = trunc i64 4294967284 to i32
@@ -3829,14 +3829,14 @@ entry:
   store ptr %v2430, ptr %.s1906
   br label %.exit1775
 .else1781:
-  %v2606 = icmp slt i64 %v2431, 0
+  %v2606 = icmp samesign slt i64 %v2431, 0
   br i1 %v2606, label %.then1908, label %.else1909
 .then1908:
   store i64 0, ptr %.s1911
   br label %.join1910
 .else1909:
   %v2611 = load i64, ptr %v1651
-  %v2612 = icmp sge i64 %v2431, %v2611
+  %v2612 = icmp samesign sge i64 %v2431, %v2611
   br i1 %v2612, label %.then1913, label %.else1914
 .then1913:
   store i64 0, ptr %.s1911
@@ -3849,7 +3849,7 @@ entry:
   br label %.join1910
 .join1910:
   %v2607 = load i64, ptr %.s1911
-  %v2620 = icmp slt i64 %v2607, 0
+  %v2620 = icmp samesign slt i64 %v2607, 0
   br i1 %v2620, label %.then1918, label %.else1919
 .then1918:
   store i64 0, ptr %.s1921
@@ -3860,14 +3860,14 @@ entry:
   br label %.join1920
 .join1920:
   %v2621 = load i64, ptr %.s1921
-  %v2628 = icmp slt i64 %v2431, 0
+  %v2628 = icmp samesign slt i64 %v2431, 0
   br i1 %v2628, label %.then1924, label %.else1925
 .then1924:
   store i64 0, ptr %.s1927
   br label %.join1926
 .else1925:
   %v2633 = load i64, ptr %v1088
-  %v2634 = icmp sge i64 %v2431, %v2633
+  %v2634 = icmp samesign sge i64 %v2431, %v2633
   br i1 %v2634, label %.then1929, label %.else1930
 .then1929:
   store i64 0, ptr %.s1927
@@ -3880,7 +3880,7 @@ entry:
   br label %.join1926
 .join1926:
   %v2629 = load i64, ptr %.s1927
-  %v2642 = icmp slt i64 %v2629, 0
+  %v2642 = icmp samesign slt i64 %v2629, 0
   br i1 %v2642, label %.then1934, label %.else1935
 .then1934:
   store i64 0, ptr %.s1937
@@ -3930,10 +3930,10 @@ entry:
   %v2425 = load ptr, ptr %.s1955
   %v2668 = getelementptr i8, ptr %v1651, i64 0
   %v2669 = load i64, ptr %v1651
-  %v2674 = icmp sle i64 0, %v2669
+  %v2674 = icmp samesign sle i64 0, %v2669
   br i1 %v2674, label %.then1957, label %.else1958
 .then1957:
-  %v2678 = icmp sle i64 %v2669, 140737488355319
+  %v2678 = icmp samesign sle i64 %v2669, 140737488355319
   store i1 %v2678, ptr %.s1961
   br label %.join1959
 .else1958:
@@ -3943,10 +3943,10 @@ entry:
   %v2675 = load i1, ptr %.s1961
   br i1 %v2675, label %.then1962, label %.else1963
 .then1962:
-  %v2685 = icmp sle i64 1, 8
+  %v2685 = icmp samesign sle i64 1, 8
   br i1 %v2685, label %.then1966, label %.else1967
 .then1966:
-  %v2688 = icmp sle i64 8, 8
+  %v2688 = icmp samesign sle i64 8, 8
   store i1 %v2688, ptr %.s1969
   br label %.join1964
 .else1967:
@@ -3959,7 +3959,7 @@ entry:
   %v2681 = load i1, ptr %.s1969
   %v2692 = mul nuw nsw i64 %v2669, 8
   %v2694 = add nuw nsw i64 %v2692, 9
-  %v2696 = icmp sge i64 %v2694, 65536
+  %v2696 = icmp samesign sge i64 %v2694, 65536
   br i1 %v2696, label %.then1973, label %.else1974
 .then1973:
   %.c1976 = trunc i64 32768 to i32
@@ -3986,10 +3986,10 @@ entry:
   br label %.join1984
 .join1984:
   %v2706 = load i1, ptr %.s1985
-  %v2716 = icmp sle i64 0, 9
+  %v2716 = icmp samesign sle i64 0, 9
   br i1 %v2716, label %.then1987, label %.else1988
 .then1987:
-  %v2720 = icmp sle i64 9, 140737488355319
+  %v2720 = icmp samesign sle i64 9, 140737488355319
   store i1 %v2720, ptr %.s1991
   br label %.join1989
 .else1988:
@@ -3999,10 +3999,10 @@ entry:
   %v2717 = load i1, ptr %.s1991
   br i1 %v2717, label %.then1992, label %.else1993
 .then1992:
-  %v2727 = icmp sle i64 1, 8
+  %v2727 = icmp samesign sle i64 1, 8
   br i1 %v2727, label %.then1996, label %.else1997
 .then1996:
-  %v2730 = icmp sle i64 8, 8
+  %v2730 = icmp samesign sle i64 8, 8
   store i1 %v2730, ptr %.s1999
   br label %.join1994
 .else1997:
@@ -4016,10 +4016,10 @@ entry:
   %v2734 = icmp eq ptr %v2309, null
   br i1 %v2734, label %.then2001, label %.else2002
 .then2001:
-  %v2739 = icmp sge i64 9, 0
+  %v2739 = icmp samesign sge i64 9, 0
   br i1 %v2739, label %.then2005, label %.else2006
 .then2005:
-  %v2743 = icmp sle i64 9, 1152921504606846974
+  %v2743 = icmp samesign sle i64 9, 1152921504606846974
   store i1 %v2743, ptr %.s2009
   br label %.join2007
 .else2006:
@@ -4031,7 +4031,7 @@ entry:
 .then2010:
   %v2748 = mul nuw nsw i64 9, 8
   %v2750 = add nuw nsw i64 %v2748, 9
-  %v2752 = icmp sge i64 %v2750, 65536
+  %v2752 = icmp samesign sge i64 %v2750, 65536
   br i1 %v2752, label %.then2015, label %.else2016
 .then2015:
   %v2755 = getelementptr i8, ptr null, i64 0
@@ -4042,13 +4042,13 @@ entry:
   br label %.join2017
 .else2016:
   %v2760 = call ptr @GetProcessHeap()
-  %v2763 = icmp sle i64 %v2750, 64
+  %v2763 = icmp samesign sle i64 %v2750, 64
   br i1 %v2763, label %.then2023, label %.else2024
 .then2023:
   store i64 64, ptr %.s2026
   br label %.join2025
 .else2024:
-  %v2769 = icmp sle i64 %v2750, 128
+  %v2769 = icmp samesign sle i64 %v2750, 128
   br i1 %v2769, label %.then2028, label %.else2029
 .then2028:
   store i64 128, ptr %.s2026
@@ -4145,11 +4145,11 @@ entry:
   %v2829 = load ptr, ptr %.s2070
   %v2830 = load i64, ptr %.s2071
   %v2831 = load i64, ptr %.s2072
-  %v2833 = icmp sge i64 %v2830, 9
+  %v2833 = icmp samesign sge i64 %v2830, 9
   br i1 %v2833, label %.then2074, label %.else2075
 .then2074:
   %v2836 = load i64, ptr %v2829
-  %v2837 = icmp sge i64 8, %v2836
+  %v2837 = icmp samesign sge i64 8, %v2836
   br i1 %v2837, label %.then2077, label %.else2078
 .then2077:
   store i64 0, ptr %.s2080
@@ -4162,7 +4162,7 @@ entry:
   br label %.join2079
 .join2079:
   %v2838 = load i64, ptr %.s2080
-  %v2845 = icmp slt i64 %v2838, 0
+  %v2845 = icmp samesign slt i64 %v2838, 0
   br i1 %v2845, label %.then2084, label %.else2085
 .then2084:
   store i64 0, ptr %.s2087
@@ -4173,7 +4173,7 @@ entry:
   br label %.join2086
 .join2086:
   %v2846 = load i64, ptr %.s2087
-  %v2853 = icmp slt i64 %v2846, 512
+  %v2853 = icmp samesign slt i64 %v2846, 512
   br i1 %v2853, label %.then2090, label %.else2091
 .then2090:
   store i64 0, ptr %.s2093
@@ -4192,7 +4192,7 @@ entry:
 .else2097:
   %v2865 = getelementptr i8, ptr @.str.0, i64 0
   %v2866 = load i64, ptr %v2865
-  %v2868 = icmp sle i64 %v2866, 4294967295
+  %v2868 = icmp samesign sle i64 %v2866, 4294967295
   br i1 %v2868, label %.then2102, label %.else2103
 .then2102:
   %.c2105 = trunc i64 4294967284 to i32
@@ -4220,10 +4220,10 @@ entry:
   br label %.join2104
 .join2104:
   %v2869 = load i1, ptr %.s2115
-  %v2892 = icmp sge i64 1, 0
+  %v2892 = icmp samesign sge i64 1, 0
   br i1 %v2892, label %.then2117, label %.else2118
 .then2117:
-  %v2896 = icmp sle i64 1, 1152921504606846974
+  %v2896 = icmp samesign sle i64 1, 1152921504606846974
   store i1 %v2896, ptr %.s2121
   br label %.join2119
 .else2118:
@@ -4235,7 +4235,7 @@ entry:
 .then2122:
   %v2902 = mul nuw nsw i64 1, 8
   %v2904 = add nuw nsw i64 %v2902, 9
-  %v2906 = icmp sge i64 %v2904, 65536
+  %v2906 = icmp samesign sge i64 %v2904, 65536
   br i1 %v2906, label %.then2128, label %.else2129
 .then2128:
   %v2909 = getelementptr i8, ptr null, i64 0
@@ -4246,7 +4246,7 @@ entry:
   br label %.join2130
 .else2129:
   %v2914 = call ptr @GetProcessHeap()
-  %v2917 = icmp sle i64 %v2904, 64
+  %v2917 = icmp samesign sle i64 %v2904, 64
   br i1 %v2917, label %.then2136, label %.else2137
 .then2136:
   store i64 64, ptr %.s2139
@@ -4343,7 +4343,7 @@ entry:
   %.z2182 = trunc i64 10 to i8
   store i8 %.z2182, ptr %.e2181
   %v2979 = load i64, ptr %v2899
-  %v2981 = icmp sle i64 %v2979, 4294967295
+  %v2981 = icmp samesign sle i64 %v2979, 4294967295
   br i1 %v2981, label %.then2184, label %.else2185
 .then2184:
   %.c2187 = trunc i64 4294967284 to i32
@@ -4380,14 +4380,14 @@ entry:
   store ptr %v2829, ptr %.s2200
   br label %.exit2069
 .else2075:
-  %v3005 = icmp slt i64 %v2830, 0
+  %v3005 = icmp samesign slt i64 %v2830, 0
   br i1 %v3005, label %.then2202, label %.else2203
 .then2202:
   store i64 0, ptr %.s2205
   br label %.join2204
 .else2203:
   %v3010 = load i64, ptr %v2425
-  %v3011 = icmp sge i64 %v2830, %v3010
+  %v3011 = icmp samesign sge i64 %v2830, %v3010
   br i1 %v3011, label %.then2207, label %.else2208
 .then2207:
   store i64 0, ptr %.s2205
@@ -4400,7 +4400,7 @@ entry:
   br label %.join2204
 .join2204:
   %v3006 = load i64, ptr %.s2205
-  %v3019 = icmp slt i64 %v3006, 0
+  %v3019 = icmp samesign slt i64 %v3006, 0
   br i1 %v3019, label %.then2212, label %.else2213
 .then2212:
   store i64 0, ptr %.s2215
@@ -4411,14 +4411,14 @@ entry:
   br label %.join2214
 .join2214:
   %v3020 = load i64, ptr %.s2215
-  %v3027 = icmp slt i64 %v2830, 0
+  %v3027 = icmp samesign slt i64 %v2830, 0
   br i1 %v3027, label %.then2218, label %.else2219
 .then2218:
   store i64 0, ptr %.s2221
   br label %.join2220
 .else2219:
   %v3032 = load i64, ptr %v1088
-  %v3033 = icmp sge i64 %v2830, %v3032
+  %v3033 = icmp samesign sge i64 %v2830, %v3032
   br i1 %v3033, label %.then2223, label %.else2224
 .then2223:
   store i64 0, ptr %.s2221
@@ -4431,7 +4431,7 @@ entry:
   br label %.join2220
 .join2220:
   %v3028 = load i64, ptr %.s2221
-  %v3041 = icmp slt i64 %v3028, 0
+  %v3041 = icmp samesign slt i64 %v3028, 0
   br i1 %v3041, label %.then2228, label %.else2229
 .then2228:
   store i64 0, ptr %.s2231
@@ -4462,10 +4462,10 @@ entry:
   %v2824 = load ptr, ptr %.s2240
   %v3057 = getelementptr i8, ptr %v1088, i64 0
   %v3058 = load i64, ptr %v1088
-  %v3063 = icmp sle i64 0, %v3058
+  %v3063 = icmp samesign sle i64 0, %v3058
   br i1 %v3063, label %.then2242, label %.else2243
 .then2242:
-  %v3067 = icmp sle i64 %v3058, 140737488355319
+  %v3067 = icmp samesign sle i64 %v3058, 140737488355319
   store i1 %v3067, ptr %.s2246
   br label %.join2244
 .else2243:
@@ -4475,10 +4475,10 @@ entry:
   %v3064 = load i1, ptr %.s2246
   br i1 %v3064, label %.then2247, label %.else2248
 .then2247:
-  %v3074 = icmp sle i64 1, 8
+  %v3074 = icmp samesign sle i64 1, 8
   br i1 %v3074, label %.then2251, label %.else2252
 .then2251:
-  %v3077 = icmp sle i64 8, 8
+  %v3077 = icmp samesign sle i64 8, 8
   store i1 %v3077, ptr %.s2254
   br label %.join2249
 .else2252:
@@ -4491,7 +4491,7 @@ entry:
   %v3070 = load i1, ptr %.s2254
   %v3081 = mul nuw nsw i64 %v3058, 8
   %v3083 = add nuw nsw i64 %v3081, 9
-  %v3085 = icmp sge i64 %v3083, 65536
+  %v3085 = icmp samesign sge i64 %v3083, 65536
   br i1 %v3085, label %.then2258, label %.else2259
 .then2258:
   %.c2261 = trunc i64 32768 to i32
@@ -4520,10 +4520,10 @@ entry:
   %v3095 = load i1, ptr %.s2270
   %v3100 = getelementptr i8, ptr %v2425, i64 0
   %v3101 = load i64, ptr %v2425
-  %v3106 = icmp sle i64 0, %v3101
+  %v3106 = icmp samesign sle i64 0, %v3101
   br i1 %v3106, label %.then2272, label %.else2273
 .then2272:
-  %v3110 = icmp sle i64 %v3101, 140737488355319
+  %v3110 = icmp samesign sle i64 %v3101, 140737488355319
   store i1 %v3110, ptr %.s2276
   br label %.join2274
 .else2273:
@@ -4533,10 +4533,10 @@ entry:
   %v3107 = load i1, ptr %.s2276
   br i1 %v3107, label %.then2277, label %.else2278
 .then2277:
-  %v3117 = icmp sle i64 1, 8
+  %v3117 = icmp samesign sle i64 1, 8
   br i1 %v3117, label %.then2281, label %.else2282
 .then2281:
-  %v3120 = icmp sle i64 8, 8
+  %v3120 = icmp samesign sle i64 8, 8
   store i1 %v3120, ptr %.s2284
   br label %.join2279
 .else2282:
@@ -4549,7 +4549,7 @@ entry:
   %v3113 = load i1, ptr %.s2284
   %v3124 = mul nuw nsw i64 %v3101, 8
   %v3126 = add nuw nsw i64 %v3124, 9
-  %v3128 = icmp sge i64 %v3126, 65536
+  %v3128 = icmp samesign sge i64 %v3126, 65536
   br i1 %v3128, label %.then2288, label %.else2289
 .then2288:
   %.c2291 = trunc i64 32768 to i32

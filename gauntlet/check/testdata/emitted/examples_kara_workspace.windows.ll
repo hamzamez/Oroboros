@@ -20,11 +20,11 @@ entry:
   %.s79 = alloca ptr
   %.s90 = alloca ptr
   %v3 = load i64, ptr %v0
-  %v4 = icmp sle i64 65536, %v3
+  %v4 = icmp samesign sle i64 65536, %v3
   br i1 %v4, label %.then2, label %.else3
 .then2:
   %v8 = load i64, ptr %v1
-  %v9 = icmp sle i64 65536, %v8
+  %v9 = icmp samesign sle i64 65536, %v8
   store i1 %v9, ptr %.s6
   br label %.join4
 .else3:
@@ -32,10 +32,10 @@ entry:
   br label %.join4
 .join4:
   %v5 = load i1, ptr %.s6
-  %v17 = icmp sge i64 65536, 0
+  %v17 = icmp samesign sge i64 65536, 0
   br i1 %v17, label %.then8, label %.else9
 .then8:
-  %v21 = icmp sle i64 65536, 1152921504606846974
+  %v21 = icmp samesign sle i64 65536, 1152921504606846974
   store i1 %v21, ptr %.s12
   br label %.join10
 .else9:
@@ -47,7 +47,7 @@ entry:
 .then13:
   %v27 = mul nuw nsw i64 65536, 8
   %v29 = add nuw nsw i64 %v27, 9
-  %v31 = icmp sge i64 %v29, 65536
+  %v31 = icmp samesign sge i64 %v29, 65536
   br i1 %v31, label %.then19, label %.else20
 .then19:
   %v34 = getelementptr i8, ptr null, i64 0
@@ -156,7 +156,7 @@ entry:
 .head72:
   %v107 = load ptr, ptr %.s74
   %v108 = load i64, ptr %.s75
-  %v110 = icmp sge i64 %v108, 65536
+  %v110 = icmp samesign sge i64 %v108, 65536
   br i1 %v110, label %.then77, label %.else78
 .then77:
   store ptr %v107, ptr %.s79
@@ -194,15 +194,15 @@ entry:
   %.s13 = alloca i64
   %.s17 = alloca ptr
   %v4 = load i64, ptr %v0
-  %v5 = icmp sle i64 65536, %v4
+  %v5 = icmp samesign sle i64 65536, %v4
   br i1 %v5, label %.then2, label %.else3
 .then2:
   %v9 = load i64, ptr %v1
-  %v10 = icmp sle i64 65536, %v9
+  %v10 = icmp samesign sle i64 65536, %v9
   br i1 %v10, label %.then6, label %.else7
 .then6:
   %v13 = load i64, ptr %v2
-  %v14 = icmp sle i64 65536, %v13
+  %v14 = icmp samesign sle i64 65536, %v13
   store i1 %v14, ptr %.s9
   br label %.join4
 .else7:
@@ -219,7 +219,7 @@ entry:
 .head10:
   %v21 = load ptr, ptr %.s12
   %v22 = load i64, ptr %.s13
-  %v24 = icmp sge i64 %v22, 65536
+  %v24 = icmp samesign sge i64 %v22, 65536
   br i1 %v24, label %.then15, label %.else16
 .then15:
   store ptr %v21, ptr %.s17

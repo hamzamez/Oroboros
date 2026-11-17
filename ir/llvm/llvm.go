@@ -860,8 +860,47 @@ func (p *printer) op(s *ir.Stmt) {
 	if s.Mode == ir.MExact && !NoFlags {
 		f = p.flags(s, f)
 	}
+	if !NoFlags {
+		f = p.samesign(s, f)
+	}
 	p.expand(f, "expr", s.Res, s.Args)
 }
+
+// samesign is φ's second kind: LLVM's `icmp samesign`, which makes the result
+// poison when the operands' signs differ, on a signed order whose operands
+// the IR proves on one side of 0, both lo ≥ 0 or both hi < 0. Then a < b is
+// the same relation read signed or unsigned, which is what the flag lets LLVM
+// use. Ends are the IR_P types' and the literals' (lo, hi): a proven fact, so
+// the flag adds no poison. Only the instruction that is the comparison, as
+// `flags` does for arithmetic.
+func (p *printer) samesign(s *ir.Stmt, f string) string {
+	switch s.Op {
+	case ir.OLt, ir.OLe, ir.OGt, ir.OGe:
+	default:
+		return f
+	}
+	if len(s.Args) != 2 || holes(f)['r'] || p.unsigned(s.Args[0]) || p.unsigned(s.Args[1]) {
+		return f
+	}
+	word, rest, ok := strings.Cut(f, " ")
+	if !ok || word != "icmp" || !strings.HasPrefix(rest, "s") {
+		return f
+	}
+	a, b := s.Args[0], s.Args[1]
+	nonneg := p.lo(a) >= 0 && p.lo(b) >= 0
+	neg := p.hi(a) < 0 && p.hi(b) < 0
+	if !(nonneg || neg || PlantSamesignAlways) || PlantNoSamesign {
+		return f
+	}
+	return "icmp samesign " + rest
+}
+
+// PlantSamesignAlways writes samesign on every signed comparison, whatever its
+// operands' signs: TestSamesignIsProvenOfItsOperands must see an answer change.
+var PlantSamesignAlways bool
+
+// PlantNoSamesign writes none, the printer before φ's second kind.
+var PlantNoSamesign bool
 
 // flags writes after an instruction's first word the flags the IR proved of
 // this operation: `nsw`, the result inside the word, which is what `exact`

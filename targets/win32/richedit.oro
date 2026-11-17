@@ -1,0 +1,19 @@
+// richedit.h, THE RICH EDIT CONTROL'S STRUCTS (llvm.md §6b, ADR 0128), each
+// its C definition in the Windows SDK 10.0.26100.0's um/richedit.h, fields in
+// the definition's order. The header is `#include <pshpack4.h>` throughout,
+// unconditionally, so every struct here is pack(4): on x86_64 a struct holding
+// a pointer is aligned 4, not 8 (records-research §2.1: FINDTEXTEXA,
+// FORMATRANGE); on i686, whose natural alignments are at most 4, it changes
+// nothing.
+module windows/richedit {
+    use windows/winnt
+    use windows/windef
+
+    // typedef struct _charrange { LONG cpMin; LONG cpMax; } CHARRANGE
+    set CHARRANGE = struct pack(4) { cpMin ∈ winnt.LONG, cpMax ∈ winnt.LONG }
+    // typedef struct _formatrange { HDC hdc; HDC hdcTarget; RECT rc; RECT rcPage;
+    // CHARRANGE chrg; } FORMATRANGE
+    set FORMATRANGE = struct pack(4) {
+        hdc ∈ windef.HDC, hdcTarget ∈ windef.HDC, rc ∈ windef.RECT, rcPage ∈ windef.RECT, chrg ∈ CHARRANGE
+    }
+}

@@ -1,0 +1,10 @@
+// sysinfoapi.h (ADR 0126): the system's information, each declaration its
+// prototype in the Windows SDK 10.0.26100.0, its sets the prototype's type
+// names.
+module windows/sysinfoapi {
+    use windows/minwinbase
+
+    // void GetLocalTime(_Out_ LPSYSTEMTIME lpSystemTime): the local time,
+    // through a SYSTEMTIME the host fills, a struct's cell (llvm.md §6b).
+    fn GetLocalTime(t ∈ cell(minwinbase.SYSTEMTIME)) (Bool) { host stmt call "GetLocalTime" stdcall lib "kernel32" }
+}

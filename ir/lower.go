@@ -576,6 +576,21 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		l.fail("a table rule that was never allocated (tables.md §2): %s", core.ShowTerm(t))
 	case p.Kind == "cell-ref" && len(args) == 1:
 		return []V{l.one(r, Stmt{Op: OCellRef, Args: []V{l.single(args[0], r)}})}
+	case p.Kind == "cell-ref" && len(args) >= 2 && args[0].Kind == core.KStr:
+		// A STRUCT'S CELL (llvm.md §6b): a reference to a region written with
+		// the record's leaves, in canonical order; Type is the struct, whose
+		// layout the printer reads.
+		ty := l.tg.UnfoldType("", args[0].Str)
+		var vs []V
+		for _, a := range args[1:] {
+			vs = append(vs, l.single(a, r))
+		}
+		v := l.one(r, Stmt{Op: OCellRef, Type: ty, Args: vs})
+		l.decl[v] = "cell " + ty
+		return []V{v}
+	case p.Kind == "cell-get" && len(args) == 2 && args[1].Kind == core.KInt:
+		// a struct cell's leaf j, Lit its index
+		return []V{l.one(r, Stmt{Op: OCellGet, Args: []V{l.single(args[0], r)}, Lit: args[1]})}
 	case p.Kind == "cell-fresh" && len(args) == 1 && args[0].Kind == core.KStr:
 		ty := l.tg.UnfoldType("", args[0].Str) // a manifest set is its definition (ADR 0112)
 		v := l.one(r, Stmt{Op: OCellFresh, Type: ty})

@@ -410,6 +410,46 @@ A parameter unused or used twice, elem of a table that is not of bytes, a signed
 `where` that does not bound lo by len(b) (directly, or as lo + m ≤ len(b) with m natural) are each
 refused when the target loads.
 
+## 6b. A C struct: its layout derived from its definition (ADR 0128)
+
+A header module declares a struct by its C definition, its fields in the definition's order, each
+with its C type's name:
+
+```
+set RECT = struct { left ∈ LONG, top ∈ LONG, right ∈ LONG, bottom ∈ LONG }
+set PRINTDLGA = struct pack(1) { lStructSize ∈ DWORD, … }
+```
+
+**Its canonical type is the layout's data**, `struct{left: T; …}` in C order, with `struct/p{…}`
+under `#pragma pack(p)`. A struct's layout depends on its fields' order, their types and its
+packing alone, so two structs with the same fields in the same order and the same packing have
+one layout, and the type needs no name.
+
+**To the language it is a record set**: the same fields, labels in canonical order (data.md §4).
+`r.left`, `r with { … }`, `zero(RECT)` and the currying of a header are a record's. The order and
+the packing are read only by this printer.
+
+**The layout is the fold L_{M,p,d}** (records-research §3.2, Theorem L), over each field's size k and
+alignment a in the triple's data model M:
+- k and a are w/8 for an `iw` of the table in §6a, the triple's pointer size for `ptr`, and N and
+  A for a nested struct;
+- under pack p each a is min(a, p);
+- off₁ = 0, offᵢ₊₁ = ⌈offᵢ + kᵢ⌉ at aᵢ₊₁;
+- A = max aᵢ, N = ⌈end⌉ at A.
+
+**A cell of a struct**, `x ∈ cell(S)` (ADR 0048), is a region: `alloca [N x i8], align A`, zero
+filled. `(#ref v)` then stores each of v's leaves, and `(#deref r)` loads each one back. A leaf at
+offset o is accessed at `getelementptr i8, ptr %c, i64 o` with its C type from §6a's table (the
+`trunc` in, the `sext` or `zext` out), aligned min(A, o & −o). Padding is the zero fill's. In the
+IR the cell's value is its leaves: `cell-ref` takes them, and `cell-get` names the leaf it reads.
+
+**Checked, never trusted**: every declared struct's derived offsets, size and alignment are
+compared with clang's `-fdump-record-layouts` on both triples.
+
+Not yet (ADR 0128 items 12–13): a field the declaration determines (`lStructSize`, a buffer's
+length), a pointer field into the program's memory, a packing the data model states, and a
+struct passed by value.
+
 ## 7. Control: regions into blocks
 
 Structured SSA (ADR 0032) prints as basic blocks, and a region's parameters and an operation's results

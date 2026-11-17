@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"oroboros/core"
@@ -22,6 +23,10 @@ func TypeText(ty string) string {
 	switch {
 	case ty == "":
 		return "any"
+	case core.IsRecord(ty):
+		// A HOST STRUCT'S TYPE, braces, colons and semicolons, is written as the
+		// string it is (llvm.md §6b), and read back as one.
+		return strconv.Quote(ty)
 	case strings.HasPrefix(ty, "array "), strings.HasPrefix(ty, "buffer "):
 		i := strings.IndexByte(ty, ' ')
 		return "(" + ty[:i] + " " + TypeText(ty[i+1:]) + ")"
@@ -42,6 +47,11 @@ func typeOf(t *core.Term) (string, error) {
 	switch t.Kind {
 	case core.KName:
 		return t.Name, nil
+	case core.KStr:
+		if core.IsRecord(t.Str) {
+			return t.Str, nil
+		}
+		return "", fmt.Errorf("%s is not a type", t)
 	case core.KApp:
 	default:
 		return "", fmt.Errorf("%s is not a type", t)

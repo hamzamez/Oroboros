@@ -20,6 +20,11 @@ module windows/winuser {
         host expr call "CreateWindowExA" stdcall lib "user32"
     }
     fn DestroyWindow(w ∈ windef.HWND) (r ∈ minwindef.BOOL) { host expr call "DestroyWindow" stdcall lib "user32" }
+    // BOOL GetClientRect(_In_ HWND hWnd, _Out_ LPRECT lpRect): the window's
+    // client area through a RECT the host fills, a struct's cell (llvm.md §6b).
+    fn GetClientRect(w ∈ windef.HWND, rc ∈ cell(windef.RECT)) (r ∈ minwindef.BOOL) { host expr call "GetClientRect" stdcall lib "user32" }
+    // HWND GetDesktopWindow(VOID): the desktop's window, which every session has.
+    fn GetDesktopWindow() (r ∈ windef.HWND) { host expr call "GetDesktopWindow" stdcall lib "user32" }
     fn ShowWindow(w ∈ windef.HWND, c ∈ minwindef.INT) (r ∈ minwindef.BOOL) { host expr call "ShowWindow" stdcall lib "user32" }
     fn SetWindowPos(w ∈ windef.HWND, after ∈ windef.HWND, x ∈ minwindef.INT, y ∈ minwindef.INT, cx ∈ minwindef.INT, cy ∈ minwindef.INT, f ∈ minwindef.UINT) (r ∈ minwindef.BOOL) { host expr call "SetWindowPos" stdcall lib "user32" }
     fn SetWindowTextA(w ∈ windef.HWND, t ∈ String) (r ∈ minwindef.BOOL) where nulfree(t) { host expr call "SetWindowTextA" stdcall lib "user32" }

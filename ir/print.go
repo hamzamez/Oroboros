@@ -227,6 +227,14 @@ func (pr *printer) op(s *Stmt) []string {
 		return []string{"(the " + TypeText(s.Type) + " " + pr.vs(s.Args) + ")"}
 	case OCellFresh:
 		return []string{"(cell-fresh " + TypeText(s.Type) + ")"}
+	case OCellRef:
+		if s.Type != "" {
+			return []string{"(cell-ref " + TypeText(s.Type) + " " + pr.vs(s.Args) + ")"}
+		}
+	case OCellGet:
+		if s.Lit != nil {
+			return []string{"(cell-get " + pr.vs(s.Args) + " " + litText(s.Lit) + ")"}
+		}
 	case OIf:
 		return wrap("(if "+pr.vs(s.Args), append(pr.region(s.Sub[0]), pr.region(s.Sub[1])...))
 	case OLoop:

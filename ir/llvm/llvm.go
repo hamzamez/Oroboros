@@ -720,6 +720,9 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 
 // cell prints a cell's statement at the word, in a wide scope (ADR 0127).
 func (p *printer) cell(s *ir.Stmt) {
+	if p.structCell(s) {
+		return
+	}
 	switch s.Op {
 	case ir.OCellRef, ir.OCellFresh:
 		// A CELL A HOST WRITES IS A SLOT (ADR 0048 item 6, ADR 0112): f : X × T* →

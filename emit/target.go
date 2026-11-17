@@ -802,8 +802,23 @@ func (tg *Target) cellForms() {
 		if tg.Defs == nil {
 			tg.Defs = map[string][]core.Form{}
 		}
+		// A STRUCT'S CELL (llvm.md §6b): its set travels with the declaration, so
+		// the loader writes and reads the struct's leaves.
+		var types []string
+		for _, i := range p.CellParams {
+			ty := ""
+			if i < len(p.Args) {
+				if st := tg.UnfoldType("", core.CellElem(p.Args[i])); core.IsStruct(st) {
+					ty = st
+				}
+			}
+			types = append(types, ty)
+		}
+		if strings.Join(types, "") == "" {
+			types = nil
+		}
 		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "cells", Name: local,
-			Term: core.CellDeclTerm(core.CellDecl{Params: p.CellParams, List: p.CellList, Arity: p.Arity})})
+			Term: core.CellDeclTerm(core.CellDecl{Params: p.CellParams, List: p.CellList, Arity: p.Arity, Types: types})})
 	}
 }
 
@@ -2267,6 +2282,10 @@ func (tg *Target) CType(set string) (ll, cross string, signed, ok bool) {
 	// address of the slot the printer allocates.
 	if core.IsCell(set) {
 		if ll, _, _, ok := tg.CType(core.CellElem(set)); ok && ll != "ptr" && ll != "void" {
+			return "ptr", "", false, true
+		}
+		// A STRUCT'S CELL is the address of its region (llvm.md §6b).
+		if _, err := tg.Layout(tg.UnfoldType("", core.CellElem(set))); err == nil {
 			return "ptr", "", false, true
 		}
 		return "", "", false, false

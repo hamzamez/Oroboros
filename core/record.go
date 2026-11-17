@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -42,6 +43,26 @@ var PlantWithWrongLabel bool
 // split at a depth-zero ", " and read `F(A, B)` as an applied type, can cut a
 // record or mistake it for a variant's instance.
 func recordTypeName(t *Term) (string, bool) {
+	if t != nil && t.Kind == KApp && len(t.Kids) >= 4 && t.Kids[0].Kind == KName && t.Kids[0].Name == StructSetName &&
+		t.Kids[1].Kind == KStr && t.Kids[2].Kind == KStr {
+		labels := strings.Fields(t.Kids[2].Str)
+		if len(labels) != len(t.Kids)-3 {
+			return "", false
+		}
+		parts := make([]string, len(labels))
+		for i, l := range labels {
+			ty := TypeName(t.Kids[3+i])
+			if ty == "" {
+				return "", false
+			}
+			parts[i] = l + ": " + ty
+		}
+		head := "struct"
+		if t.Kids[1].Str != "" {
+			head += "/" + t.Kids[1].Str
+		}
+		return head + "{" + strings.Join(parts, "; ") + "}", true
+	}
 	if t == nil || t.Kind != KApp || len(t.Kids) < 3 || t.Kids[0].Kind != KName ||
 		t.Kids[0].Name != RecSetName || t.Kids[1].Kind != KStr {
 		return "", false
@@ -61,18 +82,23 @@ func recordTypeName(t *Term) (string, bool) {
 	return "record{" + strings.Join(parts, "; ") + "}", true
 }
 
-// IsRecord reports a record's canonical type.
+// IsRecord reports a record's canonical type, a host struct's included: a
+// struct is a record set to the language (llvm.md §6b).
 func IsRecord(ty string) bool {
-	return strings.HasPrefix(ty, "record{") && strings.HasSuffix(ty, "}")
+	return strings.HasPrefix(ty, "record{") && strings.HasSuffix(ty, "}") || IsStruct(ty)
 }
 
-// RecordFields is a record type's labels and their types, in canonical order.
-func RecordFields(ty string) ([]string, []string) {
-	if !IsRecord(ty) {
-		return nil, nil
-	}
+// IsStruct reports a host struct's canonical type, `struct{l: T; …}` in its C
+// order, or `struct/p{…}` under pack(p).
+func IsStruct(ty string) bool {
+	return strings.HasPrefix(ty, "struct") && strings.HasSuffix(ty, "}") &&
+		(strings.HasPrefix(ty, "struct{") || strings.HasPrefix(ty, "struct/") && strings.Contains(ty, "{"))
+}
+
+// fieldsOf splits `{l: T; …}`'s fields in their written order.
+func fieldsOf(body string) ([]string, []string) {
 	var labels, types []string
-	for _, part := range splitFields(ty[len("record{") : len(ty)-1]) {
+	for _, part := range splitFields(body) {
 		i := strings.Index(part, ": ")
 		if i < 0 {
 			return nil, nil
@@ -81,6 +107,43 @@ func RecordFields(ty string) ([]string, []string) {
 		types = append(types, part[i+2:])
 	}
 	return labels, types
+}
+
+// StructFields is a host struct's fields in its C definition's order, and its
+// packing, 0 for none.
+func StructFields(ty string) ([]string, []string, int) {
+	if !IsStruct(ty) {
+		return nil, nil, 0
+	}
+	i := strings.Index(ty, "{")
+	pack := 0
+	if strings.HasPrefix(ty, "struct/") {
+		fmt.Sscan(ty[len("struct/"):i], &pack)
+	}
+	l, ts := fieldsOf(ty[i+1 : len(ty)-1])
+	return l, ts, pack
+}
+
+// RecordFields is a record type's labels and their types, in canonical order:
+// a struct's fields sorted, its record view.
+func RecordFields(ty string) ([]string, []string) {
+	if IsStruct(ty) {
+		l, ts, _ := StructFields(ty)
+		idx := make([]int, len(l))
+		for i := range idx {
+			idx[i] = i
+		}
+		sort.SliceStable(idx, func(a, b int) bool { return Spell(l[idx[a]]) < Spell(l[idx[b]]) })
+		var labels, types []string
+		for _, i := range idx {
+			labels, types = append(labels, l[i]), append(types, ts[i])
+		}
+		return labels, types
+	}
+	if !IsRecord(ty) {
+		return nil, nil
+	}
+	return fieldsOf(ty[len("record{") : len(ty)-1])
 }
 
 // splitFields splits a record type's fields at its semicolons of depth zero.
@@ -723,6 +786,16 @@ func recordLeaves(name, ty string, path []string) []leaf {
 			continue
 		}
 		out = append(out, leaf{name: n, ty: types[i], path: p})
+	}
+	return out
+}
+
+// RecordLeafTypes are a record set's leaves' sets, depth first in canonical
+// order: what leaf j of a struct's cell holds (llvm.md §6b).
+func RecordLeafTypes(ty string) []string {
+	var out []string
+	for _, lf := range recordLeaves("", ty, nil) {
+		out = append(out, lf.ty)
 	}
 	return out
 }

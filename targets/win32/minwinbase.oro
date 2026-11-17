@@ -1,0 +1,14 @@
+// minwinbase.h, WIN32'S BASE STRUCTS (llvm.md §6b, ADR 0128), each its C
+// definition in the Windows SDK 10.0.26100.0's um/minwinbase.h, fields in the
+// definition's order. Each is one a declaration here states; the header has
+// more.
+module windows/minwinbase {
+    use windows/minwindef
+
+    // typedef struct _SYSTEMTIME { WORD wYear; WORD wMonth; WORD wDayOfWeek;
+    // WORD wDay; WORD wHour; WORD wMinute; WORD wSecond; WORD wMilliseconds; }
+    set SYSTEMTIME = struct {
+        wYear ∈ minwindef.WORD, wMonth ∈ minwindef.WORD, wDayOfWeek ∈ minwindef.WORD, wDay ∈ minwindef.WORD,
+        wHour ∈ minwindef.WORD, wMinute ∈ minwindef.WORD, wSecond ∈ minwindef.WORD, wMilliseconds ∈ minwindef.WORD
+    }
+}

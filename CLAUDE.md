@@ -136,8 +136,11 @@ order:
    r with {}"), being built. Step 1, the record in the language, built
    ([records](gauntlet/results/records-2026-11-17.md)): five cases on four targets, nested records
    and an export's record parameter, a buffer of records or tuples written in program order; a
-   record as a map's value owed, the product's limit, failing for tuples too. Step 2, the host struct,
-   next; `wsprintfA` is
+   record as a map's value owed, the product's limit, failing for tuples too. Step 2a, the host
+   struct ([structs](gauntlet/results/structs-2026-11-17.md)): `set RECT = struct { … }` in its
+   header, the layout Theorem L's fold checked against clang on both triples, a struct a host's
+   cell, GetClientRect and GetLocalTime run on both; 2b next, determined and pointer fields;
+   `wsprintfA` is
    no wall (two integer renderings, ADR 0095).
 
 **Done in the 11-16 plan** (assessment-2026-11-17 §1): the book's wrong answers and faults

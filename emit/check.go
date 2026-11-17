@@ -319,6 +319,35 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			return ty, err
 		}
 	case "cell-ref", "cell-get":
+		// A STRUCT'S CELL (llvm.md §6b): (#ref "S" v…) : cell S, its leaves
+		// checked against S's leaves' sets, and (#deref r j) : S's leaf j.
+		if p.Kind == "cell-ref" && len(args) >= 2 && args[0].Kind == core.KStr {
+			st := c.tgt.UnfoldType("", args[0].Str)
+			ts := core.RecordLeafTypes(st)
+			if len(ts) != len(args)-1 {
+				return "", fmt.Errorf("a struct cell of %s written with %d values, and it has %d leaves",
+					core.ShowSet(st), len(args)-1, len(ts))
+			}
+			for i, a := range args[1:] {
+				if _, err := c.walk(a, ""); err != nil {
+					return "", err
+				}
+				_ = ts[i]
+			}
+			res := "cell " + st
+			return res, c.agree(core.ShowName(op.Name), res, want)
+		}
+		if p.Kind == "cell-get" && len(args) == 2 && args[1].Kind == core.KInt {
+			ty, err := c.walk(args[0], "")
+			if err != nil {
+				return "", err
+			}
+			ts := core.RecordLeafTypes(core.CellElem(ty))
+			if j := int(args[1].Int); j >= 0 && j < len(ts) {
+				return ts[j], c.agree(core.ShowName(op.Name), ts[j], want)
+			}
+			return "", nil
+		}
 		// A CELL A HOST WRITES (spec/local.md §5): (#ref v) : cell T for
 		// v : T, and (#deref r) : T for r : cell T.
 		if len(args) == 1 {

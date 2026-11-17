@@ -479,11 +479,22 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 			case OThe:
 				eq(s.Res[0], s.Args[0])
 			case OCellRef:
-				u.unify(node[s.Res[0]], u.mk("cell", node[s.Args[0]]))
+				if s.Type != "" {
+					is(s.Res[0], "cell "+s.Type) // a struct's: its leaves are its own
+				} else {
+					u.unify(node[s.Res[0]], u.mk("cell", node[s.Args[0]]))
+				}
 			case OCellFresh:
 				is(s.Res[0], "cell "+s.Type)
 			case OCellGet:
-				u.unify(node[s.Args[0]], u.mk("cell", node[s.Res[0]]))
+				if s.Lit != nil {
+					// a struct cell's leaf, the leaf's set (llvm.md §6b)
+					if lt := structLeafType(f, s); lt != "" {
+						is(s.Res[0], lt)
+					}
+				} else {
+					u.unify(node[s.Args[0]], u.mk("cell", node[s.Res[0]]))
+				}
 			case ORequire, OAssume:
 				is(s.Args[0], "bool")
 			case ORestrict:
@@ -987,4 +998,37 @@ func roundsToZ(ty string) bool {
 		return true
 	}
 	return ty == "int"
+}
+
+// structLeafType is the set leaf Lit of a struct cell holds, read off the
+// statement that made the cell's reference.
+func structLeafType(f *Func, s *Stmt) string {
+	st := structOfCell(f, s.Args[0])
+	if st == "" || s.Lit == nil {
+		return ""
+	}
+	ts := core.RecordLeafTypes(st)
+	if j := int(s.Lit.Int); j >= 0 && j < len(ts) {
+		return ts[j]
+	}
+	return ""
+}
+
+// structOfCell is the struct a cell reference's statement names, or "".
+func structOfCell(f *Func, v V) string {
+	var found string
+	var walk func(r *Region)
+	walk = func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if (s.Op == OCellRef || s.Op == OCellFresh) && len(s.Res) == 1 && s.Res[0] == v && core.IsStruct(s.Type) {
+				found = s.Type
+			}
+			for _, sub := range s.Sub {
+				walk(sub)
+			}
+		}
+	}
+	walk(f.Body)
+	return found
 }

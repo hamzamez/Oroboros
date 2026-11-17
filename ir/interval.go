@@ -900,6 +900,13 @@ func (a *intervals) stmt(s *Stmt) {
 	case OCellRef, OCellFresh:
 		one(topFact) // an address: no integer
 	case OCellGet:
+		// A STRUCT CELL'S LEAF: its set (llvm.md §6b).
+		if s.Lit != nil {
+			if lt := structLeafType(a.f, s); lt != "" {
+				one(a.declared(lt))
+				return
+			}
+		}
 		// WHAT THE HOST WROTE (spec/local.md §5): a value of the cell's type,
 		// and nothing more is known of it. The cell's element set is that type
 		// (a C type's full range on LLVM, ADR 0112), where the read's own type

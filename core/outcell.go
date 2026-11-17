@@ -42,6 +42,9 @@ type CellDecl struct {
 	Params []int
 	List   int
 	Arity  int
+	// Types are the cell parameters' element sets, where the target states
+	// one: a host struct's (llvm.md §6b), whose cell holds its leaves.
+	Types []string
 }
 
 // CellDeclTerm is the form a target hands the loader, (cells ARITY LIST i…).
@@ -49,6 +52,9 @@ func CellDeclTerm(d CellDecl) *Term {
 	kids := []*Term{Name("cells"), Int(int64(d.Arity)), Int(int64(d.List))}
 	for _, i := range d.Params {
 		kids = append(kids, Int(int64(i)))
+	}
+	for _, ty := range d.Types {
+		kids = append(kids, Str(ty))
 	}
 	return &Term{Kind: KApp, Kids: kids}
 }
@@ -58,13 +64,18 @@ func readCellDecl(t *Term) (CellDecl, error) {
 		return CellDecl{}, fmt.Errorf("a cells form is (cells ARITY LIST i…), got %s", t)
 	}
 	var ints []int
+	var types []string
 	for _, k := range t.Kids[1:] {
-		if k.Kind != KInt {
-			return CellDecl{}, fmt.Errorf("a cells form is (cells ARITY LIST i…), got %s", t)
+		switch {
+		case k.Kind == KStr:
+			types = append(types, k.Str)
+		case k.Kind == KInt && types == nil:
+			ints = append(ints, int(k.Int))
+		default:
+			return CellDecl{}, fmt.Errorf("a cells form is (cells ARITY LIST i… \"τ\"…), got %s", t)
 		}
-		ints = append(ints, int(k.Int))
 	}
-	return CellDecl{Arity: ints[0], List: ints[1], Params: ints[2:]}, nil
+	return CellDecl{Arity: ints[0], List: ints[1], Params: ints[2:], Types: types}, nil
 }
 
 // at reports whether argument i of a call is a cell parameter.
@@ -78,6 +89,16 @@ func (d CellDecl) at(i int) bool {
 		}
 	}
 	return false
+}
+
+// structAt is the host struct the cell parameter at argument i holds, or "".
+func (d CellDecl) structAt(i int) string {
+	for j, p := range d.Params {
+		if p == i && j < len(d.Types) && IsStruct(d.Types[j]) {
+			return d.Types[j]
+		}
+	}
+	return ""
 }
 
 // cellCall reports a call of a declaration with cell parameters.
@@ -127,7 +148,18 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 			kids = append(kids, a)
 			continue
 		}
+		st := d.structAt(i)
 		switch {
+		case a.Kind == KName && c.isCell(a.Name) && st != "":
+			// A STRUCT'S CELL IS A REFERENCE TO ITS LEAVES (llvm.md §6b): the
+			// region the printer lays out, written with the record's leaves in
+			// canonical order, and read back leaf by leaf.
+			ref := []*Term{Name(RefName), Str(st)}
+			for _, lf := range recordLeaves("", st, nil) {
+				ref = append(ref, lf.read(a))
+			}
+			kids = append(kids, &Term{Kind: KApp, Kids: ref})
+			cellAt, cellNames = append(cellAt, i), append(cellNames, a.Name)
 		case a.Kind == KName && c.isCell(a.Name):
 			kids = append(kids, App(Name(RefName), a))
 			cellAt, cellNames = append(cellAt, i), append(cellNames, a.Name)
@@ -135,6 +167,9 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 			ty := TypeName(a.Kids[1])
 			if ty == "" {
 				return nil, fmt.Errorf("%s: `out S` takes a set, got %s", ShowTerm(call), ShowTerm(a.Kids[1]))
+			}
+			if st != "" {
+				ty = st // the declaration's struct: its layout, whatever name `out` used
 			}
 			kids = append(kids, App(Name(FreshName), Str(ty)))
 			outAt = append(outAt, i)
@@ -172,6 +207,10 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 		deref := func(at []int) []*Term {
 			out := make([]*Term, len(at))
 			for j, i := range at {
+				if st := d.structAt(i); st != "" {
+					out[j] = derefStruct(vs[i], st)
+					continue
+				}
 				out[j] = App(Name(DerefName), vs[i])
 			}
 			return out
@@ -215,4 +254,26 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 		rest := after(c.tup(value), cellNames, cells)
 		return App(Fn([]string{y}, rest), call)
 	})
+}
+
+// derefStruct is what a struct's cell holds after the call, the record of its
+// leaves each read back, (#deref r j) for leaf j in canonical order: the
+// isomorphism's inverse, recordOfLeaves, over the reads.
+func derefStruct(r *Term, ty string) *Term {
+	j := 0
+	var build func(ty string) *Term
+	build = func(ty string) *Term {
+		labels, types := RecordFields(ty)
+		kids := []*Term{Name(RecName), Str(strings.Join(labels, " "))}
+		for _, ct := range types {
+			if IsRecord(ct) {
+				kids = append(kids, build(ct))
+				continue
+			}
+			kids = append(kids, App(Name(DerefName), r, Int(int64(j))))
+			j++
+		}
+		return &Term{Kind: KApp, Kids: kids}
+	}
+	return build(ty)
 }

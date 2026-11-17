@@ -80,6 +80,33 @@ func mapTypeNames(ty string, f func(string) string) string {
 		}
 		return "prod(" + strings.Join(parts, ", ") + ")"
 	}
+	// A RECORD'S AND A STRUCT'S FIELDS are types, in the order written (ADR 0128).
+	if core.IsRecord(ty) {
+		i := strings.Index(ty, "{")
+		head, body := ty[:i], ty[i+1:len(ty)-1]
+		var parts []string
+		depth, start := 0, 0
+		for j := 0; j <= len(body); j++ {
+			if j < len(body) {
+				switch body[j] {
+				case '(', '{':
+					depth++
+				case ')', '}':
+					depth--
+				}
+				if !(body[j] == ';' && depth == 0) {
+					continue
+				}
+			}
+			part := body[start:j]
+			if k := strings.Index(part, ": "); k >= 0 {
+				part = part[:k+2] + mapTypeNames(part[k+2:], f)
+			}
+			parts = append(parts, part)
+			start = j + 2
+		}
+		return head + "{" + strings.Join(parts, "; ") + "}"
+	}
 	if ctor, args, ok := core.Applied(ty); ok {
 		for i, a := range args {
 			args[i] = mapTypeNames(a, f)

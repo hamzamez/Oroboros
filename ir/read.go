@@ -389,6 +389,25 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 			s.Args = append(s.Args, kv...)
 		}
 		return s, nil
+	case OCellRef:
+		// a struct's, (cell-ref τ %leaf…) (llvm.md §6b), or a scalar's below
+		if len(args) >= 2 && args[0].Kind != core.KName {
+			if s.Type, err = typeOf(args[0]); err != nil {
+				return s, err
+			}
+			s.Args, err = rd.values(args[1:])
+			return s, err
+		}
+		s.Args, err = rd.values(args)
+		return s, err
+	case OCellGet:
+		if len(args) == 2 && args[1].Kind == core.KInt {
+			s.Lit = args[1]
+			s.Args, err = rd.values(args[:1])
+			return s, err
+		}
+		s.Args, err = rd.values(args)
+		return s, err
 	case OCellFresh:
 		if len(args) != 1 {
 			return s, fmt.Errorf("(cell-fresh τ)")

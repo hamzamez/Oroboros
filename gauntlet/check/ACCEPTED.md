@@ -3618,3 +3618,15 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 change(s):
 
 - emitted text changed — `examples/big/fact.oro windows`
+
+## 2026-11-17 — on 1ff542f, with uncommitted changes
+
+**Reason:** ADR 0125: a dead region crosses a call as the callee's token; fact, fib and pair on windows call mul-small~tok / add~tok; 20000! 0.77 on windows32, fib(200000) 0.83 on windows, pair within the floor
+
+660 runs: 445 emitted, 215 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+3 change(s):
+
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`

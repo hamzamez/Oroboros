@@ -26,7 +26,8 @@ func TestAnExportsNumeralIsANumeralsTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fib on windows: %v", err)
 	}
-	for _, want := range []string{"ptr @nat.add(", "@llvm.x86.addcarry.64"} {
+	// fib's loop hands its dead numeral to add's token variant (ADR 0125)
+	for _, want := range []string{`ptr @"nat.add~tok"(`, "@llvm.x86.addcarry.64"} {
 		if !strings.Contains(code, want) {
 			t.Errorf("fib's file holds no %q: K(ℕ*)'s text is not in it", want)
 		}

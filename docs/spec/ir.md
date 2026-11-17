@@ -399,7 +399,11 @@ a verifier, run after lowering and after every pass that rewrites the IR.
     region** of the same size, W11's, named by nothing but its build and the point that hands it on;
   - a loop's token parameter is **linear**: on every path through the body it is consumed exactly
     once, by one `reuse` or one `discard` (its release unless null), and every source of it, the
-    loop's `init` and each `continue`, is null or such a storage.
+    loop's `init` and each `continue`, is null or such a storage;
+  - **across a call** (ADR 0125): a call of an instance's token variant `f~tok` consumes the pair
+    it is handed last, (tok, k), as a `reuse-fit` would, at the width of its result's elements; and
+    inside the variant the token parameters are a source, named once, by the `reuse-fit` that
+    stores the table every return yields, outside any loop.
 - **W15 (a raw region's layout).** A table Storage gave a region with no zero fill (`alloc-raw`, ADR
   0097) was asked at w bytes an element, recorded on its statement (`RawW`), and the allocator wrote
   its zero byte at n·w + 8 and n + 8. Its final layout b, ElemBytes of its IR_P type, must be 1 or

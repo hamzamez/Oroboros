@@ -484,6 +484,13 @@ the round: a file path could run on past its end into whatever memory followed. 
    ([rangeload-2026-11-17](gauntlet/results/rangeload-2026-11-17.md)): the 32-bit compiler LLVM
    provides ignores that fact, and making the multiplication what Go's is bought 4%. Big integers on
    32-bit Windows are slow for another reason, still to be measured;
+- **added, at hamza's word**: ~~measure where the time goes~~ **done**
+  ([alloc-2026-11-17](gauntlet/results/alloc-2026-11-17.md)): a fresh, zeroed allocation at every
+  step of a big-integer loop. ~~Both causes fixed~~ **done**
+  ([filltail-2026-11-17](gauntlet/results/filltail-2026-11-17.md),
+  [reusecall-2026-11-17](gauntlet/results/reusecall-2026-11-17.md)): a result the compiler proves
+  fully written is no longer zeroed first, and a value's memory freed at one step now holds the
+  next step's result, so 20000! allocates 22 times instead of 20,000;
 3. **the Windows API by header**, with TinyRetroPad's own calls declared that way;
 4. **32-bit integers** on 32-bit Windows;
 5. **the remaining facts for LLVM**, one kind at a time;

@@ -108,6 +108,12 @@ order:
    and `range` for an i64's high half and reads `zext`/`and`; the representation form (`load i32`,
    one `mull`, D5's) buys 4% on 20000!, whose product alone is 8.3× Go/386. The cause is outside the
    multiply, owed to a measurement (allocation per step the candidate); `divl` a few percent, waiting;
+— *added at hamza's word, ahead of item 3* ("Measure the allocation first", then "Build both fixes
+   first"): ~~the allocation measured~~ ([alloc](gauntlet/results/alloc-2026-11-17.md): 20,000
+   zeroed allocations and 50,921 page faults on windows32's 20000!); ~~the written prefix with a
+   tail~~ ([filltail](gauntlet/results/filltail-2026-11-17.md), ADR 0097's proof extended);
+   ~~a dead region across a call~~ ([reusecall](gauntlet/results/reusecall-2026-11-17.md), ADR
+   0125): 22 allocations where there were 20,000;
 3. **D1 by header (W1) with TinyRetroPad 6c**: Win32's type names in their headers
    (`windows/basetsd`, `windows/minwindef`), one per data model, and the 67 functions TinyRetroPad
    calls (downloaded 2026-10-24 at `42f4c6c` as data, never built or run) declared by header and
@@ -573,6 +579,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | The windows family is a fibration over Win32 (`win32` glued by each member); a triple is a model: data model, address space in bytes, ISA, toolchain | [0122](docs/decisions/0122-the-windows-family-is-a-fibration-and-a-triple-is-a-model.md) |
 | A triple's runtime, what its code generator calls (i686's 64-bit division), is a library in the language linked into every program; a host result's set is a refinement fact | [0123](docs/decisions/0123-a-triples-runtime-is-a-library-in-the-language.md) |
 | K(ℕ\*)'s base is the triple's native word, 2⁶⁴ on x86_64 and 2³² on i686, one parameter block; the two-digit lemma reads the unsigned word; amends 0106 | [0124](docs/decisions/0124-k-n-stars-base-is-the-triples-native-word.md) |
+| A dead region crosses a call as the callee's token: release(p) ; f(x) = f′(x, p), an instance's variant `f~tok` storing its result by fit; W12 across the call | [0125](docs/decisions/0125-a-dead-region-crosses-a-call-as-the-callees-token.md) |
 
 ## Build commands
 

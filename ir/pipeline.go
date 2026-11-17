@@ -234,6 +234,16 @@ func afterRung(tg *emit.Target, f *Func, name string, sig *core.Sig, checked boo
 	// makes no table, so this ends.
 	for round := 0; ; round++ {
 		tables := Storage(tg, f)
+		// A TOKEN VARIANT'S RESULT IS STORED IN ITS TOKEN, by fit (ADR 0125),
+		// placed once the storage is and before ι substitutes the allocator
+		if round == 0 && len(f.ResultTok) == 2 {
+			if err := TakeResultToken(tg, f); err != nil {
+				return nil, fmt.Errorf("%s: %v", name, err)
+			}
+			if err := CheckReuse(tg, f); err != nil {
+				return nil, fmt.Errorf("%s: %v", name, err)
+			}
+		}
 		// A TABLE'S RELEASE AT ITS DEATH (ADR 0096), placed once the program's
 		// tables have their storage and before ι substitutes the terms, and
 		// checked there by W11, independently of the pass.

@@ -279,6 +279,10 @@ type Func struct {
 	// lowering is transparent to a mark, so without this an obligation nothing
 	// decided would be emitted as if it had been (hazard-2026-10-02).
 	undecided int
+	// ResultTok is a token variant's two last parameters, (tok, k_tok): a dead
+	// region its caller hands it and that region's element count, which its
+	// result's storage takes by fit (ADR 0125). Empty for every other function.
+	ResultTok []V
 }
 
 // NV is the number of values the function defines.

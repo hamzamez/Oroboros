@@ -47,6 +47,9 @@ func digitMax(tg *emit.Target) ep {
 // natPrefix names K(ℕ*)'s program functions.
 const natPrefix = "nat."
 
+// TokSuffix names an instance's token variant (ADR 0125): `nat.mul-small~tok`.
+const TokSuffix = "~tok"
+
 // natCalled are the instances called rather than inlined: those whose result
 // is a numeral (or text) and whose code is large. The small ones, `of`, the
 // comparisons, `rem-small`, `div-small` and the bound checks, stay inlined: a
@@ -100,6 +103,9 @@ func natCallee(tg *emit.Target, fn string) (string, error) {
 // stages an entry takes after its rung. Every operation must be proven: a
 // callee has no site whose facts could prove more.
 func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
+	// A TOKEN VARIANT, f~tok (ADR 0125): f's parameters, then a dead region and
+	// its element count, which f's result's storage takes by fit
+	fn, variant := strings.CutSuffix(fn, TokSuffix)
 	of := fn
 	if PlantNatFault && fn == "sub" {
 		of = "add" // the planted fault, where the difference is now built
@@ -124,9 +130,18 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 			sig.Params[i].Type = fmt.Sprintf("int 1 %d", 1<<28-1)
 		}
 	}
-	f, err := Lower(tg, name, &sig, inst.Term, Options{Decided: true})
+	term := inst.Term
+	if variant {
+		sig.Params = append(sig.Params, core.SigParam{Name: "#tok", Type: "ptr"},
+			core.SigParam{Name: "#ktok", Type: fmt.Sprintf("int 0 %d", tg.MaxLenOf())})
+		term = core.FnClosed(append(append([]string(nil), inst.Term.Params...), "#tok", "#ktok"), inst.Term.Closed())
+	}
+	f, err := Lower(tg, name, &sig, term, Options{Decided: true})
 	if err != nil {
 		return nil, fmt.Errorf("the built-in K(ℕ*)'s %s as a function: %v", fn, err)
+	}
+	if variant {
+		f.ResultTok = append([]V(nil), f.Params[len(f.Params)-2:]...)
 	}
 	leg := Decide(tg, f, false)
 	if leg, err = afterRung(tg, f, name, &sig, false, leg, func(Note) {}); err != nil {
@@ -212,8 +227,11 @@ func registerProgramFunc(tg *emit.Target, f *Func) {
 		}
 		ret = "{ " + strings.Join(ts, ", ") + " }"
 	}
+	// A TOKEN VARIANT RELEASES OR REUSES MEMORY (ADR 0125 item 5), so its call
+	// keeps its place among its caller's effects
+	pure := (strings.HasPrefix(f.Name, natPrefix) || funcPure(tg, f)) && len(f.ResultTok) == 0
 	tg.Prims[f.Name] = emit.Prim{Name: f.Name, Args: args, Result: res, Results: results, Kind: "expr",
-		Pure: strings.HasPrefix(f.Name, natPrefix) || funcPure(tg, f), Program: true,
+		Pure: pure, Program: true,
 		Form: fmt.Sprintf("call %s %s(%s)", ret, llvmName(f.Name), strings.Join(holes, ", "))}
 	programFuncs[f.Name] = true
 }
@@ -428,7 +446,11 @@ type CallSetError struct {
 func (e *CallSetError) Error() string { return e.Msg }
 
 // instance is the K(ℕ*) instance a program function realizes.
-func (e *CallSetError) instance() string { return strings.TrimPrefix(e.Callee, natPrefix) }
+// instance is the instance a failing call names, a token variant's being its
+// base's (ADR 0125): P4 inlines the base, and the variant goes with it
+func (e *CallSetError) instance() string {
+	return strings.TrimSuffix(strings.TrimPrefix(e.Callee, natPrefix), TokSuffix)
+}
 
 // CheckCallSets is the obligation at each call of a program function: every
 // table argument's element fact lies in its parameter's declared element set,

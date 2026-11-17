@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"strings"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -68,12 +69,16 @@ type relStmt struct {
 	n, w V     // the count and the width
 }
 
-// an allocation statement: q = alloc(count, w) at r.Stmts[i]
+// an allocation statement: q = alloc(count, w) at r.Stmts[i], or a call of an
+// instance with a token variant, whose result is a request of the run's size at
+// width wc (ADR 0125)
 type allocStmt struct {
 	r    *Region
 	i    int
 	size int64
 	n, w V
+	call bool
+	wc   int64
 }
 
 // staticInt is v's value when a constant or a singleton fact gives it.
@@ -169,10 +174,15 @@ func Reuse(tg *emit.Target, f *Func) int {
 	}
 	isAlloc := func(r *Region, i int) (allocStmt, bool) {
 		s := &r.Stmts[i]
+		// A CALL WHOSE RESULT A TOKEN CAN SERVE (ADR 0125): an instance with a
+		// token variant, its result a request of the run's size
+		if termRealized(tg, "reuse-fit") && !PlantNoTokenCall && s.Op == OCall && len(s.Res) == 1 && hasTokVariant(tg, s.Name) {
+			return allocStmt{r: r, i: i, size: -1, n: -1, w: -1, call: true, wc: int64(ElemBytes(tg, f.Types[s.Res[0]]))}, true
+		}
 		if s.Op != OCall || (s.Name != "alloc" && s.Name != "alloc-raw") || len(s.Args) != 2 {
 			return allocStmt{}, false
 		}
-		return allocStmt{r, i, size(s.Args[0], s.Args[1]), s.Args[0], s.Args[1]}, true
+		return allocStmt{r: r, i: i, size: size(s.Args[0], s.Args[1]), n: s.Args[0], w: s.Args[1]}, true
 	}
 	fits := func(a, b int64) bool { return PlantReuseSize || (a >= 0 && a == b) }
 	// by fit: either size the run's, the widths one constant
@@ -182,6 +192,9 @@ func Reuse(tg *emit.Target, f *Func) int {
 			return false
 		}
 		x, ok1 := staticInt(def, fs, relW)
+		if a.call {
+			return ok1 && x == a.wc
+		}
 		y, ok2 := staticInt(def, fs, a.w)
 		return ok1 && ok2 && x == y
 	}
@@ -193,6 +206,18 @@ func Reuse(tg *emit.Target, f *Func) int {
 			return []V{tok, a.n, a.w}
 		}
 		return []V{tok, k, a.n, a.w}
+	}
+	// takeFit hands the token (tok, k) to a: a reuse by fit for an
+	// allocation, the token variant for a call (ADR 0125 item 3)
+	takeFit := func(s *Stmt, tok, k V, a allocStmt) {
+		if a.call {
+			if PlantFitCount && len(s.Args) > 0 {
+				k = s.Args[0]
+			}
+			s.Name, s.Args = s.Name+TokSuffix, append(append([]V(nil), s.Args...), tok, k)
+			return
+		}
+		s.Name, s.Args = fitOf(s.Name), fitArgs(tok, k, a)
 	}
 	n := 0
 	used := map[*Region]map[int]bool{} // a release already handed on
@@ -215,10 +240,10 @@ func Reuse(tg *emit.Target, f *Func) int {
 				for k, rel := range pending {
 					s := &r.Stmts[i]
 					switch {
-					case rel.size >= 0 && fits(rel.size, a.size):
+					case !a.call && rel.size >= 0 && fits(rel.size, a.size):
 						s.Name, s.Args = reuseOf(s.Name), []V{rel.p, s.Args[0], s.Args[1]}
 					case byFit(rel.size, rel.w, a):
-						s.Name, s.Args = fitOf(s.Name), fitArgs(rel.p, rel.n, a)
+						takeFit(s, rel.p, rel.n, a)
 					default:
 						continue
 					}
@@ -288,7 +313,10 @@ func Reuse(tg *emit.Target, f *Func) int {
 					continue
 				}
 				as := &home.Stmts[i]
-				count, wv := as.Args[0], as.Args[1]
+				var count, wv V = -1, -1
+				if !a.call {
+					count, wv = as.Args[0], as.Args[1]
+				}
 				tok := fresh("ptr")
 				body.Params = append(body.Params, tok)
 				// by fit, the token's element count travels beside it: 0 on entry
@@ -313,7 +341,10 @@ func Reuse(tg *emit.Target, f *Func) int {
 					// with constants of its own where the size is static, and with
 					// the token's own count where it is the run's
 					if arm != home && arm.T != TUnreachable && !PlantReuseNoDiscard {
-						c, _ := staticInt(def, fs, wv)
+						c := a.wc
+						if !a.call {
+							c, _ = staticInt(def, fs, wv)
+						}
 						kv, cv, ok := kp, fresh("int"), fresh("bool")
 						if !dyn {
 							k, _ := staticInt(def, fs, count)
@@ -345,7 +376,7 @@ func Reuse(tg *emit.Target, f *Func) int {
 					}
 				}
 				if dyn {
-					as.Name, as.Args = fitOf(as.Name), fitArgs(tok, kp, a)
+					takeFit(as, tok, kp, a)
 				} else {
 					as.Name, as.Args = reuseOf(as.Name), []V{tok, count, wv}
 				}
@@ -515,10 +546,17 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 	// BY FIT (R1d): the token is null, or the storage of a table handed on as
 	// a static token is, and k beside it is that table's own length, so the
 	// comparison n ≤ k and a token given back are the region's (W12, re-derived)
-	fitToken := func(v, k V, w V) error {
+	fitToken := func(v, k V, wn int64) error {
 		s := def[v]
 		switch {
 		case s != nil && s.Op == OCall && s.Name == "llvm.null":
+			return nil
+		// A TOKEN VARIANT'S OWN PARAMETERS (ADR 0125 item 4): the caller's W12
+		// proved the pair it hands; here they must travel together
+		case len(f.ResultTok) == 2 && v == f.ResultTok[0]:
+			if k != f.ResultTok[1] {
+				return fmt.Errorf("W12: a token variant's token is taken with a count not its own")
+			}
 			return nil
 		case s != nil && s.Op == OCall && regionOp(s.Name):
 			a, err := deadRegion(v)
@@ -528,9 +566,8 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 			if k != a.Args[len(a.Args)-2] {
 				return fmt.Errorf("W12: the count handed with a dead build's region %%%d is not its allocation's", v)
 			}
-			x, ok1 := staticInt(def, fs, w)
 			y, ok2 := staticInt(def, fs, a.Args[len(a.Args)-1])
-			if !ok1 || !ok2 || x != y {
+			if !ok2 || wn != y {
 				return fmt.Errorf("W12: a token of a dead build's width is handed to an allocation of another")
 			}
 			return nil
@@ -542,7 +579,7 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 			if d := def[k]; d == nil || d.Op != OLen || c.rootOf(d.Args[0]) != t {
 				return fmt.Errorf("W12: the count handed with %%%d's region is not its length", t)
 			}
-			if x, ok := staticInt(def, fs, w); !ok || x != int64(ElemBytes(tg, f.Types[t])) {
+			if wn != int64(ElemBytes(tg, f.Types[t])) {
 				return fmt.Errorf("W12: a token of %%%d's width is handed to an allocation of another", t)
 			}
 			here := defAt[v]
@@ -568,8 +605,7 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 	// a reuse by fit, [tok, k, n, w]: local, its token checked where it stands;
 	// a loop's, its pair checked at every source, and the token consumed once
 	// on every path, a discard giving it back by the same k
-	checkFit := func(s *Stmt) error {
-		tok, k, w := s.Args[0], s.Args[1], s.Args[3]
+	checkFit := func(tok, k V, w int64) error {
 		body, isParam := paramOf[tok]
 		if !isParam {
 			return fitToken(tok, k, w)
@@ -603,6 +639,14 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 			uses := 0
 			for p := arm; ; {
 				for _, st := range p.Stmts {
+					// a token variant's call consumes the pair it is handed last
+					if tokCall(&st) && st.Args[len(st.Args)-2] == tok {
+						if st.Args[len(st.Args)-1] != k {
+							return fmt.Errorf("W12: a fitting token is handed to a call with a count not its own")
+						}
+						uses++
+						continue
+					}
 					if st.Op != OCall || len(st.Args) < 2 || st.Args[0] != tok {
 						continue
 					}
@@ -638,11 +682,25 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 		}
 		return nil
 	}
+	if err := checkResultToken(f); err != nil {
+		return err
+	}
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
 			if err == nil && s.Op == OCall && (s.Name == "reuse-fit" || s.Name == "reuse-fit-raw") && len(s.Args) == 4 {
-				err = checkFit(s)
+				w, ok := staticInt(def, fs, s.Args[3])
+				if !ok {
+					err = fmt.Errorf("W12: a reuse by fit whose width is not static")
+					return
+				}
+				err = checkFit(s.Args[0], s.Args[1], w)
+				continue
+			}
+			// A TOKEN VARIANT'S CALL (ADR 0125 item 4): its pair is a fitting
+			// token at the width of its result's elements
+			if err == nil && tokCall(s) && len(s.Res) == 1 {
+				err = checkFit(s.Args[len(s.Args)-2], s.Args[len(s.Args)-1], int64(ElemBytes(tg, f.Types[s.Res[0]])))
 				continue
 			}
 			if err != nil || s.Op != OCall || (s.Name != "reuse" && s.Name != "reuse-raw") || len(s.Args) != 3 {
@@ -706,4 +764,164 @@ func CheckReuse(tg *emit.Target, f *Func) error {
 		}
 	})
 	return err
+}
+
+// PlantTokenAnyBuild takes the first build a return yields as the result's,
+// without asking that every return yields it: W12 must refuse the variant whose
+// token is then consumed on some paths only.
+var PlantTokenAnyBuild bool
+
+// TakeResultToken is ADR 0125 item 2 on a token variant: the one allocation
+// whose table every return yields, outside any loop, becomes reuse-fit(tok,
+// k_tok, n, w). An instance whose returns yield more than one table, or a
+// table built in a loop, has no variant.
+func TakeResultToken(tg *emit.Target, f *Func) error {
+	tok, k := f.ResultTok[0], f.ResultTok[1]
+	a, err := resultAlloc(f)
+	if err != nil {
+		return err
+	}
+	switch a.Name {
+	case "alloc", "alloc-raw":
+	default:
+		return fmt.Errorf("its result's storage is %s, not an allocation a token can serve", a.Name)
+	}
+	a.Name, a.Args = fitOf(a.Name), []V{tok, k, a.Args[0], a.Args[1]}
+	return nil
+}
+
+// resultAlloc is the allocation that stores the table every return of f
+// yields, outside any loop: the token variant's consumer, found by the pass and
+// re-derived by W12.
+func resultAlloc(f *Func) (*Stmt, error) {
+	def := map[V]*Stmt{}
+	inLoop := map[*Stmt]bool{}
+	alias := map[V]V{}
+	var walk func(r *Region, loop bool)
+	walk = func(r *Region, loop bool) {
+		for _, pi := range r.Pis {
+			alias[pi.V] = pi.Of
+		}
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			for _, v := range s.Res {
+				def[v] = s
+			}
+			inLoop[s] = loop
+			for _, sub := range s.Sub {
+				walk(sub, loop || s.Op == OLoop)
+			}
+		}
+		if r.T == TBranch {
+			walk(r.Then, loop)
+			walk(r.Else, loop)
+		}
+	}
+	walk(f.Body, false)
+	root := func(v V) V {
+		for {
+			a, ok := alias[v]
+			if !ok {
+				return v
+			}
+			v = a
+		}
+	}
+	var build *Stmt
+	ok := true
+	var leaves func(r *Region)
+	leaves = func(r *Region) {
+		switch r.T {
+		case TBranch:
+			leaves(r.Then)
+			leaves(r.Else)
+		case TYield:
+			for _, y := range r.Args {
+				s := def[root(y)]
+				switch {
+				case s == nil || (s.Op != OBuild && s.Op != OTabulate) || len(s.Store) != 1:
+					ok = false
+				case build == nil:
+					build = s
+				case build != s && !PlantTokenAnyBuild:
+					ok = false
+				}
+			}
+		}
+	}
+	leaves(f.Body)
+	if build == nil || !ok {
+		return nil, fmt.Errorf("its returns yield more than one table, or one no build stores, so no token serves its result (ADR 0125)")
+	}
+	if inLoop[build] {
+		return nil, fmt.Errorf("its result is built in a loop, so a token would be taken more than once (ADR 0125)")
+	}
+	a := def[build.Store[0]]
+	if a == nil || a.Op != OCall || inLoop[a] {
+		return nil, fmt.Errorf("its result's storage is not an allocation outside a loop (ADR 0125)")
+	}
+	return a, nil
+}
+
+// tokCall says s calls an instance's token variant, whose last two arguments
+// are the token and its count (ADR 0125).
+func tokCall(s *Stmt) bool {
+	return s.Op == OCall && strings.HasSuffix(s.Name, TokSuffix) && len(s.Args) >= 2
+}
+
+// checkResultToken is W12 inside a token variant (ADR 0125 item 4): its token
+// is named by exactly one statement, a reuse by fit that stores the table
+// every return yields, outside any loop, so it is consumed once on every path
+// that returns. A path into ∅ returns nothing.
+func checkResultToken(f *Func) error {
+	if len(f.ResultTok) != 2 {
+		return nil
+	}
+	tok := f.ResultTok[0]
+	var uses []*Stmt
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			for _, a := range r.Stmts[i].Args {
+				if a == tok {
+					uses = append(uses, &r.Stmts[i])
+				}
+			}
+		}
+		if r.T == TContinue || r.T == TBreak || r.T == TYield {
+			for _, a := range r.Args {
+				if a == tok {
+					uses = append(uses, nil)
+				}
+			}
+		}
+	})
+	if len(uses) != 1 || uses[0] == nil {
+		return fmt.Errorf("W12: a token variant's token is named %d times, not once by its result's storage", len(uses))
+	}
+	saved := PlantTokenAnyBuild
+	PlantTokenAnyBuild = false
+	a, err := resultAlloc(f)
+	PlantTokenAnyBuild = saved
+	if err != nil {
+		return fmt.Errorf("W12: a token variant's token is not consumed on every path that returns: %v", err)
+	}
+	if a != uses[0] || (a.Name != "reuse-fit" && a.Name != "reuse-fit-raw") {
+		return fmt.Errorf("W12: a token variant's token is taken by %s, not by its result's storage", uses[0].Name)
+	}
+	return nil
+}
+
+// PlantNoTokenCall hands no token to a call: TestADeadRegionCrossesACall must
+// see the fact loop allocate at every step again.
+var PlantNoTokenCall bool
+
+// hasTokVariant says name is a K(ℕ*) instance with a token variant on tg,
+// built and decided (ADR 0125 item 2).
+func hasTokVariant(tg *emit.Target, name string) bool {
+	fn, ok := strings.CutPrefix(name, natPrefix)
+	if !ok || strings.HasSuffix(fn, TokSuffix) || !natCalled[fn] {
+		return false
+	}
+	_, err := natCallee(tg, fn+TokSuffix)
+	return err == nil
 }

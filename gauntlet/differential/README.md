@@ -123,6 +123,7 @@ of the check found one more, `word-wide-native` on JavaScript.
 | `record-zero` | `zero(T) with { … }` on a nested record set |
 | `record-loop` | a record carried by a loop and by a cell, curried at each binder |
 | `record-order` | a table of records written in two orders, read through canonical projections |
+| `record-buffer`, `tuple-buffer` | a buffer of records, of tuples, written in program order and read back |
 | `table-alloc` | `alloc`, `table` as a rule, `len`, indexing |
 | `table-bool` | `build`, `set`, a linear buffer, and the x86 element width |
 | `array-literal` | `array` as a graph, and a dynamic index that cannot fold |

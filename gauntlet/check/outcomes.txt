@@ -1292,6 +1292,10 @@
 == gauntlet/differential/cases/read-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/read-loop.oro java emitted 2c615804f5a7f837419d164183a56ccc495300334ce2c96776998db46f9e8217
 == gauntlet/differential/cases/read-loop.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
+== gauntlet/differential/cases/record-buffer.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/record-buffer.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/record-buffer.oro java emitted 8c23fdce5e5c98ab1a6ba17034e10cca37120cb7393de8f8d965aa1ee470d8b4
+== gauntlet/differential/cases/record-buffer.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/record-lens.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/record-lens.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/record-lens.oro java emitted 6fba21275aae225899fcf12fb2b9bb56492433ed60faa53b834371bd3cd1ae97
@@ -1362,6 +1366,10 @@
 == gauntlet/differential/cases/try-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/try-loop.oro java emitted 0d2df652fd04367563a95b0f092084f9880180667dd3303f18b15171dedc0b05
 == gauntlet/differential/cases/try-loop.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
+== gauntlet/differential/cases/tuple-buffer.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/tuple-buffer.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/tuple-buffer.oro java emitted ef03992303e0e1da65526c48a2b8fb95b884c0153a51215bd9d44c0dd5f9a9fd
+== gauntlet/differential/cases/tuple-buffer.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/u128-fact.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/u128-fact.oro js refused
    gen: gauntlet/differential/cases/u128-fact.oro: in `num/u128`.add: `go/math/bits`.Add64 is not bound — it is not a parameter, not a definition, and not a primitive on this target

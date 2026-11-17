@@ -484,6 +484,23 @@ func (f *flattener) arityOf(t *core.Term) int {
 	if root := BufferRoot(t); root != "" {
 		return f.arity[root]
 	}
+	// A LOOP THAT THREADS A PRODUCT TABLE yields a version of it (ADR 0018's
+	// threaded buffer, through the state translation's loops): a program-order
+	// store of a record or a tuple, `b[k] := (…)`, binds the filled buffer by a
+	// let before the loop that reads it (records-2026-11-17 §4).
+	if f.isKind(t, "iterate") && !PlantNoLoopVersion {
+		k := 0
+		f.threads(t, func(z *core.Term) bool {
+			if a := f.arityOf(z); a > 0 {
+				k = a
+				return true
+			}
+			return false
+		})
+		if k > 0 {
+			return k
+		}
+	}
 	// A `build` that fills itself with products IS a product table, and this is
 	// how one reaches a `let`: `(let (build …) (fn (sp) …))` is what a helper
 	// returning a table becomes once reduction has inlined it, so without this
@@ -539,7 +556,7 @@ func (f *flattener) storedArity(body *core.Term, name string) int {
 			t.Kids[0].Name == "let" && t.Kids[2].Kind == core.KFn &&
 			len(t.Kids[2].Params) == 1 {
 			b, raw, _ := openFresh(t.Kids[2], map[string]bool{}, mangle)
-			if alias[rootOf(t.Kids[1])] {
+			if alias[rootOf(t.Kids[1])] || f.threads(t.Kids[1], func(z *core.Term) bool { return alias[rootOf(z)] }) {
 				alias[raw[0]] = true
 			}
 			walk(t.Kids[1])
@@ -571,6 +588,24 @@ func (f *flattener) storedArity(body *core.Term, name string) int {
 	}
 	return found
 }
+
+// threads reports a loop one of whose initializers satisfies p: the loop's
+// value, a version of what it threads, where the initializer is a buffer.
+func (f *flattener) threads(t *core.Term, p func(*core.Term) bool) bool {
+	if !f.isKind(t, "iterate") || len(t.Kids) < 2 {
+		return false
+	}
+	for _, z := range t.Kids[2:] {
+		if p(z) {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantNoLoopVersion forgets that a loop threading a product table yields a
+// version of it: a buffer of tuples written in program order is refused again.
+var PlantNoLoopVersion bool
 
 // PlantNoProductElim leaves a tuple pattern on a table's element un-flattened,
 // finding 64's shape: TestATuplePatternOnAnElementIsItsProjections must catch

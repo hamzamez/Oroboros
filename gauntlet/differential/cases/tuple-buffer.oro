@@ -1,0 +1,21 @@
+// A BUFFER OF TUPLES WRITTEN IN PROGRAM ORDER, ON FOUR TARGETS (records-2026-11-17
+// §4; products.md).
+// expect: 99 307 1685
+// inputs: 0 1 4
+//
+// The state translation threads the buffer through the loop that fills it, and
+// a let binds the filled buffer before the loop that reads it: the loop's value
+// is a version of the buffer, so it carries the product's arity (emit/product.go,
+// arityOf). Refused before, "(k + 1, k * 2) is 2 values where one is wanted".
+//
+//   b[i] = (i + 1, 2i),  acc = Σ_{i=0..n} (i + 1)·(3·b[i][1] + 100 − b[i][0]) = Σ (i + 1)·(5i + 99)
+fn run(n ∈ 0..50) (Int) {
+    var b := array { (0, 0) : _ ∈ 0..n }
+    loop k = 0 {
+        k <= n -> { b[k] := (k + 1, k * 2); again(k + 1) }
+        else -> loop i = 0, acc = 0 {
+            i > n -> acc
+            else -> again(i + 1, acc + (i + 1) * (b[i][1] * 3 + 100 - b[i][0]))
+        }
+    }
+}

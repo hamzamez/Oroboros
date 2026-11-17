@@ -135,8 +135,8 @@ order:
    ([records-research.md](docs/records-research.md), ADR 0128, hamza: "the whole record, and yes to
    r with {}"), being built. Step 1, the record in the language, built
    ([records](gauntlet/results/records-2026-11-17.md)): five cases on four targets, nested records
-   and an export's record parameter; a record as a map's value and a buffer of records written in
-   program order owed, each the product's limit, failing for tuples too. Step 2, the host struct,
+   and an export's record parameter, a buffer of records or tuples written in program order; a
+   record as a map's value owed, the product's limit, failing for tuples too. Step 2, the host struct,
    next; `wsprintfA` is
    no wall (two integer renderings, ADR 0095).
 

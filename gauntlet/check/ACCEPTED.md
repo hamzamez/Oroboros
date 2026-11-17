@@ -3703,3 +3703,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/record-zero.oro java`
 - new source — `gauntlet/differential/cases/record-zero.oro js`
 - new source — `gauntlet/differential/cases/record-zero.oro windows`
+
+## 2026-11-17 — on 1beaf988, with uncommitted changes
+
+**Reason:** records step 1: a buffer of products written in program order (record-buffer, tuple-buffer cases); a loop threading a product table yields a version of it
+
+688 runs: 473 emitted, 215 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+8 change(s):
+
+- new source — `gauntlet/differential/cases/record-buffer.oro go`
+- new source — `gauntlet/differential/cases/record-buffer.oro java`
+- new source — `gauntlet/differential/cases/record-buffer.oro js`
+- new source — `gauntlet/differential/cases/record-buffer.oro windows`
+- new source — `gauntlet/differential/cases/tuple-buffer.oro go`
+- new source — `gauntlet/differential/cases/tuple-buffer.oro java`
+- new source — `gauntlet/differential/cases/tuple-buffer.oro js`
+- new source — `gauntlet/differential/cases/tuple-buffer.oro windows`

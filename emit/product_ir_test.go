@@ -145,3 +145,22 @@ export fn mk(n ∈ 1..100) (Array(Int)) {
 		t.Errorf("the capacity is in slots, two per element:\n%s", got)
 	}
 }
+
+// A BUFFER OF PRODUCTS WRITTEN IN PROGRAM ORDER: the state translation threads
+// the buffer through the loop that fills it, which a let binds before the loop
+// that reads it, so the loop's value is a version of the buffer and carries
+// its arity (records-2026-11-17 §4). The fault that forgets it refuses the
+// program again.
+func TestABufferOfProductsWrittenInProgramOrder(t *testing.T) {
+	src := "export fn run(n ∈ 0..50) (Int) {\n    var b := array { (0, 0) : _ ∈ 0..n }\n" +
+		"    loop k = 0 {\n        k <= n -> { b[k] := (k + 1, k * 2); again(k + 1) }\n" +
+		"        else -> b[n][1] - b[n][0]\n    }\n}\n"
+	if _, err := genFlat(t, src, "native"); err != nil {
+		t.Fatalf("a buffer of tuples in program order: %v", err)
+	}
+	emit.PlantNoLoopVersion = true
+	defer func() { emit.PlantNoLoopVersion = false }()
+	if _, err := genFlat(t, src, "native"); err == nil {
+		t.Errorf("forgetting the loop's version still emits: the case cannot fail")
+	}
+}

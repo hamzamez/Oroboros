@@ -1,0 +1,26 @@
+// A BUFFER OF RECORDS, STORED AND READ BACK, ON FOUR TARGETS (data.md §4.7;
+// ADR 0128).
+// inputs: 0 1 4
+// expect: 99 307 1685
+//
+// A record stored as data is placed by its shape: the buffer's element labels
+// are those of the records stored into it, a least fixed point through the
+// buffer's versions, and each record is the tuple of its canonical order (x, y),
+// flattened into the buffer as any tuple is (products.md). The records are
+// written y first, so an element stored in written order and read through a
+// canonical projection would answer otherwise. A table given by a rule is
+// copied to each read, so it is the store that makes the record data here.
+//
+//   b[i].x = i + 1,  b[i].y = 2i
+//   acc = Σ_{i=0..n} (i + 1)·(3·b[i].y + 100 − b[i].x) = Σ (i + 1)·(5i + 99)
+//   n = 0: 99;  n = 1: 99 + 2·104 = 307;  n = 4: 99 + 208 + 327 + 456 + 595 = 1685
+fn run(n ∈ 0..50) (Int) {
+    var b := array { record { x : 0, y : 0 } : _ ∈ 0..n }
+    loop k = 0 {
+        k <= n -> { b[k] := record { y : k * 2, x : k + 1 }; again(k + 1) }
+        else -> loop i = 0, acc = 0 {
+            i > n -> acc
+            else -> again(i + 1, acc + (i + 1) * (b[i].y * 3 + 100 - b[i].x))
+        }
+    }
+}

@@ -4,7 +4,8 @@ Date: 2026-11-12
 Status: Accepted (hamza, 2026-11-12: "go ahead", the next step explained). **Reverses
 [ADR 0104](0104-k-n-star-is-in-base-2-63-the-largest-base-the-decision-proves.md) item 1** (B = 2⁶³),
 on [ADR 0105](0105-the-decisions-ends-are-192-bit-and-the-double-word-has-two-readings.md)'s wider
-ends.
+ends. **Item 1 amended by [ADR 0124](0124-k-n-stars-base-is-the-triples-native-word.md)**: the base is the triple's native word, 2⁶⁴ on
+x86_64 and 2³² on i686.
 
 ## Context
 

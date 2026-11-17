@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -226,5 +227,60 @@ func TestAHostResultBoundsAWhere(t *testing.T) {
 	emit.PlantHostResultUnassumed = false
 	if err == nil || !strings.Contains(err.Error(), "`<<` requires") {
 		t.Errorf("with no result set seeded the shift should be refused under `<<`'s requirement, got %v", err)
+	}
+}
+
+// K(ℕ*) IS IN THE TRIPLE'S DIGIT (ADR 0124): on windows32, B = 2³². A program
+// whose integers have no bound computes 300!, the 500th Fibonacci number, and
+// Algorithm D's quotients and remainders by numerals of 6 to 10 digits, and prints each by the tree
+// of divisions (300! is 65 digits, past the threshold of 32), and every line is
+// Go's math/big. THE PLANTED FAULT keeps the 64-bit block on the triple: the
+// double word's division by a word is then i128's, which i686 has no 2-by-1
+// division for, and the program is refused as it was before.
+func TestKNStarIsInTheTriplesDigit(t *testing.T) {
+	const src = `use win/print
+
+fn fact(n ∈ 0..300) (Nat) { loop acc = 1, i = 2 { i > n -> acc; else -> again(acc * i, i + 1) } }
+fn fib(n ∈ 0..500) (Nat) { loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) } }
+
+export fn main() {
+    f = fact(300)
+    g = fib(500)
+    print.print_str(big_str(f))
+    print.print_str(big_str(g))
+    print.print_str(big_str(f / 7^60))
+    print.print_str(big_str(f % (3^130 + 1)))
+    print.print_str(big_str((f * g + 7) % (2^300 + 1)))
+    print.print_str(big_str((0 - f) / 7^60))
+}
+`
+	fact := func(n int64) *big.Int { return new(big.Int).MulRange(1, n) }
+	fib := func(n int) *big.Int {
+		a, b := big.NewInt(0), big.NewInt(1)
+		for i := 0; i < n; i++ {
+			a, b = b, new(big.Int).Add(a, b)
+		}
+		return a
+	}
+	pow := func(b, e int64) *big.Int { return new(big.Int).Exp(big.NewInt(b), big.NewInt(e), nil) }
+	one := big.NewInt(1)
+	f, g := fact(300), fib(500)
+	q := new(big.Int).Quo(f, pow(7, 60))
+	r := new(big.Int).Rem(f, new(big.Int).Add(pow(3, 130), one))
+	m := new(big.Int).Rem(new(big.Int).Add(new(big.Int).Mul(f, g), big.NewInt(7)), new(big.Int).Add(pow(2, 300), one))
+	n := new(big.Int).Quo(new(big.Int).Neg(f), pow(7, 60))
+	want := strings.Join([]string{f.String(), g.String(), q.String(), r.String(), m.String(), n.String()}, "\n")
+	out, err := buildAndRun(t, src, "windows32", "")
+	if err != nil {
+		t.Fatalf("windows32: %v", err)
+	}
+	if got := strings.ReplaceAll(strings.TrimSpace(out), "\r\n", "\n"); got != want {
+		t.Errorf("windows32's K(ℕ*):\n%s\nwant\n%s", got, want)
+	}
+	emit.PlantNatBase64 = true
+	_, err = buildAndRunNoExec(t, src, "windows32")
+	emit.PlantNatBase64 = false
+	if err == nil || !strings.Contains(err.Error(), "no realization holds both") {
+		t.Errorf("with the 64-bit block on windows32 the program should be refused as before, so the test reaches the block; got %v", err)
 	}
 }

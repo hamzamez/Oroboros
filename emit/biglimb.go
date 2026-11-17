@@ -78,7 +78,7 @@ var bigLimbSrc string
 //go:embed bignum-host.oro
 var bigLimbHostSrc string
 
-// natNumSrc is K(ℕ*), numerals of any length in base 2³² with the signed
+// natNumSrc is K(ℕ*), numerals of any length in base 2^dbits with the signed
 // size last (ADR 0099): the integers on a target with no bignum, for a set
 // with no bound.
 //
@@ -108,18 +108,73 @@ var PlantSquareFault bool
 // nodes are c·P_j − 1, the add-back's shape, go wrong.
 var PlantTreeNoAddBack bool
 
+// natBase64 is the library's base block as natnum.oro states it, B = 2⁶⁴, and
+// natBase32 the block for a 32-bit word, B = 2³² (ADR 0124): β = 10⁹, the
+// largest power of 10 that is a digit, nine decimal digits a β-digit and ten a
+// digit. Every other line of the library reads the block by its names.
+const natBase64 = `dbits = 64
+// B − 1, the largest digit
+dm = 18446744073709551615
+// B / 4, so that B = bq · 4 is a product inside the word
+bq = 4611686018427387904
+// B / 2 − 1, the largest top digit that is not normalized
+bh1 = 9223372036854775807
+`
+
+const natBase32 = `dbits = 32
+// B − 1, the largest digit
+dm = 4294967295
+// B / 4, so that B = bq · 4 is a product inside the word
+bq = 1073741824
+// B / 2 − 1, the largest top digit that is not normalized
+bh1 = 2147483647
+`
+
+const natBeta64 = "kb = 1000000000000000000\nkd = 18\n"
+const natBeta32 = "kb = 1000000000\nkd = 9\n"
+const natDigits64 = "kdd = 20\n"
+const natDigits32 = "kdd = 10\n"
+
+// natSource is the library for the target's digit (ADR 0124): the base block
+// natnum.oro states at 64 bits, or the 32-bit one in its place, each found
+// exactly once, or the library is refused.
+func natSource(tgt *Target) (string, error) {
+	bits, err := tgt.DigitBits()
+	if err != nil {
+		return "", err
+	}
+	src := natNumSrc
+	if bits == 64 || PlantNatBase64 {
+		return src, nil
+	}
+	for _, r := range [][2]string{{natBase64, natBase32}, {natBeta64, natBeta32}, {natDigits64, natDigits32}} {
+		if strings.Count(src, r[0]) != 1 {
+			return "", fmt.Errorf("internal: natnum.oro's base block is not %q, once", r[0])
+		}
+		src = strings.Replace(src, r[0], r[1], 1)
+	}
+	return src, nil
+}
+
+// PlantNatBase64 keeps the 64-bit block on every triple: windows32's K(ℕ*)
+// is then refused, and TestKNStarIsInTheTriplesDigit must see it.
+var PlantNatBase64 bool
+
 // loadNatLib is K(ℕ*)'s library, as loadLimbLib.
 func loadNatLib(tgt *Target) (*limbLib, error) {
-	src := natNumSrc
+	src, err := natSource(tgt)
+	if err != nil {
+		return nil, err
+	}
 	if PlantKaratsubaFault {
 		src = strings.Replace(src, " - kslot(q, b2, w2, i - h) + c", " + c", 1)
 	}
 	if PlantSquareFault {
 		// T + diagonal, not 2T + diagonal: polarization's factor 2 dropped
 		src = strings.Replace(src, "t = 2 * kat(tr, 2 * i) + (p & dm) + c", "t = kat(tr, 2 * i) + (p & dm) + c", 1)
-		src = strings.Replace(src, "u = 2 * kat(tr, 2 * i + 1) + (p >> 64) + (t >> 64)", "u = kat(tr, 2 * i + 1) + (p >> 64) + (t >> 64)", 1)
+		src = strings.Replace(src, "u = 2 * kat(tr, 2 * i + 1) + (p >> dbits) + (t >> dbits)", "u = kat(tr, 2 * i + 1) + (p >> dbits) + (t >> dbits)", 1)
 		src = strings.Replace(src, "t = 2 * kslot(tr, b, 2 * m, 2 * i) + (p & dm) + c", "t = kslot(tr, b, 2 * m, 2 * i) + (p & dm) + c", 1)
-		src = strings.Replace(src, "u = 2 * kslot(tr, b, 2 * m, 2 * i + 1) + (p >> 64) + (t >> 64)", "u = kslot(tr, b, 2 * m, 2 * i + 1) + (p >> 64) + (t >> 64)", 1)
+		src = strings.Replace(src, "u = 2 * kslot(tr, b, 2 * m, 2 * i + 1) + (p >> dbits) + (t >> dbits)", "u = kslot(tr, b, 2 * m, 2 * i + 1) + (p >> dbits) + (t >> dbits)", 1)
 	}
 	if PlantTreeNoAddBack {
 		src = strings.Replace(src, `            o[sb + jq + k] != 0 -> {

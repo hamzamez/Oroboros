@@ -170,10 +170,10 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 		}
 		leg = Decide(tg, f, checked)
 		// A NUMERAL'S RESULT IS A CLAIM ITS BODY PROVES (ADR 0072, on a
-		// table): every returned table's digits in [0, 2⁶⁴), by its stores
+		// table): every returned table's digits in [0, B), by its stores
 		for _, r := range f.Results {
-			if r == NumeralType {
-				if err := proveResultElems(tg, f, ei(0), u64Max); err != nil {
+			if r == NumeralType(tg) {
+				if err := proveResultElems(tg, f, ei(0), digitMax(tg)); err != nil {
 					return nil, nil, fmt.Errorf("%s: a result held as a numeral: %v", name, err)
 				}
 				break

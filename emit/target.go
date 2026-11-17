@@ -4094,6 +4094,23 @@ func buildScript(triple string, link []string, used map[string]bool, runtime boo
 	return strings.ReplaceAll(s, "{{TRIPLE}}", triple)
 }
 
+// DigitBits is the bits of K(ℕ*)'s digit on this target (ADR 0124): the
+// triple's native word, whose double word the machine multiplies into and
+// divides, the largest base ADR 0106's theorem allows. It is a function of
+// the triple's ISA, 64 on x86_64 and 32 on i686; a triple whose ISA this
+// does not know has no digit, and a program needing one is refused.
+func (tg *Target) DigitBits() (int, error) {
+	arch, _, _ := strings.Cut(tg.Triple, "-")
+	switch arch {
+	case "x86_64":
+		return 64, nil
+	case "i686", "i386":
+		return 32, nil
+	}
+	return 0, fmt.Errorf("target %s: K(ℕ*) needs its digit, the triple's native word, and the "+
+		"triple %q names an ISA whose word is not known (ADR 0124)", tg.Name, tg.Triple)
+}
+
 // RuntimeText is the triple's runtime module, `runtime`'s file found under the
 // target's library directories (ADR 0123).
 func (tg *Target) RuntimeText() ([]byte, error) {

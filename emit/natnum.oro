@@ -1,6 +1,6 @@
 // K(ℕ*), THE INTEGERS ON A TARGET WITH NO BIGNUM (ADR 0099).
 //
-// ℕ* is the positional numerals in base B = 2^64, each m ∈ ℕ one numeral with
+// ℕ* is the positional numerals in base B = 2^dbits, each m ∈ ℕ one numeral with
 // a nonzero top digit; ℤ is K(ℕ*), the group completion over them, a sign and
 // a magnitude with one zero. A value is one table t:
 //   - digit i at t[i], for i < len t − 1;
@@ -16,9 +16,9 @@
 // len t is a capacity each operation computes from its operands' sizes. Every
 // build writes [0, len t) at its counter, so a result is born full (ADR 0097).
 //
-// B = 2^64, THE MACHINE'S OWN DIGIT (ADR 0105, M4c): a digit is a natural of
+// B = 2^dbits, THE MACHINE'S OWN DIGIT (ADR 0105, M4c, 0124): a digit is a natural of
 // the unsigned word, and every step is an intermediate of the double word,
-// read back by its two halves, t & (B − 1) and t >> 64, which are rax and rdx:
+// read back by its two halves, t & (B − 1) and t >> dbits, which are rax and rdx:
 // Algorithm M's u·v + w + k ≤ B^2 − 1 = 2^128 − 1 read unsigned, A's
 // x + y + c < 2^65, S's x − y − b ∈ [−B, B) read signed. B itself is no word,
 // so it is written 2^62 · 4, and B − 1 is `dm`, a constant of the unsigned
@@ -26,8 +26,27 @@
 // The operations are Knuth's (TAOCP 2 §4.3.1), each checked once as a theory
 // (ADR 0035), the large ones functions of the program (ADR 0101).
 
-// B − 1, the largest digit, the unsigned word's top
+// THE BASE, B = 2^dbits (ADR 0124): dbits is the triple's native word, the
+// largest whose square's double word the machine computes (ADR 0106's
+// theorem), 64 on x86_64 and 32 on i686. This block is the library's
+// parameter: emit writes it for the target's triple (loadNatLib), and every
+// other line reads it. B itself is no word at 64 bits, so it is written bq · 4.
+// the digit's bits
+dbits = 64
+// B − 1, the largest digit
 dm = 18446744073709551615
+// B / 4, so that B = bq · 4 is a product inside the word
+bq = 4611686018427387904
+// B / 2 − 1, the largest top digit that is not normalized
+bh1 = 9223372036854775807
+// β = 10^kd, the printing's base: the largest power of 10 below 2^62 that is
+// a digit, a constant divisor the double word takes directly (10^19 is above
+// it, a word for the 2-by-1 division, whose premise a rule's body did not
+// carry)
+kb = 1000000000000000000
+kd = 18
+// the decimal digits a digit may hold: ⌊dbits·log₁₀ 2⌋ + 1
+kdd = 20
 
 // THE READS, each stating the representation's invariant as its mask, as the
 // fixed limbs' `at` does: a digit is in [0, B), the size in [0, len t − 1].
@@ -84,10 +103,25 @@ fn wg(r, nr, d, i) { if i == 0 { d } else { pg(r, nr, i - 1) } }
 // failure is, never a numeral cut short; on the path that continues, c ≤ ml.
 fn room(ml, c) { if c > ml || c > 2^31 { abandon("out of memory: an integer longer than the largest table") } else { c } }
 
-// a word of either sign: the digits of |v|, taken as −(r % B) and r / B, both
-// truncated: every word is one digit, since |v| ≤ 2^63 < B, and |−2^63| is the
-// unsigned word's
-fn of(ml, v) {
+// a word of either sign: the digits of |v| ≤ 2^63, |−2^63| the unsigned word's.
+// At 64 bits every word is one digit, since |v| < B; at 32, two, |v| mod B and
+// ⌊|v| / B⌋ < B, since |v| < B². dbits is a constant, so the reducer takes one
+// arm, and each arm is its base's numeral of v.
+fn of(ml, v) { if dbits == 64 { of1(v) } else { of2(v) } }
+fn of2(v) {
+    a = if v < 0 { 0 - v } else { v }
+    lo = a & dm
+    hi = a >> dbits
+    var o := array { 0 : _ ∈ 0..3 }
+    loop i = 0 {
+        i >= 4 -> o
+        i == 3 -> { o[i] := signed(if v < 0 { 1 } else { 0 }, if a == 0 { 0 } else if hi == 0 { 1 } else { 2 }); again(i + 1) }
+        i == 2 -> { o[i] := 0; again(i + 1) }
+        i == 1 -> { o[i] := hi; again(i + 1) }
+        else -> { o[i] := lo; again(i + 1) }
+    }
+}
+fn of1(v) {
     var o := array { 0 : _ ∈ 0..2 }
     loop i = 0 {
         i >= 3 -> o
@@ -99,11 +133,13 @@ fn of(ml, v) {
 
 // THE RETRACTION r : ℤ ⇀ S onto the signed word, the partial inverse of `of`
 // (ADR 0079 item 4): called only where the decision proves |a| inside S, so a
-// is at most one digit d, and a = ±d; the reads state S as their masks
+// is at most a word's digits and a = ±d, d their value; the reads state S as
+// their masks
 fn word(ml, a) {
     // the digit's invariant, d ∈ [0, B), stated where its table's element
-    // type does not carry it (a numeral built by an inlined loop)
-    d = dig(a, 0) & dm
+    // type does not carry it (a numeral built by an inlined loop); at 32 bits
+    // the magnitude is two digits, d₀ + d₁·B
+    d = if dbits == 64 { dig(a, 0) & dm } else { (dig(a, 0) & dm) + (dig(a, 1) & dm) * bq * 4 }
     // nested, so each arm's guard is a conjunct its π narrows: the negation
     // of a conjunction is a disjunction, which narrows nothing
     if sgn(a) == 1 {
@@ -142,7 +178,7 @@ fn mcmp(ml, a, b) {
 // (ADR 0100). The loops write through a borrow, as macrow does.
 
 // THE DIGIT'S REDUCTION, one form for A, S, M and D: t mod B = t & (B − 1),
-// since ℤ's & is 2-adic, and the carry ⌊t / B⌋ = t >> 64, for any t a step
+// since ℤ's & is 2-adic, and the carry ⌊t / B⌋ = t >> dbits, for any t a step
 // makes: x + y + c < 2^65, x − y − b ∈ [−B, B), u·v + w + k < B^2.
 
 // A's and S's second loops, over [my, mx), each a call borrowing o, the
@@ -160,7 +196,7 @@ fn addhi(o linear, x, j0, mx0, c0, s) {
         else -> {
             t = x[i] + c
             o[i] := t & dm
-            again(i + 1, t >> 64)
+            again(i + 1, t >> dbits)
         }
     }
 }
@@ -209,7 +245,7 @@ fn addlp(o linear, x, mx0, y, my0, s) {
         else -> {
             t = x[i] + y[i] + c
             o[i] := t & dm
-            again(i + 1, t >> 64)
+            again(i + 1, t >> dbits)
         }
     }
 }
@@ -296,7 +332,7 @@ fn macrow(ml, o linear, no, a, la, ma, y, j) {
                 else -> {
                     t = dg(a, la, i) * y + rg(o, no, i + j) + k
                     o[i + j] := t & dm
-                    again(i + 1, t >> 64)
+                    again(i + 1, t >> dbits)
                 }
             }
         }
@@ -385,7 +421,7 @@ fn kdown(ml, x, nodes, s) {
             wr(y, by + i, lo)
             wr(y, by + s2 + i, t & dm)
             wr(y, by + 2 * s2 + i, hi)
-            again(j, i + 1, t >> 64)
+            again(j, i + 1, t >> dbits)
         }
     }
 }
@@ -406,7 +442,7 @@ fn kmac(o linear, x, ox0, m0, y, oo0) {
         else -> {
             t = x[ox + i] * y + o[oo + i] + k
             o[oo + i] := t & dm
-            again(i + 1, t >> 64)
+            again(i + 1, t >> dbits)
         }
     }
 }
@@ -441,7 +477,7 @@ fn kup(ml, q, nodes, s) {
             b2 = b1 + w2
             t = kslot(q, b0, w2, i) + kslot(q, b2, w2, i - 2 * h) + kslot(q, b1, w2, i - h) - kslot(q, b0, w2, i - h) - kslot(q, b2, w2, i - h) + c
             wr(p, j * w + i, t & dm)
-            again(j, i + 1, t >> 64)
+            again(j, i + 1, t >> dbits)
         }
     }
 }
@@ -515,9 +551,9 @@ fn sqrm(ml, a) {
             p = x * x
             t = 2 * kat(tr, 2 * i) + (p & dm) + c
             wr(o, 2 * i, t & dm)
-            u = 2 * kat(tr, 2 * i + 1) + (p >> 64) + (t >> 64)
+            u = 2 * kat(tr, 2 * i + 1) + (p >> dbits) + (t >> dbits)
             wr(o, 2 * i + 1, u & dm)
-            again(i + 1, u >> 64, u & dm)
+            again(i + 1, u >> dbits, u & dm)
         }
     }
 }
@@ -548,9 +584,9 @@ fn ksqleaves(ml, x, nodes, m) {
             p = v * v
             t = 2 * kslot(tr, b, 2 * m, 2 * i) + (p & dm) + c
             wr(o, b + 2 * i, t & dm)
-            u = 2 * kslot(tr, b, 2 * m, 2 * i + 1) + (p >> 64) + (t >> 64)
+            u = 2 * kslot(tr, b, 2 * m, 2 * i + 1) + (p >> dbits) + (t >> dbits)
             wr(o, b + 2 * i + 1, u & dm)
-            again(j, i + 1, u >> 64)
+            again(j, i + 1, u >> dbits)
         }
     }
 }
@@ -597,7 +633,7 @@ fn mul_small(ml, a, k) {
                 else -> {
                     t = a[i] * k + c
                     o[i] := t & dm
-                    again(i + 1, t >> 64)
+                    again(i + 1, t >> dbits)
                 }
             }
         }
@@ -620,7 +656,7 @@ fn qsmall(ml, a, k, s) {
     loop i = cap - 1, r = 0 {
         i < 0 -> o
         i == cap - 1 -> { o[i] := signed(s, m); again(i - 1, r) }
-        else -> { cur = r * 4611686018427387904 * 4 + dg(a, la, i); o[i] := cur / k; again(i - 1, cur % k) }
+        else -> { cur = r * bq * 4 + dg(a, la, i); o[i] := cur / k; again(i - 1, cur % k) }
     }
 }
 // the remainder by a word k ∈ [1, B), the dividend's sign
@@ -628,7 +664,7 @@ fn rem_small(ml, a, k) {
     la = len(a) - 1
     r = loop i = size(a) - 1, r = 0 {
         i < 0 -> r
-        else -> again(i - 1, (r * 4611686018427387904 * 4 + dg(a, la, i)) % k)
+        else -> again(i - 1, (r * bq * 4 + dg(a, la, i)) % k)
     }
     if sgn(a) == 1 { 0 - r } else { r }
 }
@@ -686,7 +722,7 @@ fn qrem(ml, a, off, k) {
         i < 0 -> o
         i == cap - 1 -> { o[i] := signed(0, m2); again(i - 1, r) }
         i == 0 -> { o[i] := r; again(i - 1, r) }
-        else -> { cur = r * 4611686018427387904 * 4 + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
+        else -> { cur = r * bq * 4 + pg(a, la, off + i - 1); o[i] := cur / k; again(i - 1, cur % k) }
     }
 }
 
@@ -696,7 +732,7 @@ rt = 32
 fn render(ml, a) { if size(a) >= rt { render2(ml, a) } else { render1(ml, a) } }
 
 fn render1(ml, a) {
-    n = 20 * len(a) + 18
+    n = kdd * len(a) + kd
     case {
         n > ml -> abandon("out of memory: an integer longer than the largest table")
         else -> {
@@ -704,8 +740,8 @@ fn render1(ml, a) {
                 var b := array { 48 : _ ∈ 0..n - 1 }
                 loop k = 0, q = a, off = 0, r = 0 {
                     k >= n - 1 -> b
-                    k % 18 == 0 -> {
-                        q2 = qrem(ml, q, off, 1000000000000000000)
+                    k % kd == 0 -> {
+                        q2 = qrem(ml, q, off, kb)
                         d = pg(q2, len(q2), 0)
                         b[n - 1 - k] := 48 + d % 10
                         again(k + 1, q2, 1, d / 10)
@@ -752,7 +788,7 @@ fn wdig(r, d, i) { if i == 0 { d } else { pdig(r, i - 1) } }
 // s, the least shift that puts v's top digit vt at or above B/2 = 2^63, so
 // f = 2^s, the unsigned word's at s = 63; s ≤ 63 is the loop's measure, rising
 // by one toward its guard
-fn nshift(vt) { loop s = 0, t = vt { s >= 63 -> s; t > 9223372036854775807 -> s; else -> again(s + 1, t * 2) } }
+fn nshift(vt) { loop s = 0, t = vt { s >= dbits - 1 -> s; t > bh1 -> s; else -> again(s + 1, t * 2) } }
 
 // D3. q̂ = ⌊top / vt⌋ when below B, with r̂ = top mod vt, so r̂ < vt; then
 // lowered while q̂·v_{n−2} > r̂·B + W_{n−2}, twice at most, the second time
@@ -772,14 +808,14 @@ fn qhat(v, n, r, d) {
         vt < 1 -> 0
         wn >= vt -> dm
         else -> {
-            top = wn * 4611686018427387904 * 4 + w1
+            top = wn * bq * 4 + w1
             q0 = top / vt
             rh = top % vt
             case {
-                q0 >= 1 && q0 * v2 > rh * 4611686018427387904 * 4 + w2 -> {
+                q0 >= 1 && q0 * v2 > rh * bq * 4 + w2 -> {
                     q1 = q0 - 1
                     rh1 = rh + vt
-                    if rh1 <= dm && q1 >= 1 && q1 * v2 > rh1 * 4611686018427387904 * 4 + w2 { q1 - 1 } else { q1 }
+                    if rh1 <= dm && q1 >= 1 && q1 * v2 > rh1 * bq * 4 + w2 { q1 - 1 } else { q1 }
                 }
                 else -> q0
             }
@@ -807,7 +843,7 @@ fn msub(ml, v, n, r, d, q) {
             p0 = q * v[0]
             t0 = d - (p0 & dm)
             o[0] := t0 & dm
-            loop i = 1, pc = p0 >> 64, bw = if t0 < 0 { 1 } else { 0 } {
+            loop i = 1, pc = p0 >> dbits, bw = if t0 < 0 { 1 } else { 0 } {
                 i >= n -> {
                     // v_n = 0: a normalized divisor carries nothing out
                     t = r[n - 1] - pc - bw
@@ -819,7 +855,7 @@ fn msub(ml, v, n, r, d, q) {
                     p = q * v[i] + pc
                     t = r[i - 1] - (p & dm) - bw
                     o[i] := t & dm
-                    again(i + 1, p >> 64, if t < 0 { 1 } else { 0 })
+                    again(i + 1, p >> dbits, if t < 0 { 1 } else { 0 })
                 }
             }
         }
@@ -838,7 +874,7 @@ fn addv(ml, t, v, n) {
             loop i = 0, c = 0 {
                 i >= n + 2 -> o
                 i == n + 1 -> { o[i] := if c > 0 { 0 } else { 1 }; again(i + 1, c) }
-                else -> { x = pg(t, nt, i) + pg(v, nv, i) + c; o[i] := x & dm; again(i + 1, x >> 64) }
+                else -> { x = pg(t, nt, i) + pg(v, nv, i) + c; o[i] := x & dm; again(i + 1, x >> dbits) }
             }
         }
     }
@@ -878,7 +914,7 @@ fn unnorm(ml, r, n, sh, s) {
         i >= n + 1 -> o
         i == n -> { o[i] := signed(s, top); again(i + 1, top) }
         else -> {
-            x = ((pg(r, nr, i + 1) * 4611686018427387904 * 4 + pg(r, nr, i)) >> sh) & dm
+            x = ((pg(r, nr, i + 1) * bq * 4 + pg(r, nr, i)) >> sh) & dm
             o[i] := x
             again(i + 1, if x != 0 { i + 1 } else { top })
         }
@@ -943,10 +979,7 @@ fn div(ml, a, b) {
 // quotient. The last level splits nodes below β² by
 // β, one 2-by-1 division a node. The powers come by squaring (ADR 0110).
 
-// β = 10^18, the largest power of 10 below 2^62: a constant divisor the
-// double word takes directly (10^19 is above it, a word for the 2-by-1
-// division, whose premise a rule's body did not carry)
-kb = 1000000000000000000
+// β = kb, the base block's
 
 // the powers P_0 … P_J, each in a slot of w words: its size, then its digits
 fn kpows(ml, jt, w) {
@@ -993,7 +1026,7 @@ fn kun(t, w, w2, sh, i) {
     p = i % w2
     hi = kslot(t, b, w, p) & dm
     lo = kslot(t, b, w, p - 1) & dm
-    ((hi * 4611686018427387904 * 4 + lo) >> (64 - sh)) & dm
+    ((hi * bq * 4 + lo) >> (dbits - sh)) & dm
 }
 
 // D3: q̂ from the window's top three words and v's top two, at most B − 1,
@@ -1008,14 +1041,14 @@ fn kq4(u2, u1, u0, v, k) {
         vt < 1 -> 0
         w2 >= vt -> dm
         else -> {
-            top = w2 * 4611686018427387904 * 4 + w1
+            top = w2 * bq * 4 + w1
             q0 = top / vt
             rh = top % vt
             case {
-                q0 >= 1 && q0 * v2 > rh * 4611686018427387904 * 4 + w0 -> {
+                q0 >= 1 && q0 * v2 > rh * bq * 4 + w0 -> {
                     q1 = q0 - 1
                     rh1 = rh + vt
-                    if rh1 <= dm && q1 >= 1 && q1 * v2 > rh1 * 4611686018427387904 * 4 + w0 { q1 - 1 } else { q1 }
+                    if rh1 <= dm && q1 >= 1 && q1 * v2 > rh1 * bq * 4 + w0 { q1 - 1 } else { q1 }
                 }
                 else -> q0
             }
@@ -1037,7 +1070,7 @@ fn kmsubrow(o linear, b0, v, k0, q) {
             p = q * v[i] + pc
             t = o[b + i] - (p & dm) - bw
             o[b + i] := t & dm
-            again(i + 1, p >> 64, if t < 0 { 1 } else { 0 })
+            again(i + 1, p >> dbits, if t < 0 { 1 } else { 0 })
         }
     }
 }
@@ -1055,7 +1088,7 @@ fn kaddrow(o linear, b0, v, k0) {
         else -> {
             t = o[b + i] + v[i] + c
             o[b + i] := t & dm
-            again(i + 1, t >> 64)
+            again(i + 1, t >> dbits)
         }
     }
 }
@@ -1070,7 +1103,7 @@ fn kout(u, w2, k, sh, w1, i) {
         x < w1 && x < k -> {
             cur = kslot(u, b, w2, x) & dm
             nxt = if x + 1 < k { kslot(u, b, w2, x + 1) & dm } else { 0 }
-            ((nxt * 4611686018427387904 * 4 + cur) >> sh) & dm
+            ((nxt * bq * 4 + cur) >> sh) & dm
         }
         x < w1 -> 0
         x - w1 < k -> kslot(u, b, w2, k + x - w1) & dm
@@ -1104,7 +1137,9 @@ fn kdlevel(ml, t, nodes, v, k, sh, w0) {
     w1 = if w0 < 1 { 1 } else { w0 }
     w = 2 * k
     w2 = 2 * k + 1
-    n = room(ml, nodes * w2)
+    // the buffer holds n + 1 words, its size its own: room's 2^31 is below
+    // max_len only on a triple whose space is past 2^31 (ADR 0124)
+    n = room(ml, nodes * w2 + 1) - 1
     sz = alloc(array { knlen(t, j * w, w) : j ∈ 0..room(ml, nodes) - 1 })
     u = {
         var o := array { kun(t, w, w2, sh, i) : i ∈ 0..n }
@@ -1153,7 +1188,7 @@ fn kdlast(ml, t, nodes) {
             case {
                 hi >= kb -> 0
                 else -> {
-                    u = hi * 4611686018427387904 * 4 + lo
+                    u = hi * bq * 4 + lo
                     q = u / kb
                     r = u % kb
                     if i % 2 == 0 { r } else { q }
@@ -1174,7 +1209,8 @@ fn kdigits(ml, a) {
     pw = room(ml, m + 2)
     pt = kpows(ml, jt, pw)
     kj = ksz(pt, jt, pw)
-    t0 = alloc(array { dg(a, len(a) - 1, i) : i ∈ 0..2 * kj - 1 })
+    // its size its own: 2·kj is below max_len only where 2^32 is (ADR 0124)
+    t0 = alloc(array { dg(a, len(a) - 1, i) : i ∈ 0..room(ml, 2 * kj) - 1 })
     loop j = jt, t = t0, nodes = 1 {
         // the machine's bound, as room's: 2^24 nodes are 2^24 base-β digits
         nodes > 16777216 -> abandon("out of memory: an integer longer than the largest table")
@@ -1194,7 +1230,7 @@ fn kdigits(ml, a) {
 // significant first, then render1's stripping of leading zeros and the sign
 fn render2(ml, a) {
     dt = kdigits(ml, a)
-    n = 18 * len(dt) + 20
+    n = kd * len(dt) + 20
     case {
         n > ml -> abandon("out of memory: an integer longer than the largest table")
         else -> {
@@ -1202,8 +1238,8 @@ fn render2(ml, a) {
                 var b := array { 48 : _ ∈ 0..n - 1 }
                 loop k = 0, r = 0 {
                     k >= n - 1 -> b
-                    k % 18 == 0 -> {
-                        d = kat(dt, k / 18)
+                    k % kd == 0 -> {
+                        d = kat(dt, k / kd)
                         b[n - 1 - k] := 48 + d % 10
                         again(k + 1, d / 10)
                     }
@@ -1267,10 +1303,10 @@ fn rem(ml, a, b) {
 // to K(ℕ*) because the fixed limbs lack an operation it uses, is enforced by
 // the set's two observables, the sign and the bit length, read off the header
 // and the top digit: bitlen = 64·(m − 1) + bitlen(top digit).
-fn blen(x) { loop b = 0, y = x { b >= 64 -> b; y < 1 -> b; else -> again(b + 1, y / 2) } }
+fn blen(x) { loop b = 0, y = x { b >= dbits -> b; y < 1 -> b; else -> again(b + 1, y / 2) } }
 fn bitlen(a) {
     m = size(a)
-    if m < 1 { 0 } else { 64 * (m - 1) + blen(dig(a, m - 1)) }
+    if m < 1 { 0 } else { dbits * (m - 1) + blen(dig(a, m - 1)) }
 }
 // N_k = [0, 2^k): a when 0 ≤ a < 2^k, the bound's crash otherwise
 fn fit(ml, a, k) {

@@ -8,7 +8,8 @@ recommendation. **Status** (2026-11-17): decided by ADR 0122. Built so far: the 
 target `windows32` with D3 and the sentinel ([windows32-2026-11-17](../gauntlet/results/windows32-2026-11-17.md):
 66 of 74, the file-read failure of §3's item 2 a NUL nobody wrote, on both triples), and D6 (ADR 0123,
 [d6-2026-11-17](../gauntlet/results/d6-2026-11-17.md): the triple's runtime in the language, 68 of 74).
-D2 (with the rest of D4's `x86.oro`), D1 by header and D5 are next, in that order.
+D2 too (ADR 0124, [d2-2026-11-17](../gauntlet/results/d2-2026-11-17.md): 72 of 74). D1 by header and D5
+are next, with the rest of D4's `x86.oro` (the 2-by-1 `divl` for Algorithm D's q̂) owed.
 
 ## 1. What a triple is
 

@@ -515,8 +515,10 @@ plan**, in order:
    correct on it. On the way, a wrong answer on both processors was found and fixed: a file's path
    could run on past its end into whatever memory followed. **64-bit division on 32-bit Windows
    is the language's own** ([d6-2026-11-17](gauntlet/results/d6-2026-11-17.md)), at the four places
-   LLVM calls a helper, 13% faster than Microsoft's; 68 of the 74 programs run. Next, big integers'
-   digit size per processor;
+   LLVM calls a helper, 13% faster than Microsoft's; and **big integers use the processor's own
+   digit**, 32 bits there and 64 on 64-bit Windows, from one library
+   ([d2-2026-11-17](gauntlet/results/d2-2026-11-17.md)); 72 of the 74 programs run. Next, the
+   Windows API by header, then 32-bit integers;
 5. **tell LLVM everything the compiler proves** (that a value is never undefined, that two buffers
    never overlap, a number's range, that a loop ends), one kind of fact at a time, each checked and
    measured against C. **Four kinds done** (2026-11-17): a function's argument and result ranges,

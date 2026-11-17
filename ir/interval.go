@@ -814,7 +814,16 @@ func (a *intervals) stmt(s *Stmt) {
 				}
 			case "u64+", "u64-", "u64*", "u64/", "u64%":
 				if len(args) == 2 {
-					one(fact{v: u64Arith(s.Name, args[0].v, args[1].v)})
+					v := u64Arith(s.Name, args[0].v, args[1].v)
+					// AND THE TWO-DIGIT LEMMA ON THE UNSIGNED WORD (ADR 0124): at
+					// B = 2³² a numeral's step is the word's, u64/ of u64+ of a
+					// u64* by B, the same integers as ODiv's
+					if s.Name == "u64/" {
+						if top, ok := a.numeralQuotient(s.Args[0], s.Args[1]); ok {
+							v = meetIV(v, rangeE(ei(0), top))
+						}
+					}
+					one(fact{v: v})
 					return
 				}
 			case "big%-small":
@@ -1562,9 +1571,14 @@ func (a *intervals) dead(r *Region) {
 // largest digit, where it applies; C is a product of constants, as a power
 // past the word is written, at most 2⁶⁴ (base 2⁶⁴'s digit is the unsigned
 // word's, ADR 0105).
+//
+// THE UNSIGNED WORD'S u64+ AND u64* ARE ℤ'S + AND · on the integers they hold
+// (wordsel chose each where the residue map agrees with ℤ), so the lemma reads
+// them as it reads OAdd and OMul: at B = 2³² a numeral's window is the word's
+// (ADR 0124).
 func (a *intervals) numeralQuotient(t, d V) (ep, bool) {
-	dt := a.def[a.pl(t)]
-	if dt == nil || dt.Op != OAdd || len(dt.Args) != 2 {
+	dt := a.def[a.pl(a.unconv(t))]
+	if dt == nil || !a.isAdd(dt) || len(dt.Args) != 2 {
 		return ep{}, false
 	}
 	for k := 0; k < 2; k++ {
@@ -1581,14 +1595,31 @@ func (a *intervals) numeralQuotient(t, d V) (ep, bool) {
 		if !fw.within(ei(0), top) || !fu.within(ei(0), u64Max) || !fd.within(ei(1), u64Max) {
 			continue
 		}
+		// the guard u < d is on the integers: through the unsigned word's
+		// conversions, each the identity on the integer it holds
+		u, dd := a.unconv(u), a.unconv(d)
 		pi, isPi := a.piRel[u]
-		below := isPi && a.pl(pi.Other) == a.pl(d) && pi.Rel == "lt"
+		below := isPi && a.pl(a.unconv(pi.Other)) == a.pl(dd) && pi.Rel == "lt"
 		if below || PlantQuotientUnasked {
 			return top, true
 		}
 	}
 	return ep{}, false
 }
+
+// isAdd and isMul are ℤ's + and ·, and the unsigned word's, which are ℤ's on
+// the integers it holds; PlantQuotientWordOnly reads ℤ's alone, as before ADR
+// 0124, and TestTheTwoDigitLemmaReadsTheUnsignedWord must see windows32's
+// Algorithm D undecided.
+func (a *intervals) isAdd(d *Stmt) bool {
+	return d.Op == OAdd || !PlantQuotientWordOnly && d.Op == OCall && d.Name == "u64+"
+}
+func (a *intervals) isMul(d *Stmt) bool {
+	return d.Op == OMul || !PlantQuotientWordOnly && d.Op == OCall && d.Name == "u64*"
+}
+
+// PlantQuotientWordOnly is the lemma on ℤ's operations alone.
+var PlantQuotientWordOnly bool
 
 // PlantQuotientUnasked applies the two-digit lemma without its premise
 // u < d: TestATwoDigitQuotientNeedsItsTopDigitBelowTheDivisor must see a
@@ -1601,8 +1632,8 @@ var wordTop = ei(1<<63 - 1)
 // scaled reads m as u·C, C a product of positive constants, as a power past
 // the word is written (2^63 is 2^62 · 2): (u, C).
 func (a *intervals) scaled(m V) (V, *big.Int, bool) {
-	d := a.def[a.pl(m)]
-	if d == nil || d.Op != OMul || len(d.Args) != 2 {
+	d := a.def[a.pl(a.unconv(m))]
+	if d == nil || !a.isMul(d) || len(d.Args) != 2 {
 		return 0, nil, false
 	}
 	for k := 0; k < 2; k++ {
@@ -1617,6 +1648,20 @@ func (a *intervals) scaled(m V) (V, *big.Int, bool) {
 }
 
 // pl is a value's π-source, so x·x through two π-renamings is still a square.
+// unconv is v without the unsigned word's conversions (`u64-of`,
+// `int-of-u64`), which wordsel places only where the integer is in both words,
+// so each is the identity on it; PlantQuotientWordOnly keeps them.
+func (a *intervals) unconv(v V) V {
+	for !PlantQuotientWordOnly {
+		d := a.def[a.pl(v)]
+		if d == nil || d.Op != OCall || (d.Name != "u64-of" && d.Name != "int-of-u64") || len(d.Args) != 1 {
+			return v
+		}
+		v = d.Args[0]
+	}
+	return v
+}
+
 func (a *intervals) pl(v V) V {
 	for {
 		src, ok := a.piOf[v]

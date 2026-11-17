@@ -27,8 +27,22 @@ import (
 // (ADR 0038), registering the functions it finds there first.
 
 // NumeralType is a numeral's table as a program function's parameter and
-// result: the codomain [0, B), B = 2⁶⁴ (ADR 0105), of every entry.
-const NumeralType = "array int 0 18446744073709551615"
+// result on tg: its digits in [0, B), B = 2^dbits the target's digit (ADR
+// 0124), so [0, 2⁶⁴) on x86_64 and [0, 2³²) on i686, inside the signed word.
+func NumeralType(tg *emit.Target) string {
+	if bits, err := tg.DigitBits(); err == nil && bits < 64 {
+		return fmt.Sprintf("array int 0 %d", uint64(1)<<bits-1)
+	}
+	return "array int 0 18446744073709551615"
+}
+
+// digitMax is the largest digit on tg, B − 1.
+func digitMax(tg *emit.Target) ep {
+	if bits, err := tg.DigitBits(); err == nil && bits < 64 {
+		return ei(1<<bits - 1)
+	}
+	return u64Max
+}
 
 // natPrefix names K(ℕ*)'s program functions.
 const natPrefix = "nat."
@@ -101,11 +115,11 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 		case sig.Params[i].Type == "array int" && PlantNarrowNumeral:
 			sig.Params[i].Type = "array int 0 1"
 		case sig.Params[i].Type == "array int":
-			sig.Params[i].Type = NumeralType
+			sig.Params[i].Type = NumeralType(tg)
 		// THE WORD OPERAND'S SET is the one the plan chose the one-pass form for
-		// (limbs.go): a product's any natural below 2⁶⁴, a divisor's [1, 2²⁸)
+		// (limbs.go): a product's any digit, below B, a divisor's [1, 2²⁸)
 		case sig.Params[i].Type == "int" && fn == "mul-small":
-			sig.Params[i].Type = "int 0 18446744073709551615"
+			sig.Params[i].Type = strings.Replace(NumeralType(tg), "array int", "int", 1)
 		case sig.Params[i].Type == "int" && fn == "div-small":
 			sig.Params[i].Type = fmt.Sprintf("int 1 %d", 1<<28-1)
 		}
@@ -134,7 +148,7 @@ func buildNatCallee(tg *emit.Target, fn, name string) (*Func, error) {
 		if err := proveResultElems(tg, f, ei(0), u64Max); err != nil {
 			return nil, fmt.Errorf("the built-in K(ℕ*)'s %s: %v", fn, err)
 		}
-		f.Results[0] = NumeralType
+		f.Results[0] = NumeralType(tg)
 	}
 	SelectShifts(tg, f)
 	return f, nil

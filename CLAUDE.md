@@ -118,7 +118,9 @@ before planning. **Its plan (§5)**, in order:
    `b <= max_bytes()`; the sentinel at pointer width; W15, a raw region's zero byte at both
    layouts, after a wrong answer on both triples); **D6** ([d6](gauntlet/results/d6-2026-11-17.md),
    ADR 0123: the triple's runtime, `lib/rt/i686.oro`, Warren's divDu over `divl` at the symbols
-   LLVM calls, 0.87× libcmt's time; 68 of 74). **Next**: D2 with D4's `x86.oro`, D1 by header, D5;
+   LLVM calls, 0.87× libcmt's time; 68 of 74); **D2** ([d2](gauntlet/results/d2-2026-11-17.md),
+   ADR 0124: K(ℕ\*) at B = 2³² on i686 by one parameter block, x86_64 byte-identical; 72 of 74;
+   20000! at 7.9× Go/386, the 2-by-1 `divl` for q̂ owed). **Next**: D1 by header, D5;
 5. **φ maximal** (hamza 2026-11-16), **four kinds done**: `range` on a printed function's
    parameters and result, its contract's sets; `icmp samesign` where both operands' signs are
    proven ([phi-samesign](gauntlet/results/phi-samesign-2026-11-17.md), a text witness, LLVM's use
@@ -586,6 +588,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A map of capacity c is in {m : len(m) ≤ c}, each insert marked len(m) < c | [0121](docs/decisions/0121-a-maps-capacity-is-a-claim-on-its-len.md) |
 | The windows family is a fibration over Win32 (`win32` glued by each member); a triple is a model: data model, address space in bytes, ISA, toolchain | [0122](docs/decisions/0122-the-windows-family-is-a-fibration-and-a-triple-is-a-model.md) |
 | A triple's runtime, what its code generator calls (i686's 64-bit division), is a library in the language linked into every program; a host result's set is a refinement fact | [0123](docs/decisions/0123-a-triples-runtime-is-a-library-in-the-language.md) |
+| K(ℕ\*)'s base is the triple's native word, 2⁶⁴ on x86_64 and 2³² on i686, one parameter block; the two-digit lemma reads the unsigned word; amends 0106 | [0124](docs/decisions/0124-k-n-stars-base-is-the-triples-native-word.md) |
 
 ## Build commands
 

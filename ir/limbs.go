@@ -88,8 +88,9 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 	})
 	// widened is k when v = big-of k with k ∈ [0, 2²⁸), the one-pass bound of
 	// the fixed limbs' base 2³²; product is the same for a product's operand,
-	// which on K(ℕ*), base 2⁶³, is any natural word: a·k + c ≤ (B − 1)² +
-	// (B − 1) is the double word's (ADR 0103).
+	// which on K(ℕ*), base B = 2^dbits, is any digit: a·k + c ≤ (B − 1)² +
+	// (B − 1) is the double word's (ADR 0103, 0124). At 64 bits a digit is
+	// any natural word; at 32, a natural below 2³².
 	widenedTo := func(v V, bound ep) (V, bool) {
 		s := def[v]
 		if s == nil || s.Op != OCall || s.Name != "big-of" || len(s.Args) != 1 {
@@ -101,7 +102,7 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 	widened := func(v V) (V, bool) { return widenedTo(v, smallWord) }
 	productBound := smallWord
 	if nat {
-		productBound = u64Max
+		productBound = digitMax(tg)
 	}
 	product := func(v V) (V, bool) { return widenedTo(v, productBound) }
 	// THE PLAN: for each call, the instance and its arguments.
@@ -275,7 +276,7 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 		if ty == core.BigType {
 			f.Results[j] = "array int"
 			if nat && !PlantNumeralResultInt {
-				f.Results[j] = NumeralType
+				f.Results[j] = NumeralType(tg)
 			}
 		}
 	}

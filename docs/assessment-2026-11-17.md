@@ -155,7 +155,7 @@ is lines of code (no blank or comment line), counted by the same rule.
 - **The compile that does not end** (§3.3 item 3): a rule, and its planted fault.
 - **Owed from earlier rounds**: unchanged in CLAUDE.md's list.
 
-## 5. The next plan (proposed for hamza)
+## 5. The next plan (approved by hamza, 2026-11-17: "Go with the proposed plan")
 
 1. **A compile that does not end is a refusal.** It is a soundness-adjacent gap a program found,
    and it goes ahead of the plan. Either bound the reducer's and the decision's work per program,

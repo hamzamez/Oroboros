@@ -470,13 +470,22 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-17.* The newest assessment,
-[docs/assessment-2026-11-17.md](docs/assessment-2026-11-17.md), scores the plan below. Its next plan
-is proposed and not yet decided, so the plan below stands. The one before it,
-[docs/assessment-2026-11-16.md](docs/assessment-2026-11-16.md), scored the 11-15 plan: done but
-for its last three items. It also finds that the language's own book, in its later chapters, came
-across four programs the compiler accepts and gets wrong, which every check had passed. **The next
-plan**, in order:
+*Updated with the plan; last updated 2026-11-17.* The current assessment,
+[docs/assessment-2026-11-17.md](docs/assessment-2026-11-17.md), scores the last plan: its first
+three items and its last done, 32-bit Windows built as far as its arithmetic (72 of the 74 test
+programs run there), and four kinds of fact told to LLVM. It found one wrong answer, older than
+the round: a file path could run on past its end into whatever memory followed. **The next plan**
+(hamza, 2026-11-17), in order:
+1. **a compilation that never finishes is refused**, rather than left running: two programs did,
+   for over twenty minutes;
+2. **tell LLVM a digit's range where it is read**: big integers on 32-bit Windows take 7.9× Go's
+   time, because each 32-bit digit is multiplied as 64 bits; then the 32-bit division step;
+3. **the Windows API by header**, with TinyRetroPad's own calls declared that way;
+4. **32-bit integers** on 32-bit Windows;
+5. **the remaining facts for LLVM**, one kind at a time;
+6. **TinyRetroPad's walls**: the window procedure and its structures.
+
+**The 11-16 plan, as it ended** ([assessment-2026-11-16](docs/assessment-2026-11-16.md) set it):
 1. **fix the book's wrong answers**, each with a test that fails before the fix:
    - ~~two results taken apart in one expression are confused (it prints 22 for "42")~~ **fixed**
      ([capture-2026-11-16](gauntlet/results/capture-2026-11-16.md));

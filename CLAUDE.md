@@ -95,55 +95,31 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 wrong about half the time.
 
 **The current assessment is [assessment-2026-11-17.md](docs/assessment-2026-11-17.md)**; read it
-before planning. Its plan (§5) is **proposed for hamza**: first a refusal for a compile that does
-not end, then φ's `!range` on a load (windows32's 7.9× is its 64-bit digit step, d2 §4) and D4's
-`divl`, D1 by header with TinyRetroPad 6c, D5, φ's remaining kinds, TinyRetroPad 6d. **Until he approves it, the plan in force is
-[assessment-2026-11-16](docs/assessment-2026-11-16.md)'s (§5)**, in order:
-1. ~~**the book's wrong answers and faults**~~ done: [capture](gauntlet/results/capture-2026-11-16.md)
-   (53/76), [store](gauntlet/results/store-2026-11-16.md) (70, ADR 0119),
-   [bookfaults](gauntlet/results/bookfaults-2026-11-16.md) (71's `len`, 64, 39, 40, 78),
-   [maprealize](gauntlet/results/maprealize-2026-11-16.md) (72, ADR 0120),
-   [capacity](gauntlet/results/capacity-2026-11-16.md) (71, ADR 0121, hamza's B′);
-2. ~~**j.md's two promises**~~ done ([invariant](gauntlet/results/invariant-2026-11-16.md)):
-   `invariant I`, Hoare's rule; `try` with several binds;
-3. ~~**two checks**~~ done ([checks](gauntlet/results/checks-2026-11-16.md)): `cmd/check`'s
-   `endings` step; every planted rewrite through `plantOnce`;
-4. **the second triple**, `i686-pc-windows-msvc`: **research done, decisions with hamza**
-   ([triple-research.md](docs/triple-research.md), `experiments/i686/`): 63 of 74 cases already pass
-   on 32-bit Windows, the 9 failing in three classes (the address-space bound, x86-64's own
-   operations, the 64-bit division helpers); D1–D7 (the data model's type names in their headers,
-   the digit base per triple, the bound on bytes, the ISA split, i32 scalars at 2.6× on i686,
-   `/` and `%` on i686, the target `windows32`), **decided as recommended** (hamza 2026-11-17,
-   ADR 0122), with **Win32 by header** (W1, hamza 2026-11-16): a module is the header
-   (`windows/fileapi`), the DLL each declaration's `lib`, the type names in their headers.
-   **Built**: the family (`targets/win32/` the base) and the target `windows32`
-   ([windows32](gauntlet/results/windows32-2026-11-17.md): 66 of 74; D3 as Σ_OS's precondition
-   `b <= max_bytes()`; the sentinel at pointer width; W15, a raw region's zero byte at both
-   layouts, after a wrong answer on both triples); **D6** ([d6](gauntlet/results/d6-2026-11-17.md),
-   ADR 0123: the triple's runtime, `lib/rt/i686.oro`, Warren's divDu over `divl` at the symbols
-   LLVM calls, 0.87× libcmt's time; 68 of 74); **D2** ([d2](gauntlet/results/d2-2026-11-17.md),
-   ADR 0124: K(ℕ\*) at B = 2³² on i686 by one parameter block, x86_64 byte-identical; 72 of 74;
-   20000! at 7.9× Go/386, the 2-by-1 `divl` for q̂ owed). **Next**: D1 by header, D5;
-5. **φ maximal** (hamza 2026-11-16), **four kinds done**: `range` on a printed function's
-   parameters and result, its contract's sets; `icmp samesign` where both operands' signs are
-   proven ([phi-samesign](gauntlet/results/phi-samesign-2026-11-17.md), a text witness, LLVM's use
-   heuristic); `nonnull dereferenceable(8) align 8` on a table or string at a boundary
-   ([phi-ptr](gauntlet/results/phi-ptr-2026-11-17.md)); `noalias` on a lent buffer parameter, R2's
-   theorem ([phi-noalias](gauntlet/results/phi-noalias-2026-11-17.md); first printed on results too,
-   unsound, caught by the gauntlet's diff and fixed before commit); each neutral where measured
-   ([phi-range](gauntlet/results/phi-range-2026-11-17.md);
-   neutral on four programs, and `urem` by a constant measured 1.42× C, set aside for hamza as
-   amending ADR 0088). Every fact the decision proves that LLVM's attribute lattice
-   expresses is printed (`noundef`, `noalias`, `nonnull`/`dereferenceable`, `range`, `nneg`,
-   `disjoint`, `exact`, `samesign`, `memory(…)`, `mustprogress`/`willreturn`), one kind at a time,
-   each a soundness rule with its planted fault, measured against C; an intrinsic only where a
-   measurement shows LLVM does not recognize the idiom (ADR 0008);
-6. **TinyRetroPad**: 6c its Win32 surface measured (downloaded 2026-10-24 at `42f4c6c` as data,
-   never built or run: 2,686 lines of 32-bit `stdcall` MASM, 30 procedures, 67 Win32 functions over
-   kernel32, user32, gdi32, comdlg32 and shell32, RichEdit loaded at run time); 6d its walls, spec
-   first, an ADR each (the window procedure: callbacks tier 2, a function pointer LLVM gives its
-   convention; its structs: records laid out by the data layout);
-7. ~~**CLAUDE.md as state**, under 8,000 words~~ done (2026-11-16, this file).
+before planning. **Its plan (§5)**, approved by hamza 2026-11-17 ("Go with the proposed plan"), in
+order:
+1. **a compile that does not end is a refusal**: two K(ℕ\*) programs compiled for over 20 minutes
+   on windows32 when an undecided instance was inlined (d2-2026-11-17 §3). Research first: bound
+   the work per program, or refuse a program whose needed instance is not decided;
+2. **φ's `!range` on a load**, then D4's `divl` for q̂: windows32's 7.9× Go/386 on 20000! is its
+   64-bit digit step, a full 64×64 multiply over 8-byte digits (d2 §4), and the division a few
+   percent;
+3. **D1 by header (W1) with TinyRetroPad 6c**: Win32's type names in their headers
+   (`windows/basetsd`, `windows/minwindef`), one per data model, and the 67 functions TinyRetroPad
+   calls (downloaded 2026-10-24 at `42f4c6c` as data, never built or run) declared by header and
+   checked;
+4. **D5, i32 scalars** (ADR 0083 item 2), its own ADR: 2.6× on i686 loops by the research;
+5. **φ's remaining kinds**: `noundef`, `memory(…)`, `mustprogress`/`willreturn`, one at a time,
+   each a soundness rule with its planted fault, measured against C;
+6. **TinyRetroPad 6d**: its walls, spec first, an ADR each (the window procedure: callbacks tier 2;
+   its structs: records laid out by the data layout).
+
+**Done in the 11-16 plan** (assessment-2026-11-17 §1): the book's wrong answers and faults
+(ADR 0119–0121), j.md's two promises, two checks, the claims finding, CLAUDE.md as state; the
+second triple to its arithmetic (ADR 0122–0124: [windows32](gauntlet/results/windows32-2026-11-17.md),
+[d6](gauntlet/results/d6-2026-11-17.md), [d2](gauntlet/results/d2-2026-11-17.md); 72 of 74 on
+i686); φ's four kinds (`range`, `samesign`, `nonnull`/`dereferenceable`/`align`, `noalias`),
+neutral where measured. **Set aside for hamza**: windows32 in `cmd/check` (the check 11 → 16
+minutes, d6), ADR 0123's placement of D6, `urem` by a constant (1.42× C, amending ADR 0088).
 
 **A wrong answer, wherever found, goes ahead of the plan** (assessment-2026-11-16 §3.4), and the
 book's findings index (`docs/book/README.md`) is read at each item's end. Found so:

@@ -689,7 +689,7 @@ fn fact(n ∈ 0..1000) (Nat) {
     }
 }
 
-export fn gcd(a ∈ 0..10^6, b ∈ 0..10^6) (Int) {
+fn gcd(a ∈ 0..10^6, b ∈ 0..10^6) (Int) {
     loop x = a, y = b {
         y == 0 -> x
         else   -> again(y, x % y)
@@ -721,7 +721,7 @@ arm is `guard -> what happens`, tried in order:
 as a recursive function's parameters would be. A `loop` is the tail-recursive function you were
 going to write, with the recursion spelled `again`. Two consequences:
 
-- **The compiler proves termination** where it can (*1 of 1 loop(s) proven terminating*, by
+- **The compiler proves termination** where it can (*2 of 2 loop(s) proven terminating* here, by
   size-change analysis), and reports the loops it cannot.
 - **`again` stands only where the loop's turn ends**: as an arm's value, or last in an arm's block.
   It may not sit under an `if`:

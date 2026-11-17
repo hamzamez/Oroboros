@@ -7,7 +7,7 @@ fn fact(n ∈ 0..1000) (Nat) {
     }
 }
 
-export fn gcd(a ∈ 0..10^6, b ∈ 0..10^6) (Int) {
+fn gcd(a ∈ 0..10^6, b ∈ 0..10^6) (Int) {
     loop x = a, y = b {
         y == 0 -> x
         else   -> again(y, x % y)

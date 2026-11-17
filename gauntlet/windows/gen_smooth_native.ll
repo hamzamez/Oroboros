@@ -182,7 +182,7 @@ entry:
   ret ptr %v97
 }
 
-define nonnull dereferenceable(8) align 8 ptr @native_smooth_into(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
+define nonnull dereferenceable(8) align 8 ptr @native_smooth_into(ptr noalias nonnull dereferenceable(8) align 8 %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s6 = alloca i1
   %.s10 = alloca ptr

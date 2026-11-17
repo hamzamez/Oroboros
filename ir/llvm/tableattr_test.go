@@ -1,8 +1,10 @@
 package llvm
 
 import (
+	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -53,5 +55,50 @@ func TestATablesPointerIsARegions(t *testing.T) {
 	}
 	if !over {
 		t.Errorf("with the fault planted some claim should pass 8 bytes, so the test reaches the rule: %v", wide)
+	}
+}
+
+// NOALIAS IS A PARAMETER'S, NEVER A RESULT'S (φ's fourth kind). On a result,
+// noalias says the pointer is fresh, aliasing nothing the caller holds; an
+// export that writes its lent buffer and hands it back returns the caller's
+// own pointer. So the buffer parameter takes noalias and the result does not.
+// THE PLANTED FAULT is the bug the gauntlet's smooth_into showed first:
+// noalias on the result as well.
+func TestNoaliasIsAParametersNeverAResults(t *testing.T) {
+	// the gauntlet's stencil, whose export smooth_into writes its lent dst and
+	// returns it (gauntlet/regen.txt's windows line)
+	text, err := os.ReadFile("../../examples/native/smooth-go.oro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// smooth_into the one export, so it is the function compile prints
+	src := strings.Replace(string(text), "export fn smooth(", "fn smooth(", 1)
+	if src == string(text) {
+		t.Fatal("smooth-go.oro no longer exports smooth: restate the witness")
+	}
+	header := func() string {
+		t.Helper()
+		got, err := compile(t, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, l := range strings.Split(got, "\n") {
+			if strings.HasPrefix(l, "define") {
+				return l
+			}
+		}
+		t.Fatalf("no definition printed:\n%s", got)
+		return ""
+	}
+	resultNoalias := regexp.MustCompile(`^define (internal )?noalias`)
+	h := header()
+	if !strings.Contains(h, "ptr noalias nonnull") || resultNoalias.MatchString(h) {
+		t.Errorf("the lent buffer should be noalias and the result not: %s", h)
+	}
+	PlantNoaliasResult = true
+	h = header()
+	PlantNoaliasResult = false
+	if !resultNoalias.MatchString(h) {
+		t.Errorf("with the fault planted the result should take noalias, so the test reaches the rule: %s", h)
 	}
 }

@@ -339,11 +339,11 @@ func (p *printer) load(vs []ir.V) {
 func (p *printer) function() string {
 	var params []string
 	for _, v := range p.f.Params {
-		params = append(params, fmt.Sprintf("%s%s%s %%v%d", p.ty(v), p.rangeAttr(p.f.Types[v]), p.tableAttr(p.f.Types[v]), v))
+		params = append(params, fmt.Sprintf("%s%s%s %%v%d", p.ty(v), p.rangeAttr(p.f.Types[v]), p.tableAttr(p.f.Types[v], true), v))
 	}
 	ret := p.retType()
 	if len(p.f.Results) == 1 {
-		if a := p.rangeAttr(p.f.Results[0]) + p.tableAttr(p.f.Results[0]); a != "" {
+		if a := p.rangeAttr(p.f.Results[0]) + p.tableAttr(p.f.Results[0], false); a != "" {
 			ret = a[1:] + " " + ret
 		}
 	}
@@ -412,7 +412,7 @@ func (p *printer) rangeAttr(ty string) string {
 // a kept boundary is not built, ADR 0113), and a dead region's token, which
 // may be null, is a loop's variable, never a function's parameter. ∎ A cell,
 // a raw `ptr` (a Win32 handle) and anything else take no attribute.
-func (p *printer) tableAttr(ty string) string {
+func (p *printer) tableAttr(ty string, param bool) string {
 	if PlantNoTableAttr || p.llty(ty) != "ptr" || core.IsCell(ty) {
 		return ""
 	}
@@ -423,8 +423,28 @@ func (p *printer) tableAttr(ty string) string {
 	if PlantTableAttrWide {
 		n = 4096 // past every region of a short table: LLVM may load there
 	}
-	return fmt.Sprintf(" nonnull dereferenceable(%d) align 8", n)
+	// φ's fourth kind: A LENT BUFFER IS `noalias` (ADR 0018, 0070). R2 hands a
+	// buffer to one call once, so no other argument names its region; a table
+	// frozen from it is no longer a buffer (R3), and the callee's other
+	// pointers are its own allocations. So during the call its region is
+	// reached only through this parameter, which is LLVM's noalias.
+	// ON A PARAMETER ONLY. On a result noalias says the pointer is fresh, as
+	// malloc's is, and a definition that lends a buffer may hand it back (an
+	// export returns its lent buffer, smooth_into): the caller's own pointer
+	// and the result are then one region, which the flag would deny.
+	na := ""
+	if strings.HasPrefix(ty, "buffer") && (param || PlantNoaliasResult) && !PlantNoNoalias {
+		na = " noalias"
+	}
+	return fmt.Sprintf("%s nonnull dereferenceable(%d) align 8", na, n)
 }
+
+// PlantNoaliasResult prints noalias on a lent buffer's result too, the bug
+// the gauntlet's smooth_into first showed: TestALentBufferIsNoalias must see it.
+var PlantNoaliasResult bool
+
+// PlantNoNoalias prints no noalias, the printer before φ's fourth kind.
+var PlantNoNoalias bool
 
 // PlantNoTableAttr prints none, the printer before φ's third kind.
 var PlantNoTableAttr bool

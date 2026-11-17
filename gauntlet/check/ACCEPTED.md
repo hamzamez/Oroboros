@@ -3512,3 +3512,41 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/string-escapes.oro windows`
 - emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-17 — on 89827b8, with uncommitted changes
+
+**Reason:** φ's fourth kind (phi-noalias-2026-11-17): a kept definition's lent buffer is noalias, R2's theorem; the attribute alone; neutral where measured, code size identical
+
+656 runs: 445 emitted, 211 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+10 change(s):
+
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/smooth-go.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+
+## 2026-11-17 — on 89827b8, with uncommitted changes
+
+**Reason:** φ's fourth kind corrected (phi-noalias-2026-11-17): noalias on a lent buffer parameter only; the previous accept had it on two results, which return the caller's own pointer (smooth_into, kara_workspace), unsound; now removed
+
+656 runs: 445 emitted, 211 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/smooth-go.oro windows`
+
+5 compile(s) accepted SLOWER — compile time 1.01x the baseline (median of 52 compiles over 300 ms); a second sweep kept 5 of 6 suspect(s); not paired against the baseline's binary: gauntlet/check/compiletime.txt has uncommitted changes, so no commit holds its compiler; the step's phases: sweep 45s, second sweep 42s, 5 pair(s) × 3 rounds 0s:
+
+- `examples/io/freq.oro windows` 27375 → 56406 ms, 2.06x
+- `gauntlet/differential/cases/big-negmid.oro windows` 0 → 1078 ms, 0.00x
+- `gauntlet/differential/cases/big-subdiv.oro windows` 31 → 937 ms, 30.24x
+- `gauntlet/differential/cases/nulfree.oro windows` 78 → 531 ms, 6.81x
+- `gauntlet/differential/cases/utf8-widths.oro windows` 78 → 625 ms, 8.01x

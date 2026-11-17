@@ -400,6 +400,10 @@ its IR name with `-` made `_`.
   (phi-ptr-2026-11-17). Each such value is a region's address, which traps on null and holds n·w + 8
   bytes and its zero byte (§4), or a string literal's 8-aligned global, so the length's word is always
   there. A cell and a raw `ptr` take none.
+- **`noalias`** on a kept definition's lent buffer (phi-noalias-2026-11-17). R2 hands a buffer to one
+  call once, and a table frozen from it is no longer a buffer (R3), so during the call its region is
+  reached only through that parameter. A table the callee only reads takes none: it may alias
+  another read-only table, which LLVM allows, but nothing is claimed of it.
 
 ## 9. Built in order, each with a time limit
 

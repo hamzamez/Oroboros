@@ -624,7 +624,7 @@ func (pc *placeCheck) walk(t *Term, tail bool) error {
 				n++
 			}
 		}
-		if n > 1 {
+		if n > 1 && !PlantR2Off {
 			return pc.refuse("R2", "is handed to one call twice", t)
 		}
 		if pc.is(op) {
@@ -688,3 +688,8 @@ func (pc *placeCheck) writesItself(t *Term) bool {
 // a buffer is refused as a closure over it (R3): TestALoopsInvariantIsHoaresRule
 // must catch it.
 var PlantMarkIsAClosure bool
+
+// PlantR2Off lets one buffer be handed to one call twice, R2's hole: the
+// premise of `noalias` on a lent buffer (ir/llvm.tableAttr), which
+// TestALentBufferIsNoalias must see LLVM read once R2 is gone.
+var PlantR2Off bool

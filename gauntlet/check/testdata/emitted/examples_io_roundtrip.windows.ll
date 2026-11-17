@@ -11697,7 +11697,7 @@ entry:
   ret { ptr, i64 } %.r51
 }
 
-define void @"os/host.put~lent"(ptr nonnull dereferenceable(8) align 8 %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
+define void @"os/host.put~lent"(ptr noalias nonnull dereferenceable(8) align 8 %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
@@ -11746,7 +11746,7 @@ entry:
   ret void
 }
 
-define { i64, i64 } @"os/host.readat~lent"(ptr nonnull dereferenceable(8) align 8 %v0, i64 range(i64 0, 4611686018427387905) %v1, ptr nonnull dereferenceable(8) align 8 %v2) #0 {
+define { i64, i64 } @"os/host.readat~lent"(ptr nonnull dereferenceable(8) align 8 %v0, i64 range(i64 0, 4611686018427387905) %v1, ptr noalias nonnull dereferenceable(8) align 8 %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s10 = alloca i64
@@ -12624,7 +12624,7 @@ entry:
   ret { ptr, i64 } %.r399
 }
 
-define { i64, i64 } @"os/host.readinto~lent"(ptr %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
+define { i64, i64 } @"os/host.readinto~lent"(ptr %v0, ptr noalias nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s3 = alloca ptr
   %.s4 = alloca i64

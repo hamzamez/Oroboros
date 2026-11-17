@@ -470,8 +470,10 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-17.* The current assessment,
-[docs/assessment-2026-11-16.md](docs/assessment-2026-11-16.md), scores the 11-15 plan below: done but
+*Updated with the plan; last updated 2026-11-17.* The newest assessment,
+[docs/assessment-2026-11-17.md](docs/assessment-2026-11-17.md), scores the plan below. Its next plan
+is proposed and not yet decided, so the plan below stands. The one before it,
+[docs/assessment-2026-11-16.md](docs/assessment-2026-11-16.md), scored the 11-15 plan: done but
 for its last three items. It also finds that the language's own book, in its later chapters, came
 across four programs the compiler accepts and gets wrong, which every check had passed. **The next
 plan**, in order:

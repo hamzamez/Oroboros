@@ -94,8 +94,11 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 [gauntlet/results/](gauntlet/results/) are the authority: every design claim here not measured has been
 wrong about half the time.
 
-**The current assessment is [assessment-2026-11-16.md](docs/assessment-2026-11-16.md)**; read it
-before planning. **Its plan (§5)**, in order:
+**The current assessment is [assessment-2026-11-17.md](docs/assessment-2026-11-17.md)**; read it
+before planning. Its plan (§5) is **proposed for hamza**: first a refusal for a compile that does
+not end, then D4's 2-by-1 `divl`, D1 by header with TinyRetroPad 6c, D5, φ's remaining kinds,
+TinyRetroPad 6d. **Until he approves it, the plan in force is
+[assessment-2026-11-16](docs/assessment-2026-11-16.md)'s (§5)**, in order:
 1. ~~**the book's wrong answers and faults**~~ done: [capture](gauntlet/results/capture-2026-11-16.md)
    (53/76), [store](gauntlet/results/store-2026-11-16.md) (70, ADR 0119),
    [bookfaults](gauntlet/results/bookfaults-2026-11-16.md) (71's `len`, 64, 39, 40, 78),

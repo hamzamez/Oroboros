@@ -7,7 +7,7 @@ declare dllimport ptr @HeapAlloc(ptr, i32, i64)
 declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)
 declare void @llvm.trap()
 
-define ptr @gen_smooth(ptr %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @gen_smooth(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.s8 = alloca i1
   %.s21 = alloca ptr
@@ -182,7 +182,7 @@ entry:
   ret ptr %v97
 }
 
-define ptr @gen_smooth_into(ptr %v0, ptr %v1) #0 {
+define nonnull dereferenceable(8) align 8 ptr @gen_smooth_into(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s6 = alloca i1
   %.s10 = alloca ptr

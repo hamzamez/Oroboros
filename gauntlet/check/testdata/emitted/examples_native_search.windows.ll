@@ -3,7 +3,7 @@
 target triple = "x86_64-pc-windows-msvc"
 
 
-define i64 @gen_find_first(ptr %v0, double %v1) #0 {
+define i64 @gen_find_first(ptr nonnull dereferenceable(8) align 8 %v0, double %v1) #0 {
 entry:
   %.s3 = alloca i64
   %.s7 = alloca i64

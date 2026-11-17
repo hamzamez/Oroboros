@@ -339,11 +339,11 @@ func (p *printer) load(vs []ir.V) {
 func (p *printer) function() string {
 	var params []string
 	for _, v := range p.f.Params {
-		params = append(params, fmt.Sprintf("%s%s %%v%d", p.ty(v), p.rangeAttr(p.f.Types[v]), v))
+		params = append(params, fmt.Sprintf("%s%s%s %%v%d", p.ty(v), p.rangeAttr(p.f.Types[v]), p.tableAttr(p.f.Types[v]), v))
 	}
 	ret := p.retType()
 	if len(p.f.Results) == 1 {
-		if a := p.rangeAttr(p.f.Results[0]); a != "" {
+		if a := p.rangeAttr(p.f.Results[0]) + p.tableAttr(p.f.Results[0]); a != "" {
 			ret = a[1:] + " " + ret
 		}
 	}
@@ -397,6 +397,42 @@ func (p *printer) rangeAttr(ty string) string {
 	}
 	return fmt.Sprintf(" range(i64 %s, %s)", lo, b)
 }
+
+// tableAttr is φ's third kind: `nonnull dereferenceable(8) align 8` on a
+// parameter or result that is a table or a string.
+//
+// THEOREM (a table's pointer is a region's). A table or string value is the
+// address of one of: a region `region`/`region_raw` answered, which traps on
+// null and holds n·w + 8 bytes and the zero byte past them (ADR 0092, 0117),
+// 8-aligned by HeapAlloc and VirtualAlloc; a token's region handed to `reuse`,
+// the same; or a string literal's global, `{ i64, [n x i8] }` with its NUL,
+// `align 8`. Each is non-null, 8-aligned, and holds at least its 8-byte
+// length, so `dereferenceable(8)` reads only the length's word. A segment is
+// a rule, never a pointer into a region's interior at a boundary (a segment at
+// a kept boundary is not built, ADR 0113), and a dead region's token, which
+// may be null, is a loop's variable, never a function's parameter. ∎ A cell,
+// a raw `ptr` (a Win32 handle) and anything else take no attribute.
+func (p *printer) tableAttr(ty string) string {
+	if PlantNoTableAttr || p.llty(ty) != "ptr" || core.IsCell(ty) {
+		return ""
+	}
+	if ty != "string" && ir.ElemOf(p.tg, ty) == "" {
+		return ""
+	}
+	n := 8
+	if PlantTableAttrWide {
+		n = 4096 // past every region of a short table: LLVM may load there
+	}
+	return fmt.Sprintf(" nonnull dereferenceable(%d) align 8", n)
+}
+
+// PlantNoTableAttr prints none, the printer before φ's third kind.
+var PlantNoTableAttr bool
+
+// PlantTableAttrWide claims 4096 bytes of every table, more than a short
+// table's region holds: TestATablesPointerIsARegions must see it printed
+// where the premise forbids it.
+var PlantTableAttrWide bool
 
 // PlantRangeAttrNarrow prints each range attribute one narrower, [lo, hi),
 // so a function called at its set's top end computes with a poison value:

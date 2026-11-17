@@ -3,7 +3,7 @@
 target triple = "x86_64-pc-windows-msvc"
 
 
-define double @gen_sum_of(ptr %v0) #0 {
+define double @gen_sum_of(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.s3 = alloca double
   %.s4 = alloca i64

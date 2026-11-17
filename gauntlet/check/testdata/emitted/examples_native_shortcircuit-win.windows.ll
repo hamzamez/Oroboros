@@ -583,7 +583,7 @@ entry:
   ret i1 %v303
 }
 
-define i1 @"win/print.write"(ptr %v0, i64 %v1, i64 %v2) #0 {
+define i1 @"win/print.write"(ptr nonnull dereferenceable(8) align 8 %v0, i64 %v1, i64 %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1

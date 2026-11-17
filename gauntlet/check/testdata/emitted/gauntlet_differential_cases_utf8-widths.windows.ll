@@ -11,7 +11,7 @@ declare dllimport void @ExitProcess(i32)
 declare void @llvm.trap()
 @.str.0 = private unnamed_addr constant { i64, [47 x i8] } { i64 46, [47 x i8] c"string_of: a scalar's UTF-8 is not valid UTF-8\00" }, align 8
 
-define ptr @gen_run(ptr %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @gen_run(ptr %v0) #0 {
 entry:
   %.s11 = alloca i1
   %.s22 = alloca i1

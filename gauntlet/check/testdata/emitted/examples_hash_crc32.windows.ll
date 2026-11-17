@@ -26,7 +26,7 @@ declare void @llvm.trap()
 @.str.4 = private unnamed_addr constant { i64, [50 x i8] } { i64 49, [50 x i8] c"os.text_of: the repair left an ill-formed subpart\00" }, align 8
 @.str.5 = private unnamed_addr constant { i64, [50 x i8] } { i64 49, [50 x i8] c"out of memory: text longer than the largest table\00" }, align 8
 
-define ptr @crc_table() #0 {
+define nonnull dereferenceable(8) align 8 ptr @crc_table() #0 {
 entry:
   %.s6 = alloca i1
   %.s19 = alloca ptr
@@ -1734,7 +1734,7 @@ entry:
   ret i64 0
 }
 
-define ptr @hex(i64 range(i64 0, 4294967296) %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @hex(i64 range(i64 0, 4294967296) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s9 = alloca i64
@@ -5302,7 +5302,7 @@ entry:
   ret ptr %v11
 }
 
-define ptr @"os/host.Args"() #0 {
+define nonnull dereferenceable(8) align 8 ptr @"os/host.Args"() #0 {
 entry:
   %.s6 = alloca i64
   %.s16 = alloca i1
@@ -7938,7 +7938,7 @@ entry:
   ret ptr %v547
 }
 
-define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
+define void @"os/host.put~lent"(ptr nonnull dereferenceable(8) align 8 %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
@@ -7987,7 +7987,7 @@ entry:
   ret void
 }
 
-define { ptr, i64 } @"os/host.readfile"(ptr %v0) #0 {
+define { ptr, i64 } @"os/host.readfile"(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.s4 = alloca i64
   %.s8 = alloca i1
@@ -9581,7 +9581,7 @@ entry:
   ret { ptr, i64 } %.r833
 }
 
-define { i64, i64 } @"os/host.readinto~lent"(ptr %v0, ptr %v1) #0 {
+define { i64, i64 } @"os/host.readinto~lent"(ptr %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s3 = alloca ptr
   %.s4 = alloca i64
@@ -9699,7 +9699,7 @@ entry:
   ret { i64, i64 } %.r50
 }
 
-define ptr @"os/host.repair"(ptr %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @"os/host.repair"(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.cell10 = alloca i32
   %.s19 = alloca i1
@@ -10676,7 +10676,7 @@ entry:
   ret i64 %v17
 }
 
-define i1 @"win/print.write"(ptr %v0, i64 %v1, i64 %v2) #0 {
+define i1 @"win/print.write"(ptr nonnull dereferenceable(8) align 8 %v0, i64 %v1, i64 %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1

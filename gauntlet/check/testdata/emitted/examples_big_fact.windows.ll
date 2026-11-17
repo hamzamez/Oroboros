@@ -14,7 +14,7 @@ declare void @llvm.trap()
 @.str.0 = private unnamed_addr constant { i64, [56 x i8] } { i64 55, [56 x i8] c"out of memory: an integer longer than the largest table\00" }, align 8
 @.str.1 = private unnamed_addr constant { i64, [55 x i8] } { i64 54, [55 x i8] c"not a numeral: a numeral's table holds its signed size\00" }, align 8
 
-define ptr @gen_fact(i64 range(i64 0, 31) %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @gen_fact(i64 range(i64 0, 31) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1
@@ -541,7 +541,7 @@ entry:
   ret ptr %v306
 }
 
-define ptr @nat.mul_small(ptr %v0, i64 %v1) #0 {
+define nonnull dereferenceable(8) align 8 ptr @nat.mul_small(ptr nonnull dereferenceable(8) align 8 %v0, i64 %v1) #0 {
 entry:
   %.s6 = alloca i64
   %.s19 = alloca i64

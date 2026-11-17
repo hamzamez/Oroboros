@@ -7,7 +7,7 @@ declare dllimport ptr @HeapAlloc(ptr, i32, i64)
 declare dllimport ptr @VirtualAlloc(ptr, i64, i32, i32)
 declare void @llvm.trap()
 
-define ptr @gen_mac_fresh(ptr %v0, ptr %v1) #0 {
+define nonnull dereferenceable(8) align 8 ptr @gen_mac_fresh(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1
@@ -187,7 +187,7 @@ entry:
   ret ptr %v103
 }
 
-define ptr @gen_mac_into(ptr %v0, ptr %v1, ptr %v2) #0 {
+define nonnull dereferenceable(8) align 8 ptr @gen_mac_into(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull dereferenceable(8) align 8 %v1, ptr nonnull dereferenceable(8) align 8 %v2) #0 {
 entry:
   %.s9 = alloca i1
   %.s12 = alloca ptr

@@ -17,7 +17,7 @@ declare { i8, i64 } @llvm.x86.subborrow.64(i8, i64, i64)
 @.str.0 = private unnamed_addr constant { i64, [56 x i8] } { i64 55, [56 x i8] c"out of memory: an integer longer than the largest table\00" }, align 8
 @.str.1 = private unnamed_addr constant { i64, [55 x i8] } { i64 54, [55 x i8] c"not a numeral: a numeral's table holds its signed size\00" }, align 8
 
-define ptr @gen_pair(i64 range(i64 0, 21) %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @gen_pair(i64 range(i64 0, 21) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s12 = alloca i1
@@ -1097,7 +1097,7 @@ entry:
   ret ptr %v602
 }
 
-define ptr @nat.add(ptr %v0, ptr %v1) #0 {
+define nonnull dereferenceable(8) align 8 ptr @nat.add(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s6 = alloca i64
   %.s17 = alloca i64
@@ -3738,7 +3738,7 @@ entry:
   ret ptr %v532
 }
 
-define ptr @nat.mul(ptr %v0, ptr %v1) #0 {
+define nonnull dereferenceable(8) align 8 ptr @nat.mul(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s6 = alloca i64
   %.s19 = alloca i64

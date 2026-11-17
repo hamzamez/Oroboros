@@ -3,7 +3,7 @@
 target triple = "x86_64-pc-windows-msvc"
 
 
-define double @gen_centroid(ptr %v0, ptr %v1) #0 {
+define double @gen_centroid(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s4 = alloca double
   %.s5 = alloca double

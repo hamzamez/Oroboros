@@ -396,6 +396,10 @@ its IR name with `-` made `_`.
   lo ≥ 0 or both hi < 0 (phi-samesign-2026-11-17). There the signed and unsigned orders agree, so
   LLVM may read the comparison either way, and the flag's poison, operands of differing signs,
   never occurs.
+- **`nonnull dereferenceable(8) align 8`** on a parameter or result that is a table or a string
+  (phi-ptr-2026-11-17). Each such value is a region's address, which traps on null and holds n·w + 8
+  bytes and its zero byte (§4), or a string literal's 8-aligned global, so the length's word is always
+  there. A cell and a raw `ptr` take none.
 
 ## 9. Built in order, each with a time limit
 

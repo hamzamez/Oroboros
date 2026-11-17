@@ -9258,7 +9258,7 @@ entry:
   ret i64 1
 }
 
-define ptr @"os/host.Args"() #0 {
+define nonnull dereferenceable(8) align 8 ptr @"os/host.Args"() #0 {
 entry:
   %.s6 = alloca i64
   %.s16 = alloca i1
@@ -10509,7 +10509,7 @@ entry:
   ret ptr %v547
 }
 
-define ptr @"os/host.Getenv"(ptr %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @"os/host.Getenv"(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.s4 = alloca i64
   %.s8 = alloca i1
@@ -11606,7 +11606,7 @@ entry:
   ret i64 %v0
 }
 
-define { ptr, i64 } @"os/host.open"(ptr %v0, i64 range(i64 0, 4294967296) %v1, i64 range(i64 0, 4294967296) %v2) #0 {
+define { ptr, i64 } @"os/host.open"(ptr nonnull dereferenceable(8) align 8 %v0, i64 range(i64 0, 4294967296) %v1, i64 range(i64 0, 4294967296) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
@@ -11697,7 +11697,7 @@ entry:
   ret { ptr, i64 } %.r51
 }
 
-define void @"os/host.put~lent"(ptr %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
+define void @"os/host.put~lent"(ptr nonnull dereferenceable(8) align 8 %v0, i64 %v1, i64 range(i64 0, 256) %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1
@@ -11746,7 +11746,7 @@ entry:
   ret void
 }
 
-define { i64, i64 } @"os/host.readat~lent"(ptr %v0, i64 range(i64 0, 4611686018427387905) %v1, ptr %v2) #0 {
+define { i64, i64 } @"os/host.readat~lent"(ptr nonnull dereferenceable(8) align 8 %v0, i64 range(i64 0, 4611686018427387905) %v1, ptr nonnull dereferenceable(8) align 8 %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s10 = alloca i64
@@ -11859,7 +11859,7 @@ entry:
   ret { i64, i64 } %.r64
 }
 
-define { ptr, i64 } @"os/host.readfile"(ptr %v0) #0 {
+define { ptr, i64 } @"os/host.readfile"(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.cell6 = alloca i64
   %.s19 = alloca i1
@@ -12624,7 +12624,7 @@ entry:
   ret { ptr, i64 } %.r399
 }
 
-define { i64, i64 } @"os/host.readinto~lent"(ptr %v0, ptr %v1) #0 {
+define { i64, i64 } @"os/host.readinto~lent"(ptr %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s3 = alloca ptr
   %.s4 = alloca i64
@@ -12737,7 +12737,7 @@ entry:
   ret { i64, i64 } %.r48
 }
 
-define ptr @"os/host.repair"(ptr %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @"os/host.repair"(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.cell10 = alloca i32
   %.s19 = alloca i1
@@ -13692,7 +13692,7 @@ entry:
   ret ptr %v504
 }
 
-define ptr @"os/host.text_of"(ptr %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @"os/host.text_of"(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.s3 = alloca i64
   %.s4 = alloca i64
@@ -15018,7 +15018,7 @@ entry:
   unreachable
 }
 
-define range(i64 0, 4294967296) i64 @"os/host.writeall"(ptr %v0, ptr %v1) #0 {
+define range(i64 0, 4294967296) i64 @"os/host.writeall"(ptr %v0, ptr nonnull dereferenceable(8) align 8 %v1) #0 {
 entry:
   %.s3 = alloca i64
   %.s4 = alloca i64
@@ -15613,7 +15613,7 @@ entry:
   ret i1 %v100
 }
 
-define i1 @"win/print.write"(ptr %v0, i64 %v1, i64 %v2) #0 {
+define i1 @"win/print.write"(ptr nonnull dereferenceable(8) align 8 %v0, i64 %v1, i64 %v2) #0 {
 entry:
   %.s6 = alloca i1
   %.s14 = alloca i1

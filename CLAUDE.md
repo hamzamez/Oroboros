@@ -113,10 +113,12 @@ before planning. **Its plan (§5)**, in order:
    `/` and `%` on i686, the target `windows32`), each with a recommendation; then built, with
    **Win32 by header** (W1, hamza 2026-11-16): a module is the header (`windows/fileapi`), the DLL
    each declaration's `lib`, the type names in their headers;
-5. **φ maximal** (hamza 2026-11-16), **two kinds done**: `range` on a printed function's
-   parameters and result, its contract's sets, and `icmp samesign` where both operands' signs are
+5. **φ maximal** (hamza 2026-11-16), **three kinds done**: `range` on a printed function's
+   parameters and result, its contract's sets; `icmp samesign` where both operands' signs are
    proven ([phi-samesign](gauntlet/results/phi-samesign-2026-11-17.md), a text witness, LLVM's use
-   heuristic) ([phi-range](gauntlet/results/phi-range-2026-11-17.md);
+   heuristic); `nonnull dereferenceable(8) align 8` on a table or string at a boundary
+   ([phi-ptr](gauntlet/results/phi-ptr-2026-11-17.md)); each neutral where measured
+   ([phi-range](gauntlet/results/phi-range-2026-11-17.md);
    neutral on four programs, and `urem` by a constant measured 1.42× C, set aside for hamza as
    amending ADR 0088). Every fact the decision proves that LLVM's attribute lattice
    expresses is printed (`noundef`, `noalias`, `nonnull`/`dereferenceable`, `range`, `nneg`,

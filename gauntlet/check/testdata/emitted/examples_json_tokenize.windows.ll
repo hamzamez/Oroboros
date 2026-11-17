@@ -3821,7 +3821,7 @@ entry:
   ret i64 %v1928
 }
 
-define i64 @gen_tokens(ptr %v0) #0 {
+define i64 @gen_tokens(ptr nonnull dereferenceable(8) align 8 %v0) #0 {
 entry:
   %.s7 = alloca i1
   %.s20 = alloca ptr

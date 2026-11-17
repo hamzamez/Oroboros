@@ -17,7 +17,7 @@ declare void @llvm.trap()
 @.str.2 = private unnamed_addr constant { i64, [1 x i8] } { i64 0, [1 x i8] c"\00" }, align 8
 @.str.3 = private unnamed_addr constant { i64, [47 x i8] } { i64 46, [47 x i8] c"string_of: a scalar's UTF-8 is not valid UTF-8\00" }, align 8
 
-define ptr @gen_run(i64 range(i64 0, 16) %v0) #0 {
+define nonnull dereferenceable(8) align 8 ptr @gen_run(i64 range(i64 0, 16) %v0) #0 {
 entry:
   %.s6 = alloca i1
   %.s13 = alloca i1

@@ -1,0 +1,93 @@
+// THE i686 TRIPLE'S RUNTIME, Σ_RT (ADR 0123): the four functions LLVM's
+// i686-pc-windows-msvc code generator calls for a 64-bit division it does not
+// expand itself (a divisor it cannot see is a constant or a 32-bit value, and
+// every signed one by a constant; d6-2026-11-17's probe), each named by the
+// symbol it calls. MSVC's C runtime defines them; this target links none
+// (llvm.md §2), so they are the language's, over the triple's 2-by-1
+// division `divl` (targets/windows32/x86.oro).
+//
+// `gen -runtime x86_stdcallcc` prints each export also at its own symbol, with
+// the convention LLVM calls it by: the arguments on the stack, popped by the
+// callee, the result in EDX:EAX. LLVM calls them only where its division is
+// defined: a divisor ≠ 0, and no −2⁶³ / −1. A runtime that divides by a word
+// would call itself, and `gen` refuses one (ADR 0123 item 3).
+//
+// THE ALGORITHM (Warren, Hacker's Delight, 2nd ed., §9-5, divDu; Knuth, TAOCP
+// 2 §4.3.1). Let D(n, d) = (⌊n / d⌋, n mod d), defined for ⌊n / 2³²⌋ < d < 2³²:
+// divl. For x < 2⁶⁴ and 0 < y < 2⁶⁴:
+//   - y < 2³², x₁ = ⌊x / 2³²⌋ < y: q = D(x, y), one quotient digit.
+//   - y < 2³², x₁ ≥ y: short division in base 2³², (q₁, k) = D(x₁, y) and
+//     (q₀, r) = D(k·2³² + x mod 2³², y), k < y; q = q₁·2³² + q₀.
+//   - y ≥ 2³²: q < 2³². Normalize by s = clz(y) ∈ [0, 31], v₁ = ⌊y·2ˢ / 2³²⌋
+//     ∈ [2³¹, 2³²), and divide x / 2 by it, so the quotient q₁ < 2³²; then
+//     q₀ = ⌊q₁·2ˢ / 2³¹⌋ satisfies q ≤ q₀ ≤ q + 1, so q₀ − 1 (when q₀ > 0) is
+//     q or q − 1 (Warren's theorem), and one comparison of x − q₀·y with y
+//     corrects it. Every product there is at most x, so its residue mod 2⁶⁴
+//     is the product itself.
+// The remainder is x − q·y, below y, so its residue mod 2⁶⁴ is exact too.
+// Signed: |q| = ⌊|a| / |b|⌋ with the sign of a·b, and the remainder r = a −
+// q·b has a's sign (truncation, ℤ's `/` and `%`, integers.md §3).
+
+use llvm
+use llvm/isa as isa
+
+// ⌊x / y⌋; y = 0 is divl's #DE, the trap
+fn udiv(x ∈ 0..2^64-1, y ∈ 0..2^64-1) (0..2^64-1) {
+    case {
+        y < 4294967296 -> {
+            x1 = x / 4294967296
+            case {
+                x1 < y -> isa.udiv_2by1_32(x, y) % 4294967296
+                else -> {
+                    a = isa.udiv_2by1_32(x1, y)
+                    b = isa.udiv_2by1_32((a / 4294967296) * 4294967296 + x % 4294967296, y)
+                    (a % 4294967296) * 4294967296 + b % 4294967296
+                }
+            }
+        }
+        else -> {
+            s = isa.clz_low(y / 4294967296) - 32
+            v1 = ((y * (1 << s)) mod 2^64) / 4294967296
+            q1 = isa.udiv_2by1_32(x / 2, v1) % 4294967296
+            q0 = (q1 * (1 << s)) / 2147483648
+            qd = if q0 > 0 { q0 - 1 } else { 0 }
+            if (x - qd * y) mod 2^64 >= y { qd + 1 } else { qd }
+        }
+    }
+}
+
+// x mod y = x − ⌊x / y⌋·y, below y
+fn urem(x ∈ 0..2^64-1, y ∈ 0..2^64-1) (0..2^64-1) { (x - (udiv(x, y) * y) mod 2^64) mod 2^64 }
+
+fn mag(a ∈ -2^63..2^63-1) (0..2^63) { if a < 0 { 0 - a } else { a } }
+
+export fn __aulldiv(x ∈ 0..2^64-1, y ∈ 0..2^64-1) (0..2^64-1) { udiv(x, y) }
+export fn __aullrem(x ∈ 0..2^64-1, y ∈ 0..2^64-1) (0..2^64-1) { urem(x, y) }
+
+// |q| ≤ |a| ≤ 2⁶³, and q = 2⁶³ only for −2⁶³ / −1, off LLVM's domain, where
+// x86's own idiv traps; −m is −1 − (m − 1), so no value at 2⁶³ is read as a
+// signed word
+export fn __alldiv(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1) (-2^63..2^63-1) {
+    m = udiv(mag(a), mag(b))
+    case {
+        (a < 0 && b >= 0) || (a >= 0 && b < 0) -> case {
+            m > 9223372036854775808 -> llvm.trap()
+            m == 9223372036854775808 -> -9223372036854775808
+            m == 0 -> 0
+            else -> -1 - (m - 1)
+        }
+        m > 9223372036854775807 -> llvm.trap()
+        else -> m
+    }
+}
+
+// |r| < |b| ≤ 2⁶³, with a's sign
+export fn __allrem(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1) (-2^63..2^63-1) {
+    m = urem(mag(a), mag(b))
+    case {
+        m > 9223372036854775807 -> llvm.trap()
+        a < 0 && m == 0 -> 0
+        a < 0 -> -1 - (m - 1)
+        else -> m
+    }
+}

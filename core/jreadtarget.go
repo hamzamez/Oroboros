@@ -165,7 +165,7 @@ func (p *parser) targetItem() (*Term, error) {
 	}
 	if t.kind == tIdent {
 		switch t.text {
-		case "repr", "include", "structural", "backend", "link", "build", "artifact", "data", "glue", "triple",
+		case "repr", "include", "structural", "backend", "link", "build", "artifact", "data", "glue", "triple", "runtime",
 			"underlying", "max_len", "big_repr", "int_repr", "fact", "lemma":
 			return p.modelForm()
 		case "realize":

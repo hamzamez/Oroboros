@@ -6,8 +6,9 @@ before anything is built. Nothing here is built. The measurements use a scratch 
 with each change the experiment makes said where it is made. §6 holds the decisions, each with a
 recommendation. **Status** (2026-11-17): decided by ADR 0122. Built so far: the family (step 1) and the
 target `windows32` with D3 and the sentinel ([windows32-2026-11-17](../gauntlet/results/windows32-2026-11-17.md):
-66 of 74, the file-read failure of §3's item 2 a NUL nobody wrote, on both triples). D6, D2 (with D4's
-`x86.oro`), D1 by header and D5 are next, in that order.
+66 of 74, the file-read failure of §3's item 2 a NUL nobody wrote, on both triples), and D6 (ADR 0123,
+[d6-2026-11-17](../gauntlet/results/d6-2026-11-17.md): the triple's runtime in the language, 68 of 74).
+D2 (with the rest of D4's `x86.oro`), D1 by header and D5 are next, in that order.
 
 ## 1. What a triple is
 

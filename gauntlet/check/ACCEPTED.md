@@ -3595,3 +3595,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-17 — on a88da71, with uncommitted changes
+
+**Reason:** ADR 0123: windows32's runtime, lib/rt/i686.oro (Warren's divDu over divl), a new source of the sweep, refused on the four sweep targets; a pure host operation's declared result set is a fact for the refinement layer (no other emission changes)
+
+660 runs: 445 emitted, 215 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `lib/rt/i686.oro go`
+- new source — `lib/rt/i686.oro java`
+- new source — `lib/rt/i686.oro js`
+- new source — `lib/rt/i686.oro windows`

@@ -31,6 +31,7 @@ func main() {
 	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
+	flag.StringVar(&runtimeCC, "runtime", "", "print each export also at its own name, with this LLVM calling convention (`x86_stdcallcc`): the module is a triple's runtime, what its code generator calls (ADR 0123)")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`; a lowering or verification failure is written to FILE.err and changes nothing that is emitted")
 	flag.BoolVar(&reportRequires, "report-requires", false,
@@ -149,6 +150,8 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		name string
 		qual string // the fully qualified export, so its signature can be found
 		term *core.Term
+		// local is the export's own name, a runtime entry's symbol (ADR 0123)
+		local string
 	}
 	var units []unit
 	prefix := name
@@ -160,7 +163,7 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		if i := strings.LastIndex(local, "."); i >= 0 {
 			local = local[i+1:]
 		}
-		units = append(units, unit{name: prefix + "-" + local, qual: q, term: prog.Defs[q]})
+		units = append(units, unit{name: prefix + "-" + local, qual: q, term: prog.Defs[q], local: local})
 	}
 	if len(units) == 0 {
 		stem := name
@@ -358,6 +361,21 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		text2 = emit.JavaFile(strings.TrimSuffix(base, ".java"), funcs)
 	case "llvm":
 		text2 = llvm.File(tg, funcs, "")
+		// A TRIPLE'S RUNTIME (ADR 0123): each export at the symbol the code
+		// generator calls, by its convention
+		if runtimeCC != "" {
+			for _, u := range units {
+				if u.qual == "" {
+					continue
+				}
+				sym := strings.ReplaceAll(u.local, "-", "_")
+				e, err := llvm.RuntimeEntry(funcs[u.name], sym, runtimeCC)
+				if err != nil {
+					return err
+				}
+				text2 += "\n" + e
+			}
+		}
 	case "go":
 		text2 = emit.File("gauntlet", funcs)
 	default:
@@ -375,6 +393,9 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 
 // irOut is -ir's file.
 var irOut string
+
+// runtimeCC is -runtime's calling convention (ADR 0123).
+var runtimeCC string
 
 // writeIR is ir.WriteFile on -ir's file.
 func writeIR(tg *emit.Target, p *ir.Program, errs []string) {

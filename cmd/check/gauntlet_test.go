@@ -7,10 +7,12 @@ import (
 	"testing"
 )
 
-// The list is the 33 files, each source present, each output under gauntlet/:
-// 26 for Go, JavaScript and Java, 7 for windows (gauntlet-2026-11-16). The
-// JSON programs' JavaScript and Java lines once named a port of Go's names;
-// since they are the language's operators every line is its source as it is.
+// The list is the 34 files, each source present: the 33 the harnesses call,
+// under gauntlet/, 26 for Go, JavaScript and Java and 7 for windows
+// (gauntlet-2026-11-16), and windows32's runtime, under lib/rt/, which every
+// program of that target links (ADR 0123). The JSON programs' JavaScript and
+// Java lines once named a port of Go's names; since they are the language's
+// operators every line is its source as it is.
 func TestTheRegenListNamesItsSources(t *testing.T) {
 	root, err := repoRoot()
 	if err != nil {
@@ -20,16 +22,16 @@ func TestTheRegenListNamesItsSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 33 {
-		t.Errorf("gauntlet/regen.txt lists %d files; the harnesses call 33", len(entries))
+	if len(entries) != 34 {
+		t.Errorf("gauntlet/regen.txt lists %d files; the harnesses call 33, and windows32 links its runtime", len(entries))
 	}
 	seen := map[string]bool{}
 	for _, e := range entries {
 		if _, err := os.Stat(filepath.Join(root, e.source)); err != nil {
 			t.Errorf("line %d: source %s: %v", e.line, e.source, err)
 		}
-		if !strings.HasPrefix(e.out, "gauntlet/") || seen[e.out] {
-			t.Errorf("line %d: output %s is outside the gauntlet or listed twice", e.line, e.out)
+		if !(strings.HasPrefix(e.out, "gauntlet/") || strings.HasPrefix(e.out, "lib/rt/")) || seen[e.out] {
+			t.Errorf("line %d: output %s is outside the gauntlet and the runtimes, or listed twice", e.line, e.out)
 		}
 		seen[e.out] = true
 	}

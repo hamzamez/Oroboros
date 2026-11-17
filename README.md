@@ -513,8 +513,10 @@ plan**, in order:
    family, a shared Win32 base with one directory per processor; and **`windows32` is a target**
    ([windows32-2026-11-17](gauntlet/results/windows32-2026-11-17.md)), 66 of the 74 programs
    correct on it. On the way, a wrong answer on both processors was found and fixed: a file's path
-   could run on past its end into whatever memory followed. Next, 32-bit division without the C
-   runtime's helpers, then big integers' digit size per processor;
+   could run on past its end into whatever memory followed. **64-bit division on 32-bit Windows
+   is the language's own** ([d6-2026-11-17](gauntlet/results/d6-2026-11-17.md)), at the four places
+   LLVM calls a helper, 13% faster than Microsoft's; 68 of the 74 programs run. Next, big integers'
+   digit size per processor;
 5. **tell LLVM everything the compiler proves** (that a value is never undefined, that two buffers
    never overlap, a number's range, that a loop ends), one kind of fact at a time, each checked and
    measured against C. **Four kinds done** (2026-11-17): a function's argument and result ranges,

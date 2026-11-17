@@ -4,7 +4,8 @@ Date: 2026-11-17
 Status: Accepted (hamza, 2026-11-17: "Go with your recommendations on D1–D7, always mathematical and
 algebraic", on [triple-research.md](../triple-research.md) §6). Built in steps, each with its result
 document; this ADR states D1, D3, D4, D6 and D7 and the two derived consequences. D2 (the digit base,
-amending ADR 0106) and D5 (i32 scalars, ADR 0083 item 2) have ADRs of their own at their steps.
+amending ADR 0106) and D5 (i32 scalars, ADR 0083 item 2) have ADRs of their own at their steps;
+where D6's realization sits, the symbols LLVM calls, is ADR 0123's.
 
 ## Context
 

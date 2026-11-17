@@ -1,5 +1,6 @@
 # The files the gauntlet's harnesses call, each generated from its source by the
-# compiler at HEAD. One line per file: target, source, -name, output.
+# compiler at HEAD. One line per file: target, source, -name, output, then any of
+# gen's own flags.
 #
 # Read by `bash gauntlet/regen.sh`, which writes them, and by `go run ./cmd/check`'s
 # gauntlet step, which regenerates them and requires the committed copies to be
@@ -52,3 +53,8 @@ windows examples/native/smooth-go.oro   native     gauntlet/windows/gen_smooth_n
 windows examples/native/search.oro      native     gauntlet/windows/gen_search_native.ll
 windows examples/json/tokenize.oro      tokenize   gauntlet/windows/gen_jsontok.ll
 windows examples/json/tree.oro          tree       gauntlet/windows/gen_jsontree.ll
+
+# A triple's runtime (ADR 0123): what LLVM's i686 code generator calls for a
+# 64-bit division, linked into every windows32 program, each export also at its
+# own symbol with the convention LLVM calls it by.
+windows32 lib/rt/i686.oro               rt         lib/rt/i686.ll            -runtime x86_stdcallcc

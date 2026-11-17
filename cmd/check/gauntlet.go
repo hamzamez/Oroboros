@@ -29,7 +29,10 @@ import (
 // regenEntry is one line of gauntlet/regen.txt.
 type regenEntry struct {
 	target, source, name, out string
-	line                      int
+	// flags are gen's own, after the output: `-runtime x86_stdcallcc` for a
+	// triple's runtime (ADR 0123)
+	flags []string
+	line  int
 }
 
 func readRegenList(root string) ([]regenEntry, error) {
@@ -46,10 +49,10 @@ func readRegenList(root string) ([]regenEntry, error) {
 			continue
 		}
 		fs := strings.Fields(line)
-		if len(fs) != 4 {
-			return nil, fmt.Errorf("gauntlet/regen.txt:%d: want target, source, name and output, got %q", n, line)
+		if len(fs) < 4 {
+			return nil, fmt.Errorf("gauntlet/regen.txt:%d: want target, source, name and output, then gen's flags, got %q", n, line)
 		}
-		out = append(out, regenEntry{target: fs[0], source: fs[1], name: fs[2], out: fs[3], line: n})
+		out = append(out, regenEntry{target: fs[0], source: fs[1], name: fs[2], out: fs[3], flags: fs[4:], line: n})
 	}
 	return out, sc.Err()
 }
@@ -108,6 +111,7 @@ func (c *checker) regenerateOne(gen, dir string, e regenEntry) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
+	args = append(args, e.flags...)
 	args = append(args, "-name", e.name, path, e.target, dst)
 	cmd := exec.Command(gen, args...)
 	cmd.Dir = c.root

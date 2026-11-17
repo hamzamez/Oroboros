@@ -4,11 +4,12 @@
 //   glue win32     the base: Win32 over T_LLVM[Σ_OS] (targets/win32), glued
 //   model.oro      the data model's set names, ILP32 (D1)
 //   space.oro      the address space, 2³¹ bytes (D3)
+//   x86.oro        the ISA's own operations at 32 bits: divl, the runtime's (D4)
 //
-// It names no ISA operations yet (D4): the double word's 2-by-1 division and
-// add-with-carry are x86-64's, and i686's own at 32 bits come with K(ℕ*)'s
-// base at 2³² (D2). Without them the double word's operations are LLVM's
-// target-independent ones, which the triple expands.
+// The double word's 2-by-1 division and add-with-carry are x86-64's, and
+// i686's own for K(ℕ*) come with its base at 2³² (D2). Without them the double
+// word's operations are LLVM's target-independent ones, which the triple
+// expands.
 glue win32
 
 // THE TRIPLE (ADR 0093 item 5): 32-bit Windows, MSVC's ABI. A WINAPI function
@@ -19,5 +20,11 @@ triple "i686-pc-windows-msvc"
 // process's user space is 2³¹ bytes, and a table of n one-byte elements takes
 // n + 9 of them, so n ≤ 2³¹ − 9.
 fact max_len (a ∈ Array(A)) len(a) <= (2^31-9)
+
+// THE TRIPLE'S RUNTIME (ADR 0123): LLVM's i686 code generator calls __alldiv,
+// __aulldiv, __allrem and __aullrem for a 64-bit division it does not expand.
+// lib/rt/i686.oro defines them over divl, and every program links
+// lib/rt/i686.ll, which `bash gauntlet/regen.sh` writes from it.
+runtime "rt/i686.ll"
 
 build "cmd /c .\\build.bat"

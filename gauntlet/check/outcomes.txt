@@ -1508,6 +1508,17 @@
 == lib/result.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == lib/result.oro java emitted a55a9cbbc8e4476b44bc5819ff933436d0f1a40a1bd6826111f247eb036c690a
 == lib/result.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
+== lib/rt/i686.oro go refused
+   gen: lib/rt/i686.oro: in `rt/i686`.`--alldiv`: llvm.trap is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm` matched no file on the search path and this target provides no module llvm either, so every name from it is unbound. Check the path.
+== lib/rt/i686.oro js refused
+   gen: lib/rt/i686.oro: in `rt/i686`.`--alldiv`: llvm.trap is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm` matched no file on the search path and this target provides no module llvm either, so every name from it is unbound. Check the path.
+== lib/rt/i686.oro java refused
+   gen: lib/rt/i686.oro: in `rt/i686`.`--alldiv`: llvm.trap is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use llvm` matched no file on the search path and this target provides no module llvm either, so every name from it is unbound. Check the path.
+== lib/rt/i686.oro windows refused
+   gen: lib/rt/i686.oro: in `rt/i686`.udiv: `llvm/isa`.udiv_2by1_32 is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/win/print.oro go refused
    gen: lib/win/print.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.

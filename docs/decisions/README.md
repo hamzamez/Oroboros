@@ -153,4 +153,5 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0120](0120-a-map-on-the-llvm-layer-is-realized-after-the-decision.md) | A map on the LLVM layer is realized after the decision |
 | [0121](0121-a-maps-capacity-is-a-claim-on-its-len.md) | A map's capacity is a claim on its `len` |
 | [0122](0122-the-windows-family-is-a-fibration-and-a-triple-is-a-model.md) | The windows family is a fibration over Win32, and a triple is a model of what it leaves open |
+| [0123](0123-a-triples-runtime-is-a-library-in-the-language.md) | A triple's runtime is a library in the language, linked into every program |
 | [0047](0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) | `local` is a scope of local state: the initializer decides buffer (a table) or cell (anything else); cells are loop variables by the state-passing translation in the loader; an elimination it assumes is marked and decided by the reducer on a normal form; a projection of a loop moves into its exits; generalizes 0018's scope and respells `build`'s binder |

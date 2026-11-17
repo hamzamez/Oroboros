@@ -116,8 +116,9 @@ before planning. **Its plan (§5)**, in order:
    **Built**: the family (`targets/win32/` the base) and the target `windows32`
    ([windows32](gauntlet/results/windows32-2026-11-17.md): 66 of 74; D3 as Σ_OS's precondition
    `b <= max_bytes()`; the sentinel at pointer width; W15, a raw region's zero byte at both
-   layouts, after a wrong answer on both triples). **Next**: D6, then D2 with D4's `x86.oro`, D1
-   by header, D5;
+   layouts, after a wrong answer on both triples); **D6** ([d6](gauntlet/results/d6-2026-11-17.md),
+   ADR 0123: the triple's runtime, `lib/rt/i686.oro`, Warren's divDu over `divl` at the symbols
+   LLVM calls, 0.87× libcmt's time; 68 of 74). **Next**: D2 with D4's `x86.oro`, D1 by header, D5;
 5. **φ maximal** (hamza 2026-11-16), **four kinds done**: `range` on a printed function's
    parameters and result, its contract's sets; `icmp samesign` where both operands' signs are
    proven ([phi-samesign](gauntlet/results/phi-samesign-2026-11-17.md), a text witness, LLVM's use
@@ -221,8 +222,9 @@ contract gap (ADR 0028); records, `with` and named views beyond what TinyRetroPa
   on four targets: geometric means Go 1.001, JavaScript 0.965, Java 1.012, windows 0.978 (against
   hand-written C by the same clang), each residue above 1.05× explained. Windows runs five of the
   seven (G4 and G3's tally need a dictionary keyed by strings, G5 F64's rendering: walls). The 33
-  files its harnesses call are listed in `gauntlet/regen.txt`, written by `bash gauntlet/regen.sh` and
-  regenerated and compared by `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
+  files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
+  (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
+  `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
 - **Provability**: **8,852 of 8,906** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **924 of 962** loops proven to
@@ -583,6 +585,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A map on the LLVM layer is the table of its cells, realized after the decision | [0120](docs/decisions/0120-a-map-on-the-llvm-layer-is-realized-after-the-decision.md) |
 | A map of capacity c is in {m : len(m) ≤ c}, each insert marked len(m) < c | [0121](docs/decisions/0121-a-maps-capacity-is-a-claim-on-its-len.md) |
 | The windows family is a fibration over Win32 (`win32` glued by each member); a triple is a model: data model, address space in bytes, ISA, toolchain | [0122](docs/decisions/0122-the-windows-family-is-a-fibration-and-a-triple-is-a-model.md) |
+| A triple's runtime, what its code generator calls (i686's 64-bit division), is a library in the language linked into every program; a host result's set is a refinement fact | [0123](docs/decisions/0123-a-triples-runtime-is-a-library-in-the-language.md) |
 
 ## Build commands
 
@@ -598,7 +601,7 @@ go run ./cmd/oro -target=go examples/native/dot.oro          # reduce to normal 
 go run ./cmd/gen -ir dot.ir -name native examples/native/dot.oro go dot.go   # emit, and write the IR
 go run ./cmd/intervals -v examples/table/sieve.oro go           # what the decision proves, and what not
 go run ./cmd/portable examples/io/wc.oro                        # which targets accept a program, and why
-bash gauntlet/regen.sh                                          # regenerate the gauntlet's 33 files
+bash gauntlet/regen.sh                                          # regenerate the gauntlet's 33 files and the runtime
 cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5   # generated vs hand-written
 ```
 
@@ -619,8 +622,8 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the definitions kept as functions (`keep`, ADR 0113); the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/llvm` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
-| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `win32/` (the windows family's base, ADR 0122: glues `llvm`; `os` the view over kernel32, `kernel32`), `windows/` (the x86_64 member: glues `win32`; its triple, its address space, `x64.oro` the ISA's operations); `blas` and the `tutorial*` targets parameterize the normal form for the book |
-| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators) |
+| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `win32/` (the windows family's base, ADR 0122: glues `llvm`; `os` the view over kernel32, `kernel32`), `windows/` (the x86_64 member: glues `win32`; its triple, its address space, `x64.oro` the ISA's operations), `windows32/` (the i686 member: `x86.oro`'s `divl`, `runtime "rt/i686.ll"`); `blas` and the `tutorial*` targets parameterize the normal form for the book |
+| `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators), `rt` (`i686.oro`: windows32's runtime, ADR 0123) |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
 | `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `num/` (`ledger`, decimals), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |
 | `gauntlet/` | hand-written references, `results/`, `check/` (the baseline), `differential/` (cases on four targets, proving their arithmetic unless `; checked:` says why), `conformance/`, `regen.txt`, `balance.py`, `surface/` (the surface's measurements) |

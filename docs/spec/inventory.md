@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 144 |
+| `specified` — a spec states it | 145 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -215,6 +215,7 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `realize` | specified — `realize OP = A, B … [checked C]`, a target's stated interpretation of a language name (ADR 0088) | [ADR 0088](../decisions/0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md), [llvm.md](llvm.md) §6 |
 | `glue` | specified — `glue TARGET`, that target's fragments glued into this one (⊔, agreement required); a header with no body is an operation a glued layer must define | [ADR 0093](../decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md), [target-system.md](target-system.md) §2.1, §5.2a |
 | `triple` | specified — an LLVM target's triple, target data, never a default | [ADR 0093](../decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md), [llvm.md](llvm.md) §2 |
+| `runtime` | specified — `runtime "FILE.ll"`, the module a triple's code generator calls into (i686's 64-bit division), written from the language by `gen -runtime` and linked into every program | [ADR 0123](../decisions/0123-a-triples-runtime-is-a-library-in-the-language.md), [llvm.md](llvm.md) §2 |
 
 ### Header and host clauses
 

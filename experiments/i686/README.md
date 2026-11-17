@@ -21,7 +21,7 @@ cd gauntlet/differential && I686_TARGETS=OUT/targets go run ../../experiments/i6
 
 Since ADR 0122 step 2 the triple is a target, and the suite runs on it through the real
 declarations: `I686_TARGET=windows32 I686_TARGETS=<repo>/targets go run ../../experiments/i686/run32.go -j 4`
-(66 of 74, windows32-2026-11-17).
+(66 of 74, windows32-2026-11-17; 68 with the runtime, d6-2026-11-17).
 
 It needs MSVC 2022's `vcvars32.bat`, the Windows SDK's x86 `kernel32.lib`, and the LLVM release's
 clang.

@@ -237,6 +237,7 @@ func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, er
 	// says it has anything to do with the length it came from.
 	seedFacts(f, t, langFacts)
 	seedInsertSizes(r.tgt, f, t)
+	seedResultSets(r.tgt, f, t)
 
 	if err := r.walk(t, f); err != nil {
 		return r.notes, fmt.Errorf("%s: %w", what, err)
@@ -3500,6 +3501,53 @@ func seedInsertSizes(tg *Target, f *facts, t *core.Term) {
 	}
 	walk(t)
 }
+
+// seedResultSets assumes, of every application of a pure host operation in t
+// whose result is an integer range, that it lies in that range: lo <= f(x) <=
+// hi. The declaration is written by hand and checked against the host (ADR
+// 0022), and the IR's intervals read the same set at every call (ir/interval.go,
+// `a.declared`), so the two routes decide on one premise: a `where` mark, which
+// only this layer decides, could not use what a range mark's route assumed.
+// A shift by `clz(y)`'s count was refused so (windows32's division, ADR 0122).
+// An impure operation's value is let-bound, never an atom, and gets nothing.
+func seedResultSets(tg *Target, f *facts, t *core.Term) {
+	if PlantHostResultUnassumed {
+		return
+	}
+	seen := map[string]bool{}
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil {
+			return
+		}
+		if x.Kind == core.KFn {
+			walk(x.Body())
+			return
+		}
+		if x.Kind == core.KApp && x.Kids[0].Kind == core.KName {
+			if p, ok := tg.Prims[x.Kids[0].Name]; ok && p.Pure && p.Kind == "expr" && len(p.Results) == 0 {
+				if lo, hi, ok := core.IntRange(p.Result); ok && !seen[x.String()] {
+					seen[x.String()] = true
+					for _, law := range []*core.Term{core.App(core.Name("<="), core.Int(lo), x), core.App(core.Name("<="), x, core.Int(hi))} {
+						if goals, ok := f.oblig(law); ok {
+							for _, g := range goals {
+								f.assumeLE(g, "assumed "+g.String()+" <= 0 (its declared result set)")
+							}
+						}
+					}
+				}
+			}
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+}
+
+// PlantHostResultUnassumed seeds no host result's set: TestAHostResultBoundsAWhere
+// must see the shift by a count of leading zeros refused again.
+var PlantHostResultUnassumed bool
 
 // conjuncts are a formula's conjuncts, `a && b` being D's (if a b false).
 func conjuncts(t *core.Term) []*core.Term {

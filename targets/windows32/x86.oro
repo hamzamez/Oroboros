@@ -1,0 +1,24 @@
+// THE i686 INSTRUCTION SET'S OWN OPERATIONS (ADR 0122 item 4): what this triple
+// has beyond LLVM's target-independent instructions, each declared as it is.
+// x86-64's are targets/windows/x64.oro; a member defines exactly the symbols
+// its own code calls.
+module llvm/isa {
+    // DIVL, THE 2-BY-1 DIVISION AT 32 BITS (Knuth's primitive, TAOCP 2 §4.3.1):
+    // EDX:EAX = n by a 32-bit d, the quotient in EAX and the remainder in EDX,
+    // answered as one word, r·2³² + q. Its domain is ⌊n / 2³²⌋ < d (so d ≠ 0);
+    // off it the instruction raises #DE, which ends the process as a trap does,
+    // so the operation is total on 0..2^64-1 × 0..2^32-1 with the trap as its
+    // value there, and never a wrong answer. i64 throughout: n is the register
+    // pair EDX:EAX (`A`), and d a memory operand whose first four bytes, little
+    // endian, are its low word (llvm.md §3c).
+    fn udiv_2by1_32(n ∈ 0..2^64-1, d ∈ 0..2^32-1) (0..2^64-1) pure {
+        host expr "call i64 asm \"divl $2\", \"=A,A,m,~{dirflag},~{fpsr},~{flags}\"(${n}, ${d})"
+    }
+
+    // THE LEADING ZEROS OF A WORD BELOW 2³², LLVM's ctlz restricted to the
+    // domain its one use has (the 32-bit digit of a normalization): on
+    // 1..2^32-1 it is 32..63, and with the zero excluded `i1 true` is sound.
+    fn clz_low(a ∈ 1..2^32-1) (32..63) pure {
+        host expr "call i64 @llvm.ctlz.i64(${a}, i1 true)" import "declare i64 @llvm.ctlz.i64(i64, i1)"
+    }
+}

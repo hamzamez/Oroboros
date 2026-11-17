@@ -379,6 +379,12 @@ type Target struct {
 	// Triple is the LLVM target triple the printer writes (ADR 0093 item 5),
 	// target data, never a default.
 	Triple string
+	// Runtime is the LLVM module the triple's code generator calls into
+	// (ADR 0123): `runtime "rt/i686.ll"`, a file under a library directory,
+	// generated from the language by `gen -runtime` and compiled and linked
+	// into every program, as a C runtime would be. Empty where the triple
+	// calls nothing (x86_64: llvm.md §2).
+	Runtime string
 	// Realized is what a target STATES about the language's names (ADR 0088,
 	// `realize OP = A, B checked C`): each name's realizations, in order of
 	// preference, then "|" and its checked form. A target that states any
@@ -2104,6 +2110,7 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 		{&tg.Artifact, o.Artifact, "artifact"},
 		{&tg.Build, o.Build, "build"},
 		{&tg.Triple, o.Triple, "triple"},
+		{&tg.Runtime, o.Runtime, "runtime"},
 	} {
 		if err := combineOne(f.dst, f.src, f.what, from, how); err != nil {
 			return err
@@ -2600,6 +2607,11 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: `triple \"arch-vendor-os-abi\"`, got %s", path, f)
 			}
 			frag.Triple = f.Kids[1].Str
+		case "runtime":
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
+				return nil, fmt.Errorf("%s: `runtime \"FILE.ll\"`, got %s", path, f)
+			}
+			frag.Runtime = f.Kids[1].Str
 		case "build":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: `build \"cmd %%s %%s\"`, got %s", path, f)
@@ -3978,7 +3990,19 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 		if err := os.WriteFile(filepath.Join(dir, "main.manifest"), []byte(Manifest), 0o644); err != nil {
 			return err
 		}
-		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(buildScript(tg.Triple, tg.Link, LLVMLibs)), 0o644)
+		// THE TRIPLE'S RUNTIME (ADR 0123), beside the program: what the code
+		// generator calls for an instruction it does not expand.
+		runtime := tg.Runtime != "" && !PlantRuntimeUnlinked
+		if runtime {
+			text, err := tg.RuntimeText()
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(dir, "rt.ll"), text, 0o644); err != nil {
+				return err
+			}
+		}
+		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(buildScript(tg.Triple, tg.Link, LLVMLibs, runtime)), 0o644)
 	}
 	return fmt.Errorf("target %q has no program layout", tg.Name)
 }
@@ -4000,7 +4024,7 @@ set "CLANG=%LOCALAPPDATA%\Programs\LLVM\bin\clang.exe"
 if not exist "!CLANG!" set "CLANG=clang"
 call "!VCV!" >nul || exit /b 1
 "!CLANG!" --target={{TRIPLE}} -O2 -Wno-override-module -c -o main.obj main.ll || exit /b 1
-link -nologo -subsystem:console -entry:main -manifest:embed -manifestinput:main.manifest main.obj {{LIBS}} -out:main.exe || exit /b 1
+{{RUNTIME}}link -nologo -subsystem:console -entry:main -manifest:embed -manifestinput:main.manifest main.obj {{OBJS}}{{LIBS}} -out:main.exe || exit /b 1
 `
 
 // Manifest declares UTF-8 the process's code page (llvm.md §2): Win32's `A`
@@ -4029,7 +4053,9 @@ const Manifest = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 // architecture, vcvars32 for i686 and vcvars64 otherwise, and clang told the
 // triple, since its default target overrides the module's own (the warning
 // -Wno-override-module silences; triple-research §2 item 1).
-func buildScript(triple string, link []string, used map[string]bool) string {
+//
+// A RUNTIME (ADR 0123) is compiled by the same clang and linked first.
+func buildScript(triple string, link []string, used map[string]bool, runtime bool) string {
 	var libs []string
 	have := map[string]bool{}
 	for _, l := range link {
@@ -4057,9 +4083,32 @@ func buildScript(triple string, link []string, used map[string]bool) string {
 		triple = "x86_64-pc-windows-msvc"
 	}
 	s := strings.Replace(buildBat, "{{LIBS}}", strings.Join(libs, " "), 1)
+	rt, objs := "", ""
+	if runtime {
+		rt = "\"!CLANG!\" --target={{TRIPLE}} -O2 -Wno-override-module -c -o rt.obj rt.ll || exit /b 1\n"
+		objs = "rt.obj "
+	}
+	s = strings.Replace(s, "{{RUNTIME}}", rt, 1)
+	s = strings.Replace(s, "{{OBJS}}", objs, 1)
 	s = strings.ReplaceAll(s, "{{VCVARS}}", vcvars)
-	return strings.Replace(s, "{{TRIPLE}}", triple, 1)
+	return strings.ReplaceAll(s, "{{TRIPLE}}", triple)
 }
+
+// RuntimeText is the triple's runtime module, `runtime`'s file found under the
+// target's library directories (ADR 0123).
+func (tg *Target) RuntimeText() ([]byte, error) {
+	for _, d := range tg.LibDirs {
+		if b, err := os.ReadFile(filepath.Join(d, filepath.FromSlash(tg.Runtime))); err == nil {
+			return b, nil
+		}
+	}
+	return nil, fmt.Errorf("target %s: `runtime %q` is under none of its library directories %v; "+
+		"it is written by `bash gauntlet/regen.sh` (ADR 0123)", tg.Name, tg.Runtime, tg.LibDirs)
+}
+
+// PlantRuntimeUnlinked builds a program without its triple's runtime:
+// TestTheTriplesRuntimeDivides must see the link refuse __aulldiv.
+var PlantRuntimeUnlinked bool
 
 func sortedSet(m map[string]bool) []string {
 	out := make([]string, 0, len(m))

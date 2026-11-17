@@ -1447,3 +1447,44 @@ func Callees(tg *emit.Target, f *ir.Func) (map[string]string, []*ir.Func, error)
 	}
 	return codes, funcs, nil
 }
+
+// RuntimeEntry is a runtime function's entry at the symbol a code generator
+// calls (ADR 0123): `define CC RET @"\01SYM"(…)`, calling the export def
+// defines with its arguments. \01 keeps the symbol as written, with no `_`
+// prefix or `@n` decoration, as LLVM's own libcalls are named. Only the types
+// and names of def's parameters are read, so the entry is the export's
+// function at another convention, and LLVM inlines the one into the other.
+func RuntimeEntry(def, sym, cc string) (string, error) {
+	line, _, _ := strings.Cut(def, "\n")
+	head, params, ok := strings.Cut(line, "(")
+	if !ok || !strings.HasPrefix(head, "define ") {
+		return "", fmt.Errorf("runtime entry %s: no definition in %q", sym, line)
+	}
+	fs := strings.Fields(head)
+	impl, ret := fs[len(fs)-1], fs[len(fs)-2]
+	params, _, _ = strings.Cut(params, ") #")
+	var tys, names []string
+	depth, start := 0, 0
+	for i := 0; i <= len(params); i++ {
+		if i < len(params) && params[i] == '(' {
+			depth++
+		} else if i < len(params) && params[i] == ')' {
+			depth--
+		}
+		if i == len(params) || params[i] == ',' && depth == 0 {
+			p := strings.Fields(params[start:i])
+			start = i + 1
+			if len(p) == 0 {
+				continue
+			}
+			tys, names = append(tys, p[0]), append(names, p[len(p)-1])
+		}
+	}
+	args := make([]string, len(tys))
+	for i := range tys {
+		args[i] = tys[i] + " " + names[i]
+	}
+	a := strings.Join(args, ", ")
+	return fmt.Sprintf("define %s %s @\"\\01%s\"(%s) #0 {\nentry:\n  %%r = call %s %s(%s)\n  ret %s %%r\n}\n",
+		cc, ret, sym, a, ret, impl, a, ret), nil
+}

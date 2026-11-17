@@ -52,6 +52,19 @@ family: `glue llvm`, `triple "x86_64-pc-windows-msvc"`, the link line and the bu
   printed module: `WriteFile` writes a table's segment, its domain the segment and a DWORD count. The
   rest of Win32 is the survey's generated layer (`gauntlet/stdlib/win32.go`), written the same way;
 
+**A triple's runtime, Σ_RT** (ADR 0123): the symbols its code generator calls for an instruction it
+does not expand. Measured with LLVM 23 at -O2:
+- **x86_64**: none, with `"no-builtins"` keeping a loop from becoming `memset`;
+- **i686**: four, `__aulldiv`, `__aullrem`, `__alldiv` and `__allrem`, for a 64-bit division whose
+  divisor it does not see through (unsigned by a constant is inline, signed by a constant is a
+  call). They are stdcall, popped by the callee, with the result in EDX:EAX.
+
+A member names its runtime with `runtime "FILE.ll"` (windows32: `rt/i686.ll`). The file is found
+under the library directories, compiled with the program, and linked first. It is written from the
+language: `lib/rt/i686.oro`, Warren's divDu over `divl`, printed by `gen -runtime x86_stdcallcc`,
+which adds each export at its own symbol and convention. `cmd/check` regenerates it, and it is
+defined without itself: compiled, it calls none of its symbols.
+
 **A run is exit(0) ∘ main**: `cmd/build` composes the entry with Σ_OS's `exit`, so the printer's
 `main` only calls it.
 

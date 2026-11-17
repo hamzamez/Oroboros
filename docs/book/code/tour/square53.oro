@@ -1,0 +1,3 @@
+export fn small(n ∈ -1000..1000) (Int) { n * n }
+
+export fn wide(n ∈ 0..2^53-1) (0..2^106) { n * n }

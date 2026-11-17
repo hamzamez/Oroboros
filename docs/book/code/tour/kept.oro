@@ -1,0 +1,16 @@
+use io
+
+fn triangle(n ∈ 0..1000) (Int) {
+    loop acc = 0, i = 0 {
+        i < n -> again(acc + i, i + 1)
+        else  -> acc
+    }
+}
+
+fn twice(f, x) { f(f(x)) }
+
+export fn main() {
+    io.print_int(triangle(10))
+    io.print_int(triangle(100))
+    io.print_int(twice(fn(x) { x + 3 }, 4))
+}

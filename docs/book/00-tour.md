@@ -324,8 +324,62 @@ claim, and the facts the compiler proves choose `int`, `uint64`, or the host's b
 value ([ADR 0079](../decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).
 `^` is a power of constants, written in a set's ends; xor is `⊕` (§0.12).
 
-**Or ask for the trap**: `-checked` emits the host's own checked arithmetic, and the program fails
-at run time instead of at compile time.
+### All of ℤ
+
+A set may leave an end off. `Nat` is 0 and up, `5..` is 5 and up, `..0` is 0 and down, and `Int`
+has no end on either side. Arithmetic in these sets is exact at any size:
+
+<!-- file docs/book/code/tour/any-size.oro -->
+```go
+use io
+
+fn cube(n ∈ Int) (Int) { n * n * n }
+
+export fn below(n ∈ ..0) (..0) { n - 1 }
+
+export fn main() {
+    io.print_line(big_str(cube(-3000000000)))
+}
+```
+
+<!-- run go docs/book/code/tour/any-size.oro -->
+```
+-27000000000000000000000000000
+```
+
+<!-- run windows docs/book/code/tour/any-size.oro -->
+```
+-27000000000000000000000000000
+```
+
+<!-- gen go docs/book/code/tour/any-size.oro -->
+```go
+func TourBelow(v0 *big.Int) *big.Int {
+    v2 := (big.NewInt(int64(1)))
+    v3 := (new(big.Int).Sub(v0, v2))
+    return v3
+}
+```
+
+- **Inside a program, `Int` is all of ℤ.** `cube` is the `square` that was refused above, with
+  one more factor, and here it is accepted: `big_str`, the language's function from an integer of
+  any size to its decimal text, asks for the product whatever its size, and that is the consent.
+  −3,000,000,000 cubed has 29 digits and every one is right, on Go by `math/big` and on Windows,
+  where there is no library to call, by a table of 64-bit digits written in this language.
+- **At an `export`, a set with one end left off is an integer of any size**: `below` takes and
+  returns a `*big.Int`.
+- **At an `export`, `Int` is the host's own word.** That is why `square(n ∈ Int)` was refused and
+  not made exact: the host hands over an `int`, about which nothing is known. So a host can pass
+  either half of ℤ at any size, as `Nat` or as `..0`, and both halves in one parameter have no
+  spelling today (the book's README, item 94).
+
+**Or ask for the trap.** `-checked` is a flag of the compiler, on `gen` and on `build`, and no
+word of the source. It emits the host's own checked arithmetic for each operation that was not
+proven, and the program stops when it runs if one of them overflows:
+
+```bash
+go run ./cmd/gen -checked -name tour docs/book/code/tour/no-square.oro go square.go
+```
 
 <!-- gen go docs/book/code/tour/no-square.oro -checked -->
 ```go
@@ -334,6 +388,49 @@ func TourSquare(v0 int) int {
     return v1
 }
 ```
+
+To see one fire, here is a program that squares 3 seven times. That is 3¹²⁸, a number of 62
+digits:
+
+<!-- file docs/book/code/tour/no-grow.oro -->
+```go
+use io
+
+export fn main() {
+    p = loop i = 0, p = 3 {
+        i < 7 -> again(i + 1, p * p)
+        else -> p
+    }
+    io.print_int(p)
+}
+```
+
+<!-- gen go docs/book/code/tour/no-grow.oro -->
+```
+gen: tour-main: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+  * [9, +inf] in p * p
+```
+
+Refused, as it should be. Build it with the flag and run it:
+
+```bash
+go run ./cmd/build -checked -target=go -o grow.exe docs/book/code/tour/no-grow.oro
+./grow.exe
+```
+
+<!-- run go docs/book/code/tour/no-grow.oro -checked -->
+```
+panic: int overflow
+…
+```
+
+The sixth squaring left the word, and the program stopped there. It printed no number, which is
+the point: in Go without the test it prints -9204772141784466943 and goes on.
+The build says what it did, *1 of 2 integer operation(s) are traps, not proofs*: the `i + 1` was
+proven and costs nothing, and the one test is on the one multiplication nobody proved. On
+Windows the trap is the processor's own, an illegal instruction. On JavaScript `-checked` does
+not trap today, and this program prints a wrong number there (README item 93): do not rely on
+it for that target.
 
 ### Which word, and so which targets
 
@@ -350,9 +447,36 @@ go run ./cmd/portable docs/book/code/tour/square.oro
 portable to go, java, windows — not js
 ```
 
-JavaScript refuses `wide`, because its parameter can exceed 2⁵³ before anything is computed. Narrow
-the parameter to `0..2^53-1` and the program is portable to all four. **Portability is a property a
-program has or lacks, and the compiler tells you which.**
+So this file does not compile for JavaScript. Ask for it and there is a refusal, and no output
+file:
+
+<!-- gen js docs/book/code/tour/square.oro -->
+```
+gen: wide: an operand is [0, 9223372036854775807], which is not inside target js's signed word [-9007199254740991, 9007199254740991], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
+```
+
+The trouble is not the product, which is exact on JavaScript too, as a `BigInt`. It is the
+parameter. `wide` promises to take any `n` up to 2⁶³ − 1, a host's JavaScript passes `n` as a
+number, and a JavaScript number above 2⁵³ has already lost its low digits before `wide` is
+entered. The compiler will not emit a function whose header it cannot honour. The refusal is of
+the file, so `small`, which is fine everywhere, is not emitted either: a file is portable or it
+is not.
+
+Ask for what JavaScript can carry and it compiles everywhere:
+
+<!-- file docs/book/code/tour/square53.oro -->
+```go
+export fn small(n ∈ -1000..1000) (Int) { n * n }
+
+export fn wide(n ∈ 0..2^53-1) (0..2^106) { n * n }
+```
+
+<!-- portable docs/book/code/tour/square53.oro -->
+```
+portable to go, js, java, windows
+```
+
+**Portability is a property a program has or lacks, and the compiler tells you which.**
 
 ### Numbers with a decimal point
 
@@ -382,7 +506,7 @@ it compiles to integer arithmetic with no double anywhere. `F64` is a set like t
 rounding onto it is a host's floating-point operation. `/` is integer division and needs integer
 operands.
 
-## 0.6 Functions vanish
+## 0.6 Functions vanish, unless the compiler keeps one
 
 <!-- file docs/book/code/tour/twice.oro -->
 ```go
@@ -413,16 +537,111 @@ function.
 
 **Unlike:**
 
-- **Only `export`ed functions exist in the output.** `twice` is gone, and so is the anonymous
-  function. The compiler works by *reduction*: it substitutes definitions and applies functions
-  until only the target's own operations remain. A function you define is a way of writing a
-  program, not a thing that is called at run time.
+- **A function you define is a way of writing a program, not a promise of a call at run time.**
+  `twice` is gone, and so is the anonymous function. The compiler works by *reduction*: it
+  substitutes definitions and applies functions until only the target's own operations remain.
+  What a host can call is what you `export`.
 - **`twice` has no types, and was used at two.** There are no generics, no type parameters and no
   `<T>`: a definition with unannotated parameters is specialised wherever it is used, and what
   reaches the type checker is already first-order and monomorphic. Annotate the functions you
   `export`, since a host must know their sets, and the rest as far as you want their claims checked.
 - **Higher-order code costs nothing**, for the same reason: there is no closure to allocate and no
   indirect call. The price is the next refusal.
+
+Reduction copies a definition into every place that uses it. For a small one that is exactly
+right. For a large one used many times it is the same code many times over, so **the compiler
+may keep a definition as one real function and call it**
+([ADR 0113](../decisions/0113-a-programs-definitions-are-kept-as-functions-where-the-target-prints-them.md)).
+It decides; the source has no word for it:
+
+<!-- file docs/book/code/tour/kept.oro -->
+```go
+use io
+
+fn triangle(n ∈ 0..1000) (Int) {
+    loop acc = 0, i = 0 {
+        i < n -> again(acc + i, i + 1)
+        else  -> acc
+    }
+}
+
+fn twice(f, x) { f(f(x)) }
+
+export fn main() {
+    io.print_int(triangle(10))
+    io.print_int(triangle(100))
+    io.print_int(twice(fn(x) { x + 3 }, 4))
+}
+```
+
+<!-- gen go docs/book/code/tour/kept.oro -->
+```go
+func TourMain() int {
+    var v3 int = 0
+    var v4 int = 0
+    for ; ; v4 = (v4 + 1) {
+        v6 := (v4 < 10)
+        if v6 {
+            v8 := (v3 + v4)
+            v3 = v8
+            continue
+        }
+        break
+    }
+    fmt.Println(v3)
+    var v16 int = 0
+    var v17 int = 0
+    for ; ; v17 = (v17 + 1) {
+        v19 := (v17 < 100)
+        if v19 {
+            v21 := (v16 + v17)
+            v16 = v21
+            continue
+        }
+        break
+    }
+    fmt.Println(v16)
+    fmt.Println(10)
+    return 10
+}
+```
+
+On Go everything vanished. `triangle` was used twice and there are two loops, each with its own
+bound, 10 and 100, written into it. `twice` and its anonymous function are the constant 10.
+`io.print_int` is Go's own `fmt.Println`.
+
+Windows has no `fmt.Println`. There, `io.print_int` is a function written in this language,
+which turns an integer into digits and hands them to the system, and this program uses it three
+times:
+
+<!-- gen windows docs/book/code/tour/kept.oro -->
+```llvm
+note: 2 definition(s) kept as functions, 0 inlined by their contracts
+…
+  %v12 = call i1 @"win/print.print_int"(i64 %v2)
+…
+  %v25 = call i1 @"win/print.print_int"(i64 %v15)
+  %v27 = call i1 @"win/print.print_int"(i64 10)
+…
+define i1 @"win/print.print_int"(i64 %v0) #0 {
+```
+
+One function, three calls. `triangle` is still two loops and `twice` is still 10: they are
+small, and copying them is cheaper than calling them. The rules, in short:
+
+- **A function that takes or returns a function is never kept.** It is always reduced away,
+  which is why higher-order code is free, and why a closure that would survive is refused.
+- **A first-order definition is kept where it pays**: it is large, and copying it would cost more
+  than a call.
+- **Only where the target prints functions.** That is the Windows target today. On Go,
+  JavaScript and Java every definition is still reduced away, and the exports are the only
+  functions in the output.
+- **No answer changes and no proof is lost.** A kept definition is proven once, under its
+  header's sets, and each call proves its arguments are in them. If that proof fails where the
+  copies' proofs would succeed, the compiler goes back to copying.
+
+So write functions for the reader. Whether one is a call is not yours to decide, and you cannot
+get it wrong.
 
 <!-- file docs/book/code/tour/no-closure.oro -->
 ```go
@@ -1045,7 +1264,9 @@ exact list.
 - **An integer is an integer.** An operation that might leave the machine word does not compile
   until you narrow a set, claim one above the word, or ask for `-checked`. `0.1` is one tenth.
 - **Functions, variants, tuples, `Result`s and tables written by a rule are how you write the
-  program, not what runs.** Reduction removes them; a closure that would survive is refused.
+  program, not what runs.** Reduction removes them; a closure that would survive is refused. A
+  large first-order definition may be kept as one function, where the compiler finds that
+  cheaper, and that changes no answer.
 - **`loop` and `again` are the only iteration**, there is no recursion, and termination is proven.
 - **State is `var`, local to a block.** A table is a value, and an index is proven in range.
 - **A failure is a value**, and a `relevant` one cannot be dropped silently.

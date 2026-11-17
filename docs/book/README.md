@@ -11,7 +11,7 @@ it is explained). Chapter 0 is the exception, a tour that may show everything.
 
 | | chapter | the one idea | state |
 |---|---|---|---|
-| 0 | [A tour](00-tour.md) | the map | J; 58 blocks checked 2026-11-10 |
+| 0 | [A tour](00-tour.md) | the map | J; 71 blocks checked 2026-11-17 |
 | | **I. How a program is reduced** | | |
 | 1 | [`fn`](01-fn.md) | β; reduction is compilation | J; 62 blocks checked 2026-11-15 |
 | 2 | [Definitions](02-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-15 |
@@ -752,6 +752,34 @@ Doing that found one more, not fixed:
     its `known:` line has fourteen facts over `#vm`, `#vm1`, `#vm2` and `(insert m 1 10)` in the
     core's notation, then ADR 0028's advice about a definition's parameter range. The chapter
     shows the first line and says what `#vm1` is. The family of item 90.
+
+**Chapter 0 after hamza's reading (2026-11-17).** Four questions on §0.5 and §0.6, each answered
+in the chapter, ten planted faults caught in the new blocks:
+- all of ℤ: a section showing `Int` inside a program computed exactly (`any-size.oro`, run on Go
+  and windows), a half-open set at an export as the host's bignum, and `Int` at an export as the
+  word;
+- the trap: the `-checked` command lines for `gen` and `build`, and a program that overflows
+  when it runs (`no-grow.oro`), refused without the flag and stopped with it. The checker's `run`
+  takes `-checked`, and a `run` block may elide lines, for a trap's trace;
+- `wide` on JavaScript: the refusal itself, why it is the parameter and not the product, that the
+  file's other export is not emitted either, and the narrowed file portable to four
+  (`square53.oro`);
+- "Functions vanish": ADR 0113 said. `kept.oro` on Go is two copies of a loop; on windows the
+  library's `print_int` is one function called three times. The four rules of what is kept.
+
+Doing that found two, not fixed:
+
+93. **`-checked` does not trap on JavaScript.** `no-grow.oro`, 3 squared seven times: `build
+    -checked -target=js` says *1 of 2 integer operation(s) are traps, not proofs*, emits
+    `v4 = (v4 * v4)` with no test, and the program prints `1.1790184577738583e+61`. Go panics
+    and windows stops on an illegal instruction. A wrong answer under the flag that promises a
+    stop. The chapter says not to rely on `-checked` for that target.
+94. **All of ℤ has no spelling at an entry point.** `n ∈ ..` is refused: *`..` with neither end
+    is ℤ, which is `Int`*; and `Int` at an export is the host's word (§6.8), its arithmetic
+    refused. `Nat` and `..0` are each taken as a bignum, so a host can pass either half and not
+    both. A result has the same gap: `fn diff(a ∈ Nat, b ∈ Nat) (Int) { a - b }` is refused as
+    wider than the word. Inside a program `Int` is ℤ and is computed exactly where a claim asks.
+    Item 27's question from the other side: what is `Int` at an entry point?
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

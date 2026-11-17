@@ -16,10 +16,10 @@
 //	                                   printed: each export reduced, in J
 //	<!-- build TARGET PATH -->         the block is a run of lines of what `build`
 //	                                   printed: a program it refuses to build
-//	<!-- run TARGET PATH -->           the block is what the built program printed
+//	<!-- run TARGET PATH [-checked] --> the block is what the built program printed
 //	<!-- portable PATH -->             the block is a run of lines of `portable`
 //
-// In a `part`, `gen`, `oro` or `portable` block a line holding only `…` stands for
+// In a `part`, `gen`, `oro`, `run` or `portable` block a line holding only `…` stands for
 // lines left out: the pieces around it must appear in that order. Tabs compare
 // as four spaces and trailing blanks are dropped; nothing else is forgiven.
 //
@@ -183,15 +183,18 @@ func main() {
 				os.Exit(2)
 			}
 			os.Remove(exe)
-			said := run(tool["build"], "-target="+args[0], "-o", exe, args[1])
+			// What follows the path is `build`'s own flags, `-checked`. A block with
+			// an elision is a run of the output's lines, which a trap's trace needs.
+			said := run(tool["build"], append(append([]string{}, args[2:]...), "-target="+args[0], "-o", exe, args[1])...)
+			loose := strings.Contains(block, "…")
 			if _, err := os.Stat(exe); err != nil {
 				got = norm(said)
 			} else if args[0] == "js" {
 				got = norm(run("node", exe))
-				ok = block == got
+				ok = block == got || loose && within(block, got)
 			} else {
 				got = norm(run(exe))
-				ok = block == got
+				ok = block == got || loose && within(block, got)
 			}
 		case "portable":
 			got = norm(run(tool["portable"], args[0]))

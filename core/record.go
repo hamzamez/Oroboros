@@ -1,0 +1,806 @@
+package core
+
+import (
+	"fmt"
+	"strings"
+)
+
+// RECORDS IN THE CORE (ADR 0128, data.md §4).
+//
+// A record is the dependent product Π_{l∈L} S_l over a static, finite label
+// set. Its four forms (jrecord.go) are applications of names no program
+// writes, so every pass that does not know them treats them as the free
+// applications they are: pure, since none is a primitive or a definition
+// (pureName), and copied as any application is.
+//
+// Labels become positions in two places (data.md §4.7), and this file has both:
+//   - the reducer's δ-rules, at a value it can see: the lens laws read left to
+//     right, which erase every record built and consumed in one reduction, as
+//     a tuple's β erases a tuple;
+//   - EraseRecords, on the residual, by each term's label set, computed
+//     forward from its values, its declared sets and its loops' initializers.
+
+// PlantProjectionAsImport reads `r.l`, r bound, as an import's member, as
+// before ADR 0128: the planted fault TestARecordIsAFunctionOnItsLabels must
+// see fail.
+var PlantProjectionAsImport bool
+
+// PlantRecordLetWhole binds a record whose components are not all copyable as
+// one value, as before: its projections then stay unresolved on the residual.
+var PlantRecordLetWhole bool
+
+// PlantPutGetStale answers a projection with the next label's component: the
+// fault the projection's and put–get's cases must see.
+var PlantPutGetStale bool
+
+// PlantWithWrongLabel overrides the label after the one named, the fault the
+// lens laws' case must catch (data.md §9's record-lens).
+var PlantWithWrongLabel bool
+
+// recordTypeName is a record set's canonical type, `record{l₁: T₁; …; lₙ: Tₙ}`.
+// BRACES AND SEMICOLONS, so that no reader of the other canonical types, which
+// split at a depth-zero ", " and read `F(A, B)` as an applied type, can cut a
+// record or mistake it for a variant's instance.
+func recordTypeName(t *Term) (string, bool) {
+	if t == nil || t.Kind != KApp || len(t.Kids) < 3 || t.Kids[0].Kind != KName ||
+		t.Kids[0].Name != RecSetName || t.Kids[1].Kind != KStr {
+		return "", false
+	}
+	labels := strings.Fields(t.Kids[1].Str)
+	if len(labels) != len(t.Kids)-2 {
+		return "", false
+	}
+	parts := make([]string, len(labels))
+	for i, l := range labels {
+		ty := TypeName(t.Kids[2+i])
+		if ty == "" {
+			return "", false
+		}
+		parts[i] = l + ": " + ty
+	}
+	return "record{" + strings.Join(parts, "; ") + "}", true
+}
+
+// IsRecord reports a record's canonical type.
+func IsRecord(ty string) bool {
+	return strings.HasPrefix(ty, "record{") && strings.HasSuffix(ty, "}")
+}
+
+// RecordFields is a record type's labels and their types, in canonical order.
+func RecordFields(ty string) ([]string, []string) {
+	if !IsRecord(ty) {
+		return nil, nil
+	}
+	var labels, types []string
+	for _, part := range splitFields(ty[len("record{") : len(ty)-1]) {
+		i := strings.Index(part, ": ")
+		if i < 0 {
+			return nil, nil
+		}
+		labels = append(labels, part[:i])
+		types = append(types, part[i+2:])
+	}
+	return labels, types
+}
+
+// splitFields splits a record type's fields at its semicolons of depth zero.
+func splitFields(s string) []string {
+	var parts []string
+	depth, start := 0, 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(', '{':
+			depth++
+		case ')', '}':
+			depth--
+		case ';':
+			if depth == 0 && i+1 < len(s) && s[i+1] == ' ' {
+				parts = append(parts, s[start:i])
+				start = i + 2
+			}
+		}
+	}
+	return append(parts, s[start:])
+}
+
+// isRecValue reports a record's value, (#rec "l…" e…), and its labels.
+func isRecValue(t *Term) ([]string, bool) {
+	if t == nil || t.Kind != KApp || len(t.Kids) < 3 || t.Kids[0].Kind != KName ||
+		t.Kids[0].Name != RecName || t.Kids[1].Kind != KStr {
+		return nil, false
+	}
+	labels := strings.Fields(t.Kids[1].Str)
+	return labels, len(labels) == len(t.Kids)-2
+}
+
+func labelIndex(labels []string, l string) int {
+	for i, m := range labels {
+		if m == l {
+			return i
+		}
+	}
+	return -1
+}
+
+// curryRecordArgs is β's redex (λx̄. b) ā with each argument that is a record
+// value not copyable as a whole replaced by its components:
+// (λ…p…. b)(…⟨e₁, …, eₙ⟩…) = (λ…p#l₁ … p#lₙ…. b[⟨p#l₁, …⟩/p])(…e₁ … eₙ…). The
+// components keep their order, so evaluation order is the record's, which the
+// reader made the written one.
+func curryRecordArgs(op *Term, args []*Term) (*Term, bool) {
+	changed := false
+	var params []string
+	var nargs []*Term
+	subs := make([]*Term, len(args))
+	for i, a := range args {
+		labels, ok := isRecValue(a)
+		if !ok || duplicable(a) {
+			params = append(params, op.Params[i])
+			nargs = append(nargs, a)
+			subs[i] = Name(op.Params[i])
+			continue
+		}
+		changed = true
+		names := []*Term{Name(RecName), a.Kids[1]}
+		for j, l := range labels {
+			n := op.Params[i] + "#" + l
+			params = append(params, n)
+			nargs = append(nargs, a.Kids[2+j])
+			names = append(names, Name(n))
+		}
+		subs[i] = &Term{Kind: KApp, Kids: names}
+	}
+	if !changed {
+		return nil, false
+	}
+	return App(Fn(params, op.OpenWith(subs)), nargs...), true
+}
+
+func outsideProjection(l string, labels []string) error {
+	return fmt.Errorf("projection of %s from a record whose labels are %s (data.md §4.2, X3): "+
+		"application outside its domain", Spell(l), showLabels(labels))
+}
+
+func outsideOverride(l string, labels []string) error {
+	return fmt.Errorf("a `with` names %s, and the record's labels are %s (data.md §4.3, X3): an "+
+		"override is a function's, on its domain", Spell(l), showLabels(labels))
+}
+
+// recordTails reports a term every one of whose tails is a record value of one
+// label set L, through what tupleTails sees through (a conditional's arms, a
+// let's body, a host call's continuation, a loop's exits, an obligation's
+// body): such a term is a product under the bijection L ≅ {0 … n−1}, taken
+// apart as one (tuplifyTails). In a loop an `again` has no tail, and a loop
+// with no exit has no value. A term that is itself a record value is not one
+// (its rules are recordRule's).
+func (e *Env) recordTails(t *Term, inLoop bool) (string, bool) {
+	const none = "\x00"
+	join := func(a, b string, oka, okb bool) (string, bool) {
+		switch {
+		case !oka || !okb:
+			return "", false
+		case a == none:
+			return b, true
+		case b == none || a == b:
+			return a, true
+		}
+		return "", false
+	}
+	if labels, ok := isRecValue(t); ok {
+		return strings.Join(labels, " "), true
+	}
+	if t.Kind != KApp || len(t.Kids) == 0 {
+		return "", false
+	}
+	if op := t.Kids[0]; op.Kind == KApp && len(op.Kids) > 0 && op.Kids[0].Kind == KName &&
+		(e.Prim[op.Kids[0].Name] || e.Kept[op.Kids[0].Name]) && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		return e.recordTails(t.Kids[1].Closed(), inLoop)
+	}
+	op := t.Kids[0]
+	if op.Kind != KName {
+		return "", false
+	}
+	switch {
+	case op.Name == "again" && inLoop:
+		return none, true
+	case op.Name == RequireWhereName && len(t.Kids) == 4:
+		return e.recordTails(t.Kids[3], inLoop)
+	case !e.Prim[op.Name]:
+		return "", false
+	case op.Name == "if" && len(t.Kids) == 4:
+		a, oka := e.recordTails(t.Kids[2], inLoop)
+		b, okb := e.recordTails(t.Kids[3], inLoop)
+		return join(a, b, oka, okb)
+	case op.Name == "let" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
+		return e.recordTails(t.Kids[2].Closed(), inLoop)
+	case op.Name == "loop" && len(t.Kids) >= 2 && t.Kids[1].Kind == KFn:
+		l, ok := e.recordTails(t.Kids[1].Closed(), true)
+		if !ok || l == none {
+			return "", false
+		}
+		return l, true
+	}
+	return "", false
+}
+
+// tuplifyTails is t with each record tail recordTails sees made the tuple of
+// its components in canonical order, (fn (#k) (#k c₁ … cₙ)): the bijection
+// applied where the record is made. Under a binder the body is opened by name
+// and closed again, so no index moves.
+func (e *Env) tuplifyTails(t *Term, inLoop bool) *Term {
+	if _, ok := isRecValue(t); ok {
+		return Fn([]string{TupleBinder}, App(Name(TupleBinder), t.Kids[2:]...))
+	}
+	under := func(f *Term, inLoop bool) *Term { return Fn(f.Params, e.tuplifyTails(openNamed(f), inLoop)) }
+	if t.Kind != KApp || len(t.Kids) == 0 {
+		return t
+	}
+	kids := append([]*Term{}, t.Kids...)
+	if op := t.Kids[0]; op.Kind == KApp && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		kids[1] = under(t.Kids[1], inLoop)
+		return &Term{Kind: KApp, Kids: kids}
+	}
+	op := t.Kids[0]
+	switch {
+	case op.Kind != KName:
+	case op.Name == RequireWhereName && len(t.Kids) == 4:
+		kids[3] = e.tuplifyTails(t.Kids[3], inLoop)
+	case op.Name == "if" && len(t.Kids) == 4:
+		kids[2], kids[3] = e.tuplifyTails(t.Kids[2], inLoop), e.tuplifyTails(t.Kids[3], inLoop)
+	case op.Name == "let" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
+		kids[2] = under(t.Kids[2], inLoop)
+	case op.Name == "loop" && len(t.Kids) >= 2 && t.Kids[1].Kind == KFn:
+		kids[1] = under(t.Kids[1], true)
+	}
+	return &Term{Kind: KApp, Kids: kids}
+}
+
+// takeApart is `let q = v in b` for a v whose tails are records of the labels
+// L (recordTails), the product's η: v made a tuple, applied to the
+// continuation that binds its components and reads q as the record of them,
+// (tuplify(v) (fn (q#l₁ … q#lₙ) b[⟨q#l₁, …⟩/q])). Every record is so a record of
+// names wherever it is bound, which the projection rule erases.
+func (e *Env) takeApart(v *Term, labels string, k *Term) *Term {
+	ls := strings.Fields(labels)
+	names := []*Term{Name(RecName), Str(labels)}
+	cs := make([]string, len(ls))
+	for i, l := range ls {
+		cs[i] = k.Params[0] + "#" + l
+		names = append(names, Name(cs[i]))
+	}
+	return App(e.tuplifyTails(v, false), Fn(cs, k.OpenWith([]*Term{{Kind: KApp, Kids: names}})))
+}
+
+// curryLoop is a loop whose variables include records, (loop (fn (… p …) b) …
+// ⟨e₁, …⟩ …), made a loop over their components: p is the record of its
+// components' names in the body, and each `again` passes R's components where
+// it passed R, R bound first so its effects run once, in place. The currying
+// isomorphism at a loop's binder, as at β's (curryRecordArgs).
+func (e *Env) curryLoop(op *Term, args []*Term) (*Term, bool) {
+	f := args[0]
+	if f.Kind != KFn || len(f.Params) != len(args)-1 {
+		return nil, false
+	}
+	var params []string
+	var inits []*Term
+	subs := make([]*Term, len(f.Params))
+	rec := make([][]string, len(f.Params))
+	for i, z := range args[1:] {
+		labels, ok := isRecValue(z)
+		if !ok {
+			params = append(params, f.Params[i])
+			inits = append(inits, z)
+			subs[i] = Name(f.Params[i])
+			continue
+		}
+		rec[i] = labels
+		names := []*Term{Name(RecName), z.Kids[1]}
+		for j, l := range labels {
+			n := f.Params[i] + "#" + l
+			params = append(params, n)
+			inits = append(inits, z.Kids[2+j])
+			names = append(names, Name(n))
+		}
+		subs[i] = &Term{Kind: KApp, Kids: names}
+	}
+	if len(params) == len(f.Params) {
+		return nil, false
+	}
+	k := 0
+	var again func(t *Term) *Term
+	again = func(t *Term) *Term {
+		switch t.Kind {
+		case KFn:
+			return Fn(t.Params, again(openNamed(t)))
+		case KApp:
+		default:
+			return t
+		}
+		if h := t.Kids[0]; h.Kind == KName && h.Name == "loop" {
+			// a nested loop's `again` is its own: only its initializers are ours
+			kids := append([]*Term{h, t.Kids[1]}, nil...)
+			for _, z := range t.Kids[2:] {
+				kids = append(kids, again(z))
+			}
+			return &Term{Kind: KApp, Kids: kids}
+		}
+		kids := make([]*Term, len(t.Kids))
+		for i, c := range t.Kids {
+			kids[i] = again(c)
+		}
+		if h := t.Kids[0]; h.Kind != KName || h.Name != "again" || len(t.Kids) != len(f.Params)+1 {
+			return &Term{Kind: KApp, Kids: kids}
+		}
+		out := []*Term{Name("again")}
+		var binds []string
+		var vals []*Term
+		for i, a := range kids[1:] {
+			if rec[i] == nil {
+				out = append(out, a)
+				continue
+			}
+			k++
+			n := fmt.Sprintf("#ag%d", k)
+			binds, vals = append(binds, n), append(vals, a)
+			for _, l := range rec[i] {
+				out = append(out, App(Name(GetName), Str(l), Name(n)))
+			}
+		}
+		body := App(out[0], out[1:]...)
+		for i := len(binds) - 1; i >= 0; i-- {
+			body = App(Name("let"), vals[i], Fn([]string{binds[i]}, body))
+		}
+		return body
+	}
+	body := again(f.OpenWith(subs))
+	return App(op, append([]*Term{Fn(params, body)}, inits...)...), true
+}
+
+// openNamed opens an abstraction by its parameters' names, lowering every
+// index that looked through it, so Fn closes it back to itself: Body, which
+// lowers nothing, is for a term with no outer binders, and the reducer's terms
+// have them.
+func openNamed(f *Term) *Term {
+	names := make([]*Term, len(f.Params))
+	for i, p := range f.Params {
+		names[i] = Name(p)
+	}
+	return f.OpenWith(names)
+}
+
+// isRecordTail reports a residual let whose body, through nested lets, is a
+// record value.
+func isRecordTail(t *Term) bool {
+	for t != nil && t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == "let" &&
+		t.Kids[2].Kind == KFn {
+		t = t.Kids[2].Closed()
+	}
+	_, ok := isRecValue(t)
+	return ok
+}
+
+// isRecForm reports an application of one of the record's forms of arity n.
+func isRecForm(t *Term, name string, n int) bool {
+	return t != nil && t.Kind == KApp && len(t.Kids) == n+1 && t.Kids[0].Kind == KName &&
+		t.Kids[0].Name == name && t.Kids[1].Kind == KStr
+}
+
+// showLabels is a label set as J writes it, for a message.
+func showLabels(labels []string) string {
+	s := make([]string, len(labels))
+	for i, l := range labels {
+		s[i] = Spell(l)
+	}
+	return strings.Join(s, ", ")
+}
+
+// recordRule is δ on the record's forms (data.md §4.3, §4.7), at a value the
+// reducer can see:
+//
+//	(#get l (#rec L … e_l …))       = e_l                projection
+//	(#with l (#rec L … e_l …) x)    = (#rec L … x …)     override
+//
+// The lens laws follow from these two at every value, so no rule reads through
+// an override: put–get is (#get l (#with l v x)) = (#get l v′) = x for the
+// value v′ the override rule makes. A rule through an override would fire only
+// where its base is unseen, where an override outside the domain could not be
+// refused (X3); and every component the reducer meets is a name or pure (the
+// reader binds a value's components, currying and a let name them), so the
+// override rule always fires where a base is seen. A term the rules discard
+// keeps its obligations (keepClaims). Where no value is seen the form stays,
+// for EraseRecords.
+func (e *Env) recordRule(op *Term, args []*Term, fuel *int) (*Term, bool, error) {
+	l := args[0].Str
+	r, err := normalize(args[1], e, fuel)
+	if err != nil {
+		return nil, true, err
+	}
+	// A RECORD UNDER ITS OBLIGATION is first its components' (splitRecordRequire),
+	// so a projection reads a component and keeps the component's own mark.
+	if IsRequire(r) && r.Kids[3].Kind == KStr && IsRecord(r.Kids[3].Str) {
+		if s, ok, err := e.splitRecordRequire(Name(RequireName), r.Kids[1:], fuel); err != nil {
+			return nil, true, err
+		} else if ok {
+			r = s
+		}
+	}
+	pure := func(ts ...*Term) bool {
+		for _, t := range ts {
+			if !e.pureTerm(t, map[string]bool{}) {
+				return false
+			}
+		}
+		return true
+	}
+	if op.Name == GetName {
+		if labels, ok := isRecValue(r); ok {
+			j := labelIndex(labels, l)
+			if j < 0 {
+				return nil, true, outsideProjection(l, labels)
+			}
+			others := append(append([]*Term{}, r.Kids[2:2+j]...), r.Kids[3+j:]...)
+			if pure(others...) {
+				c := r.Kids[2+j]
+				if PlantPutGetStale && len(labels) > 1 {
+					c = r.Kids[2+(j+1)%len(labels)]
+				}
+				t, err := normalize(c, e, fuel)
+				return e.keepClaims(others, t, err, fuel)
+			}
+		}
+		if labels, ok := e.recordTails(r, false); ok {
+			return e.bindRecordTails(op, args, r, labels, fuel)
+		}
+		return App(op, args[0], r), true, nil
+	}
+	x, err := normalize(args[2], e, fuel)
+	if err != nil {
+		return nil, true, err
+	}
+	if labels, ok := isRecValue(r); ok {
+		j := labelIndex(labels, l)
+		if j < 0 {
+			return nil, true, outsideOverride(l, labels)
+		}
+		if PlantWithWrongLabel {
+			j = (j + 1) % len(labels)
+		}
+		if pure(r.Kids[2+j]) {
+			kids := append([]*Term{}, r.Kids...)
+			kids[2+j] = x
+			return e.keepClaims(r.Kids[2+j:3+j], &Term{Kind: KApp, Kids: kids}, nil, fuel)
+		}
+	}
+	if labels, ok := e.recordTails(r, false); ok {
+		return e.bindRecordTails(op, []*Term{args[0], r, x}, r, labels, fuel)
+	}
+	return App(op, args[0], r, x), true, nil
+}
+
+// bindRecordTails is a projection or an override of a term whose tails are
+// records: the term is bound, `(#get l t)` = let q = t in q.l, and the let
+// takes it apart (takeApart), so q is a record of names the rule then erases.
+func (e *Env) bindRecordTails(op *Term, args []*Term, r *Term, labels string, fuel *int) (*Term, bool, error) {
+	if labelIndex(strings.Fields(labels), args[0].Str) < 0 {
+		if op.Name == GetName {
+			return nil, true, outsideProjection(args[0].Str, strings.Fields(labels))
+		}
+		return nil, true, outsideOverride(args[0].Str, strings.Fields(labels))
+	}
+	rest := append([]*Term{op, args[0], Name("#rt")}, args[2:]...)
+	k := Fn([]string{"#rt"}, &Term{Kind: KApp, Kids: rest})
+	t, err := normalize(e.takeApart(r, labels, k), e, fuel)
+	return t, true, err
+}
+
+// splitRecordRequire is a record's obligation, (#req d p T v) with T a record
+// set, made its components': v ∈ Π_{l∈L} S_l iff v.l ∈ S_l for every l, so it
+// is (#rec L (#req d p.l S_l v_l) …), each component marked with its own set
+// and decided as any argument's range is. v is seen as a value, whose
+// components are its own, or as a pure term, read through its projections
+// (get–put: v = record { l : v.l, … }); any other term keeps the mark whole,
+// and erasure refuses it if it reaches the residual.
+func (e *Env) splitRecordRequire(op *Term, args []*Term, fuel *int) (*Term, bool, error) {
+	v, err := normalize(args[3], e, fuel)
+	if err != nil {
+		return nil, true, err
+	}
+	labels, types := RecordFields(args[2].Str)
+	if labels == nil {
+		return nil, false, nil
+	}
+	var comps []*Term
+	if ls, ok := isRecValue(v); ok && strings.Join(ls, " ") == strings.Join(labels, " ") {
+		comps = v.Kids[2:]
+	} else if e.pureTerm(v, map[string]bool{}) && duplicable(v) {
+		for _, l := range labels {
+			comps = append(comps, App(Name(GetName), Str(l), v))
+		}
+	} else {
+		return App(op, args[0], args[1], args[2], v), true, nil
+	}
+	kids := []*Term{Name(RecName), Str(strings.Join(labels, " "))}
+	for i, l := range labels {
+		if PlantRecordRequireDropped {
+			kids = append(kids, comps[i])
+			continue
+		}
+		kids = append(kids, App(Name(RequireName), args[0], Str(args[1].Str+"."+Spell(l)), Str(types[i]), comps[i]))
+	}
+	t, err := normalize(&Term{Kind: KApp, Kids: kids}, e, fuel)
+	return t, true, err
+}
+
+// PlantRecordRequireDropped splits a record's obligation into none: the fault
+// a record parameter's contract must be seen to refuse.
+var PlantRecordRequireDropped bool
+
+// keepClaims is t with the obligations of the terms a rule discarded moved onto
+// it: a contract holds of a component whether or not the body reads it
+// (ADR 0028), so a projection that drops r.y keeps r.y's mark, as β keeps a
+// dead argument's claim (hoistObligations).
+func (e *Env) keepClaims(dropped []*Term, t *Term, err error, fuel *int) (*Term, bool, error) {
+	if err != nil || PlantRecordClaimDropped {
+		return t, true, err
+	}
+	for _, d := range dropped {
+		// every obligation, a contract's as well as a binder's claim: a record
+		// parameter's set is checked whole (stricter than β's dead argument, whose
+		// contract is owed, CLAUDE.md's "a dead call's contract")
+		if containsRequire(d) {
+			nd, err := normalize(d, e, fuel)
+			if err != nil {
+				return nil, true, err
+			}
+			t = e.hoistObligations(nd, t, fuel)
+		}
+	}
+	return t, true, nil
+}
+
+// PlantRecordClaimDropped drops a discarded component's obligation, as the
+// first build of the projection rule did.
+var PlantRecordClaimDropped bool
+
+// A RECORD IN A HEADER IS CURRIED (ADR 0128 item 7).
+//
+// The currying isomorphism, Π_{l∈L} S_l → R ≅ S_{l₁} → … → S_{lₙ} → R,
+// applied at every definition whose header states a record set, with nested
+// records flattened by associativity, A × (B × C) ≅ A × B × C:
+//
+//   - q keeps its name and becomes the CURRIED definition: its parameters are
+//     the leaves of its records, p#x ∈ S_x, its body reads p as the record of
+//     those names, and a record result is the product of its leaves. So an
+//     export, a kept definition and a claim's lowering (ADR 0072) see only
+//     the sets they always have, each leaf's representation chosen by ρ;
+//   - q#r, a name no program writes, is the RECORD VIEW, a wrapper that
+//     projects its arguments' leaves, calls q, and rebuilds a record result;
+//   - every other use of q is a use of q#r, whose inlining is the isomorphism's
+//     other half.
+//
+// Every obligation is then a leaf's range on q (installContracts), which the
+// existing deciders decide as any parameter's.
+func curryRecords(p *Program, terms []*Term) ([]*Term, error) {
+	renamed := map[string]string{}
+	var order []string
+	for _, q := range p.Order {
+		order = append(order, q)
+		sig := p.Sigs[q]
+		if sig == nil || !headerHasRecord(sig) {
+			continue
+		}
+		body := p.Defs[q]
+		if body == nil || body.Kind != KFn || len(body.Params) != len(sig.Params) {
+			return nil, fmt.Errorf("%s: its header states a record set, and its body is not a function of "+
+				"its %d parameters, so the record cannot be curried (ADR 0128)", ShowName(q), len(sig.Params))
+		}
+		if sig.Ensures != nil && IsRecord(sig.Result) {
+			return nil, fmt.Errorf("%s: an `ensure` over a record result is not built (ADR 0128); state "+
+				"the claim on a component's set", ShowName(q))
+		}
+		var params []string
+		var sps []SigParam
+		subs := make([]*Term, len(sig.Params))
+		args := make([]*Term, 0, len(sig.Params))
+		for i, pm := range sig.Params {
+			if !IsRecord(pm.Type) {
+				params = append(params, body.Params[i])
+				sps = append(sps, pm)
+				subs[i] = Name(body.Params[i])
+				args = append(args, Name(body.Params[i]))
+				continue
+			}
+			for _, lf := range recordLeaves(body.Params[i], pm.Type, nil) {
+				params = append(params, lf.name)
+				sps = append(sps, SigParam{Name: lf.name, Type: lf.ty})
+				args = append(args, lf.read(Name(body.Params[i])))
+			}
+			subs[i] = recordOfLeaves(body.Params[i], pm.Type)
+		}
+		cbody := body.OpenWith(subs)
+		nsig := *sig
+		nsig.Params = sps
+		for i, pm := range sig.Params {
+			if IsRecord(pm.Type) {
+				nsig.Where = substFree(nsig.Where, pm.Name, subs[i])
+				nsig.Written = substFree(nsig.Written, pm.Name, subs[i])
+				nsig.Ensures = substFree(nsig.Ensures, pm.Name, subs[i])
+			}
+		}
+		var call *Term = App(Name(q), args...)
+		if IsRecord(sig.Result) {
+			leaves := recordLeaves("#v", sig.Result, nil)
+			tys := make([]string, len(leaves))
+			reads := []*Term{Name(TupleBinder)}
+			outs := make([]string, len(leaves))
+			for j, lf := range leaves {
+				tys[j] = lf.ty
+				reads = append(reads, lf.read(Name("#v")))
+				outs[j] = lf.name
+			}
+			// the body's value, η-expanded into the product of its leaves
+			cbody = App(Fn([]string{"#v"}, Fn([]string{TupleBinder}, App(reads[0], reads[1:]...))), cbody)
+			if len(tys) == 1 {
+				nsig.Result, nsig.Results = tys[0], nil
+				call = App(Fn([]string{outs[0]}, recordOfLeaves("#v", sig.Result)), call)
+			} else {
+				nsig.Result, nsig.Results = "", tys
+				call = App(call, Fn(outs, recordOfLeaves("#v", sig.Result)))
+			}
+			nsig.ResultRange = nil
+		}
+		p.Defs[q] = Fn(params, cbody)
+		p.Sigs[q] = &nsig
+		view := q + "#r"
+		p.Defs[view] = Fn(body.Params, call)
+		order = append(order, view)
+		renamed[q] = view
+	}
+	if len(renamed) == 0 {
+		return terms, nil
+	}
+	p.Order = order
+	for _, q := range p.Order {
+		if _, own := renamed[q]; own {
+			continue // the curried definition calls nothing of its own record view
+		}
+		if strings.HasSuffix(q, "#r") && renamed[strings.TrimSuffix(q, "#r")] == q {
+			continue // the record view calls the curried definition by its name
+		}
+		p.Defs[q] = renameFree(p.Defs[q], renamed)
+	}
+	for i, t := range terms {
+		terms[i] = renameFree(t, renamed)
+	}
+	return terms, nil
+}
+
+// headerHasRecord reports a header stating a record set, as a parameter's or
+// the result's.
+func headerHasRecord(sig *Sig) bool {
+	if IsRecord(sig.Result) {
+		return true
+	}
+	for _, r := range sig.Results {
+		if IsRecord(r) {
+			return true
+		}
+	}
+	for _, pm := range sig.Params {
+		if IsRecord(pm.Type) {
+			return true
+		}
+	}
+	return false
+}
+
+// leaf is one leaf of a record set flattened: its name, its set, and its path
+// of labels from the record.
+type leaf struct {
+	name, ty string
+	path     []string
+}
+
+// read is the leaf read from a record r, r.l₁.l₂…
+func (lf leaf) read(r *Term) *Term {
+	for _, l := range lf.path {
+		r = App(Name(GetName), Str(l), r)
+	}
+	return r
+}
+
+// recordLeaves are a record set's leaves, depth first in canonical order: the
+// associativity isomorphism's order, so the flattening is a function of the
+// set alone.
+func recordLeaves(name, ty string, path []string) []leaf {
+	labels, types := RecordFields(ty)
+	var out []leaf
+	for i, l := range labels {
+		p := append(append([]string{}, path...), l)
+		n := name + "#" + l
+		if IsRecord(types[i]) {
+			out = append(out, recordLeaves(n, types[i], p)...)
+			continue
+		}
+		out = append(out, leaf{name: n, ty: types[i], path: p})
+	}
+	return out
+}
+
+// recordOfLeaves is the record value built from a set's leaf names, the
+// isomorphism's inverse.
+func recordOfLeaves(name, ty string) *Term {
+	labels, types := RecordFields(ty)
+	kids := []*Term{Name(RecName), Str(strings.Join(labels, " "))}
+	for i, l := range labels {
+		n := name + "#" + l
+		if IsRecord(types[i]) {
+			kids = append(kids, recordOfLeaves(n, types[i]))
+			continue
+		}
+		kids = append(kids, Name(n))
+	}
+	return &Term{Kind: KApp, Kids: kids}
+}
+
+// substFree replaces the free name n by v. Bound variables are indices, so no
+// capture is possible, and v's names are free.
+func substFree(t *Term, n string, v *Term) *Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == KName {
+		if t.Name == n {
+			return v
+		}
+		return t
+	}
+	if len(t.Kids) == 0 {
+		return t
+	}
+	c := *t
+	c.Kids = make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		c.Kids[i] = substFree(k, n, v)
+	}
+	return &c
+}
+
+// zeroOf is zero(T) for a record set's canonical type (data.md §4.6): every
+// component its set's zero, 0 where 0 ∈ S_l, `none` for an Option, the zero of
+// a nested record; refused naming the component where one has none (X11).
+func zeroOf(ty string) (*Term, error) {
+	labels, types := RecordFields(ty)
+	if labels == nil {
+		return nil, fmt.Errorf("zero(T) is a record set's zero (data.md §4.6), and %s is no record set",
+			ShowSet(ty))
+	}
+	kids := []*Term{Name(RecName), Str(strings.Join(labels, " "))}
+	for i, ct := range types {
+		z, err := zeroComponent(ct)
+		if err != nil {
+			return nil, fmt.Errorf("zero(%s): its component %s ∈ %s has no zero (data.md §4.6, X11): %v",
+				ShowSet(ty), Spell(labels[i]), ShowSet(ct), err)
+		}
+		kids = append(kids, z)
+	}
+	return &Term{Kind: KApp, Kids: kids}, nil
+}
+
+func zeroComponent(ty string) (*Term, error) {
+	switch {
+	case IsRecord(ty):
+		return zeroOf(ty)
+	case ty == "int":
+		return Int(0), nil
+	case strings.HasPrefix(ty, "option(") || ty == "option":
+		return Name("none"), nil
+	}
+	if lo, hi, ok := IntRangeBig(ty); ok {
+		if lo.Sign() <= 0 && hi.Sign() >= 0 {
+			return Int(0), nil
+		}
+		return nil, fmt.Errorf("0 is not in %s", ShowSet(ty))
+	}
+	return nil, fmt.Errorf("only an integer set holding 0, an Option and a record have one")
+}

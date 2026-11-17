@@ -986,7 +986,14 @@ func (p *parser) isWrite() bool {
 			return false
 		}
 		k++
-		for p.toks[k].kind == tSym && p.toks[k].text == "[" {
+		for {
+			if p.toks[k].kind == tSym && p.toks[k].text == "." && k+1 < len(p.toks) && p.toks[k+1].kind == tIdent {
+				k += 2 // a record's component, p.l := e (ADR 0128)
+				continue
+			}
+			if !(p.toks[k].kind == tSym && p.toks[k].text == "[") {
+				break
+			}
 			depth := 0
 			for ; k < len(p.toks); k++ {
 				switch p.toks[k].text {
@@ -1016,6 +1023,7 @@ func (p *parser) isWrite() bool {
 // assignment, every value in the state before (spec/local.md §2.1).
 func (p *parser) write() (*Write, error) {
 	w := &Write{}
+	var paths [][]string // each place's record path, p.l.m := e (ADR 0128)
 	for {
 		pl := Place{Name: p.name()}
 		for p.accept("[") {
@@ -1030,7 +1038,17 @@ func (p *parser) write() (*Write, error) {
 			}
 			pl.At = append(pl.At, i)
 		}
+		var path []string
+		for p.is(".") && p.peekN(1).kind == tIdent {
+			p.next()
+			path = append(path, Unspell(p.next().text))
+		}
+		if len(path) > 0 && p.is("[") {
+			return nil, p.errorf("a write indexes a table and then names a record's component, " +
+				"`b[i].l := e`; a table inside a record is written whole, `p := p with { l : … }`")
+		}
 		w.Places = append(w.Places, pl)
+		paths = append(paths, path)
 		if !p.accept(",") {
 			break
 		}
@@ -1050,6 +1068,21 @@ func (p *parser) write() (*Write, error) {
 	}
 	if len(w.Values) != len(w.Places) {
 		return nil, p.errorf("%d places and %d values in one assignment", len(w.Places), len(w.Values))
+	}
+	// A RECORD'S COMPONENT IS WRITTEN AS ITS WHOLE VALUE, OVERRIDDEN: p.l := e is
+	// p := p with { l : e } (ADR 0128 item 5), G6's place extended to a label,
+	// and the state translation threads the cell as it threads any write. The
+	// place's old value is read in the state before, as a concurrent
+	// assignment's every right side is.
+	for i, path := range paths {
+		if len(path) == 0 {
+			continue
+		}
+		var old Expr = &Var{Name: w.Places[i].Name}
+		for _, at := range w.Places[i].At {
+			old = &Index{Table: old, At: at}
+		}
+		w.Values[i] = withPath(old, path, w.Values[i])
 	}
 	return w, nil
 }
@@ -1361,6 +1394,11 @@ func (p *parser) postfix(e Expr) (Expr, error) {
 			if v, ok := e.(*Var); ok && v.Name == "store" && len(args) == 3 {
 				e = &Var{Name: "set"}
 			}
+			// zero(T)'S ARGUMENT IS A SET (data.md §4.6), read in a set's position
+			// so that a set definition unfolds there as in a header.
+			if v, ok := e.(*Var); ok && v.Name == ZeroName && len(args) == 1 {
+				args[0] = p.set(args[0])
+			}
 			if v, ok := e.(*Var); ok && v.Name == "tuple" && len(args) == 1 {
 				return nil, p.errorf("tuple takes no terms, the unit, or two or more; a tuple of one is just the value")
 			}
@@ -1417,6 +1455,20 @@ func (p *parser) postfix(e Expr) (Expr, error) {
 			}
 			e = &Apply{Fn: e, Args: []Expr{i}}
 			p.indexed[e] = true
+		case p.is(".") && p.peekN(1).kind == tIdent:
+			// A RECORD'S PROJECTION on a value that is no name, `f(x).l`,
+			// `t[i].l` (ADR 0128): a name's `r.l` is read whole, and Load
+			// decides it by the binder (resolve).
+			p.next()
+			e = recordProjection(e, Unspell(p.next().text))
+		case p.is("with") && p.peekN(1).text == "{":
+			// OVERRIDE, `r with { p : e, … }` (ADR 0128, data.md §4.3).
+			p.next()
+			x, err := p.override(e)
+			if err != nil {
+				return nil, err
+			}
+			e = x
 		default:
 			return e, nil
 		}
@@ -1518,6 +1570,11 @@ func (p *parser) primary() (Expr, error) {
 			if p.peekN(1).text == "{" {
 				p.next()
 				return p.mapGraph()
+			}
+		case "record":
+			if p.peekN(1).text == "{" {
+				p.next()
+				return p.recordFormer()
 			}
 		case "if":
 			p.next()

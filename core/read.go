@@ -1221,6 +1221,14 @@ func TypeName(t *Term) string {
 	if t.Kind == KName {
 		return t.Name
 	}
+	// A RECORD SET, (#recset "l₁ … lₙ" S₁ … Sₙ) (ADR 0128, data.md §4.1): its
+	// canonical type `record(l₁: T₁, …, lₙ: Tₙ)`, labels in canonical order,
+	// which the reader fixed. A component may be any type a tuple's may, and a
+	// record: nesting is the associativity isomorphism, flattened where labels
+	// become positions (record.go).
+	if ty, ok := recordTypeName(t); ok {
+		return ty
+	}
 	if t.Kind == KApp && len(t.Kids) == 2 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "array" {
 		// A BUFFER MAY NOT BE AN ELEMENT — ADR 0020 rule 6, and it is enforced

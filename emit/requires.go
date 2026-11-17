@@ -121,6 +121,10 @@ func installContracts(env *core.Env, prog *core.Program, w core.Word) {
 			} else if _, _, ok := core.F64Range(p.Type); ok {
 				// and F64 ∩ [lo, hi], decided on the doubles' intervals
 				tys[i], ranged = p.Type, true
+			} else if core.IsRecord(p.Type) {
+				// A RECORD SET: r ∈ Π S_l iff each r.l ∈ S_l, so the mark is split
+				// into one per component where the argument is seen (core/record.go)
+				tys[i], ranged = p.Type, true
 			}
 		}
 		if ranged {

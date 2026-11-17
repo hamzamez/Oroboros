@@ -1112,6 +1112,12 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		}
 		terms = append(terms, t)
 	}
+	// A RECORD IN A HEADER IS CURRIED (ADR 0128 item 7, record.go): after
+	// resolution, so a definition's name is its qualified one; before every
+	// pass that reads a header, so none meets a record there.
+	if terms, err = curryRecords(p, terms); err != nil {
+		return nil, nil, err
+	}
 	// VARIADIC CALLS, once, after resolution (spec/variadic.md §3): a call's
 	// trailing arguments become the list. Every definition and every entry term.
 	for _, m := range mods {
@@ -1445,6 +1451,17 @@ func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term,
 		}
 		if i := strings.Index(t.Name, "."); i >= 0 {
 			alias, rest := t.Name[:i], t.Name[i+1:]
+			// THE BINDER DECIDES WHAT a.b IS (ADR 0128 item 3): a value bound by
+			// an enclosing abstraction is projected, r.l is (#get "l" r), and a
+			// module is qualified. One namespace (spec/typevalues.md §2), so a
+			// local binder shadows an import's alias as it shadows any name.
+			if bound[alias] && !PlantProjectionAsImport {
+				r := Name(alias)
+				for _, l := range strings.Split(rest, ".") {
+					r = &Term{Kind: KApp, Kids: []*Term{Name(GetName), Str(l), r}}
+				}
+				return r, nil
+			}
 			path, ok := m.Uses[alias]
 			if !ok {
 				// A qualified name in SOURCE always names an import. Letting
@@ -2492,6 +2509,11 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			if len(op.Params) != len(args) {
 				return nil, &ArityError{Fn: op, Want: len(op.Params), Given: len(args)}
 			}
+			// A RECORD ARGUMENT IS ITS COMPONENTS (ADR 0128), the currying
+			// isomorphism at β, as at a let (reduceLet).
+			if t, ok := curryRecordArgs(op, args); ok && !PlantRecordLetWhole {
+				return normalize(t, e, fuel)
+			}
 			subs := make([]*Term, len(args))
 			var bound []struct {
 				name string
@@ -2783,6 +2805,14 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 					}
 					continue
 				}
+				// η FOR RECORDS, the same law: a bound record is the lets of its
+				// components (reduceLet, ADR 0128).
+				if _, ok := e.recordTails(bound[i].val, false); ok && !PlantRecordLetWhole {
+					if body, err = e.reduceLet(Name("let"), []*Term{bound[i].val, Fn([]string{bound[i].name}, body)}, fuel); err != nil {
+						return nil, err
+					}
+					continue
+				}
 				body = App(Name("let"), bound[i].val, Fn([]string{bound[i].name}, body))
 				if out, ok := e.absorb(body.Kids); ok {
 					body = out
@@ -2875,6 +2905,51 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		// folds here or the residual is refused (Law S, staged).
 		if op.Kind == KName && (op.Name == "inf" || op.Name == "sup") && e.Prim[op.Name] && len(args) == 1 {
 			return e.infSup(op, args[0], fuel)
+		}
+		// A RECORD'S OBLIGATION IS ITS COMPONENTS' (record.go): r ∈ Π S_l iff
+		// each r.l ∈ S_l, split where the argument is seen.
+		if op.Kind == KName && op.Name == RequireName && len(args) == 4 && args[2].Kind == KStr && IsRecord(args[2].Str) {
+			if t, ok, err := e.splitRecordRequire(op, args, fuel); ok || err != nil {
+				return t, err
+			}
+		}
+		// A LOOP OVER A RECORD IS A LOOP OVER ITS COMPONENTS (record.go, curryLoop).
+		if op.Kind == KName && op.Name == "loop" && e.Prim["loop"] && len(args) >= 2 && args[0].Kind == KFn && !PlantRecordLetWhole {
+			inits := make([]*Term, len(args)-1)
+			anyRec := false
+			for i, z := range args[1:] {
+				nz, err := normalize(z, e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				inits[i] = nz
+				if _, ok := isRecValue(nz); ok {
+					anyRec = true
+				}
+			}
+			if anyRec {
+				if c, ok := e.curryLoop(op, append([]*Term{args[0]}, inits...)); ok {
+					return normalize(c, e, fuel)
+				}
+			}
+		}
+		// A RECORD'S PROJECTION AND OVERRIDE, the lens laws as δ-rules (record.go,
+		// ADR 0128).
+		if op.Kind == KName && len(args) >= 2 && args[0].Kind == KStr &&
+			(op.Name == GetName && len(args) == 2 || op.Name == WithName && len(args) == 3) {
+			if t, ok, err := e.recordRule(op, args, fuel); ok || err != nil {
+				return t, err
+			}
+		}
+		// zero(T), A RECORD SET'S ZERO (data.md §4.6): the language's where no
+		// definition of the program's is named `zero` (a module's own is found
+		// first, as `some` and `none` are).
+		if op.Kind == KName && op.Name == ZeroName && len(args) == 1 && e.Defs[ZeroName] == nil && !e.Prim[ZeroName] {
+			z, err := zeroOf(TypeName(args[0]))
+			if err != nil {
+				return nil, err
+			}
+			return normalize(z, e, fuel)
 		}
 		// `len` on a table whose length is known. See tableLen.
 		if op.Kind == KName && op.Name == "len" && e.Prim["len"] && len(args) == 1 {
@@ -3007,6 +3082,17 @@ func duplicable(t *Term) bool {
 	// it, so copying it copies a description: a codec, (k, lo, hi, order).
 	if t.Kind == KApp && len(t.Kids) > 1 && t.Kids[0].Kind == KName && t.Kids[0].Name == "tuple" {
 		for _, k := range t.Kids[1:] {
+			if !duplicable(k) {
+				return false
+			}
+		}
+		return true
+	}
+	// A RECORD OF COPYABLE COMPONENTS, a projection or an override of one, is a
+	// tuple under a bijection (ADR 0128), so it copies as a tuple does: each
+	// copy is erased by a δ-rule or placed as one access (record.go).
+	if _, ok := isRecValue(t); ok || isRecForm(t, GetName, 2) || isRecForm(t, WithName, 3) {
+		for _, k := range t.Kids[2:] {
 			if !duplicable(k) {
 				return false
 			}
@@ -3386,11 +3472,15 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 		// `#segment`, J's b[lo:hi], which δ rewrites to a rule (segment); and a
 		// range, a static value Law S keeps out of the residual (staged).
 		if bound[t.Name] || e.Prim[t.Name] || e.Sets[t.Name] || t.Name == AnyName || t.Name == ElimName || t.Name == SegmentName ||
-			t.Name == ".." || t.Name == AdoptName || t.Name == OwnedName {
+			t.Name == ".." || t.Name == AdoptName || t.Name == OwnedName ||
+			t.Name == RecName || t.Name == RecSetName || t.Name == GetName || t.Name == WithName {
 			return nil
 		}
 		if _, ok := e.Defs[t.Name]; ok {
 			return nil
+		}
+		if t.Name == ZeroName {
+			return nil // the language's zero(T), where no definition takes the name (record.go)
 		}
 		return fmt.Errorf("%s: %s is not bound — it is not a parameter, not a definition, "+
 			"and not a primitive on this target%s", where, ShowName(t.Name), e.importHint(t.Name))
@@ -3548,6 +3638,39 @@ func (e *Env) reduceLet(op *Term, args []*Term, fuel *int) (*Term, error) {
 	}
 	if duplicable(v) && !IsRequire(v) && !IsRequireWhere(v) {
 		return normalize(args[1].OpenWith([]*Term{v}), e, fuel)
+	}
+	// A RECORD'S LET IS THE LETS OF ITS COMPONENTS (ADR 0128): the currying
+	// isomorphism at β, (λq. b)⟨e₁, …, eₙ⟩ = (λc₁…cₙ. b[⟨c₁, …, cₙ⟩/q]) e₁ … eₙ,
+	// so each component is bound or substituted on its own merits and q is
+	// the record of names, which copies and is erased by its projections.
+	// Bound in canonical order: the reader bound any effect in written order
+	// first (recordFormer), so a component here is a name or pure.
+	// A LET WHOSE VALUE IS A LET ENDING IN A RECORD is reassociated first, bind's
+	// associativity, (m >>= f) >>= g = m >>= (λx. f x >>= g): the record is then
+	// the inner let's body, where the rule below sees it. Only there, so no other
+	// residual's shape changes.
+	if isRecordTail(v) && isForm(v, e, "let") && len(v.Kids) == 3 && v.Kids[2].Kind == KFn && len(v.Kids[2].Params) == 1 {
+		x := v.Kids[2].Params[0] + "#a"
+		inner := App(Name("let"), v.Kids[2].OpenWith([]*Term{Name(x)}), args[1])
+		return normalize(App(Name("let"), v.Kids[1], Fn([]string{x}, inner)), e, fuel)
+	}
+	// A VALUE WHOSE TAILS ARE RECORDS, a loop's or a conditional's, is a product
+	// under the bijection, taken apart where it is bound (takeApart).
+	if _, rec := isRecValue(v); !rec && !PlantRecordLetWhole {
+		if labels, ok := e.recordTails(v, false); ok {
+			return normalize(e.takeApart(v, labels, args[1]), e, fuel)
+		}
+	}
+	if labels, ok := isRecValue(v); ok && !PlantRecordLetWhole {
+		names := make([]*Term, len(labels))
+		for i, l := range labels {
+			names[i] = Name(args[1].Params[0] + "#" + l)
+		}
+		body := args[1].OpenWith([]*Term{App(Name(RecName), append([]*Term{v.Kids[1]}, names...)...)})
+		for i := len(labels) - 1; i >= 0; i-- {
+			body = App(Name("let"), v.Kids[2+i], Fn([]string{names[i].Name}, body))
+		}
+		return normalize(body, e, fuel)
 	}
 	// A VALUE UNDER AN OBLIGATION: the obligation is moved out, to stand
 	// around the let, where it is decided once, and the value it guards is

@@ -76,6 +76,16 @@ func (tg *Target) unboundSet(ty string) string {
 		}
 		return ""
 	}
+	// A RECORD SET denotes a set where each component's does (ADR 0128).
+	if core.IsRecord(ty) {
+		_, fs := core.RecordFields(ty)
+		for _, f := range fs {
+			if u := tg.unboundSet(f); u != "" {
+				return u
+			}
+		}
+		return ""
+	}
 	if head, _, ok := core.Applied(ty); ok {
 		return head // a type constructor applied: no program declares one (above)
 	}

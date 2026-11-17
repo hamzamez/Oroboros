@@ -489,6 +489,89 @@ four names. ILP32 states commdlg's p = 1. richedit's `pack(4)` is unconditional 
 6. **The packing as the data model's** where the header conditions it on `_WIN64` (commdlg), and the
    header's otherwise (richedit). Recommended: yes, ADR 0126's criterion.
 
+### 8.1 hamza's answers (2026-11-17), and what they changed
+
+- **3, 4, 5, 6: agreed.**
+- **2, the set and the projection: agreed**, `record { left ∈ LONG, … }` and `r.left`.
+- **2, the value: `record { left : 0, top : 1 }`** (hamza). This is ADR 0061's spelling, which this
+  document missed: J's pair separator is `:` (`map { k : v }`), and ADR 0061's "Why not" refuses `↦`
+  beside `:`, because under 𝒫(S) ≅ Bool^S both are one λ spelled two ways. So:
+  - the set is `record { l ∈ S, … }`, a family of membership claims;
+  - the value is `record { l : e, … }`, a graph;
+  - the token after the label tells them apart, and a former mixing the two is refused.
+- **2, the update, asked again** (§8.2).
+- **1, why not the whole record?** The restriction was the plan's, not the algebra's: CLAUDE.md's
+  "deliberately not next: records … beyond what TinyRetroPad's walls need" (assessment-2026-10-24).
+  - By data.md §4.4 a record *is* a tuple under the bijection L ≅ {0…n−1}. So a record may go
+    wherever a tuple goes, at the tuple's cost: data.md §4.5.
+  - The whole record therefore means **the tuple's three missing positions** (data.md §3.3): a
+    product nested inside a product at a representation position, a product as an export's
+    parameter, and a product as a map's value. These are the product's limits, and lifting them
+    serves tuples too.
+  - **Nested products are needed anyway.** `MSG.pt`, `PAINTSTRUCT.rcPaint` and `FORMATRANGE.rc` are
+    records inside records. Flattening them is the associativity isomorphism A × (B × C) ≅ A × B × C,
+    so this is work, not new theory.
+  - **An export's record parameter** is better posed than a tuple's. data.md refused the tuple
+    because "a bare product has no width caller and callee could agree on", but a record's labels
+    and sets are exactly that agreement: Go's struct, Java's record class, a JavaScript object, ρ per
+    field (ADR 0079).
+  - **A map's record value** is ADR 0120's table of cells, holding the flattened components.
+  - **Recommended: the whole record** (data.md §4 and §9's `record-order` and `record-lens` on all
+    four targets), with the three positions lifted for tuples and records together. Each needs a
+    conformance case as its program, because a position nothing runs is a position nothing checks.
+
+### 8.2 The update: is `r with { … }` the best?
+
+What it must be: **function override**. For f and a partial function g with dom g ⊆ dom f,
+
+```
+(f ⊕ g)(x) = g(x)  if x ∈ dom g,  else f(x)
+```
+
+The literature has it under many names:
+- Z's ⊕ (Spivey, *The Z Notation*, 1992);
+- B's `<+` (Abrial, *The B-Book*, 1996);
+- VDM's `++` on maps and `mu` on records;
+- TLA+'s `EXCEPT`, and TLC's `@@`.
+
+Overriding functions on L is a monoid: associative, with the empty function as unit. The lens laws
+of data.md §4.3 are its consequences:
+- put–get: by the definition;
+- get–put: f ⊕ {l : f(l)} = f;
+- put–put: (f ⊕ g) ⊕ h = f ⊕ (g ⊕ h), where h wins on dom g ∩ dom h.
+
+The surface candidates for the one operation:
+
+| candidate | example | for | against |
+|---|---|---|---|
+| Z's ⊕ | `r ⊕ record { left : 1 }` | the mathematical symbol; one operator for every finite function | **⊕ is J's xor** (ADR 0082, j.md §1.6), a homonym by sort, ADR 0065's first objection |
+| TLA+'s EXCEPT | `[r EXCEPT !.left = 1]` | TLA+'s own, with paths | brackets are indexing and segments, `!` is J's negation, and ADR 0065 item 4 wants a keyword before a former |
+| B's `<+` | `r <+ record { left : 1 }` | ASCII, unambiguous | a third arrow-like token; no reader outside B knows it |
+| Rust's base | `record { left : 1, ..r }` | one former | `..` is J's range; a record value that is not total |
+| a cell, written | `var p := r; p.left := 1` | built (G6), program order | a statement, not an expression |
+| **`with`** | `r with { left : 1 }` | F# and OCaml (`{ r with l = e }`), C# 9 (`r with { L = e }`) | an English word, though a keyword before braces is exactly ADR 0065 item 4's rule |
+
+**Recommended: `r with { … }`, extended by paths:**
+
+```
+r with { left : 1, rc.right : 5 }
+```
+
+The operand is a family of (path, value) pairs, a path a chain of labels.
+- **Its meaning is lens composition** (Foster et al. 2007: lenses compose): `rc.right : 5` is
+  `rc : (r.rc with { right : 5 })`. That is TLA+'s `!.rc.right`, which F#, OCaml and C# lack.
+- **The paths must be prefix-free**: no path may be another's prefix, and none may repeat. Then the
+  updates touch disjoint parts of r and commute: Lemma 3.1 for composed lenses, and §3.4's disjoint
+  byte ranges in memory. A path that is another's prefix is put–put, and is refused as a repeated
+  label is today.
+- **One path syntax for both forms**: `ofn.rc.right := v` in a cell (G6) and `r with { rc.right : v }`
+  as a value are the same lens, as statement and as expression. TinyRetroPad writes nested fields
+  (`fmt.rc.right`, `ft.chrg.cpMin`), so the paths are used.
+- **`zero(T) with { … }`** stays C's `{0}` followed by writes.
+
+⊕ would be the better symbol if it were free. It is not, and the meaning, override, is the same
+whichever token spells it.
+
 ## 9. Not here
 
 - **Callbacks**: `lpfnWndProc`, the hooks, `DLGPROC`; P4's kept struct (`FINDREPLACEA`). That is

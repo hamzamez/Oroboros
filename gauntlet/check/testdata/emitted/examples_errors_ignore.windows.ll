@@ -11,8 +11,8 @@ define i64 @gen_save(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull der
 entry:
   %.s4 = alloca i64
   %.s8 = alloca i1
-  %.s35 = alloca i64
-  %.s51 = alloca i64
+  %.s34 = alloca i64
+  %.s50 = alloca i64
   %v2 = getelementptr i8, ptr %v0, i64 0
   store i64 0, ptr %.s4
   br label %.head2
@@ -50,84 +50,83 @@ entry:
   %.c24 = trunc i64 2 to i32
   %.c25 = trunc i64 128 to i32
   %v26 = call ptr @CreateFileA(ptr %.c21, i32 %.c22, i32 %.c23, ptr %v22, i32 %.c24, i32 %.c25, ptr %v25)
-  %v27 = ptrtoint ptr %v26 to i64
-  %v29 = icmp eq i64 %v27, -1
-  br i1 %v29, label %.then28, label %.else29
-.then28:
-  %.c30 = call i32 @GetLastError()
-  %v30 = zext i32 %.c30 to i64
-  %v32 = icmp eq i64 %v30, 0
-  br i1 %v32, label %.then32, label %.else33
-.then32:
-  store i64 31, ptr %.s35
-  br label %.join34
-.else33:
-  store i64 %v30, ptr %.s35
-  br label %.join34
-.join34:
-  %v33 = load i64, ptr %.s35
-  %v38 = icmp eq i64 %v33, 0
-  br i1 %v38, label %.then37, label %.else38
-.then37:
-  %v40 = call i64 @"os/host.writeall"(ptr %v26, ptr %v1)
-  %.c40 = call i32 @CloseHandle(ptr %v26)
-  %v41 = sext i32 %.c40 to i64
-  %v43 = icmp eq i64 %v40, 0
-  br i1 %v43, label %.then42, label %.else43
-.then42:
-  %v46 = icmp eq i64 %v41, 0
-  br i1 %v46, label %.then45, label %.else46
-.then45:
-  %.c47 = call i32 @GetLastError()
-  %v48 = zext i32 %.c47 to i64
-  %v50 = icmp eq i64 %v48, 0
-  br i1 %v50, label %.then49, label %.else50
-.then49:
-  store i64 31, ptr %.s51
+  %v27 = icmp eq ptr %v26, inttoptr (i64 -1 to ptr)
+  br i1 %v27, label %.then27, label %.else28
+.then27:
+  %.c29 = call i32 @GetLastError()
+  %v28 = zext i32 %.c29 to i64
+  %v30 = icmp eq i64 %v28, 0
+  br i1 %v30, label %.then31, label %.else32
+.then31:
+  store i64 31, ptr %.s34
+  br label %.join33
+.else32:
+  store i64 %v28, ptr %.s34
+  br label %.join33
+.join33:
+  %v31 = load i64, ptr %.s34
+  %v36 = icmp eq i64 %v31, 0
+  br i1 %v36, label %.then36, label %.else37
+.then36:
+  %v38 = call i64 @"os/host.writeall"(ptr %v26, ptr %v1)
+  %.c39 = call i32 @CloseHandle(ptr %v26)
+  %v39 = sext i32 %.c39 to i64
+  %v41 = icmp eq i64 %v38, 0
+  br i1 %v41, label %.then41, label %.else42
+.then41:
+  %v44 = icmp eq i64 %v39, 0
+  br i1 %v44, label %.then44, label %.else45
+.then44:
+  %.c46 = call i32 @GetLastError()
+  %v46 = zext i32 %.c46 to i64
+  %v48 = icmp eq i64 %v46, 0
+  br i1 %v48, label %.then48, label %.else49
+.then48:
+  store i64 31, ptr %.s50
   br label %.join18
-.else50:
-  store i64 %v48, ptr %.s51
+.else49:
+  store i64 %v46, ptr %.s50
   br label %.join18
-.else46:
-  store i64 0, ptr %.s51
+.else45:
+  store i64 0, ptr %.s50
   br label %.join18
-.else43:
-  store i64 %v40, ptr %.s51
+.else42:
+  store i64 %v38, ptr %.s50
   br label %.join18
-.else38:
-  store i64 %v33, ptr %.s51
+.else37:
+  store i64 %v31, ptr %.s50
   br label %.join18
-.else29:
-  %v58 = call i64 @"os/host.writeall"(ptr %v26, ptr %v1)
-  %.c53 = call i32 @CloseHandle(ptr %v26)
-  %v59 = sext i32 %.c53 to i64
-  %v61 = icmp eq i64 %v58, 0
-  br i1 %v61, label %.then55, label %.else56
-.then55:
-  %v64 = icmp eq i64 %v59, 0
-  br i1 %v64, label %.then58, label %.else59
-.then58:
-  %.c60 = call i32 @GetLastError()
-  %v66 = zext i32 %.c60 to i64
-  %v68 = icmp eq i64 %v66, 0
-  br i1 %v68, label %.then62, label %.else63
-.then62:
-  store i64 31, ptr %.s51
+.else28:
+  %v56 = call i64 @"os/host.writeall"(ptr %v26, ptr %v1)
+  %.c52 = call i32 @CloseHandle(ptr %v26)
+  %v57 = sext i32 %.c52 to i64
+  %v59 = icmp eq i64 %v56, 0
+  br i1 %v59, label %.then54, label %.else55
+.then54:
+  %v62 = icmp eq i64 %v57, 0
+  br i1 %v62, label %.then57, label %.else58
+.then57:
+  %.c59 = call i32 @GetLastError()
+  %v64 = zext i32 %.c59 to i64
+  %v66 = icmp eq i64 %v64, 0
+  br i1 %v66, label %.then61, label %.else62
+.then61:
+  store i64 31, ptr %.s50
   br label %.join18
-.else63:
-  store i64 %v66, ptr %.s51
+.else62:
+  store i64 %v64, ptr %.s50
   br label %.join18
-.else59:
-  store i64 0, ptr %.s51
+.else58:
+  store i64 0, ptr %.s50
   br label %.join18
-.else56:
-  store i64 %v58, ptr %.s51
+.else55:
+  store i64 %v56, ptr %.s50
   br label %.join18
 .else17:
-  store i64 123, ptr %.s51
+  store i64 123, ptr %.s50
   br label %.join18
 .join18:
-  %v19 = load i64, ptr %.s51
+  %v19 = load i64, ptr %.s50
   ret i64 0
 }
 

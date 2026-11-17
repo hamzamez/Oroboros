@@ -1,0 +1,9 @@
+// THE ADDRESS SPACE OF 32-BIT WINDOWS (ADR 0122 item 3): Σ_OS's two bounds. A
+// 32-bit process's user space is 2³¹ bytes (2³² under WOW64 with
+// /LARGEADDRESSAWARE, which this target does not ask for); the longest table,
+// of one-byte elements, takes n + 9 of them, so n ≤ 2³¹ − 9, windows32.oro's
+// `fact max_len`.
+module llvm/os {
+    fn max_bytes() (0..2^63-1) { 2147483648 }
+    fn max_len() (0..2^63-1) { 2147483639 }
+}

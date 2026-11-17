@@ -3978,7 +3978,7 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 		if err := os.WriteFile(filepath.Join(dir, "main.manifest"), []byte(Manifest), 0o644); err != nil {
 			return err
 		}
-		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(buildScript(tg.Link, LLVMLibs)), 0o644)
+		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(buildScript(tg.Triple, tg.Link, LLVMLibs)), 0o644)
 	}
 	return fmt.Errorf("target %q has no program layout", tg.Name)
 }
@@ -3991,7 +3991,7 @@ set "VCV="
 for %%p in ("%ProgramFiles%\Microsoft Visual Studio" "%ProgramFiles(x86)%\Microsoft Visual Studio") do (
   for /d %%v in ("%%~p\*") do (
     for /d %%e in ("%%~v\*") do (
-      if exist "%%~e\VC\Auxiliary\Build\vcvars64.bat" set "VCV=%%~e\VC\Auxiliary\Build\vcvars64.bat"
+      if exist "%%~e\VC\Auxiliary\Build\{{VCVARS}}" set "VCV=%%~e\VC\Auxiliary\Build\{{VCVARS}}"
     )
   )
 )
@@ -3999,7 +3999,7 @@ if not defined VCV (echo build.bat: no MSVC toolchain with link was found & exit
 set "CLANG=%LOCALAPPDATA%\Programs\LLVM\bin\clang.exe"
 if not exist "!CLANG!" set "CLANG=clang"
 call "!VCV!" >nul || exit /b 1
-"!CLANG!" -O2 -Wno-override-module -c -o main.obj main.ll || exit /b 1
+"!CLANG!" --target={{TRIPLE}} -O2 -Wno-override-module -c -o main.obj main.ll || exit /b 1
 link -nologo -subsystem:console -entry:main -manifest:embed -manifestinput:main.manifest main.obj {{LIBS}} -out:main.exe || exit /b 1
 `
 
@@ -4024,7 +4024,12 @@ const Manifest = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 //
 // Windows library names are case-insensitive, so presence is decided on the
 // lowercase spelling; the declared spelling is what is written.
-func buildScript(link []string, used map[string]bool) string {
+//
+// THE TOOLCHAIN IS THE TRIPLE'S (ADR 0122 item 6): MSVC's environment for its
+// architecture, vcvars32 for i686 and vcvars64 otherwise, and clang told the
+// triple, since its default target overrides the module's own (the warning
+// -Wno-override-module silences; triple-research §2 item 1).
+func buildScript(triple string, link []string, used map[string]bool) string {
 	var libs []string
 	have := map[string]bool{}
 	for _, l := range link {
@@ -4044,7 +4049,16 @@ func buildScript(link []string, used map[string]bool) string {
 	for _, l := range extra {
 		libs = append(libs, l+".lib")
 	}
-	return strings.Replace(buildBat, "{{LIBS}}", strings.Join(libs, " "), 1)
+	vcvars := "vcvars64.bat"
+	if strings.HasPrefix(triple, "i686") || strings.HasPrefix(triple, "i386") {
+		vcvars = "vcvars32.bat"
+	}
+	if triple == "" {
+		triple = "x86_64-pc-windows-msvc"
+	}
+	s := strings.Replace(buildBat, "{{LIBS}}", strings.Join(libs, " "), 1)
+	s = strings.ReplaceAll(s, "{{VCVARS}}", vcvars)
+	return strings.Replace(s, "{{TRIPLE}}", triple, 1)
 }
 
 func sortedSet(m map[string]bool) []string {

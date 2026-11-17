@@ -215,7 +215,14 @@ module lang {
     // loop's first iteration). ir.Reuse hands tokens only of equal size, and
     // W12 checks it.
     fn reuse(tok ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
-        if llvm.is_null(tok) { allocate(n, w) } else { z = os.zero(tok, bytes(n, w)); tok }
+        // b ≤ A_t is zero's precondition (ADR 0122 item 3), true of a dead
+        // region, which `region` answered; the token carries no fact of its
+        // size, so it is tested, the arm past it exhaustion (a missing proof)
+        if llvm.is_null(tok) { allocate(n, w) } else {
+            b = bytes(n, w)
+            z = if b <= os.max_bytes() { os.zero(tok, b) } else { llvm.trap() }
+            tok
+        }
     }
 
     // A TOKEN GIVEN BACK (ADR 0096's reuse): on an iteration's arm that makes
@@ -263,7 +270,12 @@ module lang {
     // whatever facts the site has (a length a trapped operation computed).
     fn allocate(n ∈ Nat, w ∈ 1..8) (ptr) {
         case {
-            n >= 0 && n <= (2^63 - 9) / 8 -> os.region(bytes(n, w))
+            // b ≤ A_t is region's precondition (ADR 0122 item 3): one name, so
+            // the guard and the obligation are one atom; past it, exhaustion
+            n >= 0 && n <= (2^63 - 9) / 8 -> {
+                b = bytes(n, w)
+                if b <= os.max_bytes() { os.region(b) } else { llvm.trap() }
+            }
             else -> llvm.trap()
         }
     }
@@ -278,15 +290,25 @@ module lang {
     fn allocate_raw(n ∈ Nat, w ∈ 1..8) (ptr) {
         case {
             n >= 0 && n <= (2^63 - 9) / 8 -> {
-                p = os.region_raw(bytes(n, w))
+                b = bytes(n, w)
+                p = if b <= os.max_bytes() { os.region_raw(b) } else { llvm.trap() }
+                // THE BYTE PAST THE ELEMENTS AT EITHER LAYOUT (ADR 0122's
+                // windows32 finding): a table is asked at w and laid out at
+                // b ∈ {1, w}, b final only after every pass (W15), so the zero
+                // is written at n·w + 8 and at n + 8. Laid out at w, n + 8 is
+                // among the elements, all written after (born full); laid out
+                // at 1, it is the string's NUL, where the heap's byte was.
                 z = llvm.store_zero(llvm.offset(p, n * w + 8))
+                z1 = llvm.store_zero(llvm.offset(p, n + 8))
                 p
             }
             else -> llvm.trap()
         }
     }
     fn reuse_raw(tok ∈ ptr, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
-        if llvm.is_null(tok) { allocate_raw(n, w) } else { tok }
+        // its predecessor's elements overwrote n + 8 (laid out at w), so the
+        // zero of the narrower layout is written again
+        if llvm.is_null(tok) { allocate_raw(n, w) } else { z1 = llvm.store_zero(llvm.offset(tok, n + 8)); tok }
     }
 
     // A DEAD REGION SERVES A REQUEST OF ITS CLASS (R1d, ADR 0107): a token of k
@@ -298,7 +320,11 @@ module lang {
     fn reuse_fit(tok ∈ ptr, k ∈ 0..2^47-9, n ∈ 0..2^47-9, w ∈ 1..8) (ptr) {
         case {
             llvm.is_null(tok) -> allocate(n, w)
-            os.class(bytes(n, w)) == os.class(bytes(k, w)) -> { z = os.zero(tok, bytes(n, w)); tok }
+            os.class(bytes(n, w)) == os.class(bytes(k, w)) -> {
+                b = bytes(n, w)
+                z = if b <= os.max_bytes() { os.zero(tok, b) } else { llvm.trap() }
+                tok
+            }
             else -> { r = release(tok, k, w); allocate(n, w) }
         }
     }
@@ -306,7 +332,11 @@ module lang {
         case {
             llvm.is_null(tok) -> allocate_raw(n, w)
             // a shorter table's end falls inside its predecessor's elements
-            os.class(bytes(n, w)) == os.class(bytes(k, w)) -> { z = llvm.store_zero(llvm.offset(tok, n * w + 8)); tok }
+            os.class(bytes(n, w)) == os.class(bytes(k, w)) -> {
+                z = llvm.store_zero(llvm.offset(tok, n * w + 8))
+                z1 = llvm.store_zero(llvm.offset(tok, n + 8))
+                tok
+            }
             else -> { r = release(tok, k, w); allocate_raw(n, w) }
         }
     }

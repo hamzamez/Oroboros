@@ -110,9 +110,14 @@ before planning. **Its plan (§5)**, in order:
    on 32-bit Windows, the 9 failing in three classes (the address-space bound, x86-64's own
    operations, the 64-bit division helpers); D1–D7 (the data model's type names in their headers,
    the digit base per triple, the bound on bytes, the ISA split, i32 scalars at 2.6× on i686,
-   `/` and `%` on i686, the target `windows32`), each with a recommendation; then built, with
-   **Win32 by header** (W1, hamza 2026-11-16): a module is the header (`windows/fileapi`), the DLL
-   each declaration's `lib`, the type names in their headers;
+   `/` and `%` on i686, the target `windows32`), **decided as recommended** (hamza 2026-11-17,
+   ADR 0122), with **Win32 by header** (W1, hamza 2026-11-16): a module is the header
+   (`windows/fileapi`), the DLL each declaration's `lib`, the type names in their headers.
+   **Built**: the family (`targets/win32/` the base) and the target `windows32`
+   ([windows32](gauntlet/results/windows32-2026-11-17.md): 66 of 74; D3 as Σ_OS's precondition
+   `b <= max_bytes()`; the sentinel at pointer width; W15, a raw region's zero byte at both
+   layouts, after a wrong answer on both triples). **Next**: D6, then D2 with D4's `x86.oro`, D1
+   by header, D5;
 5. **φ maximal** (hamza 2026-11-16), **four kinds done**: `range` on a printed function's
    parameters and result, its contract's sets; `icmp samesign` where both operands' signs are
    proven ([phi-samesign](gauntlet/results/phi-samesign-2026-11-17.md), a text witness, LLVM's use

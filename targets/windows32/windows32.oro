@@ -1,0 +1,23 @@
+// THE WINDOWS TARGET, 32-BIT (ADR 0122): the win32 base's i686 member, the
+// fibre over Win32 for 32-bit Windows (TinyRetroPad's, 6c and 6d).
+//
+//   glue win32     the base: Win32 over T_LLVM[Σ_OS] (targets/win32), glued
+//   model.oro      the data model's set names, ILP32 (D1)
+//   space.oro      the address space, 2³¹ bytes (D3)
+//
+// It names no ISA operations yet (D4): the double word's 2-by-1 division and
+// add-with-carry are x86-64's, and i686's own at 32 bits come with K(ℕ*)'s
+// base at 2³² (D2). Without them the double word's operations are LLVM's
+// target-independent ones, which the triple expands.
+glue win32
+
+// THE TRIPLE (ADR 0093 item 5): 32-bit Windows, MSVC's ABI. A WINAPI function
+// is `__stdcall`, x86_stdcallcc, decorated _F@n (ADR 0094 item 3).
+triple "i686-pc-windows-msvc"
+
+// THE ADDRESS SPACE BOUNDS EVERY TABLE (ADR 0096, 0122 item 3): a 32-bit
+// process's user space is 2³¹ bytes, and a table of n one-byte elements takes
+// n + 9 of them, so n ≤ 2³¹ − 9.
+fact max_len (a ∈ Array(A)) len(a) <= (2^31-9)
+
+build "cmd /c .\\build.bat"

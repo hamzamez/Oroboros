@@ -470,7 +470,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-16.* The current assessment,
+*Updated with the plan; last updated 2026-11-17.* The current assessment,
 [docs/assessment-2026-11-16.md](docs/assessment-2026-11-16.md), scores the 11-15 plan below: done but
 for its last three items. It also finds that the language's own book, in its later chapters, came
 across four programs the compiler accepts and gets wrong, which every check had passed. **The next
@@ -508,7 +508,13 @@ plan**, in order:
    Windows API grouped as its documentation groups it, by header, each function still naming its
    DLL. **The research is done** ([triple-research.md](docs/triple-research.md)): 63 of the 74 test
    programs already run correctly on 32-bit Windows, and the rest fail for three reasons, each
-   with a choice for hamza; one measurement says 32-bit integers would make i686 loops 2.6× faster;
+   with a choice for hamza; one measurement says 32-bit integers would make i686 loops 2.6× faster.
+   **Decided** (hamza, 2026-11-17, ADR 0122) and being built. **Two steps done**: Windows is now a
+   family, a shared Win32 base with one directory per processor; and **`windows32` is a target**
+   ([windows32-2026-11-17](gauntlet/results/windows32-2026-11-17.md)), 66 of the 74 programs
+   correct on it. On the way, a wrong answer on both processors was found and fixed: a file's path
+   could run on past its end into whatever memory followed. Next, 32-bit division without the C
+   runtime's helpers, then big integers' digit size per processor;
 5. **tell LLVM everything the compiler proves** (that a value is never undefined, that two buffers
    never overlap, a number's range, that a loop ends), one kind of fact at a time, each checked and
    measured against C. **Four kinds done** (2026-11-17): a function's argument and result ranges,

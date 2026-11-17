@@ -14,11 +14,10 @@ module llvm/os {
     // (MEM_COMMIT | MEM_RESERVE = 12288, PAGE_READWRITE = 4) from 64 KiB, the
     // process heap below. A null answer is exhaustion, the trap: LLVM may assume
     // a pointer it loads through is not null.
-    // THE LONGEST TABLE, windows.oro's `fact max_len`: x64's 2⁴⁷-byte user space
-    // less a table's 8-byte length and its zero byte.
-    fn max_len() (0..2^63-1) { 140737488355319 }
+    // THE ADDRESS SPACE, max_bytes and max_len, is each member's (ADR 0122
+    // item 3): targets/windows/space.oro, targets/windows32/space.oro.
 
-    fn region(b ∈ 0..2^63-1) (ptr) {
+    fn region(b ∈ 0..2^63-1) (ptr) where b <= max_bytes() {
         p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, heapclass(b)) }
         if llvm.is_null(p) { llvm.trap() } else { p }
     }
@@ -60,7 +59,7 @@ module llvm/os {
     // A REGION OF ANY CONTENTS, by `region`'s rule: VirtualAlloc's pages from
     // 64 KiB (zero anyway), the heap without HEAP_ZERO_MEMORY below, so
     // release ∘ region_raw is the identity on the heap too.
-    fn region_raw(b ∈ 0..2^63-1) (ptr) {
+    fn region_raw(b ∈ 0..2^63-1) (ptr) where b <= max_bytes() {
         p = if b >= 65536 { kernel32.VirtualAlloc(llvm.null(), b, 12288, 4) } else { kernel32.HeapAlloc(kernel32.GetProcessHeap(), 0, heapclass(b)) }
         if llvm.is_null(p) { llvm.trap() } else { p }
     }
@@ -75,7 +74,7 @@ module llvm/os {
     fn class(b ∈ 0..2^63-1) (-2^63..65536) { if b >= 65536 { -1 - llvm.udiv_nat(b - 1, 4096) } else { heapclass(b) } }
 
     // A DEAD REGION MADE FRESH: its b bytes zero, as `region` answers them.
-    fn zero(p ∈ ptr, b ∈ 0..2^63-1) (Bool) {
+    fn zero(p ∈ ptr, b ∈ 0..2^63-1) (Bool) where b <= max_bytes() {
         z = kernel32.RtlZeroMemory(p, b)
         true
     }

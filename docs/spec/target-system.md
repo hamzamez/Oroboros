@@ -243,8 +243,12 @@ is a triple and an operating system's layer.
 
 Σ_OS is what ι's terms need from an operating system and no instruction computes: `region`,
 `write_err`, `exit`. `glue llvm` makes T_LLVM a fragment of the windows target (§2.1's ⊔), and
-windows' module `llvm/os` is the view that gives the parameter. Windows-x86 is the next member, the
-one §5.4 asked for.
+windows' module `llvm/os` is the view that gives the parameter. **Windows-x86 is built** (ADR 0122,
+windows32-2026-11-17), the member §5.4 asked for: `targets/win32/` is the base, glued by `windows`
+(x86_64) and `windows32` (i686), each a triple's model in its own directory: the triple and
+toolchain (`windows.oro`, `windows32.oro`), the data model's set names (`model.oro`, `SIZE_T`), the
+address space (`space.oro`, Σ_OS's `max_bytes` and `max_len`), and the ISA's operations (`x64.oro`,
+x86_64's alone).
 
 ### 5.3 The general statement
 

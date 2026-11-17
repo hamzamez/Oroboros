@@ -199,14 +199,18 @@ The width is read off the table's representative's type, so every alias of a tab
   the type before the classes, a byte table was allocated 8 bytes an element and released as 1, and
   past 8 191 bytes the two chose different allocators (files-2026-11-16). ι substitutes
   `lang.allocate`, alloc : ℕ × {1, 8} → Region, whose guard 0 ≤ n ≤ ⌊(2⁶³ − 9)/8⌋ makes n·w + 8 a
-  proven `mul nsw` and turns a larger request away as exhaustion, the trap. Its region is zero on
+  proven `mul nsw` and turns a larger request away as exhaustion, the trap. **The address space bounds
+  bytes** (ADR 0122 item 3): Σ_OS's `region(b)` requires b ≤ A_t, `max_bytes()` in each member's
+  `space.oro` (2⁴⁷ on x86_64, 2³¹ on i686), and `allocate` binds b = n·w + 9 once and tests it, so
+  the guard and the obligation are one atom and a request past it is exhaustion. Its region is zero on
   creation, which is a table's semantics (tables.md), so a `build`'s fill of zeros prints nothing:
   `VirtualAlloc` from 64 KiB, whose pages the system has zeroed, and the process heap with
   `HEAP_ZERO_MEMORY` below, since `VirtualAlloc` reserves 64 KiB a call (measured, llvm-2026-11-02).
   A null answer is a trap, never a pointer LLVM may assume.
 - **A table's release** is an operation of the IR too (ADR 0096, `ir.Release`): after an owned table's
   last use on each path where it is not moved, `release(t, len t, w)`. ι substitutes `lang.release`,
-  whose b = n·w + 8 is proven from the fact `len(t) ≤ 2⁴⁷ − 9`, x64's user space (windows.oro), and
+  whose b = n·w + 8 is proven from the fact `len(t) ≤ max_len`, the member's user space (2⁴⁷ − 9 on
+  `windows`, 2³¹ − 9 on `windows32`), and
   which calls Σ_OS's `release(p, b)`. windows defines that by the rule `region` chooses by,
   `VirtualFree(p, 0, MEM_RELEASE)` from 64 KiB and `HeapFree` below, so release ∘ region is the
   identity on the heap. A table that is not owned, being shared, inside another value, a host's or a
@@ -224,7 +228,12 @@ The width is read off the table's representative's type, so every alias of a tab
   an array literal are born full by construction, and a build by the written prefix: its loop writes
   b[i] at a counter from 0 up to its length, or down from n − 1, on every continuing path, without
   reading b. Such a table is allocated by `alloc-raw` over Σ_OS's `region_raw` (`HeapAlloc` without
-  `HEAP_ZERO_MEMORY`) and reused by `reuse-raw`, which does not zero its token.
+  `HEAP_ZERO_MEMORY`) and reused by `reuse-raw`, which does not zero its token. **Its zero byte is
+  written at both layouts** (ADR 0122, windows32-2026-11-17): the width w it is asked is the table's
+  type at the storage pass, and its final layout b, fixed after every round of ι and the decision,
+  only narrows it (facts refine), so b ∈ {1, w}. The allocator writes the zero at n·w + 8 and at
+  n + 8; laid out at w, the second is among the elements, all written after; laid out at 1, it is
+  the string's NUL. W15 (ir.md §3) refuses a final layout outside {1, w}.
 - **`restrict t n`** is not printed in the first step, as on MASM: a restriction's length must survive
   a join, which a header-held length does not.
 - **A string is the table of its UTF-8** (ADR 0117): UTF-8 is a monoid isomorphism ρ : Σ\* ≅ V onto

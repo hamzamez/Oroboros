@@ -400,6 +400,12 @@ a verifier, run after lowering and after every pass that rewrites the IR.
   - a loop's token parameter is **linear**: on every path through the body it is consumed exactly
     once, by one `reuse` or one `discard` (its release unless null), and every source of it, the
     loop's `init` and each `continue`, is null or such a storage.
+- **W15 (a raw region's layout).** A table Storage gave a region with no zero fill (`alloc-raw`, ADR
+  0097) was asked at w bytes an element, recorded on its statement (`RawW`), and the allocator wrote
+  its zero byte at n·w + 8 and n + 8. Its final layout b, ElemBytes of its IR_P type, must be 1 or
+  w: wider is an allocation smaller than the table, and any other narrower width a NUL nothing
+  wrote (`ir.CheckStorageLayout`, run by ToP after Finalize; `PlantW15Strict` asks b = w, and the
+  corpus's narrowed byte tables are reported, windows32-2026-11-17).
 
 ---
 

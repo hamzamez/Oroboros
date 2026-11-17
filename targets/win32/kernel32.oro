@@ -39,21 +39,23 @@ module windows/kernel32 {
     // MEMORY, as Win32 has it: VirtualAlloc(address, size, type, protection)
     // answers fresh zeroed pages or null, GetProcessHeap the process's heap, and
     // HeapAlloc(heap, flags, size) a block, zeroed with HEAP_ZERO_MEMORY (8), or
-    // null. A SIZE_T is the word; a DWORD its C range, by `trunc`.
-    fn VirtualAlloc(a ∈ ptr, n ∈ 0..2^63-1, t ∈ 0..2^32-1, p ∈ 0..2^32-1) (r ∈ ptr) { host expr call "VirtualAlloc" stdcall }
+    // null. A SIZE_T is the data model's (ADR 0122 item 2: the member's
+    // model.oro), the word's naturals on LLP64 and 32 bits on ILP32; a DWORD
+    // its C range, by `trunc`.
+    fn VirtualAlloc(a ∈ ptr, n ∈ SIZE_T, t ∈ 0..2^32-1, p ∈ 0..2^32-1) (r ∈ ptr) { host expr call "VirtualAlloc" stdcall }
     fn GetProcessHeap() (r ∈ ptr) { host expr call "GetProcessHeap" stdcall }
-    fn HeapAlloc(h ∈ ptr, f ∈ 0..2^32-1, n ∈ 0..2^63-1) (r ∈ ptr) { host expr call "HeapAlloc" stdcall }
+    fn HeapAlloc(h ∈ ptr, f ∈ 0..2^32-1, n ∈ SIZE_T) (r ∈ ptr) { host expr call "HeapAlloc" stdcall }
     // AND THEIR INVERSES: VirtualFree(address, 0, MEM_RELEASE = 32768) releases
     // a whole reservation VirtualAlloc made, HeapFree(heap, flags, block) a
     // block HeapAlloc made. Each answers a BOOL, an int, by `sext`.
-    fn VirtualFree(a ∈ ptr, n ∈ 0..2^63-1, t ∈ 0..2^32-1) (r ∈ -2^31..2^31-1) { host expr call "VirtualFree" stdcall }
+    fn VirtualFree(a ∈ ptr, n ∈ SIZE_T, t ∈ 0..2^32-1) (r ∈ -2^31..2^31-1) { host expr call "VirtualFree" stdcall }
     fn HeapFree(h ∈ ptr, f ∈ 0..2^32-1, p ∈ ptr) (r ∈ -2^31..2^31-1) { host expr call "HeapFree" stdcall }
     // HeapSize(heap, flags, block) the bytes a block HeapAlloc made holds for
     // its caller, or (SIZE_T)−1, the word's −1 (no block holds 2⁶³ bytes).
     fn HeapSize(h ∈ ptr, f ∈ 0..2^32-1, p ∈ ptr) (r ∈ -2^63..2^63-1) { host expr call "HeapSize" stdcall }
     // RtlZeroMemory(destination, length) writes length zero bytes; kernel32
     // forwards it to ntdll. A function, so no C runtime's memset is linked.
-    fn RtlZeroMemory(p ∈ ptr, n ∈ 0..2^63-1) (Bool) { host stmt call "RtlZeroMemory" stdcall }
+    fn RtlZeroMemory(p ∈ ptr, n ∈ SIZE_T) (Bool) { host stmt call "RtlZeroMemory" stdcall }
 
     // FILES, by handle (ADR 0112). CreateFileA(path, access, share, security,
     // disposition, flags, template) answers a HANDLE, INVALID_HANDLE_VALUE

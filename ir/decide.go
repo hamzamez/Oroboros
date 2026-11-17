@@ -278,6 +278,9 @@ func ToP(tg *emit.Target, f *Func) error {
 	if err := Finalize(tg, p); err != nil {
 		return err
 	}
+	if err := CheckStorageLayout(tg, f); err != nil {
+		return fmt.Errorf("%s: %v", f.Name, err)
+	}
 	if err := Verify(tg, p); err != nil {
 		return fmt.Errorf("%s: IR_P does not verify:\n%v", f.Name, err)
 	}

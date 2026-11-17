@@ -140,11 +140,16 @@ module llvm {
     fn null() (ptr) pure { host expr "getelementptr i8, ptr null, i64 0" }
     // `icmp eq` on ptr against null: whether an allocator's answer is no region.
     fn is_null(p ∈ ptr) (Bool) pure { host expr "icmp eq ${p}, null" }
-    // `ptrtoint`, a pointer's integer (ADR 0084: an address is an integer). On
-    // every triple a pointer is the word, so the integer is S₆₄'s. It is how a
-    // sentinel that is no address is recognized, Win32's INVALID_HANDLE_VALUE,
-    // (HANDLE)−1 (ADR 0112), and the language reads nothing through it.
+    // `ptrtoint`, a pointer's integer (ADR 0084: an address is an integer),
+    // zero-extended to the word where the triple's pointer is narrower (i686's
+    // 32 bits, ADR 0122 item 6), so a sentinel is not compared through it.
     fn address(p ∈ ptr) (-2^63..2^63-1) pure { host expr "ptrtoint ${p} to i64" }
+    // THE ALL-ONES POINTER at the triple's width: Win32's INVALID_HANDLE_VALUE,
+    // (HANDLE)−1 (ADR 0112). `inttoptr` of −1 truncates to the pointer's width,
+    // so the comparison is right on every triple, where address(p) == −1 is
+    // false on i686 for the very sentinel (2³² − 1 there). The language reads
+    // nothing through the pointer.
+    fn is_all_ones(p ∈ ptr) (Bool) pure { host expr "icmp eq ${p}, inttoptr (i64 -1 to ptr)" }
     // `getelementptr inbounds i8`, the address p + o: the action of the
     // offsets (ℕ, +) on a region's addresses (ADR 0084: an address is an
     // offset in a region), o inside p's region, or one past it, its premise as

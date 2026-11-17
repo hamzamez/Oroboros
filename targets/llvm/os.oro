@@ -22,17 +22,23 @@
 //   write_err  the bytes to standard error, answering whether they were written
 //   exit       the process ends with the code; it never returns (ADR 0090). The
 //              codes are 0..255, those every host reports the same way.
+//   max_bytes  the address space in bytes, A_t (ADR 0122 item 3): every region
+//              a table takes, n·w + 9 bytes, is at most A_t, so `region`,
+//              `region_raw` and `zero` require it of their request, and a host
+//              whose size type is narrower than the word (i686's SIZE_T) is
+//              passed a count its type holds
 //   max_len    the longest table the address space holds, the bound the target's
 //              `fact max_len` states of every table: a term that makes a table of
 //              a computed length compares with it, as `cat` does, and a request
 //              past it is exhaustion (strings-2026-11-16)
 module llvm/os {
-    fn region(b ∈ 0..2^63-1) (ptr)
+    fn region(b ∈ 0..2^63-1) (ptr) where b <= max_bytes()
     fn release(p ∈ ptr, b ∈ 0..2^63-1) (Bool)
-    fn zero(p ∈ ptr, b ∈ 0..2^63-1) (Bool)
-    fn region_raw(b ∈ 0..2^63-1) (ptr)
+    fn zero(p ∈ ptr, b ∈ 0..2^63-1) (Bool) where b <= max_bytes()
+    fn region_raw(b ∈ 0..2^63-1) (ptr) where b <= max_bytes()
     fn class(b ∈ 0..2^63-1) (-2^63..65536)
     fn write_err(b ∈ Array(0..255)) (Bool)
     fn exit(code ∈ 0..255) (∅)
     fn max_len() (0..2^63-1)
+    fn max_bytes() (0..2^63-1)
 }

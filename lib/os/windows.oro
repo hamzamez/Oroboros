@@ -20,6 +20,7 @@
 provides win32 os/host {
     use result
     use llvm
+    use llvm/os as los
     use windows/kernel32
 
     // Win32's constants are written where they are used, named in a comment:
@@ -49,7 +50,7 @@ provides win32 os/host {
             else -> {
                 if nulfree(path) {
                     h = kernel32.CreateFileA(path, a, 1, llvm.null(), d, 128, llvm.null()) // FILE_SHARE_READ, FILE_ATTRIBUTE_NORMAL
-                    if llvm.address(h) == -1 { (h, failed(kernel32.GetLastError())) } else { (h, 0) }
+                    if llvm.is_all_ones(h) { (h, failed(kernel32.GetLastError())) } else { (h, 0) }
                 } else {
                     (llvm.null(), 123)
                 }
@@ -77,7 +78,7 @@ provides win32 os/host {
                         case {
                             ok == 0 -> { e = failed(kernel32.GetLastError()); ignore(kernel32.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), e) }
                             // ERROR_NOT_ENOUGH_MEMORY: past the largest table this cell reads
-                            sz < 0 || sz > 2^40 -> { ignore(kernel32.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), 8) }
+                            sz < 0 || sz > los.max_len() -> { ignore(kernel32.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), 8) }
                             else -> {
                                 (b, m, e) = readall(h, sz)
                                 ignore(kernel32.CloseHandle(h))
@@ -97,7 +98,7 @@ provides win32 os/host {
     // read* : the table of sz bytes filled from h, until it is full or a read
     // answers 0 bytes (the file shrank), with how many were read and the
     // failure's code, 0 if none.
-    fn readall(h ∈ ptr, sz ∈ 0..2^40) {
+    fn readall(h ∈ ptr, sz ∈ 0..2^47-9) where sz <= los.max_len() {
         var b := array { 0 : _ ∈ 0..sz - 1 }
         (m, e) = readinto(h, b)
         (b, m, e)
@@ -199,7 +200,7 @@ provides win32 os/host {
                 if nulfree(path) {
                     h = kernel32.CreateFileA(path, 2147483648, 1, llvm.null(), 3, 128, llvm.null()) // GENERIC_READ, OPEN_EXISTING
                     case {
-                        llvm.address(h) == -1 -> (0, failed(kernel32.GetLastError()))
+                        llvm.is_all_ones(h) -> (0, failed(kernel32.GetLastError()))
                         else -> {
                             s = kernel32.SetFilePointerEx(h, off, llvm.null(), 0) // FILE_BEGIN
                             case {
@@ -354,7 +355,7 @@ provides win32 os/host {
     fn repair(b ∈ Array(0..255)) {
         n = len(b)
         case {
-            n > 46912496118438 -> abandon("out of memory: text longer than the largest table")
+            n > (los.max_len() - 4) / 3 -> abandon("out of memory: text longer than the largest table")
             else -> {
                 (o, k) = {
                     var o := array { 0 : _ ∈ 0..3 * n + 3 }

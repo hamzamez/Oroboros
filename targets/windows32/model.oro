@@ -1,0 +1,7 @@
+// THE DATA MODEL OF 32-BIT WINDOWS, ILP32 (ADR 0122 item 2): the C type
+// names whose width it decides, as the sets a declaration's prototype states
+// (ADR 0094). SIZE_T is 32 bits; DWORD and the names both models agree on are
+// the base's (targets/win32/kernel32.oro).
+module windows/kernel32 {
+    set SIZE_T = 0..2^32-1
+}

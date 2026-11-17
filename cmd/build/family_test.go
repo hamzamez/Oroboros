@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"oroboros/core"
 	"oroboros/emit"
 )
 
@@ -25,5 +26,32 @@ func TestAGluedBasesProvidesServeItsMembers(t *testing.T) {
 	emit.PlantProvidesOwnNameOnly = false
 	if err == nil {
 		t.Error("with provides read for the target's own name only, io should be missing, so the test reaches the rule")
+	}
+}
+
+// A WHERE READS AN IMPORTED NAME (ADR 0122's readall). A header's formula is
+// resolved as its body is: `alias.f` through `use M as alias` is M's f. Before,
+// a `where` reading llvm/os's max_len kept `los.max-len`, a name nothing
+// defines, so the obligation could be neither proven nor refused. A call past
+// the address space is now refused as false, and one inside it built. THE
+// PLANTED FAULT leaves the name as written, and the false call is no longer
+// decided false.
+func TestAWhereReadsAnImportedName(t *testing.T) {
+	src := func(k string) string {
+		return "use win/print\nuse llvm/os as los\n\nfn take(n ∈ 0..2^47-9) (Int) where n <= los.max_len() { n + 1 }\n\n" +
+			"export fn main() {\n    print.print_int(take(" + k + "))\n}\n"
+	}
+	if out, err := buildAndRun(t, src("5"), "windows", ""); err != nil || strings.TrimSpace(out) != "6" {
+		t.Errorf("take(5): %q, %v; want 6", out, err)
+	}
+	const past = "140737488355320" // 2⁴⁷ − 8, one past x64's max_len
+	if _, err := buildAndRunNoExec(t, src(past), "windows"); err == nil || !strings.Contains(err.Error(), "is false at a call") {
+		t.Errorf("take(2^47 - 8) should be refused as false, got %v", err)
+	}
+	core.PlantSigAliasUnresolved = true
+	_, err := buildAndRunNoExec(t, src(past), "windows")
+	core.PlantSigAliasUnresolved = false
+	if err != nil && strings.Contains(err.Error(), "is false at a call") {
+		t.Error("with the alias unresolved the where should not decide false, so the test reaches the rule")
 	}
 }

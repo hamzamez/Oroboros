@@ -254,7 +254,13 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool
 	// compiled only here, never by the emission sweep, so this is where the
 	// IR's totality on these programs is checked. A case whose IR is refused
 	// fails, naming the rule.
-	args := []string{"-checked", "-target=" + target, "-ir", out + ".ir", "-targets", os.Getenv("I686_TARGETS")}
+	// $I686_TARGET names the target built (windows32, ADR 0122, once it was
+	// one; the copy's windows layer before), and $I686_TARGETS its declarations
+	tname := target
+	if t := os.Getenv("I686_TARGET"); t != "" {
+		tname = t
+	}
+	args := []string{"-checked", "-target=" + tname, "-ir", out + ".ir", "-targets", os.Getenv("I686_TARGETS")}
 	if bigRepr != "" {
 		args = append(args, "-big-repr="+bigRepr)
 	}

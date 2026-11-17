@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"fmt"
 	"strings"
 
 	"oroboros/core"
@@ -73,6 +74,7 @@ func Storage(tg *emit.Target, f *Func) int {
 			if PlantStorageFault {
 				w = 1
 			}
+
 			var wv V
 			out, wv = konst(out, w)
 			p := fresh("ptr")
@@ -82,6 +84,9 @@ func Storage(tg *emit.Target, f *Func) int {
 			name := "alloc"
 			if termRealized(tg, "alloc-raw") && (s.Op != OBuild || fillDead(f, &s)) {
 				name = "alloc-raw"
+			}
+			if name == "alloc-raw" {
+				s.RawW = w
 			}
 			out = append(out, Stmt{Op: OCall, Name: name, Args: []V{count, wv}, Res: []V{p}, Src: s.Src, FromTerm: true})
 			s.Store = []V{p}
@@ -115,11 +120,17 @@ var PlantStorageWidthIRA bool
 // finalTableTypes writes onto each table of f the type Finalize will give it:
 // Theorem D′ computed on a copy of f, whose numbering is f's. A function
 // Finalize would refuse keeps its types; the refusal is Finalize's to make.
-func finalTableTypes(tg *emit.Target, f *Func) {
+//
+// It reports whether it did: false where Finalize refuses the copy or the copy
+// is numbered otherwise, and then the tables keep their first types.
+func finalTableTypes(tg *emit.Target, f *Func) bool {
 	c := f.Clone()
 	c.facts = f.facts
-	if err := finalizeFunc(tg, c); err != nil || len(c.Types) < len(f.Types) {
-		return
+	if err := finalizeFunc(tg, c); err != nil {
+		return false
+	}
+	if len(c.Types) < len(f.Types) {
+		return false // numbered otherwise, its indices not f's: the first types stand
 	}
 	// A PARAMETER'S TYPE IS ITS DECLARATION, the callers' contract (ADR 0101,
 	// 0113): narrowing a kept definition's buffer parameter to its body's hull
@@ -134,4 +145,52 @@ func finalTableTypes(tg *emit.Target, f *Func) {
 			f.Types[v] = c.Types[v]
 		}
 	}
+	return true
 }
+
+// CheckStorageLayout is W15: every table Storage gave a raw region is laid
+// out at a width the allocator wrote its zero byte for (ADR 0092, 0097,
+// 0117). A raw region is zero only where something writes it, and the
+// allocator writes it at n·w + 8 and n + 8, w the width it was asked: the
+// table's final layout b, ElemBytes of its IR_P type, is fixed only after
+// every pass, and narrows w (facts only refine), so b ∈ {1, w}. A layout wider
+// than w is an allocation smaller than the table, refused. Run on the final
+// function, after every round of storage and ι.
+func CheckStorageLayout(tg *emit.Target, f *Func) error {
+	var err error
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if err != nil || s.RawW == 0 {
+				continue
+			}
+			var table V = -1
+			switch s.Op {
+			case OBuild:
+				if len(s.Sub) > 0 && len(s.Sub[0].Params) > 0 {
+					table = s.Sub[0].Params[0]
+				}
+			case OTabulate, OArray:
+				if len(s.Res) > 0 {
+					table = s.Res[0]
+				}
+			}
+			if table < 0 || int(table) >= len(f.Types) {
+				continue
+			}
+			// the allocator writes the zero at n·RawW + 8 and at n + 8, so the
+			// layout must be one of them; wider than asked is an overflow
+			if b := int64(ElemBytes(tg, f.Types[table])); (b != s.RawW && b != 1) || PlantW15Strict && b != s.RawW {
+				err = fmt.Errorf("W15: table %%%d (%s) took a raw region at %d bytes an element and its layout is %d: "+
+					"the allocator's zero bytes are at n·%d + 8 and n + 8, and its elements past what it holds (ADR 0097, 0117)",
+					table, f.Types[table], s.RawW, b, s.RawW)
+			}
+		}
+	})
+	return err
+}
+
+// PlantW15Strict asks the layout to equal the width exactly, without the
+// allocator's second zero: TestARawRegionsZeroByteIsAtItsLayout must see the
+// corpus's narrowed byte tables reported.
+var PlantW15Strict bool

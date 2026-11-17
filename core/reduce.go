@@ -4520,7 +4520,7 @@ var setOperators = map[string]string{
 // was read as a bare name nothing defines, and the obligation never reduced
 // (ADR 0084's build). The main module's names are unqualified already.
 func (m *Module) qualifySig(sig *Sig) *Sig {
-	if sig == nil || m.Path == "" {
+	if sig == nil || (m.Path == "" && len(m.Uses) == 0) {
 		return sig
 	}
 	params := map[string]bool{ResultName: true}
@@ -4534,8 +4534,18 @@ func (m *Module) qualifySig(sig *Sig) *Sig {
 		}
 		switch t.Kind {
 		case KName:
-			if _, own := m.Defs[t.Name]; own && !bound[t.Name] && !params[t.Name] {
+			if _, own := m.Defs[t.Name]; own && m.Path != "" && !bound[t.Name] && !params[t.Name] {
 				return Name(qualify(m.Path, t.Name))
+			}
+			// AN IMPORTED NAME, `alias.f`, is the alias's module's f, as
+			// `resolve` reads it in a body: a `where` reading llvm/os's
+			// max_len through `use llvm/os as los` kept `los.max-len`, a
+			// name nothing defines, and the obligation never reduced
+			// (ADR 0122's readall).
+			if i := strings.Index(t.Name, "."); i > 0 && !bound[t.Name] && !PlantSigAliasUnresolved {
+				if path, ok := m.Uses[t.Name[:i]]; ok {
+					return Name(qualify(path, t.Name[i+1:]))
+				}
 			}
 			return t
 		case KFn:
@@ -5218,3 +5228,7 @@ func (e *Env) claimSet(t *Term, fuel *int) (*Term, error) {
 	}
 	return normalize(t.Kids[3], e, fuel)
 }
+
+// PlantSigAliasUnresolved leaves an imported name in a signature's formula as
+// written: TestAWhereReadsAnImportedName must see the obligation undecided.
+var PlantSigAliasUnresolved bool

@@ -4,7 +4,10 @@
 hamza's decisions, then built**. Program first: the suite on the triple, every failure classified,
 before anything is built. Nothing here is built. The measurements use a scratch copy of `targets/`,
 with each change the experiment makes said where it is made. §6 holds the decisions, each with a
-recommendation.
+recommendation. **Status** (2026-11-17): decided by ADR 0122. Built so far: the family (step 1) and the
+target `windows32` with D3 and the sentinel ([windows32-2026-11-17](../gauntlet/results/windows32-2026-11-17.md):
+66 of 74, the file-read failure of §3's item 2 a NUL nobody wrote, on both triples). D6, D2 (with D4's
+`x86.oro`), D1 by header and D5 are next, in that order.
 
 ## 1. What a triple is
 

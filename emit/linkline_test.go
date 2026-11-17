@@ -17,7 +17,7 @@ func TestALinkLineWithNoLibsIsTheOldConstant(t *testing.T) {
 		t.Fatal(err)
 	}
 	const old = "link -nologo -subsystem:console -entry:main -manifest:embed -manifestinput:main.manifest main.obj kernel32.lib -out:main.exe || exit /b 1"
-	got := buildScript(tg.Link, map[string]bool{})
+	got := buildScript(tg.Triple, tg.Link, map[string]bool{})
 	if !strings.Contains(got, old+"\n") {
 		t.Fatalf("a program using no lib does not get the target's own link line:\n%s", got)
 	}
@@ -32,14 +32,14 @@ func TestALinkLineWithNoLibsIsTheOldConstant(t *testing.T) {
 func TestUsedLibrariesJoinTheLineSortedAndOnce(t *testing.T) {
 	link := []string{"kernel32", "msvcrt"}
 	used := map[string]bool{"user32": true, "advapi32": true, "KERNEL32": true}
-	got := buildScript(link, used)
+	got := buildScript("", link, used)
 	want := "main.obj kernel32.lib msvcrt.lib advapi32.lib user32.lib -out:main.exe"
 	if !strings.Contains(got, want) {
 		t.Fatalf("want %q in:\n%s", want, got)
 	}
 	// And it is a function of its input: map order must not reach the output.
 	for i := 0; i < 20; i++ {
-		if buildScript(link, used) != got {
+		if buildScript("", link, used) != got {
 			t.Fatal("two calls with the same input built different scripts")
 		}
 	}

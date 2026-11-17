@@ -210,6 +210,9 @@ type Stmt struct {
 	// ir/storage.go): the value `alloc` answered, one or none. Printed
 	// `store %p` after the operation's name, and renamed with Args.
 	Store []V
+	// RawW is the element width a raw region was asked at for this table (0
+	// when its region is zeroed): W15 holds it to the table's final layout.
+	RawW int64
 	// Src is PROVENANCE: the application this statement lowers, which a
 	// diagnostic names (a refusal says which source operation it could not
 	// prove). It is in memory only, like the facts: never printed, never read,

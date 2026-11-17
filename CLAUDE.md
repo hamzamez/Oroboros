@@ -125,8 +125,11 @@ order:
    value proven in S₃₂ is an i32, ρ₃₂ read off IR_P's range by the printer, an operation at 32 bits
    where exact; every program measured 0.59–0.88×, the loop at the hand form's speed; x86-64 measured
    and not declared (the gauntlet's JSON 1.04–1.06×);
-5. **φ's remaining kinds**: `noundef`, `memory(…)`, `mustprogress`/`willreturn`, one at a time,
-   each a soundness rule with its planted fault, measured against C;
+5. ~~**φ's remaining kinds**~~ measured, not built ([phi5](gauntlet/results/phi5-2026-11-17.md)):
+   `memory(…)` is the join LLVM's `function-attrs` computes itself (26 of the 27 functions our
+   proofs could speak for), `willreturn` from SCT reaches only exports with no caller in their
+   module, `noundef` changes 3 of 105 files, neutral; kernel32's effects stated, neutral too. Each
+   kind's theorem is kept for its trigger (a module boundary, LTO, a freeze that costs);
 6. **TinyRetroPad 6d**: its walls, spec first, an ADR each (the window procedure: callbacks tier 2;
    its structs: records laid out by the data layout).
 

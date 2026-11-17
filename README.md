@@ -504,7 +504,10 @@ the round: a file path could run on past its end into whatever memory followed. 
    bits is now held in a 32-bit register there, and computed at 32 bits wherever that gives the same
    answer. Every program measured on 32-bit Windows got faster, from 12% to 41%, and none changed its
    output. 64-bit Windows was measured too; it doesn't help there yet, so it stays as it is;
-5. **the remaining facts for LLVM**, one kind at a time;
+5. ~~**the remaining facts for LLVM**, one kind at a time~~ **measured, not built**
+   ([phi5-2026-11-17](gauntlet/results/phi5-2026-11-17.md)): LLVM already works out each of the
+   three facts itself, or has nothing that would use them, so stating them changed no measured
+   time. Each is written down for the day a program needs it;
 6. **TinyRetroPad's walls**: the window procedure and its structures.
 
 **The 11-16 plan, as it ended** ([assessment-2026-11-16](docs/assessment-2026-11-16.md) set it):

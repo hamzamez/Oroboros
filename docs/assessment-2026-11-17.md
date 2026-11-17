@@ -99,8 +99,10 @@ is lines of code (no blank or comment line), counted by the same rule.
   fix. No step of the second triple moved them.
 - **The second triple**, measured:
   - 64-bit division at 0.87× libcmt's time;
-  - K(ℕ\*)'s 20000! at **7.9× Go's `math/big` on 386**, against 3.7× on x86_64. The first owed
-    cause is q̂'s division through the general helper, where one `divl` is proven to do.
+  - K(ℕ\*)'s 20000! at **7.9× Go's `math/big` on 386**, against 3.7× on x86_64. The cause, read off
+    the machine code (d2 §4), is the digit step's 64-bit arithmetic: a full 64×64 multiply, 8-byte
+    digits and a 64-bit index, where Go's kernel does one `mull` per 4-byte digit. q̂'s division
+    through the helper is a few percent.
 - **φ**: neutral wherever measured. LLVM had derived the same facts.
 - **Compile time**: 1.00–1.05× in every accepting run. The full check is now about 11 minutes, the
   compiler step its longest. Adding windows32 to the differential step would make it 16 minutes;
@@ -140,7 +142,8 @@ is lines of code (no blank or comment line), counted by the same rule.
 ## 4. What is left
 
 - **The second triple**:
-  - D4's 2-by-1 `divl` for q̂, owed by the 7.9×;
+  - the 7.9×'s causes (d2 §4): a digit's range on its loads (φ) and its width (D5); D4's 2-by-1
+    `divl` for q̂, a few percent;
   - D1 by header (W1);
   - D5, i32 scalars: 2.6× on i686 loops, by the research's measurement;
   - `adc` at 32 bits;
@@ -158,8 +161,9 @@ is lines of code (no blank or comment line), counted by the same rule.
    and it goes ahead of the plan. Either bound the reducer's and the decision's work per program,
    or refuse a program whose needed instance is not decided rather than inline it. Research
    first: which of the two the algebra prefers.
-2. **D4's 2-by-1 at 32 bits**: q̂ by `divl` where the two-digit lemma proves the quotient below
-   2³², as `divq` is chosen at 64. Measured against the 7.9×.
+2. **φ's next kind, `!range` on a load**: a table element's proven range stated where it is read.
+   This is the first measured cause of windows32's 7.9× (d2 §4), and neutral on x86_64 if it
+   behaves as the four kinds did. D4's 2-by-1 `divl` for q̂ follows, a few percent.
 3. **D1 by header (W1)** with **TinyRetroPad 6c**: the type names in their headers, then the 67
    functions TinyRetroPad calls, declared by header and checked.
 4. **D5, i32 scalars**, its own ADR.

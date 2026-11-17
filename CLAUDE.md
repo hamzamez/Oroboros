@@ -131,7 +131,9 @@ order:
    module, `noundef` changes 3 of 105 files, neutral; kernel32's effects stated, neutral too. Each
    kind's theorem is kept for its trigger (a module boundary, LTO, a freeze that costs);
 6. **TinyRetroPad 6d**: its walls, spec first, an ADR each (the window procedure: callbacks tier 2;
-   its structs: records laid out by the data layout).
+   its structs: records laid out by the data layout). Records researched first
+   ([records-research.md](docs/records-research.md)), its six decisions with hamza; `wsprintfA` is
+   no wall (two integer renderings, ADR 0095).
 
 **Done in the 11-16 plan** (assessment-2026-11-17 §1): the book's wrong answers and faults
 (ADR 0119–0121), j.md's two promises, two checks, the claims finding, CLAUDE.md as state; the

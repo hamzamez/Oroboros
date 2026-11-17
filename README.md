@@ -508,7 +508,10 @@ the round: a file path could run on past its end into whatever memory followed. 
    ([phi5-2026-11-17](gauntlet/results/phi5-2026-11-17.md)): LLVM already works out each of the
    three facts itself, or has nothing that would use them, so stating them changed no measured
    time. Each is written down for the day a program needs it;
-6. **TinyRetroPad's walls**: the window procedure and its structures.
+6. **TinyRetroPad's walls**: the window procedure and its structures. The structures were
+   researched first, 2026-11-17 ([records-research.md](docs/records-research.md)): a record is
+   the language's, already specified, and a Windows structure is its layout on one machine,
+   computed and checked against the C compiler; the decisions are hamza's.
 
 **The 11-16 plan, as it ended** ([assessment-2026-11-16](docs/assessment-2026-11-16.md) set it):
 1. **fix the book's wrong answers**, each with a test that fails before the fix:

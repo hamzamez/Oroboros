@@ -133,7 +133,11 @@ order:
 6. **TinyRetroPad 6d**: its walls, spec first, an ADR each (the window procedure: callbacks tier 2;
    its structs: records laid out by the data layout). Records decided
    ([records-research.md](docs/records-research.md), ADR 0128, hamza: "the whole record, and yes to
-   r with {}"), being built: the record in the language first, then the host struct; `wsprintfA` is
+   r with {}"), being built. Step 1, the record in the language, built
+   ([records](gauntlet/results/records-2026-11-17.md)): five cases on four targets, nested records
+   and an export's record parameter; a record as a map's value and a buffer of records written in
+   program order owed, each the product's limit, failing for tuples too. Step 2, the host struct,
+   next; `wsprintfA` is
    no wall (two integer renderings, ADR 0095).
 
 **Done in the 11-16 plan** (assessment-2026-11-17 §1): the book's wrong answers and faults
@@ -190,7 +194,7 @@ remaining 5–6× against Go's `String`.
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;
 a join across representations; hoisting or CSE on the IR (it would reach two premises witnessed only on
 hand-built IR); per-result enforcement above the word and signed limbs (ADR 0029); the higher-order
-contract gap (ADR 0028); records, `with` and named views beyond what TinyRetroPad's walls need.
+contract gap (ADR 0028); named views (records and `with` decided whole by ADR 0128).
 
 **Waiting on a trigger** (researched, built when a program needs it):
 - **numbers' exact interiors** (numbers.md §5): a term of N held exactly and rounded once; trigger a
@@ -350,7 +354,11 @@ option (b), jswitch5b-2026-10-16).
   `nulfree(s)` in Σ_L, a C-string parameter `where nulfree(s)`, decided by ν's homomorphism on the
   argument's term, and by a guard. **ι : (B₇)* ↪ Σ\*** (ADR 0095, strings.md §10): `ascii(b, lo, n)`,
   a table of scalars below 128 as text, total, one copy on every target, an observer of a live
-  buffer by its meaning; what render ends in. **Not built**: records, symbols, `with`.
+  buffer by its meaning; what render ends in. **Not built**: symbols.
+- **Records** (ADR 0128, data.md §4): `record { l ∈ S }` a set, `record { l : e }` a value, `r.l`,
+  `r with { l.m : e }` an override along prefix-free paths, `p.l := e` in a cell, `zero(T)`. The
+  reducer erases one by the lens laws and by currying at each binder (β, a let, a loop, a header);
+  the residual places one stored as data by its shape (`core/record.go`, `recerase.go`).
 
 ### Integers
 

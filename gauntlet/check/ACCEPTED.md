@@ -3674,3 +3674,32 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-17 — on f66a0dcf, with uncommitted changes
+
+**Reason:** ADR 0128 step 1: five record cases (lens, path, zero, loop, order) added to the differential suite; every existing program byte-identical
+
+680 runs: 465 emitted, 215 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+20 change(s):
+
+- new source — `gauntlet/differential/cases/record-lens.oro go`
+- new source — `gauntlet/differential/cases/record-lens.oro java`
+- new source — `gauntlet/differential/cases/record-lens.oro js`
+- new source — `gauntlet/differential/cases/record-lens.oro windows`
+- new source — `gauntlet/differential/cases/record-loop.oro go`
+- new source — `gauntlet/differential/cases/record-loop.oro java`
+- new source — `gauntlet/differential/cases/record-loop.oro js`
+- new source — `gauntlet/differential/cases/record-loop.oro windows`
+- new source — `gauntlet/differential/cases/record-order.oro go`
+- new source — `gauntlet/differential/cases/record-order.oro java`
+- new source — `gauntlet/differential/cases/record-order.oro js`
+- new source — `gauntlet/differential/cases/record-order.oro windows`
+- new source — `gauntlet/differential/cases/record-path.oro go`
+- new source — `gauntlet/differential/cases/record-path.oro java`
+- new source — `gauntlet/differential/cases/record-path.oro js`
+- new source — `gauntlet/differential/cases/record-path.oro windows`
+- new source — `gauntlet/differential/cases/record-zero.oro go`
+- new source — `gauntlet/differential/cases/record-zero.oro java`
+- new source — `gauntlet/differential/cases/record-zero.oro js`
+- new source — `gauntlet/differential/cases/record-zero.oro windows`

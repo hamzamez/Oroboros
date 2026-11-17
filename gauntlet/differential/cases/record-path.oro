@@ -1,0 +1,19 @@
+// AN OVERRIDE ALONG A PATH IS LENS COMPOSITION, ON FOUR TARGETS (data.md §4.3,
+// §9's record-path; ADR 0128).
+// inputs: 0 1 5
+// expect: 53 10063 50103
+//
+// `q with { pos.y : e }` is `q with { pos : q.pos with { y : e } }`, TLA+'s
+// `!.pos.y`: the two are computed and their difference weighted, so a path
+// composed in the wrong order, or applied to the outer record, changes the
+// answer. The paths `pos.y` and `id` are prefix-free, so they commute.
+//
+//   m.pos.x = n, m.pos.y = n + 5, m.id = 3, k.pos.y − m.pos.y = 0
+//   answer = (1000·m.pos.x + m.pos.y)·10 + m.id + 7·(k.pos.y − m.pos.y)
+//   n = 0: 5·10 + 3 = 53;  n = 1: 1006·10 + 3 = 10063;  n = 5: 5010·10 + 3 = 50103
+fn run(n ∈ 0..100) (Int) {
+    q = record { pos : record { x : n, y : 1 }, id : 2 }
+    m = q with { pos.y : n + 5, id : 3 }
+    k = q with { pos : q.pos with { y : n + 5 }, id : 3 }
+    (m.pos.x * 1000 + m.pos.y) * 10 + m.id + (k.pos.y - m.pos.y) * 7
+}

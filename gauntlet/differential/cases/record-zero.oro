@@ -1,0 +1,19 @@
+// A RECORD SET'S ZERO, ON FOUR TARGETS (data.md §4.6, §9's record-zero; ADR 0128).
+// inputs: 0 1 5
+// expect: 1500 2501 6505
+//
+// zero(T) is the record whose every component is its set's zero, 0 where 0 is
+// in the component's set and the zero of a nested record, and `zero(T) with
+// { … }` is C's `T x = {0}` followed by its writes. h ∈ −5..5 holds 0, so its
+// zero is 0, not the set's least element: a zero taken as `inf` answers 0·100
+// for the middle digit, not 5·100.
+//
+//   c.w = n + 1, c.h = 0, c.pad.l = 0, c.pad.r = n
+//   answer = 1000·c.w + 100·(c.h + 5) + 10·c.pad.l + c.pad.r
+//   n = 0: 1000 + 500 = 1500;  n = 1: 2000 + 500 + 1 = 2501;  n = 5: 6000 + 500 + 5 = 6505
+set Cfg = record { w ∈ 0..100, h ∈ -5..5, pad ∈ record { l ∈ 0..9, r ∈ 0..9 } }
+
+fn run(n ∈ 0..9) (Int) {
+    c = zero(Cfg) with { w : n + 1, pad.r : n }
+    c.w * 1000 + (c.h + 5) * 100 + c.pad.l * 10 + c.pad.r
+}

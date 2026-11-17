@@ -60,7 +60,7 @@ func TestARecordIsAFunctionOnItsLabels(t *testing.T) {
 	// A RECORD OBSERVED WHOLE, a body's value: the override on a value it sees,
 	// in canonical order whatever the order written.
 	whole := "fn f() {\n" + r + "r with { x : 5 }\n}\n"
-	if got, err := normJ(t, whole, "f"); err != nil || got != `(fn () (#rec "x y" 5 2))` {
+	if got, err := normJ(t, whole, "f"); err != nil || got != `(fn () (fn (#k) (#k 5 2)))` {
 		t.Errorf("a record observed whole: %s, %v", got, err)
 	}
 	// THE FAULTS, one per rule: an override that writes the label after the one
@@ -71,7 +71,7 @@ func TestARecordIsAFunctionOnItsLabels(t *testing.T) {
 		plant      *bool
 		src, right string
 	}{
-		{"an override writing the wrong label", &PlantWithWrongLabel, whole, `(fn () (#rec "x y" 5 2))`},
+		{"an override writing the wrong label", &PlantWithWrongLabel, whole, `(fn () (fn (#k) (#k 5 2)))`},
 		{"a projection answering another label's component", &PlantPutGetStale,
 			"fn f() {\n" + r + "(r with { x : 5 }).x\n}\n", "(fn () 5)"},
 	} {
@@ -197,6 +197,9 @@ func TestARecordInAHeaderIsCurried(t *testing.T) {
 // a component the body never reads keeps its mark (keepClaims): the contract
 // is the set's, not the body's reads. Each half has its fault.
 func TestARecordsObligationIsEveryComponents(t *testing.T) {
+	// the reducer's split alone: the free name #arg has no shape to place
+	PlantRecordsUnerased = true
+	defer func() { PlantRecordsUnerased = false }()
 	src := "fn f(p) { p.x }\nfn g(a, b) { f(record { x : a, y : b }) }\n"
 	p, err := loadJ(t, src)
 	if err != nil {
@@ -243,4 +246,48 @@ func TestARecordsObligationIsEveryComponents(t *testing.T) {
 	if strings.Contains(s, "p.y") {
 		t.Errorf("the dropped-claim fault keeps the obligation: the case cannot fail: %s", s)
 	}
+}
+
+// A RECORD STORED AS DATA IS PLACED BY ITS SHAPE (recerase.go, data.md §4.7):
+// a buffer's element labels are those of the records stored into it, a least
+// fixed point through its versions, so b[i].y is b[i]'s leaf at y's position.
+// (A table given by a rule is copied to each read, β-tab, so only a store
+// makes a record data.) The fault that leaves the residual's records unplaced
+// keeps a projection no target has.
+func TestARecordStoredAsDataIsPlacedByItsShape(t *testing.T) {
+	src := "fn f(n) {\nvar b := array { record { x : 0, y : 0 } : _ ∈ 0..n }\n" +
+		"loop k = 0 {\nk <= n -> { b[k] := record { y : k * 2, x : k + 1 }; again(k + 1) }\nelse -> b[n].y - b[n].x\n}\n}\n"
+	p, err := loadJ(t, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reduce := func() string {
+		e := placeEnv(p)
+		for _, n := range []string{"table", "array", "set", "build"} {
+			e.Prim[n], e.Pure[n] = true, true
+		}
+		nf, err := Normalize(p.Defs["f"], e, DefaultFuel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return nf.String()
+	}
+	if s := reduce(); containsAny(s, GetName, RecName, WithName) {
+		t.Errorf("a table of records keeps a record's form: %s", s)
+	}
+	PlantRecordsUnerased = true
+	s := reduce()
+	PlantRecordsUnerased = false
+	if !containsAny(s, GetName) {
+		t.Errorf("the unerased fault leaves no projection: the case cannot fail: %s", s)
+	}
+}
+
+func containsAny(s string, ws ...string) bool {
+	for _, w := range ws {
+		if strings.Contains(s, w) {
+			return true
+		}
+	}
+	return false
 }

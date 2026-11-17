@@ -1,0 +1,30 @@
+// THE LENS LAWS OF A RECORD, ON FOUR TARGETS (data.md §4.3, §9's record-lens;
+// ADR 0128).
+// inputs: 0 1 5
+// expect: 7002001002918 7003002003918 7007006007918
+//
+// A record is a function on its labels, and override is function override:
+// projection and update are a very well-behaved lens. Each law is evaluated on
+// a record whose components differ, x = n + 1, y = n + 2, z = 3, so an override
+// that wrote the wrong label, or every label, changes a digit:
+//
+//   a  put–get              (r with { x : 7 }).x         7
+//   b  put–get, another     (r with { x : 7 }).y         n + 2
+//   s  get–put              r with { x : r.x }           r: s.x = n + 1, s.y = n + 2
+//   t  put–put              (r with { x : 5 }) with { x : 9 }   t.x = 9
+//   u  two pairs commute    r with { z : 8, y : 1 }      u.y = 1, u.z = 8
+//
+// The answer is the digits ((((a·1000 + b)·1000 + s.x)·1000 + s.y)·10 + t.x)·100
+// + 10·u.y + u.z, computed by hand before the program was run: for n = 0,
+// ((((7·1000 + 2)·1000 + 1)·1000 + 2)·10 + 9)·100 + 18 = 7002001002918.
+// The record is written in a different order at each use, so a value read in
+// written order would answer otherwise (data.md §4.4).
+fn run(n ∈ 0..100) (Int) {
+    r = record { y : n + 2, x : n + 1, z : 3 }
+    a = (r with { x : 7 }).x
+    b = (record { z : 3, x : n + 1, y : n + 2 } with { x : 7 }).y
+    s = r with { x : r.x }
+    t = (r with { x : 5 }) with { x : 9 }
+    u = r with { z : 8, y : 1 }
+    ((((a * 1000 + b) * 1000 + s.x) * 1000 + s.y) * 10 + t.x) * 100 + u.y * 10 + u.z
+}

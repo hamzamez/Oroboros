@@ -1,0 +1,26 @@
+// A RECORD CARRIED BY A LOOP AND BY A CELL, ON FOUR TARGETS (data.md §9's
+// record-loop; ADR 0128).
+// inputs: 0 3 5
+// expect: 0 300062 1000204
+//
+// A loop variable whose initializer is a record is a loop over its components,
+// and `again(R)` passes R's components (the currying isomorphism at the loop's
+// binder); a loop whose exits are records is a product, taken apart where it
+// is bound. A cell holding a record is written by component, `c.hi := e`, which
+// is `c := c with { hi : e }` in program order. Labels lost at a residual
+// variable would leave a projection no target can print.
+//
+//   r.s = 0 + 1 + … + (n − 1),  c.hi = 2·r.s,  c.lo = n − 1 (0 when n = 0)
+//   answer = 100000·r.s + 10·c.hi + c.lo
+//   n = 0: 0;  n = 3: 300000 + 60 + 2 = 300062;  n = 5: 1000000 + 200 + 4 = 1000204
+fn run(n ∈ 0..100) (Int) {
+    r = loop p = record { i : 0, s : 0 } {
+        p.i < n -> again(p with { i : p.i + 1, s : p.s + p.i })
+        else -> p
+    }
+    var c := record { lo : 0, hi : 0 }
+    loop k = 0 {
+        k < n -> { c.hi := c.hi + k * 2; c.lo := k; again(k + 1) }
+        else -> r.s * 100000 + c.hi * 10 + c.lo
+    }
+}

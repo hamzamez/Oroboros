@@ -118,6 +118,11 @@ of the check found one more, `word-wide-native` on JavaScript.
 | `match` | `match`, `when` guards, a bare-name scrutinee becoming the loop variable |
 | `sum-case` | `sum`, `case`, a **dynamic** tag and the commuting conversion |
 | `values-product` | `values` consumed in place, so nothing is built |
+| `record-lens` | a record's lens laws, each on components that differ (ADR 0128, data.md §9) |
+| `record-path` | an override along a path, against nested `with`s |
+| `record-zero` | `zero(T) with { … }` on a nested record set |
+| `record-loop` | a record carried by a loop and by a cell, curried at each binder |
+| `record-order` | a table of records written in two orders, read through canonical projections |
 | `table-alloc` | `alloc`, `table` as a rule, `len`, indexing |
 | `table-bool` | `build`, `set`, a linear buffer, and the x86 element width |
 | `array-literal` | `array` as a graph, and a dynamic index that cannot fold |

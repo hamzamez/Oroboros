@@ -511,7 +511,9 @@ the round: a file path could run on past its end into whatever memory followed. 
 6. **TinyRetroPad's walls**: the window procedure and its structures. The structures were
    researched first, 2026-11-17 ([records-research.md](docs/records-research.md)): a record is
    the language's, already specified, and a Windows structure is its layout on one machine,
-   computed and checked against the C compiler; the decisions are hamza's.
+   computed and checked against the C compiler. hamza decided it (ADR 0128: the whole record, and
+   `r with { … }`). The record in the language is built
+   ([records-2026-11-17](gauntlet/results/records-2026-11-17.md)); the Windows structure is next.
 
 **The 11-16 plan, as it ended** ([assessment-2026-11-16](docs/assessment-2026-11-16.md) set it):
 1. **fix the book's wrong answers**, each with a test that fails before the fix:

@@ -2091,6 +2091,12 @@ func Normalize(t *Term, e *Env, fuel int) (*Term, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A RECORD STORED AS DATA is placed by its shape (recerase.go, data.md §4.7).
+	if containsRecordForms(nf) {
+		if nf, err = e.eraseRecords(nf, f); err != nil {
+			return nil, err
+		}
+	}
 	if err := e.staged(nf); err != nil {
 		return nil, err
 	}

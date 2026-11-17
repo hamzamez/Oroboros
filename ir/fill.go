@@ -18,8 +18,22 @@ import "oroboros/core"
 // exit arm come after. The descending counter, from n − 1 by −1 leaving on
 // i < 0, is the same theorem on the suffix (i, n).
 //
+// AND WITH A TAIL (alloc-2026-11-17). The loop may leave on i ≥ k with the
+// build's count n = k + c, c a constant, when the exit arm stores b[k + j] for
+// every j < c, with values that do not read b, before any read of b. Then the
+// written set is W = [0, k) ∪ {k + j : j < c} = [0, k + c) = [0, n): for k ≥ 0
+// the prefix and the tail meet, and for k < 0 the loop writes nothing and the
+// tail alone covers [k, n) ⊇ [0, n). This is mul_small's shape, whose loop
+// writes the digits and whose exit writes the carry and the header. Counts
+// and indices are compared as affine forms, base + offset, the base by
+// congruence.
+//
 // Nothing else is proven, and a build the theorem does not cover keeps its
 // zeroed region: a fill not proven dead is a cost, never a wrong answer.
+
+// PlantFillTailOne checks only the tail's first store: TestTheWrittenPrefixTheorem
+// must see a tail missing a slot taken as born full.
+var PlantFillTailOne bool
 
 // PlantFillDead takes every build as born full: TestAZeroFillIsKeptWhereItIsRead
 // must see a table that reads its fill answer wrongly.
@@ -73,6 +87,32 @@ func fillDead(f *Func, s *Stmt) bool {
 		}
 		return false
 	}
+	// affine is v as base + offset, through additions and subtractions of
+	// constants: `ma + 1 + 1` is (ma, 2)
+	affine := func(v V) (V, int64) {
+		var c int64
+		for {
+			d := def[v]
+			if d == nil || len(d.Args) != 2 {
+				return v, c
+			}
+			if x, ok := konst(d.Args[1]); ok && (d.Op == OAdd || d.Op == OSub) {
+				if d.Op == OAdd {
+					c += x
+				} else {
+					c -= x
+				}
+				v = d.Args[0]
+				continue
+			}
+			if x, ok := konst(d.Args[0]); ok && d.Op == OAdd {
+				c += x
+				v = d.Args[1]
+				continue
+			}
+			return v, c
+		}
+	}
 	n := s.Args[0]
 	// the buffer chain: b0, and every `set` result and loop result made from it
 	chain := map[V]bool{b0: true}
@@ -103,7 +143,7 @@ func fillDead(f *Func, s *Stmt) bool {
 		if k < 0 {
 			continue
 		}
-		if !loopWritesAll(st, k, n, same, konst, def) {
+		if !loopWritesAll(st, k, n, same, konst, def, affine) {
 			return false
 		}
 		// after the loop every element is written; reads are free
@@ -116,7 +156,8 @@ func fillDead(f *Func, s *Stmt) bool {
 // carries the buffer: some parameter j is a counter from 0 by +1 leaving on
 // j ≥ n, or from n − 1 by −1 leaving on j < 0, and every continuing path
 // writes the buffer at the counter without reading it.
-func loopWritesAll(l *Stmt, k int, n V, same func(a, b V) bool, konst func(V) (int64, bool), def map[V]*Stmt) bool {
+func loopWritesAll(l *Stmt, k int, n V, same func(a, b V) bool, konst func(V) (int64, bool), def map[V]*Stmt,
+	affine func(V) (V, int64)) bool {
 	body := l.Sub[0]
 	bp := body.Params[k]
 	if body.T != TBranch {
@@ -129,9 +170,16 @@ func loopWritesAll(l *Stmt, k int, n V, same func(a, b V) bool, konst func(V) (i
 	// the exit: Then breaks on (ge i n) or (lt i 0)
 	var ip V = -1
 	asc := false
+	tail := int64(0) // c, the stores the exit arm owes past the loop's bound
 	switch {
 	case cond.Op == OGe && same(cond.Args[1], n):
 		ip, asc = cond.Args[0], true
+	case cond.Op == OGe:
+		bk, ck := affine(cond.Args[1])
+		bn, cn := affine(n)
+		if same(bk, bn) && cn > ck && cn-ck <= 8 {
+			ip, asc, tail = cond.Args[0], true, cn-ck
+		}
 	case cond.Op == OLt:
 		if z, ok := konst(cond.Args[1]); ok && z == 0 {
 			ip = cond.Args[0]
@@ -144,6 +192,9 @@ func loopWritesAll(l *Stmt, k int, n V, same func(a, b V) bool, konst func(V) (i
 		}
 	}
 	if j < 0 || body.Then.T != TBreak {
+		return false
+	}
+	if tail > 0 && !exitWritesTail(body.Then, bp, cond.Args[1], tail, same, affine) {
 		return false
 	}
 	// the counter starts at 0 ascending, at n − 1 descending
@@ -241,4 +292,57 @@ func pathWritesAt(path []*Region, bp V, k, j int, ip V, asc bool, konst func(V) 
 		return false
 	}
 	return true
+}
+
+// exitWritesTail is the tail's half of the theorem: the exit arm r stores the
+// buffer (parameter bp) at k + j for every j < c, each value not read from the
+// buffer, before any read of it. A π of the arm names a value within it.
+func exitWritesTail(r *Region, bp, k V, c int64, same func(a, b V) bool, affine func(V) (V, int64)) bool {
+	alias := map[V]V{}
+	for _, pi := range r.Pis {
+		alias[pi.V] = pi.Of
+	}
+	root := func(v V) V {
+		for {
+			a, ok := alias[v]
+			if !ok {
+				return v
+			}
+			v = a
+		}
+	}
+	bk, ck := affine(root(k))
+	need := map[int64]bool{}
+	for j := int64(0); j < c; j++ {
+		need[j] = true
+		if PlantFillTailOne {
+			break
+		}
+	}
+	chain := map[V]bool{bp: true}
+	for i := range r.Stmts {
+		if len(need) == 0 {
+			return true // full; reads of it are free
+		}
+		st := &r.Stmts[i]
+		touches := false
+		for _, a := range st.Args {
+			touches = touches || chain[a]
+		}
+		if !touches {
+			continue
+		}
+		switch {
+		case st.Op == OSet && chain[st.Args[0]] && !chain[st.Args[2]]:
+			bi, ci := affine(root(st.Args[1]))
+			if same(root(bi), bk) {
+				delete(need, ci-ck)
+			}
+			chain[st.Res[0]] = true
+		case st.Op == OLen:
+		default:
+			return false // a read of the buffer before the tail is written
+		}
+	}
+	return len(need) == 0
 }

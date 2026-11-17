@@ -3608,3 +3608,13 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `lib/rt/i686.oro java`
 - new source — `lib/rt/i686.oro js`
 - new source — `lib/rt/i686.oro windows`
+
+## 2026-11-17 — on 756b3f2, with uncommitted changes
+
+**Reason:** the written prefix with a tail (alloc-2026-11-17 3.1): mul_small's result is born full, its fill dead by the interval cover [0,k) ∪ {k+j : j<c} = [0,n); 20000! 0.92 on windows, the product 0.90
+
+660 runs: 445 emitted, 215 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+1 change(s):
+
+- emitted text changed — `examples/big/fact.oro windows`

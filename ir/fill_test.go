@@ -76,6 +76,18 @@ func TestTheWrittenPrefixTheorem(t *testing.T) {
 		{"a read of the buffer before it is full", "export fn f(n ∈ 2..100, k ∈ 0..1000) (Int) {\n" +
 			"    t = { var o := array { 0 : _ ∈ 0..n-1 }; loop i = 0 { i >= n -> o; else -> { o[i] := (o[n - 1] + k) % 7; again(i + 1) } } }\n" +
 			"    t[0]\n}\n", false},
+		{"the written prefix with a tail, mul_small's shape", "export fn f(n ∈ 1..100, k ∈ 0..1000) (Int) {\n" +
+			"    t = { var o := array { 0 : _ ∈ 0..n + 1 }; loop i = 0, c = k { i >= n -> { o[n] := c; o[n + 1] := 9; o }; else -> { o[i] := c % 7; again(i + 1, c / 7) } } }\n" +
+			"    t[0]\n}\n", true},
+		{"a tail missing a slot", "export fn f(n ∈ 1..100, k ∈ 0..1000) (Int) {\n" +
+			"    t = { var o := array { 0 : _ ∈ 0..n + 1 }; loop i = 0, c = k { i >= n -> { o[n] := c; o }; else -> { o[i] := c % 7; again(i + 1, c / 7) } } }\n" +
+			"    t[n + 1]\n}\n", false},
+		{"a tail read before it is written", "export fn f(n ∈ 1..100, k ∈ 0..1000) (Int) {\n" +
+			"    t = { var o := array { 0 : _ ∈ 0..n + 1 }; loop i = 0, c = k { i >= n -> { o[n] := o[n + 1]; o[n + 1] := 9; o }; else -> { o[i] := c % 7; again(i + 1, c / 7) } } }\n" +
+			"    t[n]\n}\n", false},
+		{"a tail store whose value reads the buffer first: refused, a cost", "export fn f(n ∈ 2..100, k ∈ 0..1000) (Int) {\n" +
+			"    t = { var o := array { 0 : _ ∈ 0..n + 1 }; loop i = 0, c = k { i >= n -> { o[n + 1] := 9; o[n] := o[n + 1] + o[0]; o }; else -> { o[i] := c % 7; again(i + 1, c / 7) } } }\n" +
+			"    t[n]\n}\n", false},
 		{"a fill read where nothing wrote, the sieve's shape", "export fn f(n ∈ 2..100, k ∈ 0..99) (Int) {\n" +
 			"    t = { var o := array { 0 : _ ∈ 0..n-1 }; o[k % n] := 1; o }\n" +
 			"    t[0] + t[1]\n}\n", false},
@@ -88,5 +100,14 @@ func TestTheWrittenPrefixTheorem(t *testing.T) {
 		if got[0] != c.dead {
 			t.Errorf("%s: fill dead = %v, want %v", c.name, got[0], c.dead)
 		}
+	}
+	// THE PLANTED FAULT checks only the tail's first store: the tail missing a
+	// slot is then taken as born full, its last element the heap's
+	PlantFillTailOne = true
+	defer func() { PlantFillTailOne = false }()
+	if got := fillOf(t, "export fn f(n ∈ 1..100, k ∈ 0..1000) (Int) {\n"+
+		"    t = { var o := array { 0 : _ ∈ 0..n + 1 }; loop i = 0, c = k { i >= n -> { o[n] := c; o }; else -> { o[i] := c % 7; again(i + 1, c / 7) } } }\n"+
+		"    t[n + 1]\n}\n"); len(got) == 0 || !got[0] {
+		t.Errorf("with the tail checked at its first store only, a tail missing a slot should be taken as full, so the test reaches the rule; got %v", got)
 	}
 }

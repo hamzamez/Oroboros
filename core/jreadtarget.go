@@ -643,7 +643,13 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 // templates are instruction sequences that name operands out of order and their
 // result. By name, as WriteProgram's layout is (inventory.md §6's finding): the
 // reader runs before a fragment's backend is known.
-func numberedHoles(target string) bool { return target == "windows" || target == "llvm" }
+func numberedHoles(target string) bool {
+	switch target {
+	case "llvm", "win32", "windows", "windows32": // the LLVM layer, the windows family's base and members (ADR 0122)
+		return true
+	}
+	return false
+}
 
 // positionalHoles is the inverse of named (target.go): `${x}` back to today's
 // holes. A template that splices the result or a register's view is x86's,

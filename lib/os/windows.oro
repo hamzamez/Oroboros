@@ -17,7 +17,7 @@
 //
 // AN OUT-PARAMETER IS A CELL (ADR 0048): GetFileSizeEx's size and ReadFile's
 // count come back through `out S`, an alloca the printer allocates.
-provides windows os/host {
+provides win32 os/host {
     use result
     use llvm
     use windows/kernel32

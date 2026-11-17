@@ -1129,20 +1129,35 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 	// target fragment that happens to live in a library file, so it joins the
 	// same chain — at the bottom, because the target's own files are the
 	// authority on the target.
-	for _, lds := range libDirs {
-		lib, _, err := loadProvides(name, lds)
-		if err != nil {
-			return nil, err
+	// A FRAGMENT OF A GLUED THEORY IS A FRAGMENT OF THE GLUING (ADR 0122;
+	// target-system.md §2.1's ⊔): a library's `provides win32 M` serves every
+	// member that glues win32, so the provides read are the target's own name's
+	// and each glued name's.
+	provNames := []string{name}
+	if out != nil && !PlantProvidesOwnNameOnly {
+		for _, g := range out.Glue {
+			if g != name {
+				provNames = append(provNames, g)
+			}
 		}
-		if lib == nil {
-			continue
-		}
-		if out == nil {
-			out = lib
-			continue
-		}
-		if err := out.combine(lib, "a library's `provides "+name+" … { … }`", override); err != nil {
-			return nil, err
+	}
+	for _, pn := range provNames {
+		for _, lds := range libDirs {
+			lib, _, err := loadProvides(pn, lds)
+			if err != nil {
+				return nil, err
+			}
+			if lib == nil {
+				continue
+			}
+			lib.Name = name
+			if out == nil {
+				out = lib
+				continue
+			}
+			if err := out.combine(lib, "a library's `provides "+pn+" … { … }`", override); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if out == nil {
@@ -3951,7 +3966,7 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 		fmt.Fprintf(&b, "\t\t%s();\n\t}\n}\n", javaMangle(entry))
 		return os.WriteFile(filepath.Join(dir, "Main.java"), []byte(b.String()), 0o644)
 
-	case "windows":
+	case "windows", "windows32":
 		// One module and one batch file: clang compiles the module
 		// (docs/spec/llvm.md §2) and MSVC's link links it with no C runtime. The
 		// batch file exists because Build is split on whitespace and run without
@@ -4778,3 +4793,8 @@ func boundsElem(q Prim, b, lo int) bool {
 	}
 	return walk(q.Where)
 }
+
+// PlantProvidesOwnNameOnly reads a library's `provides` for the target's own
+// name alone, as before ADR 0122: a member gluing win32 then finds no `os` or
+// `io` of the base's, and TestAGluedBasesProvidesServeItsMembers must see it.
+var PlantProvidesOwnNameOnly bool

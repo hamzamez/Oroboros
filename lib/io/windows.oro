@@ -6,7 +6,7 @@
 // A string is its UTF-8 bytes on this target, so it is written as it is; an
 // integer is win/print's render, its digits and a newline. Each name's value is
 // its argument, as a host statement's is (plan's alias).
-provides windows io {
+provides win32 io {
     use win/print
     use windows/kernel32
     use llvm/str as str

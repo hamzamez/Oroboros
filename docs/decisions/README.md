@@ -148,4 +148,9 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0115](0115-a-rule-at-an-exports-boundary-is-its-extension.md) | A rule at an export's boundary is its extension: a rule in an export's result position is `alloc(rule)`, the one representation the boundary has; nowhere else |
 | [0116](0116-a-statement-whose-value-is-a-function-is-refused.md) | A statement whose value is a function is refused: it has no effect until applied, so discarding it is dead code; `ignore(f)` is the deliberate discard |
 | [0117](0117-a-string-is-the-table-of-its-utf-8-and-its-operations-are-the-languages.md) | A string is the table of its UTF-8 (ρ : Σ* ≅ V the identity on the LLVM layer), its operations definitions in the language read back by ρ⁻¹; V a submonoid decides `++`; the NUL the allocator's; a term's host `where` decided; an identity coercion a move |
+| [0118](0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md) | A C call's arguments are a linear term over its parameters |
+| [0119](0119-a-store-owes-its-tables-domain.md) | A store owes its table's domain |
+| [0120](0120-a-map-on-the-llvm-layer-is-realized-after-the-decision.md) | A map on the LLVM layer is realized after the decision |
+| [0121](0121-a-maps-capacity-is-a-claim-on-its-len.md) | A map's capacity is a claim on its `len` |
+| [0122](0122-the-windows-family-is-a-fibration-and-a-triple-is-a-model.md) | The windows family is a fibration over Win32, and a triple is a model of what it leaves open |
 | [0047](0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) | `local` is a scope of local state: the initializer decides buffer (a table) or cell (anything else); cells are loop variables by the state-passing translation in the loader; an elimination it assumes is marked and decided by the reducer on a normal form; a projection of a loop moves into its exits; generalizes 0018's scope and respells `build`'s binder |

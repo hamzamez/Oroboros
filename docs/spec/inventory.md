@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 143 |
+| `specified` — a spec states it | 144 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -270,6 +270,7 @@ What a declaration's `host KIND …` or a `structural NAME KIND` may say.
 |---|---|---|
 | `go`, `js`, `java`, `llvm` | specified — the closed set of backends; `llvm` prints LLVM IR (ADR 0080), and MASM's `x86-64` retired at parity (ADR 0080 item 5) | [target-files.md](target-files.md), [llvm.md](llvm.md) |
 | `windows` | specified — the Windows target, printed as LLVM IR (llvm.md §2); its templates number their holes (`core/jreadtarget.go` `numberedHoles`). **A finding, §6**: `WriteProgram` lays out a program's build tree by the target's NAME (`go`, `js`, `java`, `windows`), not by its backend | [llvm.md](llvm.md) §2, `emit/target.go` `WriteProgram` |
+| `windows32` | specified — the Windows target's i686 member (ADR 0122), glueing the `win32` base as `windows` does; its templates number their holes, and `WriteProgram` lays it out as `windows`'s. The same finding, §6: both are tested by name | [ADR 0122](../decisions/0122-the-windows-family-is-a-fibration-and-a-triple-is-a-model.md), `core/jreadtarget.go` `numberedHoles` |
 
 ### Names a target declares for the compiler to find
 

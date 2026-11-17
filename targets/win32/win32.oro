@@ -1,0 +1,23 @@
+// THE WIN32 BASE (ADR 0122): what every member of the windows family shares,
+// the LLVM layer T_LLVM[Σ_OS] instantiated by Win32. A theory with parameters:
+// each member glues it and gives its fibre, its triple, its data model's set
+// names, its address space, its ISA's operations and its toolchain
+// (targets/windows for x86_64, targets/windows32 for i686).
+//
+//   glue llvm      Σ_LLVM, ι's terms and the representations (targets/llvm),
+//                  glued: agreement required, nothing of it replaced
+//   os.oro         the view Σ_OS → Win32: region, write_err and exit over
+//                  kernel32, the definitions the layer's headers require
+//   kernel32.oro   the Win32 functions programs call, as Win32 has them
+glue llvm
+
+// THE LINK LINE: kernel32 for everything this target calls, and no C runtime
+// (llvm.md §2). A primitive that needs another library names it with `lib`.
+link "kernel32"
+
+// WIN32'S ERROR IS A DWORD (ADR 0112): GetLastError's code, the reason a call
+// failed. Win32 has no type-wide niche: a failure is each function's sentinel,
+// and a failing call need not set the code, so 0 is a code like any other.
+set error = 0..2^32-1
+
+artifact "main.exe"

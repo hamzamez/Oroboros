@@ -1,16 +1,13 @@
-// THE WINDOWS TARGET (ADR 0039, 0080, 0093): the LLVM layer, T_LLVM[Σ_OS],
-// instantiated by Win32. NO PORTABILITY CLAIM beyond the language's: Win32's
-// own names are this target's.
+// THE WINDOWS TARGET, 64-BIT (ADR 0039, 0080, 0093, 0122): the win32 base's
+// x86_64 member. NO PORTABILITY CLAIM beyond the language's: Win32's own names
+// are this target's.
 //
-//   glue llvm      Σ_LLVM, ι's terms and the representations (targets/llvm),
-//                  glued: agreement required, nothing of it replaced
-//   os.oro         the view Σ_OS → Win32: region, write_err and exit over
-//                  kernel32, the definitions the layer's headers require
-//   kernel32.oro   the Win32 functions programs call, as Win32 has them
-glue llvm
+//   glue win32     the base: Win32 over T_LLVM[Σ_OS] (targets/win32), glued
+//   x64.oro        the ISA's own operations, at 64 bits (ADR 0103, 0108)
+glue win32
 
 // THE TRIPLE (ADR 0093 item 5), what the printer writes: 64-bit Windows,
-// MSVC's ABI. 32-bit Windows is `i686-pc-windows-msvc`, another member.
+// MSVC's ABI. 32-bit Windows is targets/windows32, the other member.
 triple "x86_64-pc-windows-msvc"
 
 // THE ADDRESS SPACE BOUNDS EVERY TABLE (ADR 0096): x64's user space is 2⁴⁷ bytes,
@@ -18,14 +15,4 @@ triple "x86_64-pc-windows-msvc"
 // A fact of the host, as the JVM's `arraylength` is (java.oro).
 fact max_len (a ∈ Array(A)) len(a) <= (2^47-9)
 
-// THE LINK LINE: kernel32 for everything this target calls, and no C runtime
-// (llvm.md §2). A primitive that needs another library names it with `lib`.
-link "kernel32"
-
-// WIN32'S ERROR IS A DWORD (ADR 0112): GetLastError's code, the reason a call
-// failed. Win32 has no type-wide niche: a failure is each function's sentinel,
-// and a failing call need not set the code, so 0 is a code like any other.
-set error = 0..2^32-1
-
 build "cmd /c .\\build.bat"
-artifact "main.exe"

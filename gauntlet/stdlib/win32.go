@@ -210,7 +210,7 @@ const (
 	rVariadic reason = "variadic"
 	// A `void` result is refused only when there is no argument either. With
 	// one, the format already says it: `stmt`'s value IS argument 0, which is
-	// how `ExitProcess` is declared in targets/windows/kernel32.oro. Refusing
+	// how `ExitProcess` is declared in targets/win32/kernel32.oro. Refusing
 	// all of them attributed 3.5% of the API to the format when
 	// the format could say it — the survey talking about itself for the third
 	// time, after methods-at-0% in the Go survey and the typedef residue here.
@@ -1372,11 +1372,11 @@ func shapeName(s shape) string {
 // a measurement rather than a list somebody maintains.
 
 // baseLink is the libraries the windows target links into EVERY program, read
-// from targets/windows/windows.oro rather than repeated here. Until
+// from the family's base, targets/win32/win32.oro (ADR 0122), rather than repeated here. Until
 // linkline-2026-09-13 the list was a constant in emit/target.go and a copy of it
 // in this file: a host fact written twice is two facts that can disagree.
 func baseLink() (map[string]bool, error) {
-	b, err := os.ReadFile(filepath.Join("targets", "windows", "windows.oro"))
+	b, err := os.ReadFile(filepath.Join("targets", "win32", "win32.oro"))
 	if err != nil {
 		return nil, err
 	}
@@ -1388,7 +1388,7 @@ func baseLink() (map[string]bool, error) {
 	}
 	m := reLink.FindStringSubmatch(strings.Join(code, "\n"))
 	if m == nil {
-		return nil, fmt.Errorf("targets/windows/windows.oro declares no link …")
+		return nil, fmt.Errorf("targets/win32/win32.oro declares no link …")
 	}
 	base := map[string]bool{}
 	for _, q := range reQuoted.FindAllStringSubmatch(m[1], -1) {

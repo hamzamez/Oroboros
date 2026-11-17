@@ -130,8 +130,10 @@ multiply-accumulate the decision proves, B = 2⁶⁴ with i128 on x86-64. The do
 theorem **B = 2³² on i686**, digits in 0..2³²−1 held in i32 or i64, each step's t in i64. LLVM's
 inline i128 expansion makes B = 2⁶⁴ *correct* on i686, as a 4×4-limb schoolbook per digit product,
 and roughly 3–4× the work per digit of B = 2³². That ratio is estimated: the suite did not reach a K(ℕ\*) program at run time on the triple (§3). So the
-base is target data, `fact digit_bits`, and K(ℕ\*)'s library is written over it, which ADR 0106
-already wrote with B a parameter.
+base is target data, `fact digit_bits`, and K(ℕ\*)'s library is written over it. **Corrected
+2026-11-17**: this said ADR 0106 already wrote the library with B a parameter. It did not.
+`emit/natnum.oro` writes B = 2⁶⁴ in 26 places: `t >> 64`, `dm = 2⁶⁴ − 1`, D's normalization at 2⁶³.
+So D2 is a refactor of that library onto a digit width, each of its proofs re-derived.
 
 ### 4.3 `max_len` bounds bytes, not elements
 
@@ -181,7 +183,8 @@ copy of `run.go` with two edits; `mk32.py`; a README), two suite runs of about f
 - **D1, the data model**: the type names in their headers (W1), and kernel32's and the survey's
   declarations restated in them. The survey writes 10,479 prototypes and would need the headers'
   names, not the C ABI's sets alone, so most of D1's lines are W1's.
-- **D2, the base**: one target fact, with K(ℕ\*)'s library already written over B; the i686 kernels
+- **D2, the base**: one target fact, and K(ℕ\*)'s library rewritten over a digit width (not already
+  parametric, corrected above); the i686 kernels
   (`adc` on 32 bits, `divl`).
 - **D3, the bound on bytes**: one fact per triple, with `region`'s and `readfile`'s guards derived
   from it where the x64 literals are now.

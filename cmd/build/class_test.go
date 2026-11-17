@@ -71,7 +71,7 @@ func TestARegionIsAnsweredByItsCapacityClass(t *testing.T) {
 	if err := os.CopyFS(planted, os.DirFS("../../targets")); err != nil {
 		t.Fatal(err)
 	}
-	osFile := filepath.Join(planted, "windows", "os.oro")
+	osFile := filepath.Join(planted, "win32", "os.oro")
 	text, err := os.ReadFile(osFile)
 	if err != nil {
 		t.Fatal(err)

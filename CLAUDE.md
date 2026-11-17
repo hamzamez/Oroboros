@@ -577,6 +577,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A store owes its table's domain, 0 <= i < len, as a read does | [0119](docs/decisions/0119-a-store-owes-its-tables-domain.md) |
 | A map on the LLVM layer is the table of its cells, realized after the decision | [0120](docs/decisions/0120-a-map-on-the-llvm-layer-is-realized-after-the-decision.md) |
 | A map of capacity c is in {m : len(m) ≤ c}, each insert marked len(m) < c | [0121](docs/decisions/0121-a-maps-capacity-is-a-claim-on-its-len.md) |
+| The windows family is a fibration over Win32 (`win32` glued by each member); a triple is a model: data model, address space in bytes, ISA, toolchain | [0122](docs/decisions/0122-the-windows-family-is-a-fibration-and-a-triple-is-a-model.md) |
 
 ## Build commands
 
@@ -613,7 +614,7 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the definitions kept as functions (`keep`, ADR 0113); the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/llvm` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
-| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `windows/` (glues `llvm`: its triple, `os` the view over kernel32, `kernel32`, `strings`); `blas` and the `tutorial*` targets parameterize the normal form for the book |
+| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `win32/` (the windows family's base, ADR 0122: glues `llvm`; `os` the view over kernel32, `kernel32`), `windows/` (the x86_64 member: glues `win32`; its triple, its address space, `x64.oro` the ISA's operations); `blas` and the `tutorial*` targets parameterize the normal form for the book |
 | `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators) |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
 | `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `num/` (`ledger`, decimals), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |

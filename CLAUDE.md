@@ -96,8 +96,9 @@ wrong about half the time.
 
 **The current assessment is [assessment-2026-11-18.md](docs/assessment-2026-11-18.md)**; read it
 before planning. Its plan (§5) is proposed and awaits hamza's approval: TinyRetroPad's body in J,
-the callback decisions, the capacity facts, a timeout on every program a build test runs, and
-CLAUDE.md as state again. Until it is approved, **the 11-17 plan (its §5)**, approved by hamza
+the callback decisions (tier 2's taken, [callbacks-sketches.md](docs/callbacks-sketches.md)), the
+capacity facts, a timeout on every program a build test runs, CLAUDE.md as state again, and an
+audit of the words that bought nothing (hamza, 2026-11-18; `in` and `ui` the two found). Until it is approved, **the 11-17 plan (its §5)**, approved by hamza
 2026-11-17 ("Go with the proposed plan"), stands, items 1–5 done, in order:
 1. ~~**a compile that does not end is a refusal**~~ done, its premise reversed
    ([noend](gauntlet/results/noend-2026-11-17.md)): every loop of the compile has a measure, so it

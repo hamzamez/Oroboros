@@ -179,13 +179,32 @@ The next plan (§5) writes it.
    variant. Each module is a program that runs on windows and windows32 and demands what it needs.
    This answers §3.1: the round's walls were built for this program, and it is time it was written.
 2. **The callback decisions** (callbacks-research §7, the tier-1 research §7), when hamza takes
-   them. Then the shared piece, then the window procedure, which ends item 1.
+   them. Then the shared piece, then the window procedure, which ends item 1. *2026-11-18*: tier 2's
+   are taken ([callbacks-sketches.md](callbacks-sketches.md): B, one state per process, no dispatch
+   classification, the cell's own `var` scope as the extent, the arrow); tier 1's wait for a
+   discussion.
 3. **The capacity facts**: two inserts in one iteration, and an insert in an arm whose guard bounds
    its index. Two cases named it, and so did a scalar program on HEAD.
 4. **A timeout on every program a build test runs** (§3.4 item 3), so a stalled child costs one test
    and not the check.
 5. **CLAUDE.md as state again** (§3.4 item 5): item 6's paragraph rewritten to what is built and
    what is owed, each with its link.
+6. **The words that bought nothing** (hamza, 2026-11-18: "ask what other words did we add, that
+   didn't need to be, didn't buy us anything"). Two were found by hamza's questions: `in` on a
+   struct parameter (ADR 0129, reversed by 0130: representation in a header), and `ui(s₀, step)`
+   for the window procedure's extent (callbacks-sketches §1.4c: the cell's `var` scope already is
+   one). Each word in inventory.md and j.md §1.4 (keywords, header modes such as `linear`, `inout`,
+   `out`, `pure`, `checked`, host-clause words, target-file words) gets three questions:
+   - **The program**: write the smallest program that uses it, then the same program with only
+     the other words. What fails, exactly?
+   - **ADR 0130's test**: does a program observe what the word states (meaning, in the header or
+     the language), or not (representation, in the host clause or the `repr`)?
+   - **What it bought**: a refusal it enables, a fact it carries, a representation it chooses, each
+     named with the program that needs it.
+
+   A word that fails all three is withdrawn by its own ADR, a reversal, with its programs
+   rewritten and the emission compared. A result document lists every word with its verdict.
+   Time limit: two days, then the list as far as it got, the rest named.
 
 ### Deliberately not next
 

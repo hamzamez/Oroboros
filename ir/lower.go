@@ -582,6 +582,13 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		l.fail("a table rule that was never allocated (tables.md §2): %s", core.ShowTerm(t))
 	case p.Kind == "cell-ref" && len(args) == 1:
 		return []V{l.one(r, Stmt{Op: OCellRef, Args: []V{l.single(args[0], r)}})}
+	case p.Kind == "cell-ref" && len(args) == 2 && args[0].Kind == core.KStr && isRangeType(args[0].Str):
+		// A SCALAR'S CELL OF A RANGE (core/outcell.go): a reference to a fresh
+		// copy of the claimed value, a cell of the range, which is what a read
+		// after the call knows of what the host wrote.
+		v := l.one(r, Stmt{Op: OCellRef, Args: []V{l.single(args[1], r)}})
+		l.decl[v] = "cell " + args[0].Str
+		return []V{v}
 	case p.Kind == "cell-ref" && len(args) >= 2 && args[0].Kind == core.KStr:
 		// A STRUCT'S CELL (llvm.md §6b): a reference to a region written with
 		// the record's leaves, in canonical order; Type is the struct, whose
@@ -978,7 +985,18 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 		return out, true
 	}
 	// A tuple where β cannot reach it: the producer's values ARE the
-	// continuation's names. No projection and no copy (L5).
+	// continuation's names. No projection and no copy (L5). THE UNIT is the
+	// tuple of none, (() (fn () b)) = b: a loop of the unit followed by its
+	// continuation, windows' `main` before ExitProcess, which the interval
+	// route's lowering refused (mapvalue-2026-11-18, vcell-2026-11-18).
+	if len(k.Params) == 0 && !PlantUnitUneliminated {
+		// 1 is terminal: whatever holds the unit, it binds nothing
+		l.value(op, r)
+		l.push(nil, nil)
+		out := then(k.Closed())
+		l.pop()
+		return out, true
+	}
 	if len(k.Params) >= 2 {
 		vs := l.value(op, r)
 		if len(vs) != len(k.Params) {
@@ -1471,3 +1489,14 @@ var bitOps = map[string]Op{"&": OAnd, "|": OOr, "⊕": OXor, "~": ONot, "<<": OS
 // PlantAnyIsOneResult counts a header's unstated result as one declared, as
 // before: a computed pair is then refused (TestAnUnstatedResultIsTheBodys).
 var PlantAnyIsOneResult bool
+
+// isRangeType reports a canonical range, `int 0 4294967295`.
+func isRangeType(ty string) bool {
+	_, _, ok := core.IntRangeBig(ty)
+	return ok
+}
+
+// PlantUnitUneliminated refuses (() (fn () b)) at lowering again: a claim in
+// windows' `main` loop is left to the refinement layer alone
+// (TestAScalarCellIsTheHostsCell).
+var PlantUnitUneliminated bool

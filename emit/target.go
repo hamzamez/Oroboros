@@ -169,8 +169,8 @@ type Prim struct {
 	// `_In_` (llvm.md §6b): a reference to a fresh copy the host only reads,
 	// typed `cell T` and no cell of the program's.
 	InStructs []int
-	CellList   int
-	Arity      int
+	CellList  int
+	Arity     int
 
 	// Static are the declaration's STATIC PARAMETERS (spec/typevalues.md §4,
 	// ADR 0063): `(sig (AsType (E (subsets error))) …)` is a function from sets,
@@ -815,23 +815,29 @@ func (tg *Target) cellForms() {
 		}
 		// A STRUCT'S CELL (llvm.md §6b): its set travels with the declaration, so
 		// the loader writes and reads the struct's leaves.
-		var ctypes, records []string
+		// A SCALAR'S CELL of a range (a DWORD's): its set, which a program's
+		// cell passed there is claimed in (core/outcell.go).
+		var ctypes, records, sets []string
 		some := false
 		for _, i := range p.CellParams {
-			c, r := "", ""
+			c, r, s := "", "", ""
 			if i < len(p.Args) {
 				if n, rec, ok := tg.CStruct(core.CellElem(p.Args[i])); ok {
 					c, r, some = n, rec, true
+				} else if e := core.CellElem(p.Args[i]); e != "" {
+					if _, _, ok := core.IntRangeBig(e); ok {
+						s, some = e, true
+					}
 				}
 			}
-			ctypes, records = append(ctypes, c), append(records, r)
+			ctypes, records, sets = append(ctypes, c), append(records, r), append(sets, s)
 		}
 		if !some {
-			ctypes, records = nil, nil
+			ctypes, records, sets = nil, nil, nil
 		}
 		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "cells", Name: local,
 			Term: core.CellDeclTerm(core.CellDecl{Params: p.CellParams, List: p.CellList, Arity: p.Arity,
-				CTypes: ctypes, Records: records})})
+				CTypes: ctypes, Records: records, Sets: sets})})
 	}
 }
 

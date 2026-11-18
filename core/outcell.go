@@ -46,6 +46,10 @@ type CellDecl struct {
 	// layout (llvm.md §6b), and Records their record sets: such a cell holds
 	// its record's leaves. Both "" for any other cell.
 	CTypes, Records []string
+	// Sets are the scalar cell parameters' element sets, a range such as a
+	// DWORD's 0..2^32-1, "" for any other cell: a program's cell passed there
+	// owes its value's membership (translateCall).
+	Sets []string
 }
 
 // CellDeclTerm is the form a target hands the loader, (cells ARITY LIST i…).
@@ -55,7 +59,7 @@ func CellDeclTerm(d CellDecl) *Term {
 		kids = append(kids, Int(int64(i)))
 	}
 	for i := range d.CTypes {
-		kids = append(kids, Str(d.CTypes[i]), Str(d.Records[i]))
+		kids = append(kids, Str(d.CTypes[i]), Str(d.Records[i]), Str(d.Sets[i]))
 	}
 	return &Term{Kind: KApp, Kids: kids}
 }
@@ -73,12 +77,12 @@ func readCellDecl(t *Term) (CellDecl, error) {
 		case k.Kind == KInt && strs == nil:
 			ints = append(ints, int(k.Int))
 		default:
-			return CellDecl{}, fmt.Errorf("a cells form is (cells ARITY LIST i… \"C\" \"R\"…), got %s", t)
+			return CellDecl{}, fmt.Errorf("a cells form is (cells ARITY LIST i… \"C\" \"R\" \"S\"…), got %s", t)
 		}
 	}
 	d := CellDecl{Arity: ints[0], List: ints[1], Params: ints[2:]}
-	for i := 0; i+1 < len(strs); i += 2 {
-		d.CTypes, d.Records = append(d.CTypes, strs[i]), append(d.Records, strs[i+1])
+	for i := 0; i+2 < len(strs); i += 3 {
+		d.CTypes, d.Records, d.Sets = append(d.CTypes, strs[i]), append(d.Records, strs[i+1]), append(d.Sets, strs[i+2])
 	}
 	return d, nil
 }
@@ -105,6 +109,16 @@ func (d CellDecl) structAt(i int) (string, string) {
 		}
 	}
 	return "", ""
+}
+
+// setAt is cell argument i's element set where it is a scalar's range, or "".
+func (d CellDecl) setAt(i int) string {
+	for j, p := range d.Params {
+		if p == i && j < len(d.Sets) {
+			return d.Sets[j]
+		}
+	}
+	return ""
 }
 
 // cellCall reports a call of a declaration with cell parameters.
@@ -167,7 +181,23 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 			kids = append(kids, &Term{Kind: KApp, Kids: ref})
 			cellAt, cellNames = append(cellAt, i), append(cellNames, a.Name)
 		case a.Kind == KName && c.isCell(a.Name):
-			kids = append(kids, App(Name(RefName), a))
+			// A SCALAR CELL AT A HOST'S CELL OF SET T (ADR 0048, 0126): the host
+			// reads the value and writes one back, so the cell fits iff its value
+			// is in T at the call, a claim decided as any is, and T is within the
+			// cell's own set, which a cell's ℤ always holds. The reference is to a
+			// fresh copy of the claimed value, a cell of T.
+			// Written (#ref "T" v), as a struct's cell names its set: a word's
+			// ascription is erased before lowering, and the reference's set is
+			// what a read after the call is known to hold.
+			ref := App(Name(RefName), a)
+			if ty := d.setAt(i); ty != "" {
+				var v *Term = &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(ClaimDef), Str(a.Name), Str(ty), a}}
+				if PlantCellSetUnclaimed {
+					v = a
+				}
+				ref = App(Name(RefName), Str(ty), v)
+			}
+			kids = append(kids, ref)
 			cellAt, cellNames = append(cellAt, i), append(cellNames, a.Name)
 		case isOut(a):
 			ty := TypeName(a.Kids[1])
@@ -283,3 +313,8 @@ func derefStruct(r *Term, ty string) *Term {
 	}
 	return build(ty)
 }
+
+// PlantCellSetUnclaimed passes a scalar cell at a host's cell of T with no
+// claim that its value is in T: a value outside T then reaches the host
+// (TestAScalarCellIsTheHostsCell).
+var PlantCellSetUnclaimed bool

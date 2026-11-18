@@ -265,6 +265,15 @@ declaration, `(cells ARITY LIST i…)`, as it hands it `variadic` ones, and a pr
 them is refused. A pointer the host *keeps* (`flag.IntVar`, `sync/atomic`) is
 not a cell (outparams-research.md §5.7) and has no declaration of this kind.
 
+**A cell of a range at the host's parameter** (vcell-2026-11-18). A host's cell of set T, a
+DWORD's 0..2^32-1, is read and written, so a program's cell of set S fits it iff:
+- **in:** its value at the call is in T, an obligation, the claim `w ∈ T` decided as any is;
+- **out:** T ⊆ S, so what the host writes is a value of the cell. A `var` cell's S is ℤ, which
+  holds every T.
+
+The reference is written `(#ref "T" v)`, as a struct's names its layout (llvm.md §6b), so the value
+read back after the call is known in T on the IR: a word's ascription is erased before lowering.
+
 **A call passes a cell where its declaration says so, and nothing else there.** At a cell parameter
 the argument is a cell in scope, or `(out τ)` (§6). A value there is refused: a host that writes
 through the address of a value the program cannot see again has written into nothing. At every

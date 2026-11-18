@@ -142,8 +142,9 @@ order:
    header, the layout Theorem L's fold checked against clang on both triples, a struct a host's
    cell, GetClientRect and GetLocalTime run on both; 2b built: determined fields (`= size`, `= 0`),
    the model's `pack(ILP32 : 1)`, `_In_` structs and C string fields, GlobalMemoryStatusEx,
-   PrintDlgA and RegisterClassA run on both; a buffer field with `= len(m)` and a nested record by
-   pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
+   PrintDlgA and RegisterClassA run on both; a scalar `var` cell at a host's cell of a range, claimed
+   in it ([vcell](gauntlet/results/vcell-2026-11-18.md)); a buffer field with `= len(m)` and a nested
+   record by pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
    the window procedure a parameterised deep handler of the host's message effect, its state
    threaded through every dispatching call (Theorem T, on Theorem N's measured nesting); five
    decisions with hamza. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):

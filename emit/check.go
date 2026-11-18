@@ -321,6 +321,17 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	case "cell-ref", "cell-get":
 		// A STRUCT'S CELL (llvm.md §6b): (#ref "S" v…) : cell S, its leaves
 		// checked against S's leaves' sets, and (#deref r j) : S's leaf j.
+		if p.Kind == "cell-ref" && len(args) == 2 && args[0].Kind == core.KStr {
+			// A SCALAR'S CELL OF A RANGE, (#ref "T" v): a fresh copy of v, claimed
+			// in T (core/outcell.go), the cell the host wants.
+			if _, _, isRange := core.IntRangeBig(args[0].Str); isRange {
+				if _, err := c.walk(args[1], ""); err != nil {
+					return "", err
+				}
+				res := "cell " + args[0].Str
+				return res, c.agree(core.ShowName(op.Name), res, want)
+			}
+		}
 		if p.Kind == "cell-ref" && len(args) >= 2 && args[0].Kind == core.KStr {
 			_, rec, ok := c.tgt.CStruct(args[0].Str)
 			if !ok {

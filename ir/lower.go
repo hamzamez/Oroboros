@@ -580,7 +580,10 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		// A STRUCT'S CELL (llvm.md §6b): a reference to a region written with
 		// the record's leaves, in canonical order; Type is the struct, whose
 		// layout the printer reads.
-		ty := l.tg.UnfoldType("", args[0].Str)
+		ty, _, ok := l.tg.CStruct(args[0].Str)
+		if !ok {
+			l.fail("a struct cell of %s, which has no C layout (llvm.md §6b)", args[0].Str)
+		}
 		var vs []V
 		for _, a := range args[1:] {
 			vs = append(vs, l.single(a, r))
@@ -592,7 +595,9 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		// a struct cell's leaf j, Lit its index
 		return []V{l.one(r, Stmt{Op: OCellGet, Args: []V{l.single(args[0], r)}, Lit: args[1]})}
 	case p.Kind == "cell-fresh" && len(args) == 1 && args[0].Kind == core.KStr:
-		ty := l.tg.UnfoldType("", args[0].Str) // a manifest set is its definition (ADR 0112)
+		// a manifest set is its definition (ADR 0112), and a C type with a layout
+		// keeps its name as a cell's element (llvm.md §6b)
+		ty := strings.TrimPrefix(l.tg.UnfoldType("", "cell "+args[0].Str), "cell ")
 		v := l.one(r, Stmt{Op: OCellFresh, Type: ty})
 		l.decl[v] = "cell " + ty
 		return []V{v}

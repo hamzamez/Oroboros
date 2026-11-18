@@ -322,8 +322,12 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		// A STRUCT'S CELL (llvm.md §6b): (#ref "S" v…) : cell S, its leaves
 		// checked against S's leaves' sets, and (#deref r j) : S's leaf j.
 		if p.Kind == "cell-ref" && len(args) >= 2 && args[0].Kind == core.KStr {
-			st := c.tgt.UnfoldType("", args[0].Str)
-			ts := core.RecordLeafTypes(st)
+			_, rec, ok := c.tgt.CStruct(args[0].Str)
+			if !ok {
+				return "", fmt.Errorf("a struct cell of %s, which has no C layout", core.ShowSet(args[0].Str))
+			}
+			st := args[0].Str
+			ts := core.RecordLeafTypes(rec)
 			if len(ts) != len(args)-1 {
 				return "", fmt.Errorf("a struct cell of %s written with %d values, and it has %d leaves",
 					core.ShowSet(st), len(args)-1, len(ts))
@@ -342,7 +346,8 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			ts := core.RecordLeafTypes(core.CellElem(ty))
+			_, rec, _ := c.tgt.CStruct(core.CellElem(ty))
+			ts := core.RecordLeafTypes(rec)
 			if j := int(args[1].Int); j >= 0 && j < len(ts) {
 				return ts[j], c.agree(core.ShowName(op.Name), ts[j], want)
 			}
@@ -371,7 +376,8 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		if len(args) == 1 && args[0].Kind == core.KStr {
 			// `out S` names S as written; a target's manifest set is its
 			// definition (ADR 0112: kernel32's DWORD is 0..2^32-1).
-			res := "cell " + c.tgt.UnfoldType("", args[0].Str)
+			// a C type with a layout keeps its name, as a cell's element (llvm.md §6b)
+			res := c.tgt.UnfoldType("", "cell "+args[0].Str)
 			return res, c.agree(core.ShowName(op.Name), res, want)
 		}
 	case "ascribe":

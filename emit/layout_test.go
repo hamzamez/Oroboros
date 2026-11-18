@@ -31,24 +31,15 @@ func TestAStructsLayoutIsTheCCompilers(t *testing.T) {
 			t.Fatal(err)
 		}
 		var names []string
-		unfolded := map[string]string{}
-		for n, ty := range tg.Aliases {
-			// a struct's fields name sets as its module does
-			mod := ""
-			if i := strings.LastIndex(n, "."); i >= 0 {
-				mod = n[:i]
-			}
-			if u := tg.UnfoldType(mod, ty); core.IsStruct(u) {
-				names = append(names, n)
-				unfolded[n] = u
-			}
+		for n := range tg.Layouts {
+			names = append(names, n)
 		}
 		sort.Strings(names)
 		var b strings.Builder
 		b.WriteString("#define WIN32_LEAN_AND_MEAN\n#include <windows.h>\n#include <commdlg.h>\n#include <richedit.h>\n#include <stddef.h>\n")
 		for _, n := range names {
 			c := n[strings.LastIndex(n, ".")+1:]
-			labels, offs, size, align, err := tg.FieldLayout(unfolded[n])
+			labels, offs, size, align, err := tg.FieldLayout(n)
 			if err != nil {
 				t.Fatalf("%s on %s: %v", n, target, err)
 			}

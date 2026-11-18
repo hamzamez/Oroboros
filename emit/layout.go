@@ -6,22 +6,37 @@ import (
 	"oroboros/core"
 )
 
-// A HOST STRUCT'S LAYOUT (llvm.md §6b, ADR 0128 item 9; records-research §3.2).
+// A C TYPE'S LAYOUT (llvm.md §6b, ADR 0128 items 8–9; records-research §3.2).
 //
-// The layout is derived from the struct's C definition, never chosen: the fold
-// L_{M,p,d} over its fields in their declared order, with M the triple's data
-// model (each C type's size and alignment), p the header's packing:
+// A C struct is two things, and a header module states them apart:
+//
+//	set RECT = record { left ∈ winnt.LONG, top ∈ winnt.LONG, … }    the set, the language's record
+//	repr RECT c(left, top, right, bottom)                          its representation at a C boundary
+//
+// The record set is a function on its labels and has no order (data.md §4.4);
+// the order and the packing are the representation's, chosen by place and
+// stated by the declaration, never chosen (ADR 0083). The name RECT is the C
+// type's, its typedef (ADR 0126), so it denotes the set and selects the
+// layout: a parameter `cell(windef.RECT)` holds a record of RECT's set laid
+// out as RECT's C definition lays it.
+//
+// The layout is derived, the fold L_{M,p} over the fields in the C order, M
+// the triple's data model:
 //
 //	off₁ = 0,  offᵢ₊₁ = ⌈offᵢ + kᵢ⌉ at min(aᵢ₊₁, p),  A = max min(aᵢ, p),  N = ⌈end⌉ at A
 //
 // THEOREM L: in the declared order this is the least layout, every field at an
 // offset its alignment divides and no two overlapping; and N's rounding is
 // forced by a table of the struct, whose element j puts field l at j·N + off_l,
-// aligned for every j iff A | N. A C type's size and alignment are equal here
-// (every integer type and a pointer on both Windows triples; a nested struct
-// carries its own A), and the packing is the meet in the divisibility lattice
-// of powers of two. Checked against clang's layout on both triples, never
-// trusted (gauntlet/stdlib/win32hand_test.go).
+// aligned for every j iff A | N. Checked against clang's on both triples,
+// never trusted (emit/layout_test.go).
+
+// CLayout is a C type's layout as its header states it: the record's labels
+// in the C definition's order, and the packing, 0 for none.
+type CLayout struct {
+	Fields []string
+	Pack   int
+}
 
 // LeafLayout is one leaf of a struct, in the record view's canonical order: its
 // absolute offset and its C type.
@@ -38,12 +53,34 @@ type StructLayout struct {
 	Leaves      []LeafLayout
 }
 
-// Layout is the struct type's layout on this target, or why it has none.
-func (tg *Target) Layout(ty string) (StructLayout, error) {
-	if !core.IsStruct(ty) {
-		return StructLayout{}, fmt.Errorf("%s is no host struct", core.ShowSet(ty))
+// CStruct resolves a set's name to a C type with a layout: its qualified name
+// and its record set, unfolded. ok is false for any other set.
+func (tg *Target) CStruct(name string) (string, string, bool) {
+	k := name
+	if _, ok := tg.Layouts[k]; !ok {
+		kk, _, ok := tg.alias("", name)
+		if !ok {
+			return "", "", false
+		}
+		if _, ok := tg.Layouts[kk]; !ok {
+			return "", "", false
+		}
+		k = kk
 	}
-	f, err := tg.fold(ty)
+	rec := tg.UnfoldType(moduleOf(k), tg.Aliases[k])
+	if !core.IsRecord(rec) {
+		return "", "", false
+	}
+	return k, rec, true
+}
+
+// Layout is the C type's layout on this target, or why it has none.
+func (tg *Target) Layout(name string) (StructLayout, error) {
+	k, _, ok := tg.CStruct(name)
+	if !ok {
+		return StructLayout{}, fmt.Errorf("%s has no C layout (llvm.md §6b): its header states none", core.ShowSet(name))
+	}
+	f, err := tg.fold(k)
 	if err != nil {
 		return StructLayout{}, err
 	}
@@ -76,40 +113,62 @@ type folded struct {
 	size, align int64
 }
 
-// PlantNaturalLayout ignores a struct's packing: commdlg's structs on i686 are
-// laid out naturally, PRINTDLGA 68 bytes where it is 66 (records-research §2.1).
+// PlantNaturalLayout ignores a layout's packing: richedit's pack(4) structs on
+// x86_64 are laid out naturally, FORMATRANGE 8-aligned where it is 4.
 var PlantNaturalLayout bool
 
-func (tg *Target) fold(ty string) (folded, error) {
-	labels, types, pack := core.StructFields(ty)
+// fold is the layout of the C type k, a qualified name with a layout. A
+// field's type is read off the set's definition as written, so a field whose
+// type is another C type with a layout (FORMATRANGE's rc, a RECT) is laid out
+// as that type, and any other field is a C scalar.
+func (tg *Target) fold(k string) (folded, error) {
+	lay := tg.Layouts[k]
+	mod := moduleOf(k)
+	raw := tg.Aliases[k]
+	labels, types := core.RecordFields(raw)
+	if labels == nil {
+		return folded{}, fmt.Errorf("%s's layout names a set that is no record: %s", k, core.ShowSet(raw))
+	}
+	typeOf := map[string]string{}
+	for i, l := range labels {
+		typeOf[l] = types[i]
+	}
+	if len(lay.Fields) != len(labels) {
+		return folded{}, fmt.Errorf("%s's layout lists %d fields and its record has %d labels: a layout "+
+			"orders the record's labels, each once (llvm.md §6b)", k, len(lay.Fields), len(labels))
+	}
+	pack := lay.Pack
 	if PlantNaturalLayout {
 		pack = 0
 	}
 	var f folded
 	off := int64(0)
 	f.align = 1
-	for i, ct := range types {
+	for _, l := range lay.Fields {
+		ct, ok := typeOf[l]
+		if !ok {
+			return folded{}, fmt.Errorf("%s's layout names %s, which its record does not have", k, core.Spell(l))
+		}
 		var fl foldedField
-		ct = tg.UnfoldType("", ct)
-		switch {
-		case core.IsStruct(ct):
-			sub, err := tg.fold(ct)
+		if n, _, ok := tg.CStruct(tg.qualifyName(mod, ct)); ok {
+			sub, err := tg.fold(n)
 			if err != nil {
 				return folded{}, err
 			}
 			fl.sub, fl.size, fl.align = &sub, sub.size, sub.align
-		default:
-			ll, cross, signed, ok := tg.CType(ct)
-			if !ok || ll == "void" || cross == "cstr" || cross == "elems" {
-				return folded{}, fmt.Errorf("the struct's field %s ∈ %s is no C scalar type this layout holds "+
-					"(llvm.md §6b)", core.Spell(labels[i]), core.ShowSet(ct))
+		} else {
+			u := tg.UnfoldType(mod, ct)
+			cll, cross, signed, ok := tg.CType(u)
+			if !ok || cll == "void" || cross == "cstr" || cross == "elems" {
+				return folded{}, fmt.Errorf("%s's field %s ∈ %s is no C scalar type this layout holds "+
+					"(llvm.md §6b)", k, core.Spell(l), core.ShowSet(u))
 			}
-			fl.ll, fl.trunc, fl.signed = ll, cross == "trunc", signed
-			k, err := tg.cSize(ll)
+			fl.ll, fl.trunc, fl.signed = cll, cross == "trunc", signed
+			sz, err := tg.cSize(cll)
 			if err != nil {
 				return folded{}, err
 			}
-			fl.size, fl.align = k, k
+			fl.size, fl.align = sz, sz
 		}
 		a := fl.align
 		if pack > 0 && int64(pack) < a {
@@ -124,16 +183,24 @@ func (tg *Target) fold(ty string) (folded, error) {
 		f.fields = append(f.fields, fl)
 	}
 	f.size = (off + f.align - 1) / f.align * f.align
-	// the record view's order: the labels sorted by spelling, as RecordFields
-	view, _ := core.RecordFields(ty)
-	for _, l := range view {
-		for i, m := range labels {
+	// the record view's order, the labels sorted by spelling, as RecordFields
+	for _, l := range labels {
+		for i, m := range lay.Fields {
 			if m == l {
 				f.canonical = append(f.canonical, i)
 			}
 		}
 	}
 	return f, nil
+}
+
+// qualifyName resolves a set name written in module mod to its qualified key,
+// or returns it as written.
+func (tg *Target) qualifyName(mod, n string) string {
+	if k, _, ok := tg.alias(mod, n); ok {
+		return k
+	}
+	return n
 }
 
 // cSize is an LLVM scalar's size in bytes on this triple: iw is w/8, and a
@@ -159,17 +226,20 @@ func (tg *Target) cSize(ll string) (int64, error) {
 	return 0, fmt.Errorf("an LLVM %s has no size this layout states", ll)
 }
 
-// FieldLayout is a struct's top-level fields in their C order with each one's
-// offset, and its size and alignment: what clang's layout is compared with.
-func (tg *Target) FieldLayout(ty string) ([]string, []int64, int64, int64, error) {
-	f, err := tg.fold(ty)
+// FieldLayout is a C type's fields in their C order with each one's offset,
+// and its size and alignment: what clang's layout is compared with.
+func (tg *Target) FieldLayout(name string) ([]string, []int64, int64, int64, error) {
+	k, _, ok := tg.CStruct(name)
+	if !ok {
+		return nil, nil, 0, 0, fmt.Errorf("%s has no C layout", name)
+	}
+	f, err := tg.fold(k)
 	if err != nil {
 		return nil, nil, 0, 0, err
 	}
-	labels, _, _ := core.StructFields(ty)
 	offs := make([]int64, len(f.fields))
 	for i, fl := range f.fields {
 		offs[i] = fl.off
 	}
-	return labels, offs, f.size, f.align, nil
+	return tg.Layouts[k].Fields, offs, f.size, f.align, nil
 }

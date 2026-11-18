@@ -391,7 +391,7 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 		return s, nil
 	case OCellRef:
 		// a struct's, (cell-ref τ %leaf…) (llvm.md §6b), or a scalar's below
-		if len(args) >= 2 && args[0].Kind != core.KName {
+		if len(args) >= 2 && args[0].Kind == core.KName && !strings.HasPrefix(args[0].Name, "%") {
 			if s.Type, err = typeOf(args[0]); err != nil {
 				return s, err
 			}

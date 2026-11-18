@@ -1576,11 +1576,6 @@ func (p *parser) primary() (Expr, error) {
 				p.next()
 				return p.recordFormer()
 			}
-		case "struct":
-			if p.peekN(1).text == "{" || p.peekN(1).text == "pack" && p.peekN(2).text == "(" {
-				p.next()
-				return p.structFormer()
-			}
 		case "if":
 			p.next()
 			return p.ifExpr()

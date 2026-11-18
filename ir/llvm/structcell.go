@@ -19,6 +19,15 @@ import (
 // field's address is known to keep (records-research §3.2's corollary), so a
 // larger `align` would be a claim no proof stands behind.
 
+// isCStruct reports a C type with a layout.
+func (p *printer) isCStruct(ty string) bool {
+	if ty == "" {
+		return false
+	}
+	_, _, ok := p.tg.CStruct(ty)
+	return ok
+}
+
 // leafAlign is min(A, o & −o), A when o is 0.
 func leafAlign(a, o int64) int64 {
 	if o == 0 {
@@ -43,7 +52,7 @@ var PlantLeafAlignNatural bool
 // structCell prints a struct cell's statement, or reports it is not one.
 func (p *printer) structCell(s *ir.Stmt) bool {
 	switch {
-	case (s.Op == ir.OCellRef || s.Op == ir.OCellFresh) && core.IsStruct(s.Type):
+	case (s.Op == ir.OCellRef || s.Op == ir.OCellFresh) && p.isCStruct(s.Type):
 		lay, err := p.tg.Layout(s.Type)
 		if err != nil {
 			p.fail("%v", err)

@@ -143,10 +143,9 @@ assert use module provides pub export axiom true false`.
 **Contextual**, keywords only in the clause positions the grammar gives them, identifiers everywhere
 else: `where ensure invariant pure index variadic inout out linear as host expr stmt call stdcall cdecl import lib checked
 jump comma_ok success relevant`; `mod`, an operator only between two operands (ADR 0082); `record`
-before a brace, a record's former, and `with` between a value and a brace, override (ADR 0128);
-`struct` and `pack` before a brace, a host struct's set in a header module (llvm.md §6b); and the
+before a brace, a record's former, and `with` between a value and a brace, override (ADR 0128); and the
 model's data words (`repr word niche narrow structural backend link build artifact data include fact
-underlying read write realize glue triple runtime`, §2.12; `realize` states which declarations
+underlying read write realize glue triple runtime c pack`, §2.12; `realize` states which declarations
 interpret a language name, ADR 0088; `glue` glues another target's fragments into this one, and
 `triple` is an LLVM target's triple, ADR 0093; `runtime` names the module its code generator calls
 into, ADR 0123).

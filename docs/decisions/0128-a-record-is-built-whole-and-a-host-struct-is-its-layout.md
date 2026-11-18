@@ -70,9 +70,12 @@ Measured on both triples with clang 23.1.4 and SDK 10.0.26100.0 (records-researc
 **A host struct** (records-research §3.2–§3.4):
 
 8. **A host struct is a record set with its codec**, declared in its header module (`windef`'s
-   `RECT`, `winuser`'s `MSG`, `commdlg`'s `OPENFILENAMEA`; ADR 0126). Its fields are listed in the C
-   definition's order, each with its C type name, whose set is its type's whole value set
-   (ADR 0126 item 4).
+   `RECT`, `winuser`'s `MSG`, `commdlg`'s `OPENFILENAMEA`; ADR 0126), as two statements: the set,
+   `set RECT = record { left ∈ winnt.LONG, … }`, each component its C type's name, whose set is its
+   type's whole value set (ADR 0126 item 4); and its representation at a C boundary,
+   `repr RECT c(left, top, right, bottom) [pack(p)]`, the record's labels in the C definition's
+   order (hamza, 2026-11-18: "go ahead", on making the layout a `repr`, not a set former). The
+   C type's name denotes the set and selects the layout, so a cell of it keeps the name.
 9. **Its layout is derived, never chosen** (ADR 0094's rule, from a prototype to a definition). It is
    the fold L_{M,p,d}:
    - off(l₁) = 0, and off(lᵢ₊₁) = ⌈off(lᵢ) + k_{lᵢ}⌉ at min(a_{lᵢ₊₁}, p);

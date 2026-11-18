@@ -171,6 +171,12 @@ func (tg *Target) unfoldAliases() error {
 		mod := moduleOf(n)
 		var err error
 		sub := func(ty string) string {
+			// a cell of a C type with a layout keeps its name (UnfoldType)
+			if core.IsCell(ty) {
+				if k, _, ok := tg.alias(mod, core.CellElem(ty)); ok && tg.Layouts[k].Fields != nil {
+					return "cell " + k
+				}
+			}
 			return mapTypeNames(ty, func(m string) string {
 				if err != nil {
 					return m
@@ -288,6 +294,14 @@ func (tg *Target) unfoldSig(name string, sig *core.Sig) {
 func (tg *Target) UnfoldType(mod, ty string) string {
 	if len(tg.Aliases) == 0 {
 		return ty
+	}
+	// A CELL OF A C TYPE WITH A LAYOUT keeps the type's name (llvm.md §6b): the
+	// name denotes the record set and selects the layout, and unfolded to its
+	// record the layout would be lost. Anywhere else the name unfolds to its set.
+	if core.IsCell(ty) {
+		if k, _, ok := tg.alias(mod, core.CellElem(ty)); ok && tg.Layouts[k].Fields != nil {
+			return "cell " + k
+		}
 	}
 	for i := 0; i < 16; i++ {
 		next := mapTypeNames(ty, func(m string) string {

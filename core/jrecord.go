@@ -26,11 +26,6 @@ import (
 const (
 	RecName    = "#rec"
 	RecSetName = "#recset"
-	// StructSetName is a host struct's set, (#structset "p" "l₁ … lₙ" S₁ … Sₙ)
-	// in its C definition's order, p its packing or "" (llvm.md §6b, ADR 0128
-	// item 8): a record set to the language, whose order and packing are the
-	// layout's, read by the LLVM printer alone.
-	StructSetName = "#structset"
 	GetName    = "#get"
 	WithName   = "#with"
 	// ZeroName is the language's zero of a record set, `zero(T)` (data.md
@@ -269,63 +264,4 @@ func (p *parser) override(base Expr) (Expr, error) {
 	}
 	b := &Var{Name: "#wb"}
 	return &Apply{Fn: &Lam{Params: params, Body: update(b, b, root)}, Args: args}, nil
-}
-
-// structFormer reads `struct { l ∈ S, … }` or `struct pack(p) { … }`, after
-// `struct`: a host struct's set, its fields in its C definition's order, which
-// is the layout's and not erased (llvm.md §6b).
-func (p *parser) structFormer() (Expr, error) {
-	pack := ""
-	if p.is("pack") && p.peekN(1).text == "(" {
-		p.next()
-		p.next()
-		t := p.next()
-		if t.kind != tInt || !p.accept(")") {
-			return nil, p.errorf("a struct's packing is `pack(p)`, p a power of two (llvm.md §6b)")
-		}
-		pack = t.text
-	}
-	if err := p.expect("{"); err != nil {
-		return nil, err
-	}
-	p.open(true)
-	args := []Expr{&Lit{T: Str(pack)}, nil}
-	var labels []string
-	seen := map[string]bool{}
-	for !p.is("}") {
-		t := p.next()
-		if t.kind != tIdent {
-			p.close()
-			return nil, p.errorf("a struct's field is an identifier, not %s", t)
-		}
-		l := Unspell(t.text)
-		if seen[l] {
-			p.close()
-			return nil, p.errorf("the field %s appears twice in one struct (X1)", t.text)
-		}
-		seen[l] = true
-		if !p.accept("∈") {
-			p.close()
-			return nil, p.errorf("a struct's field %s is followed by `∈ S`, its C type's set (llvm.md §6b)", t.text)
-		}
-		e, err := p.expr()
-		if err != nil {
-			p.close()
-			return nil, err
-		}
-		labels = append(labels, l)
-		args = append(args, e)
-		if !p.accept(",") {
-			break
-		}
-	}
-	p.close()
-	if err := p.expect("}"); err != nil {
-		return nil, err
-	}
-	if len(labels) == 0 {
-		return nil, p.errorf("a struct has at least one field")
-	}
-	args[1] = &Lit{T: Str(strings.Join(labels, " "))}
-	return &Apply{Fn: &Var{Name: StructSetName}, Args: args}, nil
 }

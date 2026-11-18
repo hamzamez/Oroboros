@@ -489,7 +489,7 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 			case OCellGet:
 				if s.Lit != nil {
 					// a struct cell's leaf, the leaf's set (llvm.md §6b)
-					if lt := structLeafType(f, s); lt != "" {
+					if lt := structLeafType(tg, f, s); lt != "" {
 						is(s.Res[0], lt)
 					}
 				} else {
@@ -1002,12 +1002,13 @@ func roundsToZ(ty string) bool {
 
 // structLeafType is the set leaf Lit of a struct cell holds, read off the
 // statement that made the cell's reference.
-func structLeafType(f *Func, s *Stmt) string {
-	st := structOfCell(f, s.Args[0])
+func structLeafType(tg *emit.Target, f *Func, s *Stmt) string {
+	st := structOfCell(tg, f, s.Args[0])
 	if st == "" || s.Lit == nil {
 		return ""
 	}
-	ts := core.RecordLeafTypes(st)
+	_, rec, _ := tg.CStruct(st)
+	ts := core.RecordLeafTypes(rec)
 	if j := int(s.Lit.Int); j >= 0 && j < len(ts) {
 		return ts[j]
 	}
@@ -1015,13 +1016,16 @@ func structLeafType(f *Func, s *Stmt) string {
 }
 
 // structOfCell is the struct a cell reference's statement names, or "".
-func structOfCell(f *Func, v V) string {
+func structOfCell(tg *emit.Target, f *Func, v V) string {
 	var found string
 	var walk func(r *Region)
 	walk = func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
-			if (s.Op == OCellRef || s.Op == OCellFresh) && len(s.Res) == 1 && s.Res[0] == v && core.IsStruct(s.Type) {
+			if (s.Op == OCellRef || s.Op == OCellFresh) && len(s.Res) == 1 && s.Res[0] == v && s.Type != "" {
+				if _, _, ok := tg.CStruct(s.Type); !ok {
+					continue
+				}
 				found = s.Type
 			}
 			for _, sub := range s.Sub {

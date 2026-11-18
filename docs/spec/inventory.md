@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 179 words of the core**, and j.md §1.4's keywords.
+**Result: 180 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 146 |
+| `specified` — a spec states it | 147 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -216,6 +216,7 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `glue` | specified — `glue TARGET`, that target's fragments glued into this one (⊔, agreement required); a header with no body is an operation a glued layer must define | [ADR 0093](../decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md), [target-system.md](target-system.md) §2.1, §5.2a |
 | `triple` | specified — an LLVM target's triple, target data, never a default | [ADR 0093](../decisions/0093-the-llvm-layer-is-a-theory-with-a-parameter-and-windows-instantiates-it.md), [llvm.md](llvm.md) §2 |
 | `runtime` | specified — `runtime "FILE.ll"`, the module a triple's code generator calls into (i686's 64-bit division), written from the language by `gen -runtime` and linked into every program | [ADR 0123](../decisions/0123-a-triples-runtime-is-a-library-in-the-language.md), [llvm.md](llvm.md) §2 |
+| `c-layout` | specified — `repr NAME c(l, …) [pack(p)]` in a header module, read as `(c-layout NAME "p" "l" …)`: the record set NAME's representation at a C boundary, its labels in the C definition's order (ADR 0128 item 8) | [llvm.md](llvm.md) §6b |
 
 ### Header and host clauses
 

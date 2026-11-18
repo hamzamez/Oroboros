@@ -1,6 +1,6 @@
 // windef.h, THE WINDOW SYSTEM'S HANDLES (ADR 0126), each a DECLARE_HANDLE
 // in the Windows SDK 10.0.26100.0's shared/windef.h, so `ptr`; COLORREF,
-// typedef DWORD COLORREF; and its structs, each its C definition, fields in
+// typedef DWORD COLORREF; and its structs, each a record set and its C layout,
 // the definition's order (llvm.md §6b, ADR 0128).
 module windows/windef {
     use windows/winnt
@@ -11,7 +11,9 @@ module windows/windef {
     set HBRUSH = ptr
     set COLORREF = 0..2^32-1
     // typedef struct tagRECT { LONG left; LONG top; LONG right; LONG bottom; } RECT
-    set RECT = struct { left ∈ winnt.LONG, top ∈ winnt.LONG, right ∈ winnt.LONG, bottom ∈ winnt.LONG }
+    set RECT = record { left ∈ winnt.LONG, top ∈ winnt.LONG, right ∈ winnt.LONG, bottom ∈ winnt.LONG }
+    repr RECT c(left, top, right, bottom)
     // typedef struct tagPOINT { LONG x; LONG y; } POINT
-    set POINT = struct { x ∈ winnt.LONG, y ∈ winnt.LONG }
+    set POINT = record { x ∈ winnt.LONG, y ∈ winnt.LONG }
+    repr POINT c(x, y)
 }

@@ -470,6 +470,10 @@ type Target struct {
 	// and no realization (theories.md §2 at the type level). Unfolded on the
 	// glued target, after which no alias name occurs anywhere: emit/alias.go.
 	Aliases map[string]string
+	// Layouts are the C types' layouts, `repr NAME c(l…) pack(p)` (llvm.md §6b,
+	// ADR 0128 item 8): the representation of the record set NAME at a C
+	// boundary, by NAME qualified, its fields in the C definition's order.
+	Layouts map[string]CLayout
 
 	// Deferred are the declarations whose types name a CONSTANT as a range
 	// endpoint, carried unparsed through the glue and elaborated once the target
@@ -804,21 +808,23 @@ func (tg *Target) cellForms() {
 		}
 		// A STRUCT'S CELL (llvm.md §6b): its set travels with the declaration, so
 		// the loader writes and reads the struct's leaves.
-		var types []string
+		var ctypes, records []string
+		some := false
 		for _, i := range p.CellParams {
-			ty := ""
+			c, r := "", ""
 			if i < len(p.Args) {
-				if st := tg.UnfoldType("", core.CellElem(p.Args[i])); core.IsStruct(st) {
-					ty = st
+				if n, rec, ok := tg.CStruct(core.CellElem(p.Args[i])); ok {
+					c, r, some = n, rec, true
 				}
 			}
-			types = append(types, ty)
+			ctypes, records = append(ctypes, c), append(records, r)
 		}
-		if strings.Join(types, "") == "" {
-			types = nil
+		if !some {
+			ctypes, records = nil, nil
 		}
 		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "cells", Name: local,
-			Term: core.CellDeclTerm(core.CellDecl{Params: p.CellParams, List: p.CellList, Arity: p.Arity, Types: types})})
+			Term: core.CellDeclTerm(core.CellDecl{Params: p.CellParams, List: p.CellList, Arity: p.Arity,
+				CTypes: ctypes, Records: records})})
 	}
 }
 
@@ -2101,6 +2107,15 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	if tg.Aliases == nil && len(o.Aliases) > 0 {
 		tg.Aliases = map[string]string{}
 	}
+	for n, l := range o.Layouts {
+		if old, ok := tg.Layouts[n]; ok && strings.Join(old.Fields, " ") != strings.Join(l.Fields, " ") {
+			return fmt.Errorf("%s: %s's C layout is stated twice, differently", from, n)
+		}
+		if tg.Layouts == nil {
+			tg.Layouts = map[string]CLayout{}
+		}
+		tg.Layouts[n] = l
+	}
 	if err := combineMap(tg.Aliases, o.Aliases, "manifest type", from, how); err != nil {
 		return err
 	}
@@ -2285,7 +2300,7 @@ func (tg *Target) CType(set string) (ll, cross string, signed, ok bool) {
 			return "ptr", "", false, true
 		}
 		// A STRUCT'S CELL is the address of its region (llvm.md §6b).
-		if _, err := tg.Layout(tg.UnfoldType("", core.CellElem(set))); err == nil {
+		if _, _, ok := tg.CStruct(core.CellElem(set)); ok {
 			return "ptr", "", false, true
 		}
 		return "", "", false, false
@@ -3585,6 +3600,22 @@ func declareModule(frag *Target, f *core.Term, prefix, path string) error {
 			if err := parseType(inner, frag, mod, path); err != nil {
 				return err
 			}
+		case "c-layout":
+			// `repr NAME c(l…) pack(p)`: NAME's layout at a C boundary (llvm.md §6b)
+			if len(inner.Kids) < 4 || inner.Kids[1].Kind != core.KName || inner.Kids[2].Kind != core.KStr {
+				return fmt.Errorf("%s: `repr NAME c(l, …) [pack(p)]`, got %s", path, inner)
+			}
+			l := CLayout{}
+			if s := inner.Kids[2].Str; s != "" {
+				fmt.Sscan(s, &l.Pack)
+			}
+			for _, k := range inner.Kids[3:] {
+				l.Fields = append(l.Fields, k.Str)
+			}
+			if frag.Layouts == nil {
+				frag.Layouts = map[string]CLayout{}
+			}
+			frag.Layouts[qualify(mod, inner.Kids[1].Name)] = l
 		default:
 			if err := frag.declare(inner, mod, path); err != nil {
 				return err

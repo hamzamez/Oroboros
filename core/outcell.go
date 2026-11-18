@@ -42,9 +42,10 @@ type CellDecl struct {
 	Params []int
 	List   int
 	Arity  int
-	// Types are the cell parameters' element sets, where the target states
-	// one: a host struct's (llvm.md §6b), whose cell holds its leaves.
-	Types []string
+	// CTypes are the cell parameters' C type names where the type has a C
+	// layout (llvm.md §6b), and Records their record sets: such a cell holds
+	// its record's leaves. Both "" for any other cell.
+	CTypes, Records []string
 }
 
 // CellDeclTerm is the form a target hands the loader, (cells ARITY LIST i…).
@@ -53,8 +54,8 @@ func CellDeclTerm(d CellDecl) *Term {
 	for _, i := range d.Params {
 		kids = append(kids, Int(int64(i)))
 	}
-	for _, ty := range d.Types {
-		kids = append(kids, Str(ty))
+	for i := range d.CTypes {
+		kids = append(kids, Str(d.CTypes[i]), Str(d.Records[i]))
 	}
 	return &Term{Kind: KApp, Kids: kids}
 }
@@ -64,18 +65,22 @@ func readCellDecl(t *Term) (CellDecl, error) {
 		return CellDecl{}, fmt.Errorf("a cells form is (cells ARITY LIST i…), got %s", t)
 	}
 	var ints []int
-	var types []string
+	var strs []string
 	for _, k := range t.Kids[1:] {
 		switch {
 		case k.Kind == KStr:
-			types = append(types, k.Str)
-		case k.Kind == KInt && types == nil:
+			strs = append(strs, k.Str)
+		case k.Kind == KInt && strs == nil:
 			ints = append(ints, int(k.Int))
 		default:
-			return CellDecl{}, fmt.Errorf("a cells form is (cells ARITY LIST i… \"τ\"…), got %s", t)
+			return CellDecl{}, fmt.Errorf("a cells form is (cells ARITY LIST i… \"C\" \"R\"…), got %s", t)
 		}
 	}
-	return CellDecl{Arity: ints[0], List: ints[1], Params: ints[2:], Types: types}, nil
+	d := CellDecl{Arity: ints[0], List: ints[1], Params: ints[2:]}
+	for i := 0; i+1 < len(strs); i += 2 {
+		d.CTypes, d.Records = append(d.CTypes, strs[i]), append(d.Records, strs[i+1])
+	}
+	return d, nil
 }
 
 // at reports whether argument i of a call is a cell parameter.
@@ -91,14 +96,15 @@ func (d CellDecl) at(i int) bool {
 	return false
 }
 
-// structAt is the host struct the cell parameter at argument i holds, or "".
-func (d CellDecl) structAt(i int) string {
+// structAt is the C type with a layout the cell parameter at argument i
+// holds, and its record set, or "".
+func (d CellDecl) structAt(i int) (string, string) {
 	for j, p := range d.Params {
-		if p == i && j < len(d.Types) && IsStruct(d.Types[j]) {
-			return d.Types[j]
+		if p == i && j < len(d.CTypes) && d.CTypes[j] != "" {
+			return d.CTypes[j], d.Records[j]
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // cellCall reports a call of a declaration with cell parameters.
@@ -148,14 +154,14 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 			kids = append(kids, a)
 			continue
 		}
-		st := d.structAt(i)
+		st, rec := d.structAt(i)
 		switch {
 		case a.Kind == KName && c.isCell(a.Name) && st != "":
 			// A STRUCT'S CELL IS A REFERENCE TO ITS LEAVES (llvm.md §6b): the
 			// region the printer lays out, written with the record's leaves in
 			// canonical order, and read back leaf by leaf.
 			ref := []*Term{Name(RefName), Str(st)}
-			for _, lf := range recordLeaves("", st, nil) {
+			for _, lf := range recordLeaves("", rec, nil) {
 				ref = append(ref, lf.read(a))
 			}
 			kids = append(kids, &Term{Kind: KApp, Kids: ref})
@@ -207,8 +213,8 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 		deref := func(at []int) []*Term {
 			out := make([]*Term, len(at))
 			for j, i := range at {
-				if st := d.structAt(i); st != "" {
-					out[j] = derefStruct(vs[i], st)
+				if st, rec := d.structAt(i); st != "" {
+					out[j] = derefStruct(vs[i], rec)
 					continue
 				}
 				out[j] = App(Name(DerefName), vs[i])

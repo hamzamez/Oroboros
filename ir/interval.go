@@ -902,7 +902,7 @@ func (a *intervals) stmt(s *Stmt) {
 	case OCellGet:
 		// A STRUCT CELL'S LEAF: its set (llvm.md §6b).
 		if s.Lit != nil {
-			if lt := structLeafType(a.f, s); lt != "" {
+			if lt := structLeafType(a.tg, a.f, s); lt != "" {
 				one(a.declared(lt))
 				return
 			}

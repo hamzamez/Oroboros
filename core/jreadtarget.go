@@ -163,6 +163,12 @@ func (p *parser) targetItem() (*Term, error) {
 	if (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == "∈" {
 		return p.hostConst()
 	}
+	// A C TYPE'S LAYOUT, `repr NAME c(l₁, …, lₙ) [pack(p)]` (llvm.md §6b, ADR
+	// 0128 item 8): the representation of the record set NAME at a C boundary,
+	// its fields in the C definition's order, read before the model's `repr`.
+	if t.kind == tIdent && t.text == "repr" && p.peekN(1).kind == tIdent && p.peekN(2).text == "c" && p.peekN(3).text == "(" {
+		return p.cLayout()
+	}
 	if t.kind == tIdent {
 		switch t.text {
 		case "repr", "include", "structural", "backend", "link", "build", "artifact", "data", "glue", "triple", "runtime",
@@ -992,4 +998,45 @@ func isBufferSet(e Expr) bool {
 	}
 	v, ok := a.Fn.(*Var)
 	return ok && v.Name == "buffer"
+}
+
+// cLayout reads `repr NAME c(l₁, …, lₙ) [pack(p)]` into (c-layout NAME "p"
+// "l₁" … "lₙ"): the layout is data the target loader keeps by the set's name,
+// its order and packing the C definition's (llvm.md §6b).
+func (p *parser) cLayout() (*Term, error) {
+	p.next() // repr
+	name := Name(p.setName(Unspell(p.next().text)))
+	p.next() // c
+	if err := p.expect("("); err != nil {
+		return nil, err
+	}
+	kids := []*Term{Name("c-layout"), name, Str("")}
+	for !p.is(")") {
+		t := p.next()
+		if t.kind != tIdent {
+			return nil, p.errorf("a C layout lists its record's labels in the C definition's order, not %s", t)
+		}
+		kids = append(kids, Str(Unspell(t.text)))
+		if !p.accept(",") {
+			break
+		}
+	}
+	if err := p.expect(")"); err != nil {
+		return nil, err
+	}
+	if p.is("pack") && !p.peek().nl {
+		p.next()
+		if err := p.expect("("); err != nil {
+			return nil, err
+		}
+		n := p.next()
+		if n.kind != tInt {
+			return nil, p.errorf("a C layout's packing is `pack(p)`, p a power of two, not %s", n)
+		}
+		kids[2] = Str(n.text)
+		if err := p.expect(")"); err != nil {
+			return nil, err
+		}
+	}
+	return app(kids...), nil
 }

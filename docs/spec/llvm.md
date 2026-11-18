@@ -412,22 +412,23 @@ refused when the target loads.
 
 ## 6b. A C struct: its layout derived from its definition (ADR 0128)
 
-A header module declares a struct by its C definition, its fields in the definition's order, each
-with its C type's name:
+A header module states a C struct as two things, the set and its representation at a C boundary:
 
 ```
-set RECT = struct { left ∈ LONG, top ∈ LONG, right ∈ LONG, bottom ∈ LONG }
-set PRINTDLGA = struct pack(1) { lStructSize ∈ DWORD, … }
+set RECT = record { left ∈ winnt.LONG, top ∈ winnt.LONG, right ∈ winnt.LONG, bottom ∈ winnt.LONG }
+repr RECT c(left, top, right, bottom)
+set CHARRANGE = record { cpMin ∈ winnt.LONG, cpMax ∈ winnt.LONG }
+repr CHARRANGE c(cpMin, cpMax) pack(4)
 ```
 
-**Its canonical type is the layout's data**, `struct{left: T; …}` in C order, with `struct/p{…}`
-under `#pragma pack(p)`. A struct's layout depends on its fields' order, their types and its
-packing alone, so two structs with the same fields in the same order and the same packing have
-one layout, and the type needs no name.
-
-**To the language it is a record set**: the same fields, labels in canonical order (data.md §4).
-`r.left`, `r with { … }`, `zero(RECT)` and the currying of a header are a record's. The order and
-the packing are read only by this printer.
+**The set is the language's record** (data.md §4): a function on its labels, with no order. `r.left`,
+`r with { … }`, `zero(RECT)` and a header's currying are a record's. **The layout is a
+representation** (ADR 0083: at a host boundary the host's, stated, never chosen): the record's labels
+in the C definition's order and its packing, read as the form `(c-layout NAME "p" "l" …)`, kept by
+the target under the set's qualified name and read by this printer alone. The name is the C type's, its typedef (ADR 0126), so it denotes the set
+and selects the layout, and a cell of it, `cell(windef.RECT)`, keeps the name where any other use
+unfolds it to its record. A field whose set is another C type with a layout (FORMATRANGE's
+`rc ∈ windef.RECT`) is laid out as that type.
 
 **The layout is the fold L_{M,p,d}** (records-research §3.2, Theorem L), over each field's size k and
 alignment a in the triple's data model M:
@@ -437,7 +438,7 @@ alignment a in the triple's data model M:
 - off₁ = 0, offᵢ₊₁ = ⌈offᵢ + kᵢ⌉ at aᵢ₊₁;
 - A = max aᵢ, N = ⌈end⌉ at A.
 
-**A cell of a struct**, `x ∈ cell(S)` (ADR 0048), is a region: `alloca [N x i8], align A`, zero
+**A cell of a C struct**, `x ∈ cell(S)` (ADR 0048), is a region: `alloca [N x i8], align A`, zero
 filled. `(#ref v)` then stores each of v's leaves, and `(#deref r)` loads each one back. A leaf at
 offset o is accessed at `getelementptr i8, ptr %c, i64 o` with its C type from §6a's table (the
 `trunc` in, the `sext` or `zext` out), aligned min(A, o & −o). Padding is the zero fill's. In the

@@ -629,6 +629,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A record is built whole: `record { l ∈ S }` a set, `record { l : e }` a value, `r.l`, `r with { p : e }` an override along prefix-free paths, `zero(T)`; wherever a tuple goes, three positions lifted; a host struct is its layout, derived (Theorem L, pack the data model's) and checked against clang; a determined field the declaration's (Theorem F) | [0128](docs/decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md) |
 | A struct parameter is its prototype: the bare set is the value, passed by the triple's ABI (Win64 `iN` for 1, 2, 4 or 8 bytes, else the copy's address; i686 `byval`), and `in` marked `_In_`'s const T* (reversed by 0130); amends 0128 item 13 | [0129](docs/decisions/0129-a-struct-parameter-is-its-prototype.md) |
 | `const T*` is the call's argument term `ref(x)`, &x of a fresh copy, not a mode of the header: a mode is what a program observes; reverses 0129 item 2 | [0130](docs/decisions/0130-const-t-star-is-the-calls-ref-x.md) |
+| An `_Out_` parameter is a result of the declaration, its address the call's `out(r)`; `_Inout_` stays a cell, Go's `out τ` where the program chooses τ (not built) | [0131](docs/decisions/0131-an-out-parameter-is-a-result.md) |
 
 ## Build commands
 

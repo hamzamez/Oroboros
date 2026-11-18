@@ -316,9 +316,11 @@ there.
     defunctionalization (Reynolds 1972) has one constructor and needs no dispatch.
   - E is a record of the captured values and pointers to the written cells, an `alloca` in the
     caller's frame. This is sound because the λ is L: the frame outlives every activation.
-  - **The context word carries E's address**, where the API passes one (291 of 349). It is a
-    determined argument, as `= size` is a determined field (Theorem F, ADR 0128 item 12): the
-    declaration states it, and the program's call omits it.
+  - **The context word carries E's address**, where the API passes one (291 of 349). No program
+    observes it, so it is representation, and it is written where representation is: the API's
+    call takes it as an argument term, `ctx(f)`, beside `ref(x)` and `elem(b, lo)` (ADR 0118,
+    0130), and the program's call omits it. *Corrected 2026-11-18*: first proposed as a determined
+    parameter of the header, `= context(f)`, the fault ADR 0130 removed from `in`.
   - **Where the API passes none** (33 of 349, and `qsort`), E is found through a slot,
     callbacks-research §3.5's evidence. Writing the slot is a dynamically scoped binding: save the
     old value, write E's address, call, restore. That is shallow binding (Baker, "Shallow binding in
@@ -352,15 +354,25 @@ naturals, `calls 1`, `calls 0..1`, `calls 0..`, because a usage interval is a ra
 already sets (ADR 0077). No new vocabulary is needed for it beyond the word `calls`.
 
 For a C declaration (ADR 0094 by prototype, ADR 0126 by header), the callback's typedef is a named
-claim. The context parameter is marked on it, and the API's context argument is determined:
+claim, and **the claim is the program's view**: the λ's parameters as the program sees them, with
+no context word, which no program observes (ADR 0130's test). Where C carries the environment is
+representation, in two places, as a struct's layout and its `&x` are:
 
 ```
-set WNDENUMPROC = fn(h ∈ HWND, l ∈ LPARAM context) (BOOL) calls 0.. ordered
-fn EnumWindows(lpEnumFunc ∈ WNDENUMPROC, lParam ∈ LPARAM = context(lpEnumFunc)) (BOOL)
+set WNDENUMPROC = fn(h ∈ HWND) (BOOL) calls 0.. ordered
+repr WNDENUMPROC c(h, ctx) stdcall
+fn EnumWindows(lpEnumFunc ∈ WNDENUMPROC) (r ∈ BOOL) { host expr call "EnumWindows"(lpEnumFunc, ctx(lpEnumFunc)) stdcall lib "user32" }
 ```
 
-The program calls `winuser.EnumWindows(fn(h) { … })`, and the λ's parameter list omits the context
-binder, which the lifted function fills from E.
+- `repr WNDENUMPROC c(h, ctx) stdcall` is the callback's C signature: its C parameters in order,
+  each a claim parameter or `ctx`, the word where E's address arrives, with the convention. The
+  lifted function is printed from it and fills `ctx`'s position from E. A typedef with no `ctx`
+  (the 33 with neither, §2.2) finds E through the slot.
+- `ctx(f)` is a C argument term, the address of f's environment, where the API passes it.
+
+The program calls `winuser.EnumWindows(fn(h) { … })`, and its λ has the claim's parameters.
+*Corrected 2026-11-18*: first written with the context in the header, `l ∈ LPARAM context` and
+`lParam ∈ LPARAM = context(lpEnumFunc)`.
 
 ## 4. The targets
 
@@ -425,9 +437,12 @@ binder, which the lifted function fills from E.
    escaping callbacks, or kept refused until a program needs it. I recommend deciding it now and
    building it when a program writes one, since the rule is Theorem P's and the refusal's reason was
    concurrency.
-5. **The context word on a C declaration**: marked on the callback's typedef as `context`, and
-   determined on the API's parameter as `= context(f)`, with a slot (shallow binding) where the API
-   has none. The spelling is for hamza.
+5. **The context word on a C declaration** is representation, written where representation is:
+   the callback type's C signature as a `repr`, `repr WNDENUMPROC c(h, ctx) stdcall`, and the API's
+   context argument as a call term, `ctx(f)`. A slot (shallow binding) serves where the API has
+   none. The claim is the program's view, `fn(h ∈ HWND) (BOOL)`. The words `ctx` and `c(…)` for a
+   callback are for hamza. (Corrected 2026-11-18, after ADR 0130: this was a determined parameter
+   of the header.)
 6. **The order of building.** The piece shared with the window procedure comes first: a function of
    ours printed with the host's C convention, its address a value. Then whichever of tier 1 and the
    window procedure the plan reaches first. For plan item 6, TinyRetroPad, that is the window

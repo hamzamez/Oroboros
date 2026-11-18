@@ -4,5 +4,5 @@
 module windows/errhandlingapi {
     use windows/minwindef
 
-    fn GetLastError() (r ∈ minwindef.DWORD) { host expr call "GetLastError" stdcall lib "kernel32" }
+    fn GetLastError() (r ∈ minwindef.DWORD) { host expr call GetLastError stdcall lib "kernel32" }
 }

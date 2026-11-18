@@ -256,6 +256,22 @@ address of a fresh copy of its value, and after it the cell holds what the copy 
 Reynolds' `new x in C` read operationally, and it is exactly what hand-written Go does with
 `fmt.Sscan(s, &age)`.
 
+**A C declaration's `_Out_` is a result, not a cell** (ADR 0131). Where the host writes T and never
+reads it, f' : X → R × T, and the declaration says so: the T is a component of its result tuple,
+the cells' values first, then the C function's own result, and its address is the call's `&r`:
+
+```
+fn GetClientRect(w ∈ windef.HWND) (rc ∈ windef.RECT, r ∈ minwindef.BOOL) {
+    host expr call GetClientRect(w, &rc) stdcall lib "user32"
+}
+// a program: (rc, ok) = winuser.GetClientRect(w)
+```
+
+The cell is the call's own, fresh, so no program can hand the host a value it overwrites unread, or
+read a zero the host did not write. A cell parameter, below, is the `_Inout_` form: a value the
+host reads and writes back, both observed. A Go declaration's cells of `...any` stay cells, since
+the program chooses their types (§6).
+
 **A declaration says which parameters are cells.** `(p (cell T))`: the host receives the address of
 a T, may read and write it during the call, and does not keep the address after the call returns.
 `(cell go.Value)` is a cell of any type, its address entering Go's box, which is what Go's `...any`
@@ -310,6 +326,10 @@ are arrays and objects, already buffers and handles), so no program reaches one 
 printers refuse a reference.
 
 ## 6. `(out τ)`: a cell for one call
+
+`out τ` is written where the program chooses τ, a cell of `...any` (`fmt.Sscan`). Where the
+declaration fixes T, a C function's `_Out_`, the T is the declaration's result and the program
+writes nothing at the call (§5, ADR 0131).
 
 ```lisp
 ((fmt.Sscan "42 ana" (out int) (out go.bytestring)) (fn (age name n e) …))

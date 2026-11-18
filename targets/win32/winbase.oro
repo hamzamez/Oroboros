@@ -9,12 +9,12 @@ module windows/winbase {
     // address), answering d: a write-borrow with a result (ADR 0070), where a
     // void copy would be a statement over a buffer, which is not built. The
     // language reads nothing through s (ADR 0084).
-    fn lstrlenA(p ∈ ptr) (r ∈ minwindef.INT) { host expr call "lstrlenA" stdcall lib "kernel32" }
-    fn lstrcpynA(d ∈ Array(0..255) linear, s ∈ ptr, n ∈ minwindef.INT) (r ∈ ptr) where n >= 1 && n <= len(d) { host expr call "lstrcpynA" stdcall lib "kernel32" }
+    fn lstrlenA(p ∈ ptr) (r ∈ minwindef.INT) { host expr call lstrlenA stdcall lib "kernel32" }
+    fn lstrcpynA(d ∈ Array(0..255) linear, s ∈ ptr, n ∈ minwindef.INT) (r ∈ ptr) where n >= 1 && n <= len(d) { host expr call lstrcpynA stdcall lib "kernel32" }
 
     // THE GLOBAL HEAP (TinyRetroPad's clipboard and edit buffers): GlobalAlloc(
     // flags, size) a block, GMEM_FIXED (0) its address and GMEM_ZEROINIT (64)
     // zeroed, or null; GlobalFree(block) null on success, the block on failure.
-    fn GlobalAlloc(f ∈ minwindef.UINT, n ∈ basetsd.SIZE_T) (r ∈ minwindef.HGLOBAL) { host expr call "GlobalAlloc" stdcall lib "kernel32" }
-    fn GlobalFree(h ∈ minwindef.HGLOBAL) (r ∈ minwindef.HGLOBAL) { host expr call "GlobalFree" stdcall lib "kernel32" }
+    fn GlobalAlloc(f ∈ minwindef.UINT, n ∈ basetsd.SIZE_T) (r ∈ minwindef.HGLOBAL) { host expr call GlobalAlloc stdcall lib "kernel32" }
+    fn GlobalFree(h ∈ minwindef.HGLOBAL) (r ∈ minwindef.HGLOBAL) { host expr call GlobalFree stdcall lib "kernel32" }
 }

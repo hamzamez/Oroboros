@@ -138,8 +138,8 @@ entry:
   %.s12 = alloca i64
   %.s21 = alloca i64
   %.cell25 = alloca i32
-  %.s39 = alloca i64
-  %.s44 = alloca i64
+  %.s41 = alloca i64
+  %.s46 = alloca i64
   store i64 0, ptr %.s3
   store i64 1, ptr %.s4
   store i64 0, ptr %.s5
@@ -184,45 +184,47 @@ entry:
   %v28 = load i64, ptr %.s21
   store i32 0, ptr %.cell25
   %v37 = getelementptr i8, ptr %.cell25, i64 0
-  %.c26 = getelementptr inbounds i8, ptr %v1, i64 8
-  %.c27 = getelementptr inbounds i8, ptr %.c26, i64 %v6
-  %.c28 = trunc i64 %v28 to i32
-  %.c29 = call i32 @WriteFile(ptr %v0, ptr %.c27, i32 %.c28, ptr %v37, ptr null)
-  %v38 = sext i32 %.c29 to i64
-  %.c30 = load i32, ptr %v37
-  %v39 = zext i32 %.c30 to i64
-  %v41 = icmp eq i64 %v38, 0
-  br i1 %v41, label %.then32, label %.else33
-.then32:
-  %.c35 = call i32 @GetLastError()
-  %v44 = zext i32 %.c35 to i64
-  %v46 = icmp eq i64 %v44, 0
-  br i1 %v46, label %.then37, label %.else38
-.then37:
-  store i64 31, ptr %.s39
-  br label %.join34
-.else38:
-  store i64 %v44, ptr %.s39
-  br label %.join34
-.else33:
-  store i64 0, ptr %.s39
-  br label %.join34
-.join34:
-  %v42 = load i64, ptr %.s39
-  %v52 = icmp samesign sgt i64 %v39, %v28
-  br i1 %v52, label %.then41, label %.else42
-.then41:
-  store i64 %v28, ptr %.s44
-  br label %.join43
-.else42:
-  store i64 %v39, ptr %.s44
-  br label %.join43
-.join43:
-  %v53 = load i64, ptr %.s44
-  %v58 = add nuw nsw i64 %v6, %v53
-  store i64 %v58, ptr %.s3
-  store i64 %v53, ptr %.s4
-  store i64 %v42, ptr %.s5
+  %v38 = add nuw nsw i64 %v6, %v28
+  %.c27 = getelementptr inbounds i8, ptr %v1, i64 8
+  %.c28 = getelementptr inbounds i8, ptr %.c27, i64 %v6
+  %.c29 = sub i64 %v38, %v6
+  %.c30 = trunc i64 %.c29 to i32
+  %.c31 = call i32 @WriteFile(ptr %v0, ptr %.c28, i32 %.c30, ptr %v37, ptr null)
+  %v39 = sext i32 %.c31 to i64
+  %.c32 = load i32, ptr %v37
+  %v40 = zext i32 %.c32 to i64
+  %v42 = icmp eq i64 %v39, 0
+  br i1 %v42, label %.then34, label %.else35
+.then34:
+  %.c37 = call i32 @GetLastError()
+  %v45 = zext i32 %.c37 to i64
+  %v47 = icmp eq i64 %v45, 0
+  br i1 %v47, label %.then39, label %.else40
+.then39:
+  store i64 31, ptr %.s41
+  br label %.join36
+.else40:
+  store i64 %v45, ptr %.s41
+  br label %.join36
+.else35:
+  store i64 0, ptr %.s41
+  br label %.join36
+.join36:
+  %v43 = load i64, ptr %.s41
+  %v53 = icmp samesign sgt i64 %v40, %v28
+  br i1 %v53, label %.then43, label %.else44
+.then43:
+  store i64 %v28, ptr %.s46
+  br label %.join45
+.else44:
+  store i64 %v40, ptr %.s46
+  br label %.join45
+.join45:
+  %v54 = load i64, ptr %.s46
+  %v59 = add nuw nsw i64 %v6, %v54
+  store i64 %v59, ptr %.s3
+  store i64 %v54, ptr %.s4
+  store i64 %v43, ptr %.s5
   br label %.head1
 .else8:
   store i64 %v8, ptr %.s12

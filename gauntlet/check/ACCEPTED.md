@@ -3748,3 +3748,48 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/tuple-map.oro java`
 - new source — `gauntlet/differential/cases/tuple-map.oro js`
 - new source — `gauntlet/differential/cases/tuple-map.oro windows`
+
+## 2026-11-18 — on 3d47c905, with uncommitted changes
+
+**Reason:** ADR 0131 and 0132 built (ccall-2026-11-18): a C call written as C writes it, an _Out_ a result and a (pointer, count) one segment; on windows a whole table passes its length read at s, a segment &b[lo] and hi - lo, os's readinto and writeall each one proven lo + n more; win/print.write names the segment's end once and stays kept
+
+696 runs: 481 emitted, 215 refused; 8862 of 8916 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+36 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/errors/ignore.oro windows`
+- compiler output changed — `examples/errors/ignore.oro windows`
+- emitted text changed — `examples/hash/crc32.oro windows`
+- compiler output changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- compiler output changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- compiler output changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- compiler output changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- compiler output changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- compiler output changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- compiler output changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+- compiler output changed — `examples/num/ledger.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/nulfree.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
+- emitted text changed — `lib/win/print.oro windows`

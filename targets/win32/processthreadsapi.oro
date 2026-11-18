@@ -3,5 +3,5 @@
 module windows/processthreadsapi {
     use windows/minwindef
 
-    fn ExitProcess(a ∈ minwindef.UINT) (∅) { host expr call "ExitProcess" stdcall lib "kernel32" }
+    fn ExitProcess(a ∈ minwindef.UINT) (∅) { host expr call ExitProcess stdcall lib "kernel32" }
 }

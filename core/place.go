@@ -354,8 +354,11 @@ func (c *cellTr) translateBorrow(call *Term, d BorrowDecl, k *Term, inLoop bool,
 	// value is the lent buffers' versions, then the out-cells' values, then the
 	// declared result's components. Each `out S` is a fresh cell, read after
 	// the call; a cell in scope beside a borrow is not built.
-	args := append([]*Term(nil), call.Kids[1:]...)
 	var outAt []int
+	if cd, ok := c.cellCall(call); ok {
+		call = cd.fillOuts(call)
+	}
+	args := append([]*Term(nil), call.Kids[1:]...)
 	if cd, ok := c.cellCall(call); ok {
 		for i, a := range args {
 			if !cd.at(i) {
@@ -366,6 +369,9 @@ func (c *cellTr) translateBorrow(call *Term, d BorrowDecl, k *Term, inLoop bool,
 					"`out S` (a cell in scope there is not built, ADR 0112)", ShowTerm(call))
 			}
 			ty := TypeName(a.Kids[1])
+			if a.Kids[1].Kind == KStr { // a filled out-result's set (ADR 0131)
+				ty = a.Kids[1].Str
+			}
 			if ty == "" {
 				return nil, fmt.Errorf("%s: `out S` takes a set, got %s", ShowTerm(call), ShowTerm(a.Kids[1]))
 			}

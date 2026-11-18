@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 147 |
+| `specified` — a spec states it | 150 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -229,10 +229,13 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `index` | specified | [target-files.md](target-files.md) |
 | `import` | specified | [target-files.md](target-files.md) |
 | `lib` | specified | [target-files.md](target-files.md) |
-| `call` | specified — `host KIND call "SYMBOL" [stdcall \| cdecl]`, a C function by its prototype, its call derived by the C ABI on the triple | [ADR 0094](../decisions/0094-a-c-function-is-declared-by-its-prototype-and-the-c-abi-is-derived.md), [llvm.md](llvm.md) §6a |
-| `args` | specified — the reader's form for a C call's written arguments, `(call "SYMBOL" (args t…) CONV)`, each t a parameter, `elem`, `ref` or `null`, every parameter in exactly one | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
-| `elem` | specified — `elem(b, lo)`, a C argument: &b[lo], a table of bytes decayed and offset by lo, defined where the `where` states lo ≤ len(b) | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
-| `null` | specified — a C argument, C's `NULL` | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
+| `call` | specified — `host KIND call F[(a…)] [stdcall \| cdecl]`, a C function by its prototype, its call derived by the C ABI on the triple, its arguments written as C writes them (ADR 0131) | [ADR 0094](../decisions/0094-a-c-function-is-declared-by-its-prototype-and-the-c-abi-is-derived.md), [llvm.md](llvm.md) §6a |
+| `args` | specified — the reader's form for a C call's written arguments, `(call "F" (args t…) CONV)`, each t a parameter, `(amp x)`, `(elem b lo)`, `(len s)` or `null`, every parameter in exactly one | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
+| `elem` | specified — the reader's form `(elem b lo)` of C's `&b[lo]`, a table of bytes decayed and offset by lo, defined where the `where` states lo ≤ len(b); written `elem(b, lo)` it is refused naming `&b[lo]` (ADR 0131) | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
+| `null` | specified — the reader's form of C's `NULL` among a C call's arguments; written `null` there it is refused naming `NULL` (ADR 0131) | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
+| `amp` | specified — the reader's form `(amp x)` of C's `&x`: a struct parameter's const T* (ADR 0130), a cell's address, or a result's out-cell (ADR 0131) | [ADR 0131](../decisions/0131-an-out-parameter-is-a-result.md), [llvm.md](llvm.md) §6a |
+| `outs` | specified — a C declaration's header clause `(outs i…)`, the positions of the results written `&r`, each a trailing cell parameter the loader fills with `out T` | [ADR 0131](../decisions/0131-an-out-parameter-is-a-result.md), [llvm.md](llvm.md) §6a |
+| `segments` | specified — the loader's form `(segments i "F#seg")`: a call whose argument i is a segment b[lo:hi] is the declaration's segment variant's, rewritten before the state translation | [ADR 0132](../decisions/0132-a-c-functions-pointer-and-count-are-one-segment.md), [llvm.md](llvm.md) §6a |
 | `checked` | specified | [target-files.md](target-files.md) |
 | `jump` | specified | [windows-target.md](windows-target.md) |
 | `comma-ok` | specified — J's `comma_ok`: the host gives a declared `(option E)` as Go's pair (v, ok): H = [E, bool], r(e, b) = `some e` if b, else `none` | [typevalues.md](typevalues.md) §7 |
@@ -254,7 +257,7 @@ What a declaration's `host KIND …` or a `structural NAME KIND` may say.
 
 | word | status | where |
 |---|---|---|
-| `ref` | specified — a reference to a T: `(repr (ref T) (host …))`, a boxed representation; and `ref(x)`, a C argument, &x of a fresh copy of struct x's encoding, `const T*`, where a bare struct parameter is passed by value (ADR 0130) | [target-files.md](target-files.md), [theories.md](theories.md), [llvm.md](llvm.md) §6a |
+| `ref` | specified — a reference to a T: `(repr (ref T) (host …))`, a boxed representation; and `ref(x)`, the old spelling of a C argument, refused naming C's `&x`, a struct's const T* (ADR 0130, 0131) | [target-files.md](target-files.md), [theories.md](theories.md), [llvm.md](llvm.md) §6a |
 | `big` | specified — `repr big host` or `repr big limbs` | [target-files.md](target-files.md) |
 | `limbs` | specified | [target-files.md](target-files.md) |
 | `shift` | specified — `(repr shift N)` | [theories.md](theories.md) |

@@ -50,6 +50,12 @@ type CellDecl struct {
 	// DWORD's 0..2^32-1, "" for any other cell: a program's cell passed there
 	// owes its value's membership (translateCall).
 	Sets []string
+	// Outs are a C declaration's out-results (ADR 0131): cell parameters after
+	// its NArgs − len(Outs) declared ones, each of the set in OutSets, which a
+	// caller omits; the translation fills each with `out T`.
+	Outs    []int
+	OutSets []string
+	NArgs   int
 }
 
 // CellDeclTerm is the form a target hands the loader, (cells ARITY LIST i…).
@@ -61,6 +67,13 @@ func CellDeclTerm(d CellDecl) *Term {
 	for i := range d.CTypes {
 		kids = append(kids, Str(d.CTypes[i]), Str(d.Records[i]), Str(d.Sets[i]))
 	}
+	if len(d.Outs) > 0 {
+		outs := []*Term{Name("outs"), Int(int64(d.NArgs))}
+		for j, i := range d.Outs {
+			outs = append(outs, Int(int64(i)), Str(d.OutSets[j]))
+		}
+		kids = append(kids, &Term{Kind: KApp, Kids: outs})
+	}
 	return &Term{Kind: KApp, Kids: kids}
 }
 
@@ -70,8 +83,11 @@ func readCellDecl(t *Term) (CellDecl, error) {
 	}
 	var ints []int
 	var strs []string
+	var outs *Term
 	for _, k := range t.Kids[1:] {
 		switch {
+		case k.Kind == KApp && len(k.Kids) >= 2 && k.Kids[0].Kind == KName && k.Kids[0].Name == "outs":
+			outs = k
 		case k.Kind == KStr:
 			strs = append(strs, k.Str)
 		case k.Kind == KInt && strs == nil:
@@ -83,6 +99,12 @@ func readCellDecl(t *Term) (CellDecl, error) {
 	d := CellDecl{Arity: ints[0], List: ints[1], Params: ints[2:]}
 	for i := 0; i+2 < len(strs); i += 3 {
 		d.CTypes, d.Records, d.Sets = append(d.CTypes, strs[i]), append(d.Records, strs[i+1]), append(d.Sets, strs[i+2])
+	}
+	if outs != nil {
+		d.NArgs = int(outs.Kids[1].Int)
+		for j := 2; j+1 < len(outs.Kids); j += 2 {
+			d.Outs, d.OutSets = append(d.Outs, int(outs.Kids[j].Int)), append(d.OutSets, outs.Kids[j+1].Str)
+		}
 	}
 	return d, nil
 }
@@ -134,6 +156,12 @@ func (c *cellTr) cellCall(t *Term) (CellDecl, bool) {
 // program wrote, not a reference the translation bound: a compiler name,
 // which a program cannot write, is one.
 func (c *cellTr) asWritten(t *Term, d CellDecl) bool {
+	// a C call whose out-results the caller omits (ADR 0131): the translation
+	// fills them, exactly when fillOuts would, so a call it leaves as it is
+	// is not translated again and again
+	if len(d.fillOuts(t).Kids) != len(t.Kids) {
+		return true
+	}
 	for i, a := range t.Kids[1:] {
 		if d.at(i) && !compilerMade(a) {
 			return true
@@ -159,6 +187,10 @@ func isOut(t *Term) bool {
 // translateCall is S⟦·⟧ of a call of a declaration with cell parameters, with
 // k its continuation when it is eliminated, nil when it stands as a value.
 func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, carried []string) (*Term, error) {
+	// A C CALL'S OUT-RESULTS ARE THE CALL'S OWN (ADR 0131): a caller writes the
+	// declared parameters, and each out-result is `out T` at its position, so
+	// the call's value is the cells' values, then the C function's result.
+	call = d.fillOuts(call)
 	head := call.Kids[0]
 	kids := []*Term{head}
 	var outAt, cellAt []int // argument positions, in order
@@ -201,6 +233,9 @@ func (c *cellTr) translateCall(call *Term, d CellDecl, k *Term, inLoop bool, car
 			cellAt, cellNames = append(cellAt, i), append(cellNames, a.Name)
 		case isOut(a):
 			ty := TypeName(a.Kids[1])
+			if a.Kids[1].Kind == KStr {
+				ty = a.Kids[1].Str // an out-result's set, filled by the translation
+			}
 			if ty == "" {
 				return nil, fmt.Errorf("%s: `out S` takes a set, got %s", ShowTerm(call), ShowTerm(a.Kids[1]))
 			}
@@ -318,3 +353,22 @@ func derefStruct(r *Term, ty string) *Term {
 // claim that its value is in T: a value outside T then reaches the host
 // (TestAScalarCellIsTheHostsCell).
 var PlantCellSetUnclaimed bool
+
+// fillOuts is a C call with each out-result the caller omits (ADR 0131)
+// written `out T` at its position, the trailing parameters: a call of the
+// declared arity is left as it is.
+func (d CellDecl) fillOuts(call *Term) *Term {
+	if len(d.Outs) == 0 || len(call.Kids)-1 != d.NArgs-len(d.Outs) || PlantOutsUnfilled {
+		return call
+	}
+	kids := append([]*Term(nil), call.Kids...)
+	for j := range d.Outs {
+		kids = append(kids, App(Name(OutName), Str(d.OutSets[j])))
+	}
+	return &Term{Kind: KApp, Kids: kids}
+}
+
+// PlantOutsUnfilled leaves a C call's out-results for the caller to write, as
+// before ADR 0131: GetClientRect(w) is then a call of too few arguments
+// (TestAnOutParameterIsAResult).
+var PlantOutsUnfilled bool

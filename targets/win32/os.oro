@@ -89,7 +89,7 @@ module llvm/os {
     // not written, and the answer is false.
     fn write_err(b ∈ Array(0..255)) (Bool) {
         if len(b) <= 2^32 - 1 {
-            (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967284), b, 0, len(b), out minwindef.DWORD)
+            (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967284), b)
             r != 0
         } else { false }
     }

@@ -80,7 +80,7 @@ provides win32 os/host {
                 case {
                     c != 0 -> (alloc(array { 0 : _ ∈ 0..-1 }), c)
                     else -> {
-                        (sz, ok) = fileapi.GetFileSizeEx(h, out winnt.LARGE_INTEGER)
+                        (sz, ok) = fileapi.GetFileSizeEx(h)
                         case {
                             ok == 0 -> { e = failed(errhandlingapi.GetLastError()); ignore(handleapi.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), e) }
                             // ERROR_NOT_ENOUGH_MEMORY: past the largest table this cell reads
@@ -128,7 +128,7 @@ provides win32 os/host {
                 // relation the intervals lose across the loop, stated here
                 rest = len(b) - lo
                 n = if rest > 1073741824 { 1073741824 } else if rest < 1 { 0 } else { rest }
-                (g, r) = fileapi.ReadFile(h, b, lo, n, out minwindef.DWORD)
+                (g, r) = fileapi.ReadFile(h, b[lo:lo + n])
                 c = if r == 0 { failed(errhandlingapi.GetLastError()) } else { 0 }
                 k = if g > n { n } else { g }
                 again(lo + k, k, c)
@@ -175,7 +175,7 @@ provides win32 os/host {
             else -> {
                 rest = len(data) - lo
                 n = if rest > 1073741824 { 1073741824 } else if rest < 1 { 0 } else { rest }
-                (p, r) = fileapi.WriteFile(h, data, lo, n, out minwindef.DWORD)
+                (p, r) = fileapi.WriteFile(h, data[lo:lo + n])
                 c = if r == 0 { failed(errhandlingapi.GetLastError()) } else { 0 }
                 k = if p > n { n } else { p }
                 again(lo + k, k, c)

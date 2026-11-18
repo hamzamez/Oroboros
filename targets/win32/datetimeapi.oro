@@ -9,9 +9,9 @@ module windows/datetimeapi {
     use windows/winnt
 
     fn GetDateFormatA(l ∈ winnt.LCID, f ∈ minwindef.DWORD, d ∈ ptr, p ∈ String, b ∈ Array(0..255) linear, n ∈ minwindef.INT) (r ∈ minwindef.INT) where nulfree(p) && n >= 0 && n <= len(b) {
-        host expr call "GetDateFormatA" stdcall lib "kernel32"
+        host expr call GetDateFormatA stdcall lib "kernel32"
     }
     fn GetTimeFormatA(l ∈ winnt.LCID, f ∈ minwindef.DWORD, t ∈ ptr, p ∈ String, b ∈ Array(0..255) linear, n ∈ minwindef.INT) (r ∈ minwindef.INT) where nulfree(p) && n >= 0 && n <= len(b) {
-        host expr call "GetTimeFormatA" stdcall lib "kernel32"
+        host expr call GetTimeFormatA stdcall lib "kernel32"
     }
 }

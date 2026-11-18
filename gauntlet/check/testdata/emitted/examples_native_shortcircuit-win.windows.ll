@@ -650,41 +650,42 @@ entry:
   br label %.join18
 .else22:
   %v39 = icmp samesign sgt i64 %v2, 4294967295
-  br i1 %v39, label %.then24, label %.else25
-.then24:
-  store i1 true, ptr %.s19
-  br label %.join18
-.else25:
-  %v43 = or i64 %v1, 0
-  %v44 = or i64 %v2, 0
-  %v45 = add i64 %v43, %v44
-  %v46 = load i64, ptr %v0
-  %v47 = or i64 %v46, 0
-  %v48 = icmp ugt i64 %v45, %v47
-  store i1 %v48, ptr %.s19
+  store i1 %v39, ptr %.s19
   br label %.join18
 .join18:
   %v29 = load i1, ptr %.s19
-  br i1 %v29, label %.then31, label %.else32
+  br i1 %v29, label %.then24, label %.else25
+.then24:
+  ret i1 false
+.else25:
+  %v44 = or i64 %v1, 0
+  %v45 = or i64 %v2, 0
+  %v46 = add i64 %v44, %v45
+  %v47 = load i64, ptr %v0
+  %v48 = or i64 %v47, 0
+  %v49 = icmp ugt i64 %v46, %v48
+  br i1 %v49, label %.then31, label %.else32
 .then31:
   ret i1 false
 .else32:
   %.c33 = trunc i64 4294967285 to i32
-  %v54 = call ptr @GetStdHandle(i32 %.c33)
+  %v56 = call ptr @GetStdHandle(i32 %.c33)
   store i32 0, ptr %.cell34
-  %v55 = getelementptr i8, ptr %.cell34, i64 0
-  %.c35 = getelementptr inbounds i8, ptr %v0, i64 8
-  %.c36 = getelementptr inbounds i8, ptr %.c35, i64 %v1
-  %.c37 = trunc i64 %v2 to i32
-  %.c38 = call i32 @WriteFile(ptr %v54, ptr %.c36, i32 %.c37, ptr %v55, ptr null)
-  %v56 = sext i32 %.c38 to i64
-  %.c39 = load i32, ptr %v55
-  %v57 = zext i32 %.c39 to i64
-  %v59 = icmp eq i64 %v56, 0
-  br i1 %v59, label %.then41, label %.else42
-.then41:
+  %v57 = getelementptr i8, ptr %.cell34, i64 0
+  %v58 = or i64 %v46, 0
+  %.c36 = getelementptr inbounds i8, ptr %v0, i64 8
+  %.c37 = getelementptr inbounds i8, ptr %.c36, i64 %v1
+  %.c38 = sub i64 %v58, %v1
+  %.c39 = trunc i64 %.c38 to i32
+  %.c40 = call i32 @WriteFile(ptr %v56, ptr %.c37, i32 %.c39, ptr %v57, ptr null)
+  %v59 = sext i32 %.c40 to i64
+  %.c41 = load i32, ptr %v57
+  %v60 = zext i32 %.c41 to i64
+  %v62 = icmp eq i64 %v59, 0
+  br i1 %v62, label %.then43, label %.else44
+.then43:
   ret i1 false
-.else42:
+.else44:
   ret i1 true
 }
 

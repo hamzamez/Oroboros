@@ -1187,6 +1187,29 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 		case emit.CRef:
 			// &x: the struct's fresh copy, a reference, by its address (ADR 0130)
 			ops = append(ops, param(c.I))
+		case emit.CDiff:
+			// hi − lo, a segment's length (ADR 0132), as the C integer of K bits
+			r := "%" + p.fresh("c")
+			p.line("%s = sub i64 %s, %s", r, p.val(s.Args[c.I]), p.val(s.Args[c.J]))
+			ty := fmt.Sprintf("i%d", c.K)
+			if c.K < 64 {
+				t := "%" + p.fresh("c")
+				p.line("%s = trunc i64 %s to %s", t, r, ty)
+				r = t
+			}
+			ops, tys = append(ops, ty+" "+r), append(tys, ty)
+		case emit.CLen:
+			// len(s): the length the table holds at its address (§4), as the
+			// C integer of J bits its `where` bounds it in (ADR 0132)
+			r := "%" + p.fresh("c")
+			p.line("%s = load i64, ptr %s, align 8", r, p.val(s.Args[c.I]))
+			ty := fmt.Sprintf("i%d", c.J)
+			if c.J < 64 {
+				t := "%" + p.fresh("c")
+				p.line("%s = trunc i64 %s to %s", t, r, ty)
+				r = t
+			}
+			ops, tys = append(ops, ty+" "+r), append(tys, ty)
 		}
 	}
 	ret, cross, signed := "void", "", false

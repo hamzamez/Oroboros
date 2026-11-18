@@ -397,19 +397,43 @@ without `where nulfree`. The word's naturals, 0..2⁶³−1, are no C type: unti
 64-bit unsigned argument's set, with the signed word its result's, two sets for one type, and at a
 result a claim no C function makes (HeapSize's (SIZE_T)−1).
 
-**The arguments as a term** (ADR 0118). `host expr call "F"(t₁, …, t_k)`, read as `(call "F" (args t₁ …))`, writes C's arguments as a
-linear term over the parameters, each parameter in exactly one tⱼ:
+**The arguments, as C writes them** (ADR 0118, 0130, 0131, 0132). `host expr call F(a₁, …, aₖ)`,
+F the C identifier, writes C's arguments in C's notation, and each is read as a term over the
+declaration's parameters and results:
 
-| term | C argument | printed |
+| written | C argument | printed |
 |---|---|---|
-| `x` | the parameter, by its C type (the table above) | as above |
-| `elem(b, lo)`, b a table of bytes, lo ∈ ℕ ∩ W, `where` lo ≤ len(b) | &b[lo] | `getelementptr inbounds i8, ptr s, i64 8`, then `getelementptr inbounds i8, ptr %c, i64 lo` |
-| `null` | `NULL` | `ptr null` |
-| `ref(x)`, x's set a C struct | &x of a fresh copy of x's encoding, `const T*` (ADR 0130) | the copy's address, `ptr` |
+| `x` | the parameter by its C type (the table above); a byte table decays to its first element, s + 8 (§4); a bare struct by value (ADR 0129) | as above |
+| `len(s)`, s a byte table | its length, as the C integer its `where` bounds it in: `len(s) <= 2^32-1` is a DWORD | the length at s, then `trunc` |
+| `&x`, x a parameter whose set is a C struct | &x of a fresh copy of x's encoding, `const T*` (ADR 0130) | the copy's address, `ptr` |
+| `&r`, r a result | the address of a fresh cell of r's set, which r is after the call (ADR 0131) | an `alloca`, read after the call |
+| `&b[lo]`, b a byte table, lo ∈ ℕ ∩ W, `where` lo ≤ len(b) | &b[lo] | `getelementptr inbounds i8, ptr s, i64 8`, then `getelementptr inbounds i8, ptr %c, i64 lo` |
+| `NULL` | C's null pointer | `ptr null` |
 
-A parameter unused or used twice, `ref` of a set with no C layout, elem of a table that is not of bytes, a signed offset, and a
-`where` that does not bound lo by len(b) (directly, or as lo + m ≤ len(b) with m natural) are each
-refused when the target loads.
+`&x` is decided by its binder: a parameter is `const T*`, a result an out-cell. Nothing else of C is
+written here: no casts, arithmetic, macros or fields. The term is **linear**: every parameter appears
+exactly once, except that a byte table's address appears once and its length at most once, the
+product (address, length) taken apart (ADR 0132); every result written `&r` appears once, and the
+one result not written so is the C function's own return. **A segment** b[lo:hi] passed at a byte
+table parameter s is not formed as a table: s is &b[lo] and len(s) is hi − lo, its domain the
+segment's own, 0 ≤ lo ≤ hi ≤ len b, decided where the program writes it (ADR 0084, 0132).
+
+Refused when the target loads: a parameter unused or used twice; `&x` of a set with no C layout
+(a scalar the host writes is `cell(T)`, `_Inout_`); `len` of no byte table, or with no `where`
+bounding it by a C integer type's top; `&b[lo]` of a table not of bytes, a signed offset, or a
+`where` that does not bound lo by len(b) (directly, or as lo + m ≤ len(b) with m natural). The
+spellings before ADR 0131, `call "F"`, `ref(x)`, `elem(b, lo)` and `null`, are refused naming
+this one.
+
+**The forms the reader hands on.** The call is `(call "F" (args t…) CONV)`, each t a parameter's
+name, `(amp x)`, `(elem b lo)`, `(len s)` or `null`; the results written `&r` lead the result tuple,
+in order, each becoming a trailing parameter of `cell(T)`, and the header carries `(outs i…)`, their
+positions, so the loader's `cells` form fills `out T` at each where a program omits them. A
+declaration with `len(s)` gains its **segment variant** `F#seg`, s's table followed by `s#lo` and
+`s#hi`, its call `&s[lo]` and hi − lo, its `where` the segment's formation conjoined with the
+original's, len(s) read as hi − lo; the loader's `(segments i "F#seg")` form rewrites a call whose
+argument i is `b[lo:hi]` to the variant before the state translation, so a lent table's segment is
+the table lent.
 
 ## 6b. A C struct: its layout derived from its definition (ADR 0128)
 
@@ -466,10 +490,11 @@ _WIN64 and so the model's (ADR 0126's criterion). `pack(p)` alone holds on every
 
 **A struct parameter is a value passed** (ADR 0084 P2), its set the bare record set, a fresh copy of
 the record's encoding, `(#ref "T" leaves…)`, which the host only reads and nothing reads back.
-`cell(T)` is the `_Out_` and `_Inout_` form. How C receives it is the call's, not the header's
-(ADR 0130): `const T*` is the argument term `ref(x)`, the copy's address,
-`call "RegisterClassA"(ref(wc))`, and a bare `x` is the struct **by value**, as its prototype
-writes it (ADR 0129), `call "PtInRect"(ref(rc), pt)`. By value, the call passes the copy's bytes as
+A struct the host fills, `_Out_`, is a result, `fn GetClientRect(w ∈ windef.HWND) (rc ∈ windef.RECT,
+r ∈ minwindef.BOOL)` with `call GetClientRect(w, &rc)` (ADR 0131), and `cell(T)` is the `_Inout_`
+form. How C receives a struct is the call's, not the header's (ADR 0130): `const T*` is `&x`, the
+copy's address, `call RegisterClassA(&wc)`, and a bare `x` is the struct **by value**, as its
+prototype writes it (ADR 0129), `call PtInRect(&rc, pt)`. By value, the call passes the copy's bytes as
 the triple's ABI passes an aggregate, measured against clang 23.1.4:
 
 | triple | 1, 2, 4 or 8 bytes | any other size |

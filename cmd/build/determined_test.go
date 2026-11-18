@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -42,7 +43,7 @@ func numbers(t *testing.T, src, target string, n int) []int64 {
 func TestADeterminedFieldIsTheDeclarations(t *testing.T) {
 	const src = "use win/print\nuse windows/sysinfoapi\nuse windows/commdlg\n\n" +
 		"export fn main() {\n" +
-		"    (m, ok) = sysinfoapi.GlobalMemoryStatusEx(out sysinfoapi.MEMORYSTATUSEX)\n" +
+		"    (m, ok) = sysinfoapi.GlobalMemoryStatusEx()\n" +
 		"    ignore(print.print_int(ok))\n    ignore(print.print_int(m.dwMemoryLoad))\n" +
 		"    ignore(print.print_int(m.ullTotalPhys / 1048576))\n" +
 		"    var pd := zero(commdlg.PRINTDLGA) with { Flags : 1024 }\n" +
@@ -72,21 +73,25 @@ func TestADeterminedFieldIsTheDeclarations(t *testing.T) {
 	}
 }
 
-// A CELL DECLARED AFTER AN OUT-CALL IS A CELL: the out-call is translated by
-// the pass for calls outside a scope, and its continuation holds the `var`
-// scope the scope pass translated first. Twice-translated, that scope's call
-// was refused, "#s2 is neither" a cell; and the two passes' fresh names, each
-// counted from 1, captured an argument. Each fault must fail the case.
+// A CELL DECLARED AFTER AN OUT-CALL IS A CELL: GetLocalTime's SYSTEMTIME is a
+// result (ADR 0131), filled as `out T`, and SetFilePointer's LONG a cell after
+// it, beside three other arguments (an empty file: position 0, high half 0).
+// The out-call is translated by the pass for calls outside a scope, and its
+// continuation holds the `var` scope the scope pass translated first.
+// Twice-translated, that scope's call was refused, "#s2 is neither" a cell; and
+// the two passes' fresh names, each counted from 1, captured an argument. Each
+// fault must fail the case.
 func TestACellAfterAnOutCallIsACell(t *testing.T) {
-	const src = "use win/print\nuse windows/winuser\nuse windows/windef\nuse windows/sysinfoapi\nuse windows/minwinbase\n\n" +
+	path := filepath.ToSlash(filepath.Join(t.TempDir(), "empty.txt"))
+	src := "use win/print\nuse windows/fileapi\nuse windows/sysinfoapi\nuse llvm\n\n" +
 		"export fn main() {\n" +
-		"    (d, u) = sysinfoapi.GetLocalTime(out minwinbase.SYSTEMTIME)\n" +
-		"    var rc := zero(windef.RECT)\n" +
-		"    w = winuser.GetDesktopWindow()\n" +
-		"    ok = winuser.GetClientRect(w, rc)\n" +
-		"    ignore(print.print_int(rc.right - rc.left))\n    ignore(print.print_int(d.wYear))\n    ignore(u)\n}\n"
-	if n := numbers(t, src, "windows", 2); n[0] <= 0 || n[1] < 2026 {
-		t.Errorf("the desktop is %d wide in %d", n[0], n[1])
+		"    (d, u) = sysinfoapi.GetLocalTime()\n" +
+		"    h = fileapi.CreateFileA(\"" + path + "\", 3221225472, 0, llvm.null(), 2, 128, llvm.null())\n" +
+		"    var hi := 0\n" +
+		"    lo = fileapi.SetFilePointer(h, 0, hi, 2)\n" +
+		"    ignore(print.print_int(d.wYear))\n    ignore(print.print_int(lo))\n    ignore(print.print_int(hi))\n    ignore(u)\n}\n"
+	if n := numbers(t, src, "windows", 3); n[0] < 2026 || n[1] != 0 || n[2] != 0 {
+		t.Errorf("the year %d, the position %d, its high half %d", n[0], n[1], n[2])
 	}
 	for _, c := range []struct {
 		name  string
@@ -118,7 +123,7 @@ func TestACStringFieldIsLent(t *testing.T) {
 	const head = "use win/print\nuse windows/winuser\nuse windows/sysinfoapi\nuse windows/minwinbase\nuse llvm\n\n"
 	src := func(name string) string {
 		return head + "export fn main() {\n" +
-			"    (d, u) = sysinfoapi.GetLocalTime(out minwinbase.SYSTEMTIME)\n    ignore(u)\n" +
+			"    (d, u) = sysinfoapi.GetLocalTime()\n    ignore(u)\n" +
 			"    wc = record { style : 0, cbClsExtra : 0, cbWndExtra : 0, hInstance : llvm.null(), hIcon : llvm.null(),\n" +
 			"        hCursor : llvm.null(), hbrBackground : llvm.null(), lpszClassName : " + name + " }\n" +
 			"    a = winuser.RegisterClassA(wc)\n" +

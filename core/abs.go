@@ -394,6 +394,8 @@ type HostBody struct {
 	// handed back as its own storage, each (component, parameter) (ADR 0070):
 	// what the host's call does, so it rides with the host body.
 	InPlace [][2]int
+	// Outs are a C call's out-results, cell parameters a caller omits (ADR 0131).
+	Outs []int
 }
 
 // ClaimDecl is a claim written for a name with no λ to carry it: a `sig` whose

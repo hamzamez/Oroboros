@@ -22,7 +22,7 @@ provides win32 io {
     fn print(s ∈ String) (String) {
         u = str.utf8(s)
         if len(u) <= 2^32 - 1 {
-            (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), u, 0, len(u), out minwindef.DWORD)
+            (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), u)
             ignore(r)
         }
         s

@@ -159,9 +159,15 @@ func hostMeaning(name string, args []cval) ([]cval, bool) {
 	case "windows/processthreadsapi.ExitProcess":
 		panic(errTrap)
 	case "windows/fileapi.WriteFile":
-		// a synchronous write of n bytes that succeeds: n through the cell,
-		// and a nonzero BOOL
-		args[4].arr[0] = new(big.Int).Set(args[3].i)
+		// the whole table s written (ADR 0132): len(s) through the
+		// out-result's cell (ADR 0131), and a nonzero BOOL
+		args[2].arr[0] = big.NewInt(int64(len(args[1].arr)))
+		return []cval{{i: big.NewInt(1)}}, true
+	case "windows/fileapi.WriteFile#seg":
+		// a synchronous write of the segment b[lo:hi] that succeeds (ADR
+		// 0132): hi − lo through the out-result's cell (ADR 0131), and a
+		// nonzero BOOL
+		args[4].arr[0] = new(big.Int).Sub(args[3].i, args[2].i)
 		return []cval{{i: big.NewInt(1)}}, true
 	case "windows/processenv.GetStdHandle", "llvm/str.utf8":
 		return []cval{{}}, true

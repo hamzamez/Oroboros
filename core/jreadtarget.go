@@ -385,6 +385,13 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 	// renamed in the `ensure` to its position (ResultComponent): `File.Read`'s
 	// count is at most the length of the buffer it fills, io.Reader's law.
 	var components map[string]string
+	// AN _Out_ IS A RESULT (ADR 0131): a result the call writes `&r` is a cell
+	// of the call, fresh, the host's to fill. The header states it as a result;
+	// here it becomes a cell parameter after the declared ones, which a caller
+	// omits and the state translation fills with `out T` (core/outcell.go), so
+	// the call's value is the cells' values, then the C function's result.
+	outs := p.cOutsAhead(names)
+	var outsClause *Term
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
@@ -412,6 +419,20 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 				break
 			}
 		}
+	}
+	if len(outs) > 0 {
+		var implicit []*Term
+		for k := 0; k < len(parts) && k < len(rnames) && outs[rnames[k]]; k++ {
+			names = append(names, Unspell(rnames[k]))
+			params = append(params, app(Name(Unspell(rnames[k])), p.setDatum(parts[k], "inout")))
+			implicit = append(implicit, Int(int64(len(params)-1)))
+		}
+		if len(implicit) != len(outs) {
+			return nil, p.errorf("the results a C call writes `&r` lead the result tuple, in order, before the C function's own (ADR 0131 item 3)")
+		}
+		parts, rnames = parts[len(implicit):], rnames[len(implicit):]
+		sig[2] = app(params...)
+		outsClause = app(append([]*Term{Name("outs")}, implicit...)...)
 	}
 	// A RESULT WRITTEN AS A PRODUCT, `(A × B)`, is its factors, as the group
 	// `(a ∈ A, b ∈ B)` is: one shape for several results (ADR 0051).
@@ -497,6 +518,9 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 		sig = append(sig, p.resultDatum(&Apply{Fn: &Var{Name: "×"}, Args: threaded}))
 	}
 	sig = append(sig, inplace...)
+	if outsClause != nil {
+		sig = append(sig, outsClause)
+	}
 	p.close()
 	if err := p.expect(")"); err != nil {
 		return nil, err
@@ -564,49 +588,75 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 	if p.is("expr") || p.is("stmt") {
 		out = append(out, Name(p.next().text))
 	}
-	// A C FUNCTION BY ITS SYMBOL (ADR 0094): `call "F" [stdcall | cdecl]`, its
-	// instructions the C ABI's, derived from the header's sets on the triple.
+	// A C FUNCTION BY ITS CALL, AS C WRITES IT (ADR 0094, 0131): `call F(a…)
+	// [stdcall | cdecl]`, F the C identifier, each argument one of five forms
+	// read as a term over the parameters and results (llvm.md §6a):
+	//   x          the parameter by its C type
+	//   &x         (amp x): a struct parameter's const T*, or a cell's address
+	//   &b[lo]     (elem b lo), a byte table's element's address
+	//   len(s)     (len s), a byte table's length (ADR 0132)
+	//   NULL       null
+	// The spellings before ADR 0131 are refused naming these.
 	if p.is("call") {
 		p.next()
-		if p.peek().kind != tString {
-			return nil, p.errorf("`host expr call \"SYMBOL\"` names the C function, got %s", p.peek())
+		if p.peek().kind == tString {
+			return nil, p.errorf("a C function is called as C writes it, `call %s(…)` (ADR 0131), not `call \"%s\"`", p.peek().text, p.peek().text)
+		}
+		if p.peek().kind != tIdent {
+			return nil, p.errorf("`host expr call F(…)` names the C function, got %s", p.peek())
 		}
 		c := []*Term{Name("call"), Str(p.next().text)}
-		// THE C ARGUMENTS AS TERMS OVER THE PARAMETERS, when they are not the
-		// parameters one to one (files' successor, ADR 0094's in): a parameter,
-		// `elem(b, lo)` the address of table b's element lo, `ref(x)` the
-		// address of a fresh copy of struct x (ADR 0130), or `null`.
 		if p.accept("(") {
 			args := []*Term{Name("args")}
-			for !p.is(")") {
+			ident := func(what string) (string, error) {
 				if p.peek().kind != tIdent {
-					return nil, p.errorf("a C argument is a parameter, elem(TABLE, OFFSET), ref(STRUCT) or null, got %s", p.peek())
+					return "", p.errorf("%s takes a parameter, got %s", what, p.peek())
 				}
-				w := p.next().text
-				if w == "elem" && p.accept("(") {
-					if p.peek().kind != tIdent {
-						return nil, p.errorf("elem(TABLE, OFFSET) takes two parameters, got %s", p.peek())
+				return Unspell(p.next().text), nil
+			}
+			for !p.is(")") {
+				switch {
+				case p.accept("&"):
+					x, err := ident("&x")
+					if err != nil {
+						return nil, err
 					}
-					b := Unspell(p.next().text)
-					if !p.accept(",") || p.peek().kind != tIdent {
-						return nil, p.errorf("elem(TABLE, OFFSET) takes two parameters")
+					if p.accept("[") {
+						lo, err := ident("&b[lo]")
+						if err != nil {
+							return nil, err
+						}
+						if !p.accept("]") {
+							return nil, p.errorf("&b[lo] closes with `]`, got %s", p.peek())
+						}
+						args = append(args, app(Name("elem"), Name(x), Name(lo)))
+					} else {
+						args = append(args, app(Name("amp"), Name(x)))
 					}
-					lo := Unspell(p.next().text)
+				case p.is("NULL"):
+					p.next()
+					args = append(args, Name("null"))
+				case p.is("len") && p.peekN(1).text == "(":
+					p.next()
+					p.next()
+					x, err := ident("len(s)")
+					if err != nil {
+						return nil, err
+					}
 					if !p.accept(")") {
-						return nil, p.errorf("elem(TABLE, OFFSET) takes two parameters")
+						return nil, p.errorf("len(s) takes one parameter")
 					}
-					args = append(args, app(Name("elem"), Name(b), Name(lo)))
-				} else if w == "ref" && p.accept("(") {
-					if p.peek().kind != tIdent {
-						return nil, p.errorf("ref(STRUCT) takes one parameter, got %s", p.peek())
-					}
-					x := Unspell(p.next().text)
-					if !p.accept(")") {
-						return nil, p.errorf("ref(STRUCT) takes one parameter")
-					}
-					args = append(args, app(Name("ref"), Name(x)))
-				} else {
-					args = append(args, Name(Unspell(w)))
+					args = append(args, app(Name("len"), Name(x)))
+				case p.is("elem") && p.peekN(1).text == "(":
+					return nil, p.errorf("an element's address is written as C writes it, `&b[lo]` (ADR 0131), not `elem(b, lo)`")
+				case p.is("ref") && p.peekN(1).text == "(":
+					return nil, p.errorf("a struct's const T* is written as C writes it, `&x` (ADR 0131), not `ref(x)`")
+				case p.is("null"):
+					return nil, p.errorf("C's null pointer is written `NULL` (ADR 0131)")
+				case p.peek().kind == tIdent:
+					args = append(args, Name(Unspell(p.next().text)))
+				default:
+					return nil, p.errorf("a C argument is a parameter, &x, &b[lo], len(s) or NULL, got %s", p.peek())
 				}
 				if !p.accept(",") {
 					break
@@ -1106,3 +1156,46 @@ func (p *parser) cLayout() (*Term, error) {
 	}
 	return app(kids...), nil
 }
+
+// cOutsAhead is the set of names a C call's arguments write `&r` that are not
+// parameters: the results the call fills (ADR 0131). It reads ahead to the
+// body's `call F(…)`, before the header's result is built.
+func (p *parser) cOutsAhead(params []string) map[string]bool {
+	isParam := map[string]bool{}
+	for _, n := range params {
+		isParam[Unspell(n)] = true
+	}
+	out := map[string]bool{}
+	for k := 0; ; k++ {
+		t := p.peekN(k)
+		if t.kind == tEOF || k > 0 && t.nl && declWords[t.text] {
+			return out // the next declaration: this one has no C call
+		}
+		if t.text != "call" || p.peekN(k+1).kind != tIdent || p.peekN(k+2).text != "(" {
+			continue
+		}
+		depth := 1
+		for j := k + 3; ; j++ {
+			a := p.peekN(j)
+			switch {
+			case a.kind == tEOF:
+				return out
+			case a.text == "(" || a.text == "[":
+				depth++
+			case a.text == ")" || a.text == "]":
+				depth--
+				if depth == 0 {
+					return out
+				}
+			case a.text == "&" && p.peekN(j+1).kind == tIdent && p.peekN(j+2).text != "[":
+				if n := Unspell(p.peekN(j + 1).text); !isParam[n] {
+					out[n] = true
+				}
+			}
+		}
+	}
+}
+
+// declWords begin a declaration at a line's start in a target file.
+var declWords = map[string]bool{"fn": true, "set": true, "repr": true, "module": true, "use": true,
+	"provides": true, "realize": true, "fact": true, "}": true}

@@ -167,7 +167,11 @@ type Env struct {
 	// InStructs are a host declaration's `_In_` struct parameters, by its name:
 	// each argument, a record, passed as a reference to a fresh copy of its
 	// encoding (llvm.md §6b, record.go's inStructArgs).
-	InStructs   map[string][]InStruct
+	InStructs map[string][]InStruct
+	// Segments are a C declaration's segment variants, by its name: a call
+	// whose table argument is a segment b[lo:hi] takes the variant over
+	// (b, lo, hi), before the segment is formed (ADR 0132).
+	Segments    map[string][]SegmentArg
 	Static      map[string]int
 	Instantiate func(f string, args []string) (string, error)
 }
@@ -779,6 +783,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	variadic := map[string]int{}
 	cells := map[string]CellDecl{}
 	borrows := map[string]BorrowDecl{}
+	segs := map[string][]SegmentArg{}
 	for len(dt) > 0 {
 		byPath := map[string]*Module{}
 		for _, m := range mods {
@@ -846,6 +851,12 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 						return nil, nil, fmt.Errorf("%s: %w", qualify(path, f.Name), err)
 					}
 					cells[qualify(path, f.Name)] = d
+				case "segments":
+					// a C declaration's segment variant (ADR 0132): (segments i "F#seg")
+					if f.Term.Kind == KApp && len(f.Term.Kids) == 3 && f.Term.Kids[1].Kind == KInt && f.Term.Kids[2].Kind == KStr {
+						segs[qualify(path, f.Name)] = append(segs[qualify(path, f.Name)],
+							SegmentArg{Index: int(f.Term.Kids[1].Int), Variant: f.Term.Kids[2].Str})
+					}
 				case "borrows":
 					d, err := readBorrowDecl(f.Term)
 					if err != nil {
@@ -1154,6 +1165,16 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 				borrows[q] = d
 				changed = true
 			}
+		}
+	}
+	// A SEGMENT AT A C CALL IS ITS PROJECTIONS (ADR 0132), before the state
+	// translation, so a borrowed buffer's segment is the buffer borrowed.
+	if len(segs) > 0 && !PlantSegmentsLate {
+		for _, q := range p.Order {
+			p.Defs[q] = segmentCalls(p.Defs[q], segs)
+		}
+		for i, t := range terms {
+			terms[i] = segmentCalls(t, segs)
 		}
 	}
 	for _, q := range p.Order {
@@ -2924,6 +2945,13 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		// folds here or the residual is refused (Law S, staged).
 		if op.Kind == KName && (op.Name == "inf" || op.Name == "sup") && e.Prim[op.Name] && len(args) == 1 {
 			return e.infSup(op, args[0], fuel)
+		}
+		// A SEGMENT AT A C CALL IS ITS PROJECTIONS (ADR 0132): F(…, b[lo:hi], …)
+		// is F#seg(…, b, lo, hi, …), the region passed as &b[lo] and hi − lo.
+		if op.Kind == KName && e.Segments[op.Name] != nil {
+			if v, ok := segmentCall(op, args, e.Segments[op.Name]); ok {
+				return normalize(v, e, fuel)
+			}
 		}
 		// AN `_In_` STRUCT'S ARGUMENT IS A REFERENCE TO ITS ENCODING (record.go).
 		if op.Kind == KName && e.InStructs[op.Name] != nil {
@@ -5423,3 +5451,54 @@ var PlantSigAliasUnresolved bool
 // HoldsClaim says whether t holds a binder's claim, made or still to be: a
 // top-level constant `half ∈ 0..cap = e` is one (ir.DecideConstantClaims).
 func HoldsClaim(t *Term) bool { return holdsClaim(t) }
+
+// SegmentArg is a C declaration's table parameter that a segment argument
+// takes to Variant (ADR 0132).
+type SegmentArg struct {
+	Index   int
+	Variant string
+}
+
+// segmentCalls rewrites each call F(…, b[lo:hi], …) of a C declaration with a
+// segment variant to F#seg(…, b, lo, hi, …) (ADR 0132): the region passed by
+// its projections, &b[lo] and hi − lo, and a borrowed buffer's segment the
+// buffer itself borrowed, so the state translation threads b.
+//
+// segmentCall is the one rewrite, of a call whose head is op: kept out of
+// normalizeStep, whose frame every reduction step stacks, so the slices it
+// builds do not deepen the reducer's recursion (Ω must exhaust its fuel before
+// the stack, TestDiagnosticsUnderABinderKeepTheirNames).
+//
+//go:noinline
+func segmentCall(op *Term, args []*Term, sas []SegmentArg) (*Term, bool) {
+	for _, sa := range sas {
+		if sa.Index < len(args) {
+			if a := args[sa.Index]; a.Kind == KApp && len(a.Kids) == 4 && a.Kids[0].Kind == KName && a.Kids[0].Name == SegmentName {
+				out := append(append(append([]*Term{Name(sa.Variant)}, args[:sa.Index]...), a.Kids[1:]...), args[sa.Index+1:]...)
+				return &Term{Kind: KApp, Kids: out}, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func segmentCalls(t *Term, segs map[string][]SegmentArg) *Term {
+	if t == nil || len(t.Kids) == 0 {
+		return t
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = segmentCalls(k, segs)
+	}
+	if op := kids[0]; op.Kind == KName && t.Kind == KApp {
+		if v, ok := segmentCall(op, kids[1:], segs[op.Name]); ok {
+			return v
+		}
+	}
+	return &Term{Kind: t.Kind, Kids: kids, Name: t.Name, Int: t.Int, Dec: t.Dec, Str: t.Str, Params: t.Params, Index: t.Index, Depth: t.Depth}
+}
+
+// PlantSegmentsLate leaves a segment at a C call for the reducer, after the
+// state translation: a borrowed buffer's segment then is not threaded
+// (TestASegmentIsACArgument).
+var PlantSegmentsLate bool

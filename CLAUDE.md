@@ -148,7 +148,9 @@ CLAUDE.md as state again. Until it is approved, **the 11-17 plan (its §5)**, ap
    in it ([vcell](gauntlet/results/vcell-2026-11-18.md)); a struct by value, the bare set as its
    prototype writes it and the call's `ref(x)` its const T* (ADR 0129, 0130,
    [sbv](gauntlet/results/sbv-2026-11-18.md), [ref](gauntlet/results/ref-2026-11-18.md), PtInRect
-   on both); a buffer field with `= len(m)` and a nested record by pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
+   on both); an `_Out_` a result and a (pointer, count) one segment, every C call written as C
+   writes it (ADR 0131, 0132, [ccall](gauntlet/results/ccall-2026-11-18.md)); a buffer field with
+   `= len(m)` and a nested record by pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
    the window procedure a parameterised deep handler of the host's message effect, its state
    threaded through every dispatching call (Theorem T, on Theorem N's measured nesting); five
    decisions with hamza. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):
@@ -175,6 +177,9 @@ proven, trapped or closed on the word (Lemma C), or the program is refused.
 **Owed from finished steps** (each named in its result document):
 - claims: an unread binder's typing claim (`s ∈ String = n; 0`), at the top level too (finding 45
   and the dead call's contract done, [deadclaims](gauntlet/results/deadclaims-2026-11-18.md));
+- ccall: a local buffer lent to a host in a scope that ends in further host statements is refused
+  as a function term (R1), older than ADR 0131; a segment with no derived variant refused by
+  the borrow's arity, not by a message naming the segment;
 - invariant: an invariant over a buffer's elements or a cell's value;
 - checks: a witness for per-loop widening thresholds (`PlantLoopThresholdFault` reaches no
   program), an audit of plants by flag;
@@ -256,7 +261,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **8,852 of 8,906** integer operations proven inside their target's word, the 54 left
+- **Provability**: **8,862 of 8,916** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **924 of 962** loops proven to
   terminate (size-change termination; fourteen of the 38 left are windows' `os` cell's read and write
@@ -269,7 +274,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
   `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints, `math/bits`, `io`'s
   interfaces; **partial and checked**: `os`, `strings`, `io`, `fmt`, `errors`, `io/fs`,
-  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 61 functions in 14
+  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 66 functions in 16
   headers (ADR 0126, `TestWin32DeclarationsAreTheirPrototypes`). The portable `os` (`lib/os.oro`) runs
   on Go, JavaScript and Java with one output.
 - **The balance**, named in every assessment: the compiler grows faster than the code written in the
@@ -629,8 +634,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | A record is built whole: `record { l ∈ S }` a set, `record { l : e }` a value, `r.l`, `r with { p : e }` an override along prefix-free paths, `zero(T)`; wherever a tuple goes, three positions lifted; a host struct is its layout, derived (Theorem L, pack the data model's) and checked against clang; a determined field the declaration's (Theorem F) | [0128](docs/decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md) |
 | A struct parameter is its prototype: the bare set is the value, passed by the triple's ABI (Win64 `iN` for 1, 2, 4 or 8 bytes, else the copy's address; i686 `byval`), and `in` marked `_In_`'s const T* (reversed by 0130); amends 0128 item 13 | [0129](docs/decisions/0129-a-struct-parameter-is-its-prototype.md) |
 | `const T*` is the call's argument term `ref(x)`, &x of a fresh copy, not a mode of the header: a mode is what a program observes; reverses 0129 item 2 | [0130](docs/decisions/0130-const-t-star-is-the-calls-ref-x.md) |
-| An `_Out_` parameter is a result of the declaration, its address the call's `&r`; a C call's arguments written as C writes them, `call F(x, &x, &r, &b[lo], NULL)`, read as ADR 0118's terms; `_Inout_` stays a cell, Go's `out τ` where the program chooses τ (not built) | [0131](docs/decisions/0131-an-out-parameter-is-a-result.md) |
-| A C function's (pointer, count) to a byte region is one segment parameter, `call WriteFile(h, s, len(s), …)`; a program passes `b` or `b[lo:hi]`, the variant derived; amends 0118's linearity (not built) | [0132](docs/decisions/0132-a-c-functions-pointer-and-count-are-one-segment.md) |
+| An `_Out_` parameter is a result of the declaration, its address the call's `&r`; a C call's arguments written as C writes them, `call F(x, &x, &r, &b[lo], NULL)`, read as ADR 0118's terms; `_Inout_` stays a cell, Go's `out τ` where the program chooses τ | [0131](docs/decisions/0131-an-out-parameter-is-a-result.md) |
+| A C function's (pointer, count) to a byte region is one segment parameter, `call WriteFile(h, s, len(s), …)`; a program passes `b` or `b[lo:hi]`, the variant derived; amends 0118's linearity | [0132](docs/decisions/0132-a-c-functions-pointer-and-count-are-one-segment.md) |
 
 ## Build commands
 

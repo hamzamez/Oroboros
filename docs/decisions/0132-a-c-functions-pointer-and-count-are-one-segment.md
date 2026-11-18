@@ -2,9 +2,9 @@
 
 Date: 2026-11-18
 Status: Accepted (hamza, 2026-11-18: "go ahead with the segment for item 2", on the audit after
-[ADR 0130](0130-const-t-star-is-the-calls-ref-x.md)). **Not built**; to be built with
+[ADR 0130](0130-const-t-star-is-the-calls-ref-x.md)). **Built** with
 [ADR 0131](0131-an-out-parameter-is-a-result.md), whose notation it uses and whose declarations it
-shares. Amends [ADR 0118](0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md)'s
+shares ([ccall-2026-11-18](../../gauntlet/results/ccall-2026-11-18.md)). Amends [ADR 0118](0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md)'s
 linearity, and extends [ADR 0074](0074-a-segment-is-its-function-restricted-wherever-its-table-is.md)'s segment from
 declared variants to derived ones for C functions.
 

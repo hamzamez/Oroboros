@@ -3,7 +3,7 @@
 Date: 2026-11-18
 Status: Accepted (hamza, 2026-11-18: "go ahead, … write the ADR for 1", on the audit after
 [ADR 0130](0130-const-t-star-is-the-calls-ref-x.md); and on writing the call in C's notation, "yes,
-write it into ADR 0131"). **Not built.** Amends
+write it into ADR 0131"). **Built** ([ccall-2026-11-18](../../gauntlet/results/ccall-2026-11-18.md)). Amends
 [ADR 0048](0048-a-host-writes-a-cell-through-a-reference.md)'s declaration form for `_Out_`, and
 [spec/local.md](../spec/local.md) §5–§6 where a program writes `out S` that restates its
 declaration's type. Respells [ADR 0118](0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md)'s

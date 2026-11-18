@@ -49,12 +49,12 @@ type Prim struct {
 	// backend accepts more than one name (finish refuses it elsewhere): on Win32
 	// each function is its own extern.
 	Externs []string
-	// CSym is a C function's symbol, `host expr call "F"` (ADR 0094): its call
+	// CSym is a C function's symbol, `host expr call F` (ADR 0094): its call
 	// is derived by the C ABI from the declaration's sets on the triple, so Form
 	// is empty. CConv is its convention, "stdcall", "cdecl" or "".
 	CSym, CConv string
 	// CArgs are the C arguments as terms over the parameters, when the
-	// declaration writes them, `call "F"(h, elem(b, lo), n, got, null)`: the
+	// declaration writes them as C does, `call F(h, s, len(s), &got, NULL)`: the
 	// C ABI's in is then no product of per-parameter maps, a segment's address
 	// being two parameters' (cPrototypes resolves cargTerm into them).
 	CArgs    []CArg
@@ -172,7 +172,11 @@ type Prim struct {
 	// ByValue are those of InStructs passed by value (ADR 0129): the call
 	// passes the fresh copy's bytes as the triple's ABI does, where an _In_
 	// struct, `in T`, passes its address.
-	ByValue  []int
+	ByValue []int
+	// Outs are the cell parameters a C call writes `&r` for a result r (ADR
+	// 0131): the declaration's results, appended after its parameters, which a
+	// caller omits and the state translation fills with `out T`.
+	Outs     []int
 	CellList int
 	Arity    int
 
@@ -481,6 +485,11 @@ type Target struct {
 	// Layouts are the C types' layouts, `repr NAME c(l…) pack(p)` (llvm.md §6b,
 	// ADR 0128 item 8): the representation of the record set NAME at a C
 	// boundary, by NAME qualified, its fields in the C definition's order.
+	// Segments are the C declarations' derived segment variants (ADR 0132).
+	Segments []struct {
+		Prim string
+		SegmentVariant
+	}
 	Layouts map[string]CLayout
 
 	// Deferred are the declarations whose types name a CONSTANT as a range
@@ -587,6 +596,9 @@ func (tg *Target) finish(wrap func(error) error) error {
 	if err := tg.cPrototypes(); err != nil {
 		return wrap(err)
 	}
+	// A SEGMENT AT A C CALL IS ITS PROJECTIONS (ADR 0132): each declaration
+	// taking a region as len(s) gets its variant over (b, lo, hi).
+	tg.segmentVariants()
 	if err := tg.checkRealized(); err != nil {
 		return wrap(err)
 	}
@@ -841,8 +853,18 @@ func (tg *Target) cellForms() {
 		}
 		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "cells", Name: local,
 			Term: core.CellDeclTerm(core.CellDecl{Params: p.CellParams, List: p.CellList, Arity: p.Arity,
-				CTypes: ctypes, Records: records, Sets: sets})})
+				CTypes: ctypes, Records: records, Sets: sets, Outs: p.Outs, OutSets: outSets(p), NArgs: len(p.Args)})})
 	}
+}
+
+// outSets are the sets of p's out-results' cells (ADR 0131), the element of
+// each cell, a C type with a layout by its name.
+func outSets(p Prim) []string {
+	var out []string
+	for _, i := range p.Outs {
+		out = append(out, core.CellElem(p.Args[i]))
+	}
+	return out
 }
 
 // borrowForms hands the loader one `borrows` form per declaration that borrows
@@ -2416,6 +2438,10 @@ func (tg *Target) cPrototypes() error {
 					if !boundsElem(q, c.I, c.J) && !PlantElemUnbounded {
 						return fmt.Errorf("%s: elem(%s, %s) is &%s[%s], defined for %s <= len(%s): the `where` must state it", core.ShowName(n), q.Names[c.I], q.Names[c.J], q.Names[c.I], q.Names[c.J], q.Names[c.J], q.Names[c.I])
 					}
+				case CLen:
+					if _, cross, _, ok := tg.CType(q.Args[c.I]); !ok || cross != "elems" {
+						return fmt.Errorf("%s: len(%s) is a byte table's length, and %s is %s (ADR 0132)", core.ShowName(n), q.Names[c.I], q.Names[c.I], core.ShowSet(q.Args[c.I]))
+					}
 				case CRef:
 					// ref(x) : S → ptr, &x of a fresh copy of x's encoding (ADR 0048,
 					// Theorem P), defined where x's set is a C struct's: a scalar
@@ -3157,7 +3183,7 @@ var respelled = map[string]string{
 // about, one host (theories.md §5.2). Keeping the second set inside `(host …)` is
 // what makes "no host clause" mean "no claim about any host".
 var (
-	sigWords  = map[string]bool{"pure": true, "variadic": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true, "inplace": true}
+	sigWords  = map[string]bool{"pure": true, "variadic": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true, "inplace": true, "outs": true}
 	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true, "comma-ok": true, "call": true}
 )
 
@@ -3484,6 +3510,12 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			rest.Kids[0].Name == "inplace" && len(rest.Kids) == 3 &&
 			rest.Kids[1].Kind == core.KInt && rest.Kids[2].Kind == core.KInt:
 			p.InPlace = append(p.InPlace, InPlace{Result: int(rest.Kids[1].Int), Arg: int(rest.Kids[2].Int)})
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName && rest.Kids[0].Name == "outs":
+			for _, k := range rest.Kids[1:] {
+				if k.Kind == core.KInt {
+					p.Outs = append(p.Outs, int(k.Int))
+				}
+			}
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "checked" && len(rest.Kids) == 2 &&
 			rest.Kids[1].Kind == core.KName:
@@ -3746,6 +3778,13 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 		return nil, err
 	}
 	e.SetUnresolved(p.Unresolved)
+	// A SEGMENT AT A C CALL (ADR 0132): the variant the reducer takes.
+	for _, sv := range tg.Segments {
+		if e.Segments == nil {
+			e.Segments = map[string][]core.SegmentArg{}
+		}
+		e.Segments[sv.Prim] = append(e.Segments[sv.Prim], core.SegmentArg{Index: sv.Index, Variant: sv.Variant})
+	}
 	// AN `_In_` STRUCT PARAMETER (llvm.md §6b): its argument, a record, is
 	// written into a fresh reference at the call, and nothing is read back.
 	for n, p := range tg.Prims {
@@ -4920,10 +4959,12 @@ func (tg *Target) realizations(op, base string, p Prim, n int) {
 // CArg is one C argument of a call written as a term over its parameters
 // (ADR 0094's in): CParam, parameter I by its C type; CElem, the address of
 // element J of the byte table I, &I[J]; CNull, the null pointer; CRef, the
-// address of a fresh copy of struct I's encoding, &x (ADR 0130).
+// address of a fresh copy of struct I's encoding, &x (ADR 0130); CLen, the
+// length of byte table I as a C integer of J bits (ADR 0132).
 type CArg struct {
-	Kind CArgKind
-	I, J int
+	Kind    CArgKind
+	I, J, K int
+	Signed  bool // CLen, CDiff: the C integer is signed, its top 2^(w−1) − 1
 }
 
 // CArgKind is a C argument term's form.
@@ -4933,7 +4974,9 @@ const (
 	CParam CArgKind = iota // a parameter, by its C type
 	CElem                  // elem(b, lo), &b[lo]
 	CNull                  // null, C's NULL
-	CRef                   // ref(x), &x of a fresh copy of a C struct's encoding
+	CRef                   // &x, x a struct: &x of a fresh copy of its encoding
+	CLen                   // len(s), s a byte table: its length as the C integer of J bits, Signed its type's sign
+	CDiff                  // hi − lo, a segment's length, I hi, J lo, as the C integer of K bits, Signed as CLen's
 )
 
 // PlantCArgDropped accepts a C call whose argument terms leave a parameter
@@ -4962,16 +5005,44 @@ func resolveCArgs(q Prim) ([]CArg, error) {
 		return i, nil
 	}
 	var out []CArg
+	lens := make([]int, len(q.Args))
 	for _, t := range q.cargTerm.Kids[1:] {
 		switch {
 		case t.Kind == core.KName && t.Name == "null":
 			out = append(out, CArg{Kind: CNull})
-		case t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "ref":
+		case t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "amp":
+			// &x: a struct parameter's const T*, the address of a fresh copy
+			// (ADR 0130), or a cell's address, an out-result's or an _Inout_'s
+			// (ADR 0131), decided by x's set.
 			i, err := at(t.Kids[1])
 			if err != nil {
 				return nil, err
 			}
-			out = append(out, CArg{Kind: CRef, I: i})
+			switch {
+			case containsInt(q.InStructs, i):
+				out = append(out, CArg{Kind: CRef, I: i})
+			case core.IsCell(q.Args[i]):
+				out = append(out, CArg{Kind: CParam, I: i})
+			default:
+				return nil, fmt.Errorf("&%s is a struct's const T* or a cell's address, and %s's set %s is neither: a scalar the host writes is a result or a cell", core.ShowName(t.Kids[1].Name), core.ShowName(t.Kids[1].Name), core.ShowSet(q.Args[i]))
+			}
+		case t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "len":
+			// len(s): a byte table's length, the second projection of the
+			// (address, length) a C function takes for a region (ADR 0132),
+			// as the C integer its `where` bounds it in.
+			if t.Kids[1].Kind != core.KName {
+				return nil, fmt.Errorf("len(s) takes a parameter, got %s", t.Kids[1])
+			}
+			i, ok := index[t.Kids[1].Name]
+			if !ok {
+				return nil, fmt.Errorf("len(%s) names no parameter", core.ShowName(t.Kids[1].Name))
+			}
+			lens[i]++
+			w, signed := lenWidth(q, t.Kids[1].Name)
+			if w == 0 {
+				return nil, fmt.Errorf("len(%s) is a C integer, and the `where` must state its type's top: len(%s) <= 2^32-1 for a DWORD", core.ShowName(t.Kids[1].Name), core.ShowName(t.Kids[1].Name))
+			}
+			out = append(out, CArg{Kind: CLen, I: i, J: w, Signed: signed})
 		case t.Kind == core.KApp && len(t.Kids) == 3 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "elem":
 			b, err := at(t.Kids[1])
 			if err != nil {
@@ -4991,11 +5062,178 @@ func resolveCArgs(q Prim) ([]CArg, error) {
 		}
 	}
 	for i, u := range used {
+		if lens[i] > 1 {
+			return nil, fmt.Errorf("its parameter %s's length appears %d times among the C arguments; a table's (address, length) is taken apart once (ADR 0132)", core.ShowName(nameAt(q.Names, i)), lens[i])
+		}
+		if lens[i] == 1 && u != 1 {
+			return nil, fmt.Errorf("len(%s) is among the C arguments and %s's address is not: a table's length goes with its address (ADR 0132)", core.ShowName(nameAt(q.Names, i)), core.ShowName(nameAt(q.Names, i)))
+		}
 		if u != 1 && !(u == 0 && PlantCArgDropped) {
 			return nil, fmt.Errorf("its parameter %s appears %d times among the C arguments; each is used exactly once, so the call is a function of all of them and of nothing else", core.ShowName(nameAt(q.Names, i)), u)
 		}
 	}
 	return out, nil
+}
+
+// SegmentVariant names the derived declaration a C call takes when its table
+// argument at Index is a segment b[lo:hi] (ADR 0132).
+type SegmentVariant struct {
+	Index   int
+	Variant string
+}
+
+// segmentVariants derives, for each C declaration whose call writes len(s),
+// the declaration F#seg over (b, lo, hi) in s's place: s is &b[lo] and len(s)
+// is hi − lo, its domain the segment's, 0 ≤ lo ≤ hi ≤ len b, and the
+// declaration's `where` with len(s) read as hi − lo. A program writes F(…,
+// b[lo:hi], …); the reducer takes the variant before the segment is formed as
+// a table, so nothing is copied. ADR 0074's segment, derived where Go's is
+// declared by hand.
+func (tg *Target) segmentVariants() {
+	names := make([]string, 0, len(tg.Prims))
+	for n, q := range tg.Prims {
+		if q.CSym != "" && !strings.Contains(n, "#") {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		q := tg.Prims[n]
+		i, w := -1, 0
+		for _, c := range q.CArgs {
+			if c.Kind == CLen {
+				i, w = c.I, c.J
+				break
+			}
+		}
+		if i < 0 || PlantNoSegmentVariant {
+			continue
+		}
+		shift := func(j int) int {
+			if j > i {
+				return j + 2
+			}
+			return j
+		}
+		v := q
+		s := q.Names[i]
+		lo, hi := s+"#lo", s+"#hi"
+		word := fmt.Sprintf("int 0 %d", tg.Word.Hi)
+		v.Args = append(append(append([]string(nil), q.Args[:i+1]...), word, word), q.Args[i+1:]...)
+		v.Names = append(append(append([]string(nil), q.Names[:i+1]...), lo, hi), q.Names[i+1:]...)
+		v.CArgs = nil
+		for _, c := range q.CArgs {
+			switch {
+			case c.Kind == CParam && c.I == i:
+				v.CArgs = append(v.CArgs, CArg{Kind: CElem, I: i, J: i + 1})
+			case c.Kind == CLen && c.I == i:
+				v.CArgs = append(v.CArgs, CArg{Kind: CDiff, I: i + 2, J: i + 1, K: w, Signed: c.Signed})
+			case c.Kind == CElem:
+				v.CArgs = append(v.CArgs, CArg{Kind: CElem, I: shift(c.I), J: shift(c.J)})
+			default:
+				v.CArgs = append(v.CArgs, CArg{Kind: c.Kind, I: shift(c.I), J: c.J, K: c.K, Signed: c.Signed})
+			}
+		}
+		remap := func(xs []int) []int {
+			var out []int
+			for _, x := range xs {
+				out = append(out, shift(x))
+			}
+			return out
+		}
+		v.InStructs, v.ByValue, v.Outs = remap(q.InStructs), remap(q.ByValue), remap(q.Outs)
+		v.InPlace = nil
+		for _, ip := range q.InPlace {
+			v.InPlace = append(v.InPlace, InPlace{Result: ip.Result, Arg: shift(ip.Arg)})
+		}
+		diff := core.App(core.Name("-"), core.Name(hi), core.Name(lo))
+		formed := core.App(core.Name("if"), core.App(core.Name("<="), core.Int(0), core.Name(lo)),
+			core.App(core.Name("if"), core.App(core.Name("<="), core.Name(lo), core.Name(hi)),
+				core.App(core.Name("<="), core.Name(hi), core.App(core.Name("len"), core.Name(s))), core.Bool(false)),
+			core.Bool(false))
+		if q.Where != nil {
+			v.Where = core.App(core.Name("if"), formed, replaceLen(q.Where, s, diff), core.Bool(false))
+		} else {
+			v.Where = formed
+		}
+		if q.Ensures != nil {
+			v.Ensures = replaceLen(q.Ensures, s, diff)
+		}
+		v.Name = n + "#seg"
+		tg.Prims[n+"#seg"] = v
+		tg.Names = append(tg.Names, n+"#seg")
+		tg.Segments = append(tg.Segments, struct {
+			Prim string
+			SegmentVariant
+		}{n, SegmentVariant{Index: i, Variant: n + "#seg"}})
+		mod, local := moduleOf(n), baseOf(n)
+		if tg.Defs == nil {
+			tg.Defs = map[string][]core.Form{}
+		}
+		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "segments", Name: local,
+			Term: core.App(core.Name("segments"), core.Int(int64(i)), core.Str(n+"#seg"))})
+	}
+}
+
+// replaceLen is t with each (len s) replaced by by.
+func replaceLen(t *core.Term, s string, by *core.Term) *core.Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "len" &&
+		t.Kids[1].Kind == core.KName && t.Kids[1].Name == s {
+		return by
+	}
+	if len(t.Kids) == 0 {
+		return t
+	}
+	out := *t
+	out.Kids = make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		out.Kids[i] = replaceLen(k, s, by)
+	}
+	return &out
+}
+
+// PlantNoSegmentVariant derives no segment variant: a segment at a C call is
+// then formed as a table and copied, as before ADR 0132 (TestASegmentIsACArgument).
+var PlantNoSegmentVariant bool
+
+// lenWidth is the bits of the C integer len(s) is passed as, and whether that
+// type is signed (TextOutA's int, WriteFile's DWORD): the `where`'s
+// conjunct len(s) <= 2^w - 1, w ∈ {8, 16, 32, 64}, a C unsigned integer's top
+// (ADR 0126: a C integer's set is its type's whole value set). 0 when none.
+func lenWidth(q Prim, name string) (int, bool) {
+	var walk func(w *core.Term) (int, bool)
+	walk = func(w *core.Term) (int, bool) {
+		if w == nil || w.Kind != core.KApp || len(w.Kids) == 0 || w.Kids[0].Kind != core.KName {
+			return 0, false
+		}
+		k := w.Kids
+		switch {
+		case k[0].Name == "<=" && len(k) == 3 && k[1].Kind == core.KApp && len(k[1].Kids) == 2 &&
+			k[1].Kids[0].Kind == core.KName && k[1].Kids[0].Name == "len" &&
+			k[1].Kids[1].Kind == core.KName && k[1].Kids[1].Name == name:
+			if v, ok := core.EvalEndpoint(k[2]); ok {
+				// an unsigned type's top 2^w − 1, or a signed one's 2^(w−1) − 1
+				for _, b := range []int{8, 16, 32, 64} {
+					top := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(b)), big.NewInt(1))
+					stop := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(b-1)), big.NewInt(1))
+					if v.Cmp(top) == 0 || v.Cmp(stop) == 0 {
+						return b, v.Cmp(stop) == 0
+					}
+				}
+			}
+		case k[0].Name == "and" || k[0].Name == "if":
+			for _, x := range k[1:] {
+				if b, s := walk(x); b != 0 {
+					return b, s
+				}
+			}
+		}
+		return 0, false
+	}
+	return walk(q.Where)
 }
 
 // PlantElemUnbounded accepts elem(b, lo) under a `where` that does not bound

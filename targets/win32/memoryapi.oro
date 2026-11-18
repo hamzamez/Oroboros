@@ -6,6 +6,6 @@ module windows/memoryapi {
     use windows/basetsd
     use windows/minwindef
 
-    fn VirtualAlloc(a ∈ ptr, n ∈ basetsd.SIZE_T, t ∈ minwindef.DWORD, p ∈ minwindef.DWORD) (r ∈ ptr) { host expr call "VirtualAlloc" stdcall lib "kernel32" }
-    fn VirtualFree(a ∈ ptr, n ∈ basetsd.SIZE_T, t ∈ minwindef.DWORD) (r ∈ minwindef.BOOL) { host expr call "VirtualFree" stdcall lib "kernel32" }
+    fn VirtualAlloc(a ∈ ptr, n ∈ basetsd.SIZE_T, t ∈ minwindef.DWORD, p ∈ minwindef.DWORD) (r ∈ ptr) { host expr call VirtualAlloc stdcall lib "kernel32" }
+    fn VirtualFree(a ∈ ptr, n ∈ basetsd.SIZE_T, t ∈ minwindef.DWORD) (r ∈ minwindef.BOOL) { host expr call VirtualFree stdcall lib "kernel32" }
 }

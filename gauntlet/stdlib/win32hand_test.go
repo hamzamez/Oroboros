@@ -2,6 +2,7 @@ package stdlib
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"sort"
@@ -74,7 +75,9 @@ func TestWin32DeclarationsAreTheirPrototypes(t *testing.T) {
 	}
 	var names []string
 	for n, p := range tg.Prims {
-		if p.CSym != "" && modules[moduleOfName(n)] {
+		// a segment variant is derived from its declaration, which is checked
+		// against the prototype in its place (ADR 0132)
+		if p.CSym != "" && modules[moduleOfName(n)] && !strings.HasSuffix(n, "#seg") {
 			names = append(names, n)
 		}
 	}
@@ -230,6 +233,15 @@ func agreeC(tg *emit.Target, n string, h, g emit.Prim) error {
 				cs = append(cs, "null")
 			case emit.CRef:
 				cs = append(cs, h.Args[c.I]) // the copy's address: a struct's cell is ptr
+			case emit.CLen:
+				// len(s), the C integer its `where` bounds it in: its type's
+				// whole value set, signed or not (ADR 0126, 0132)
+				if c.Signed {
+					half := new(big.Int).Lsh(big.NewInt(1), uint(c.J-1))
+					cs = append(cs, fmt.Sprintf("int %s %s", new(big.Int).Neg(half), new(big.Int).Sub(half, big.NewInt(1))))
+				} else {
+					cs = append(cs, fmt.Sprintf("int 0 %s", new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(c.J)), big.NewInt(1))))
+				}
 			}
 		}
 	} else {

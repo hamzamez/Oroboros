@@ -18,10 +18,10 @@ module windows/sysinfoapi {
     repr MEMORYSTATUSEX c(dwLength ∈ minwindef.DWORD = size, dwMemoryLoad, ullTotalPhys, ullAvailPhys,
         ullTotalPageFile, ullAvailPageFile, ullTotalVirtual, ullAvailVirtual, ullAvailExtendedVirtual)
 
-    // void GetLocalTime(_Out_ LPSYSTEMTIME lpSystemTime): the local time,
-    // through a SYSTEMTIME the host fills, a struct's cell (llvm.md §6b).
-    fn GetLocalTime(t ∈ cell(minwinbase.SYSTEMTIME)) (Bool) { host stmt call "GetLocalTime" stdcall lib "kernel32" }
+    // void GetLocalTime(_Out_ LPSYSTEMTIME lpSystemTime): the local time, a
+    // result the host fills (ADR 0131).
+    fn GetLocalTime() (t ∈ minwinbase.SYSTEMTIME, u ∈ Bool) { host stmt call GetLocalTime(&t) stdcall lib "kernel32" }
     // BOOL GlobalMemoryStatusEx(_Out_ LPMEMORYSTATUSEX lpBuffer): the memory's
-    // state, through a MEMORYSTATUSEX whose dwLength the layout writes.
-    fn GlobalMemoryStatusEx(m ∈ cell(MEMORYSTATUSEX)) (r ∈ minwindef.BOOL) { host expr call "GlobalMemoryStatusEx" stdcall lib "kernel32" }
+    // state, a result (ADR 0131), its dwLength the layout's.
+    fn GlobalMemoryStatusEx() (m ∈ MEMORYSTATUSEX, r ∈ minwindef.BOOL) { host expr call GlobalMemoryStatusEx(&m) stdcall lib "kernel32" }
 }

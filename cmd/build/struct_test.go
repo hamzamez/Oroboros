@@ -17,10 +17,10 @@ import (
 func TestAStructIsWrittenByTheHost(t *testing.T) {
 	src := "use win/print\nuse windows/winuser\nuse windows/windef\nuse windows/sysinfoapi\nuse windows/minwinbase\n\n" +
 		"export fn main() {\n" +
-		"    (rc, ok) = winuser.GetClientRect(winuser.GetDesktopWindow(), out windef.RECT)\n" +
+		"    (rc, ok) = winuser.GetClientRect(winuser.GetDesktopWindow())\n" +
 		"    ignore(print.print_int(rc.left))\n    ignore(print.print_int(rc.top))\n" +
 		"    ignore(print.print_int(rc.right - rc.left))\n    ignore(print.print_int(rc.bottom - rc.top))\n" +
-		"    (d, u) = sysinfoapi.GetLocalTime(out minwinbase.SYSTEMTIME)\n" +
+		"    (d, u) = sysinfoapi.GetLocalTime()\n" +
 		"    ignore(print.print_int(d.wYear))\n    ignore(print.print_int(d.wMonth))\n    ignore(print.print_int(d.wDay))\n" +
 		"    ignore(u)\n}\n"
 	read := func(target string) []int64 {

@@ -145,14 +145,15 @@ else: `where ensure invariant pure index variadic inout out linear as host expr 
 jump comma_ok success relevant`; `mod`, an operator only between two operands (ADR 0082); `record`
 before a brace, a record's former, and `with` between a value and a brace, override (ADR 0128); and the
 model's data words (`repr word niche narrow structural backend link build artifact data include fact
-underlying read write realize glue triple runtime c pack size len`, §2.12; `realize` states which declarations
+underlying read write realize glue triple runtime c pack size len`, §2.12; `NULL` among a C call's arguments, C's null pointer (ADR 0131); `realize` states which declarations
 interpret a language name, ADR 0088; `glue` glues another target's fragments into this one, and
 `triple` is an LLVM target's triple, ADR 0093; `runtime` names the module its code generator calls
 into, ADR 0123).
 
 **Read and refused**, each with a message naming what replaced it (inventory.md §4): `the`, the core's
-ascription, refused for a binder's claim (ADR 0069); `private`, the default since ADR 0078; and the
-model's old words `max_len big_repr int_repr`. And `_` is the wildcard (§1.5).
+ascription, refused for a binder's claim (ADR 0069); `private`, the default since ADR 0078; the
+model's old words `max_len big_repr int_repr`; and among a C call's arguments `elem`, `ref` and
+`null`, which C's notation replaced, &b[lo], &x and `NULL` (ADR 0131). And `_` is the wildcard (§1.5).
 
 These three paragraphs are the reader's words: `TestJsKeywordsAreTheReadersKeywords`
 (emit/inventory_test.go) reads every word a token is compared against in core/jparse.go and
@@ -312,12 +313,18 @@ arrow       ::= "fn" params result? clause*
 
 ```
 body        ::= block | "{" host_body "}"
-host_body   ::= "host" ( "expr" | "stmt" )? string host_clause*
+host_body   ::= "host" ( "expr" | "stmt" )? ( string | c_call ) host_clause*
 host_clause ::= "import" string+ | "lib" string | "checked" ident | "jump" string string? | "comma_ok"
+c_call      ::= "call" ident ( "(" ( c_arg ( "," c_arg )* )? ")" )? ( "stdcall" | "cdecl" )?
+c_arg       ::= ident | "&" ident | "&" ident "[" ident "]" | "len" "(" ident ")" | "NULL"
 ```
 
 A host body is a definition's body, in a target file or a fragment; it may sit only under ⊆-λs (ADR
-0066 item 10). Its template is §2.11's. An operation's body names its kind, `expr` or `stmt`; a set's
+0066 item 10). Its template is §2.11's. **A C function's body is its call** (ADR 0094, 0131): the C
+identifier and its arguments as C writes them, each read as a term over the declaration's
+parameters and results (llvm.md §6a): a parameter, `&x` (a struct parameter's `const T*`, or a
+result's out-cell), `&b[lo]`, `len(s)` and `NULL`. With no argument list the arguments are the
+parameters in order. An operation's body names its kind, `expr` or `stmt`; a set's
 carrier and a constant's spelling have none: `set NumError = host "*strconv.NumError"`.
 
 ### 2.6 Blocks and statements

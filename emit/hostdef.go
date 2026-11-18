@@ -63,6 +63,13 @@ func hostDef(f *core.Term, p Prim, path string) (*core.DefDecl, error) {
 			} else {
 				c.Post = e
 			}
+		case w == "outs":
+			// a C call's out-results, cell parameters a caller omits (ADR 0131)
+			for _, x := range k.Kids[1:] {
+				if x.Kind == core.KInt {
+					h.Outs = append(h.Outs, int(x.Int))
+				}
+			}
 		case w == "inplace" && len(k.Kids) == 3 && k.Kids[1].Kind == core.KInt && k.Kids[2].Kind == core.KInt:
 			h.InPlace = append(h.InPlace, [2]int{int(k.Kids[1].Int), int(k.Kids[2].Int)})
 		case w == "host":

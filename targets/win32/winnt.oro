@@ -19,5 +19,5 @@ module windows/winnt {
     // RtlZeroMemory(destination, length) writes length zero bytes. winnt.h's
     // macro is memset; kernel32's export of the name is a function, so no C
     // runtime's memset is linked.
-    fn RtlZeroMemory(p ∈ ptr, n ∈ basetsd.SIZE_T) (Bool) { host stmt call "RtlZeroMemory" stdcall lib "kernel32" }
+    fn RtlZeroMemory(p ∈ ptr, n ∈ basetsd.SIZE_T) (Bool) { host stmt call RtlZeroMemory stdcall lib "kernel32" }
 }

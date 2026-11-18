@@ -3,5 +3,5 @@ module windows/handleapi {
     use windows/minwindef
     use windows/winnt
 
-    fn CloseHandle(h ∈ winnt.HANDLE) (r ∈ minwindef.BOOL) { host expr call "CloseHandle" stdcall lib "kernel32" }
+    fn CloseHandle(h ∈ winnt.HANDLE) (r ∈ minwindef.BOOL) { host expr call CloseHandle stdcall lib "kernel32" }
 }

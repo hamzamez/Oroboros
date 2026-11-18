@@ -9,8 +9,8 @@ module windows/heapapi {
     use windows/minwindef
     use windows/winnt
 
-    fn GetProcessHeap() (r ∈ winnt.HANDLE) { host expr call "GetProcessHeap" stdcall lib "kernel32" }
-    fn HeapAlloc(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, n ∈ basetsd.SIZE_T) (r ∈ ptr) { host expr call "HeapAlloc" stdcall lib "kernel32" }
-    fn HeapFree(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, p ∈ ptr) (r ∈ minwindef.BOOL) { host expr call "HeapFree" stdcall lib "kernel32" }
-    fn HeapSize(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, p ∈ ptr) (r ∈ basetsd.SIZE_T) { host expr call "HeapSize" stdcall lib "kernel32" }
+    fn GetProcessHeap() (r ∈ winnt.HANDLE) { host expr call GetProcessHeap stdcall lib "kernel32" }
+    fn HeapAlloc(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, n ∈ basetsd.SIZE_T) (r ∈ ptr) { host expr call HeapAlloc stdcall lib "kernel32" }
+    fn HeapFree(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, p ∈ ptr) (r ∈ minwindef.BOOL) { host expr call HeapFree stdcall lib "kernel32" }
+    fn HeapSize(h ∈ winnt.HANDLE, f ∈ minwindef.DWORD, p ∈ ptr) (r ∈ basetsd.SIZE_T) { host expr call HeapSize stdcall lib "kernel32" }
 }

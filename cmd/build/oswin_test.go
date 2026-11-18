@@ -29,7 +29,7 @@ func TestAnOutParameterIsACell(t *testing.T) {
 	src := "use win/print\nuse windows/fileapi\nuse windows/handleapi\nuse windows/winnt\nuse llvm\n\n" +
 		"export fn main() {\n" +
 		"    h = fileapi.CreateFileA(\"" + filepath.ToSlash(self) + "\", 2147483648, 1, llvm.null(), 3, 128, llvm.null())\n" +
-		"    (sz, ok) = fileapi.GetFileSizeEx(h, out winnt.LARGE_INTEGER)\n" +
+		"    (sz, ok) = fileapi.GetFileSizeEx(h)\n" +
 		"    ignore(print.print_int(sz))\n" +
 		"    ignore(handleapi.CloseHandle(h))\n}\n"
 	out, err := buildAndRun(t, src, "windows", "")

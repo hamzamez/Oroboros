@@ -20,14 +20,23 @@ use windows/processenv
 use llvm/str as str
 
 // WRITES b[lo, lo + n) to standard output (-11), answering whether it was
-// written. WriteFile's domain is a segment inside the table and a DWORD count;
-// outside it nothing is written and the answer is false, so `write` is total.
+// written. WriteFile's domain is a segment inside the table and a DWORD count
+// (ADR 0132); outside it nothing is written and the answer is false, so
+// `write` is total. The segment's end is named once, where lo and n are known
+// natural, so the guard that bounds it by len(b) bounds the end the call
+// passes.
 fn write(b ∈ Array(0..255), lo, n) (Bool) {
     case {
-        lo < 0 || n < 0 || n > 2^32 - 1 || lo + n > len(b) -> false
+        lo < 0 || n < 0 || n > 2^32 - 1 -> false
         else -> {
-            (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), b, lo, n, out minwindef.DWORD)
-            r != 0
+            hi = lo + n
+            case {
+                hi > len(b) -> false
+                else -> {
+                    (w, r) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), b[lo:hi])
+                    r != 0
+                }
+            }
         }
     }
 }

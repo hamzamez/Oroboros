@@ -142,7 +142,10 @@ order:
    cell, GetClientRect and GetLocalTime run on both; 2b built: determined fields (`= size`, `= 0`),
    the model's `pack(ILP32 : 1)`, `_In_` structs and C string fields, GlobalMemoryStatusEx,
    PrintDlgA and RegisterClassA run on both; a buffer field with `= len(m)` and a nested record by
-   pointer owed;
+   pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
+   the window procedure a parameterised deep handler of the host's message effect, its state
+   threaded through every dispatching call (Theorem T, on Theorem N's measured nesting); five
+   decisions with hamza;
    `wsprintfA` is
    no wall (two integer renderings, ADR 0095).
 
@@ -267,7 +270,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
 
 `go run ./cmd/check` passes every step: vet, endings, compiler, emission, gauntlet, ir, assemble,
 differential, book, tooling;
-emission first and alone (its gate times compiles), the rest at once, about 4½ minutes, plus 7 s for
+emission first and alone (its gate times compiles), the rest at once, about 19 minutes (the compiler step's 16½ the long pole, 2026-11-18), plus 7 s for
 each suspect the compile-time gate pairs (differential-2026-11-13).
 
 **The pipeline.** J's reader (`core/jlex.go`, `jparse.go`, `jreadtarget.go`) builds abstract Oroboros's

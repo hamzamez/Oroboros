@@ -108,6 +108,18 @@ There is no fourth route. "Propagated" survives in one sense only, the one §6b 
 **exported** definition's own `where` is *assumed* inside it and is its caller's to discharge. The
 caller is outside the program, and the obligation is stated in its interface, not dropped.
 
+**An obligation the program writes is decided whether or not its value is read.** The obligations
+of P are P's, so dropping a value never drops what it owes:
+- an unread binding keeps its claims, moved onto the scope's body (claims-2026-11-16);
+- an unread call keeps its contract, its parameter ranges and its `where`, the call reduced for
+  them where it names one (`Env.callsContract`);
+- a top-level constant's claim is decided at its definition, a definition of no parameters, as a
+  declared result is (ADR 0072), read or not (`ir.DecideConstantClaims`;
+  [deadclaims-2026-11-18](../../gauntlet/results/deadclaims-2026-11-18.md)).
+
+A claim whose set is no range (`s ∈ String = n`) makes no mark, so an unread one is still decided
+by nothing: owed.
+
 **`-checked` does not clear an index.** It asks for the host's checked arithmetic, which every target
 declares. A checked index would need every target to trap, and JavaScript and x86 do not. Not built,
 and named.

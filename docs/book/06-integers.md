@@ -330,12 +330,12 @@ func IntegersNearHalf(v0 int) bool {
 
 `cap` is written once and the three ranges follow it. `half ∈ 0..cap = cap / 2` says what
 `half` is and which set it must be in, and the Go shows it was computed: 50. Change the
-definition to `cap * 2` and the function that reads it is refused, for the constant's reason
-and not for anything in the function:
+definition to `cap * 2` and the program is refused at the constant, under its name, whether or
+not anything reads it:
 
 <!-- gen go docs/book/code/integers/no-limit.oro -->
 ```
-gen: integers-near-half: the claim half ∈ 0..100 is false: its value is 200
+gen: half: the claim half ∈ 0..100 is false: its value is 200
 ```
 
 ## 6.4 The machine's integer

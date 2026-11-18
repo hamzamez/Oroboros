@@ -134,6 +134,10 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if err := emit.CheckSignatures(tg, prog, env, ir.CheckClaim(tg, allSigs(prog))); err != nil {
 		return err
 	}
+	// A CLAIMED CONSTANT IS DECIDED WHERE IT IS WRITTEN (ADR 0072, finding 45).
+	if err := ir.DecideConstantClaims(tg, prog, env, allSigs(prog)); err != nil {
+		return err
+	}
 
 	// The entry point is an export named `main` taking no arguments — build.md
 	// §2. Distinguished by name and arity, never by module.

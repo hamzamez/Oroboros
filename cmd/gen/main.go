@@ -134,6 +134,10 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	if err := emit.CheckSignatures(tg, prog, env, ir.CheckClaim(tg, allSigs(prog))); err != nil {
 		return err
 	}
+	// A CLAIMED CONSTANT IS DECIDED WHERE IT IS WRITTEN (ADR 0072, finding 45).
+	if err := ir.DecideConstantClaims(tg, prog, env, allSigs(prog)); err != nil {
+		return err
+	}
 	// A DEFINITION'S CONTRACT IS CHECKED AT ITS CALLS (ADR 0028), from here on:
 	// the units below are the program's calls. CheckSignatures, above, reduced
 	// every signed definition on its own with its parameters free, and those are

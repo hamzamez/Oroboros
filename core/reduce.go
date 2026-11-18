@@ -2684,7 +2684,13 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				if n := e.workOccurrences(op.Closed(), 0, i, fnArgs); n <= 1 {
 					// NONE, AND A CLAIM IN IT: the value goes, its claim stays
 					// (the book's 81, hoistObligations below).
-					if n == 0 && holdsClaim(args[i]) && !PlantDeadClaimDropped {
+					// A CALL WITH A CONTRACT IN IT too (the claims step's "dead
+					// call's contract"): `x = f(-1); 0` owes f's parameter and
+					// `where` as a read call does, the obligations of P being P's.
+					// The call is marked only as it reduces, so it is reduced here,
+					// and only where it names a contract: no other dead argument
+					// is normalized.
+					if n == 0 && (holdsClaim(args[i]) || e.callsContract(args[i]) && !PlantDeadCallContractDropped) && !PlantDeadClaimDropped {
 						na, err := normalize(args[i], e, fuel)
 						if err != nil {
 							return nil, err
@@ -5317,6 +5323,35 @@ func holdsClaim(t *Term) bool {
 // before: `k ∈ 0..n = i` compiles again (TestEveryClaimIsDecidedWhereWritten).
 var PlantClaimEndsDropped bool
 
+// callsContract says whether t applies a name whose calls owe a contract: a
+// definition's or a host's declared parameter ranges (Requires), or a `where`
+// (Wheres), the obligations β marks at a call (ADR 0028).
+func (e *Env) callsContract(t *Term) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName {
+		n := t.Kids[0].Name
+		if _, ok := e.Requires[n]; ok {
+			return true
+		}
+		if _, ok := e.Wheres[n]; ok {
+			return true
+		}
+	}
+	for _, k := range t.Kids {
+		if e.callsContract(k) {
+			return true
+		}
+	}
+	return false // a λ's body is among its kids, its free names as written
+}
+
+// PlantDeadCallContractDropped drops an unread call's contract with its
+// value, as before: `x = f(-1); 0` compiles again
+// (TestAnUnreadCallOwesItsContract).
+var PlantDeadCallContractDropped bool
+
 // PlantDeadClaimDropped drops an unread binding's obligations with it, as
 // before: `k ∈ 0..5 = n; 0` compiles again.
 var PlantDeadClaimDropped bool
@@ -5384,3 +5419,7 @@ func (e *Env) claimSet(t *Term, fuel *int) (*Term, error) {
 // PlantSigAliasUnresolved leaves an imported name in a signature's formula as
 // written: TestAWhereReadsAnImportedName must see the obligation undecided.
 var PlantSigAliasUnresolved bool
+
+// HoldsClaim says whether t holds a binder's claim, made or still to be: a
+// top-level constant `half ∈ 0..cap = e` is one (ir.DecideConstantClaims).
+func HoldsClaim(t *Term) bool { return holdsClaim(t) }

@@ -167,8 +167,8 @@ JavaScript (an unproven `<<` unchecked on Go and the JVM too); under `-checked` 
 proven, trapped or closed on the word (Lemma C), or the program is refused.
 
 **Owed from finished steps** (each named in its result document):
-- claims: an unread binder's typing claim (`s ∈ String = n; 0`), finding 45 (an unread top-level
-  constant's claim), a dead call's contract;
+- claims: an unread binder's typing claim (`s ∈ String = n; 0`), at the top level too (finding 45
+  and the dead call's contract done, [deadclaims](gauntlet/results/deadclaims-2026-11-18.md));
 - invariant: an invariant over a buffer's elements or a cell's value;
 - checks: a witness for per-loop widening thresholds (`PlantLoopThresholdFault` reaches no
   program), an audit of plants by flag;

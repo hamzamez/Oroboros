@@ -378,7 +378,10 @@ Doing that found three more, none fixed:
 45. **A claimed constant is checked only where it is read.** With `half ∈ 0..cap = cap * 2`,
     a program that never reads `half` compiles; one that reads it is refused under the reader's
     name, *integers-near-half: the claim half ∈ 0..100 is false*. ADR 0072 decides a declared
-    result at its definition; a constant's claim is the same kind of statement.
+    result at its definition; a constant's claim is the same kind of statement. **Fixed**
+    2026-11-18 ([deadclaims-2026-11-18](../../gauntlet/results/deadclaims-2026-11-18.md)): a claimed
+    constant is a definition of no parameters, decided at its definition, read or not, and refused
+    under its own name, *half: the claim half ∈ 0..100 is false: its value is 200*.
 46. **A claimed constant is not folded.** `half - 5 <= n` with `half ∈ 0..cap = cap / 2` emits
     `v11 := (50 - 5)` on Go, where the unclaimed constant gives `45`.
 47. **A refusal names a definition in the core's spelling**: `export fn one_or_nothing` is
@@ -652,7 +655,7 @@ J replaced and with no running example, is in git at `98ff798`). It found five, 
     ([claims-2026-11-16](../../gauntlet/results/claims-2026-11-16.md)): an unread binding's range
     claims stay, moved onto the scope's body, so `k ∈ 0..5 = n; 0` is refused; `s ∈ String = n; 0`
     still compiles, a typing claim the checker decides on a residual that no longer holds it. Item
-    45, a top-level constant nothing reads, is still open.
+    45, a top-level constant nothing reads, fixed 2026-11-18 (deadclaims-2026-11-18).
 82. **A result's claim and a binder's claim are decided by different procedures.**
     `(0..100) where a <= b { b - a }` is refused, *its result is [-100, 100]* (intervals alone;
     `(Nat)` likewise), and `d ∈ 0..100 = b - a; d` under the same header is proven by the

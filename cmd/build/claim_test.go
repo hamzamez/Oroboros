@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"oroboros/core"
+	"oroboros/ir"
 )
 
 // EVERY CLAIM IS DECIDED WHERE IT IS WRITTEN (ADR 0049; the book's findings
@@ -66,4 +67,61 @@ func TestEveryClaimIsDecidedWhereWritten(t *testing.T) {
 			t.Errorf("with %s the false claim should build again, so the test reaches the rule; got %v", name, err)
 		}
 	}
+}
+
+// A CLAIMED CONSTANT IS DECIDED AT ITS DEFINITION (ADR 0072; the book's
+// finding 45): `half ∈ 0..cap = cap * 2` is false whether or not anything
+// reads half, and is refused under its own name; a true one builds. The fault
+// decides a constant only where it is read: the unread false claim builds.
+func TestAClaimedConstantIsDecidedWhereWritten(t *testing.T) {
+	const head = "use io\n\ncap = 100\n"
+	unread := head + "half ∈ 0..cap = cap * 2\n\nexport fn main() { io.print_int(cap) }\n"
+	read := head + "half ∈ 0..cap = cap * 2\n\nexport fn main() { io.print_int(half) }\n"
+	true_ := head + "half ∈ 0..cap = cap / 2\n\nexport fn main() { io.print_int(half) }\n"
+	for _, target := range []string{"go", "windows"} {
+		for what, src := range map[string]string{"unread": unread, "read": read} {
+			if _, err := buildAndRunNoExec(t, src, target); err == nil ||
+				!strings.Contains(err.Error(), "the claim half ∈ 0..100 is false") {
+				t.Errorf("%s, a false claimed constant %s: %v, want it refused naming the claim", target, what, err)
+			}
+		}
+		if out, err := buildAndRun(t, true_, target, ""); err != nil || strings.TrimSpace(out) != "50" {
+			t.Errorf("%s, a true claimed constant: %q, %v; want 50", target, out, err)
+		}
+	}
+	ir.PlantConstantClaimUndecided = true
+	_, err := buildAndRunNoExec(t, unread, "go")
+	ir.PlantConstantClaimUndecided = false
+	if err != nil {
+		t.Errorf("with a constant decided only where read, the unread false claim should build; got %v", err)
+	}
+}
+
+// AN UNREAD CALL OWES ITS CONTRACT (the claims step's "dead call's
+// contract"; ADR 0028): `a = f(-1)` with nothing reading a still owes f's
+// parameter range, and `b = g(0)` g's `where`, as read calls do. A call
+// whose contract holds builds. The fault drops an unread call's contract
+// with its value: both false programs build.
+func TestAnUnreadCallOwesItsContract(t *testing.T) {
+	const head = "use io\n\nfn f(x ∈ 0..10) { x + 1 }\nfn g(x) where x != 0 { 100 / x }\n\n"
+	range_ := head + "export fn main() {\n    a = f(-1)\n    io.print_int(0)\n}\n"
+	where := head + "export fn main() {\n    b = g(0)\n    io.print_int(0)\n}\n"
+	holds := head + "export fn main() {\n    a = f(3)\n    b = g(5)\n    io.print_int(7)\n}\n"
+	for _, target := range []string{"go", "windows"} {
+		for src, says := range map[string]string{range_: "f's parameter x", where: "g's `where` is false"} {
+			if _, err := buildAndRunNoExec(t, src, target); err == nil || !strings.Contains(err.Error(), says) {
+				t.Errorf("%s: an unread call with a false contract: %v, want a refusal saying %q", target, err, says)
+			}
+		}
+		if out, err := buildAndRun(t, holds, target, ""); err != nil || strings.TrimSpace(out) != "7" {
+			t.Errorf("%s: unread calls whose contracts hold: %q, %v; want 7", target, out, err)
+		}
+	}
+	core.PlantDeadCallContractDropped = true
+	for _, src := range []string{range_, where} {
+		if _, err := buildAndRunNoExec(t, src, "go"); err != nil {
+			t.Errorf("with an unread call's contract dropped the false program should build; got %v", err)
+		}
+	}
+	core.PlantDeadCallContractDropped = false
 }

@@ -13,6 +13,10 @@ as they will be.
 Sketching surfaced one question the tier 2 research left open, how the step's text names the state
 after a call that re-enters it. It is §1.4b.
 
+**Decided so far** (hamza, 2026-11-18): T2-1 B; T2-2 one state per process; T2-3 option 3, no
+classification; T2-4 no new word, the `var` scope is the extent (§1.4c); T2-4b the cell; T2-5 the
+arrow; T1-1 L. Open: T1-2 to T1-6, to be discussed with tier 1.
+
 ---
 
 # Part 1. Tier 2: the window procedure
@@ -119,7 +123,9 @@ needs ADR 0084 item 5 built. It waits on a program with two windows that do not 
 A call that dispatches (`SendMessageA`, `DialogBoxIndirectParamA`, `MessageBoxA`) may run the step
 again before it returns. The state must be lent to it: written to the slot before the call, and
 read after. A call that never dispatches, such as `WriteFile`, need not be lent the state. Lending
-it anyway costs one store and one load, which LLVM removes when nothing reads the slot.
+it anyway costs one store and one load. *Corrected 2026-11-18*: this said LLVM removes them when
+nothing reads the slot. It cannot remove them here, because the trampoline reads the slot, and its
+address is given to Windows, so to LLVM any external call might call it.
 
 The fault every option must catch is this program, which would print a stale value:
 
@@ -136,7 +142,7 @@ fn step(s ∈ S, h, m, w, l) (S × minwindef.LRESULT) {
 }
 ```
 
-**Option 1: an effect per header, the default "dispatches" inside a UI process (recommended).**
+**Option 1: an effect per header, the default "dispatches" inside a UI process.**
 
 ```
 // targets/win32/fileapi.oro: kernel32's files, no window, no dispatch
@@ -152,9 +158,19 @@ A header that forgets to say so is lent the state, which is safe and costs nothi
 declaration not dispatching. One forgotten marker gives a stale state, which is exactly the fault.
 It is the unsafe default.
 
-**Option 3: no classification.** Every host call inside the extent is lent the state. It is
-correct, with a store and a load at every call, and LLVM removes them only where nothing reads the
-slot. It is the measured candidate to beat, and needs no word.
+**Option 3: no classification (recommended, corrected 2026-11-18).** Every host call inside the
+extent is lent the state. It is correct and needs no word. Its costs:
+- a store and a load at every host call in the extent, which LLVM keeps (above), unmeasured;
+- what the analysis knows about the state's fields is lost at every host call, not only at the
+  dispatching ones. It falls back to the set S, so a guard read before `TextOutA` does not bound
+  the same field read after it. A program keeps such a fact by binding the field to a value first,
+  `n = s.clicks`.
+
+Option 1 is option 3 plus a word that says "this header does not dispatch", and buys back exactly
+those two costs on the calls it marks. It was recommended against option 2, the unsafe default,
+and never argued against option 3. By the standing rule, the analysis grows only for a refusal or a
+measurement a program names: build option 3, and add option 1's word when TinyRetroPad's step, or
+a measurement of it, asks.
 
 ## 1.4 The spelling of the installation (research decision 4)
 
@@ -199,6 +215,37 @@ fn step(s ∈ S, …) (S × minwindef.LRESULT) handler(record { clicks : 0 }) { 
 
 The extent is then the whole program, so two message loops with different states cannot be
 written.
+
+### 1.4c The extent is the cell's own scope (hamza: "doesn't our language already handle these scopes? why do we need a new word ui()?")
+
+It does. With 1.4b's cell, `var s := …` already has a beginning and an end. All that `ui(s, step)`
+added was the link between the step and the cell, and that is written with what exists: the field
+holds a λ that applies the step to the cell.
+
+```
+export fn main() {
+    var s := record { clicks : 0 }
+    wc = zero(winuser.WNDCLASSA) with { lpfnWndProc : fn(h, m, w, l) { step(s, h, m, w, l) }, lpszClassName : "Pad" }
+    a = winuser.RegisterClassA(wc)
+    h = winuser.CreateWindowExA(…)                   // WM_CREATE runs the λ: s exists, by scope
+    … the message loop …
+    print.print_int(s.clicks)                         // the state the last message left
+}
+```
+
+- **The extent before `CreateWindowExA` is lexical scoping.** The λ can only be written where s is
+  in scope, so the state exists before any call that can run it. The planted fault "installed after
+  `CreateWindowExA`" cannot be written at all.
+- **What changes is a rule, not a word.** The research refused D, a closure over the state, because
+  the closure outlives the scope. Here the host keeps the λ (RegisterClassA holds the pointer)
+  beyond the scope, so the rule is about what happens then. At the cell's scope end the compiler
+  clears the slot, and a message that arrives after it, for a class still registered, is answered
+  by `DefWindowProcA`. That is defined, with no crash and no refusal, and needs no knowledge of
+  which calls dispatch (T2-3's option 3).
+- **What is built**: the λ printed with WNDPROC's C convention, its environment the cell's slot,
+  Theorem T for the cell lent to every host call in the scope, and the clearing at the scope's end.
+  It revises the research's candidate D (refused for escaping its scope) to a λ held by the host
+  for its cell's scope, and the ADR says so.
 
 ### 1.4b How the step names the state after a re-entering call (open; the research did not say)
 
@@ -415,8 +462,8 @@ value. It is the lifted λ in tier 1 and the trampoline in tier 2.
 |---|---|---|
 | T2-1 mechanism | A by hand, B step, C process, D closure | B (C its surface later) |
 | T2-2 state | per process, per window | per process |
-| T2-3 dispatch | per header with default dispatches, per declaration, none | per header |
-| T2-4 installation | scope `ui(s₀, step) { … }`, at the field, attribute; and the scope's word | scope; the word is yours |
+| T2-3 dispatch | per header with default dispatches, per declaration, none | none; per header at a program's refusal |
+| T2-4 installation | scope `ui(s₀, step) { … }`, at the field, attribute | decided: the `var` scope, no word (§1.4c) |
 | T2-4b state after re-entry | a cell parameter, `lend(s, …)` by hand | the cell |
 | T2-5 claim | the arrow (ADR 0053), `ptr` | the arrow |
 | T1-1 scope | L only, E too | L |

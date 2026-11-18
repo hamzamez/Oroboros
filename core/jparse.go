@@ -484,7 +484,7 @@ func (p *parser) lamHeader() (*Lam, error) {
 			claimed = true
 		}
 		mode := ""
-		if p.is("linear") || p.is("inout") {
+		if p.is("linear") || p.is("inout") || p.is("in") {
 			mode = p.next().text
 		}
 		if mode == "linear" {
@@ -663,6 +663,11 @@ func (p *parser) toSet(e Expr, mode string) Expr {
 		}
 	case "inout":
 		return &Apply{Fn: &Var{Name: "cell"}, Args: []Expr{out}}
+	case "in":
+		// `_In_`'s const T*, a struct the host only reads (ADR 0129): the
+		// target's loader makes it the fresh reference; a bare struct set is
+		// the value, as its prototype writes it.
+		return &Apply{Fn: &Var{Name: "in"}, Args: []Expr{out}}
 	}
 	return out
 }
@@ -1204,7 +1209,7 @@ func (p *parser) binaryFrom(left Expr, min int) (Expr, error) {
 // range in a binder and would otherwise be read as its bound: `n ∈ 0.. inout`.
 var rangeEnds = map[string]bool{
 	"where": true, "ensure": true, "pure": true, "index": true, "variadic": true,
-	"linear": true, "inout": true, "out": true,
+	"linear": true, "inout": true, "out": true, "in": true,
 }
 
 // beginsOperand reports whether the next token can begin a range's bound. When

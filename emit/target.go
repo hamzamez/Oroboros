@@ -169,8 +169,12 @@ type Prim struct {
 	// `_In_` (llvm.md §6b): a reference to a fresh copy the host only reads,
 	// typed `cell T` and no cell of the program's.
 	InStructs []int
-	CellList  int
-	Arity     int
+	// ByValue are those of InStructs passed by value (ADR 0129): the call
+	// passes the fresh copy's bytes as the triple's ABI does, where an _In_
+	// struct, `in T`, passes its address.
+	ByValue  []int
+	CellList int
+	Arity    int
 
 	// Static are the declaration's STATIC PARAMETERS (spec/typevalues.md §4,
 	// ADR 0063): `(sig (AsType (E (subsets error))) …)` is a function from sets,

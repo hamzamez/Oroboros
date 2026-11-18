@@ -1330,6 +1330,15 @@ func TypeName(t *Term) string {
 			return "cell " + elem
 		}
 	}
+	// `(in T)` — `_In_`'s const T*, a C struct the host only reads, the mode
+	// a target's header writes after a struct's set (ADR 0129); the target's
+	// loader makes it the struct's fresh reference. Spelled as an applied set
+	// so nothing else reads it as a type of its own.
+	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == "in" {
+		if elem := TypeName(t.Kids[1]); elem != "" {
+			return "in(" + elem + ")"
+		}
+	}
 	// `(int LO HI)` — a RANGE is a type, which is ADR 0003's "mathematical
 	// semantics, machine representation" written in the type language. The
 	// range says what the value IS; the target says how wide it is stored.

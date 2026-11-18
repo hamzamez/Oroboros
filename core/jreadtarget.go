@@ -362,7 +362,7 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 			return nil, err
 		}
 		mode := ""
-		if p.is("linear") || p.is("inout") {
+		if p.is("linear") || p.is("inout") || p.is("in") {
 			mode = p.next().text
 		}
 		if mode == "linear" {

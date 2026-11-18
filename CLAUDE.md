@@ -143,8 +143,9 @@ order:
    cell, GetClientRect and GetLocalTime run on both; 2b built: determined fields (`= size`, `= 0`),
    the model's `pack(ILP32 : 1)`, `_In_` structs and C string fields, GlobalMemoryStatusEx,
    PrintDlgA and RegisterClassA run on both; a scalar `var` cell at a host's cell of a range, claimed
-   in it ([vcell](gauntlet/results/vcell-2026-11-18.md)); a buffer field with `= len(m)` and a nested
-   record by pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
+   in it ([vcell](gauntlet/results/vcell-2026-11-18.md)); a struct by value, the bare set as its
+   prototype writes it and `in` the const T* (ADR 0129, [sbv](gauntlet/results/sbv-2026-11-18.md),
+   PtInRect on both); a buffer field with `= len(m)` and a nested record by pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
    the window procedure a parameterised deep handler of the host's message effect, its state
    threaded through every dispatching call (Theorem T, on Theorem N's measured nesting); five
    decisions with hamza. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):
@@ -623,6 +624,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | Win32 is by header (`windows/H`, each declaration's `lib` its DLL); a C type name is its typedef, a set, and a data model interprets basetsd.h's four pointer-width names; a C integer's set is its type's whole value set, U₆₄ for a 64-bit unsigned type (amends 0094); the unsigned word chosen on ι's image | [0126](docs/decisions/0126-win32-is-by-header-and-a-c-type-name-is-its-whole-value-set.md) |
 | A scalar proven in S₃₂ is an i32 where the triple prefers 32 bits (`repr scalar 32`, windows32): ρ₃₂ read off IR_P's range by the printer, an operation at 32 bits iff its operands, result and 32-bit domain are proven, every other statement the word's in a wide scope | [0127](docs/decisions/0127-a-scalar-in-s32-is-held-in-an-i32-where-the-triple-prefers-it.md) |
 | A record is built whole: `record { l ∈ S }` a set, `record { l : e }` a value, `r.l`, `r with { p : e }` an override along prefix-free paths, `zero(T)`; wherever a tuple goes, three positions lifted; a host struct is its layout, derived (Theorem L, pack the data model's) and checked against clang; a determined field the declaration's (Theorem F) | [0128](docs/decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md) |
+| A struct parameter is its prototype: the bare set is the value, passed by the triple's ABI (Win64 `iN` for 1, 2, 4 or 8 bytes, else the copy's address; i686 `byval`), and `in` marks `_In_`'s const T*; amends 0128 item 13 | [0129](docs/decisions/0129-a-struct-parameter-is-its-prototype.md) |
 
 ## Build commands
 

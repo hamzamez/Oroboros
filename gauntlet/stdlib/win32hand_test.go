@@ -136,6 +136,8 @@ var win32Exempt = map[string]string{
 	"windows/heapapi.HeapFree":    "the survey cannot resolve the `__drv_freesMem(Mem) LPVOID` parameter",
 	"windows/fileapi.SetFilePointerEx": "LARGE_INTEGER by value, a union the survey counts as a struct; " +
 		"its eight bytes cross as an i64 does on both triples",
+	"windows/winuser.PtInRect": "POINT by value, which the survey refuses; its passing is the ABI's, measured " +
+		"against clang on both triples (ADR 0129, TestAStructIsPassedByValue)",
 }
 
 // win32Mistakes are the errors a person could make writing a header by hand,

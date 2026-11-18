@@ -141,7 +141,7 @@ a tag and must be.
 assert use module provides pub export axiom true false`.
 
 **Contextual**, keywords only in the clause positions the grammar gives them, identifiers everywhere
-else: `where ensure invariant pure index variadic inout out linear as host expr stmt call stdcall cdecl import lib checked
+else: `where ensure invariant pure index variadic inout in out linear as host expr stmt call stdcall cdecl import lib checked
 jump comma_ok success relevant`; `mod`, an operator only between two operands (ADR 0082); `record`
 before a brace, a record's former, and `with` between a value and a brace, override (ADR 0128); and the
 model's data words (`repr word niche narrow structural backend link build artifact data include fact
@@ -289,7 +289,7 @@ params      ::= "(" binder,* ")"
 result      ::= "(" ")" | "(" set_expr ")" | "(" binder,+ ")"
 clause      ::= "where" formula | "ensure" formula | "pure" | "index" | "variadic"
 binder      ::= pattern ( "∈" set_expr | "⊆" set_expr )? mode?
-mode        ::= "linear" | "inout" | "out"
+mode        ::= "linear" | "inout" | "in" | "out"
 arrow       ::= "fn" params result? clause*
 ```
 
@@ -303,7 +303,8 @@ arrow       ::= "fn" params result? clause*
 - **`x ∈ S` ranges over values, `E ⊆ S` over sets** (E ∈ 𝒫(S)), and a binder with neither claims
   nothing (ADR 0062 item 8; ADR 0066 item 1). Go's `[E any]` is `E ⊆ any`.
 - **A mode follows the set**: `c ∈ Array(Bool) linear`, `x ∈ Array(E) inout`. `linear` only on a
-  parameter (ADR 0052).
+  parameter (ADR 0052). `in` only on a host declaration's parameter whose set is a C struct, `_In_`'s
+  const T*, the bare set being the struct by value (ADR 0129).
 - **The arrow is a λ's header without its body**, used as a binder's set:
   `cmp ∈ fn(a ∈ elems(x), b ∈ elems(x)) (Int) pure` (ADR 0066 item 4).
 

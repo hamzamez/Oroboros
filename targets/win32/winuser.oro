@@ -35,13 +35,17 @@ module windows/winuser {
     repr WNDCLASSA c(style, lpfnWndProc ∈ ptr = 0, cbClsExtra, cbWndExtra, hInstance, hIcon, hCursor,
         hbrBackground, lpszMenuName ∈ ptr = 0, lpszClassName)
     // ATOM RegisterClassA(_In_ CONST WNDCLASSA *lpWndClass): a struct passed
-    // `_In_`, a value (ADR 0084 P2).
-    fn RegisterClassA(wc ∈ WNDCLASSA) (r ∈ minwindef.ATOM) where nulfree(wc.lpszClassName) { host expr call "RegisterClassA" stdcall lib "user32" }
+    // `_In_`, a value (ADR 0084 P2), its const T* marked `in` (ADR 0129).
+    fn RegisterClassA(wc ∈ WNDCLASSA in) (r ∈ minwindef.ATOM) where nulfree(wc.lpszClassName) { host expr call "RegisterClassA" stdcall lib "user32" }
     // BOOL UnregisterClassA(_In_ LPCSTR lpClassName, _In_opt_ HINSTANCE hInstance)
     fn UnregisterClassA(c ∈ String, i ∈ minwindef.HINSTANCE) (r ∈ minwindef.BOOL) where nulfree(c) { host expr call "UnregisterClassA" stdcall lib "user32" }
     // BOOL GetClientRect(_In_ HWND hWnd, _Out_ LPRECT lpRect): the window's
     // client area through a RECT the host fills, a struct's cell (llvm.md §6b).
     fn GetClientRect(w ∈ windef.HWND, rc ∈ cell(windef.RECT)) (r ∈ minwindef.BOOL) { host expr call "GetClientRect" stdcall lib "user32" }
+    // BOOL PtInRect(_In_ CONST RECT *lprc, _In_ POINT pt): the rectangle by
+    // its const T*, the point BY VALUE (ADR 0129), its eight bytes an i64 on
+    // x86-64 and two words on i686's stack.
+    fn PtInRect(rc ∈ windef.RECT in, pt ∈ windef.POINT) (r ∈ minwindef.BOOL) { host expr call "PtInRect" stdcall lib "user32" }
     // HWND GetDesktopWindow(VOID): the desktop's window, which every session has.
     fn GetDesktopWindow() (r ∈ windef.HWND) { host expr call "GetDesktopWindow" stdcall lib "user32" }
     fn ShowWindow(w ∈ windef.HWND, c ∈ minwindef.INT) (r ∈ minwindef.BOOL) { host expr call "ShowWindow" stdcall lib "user32" }

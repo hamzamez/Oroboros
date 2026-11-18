@@ -4,7 +4,7 @@ Date: 2026-11-17
 Status: Accepted (hamza, 2026-11-17, on [records-research.md](../records-research.md) §8: "the whole
 record, and yes to r with {}"; items 3–6 "agree"; the value `record { left : 0, top : 1 }` hamza's).
 Builds ADR 0021's `record` and ADR 0084 item 14's "a record's memory layout is a codec". Amends
-data.md §3.3 (three positions lifted) and §4 (J's spelling, paths). Step 1 built ([records-2026-11-17](../../gauntlet/results/records-2026-11-17.md); a record or tuple as a map's value, [mapvalue-2026-11-18](../../gauntlet/results/mapvalue-2026-11-18.md), but for a header's declared `Map(K, A × B)`); step 2 built ([structs-2026-11-17](../../gauntlet/results/structs-2026-11-17.md): items 8–12, and of item 13 the `_In_` struct and the C string field) but for a buffer field with its determined length and a nested record by pointer.
+data.md §3.3 (three positions lifted) and §4 (J's spelling, paths). Step 1 built ([records-2026-11-17](../../gauntlet/results/records-2026-11-17.md); a record or tuple as a map's value, [mapvalue-2026-11-18](../../gauntlet/results/mapvalue-2026-11-18.md), but for a header's declared `Map(K, A × B)`); step 2 built ([structs-2026-11-17](../../gauntlet/results/structs-2026-11-17.md): items 8–12, and of item 13 the `_In_` struct and the C string field; a struct by value by [ADR 0129](0129-a-struct-parameter-is-its-prototype.md), which amends item 13's reading of a bare struct set) but for a buffer field with its determined length and a nested record by pointer.
 
 ## Context
 

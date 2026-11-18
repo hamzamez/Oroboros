@@ -463,10 +463,21 @@ passed. `= len(m)`, a sibling buffer's length, waits for a buffer field and is r
 or LLP64 by its pointer's size: commdlg.h's `#if !defined(_WIN64)` pack(1), a definition reaching
 _WIN64 and so the model's (ADR 0126's criterion). `pack(p)` alone holds on every model.
 
-**A struct passed `_In_`**, a parameter whose set is a C type with a layout,
-`fn RegisterClassA(wc ∈ winuser.WNDCLASSA)`, is `const T*`: a value passed (ADR 0084 P2). Its
-argument, a record, is written into a fresh reference, `(#ref "T" leaves…)`, the cell the host only
-reads, and nothing is read back. `cell(T)` is the `_Out_` and `_Inout_` form.
+**A struct passed `_In_`**, `const T*`, is marked `in` after its set,
+`fn RegisterClassA(wc ∈ winuser.WNDCLASSA in)`: a value passed (ADR 0084 P2). Its argument, a
+record, is written into a fresh reference, `(#ref "T" leaves…)`, the cell the host only reads, and
+nothing is read back. `cell(T)` is the `_Out_` and `_Inout_` form.
+
+**A struct passed by value** is the bare set, as its prototype writes it (ADR 0129),
+`fn PtInRect(rc ∈ windef.RECT in, pt ∈ windef.POINT)`. It is the same fresh copy, and the call
+passes its bytes as the triple's ABI passes an aggregate, measured against clang 23.1.4:
+
+| triple | 1, 2, 4 or 8 bytes | any other size |
+|---|---|---|
+| x86_64 (Win64) | the integer of its bytes, `iN`, a load of the copy | the copy's address, `ptr` |
+| i686 | `ptr byval([N x i8]) align 4`: the bytes on the stack, which clang writes as its `i32` fields where they fill it exactly and as `byval` otherwise | the same |
+
+stdcall's `@N` follows, since LLVM counts a `byval` argument's size.
 
 **A C string field**, `lpszClassName ∈ String` (Theorem P′), is laid out as a pointer, written as the
 string's bytes, s + 8 (§4), and lent for the call. Its `nulfree` is the declaration's `where`,
@@ -477,7 +488,7 @@ back is ADR 0091's C string into ours, not built.
 pointers are handles.
 
 Not yet (ADR 0128 item 13): a buffer field the host fills and its determined length, a nested
-record by pointer, and a struct passed by value.
+record by pointer, and a struct returned by value (one entry point, structval-2026-09-12).
 
 ## 7. Control: regions into blocks
 

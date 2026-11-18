@@ -1124,6 +1124,33 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 	param := func(i int) string {
 		ll, cross, _, _ := p.tg.CType(q.Args[i])
 		v := p.val(s.Args[i])
+		// A STRUCT BY VALUE (ADR 0129): its fresh copy's bytes as the triple's
+		// ABI passes an aggregate, measured against clang. x86-64 (Win64): one
+		// of 1, 2, 4 or 8 bytes in a register as the integer of its bytes, any
+		// other by the copy's address. i686: the bytes on the stack, `byval`,
+		// which is what clang's expansion into i32s and its `byval` both are.
+		if containsIdx(q.ByValue, i) && !PlantByValueAsPointer {
+			lay, err := p.tg.Layout(core.CellElem(q.Args[i]))
+			if err != nil {
+				p.fail("%v", err)
+				return "ptr " + v
+			}
+			if strings.HasPrefix(p.tg.Triple, "i686-") || strings.HasPrefix(p.tg.Triple, "i386-") {
+				ty := fmt.Sprintf("ptr byval([%d x i8]) align 4", lay.Size)
+				tys = append(tys, ty)
+				return ty + " " + v
+			}
+			switch lay.Size {
+			case 1, 2, 4, 8:
+				ty := fmt.Sprintf("i%d", 8*lay.Size)
+				r := "%" + p.fresh("c")
+				p.line("%s = load %s, ptr %s, align 1", r, ty, v)
+				tys = append(tys, ty)
+				return ty + " " + r
+			}
+			tys = append(tys, "ptr")
+			return "ptr " + v
+		}
 		switch cross {
 		case "trunc":
 			r := "%" + p.fresh("c")
@@ -1552,3 +1579,18 @@ func RuntimeEntry(def, sym, cc string) (string, error) {
 	return fmt.Sprintf("define %s %s @\"\\01%s\"(%s) #0 {\nentry:\n  %%r = call %s %s(%s)\n  ret %s %%r\n}\n",
 		cc, ret, sym, a, ret, impl, a, ret), nil
 }
+
+// containsIdx reports i in xs.
+func containsIdx(xs []int, i int) bool {
+	for _, x := range xs {
+		if x == i {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantByValueAsPointer passes a by-value struct as its copy's address, the
+// _In_ form: PtInRect then reads the address as its point
+// (TestAStructIsPassedByValue).
+var PlantByValueAsPointer bool

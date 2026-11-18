@@ -170,21 +170,35 @@ func (tg *Target) unfoldAliases() error {
 	for n, p := range tg.Prims {
 		mod := moduleOf(n)
 		var err error
-		inStruct := false
+		inStruct, byValue := false, false
 		sub := func(ty string) string {
 			// a cell of a C type with a layout keeps its name (UnfoldType); and
 			// a parameter whose set is one is `const T*`, the reference to a
 			// fresh copy of its encoding, a cell the host only reads (ADR 0084
 			// P2: `_In_` is a value passed)
 			elem := ty
+			in := false
 			if core.IsCell(ty) {
 				elem = core.CellElem(ty)
+			} else if c, args, ok := core.Applied(ty); ok && c == "in" && len(args) == 1 {
+				elem, in = args[0], true
 			}
 			if k, _, ok := tg.alias(mod, elem); ok && tg.Layouts[k].Fields != nil {
+				// `in T` is _In_'s const T*; a bare T is the value, by the ABI
+				// (ADR 0129). Both are a fresh copy of the record's encoding,
+				// and the call passes the copy or its bytes.
 				if !core.IsCell(ty) {
 					inStruct = true
+					byValue = !in
 				}
 				return "cell " + k
+			}
+			if in {
+				if err == nil {
+					err = fmt.Errorf("%s: `in` marks a C struct passed as const T*, and %s has no layout",
+						n, core.ShowSet(elem))
+				}
+				return ty
 			}
 			return mapTypeNames(ty, func(m string) string {
 				if err != nil {
@@ -196,10 +210,13 @@ func (tg *Target) unfoldAliases() error {
 			})
 		}
 		for i, a := range p.Args {
-			inStruct = false
+			inStruct, byValue = false, false
 			p.Args[i] = sub(a)
 			if inStruct && !containsInt(p.InStructs, i) {
 				p.InStructs = append(p.InStructs, i)
+			}
+			if byValue && !containsInt(p.ByValue, i) {
+				p.ByValue = append(p.ByValue, i)
 			}
 		}
 		for i, r := range p.Results {

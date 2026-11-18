@@ -2362,6 +2362,11 @@ func (tg *Target) CType(set string) (ll, cross string, signed, ok bool) {
 	return "", "", false, false
 }
 
+// PlantRefByValue passes a struct under ref(x) by value: on i686 PtInRect's
+// rectangle then goes on the stack where its address is read
+// (TestAStructIsPassedByValue).
+var PlantRefByValue bool
+
 // PlantCStringFault accepts a C-string parameter with no `where nulfree`, the
 // obligation dropped: TestACFunctionIsItsPrototype must catch it.
 var PlantCStringFault bool
@@ -2411,6 +2416,13 @@ func (tg *Target) cPrototypes() error {
 					if !boundsElem(q, c.I, c.J) && !PlantElemUnbounded {
 						return fmt.Errorf("%s: elem(%s, %s) is &%s[%s], defined for %s <= len(%s): the `where` must state it", core.ShowName(n), q.Names[c.I], q.Names[c.J], q.Names[c.I], q.Names[c.J], q.Names[c.J], q.Names[c.I])
 					}
+				case CRef:
+					// ref(x) : S → ptr, &x of a fresh copy of x's encoding (ADR 0048,
+					// Theorem P), defined where x's set is a C struct's: a scalar
+					// the host writes is a cell, cell(T).
+					if !containsInt(q.InStructs, c.I) {
+						return fmt.Errorf("%s: ref(%s) is the address of a fresh copy of a C struct, and %s's set %s has no C layout; a scalar the host writes is a cell, cell(T)", core.ShowName(n), q.Names[c.I], q.Names[c.I], core.ShowSet(q.Args[c.I]))
+					}
 				case CParam:
 					if _, cross, _, ok := tg.CType(q.Args[c.I]); !ok {
 						return fmt.Errorf("%s: argument %s's set %s is no C type (ADR 0094)", core.ShowName(n), q.Names[c.I], core.ShowSet(q.Args[c.I]))
@@ -2438,6 +2450,22 @@ func (tg *Target) cPrototypes() error {
 			}
 		}
 	result:
+		// A STRUCT IS PASSED BY VALUE unless the call takes its address,
+		// ref(x) (ADR 0129, 0130): its prototype's `T` is the value, and
+		// `const T*` is &x, written where the call's arguments are.
+		q.ByValue = nil
+		for _, i := range q.InStructs {
+			ref := false
+			for _, c := range q.CArgs {
+				if c.Kind == CRef && c.I == i {
+					ref = !PlantRefByValue
+				}
+			}
+			if !ref {
+				q.ByValue = append(q.ByValue, i)
+			}
+		}
+		tg.Prims[n] = q
 		if q.Result != "" && q.Kind != "stmt" {
 			if ll, cross, _, ok := tg.CType(q.Result); !ok || cross == "cstr" || ll == "void" && q.Result != "empty" {
 				return fmt.Errorf("%s: its result's set %s is no C type it can return (ADR 0094)", core.ShowName(n), core.ShowSet(q.Result))
@@ -4891,7 +4919,8 @@ func (tg *Target) realizations(op, base string, p Prim, n int) {
 
 // CArg is one C argument of a call written as a term over its parameters
 // (ADR 0094's in): CParam, parameter I by its C type; CElem, the address of
-// element J of the byte table I, &I[J]; CNull, the null pointer.
+// element J of the byte table I, &I[J]; CNull, the null pointer; CRef, the
+// address of a fresh copy of struct I's encoding, &x (ADR 0130).
 type CArg struct {
 	Kind CArgKind
 	I, J int
@@ -4904,6 +4933,7 @@ const (
 	CParam CArgKind = iota // a parameter, by its C type
 	CElem                  // elem(b, lo), &b[lo]
 	CNull                  // null, C's NULL
+	CRef                   // ref(x), &x of a fresh copy of a C struct's encoding
 )
 
 // PlantCArgDropped accepts a C call whose argument terms leave a parameter
@@ -4936,6 +4966,12 @@ func resolveCArgs(q Prim) ([]CArg, error) {
 		switch {
 		case t.Kind == core.KName && t.Name == "null":
 			out = append(out, CArg{Kind: CNull})
+		case t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "ref":
+			i, err := at(t.Kids[1])
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, CArg{Kind: CRef, I: i})
 		case t.Kind == core.KApp && len(t.Kids) == 3 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "elem":
 			b, err := at(t.Kids[1])
 			if err != nil {

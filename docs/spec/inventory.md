@@ -35,11 +35,11 @@ is dispatched on: the token classes, and **comments**, which are gap rather than
 ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md), j.md §1.2). It is
 tested by `core/comment_test.go` and the J reader's tests.
 
-**Result: 181 words of the core**, and j.md §1.4's keywords.
+**Result: 180 words of the core**, and j.md §1.4's keywords.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 148 |
+| `specified` — a spec states it | 147 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -64,7 +64,7 @@ Statuses, as the test reads them:
 j.md §1.4 is the list, and it is not repeated here: **reserved** words (`fn spec lemma set array map var
 loop again case if else try expect assert use module provides pub export axiom true false`),
 **contextual** ones, keywords only where the grammar takes them (`where ensure invariant pure index
-variadic inout in out linear as host expr stmt import lib checked jump comma_ok success relevant`), and
+variadic inout out linear as host expr stmt import lib checked jump comma_ok success relevant`), and
 **the model's data words** of a target file (`repr`, `fact`, `backend`, …, j.md §2.12).
 
 Three of them are not built, and are named in j.md's status: `spec`, `assert` and `invariant`. And the
@@ -138,7 +138,6 @@ J names the base sets `Int`, `F64`, `Bool`, `String` and the formers `Array(V)` 
 | `map` | specified — a type, J's `Map(K, V)`, the injected constructor, and `repr map …` | [maps.md](maps.md) |
 | `buffer` | specified — a linear parameter type, J's `b ∈ Array(V) linear` | [ADR 0020](../decisions/0020-uniqueness-on-parameters.md) |
 | `cell` | specified — `(cell T)` in a declaration's parameter, J's `x ∈ T inout`: the address of a T the host may read and write during the call and does not keep; `(cell go.Value)` a cell of any type in Go's box. Also a target's `(type (cell A) (host …))` | [local.md](local.md) §5 |
-| `in` | specified — `(in T)` in a host declaration's parameter, J's `x ∈ T in`: `_In_`'s const T*, a C struct the host only reads, made its fresh reference by the target's loader; a bare struct set is the struct by value (ADR 0129) | [llvm.md](llvm.md) §6b |
 | `record` | reserved — a type former in `core/read.go`, specified in data.md and not built | [data.md](data.md) |
 | `prod` | recorded — the internal spelling of a tuple type (`prod(A, B)`), J's `A × B`, reserved as a type former so no variant can take the name | `core/read.go` `TypeName` |
 
@@ -231,7 +230,7 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `import` | specified | [target-files.md](target-files.md) |
 | `lib` | specified | [target-files.md](target-files.md) |
 | `call` | specified — `host KIND call "SYMBOL" [stdcall \| cdecl]`, a C function by its prototype, its call derived by the C ABI on the triple | [ADR 0094](../decisions/0094-a-c-function-is-declared-by-its-prototype-and-the-c-abi-is-derived.md), [llvm.md](llvm.md) §6a |
-| `args` | specified — the reader's form for a C call's written arguments, `(call "SYMBOL" (args t…) CONV)`, each t a parameter, `elem` or `null`, every parameter in exactly one | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
+| `args` | specified — the reader's form for a C call's written arguments, `(call "SYMBOL" (args t…) CONV)`, each t a parameter, `elem`, `ref` or `null`, every parameter in exactly one | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
 | `elem` | specified — `elem(b, lo)`, a C argument: &b[lo], a table of bytes decayed and offset by lo, defined where the `where` states lo ≤ len(b) | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
 | `null` | specified — a C argument, C's `NULL` | [ADR 0118](../decisions/0118-a-c-calls-arguments-are-a-linear-term-over-its-parameters.md), [llvm.md](llvm.md) §6a |
 | `checked` | specified | [target-files.md](target-files.md) |
@@ -255,7 +254,7 @@ What a declaration's `host KIND …` or a `structural NAME KIND` may say.
 
 | word | status | where |
 |---|---|---|
-| `ref` | specified — `(repr (ref T) (host …))`, a boxed representation | [target-files.md](target-files.md), [theories.md](theories.md) |
+| `ref` | specified — a reference to a T: `(repr (ref T) (host …))`, a boxed representation; and `ref(x)`, a C argument, &x of a fresh copy of struct x's encoding, `const T*`, where a bare struct parameter is passed by value (ADR 0130) | [target-files.md](target-files.md), [theories.md](theories.md), [llvm.md](llvm.md) §6a |
 | `big` | specified — `repr big host` or `repr big limbs` | [target-files.md](target-files.md) |
 | `limbs` | specified | [target-files.md](target-files.md) |
 | `shift` | specified — `(repr shift N)` | [theories.md](theories.md) |

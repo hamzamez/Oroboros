@@ -362,7 +362,7 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 			return nil, err
 		}
 		mode := ""
-		if p.is("linear") || p.is("inout") || p.is("in") {
+		if p.is("linear") || p.is("inout") {
 			mode = p.next().text
 		}
 		if mode == "linear" {
@@ -574,12 +574,13 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 		c := []*Term{Name("call"), Str(p.next().text)}
 		// THE C ARGUMENTS AS TERMS OVER THE PARAMETERS, when they are not the
 		// parameters one to one (files' successor, ADR 0094's in): a parameter,
-		// `elem(b, lo)` the address of table b's element lo, or `null`.
+		// `elem(b, lo)` the address of table b's element lo, `ref(x)` the
+		// address of a fresh copy of struct x (ADR 0130), or `null`.
 		if p.accept("(") {
 			args := []*Term{Name("args")}
 			for !p.is(")") {
 				if p.peek().kind != tIdent {
-					return nil, p.errorf("a C argument is a parameter, elem(TABLE, OFFSET) or null, got %s", p.peek())
+					return nil, p.errorf("a C argument is a parameter, elem(TABLE, OFFSET), ref(STRUCT) or null, got %s", p.peek())
 				}
 				w := p.next().text
 				if w == "elem" && p.accept("(") {
@@ -595,6 +596,15 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 						return nil, p.errorf("elem(TABLE, OFFSET) takes two parameters")
 					}
 					args = append(args, app(Name("elem"), Name(b), Name(lo)))
+				} else if w == "ref" && p.accept("(") {
+					if p.peek().kind != tIdent {
+						return nil, p.errorf("ref(STRUCT) takes one parameter, got %s", p.peek())
+					}
+					x := Unspell(p.next().text)
+					if !p.accept(")") {
+						return nil, p.errorf("ref(STRUCT) takes one parameter")
+					}
+					args = append(args, app(Name("ref"), Name(x)))
 				} else {
 					args = append(args, Name(Unspell(w)))
 				}

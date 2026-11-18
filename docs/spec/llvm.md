@@ -405,8 +405,9 @@ linear term over the parameters, each parameter in exactly one tⱼ:
 | `x` | the parameter, by its C type (the table above) | as above |
 | `elem(b, lo)`, b a table of bytes, lo ∈ ℕ ∩ W, `where` lo ≤ len(b) | &b[lo] | `getelementptr inbounds i8, ptr s, i64 8`, then `getelementptr inbounds i8, ptr %c, i64 lo` |
 | `null` | `NULL` | `ptr null` |
+| `ref(x)`, x's set a C struct | &x of a fresh copy of x's encoding, `const T*` (ADR 0130) | the copy's address, `ptr` |
 
-A parameter unused or used twice, elem of a table that is not of bytes, a signed offset, and a
+A parameter unused or used twice, `ref` of a set with no C layout, elem of a table that is not of bytes, a signed offset, and a
 `where` that does not bound lo by len(b) (directly, or as lo + m ≤ len(b) with m natural) are each
 refused when the target loads.
 
@@ -463,14 +464,13 @@ passed. `= len(m)`, a sibling buffer's length, waits for a buffer field and is r
 or LLP64 by its pointer's size: commdlg.h's `#if !defined(_WIN64)` pack(1), a definition reaching
 _WIN64 and so the model's (ADR 0126's criterion). `pack(p)` alone holds on every model.
 
-**A struct passed `_In_`**, `const T*`, is marked `in` after its set,
-`fn RegisterClassA(wc ∈ winuser.WNDCLASSA in)`: a value passed (ADR 0084 P2). Its argument, a
-record, is written into a fresh reference, `(#ref "T" leaves…)`, the cell the host only reads, and
-nothing is read back. `cell(T)` is the `_Out_` and `_Inout_` form.
-
-**A struct passed by value** is the bare set, as its prototype writes it (ADR 0129),
-`fn PtInRect(rc ∈ windef.RECT in, pt ∈ windef.POINT)`. It is the same fresh copy, and the call
-passes its bytes as the triple's ABI passes an aggregate, measured against clang 23.1.4:
+**A struct parameter is a value passed** (ADR 0084 P2), its set the bare record set, a fresh copy of
+the record's encoding, `(#ref "T" leaves…)`, which the host only reads and nothing reads back.
+`cell(T)` is the `_Out_` and `_Inout_` form. How C receives it is the call's, not the header's
+(ADR 0130): `const T*` is the argument term `ref(x)`, the copy's address,
+`call "RegisterClassA"(ref(wc))`, and a bare `x` is the struct **by value**, as its prototype
+writes it (ADR 0129), `call "PtInRect"(ref(rc), pt)`. By value, the call passes the copy's bytes as
+the triple's ABI passes an aggregate, measured against clang 23.1.4:
 
 | triple | 1, 2, 4 or 8 bytes | any other size |
 |---|---|---|

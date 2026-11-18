@@ -1184,6 +1184,9 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 			ops = append(ops, "ptr "+r)
 		case emit.CNull:
 			ops, tys = append(ops, "ptr null"), append(tys, "ptr")
+		case emit.CRef:
+			// &x: the struct's fresh copy, a reference, by its address (ADR 0130)
+			ops = append(ops, param(c.I))
 		}
 	}
 	ret, cross, signed := "void", "", false

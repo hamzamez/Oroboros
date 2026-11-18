@@ -57,7 +57,9 @@ fields that need a dialog to run or a spelling decision.
   host's cell of set T iff its value is in T at the call, which is a claim, and T is within the
   cell's set. So cells are invariant only when both directions are asked of the type alone.
 - **A struct parameter is its prototype** (ADR 0129). The bare set is the value, passed as the
-  triple's ABI passes an aggregate, measured against clang on nine shapes. `in` marks `const T*`.
+  triple's ABI passes an aggregate, measured against clang on nine shapes. `const T*` is the call's
+  argument term `ref(x)` (ADR 0130, after the assessment, at hamza's question): first written as a
+  mode `in`, which no program could observe.
 - **A callback during the call is the language's own loop given to a host** (tier-1 research). Its
   markers are a usage in 𝕌 and an order, and an unordered body must be pure (Theorem D). The window
   procedure is a parameterised deep handler of the host's message effect (Theorems N and T).

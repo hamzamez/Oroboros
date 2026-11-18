@@ -228,6 +228,8 @@ func agreeC(tg *emit.Target, n string, h, g emit.Prim) error {
 				cs = append(cs, "elem")
 			case emit.CNull:
 				cs = append(cs, "null")
+			case emit.CRef:
+				cs = append(cs, h.Args[c.I]) // the copy's address: a struct's cell is ptr
 			}
 		}
 	} else {

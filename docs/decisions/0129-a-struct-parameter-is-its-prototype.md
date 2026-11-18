@@ -2,7 +2,9 @@
 
 Date: 2026-11-18
 Status: Accepted (hamza, 2026-11-18, on the choice between this and keeping the bare set as
-`const T*`: "I agree to recommended"). Amends [ADR 0128](0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md)
+`const T*`: "I agree to recommended"). **Item 2, the mode `in`, reversed by
+[ADR 0130](0130-const-t-star-is-the-calls-ref-x.md)**: `const T*` is the call's argument term
+`ref(x)`. Items 1 and 3 stand. Amends [ADR 0128](0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md)
 item 13 and llvm.md §6b, where step 2b read a parameter whose set is a C struct as `_In_`'s
 `const T*`. Built ([sbv-2026-11-18](../../gauntlet/results/sbv-2026-11-18.md)).
 

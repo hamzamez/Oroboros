@@ -94,6 +94,11 @@ func (p *printer) jty(t string) string {
 	if strings.HasPrefix(t, "buffer ") {
 		t = "array " + t[len("buffer "):]
 	}
+	// A MAP'S PRODUCT VALUE (emit/mapprod.go) is the record shared by its
+	// components' shape, as several results are.
+	if k, v, ok := core.MapTypes(t); ok && core.IsProd(v) {
+		return emit.Fill(p.tg.MapType, p.tg.BoxedType(k), p.record(v))
+	}
 	if strings.HasPrefix(t, "array ") || strings.HasPrefix(t, "map ") {
 		return p.tg.HostType(t)
 	}
@@ -113,6 +118,25 @@ func (p *printer) jty(t string) string {
 }
 
 func (p *printer) tyOf(v ir.V) string { return p.jty(p.f.Types[p.pl.Res(v)]) }
+
+// record is a product's record, by its components' Java types, made once per
+// program and shared with every other use of that shape.
+func (p *printer) record(prod string) string {
+	parts := core.ProdTypes(prod)
+	tys := make([]string, len(parts))
+	for i, c := range parts {
+		tys[i] = p.jty(c)
+	}
+	name := emit.JavaRecordName(tys)
+	if _, have := emit.JavaRecords[name]; !have {
+		fields := make([]string, len(tys))
+		for i, ty := range tys {
+			fields[i] = fmt.Sprintf("%s f%d", ty, i)
+		}
+		emit.JavaRecords[name] = fmt.Sprintf("\tpublic record %s(%s) {}\n", name, strings.Join(fields, ", "))
+	}
+	return name
+}
 
 // rank orders Java's integral types for widening.
 func rank(t string) int {
@@ -476,6 +500,18 @@ func (p *printer) stmt(s *ir.Stmt) {
 		}
 		p.line("%s = %s;", p.index(s.Args[0], s.Args[1]), p.refAs(s.Args[2], p.elemTy(s.Args[0])))
 	case ir.OInsert:
+		if len(s.Args) > 3 {
+			// a product's components, as the record the map holds
+			_, val, _ := core.MapTypes(p.f.Types[p.pl.Res(s.Args[0])])
+			kt, _ := p.mapTys(s.Args[0])
+			parts := core.ProdTypes(val)
+			vs := make([]string, len(s.Args)-2)
+			for j, a := range s.Args[2:] {
+				vs[j] = p.refAs(a, p.jty(parts[j]))
+			}
+			p.line("%s.put((%s) %s, new %s(%s));", p.ref(s.Args[0]), kt, p.ref(s.Args[1]), p.record(val), strings.Join(vs, ", "))
+			return
+		}
 		kt, vt := p.mapTys(s.Args[0])
 		p.line("%s.put((%s) %s, (%s) %s);", p.ref(s.Args[0]), kt, p.ref(s.Args[1]), vt, p.ref(s.Args[2]))
 	case ir.ORestrict:
@@ -564,6 +600,25 @@ func (p *printer) mapTys(m ir.V) (string, string) {
 }
 
 func (p *printer) read(s *ir.Stmt) {
+	if len(s.Res) > 2 {
+		// A PRODUCT'S SLOTS, each a field of the record, 0 for an absent key,
+		// whose payload no program observes.
+		_, val, _ := core.MapTypes(p.f.Types[p.pl.Res(s.Args[0])])
+		kt, _ := p.mapTys(s.Args[0])
+		parts := core.ProdTypes(val)
+		box := p.fresh("b")
+		p.line("final %s %s = %s.get((%s) %s);", p.record(val), box, p.ref(s.Args[0]), kt, p.ref(s.Args[1]))
+		if p.pl.Read(s.Res[0]) {
+			p.line("final %s %s = %s == null ? 1 : 0;", p.tyOf(s.Res[0]), p.name(s.Res[0]), box)
+		}
+		for j, v := range s.Res[1:] {
+			if p.pl.Read(v) {
+				ft, ty := p.jty(parts[j]), p.tyOf(v)
+				p.line("final %s %s = %s == null ? %s : %s;", ty, p.name(v), box, zeroOf(ft), coerce(fmt.Sprintf("%s.f%d()", box, j), ft, ty))
+			}
+		}
+		return
+	}
 	kt, vt := p.mapTys(s.Args[0])
 	_, vName, _ := core.MapTypes(p.f.Types[p.pl.Res(s.Args[0])])
 	box := p.fresh("b")

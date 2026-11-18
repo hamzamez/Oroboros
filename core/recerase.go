@@ -174,6 +174,36 @@ func (x *eraser) walk(t *Term) (*Term, *shape, error) {
 		return t, nil, nil
 	}
 	op := t.Kids[0]
+	// A MAP READ UNDER ITS ELIMINATOR, ((m k) (fn (t p) B)), of a map whose
+	// values are records: the payload p has the map's element shape.
+	if t.Kids[0].Kind == KApp && len(t.Kids) == 2 && t.Kids[1].Kind == KFn && len(t.Kids[1].Params) == 2 &&
+		len(t.Kids[0].Kids) == 2 && t.Kids[0].Kids[0].Kind == KName && !PlantMapRecordUnshaped {
+		if s := x.env[t.Kids[0].Kids[0].Name]; s != nil && s.elem.record() {
+			k, _, err := x.walk(t.Kids[0].Kids[1])
+			if err != nil {
+				return nil, nil, err
+			}
+			f := t.Kids[1]
+			x.learn(f.Params[1], s.elem)
+			b, bs, err := x.walk(openNamed(f))
+			if err != nil {
+				return nil, nil, err
+			}
+			// THE PAYLOAD TAKEN APART ONCE, as `(a, b) = p` takes a tuple
+			// apart: its leaves bound by the product's eliminator at the arm's
+			// head, each projection (p j) the j-th, so no pass reads (p j) as
+			// a table's indexing.
+			if !x.infer && s.elem.leaves() >= 2 {
+				p := f.Params[1]
+				names := make([]string, s.elem.leaves())
+				for j := range names {
+					names[j] = x.name()
+				}
+				b = App(Name(p), Fn(names, leafNames(b, p, names)))
+			}
+			return App(App(t.Kids[0].Kids[0], k), Fn(f.Params, b)), bs, nil
+		}
+	}
 	if op.Kind == KName {
 		switch {
 		case op.Name == RecName && len(t.Kids) >= 3 && t.Kids[1].Kind == KStr:
@@ -316,7 +346,28 @@ func (x *eraser) walk(t *Term) (*Term, *shape, error) {
 				s = &shape{elem: shapes[2]}
 			}
 			return App(op, kids...), s, nil
-		case op.Name == "build" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
+		case (op.Name == RequireWhereName && len(t.Kids) == 4 || op.Name == RequireName && len(t.Kids) == 5) && !PlantMapRecordUnshaped:
+			// A CONTRACT MARK'S VALUE IS ITS BODY'S, and so is its shape: a
+			// map's insert carries its capacity's `where` (ADR 0121).
+			kids, shapes, err := x.walkShapes(t.Kids[1:])
+			if err != nil {
+				return nil, nil, err
+			}
+			return App(op, kids...), shapes[len(shapes)-1], nil
+		case op.Name == "insert" && len(t.Kids) == 4:
+			// A MAP'S VALUE A RECORD (ADR 0128 item 7): the map's element shape,
+			// as a table's store gives its table one.
+			kids, shapes, err := x.walkShapes(t.Kids[1:])
+			if err != nil {
+				return nil, nil, err
+			}
+			s := shapes[0]
+			if shapes[2].record() {
+				s = &shape{elem: shapes[2]}
+			}
+			return App(op, kids...), s, nil
+		case op.Name == "build-map" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn,
+			op.Name == "build" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
 			n, _, err := x.walk(t.Kids[1])
 			if err != nil {
 				return nil, nil, err
@@ -435,3 +486,36 @@ func (e *Env) eraseRecords(nf *Term, fuel *int) (*Term, error) {
 // PlantRecordsUnerased leaves a residual's records unplaced, as before the
 // pass: a table of records reaches the printers as forms no target has.
 var PlantRecordsUnerased bool
+
+// PlantMapRecordUnshaped forgets a map read's payload shape: a record as a
+// map's value is refused as a projection of no known labels again
+// (TestAProductIsAMapsValue).
+var PlantMapRecordUnshaped bool
+
+// leafNames replaces each projection (p j) in t, j a literal leaf, by names[j].
+func leafNames(t *Term, p string, names []string) *Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == p &&
+		t.Kids[1].Kind == KInt && t.Kids[1].Int >= 0 && int(t.Kids[1].Int) < len(names) {
+		return Name(names[t.Kids[1].Int])
+	}
+	if len(t.Kids) == 0 {
+		return t
+	}
+	kids := make([]*Term, len(t.Kids))
+	changed := false
+	for i, k := range t.Kids {
+		kids[i] = leafNames(k, p, names)
+		if kids[i] != k {
+			changed = true
+		}
+	}
+	if !changed {
+		return t
+	}
+	out := *t
+	out.Kids = kids
+	return &out
+}

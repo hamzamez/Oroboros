@@ -135,8 +135,9 @@ order:
    ([records-research.md](docs/records-research.md), ADR 0128, hamza: "the whole record, and yes to
    r with {}"), being built. Step 1, the record in the language, built
    ([records](gauntlet/results/records-2026-11-17.md)): five cases on four targets, nested records
-   and an export's record parameter, a buffer of records or tuples written in program order; a
-   record as a map's value owed, the product's limit, failing for tuples too. Step 2a, the host
+   and an export's record parameter, a buffer of records or tuples written in program order, and a
+   record or tuple as a map's value ([mapvalue](gauntlet/results/mapvalue-2026-11-18.md): Go a
+   struct, the JVM a record, JavaScript an array, windows n cells of a slot of 2 + n). Step 2a, the host
    struct ([structs](gauntlet/results/structs-2026-11-17.md)): `set RECT = record { … }` and `repr RECT c(…)` in its
    header, the layout Theorem L's fold checked against clang on both triples, a struct a host's
    cell, GetClientRect and GetLocalTime run on both; 2b built: determined fields (`= size`, `= 0`),

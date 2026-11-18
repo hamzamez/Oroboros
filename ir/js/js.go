@@ -351,6 +351,22 @@ func (p *printer) stmt(s *ir.Stmt) {
 		// (maps-2026-08-30).
 		m, k := p.ref(s.Args[0]), p.ref(s.Args[1])
 		tag, pay := s.Res[0], s.Res[1]
+		if len(s.Res) > 2 {
+			// A PRODUCT'S SLOTS (emit/mapprod.go), an array's elements. An
+			// absent key's slots are `undefined` by `?.`, a payload no program
+			// observes (maps.md §5.3), and never a TypeError.
+			rec := p.fresh("r")
+			p.line("const %s = %s[%s];", rec, m, k)
+			if p.pl.Read(tag) {
+				p.line("const %s = %s === undefined ? 1 : 0;", p.name(tag), rec)
+			}
+			for j, v := range s.Res[1:] {
+				if p.pl.Read(v) {
+					p.line("const %s = %s?.[%d];", p.name(v), rec, j)
+				}
+			}
+			return
+		}
 		pn := p.name(pay)
 		if !p.pl.Read(pay) {
 			pn = p.fresh("p")
@@ -364,6 +380,11 @@ func (p *printer) stmt(s *ir.Stmt) {
 		// lexicographic: both would be wrong answers (maps.md §7).
 		p.define(s.Res[0], fmt.Sprintf("Object.keys(%s).map(Number).sort((a, b) => a - b)", p.ref(s.Args[0])))
 	case ir.OSet, ir.OInsert:
+		if s.Op == ir.OInsert && len(s.Args) > 3 {
+			// a product's components, as the array the map holds
+			p.line("%s[%s] = [%s];", p.ref(s.Args[0]), p.ref(s.Args[1]), strings.Join(p.refs(s.Args[2:]), ", "))
+			break
+		}
 		p.line("%s[%s] = %s;", p.ref(s.Args[0]), p.ref(s.Args[1]), p.ref(s.Args[2]))
 	case ir.ORestrict:
 		// A view buys V8 nothing: the restriction is its table (L13 holds of

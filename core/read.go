@@ -720,6 +720,11 @@ func loopOrLet(names []string, body *Term, inits []*Term) *Term {
 // bottom-up, so by the time it renames a match arm's body every inner `fn` has
 // already been through `Fn`, which closes its body — so an occurrence bound by a nested binder is a KBound, not a
 // KName. Only genuinely free names remain to rename.
+// PlantCaseBinderUnbound renames a binder but not its projections, as
+// before: `'some(r) -> r.x` is refused as an import again
+// (TestAProductIsAMapsValue).
+var PlantCaseBinderUnbound bool
+
 func renameFree(t *Term, binds map[string]string) *Term {
 	if t == nil || len(binds) == 0 {
 		return t
@@ -727,6 +732,15 @@ func renameFree(t *Term, binds map[string]string) *Term {
 	if t.Kind == KName {
 		if v, ok := binds[t.Name]; ok {
 			return Name(v)
+		}
+		// A PROJECTION OF A RENAMED BINDER is renamed with it: `r.x` is
+		// (#get "x" r), the binder deciding (ADR 0128 item 3), and a case
+		// arm's `'some(r) -> r.x` kept `r.x` while r became the payload's
+		// name, so r.x was read as a module's and refused as an import.
+		if i := strings.Index(t.Name, "."); i > 0 && !PlantCaseBinderUnbound {
+			if v, ok := binds[t.Name[:i]]; ok {
+				return Name(v + t.Name[i:])
+			}
 		}
 		return t
 	}

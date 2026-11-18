@@ -34,6 +34,14 @@ func TypeText(ty string) string {
 	if k, v, ok := core.MapTypes(ty); ok {
 		return "(map " + TypeText(k) + " " + TypeText(v) + ")"
 	}
+	// A MAP'S PRODUCT VALUE (emit/mapprod.go), its components in order.
+	if parts := core.ProdTypes(ty); len(parts) >= 2 {
+		out := "(prod"
+		for _, c := range parts {
+			out += " " + TypeText(c)
+		}
+		return out + ")"
+	}
 	if strings.Contains(ty, " ") {
 		// A range, or any other spelling of several words (`int 0 inf`): its
 		// words, as a list.
@@ -83,6 +91,19 @@ func typeOf(t *core.Term) (string, error) {
 			return "", err
 		}
 		return "map " + k + " " + v, nil
+	case "prod":
+		if len(t.Kids) < 3 {
+			return "", fmt.Errorf("(prod τ…) takes two types or more")
+		}
+		parts := make([]string, len(t.Kids)-1)
+		for i, k := range t.Kids[1:] {
+			c, err := typeOf(k)
+			if err != nil {
+				return "", err
+			}
+			parts[i] = c
+		}
+		return "prod(" + strings.Join(parts, ", ") + ")", nil
 	}
 	words := []string{head}
 	for _, k := range t.Kids[1:] {
@@ -113,6 +134,12 @@ func sortOf(tg *emit.Target, ty string) string {
 	}
 	if k, v, ok := core.MapTypes(ty); ok {
 		return "map " + sortOf(tg, k) + " " + sortOf(tg, v)
+	}
+	if parts := core.ProdTypes(ty); len(parts) >= 2 {
+		for i, c := range parts {
+			parts[i] = sortOf(tg, c)
+		}
+		return "prod(" + strings.Join(parts, ", ") + ")"
 	}
 	if lo, _, ok := core.IntRangeBig(ty); ok {
 		if tg.ValueType(ty) == core.BigType && tg.BigRepr == "limbs" && lo.Sign() >= 0 {

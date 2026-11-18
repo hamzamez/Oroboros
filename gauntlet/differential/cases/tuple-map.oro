@@ -1,0 +1,18 @@
+// A TUPLE AS A MAP'S VALUE, ON FOUR TARGETS (data.md §3.3; ADR 0128 item 7).
+// inputs: 0 2 9
+// expect: 25 28 295
+//
+// The tuple's components are the insert's values and the read's slots
+// (emit/mapprod.go), taken apart by its pattern. Key i mod 4 is written for
+// each i < n, so a later i overwrites an earlier one, and key 4 is never
+// written.
+//
+//   key j's last writer i: a + b = 10i + (i + 1) = 11i + 1;  absent: 5
+//   n = 0: 5·5 = 25;  n = 2: 1 + 12 + 3·5 = 28;  n = 9: 89 + 56 + 67 + 78 + 5 = 295
+fn run(n ∈ 0..16) (Int) {
+    m = { var m := map(16); loop i = 0 { i >= n -> m; else -> { m[i % 4] := (i * 10, i + 1); again(i + 1) } } }
+    loop j = 0, acc = 0 {
+        j > 4 -> acc
+        else -> again(j + 1, acc + case m[j] { 'some(p) -> { (a, b) = p; a + b }; 'none -> 5 })
+    }
+}

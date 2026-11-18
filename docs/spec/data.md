@@ -205,7 +205,7 @@ This is products.md §3, unchanged, and the reasons are unchanged:
 | a function's result | yes | several results (values.md): Go's multiple returns, a generated Java `record`, a JS object, `rax`/`rdx` |
 | an element of `(array …)` or `(buffer …)` | yes | the flat stride (products.md §4) |
 | a parameter at an export | **yes**, ADR 0128 (was no: "a bare product has no width caller and callee could agree on") | per component by ρ (ADR 0079): a record's labels and sets are the agreement; Go a struct, Java a record class, JavaScript an object, LLVM its components |
-| a value in a `map` | **yes**, ADR 0128 (was no: a map is not an array) | its components' cells (ADR 0120 on LLVM), the host's struct value elsewhere |
+| a value in a `map` | **yes**, ADR 0128 (was no: a map is not an array); built (mapvalue-2026-11-18) but for a header's declared `Map(K, A × B)` | its components (maps.md §2.1): Go a struct, the JVM a record, JavaScript an array, windows n cells of its slot (ADR 0120) |
 | a component that is itself a product, at a representation position | **yes**, ADR 0128 (was deferred by products.md §7) | flattened by associativity, A × (B × C) ≅ A × B × C |
 
 ### 3.4 Reduction

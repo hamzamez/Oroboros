@@ -1,0 +1,20 @@
+// A RECORD AS A MAP'S VALUE, ON FOUR TARGETS (data.md §3.3; ADR 0128 item 7).
+// inputs: 0 2 9
+// expect: 35 32 149
+//
+// A map's value of two components is held as the host holds a record: Go a
+// struct, the JVM a record class, JavaScript an array, windows two cells of a
+// slot of four (ADR 0120). The records are written y first and read through
+// canonical projections, so an order written into the host and read back in
+// another would answer otherwise. Key i mod 4 is written for each i < n, so a
+// later i overwrites an earlier one, and key 4 is never written.
+//
+//   key j's last writer i: x·3 + y = 3(i + 1) + 2i = 5i + 3;  absent: 7
+//   n = 0: 5·7 = 35;  n = 2: 3 + 8 + 3·7 = 32;  n = 9: 43 + 28 + 33 + 38 + 7 = 149
+fn run(n ∈ 0..16) (Int) {
+    m = { var m := map(16); loop i = 0 { i >= n -> m; else -> { m[i % 4] := record { y : i * 2, x : i + 1 }; again(i + 1) } } }
+    loop j = 0, acc = 0 {
+        j > 4 -> acc
+        else -> again(j + 1, acc + case m[j] { 'some(r) -> r.x * 3 + r.y; 'none -> 7 })
+    }
+}

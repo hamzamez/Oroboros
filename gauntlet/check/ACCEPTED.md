@@ -3731,3 +3731,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro js`
 - emitted text changed — `gauntlet/differential/cases/shift-div.oro js`
+
+## 2026-11-18 — on 81a63d55, with uncommitted changes
+
+**Reason:** a record or tuple as a map's value (ADR 0128 item 7): record-map and tuple-map, new cases on four targets
+
+696 runs: 481 emitted, 215 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+8 change(s):
+
+- new source — `gauntlet/differential/cases/record-map.oro go`
+- new source — `gauntlet/differential/cases/record-map.oro java`
+- new source — `gauntlet/differential/cases/record-map.oro js`
+- new source — `gauntlet/differential/cases/record-map.oro windows`
+- new source — `gauntlet/differential/cases/tuple-map.oro go`
+- new source — `gauntlet/differential/cases/tuple-map.oro java`
+- new source — `gauntlet/differential/cases/tuple-map.oro js`
+- new source — `gauntlet/differential/cases/tuple-map.oro windows`

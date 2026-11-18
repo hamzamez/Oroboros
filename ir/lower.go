@@ -42,6 +42,12 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 			f, err = nil, fmt.Errorf("%s: lowering: %s", name, e.msg)
 		}
 	}()
+	// A PRODUCT AS A MAP'S VALUE is its components (emit/mapprod.go): every
+	// path to the IR comes through here, after the checker read the tuples.
+	t, _, ferr := emit.FlattenMapProducts(tg, t)
+	if ferr != nil {
+		return nil, fmt.Errorf("%s: %w", name, ferr)
+	}
 	f = &Func{Name: name, Body: &Region{}}
 	body := t
 	if t.Kind == core.KFn {
@@ -638,7 +644,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		return []V{v}
 	case p.Kind == "table-set" && len(args) == 3:
 		return []V{l.one(r, Stmt{Op: OSet, Args: l.values(args, r)})}
-	case p.Kind == "map-insert" && len(args) == 3:
+	case p.Kind == "map-insert" && len(args) >= 3: // a product's components after the value's key
 		return []V{l.one(r, Stmt{Op: OInsert, Args: l.values(args, r)})}
 	case p.Kind == "map-keys" && len(args) == 1:
 		return []V{l.one(r, Stmt{Op: OKeys, Args: l.values(args, r)})}
@@ -960,10 +966,11 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 	// pairs' element taken apart has the same shape, and the flattening pass
 	// rewrites it to its projections before it reaches here (emit/product.go,
 	// the book's finding 64).
-	if op.Kind == core.KApp && len(op.Kids) == 2 && len(k.Params) == 2 && op.Kids[0].Kind != core.KName {
+	if op.Kind == core.KApp && len(op.Kids) == 2 && len(k.Params) >= 2 && op.Kids[0].Kind != core.KName &&
+		(len(k.Params) == 2 || emit.IsMapSlots(k.Params[1:])) {
 		m := l.single(op.Kids[0], r)
 		key := l.single(op.Kids[1], r)
-		res := l.freshN(2)
+		res := l.freshN(len(k.Params)) // the tag and the value's slots, one per component
 		l.emit(r, Stmt{Op: ORead, Args: []V{m, key}, Res: res})
 		l.push(res, k.Params)
 		out := then(k.Closed())

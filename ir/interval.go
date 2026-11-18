@@ -880,10 +880,14 @@ func (a *intervals) stmt(s *Stmt) {
 		// linear (ADR 0018), so every value a read can return was inserted. An
 		// absent key's payload is a value the program cannot observe (spec §5.3),
 		// so the hull bounds every payload that is read.
+		// A PRODUCT'S SLOTS (emit/mapprod.go) share the one hull: sound, the
+		// diagonal's join of the product of their lattices, and coarser.
 		a.fs[s.Res[0]] = fact{v: rangeIV(0, 1)}
-		a.fs[s.Res[1]] = topFact
-		if args[0].hasEl {
-			a.fs[s.Res[1]] = fact{v: args[0].el}
+		for _, r := range s.Res[1:] {
+			a.fs[r] = topFact
+			if args[0].hasEl {
+				a.fs[r] = fact{v: args[0].el}
+			}
 		}
 	case OSet:
 		out := args[0]
@@ -893,8 +897,10 @@ func (a *intervals) stmt(s *Stmt) {
 		one(out)
 	case OInsert:
 		out := args[0]
-		if out.hasEl && len(args) > 2 {
-			out.el = joinIV(out.el, args[2].v) // a weak update, as a store's
+		if out.hasEl {
+			for _, x := range args[2:] {
+				out.el = joinIV(out.el, x.v) // a weak update, as a store's
+			}
 		}
 		one(out)
 	case OCellRef, OCellFresh:

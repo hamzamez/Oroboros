@@ -121,6 +121,18 @@ func (p *printer) hostTy(t string) string {
 	if t == "any" || t == "" {
 		return "any"
 	}
+	// A MAP'S PRODUCT VALUE (emit/mapprod.go) is a struct, its fields the
+	// components in order: what a hand-written map of records holds.
+	if parts := core.ProdTypes(t); len(parts) >= 2 {
+		fields := make([]string, len(parts))
+		for j, c := range parts {
+			fields[j] = fmt.Sprintf("c%d %s", j, p.hostTy(c))
+		}
+		return "struct{ " + strings.Join(fields, "; ") + " }"
+	}
+	if k, v, ok := core.MapTypes(t); ok && core.IsProd(v) {
+		return "map[" + p.hostTy(k) + "]" + p.hostTy(v)
+	}
 	return p.tg.HostType(t)
 }
 
@@ -452,6 +464,12 @@ func (p *printer) stmt(s *ir.Stmt) {
 		}
 		p.line("%s[%s] = %s", p.ref(s.Args[0]), p.ref(s.Args[1]), x)
 	case ir.OInsert:
+		if len(s.Args) > 3 {
+			// a product's components, as the struct the map holds
+			_, val, _ := core.MapTypes(p.f.Types[p.pl.Res(s.Args[0])])
+			p.line("%s[%s] = %s{%s}", p.ref(s.Args[0]), p.ref(s.Args[1]), p.hostTy(val), strings.Join(p.refs(s.Args[2:]), ", "))
+			return
+		}
 		p.line("%s[%s] = %s", p.ref(s.Args[0]), p.ref(s.Args[1]), p.ref(s.Args[2]))
 	case ir.OIf:
 		p.ifOp(s)
@@ -577,6 +595,10 @@ func scalarRange(ty string) bool {
 // read is `((m k) (fn (#t #p) …))`: Go's comma-ok, with the tag as an integer
 // the program tests (maps.md).
 func (p *printer) read(s *ir.Stmt) {
+	if len(s.Res) > 2 {
+		p.readSlots(s)
+		return
+	}
 	tag, pay := s.Res[0], s.Res[1]
 	pn := p.name(pay)
 	if p.pl.Uses[p.pl.Res(pay)] == 0 {
@@ -595,6 +617,41 @@ func (p *printer) read(s *ir.Stmt) {
 	p.line("if %s {", ok)
 	p.line("\t%s = 0", p.name(tag))
 	p.line("}")
+}
+
+// readSlots reads a map whose value is a product: the struct, then each slot
+// a field of it. An absent key's struct is the zero struct, whose fields no
+// program observes (maps.md §5.3).
+func (p *printer) readSlots(s *ir.Stmt) {
+	tag := s.Res[0]
+	used := false
+	for _, v := range s.Res[1:] {
+		if p.pl.Uses[p.pl.Res(v)] > 0 {
+			used = true
+		}
+	}
+	rec := "_"
+	if used {
+		rec = fmt.Sprintf("r%d", tag)
+	}
+	if p.pl.Uses[p.pl.Res(tag)] == 0 {
+		if !used {
+			return
+		}
+		p.line("%s := %s[%s]", rec, p.ref(s.Args[0]), p.ref(s.Args[1]))
+	} else {
+		ok := fmt.Sprintf("ok%d", tag)
+		p.line("%s, %s := %s[%s]", rec, ok, p.ref(s.Args[0]), p.ref(s.Args[1]))
+		p.line("%s := 1", p.name(tag))
+		p.line("if %s {", ok)
+		p.line("\t%s = 0", p.name(tag))
+		p.line("}")
+	}
+	for j, v := range s.Res[1:] {
+		if p.pl.Uses[p.pl.Res(v)] > 0 {
+			p.line("%s := %s.c%d", p.name(v), rec, j)
+		}
+	}
 }
 
 // keys is the map's keys in ascending order (maps.md §7): the host's sort,

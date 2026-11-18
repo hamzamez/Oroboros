@@ -4074,6 +4074,17 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 			b.WriteString("\n")
 		}
 		b.WriteString("public final class Main {\n")
+		// THE RECORDS SHARED BY SHAPE, as JavaFile writes them: a map whose value
+		// is a product holds one (emit/mapprod.go), and a built program that
+		// declared none had written none.
+		recs := make([]string, 0, len(JavaRecords))
+		for r := range JavaRecords {
+			recs = append(recs, r)
+		}
+		sort.Strings(recs)
+		for _, r := range recs {
+			b.WriteString(JavaRecords[r])
+		}
 		// THE COMMAND LINE IS THE ONE THING A JVM PROGRAM CANNOT ASK FOR.
 		//
 		// Go has `os.Args` and Node has `process.argv`; the JVM hands its

@@ -109,6 +109,14 @@ func (u *unifier) node(ty string) int {
 	if k, v, ok := core.MapTypes(ty); ok {
 		return u.mk("map", u.node(k), u.node(v))
 	}
+	// A MAP'S PRODUCT VALUE (emit/mapprod.go): a node per component.
+	if parts := core.ProdTypes(ty); len(parts) >= 2 {
+		kids := make([]int, len(parts))
+		for i, c := range parts {
+			kids[i] = u.node(c)
+		}
+		return u.mk("prod", kids...)
+	}
 	if e := core.CellElem(ty); e != "" {
 		return u.mk("cell", u.node(e))
 	}
@@ -250,6 +258,12 @@ func (u *unifier) render(i int, buffer bool) string {
 		return "map " + u.render(nd.kids[0], false) + " " + u.render(nd.kids[1], false)
 	case "cell":
 		return "cell " + u.render(nd.kids[0], false)
+	case "prod":
+		parts := make([]string, len(nd.kids))
+		for j, k := range nd.kids {
+			parts[j] = u.render(k, false)
+		}
+		return "prod(" + strings.Join(parts, ", ") + ")"
 	case litInt:
 		return "int" // a literal nothing typed is an integer, or the double it was
 	case litDec:
@@ -296,6 +310,17 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 	}
 	// A BUILD'S ELEMENT, for the default below.
 	var zeroFilled []int
+	// A MAP'S VALUE is one slot, or a product of several (emit/mapprod.go).
+	slotsOf := func(vs []V) int {
+		if len(vs) == 1 || PlantSlotsUntyped {
+			return node[vs[0]]
+		}
+		kids := make([]int, len(vs))
+		for j, v := range vs {
+			kids[j] = node[v]
+		}
+		return u.mk("prod", kids...)
+	}
 	mapOf := func(m V) (int, int) {
 		k, v := u.fresh(), u.fresh()
 		u.unify(node[m], u.mk("map", k, v))
@@ -428,7 +453,7 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 				k, v := mapOf(s.Args[0])
 				u.unify(node[s.Args[1]], k)
 				is(s.Res[0], "int")
-				u.unify(node[s.Res[1]], v)
+				u.unify(v, slotsOf(s.Res[1:]))
 			case OKeys:
 				k, _ := mapOf(s.Args[0])
 				u.unify(node[s.Res[0]], u.mk("table", k))
@@ -439,7 +464,7 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 			case OInsert:
 				k, v := mapOf(s.Args[0])
 				u.unify(node[s.Args[1]], k)
-				u.unify(node[s.Args[2]], v)
+				u.unify(v, slotsOf(s.Args[2:]))
 				eq(s.Res[0], s.Args[0])
 			case OIf:
 				is(s.Args[0], "bool")
@@ -1036,3 +1061,8 @@ func structOfCell(tg *emit.Target, f *Func, v V) string {
 	walk(f.Body)
 	return found
 }
+
+// PlantSlotsUntyped types a map's value by its first slot alone, so a map of
+// products is typed a map of one: the verifier's W4 must refuse its reads
+// and inserts (TestAProductIsAMapsValue).
+var PlantSlotsUntyped bool

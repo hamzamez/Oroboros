@@ -94,10 +94,10 @@ central.
 | `len` | 1 → 1 | yes | | a table's or buffer's length |
 | `array` | n → 1 | yes | | the table given by its graph (tables.md §7) |
 | `map` | 2n → 1 | yes | | the map given by its graph (maps.md §3.1) |
-| `read` | 2 → 2 | yes | | a map read as `option V`: a tag and a payload (maps.md) |
+| `read` | 2 → 1 + n | yes | | a map read as `option V`: a tag and a payload, n slots for a value of n components (maps.md §2.1; W4 checks n against the map's type) |
 | `keys` | 1 → 1 | yes | | a map's keys in ascending order (maps.md §7) |
 | `set` | 3 → 1 | no | | a store into a live buffer, consuming it and returning it (ADR 0018) |
-| `insert` | 3 → 1 | no | | a store into a live map buffer |
+| `insert` | 2 + n → 1 | no | | a store into a live map buffer, n components of its value (maps.md §2.1) |
 | `if` | 1 → m | yes | 2 | a branch in value position, joined (§1.3) |
 | `loop` | n → m | as its body | 1 | the Elgot iterate of its body |
 | `build` | 1 → m | no | 1 | a scope with one fresh zero-filled buffer (ADR 0018, 0031) |
@@ -419,7 +419,7 @@ a verifier, run after lowering and after every pass that rewrites the IR.
 
 ```
 τ ::= (int LO HI) | int | f64 | bool | string | NAME
-    | (array τ) | (buffer τ) | (map τ τ)
+    | (array τ) | (buffer τ) | (map τ τ) | (prod τ τ τ…)
 ```
 
 These are the language's types (types.md), with the range written out. `string` is Σ* (ADR 0030).
@@ -439,6 +439,7 @@ Their sets:
 - ⟦(array τ)⟧ = ⋃ₙ (Fin n → ⟦τ⟧), where Fin n = {0, …, n−1};
 - ⟦(buffer τ)⟧ is the same set as ⟦(array τ)⟧, used linearly;
 - ⟦(map κ τ)⟧ is the finite partial functions ⟦κ⟧ ⇀ ⟦τ⟧.
+- ⟦(prod τ₁ … τₙ)⟧ is ⟦τ₁⟧ × … × ⟦τₙ⟧, n ≥ 2, written only as a map's value (maps.md §2.1).
 
 Every type denotes a set, and **containment is subtyping**: τ ≤ σ iff ⟦τ⟧ ⊆ ⟦σ⟧. Arrays and maps are
 covariant, because they are immutable values.

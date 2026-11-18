@@ -727,14 +727,25 @@ func (v *verifier) terminator(r *Region, c ctx) [][]V {
 	return nil
 }
 
+// mapSlots is the number of slots a map's value has: its product's components,
+// or one. A type the typing left unknown is one slot.
+func mapSlots(ty string) int {
+	if _, val, ok := core.MapTypes(ty); ok {
+		if parts := core.ProdTypes(val); len(parts) >= 2 {
+			return len(parts)
+		}
+	}
+	return 1
+}
+
 // sigma is Σ's arity table: operands and results, -1 for "any number".
 var sigma = map[Op][2]int{
 	OConst: {0, 1}, OGlobal: {0, 1},
 	OAdd: {2, 1}, OSub: {2, 1}, OMul: {2, 1}, ONeg: {1, 1}, ODiv: {2, 1}, ORem: {2, 1},
 	OAnd: {2, 1}, OOr: {2, 1}, OXor: {2, 1}, ONot: {1, 1}, OShl: {2, 1}, OShr: {2, 1}, OMod: {2, 1},
 	OEq: {2, 1}, ONe: {2, 1}, OLt: {2, 1}, OLe: {2, 1}, OGt: {2, 1}, OGe: {2, 1},
-	OIndex: {2, 1}, OLen: {1, 1}, OArray: {-1, 1}, OMap: {-1, 1}, ORead: {2, 2},
-	OKeys: {1, 1}, OSet: {3, 1}, OInsert: {3, 1},
+	OIndex: {2, 1}, OLen: {1, 1}, OArray: {-1, 1}, OMap: {-1, 1}, ORead: {2, -1},
+	OKeys: {1, 1}, OSet: {3, 1}, OInsert: {-1, 1},
 	OIf: {1, -1}, OLoop: {-1, -1}, OBuild: {1, -1}, OBuildMap: {1, -1}, OTabulate: {1, 1},
 	OThe: {1, 1}, ORequire: {1, 0},
 	ORestrict: {2, 1}, OAssume: {1, 0}, OZero: {0, 1},
@@ -789,6 +800,18 @@ func (v *verifier) stmt(s *Stmt) {
 		}
 		if s.Op == OMap && len(s.Args)%2 != 0 {
 			v.add("W4: a map literal's operands are pairs")
+		}
+		// A MAP'S VALUE IS ITS SLOTS (emit/mapprod.go): a read gives its tag and
+		// one result per component of the value's type, an insert takes one
+		// operand per component after the map and the key.
+		if (s.Op == ORead || s.Op == OInsert) && len(s.Args) > 0 {
+			n := mapSlots(v.f.Types[s.Args[0]])
+			if s.Op == ORead && len(s.Res) != 1+n {
+				v.add("W4: %s reads a map whose value has %d slot(s), bound to %d results", where, n, len(s.Res))
+			}
+			if s.Op == OInsert && len(s.Args) != 2+n {
+				v.add("W4: %s inserts into a map whose value has %d slot(s), given %d operands", where, n, len(s.Args))
+			}
 		}
 	} else {
 		v.add("W4: an operation outside Σ, %d", s.Op)

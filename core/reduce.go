@@ -160,14 +160,14 @@ type Env struct {
 	// Static gives each declaration with static parameters their number, and
 	// Instantiate makes its instance at sets, f#[T̄], the δ-rule of a static
 	// application: (f T̄) ⟶ f#[T̄].
-	Sets        map[string]bool
+	Sets map[string]bool
 	// UnfoldSet is a target's set name read as its definition, where a target
 	// made this environment: zero(T) of a C type's record (ADR 0128).
 	UnfoldSet func(string) string
 	// InStructs are a host declaration's `_In_` struct parameters, by its name:
 	// each argument, a record, passed as a reference to a fresh copy of its
 	// encoding (llvm.md §6b, record.go's inStructArgs).
-	InStructs map[string][]InStruct
+	InStructs   map[string][]InStruct
 	Static      map[string]int
 	Instantiate func(f string, args []string) (string, error)
 }

@@ -72,6 +72,28 @@ is not an equivalence relation, strings because no two of the four targets agree
 the mechanism [elemwidth](../../gauntlet/results/elemwidth-2026-08-27.md) built for
 `(array (int 0 255))`. That is `wordcount`'s last unproven operation, and it is free.
 
+### 2.1 A product as the value (ADR 0128 item 7)
+
+For V = V₁ × … × Vₙ, a tuple or a record (a record is the tuple of its canonical order), m(k) is n
+components, and a map of them is a partial function K ⇀ V₁ × … × Vₙ. The IR says so directly:
+`insert m k v₁ … vₙ` stores the components, `read m k` yields the option's tag and n slots
+(ADR 0042), and the map's type is `(map K (prod V₁ … Vₙ))`, the verifier checking each read's and
+insert's count against it (W4). The rewrite to that form is `emit/mapprod.go`, after the checker and
+before lowering. A literal of products is the map its inserts build. Each host holds the components
+the way hand-written code holds a record:
+
+| target | the value | insert | read |
+|---|---|---|---|
+| Go | `struct{ c0 V₁; …; cₙ₋₁ Vₙ }` | `m[k] = struct{…}{v₁, …}` | `r, ok := m[k]; v₁ := r.c0` |
+| JavaScript | an array | `m[k] = [v₁, …]` | `r = m[k]; v₁ = r?.[0]` |
+| the JVM | the record shared by the components' shape (as several results) | `m.put(k, new Tup_…(v₁, …))` | `b = m.get(k); v₁ = b == null ? 0 : b.f0()` |
+| windows | n cells of a slot of 2 + n (§8.4) | a claim of k's slot and n stores | a find and n loads |
+
+**The intervals keep one hull for every slot** (the diagonal's join of the product of their
+lattices): sound, and coarser than a hull per component, which waits on a program it refuses.
+**Not built**: a header's declared `Map(K, A × B)`, a set a definition's parameter would claim, which
+the reader still refuses as no type; a definition taking such a map unclaimed is inlined and works.
+
 ---
 
 ## 3. Constructors
@@ -450,7 +472,11 @@ Table(ℤ), slot s holding the used flag at 3s, the key at 3s + 1 and the value 
 = min{2ʲ ≥ 2c}; its abstraction d(t) = {(t[3s + 1], t[3s + 2]) : t[3s] = 1}. Each operation is a term
 over that table (`targets/llvm/lang.oro`'s `map_*`), stated by a `realize` line and substituted on the
 IR after the decision (`ir/maps.go`), so every statement about a map, its capacity included, is
-decided on the map, the same on all four targets. Until 2026-11-16 the map was rewritten into the
+decided on the map, the same on all four targets. **A value of w ≥ 2 components** (§2.1) is held in
+w cells, so a slot is s = 2 + w cells, its abstraction d(t) = {(t[s·i + 1], (t[s·i + 2], …,
+t[s·i + 1 + w])) : t[s·i] = 1}, w = 1 the table above; `mapw_claim` and `mapw_find` give a slot's
+first component cell, and `ir/maps.go` writes w stores or loads for the program's w
+(mapvalue-2026-11-18). Until 2026-11-16 the map was rewritten into the
 table before reduction (`emit/winmap.go`, deleted), by a tracker of which binders hold maps, and the
 tracker's loss of a `var` buffer was the book's finding 71.
 

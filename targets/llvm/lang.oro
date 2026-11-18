@@ -467,4 +467,94 @@ module lang {
             else -> { map_put(t, ks[i], map_at(vs, i)); again(i + 1) }
         }
     }
+
+    // ---- A PRODUCT AS A MAP'S VALUE (ADR 0128 item 7, emit/mapprod.go). A
+    // value of w components is held in w cells of its slot, so a slot is
+    // s = 2 + w cells: the used flag t[s·i], the key t[s·i + 1], and the
+    // components t[s·i + 2 + j], j < w; the abstraction is
+    // d(t) = {(t[s·i + 1], (t[s·i + 2], …, t[s·i + 1 + w])) : t[s·i] = 1}, and
+    // w = 1 is the map above. An insert is a claim of the key's slot and a
+    // store per component, a read a find and a load per component, each
+    // written by ir/maps.go for the program's w. A component's cell is at most
+    // (2 + 2⁸)·2⁴⁶ + 2⁸, so x + j stays far inside the word.
+
+    // the cell count: build-map(c) is build(cells_w(c, w))
+    fn mapw_cells(c ∈ Nat, w ∈ 1..2^8) (3..(2 + 2^8) * 2^46) { (2 + w) * map_slots(c) }
+    // the slot count, len(t) = (2 + w)·n by construction
+    fn mapw_n(t ∈ Array(Int), w ∈ 1..2^8) (Int) { llvm.sdiv(len(t), 2 + w) }
+
+    // FIND: the first component's cell of k, or −1 when k is absent.
+    fn mapw_find(t ∈ Array(Int), k ∈ Int, w ∈ 1..2^8) (-1..(2 + 2^8) * 2^46) {
+        n = mapw_n(t, w)
+        loop i = 0 {
+            i >= n || n < 1 || n > 2^46 -> -1
+            map_at(t, (2 + w) * map_slot(n, k, i)) == 0 -> -1
+            map_at(t, (2 + w) * map_slot(n, k, i) + 1) == k -> {
+                x = (2 + w) * map_slot(n, k, i) + 2
+                if x >= 0 && x + w <= len(t) { x } else { -1 }
+            }
+            else -> again(i + 1)
+        }
+    }
+
+    // CLAIM: k's slot, its flag and key written if it was empty, and its first
+    // component's cell; −1 for a full table, which the capacity's obligation
+    // (maps.md §6) makes unreachable. Its result is the table's version and
+    // the cell, so it declares none (as map_put): x's set is its body's facts.
+    fn mapw_claim(t ∈ Array(Int) linear, k ∈ Int, w ∈ 1..2^8) {
+        n = mapw_n(t, w)
+        loop i = 0 {
+            i >= n || n < 1 || n > 2^46 -> -1
+            map_at(t, (2 + w) * map_slot(n, k, i)) == 0 -> {
+                u = (2 + w) * map_slot(n, k, i)
+                case {
+                    u < 0 || u + 1 + w >= len(t) -> -1
+                    else -> { t[u] := 1; t[u + 1] := k; u + 2 }
+                }
+            }
+            map_at(t, (2 + w) * map_slot(n, k, i) + 1) == k -> {
+                x = (2 + w) * map_slot(n, k, i) + 2
+                if x >= 0 && x + w <= len(t) { x } else { -1 }
+            }
+            else -> again(i + 1)
+        }
+    }
+
+    // a component's store and load at cell x + j; the store is the identity
+    // where no slot was claimed, the load 0 where none was found
+    fn mapw_set(t ∈ Array(Int) linear, x ∈ -1..(2 + 2^8) * 2^46, j ∈ 0..2^8, v ∈ Int) {
+        if x >= 0 && x + j < len(t) { t[x + j] := v } else { () }
+    }
+    fn mapw_at(t ∈ Array(Int), x ∈ -1..(2 + 2^8) * 2^46, j ∈ 0..2^8) (Int) {
+        if x < 0 { 0 } else { map_at(t, x + j) }
+    }
+    // the option's tag: 0 present, 1 absent (ADR 0042)
+    fn mapw_tag(x ∈ -1..(2 + 2^8) * 2^46) (0..1) { if x < 0 { 1 } else { 0 } }
+
+    // |dom m| and the keys, ascending, at stride 2 + w
+    fn mapw_size(t ∈ Array(Int), w ∈ 1..2^8) (0..2^63-1) {
+        n = mapw_n(t, w)
+        loop c = 0, s = 0 {
+            s >= n || n > 2^46 -> c
+            else -> again(c + (if map_at(t, (2 + w) * s) == 1 { 1 } else { 0 }), s + 1)
+        }
+    }
+    fn mapw_rank(t ∈ Array(Int), k ∈ Int, w ∈ 1..2^8) (0..2^63-1) {
+        n = mapw_n(t, w)
+        loop c = 0, s = 0 {
+            s >= n || n > 2^46 -> c
+            map_at(t, (2 + w) * s) == 0 -> again(c, s + 1)
+            else -> again(if map_at(t, (2 + w) * s + 1) < k { c + 1 } else { c }, s + 1)
+        }
+    }
+    fn mapw_keys(t ∈ Array(Int), w ∈ 1..2^8) {
+        cnt = mapw_size(t, w)
+        n = mapw_n(t, w)
+        var o := array { 0 : _ ∈ 0..cnt-1 }
+        loop s = 0 {
+            s >= n || n > 2^46 -> o
+            map_at(t, (2 + w) * s) == 0 -> again(s + 1)
+            else -> { map_w(o, mapw_rank(t, map_at(t, (2 + w) * s + 1), w), map_at(t, (2 + w) * s + 1)); again(s + 1) }
+        }
+    }
 }

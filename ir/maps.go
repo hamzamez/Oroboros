@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"strings"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -83,6 +84,52 @@ func RealizeMaps(tg *emit.Target, f *Func) (int, error) {
 		count++
 		return inlineInto(f, out, c, args, res, ren)
 	}
+	// A PRODUCT'S SLOTS (lang.oro's mapw_*): a value of w ≥ 2 components is
+	// held in w cells of a slot of 2 + w, each operation written for w from
+	// the slot's terms, named in the module that realizes `insert`.
+	slotsOf := func(m V) int { return mapSlots(f.Types[m]) }
+	// stride is the w the slot's terms are given: the components' count, or
+	// with the fault 1, so a slot of three cells holds w components and the
+	// next slot's flag is overwritten (TestAProductIsAMapsValue)
+	stride := func(m V) int {
+		if PlantMapStrideOne {
+			return 1
+		}
+		return slotsOf(m)
+	}
+	helper := func(name string) string {
+		base, _ := def("insert")
+		return base[:strings.LastIndex(base, ".")+1] + name
+	}
+	konst := func(out []Stmt, n int) ([]Stmt, V) {
+		v := V(len(f.Types))
+		f.Types = append(f.Types, fmt.Sprintf("int %d %d", n, n))
+		return append(out, Stmt{Op: OConst, Lit: core.Int(int64(n)), Res: []V{v}}), v
+	}
+	fresh := func(ty string) V {
+		v := V(len(f.Types))
+		f.Types = append(f.Types, ty)
+		return v
+	}
+	call := func(out []Stmt, name string, args, res []V) []Stmt {
+		c, e := Instance(tg, helper(name))
+		if e != nil {
+			if err == nil {
+				err = e
+			}
+			return out
+		}
+		if table == "" {
+			for _, p := range c.Params {
+				if core.ArrayElem(c.Types[p]) != "" {
+					table = c.Types[p]
+					break
+				}
+			}
+		}
+		count++
+		return inlineInto(f, out, c, args, res, ren)
+	}
 	var region func(r *Region)
 	region = func(r *Region) {
 		var out []Stmt
@@ -92,6 +139,51 @@ func RealizeMaps(tg *emit.Target, f *Func) (int, error) {
 				region(sub)
 			}
 			switch {
+			case s.Op == OBuildMap && len(s.Args) == 1 && slotsOf(s.Res[0]) >= 2:
+				// build-map(c){m. B} ↦ build(cells_w(c, w)){t. h(B)}
+				var w V
+				out, w = konst(out, stride(s.Res[0]))
+				cells := fresh("int")
+				out = call(out, "mapw-cells", []V{s.Args[0], w}, []V{cells})
+				s.Op, s.Args = OBuild, []V{cells}
+				out = append(out, s)
+			case s.Op == OInsert && slotsOf(s.Args[0]) >= 2:
+				// insert(m, k, v₀ … v_{w−1}) ↦ x = claim(t, k, w); set(t, x, j, vⱼ) for each j
+				var w V
+				out, w = konst(out, stride(s.Args[0]))
+				t1, x := fresh(f.Types[s.Args[0]]), fresh("int")
+				out = call(out, "mapw-claim", []V{s.Args[0], s.Args[1], w}, []V{t1, x})
+				cur := t1
+				for j, v := range s.Args[2:] {
+					var jv V
+					out, jv = konst(out, j)
+					next := s.Res[0]
+					if j < len(s.Args)-3 {
+						next = fresh(f.Types[s.Args[0]])
+					}
+					out = call(out, "mapw-set", []V{cur, x, jv, v}, []V{next})
+					cur = next
+				}
+			case s.Op == ORead && slotsOf(s.Args[0]) >= 2:
+				// read(m, k) ↦ x = find(t, k, w); (tag(x), at(t, x, 0), …)
+				var w V
+				out, w = konst(out, stride(s.Args[0]))
+				x := fresh("int")
+				out = call(out, "mapw-find", []V{s.Args[0], s.Args[1], w}, []V{x})
+				out = call(out, "mapw-tag", []V{x}, []V{s.Res[0]})
+				for j, v := range s.Res[1:] {
+					var jv V
+					out, jv = konst(out, j)
+					out = call(out, "mapw-at", []V{s.Args[0], x, jv}, []V{v})
+				}
+			case s.Op == OKeys && slotsOf(s.Args[0]) >= 2:
+				var w V
+				out, w = konst(out, stride(s.Args[0]))
+				out = call(out, "mapw-keys", []V{s.Args[0], w}, s.Res)
+			case s.Op == OLen && len(s.Args) == 1 && isMap(s.Args[0]) && slotsOf(s.Args[0]) >= 2:
+				var w V
+				out, w = konst(out, stride(s.Args[0]))
+				out = call(out, "mapw-size", []V{s.Args[0], w}, s.Res)
 			case s.Op == OBuildMap && len(s.Args) == 1:
 				// build-map(c){m. B} ↦ build(cells(c)){t. h(B)}
 				cells := V(len(f.Types))
@@ -148,3 +240,6 @@ func RealizeMaps(tg *emit.Target, f *Func) (int, error) {
 // PlantMapsUnrealized leaves the map operations for the printer, which on the
 // LLVM layer has none: TestAMapIsRealizedAfterTheDecision must catch it.
 var PlantMapsUnrealized bool
+
+// PlantMapStrideOne gives a product's slot terms w = 1 whatever its width.
+var PlantMapStrideOne bool

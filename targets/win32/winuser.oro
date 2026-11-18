@@ -20,6 +20,25 @@ module windows/winuser {
         host expr call "CreateWindowExA" stdcall lib "user32"
     }
     fn DestroyWindow(w ∈ windef.HWND) (r ∈ minwindef.BOOL) { host expr call "DestroyWindow" stdcall lib "user32" }
+
+    // WINDOW CLASSES. typedef struct tagWNDCLASSA { UINT style; WNDPROC
+    // lpfnWndProc; int cbClsExtra; int cbWndExtra; HINSTANCE hInstance; HICON
+    // hIcon; HCURSOR hCursor; HBRUSH hbrBackground; LPCSTR lpszMenuName; LPCSTR
+    // lpszClassName; } WNDCLASSA. The window procedure is 0 until callbacks
+    // (6d's other wall), and the class menu 0: each determined (Theorem F).
+    // lpszClassName is a C string the call lends (Theorem P′), NUL-free by the
+    // declaration's `where`.
+    set WNDCLASSA = record {
+        style ∈ minwindef.UINT, cbClsExtra ∈ minwindef.INT, cbWndExtra ∈ minwindef.INT, hInstance ∈ minwindef.HINSTANCE,
+        hIcon ∈ windef.HICON, hCursor ∈ windef.HCURSOR, hbrBackground ∈ windef.HBRUSH, lpszClassName ∈ String
+    }
+    repr WNDCLASSA c(style, lpfnWndProc ∈ ptr = 0, cbClsExtra, cbWndExtra, hInstance, hIcon, hCursor,
+        hbrBackground, lpszMenuName ∈ ptr = 0, lpszClassName)
+    // ATOM RegisterClassA(_In_ CONST WNDCLASSA *lpWndClass): a struct passed
+    // `_In_`, a value (ADR 0084 P2).
+    fn RegisterClassA(wc ∈ WNDCLASSA) (r ∈ minwindef.ATOM) where nulfree(wc.lpszClassName) { host expr call "RegisterClassA" stdcall lib "user32" }
+    // BOOL UnregisterClassA(_In_ LPCSTR lpClassName, _In_opt_ HINSTANCE hInstance)
+    fn UnregisterClassA(c ∈ String, i ∈ minwindef.HINSTANCE) (r ∈ minwindef.BOOL) where nulfree(c) { host expr call "UnregisterClassA" stdcall lib "user32" }
     // BOOL GetClientRect(_In_ HWND hWnd, _Out_ LPRECT lpRect): the window's
     // client area through a RECT the host fills, a struct's cell (llvm.md §6b).
     fn GetClientRect(w ∈ windef.HWND, rc ∈ cell(windef.RECT)) (r ∈ minwindef.BOOL) { host expr call "GetClientRect" stdcall lib "user32" }

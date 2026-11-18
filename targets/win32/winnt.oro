@@ -9,6 +9,8 @@ module windows/winnt {
     set SHORT = -2^15..2^15-1           // typedef short SHORT
     set LONG = -2^31..2^31-1            // typedef long LONG
     set LONGLONG = -2^63..2^63-1        // typedef __int64 LONGLONG
+    set ULONGLONG = 0..2^64-1           // typedef unsigned __int64 ULONGLONG
+    set DWORDLONG = ULONGLONG           // typedef ULONGLONG DWORDLONG
     set LCID = 0..2^32-1                // typedef DWORD LCID
     // typedef union _LARGE_INTEGER { struct { DWORD LowPart; LONG HighPart; };
     // LONGLONG QuadPart; } LARGE_INTEGER: eight bytes, read as its QuadPart.

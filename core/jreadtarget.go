@@ -1000,9 +1000,14 @@ func isBufferSet(e Expr) bool {
 	return ok && v.Name == "buffer"
 }
 
-// cLayout reads `repr NAME c(l₁, …, lₙ) [pack(p)]` into (c-layout NAME "p"
-// "l₁" … "lₙ"): the layout is data the target loader keeps by the set's name,
-// its order and packing the C definition's (llvm.md §6b).
+// cLayout reads `repr NAME c(f₁, …, fₙ) [pack(…)]` into (c-layout NAME "pack"
+// f…): the layout is data the target loader keeps by the set's name, its order
+// and packing the C definition's (llvm.md §6b). A field is the record's label,
+// "l", or a field the declaration determines (Theorem F, ADR 0128 item 12),
+// `l ∈ S = size`, `= 0` or `= len(m)`, read (det "l" S "size"|"0"|"len" "m"):
+// not data, so not in the record. The packing is `pack(p)`, or a function of
+// the data model, `pack(ILP32 : 1)` (commdlg.h's `#if !defined(_WIN64)`),
+// written "ILP32:1".
 func (p *parser) cLayout() (*Term, error) {
 	p.next() // repr
 	name := Name(p.setName(Unspell(p.next().text)))
@@ -1010,17 +1015,54 @@ func (p *parser) cLayout() (*Term, error) {
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
+	p.open(true)
 	kids := []*Term{Name("c-layout"), name, Str("")}
 	for !p.is(")") {
 		t := p.next()
 		if t.kind != tIdent {
-			return nil, p.errorf("a C layout lists its record's labels in the C definition's order, not %s", t)
+			p.close()
+			return nil, p.errorf("a C layout lists its fields in the C definition's order, not %s", t)
 		}
-		kids = append(kids, Str(Unspell(t.text)))
+		l := Unspell(t.text)
+		if !p.accept("∈") {
+			kids = append(kids, Str(l))
+		} else {
+			set, err := p.exprAt(pCmp + 1)
+			if err != nil {
+				p.close()
+				return nil, err
+			}
+			if err := p.expect("="); err != nil {
+				p.close()
+				return nil, err
+			}
+			d := p.next()
+			det := []*Term{Name("det"), Str(l), p.setDatum(set, "")}
+			switch {
+			case d.kind == tIdent && d.text == "size":
+				det = append(det, Str("size"), Str(""))
+			case d.kind == tInt && d.text == "0":
+				det = append(det, Str("0"), Str(""))
+			case d.kind == tIdent && d.text == "len" && p.is("("):
+				p.next()
+				m := p.next()
+				if m.kind != tIdent || !p.accept(")") {
+					p.close()
+					return nil, p.errorf("a determined length is `len(m)`, m a field of the record")
+				}
+				det = append(det, Str("len"), Str(Unspell(m.text)))
+			default:
+				p.close()
+				return nil, p.errorf("a field the declaration determines is `= size`, `= 0` or `= len(m)` "+
+					"(Theorem F, ADR 0128 item 12), not %s", d)
+			}
+			kids = append(kids, app(det...))
+		}
 		if !p.accept(",") {
 			break
 		}
 	}
+	p.close()
 	if err := p.expect(")"); err != nil {
 		return nil, err
 	}
@@ -1029,11 +1071,25 @@ func (p *parser) cLayout() (*Term, error) {
 		if err := p.expect("("); err != nil {
 			return nil, err
 		}
-		n := p.next()
-		if n.kind != tInt {
-			return nil, p.errorf("a C layout's packing is `pack(p)`, p a power of two, not %s", n)
+		var specs []string
+		for !p.is(")") {
+			first := p.next()
+			spec := first.text
+			if first.kind == tIdent && p.accept(":") {
+				n := p.next()
+				if n.kind != tInt {
+					return nil, p.errorf("a model's packing is `MODEL : p`, p a power of two")
+				}
+				spec += ":" + n.text
+			} else if first.kind != tInt {
+				return nil, p.errorf("a C layout's packing is `pack(p)` or `pack(MODEL : p, …)`, not %s", first)
+			}
+			specs = append(specs, spec)
+			if !p.accept(",") {
+				break
+			}
 		}
-		kids[2] = Str(n.text)
+		kids[2] = Str(strings.Join(specs, ","))
 		if err := p.expect(")"); err != nil {
 			return nil, err
 		}

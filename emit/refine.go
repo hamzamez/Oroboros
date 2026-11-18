@@ -1327,7 +1327,13 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 			sub[n] = args[i]
 		}
 	}
-	want := core.Rename2(p.Where, sub)
+	// A PARAMETER'S PROJECTION, `wc.lpszClassName` in a host's `where` (ADR
+	// 0128): the binder decides a.b, as Load's resolve does for a program.
+	where := p.Where
+	if !PlantWhereProjectionUnread {
+		where = core.ProjectBound(where, sub)
+	}
+	want := core.Rename2(where, sub)
 	// EVALUATION FIRST, the third route (refinements.md §3a): a goal closed
 	// over literals is decided by reducing it, `(= (% (len (array …)) 2) 0)`
 	// included, which the linear fragment cannot express.
@@ -3595,3 +3601,7 @@ var PlantNoVersionLength bool
 // PlantRuleNoLength forgets that a rule (table n λ) is n long, so an
 // allocated rule indexed below its count is refused again.
 var PlantRuleNoLength bool
+
+// PlantWhereProjectionUnread reads a host `where`'s `p.l` as a name, as
+// before: RegisterClassA's nulfree(wc.lpszClassName) is then undecided.
+var PlantWhereProjectionUnread bool

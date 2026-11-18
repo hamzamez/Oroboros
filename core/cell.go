@@ -42,7 +42,51 @@ func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]Borro
 		return t, nil
 	}
 	c := newCellTr(decls, borrows)
+	// FRESH ABOVE THE SCOPES' NAMES: the scope pass named its references and
+	// versions #s1, #v2, …, and this pass may thread a call inside one of its
+	// scopes (an out-call's continuation holding a `var`), so its own names
+	// start past them. Both counting from 1, `#s1` bound twice captured the
+	// call's other argument: GetFileSize(#s1, #s1) for GetFileSize(h, hi).
+	if !PlantCellNamesClash {
+		c.n = maxFreshIndex(t)
+	}
 	return c.calls(t)
+}
+
+// PlantCellNamesClash starts the calls pass's names at 1 again, as before.
+var PlantCellNamesClash bool
+
+// maxFreshIndex is the largest N of a name #sN or of a version the cell
+// translation made in t, binders' hints included.
+func maxFreshIndex(t *Term) int {
+	n := 0
+	see := func(s string) {
+		for _, pre := range []string{"#s", VersionPrefix} {
+			if strings.HasPrefix(s, pre) {
+				var k int
+				if _, err := fmt.Sscanf(s[len(pre):], "%d", &k); err == nil && k > n {
+					n = k
+				}
+			}
+		}
+	}
+	var walk func(t *Term)
+	walk = func(t *Term) {
+		if t == nil {
+			return
+		}
+		if t.Kind == KName {
+			see(t.Name)
+		}
+		for _, p := range t.Params {
+			see(p)
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+	return n
 }
 
 func newCellTr(decls map[string]CellDecl, borrows map[string]BorrowDecl) *cellTr {
@@ -778,13 +822,17 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 	}
 
 	// A HOST WRITING A CELL (spec/local.md §5): a call of a declaration with
-	// cell parameters, eliminated or as a value.
+	// cell parameters, eliminated or as a value, AS WRITTEN: one the scope pass
+	// already translated holds compiler names at its cells and is an ordinary
+	// call now, as `calls` leaves it. Threaded again, a scope translated inside
+	// an out-call's continuation (`var hi := 0` after `(sz, ok) = …(out …)`)
+	// was translated twice and its cell read as no cell.
 	if len(args) == 1 && args[0].Kind == KFn {
-		if d, ok := c.cellCall(op); ok {
+		if d, ok := c.cellCall(op); ok && (c.asWritten(op, d) || PlantCellCallTwice) {
 			return c.translateCall(op, d, args[0], inLoop, carried)
 		}
 	}
-	if d, ok := c.cellCall(t); ok {
+	if d, ok := c.cellCall(t); ok && (c.asWritten(t, d) || PlantCellCallTwice) {
 		return c.translateCall(t, d, nil, inLoop, carried)
 	}
 
@@ -1169,3 +1217,7 @@ func (c *cellTr) cellOffLen(t *Term) string {
 	}
 	return ""
 }
+
+// PlantCellCallTwice translates a call the scope pass already translated
+// again, as before: a cell declared after an out-call is refused as no cell.
+var PlantCellCallTwice bool

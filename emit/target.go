@@ -165,6 +165,10 @@ type Prim struct {
 	// starts at, -1 when none; Arity is the declared result's, which `(out τ)`
 	// spreads after the cells. Read before the retraction (cellParams).
 	CellParams []int
+	// InStructs are the parameters whose set is a C type with a layout, passed
+	// `_In_` (llvm.md §6b): a reference to a fresh copy the host only reads,
+	// typed `cell T` and no cell of the program's.
+	InStructs []int
 	CellList   int
 	Arity      int
 
@@ -738,6 +742,9 @@ func (tg *Target) cellParams() error {
 		p.CellList = -1
 		any := false
 		for i, a := range p.Args {
+			if containsInt(p.InStructs, i) {
+				continue // an `_In_` struct: a value passed, no cell of the program's
+			}
 			list := p.Variadic && i == len(p.Args)-1
 			elem := a
 			if list {
@@ -3606,11 +3613,34 @@ func declareModule(frag *Target, f *core.Term, prefix, path string) error {
 				return fmt.Errorf("%s: `repr NAME c(l, …) [pack(p)]`, got %s", path, inner)
 			}
 			l := CLayout{}
-			if s := inner.Kids[2].Str; s != "" {
-				fmt.Sscan(s, &l.Pack)
+			for _, spec := range strings.Split(inner.Kids[2].Str, ",") {
+				switch m, n, model := strings.Cut(spec, ":"); {
+				case spec == "":
+				case model:
+					if l.ModelPack == nil {
+						l.ModelPack = map[string]int{}
+					}
+					var p int
+					fmt.Sscan(n, &p)
+					l.ModelPack[m] = p
+				default:
+					fmt.Sscan(spec, &l.Pack)
+				}
 			}
 			for _, k := range inner.Kids[3:] {
-				l.Fields = append(l.Fields, k.Str)
+				if k.Kind == core.KStr {
+					l.Fields = append(l.Fields, k.Str)
+					continue
+				}
+				// (det "l" S "kind" "arg"): a field the declaration determines
+				if k.Kind != core.KApp || len(k.Kids) != 5 || k.Kids[1].Kind != core.KStr {
+					return fmt.Errorf("%s: a determined field is `l ∈ S = size | 0 | len(m)`, got %s", path, k)
+				}
+				if l.Det == nil {
+					l.Det = map[string]Determined{}
+				}
+				l.Fields = append(l.Fields, k.Kids[1].Str)
+				l.Det[k.Kids[1].Str] = Determined{Type: core.TypeName(k.Kids[2]), Kind: k.Kids[3].Str, Arg: k.Kids[4].Str}
 			}
 			if frag.Layouts == nil {
 				frag.Layouts = map[string]CLayout{}
@@ -3678,6 +3708,24 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 		return nil, err
 	}
 	e.SetUnresolved(p.Unresolved)
+	// AN `_In_` STRUCT PARAMETER (llvm.md §6b): its argument, a record, is
+	// written into a fresh reference at the call, and nothing is read back.
+	for n, p := range tg.Prims {
+		for _, i := range p.InStructs {
+			if k, _, ok := tg.CStruct(core.CellElem(p.Args[i])); ok {
+				if e.InStructs == nil {
+					e.InStructs = map[string][]core.InStruct{}
+				}
+				e.InStructs[n] = append(e.InStructs[n], core.InStruct{Index: i, CType: k})
+			}
+		}
+	}
+	e.UnfoldSet = func(ty string) string {
+		if _, rec, ok := tg.CStruct(ty); ok {
+			return rec
+		}
+		return tg.UnfoldType("", ty)
+	}
 	e.Observe = map[string]bool{}
 	e.Bottom = map[string]bool{}
 	for _, n := range tg.Names {
@@ -4961,3 +5009,12 @@ var PlantNaturalsCType bool
 
 // u64Max is 2⁶⁴ − 1, the top of a 64-bit unsigned C type's set.
 var u64Max = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(1))
+
+func containsInt(xs []int, x int) bool {
+	for _, y := range xs {
+		if y == x {
+			return true
+		}
+	}
+	return false
+}

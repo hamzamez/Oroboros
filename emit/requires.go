@@ -1055,6 +1055,11 @@ func (r *refiner) nulFree(s *core.Term, f *facts) bool {
 	if core.IsRequire(s) {
 		s = s.Kids[4]
 	}
+	// A RECORD'S COMPONENT, `wc.lpszClassName` (ADR 0128): ν of the leaf the
+	// projection reads, of a record value or of an `_In_` struct's reference.
+	if leaf, ok := r.projected(s); ok {
+		return r.nulFree(leaf, f)
+	}
 	switch s.Kind {
 	case core.KStr:
 		return PlantNulFault || !strings.ContainsRune(s.Str, 0)
@@ -1188,4 +1193,38 @@ func unionMembers(ty string) ([]string, bool) {
 		return nil, false
 	}
 	return strings.Split(ty, "|"), true
+}
+
+// projected is the leaf (#get l r) reads where r is seen: a record value's
+// component, or leaf l of an `_In_` struct's reference (#ref "C" leaves…), its
+// leaves in the record's canonical order (llvm.md §6b).
+func (r *refiner) projected(s *core.Term) (*core.Term, bool) {
+	if s.Kind != core.KApp || len(s.Kids) != 3 || s.Kids[0].Kind != core.KName || s.Kids[0].Name != core.GetName ||
+		s.Kids[1].Kind != core.KStr {
+		return nil, false
+	}
+	l, v := s.Kids[1].Str, s.Kids[2]
+	if c, ok := r.projected(v); ok {
+		v = c
+	}
+	if v.Kind != core.KApp || len(v.Kids) < 2 || v.Kids[0].Kind != core.KName {
+		return nil, false
+	}
+	switch {
+	case v.Kids[0].Name == core.RecName && v.Kids[1].Kind == core.KStr:
+		for i, m := range strings.Fields(v.Kids[1].Str) {
+			if m == l && 2+i < len(v.Kids) {
+				return v.Kids[2+i], true
+			}
+		}
+	case v.Kids[0].Name == core.RefName && v.Kids[1].Kind == core.KStr:
+		_, rec, ok := r.tgt.CStruct(v.Kids[1].Str)
+		if !ok {
+			return nil, false
+		}
+		if j, ok := core.LeafIndex(rec, l); ok && 2+j < len(v.Kids) {
+			return v.Kids[2+j], true
+		}
+	}
+	return nil, false
 }

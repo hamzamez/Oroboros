@@ -1,0 +1,39 @@
+// commdlg.h, THE COMMON DIALOGS (ADR 0126, 0128), each declaration its
+// prototype and each struct a record set and its C layout, read off the
+// Windows SDK 10.0.26100.0's um/commdlg.h. The header is
+// `#if !defined(_WIN64) #include <pshpack1.h>` throughout: byte packing on
+// 32-bit Windows only, a definition that reaches _WIN64 and so the data
+// model's (ADR 0126's criterion), `pack(ILP32 : 1)`. PRINTDLGA is 66 bytes
+// there, not the natural 68 (records-research §2.1).
+module windows/commdlg {
+    use windows/minwindef
+    use windows/windef
+    use windows/winnt
+
+    // typedef struct tagPDA { DWORD lStructSize; HWND hwndOwner; HGLOBAL
+    // hDevMode; HGLOBAL hDevNames; HDC hDC; DWORD Flags; WORD nFromPage; WORD
+    // nToPage; WORD nMinPage; WORD nMaxPage; WORD nCopies; HINSTANCE hInstance;
+    // LPARAM lCustData; LPPRINTHOOKPROC lpfnPrintHook; LPSETUPHOOKPROC
+    // lpfnSetupHook; LPCSTR lpPrintTemplateName; LPCSTR lpSetupTemplateName;
+    // HGLOBAL hPrintTemplate; HGLOBAL hSetupTemplate; } PRINTDLGA.
+    // lStructSize is the size, and the hooks, their data and the templates are
+    // 0, each determined (Theorem F): no hook can be passed before callbacks,
+    // and no template is used.
+    set PRINTDLGA = record {
+        hwndOwner ∈ windef.HWND, hDevMode ∈ minwindef.HGLOBAL, hDevNames ∈ minwindef.HGLOBAL, hDC ∈ windef.HDC,
+        Flags ∈ minwindef.DWORD, nFromPage ∈ minwindef.WORD, nToPage ∈ minwindef.WORD, nMinPage ∈ minwindef.WORD,
+        nMaxPage ∈ minwindef.WORD, nCopies ∈ minwindef.WORD
+    }
+    repr PRINTDLGA c(lStructSize ∈ minwindef.DWORD = size, hwndOwner, hDevMode, hDevNames, hDC, Flags,
+        nFromPage, nToPage, nMinPage, nMaxPage, nCopies, hInstance ∈ minwindef.HINSTANCE = 0,
+        lCustData ∈ minwindef.LPARAM = 0, lpfnPrintHook ∈ ptr = 0, lpfnSetupHook ∈ ptr = 0,
+        lpPrintTemplateName ∈ ptr = 0, lpSetupTemplateName ∈ ptr = 0, hPrintTemplate ∈ minwindef.HGLOBAL = 0,
+        hSetupTemplate ∈ minwindef.HGLOBAL = 0) pack(ILP32 : 1)
+
+    // BOOL PrintDlgA(_Inout_ LPPRINTDLGA pPD): with PD_RETURNDEFAULT (0x400)
+    // the default printer's, and no dialog shown.
+    fn PrintDlgA(pd ∈ cell(PRINTDLGA)) (r ∈ minwindef.BOOL) { host expr call "PrintDlgA" stdcall lib "comdlg32" }
+    // DWORD CommDlgExtendedError(VOID): why the last dialog failed, cderr.h's
+    // code: CDERR_STRUCTSIZE 1 is a wrong lStructSize, PDERR_NODEFAULTPRN 0x1008 no printer.
+    fn CommDlgExtendedError() (r ∈ minwindef.DWORD) { host expr call "CommDlgExtendedError" stdcall lib "comdlg32" }
+}

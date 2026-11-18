@@ -76,4 +76,9 @@ func TestAStructsLayoutIsTheCCompilers(t *testing.T) {
 	if _, err := check("windows", "x86_64-pc-windows-msvc"); err == nil || !strings.Contains(err.Error(), "FORMATRANGE's alignment") {
 		t.Errorf("a layout that ignores pack(4) still agrees with clang: the check cannot fail (%v)", err)
 	}
+	// and the data model's pack(1): PRINTDLGA laid out naturally on i686 is
+	// 68 bytes, where commdlg.h's `#if !defined(_WIN64)` makes it 66
+	if _, err := check("windows32", "i686-pc-windows-msvc"); err == nil || !strings.Contains(err.Error(), "PRINTDLGA's size") {
+		t.Errorf("a layout that ignores the model's pack(1) still agrees with clang (%v)", err)
+	}
 }

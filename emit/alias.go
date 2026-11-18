@@ -170,12 +170,21 @@ func (tg *Target) unfoldAliases() error {
 	for n, p := range tg.Prims {
 		mod := moduleOf(n)
 		var err error
+		inStruct := false
 		sub := func(ty string) string {
-			// a cell of a C type with a layout keeps its name (UnfoldType)
+			// a cell of a C type with a layout keeps its name (UnfoldType); and
+			// a parameter whose set is one is `const T*`, the reference to a
+			// fresh copy of its encoding, a cell the host only reads (ADR 0084
+			// P2: `_In_` is a value passed)
+			elem := ty
 			if core.IsCell(ty) {
-				if k, _, ok := tg.alias(mod, core.CellElem(ty)); ok && tg.Layouts[k].Fields != nil {
-					return "cell " + k
+				elem = core.CellElem(ty)
+			}
+			if k, _, ok := tg.alias(mod, elem); ok && tg.Layouts[k].Fields != nil {
+				if !core.IsCell(ty) {
+					inStruct = true
 				}
+				return "cell " + k
 			}
 			return mapTypeNames(ty, func(m string) string {
 				if err != nil {
@@ -187,7 +196,11 @@ func (tg *Target) unfoldAliases() error {
 			})
 		}
 		for i, a := range p.Args {
+			inStruct = false
 			p.Args[i] = sub(a)
+			if inStruct && !containsInt(p.InStructs, i) {
+				p.InStructs = append(p.InStructs, i)
+			}
 		}
 		for i, r := range p.Results {
 			p.Results[i] = sub(r)

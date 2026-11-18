@@ -805,6 +805,10 @@ func zeroComponent(ty string) (*Term, error) {
 		return Int(0), nil
 	case strings.HasPrefix(ty, "option(") || ty == "option":
 		return Name("none"), nil
+	case ty == "ptr":
+		// A POINTER'S ZERO IS NULL, the all-zero encoding, which is how C's {0}
+		// makes one; a pointer is a set only on the LLVM layer, whose null it is.
+		return App(Name("llvm.null")), nil
 	}
 	if lo, hi, ok := IntRangeBig(ty); ok {
 		if lo.Sign() <= 0 && hi.Sign() >= 0 {
@@ -813,4 +817,105 @@ func zeroComponent(ty string) (*Term, error) {
 		return nil, fmt.Errorf("0 is not in %s", ShowSet(ty))
 	}
 	return nil, fmt.Errorf("only an integer set holding 0, an Option and a record have one")
+}
+
+// InStruct is an `_In_` struct parameter of a host declaration: its index, and
+// the C type whose layout its argument is encoded by.
+type InStruct struct {
+	Index int
+	CType string
+}
+
+// inStructArgs replaces each `_In_` struct argument that is a record value by
+// (#ref "C" leaves…), the reference to a fresh copy of its encoding, its leaves
+// in canonical order, nested records flattened (Theorem P: a pointer the host
+// does not keep is a value passed). An argument not yet a value is left, and
+// is reduced first.
+func (e *Env) inStructArgs(op *Term, args []*Term, fuel *int) (*Term, bool, error) {
+	changed := false
+	out := append([]*Term{}, args...)
+	for _, in := range e.InStructs[op.Name] {
+		if in.Index >= len(args) {
+			continue
+		}
+		a, err := normalize(args[in.Index], e, fuel)
+		if err != nil {
+			return nil, true, err
+		}
+		out[in.Index] = a
+		var leaves []*Term
+		var flat func(t *Term) bool
+		flat = func(t *Term) bool {
+			if _, ok := isRecValue(t); !ok {
+				return false
+			}
+			for _, c := range t.Kids[2:] {
+				if _, ok := isRecValue(c); ok {
+					if !flat(c) {
+						return false
+					}
+					continue
+				}
+				leaves = append(leaves, c)
+			}
+			return true
+		}
+		if flat(a) {
+			out[in.Index] = App(Name(RefName), append([]*Term{Str(in.CType)}, leaves...)...)
+			changed = true
+		}
+	}
+	if !changed {
+		return nil, false, nil
+	}
+	t, err := normalize(App(op, out...), e, fuel)
+	return t, true, err
+}
+
+// LeafIndex is the leaf a record set's top-level label l is, in canonical
+// order, when l's component is no record.
+func LeafIndex(ty, l string) (int, bool) {
+	labels, types := RecordFields(ty)
+	j := 0
+	for i, m := range labels {
+		if m == l {
+			return j, !IsRecord(types[i])
+		}
+		if IsRecord(types[i]) {
+			j += len(recordLeaves("", types[i], nil))
+		} else {
+			j++
+		}
+	}
+	return 0, false
+}
+
+// ProjectBound is t with each name `p.l…` whose head p is a key of bound read
+// as the projection (#get "l" p)…: the binder decides a.b (ADR 0128 item 3),
+// for a term no Load resolved, a host declaration's `where`.
+func ProjectBound(t *Term, bound map[string]*Term) *Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == KName {
+		if i := strings.Index(t.Name, "."); i > 0 {
+			if _, ok := bound[t.Name[:i]]; ok {
+				r := Name(t.Name[:i])
+				for _, l := range strings.Split(t.Name[i+1:], ".") {
+					r = App(Name(GetName), Str(l), r)
+				}
+				return r
+			}
+		}
+		return t
+	}
+	if len(t.Kids) == 0 {
+		return t
+	}
+	c := *t
+	c.Kids = make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		c.Kids[i] = ProjectBound(k, bound)
+	}
+	return &c
 }

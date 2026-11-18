@@ -4,7 +4,7 @@ Date: 2026-11-17
 Status: Accepted (hamza, 2026-11-17, on [records-research.md](../records-research.md) §8: "the whole
 record, and yes to r with {}"; items 3–6 "agree"; the value `record { left : 0, top : 1 }` hamza's).
 Builds ADR 0021's `record` and ADR 0084 item 14's "a record's memory layout is a codec". Amends
-data.md §3.3 (three positions lifted) and §4 (J's spelling, paths). Step 1 built ([records-2026-11-17](../../gauntlet/results/records-2026-11-17.md)) but for a record as a map's value; step 2a built ([structs-2026-11-17](../../gauntlet/results/structs-2026-11-17.md): items 8–11, a struct of scalars and nested structs as a host's cell), 2b (items 12–13) not.
+data.md §3.3 (three positions lifted) and §4 (J's spelling, paths). Step 1 built ([records-2026-11-17](../../gauntlet/results/records-2026-11-17.md)) but for a record as a map's value; step 2 built ([structs-2026-11-17](../../gauntlet/results/structs-2026-11-17.md): items 8–12, and of item 13 the `_In_` struct and the C string field) but for a buffer field with its determined length and a nested record by pointer.
 
 ## Context
 

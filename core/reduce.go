@@ -161,6 +161,13 @@ type Env struct {
 	// Instantiate makes its instance at sets, f#[T̄], the δ-rule of a static
 	// application: (f T̄) ⟶ f#[T̄].
 	Sets        map[string]bool
+	// UnfoldSet is a target's set name read as its definition, where a target
+	// made this environment: zero(T) of a C type's record (ADR 0128).
+	UnfoldSet func(string) string
+	// InStructs are a host declaration's `_In_` struct parameters, by its name:
+	// each argument, a record, passed as a reference to a fresh copy of its
+	// encoding (llvm.md §6b, record.go's inStructArgs).
+	InStructs map[string][]InStruct
 	Static      map[string]int
 	Instantiate func(f string, args []string) (string, error)
 }
@@ -2912,6 +2919,12 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		if op.Kind == KName && (op.Name == "inf" || op.Name == "sup") && e.Prim[op.Name] && len(args) == 1 {
 			return e.infSup(op, args[0], fuel)
 		}
+		// AN `_In_` STRUCT'S ARGUMENT IS A REFERENCE TO ITS ENCODING (record.go).
+		if op.Kind == KName && e.InStructs[op.Name] != nil {
+			if t, ok, err := e.inStructArgs(op, args, fuel); ok || err != nil {
+				return t, err
+			}
+		}
 		// A RECORD'S OBLIGATION IS ITS COMPONENTS' (record.go): r ∈ Π S_l iff
 		// each r.l ∈ S_l, split where the argument is seen.
 		if op.Kind == KName && op.Name == RequireName && len(args) == 4 && args[2].Kind == KStr && IsRecord(args[2].Str) {
@@ -2951,7 +2964,11 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		// definition of the program's is named `zero` (a module's own is found
 		// first, as `some` and `none` are).
 		if op.Kind == KName && op.Name == ZeroName && len(args) == 1 && e.Defs[ZeroName] == nil && !e.Prim[ZeroName] {
-			z, err := zeroOf(TypeName(args[0]))
+			ty := TypeName(args[0])
+			if e.UnfoldSet != nil {
+				ty = e.UnfoldSet(ty) // a target's set, its definition (records-research §3.5)
+			}
+			z, err := zeroOf(ty)
 			if err != nil {
 				return nil, err
 			}
@@ -3468,6 +3485,12 @@ func (e *Env) checkScope(terms []*Term) error {
 }
 
 func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
+	// zero(T)'S ARGUMENT IS A SET, a static value the reducer reads by its name
+	// (a target's C type included, record.go), not a term whose names are bound.
+	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == ZeroName &&
+		e.Defs[ZeroName] == nil && !bound[ZeroName] {
+		return nil
+	}
 	switch t.Kind {
 	case KInt, KDec, KStr, KBool, KBound:
 		return nil

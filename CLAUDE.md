@@ -139,7 +139,10 @@ order:
    record as a map's value owed, the product's limit, failing for tuples too. Step 2a, the host
    struct ([structs](gauntlet/results/structs-2026-11-17.md)): `set RECT = record { … }` and `repr RECT c(…)` in its
    header, the layout Theorem L's fold checked against clang on both triples, a struct a host's
-   cell, GetClientRect and GetLocalTime run on both; 2b next, determined and pointer fields;
+   cell, GetClientRect and GetLocalTime run on both; 2b built: determined fields (`= size`, `= 0`),
+   the model's `pack(ILP32 : 1)`, `_In_` structs and C string fields, GlobalMemoryStatusEx,
+   PrintDlgA and RegisterClassA run on both; a buffer field with `= len(m)` and a nested record by
+   pointer owed;
    `wsprintfA` is
    no wall (two integer renderings, ADR 0095).
 

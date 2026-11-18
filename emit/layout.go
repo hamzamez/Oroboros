@@ -36,6 +36,20 @@ import (
 type CLayout struct {
 	Fields []string
 	Pack   int
+	// ModelPack is a packing the data model states (commdlg.h's
+	// `#if !defined(_WIN64)` pack(1)): by model, ILP32 or LLP64, ADR 0126's
+	// criterion, a definition reaching _WIN64 being the model's.
+	ModelPack map[string]int
+	// Det are the fields the declaration determines (Theorem F, ADR 0128 item
+	// 12), not data and so not in the record: by label, the C type's set and
+	// what it is, the layout's size, 0, or a sibling buffer's length.
+	Det map[string]Determined
+}
+
+// Determined is a field the declaration determines: its set, and Kind "size",
+// "0" or "len" of the field Arg.
+type Determined struct {
+	Type, Kind, Arg string
 }
 
 // LeafLayout is one leaf of a struct, in the record view's canonical order: its
@@ -45,12 +59,24 @@ type LeafLayout struct {
 	LL     string // the LLVM type
 	Trunc  bool   // narrower than the word: trunc in, sext or zext out
 	Signed bool
+	// CStr is a C string field, `const char *` (Theorem P′): the string's
+	// bytes, s + 8 (llvm.md §4), lent for the call; never read back.
+	CStr bool
 }
 
-// StructLayout is a struct's size N, alignment A, and leaves.
+// StructLayout is a struct's size N, alignment A, its leaves, and the
+// determined fields the encoding writes (a 0 is the zero fill's).
 type StructLayout struct {
 	Size, Align int64
 	Leaves      []LeafLayout
+	Consts      []ConstLeaf
+}
+
+// ConstLeaf is a determined field at an offset and its value.
+type ConstLeaf struct {
+	Offset int64
+	LL     string
+	Value  int64
 }
 
 // CStruct resolves a set's name to a C type with a layout: its qualified name
@@ -67,7 +93,7 @@ func (tg *Target) CStruct(name string) (string, string, bool) {
 		}
 		k = kk
 	}
-	rec := tg.UnfoldType(moduleOf(k), tg.Aliases[k])
+	rec := tg.resolveSet(moduleOf(k), tg.Aliases[k])
 	if !core.IsRecord(rec) {
 		return "", "", false
 	}
@@ -93,11 +119,24 @@ func (tg *Target) Layout(name string) (StructLayout, error) {
 				walk(*fl.sub, base+fl.off)
 				continue
 			}
-			leaves = append(leaves, LeafLayout{Offset: base + fl.off, LL: fl.ll, Trunc: fl.trunc, Signed: fl.signed})
+			leaves = append(leaves, LeafLayout{Offset: base + fl.off, LL: fl.ll, Trunc: fl.trunc, Signed: fl.signed, CStr: fl.cstr})
 		}
 	}
 	walk(f, 0)
-	return StructLayout{Size: f.size, Align: f.align, Leaves: leaves}, nil
+	var consts []ConstLeaf
+	var walkConsts func(f folded, base int64)
+	walkConsts = func(f folded, base int64) {
+		for _, fl := range f.fields {
+			switch {
+			case fl.sub != nil:
+				walkConsts(*fl.sub, base+fl.off)
+			case fl.det == "size":
+				consts = append(consts, ConstLeaf{Offset: base + fl.off, LL: fl.ll, Value: f.size})
+			}
+		}
+	}
+	walkConsts(f, 0)
+	return StructLayout{Size: f.size, Align: f.align, Leaves: leaves, Consts: consts}, nil
 }
 
 type foldedField struct {
@@ -105,6 +144,8 @@ type foldedField struct {
 	ll               string
 	trunc, signed    bool
 	sub              *folded
+	det              string // a determined field's kind, "" for a record's
+	cstr             bool
 }
 
 type folded struct {
@@ -133,11 +174,26 @@ func (tg *Target) fold(k string) (folded, error) {
 	for i, l := range labels {
 		typeOf[l] = types[i]
 	}
-	if len(lay.Fields) != len(labels) {
-		return folded{}, fmt.Errorf("%s's layout lists %d fields and its record has %d labels: a layout "+
-			"orders the record's labels, each once (llvm.md §6b)", k, len(lay.Fields), len(labels))
+	if len(lay.Fields)-len(lay.Det) != len(labels) {
+		return folded{}, fmt.Errorf("%s's layout lists %d of the record's fields and its record has %d "+
+			"labels: a layout orders the record's labels, each once, and the fields it determines (llvm.md §6b)",
+			k, len(lay.Fields)-len(lay.Det), len(labels))
+	}
+	for l, d := range lay.Det {
+		if _, in := typeOf[l]; in {
+			return folded{}, fmt.Errorf("%s's layout determines %s, which is a label of its record: a "+
+				"determined field is not data, so the record has no such label (Theorem F)", k, core.Spell(l))
+		}
+		if d.Kind == "len" {
+			return folded{}, fmt.Errorf("%s's %s = len(%s): a buffer's length waits for a buffer field "+
+				"(ADR 0128 item 13)", k, core.Spell(l), core.Spell(d.Arg))
+		}
+		typeOf[l] = d.Type
 	}
 	pack := lay.Pack
+	if p, ok := lay.ModelPack[tg.dataModel()]; ok {
+		pack = p
+	}
 	if PlantNaturalLayout {
 		pack = 0
 	}
@@ -150,20 +206,23 @@ func (tg *Target) fold(k string) (folded, error) {
 			return folded{}, fmt.Errorf("%s's layout names %s, which its record does not have", k, core.Spell(l))
 		}
 		var fl foldedField
-		if n, _, ok := tg.CStruct(tg.qualifyName(mod, ct)); ok {
+		if d, ok := lay.Det[l]; ok {
+			fl.det = d.Kind
+		}
+		if n, _, ok := tg.CStruct(tg.qualifyName(mod, ct)); ok && fl.det == "" {
 			sub, err := tg.fold(n)
 			if err != nil {
 				return folded{}, err
 			}
 			fl.sub, fl.size, fl.align = &sub, sub.size, sub.align
 		} else {
-			u := tg.UnfoldType(mod, ct)
+			u := tg.resolveSet(mod, ct)
 			cll, cross, signed, ok := tg.CType(u)
-			if !ok || cll == "void" || cross == "cstr" || cross == "elems" {
+			if !ok || cll == "void" || cross == "elems" {
 				return folded{}, fmt.Errorf("%s's field %s ∈ %s is no C scalar type this layout holds "+
 					"(llvm.md §6b)", k, core.Spell(l), core.ShowSet(u))
 			}
-			fl.ll, fl.trunc, fl.signed = cll, cross == "trunc", signed
+			fl.ll, fl.trunc, fl.signed, fl.cstr = cll, cross == "trunc", signed, cross == "cstr"
 			sz, err := tg.cSize(cll)
 			if err != nil {
 				return folded{}, err
@@ -194,6 +253,20 @@ func (tg *Target) fold(k string) (folded, error) {
 	return f, nil
 }
 
+// resolveSet is a set written in module mod read through the target's sets,
+// each definition in its own module, as unfoldAliases reads them: minwindef's
+// LPARAM is `basetsd.LONG_PTR` through minwindef's `use`, whatever module
+// named LPARAM.
+func (tg *Target) resolveSet(mod, ty string) string {
+	return mapTypeNames(ty, func(m string) string {
+		k, def, ok := tg.alias(mod, m)
+		if !ok {
+			return m
+		}
+		return tg.resolveSet(moduleOf(k), def)
+	})
+}
+
 // qualifyName resolves a set name written in module mod to its qualified key,
 // or returns it as written.
 func (tg *Target) qualifyName(mod, n string) string {
@@ -201,6 +274,15 @@ func (tg *Target) qualifyName(mod, n string) string {
 		return k
 	}
 	return n
+}
+
+// dataModel is the triple's data model, ILP32 or LLP64 (ADR 0122 item 2): a
+// pointer of 4 bytes or of 8, long 4 on both Windows triples.
+func (tg *Target) dataModel() string {
+	if n, err := tg.cSize("ptr"); err == nil && n == 4 {
+		return "ILP32"
+	}
+	return "LLP64"
 }
 
 // cSize is an LLVM scalar's size in bytes on this triple: iw is w/8, and a

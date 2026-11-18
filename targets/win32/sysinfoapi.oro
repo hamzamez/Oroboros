@@ -3,8 +3,25 @@
 // names.
 module windows/sysinfoapi {
     use windows/minwinbase
+    use windows/minwindef
+    use windows/winnt
+
+    // typedef struct _MEMORYSTATUSEX { DWORD dwLength; DWORD dwMemoryLoad;
+    // DWORDLONG ullTotalPhys; … ullAvailExtendedVirtual; }: dwLength is the
+    // struct's size, which the declaration determines (Theorem F), so the
+    // record has no such label and the layout writes it.
+    set MEMORYSTATUSEX = record {
+        dwMemoryLoad ∈ minwindef.DWORD, ullTotalPhys ∈ winnt.DWORDLONG, ullAvailPhys ∈ winnt.DWORDLONG,
+        ullTotalPageFile ∈ winnt.DWORDLONG, ullAvailPageFile ∈ winnt.DWORDLONG, ullTotalVirtual ∈ winnt.DWORDLONG,
+        ullAvailVirtual ∈ winnt.DWORDLONG, ullAvailExtendedVirtual ∈ winnt.DWORDLONG
+    }
+    repr MEMORYSTATUSEX c(dwLength ∈ minwindef.DWORD = size, dwMemoryLoad, ullTotalPhys, ullAvailPhys,
+        ullTotalPageFile, ullAvailPageFile, ullTotalVirtual, ullAvailVirtual, ullAvailExtendedVirtual)
 
     // void GetLocalTime(_Out_ LPSYSTEMTIME lpSystemTime): the local time,
     // through a SYSTEMTIME the host fills, a struct's cell (llvm.md §6b).
     fn GetLocalTime(t ∈ cell(minwinbase.SYSTEMTIME)) (Bool) { host stmt call "GetLocalTime" stdcall lib "kernel32" }
+    // BOOL GlobalMemoryStatusEx(_Out_ LPMEMORYSTATUSEX lpBuffer): the memory's
+    // state, through a MEMORYSTATUSEX whose dwLength the layout writes.
+    fn GlobalMemoryStatusEx(m ∈ cell(MEMORYSTATUSEX)) (r ∈ minwindef.BOOL) { host expr call "GlobalMemoryStatusEx" stdcall lib "kernel32" }
 }

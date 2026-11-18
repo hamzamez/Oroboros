@@ -9,6 +9,8 @@ module windows/windef {
     set HDC = ptr
     set HMENU = ptr
     set HBRUSH = ptr
+    set HICON = ptr                     // DECLARE_HANDLE(HICON)
+    set HCURSOR = HICON                 // typedef HICON HCURSOR
     set COLORREF = 0..2^32-1
     // typedef struct tagRECT { LONG left; LONG top; LONG right; LONG bottom; } RECT
     set RECT = record { left ∈ winnt.LONG, top ∈ winnt.LONG, right ∈ winnt.LONG, bottom ∈ winnt.LONG }

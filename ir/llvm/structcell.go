@@ -39,6 +39,15 @@ func leafAlign(a, o int64) int64 {
 	return a
 }
 
+// PlantCStringHeader passes a C string field's string itself, its length
+// first, where C reads its bytes: RegisterClassA registers a class under
+// another name, which UnregisterClassA then cannot find.
+var PlantCStringHeader bool
+
+// PlantNoDeterminedSize leaves a determined size unwritten, the zero fill's 0:
+// GlobalMemoryStatusEx must refuse a MEMORYSTATUSEX whose dwLength is 0.
+var PlantNoDeterminedSize bool
+
 // PlantStructUnread reads a struct cell's leaves from a fresh zeroed region,
 // as if the host's write were lost: TestAStructIsWrittenByTheHost must see
 // GetClientRect's desktop come back 0 by 0.
@@ -61,6 +70,18 @@ func (p *printer) structCell(s *ir.Stmt) bool {
 		c := "%" + p.fresh("st")
 		p.allocas = append(p.allocas, fmt.Sprintf("  %s = alloca [%d x i8], align %d", c, lay.Size, lay.Align))
 		p.line("store [%d x i8] zeroinitializer, ptr %s, align %d", lay.Size, c, lay.Align)
+		// THE FIELDS THE DECLARATION DETERMINES (Theorem F): a size is the
+		// layout's N, written whether the host reads the cell or only fills it
+		// (GlobalMemoryStatusEx reads dwLength before it writes); a 0 is the
+		// zero fill's.
+		for _, k := range lay.Consts {
+			if PlantNoDeterminedSize {
+				break
+			}
+			g := "%" + p.fresh("f")
+			p.line("%s = getelementptr i8, ptr %s, i64 %d", g, c, k.Offset)
+			p.line("store %s %d, ptr %s, align %d", k.LL, k.Value, g, leafAlign(lay.Align, k.Offset))
+		}
 		if s.Op == ir.OCellRef {
 			if len(s.Args) != len(lay.Leaves) {
 				p.fail("a struct cell written with %d values, and %s has %d leaves", len(s.Args), core.ShowSet(s.Type), len(lay.Leaves))
@@ -68,6 +89,13 @@ func (p *printer) structCell(s *ir.Stmt) bool {
 			}
 			for j, lf := range lay.Leaves {
 				v := p.val(s.Args[j])
+				if lf.CStr && !PlantCStringHeader {
+					// a C string field: the string's bytes, after its length
+					// (llvm.md §4), as a C-string parameter's (§6a)
+					r := "%" + p.fresh("c")
+					p.line("%s = getelementptr inbounds i8, ptr %s, i64 8", r, v)
+					v = r
+				}
 				if lf.Trunc {
 					r := "%" + p.fresh("c")
 					p.line("%s = trunc i64 %s to %s", r, v, lf.LL)
@@ -93,6 +121,10 @@ func (p *printer) structCell(s *ir.Stmt) bool {
 			return true
 		}
 		lf := lay.Leaves[j]
+		if lf.CStr {
+			p.fail("a C string read back from a struct is ADR 0091's C string into ours, not built")
+			return true
+		}
 		from := p.val(s.Args[0])
 		if PlantStructUnread {
 			// the planted fault: a fresh zeroed region, not the one the host wrote

@@ -447,9 +447,37 @@ IR the cell's value is its leaves: `cell-ref` takes them, and `cell-get` names t
 **Checked, never trusted**: every declared struct's derived offsets, size and alignment are
 compared with clang's `-fdump-record-layouts` on both triples.
 
-Not yet (ADR 0128 items 12–13): a field the declaration determines (`lStructSize`, a buffer's
-length), a pointer field into the program's memory, a packing the data model states, and a
-struct passed by value.
+**A field the declaration determines** (Theorem F, ADR 0128 item 12) is on the `repr` line alone,
+with its C type's set, and not in the record, which is the program's view:
+
+```
+repr MEMORYSTATUSEX c(dwLength ∈ minwindef.DWORD = size, dwMemoryLoad, ullTotalPhys, …)
+repr PRINTDLGA c(lStructSize ∈ minwindef.DWORD = size, hwndOwner, …, lpfnPrintHook ∈ ptr = 0, …) pack(ILP32 : 1)
+```
+
+`= size` is the layout's N, which the printer writes after the zero fill, into a fresh cell too, since
+a host reads it before it writes. `= 0` is the zero fill's, and so are a hook and a template never
+passed. `= len(m)`, a sibling buffer's length, waits for a buffer field and is refused naming it.
+
+**A packing the data model states**, `pack(ILP32 : 1)`, is a function of the triple's model, ILP32
+or LLP64 by its pointer's size: commdlg.h's `#if !defined(_WIN64)` pack(1), a definition reaching
+_WIN64 and so the model's (ADR 0126's criterion). `pack(p)` alone holds on every model.
+
+**A struct passed `_In_`**, a parameter whose set is a C type with a layout,
+`fn RegisterClassA(wc ∈ winuser.WNDCLASSA)`, is `const T*`: a value passed (ADR 0084 P2). Its
+argument, a record, is written into a fresh reference, `(#ref "T" leaves…)`, the cell the host only
+reads, and nothing is read back. `cell(T)` is the `_Out_` and `_Inout_` form.
+
+**A C string field**, `lpszClassName ∈ String` (Theorem P′), is laid out as a pointer, written as the
+string's bytes, s + 8 (§4), and lent for the call. Its `nulfree` is the declaration's `where`,
+`where nulfree(wc.lpszClassName)`, a parameter's projection decided on the leaf it reads. Reading one
+back is ADR 0091's C string into ours, not built.
+
+**Zero.** A pointer's zero is null, the all-zero encoding, so `zero(T)` exists for a struct whose
+pointers are handles.
+
+Not yet (ADR 0128 item 13): a buffer field the host fills and its determined length, a nested
+record by pointer, and a struct passed by value.
 
 ## 7. Control: regions into blocks
 

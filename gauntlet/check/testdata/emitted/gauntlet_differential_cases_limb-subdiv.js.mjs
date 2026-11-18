@@ -60,7 +60,7 @@ export function genRun(v0) {
 		continue;
 	}
 	v102 = v107;
-	const v153 = (v0 + 1);
+	const v153 = (((t) => Number.isSafeInteger(t) ? t : (() => { throw new RangeError("int overflow"); })())(v0 + 1));
 	return (((v0 < 0) ? 0 : ((v0 >= v102.length) ? 0 : v102[v0])) + (((v153 < 0) ? 0 : ((v153 >= v102.length) ? 0 : v102[v153])) * 100000000));
 }
 

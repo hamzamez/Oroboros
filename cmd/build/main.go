@@ -219,9 +219,17 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		// the compiler did not prove, and a caller that asked for the trap may
 		// still need to know it was taken — the differential harness holds every
 		// case to being proven unless it declares otherwise. The line is stable.
+		// An operation neither proven nor trapped is refused (finding 93).
+		if err := leg.CheckedRefusal(entry, tg); err != nil {
+			return err
+		}
 		if leg.Proven < leg.Ops {
-			fmt.Fprintf(os.Stderr, "note: -checked: %d of %d integer operation(s) are traps, not proofs\n",
-				leg.Ops-leg.Proven, leg.Ops)
+			closed := ""
+			if leg.Closed > 0 {
+				closed = fmt.Sprintf("; %d more closed on the word under them (Lemma C)", leg.Closed)
+			}
+			fmt.Fprintf(os.Stderr, "note: -checked: %d of %d integer operation(s) are traps, not proofs%s\n",
+				leg.Ops-leg.Proven-leg.Closed, leg.Ops, closed)
 		}
 	} else if err := leg.Refusal(entry, tg); err != nil {
 		return err
@@ -409,10 +417,8 @@ func reduceAndLower(tg *emit.Target, prog *core.Program, env *core.Env, reqs *em
 	}
 	// BOUNDED BY DEFAULT (ADR 0019), decided here so a refusal K caused is
 	// retried with K = ∅ (P4).
-	if !checked {
-		if err := leg.Refusal(entry, tg); err != nil {
-			return nil, nil, nil, err
-		}
+	if err := leg.RefusalUnder(entry, tg, checked); err != nil {
+		return nil, nil, nil, err
 	}
 	if err := leg.SizeRefusal(entry, tg); err != nil {
 		return nil, nil, nil, err

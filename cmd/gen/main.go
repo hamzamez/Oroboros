@@ -265,10 +265,8 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 				}
 				// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: the
 				// IR has written `trap` where the proof failed.
-				if !checked {
-					if err := leg.Refusal(fname, tg); err != nil {
-						return err
-					}
+				if err := leg.RefusalUnder(fname, tg, checked); err != nil {
+					return err
 				}
 				if err := leg.SizeRefusal(fname, tg); err != nil {
 					return err

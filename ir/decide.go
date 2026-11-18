@@ -39,6 +39,13 @@ type Legality struct {
 	// would hold (wordsel.go): the pipeline selects words and decides again.
 	InU     bool
 	Trapped int // operations given `trap`
+	// Untrapped: under -checked, an unproven operation the target has no
+	// checked form for, the refusal's lines (CheckedRefusal).
+	Untrapped []string
+	// Closed: under -checked, an unproven operation closed on the word
+	// (Lemma C), in W because every operation before it is proven or
+	// trapped: no proof of its own, and no trap needed.
+	Closed int
 	// Loops and Halts: the loops, and those size-change termination proves
 	// (sct.go). A count, not a refusal: termination is reported, as the term
 	// analysis reported it.
@@ -152,6 +159,7 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 				return
 			}
 			rep.Unproven = append(rep.Unproven, unprovenLine(s, v))
+			rep.Untrapped = append(rep.Untrapped, unprovenLine(s, v))
 			return
 		}
 		// A TERM'S OWN OPERATION is the target's, counted only where it is not
@@ -171,6 +179,25 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 			}
 			return
 		}
+		// LEMMA C, UNDER -checked: an operation closed on the word W needs no
+		// trap. By induction on the program, when every counted operation is
+		// proven, trapped or closed, every value held in the word is in W at
+		// run time, whatever its interval says (the interval does not narrow a
+		// trap's result to W). So a closed operation of word operands is in W.
+		// An operand held in U, a fact inside U beyond W, is no W operand.
+		if arith && checked && closedOnWord(tg.Word, s.Op) {
+			inW := true
+			for _, a := range s.Args {
+				if av := fs[a].v; !av.within(wLo, wHi) && tg.Word.Unsigned && av.within(ep{}, u64Max) {
+					inW = false
+				}
+			}
+			if inW {
+				rep.Closed++ // not a proof: in W given the traps
+				s.Mode = MExact
+				return
+			}
+		}
 		rep.Unproven = append(rep.Unproven, unprovenLine(s, v))
 		if v.finite() {
 			rep.Outside = true
@@ -179,11 +206,13 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 			rep.InU = true
 		}
 		if arith && checked {
-			if prim, ok := tg.Prims[srcName(s)]; ok && prim.Checked != "" {
+			if prim, ok := tg.Prims[srcName(s)]; ok && prim.Checked != "" && !PlantNoCheckedForm {
 				s.Mode = MTrap
 				rep.Trapped++
+				return
 			}
 		}
+		rep.Untrapped = append(rep.Untrapped, unprovenLine(s, v))
 	})
 	return rep
 }
@@ -222,6 +251,72 @@ func (l *Legality) Refusal(what string, tg *emit.Target) error {
 	}
 	return fmt.Errorf("%s", emit.UnboundedText(what, l.Ops, l.Proven, tg, l.Outside, l.Unproven))
 }
+
+// CheckedRefusal is the error that refuses a program built with -checked, or
+// nil when every counted operation is proven or trapped. An operation neither
+// is printed as it would be if proven, so it can leave the word unnoticed: the
+// flag that promises a stop answered 3 << 69 as 0 on Go and 3 · 2⁶⁹ on
+// JavaScript, and 3^128 as 1.18 · 10⁶¹ there (the book's finding 93). Not
+// refused is not proven, and not trapped either.
+func (l *Legality) CheckedRefusal(what string, tg *emit.Target) error {
+	if PlantUntrappedAccepted || l.Proven+l.Trapped+l.Closed == l.Ops {
+		return nil
+	}
+	n := l.Ops - l.Proven - l.Trapped - l.Closed
+	msg := fmt.Sprintf("%s: under -checked, %d of %d integer operation(s) are neither proven nor trapped: "+
+		"target %s has no checked form for them", what, n, l.Ops, tg.Name)
+	for i, u := range l.Untrapped {
+		if i == 3 {
+			msg += fmt.Sprintf("\n  … and %d more", len(l.Untrapped)-3)
+			break
+		}
+		msg += "\n  * " + u
+	}
+	return fmt.Errorf("%s", msg)
+}
+
+// RefusalUnder is the decision's verdict for a build: Refusal, or under
+// -checked CheckedRefusal.
+func (l *Legality) RefusalUnder(what string, tg *emit.Target, checked bool) error {
+	if checked {
+		return l.CheckedRefusal(what, tg)
+	}
+	return l.Refusal(what, tg)
+}
+
+// PlantUntrappedAccepted restores finding 93 as it shipped: under -checked an
+// operation neither proven nor trapped is accepted and printed unchecked
+// (TestAnUntrappedOperationIsRefused).
+var PlantUntrappedAccepted bool
+
+// closedOnWord is Lemma C's premise: o maps Wⁿ into W, for W the target's
+// word. On a two's-complement word [−2ᵏ, 2ᵏ), the Boolean operations act
+// bitwise on k+1 bits with the sign copied above, a count ≥ 0 floors toward
+// −∞, and a mod m with m ∈ W, m > 0, is in [0, m). On a symmetric word
+// [−M, M] (JavaScript's), −a, a / b (|a / b| ≤ |a|), a floor by 2ᵏ and a mod
+// m are in it, and the Boolean operations are not: −(2⁵³−1) & −2 is −2⁵³.
+func closedOnWord(w core.Word, o Op) bool {
+	switch {
+	case w.Lo == -w.Hi-1 && w.Hi&(w.Hi+1) == 0: // two's complement
+		if PlantNegClosed && o == ONeg {
+			return true
+		}
+		return o == ONot || o == OAnd || o == OOr || o == OXor || o == OShr || o == OMod
+	case w.Lo == -w.Hi:
+		return o == ONeg || o == ODiv || o == OShr || o == OMod
+	}
+	return false
+}
+
+// PlantNegClosed claims −a closed on S₆₄, which it is not at −2⁶³: the JVM's
+// −(−2⁶³) must then answer −2⁶³ where it should stop
+// (TestCheckedStopsOnEveryTarget).
+var PlantNegClosed bool
+
+// PlantNoCheckedForm reads every target as declaring no checked form, the
+// state JavaScript shipped in: with it every unproven operation is untrapped,
+// and CheckedRefusal must refuse.
+var PlantNoCheckedForm bool
 
 // srcName is the primitive a statement lowers, from its provenance.
 func srcName(s *Stmt) string {

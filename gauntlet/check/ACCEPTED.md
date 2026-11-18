@@ -3720,3 +3720,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/tuple-buffer.oro java`
 - new source — `gauntlet/differential/cases/tuple-buffer.oro js`
 - new source — `gauntlet/differential/cases/tuple-buffer.oro windows`
+
+## 2026-11-18 — on f1b55704, with uncommitted changes
+
+**Reason:** finding 93: under -checked JavaScript traps its unproven + - x (Lemma S), as Go and the JVM do; shift-div and limb-subdiv's unbounded runs now stop on JS past the word
+
+688 runs: 473 emitted, 215 refused; 8852 of 8906 integer operations bounded, 924 of 962 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro js`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro js`

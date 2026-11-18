@@ -428,9 +428,8 @@ The sixth squaring left the word, and the program stopped there. It printed no n
 the point: in Go without the test it prints -9204772141784466943 and goes on.
 The build says what it did, *1 of 2 integer operation(s) are traps, not proofs*: the `i + 1` was
 proven and costs nothing, and the one test is on the one multiplication nobody proved. On
-Windows the trap is the processor's own, an illegal instruction. On JavaScript `-checked` does
-not trap today, and this program prints a wrong number there (README item 93): do not rely on
-it for that target.
+Windows the trap is the processor's own, an illegal instruction, and on JavaScript a
+`RangeError`.
 
 ### Which word, and so which targets
 

@@ -93,7 +93,9 @@ module java {
         host expr "(${b} == -1L && ${a} == Long.MIN_VALUE ? Math.negateExact(${a}) : ${a} / ${b})"
     }
     fn `%`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} % ${b}" }
-    fn neg(a ∈ Int) (Int) pure { host expr "-${a}" }
+    fn neg(a ∈ Int) (Int) pure { host expr "-${a}" checked negateExact }
+    // −a leaves the word only at −2⁶³, where Math.negateExact throws.
+    fn negateExact(a ∈ Int) (Int) pure { host expr "Math.negateExact(${a})" }
 
     // ---- THE ROUNDINGS JAVA REALIZES (ADR 0086, numbers.md §6.2). Each `ensure`
     // is the term the host operation computes: JLS §15.17–15.18, IEEE 754's
@@ -119,8 +121,16 @@ module java {
     fn `|`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} | ${b}" }
     fn `^`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} ^ ${b}" }
     fn `~`(a ∈ Int) (Int) pure { host expr "~${a}" }
-    fn `<<`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} << ${b}" }
+    fn `<<`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} << ${b}" checked shlExact }
     fn `>>`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} >> ${b}" }
+    // `<<` UNDER -checked (the book's finding 93). Java masks a shift's count
+    // by 63, so the count is read first: for b ≤ 62, a·2ᵇ is Math.multiplyExact
+    // by 2ᵇ, a long; for b ≥ 63 the product is in the word iff a = 0, or a = −1
+    // and b = 63, whose product is −2⁶³. Otherwise negateExact(MIN) throws, as
+    // multiplyExact does. The operands repeat, as divideExact's do.
+    fn shlExact(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 {
+        host expr "(${b} <= 62L ? Math.multiplyExact(${a}, 1L << ${b}) : ${a} == 0L ? 0L : ${a} == -1L && ${b} == 63L ? Long.MIN_VALUE : Math.negateExact(Long.MIN_VALUE))"
+    }
     fn `>>>`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} >>> ${b}" }
 
     // ---- THE LANGUAGE'S BOOLEAN OPERATIONS (ADR 0082). On a long, Java's `&`,

@@ -162,6 +162,9 @@ minutes, d6), ADR 0123's placement of D6, `urem` by a constant (1.42× C, amendi
 **A wrong answer, wherever found, goes ahead of the plan** (assessment-2026-11-16 §3.4), and the
 book's findings index (`docs/book/README.md`) is read at each item's end. Found so:
 ~~80/81, a false claim accepted~~ done ([claims](gauntlet/results/claims-2026-11-16.md)).
+~~93, `-checked` not trapping~~ done ([checked](gauntlet/results/checked-2026-11-18.md)): wider than
+JavaScript (an unproven `<<` unchecked on Go and the JVM too); under `-checked` every operation is
+proven, trapped or closed on the word (Lemma C), or the program is refused.
 
 **Owed from finished steps** (each named in its result document):
 - claims: an unread binder's typing claim (`s ∈ String = n; 0`), finding 45 (an unread top-level

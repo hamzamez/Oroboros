@@ -773,7 +773,11 @@ Doing that found two, not fixed:
     -checked -target=js` says *1 of 2 integer operation(s) are traps, not proofs*, emits
     `v4 = (v4 * v4)` with no test, and the program prints `1.1790184577738583e+61`. Go panics
     and windows stops on an illegal instruction. A wrong answer under the flag that promises a
-    stop. The chapter says not to rely on `-checked` for that target.
+    stop. The chapter says not to rely on `-checked` for that target. **Fixed** 2026-11-18
+    ([checked-2026-11-18](../../gauntlet/results/checked-2026-11-18.md)): wider than JavaScript,
+    since an unproven `<<` was unchecked on Go and the JVM too (3 << 69 printed 0 on Go). Under
+    `-checked` every operation is now proven, trapped or closed on the word, or refused; JavaScript
+    traps `+ − ×`, `<<` and `~`, and Go and the JVM `<<`.
 94. **All of ℤ has no spelling at an entry point.** `n ∈ ..` is refused: *`..` with neither end
     is ℤ, which is `Int`*; and `Int` at an export is the host's word (§6.8), its arithmetic
     refused. `Nat` and `..0` are each taken as a bignum, so a host can pass either half and not

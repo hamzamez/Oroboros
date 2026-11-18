@@ -241,7 +241,19 @@ so at run time.**
   loss on JavaScript. That is ADR 0012 unchanged.
 - **`-checked`** rewrites every operation the compiler cannot prove stays in the window to the
   target's declared checked form, which **traps**
-  ([selection-2026-08-19](../../gauntlet/results/selection-2026-08-19.md)).
+  ([selection-2026-08-19](../../gauntlet/results/selection-2026-08-19.md)). **Every counted
+  operation is then proven, trapped, or closed on the word, or the program is refused**, naming the
+  operations the target has no checked form for (`ir.CheckedRefusal`;
+  [checked-2026-11-18](../../gauntlet/results/checked-2026-11-18.md), the book's finding 93).
+  - **Lemma C (closed on the word).** By induction, when every counted operation is proven or
+    trapped, every value held in the word W is in W at run time. So an operation mapping Wⁿ into W
+    needs no trap: on a two's-complement word, `~`, `&`, `|`, `⊕`, `>>` and `mod`; on JavaScript's
+    symmetric ±(2⁵³−1), negation, `/`, `>>` and `mod`, but not the Boolean operations
+    (−(2⁵³−1) & −2 = −2⁵³). Such an operation is counted apart, closed and not proven.
+  - **The checked forms**: Go and the JVM check `+ − × /` and `<<` (and the JVM a host's `neg`);
+    JavaScript checks `+ − ×`, `<<` and `~` by its own result, since for safe integers a, b,
+    fl(a ∘ b) is safe iff a ∘ b is, and then exact (Lemma S, in `targets/js/builtin.oro`); the LLVM
+    layer by its overflow intrinsics.
 
 The compiler can prove a great deal: **100% of integer operations in the corpus once one range is
 declared, 54% with nothing declared**
@@ -250,9 +262,9 @@ declared, 54% with nothing declared**
 **Why not trap by default.** Three reasons, and the first is decisive.
 [checkcost-2026-08-19](../../gauntlet/results/checkcost-2026-08-19.md) measures the cost at
 **1.23× to 4.54×**, and a 4.54× regression for a program that asked for nothing breaches
-requirement 5. Second, **JavaScript declares no checked form**, so trapping by default makes the
-same program trap on three targets and go silently wrong on the fourth — a *worse* divergence than
-the one it was meant to fix. Third, it reverses a written ADR, and doing that accidentally is what
+requirement 5. Second, when this was decided **JavaScript declared no checked form**, so trapping
+by default would have made the same program trap on three targets and go silently wrong on the
+fourth (it declares them since checked-2026-11-18). Third, it reverses a written ADR, and doing that accidentally is what
 [assessment-2026-08-20 §2](../assessment-2026-08-20.md) exists to record.
 
 **Why not promote to a bignum.** §1.

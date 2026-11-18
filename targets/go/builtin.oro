@@ -82,8 +82,16 @@ module go {
     fn `|`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} | ${b}" }
     fn `^`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} ^ ${b}" }
     fn `&^`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} &^ ${b}" }
-    fn `<<`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} << ${b}" }
+    fn `<<`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} << ${b}" checked shl_exact }
     fn `>>`(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} >> ${b}" }
+    // `<<` UNDER -checked (the book's finding 93): a·2ᵇ ∈ W iff (a << b) >> b = a.
+    // For b ≥ 64 Go's a << b is 0, equal back iff a = 0, the one a whose product
+    // is in W. For b < 64, t = a << b ≡ a·2ᵇ (mod 2⁶⁴), and t >> b = a puts t in
+    // [a·2ᵇ, a·2ᵇ + 2ᵇ), so |t − a·2ᵇ| < 2⁶⁴ and t = a·2ᵇ; the converse is the
+    // floor of an exact product.
+    fn shl_exact(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 {
+        host expr "func(a, b int) int { t := a << b; if t>>b != a { panic(\"int overflow\") }; return t }(${a}, ${b})"
+    }
 
     // ---- THE LANGUAGE'S BOOLEAN OPERATIONS (ADR 0082), where Go's spelling is
     // not its operator's. On an int, Go's `&`, `|`, `^` and `>>` are ℤ's 2-adic

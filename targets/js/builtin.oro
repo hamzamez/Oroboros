@@ -102,9 +102,24 @@ module js {
     // An integer is a Number already, and one within ±2⁵³ is that double.
     fn fint(n ∈ -2^53..2^53) (r ∈ F64) pure ensure r == round(F64, n) { host expr "${n}" }
 
-    fn `+`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} + ${b}" }
-    fn `-`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} - ${b}" }
-    fn `*`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} * ${b}" }
+    fn `+`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} + ${b}" checked add_exact }
+    fn `-`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} - ${b}" checked sub_exact }
+    fn `*`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a} * ${b}" checked mul_exact }
+    // THE CHECKED FORMS (-checked, ADR 0019), the book's finding 93. The word
+    // is the safe integers W = ±(2⁵³−1). LEMMA S: for a, b ∈ W and ∘ one of
+    // + − ×, t = fl(a ∘ b) is in W iff a ∘ b is, and then t = a ∘ b. If
+    // |a ∘ b| < 2⁵³ the integer a ∘ b is a double, so t is exact; if not,
+    // rounding is monotone and 2⁵³ is a double, so |t| ≥ 2⁵³. So the host's own
+    // result decides, `Number.isSafeInteger(t)`, and the operands appear once.
+    fn add_exact(a ∈ Any, b ∈ Any) (Any) pure {
+        host expr "((t) => Number.isSafeInteger(t) ? t : (() => { throw new RangeError(\"int overflow\"); })())(${a} + ${b})"
+    }
+    fn sub_exact(a ∈ Any, b ∈ Any) (Any) pure {
+        host expr "((t) => Number.isSafeInteger(t) ? t : (() => { throw new RangeError(\"int overflow\"); })())(${a} - ${b})"
+    }
+    fn mul_exact(a ∈ Any, b ∈ Any) (Any) pure {
+        host expr "((t) => Number.isSafeInteger(t) ? t : (() => { throw new RangeError(\"int overflow\"); })())(${a} * ${b})"
+    }
     // A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5 — and
     // THIS IS THE TARGET WHERE IT MATTERS MOST. Go panics, Java throws and x86
     // raises #DE; JavaScript returns Infinity for `1/0` and NaN for `1%0` and
@@ -187,8 +202,18 @@ module js {
     fn or_u32(a ∈ Int, b ∈ Int) (0..2^32-1) pure { host expr "((${a} | ${b}) >>> 0)" }
     fn xor(a ∈ Int, b ∈ Int) (-2^31..2^31-1) pure { host expr "(${a} ^ ${b})" }
     fn xor_u32(a ∈ Int, b ∈ Int) (0..2^32-1) pure { host expr "((${a} ^ ${b}) >>> 0)" }
-    fn not(a ∈ Int) (Int) pure { host expr "(-(${a}) - 1)" }
-    fn shl(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "(${a} * 2 ** ${b})" }
+    fn not(a ∈ Int) (Int) pure { host expr "(-(${a}) - 1)" checked not_exact }
+    fn shl(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "(${a} * 2 ** ${b})" checked shl_exact }
+    // Under -checked: −a − 1 leaves W only at a = 2⁵³−1, decided by Lemma S.
+    // a·2ᵇ is exact in doubles where it is finite (a power of two scales
+    // exactly), so it is in W iff the result is safe; past b = 1023, 2 ** b is
+    // Infinity and 0 · Infinity is NaN, where ℤ's answer is 0.
+    fn not_exact(a ∈ Int) (Int) pure {
+        host expr "((t) => Number.isSafeInteger(t) ? t : (() => { throw new RangeError(\"int overflow\"); })())(-(${a}) - 1)"
+    }
+    fn shl_exact(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 {
+        host expr "((a, b) => { const t = a * 2 ** b; if (Number.isSafeInteger(t)) { return t; } if (a === 0) { return 0; } throw new RangeError(\"int overflow\"); })(${a}, ${b})"
+    }
     fn sar(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "Math.floor(${a} / 2 ** Math.min(${b}, 64))" }
     // ⌊a/2ᵏ⌋ IN THE INT32 WINDOWS, chosen by the operands' facts (ADR 0083
     // item 2): ToUint32 is the identity on U₃₂ and `>>>` its floor by 2ᵏ, as

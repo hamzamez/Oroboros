@@ -145,9 +145,11 @@ order:
    pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
    the window procedure a parameterised deep handler of the host's message effect, its state
    threaded through every dispatching call (Theorem T, on Theorem N's measured nesting); five
-   decisions with hamza;
-   `wsprintfA` is
-   no wall (two integer renderings, ADR 0095).
+   decisions with hamza. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):
+   a callback applied only during the call (105 of Go's 150) a region of the call, read as a loop
+   whose trip count is the host's; its markers a usage in 𝕌 and an order, an unordered body pure
+   (Theorem D); closure conversion into Win32's context word (291 of 349) or a slot; six decisions
+   with hamza. `wsprintfA` is no wall (two integer renderings, ADR 0095).
 
 **Done in the 11-16 plan** (assessment-2026-11-17 §1): the book's wrong answers and faults
 (ADR 0119–0121), j.md's two promises, two checks, the claims finding, CLAUDE.md as state; the

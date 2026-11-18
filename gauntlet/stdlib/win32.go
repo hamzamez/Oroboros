@@ -542,6 +542,7 @@ func main() {
 	sizes := flag.String("sizes", "", "ask MSVC for each blocking aggregate's size and write it to FILE")
 	checkEnums := flag.Bool("check-enums", false, "ask MSVC to confirm every enum a declaration relies on is an integer type")
 	sizeTab := flag.String("sizetable", sizeTableFile, "read aggregate sizes from FILE")
+	cbs := flag.Bool("callbacks", false, "list each entry point taking a function pointer, whether it passes a context word and whether the callback receives one, and stop")
 	org := flag.Bool("org", false, "report how the SDK's functions partition by header and by DLL, and stop")
 	namesFile := flag.String("names", "", "for each entry point FILE names (one a line, `_imp__` and `@n` stripped), print its header, verdict, arity and DLL by this survey's own rules, and stop")
 	flag.Parse()
@@ -617,6 +618,11 @@ func main() {
 		uniq = append(uniq, f)
 	}
 	fns = uniq
+
+	if *cbs {
+		reportCallbacks(fns, structs, handles, callbacks, alias)
+		return
+	}
 
 	if *org {
 		lk, err := loadLinkage(dir)
@@ -982,7 +988,7 @@ var (
 	// own vocabulary.
 	reAlias   = regexp.MustCompile(`typedef\s+([A-Za-z_][A-Za-z0-9_ ]*?)\s+(\**[A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*\**[A-Za-z_][A-Za-z0-9_]*)*)\s*;`)
 	reStruct  = regexp.MustCompile(`\}\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:,[^;]*)?;`)
-	reCbType  = regexp.MustCompile(`typedef[^;]*\(\s*(?:CALLBACK|WINAPI|APIENTRY|NTAPI|__stdcall|\*)\s*\*?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)`)
+	reCbType  = regexp.MustCompile(`typedef[^;]*\(\s*(?:CALLBACK|WINAPI|APIENTRY|NTAPI|__stdcall|\*)\s*\*?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)(?:\s*\(([^;]*)\))?`)
 	reEnumTD  = regexp.MustCompile(`typedef\s+enum\s+(?:class\s+)?([A-Za-z_]\w*)?\s*(?::\s*([A-Za-z_]\w*)\s*)?\{[^}]*\}\s*([A-Za-z_]\w*)((?:\s*,\s*\**\s*[A-Za-z_]\w*)*)\s*;`)
 	reEnumTag = regexp.MustCompile(`\benum\s+(?:class\s+)?([A-Za-z_]\w*)\s*(?::\s*([A-Za-z_]\w*)\s*)?\{`)
 )
@@ -1091,7 +1097,86 @@ func collectTypes(hdr, src string, structs, handles, callbacks map[string]bool, 
 	}
 	for _, m := range reCbType.FindAllStringSubmatch(src, -1) {
 		callbacks[m[1]] = true
+		if _, have := cbParams[m[1]]; !have {
+			cbParams[m[1]] = m[2]
+		}
 	}
+}
+
+// cbParams is each callback typedef's parameter list, as written.
+var cbParams = map[string]string{}
+
+// ctxWord names the types C uses for a closure's environment passed by hand:
+// a pointer to anything, or a pointer-width integer (callbacks-research §2.1).
+var ctxWord = map[string]bool{"LPARAM": true, "LPVOID": true, "PVOID": true, "LPCVOID": true,
+	"PCVOID": true, "void*": true, "VOID*": true, "DWORD_PTR": true, "ULONG_PTR": true,
+	"UINT_PTR": true, "LONG_PTR": true, "INT_PTR": true}
+
+func isCtx(t string, alias map[string]string) bool {
+	for i := 0; i < 8; i++ {
+		c := strings.ReplaceAll(cleanType(t), " ", "")
+		if ctxWord[c] {
+			return true
+		}
+		nxt, have := alias[strings.TrimSpace(t)]
+		if !have || nxt == t {
+			return false
+		}
+		t = nxt
+	}
+	return false
+}
+
+// reportCallbacks answers tier-1-research §2.2: where a C API takes a
+// function pointer, does it also take a context word, the environment of a
+// closure converted by hand, and does the callback's own type receive one? A
+// callback in a struct's field (WNDCLASSA's lpfnWndProc) is not a parameter
+// and is not counted here.
+func reportCallbacks(fns []fn, structs, handles, callbacks map[string]bool, alias map[string]string) {
+	var both, apiOnly, cbOnly, neither int
+	for _, f := range fns {
+		var cb []string
+		apiCtx := false
+		for _, p := range f.params {
+			if classify(p.typ, structs, handles, callbacks, alias) == shFunc {
+				cb = append(cb, cleanType(p.typ))
+			} else if isCtx(p.typ, alias) {
+				apiCtx = true
+			}
+		}
+		if len(cb) == 0 {
+			continue
+		}
+		cbCtx := false
+		for _, c := range cb {
+			for i, t := 0, c; i < 8 && t != ""; i++ {
+				if ps, have := cbParams[t]; have {
+					params, _ := parseParams(ps)
+					for _, q := range params {
+						if isCtx(q.typ, alias) {
+							cbCtx = true
+						}
+					}
+					break
+				}
+				t = alias[t]
+			}
+		}
+		kind := "neither"
+		switch {
+		case apiCtx && cbCtx:
+			kind, both = "both", both+1
+		case apiCtx:
+			kind, apiOnly = "api-only", apiOnly+1
+		case cbCtx:
+			kind, cbOnly = "callback-only", cbOnly+1
+		default:
+			neither++
+		}
+		fmt.Printf("%-14s %-48s %-18s %s\n", kind, f.name, f.hdr, strings.Join(cb, ","))
+	}
+	fmt.Printf("\ntotal %d: context passed and received %d, passed only %d, received only %d, neither %d\n",
+		both+apiOnly+cbOnly+neither, both, apiOnly, cbOnly, neither)
 }
 
 func newestSDK() (string, error) {

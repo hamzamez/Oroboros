@@ -7,7 +7,9 @@ surface-design.md §1.9's decision 1 (*"function set formers: yes"*). Amends
 [spec/abstract.md](../spec/abstract.md) §2.2, §2.6, W7 and W9, under
 [ADR 0050](0050-the-abstract-syntax-fits-the-semantics.md) and
 [ADR 0051](0051-a-definition-is-a-named-lambda.md). **Not built**: it is built with callbacks tier 1
-([callbacks.md](../spec/callbacks.md)).
+([callbacks.md](../spec/callbacks.md)), whose research
+([callbacks-tier1-research.md](../callbacks-tier1-research.md), 2026-11-18) proposes the markers'
+vocabulary and the hole this ADR left open; not yet decided.
 
 ## Context
 

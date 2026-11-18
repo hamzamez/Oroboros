@@ -273,7 +273,8 @@ the header says otherwise.
 
 ## 8. Not here
 
-- **Tier 1** (a λ at the call site, Go's `sort.Slice`) and **tier 3**.
+- **Tier 1** (a λ at the call site, Go's `sort.Slice`), researched in
+  [callbacks-tier1-research.md](callbacks-tier1-research.md), and **tier 3**.
 - **Threads** (`CreateThread`), whose callback is a process's spawn (ADR 0081).
 - **Android's and the browser's realizations**, each its own step.
 - **Typed messages** (P5), C's surface.

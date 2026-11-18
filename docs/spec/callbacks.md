@@ -11,6 +11,12 @@ Three tiers, and only the third is a genuine closure.
 > ([arrow-research.md](../arrow-research.md)): the parameter's set is a claim, a λ's header without a
 > body, meaning a function space Π(P). R with markers for call count, escape and no captured buffer.
 > A function the host returns is a host type whose eliminator is application, not a callback.
+>
+> **Tier 1 is researched** in [callbacks-tier1-research.md](../callbacks-tier1-research.md)
+> (2026-11-18, no decision): a callback applied only during the call is a second-class value, a
+> region of the call read as a loop whose trip count is the host's; its markers a usage in 𝕌 and an
+> order; §4's buffer hazard belongs to escaping callbacks. The window procedure, an installed
+> handler, is [callbacks-research.md](../callbacks-research.md).
 
 ---
 

@@ -1,0 +1,12 @@
+// THE WINDOWS TARGET AT x86-64-v3 (ADR 0142): the x86_64 member with its ISA
+// taken at the psABI's third level, AVX2, BMI1, BMI2, FMA and MOVBE over the
+// baseline's SSE2. A member of the family (ADR 0122): every fact, realization
+// and header of `windows` holds of it, since the level only adds operations.
+// A program built for it runs only on a machine that has the level, which is
+// the portability kernels-research §6 Q2 trades for speed; `windows` stays the
+// baseline.
+glue windows
+
+// THE CPU (ADR 0142), its triple's model's data, printed as every function's
+// "target-cpu".
+cpu "x86-64-v3"

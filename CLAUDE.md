@@ -265,7 +265,9 @@ one**; while it is slower the gap is work owed. It is slower on every K(ℕ\*) p
 [radix-2026-11-15](gauntlet/results/radix-2026-11-15.md); popcount over 3^4900 … 3^4999 0.64×,
 [bigbits](gauntlet/results/bigbits-2026-11-19.md)). Per operation ours is 4.2× Go's product
 and 3.3× its square at 10,400 words, the leaf row 1.6× Go's assembly ([kernels-research.md](docs/kernels-research.md)
-§7). **Decided** (hamza 2026-11-15): a target may name its CPU and features; a kernel is written in
+§7). **Decided** (hamza 2026-11-15): a target may name its CPU and features
+(built, ADR 0142: `windows-v3`, the integer dot product 0.60–0.69× the baseline,
+[cpu](gauntlet/results/cpu-2026-11-19.md)); a kernel is written in
 the language, through LLVM IR, assembly only if a measurement still asks. **Postponed**, in order:
 subtractive in-place Karatsuba with the threshold re-measured, the leaf as LLVM's wide product,
 Toom-3, a subquadratic division at a node (Newton and Barrett, or Burnikel and Ziegler), printing's
@@ -306,7 +308,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   programs on windows, or a measurement naming one;
 - **a 32-bit scalar on x86-64** (ADR 0127 item 5): built for i686 only; `wc`'s 64-bit lanes
   (files-2026-11-16, 1.43× C's work) are a vector's width (ADR 0085), and a scalar by use, never an
-  address, is the measured candidate; trigger a program the gauntlet's JSON does not slow;
+  address, is the measured candidate; trigger a program the gauntlet's JSON does not slow; a second
+  candidate since, `idot`'s tables of 0..65535 in i64 elements, windows' baseline 1.22× Go's scalar
+  loop because SSE2 has no 64-bit lane product ([cpu](gauntlet/results/cpu-2026-11-19.md));
 - **U₃₂ on i686** (ADR 0127's "Why not"): K(ℕ\*)'s digit in an i32 read unsigned; trigger the next
   measurement of windows32's big-integer gap;
 - **integers' four old mechanisms as (H, d) data** (ADR 0083 item 1); trigger the next change to any
@@ -328,9 +332,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **11,779 of 11,833** integer operations proven inside their target's word, the 54 left
+- **Provability**: **11,812 of 11,866** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,351 of 1,644** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,361 of 1,654** loops proven to
   terminate (size-change termination; of the 293 left, 41 were before bigbits-2026-11-19, among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
@@ -719,6 +723,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A tuple pattern over a loop whose body jumps out is a `let` of several names, which every walker of a clause chain reads (`joinLet`); reverses 0134's B | [0139](docs/decisions/0139-a-tuple-pattern-over-a-loop-is-a-let-of-several-names.md) |
 | A lent buffer handed back is a primed result, `(b' ∈ Array(V) linear)`; `buffer(V)` at a result refused | [0140](docs/decisions/0140-a-lent-buffer-handed-back-is-a-primed-result.md) |
 | A family's member is its C function called at a constant, `call SendMessageA(w, 1076, 0, &cr)`, typed by the erased declaration; a pointer at an integer the integer carrying it (ADR 0084's P5) | [0141](docs/decisions/0141-a-family-member-is-its-c-function-at-a-constant.md) |
+| A target's CPU is data of its triple's model, `cpu "x86-64-v3"`, printed as every function's `"target-cpu"`; a level a member (`windows-v3` glues `windows`); baseline the default | [0142](docs/decisions/0142-a-targets-cpu-is-data-of-its-triples-model.md) |
 
 ## Build commands
 
@@ -755,7 +760,7 @@ cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5 
 | `ir/` | lowering, typing, the verifier (W1–W10), the printer and reader; the definitions kept as functions (`keep`, ADR 0113); the decision (`decide`, `interval`, `trip`, `sct`, `require`), the representations (`words`, `big`, `limbs`, `shift`, `numbers`: N's scaled word, `doubles`: F64's realizations), the claim (`claim`), the pipeline (`ir.Entry`); `ir/plan` and the four printers `ir/golang`, `ir/js`, `ir/java`, `ir/llvm` |
 | `presburger/` | the Omega test (Pugh 1991), complete over ℤ, a soundness witness for the refinement layer |
 | `emit/` | the type checker, the refinement layer (`refine`, `linear`, `fact`, `content`), contracts (`requires`), the target loader (`target`, `companion`, `alias`, `constend`, `hostdef`), linearity, the limb library as a theory (`bigrep`, `biglimb`, `bignum.oro`), the inventory's tests |
-| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `win32/` (the windows family's base, ADR 0122: glues `llvm`; `os` the view over kernel32; Win32 by header, ADR 0126: `minwindef`, `winnt`, `windef`, `basetsd` the type names, `fileapi`, `heapapi`, `winuser`, `wingdi` … the functions), `windows/` (the x86_64 member: glues `win32`; its triple, LLP64's four names in `model.oro`, its address space, `x64.oro` the ISA's operations), `windows32/` (the i686 member: ILP32's four, `x86.oro`'s `divl`, `runtime "rt/i686.ll"`); `blas` and the `tutorial*` targets parameterize the normal form for the book |
+| `targets/` | target declarations, data and not Go: `go/`, `js/`, `java/`, `llvm/` (the LLVM layer, T_LLVM[Σ_OS]: `instructions` Σ_LLVM, `lang` ι's terms, `os` Σ_OS's headers, `str`), `win32/` (the windows family's base, ADR 0122: glues `llvm`; `os` the view over kernel32; Win32 by header, ADR 0126: `minwindef`, `winnt`, `windef`, `basetsd` the type names, `fileapi`, `heapapi`, `winuser`, `wingdi` … the functions), `windows/` (the x86_64 member: glues `win32`; its triple, LLP64's four names in `model.oro`, its address space, `x64.oro` the ISA's operations), `windows32/` (the i686 member: ILP32's four, `x86.oro`'s `divl`, `runtime "rt/i686.ll"`), `windows-v3/` (the x86_64 member at x86-64-v3, `cpu`, ADR 0142); `blas` and the `tutorial*` targets parameterize the normal form for the book |
 | `lib/` | library modules: `os`, `io` (portable names over each host), `result`, `num` (`num.oro`: a number's decimal numeral; `num/` the older vectors), `win` (`print`, in the language's operators), `rt` (`i686.oro`: windows32's runtime, ADR 0123) |
 | `cmd/` | `check`, `build`, `gen`, `oro`, `intervals`, `portable` |
 | `examples/` | the programs: `io/` (`wc`, `count`, `jsonfmt`, `roundtrip`, `freq`), `os/` (`du`, `ls`, `wc`), `lines/` (`lines`, `ages`, `shape`), `json/`, `big/`, `hash/` (FNV-1a and CRC-32), `num/` (`ledger`, decimals), `int/` (meant to be refused), `kara/`, `tally/`, `u128/`, `native/` (the gauntlet's sources) |

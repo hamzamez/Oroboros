@@ -143,7 +143,7 @@ The full host is then the target's own code, declared and stated. It is not more
 
 ## 6. Decided (hamza, 2026-11-15)
 
-- **Q2: yes.** A target may name its CPU and features, and that is a feature, not a defect. Naming
+- **Q2: yes.** *Built as ADR 0142 (`cpu`, `windows-v3`), 2026-11-19.* A target may name its CPU and features, and that is a feature, not a defect. Naming
   more of the machine makes a program less portable and faster, and the choice is the target's
   data, as the triple is. Baseline stays the default.
 - **Q1: the kernel is written in the language**, and hamza asked whether that is possible now or

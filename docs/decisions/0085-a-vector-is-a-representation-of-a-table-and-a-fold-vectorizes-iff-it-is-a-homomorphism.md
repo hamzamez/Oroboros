@@ -1,7 +1,9 @@
 # 0085 — A vector is a representation of a table, and a fold vectorizes iff it is a homomorphism
 
 Date: 2026-10-30
-Status: Accepted; not built (its main consumer is `ir/llvm`). Item 3 amended by [ADR 0086](0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md): an unrounded float fold is exact, so associative, and vectorizes; a fold rounded at every step keeps its order.
+Status: Accepted. On LLVM item 2's three forms vectorize by LLVM's own vectorizers, measured
+([cpu-2026-11-19](../../gauntlet/results/cpu-2026-11-19.md)), with the CPU a target names (ADR 0142);
+items 4–6 not built. Item 3 amended by [ADR 0086](0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md): an unrounded float fold is exact, so associative, and vectorizes; a fold rounded at every step keeps its order.
 
 ## Context
 

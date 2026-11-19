@@ -3993,3 +3993,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `lib/os.oro windows` 468 → 156 ms, 0.33x
+
+## 2026-11-19 — on 51abeda8, with uncommitted changes
+
+**Reason:** ADR 0142 (cpu-2026-11-19): examples/table/idot.oro new, the integer dot product; no existing target states a CPU
+
+744 runs: 516 emitted, 228 refused; 11812 of 11866 integer operations bounded, 1361 of 1654 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/table/idot.oro go`
+- new source — `examples/table/idot.oro java`
+- new source — `examples/table/idot.oro js`
+- new source — `examples/table/idot.oro windows`

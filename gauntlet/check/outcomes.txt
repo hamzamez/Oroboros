@@ -1015,6 +1015,19 @@
 == examples/table/dot.oro windows refused
    gen: examples/table/dot.oro: in dot: go.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/table/idot.oro go emitted dca0a0f389de61d0da3a736f54b298cc0b833322f1af019c88a57374caabc84b
+   note: gen-main: 8 of 8 integer operations bounded; 2 of 2 loop(s) proven terminating
+   note: gen-main: 2 division(s) became a shift or a mask
+== examples/table/idot.oro js emitted f2aa7b075eeecd9cb9f7cb0de8954f615d3b3c3e3aa6b1be17bfab99d350f03e
+   note: gen-main: 8 of 8 integer operations bounded; 2 of 2 loop(s) proven terminating
+   note: gen-main: 1 division(s) became a shift or a mask
+== examples/table/idot.oro java emitted 4ed46ab1844ab09f46236e50b73963d4cf5a43c1432c59028a1889d9d5c142aa
+   note: gen-main: 8 of 8 integer operations bounded; 2 of 2 loop(s) proven terminating
+   note: gen-main: 2 division(s) became a shift or a mask
+== examples/table/idot.oro windows emitted 13da2f4dbc95223eeaf0425efda8001a697490b98946bcd63e7596631899f7b9
+   note: gen-main: 8 of 8 integer operations bounded; 4 of 4 loop(s) proven terminating
+   note: 1 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/table/sieve-win.oro go refused
    gen: examples/table/sieve-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.

@@ -330,6 +330,10 @@
 == examples/table/dot.oro windows32 refused
    gen: examples/table/dot.oro: in dot: go.`f*` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/table/idot.oro windows32 emitted 9dd8ce5473461491b7b714a5db87ce5c6c7df667d7a255ddc60a94d0661c518c
+   note: gen-main: 8 of 8 integer operations bounded; 4 of 4 loop(s) proven terminating
+   note: 1 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/table/sieve-win.oro windows32 emitted 91abbbcc6be4f1e826c13ffe297187a8a32d5798c50df6ffc1f210a7673f5bc2
    note: gen-main: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
    note: 3 definition(s) kept as functions, 0 inlined by their contracts

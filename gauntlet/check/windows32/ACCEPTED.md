@@ -143,3 +143,17 @@ The initial compile-time baseline, the minimum of two sweeps.
 - new source — `gauntlet/differential/cases/big-bits.oro windows32`
 - new source — `gauntlet/differential/cases/big-popcount.oro windows32`
 - new source — `gauntlet/differential/cases/big-stein.oro windows32`
+
+## 2026-11-19 — on 51abeda8, with uncommitted changes
+
+**Reason:** ADR 0142 (cpu-2026-11-19): examples/table/idot.oro new, the integer dot product; no existing target states a CPU
+
+186 runs: 125 emitted, 61 refused; 6672 of 6682 integer operations bounded, 739 of 818 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+1 change(s):
+
+- new source — `examples/table/idot.oro windows32`
+
+1 compile(s) recorded FASTER:
+
+- `examples/big/stein.oro windows32` 115578 → 73906 ms, 0.64x

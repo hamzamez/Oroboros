@@ -145,9 +145,9 @@ else: `where ensure invariant pure index variadic inout out linear as host expr 
 jump comma_ok success relevant`; `mod`, an operator only between two operands (ADR 0082); `record`
 before a brace, a record's former, and `with` between a value and a brace, override (ADR 0128); and the
 model's data words (`repr word niche narrow structural backend link build artifact data include fact
-underlying read write realize glue triple runtime c pack size len`, §2.12; `NULL` among a C call's arguments, C's null pointer (ADR 0131); `realize` states which declarations
+underlying read write realize glue triple cpu runtime c pack size len`, §2.12; `NULL` among a C call's arguments, C's null pointer (ADR 0131); `realize` states which declarations
 interpret a language name, ADR 0088; `glue` glues another target's fragments into this one, and
-`triple` is an LLVM target's triple, ADR 0093; `runtime` names the module its code generator calls
+`triple` is an LLVM target's triple, ADR 0093; `cpu` the CPU its ISA is taken at, ADR 0142; `runtime` names the module its code generator calls
 into, ADR 0123).
 
 **Read and refused**, each with a message naming what replaced it (inventory.md §4): `the`, the core's

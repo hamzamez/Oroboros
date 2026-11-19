@@ -161,7 +161,13 @@ func File(tg *emit.Target, funcs map[string]string, entry string) string {
 	// nounwind: nothing of ours unwinds (a crash is Σ_OS's exit or a trap), so
 	// no unwind tables. "no-builtins": no loop is rewritten into a call to the C
 	// runtime's memset or memcpy, which this target does not link (llvm.md §2).
-	b.WriteString("attributes #0 = { nounwind \"no-builtins\" }\n")
+	// "target-cpu": the CPU the target's triple is taken at (ADR 0142), its
+	// model's data, so the module says what it is compiled for.
+	if tg.CPU != "" && !PlantCPUUnprinted {
+		fmt.Fprintf(&b, "attributes #0 = { nounwind \"no-builtins\" \"target-cpu\"=%q }\n", tg.CPU)
+	} else {
+		b.WriteString("attributes #0 = { nounwind \"no-builtins\" }\n")
+	}
 	return b.String()
 }
 
@@ -1737,6 +1743,9 @@ func containsIdx(xs []int, i int) bool {
 // _In_ form: PtInRect then reads the address as its point
 // (TestAStructIsPassedByValue).
 var PlantByValueAsPointer bool
+
+// PlantCPUUnprinted prints no target's CPU (TestATargetsCPUIsInItsModule).
+var PlantCPUUnprinted bool
 
 // PlantFamilyConstWord types a family member's constant as the word, not as the
 // prototype's parameter at its position: on i686 the stdcall frame is then

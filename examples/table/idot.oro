@@ -1,0 +1,25 @@
+// THE INTEGER DOT PRODUCT, a fold by + over a rule's products: Σ a[i]·b[i].
+// ADR 0085's second form: + is associative and commutative on ℤ, so the fold
+// is a monoid homomorphism (Bird 1987), and its lanes may be summed apart and
+// joined. Each product is below 2^32 and 65,536 of them below 2^48, so every
+// partial sum is proven in the word, and LLVM's own vectorizer splits the fold
+// into lanes, two i64s of SSE2 on windows, four of AVX2 on windows-v3 (ADR
+// 0142): 0.60–0.69× the baseline's time on the same IR (cpu-2026-11-19).
+//
+//   go run ./cmd/build -target=windows-v3 -o idot.exe examples/table/idot.oro
+//
+// prints 244038704: the products of two scrambled tables of 65,536 entries,
+// summed 2,000 times mod 1,000,000,007, Python's value.
+use io
+
+fn dot(a ∈ Array(0..65535), b ∈ Array(0..65535)) (0..4503599627370496) where len(a) <= 1048576 && len(b) == len(a) {
+    n = len(a)
+    loop acc = 0, i = 0 { i >= n -> acc; else -> again(acc + a[i] * b[i], i + 1) }
+}
+
+export fn main() {
+    a = alloc(array { (k * 7919) % 65536 : k ∈ 0..65535 })
+    b = alloc(array { (k * 104729) % 65536 : k ∈ 0..65535 })
+    t = loop r = 0, s = 0 { r >= 2000 -> s; else -> again(r + 1, (s + dot(a, b) + r) % 1000000007) }
+    io.print_line(big_str(t))
+}

@@ -309,8 +309,10 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
 - **a 32-bit scalar on x86-64** (ADR 0127 item 5): built for i686 only; `wc`'s 64-bit lanes
   (files-2026-11-16, 1.43× C's work) are a vector's width (ADR 0085), and a scalar by use, never an
   address, is the measured candidate; trigger a program the gauntlet's JSON does not slow; a second
-  candidate since, `idot`'s tables of 0..65535 in i64 elements, windows' baseline 1.22× Go's scalar
-  loop because SSE2 has no 64-bit lane product ([cpu](gauntlet/results/cpu-2026-11-19.md));
+  candidate since, `idot`'s tables of 0..65535 in i64 elements: ours is C's at i64 and both lose
+  to Go's scalar loop (SSE2 has no 64-bit lane product), and C at 16-bit elements is 0.74×. A table
+  element by its set on LLVM changes llvm.md §4's layout: for hamza
+  ([cpu](gauntlet/results/cpu-2026-11-19.md));
 - **U₃₂ on i686** (ADR 0127's "Why not"): K(ℕ\*)'s digit in an i32 read unsigned; trigger the next
   measurement of windows32's big-integer gap;
 - **integers' four old mechanisms as (H, d) data** (ADR 0083 item 1); trigger the next change to any

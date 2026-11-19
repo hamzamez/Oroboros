@@ -34,7 +34,7 @@ language already expressed.
 
 | word | uses | what it says | what fails without it | verdict |
 |---|---:|---|---|---|
-| `inout` | 0 | `x ∈ T inout`, a host parameter the host reads and writes (ADR 0048) | nothing: `x ∈ cell(T)` is the same declaration (abstract.md §D: `D(x ∈ S inout) = (x (cell ⌜S⌝))`), and is the one every declaration writes (4 uses) | **a synonym** (fit-research's F1). One of the two spellings goes; `cell(T)` is the one in use, and it is a set, as ADR 0130 wants of a header |
+| `inout` vs `cell(T)` | 0 vs 4 | the same declaration twice: `x ∈ T inout` and `x ∈ cell(T)` (abstract.md's D: `D(x ∈ S inout) = (x (cell ⌜S⌝))`) | nothing: they are synonyms (fit-research's F1) | **`cell(T)` is the leak, `inout` the word** (hamza, 2026-11-19: "we use linear and not buffer()"). A set ranges over values, and a cell is a place, not a value (ADR 0049, 0084). `T` is the set and `inout` the mode, as `Array(V)` and `linear` are; `cell` and `buffer` are the core's types, D's image. The count, 4 against 0, measured the leak: the target files, and ADR 0133's `s ∈ cell(S)`, wrote the core's form. *Corrected 2026-11-19*: this pass first kept `cell(T)` for its uses |
 | `jump` | 0 | `(jump "l")`, a predicate that branches instead of computing, on MASM's templates (windows-target.md) | nothing: the MASM backend is deleted (ADR 0080, mastretire-2026-11-03), and no file writes `jump`. The reader still parses it | **dead**: its backend retired |
 | `underlying` | 0 | `(underlying T (int LO HI))`, a named host type over an integer set, read by the hand-declaration checker and ignored by the compiler (target-files.md §2a) | nothing today: no declaration writes it | **unused**, though its job may still be wanted (Go's `type FileMode uint32`); hamza's whether to keep it for that or drop it until a declaration needs it |
 | `cdecl` | 0 | a C function's convention, after its call | nothing: the printer treats every convention but `stdcall` as C's default, so `call F cdecl` and `call F` print the same | **a synonym of its absence**. As documentation of the prototype it says what the prototype's absence of `__stdcall` says |
@@ -68,8 +68,9 @@ in full.
   into. `out τ` is a fresh cell whose set the program chooses, and Go's `Sscan` reads τ from it.
   *Observed*: yes, τ chooses the parse. ADR 0131 removed it where the declaration already knows τ (an
   `_Out_`), which was the redundant half, and kept it where the program chooses. **Meaning; keep.**
-- **`inout`**: above, a synonym. The three questions give the same answers as for `cell(T)`,
-  because it is `cell(T)`.
+- **`inout`**: the mode of a value-result parameter, as `linear` is of a borrow. *Without it*, the
+  program writes the core's `cell(T)`, a place where J writes sets. *Observed*: yes, the value comes
+  back written. **Meaning; keep, and refuse its synonym `cell(T)`** (above).
 
 ### In use, with the job each does
 
@@ -103,8 +104,10 @@ parameter. Its reader forms `callback-set` and `conv` are the inventory's, not J
 
 ## 4. For hamza
 
-1. **`inout`**: withdraw, keeping `cell(T)`. If yes, a reversal ADR, j.md §1.4 and §2.4, abstract.md's
-   D and W7, the inventory; no program changes (0 uses).
+1. **`cell(T)` in J**: refuse it at a parameter, naming `x ∈ T inout`; amend W7 so `inout` may stand
+   on a program definition's parameter (ADR 0133 item 6); respell item 6, `s ∈ S inout`, and the
+   uses (SetFilePointer, PrintDlgA, the tests, `wndproc-win.oro`, `cell-param`). The emitted code is
+   unchanged, both spellings being one core term.
 2. **`jump`**: withdraw, with the MASM backend it served. If yes, the reader's clause, the
    inventory, windows-target.md marked historical.
 3. **`underlying`**: withdraw until a declaration needs it, or keep for Go's named integer types.

@@ -78,6 +78,7 @@ var bigOpNames = map[string]bool{
 	"big<": true, "big<=": true, "big>": true, "big>=": true, "big=": true,
 	"big-of": true, "big-of-small": true, "big-str": true, "big-word": true,
 	"big%-small": true,
+	"big&": true, "big|": true, "big⊕": true, "big~": true, "big<<": true, "big>>": true, "big-mod": true,
 }
 
 func isBigOp(name string) bool { return bigOpNames[name] }

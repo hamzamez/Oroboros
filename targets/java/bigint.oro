@@ -58,6 +58,26 @@ module java {
 
     // Our `int` is Java's `long` (targets/java/java.oro), and `valueOf` takes a
     // long, so this conversion is exact and needs no cast.
+    // THE BOOLEAN OPERATIONS, THE SHIFTS AND `mod` ON ℤ (ADR 0082):
+    // BigInteger's and, or, xor and not are "as if in two's-complement", the
+    // 2-adic integers', and shiftRight floors. A count is an int here: one
+    // past 2^31 − 1 shifts every value BigInteger can hold to 0 or −1 on the
+    // right, so it is clamped there, and on the left it leaves 0 at 0 and
+    // throws BigInteger's own overflow otherwise, an allocation no host can
+    // make. `mod` is the language's Euclidean remainder, BigInteger's `mod`
+    // for m > 0 (not `%`, header).
+    fn `big&`(a ∈ big, b ∈ big) (big) pure { host expr "${a}.and(${b})" }
+    fn `big|`(a ∈ big, b ∈ big) (big) pure { host expr "${a}.or(${b})" }
+    fn `big⊕`(a ∈ big, b ∈ big) (big) pure { host expr "${a}.xor(${b})" }
+    fn `big~`(a ∈ big) (big) pure { host expr "${a}.not()" }
+    fn `big<<`(a ∈ big, k ∈ Int) (big) pure where k >= 0 {
+        host expr "${a}.shiftLeft((int) Math.min(${k}, 2147483647L))"
+    }
+    fn `big>>`(a ∈ big, k ∈ Int) (big) pure where k >= 0 {
+        host expr "${a}.shiftRight((int) Math.min(${k}, 2147483647L))"
+    }
+    fn big_mod(a ∈ big, m ∈ big) (big) pure where m > 0 { host expr "${a}.mod(${m})" }
+
     fn big_of(a ∈ Int) (big) pure { host expr "java.math.BigInteger.valueOf(${a})" }
     fn big_str(a ∈ big) (String) pure { host expr "${a}.toString()" }
 

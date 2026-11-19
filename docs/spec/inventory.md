@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 153 |
+| `specified` — a spec states it | 160 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -297,6 +297,9 @@ precision names the host rung needs: the target declares them, and the compiler 
 | `big+!`, `big-!`, `big*!`, `big/!`, `big%!`, `big-of!` | recorded — the in-place forms | [bigreuse-2026-09-02](../../gauntlet/results/bigreuse-2026-09-02.md) |
 | `big-word` | specified — the retraction r : ℤ ⇀ S, the inclusion `big-of`'s partial inverse, exact on S; applied only where the value's fact is inside the word (ADR 0079 item 4) | [integers.md](integers.md) §1a |
 | `big%-small` | recorded — a remainder by a machine word, whose result is a word | [subdiv-2026-09-03](../../gauntlet/results/subdiv-2026-09-03.md) |
+| `big&` `big\|` `big⊕` `big~` | specified — ADR 0082's and, or, xor and not on ℤ, 2-adic, held exactly (ir/big.go's bit); a result whose fact is in S comes back by `big-word` | [integers.md](integers.md) §0b, [bigbits-2026-11-19](../../gauntlet/results/bigbits-2026-11-19.md) |
+| `big<<` `big>>` | specified — a·2ᵏ and ⌊a/2ᵏ⌋ on ℤ, the count k ≥ 0 a word | [integers.md](integers.md) §0b |
+| `big-mod` | specified — the Euclidean remainder, in [0, m) for m > 0 | [integers.md](integers.md) §0b |
 | `trap-if` | recorded — the fixed-width rung's overflow trap | [bigrepr-2026-09-03](../../gauntlet/results/bigrepr-2026-09-03.md) |
 
 ---

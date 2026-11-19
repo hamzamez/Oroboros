@@ -81,6 +81,27 @@ module go {
     fn `big>=`(a ∈ big, b ∈ big) (Bool) pure { host expr "${a}.Cmp(${b}) >= 0" }
     fn `big=`(a ∈ big, b ∈ big) (Bool) pure { host expr "${a}.Cmp(${b}) == 0" }
 
+    // THE BOOLEAN OPERATIONS, THE SHIFTS AND `mod` ON ℤ (ADR 0082), 2-adic:
+    // `math/big` gives And, Or, Xor and Not "two's-complement semantics" on a
+    // sign and magnitude, which is the 2-adic integers' (~a = −a − 1); Rsh is
+    // the arithmetic shift, ⌊a/2ᵏ⌋ for a negative a too; Mod is the
+    // Euclidean remainder, in [0, |m|). Each is ℤ's function, so the answer is
+    // the word's wherever both are defined (gauntlet/differential's
+    // big-bits).
+    fn `big&`(a ∈ big, b ∈ big) (big) pure { host expr "new(big.Int).And(${a}, ${b})" import "math/big" }
+    fn `big|`(a ∈ big, b ∈ big) (big) pure { host expr "new(big.Int).Or(${a}, ${b})" import "math/big" }
+    fn `big⊕`(a ∈ big, b ∈ big) (big) pure { host expr "new(big.Int).Xor(${a}, ${b})" import "math/big" }
+    fn `big~`(a ∈ big) (big) pure { host expr "new(big.Int).Not(${a})" import "math/big" }
+    fn `big<<`(a ∈ big, k ∈ Int) (big) pure where k >= 0 {
+        host expr "new(big.Int).Lsh(${a}, uint(${k}))" import "math/big"
+    }
+    fn `big>>`(a ∈ big, k ∈ Int) (big) pure where k >= 0 {
+        host expr "new(big.Int).Rsh(${a}, uint(${k}))" import "math/big"
+    }
+    fn big_mod(a ∈ big, m ∈ big) (big) pure where m > 0 {
+        host expr "new(big.Int).Mod(${a}, ${m})" import "math/big"
+    }
+
     // THE INCLUSION S ↪ ℤ, the only conversion there is. The identity on
     // integers, so a widening never changes an answer.
     fn big_of(x ∈ Int) (big) pure { host expr "big.NewInt(int64(${x}))" import "math/big" }

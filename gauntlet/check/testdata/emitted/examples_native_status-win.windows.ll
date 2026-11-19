@@ -440,7 +440,7 @@ entry:
   br i1 %v51, label %.then46, label %.else47
 .then46:
   %v54 = sub nsw i64 %v23, %v40
-  %v56 = icmp slt i64 %v54, 2147483647
+  %v56 = icmp samesign slt i64 %v54, 2147483647
   store i1 %v56, ptr %.s50
   br label %.join41
 .else47:
@@ -2656,7 +2656,7 @@ entry:
 .join1211:
   %v1523 = load ptr, ptr %.s1309
   %v1642 = sub nsw i64 %v23, %v40
-  %v1644 = add nsw i64 %v1642, 1
+  %v1644 = add nuw nsw i64 %v1642, 1
   store i64 0, ptr %.s1315
   store i64 %v1644, ptr %.s1316
   store ptr @.str.2, ptr %.s1317
@@ -2674,7 +2674,7 @@ entry:
   store i1 true, ptr %.s1325
   br label %.join1321
 .else1324:
-  %v1663 = icmp sgt i64 %v1648, 0
+  %v1663 = icmp samesign sgt i64 %v1648, 0
   store i1 %v1663, ptr %.s1325
   br label %.join1321
 .else1320:
@@ -2687,7 +2687,7 @@ entry:
   %v1668 = add nuw nsw i64 %v1647, 1
   %v1670 = sdiv i64 %v1648, 10
   %v1673 = srem i64 %v1648, 10
-  %v1674 = add nsw i64 48, %v1673
+  %v1674 = add nuw nsw i64 48, %v1673
   %v1676 = icmp samesign sge i64 %v1674, 0
   br i1 %v1676, label %.then1334, label %.else1335
 .then1334:
@@ -4728,7 +4728,7 @@ entry:
   br i1 %v3128, label %.then2495, label %.else2496
 .then2495:
   %v3131 = sub nsw i64 %v3101, %v3117
-  %v3133 = icmp slt i64 %v3131, 2147483647
+  %v3133 = icmp samesign slt i64 %v3131, 2147483647
   store i1 %v3133, ptr %.s2499
   br label %.join2490
 .else2496:
@@ -6944,7 +6944,7 @@ entry:
 .join3660:
   %v4600 = load ptr, ptr %.s3758
   %v4719 = sub nsw i64 %v3101, %v3117
-  %v4721 = add nsw i64 %v4719, 1
+  %v4721 = add nuw nsw i64 %v4719, 1
   store i64 0, ptr %.s3764
   store i64 %v4721, ptr %.s3765
   store ptr @.str.2, ptr %.s3766
@@ -6962,7 +6962,7 @@ entry:
   store i1 true, ptr %.s3774
   br label %.join3770
 .else3773:
-  %v4740 = icmp sgt i64 %v4725, 0
+  %v4740 = icmp samesign sgt i64 %v4725, 0
   store i1 %v4740, ptr %.s3774
   br label %.join3770
 .else3769:
@@ -6975,7 +6975,7 @@ entry:
   %v4745 = add nuw nsw i64 %v4724, 1
   %v4747 = sdiv i64 %v4725, 10
   %v4750 = srem i64 %v4725, 10
-  %v4751 = add nsw i64 48, %v4750
+  %v4751 = add nuw nsw i64 48, %v4750
   %v4753 = icmp samesign sge i64 %v4751, 0
   br i1 %v4753, label %.then3783, label %.else3784
 .then3783:

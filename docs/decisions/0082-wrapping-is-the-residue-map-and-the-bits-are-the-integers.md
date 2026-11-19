@@ -7,8 +7,9 @@ asci spelling \xor (push back if there is a reason to)", then "go ahead with \op
 [llvmsurvey-2026-10-27](../../gauntlet/results/llvmsurvey-2026-10-27.md) §4. Reverses
 [integers.md](../spec/integers.md) §0a's "Bitwise and shifts are NOT promoted"; supersedes
 [spec/bitwise.md](../spec/bitwise.md)'s candidates. **Built** with ADR 0083
-([bits-2026-10-27](../../gauntlet/results/bits-2026-10-27.md)); not built: the operations above the word,
-and fusion past JavaScript's 32 bits.
+([bits-2026-10-27](../../gauntlet/results/bits-2026-10-27.md)); above the word on the host bignums and
+K(ℕ\*) since ([bigbits-2026-11-19](../../gauntlet/results/bigbits-2026-11-19.md)); not built: on the
+fixed limbs, and fusion past JavaScript's 32 bits.
 
 ## Context
 

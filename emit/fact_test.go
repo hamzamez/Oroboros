@@ -8,8 +8,8 @@ import (
 // theories.md §7.4: each admission condition refuses by name, and `lang`'s own
 // facts are admitted.
 func TestFactAdmissionIsTheFBFragment(t *testing.T) {
-	if len(langFacts) != 9 {
-		t.Fatalf("lang's theory must load all nine facts, got %d", len(langFacts))
+	if len(langFacts) != 11 {
+		t.Fatalf("lang's theory must load all eleven facts, got %d", len(langFacts))
 	}
 	refused := map[string]string{
 		`fact two (x ∈ Int, y ∈ Int) x % 3 <= y % 3`:          "F-C",
@@ -165,6 +165,47 @@ func TestASquareIsAtLeastItsRoot(t *testing.T) {
 	for what, q := range map[string]string{"a[i·i]": at, "a[i]": root} {
 		if err := run(langFacts, q); err == nil {
 			t.Errorf("with the square outside the fragment, %s should be refused", what)
+		}
+	}
+}
+
+// F13 IS LOAD-BEARING, EACH CLAUSE: of two naturals x | y and x ⊕ y are
+// naturals, so each is an index of a table read under its upper bound. With
+// the clause deleted the read is refused.
+func TestTheSignOfOrAndXorIsTheirOperands(t *testing.T) {
+	const target = "fn `/`(a ∈ Int, b ∈ Int) (Int) pure { host expr \"${a} / ${b}\" }\n" +
+		"fn or(a ∈ Int, b ∈ Int) (Int) pure { host expr \"${a} | ${b}\" }\n" +
+		"fn xor(a ∈ Int, b ∈ Int) (Int) pure { host expr \"${a} ^ ${b}\" }"
+	query := func(op string) string {
+		return "use tgt\nfn t(a ∈ Array(Int), x ∈ Int, y ∈ Int) (Int) {\n    if 0 <= x && 0 <= y && 16 <= len(a) && x " + op +
+			" y < 16 { a[x " + op + " y] } else { 0 }\n}"
+	}
+	run := func(theory []*Fact, q string) error {
+		t.Helper()
+		saved := langFacts
+		langFacts = theory
+		defer func() { langFacts = saved }()
+		_, err := refineWith(t, tempTarget(t, target), q)
+		return err
+	}
+	without := func(name string) []*Fact {
+		var out []*Fact
+		for _, f := range langFacts {
+			if f.Name != name && f.Name != strings.ReplaceAll(name, "-", "_") {
+				out = append(out, f)
+			}
+		}
+		if len(out) != len(langFacts)-1 {
+			t.Fatalf("%s not found among lang's facts", name)
+		}
+		return out
+	}
+	for op, name := range map[string]string{"|": "or-nonneg", "⊕": "xor-nonneg"} {
+		if err := run(langFacts, query(op)); err != nil {
+			t.Errorf("a[x %s y] of two naturals must be proven an index: %v", op, err)
+		}
+		if err := run(without(name), query(op)); err == nil {
+			t.Errorf("with %s deleted a[x %s y] should be refused", name, op)
 		}
 	}
 }

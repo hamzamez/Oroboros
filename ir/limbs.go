@@ -74,6 +74,10 @@ var smallWord = ei(1<<28 - 1)
 // set (rung.Var), by instances of K(ℕ*), numerals of any length (ADR 0099),
 // which are signed by construction and have no width. It reports how many it
 // replaced.
+// natBit is each of ADR 0082's operations' definition on K(ℕ*).
+var natBit = map[string]string{"big&": "band", "big|": "bor", "big⊕": "bxor", "big~": "bnot",
+	"big<<": "bshl", "big>>": "bshr", "big-mod": "bmod"}
+
 func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 	bits, signed, nat := rung.Bits, rung.Signed, rung.Var
 	n, lim := emit.LimbWidth(bits)
@@ -173,6 +177,13 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 					continue
 				}
 				plan[s] = use{"to-host", s.Args}
+			case "big&", "big|", "big⊕", "big~", "big<<", "big>>", "big-mod":
+				// ADR 0082's operations on K(ℕ*); the fixed limbs have none yet
+				if nat {
+					plan[s] = use{natBit[s.Name], s.Args}
+				} else {
+					err = fmt.Errorf("%w: %s on fixed limbs", ErrNoLimbForm, s.Name)
+				}
 			case "big-fit", "big-fit-signed":
 				if nat {
 					// a bounded program on K(ℕ*): its one set, by sign and bit length

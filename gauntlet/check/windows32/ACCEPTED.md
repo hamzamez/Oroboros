@@ -126,3 +126,20 @@ The initial compile-time baseline, the minimum of two sweeps.
 1 change(s):
 
 - new source — `examples/native/status-win.oro windows32`
+
+## 2026-11-19 — on 376400a1, with uncommitted changes
+
+**Reason:** ADR 0082 above the word (bigbits-2026-11-19): stein, popcount and three cases new; power and status-win gain nuw/samesign from guardDiff, more proven
+
+185 runs: 124 emitted, 61 refused; 6663 of 6673 integer operations bounded, 735 of 814 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+8 change(s):
+
+- new source — `examples/big/popcount.oro windows32`
+- emitted text changed — `examples/big/power.oro windows32`
+- new source — `examples/big/stein.oro windows32`
+- emitted text changed — `examples/native/status-win.oro windows32`
+- compiler output changed — `examples/native/status-win.oro windows32`
+- new source — `gauntlet/differential/cases/big-bits.oro windows32`
+- new source — `gauntlet/differential/cases/big-popcount.oro windows32`
+- new source — `gauntlet/differential/cases/big-stein.oro windows32`

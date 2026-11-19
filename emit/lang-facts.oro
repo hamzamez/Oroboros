@@ -47,3 +47,11 @@ fact and_left (a ∈ Int, b ∈ Int) when(0 <= a) 0 <= `&`(a, b) && `&`(a, b) <=
 
 fact and_right (a ∈ Int, b ∈ Int) when(0 <= b) 0 <= `&`(a, b) && `&`(a, b) <= b
 
+
+// F13 — THE SIGN OF OR AND XOR. Read 2-adically an integer's sign is its
+// eventually constant bit, 0 for a natural, and `|` and `⊕` act on it as on
+// every bit: 0 | 0 = 0 ⊕ 0 = 0. So of two naturals, both are naturals
+// (bits-research.md §1.5). Popcount's m ⊕ t, two Mersenne numbers, is one.
+fact or_nonneg (a ∈ Int, b ∈ Int) when(0 <= a, 0 <= b) 0 <= `|`(a, b)
+
+fact xor_nonneg (a ∈ Int, b ∈ Int) when(0 <= a, 0 <= b) 0 <= `⊕`(a, b)

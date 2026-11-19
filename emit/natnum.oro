@@ -1297,6 +1297,165 @@ fn rem(ml, a, b) {
     }
 }
 
+// ------------------------------------------------------------ the bits
+//
+// ADR 0082's OPERATIONS ON K(ℕ*), ℤ's 2-adic and, or, xor, not and shifts,
+// and the Euclidean remainder, on a sign and a magnitude. A negative a is
+// −A = ~(A − 1), and A − 1 is the magnitude of a + 1, so writing A′ for it
+// De Morgan gives every case from three operations on naturals:
+//   a & b:  A & B,  A & ~B′,  −((A′ | B′) + 1)
+//   a | b:  A | B,  −((B′ & ~A) + 1),  −((A′ & B′) + 1)
+//   a ⊕ b:  A ⊕ B,  −((A ⊕ B′) + 1),  A′ ⊕ B′
+// with the operand that is not negative first in a mixed case. The shifts are
+// the group's own operations: a·2ᵏ is a's product by 2^r, r = k mod dbits,
+// then q = ⌊k / dbits⌋ zero digits below; ⌊A / 2ᵏ⌋ is q digits dropped, then
+// the quotient by 2^r; and ⌊−A / 2ᵏ⌋ = −⌈A / 2ᵏ⌉ = −((A′ >> k) + 1). Each is
+// ℤ's function, as the host bignums' are (big-bits).
+
+// THE DIGITWISE OPERATION on |x| and |y|, a natural: k = 0 and, 1 x & ~y,
+// 2 or, 3 xor, each digit in [0, B) by the mask's law (and ≤ min, or and xor
+// inside the window), ~y on a digit being dm − y. Its size is the index past
+// its last nonzero digit, tracked as sublp's is. k is a constant at every
+// call, so the reducer keeps one arm.
+fn lop(ml, x, y, k) {
+    mx = size(x)
+    my = size(y)
+    lx = len(x) - 1
+    ly = len(y) - 1
+    m = if mx > my { mx } else { my }
+    case {
+        m + 1 > ml || m + 1 > 2^31 -> abandon("out of memory: an integer longer than the largest table")
+        else -> {
+            var o := array { 0 : _ ∈ 0..m }
+            loop i = 0, top = 0 {
+                i >= m -> { o[m] := signed(0, top); o }
+                else -> {
+                    u = dg(x, lx, i)
+                    v = dg(y, ly, i)
+                    d = if k == 0 { u & v } else if k == 1 { u & (dm - v) } else if k == 2 { u | v } else { u ⊕ v }
+                    o[i] := d
+                    again(i + 1, if d != 0 { i + 1 } else { top })
+                }
+            }
+        }
+    }
+}
+// a + 1, whose magnitude is A′ = A − 1 for a negative a
+fn inc(ml, a) { add(ml, a, of(ml, 1)) }
+// −r − 1 = ~r
+fn bnot(ml, a) { sub(ml, of(ml, 0 - 1), a) }
+
+fn band(ml, a, b) {
+    sa = sgn(a)
+    sb = sgn(b)
+    case {
+        sa == 0 && sb == 0 -> lop(ml, a, b, 0)
+        sa == 0 -> lop(ml, a, inc(ml, b), 1)
+        sb == 0 -> lop(ml, b, inc(ml, a), 1)
+        else -> bnot(ml, lop(ml, inc(ml, a), inc(ml, b), 2))
+    }
+}
+fn bor(ml, a, b) {
+    sa = sgn(a)
+    sb = sgn(b)
+    case {
+        sa == 0 && sb == 0 -> lop(ml, a, b, 2)
+        sa == 0 -> bnot(ml, lop(ml, inc(ml, b), a, 1))
+        sb == 0 -> bnot(ml, lop(ml, inc(ml, a), b, 1))
+        else -> bnot(ml, lop(ml, inc(ml, a), inc(ml, b), 0))
+    }
+}
+fn bxor(ml, a, b) {
+    sa = sgn(a)
+    sb = sgn(b)
+    case {
+        sa == 0 && sb == 0 -> lop(ml, a, b, 3)
+        sa == 0 -> bnot(ml, lop(ml, a, inc(ml, b), 3))
+        sb == 0 -> bnot(ml, lop(ml, b, inc(ml, a), 3))
+        else -> lop(ml, inc(ml, a), inc(ml, b), 3)
+    }
+}
+
+// a·B^q, a's sign: q ≥ 0 zero digits below a's; a fresh table always, since a
+// called instance's result is its own (W13)
+fn dins(ml, a, q) {
+    ma = size(a)
+    la = len(a) - 1
+    s = sgn(a)
+    case {
+        q < 0 -> abandon("a negative digit count")
+        ma < 1 -> of(ml, 0)
+        else -> {
+            // the guard on the value that sizes the table, so its arm's π
+            // bounds that value: two sums of ma and q are not related by
+            // intervals
+            n = ma + q
+            case {
+                n + 1 > ml || n + 1 > 2^31 -> abandon("out of memory: an integer longer than the largest table")
+                else -> {
+                    var o := array { 0 : _ ∈ 0..n }
+                    loop i = 0 {
+                        i >= n -> { o[n] := signed(s, n); o }
+                        i < q -> { o[i] := 0; again(i + 1) }
+                        else -> { o[i] := dg(a, la, i - q); again(i + 1) }
+                    }
+                }
+            }
+        }
+    }
+}
+// ⌊|a| / B^q⌋ with a's sign: a's digits from q up, truncated
+fn ddrop(ml, a, q) {
+    ma = size(a)
+    la = len(a) - 1
+    s = sgn(a)
+    case {
+        q >= ma -> of(ml, 0)
+        else -> {
+            n = ma - q
+            var o := array { 0 : _ ∈ 0..n }
+            loop i = 0 {
+                i >= n -> { o[n] := signed(s, n); o }
+                else -> { o[i] := dg(a, la, i + q); again(i + 1) }
+            }
+        }
+    }
+}
+// a·2ᵏ, k ≥ 0, the declaration's `where` (a negative count, never reached,
+// stated as rem states its divisor)
+fn bshl(ml, a, k) {
+    case {
+        k < 0 -> abandon("a negative shift count")
+        size(a) < 1 -> of(ml, 0)
+        else -> dins(ml, mul_small(ml, a, 1 << (k & (dbits - 1))), k / dbits)
+    }
+}
+// ⌊|a| / 2ᵏ⌋ with a's sign, truncated: k ≥ 0
+// by no division: for r = k mod dbits ≥ 1, ⌊A / 2ᵏ⌋ = ⌊A·2^(dbits − r) / B^(q + 1)⌋,
+// a product by a digit below B and q + 1 digits dropped; for r = 0, q dropped
+fn shrm(ml, a, k) {
+    r = k & (dbits - 1)
+    case {
+        k < 0 -> abandon("a negative shift count")
+        r == 0 -> ddrop(ml, a, k / dbits)
+        else -> ddrop(ml, mul_small(ml, a, 1 << (dbits - r)), k / dbits + 1)
+    }
+}
+// ⌊a / 2ᵏ⌋, k ≥ 0: for a negative a, −((A′ >> k) + 1), shrm keeping a + 1's
+// sign
+fn bshr(ml, a, k) {
+    case {
+        sgn(a) == 0 -> shrm(ml, a, k)
+        else -> sub(ml, shrm(ml, inc(ml, a), k), of(ml, 1))
+    }
+}
+// THE EUCLIDEAN REMAINDER, m > 0: the truncated one, rem, with m added where
+// it took the dividend's negative sign, so the result is in [0, m)
+fn bmod(ml, a, m) {
+    r = rem(ml, a, m)
+    if sgn(r) == 1 { add(ml, r, m) } else { r }
+}
+
 // ------------------------------------------------------------ the one set
 //
 // A BOUNDED SET ON K(ℕ*) (ADR 0029): a program whose set is N_k or Z_k, moved

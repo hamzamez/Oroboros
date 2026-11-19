@@ -247,16 +247,23 @@ field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ �
   (Lemma C's gap, no wrong answer); print: an exit into ∅ under a tuple pattern refused by
   `CheckJoins`' arity rule, which ADR 0090 makes compose (tried 2026-11-19: with the exit's
   projection itself, `CheckJoins` accepts it and the joined values' facts are lost, `a + b` ⊤
-  where a tuple exit in its place proves it; not built).
+  where a tuple exit in its place proves it; not built);
+- bigbits (ADR 0082 above the word, [bigbits](gauntlet/results/bigbits-2026-11-19.md)): a frame
+  above a page does not link on windows (no `__chkstk` without the C runtime: ADR 0123's question,
+  an assembly routine a wall for hamza); a kept definition returning a numeral typed as its table
+  at the caller, so `big_str` of it inlines the program whole; a loop's counter bounded by its trip
+  count in the body (`ones(1)`); the seven on the fixed limbs; a word mask on a host bignum
+  (`y & 1` as `Bit(0)`); Stein's loops' termination on numerals.
 
 **The standing goal** (hamza) is **the Go standard library, package by package, program first**: a
 program in the language that needs a package, its algebra, and exactly the declarations it calls,
 checked. When a package hits a wall that needs language work, stop, research it, design it.
 
 **The standing measure** (hamza, 2026-11-10): **the windows implementation is faster than the Go
-one**; while it is slower the gap is work owed. It is slower on every K(ℕ\*) program but two (fact
+one**; while it is slower the gap is work owed. It is slower on every K(ℕ\*) program but three (fact
 1.31×, fib(10⁵) 1.14× `math/big`; the 2,000-quotient program 0.79×, a numeral by a word 0.94×;
-[radix-2026-11-15](gauntlet/results/radix-2026-11-15.md)). Per operation ours is 4.2× Go's product
+[radix-2026-11-15](gauntlet/results/radix-2026-11-15.md); popcount over 3^4900 … 3^4999 0.64×,
+[bigbits](gauntlet/results/bigbits-2026-11-19.md)). Per operation ours is 4.2× Go's product
 and 3.3× its square at 10,400 words, the leaf row 1.6× Go's assembly ([kernels-research.md](docs/kernels-research.md)
 §7). **Decided** (hamza 2026-11-15): a target may name its CPU and features; a kernel is written in
 the language, through LLVM IR, assembly only if a measurement still asks. **Postponed**, in order:
@@ -302,7 +309,6 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   address, is the measured candidate; trigger a program the gauntlet's JSON does not slow;
 - **U₃₂ on i686** (ADR 0127's "Why not"): K(ℕ\*)'s digit in an i32 read unsigned; trigger the next
   measurement of windows32's big-integer gap;
-- **the Boolean operations above the word** (ADR 0082); trigger a program needing a big value's bits;
 - **integers' four old mechanisms as (H, d) data** (ADR 0083 item 1); trigger the next change to any
   of them, or a second string encoding;
 - **refinement sorts for `strings` over V ⊂ B\*** (Freeman and Pfenning 1991); trigger a program
@@ -322,11 +328,14 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **9,057 of 9,111** integer operations proven inside their target's word, the 54 left
+- **Provability**: **11,779 of 11,833** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **961 of 1,002** loops proven to
-  terminate (size-change termination; the 41 left include `wc`'s and `wc-nested`'s read loops; fourteen of them are windows' `os` cell's read and write
-  loops, whose progress is a count the host returns). A definition windows keeps as a function
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,351 of 1,644** loops proven to
+  terminate (size-change termination; of the 293 left, 41 were before bigbits-2026-11-19, among
+  them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
+  count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
+  halving, a falling maximum, a bit cleared, size-change termination does not see, each counted
+  per program and target). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
   counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.1%

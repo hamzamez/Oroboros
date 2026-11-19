@@ -61,7 +61,10 @@ const TokSuffix = "~tok"
 // A test may add an instance its contract does not prove (div-small): P4 then
 // inlines it (ADR 0102).
 var natCalled = map[string]bool{"add": true, "sub": true, "mul": true, "sqr": true, "mul-small": true,
-	"div": true, "rem": true, "render": true}
+	"div": true, "rem": true, "render": true,
+	// ADR 0082's operations (natnum.oro's bits), each a numeral built by
+	// loops over its operands, rem's Algorithm D inside bmod
+	"band": true, "bor": true, "bxor": true, "bnot": true, "bshl": true, "bshr": true, "bmod": true}
 
 type calleeKey struct {
 	tg     *emit.Target

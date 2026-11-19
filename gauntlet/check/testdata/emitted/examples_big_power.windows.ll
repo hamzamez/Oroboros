@@ -11125,7 +11125,7 @@ entry:
   %v1393 = add nuw nsw i64 %v1392, %v1378
   %v1395 = add nuw nsw i64 %v1393, 1
   %v1396 = sub nsw i64 %v349, %v1378
-  %v1398 = sub nsw i64 %v1396, 1
+  %v1398 = sub nuw nsw i64 %v1396, 1
   %v1401 = icmp samesign slt i64 %v1378, 0
   br i1 %v1401, label %.then1025, label %.else1026
 .then1025:
@@ -14283,7 +14283,7 @@ entry:
 .else2793:
   %v3808 = add nuw nsw i64 %v3801, 1
   %v3809 = sub nsw i64 %v3537, %v3801
-  %v3811 = sub nsw i64 %v3809, 1
+  %v3811 = sub nuw nsw i64 %v3809, 1
   %v3813 = icmp samesign slt i64 %v3801, 0
   br i1 %v3813, label %.then2799, label %.else2800
 .then2799:

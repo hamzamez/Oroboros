@@ -1,0 +1,42 @@
+// KERNIGHAN'S POPCOUNT (Wegner 1960; Kernighan and Ritchie 1988, exercise 2-9)
+// of an integer past the word: x & (x − 1) clears x's lowest set bit, so the
+// loop runs once per 1 bit. popcount(3^1000) is 758 of its 1585 bits, and the
+// Mersenne number 2^4423 − 1 (a prime, Hurwitz 1961) is 4423 ones.
+//
+//   go run ./cmd/build -target=windows -o popcount.exe examples/big/popcount.oro
+//
+// prints 758 and 4423.
+//
+// x & (x − 1) is ADR 0082's and on ℤ, above the word here (ir/big.go). The
+// count is held exactly too: nothing bounds a count of bits by the value's
+// length, which no fact relates to a numeral's table, so the declared
+// result is its consent (ADR 0079), and the count is an exact sum.
+//
+// 2^n − 1 says its own consent, `m ∈ Nat = …`: a parameter's set is an
+// obligation on its argument and supplies nothing once inlined (ADR 0079
+// item 3), so `ones((1 << n) − 1)` is refused, its shift unproven in the
+// word, where a binder's claim, a result or an ascription demands the value.
+use io
+
+fn ones(v ∈ Nat) (Nat) {
+    loop x = v, c = 0 { x == 0 -> c; else -> again(x & (x - 1), c + 1) }
+}
+
+// 3^n
+fn pow3(n ∈ 0..5000) (Nat) {
+    loop p = 1, i = 0 { i >= n -> p; else -> again(p * 3, i + 1) }
+}
+
+export fn run(n ∈ 0..5000, mersenne ∈ Bool) (Nat) {
+    if mersenne {
+        m ∈ Nat = (1 << n) - 1
+        ones(m)
+    } else {
+        ones(pow3(n))
+    }
+}
+
+export fn main() {
+    io.print_line(big_str(run(1000, false)))
+    io.print_line(big_str(run(4423, true)))
+}

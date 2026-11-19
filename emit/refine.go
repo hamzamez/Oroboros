@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"oroboros/core"
@@ -948,25 +949,63 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 	// assumed of the others, as a proven assertion is. A codec's decode claims
 	// its set (lib/bytes), which the IR proves of an | of bytes and this layer
 	// could not.
+	// Each end in the word is a fact by itself: Nat's claim, `the "int 0
+	// +inf"`, is the half-line 0 <= x, which a definition over Nat requires
+	// of x at its call.
 	if lo, hi, ok := ascribedRange(args[0]); ok {
 		x := core.Name(k.Params[0])
-		assume(inner, conjTerm(core.App(core.Name("<="), core.Int(lo), x), core.App(core.Name("<="), x, core.Int(hi))))
+		var ends []*core.Term
+		if lo != nil && lo.IsInt64() {
+			ends = append(ends, core.App(core.Name("<="), core.Int(lo.Int64()), x))
+		}
+		if hi != nil && hi.IsInt64() {
+			ends = append(ends, core.App(core.Name("<="), x, core.Int(hi.Int64())))
+		}
+		if PlantClaimBothEnds && len(ends) < 2 {
+			ends = nil
+		}
+		if len(ends) == 2 {
+			assume(inner, conjTerm(ends[0], ends[1]))
+		} else if len(ends) == 1 {
+			assume(inner, ends[0])
+		}
+	}
+	// A NAME BOUND TO A CLOSED INTEGER TERM IS THAT INTEGER, decided in ℤ as
+	// closedIntComparison decides a closed goal: its value where it is a word,
+	// and past the word its sign, a ≥ 1 for `a = 3^100`, which `mod a` owes.
+	// Not the word's end it lies beyond: a ≥ 2^63 − 1 overflows the linear
+	// layer's own arithmetic, which then concludes nothing.
+	if v, ok := closedZ(args[0]); ok && !PlantClosedLetOpaque {
+		x := core.Name(k.Params[0])
+		switch {
+		case v.IsInt64():
+			assume(inner, conjTerm(core.App(core.Name("<="), core.Int(v.Int64()), x), core.App(core.Name("<="), x, core.Int(v.Int64()))))
+		case v.Sign() > 0:
+			assume(inner, core.App(core.Name("<="), core.Int(1), x))
+		default:
+			assume(inner, core.App(core.Name("<="), x, core.Int(-1)))
+		}
 	}
 	return r.walk(k.Body(), inner)
 }
 
+// PlantClosedLetOpaque reads nothing of a name bound to a closed integer:
+// TestAClosedConstantAboveTheWordIsPositive must see `mod 3^100` refused.
+var PlantClosedLetOpaque bool
+
+// PlantClaimBothEnds reads a let's claim only when both its ends are words,
+// as before: TestAHalfLineClaimIsAFact must see Stein's odd(x) refused.
+var PlantClaimBothEnds bool
+
 // ascribedRange is the range a value is claimed in, (the "int lo hi" e) under
-// its marks, with both ends in the word.
-func ascribedRange(t *core.Term) (int64, int64, bool) {
+// its marks, each end nil where it is unbounded.
+func ascribedRange(t *core.Term) (*big.Int, *big.Int, bool) {
 	for t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName {
 		a := t.Args()
 		switch {
 		case t.Op().Name == core.AscribeName && len(a) == 2 && a[0].Kind == core.KStr:
-			lo, hi, ok := core.IntRangeBig(a[0].Str)
-			if !ok || !lo.IsInt64() || !hi.IsInt64() {
-				return 0, 0, false
-			}
-			return lo.Int64(), hi.Int64(), true
+			lo, hi, ok := core.RangeEnds(a[0].Str)
+			return lo, hi, ok
 		case t.Op().Name == core.RequireName && len(a) == 4:
 			t = a[3]
 		case t.Op().Name == core.RequireWhereName && len(a) == 3:
@@ -976,10 +1015,10 @@ func ascribedRange(t *core.Term) (int64, int64, bool) {
 			// it is read under the binder as it is.
 			t = a[1].Closed()
 		default:
-			return 0, 0, false
+			return nil, nil, false
 		}
 	}
-	return 0, 0, false
+	return nil, nil, false
 }
 
 // joinConditional gives a name bound to a CONDITIONAL the facts that hold on

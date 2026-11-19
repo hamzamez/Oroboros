@@ -1711,6 +1711,10 @@ var bigOps = []struct {
 	// (ADR 0079 item 4): not a narrowing of a value that may leave the word,
 	// which unbounded-rung.md §3 forbids, but the identity on S
 	{"big-word", 1, true},
+	// ADR 0082's operations on ℤ, 2-adic: and, or, xor, not, a·2ᵏ and ⌊a/2ᵏ⌋
+	// with k a word, and the Euclidean remainder (ir/big.go's bigBit)
+	{"big&", 2, true}, {"big|", 2, true}, {"big⊕", 2, true}, {"big~", 1, true},
+	{"big<<", 2, true}, {"big>>", 2, true}, {"big-mod", 2, true},
 
 	// `big-of-small` is deliberately NOT here. No target declares it: it is a
 	// marker the representation pass writes and the fixed-limb lowering removes

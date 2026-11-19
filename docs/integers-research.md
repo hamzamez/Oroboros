@@ -251,9 +251,10 @@ if a program's mixed-sign addition is measured paying for its comparison.
 
 ADR 0082's operations `& | ⊕ ~` on a negative value are defined 2-adically: ~x = −x − 1, and
 x & y on the infinite two's complement expansions. On sign-magnitude they are computed as Java's
-`BigInteger` does, converting each negative operand's magnitude on the fly. That is CLAUDE.md's
-waiting item "the Boolean operations above the word", unchanged by this choice and still waiting on
-its trigger.
+`BigInteger` does, converting each negative operand's magnitude on the fly. That was CLAUDE.md's
+waiting item "the Boolean operations above the word", unchanged by this choice. *Built 2026-11-19 on
+K(ℕ\*) by De Morgan from operations on naturals, a negative a being ~(A − 1)
+([bigbits-2026-11-19](../gauntlet/results/bigbits-2026-11-19.md)).*
 
 ---
 

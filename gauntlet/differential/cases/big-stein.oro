@@ -1,0 +1,46 @@
+// STEIN'S BINARY GCD OVER FIBONACCI NUMBERS, examples/big/stein.oro's: each
+// case is gcd(F_m, F_n) = F_gcd(m, n) (Lucas 1876), every step one of ADR
+// 0082's operations above the word: x & −x for the common power of two,
+// y & 1 and y >> 1 to remove it, and a − b under a > b.
+//
+// prints: string
+// inputs: 0 1 2 3 4 5 6
+// expect: 354224848179261915075 7896325826131730509282738943634332893686268675876375 1751455877444438095408940282208383549115781784912085789506677971125378 1 43466557686937456435688527675040625802564660517371780402481729089536555417949051890403879840079255169295922593080322634775209689623239873322471161642996440906533187938298969649928516003704476137795166849228875 1 141693817714056513234709965875411919657707794958199867
+fn fib(n ∈ 0..1000) (Nat) {
+    loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }
+}
+
+// x with its factors of two removed, for x > 0
+fn odd(x ∈ Nat) (Nat) {
+    loop y = x { y & 1 == 0 -> again(y >> 1); else -> y }
+}
+
+fn gcd(a0 ∈ Nat, b0 ∈ Nat) (Nat) {
+    case {
+        a0 == 0 -> b0
+        b0 == 0 -> a0
+        else -> {
+            x = a0 | b0
+            g = x & -x
+            loop a = odd(a0), b = odd(b0) {
+                a == b -> g * a
+                a > b -> again(odd(a - b), b)
+                else -> again(a, odd(b - a))
+            }
+        }
+    }
+}
+
+export fn calc(k ∈ 0..6) (Nat) {
+    case {
+        k == 0 -> gcd(fib(300), fib(200))
+        k == 1 -> gcd(fib(1000), fib(750))
+        k == 2 -> gcd(fib(999), fib(333))
+        k == 3 -> gcd(fib(97), fib(89))
+        k == 4 -> gcd(fib(1000), fib(1000))
+        k == 5 -> gcd(fib(1), fib(1))
+        else -> gcd(fib(512), fib(256))
+    }
+}
+
+fn run(k) { big_str(calc(k)) }

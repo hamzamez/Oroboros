@@ -135,6 +135,15 @@ var natSigs = map[string]struct {
 	// the one set, a bounded program's on K(ℕ*) (ADR 0029): the bound's bits
 	"fit":        {[]string{"array int", "int"}, "array int", false},
 	"fit-signed": {[]string{"array int", "int"}, "array int", false},
+	// ADR 0082's operations, 2-adic on the sign and magnitude (natnum.oro's
+	// bits): a shift's count a word, `mod`'s divisor the program's obligation
+	"band": {[]string{"array int", "array int"}, "array int", false},
+	"bor":  {[]string{"array int", "array int"}, "array int", false},
+	"bxor": {[]string{"array int", "array int"}, "array int", false},
+	"bnot": {[]string{"array int"}, "array int", false},
+	"bshl": {[]string{"array int", "int 0 9223372036854775807"}, "array int", false},
+	"bshr": {[]string{"array int", "int 0 9223372036854775807"}, "array int", false},
+	"bmod": {[]string{"array int", "array int"}, "array int", false},
 	// r : ℤ ⇀ S onto the signed word, the partial inverse of `of`, called only
 	// where the value is proven in S (ADR 0079 item 4)
 	"word": {[]string{"array int"}, "int", false},

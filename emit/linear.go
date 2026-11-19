@@ -1069,7 +1069,8 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 		// (lang-facts.oro) can conclude about it: `(crc ⊕ b) & 255` is an index
 		// in [0, 255]. Without it the facts' conclusions were outside the
 		// fragment, and assumed nothing (examples/hash/crc32).
-		case op.Name == "&" && len(args) == 2:
+		// `|` and `⊕` likewise, for F13's sign (popcount's m ⊕ t).
+		case (op.Name == "&" || op.Name == "|" || op.Name == "⊕") && len(args) == 2:
 			return variable(appVar(t)), true
 		}
 		// AN APPLICATION IN Σ IS AN ATOM — a pure host call, so its contract can

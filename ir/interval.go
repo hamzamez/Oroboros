@@ -1998,8 +1998,54 @@ func (a *intervals) relSub(x, y V, r iv) iv {
 	if d := a.deltaFrom(y, func(v V) bool { return a.pl(v) == px }, 4); !d.bot && d != ivTop {
 		r = meetIV(r, negIV(d))
 	}
+	r = meetIV(r, a.guardDiff(x, y))
+	r = meetIV(r, negIV(a.guardDiff(y, x)))
 	return r
 }
+
+// guardDiff is what an arm's guard says of x − y: a π-parameter carries the
+// guard it was renamed under, x rel o, and where o is y's value (the same
+// place), x − y lies in rel's half-line, [1, +∞) for x > y. It is the one
+// entry of a difference-bound matrix (Miné 2001, the zone domain) that a
+// guard states, kept by the π and not by the intervals, which forget that
+// two values were compared. Euclid's subtraction, `p > q -> again(p - q, q)`,
+// is p − q ≥ 1 this way, and ⊤ by intervals. ⊤ when no π on x's chain names y.
+func (a *intervals) guardDiff(x, y V) iv {
+	out, py := ivTop, a.pl(y)
+	for v, n := x, 0; n < 8; n++ {
+		if pi, ok := a.piRel[v]; ok && !pi.Len && (PlantGuardDiffAnyOther || a.pl(pi.Other) == py) {
+			out = meetIV(out, diffOf(pi.Rel))
+		}
+		src, ok := a.piOf[v]
+		if !ok {
+			break
+		}
+		v = src
+	}
+	return out
+}
+
+// diffOf is the half-line x − o lies in when x rel o holds.
+func diffOf(rel string) iv {
+	switch rel {
+	case "gt":
+		return iv{lo: ei(1), phi: true}
+	case "ge":
+		return iv{phi: true}
+	case "lt":
+		return iv{hi: ei(-1), nlo: true}
+	case "le":
+		return iv{nlo: true}
+	case "eq":
+		return exactIV(0)
+	}
+	return ivTop
+}
+
+// PlantGuardDiffAnyOther reads a π's guard as a difference against any value,
+// not only the one it compared: under p > q, p − r ≥ 1 for every r.
+// TestAGuardBoundsItsOwnDifference must see a wrong claim accepted.
+var PlantGuardDiffAnyOther bool
 
 // ensuresBound is the set a postcondition allows its result, from the facts of
 // the parameters it names: `(= result E)` is ⟦E⟧, `(<= result E)` and the

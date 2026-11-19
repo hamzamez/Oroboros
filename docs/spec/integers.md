@@ -52,7 +52,8 @@ int32, is a real design and is not made.
 
 ## 0b. The Boolean operations, the shifts and `mod` (ADR 0082)
 
-**Status 2026-10-27: being built**, in stages with ADR 0083; this section says what each stage has.
+**Status 2026-11-19: built** on every target's word (bits-2026-10-27) and above it on the host bignums
+and K(ℕ*) (bigbits-2026-11-19); not on the fixed limbs.
 
 **Meaning, independently of any target.** Read an integer as its 2-adic expansion, an eventually
 constant bit string (bits-research.md §1.5). Then, for all a, b ∈ ℤ:
@@ -103,6 +104,16 @@ JavaScript, through `Math.imul` and `| 0`), and its intermediates are exempt fro
 `mod 2ⁿ` becomes `& (2ⁿ − 1)` for n ≤ 63, the same function on every integer, and the residue map
 `u64-of` for n = 64 on a target with the unsigned word. Division, `%`, `>>`, a comparison, `mod` by a
 non-power of two and a call stop it (`TestFusionStopsAtWhatDoesNotDescend`). n > W is computed exactly.
+
+**Above the word (bigbits-2026-11-19, `ir/big.go`).** An operand held exactly makes the operation
+exact (`big&`, `big|`, `big⊕`, `big~`, `big<<`, `big>>`, `big-mod`), a shift's count staying a word; its result is held exactly unless its fact is inside S, where it
+comes back by r (`big-word`): `y & 1` is in [0, 1] and `x mod m`, m a word, in [0, m). Go's `math/big`
+(And, Or, Xor, Not, Lsh, Rsh, Mod), JavaScript's BigInt and Java's BigInteger compute ℤ's 2-adic
+functions on a sign and magnitude. K(ℕ*) derives them from operations on naturals, a negative a being
+~(A − 1) and A − 1 the magnitude of a + 1 (`emit/natnum.oro`'s bits): a & b is A & B, A & ~B′ or
+−((A′ | B′) + 1) by the signs, and or and xor likewise by De Morgan; a·2ᵏ is a product by 2^(k mod d)
+and k div d zero digits; ⌊A/2ᵏ⌋ a product by 2^(d − k mod d) and digits dropped, and ⌊−A/2ᵏ⌋ =
+−((A′ >> k) + 1). The fixed limbs have none yet (refused, `ErrNoLimbForm`).
 
 **A host type under a second reading (ADR 0083).** A representation is a host type and an
 abstraction function. Where the function is not the host's own, the target states it:

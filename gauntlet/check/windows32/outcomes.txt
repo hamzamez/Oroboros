@@ -15,13 +15,28 @@
 == examples/big/pair.oro windows32 emitted 299f75f85ef98ef0303ef12bdf5117ce9f5317ce4e49e2993d2a9d3f66552fd0
    note: gen-pair: 4 operation(s) in arbitrary precision
    note: gen-pair: 21 of 21 integer operations bounded; 3 of 3 loop(s) proven terminating
-== examples/big/power.oro windows32 emitted bd2fc249d2a79d9ae4eb2d88131296afb89c5edfe2e80e2de8058709d39de9af
+== examples/big/popcount.oro windows32 emitted 808744f94557a61da78cb8a168c46ce23fd2f074a051a0618be7c40f7da46e76
+   note: every definition inlined: kept, gen-main: in argument 1 of big_str: ones is Array(0..2^32-1), but Nat is required here
+   note: gen-main: 24 operation(s) in arbitrary precision
+   note: gen-main: 141 of 141 integer operations bounded; 14 of 16 loop(s) proven terminating
+   note: gen-run: 22 operation(s) in arbitrary precision
+   note: gen-run: 139 of 139 integer operations bounded; 14 of 16 loop(s) proven terminating
+== examples/big/power.oro windows32 emitted 7de64711b65231d1a4a6ec3f958cb2933ebf4f4a9f48c267157876376288cf82
    note: gen-power: 5 operation(s) in arbitrary precision
    note: gen-power: 22 of 22 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/big/render.oro windows32 refused
    note: gen-render: 8 operation(s) in arbitrary precision
    note: gen-render: 20 of 20 integer operations bounded; 11 of 11 loop(s) proven terminating
    gen: gen-render: int 0 1606938044258990275541962092341162602522202993782792835301376 is not a table
+== examples/big/stein.oro windows32 emitted ece9420c398f298932aa3f26abe6fa4bc2a2d6ceca701db4982e5f0b5a29e69b
+   note: gcd is inlined: gcd: in a loop's guard: in argument 1 of `==`: a is Array(0..2^32-1), but Int is required here.
+   note: every definition inlined: kept, gen-main: gcd requires 0 <= fib(300) && 0 <= fib(200) at a call, which does not follow
+   note: gen-main: 108 operation(s) in arbitrary precision
+   note: gen-main: 156 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 663 of 663 integer operations bounded; 54 of 69 loop(s) proven terminating
+   note: gen-run: 35 operation(s) in arbitrary precision
+   note: gen-run: 52 operation(s) or conversion(s) in the unsigned word
+   note: gen-run: 220 of 220 integer operations bounded; 18 of 23 loop(s) proven terminating
 == examples/dot.oro windows32 refused
    gen: examples/dot.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
@@ -249,8 +264,8 @@
 == examples/native/smooth-js.oro windows32 refused
    gen: examples/native/smooth-js.oro: in fill_into: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/status-win.oro windows32 emitted 7e75caf7317c718ca98a6c3b24e0c0d0d264938088ae511c43b19303fb6aee71
-   note: status is inlined: status: argument 1 of digits is [-2147483646, 2147483648], not inside its parameter's 0..2147483647 (ADR 0101: a program function is decided under its parameters' sets)
+== examples/native/status-win.oro windows32 emitted 3de9a876ed83d0883e7ed91f1ff8ae2b68b160771da31f3d577ba5ad0a2f09a6
+   note: status is inlined: status: argument 1 of digits is [1, 2147483648], not inside its parameter's 0..2147483647 (ADR 0101: a program function is decided under its parameters' sets)
    note: gen-main: 20 of 20 integer operations bounded; 8 of 8 loop(s) proven terminating
    note: 3 definition(s) kept as functions, 2 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -339,6 +354,10 @@
 == gauntlet/differential/cases/alloc-copies.oro windows32 emitted 549717e2dd3f0da0d8fc5234fafbf50b149f02398faa9919785e169dbc803e66
 == gauntlet/differential/cases/array-literal.oro windows32 emitted 549717e2dd3f0da0d8fc5234fafbf50b149f02398faa9919785e169dbc803e66
 == gauntlet/differential/cases/ascii.oro windows32 emitted 549717e2dd3f0da0d8fc5234fafbf50b149f02398faa9919785e169dbc803e66
+== gauntlet/differential/cases/big-bits.oro windows32 emitted a61200c6ed7a924047f2011d4779c8eea2ebf5634f7a56d2ba42caf024c9fab1
+   note: gen-calc: 97 operation(s) in arbitrary precision
+   note: gen-calc: 105 operation(s) or conversion(s) in the unsigned word
+   note: gen-calc: 568 of 568 integer operations bounded; 50 of 50 loop(s) proven terminating
 == gauntlet/differential/cases/big-divmod.oro windows32 emitted b30a56d7b310531ea72d5cc1885be81a9e425d7ffb466b263c10382d232069bc
    note: gen-run: 7 operation(s) in arbitrary precision
    note: gen-run: 26 of 26 integer operations bounded; 9 of 9 loop(s) proven terminating
@@ -351,6 +370,10 @@
 == gauntlet/differential/cases/big-negmid.oro windows32 emitted 25a71113d5b52d88055b7daa378da16eaee6653617848eb8d0c09e50c4787abe
    note: gen-calc: 9 operation(s) in arbitrary precision
    note: gen-calc: 51 of 51 integer operations bounded; 11 of 11 loop(s) proven terminating
+== gauntlet/differential/cases/big-popcount.oro windows32 emitted f1748d43d538aa5e63b235063793f85fac978396eee254584375a4049be91a12
+   note: every definition inlined: kept, gen-calc: ones is Array(0..2^32-1), but Nat is required here
+   note: gen-calc: 47 operation(s) in arbitrary precision
+   note: gen-calc: 306 of 306 integer operations bounded; 33 of 37 loop(s) proven terminating
 == gauntlet/differential/cases/big-render.oro windows32 emitted 549717e2dd3f0da0d8fc5234fafbf50b149f02398faa9919785e169dbc803e66
 == gauntlet/differential/cases/big-select.oro windows32 emitted 549717e2dd3f0da0d8fc5234fafbf50b149f02398faa9919785e169dbc803e66
 == gauntlet/differential/cases/big-sign.oro windows32 emitted 7ab7fee3f0037147579581db7d8fbc23c03878fe1a007e1c19bd3089b40e32e1
@@ -360,6 +383,12 @@
    note: gen-calc: 47 operation(s) in arbitrary precision
    note: gen-calc: 373 of 373 integer operations bounded; 82 of 82 loop(s) proven terminating
 == gauntlet/differential/cases/big-sqr.oro windows32 emitted 549717e2dd3f0da0d8fc5234fafbf50b149f02398faa9919785e169dbc803e66
+== gauntlet/differential/cases/big-stein.oro windows32 emitted 56fe530b7379d7bd3add2859794981d7a3e8484e9648ebaec0e6a1e6cc795ecc
+   note: gcd is inlined: gcd: in a loop's guard: in argument 1 of `==`: a is Array(0..2^32-1), but Int is required here.
+   note: every definition inlined: kept, gen-calc: gcd requires 0 <= fib(300) && 0 <= fib(200) at a call, which does not follow
+   note: gen-calc: 245 operation(s) in arbitrary precision
+   note: gen-calc: 364 operation(s) or conversion(s) in the unsigned word
+   note: gen-calc: 1540 of 1540 integer operations bounded; 126 of 161 loop(s) proven terminating
 == gauntlet/differential/cases/big-subdiv.oro windows32 emitted 9247f187ffb3683b3f63634ba00362121978e9c3e0222020855ed7b515149560
    note: gen-calc: 13 operation(s) in arbitrary precision
    note: gen-calc: 60 of 60 integer operations bounded; 14 of 14 loop(s) proven terminating

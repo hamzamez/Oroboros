@@ -1,0 +1,59 @@
+// STEIN'S BINARY GCD (Stein 1967; Knuth, TAOCP 2 §4.5.2, Algorithm B) over
+// integers past the word, checking an identity of Fibonacci numbers:
+//
+//     gcd(F_m, F_n) = F_gcd(m, n)
+//
+// (Lucas 1876: F is a strong divisibility sequence). run(300, 200) is F_100.
+//
+// The algorithm replaces Euclid's division by halvings and subtractions, which
+// is what a machine does cheaply, and each step is one of ADR 0082's
+// operations on ℤ, held exactly here (ir/big.go, the bit operations above the
+// word):
+//   - the common power of two is the lowest set bit of a | b, x & −x: in the
+//     2-adic integers −x = ~x + 1 flips every bit above x's lowest 1, so only
+//     that bit survives the and;
+//   - odd(x) halves by x >> 1 while x & 1 is 0, a word computed exactly and
+//     brought back, since its fact is [0, 1];
+//   - two odd numbers' difference is even, so each subtraction is followed by
+//     odd, and under a > b the difference a − b is a natural: the arm's guard
+//     is its proof (ir/interval.go's guardDiff).
+//
+//   go run ./cmd/build -target=windows -o stein.exe examples/big/stein.oro
+//
+// prints F_100, F_250 and 1, gcd(F_300, F_200), gcd(F_1000, F_750) and
+// gcd(F_97, F_89). Each loop ends: odd's because x > 0 halves, the main one because max(a, b)
+// falls at every step; neither measure is one the termination check sees.
+use io
+
+fn fib(n ∈ 0..1000) (Nat) {
+    loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }
+}
+
+// x with its factors of two removed, for x > 0
+fn odd(x ∈ Nat) (Nat) {
+    loop y = x { y & 1 == 0 -> again(y >> 1); else -> y }
+}
+
+fn gcd(a0 ∈ Nat, b0 ∈ Nat) (Nat) {
+    case {
+        a0 == 0 -> b0
+        b0 == 0 -> a0
+        else -> {
+            x = a0 | b0
+            g = x & -x
+            loop a = odd(a0), b = odd(b0) {
+                a == b -> g * a
+                a > b -> again(odd(a - b), b)
+                else -> again(a, odd(b - a))
+            }
+        }
+    }
+}
+
+export fn run(m ∈ 1..1000, n ∈ 1..1000) (Nat) { gcd(fib(m), fib(n)) }
+
+export fn main() {
+    io.print_line(big_str(run(300, 200)))
+    io.print_line(big_str(run(1000, 750)))
+    io.print_line(big_str(run(97, 89)))
+}

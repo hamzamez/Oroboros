@@ -3957,3 +3957,39 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/native/status-win.oro java`
 - new source — `examples/native/status-win.oro js`
 - new source — `examples/native/status-win.oro windows`
+
+## 2026-11-19 — on 376400a1, with uncommitted changes
+
+**Reason:** ADR 0082 above the word (bigbits-2026-11-19): stein, popcount and three cases new; power and status-win gain nuw/samesign from guardDiff, more proven
+
+740 runs: 512 emitted, 228 refused; 11779 of 11833 integer operations bounded, 1351 of 1644 loops proven. compiler pass, differential pass, tooling pass.
+
+23 change(s):
+
+- new source — `examples/big/popcount.oro go`
+- new source — `examples/big/popcount.oro java`
+- new source — `examples/big/popcount.oro js`
+- new source — `examples/big/popcount.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- new source — `examples/big/stein.oro go`
+- new source — `examples/big/stein.oro java`
+- new source — `examples/big/stein.oro js`
+- new source — `examples/big/stein.oro windows`
+- emitted text changed — `examples/native/status-win.oro windows`
+- compiler output changed — `examples/native/status-win.oro windows`
+- new source — `gauntlet/differential/cases/big-bits.oro go`
+- new source — `gauntlet/differential/cases/big-bits.oro java`
+- new source — `gauntlet/differential/cases/big-bits.oro js`
+- new source — `gauntlet/differential/cases/big-bits.oro windows`
+- new source — `gauntlet/differential/cases/big-popcount.oro go`
+- new source — `gauntlet/differential/cases/big-popcount.oro java`
+- new source — `gauntlet/differential/cases/big-popcount.oro js`
+- new source — `gauntlet/differential/cases/big-popcount.oro windows`
+- new source — `gauntlet/differential/cases/big-stein.oro go`
+- new source — `gauntlet/differential/cases/big-stein.oro java`
+- new source — `gauntlet/differential/cases/big-stein.oro js`
+- new source — `gauntlet/differential/cases/big-stein.oro windows`
+
+1 compile(s) recorded FASTER:
+
+- `lib/os.oro windows` 468 → 156 ms, 0.33x

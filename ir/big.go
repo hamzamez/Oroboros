@@ -30,6 +30,11 @@ import (
 //	    - a language operation + − · / with an operand in B, or a remainder
 //	      a % b with b ∈ B (a % b with a ∈ B and b a word is under |b|, a
 //	      word: `big%-small`);
+//	    - a Boolean operation, a shift or `mod` (ADR 0082) with an operand in
+//	      B (a shift's count is a word), unless its fact lies in S: `y & 1`
+//	      with y exact is in [0, 1], `x mod m` with m a word in [0, m), each a
+//	      word computed exactly and brought back by r (`big-word`), as
+//	      `big%-small` is for `%`;
 //	    - a join (an `if`'s or a loop's result, a loop parameter) with an
 //	      incoming value in B;
 //	    - a closed constant term whose value lies outside S (a literal past the
@@ -131,6 +136,7 @@ type bigs struct {
 	fit    string
 	// the constraints, collected once
 	ariths []*Stmt
+	bitops []*Stmt // ADR 0082's operations
 	cmps   []*Stmt
 	joins  []bigJoin
 	err    error
@@ -240,6 +246,8 @@ func (g *bigs) collect(sig *core.Sig) {
 						}
 					}
 				}
+			case s.Op.IsBit() && s.Name == "" && len(s.Res) == 1:
+				g.bitops = append(g.bitops, s)
 			case s.Op.IsCmp() && s.Name == "" && len(s.Args) == 2:
 				g.cmps = append(g.cmps, s)
 			case s.Op == OCall:
@@ -381,6 +389,9 @@ func (g *bigs) solve() {
 			promotable[g.r(s.Res[0])] = true
 		}
 	}
+	for _, s := range g.bitops {
+		promotable[g.r(s.Res[0])] = true
+	}
 	for _, j := range g.joins {
 		promotable[g.r(j.v)] = true
 	}
@@ -429,6 +440,25 @@ func (g *bigs) solve() {
 				}
 			}
 		}
+		// THE BIT OPERATIONS (ADR 0082): exact when an operand is, and held
+		// exactly unless the fact of the result lies in S, where r brings it
+		// back (rewrite's bit). A shift's count is a word, never demanded.
+		for _, s := range g.bitops {
+			v := s.Res[0]
+			for _, a := range bitOperands(s) {
+				if g.isB(a) && !g.fits(v) {
+					setB(v)
+				}
+			}
+			if demanded(v) {
+				setB(v)
+			}
+			if g.isB(v) {
+				for _, a := range bitOperands(s) {
+					setD(a)
+				}
+			}
+		}
 		for _, s := range g.cmps {
 			if langOp(s) && (g.isB(s.Args[0]) || g.isB(s.Args[1])) {
 				setD(s.Args[0])
@@ -451,6 +481,59 @@ func (g *bigs) solve() {
 			}
 		}
 	}
+}
+
+// bitExact reports a bit operation computed exactly: its result or an
+// operand that may be is held so.
+func (g *bigs) bitExact(s *Stmt) bool {
+	if g.isB(s.Res[0]) {
+		return true
+	}
+	for _, a := range bitOperands(s) {
+		if g.isB(a) {
+			return true
+		}
+	}
+	return false
+}
+
+// bit is a bit operation on the rung (ADR 0082 item 1: the host operator
+// where the host computes the function natively, here its bignum's): the
+// operands widened, a shift's count a word, and a result outside B, whose
+// fact lies in S, brought back by r, the identity on S.
+func (g *bigs) bit(s *Stmt) {
+	v := s.Res[0]
+	ops := bitOperands(s)
+	args := make([]V, 0, len(s.Args))
+	for _, a := range ops {
+		args = append(args, g.widen(a, "an operand of "+s.Op.String()))
+	}
+	for _, a := range s.Args[len(ops):] {
+		args = append(args, g.word(a, "the count of "+s.Op.String()))
+	}
+	g.ops++
+	op := Stmt{Op: OCall, Name: bigBit[s.Op], Args: args, Src: s.Src}
+	if !g.isB(v) {
+		t := g.fresh(core.BigType)
+		g.fs[t] = g.fs[v]
+		op.Res = []V{t}
+		g.stmts = append(g.stmts, op, Stmt{Op: OCall, Name: "big-word", Args: []V{t}, Res: []V{v}})
+		return
+	}
+	g.f.Types[v] = core.BigType
+	// only the left shift and not leave a bounded set's bit length (ADR
+	// 0029): the others' results are no longer than their operands
+	if g.fit == "" || (s.Op != OShl && s.Op != ONot) {
+		op.Res = []V{v}
+		g.stmts = append(g.stmts, op)
+		return
+	}
+	t := g.fresh(core.BigType)
+	op.Res = []V{t}
+	k := g.fresh("int")
+	g.stmts = append(g.stmts, op,
+		Stmt{Op: OConst, Lit: core.Int(int64(g.bits)), Res: []V{k}},
+		Stmt{Op: OCall, Name: g.fit, Args: []V{t, k}, Res: []V{v}})
 }
 
 // fresh is a new value of the given type.
@@ -571,6 +654,20 @@ func resultUnclaimed(sig *core.Sig, j int) bool {
 	return j == 0 && (sig.Result == "" || sig.Result == "any")
 }
 
+// bigBit is each of ADR 0082's operations on the rung: ℤ's 2-adic and, or,
+// xor and not, the shifts a·2ᵏ and ⌊a/2ᵏ⌋ with k a word, and the Euclidean
+// remainder.
+var bigBit = map[Op]string{OAnd: "big&", OOr: "big|", OXor: "big⊕", ONot: "big~", OShl: "big<<", OShr: "big>>", OMod: "big-mod"}
+
+// bitOperands is a bit operation's operands that may be held exactly: a
+// shift's count is a word.
+func bitOperands(s *Stmt) []V {
+	if (s.Op == OShl || s.Op == OShr) && len(s.Args) == 2 {
+		return s.Args[:1]
+	}
+	return s.Args
+}
+
 var bigArith = map[Op]string{OAdd: "big+", OSub: "big-", OMul: "big*", ODiv: "big/", ORem: "big%", ONeg: "big-"}
 var bigCmp = map[Op]string{OEq: "big=", OLt: "big<", OLe: "big<=", OGt: "big>", OGe: "big>="}
 
@@ -669,9 +766,9 @@ func (g *bigs) recvOf(res []V) []bool {
 
 func (g *bigs) stmt(s *Stmt) {
 	switch {
+	case s.Op.IsBit() && s.Name == "" && len(s.Res) == 1 && g.bitExact(s):
+		g.bit(s)
 	case s.Op.IsBit():
-		// ADR 0082'S OPERATIONS ARE NOT BUILT ABOVE THE WORD: an operand or a
-		// result held there is refused, as a target's own operator's is.
 		for k, a := range s.Args {
 			s.Args[k] = g.word(a, "an operand of "+s.Op.String())
 		}

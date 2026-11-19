@@ -63,6 +63,21 @@ module js {
     // to prevent, so the strict form is the only correct one.
     fn `big=`(a ∈ big, b ∈ big) (Bool) pure { host expr "(${a} === ${b})" }
 
+    // THE BOOLEAN OPERATIONS, THE SHIFTS AND `mod` ON ℤ (ADR 0082): a BigInt's
+    // `& | ^ ~` are the 2-adic integers' ("as if in two's complement with an
+    // infinite number of bits", ECMA-262 §6.1.6.2), and `>>` floors. The
+    // count is a word here and a BigInt there. `%` truncates, so `mod` is
+    // ((a % m) + m) % m, m > 0.
+    fn `big&`(a ∈ big, b ∈ big) (big) pure { host expr "(${a} & ${b})" }
+    fn `big|`(a ∈ big, b ∈ big) (big) pure { host expr "(${a} | ${b})" }
+    fn `big⊕`(a ∈ big, b ∈ big) (big) pure { host expr "(${a} ^ ${b})" }
+    fn `big~`(a ∈ big) (big) pure { host expr "(~${a})" }
+    fn `big<<`(a ∈ big, k ∈ Int) (big) pure where k >= 0 { host expr "(${a} << BigInt(${k}))" }
+    fn `big>>`(a ∈ big, k ∈ Int) (big) pure where k >= 0 { host expr "(${a} >> BigInt(${k}))" }
+    fn big_mod(a ∈ big, m ∈ big) (big) pure where m > 0 {
+        host expr "(function(oroA, oroM){ const r = oroA % oroM; return r < 0n ? r + oroM : r; })(${a}, ${m})"
+    }
+
     fn big_of(a ∈ Int) (big) pure { host expr "BigInt(${a})" }
     // NOT `%s.toString()`: `String(x)` gives "123" where a template literal or a
     // bare console.log of a BigInt gives "123n". The suffix is a real)

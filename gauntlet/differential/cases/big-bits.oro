@@ -1,0 +1,44 @@
+// ADR 0082'S OPERATIONS ABOVE THE WORD: and, or, xor, not, the two shifts and
+// `mod` on integers past 2^128, of both signs. Each is ℤ's 2-adic function
+// (~a = −a − 1, a >> k = ⌊a/2ᵏ⌋, a mod m in [0, m)), so the answer is Python's,
+// whose integers are 2-adic too, on every target: math/big, BigInt and
+// BigInteger give two's-complement semantics on a sign and magnitude, and
+// K(ℕ*) derives each case from operations on naturals by De Morgan
+// (emit/natnum.oro's bits). Cases 3–5 are both negative, 11 and 12 floor past
+// the top, 14 and 17–19 are words computed exactly and brought back, 19 is the
+// lowest set bit x & −x of 3^100 · 32.
+//
+// prints: string
+// inputs: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21
+// expect: 515377368154985038575986701343748760417517703745 -714784711695943072777540368183668779322369 -515378082939696734519059478884116944086297026114 -2609953749490114557037994983127014753295793 -55873031145701136788247598138587965096081 2554080718344413420249747384988426788199712 -515377520732011331036461129765621272702107522002 867361737988403547205962240695953369140624 77881648957737792265020640749699809615271533784026488249668117328822272 -131072000000000000000000000000000000000000000000000000000000000000 436541740334249833235548125 -734683969263929692481 -1 0 453249 515376653370273342632913923803380576748738381376 716998419815725697631928733436245808693876 209 62063 32 -45132690822446262115766062704469207988229 -9507047597187640505507758796167974528205115121395369420657182900224
+export fn calc(n ∈ 0..21) (0 - pow(2, 300)..2^300) {
+    a = 3^100
+    b = 0 - 5^60
+    c = 0 - 7^50
+    case {
+        n == 0 -> a & b
+        n == 1 -> a | b
+        n == 2 -> a ⊕ b
+        n == 3 -> b & c
+        n == 4 -> b | c
+        n == 5 -> b ⊕ c
+        n == 6 -> ~a
+        n == 7 -> ~b
+        n == 8 -> a << 77
+        n == 9 -> b << 77
+        n == 10 -> a >> 70
+        n == 11 -> b >> 70
+        n == 12 -> b >> 1000
+        n == 13 -> a >> 1000
+        n == 14 -> b mod 1000003
+        n == 15 -> b mod a
+        n == 16 -> a mod (0 - b)
+        n == 17 -> a & 255
+        n == 18 -> b & 65535
+        n == 19 -> (a << 5) & (0 - (a << 5))
+        n == 20 -> (a | c) >> 3
+        else -> (b ⊕ a) << 64
+    }
+}
+
+fn run(n) { big_str(calc(n)) }

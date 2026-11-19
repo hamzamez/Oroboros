@@ -222,7 +222,9 @@ remaining 5–6× against Go's `String`.
 
 **Open from the 10-24 plan** ([assessment-2026-10-24](docs/assessment-2026-10-24.md) §5, the rest done):
 - **an `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
-  ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)); research it as a join point that may jump;
+  ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)); researched
+  ([joinjump-research.md](docs/joinjump-research.md): Theorem J, the commuting conversion, says what
+  it means; four candidates, B a rewrite before the walkers), hamza's to decide;
 - ~~**the Go library, program first**: `cmp`, two files compared chunk by chunk~~ done
   ([cmpprog](gauntlet/results/cmpprog-2026-11-19.md)), one output on four hosts;
 - **the analysis grows only for a refusal a program names**, each rule's planted fault with it;

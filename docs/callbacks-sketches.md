@@ -775,3 +775,11 @@ of one promise, about the history of the calls:
 
 The middle row is (b) made sound. It needs a rule for which writes commute, with its planted fault,
 and it waits on a program.
+
+**Win32 read the same way.** `EnumWindows`: "Enumerates all top-level windows on the screen by
+passing the handle to each window, in turn, to an application-defined callback function." That is
+each window once, in an order the page does not state, so it is the middle row: counting the
+windows is determined, and collecting their handles in order is not. §2.5's `calls 0.. ordered` on
+`WNDENUMPROC` overstated it. One more condition belongs to the middle row: the λ must not stop the
+enumeration early (`EnumWindows` stops at FALSE, `sync.Map.Range` at false), since which elements
+were visited before the stop depends on the order.

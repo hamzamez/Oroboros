@@ -129,7 +129,15 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
 - **callbacks tier 1** ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)), its five
   remaining questions;
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
-  or (d) `Array(go.Value inout)`.
+  or (d) `Array(go.Value inout)`;
+- **a C string from Win32 into ours** (ADR 0091's rest, `GetWindowTextA`): the text lands in the
+  kernel of ν only if strlen's invariant ∀i < k. b[i] ≠ 0 is proven (the array property fragment,
+  not built) or a primitive's `ensure nulfree` is trusted; which;
+- **a table's element by its set on LLVM** (i16, i32 beside i8), a change to llvm.md §4's layout:
+  the dot product in C is 0.74× at 16-bit elements ([cpu](gauntlet/results/cpu-2026-11-19.md));
+- **`__chkstk`**: a function whose frame passes a page does not link on windows without the C
+  runtime; the probe is an assembly routine, a wall (ADR 0123's question,
+  [bigbits](gauntlet/results/bigbits-2026-11-19.md)).
 
 **Decided, nothing to build**: D6 stays at the symbols LLVM calls (ADR 0123), a per-site `divl`
 where a divisor is proven below 2³² an optimization when a measurement asks (hamza, "agree");
@@ -350,7 +358,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
   `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints, `math/bits`, `io`'s
   interfaces; **partial and checked**: `os`, `strings`, `io`, `fmt`, `errors`, `io/fs`,
-  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 72 functions in 16
+  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 83 declarations in 17
   headers (ADR 0126, `TestWin32DeclarationsAreTheirPrototypes`). The portable `os` (`lib/os.oro`) runs
   on Go, JavaScript and Java with one output.
 - **The balance**, named in every assessment: the compiler grows faster than the code written in the

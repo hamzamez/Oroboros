@@ -1,0 +1,71 @@
+// CMP, ON EVERY HOST THAT HAS THE PORTABLE `os`: two files compared chunk by
+// chunk, as POSIX cmp does (the 10-24 plan's Go-library program, `cmp`).
+//
+// The files are read a chunk at a time into two buffers the program lends,
+// at the same offset, `os.ReadAt` being pread (ADR 0084). The first differing
+// byte is reported by its 1-based offset; a file that ends first is reported
+// as an EOF on it; equal files print nothing and answer 0, as cmp does. A
+// failure to read is reported by its kind.
+//
+// A host call's value is no loop guard, so the loop's variables carry what
+// the last chunk found: where it was read (at), how far each file reached
+// (na, nb), and its first difference (d). The guards read them at the head.
+// The offset is bounded by its own guard, 2^50 bytes: the decision does not
+// derive off <= 4096 * steps, a relation with a multiplier (owed).
+use os
+use io
+use result
+
+fn kind_name(k) {
+    case k {
+        os.'not_found -> "not-found"
+        os.'exists -> "exists"
+        os.'permission -> "permission"
+        os.'other(e) -> "other"
+    }
+}
+
+// The first index in [0, n) where a and b differ, or n.
+fn first_diff(a ∈ Array(0..255), b ∈ Array(0..255), n) {
+    loop i = 0 {
+        i >= n || i >= len(a) || i >= len(b) -> i
+        a[i] != b[i] -> i
+        else -> again(i + 1)
+    }
+}
+
+fn compare(p, q) {
+    var a := array { 0 : k ∈ 0..4095 }
+    var b := array { 0 : k ∈ 0..4095 }
+    loop off = 0, at = 0, na = 4096, nb = 4096, d = 4096, steps = 0 {
+        steps > 0 && d < na && d < nb -> {
+            io.print(p ++ " " ++ q ++ " differ: byte ")
+            io.print_int(at + d + 1)
+            1
+        }
+        steps > 0 && na < nb -> { io.print_line("cmp: EOF on " ++ p); 1 }
+        steps > 0 && nb < na -> { io.print_line("cmp: EOF on " ++ q); 1 }
+        steps > 0 && na == 0 -> 0
+        steps >= 1000000 || off >= 2^50 -> { io.print_line("cmp: too long"); 2 }
+        else -> {
+            ra = os.ReadAt(p, off, a)
+            (x, rx) = ra
+            case rx {
+                result.'err(k) -> { io.print_line("cmp: " ++ p ++ ": " ++ kind_name(k)); 2 }
+                result.'ok(u) -> {
+                    rb = os.ReadAt(q, off, b)
+                    (y, ry) = rb
+                    case ry {
+                        result.'err(k) -> { io.print_line("cmp: " ++ q ++ ": " ++ kind_name(k)); 2 }
+                        result.'ok(v) -> again(off + x, off, x, y, first_diff(a, b, if x < y { x } else { y }), steps + 1)
+                    }
+                }
+            }
+        }
+    }
+}
+
+export fn main() {
+    av = os.Args()
+    if len(av) < 3 { io.print_line("usage: cmp FILE1 FILE2"); 2 } else { compare(av[1], av[2]) }
+}

@@ -178,6 +178,9 @@ book's findings index (`docs/book/README.md`) is read at each item's end. Found 
 ~~93, `-checked` not trapping~~ done ([checked](gauntlet/results/checked-2026-11-18.md)): wider than
 JavaScript (an unproven `<<` unchecked on Go and the JVM too); under `-checked` every operation is
 proven, trapped or closed on the word (Lemma C), or the program is refused.
+~~the JVM's `os.ReadAt` reporting a missing file as `other`~~ done, found by `cmp`
+([cmpprog](gauntlet/results/cmpprog-2026-11-19.md)): it reads through `FileChannel`, whose `open`
+throws `java.nio.file`'s exceptions, as the kinds read.
 
 **Owed from finished steps** (each named in its result document):
 - claims: an unread binder's typing claim (`s ∈ String = n; 0`), at the top level too (finding 45
@@ -220,7 +223,8 @@ remaining 5–6× against Go's `String`.
 **Open from the 10-24 plan** ([assessment-2026-10-24](docs/assessment-2026-10-24.md) §5, the rest done):
 - **an `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
   ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)); research it as a join point that may jump;
-- **the Go library, program first**: `cmp`, two files compared chunk by chunk;
+- ~~**the Go library, program first**: `cmp`, two files compared chunk by chunk~~ done
+  ([cmpprog](gauntlet/results/cmpprog-2026-11-19.md)), one output on four hosts;
 - **the analysis grows only for a refusal a program names**, each rule's planted fault with it;
 - **the JVM's generated JSON tokenizer slows from 8 to 22.5 µs mid-run** (bits-2026-10-27 §2): find
   the cause against hand-written code.
@@ -271,9 +275,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **8,873 of 8,927** integer operations proven inside their target's word, the 54 left
+- **Provability**: **8,987 of 9,041** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **926 of 964** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **950 of 989** loops proven to
   terminate (size-change termination; fourteen of the 38 left are windows' `os` cell's read and write
   loops, whose progress is a count the host returns). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both

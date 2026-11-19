@@ -3824,3 +3824,18 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/cell-param.oro java`
 - new source — `gauntlet/differential/cases/cell-param.oro js`
 - new source — `gauntlet/differential/cases/cell-param.oro windows`
+
+## 2026-11-19 — on 3b06608b, with uncommitted changes
+
+**Reason:** cmp (cmpprog-2026-11-19): examples/io/cmp.oro is new on four targets; the JVM's ReadAt reads through FileChannel so a missing file's kind is not-found (roundtrip and pe change on the JVM only); ReadAt's component ensure bounds its count, which proves cmp on JavaScript
+
+708 runs: 490 emitted, 218 refused; 8987 of 9041 integer operations bounded, 950 of 989 loops proven. compiler pass, differential pass, tooling pass.
+
+6 change(s):
+
+- new source — `examples/io/cmp.oro go`
+- new source — `examples/io/cmp.oro java`
+- new source — `examples/io/cmp.oro js`
+- new source — `examples/io/cmp.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro java`
+- emitted text changed — `examples/pe/pe.oro java`

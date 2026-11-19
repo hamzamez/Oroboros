@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"strconv"
 	"strings"
 
 	"oroboros/core"
@@ -852,6 +853,22 @@ func (a *intervals) stmt(s *Stmt) {
 				}
 			}
 			a.fs[s.Res[0]].v = meetIV(a.fs[s.Res[0]].v, ensuresBound(p.Ensures, env))
+		}
+		// AND A PRODUCT'S COMPONENTS (a borrow's buffer handed back first):
+		// `result#j <= len(result#k)` and `len(result#k) = len(a)`, ReadAt's
+		// count bounded by the buffer it fills, which is as long as the one
+		// lent (cmp on JavaScript, probes-2026-11-19)
+		if !PlantComponentEnsuresIgnored {
+			switch raw, ok := a.tg.Prims[strings.TrimPrefix(s.Name, "#host:")]; {
+			case p.Ensures != nil && len(s.Res) > 1:
+				componentEnsures(p, args, s.Res, nil, a.fs)
+			case strings.HasPrefix(s.Name, "#host:") && ok && raw.Ensures != nil && len(raw.InPlace) > 0:
+				// the host's call of a borrow (threadedCall): the core's
+				// declaration states the ensure over its results, the
+				// handed-back buffer first, which here is its argument's
+				// storage, in place
+				componentEnsures(raw, args, s.Res, raw.InPlace, a.fs)
+			}
 		}
 	case OIndex:
 		t := args[0]
@@ -2335,4 +2352,172 @@ func (a *intervals) loopThresholds(s *Stmt) []ep {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].lt(out[j]) })
 	return out
+}
+
+// PlantComponentEnsuresIgnored reads no ensure of a product's components, as
+// before: ReadAt's count is then its declared set's on JavaScript, and cmp's
+// offset plus it leaves the word (TestCmpComparesOnEveryHost).
+var PlantComponentEnsuresIgnored bool
+
+// componentEnsures meets each result component's fact with what p's ensure
+// states of it: lengths first, `len(result#k) = len(a)` for an argument a,
+// then each `result#j ≤ E`, `<`, `=` or `≥` over the arguments' values and
+// the components' and arguments' lengths.
+func componentEnsures(p emit.Prim, args []fact, res []V, inPlace []emit.InPlace, fs []fact) {
+	// p's result k is argument a's storage where inPlace says (k, a), and
+	// otherwise the call's next result
+	type slot struct {
+		arg int
+		v   V
+	}
+	slots := make([]slot, len(p.Results))
+	if len(slots) == 0 {
+		slots = make([]slot, len(res))
+	}
+	next := 0
+	for k := range slots {
+		slots[k] = slot{arg: -1, v: -1}
+		for _, ip := range inPlace {
+			if ip.Result == k {
+				slots[k].arg = ip.Arg
+			}
+		}
+		if slots[k].arg < 0 && next < len(res) {
+			slots[k].v = res[next]
+			next++
+		}
+	}
+	var conj []*core.Term
+	var flat func(t *core.Term)
+	flat = func(t *core.Term) {
+		if t.Kind == core.KApp && t.Op().Kind == core.KName && t.Op().Name == "if" && len(t.Args()) == 3 &&
+			t.Args()[2].Kind == core.KBool && !t.Args()[2].IsTrue() {
+			flat(t.Args()[0])
+			flat(t.Args()[1])
+			return
+		}
+		conj = append(conj, t)
+	}
+	flat(p.Ensures)
+	component := func(t *core.Term) (int, bool) {
+		if t.Kind != core.KName || !strings.HasPrefix(t.Name, core.ResultName+"#") {
+			return 0, false
+		}
+		j, err := strconv.Atoi(strings.TrimPrefix(t.Name, core.ResultName+"#"))
+		return j, err == nil && j >= 0 && j < len(slots)
+	}
+	// a component's fact, read or written: a result's, or an argument's in place
+	get := func(j int) (fact, bool) {
+		switch {
+		case slots[j].arg >= 0 && slots[j].arg < len(args):
+			return args[slots[j].arg], true
+		case slots[j].v >= 0:
+			return fs[slots[j].v], true
+		}
+		return fact{}, false
+	}
+	put := func(j int, f fact) {
+		if slots[j].v >= 0 {
+			fs[slots[j].v] = f
+		}
+	}
+	argAt := func(t *core.Term) (int, bool) {
+		if t.Kind != core.KName {
+			return 0, false
+		}
+		for i, n := range p.Names {
+			if n == t.Name && i < len(args) {
+				return i, true
+			}
+		}
+		return 0, false
+	}
+	lenOf := func(t *core.Term) (*core.Term, bool) {
+		if t.Kind == core.KApp && t.Op().Kind == core.KName && t.Op().Name == "len" && len(t.Args()) == 1 {
+			return t.Args()[0], true
+		}
+		return nil, false
+	}
+	// the lengths: a component as long as an argument
+	for _, c := range conj {
+		if c.Kind != core.KApp || c.Op().Kind != core.KName || emit.CmpOp(c.Op().Name) != "eq" || len(c.Args()) != 2 {
+			continue
+		}
+		l, r := c.Args()[0], c.Args()[1]
+		lx, ok1 := lenOf(l)
+		rx, ok2 := lenOf(r)
+		if !ok1 || !ok2 {
+			continue
+		}
+		if _, ok := component(rx); ok {
+			lx, rx = rx, lx
+		}
+		j, ok := component(lx)
+		i, ok3 := argAt(rx)
+		if f, ok4 := get(j); ok && ok3 && ok4 && args[i].hasLn && slots[j].v >= 0 {
+			if f.hasLn {
+				f.ln = meetIV(f.ln, args[i].ln)
+			} else {
+				f.ln, f.hasLn = args[i].ln, true
+			}
+			put(j, f)
+		}
+	}
+	// a term's interval: an argument's value, an argument's or a component's
+	// length, a constant
+	var eval func(t *core.Term) iv
+	eval = func(t *core.Term) iv {
+		if x, ok := lenOf(t); ok {
+			if j, ok := component(x); ok {
+				if f, ok := get(j); ok && f.hasLn {
+					return f.ln
+				}
+			}
+			if i, ok := argAt(x); ok && args[i].hasLn {
+				return args[i].ln
+			}
+			return ivTop
+		}
+		if i, ok := argAt(t); ok {
+			return args[i].v
+		}
+		if t.Kind == core.KInt {
+			return exactIV(t.Int)
+		}
+		return ivTop
+	}
+	for _, c := range conj {
+		if c.Kind != core.KApp || c.Op().Kind != core.KName || len(c.Args()) != 2 {
+			continue
+		}
+		rel := emit.CmpOp(c.Op().Name)
+		l, r := c.Args()[0], c.Args()[1]
+		j, ok := component(l)
+		if !ok {
+			if j, ok = component(r); !ok {
+				continue
+			}
+			l, r, rel = r, l, flip(rel)
+		}
+		e := eval(r)
+		var b iv
+		switch rel {
+		case "eq":
+			b = e
+		case "le":
+			b = iv{hi: e.hi, nlo: true, phi: e.phi}.norm()
+		case "lt":
+			b = narrowIV(ivTop, "lt", e)
+		case "ge":
+			b = iv{lo: e.lo, nlo: e.nlo, phi: true}.norm()
+		case "gt":
+			b = narrowIV(ivTop, "gt", e)
+		default:
+			continue
+		}
+		if f, ok := get(j); ok && slots[j].v >= 0 {
+			f.v = meetIV(f.v, b)
+			put(j, f)
+		}
+	}
 }

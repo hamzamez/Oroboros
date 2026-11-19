@@ -17,7 +17,7 @@ public final class examples_pe_pe.java {
 		final String v13 = v0[1];
 		int v15;
 		Exception v16;
-		try (java.io.RandomAccessFile $oroF = new java.io.RandomAccessFile(v13, "r")) { $oroF.seek(0); int $oroN = 0; while ($oroN < v11.length) { int $oroK = $oroF.read(v11, $oroN, v11.length - $oroN); if ($oroK < 0) break; $oroN += $oroK; } v15 = $oroN; v16 = null; } catch (Exception $oroE) { v15 = 0; v16 = $oroE; }
+		try (java.nio.channels.FileChannel $oroF = java.nio.channels.FileChannel.open(java.nio.file.Paths.get(v13), java.nio.file.StandardOpenOption.READ)) { java.nio.ByteBuffer $oroB = java.nio.ByteBuffer.wrap(v11); int $oroN = 0; while ($oroB.hasRemaining()) { int $oroK = $oroF.read($oroB, 0 + $oroN); if ($oroK < 0) break; $oroN += $oroK; } v15 = $oroN; v16 = null; } catch (Exception $oroE) { v15 = 0; v16 = $oroE; }
 		final boolean v17 = (v16 == null);
 		if (v17) {
 			final int v20 = (v15 - 0);
@@ -95,7 +95,7 @@ public final class examples_pe_pe.java {
 					final int v121 = (v119 << 8);
 					final int v122 = (v114 + v121);
 					final int v124 = (int) ((v55 + 24));
-					final long v125 = (((long) v124) + v122);
+					final int v125 = (v124 + v122);
 					final int v129 = (int) ((v55 + 4));
 					final int v131 = (0 + v129);
 					final int v132 = (v11[v131] & 0xFF);
@@ -260,7 +260,7 @@ public final class examples_pe_pe.java {
 						v332 = true;
 					} else {
 						final int v337 = (40 * v109);
-						final long v338 = (v125 + v337);
+						final int v338 = (v125 + v337);
 						final int v340 = (v15 - 0);
 						final boolean v341 = (v338 > v340);
 						v332 = v341;
@@ -491,27 +491,27 @@ public final class examples_pe_pe.java {
 							final boolean v642 = (v641 < v109);
 							if (v642) {
 								final int v646 = (40 * v641);
-								final long v647 = (v125 + v646);
+								final int v647 = (v125 + v646);
 								int v652 = 0;
 								String v653 = "";
 								for (;; v652 = (v652 + 1)) {
-									final long v655 = (v647 + 8);
-									final int v656 = (int) ((v655 - v647));
+									final int v655 = (v647 + 8);
+									final int v656 = (v655 - v647);
 									final boolean v657 = (v652 < v656);
 									boolean v658 = false;
 									if (v657) {
-										final long v661 = (v647 + v652);
-										final long v662 = (0 + v661);
-										final int v663 = (v11[(int) v662] & 0xFF);
+										final int v661 = (v647 + v652);
+										final int v662 = (0 + v661);
+										final int v663 = (v11[v662] & 0xFF);
 										final boolean v665 = (v663 == 0);
 										v658 = (!v665);
 									} else {
 										v658 = false;
 									}
 									if (v658) {
-										final long v673 = (v647 + v652);
-										final long v674 = (0 + v673);
-										final int v675 = (v11[(int) v674] & 0xFF);
+										final int v673 = (v647 + v652);
+										final int v674 = (0 + v673);
+										final int v675 = (v11[v674] & 0xFF);
 										final String v676 = (new String(Character.toChars((int) v675)));
 										final String v677 = (v653.concat(v676));
 										v653 = v677;
@@ -521,22 +521,22 @@ public final class examples_pe_pe.java {
 								}
 								final String v678 = ("section ".concat(v653));
 								final String v680 = (v678.concat(" "));
-								final long v683 = (v647 + 8);
-								final long v685 = (0 + v683);
-								final int v686 = (v11[(int) v685] & 0xFF);
-								final long v689 = (v683 + 1);
-								final long v690 = (0 + v689);
-								final int v691 = (v11[(int) v690] & 0xFF);
+								final int v683 = (v647 + 8);
+								final int v685 = (0 + v683);
+								final int v686 = (v11[v685] & 0xFF);
+								final int v689 = (v683 + 1);
+								final int v690 = (0 + v689);
+								final int v691 = (v11[v690] & 0xFF);
 								final int v693 = (v691 << 8);
 								final int v694 = (v686 + v693);
-								final long v697 = (v683 + 2);
-								final long v698 = (0 + v697);
-								final int v699 = (v11[(int) v698] & 0xFF);
+								final int v697 = (v683 + 2);
+								final int v698 = (0 + v697);
+								final int v699 = (v11[v698] & 0xFF);
 								final int v701 = (v699 << 16);
 								final int v702 = (v694 + v701);
-								final long v705 = (v683 + 3);
-								final long v706 = (0 + v705);
-								final int v707 = (v11[(int) v706] & 0xFF);
+								final int v705 = (v683 + 3);
+								final int v706 = (0 + v705);
+								final int v707 = (v11[v706] & 0xFF);
 								final long v709 = (((long) v707) << 24);
 								final long v710 = (v702 + v709);
 								int v713 = 0;
@@ -570,22 +570,22 @@ public final class examples_pe_pe.java {
 								}
 								final String v744 = (v680.concat(v715));
 								final String v746 = (v744.concat(" "));
-								final long v749 = (v647 + 12);
-								final long v751 = (0 + v749);
-								final int v752 = (v11[(int) v751] & 0xFF);
-								final long v755 = (v749 + 1);
-								final long v756 = (0 + v755);
-								final int v757 = (v11[(int) v756] & 0xFF);
+								final int v749 = (v647 + 12);
+								final int v751 = (0 + v749);
+								final int v752 = (v11[v751] & 0xFF);
+								final int v755 = (v749 + 1);
+								final int v756 = (0 + v755);
+								final int v757 = (v11[v756] & 0xFF);
 								final int v759 = (v757 << 8);
 								final int v760 = (v752 + v759);
-								final long v763 = (v749 + 2);
-								final long v764 = (0 + v763);
-								final int v765 = (v11[(int) v764] & 0xFF);
+								final int v763 = (v749 + 2);
+								final int v764 = (0 + v763);
+								final int v765 = (v11[v764] & 0xFF);
 								final int v767 = (v765 << 16);
 								final int v768 = (v760 + v767);
-								final long v771 = (v749 + 3);
-								final long v772 = (0 + v771);
-								final int v773 = (v11[(int) v772] & 0xFF);
+								final int v771 = (v749 + 3);
+								final int v772 = (0 + v771);
+								final int v773 = (v11[v772] & 0xFF);
 								final long v775 = (((long) v773) << 24);
 								final long v776 = (v768 + v775);
 								int v779 = 0;
@@ -619,22 +619,22 @@ public final class examples_pe_pe.java {
 								}
 								final String v810 = (v746.concat(v781));
 								final String v812 = (v810.concat(" "));
-								final long v815 = (v647 + 16);
-								final long v817 = (0 + v815);
-								final int v818 = (v11[(int) v817] & 0xFF);
-								final long v821 = (v815 + 1);
-								final long v822 = (0 + v821);
-								final int v823 = (v11[(int) v822] & 0xFF);
+								final int v815 = (v647 + 16);
+								final int v817 = (0 + v815);
+								final int v818 = (v11[v817] & 0xFF);
+								final int v821 = (v815 + 1);
+								final int v822 = (0 + v821);
+								final int v823 = (v11[v822] & 0xFF);
 								final int v825 = (v823 << 8);
 								final int v826 = (v818 + v825);
-								final long v829 = (v815 + 2);
-								final long v830 = (0 + v829);
-								final int v831 = (v11[(int) v830] & 0xFF);
+								final int v829 = (v815 + 2);
+								final int v830 = (0 + v829);
+								final int v831 = (v11[v830] & 0xFF);
 								final int v833 = (v831 << 16);
 								final int v834 = (v826 + v833);
-								final long v837 = (v815 + 3);
-								final long v838 = (0 + v837);
-								final int v839 = (v11[(int) v838] & 0xFF);
+								final int v837 = (v815 + 3);
+								final int v838 = (0 + v837);
+								final int v839 = (v11[v838] & 0xFF);
 								final long v841 = (((long) v839) << 24);
 								final long v842 = (v834 + v841);
 								int v845 = 0;
@@ -668,22 +668,22 @@ public final class examples_pe_pe.java {
 								}
 								final String v876 = (v812.concat(v847));
 								final String v878 = (v876.concat(" "));
-								final long v881 = (v647 + 20);
-								final long v883 = (0 + v881);
-								final int v884 = (v11[(int) v883] & 0xFF);
-								final long v887 = (v881 + 1);
-								final long v888 = (0 + v887);
-								final int v889 = (v11[(int) v888] & 0xFF);
+								final int v881 = (v647 + 20);
+								final int v883 = (0 + v881);
+								final int v884 = (v11[v883] & 0xFF);
+								final int v887 = (v881 + 1);
+								final int v888 = (0 + v887);
+								final int v889 = (v11[v888] & 0xFF);
 								final int v891 = (v889 << 8);
 								final int v892 = (v884 + v891);
-								final long v895 = (v881 + 2);
-								final long v896 = (0 + v895);
-								final int v897 = (v11[(int) v896] & 0xFF);
+								final int v895 = (v881 + 2);
+								final int v896 = (0 + v895);
+								final int v897 = (v11[v896] & 0xFF);
 								final int v899 = (v897 << 16);
 								final int v900 = (v892 + v899);
-								final long v903 = (v881 + 3);
-								final long v904 = (0 + v903);
-								final int v905 = (v11[(int) v904] & 0xFF);
+								final int v903 = (v881 + 3);
+								final int v904 = (0 + v903);
+								final int v905 = (v11[v904] & 0xFF);
 								final long v907 = (((long) v905) << 24);
 								final long v908 = (v900 + v907);
 								int v911 = 0;
@@ -717,22 +717,22 @@ public final class examples_pe_pe.java {
 								}
 								final String v942 = (v878.concat(v913));
 								final String v944 = (v942.concat(" "));
-								final long v947 = (v647 + 36);
-								final long v949 = (0 + v947);
-								final int v950 = (v11[(int) v949] & 0xFF);
-								final long v953 = (v947 + 1);
-								final long v954 = (0 + v953);
-								final int v955 = (v11[(int) v954] & 0xFF);
+								final int v947 = (v647 + 36);
+								final int v949 = (0 + v947);
+								final int v950 = (v11[v949] & 0xFF);
+								final int v953 = (v947 + 1);
+								final int v954 = (0 + v953);
+								final int v955 = (v11[v954] & 0xFF);
 								final int v957 = (v955 << 8);
 								final int v958 = (v950 + v957);
-								final long v961 = (v947 + 2);
-								final long v962 = (0 + v961);
-								final int v963 = (v11[(int) v962] & 0xFF);
+								final int v961 = (v947 + 2);
+								final int v962 = (0 + v961);
+								final int v963 = (v11[v962] & 0xFF);
 								final int v965 = (v963 << 16);
 								final int v966 = (v958 + v965);
-								final long v969 = (v947 + 3);
-								final long v970 = (0 + v969);
-								final int v971 = (v11[(int) v970] & 0xFF);
+								final int v969 = (v947 + 3);
+								final int v970 = (0 + v969);
+								final int v971 = (v11[v970] & 0xFF);
 								final long v973 = (((long) v971) << 24);
 								final long v974 = (v966 + v973);
 								int v977 = 0;

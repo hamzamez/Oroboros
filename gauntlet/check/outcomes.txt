@@ -295,6 +295,24 @@
 == examples/int/sum-range.oro windows refused
    gen: examples/int/sum-range.oro: in sum_range: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/io/cmp.oro go emitted 98ed51ff16ad63ce55bac0aeb906a6074a349f3797c5f84ec53da2b3efa3a01b
+   note: gen-main: 7 of 7 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/io/cmp.oro js emitted 4fb7bc951deeaffa5de82345ff5a3feeb9f90fd4140f80f98ebf504af119edd7
+   note: gen-main: 7 of 7 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/io/cmp.oro java emitted a03c36fd03d8babff2860231ca1a1a40b0ef336d588064d515fa24a530dc1b4c
+   note: gen-main: 7 of 7 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/io/cmp.oro windows emitted 1790faa6d8310dfefeee70f84c11bb0d6c487c4ebc6c8f29d332f29defa1cfa3
+   note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: gen-main: 7 of 7 integer operations bounded; 4 of 4 loop(s) proven terminating
+   note: 8 definition(s) kept as functions, 1 inlined by their contracts
+   note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: os/host.readinto (kept): 3 of 3 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: os/host.readat (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: os/host.Args (kept): 39 of 39 integer operations bounded; 5 of 5 loop(s) proven terminating
 == examples/io/count.oro go emitted d69c28c8e9c0549238e595eaaac607a1f861f4e2b5b328776e4bd54c2594151f
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/count.oro js emitted edaec39a881fe36c9d2e6898c39c55bc057dc8a63d475aad61a74ffc10fded61
@@ -356,7 +374,7 @@
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro js emitted 68da44043bb587fda190dad9069c23af84871cfc5faae157af826df3ca52de3b
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
-== examples/io/roundtrip.oro java emitted 684eab54733c432238e8d818181fc4c639b8bd5d689e008d975d8abcedfa726e
+== examples/io/roundtrip.oro java emitted a9aea0e72bfc10a9dcfb39c379caa4352269f33fc40751d9a6a41a32dff447dc
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro windows emitted 686aa30668fa475339738751cfdc1c40dc2de1ad8dc43031eeee9ce9bab19b37
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
@@ -864,7 +882,7 @@
 == examples/pe/pe.oro js emitted 63435f729f4c3302282787cd91ce4165613eb01d1550dc4fd35d6fcdbfce2290
    note: gen-main: 365 of 365 integer operations bounded; 20 of 20 loop(s) proven terminating
    note: gen-main: 12 division(s) became a shift or a mask
-== examples/pe/pe.oro java emitted bda877fc599bd3ab77cb794a2fe2f8d68a91d1c41234cf596ce771fdd41c21b3
+== examples/pe/pe.oro java emitted 00e8bdc47a52d9aa053b642e6c08f0b1f8832f7d6fa42076d84e9517c1e758f3
    note: gen-main: 14 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 341 of 341 integer operations bounded; 20 of 20 loop(s) proven terminating
    note: gen-main: 44 division(s) became a shift or a mask

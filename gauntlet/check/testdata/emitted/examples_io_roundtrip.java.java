@@ -33,7 +33,7 @@ public final class examples_io_roundtrip.java {
 				int v32 = 0;
 				int v35;
 				Exception v36;
-				try (java.io.RandomAccessFile $oroF = new java.io.RandomAccessFile(v10, "r")) { $oroF.seek(3); int $oroN = 0; while ($oroN < v33.length) { int $oroK = $oroF.read(v33, $oroN, v33.length - $oroN); if ($oroK < 0) break; $oroN += $oroK; } v35 = $oroN; v36 = null; } catch (Exception $oroE) { v35 = 0; v36 = $oroE; }
+				try (java.nio.channels.FileChannel $oroF = java.nio.channels.FileChannel.open(java.nio.file.Paths.get(v10), java.nio.file.StandardOpenOption.READ)) { java.nio.ByteBuffer $oroB = java.nio.ByteBuffer.wrap(v33); int $oroN = 0; while ($oroB.hasRemaining()) { int $oroK = $oroF.read($oroB, 3 + $oroN); if ($oroK < 0) break; $oroN += $oroK; } v35 = $oroN; v36 = null; } catch (Exception $oroE) { v35 = 0; v36 = $oroE; }
 				final boolean v37 = (v36 == null);
 				if (v37) {
 					final int v40 = (v35 % 10);

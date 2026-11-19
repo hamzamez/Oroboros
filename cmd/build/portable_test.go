@@ -12,6 +12,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 )
 
 // EVERY PORTABLE NAME RUNS ON EVERY HOST THAT PROVIDES IT (lib/os/README.md).
@@ -94,13 +95,10 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 		// windows: its cells are J over kernel32 (lib/os/windows.oro, ADR 0112).
 		{"windows", "rt.exe", nil, func(a string) *exec.Cmd { return exec.Command(a) }},
 	}
-	// WHAT WAITS, SAID (oswin-2026-11-15): on windows every portable name is a J
-	// definition inlined at its call, and roundtrip's chain of nine calls passes
-	// the reducer's depth bound (core.MaxDepth); each name runs alone and with
-	// the others but Args (read-loop, text-of, the cell's own programs). The
-	// algebra's answer is ADR 0102's P8, a headed definition kept as a function
-	// decided once, which this is the trigger of.
-	waits := map[string]string{"windows": "roundtrip inlines nine J definitions past core.MaxDepth; waits on ADR 0102's P8"}
+	// NOTHING WAITS: on windows roundtrip's chain of nine J definitions passed
+	// the reducer's depth bound (oswin-2026-11-15) until ADR 0113 kept them as
+	// functions; it runs there since (probes-2026-11-19 found the skip stale).
+	waits := map[string]string{}
 	for _, h := range hosts {
 		t.Run(h.target, func(t *testing.T) {
 			if why, ok := waits[h.target]; ok {
@@ -134,5 +132,70 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 				t.Errorf("the file holds %q (%v), want %q", file, err, "hi €\n")
 			}
 		})
+	}
+}
+
+// CMP RUNS ON EVERY HOST (examples/io/cmp.oro, the 10-24 plan's Go-library
+// program): two files compared a chunk at a time through `os.ReadAt` into two
+// lent buffers. A difference is reported by its byte, a file that ends first
+// by an EOF on it, equal files by nothing, and a missing file by its kind,
+// one output on Go, JavaScript, the JVM and windows.
+func TestCmpComparesOnEveryHost(t *testing.T) {
+	const src = "../../examples/io/cmp.oro"
+	files := map[string]string{"a.txt": "hello world\n", "b.txt": "hello there\n", "c.txt": "hello world\nmore\n", "d.txt": "hello world\n"}
+	runs := [][]string{{"a.txt", "b.txt"}, {"c.txt", "a.txt"}, {"a.txt", "d.txt"}, {"a.txt", "nope.txt"}}
+	const want = "a.txt b.txt differ: byte 7\ncmp: EOF on a.txt\ncmp: nope.txt: not-found\n"
+	hosts := []struct {
+		target, artifact string
+		tools            []string
+		run              func(artifact string) *exec.Cmd
+	}{
+		{"go", "cmp.exe", []string{"go"}, func(a string) *exec.Cmd { return exec.Command(a) }},
+		{"js", "cmp.mjs", []string{"node"}, func(a string) *exec.Cmd { return exec.Command("node", a) }},
+		{"java", "classes", []string{"javac", "java"}, func(a string) *exec.Cmd {
+			return exec.Command("java", "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-cp", a, "Main")
+		}},
+		{"windows", "cmp.exe", nil, func(a string) *exec.Cmd { return exec.Command(a) }},
+	}
+	for _, h := range hosts {
+		t.Run(h.target, func(t *testing.T) {
+			for _, tool := range h.tools {
+				if _, err := exec.LookPath(tool); err != nil {
+					t.Skipf("%s is not on the path", tool)
+				}
+			}
+			dir := t.TempDir()
+			for n, c := range files {
+				if err := os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			art := filepath.Join(dir, h.artifact)
+			if err := run("../../targets", src, h.target, art, "../../lib", false, false, ""); err != nil {
+				t.Fatalf("build: %v", err)
+			}
+			var got bytes.Buffer
+			for _, r := range runs {
+				cmd := h.run(art)
+				cmd.Args = append(cmd.Args, r...)
+				cmd.Dir = dir
+				out, err := cmd.Output()
+				if err != nil {
+					t.Fatalf("run %v: %v", r, err)
+				}
+				got.Write(out)
+			}
+			if got.String() != want {
+				t.Errorf("printed %q, want %q", got.String(), want)
+			}
+		})
+	}
+	// THE FAULT: the ensure of ReadAt's components ignored, so its count is
+	// its declared set's, 0..2^53-1 on JavaScript, and the offset plus it
+	// leaves JavaScript's word: the build must be refused there
+	ir.PlantComponentEnsuresIgnored = true
+	defer func() { ir.PlantComponentEnsuresIgnored = false }()
+	if err := run("../../targets", src, "js", filepath.Join(t.TempDir(), "cmp.mjs"), "../../lib", false, false, ""); err == nil {
+		t.Errorf("with ReadAt's ensure ignored cmp still builds on JavaScript: the case cannot fail")
 	}
 }

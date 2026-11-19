@@ -298,7 +298,7 @@ the argument is a cell in scope, or `(out τ)` (§6). A value there is refused: 
 through the address of a value the program cannot see again has written into nothing. At every
 other parameter a cell is read, as anywhere else.
 
-**A definition of the program may take a cell parameter**, `fn step(s ∈ cell(S), …)` (ADR 0133 item 6):
+**A definition of the program may take a cell parameter**, `fn step(s ∈ S inout, …)` (ADR 0133 item 6):
 its reads and writes of s are the caller's cell's, in program order.
 - **A cell a λ at a callback's field captures** is its slot, and the step reads and writes the slot
   (callbacks.md §7).

@@ -67,7 +67,7 @@ module go/encoding/hex {
 
     // CONSUME AND RETURN, B ⊸ B: appends H(src) to dst, growing it when it must
     // (slices.Grow), so dst is dead either way.
-    fn AppendEncode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (dst' ∈ buffer(0..255))
+    fn AppendEncode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (dst' ∈ Array(0..255) linear)
         ensure len(dst') == len(dst) + 2 * len(src) {
         host expr "hex.AppendEncode(${dst}, ${src})" import "encoding/hex"
     }
@@ -90,7 +90,7 @@ module go/encoding/hex {
     // CONSUME AND RETURN with a fallible result: the decoded prefix is appended
     // either way.
     fn AppendDecode(dst ∈ Array(0..255) linear, src ∈ Array(0..255))
-            (dst' ∈ buffer(0..255), r ∈ result.result((), error)) ensure len(dst') >= len(dst) {
+            (dst' ∈ Array(0..255) linear, r ∈ result.result((), error)) ensure len(dst') >= len(dst) {
         host expr "hex.AppendDecode(${dst}, ${src})" import "encoding/hex"
     }
 

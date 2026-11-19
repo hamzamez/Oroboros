@@ -5,7 +5,9 @@ Status: Accepted (hamza, 2026-11-19: "to choose we have to ask which is consiste
 not buffer()", then "agree"). Reverses the spelling of
 [ADR 0133](0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md) item 6,
 `s ∈ cell(S)`, and the target files' `x ∈ cell(T)`. Amends [spec/abstract.md](../spec/abstract.md)
-W7. Corrects [words-audit.md](../words-audit.md)'s first verdict. **Not built.**
+W7. Corrects [words-audit.md](../words-audit.md)'s first verdict. **Built 2026-11-19**
+([inout](../../gauntlet/results/inout-2026-11-19.md)): emission byte-identical, 31 sites respelled; a
+program result's `(buffer(V))`, the lent buffer handed back, kept and set aside for hamza.
 
 ## Context
 

@@ -463,7 +463,7 @@ alignment a in the triple's data model M:
 - off₁ = 0, offᵢ₊₁ = ⌈offᵢ + kᵢ⌉ at aᵢ₊₁;
 - A = max aᵢ, N = ⌈end⌉ at A.
 
-**A cell of a C struct**, `x ∈ cell(S)` (ADR 0048), is a region: `alloca [N x i8], align A`, zero
+**A cell of a C struct**, `x ∈ S inout` (ADR 0048), is a region: `alloca [N x i8], align A`, zero
 filled. `(#ref v)` then stores each of v's leaves, and `(#deref r)` loads each one back. A leaf at
 offset o is accessed at `getelementptr i8, ptr %c, i64 o` with its C type from §6a's table (the
 `trunc` in, the `sext` or `zext` out), aligned min(A, o & −o). Padding is the zero fill's. In the

@@ -32,7 +32,7 @@ module windows/commdlg {
 
     // BOOL PrintDlgA(_Inout_ LPPRINTDLGA pPD): with PD_RETURNDEFAULT (0x400)
     // the default printer's, and no dialog shown.
-    fn PrintDlgA(pd ∈ cell(PRINTDLGA)) (r ∈ minwindef.BOOL) { host expr call PrintDlgA stdcall lib "comdlg32" }
+    fn PrintDlgA(pd ∈ PRINTDLGA inout) (r ∈ minwindef.BOOL) { host expr call PrintDlgA stdcall lib "comdlg32" }
     // DWORD CommDlgExtendedError(VOID): why the last dialog failed, cderr.h's
     // code: CDERR_STRUCTSIZE 1 is a wrong lStructSize, PDERR_NODEFAULTPRN 0x1008 no printer.
     fn CommDlgExtendedError() (r ∈ minwindef.DWORD) { host expr call CommDlgExtendedError stdcall lib "comdlg32" }

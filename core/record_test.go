@@ -291,3 +291,29 @@ func containsAny(s string, ws ...string) bool {
 	}
 	return false
 }
+
+// A CELL IS A MODE, NOT A SET (ADR 0135): a set ranges over values, and a cell
+// or a buffer is a place, so a binder writes the value's set and the mode,
+// `x ∈ T inout` and `b ∈ Array(V) linear`. The core's formers written at a
+// binder are refused, naming the mode; the same declaration with the mode
+// reads, so each refusal's premise is the former. The fault: the formers read
+// again, as before.
+func TestACellIsAModeNotASet(t *testing.T) {
+	for _, c := range []struct{ bad, good, reason string }{
+		{"fn f(s ∈ cell(0..9)) (Int) { s }\n", "fn f(s ∈ 0..9 inout) (Int) { s }\n", "`x ∈ T inout`, not `cell(T)`"},
+		{"fn f(b ∈ buffer(0..255)) (Int) { 0 }\n", "fn f(b ∈ Array(0..255) linear) (Int) { 0 }\n", "`b ∈ Array(V) linear`, not `buffer(V)`"},
+	} {
+		if _, err := Read(c.bad); err == nil || !strings.Contains(err.Error(), c.reason) {
+			t.Errorf("%q: want it refused naming %q, got %v", c.bad, c.reason, err)
+		}
+		if _, err := Read(c.good); err != nil {
+			t.Errorf("%q: the mode's spelling should read, got %v", c.good, err)
+		}
+		PlantCoreFormerAccepted = true
+		_, err := Read(c.bad)
+		PlantCoreFormerAccepted = false
+		if err != nil {
+			t.Errorf("with the formers accepted %q should read, so the case reaches the rule; got %v", c.bad, err)
+		}
+	}
+}

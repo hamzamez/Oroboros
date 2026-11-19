@@ -57,5 +57,5 @@ module windows/fileapi {
     // _Inout_opt_ PLONG lpDistanceToMoveHigh, _In_ DWORD dwMoveMethod): the
     // high half of the distance in, the high half of the new position out, a
     // cell (ADR 0048, _Inout_ by ADR 0131), the low half the result.
-    fn SetFilePointer(h ∈ winnt.HANDLE, lo ∈ winnt.LONG, hi ∈ cell(winnt.LONG), m ∈ minwindef.DWORD) (r ∈ minwindef.DWORD) { host expr call SetFilePointer(h, lo, &hi, m) stdcall lib "kernel32" }
+    fn SetFilePointer(h ∈ winnt.HANDLE, lo ∈ winnt.LONG, hi ∈ winnt.LONG inout, m ∈ minwindef.DWORD) (r ∈ minwindef.DWORD) { host expr call SetFilePointer(h, lo, &hi, m) stdcall lib "kernel32" }
 }

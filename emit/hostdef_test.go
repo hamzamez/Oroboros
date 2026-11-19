@@ -130,7 +130,7 @@ func TestHostDeclarationsAreDefinitions(t *testing.T) {
 func TestHostDeclarationShapes(t *testing.T) {
 	for _, src := range []string{
 		`fn Get(c ∈ Int inout) (()) { host stmt "get(${c})" }`,
-		`fn Fill(b ∈ Array(0..255) linear) (b' ∈ buffer(0..255)) { host expr "fill(${b})" }`,
+		`fn Fill(b ∈ Array(0..255) linear) (b' ∈ Array(0..255) linear) { host expr "fill(${b})" }`,
 		`fn Put(a ∈ Array(0..255) linear, b ∈ Int) (n ∈ Int) pure ensure len(a') == len(a) { host expr "put(${a}, ${b})" }`,
 		`fn Now() (Int) { host expr "now()" }`,
 		`fn Two(x ∈ Int, y ∈ Int) (r ∈ Int) pure
@@ -198,13 +198,13 @@ func TestHostHeaderIsTheCallersView(t *testing.T) {
 	if hr := HostResults(put); len(hr) != 1 {
 		t.Errorf("the host's own results leave the in-place buffer out, got %v", hr)
 	}
-	fill := read(`fn Fill(b ∈ Array(0..255) linear, x ∈ Int) (b' ∈ buffer(0..255)) { host expr "fill(${b}, ${x})" }`)
+	fill := read(`fn Fill(b ∈ Array(0..255) linear, x ∈ Int) (b' ∈ Array(0..255) linear) { host expr "fill(${b}, ${x})" }`)
 	if len(fill.InPlace) != 0 || len(HostResults(fill)) != 1 {
 		t.Errorf("a primed result is storage the host hands back, got %v %v", fill.Results, fill.InPlace)
 	}
 	for _, c := range []struct{ src, why string }{
 		{`fn Old(a ∈ Array(0..255) linear) (buffer(0..255) × Int) { host expr "old(${a})" }`, "caller's view"},
-		{`fn Odd(a ∈ Array(0..255) linear, q ∈ Int) (q' ∈ buffer(0..255)) { host expr "odd(${a}, ${q})" }`, "linear"},
+		{`fn Odd(a ∈ Array(0..255) linear, q ∈ Int) (q' ∈ Array(0..255) linear) { host expr "odd(${a}, ${q})" }`, "linear"},
 	} {
 		ts, err := core.ReadAll(c.src)
 		if err == nil {

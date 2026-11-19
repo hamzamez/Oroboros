@@ -155,7 +155,7 @@ func TestAWindowRunsItsMessageLoop(t *testing.T) {
 
 // A WINDOW PROCEDURE HAS A STATE (ADR 0133 items 4–6, Theorem T): the state is
 // a cell of main's scope, `var s := record { clicks : 0 }`, which the λ at the
-// field captures and passes to the step's cell parameter, `s ∈ cell(S)`, S
+// field captures and passes to the step's cell parameter, `s ∈ S inout`, S
 // stating its set. The cell is the λ's slot, every read a load and every write
 // a store, so a read after any host call sees what an activation inside it
 // left. WM_USER + 1 counts a click and answers 0; WM_USER re-enters the
@@ -170,7 +170,7 @@ func TestAWindowProcedureHasAState(t *testing.T) {
 	const head = "use win/print\nuse windows/winuser\nuse windows/windef\nuse windows/minwindef\nuse llvm\n\n" +
 		"set S = record { clicks ∈ 0..1000 }\n\n"
 	step := func(arm string) string {
-		return "fn step(s ∈ cell(S), h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {\n" +
+		return "fn step(s ∈ S inout, h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {\n" +
 			"    c = s.clicks\n" +
 			"    case {\n" +
 			"        m == 1024 -> { r = winuser.SendMessageA(h, 1025, 0, 0); s.clicks }\n" +
@@ -228,7 +228,7 @@ func TestAWindowProcedureHasAState(t *testing.T) {
 // the parameter's set at the call, and a write outside it in the callee.
 func TestADefinitionsCellParameterIsTheCallersCell(t *testing.T) {
 	prog := func(init, write string) string {
-		return "use io\n\nfn bump(s ∈ cell(0..100)) (Int) {\n    c = s\n" +
+		return "use io\n\nfn bump(s ∈ 0..100 inout) (Int) {\n    c = s\n" +
 			"    case { c < 100 -> { s := " + write + "; c }; else -> c }\n}\n\n" +
 			"export fn main() {\n    var n := " + init + "\n    a = bump(n)\n    b = bump(n)\n" +
 			"    io.print_int(a)\n    io.print_int(b)\n    io.print_int(n)\n}\n"

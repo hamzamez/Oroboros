@@ -361,6 +361,9 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := p.coreFormer(s); err != nil {
+			return nil, err
+		}
 		mode := ""
 		if p.is("linear") || p.is("inout") {
 			mode = p.next().text
@@ -413,6 +416,15 @@ func (p *parser) hostSigRest(head *Term, statics []string) (*Term, error) {
 			s, err := p.expr()
 			if err != nil {
 				return nil, err
+			}
+			if err := p.coreFormer(s); err != nil {
+				return nil, err
+			}
+			// A RESULT'S MODE (ADR 0135): `b' ∈ Array(V) linear`, a buffer
+			// the host hands back, the core's (buffer V)
+			if p.is("linear") && !p.peek().nl {
+				p.next()
+				s = p.toSet(s, "linear")
 			}
 			parts, rnames = append(parts, s), append(rnames, name)
 			if !p.accept(",") {

@@ -480,6 +480,9 @@ func (p *parser) lamHeader() (*Lam, error) {
 			if err != nil {
 				return nil, err
 			}
+			if err := p.coreFormer(s); err != nil {
+				return nil, err
+			}
 			cp.Set = s
 			claimed = true
 		}
@@ -525,7 +528,10 @@ func (p *parser) lamHeader() (*Lam, error) {
 					return nil, err
 				}
 				// A LINEAR RESULT, `(r ∈ Array(V) linear)`: a writable region the
-				// definition owns and moves to its caller (ADR 0084).
+				// definition owns and moves to its caller (ADR 0084). A result
+				// `(buffer(V))` is not refused (ADR 0135 is a binder's): it is the
+				// lent buffer handed back (ADR 0070), a second meaning with no
+				// mode's spelling yet (inout-2026-11-19, set aside for hamza).
 				if p.is("linear") {
 					p.next()
 					claim.ResultModes = append(claim.ResultModes, Linear)
@@ -644,6 +650,35 @@ func (p *parser) variant() (*VariantDecl, error) {
 	}
 	return v, nil
 }
+
+// coreFormer refuses the core's place formers written as a binder's set
+// (ADR 0135): a set ranges over values, and a cell or a buffer is a place, so
+// J writes the set and the mode, `x ∈ T inout` and `b ∈ Array(V) linear`, and
+// `cell(T)` and `buffer(V)` are D's image of them, the core's.
+func (p *parser) coreFormer(e Expr) error {
+	if PlantCoreFormerAccepted {
+		return nil
+	}
+	a, ok := e.(*Apply)
+	if !ok || len(a.Args) != 1 {
+		return nil
+	}
+	v, ok := a.Fn.(*Var)
+	if !ok {
+		return nil
+	}
+	switch v.Name {
+	case "cell":
+		return p.errorf("a cell is a place, not a set: write the value's set and the mode, `x ∈ T inout`, not `cell(T)` (ADR 0135)")
+	case "buffer":
+		return p.errorf("a buffer is a place, not a set: write the table's set and the mode, `b ∈ Array(V) linear`, not `buffer(V)` (ADR 0135)")
+	}
+	return nil
+}
+
+// PlantCoreFormerAccepted reads `cell(T)` and `buffer(V)` at a binder again, as
+// before ADR 0135 (TestACellIsAModeNotASet).
+var PlantCoreFormerAccepted bool
 
 // toSet reads a set expression back into today's spelling of a set: the
 // language's sets by name (Int is int), a range, a product, a variant's set by

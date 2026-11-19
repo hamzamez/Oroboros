@@ -45,10 +45,10 @@ module go/encoding/binary {
 
     // MaxVarintLen64
     // CONSUME AND RETURN, B ⊸ B: C(x) appended, growing buf when it must.
-    fn AppendUvarint(buf ∈ Array(0..255) linear, x ∈ uint64) (buf' ∈ buffer(0..255)) ensure len(buf') > len(buf) {
+    fn AppendUvarint(buf ∈ Array(0..255) linear, x ∈ uint64) (buf' ∈ Array(0..255) linear) ensure len(buf') > len(buf) {
         host expr "binary.AppendUvarint(${buf}, uint64(${x}))" import "encoding/binary"
     }
-    fn AppendVarint(buf ∈ Array(0..255) linear, x ∈ int64) (buf' ∈ buffer(0..255)) ensure len(buf') > len(buf) {
+    fn AppendVarint(buf ∈ Array(0..255) linear, x ∈ int64) (buf' ∈ Array(0..255) linear) ensure len(buf') > len(buf) {
         host expr "binary.AppendVarint(${buf}, int64(${x}))" import "encoding/binary"
     }
 

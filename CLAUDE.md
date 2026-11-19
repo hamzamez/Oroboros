@@ -106,7 +106,8 @@ before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment'
    `cell(T)` to be refused (ADR 0135); `jump`, `underlying`, `cdecl` kept for now (hamza).
 
 **Decided and to be built** (hamza, 2026-11-19), in this order:
-1. ADR 0135, `x ∈ T inout` the one spelling, emission-neutral;
+1. ~~ADR 0135, `x ∈ T inout` the one spelling~~ built ([inout](gauntlet/results/inout-2026-11-19.md)),
+   emission byte-identical; a program result's `(buffer(V))` kept, its spelling for hamza;
 2. ADR 0134, an `again` after a join point, B measured against C;
 3. **the measurements' method**: the gauntlet's harnesses interleave the two forms round by round
    and report each pair's ratio (jsontok-2026-11-19's (b)); hamza runs one benchmark from a
@@ -183,7 +184,7 @@ items 1–5 done and item 6 in progress:
    with its C signature, the λ at WNDCLASSA's field lifted behind a wrapper at that convention
    ([cbfield](gauntlet/results/cbfield-2026-11-19.md)); MSG and the message loop
    ([msgloop](gauntlet/results/msgloop-2026-11-19.md)); its state a `var` cell the λ captures and
-   passes to a step's `s ∈ cell(S)`, the cell its static slot, Theorem T's global
+   passes to a step's `s ∈ S inout`, the cell its static slot, Theorem T's global
    ([slot](gauntlet/results/slot-2026-11-19.md)), `examples/native/wndproc-win.oro` running a loop on
    both triples. A message after the cell's scope runs on the state it left, by derivation. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):
    a callback applied only during the call (105 of Go's 150) a region of the call, read as a loop
@@ -684,9 +685,9 @@ Read the ADR, and its "Why not", before relitigating one.
 | `const T*` is the call's argument term `ref(x)`, &x of a fresh copy, not a mode of the header: a mode is what a program observes; reverses 0129 item 2 | [0130](docs/decisions/0130-const-t-star-is-the-calls-ref-x.md) |
 | An `_Out_` parameter is a result of the declaration, its address the call's `&r`; a C call's arguments written as C writes them, `call F(x, &x, &r, &b[lo], NULL)`, read as ADR 0118's terms; `_Inout_` stays a cell, Go's `out τ` where the program chooses τ | [0131](docs/decisions/0131-an-out-parameter-is-a-result.md) |
 | A C function's (pointer, count) to a byte region is one segment parameter, `call WriteFile(h, s, len(s), …)`; a program passes `b` or `b[lo:hi]`, the variant derived; amends 0118's linearity | [0132](docs/decisions/0132-a-c-functions-pointer-and-count-are-one-segment.md) |
-| The window procedure is a λ at WNDCLASSA's field, its set the named claim WNDPROC (ADR 0053) with its C signature `repr WNDPROC c(h, m, w, l) stdcall`, lifted and printed behind a wrapper at that convention; its state a `var` cell the λ captures and passes to a step's `s ∈ cell(S)`, the cell its static slot (Theorem T's global): no word for the extent, no classification of dispatching calls | [0133](docs/decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md) |
+| The window procedure is a λ at WNDCLASSA's field, its set the named claim WNDPROC (ADR 0053) with its C signature `repr WNDPROC c(h, m, w, l) stdcall`, lifted and printed behind a wrapper at that convention; its state a `var` cell the λ captures and passes to a step's `s ∈ S inout`, the cell its static slot (Theorem T's global): no word for the extent, no classification of dispatching calls | [0133](docs/decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md) |
 | An `again` after a nested loop's join point is accepted in a tail, by Theorem J's rewrite (k placed at the producer's exits) before the walkers; kept if nested `wc` measures within noise of nested Go, else sharing on the IR (C); no surface change (not built) | [0134](docs/decisions/0134-an-again-after-a-join-point-is-theorem-js-rewrite.md) |
-| A cell parameter is the mode `x ∈ T inout`, not the set `cell(T)`: a set ranges over values and a cell is a place, as `Array(V) linear` and not `buffer(V)`; `cell(T)` at a J parameter refused naming `inout`; W7 lets `inout` stand on a program definition's parameter; reverses ADR 0133 item 6's spelling (not built) | [0135](docs/decisions/0135-a-cell-parameter-is-the-mode-inout-not-the-set-cell.md) |
+| A cell parameter is the mode `x ∈ T inout`, not the set `cell(T)`: a set ranges over values and a cell is a place, as `Array(V) linear` and not `buffer(V)`; `cell(T)` at a J parameter refused naming `inout`; W7 lets `inout` stand on a program definition's parameter; reverses ADR 0133 item 6's spelling | [0135](docs/decisions/0135-a-cell-parameter-is-the-mode-inout-not-the-set-cell.md) |
 | A struct's field is a value and a pointer in it the layout's, written as C writes it: a buffer in a struct a table field (`= len(m)`), a nested record by pointer `&f`, an inline array `f[N]`, an optional C string `Option(String)`, NULL its niche (not built) | [0136](docs/decisions/0136-a-struct-field-is-a-value-and-its-pointer-is-the-layouts.md) |
 | An unread binder's typing claim is checked, by a typing mark in the residual first, measured (not built) | [0137](docs/decisions/0137-an-unread-binders-typing-claim-is-checked.md) |
 | On ℕ ∩ S₆₄, `%` and `/` by a constant divisor are `srem`/`sdiv`, a variable divisor keeping `urem`/`udiv`; amends ADR 0088, measured on the corpus (not built) | [0138](docs/decisions/0138-a-remainder-by-a-constant-of-a-natural-is-srem.md) |

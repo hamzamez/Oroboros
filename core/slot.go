@@ -24,7 +24,7 @@ import (
 //	(set x v)              ↦ (#sset N v)          x read, x.l read: (#sget N), its projection
 //	x at a cell parameter  ↦ (#sref N)
 //
-// and in a definition with a cell parameter p, `fn step(s ∈ cell(S), …)` (1.4b):
+// and in a definition with a cell parameter p, `fn step(s ∈ S inout, …)` (1.4b):
 //
 //	p read                 ↦ (#deref p)           (set p v) ↦ (#setref p v)
 //
@@ -502,7 +502,7 @@ func slotSet(p *Program, t *Term, x string, cellParams map[string][]int) (string
 	walk(t)
 	if len(sets) == 0 {
 		return "", fmt.Errorf("the cell %s, which a λ at a callback's field captures, is passed to no cell "+
-			"parameter, so its set is not stated: pass it to the step, `fn step(s ∈ cell(S), …)`, whose S is the "+
+			"parameter, so its set is not stated: pass it to the step, `fn step(s ∈ S inout, …)`, whose S is the "+
 			"state's set (ADR 0133 item 6)", Spell(x))
 	}
 	if len(sets) > 1 {

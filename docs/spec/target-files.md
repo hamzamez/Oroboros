@@ -524,7 +524,7 @@ fn Encode(dst ∈ Array(0..255) linear, src ∈ Array(0..255)) (n ∈ 0..9223372
     host expr "hex.Encode(${dst}, ${src})" import "encoding/hex"
 }
 
-fn AppendInt(dst ∈ Array(0..255) linear, i ∈ int64, base ∈ Int) (dst' ∈ buffer(0..255))
+fn AppendInt(dst ∈ Array(0..255) linear, i ∈ int64, base ∈ Int) (dst' ∈ Array(0..255) linear)
         where 2 <= base && base <= 36 ensure len(dst') > len(dst) {
     host expr "strconv.AppendInt(${dst}, int64(${i}), ${base})" import "strconv"
 }
@@ -533,7 +533,7 @@ fn AppendInt(dst ∈ Array(0..255) linear, i ∈ int64, base ∈ Int) (dst' ∈ 
 - **No `p'` among the results**: a write-borrow. The host writes p **in place**, and the buffer after
   the call is the same storage. The template is the host's own call, whose value is the declared
   results.
-- **A result `p' ∈ buffer(V)`**: a consume-and-return. The host hands back storage, possibly new, and
+- **A result `p' ∈ Array(V) linear`**: a consume-and-return. The host hands back storage, possibly new, and
   the template's value includes it, in the result's position.
 - **The core's threaded result is derived**: each borrowed buffer in order, then the rest, a unit
   dropped. A write-borrow's component is recorded `(inplace j i)`, and the IR calls a derived host

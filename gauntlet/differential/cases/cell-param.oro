@@ -7,7 +7,7 @@
 //
 // inputs: 0 5 99 100
 // expect: 1002 5006007 99100100 100100100
-fn bump(s ∈ cell(0..100)) (Int) {
+fn bump(s ∈ 0..100 inout) (Int) {
     c = s
     case { c < 100 -> { s := c + 1; c }; else -> c }
 }

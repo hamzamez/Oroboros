@@ -357,7 +357,7 @@ module go/encoding/hex {
 The header is the caller's view, read the way the call is written. `dst ∈ Array(0..255) linear` lends
 the buffer to the host, and since no `dst'` is among the results, the host writes it **in place** (a
 write-borrow); `len(dst')`, the buffer after the call, keeps its length. An append, which may hand back
-new storage, says so with a result `dst' ∈ buffer(0..255)`
+new storage, says so with a result `dst' ∈ Array(0..255) linear`
 ([ADR 0070](docs/decisions/0070-a-header-is-the-callers-view-of-a-borrow.md)). A host call that only reads a buffer and returns numbers, such as `utf8.Valid` or
 `bytes.IndexByte`, reads a live buffer in place, with no copy and no declaration to say so
 ([ADR 0069](docs/decisions/0069-an-observer-at-a-host-parameter.md)).

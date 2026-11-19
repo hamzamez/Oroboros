@@ -256,7 +256,7 @@ wc = record { …, lpfnWndProc : fn(h, m, w, l) { step(s, h, m, w, l) } }
   proves equal to the state threaded through every host call that may dispatch. Lending the state to
   a call is then the identity: a read after any host call sees what an activation inside it wrote,
   and no host call need be classified (ADR 0133 item 5, option 3).
-- **Its set is the step's**: the cell passed to a cell parameter, `fn step(s ∈ cell(S), h, m, w, l)
+- **Its set is the step's**: the cell passed to a cell parameter, `fn step(s ∈ S inout, h, m, w, l)
   (LRESULT)`, whose S is the slot's. A read is known in S, a write is claimed in S and proven or the
   program refused. In the step a parameter's read is the slot's load and its write the slot's store,
   so its writes are the caller's cell's, in program order.
@@ -265,7 +265,7 @@ wc = record { …, lpfnWndProc : fn(h, m, w, l) { step(s, h, m, w, l) } }
   reading once, `c = s.clicks`, and guarding and writing through `c`.
 
 ```
-fn step(s ∈ cell(S), h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {
+fn step(s ∈ S inout, h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {
     c = s.clicks
     case {
         m == 1024 -> { r = winuser.SendMessageA(h, 1025, 0, 0); s.clicks }   // what the inner activation left

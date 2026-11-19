@@ -1,6 +1,6 @@
 // A window procedure with a state (ADR 0133): the state is a cell of main's
 // scope, which the λ at the class's field captures and passes to the step's
-// cell parameter, `s ∈ cell(S)`, S stating its set. The cell is the λ's static
+// cell parameter, `s ∈ S inout`, S stating its set. The cell is the λ's static
 // slot, so what an activation writes is what the next read sees, wherever the
 // host runs the procedure from. Windows calls the λ through a wrapper at
 // WNDPROC's convention, stdcall on i686 (llvm.md §6c).
@@ -19,7 +19,7 @@ use llvm
 
 set S = record { clicks ∈ 0..1000 }
 
-fn step(s ∈ cell(S), h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {
+fn step(s ∈ S inout, h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {
     c = s.clicks
     case {
         m == 1025 && c < 1000 -> { s.clicks := c + 1; 0 }

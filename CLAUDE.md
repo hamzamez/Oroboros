@@ -190,7 +190,8 @@ proven, trapped or closed on the word (Lemma C), or the program is refused.
 - invariant: an invariant over a buffer's elements or a cell's value;
 - checks: a witness for per-loop widening thresholds (`PlantLoopThresholdFault` reaches no
   program, a constructed one included, [probes-2026-11-19](gauntlet/results/probes-2026-11-19.md)),
-  an audit of plants by flag;
+  the plant audit done (probes §3: four baselines, `PlantResultUnproven` witnessed by a hand-built
+  instance, `PlantRecordLetWhole` masked by the residual's erasure);
 - capacity: presence facts, a borrowed map's capacity, an O(1) windows `len`; maprealize: the
   windows map 1.22× Go's (mapvalue's three refusals prove on HEAD as reconstructed, probes-2026-11-19,
   so they wait on a refusing program);

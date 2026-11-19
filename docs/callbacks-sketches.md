@@ -18,7 +18,7 @@ classification; T2-4 no new word, the `var` scope is the extent (§1.4c); T2-4b 
 arrow; T1-1 L. **T1-3 (a)** (hamza, 2026-11-20: "agree to option a"): a cell written in the λ is
 threaded where the host documents its order, `ordered`, and refused elsewhere; a host's IO in the
 λ follows the same rule. **T1-4 (a)** (hamza, 2026-11-20: "T1-4 agree"; Part 3, §3.3): a buffer
-lent like a cell. Open: T1-2's words, default and the sentence's place (shown in §3.9), T1-5; T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
+lent like a cell. **T1-2's words** (hamza, 2026-11-20): `calls K`, K a range, and `ordered`. Open: the default, the evidence's place (§3.10: in the tooling, not the declaration), T1-5; T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
 each.
 
 ---
@@ -970,3 +970,42 @@ Win32 marker is written.
 What changes in the compiler, once tier 1 is built: the reader takes `calls K` and `ordered "…"`
 after an arrow's result; 𝒰 gains its clause; the cell rule gains `ordered`; inventory.md gains two
 words; j.md §2.4 and the book's chapter 17 teach them.
+
+## 3.10 Why a sentence? (hamza, 2026-11-20: "agree to calls K with K a range, ordered, but why do we need a sentence?")
+
+**The language does not need it.** `ordered` means the same program with or without a quotation
+after it: the compiler threads the cell in the host's order either way, and never reads the
+string. A token the semantics ignores does not belong in the abstract syntax (ADR 0050, fit-research:
+a syntax fits when its abstract syntax is the semantics' initial algebra). By that test q1,
+`ordered "…"`, is a misfit, and §3.9's recommendation of it is withdrawn.
+
+**What the sentence was for is a check on the declarer, not on the program.** `ordered` is a claim
+about a host that no compiler can verify, as a host's `pure` is. It is worse than `pure` in two
+measured ways:
+- **Its error rate.** The one reading so far got 52 of 64 wrong (§3.7), taking a promise about the
+  result for one about the calls.
+- **Its failure.** A wrong `ordered` is a wrong answer on a release other than the one tested.
+  Go 1.27's `Map` behaves as if ordered, so no test on this machine could catch it; only the
+  document can.
+
+So the question is whether to check the claim, and where its evidence lives:
+- **(e1) no evidence**: `ordered` is trusted as `pure` is. The error just measured stays
+  undetectable.
+- **(e2) the evidence with the tooling (recommended).** `gauntlet/stdlib/callbacks-go-markers.txt`
+  already classifies every callback parameter. It gains a column, the sentence, and the tooling
+  test checks it both ways. Every `ordered` or `calls K` in `targets/` has a row whose sentence is in
+  the host's `go doc`, and every row marked S is declared `ordered`. The planted faults are a marker
+  with no row, and a row whose sentence the document does not contain. Checked both ways, the two
+  files cannot drift, which answers q3's objection, and the declaration stays plain:
+
+  ```
+  fn WalkDir(root ∈ go.bytestring,
+             f ∈ fn(p ∈ go.bytestring, d ∈ fs.DirEntry, e ∈ error) (error) ordered) (error) { … }
+  ```
+
+  ```
+  path/filepath.WalkDir	L	w	S	The files are walked in lexical order
+  ```
+
+**An asymmetry (e2) leaves:** a host's `pure` is not checked this way, and nothing measured asks it
+to be. If a wrong `pure` is found, the same column is its remedy.

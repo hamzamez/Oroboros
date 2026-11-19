@@ -149,8 +149,9 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
   in [callbacks-sketches.md](docs/callbacks-sketches.md) Part 3. **T1-3 decided (a)** (hamza,
   2026-11-20): a cell written in the λ is the state monad's lift of a traversal, threaded where the
   host documents its order (`ordered`: 12 of Go's visitors, not `Map` or `IndexFunc`), refused
-  elsewhere; T1-4 follows (a buffer lent like a cell). Open: T1-2's words (`calls K`, `ordered`,
-  the default ⊤, a quoted promise checked against the host's document), T1-5 `ctx(f)`; the JVM's
+  elsewhere; T1-4 (a), a buffer lent like a cell; T1-2's words `calls K`, K a range, and
+  `ordered` (hamza). Open: the default ⊤; the host's sentence as the tooling's evidence, checked
+  both ways, not in the declaration (§3.10); T1-5 `ctx(f)`; the JVM's
   written cell a slot or a holder (measure both); Win32's enumerators each element once, the
   middle strength, not `ordered` (§3.7–3.8); one ADR for tier 1 when T1-2 and T1-5 are decided;
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,

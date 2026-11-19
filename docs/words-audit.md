@@ -45,10 +45,39 @@ language already expressed.
 program cannot take them as names before they are built. Their reservation is decided, so the
 question is not whether they buy something today.
 
+### The header modes, where `in` was: each states a meaning
+
+The two found before were a mode (`in`) and a construct (`ui`). So the modes get the three questions
+in full.
+
+- **`linear`** (`s ∈ Array(0..255) linear`, ReadFile's). *Without it*, the table is a value: the
+  host's writes into it are writes into a copy no program can see again, so `(got, r) =
+  ReadFile(h, b[lo:hi])` would read nothing into b, and every buffer the program fills by a host
+  would have to be returned as a fresh table. *Observed*: yes, the program reads the bytes the host
+  wrote (ADR 0070, a header is the caller's view of a borrow), and a call that lends b may not be
+  reordered past a read of b. *Bought*: in-place reads into a lent buffer (`os`, `freq`, `jsonfmt`
+  write through it) and R1's uniqueness. **Meaning; keep.**
+- **`pure`** (on 736 host declarations). *Without it*, a host call is impure by default (ADR 0010):
+  never dropped, duplicated or reordered, and its argument let-bound. A call whose value is unused
+  stays, `strings.ToUpper(s)` included. *Observed*: no single answer changes, but which programs
+  reduce to which residuals does. A pure call substituted into one use is work moved, never repeated
+  (ADR 0071), and a pure host call may observe a live buffer (ADR 0069), which an impure one may not.
+  It cannot be derived: a host's body is opaque. **Meaning (an effect bit); keep.**
+- **`out`** (`fmt.Sscan(s, out Int, out go.bytestring)`). *Without it*, a cell parameter needs a
+  cell in scope, `var a := 0; fmt.Sscan(s, a)`, whose set is ℤ and cannot choose what Sscan parses
+  into. `out τ` is a fresh cell whose set the program chooses, and Go's `Sscan` reads τ from it.
+  *Observed*: yes, τ chooses the parse. ADR 0131 removed it where the declaration already knows τ (an
+  `_Out_`), which was the redundant half, and kept it where the program chooses. **Meaning; keep.**
+- **`inout`**: above, a synonym. The three questions give the same answers as for `cell(T)`,
+  because it is `cell(T)`.
+
 ### In use, with the job each does
 
-Each of these is written by a program or a declaration, and removing it loses the job named. This
-pass names the job and the program; the full "what fails exactly" for each is owed (§4).
+Each of these is written by a program or a declaration, and removing it loses the job named. ADR
+0130's test is answered by where each word stands: the host clause's and the target model's words are
+representation, and they stand in the host clause, the `repr` and the target files, where ADR 0130
+puts representation. None is a mode or a construct that restates what another word says. That was
+the shape of `in` and `ui`, and of three of the four candidates above.
 
 | word | uses | the job | where it is needed |
 |---|---:|---|---|
@@ -80,9 +109,10 @@ parameter. Its reader forms `callback-set` and `conv` are the inventory's, not J
    inventory, windows-target.md marked historical.
 3. **`underlying`**: withdraw until a declaration needs it, or keep for Go's named integer types.
 4. **`cdecl`**: withdraw as a synonym of no convention, or keep as the prototype's explicit word.
-5. **The rest of §3's middle table**: the full "what fails exactly" per word, owed within the plan
-   item's two days, starting with the header modes (`out`, `linear`, `pure`), where the two found
-   before were.
+5. **The rest of §3's table** has its job named and its place checked against ADR 0130's test. A
+   word-by-word program for each of the host clause's and the model's words is not written. They are
+   representation in representation's places, the class neither of the two earlier finds came from.
+   It is owed only if hamza wants the pass exhaustive.
 
 ## 5. The measurement
 

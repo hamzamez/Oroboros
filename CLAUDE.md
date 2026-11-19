@@ -107,12 +107,24 @@ until it is, the 11-18 plan below stands. **The 11-18 plan (its §5), approved**
 "assessment's plan approved"):
 1. TinyRetroPad's body in J, module by module, the window procedure last;
 2. the callback decisions: tier 2's taken and built (ADR 0133); tier 1's to discuss with hamza;
-3. the capacity facts: mapvalue's refusals prove on HEAD as reconstructed (probes-2026-11-19), so
-   they wait on a refusing program;
+3. the capacity facts: mapvalue's refusals prove on HEAD as reconstructed (probes-2026-11-19); the
+   refusing program found 2026-11-20, a map read and then stored to (finding 100 (b), below);
 4. ~~a timeout on every program a build test runs~~ done ([timeouts](gauntlet/results/timeouts-2026-11-19.md));
 5. CLAUDE.md as state again;
 6. the words audit: first pass done ([words-audit.md](docs/words-audit.md)); `inout` kept and
    `cell(T)` to be refused (ADR 0135); `jump`, `underlying`, `cdecl` kept for now (hamza).
+
+**Ahead of the list below, the book's findings 100 and 101** (hamza, 2026-11-20: "put findings 100
+and 101 in the plan"), each a construct its spec states, refused in the lowering's words:
+- **100, a map buffer read in its scope** (maps.md §3, `m[k]` a read giving `Option`). Narrowed
+  2026-11-20: a read in an argument works (`io.print_int(case m[9] { … })` prints 50); two shapes
+  fail. (a) A `case` on the read in the scope's tail with impure arms is refused as a closure,
+  `fn(#t, #p) { … }`, by the state translation. (b) A read and then a store: `len(#vm1) < 4` does
+  not follow, because the read's threaded map carries no fact `len(#vm1) = len(m)`. This is the
+  11-18 plan's item 3, its refusing program;
+- **101, a table of tables** (tables.md §5.1, composition) **or a table of tuples written as a
+  list** (products.md, currying), read at an unknown index. The first is storage's "a table inside a
+  table", waiting on a trigger, now named.
 
 **Decided and to be built** (hamza, 2026-11-19), in this order (the first list's items 1–4, 6, 7 built:
 ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):

@@ -155,10 +155,18 @@ each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
    procedure last. The window procedure and the status line already run.
 2. **The callback decisions**: the window procedure's built; those for a function a platform calls
    only during a call still to discuss.
-3. **The capacity facts** of maps, waiting for a program they fail.
+3. **The capacity facts** of maps: the program they fail was found 2026-11-20, a map read and then
+   written to inside the scope that fills it.
 4. ~~A time limit on every program a test runs~~ **done**.
 5. **The project's instructions to its assistant** kept as the state of things.
 6. **The words that bought nothing**: a first pass done ([words-audit](docs/words-audit.md)).
+
+**First, two things the book found** (its findings 100 and 101, hamza 2026-11-20), each a form the
+specification states that the compiler refuses in its internal words:
+- a map read while it is still being filled, when the read is the scope's last `case`, or is
+  followed by a write;
+- a table of tables, or a table of tuples written as a list, read at an index not known when
+  compiling.
 
 **Decided and being built** (hamza, 2026-11-19), in order:
 1. **The memory model finished**: ~~one C function with many meanings, `SendMessageA`'s messages~~

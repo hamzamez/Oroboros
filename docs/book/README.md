@@ -822,13 +822,15 @@ seven more. 95–99 are fixed with the chapter
     now refused where it is defined, as a variant containing itself is.
 100. **Reading a map while it is still being filled is refused in internal words**: `var m :=
      map(4); m[9] := 50; case m[9] { … }` says *{ (#t, #p) = #0.0(9); … } is 2 values where one
-     is wanted*. The read must come after the map is built (chapter 14's pattern), and the
-     refusal should say that.
+     is wanted*. Narrowed 2026-11-20: a read in an argument works, `io.print_int(case m[9] { … })`
+     printing 50; what fails is a `case` on the read in the scope's tail whose arms print (refused
+     as a closure), and a read followed by a store (the map's capacity no longer follows). Both
+     are in the plan (CLAUDE.md, README's "Current work"), ahead of the decided list.
 101. **A table of tables, or a table of tuples written as a list, read at an index not known when
      compiling**, is refused in the lowering's words, the first quoting `#0.0`:
      `array { array { 1, 2 }, array { 3, 4 } }[k][0]` and `array { (3, 4), (10, 2) }[k]`.
      Finding 66's limitation, still there: read at a constant index the table folds away, which
-     is how it hides.
+     is how it hides. In the plan, beside finding 100.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

@@ -49,7 +49,7 @@ meaning for that state when the host re-enters the procedure.
 5. **The state is lent to every host call in its scope** (Theorem T, research decision 3, option 3):
    written to the λ's slot before the call and read back after it, inside the λ as outside it, with
    no classification of which calls dispatch.
-6. **A step may take the cell as a parameter**, `fn step(s ∈ cell(S), …)` (1.4b (i)): a definition's
+6. **A step may take the cell as a parameter**, `fn step(s ∈ cell(S), …)` (1.4b (i); spelled `s ∈ S inout` by [ADR 0135](0135-a-cell-parameter-is-the-mode-inout-not-the-set-cell.md)): a definition's
    cell parameter is the caller's cell, read and written in program order, as a host's is (ADR 0048).
 
 ## Why not

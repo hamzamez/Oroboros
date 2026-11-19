@@ -14,8 +14,9 @@ escape analysis, and the Windows SDK 10.0.26100 headers through `gauntlet/stdlib
   **second-class value** (Strachey 1967; Osvald et al. 2016): it may be applied, never stored or
   returned, and that is all tier 1 needs.
 - **Measured (§2.1): 105 of Go's 150 callback-taking functions call the callback only during the
-  call, on the caller's thread.** 64 call it many times in an order they specify, 25 many times in
-  no stated order, and 16 once or at most once. 41 keep it beyond the call, 3 run it on another goroutine,
+  call, on the caller's thread.** 12 call it many times in an order they specify, 77 many times in
+  no stated order, and 16 once or at most once (*corrected 2026-11-20*: first counted 64 and 25, the
+  52 others stating a result, not the order of the calls; callbacks-derivation-2026-11-20). 41 keep it beyond the call, 3 run it on another goroutine,
   and one uses it as a key without calling it. Go's escape analysis agrees: every callback of the
   first kind measured stays on the stack, including one that writes a captured variable, and
   `time.AfterFunc`'s goes to the heap.
@@ -80,8 +81,8 @@ tiers 1 and 2, not built").
 
 | escape | count | order | functions | examples |
 |---|---|---|---:|---|
-| L | 0.. | S | **64** | `strings.IndexFunc`, `Map`, `TrimFunc`, `slices.IndexFunc`, `filepath.WalkDir`, `ast.Inspect`, `regexp.ReplaceAllFunc` |
-| L | 0.. | U | **25** | `sort.Slice`, `slices.SortFunc`, `sort.Search`, `strings.FieldsFunc`, `maps.DeleteFunc`, `sync.Map.Range`, `rand.Shuffle`, `hkdf.Key` |
+| L | 0.. | S | **12** | `filepath.WalkDir`, `Walk`, `fs.WalkDir`, `ast.Inspect`, `ast.PreorderStack`, `flag.Visit` (×4), `ring.Do`, `token.FileSet.Iterate`, `slices.EqualFunc` |
+| L | 0.. | U | **77** | `sort.Slice`, `slices.SortFunc`, `sort.Search`, `strings.FieldsFunc`, `maps.DeleteFunc`, `sync.Map.Range`, `rand.Shuffle`, `hkdf.Key`; and, stating a result and not the calls' order, `strings.IndexFunc`, `Map`, `TrimFunc`, `slices.IndexFunc`, `regexp.ReplaceAllFunc` |
 | L | 1 | | 14 | `slices.Collect`, `maps.Insert` (an iterator, called once), `pprof.Do`, `trace.WithRegion`, `testing.B.Run` |
 | L | 0..1 | | 2 | `sync.Once.Do`, `os.Process.WithHandle` |
 | E | | | 41 | `time.AfterFunc`, `http.HandleFunc`, `flag.Func`, `bufio.Scanner.Split`, `sync.OnceFunc`, `WaitGroup.Go`, `runtime.AddCleanup`, `iter.Pull` |
@@ -89,7 +90,18 @@ tiers 1 and 2, not built").
 | K | | | 1 | `json/v2.GetOption`, whose setter is an option's identity |
 
 **105 of 150 are L (70%).** Every L function's count is one of three intervals, 1, 0..1 or 0..,
-and none needs "at least once". Of the 89 called any number of times, 64 state their order.
+and none needs "at least once". Of the 89 called any number of times, 12 state their order.
+
+*Corrected 2026-11-20* (callbacks-derivation-2026-11-20). The first count, 64 with a stated order,
+read a promise about the **result** as one about the **calls**. `IndexFunc` returns "the index of
+the first Unicode code point satisfying f(c)", which fixes the answer and not which code points f
+sees, or in what order. `Map` returns "a copy of the string s with all its characters modified",
+which fixes neither. Only 12 documents state the sequence of calls: "walked in lexical order",
+"traverses an AST in depth-first order: it starts by calling f(node)", "in lexicographical order,
+calling fn for each", "compared in increasing index order". The difference is observable.
+`FieldsFunc`, which disclaims the order, made two passes over s in Go 1.9, a counting loop and a
+creating loop, calling f twice per rune. Go 1.27 calls it once. `Map` calls it once per rune in
+order today, and nothing promises it will.
 
 Two of Go's own documents state this research's rules:
 - `strings.FieldsFunc`: "makes no guarantees about the order in which it calls f(c) and assumes that

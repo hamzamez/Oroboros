@@ -36,9 +36,33 @@ Read in the core, where the state translation makes a cell a threaded value:
   for usage (𝕌), the order for effects. A pure λ consuming nothing needs neither (Theorem D).
 - **A cell written in the λ is the state monad's lift of a traversal** (`mapAccumL`), a pure
   function. It is defined where the host's order is documented, and nowhere else.
-- **Option (b) of decision 3, commuting writes under no order, is withdrawn.** It needs the count
-  as well as the order, and under no order the count is the host's.
+- **Option (b) of decision 3, commuting writes under no order, is withdrawn as stated.** It needs
+  the count as well as the order, and under no order the count is the host's. It is sound where a
+  host documents each element once (`sync.Map.Range`, `expvar.Do`, `slog.Record.Attrs`).
 - **A buffer is the same decision as a cell**, its state a table.
+
+## A survey figure that described the measurer (§3.7)
+
+hamza asked why the sketch accepted `strings.Map(fn(r) { n := n + 1; r }, s)` and refused the same
+λ under `FieldsFunc`. The answer is that it should not have.
+
+- **Go 1.27's source:** both call f once per rune, left to right.
+- **Go 1.9's `FieldsFunc`** made two passes, a counting loop and a creating loop, so it called f
+  twice per rune. One program counts 2·len(s) on one release and len(s) on the other. Its
+  documentation disclaims the order, and Theorem D's premise is its own sentence.
+- **`Map`'s documentation** promises the result, "a copy … with all its characters modified", and
+  nothing about the calls.
+
+The research's markers file had classified 64 functions as stating their order. Read again
+strictly, 12 do: the visitors (`WalkDir` ×3, `ast.Inspect`, `ast.PreorderStack`, `flag.Visit` ×4,
+`ring.Do`, `token.FileSet.Iterate`, `slices.EqualFunc`). The other 52 state a result ("the first
+index satisfying f"), which fixes the answer and not the calls. The file, the research's §2.1, the
+sketches' §2.2, §2.3 and §3.2 are corrected, and the lesson is CLAUDE.md's: a survey's first number
+describes the measurer. Before this figure became an argument in Part 3, ten members of it were not
+read against their documents, and Part 3 repeated it ("which Go's documentation states").
+
+What decision 3 asks is now narrower. Under (a), Go's documents admit an effect in the λ of the 12
+visitors, whose purpose is the effect, and not in `Map` or `IndexFunc`, whose purpose is the result.
 
 ## Paid and bought
 

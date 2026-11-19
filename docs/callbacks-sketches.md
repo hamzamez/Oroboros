@@ -340,6 +340,11 @@ fn Do(o ∈ Once, f ∈ fn() () calls 0..1) () { … }                     // sy
 fn Run(f ∈ fn() () calls 1) () { … }                                 // exactly once
 ```
 
+*Corrected 2026-11-20* (§3.7): `IndexFunc` and `Map` are not `ordered`. Their documentation
+promises a result, not the order of the calls. Written by what Go promises, they are
+`calls 0..` alone, and `filepath.WalkDir`'s `fn(p ∈ go.bytestring, d ∈ DirEntry, e ∈ error)
+(error) calls 0.. ordered` is the `ordered` example.
+
 What a program may then do, by K:
 
 ```
@@ -371,6 +376,10 @@ var n := 0
 t = strings.Map(fn(r) { n := n + 1; r }, s)            // Map is `ordered`
 print.print_int(n)                                      // the number of runes in s
 ```
+
+*Corrected 2026-11-20* (Part 3, §3.7): `Map` is not `ordered`. Its documentation promises a
+result, not the order or the number of its calls, so this program is refused under every option.
+The example of an `ordered` host is `filepath.WalkDir`, "walked in lexical order".
 
 - **Option (a) (recommended): threaded under `ordered`, refused without it.** The program above is
   accepted, and `n` is threaded through the call as an extra result (Theorem T₁). Under
@@ -596,9 +605,12 @@ Map_S : (Rune × S → Rune × S) × String × S  →  String × S
 ```
 
 This is `mapAccumL`, the stateful traversal, a pure function. It exists when `Map` visits the runes
-in a documented order, which Go's documentation states. Its meaning is n folded through the runes
-in that order (Theorem T₁). Go's `n++` inside a closure is how one target realizes that fold, as its
-mutable loop variable realizes our loop's.
+in a documented order. Its meaning is n folded through the runes in that order (Theorem T₁). Go's
+`n++` inside a closure is how one target realizes that fold, as its mutable loop variable realizes
+our loop's. *Corrected 2026-11-20*: this first said Go's documentation states `Map`'s order. It does
+not (§3.7), so `Map` is Theorem D's case and this program is refused. The lift is real for a host
+that does state its order, `filepath.WalkDir(root, fn(p, d, err) { n := n + 1; nil })`, which
+counts the entries in lexical order.
 
 So **the derivation pushes back on "no"**. Option (a) is not a mutable variable captured from
 outside. It is the state monad, which the language already compiles away for its own loops (§3.0),
@@ -617,7 +629,7 @@ source).
 | option | the derivation |
 |---|---|
 | (a) threaded under `ordered`, refused without it | **agrees**: exactly the lift where it exists, and a refusal where it does not |
-| (b) commuting writes under no order too | **contradicts.** The sketch says `n := n + 1` gives the same `n` in every order. That is true, but the result needs the count as well as the order. Under no stated order the count is the host's too: `sort.Slice`'s number of comparisons is its algorithm's, and `FieldsFunc` promises no call per rune. The final n = n₀ + (the number of activations), which is not a function of the arguments. A commutative monoid's action is independent of order, not of count. Even an idempotent write (`seen := seen ∪ {r}`, a max) needs the set of arguments the host calls with, which no unordered host of the 25 documents. **So (b) is withdrawn**, and §2.3 and research §3.4 are corrected |
+| (b) commuting writes under no order too | **contradicts.** The sketch says `n := n + 1` gives the same `n` in every order. That is true, but the result needs the count as well as the order. Under no stated order the count is the host's too: `sort.Slice`'s number of comparisons is its algorithm's, and `FieldsFunc` promises no call per rune. The final n = n₀ + (the number of activations), which is not a function of the arguments. A commutative monoid's action is independent of order, not of count. Even an idempotent write (`seen := seen ∪ {r}`, a max) needs the set of arguments the host calls with. **So (b) is withdrawn as stated**, and §2.3 and research §3.4 are corrected. It returns, narrower and sound, where a host documents its count without its order (§3.7) |
 | (c) no writes in any λ | **a sound subset** of (a), which the derivation does not require. Its own consequence: a print in the body is an effect just as a cell write is, both impure in the core, so (c) consistently means "a λ given to a host is pure", with no host IO either. That is coherent, and `ordered` then disappears (3.1) |
 
 **What (c) refuses**, measured by what the hosts are built for:
@@ -692,8 +704,74 @@ slot), so tier 1 comes next, at its trigger, a Go-library program.
 
 | | the question | where the derivation leads |
 |---|---|---|
-| 3 | may a λ given to a host have effects: threaded state, a host's IO? | **(a)**: yes, exactly where the host is a traversal (`ordered`), as the state monad our loops already use. (c) is its sound first stage. (b) is withdrawn |
+| 3 | may a λ given to a host have effects: threaded state, a host's IO? | **(a)**: yes, exactly where the host is a traversal (`ordered`), as the state monad our loops already use. (c) is its sound first stage. (b) as stated is withdrawn, and sound where a host documents each element once without an order (§3.7). By Go's documents, (a) reaches the 12 visitors (`WalkDir`, `ast.Inspect`, `flag.Visit` …), and not `Map` or `IndexFunc` |
 | 4 | a buffer | **the same answer as 3** |
 | 2 | the markers | **`calls K` with K a range, and `ordered`**, default the top, `calls 0..` unordered. Under 3 = (c), `ordered` is not needed and `calls` waits on a relevant value |
 | 5 | the context word | **`ctx(f)`**, independent of 3 |
 | 6 | the order | done: the window procedure is built; tier 1 at its trigger |
+
+## 3.7 Why `Map` and `FieldsFunc` differ, measured (hamza, 2026-11-20)
+
+hamza: "show me why `t = strings.Map(fn(r) { n := n + 1; r }, s)` is accepted while
+`ws = strings.FieldsFunc(s, fn(r) { n := n + 1; r == 32 })` is refused."
+
+**By the derivation, they do not differ: both are refused.** What decides is what the host promises,
+and the sketch had read `Map`'s promise wrongly.
+
+**What each does today, Go 1.27's source:** both call f once per rune, left to right, `for i, c :=
+range s { r := mapping(c) … }` and `for end, rune := range s { if f(rune) { … } }`. No experiment on
+one Go release tells them apart.
+
+**What each promised before.** `FieldsFunc` in Go 1.9 made two passes, a counting loop
+(`inField = !f(rune)`) and a creating loop (`if f(rune) {`). So it called f twice per rune.
+`n := n + 1` in its λ then counts 2·len(s) on Go 1.9 and len(s) on Go 1.27: one program, two
+answers. That is what "not a function of the arguments" means, and why its documentation says "makes
+no guarantees about the order in which it calls f(c) and assumes that f always returns the same
+value for a given c". That sentence is Theorem D's premise, in Go's words.
+
+**What each documents.**
+- `Map`: "a copy of the string s with all its characters modified according to the mapping
+  function". That is a promise about the result. It says nothing of the order or the number of the
+  calls, so a Go release may change either, as `FieldsFunc`'s did.
+- `FieldsFunc`: no order, explicitly.
+
+So `Map` has `FieldsFunc`'s standing. A declaration states what the host **promises**, which holds
+on every release under Go 1's compatibility promise. What one release **does** is an accident of its
+implementation. Declaring `Map` `ordered` from its source would tie the program's meaning to one Go
+release.
+
+**What the documents do promise, all 89 read again** (the markers file, corrected): 12 state the
+sequence of their calls, the visitors:
+- `filepath.WalkDir`, `filepath.Walk` and `fs.WalkDir`: "walked in lexical order";
+- `ast.Inspect`: "depth-first order: it starts by calling f(node)"; `ast.PreorderStack`;
+- the four `flag.Visit` forms: "in lexicographical order, calling fn for each";
+- `ring.Do`: "in forward order"; `token.FileSet.Iterate`: "in ascending Base order";
+- `slices.EqualFunc`: "compared in increasing index order".
+
+The other 77 promise a result: `IndexFunc`'s "first code point satisfying f", `Map`'s copy,
+`TrimFunc`, `ReplaceAllFunc`, and the sorts.
+
+**The documents sort the functions by purpose.** A function whose purpose is its result promises no
+sequence, and its λ should be pure: `Map`, `IndexFunc`, `TrimFunc`, `sort.Slice`. A function whose
+purpose is the visiting promises one, and its λ is useless unless it has an effect: `WalkDir`,
+`Inspect`, `flag.Visit`. So decision 3 is narrower than it looked. It asks whether the visitors are
+usable, not whether string functions may count.
+
+**(b) returns, in the form the algebra allows.** A commutative write (`n := n + 1`, a histogram
+cell) needs the multiset of the calls, not their order. Three hosts document exactly that:
+- `sync.Map.Range`: "calls f sequentially for each key and value … no key will be visited more than
+  once";
+- `expvar.Do`: "calls f for each exported variable";
+- `slog.Record.Attrs`: "calls f on each Attr".
+
+Their count is the number of elements, and their order is open. So the markers are three strengths
+of one promise, about the history of the calls:
+
+| the host promises | it admits in the λ | examples |
+|---|---|---|
+| nothing (the default) | a pure body (Theorem D) | `Map`, `IndexFunc`, `FieldsFunc`, `sort.Slice` |
+| each element once, in no order | writes forming a commutative monoid's action | `sync.Map.Range`, `expvar.Do`, `slog.Record.Attrs` |
+| the sequence (`ordered`) | any effect, threaded in that order | `WalkDir`, `ast.Inspect`, `flag.Visit`, `EqualFunc` |
+
+The middle row is (b) made sound. It needs a rule for which writes commute, with its planted fault,
+and it waits on a program.

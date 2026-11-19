@@ -148,8 +148,10 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
 - **callbacks tier 1** ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)), its four
   remaining questions, each derived in [callbacks-sketches.md](docs/callbacks-sketches.md) Part 3
   (2026-11-20): T1-3 first (a written cell is the state monad's lift of a traversal, under
-  `ordered`; commuting writes withdrawn), T1-4 takes its answer, T1-2's `ordered` needed only if
-  T1-3 is (a), T1-5 `ctx(f)`; T1-6 settled by events;
+  `ordered`, which Go documents for 12 visitors and not for `Map` or `IndexFunc`, §3.7; a
+  commuting write sound only where a host documents each element once, as `sync.Map.Range` does),
+  T1-4 takes its answer, T1-2's `ordered` needed only if T1-3 is (a), T1-5 `ctx(f)`; T1-6 settled
+  by events;
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
   or (d) `Array(go.Value inout)`;
 - **a C string from Win32 into ours** (ADR 0091's rest, `GetWindowTextA`): the text lands in the

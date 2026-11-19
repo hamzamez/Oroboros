@@ -216,3 +216,41 @@ func TestAWindowProcedureHasAState(t *testing.T) {
 		}
 	}
 }
+
+// A DEFINITION'S CELL PARAMETER IS THE CALLER'S CELL (ADR 0133 item 6), an
+// ordinary cell as well as a callback's: `bump(n)` reads n and writes it, and
+// n holds the write afterwards, the state-passing translation's S × X → S × R
+// (core/slot.go's value variant). 5 6 7 on Go, windows and windows32 (the
+// differential case cell-param runs it on all four targets).
+//
+// The fault: the variant's last value not written back into the caller's
+// cell, so the callee's writes are lost (5 5 5). The refusals: a cell outside
+// the parameter's set at the call, and a write outside it in the callee.
+func TestADefinitionsCellParameterIsTheCallersCell(t *testing.T) {
+	prog := func(init, write string) string {
+		return "use io\n\nfn bump(s ∈ cell(0..100)) (Int) {\n    c = s\n" +
+			"    case { c < 100 -> { s := " + write + "; c }; else -> c }\n}\n\n" +
+			"export fn main() {\n    var n := " + init + "\n    a = bump(n)\n    b = bump(n)\n" +
+			"    io.print_int(a)\n    io.print_int(b)\n    io.print_int(n)\n}\n"
+	}
+	src := prog("5", "c + 1")
+	for _, target := range []string{"go", "windows", "windows32"} {
+		if got, err := runOn(t, src, target); err != nil || got != "5 6 7" {
+			t.Errorf("%s: %q, %v; want \"5 6 7\"", target, got, err)
+		}
+	}
+	core.PlantCellWriteBackDropped = true
+	got, err := runOnMayFail(t, src, "go")
+	core.PlantCellWriteBackDropped = false
+	if err == nil && got == "5 6 7" {
+		t.Errorf("with the write-back dropped the caller's cell still holds the callee's writes: the case cannot fail")
+	}
+	for _, c := range []struct{ what, src, reason string }{
+		{"a cell outside the parameter's set", prog("200", "c + 1"), "bump's parameter s is declared in 0..100, and a call passes 200"},
+		{"a write outside it", prog("5", "c + 1000"), "the claim s ∈ 0..100"},
+	} {
+		if _, err := runOnMayFail(t, c.src, "go"); err == nil || !strings.Contains(err.Error(), c.reason) {
+			t.Errorf("%s: want it refused naming %q, got %v", c.what, c.reason, err)
+		}
+	}
+}

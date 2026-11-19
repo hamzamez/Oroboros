@@ -276,7 +276,7 @@ fn step(s ∈ cell(S), h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.
 ```
 
 **Refused**: a λ that captures a value of its scope other than a cell it passes to a step; a captured
-cell passed to no cell parameter, whose set nothing states; an ordinary cell, one no λ at a field
-captures, passed to a definition's cell parameter (not built); a λ of the wrong arity; a field value
-that is no λ. A message after the cell's scope runs the λ on the state the scope left, the slot being
+cell passed to no cell parameter, whose set nothing states; a λ of the wrong arity; a field value
+that is no λ. An ordinary cell, one no λ at a field captures, may be passed to a step too: local.md
+§5. A message after the cell's scope runs the λ on the state the scope left, the slot being
 static (ADR 0133's question set aside for hamza).

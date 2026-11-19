@@ -27,6 +27,10 @@ func ShowName(n string) string {
 	if strings.HasPrefix(n, "#") {
 		return n
 	}
+	// a definition's value variant and its cell's incoming value are the
+	// definition and the cell the program wrote (core/slot.go, ADR 0133)
+	n = strings.TrimSuffix(n, ValueVariantSuffix)
+	n = strings.TrimSuffix(n, "#in")
 	return Spell(n)
 }
 

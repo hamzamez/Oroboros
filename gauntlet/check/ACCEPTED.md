@@ -3811,3 +3811,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - `examples/lines/shape.oro go` 968 → 640 ms, 0.66x
 - `examples/num/ledger.oro js` 984 → 593 ms, 0.60x
+
+## 2026-11-19 — on 74e5c5d7, with uncommitted changes
+
+**Reason:** ADR 0133 item 6 for an ordinary cell (cellparam-2026-11-19): the differential case cell-param is new; no other program's emission changed
+
+704 runs: 486 emitted, 218 refused; 8873 of 8927 integer operations bounded, 926 of 964 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/cell-param.oro go`
+- new source — `gauntlet/differential/cases/cell-param.oro java`
+- new source — `gauntlet/differential/cases/cell-param.oro js`
+- new source — `gauntlet/differential/cases/cell-param.oro windows`

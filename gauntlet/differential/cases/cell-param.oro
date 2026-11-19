@@ -1,0 +1,20 @@
+// A DEFINITION'S CELL PARAMETER IS THE CALLER'S CELL (ADR 0133 item 6): `bump`
+// reads the cell it is given and writes it, and the caller's cell holds the
+// write afterwards. The call is the state-passing translation's,
+// f : S × X → S × R: a value variant takes the cell's value, holds it in a
+// local cell, and hands its last value back with the result, which the call
+// writes into the caller's cell. Two bumps of n, then n: on every target.
+//
+// inputs: 0 5 99 100
+// expect: 1002 5006007 99100100 100100100
+fn bump(s ∈ cell(0..100)) (Int) {
+    c = s
+    case { c < 100 -> { s := c + 1; c }; else -> c }
+}
+
+fn run(k ∈ 0..100) {
+    var n := k
+    a = bump(n)
+    b = bump(n)
+    a * 1000000 + b * 1000 + n
+}

@@ -299,9 +299,21 @@ through the address of a value the program cannot see again has written into not
 other parameter a cell is read, as anywhere else.
 
 **A definition of the program may take a cell parameter**, `fn step(s ∈ cell(S), …)` (ADR 0133 item 6):
-its reads and writes of s are the caller's cell's, in program order. Built for the cell a λ at a
-callback's field captures, whose slot it reads and writes (callbacks.md §7); an ordinary cell
-passed to one is refused, not built.
+its reads and writes of s are the caller's cell's, in program order.
+- **A cell a λ at a callback's field captures** is its slot, and the step reads and writes the slot
+  (callbacks.md §7).
+- **An ordinary cell** is passed by the state-passing translation, f : S × X → S × R. The
+  definition's value variant takes the cell's value, which is an obligation in S at the call (ADR
+  0028), holds it in a local cell, and returns that cell's last value beside its result, claimed in
+  S. The call writes it back into the caller's cell:
+
+  ```
+  f(…, x, …)  ↦  (r, v) = f~cellv(…, x, …); x := v; r
+  ```
+
+  So a write to s in f is the caller's after the call, on every target (the differential case
+  `cell-param`).
+- **A value at a cell parameter** is refused: a write to it would reach nothing.
 
 **What it means: the translation, extended.** With r a fresh reference and `#ref`, `#deref` the
 reference's introduction and elimination,

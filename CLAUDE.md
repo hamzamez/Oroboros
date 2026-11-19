@@ -182,8 +182,7 @@ proven, trapped or closed on the word (Lemma C), or the program is refused.
 **Owed from finished steps** (each named in its result document):
 - claims: an unread binder's typing claim (`s ∈ String = n; 0`), at the top level too (finding 45
   and the dead call's contract done, [deadclaims](gauntlet/results/deadclaims-2026-11-18.md));
-- callbacks (ADR 0133): an ordinary cell at a definition's cell parameter; a slot's facts between
-  two reads; the words audit's full pass ([words-audit.md](docs/words-audit.md): `inout`, `jump`,
+- callbacks (ADR 0133): a slot's facts between two reads; the words audit's full pass ([words-audit.md](docs/words-audit.md): `inout`, `jump`,
   `underlying`, `cdecl` for hamza);
 - ccall: a local buffer lent to a host in a scope that ends in further host statements is refused
   as a function term (R1), older than ADR 0131; a segment with no derived variant refused by

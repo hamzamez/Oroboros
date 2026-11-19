@@ -62,6 +62,7 @@ var PlantSlotUnshared bool
 func slotCells(p *Program) error {
 	// THE CELL PARAMETERS of the program's own definitions
 	cellParams := map[string][]int{}
+	orig := map[string]*Term{}
 	for _, q := range p.Order {
 		sig := p.Sigs[q]
 		if sig == nil || p.Defs[q] == nil || p.Defs[q].Kind != KFn {
@@ -85,6 +86,7 @@ func slotCells(p *Program) error {
 		for _, i := range at {
 			names[d.Params[i]] = true
 		}
+		orig[q] = d
 		body := rewriteCellParams(d.Body(), names)
 		p.Defs[q] = Fn(d.Params, body)
 	}
@@ -102,7 +104,169 @@ func slotCells(p *Program) error {
 		}
 		p.Defs[q] = t
 	}
+	// AN ORDINARY CELL AT A CELL PARAMETER (ADR 0133 item 6): the call is the
+	// state-passing translation's, f : S × X → S × R. The definition's value
+	// variant takes the cell's value, holds it in a local cell, and returns
+	// that cell's last value beside its result; the call writes it back.
+	variants := map[string]string{}
+	for _, q := range append([]string(nil), p.Order...) {
+		if p.Defs[q] == nil {
+			continue
+		}
+		t, err := cellCalls(p, p.Defs[q], map[string]bool{}, cellParams, orig, variants)
+		if err != nil {
+			return fmt.Errorf("%s: %w", q, err)
+		}
+		p.Defs[q] = t
+	}
 	return nil
+}
+
+// ValueVariantSuffix names a definition's value variant, `f~cellv`.
+const ValueVariantSuffix = "~cellv"
+
+// PlantCellWriteBackDropped forgets to write the variant's last value back
+// into the caller's cell: a callee's write is then lost
+// (TestADefinitionsCellParameterIsTheCallersCell).
+var PlantCellWriteBackDropped bool
+
+// cellCalls rewrites each call f(…, x, …) whose argument at a cell parameter
+// is a cell x in scope to the value variant's, ((f~cellv … x …) (fn (#r #v…)
+// (seq (set x #v) … #r))), and makes the variant.
+func cellCalls(p *Program, t *Term, cells map[string]bool, cellParams map[string][]int, orig map[string]*Term, variants map[string]string) (*Term, error) {
+	if t == nil || len(t.Kids) == 0 {
+		return t, nil
+	}
+	if isCellScope(t) && t.Kids[0].Name == CellName {
+		init, err := cellCalls(p, t.Kids[1], cells, cellParams, orig, variants)
+		if err != nil {
+			return nil, err
+		}
+		lam := t.Kids[2]
+		inner := map[string]bool{lam.Params[0]: true}
+		for k, v := range cells {
+			inner[k] = v
+		}
+		b, err := cellCalls(p, lam.Body(), inner, cellParams, orig, variants)
+		if err != nil {
+			return nil, err
+		}
+		return &Term{Kind: KApp, Kids: []*Term{t.Kids[0], init, Fn(lam.Params, b)}}, nil
+	}
+	if t.Kind == KFn {
+		inner := map[string]bool{}
+		for k, v := range cells {
+			inner[k] = v
+		}
+		for _, x := range t.Params {
+			delete(inner, x)
+		}
+		b, err := cellCalls(p, t.Body(), inner, cellParams, orig, variants)
+		if err != nil {
+			return nil, err
+		}
+		return Fn(t.Params, b), nil
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		x, err := cellCalls(p, k, cells, cellParams, orig, variants)
+		if err != nil {
+			return nil, err
+		}
+		kids[i] = x
+	}
+	if t.Kind != KApp || kids[0].Kind != KName {
+		return &Term{Kind: t.Kind, Kids: kids}, nil
+	}
+	f := kids[0].Name
+	at, ok := cellParams[f]
+	if !ok {
+		return &Term{Kind: KApp, Kids: kids}, nil
+	}
+	var passed []string
+	for _, i := range at {
+		if i+1 < len(kids) && kids[i+1].Kind == KName && cells[kids[i+1].Name] {
+			passed = append(passed, kids[i+1].Name)
+		} else {
+			passed = nil
+			break
+		}
+	}
+	if len(passed) == 0 {
+		return &Term{Kind: KApp, Kids: kids}, nil
+	}
+	v, err := valueVariant(p, f, at, orig, variants)
+	if err != nil {
+		return nil, err
+	}
+	ps := []string{"#cr"}
+	for i := range passed {
+		ps = append(ps, fmt.Sprintf("#cv%d", i))
+	}
+	var body *Term = Name("#cr")
+	for i := len(passed) - 1; i >= 0; i-- {
+		if PlantCellWriteBackDropped {
+			continue
+		}
+		body = App(Fn([]string{"#_"}, body), App(Name("set"), Name(passed[i]), Name(ps[i+1])))
+	}
+	call := App(Name(v), kids[1:]...)
+	return App(call, Fn(ps, body)), nil
+}
+
+// valueVariant is f's value variant, made once: each cell parameter s a
+// value s#in held in a local cell s, and the result the tuple of f's result
+// and each s's last value, claimed in its set.
+func valueVariant(p *Program, f string, at []int, orig map[string]*Term, variants map[string]string) (string, error) {
+	if v, ok := variants[f]; ok {
+		return v, nil
+	}
+	d, sig := orig[f], p.Sigs[f]
+	if d == nil || sig == nil {
+		return "", fmt.Errorf("%s has a cell parameter and no definition of the program's", f)
+	}
+	v := f + ValueVariantSuffix
+	params := append([]string(nil), d.Params...)
+	vs := *sig
+	vs.Params = append([]SigParam(nil), sig.Params...)
+	vs.Result, vs.Results, vs.Unstated = "any", nil, true
+	vs.Ensures = nil
+	rest := []*Term{Name("#cr")}
+	for _, i := range at {
+		s := d.Params[i]
+		set := CellElem(sig.Params[i].Type)
+		params[i] = s + "#in"
+		vs.Params[i] = SigParam{Name: params[i], Type: set}
+		rest = append(rest, &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(ClaimDef), Str(s), Str(set), Name(s)}})
+	}
+	body := App(Fn([]string{"#cr"}, tupleOf(rest)), d.Body())
+	for k := len(at) - 1; k >= 0; k-- {
+		s := d.Params[at[k]]
+		body = App(Name(CellName), Name(s+"#in"), Fn([]string{s}, body))
+	}
+	if vs.Where != nil {
+		ren := map[string]*Term{}
+		for _, i := range at {
+			ren[d.Params[i]] = Name(d.Params[i] + "#in")
+		}
+		vs.Where = substNames(vs.Where, ren)
+	}
+	p.Defs[v] = Fn(params, body)
+	p.Sigs[v] = &vs
+	p.Order = append(p.Order, v)
+	variants[f] = v
+	return v, nil
+}
+
+// substNames replaces each free name of ren in t.
+func substNames(t *Term, ren map[string]*Term) *Term {
+	if t == nil {
+		return nil
+	}
+	for n, v := range ren {
+		t = substFree(t, n, v)
+	}
+	return t
 }
 
 // rewriteCellParams is a body with each cell parameter's reads and writes made
@@ -422,17 +586,17 @@ func (e *Env) slotStep(op *Term, args []*Term) (*Term, bool, error) {
 			return App(Name(SGetName), args[0].Kids[1]), true, nil
 		}
 		if len(args) == 1 && args[0].Kind != KName && args[0].Kind != KBound {
-			return nil, true, fmt.Errorf("a definition's cell parameter takes a callback's state, the cell a λ at a "+
-				"callback's field captures (ADR 0133); %s is no such cell, and an ordinary cell at a cell "+
-				"parameter is not built", ShowTerm(args[0]))
+			return nil, true, fmt.Errorf("a definition's cell parameter takes a cell in scope, or a callback's "+
+				"captured cell (ADR 0133 item 6); %s is a value, and a write to it would reach nothing",
+				ShowTerm(args[0]))
 		}
 	case SetRefName:
 		if len(args) == 2 && isSRef(args[0]) {
 			return App(Name(SSetName), args[0].Kids[1], args[1]), true, nil
 		}
 		if len(args) == 2 && args[0].Kind != KName && args[0].Kind != KBound {
-			return nil, true, fmt.Errorf("a definition's cell parameter takes a callback's state (ADR 0133); "+
-				"%s is no such cell", ShowTerm(args[0]))
+			return nil, true, fmt.Errorf("a definition's cell parameter takes a cell in scope (ADR 0133 item 6); "+
+				"%s is a value", ShowTerm(args[0]))
 		}
 	case SGetName:
 		if len(args) == 1 && args[0].Kind == KStr {

@@ -9,8 +9,8 @@ arrow for a host struct's field and a named claim, and [callbacks.md](../spec/ca
 Revises [callbacks-research.md](../callbacks-research.md)'s candidate D, refused there for escaping
 its scope. **Built**, steps 1–3 ([cbfield](../../gauntlet/results/cbfield-2026-11-19.md),
 [msgloop](../../gauntlet/results/msgloop-2026-11-19.md), [slot](../../gauntlet/results/slot-2026-11-19.md)):
-item 5's lending is the slot itself, Theorem T's global, and item 6 is built for the captured cell
-alone.
+item 5's lending is the slot itself, Theorem T's global; item 6 for an ordinary cell too
+([cellparam](../../gauntlet/results/cellparam-2026-11-19.md)).
 
 ## Context
 

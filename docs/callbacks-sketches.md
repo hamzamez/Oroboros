@@ -15,8 +15,11 @@ after a call that re-enters it. It is §1.4b.
 
 **Decided so far** (hamza, 2026-11-18): T2-1 B; T2-2 one state per process; T2-3 option 3, no
 classification; T2-4 no new word, the `var` scope is the extent (§1.4c); T2-4b the cell; T2-5 the
-arrow; T1-1 L. Open: T1-2 to T1-5, each derived in Part 3 (2026-11-20), T1-3 first; T1-6
-settled by events (the window procedure built).
+arrow; T1-1 L. **T1-3 (a)** (hamza, 2026-11-20: "agree to option a"): a cell written in the λ is
+threaded where the host documents its order, `ordered`, and refused elsewhere; a host's IO in the
+λ follows the same rule. **T1-4 follows** (Part 3, §3.3): a buffer lent like a cell. Open: T1-2's
+words, T1-5; T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
+each.
 
 ---
 
@@ -783,3 +786,45 @@ windows is determined, and collecting their handles in order is not. §2.5's `ca
 `WNDENUMPROC` overstated it. One more condition belongs to the middle row: the λ must not stop the
 enumeration early (`EnumWindows` stops at FALSE, `sync.Map.Range` at false), since which elements
 were visited before the stop depends on the order.
+
+## 3.8 What T1-3 = (a) changes in the other decisions (hamza, 2026-11-20: "agree to option a")
+
+- **T1-4, a buffer: (a), by derivation.** A buffer is a state binder translated as a cell is
+  (§3.3), so it is lent for the call and threaded where the host is `ordered`, and refused
+  elsewhere. R3's "no closure over a buffer" narrows to the escaping callbacks, where its reason,
+  two goroutines holding it, applies. A histogram under a host that visits each element once is
+  the middle row's, waiting with it.
+- **T1-2, the markers: `ordered` is now needed**, and what is left to decide is the words:
+  - `calls K`, K a range (`1`, `0..1`, `0..`), for usage;
+  - `ordered`, for effects, with a count of at most one implying it;
+  - the default, ⊤: `calls 0..` and unordered;
+  - a word for the middle strength, "each element once, no order", left open until a program
+    writes one (`sync.Map.Range`, `EnumWindows`).
+
+  The derivation adds a check to the decision. `ordered` is a claim about a host's **promise**, and
+  §3.7 found the survey had read implementations instead. So every `ordered` should quote the
+  sentence that promises it ("The files are walked in lexical order"), and the tooling test should
+  find that sentence in `go doc`, or on the Win32 page, as ADR 0022 has every hand claim checked.
+- **T1-5, the context word: unchanged, `ctx(f)`.** E now holds, besides the captured values, the
+  address of each written cell and lent buffer: the threaded state in memory, as Theorem T₁
+  realizes it. The 33 Win32 APIs with no context word find E through the slot, as before.
+- **T1-6: unchanged.** Tier 1 is built at its trigger. Under (a) the trigger is a visitor program,
+  `filepath.WalkDir` counting or collecting entries (a `du` or a `find` on Go). `slices.EqualFunc`
+  is the smallest host for the planted fault of Theorem T₁, with no filesystem: a λ counting the
+  comparisons up to the first unequal pair, the counted value dropped by the fault.
+
+**Three consequences (a) brings that no decision named:**
+1. **The JVM's written cell.** Java captures only effectively final locals, so research §3.6 wrote
+   a written cell as a one-element array, a holder. That is an allocation per call, and the
+   constraint is "never introduce boxing or hidden allocation into the core". The alternative is
+   ADR 0133's: the cell in a static slot, saved and restored around the call (shallow binding,
+   Baker 1978), sound under L by nesting, one thread. ART's escape analysis is unmeasured. So both
+   forms are carried and measured, as ADR 0008 says, the holder expected to lose.
+2. **Windows has no `ordered` host yet.** `EnumWindows` promises each window once, not an order
+   (§3.7), and its siblings are worded the same way, so (a) as decided reaches no Win32 program.
+   What Win32's enumerators need is the middle row. Before any Win32 declaration is marked, ten of
+   the 291 should be read against their pages. JavaScript's array methods are specified to
+   visit in ascending index order (ECMAScript's `forEach`, `map`), and `java.util.List.forEach` in
+   the list's order, so the browser and Android do have `ordered` hosts.
+3. **The asymmetry with our own definitions** (§3.2): `twice(fn(x) { n := n + x })` stays refused,
+   though a host's `ordered` call admits the same λ. It waits on a program that writes one.

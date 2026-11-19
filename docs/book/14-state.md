@@ -293,8 +293,9 @@ gen: docs/book/code/state/no-closure.oro: main: a function that mentions a cell 
 The reading above says why. Each `:=` starts a new name, and a later use means the latest one,
 *in the order the program is written*. `add` is a value: it could be applied twice, or never, or
 handed to something that applies it later. Where `add` is written, "the latest `n`" has no
-answer. A loop's body is the one function that may mention a cell, because `loop` applies it in
-an order the program states, and `again` passes the cell's next value as it passes the counter's.
+answer. Of the functions met so far, a loop's body is the one that may mention a cell, because
+`loop` applies it in an order the program states, and `again` passes the cell's next value as it
+passes the counter's. Chapter 18 meets one more, a window procedure, for the same kind of reason.
 
 The working form says what `add` meant: take the value in, give the new one back, and let the
 block write it.

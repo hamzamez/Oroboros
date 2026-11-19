@@ -145,13 +145,14 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
   lent until a named call (GlobalLock … GlobalUnlock) on the declarations, and the trailing block
   `f(a…) { x̄ -> b }` as the user-defined scope form, a derived operator, not a macro; it also spells
   callbacks tier 1 at a call;
-- **callbacks tier 1** ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)), its four
-  remaining questions, each derived in [callbacks-sketches.md](docs/callbacks-sketches.md) Part 3
-  (2026-11-20): T1-3 first (a written cell is the state monad's lift of a traversal, under
-  `ordered`, which Go documents for 12 visitors and not for `Map` or `IndexFunc`, §3.7; a
-  commuting write sound only where a host documents each element once, as `sync.Map.Range` does),
-  T1-4 takes its answer, T1-2's `ordered` needed only if T1-3 is (a), T1-5 `ctx(f)`; T1-6 settled
-  by events;
+- **callbacks tier 1** ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)), derived
+  in [callbacks-sketches.md](docs/callbacks-sketches.md) Part 3. **T1-3 decided (a)** (hamza,
+  2026-11-20): a cell written in the λ is the state monad's lift of a traversal, threaded where the
+  host documents its order (`ordered`: 12 of Go's visitors, not `Map` or `IndexFunc`), refused
+  elsewhere; T1-4 follows (a buffer lent like a cell). Open: T1-2's words (`calls K`, `ordered`,
+  the default ⊤, a quoted promise checked against the host's document), T1-5 `ctx(f)`; the JVM's
+  written cell a slot or a holder (measure both); Win32's enumerators each element once, the
+  middle strength, not `ordered` (§3.7–3.8); one ADR for tier 1 when T1-2 and T1-5 are decided;
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
   or (d) `Array(go.Value inout)`;
 - **a C string from Win32 into ours** (ADR 0091's rest, `GetWindowTextA`): the text lands in the

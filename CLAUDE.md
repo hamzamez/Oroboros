@@ -189,9 +189,11 @@ proven, trapped or closed on the word (Lemma C), or the program is refused.
   the borrow's arity, not by a message naming the segment;
 - invariant: an invariant over a buffer's elements or a cell's value;
 - checks: a witness for per-loop widening thresholds (`PlantLoopThresholdFault` reaches no
-  program), an audit of plants by flag;
+  program, a constructed one included, [probes-2026-11-19](gauntlet/results/probes-2026-11-19.md)),
+  an audit of plants by flag;
 - capacity: presence facts, a borrowed map's capacity, an O(1) windows `len`; maprealize: the
-  windows map 1.22× Go's;
+  windows map 1.22× Go's (mapvalue's three refusals prove on HEAD as reconstructed, probes-2026-11-19,
+  so they wait on a refusing program);
 - store: the builder, K(ℕ\*)'s carrier as a set, the `abandon` arm in a borrowed buffer's code;
 - strings (ADR 0117): ι_V as the identity, large string terms called as functions;
 - P8 (ADR 0113): a segment at a kept boundary (`pe`), affine templates, instances for U, per-call

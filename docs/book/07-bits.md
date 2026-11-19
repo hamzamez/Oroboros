@@ -1138,7 +1138,9 @@ Five functions, five different decisions, none of them yours:
   to 2⁵³.
 - `invert`: `-n - 1`, which is what `~` means.
 
-Where no way exists the program is refused there, and `cmd/portable` says so:
+Past the word there is a way too, the rung above it. A parameter declared wider than
+JavaScript's word arrives as a `BigInt`, and `&` on a `BigInt` is the 2-adic and itself. The
+result is in 0..255, so it comes back to a number:
 
 <!-- file docs/book/code/bits/no-js.oro -->
 ```go
@@ -1148,11 +1150,12 @@ export fn low(n ∈ -2^63..2^63-1) (0..255) { n & 255 }
 <!-- portable docs/book/code/bits/no-js.oro -->
 ```
 …
-portable to go, java, windows — not js
-W(go, java, windows) = [-9223372036854775808, 9223372036854775807]   (the meet of their words: derived, not assumed — ADR 0026)
+portable to go, js, java, windows
+W(go, js, java, windows) = [-9007199254740991, 9007199254740991]   (the meet of their words: derived, not assumed — ADR 0026)
 ```
 
-A JavaScript caller cannot hand this function a 64-bit integer, since it has none to hand.
+The cost differs by target and the answer does not: a `BigInt` `&` per call on JavaScript, an
+`and` instruction elsewhere ([bigbits-2026-11-19](../../gauntlet/results/bigbits-2026-11-19.md)).
 
 ## 7.12 What other languages do
 

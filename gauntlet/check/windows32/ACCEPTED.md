@@ -116,3 +116,13 @@ The initial compile-time baseline, the minimum of two sweeps.
 1 change(s):
 
 - new source — `examples/os/wc-nested.oro windows32`
+
+## 2026-11-19 — on 8f8dcbe9, with uncommitted changes
+
+**Reason:** ADR 0141 (ADR 0084's P5): SendMessageA's members, a C call's constant; examples/native/status-win.oro new (family-2026-11-19)
+
+180 runs: 119 emitted, 61 refused; 3086 of 3096 integer operations bounded, 426 of 442 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+1 change(s):
+
+- new source — `examples/native/status-win.oro windows32`

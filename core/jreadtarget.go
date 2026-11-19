@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 )
 
@@ -667,8 +668,20 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 					return nil, p.errorf("C's null pointer is written `NULL` (ADR 0131)")
 				case p.peek().kind == tIdent:
 					args = append(args, Name(Unspell(p.next().text)))
+				case p.peek().kind == tInt || (p.is("-") && p.peekN(1).kind == tInt):
+					// A CONSTANT, the member of a family a C function indexes by
+					// it (ADR 0084's P5, ADR 0141): SendMessageA's message
+					neg := p.accept("-")
+					v, err := strconv.ParseInt(p.next().text, 0, 64)
+					if err != nil {
+						return nil, p.errorf("a C argument's constant is an integer: %v", err)
+					}
+					if neg {
+						v = -v
+					}
+					args = append(args, Int(v))
 				default:
-					return nil, p.errorf("a C argument is a parameter, &x, &b[lo], len(s) or NULL, got %s", p.peek())
+					return nil, p.errorf("a C argument is a parameter, a constant, &x, &b[lo], len(s) or NULL, got %s", p.peek())
 				}
 				if !p.accept(",") {
 					break

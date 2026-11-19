@@ -772,6 +772,25 @@
 == examples/native/smooth-js.oro windows refused
    gen: examples/native/smooth-js.oro: in fill_into: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/native/status-win.oro go refused
+   gen: examples/native/status-win.oro: in main: `windows/richedit`.ReplaceSel is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/richedit` matched no file on the search path and this target provides no module windows/richedit either, so every name from it is unbound. Check the path.
+== examples/native/status-win.oro js refused
+   gen: examples/native/status-win.oro: in main: `windows/richedit`.ReplaceSel is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/richedit` matched no file on the search path and this target provides no module windows/richedit either, so every name from it is unbound. Check the path.
+== examples/native/status-win.oro java refused
+   gen: examples/native/status-win.oro: in main: `windows/richedit`.ReplaceSel is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/richedit` matched no file on the search path and this target provides no module windows/richedit either, so every name from it is unbound. Check the path.
+== examples/native/status-win.oro windows emitted 64eba6140aff68e8d9358c829cf6dd898b8cd78697fd505e1585d86dbb7e416b
+   note: status is inlined: status: argument 1 of digits is [-2147483646, 2147483648], not inside its parameter's 0..2147483647 (ADR 0101: a program function is decided under its parameters' sets)
+   note: gen-main: 3 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 3 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 3 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 20 of 20 integer operations bounded; 8 of 8 loop(s) proven terminating
+   note: 3 definition(s) kept as functions, 2 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/wndproc-win.oro go refused
    gen: examples/native/wndproc-win.oro: in main: `windows/winuser`.GetMessageA is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.

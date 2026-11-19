@@ -5,7 +5,16 @@
 // a pointer is aligned 4, not 8 (records-research §2.1: FINDTEXTEXA,
 // FORMATRANGE); on i686, whose natural alignments are at most 4, it changes
 // nothing.
+//
+// AND ITS MESSAGES, each a member of SendMessageA's family (ADR 0084's P5, ADR
+// 0141). SendMessageA is a dependent product over the message number,
+// Π(m). HWND × W(m) × L(m) → R(m), which C erases to integers
+// (sendmessage-research.md). Each member is one declaration at its message's
+// constant, its wParam and lParam the types the message gives them, its name
+// the message's, as windowsx.h names its crackers. A pointer in lParam is the
+// integer carrying it, converted in the call.
 module windows/richedit {
+    use windows/minwindef
     use windows/winnt
     use windows/windef
 
@@ -18,4 +27,31 @@ module windows/richedit {
         hdc ∈ windef.HDC, hdcTarget ∈ windef.HDC, rc ∈ windef.RECT, rcPage ∈ windef.RECT, chrg ∈ CHARRANGE
     }
     repr FORMATRANGE c(hdc, hdcTarget, rc, rcPage, chrg) pack(4)
+
+    // EM_EXGETSEL (WM_USER + 52): the selection, into the CHARRANGE at lParam
+    fn ExGetSel(w ∈ windef.HWND) (cr ∈ CHARRANGE, r ∈ minwindef.LRESULT) {
+        host expr call SendMessageA(w, 1076, 0, &cr) stdcall lib "user32"
+    }
+    // EM_EXSETSEL (WM_USER + 55): select cr, read from lParam; answers the
+    // selection's end
+    fn ExSetSel(w ∈ windef.HWND, cr ∈ CHARRANGE) (r ∈ minwindef.LRESULT) {
+        host expr call SendMessageA(w, 1079, 0, &cr) stdcall lib "user32"
+    }
+    // EM_EXLINEFROMCHAR (WM_USER + 54): the 0-based line holding character ch
+    fn ExLineFromChar(w ∈ windef.HWND, ch ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT) {
+        host expr call SendMessageA(w, 1078, 0, ch) stdcall lib "user32"
+    }
+    // EM_LINEINDEX (0x00BB): the character index where line l begins
+    fn LineIndex(w ∈ windef.HWND, l ∈ minwindef.WPARAM) (r ∈ minwindef.LRESULT) {
+        host expr call SendMessageA(w, 187, l, 0) stdcall lib "user32"
+    }
+    // EM_GETLINECOUNT (0x00BA): the number of lines
+    fn GetLineCount(w ∈ windef.HWND) (r ∈ minwindef.LRESULT) {
+        host expr call SendMessageA(w, 186, 0, 0) stdcall lib "user32"
+    }
+    // EM_REPLACESEL (0x00C2): the selection replaced by s, undoable when undo
+    // is nonzero
+    fn ReplaceSel(w ∈ windef.HWND, undo ∈ minwindef.WPARAM, s ∈ String) (r ∈ minwindef.LRESULT) where nulfree(s) {
+        host expr call SendMessageA(w, 194, undo, s) stdcall lib "user32"
+    }
 }

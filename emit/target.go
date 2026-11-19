@@ -2444,6 +2444,9 @@ func (tg *Target) cPrototypes() error {
 			if err != nil {
 				return fmt.Errorf("%s: %v", core.ShowName(n), err)
 			}
+			if err := tg.memberOfFamily(n, q, args); err != nil {
+				return err
+			}
 			q.CArgs = args
 			tg.Prims[n] = q
 			for _, c := range args {
@@ -5062,6 +5065,12 @@ type CArg struct {
 	Kind    CArgKind
 	I, J, K int
 	Signed  bool // CLen, CDiff: the C integer is signed, its top 2^(w−1) − 1
+	// Val is a CConst's value. Set is the C function's own parameter set at
+	// this position, from its erased declaration (ADR 0141): a CConst's C
+	// type, and for a CParam whose own C type is a pointer where the
+	// prototype takes an integer, the integer carrying it (P5).
+	Val int64
+	Set string
 }
 
 // CArgKind is a C argument term's form.
@@ -5074,6 +5083,7 @@ const (
 	CRef                   // &x, x a struct: &x of a fresh copy of its encoding
 	CLen                   // len(s), s a byte table: its length as the C integer of J bits, Signed its type's sign
 	CDiff                  // hi − lo, a segment's length, I hi, J lo, as the C integer of K bits, Signed as CLen's
+	CConst                 // a constant, Val, of the prototype's type at its position, Set (ADR 0141)
 )
 
 // PlantCArgDropped accepts a C call whose argument terms leave a parameter
@@ -5105,6 +5115,8 @@ func resolveCArgs(q Prim) ([]CArg, error) {
 	lens := make([]int, len(q.Args))
 	for _, t := range q.cargTerm.Kids[1:] {
 		switch {
+		case t.Kind == core.KInt:
+			out = append(out, CArg{Kind: CConst, Val: t.Int})
 		case t.Kind == core.KName && t.Name == "null":
 			out = append(out, CArg{Kind: CNull})
 		case t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "amp":
@@ -5410,3 +5422,75 @@ func containsInt(xs []int, x int) bool {
 	}
 	return false
 }
+
+// memberOfFamily types a declaration that is one member of a family a C
+// function indexes by a constant (ADR 0084's P5, ADR 0141): SendMessageA's
+// message, each member `call SendMessageA(w, 1076, 0, &cr)`. Its C arguments
+// are typed by the function's erased declaration, the one whose host clause
+// calls the same symbol with its parameters in order: a constant by the
+// prototype's parameter at its position, within that set; and a pointer where
+// the prototype takes an integer, as SendMessageA's LPARAM, by that integer,
+// the integer carrying it. So every member prints the one prototype the
+// erased declaration does, and they agree as one `declare`. A declaration with
+// no constant among its arguments is no member and is left as it is.
+func (tg *Target) memberOfFamily(n string, q Prim, args []CArg) error {
+	member := false
+	for _, c := range args {
+		if c.Kind == CConst {
+			member = true
+		}
+	}
+	if !member {
+		return nil
+	}
+	var base *Prim
+	names := make([]string, 0)
+	for m, b := range tg.Prims {
+		if b.CSym == q.CSym && b.cargTerm == nil && !strings.HasSuffix(m, "#seg") {
+			names = append(names, m)
+		}
+	}
+	sort.Strings(names)
+	if len(names) > 0 {
+		b := tg.Prims[names[0]]
+		base = &b
+	}
+	if base == nil || PlantFamilyUntyped {
+		return fmt.Errorf("%s: a constant among %s's arguments makes it a member of %s's family (ADR 0141), "+
+			"typed by %s's own declaration, its parameters in order, and none is in scope", core.ShowName(n), q.CSym, q.CSym, q.CSym)
+	}
+	if len(args) != len(base.Args) {
+		return fmt.Errorf("%s passes %d C arguments, and %s's declaration takes %d", core.ShowName(n), len(args), q.CSym, len(base.Args))
+	}
+	for i := range args {
+		set := base.Args[i]
+		bll, _, _, ok := tg.CType(set)
+		if !ok {
+			return fmt.Errorf("%s: %s's parameter %d, %s, is no C type", core.ShowName(n), q.CSym, i+1, core.ShowSet(set))
+		}
+		switch args[i].Kind {
+		case CConst:
+			lo, hi, isRange := core.IntRangeBig(set)
+			v := big.NewInt(args[i].Val)
+			if !isRange || v.Cmp(lo) < 0 || v.Cmp(hi) > 0 {
+				return fmt.Errorf("%s: the constant %d at argument %d is not in %s's parameter set %s", core.ShowName(n), args[i].Val, i+1, q.CSym, core.ShowSet(set))
+			}
+			args[i].Set = set
+		case CParam, CRef:
+			hll, _, _, ok := tg.CType(q.Args[args[i].I])
+			if args[i].Kind == CRef || ok && hll == "ptr" {
+				hll, ok = "ptr", true
+			}
+			if ok && hll == "ptr" && strings.HasPrefix(bll, "i") {
+				// the integer carrying a pointer (P5): LPARAM holds &cr, or a
+				// C string's bytes
+				args[i].Set = set
+			}
+		}
+	}
+	return nil
+}
+
+// PlantFamilyUntyped refuses every member of a family, as if its C function's
+// declaration were missing (TestAFamilyIsOneDeclarationPerMember).
+var PlantFamilyUntyped bool

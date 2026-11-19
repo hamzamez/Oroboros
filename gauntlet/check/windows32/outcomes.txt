@@ -249,6 +249,13 @@
 == examples/native/smooth-js.oro windows32 refused
    gen: examples/native/smooth-js.oro: in fill_into: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/native/status-win.oro windows32 emitted 7e75caf7317c718ca98a6c3b24e0c0d0d264938088ae511c43b19303fb6aee71
+   note: status is inlined: status: argument 1 of digits is [-2147483646, 2147483648], not inside its parameter's 0..2147483647 (ADR 0101: a program function is decided under its parameters' sets)
+   note: gen-main: 20 of 20 integer operations bounded; 8 of 8 loop(s) proven terminating
+   note: 3 definition(s) kept as functions, 2 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/wndproc-win.oro windows32 emitted 90658f522f30eb0ae8be19ac0a7e54eba063f0296af2f0184463d5dc6db8a537
    note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 2 definition(s) kept as functions, 0 inlined by their contracts

@@ -1178,6 +1178,19 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 		tys = append(tys, ll)
 		return ll + " " + v
 	}
+	// THE INTEGER CARRYING A POINTER (ADR 0084's P5, ADR 0141): the prototype
+	// takes an integer here, SendMessageA's LPARAM, and the member passes a
+	// pointer, &x, a struct's copy or a C string's bytes. The pointer is the
+	// parameter's own C conversion, then converted to the integer, as C's cast.
+	carried := func(c emit.CArg) string {
+		v := strings.TrimPrefix(param(c.I), "ptr ")
+		tys = tys[:len(tys)-1]
+		ll, _, _, _ := p.tg.CType(c.Set)
+		r := "%" + p.fresh("c")
+		p.line("%s = ptrtoint ptr %s to %s", r, v, ll)
+		tys = append(tys, ll)
+		return ll + " " + r
+	}
 	if q.CArgs == nil {
 		for i := range s.Args {
 			ops = append(ops, param(i))
@@ -1190,6 +1203,10 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 	for _, c := range q.CArgs {
 		switch c.Kind {
 		case emit.CParam:
+			if c.Set != "" {
+				ops = append(ops, carried(c))
+				continue
+			}
 			ops = append(ops, param(c.I))
 		case emit.CElem:
 			b := param(c.I)
@@ -1198,8 +1215,20 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 			ops = append(ops, "ptr "+r)
 		case emit.CNull:
 			ops, tys = append(ops, "ptr null"), append(tys, "ptr")
+		case emit.CConst:
+			// a family's member (ADR 0141): the constant, of the prototype's
+			// type at its position
+			ll, _, _, _ := p.tg.CType(c.Set)
+			if PlantFamilyConstWord {
+				ll = "i64"
+			}
+			ops, tys = append(ops, fmt.Sprintf("%s %d", ll, c.Val)), append(tys, ll)
 		case emit.CRef:
 			// &x: the struct's fresh copy, a reference, by its address (ADR 0130)
+			if c.Set != "" {
+				ops = append(ops, carried(c))
+				continue
+			}
 			ops = append(ops, param(c.I))
 		case emit.CDiff:
 			// hi − lo, a segment's length (ADR 0132), as the C integer of K bits
@@ -1708,3 +1737,8 @@ func containsIdx(xs []int, i int) bool {
 // _In_ form: PtInRect then reads the address as its point
 // (TestAStructIsPassedByValue).
 var PlantByValueAsPointer bool
+
+// PlantFamilyConstWord types a family member's constant as the word, not as the
+// prototype's parameter at its position: on i686 the stdcall frame is then
+// wider than the callee pops (TestAFamilyIsOneDeclarationPerMember).
+var PlantFamilyConstWord bool

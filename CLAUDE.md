@@ -324,9 +324,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **9,028 of 9,082** integer operations proven inside their target's word, the 54 left
+- **Provability**: **9,057 of 9,111** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **952 of 993** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **961 of 1,002** loops proven to
   terminate (size-change termination; the 41 left include `wc`'s and `wc-nested`'s read loops; fourteen of them are windows' `os` cell's read and write
   loops, whose progress is a count the host returns). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
@@ -711,6 +711,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | On ℕ ∩ S₆₄, `%` and `/` by a constant divisor are `srem`/`sdiv`, a variable divisor keeping `urem`/`udiv`; amends ADR 0088, measured on the corpus | [0138](docs/decisions/0138-a-remainder-by-a-constant-of-a-natural-is-srem.md) |
 | A tuple pattern over a loop whose body jumps out is a `let` of several names, which every walker of a clause chain reads (`joinLet`); reverses 0134's B | [0139](docs/decisions/0139-a-tuple-pattern-over-a-loop-is-a-let-of-several-names.md) |
 | A lent buffer handed back is a primed result, `(b' ∈ Array(V) linear)`; `buffer(V)` at a result refused | [0140](docs/decisions/0140-a-lent-buffer-handed-back-is-a-primed-result.md) |
+| A family's member is its C function called at a constant, `call SendMessageA(w, 1076, 0, &cr)`, typed by the erased declaration; a pointer at an integer the integer carrying it (ADR 0084's P5) | [0141](docs/decisions/0141-a-family-member-is-its-c-function-at-a-constant.md) |
 
 ## Build commands
 

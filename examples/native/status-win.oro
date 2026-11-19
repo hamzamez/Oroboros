@@ -1,0 +1,58 @@
+// TINYRETROPAD'S STATUS LINE, "Ln L, Col C", as UpdateStatus computes it
+// (ADR 0084's P5, ADR 0141): a Rich Edit control asked by three members of
+// SendMessageA's family, EM_EXGETSEL for the caret, EM_EXLINEFROMCHAR for its
+// line, EM_LINEINDEX for the line's first character, the column the caret's
+// distance from it. A control created by this thread answers SendMessageA at
+// once, with no message loop.
+//
+//   build -target=windows -o status.exe examples/native/status-win.oro
+//
+// The text is two lines, "first line" and "second line". The caret is put at
+// character 15, in the second line ("\r" ends the first, Rich Edit's line end),
+// and the line's first character is 11, so it prints "Ln 2, Col 5", then the
+// line count, 2, then the same after EM_REPLACESEL put "X" at the caret.
+use win/print
+use windows/winuser
+use windows/windef
+use windows/libloaderapi
+use windows/richedit
+use llvm
+
+// n's decimal digits, most significant first, at least one.
+fn digits(n ∈ 0..2^31-1) (String) {
+    loop i = 0, v = n, s = "" {
+        i < 10 && (i < 1 || v > 0) -> again(i + 1, v / 10, string_of(48 + v % 10) ++ s)
+        else -> s
+    }
+}
+
+// A control's lines and characters are counted in LONGs, CHARRANGE's own
+// fields: a line or an index outside 0..2^31-1 is no answer of a Rich Edit
+// control, and the status says so.
+fn status(h ∈ windef.HWND) (Bool) {
+    (cr, r) = richedit.ExGetSel(h)
+    ignore(r)
+    line = richedit.ExLineFromChar(h, cr.cpMax)
+    case {
+        line >= 0 && line < 2^31 - 1 -> {
+            start = richedit.LineIndex(h, line)
+            case {
+                start >= 0 && start < 2^31 && cr.cpMax >= start && cr.cpMax - start < 2^31 - 1 ->
+                    print.print_str("Ln " ++ digits(line + 1) ++ ", Col " ++ digits(cr.cpMax - start + 1))
+                else -> print.print_str("no column")
+            }
+        }
+        else -> print.print_str("no line")
+    }
+}
+
+export fn main() {
+    ignore(libloaderapi.LoadLibraryA("Msftedit.dll"))
+    h = winuser.CreateWindowExA(0, "RICHEDIT50W", "", 4, 0, 0, 200, 100, llvm.null(), llvm.null(), llvm.null(), llvm.null())
+    ignore(winuser.SetWindowTextA(h, "first line\nsecond line"))
+    ignore(richedit.ExSetSel(h, record { cpMin : 15, cpMax : 15 }))
+    ignore(status(h))
+    ignore(print.print_int(richedit.GetLineCount(h)))
+    ignore(richedit.ReplaceSel(h, 1, "X"))
+    status(h)
+}

@@ -3944,3 +3944,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/os/wc-nested.oro java`
 - new source — `examples/os/wc-nested.oro js`
 - new source — `examples/os/wc-nested.oro windows`
+
+## 2026-11-19 — on 8f8dcbe9, with uncommitted changes
+
+**Reason:** ADR 0141 (ADR 0084's P5): SendMessageA's members, a C call's constant; examples/native/status-win.oro new (family-2026-11-19)
+
+720 runs: 492 emitted, 228 refused; 9057 of 9111 integer operations bounded, 961 of 1002 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/native/status-win.oro go`
+- new source — `examples/native/status-win.oro java`
+- new source — `examples/native/status-win.oro js`
+- new source — `examples/native/status-win.oro windows`

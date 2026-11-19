@@ -410,9 +410,10 @@ declaration's parameters and results:
 | `&r`, r a result | the address of a fresh cell of r's set, which r is after the call (ADR 0131) | an `alloca`, read after the call |
 | `&b[lo]`, b a byte table, lo ∈ ℕ ∩ W, `where` lo ≤ len(b) | &b[lo] | `getelementptr inbounds i8, ptr s, i64 8`, then `getelementptr inbounds i8, ptr %c, i64 lo` |
 | `NULL` | C's null pointer | `ptr null` |
+| `k`, an integer, in a family's member (ADR 0141) | the constant, of the prototype's parameter set at its position, within it | `iw k`, w that set's width |
 
 `&x` is decided by its binder: a parameter is `const T*`, a result an out-cell. Nothing else of C is
-written here: no casts, arithmetic, macros or fields. The term is **linear**: every parameter appears
+written here: no casts, arithmetic, macros or fields; a constant only in a family's member. The term is **linear**: every parameter appears
 exactly once, except that a byte table's address appears once and its length at most once, the
 product (address, length) taken apart (ADR 0132); every result written `&r` appears once, and the
 one result not written so is the C function's own return. **A segment** b[lo:hi] passed at a byte
@@ -425,6 +426,21 @@ bounding it by a C integer type's top; `&b[lo]` of a table not of bytes, a signe
 `where` that does not bound lo by len(b) (directly, or as lo + m ≤ len(b) with m natural). The
 spellings before ADR 0131, `call "F"`, `ref(x)`, `elem(b, lo)` and `null`, are refused naming
 this one.
+
+**A family indexed by a constant** (ADR 0084's P5, ADR 0141): a declaration with a constant among
+its arguments is a **member** of its C function's family, `call SendMessageA(w, 1076, 0, &cr)` for
+EM_EXGETSEL. Its arguments are typed by the function's **erased declaration**, the one calling the
+same symbol with its parameters in order (`winuser.SendMessageA`), position by position:
+- a constant takes the prototype's set at its position, within which it must lie;
+- a pointer, `&x`, a struct's copy or a C string's bytes, where the prototype takes an integer, as
+  SendMessageA's LPARAM, is **the integer carrying it**: converted by `ptrtoint` to that integer
+  after its own conversion (s + 8 for a string).
+
+So every member prints the erased declaration's prototype, and all of a program's calls of the
+function agree as one `declare`: `(ptr, i32, i64, i64)` on x86_64, `x86_stdcallcc (ptr, i32, i32,
+i32)` on i686. A member with no erased declaration in scope, an argument count other than its, or
+a constant outside its set is refused when the target loads. Win32's prototype check reads a member
+against the SDK's declaration of the function it calls.
 
 **The forms the reader hands on.** The call is `(call "F" (args t…) CONV)`, each t a parameter's
 name, `(amp x)`, `(elem b lo)`, `(len s)` or `null`; the results written `&r` lead the result tuple,

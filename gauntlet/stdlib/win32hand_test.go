@@ -46,7 +46,9 @@ func TestWin32DeclarationsAreTheirPrototypes(t *testing.T) {
 	}
 	modules := map[string]bool{}
 	for n, p := range hand.Prims {
-		if p.CSym != "" && strings.HasPrefix(n, "windows/") {
+		// a family's member (ADR 0141) is checked against the prototype of
+		// the function it calls, in that function's header
+		if p.CSym != "" && strings.HasPrefix(n, "windows/") && !isMember(p) {
 			modules[n[:strings.LastIndex(n, ".")]] = true
 		}
 	}
@@ -74,14 +76,50 @@ func TestWin32DeclarationsAreTheirPrototypes(t *testing.T) {
 		t.Fatal(err)
 	}
 	var names []string
+	members := 0
 	for n, p := range tg.Prims {
 		// a segment variant is derived from its declaration, which is checked
 		// against the prototype in its place (ADR 0132)
 		if p.CSym != "" && modules[moduleOfName(n)] && !strings.HasSuffix(n, "#seg") {
 			names = append(names, n)
 		}
+		// A FAMILY'S MEMBER (ADR 0084's P5, ADR 0141): its C arguments against
+		// the SDK's declaration of the function it calls, a constant within the
+		// prototype's set at its position.
+		if p.CSym != "" && strings.HasPrefix(n, "windows/") && isMember(p) {
+			g, ok := sdkByCSym(tg, p.CSym)
+			if !ok {
+				t.Errorf("%s is a member of %s's family, and the SDK declares no %s", n, p.CSym, p.CSym)
+				continue
+			}
+			if err := agreeC(tg, n, p, g); err != nil {
+				t.Error(err)
+			}
+			members++
+		}
 	}
 	sort.Strings(names)
+	if members == 0 {
+		t.Error("no family member is checked: SendMessageA's members (richedit) went unread")
+	}
+	// THE MEMBER CHECK CAN FAIL: a member one argument short, and one whose
+	// constant is of another width than the prototype's, are each caught.
+	if g, ok := sdkByCSym(tg, "SendMessageA"); ok {
+		short := func(p *emit.Prim) { p.CArgs = p.CArgs[:len(p.CArgs)-1] }
+		wide := func(p *emit.Prim) {
+			for i := range p.CArgs {
+				if p.CArgs[i].Kind == emit.CConst {
+					p.CArgs[i].Set = "int 0 65535"
+				}
+			}
+		}
+		for what, f := range map[string]func(*emit.Prim){"one argument short": short, "a constant of another width": wide} {
+			n, p := mutateC(tg, "windows/richedit.ExGetSel", f)
+			if err := agreeC(tg, n, p, g); err == nil {
+				t.Errorf("planted: a member %s (%s) was not caught", what, n)
+			}
+		}
+	}
 	checked := 0
 	for _, n := range names {
 		g, inSDK := tg.Prims[sdkName(n)]
@@ -193,6 +231,33 @@ func mutateC(tg *emit.Target, n string, f func(*emit.Prim)) (string, emit.Prim) 
 	return n, p
 }
 
+// isMember says whether p is a member of a family its C function indexes by a
+// constant (ADR 0141): a constant among its written C arguments.
+func isMember(p emit.Prim) bool {
+	for _, c := range p.CArgs {
+		if c.Kind == emit.CConst {
+			return true
+		}
+	}
+	return false
+}
+
+// sdkByCSym is the SDK's declaration of the C function sym, wherever its
+// header is.
+func sdkByCSym(tg *emit.Target, sym string) (emit.Prim, bool) {
+	var names []string
+	for n, g := range tg.Prims {
+		if strings.HasPrefix(n, "win/") && g.CSym == sym {
+			names = append(names, n)
+		}
+	}
+	if len(names) == 0 {
+		return emit.Prim{}, false
+	}
+	sort.Strings(names)
+	return tg.Prims[names[0]], true
+}
+
 // sdkName is a hand name's generated counterpart: windows/H.F is win/H.F.
 func sdkName(n string) string { return "win/" + strings.TrimPrefix(n, "windows/") }
 
@@ -224,6 +289,13 @@ func agreeC(tg *emit.Target, n string, h, g emit.Prim) error {
 	var cs []string
 	if len(h.CArgs) > 0 {
 		for _, c := range h.CArgs {
+			switch {
+			case c.Set != "" && (c.Kind == emit.CParam || c.Kind == emit.CRef):
+				// the integer carrying a pointer (P5): the call converts it to
+				// the prototype's integer, which is what crosses
+				cs = append(cs, c.Set)
+				continue
+			}
 			switch c.Kind {
 			case emit.CParam:
 				cs = append(cs, h.Args[c.I])
@@ -233,6 +305,8 @@ func agreeC(tg *emit.Target, n string, h, g emit.Prim) error {
 				cs = append(cs, "null")
 			case emit.CRef:
 				cs = append(cs, h.Args[c.I]) // the copy's address: a struct's cell is ptr
+			case emit.CConst:
+				cs = append(cs, c.Set) // the prototype's own set, its value within it
 			case emit.CLen:
 				// len(s), the C integer its `where` bounds it in: its type's
 				// whole value set, signed or not (ADR 0126, 0132)

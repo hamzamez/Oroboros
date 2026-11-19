@@ -22,3 +22,5 @@
 # because the last matching line wins.
 gauntlet/check/testdata/emitted/** -text
 gauntlet/check/outcomes.txt -text
+gauntlet/check/windows32/testdata/emitted/** -text
+gauntlet/check/windows32/outcomes.txt -text

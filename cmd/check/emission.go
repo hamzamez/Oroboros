@@ -389,7 +389,7 @@ func countEmitted(list []outcome) (emitted, refused int) {
 // ---------------------------------------------------------------- the step
 
 func (c *checker) emission() result {
-	baseDir := filepath.Join(c.root, "gauntlet", "check")
+	baseDir := filepath.Join(c.root, c.baseRel())
 	newDir := filepath.Join(c.work, "emitted")
 	t0 := time.Now()
 	outs, err := c.sweep(newDir)
@@ -470,7 +470,7 @@ func (c *checker) emission() result {
 // acceptBaseline makes this run's emission the committed baseline and appends
 // the reason to the log.
 func (c *checker) acceptBaseline(reason string, tooling status) error {
-	baseDir := filepath.Join(c.root, "gauntlet", "check")
+	baseDir := filepath.Join(c.root, c.baseRel())
 	newDir := filepath.Join(c.work, "emitted")
 	// Under testdata/, which the go tool never builds: the baseline holds one Go
 	// file per program, all in `package main`, and `go vet ./...` read them as one
@@ -521,7 +521,7 @@ func (c *checker) acceptBaseline(reason string, tooling status) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n## %s — on %s\n\n**Reason:** %s\n\n", time.Now().UTC().Format("2006-01-02"), head, reason)
 	fmt.Fprintf(&b, "%d runs: %d emitted, %d refused; %d of %d integer operations bounded, %d of %d loops proven. "+
-		"compiler pass, differential pass, tooling %s.\n\n", len(c.emitted), e, r, bnd, ops, p, loops, tooling)
+		"compiler pass, %s pass, tooling %s.\n\n", len(c.emitted), e, r, bnd, ops, p, loops, c.differentialStep(), tooling)
 	if c.noBaseline {
 		b.WriteString("The initial baseline.\n")
 	} else if len(c.changes) > 0 {

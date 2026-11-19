@@ -81,6 +81,8 @@ type step struct {
 type checker struct {
 	root    string // the repository root
 	work    string // .check/, git-ignored: this run's emission and every log
+	base    string // the baseline's directory under root; "" is gauntlet/check
+	tier    string // "" for the four targets; "windows32" for the second tier
 	jobs    int
 	results map[string]result
 
@@ -104,6 +106,61 @@ type checker struct {
 
 var stepNames = []string{"vet", "endings", "compiler", "emission", "gauntlet", "ir", "assemble", "differential", "book", "tooling"}
 
+// THE SECOND TIER (CLAUDE.md, hamza 2026-11-19: windows32 "a second tier
+// platform, check less often than the others"): `-tier2` adds windows32's
+// emission, against its own baseline in gauntlet/check/windows32/, and its
+// differential, every case built and run on windows32 alone. Run at each
+// assessment and before accepting a change to the LLVM layer, lib/rt or
+// windows32's targets.
+var tier2Steps = []string{"emission-windows32", "differential-windows32"}
+
+// baseRel is the baseline's directory, relative to the root.
+func (c *checker) baseRel() string {
+	if c.base == "" {
+		return "gauntlet/check"
+	}
+	return c.base
+}
+
+// emissionStep and differentialStep are the steps whose results this checker's
+// -accept reads.
+func (c *checker) emissionStep() string {
+	if c.tier == "" {
+		return "emission"
+	}
+	return "emission-" + c.tier
+}
+
+func (c *checker) differentialStep() string {
+	if c.tier == "" {
+		return "differential"
+	}
+	return "differential-" + c.tier
+}
+
+// tier2Checker is c for windows32: its own work directory and baseline, its
+// results the run's.
+func (c *checker) tier2Checker() *checker {
+	return &checker{
+		root:    c.root,
+		work:    filepath.Join(c.work, "windows32"),
+		base:    "gauntlet/check/windows32",
+		tier:    "windows32",
+		jobs:    c.jobs,
+		results: c.results,
+		retime:  c.retime,
+	}
+}
+
+// withTargets runs f with the emission sweep's targets set to ts, restoring
+// them after: the second tier's sweep runs alone, so nothing reads them at once.
+func withTargets(ts []struct{ name, ext string }, f func()) {
+	old := targets
+	targets = ts
+	defer func() { targets = old }()
+	f()
+}
+
 func main() {
 	skipList := flag.String("skip", "", "comma-separated steps to skip")
 	onlyList := flag.String("only", "", "comma-separated steps to run, and no others")
@@ -115,6 +172,7 @@ func main() {
 	// keep the old cost, and a regression all the way back would pass unflagged.
 	regen := flag.String("regen", "", "write the gauntlet's generated files (gauntlet/regen.txt) under this directory, `.` for the gauntlet itself, and exit")
 	retime := flag.Bool("retime", false, "with -accept: re-record the compile-time baseline even when no compile crossed the rule")
+	tier2 := flag.Bool("tier2", false, "add the second tier, windows32: its emission against gauntlet/check/windows32/ and its differential")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: check [-skip S,…] [-only S,…] [-accept REASON]\n"+
 			"steps: %s\n", strings.Join(stepNames, ", "))
@@ -137,6 +195,15 @@ func main() {
 	if err := os.MkdirAll(filepath.Join(c.work, "logs"), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, "check:", err)
 		os.Exit(1)
+	}
+	var c32 *checker
+	if *tier2 {
+		stepNames = append(stepNames, tier2Steps...)
+		c32 = c.tier2Checker()
+		if err := os.MkdirAll(filepath.Join(c32.work, "logs"), 0o755); err != nil {
+			fmt.Fprintln(os.Stderr, "check:", err)
+			os.Exit(1)
+		}
 	}
 	if *regen != "" {
 		if err := c.regenInto(*regen); err != nil {
@@ -165,6 +232,18 @@ func main() {
 		{"tooling", func(c *checker) result {
 			return c.command("tooling", c.root, "go", "test", "-count=1", "-timeout", "60m", "./gauntlet/stdlib/")
 		}},
+	}
+	if c32 != nil {
+		steps = append(steps,
+			step{"emission-windows32", func(c *checker) result {
+				var r result
+				withTargets([]struct{ name, ext string }{{"windows32", "ll"}}, func() { r = c32.emission() })
+				return r
+			}},
+			step{"differential-windows32", func(c *checker) result {
+				return c.command("differential-windows32", filepath.Join(c.root, "gauntlet", "differential"),
+					"go", "run", "run.go", "-targets", "windows32")
+			}})
 	}
 	only, err := stepSet(*onlyList)
 	if err != nil {
@@ -198,8 +277,8 @@ func main() {
 		switch {
 		case (len(only) > 0 && !only[s.name]) || skipped[s.name]:
 			c.results[s.name] = result{status: skip}
-		case s.name == "emission":
-			fmt.Println("── emission, alone")
+		case s.name == "emission" || s.name == "emission-windows32":
+			fmt.Printf("── %s, alone\n", s.name)
 			runStep(s)
 		default:
 			rest = append(rest, s)
@@ -224,6 +303,9 @@ func main() {
 
 	if *accept != "" {
 		c.acceptRun(*accept)
+		if c32 != nil {
+			withTargets([]struct{ name, ext string }{{"windows32", "ll"}}, func() { c32.acceptRun(*accept) })
+		}
 	}
 
 	fmt.Println("\n── summary")
@@ -250,11 +332,12 @@ func main() {
 // acceptRun applies -accept after every step has run, because the evidence it
 // requires — the differential suite — runs after the emission step.
 func (c *checker) acceptRun(reason string) {
-	r := c.results["emission"]
+	es := c.emissionStep()
+	r := c.results[es]
 	switch {
 	case !c.emissionRan:
 		fmt.Println("\n── accept: refused — the emission step did not run")
-		c.results["emission"] = result{status: fail, detail: "-accept needs the emission step"}
+		c.results[es] = result{status: fail, detail: "-accept needs the emission step"}
 		return
 	case r.status == fail:
 		fmt.Println("\n── accept: refused — the emission step failed")
@@ -263,10 +346,10 @@ func (c *checker) acceptRun(reason string) {
 		fmt.Println("\n── accept: nothing to accept — emission is byte-identical to the baseline and no compile is slower or faster")
 		return
 	}
-	for _, need := range []string{"compiler", "differential"} {
+	for _, need := range []string{"compiler", c.differentialStep()} {
 		if got := c.results[need]; got.status != pass {
 			fmt.Printf("\n── accept: refused — %s must pass in the same run, and it is %s\n", need, got.status)
-			c.results["emission"] = result{status: review,
+			c.results[es] = result{status: review,
 				detail: r.detail + fmt.Sprintf(" — NOT accepted: %s is %s", need, got.status)}
 			return
 		}
@@ -274,14 +357,14 @@ func (c *checker) acceptRun(reason string) {
 	tooling := c.results["tooling"].status
 	if tooling == fail {
 		fmt.Println("\n── accept: refused — the tooling step failed")
-		c.results["emission"] = result{status: review, detail: r.detail + " — NOT accepted: tooling failed"}
+		c.results[es] = result{status: review, detail: r.detail + " — NOT accepted: tooling failed"}
 		return
 	}
 	if err := c.acceptBaseline(reason, tooling); err != nil {
-		c.results["emission"] = result{status: fail, detail: "accepting: " + err.Error()}
+		c.results[es] = result{status: fail, detail: "accepting: " + err.Error()}
 		return
 	}
-	fmt.Println("\n── accept: the baseline is this run's emission; logged in gauntlet/check/ACCEPTED.md")
+	fmt.Printf("\n── accept: the baseline is this run's emission; logged in %s/ACCEPTED.md\n", c.baseRel())
 	what := fmt.Sprintf("ACCEPTED %d change(s)", len(c.changes))
 	if len(c.fast) > 0 {
 		what += fmt.Sprintf(" and %d faster compile(s)", len(c.fast))
@@ -294,7 +377,7 @@ func (c *checker) acceptRun(reason string) {
 	} else if c.noTimeBaseline && len(c.changes) == 0 {
 		what = "ACCEPTED the initial compile-time baseline"
 	}
-	c.results["emission"] = result{status: pass, detail: what + " — " + c.summary}
+	c.results[es] = result{status: pass, detail: what + " — " + c.summary}
 }
 
 // command runs one external step, logs everything it prints to .check/logs, and

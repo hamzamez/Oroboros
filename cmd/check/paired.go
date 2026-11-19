@@ -102,10 +102,10 @@ func pairedVerdict(suspects []slowCompile, pairs map[timeKey]pairedSide) (kept, 
 	return kept, cleared
 }
 
-// baselineCommit is the commit that last wrote compiletime.txt. A baseline with
-// uncommitted changes has no binary to pair against.
-func baselineCommit(root string) (string, error) {
-	const file = "gauntlet/check/compiletime.txt"
+// baselineCommit is the commit that last wrote base's compiletime.txt. A
+// baseline with uncommitted changes has no binary to pair against.
+func baselineCommit(root, base string) (string, error) {
+	file := base + "/compiletime.txt"
 	st, err := exec.Command("git", "-C", root, "status", "--porcelain", "--", file).Output()
 	if err != nil {
 		return "", fmt.Errorf("git status: %v", err)
@@ -217,7 +217,7 @@ func (c *checker) timeCompile(gen, root string, key timeKey) (time.Duration, err
 // the ones the pair confirms, the ones it clears, and a sentence for the note.
 // When no pair can be made the suspects stand, and the note says why.
 func (c *checker) pairSuspects(suspects []slowCompile) (kept, cleared []slowCompile, note string) {
-	commit, err := baselineCommit(c.root)
+	commit, err := baselineCommit(c.root, c.baseRel())
 	if err != nil {
 		return suspects, nil, "; not paired against the baseline's binary: " + err.Error()
 	}

@@ -5,7 +5,20 @@ go run ./cmd/check                    # every step
 go run ./cmd/check -skip tooling      # every step but the host surveys, which need every toolchain
 go run ./cmd/check -only emission     # one step, or a comma-separated list
 go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline, and log why
+go run ./cmd/check -tier2             # and the second tier, windows32
 ```
+
+**The second tier, windows32** (hamza, 2026-11-19: "a second tier platform, check less often than
+the others"). `-tier2` adds two steps:
+- `emission-windows32`: the sweep on windows32 alone, against its own baseline in
+  [windows32/](windows32/), with the same rules and its own compile-time gate. It runs alone, after
+  `emission`;
+- `differential-windows32`: `run.go -targets windows32`, every case built and run on windows32. A
+  case declares windows32 in its `// skip:` and `// checked:` lines as it does any target.
+
+It runs at each assessment, and before accepting a change to the LLVM layer (`targets/llvm/`,
+`ir/llvm`), `lib/rt` or windows32's targets. An `-accept` with `-tier2` keeps both baselines, each
+needing its own differential to pass.
 
 | step | what it runs |
 |---|---|
@@ -161,4 +174,5 @@ switch to work-2026-10-22, so `gen_report_native.go` was a week stale.
 | `outcomes.txt` | every source × target outcome, hash and compiler output |
 | `compiletime.txt` | every source × target compile time in the sweep, the minimum of two sweeps, in milliseconds |
 | `ACCEPTED.md` | every accepted change, with its reason |
+| `windows32/` | the second tier's baseline, the same four files (`-tier2`) |
 | `../../.gitattributes` | keeps git from converting this directory's line endings |

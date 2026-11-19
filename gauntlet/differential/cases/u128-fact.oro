@@ -15,6 +15,7 @@
 // skip: js because "`go/math/bits`.Add64 is not bound"
 // skip: java because "`go/math/bits`.Add64 is not bound"
 // skip: windows because "`go/math/bits`.Add64 is not bound"
+// skip: windows32 because "`go/math/bits`.Add64 is not bound"
 //
 // prints: string
 // inputs: 0 1 20 21 25 34 35

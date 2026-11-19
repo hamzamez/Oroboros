@@ -66,7 +66,7 @@ import (
 // Kept as an empty map rather than deleted outright so that `render` still has
 // one place to grow if a construct ever needs per-target spelling again.
 var ops = map[string]map[string]string{
-	"go": {}, "js": {}, "java": {}, "windows": {},
+	"go": {}, "js": {}, "java": {}, "windows": {}, "windows32": {},
 }
 
 // Printing is target-native on every host — it is the one thing a portable
@@ -79,6 +79,9 @@ var driver = map[string]struct{ uses, print string }{
 	// WINDOWS (ADR 0080, docs/spec/llvm.md) prints through lib/win/print.oro,
 	// written in the language's operators over WriteFile.
 	"windows": {"use win/print", "print.print_int"},
+	// WINDOWS32, the second tier (`-targets windows32`, cmd/check -tier2): the
+	// windows family's i686 member, the same library over the same Win32.
+	"windows32": {"use win/print", "print.print_int"},
 }
 
 // AND A DRIVER THAT PRINTS A STRING, selected by `// prints: string` on a case.
@@ -93,10 +96,11 @@ var driver = map[string]struct{ uses, print string }{
 // string to one — which is strings.md §2's finding arriving in the test harness
 // rather than in a program.
 var stringDriver = map[string]struct{ uses, print string }{
-	"go":      {"use go\nuse go/fmt", "fmt.Println"},
-	"js":      {"use js\nuse js/console as console", "console.log"},
-	"java":    {"use java\nuse java/System as sys", "sys.out_println"},
-	"windows": {"use win/print", "print.print_str"},
+	"go":        {"use go\nuse go/fmt", "fmt.Println"},
+	"js":        {"use js\nuse js/console as console", "console.log"},
+	"java":      {"use java\nuse java/System as sys", "sys.out_println"},
+	"windows":   {"use win/print", "print.print_str"},
+	"windows32": {"use win/print", "print.print_str"},
 }
 
 // What each target's artifact is CALLED, and how to run it.
@@ -114,9 +118,10 @@ var artifact = map[string]struct {
 	name string
 	run  func(out string) *exec.Cmd
 }{
-	"go":      {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
-	"windows": {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
-	"js":      {"out.mjs", func(o string) *exec.Cmd { return exec.Command("node", o) }},
+	"go":        {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
+	"windows":   {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
+	"windows32": {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
+	"js":        {"out.mjs", func(o string) *exec.Cmd { return exec.Command("node", o) }},
 	// THE JVM PRINTS IN THE PLATFORM CHARSET unless told otherwise, so a U+FFFD
 	// came out as `?` on Windows (strings.md §5, a property of PRINTING, not of
 	// the program). The output is compared as bytes, so it is asked for in
@@ -360,8 +365,11 @@ func repoRoot() string {
 	return filepath.Join(wd, "..", "..")
 }
 
-// targets are the four every case runs on.
+// targets are the four every case runs on, unless `-targets` names others;
+// allTargets are every target a case may name, in a skip or `// checked:`. The
+// second tier, windows32, runs only when named (cmd/check -tier2).
 var targets = []string{"go", "js", "java", "windows"}
+var allTargets = []string{"go", "js", "java", "windows", "windows32"}
 
 // buildBin is cmd/build, built once into the work directory; caseDir holds
 // the cases (`-cases DIR`, for the harness's own test).
@@ -470,6 +478,12 @@ func runCase(w *strings.Builder, c, work string, keep bool) bool {
 			agree = false
 		}
 	}
+	// EVERY TARGET RUN IS SKIPPED (one target named, and the case skips it):
+	// the skips are evaluated against the case's expectation, since there is
+	// no other target's answer.
+	if refT == "" && len(skips) > 0 {
+		ref = strings.ReplaceAll(expectFor(src), " ", "\n")
+	}
 	if !agree {
 		fmt.Fprintf(w, "FAIL %s — targets disagree\n", name)
 		for _, t := range targets {
@@ -525,7 +539,7 @@ func runCase(w *strings.Builder, c, work string, keep bool) bool {
 		switch {
 		case err != nil:
 			failure = err.Error()
-		case o != ref:
+		case strings.ReplaceAll(o, "\n", " ") != strings.ReplaceAll(ref, "\n", " "):
 			failure = "output: " + strings.ReplaceAll(o, "\n", " ")
 		case traps && !allowed[t]:
 			failure = "an integer operation is a trap, not a proof (built with -checked)"
@@ -571,8 +585,8 @@ var skipRe = regexp.MustCompile(`(?m)^// skip: (\w+) because "([^"]+)"`)
 func skipsOf(src string) (map[string]string, error) {
 	out := map[string]string{}
 	for _, m := range skipRe.FindAllStringSubmatch(src, -1) {
-		if !slices.Contains(targets, m[1]) {
-			return nil, fmt.Errorf("`// skip: %s` names no target (%s)", m[1], strings.Join(targets, ", "))
+		if !slices.Contains(allTargets, m[1]) {
+			return nil, fmt.Errorf("`// skip: %s` names no target (%s)", m[1], strings.Join(allTargets, ", "))
 		}
 		out[m[1]] = m[2]
 	}
@@ -606,6 +620,16 @@ func main() {
 			i++
 		case a == "-cases" && i+1 < len(os.Args):
 			caseDir = os.Args[i+1]
+			i++
+		case a == "-targets" && i+1 < len(os.Args):
+			targets = nil
+			for _, t := range strings.Split(os.Args[i+1], ",") {
+				if !slices.Contains(allTargets, t) {
+					fmt.Fprintf(os.Stderr, "-targets: %q is not a target (%s)\n", t, strings.Join(allTargets, ", "))
+					os.Exit(2)
+				}
+				targets = append(targets, t)
+			}
 			i++
 		default:
 			filter = a

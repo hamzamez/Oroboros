@@ -485,6 +485,10 @@ built on 11-19, and proposes the next plan, which hamza has not yet approved. **
 5. **The project's instructions to its assistant**, rewritten as the state of things, not a story.
 6. **The words that bought nothing**: a first pass is done ([words-audit](docs/words-audit.md)).
 
+**To come back to, with hamza**: a scope form, `f(a…) { x̄ -> b }`, a block after a call for a resource
+taken at its start and given back at its end (docs/scopeforms-research.md); callbacks a host calls only
+during the call; how a variadic of places is written.
+
 Decided on 11-19 and built since: one spelling for a parameter the host writes back, `x ∈ T inout`
 (ADR 0135); benchmarks that time the two forms side by side; 32-bit Windows as the check's second
 tier; a remainder by a constant compiled as C compiles it (ADR 0138); a false claim on a value

@@ -107,31 +107,29 @@ until it is, the 11-18 plan below stands. **The 11-18 plan (its §5), approved**
 6. the words audit: first pass done ([words-audit.md](docs/words-audit.md)); `inout` kept and
    `cell(T)` to be refused (ADR 0135); `jump`, `underlying`, `cdecl` kept for now (hamza).
 
-**Decided and to be built** (hamza, 2026-11-19), in this order:
-1. ~~ADR 0135, `x ∈ T inout` the one spelling~~ built ([inout](gauntlet/results/inout-2026-11-19.md)),
-   emission byte-identical; a program result's `(buffer(V))` kept, its spelling for hamza;
-2. ~~ADR 0134, an `again` after a join point~~ built as ADR 0139 ([joinlet](gauntlet/results/joinlet-2026-11-19.md)):
-   the pattern read as a `let` of several names by every clause-chain walker; nested `wc` 1.013× nested
-   Go; a loop under a pattern inside a buffer-carrying loop owed to the state translation;
-3. ~~**the measurements' method**~~ built ([pairs](gauntlet/results/pairs-2026-11-19.md)): each host's
-   harness times a pair round by round in one process, ABBA, the median ratio and its range, each
-   with a self-test; `bash gauntlet/pairs.sh OUT` runs the gauntlet's rows; the gauntlet re-measured
-   with it at the next assessment; hamza runs one benchmark from a foreground terminal;
-4. ~~**windows32 as a second-tier platform**~~ built ([tier2](gauntlet/results/tier2-2026-11-19.md)):
-   `cmd/check -tier2` adds `emission-windows32` against `gauntlet/check/windows32/` and
-   `differential-windows32` (`run.go -targets windows32`), run at each assessment and before accepting
-   a change to the LLVM layer, `lib/rt` or windows32's targets; 118 of 177 emitted, 84 cases agree;
-5. **`lib/num/u128.oro` rewritten in the language's own operations**, so its cases run on every
-   target (hamza: "if we want to make work on every platform we rewrite it in the language"):
-   written over ℤ ([u128](gauntlet/results/u128-2026-11-19.md), `examples/u128/inz.oro`, refused);
-   the closed ≠ it named built; **blocked** on U₆₄ ↪ ℤ, the unsigned word widened into the rung
-   above (`big-of` is S₆₄'s only), four realizations owed, and JavaScript's pair comparison;
-6. ~~ADR 0138, a remainder by a constant of a natural is `srem`~~ built ([srem](gauntlet/results/srem-2026-11-19.md)):
-   measured on the corpus first, which decided it: a constant not a power of two (by 2ᵏ `srem` cost
-   the limbs' factorial 1.13×), the loop 0.71× (C's time), the rest within noise;
-7. ~~ADR 0137, an unread binder's typing claim checked~~ built ([typing](gauntlet/results/typing-2026-11-19.md)),
-   a typing mark `#is` the type checker decides, measured neutral;
-8. ADR 0136's struct forms, with TinyRetroPad's modules (plan item 1).
+**Decided and to be built** (hamza, 2026-11-19), in this order (the first list's items 1–4, 6, 7 built:
+ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):
+1. **the memory model finished** (ADR 0084, [views-finish-research.md](docs/views-finish-research.md)):
+   - P5, SendMessageA's members, built (ADR 0141);
+   - P3, a handle a host type, `set HWND = host "HWND__*"` (C's own expansion), `==` between two of
+     one kind (hamza: "a"), its failure a niche on the declaration's result (`Option`), on LLVM;
+     TinyRetroPad's file load and save;
+   - two segments of one buffer lent at once when proven disjoint, wc's tail by RtlMoveMemory;
+   - P4, a pointer the host keeps, the mode `kept` (hamza), §14.18's protocol over ADR 0133's slot;
+     TinyRetroPad's find and replace;
+2. **`lib/num/u128.oro` in the language's own operations**: blocked on U₆₄ ↪ ℤ, the unsigned word
+   widened into the rung above (u128-2026-11-19), four realizations owed;
+3. **ADR 0136's struct forms**, with TinyRetroPad's modules (plan item 1).
+
+**To discuss with hamza** (he will come back to them):
+- **a scope form and P6's epoch** ([scopeforms-research.md](docs/scopeforms-research.md)): a view
+  lent until a named call (GlobalLock … GlobalUnlock) on the declarations, and the trailing block
+  `f(a…) { x̄ -> b }` as the user-defined scope form, a derived operator, not a macro; it also spells
+  callbacks tier 1 at a call;
+- **callbacks tier 1** ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)), its five
+  remaining questions;
+- **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
+  or (d) `Array(go.Value inout)`.
 
 **Decided, nothing to build**: D6 stays at the symbols LLVM calls (ADR 0123), a per-site `divl`
 where a divisor is proven below 2³² an optimization when a measurement asks (hamza, "agree");
@@ -434,7 +432,7 @@ option (b), jswitch5b-2026-10-16).
   linear`, borrowed by reference; a host header is the caller's view of a borrow (ADR 0070); a pure host
   call observes a live buffer (ADR 0069), a segment `b[lo:hi]` its function restricted (ADR 0074).
 - **A scope's value may be a product** of frozen buffers and values (ADR 0031), taken apart at a join
-  point; an `again` after it is not built. Tuples `(a, b)` and the unit `()`; a table of tuples is
+  point; an `again` after it is a back edge of the enclosing loop (ADR 0139). Tuples `(a, b)` and the unit `()`; a table of tuples is
   flattened by currying ([products.md](docs/spec/products.md)).
 - **Variants**: `set S = 'a ∪ 'c(T)`, closed, finite, non-recursive, with type arguments; at a boundary its
   tag and one slot per payload type (ADR 0042, 0059).

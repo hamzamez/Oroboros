@@ -75,7 +75,7 @@ func TestAgesFoldsItsLines(t *testing.T) {
 		cases = append(cases, struct{ name, in string }{fmt.Sprintf("random input %d", k), b.String()})
 	}
 	for _, c := range cases {
-		cmd := exec.Command(exe)
+		cmd := program(exe)
 		cmd.Stdin = strings.NewReader(c.in)
 		var stdout bytes.Buffer
 		cmd.Stdout = &stdout

@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -94,7 +93,7 @@ export fn main() {
 	}
 	// the wrong verdict the rule exists to refuse: b[0] is 150, so show is
 	// called outside its set 0..2^63-1
-	out, _ := exec.Command(exe).CombinedOutput()
+	out, _ := program(exe).CombinedOutput()
 	if v, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64); err == nil && v >= 0 {
 		t.Errorf("the planted build printed %q; want show's argument outside 0..2^63-1", out)
 	}

@@ -1,0 +1,72 @@
+// A 128-BIT UNSIGNED INTEGER, written in the language's own operations: num/u128
+// as it is to be, REFUSED today on every target (u128-2026-11-19). A digit is in
+// the unsigned word, and no target widens the unsigned word into the rung above
+// (`big-of` is the signed word's inclusion only). The emission baseline pins the
+// refusal; when the inclusion U₆₄ ↪ ℤ is realized this file replaces
+// lib/num/u128.oro, and u128-fact and u128-ops lose their skips.
+//
+// THE ALGEBRA.
+//   V = [0, 2^128), represented by pairs (h, l) ∈ U × U through
+//       ι(h, l) = h·2^64 + l,
+//   a bijection: positional notation in base 2^64 with two digits. ι is the
+//   abstraction function, and each operation below is ℤ's on ι's image, its
+//   digits read back by ι⁻¹(v) = (v / 2^64, v % 2^64), Euclid's division by the
+//   base (Knuth, TAOCP vol. 2, §4.3.1):
+//
+//   add   ι(s) + c·2^128 = ι(a) + ι(b),   c ∈ {0, 1}
+//   mulw  ι(a)·w = ι(p) + k·2^128, and the result is exact iff k = 0
+//   divw  ι(a) = ι(q)·y + r,   0 ≤ r < y,   for y ≥ 1
+//   decimal  V → strings, by repeated division by 10^18: the base-10^18 digits,
+//         the leading one without leading zeros, each lower one as exactly 18.
+//
+// Each law is the definition: `add` is ι(a) + ι(b) taken apart by ι⁻¹ and the
+// division by 2^128, so it holds by Euclid's theorem, with no carry chain to get
+// wrong. Every intermediate is claimed (below 2^129, 2^192, 2^128), the consent
+// to the rung above the word, and a target chooses its representation from that
+// set (ADR 0079): a host bignum, fixed limbs, or the double word. So the module
+// is to run on every target, where lib/num/u128.oro is written over Go's
+// math/bits and strconv and resolves on Go alone (hamza: "if we want to make
+// work on every platform we rewrite it in the language").
+
+// ι(a) + ι(b) → (h, l, carry out of the top digit).
+pub export fn add(ah ∈ 0..2^64-1, al ∈ 0..2^64-1, bh ∈ 0..2^64-1,
+    bl ∈ 0..2^64-1) (0..2^64-1 × 0..2^64-1 × 0..1) {
+    s ∈ 0..2^129-2 = (ah * 2^64 + al) + (bh * 2^64 + bl)
+    t ∈ 0..2^128-1 = s % 2^128
+    (t / 2^64, t % 2^64, s / 2^128)
+}
+
+// ι(a)·w → (h, l, overflow): overflow is 1 exactly when ι(a)·w ≥ 2^128.
+pub export fn mulw(ah ∈ 0..2^64-1, al ∈ 0..2^64-1, w ∈ 0..2^64-1) (0..2^64-1 × 0..2^64-1 × 0..1) {
+    p ∈ 0..(2^128-1)*(2^64-1) = (ah * 2^64 + al) * w
+    t ∈ 0..2^128-1 = p % 2^128
+    (t / 2^64, t % 2^64, if p < 2^128 { 0 } else { 1 })
+}
+
+// ι(a) ÷ y → (qh, ql, r) with ι(a) = ι(qh, ql)·y + r and 0 ≤ r < y.
+pub export fn divw(ah ∈ 0..2^64-1, al ∈ 0..2^64-1,
+    y ∈ 1..2^64-1) (0..2^64-1 × 0..2^64-1 × 0..18446744073709551614) {
+    a ∈ 0..2^128-1 = ah * 2^64 + al
+    q ∈ 0..2^128-1 = a / y
+    (q / 2^64, q % 2^64, a % y)
+}
+
+// A base-10^18 digit as at least `width` decimal digits, zeros in front, most
+// significant first: 18 for a lower group, 1 for the leading one. A digit has at
+// most 18, which bounds the loop.
+fn digits18(g ∈ 0..999999999999999999, width ∈ 1..18) (String) {
+    loop i = 0, v = g, s = "" {
+        i < 18 && (i < width || v > 0) -> again(i + 1, v / 10, string_of(48 + v % 10) ++ s)
+        else -> s
+    }
+}
+
+// ι(h, l) in decimal, by repeated division by G = 10^18: v falls by a factor of
+// G each step, so the loop ends, and size-change sees it, v / G < v for v ≥ G.
+pub export fn decimal(h ∈ 0..2^64-1, l ∈ 0..2^64-1) (String) {
+    v0 ∈ 0..2^128-1 = h * 2^64 + l
+    loop v = v0, s = "" {
+        v < 1000000000000000000 -> digits18(v, 1) ++ s
+        else -> again(v / 1000000000000000000, digits18(v % 1000000000000000000, 18) ++ s)
+    }
+}

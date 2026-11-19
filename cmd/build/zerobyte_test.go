@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -50,7 +49,7 @@ func TestARawRegionsZeroByteIsAtItsLayout(t *testing.T) {
 			t.Fatalf("%s: %v", target, err)
 		}
 		for _, p := range paths {
-			out, err := exec.Command(exe, p).CombinedOutput()
+			out, err := program(exe, p).CombinedOutput()
 			if got := strings.TrimSpace(string(out)); err != nil || got != want {
 				t.Errorf("%s, a path of %d bytes: %q, %v; want %s", target, len(p), got, err, want)
 			}

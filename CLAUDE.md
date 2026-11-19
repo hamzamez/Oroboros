@@ -100,7 +100,7 @@ before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment'
 2. the callback decisions: tier 2's taken and built (ADR 0133); tier 1's to discuss with hamza;
 3. the capacity facts: mapvalue's refusals prove on HEAD as reconstructed (probes-2026-11-19), so
    they wait on a refusing program;
-4. a timeout on every program a build test runs;
+4. ~~a timeout on every program a build test runs~~ done ([timeouts](gauntlet/results/timeouts-2026-11-19.md));
 5. CLAUDE.md as state again;
 6. the words audit: first pass done ([words-audit.md](docs/words-audit.md)); `inout` kept and
    `cell(T)` to be refused (ADR 0135); `jump`, `underlying`, `cdecl` kept for now (hamza).
@@ -120,7 +120,10 @@ before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment'
    `differential-windows32` (`run.go -targets windows32`), run at each assessment and before accepting
    a change to the LLVM layer, `lib/rt` or windows32's targets; 118 of 177 emitted, 84 cases agree;
 5. **`lib/num/u128.oro` rewritten in the language's own operations**, so its cases run on every
-   target (hamza: "if we want to make work on every platform we rewrite it in the language");
+   target (hamza: "if we want to make work on every platform we rewrite it in the language"):
+   written over ℤ ([u128](gauntlet/results/u128-2026-11-19.md), `examples/u128/inz.oro`, refused);
+   the closed ≠ it named built; **blocked** on U₆₄ ↪ ℤ, the unsigned word widened into the rung
+   above (`big-of` is S₆₄'s only), four realizations owed, and JavaScript's pair comparison;
 6. ADR 0138, a remainder by a constant of a natural is `srem`, measured on the corpus first;
 7. ADR 0137, an unread binder's typing claim checked, by a typing mark, measured;
 8. ADR 0136's struct forms, with TinyRetroPad's modules (plan item 1).
@@ -213,6 +216,9 @@ proven, trapped or closed on the word (Lemma C), or the program is refused.
 ~~the JVM's `os.ReadAt` reporting a missing file as `other`~~ done, found by `cmp`
 ([cmpprog](gauntlet/results/cmpprog-2026-11-19.md)): it reads through `FileChannel`, whose `open`
 throws `java.nio.file`'s exceptions, as the kinds read.
+~~windows' `print_int` printing the low 20 digits of a value above the words~~ fail-stop
+([print](gauntlet/results/print-2026-11-19.md)): 25! printed 10043330985984000000; the body's 20-digit
+field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ ℤ, as u128 does.
 
 **Owed from finished steps** (each named in its result document):
 - claims: an unread binder's typing claim (`s ∈ String = n; 0`), at the top level too (finding 45
@@ -235,7 +241,10 @@ throws `java.nio.file`'s exceptions, as the kinds read.
 - P8 (ADR 0113): a segment at a kept boundary (`pe`), affine templates, instances for U, per-call
   fallback;
 - harness: `u128-fact` and `u128-ops` run everywhere once `lib/num/u128.oro` is rewritten in the
-  language (hamza, 2026-11-19).
+  language (hamza, 2026-11-19), which waits on U₆₄ ↪ ℤ (u128-2026-11-19);
+- u128: a constant above the word, unclaimed, under `-checked` reached Go's printer as an `int`
+  (Lemma C's gap, no wrong answer); print: an exit into ∅ under a tuple pattern refused by
+  `CheckJoins`' arity rule, which ADR 0090 makes compose; timeouts: `ir/java` and `ir/js`'s two runs.
 
 **The standing goal** (hamza) is **the Go standard library, package by package, program first**: a
 program in the language that needs a package, its algebra, and exactly the declarations it calls,

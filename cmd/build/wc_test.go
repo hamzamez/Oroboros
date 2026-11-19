@@ -101,7 +101,7 @@ func TestWcIsItsDefinitionWhateverTheReads(t *testing.T) {
 	la, wa, ma, ca := wcReference([]byte("one two\n"))
 	lb, wb, mb, cb := wcReference([]byte("three\u00a0four five\n"))
 	want := wcLine(la, wa, ma, ca, a) + wcLine(lb, wb, mb, cb, b) + wcLine(la+lb, wa+wb, ma+mb, ca+cb, "total")
-	cmd := exec.Command(exe, a, missing, b)
+	cmd := program(exe, a, missing, b)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := cmd.Run()
@@ -119,7 +119,7 @@ func wcFour(in, name string) (int, int, int, int, string) {
 // wcRun runs exe with stdin and args, and returns its standard output and status.
 func wcRun(t *testing.T, exe, stdin string, args ...string) (string, int) {
 	t.Helper()
-	cmd := exec.Command(exe, args...)
+	cmd := program(exe, args...)
 	cmd.Stdin = strings.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr

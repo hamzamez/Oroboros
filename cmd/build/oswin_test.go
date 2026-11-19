@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -80,7 +79,7 @@ func TestTheRepairsGuardCatchesAWrongRepair(t *testing.T) {
 	if !planted {
 		t.Fatalf("lib/os/windows.oro no longer writes U+FFFD as the test plants it: restate the witness")
 	}
-	got, err := exec.Command(exe).CombinedOutput()
+	got, err := program(exe).CombinedOutput()
 	if err == nil || !strings.Contains(string(got), "the repair left an ill-formed subpart") {
 		t.Errorf("with U+FFFD written as two bytes: %q, %v; want the guard's abandon", got, err)
 	}

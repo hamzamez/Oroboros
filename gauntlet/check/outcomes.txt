@@ -301,7 +301,7 @@
    note: gen-main: 7 of 7 integer operations bounded; 4 of 4 loop(s) proven terminating
 == examples/io/cmp.oro java emitted a03c36fd03d8babff2860231ca1a1a40b0ef336d588064d515fa24a530dc1b4c
    note: gen-main: 7 of 7 integer operations bounded; 4 of 4 loop(s) proven terminating
-== examples/io/cmp.oro windows emitted 1790faa6d8310dfefeee70f84c11bb0d6c487c4ebc6c8f29d332f29defa1cfa3
+== examples/io/cmp.oro windows emitted 6cdec5f18e972c9ad1570799db17a64ceb45dd3d21f1b66f6c6e7f811c70ba83
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 7 of 7 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: 8 definition(s) kept as functions, 1 inlined by their contracts
@@ -319,7 +319,7 @@
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/count.oro java emitted cfc88cb19afa7614eae88169876f1ea6676164ff0c295a29d98b367f7219f0bd
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/count.oro windows emitted ce9852f8ed91d65560b8f464cefbe549fc4c603a842a14837a9a6c0a4d24e6a4
+== examples/io/count.oro windows emitted b44c7b7a8e4491ad87a8ebd8c69b9c974cfe41457bfa0ed4914bbd5beaec9f7e
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 8 definition(s) kept as functions, 1 inlined by their contracts
@@ -376,7 +376,7 @@
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/io/roundtrip.oro java emitted a9aea0e72bfc10a9dcfb39c379caa4352269f33fc40751d9a6a41a32dff447dc
    note: gen-main: 6 of 6 integer operations bounded; 0 of 0 loop(s) proven terminating
-== examples/io/roundtrip.oro windows emitted 686aa30668fa475339738751cfdc1c40dc2de1ad8dc43031eeee9ce9bab19b37
+== examples/io/roundtrip.oro windows emitted 6f9349a459ff2b88f19a725357d35ab543844542b73762e6599689a2918aad45
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 6 of 6 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: 14 definition(s) kept as functions, 1 inlined by their contracts
@@ -400,7 +400,7 @@
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro java emitted efb6505e22e12d685df6ac563163e6115d6a54d3f5edcbb729c7383731353e2e
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/wc.oro windows emitted 8dadf54b5a0fd7e2c2a2784f0923bb8ff9ae0d5964714b62c88318f31d7d42ae
+== examples/io/wc.oro windows emitted 135f5ba0bc76bf22214876f0cc8bfe7d5c956cb43634d80d65eab6eaedc6f9ac
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 8 definition(s) kept as functions, 1 inlined by their contracts
@@ -707,7 +707,7 @@
 == examples/native/shortcircuit-win.oro java refused
    gen: examples/native/shortcircuit-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
-== examples/native/shortcircuit-win.oro windows emitted 368c83a08b572f4f0c405123e86948483f71e5a00dbd3c296386ec5457320e24
+== examples/native/shortcircuit-win.oro windows emitted a6a4a6b705f26dec3bb8cda0d3270d22c7c77ae18f460d0147893a2b5d97808b
    note: gen-main: 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
    note: 2 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -781,7 +781,7 @@
 == examples/native/wndproc-win.oro java refused
    gen: examples/native/wndproc-win.oro: in main: `windows/winuser`.GetMessageA is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
-== examples/native/wndproc-win.oro windows emitted 41255a4e2d8a251cb983d50e3a57fb94e960559e839213e9ba1c3d61d03c59fa
+== examples/native/wndproc-win.oro windows emitted 20e7fdbfb9dcf29040f58007ac73ba3431890fa7f6587c9f86677249a8bb6c96
    note: gen-main: 4 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 2 definition(s) kept as functions, 0 inlined by their contracts
@@ -947,7 +947,7 @@
 == examples/table/sieve-win.oro java refused
    gen: examples/table/sieve-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.
-== examples/table/sieve-win.oro windows emitted e39ae71fed363d30bb6e767cdae0966e0f911d7193eba8c5a6b87a292290218f
+== examples/table/sieve-win.oro windows emitted 8d881f13737d934bea5d201f4f55389296ba845c28933c615d677c7bdee68ec7
    note: gen-main: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
    note: 3 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -1004,6 +1004,14 @@
 == examples/u128/factorials.oro windows refused
    gen: examples/u128/factorials.oro: in main: `go/fmt`.Println is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/fmt` matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
+== examples/u128/inz.oro go refused
+   gen: add: an operand is [0, 18446744073709551615], which is not inside target go's signed word [-9223372036854775808, 9223372036854775807], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
+== examples/u128/inz.oro js refused
+   gen: add: an operand is [0, 18446744073709551615], which is not inside target js's signed word [-9007199254740991, 9007199254740991], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
+== examples/u128/inz.oro java refused
+   gen: add: an operand is [0, 18446744073709551615], which is not inside target java's signed word [-9223372036854775808, 9223372036854775807], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
+== examples/u128/inz.oro windows refused
+   gen: add: an operand is [0, 18446744073709551615], which is not inside target windows's signed word [-9223372036854775808, 9223372036854775807], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
 == gauntlet/differential/cases/alloc-copies.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/alloc-copies.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/alloc-copies.oro java emitted 17fccb28f88bfaffa84cf9cd2b352ac93f4d563bde297cdf765ed7a7a90fa599

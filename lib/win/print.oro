@@ -79,6 +79,11 @@ pub fn print_int(n ∈ Int) (Bool) {
                 var b := array { 0 : _ ∈ 0..21 }
                 b[21] := 10
                 loop m = if n < 0 { 0 - n } else { n }, k = 0, p = 19 {
+                    // MORE THAN 20 DIGITS is a value above the words, which this
+                    // field cannot hold: start −1 says so, and the program stops
+                    // below, where it printed the low 20 digits until 2026-11-19
+                    // (print-2026-11-19)
+                    k > 19 && m > 0 -> (b, 0 - 1)
                     k > 19 && n < 0 -> { b[p] := 45; (b, p) }
                     k > 19 -> (b, p + 1)
                     else -> {
@@ -87,7 +92,11 @@ pub fn print_int(n ∈ Int) (Bool) {
                     }
                 }
             }
-            write(b, start, 22 - start)
+            if start < 0 {
+                abandon("print_int: more than 20 digits; print a value above the word with print_str(big_str(n))")
+            } else {
+                write(b, start, 22 - start)
+            }
         }
     }
 }

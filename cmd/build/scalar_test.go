@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -45,7 +44,7 @@ func TestAScalarIsHeldWhereItsRangeIsRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("with the fault planted the program should still build: %v", err)
 	}
-	out, err := exec.Command(exe).CombinedOutput()
+	out, err := program(exe).CombinedOutput()
 	if err == nil && string(out) == want {
 		t.Errorf("with naturals below 2^32 taken for S32 the program still printed %q", out)
 	}

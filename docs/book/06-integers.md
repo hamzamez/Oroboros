@@ -548,7 +548,8 @@ right side not to be zero, and a program that cannot show it is refused. The mes
 was required, and under *known* everything the compiler had to work with: `people` is at least 0
 and at most 100. Zero is not excluded.
 
-Even a literal zero gets the same treatment, for the same reason:
+Even a literal zero gets the same treatment, for the same reason, and there the requirement is not
+merely unproven but false:
 
 <!-- file docs/book/code/integers/no-zero-literal.oro -->
 ```go
@@ -557,8 +558,7 @@ export fn one_over_nothing() (Int) { 1 / 0 }
 
 <!-- gen go docs/book/code/integers/no-zero-literal.oro -->
 ```
-gen: integers-one-over-nothing: `/` requires 0 != 0, which does not follow
-  known: nothing
+gen: integers-one-over-nothing: `/` requires 0 != 0, which is false at this call
 ```
 
 Three ways to supply the fact:

@@ -76,7 +76,7 @@ func TestLinesFoldsTheLineSplit(t *testing.T) {
 		{"an unterminated token of 65,536 bytes too", "1\n" + long(65536), 1},
 	} {
 		want, status := linesReference([]byte(c.in), c.col)
-		cmd := exec.Command(exe, strconv.Itoa(c.col))
+		cmd := program(exe, strconv.Itoa(c.col))
 		cmd.Stdin = strings.NewReader(c.in)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -106,7 +106,7 @@ func TestLinesFoldsTheLineSplit(t *testing.T) {
 		{nil, 0}, {[]string{"65536"}, 0},
 		{[]string{"0"}, 1}, {[]string{"65537"}, 1}, {[]string{"two"}, 1}, {[]string{"-1"}, 1},
 	} {
-		cmd := exec.Command(exe, c.args...)
+		cmd := program(exe, c.args...)
 		cmd.Stdin = strings.NewReader("4 5\n")
 		out, err := cmd.Output()
 		got := 0

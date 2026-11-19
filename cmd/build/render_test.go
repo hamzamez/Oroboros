@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -37,7 +36,7 @@ func TestALimbValueRendersOnWindows(t *testing.T) {
 	if err := run("../../targets", path, "windows", exe, "../../lib", false, false, ""); err != nil {
 		t.Fatalf("three-instance rendering on windows: %v", err)
 	}
-	out, err := exec.Command(exe).CombinedOutput()
+	out, err := program(exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("running it: %v\n%s", err, out)
 	}

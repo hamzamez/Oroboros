@@ -28,11 +28,11 @@ func runChecked(t *testing.T, src, target string) (out string, trapped bool, bui
 	var cmd *exec.Cmd
 	switch target {
 	case "js":
-		cmd = exec.Command("node", art)
+		cmd = program("node", art)
 	case "java":
-		cmd = exec.Command("java", "-cp", art, "Main")
+		cmd = program("java", "-cp", art, "Main")
 	default:
-		cmd = exec.Command(art)
+		cmd = program(art)
 	}
 	b, err := cmd.Output()
 	return strings.TrimSpace(string(b)), err != nil, nil

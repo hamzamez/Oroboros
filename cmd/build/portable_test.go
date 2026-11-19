@@ -86,14 +86,14 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 		tools            []string
 		run              func(artifact string) *exec.Cmd
 	}{
-		{"go", "rt.exe", []string{"go"}, func(a string) *exec.Cmd { return exec.Command(a) }},
-		{"js", "rt.mjs", []string{"node"}, func(a string) *exec.Cmd { return exec.Command("node", a) }},
+		{"go", "rt.exe", []string{"go"}, func(a string) *exec.Cmd { return program(a) }},
+		{"js", "rt.mjs", []string{"node"}, func(a string) *exec.Cmd { return program("node", a) }},
 		{"java", "classes", []string{"javac", "java"}, func(a string) *exec.Cmd {
-			return exec.Command("java", "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8",
+			return program("java", "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8",
 				"-Dsun.stdout.encoding=UTF-8", "-cp", a, "Main")
 		}},
 		// windows: its cells are J over kernel32 (lib/os/windows.oro, ADR 0112).
-		{"windows", "rt.exe", nil, func(a string) *exec.Cmd { return exec.Command(a) }},
+		{"windows", "rt.exe", nil, func(a string) *exec.Cmd { return program(a) }},
 	}
 	// NOTHING WAITS: on windows roundtrip's chain of nine J definitions passed
 	// the reducer's depth bound (oswin-2026-11-15) until ADR 0113 kept them as
@@ -150,12 +150,12 @@ func TestCmpComparesOnEveryHost(t *testing.T) {
 		tools            []string
 		run              func(artifact string) *exec.Cmd
 	}{
-		{"go", "cmp.exe", []string{"go"}, func(a string) *exec.Cmd { return exec.Command(a) }},
-		{"js", "cmp.mjs", []string{"node"}, func(a string) *exec.Cmd { return exec.Command("node", a) }},
+		{"go", "cmp.exe", []string{"go"}, func(a string) *exec.Cmd { return program(a) }},
+		{"js", "cmp.mjs", []string{"node"}, func(a string) *exec.Cmd { return program("node", a) }},
 		{"java", "classes", []string{"javac", "java"}, func(a string) *exec.Cmd {
-			return exec.Command("java", "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-cp", a, "Main")
+			return program("java", "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-cp", a, "Main")
 		}},
-		{"windows", "cmp.exe", nil, func(a string) *exec.Cmd { return exec.Command(a) }},
+		{"windows", "cmp.exe", nil, func(a string) *exec.Cmd { return program(a) }},
 	}
 	for _, h := range hosts {
 		t.Run(h.target, func(t *testing.T) {

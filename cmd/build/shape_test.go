@@ -88,7 +88,7 @@ func TestShapeIsTheFoldOverTheFactorization(t *testing.T) {
 		if c.sep != '\t' {
 			args = append(args, string(c.sep))
 		}
-		cmd := exec.Command(exe, args...)
+		cmd := program(exe, args...)
 		cmd.Stdin = strings.NewReader(c.in)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -100,7 +100,7 @@ func TestShapeIsTheFoldOverTheFactorization(t *testing.T) {
 		}
 	}
 	for _, args := range [][]string{{"ab"}, {"\n"}, {""}, {",", ","}} {
-		cmd := exec.Command(exe, args...)
+		cmd := program(exe, args...)
 		cmd.Stdin = strings.NewReader("a\n")
 		var stdout bytes.Buffer
 		cmd.Stdout = &stdout

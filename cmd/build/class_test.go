@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -90,7 +89,7 @@ func TestARegionIsAnsweredByItsCapacityClass(t *testing.T) {
 	if err := run(planted, path, "windows", exe, "../../lib", false, false, ""); err != nil {
 		t.Fatal(err)
 	}
-	out, err := exec.Command(exe).CombinedOutput()
+	out, err := program(exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("running the planted program: %v\n%s", err, out)
 	}

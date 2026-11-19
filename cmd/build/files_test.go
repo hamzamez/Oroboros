@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -42,7 +41,7 @@ func TestAFileReadIsReleasedByItsOwnLayout(t *testing.T) {
 		if err := run("../../targets", path, "windows", exe, "../../lib", false, false, ""); err != nil {
 			t.Fatal(err)
 		}
-		out, err := exec.Command(exe, in).Output()
+		out, err := program(exe, in).Output()
 		return string(out), err
 	}
 	if out, err := build(); err != nil || out != string(want) {
@@ -83,7 +82,7 @@ func TestEveryScalarEncodes(t *testing.T) {
 		if err := run("../../targets", path, target, exe, "../../lib", false, false, ""); err != nil {
 			t.Fatal(err)
 		}
-		out, err := exec.Command(exe).Output()
+		out, err := program(exe).Output()
 		if err != nil {
 			t.Fatalf("%s: %v", target, err)
 		}

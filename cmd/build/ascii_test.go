@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,7 +22,7 @@ func buildAndRun(t *testing.T, src, target, bigRepr string) (string, error) {
 	if err := run("../../targets", path, target, exe, "../../lib", false, false, bigRepr); err != nil {
 		return "", err
 	}
-	out, err := exec.Command(exe).CombinedOutput()
+	out, err := program(exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("running it: %v\n%s", err, out)
 	}

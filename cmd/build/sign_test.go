@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -132,6 +131,6 @@ func buildAndCrash(t *testing.T, src string) (string, bool, error) {
 	if err := run("../../targets", path, "windows", exe, "../../lib", false, false, ""); err != nil {
 		return err.Error(), false, err
 	}
-	out, err := exec.Command(exe).CombinedOutput()
+	out, err := program(exe).CombinedOutput()
 	return string(out), true, err
 }

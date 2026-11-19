@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -63,6 +62,6 @@ func runOnMayFail(t *testing.T, src, target string) (string, error) {
 	if err := run("../../targets", path, target, exe, "../../lib", false, false, ""); err != nil {
 		return "", err
 	}
-	b, err := exec.Command(exe).Output()
+	b, err := program(exe).Output()
 	return strings.Join(strings.Fields(string(b)), " "), err
 }

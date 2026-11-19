@@ -3839,3 +3839,23 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/io/cmp.oro windows`
 - emitted text changed — `examples/io/roundtrip.oro java`
 - emitted text changed — `examples/pe/pe.oro java`
+
+## 2026-11-19 — on 5858116c, with uncommitted changes
+
+**Reason:** print_int stops past 20 digits where it printed the low 20 (a wrong answer, print-2026-11-19); num/u128 in ℤ pinned as refused (examples/u128/inz.oro); a closed ≠ decided in ℤ (u128-2026-11-19)
+
+712 runs: 490 emitted, 222 refused; 8987 of 9041 integer operations bounded, 950 of 989 loops proven. compiler pass, differential pass, tooling pass.
+
+11 change(s):
+
+- emitted text changed — `examples/io/cmp.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/wndproc-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- new source — `examples/u128/inz.oro go`
+- new source — `examples/u128/inz.oro java`
+- new source — `examples/u128/inz.oro js`
+- new source — `examples/u128/inz.oro windows`

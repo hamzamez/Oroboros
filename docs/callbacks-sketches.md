@@ -18,7 +18,7 @@ classification; T2-4 no new word, the `var` scope is the extent (§1.4c); T2-4b 
 arrow; T1-1 L. **T1-3 (a)** (hamza, 2026-11-20: "agree to option a"): a cell written in the λ is
 threaded where the host documents its order, `ordered`, and refused elsewhere; a host's IO in the
 λ follows the same rule. **T1-4 (a)** (hamza, 2026-11-20: "T1-4 agree"; Part 3, §3.3): a buffer
-lent like a cell. **T1-2's words** (hamza, 2026-11-20): `calls K`, K a range, and `ordered`. The default ⊤, `calls 0..` and unordered, and the host's sentence as the tooling's evidence, checked both ways (§3.10, e2) (hamza, 2026-11-20: "sure, I agree"). Open: T1-5 (§3.11); T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
+lent like a cell. **T1-2's words** (hamza, 2026-11-20): `calls K`, K a range, and `ordered`. The default ⊤, `calls 0..` and unordered, and the host's sentence as the tooling's evidence, checked both ways (§3.10, e2) (hamza, 2026-11-20: "sure, I agree"). **T1-5 (k)** (hamza, 2026-11-20: "agree to k"): the API's context word where it has one, `ctx` and `ctx(f)`, a slot where it has none (§3.11, shown in §3.12). Every tier 1 decision is made; T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
 each.
 
 ---
@@ -1069,3 +1069,154 @@ call, which is what an argument is.
 
 The spelling of (k), if chosen, is §2.5's: `ctx` and `ctx(f)`, beside `ref(x)`. `&f` gives `&` a
 second meaning, and the header form puts representation in the meaning's place.
+
+## 3.12 What (k) looks like (hamza, 2026-11-20: "agree to k, now show me what it looks like")
+
+Nothing here is built. The emitted code is written by hand from the derivation, in the shape
+`ir/llvm` prints. A handle's `==` is P3's, decided and not built.
+
+### The program: the same on every target
+
+```
+use win/print
+use windows/winuser
+
+export fn main() {
+    w = winuser.GetForegroundWindow()
+    r = winuser.EnumWindows(fn(h) { if h == w { 0 } else { 1 } })   // stop at w
+    print.print_int(r)                                               // 0: w was found
+}
+```
+
+The λ is pure, so it needs no promise from `EnumWindows` (Theorem D). It still has an environment:
+`w`, a value known only at run time. So (k) is needed for a pure λ too.
+
+### The target file
+
+```
+// typedef BOOL (CALLBACK* WNDENUMPROC)(HWND, LPARAM);
+set WNDENUMPROC = fn(h ∈ windef.HWND) (minwindef.BOOL)          // the program's view: no LPARAM
+repr WNDENUMPROC c(h, ctx) stdcall                               // C's: E arrives second
+
+// BOOL EnumWindows(WNDENUMPROC lpEnumFunc, LPARAM lParam);
+fn EnumWindows(f ∈ WNDENUMPROC) (r ∈ minwindef.BOOL) {
+    host expr call EnumWindows(f, ctx(f)) stdcall lib "user32"
+}
+```
+
+The claim, `set WNDENUMPROC`, is what the program sees: one parameter. The `repr` is the C signature
+the lifted function is printed with. `ctx(f)` in the call is the argument that carries E's address,
+an argument term like `ref(x)`. The program writes `EnumWindows(fn(h) { … })` and never sees
+either.
+
+### What windows prints (x86-64)
+
+```llvm
+%E.main.0 = type { ptr }                          ; the environment: w, an HWND
+
+; the lifted λ, printed by `repr WNDENUMPROC c(h, ctx)`: BOOL CALLBACK(HWND, LPARAM)
+define internal i32 @main.fn0(ptr %h, i64 %ctx) {
+  %e  = inttoptr i64 %ctx to ptr                  ; ctx: E's address, back from the host
+  %wp = getelementptr inbounds %E.main.0, ptr %e, i32 0, i32 0
+  %w  = load ptr, ptr %wp
+  %eq = icmp eq ptr %h, %w
+  %r  = select i1 %eq, i32 0, i32 1
+  ret i32 %r
+}
+
+declare dllimport i32 @EnumWindows(ptr, i64)
+
+define void @main() {
+  %w   = call ptr @GetForegroundWindow()
+  %env = alloca %E.main.0                         ; E in the caller's frame: L's frame outlives the call
+  %wp  = getelementptr inbounds %E.main.0, ptr %env, i32 0, i32 0
+  store ptr %w, ptr %wp
+  %ctx = ptrtoint ptr %env to i64                 ; ctx(f)
+  %r   = call i32 @EnumWindows(ptr @main.fn0, i64 %ctx)
+  ...
+}
+```
+
+On **windows32** the same, with the triple's words. `LPARAM` is `i32`, and `CALLBACK` and `WINAPI`
+are `x86_stdcallcc` on the lifted function, its declaration and the call:
+
+```llvm
+define internal x86_stdcallcc i32 @main.fn0(ptr %h, i32 %ctx) { … }
+declare dllimport x86_stdcallcc i32 @EnumWindows(ptr, i32)
+```
+
+**Nothing is allocated.** E is an `alloca`, one per call site, sound because the λ is applied only
+during the call (L). One lifted function per site needs no dispatch, so defunctionalization's
+`apply` has one case and disappears.
+
+### With a cell written in the λ: E holds its address
+
+Counting the windows is a commuting write under a host that visits each window once, the middle
+strength, which waits on its word (§3.7). When it has one, the program and E look like this:
+
+```
+var n := 0
+r = winuser.EnumWindows(fn(h) { if n < 100000 { n := n + 1 }; 1 })
+print.print_int(n)
+```
+
+```llvm
+%E.main.1 = type { ptr }                          ; the address of n's slot
+
+define internal i32 @main.fn1(ptr %h, i64 %ctx) {
+  %e  = inttoptr i64 %ctx to ptr
+  %np = load ptr, ptr %e                          ; &n
+  %n  = load i64, ptr %np
+  ...                                             ; n < 100000 ? n + 1 : n
+  store i64 %n2, ptr %np
+  ret i32 1
+}
+; in main: %n.slot = alloca i64, stored 0; E's field holds %n.slot; after the call, n = load %n.slot
+```
+
+This is Theorem T₁'s realization: the cell threaded through the host's activations, held in the
+caller's frame.
+
+### Go, JavaScript and the JVM: no context word, the host's own closure
+
+```go
+i := strings.IndexFunc(v0, func(v5 rune) bool { return v5 == v3 })    // Go
+```
+```js
+const i = a.findIndex((x) => x === c);                               // JavaScript, an array's
+```
+
+The host's closure carries the environment. `ctx` exists only in the C declarations.
+
+### An API with no context word: the slot
+
+`EnumSystemLocalesA`'s callback is `BOOL CALLBACK(LPSTR)`, with no `LPARAM`, one of the 33. Its
+`repr` has no `ctx`:
+
+```
+set LOCALE_ENUMPROCA = fn(s ∈ winnt.LPSTR) (minwindef.BOOL)
+repr LOCALE_ENUMPROCA c(s) stdcall
+fn EnumSystemLocalesA(f ∈ LOCALE_ENUMPROCA, flags ∈ minwindef.DWORD) (r ∈ minwindef.BOOL) {
+    host expr call EnumSystemLocalesA(f, flags) stdcall lib "kernel32"
+}
+```
+
+E is found through a slot, written around the call:
+
+```llvm
+@slot.LOCALE_ENUMPROCA = internal global ptr null
+
+  %old = load ptr, ptr @slot.LOCALE_ENUMPROCA     ; save
+  store ptr %env, ptr @slot.LOCALE_ENUMPROCA      ; this call's E
+  %r   = call i32 @EnumSystemLocalesA(ptr @main.fn2, i32 2)
+  store ptr %old, ptr @slot.LOCALE_ENUMPROCA      ; restore: a nested call saw its own
+```
+
+The program is written exactly as for `EnumWindows`. (Reading `s`, a C string from Win32 into ours,
+waits on ADR 0091's rest. A λ that ignores its argument works today.)
+
+### The planted faults this adds (research §5)
+
+- E's address passed in the wrong argument: the λ reads garbage, a crash on windows only;
+- the slot not restored after a nested call: an outer λ sees the inner E;
+- a captured table released before the call (ADR 0096): the λ reads freed memory, on windows only.

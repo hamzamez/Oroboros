@@ -151,7 +151,8 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
   host documents its order (`ordered`: 12 of Go's visitors, not `Map` or `IndexFunc`), refused
   elsewhere; T1-4 (a), a buffer lent like a cell; T1-2's words `calls K`, K a range, and
   `ordered`, the default ⊤, the host's sentence as the tooling's evidence checked both ways, not
-  in the declaration (§3.10) (hamza). Open: T1-5 `ctx(f)` (§3.11); the JVM's
+  in the declaration (§3.10), T1-5 (k), the API's context word, `ctx`/`ctx(f)`, a slot where it has
+  none (§3.11) (hamza): every tier 1 decision made, ADR 0143 (not built; trigger a Go visitor program); the JVM's
   written cell a slot or a holder (measure both); Win32's enumerators each element once, the
   middle strength, not `ordered` (§3.7–3.8); one ADR for tier 1 when T1-2 and T1-5 are decided;
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
@@ -765,6 +766,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A lent buffer handed back is a primed result, `(b' ∈ Array(V) linear)`; `buffer(V)` at a result refused | [0140](docs/decisions/0140-a-lent-buffer-handed-back-is-a-primed-result.md) |
 | A family's member is its C function called at a constant, `call SendMessageA(w, 1076, 0, &cr)`, typed by the erased declaration; a pointer at an integer the integer carrying it (ADR 0084's P5) | [0141](docs/decisions/0141-a-family-member-is-its-c-function-at-a-constant.md) |
 | A target's CPU is data of its triple's model, `cpu "x86-64-v3"`, printed as every function's `"target-cpu"`; a level a member (`windows-v3` glues `windows`); baseline the default | [0142](docs/decisions/0142-a-targets-cpu-is-data-of-its-triples-model.md) |
+| A callback applied during the call is a region of the call, read as a loop of the host's count; `calls K` (K a range) and `ordered` after the arrow, the host's documented promises, default `calls 0..` unordered, their evidence in the tooling; an effect in the λ only under `ordered`, a cell or buffer threaded (the state monad's lift of a traversal); on C, closure conversion into the API's context word, `ctx`/`ctx(f)`, a slot where it has none (not built) | [0143](docs/decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 
 ## Build commands
 

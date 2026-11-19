@@ -519,21 +519,45 @@ func (p *parser) lamHeader() (*Lam, error) {
 		} else {
 			var parts []Expr
 			for {
-				if p.peek().kind == tIdent && p.peekN(1).text == "∈" {
-					p.resultR = p.next().text
+				rname := ""
+				switch {
+				case p.peek().kind == tIdent && p.peekN(1).text == "∈":
+					rname = p.next().text
+					p.resultR = rname
+					p.next()
+				case p.peek().kind == tIdent && p.peekN(1).kind == tPrime && p.peekN(2).text == "∈":
+					// a primed result, `b' ∈ …`, the parameter b handed back (ADR 0140)
+					rname = p.next().text + "'"
+					p.next()
 					p.next()
 				}
 				s, err := p.expr()
 				if err != nil {
 					return nil, err
 				}
+				if err := p.coreFormer(s); err != nil {
+					return nil, err
+				}
 				// A LINEAR RESULT, `(r ∈ Array(V) linear)`: a writable region the
-				// definition owns and moves to its caller (ADR 0084). A result
-				// `(buffer(V))` is not refused (ADR 0135 is a binder's): it is the
-				// lent buffer handed back (ADR 0070), a second meaning with no
-				// mode's spelling yet (inout-2026-11-19, set aside for hamza).
+				// definition owns and moves to its caller (ADR 0084). PRIMED,
+				// `(b' ∈ Array(V) linear)` with b a `linear` parameter, it is the
+				// buffer the caller lent, handed back written (ADR 0070, 0140),
+				// the core's (buffer V), as a host declaration writes it.
 				if p.is("linear") {
 					p.next()
+					if base, primed := strings.CutSuffix(rname, "'"); primed {
+						if !containsString(lam.Borrows, Unspell(base)) {
+							return nil, p.errorf("the result %s is primed, so it is the parameter %s handed back, and %s is no `linear` parameter of this definition (ADR 0140)", rname, base, base)
+						}
+						parts = append(parts, p.toSet(s, "linear"))
+						if err := p.nestedSep(parts[len(parts)-1], true); err != nil {
+							return nil, err
+						}
+						if !p.accept(",") {
+							break
+						}
+						continue
+					}
 					claim.ResultModes = append(claim.ResultModes, Linear)
 				}
 				parts = append(parts, p.toSet(s, ""))
@@ -671,7 +695,7 @@ func (p *parser) coreFormer(e Expr) error {
 	case "cell":
 		return p.errorf("a cell is a place, not a set: write the value's set and the mode, `x ∈ T inout`, not `cell(T)` (ADR 0135)")
 	case "buffer":
-		return p.errorf("a buffer is a place, not a set: write the table's set and the mode, `b ∈ Array(V) linear`, not `buffer(V)` (ADR 0135)")
+		return p.errorf("a buffer is a place, not a set: write the table's set and the mode, `b ∈ Array(V) linear`, not `buffer(V)` (ADR 0135); at a result, the buffer parameter b handed back is `(b' ∈ Array(V) linear)` (ADR 0140)")
 	}
 	return nil
 }
@@ -2526,3 +2550,13 @@ var PlantTopClaimRefused bool
 // PlantConstEndOpaque leaves a constant at a range's end unfolded, as before:
 // `0..cap` is then no type (TestAConstantInARangeIsItsValue).
 var PlantConstEndOpaque bool
+
+// containsString says whether xs holds x.
+func containsString(xs []string, x string) bool {
+	for _, y := range xs {
+		if y == x {
+			return true
+		}
+	}
+	return false
+}

@@ -14,7 +14,7 @@ import (
 func TestEquationsAreAddedNotOverwritten(t *testing.T) {
 	prog := func(where string) string {
 		return `use go
-export fn add(out ∈ Array(F64) linear, a ∈ Array(F64), b ∈ Array(F64)) (buffer(F64)) where ` + where + ` {
+export fn add(out ∈ Array(F64) linear, a ∈ Array(F64), b ∈ Array(F64)) (out' ∈ Array(F64) linear) where ` + where + ` {
     loop i = 0 {
         i >= len(a) -> ()
         else -> { out[i] := go.` + "`f+`" + `(a[i], b[i]); again(i + 1) }

@@ -317,3 +317,37 @@ func TestACellIsAModeNotASet(t *testing.T) {
 		}
 	}
 }
+
+// A LENT BUFFER HANDED BACK IS A PRIMED RESULT (ADR 0140): `(b' ∈ Array(V)
+// linear)`, b a `linear` parameter, reads as the core's (buffer V) result, the
+// term `(buffer(V))` gave; `buffer(V)` at a result is refused naming the primed
+// form; a prime naming no linear parameter is refused; an unprimed linear
+// result is still ADR 0084's moved-out region.
+func TestALentBufferHandedBackIsAPrimedResult(t *testing.T) {
+	primed, err := Read("fn f(b ∈ Array(0..9) linear) (b' ∈ Array(0..9) linear) { b }\n")
+	if err != nil {
+		t.Fatalf("the primed result should read: %v", err)
+	}
+	PlantCoreFormerAccepted = true
+	old, err := Read("fn f(b ∈ Array(0..9) linear) (buffer(0..9)) { b }\n")
+	PlantCoreFormerAccepted = false
+	if err != nil {
+		t.Fatalf("the old spelling, with the formers accepted: %v", err)
+	}
+	if a, b := primed[0].Sig.Result, old[0].Sig.Result; a != b {
+		t.Errorf("the primed result is %q and the old one %q: they should be one term", a, b)
+	}
+	if _, err := Read("fn f(b ∈ Array(0..9) linear) (buffer(0..9)) { b }\n"); err == nil || !strings.Contains(err.Error(), "ADR 0140") {
+		t.Errorf("buffer(V) at a result should be refused naming the primed form, got %v", err)
+	}
+	if _, err := Read("fn f(b ∈ Array(0..9) linear) (c' ∈ Array(0..9) linear) { b }\n"); err == nil || !strings.Contains(err.Error(), "no `linear` parameter") {
+		t.Errorf("a prime naming no linear parameter should be refused, got %v", err)
+	}
+	moved, err := Read("fn f(n ∈ 0..9) (r ∈ Array(0..9) linear) { var r := array { 0 : _ ∈ 0..n }; r }\n")
+	if err != nil {
+		t.Fatalf("an unprimed linear result should read: %v", err)
+	}
+	if moved[0].Sig.Result == old[0].Sig.Result {
+		t.Errorf("an unprimed linear result should stay the moved-out region, not the lent buffer: %q", moved[0].Sig.Result)
+	}
+}

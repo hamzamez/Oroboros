@@ -226,7 +226,7 @@ func TestATableFormsEntriesAreDemanded(t *testing.T) {
 			t.Errorf("%s under %s: want a refusal %q, got %v", c.body, c.result, c.in, err)
 		}
 	}
-	tg, prog, env := loadWithSigs(t, "go", `fn put(b ∈ Array(F64) linear) (buffer(F64)) { b[0] := "x" }`)
+	tg, prog, env := loadWithSigs(t, "go", `fn put(b ∈ Array(F64) linear) (b' ∈ Array(F64) linear) { b[0] := "x" }`)
 	err := CheckSignatures(tg, prog, env, nil)
 	if err == nil || !strings.Contains(err.Error(), "in a store's value") {
 		t.Errorf("a string stored into a buffer of f64: want a refusal, got %v", err)

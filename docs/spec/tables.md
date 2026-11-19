@@ -451,12 +451,14 @@ Per backend:
 - **windows** uses a register or frame slot, allocated at the first tail. A table component's element
   width travels with its name, and every tail must agree on it.
 
+**An `again` inside the continuation of a tuple-valued loop** is a back edge of the enclosing loop
+(ADR 0139): `(a, b) = loop … { … }; …; again(…)` in a tail is a `let` of several names, P running once
+and its body once after it, and every walker of a clause chain reads the body as a tail, as it reads
+a host call's continuation (`emit.joinLet`).
+
 **Not built, and refused naming the rule:**
 - a scope whose value is a function term: a variant or a closure, which could carry a buffer out
   unfrozen (R1);
-- an `again` inside the continuation of a tuple-valued loop, a jump out of a join point. Every walker
-  of a clause chain would need a fifth form (CLAUDE.md, "every walker walks four forms"), and no
-  program needs one;
 - a tuple-valued loop or scope as the result of an **export**, which would need each backend's
   several-results return to walk a loop. The parser's result is consumed inside the program.
 

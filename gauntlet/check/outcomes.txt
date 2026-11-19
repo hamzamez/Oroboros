@@ -864,6 +864,17 @@
 == examples/os/ls.oro windows refused
    gen: examples/os/ls.oro: in entry: `go/io/fs/DirEntry`.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/io/fs/DirEntry` matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
+== examples/os/wc-nested.oro go emitted 0aaa81e241e6d4afca85ad5b6622f4cfce80ff8735ffbefbe7f62730e878737d
+   note: gen-main: 41 of 41 integer operations bounded; 2 of 4 loop(s) proven terminating
+== examples/os/wc-nested.oro js refused
+   gen: examples/os/wc-nested.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.
+== examples/os/wc-nested.oro java refused
+   gen: examples/os/wc-nested.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.
+== examples/os/wc-nested.oro windows refused
+   gen: examples/os/wc-nested.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.
 == examples/os/wc.oro go emitted 01f52d0b543a9aaf0f98424932d5eed8325bf4739e1e78e7fa6c0963885e9907
    note: gen-main: 39 of 39 integer operations bounded; 0 of 2 loop(s) proven terminating
 == examples/os/wc.oro js refused

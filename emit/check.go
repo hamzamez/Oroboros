@@ -488,7 +488,7 @@ func unselected(tg *Target, t *core.Term, inLoop bool) bool {
 	if t.Kind != core.KApp || len(t.Kids) == 0 {
 		return false
 	}
-	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+	if kk, ok := continuation(tg, t); ok {
 		return unselected(tg, kk.Closed(), inLoop)
 	}
 	op := t.Kids[0]
@@ -752,6 +752,18 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 		}
 		body, raw, _ := openFresh(k, map[string]bool{}, func(s string) string { return s })
 		defer c.bind(raw, p.Results[:len(raw)])()
+		return c.loopBody(body, params, tys, want)
+	}
+	// A TUPLE PATTERN OVER A LOOP WHOSE BODY JUMPS OUT (ADR 0139): the loop is
+	// checked as a value, its components bound unknown (learned from use), and
+	// the clause chain goes on in the body, so its `again`s are checked as the
+	// enclosing loop's.
+	if k, ok := joinLet(c.tgt, t); ok {
+		if _, err := c.walk(t.Kids[0], ""); err != nil {
+			return "", err
+		}
+		body, raw, _ := openFresh(k, map[string]bool{}, func(s string) string { return s })
+		defer c.bind(raw, make([]string, len(raw)))()
 		return c.loopBody(body, params, tys, want)
 	}
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {

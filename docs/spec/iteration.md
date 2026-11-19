@@ -163,8 +163,12 @@ After reduction the tuple binding's value is a host call with several results an
 call's continuation, the n-ary let. So the tail positions a jump may occupy are
 
 ```
-E ::= []  |  let x = e in E  |  if c E E  |  (p a…) (λx̄. E)
+E ::= []  |  let x = e in E  |  if c E E  |  (p a…) (λx̄. E)  |  P (λx̄. E)
 ```
+
+The last production, P a loop or a scope (ADR 0139), is the n-ary let over a producer: P runs once,
+its own `again`s its own, and its body once after it with P's components bound. It holds for the
+reason the host call's does: the continuation runs once, immediately, and never escapes.
 
 The last line holds because a host call's continuation is second-class: it runs once, immediately,
 and never escapes. Every backend emits it as the call followed by the body in the same block.

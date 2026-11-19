@@ -3931,3 +3931,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
 - emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
+
+## 2026-11-19 — on da1c4134, with uncommitted changes
+
+**Reason:** ADR 0139: an again after a join point accepted, read as a let of several names (joinlet-2026-11-19), examples/os/wc-nested.oro new; ADR 0140's primed result, emission identical
+
+716 runs: 491 emitted, 225 refused; 9028 of 9082 integer operations bounded, 952 of 993 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/os/wc-nested.oro go`
+- new source — `examples/os/wc-nested.oro java`
+- new source — `examples/os/wc-nested.oro js`
+- new source — `examples/os/wc-nested.oro windows`

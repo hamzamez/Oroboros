@@ -106,3 +106,13 @@ The initial compile-time baseline, the minimum of two sweeps.
 - emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows32`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows32`
 - emitted text changed — `lib/rt/i686.oro windows32`
+
+## 2026-11-19 — on da1c4134, with uncommitted changes
+
+**Reason:** ADR 0139: an again after a join point accepted, read as a let of several names (joinlet-2026-11-19), examples/os/wc-nested.oro new; ADR 0140's primed result, emission identical
+
+179 runs: 118 emitted, 61 refused; 3057 of 3067 integer operations bounded, 417 of 433 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+1 change(s):
+
+- new source — `examples/os/wc-nested.oro windows32`

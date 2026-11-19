@@ -1,7 +1,7 @@
 # 0134 — An `again` after a join point is accepted, by Theorem J's rewrite, measured against sharing
 
 Date: 2026-11-19
-Status: Accepted (hamza, 2026-11-19, on [joinjump-research.md](../joinjump-research.md): "the choice
+Status: Superseded by [0139](0139-a-tuple-pattern-over-a-loop-is-a-let-of-several-names.md) in its representation (decision 2); decisions 1 and 3 stand. Accepted (hamza, 2026-11-19, on [joinjump-research.md](../joinjump-research.md): "the choice
 should be based on measurements, pick the most likely best choices, even if we have to change it
 later if the measurements say so"). Amends [tables.md](../spec/tables.md) §2.5's not-built list and
 [ADR 0031](0031-a-builds-result-is-a-product.md) §4's join point. **Not built: B's premise is false in the

@@ -1,0 +1,160 @@
+// wc [FILE]…, WRITTEN NESTED, as Go writes it (ADR 0139): examples/os/wc.oro
+// with its rune loop inside its read loop. The rune loop is `runes`, whose five
+// results a tuple pattern binds, and the read loop's step follows that join
+// point. Same output, whatever the reads; 1.01× Go's nested form, and 0.93×
+// this program's flat form (joinlet-2026-11-19).
+//
+// wc [FILE]… — the lines, words, characters and bytes of each FILE, then their
+// total when there is more than one; of standard input when there is none. Each
+// line is
+//
+//   LINES WORDS CHARS BYTES NAME        (each count right-aligned in 7 columns)
+//
+// A FILE that cannot be opened or read is named on standard error and skipped,
+// and the exit status is then 1.
+//
+// THE ALGEBRA. B = [0, 255], and a file is x ∈ B*. d : B* → Σ'* is the decoding
+// Go's utf8.DecodeRune defines: each codeword is its scalar value, and each byte
+// that begins none is one error rune, U+FFFD.
+// - BYTES C = |x|, the length homomorphism (B*, ·, ε) → (ℕ, +, 0).
+// - LINES L = |x|₁₀, the letter count of LF, a homomorphism too. LF is never part
+//   of a multibyte codeword, and DecodeRune gives it alone, so L is also the
+//   number of runes '\n' in d(x).
+// - CHARACTERS M = |d(x)|. d is NOT a homomorphism over the reads: a codeword may
+//   be cut by one. But d is SEQUENTIAL, a left-to-right transducer, and
+//   DecodeRune has LOOK-AHEAD 4 (unicode/utf8.oro): its answer at k depends on
+//   x[k, k + 4) alone. So decoding at k only while 4 bytes remain in the chunk,
+//   or at the input's end, decodes every chunk as the whole input decodes. The
+//   up to 3 bytes left are the transducer's state, moved to the front of the
+//   buffer, and the next read writes after them (File.segment.Read).
+// - WORDS W: the maximal runs of runes outside S = { r : unicode.IsSpace(r) },
+//   Unicode's White_Space. A run is counted where it begins, a rune ∉ S after one
+//   in S or at the start, so W is the fold of a two-state machine over d(x), its
+//   state `inw`, and like M it is a function of x alone.
+// So the output is a function of each file's bytes, whatever the reads were,
+// which the test checks at the buffer's edges against a count written from the
+// definition over the whole file.
+//
+// COUNTS ARE ON ℕ_C, C = 2⁶² − 1, as du's and shape's are: x ⊕ y = min(x + y, C).
+//
+// ONE LOOP OVER A CURSOR, as du's walk is: the files, each one's buffer, and its
+// counts, because a loop per file would hand back a tuple the files' `again`
+// cannot take apart (tables.md §2.5).
+use go
+use go/os as gos
+use go/os/File
+use go/os/File/segment as fseg
+use go/unicode/utf8/segment as u8
+use go/unicode
+use go/io
+use go/errors
+use go/fmt
+use result
+
+size_buf = 65536
+
+// x ⊕ y on ℕ_C: each member is in the set, so the sum is inside the word.
+fn sat(x ∈ 0..2^62-1, y ∈ 0..2^62-1) (0..2^62-1) {
+    s = x + y
+    if s <= (2^62-1) { s } else { 2^62-1 }
+}
+
+// How a read ended: 0 with more to come, 1 at the end of the input, 2 at a
+// failure. The error is used on every path (ADR 0043).
+fn ending(r) {
+    case r {
+        result.'ok(u) -> 0
+        result.'err(e) -> if errors.Is(e, io.EOF()) { 1 } else { 2 }
+    }
+}
+
+// A file opened for reading loses nothing if its close fails: there was nothing
+// to write back, so the error is discarded.
+fn close(f) { ignore(File.Close(f)) }
+
+fn line(l, w, m, c, name) { fmt.Printf("%7d %7d %7d %7d %s\n", l, w, m, c, name) }
+
+fn complain(name, what) { ignore(fmt.Fprintf(gos.Stderr(), "wc: %s: %s\n", name, what)) }
+
+// The inputs are a word of names: ⟨""⟩ for standard input, or av's FILEs. The
+// state: `how` is 0 while the file may give more, 1 once it has ended, 2 when a
+// read failed, 4 between files. b[k, n) is the window
+// of the current chunk not yet decoded; l, w, m, c the file's counts and inw
+// whether its last rune was in a word; tl, tw, tm, tc the totals.
+// THE RUNE LOOP, nested in the read loop as Go writes wc: the runes of b[k, n)
+// while four bytes remain, or to n at the file's end, counted into (l, w, m)
+// and the in-word state, and the cursor where it stopped.
+fn runes(b ∈ Array(0..255), k ∈ 0..65536, n ∈ 0..65536, last ∈ Bool,
+    l ∈ 0..2^62-1, w ∈ 0..2^62-1, m ∈ 0..2^62-1, inw ∈ Bool) where n <= len(b) {
+    loop kk = k, ll = l, ww = w, mm = m, iw = inw {
+        kk < n && (n - kk >= 4 || last) -> {
+            (r, sz) = u8.DecodeRune(b, kk, n)
+            sp = unicode.IsSpace(r)
+            again(kk + sz,
+                  if r == 10 { sat(ll, 1) } else { ll },
+                  if !sp && !iw { sat(ww, 1) } else { ww },
+                  sat(mm, 1), !sp)
+        }
+        else -> (kk, ll, ww, mm, iw)
+    }
+}
+
+fn wc(names, stdin) {
+    var b := array { 0 : _ ∈ 0..size_buf-1 }
+    loop i = 0, f = gos.Stdin(), nm = "", how = 4, k = 0, n = 0,
+         l = 0, w = 0, m = 0, c = 0, inw = false, tl = 0, tw = 0, tm = 0, tc = 0, status = 0 {
+        // A rune, where 4 bytes remain or the file has ended.
+        (how == 0 || how == 1) && k < n && (n - k >= 4 || how == 1) -> {
+            (k2, l2, w2, m2, inw2) = runes(b, k, n, how == 1, l, w, m, inw)
+            again(i, f, nm, how, k2, n, l2, w2, m2, c, inw2, tl, tw, tm, tc, status)
+        }
+        // Fewer than 4 bytes left, and more may come: the tail, t ≤ 3 bytes, to
+        // the front, and the next read after it. Three stores and not a loop: a
+        // loop over b here would hand b back as a tuple, and the `again` below
+        // cannot follow its join point (tables.md §2.5).
+        how == 0 -> {
+            t = n - k
+            if t > 0 { b[0] := b[k] }
+            if t > 1 { b[1] := b[k + 1] }
+            if t > 2 { b[2] := b[k + 2] }
+            (got, r) = fseg.Read(f, b, t)
+            // The read's law, got ≤ len b − t, as the window's end: a claim the
+            // compiler proves, which the loop's invariant then carries.
+            end ∈ 0..size_buf = t + got
+            again(i, f, nm, ending(r), 0, end, l, w, m, sat(c, got), inw, tl, tw, tm, tc, status)
+        }
+        how == 1 -> {
+            line(l, w, m, c, nm)
+            if !stdin { close(f) }
+            again(i, f, nm, 4, 0, 0, 0, 0, 0, 0, false,
+                  sat(tl, l), sat(tw, w), sat(tm, m), sat(tc, c), status)
+        }
+        how == 2 -> {
+            complain(nm, "read error")
+            if !stdin { close(f) }
+            again(i, f, nm, 4, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, 1)
+        }
+        i >= len(names) -> {
+            if len(names) > 1 { line(tl, tw, tm, tc, "total") }
+            status
+        }
+        // The next input, counted as it is taken, where i < len(names) is the
+        // failed guard's: so i + 1 is in the word by the guard alone.
+        stdin -> again(i + 1, gos.Stdin(), "", 0, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, status)
+        // A file that will not open is named and skipped: each arm of the case
+        // is a tail, and each goes round the loop (ADR 0076).
+        else -> case gos.Open(names[i]) {
+            result.'ok(g) -> again(i + 1, g, names[i], 0, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, status)
+            result.'err(e) -> {
+                ignore(e)
+                complain(names[i], "cannot open")
+                again(i + 1, f, names[i], 4, 0, 0, 0, 0, 0, 0, false, tl, tw, tm, tc, 1)
+            }
+        }
+    }
+}
+
+export fn main() {
+    av = gos.Args()
+    gos.Exit(if len(av) < 2 { wc(array { "" }, true) } else { wc(array { av[j + 1] : j ∈ 0..len(av)-2 }, false) })
+}

@@ -77,6 +77,43 @@ func multiPrimCall(tg *Target, t *core.Term) (Prim, []*core.Term, *core.Term, bo
 	return p, op.Args(), k, true
 }
 
+// joinLet recognises a tuple pattern over a producer whose body jumps out,
+// (P (fn (x₁ … xₘ) k)) with P a loop or a scope and an `again` of an enclosing
+// loop in k (ADR 0139). It is a `let` of m names: P runs once, and k once after
+// it with P's components bound (ADR 0031's join point, ADR 0027's "a binding of
+// several names is a binding"). So a walker of a clause chain walks k as a tail,
+// as it walks a host call's continuation, and P's own `again`s stay P's. Only a
+// body that jumps out is read so; every other tuple pattern keeps its handling.
+func joinLet(tg *Target, t *core.Term) (*core.Term, bool) {
+	if PlantJoinLetUnread || t == nil || t.Kind != core.KApp || len(t.Kids) != 2 {
+		return nil, false
+	}
+	k := t.Kids[1]
+	if k.Kind != core.KFn || len(k.Params) < 2 || !isProducer(tg, t.Kids[0]) {
+		return nil, false
+	}
+	if _, _, _, host := multiPrimCall(tg, t); host || !jumpsOut(tg, k.Closed()) {
+		return nil, false
+	}
+	return k, true
+}
+
+// PlantJoinLetUnread leaves a tuple pattern over a loop, its body jumping out,
+// unread by the walkers of a clause chain, as before ADR 0139: a back edge in
+// the body goes unseen, and a monotone loop variable it drives below its start
+// is proven (TestAnAgainAfterAJoinPointIsABackEdge).
+var PlantJoinLetUnread bool
+
+// continuation is a clause chain's binding whose body is a tail: a host call's
+// continuation (ADR 0027) or a tuple pattern over a producer that jumps out
+// (ADR 0139). The head is t.Kids[0] in both.
+func continuation(tg *Target, t *core.Term) (*core.Term, bool) {
+	if _, _, k, ok := multiPrimCall(tg, t); ok {
+		return k, true
+	}
+	return joinLet(tg, t)
+}
+
 // TOTALISATION, AND IT IS WHY A HOST CALL THAT CAN FAIL NEEDS NOTHING NEW.
 //
 // A host offers a PARTIAL function `f : A ⇀ B`, and partiality is the whole

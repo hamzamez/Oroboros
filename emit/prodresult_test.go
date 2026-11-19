@@ -90,8 +90,8 @@ func TestAFrozenComponentKeepsItsLength(t *testing.T) {
 	}
 }
 
-// A JOIN POINT IS NOT JUMPED OUT OF, and a scope does not hand out a function
-// term (R1); both are refused by name, and the legal twin of each is not.
+// A JOIN POINT MAY BE JUMPED OUT OF (ADR 0139), and a scope does not hand out a
+// function term (R1), refused by name, its legal twin not.
 func TestAJoinPointAndAScopeRefuseWhatIsNotBuilt(t *testing.T) {
 	jump := `export fn f(n ∈ 0..10) (Int) {
     loop s = 0, j = 0 {
@@ -102,9 +102,11 @@ func TestAJoinPointAndAScopeRefuseWhatIsNotBuilt(t *testing.T) {
         }
     }
 }`
+	// ACCEPTED SINCE ADR 0139: the pattern is a `let` of two names, its body a
+	// tail of the enclosing loop (TestAnAgainAfterAJoinPointIsABackEdge).
 	tg, nf, _ := normGo(t, jump)
-	if err := CheckJoins(tg, nf); err == nil || !strings.Contains(err.Error(), "JOIN POINT") {
-		t.Errorf("an again inside a join point: got %v", err)
+	if err := CheckJoins(tg, nf); err != nil {
+		t.Errorf("an again inside a join point is a back edge since ADR 0139: got %v", err)
 	}
 	fine := `export fn f(n ∈ 0..10) (Int) {
     (a, b) = loop i = 0 { i >= 3 -> (i, n); else -> again(i + 1) }

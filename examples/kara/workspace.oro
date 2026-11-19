@@ -50,7 +50,7 @@ fn mac(w linear, a, b) {
 // freq-2026-09-08 taught it arithmetic and the fresh side narrowed on its own
 // again. The declaration follows the inference rather than fighting it.
 export fn mac_into(w ∈ Array(0..65535) linear, a ∈ Array(0..255),
-    b ∈ Array(0..255)) (buffer(0..65535))
+    b ∈ Array(0..255)) (w' ∈ Array(0..65535) linear)
     where (2^16) <= len(w) && (2^16) <= len(a) && (2^16) <= len(b) { mac(w, a, b) }
 
 // The same body, allocating its own workspace every call — what an exported

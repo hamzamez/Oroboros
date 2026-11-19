@@ -283,6 +283,9 @@
 == examples/os/ls.oro windows32 refused
    gen: examples/os/ls.oro: in entry: `go/io/fs/DirEntry`.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/io/fs/DirEntry` matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
+== examples/os/wc-nested.oro windows32 refused
+   gen: examples/os/wc-nested.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.
 == examples/os/wc.oro windows32 refused
    gen: examples/os/wc.oro: in close: `go/os/File`.Close is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/os/File` matched no file on the search path and this target provides no module go/os/File either, so every name from it is unbound. Check the path.

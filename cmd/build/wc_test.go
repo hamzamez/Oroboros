@@ -45,13 +45,23 @@ func wcLine(l, w, m, c int, name string) string {
 // and its near misses, bytes that begin no codeword, a codeword cut by the end of
 // the input, and a codeword of each length straddling the program's 65,536-byte
 // read at each offset.
+//
+// BOTH SHAPES: the flat loop, and the nested one Go writes, a rune loop inside
+// the read loop whose step follows the inner loop's join point (ADR 0139,
+// examples/os/wc-nested.oro). Each is its definition on every input.
 func TestWcIsItsDefinitionWhateverTheReads(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go is not on the path")
 	}
+	for _, src := range []string{"wc.oro", "wc-nested.oro"} {
+		t.Run(src, func(t *testing.T) { wcIsItsDefinition(t, "../../examples/os/"+src) })
+	}
+}
+
+func wcIsItsDefinition(t *testing.T, src string) {
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "wc.exe")
-	if err := run("../../targets", "../../examples/os/wc.oro", "go", exe, "../../lib", false, false, ""); err != nil {
+	if err := run("../../targets", src, "go", exe, "../../lib", false, false, ""); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	cases := []struct{ name, in string }{

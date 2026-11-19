@@ -60,5 +60,5 @@ fn window(a, j) { round(F64) { a[j] + a[j + 1] + a[j + 2] } }
 
 fn kernel(a) { vec(len(a) - 2, fn(j) { round(F64, window(a, j) ÷ 3) }) }
 export fn smooth(a ∈ Array(Entry)) (Array(F64)) where len(a) >= 2 { materialize(kernel(a)) }
-export fn smooth_into(dst ∈ Array(F64) linear, a ∈ Array(Entry)) (buffer(F64))
+export fn smooth_into(dst ∈ Array(F64) linear, a ∈ Array(Entry)) (dst' ∈ Array(F64) linear)
     where len(a) >= 2 && len(dst) == len(a) { fill_into(dst, kernel(a)) }

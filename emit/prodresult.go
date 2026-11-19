@@ -90,8 +90,9 @@ func projectTail(tg *Target, t *core.Term, j, m int) (*core.Term, bool) {
 	if t.Kind != core.KApp || len(t.Kids) == 0 {
 		return nil, false
 	}
-	// A host call with several results passes its continuation's tail through.
-	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+	// A host call with several results passes its continuation's tail through,
+	// and so does a tuple pattern over a loop whose body jumps out (ADR 0139).
+	if kk, ok := continuation(tg, t); ok {
 		nb, ok := projectTail(tg, kk.Closed(), j, m)
 		if !ok {
 			return nil, false
@@ -175,7 +176,7 @@ func projectExits(tg *Target, t *core.Term, j, m int) (*core.Term, bool) {
 			}
 		}
 	}
-	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+	if kk, ok := continuation(tg, t); ok {
 		nb, ok := projectExits(tg, kk.Closed(), j, m)
 		if !ok {
 			return nil, false
@@ -194,9 +195,10 @@ func withKid(t *core.Term, i int, k *core.Term) *core.Term {
 
 // CheckJoins refuses what tables.md §2.5 names as not built: a scope whose value
 // is a function term (R1: a closure, which could carry a buffer out unfrozen; a
-// variant is the tuple (tag, payload), ADR 0041, and is ADR 0031's product), and an `again` inside a join point's body, which would jump out of it. Every walker of a clause chain
-// would need it as a fifth form, and one that missed it would be unsound, not
-// imprecise. It runs on the residual before any pass reads a clause chain.
+// variant is the tuple (tag, payload), ADR 0041, and is ADR 0031's product). An
+// `again` inside a join point's body is accepted since ADR 0139, every walker
+// of a clause chain reading the pattern as a `let` (joinLet). It runs on the
+// residual before any pass reads a clause chain.
 func CheckJoins(tg *Target, t *core.Term) error {
 	var err error
 	var walk func(t *core.Term)
@@ -233,14 +235,10 @@ func CheckJoins(tg *Target, t *core.Term) error {
 				}
 			}
 		}
-		if _, k, ok := tupleElim(tg, t); ok && jumpsOut(tg, k.Closed()) {
-			err = fmt.Errorf("an `again` sits inside the body of a tuple pattern whose value comes " +
-				"from a loop or a `build`.\n  That body is a JOIN POINT: it runs once, after the " +
-				"loop that made the tuple (tables.md §2.5, ADR 0031), and a jump out of it to an " +
-				"enclosing loop is not built.\n  Bind the tuple, compute what the enclosing loop " +
-				"needs, and jump from the clause itself.")
-			return
-		}
+		// AN `again` AFTER A JOIN POINT is a back edge of the enclosing loop
+		// (ADR 0139): the pattern is a `let` of several names, which every walker
+		// of a clause chain reads (joinLet), and the reader keeps it in a tail, so
+		// it is accepted. ADR 0134 refused it here.
 		for _, c := range t.Kids {
 			walk(c)
 		}
@@ -293,7 +291,7 @@ func eraseExits(tg *Target, t *core.Term) *core.Term {
 			}
 		}
 	}
-	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+	if kk, ok := continuation(tg, t); ok {
 		return core.App(t.Kids[0], core.FnClosed(kk.Params, eraseExits(tg, kk.Closed())))
 	}
 	return exitMark
@@ -341,7 +339,7 @@ func badTail(tg *Target, t *core.Term) *core.Term {
 	if t.Kind == core.KFn {
 		return t
 	}
-	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+	if kk, ok := continuation(tg, t); ok {
 		return badTail(tg, kk.Closed())
 	}
 	if t.Kind != core.KApp || len(t.Kids) == 0 || t.Kids[0].Kind != core.KName {
@@ -448,7 +446,7 @@ func etaTail(tg *Target, t *core.Term, m int) (*core.Term, bool) {
 	if _, ok := tupleArity(t); ok || t.Kind != core.KApp || len(t.Kids) == 0 {
 		return t, false
 	}
-	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+	if kk, ok := continuation(tg, t); ok {
 		nb, ch := etaTail(tg, kk.Closed(), m)
 		return core.App(t.Kids[0], core.FnClosed(kk.Params, nb)), ch
 	}
@@ -502,7 +500,7 @@ func etaExits(tg *Target, t *core.Term, m int) (*core.Term, bool) {
 			}
 		}
 	}
-	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+	if kk, ok := continuation(tg, t); ok {
 		nb, ch := etaExits(tg, kk.Closed(), m)
 		return core.App(t.Kids[0], core.FnClosed(kk.Params, nb)), ch
 	}

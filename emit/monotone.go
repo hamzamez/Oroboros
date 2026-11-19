@@ -113,7 +113,9 @@ func asLet(tgt *Target, t *core.Term) (value *core.Term, lam *core.Term, ok bool
 // `again` inside it is a back edge like any other, and a walker that passed over
 // it certified a loop whose edge it had not checked (monotoneStep, before this).
 func multiLet(tgt *Target, t *core.Term) (*core.Term, bool) {
-	_, _, k, ok := multiPrimCall(tgt, t)
+	// and a tuple pattern over a loop whose body jumps out, a `let` of several
+	// names too (ADR 0139): its components are not known ⊒ S, as a host's are not
+	k, ok := continuation(tgt, t)
 	if !ok {
 		return nil, false
 	}

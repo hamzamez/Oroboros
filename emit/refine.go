@@ -1046,8 +1046,9 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 			ok = false
 			return
 		}
-		// A HOST CALL'S CONTINUATION: its body's tails are the call's.
-		if _, _, k, isCall := multiPrimCall(r.tgt, t); isCall {
+		// A HOST CALL'S CONTINUATION: its body's tails are the call's; and a tuple
+		// pattern over a loop whose body jumps out (ADR 0139).
+		if k, isCall := continuation(r.tgt, t); isCall {
 			for _, y := range k.Params {
 				binders[y] = true
 			}
@@ -1257,7 +1258,7 @@ func (r *refiner) tailsLinear(value *core.Term, f *facts) bool {
 			ok = false
 			return
 		}
-		if _, _, k, isCall := multiPrimCall(r.tgt, t); isCall {
+		if k, isCall := continuation(r.tgt, t); isCall {
 			walk(k.Body(), depth)
 			return
 		}

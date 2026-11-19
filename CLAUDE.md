@@ -110,9 +110,9 @@ until it is, the 11-18 plan below stands. **The 11-18 plan (its §5), approved**
 **Decided and to be built** (hamza, 2026-11-19), in this order:
 1. ~~ADR 0135, `x ∈ T inout` the one spelling~~ built ([inout](gauntlet/results/inout-2026-11-19.md)),
    emission byte-identical; a program result's `(buffer(V))` kept, its spelling for hamza;
-2. ADR 0134, an `again` after a join point: **B's premise false in the core**
-   ([joinjump](gauntlet/results/joinjump-2026-11-19.md): `again` is the nearest loop's, so B's copy
-   rebinds it); A as the fourth tail form widened, a reversal, for hamza;
+2. ~~ADR 0134, an `again` after a join point~~ built as ADR 0139 ([joinlet](gauntlet/results/joinlet-2026-11-19.md)):
+   the pattern read as a `let` of several names by every clause-chain walker; nested `wc` 1.013× nested
+   Go; a loop under a pattern inside a buffer-carrying loop owed to the state translation;
 3. ~~**the measurements' method**~~ built ([pairs](gauntlet/results/pairs-2026-11-19.md)): each host's
    harness times a pair round by round in one process, ABBA, the median ratio and its range, each
    with a self-test; `bash gauntlet/pairs.sh OUT` runs the gauntlet's rows; the gauntlet re-measured
@@ -267,11 +267,9 @@ Toom-3, a subquadratic division at a node (Newton and Barrett, or Burnikel and Z
 remaining 5–6× against Go's `String`.
 
 **Open from the 10-24 plan** ([assessment-2026-10-24](docs/assessment-2026-10-24.md) §5, the rest done):
-- **an `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
-  ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)); researched
-  ([joinjump-research.md](docs/joinjump-research.md): Theorem J, the commuting conversion, says what
-  it means), decided (ADR 0134: B, Theorem J's rewrite before the walkers, kept if nested `wc`
-  measures within noise of nested Go, else C); not built;
+- ~~**an `again` after a nested loop's join point**~~ done (ADR 0139,
+  [joinlet](gauntlet/results/joinlet-2026-11-19.md)): nested `wc` 1.013× nested Go, where flat was 16%
+  ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md));
 - ~~**the Go library, program first**: `cmp`, two files compared chunk by chunk~~ done
   ([cmpprog](gauntlet/results/cmpprog-2026-11-19.md)), one output on four hosts;
 - **the analysis grows only for a refusal a program names**, each rule's planted fault with it;
@@ -326,10 +324,10 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **8,987 of 9,041** integer operations proven inside their target's word, the 54 left
+- **Provability**: **9,028 of 9,082** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **950 of 989** loops proven to
-  terminate (size-change termination; fourteen of the 38 left are windows' `os` cell's read and write
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **952 of 993** loops proven to
+  terminate (size-change termination; the 41 left include `wc`'s and `wc-nested`'s read loops; fourteen of them are windows' `os` cell's read and write
   loops, whose progress is a count the host returns). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
   counts are pinned by `cmd/check`.
@@ -409,8 +407,10 @@ option (b), jswitch5b-2026-10-16).
   evaluations in {0, 1, ω}** (ADR 0071): a pure argument is substituted when evaluated at most once.
 - **Iteration is `loop x = z { φ -> again(…); else -> r }`** (ADR 0015). `again` is a jump in a tail: an
   arm's body, a block's end, a host call's continuation (ADR 0027), a `try` or `expect` success arm
-  (ADR 0041), each arm of a `case` in a tail (ADR 0076); never under an `if`. In the reader the rule is a
-  sort. Every walker of a clause chain walks all four forms, or it is unsound. **No recursion**
+  (ADR 0041), each arm of a `case` in a tail (ADR 0076), the body of a tuple pattern over a loop in a
+  tail (ADR 0139); never under an `if`. In the reader the rule is a sort. Every walker of a clause chain
+  walks all four forms, a host call's continuation and a pattern over a loop being one (`continuation`),
+  or it is unsound. **No recursion**
   (ADR 0014); a balanced recursion is a loop over levels.
 - **Relevance** (ADR 0043): a value of a `relevant` variant is used on every path, `ignore(e)` the
   discard. **Failures are values of a marked sum** (ADR 0040): `lib/result`, `try`, `expect`, the host's
@@ -704,11 +704,13 @@ Read the ADR, and its "Why not", before relitigating one.
 | An `_Out_` parameter is a result of the declaration, its address the call's `&r`; a C call's arguments written as C writes them, `call F(x, &x, &r, &b[lo], NULL)`, read as ADR 0118's terms; `_Inout_` stays a cell, Go's `out τ` where the program chooses τ | [0131](docs/decisions/0131-an-out-parameter-is-a-result.md) |
 | A C function's (pointer, count) to a byte region is one segment parameter, `call WriteFile(h, s, len(s), …)`; a program passes `b` or `b[lo:hi]`, the variant derived; amends 0118's linearity | [0132](docs/decisions/0132-a-c-functions-pointer-and-count-are-one-segment.md) |
 | The window procedure is a λ at WNDCLASSA's field, its set the named claim WNDPROC (ADR 0053) with its C signature `repr WNDPROC c(h, m, w, l) stdcall`, lifted and printed behind a wrapper at that convention; its state a `var` cell the λ captures and passes to a step's `s ∈ S inout`, the cell its static slot (Theorem T's global): no word for the extent, no classification of dispatching calls | [0133](docs/decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md) |
-| An `again` after a nested loop's join point is accepted in a tail, by Theorem J's rewrite (k placed at the producer's exits) before the walkers; kept if nested `wc` measures within noise of nested Go, else sharing on the IR (C); no surface change (not built) | [0134](docs/decisions/0134-an-again-after-a-join-point-is-theorem-js-rewrite.md) |
+| An `again` after a nested loop's join point is accepted in a tail (its representation superseded by 0139) | [0134](docs/decisions/0134-an-again-after-a-join-point-is-theorem-js-rewrite.md) |
 | A cell parameter is the mode `x ∈ T inout`, not the set `cell(T)`: a set ranges over values and a cell is a place, as `Array(V) linear` and not `buffer(V)`; `cell(T)` at a J parameter refused naming `inout`; W7 lets `inout` stand on a program definition's parameter; reverses ADR 0133 item 6's spelling | [0135](docs/decisions/0135-a-cell-parameter-is-the-mode-inout-not-the-set-cell.md) |
 | A struct's field is a value and a pointer in it the layout's, written as C writes it: a buffer in a struct a table field (`= len(m)`), a nested record by pointer `&f`, an inline array `f[N]`, an optional C string `Option(String)`, NULL its niche (not built) | [0136](docs/decisions/0136-a-struct-field-is-a-value-and-its-pointer-is-the-layouts.md) |
 | An unread binder's typing claim is checked, by a typing mark in the residual first, measured | [0137](docs/decisions/0137-an-unread-binders-typing-claim-is-checked.md) |
 | On ℕ ∩ S₆₄, `%` and `/` by a constant divisor are `srem`/`sdiv`, a variable divisor keeping `urem`/`udiv`; amends ADR 0088, measured on the corpus | [0138](docs/decisions/0138-a-remainder-by-a-constant-of-a-natural-is-srem.md) |
+| A tuple pattern over a loop whose body jumps out is a `let` of several names, which every walker of a clause chain reads (`joinLet`); reverses 0134's B | [0139](docs/decisions/0139-a-tuple-pattern-over-a-loop-is-a-let-of-several-names.md) |
+| A lent buffer handed back is a primed result, `(b' ∈ Array(V) linear)`; `buffer(V)` at a result refused | [0140](docs/decisions/0140-a-lent-buffer-handed-back-is-a-primed-result.md) |
 
 ## Build commands
 

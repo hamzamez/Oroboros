@@ -4,7 +4,11 @@ Date: 2026-11-19
 Status: Accepted (hamza, 2026-11-19, on [joinjump-research.md](../joinjump-research.md): "the choice
 should be based on measurements, pick the most likely best choices, even if we have to change it
 later if the measurements say so"). Amends [tables.md](../spec/tables.md) §2.5's not-built list and
-[ADR 0031](0031-a-builds-result-is-a-product.md) §4's join point. **Not built.**
+[ADR 0031](0031-a-builds-result-is-a-product.md) §4's join point. **Not built: B's premise is false in the
+core** ([joinjump-2026-11-19](../../gauntlet/results/joinjump-2026-11-19.md)). The core's `again` is the
+nearest loop's, so k copied into a loop P's exits jumps to P, not to L. Theorem J holds in F_J, whose
+jump names its label. The derivation lands on A read as iteration.md §2's fourth tail form widened
+to a producer's continuation, a reversal for hamza.
 
 ## Context
 

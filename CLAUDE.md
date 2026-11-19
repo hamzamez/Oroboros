@@ -108,7 +108,9 @@ before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment'
 **Decided and to be built** (hamza, 2026-11-19), in this order:
 1. ~~ADR 0135, `x ∈ T inout` the one spelling~~ built ([inout](gauntlet/results/inout-2026-11-19.md)),
    emission byte-identical; a program result's `(buffer(V))` kept, its spelling for hamza;
-2. ADR 0134, an `again` after a join point, B measured against C;
+2. ADR 0134, an `again` after a join point: **B's premise false in the core**
+   ([joinjump](gauntlet/results/joinjump-2026-11-19.md): `again` is the nearest loop's, so B's copy
+   rebinds it); A as the fourth tail form widened, a reversal, for hamza;
 3. **the measurements' method**: the gauntlet's harnesses interleave the two forms round by round
    and report each pair's ratio (jsontok-2026-11-19's (b)); hamza runs one benchmark from a
    foreground terminal to see whether the process-age slowdown is the agent's shell's;

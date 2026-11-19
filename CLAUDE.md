@@ -94,8 +94,10 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 [gauntlet/results/](gauntlet/results/) are the authority: every design claim here not measured has been
 wrong about half the time.
 
-**The current assessment is [assessment-2026-11-18.md](docs/assessment-2026-11-18.md)**; read it
-before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment's plan approved"):
+**The current assessment is [assessment-2026-11-19.md](docs/assessment-2026-11-19.md)**; read it
+before planning. Its §5 sets five choices aside for hamza and proposes a plan, **not yet approved**:
+until it is, the 11-18 plan below stands. **The 11-18 plan (its §5), approved** (hamza, 2026-11-19:
+"assessment's plan approved"):
 1. TinyRetroPad's body in J, module by module, the window procedure last;
 2. the callback decisions: tier 2's taken and built (ADR 0133); tier 1's to discuss with hamza;
 3. the capacity facts: mapvalue's refusals prove on HEAD as reconstructed (probes-2026-11-19), so

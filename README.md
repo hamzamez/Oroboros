@@ -470,21 +470,28 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-19.* The current assessment,
-[docs/assessment-2026-11-18.md](docs/assessment-2026-11-18.md), scores the 11-17 plan below. **Its
-plan** (approved by hamza, 2026-11-19), in order:
+*Updated with the plan; last updated 2026-11-19.* The latest assessment,
+[docs/assessment-2026-11-19.md](docs/assessment-2026-11-19.md), scores this plan and the decisions
+built on 11-19, and proposes the next plan, which hamza has not yet approved. **The plan in force**
+(approved by hamza, 2026-11-19), in order:
 1. **TinyRetroPad's body in the language**, module by module, the window procedure last. The window
    procedure itself is now possible ([slot-2026-11-19](gauntlet/results/slot-2026-11-19.md)).
 2. **The callback decisions**: the window procedure's are taken and built; those for a function a
    Windows or Go call runs only while it lasts are still to discuss.
 3. **The capacity facts** of maps: the refusals named last round prove now, so this waits for a
    program that fails.
-4. **A time limit on every program a test runs**, so one stuck program cannot stall the whole check.
+4. ~~**A time limit on every program a test runs**~~ **done**
+   ([timeouts-2026-11-19](gauntlet/results/timeouts-2026-11-19.md)).
 5. **The project's instructions to its assistant**, rewritten as the state of things, not a story.
 6. **The words that bought nothing**: a first pass is done ([words-audit](docs/words-audit.md)).
 
-Decided and next to build: one spelling for a parameter the host writes back, `x ∈ T inout`
-(ADR 0135), then a nested loop followed by a step of its enclosing loop (ADR 0134).
+Decided on 11-19 and built since: one spelling for a parameter the host writes back, `x ∈ T inout`
+(ADR 0135); benchmarks that time the two forms side by side; 32-bit Windows as the check's second
+tier; a remainder by a constant compiled as C compiles it (ADR 0138); a false claim on a value
+nothing reads refused (ADR 0137). A nested loop followed by a step of its enclosing loop (ADR 0134)
+turned out not to be buildable as decided, and the 128-bit integers in the language's own
+operations wait on a wall; both are set aside for hamza. A wrong answer was found and stopped:
+32-bit and 64-bit Windows printed only the last 20 digits of a very large integer.
 
 **The 11-17 plan, as it ended** (hamza, 2026-11-17), in order:
 1. ~~**a compilation that never finishes is refused**~~ **done, the other way round**

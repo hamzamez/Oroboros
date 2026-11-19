@@ -386,16 +386,17 @@ var published = map[string][]string{
 	},
 	"win32": { // win32-2026-09-08, win32enum-2026-09-11, structval-2026-09-12; the universe
 		// grew by 802 when the parser read STDAPI's shell and utility siblings and
-		// CALLBACK (tinyretropad-2026-11-17)
+		// CALLBACK (tinyretropad-2026-11-17); 14 typedefs more resolved when a
+		// struct's pointer names were read (survey-2026-11-19)
 		"FLAT C API: 12377",
-		"declarable as a (prim …): 11270 91.1%",
-		"callable by a program: 4474 36.1%",
-		"and the call says it all: 4111 33.2%",
+		"declarable as a (prim …): 11284 91.2%",
+		"callable by a program: 4483 36.2%",
+		"and the call says it all: 4120 33.3%",
 		"(widest is 17 arguments)",
 		"ENUMS: 10109 enum type names; 6031 of them",
 		"struct by value 144 1.2%",
 		"floating point 31 0.3%",
-		"emitted 11270 primitives",
+		"emitted 11284 primitives",
 		// structval-2026-09-12. The bucket that was the largest refusal at
 		// 945, and what the ABI does with what is left of it.
 		"STRUCT BY VALUE: 24 aggregate types across 144 refusals",
@@ -406,12 +407,20 @@ var published = map[string][]string{
 		// the line from the declarations, and these are what that buys and
 		// what it deliberately refuses.
 		"by a library the target always links: 666 14.9%",
-		"bound to ONE DLL by every library: 3297 73.7%",
+		"bound to ONE DLL by every library: 3301 73.6%",
 		"refused: bound to two or more DLLs: 157 3.5%",
 		"refused: only through an API set: 61 1.4%",
 		"refused: listed and bound to no DLL: 17 0.4%",
-		"in no import library at all: 276 6.2%",
-		"CALLABLE AND IT LINKS: 3963 32.0% of the flat API",
+		"in no import library at all: 281 6.3%",
+		"CALLABLE AND IT LINKS, the model of 2026-09-08: 3967 32.1% of the flat API",
+		// TODAY'S MODEL (survey-2026-11-19, canPass2): the arguments built since,
+		// ADR 0129-0132, wide strings out, a struct counted where the target
+		// declares it; TestTheSurveysModelCallsWhatTheTargetDeclares holds it to
+		// the declarations
+		"the model of 2026-09-08, wide strings out: 3266 26.4%",
+		"callable, structs the target declares: 4352 35.2%",
+		"callable, every struct the SDK defines: 5733 46.3%",
+		"CALLABLE AND IT LINKS, today's model: 3739 30.2% of the flat API",
 	},
 	"jvm": { // surveys-2026-09-10, corrected by tooling-2026-09-11
 		"4508 public types",

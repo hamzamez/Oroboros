@@ -391,3 +391,67 @@ func sameRange(a, b string) bool {
 // trpSurface is what acceptance/trp-surface.oro's calls print from C on both
 // triples (tinyretropad-2026-11-17).
 var trpSurface = []string{"1", "5", "1", "3", "1", "1", "1", "0", "8", "4294967295", "1", "1", "1", "5", "1", "1", "1"}
+
+// THE SURVEY'S MODEL CALLS WHAT THE TARGET DECLARES (survey-2026-11-19). The
+// published "callable" is canPass2's verdict, a model of what a program can
+// pass, and a model that drifts from the compiler is a claim. So every C
+// function the windows target declares by hand, each checked against its
+// prototype above and called by a program, must be callable by it; and two
+// UTF-16 functions, whose wide strings are not built, must not be: the model
+// refuses something false before it is trusted to pass what is true.
+func TestTheSurveysModelCallsWhatTheTargetDeclares(t *testing.T) {
+	surveyOf(t, "win32") // the SDK is installed, or the test is skipped
+	hand, err := emit.LoadTarget(filepath.Join(root, "targets", "windows"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	declared := map[string]bool{}
+	for n, p := range hand.Prims {
+		if p.CSym != "" && strings.HasPrefix(n, "windows/") && !strings.HasSuffix(n, "#seg") {
+			declared[p.CSym] = true
+		}
+	}
+	if len(declared) == 0 {
+		t.Fatal("the windows target declares no C function, so nothing is checked")
+	}
+	wide := []string{"SetWindowTextW", "CreateFileW"}
+	var names []string
+	for n := range declared {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	file := filepath.Join(t.TempDir(), "names.txt")
+	if err := os.WriteFile(file, []byte(strings.Join(append(append([]string(nil), names...), wide...), "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, err := command(root, "go", "run", "gauntlet/stdlib/win32.go", "-names", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verdict := map[string]string{}
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Split(line, "\t")
+		switch {
+		case len(f) == 6:
+			verdict[f[0]] = f[5]
+		case len(f) == 5 && strings.HasPrefix(f[2], "not among"):
+			verdict[f[0]] = "absent"
+		}
+	}
+	for _, n := range names {
+		// a macro in the SDK (RtlZeroMemory is memset's) and an export of
+		// its DLL: outside the survey's universe of declared functions
+		if verdict[n] == "absent" {
+			t.Logf("%s: not among the SDK's declared functions, outside the survey's universe", n)
+			continue
+		}
+		if verdict[n] != "callable" {
+			t.Errorf("%s is declared by the windows target and called, and the survey's model says %q", n, verdict[n])
+		}
+	}
+	for _, n := range wide {
+		if verdict[n] != "not callable" {
+			t.Errorf("%s passes a UTF-16 string, which is not built, and the survey's model says %q", n, verdict[n])
+		}
+	}
+}

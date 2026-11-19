@@ -352,8 +352,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   per program and target). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
   counts are pinned by `cmd/check`.
-- **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.1%
-  declarable and 32.0% callable and linkable (12,377 entry points, tinyretropad-2026-11-17); `go run gauntlet/stdlib/coverage.go` gives the declared
+- **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.2%
+  declarable and 30.2% callable and linkable by today's model, 35.2% callable, 46.3% if every struct were
+  declared (12,377 entry points, survey-2026-11-19; the old model's 32.0% counted UTF-16 strings); `go run gauntlet/stdlib/coverage.go` gives the declared
   share of the Go packages with a file ([gocoverage-2026-10-06](gauntlet/results/gocoverage-2026-10-06.md)).
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
   `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints, `math/bits`, `io`'s

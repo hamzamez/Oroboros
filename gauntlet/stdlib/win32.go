@@ -535,6 +535,262 @@ func canPass(p param, sh shape) bool {
 	return false
 }
 
+// THE ARGUMENTS A PROGRAM PASSES SINCE 2026-11-18 (survey-2026-11-19), each the
+// ADR that built it. canPass was the model of 2026-09-08: a word, a C string, or
+// NULL for a pointer SAL marks optional. A pointer is now passed:
+//   - `_Out_ T*`: a result of the declaration, its address the call's `&r`
+//     (ADR 0131), T a word or a struct;
+//   - `_Inout_ T*`: a cell the callee writes, `x ∈ T inout` (ADR 0048, 0135);
+//   - `_In_ T*`: `&x`, a cell's address or a struct's fresh copy (ADR 0130);
+//   - a byte region and its count, `_In_reads_bytes_(n)`, `_Out_writes_(n)` over
+//     bytes, n a parameter: one segment, `b` or `b[lo:hi]` (ADR 0132).
+// A struct passes only where its layout is derived and checked against clang
+// (ADR 0128), which this survey does not parse: so a struct counts in the lower
+// bound when the windows target already declares it as a record, and in the
+// upper bound whenever the SDK defines it. A wide string, a typed array, and a
+// pointer whose direction SAL does not say, still do not pass.
+// model2 is canPass2 over an entry point's arguments and its result: the lower
+// bound, structs the target declares, and the upper, every struct.
+func model2(f fn, structs, handles, callbacks map[string]bool, alias map[string]string) (bool, bool) {
+	if f.variadic {
+		return false, false
+	}
+	switch classify(f.result, structs, handles, callbacks, alias) {
+	case shStruct, shFloat, shUnknown, shFunc:
+		return false, false // a struct result by value is a hidden pointer nothing emits
+	case shVoid:
+		if len(f.params) == 0 {
+			return false, false // the format's: a stmt hands back its first argument
+		}
+	}
+	lo, up := true, true
+	for _, p := range f.params {
+		p = unSAL(p)
+		sh := classify(p.typ, structs, handles, callbacks, alias)
+		if !canPass2(p, sh, f, structs, alias, false) {
+			lo = false
+		}
+		if !canPass2(p, sh, f, structs, alias, true) {
+			up = false
+		}
+	}
+	return lo, up
+}
+
+// unSAL moves annotations the parser left in a parameter's type into its SAL:
+// `__drv_freesMem(Mem) _Frees_ptr_opt_ LPVOID`, `__out_data_source(FILE) LPVOID`.
+func unSAL(p param) param {
+	fs := strings.Fields(p.typ)
+	var keep []string
+	for _, w := range fs {
+		if strings.HasPrefix(w, "_") && (strings.HasSuffix(w, "_") || strings.Contains(w, "(")) &&
+			!word[strings.TrimLeft(w, "_")] {
+			p.sal = strings.TrimSpace(p.sal + " " + w)
+			continue
+		}
+		keep = append(keep, w)
+	}
+	if len(keep) > 0 {
+		p.typ = strings.Join(keep, " ")
+	}
+	return p
+}
+
+func canPass2(p param, sh shape, f fn, structs map[string]bool, alias map[string]string, upper bool) bool {
+	// A STRUCT BY VALUE (ADR 0129): the bare set, passed by the triple's ABI,
+	// where its layout is derived
+	if sh == shStruct {
+		n := cleanType(p.typ)
+		return upper || handRecords[n] || handRecords[resolveName(n, alias)] || handWords[n]
+	}
+	// A WIDE STRING IS UTF-16, a codec on the kernel not built (ADR 0091's
+	// rest): canPass counted it a C string. LPCTSTR is wide in the UNICODE
+	// build this survey reads.
+	if sh == shString && wideString[cleanType(p.typ)] {
+		return false
+	}
+	// A C STRING IS AN INPUT: an LPSTR the callee writes, `_Out_writes_(n)`,
+	// is a byte region, passed as a segment only with its count a parameter
+	// (ADR 0132); canPass counted it a string, which a program cannot write into
+	if sh == shString && (strings.HasPrefix(strings.TrimSpace(p.sal), "_Out") || strings.HasPrefix(strings.TrimSpace(p.sal), "_Inout")) &&
+		!strings.Contains(p.sal, "_opt_") {
+		base := p.sal
+		if i := strings.Index(base, "("); i >= 0 {
+			base = base[:i]
+		}
+		if n := salArg(p.sal); segmentSAL(strings.TrimSpace(base)) && n != "" {
+			for _, q := range f.params {
+				if q.name == n {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if canPass(p, sh) {
+		return true
+	}
+	if sh != shPtr {
+		return false
+	}
+	if strings.Contains(p.sal, "_opt_") || strings.Contains(p.sal, "_Reserved_") {
+		return true // NULL, as canPass passes it, its annotation having been in the type
+	}
+	pt := pointee(p.typ, structs, alias)
+	if pt == "" {
+		return false
+	}
+	pw := word[pt] || isWordAlias(pt, alias) || handWords[pt]
+	structOK := structs[pt] && (upper || handRecords[pt] || handRecords[resolveName(pt, alias)])
+	base := p.sal
+	if i := strings.Index(base, "("); i >= 0 {
+		base = base[:i]
+	}
+	base = strings.TrimSpace(strings.Fields(base + " _")[0])
+	switch base {
+	case "_Out_", "_Inout_", "_In_":
+		if pw || structOK {
+			return true
+		}
+	}
+	// A POINTER THE HOST GAVE, handed back as the value `ptr` (HeapFree,
+	// HeapSize, VirtualFree): a void* the callee reads or frees, not writes
+	if byteType(pt) && (pt == "void" || pt == "VOID") {
+		for _, w := range strings.Fields(p.sal) {
+			switch {
+			case w == "_In_", strings.HasPrefix(w, "_Frees_ptr_"), w == "_Pre_notnull_":
+				return true
+			}
+		}
+	}
+	if byteType(pt) && segmentSAL(base) {
+		if n := salArg(p.sal); n != "" {
+			for _, q := range f.params {
+				if q.name == n {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+var wideString = map[string]bool{"LPCWSTR": true, "LPWSTR": true, "PCWSTR": true, "PWSTR": true,
+	"LPCTSTR": true, "LPTSTR": true}
+
+// pointee is a pointer type's pointee, by the typedef chain, or by the SDK's
+// LP/P naming of a struct's or a word's pointer typedef; "" when unknown.
+func pointee(t string, structs map[string]bool, alias map[string]string) string {
+	for i := 0; i < 8; i++ {
+		c := cleanType(t)
+		if strings.HasSuffix(c, "*") {
+			return cleanType(strings.TrimSpace(strings.TrimSuffix(c, "*")))
+		}
+		nxt, ok := alias[strings.TrimSpace(t)]
+		if !ok || nxt == t {
+			break
+		}
+		t = nxt
+	}
+	c := cleanType(t)
+	for _, pre := range []string{"LPC", "LP", "PC", "NP", "P"} {
+		if x := strings.TrimPrefix(c, pre); x != c && (structs[x] || word[x]) {
+			return x
+		}
+	}
+	return ""
+}
+
+func isWordAlias(t string, alias map[string]string) bool {
+	for i := 0; i < 8; i++ {
+		if word[t] {
+			return true
+		}
+		nxt, ok := alias[t]
+		if !ok || nxt == t {
+			return false
+		}
+		t = cleanType(nxt)
+	}
+	return false
+}
+
+func byteType(t string) bool {
+	switch t {
+	case "void", "VOID", "BYTE", "UCHAR", "CHAR", "char", "uint8_t", "INT8", "UINT8":
+		return true
+	}
+	return false
+}
+
+func segmentSAL(base string) bool {
+	switch base {
+	case "_In_reads_bytes_", "_Out_writes_bytes_", "_Inout_updates_bytes_", "_In_reads_", "_Out_writes_",
+		"_Inout_updates_", "_Out_writes_bytes_to_", "_Out_writes_to_":
+		return true
+	}
+	return false
+}
+
+// salArg is a SAL annotation's first argument, when it is a name.
+func salArg(sal string) string {
+	i, j := strings.Index(sal, "("), strings.Index(sal, ")")
+	if i < 0 || j < i {
+		return ""
+	}
+	a := strings.TrimSpace(sal[i+1 : j])
+	if k := strings.Index(a, ","); k >= 0 {
+		a = strings.TrimSpace(a[:k])
+	}
+	for _, r := range a {
+		if !(r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+			return ""
+		}
+	}
+	return a
+}
+
+// handRecords are the structs the windows target declares as records, each
+// checked against clang (TestWin32DeclarationsAreTheirPrototypes), read from
+// targets/win32: `set NAME = record {`.
+var handRecords = map[string]bool{}
+
+// handWords are the SDK's types the target declares as an integer set, not a
+// record: LARGE_INTEGER, a union read as its QuadPart (winnt.oro).
+var handWords = map[string]bool{}
+
+// resolveName follows a name's typedef chain to its last name.
+func resolveName(n string, alias map[string]string) string {
+	for i := 0; i < 8; i++ {
+		nxt, ok := alias[n]
+		if !ok || nxt == n || strings.Contains(nxt, "*") {
+			return n
+		}
+		n = cleanType(nxt)
+	}
+	return n
+}
+
+func readHandRecords() {
+	fs, _ := filepath.Glob(filepath.Join("targets", "win32", "*.oro"))
+	re := regexp.MustCompile(`(?m)^\s*(?:pub\s+)?set\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*record\b`)
+	reWord := regexp.MustCompile(`(?m)^\s*(?:pub\s+)?set\s+([A-Z_][A-Z0-9_]*)\s*=\s*([A-Za-z_][A-Za-z0-9_.]*)`)
+	for _, f := range fs {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+			handRecords[m[1]] = true
+		}
+		for _, m := range reWord.FindAllStringSubmatch(string(b), -1) {
+			if !handRecords[m[1]] && m[2] != "record" && m[2] != "host" && m[2] != "fn" {
+				handWords[m[1]] = true
+			}
+		}
+	}
+}
+
 func main() {
 	sdk := flag.String("sdk", "", "SDK include directory (default: the newest installed)")
 	emitDir := flag.String("emit", "", "write the declarable subset as target files into DIR")
@@ -547,6 +803,7 @@ func main() {
 	namesFile := flag.String("names", "", "for each entry point FILE names (one a line, `_imp__` and `@n` stripped), print its header, verdict, arity and DLL by this survey's own rules, and stop")
 	flag.Parse()
 	readSizes(*sizeTab)
+	readHandRecords()
 
 	dir := *sdk
 	if dir == "" {
@@ -658,6 +915,8 @@ func main() {
 	}
 
 	var declarable, callable, usable int
+	var callable2, callable2Upper, callable0Narrow int
+	var callable2Names []string
 	byReason := map[reason]int{}
 	byGap := map[reason]int{}
 	// Struct by value is the largest remaining refusal, and the roadmap
@@ -678,6 +937,8 @@ func main() {
 	var decls []fn
 	// each entry point's verdict by the rules below, for -names
 	verdictOf := map[string]string{}
+	// and by the model of 2026-11-19, the lower bound (canPass2)
+	verdict2Of := map[string]string{}
 
 	for _, f := range fns {
 		why := ok
@@ -686,6 +947,19 @@ func main() {
 			for _, s := range strings.Fields(p.sal) {
 				salCount[salKind(s)]++
 			}
+		}
+		// THE MODEL OF 2026-11-19 (canPass2), on every entry point: a struct
+		// by value is passed since ADR 0129, so a name the old classifier
+		// refused for one is judged too
+		all2, all2u := model2(f, structs, handles, callbacks, alias)
+		verdict2Of[f.name] = "not callable"
+		if all2 {
+			verdict2Of[f.name] = "callable"
+			callable2++
+			callable2Names = append(callable2Names, f.name)
+		}
+		if all2u {
+			callable2Upper++
 		}
 		if f.variadic {
 			why = rVariadic
@@ -758,6 +1032,17 @@ func main() {
 			if sh == shPtr {
 				usedNull = true
 			}
+		}
+		// the model of 2026-09-08 with UTF-16 left out, for the comparison
+		all0 := true
+		for _, p := range f.params {
+			sh := classify(p.typ, structs, handles, callbacks, alias)
+			if !canPass(p, sh) || sh == shString && wideString[cleanType(p.typ)] {
+				all0 = false
+			}
+		}
+		if all0 {
+			callable0Narrow++
 		}
 		if !reach {
 			byGap[rOutParam]++
@@ -897,7 +1182,7 @@ func main() {
 
 	if *namesFile != "" {
 		lk, lkErr := loadLinkage(dir)
-		if err := reportNames(*namesFile, fns, verdictOf, lk, lkErr); err != nil {
+		if err := reportNames(*namesFile, fns, verdictOf, verdict2Of, lk, lkErr); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -905,7 +1190,13 @@ func main() {
 	}
 	reportStructs(argOf, resOf, structFns)
 	lk, lkErr := loadLinkage(dir)
-	reportLinking(lk, lkErr, callableNames, len(fns))
+	reportLinking(lk, lkErr, callableNames, len(fns), "the model of 2026-09-08")
+	fmt.Printf("\nTHE MODEL OF 2026-11-19 (canPass2: _Out_, _Inout_ and _In_ pointers, byte segments, ADR 0130-0132):\n")
+	fmt.Printf("  the model of 2026-09-08, wide strings out: %5d  %5.1f%%   [what canPass passes, less UTF-16]\n", callable0Narrow, pct(callable0Narrow, len(fns)))
+	fmt.Printf("  callable, structs the target declares:  %5d  %5.1f%%\n", callable2, pct(callable2, len(fns)))
+	fmt.Printf("  callable, every struct the SDK defines: %5d  %5.1f%%\n", callable2Upper, pct(callable2Upper, len(fns)))
+	fmt.Printf("  (%d structs declared by the target)\n", len(handRecords))
+	reportLinking(lk, lkErr, callable2Names, len(fns), "today's model")
 
 	if len(unres) > 0 {
 		type uc struct {
@@ -1093,6 +1384,20 @@ func collectTypes(hdr, src string, structs, handles, callbacks map[string]bool, 
 		structs[nm] = true
 		if structHdr[nm] == "" {
 			structHdr[nm] = hdr
+		}
+		// `} RECT, *PRECT, NEAR *NPRECT, FAR *LPRECT;`: each starred name after
+		// the comma is a pointer to the struct (survey-2026-11-19; reStruct
+		// read the first name only, so LPRECT had no pointee)
+		for _, tok := range strings.Split(src[ix[3]:ix[1]], ",") {
+			if !strings.Contains(tok, "*") {
+				continue
+			}
+			fs := strings.Fields(strings.NewReplacer("*", " ", ";", " ").Replace(tok))
+			if len(fs) > 0 {
+				if pn := fs[len(fs)-1]; alias[pn] == "" {
+					alias[pn] = nm + "*"
+				}
+			}
 		}
 	}
 	for _, m := range reCbType.FindAllStringSubmatch(src, -1) {
@@ -1777,7 +2082,7 @@ func (lk *linkage) resolve(name string) (lib, why string) {
 // reach. A name this survey counts and a program cannot link is a claim, which
 // is the same sentence win32-2026-09-08 wrote about a name counted declarable
 // and never emitted.
-func reportLinking(lk *linkage, lkErr error, callable []string, total int) {
+func reportLinking(lk *linkage, lkErr error, callable []string, total int, model string) {
 	if lkErr != nil {
 		fmt.Printf("\nLINKING: not measured — %v\n", lkErr)
 		return
@@ -1817,7 +2122,7 @@ func reportLinking(lk *linkage, lkErr error, callable []string, total int) {
 		unbound, pct(unbound, len(callable)))
 	fmt.Printf("  in no import library at all:    %5d  %5.1f%%   [a header with no static import]\n",
 		none, pct(none, len(callable)))
-	fmt.Printf("  CALLABLE AND IT LINKS:                  %5d  %5.1f%% of the flat API\n", links, pct(links, total))
+	fmt.Printf("  CALLABLE AND IT LINKS, %s: %5d  %5.1f%% of the flat API\n", model, links, pct(links, total))
 
 	type lc struct {
 		lib string
@@ -2387,7 +2692,7 @@ func reportOrganization(fns []fn, lk *linkage) {
 // reportNames is -names: each listed entry point's header, verdict, arity and
 // DLL, one a line, tab-separated, by the survey's own rules, so a program's
 // surface is measured as the SDK's was (tinyretropad-2026-11-17).
-func reportNames(file string, fns []fn, verdictOf map[string]string, lk *linkage, lkErr error) error {
+func reportNames(file string, fns []fn, verdictOf, verdict2Of map[string]string, lk *linkage, lkErr error) error {
 	b, err := os.ReadFile(file)
 	if err != nil {
 		return err
@@ -2420,7 +2725,11 @@ func reportNames(file string, fns []fn, verdictOf map[string]string, lk *linkage
 				dll = why
 			}
 		}
-		fmt.Printf("%s\t%s\t%s\t%d\t%s\n", n, f.hdr, verdictOf[n], len(f.params), dll)
+		v2 := verdict2Of[n]
+		if v2 == "" {
+			v2 = "not callable"
+		}
+		fmt.Printf("%s\t%s\t%s\t%d\t%s\t%s\n", n, f.hdr, verdictOf[n], len(f.params), dll, v2)
 	}
 	return nil
 }

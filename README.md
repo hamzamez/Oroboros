@@ -132,7 +132,7 @@ Surveys read each host's own API list and count what the declaration format can 
 |---|---:|---:|
 | Go standard library | 87.8% | 60.5% |
 | JVM (JDK) | 81.4% | 60.9% |
-| Win32 | 91.1% | 32.0% callable *and* linkable |
+| Win32 | 91.2% | 30.2% callable *and* linkable, by the arguments a program passes today and the nine structs the target declares; up to 46.3% callable as structs are declared ([survey-2026-11-19](gauntlet/results/survey-2026-11-19.md)) |
 | JavaScript (Node's `globalThis`) | 100% | not a meaningful number: every value has one type. The browser's Web APIs are not surveyed yet |
 
 "Declarable" is not "supported". A package is supported when every function is declared **by hand**,

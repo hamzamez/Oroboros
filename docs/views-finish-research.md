@@ -44,7 +44,7 @@ portability claim (Tier 2), as `go.==` does.
 - (b) a declared `same(h, g)` per kind (no change to `==`).
 
 The derivation leans to (a): the kind's equality is the type's (ADR 0084 item 10's "with
-equality").
+equality"). **Decided (hamza, 2026-11-19): (a).**
 
 **The niche.** A failure is a value of a marked sum (ADR 0040). CreateFileA's failure is
 INVALID_HANDLE_VALUE, (HANDLE)−1. GlobalAlloc's and CreateWindowExA's is NULL. Win32 has no niche
@@ -87,7 +87,9 @@ The derivation: GlobalLock's pointer is a view of the global object, lent from t
 unlock. A program that uses it after GlobalUnlock reads freed memory. So the view is a region
 whose extent two calls bound. That is exactly borrow-research's question (a borrow a later call
 ends), researched and not decided.
-**A choice for hamza** (borrow-research's options):
+**Researched further** in [scopeforms-research.md](scopeforms-research.md), at hamza's question
+(a `keyword options { block }` form, a macro): the epoch's soundness is on the declarations, and the
+scope form is a trailing block over a definition. **A choice for hamza** (borrow-research's options):
 - the epoch as a scope, `lock(h) { p -> … }`, the unlock at its end;
 - the epoch as a linear token GlobalLock gives and GlobalUnlock consumes.
 
@@ -143,6 +145,9 @@ the declaration says it). A program cannot pass a non-slot cell to it: refused.
 Or none: a FINDREPLACEA parameter is always kept by FindTextA and ReplaceTextA, so the loader may
 know it from the function. The derivation says a keeping is a mode, as `inout` is (ADR 0135: a
 mode is what a program observes of a binder's relation to the caller's place). So a mode word.
+**Decided (hamza, 2026-11-19): `kept`**, since the repo has the protocol (pointers-research §14.18,
+callbacks-research §3.7: a move to the host, a lend back per FINDMSGSTRING, a return at
+FR_DIALOGTERM) and no spelling for the declaration's side.
 
 **Program**: TinyRetroPad's find and replace, with P5's members (EM_FINDTEXTEXA, EM_EXSETSEL,
 EM_REPLACESEL) over the control.

@@ -111,9 +111,10 @@ before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment'
 2. ADR 0134, an `again` after a join point: **B's premise false in the core**
    ([joinjump](gauntlet/results/joinjump-2026-11-19.md): `again` is the nearest loop's, so B's copy
    rebinds it); A as the fourth tail form widened, a reversal, for hamza;
-3. **the measurements' method**: the gauntlet's harnesses interleave the two forms round by round
-   and report each pair's ratio (jsontok-2026-11-19's (b)); hamza runs one benchmark from a
-   foreground terminal to see whether the process-age slowdown is the agent's shell's;
+3. ~~**the measurements' method**~~ built ([pairs](gauntlet/results/pairs-2026-11-19.md)): each host's
+   harness times a pair round by round in one process, ABBA, the median ratio and its range, each
+   with a self-test; `bash gauntlet/pairs.sh OUT` runs the gauntlet's rows; the gauntlet re-measured
+   with it at the next assessment; hamza runs one benchmark from a foreground terminal;
 4. **windows32 as a second-tier platform**: `cmd/check -tier2` adds its differential and emission,
    run at each assessment and before accepting a change to the LLVM layer, `lib/rt` or windows32's
    targets;

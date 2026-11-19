@@ -22,6 +22,7 @@
 // optimization state across benchmarks in a process, and a namespace property
 // load costs 1.66x (native-js-2026-08-20).
 
+import { runPairs } from "./pairs.mjs";
 import { nativeMeasure } from "./gen_jsontree_native.mjs";
 
 const NMAX = 512;
@@ -221,6 +222,10 @@ const CASES = {
 };
 
 const which = process.argv[2];
+if (which === "--pair") {
+  runPairs(CASES, process.argv.slice(3));
+  process.exit(0);
+}
 if (which === "--check" || which === undefined) check();
 else {
   const c = CASES[which];

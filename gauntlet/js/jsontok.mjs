@@ -30,6 +30,7 @@
 // object costs 1.66x for the property load, which would make the generated side
 // look faster for no reason (native-js-2026-08-20).
 
+import { runPairs } from "./pairs.mjs";
 import { nativeTokens } from "./gen_jsontok_native.mjs";
 
 const CAP = 32;
@@ -297,6 +298,10 @@ const CASES = {
 };
 
 const which = process.argv[2];
+if (which === "--pair") {
+  runPairs(CASES, process.argv.slice(3));
+  process.exit(0);
+}
 if (which === "--list") {
   console.log(Object.keys(CASES).join("\n"));
 } else if (which === "--check" || which === undefined) {

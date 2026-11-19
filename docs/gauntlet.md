@@ -58,6 +58,11 @@ whether two slices alias, and no target language can express that they do not.
 3. For each candidate core, express all seven programs and generate target code.
 4. Compare against the reference on: wall time, allocation count, and output size.
 5. A candidate **passes** a program on a target when it is within threshold on all three.
+6. **A ratio is taken in one window** ([pairs-2026-11-19](../gauntlet/results/pairs-2026-11-19.md)):
+   the generated form and its reference are timed back to back in one process, round by round, the
+   order alternating, and the ratio is the median of the rounds'. A process here slows with its
+   age (jsontok-2026-11-19), so two forms timed seconds apart compare two windows of the machine.
+   `bash gauntlet/pairs.sh OUT [go js java windows]`, from a foreground terminal.
 
 ## Thresholds
 

@@ -138,6 +138,7 @@ public final class NativeBench {
     static String only;
 
     static void bench(String name, Runnable fn, int iters) {
+        if (Pair.on) { Pair.register(name, fn); return; }
         if (only != null && !name.equals(only)) return;
         long warm = System.nanoTime();
         int w = 0;
@@ -158,6 +159,14 @@ public final class NativeBench {
     }
 
     public static void main(String[] args) {
+        // INTERLEAVED PAIRS (Pair.java): the body registers its cases, then the
+        // named pairs are timed in this one process.
+        if (args.length > 0 && args[0].equals("--pair")) {
+            String[] names = Pair.parse(args);
+            main(new String[] {"--register"});
+            Pair.run(names);
+            return;
+        }
         only = args.length > 0 ? args[0] : null;
         double[] A = Gauntlet.makeVec(NVEC, 1);
         double[] B = Gauntlet.makeVec(NVEC, 2);

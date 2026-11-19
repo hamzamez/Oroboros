@@ -9,8 +9,10 @@
 // functions take the language's table, a pointer to an i64 length followed by
 // the elements (docs/spec/llvm.md §4).
 //
-// One case per process, as on the other hosts:
+// One case per process, as on the other hosts, or a pair interleaved in one:
 //
+//	bench DIR pair GEN HAND [ROUNDS]   the two cases' interleaved ratio (main)
+//	bench DIR pairtest                 the pair harness's own check
 //	bench DIR CASE    checks every case against Go's answers, then times CASE:
 //	                  9 batches of at least 20 ms, the median ns/op, and the
 //	                  process's peak working set
@@ -452,8 +454,82 @@ static int cmp(const void *a, const void *b) {
     return x < y ? -1 : x > y;
 }
 
+// THE PAIRS, INTERLEAVED (CLAUDE.md's measurements' method, jsontok-2026-11-19
+// §3 (b)): `bench DIR pair GEN HAND [ROUNDS]` times the two cases back to back
+// each round, the order alternating (ABBA cancels a slow drift's first-order
+// term), and prints the median of the rounds' ratios GEN/HAND with their range.
+// A batch is sized on HAND to about 20 ms, and both run that many calls.
+static double batch(void (*volatile f)(void), long long n) {
+    double t0 = now_ns();
+    for (long long i = 0; i < n; i++) f();
+    return (now_ns() - t0) / (double)n;
+}
+static double median_of(const double *x, int n) {
+    double s[64];
+    memcpy(s, x, n * sizeof *x);
+    qsort(s, n, sizeof s[0], cmp);
+    return n % 2 ? s[n / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+}
+static double interleave(void (*gen)(void), void (*hand)(void), int rounds, double batch_ns,
+                         double *gns, double *hns, double *lo, double *hi, long long *np) {
+    batch(gen, 100), batch(hand, 100);
+    long long n = 1;
+    for (;;) { // size the batch on the reference
+        double t0 = now_ns();
+        for (long long i = 0; i < n; i++) hand();
+        if (now_ns() - t0 >= batch_ns) break;
+        n *= 2;
+    }
+    double g[64], h[64], r[64];
+    for (int k = 0; k < rounds; k++) {
+        if (k % 2 == 0) { g[k] = batch(gen, n); h[k] = batch(hand, n); }
+        else { h[k] = batch(hand, n); g[k] = batch(gen, n); }
+        r[k] = g[k] / h[k];
+    }
+    *gns = median_of(g, rounds), *hns = median_of(h, rounds), *np = n;
+    double s[64];
+    memcpy(s, r, rounds * sizeof *r);
+    qsort(s, rounds, sizeof s[0], cmp);
+    *lo = s[0], *hi = s[rounds - 1];
+    return median_of(r, rounds);
+}
+static void (*volatile pt_one)(void);
+static void pt_twice(void) { pt_one(); pt_one(); }
+
+static void (*case_named(const char *name))(void) {
+    for (int k = 0; k < NCASES; k++)
+        if (strcmp(cases[k].name, name) == 0) return cases[k].run;
+    return NULL;
+}
+
 int main(int argc, char **argv) {
-    if (argc != 3) { fprintf(stderr, "usage: bench DIR CASE|check\n"); return 2; }
+    if (argc >= 5 && strcmp(argv[2], "pair") == 0) {
+        load(argv[1]);
+        check(argv[1]);
+        if (fails) { printf("%d disagreement(s)\n", fails); return 1; }
+        void (*g)(void) = case_named(argv[3]), (*h)(void) = case_named(argv[4]);
+        if (!g || !h) { fprintf(stderr, "no case %s\n", g ? argv[4] : argv[3]); return 2; }
+        int rounds = argc >= 6 ? atoi(argv[5]) : 7;
+        if (rounds < 1 || rounds > 64) rounds = 7;
+        double gns, hns, lo, hi;
+        long long n;
+        double ratio = interleave(g, h, rounds, 20e6, &gns, &hns, &lo, &hi, &n);
+        printf("%-22s %-22s %8lld %12.2f %12.2f %7.3f %.3f-%.3f pair\n", argv[3], argv[4], n, gns, hns, ratio, lo, hi);
+        return 0;
+    }
+    // THE HARNESS CAN FAIL: twice the work reads about 2, a case against itself about 1
+    if (argc == 3 && strcmp(argv[2], "pairtest") == 0) {
+        load(argv[1]);
+        pt_one = case_named("g1-dot1024-hand");
+        double gns, hns, lo, hi, r2, r1;
+        long long n;
+        r2 = interleave(pt_twice, pt_one, 5, 10e6, &gns, &hns, &lo, &hi, &n);
+        r1 = interleave(pt_one, pt_one, 5, 10e6, &gns, &hns, &lo, &hi, &n);
+        int ok = r2 > 1.5 && r2 < 2.6 && r1 > 0.85 && r1 < 1.18;
+        printf("twice the work %.3f, itself %.3f: %s\n", r2, r1, ok ? "ok" : "FAIL");
+        return ok ? 0 : 1;
+    }
+    if (argc != 3) { fprintf(stderr, "usage: bench DIR CASE|check|pairtest, or bench DIR pair GEN HAND [ROUNDS]\n"); return 2; }
     load(argv[1]);
     check(argv[1]);
     if (fails) { printf("%d disagreement(s)\n", fails); return 1; }

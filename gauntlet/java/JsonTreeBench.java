@@ -297,6 +297,7 @@ public final class JsonTreeBench {
     static String only;
 
     static void run(String what, java.util.function.Supplier<Object> f, int warm, int iters) {
+        if (Pair.on) { Pair.register(what, () -> sink = f.get()); return; }
         if (only != null && !what.equals(only)) return;
         for (int i = 0; i < warm; i++) sink = f.get();
         double best = Double.MAX_VALUE;
@@ -310,6 +311,14 @@ public final class JsonTreeBench {
     }
 
     public static void main(String[] args) {
+        // INTERLEAVED PAIRS (Pair.java): the body registers its cases, then the
+        // named pairs are timed in this one process.
+        if (args.length > 0 && args[0].equals("--pair")) {
+            String[] names = Pair.parse(args);
+            main(new String[] {"--register"});
+            Pair.run(names);
+            return;
+        }
         only = args.length > 0 ? args[0] : null;
         for (int n : new int[]{0, 1, 2, 5, 20}) check(makeDoc(n));
         for (String s : new String[]{"[1,2]", "{\"a\":1}", "[[1],2]",

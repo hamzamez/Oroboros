@@ -16,6 +16,7 @@
 // inline caches and GC all carry across benchmarks in one process, and this
 // machine is bimodal on top of that (native-gauntlet-2026-08-20 §9).
 
+import { runPairs } from "./pairs.mjs";
 import * as g from "./gauntlet.mjs";
 // NAMED imports for every hand-written reference, and this is not a style
 // choice either. `g.dotTyped(a, b)` measures 49,918 ns and `dotTyped(a, b)` —
@@ -169,6 +170,10 @@ const CASES = {
 };
 
 const which = process.argv[2];
+if (which === "--pair") {
+  runPairs(CASES, process.argv.slice(3));
+  process.exit(0);
+}
 if (which === "--list") {
   console.log(Object.keys(CASES).join("\n"));
 } else if (which === "--check" || which === undefined) {

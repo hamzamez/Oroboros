@@ -224,7 +224,8 @@ remaining 5–6× against Go's `String`.
 - **an `again` after a nested loop's join point** (tables.md §2.5): 16% of `wc` against idiomatic Go
   ([wc-2026-10-24](gauntlet/results/wc-2026-10-24.md)); researched
   ([joinjump-research.md](docs/joinjump-research.md): Theorem J, the commuting conversion, says what
-  it means; four candidates, B a rewrite before the walkers), hamza's to decide;
+  it means), decided (ADR 0134: B, Theorem J's rewrite before the walkers, kept if nested `wc`
+  measures within noise of nested Go, else C); not built;
 - ~~**the Go library, program first**: `cmp`, two files compared chunk by chunk~~ done
   ([cmpprog](gauntlet/results/cmpprog-2026-11-19.md)), one output on four hosts;
 - **the analysis grows only for a refusal a program names**, each rule's planted fault with it;
@@ -657,6 +658,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | An `_Out_` parameter is a result of the declaration, its address the call's `&r`; a C call's arguments written as C writes them, `call F(x, &x, &r, &b[lo], NULL)`, read as ADR 0118's terms; `_Inout_` stays a cell, Go's `out τ` where the program chooses τ | [0131](docs/decisions/0131-an-out-parameter-is-a-result.md) |
 | A C function's (pointer, count) to a byte region is one segment parameter, `call WriteFile(h, s, len(s), …)`; a program passes `b` or `b[lo:hi]`, the variant derived; amends 0118's linearity | [0132](docs/decisions/0132-a-c-functions-pointer-and-count-are-one-segment.md) |
 | The window procedure is a λ at WNDCLASSA's field, its set the named claim WNDPROC (ADR 0053) with its C signature `repr WNDPROC c(h, m, w, l) stdcall`, lifted and printed behind a wrapper at that convention; its state a `var` cell the λ captures and passes to a step's `s ∈ cell(S)`, the cell its static slot (Theorem T's global): no word for the extent, no classification of dispatching calls | [0133](docs/decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md) |
+| An `again` after a nested loop's join point is accepted in a tail, by Theorem J's rewrite (k placed at the producer's exits) before the walkers; kept if nested `wc` measures within noise of nested Go, else sharing on the IR (C); no surface change (not built) | [0134](docs/decisions/0134-an-again-after-a-join-point-is-theorem-js-rewrite.md) |
 
 ## Build commands
 

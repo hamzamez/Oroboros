@@ -2,8 +2,9 @@
 
 2026-11-19. The 10-24 plan's open item ([assessment-2026-10-24](assessment-2026-10-24.md) §5): "an
 `again` after a nested loop's join point (tables.md §2.5): 16% of `wc` against idiomatic Go; research
-it as a join point that may jump". **Research, no decision, nothing built.** The decisions are §6's,
-hamza's.
+it as a join point that may jump". **Decided by [ADR 0134](decisions/0134-an-again-after-a-join-point-is-theorem-js-rewrite.md)**
+(hamza, 2026-11-19: choose by measurement, the most likely best, changed if the measurements say so):
+the program accepted in a tail, by B, measured against C. Not built.
 
 ## 0. The question and its price
 

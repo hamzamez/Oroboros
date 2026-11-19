@@ -12,6 +12,12 @@ The declaration `winuser.SendMessageA(w ∈ HWND, m ∈ UINT, wp ∈ WPARAM, lp 
 that into integers. This document says what the function is, and where the language stands.
 Nothing is built.
 
+> **Correction, 2026-11-19.** Option 1 was decided already. ADR 0084 item 12 (P5, hamza
+> 2026-10-30) reads: *a family indexed by a constant is one declaration per member (`SendMessage`'s
+> messages, as `windowsx.h`'s crackers); the integer carrying a pointer is the template's.* What
+> P5 left open is the notation: ADR 0131's call form came later and lists no constant argument. So
+> what §2 calls a wall is the gap between P5 and ADR 0131's notation, not an open design.
+
 ## 1. What it is
 
 SendMessageA is a **dependent function**,

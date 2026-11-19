@@ -228,8 +228,10 @@ remaining 5–6× against Go's `String`.
 - ~~**the Go library, program first**: `cmp`, two files compared chunk by chunk~~ done
   ([cmpprog](gauntlet/results/cmpprog-2026-11-19.md)), one output on four hosts;
 - **the analysis grows only for a refusal a program names**, each rule's planted fault with it;
-- **the JVM's generated JSON tokenizer slows from 8 to 22.5 µs mid-run** (bits-2026-10-27 §2): find
-  the cause against hand-written code.
+- ~~**the JVM's generated JSON tokenizer slows from 8 to 22.5 µs mid-run**~~ found
+  ([jsontok-2026-11-19](gauntlet/results/jsontok-2026-11-19.md)): the process's age, the
+  hand-written tokenizer as slow at the same moment; whether the gauntlet's ratios were measured in
+  one window is owed;
 
 **Deliberately not next**: ARM, Linux and macOS targets themselves; loop-arm patterns and `try`'s
 handlers; a result claim per instance; the clause chain's copying, `e2`, `lent`; optimizing the compile;
@@ -508,7 +510,9 @@ Each has bitten more than once; the instances are in the results named.
 - **Benchmark-method errors have many species**: a closure in the reference, a fixed iteration count,
   shared processes, eliminated work, two things changed at once, a modified input, comparing against
   HEAD after a regression, timing among parallel jobs, a stopped run still running, one megamorphic call
-  site, a baseline built from `git stash`. Time a baseline in a worktree. Make a suspicious result explain
+  site, a baseline built from `git stash`, a process's age (about 3 s in, any code on this hybrid
+  laptop runs about 3× slower, jsontok-2026-11-19). Time a baseline in a worktree, and compare forms
+  measured in the same window. Make a suspicious result explain
   itself before recording it.
 - **A refusal can hide a wrong answer**, and **a program finds what a construct suite cannot**.
 - **A test can pin a stale text**: `TestScopeCheck` required "fold-range" (defects-2026-10-26). Read

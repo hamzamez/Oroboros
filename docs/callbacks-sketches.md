@@ -17,8 +17,8 @@ after a call that re-enters it. It is §1.4b.
 classification; T2-4 no new word, the `var` scope is the extent (§1.4c); T2-4b the cell; T2-5 the
 arrow; T1-1 L. **T1-3 (a)** (hamza, 2026-11-20: "agree to option a"): a cell written in the λ is
 threaded where the host documents its order, `ordered`, and refused elsewhere; a host's IO in the
-λ follows the same rule. **T1-4 follows** (Part 3, §3.3): a buffer lent like a cell. Open: T1-2's
-words, T1-5; T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
+λ follows the same rule. **T1-4 (a)** (hamza, 2026-11-20: "T1-4 agree"; Part 3, §3.3): a buffer
+lent like a cell. Open: T1-2's words, default and the sentence's place (shown in §3.9), T1-5; T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
 each.
 
 ---
@@ -828,3 +828,145 @@ were visited before the stop depends on the order.
    the list's order, so the browser and Android do have `ordered` hosts.
 3. **The asymmetry with our own definitions** (§3.2): `twice(fn(x) { n := n + x })` stays refused,
    though a host's `ordered` call admits the same λ. It waits on a program that writes one.
+
+## 3.9 T1-2 shown: the surface and the target files (hamza, 2026-11-20)
+
+hamza: "T1-4 agree. T1-2, show it to me with examples, what changes in the surface and in the
+target files." Every sentence quoted below is the host's documentation, read with `go doc` on Go
+1.27.
+
+### In a program: no new word
+
+A program writes `fn(…) { … }` at a call, as J does today. The markers live in the target file. A
+program meets them only as what is accepted and what is refused, and each refusal names the
+declaration's promise.
+
+```
+use io
+use go/strings
+use go/path/filepath
+
+export fn main() {
+    s = io.read_line()
+    i = strings.IndexFunc(s, fn(r) { r == 32 })        // 1. accepted: a pure λ needs no promise
+
+    var n := 0
+    t = strings.Map(fn(r) { n := n + 1; r }, s)        // 2. refused
+
+    e = filepath.WalkDir(".", fn(p, d, err) {          // 3. accepted: WalkDir is `ordered`
+        if n < 1000000 { n := n + 1 }
+        nil
+    })
+    io.print_int(n)
+}
+```
+
+2's refusal would read, in J:
+
+```
+strings.Map's f promises nothing about its calls (no `calls`, no `ordered`), so
+fn(r) { n := n + 1; r }, which writes the cell n, would count what one Go release does
+(Go 1.9's FieldsFunc called f twice per rune). Count with a loop of your own, or pass the
+λ to a host whose declaration promises its order.
+```
+
+3 shows the one thing a program writer must newly think about: **the λ is read as a loop whose trip
+count is the host's.** WalkDir promises no bound on the number of files. So `n := n + 1` without the
+guard is refused, because the sum is not proven inside the word, just as an unbounded counting loop
+is (chapter 14's `tally` guards its count the same way).
+
+| the program | the promise it meets | the outcome |
+|---|---|---|
+| `strings.IndexFunc(s, fn(r) { r == 32 })` | none | accepted (Theorem D) |
+| `strings.Map(fn(r) { n := n + 1; r }, s)` | none | refused: a cell written |
+| `sort.Slice(a, fn(i, j) { io.print_int(i); a[i] < a[j] })` | none | refused: a print in an order nobody promises |
+| `filepath.WalkDir(".", fn(p, d, err) { … n := n + 1 … })` | `ordered` | accepted, threaded in lexical order |
+| `slices.EqualFunc(a, b, fn(x, y) { k := k + 1; x == y })` | `ordered` | accepted: k is the number of comparisons up to the first unequal pair |
+| `once.Do(fn() { io.print_line("init") })` | `calls 0..1` | accepted: at most one activation has one order |
+| `once.Do(fn() { ignore(r) })`, r relevant | `calls 0..1` | refused: f may not run, so r may go unused |
+| `trace.WithRegion(c, "load", fn() { ignore(r) })`, r relevant | `calls 1` | accepted: r is used on every path |
+| `m.Range(fn(k, v) { n := n + 1; true })`, a `sync.Map` | each key once, no order | refused until the middle strength has its word |
+| `filepath.WalkDir(".", fn(p, d, err) { again(…) })` | any | refused: `again` would leave the host's frame |
+
+### In a target file: two words after the arrow, each with the host's sentence
+
+The markers go where `pure` goes, after the callback's result. A marker other than the default
+carries the sentence that promises it.
+
+```
+// strings: Go promises a result, nothing about the calls. No marker.
+fn IndexFunc(s ∈ go.bytestring, f ∈ fn(r ∈ Rune) (Bool)) (Int) pure {
+    host expr "strings.IndexFunc(${s}, ${f})" import "strings"
+}
+fn Map(f ∈ fn(r ∈ Rune) (Rune), s ∈ go.bytestring) (go.bytestring) pure {
+    host expr "strings.Map(${f}, ${s})" import "strings"
+}
+
+// path/filepath: the order of the calls is promised.
+fn WalkDir(root ∈ go.bytestring,
+           f ∈ fn(p ∈ go.bytestring, d ∈ fs.DirEntry, e ∈ error) (error)
+               ordered "The files are walked in lexical order") (error) {
+    host expr "filepath.WalkDir(${root}, ${f})" import "path/filepath"
+}
+
+// slices
+fn EqualFunc(a ∈ Array(Int), b ∈ Array(Int),
+             eq ∈ fn(x ∈ Int, y ∈ Int) (Bool)
+                ordered "the elements are compared in increasing index order") (Bool) pure {
+    host expr "slices.EqualFunc(${a}, ${b}, ${eq})" import "slices"
+}
+
+// sync: the count is promised; one activation needs no order.
+fn Do(o ∈ Once, f ∈ fn() ()
+        calls 0..1 "Do calls the function f if and only if Do is being called for the first time") () {
+    host expr "${o}.Do(${f})" import "sync"
+}
+
+// runtime/trace
+fn WithRegion(c ∈ context.Context, t ∈ go.bytestring, f ∈ fn() () calls 1 "runs fn") () {
+    host expr "trace.WithRegion(${c}, ${t}, ${f})" import "runtime/trace"
+}
+```
+
+On Windows nothing is marked yet. `EnumWindows` promises "each window, in turn", the middle
+strength (§3.7), which has no word:
+
+```
+set WNDENUMPROC = fn(h ∈ windef.HWND) (minwindef.BOOL)
+repr WNDENUMPROC c(h, ctx) stdcall
+fn EnumWindows(f ∈ WNDENUMPROC) (r ∈ minwindef.BOOL) {
+    host expr call EnumWindows(f, ctx(f)) stdcall lib "user32"
+}
+```
+
+**Two things a declaration does not say.**
+- **`pure` on the arrow.** The λ's purity is computed from its body. The default already requires
+  a pure body, so `fn(r ∈ Rune) (Bool) pure` (j.md §2.4's example) states the default and adds
+  nothing.
+- **The call's own purity**, which stays the host's: `Map` is `pure`, and `WalkDir` reads the
+  filesystem and is not. A call's effects are the host's own and the λ's.
+
+**The check.** The tooling test finds each quoted sentence, its whitespace normalized, in
+`go doc` of the declared name. Its planted fault is a sentence no document says (`ordered "The
+files are walked in random order"`), which must fail. Win32's pages are not on the machine, so
+Win32's check needs the pages kept as data, fetched with permission, which is owed when the first
+Win32 marker is written.
+
+### What is decided by T1-2, and the options
+
+1. **The words**: `calls K` with K a range, and `ordered` (w1). The alternatives are `× K in
+   order` (w2), the same algebra in other letters, and Kotlin's four names (w3), a subset with no
+   order.
+2. **The default**: ⊤, `calls 0..` and unordered (a1). No default (a2) means the same thing and
+   refuses a declaration that says nothing. A permissive default (a3) is unsound.
+3. **Where the host's sentence lives**:
+   - (q1) **in the marker, `ordered "…"`** (recommended). The claim and its evidence sit together,
+     and the check reads the declaration.
+   - (q2) in a comment, read by a lint. This contradicts ADR 0024: a comment never carries
+     meaning, and the check would make it carry some.
+   - (q3) in a table beside the survey, as `callbacks-go-markers.txt` is. The claim and its
+     evidence would sit in two files, a path for them to drift apart.
+
+What changes in the compiler, once tier 1 is built: the reader takes `calls K` and `ordered "…"`
+after an arrow's result; 𝒰 gains its clause; the cell rule gains `ordered`; inventory.md gains two
+words; j.md §2.4 and the book's chapter 17 teach them.

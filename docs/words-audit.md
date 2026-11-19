@@ -108,10 +108,8 @@ parameter. Its reader forms `callback-set` and `conv` are the inventory's, not J
    on a program definition's parameter (ADR 0133 item 6); respell item 6, `s ∈ S inout`, and the
    uses (SetFilePointer, PrintDlgA, the tests, `wndproc-win.oro`, `cell-param`). The emitted code is
    unchanged, both spellings being one core term.
-2. **`jump`**: withdraw, with the MASM backend it served. If yes, the reader's clause, the
-   inventory, windows-target.md marked historical.
-3. **`underlying`**: withdraw until a declaration needs it, or keep for Go's named integer types.
-4. **`cdecl`**: withdraw as a synonym of no convention, or keep as the prototype's explicit word.
+2. **`jump`**, 3. **`underlying`**, 4. **`cdecl`**: **kept for now** (hamza, 2026-11-19: "keep them
+   for now").
 5. **The rest of §3's table** has its job named and its place checked against ADR 0130's test. A
    word-by-word program for each of the host clause's and the model's words is not written. They are
    representation in representation's places, the class neither of the two earlier finds came from.

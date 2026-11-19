@@ -172,7 +172,9 @@ The next plan (§5) writes it.
   by a constant.
 - **Owed from earlier rounds**: unchanged in CLAUDE.md's list.
 
-## 5. The next plan (proposed; hamza's to approve)
+## 5. The next plan (approved)
+
+Approved by hamza, 2026-11-19: "assessment's plan approved".
 
 1. **TinyRetroPad's body in J, module by module, the window procedure last.** The file's reading and
    writing, the status line's rendering, find and replace over the text, the menu's commands as a

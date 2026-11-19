@@ -95,11 +95,23 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 wrong about half the time.
 
 **The current assessment is [assessment-2026-11-18.md](docs/assessment-2026-11-18.md)**; read it
-before planning. Its plan (§5) is proposed and awaits hamza's approval: TinyRetroPad's body in J,
-the callback decisions (tier 2's taken and built, ADR 0133; tier 1's to discuss), the
-capacity facts, a timeout on every program a build test runs, CLAUDE.md as state again, and an
-audit of the words that bought nothing (hamza, 2026-11-18; `in` and `ui` the two found). Until it is approved, **the 11-17 plan (its §5)**, approved by hamza
-2026-11-17 ("Go with the proposed plan"), stands, items 1–5 done, in order:
+before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment's plan approved"):
+1. TinyRetroPad's body in J, module by module, the window procedure last;
+2. the callback decisions: tier 2's taken and built (ADR 0133); tier 1's to discuss with hamza;
+3. the capacity facts: mapvalue's refusals prove on HEAD as reconstructed (probes-2026-11-19), so
+   they wait on a refusing program;
+4. a timeout on every program a build test runs;
+5. CLAUDE.md as state again;
+6. the words audit: first pass done ([words-audit.md](docs/words-audit.md)); `inout` kept and
+   `cell(T)` to be refused (ADR 0135); `jump`, `underlying`, `cdecl` kept for now (hamza).
+
+**Decided and to be built, in this order**: ADR 0135 (`inout`, emission-neutral), then ADR 0134 (an
+`again` after a join point, measured B against C). **windows32 is a second-tier platform** (hamza,
+2026-11-19): `cmd/check` is the first tier's, and windows32's differential and emission run less
+often (how often, [the options](docs/assessment-2026-11-18.md#5-the-next-plan-approved)).
+
+The 11-17 plan (its §5), approved by hamza 2026-11-17 ("Go with the proposed plan"), ended with
+items 1–5 done and item 6 in progress:
 1. ~~**a compile that does not end is a refusal**~~ done, its premise reversed
    ([noend](gauntlet/results/noend-2026-11-17.md)): every loop of the compile has a measure, so it
    ends; the 20 minutes were windows32's `div` undecided and inlined (P4, right for the program).
@@ -194,7 +206,7 @@ throws `java.nio.file`'s exceptions, as the kinds read.
 - checks: a witness for per-loop widening thresholds (`PlantLoopThresholdFault` reaches no
   program, a constructed one included, [probes-2026-11-19](gauntlet/results/probes-2026-11-19.md)),
   the plant audit done (probes §3: four baselines, `PlantResultUnproven` witnessed by a hand-built
-  instance, `PlantRecordLetWhole` masked by the residual's erasure);
+  instance, `PlantRecordLetWhole` witnessed by a record loop variable);
 - capacity: presence facts, a borrowed map's capacity, an O(1) windows `len`; maprealize: the
   windows map 1.22× Go's (mapvalue's three refusals prove on HEAD as reconstructed, probes-2026-11-19,
   so they wait on a refusing program);

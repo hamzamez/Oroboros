@@ -254,3 +254,22 @@ func TestADefinitionsCellParameterIsTheCallersCell(t *testing.T) {
 		}
 	}
 }
+
+// A RECORD AT A LOOP'S BINDER IS CURRIED (ADR 0128, core.curryLoop): the loop's
+// variable r becomes one variable per field, so its state is scalars. Without
+// the currying (the planted fault PlantRecordLetWhole, which the residual's
+// record erasure masks at a let, probes-2026-11-19 §3), the loop carries the
+// whole record as a tuple, and its projections are indexings of it, refused.
+func TestARecordLoopVariableIsCurried(t *testing.T) {
+	src := "use io\n\nexport fn main() {\n    io.print_int(loop r = record { a : 0, b : 1 } {\n        r.a > 5 -> r.a * 10 + r.b\n" +
+		"        else -> again(r with { a : r.a + 1 })\n    })\n}\n"
+	if got, err := runOn(t, src, "go"); err != nil || got != "61" {
+		t.Errorf("a record loop variable: %q, %v; want 61", got, err)
+	}
+	core.PlantRecordLetWhole = true
+	_, err := runOnMayFail(t, src, "go")
+	core.PlantRecordLetWhole = false
+	if err == nil || !strings.Contains(err.Error(), "is an indexing") {
+		t.Errorf("with the record bound whole the loop must be refused, its projections indexings; got %v", err)
+	}
+}

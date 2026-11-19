@@ -647,7 +647,7 @@ entry:
   br label %.join209
 .join209:
   %v244 = load ptr, ptr %.s210
-  %v250 = udiv i64 %v237, 100
+  %v250 = sdiv i64 %v237, 100
   %v252 = call ptr @num.digits(i64 %v250, i64 1)
   %v253 = getelementptr i8, ptr %v244, i64 0
   %v254 = getelementptr i8, ptr %v252, i64 0
@@ -1041,7 +1041,7 @@ entry:
   unreachable
 .join342:
   %v384 = load ptr, ptr %.s449
-  %v501 = urem i64 %v237, 100
+  %v501 = srem i64 %v237, 100
   %v501.n = trunc i64 %v501 to i32
   %.w452 = sext i32 %v501.n to i64
   %v503 = call ptr @num.digits(i64 %.w452, i64 2)
@@ -1505,7 +1505,7 @@ entry:
   br label %.join731
 .join731:
   %v786 = load ptr, ptr %.s732
-  %v792 = udiv i64 %v779, 100
+  %v792 = sdiv i64 %v779, 100
   %v792.n = trunc i64 %v792 to i32
   %.w734 = sext i32 %v792.n to i64
   %v794 = call ptr @num.digits(i64 %.w734, i64 1)
@@ -1901,7 +1901,7 @@ entry:
   unreachable
 .join865:
   %v926 = load ptr, ptr %.s972
-  %v1043 = urem i64 %v779, 100
+  %v1043 = srem i64 %v779, 100
   %v1043.n = trunc i64 %v1043 to i32
   %.w975 = sext i32 %v1043.n to i64
   %v1045 = call ptr @num.digits(i64 %.w975, i64 2)
@@ -2366,7 +2366,7 @@ entry:
   br label %.join1255
 .join1255:
   %v1329 = load ptr, ptr %.s1256
-  %v1335 = udiv i64 %v1322, 100
+  %v1335 = sdiv i64 %v1322, 100
   %v1337 = call ptr @num.digits(i64 %v1335, i64 1)
   %v1338 = getelementptr i8, ptr %v1329, i64 0
   %v1339 = getelementptr i8, ptr %v1337, i64 0
@@ -2760,7 +2760,7 @@ entry:
   unreachable
 .join1388:
   %v1469 = load ptr, ptr %.s1495
-  %v1586 = urem i64 %v1322, 100
+  %v1586 = srem i64 %v1322, 100
   %v1586.n = trunc i64 %v1586 to i32
   %.w1498 = sext i32 %v1586.n to i64
   %v1588 = call ptr @num.digits(i64 %.w1498, i64 2)
@@ -6632,8 +6632,8 @@ entry:
   br i1 %v33, label %.then29, label %.else30
 .then29:
   %v47 = add nuw nsw i32 %v26, 1
-  %v49 = udiv i64 %v27, 10
-  %v52 = urem i64 %v27, 10
+  %v49 = sdiv i64 %v27, 10
+  %v52 = srem i64 %v27, 10
   %v52.n = trunc i64 %v52 to i32
   %v53 = add nuw nsw i32 48, %v52.n
   %v55 = icmp samesign sge i32 %v53, 0

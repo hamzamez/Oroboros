@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"fmt"
 	"sort"
 
 	"oroboros/core"
@@ -18,7 +19,8 @@ import (
 // no parameters, and its marks decided by the one procedure every residual's
 // are (DecideMarks): a literal by evaluation, a range on the IR's intervals,
 // the rest in the refinement layer. A claim whose set is no range (a typing
-// claim, `s ∈ String = n`) makes no mark, and is the claims step's owed item.
+// claim, `s ∈ String = 3`) is its ascription (the S e), decided by the type
+// checker on the constant's residual (ADR 0137), read or not.
 func DecideConstantClaims(tg *emit.Target, prog *core.Program, env *core.Env, all []*core.Sig) error {
 	if PlantConstantClaimUndecided {
 		return nil
@@ -38,6 +40,11 @@ func DecideConstantClaims(tg *emit.Target, prog *core.Program, env *core.Env, al
 		}
 		if _, err := DecideMarks(tg, n, nil, core.Fn(nil, nf), all); err != nil {
 			return err // DecideMarks names the constant
+		}
+		if !core.PlantTypingClaimDropped {
+			if err := emit.Check(tg, core.ShowName(n), emit.TypingMarksAsLets(nf)); err != nil {
+				return fmt.Errorf("%w (a constant's claim, decided where it is written: ADR 0137)", err)
+			}
 		}
 	}
 	return nil

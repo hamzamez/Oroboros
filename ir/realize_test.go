@@ -474,3 +474,47 @@ func TestAGoalDisequalityIsItsAtom(t *testing.T) {
 		t.Errorf("with a goal ≠ left to its strict sides: %v; want sdiv's where refused", err)
 	}
 }
+
+// A REMAINDER BY A CONSTANT OF A PROVEN NATURAL IS THE SIGNED INSTRUCTION (ADR
+// 0138): on ℕ ∩ S₆₄, `x % 7` and `x / 7` take `srem_natk` and `sdiv_natk`, the
+// same function there as `urem` and `udiv`, which LLVM folds to C's
+// divisibility test; a variable divisor and a power of two keep `urem_nat`
+// and `udiv_nat` (ADR 0088). The fault leaves point(b) undecided, and the constant takes the
+// unsigned instructions again.
+func TestARemainderByAConstantIsSigned(t *testing.T) {
+	vias := func(src string) map[string]int {
+		tg, f := lowerOn(t, src)
+		Decide(tg, f, false)
+		if _, err := RealizeOps(tg, f); err != nil {
+			t.Fatal(err)
+		}
+		vs := map[string]int{}
+		f.Walk(func(r *Region) {
+			for _, s := range r.Stmts {
+				if s.Op == ODiv || s.Op == ORem {
+					vs[s.Via]++
+				}
+			}
+		})
+		return vs
+	}
+	const k = "export fn f(x ∈ 0..1000000) (Int) { x / 7 + x % 7 }\n"
+	const v = "export fn f(x ∈ 0..1000000, y ∈ 1..1000) (Int) { x / y + x % y }\n"
+	if vs := vias(k); vs["llvm.sdiv-natk"] != 1 || vs["llvm.srem-natk"] != 1 {
+		t.Errorf("a constant divisor on ℕ: want sdiv-natk and srem-natk, got %v", vs)
+	}
+	if vs := vias(v); vs["llvm.udiv-nat"] != 1 || vs["llvm.urem-nat"] != 1 {
+		t.Errorf("a variable divisor on ℕ: want udiv-nat and urem-nat, got %v", vs)
+	}
+	// by 2^k the unsigned pair is one `lshr` and one `and` (1.13× on the limbs'
+	// factorial with the signed pair, srem-2026-11-19)
+	if vs := vias("export fn f(x ∈ 0..1000000) (Int) { x / 8 + x % 8 }"); vs["llvm.udiv-nat"] != 1 || vs["llvm.urem-nat"] != 1 {
+		t.Errorf("a power of two on ℕ: want udiv-nat and urem-nat, got %v", vs)
+	}
+	PlantPointUndecided = true
+	vs := vias(k)
+	PlantPointUndecided = false
+	if vs["llvm.sdiv-natk"] != 0 || vs["llvm.urem-nat"] != 1 {
+		t.Errorf("with point undecided the constant should take the unsigned instructions, got %v", vs)
+	}
+}

@@ -46,7 +46,7 @@ func TestAScalarIsHeldWhereItsRangeIs(t *testing.T) {
 	for _, want := range []string{
 		"add nuw nsw i32",
 		"mul nuw nsw i32",
-		"urem i32",
+		"srem i32", // by a constant of a proven natural (ADR 0138)
 		"icmp samesign sge i32",
 		"trunc i64 %v0 to i32", // n, narrowed at entry
 		"ashr i32",             // n >> j, j ∈ [0, 20]

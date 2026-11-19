@@ -3,7 +3,10 @@
 Date: 2026-11-19
 Status: Accepted (hamza, 2026-11-19: "agree"). Amends
 [ADR 0088](0088-a-target-states-its-realizations-and-a-host-operation-is-declared-as-it-is.md)'s choice
-of `udiv`/`urem` on ℕ ∩ S₆₄, per instance. **Not built.**
+of `udiv`/`urem` on ℕ ∩ S₆₄, per instance. **Built 2026-11-19** ([srem](../../gauntlet/results/srem-2026-11-19.md)):
+measured on the corpus first. The corpus decided the rule: a constant **not a power of two**, since
+by 2ᵏ `srem` cost the limbs' factorial 1.13× where `urem` is one `and`. The loop measured 0.71×, the
+rest within noise. `point(b) && !pow2(b)` is the realization's `where`.
 
 ## Context
 

@@ -42,7 +42,7 @@ entry:
   %v29 = mul i64 %.w22, 7
   %v30 = add i64 %v27, %v29
   %v31 = mul nuw nsw i32 %v19, %v19
-  %v33 = urem i32 %v31, 13
+  %v33 = srem i32 %v31, 13
   %.w27 = sext i32 %v33 to i64
   %v34 = add i64 %v30, %.w27
   %v36 = and i64 %v34, 255

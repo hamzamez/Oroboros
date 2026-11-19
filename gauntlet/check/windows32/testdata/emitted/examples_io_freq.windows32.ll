@@ -4494,7 +4494,7 @@ entry:
   br label %.exit2412
 .else2421:
   %v2758 = add nuw nsw i32 %v2747, 1
-  %v2760 = udiv i32 %v2748, 10
+  %v2760 = sdiv i32 %v2748, 10
   store i32 %v2758, ptr %.s2413
   store i32 %v2760, ptr %.s2414
   br label %.head2411
@@ -4734,7 +4734,7 @@ entry:
   br label %.exit2556
 .else2565:
   %v2923 = add nuw nsw i32 %v2912, 1
-  %v2925 = udiv i32 %v2913, 10
+  %v2925 = sdiv i32 %v2913, 10
   store i32 %v2923, ptr %.s2557
   store i32 %v2925, ptr %.s2558
   br label %.head2555
@@ -4802,7 +4802,7 @@ entry:
   br label %.exit2585
 .else2600:
   %v2968 = udiv i32 %v2952, %v2951
-  %v2970 = urem i32 %v2968, 10
+  %v2970 = srem i32 %v2968, 10
   %v2971 = add nuw nsw i32 48, %v2970
   %.x2604 = sext i32 %v2950 to i64
   %.d2605 = getelementptr inbounds i8, ptr %v2949, i64 8
@@ -4810,7 +4810,7 @@ entry:
   %.z2607 = trunc i32 %v2971 to i8
   store i8 %.z2607, ptr %.e2606
   %v2974 = add nuw nsw i32 %v2950, 1
-  %v2976 = udiv i32 %v2951, 10
+  %v2976 = sdiv i32 %v2951, 10
   store ptr %v2949, ptr %.s2586
   store i32 %v2974, ptr %.s2587
   store i32 %v2976, ptr %.s2588
@@ -4837,7 +4837,7 @@ entry:
   br label %.exit2611
 .else2620:
   %v2990 = add nuw nsw i32 %v2979, 1
-  %v2992 = udiv i32 %v2980, 10
+  %v2992 = sdiv i32 %v2980, 10
   store i32 %v2990, ptr %.s2612
   store i32 %v2992, ptr %.s2613
   br label %.head2610
@@ -4886,7 +4886,7 @@ entry:
   br label %.exit2638
 .else2647:
   %v3020 = add nuw nsw i32 %v3009, 1
-  %v3022 = udiv i32 %v3010, 10
+  %v3022 = sdiv i32 %v3010, 10
   store i32 %v3020, ptr %.s2639
   store i32 %v3022, ptr %.s2640
   br label %.head2637
@@ -5003,7 +5003,7 @@ entry:
   br label %.exit2711
 .else2720:
   %v3092 = add nuw nsw i32 %v3081, 1
-  %v3094 = udiv i32 %v3082, 10
+  %v3094 = sdiv i32 %v3082, 10
   store i32 %v3092, ptr %.s2712
   store i32 %v3094, ptr %.s2713
   br label %.head2710
@@ -5098,7 +5098,7 @@ entry:
   br label %.exit2772
 .else2781:
   %v3155 = add nuw nsw i32 %v3144, 1
-  %v3157 = udiv i32 %v3145, 10
+  %v3157 = sdiv i32 %v3145, 10
   store i32 %v3155, ptr %.s2773
   store i32 %v3157, ptr %.s2774
   br label %.head2771

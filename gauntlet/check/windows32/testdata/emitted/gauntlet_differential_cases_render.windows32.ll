@@ -2566,7 +2566,7 @@ entry:
   %v1538 = load i32, ptr %.s1299
   %.w1301 = sext i32 %v1538 to i64
   %v1544 = add nuw nsw i64 %v1521, %.w1301
-  %v1545 = udiv i64 %v1544, 100000000
+  %v1545 = sdiv i64 %v1544, 100000000
   %v1545.n = trunc i64 %v1545 to i32
   %.x1304 = sext i32 %v1514 to i64
   %.d1305 = getelementptr inbounds i8, ptr %v1513, i64 8
@@ -2574,7 +2574,7 @@ entry:
   %.x1307 = sext i32 %v1545.n to i64
   store i64 %.x1307, ptr %.e1306
   %v1548 = sub nsw i32 %v1514, 1
-  %v1549 = urem i64 %v1544, 100000000
+  %v1549 = srem i64 %v1544, 100000000
   %v1549.n = trunc i64 %v1549 to i32
   store ptr %v1513, ptr %.s1273
   store i32 %v1548, ptr %.s1274
@@ -3016,7 +3016,7 @@ entry:
   %v1834 = load i32, ptr %.s1557
   %.w1559 = sext i32 %v1834 to i64
   %v1840 = add nuw nsw i64 %v1817, %.w1559
-  %v1841 = urem i64 %v1840, 100000000
+  %v1841 = srem i64 %v1840, 100000000
   %v1841.n = trunc i64 %v1841 to i32
   store i32 %v1815, ptr %.s1531
   store i32 %v1841.n, ptr %.s1532
@@ -3070,7 +3070,7 @@ entry:
   store ptr %v1846, ptr %.s1571
   br label %.exit1564
 .else1585:
-  %v1871 = urem i32 %v1848, 10
+  %v1871 = srem i32 %v1848, 10
   %v1872 = add nuw nsw i32 48, %v1871
   %v1874 = icmp samesign sge i32 %v1872, 0
   br i1 %v1874, label %.then1589, label %.else1590
@@ -4978,7 +4978,7 @@ entry:
 .join2611:
   %v3025 = load ptr, ptr %.s2718
   %v3142 = add nuw nsw i32 %v1847, 1
-  %v3144 = udiv i32 %v1848, 10
+  %v3144 = sdiv i32 %v1848, 10
   store ptr %v3025, ptr %.s1565
   store i32 %v3142, ptr %.s1566
   store i32 %v3144, ptr %.s1567

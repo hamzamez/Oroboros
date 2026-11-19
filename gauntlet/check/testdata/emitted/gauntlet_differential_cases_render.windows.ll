@@ -2409,12 +2409,12 @@ entry:
 .join1165:
   %v1560 = load i64, ptr %.s1166
   %v1566 = add nuw nsw i64 %v1543, %v1560
-  %v1567 = udiv i64 %v1566, 100000000
+  %v1567 = sdiv i64 %v1566, 100000000
   %.d1170 = getelementptr inbounds i8, ptr %v1535, i64 8
   %.e1171 = getelementptr inbounds i64, ptr %.d1170, i64 %v1536
   store i64 %v1567, ptr %.e1171
   %v1570 = sub nsw i64 %v1536, 1
-  %v1571 = urem i64 %v1566, 100000000
+  %v1571 = srem i64 %v1566, 100000000
   store ptr %v1535, ptr %.s1144
   store i64 %v1570, ptr %.s1145
   store i64 %v1571, ptr %.s1146
@@ -2823,7 +2823,7 @@ entry:
 .join1389:
   %v1858 = load i64, ptr %.s1390
   %v1864 = add nuw nsw i64 %v1841, %v1858
-  %v1865 = urem i64 %v1864, 100000000
+  %v1865 = srem i64 %v1864, 100000000
   store i64 %v1839, ptr %.s1368
   store i64 %v1865, ptr %.s1369
   br label %.head1366
@@ -2875,7 +2875,7 @@ entry:
   store ptr %v1870, ptr %.s1402
   br label %.exit1395
 .else1416:
-  %v1895 = urem i64 %v1872, 10
+  %v1895 = srem i64 %v1872, 10
   %v1896 = add nuw nsw i64 48, %v1895
   %v1898 = icmp samesign sge i64 %v1896, 0
   br i1 %v1898, label %.then1420, label %.else1421
@@ -4672,7 +4672,7 @@ entry:
 .join2343:
   %v3067 = load ptr, ptr %.s2441
   %v3186 = add nuw nsw i64 %v1871, 1
-  %v3188 = udiv i64 %v1872, 10
+  %v3188 = sdiv i64 %v1872, 10
   store ptr %v3067, ptr %.s1396
   store i64 %v3186, ptr %.s1397
   store i64 %v3188, ptr %.s1398

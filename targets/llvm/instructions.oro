@@ -39,6 +39,19 @@ module llvm {
     // this domain, with no sign to fix up: by 2^k, `lshr` and `and`.
     fn udiv_nat(a ∈ 0..2^63-1, b ∈ 1..2^63-1) (0..2^63-1) pure { host expr "udiv ${a}, ${b:v}" }
     fn urem_nat(a ∈ 0..2^63-1, b ∈ 1..2^63-1) (0..2^63-2) pure { host expr "urem ${a}, ${b:v}" }
+    // BY A CONSTANT, sdiv and srem on the same domain (ADR 0138): there they are
+    // the same function as udiv and urem, and LLVM folds a signed remainder by a
+    // constant compared with 0 to C's divisibility test, a multiply by the
+    // inverse, where loop strength reduction rewrites `urem … == 0` first and
+    // keeps the whole 64×64 multiply (phi-range-2026-11-17 §4; 0.72× on that
+    // loop, srem-2026-11-19). point(b) holds where the facts prove b one value,
+    // and pow2(b) where that value is 2^k: by 2^k `urem` is one `and` and
+    // `udiv` one `lshr`, which `srem` and `sdiv` are not unless LLVM knows the
+    // dividend non-negative (1.13× on the limbs' factorial, whose base is 2^24),
+    // so a power of two keeps ADR 0088's unsigned instructions, as a variable
+    // divisor does.
+    fn sdiv_natk(a ∈ 0..2^63-1, b ∈ 1..2^63-1) (0..2^63-1) pure where point(b) && !pow2(b) { host expr "sdiv ${a}, ${b:v}" }
+    fn srem_natk(a ∈ 0..2^63-1, b ∈ 1..2^63-1) (0..2^63-2) pure where point(b) && !pow2(b) { host expr "srem ${a}, ${b:v}" }
 
     // ---- the bitwise operations: ℤ's own on the word (ADR 0082), total.
     fn and(a ∈ Int, b ∈ Int) (Int) pure { host expr "and ${a}, ${b:v}" }

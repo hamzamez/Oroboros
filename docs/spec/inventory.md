@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 152 |
+| `specified` — a spec states it | 153 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -175,6 +175,7 @@ A target may not declare one, and declaring one is an **error**.
 | `utf8-text` | specified — ι_V : V ↪ Σ*, the inverse of Σ*'s UTF-8 on the valid UTF-8: a byte table proven in V as text, `where utf8_valid(b)`, one copy on every target | [strings.md](strings.md) §11, [ADR 0112](../decisions/0112-os-on-windows-is-a-library-over-kernel32-and-valid-utf-8-is-recognized-by-its-monoid.md) |
 | `utf8-valid` | specified — V's predicate, V = φ⁻¹(F) for φ into the transition monoid of Table 3-7's automaton; decided by φ on an array literal, else by a guard | [strings.md](strings.md) §11, [ADR 0112](../decisions/0112-os-on-windows-is-a-library-over-kernel32-and-valid-utf-8-is-recognized-by-its-monoid.md) |
 | `the` | recorded — a range ascribed to a term, erased at emission; J refuses `the`, and writes a binder's claim `b ∈ S = e` (ADR 0069); the construct owes a spec | [ascribe-2026-09-03](../../gauntlet/results/ascribe-2026-09-03.md), [inlining-and-declarations.md](../inlining-and-declarations.md) |
+| `#is` | specified — a typing mark, (#is "S" e body): an unread binding's claim e ∈ S, S no range, kept on the body when β drops the binding; decided by the type checker as (the S e) and erased by ir.Entry before any other pass (ADR 0137) | [ADR 0137](../decisions/0137-an-unread-binders-typing-claim-is-checked.md), [typing-2026-11-19](../../gauntlet/results/typing-2026-11-19.md) |
 
 **Indexing has no word at all.** `t[i]` is an application, because a table *is* a function with a
 known finite domain ([tables.md](tables.md)).

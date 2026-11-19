@@ -336,6 +336,86 @@ func EraseAscriptionsButClaims(w core.Word, t *core.Term) *core.Term {
 	return &core.Term{Kind: core.KApp, Kids: kids}
 }
 
+// HasTypingMarks says whether t holds a typing mark (core.TypingName, ADR 0137).
+func HasTypingMarks(t *core.Term) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == core.TypingName {
+		return true
+	}
+	for _, k := range t.Kids {
+		if HasTypingMarks(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// EraseTypingMarks is t with each typing mark replaced by its body, the value
+// it is: what every pass after the type checker reads.
+func EraseTypingMarks(t *core.Term) *core.Term {
+	if t == nil || (t.Kind != core.KApp && t.Kind != core.KFn) {
+		return t
+	}
+	if t.Kind == core.KFn {
+		return core.FnClosed(t.Params, EraseTypingMarks(t.Closed()))
+	}
+	if len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == core.TypingName {
+		return EraseTypingMarks(t.Kids[3])
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = EraseTypingMarks(k)
+	}
+	return &core.Term{Kind: core.KApp, Kids: kids}
+}
+
+// TypingMarksAsLets is t with each typing mark (#is S e body) read as what it
+// claims, the binding (let (the S e) (fn (#_) body)) nothing reads, core.Fn moving body
+// under the binder, so the type
+// checker decides e against S where it was written (ADR 0137).
+func TypingMarksAsLets(t *core.Term) *core.Term {
+	if t == nil || (t.Kind != core.KApp && t.Kind != core.KFn) {
+		return t
+	}
+	if t.Kind == core.KFn {
+		return core.FnClosed(t.Params, TypingMarksAsLets(t.Closed()))
+	}
+	if len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == core.TypingName {
+		claim := core.App(core.Name(core.AscribeName), t.Kids[1], TypingMarksAsLets(t.Kids[2]))
+		return core.App(core.Name("let"), claim, core.Fn([]string{"#_"}, TypingMarksAsLets(t.Kids[3])))
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = TypingMarksAsLets(k)
+	}
+	return &core.Term{Kind: core.KApp, Kids: kids}
+}
+
+// AscribeParams is t, a definition's residual (fn (x̄) body), with each
+// parameter's declared set ascribed at the body's head, (let (the S x) (fn (#_)
+// body)): the type checker learns a parameter's type from its uses, and a
+// typing mark may be a parameter's one use, so the header's set must be one
+// of them (ADR 0137).
+func AscribeParams(sig *core.Sig, t *core.Term) *core.Term {
+	if sig == nil || t == nil || t.Kind != core.KFn || len(t.Params) != len(sig.Params) {
+		return t
+	}
+	body := t.Closed()
+	for i := len(sig.Params) - 1; i >= 0; i-- {
+		ty := sig.Params[i].Type
+		if ty == "" || ty == "any" {
+			continue
+		}
+		body = core.App(core.Name("let"), core.App(core.Name(core.AscribeName), core.Str(ty), core.Bound(0, i)),
+			core.Fn([]string{"#_"}, body))
+	}
+	return core.FnClosed(t.Params, body)
+}
+
+// KeepSortAscriptions is the residual the type checker reads: ranges erased as
+
 // KeepSortAscriptions is the residual the type checker reads: ranges erased as
 // EraseAscriptions and EraseWordAscriptions erase them, and a buffer's sort
 // kept, `(the "buffer bool" b)`, which `(table n false)` writes (spec/local.md

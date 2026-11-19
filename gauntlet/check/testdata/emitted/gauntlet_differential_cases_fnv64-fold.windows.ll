@@ -40,7 +40,7 @@ entry:
   %v29 = mul i64 %v19, 7
   %v30 = add i64 %v27, %v29
   %v31 = mul nuw nsw i64 %v19, %v19
-  %v33 = urem i64 %v31, 13
+  %v33 = srem i64 %v31, 13
   %v34 = add i64 %v30, %v33
   %v36 = and i64 %v34, 255
   %v37 = or i64 %v20, 0

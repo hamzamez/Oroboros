@@ -8242,7 +8242,7 @@ entry:
   %.w1992 = sext i32 %v138 to i64
   %v2398 = add nuw nsw i64 %.w1991, %.w1992
   %v2400 = sub nsw i32 %v539, 1
-  %v2402 = udiv i32 %v541, 3
+  %v2402 = sdiv i32 %v541, 3
   %v2403 = getelementptr i8, ptr null, i64 0
   store i32 %v2400, ptr %.s1999
   store ptr %v2215, ptr %.s2000
@@ -9380,7 +9380,7 @@ entry:
   %v3212 = getelementptr i8, ptr %v2407, i64 0
   %.len2642 = load i64, ptr %v2407
   %v3213 = trunc i64 %.len2642 to i32
-  %v3216 = udiv i32 %v2408, 3
+  %v3216 = sdiv i32 %v2408, 3
   store i32 %v2459, ptr %.s1999
   store ptr %v3017, ptr %.s2000
   store i32 %v3216, ptr %.s2001

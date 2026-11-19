@@ -874,12 +874,12 @@ entry:
 .join433:
   %v592 = load i64, ptr %.s434
   %v604 = add nuw nsw i64 %v589, %v592
-  %v606 = udiv i64 %v604, 7
+  %v606 = sdiv i64 %v604, 7
   %.d442 = getelementptr inbounds i8, ptr %v581, i64 8
   %.e443 = getelementptr inbounds i64, ptr %.d442, i64 %v582
   store i64 %v606, ptr %.e443
   %v609 = sub nsw i64 %v582, 1
-  %v611 = urem i64 %v604, 7
+  %v611 = srem i64 %v604, 7
   store ptr %v581, ptr %.s422
   store i64 %v609, ptr %.s423
   store i64 %v611, ptr %.s424

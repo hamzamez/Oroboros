@@ -176,7 +176,7 @@ entry:
   %v111 = mul i64 %.w92, 7
   %v112 = add i64 %v109, %v111
   %v113 = mul nuw nsw i32 %v104, %v104
-  %v115 = urem i32 %v113, 13
+  %v115 = srem i32 %v113, 13
   %.w97 = sext i32 %v115 to i64
   %v116 = add i64 %v112, %.w97
   %v118 = and i64 %v116, 255

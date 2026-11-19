@@ -124,8 +124,11 @@ before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment'
    written over ℤ ([u128](gauntlet/results/u128-2026-11-19.md), `examples/u128/inz.oro`, refused);
    the closed ≠ it named built; **blocked** on U₆₄ ↪ ℤ, the unsigned word widened into the rung
    above (`big-of` is S₆₄'s only), four realizations owed, and JavaScript's pair comparison;
-6. ADR 0138, a remainder by a constant of a natural is `srem`, measured on the corpus first;
-7. ADR 0137, an unread binder's typing claim checked, by a typing mark, measured;
+6. ~~ADR 0138, a remainder by a constant of a natural is `srem`~~ built ([srem](gauntlet/results/srem-2026-11-19.md)):
+   measured on the corpus first, which decided it: a constant not a power of two (by 2ᵏ `srem` cost
+   the limbs' factorial 1.13×), the loop 0.71× (C's time), the rest within noise;
+7. ~~ADR 0137, an unread binder's typing claim checked~~ built ([typing](gauntlet/results/typing-2026-11-19.md)),
+   a typing mark `#is` the type checker decides, measured neutral;
 8. ADR 0136's struct forms, with TinyRetroPad's modules (plan item 1).
 
 **Decided, nothing to build**: D6 stays at the symbols LLVM calls (ADR 0123), a per-site `divl`
@@ -221,8 +224,6 @@ throws `java.nio.file`'s exceptions, as the kinds read.
 field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ ℤ, as u128 does.
 
 **Owed from finished steps** (each named in its result document):
-- claims: an unread binder's typing claim (`s ∈ String = n; 0`), at the top level too (finding 45
-  and the dead call's contract done, [deadclaims](gauntlet/results/deadclaims-2026-11-18.md));
 - callbacks (ADR 0133): a slot's facts between two reads; the words audit's full pass ([words-audit.md](docs/words-audit.md): `inout`, `jump`,
   `underlying`, `cdecl` for hamza);
 - ccall: a local buffer lent to a host in a scope that ends in further host statements is refused
@@ -702,8 +703,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | An `again` after a nested loop's join point is accepted in a tail, by Theorem J's rewrite (k placed at the producer's exits) before the walkers; kept if nested `wc` measures within noise of nested Go, else sharing on the IR (C); no surface change (not built) | [0134](docs/decisions/0134-an-again-after-a-join-point-is-theorem-js-rewrite.md) |
 | A cell parameter is the mode `x ∈ T inout`, not the set `cell(T)`: a set ranges over values and a cell is a place, as `Array(V) linear` and not `buffer(V)`; `cell(T)` at a J parameter refused naming `inout`; W7 lets `inout` stand on a program definition's parameter; reverses ADR 0133 item 6's spelling | [0135](docs/decisions/0135-a-cell-parameter-is-the-mode-inout-not-the-set-cell.md) |
 | A struct's field is a value and a pointer in it the layout's, written as C writes it: a buffer in a struct a table field (`= len(m)`), a nested record by pointer `&f`, an inline array `f[N]`, an optional C string `Option(String)`, NULL its niche (not built) | [0136](docs/decisions/0136-a-struct-field-is-a-value-and-its-pointer-is-the-layouts.md) |
-| An unread binder's typing claim is checked, by a typing mark in the residual first, measured (not built) | [0137](docs/decisions/0137-an-unread-binders-typing-claim-is-checked.md) |
-| On ℕ ∩ S₆₄, `%` and `/` by a constant divisor are `srem`/`sdiv`, a variable divisor keeping `urem`/`udiv`; amends ADR 0088, measured on the corpus (not built) | [0138](docs/decisions/0138-a-remainder-by-a-constant-of-a-natural-is-srem.md) |
+| An unread binder's typing claim is checked, by a typing mark in the residual first, measured | [0137](docs/decisions/0137-an-unread-binders-typing-claim-is-checked.md) |
+| On ℕ ∩ S₆₄, `%` and `/` by a constant divisor are `srem`/`sdiv`, a variable divisor keeping `urem`/`udiv`; amends ADR 0088, measured on the corpus | [0138](docs/decisions/0138-a-remainder-by-a-constant-of-a-natural-is-srem.md) |
 
 ## Build commands
 

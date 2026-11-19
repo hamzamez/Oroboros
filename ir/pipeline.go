@@ -89,6 +89,14 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 
 func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, all []*core.Sig,
 	checked bool, note func(Note), inline map[string]bool) (*Func, *Legality, error) {
+	// A TYPING MARK (ADR 0137) is the type checker's, and no other pass reads
+	// it: the residual with its marks is kept for the checker below, and every
+	// pass reads it erased.
+	var typed *core.Term
+	tsig := sig // the header before products are flattened, as typed is
+	if emit.HasTypingMarks(nf) {
+		typed, nf = nf, emit.EraseTypingMarks(nf)
+	}
 	// AN OBLIGATION IS DECIDED BEFORE ANYTHING ELSE READS THE RESIDUAL. A driver
 	// that reports on the marks decides them itself, first, and then there are
 	// none here; any other caller's are decided now, by the same routes.
@@ -118,6 +126,13 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// reads the residual with a buffer's declared sort still on it.
 	if err := emit.Check(tg, name, checking); err != nil {
 		return nil, nil, err
+	}
+	// THE TYPING MARKS, each a binding of its claim nothing reads, checked on
+	// the residual as it was before the passes above took it apart.
+	if typed != nil {
+		if err := emit.Check(tg, name, emit.TypingMarksAsLets(emit.AscribeParams(tsig, emit.KeepSortAscriptions(tg.Word, plan.Holds(), typed)))); err != nil {
+			return nil, nil, fmt.Errorf("%w (the claim of a binding nothing reads, decided where it is written: ADR 0137)", err)
+		}
 	}
 	// ADR 0018's linearity, checked on the residual rather than by a type.
 	if err := emit.CheckLinear(nf, tg, sig); err != nil {

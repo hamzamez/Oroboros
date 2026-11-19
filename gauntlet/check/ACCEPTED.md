@@ -3859,3 +3859,75 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/u128/inz.oro java`
 - new source — `examples/u128/inz.oro js`
 - new source — `examples/u128/inz.oro windows`
+
+## 2026-11-19 — on 895863b7, with uncommitted changes
+
+**Reason:** ADR 0138: a remainder or quotient by a constant of a proven natural is srem/sdiv (point(b)), measured on the corpus first (srem-2026-11-19); lib/rt/i686.ll's one udiv by 2^31 now sdiv, its i686 assembly identical; ADR 0137's typing marks change no outcome
+
+712 runs: 490 emitted, 222 refused; 8987 of 9041 integer operations bounded, 950 of 989 loops proven. compiler pass, differential pass, tooling pass.
+
+31 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/errors/slots.oro windows`
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/cmp.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/wndproc-win.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv32.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows`
+- emitted text changed — `gauntlet/differential/cases/fnv64.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+
+## 2026-11-19 — on 895863b7, with uncommitted changes
+
+**Reason:** ADR 0138 by the corpus's measurement: a power-of-two divisor keeps urem/udiv (srem by 2^k was 1.13x on the limbs' factorial, srem-2026-11-19); a constant's typing claim decided (ADR 0137)
+
+712 runs: 490 emitted, 222 refused; 8987 of 9041 integer operations bounded, 950 of 989 loops proven. compiler pass, differential pass, tooling pass.
+
+23 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/errors/slots.oro windows`
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/cmp.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`

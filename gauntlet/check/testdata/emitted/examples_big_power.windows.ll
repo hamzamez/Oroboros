@@ -4789,7 +4789,7 @@ entry:
   %v2459 = load i1, ptr %.s1804
   %v2464 = add nuw nsw i64 %v118, %v150
   %v2466 = sub nsw i64 %v561, 1
-  %v2468 = udiv i64 %v563, 3
+  %v2468 = sdiv i64 %v563, 3
   %v2469 = getelementptr i8, ptr null, i64 0
   store i64 %v2466, ptr %.s1811
   store ptr %v2282, ptr %.s1812
@@ -5882,7 +5882,7 @@ entry:
   %v3091 = load ptr, ptr %.s2416
   %v3308 = getelementptr i8, ptr %v2473, i64 0
   %v3309 = load i64, ptr %v2473
-  %v3312 = udiv i64 %v2474, 3
+  %v3312 = sdiv i64 %v2474, 3
   store i64 %v2526, ptr %.s1811
   store ptr %v3091, ptr %.s1812
   store i64 %v3312, ptr %.s1813
@@ -11733,7 +11733,7 @@ entry:
   %v1849 = load i1, ptr %.s1370
   %v1855 = mul nuw nsw i64 2, %v63
   %v1857 = sub nsw i64 %v348, 1
-  %v1859 = udiv i64 %v350, 3
+  %v1859 = sdiv i64 %v350, 3
   %v1860 = getelementptr i8, ptr null, i64 0
   store i64 %v1857, ptr %.s1377
   store ptr %v1607, ptr %.s1378
@@ -12826,7 +12826,7 @@ entry:
   %v2482 = load ptr, ptr %.s1982
   %v2699 = getelementptr i8, ptr %v1864, i64 0
   %v2700 = load i64, ptr %v1864
-  %v2703 = udiv i64 %v1865, 3
+  %v2703 = sdiv i64 %v1865, 3
   store i64 %v1917, ptr %.s1377
   store ptr %v2482, ptr %.s1378
   store i64 %v2703, ptr %.s1379

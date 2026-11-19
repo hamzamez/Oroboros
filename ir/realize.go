@@ -205,7 +205,9 @@ var PlantRealizeUnasked bool
 
 // narrowest is the later realization whose domain holds of s's operands'
 // facts with the least total width of its parameters' sets, or "": each
-// operand of its parameter's sort, then within its set and its `where`.
+// operand of its parameter's sort, then within its set and its `where`. Of two
+// as narrow, the first the target lists: `srem_natk`, where point(b) holds,
+// before `urem_nat` (ADR 0138).
 func narrowest(tg *emit.Target, f *Func, names []string, s *Stmt, fs []fact) string {
 	best, bestW := "", (*big.Int)(nil)
 	for _, n := range names {
@@ -234,6 +236,23 @@ func narrowest(tg *emit.Target, f *Func, names []string, s *Stmt, fs []fact) str
 		}
 	}
 	return best
+}
+
+// PlantPointUndecided leaves point(x) undecided, so a constant divisor takes
+// `urem` again (TestARemainderByAConstantIsSigned).
+var PlantPointUndecided bool
+
+// point is the interval's one element, when it has one inside int64.
+func (x iv) point() (int64, bool) {
+	if x.bot || x.nlo || x.phi {
+		return 0, false
+	}
+	lo, ok1 := x.lo.i64()
+	hi, ok2 := x.hi.i64()
+	if !ok1 || !ok2 || lo != hi {
+		return 0, false
+	}
+	return lo, true
 }
 
 type end struct {
@@ -280,6 +299,27 @@ func whereHolds(t *core.Term, names []string, args []V, fs []fact) tri {
 		return unknown
 	}
 	head, kids := t.Kids[0].Name, t.Kids[1:]
+	// point(x): x's proven set is one value (ADR 0138), a realization chosen for
+	// a constant operand; pow2(x): that value is 2^k. Not known to be one value
+	// is not chosen.
+	if (head == "point" || head == "pow2") && len(kids) == 1 {
+		x, ok := operandIV(kids[0], names, args, fs)
+		if !ok || PlantPointUndecided {
+			return unknown
+		}
+		c, isPoint := x.point()
+		switch {
+		case head == "point" && isPoint:
+			return yes
+		case head == "point":
+			return no
+		case !isPoint:
+			return unknown
+		case c > 0 && c&(c-1) == 0:
+			return yes
+		}
+		return no
+	}
 	if head == "if" && len(kids) == 3 {
 		c := whereHolds(kids[0], names, args, fs)
 		a, b := whereHolds(kids[1], names, args, fs), whereHolds(kids[2], names, args, fs)

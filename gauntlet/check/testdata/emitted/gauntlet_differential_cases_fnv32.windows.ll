@@ -34,7 +34,7 @@ entry:
   %v22 = mul i64 %v12, 7
   %v23 = add i64 %v20, %v22
   %v24 = mul nuw nsw i64 %v12, %v12
-  %v26 = urem i64 %v24, 13
+  %v26 = srem i64 %v24, 13
   %v27 = add i64 %v23, %v26
   %v29 = and i64 %v27, 255
   %v30 = xor i64 %v13, %v29

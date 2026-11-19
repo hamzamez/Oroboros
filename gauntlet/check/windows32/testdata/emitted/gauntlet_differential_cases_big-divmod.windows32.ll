@@ -1112,7 +1112,7 @@ entry:
   %v652 = load i32, ptr %.s563
   %.w565 = sext i32 %v652 to i64
   %v658 = add nuw nsw i64 %v635, %.w565
-  %v659 = udiv i64 %v658, 100000000
+  %v659 = sdiv i64 %v658, 100000000
   %v659.n = trunc i64 %v659 to i32
   %.x568 = sext i32 %v628 to i64
   %.d569 = getelementptr inbounds i8, ptr %v627, i64 8
@@ -1120,7 +1120,7 @@ entry:
   %.x571 = sext i32 %v659.n to i64
   store i64 %.x571, ptr %.e570
   %v662 = sub nsw i32 %v628, 1
-  %v663 = urem i64 %v658, 100000000
+  %v663 = srem i64 %v658, 100000000
   %v663.n = trunc i64 %v663 to i32
   store ptr %v627, ptr %.s537
   store i32 %v662, ptr %.s538
@@ -1183,7 +1183,7 @@ entry:
   %v694 = load i32, ptr %.s603
   %.w605 = sext i32 %v694 to i64
   %v700 = add nuw nsw i64 %v677, %.w605
-  %v701 = urem i64 %v700, 100000000
+  %v701 = srem i64 %v700, 100000000
   %v701.n = trunc i64 %v701 to i32
   store i32 %v675, ptr %.s577
   store i32 %v701.n, ptr %.s578

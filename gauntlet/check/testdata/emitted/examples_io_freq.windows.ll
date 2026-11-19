@@ -4184,7 +4184,7 @@ entry:
   br label %.exit2115
 .else2124:
   %v2784 = add nuw nsw i64 %v2773, 1
-  %v2786 = udiv i64 %v2774, 10
+  %v2786 = sdiv i64 %v2774, 10
   store i64 %v2784, ptr %.s2116
   store i64 %v2786, ptr %.s2117
   br label %.head2114
@@ -4406,7 +4406,7 @@ entry:
   br label %.exit2241
 .else2250:
   %v2951 = add nuw nsw i64 %v2940, 1
-  %v2953 = udiv i64 %v2941, 10
+  %v2953 = sdiv i64 %v2941, 10
   store i64 %v2951, ptr %.s2242
   store i64 %v2953, ptr %.s2243
   br label %.head2240
@@ -4473,14 +4473,14 @@ entry:
   br label %.exit2270
 .else2284:
   %v2996 = udiv i64 %v2980, %v2979
-  %v2998 = urem i64 %v2996, 10
+  %v2998 = srem i64 %v2996, 10
   %v2999 = add nuw nsw i64 48, %v2998
   %.d2288 = getelementptr inbounds i8, ptr %v2977, i64 8
   %.e2289 = getelementptr inbounds i8, ptr %.d2288, i64 %v2978
   %.z2290 = trunc i64 %v2999 to i8
   store i8 %.z2290, ptr %.e2289
   %v3002 = add nuw nsw i64 %v2978, 1
-  %v3004 = udiv i64 %v2979, 10
+  %v3004 = sdiv i64 %v2979, 10
   store ptr %v2977, ptr %.s2271
   store i64 %v3002, ptr %.s2272
   store i64 %v3004, ptr %.s2273
@@ -4507,7 +4507,7 @@ entry:
   br label %.exit2294
 .else2303:
   %v3018 = add nuw nsw i64 %v3007, 1
-  %v3020 = udiv i64 %v3008, 10
+  %v3020 = sdiv i64 %v3008, 10
   store i64 %v3018, ptr %.s2295
   store i64 %v3020, ptr %.s2296
   br label %.head2293
@@ -4554,7 +4554,7 @@ entry:
   br label %.exit2319
 .else2328:
   %v3048 = add nuw nsw i64 %v3037, 1
-  %v3050 = udiv i64 %v3038, 10
+  %v3050 = sdiv i64 %v3038, 10
   store i64 %v3048, ptr %.s2320
   store i64 %v3050, ptr %.s2321
   br label %.head2318
@@ -4660,7 +4660,7 @@ entry:
   br label %.exit2381
 .else2390:
   %v3120 = add nuw nsw i64 %v3109, 1
-  %v3122 = udiv i64 %v3110, 10
+  %v3122 = sdiv i64 %v3110, 10
   store i64 %v3120, ptr %.s2382
   store i64 %v3122, ptr %.s2383
   br label %.head2380
@@ -4745,7 +4745,7 @@ entry:
   br label %.exit2432
 .else2441:
   %v3183 = add nuw nsw i64 %v3172, 1
-  %v3185 = udiv i64 %v3173, 10
+  %v3185 = sdiv i64 %v3173, 10
   store i64 %v3183, ptr %.s2433
   store i64 %v3185, ptr %.s2434
   br label %.head2431

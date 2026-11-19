@@ -4,7 +4,9 @@ Date: 2026-11-19
 Status: Accepted (hamza, 2026-11-19: "it should check it, how I will leave it to measurements, you
 can go either way, with possibility of change on the future"). Completes
 [ADR 0049](0049-types-are-sets-and-the-logic-never-prints.md)'s "a claim is an obligation" for a
-claim whose set is no range (claims-2026-11-16, deadclaims-2026-11-18's owed item). **Not built.**
+claim whose set is no range (claims-2026-11-16, deadclaims-2026-11-18's owed item). **Built 2026-11-19**
+([typing](../../gauntlet/results/typing-2026-11-19.md)): the mark `#is`, decided by the type checker,
+measured neutral, so the mark stays the method.
 
 ## Context
 

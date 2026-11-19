@@ -954,14 +954,14 @@ entry:
 .join506:
   %v583 = load i32, ptr %.s507
   %v595 = add nuw nsw i32 %v580, %v583
-  %v597 = udiv i32 %v595, 7
+  %v597 = sdiv i32 %v595, 7
   %.x518 = sext i32 %v573 to i64
   %.d519 = getelementptr inbounds i8, ptr %v572, i64 8
   %.e520 = getelementptr inbounds i64, ptr %.d519, i64 %.x518
   %.x521 = sext i32 %v597 to i64
   store i64 %.x521, ptr %.e520
   %v600 = sub nsw i32 %v573, 1
-  %v602 = urem i32 %v595, 7
+  %v602 = srem i32 %v595, 7
   store ptr %v572, ptr %.s495
   store i32 %v600, ptr %.s496
   store i32 %v602, ptr %.s497

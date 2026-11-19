@@ -5126,7 +5126,7 @@ entry:
   %.w1992 = sext i32 %v138 to i64
   %v2398 = add nuw nsw i64 %.w1991, %.w1992
   %v2400 = sub nsw i32 %v539, 1
-  %v2402 = udiv i32 %v541, 3
+  %v2402 = sdiv i32 %v541, 3
   %v2403 = getelementptr i8, ptr null, i64 0
   store i32 %v2400, ptr %.s1999
   store ptr %v2215, ptr %.s2000
@@ -6264,7 +6264,7 @@ entry:
   %v3212 = getelementptr i8, ptr %v2407, i64 0
   %.len2642 = load i64, ptr %v2407
   %v3213 = trunc i64 %.len2642 to i32
-  %v3216 = udiv i32 %v2408, 3
+  %v3216 = sdiv i32 %v2408, 3
   store i32 %v2459, ptr %.s1999
   store ptr %v3017, ptr %.s2000
   store i32 %v3216, ptr %.s2001
@@ -12471,7 +12471,7 @@ entry:
   %.w1500 = sext i32 %v57 to i64
   %v1798 = mul nuw nsw i64 2, %.w1500
   %v1800 = sub nsw i32 %v336, 1
-  %v1802 = udiv i32 %v338, 3
+  %v1802 = sdiv i32 %v338, 3
   %v1803 = getelementptr i8, ptr null, i64 0
   store i32 %v1800, ptr %.s1507
   store ptr %v1570, ptr %.s1508
@@ -13609,7 +13609,7 @@ entry:
   %v2612 = getelementptr i8, ptr %v1807, i64 0
   %.len2150 = load i64, ptr %v1807
   %v2613 = trunc i64 %.len2150 to i32
-  %v2616 = udiv i32 %v1808, 3
+  %v2616 = sdiv i32 %v1808, 3
   store i32 %v1859, ptr %.s1507
   store ptr %v2417, ptr %.s1508
   store i32 %v2616, ptr %.s1509

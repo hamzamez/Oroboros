@@ -619,7 +619,7 @@ entry:
   br label %.join190
 .join190:
   %v247 = load ptr, ptr %.s191
-  %v253 = udiv i64 %v240, 100
+  %v253 = sdiv i64 %v240, 100
   %v255 = call ptr @num.digits(i64 %v253, i64 1)
   %v256 = getelementptr i8, ptr %v247, i64 0
   %v257 = getelementptr i8, ptr %v255, i64 0
@@ -985,7 +985,7 @@ entry:
   unreachable
 .join306:
   %v389 = load ptr, ptr %.s404
-  %v508 = urem i64 %v240, 100
+  %v508 = srem i64 %v240, 100
   %v510 = call ptr @num.digits(i64 %v508, i64 2)
   %v511 = getelementptr i8, ptr %v389, i64 0
   %v512 = getelementptr i8, ptr %v510, i64 0
@@ -1413,7 +1413,7 @@ entry:
   br label %.join655
 .join655:
   %v797 = load ptr, ptr %.s656
-  %v803 = udiv i64 %v790, 100
+  %v803 = sdiv i64 %v790, 100
   %v805 = call ptr @num.digits(i64 %v803, i64 1)
   %v806 = getelementptr i8, ptr %v797, i64 0
   %v807 = getelementptr i8, ptr %v805, i64 0
@@ -1779,7 +1779,7 @@ entry:
   unreachable
 .join771:
   %v939 = load ptr, ptr %.s869
-  %v1058 = urem i64 %v790, 100
+  %v1058 = srem i64 %v790, 100
   %v1060 = call ptr @num.digits(i64 %v1058, i64 2)
   %v1061 = getelementptr i8, ptr %v939, i64 0
   %v1062 = getelementptr i8, ptr %v1060, i64 0
@@ -2208,7 +2208,7 @@ entry:
   br label %.join1121
 .join1121:
   %v1348 = load ptr, ptr %.s1122
-  %v1354 = udiv i64 %v1341, 100
+  %v1354 = sdiv i64 %v1341, 100
   %v1356 = call ptr @num.digits(i64 %v1354, i64 1)
   %v1357 = getelementptr i8, ptr %v1348, i64 0
   %v1358 = getelementptr i8, ptr %v1356, i64 0
@@ -2574,7 +2574,7 @@ entry:
   unreachable
 .join1237:
   %v1490 = load ptr, ptr %.s1335
-  %v1609 = urem i64 %v1341, 100
+  %v1609 = srem i64 %v1341, 100
   %v1611 = call ptr @num.digits(i64 %v1609, i64 2)
   %v1612 = getelementptr i8, ptr %v1490, i64 0
   %v1613 = getelementptr i8, ptr %v1611, i64 0
@@ -5961,8 +5961,8 @@ entry:
   br i1 %v33, label %.then29, label %.else30
 .then29:
   %v47 = add nuw nsw i64 %v26, 1
-  %v49 = udiv i64 %v27, 10
-  %v52 = urem i64 %v27, 10
+  %v49 = sdiv i64 %v27, 10
+  %v52 = srem i64 %v27, 10
   %v53 = add nuw nsw i64 48, %v52
   %v55 = icmp samesign sge i64 %v53, 0
   br i1 %v55, label %.then36, label %.else37

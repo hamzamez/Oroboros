@@ -20068,12 +20068,12 @@ entry:
 .join9934:
   %v13123 = load i64, ptr %.s9935
   %v13129 = add nuw nsw i64 %v13106, %v13123
-  %v13130 = udiv i64 %v13129, 1000003
+  %v13130 = sdiv i64 %v13129, 1000003
   %.d9939 = getelementptr inbounds i8, ptr %v13098, i64 8
   %.e9940 = getelementptr inbounds i64, ptr %.d9939, i64 %v13099
   store i64 %v13130, ptr %.e9940
   %v13133 = sub nsw i64 %v13099, 1
-  %v13134 = urem i64 %v13129, 1000003
+  %v13134 = srem i64 %v13129, 1000003
   store ptr %v13098, ptr %.s9913
   store i64 %v13133, ptr %.s9914
   store i64 %v13134, ptr %.s9915
@@ -21607,7 +21607,7 @@ entry:
 .join10763:
   %v14208 = load i64, ptr %.s10764
   %v14214 = add nuw nsw i64 %v14191, %v14208
-  %v14215 = urem i64 %v14214, 1000003
+  %v14215 = srem i64 %v14214, 1000003
   store i64 %v14189, ptr %.s10742
   store i64 %v14215, ptr %.s10743
   br label %.head10740

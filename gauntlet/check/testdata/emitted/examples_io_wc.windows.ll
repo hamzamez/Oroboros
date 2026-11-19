@@ -6219,13 +6219,13 @@ entry:
   br label %.exit86
 .else114:
   %v162 = sub nuw nsw i64 20, %v126
-  %v165 = urem i64 %v125, 10
+  %v165 = srem i64 %v125, 10
   %v166 = add nuw nsw i64 48, %v165
   %.d119 = getelementptr inbounds i8, ptr %v124, i64 8
   %.e120 = getelementptr inbounds i8, ptr %.d119, i64 %v162
   %.z121 = trunc i64 %v166 to i8
   store i8 %.z121, ptr %.e120
-  %v169 = udiv i64 %v125, 10
+  %v169 = sdiv i64 %v125, 10
   %v171 = add nuw nsw i64 %v126, 1
   %v173 = icmp samesign sgt i64 %v125, 0
   br i1 %v173, label %.then125, label %.else126

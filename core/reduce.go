@@ -261,6 +261,33 @@ const ClaimName = "#claim-set"
 // no definition, the claim itself.
 const ClaimDef = "#claim"
 
+// TypingName is a TYPING MARK, (#is "S" e body) (ADR 0137): the claim e ∈ S of
+// a binding nothing reads, S a set that is no range, kept on the body when β
+// drops the binding. Its value is body's; the type checker decides e against
+// S as the ascription (the S e) it was, and ir.Entry erases it before any
+// other pass reads the residual. A range's claim is a mark of its own (#req).
+const TypingName = "#is"
+
+// PlantTypingClaimDropped drops an unread binding's typing claim with its
+// value, as before ADR 0137: `s ∈ String = n; 0` compiles again
+// (TestAnUnreadTypingClaimIsChecked).
+var PlantTypingClaimDropped bool
+
+// typingClaim says whether t is an ascription whose set is no range, a binder's
+// typing claim (desugar.go): (the "S" e) with S a set's canonical name, not a
+// range and not a buffer's sort.
+func typingClaim(t *Term) bool {
+	if t == nil || t.Kind != KApp || len(t.Kids) != 3 || t.Kids[0].Kind != KName ||
+		t.Kids[0].Name != AscribeName || t.Kids[1].Kind != KStr {
+		return false
+	}
+	ty := t.Kids[1].Str
+	if _, _, isRange := IntRangeBig(ty); isRange || strings.HasPrefix(ty, "buffer ") || ty == "" || ty == "any" {
+		return false
+	}
+	return true
+}
+
 // markRequires wraps each ranged argument of a direct call to a measured
 // definition. An argument already marked for the same range is left alone, so a
 // call reduced twice is marked once.
@@ -1373,7 +1400,7 @@ var LanguageSignature = map[string]bool{
 	// valid UTF-8 and its inclusion into Σ* (ADR 0112, strings.md §11)
 	"utf8-valid": true, "utf8-text": true,
 	// a range on a term, the discard, and the crash `expect` expands into
-	AscribeName: true, IgnoreName: true, "abandon": true,
+	AscribeName: true, IgnoreName: true, "abandon": true, TypingName: true,
 	// the least and greatest elements of a range, static (ADR 0084's build)
 	"inf": true, "sup": true,
 }
@@ -5313,6 +5340,10 @@ func (e *Env) hoistObligations(v, body *Term, fuel *int) *Term {
 		body = e.hoistObligations(k, body, fuel)
 	}
 	switch {
+	case typingClaim(v) && !PlantTypingClaimDropped:
+		// A TYPING CLAIM (ADR 0137): kept on the body as a mark, decided by the
+		// type checker as the ascription it is.
+		return &Term{Kind: KApp, Kids: []*Term{Name(TypingName), v.Kids[1], v.Kids[2], body}}
 	case IsRequire(v):
 		lo, hi, ok := IntRangeBig(v.Kids[3].Str)
 		if !ok || !lo.IsInt64() || !hi.IsInt64() {
@@ -5376,6 +5407,8 @@ func holdsClaim(t *Term) bool {
 		switch {
 		case t.Kids[0].Name == ClaimName,
 			t.Kids[0].Name == RequireName && t.Kids[1].Kind == KStr && t.Kids[1].Str == ClaimDef:
+			return true
+		case typingClaim(t) && !PlantTypingClaimDropped:
 			return true
 		}
 	}

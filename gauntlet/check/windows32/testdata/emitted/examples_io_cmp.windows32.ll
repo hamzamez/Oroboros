@@ -11482,7 +11482,7 @@ entry:
   br label %.exit98
 .else127:
   %v160 = sub nuw nsw i32 20, %v124
-  %v163 = urem i64 %v123, 10
+  %v163 = srem i64 %v123, 10
   %v163.n = trunc i64 %v163 to i32
   %v164 = add nuw nsw i32 48, %v163.n
   %.x132 = sext i32 %v160 to i64
@@ -11490,7 +11490,7 @@ entry:
   %.e134 = getelementptr inbounds i8, ptr %.d133, i64 %.x132
   %.z135 = trunc i32 %v164 to i8
   store i8 %.z135, ptr %.e134
-  %v167 = udiv i64 %v123, 10
+  %v167 = sdiv i64 %v123, 10
   %v169 = add nuw nsw i32 %v124, 1
   %v171 = icmp samesign sgt i64 %v123, 0
   br i1 %v171, label %.then139, label %.else140

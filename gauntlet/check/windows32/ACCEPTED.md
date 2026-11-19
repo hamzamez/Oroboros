@@ -28,3 +28,81 @@ The initial compile-time baseline, the minimum of two sweeps.
 - emitted text changed — `examples/native/wndproc-win.oro windows32`
 - emitted text changed — `examples/table/sieve-win.oro windows32`
 - new source — `examples/u128/inz.oro windows32`
+
+## 2026-11-19 — on 895863b7, with uncommitted changes
+
+**Reason:** ADR 0138: a remainder or quotient by a constant of a proven natural is srem/sdiv (point(b)), measured on the corpus first (srem-2026-11-19); lib/rt/i686.ll's one udiv by 2^31 now sdiv, its i686 assembly identical; ADR 0137's typing marks change no outcome
+
+178 runs: 118 emitted, 60 refused; 3057 of 3067 integer operations bounded, 417 of 433 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+34 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows32`
+- emitted text changed — `examples/big/fact.oro windows32`
+- emitted text changed — `examples/big/fib.oro windows32`
+- emitted text changed — `examples/big/limbs.oro windows32`
+- emitted text changed — `examples/big/pair.oro windows32`
+- emitted text changed — `examples/big/power.oro windows32`
+- emitted text changed — `examples/errors/expect.oro windows32`
+- emitted text changed — `examples/errors/slots.oro windows32`
+- emitted text changed — `examples/hash/crc32.oro windows32`
+- emitted text changed — `examples/hash/fnv.oro windows32`
+- emitted text changed — `examples/io/cmp.oro windows32`
+- emitted text changed — `examples/io/count.oro windows32`
+- emitted text changed — `examples/io/freq.oro windows32`
+- emitted text changed — `examples/io/jsonfmt.oro windows32`
+- emitted text changed — `examples/io/roundtrip.oro windows32`
+- emitted text changed — `examples/io/wc.oro windows32`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows32`
+- emitted text changed — `examples/native/wndproc-win.oro windows32`
+- emitted text changed — `examples/num/ledger.oro windows32`
+- emitted text changed — `examples/table/sieve-win.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/fnv32.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/fnv64-fold.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/fnv64.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows32`
+- emitted text changed — `lib/rt/i686.oro windows32`
+
+## 2026-11-19 — on 895863b7, with uncommitted changes
+
+**Reason:** ADR 0138 by the corpus's measurement: a power-of-two divisor keeps urem/udiv (srem by 2^k was 1.13x on the limbs' factorial, srem-2026-11-19); a constant's typing claim decided (ADR 0137)
+
+178 runs: 118 emitted, 60 refused; 3057 of 3067 integer operations bounded, 417 of 433 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+26 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows32`
+- emitted text changed — `examples/big/fact.oro windows32`
+- emitted text changed — `examples/big/fib.oro windows32`
+- emitted text changed — `examples/big/limbs.oro windows32`
+- emitted text changed — `examples/big/pair.oro windows32`
+- emitted text changed — `examples/big/power.oro windows32`
+- emitted text changed — `examples/errors/expect.oro windows32`
+- emitted text changed — `examples/errors/slots.oro windows32`
+- emitted text changed — `examples/hash/crc32.oro windows32`
+- emitted text changed — `examples/hash/fnv.oro windows32`
+- emitted text changed — `examples/io/cmp.oro windows32`
+- emitted text changed — `examples/io/count.oro windows32`
+- emitted text changed — `examples/io/freq.oro windows32`
+- emitted text changed — `examples/io/jsonfmt.oro windows32`
+- emitted text changed — `examples/io/roundtrip.oro windows32`
+- emitted text changed — `examples/io/wc.oro windows32`
+- emitted text changed — `examples/num/ledger.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows32`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows32`
+- emitted text changed — `lib/rt/i686.oro windows32`

@@ -1377,6 +1377,9 @@ var coreStructural = []Prim{
 	// `guard`, both of which already exist. Pure, because it is the identity on
 	// every value it accepts.
 	{Name: core.AscribeName, Kind: "ascribe", Args: []string{"string", "any"}, Pure: true},
+	// A TYPING MARK (core.TypingName, ADR 0137): an unread binding's claim,
+	// decided by the type checker and erased by ir.Entry before lowering.
+	{Name: core.TypingName, Kind: "typing", Args: []string{"string", "any", "any"}, Pure: true},
 	// A CELL A HOST WRITES (spec/local.md §5): a reference to a fresh copy of a
 	// value, or to a type's zero, and the value a reference holds. IMPURE, so
 	// the effect discipline keeps each on its side of the call that writes

@@ -10,7 +10,7 @@ overflow, a claim about a value) is refused before it runs.
 
 The language is taught in [a book](docs/book/), one idea at a time: each chapter uses only what came
 before it, shows a program refused before it shows the one that works, and leans on examples, edge
-cases included. Every example in it is compiled and run by `go run ./cmd/check`, 1,111 blocks
+cases included. Every example in it is compiled and run by `go run ./cmd/check`, 1,115 blocks
 across 20 chapters, and a chapter that stops saying what the compiler gives fails the check.
 
 | | chapter | the one idea |

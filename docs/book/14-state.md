@@ -268,6 +268,60 @@ export fn main() {
 because only `p`'s own block can name `p`. Every value here is known, so the compiler computed
 the program: `main` prints −2 and 6.
 
+### A cell and a function
+
+A function written inside the cell's block may not mention the cell:
+
+<!-- file docs/book/code/state/no-closure.oro -->
+```go
+use io
+
+export fn main() {
+    var n := 0
+    add = fn(x) { n := n + x }
+    add(1)
+    add(2)
+    io.print_int(n)
+}
+```
+
+<!-- gen go docs/book/code/state/no-closure.oro -->
+```
+gen: docs/book/code/state/no-closure.oro: main: a function that mentions a cell (n): fn(x) { n := n + x } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), and callbacks applied during a call are tier 1, not built (spec/local.md §3)
+```
+
+The reading above says why. Each `:=` starts a new name, and a later use means the latest one,
+*in the order the program is written*. `add` is a value: it could be applied twice, or never, or
+handed to something that applies it later. Where `add` is written, "the latest `n`" has no
+answer. A loop's body is the one function that may mention a cell, because `loop` applies it in
+an order the program states, and `again` passes the cell's next value as it passes the counter's.
+
+The working form says what `add` meant: take the value in, give the new one back, and let the
+block write it.
+
+<!-- file docs/book/code/state/add.oro -->
+```go
+use io
+
+fn add(n, x) { n + x }
+
+export fn main() {
+    var n := 0
+    n := add(n, 1)
+    n := add(n, 2)
+    io.print_int(n)
+}
+```
+
+<!-- run go docs/book/code/state/add.oro -->
+```
+3
+```
+
+Until 2026-11-20 the first program compiled and printed 0, the writes inside `add` lost (the
+book's finding 102). A function *read* the cell no better: `get = fn() { n }` gave the cell's
+first value, whatever had been written since.
+
 ---
 
 ## 14.3 Building a table in place

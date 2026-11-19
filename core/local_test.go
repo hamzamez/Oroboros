@@ -69,6 +69,38 @@ func TestACellIsRefusedWhereItsOrderWouldNotBeTheProgramsOrder(t *testing.T) {
 	}
 }
 
+// A λ BOUND TO A NAME is refused when it mentions a cell, as a λ passed is
+// (callbacks-derivation-2026-11-20): both programs below compiled, the first
+// printing 0 for 3 (its writes lost), the second 0 for 5 (a stale read). The
+// fault lets the λ through, and each must compile again.
+func TestALambdaBoundToANameMayNotMentionACell(t *testing.T) {
+	for _, src := range []string{
+		`fn f(p) {
+    var n := 0
+    add = fn(x) { n := n + x }
+    add(1)
+    add(2)
+    n
+}`,
+		`fn f(p) {
+    var n := 0
+    get = fn() { n }
+    n := 5
+    get()
+}`,
+	} {
+		if _, err := loadSrc(t, src); err == nil || !strings.Contains(err.Error(), "a function that mentions a cell (n)") {
+			t.Errorf("%s: want the closure refusal, got %v", src, err)
+		}
+		PlantLetLambdaCellUnchecked = true
+		_, err := loadSrc(t, src)
+		PlantLetLambdaCellUnchecked = false
+		if err != nil {
+			t.Errorf("with a let's λ unchecked the program should load: the witness cannot fail: %v", err)
+		}
+	}
+}
+
 // A buffer binder's initializer is a table, and the zero table is build's own
 // core form: the state translation leaves exactly it, so every scope that
 // build wrote emits what it emitted.

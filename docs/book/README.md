@@ -34,7 +34,7 @@ runs every chapter, so a chapter that no longer says what the compiler gives fai
 | | **III. Repetition and storage** | | |
 | 12 | [`loop`](12-loop.md) | the one iteration; termination | J; 59 blocks checked 2026-11-20 |
 | 13 | [Tables](13-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 65 blocks checked 2026-11-20 |
-| 14 | [State](14-state.md) | `var`, buffers, maps, `inout`; why a table never changes under you | J; 65 blocks checked 2026-11-20 |
+| 14 | [State](14-state.md) | `var`, buffers, maps, `inout`; why a table never changes under you | J; 69 blocks checked 2026-11-20 |
 | 15 | [Failures](15-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 44 blocks checked 2026-11-20 |
 | | **IV. Claims and hosts** | | |
 | 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 66 blocks checked 2026-11-20 |
@@ -831,6 +831,12 @@ seven more. 95–99 are fixed with the chapter
      `array { array { 1, 2 }, array { 3, 4 } }[k][0]` and `array { (3, 4), (10, 2) }[k]`.
      Finding 66's limitation, still there: read at a constant index the table folds away, which
      is how it hides. In the plan, beside finding 100.
+102. **A function bound to a name wrote a cell and the write was lost** (found 2026-11-20 probing
+     tier 1's callbacks, not writing a chapter; fixed). `var n := 0; add = fn(x) { n := n + x };
+     add(1); add(2)` printed n as 0, and `get = fn() { n }` read the cell's first value. A λ
+     passed as an argument was refused, and one bound by a name was not checked. Now both are
+     refused, and §14.2 shows the refusal and the working form
+     ([callbacks-derivation-2026-11-20](../../gauntlet/results/callbacks-derivation-2026-11-20.md)).
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

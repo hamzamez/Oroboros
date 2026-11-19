@@ -786,6 +786,16 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 	// A let, a seq: ((fn (y…) body) a…). The arguments, then the body.
 	if op.Kind == KFn && len(op.Params) == len(args) {
 		for j, a := range args {
+			// A λ BOUND TO A NAME that mentions a cell is refused as one passed
+			// is: the name may be applied any number of times, or never, so the
+			// cell's order would not be the program's (spec/local.md §3). A
+			// thread keeps a λ argument as it is, for β, so its writes reached
+			// no translation and were lost, and its reads saw the cell's first
+			// value: `add = fn(x) { n := n + x }; add(1); add(2)` printed n as 0
+			// (callbacks-derivation-2026-11-20).
+			if a.Kind == KFn && !PlantLetLambdaCellUnchecked && c.mentionsCells(a) {
+				return nil, c.closure(a)
+			}
 			if a.Kind != KFn {
 				c.locals[op.Params[j]] = true
 			}
@@ -1088,6 +1098,10 @@ func (e *Env) isData(t *Term) bool {
 	}
 	return true
 }
+
+// PlantLetLambdaCellUnchecked lets a λ bound by a let mention a cell, the
+// wrong answer callbacks-derivation-2026-11-20 found.
+var PlantLetLambdaCellUnchecked bool
 
 func (c *cellTr) closure(lam *Term) error {
 	return fmt.Errorf("a function that mentions a cell (%s): %s may run any number of times, or "+

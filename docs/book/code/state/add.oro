@@ -1,0 +1,10 @@
+use io
+
+fn add(n, x) { n + x }
+
+export fn main() {
+    var n := 0
+    n := add(n, 1)
+    n := add(n, 2)
+    io.print_int(n)
+}

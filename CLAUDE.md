@@ -145,8 +145,11 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
   lent until a named call (GlobalLock … GlobalUnlock) on the declarations, and the trailing block
   `f(a…) { x̄ -> b }` as the user-defined scope form, a derived operator, not a macro; it also spells
   callbacks tier 1 at a call;
-- **callbacks tier 1** ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)), its five
-  remaining questions;
+- **callbacks tier 1** ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)), its four
+  remaining questions, each derived in [callbacks-sketches.md](docs/callbacks-sketches.md) Part 3
+  (2026-11-20): T1-3 first (a written cell is the state monad's lift of a traversal, under
+  `ordered`; commuting writes withdrawn), T1-4 takes its answer, T1-2's `ordered` needed only if
+  T1-3 is (a), T1-5 `ctx(f)`; T1-6 settled by events;
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
   or (d) `Array(go.Value inout)`;
 - **a C string from Win32 into ours** (ADR 0091's rest, `GetWindowTextA`): the text lands in the
@@ -249,6 +252,10 @@ throws `java.nio.file`'s exceptions, as the kinds read.
 ~~windows' `print_int` printing the low 20 digits of a value above the words~~ fail-stop
 ([print](gauntlet/results/print-2026-11-19.md)): 25! printed 10043330985984000000; the body's 20-digit
 field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ ℤ, as u128 does.
+~~a λ bound to a name writing a cell~~ refused
+([callbacks-derivation](gauntlet/results/callbacks-derivation-2026-11-20.md)):
+`add = fn(x) { n := n + x }; add(1); add(2)` printed n as 0, and `get = fn() { n }` a stale value;
+the state translation's let kept a λ argument for β without local.md §3's check.
 
 **Owed from finished steps** (each named in its result document):
 - callbacks (ADR 0133): a slot's facts between two reads; the words audit's full pass ([words-audit.md](docs/words-audit.md): `inout`, `jump`,

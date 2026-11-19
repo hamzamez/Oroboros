@@ -15,7 +15,8 @@ after a call that re-enters it. It is §1.4b.
 
 **Decided so far** (hamza, 2026-11-18): T2-1 B; T2-2 one state per process; T2-3 option 3, no
 classification; T2-4 no new word, the `var` scope is the extent (§1.4c); T2-4b the cell; T2-5 the
-arrow; T1-1 L. Open: T1-2 to T1-6, to be discussed with tier 1.
+arrow; T1-1 L. Open: T1-2 to T1-5, each derived in Part 3 (2026-11-20), T1-3 first; T1-6
+settled by events (the window procedure built).
 
 ---
 
@@ -382,7 +383,8 @@ print.print_int(n)                                      // the number of runes i
 - **Option (b): also admit writes that commute.** `n := n + 1` gives the same `n` in every order,
   the action of a commutative monoid, so (b) accepts the `FieldsFunc` line too. It is a rule about
   which writes commute, with its own planted fault, and waits on a program that counts under an
-  unordered host.
+  unordered host. *Withdrawn 2026-11-20* (Part 3, §3.2): the count under an unordered host is the
+  host's too, and n depends on it.
 - **Option (c): no writes in any λ.** The count is then a loop of the program's own after the call,
   and `strings.Map`'s λ is pure. It is simplest, and refuses what Go programs write.
 
@@ -472,3 +474,226 @@ value. It is the lifted λ in tier 1 and the trampoline in tier 2.
 | T1-4 buffer | decide now, build at a program; keep refused | decide now |
 | T1-5 context word | `ctx`/`ctx(f)`, `&f`, in the header | `ctx(f)` |
 | T1-6 order | shared piece, WndProc, tier 1; tier 1 first; together | shared piece, WndProc, tier 1 |
+
+---
+
+# Part 3. Where the derivation leads, decision by decision
+
+2026-11-20. hamza, on Part 2: "2.1 agree. 2.2 I don't see it yet. what does the derivation say. 2.3
+you mean a cell from outside the lambda? my first instinct is no, remember we started this language
+as s-expression functional language. don't let the syntax, and the targets confuse you. push back
+or explain more. 2.4 same, this looks like a closure, am I wrong? … for every decision I have to
+make on these, show me where the derivation leads, and how each option agrees or disagrees with
+the derivation."
+
+Everything below is read in the core, the λ-calculus the J surface desugars to. A target appears
+only where it realizes a term.
+
+## 3.0 Two facts from the core that the sketches hid behind J
+
+**There is no cell in the core.** `var n := 0` is surface. The state translation S (local.md §3)
+makes it a value passed along: "Moggi's state monad compiled away", in the spec's words. A cell
+written in a loop body is accepted today, and it is the plainest case:
+
+```
+var n := 0                                  loop n = 0, i = 0 {
+loop i = 0 {                         S        i < 5 -> again(n + i, i + 1)
+    i < 5 -> { n := n + i; again(i + 1) }  ─────→   else -> n
+    else -> n                               }
+}
+```
+
+The loop's body is a λ (ADR 0055). After S it has one more parameter and one more result, and
+nothing is mutated. So "a cell written in a λ" means, in the core, **a λ with the state as an
+extra parameter and an extra result**. It is a pure function. A mutable variable appears only on a
+target, where Go prints the loop variable as one too.
+
+**Every λ given to a host is a closure, in every option.** 2.1's `fn(r) { r == c }` already pairs
+a λ with an environment holding `c`. So does our `loop` body, which captures the scope's values. A
+closure is not what the language refuses. It refuses a closure that **survives** as a value:
+stored, returned, or applied later. Tier 1's λ is second-class (Strachey 1967): it is applied only
+inside the call, so its environment is the caller's frame, as a loop body's is. 2.1 (L) is the
+decision that admits it. 2.3 and 2.4 are not "closure or no closure". They ask **what the
+environment may hold**: values only, or state to be threaded.
+
+**The probe that wrote the second fact down found a wrong answer.** The rule "a λ may not mention
+a cell" (local.md §3) was checked for a λ passed as an argument, and not for one bound by a name:
+
+```
+var n := 0
+add = fn(x) { n := n + x }
+add(1)
+add(2)
+io.print_int(n)            // printed 0; now refused, as a passed λ is
+```
+
+`get = fn() { n }` read the cell's first value, also printing 0. Both are fixed, with a planted
+fault (callbacks-derivation-2026-11-20). So hamza's "no" is the rule today, and the rule had a hole.
+
+## 3.1 What a host must tell us, and why (decision 2)
+
+A host call h(ā, λȳ. e) runs e an unknown number of times, in an unknown order, inside a body we
+cannot read. Two checks the language already makes need to see across that body, and nothing else
+does:
+
+1. **Effects** (ADR 0010, the purity bit). An impure body (a host call that prints, or state
+   threaded by S) has a meaning only if the host's activations form one sequence.
+2. **Usage** (ADR 0043 relevance, at least once; linearity, at most once). abstract.md §8.1's 𝒰
+   counts a name's uses in 𝕌, the interval semiring. A name the body uses is used k times its use
+   in the body, where k is the host's count: 𝒰ₓ(h(ā, λȳ.e)) = Σᵢ 𝒰ₓ(aᵢ) + k · 𝒰ₓ(e).
+
+**Theorem D** (research §3.3) says what happens when neither check is in play. If the body is pure
+and consumes nothing relevant or linear, the call's meaning is h's function applied to the λ's
+function, **whatever the count and the order**. So:
+
+> **A pure λ that consumes nothing needs no marker at all.** A marker exists only to let one of the
+> two checks through the host's body, and each marker is the host's half of a check we already make.
+
+- **The count is k ∈ 𝕌, for usage.** A relevant name consumed in the body needs k ≥ 1, and a
+  linear one k ≤ 1. Not knowing k is k = [0, ∞], the top of 𝕌.
+- **The order is the existence of a lift, for effects.** An impure body is a Kleisli arrow
+  Y → T Z, and the host was declared at (Y → Z) → W. The program has a meaning only if there is an
+  h_T : (Y → T Z) → T W extending h. That h_T exists when h is a **traversal**, its activations a
+  sequence its arguments determine. Haskell's `map` and `mapM` are this distinction: a `map` takes
+  only a pure function, and `mapM` (`traverse`) needs a fixed order of effects. `ordered` is the
+  claim "this host function is a traversal, in this documented order". A sequence fixes the count
+  too.
+
+Two consequences:
+- A count of at most one makes the order trivial, since one activation has one order. So the
+  markers are a pair (k, order) with k ≤ 1 implying ordered.
+- **Decision 2 depends on decision 3.** If no λ given to a host may be impure, which is what
+  hamza's instinct leads to, then `ordered` has nothing to admit and is not needed. Only `calls`
+  remains, for a relevant value under `calls 1`, which waits on a program (`sync.Once.Do`,
+  `pprof.Do`). Decide 3 first.
+
+**How each option agrees with the derivation:**
+
+| option | the derivation |
+|---|---|
+| `calls K` with K a range (w1) | **agrees**: K is an element of 𝕌, and J writes intervals as ranges (ADR 0077) |
+| `× K in order` (w2) | the same algebra, other letters |
+| Kotlin's `callsInPlace(…)` (w3) | four named points of 𝕌 and no order: a subset |
+| default `calls 0..`, unordered (a1) | **agrees**: an unstated claim is the weakest, ⊤, which admits exactly Theorem D's case |
+| no default (a2) | the same meaning; it differs only in refusing silence when the target loads |
+| default `calls 1 ordered` (a3) | **contradicts**: it claims a lift the host never promised; unsound |
+
+## 3.2 A cell written in the λ (decision 3)
+
+Yes: the sketch means a `var` declared in the enclosing scope and written in the λ's body.
+
+**In the core**, after S, `strings.Map(fn(r) { n := n + 1; r }, s)` is the function
+
+```
+λ(r, n). (r, n + 1)   :   Rune × ℤ → Rune × ℤ
+```
+
+handed to a host whose parameter is `Rune → Rune`. `Map` does not pass `n` along, so the program has
+a meaning only through the lift of 3.1:
+
+```
+Map_S : (Rune × S → Rune × S) × String × S  →  String × S
+```
+
+This is `mapAccumL`, the stateful traversal, a pure function. It exists when `Map` visits the runes
+in a documented order, which Go's documentation states. Its meaning is n folded through the runes
+in that order (Theorem T₁). Go's `n++` inside a closure is how one target realizes that fold, as its
+mutable loop variable realizes our loop's.
+
+So **the derivation pushes back on "no"**. Option (a) is not a mutable variable captured from
+outside. It is the state monad, which the language already compiles away for its own loops (§3.0),
+applied to a host function that is a traversal. Two pieces already in the language compose into it:
+- a host writing a cell, f′ : X × T → R × T (ADR 0048, local.md §5);
+- a λ applied by a primitive in order (the `loop` body).
+
+**What (a) does cost**, which is the real reason to hesitate: the meaning now rests on a claim about
+the host, `ordered`, written by hand. A wrong `ordered` is a wrong answer. A pure λ needs nothing
+from the host (Theorem D). That dependence is the price of (a), and it is the same price as every
+`pure` and every `where` on a host declaration (ADR 0022: written by someone who read the host's
+source).
+
+**Each option against the derivation:**
+
+| option | the derivation |
+|---|---|
+| (a) threaded under `ordered`, refused without it | **agrees**: exactly the lift where it exists, and a refusal where it does not |
+| (b) commuting writes under no order too | **contradicts.** The sketch says `n := n + 1` gives the same `n` in every order. That is true, but the result needs the count as well as the order. Under no stated order the count is the host's too: `sort.Slice`'s number of comparisons is its algorithm's, and `FieldsFunc` promises no call per rune. The final n = n₀ + (the number of activations), which is not a function of the arguments. A commutative monoid's action is independent of order, not of count. Even an idempotent write (`seen := seen ∪ {r}`, a max) needs the set of arguments the host calls with, which no unordered host of the 25 documents. **So (b) is withdrawn**, and §2.3 and research §3.4 are corrected |
+| (c) no writes in any λ | **a sound subset** of (a), which the derivation does not require. Its own consequence: a print in the body is an effect just as a cell write is, both impure in the core, so (c) consistently means "a λ given to a host is pure", with no host IO either. That is coherent, and `ordered` then disappears (3.1) |
+
+**What (c) refuses**, measured by what the hosts are built for:
+- the visitors, whose only output is the effect: `filepath.WalkDir` collecting paths, `ast.Inspect`,
+  `EnumWindows`, and Win32's other enumerators;
+- Win32's 291 context words (research §2.2), which exist to carry the state the callback writes:
+  C's own hand-written state passing, the very pair (a) would fill.
+
+Under (c), `EnumWindows(fn(h) { … })` can only answer 1 or 0 to the host, and computes nothing.
+
+**Staging is monotone.** Every program (c) accepts, (a) accepts with the same meaning. So (c) now
+and (a) at the first program that writes a cell is a sound order of building. It is not a different
+design.
+
+**Recommended, by the derivation: (a), decided now and built with tier 1**, with the λ's host
+effects (a print) under the same rule as its cell writes. It is the functional reading. (c) is the
+safe start of the same design, if hamza prefers to wait for the program.
+
+**One asymmetry (a) makes visible.** Our own higher-order definition is refused the same λ today:
+`twice(fn(x) { n := n + x })` is a closure refusal, though after β its applications are in program
+order. The refusal comes from the translation's order, S before β, not from the meaning. Under (a),
+a host's `ordered` call would admit what our own definition refuses. The cure, if a program asks, is
+the same lift for a definition β can see. It is not proposed here.
+
+## 3.3 A buffer in the λ (decision 4)
+
+**In the target it is a closure. So is 2.1's `fn(r) { r == c }`**, and so is every λ here (§3.0).
+**In the core** a buffer is a state binder holding a table (ADR 0052), translated by the same S as a
+cell; local.md says it outright: "a cell is a buffer of length one". So
+
+```
+strings.Map(fn(r) { hist[r % 16] := hist[r % 16] + 1; r }, s)
+```
+
+is, after S, λ(r, h). (r, set(h, r % 16, h[r % 16] + 1)), the same lift as 3.2 with the state a
+table. The environment holds no mutable thing: the table is a parameter, threaded. Linearity holds
+by the threading. Each activation consumes the table once and returns it once, one chain, whatever
+the count, because 𝒰's scaling applies to a *captured* name, and a threaded state is not captured.
+On LLVM the table is a pointer in the environment, lent for the call and returned (ADR 0084's
+Theorem P).
+
+**The derivation makes 2.4 the same decision as 2.3**, its state of a different sort. The old
+refusal (callbacks.md §4, R3) gave its reason as "two goroutines could hold it": aliasing across
+threads, which L excludes and E and C do not.
+
+| option | the derivation |
+|---|---|
+| (a) lent like a cell | **agrees**, if 3.2 is (a): one translation for both state binders |
+| (b) keep refused | **agrees** if 3.2 is (c). If 3.2 is (a), it draws a line between a cell and a buffer of one that S does not draw |
+
+So 2.4 takes 2.3's answer.
+
+## 3.4 The context word (decision 5)
+
+Closure conversion (Minamide, Morrisett and Harper 1996) is ∃E. (E × A → R) × E, and Win32's
+(callback, `LPARAM`) is that pair. E's address is never observed by the program, so it is
+representation, and representation is written in `repr` and in a call's argument terms (ADR 0130).
+This holds under every answer to 3.2: even a pure λ's environment holds `c`.
+
+| option | the derivation |
+|---|---|
+| (a) `repr … c(h, ctx)`, `ctx(f)` | **agrees**: an argument term, as `ref(x)` and `elem(b, lo)` are |
+| (b) `&f` | **disagrees**: `&x` means the address of a fresh copy of a value (ADR 0130, 0131); f's environment is not a copy of f. It gives one symbol two meanings, told apart by the set |
+| (c) in the header | **contradicts**: a representation in the meaning's place, the fault ADR 0130 removed from `in` |
+
+## 3.5 The order of building (decision 6)
+
+Settled by events. The shared piece and the window procedure are built (ADR 0133, cbfield, msgloop,
+slot), so tier 1 comes next, at its trigger, a Go-library program.
+
+## 3.6 The decisions, in the order the derivation needs them
+
+| | the question | where the derivation leads |
+|---|---|---|
+| 3 | may a λ given to a host have effects: threaded state, a host's IO? | **(a)**: yes, exactly where the host is a traversal (`ordered`), as the state monad our loops already use. (c) is its sound first stage. (b) is withdrawn |
+| 4 | a buffer | **the same answer as 3** |
+| 2 | the markers | **`calls K` with K a range, and `ordered`**, default the top, `calls 0..` unordered. Under 3 = (c), `ordered` is not needed and `calls` waits on a relevant value |
+| 5 | the context word | **`ctx(f)`**, independent of 3 |
+| 6 | the order | done: the window procedure is built; tier 1 at its trigger |

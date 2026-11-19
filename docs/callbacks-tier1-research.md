@@ -256,9 +256,10 @@ place of messages, and Theorem N's nesting holds by L. **Theorem T₁**: under L
 program has the meaning of the program whose cell is one variable written in place, captured by
 reference. The proof is Theorem T's, with the history now the host's specified sequence rather than
 a tree of dispatches. Under U the history is the host's, so a written cell is a non-pure body and
-Theorem D refuses it. The one exception worth naming is a write that commutes with itself,
-`n := n + 1`, the action of a commutative monoid. Its result is the same in every order, but
-admitting it is a rule about which writes commute, waiting on a program that counts under U.
+Theorem D refuses it. *Corrected 2026-11-20* (callbacks-sketches Part 3, §3.2): this named a write
+that commutes with itself, `n := n + 1`, as an exception. It is not one. Its result is the same in
+every order, but under U the count of activations is the host's too, so n₀ + count is not a
+function of the arguments. A commutative action is independent of order, not of count.
 
 **A buffer under L.** callbacks.md §4 refused a captured buffer because "two goroutines could hold
 it". That is E and C's hazard. Under L the buffer is lent for the call, as a cell is (ADR 0048: a
@@ -453,7 +454,8 @@ The program calls `winuser.EnumWindows(fn(h) { … })`, and its λ has the claim
 
 - **Escaping callbacks** (E, 41 of 150), each with its own reading (decision 1).
 - **A callback's law**, such as `less`'s strict weak order, beyond the pullback lemma of §3.3.
-- **Commuting writes under U.**
+- **Commuting writes under U**: withdrawn 2026-11-20, since the count under U is the host's too
+  (callbacks-sketches Part 3, §3.2).
 - **Order-2 callbacks**: the 9 iterator consumers take an `iter.Seq`, which a program holds as a host
   value (arrow-research §4.5). A λ written as a push iterator is order 2, waiting on a program.
 - **A language name taking a λ** (a portable `sort` or `index_where` in Σ_L).

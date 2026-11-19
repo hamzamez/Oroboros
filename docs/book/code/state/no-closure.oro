@@ -1,0 +1,9 @@
+use io
+
+export fn main() {
+    var n := 0
+    add = fn(x) { n := n + x }
+    add(1)
+    add(2)
+    io.print_int(n)
+}

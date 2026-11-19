@@ -18,7 +18,7 @@ classification; T2-4 no new word, the `var` scope is the extent (§1.4c); T2-4b 
 arrow; T1-1 L. **T1-3 (a)** (hamza, 2026-11-20: "agree to option a"): a cell written in the λ is
 threaded where the host documents its order, `ordered`, and refused elsewhere; a host's IO in the
 λ follows the same rule. **T1-4 (a)** (hamza, 2026-11-20: "T1-4 agree"; Part 3, §3.3): a buffer
-lent like a cell. **T1-2's words** (hamza, 2026-11-20): `calls K`, K a range, and `ordered`. Open: the default, the evidence's place (§3.10: in the tooling, not the declaration), T1-5; T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
+lent like a cell. **T1-2's words** (hamza, 2026-11-20): `calls K`, K a range, and `ordered`. The default ⊤, `calls 0..` and unordered, and the host's sentence as the tooling's evidence, checked both ways (§3.10, e2) (hamza, 2026-11-20: "sure, I agree"). Open: T1-5 (§3.11); T1-6 settled by events (the window procedure built). §3.8 says what (a) changes in
 each.
 
 ---
@@ -1009,3 +1009,63 @@ So the question is whether to check the claim, and where its evidence lives:
 
 **An asymmetry (e2) leaves:** a host's `pure` is not checked this way, and nothing measured asks it
 to be. If a wrong `pure` is found, the same column is its remedy.
+
+## 3.11 Why a context word? (hamza, 2026-11-20: "why do we need the context word?")
+
+**On Go, JavaScript and the JVM we do not.** Each host has closures of its own: a `func` literal,
+an arrow function, a lambda. The λ is printed as one, and the host carries its environment. The
+context word is a question only for C, so only for windows.
+
+**In C a function pointer is code alone.** It has no environment, so a C function can see only its
+arguments and global memory. Our λ is a closure in every option (§3.0). `fn(h) { … c … }` reads a
+captured `c`, and under T1-3 (a) it writes a cell, which on LLVM is the cell's address. The lifted C
+function must find those values, which closure conversion calls E (Minamide, Morrisett and Harper
+1996): a closure is the pair ∃E. (E × A → R) × E, code and environment. C has the first component
+and not the second. There are three ways to supply E:
+
+| | how E reaches the lifted function | what the derivation says |
+|---|---|---|
+| (k) **the API's context word** | the call passes E's address in the API's `LPARAM`, and the host hands it to the callback | **the host's own closure.** C's closures are (function pointer, `void*`) pairs by convention, and 291 of 349 Win32 APIs carry one. Using it is emitting at the layer the target provides |
+| (s) **a slot** | E's address in a global, saved, written before the call, restored after | **shallow binding** (Baker 1978): dynamic scope emulating lexical scope. Sound under L because the activations nest. Needs a thread-local slot once there are threads (ADR 0081) |
+| (t) **a thunk made at run time** | code generated per closure with E's address inside it | rejected: executable memory written at run time, and an allocation per call |
+
+**In the λ-calculus, (k) is the honest one.** A closure's environment is an argument of its code:
+that is what closure conversion is. (s) puts a per-call value in a global and relies on the
+nesting to make dynamic scope agree with lexical scope. It is correct, but correct by an argument
+about the order of the host's calls, where (k) is correct by construction.
+
+**What each costs, by kind of callback:**
+- **On one thread (L), both are correct.** (s) costs two loads and two stores around the call, and
+  (k) one argument. Neither is measured, and the difference is a few instructions per call.
+- **A callback the host runs on another thread while the call blocks** (C, research §2.1, Go's
+  `T.Run`) would read the slot from the wrong thread. That is a global race, or an empty slot if
+  the slot is thread-local. (k) is correct, since E travels with the call.
+- **Once there are processes** (ADR 0081), (s) needs a thread-local slot. (k) needs nothing.
+
+**Why the declaration must say which parameter it is.** A type does not tell an environment from
+data. `EnumWindows`'s `LPARAM` is passed through to the callback, and `SendMessageA`'s `LPARAM` is a
+message's argument, both of type `LPARAM`. The 291 is a count by type, which research §2.2 notes
+over-counts. So the compiler cannot find the context word for itself. The declaration states it, in
+the two places representation is stated:
+- the callback's C signature, `repr WNDENUMPROC c(h, ctx) stdcall`, the parameter where E arrives;
+- the API's call, `call EnumWindows(f, ctx(f))`, the argument that carries it.
+
+A program never sees either: it writes `winuser.EnumWindows(fn(h) { … })`.
+
+**And where the API has none** (33 of 349, and `qsort`), (s) is the fallback, with no word: its
+`repr` has no `ctx`.
+
+**The window procedure took (s).** ADR 0133's state is one cell per process (T2-2), a static slot,
+because a window procedure is installed and called long after any one call. That is tier 2's
+extent, and a slot is its honest realization. Tier 1's environment lives exactly as long as the
+call, which is what an argument is.
+
+**The options for T1-5:**
+- **(k) where the API has a context word, (s) where it has none (recommended).** Two words in the
+  target file, `ctx` in a `repr` and `ctx(f)` in a call, and none in a program.
+- **(s) always.** No word at all, one mechanism for every API. It is correct for every L callback
+  on one thread, which is everything today. It becomes wrong for a callback on another thread
+  during the call, and it needs thread-local storage under ADR 0081.
+
+The spelling of (k), if chosen, is §2.5's: `ctx` and `ctx(f)`, beside `ref(x)`. `&f` gives `&` a
+second meaning, and the header form puts representation in the meaning's place.

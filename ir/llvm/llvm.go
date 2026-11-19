@@ -57,6 +57,20 @@ func Func(tg *emit.Target, f *ir.Func) (string, error) {
 	if p.err != nil {
 		return "", fmt.Errorf("%s: %w", f.Name, p.err)
 	}
+	// A CALLBACK'S WRAPPER (ADR 0133, llvm.md §6c): the function the host
+	// calls, at the claim's convention and C's types, printed with the
+	// function it calls from the claim the text names
+	if f.Callback != "" {
+		info, err := ir.CallbackSignature(tg, f.Callback)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", f.Name, err)
+		}
+		w, err := CallbackWrapper(tg, out, f.Name, info)
+		if err != nil {
+			return "", err
+		}
+		out += "\n" + w
+	}
 	return out, nil
 }
 
@@ -1563,6 +1577,80 @@ func Callees(tg *emit.Target, f *ir.Func) (map[string]string, []*ir.Func, error)
 		funcs = append(funcs, cl)
 	}
 	return codes, funcs, nil
+}
+
+// CallbackWrapper is the function the host calls for the lifted function
+// impl, whose definition def is (llvm.md §6c): at the claim's convention, its
+// parameters C's types in C's order, each widened to the IR's type (zext for
+// an unsigned C type, sext for a signed one), the call, and the result
+// truncated to the C result's type.
+func CallbackWrapper(tg *emit.Target, def, impl string, info ir.CallbackInfo) (string, error) {
+	line, _, _ := strings.Cut(def, "\n")
+	// cut at the function's own name: its result may carry an attribute with
+	// parentheses of its own, `range(i64 …) i64 @f(`
+	head, params, ok := strings.Cut(line, " "+Name(impl)+"(")
+	if !ok || !strings.HasPrefix(head, "define ") {
+		return "", fmt.Errorf("callback %s: no definition in %q", impl, line)
+	}
+	fs := strings.Fields(head)
+	ret := fs[len(fs)-1]
+	params, _, _ = strings.Cut(params, ") #")
+	var tys []string
+	depth, start := 0, 0
+	for i := 0; i <= len(params); i++ {
+		if i < len(params) && params[i] == '(' {
+			depth++
+		} else if i < len(params) && params[i] == ')' {
+			depth--
+		}
+		if i == len(params) || params[i] == ',' && depth == 0 {
+			if p := strings.Fields(params[start:i]); len(p) > 0 {
+				tys = append(tys, p[0])
+			}
+			start = i + 1
+		}
+	}
+	if len(tys) != len(info.CParams) {
+		return "", fmt.Errorf("callback %s takes %d parameter(s), and its C signature %d", impl, len(tys), len(info.CParams))
+	}
+	cc := ""
+	if info.Conv == "stdcall" && (strings.HasPrefix(tg.Triple, "i686-") || strings.HasPrefix(tg.Triple, "i386-")) {
+		cc = "x86_stdcallcc "
+	}
+	var b strings.Builder
+	var cps []string
+	args := make([]string, len(tys))
+	for k, c := range info.CParams {
+		cps = append(cps, fmt.Sprintf("%s %%a%d", c.LL, k))
+	}
+	cret := info.CResult.LL
+	fmt.Fprintf(&b, "define internal %s%s %s(%s) #0 {\nentry:\n", cc, cret, Name(impl+ir.WrapperSuffix), strings.Join(cps, ", "))
+	for k, c := range info.CParams {
+		i := info.Order[k]
+		v := fmt.Sprintf("%%a%d", k)
+		if c.LL != tys[i] {
+			op := "zext"
+			if c.Signed {
+				op = "sext"
+			}
+			if c.LL == "ptr" || tys[i] == "ptr" {
+				return "", fmt.Errorf("callback %s: parameter %d is %s in C and %s here", impl, i, c.LL, tys[i])
+			}
+			fmt.Fprintf(&b, "  %%b%d = %s %s %s to %s\n", k, op, c.LL, v, tys[i])
+			v = fmt.Sprintf("%%b%d", k)
+		}
+		args[i] = tys[i] + " " + v
+	}
+	call := fmt.Sprintf("call %s %s(%s)", ret, Name(impl), strings.Join(args, ", "))
+	switch {
+	case cret == "void":
+		fmt.Fprintf(&b, "  %s\n  ret void\n}\n", call)
+	case cret == ret:
+		fmt.Fprintf(&b, "  %%r = %s\n  ret %s %%r\n}\n", call, ret)
+	default:
+		fmt.Fprintf(&b, "  %%r = %s\n  %%c = trunc %s %%r to %s\n  ret %s %%c\n}\n", call, ret, cret, cret)
+	}
+	return b.String(), nil
 }
 
 // RuntimeEntry is a runtime function's entry at the symbol a code generator

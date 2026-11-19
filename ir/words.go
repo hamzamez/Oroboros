@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"math/big"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -459,14 +460,25 @@ func (w *words) stmt(s *Stmt) {
 	case s.Op == OCall:
 		p := w.tg.Prims[s.Name]
 		for j, a := range s.Args {
-			if j < len(p.Args) && p.Kind != "stmt" {
-				ty := p.Args[j]
-				switch {
-				case w.isU(ty):
-					s.Args[j] = w.conv(a, true, true, fmt.Sprintf("argument %d of %s", j+1, s.Name))
-				case ty == "int" || w.tg.ValueType(ty) == "int":
+			if j >= len(p.Args) {
+				continue
+			}
+			ty := p.Args[j]
+			switch {
+			case p.Kind == "stmt":
+				// a template statement's first argument is its value; a C
+				// function's are its arguments, a `void` one's too (ADR 0094),
+				// and an unsigned value reaches a C int only converted
+				if p.CSym != "" && w.signedRange(ty) && !PlantCStmtUnconverted {
 					s.Args[j] = w.conv(a, false, true, fmt.Sprintf("argument %d of %s", j+1, s.Name))
 				}
+			case w.isU(ty):
+				s.Args[j] = w.conv(a, true, true, fmt.Sprintf("argument %d of %s", j+1, s.Name))
+			case ty == "int" || w.tg.ValueType(ty) == "int" || w.signedRange(ty) && !PlantCStmtUnconverted:
+				// a range with a negative end inside the signed word, a C
+				// int's: the value converted where it is proven there,
+				// refused otherwise
+				s.Args[j] = w.conv(a, false, true, fmt.Sprintf("argument %d of %s", j+1, s.Name))
 			}
 		}
 		for j, v := range s.Res {
@@ -685,3 +697,18 @@ func dropDecidedPis(f *Func, guards map[V]bool, pairs [][2]V) {
 	})
 	renameAway(f, ren)
 }
+
+// signedRange says ty is a range inside the target's signed word with a
+// negative end, so not inside the unsigned word's: a parameter an unsigned
+// value reaches only converted (a C int's). A range of naturals inside the
+// signed word, a DWORD's, is inside both words, and the value flows as it is.
+func (w *words) signedRange(ty string) bool {
+	lo, hi, ok := core.IntRangeBig(ty)
+	return ok && lo != nil && hi != nil && lo.Sign() < 0 && lo.Cmp(big.NewInt(w.tg.Word.Lo)) >= 0 && hi.Cmp(big.NewInt(w.tg.Word.Hi)) <= 0
+}
+
+// PlantCStmtUnconverted leaves an unsigned value unconverted at a C
+// function's narrow signed parameter, a `void` one's included, as before: W5
+// then refuses PostQuitMessage(w) with w proven in 0..99
+// (TestAWindowRunsItsMessageLoop).
+var PlantCStmtUnconverted bool

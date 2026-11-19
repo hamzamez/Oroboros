@@ -1,0 +1,51 @@
+// A window procedure with a state (ADR 0133): the state is a cell of main's
+// scope, which the λ at the class's field captures and passes to the step's
+// cell parameter, `s ∈ cell(S)`, S stating its set. The cell is the λ's static
+// slot, so what an activation writes is what the next read sees, wherever the
+// host runs the procedure from. Windows calls the λ through a wrapper at
+// WNDPROC's convention, stdcall on i686 (llvm.md §6c).
+//
+//   build -target=windows -o wndproc.exe examples/native/wndproc-win.oro
+//
+// The program posts three WM_USER + 1 and one WM_USER + 2 to its window, which
+// count a click each and then post WM_QUIT with the count; the message loop
+// dispatches until GetMessageA answers WM_QUIT, and prints the quit's code and
+// the state main reads: 3 3.
+use win/print
+use windows/winuser
+use windows/windef
+use windows/minwindef
+use llvm
+
+set S = record { clicks ∈ 0..1000 }
+
+fn step(s ∈ cell(S), h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {
+    c = s.clicks
+    case {
+        m == 1025 && c < 1000 -> { s.clicks := c + 1; 0 }
+        m == 1026 -> { winuser.PostQuitMessage(c); 0 }
+        else -> winuser.DefWindowProcA(h, m, w, l)
+    }
+}
+
+export fn main() {
+    var s := record { clicks : 0 }
+    wc = record { style : 0, lpfnWndProc : fn(h, m, w, l) { step(s, h, m, w, l) }, cbClsExtra : 0, cbWndExtra : 0,
+        hInstance : llvm.null(), hIcon : llvm.null(), hCursor : llvm.null(), hbrBackground : llvm.null(), lpszClassName : "OroWndProc" }
+    a = winuser.RegisterClassA(wc)
+    h = winuser.CreateWindowExA(0, "OroWndProc", "", 0, 0, 0, 0, 0, llvm.null(), llvm.null(), llvm.null(), llvm.null())
+    ignore(winuser.PostMessageA(h, 1025, 0, 0))
+    ignore(winuser.PostMessageA(h, 1025, 0, 0))
+    ignore(winuser.PostMessageA(h, 1025, 0, 0))
+    ignore(winuser.PostMessageA(h, 1026, 0, 0))
+    loop n = 0, quit = 0 - 1 {
+        quit >= 0 -> { ignore(print.print_int(quit)); ignore(print.print_int(s.clicks)) }
+        n > 1000 -> ()
+        else -> {
+            (msg, r) = winuser.GetMessageA(llvm.null(), 0, 0)
+            ignore(winuser.TranslateMessage(msg))
+            ignore(winuser.DispatchMessageA(msg))
+            again(n + 1, if r > 0 { 0 - 1 } else { if msg.wParam < 1000 { msg.wParam } else { 1000 } })
+        }
+    }
+}

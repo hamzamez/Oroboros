@@ -410,11 +410,11 @@ The full, current description is [docs/spec/state.md](docs/spec/state.md), and t
 | | how | measured |
 |---|---|---|
 | Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript, Java, and C on Windows by the same compiler | geometric mean of generated over hand-written **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows, over 45 comparisons from **0.85×** to **1.18×**; each above 1.05× explained, the largest a JavaScript module boundary ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)). Windows runs five of the seven: word count needs a dictionary keyed by strings, the report printing of floats. On Android's runtime, in the emulator, 9 of 10 pairs are at parity and the stencil is 1.17–1.19× ([android-2026-10-05](gauntlet/results/android-2026-10-05.md)). The newest program, a table-shape tool reading its own 64 KB buffer, is at 1.11× its hand-written Go ([observer-2026-10-21](gauntlet/results/observer-2026-10-21.md)) |
-| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **8,862 of 8,916** operations proven across the corpus, every quotient included; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
+| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **8,873 of 8,927** operations proven across the corpus, every quotient included; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
 | Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
 | A function is only called inside its declared domain | every declared parameter range and `where` is proven at every call, above the machine word as the set its enforcement decides, by sign and bit length ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | 346 range obligations in the corpus measured before it was switched on; one program was missing a declaration ([requires](gauntlet/results/requires-2026-09-24.md), [contracts](gauntlet/results/contracts-2026-09-24.md)) |
 | A string is always text | every value typed `String` is a sequence of Unicode scalar values: a host's string is its own type (`go.bytestring`), entered only by the standard's decode, which is the same function on every host ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md)) | 57 Go declarations read one at a time; `text_of` agrees on Go, JS and Java over 18 ill-formed sequences ([hoststring](gauntlet/results/hoststring-2026-09-24.md)) |
-| Loops terminate | size-change termination on the IR | **924 of 962** loops proven; the rest are driven by input or the file system |
+| Loops terminate | size-change termination on the IR | **926 of 964** loops proven; the rest are driven by input or the file system |
 | Every host agrees | 54 programs built and **run** on every target that accepts them (39 on all four), required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
 | Each rule that decides legality is tested against a broken copy of itself | a fault is planted in the rule, and its test must fail | each result in [gauntlet/results/](gauntlet/results/) lists its faults and the test that caught each |
 | The compiler's output never drifts by accident | every emitted file, proof count and error message compared with a committed baseline | `go run ./cmd/check` |
@@ -518,6 +518,10 @@ the round: a file path could run on past its end into whatever memory followed. 
    call, `call WriteFile(h, s, len(s), &written, NULL)`: what the function writes back is one of its
    results, and a pointer with its count is one table, so a program writes
    `(written, ok) = WriteFile(h, b[lo:hi])` ([ccall-2026-11-18](gauntlet/results/ccall-2026-11-18.md)).
+   Since 2026-11-19 a program has a window procedure: a function written in the language that Windows
+   calls, with a state that survives from one message to the next and is right even when Windows
+   calls the procedure again from inside itself (ADR 0133,
+   [slot-2026-11-19](gauntlet/results/slot-2026-11-19.md)).
 
 **The 11-16 plan, as it ended** ([assessment-2026-11-16](docs/assessment-2026-11-16.md) set it):
 1. **fix the book's wrong answers**, each with a test that fails before the fix:

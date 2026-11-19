@@ -29,6 +29,9 @@ import (
 
 type Program struct {
 	Defs map[string]*Term
+	// Slots are the cells a λ at a callback's field captures, each its static
+	// slot, by name, with its set (ADR 0133, core/slot.go).
+	Slots map[string]string
 	// Variadic are the variadic declarations whose calls the loader read as
 	// variadic, by qualified name (spec/variadic.md §3). A target's Env refuses
 	// a program that mentions a variadic declaration not in it: loaded without
@@ -73,9 +76,15 @@ type Program struct {
 // Env is a program viewed through one target: which names reduce, and which are
 // the irreducible floor.
 type Env struct {
-	Defs map[string]*Term
-	Prim map[string]bool
-	Pure map[string]bool // names whose APPLICATION is pure; see pureName
+	// Callbacks are the callback types' claims, by qualified name, and Lifted
+	// the λs a program puts at their fields, by lifted name; Slots the cells
+	// such a λ captures, with their sets (ADR 0133).
+	Callbacks map[string]CallbackDecl
+	Lifted    map[string]Lifted
+	Slots     map[string]string
+	Defs      map[string]*Term
+	Prim      map[string]bool
+	Pure      map[string]bool // names whose APPLICATION is pure; see pureName
 	// Observe names the host calls that may read a live buffer at a table
 	// parameter (ADR 0069): pure, with scalar results. An application of one to
 	// a bound variable is a read of a table through it, as `(b i)` is (§7c).
@@ -1167,6 +1176,11 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 			}
 		}
 	}
+	// A CELL A CALLBACK CAPTURES IS ITS SLOT (ADR 0133, core/slot.go), and a
+	// definition's cell parameter a reference: before the state translation.
+	if err := slotCells(p); err != nil {
+		return nil, nil, err
+	}
 	// A SEGMENT AT A C CALL IS ITS PROJECTIONS (ADR 0132), before the state
 	// translation, so a borrowed buffer's segment is the buffer borrowed.
 	if len(segs) > 0 && !PlantSegmentsLate {
@@ -1860,6 +1874,15 @@ func (e *Env) pureTerm(t *Term, seen map[string]bool) bool {
 		return true // values
 	case KApp:
 		op := t.Op()
+		// A λ AT A CALLBACK'S FIELD is the host's to apply, never the
+		// program's (ADR 0133, core/slot.go): a value
+		if isCbFn(t) || isSRef(t) {
+			return true // and a slot's reference is a value, its name
+		}
+		// A SLOT'S READ AND WRITE are effects in program order (core/slot.go)
+		if op.Kind == KName && (op.Name == SGetName || op.Name == SSetName || op.Name == DerefPName || op.Name == SetRefName) {
+			return false
+		}
 		for _, a := range t.Args() {
 			// A λ ARGUMENT MAY BE APPLIED, by a primitive or by a λ head that
 			// calls its parameter, so its body counts as run, through every λ
@@ -2946,6 +2969,15 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		if op.Kind == KName && (op.Name == "inf" || op.Name == "sup") && e.Prim[op.Name] && len(args) == 1 {
 			return e.infSup(op, args[0], fuel)
 		}
+		// A CALLBACK'S STATE, ITS SLOT (ADR 0133, core/slot.go): a reference's
+		// read and write, and the slot's loads and stores.
+		if op.Kind == KName && (op.Name == SGetName || op.Name == SSetName || op.Name == DerefPName || op.Name == SetRefName) {
+			if v, ok, err := e.slotStep(op, args); err != nil {
+				return nil, err
+			} else if ok {
+				return normalize(v, e, fuel)
+			}
+		}
 		// A SEGMENT AT A C CALL IS ITS PROJECTIONS (ADR 0132): F(…, b[lo:hi], …)
 		// is F#seg(…, b, lo, hi, …), the region passed as &b[lo] and hi − lo.
 		if op.Kind == KName && e.Segments[op.Name] != nil {
@@ -3116,6 +3148,10 @@ func duplicable(t *Term) bool {
 	}
 	switch t.Kind {
 	case KInt, KDec, KStr, KBool, KName, KFn, KBound:
+		return true
+	}
+	// A SLOT'S REFERENCE is its name, a constant (core/slot.go)
+	if isSRef(t) {
 		return true
 	}
 	// A CLOSED INTEGER ONE WORD HOLDS is a constant, a literal past the signed
@@ -3536,7 +3572,11 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 		// range, a static value Law S keeps out of the residual (staged).
 		if bound[t.Name] || e.Prim[t.Name] || e.Sets[t.Name] || t.Name == AnyName || t.Name == ElimName || t.Name == SegmentName ||
 			t.Name == ".." || t.Name == AdoptName || t.Name == OwnedName ||
-			t.Name == RecName || t.Name == RecSetName || t.Name == GetName || t.Name == WithName {
+			t.Name == RecName || t.Name == RecSetName || t.Name == GetName || t.Name == WithName ||
+			t.Name == SGetName || t.Name == SSetName || t.Name == SRefName || t.Name == DerefPName || t.Name == SetRefName ||
+			t.Name == CbFnName {
+			// a callback's state, its slot and a cell parameter's reference
+			// (ADR 0133, core/slot.go)
 			return nil
 		}
 		if _, ok := e.Defs[t.Name]; ok {

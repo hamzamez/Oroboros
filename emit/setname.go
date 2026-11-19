@@ -43,7 +43,9 @@ func (tg *Target) unboundSet(ty string) string {
 	// A MANIFEST SET denotes what its definition denotes (windows' `error`, the
 	// DWORDs, ADR 0112).
 	if def, ok := tg.Aliases[ty]; ok {
-		return tg.unboundSet(def)
+		// its definition read in its own module, where `basetsd.UINT_PTR`
+		// is named (WPARAM's, in a program's header)
+		return tg.unboundSet(tg.resolveSet(moduleOf(ty), def))
 	}
 	// ∅ IS THE LANGUAGE'S ON EVERY TARGET (ADR 0090): it has no element, so
 	// it needs no representation.

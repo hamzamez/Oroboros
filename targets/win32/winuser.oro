@@ -21,18 +21,24 @@ module windows/winuser {
     }
     fn DestroyWindow(w ∈ windef.HWND) (r ∈ minwindef.BOOL) { host expr call DestroyWindow stdcall lib "user32" }
 
+    // THE WINDOW PROCEDURE. typedef LRESULT (CALLBACK* WNDPROC)(HWND, UINT,
+    // WPARAM, LPARAM): a named claim, the operators of that shape (ADR 0053),
+    // and its C signature, CALLBACK being __stdcall (ADR 0133, llvm.md §6c).
+    set WNDPROC = fn(h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT)
+    repr WNDPROC c(h, m, w, l) stdcall
+
     // WINDOW CLASSES. typedef struct tagWNDCLASSA { UINT style; WNDPROC
     // lpfnWndProc; int cbClsExtra; int cbWndExtra; HINSTANCE hInstance; HICON
     // hIcon; HCURSOR hCursor; HBRUSH hbrBackground; LPCSTR lpszMenuName; LPCSTR
-    // lpszClassName; } WNDCLASSA. The window procedure is 0 until callbacks
-    // (6d's other wall), and the class menu 0: each determined (Theorem F).
-    // lpszClassName is a C string the call lends (Theorem P′), NUL-free by the
-    // declaration's `where`.
+    // lpszClassName; } WNDCLASSA. The window procedure is a function of ours
+    // (ADR 0133), and the class menu 0, determined (Theorem F). lpszClassName
+    // is a C string the call lends (Theorem P′), NUL-free by the declaration's
+    // `where`.
     set WNDCLASSA = record {
-        style ∈ minwindef.UINT, cbClsExtra ∈ minwindef.INT, cbWndExtra ∈ minwindef.INT, hInstance ∈ minwindef.HINSTANCE,
+        style ∈ minwindef.UINT, lpfnWndProc ∈ WNDPROC, cbClsExtra ∈ minwindef.INT, cbWndExtra ∈ minwindef.INT, hInstance ∈ minwindef.HINSTANCE,
         hIcon ∈ windef.HICON, hCursor ∈ windef.HCURSOR, hbrBackground ∈ windef.HBRUSH, lpszClassName ∈ String
     }
-    repr WNDCLASSA c(style, lpfnWndProc ∈ ptr = 0, cbClsExtra, cbWndExtra, hInstance, hIcon, hCursor,
+    repr WNDCLASSA c(style, lpfnWndProc, cbClsExtra, cbWndExtra, hInstance, hIcon, hCursor,
         hbrBackground, lpszMenuName ∈ ptr = 0, lpszClassName)
     // ATOM RegisterClassA(_In_ CONST WNDCLASSA *lpWndClass): a struct passed
     // `_In_`, a value (ADR 0084 P2), its const T* the call's &x, ref(wc)
@@ -62,6 +68,33 @@ module windows/winuser {
     fn SendMessageA(w ∈ windef.HWND, m ∈ minwindef.UINT, wp ∈ minwindef.WPARAM, lp ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT) { host expr call SendMessageA stdcall lib "user32" }
     fn DefWindowProcA(w ∈ windef.HWND, m ∈ minwindef.UINT, wp ∈ minwindef.WPARAM, lp ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT) { host expr call DefWindowProcA stdcall lib "user32" }
     fn PostQuitMessage(c ∈ minwindef.INT) (Bool) { host stmt call PostQuitMessage stdcall lib "user32" }
+    // BOOL PostMessageA(HWND, UINT, WPARAM, LPARAM): the message queued for the
+    // window's thread, answered by its procedure when the loop dispatches it.
+    fn PostMessageA(w ∈ windef.HWND, m ∈ minwindef.UINT, wp ∈ minwindef.WPARAM, lp ∈ minwindef.LPARAM) (r ∈ minwindef.BOOL) { host expr call PostMessageA stdcall lib "user32" }
+
+    // THE MESSAGE LOOP. typedef struct tagMSG { HWND hwnd; UINT message; WPARAM
+    // wParam; LPARAM lParam; DWORD time; POINT pt; } MSG (lPrivate is _MAC's).
+    set MSG = record {
+        hwnd ∈ windef.HWND, message ∈ minwindef.UINT, wParam ∈ minwindef.WPARAM, lParam ∈ minwindef.LPARAM,
+        time ∈ minwindef.DWORD, pt ∈ windef.POINT
+    }
+    repr MSG c(hwnd, message, wParam, lParam, time, pt)
+    // BOOL GetMessageA(_Out_ LPMSG lpMsg, _In_opt_ HWND hWnd, _In_ UINT
+    // wMsgFilterMin, _In_ UINT wMsgFilterMax): the next message, a result
+    // (ADR 0131); 0 for WM_QUIT, -1 on an error, nonzero otherwise. It
+    // dispatches sent messages to the thread's procedures while it waits.
+    fn GetMessageA(w ∈ windef.HWND, lo ∈ minwindef.UINT, hi ∈ minwindef.UINT) (msg ∈ MSG, r ∈ minwindef.BOOL) { host expr call GetMessageA(&msg, w, lo, hi) stdcall lib "user32" }
+    // BOOL TranslateMessage(_In_ CONST MSG *lpMsg) and LRESULT
+    // DispatchMessageA(_In_ CONST MSG *lpMsg): the message passed by its
+    // const T*, &msg (ADR 0130); DispatchMessageA calls the window's procedure.
+    fn TranslateMessage(msg ∈ MSG) (r ∈ minwindef.BOOL) { host expr call TranslateMessage(&msg) stdcall lib "user32" }
+    fn DispatchMessageA(msg ∈ MSG) (r ∈ minwindef.LRESULT) { host expr call DispatchMessageA(&msg) stdcall lib "user32" }
+    // BOOL IsDialogMessageA(_In_ HWND hDlg, _In_ LPMSG lpMsg): a modeless
+    // dialog's message, dispatched to it when it is one, by &msg.
+    fn IsDialogMessageA(d ∈ windef.HWND, msg ∈ MSG) (r ∈ minwindef.BOOL) { host expr call IsDialogMessageA(d, &msg) stdcall lib "user32" }
+    // int FillRect(_In_ HDC hDC, _In_ CONST RECT *lprc, _In_ HBRUSH hbr): the
+    // rectangle filled with the brush, by its const T*.
+    fn FillRect(dc ∈ windef.HDC, rc ∈ windef.RECT, b ∈ windef.HBRUSH) (r ∈ minwindef.INT) { host expr call FillRect(dc, &rc, b) stdcall lib "user32" }
     fn RegisterWindowMessageA(s ∈ String) (r ∈ minwindef.UINT) where nulfree(s) { host expr call RegisterWindowMessageA stdcall lib "user32" }
     fn GetMessagePos() (r ∈ minwindef.DWORD) { host expr call GetMessagePos stdcall lib "user32" }
 

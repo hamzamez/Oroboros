@@ -1,6 +1,9 @@
 package core
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // 𝒰, USAGE — docs/spec/abstract.md §8.1, on the trees.
 //
@@ -101,7 +104,8 @@ func (u *UsageEnv) ParamUsage(name string, j int) Usage {
 func (u *UsageEnv) Of(x string, t Tail, outer bool) Usage {
 	switch t := t.(type) {
 	case *Var:
-		if t.Name == x {
+		// a projection x.l reads x (ADR 0128 item 3): a use of it, as x is
+		if t.Name == x || strings.HasPrefix(t.Name, x+".") {
 			return once
 		}
 		return unused

@@ -96,7 +96,7 @@ wrong about half the time.
 
 **The current assessment is [assessment-2026-11-18.md](docs/assessment-2026-11-18.md)**; read it
 before planning. Its plan (§5) is proposed and awaits hamza's approval: TinyRetroPad's body in J,
-the callback decisions (tier 2's taken, [callbacks-sketches.md](docs/callbacks-sketches.md)), the
+the callback decisions (tier 2's taken and built, ADR 0133; tier 1's to discuss), the
 capacity facts, a timeout on every program a build test runs, CLAUDE.md as state again, and an
 audit of the words that bought nothing (hamza, 2026-11-18; `in` and `ui` the two found). Until it is approved, **the 11-17 plan (its §5)**, approved by hamza
 2026-11-17 ("Go with the proposed plan"), stands, items 1–5 done, in order:
@@ -151,14 +151,18 @@ audit of the words that bought nothing (hamza, 2026-11-18; `in` and `ui` the two
    [sbv](gauntlet/results/sbv-2026-11-18.md), [ref](gauntlet/results/ref-2026-11-18.md), PtInRect
    on both); an `_Out_` a result and a (pointer, count) one segment, every C call written as C
    writes it (ADR 0131, 0132, [ccall](gauntlet/results/ccall-2026-11-18.md)); a buffer field with
-   `= len(m)` and a nested record by pointer owed. Callbacks researched ([callbacks-research.md](docs/callbacks-research.md)):
-   the window procedure a parameterised deep handler of the host's message effect, its state
-   threaded through every dispatching call (Theorem T, on Theorem N's measured nesting); five
-   decisions with hamza. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):
+   `= len(m)` and a nested record by pointer owed. **The window procedure built** (ADR 0133, hamza's
+   decisions on [callbacks-sketches.md](docs/callbacks-sketches.md) Part 1): WNDPROC a named claim
+   with its C signature, the λ at WNDCLASSA's field lifted behind a wrapper at that convention
+   ([cbfield](gauntlet/results/cbfield-2026-11-19.md)); MSG and the message loop
+   ([msgloop](gauntlet/results/msgloop-2026-11-19.md)); its state a `var` cell the λ captures and
+   passes to a step's `s ∈ cell(S)`, the cell its static slot, Theorem T's global
+   ([slot](gauntlet/results/slot-2026-11-19.md)), `examples/native/wndproc-win.oro` running a loop on
+   both triples. Set aside for hamza: what a message after the cell's scope sees. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):
    a callback applied only during the call (105 of Go's 150) a region of the call, read as a loop
    whose trip count is the host's; its markers a usage in 𝕌 and an order, an unordered body pure
-   (Theorem D); closure conversion into Win32's context word (291 of 349) or a slot; six decisions
-   with hamza. `wsprintfA` is no wall (two integer renderings, ADR 0095).
+   (Theorem D); closure conversion into Win32's context word (291 of 349) or a slot; its 2.1 taken
+   (L), the other five to be discussed. `wsprintfA` is no wall (two integer renderings, ADR 0095).
 
 **Done in the 11-16 plan** (assessment-2026-11-17 §1): the book's wrong answers and faults
 (ADR 0119–0121), j.md's two promises, two checks, the claims finding, CLAUDE.md as state; the
@@ -178,6 +182,9 @@ proven, trapped or closed on the word (Lemma C), or the program is refused.
 **Owed from finished steps** (each named in its result document):
 - claims: an unread binder's typing claim (`s ∈ String = n; 0`), at the top level too (finding 45
   and the dead call's contract done, [deadclaims](gauntlet/results/deadclaims-2026-11-18.md));
+- callbacks (ADR 0133): an ordinary cell at a definition's cell parameter; a slot's facts between
+  two reads; the words audit's full pass ([words-audit.md](docs/words-audit.md): `inout`, `jump`,
+  `underlying`, `cdecl` for hamza);
 - ccall: a local buffer lent to a host in a scope that ends in further host statements is refused
   as a function term (R1), older than ADR 0131; a segment with no derived variant refused by
   the borrow's arity, not by a message naming the segment;
@@ -262,9 +269,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **8,862 of 8,916** integer operations proven inside their target's word, the 54 left
+- **Provability**: **8,873 of 8,927** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **924 of 962** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **926 of 964** loops proven to
   terminate (size-change termination; fourteen of the 38 left are windows' `os` cell's read and write
   loops, whose progress is a count the host returns). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
@@ -275,7 +282,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
   `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints, `math/bits`, `io`'s
   interfaces; **partial and checked**: `os`, `strings`, `io`, `fmt`, `errors`, `io/fs`,
-  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 66 functions in 16
+  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 72 functions in 16
   headers (ADR 0126, `TestWin32DeclarationsAreTheirPrototypes`). The portable `os` (`lib/os.oro`) runs
   on Go, JavaScript and Java with one output.
 - **The balance**, named in every assessment: the compiler grows faster than the code written in the
@@ -637,6 +644,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | `const T*` is the call's argument term `ref(x)`, &x of a fresh copy, not a mode of the header: a mode is what a program observes; reverses 0129 item 2 | [0130](docs/decisions/0130-const-t-star-is-the-calls-ref-x.md) |
 | An `_Out_` parameter is a result of the declaration, its address the call's `&r`; a C call's arguments written as C writes them, `call F(x, &x, &r, &b[lo], NULL)`, read as ADR 0118's terms; `_Inout_` stays a cell, Go's `out τ` where the program chooses τ | [0131](docs/decisions/0131-an-out-parameter-is-a-result.md) |
 | A C function's (pointer, count) to a byte region is one segment parameter, `call WriteFile(h, s, len(s), …)`; a program passes `b` or `b[lo:hi]`, the variant derived; amends 0118's linearity | [0132](docs/decisions/0132-a-c-functions-pointer-and-count-are-one-segment.md) |
+| The window procedure is a λ at WNDCLASSA's field, its set the named claim WNDPROC (ADR 0053) with its C signature `repr WNDPROC c(h, m, w, l) stdcall`, lifted and printed behind a wrapper at that convention; its state a `var` cell the λ captures and passes to a step's `s ∈ cell(S)`, the cell its static slot (Theorem T's global): no word for the extent, no classification of dispatching calls | [0133](docs/decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md) |
 
 ## Build commands
 

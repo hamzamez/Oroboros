@@ -18,6 +18,12 @@ Three tiers, and only the third is a genuine closure.
 > order; §4's buffer hazard belongs to escaping callbacks. The window procedure, an installed
 > handler, is [callbacks-research.md](../callbacks-research.md).
 
+> **Tier 2 is decided for the window procedure** by [ADR 0133](../decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md)
+> (hamza, 2026-11-18, on [callbacks-sketches.md](../callbacks-sketches.md)): a closed λ or a
+> definition at a claim's field, lifted and printed at the claim's C convention
+> ([llvm.md](llvm.md) §6c); its state a cell in scope that the λ captures, lent to every host call
+> in the scope. §7 below states it.
+
 ---
 
 ## 1. The refusal is broader than "no closures"
@@ -208,3 +214,69 @@ places this language has other reasons not to go.
 
 None of this is a language change. All of it is emitter and target-file work, which is the shape
 of change this project handles well.
+
+---
+
+## 7. Tier 2, as decided (ADR 0133)
+
+**A claim at a struct's field.** A host header declares a callback type as a named claim and its C
+signature (llvm.md §6c):
+
+```
+set WNDPROC = fn(h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT)
+repr WNDPROC c(h, m, w, l) stdcall
+set WNDCLASSA = record { style ∈ minwindef.UINT, lpfnWndProc ∈ WNDPROC, … }
+```
+
+**A closed procedure, by name.** A definition whose header fits the claim is passed at the field:
+
+```
+fn wndproc(h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {
+    case { m == 1024 -> 42; else -> winuser.DefWindowProcA(h, m, w, l) }
+}
+wc = record { style : 0, lpfnWndProc : wndproc, … }
+```
+
+It means its η-expansion, `fn(h, m, w, l) { wndproc(h, m, w, l) }`, a λ checked under the claim: the
+λ's parameters assumed in the claim's sets, its result decided in the claim's result set, and the
+definition's own header an obligation at the inlined call.
+
+**A procedure with a state.** The state is a cell, and the λ at the field captures it. The extent is
+the cell's own scope, so the state exists before `CreateWindowExA`, whose `WM_CREATE` runs the λ:
+
+```
+var s := record { clicks : 0 }
+wc = record { …, lpfnWndProc : fn(h, m, w, l) { step(s, h, m, w, l) } }
+… RegisterClassA, CreateWindowExA, the message loop …
+```
+
+- **The cell is the λ's slot**, static storage, one per captured cell, each leaf of its set a global
+  of the triple: every read of the cell, in the λ and in the scope, a load, and every write a store,
+  in program order (core/slot.go). That is the C program whose state is one global, which Theorem T
+  proves equal to the state threaded through every host call that may dispatch. Lending the state to
+  a call is then the identity: a read after any host call sees what an activation inside it wrote,
+  and no host call need be classified (ADR 0133 item 5, option 3).
+- **Its set is the step's**: the cell passed to a cell parameter, `fn step(s ∈ cell(S), h, m, w, l)
+  (LRESULT)`, whose S is the slot's. A read is known in S, a write is claimed in S and proven or the
+  program refused. In the step a parameter's read is the slot's load and its write the slot's store,
+  so its writes are the caller's cell's, in program order.
+- **A read knows only S.** Two reads are two loads, and nothing proves them equal, even with no host
+  call between: a guard on `s.clicks` does not bound a later `s.clicks`. A program keeps the fact by
+  reading once, `c = s.clicks`, and guarding and writing through `c`.
+
+```
+fn step(s ∈ cell(S), h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {
+    c = s.clicks
+    case {
+        m == 1024 -> { r = winuser.SendMessageA(h, 1025, 0, 0); s.clicks }   // what the inner activation left
+        m == 1025 && c < 1000 -> { s.clicks := c + 1; 0 }
+        else -> winuser.DefWindowProcA(h, m, w, l)
+    }
+}
+```
+
+**Refused**: a λ that captures a value of its scope other than a cell it passes to a step; a captured
+cell passed to no cell parameter, whose set nothing states; an ordinary cell, one no λ at a field
+captures, passed to a definition's cell parameter (not built); a λ of the wrong arity; a field value
+that is no λ. A message after the cell's scope runs the λ on the state the scope left, the slot being
+static (ADR 0133's question set aside for hamza).

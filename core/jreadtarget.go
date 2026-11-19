@@ -865,6 +865,12 @@ func (p *parser) hostSet() (*Term, error) {
 	if err := p.expect("="); err != nil {
 		return nil, err
 	}
+	// A NAMED CLAIM, `set Q = fn(x ∈ S, …) (r ∈ R)` (ADR 0053, 0133): a λ's
+	// header without a body, the set of the operators of that shape, read
+	// (callback-set Q (x "S")… (r "R")).
+	if p.is("fn") && p.peekN(1).text == "(" {
+		return p.claimSet(name)
+	}
 	if p.is("host") {
 		h, err := p.hostBodyDatum(params, nil, "")
 		if err != nil {
@@ -877,6 +883,57 @@ func (p *parser) hostSet() (*Term, error) {
 		return nil, err
 	}
 	return app(Name("type"), head, p.setDatum(s, "")), nil
+}
+
+// claimSet reads a named claim's header after `set Q =`: its parameters,
+// each with its set, and its one result, `(r ∈ R)` or `(R)`.
+func (p *parser) claimSet(name *Term) (*Term, error) {
+	p.next() // fn
+	if err := p.expect("("); err != nil {
+		return nil, err
+	}
+	p.open(true)
+	kids := []*Term{Name("callback-set"), name}
+	for !p.is(")") {
+		n := p.name()
+		if err := p.expect("∈"); err != nil {
+			p.close()
+			return nil, err
+		}
+		s, err := p.expr()
+		if err != nil {
+			p.close()
+			return nil, err
+		}
+		kids = append(kids, app(Name(n), p.setDatum(s, "")))
+		if !p.accept(",") {
+			break
+		}
+	}
+	p.close()
+	if err := p.expect(")"); err != nil {
+		return nil, err
+	}
+	if err := p.expect("("); err != nil {
+		return nil, p.errorf("a claim states its result, `fn(x ∈ S, …) (r ∈ R)` (ADR 0053)")
+	}
+	p.open(true)
+	r := "#result"
+	if t := p.peek(); t.kind == tIdent && p.peekN(1).text == "∈" {
+		r = p.name()
+		p.next()
+	}
+	s, err := p.expr()
+	if err != nil {
+		p.close()
+		return nil, err
+	}
+	p.close()
+	if err := p.expect(")"); err != nil {
+		return nil, p.errorf("a claim has one result, `(r ∈ R)`")
+	}
+	kids = append(kids, app(Name(r), p.setDatum(s, "")))
+	return app(kids...), nil
 }
 
 // hostConst reads `N ∈ set { v } = host "s" clauses` into today's `const`.
@@ -1153,6 +1210,11 @@ func (p *parser) cLayout() (*Term, error) {
 		if err := p.expect(")"); err != nil {
 			return nil, err
 		}
+	}
+	// A CALLBACK'S C SIGNATURE, `repr Q c(x, …) stdcall` (llvm.md §6c): its
+	// convention after the parameters, read (conv "stdcall") last.
+	if (p.is("stdcall") || p.is("cdecl")) && !p.peek().nl {
+		kids = append(kids, app(Name("conv"), Str(p.next().text)))
 	}
 	return app(kids...), nil
 }

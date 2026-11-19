@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 )
@@ -824,6 +825,11 @@ func zeroComponent(ty string) (*Term, error) {
 type InStruct struct {
 	Index int
 	CType string
+	// LeafTypes are the struct's leaves' sets in canonical order: a leaf of a
+	// callback type (`callback Q`) is a function of ours (ADR 0133). Rec is
+	// its record set.
+	LeafTypes []string
+	Rec       string
 }
 
 // inStructArgs replaces each `_In_` struct argument that is a record value by
@@ -844,15 +850,35 @@ func (e *Env) inStructArgs(op *Term, args []*Term, fuel *int) (*Term, bool, erro
 		}
 		out[in.Index] = a
 		var leaves []*Term
-		var flat func(t *Term) bool
-		flat = func(t *Term) bool {
-			if _, ok := isRecValue(t); !ok {
+		// the value walked with its record set: a component whose set is a
+		// nested record and which is no record value yet is a name bound to
+		// one (MSG's pt after `(m, r) = GetMessageA(…)`), so its leaves are its
+		// projections along each leaf's path, (#get l … c)
+		var flat func(t *Term, ty string) bool
+		flat = func(t *Term, ty string) bool {
+			labels, ok := isRecValue(t)
+			if !ok {
 				return false
 			}
-			for _, c := range t.Kids[2:] {
+			tl, tt := RecordFields(ty)
+			for i, c := range t.Kids[2:] {
+				ct := ""
+				if k := labelIndex(tl, labels[i]); k >= 0 {
+					ct = tt[k]
+				}
 				if _, ok := isRecValue(c); ok {
-					if !flat(c) {
+					if !flat(c, ct) {
 						return false
+					}
+					continue
+				}
+				if IsRecord(ct) && !PlantNestedLeafUnprojected {
+					for _, lf := range recordLeaves("", ct, nil) {
+						g := c
+						for _, l := range lf.path {
+							g = App(Name(GetName), Str(l), g)
+						}
+						leaves = append(leaves, g)
 					}
 					continue
 				}
@@ -860,7 +886,18 @@ func (e *Env) inStructArgs(op *Term, args []*Term, fuel *int) (*Term, bool, erro
 			}
 			return true
 		}
-		if flat(a) {
+		if flat(a, in.Rec) {
+			// A CALLBACK'S LEAF IS A FUNCTION OF OURS (ADR 0133): the λ there,
+			// or a definition's η-expansion, lifted, and the leaf its address.
+			for j, lt := range in.LeafTypes {
+				if j < len(leaves) && strings.HasPrefix(lt, CallbackPrefix) {
+					v, err := e.liftCallback(strings.TrimPrefix(lt, CallbackPrefix), leaves[j])
+					if err != nil {
+						return nil, true, fmt.Errorf("%s: %w", ShowTerm(App(op, args...)), err)
+					}
+					leaves[j] = v
+				}
+			}
 			out[in.Index] = App(Name(RefName), append([]*Term{Str(in.CType)}, leaves...)...)
 			changed = true
 		}
@@ -919,3 +956,107 @@ func ProjectBound(t *Term, bound map[string]*Term) *Term {
 	}
 	return &c
 }
+
+// CallbackPrefix begins a callback type's set, `callback Q` (ADR 0133).
+const CallbackPrefix = "callback "
+
+// CallbackDecl is a named claim declared as a callback type, its parameters'
+// and result's sets resolved (ADR 0053, 0133).
+type CallbackDecl struct {
+	Names  []string
+	Params []string
+	Result string
+}
+
+// Lifted is a λ at a callback's field, lifted to a function of ours: its
+// name, the claim Q it is checked under, and the closed λ (ADR 0133).
+type Lifted struct {
+	Name, Claim string
+	Lam         *Term
+}
+
+// AddrSuffix names the primitive whose value is a lifted function's address
+// at its claim's convention (llvm.md §6c).
+const AddrSuffix = "~addr"
+
+// liftCallback is the leaf v of a callback type Q: a closed λ of Q's arity,
+// or the name of a definition or a host function, its η-expansion. It is
+// recorded in e.Lifted, and the leaf becomes the call of its address.
+func (e *Env) liftCallback(q string, v *Term) (*Term, error) {
+	d, ok := e.Callbacks[q]
+	if !ok {
+		return nil, fmt.Errorf("%s is a callback type no header declares", ShowSet(q))
+	}
+	var lam *Term
+	var name string
+	if isCbFn(v) {
+		v = v.Kids[1]
+	}
+	switch {
+	case v.Kind == KName && (e.Prim[v.Name] || e.Defs[v.Name] != nil):
+		// a definition or a host function by name is its η-expansion,
+		// fn(x̄) { f(x̄) } (callbacks-tier1-research §3.2)
+		ps := make([]string, len(d.Params))
+		args := make([]*Term, len(d.Params))
+		for i := range ps {
+			ps[i] = fmt.Sprintf("a%d", i)
+			if i < len(d.Names) {
+				ps[i] = d.Names[i]
+			}
+			args[i] = Name(ps[i])
+		}
+		lam = Fn(ps, App(Name(v.Name), args...))
+		name = strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(v.Name) + "~cb"
+	case v.Kind == KFn && len(v.Params) == len(d.Params):
+		lam = v
+		h := sha256.Sum256([]byte(v.String()))
+		name = fmt.Sprintf("cb%x~cb", h[:4])
+	case v.Kind == KFn:
+		return nil, fmt.Errorf("a %s takes %d parameter(s), and this λ takes %d", ShowSet(q), len(d.Params), len(v.Params))
+	default:
+		return nil, fmt.Errorf("a %s is a λ or a function's name (ADR 0133), not %s", ShowSet(q), ShowTerm(v))
+	}
+	// CLOSED: a λ the host calls after the call that installed it may capture
+	// no value of its scope (a captured cell is ADR 0133's step 3)
+	if escapes(lam.Kids[0], 0) && !PlantCallbackOpen {
+		return nil, fmt.Errorf("the %s captures a value of its scope; a callback the host keeps is closed "+
+			"(callbacks.md §7, ADR 0133)", ShowSet(q))
+	}
+	if e.Lifted == nil {
+		e.Lifted = map[string]Lifted{}
+	}
+	e.Lifted[name] = Lifted{Name: name, Claim: q, Lam: lam}
+	addr := name + AddrSuffix
+	e.Prim[addr] = true
+	if e.Pure == nil {
+		e.Pure = map[string]bool{}
+	}
+	e.Pure[addr] = true
+	return App(Name(addr)), nil
+}
+
+// escapes says t, under n binders of a λ's body, refers to a binder outside
+// the λ: an index past every binder between it and the λ.
+func escapes(t *Term, n int) bool {
+	switch t.Kind {
+	case KBound:
+		return t.Depth > n
+	case KFn:
+		return escapes(t.Kids[0], n+1)
+	}
+	for _, k := range t.Kids {
+		if escapes(k, n) {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantCallbackOpen lifts a λ that captures a value of its scope: the lifted
+// function then refers to a binder it does not have (TestACallbackIsAFunctionOfOurs).
+var PlantCallbackOpen bool
+
+// PlantNestedLeafUnprojected passes a nested record bound to a name as one
+// leaf, as before: MSG's pt is then one value where the struct has two
+// (TestAWindowRunsItsMessageLoop).
+var PlantNestedLeafUnprojected bool

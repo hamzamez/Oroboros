@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"strings"
 
 	"oroboros/core"
 )
@@ -33,6 +34,61 @@ import (
 
 // CLayout is a C type's layout as its header states it: the record's labels
 // in the C definition's order, and the packing, 0 for none.
+// CallbackSig is a named claim declared as a callback type (ADR 0133,
+// llvm.md §6c): its parameters, their sets and its result's set as written in
+// module Mod, and its C signature, the parameters in C's order and the
+// convention.
+type CallbackSig struct {
+	Mod           string
+	Params, Types []string
+	Result        string
+	Order         []string
+	Conv          string
+}
+
+// CallbackDecl is the claim q with its sets resolved, and its C signature
+// (ADR 0133).
+func (tg *Target) CallbackDecl(q string) (core.CallbackDecl, CallbackSig, bool) {
+	c, ok := tg.Callbacks[q]
+	if !ok {
+		return core.CallbackDecl{}, c, false
+	}
+	d := core.CallbackDecl{Names: c.Params, Result: tg.resolveSet(c.Mod, c.Result)}
+	for _, t := range c.Types {
+		d.Params = append(d.Params, tg.resolveSet(c.Mod, t))
+	}
+	return d, c, true
+}
+
+// RegisterSlotLeaf registers leaf k of slot n, of set lt (ADR 0133,
+// core/slot.go): a static global of the triple, `n~k~get` its load and
+// `n~k~set` its store, both impure, so they keep their place in program order.
+// The loader's slots and an IR file's calls (ir.RegisterProgram) register them
+// alike, so a program reprints from its text alone (ADR 0038).
+func (tg *Target) RegisterSlotLeaf(n string, k int, lt string) error {
+	ll, zero := "i64", "0"
+	switch {
+	case lt == "ptr":
+		ll, zero = "ptr", "null"
+	case lt == "bool":
+		ll, zero = "i1", "false"
+	case !strings.HasPrefix(lt, "int"):
+		return fmt.Errorf("a callback's state is a record of integers, booleans and pointers "+
+			"(ADR 0133), and its leaf %s is %s", core.ShowName(n), core.ShowSet(lt))
+	}
+	g := fmt.Sprintf("@%q", fmt.Sprintf("%s~%d", n, k))
+	decl := fmt.Sprintf("%s = internal global %s %s", g, ll, zero)
+	get, set := core.SlotLeafName(n, k, "get"), core.SlotLeafName(n, k, "set")
+	tg.Prims[get] = Prim{Name: get, Result: lt, Kind: "expr", Form: fmt.Sprintf("load %s, ptr %s", ll, g), Import: decl}
+	tg.Prims[set] = Prim{Name: set, Args: []string{lt}, Names: []string{"v"}, Result: lt, Kind: "stmt",
+		Form: fmt.Sprintf("store %%1, ptr %s", g), Import: decl}
+	return nil
+}
+
+// CallbackPrefix begins a callback type's set, `callback Q`: opaque to every
+// set operation, a pointer at a C boundary.
+const CallbackPrefix = core.CallbackPrefix
+
 type CLayout struct {
 	Fields []string
 	Pack   int

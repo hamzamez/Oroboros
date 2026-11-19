@@ -124,7 +124,7 @@ func TestACStringFieldIsLent(t *testing.T) {
 	src := func(name string) string {
 		return head + "export fn main() {\n" +
 			"    (d, u) = sysinfoapi.GetLocalTime()\n    ignore(u)\n" +
-			"    wc = record { style : 0, cbClsExtra : 0, cbWndExtra : 0, hInstance : llvm.null(), hIcon : llvm.null(),\n" +
+			"    wc = record { style : 0, lpfnWndProc : winuser.DefWindowProcA, cbClsExtra : 0, cbWndExtra : 0, hInstance : llvm.null(), hIcon : llvm.null(),\n" +
 			"        hCursor : llvm.null(), hbrBackground : llvm.null(), lpszClassName : " + name + " }\n" +
 			"    a = winuser.RegisterClassA(wc)\n" +
 			"    ignore(print.print_int(if a > 0 { 1 } else { 0 }))\n" +

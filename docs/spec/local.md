@@ -216,7 +216,10 @@ needs no annotation; `3.0` is an `f64`.
 **What is refused**, each with the reason:
 - a λ that mentions a cell anywhere but an elimination's continuation or a loop, and a λ passed to a
   term whose normal form is a function: a closure that could run any number of times, or later.
-  Callbacks over a scope's cells are tier 1 (callbacks.md), not built;
+  The one exception is a λ at a record's field that passes the cell to a step's cell parameter, the
+  window procedure's state: that cell is the λ's static slot, every read a load and every write a
+  store, before this translation runs (ADR 0133, callbacks.md §7). Callbacks over a scope's cells
+  applied during a call are tier 1, not built;
 - a binder inside the scope with a cell's name: `(let total 1 …)` would hide the cell, so one must be
   renamed;
 - `(set c v)` where c is not a cell in scope, and a cell used after its scope.
@@ -294,6 +297,11 @@ read back after the call is known in T on the IR: a word's ascription is erased 
 the argument is a cell in scope, or `(out τ)` (§6). A value there is refused: a host that writes
 through the address of a value the program cannot see again has written into nothing. At every
 other parameter a cell is read, as anywhere else.
+
+**A definition of the program may take a cell parameter**, `fn step(s ∈ cell(S), …)` (ADR 0133 item 6):
+its reads and writes of s are the caller's cell's, in program order. Built for the cell a λ at a
+callback's field captures, whose slot it reads and writes (callbacks.md §7); an ordinary cell
+passed to one is refused, not built.
 
 **What it means: the translation, extended.** With r a fresh reference and `#ref`, `#deref` the
 reference's introduction and elimination,

@@ -73,6 +73,8 @@ func mapTypeNames(ty string, f func(string) string) string {
 		}
 	case strings.HasPrefix(ty, "int "):
 		return ty // a range: two endpoints, no names
+	case strings.HasPrefix(ty, CallbackPrefix):
+		return ty // a claim by its qualified name, resolved by tg.Callbacks
 	case core.IsProd(ty):
 		parts := core.ProdTypes(ty)
 		for i, p := range parts {
@@ -321,8 +323,10 @@ func (tg *Target) UnfoldType(mod, ty string) string {
 	}
 	for i := 0; i < 16; i++ {
 		next := mapTypeNames(ty, func(m string) string {
-			if _, def, ok := tg.alias(mod, m); ok {
-				return def
+			// the definition read in its own module, where it is written:
+			// minwindef's WPARAM is `basetsd.UINT_PTR` there
+			if k, def, ok := tg.alias(mod, m); ok {
+				return tg.resolveSet(moduleOf(k), def)
 			}
 			return m
 		})

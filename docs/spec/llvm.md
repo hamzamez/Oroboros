@@ -515,6 +515,46 @@ pointers are handles.
 Not yet (ADR 0128 item 13): a buffer field the host fills and its determined length, a nested
 record by pointer, and a struct returned by value (one entry point, structval-2026-09-12).
 
+## 6c. A callback: a function of ours at C's convention (ADR 0133)
+
+A header names a callback type as a claim, a λ's header without a body (ADR 0053), and gives its C
+signature as a `repr`:
+
+```
+set WNDPROC = fn(h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT)
+repr WNDPROC c(h, m, w, l) stdcall
+```
+
+- **The reader's forms**: the claim is read `(callback-set Q (x "S")… (r "R"))`, and the
+  convention after the C signature `(conv "stdcall")`; a lifted function's IR_P text carries
+  `(callback "Q")` after its results, so a printer reads its signature off the target (ADR 0038).
+- **The set** is `callback Q` for the claim Q, opaque to every set operation, and at a C boundary a
+  `ptr`, so a struct field of it is the triple's pointer in the layout (§6b).
+- **The `repr`** lists the claim's parameters in C's order, each once, and the convention, `stdcall`
+  or `cdecl`. Each parameter's set is a C type, as a prototype's is (§6a), and so is the result's.
+- **A value at the field** is a closed λ of the claim's arity, or a definition's name, its
+  η-expansion. Anything else is refused, naming what the λ captures.
+- **The λ is lifted** to a program function `F~cb`, built as a kept definition is (ADR 0113): its
+  parameters assumed in the claim's sets, its result a claim in the claim's result set, every
+  obligation decided under them.
+- **The wrapper** `F~cb~c` is the function the host calls, at the claim's convention and C's types:
+  each argument widened to the IR's type, by `zext` for an unsigned C type and `sext` for a signed one,
+  the call of `F~cb`, its result truncated to the C result's type.
+
+  ```
+  define internal x86_stdcallcc i32 @"wndproc~cb~c"(ptr %a0, i32 %a1, i32 %a2, i32 %a3) #0 {
+  entry:
+    %b1 = zext i32 %a1 to i64
+    …
+    %r = call i64 @"wndproc~cb"(ptr %a0, i64 %b1, i64 %b2, i64 %b3)
+    %c = trunc i64 %r to i32
+    ret i32 %c
+  }
+  ```
+- **The field's value** is the wrapper's address, the call of the primitive `F~cb~addr`, whose
+  template is `getelementptr i8, ptr @"F~cb~c", i64 0`: a value, so the struct's copy stores it as
+  any pointer leaf.
+
 ## 7. Control: regions into blocks
 
 Structured SSA (ADR 0032) prints as basic blocks, and a region's parameters and an operation's results

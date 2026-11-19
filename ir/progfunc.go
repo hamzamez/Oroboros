@@ -329,6 +329,15 @@ func Callees(tg *emit.Target, f *Func) []*Func {
 						visit(c)
 					}
 				}
+				// A CALLBACK'S ADDRESS defines the function (ADR 0133): the
+				// host calls it, so no call of ours names it
+				if t, ok := addrOf[s.Name]; s.Op == OCall && ok && !seen[t] {
+					if c, ok := byName[t]; ok {
+						seen[t] = true
+						out = append(out, c)
+						visit(c)
+					}
+				}
 			}
 		})
 	}
@@ -361,10 +370,56 @@ func RegisterProgram(tg *emit.Target, p *Program) {
 		})
 	}
 	for _, f := range p.Funcs {
-		if IsProgramFunc(f.Name) || called[f.Name] {
+		if IsProgramFunc(f.Name) || called[f.Name] || f.Callback != "" {
 			registerProgramFunc(tg, f)
 		}
+		if f.Callback != "" {
+			registerCallbackAddr(tg, f)
+		}
 	}
+	// A CALLBACK'S STATE, ITS SLOT'S LEAVES (ADR 0133): each load and store the
+	// text calls, its set the call's own type
+	for _, f := range p.Funcs {
+		f.Walk(func(r *Region) {
+			for _, s := range r.Stmts {
+				if s.Op != OCall {
+					continue
+				}
+				if _, ok := tg.Prims[s.Name]; ok {
+					continue
+				}
+				n, k, op, ok := slotLeafOf(s.Name)
+				if !ok {
+					continue
+				}
+				ty := ""
+				switch {
+				case op == "get" && len(s.Res) == 1:
+					ty = f.Types[s.Res[0]]
+				case op == "set" && len(s.Args) == 1:
+					ty = f.Types[s.Args[0]]
+				}
+				if ty == "u64" {
+					ty = "int 0 18446744073709551615"
+				}
+				_ = tg.RegisterSlotLeaf(n, k, ty)
+			}
+		})
+	}
+}
+
+// slotLeafOf reads a slot leaf's primitive name, `n~k~get` or `n~k~set`.
+func slotLeafOf(name string) (string, int, string, bool) {
+	parts := strings.Split(name, "~")
+	if len(parts) < 3 || !strings.HasPrefix(parts[len(parts)-3], "slot") {
+		return "", 0, "", false
+	}
+	op := parts[len(parts)-1]
+	k, err := strconv.Atoi(parts[len(parts)-2])
+	if err != nil || op != "get" && op != "set" {
+		return "", 0, "", false
+	}
+	return strings.Join(parts[:len(parts)-2], "~"), k, op, true
 }
 
 // CheckBornIn is W13, a program function's side of the frame rule: every

@@ -301,6 +301,7 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if !keep {
 		defer os.RemoveAll(work)
 	}
+	lastCode = code
 	if err := tg.WriteProgram(work, code, "oro-main"); err != nil {
 		return err
 	}
@@ -383,6 +384,10 @@ func reduceAndLower(tg *emit.Target, prog *core.Program, env *core.Env, reqs *em
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	// THE λs AT A CALLBACK'S FIELD (ADR 0133), each built once as a function.
+	if err := ir.BuildCallbacks(tg, env, reqs, allSigs(prog)); err != nil {
+		return nil, nil, nil, err
+	}
 	// A JOIN POINT IS NOT JUMPED OUT OF (tables.md §2.5): refused before any
 	// pass walks a clause chain.
 	// η FOR PRODUCTS (tables.md §2.5), as cmd/gen.
@@ -437,3 +442,8 @@ func firstLine(s string) string {
 	}
 	return s
 }
+
+// lastCode is the code the last run emitted: what a test reads to see a
+// plant's effect where running cannot (a callback's convention, which user32
+// tolerates either way on i686).
+var lastCode string

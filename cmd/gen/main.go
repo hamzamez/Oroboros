@@ -226,6 +226,10 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 				if err != nil {
 					return err
 				}
+				// THE λs AT A CALLBACK'S FIELD (ADR 0133), each built once.
+				if err := ir.BuildCallbacks(tg, env, reqs, allSigs(prog)); err != nil {
+					return err
+				}
 				// A JOIN POINT IS NOT JUMPED OUT OF (tables.md §2.5): refused before any
 				// pass walks a clause chain.
 				// η FOR PRODUCTS (tables.md §2.5): a host call's several results at a

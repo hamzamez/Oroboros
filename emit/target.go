@@ -491,6 +491,10 @@ type Target struct {
 		SegmentVariant
 	}
 	Layouts map[string]CLayout
+	// Callbacks are the named claims a header declares as callback types,
+	// `set Q = fn(x ∈ S, …) (r ∈ R)` with `repr Q c(x, …) stdcall` (ADR 0133,
+	// llvm.md §6c), by Q qualified. Q's set is `callback Q`.
+	Callbacks map[string]CallbackSig
 
 	// Deferred are the declarations whose types name a CONSTANT as a range
 	// endpoint, carried unparsed through the glue and elaborated once the target
@@ -2146,6 +2150,19 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	if tg.Aliases == nil && len(o.Aliases) > 0 {
 		tg.Aliases = map[string]string{}
 	}
+	for n, c := range o.Callbacks {
+		if tg.Callbacks == nil {
+			tg.Callbacks = map[string]CallbackSig{}
+		}
+		old := tg.Callbacks[n]
+		if c.Params == nil {
+			c.Params, c.Types, c.Result, c.Mod = old.Params, old.Types, old.Result, old.Mod
+		}
+		if c.Conv == "" {
+			c.Order, c.Conv = old.Order, old.Conv
+		}
+		tg.Callbacks[n] = c
+	}
 	for n, l := range o.Layouts {
 		if old, ok := tg.Layouts[n]; ok && strings.Join(old.Fields, " ") != strings.Join(l.Fields, " ") {
 			return fmt.Errorf("%s: %s's C layout is stated twice, differently", from, n)
@@ -2331,6 +2348,10 @@ func (tg *Target) CType(set string) (ll, cross string, signed, ok bool) {
 		return "ptr", "cstr", false, true
 	case "empty":
 		return "void", "", false, true
+	}
+	// A CALLBACK IS A FUNCTION'S ADDRESS at a C boundary (llvm.md §6c).
+	if strings.HasPrefix(set, CallbackPrefix) {
+		return "ptr", "", false, true
 	}
 	// AN OUT-PARAMETER IS A CELL (ADR 0048, 0112): T* for a C integer T, the
 	// address of the slot the printer allocates.
@@ -3677,10 +3698,58 @@ func declareModule(frag *Target, f *core.Term, prefix, path string) error {
 			if err := parseType(inner, frag, mod, path); err != nil {
 				return err
 			}
+		case "callback-set":
+			// `set Q = fn(x ∈ S, …) (r ∈ R)`: a named claim, Q's set the
+			// operators of that shape (ADR 0053, 0133)
+			if len(inner.Kids) < 3 || inner.Kids[1].Kind != core.KName {
+				return fmt.Errorf("%s: `set Q = fn(x ∈ S, …) (r ∈ R)`, got %s", path, inner)
+			}
+			q := qualify(mod, inner.Kids[1].Name)
+			c := CallbackSig{Mod: mod, Params: []string{}}
+			bs := inner.Kids[2:]
+			for i, b := range bs {
+				if b.Kind != core.KApp || len(b.Kids) != 2 || b.Kids[0].Kind != core.KName {
+					return fmt.Errorf("%s: %s's binder %s is `x ∈ S`", path, q, b)
+				}
+				if i == len(bs)-1 {
+					c.Result = core.TypeName(b.Kids[1])
+					break
+				}
+				c.Params = append(c.Params, b.Kids[0].Name)
+				c.Types = append(c.Types, core.TypeName(b.Kids[1]))
+			}
+			if frag.Callbacks == nil {
+				frag.Callbacks = map[string]CallbackSig{}
+			}
+			old := frag.Callbacks[q]
+			c.Order, c.Conv = old.Order, old.Conv
+			frag.Callbacks[q] = c
+			if frag.Aliases == nil {
+				frag.Aliases = map[string]string{}
+			}
+			frag.Aliases[q] = CallbackPrefix + q
 		case "c-layout":
 			// `repr NAME c(l…) pack(p)`: NAME's layout at a C boundary (llvm.md §6b)
 			if len(inner.Kids) < 4 || inner.Kids[1].Kind != core.KName || inner.Kids[2].Kind != core.KStr {
 				return fmt.Errorf("%s: `repr NAME c(l, …) [pack(p)]`, got %s", path, inner)
+			}
+			// A CALLBACK'S C SIGNATURE, `repr Q c(x, …) stdcall` (llvm.md §6c): its
+			// parameters in C's order and its convention, read (conv "…") last.
+			if last := inner.Kids[len(inner.Kids)-1]; formWord(last) == "conv" && len(last.Kids) == 2 {
+				q := qualify(mod, inner.Kids[1].Name)
+				if frag.Callbacks == nil {
+					frag.Callbacks = map[string]CallbackSig{}
+				}
+				c := frag.Callbacks[q]
+				c.Order, c.Conv = nil, last.Kids[1].Str
+				for _, k := range inner.Kids[3 : len(inner.Kids)-1] {
+					if k.Kind != core.KStr {
+						return fmt.Errorf("%s: a callback's C signature lists its parameters, got %s", path, k)
+					}
+					c.Order = append(c.Order, k.Str)
+				}
+				frag.Callbacks[q] = c
+				break
 			}
 			l := CLayout{}
 			for _, spec := range strings.Split(inner.Kids[2].Str, ",") {
@@ -3789,13 +3858,38 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// written into a fresh reference at the call, and nothing is read back.
 	for n, p := range tg.Prims {
 		for _, i := range p.InStructs {
-			if k, _, ok := tg.CStruct(core.CellElem(p.Args[i])); ok {
+			if k, rec, ok := tg.CStruct(core.CellElem(p.Args[i])); ok {
 				if e.InStructs == nil {
 					e.InStructs = map[string][]core.InStruct{}
 				}
-				e.InStructs[n] = append(e.InStructs[n], core.InStruct{Index: i, CType: k})
+				e.InStructs[n] = append(e.InStructs[n], core.InStruct{Index: i, CType: k, LeafTypes: core.RecordLeafTypes(rec), Rec: rec})
 			}
 		}
+	}
+	// A CALLBACK'S STATE, ITS SLOT (ADR 0133, core/slot.go): each leaf a
+	// static global of the triple, read by a load and written by a store, in
+	// program order (impure), its set the slot's.
+	for n, ty := range p.Slots {
+		ty = tg.UnfoldType("", ty)
+		if e.Slots == nil {
+			e.Slots = map[string]string{}
+		}
+		e.Slots[n] = ty
+		for k, lt := range core.SlotLeaves(ty) {
+			if err := tg.RegisterSlotLeaf(n, k, lt); err != nil {
+				return nil, err
+			}
+			e.Prim[core.SlotLeafName(n, k, "get")], e.Prim[core.SlotLeafName(n, k, "set")] = true, true
+		}
+	}
+	// A CALLBACK TYPE'S CLAIM (ADR 0133): its sets resolved, so the reducer
+	// lifts a λ at its field under them.
+	for q := range tg.Callbacks {
+		if e.Callbacks == nil {
+			e.Callbacks = map[string]core.CallbackDecl{}
+		}
+		d, _, _ := tg.CallbackDecl(q)
+		e.Callbacks[q] = d
 	}
 	e.UnfoldSet = func(ty string) string {
 		if _, rec, ok := tg.CStruct(ty); ok {

@@ -3793,3 +3793,21 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
 - emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-19 — on f3066c78, with uncommitted changes
+
+**Reason:** ADR 0133 built (cbfield, msgloop, slot 2026-11-19): examples/native/wndproc-win.oro is new, a window procedure with a state lifted behind a stdcall wrapper and run by a message loop; no other program's emission changed
+
+700 runs: 482 emitted, 218 refused; 8873 of 8927 integer operations bounded, 926 of 964 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/native/wndproc-win.oro go`
+- new source — `examples/native/wndproc-win.oro java`
+- new source — `examples/native/wndproc-win.oro js`
+- new source — `examples/native/wndproc-win.oro windows`
+
+2 compile(s) recorded FASTER:
+
+- `examples/lines/shape.oro go` 968 → 640 ms, 0.66x
+- `examples/num/ledger.oro js` 984 → 593 ms, 0.60x

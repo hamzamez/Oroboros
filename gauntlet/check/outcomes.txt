@@ -754,6 +754,22 @@
 == examples/native/smooth-js.oro windows refused
    gen: examples/native/smooth-js.oro: in fill_into: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/native/wndproc-win.oro go refused
+   gen: examples/native/wndproc-win.oro: in main: `windows/winuser`.GetMessageA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/native/wndproc-win.oro js refused
+   gen: examples/native/wndproc-win.oro: in main: `windows/winuser`.GetMessageA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/native/wndproc-win.oro java refused
+   gen: examples/native/wndproc-win.oro: in main: `windows/winuser`.GetMessageA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/native/wndproc-win.oro windows emitted 41255a4e2d8a251cb983d50e3a57fb94e960559e839213e9ba1c3d61d03c59fa
+   note: gen-main: 4 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: cb95a0c1c6~cb (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/native/wordcount-go.oro go emitted 34c61ef408829c6f57695a2d6bee554e3c0d7e76bb5b05bf9e9062ac52abcaab
    note: gen-tally: 1 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-tally-inc: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating

@@ -116,6 +116,9 @@ func funcLines(f *Func) []string {
 		results[i] = TypeText(r)
 	}
 	head := fmt.Sprintf("(func %s (params%s) (results%s)", f.Name, lead(params), lead(results))
+	if f.Callback != "" {
+		head += fmt.Sprintf(" (callback %q)", f.Callback)
+	}
 	return wrap(head, pr.region(f.Body))
 }
 

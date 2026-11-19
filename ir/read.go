@@ -100,10 +100,16 @@ func (rd *reader) program(t *core.Term) (*Program, error) {
 }
 
 func (rd *reader) function(t *core.Term) (*Func, error) {
-	if len(t.Kids) != 5 || t.Kids[1].Kind != core.KName || head(t.Kids[2]) != "params" || head(t.Kids[3]) != "results" {
-		return nil, fmt.Errorf("(func NAME (params …) (results …) (region …))")
+	// a callback's claim, `(callback "Q")`, between the results and the body
+	callback := ""
+	if len(t.Kids) == 6 && head(t.Kids[4]) == "callback" && len(t.Kids[4].Kids) == 2 && t.Kids[4].Kids[1].Kind == core.KStr {
+		callback = t.Kids[4].Kids[1].Str
+		t = &core.Term{Kind: t.Kind, Kids: append(append([]*core.Term(nil), t.Kids[:4]...), t.Kids[5])}
 	}
-	f := &Func{Name: t.Kids[1].Name}
+	if len(t.Kids) != 5 || t.Kids[1].Kind != core.KName || head(t.Kids[2]) != "params" || head(t.Kids[3]) != "results" {
+		return nil, fmt.Errorf("(func NAME (params …) (results …) [(callback \"Q\")] (region …))")
+	}
+	f := &Func{Name: t.Kids[1].Name, Callback: callback}
 	rd.f = f
 	for _, pt := range t.Kids[2].Kids[1:] {
 		v, err := rd.param(pt)

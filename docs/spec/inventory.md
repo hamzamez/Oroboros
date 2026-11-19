@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 150 |
+| `specified` — a spec states it | 152 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 4 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -224,6 +224,8 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 |---|---|---|
 | `pure` | specified | [effects.md](effects.md) |
 | `variadic` | specified — the host function takes a list as its last parameter, f : X × T* → B: the parameter a table, the template spreading it (`%s...`); a call's trailing arguments are the list | [variadic.md](variadic.md) |
+| `callback-set` | specified — the reader's form of a named claim, `set Q = fn(x ∈ S, …) (r ∈ R)`, read (callback-set Q (x "S")… (r "R")): a callback type, its set `callback Q` (ADR 0053, 0133) | [ADR 0133](../decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md), [llvm.md](llvm.md) §6c |
+| `conv` | specified — the reader's form of a callback's convention after its C signature, `repr Q c(x, …) stdcall`, read (conv "stdcall") | [llvm.md](llvm.md) §6c |
 | `cells` | specified — the loader's form for a declaration's cell parameters, `(cells ARITY LIST i…)`, handed from the target as `variadic` is | [local.md](local.md) §5 |
 | `borrows` | specified — the loader's form for a declaration that borrows a buffer, `(borrows RESULTS i…)`: its `(buffer V)` parameters, handed back first, and its result's other components, handed from the target as `cells` is | [local.md](local.md) §2.1 |
 | `index` | specified | [target-files.md](target-files.md) |

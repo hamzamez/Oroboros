@@ -471,11 +471,22 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 ## Current work
 
 *Updated with the plan; last updated 2026-11-19.* The current assessment,
-[docs/assessment-2026-11-17.md](docs/assessment-2026-11-17.md), scores the last plan: its first
-three items and its last done, 32-bit Windows built as far as its arithmetic (72 of the 74 test
-programs run there), and four kinds of fact told to LLVM. It found one wrong answer, older than
-the round: a file path could run on past its end into whatever memory followed. **The next plan**
-(hamza, 2026-11-17), in order:
+[docs/assessment-2026-11-18.md](docs/assessment-2026-11-18.md), scores the 11-17 plan below. **Its
+plan** (approved by hamza, 2026-11-19), in order:
+1. **TinyRetroPad's body in the language**, module by module, the window procedure last. The window
+   procedure itself is now possible ([slot-2026-11-19](gauntlet/results/slot-2026-11-19.md)).
+2. **The callback decisions**: the window procedure's are taken and built; those for a function a
+   Windows or Go call runs only while it lasts are still to discuss.
+3. **The capacity facts** of maps: the refusals named last round prove now, so this waits for a
+   program that fails.
+4. **A time limit on every program a test runs**, so one stuck program cannot stall the whole check.
+5. **The project's instructions to its assistant**, rewritten as the state of things, not a story.
+6. **The words that bought nothing**: a first pass is done ([words-audit](docs/words-audit.md)).
+
+Decided and next to build: one spelling for a parameter the host writes back, `x ∈ T inout`
+(ADR 0135), then a nested loop followed by a step of its enclosing loop (ADR 0134).
+
+**The 11-17 plan, as it ended** (hamza, 2026-11-17), in order:
 1. ~~**a compilation that never finishes is refused**~~ **done, the other way round**
    ([noend-2026-11-17](gauntlet/results/noend-2026-11-17.md)): measured, every compilation does
    finish. The twenty minutes came from a library function the compiler had not proven on 32-bit

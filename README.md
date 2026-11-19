@@ -470,7 +470,7 @@ the coverage tool tracks, 309 are declared (52.4%), and every missing one has a 
 
 ## Current work
 
-*Updated with the plan; last updated 2026-11-17.* The current assessment,
+*Updated with the plan; last updated 2026-11-19.* The current assessment,
 [docs/assessment-2026-11-17.md](docs/assessment-2026-11-17.md), scores the last plan: its first
 three items and its last done, 32-bit Windows built as far as its arithmetic (72 of the 74 test
 programs run there), and four kinds of fact told to LLVM. It found one wrong answer, older than

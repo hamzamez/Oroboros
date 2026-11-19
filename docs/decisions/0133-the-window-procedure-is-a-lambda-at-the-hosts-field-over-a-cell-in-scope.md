@@ -70,9 +70,19 @@ meaning for that state when the host re-enters the procedure.
 - **D as the research refused it, a closure that outlives its scope with a linear state**: the cell
   here is not a buffer, and its storage is the slot, not the frame.
 
-## Set aside for hamza
+## Settled after: what a message after the cell's scope sees
 
-**What a message after the cell's scope sees.** The class stays registered after the scope ends, so
+*Decided 2026-11-19 by derivation* (hamza: "what does the derivation say in our language? … maybe the
+answer is in something that we researched or already decided"). pointers-research §2.4 names this
+shape: **code the host keeps**, `WNDCLASS.lpfnWndProc`, whose environment lives *until unregistered*.
+RegisterClassA moves the λ's environment, the slot, to the host, as FindTextA moves its struct
+(§14.18). A scope's end consumes only a view the program holds, and this one is the host's until
+UnregisterClassA returns it. So the slot outlives the cell's scope, and a late message runs the λ on
+the state the scope left. That is what is built: static storage, the registration's lifetime taken
+whole. The program cannot observe it, its cell being out of scope. Clearing the slot (DefWindowProcA
+answering) or trapping would end a region the host still holds.
+
+The text as first set aside: The class stays registered after the scope ends, so
 the host may call the λ again. callbacks-sketches §1.4c wrote that the slot is cleared and the message
 answered by `DefWindowProcA`, which needs the target to state a default for a claim, a word. Built
 instead, until hamza decides: the slot is static storage, one per λ, never freed, so a late message

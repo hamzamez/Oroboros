@@ -105,10 +105,25 @@ before planning. **Its plan (§5) is approved** (hamza, 2026-11-19: "assessment'
 6. the words audit: first pass done ([words-audit.md](docs/words-audit.md)); `inout` kept and
    `cell(T)` to be refused (ADR 0135); `jump`, `underlying`, `cdecl` kept for now (hamza).
 
-**Decided and to be built, in this order**: ADR 0135 (`inout`, emission-neutral), then ADR 0134 (an
-`again` after a join point, measured B against C). **windows32 is a second-tier platform** (hamza,
-2026-11-19): `cmd/check` is the first tier's, and windows32's differential and emission run less
-often (how often, [the options](docs/assessment-2026-11-18.md#5-the-next-plan-approved)).
+**Decided and to be built** (hamza, 2026-11-19), in this order:
+1. ADR 0135, `x ∈ T inout` the one spelling, emission-neutral;
+2. ADR 0134, an `again` after a join point, B measured against C;
+3. **the measurements' method**: the gauntlet's harnesses interleave the two forms round by round
+   and report each pair's ratio (jsontok-2026-11-19's (b)); hamza runs one benchmark from a
+   foreground terminal to see whether the process-age slowdown is the agent's shell's;
+4. **windows32 as a second-tier platform**: `cmd/check -tier2` adds its differential and emission,
+   run at each assessment and before accepting a change to the LLVM layer, `lib/rt` or windows32's
+   targets;
+5. **`lib/num/u128.oro` rewritten in the language's own operations**, so its cases run on every
+   target (hamza: "if we want to make work on every platform we rewrite it in the language");
+6. ADR 0138, a remainder by a constant of a natural is `srem`, measured on the corpus first;
+7. ADR 0137, an unread binder's typing claim checked, by a typing mark, measured;
+8. ADR 0136's struct forms, with TinyRetroPad's modules (plan item 1).
+
+**Decided, nothing to build**: D6 stays at the symbols LLVM calls (ADR 0123), a per-site `divl`
+where a divisor is proven below 2³² an optimization when a measurement asks (hamza, "agree");
+ADR 0133's late message runs on the state the scope left, by derivation (the host keeps the code
+until unregistered, pointers-research §2.4).
 
 The 11-17 plan (its §5), approved by hamza 2026-11-17 ("Go with the proposed plan"), ended with
 items 1–5 done and item 6 in progress:
@@ -170,7 +185,7 @@ items 1–5 done and item 6 in progress:
    ([msgloop](gauntlet/results/msgloop-2026-11-19.md)); its state a `var` cell the λ captures and
    passes to a step's `s ∈ cell(S)`, the cell its static slot, Theorem T's global
    ([slot](gauntlet/results/slot-2026-11-19.md)), `examples/native/wndproc-win.oro` running a loop on
-   both triples. Set aside for hamza: what a message after the cell's scope sees. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):
+   both triples. A message after the cell's scope runs on the state it left, by derivation. Tier 1 researched ([callbacks-tier1-research.md](docs/callbacks-tier1-research.md)):
    a callback applied only during the call (105 of Go's 150) a region of the call, read as a loop
    whose trip count is the host's; its markers a usage in 𝕌 and an order, an unordered body pure
    (Theorem D); closure conversion into Win32's context word (291 of 349) or a slot; its 2.1 taken
@@ -181,8 +196,8 @@ items 1–5 done and item 6 in progress:
 second triple to its arithmetic (ADR 0122–0124: [windows32](gauntlet/results/windows32-2026-11-17.md),
 [d6](gauntlet/results/d6-2026-11-17.md), [d2](gauntlet/results/d2-2026-11-17.md); 72 of 74 on
 i686); φ's four kinds (`range`, `samesign`, `nonnull`/`dereferenceable`/`align`, `noalias`),
-neutral where measured. **Set aside for hamza**: windows32 in `cmd/check` (the check 11 → 16
-minutes, d6), ADR 0123's placement of D6, `urem` by a constant (1.42× C, amending ADR 0088).
+neutral where measured. **Settled 2026-11-19**: windows32 second tier, D6 at the symbols, `urem` by a
+constant as ADR 0138.
 
 **A wrong answer, wherever found, goes ahead of the plan** (assessment-2026-11-16 §3.4), and the
 book's findings index (`docs/book/README.md`) is read at each item's end. Found so:
@@ -214,8 +229,8 @@ throws `java.nio.file`'s exceptions, as the kinds read.
 - strings (ADR 0117): ι_V as the identity, large string terms called as functions;
 - P8 (ADR 0113): a segment at a kept boundary (`pe`), affine templates, instances for U, per-call
   fallback;
-- harness: whether `u128-fact` and `u128-ops` (a Go-only library) count against "the LLVM target,
-  fully" is hamza's.
+- harness: `u128-fact` and `u128-ops` run everywhere once `lib/num/u128.oro` is rewritten in the
+  language (hamza, 2026-11-19).
 
 **The standing goal** (hamza) is **the Go standard library, package by package, program first**: a
 program in the language that needs a package, its algebra, and exactly the declarations it calls,
@@ -672,6 +687,9 @@ Read the ADR, and its "Why not", before relitigating one.
 | The window procedure is a λ at WNDCLASSA's field, its set the named claim WNDPROC (ADR 0053) with its C signature `repr WNDPROC c(h, m, w, l) stdcall`, lifted and printed behind a wrapper at that convention; its state a `var` cell the λ captures and passes to a step's `s ∈ cell(S)`, the cell its static slot (Theorem T's global): no word for the extent, no classification of dispatching calls | [0133](docs/decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md) |
 | An `again` after a nested loop's join point is accepted in a tail, by Theorem J's rewrite (k placed at the producer's exits) before the walkers; kept if nested `wc` measures within noise of nested Go, else sharing on the IR (C); no surface change (not built) | [0134](docs/decisions/0134-an-again-after-a-join-point-is-theorem-js-rewrite.md) |
 | A cell parameter is the mode `x ∈ T inout`, not the set `cell(T)`: a set ranges over values and a cell is a place, as `Array(V) linear` and not `buffer(V)`; `cell(T)` at a J parameter refused naming `inout`; W7 lets `inout` stand on a program definition's parameter; reverses ADR 0133 item 6's spelling (not built) | [0135](docs/decisions/0135-a-cell-parameter-is-the-mode-inout-not-the-set-cell.md) |
+| A struct's field is a value and a pointer in it the layout's, written as C writes it: a buffer in a struct a table field (`= len(m)`), a nested record by pointer `&f`, an inline array `f[N]`, an optional C string `Option(String)`, NULL its niche (not built) | [0136](docs/decisions/0136-a-struct-field-is-a-value-and-its-pointer-is-the-layouts.md) |
+| An unread binder's typing claim is checked, by a typing mark in the residual first, measured (not built) | [0137](docs/decisions/0137-an-unread-binders-typing-claim-is-checked.md) |
+| On ℕ ∩ S₆₄, `%` and `/` by a constant divisor are `srem`/`sdiv`, a variable divisor keeping `urem`/`udiv`; amends ADR 0088, measured on the corpus (not built) | [0138](docs/decisions/0138-a-remainder-by-a-constant-of-a-natural-is-srem.md) |
 
 ## Build commands
 

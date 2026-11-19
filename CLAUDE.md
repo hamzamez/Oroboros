@@ -247,7 +247,9 @@ field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ �
   language (hamza, 2026-11-19), which waits on U₆₄ ↪ ℤ (u128-2026-11-19);
 - u128: a constant above the word, unclaimed, under `-checked` reached Go's printer as an `int`
   (Lemma C's gap, no wrong answer); print: an exit into ∅ under a tuple pattern refused by
-  `CheckJoins`' arity rule, which ADR 0090 makes compose; timeouts: `ir/java` and `ir/js`'s two runs.
+  `CheckJoins`' arity rule, which ADR 0090 makes compose (tried 2026-11-19: with the exit's
+  projection itself, `CheckJoins` accepts it and the joined values' facts are lost, `a + b` ⊤
+  where a tuple exit in its place proves it; not built).
 
 **The standing goal** (hamza) is **the Go standard library, package by package, program first**: a
 program in the language that needs a package, its algebra, and exactly the declarations it calls,

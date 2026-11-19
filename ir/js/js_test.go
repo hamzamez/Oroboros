@@ -1,6 +1,7 @@
 package js
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -125,7 +127,10 @@ func TestTheSwapIsAParallelMove(t *testing.T) {
 	if err := os.WriteFile(mod, []byte(code+"\nconsole.log([0,1,2,3].map(swapSum).join(' '), intDiv(7, 2), realDiv(7, 2), zeroFill(0));\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out, err := exec.Command(node, mod).CombinedOutput()
+	// a time limit, so a stalled program costs this test (timeouts-2026-11-19)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, node, mod).CombinedOutput()
 	if err != nil {
 		t.Fatalf("node: %v\n%s", err, out)
 	}

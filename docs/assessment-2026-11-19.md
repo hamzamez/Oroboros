@@ -182,8 +182,8 @@ is for, is unwritten, now because nearly all of it waits on SendMessageA's insta
   - an exit into ∅ under a tuple pattern, refused by `CheckJoins` though ADR 0090 makes ∅ compose;
   - Lemma C's constant above the word;
   - the inventory not reading `ir/realize.go` (`point`);
-  - `ir/java` and `ir/js`'s two runs without a time limit;
-  - `gauntlet/java/One.java`, which does not compile.
+  - `ir/java` and `ir/js`'s two runs without a time limit (done after this assessment);
+  - `gauntlet/java/One.java`, which did not compile (fixed after this assessment).
 
 ## 5. The next plan (for hamza)
 

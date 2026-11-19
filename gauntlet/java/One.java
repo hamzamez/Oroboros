@@ -8,8 +8,8 @@ public final class One {
         double[] dst = new double[N];
         String text = Gauntlet.makeText(N, 5);
         long[] tree = JsonTreeBench.longsOf(JsonTreeBench.makeDoc(20));
-        short[] treeS = JsonTreeBench.shortsOf(JsonTreeBench.makeDoc(20));
-        short[] tokS = JsonTokBench.shortsOf(JsonTokBench.makeDoc(64));
+        byte[] treeS = JsonTreeBench.bytesOf(JsonTreeBench.makeDoc(20));
+        byte[] tokS = JsonTokBench.bytesOf(JsonTokBench.makeDoc(64));
         java.util.function.Supplier<Object> f = switch (a[0]) {
             case "dot-hand"      -> () -> NativeBench.dotRef(A, B);
             case "dot-long"      -> () -> NativeBench.dotLongRef(A, B);
@@ -35,7 +35,7 @@ public final class One {
             case "into-gen"      -> () -> NatSm.natSmSmoothInto(dst, A);
             case "tree-hand"     -> () -> JsonTreeBench.treeFlat(tree);
             case "tree-gen"      -> () -> GenJsonTree.genMeasure(treeS);
-            case "tok-hand"      -> () -> JsonTokBench.tokShorts(tokS);
+            case "tok-hand"      -> () -> JsonTokBench.tokBytes(tokS);
             case "tok-gen"       -> () -> GenJsonTok.genTokens(tokS);
             default -> throw new IllegalArgumentException(a[0]);
         };

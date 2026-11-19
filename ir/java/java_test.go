@@ -1,12 +1,14 @@
 package java
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -136,7 +138,10 @@ func TestTheScalarRepresentationRuns(t *testing.T) {
 	if out, err := exec.Command(javac, "-d", dir, filepath.Join(dir, "Shapes.java"), filepath.Join(dir, "Main.java")).CombinedOutput(); err != nil {
 		t.Fatalf("javac: %v\n%s\n%s", err, out, code)
 	}
-	out, err := exec.Command(java, "-cp", dir, "Main").CombinedOutput()
+	// a time limit, so a stalled program costs this test (timeouts-2026-11-19)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, java, "-cp", dir, "Main").CombinedOutput()
 	if err != nil {
 		t.Fatalf("java: %v\n%s", err, out)
 	}

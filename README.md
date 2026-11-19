@@ -4,6 +4,40 @@ A language for four platforms: **Go, the browser, Android and Windows**. It comp
 JavaScript, Java and LLVM IR. The output is the code a good programmer on that platform would
 have written, and it calls the platform's own libraries directly.
 
+## The book
+
+[docs/book/](docs/book/) teaches the language one idea at a time: a chapter uses only what the
+chapters before it introduced, and shows a thing refused before it shows it working. Every code
+block in it is compiled by `go run ./cmd/check`, and its output compared with what the chapter
+prints.
+
+| | chapter | the one idea |
+|---|---|---|
+| 0 | [A tour](docs/book/00-tour.md) | the map, where everything may be shown |
+| | **I. How a program is reduced** | |
+| 1 | [`fn`](docs/book/01-fn.md) | β; reduction is compilation |
+| 2 | [Definitions](docs/book/02-def.md) | δ; a name is an abbreviation |
+| 3 | [Modules](docs/book/03-modules.md) | where a name lives; the target can supply it |
+| 4 | [Choice](docs/book/04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch |
+| 5 | [Effects](docs/book/05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads |
+| | **II. What a program computes with** | |
+| 6 | [Integers](docs/book/06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word |
+| 7 | [Bits](docs/book/07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ` |
+| 8 | [Numbers with a point](docs/book/08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` |
+| 9 | [Text](docs/book/09-text.md) | strings as sequences, `++`, the host's strings, bytes |
+| 10 | [Tuples and variants](docs/book/10-data.md) | "and" and "or" of data; `case` with patterns |
+| | **III. Repetition and storage** | |
+| 11 | [`loop`](docs/book/11-loop.md) | the one iteration; termination |
+| 12 | [Tables](docs/book/12-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion |
+| 13 | [State](docs/book/13-state.md) | `var`, buffers, maps; why a table never changes under you |
+| 14 | [Failures](docs/book/14-failures.md) | `Result`, `try`, `expect`, `relevant` |
+| | **IV. Claims and hosts** | |
+| 15 | [Claims](docs/book/15-claims.md) | how a header's sets are proven: intervals, facts, obligations |
+| 16 | [Targets](docs/book/16-targets.md) | host modules, writing a declaration, portability computed |
+| 17 | [A whole program](docs/book/17-whole.md) | one real program read line by line |
+
+## A first program
+
 ```
 use io
 
@@ -56,7 +90,7 @@ already provides is called, not reimplemented.
 The full, current description is [docs/spec/state.md](docs/spec/state.md), and the surface's grammar is
 [docs/spec/j.md](docs/spec/j.md). Every word the compiler knows is listed in
 [docs/spec/inventory.md](docs/spec/inventory.md), and a test fails if the two drift apart. The
-[book](#the-book) teaches it.
+[book](#the-book), above, teaches it.
 
 | | |
 |---|---|
@@ -193,38 +227,6 @@ each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 
 **The standing goal** is the Go standard library, package by package, program first. **The standing
 measure** is Windows faster than Go, the gap work owed.
-
-## The book
-
-[docs/book/](docs/book/) teaches the language one idea at a time: a chapter uses only what the
-chapters before it introduced, and shows a thing refused before it shows it working. Every code
-block in it is compiled by `go run ./cmd/check`, and its output compared with what the chapter
-prints.
-
-| | chapter | the one idea |
-|---|---|---|
-| 0 | [A tour](docs/book/00-tour.md) | the map, where everything may be shown |
-| | **I. How a program is reduced** | |
-| 1 | [`fn`](docs/book/01-fn.md) | β; reduction is compilation |
-| 2 | [Definitions](docs/book/02-def.md) | δ; a name is an abbreviation |
-| 3 | [Modules](docs/book/03-modules.md) | where a name lives; the target can supply it |
-| 4 | [Choice](docs/book/04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch |
-| 5 | [Effects](docs/book/05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads |
-| | **II. What a program computes with** | |
-| 6 | [Integers](docs/book/06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word |
-| 7 | [Bits](docs/book/07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ` |
-| 8 | [Numbers with a point](docs/book/08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` |
-| 9 | [Text](docs/book/09-text.md) | strings as sequences, `++`, the host's strings, bytes |
-| 10 | [Tuples and variants](docs/book/10-data.md) | "and" and "or" of data; `case` with patterns |
-| | **III. Repetition and storage** | |
-| 11 | [`loop`](docs/book/11-loop.md) | the one iteration; termination |
-| 12 | [Tables](docs/book/12-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion |
-| 13 | [State](docs/book/13-state.md) | `var`, buffers, maps; why a table never changes under you |
-| 14 | [Failures](docs/book/14-failures.md) | `Result`, `try`, `expect`, `relevant` |
-| | **IV. Claims and hosts** | |
-| 15 | [Claims](docs/book/15-claims.md) | how a header's sets are proven: intervals, facts, obligations |
-| 16 | [Targets](docs/book/16-targets.md) | host modules, writing a declaration, portability computed |
-| 17 | [A whole program](docs/book/17-whole.md) | one real program read line by line |
 
 ## Try it
 

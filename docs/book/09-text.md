@@ -332,7 +332,7 @@ An operation whose grouping does not matter, with a value that changes nothing, 
 The name is worth having because of what it buys. If grouping does not matter, a long join can
 be done in any grouping: left to right, right to left, or in halves on two processors at once,
 and the answer is the same. Every fast algorithm that splits work in two leans on exactly this
-law, and chapter 12 will use it.
+law, and chapter 13 will use it.
 
 Strings are the *plainest* monoid there is: joining obeys those laws and **no others**. With
 numbers, 2 + 3 and 4 + 1 are the same number made two ways. With strings, two different lists
@@ -736,7 +736,7 @@ gen: same: in argument 1 of `==`: a is String, but Int is required here.
 Be clear about how much that is. A program in this language can *produce* any text. It cannot
 yet *take text apart*: it cannot count, search, compare or split a `String`. The message's
 last sentence says where that work goes: "read its bytes". Text that a program must examine
-is handled as a table of bytes (chapter 12), where length, position and equality are plain
+is handled as a table of bytes (chapter 13), where length, position and equality are plain
 integer questions with one answer each, and it becomes a `String` at the end, by 9.10's
 operations. The repository's JSON reader and its word counter are written this way.
 
@@ -782,7 +782,7 @@ was the table at the top of this chapter.
 
 Text arrives from outside as bytes: a file, a network connection, a keyboard. Two operations
 turn bytes into a `String`. Both take a list of numbers written `array { … }`, which is
-chapter 12's subject; here it is only a way to write some bytes down.
+chapter 13's subject; here it is only a way to write some bytes down.
 
 <!-- file docs/book/code/text/bytes.oro -->
 ```go
@@ -1040,7 +1040,7 @@ replaces anything that is not well-formed UTF-8 with the character U+FFFD, `�`
 reserves for "something unreadable was here". It never fails. `strings.ToUpper` needed no such
 step, because Go's source shows it always produces valid text, and its declaration says so.
 
-Chapter 16 is about writing those declarations.
+Chapter 17 is about writing those declarations.
 
 ---
 

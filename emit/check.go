@@ -434,6 +434,14 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 				continue
 			}
 		}
+		// A PRODUCT AT `==`, a tuple or a record (its eliminator, a λ, in the
+		// residual): integer equality only, said so, where the walk let a λ
+		// through and the lowering refused it in its own words (book-2026-11-20)
+		if op.Name == "=" && isProductTerm(a) && !PlantProductEqualityUnsaid {
+			return "", fmt.Errorf("in argument %d of `==`: %s is a tuple or a record, several values, and "+
+				"`==` is the language's integer equality only: compare the parts, a.x == b.x && a.y == b.y",
+				i+1, core.ShowTerm(a))
+		}
 		if _, err := c.walk(a, d); err != nil {
 			// `=` is the LANGUAGE's equality and is deliberately narrow, so its
 			// refusal has to explain itself — that explanation is the reason it
@@ -1205,3 +1213,21 @@ func ParamTypes(tgt *Target, t *core.Term) []string {
 // PlantUnitUnknown types the unit as the unknown, as before: a one-armed
 // `if c { 1 }` returned as an Int must then be accepted (TestTheUnitIsNoInteger).
 var PlantUnitUnknown bool
+
+// isProductTerm is a tuple's or an erased record's eliminator,
+// (fn (k) (k c…)) with at least two components.
+func isProductTerm(t *core.Term) bool {
+	if t == nil || t.Kind != core.KFn || len(t.Params) != 1 {
+		return false
+	}
+	b := t.Body()
+	if b.Kind != core.KApp || len(b.Kids) < 3 {
+		return false
+	}
+	h := b.Kids[0]
+	return h.Kind == core.KBound || h.Kind == core.KName && h.Name == t.Params[0]
+}
+
+// PlantProductEqualityUnsaid lets a product through `==` to the lowering, as
+// before (TestAClaimOnARecordKeepsItsLabels).
+var PlantProductEqualityUnsaid bool

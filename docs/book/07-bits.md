@@ -738,7 +738,7 @@ never negative (§6.2), so `sub32(0, 1)` is 4294967295, which is what a 32-bit r
 hold. The mathematics and the machine agree because `mod` was defined to make them agree.
 
 Hash the three letters `abc`, whose bytes are 97, 98 and 99. (Looping over the bytes of a real
-string needs [chapter 11](README.md); three steps can be written out.)
+string needs [chapter 12](README.md); three steps can be written out.)
 
 <!-- file docs/book/code/bits/hash.oro -->
 ```go
@@ -1157,7 +1157,92 @@ W(go, js, java, windows) = [-9007199254740991, 9007199254740991]   (the meet of 
 The cost differs by target and the answer does not: a `BigInt` `&` per call on JavaScript, an
 `and` instruction elsewhere ([bigbits-2026-11-19](../../gauntlet/results/bigbits-2026-11-19.md)).
 
-## 7.12 What other languages do
+## 7.12 The bits of a number past the word
+
+Chapter 6 computed with integers too large for the word, exactly. Their bits are the same infinite
+numeral as any integer's, so everything in this chapter applies to them unchanged:
+
+<!-- file docs/book/code/bits/huge.oro -->
+```go
+use io
+
+fn show(n) { io.print_line(big_str(n)) }
+
+export fn main() {
+    a = 3^100
+    show(a & 255)
+    show(a >> 150)
+    show((a << 5) & -(a << 5))
+    b = 0 - 5^60
+    show(b >> 70)
+    show(b & 65535)
+    show(~b)
+    show(b mod 1000003)
+}
+```
+
+<!-- run go docs/book/code/bits/huge.oro -->
+```
+209
+361
+32
+-734683969263929692481
+62063
+867361737988403547205962240695953369140624
+453249
+```
+
+<!-- run windows docs/book/code/bits/huge.oro -->
+```
+209
+361
+32
+-734683969263929692481
+62063
+867361737988403547205962240695953369140624
+453249
+```
+
+3¹⁰⁰ has 159 bits. Its low eight are 209, and what is left above bit 150 is 361. `x & -x` is
+§7.10's trick for the lowest 1, and on 3¹⁰⁰ shifted left by five it is 32, since 3¹⁰⁰ is odd.
+The negative number shifts toward minus infinity, `>> 70` rounding down as `>>` always does, and
+its low sixteen bits are those of its infinite numeral of ones. `mod` is never negative.
+
+The same answers on Go and Windows, from very different machines underneath: `math/big` on Go,
+and on Windows numbers made of 64-bit digits, written in this language, since Windows has no big
+integers of its own. There a negative number is a sign and a magnitude, not an infinite row of
+ones, so `~`, `&` and `|` on it are worked out from the magnitude by De Morgan's laws:
+`a & b` with `a` negative is `~(~a | ~b)`, and `~a` is `-a - 1`, which needs no width.
+
+**A result that fits comes back to the word:**
+
+<!-- file docs/book/code/bits/hugemask.oro -->
+```go
+export fn low(n ∈ Nat) (0..255) { n & 255 }
+
+export fn half(n ∈ Nat) (Nat) { n >> 1 }
+```
+
+<!-- gen go docs/book/code/bits/hugemask.oro -->
+```go
+func BitsHalf(v0 *big.Int) *big.Int {
+    v2 := (new(big.Int).Rsh(v0, uint(1)))
+    return v2
+}
+
+func BitsLow(v0 *big.Int) int {
+    v2 := (big.NewInt(int64(255)))
+    v3 := (new(big.Int).And(v0, v2))
+    v4 := (int(v3.Int64()))
+    return v4
+}
+```
+
+`n & 255` is in `0..255` whatever `n` is, by §7.5's mask law, so `low` returns a machine integer:
+the big number goes in, a small one comes out. `half` returns `Nat`, so its result stays exact.
+The compiler decides each from what is proven, the rule of chapter 6.
+
+## 7.13 What other languages do
 
 | | xor is written | `~12` | `-7 >> 1` | `1 << 64` | `5 >> 100` | wrapping |
 |---|---|---|---|---|---|---|
@@ -1205,6 +1290,8 @@ says it computes that meaning.
 - **`n & (n - 1)` removes the lowest 1; `n & -n` isolates it.**
 - **On JavaScript** the compiler uses the host's 32-bit operators only where the result is
   proven to fit, and something exact elsewhere.
+- **A number past the word has the same bits**, and every operation here works on it exactly;
+  a result proven small, as `n & 255` is, comes back as a machine integer.
 
 Next: [chapter 8](08-numbers.md), Numbers with a point. What 0.1 + 0.2 is, and the one operation that is
 allowed to lose anything.

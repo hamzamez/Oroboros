@@ -5,7 +5,8 @@ are pinned by two tests: [inventory.md](inventory.md) lists every word the compi
 (`TestTheInventoryIsTheWordsTheCompilerKnows`), and [j.md](j.md) §1.4 every keyword J's reader takes
 (`TestJsKeywordsAreTheReadersKeywords`). Each fails when its document and the code disagree.
 
-Rewritten 2026-10-25 in J. The surface is J ([j.md](j.md), [ADR 0068](../decisions/0068-j-is-the-surface.md)),
+Rewritten 2026-10-25 in J; brought up to date 2026-11-20 (records, the bit operations, C calls, the
+window procedure). The surface is J ([j.md](j.md), [ADR 0068](../decisions/0068-j-is-the-surface.md)),
 and the examples here are J's. **Two levels are shown, and kept apart**: what a source file says, in J,
 and the core term J's reader makes of it by D ([abstract.md](abstract.md) §8, `core/desugar.go`),
 which the reducer and everything after it read. A core term is printed as an s-expression,
@@ -83,6 +84,14 @@ export fn main() { … }               // an entry point
   point, the core's `(pub …)` and `(export …)`, two relations ([ADR 0078](../decisions/0078-a-modules-interface-is-what-it-marks-pub.md)).
   The build's entry is `export fn main()`, taking nothing ([build.md §2](build.md)).
 
+**A C function is declared by its prototype** in its header's module (`windows/fileapi`), and called as
+C writes it, `host expr call WriteFile(h, s, len(s), &put, NULL) stdcall lib "kernel32"`: a table and
+its length one segment parameter, `&r` a result, `&x` a struct's or a cell's address, a constant a
+family's member. The ABI is derived from the triple, and each declaration is read against the SDK's
+prototype ([llvm.md §6a](llvm.md), ADR 0094, 0118, 0126, 0129–0132, 0141). **A C struct is a record**
+with its layout, `repr RECT c(left, top, right, bottom)`, derived and checked against clang
+([llvm.md §6b](llvm.md), ADR 0128).
+
 A library directory may also hold `provides TARGET PATH { … }` fragments: the target's own
 declarations and definitions for that module, `D_T` ([target-system.md](target-system.md),
 [theories.md §5.4](theories.md)).
@@ -106,7 +115,8 @@ claim carries usage as modes (`core/jreadtarget.go`, `emit/hostdef.go`).
 | `loop x = z { φ -> again(e); else -> r }` | `(loop (fn (x…) …) z…)` | [iteration.md](iteration.md), [ADR 0015](../decisions/0015-loop-and-again.md); `again` may sit under a binding ([ADR 0027](../decisions/0027-a-host-calls-continuation-is-a-tail.md)), in a `try` or `expect` success arm ([ADR 0041](../decisions/0041-a-success-arm-is-a-tail.md)), and in each arm of a `case` in a tail ([ADR 0076](../decisions/0076-a-case-in-a-tail-is-a-tail-when-its-arms-are.md)) |
 | `case e { 'c(x) -> a; else -> b }` | `if` over a tag comparison, **in `Load`**, because the variant may be declared in another file | [sums.md](sums.md) |
 | `try p = e { body }`, `expect p = e else why` | a `case` in `Load`, on a variant marked `success`: `try` returns every other constructor unchanged, `expect` crashes with `why` through `abandon` | [errors.md](errors.md) §5, §8 |
-| `b ∈ S = e` | the binder's claim: an obligation, proven or refused, then the core's `(the S e)`, which the IR reads | [ADR 0069](../decisions/0069-an-observer-at-a-host-parameter.md) |
+| `b ∈ S = e` | the binder's claim: an obligation, proven or refused, then the core's `(the S e)`, which the IR reads; on a record, one claim per component | [ADR 0069](../decisions/0069-an-observer-at-a-host-parameter.md) |
+| `record { l : e }`, `r.l`, `r with { p : e }`, `zero(T)`, `p.l := e` | `(#rec "l…" e…)`, `(#get "l" r)`, `(#with "l" r e)`, the zero computed from T, the cell's `with`; erased by the lens laws as δ-rules and by currying at each binder | [data.md §4](data.md), [ADR 0128](../decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md) |
 | `f(x, ys...)`, `f(out S)` | `(f x (spread ys))`, `(f (out S))`, rewritten by the loader | [variadic.md](variadic.md), [local.md §6](local.md) |
 
 **A `loop` with no `again` is not a loop.** The name is dropped, and what remains is a β-redex
@@ -125,12 +135,14 @@ language's signature (`core.LanguageSignature`): the names J's reader and `Load`
 |---|---|---|---|
 | `if`, `let`, `loop` | `if c { a } else { b }`, a block, `loop` | control and binding | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md), [binding.md](binding.md), [ADR 0015](../decisions/0015-loop-and-again.md) |
 | `=` | `==` | integer equality | [match.md](match.md) |
+| `& \| ⊕ ~ << >> mod` | the same; `⊕` is `\oplus` | ℤ's 2-adic and, or, xor, not; a·2ᵏ and ⌊a/2ᵏ⌋; the Euclidean remainder. On every target, the word and above it (`ir/big.go`'s bit; K(ℕ\*)'s by De Morgan on the magnitudes); under `mod 2ⁿ` a polynomial is computed wrapping (fusion) | [integers.md §0b](integers.md), [ADR 0082](../decisions/0082-wrapping-is-the-residue-map-and-the-bits-are-the-integers.md) |
 | `+ - * / % < <= > >=` | the same | integer arithmetic and order, found per target by spelling; `+ - *`, the order and `==` are also N's on a number of N (ℤ ≤ N), and `/` and `%` are ℤ's alone | [integers.md §0a](integers.md), [numbers.md §1](numbers.md) |
 | `round`, `÷` | `round(S, e)`, `round(S, e, 'mode)`; `a ÷ b` (`\div`) only at a rounding's root | the one lossy operation: onto a decimal grid or a range, realized by integer operations on numerators (`ir/numbers.go`); onto F64, the call of a target declaration whose `ensure` states it (`ir/doubles.go`); `round(S) { … }` rounds every operation of N in its body | [numbers.md §3](numbers.md), [ADR 0086](../decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md) |
 | `array`, `table`, `len` | `array { 2, 3 }`, `array { e : k ∈ 0..n-1 }`, `len(t)` | a table's graph, its rule and its domain bound; indexing `t[i]` is APPLICATION | [tables.md](tables.md) |
 | `alloc`, `build`, `set`, `local` | `var b := …`, `b[i] := v`, `x := v` | allocation, the scoped linear buffer, and a scope of local state | [tables.md](tables.md), [local.md](local.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md), [ADR 0047](../decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) |
 | `map`, `build-map`, `insert`, `keys` | `map { 1 : 10 }`, `var m := map(cap)`, `m[k] := v`, `keys(m)` | maps over `Int` keys | [maps.md](maps.md) |
 | `concat`, `string-of` | `a ++ b`, `string_of(n)` | the free monoid over scalars, and its generator | [string-operations.md](../string-operations.md) |
+| `nulfree`, `ascii`, `utf8-text`, `utf8-valid` | the same, `_` for `-` | ¬ν, the C strings' predicate, decided on a term's structure; ι from ASCII bytes; ι_V from valid UTF-8, and V's predicate | [strings.md §9–11](strings.md), ADR 0091, 0095, 0112 |
 | a host's string | `go.bytestring` | its own type, with `String` a subtype of it; it enters `String` only through d, the maximal-subpart decode (`go.text`, and the portable `os.text_of` on every host) | [ADR 0030](../decisions/0030-a-hosts-string-is-the-hosts.md), [strings.md §8](strings.md) |
 | `abandon` | `expect`'s failure | crash : E → 0, a statement taking the reason; found per target by spelling, and impure. Its value is in 0 | [errors.md](errors.md) §8–9 |
 | `the` | `b ∈ S = e` | a range ascribed to a term, erased at emission; J refuses `the` itself | [ascribe-2026-09-03](../../gauntlet/results/ascribe-2026-09-03.md) (no spec yet) |
@@ -154,10 +166,22 @@ generated from the form.
 - **Tables:** `Array(V)` and `Map(K, V)`.
 - **A buffer parameter** is `b ∈ Array(V) linear`, the core's `(buffer V)`
   ([ADR 0020](../decisions/0020-uniqueness-on-parameters.md), [ADR 0052](../decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md));
-  a buffer may not be an element type. A cell a host writes is `x ∈ T inout`, the core's `(cell T)`.
+  a buffer may not be an element type. **Handed back** at a result it is primed, `(b' ∈ Array(V)
+  linear)`, the caller's buffer written; `buffer(V)` there is refused ([ADR 0140](../decisions/0140-a-lent-buffer-handed-back-is-a-primed-result.md)).
+  **A cell a definition writes** is the mode `x ∈ T inout`, the core's `(cell T)`, on a host's
+  declaration and a program's own ([ADR 0135](../decisions/0135-a-cell-parameter-is-the-mode-inout-not-the-set-cell.md));
+  `cell(T)` at a J binder is refused naming `inout`.
 - **Products** `A × B` and the unit `()`; a variant applied to its arguments, `result.Result(T, E)`;
   a static parameter `E ⊆ S` in a host declaration ([ADR 0063](../decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md)).
-- **`record` is reserved**, specified in data.md and not built.
+- **Records** ([data.md §4](data.md), [ADR 0128](../decisions/0128-a-record-is-built-whole-and-a-host-struct-is-its-layout.md)):
+  `record { l ∈ S, … }` is a set, structural (two with the same labels and sets are one, in any
+  order), and `record { l : e, … }` a value, total on its labels. `r.l` projects, `r with { l.m : e }`
+  overrides along prefix-free paths, `zero(T)` is every component's zero where each has one, and
+  `p.l := e` writes a cell's component in program order. A claim on a record is a claim on each
+  component. Erased into the tuple of its components in ascending label order (`core/record.go`,
+  `recerase.go`); a record goes wherever a tuple goes, and into a map's value and an export's
+  parameter. Not built: a variant's payload of several parts, a table of records written as a list
+  and read at an unknown index. **A set may not mention itself**, a record as a variant.
 
 A range means three things, kept apart:
 - an `Int` for typing;
@@ -198,8 +222,8 @@ guarded by fuel ([pcf.md §9](pcf.md)).
 - which of those are pure. This defaults to *impure*, so an omission costs speed rather than
   correctness.
 
-**Size:** 14,316 lines of Go in `core/` outside its tests, 19,773 with them; 205 test functions there,
-394 in `emit/`.
+**Size** (2026-11-20): 21,919 lines of Go in `core/` outside its tests, 28,665 with them; 237 test
+functions there, 409 in `emit/`.
 
 ### What runs after reduction
 
@@ -240,7 +264,10 @@ These are not language, but they decide what is legal.
 - **A buffer is used in program order and at one place** (ADR 0052's R0–R4), and an immutable table
   may not reach a parameter declared `linear`.
 - **A closure may not survive staging**, and all four backends refuse one
-  ([callbacks.md](callbacks.md)).
+  ([callbacks.md](callbacks.md)), with one exception: a λ at a host struct's field whose set is a
+  named callback claim, a window procedure at `WNDCLASSA.lpfnWndProc`, lifted to a function of its
+  own at that convention, its state a `var` cell of the enclosing scope (ADR 0133). A callback a host
+  calls only during a call is specified and not built.
 - **`lemma` and `forall` are reserved** in a target file's facts: facts beyond F-B are specified and
   not built ([theories.md §7](theories.md)). A program's `spec`, `lemma` and `assert` (ADR 0062) are not
   built.
@@ -253,13 +280,14 @@ These are not language, but they decide what is legal.
 | Recursion and recursive data | **rejected** (ADR 0014); recursive data is a flat table plus indices |
 | Unbounded iteration | **built**, `loop`/`again`; termination is a computed program property |
 | Tail-call optimisation | not guaranteed, and moot |
-| Escaping closures | refused; three tiers of what that costs are in [callbacks.md](callbacks.md) |
+| Escaping closures | refused, but for the window procedure (ADR 0133); the tiers are in [callbacks.md](callbacks.md) |
 | Mutation | only of a state binder, `var`, in a block: a buffer, a map buffer or a cell, or of a `linear` parameter (ADR 0018, 0020, 0047, 0052). A cell is a loop variable after translation; a closure over one is refused |
 | Effect types, monads | none. Purity is one declared bit per primitive ([effects.md](effects.md)) |
 | General equality | none. `==` is integer equality; floats have NaN, and strings have no portable comparison |
-| Bitwise operators | not promoted to the language: V8 truncates them to int32, inside its own 2⁵³ word ([integers.md](integers.md)) |
+| Bitwise operators | **built** (ADR 0082): ℤ's own, the same on every target; JavaScript's 32-bit operators used only where a result is proven to fit ([integers.md §0b](integers.md)) |
 | String indexing, `length` | not in the language: three hosts give three answers, and three text programs needed neither ([strings.md](strings.md)) |
-| Records, symbols, `with`, views | specified ([data.md](data.md), [theories.md](theories.md)) and not built. def.md §5's refusal of *runtime* symbols stands; a tag `'x` never survives staging |
+| Records and `with` | **built** (ADR 0128, §1 above) |
+| Symbols, views | specified ([data.md](data.md), [theories.md](theories.md)) and not built. def.md §5's refusal of *runtime* symbols stands; a tag `'x` never survives staging |
 | Extensionality | none; η |
 
 ## 4. Effects

@@ -70,6 +70,13 @@ program may or may not have, and the compiler computes it.
 - **An assessment at least every ten days or 30 commits**, whichever comes first, even when a plan
   has grown rather than finished (assessment-2026-11-15 §3.4).
 - **Keep documents current.** A stale status line is worse than none; fix it when the thing ships.
+- **The book moves with the language** (hamza, 2026-11-20): a change to the language (a construct, a
+  word, a meaning, a refusal a program can meet) updates the chapter that teaches it in the same step,
+  its examples written, run and checked by `docs/book/check.go`, and its "what is not here" made true
+  again; where no chapter teaches it, write one or split one and renumber. Brick by brick: a chapter
+  uses only what the chapters before it introduced, shows a refusal before the working form, and
+  leans on examples and edge cases. Each defect writing it finds joins the findings index in
+  `docs/book/README.md`.
 
 ## Primary documents
 

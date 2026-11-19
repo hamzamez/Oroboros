@@ -248,7 +248,7 @@ Four arithmetic operations. `divmod` is gone, its tuple is gone, the pattern is 
 **What a tuple cannot do.** It has no operations of its own: there is no `t[0]`, no
 comparison of two tuples, no "length". A pattern is the only way in. And a tuple cannot be
 the set of a *parameter*; a function that wants two values takes two parameters, which is the
-same thing. Tuples of tuples, and tuples stored in tables, come with chapter 12.
+same thing. Tuples of tuples, and tuples stored in tables, come with chapter 13.
 
 ---
 
@@ -457,7 +457,7 @@ gen: docs/book/code/data/no-payload.oro.txt: line 1: "," where ")" was expected
 
 and what it carries is written as a set's name: `Int`, `String`, `Bool`, another variant. A
 rectangle, with a width *and* a height, wants an "and" inside an "or". That combination is
-built in chapter 12, where a variant's value can be a position in a table that holds the
+built in chapter 13, where a variant's value can be a position in a table that holds the
 parts.
 
 ---
@@ -537,7 +537,7 @@ func DataOrZero(v0 int) int {
 }
 ```
 
-Looking something up in a map (chapter 13) answers with it, and chapter 14's failures are the
+Looking something up in a map (chapter 14) answers with it, and chapter 15's failures are the
 same shape with a reason attached to the "nothing".
 
 ---
@@ -795,7 +795,7 @@ gen: docs/book/code/data/no-recursive.oro.txt: variant list: constructor more ca
 ```
 
 A list, a tree, a document: anything of unbounded size is a *table* here, and a "pointer" to
-another node is a position in that table. Chapter 12 builds one. It is the layout a careful C
+another node is a position in that table. Chapter 13 builds one. It is the layout a careful C
 programmer chooses for speed anyway (everything in one block of memory, no chasing pointers),
 and it keeps the promise that a variant is a tag and a few slots.
 
@@ -813,8 +813,8 @@ export fn zero(n ∈ 0..9) (Int) { 0 }
 gen: docs/book/code/data/no-single.oro.txt: variant wrapped: a variant type has two or more constructors; one is just the payload
 ```
 
-**No names for a tuple's parts.** A tuple with named parts is a *record* (a `struct`). It is
-specified and not built, so this book does not teach it. Positions do the work for now.
+**No names for a tuple's parts.** A tuple with named parts is a *record* (a `struct`), and it is
+the next chapter.
 
 **A variant's name goes on a result, and not yet on a parameter.** `(Light)` as a result's set
 was used above. `fn name(l ∈ Light)` is refused today (README item 54), which is why this
@@ -901,6 +901,6 @@ payloads, and a comment asking you to check the tag before reading the union.
 - **At an export's result a variant is a tag number and one slot per kind of payload.**
 - **Tuples multiply and variants add** the number of values. Pick the representation with no
   impossible states.
-- **No recursive variants, no one-case variants, no records yet.** Unbounded data is a table.
+- **No recursive variants and no one-case variants.** Unbounded data is a table.
 
-Next: [chapter 11](11-loop.md), `loop`. Doing something more than once, and knowing that it stops.
+Next: [chapter 11](11-records.md), Records. A tuple whose parts have names.

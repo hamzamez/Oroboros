@@ -1,0 +1,10 @@
+use io
+
+fn ones(v ∈ Nat) (Nat) {
+    loop x = v, c = 0 { x == 0 -> c; else -> again(x & (x - 1), c + 1) }
+}
+
+export fn main() {
+    io.print_line(big_str(ones(255)))
+    io.print_line(big_str(ones(3^1000)))
+}

@@ -1,0 +1,6 @@
+use io
+set Point = record { x ∈ Int, y ∈ Int }
+export fn main() {
+    p ∈ Point = record { x : 2 }
+    io.print_int(p.x)
+}

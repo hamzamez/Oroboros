@@ -654,8 +654,9 @@ gen: tour-adder: lowering: a λ in value position is a closure (callbacks.md): f
 
 **A function may not survive to run time.** Returning one to the host, or storing one in a table,
 would need a closure, a hidden allocation, and hidden allocation is what this language exists to
-avoid. Handing a function
-to a host API that takes a callback is specified and not built.
+avoid. The one exception is a window procedure, a function Windows calls back, written in the
+language and lifted to a function of its own (chapter 18); handing one to a host API that calls it
+only during the call, as a sort does its comparator, is specified and not built.
 
 ## 0.7 One loop, and no recursion
 
@@ -1060,7 +1061,7 @@ Two tests and a `panic`. `half`, `quarter`, the `try` and every `Result` are gon
 divisions by two became shifts. A host function that fails, such as Go's `os.ReadFile`, arrives as
 a `Result` too, and compiles back to Go's own `if err != nil`.
 
-## 0.11 Tuples
+## 0.11 Tuples and records
 
 <!-- file docs/book/code/tour/tuples.oro -->
 ```go
@@ -1083,6 +1084,40 @@ which it never uses, is never computed. A line that ends in an operator continue
 Text is small on purpose. A `String` is a sequence of Unicode characters, `++` joins two, and
 `string_of(n)` is the one-character string of code point n. Everything richer is the host's, under
 the host's name (§0.13).
+
+A record is a tuple whose parts have names:
+
+<!-- file docs/book/code/tour/records.oro -->
+```go
+use io
+
+set Point = record { x ∈ Int, y ∈ Int }
+
+fn step(p ∈ Point, dx ∈ -1..1, dy ∈ -1..1) (Point) { p with { x : p.x + dx, y : p.y + dy } }
+
+export fn main() {
+    start = record { x : 0, y : 0 }
+    p = step(step(start, 1, 0), 1, 1)
+    io.print_int(p.x)
+    io.print_int(p.y)
+    io.print_int(start.x)
+}
+```
+
+<!-- gen go docs/book/code/tour/records.oro -->
+```go
+func TourMain() int {
+    fmt.Println(2)
+    fmt.Println(1)
+    fmt.Println(0)
+    return 0
+}
+```
+
+**Like:** a `struct` read by its fields, and OCaml's and F#'s `{ r with x = … }` for a changed copy.
+**Unlike:** `with` never changes `start`, two record sets with the same labels are one set whatever
+they are called, and here every value was known, so the compiler computed the whole program: the
+records, the steps and the copies are gone, and `main` prints three numbers. Chapter 11.
 
 ## 0.12 Bits
 
@@ -1205,7 +1240,7 @@ reports what the choice cost.
 | implicit conversions, truthiness | none: an `if` takes a `Bool` |
 | `NaN`, `Infinity`, `-0` | none: a number is a number (§0.5) |
 | generics, `<T>`, interfaces, traits | a definition is specialised where it is used (§0.6) |
-| classes, methods, inheritance, `this` | functions in modules; data is tables, tuples and variants |
+| classes, methods, inheritance, `this` | functions in modules; data is tables, tuples, records and variants |
 | closures at run time | refused (§0.6) |
 | mutable arrays, shared mutable state | `var`, local to a block (§0.8) |
 | macros, annotations, pragmas, doc comments | none; a comment is erased and means nothing |
@@ -1213,9 +1248,10 @@ reports what the choice cost.
 | operator overloading | none |
 | a garbage collector or runtime of its own | none (§0.1) |
 
-**Specified, and not built yet**, so not in this chapter: records (a `struct`), the logic's own
-definitions (`spec`, `lemma`, `assert`, `∀` and `∃` in a claim), a guard on a `case` arm, handlers
-on `try`, callbacks into a host, and concurrency. [spec/j.md](../spec/j.md)'s status table is the
+**Specified, and not built yet**, so not in this chapter: the logic's own definitions (`spec`,
+`lemma`, `assert`, `∀` and `∃` in a claim), a guard on a `case` arm, handlers on `try`, a function a
+host calls during a call (a sort's comparator), and concurrency. The one callback built is a
+window procedure on Windows (chapter 18). [spec/j.md](../spec/j.md)'s status table is the
 exact list.
 
 ## 0.15 From what you write to what you write here

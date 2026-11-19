@@ -1,0 +1,6 @@
+export fn squares(dst ∈ Array(0..10000) linear) (dst' ∈ Array(0..10000) linear) where len(dst) <= 100 {
+    loop i = 0 {
+        i < len(dst) -> { dst[i] := i * i; again(i + 1) }
+        else -> ()
+    }
+}

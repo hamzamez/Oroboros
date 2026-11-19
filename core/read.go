@@ -841,6 +841,19 @@ func readSum(t *Term) (*Sum, error) {
 		// A PAYLOAD THAT IS A RANGE is a set the constructor would have to
 		// enforce on its argument, a contract no constructor has yet, so it is
 		// refused, in J (book finding 7)
+		// A PAYLOAD THAT IS A PRODUCT OR A RECORD is several slots, and a
+		// variant's value is its tag and one slot per payload type (ADR 0042):
+		// not built, and said as what it is, not as a range (book-2026-11-20)
+		case k.Kind == KApp && len(k.Kids) == 2 && k.Kids[0].Kind == KName &&
+			(IsRecord(TypeName(k.Kids[1])) || strings.HasPrefix(TypeName(k.Kids[1]), "prod(")):
+			kind := "a product"
+			if IsRecord(TypeName(k.Kids[1])) {
+				kind = "a record"
+			}
+			return nil, fmt.Errorf("set %s: '%s(%s) carries %s, and a variant's value is its tag and one slot "+
+				"per payload type (ADR 0042): a payload of several parts is not built. Carry one value, as "+
+				"'%s(Int), and keep the parts where the value can name them", SetJName(sum.Name),
+				ShowName(k.Kids[0].Name), ShowSet(TypeName(k.Kids[1])), kind, ShowName(k.Kids[0].Name))
 		case k.Kind == KApp && len(k.Kids) == 2 && k.Kids[0].Kind == KName && TypeName(k.Kids[1]) != "":
 			return nil, fmt.Errorf("set %s: a constructor's payload is a set's name, as in 'ok(Int); "+
 				"'%s(%s) gives a range, which a payload does not take: a constructor has no contract "+

@@ -1,0 +1,41 @@
+use win/print
+use windows/winuser
+use windows/windef
+use windows/libloaderapi
+use windows/richedit
+use llvm
+
+fn digits(n ∈ 0..2^31-1) (String) {
+    loop i = 0, v = n, s = "" {
+        i < 10 && (i < 1 || v > 0) -> again(i + 1, v / 10, string_of(48 + v % 10) ++ s)
+        else -> s
+    }
+}
+
+fn status(h ∈ windef.HWND) (Bool) {
+    (cr, r) = richedit.ExGetSel(h)
+    ignore(r)
+    line = richedit.ExLineFromChar(h, cr.cpMax)
+    case {
+        line >= 0 && line < 2^31 - 1 -> {
+            start = richedit.LineIndex(h, line)
+            case {
+                start >= 0 && start < 2^31 && cr.cpMax >= start && cr.cpMax - start < 2^31 - 1 ->
+                    print.print_str("Ln " ++ digits(line + 1) ++ ", Col " ++ digits(cr.cpMax - start + 1))
+                else -> print.print_str("no column")
+            }
+        }
+        else -> print.print_str("no line")
+    }
+}
+
+export fn main() {
+    ignore(libloaderapi.LoadLibraryA("Msftedit.dll"))
+    h = winuser.CreateWindowExA(0, "RICHEDIT50W", "", 4, 0, 0, 200, 100, llvm.null(), llvm.null(), llvm.null(), llvm.null())
+    ignore(winuser.SetWindowTextA(h, "first line\nsecond line"))
+    ignore(richedit.ExSetSel(h, record { cpMin : 15, cpMax : 15 }))
+    ignore(status(h))
+    ignore(print.print_int(richedit.GetLineCount(h)))
+    ignore(richedit.ReplaceSel(h, 1, "X"))
+    status(h)
+}

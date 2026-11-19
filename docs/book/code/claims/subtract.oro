@@ -1,0 +1,7 @@
+export fn gcd(a ∈ 1..1000, b ∈ 1..1000) (1..1000) {
+    loop p = a, q = b {
+        p == q -> p
+        p > q -> again(p - q, q)
+        else -> again(p, q - p)
+    }
+}

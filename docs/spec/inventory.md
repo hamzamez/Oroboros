@@ -39,9 +39,9 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 161 |
+| `specified` — a spec states it | 162 |
 | `recorded` — only research, a result document or code comments | 24 |
-| `reserved` — refused, and specified as owed | 4 |
+| `reserved` — refused, and specified as owed | 3 |
 | `refused` — an old spelling, refused naming the new one | 11 |
 | `undocumented` | 0 |
 
@@ -138,7 +138,7 @@ J names the base sets `Int`, `F64`, `Bool`, `String` and the formers `Array(V)` 
 | `map` | specified — a type, J's `Map(K, V)`, the injected constructor, and `repr map …` | [maps.md](maps.md) |
 | `buffer` | specified — a linear parameter type, the core's, J's `b ∈ Array(V) linear`; written `buffer(V)` at a J binder it is refused naming `linear` (ADR 0135) | [ADR 0020](../decisions/0020-uniqueness-on-parameters.md) |
 | `cell` | specified — `(cell T)`, the core's, J's `x ∈ T inout`; written `cell(T)` at a J binder it is refused naming `inout` (ADR 0135): the address of a T the host may read and write during the call and does not keep; `(cell go.Value)` a cell of any type in Go's box. Also a target's `(type (cell A) (host …))` | [local.md](local.md) §5 |
-| `record` | reserved — a type former in `core/read.go`, specified in data.md and not built | [data.md](data.md) |
+| `record` | specified — a record set's former, `record { l ∈ S }`, and a value's, `record { l : e }`; built (ADR 0128) | [data.md](data.md) §4 |
 | `prod` | recorded — the internal spelling of a tuple type (`prod(A, B)`), J's `A × B`, reserved as a type former so no variant can take the name | `core/read.go` `TypeName` |
 
 ### Range endpoints

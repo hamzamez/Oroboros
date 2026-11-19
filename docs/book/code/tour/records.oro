@@ -1,0 +1,13 @@
+use io
+
+set Point = record { x ∈ Int, y ∈ Int }
+
+fn step(p ∈ Point, dx ∈ -1..1, dy ∈ -1..1) (Point) { p with { x : p.x + dx, y : p.y + dy } }
+
+export fn main() {
+    start = record { x : 0, y : 0 }
+    p = step(step(start, 1, 0), 1, 1)
+    io.print_int(p.x)
+    io.print_int(p.y)
+    io.print_int(start.x)
+}

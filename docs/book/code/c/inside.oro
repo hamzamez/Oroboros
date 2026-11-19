@@ -1,0 +1,10 @@
+use win/print
+use windows/winuser
+use windows/windef
+
+export fn main() {
+    box ∈ windef.RECT = record { left : 0, top : 0, right : 10, bottom : 5 }
+    print.print_int(winuser.PtInRect(box, record { x : 3, y : 4 }))
+    print.print_int(winuser.PtInRect(box, record { x : 10, y : 4 }))
+    print.print_int(winuser.PtInRect(box, record { x : -1, y : 0 }))
+}

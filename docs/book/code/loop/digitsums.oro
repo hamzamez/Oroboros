@@ -1,0 +1,17 @@
+use io
+
+export fn main() {
+    // the digit sums and the digit counts of 1 to 1000, all at once
+    (sum, count) = loop i = 1, sum = 0, count = 0 {
+        i <= 1000 -> {
+            (s, d) = loop m = i, s = 0, d = 0 {
+                m > 0 -> again(m / 10, s + m % 10, d + 1)
+                else -> (s, d)
+            }
+            again(i + 1, sum + s, count + d)
+        }
+        else -> (sum, count)
+    }
+    io.print_int(sum)
+    io.print_int(count)
+}

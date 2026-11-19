@@ -1,0 +1,6 @@
+use io
+set Named = record { name ∈ String, age ∈ 0..150 }
+export fn main() {
+    n = zero(Named)
+    io.print_int(n.age)
+}

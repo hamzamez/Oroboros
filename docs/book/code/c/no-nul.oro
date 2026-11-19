@@ -1,0 +1,7 @@
+use win/print
+use windows/libloaderapi
+
+export fn main() {
+    m = libloaderapi.GetModuleHandleA("kernel32\u{0}.dll")
+    print.print_str("loaded")
+}

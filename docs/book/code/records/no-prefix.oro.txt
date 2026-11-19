@@ -1,0 +1,8 @@
+use io
+set Point = record { x ∈ Int, y ∈ Int }
+set Box = record { corner ∈ Point, width ∈ Int }
+export fn main() {
+    b ∈ Box = record { corner : record { x : 1, y : 2 }, width : 3 }
+    c = b with { corner : record { x : 0, y : 0 }, corner.x : 5 }
+    io.print_int(c.corner.x)
+}

@@ -1,0 +1,12 @@
+use io
+
+set Point = record { x ∈ -100..100, y ∈ -100..100 }
+
+export fn main() {
+    var p := zero(Point)
+    p.x := 3
+    p.y := p.x * 2
+    p.x := p.x - 5
+    io.print_int(p.x)
+    io.print_int(p.y)
+}

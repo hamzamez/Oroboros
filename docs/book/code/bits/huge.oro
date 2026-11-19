@@ -1,0 +1,15 @@
+use io
+
+fn show(n) { io.print_line(big_str(n)) }
+
+export fn main() {
+    a = 3^100
+    show(a & 255)
+    show(a >> 150)
+    show((a << 5) & -(a << 5))
+    b = 0 - 5^60
+    show(b >> 70)
+    show(b & 65535)
+    show(~b)
+    show(b mod 1000003)
+}

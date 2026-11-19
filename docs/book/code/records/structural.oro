@@ -1,0 +1,8 @@
+use io
+
+fn area(b) { b.width * b.height }
+
+export fn main() {
+    io.print_int(area(record { width : 3, height : 4 }))
+    io.print_int(area(record { height : 10, width : 2, colour : 7 }))
+}

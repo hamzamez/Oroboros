@@ -1,4 +1,4 @@
-# 15. Claims
+# 16. Claims
 
 Since chapter 6 this book has leaned on one sentence: *the compiler proves it, or refuses the
 program.* An addition fits the word. A divisor is not zero. A position is inside its table. A
@@ -24,11 +24,11 @@ solving inequalities that is two hundred years old, the theorem that says where 
 checker must stop, and a way to ask the compiler what it knows.
 
 The examples are in [code/claims/](code/claims/). `go run docs/book/check.go
-docs/book/15-claims.md` re-runs every block. Checked 2026-11-16.
+docs/book/16-claims.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 15.1 Three ways of knowing
+## 16.1 Three ways of knowing
 
 How do you know a function is right?
 
@@ -53,7 +53,7 @@ the statements are kept to a kind it is good at. That kind is what this chapter 
 
 ---
 
-## 15.2 What gets proven
+## 16.2 What gets proven
 
 Here is every obligation this book has met, in one table. Each row is something that must
 be true at a particular place, and each was a refusal you have seen.
@@ -91,7 +91,7 @@ Where a claim is checked depends on which side of it you are on:
 
 ---
 
-## 15.3 The first method: intervals
+## 16.3 The first method: intervals
 
 Chapter 6 introduced this, and it is worth doing once slowly. For every value in the program
 the compiler keeps the smallest and largest it could be.
@@ -152,9 +152,47 @@ The fact that makes the claim true, `a <= b`, is a relation *between* the two, a
 interval has nowhere to put it. A function's result claim is decided by intervals, so this
 one is refused.
 
+There is one relation intervals do keep: the one a branch's condition states, inside that branch.
+
+<!-- file docs/book/code/claims/guard-gap.oro -->
+```go
+export fn gap(a ∈ 0..100, b ∈ 0..100) (0..100) { if a <= b { b - a } else { a - b } }
+```
+
+<!-- gen go docs/book/code/claims/guard-gap.oro -->
+```
+note: claims-gap: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+```
+
+Inside `if a <= b`, each name carries the comparison that let it in, and `b - a` meets it: with
+`a <= b`, `b - a` is at least 0, and at most 100 − 0. In the other branch, `a > b`, so `a - b` is
+at least 1. A `where` is not a branch: it is a promise about every call, and the method that
+reads it is the next one. This is the one entry of a relation between two values that a
+condition writes down, and it is enough for Euclid's oldest form, which subtracts:
+
+<!-- file docs/book/code/claims/subtract.oro -->
+```go
+export fn gcd(a ∈ 1..1000, b ∈ 1..1000) (1..1000) {
+    loop p = a, q = b {
+        p == q -> p
+        p > q -> again(p - q, q)
+        else -> again(p, q - p)
+    }
+}
+```
+
+<!-- gen go docs/book/code/claims/subtract.oro -->
+```
+note: claims-gcd: 2 of 2 integer operations bounded; 0 of 1 loop(s) proven terminating
+```
+
+Each difference is at least 1 under its arm's comparison, so `p` and `q` stay in 1..1000 and so
+does the answer. (That the loop stops is true and not proven: the larger of `p` and `q` falls
+every trip, a measure chapter 12's check does not look for.)
+
 ---
 
-## 15.4 The second method: facts
+## 16.4 The second method: facts
 
 For relations the compiler keeps a second thing: a list of **facts**, formulas known to be
 true at a point. Here is the same function, with the claim moved onto a binding:
@@ -177,7 +215,7 @@ func ClaimsGap(v0 int, v1 int) int {
 
 `d ∈ 0..100 = b - a` is a binding with a claim: *`d` is `b - a`, and I say it is in 0..100.*
 A claim on a binding is decided by the second method, which can use `a <= b`. It is proven,
-`d` is then known to be in 0..100, and the result claim follows. (Section 15.6 is about this
+`d` is then known to be in 0..100, and the result claim follows. (Section 16.6 is about this
 construct.)
 
 Take the `where` away to see what the compiler was working with:
@@ -271,7 +309,7 @@ gen: claims-chain: t[i] is an indexing, and i < len(t) does not follow
 ```
 
 With `i <= n` the sum of the two facts gives only `i <= len(t)`, which allows `i == len(t)`,
-one past the end. The refusal is correct, and it is chapter 12's off-by-one again.
+one past the end. The refusal is correct, and it is chapter 13's off-by-one again.
 
 Facts may carry multipliers, as long as each term is a number times an unknown:
 
@@ -335,7 +373,7 @@ shows it without running anything.
 
 ---
 
-## 15.5 Where facts come from
+## 16.5 Where facts come from
 
 You have written facts in headers. Most of them the compiler collects for itself.
 
@@ -437,8 +475,8 @@ for something true *every* time: an **invariant**. It guesses candidates of simp
 (`0 <= i`, `i <= n`), checks that each holds on entry and that each trip round preserves
 it, and keeps the ones that survive. Here both do: `i` starts at 0, and it is increased only
 when `i < n`, so it never passes `n`. With `n <= 1000`, the claim follows. This is what was
-happening in chapter 11 every time a sum in a loop was "bounded by the number of trips", and
-in chapter 12 when "the loop's own test is the proof".
+happening in chapter 12 every time a sum in a loop was "bounded by the number of trips", and
+in chapter 13 when "the loop's own test is the proof".
 
 ### Stating an invariant yourself
 
@@ -541,7 +579,7 @@ func ClaimsWalk(v0 []byte, v1 int) int {
 ```
 
 The invariant is nowhere in the Go. It is not a test that runs: it was a statement to the
-compiler, checked once, and then it was gone. That is the difference from chapter 11's
+compiler, checked once, and then it was gone. That is the difference from chapter 12's
 stated bounds, `p <= 4 * 10^17` in the factorial, which are real tests in the loop and
 which stop it early if they are ever false. A guard says "stop if this fails". An invariant
 says "this does not fail", and has to be right.
@@ -596,14 +634,14 @@ what is true every time round, and whether the `known:` line has it.
 
 An invariant here is linear arithmetic over the loop's variables, like every fact in this
 chapter. The factorial's real invariant, "`p` is the factorial of `i - 1`", is not that, so
-chapter 11's guard stays a guard. And an invariant cannot yet speak of what a buffer
+chapter 12's guard stays a guard. And an invariant cannot yet speak of what a buffer
 *holds*, only of its length.
 
 ---
 
-## 15.6 A claim on a binding
+## 16.6 A claim on a binding
 
-`x ∈ S = e` binds `x` to `e` and claims `e` is in `S`. Section 15.4 used one to get a
+`x ∈ S = e` binds `x` to `e` and claims `e` is in `S`. Section 16.4 used one to get a
 relational fact to a result. It has a second use that is worth more: it is how you *ask the
 compiler what it knows*.
 
@@ -691,7 +729,7 @@ or there is no program.
 
 ---
 
-## 15.7 `ensure`
+## 16.7 `ensure`
 
 A header's `ensure` states something about the result by name:
 
@@ -741,7 +779,7 @@ where a promise is made to someone who cannot see inside.
 
 ---
 
-## 15.8 The edge of the method
+## 16.8 The edge of the method
 
 The two methods are strong on one kind of statement: sums of unknowns, each multiplied by a
 constant, compared with `<=`, `<`, `==`. That is called **linear** arithmetic. Outside it
@@ -814,7 +852,7 @@ gen: claims-ratio: `/` requires a - b != 0, which does not follow
 
 The fact is right there in the list, `ne(a,b)`, and the goal is the same statement moved
 across the equals sign. "Not equal" means "less *or* greater", two cases, and the method
-works with single inequalities. Write `a < b` (15.4's `strict`) and it is one.
+works with single inequalities. Write `a < b` (16.4's `strict`) and it is one.
 
 Some of these are gaps that will close: nothing deep stops a compiler learning that a
 square is not negative. But the wall as a whole is not an accident, and the next section is
@@ -822,7 +860,7 @@ why.
 
 ---
 
-## 15.9 Sound, and not complete
+## 16.9 Sound, and not complete
 
 Two words describe any checker.
 
@@ -831,12 +869,12 @@ accepted.
 
 This compiler aims to be sound and makes no attempt to be complete. That is a choice, and
 it is forced. In 1929 Mojżesz Presburger proved that statements of linear arithmetic over
-the whole numbers, the kind in 15.4, can *always* be decided: there is a procedure that
+the whole numbers, the kind in 16.4, can *always* be decided: there is a procedure that
 answers true or false for every one. Add multiplication of unknowns and the picture
 changes completely. In 1970 Yuri Matiyasevich finished the proof that no procedure can
 decide whether an equation in whole numbers with multiplication has a solution. And in 1953
 Henry Rice had shown the general case: *every* interesting question about what a program
-computes is undecidable. Chapter 11's halting problem was the first instance.
+computes is undecidable. Chapter 12's halting problem was the first instance.
 
 So any checker for a real language faces the same three-way choice, and can have only two:
 
@@ -851,7 +889,7 @@ sometimes answers "does not follow" about something true.
 
 That changes how to read a refusal. **"Does not follow" is not "this is wrong".** It is "I
 could not show this from what I have". Sometimes the program is wrong, and the compiler has
-just saved you (15.4's `no-strict`, every off-by-one in chapter 12). Sometimes the program
+just saved you (16.4's `no-strict`, every off-by-one in chapter 13). Sometimes the program
 is right and the compiler is short of a fact or of a method. You have three responses, and
 you have used all three.
 
@@ -860,7 +898,7 @@ time and makes the function's assumptions part of its interface. Most refusals e
 
 **Test.** Write the condition as a guard: `if 0 <= k && k < len(t) { … } else { … }`. The
 test runs, so it costs a comparison, and it makes the program say what happens when the
-condition is false. Chapter 11's "a guard you are sure of" and chapter 12's binary search
+condition is false. Chapter 12's "a guard you are sure of" and chapter 13's binary search
 are this. It is the right answer when the fact comes from outside, and an honest answer
 when it is true but beyond the method.
 
@@ -888,7 +926,7 @@ func ClaimsAdd(v0 int, v1 int) int {
 
 Any two integers may overflow when added, so without the flag the function is refused. With
 it, the addition is done and then checked, and the program stops if it wrapped. That is
-chapter 14's `expect`, supplied by the build line: the program still never computes a wrong
+chapter 15's `expect`, supplied by the build line: the program still never computes a wrong
 number, it has only traded a proof for a possible stop. `-checked` covers arithmetic and
 nothing else. A position in a table or a divisor is proven, or guarded by a test you write.
 
@@ -896,7 +934,7 @@ The order of those three is the order to try them in.
 
 ---
 
-## 15.10 A type is a set
+## 16.10 A type is a set
 
 One more thing was quietly true all along. This book has never used the word *type* for
 something separate from *set*. In `fn f(n ∈ 0..9, s ∈ String, t ∈ Array(Int))`, the three
@@ -977,7 +1015,7 @@ a value must be shown to be.
 
 ---
 
-## 15.11 What it costs
+## 16.11 What it costs
 
 Go back through this chapter's emitted code and look for the claims. `chain`'s three-part
 `where` is one table read. `gap`'s claim on a binding is one subtraction. `third`'s header,
@@ -996,7 +1034,7 @@ this chapter: a compiler that sometimes needs to be told a thing you consider ob
 
 ---
 
-## 15.12 What other languages do
+## 16.12 What other languages do
 
 | | what can be stated | who checks | when | if it cannot be shown |
 |---|---|---|---|---|
@@ -1051,5 +1089,5 @@ test* (1991), a descendant of Fourier's.
 - **A type is a set.** A type error is the coarsest kind of refused membership.
 - **A proven claim is erased.** It costs nothing at run time.
 
-Next: [chapter 16](16-targets.md), Targets. Where `io.print_line` comes from, and how to describe a host's
+Next: [chapter 17](17-targets.md), Targets. Where `io.print_line` comes from, and how to describe a host's
 function so that the compiler can check what you say about it.

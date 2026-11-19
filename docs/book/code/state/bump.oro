@@ -1,0 +1,10 @@
+use io
+
+fn bump(c ∈ 0..1000 inout, by ∈ 0..10) { c := c + by }
+
+export fn main() {
+    var n := 7
+    bump(n, 3)
+    bump(n, 3)
+    io.print_int(n)
+}

@@ -1,0 +1,17 @@
+use win/print
+use windows/libloaderapi
+use llvm
+
+fn loaded(name ∈ String) (String) {
+    if nulfree(name) {
+        if llvm.is_null(libloaderapi.GetModuleHandleA(name)) { "no" } else { "yes" }
+    } else {
+        "a NUL in the name"
+    }
+}
+
+export fn main() {
+    print.print_str(loaded("kernel32.dll"))
+    print.print_str(loaded("nosuch.dll"))
+    print.print_str(loaded("kernel32" ++ string_of(0) ++ ".dll"))
+}

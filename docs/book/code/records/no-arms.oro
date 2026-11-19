@@ -1,0 +1,2 @@
+fn pick(c ∈ Bool) { if c { record { x : 1 } } else { record { y : 2 } } }
+export fn first(c ∈ Bool) (Int) { pick(c).x }

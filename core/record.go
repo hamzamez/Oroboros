@@ -532,6 +532,60 @@ func (e *Env) splitRecordRequire(op *Term, args []*Term, fuel *int) (*Term, bool
 	return t, true, err
 }
 
+// splitRecordClaim is (the record{l: S…} v) for v a record value: its labels
+// the claim's, every one given (X2) and none other (X3), and each component
+// claimed in its own set, nested records split in turn.
+func (e *Env) splitRecordClaim(args []*Term, fuel *int) (*Term, bool, error) {
+	v, err := normalize(args[1], e, fuel)
+	if err != nil {
+		return nil, true, err
+	}
+	labels, types := RecordFields(args[0].Str)
+	have, ok := isRecValue(v)
+	if labels == nil || !ok {
+		return App(Name(AscribeName), args[0], v), true, nil
+	}
+	at := map[string]int{}
+	for i, l := range have {
+		at[l] = i
+	}
+	want := map[string]bool{}
+	kids := []*Term{Name(RecName), Str(strings.Join(labels, " "))}
+	for i, l := range labels {
+		want[l] = true
+		j, ok := at[l]
+		if !ok {
+			return nil, true, fmt.Errorf("a value of %s gives no %s (data.md §4.2, X2): a record is total on its "+
+				"labels; a default is `zero(T) with { … }`", ShowSet(args[0].Str), Spell(l))
+		}
+		// a range's claim is an obligation, decided where it is written; a
+		// record splits again; any other set stays its typing claim
+		if _, _, isRange := IntRangeBig(types[i]); isRange && !PlantRecordClaimUnmarked {
+			kids = append(kids, &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(ClaimDef), Str(l), Str(types[i]), v.Kids[2+j]}})
+			continue
+		}
+		kids = append(kids, App(Name(AscribeName), Str(types[i]), v.Kids[2+j]))
+	}
+	for _, l := range have {
+		if !want[l] {
+			return nil, true, fmt.Errorf("a value of %s gives %s, which is not among its labels (data.md §4.2, X3)",
+				ShowSet(args[0].Str), Spell(l))
+		}
+	}
+	t, err := normalize(&Term{Kind: KApp, Kids: kids}, e, fuel)
+	return t, true, err
+}
+
+// PlantClaimHidesRecord leaves a claim on a record unsplit, as before
+// book-2026-11-20: `p ∈ Point = record { … }` then `p.x` is refused again
+// (TestAClaimOnARecordKeepsItsLabels).
+var PlantClaimHidesRecord bool
+
+// PlantRecordClaimUnmarked leaves a record claim's ranged components as typing
+// claims, as an internal ascription: `p ∈ Pen = record { ink : 300, … }` with
+// ink ∈ 0..255 compiled and printed 300 (TestAClaimOnARecordKeepsItsLabels).
+var PlantRecordClaimUnmarked bool
+
 // PlantRecordRequireDropped splits a record's obligation into none: the fault
 // a record parameter's contract must be seen to refuse.
 var PlantRecordRequireDropped bool

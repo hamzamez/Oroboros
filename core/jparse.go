@@ -45,6 +45,10 @@ type parser struct {
 	// eliminability: a definitional extension is conservative), so a header
 	// names its own set and the checker sees the set it denotes (ADR 0084).
 	setDefs map[string]Expr
+	// defining is the set a `set Head = S` is defining, and selfRef whether
+	// S mentioned it: a recursive type (data.md §1)
+	defining string
+	selfRef  bool
 	// resultHoles name a host template's destinations by its result binders,
 	// for a group result: `${n}` is %r0 when n is the first (jreadtarget.go).
 	resultHoles map[string]string
@@ -363,7 +367,8 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 		// used. Defined before its uses, as TLA+'s are, so the unfolding is the
 		// order the module is read in.
 		p.next()
-		jn := p.next().text
+		jtok := p.next()
+		jn := jtok.text
 		p.next()
 		if pub || export {
 			return nil, nil, p.errorf("set %s is a definition unfolded where its module uses it; naming "+
@@ -376,7 +381,18 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+		p.defining, p.selfRef = jn, false
 		s := p.set(e)
+		p.defining = ""
+		// A SET MAY NOT MENTION ITSELF, as a variant may not (type-algebra.md
+		// §3.1): `set Node = record { next ∈ Node }` is μ, which the well-founded
+		// order of definitions refuses. Unrefused, it was accepted unused and
+		// refused at its first use as a name that is no set (book-2026-11-20).
+		if p.selfRef && !PlantSelfSetAccepted {
+			return nil, nil, fmt.Errorf("line %d: set %s mentions %s itself, so the set contains itself. That "+
+				"is a recursive type, which is refused; recursive data is a flat table plus indices "+
+				"(type-algebra.md §3.1)", jtok.line, jn, jn)
+		}
 		if err := p.nestedSep(s, true); err != nil {
 			return nil, nil, err
 		}
@@ -729,6 +745,9 @@ func (p *parser) toSet(e Expr, mode string) Expr {
 func (p *parser) set(e Expr) Expr {
 	switch e := e.(type) {
 	case *Var:
+		if p.defining != "" && e.Name == p.defining {
+			p.selfRef = true
+		}
 		if e.Name == NatSet {
 			// ℕ, TLA+'s Nat, is ↑0 by definition: `0..`, the core's (int 0 +inf).
 			// A set names no representation (ADR 0079), so this is ℕ and only ℕ.
@@ -2560,3 +2579,7 @@ func containsString(xs []string, x string) bool {
 	}
 	return false
 }
+
+// PlantSelfSetAccepted reads a set that mentions itself, as before: chapter
+// 11's no-self.oro compiles again (TestASetMayNotMentionItself).
+var PlantSelfSetAccepted bool

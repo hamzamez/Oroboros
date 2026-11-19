@@ -1,0 +1,5 @@
+use io
+export fn main() {
+    p = record { x : 2, y ∈ Int }
+    io.print_int(p.x)
+}

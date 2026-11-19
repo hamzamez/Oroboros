@@ -174,7 +174,7 @@ func main() {
 		case "run":
 			var exe string
 			switch args[0] {
-			case "go", "windows":
+			case "go", "windows", "windows32":
 				exe = filepath.Join(tmp, "prog.exe")
 			case "js":
 				exe = filepath.Join(tmp, "prog.mjs")

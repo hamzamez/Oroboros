@@ -1,0 +1,18 @@
+use io
+
+set Rect = record { width ∈ Int, height ∈ Int }
+set Shape = 'circle(Int) ∪ 'rect(Rect) ∪ 'point
+
+fn area(s) {
+    case s {
+        'circle(r) -> 3 * r * r
+        'rect(b) -> b.width * b.height
+        'point -> 0
+    }
+}
+
+export fn main() {
+    io.print_int(area('rect(record { width : 3, height : 4 })))
+    io.print_int(area('circle(2)))
+    io.print_int(area('point))
+}

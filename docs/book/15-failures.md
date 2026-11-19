@@ -1,4 +1,4 @@
-# 14. Failures
+# 15. Failures
 
 Every function so far has done what it was asked. Give `half` an even number and it halves
 it. But ask for half of 7, or for the contents of a file that is not there, or for the
@@ -26,11 +26,11 @@ unheard error, why "it cannot fail" should be written down as a sentence in the 
 what a file system can say besides yes.
 
 The examples are in [code/fail/](code/fail/). `go run docs/book/check.go
-docs/book/14-failures.md` re-runs every block. Checked 2026-11-16.
+docs/book/15-failures.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 14.1 Three answers that do not work
+## 15.1 Three answers that do not work
 
 **Return a special number.** C's `getchar` returns −1 at the end of input; `indexOf` returns
 −1 for "not found". Chapter 10 met this: the special number is also an ordinary number, and
@@ -60,7 +60,7 @@ find out by reading the manual, or by an outage.
 
 ---
 
-## 14.2 A failure is a value
+## 15.2 A failure is a value
 
 Chapter 10 already has the right tool. "An answer, or a reason there is none" is a variant
 with two cases.
@@ -96,7 +96,7 @@ pub set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok relevant
 
 a variant with two cases and two parameters: **`'ok(T)`** carries an answer of kind `T`, and
 **`'err(E)`** carries a description of the failure, of kind `E`. (The two words after the
-cases, `success` and `relevant`, are what this chapter is about. They come in 14.3 and 14.5.)
+cases, `success` and `relevant`, are what this chapter is about. They come in 15.3 and 15.5.)
 Since it lives in another module, its tags are written `result.'ok` and `result.'err`
 (chapter 10).
 
@@ -115,7 +115,7 @@ know which of several things went wrong, use the second.
 
 ---
 
-## 14.3 Passing a failure on: `try`
+## 15.3 Passing a failure on: `try`
 
 One step that can fail is easy. Real work is several in a row, each needing the one before:
 open the file, *then* read it, *then* parse what was read. If any step fails, the whole
@@ -301,7 +301,7 @@ The result exists only at the export's edge, as chapter 10's tag and slots: 0 or
 
 ---
 
-## 14.4 A step that needs an earlier answer
+## 15.4 A step that needs an earlier answer
 
 In `eighth` each step used the answer of the one just before. Often a later step needs
 answers from *two* earlier ones: half of `a` plus half of `b`. Put one `try` inside the
@@ -399,7 +399,7 @@ fail, and the reader should be able to see the whole sequence at a glance.
 
 ---
 
-## 14.5 A result must be used
+## 15.5 A result must be used
 
 Failure-as-a-value has one weakness that exceptions do not: a value can be thrown away. Call
 a function that can fail, ignore what it returns, and you have C's `errno` again. This is
@@ -521,7 +521,7 @@ not be dropped has a name, relevance logic, and that is where the word is from.
 
 ---
 
-## 14.6 Giving up on purpose: `expect`
+## 15.6 Giving up on purpose: `expect`
 
 Some failures are part of the job. The user typed a file name that does not exist: tell them
 and carry on. Others mean the program itself is wrong. The configuration this program wrote
@@ -619,7 +619,7 @@ values it knows are wrong, is how small faults become large ones.
 
 ---
 
-## 14.7 Failure in a loop
+## 15.7 Failure in a loop
 
 A `try` may be the last thing in a loop's arm, with `again` inside its block. If the step
 succeeds the loop goes round. If it fails, the failure is the loop's answer, and the loop is
@@ -665,13 +665,13 @@ Half of each of 2, 4 and 6, added up: 6. In the second table the 5 stops everyth
 6 after it is never looked at. That is "do this to every item, and stop at the first one
 that cannot be done", which is what processing a file line by line is.
 
-Chapter 11 said `again` may stand only at the end of an arm. The block of a `try` counts,
+Chapter 12 said `again` may stand only at the end of an arm. The block of a `try` counts,
 because it runs once, at once, and nothing happens after it. So the loop's arms are still
 its complete list of ways round, and the `try` adds one way out.
 
 ---
 
-## 14.8 The world can say no
+## 15.8 The world can say no
 
 So far the failures were invented. Here is a real one. Reading a file can fail in ways no
 program can prevent, and the library function says so in what it returns:
@@ -710,7 +710,7 @@ export fn main() {
 -1
 ```
 
-**`os.ReadFile(path)`** gives a result: `'ok` carrying the file's bytes (chapter 12's
+**`os.ReadFile(path)`** gives a result: `'ok` carrying the file's bytes (chapter 13's
 `Array(0..255)`), or `'err` carrying the reason. `size` uses `try` to turn the bytes into
 their count and let any failure through. `hello.txt` holds the twelve bytes of `hello, file`
 and a line end. The other file does not exist.
@@ -805,7 +805,7 @@ worked has nothing to report.)
 
 ---
 
-## 14.9 Failures of your own
+## 15.9 Failures of your own
 
 `Result` is a library declaration, not a built-in. Any variant can say which case is its
 success and that it must not be dropped:
@@ -903,7 +903,7 @@ problem needed.
 
 ---
 
-## 14.10 What other languages do
+## 15.10 What other languages do
 
 | | a failure is | passing it on | can it be silently dropped? | giving up |
 |---|---|---|---|---|
@@ -956,4 +956,4 @@ passes it on with one word.
 - **It costs nothing inside a program**: the variants dissolve and the early exits are plain
   returns.
 
-Next: [chapter 15](15-claims.md), Claims. How the compiler proves what a header says.
+Next: [chapter 16](16-claims.md), Claims. How the compiler proves what a header says.

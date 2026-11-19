@@ -1,4 +1,4 @@
-# 17. A whole program
+# 19. A whole program
 
 Sixteen chapters, each about one idea, each with examples of five or ten lines. A reader
 could finish them knowing every construct and still not know what a *program* looks like:
@@ -21,11 +21,11 @@ and prints the subtotal, the sales tax and the total:
 It is 74 lines. It reads a file that may not exist, treats text that may be malformed, does
 exact arithmetic on money, and runs unchanged on four targets. It is adapted from
 `examples/num/ledger.oro` in this repository, and it is in [code/whole/](code/whole/). `go
-run docs/book/check.go docs/book/17-whole.md` re-runs every block. Checked 2026-11-16.
+run docs/book/check.go docs/book/19-whole.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 17.1 Running it
+## 19.1 Running it
 
 Before reading it, watch it work. The program is a module, `ledger`, with one public
 function, and a three-line entry program names the file:
@@ -73,7 +73,7 @@ Windows executable with no runtime under it. Now the source.
 
 ---
 
-## 17.2 The header
+## 19.2 The header
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -96,16 +96,16 @@ Chapter 8 said that choice belongs in the program text. It belongs in the first 
 
 **Four `use` lines** (chapter 3). Not one of them is the language. `io` prints, `os` reads
 files, `num` writes a number as text, `result` is the variant a fallible function returns.
-Chapter 16 showed what each is underneath: a folder with a file per target. This program
+Chapter 17 showed what each is underneath: a folder with a file per target. This program
 never says which target, and that is why it runs on four.
 
 **`cap_in = 2^16`** is a constant (chapter 2): a name for a number, computed while
-compiling. It is the largest file the program accepts, 65536 bytes, and 17.6 shows what
+compiling. It is the largest file the program accepts, 65536 bytes, and 19.6 shows what
 depends on it.
 
 ---
 
-## 17.3 Two small functions
+## 19.3 Two small functions
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -123,7 +123,7 @@ fn price(digits ∈ 0..10^7, places ∈ 0..2) {
 ```
 
 **`digit?`** asks whether a byte is one of the characters `0` to `9`. Chapter 9: those are
-numbers 48 to 57 in ASCII, in order. The file is read as bytes (chapter 12), so the question
+numbers 48 to 57 in ASCII, in order. The file is read as bytes (chapter 13), so the question
 is a comparison of numbers. A `?` may end a name, and here it marks a function that answers
 yes or no.
 
@@ -135,8 +135,8 @@ Three things are packed into those six lines.
 
 - **`0.01` is one hundredth, exactly** (chapter 8). `digits * 0.01` is an exact decimal. No
   double is anywhere in this program.
-- **The header's sets are claims** (chapters 6 and 15). `digits ∈ 0..10^7` and `places ∈
-  0..2` are obligations on whoever calls `price`. The loop must prove them, and 17.5 shows
+- **The header's sets are claims** (chapters 6 and 16). `digits ∈ 0..10^7` and `places ∈
+  0..2` are obligations on whoever calls `price`. The loop must prove them, and 19.5 shows
   how.
 - **The three arms give three different scales**: hundredths, tenths, units. The compiler
   holds a decimal as an integer numerator at a scale known while compiling (chapter 8), so
@@ -148,7 +148,7 @@ Neither function exists when the program runs. Both are unfolded where they are 
 
 ---
 
-## 17.4 The report
+## 19.4 The report
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -170,7 +170,7 @@ one expression.
   two places. *Within what*: 0 to 10¹⁰. *Which way*: `'half_away`, a half-cent goes up. That
   mode is the tax authority's choice. The default, ties to even, would be the statistician's.
 - The rounding **must land in its set**, an obligation. It is proven from a bound on `sum`
-  that the loop maintains, and 17.6 removes that bound to show the refusal.
+  that the loop maintains, and 19.6 removes that bound to show the refusal.
 
 Then three lines of output. `num.decimal(sum, 2)` is the number as text with two places,
 `++` joins text (chapter 9), and `io.print_line` is the effect (chapter 5). The three prints
@@ -181,7 +181,7 @@ In a program that used doubles they would add up most of the time.
 
 ---
 
-## 17.5 The loop
+## 19.5 The loop
 
 This is the heart: thirty-six lines that turn bytes into a sum.
 
@@ -197,7 +197,7 @@ fn ledger(src) {
     var bad := false
 ```
 
-**Seven cells** (chapter 13). Together they are everything the program remembers while it
+**Seven cells** (chapter 14). Together they are everything the program remembers while it
 reads:
 
 | cell | what it holds |
@@ -210,7 +210,7 @@ reads:
 | `sum` | the subtotal of all finished lines: a decimal |
 | `bad` | whether any line was malformed |
 
-Chapter 13 said a cell is a notation for a loop variable, and that cells are the better
+Chapter 14 said a cell is a notation for a loop variable, and that cells are the better
 spelling when a value changes on some trips and not others. This loop is that case exactly.
 On a typical trip one or two of the seven change. Written with `again(…)` carrying all
 seven, every arm would list seven values, six of them unchanged.
@@ -223,7 +223,7 @@ seven, every arm would list seven values, six of them unchanged.
             b = if i < len(src) { src[i] } else { 10 }
 ```
 
-**One loop variable, `i`**, the position in the file (chapter 11), and two arms.
+**One loop variable, `i`**, the position in the file (chapter 12), and two arms.
 
 The first arm is the exit. Note `i > len(src)`, not `>=`: the loop takes one trip *past* the
 end. The line below explains why. At the position one past the last byte, `b` is 10, the
@@ -231,7 +231,7 @@ newline character. Many files do not end with a newline, and a last line with no
 never be finished. Pretending there is one more newline closes it, and costs nothing when
 the file already had one.
 
-That line is also the proof that `src[i]` is a position (chapter 12). The guard `i <
+That line is also the proof that `src[i]` is a position (chapter 13). The guard `i <
 len(src)` is right there, and `i` started at 0 and only goes up. Nothing else in the program
 reads `src`.
 
@@ -260,8 +260,8 @@ the line is over.
 - If a price was begun and no quantity followed, the line is malformed.
 - Then five cells go back to their starting values, ready for the next line.
 
-The `&& sum < 10^10` is a guard of the kind chapter 11 described: a bound stated where the
-compiler can lean on it. 17.6 returns to it.
+The `&& sum < 10^10` is a guard of the kind chapter 12 described: a bound stated where the
+compiler can lean on it. 19.6 returns to it.
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -317,14 +317,14 @@ before, it is below 1000 after, which bounds the product.
 
 They also do a second job. A price with too many digits, or a quantity over 999, fails its
 guard, falls through to `else`, and the line is reported as bad. So **the limit the proof
-needs and the limit the user is told about are the same test.** That is chapter 11's lesson
+needs and the limit the user is told about are the same test.** That is chapter 12's lesson
 in its best form. A program that reads numbers from a file has to have *some* largest number
 it accepts. Here the compiler made the author pick one, write it down, and say what happens
 past it.
 
 ---
 
-## 17.6 The world
+## 19.6 The world
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -338,7 +338,7 @@ pub fn run(path) {
 
 The last function, and the only `pub` one (chapter 3): the module's whole interface.
 
-`os.ReadFile(path)` returns a result (chapter 14), and the `case` answers for both tags.
+`os.ReadFile(path)` returns a result (chapter 15), and the `case` answers for both tags.
 There is no way to reach `src` except through the `'ok` arm, so there is no way to forget
 that the file might not be there.
 
@@ -385,7 +385,7 @@ job.
 
 ---
 
-## 17.7 Taking the guards out
+## 19.7 Taking the guards out
 
 The claim of this book is that those guards are not decoration. The way to check a claim
 like that is to remove one and see what happens. Each program below is the ledger with one
@@ -408,7 +408,7 @@ Chapter 10: a `case` answers for every tag.
 gen: whole-main: #nl15[i] is an indexing, and i < len(#nl15) does not follow
 ```
 
-Chapter 12. The loop runs while `i <= len(src)`, and at `i == len(src)` there is no byte.
+Chapter 13. The loop runs while `i <= len(src)`, and at `i == len(src)` there is no byte.
 (`#nl15` is the compiler's own name for `src`, after the function was unfolded into `main`.
 In a small example a message names your variable. In a whole program it sometimes names its
 own, which is a wart.)
@@ -456,12 +456,12 @@ bugs is found by a user.
 One honest note about the messages. Remove `digits < 10^6` and the refusal comes from far
 away, inside the library function that prints the result, which is the first place the
 too-large number gets somewhere it does not fit. The compiler tells you where the proof
-broke, and that is not always where the cause is. Chapter 15's advice applies: state what
+broke, and that is not always where the cause is. Chapter 16's advice applies: state what
 you believe near where you believe it, and the refusal moves there.
 
 ---
 
-## 17.8 What came out
+## 19.8 What came out
 
 <!-- gen go docs/book/code/whole/purchases.oro -->
 ```go
@@ -510,7 +510,7 @@ said.
 
 ---
 
-## 17.9 What the program is made of
+## 19.9 What the program is made of
 
 Count the 74 lines by what they are for.
 
@@ -531,7 +531,7 @@ Almost none are about proof alone. There is no annotation here that exists only 
 the compiler: no invariant, no assertion, no cast. What there is instead are five small
 tests (`digits < 10^6`, `places < 2`, `qty < 100`, `sum < 10^10`, `len(src) >= cap_in`), and
 each is also a statement of what input the program accepts. The sets on `price`'s header
-are two more. That is the whole cost of every guarantee in 17.7.
+are two more. That is the whole cost of every guarantee in 19.7.
 
 It is worth saying what those guarantees are, for this one program, as a list:
 
@@ -546,7 +546,7 @@ every file that could ever be given to it.
 
 ---
 
-## 17.10 Where to go from here
+## 19.10 Where to go from here
 
 This book has taught what is decided and built. The repository holds a good deal more.
 
@@ -566,12 +566,13 @@ rejected. If something in this language seemed strange to you (no recursion, no 
 length, a guard where you wanted an assertion), the reason is written down there, and so is
 the argument against it.
 
-**What is not built.** Records, callbacks, concurrency, text you can take apart. Each is specified or researched and waiting for a program that
-needs it. This book's own [README](README.md) lists, by number, every place where writing a
+**What is not built.** Callbacks a host calls during a call, concurrency, text you can take
+apart, a variant that carries a record. Each is specified or researched and waiting for a program
+that needs it. This book's own [README](README.md) lists, by number, every place where writing a
 chapter found the compiler doing something other than what the specification says. It is a
 long list. A language whose book is checked against its compiler has one.
 
-The idea under all seventeen chapters is small enough to say in a breath. *Write what you
+The idea under all nineteen chapters is small enough to say in a breath. *Write what you
 mean: an integer, a set, a table, a failure. Let the compiler turn it into what the host
 already does well. And have it prove, before the program exists, that the two agree.*
 

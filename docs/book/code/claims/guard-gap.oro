@@ -1,0 +1,1 @@
+export fn gap(a ∈ 0..100, b ∈ 0..100) (0..100) { if a <= b { b - a } else { a - b } }

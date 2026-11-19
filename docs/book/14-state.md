@@ -1,13 +1,13 @@
-# 13. State
+# 14. State
 
 For twelve chapters nothing has changed. A name is bound once. A string is never altered. A
-table is what it was when it was made. Chapter 11 got repetition without change, by binding
+table is what it was when it was made. Chapter 12 got repetition without change, by binding
 the loop's names afresh each time round.
 
 That discipline bought a great deal: any part of a program can hold any value and be sure of
 it. But some programs are naturally told as a sequence of changes. "Start the count at zero;
 for each word, add one." "Make a row of a thousand zeros; for each number that arrives, mark
-its slot." Chapter 12's rule fills a table by saying what each position *is*. It cannot say
+its slot." Chapter 13's rule fills a table by saying what each position *is*. It cannot say
 "for each input, go and change position such-and-such", and a great many algorithms are
 that.
 
@@ -29,11 +29,11 @@ has two names for one thing, a way of finding primes that is twenty-two centurie
 what a compiler really does with your variables.
 
 The examples are in [code/state/](code/state/). `go run docs/book/check.go
-docs/book/13-state.md` re-runs every block. Checked 2026-11-16.
+docs/book/14-state.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 13.1 A name that can be written again
+## 14.1 A name that can be written again
 
 <!-- file docs/book/code/state/cell.oro -->
 ```go
@@ -101,7 +101,7 @@ gen: state-f: `:=` writes a `var`, and the place written here, 1, is none: a nam
 
 ---
 
-## 13.2 What a cell really is
+## 14.2 What a cell really is
 
 Here is the surprise. A cell does not add anything to the language. It is a way of
 *writing*, and what it stands for is something you already have.
@@ -157,7 +157,7 @@ later `x := n` gave `x` a new value and could not reach back and alter `y`: the 
 `1 + n`. A value you have taken stays the value you took. That is the guarantee of the first
 twelve chapters, and cells do not weaken it.
 
-A cell written inside a loop becomes one of the loop's variables. Chapter 11's sum, written
+A cell written inside a loop becomes one of the loop's variables. Chapter 12's sum, written
 with a cell:
 
 <!-- file docs/book/code/state/sum.oro -->
@@ -189,7 +189,7 @@ func StateSumTo(v0 int) int {
 }
 ```
 
-The same Go as chapter 11's `loop i = 1, s = 0 { … again(i + 1, s + i) … }`. The two
+The same Go as chapter 12's `loop i = 1, s = 0 { … again(i + 1, s + i) … }`. The two
 spellings are one program. Use whichever reads better: a second loop variable when a value
 changes on every trip, a cell when it changes on some trips and not others.
 
@@ -237,9 +237,40 @@ it does anything else. It is called *static single assignment*, and it was inven
 1988) because code in which each name has one value is so much easier to reason about. Here
 it is not an internal trick. It is what the notation means.
 
+### A record in a cell
+
+A cell may hold a record, and then each part can be written on its own:
+
+<!-- file docs/book/code/state/pen.oro -->
+```go
+use io
+
+set Point = record { x ∈ -100..100, y ∈ -100..100 }
+
+export fn main() {
+    var p := zero(Point)
+    p.x := 3
+    p.y := p.x * 2
+    p.x := p.x - 5
+    io.print_int(p.x)
+    io.print_int(p.y)
+}
+```
+
+<!-- run go docs/book/code/state/pen.oro -->
+```
+-2
+6
+```
+
+`p.x := 3` is chapter 11's `with`, done in program order: it means `p := p with { x : 3 }`, and
+`p.y := p.x * 2` reads the `x` just written. Nothing is changed that anyone else could see,
+because only `p`'s own block can name `p`. Every value here is known, so the compiler computed
+the program: `main` prints −2 and 6.
+
 ---
 
-## 13.3 Building a table in place
+## 14.3 Building a table in place
 
 A cell holds a number or a string. When a `var` is given a table, it becomes something
 stronger: a **buffer**, which can be written one position at a time.
@@ -276,7 +307,7 @@ func StateSquares(v0 int) []int {
 }
 ```
 
-- **`var b := array { 0 : _ ∈ 0..n-1 }`** makes a buffer of `n` zeros. It is chapter 12's
+- **`var b := array { 0 : _ ∈ 0..n-1 }`** makes a buffer of `n` zeros. It is chapter 13's
   rule, "the value at every position is 0". The `_` is a name you write when you do not need
   the name: the rule does not depend on the position.
 - **`b[i] := i * i`** is a **store**: put this value at position `i`.
@@ -346,7 +377,7 @@ proven a digit.
 
 ### A store's position must be inside, too
 
-Chapter 12's rule for reading, "`t[i]` only where `i` is proven a position", is the rule for
+Chapter 13's rule for reading, "`t[i]` only where `i` is proven a position", is the rule for
 writing as well, with more at stake: reading past the end leaks a secret, and writing past
 the end corrupts whatever is there.
 
@@ -382,7 +413,7 @@ under a test that puts its position inside.
 
 ---
 
-## 13.4 Freezing
+## 14.4 Freezing
 
 A buffer lives in a **scope**: the block of braces in which its `var` was declared. When the
 scope ends and the buffer is given as its value, the buffer becomes a table. It is **frozen**.
@@ -498,7 +529,7 @@ The order is fixed, and there is no way back.
 
 ---
 
-## 13.5 One name only
+## 14.5 One name only
 
 Why exactly one name? Here is the program the rule forbids:
 
@@ -530,7 +561,7 @@ either being wrong on its own:
 ```
 
 Two names for one changeable thing is called **aliasing**. Every "who changed my list?" bug
-is this. Section 13.2 said `y = x` takes a value that then stays put, and that has to hold
+is this. Section 14.2 said `y = x` takes a value that then stays put, and that has to hold
 for tables as well. With a number it is free: the number is copied. With a million-element
 buffer there are only three choices. Copy it (slow, and silently so). Let the two names share
 it (the bug above). Or refuse the second name while writing is possible. This language takes
@@ -572,7 +603,7 @@ call sees the buffer as it is at that moment: 5, then 5 + 6, then 0 + 6.
 
 ---
 
-## 13.6 Lending a buffer
+## 14.6 Lending a buffer
 
 A function that only reads a buffer takes it like any table. A function that *writes* one
 has to say so in its header:
@@ -636,7 +667,7 @@ bottom. Everything below `i` is already in order when `sink` starts, so one valu
 into place keeps it in order.
 
 The swap is three lines and a name, `tmp`. `tmp = b[j]` takes the *value* at `j`, a number,
-which stays what it was when `b[j]` is overwritten on the next line: 13.2 again.
+which stays what it was when `b[j]` is overwritten on the next line: 14.2 again.
 
 `sink`'s first arm is its guard and its proof: below it `0 < j` and `j < len(b)`, so both
 `b[j]` and `b[j - 1]` are positions.
@@ -658,7 +689,7 @@ export fn both(n ∈ 0..100) (Int) {
 gen: docs/book/code/state/no-twice.oro: both: R2: the buffer b is handed to one call twice (a call borrows a buffer once; spec/local.md §2.1, ADR 0052): mix(b, b)
 ```
 
-Inside `mix`, `a` and `c` would be two names for one buffer: 13.5's alias, arriving through
+Inside `mix`, `a` and `c` would be two names for one buffer: 14.5's alias, arriving through
 the parameter list.
 
 <!-- run js docs/book/code/state/sort.oro -->
@@ -687,11 +718,79 @@ sorted
 sorted
 ```
 
+### A cell lent: `inout`
+
+A buffer is lent with `linear`. A cell is lent with `inout`: the function may read it and write
+it, and the caller sees what was written.
+
+<!-- file docs/book/code/state/bump.oro -->
+```go
+use io
+
+fn bump(c ∈ 0..1000 inout, by ∈ 0..10) { c := c + by }
+
+export fn main() {
+    var n := 7
+    bump(n, 3)
+    bump(n, 3)
+    io.print_int(n)
+}
+```
+
+<!-- run go docs/book/code/state/bump.oro -->
+```
+13
+```
+
+`c ∈ 0..1000 inout` is a claim about the cell's value, as `∈` always is, and `inout` says how it
+is passed: in, and back out. It is a *mode*, a word about the relation between `c` and the caller's
+`n`, and not a set: there is no set of cells, only of values. Each call is a value in and a value
+out, so `bump(n, 3)` is `n := n + 3`, and after two calls `n` is 13.
+
+### At the program's edge
+
+An exported function that writes a buffer its caller lends says so in its result, with the name
+primed:
+
+<!-- file docs/book/code/state/handback.oro -->
+```go
+export fn squares(dst ∈ Array(0..10000) linear) (dst' ∈ Array(0..10000) linear) where len(dst) <= 100 {
+    loop i = 0 {
+        i < len(dst) -> { dst[i] := i * i; again(i + 1) }
+        else -> ()
+    }
+}
+```
+
+<!-- gen go docs/book/code/state/handback.oro -->
+```go
+func StateSquares(v0 []uint16) []uint16 {
+    v6 := v0
+    var v7 int = 0
+    for ; ; v7 = (v7 + 1) {
+        v8 := len(v6)
+        v9 := (v7 < v8)
+        if v9 {
+            v12 := (v7 * v7)
+            v6[v7] = uint16(v12)
+            continue
+        }
+        break
+    }
+    return v6
+}
+```
+
+`dst'` is read "dst after": the same buffer, handed back written. Go receives its own slice and
+gets it back, written in place, with no copy. (`uint16`: every element is proven at most 10000,
+so Go stores two bytes each.) Inside a program the handing back goes without saying, as `sort`
+showed; at an export the caller is a host, and the header is what it reads.
+
 ---
 
-## 13.7 The sieve
+## 14.7 The sieve
 
-Chapter 11 tested one number for primality by trial division. To find *all* the primes up to
+Chapter 12 tested one number for primality by trial division. To find *all* the primes up to
 a limit there is a far better way, published by Eratosthenes of Cyrene around 240 BC, and it
 is the classic scatter.
 
@@ -757,7 +856,7 @@ writes positions 49, 56, 63, …, scattered across the table.
 
 ---
 
-## 13.8 A buffer and a count
+## 14.8 A buffer and a count
 
 Often you do not know in advance how many values you will produce. Make the buffer as big as
 it could need to be, and keep a cell saying how much of it is used:
@@ -805,7 +904,7 @@ until there is none". Neither is wrong. This one makes you write the limit down.
 
 ---
 
-## 13.9 Maps
+## 14.9 Maps
 
 A table's positions are 0, 1, 2, … in a row. Often the thing you want to look up *by* is not
 like that: a customer number, an error code, a year. A **map** is a table whose positions,
@@ -858,7 +957,7 @@ among them. So `m[k]` does not give a value. It gives chapter 10's "something or
 **`'some(v)`** if the key is there, **`'none`** if it is not. You cannot use the answer
 without a `case`, and the `case` must say what to do about `'none`. `look` says "−1".
 
-Chapter 12 called a table a function on its positions. A map is a function on its keys, and
+Chapter 13 called a table a function on its positions. A map is a function on its keys, and
 each kind of function pays for "is this argument allowed?" in its own way:
 
 | | defined on | how you know the argument is allowed |
@@ -910,7 +1009,7 @@ is the same "something or nothing" with the flag carried beside the value. JavaS
 nothing of the kind: a missing key gives `undefined`, and the compiler turns that into the
 flag.
 
-A map is filled the way 13.3's histogram was, and it removes the histogram's restriction to
+A map is filled the way 14.3's histogram was, and it removes the histogram's restriction to
 digits. Count how often each value occurs, whatever the values are:
 
 <!-- file docs/book/code/state/tally.oro -->
@@ -961,7 +1060,7 @@ end
 
 Seven different values, 5 seen three times, 7 never. `look(m, t[i])` reads the count so far
 (0 if the key is new), and the store writes it back one higher. The `if` around `c + 1` is
-chapter 11's stated bound: a value that comes out of a map could be anything, so the program
+chapter 12's stated bound: a value that comes out of a map could be anything, so the program
 says how high a count may go before it stops counting.
 
 **`keys(m)`** is a table of the map's keys, **in ascending order**. That is a decision worth
@@ -1117,6 +1216,48 @@ discovered in production.
 `tally` above needed neither a header nor a test, because it is called on a table written
 out in the program, eleven values long, and the compiler can count to eleven.
 
+A map's values may be records, read with chapter 11's dot after the `case` has found one:
+
+<!-- file docs/book/code/state/mapped.oro -->
+```go
+use io
+
+set Stock = record { count ∈ 0..1000, price ∈ 0..100 }
+
+fn value(m, k) { case m[k] { 'some(s) -> s.count * s.price; 'none -> -1 } }
+
+export fn main() {
+    m = {
+        var m := map(4)
+        m[7] := record { count : 3, price : 20 }
+        m[9] := record { count : 10, price : 5 }
+        m[7] := record { count : 4, price : 20 }
+        m
+    }
+    io.print_int(value(m, 7))
+    io.print_int(value(m, 9))
+    io.print_int(value(m, 8))
+}
+```
+
+<!-- run go docs/book/code/state/mapped.oro -->
+```
+80
+50
+-1
+```
+
+<!-- run windows docs/book/code/state/mapped.oro -->
+```
+80
+50
+-1
+```
+
+Item 7 was written twice, and the second record replaced the first: 4 at 20 is 80. Go keeps the
+records as `struct`s in its own `map`; Windows, which has no map of its own, keeps each record's
+two parts side by side in the slots of a table the program's own code manages.
+
 What maps do not do today, plainly:
 
 - **Keys are integers.** A map needs `==` on its keys, and chapter 9 said strings have none
@@ -1125,12 +1266,16 @@ What maps do not do today, plainly:
 
 ---
 
-## 13.10 What is not here
+## 14.10 What is not here
 
 - **A function does not capture a cell or a buffer.** A `fn` written inside a block cannot
-  write the block's `var`. State is passed: a buffer is lent with `linear`, and a cell's
-  value is given as an argument and its new value taken as a result.
-- **No growing.** A buffer's length is fixed where it is made (13.8). Appending to a table
+  write the block's `var`. State is passed: a buffer is lent with `linear`, and a cell with
+  `inout`. (One exception is built, for Windows: a window procedure, a function Windows calls
+  back with each message, keeps its state in a cell of the block around it. Chapter 18.)
+- **A map is read once it is built.** `m[k]` on a `var m` that is still being filled is
+  refused; build it in a block and read what the block gives back, as above. The refusal is in
+  the compiler's internal words today (the book's finding 100).
+- **No growing.** A buffer's length is fixed where it is made (14.8). Appending to a table
   that grows is not in the language.
 - **One loop fills a buffer, or functions are lent it.** Today a buffer written by a loop
   that answers `()` cannot be written again after that loop (README item 73). `sort` and
@@ -1146,7 +1291,7 @@ says `linear`.
 
 ---
 
-## 13.11 What other languages do
+## 14.11 What other languages do
 
 | | a changeable variable | two names for one changeable table | may a function alter its caller's table? | when does a table stop changing? |
 |---|---|---|---|---|
@@ -1159,11 +1304,11 @@ says `linear`.
 
 Rust is the nearest relative for the fourth chapter running. Its rule is "any number of
 readers, or exactly one writer, never both", checked by the *borrow checker*; `&mut` is this
-chapter's `linear`, and the thing it refuses is 13.5's alias. Rust tracks this for every
+chapter's `linear`, and the thing it refuses is 14.5's alias. Rust tracks this for every
 value through the whole program, with lifetimes. Here the rule is narrower and needs no
 annotations beyond the one word: a buffer has one name, in one scope, and then it is frozen.
 
-Clojure's transients are the closest match for 13.4: build in place under one owner, then
+Clojure's transients are the closest match for 14.4: build in place under one owner, then
 freeze, and the freeze is free.
 
 The idea that a buffer may be updated in place *because* nothing else can see it is from the
@@ -1199,4 +1344,4 @@ is the logic chapter 5 met: a thing that must be used exactly once.
 - **`map(c)` holds at most `c` keys, and each store is proven to have room**: from a bound on
   the input, or under `len(m) < c`.
 
-Next: [chapter 14](14-failures.md), Failures. What a function says when it cannot do what it was asked.
+Next: [chapter 15](15-failures.md), Failures. What a function says when it cannot do what it was asked.

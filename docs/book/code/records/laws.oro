@@ -1,0 +1,13 @@
+use io
+
+fn yes(b ∈ Bool) { if b { "yes" } else { "no" } }
+
+export fn main() {
+    r = record { x : 1, y : 2 }
+    io.print_line(yes((r with { x : 5 }).x == 5))
+    io.print_line(yes((r with { x : 5 }).y == r.y))
+    s = r with { x : r.x }
+    io.print_line(yes(s.x == r.x && s.y == r.y))
+    t = (r with { x : 5 }) with { x : 9 }
+    io.print_line(yes(t.x == 9 && t.y == 2))
+}

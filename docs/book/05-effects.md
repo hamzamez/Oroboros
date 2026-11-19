@@ -859,13 +859,13 @@ with an effect in the bottom, and one word in a target's file says which.
 
 Three later chapters meet effects again, and each adds one thing:
 
-- **Repetition** ([chapter 11](README.md)). A function's body may run many times. An effect
+- **Repetition** ([chapter 12](README.md)). A function's body may run many times. An effect
   written outside a loop and used inside it must not be moved in, or one print becomes a
   thousand. It is §5.8's rule with a loop where the branch was.
-- **State** ([chapter 13](README.md)). Writing to storage is an effect, and so is reading storage
+- **State** ([chapter 14](README.md)). Writing to storage is an effect, and so is reading storage
   that may be written. It is an effect the language itself has, where all of this chapter's came
   from the host.
-- **Failures** ([chapter 14](README.md)). Giving up is an effect too: it is something an
+- **Failures** ([chapter 15](README.md)). Giving up is an effect too: it is something an
   expression does besides having a value.
 
 ---

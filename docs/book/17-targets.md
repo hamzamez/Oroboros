@@ -1,4 +1,4 @@
-# 16. Targets
+# 17. Targets
 
 One line has been in nearly every program since chapter 0, and it has never been explained:
 
@@ -25,14 +25,14 @@ The answer is three sentences.
 
 Along the way: the two hard problems of calling someone else's code, how one name gets four
 implementations, what happens when a declaration lies, and where the "word" of chapter 6
-and the `[]byte` of chapter 12 were actually decided.
+and the `[]byte` of chapter 13 were actually decided.
 
 The examples are in [code/hosts/](code/hosts/). `go run docs/book/check.go
-docs/book/16-targets.md` re-runs every block. Checked 2026-11-16.
+docs/book/17-targets.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 16.1 What `io.print_line` is
+## 17.1 What `io.print_line` is
 
 <!-- file docs/book/code/hosts/hello.oro -->
 ```go
@@ -104,7 +104,7 @@ meaning of chapter 1's "until only what the target provides is left".
 
 ---
 
-## 16.2 The anatomy of a declaration
+## 17.2 The anatomy of a declaration
 
 Go's own library is declared the same way, a file per package, under `targets/go/`. Three
 declarations from `go/strings`, which chapter 9 used:
@@ -138,7 +138,7 @@ marked, so it is taken to have an effect. The default is the safe one. A declara
 optimization.
 
 **The parameters' sets.** `count ∈ Int` with `where count >= 0`: Go's `strings.Repeat`
-panics on a negative count. Declared this way, that panic is chapter 15's obligation. Every
+panics on a negative count. Declared this way, that panic is chapter 16's obligation. Every
 call must prove `count >= 0`, and a program that could pass −1 does not compile.
 
 **The result's set.** `(-1..2^63-1)` for `Index`: Go's documentation says it returns −1 for
@@ -154,7 +154,7 @@ treats a call of it exactly as it treats a call of yours.
 
 ---
 
-## 16.3 Writing one
+## 17.3 Writing one
 
 Declarations are not reserved for the people who wrote the compiler. Go has a clock, and
 nothing in the library reaches it. Make a folder named for the module, and in it a file
@@ -253,7 +253,7 @@ is where that fact came from.
 
 ---
 
-## 16.4 One name, several hosts
+## 17.4 One name, several hosts
 
 The program above says `clock.year_of`. It does not say Go. Give JavaScript a file of its
 own:
@@ -325,7 +325,7 @@ right to object to a hand-written print routine in a language that has `fmt`.
 
 ---
 
-## 16.5 A declaration is believed
+## 17.5 A declaration is believed
 
 Here is the uncomfortable part. Nothing checks a declaration against the host. The compiler
 cannot read Go's source, or JavaScript's engine, or Windows. It takes your header as true.
@@ -409,7 +409,7 @@ one place, and be readable by a person. Here it is a set of headers, in the lang
 notation, in files you can open.
 
 This is why the project's host declarations are written by hand, by someone who read the
-host's source or documentation, with the evidence in a comment beside each (16.2's million
+host's source or documentation, with the evidence in a comment beside each (17.2's million
 inputs). A tool then compares each one with the host's actual signature and reports any
 that disagree. A declaration that claims less than the truth is safe and merely weak:
 `(Int)` where `(0..9)` would do loses you a proof and nothing else. A declaration that
@@ -417,7 +417,7 @@ claims more than the truth is how a wrong answer gets in. When in doubt, claim l
 
 ---
 
-## 16.6 What else a target says
+## 17.6 What else a target says
 
 Declarations of functions are most of a target. The rest is a short list of facts about the
 host, and several things earlier chapters stated as given were read from it.
@@ -435,7 +435,7 @@ set Map(K, V) = host "map[${K}]${V}"
 
 - **`repr -2^63..2^63-1 word`** is chapter 6's *word*: the range in which Go's native
   arithmetic is exact. Every "proven to fit the word" was a comparison against this line.
-- **`repr 0..255 host "byte"`** is why chapter 12's `Array(0..255)` came out as `[]byte` and
+- **`repr 0..255 host "byte"`** is why chapter 13's `Array(0..255)` came out as `[]byte` and
   `Array(0..1000)` as `[]uint16`: a list of the host's storage sizes, narrowest first, and
   the compiler takes the first that holds the element's set.
 - **`set Array(A) = host "[]${A}"`** is how a table is spelled on Go at all.
@@ -459,7 +459,7 @@ host is, in principle, a new directory of such files and a printer for its synta
 
 ---
 
-## 16.7 The four targets
+## 17.7 The four targets
 
 | target | the host | a program becomes |
 |---|---|---|
@@ -468,13 +468,31 @@ host is, in principle, a new directory of such files and a printer for its synta
 | `java` | the Java virtual machine: Android | Java source |
 | `windows` | Windows on x86-64, through LLVM | LLVM IR, then a native executable |
 
+Windows is a family, and each member is a file that glues the shared Win32 layer and states what
+it changes: `windows32` the 32-bit processor, and `windows-v3` the 64-bit one with its newer
+vector instructions named,
+
+<!-- part targets/windows-v3/windows-v3.oro -->
+```go
+glue windows
+…
+cpu "x86-64-v3"
+```
+
+one line, and a program built for it runs only on a machine that has them. On the integer dot
+product of [`examples/table/idot.oro`](../../examples/table/idot.oro) that buys 0.60–0.69× the
+time. Naming more of the machine makes a program faster and less portable, and the choice is
+the target's data, as everything in this section is. `windows` names none, and runs on any
+64-bit Windows.
+
 The first three are languages with large libraries of their own, and a program for them is
 mostly calls into what is already there. The fourth is different in kind. There is no
 runtime underneath and no library: the "host functions" are LLVM's instructions and the
 operating system's exported calls, and things such as printing an integer or joining two
 strings are written in this language on top of those. Chapter 9's string of bytes with its
-length in front, chapter 13's block of memory for a buffer: on Windows somebody had to
-decide those, and it is all in `targets/llvm/` and `targets/windows/`.
+length in front, chapter 14's block of memory for a buffer: on Windows somebody had to
+decide those, and it is all in `targets/llvm/`, `targets/win32/` and each member's directory.
+Calling the operating system from a program, as C does, is chapter 18.
 
 That the same source means the same thing on all four is the claim the whole design is
 built to keep. It is why an integer is an integer and not a machine word (chapter 6), why a
@@ -496,7 +514,7 @@ says which.
 
 ---
 
-## 16.8 What other languages do
+## 17.8 What other languages do
 
 Calling code written in another language is called a **foreign function interface**, and
 every language has to have one, because the operating system is foreign to all of them.
@@ -513,13 +531,13 @@ every language has to have one, because the operating system is foreign to all o
 
 Two of those rows are close relatives.
 
-TypeScript's declaration files are this chapter's 16.5. A `.d.ts` file states the types of
+TypeScript's declaration files are this chapter's 17.5. A `.d.ts` file states the types of
 a JavaScript library that was written without any, the compiler believes it, and a wrong
 one makes the type checker confidently wrong. The TypeScript community's answer is the
 same as this project's: write them carefully, keep them in one known place, and test them
 against the real library.
 
-Kotlin Multiplatform's `expect` and `actual` are 16.4: declare a name once, provide it
+Kotlin Multiplatform's `expect` and `actual` are 17.4: declare a name once, provide it
 per platform. The difference here is that the provided thing may be one line of host text,
 with no wrapper function left at run time. `io.print_line("hello")` on Go *is*
 `fmt.Println("hello")`, and nothing stands between them.
@@ -554,5 +572,8 @@ program, which hosts a given program is native to.
 - **A target also states** its word, its storage sizes and how it spells a table. Those are
   data files, not compiler code.
 - **Language names mean the same everywhere. A host's own names carry no such claim.**
+- **A target may name its machine**: `windows-v3` is `windows` with `cpu "x86-64-v3"`, faster
+  and runnable on fewer machines.
 
-Next: [chapter 17](17-whole.md), A whole program. One real program, read from its first line to its last.
+Next: [chapter 18](18-c.md), Calling C. The operating system's own functions, declared as C
+declares them.

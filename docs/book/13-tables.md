@@ -1,8 +1,8 @@
-# 12. Tables
+# 13. Tables
 
 A tuple holds a few values, and you know how many when you write the program. Real data comes
 in quantities nobody knows in advance: the bytes of a file, the lines of a report, a million
-measurements. Chapter 11 gave the way to *do* something many times. This chapter gives the
+measurements. Chapter 12 gave the way to *do* something many times. This chapter gives the
 thing to do it *to*.
 
 Every language has this, under the name array, list, slice or vector. And in most of them it
@@ -26,11 +26,11 @@ Along the way: why counting starts at zero, the bug that leaked the internet's p
 billion in thirty steps, and how to build lists and grids when there are no pointers.
 
 The examples are in [code/tables/](code/tables/). `go run docs/book/check.go
-docs/book/12-tables.md` re-runs every block. Checked 2026-11-16.
+docs/book/13-tables.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 12.1 Many values of one kind
+## 13.1 Many values of one kind
 
 <!-- file docs/book/code/tables/first.oro -->
 ```go
@@ -79,7 +79,7 @@ All the values of a table are of one kind: integers, or strings, or booleans. Th
 difference from a tuple, which has a fixed number of parts of any kinds. An empty table,
 `array { }`, has length 0 and no positions at all.
 
-A table is a value like any other. It never changes (chapter 13 is about the things that
+A table is a value like any other. It never changes (chapter 14 is about the things that
 do), so it can be passed around and shared freely.
 
 ### A table is a function
@@ -117,7 +117,7 @@ proven here, all while compiling:
 
 ---
 
-## 12.2 A position must be proven
+## 13.2 A position must be proven
 
 Ask for a position that is not there:
 
@@ -252,9 +252,9 @@ of a list that turned out to be empty.
 
 ---
 
-## 12.3 Walking a table
+## 13.3 Walking a table
 
-Chapter 11's loop, with a table in it:
+Chapter 12's loop, with a table in it:
 
 <!-- file docs/book/code/tables/total.oro -->
 ```go
@@ -319,7 +319,7 @@ includes the set of its elements, and `t[i]` is known to be in it. It also chose
 Go got `[]uint16`, two bytes per value. (You did not ask for 16 bits. You said what the
 values are, and the compiler picked the smallest thing that holds them, as in chapter 6.)
 
-**`where len(t) <= 10^6`** is chapter 11's lesson about sums. Leave it out:
+**`where len(t) <= 10^6`** is chapter 12's lesson about sums. Leave it out:
 
 <!-- file docs/book/code/tables/no-long.oro -->
 ```go
@@ -388,14 +388,14 @@ export function tablesBiggest(v0) {
 }
 ```
 
-In these the exit is the first arm, `i >= len(t)`. Chapter 11 said a guard's opposite is a
+In these the exit is the first arm, `i >= len(t)`. Chapter 12 said a guard's opposite is a
 fact in the arms below it: below that arm, `i < len(t)`, so `t[i]` is proven in both. The
 claim `(0..1000)` on `biggest` is proven too: `m` starts at 0 and is only ever replaced by an
 element, and elements are in 0..1000.
 
 ---
 
-## 12.4 A table by a rule
+## 13.4 A table by a rule
 
 Listing values is fine for twelve months. For the first thousand squares you want to say
 *how to get* the value at each position:
@@ -502,7 +502,7 @@ gen: docs/book/code/tables/no-from-one.oro.txt: line 1: a table's index ranges o
 
 ---
 
-## 12.5 A rule takes no memory
+## 13.5 A rule takes no memory
 
 Here is the sentence from the top of the chapter that sounds too good. Add up the first `n`
 squares, by making the table of squares and then walking it:
@@ -550,7 +550,7 @@ func TablesTwoOfThem(v0 int) int {
 
 There is no table in either function. No `make`, no storage, nothing filled in.
 
-It follows from 12.1: a table is a function. A table given by a rule is a function given by
+It follows from 13.1: a table is a function. A table given by a rule is a function given by
 a formula, and **looking up position `k` in it is calling that function**: put `k` where the
 rule has `i`. So `sq[i]` is `i * i`, by chapter 1's substitution. `len(sq)` is `n`, because
 the rule says so. `sq[3]` is `3 * 3`, which is 9, computed while compiling. The name `sq` was
@@ -600,18 +600,18 @@ other languages work hard to find it. Here it is not an optimization that may or
 happen. It is what the words mean.
 
 So when *is* a rule stored? When it has to exist as a block of memory: above all, when a
-table is the result of an exported function, as in 12.4. The caller is outside the program
+table is the result of an exported function, as in 13.4. The caller is outside the program
 and cannot be handed a formula. Inside a program a rule is a formula until something
 forces the issue.
 
 A rule is recomputed at each lookup. That is the price: `sq[i]` costs a multiplication each
 time, where a stored table costs a memory read. For a cheap rule that is a good trade. For a
-rule that is expensive and looked up many times, you want it stored, and chapter 13 has the
+rule that is expensive and looked up many times, you want it stored, and chapter 14 has the
 way to build a table in memory.
 
 ---
 
-## 12.6 Functions over tables
+## 13.6 Functions over tables
 
 Tables are values and functions take values, so the walks of this chapter can be written
 once and named:
@@ -675,7 +675,7 @@ it, and no function is called at run time: `each`, the little function passed to
 
 ---
 
-## 12.7 Two tables at once
+## 13.7 Two tables at once
 
 The dot product: multiply two tables position by position and add up.
 
@@ -744,7 +744,7 @@ make such a loop fast.
 
 ---
 
-## 12.8 Part of a table
+## 13.8 Part of a table
 
 **`t[lo:hi]`** is the part of `t` from position `lo` up to, not including, `hi`. Leave `hi`
 out, `t[lo:]`, for "to the end". It is called a **segment** (or a slice).
@@ -792,7 +792,7 @@ a table with nothing lost and nothing doubled, and an empty segment is `t[k:k]`.
 
 ---
 
-## 12.9 Bytes are a table
+## 13.9 Bytes are a table
 
 Chapter 9 said: text a program must examine is handled as bytes, and becomes a `String` at
 the end. Bytes are a table of numbers from 0 to 255, and everything in this chapter applies.
@@ -868,7 +868,7 @@ counter begins: walk the bytes until one is a space (32).
 
 ---
 
-## 12.10 Thirty steps to search a billion
+## 13.10 Thirty steps to search a billion
 
 To find a name in a phone book you do not start at page one. You open in the middle, see
 whether your name is before or after, and throw away half the book. Then again with the half
@@ -923,7 +923,7 @@ after `m`: search `m + 1` to `hi`. If too big, only before: search `lo` to `m`. 
 the second overflows when the table is huge. That was a bug in Java's own library for nine
 years, found in 2006, and chapter 6 told the story.
 
-Now the second arm, which is this language talking. It is a guard of chapter 11's kind: it
+Now the second arm, which is this language talking. It is a guard of chapter 12's kind: it
 says what is true of `lo`, `m` and `hi` every time round (`0 <= lo <= m < hi <= len(t)`), and
 it is never false. The compiler needs those facts to prove `t[m]`, and it cannot find them
 itself, because the proof that a midpoint lies between its ends goes through a division, and
@@ -978,7 +978,7 @@ Every access proven, every operation in the word, and **0 of 1 loops proven term
 The loop does stop: the measure is `hi - lo`, which at least halves each trip. Both `again`s
 shrink it, one by raising `lo` past `m` and one by lowering `hi` to `m`. The compiler's
 termination check looks for one variable going one way, and here two variables close in from
-both sides. Chapter 11 said to read that count and look again at any loop it does not vouch
+both sides. Chapter 12 said to read that count and look again at any loop it does not vouch
 for. This is such a loop, and the argument in this paragraph is the looking.
 
 Binary search is famous for being easy to describe and hard to get right. A study in the
@@ -988,10 +988,70 @@ happen here. The second is still yours to check.
 
 ---
 
-## 12.11 Lists, records and grids, from tables
+## 13.11 Lists, records and grids, from tables
 
-Chapter 10 left three debts: a rectangle needs *two* numbers inside one variant case, a
-variant may not contain itself, and there are no records. All three are paid the same way.
+Chapter 10 left two debts, and chapter 11 a third: a rectangle needs *two* numbers inside one
+variant case, a variant may not contain itself, and neither may a record. All three are paid the
+same way.
+
+First, records and tables together. A table's elements may be records, given by a rule like any
+table's:
+
+<!-- file docs/book/code/tables/squares.oro -->
+```go
+use io
+
+set Square = record { side ∈ 0..9, area ∈ 0..81 }
+
+fn total(t) {
+    loop i = 0, s = 0 {
+        i < len(t) -> again(i + 1, s + t[i].area)
+        else -> s
+    }
+}
+
+export fn main() {
+    squares = array { record { side : k, area : k * k } : k ∈ 0..9 }
+    io.print_int(squares[7].area)
+    io.print_int(total(squares))
+}
+```
+
+<!-- run go docs/book/code/tables/squares.oro -->
+```
+49
+285
+```
+
+<!-- gen go docs/book/code/tables/squares.oro -->
+```go
+…
+func TablesMain() int {
+    fmt.Println(49)
+    var v5 int = 0
+    var v6 int = 0
+    for ; ; v5 = (v5 + 1) {
+        v8 := (v5 < 10)
+        if v8 {
+            v12 := (v5 * v5)
+            v13 := (v6 + v12)
+            v6 = v13
+            continue
+        }
+        break
+    }
+    fmt.Println(v6)
+    return v6
+}
+```
+
+`t[i].area` reads a record out of a table and a part out of the record. And look at what ran:
+no table at all, and no `side`. §13.5's rule took no memory, the loop asked only for `area`, and
+`k * k` was computed where it was read. A table of records written as a list of values,
+`array { record { … }, record { … } }`, is refused today where its index is not known (13.12),
+as a table of tuples is.
+
+Then the three debts.
 
 > **Where another language would hold a pointer to a thing, hold the thing's position in a
 > table.**
@@ -1087,7 +1147,7 @@ variant "contains itself" here: it holds the position of another node.
 
 Look at `steps >= 1000`. A list whose `next` values go round in a circle would be walked
 forever. In a language with pointers that is a hang nobody can prevent. Here the walk counts
-its steps, chapter 11's way of making a loop stop when there is no other measure, and so it
+its steps, chapter 12's way of making a loop stop when there is no other measure, and so it
 is proven to end.
 
 A grid of rows and columns is one table, with the rows laid end to end:
@@ -1123,7 +1183,7 @@ arithmetic reasoning is about sums.
 ### Pairs in a table
 
 A table's elements may be tuples. Such a table arrives from outside or is built in memory
-(chapter 13), and its elements are read with a second index for the part:
+(chapter 14), and its elements are read with a second index for the part:
 
 <!-- file docs/book/code/tables/pairs.oro -->
 ```go
@@ -1164,7 +1224,7 @@ func TablesArea(v0 []byte) int {
 `sides[i][0]` is the first part of pair `i`, and `sides[i][1]` the second. `0..100 × 0..100`
 is chapter 10's product set. Look at what Go received: one flat `[]byte`, the pairs laid end
 to end. Pair `i` is at positions `2 * i` and `2 * i + 1`, and the number of pairs is the
-byte count halved (`>> 1`). It is 12.11's grid, two wide, worked out for you, with every
+byte count halved (`>> 1`). It is 13.11's grid, two wide, worked out for you, with every
 index proven from the one guard `i < len(sides)`.
 
 Chapter 10's pattern takes a pair apart by name, here as anywhere:
@@ -1214,18 +1274,20 @@ built in order to be taken apart: a pattern on a table's element is its two posi
 
 ---
 
-## 12.12 What is not here
+## 13.12 What is not here
 
 - **A table cannot be changed.** Building one a piece at a time, or updating a position, is
-  chapter 13.
-- **No table of tables.** A grid is one table (12.11).
+  chapter 14.
+- **No table of tables.** A grid is one table (13.11).
 - **No `==` on tables.** Compare them position by position, in a loop.
-- **A table of pairs cannot be written as a list of values** today, only received or built
-  (README item 66).
+- **A table of pairs or of records cannot be written as a list of values**, `array { (1, 2),
+  (3, 4) }`, where its index is not known when compiling: only given by a rule, received or built
+  (the book's findings 66 and 101). Read at a constant index it folds away and works, which is how the
+  limitation hides.
 
 ---
 
-## 12.13 What other languages do
+## 13.13 What other languages do
 
 | | a position outside the table | where the check happens | a chain of maps | the first position |
 |---|---|---|---|---|
@@ -1270,5 +1332,5 @@ the rule that takes no memory until needed is from APL (1962) and its descendant
   compiler cannot find as a guard, and check termination yourself where it says "0 of 1".
 - **For records, lists, trees and grids, hold positions where others hold pointers.**
 
-Next: [chapter 13](13-state.md), State. Building a table a piece at a time, and why a table still never
+Next: [chapter 14](14-state.md), State. Building a table a piece at a time, and why a table still never
 changes under you.

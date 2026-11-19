@@ -1,0 +1,6 @@
+use io
+export fn main() {
+    a = record { x : 1, y : 2 }
+    b = record { x : 1, y : 2 }
+    io.print_line(if a == b { "same" } else { "different" })
+}

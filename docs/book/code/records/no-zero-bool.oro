@@ -1,0 +1,6 @@
+use io
+set Lamp = record { on ∈ Bool, watts ∈ 0..100 }
+export fn main() {
+    l = zero(Lamp)
+    io.print_int(l.watts)
+}

@@ -1,0 +1,10 @@
+use win/print
+use windows/processenv
+use windows/fileapi
+
+export fn main() {
+    out = processenv.GetStdHandle(4294967285)
+    hello = array { 104, 105, 10 }
+    (put, ok) = fileapi.WriteFile(out, hello[1:5])
+    print.print_int(put)
+}

@@ -1,0 +1,3 @@
+use io
+set Node = record { value ∈ Int, next ∈ Node }
+export fn main() { io.print_int(1) }

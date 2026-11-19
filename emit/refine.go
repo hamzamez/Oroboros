@@ -1391,6 +1391,15 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 	if s, ok := nulfreeArg(want); ok && r.nulFree(s, f) {
 		return true, nil
 	}
+	// A LITERAL IS DECIDED EXACTLY, by its scalars: one holding U+0000 is
+	// false at this call, said with where, not "outside the fragment"
+	// (book-2026-11-20)
+	if s, ok := nulfreeArg(want); ok && s.Kind == core.KStr && !r.probe {
+		if i := strings.IndexRune(s.Str, 0); i >= 0 {
+			return false, fmt.Errorf("%s requires %s, which is false at this call: the string holds U+0000 after "+
+				"%d byte(s), and a C string ends at its first NUL (ADR 0091)", core.ShowName(name), core.ShowTerm(want), i)
+		}
+	}
 	// A CONJUNCTION WITH AN ATOM AMONG ITS CONJUNCTS: Γ ⊢ a ∧ b iff Γ ⊢ a and
 	// Γ ⊢ b, each by its own route, so `nulfree(k) && n <= len(b)` is ν and the
 	// linear fragment (ADR 0112). A conjunction of linear goals alone keeps the

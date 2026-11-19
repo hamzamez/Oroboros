@@ -1,10 +1,13 @@
 # J — the language's surface
 
-**Status, 2026-10-25: built, the computation's forms; the logic's not.** J is the surface
+**Status, 2026-11-20: built, the computation's forms; the logic's not.** J is the surface
 ([ADR 0068](../decisions/0068-j-is-the-surface.md)) and the only notation: J's reader (`core/jlex.go`,
-`core/jparse.go`, `core/jreadtarget.go`) reads all 223 `.oro` files of the corpus, the tests' snippets and
-the surveys' output (jswitch5b-2026-10-16). What is built and what is not, read off the reader by a probe
-of each form through desugaring (2026-10-25):
+`core/jparse.go`, `core/jreadtarget.go`) reads every `.oro` file of the repository, 696 programs and 85
+target files and fragments (`TestEveryCorpusFileReadsInJ`), the tests' snippets and the surveys' output.
+What is built and what is not, read off the reader by a probe of each form through desugaring
+(2026-10-25), with the forms built since: records (ADR 0128), the primed lent result (ADR 0140),
+`inout` (ADR 0135), a C call's written arguments in a target file (ADR 0131, 0132, 0141) and `cpu`
+(ADR 0142):
 
 | | built | not built |
 |---|---|---|
@@ -13,7 +16,7 @@ of each form through desugaring (2026-10-25):
 | §2.2 declarations | `fn`, `set` (variants with `success` and `relevant`), `set N = S` (a set definition, unfolded where its module uses it; ADR 0084), a value, a host constant | **`spec` and `lemma`** (ADR 0062) |
 | §2.4 headers | binders with sets and modes, a telescope, the three result forms, `where`, `ensure`, `pure`, `index`, `variadic`; `x'` in a host result (ADR 0070) and a program's, the `linear` parameter x handed back, `(x' ∈ Array(V) linear)` (ADR 0140); an unprimed `linear` result, a region moved to the caller (ADR 0084) | **a ⊆-binder in a program** (built in a target file's host declaration, `errors.AsType(E ⊆ error)`); **the arrow** as a binder's set (ADR 0053); **`x'` in a program's `ensure`**, read and then refused as outside what the compiler decides |
 | §2.6 blocks | `=`, `var … :=`, writes, concurrent (G5) and into a record (G6), a binder's claim, `expect`, a one-armed `if` | **`assert`**; **a local named `fn`** |
-| §2.7 expressions | application, indexing, a segment `b[lo:hi]` and `b[lo:]`, tags, tuples, `++`, `!=`, `out S` (G1; on a set of tables, a fresh region, ADR 0084), `xs...` (G2), `fn(a, b) { e }`, `inf(S)` and `sup(S)` of a range; `round(S, e)`, `round(S, e, 'mode)`, `a ÷ b` (`\div`) at a rounding's root, and the scope `round(S) { … }` (ADR 0086, numbers.md §3) | **a λ's header**: a claimed parameter or result on an anonymous `fn`; **membership `e ∈ S` as a test**, χ_S(e), refused with what it is, in a computation and in a claim's formula (defects-2026-10-26) |
+| §2.7 expressions | application, indexing, a segment `b[lo:hi]` and `b[lo:]`, tags, tuples, a record `record { l : e }`, `r.l`, `r with { p : e }` and `zero(T)` (ADR 0128), `++`, `!=`, `out S` (G1; on a set of tables, a fresh region, ADR 0084), `xs...` (G2), `fn(a, b) { e }`, `inf(S)` and `sup(S)` of a range; `round(S, e)`, `round(S, e, 'mode)`, `a ÷ b` (`\div`) at a rounding's root, and the scope `round(S) { … }` (ADR 0086, numbers.md §3) | **a λ's header**: a claimed parameter or result on an anonymous `fn`; **membership `e ∈ S` as a test**, χ_S(e), refused with what it is, in a computation and in a claim's formula (defects-2026-10-26) |
 | §2.8 choice and iteration | `case` with and without a scrutinee, a pattern a tag with one binder per payload, or `else`; `loop`, `again`; a case in a tail (ADR 0076); `try` without a handler, with several binds; `invariant`, Hoare's rule (a buffer or cell in scope only as its `len`) | **a pattern that is a literal, `_` or `x ∈ S`**; **a case arm's guard `p if φ`**; **`try`'s handlers** (`else`, ADR 0057); **an invariant over a buffer's elements or a cell's value** |
 | §2.9 sets | names, ranges, `Array`, `Map`, `∪`, `×`, `array { … }` both shapes, `map { k : v }`, `map(cap)`, separation `set { x ∈ S : φ }` as a binder's whole set (ADR 0061, 0084), and anywhere when it is F64 by constant bounds, F64 ∩ [lo, hi] (numbers.md §2) | **replacement `set { e : x ∈ S }`** (ADR 0061); **any other separation inside a former**, a ∀ over its elements |
 | §2.10 formulas | the computation's boolean expressions in `where` and `ensure` | **`∀`, `∃`, `⇒`, `⇔`** |

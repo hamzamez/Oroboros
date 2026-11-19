@@ -1,0 +1,11 @@
+use io
+
+set Point = record { x ∈ Int, y ∈ Int }
+set Pen = record { at ∈ Point, ink ∈ 0..255, width ∈ 1..9 }
+
+export fn main() {
+    p = zero(Point)
+    io.print_int(p.x + p.y)
+    pen = zero(Point) with { y : 4 }
+    io.print_int(pen.y)
+}

@@ -89,7 +89,7 @@ gen: docs/book/code/integers/no-power.oro: in power: `^` is not bound — it is 
 
 There is no digit separator: a million is `1000000` or `10^6`. And `^` with an exponent the
 compiler does not know is not an operation any target has; a power of a variable is a loop
-([chapter 11](README.md)).
+([chapter 12](README.md)).
 
 ## 6.2 Division, and what is left over
 
@@ -455,7 +455,7 @@ Interval arithmetic is from Ramon Moore's work on numerical error (1966). Using 
 facts about a program without running it is the founding example of **abstract interpretation**
 (Patrick and Radhia Cousot, 1977): run the program not on numbers but on *descriptions* of
 numbers, here "somewhere between lo and hi", and whatever holds of the description holds of
-every run. The compiler has finer tools than intervals, and [chapter 15](15-claims.md) is about
+every run. The compiler has finer tools than intervals, and [chapter 16](16-claims.md) is about
 them. Most of the time intervals are enough.
 
 ## 6.6 A condition is a fact
@@ -1209,7 +1209,7 @@ export fn of_strings(s ∈ String) (String) { double(s) }
 gen: of-strings: in argument 1 of `+`: s is String, but Int is required here
 ```
 
-How harder claims are proven is [chapter 15](15-claims.md). Where they live: **on the function,
+How harder claims are proven is [chapter 16](16-claims.md). Where they live: **on the function,
 in its header, and nowhere else.** An expression carries no annotation.
 
 ## 6.13 What other languages do

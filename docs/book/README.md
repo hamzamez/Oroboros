@@ -3,39 +3,49 @@
 Chapters, in order. Each is written for someone learning the language — human or model — and
 leans on examples rather than explanation.
 
-**Where the book stands, 2026-11-15.** The surface is J ([spec/j.md](../spec/j.md), ADR 0068). The
+**Where the book stands, 2026-11-20.** The surface is J ([spec/j.md](../spec/j.md), ADR 0068). The
 book introduces the language **one brick at a time**: a chapter uses only what the chapters before
 it introduced, opens with the question the last one left, and shows a thing refused before it
 shows it working (hamza, 2026-11-15: the order of Feynman's lectures, where nothing is used before
 it is explained). Chapter 0 is the exception, a tour that may show everything.
 
+**The book moves with the language** (hamza, 2026-11-20). A change to the language, a construct, a
+word, a meaning, a refusal that a program can meet, updates the chapter that teaches it in the same
+step: its examples written, run and checked, and its "what is not here" made true again. Where no
+chapter teaches it yet, one is written or split, and the chapters renumbered. `cmd/check`'s book step
+runs every chapter, so a chapter that no longer says what the compiler gives fails the check.
+
 | | chapter | the one idea | state |
 |---|---|---|---|
-| 0 | [A tour](00-tour.md) | the map | J; 71 blocks checked 2026-11-17 |
+| 0 | [A tour](00-tour.md) | the map | J; 73 blocks checked 2026-11-20 |
 | | **I. How a program is reduced** | | |
-| 1 | [`fn`](01-fn.md) | β; reduction is compilation | J; 62 blocks checked 2026-11-15 |
-| 2 | [Definitions](02-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-15 |
-| 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 55 blocks checked 2026-11-16 |
-| 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 54 blocks checked 2026-11-16 |
-| 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-15 |
+| 1 | [`fn`](01-fn.md) | β; reduction is compilation | J; 62 blocks checked 2026-11-20 |
+| 2 | [Definitions](02-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-20 |
+| 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 55 blocks checked 2026-11-20 |
+| 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 54 blocks checked 2026-11-20 |
+| 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-20 |
 | | **II. What a program computes with** | | |
-| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 87 blocks checked 2026-11-16 |
-| 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ` | J; 61 blocks checked 2026-11-16 |
-| 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-16 |
-| 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-16 |
-| 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-16 |
+| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 87 blocks checked 2026-11-20 |
+| 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ`; the same past the word | J; 66 blocks checked 2026-11-20 |
+| 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-20 |
+| 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-20 |
+| 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-20 |
+| 11 | [Records](11-records.md) | a record is a function on its labels; `with`; the zero | J; 47 blocks checked 2026-11-20 (new) |
 | | **III. Repetition and storage** | | |
-| 11 | [`loop`](11-loop.md) | the one iteration; termination | J; 53 blocks checked 2026-11-16 |
-| 12 | [Tables](12-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 62 blocks checked 2026-11-16 |
-| 13 | [State](13-state.md) | `var`, buffers, maps; why a table never changes under you | J; 56 blocks checked 2026-11-16 |
-| 14 | [Failures](14-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 44 blocks checked 2026-11-16 |
+| 12 | [`loop`](12-loop.md) | the one iteration; termination | J; 59 blocks checked 2026-11-20 |
+| 13 | [Tables](13-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 65 blocks checked 2026-11-20 |
+| 14 | [State](14-state.md) | `var`, buffers, maps, `inout`; why a table never changes under you | J; 65 blocks checked 2026-11-20 |
+| 15 | [Failures](15-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 44 blocks checked 2026-11-20 |
 | | **IV. Claims and hosts** | | |
-| 15 | [Claims](15-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 62 blocks checked 2026-11-16 |
-| 16 | [Targets](16-targets.md) | host modules, writing a declaration, portability computed | J; 22 blocks checked 2026-11-16 |
-| 17 | [A whole program](17-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-16 |
+| 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 66 blocks checked 2026-11-20 |
+| 17 | [Targets](17-targets.md) | host modules, writing a declaration, portability computed | J; 23 blocks checked 2026-11-20 |
+| 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a window procedure | J; 22 blocks checked 2026-11-20 (new) |
+| 19 | [A whole program](19-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-20 |
 
-Nothing specified and not built gets a chapter (records, callbacks, concurrency, `spec` and
-`lemma`); each is named in a line where it would belong.
+Chapters 11 and 18 were added 2026-11-20, and the chapters after each renumbered (the old 11–16 are
+12–17, the old 17 is 19); the findings below name chapters by their new numbers. Nothing
+specified and not built gets a chapter (callbacks a host calls during a call, concurrency, `spec`
+and `lemma`); each is named in a line where it would belong.
 
 ```bash
 go run docs/book/check.go docs/book/04-choice.md      # from the repository's root; any written chapter
@@ -44,8 +54,8 @@ go run docs/book/check.go docs/book/04-choice.md      # from the repository's ro
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
 comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
 with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 11, sixteen in chapter 12, fifteen in chapter 13, thirteen in chapter 14, thirteen in chapter 15, ten in chapter 16 and ten in chapter 17, covering each kind of directive. `cmd/check`
-does not run it.
+seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 12, sixteen in chapter 13, fifteen in chapter 14, thirteen in chapter 15, thirteen in chapter 16, ten in chapter 17 and ten in chapter 19, covering each kind of directive. `cmd/check`'s
+book step runs it over every chapter.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
 notation (`core.ShowTerm`, [spec/j.md §6.1](../spec/j.md)), where `oro` alone writes the core term.
@@ -70,7 +80,7 @@ compiled with `cmd/gen`, built and run with `cmd/build`, and measured with `cmd/
 named `no-…` is meant to be refused, and the chapter prints the refusal. The chapter it replaced was
 about s-expressions, the notation before J, and is in git at `a50bd47`.
 
-Chapter 15, as it was written, uses `cmd/gen` and `cmd/build` rather than `oro`, because the checker lives at the
+Chapter 16, as it was written, uses `cmd/gen` and `cmd/build` rather than `oro`, because the checker lives at the
 emission boundary and the teaching target emits nothing. That is the lesson, not a workaround.
 
 Chapter 3's library files are real and live in [code/](code/). Its examples run against two
@@ -153,7 +163,7 @@ assumption outside the decidable fragment was dropped rather than propagated, so
 reported `known: nothing` about a program that plainly declared a `where`. Thirteen bugs from five
 chapters.
 
-The tour (chapter 0, 2026-11-10) found seven, by writing each example the way a newcomer would
+The tour (chapter 0, 2026-12-10) found seven, by writing each example the way a newcomer would
 first. None is fixed here; each is a defect or a question for its own step. **Planned 2026-11-15**
 (README.md's "Current work"): the wrong answers, 1, 2, 10, 15, 17, 19, 20 and the 10-06 pass's 3,
 were its item 3, and are **fixed 2026-11-15** ([bookfix-2026-11-15](../../gauntlet/results/bookfix-2026-11-15.md),
@@ -439,7 +449,7 @@ fixed, each avoided in the chapter:
     tuples for the results is right. It is CLAUDE.md's *a context keyed by name is captured by
     the name alone*, in sums.md §5's recount. **Fixed** 2026-11-16 ([capture-2026-11-16](../../gauntlet/results/capture-2026-11-16.md)):
     a `case`'s binders are fresh for its clauses (Barendregt's convention, ADR 0036), so 42; item
-    76's `try` chain gives 22. Chapter 10 uses one payload at a time; chapter 14
+    76's `try` chain gives 22. Chapter 10 uses one payload at a time; chapter 15
     (`try` chains two results) cannot be written around it.
 54. **A variant's name is no set at a parameter.** `fn warm(c ∈ Colour)` is refused, exported or
     not: *its header's parameter c names colour, which is no set: not one of the language's and
@@ -469,7 +479,7 @@ fixed, each avoided in the chapter:
 
 Also: `export fn unit(a ∈ 0..9) () { () }` emits a Go function returning `int`, `return 0`.
 
-Chapter 11, `loop` (2026-11-16), found five, none fixed, each avoided in the chapter:
+Chapter 12, `loop` (2026-11-16), found five, none fixed, each avoided in the chapter:
 
 59. **On windows a `main` whose value is a loop's `()` does not lower.** `export fn main() {
     loop i = 1 { i <= 3 -> { io.print_int(i); again(i + 1) }; else -> () } }` builds on Go and
@@ -480,10 +490,10 @@ Chapter 11, `loop` (2026-11-16), found five, none fixed, each avoided in the cha
 60. **`invariant` is not read.** j.md §2.8's grammar has `loop … invariant I { … }` and its
     status lists the loop as built; `loop i = 1, p = 1 invariant p <= N {` is *"invariant"
     where "{" was expected*. So a bound the interval analysis cannot find is stated as a guard
-    that runs (§11.7's `p <= 4 * 10^17`), which is CLAUDE.md's "a clamp in a program is a
+    that runs (§12.7's `p <= 4 * 10^17`), which is CLAUDE.md's "a clamp in a program is a
     missing proof", taught as the tool there is. **Fixed** 2026-11-16
     ([invariant-2026-11-16](../../gauntlet/results/invariant-2026-11-16.md)): `invariant I` is read
-    and decided by Hoare's rule. §11.7's bound stays a guard, because p · i ≤ N does not follow
+    and decided by Hoare's rule. §12.7's bound stays a guard, because p · i ≤ N does not follow
     from p ≤ N: the invariant that carries it is p = (i − 1)!, outside the linear fragment.
 61. **A `case` on a loop's variant result must have arms of one type**, where the same `case`
     on a function's variant result need not: `'some(r) -> io.print_int(r); 'none ->
@@ -504,7 +514,7 @@ the chapter shows a stuck loop compiling with *0 of 1* beside the halting proble
 static trip count is not unrolled (`three()` emits a loop), which the chapter uses to say what
 the dynamic level is.
 
-Chapter 12, Tables (2026-11-16), found six, none fixed, each avoided in the chapter:
+Chapter 13, Tables (2026-11-16), found six, none fixed, each avoided in the chapter:
 
 64. **A tuple pattern on a table's element emits code that is not Go.** `export fn width(p ∈
     Array(0..100 × 0..100)) … { (x, y) = p[i]; again(i + 1, s + x * y) }` emits
@@ -528,7 +538,7 @@ Chapter 12, Tables (2026-11-16), found six, none fixed, each avoided in the chap
     is refused, *0 <= lo + (hi - lo) / 2 does not follow*: x ≥ 0 ⇒ x / k ≥ 0 is not derived
     (products.md §6 added k·(x/k) ≤ x and no more). **The midpoint is proven** 2026-11-16 (store-2026-11-16): div_floor's guard
     holds only under the loop's guards, and lang's facts are now instantiated where an obligation
-    is, so both `lo + (hi - lo) / 2` bounds follow; chapter 12's `no-search.oro` is refused now for
+    is, so both `lo + (hi - lo) / 2` bounds follow; chapter 13's `no-search.oro` is refused now for
     its arithmetic in the word, and its passage says so. `(lo + hi) / 2`, `>> 1` and a length-based
     form fail alike. The chapter carries the midpoint as a third loop variable under a guard;
     its termination is then *0 of 1 proven* (a measure of two variables), which the chapter
@@ -546,10 +556,10 @@ Chapter 12, Tables (2026-11-16), found six, none fixed, each avoided in the chap
     len(next)` is not taken as a trip bound where `steps >= 1000` is.
 
 Teaching: chapter 9's and chapter 10's debts are paid here (bytes as a table; a variant
-carrying a position), and chapter 11's guard-as-stated-bound returns twice (`len(t) <= 10^6`
+carrying a position), and chapter 12's guard-as-stated-bound returns twice (`len(t) <= 10^6`
 in a header, binary search's second arm).
 
-Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fixed:
+Chapter 14, State (2026-11-16), found a soundness hole and five smaller, none fixed:
 
 70. **A store's position is not checked.** Each of these compiles, on Go, JavaScript and
     windows:
@@ -560,12 +570,12 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
 
     Go emits `v10[v0] = 1` and panics at run time (*index out of range [5] with length 5*);
     JavaScript's array grows; windows writes past the block. The same index in a *read* is
-    refused (chapter 12). tables.md §6 says the obligation was needed "in three places", `build`
+    refused (chapter 13). tables.md §6 says the obligation was needed "in three places", `build`
     among them, and maps.md §6 cites `(set stk sp …)` carrying `sp < cap`; nothing enforces it
-    now. Chapter 13 §13.3 tells the reader of the gap in so many words, and every store in its
+    now. Chapter 14 §14.3 tells the reader of the gap in so many words, and every store in its
     examples is under a guard that would prove it. **Fixed** 2026-11-16 ([store-2026-11-16](../../gauntlet/results/store-2026-11-16.md),
     ADR 0119): a store owes 0 <= i < len as a read does, so all three are refused, on every target;
-    §13.3 now shows the refusal.
+    §14.3 now shows the refusal.
 71. **A map's declared capacity is not enforced, and `len` of a map is wrong on windows.**
     `var m := map(2)` with three stores gives `len(m)` 3 on Go and JavaScript (maps.md §6
     chose a declared capacity so that all targets agree) and **12** on windows. **`len` fixed**
@@ -578,7 +588,7 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
     operation(s) cannot be proven … llvm.sdiv [0, +inf] in llvm.sdiv(a, b)*, an operation of
     the map library's and not the program's. The chapter's map blocks run on Go and JavaScript. **Fixed** 2026-11-16 ([maprealize-2026-11-16](../../gauntlet/results/maprealize-2026-11-16.md),
     ADR 0120): the map is realized after the decision, so a read in a block or a function builds on
-    windows; chapter 13's `tally` runs there now.
+    windows; chapter 14's `tally` runs there now.
 73. **A loop that answers `()` freezes the buffer it wrote.** `var b := …; loop i = 0 { i < 5 ->
     { b[i] := 5 - i; again(i + 1) }; else -> () }; b[0] := 100` is *a store writes into #nl2,
     which is a frozen table*. The same loop inside a function that takes `b` `linear`, called
@@ -597,14 +607,14 @@ Chapter 13, State (2026-11-16), found a soundness hole and five smaller, none fi
     the refusal for a name bound with `=`. `var b := t`, with `t` a parameter, compiles to a
     copy, where ADR 0052's R0 says "the copy is explicit"; the chapter writes the rule.
 
-A flaky test, seen twice (chapters 8 and 13): `go test ./core/` reports FAIL once and then
-passes three times running, with no change between. Identified in chapter 14: item 78.
+A flaky test, seen twice (chapters 8 and 14): `go test ./core/` reports FAIL once and then
+passes three times running, with no change between. Identified in chapter 15: item 78.
 
 Teaching: cells are taught as a notation for new names (static single assignment said as the
 meaning, not as an optimization), and the chapter's question, "why a value you hold never
 changes", is answered by R1 before `linear` is introduced.
 
-Chapter 14, Failures (2026-11-16), confirmed item 53 where it matters most and found three
+Chapter 15, Failures (2026-11-16), confirmed item 53 where it matters most and found three
 more, none fixed:
 
 76. **Item 53 is a wrong answer in the plainest `try` chain.** With `half` returning
@@ -616,7 +626,7 @@ more, none fixed:
     A chain where each step feeds the next (`try 'ok(a) = half(n) { try 'ok(b) = half(a)
     { half(b) } }`) is right, and so is the two-answer form when the first answer is passed to
     a function as a parameter (`fn add_half(x, b) { try 'ok(y) = half(b) { 'ok(x + y) } }`):
-    22. The chapter's §14.4 is written that way and carries a boxed warning to the reader.
+    22. The chapter's §15.4 is written that way and carries a boxed warning to the reader.
 77. **`try` with several binds is not read.** j.md §2.8: `try_expr ::= "try" t_bind,+ block`.
     `try result.'ok(x) = half(a), result.'ok(y) = half(b) { … }` is *"," where "{" was
     expected*. The handler, `else`, is listed as not built. **Fixed** 2026-11-16
@@ -627,7 +637,7 @@ more, none fixed:
     p.oro: The system cannot find the path specified*: `core`'s corpus walk lists a temporary
     directory that `cmd/gen`'s tests make under their own package and remove while the walk is
     reading. Either test alone passes every time. (This is the failure noted under chapters 8
-    and 13.) **Fixed** 2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): the corpus is read from git's index.
+    and 14.) **Fixed** 2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): the corpus is read from git's index.
 79. **Messages.** *try: variant light declares no (success …) constructor, so it is not a model
     of the exception monad* is in the notation J replaced and names the variant in lower case.
     The relevance refusals name no function they occur in (*gen: the result of half is a value
@@ -637,7 +647,7 @@ Teaching: `expect`'s crash is shown on windows, where the output is the reason a
 JavaScript's carry a stack trace with temporary paths, so they are shown as emitted code.
 `examples/errors/` already held `discard`, `ignore` and `expect`; the chapter's are its own.
 
-Chapter 15, Claims (2026-11-16), rewritten in J from nothing (the old chapter, in the notation
+Chapter 16, Claims (2026-11-16), rewritten in J from nothing (the old chapter, in the notation
 J replaced and with no running example, is in git at `98ff798`). It found five, none fixed:
 
 80. **A binder's claim with a variable end is not checked.** `k ∈ 0..n = i` with `i ∈ Int`
@@ -662,7 +672,7 @@ J replaced and with no running example, is in git at `98ff798`). It found five, 
     refinement layer and then satisfies the same result claim. The chapter teaches the binder
     as the way to carry a relational fact to a result, which is a workaround presented as a
     technique.
-83. **Three facts the layer does not have**, each shown refused in §15.8: `n mod 2 >= 0`
+83. **Three facts the layer does not have**, each shown refused in §16.8: `n mod 2 >= 0`
     (`mod` is defined as never negative, integers.md; `n % 2` on a non-negative `n` is
     proven); `a - b != 0` from `where a != b`, with *assumed ne(a,b)* printed among the known
     facts (refinements.md §3c covers a disequality beside an order); `n * n >= 0`.
@@ -677,7 +687,7 @@ directive for it and it prints only what it could not bound. The chapter has no 
 every example is a `gen`, because its subject is what the compiler decides, and a proven
 claim leaves nothing to run.
 
-Chapter 16, Targets (2026-11-16), found three, none fixed:
+Chapter 17, Targets (2026-11-16), found three, none fixed:
 
 85. **A host declaration's result set is a fact for the intervals and not for the refinement
     layer.** With `fn small() (0..9) pure { host expr "1000" }`, `small() * 10^18` is *1 of 1
@@ -691,14 +701,14 @@ Chapter 16, Targets (2026-11-16), found three, none fixed:
 87. **Java's emitted class is named after the output file**: `gen … java g.out` writes `public
     final class g.out`, which is not Java. `-name` prefixes the functions and not the class.
 
-Teaching: §16.5 lies to the compiler on purpose, with a `pure` on a print and a result claimed
+Teaching: §17.5 lies to the compiler on purpose, with a `pure` on a print and a result claimed
 `0..9` that is 1000, and shows the dropped line and the wrapped product (3875820019684212736)
 as the one way a silent wrong answer enters a program whose proofs are all valid. Five blocks
 are `part`s of the repository's own target and library files (`lib/io/go.oro`, `lib/io/js.oro`,
 `lib/io/windows.oro`, `targets/go/strings.oro`, `targets/go/go.oro`, `targets/js/js.oro`), so
 a change to those lines fails this chapter's check, which is intended: the chapter quotes them.
 
-Chapter 17, A whole program (2026-11-16), reads a 74-line ledger (adapted from
+Chapter 19, A whole program (2026-11-16), reads a 74-line ledger (adapted from
 `examples/num/ledger.oro`) line by line, runs it on three targets, and removes five of its
 guards to show each refusal. It found four, none fixed:
 
@@ -707,7 +717,7 @@ guards to show each refusal. It found four, none fixed:
     on every target (windows, which keeps definitions as functions, included). One call
     builds. The chapter's three cases are three entry programs over one module.
 89. **74 lines of source emit 1,553 lines of Go** (595 of JavaScript): the chain of arms is
-    copied where a cell's write is specialized. The chapter says so in §17.8.
+    copied where a cell's write is specialized. The chapter says so in §19.8.
 90. **In a whole program a refusal names the compiler's binder and lists every fact.**
     `src[i]` unguarded is *#nl15[i] is an indexing, and i < len(#nl15) does not follow*, and
     its `known:` line runs to some forty facts, most of them `num.decimal`'s. A bound removed
@@ -726,22 +736,22 @@ run of the program's own lines, each paragraph naming the chapter that taught th
 64, 67, 70, 71, 72, 77, 78, 80 and half of 81 fixed, every chapter was re-run against the
 compiler at `f0b5a62` (all eighteen pass) and the passages that worked around a
 fixed item were rewritten, sixteen planted faults caught in the new blocks:
-- 53/76, 77: chapter 14 §14.4 is one `try` inside another, then `try a, b, c { … }` with a later
+- 53/76, 77: chapter 15 §15.4 is one `try` inside another, then `try a, b, c { … }` with a later
   step reading an earlier name (`both.oro` rewritten, `several.oro`); the boxed warning and its
   line in "What to remember" are gone;
-- 70: chapter 13 §13.3 shows a store one past the end refused (`no-past.oro`) in place of the
+- 70: chapter 14 §14.3 shows a store one past the end refused (`no-past.oro`) in place of the
   warning about the gap;
-- 71, 72: chapter 13 §13.9 has a section on the capacity as a claim (`no-full.oro`,
+- 71, 72: chapter 14 §14.9 has a section on the capacity as a claim (`no-full.oro`,
   `distinct.oro` proven from `len(t) <= 16`, `no-distinct.oro` at 17, `distinct-guard.oro` under
   `len(m) < 16`), `tally` runs on windows, and the two lines of "what maps do not do" are gone;
-- 60: chapter 15 §15.5 has "Stating an invariant yourself" (`no-walk.oro`, `walk.oro`,
-  `no-kept.oro`, `no-entry.oro`): s <= 2 * i, a coefficient no template guesses; chapter 11 §11.7
-  points at it and says why the factorial's bound stays a guard; chapter 17's "not built" list
+- 60: chapter 16 §16.5 has "Stating an invariant yourself" (`no-walk.oro`, `walk.oro`,
+  `no-kept.oro`, `no-entry.oro`): s <= 2 * i, a coefficient no template guesses; chapter 12 §12.7
+  points at it and says why the factorial's bound stays a guard; chapter 19's "not built" list
   no longer names it;
-- 80, 81: chapter 15 §15.6 shows a claim with terms at its ends and a claim on a name nothing
+- 80, 81: chapter 16 §16.6 shows a claim with terms at its ends and a claim on a name nothing
   reads, each refused (`no-between.oro`, `no-idle.oro`), in place of "two limits today";
-- 64: chapter 12 §12.11 takes a pair apart by pattern (`pairs-named.oro`), the same two reads;
-- 67: chapter 15 §15.8's table loses the quotient's row (chapter 12 was updated with the fix).
+- 64: chapter 13 §13.11 takes a pair apart by pattern (`pairs-named.oro`), the same two reads;
+- 67: chapter 16 §16.8's table loses the quotient's row (chapter 13 was updated with the fix).
 
 Chapters 8 (39, 40) and 12 (67) had been updated with their fixes. Chapter 9 shows 48's two
 refusals on Go and needed nothing; chapter 10 never worked around 53 in its text. Probed and
@@ -788,6 +798,38 @@ Doing that found two, not fixed:
     wider than the word. Inside a program `Int` is ℤ and is computed exactly where a claim asks.
     Item 27's question from the other side: what is `Int` at an entry point?
 
+Writing chapter 11 (Records) and bringing chapters 7, 12, 13 and 14 up to date (2026-11-20) found
+seven more. 95–99 are fixed with the chapter
+([recordclaim_test](../../cmd/build/recordclaim_test.go), each with its planted fault); 100 and
+101 are not:
+
+95. **A claim on a record hid it, and did not reach its parts.** `p ∈ Point = record { x : 2, y :
+    3 }` then `p.x` was refused, *the projection x reads a term whose record labels are not
+    known*: the claim's ascription stood between the record and the projection. And
+    `p ∈ Pen = record { ink : 300, … }` with `ink ∈ 0..255` compiled and printed 300, the part's
+    set never decided. A claim on a record is now a claim on each part (e ∈ Π S_l iff e.l ∈ S_l),
+    refused naming the part.
+96. **A missing label was refused in the core's notation**: `p ∈ Point = record { x : 2 }` said
+    *the projection x reads … the("record{x: int; y: int}", #rec("x", 2))*. Now X2, naming `y`,
+    and an extra label X3, and a record set is printed as J writes it.
+97. **A record or a tuple as a variant's payload was refused as "a range"**: `'rect(Rect)` said
+    *gives a range, which a payload does not take*. A payload of several parts is not built (a
+    variant is its tag and one slot per payload set), and the refusal now says so.
+98. **`==` on two records was refused in the lowering's words**, *(1, 2) is 2 values where one is
+    wanted*. Now: a tuple or a record is several values, and `==` is integer equality only.
+99. **A set that mentions itself was accepted unused** and refused at its first use as
+    *`n#next` names Node, which is no set*. `set Node = record { value ∈ Int, next ∈ Node }` is
+    now refused where it is defined, as a variant containing itself is.
+100. **Reading a map while it is still being filled is refused in internal words**: `var m :=
+     map(4); m[9] := 50; case m[9] { … }` says *{ (#t, #p) = #0.0(9); … } is 2 values where one
+     is wanted*. The read must come after the map is built (chapter 14's pattern), and the
+     refusal should say that.
+101. **A table of tables, or a table of tuples written as a list, read at an index not known when
+     compiling**, is refused in the lowering's words, the first quoting `#0.0`:
+     `array { array { 1, 2 }, array { 3, 4 } }[k][0]` and `array { (3, 4), (10, 2) }[k]`.
+     Finding 66's limitation, still there: read at a constant index the table folds away, which
+     is how it hides.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
@@ -801,20 +843,20 @@ written out: a rounding after every operation; chapter 9's is ASCII's layout, Un
 values and the surrogates' hole, UTF-8 and UTF-16, the free monoid, and a homomorphism as the
 shape of a property that is proven piece by piece (`nulfree`, beside chapter 7's remainder);
 chapter 10's is state machines, Hoare's null, case-of-case as one law shared with a tuple's
-pattern, and counting values, which is why the two are called products and sums; chapter 11's is
+pattern, and counting values, which is why the two are called products and sums; chapter 12's is
 Euclid's algorithm with his termination proof, Steele's tail call, a measure as the one argument
 that a loop ends, the halting problem as the reason termination is counted and not required, and
-Collatz as the loop nobody can prove; chapter 12's is zero-based and half-open ranges, Heartbleed
+Collatz as the loop nobody can prove; chapter 13's is zero-based and half-open ranges, Heartbleed
 as an unchecked index, fusion as β on a table given by a rule, binary search with its invariant,
 and positions in place of pointers (struct of arrays, a list by `next`, a grid by `r·w + c`);
-chapter 13's is `=` against `:=`, static single assignment, aliasing as the bug the one-name rule
-removes, gather against scatter, insertion sort, and Eratosthenes' sieve; chapter 14's is the
+chapter 14's is `=` against `:=`, static single assignment, aliasing as the bug the one-name rule
+removes, gather against scatter, insertion sort, and Eratosthenes' sieve; chapter 15's is the
 three older answers to failure (a sentinel, a flag, an exception) and Ariane 501, the exception
 monad said as "the first stop wins", relevance as chapter 5's no-dropping rule on a value, and
-Erlang's let-it-crash as the case for `expect`; chapter 15's is testing, typing and proving as
+Erlang's let-it-crash as the case for `expect`; chapter 16's is testing, typing and proving as
 three kinds of knowledge, Fourier–Motzkin elimination by adding inequalities, invariants, and
 sound against complete with Presburger, Matiyasevich and Rice as the reason for the wall;
-chapter 16's is the foreign function interface, the trusted base (with TypeScript's declaration
+chapter 17's is the foreign function interface, the trusted base (with TypeScript's declaration
 files as the same idea), and one virtual machine against being native to each host.
 
 Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —

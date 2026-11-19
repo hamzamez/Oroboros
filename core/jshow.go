@@ -91,6 +91,14 @@ func ShowSet(ty string) string {
 		if i := strings.IndexByte(rest, ' '); i > 0 {
 			return "Map(" + ShowSet(rest[:i]) + ", " + ShowSet(rest[i+1:]) + ")"
 		}
+	case IsRecord(ty):
+		// a record set as J writes it, `record { x ∈ Int, y ∈ 0..255 }`
+		labels, types := RecordFields(ty)
+		parts := make([]string, len(labels))
+		for i, l := range labels {
+			parts[i] = Spell(l) + " ∈ " + ShowSet(types[i])
+		}
+		return "record { " + strings.Join(parts, ", ") + " }"
 	case strings.HasPrefix(ty, "prod(") && strings.HasSuffix(ty, ")"):
 		parts := splitTop(ty[len("prod(") : len(ty)-1])
 		for i, p := range parts {
@@ -354,6 +362,19 @@ func showApp(t *Term, min int) string {
 			return showIf(args[0], args[1], args[2], min)
 		case n == "again":
 			return "again(" + ShowTerms(args) + ")"
+		// A RECORD'S FORMS AS J WRITES THEM (ADR 0128): the former, a
+		// projection and an override, never the core's #rec, #get and #with
+		case n == RecName && len(args) >= 1 && args[0].Kind == KStr && len(strings.Fields(args[0].Str)) == len(args)-1:
+			labels := strings.Fields(args[0].Str)
+			parts := make([]string, len(labels))
+			for i, l := range labels {
+				parts[i] = Spell(l) + " : " + ShowTerm(args[1+i])
+			}
+			return "record { " + strings.Join(parts, ", ") + " }"
+		case n == GetName && len(args) == 2 && args[0].Kind == KStr:
+			return showAt(args[1], pPost) + "." + Spell(args[0].Str)
+		case n == WithName && len(args) == 3 && args[0].Kind == KStr:
+			return paren(showAt(args[1], pPost)+" with { "+Spell(args[0].Str)+" : "+ShowTerm(args[2])+" }", pLowest+1, min)
 		case n == "set" && len(args) == 3:
 			return "store(" + ShowTerms(args) + ")"
 		case n == "set" && len(args) == 2:

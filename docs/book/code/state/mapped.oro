@@ -1,0 +1,18 @@
+use io
+
+set Stock = record { count ∈ 0..1000, price ∈ 0..100 }
+
+fn value(m, k) { case m[k] { 'some(s) -> s.count * s.price; 'none -> -1 } }
+
+export fn main() {
+    m = {
+        var m := map(4)
+        m[7] := record { count : 3, price : 20 }
+        m[9] := record { count : 10, price : 5 }
+        m[7] := record { count : 4, price : 20 }
+        m
+    }
+    io.print_int(value(m, 7))
+    io.print_int(value(m, 9))
+    io.print_int(value(m, 8))
+}

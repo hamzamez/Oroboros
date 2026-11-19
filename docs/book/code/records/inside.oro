@@ -1,0 +1,15 @@
+use io
+
+set Line = record { from ∈ Int × Int, to ∈ Int × Int, label ∈ String }
+
+fn length2(l ∈ Line) (Int) {
+    (x0, y0) = l.from
+    (x1, y1) = l.to
+    (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)
+}
+
+export fn main() {
+    l = record { from : (0, 0), to : (3, 4), label : "diagonal" }
+    io.print_int(length2(l))
+    io.print_line(l.label)
+}

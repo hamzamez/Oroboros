@@ -1,0 +1,12 @@
+use io
+
+set Size = record { width ∈ Int, height ∈ Int }
+set Size2 = record { height ∈ Int, width ∈ Int }
+
+fn area(s ∈ Size) (Int) { s.width * s.height }
+
+export fn main() {
+    a ∈ Size2 = record { height : 2, width : 5 }
+    io.print_int(area(a))
+    io.print_int(area(record { width : 3, height : 3 }))
+}

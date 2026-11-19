@@ -1079,6 +1079,16 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// for a term (spec/typevalues.md §1a, ADR 0073). After the step above,
 	// which resolved a variant crossing a boundary into its tag and slots.
 	for _, m := range mods {
+		// and A CLAIM IN A BODY, (the "windef.RECT" e), names its set through
+		// the same import: resolved, a record set a target declares is found
+		// by its definition (splitRecordClaim), where the alias's spelling was
+		// no set at all and `box ∈ windef.RECT = record { … }` reached a C call
+		// as a claimed tuple (book-2026-11-20)
+		if !PlantClaimAliasUnresolved {
+			for n, d := range m.Defs {
+				m.Defs[n] = m.resolveAscriptions(d)
+			}
+		}
 		for _, sig := range m.Sigs {
 			res := func(ty string) string { return m.resolveSetAliases(ty) }
 			sig.Result = res(sig.Result)
@@ -3045,6 +3055,15 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				}
 			}
 		}
+		// A CLAIM ON A RECORD IS A CLAIM ON EACH COMPONENT (ADR 0128, data.md
+		// §4.2): e ∈ Π_l S_l iff e.l ∈ S_l for every l, so `p ∈ Point = record { … }`
+		// is the record of its components' claims, which projection and the
+		// binders' currying then read as any record value.
+		if op.Kind == KName && op.Name == AscribeName && len(args) == 2 && args[0].Kind == KStr && !PlantClaimHidesRecord {
+			if t, ok, err := e.recordClaim(args, fuel); ok || err != nil {
+				return t, err
+			}
+		}
 		// A RECORD'S PROJECTION AND OVERRIDE, the lens laws as δ-rules (record.go,
 		// ADR 0128).
 		if op.Kind == KName && len(args) >= 2 && args[0].Kind == KStr &&
@@ -4672,6 +4691,61 @@ func (e *Env) staged(t *Term) error {
 // resolveSetAliases rewrites each atom `alias.X` of the canonical set ty whose
 // alias the module imports to that module's path, `strings.Replacer` ↦
 // `go/strings.Replacer`: ρ_m for a set. Every other atom is kept.
+// resolveAscriptions is t with every (the "S" e)'s S through the module's
+// imports, as resolveSetAliases does a signature's sets.
+func (m *Module) resolveAscriptions(t *Term) *Term {
+	if t == nil || len(t.Kids) == 0 {
+		return t
+	}
+	kids := t.Kids
+	changed := false
+	for i, k := range t.Kids {
+		r := m.resolveAscriptions(k)
+		if i == 1 && t.Kind == KApp && k.Kind == KStr && t.Kids[0].Kind == KName && t.Kids[0].Name == AscribeName && len(t.Kids) == 3 {
+			if s := m.resolveSetAliases(k.Str); s != k.Str {
+				r = Str(s)
+			}
+		}
+		if r != k {
+			if !changed {
+				kids = append([]*Term(nil), t.Kids...)
+				changed = true
+			}
+			kids[i] = r
+		}
+	}
+	if !changed {
+		return t
+	}
+	c := *t
+	c.Kids = kids
+	return &c
+}
+
+// recordClaim is (the S v) with S a record set, a target's by its name
+// included (`windef.RECT`, read through its definition as zero(T) reads it,
+// records-research §3.5): splitRecordClaim's. Out of normalizeStep, so its
+// frame stays small: a deep reduction (the book's Y combinator) recurses
+// through that frame until its fuel runs out, and a larger one overflowed the
+// stack first.
+//
+//go:noinline
+func (e *Env) recordClaim(args []*Term, fuel *int) (*Term, bool, error) {
+	ty := args[0].Str
+	if !IsRecord(ty) && e.UnfoldSet != nil {
+		ty = e.UnfoldSet(ty)
+	}
+	if !IsRecord(ty) {
+		return nil, false, nil
+	}
+	return e.splitRecordClaim([]*Term{Str(ty), args[1]}, fuel)
+}
+
+// PlantClaimAliasUnresolved leaves a body's claim spelled through its import,
+// as before: `box ∈ windef.RECT = record { … }` handed to PtInRect fails again
+// in the lowering (TestAClaimOnARecordKeepsItsLabels).
+var PlantClaimAliasUnresolved bool
+
 func (m *Module) resolveSetAliases(ty string) string {
 	if !strings.Contains(ty, ".") {
 		return ty

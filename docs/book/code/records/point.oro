@@ -1,0 +1,17 @@
+use io
+
+set Point = record { x ∈ Int, y ∈ Int }
+
+fn manhattan(p ∈ Point, q ∈ Point) (Int) {
+    dx = if p.x > q.x { p.x - q.x } else { q.x - p.x }
+    dy = if p.y > q.y { p.y - q.y } else { q.y - p.y }
+    dx + dy
+}
+
+export fn main() {
+    home = record { x : 2, y : 3 }
+    shop = record { y : 7, x : -1 }
+    io.print_int(home.x)
+    io.print_int(shop.y)
+    io.print_int(manhattan(home, shop))
+}

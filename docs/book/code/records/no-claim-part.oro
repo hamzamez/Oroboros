@@ -1,0 +1,6 @@
+use io
+set Pen = record { ink ∈ 0..255, width ∈ 1..9 }
+export fn main() {
+    p ∈ Pen = record { ink : 300, width : 2 }
+    io.print_int(p.width)
+}

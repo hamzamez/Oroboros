@@ -1,0 +1,9 @@
+set Point = record { x ∈ -1000..1000, y ∈ -1000..1000 }
+
+export fn mirror(p ∈ Point) (Point) { record { x : p.y, y : p.x } }
+
+export fn norm1(p ∈ Point) (0..2000) {
+    ax = if p.x < 0 { 0 - p.x } else { p.x }
+    ay = if p.y < 0 { 0 - p.y } else { p.y }
+    ax + ay
+}

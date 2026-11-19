@@ -1,0 +1,19 @@
+use io
+
+set Point = record { x ∈ Int, y ∈ Int }
+set Box = record { corner ∈ Point, width ∈ Int, height ∈ Int }
+
+export fn main() {
+    a = record { x : 1, y : 2 }
+    b = a with { y : 20 }
+    io.print_int(a.y)
+    io.print_int(b.y)
+    io.print_int(b.x)
+
+    box ∈ Box = record { corner : a, width : 10, height : 5 }
+    moved = box with { corner.x : 100, width : 11 }
+    io.print_int(moved.corner.x)
+    io.print_int(moved.corner.y)
+    io.print_int(moved.width)
+    io.print_int(box.corner.x)
+}

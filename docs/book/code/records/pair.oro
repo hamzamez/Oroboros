@@ -1,0 +1,17 @@
+use io
+
+set Point = record { x ∈ -1000..1000, y ∈ -1000..1000 }
+
+fn bounds(a ∈ Point, b ∈ Point) (Point, Point) {
+    lo = record { x : if a.x < b.x { a.x } else { b.x }, y : if a.y < b.y { a.y } else { b.y } }
+    hi = record { x : if a.x > b.x { a.x } else { b.x }, y : if a.y > b.y { a.y } else { b.y } }
+    (lo, hi)
+}
+
+export fn main() {
+    (lo, hi) = bounds(record { x : 5, y : -2 }, record { x : 1, y : 7 })
+    io.print_int(lo.x)
+    io.print_int(lo.y)
+    io.print_int(hi.x)
+    io.print_int(hi.y)
+}

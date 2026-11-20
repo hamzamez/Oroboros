@@ -362,6 +362,21 @@ func showApp(t *Term, min int) string {
 			return showIf(args[0], args[1], args[2], min)
 		case n == "again":
 			return "again(" + ShowTerms(args) + ")"
+		// THE LOGIC'S FORMERS AS J WRITES THEM (ADR 0145): a quantifier extends
+		// as far right as it can, so it is parenthesized anywhere but lowest;
+		// ⇒ is right-associative, ⇔ neither
+		case (n == ForallName || n == ExistsName) && len(args) == 2 && args[1].Kind == KFn && len(args[1].Params) == 1:
+			q := "∀"
+			if n == ExistsName {
+				q = "∃"
+			}
+			return paren(q+" "+ShowName(args[1].Params[0])+" ∈ "+showAt(args[0], pCmp+1)+" : "+ShowTerm(args[1].Body()), pLowest, min)
+		case n == ImpliesName && len(args) == 2:
+			return paren(showAt(args[0], pImp+1)+" ⇒ "+showAt(args[1], pImp), pImp, min)
+		case n == IffName && len(args) == 2:
+			return paren(showAt(args[0], pIff+1)+" ⇔ "+showAt(args[1], pIff+1), pIff, min)
+		case n == ".." && len(args) == 2:
+			return paren(showAt(args[0], pRange+1)+".."+showAt(args[1], pRange+1), pRange, min)
 		// A RECORD'S FORMS AS J WRITES THEM (ADR 0128): the former, a
 		// projection and an override, never the core's #rec, #get and #with
 		case n == RecName && len(args) >= 1 && args[0].Kind == KStr && len(strings.Fields(args[0].Str)) == len(args)-1:

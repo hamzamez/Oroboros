@@ -1196,20 +1196,86 @@ func (l *lowerer) assumeWhere(sig *core.Sig, f *Func) {
 			return
 		}
 	}
-	term := bindNames(sig.Where, names, 0)
-	r := f.Body
+	// ONE ASSUMPTION, THE WHERE WITHOUT ITS FORMULAS: a formula (ADR 0145) is
+	// the logic's and never lowered, a set's claim and not a value (ADR 0049),
+	// so its conjuncts are dropped and the rest is the conjunction it was, its
+	// lowering the same text as before the logic
+	if w := withoutFormulas(sig.Where); w != nil {
+		l.assume(bindNames(w, names, 0), f.Body)
+	}
+}
+
+// withoutFormulas is a `where` with every conjunct holding a formula of the
+// logic removed, D's (if a b false) rebuilt around the rest, or nil when none
+// is left.
+func withoutFormulas(t *core.Term) *core.Term {
+	if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "if" &&
+		t.Kids[3].Kind == core.KBool && t.Kids[3].Int == 0 {
+		a, b := withoutFormulas(t.Kids[1]), withoutFormulas(t.Kids[2])
+		switch {
+		case a == nil:
+			return b
+		case b == nil:
+			return a
+		case a == t.Kids[1] && b == t.Kids[2]:
+			return t
+		}
+		return core.App(t.Kids[0], a, b, t.Kids[3])
+	}
+	if core.HasFormula(t) {
+		return nil
+	}
+	return t
+}
+
+// assume lowers term into r as an assumption, or, where lowering does not
+// know it, leaves the lowerer as it was: its statements, its value count, its
+// frames, and every map entry made for a value past the count. The frames are
+// restored whole: an arm's guard renames its binder's entry to a π (guarded),
+// and the failure skips the undo, so binary search's `len(a)` after a `where`
+// arm `len(a) <= 1000000` whose other side failed read the π's value as the
+// table (W2, W6; logic3-2026-11-20). An assumption dropped is sound.
+func (l *lowerer) assume(term *core.Term, r *Region) {
 	mark, nv := len(r.Stmts), l.nv
+	frames, names, undecided := append([][]V(nil), l.frames...), append([][]string(nil), l.names...), l.undecided
 	defer func() {
 		if x := recover(); x != nil {
 			if _, ok := x.(lowerError); !ok {
 				panic(x)
 			}
-			r.Stmts, l.nv = r.Stmts[:mark], nv // not lowered: no assumption
+			r.Stmts, l.nv = r.Stmts[:mark], nv
+			if !PlantLowerFramesLeft {
+				l.frames, l.names = frames, names
+			}
+			l.undecided = undecided
+			for v := range l.decl {
+				if int(v) >= nv {
+					delete(l.decl, v)
+				}
+			}
+			for v := range l.lenOfV {
+				if int(v) >= nv {
+					delete(l.lenOfV, v)
+				}
+			}
+			for k, vs := range l.marks {
+				for _, v := range vs {
+					if int(v) >= nv {
+						delete(l.marks, k)
+						break
+					}
+				}
+			}
 		}
 	}()
 	c := l.single(term, r)
 	l.emit(r, Stmt{Op: OAssume, Args: []V{c}})
 }
+
+// PlantLowerFramesLeft leaves the frames as a failed assumption left them, as
+// first built: a guard's π then stands for its binder after the arm
+// (TestAFailedAssumptionLeavesTheFrames).
+var PlantLowerFramesLeft bool
 
 // bindNames reads a signature's term, which names parameters, against the
 // entry frame: each name becomes that frame's slot.

@@ -5383,13 +5383,18 @@ func (tg *Target) segmentVariants() {
 			core.App(core.Name("if"), core.App(core.Name("<="), core.Name(lo), core.Name(hi)),
 				core.App(core.Name("<="), core.Name(hi), core.App(core.Name("len"), core.Name(s))), core.Bool(false)),
 			core.Bool(false))
+		// THE SEGMENT IS ITS FUNCTION RESTRICTED (ADR 0074): σ = s|[lo, hi), so
+		// len σ = hi − lo and σ(e) = s(lo + e), and a claim over σ is one over s
+		// by that homomorphism. GetWindowTextA's promise ∀ i < r : σ(i) ≠ 0 is
+		// of s(lo + i) (logic3-2026-11-20); a length alone was every claim's
+		// before, so the reads were latent.
 		if q.Where != nil {
-			v.Where = core.App(core.Name("if"), formed, replaceLen(q.Where, s, diff), core.Bool(false))
+			v.Where = core.App(core.Name("if"), formed, restrictTo(q.Where, s, lo, diff), core.Bool(false))
 		} else {
 			v.Where = formed
 		}
 		if q.Ensures != nil {
-			v.Ensures = replaceLen(q.Ensures, s, diff)
+			v.Ensures = restrictTo(q.Ensures, s, lo, diff)
 		}
 		v.Name = n + "#seg"
 		tg.Prims[n+"#seg"] = v
@@ -5405,6 +5410,36 @@ func (tg *Target) segmentVariants() {
 		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "segments", Name: local,
 			Term: core.App(core.Name("segments"), core.Int(int64(i)), core.Str(n+"#seg"))})
 	}
+}
+
+// restrictTo is a claim over s restricted to [lo, lo + n): each (len s) is n
+// and each read (s e) is (s (+ lo e)). PlantSegmentReadsUnshifted leaves the
+// reads, as first built: GetWindowTextA's NUL into b[8:40] is then claimed at
+// b[r], and a false `assert` is proven (TestATablesPropertyIsDecided).
+func restrictTo(t *core.Term, s, lo string, n *core.Term) *core.Term {
+	t = replaceLen(t, s, n)
+	if PlantSegmentReadsUnshifted {
+		return t
+	}
+	return shiftReads(t, s, lo)
+}
+
+// PlantSegmentReadsUnshifted: see restrictTo.
+var PlantSegmentReadsUnshifted bool
+
+func shiftReads(t *core.Term, s, lo string) *core.Term {
+	if t == nil || len(t.Kids) == 0 {
+		return t
+	}
+	out := *t
+	out.Kids = make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		out.Kids[i] = shiftReads(k, s, lo)
+	}
+	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == s {
+		out.Kids[1] = core.App(core.Name("+"), core.Name(lo), out.Kids[1])
+	}
+	return &out
 }
 
 // replaceLen is t with each (len s) replaced by by.

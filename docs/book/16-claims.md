@@ -815,11 +815,13 @@ export fn main() { io.print_int(if leap(2024) { 1 } else { 0 }) }
 
 <!-- gen go docs/book/code/claims/no-leap.oro -->
 ```
-gen: leap: leap: the body does not establish its `ensure`: #implies(1 <= y && y <= 9999, #iff(y % 4 == 0 && (!(y % 100 == 0) || y % 400 == 0), #exists(`Int`, fn(k) { y == 4 * k }) && !#exists(`Int`, fn(k) { y == 200 * k }) || #exists(`Int`, fn(k) { y == 400 * k }))) does not follow from the parameters' sets and its `where`
+gen: leap: leap: the body does not establish its `ensure`: 1 <= y && y <= 9999 ⇒ (y % 400 == 0 ⇔ (∃ k ∈ `Int` : y == 4 * k) && !(∃ k ∈ `Int` : y == 200 * k) || (∃ k ∈ `Int` : y == 400 * k)) does not follow from the parameters' sets and its `where`
 ```
 
 The year that shows the mistake is 1900: 100 divides it and 200 does not, so the body says "not a
-leap year" and the claim says "leap year". The compiler did not try years. It decided the formula
+leap year" and the claim says "leap year". The message names the place: the claim is decided at
+each value the body can end in, and the one refused is where 4 and 100 both divide y and the
+answer is `y % 400 == 0`. The compiler did not try years. It decided the formula
 for every y in 1..9999 at once. The rule as the calendar states it:
 
 <!-- file docs/book/code/claims/leap.oro -->
@@ -915,6 +917,133 @@ export fn main() {
 `m` is a name for `lo + (hi - lo) / 2`, and a claim about `m` is a claim about that term. Like
 every claim, an `assert` costs nothing at run time: it is erased once proven.
 
+### Claims about a table
+
+A `∀` may range over a table's positions, and say something about the elements there. A table is
+*sorted* when every element is at most every element after it:
+
+    ∀ i ∈ 0..len(a)-1 : ∀ j ∈ 0..len(a)-1 : i <= j ⇒ a[i] <= a[j]
+
+Then its first element is its least. As a `where`, the sortedness is owed at every call, and the
+table here is not sorted:
+
+<!-- file docs/book/code/claims/no-least.oro -->
+```go
+use io
+
+fn least(a ∈ Array(Int)) (r ∈ Int)
+    where len(a) >= 1 && (∀ i ∈ 0..len(a)-1 : ∀ j ∈ 0..len(a)-1 : i <= j ⇒ a[i] <= a[j])
+    ensure ∀ k ∈ 0..len(a)-1 : r <= a[k]
+{
+    a[0]
+}
+
+export fn main() { io.print_int(least(array { 3, 1, 2 })) }
+```
+
+<!-- gen go docs/book/code/claims/no-least.oro -->
+```
+gen: claims-main: least requires ∀ i ∈ 0..2 : ∀ j ∈ 0..2 : i <= j ⇒ `array`(3, 1, 2)(i) <= `array`(3, 1, 2)(j) at a call, which does not follow
+  known: nothing
+  A definition's declared parameter range and `where` are obligations at every call it is
+  inlined into (ADR 0028). Prove the argument in range — narrow it, or declare the range of
+  what it comes from — or widen the declaration if the definition is right outside it.
+```
+
+In a message a read `a[i]` shows as `a(i)`, since a table is a function of its positions (chapter
+13), and the literal as `` `array`(3, 1, 2) ``. At i = 0 and j = 1, 3 <= 1 is false. With a sorted
+table:
+
+<!-- file docs/book/code/claims/least.oro -->
+```go
+use io
+
+fn least(a ∈ Array(Int)) (r ∈ Int)
+    where len(a) >= 1 && (∀ i ∈ 0..len(a)-1 : ∀ j ∈ 0..len(a)-1 : i <= j ⇒ a[i] <= a[j])
+    ensure ∀ k ∈ 0..len(a)-1 : r <= a[k]
+{
+    a[0]
+}
+
+export fn main() { io.print_int(least(array { 1, 2, 3 })) }
+```
+
+<!-- run go docs/book/code/claims/least.oro -->
+```
+1
+```
+
+How the `ensure` is proven, for a table of any length. "For every k" to be proven is one k about
+which nothing is known, as before. The sortedness is a "for every" that is *known*, and a known
+"for every" is used by choosing where to apply it. The compiler applies it at the positions the
+claim reads, here 0 and k: i = 0 and j = k give `0 <= k ⇒ a[0] <= a[k]`, which is the claim. That
+those positions always suffice, when every read inside the `∀` is at its own variable, is a
+theorem (Bradley, Manna and Sipma, 2006), and so the method is complete there.
+
+A loop's invariant (16.5) may be such a statement too. A table's greatest element is kept in `m`
+while `i` walks the table, and the invariant says `m` is at least everything walked so far. Here
+the step keeps the smaller one, a mistake:
+
+<!-- file docs/book/code/claims/no-max.oro -->
+```go
+use io
+
+fn max(a ∈ Array(Int)) (r ∈ Int)
+    where len(a) >= 1
+    ensure ∀ k ∈ 0..len(a)-1 : a[k] <= r
+{
+    loop i = 1, m = a[0] invariant ∀ j ∈ 0..i-1 : a[j] <= m {
+        i < len(a) -> again(i + 1, if a[i] > m { m } else { a[i] })
+        else -> m
+    }
+}
+
+export fn main() { io.print_int(max(array { 3, 1, 4, 1, 5, 9, 2, 6 })) }
+```
+
+<!-- gen go docs/book/code/claims/no-max.oro -->
+```
+gen: max: max: a loop's invariant does not hold at every iteration: it is not kept by every `again`, ∀ j ∈ 0..i - 1 : a(j) <= m
+  known: assumed -len(a) + +1 <= 0, assumed -len(a) <= 0 (fact len-nonneg)
+  `invariant I` is Hoare's rule (j.md §2.8): I holds on entry and is kept by every `again`,
+  assuming I; then it holds at every iteration. Prove it, strengthen it until it is kept, or
+  drop it.
+```
+
+With the greater one kept:
+
+<!-- file docs/book/code/claims/max.oro -->
+```go
+use io
+
+fn max(a ∈ Array(Int)) (r ∈ Int)
+    where len(a) >= 1
+    ensure ∀ k ∈ 0..len(a)-1 : a[k] <= r
+{
+    loop i = 1, m = a[0] invariant ∀ j ∈ 0..i-1 : a[j] <= m {
+        i < len(a) -> again(i + 1, if a[i] > m { a[i] } else { m })
+        else -> m
+    }
+}
+
+export fn main() { io.print_int(max(array { 3, 1, 4, 1, 5, 9, 2, 6 })) }
+```
+
+<!-- run go docs/book/code/claims/max.oro -->
+```
+9
+```
+
+Three things are proven, each with the invariant applied at the positions read:
+- on entry, i = 1 and m = a[0], and the only position walked is 0;
+- each step: a position j below i + 1 is either below i, where the invariant before the step
+  gives a[j] <= m, or i itself, where the new m is at least a[i];
+- at the end, i >= len(a), so "everything walked" is the whole table: the `ensure`.
+
+Binary search, whose claim is "found at r, or in no position at all", is proven the same way,
+from the sortedness and an invariant with a `∀` on each side of the part still searched; it is
+`examples/logic/bsearch.oro`.
+
 ---
 
 ## 16.8 The edge of the method
@@ -933,6 +1062,7 @@ this book has walked into.
 | `a != b` gives `a - b != 0` | "not equal" is two cases, not one inequality | below |
 | `n < 0xD800 \|\| n > 0xDFFF` | an "or" in a fact is two cases | 9 |
 | `hi - lo` shrinks from both ends | termination looks for one variable moving | 12 |
+| each `a[i] <= a[i+1]` gives `a[0] <= a[n-1]` | a chain of n steps: induction, not one instance | below |
 
 <!-- file docs/book/code/claims/no-square.oro -->
 ```go
@@ -991,6 +1121,33 @@ gen: claims-ratio: `/` requires a - b != 0, which does not follow
 The fact is right there in the list, `ne(a,b)`, and the goal is the same statement moved
 across the equals sign. "Not equal" means "less *or* greater", two cases, and the method
 works with single inequalities. Write `a < b` (16.4's `strict`) and it is one.
+
+<!-- file docs/book/code/claims/no-steps.oro -->
+```go
+use io
+
+fn ends(a ∈ Array(Int)) (r ∈ Bool)
+    where len(a) >= 1 && (∀ i ∈ 0..len(a)-2 : a[i] <= a[i+1])
+    ensure r
+{
+    a[0] <= a[len(a) - 1]
+}
+
+export fn main() { io.print_int(if ends(array { 1, 2, 3 }) { 1 } else { 0 }) }
+```
+
+<!-- gen go docs/book/code/claims/no-steps.oro -->
+```
+gen: ends: ends: the body does not establish its `ensure`: len(a) >= 1 && (∀ i ∈ 0..len(a) - 2 : a(i) <= a(i + 1)) ⇒ a(0) <= a(len(a) - 1) does not follow from the parameters' sets and its `where`
+  known: assumed -len(a) <= 0 (fact len-nonneg)
+  A declared result is a claim decided at its definition (ADR 0072), a formula by the logic's own procedures (ADR 0145): every quantifier taken by its polarity, the rest by the Omega test. Fix the body, or the claim, or narrow a parameter's set.
+```
+
+"Each element at most the next" is a true way to say *sorted*, and from it the first is at most
+the last. But that takes one step per position, `a[0] <= a[1] <= … <= a[n-1]`, as many steps as
+the table is long: an induction, and applying the `∀` at a few chosen positions never makes one.
+The read `a[i+1]` is not at the `∀`'s own variable, which is exactly where the theorem above stops.
+Say *sorted* the way 16.7 does, every pair, and it is one step.
 
 Some of these are gaps that will close: nothing deep stops a compiler learning that a
 square is not negative. But the wall as a whole is not an accident, and the next section is
@@ -1221,6 +1378,9 @@ test* (1991), a descendant of Fourier's.
 - **`ensure` and `assert` may say `∀`, `∃`, `⇒` and `⇔`**, over integers, the program's values
   and remainders by constants. Every quantifier ranges over a set you write, and is decided for
   all its values at once.
+- **A `∀` over a table's positions** is proven by applying the known ones at the positions read:
+  sortedness in a `where`, and an invariant over the part of a table a loop has walked. A chain
+  of steps, each element against the next, needs induction, which this does not do.
 - **The methods are for linear arithmetic.** Products of unknowns, quotients, `mod`, "not
   equal" and "or" are where true things get refused.
 - **The compiler is sound and not complete.** "Does not follow" means "I could not show

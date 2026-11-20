@@ -1,0 +1,10 @@
+use io
+
+fn least(a ∈ Array(Int)) (r ∈ Int)
+    where len(a) >= 1 && (∀ i ∈ 0..len(a)-1 : ∀ j ∈ 0..len(a)-1 : i <= j ⇒ a[i] <= a[j])
+    ensure ∀ k ∈ 0..len(a)-1 : r <= a[k]
+{
+    a[0]
+}
+
+export fn main() { io.print_int(least(array { 1, 2, 3 })) }

@@ -1,0 +1,15 @@
+use win/print
+
+fn cstrlen(b ∈ Array(0..255), r ∈ Int) (n ∈ Int)
+    where 0 <= r && r < len(b) && (∀ i ∈ 0..r-1 : b[i] != 0) && b[r] == 0
+    ensure n == r
+{
+    loop i = 0 invariant 0 <= i && i <= r {
+        i < len(b) && b[i] != 0 -> again(i + 1)
+        else -> i
+    }
+}
+
+export fn main() {
+    print.print_int(cstrlen(array { 72, 105, 33 }, 2))
+}

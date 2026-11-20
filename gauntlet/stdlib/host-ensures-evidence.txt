@@ -1,0 +1,13 @@
+# The evidence for every conjunct of a host declaration's `ensure` that holds a formula of the logic
+# (ADR 0145's L5): believed as `pure` is, an axiom of the host's theory no compiler can verify, so each
+# conjunct names where the host states it and the sentence. Checked both ways by
+# TestEveryQuantifiedHostPromiseIsItsHostsSentence: every such conjunct declared has a row, and every
+# row names one. A derived variant (`#seg`, ADR 0132) is its declaration's image under the restriction
+# and has no rows of its own. Microsoft Learn's pages were read 2026-11-20 with hamza's permission and
+# kept as data: their sentences are checked against nothing on this machine. A conjunct is as J in
+# messages shows it, the result r, a read b(i) (a table's read is its application).
+# Columns, tab-separated: declaration, conjunct, source, sentence.
+windows/winuser.GetWindowTextA	0 <= r	https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtexta	the return value is the length, in characters, of the copied string
+windows/winuser.GetWindowTextA	r <= len(b) - 1	https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtexta	the string is truncated and terminated with a null character
+windows/winuser.GetWindowTextA	∀ i ∈ 0..r - 1 : !(b(i) == 0)	https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtexta	the length, in characters, of the copied string, not including the terminating null character
+windows/winuser.GetWindowTextA	r > 0 ⇒ b(r) == 0	https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtexta	the length, in characters, of the copied string, not including the terminating null character

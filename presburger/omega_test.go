@@ -43,6 +43,18 @@ func TestKnownSystems(t *testing.T) {
 			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
 		}
 	}
+	// parallel rows that meet are an equality, not a contradiction; the fault
+	// reads them as one (PlantParallelTouching)
+	meet := []Constraint{ge(-3, c{"x": 1}), ge(3, c{"x": -1}), ge(0, c{"x": 1, "y": 1}), ge(5, c{"x": -1, "y": -1})}
+	if got := Satisfiable(meet); got != Sat {
+		t.Errorf("x ≥ 3, x ≤ 3: %v, want sat", got)
+	}
+	PlantParallelTouching = true
+	got := Satisfiable(meet)
+	PlantParallelTouching = false
+	if got != Unsat {
+		t.Errorf("with meeting rows read as contradicting, x ≥ 3, x ≤ 3 should be unsat, so the witness can fail: %v", got)
+	}
 }
 
 // AGAINST EXHAUSTIVE SEARCH. Random systems over three or four variables, each

@@ -1,0 +1,29 @@
+// maximum: A TABLE'S GREATEST ELEMENT, WITH ITS LOOP'S INVARIANT STATED.
+//
+// WHAT IT IS. For a table a of length n ≥ 1, m = max a is the element no other
+// exceeds: ∀ k ∈ [0, n) : a[k] ≤ m. The loop keeps the greatest of the prefix it
+// has read, and its invariant says so: ∀ j ∈ [0, i) : a[j] ≤ m. Hoare's rule
+// (1969) with the logic's procedures (ADR 0145 stage 3):
+//   - on entry, i = 1 and m = a[0]: the one element of the prefix is m;
+//   - kept by each step: the new m is a[i] or the old one, whichever is greater,
+//     so the prefix one longer is still below it;
+//   - at the exit, i ≥ n, so the prefix is the whole table: the claim.
+// Each step is a sequent whose universal hypothesis, the invariant, is
+// instantiated over the index set: the Skolem index of the goal and i.
+//
+// The program prints the maximum of {3, 1, 4, 1, 5, 9, 2, 6}: 9.
+use io
+
+fn max(a ∈ Array(Int)) (r ∈ Int)
+    where len(a) >= 1
+    ensure ∀ k ∈ 0..len(a)-1 : a[k] <= r
+{
+    loop i = 1, m = a[0] invariant ∀ j ∈ 0..i-1 : a[j] <= m {
+        i < len(a) -> again(i + 1, if a[i] > m { a[i] } else { m })
+        else -> m
+    }
+}
+
+export fn main() {
+    io.print_int(max(array { 3, 1, 4, 1, 5, 9, 2, 6 }))
+}

@@ -197,7 +197,19 @@ func TermTree(t *Term) (Expr, error) {
 			return nil, err
 		}
 		a := &Apply{Fn: fn}
-		for _, k := range t.Kids[1:] {
+		for i, k := range t.Kids[1:] {
+			// A QUANTIFIER'S BINDER (ADR 0145): (#forall S (fn (x) φ)), a host's
+			// promise over the buffer it wrote (L5), read back as the parser
+			// built it, its body opened on its own name
+			if i == 1 && k.Kind == KFn && len(k.Params) == 1 && t.Kids[0].Kind == KName &&
+				(t.Kids[0].Name == ForallName || t.Kids[0].Name == ExistsName) {
+				body, err := TermTree(k.Body())
+				if err != nil {
+					return nil, err
+				}
+				a.Args = append(a.Args, &Lam{Params: k.Params, Body: body})
+				continue
+			}
 			e, err := TermTree(k)
 			if err != nil {
 				return nil, err

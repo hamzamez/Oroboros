@@ -1,0 +1,49 @@
+// bsearch: BINARY SEARCH ON A SORTED TABLE, ITS ANSWER PROVEN BOTH WAYS.
+//
+// WHAT IT IS. On a sorted table a, ∀ i ≤ j : a[i] ≤ a[j], binary search
+// (Bentley, Programming Pearls; Knuth vol. 3 §6.2.1) halves the interval
+// [lo, hi) that may still hold t. Its invariant is what it has ruled out:
+//     ∀ k ∈ [0, lo) : a[k] < t   and   ∀ k ∈ [hi, n) : t < a[k].
+//   - a step to the right, a[mid] < t, rules out [lo, mid]: for k there,
+//     a[k] ≤ a[mid] < t, an instance of sortedness at (k, mid);
+//   - a step to the left, a[mid] > t, rules out [mid, hi) the same way;
+//   - at the exit lo ≥ hi, the two ruled-out parts cover the table: t is absent.
+// The claim is both directions: a found index holds t, and −1 means no index
+// does. Each sequent's universal hypotheses, sortedness and the invariant, are
+// instantiated over the index set (ADR 0145 stage 3), the midpoint
+// lo + (hi − lo)/2 read exactly (Bloch's form, examples/logic/midpoint.oro).
+//
+// THE MIDPOINT IS A LOOP VARIABLE, m = lo + (hi − lo)/2 in the invariant,
+// computed at each `again` under its clause's guards. Written in the guards,
+// the midpoint occurs several times and reduction binds it once, before any
+// guard, where the decision of each operation inside the word knows nothing
+// of lo < hi (it reads intervals, not invariants). The first clause's tests
+// past lo >= hi, lo < 0, hi > len(a), m < lo and m >= hi, negate the
+// invariant, so the logic proves they never hold; they give the intervals
+// what the invariant gives the logic.
+//
+// The program searches {1, 3, 5, 8, 13, 21} for 8, 1, 21 and 4: 3 0 5 −1.
+use io
+
+fn search(a ∈ Array(Int), t ∈ Int) (r ∈ Int)
+    where len(a) <= 1000000 && (∀ i ∈ 0..len(a)-1 : ∀ j ∈ 0..len(a)-1 : i <= j ⇒ a[i] <= a[j])
+    ensure (r >= 0 ⇒ r < len(a) && a[r] == t) && (r < 0 ⇒ ∀ k ∈ 0..len(a)-1 : a[k] != t)
+{
+    loop lo = 0, hi = len(a), m = len(a) / 2
+        invariant 0 <= lo && lo <= hi && hi <= len(a) && m == lo + (hi - lo) / 2 &&
+            (∀ k ∈ 0..lo-1 : a[k] < t) && (∀ k ∈ hi..len(a)-1 : t < a[k])
+    {
+        lo < 0 || lo >= hi || hi > len(a) || m < lo || m >= hi -> -1
+        a[m] < t -> again(m + 1, hi, m + 1 + (hi - (m + 1)) / 2)
+        a[m] > t -> again(lo, m, lo + (m - lo) / 2)
+        else -> m
+    }
+}
+
+export fn main() {
+    a = array { 1, 3, 5, 8, 13, 21 }
+    io.print_int(search(a, 8))
+    io.print_int(search(a, 1))
+    io.print_int(search(a, 21))
+    io.print_int(search(a, 4))
+}

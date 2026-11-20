@@ -845,6 +845,24 @@ seven more. 95–99 are fixed with the chapter
      refused, and §14.2 shows the refusal and the working form
      ([callbacks-derivation-2026-11-20](../../gauntlet/results/callbacks-derivation-2026-11-20.md)).
 
+Writing §16.7's claims about a table and §18.8, text from Windows (2026-11-20,
+[logic3-2026-11-20](../../gauntlet/results/logic3-2026-11-20.md)), found three; 103 is fixed,
+104 and 105 are not:
+
+103. **A formula in a refusal was printed in the core's notation**: *#implies(1 <= y …,
+     #iff(…, #exists(`Int`, fn(k) { … })))*. Now as J writes it, `∀ x ∈ S : φ`, `⇒`, `⇔` and
+     `lo..hi`; §6.10's and §16.7's refusals changed with it.
+104. **A table's read and a literal table print as applications in a refusal**: `a(i)` for
+     `a[i]`, and `` `array`(3, 1, 2) `` for `array { 3, 1, 2 }` (§16.7, §18.8). A read is the
+     table applied, so the message is not wrong, only not as J writes it; `(array n)` is also an
+     allocation of n cells in the residual, so the printer cannot tell a literal of one element
+     from it by the term alone.
+105. **What a block knows about the values it hands out does not cross it.** `(b, r) = { var t
+     := …; n = GetWindowTextA(w, t); (t, n) }` binds b and r with none of the host's promise about
+     t and n, not even 0 ≤ n: a projection of the block's value carries a loop's and a table's
+     facts (ADR 0031 §3) and not a host call's `ensure`. §18.8's program uses the promise inside
+     the block and tests `r <= len(b)` after it, a clamp standing for the missing proof.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
 3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is

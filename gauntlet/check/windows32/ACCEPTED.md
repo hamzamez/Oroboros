@@ -218,3 +218,21 @@ The initial compile-time baseline, the minimum of two sweeps.
 
 - new source — `examples/logic/leap.oro windows32`
 - new source — `examples/logic/midpoint.oro windows32`
+
+## 2026-11-20 — on 32f542cb, with uncommitted changes
+
+**Reason:** the logic's stage 3 (ADR 0145): five new programs in examples/logic (a sorted table's ends, a table's maximum, binary search, a window's text and a segment's by GetWindowTextA's promise); no existing program's emitted text changed; every new operation proven, binary search's loops left (hi - lo from both ends)
+
+206 runs: 139 emitted, 67 refused; 6945 of 6955 integer operations bounded, 786 of 868 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+5 change(s):
+
+- new source — `examples/logic/bsearch.oro windows32`
+- new source — `examples/logic/maximum.oro windows32`
+- new source — `examples/logic/segment.oro windows32`
+- new source — `examples/logic/sorted.oro windows32`
+- new source — `examples/logic/windowtext.oro windows32`
+
+1 compile(s) recorded FASTER:
+
+- `examples/logic/leap.oro windows32` 843 → 390 ms, 0.46x

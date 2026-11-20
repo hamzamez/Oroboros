@@ -295,6 +295,12 @@ Faults planted:
 - an instance missing from the index set, which must leave binary search's claim unproven;
 - a write's version carrying the old ∀ at its own index.
 
+Built 2026-11-20 ([logic3](../gauntlet/results/logic3-2026-11-20.md)), with two differences. Binary
+search's `where` is sortedness pairwise, ∀ i, j : i ≤ j ⇒ a[i] ≤ a[j], since the adjacent form reads
+a[i+1], not at its universal variable, so it is outside the fragment and needs induction (the book's
+§16.8 shows it refused). And no program writes a table under a ∀ yet, so reads over writes and the
+second fault wait on one (j.md: an invariant over a buffer written in the loop).
+
 **Stages 4–6** after the struct forms, the memory model and T1-4 (the plan): congruence closure and
 Nelson–Oppen with a host's sort and its comparator's law; `spec` and recursive `lemma` with a
 table's sum and sum(a ++ b) = sum(a) + sum(b) by induction; `-checked`'s loop.

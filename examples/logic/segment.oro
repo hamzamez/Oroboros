@@ -1,0 +1,22 @@
+// segment: A HOST'S PROMISE OVER A SEGMENT IS OVER ITS TABLE, SHIFTED.
+//
+// WHAT IT IS. A segment t[lo:hi] is t restricted to [lo, hi) (ADR 0074): as a
+// function σ(i) = t(lo + i), len σ = hi − lo. GetWindowTextA called with the
+// segment t[8:40] (ADR 0132's variant) promises its text's NUL at σ(n), which is
+// t(8 + n): the claim over σ carried to t by that homomorphism. The program
+// asserts it and prints the count, 12; the same assertion at t[n] is refused.
+use windows/winuser
+use llvm as x
+use win/print
+
+export fn main() {
+    w = winuser.CreateWindowExA(0, "STATIC", "TinyRetroPad", 2^31, 0, 0, 10, 10, x.null(), x.null(), x.null(), x.null())
+    (b, r) = {
+        var t := array { 0 : _ ∈ 0..63 }
+        n = winuser.GetWindowTextA(w, t[8:40])
+        assert n > 0 ⇒ t[8 + n] == 0
+        print.print_int(n)
+        (t, n)
+    }
+    ignore(winuser.DestroyWindow(w))
+}

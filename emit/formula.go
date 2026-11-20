@@ -36,6 +36,11 @@ import (
 // (TestAClaimWithQuantifiersIsDecided).
 var PlantLetDefsIgnored bool
 
+// PlantArraysBypassed decides a formula as stage 2 did, its ∀ hypotheses left
+// to Cooper's elimination with each read an unknown: a sorted table's property
+// is then not proven (TestATablesPropertyIsDecided).
+var PlantArraysBypassed bool
+
 // PlantFormulaHypsDropped decides a claim with no facts in scope: a claim that
 // holds only under a parameter's set is then refused (TestAClaimWithQuantifiersIsDecided).
 var PlantFormulaHypsDropped bool
@@ -43,6 +48,11 @@ var PlantFormulaHypsDropped bool
 // formulaHolds decides Γ ⊢ cond, Γ the facts f, cond a claim holding a quantifier
 // or a connective of the logic.
 func (r *refiner) formulaHolds(cond *core.Term, f *facts) bool {
+	// the sequent prepared on the program's terms and its schemas instantiated
+	// over the index set (arrays.go, stage 3); what is left is the procedure below
+	if !PlantArraysBypassed {
+		return r.arrayHolds(cond, f)
+	}
 	tr := &formulaTr{r: r, bound: map[string]bool{}, memo: map[string][2]string{}}
 	goal, ok := tr.formula(cond)
 	if !ok {

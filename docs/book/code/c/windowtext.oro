@@ -1,0 +1,45 @@
+use windows/winuser
+use windows/fileapi
+use windows/processenv
+use llvm as x
+use win/print
+
+fn cstrlen(b ∈ Array(0..255), r ∈ Int) (n ∈ Int)
+    where 0 <= r && r < len(b) && (∀ i ∈ 0..r-1 : b[i] != 0) && b[r] == 0
+    ensure n == r
+{
+    loop i = 0 invariant 0 <= i && i <= r {
+        i < len(b) && b[i] != 0 -> again(i + 1)
+        else -> i
+    }
+}
+
+fn bit(c ∈ Bool) { if c { 1 } else { 0 } }
+
+export fn main() {
+    w = winuser.CreateWindowExA(0, "STATIC", "TinyRetroPad", 2^31, 0, 0, 10, 10, x.null(), x.null(), x.null(), x.null())
+    print.print_int(bit(!x.is_null(w)))
+    // the text is read inside the buffer's scope, where the promise is in
+    // force; the scope's value is its frozen table and the count (ADR 0031)
+    (b, r) = {
+        var t := array { 0 : _ ∈ 0..63 }
+        n = winuser.GetWindowTextA(w, t)
+        case {
+            n > 0 -> {
+                print.print_int(n)
+                print.print_int(cstrlen(t, n))
+            }
+            else -> print.print_int(0)
+        }
+        (t, n)
+    }
+    case {
+        r > 0 && r <= len(b) -> {
+            (put, ok) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), b[0:r])
+            ignore(put)
+            ignore(ok)
+        }
+        else -> ()
+    }
+    ignore(winuser.DestroyWindow(w))
+}

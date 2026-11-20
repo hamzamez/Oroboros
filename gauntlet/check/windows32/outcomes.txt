@@ -229,15 +229,41 @@
 == examples/lines/shape.oro windows32 refused
    gen: examples/lines/shape.oro: in ending: `go/errors`.Is is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/errors` matched no file on the search path and this target provides no module go/errors either, so every name from it is unbound. Check the path.
+== examples/logic/bsearch.oro windows32 emitted a7fd018935ab723ef5c0c0148b975932bcaa77fe18273ff8f210139dddaffa57
+   note: 4 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: search (kept): 10 of 10 integer operations bounded; 0 of 1 loop(s) proven terminating
 == examples/logic/leap.oro windows32 emitted 73a9f504bd0872636ed5574b6aecf9b97f8baed3951556792dbba921c38b5307
    note: 4 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: leap (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/logic/maximum.oro windows32 emitted 7be0f4de975fcc4ce77f00e628486852152d2d2dce09584b9d8a16576459837e
+   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/logic/midpoint.oro windows32 emitted a5233b04bee8e1b9e5829532202c73792500fa093a195d1ae407ed5312090d7e
    note: 2 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/segment.oro windows32 emitted 069d15f098cf57876801c9a37258e06641d9087b4591f938e927168a3be22628
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/sorted.oro windows32 emitted 85644a82ad707f60674cee13be9137daeec5139a41258987cfdc20409bf58b35
+   note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/windowtext.oro windows32 emitted 7bb58f66fde96d8f0319e80ab21d68fb424d287fb16ca906f896cb65d85786e2
+   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 3 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/map/collatz.oro windows32 emitted 849d691b54b17f2b211080aff912e853bf36f87bba23dcb30427794126233ff2
    note: every definition inlined: kept, gen-main: in again's argument 3: in a condition: in a condition: in argument 2 of `==`: steps is Array(0..2^32-1), but Int is required here.

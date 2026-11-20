@@ -4131,3 +4131,38 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/json/tokenize.oro java` 1390 → 906 ms, 0.65x
+
+## 2026-11-20 — on 32f542cb, with uncommitted changes
+
+**Reason:** the logic's stage 3 (ADR 0145): five new programs in examples/logic (a sorted table's ends, a table's maximum, binary search, a window's text and a segment's by GetWindowTextA's promise); no existing program's emitted text changed; every new operation proven, binary search's loops left (hi - lo from both ends)
+
+824 runs: 565 emitted, 259 refused; 12644 of 12700 integer operations bounded, 1492 of 1797 loops proven. compiler pass, differential pass, tooling pass.
+
+20 change(s):
+
+- new source — `examples/logic/bsearch.oro go`
+- new source — `examples/logic/bsearch.oro java`
+- new source — `examples/logic/bsearch.oro js`
+- new source — `examples/logic/bsearch.oro windows`
+- new source — `examples/logic/maximum.oro go`
+- new source — `examples/logic/maximum.oro java`
+- new source — `examples/logic/maximum.oro js`
+- new source — `examples/logic/maximum.oro windows`
+- new source — `examples/logic/segment.oro go`
+- new source — `examples/logic/segment.oro java`
+- new source — `examples/logic/segment.oro js`
+- new source — `examples/logic/segment.oro windows`
+- new source — `examples/logic/sorted.oro go`
+- new source — `examples/logic/sorted.oro java`
+- new source — `examples/logic/sorted.oro js`
+- new source — `examples/logic/sorted.oro windows`
+- new source — `examples/logic/windowtext.oro go`
+- new source — `examples/logic/windowtext.oro java`
+- new source — `examples/logic/windowtext.oro js`
+- new source — `examples/logic/windowtext.oro windows`
+
+3 compile(s) recorded FASTER:
+
+- `examples/logic/leap.oro js` 359 → 62 ms, 0.17x
+- `examples/logic/leap.oro java` 343 → 62 ms, 0.18x
+- `examples/logic/leap.oro windows` 953 → 343 ms, 0.36x

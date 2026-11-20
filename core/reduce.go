@@ -3573,7 +3573,10 @@ func Residual(t *Term, e *Env) []string {
 			if bound[t.Name] || (t.Name == "again" && inLoop) {
 				return
 			}
-			if !e.Prim[t.Name] && !e.Rec[t.Name] && !e.Kept[t.Name] {
+			// the logic's formers live in a claim's condition, which ε
+			// erases (ADR 0145): a proven invariant's mark keeps its
+			// formula as a fact of its loop, and no printer reads it
+			if !e.Prim[t.Name] && !e.Rec[t.Name] && !e.Kept[t.Name] && !IsFormulaHead(t.Name) {
 				found[t.Name] = true
 			}
 		case KInt, KDec, KStr, KBool, KBound:

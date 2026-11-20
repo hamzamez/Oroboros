@@ -177,10 +177,131 @@ func Satisfies(f *Formula) (r Result) {
 	g := d.nnf(f, false)
 	g = d.skolem(g)
 	g = d.qe(g)
-	conj := d.dnf(g)
+	return d.search([]*Formula{simplify(g)}, nil)
+}
+
+// literals is f as a conjunction of literals, a literal alone a conjunction of
+// one; false when f holds a disjunction or a quantifier.
+func literals(f *Formula) ([]*Formula, bool) {
+	if literal(f) {
+		return []*Formula{f}, true
+	}
+	if f.Kind != FAnd {
+		return nil, false
+	}
+	var out []*Formula
+	for _, x := range f.Xs {
+		ls, ok := literals(x)
+		if !ok {
+			return nil, false
+		}
+		out = append(out, ls...)
+	}
+	return out, true
+}
+
+// literal reports an atom or a negated one.
+func literal(f *Formula) bool {
+	switch f.Kind {
+	case FGe, FEq, FDiv, FNDiv, FProp, FNProp:
+		return true
+	}
+	return false
+}
+
+// search decides a quantifier-free NNF formula by case splitting with pruning,
+// DPLL's search without its learning (Davis, Logemann and Loveland 1962): the
+// pending formulas are taken apart, conjunctions and literals before any
+// disjunction, each literal added to the branch's conjunction, and the branch
+// cut the moment the Omega test finds that conjunction unsatisfiable. A
+// disjunction is tried disjunct by disjunct. Sat when a branch closes with no
+// pending formula and its conjunction satisfiable.
+func (d *decider) search(pending []*Formula, lits []*Formula) Result {
+	for {
+		d.tick()
+		// ABSORB conjunctions and literals, which never branch, each literal
+		// checked as it joins, so a contradiction closes the branch at once
+		for {
+			i := -1
+			for j, f := range pending {
+				if f.Kind != FOr {
+					i = j
+					break
+				}
+			}
+			if i < 0 {
+				break
+			}
+			f := pending[i]
+			pending = append(append([]*Formula(nil), pending[:i]...), pending[i+1:]...)
+			switch f.Kind {
+			case FTrue:
+			case FFalse:
+				return Unsat
+			case FAnd:
+				pending = append(pending, f.Xs...)
+			default:
+				lits = append(lits, f)
+				if r := d.sat(lits); r != Sat {
+					return r
+				}
+			}
+		}
+		if len(pending) == 0 {
+			return Sat
+		}
+		// PROPAGATION (DPLL's unit rule, the Omega test the theory): a
+		// disjunction the branch already satisfies, one of its literal
+		// disjuncts entailed, is dropped; a disjunct the branch contradicts is
+		// removed; with none left the branch closes, with one left it is taken
+		// without branching
+		var keep, units []*Formula
+		for _, f := range pending {
+			var live []*Formula
+			satisfied := false
+			for _, x := range f.Xs {
+				parts, ok := literals(x)
+				if !ok {
+					live = append(live, x)
+					continue
+				}
+				if d.sat(append(append([]*Formula(nil), lits...), parts...)) == Unsat {
+					continue
+				}
+				if len(parts) == 1 {
+					if neg := d.nnf(parts[0], true); literal(neg) && d.sat(append(append([]*Formula(nil), lits...), neg)) == Unsat {
+						satisfied = true
+						break
+					}
+				}
+				live = append(live, x)
+			}
+			switch {
+			case satisfied:
+			case len(live) == 0:
+				return Unsat
+			case len(live) == 1:
+				units = append(units, live[0])
+			default:
+				keep = append(keep, &Formula{Kind: FOr, Xs: live})
+			}
+		}
+		pending = append(keep, units...)
+		if len(units) == 0 {
+			sort.SliceStable(pending, func(i, j int) bool { return len(pending[i].Xs) < len(pending[j].Xs) })
+			break
+		}
+	}
+	if len(pending) == 0 {
+		return d.sat(lits)
+	}
+	// a disjunction: each disjunct in turn, the rest pending
+	f := pending[0]
+	rest := pending[1:]
 	unknown := false
-	for _, c := range conj {
-		switch d.sat(c) {
+	for _, x := range f.Xs {
+		next := append(append([]*Formula(nil), rest...), x)
+		switch d.search(next, append([]*Formula(nil), lits...)) {
 		case Sat:
 			return Sat
 		case Unknown:
@@ -535,47 +656,6 @@ func simplify(f *Formula) *Formula {
 		return &Formula{Kind: f.Kind, Xs: xs}
 	}
 	return f
-}
-
-// dnf is a quantifier-free NNF formula as a disjunction of conjunctions of
-// literals.
-func (d *decider) dnf(f *Formula) [][]*Formula {
-	d.tick()
-	switch f.Kind {
-	case FTrue:
-		return [][]*Formula{{}}
-	case FFalse:
-		return nil
-	case FOr:
-		var out [][]*Formula
-		for _, x := range f.Xs {
-			out = append(out, d.dnf(x)...)
-			if len(out) > 4096 {
-				panic(errBudget)
-			}
-		}
-		return out
-	case FAnd:
-		out := [][]*Formula{{}}
-		for _, x := range f.Xs {
-			ds := d.dnf(x)
-			var next [][]*Formula
-			for _, a := range out {
-				for _, b := range ds {
-					c := append(append([]*Formula(nil), a...), b...)
-					next = append(next, c)
-				}
-			}
-			if len(next) > 4096 {
-				panic(errBudget)
-			}
-			out = next
-		}
-		return out
-	case FExists, FForall:
-		panic("presburger: a quantifier in dnf")
-	}
-	return [][]*Formula{{f}}
 }
 
 // sat decides one conjunction of literals by the Omega test.

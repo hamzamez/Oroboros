@@ -21,7 +21,7 @@ program analysis there is), preconditions (Hoare, 1969), and the most famous one
 computing, which this language cannot express.
 
 The examples are in [code/integers/](code/integers/), compiled for real targets, mostly Go.
-`go run docs/book/check.go docs/book/06-integers.md` re-runs every block. Checked 2026-11-15.
+`go run docs/book/check.go docs/book/06-integers.md` re-runs every block. Checked 2026-11-20.
 
 ---
 
@@ -1156,7 +1156,7 @@ export fn grows(a ∈ 0..9, b ∈ 0..9) (r ∈ Int) ensure r > a { a + b }
 
 <!-- gen go docs/book/code/integers/no-ensure.oro -->
 ```
-gen: grows: grows: the body does not establish its `ensure`: #implies((0 <= a && a <= 9) && 0 <= b && b <= 9, a + b > a) does not follow from the parameters' sets and its `where`
+gen: grows: grows: the body does not establish its `ensure`: (0 <= a && a <= 9) && 0 <= b && b <= 9 ⇒ a + b > a does not follow from the parameters' sets and its `where`
 …
 ```
 

@@ -649,6 +649,21 @@
 == examples/lines/shape.oro windows refused
    gen: examples/lines/shape.oro: in ending: `go/errors`.Is is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/errors` matched no file on the search path and this target provides no module go/errors either, so every name from it is unbound. Check the path.
+== examples/logic/bsearch.oro go emitted 761985b104e22a85524a9ef6a5caa8752c0664c422fd6ad18b80f9ce3105b497
+   note: gen-main: 40 of 40 integer operations bounded; 1 of 4 loop(s) proven terminating
+   note: gen-main: 10 division(s) became a shift or a mask
+== examples/logic/bsearch.oro js emitted c5f5584dcdc1e0226d009be5baaab10e9d47f30e8d04e881773f5ff0784e5128
+   note: gen-main: 40 of 40 integer operations bounded; 1 of 4 loop(s) proven terminating
+   note: gen-main: 10 division(s) became a shift or a mask
+== examples/logic/bsearch.oro java emitted 098e17aa302894c547d23076eb148fbbb10dbc9ff214f09cf9d5dde3fc603dea
+   note: gen-main: 40 of 40 integer operations bounded; 1 of 4 loop(s) proven terminating
+   note: gen-main: 10 division(s) became a shift or a mask
+== examples/logic/bsearch.oro windows emitted 3afd61e2428ac89fb2bc8553ee7c3d616696443526bb0a2584f70c6e7ffd22c7
+   note: 4 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: search (kept): 10 of 10 integer operations bounded; 0 of 1 loop(s) proven terminating
 == examples/logic/leap.oro go emitted 0abbec2f13ecd84c7f58d8aa5fa70135f68cfce409f1fa03cb756d0e0bfde721
 == examples/logic/leap.oro js emitted b9aa8ccab5c0d77779f351637b8e3eead4baa2a27ecce7f1332e98e90650fd2d
 == examples/logic/leap.oro java emitted 9f0bf83272967f6a7447d2e621ddd9b6a8b07134bf25ef27bae979b9326529f7
@@ -658,6 +673,17 @@
    note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: leap (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/logic/maximum.oro go emitted 79b2b66e5c0434da3fe3bb20923cff2204bfe02d023e01b8cbec7f44ebbf9e3c
+   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/maximum.oro js emitted 53e471bf16433d586ef506c5ce6c492277f282cb1454b0016f3a2d368f8766ba
+   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/maximum.oro java emitted cf93b10232b8ac3f104f6fb9856ab398ac6cd612151b2579c5247452a960dfe1
+   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/maximum.oro windows emitted d2218d80bda3a8d14a9aed5f0ad83160de665aa82c206e4b8d410bbcae6533d3
+   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/logic/midpoint.oro go emitted 619ba5048e5864623c4299f66f55e32a4b21d620624fa3cf28345a32b9e610ac
 == examples/logic/midpoint.oro js refused
    note: gen-main: 7 of 9 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -681,6 +707,45 @@
 == examples/logic/midpoint.oro windows emitted e3d9599bed65b4ca410bf28c2af1f5bad2479a39bb81e4aef6dd31451e819abc
    note: 2 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/segment.oro go refused
+   gen: examples/logic/segment.oro: in main: `windows/winuser`.GetWindowTextA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/logic/segment.oro js refused
+   gen: examples/logic/segment.oro: in main: `windows/winuser`.GetWindowTextA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/logic/segment.oro java refused
+   gen: examples/logic/segment.oro: in main: `windows/winuser`.GetWindowTextA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/logic/segment.oro windows emitted a40a4a5dd75d0c02a4c567fbe83f9558cb9757d5cb424f885ad238c2a8a28a46
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/sorted.oro go emitted c0ed8aceb660d0c6616018d81c1a3101cd9021624d7cb064ded052e96a79e5c5
+   note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/logic/sorted.oro js emitted 45889efb30ed10527bfec910279d12ecb512b7b51233bdf26a0c686a1b16be68
+   note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/logic/sorted.oro java emitted 2a4a5ccbc3d19a76fa2a979c38e8c943b10de25b1c3c651352b84fcda0bcc8bd
+   note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/logic/sorted.oro windows emitted 4cf5f637debd781bcb405cd1d36310ef066cfd71d657c40aadeff8a14a05d817
+   note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/windowtext.oro go refused
+   gen: examples/logic/windowtext.oro: in main: `windows/winuser`.GetWindowTextA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/logic/windowtext.oro js refused
+   gen: examples/logic/windowtext.oro: in main: `windows/winuser`.GetWindowTextA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/logic/windowtext.oro java refused
+   gen: examples/logic/windowtext.oro: in main: `windows/winuser`.GetWindowTextA is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/logic/windowtext.oro windows emitted 2098c812924e15fbe6444c3e4335147091d26f2228f70e299aa6f27812e8b83e
+   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 3 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/map/collatz.oro go emitted f1d1ad7ce74228bef986b7c9aac2edec1ceccf6d464d9ca9b298aa28ac1b467e
    note: gen-main: 22 of 22 integer operations bounded; 5 of 5 loop(s) proven terminating

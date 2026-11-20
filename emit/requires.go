@@ -725,7 +725,7 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 		// decided as a formula when the quantifier-free route does not prove it
 		// (ADR 0145, stage 2): Γ the facts here, by polarity and the Omega test
 		proved := func() bool {
-			if core.HasFormula(cond) {
+			if core.HasFormula(cond) || len(g.formulas) > 0 && !r.proveCond(cond, g) {
 				return r.formulaHolds(cond, g)
 			}
 			return r.proveCond(cond, g) || (t.Kids[1].Str == ClaimFormulaDef || t.Kids[1].Str == core.AssertDef) && r.formulaHolds(cond, g)
@@ -740,7 +740,7 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 		}
 		// AN ASSERTION JOINS Γ after its point (spec/abstract.md §7):
 		// 𝒪_Γ(assert(φ; e)) = {Γ ⊢ φ} ∪ 𝒪_{Γ, φ}(e)
-		if t.Kids[1].Str == core.AssertDef && !core.HasFormula(cond) {
+		if t.Kids[1].Str == core.AssertDef {
 			h := f.clone()
 			assume(h, cond)
 			return r.walk(t.Kids[3], h)
@@ -812,6 +812,27 @@ func (r *refiner) invariantMark(t *core.Term, f *facts) error {
 		zs := make([]*core.Term, len(at))
 		for i, j := range at {
 			zs[i] = inits[j]
+		}
+		// A FORMULA INVARIANT (ADR 0145 stage 3), Hoare's rule with the logic's
+		// procedures: I(z⃗) on entry, I(params) assumed in the body, I(args)
+		// owed at every `again` (refine.go), and so I at every exit. And any
+		// invariant where formulas are in scope: its step may need them, as
+		// cstrlen's i ≤ r needs i ≠ r from b[i] ≠ 0 and b[r] = 0, the reads'
+		// congruence, which Houdini's linear facts do not hold; the logic's
+		// sequents read the linear facts too, so nothing the old route proved
+		// is lost
+		if core.HasFormula(inv.Body()) || len(f.formulas) > 0 && !PlantInvariantLinearWithFormulas {
+			if !r.formulaHolds(inv.OpenWith(zs), f.clone()) {
+				fail("on entry: ", inv.OpenWith(zs))
+			}
+			fi := &fInv{inv: inv, at: at, kept: true}
+			r.nextFInv = fi
+			err := r.walk(body, f)
+			r.nextFInv = nil
+			if err == nil && !fi.kept {
+				fail("at every iteration: it is not kept by every `again`, ", inv.Body())
+			}
+			return err
 		}
 		// DECIDED (core.LoopInvariantProven): a fact of the loop, handed to its
 		// Houdini so the body assumes it, and owed nothing again.
@@ -1284,14 +1305,17 @@ func DecideClaim(tg *Target, name string, sig *core.Sig, nf *core.Term) error {
 	if nf.Kind == core.KFn {
 		body, params = nf.Body(), nf.Params
 	}
-	cond := core.Rename2(st, map[string]*core.Term{core.ResultName: body})
-	// Γ₀'s `where` stated in the formula, φ ⇒ ψ[body/result], so the logic reads
-	// it exactly: assumed as a fact it is linear or opaque, and a remainder's
-	// `n % 4 == 0` reached the facts as no atom
-	if sig.Where != nil {
-		cond = &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.ImpliesName), sig.Where, cond}}
-	}
-	mark := &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName), core.Str(ClaimFormulaDef), cond, body}}
+	// THE CLAIM AT EACH TAIL of the body (ADR 0145 stage 3): ψ[v/result] where
+	// each value v is given, a loop's exits among them, so a loop's invariant
+	// and its exit's guard are in scope where the claim is decided; Γ₀'s
+	// `where` a premise of each, φ ⇒ ψ[v/result], read exactly by the logic
+	mark := mapTails(body, func(v *core.Term) *core.Term {
+		cond := core.Rename2(st, map[string]*core.Term{core.ResultName: v})
+		if sig.Where != nil {
+			cond = &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.ImpliesName), sig.Where, cond}}
+		}
+		return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName), core.Str(ClaimFormulaDef), cond, v}}
+	})
 	t := mark
 	if params != nil {
 		t = core.Fn(params, mark)
@@ -1349,4 +1373,41 @@ func arithClaim(t *core.Term) bool {
 		return true
 	}
 	return false
+}
+
+// mapTails is t with each tail value v replaced by leaf(v): through a
+// conditional's branches, a let's and a continuation's body, a mark's value,
+// and a loop's exits (its `again`s are no tails). A λ's body is opened at its
+// own names and closed again, the binders named apart (ADR 0036).
+func mapTails(t *core.Term, leaf func(*core.Term) *core.Term) *core.Term {
+	if t.Kind == core.KApp && len(t.Kids) > 0 && t.Kids[0].Kind == core.KName {
+		n, args := t.Kids[0].Name, t.Kids[1:]
+		switch {
+		case isOp(n, "if") && len(args) == 3:
+			return core.App(t.Kids[0], args[0], mapTails(args[1], leaf), mapTails(args[2], leaf))
+		case (isOp(n, "let") || n == "let") && len(args) == 2 && args[1].Kind == core.KFn:
+			return core.App(t.Kids[0], args[0], core.Fn(args[1].Params, mapTails(args[1].Body(), leaf)))
+		case n == core.RequireWhereName && len(args) == 3:
+			return core.App(t.Kids[0], args[0], args[1], mapTails(args[2], leaf))
+		case n == "loop" && len(args) >= 1 && args[0].Kind == core.KFn:
+			kids := append([]*core.Term{t.Kids[0], core.Fn(args[0].Params, loopTails(args[0].Body(), leaf))}, args[1:]...)
+			return &core.Term{Kind: core.KApp, Kids: kids}
+		case n == "again":
+			return t
+		}
+	}
+	// a continuation, ((p a…) (fn (x̄) b)), or a let as a redex, ((fn (x) b) e)
+	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[1].Kind == core.KFn && t.Kids[0].Kind == core.KApp {
+		return core.App(t.Kids[0], core.Fn(t.Kids[1].Params, mapTails(t.Kids[1].Body(), leaf)))
+	}
+	if t.Kind == core.KApp && len(t.Kids) >= 1 && t.Kids[0].Kind == core.KFn && len(t.Kids[0].Params) == len(t.Kids)-1 {
+		kids := append([]*core.Term{core.Fn(t.Kids[0].Params, mapTails(t.Kids[0].Body(), leaf))}, t.Kids[1:]...)
+		return &core.Term{Kind: core.KApp, Kids: kids}
+	}
+	return leaf(t)
+}
+
+// loopTails maps a loop body's tails, its `again`s left as they are.
+func loopTails(t *core.Term, leaf func(*core.Term) *core.Term) *core.Term {
+	return mapTails(t, leaf)
 }

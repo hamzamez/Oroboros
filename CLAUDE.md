@@ -111,8 +111,12 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      `∃`, `⇒`, `⇔` and `assert`, decided by polarity (Skolem constants, Cooper's elimination) and the
      Omega test, divisions by constants exact; a definition's `ensure` relating its result to its
      parameters decided (`clamp`); the Gregorian leap year and Bloch's midpoint;
-   - the array property fragment, with GetWindowTextA's C string, its `ensure` the host's quantified
-     promise with evidence (L5, settling ADR 0091's rest): TinyRetroPad's window text;
+   - ~~the array property fragment~~ done ([logic3](gauntlet/results/logic3-2026-11-20.md)): a ∀
+     in Γ instantiated over the index set (Theorem A), reads congruent, DPLL's search over the
+     Omega test with Pugh's parallel rows; a formula invariant by Hoare's rule; a sorted table's
+     ends, a table's maximum, binary search; L5, a host's `ensure` a formula believed with its
+     sentence (`host-ensures-evidence.txt`), GetWindowTextA's text a C string, strnlen proven its
+     count, on both windows triples;
 2. **ADR 0136's struct forms**: a buffer field `= len(m)`, a nested record by pointer `&f`, an
    inline array `f[N]`, an optional C string `Option(String)` its NULL the niche; and **the memory
    model's decided parts** ([views-finish-research.md](docs/views-finish-research.md)):
@@ -292,6 +296,10 @@ field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ �
 the state translation's let kept a λ argument for β without local.md §3's check.
 
 **Owed from finished steps** (each named in its result document):
+- logic3: a scope's product carrying a host call's `ensure` to its binders (the book's finding 105,
+  windowtext's clamp after the block); a C string from Win32 into a `String`, the code page's
+  decode; reads over writes under a ∀ (an invariant over a buffer written in the loop); a
+  quantifier with several binders; a read and a literal table printed as J writes them (finding 104);
 - callbacks (ADR 0133): a slot's facts between two reads; the words audit's full pass ([words-audit.md](docs/words-audit.md): `inout`, `jump`,
   `underlying`, `cdecl` for hamza);
 - ccall: a local buffer lent to a host in a scope that ends in further host statements is refused
@@ -409,10 +417,10 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,460 of 12,516** integer operations proven inside their target's word, the 56 left
+- **Provability**: **12,644 of 12,700** integer operations proven inside their target's word, the 56 left
   meant to be refused (`examples/int/`, `kara`, the midpoint's 2⁶² on JavaScript) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,479 of 1,774** loops proven to
-  terminate (size-change termination; of the 295 left, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 41 were before bigbits-2026-11-19, among
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,492 of 1,797** loops proven to
+  terminate (size-change termination; of the 305 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 41 were before bigbits-2026-11-19, among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
   halving, a falling maximum, a bit cleared, size-change termination does not see, each counted
@@ -428,7 +436,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
   `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints, `math/bits`, `io`'s
   interfaces; **partial and checked**: `os`, `strings`, `io`, `fmt`, `errors`, `io/fs`,
-  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 83 declarations in 17
+  `path/filepath`, `time`, `bufio` and its `Reader`, `unicode`; Win32 by header, 81 declarations in 18
   headers (ADR 0126, `TestWin32DeclarationsAreTheirPrototypes`). The portable `os` (`lib/os.oro`) runs
   on Go, JavaScript and Java with one output.
 - **The balance**, named in every assessment: the compiler grows faster than the code written in the

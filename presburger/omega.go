@@ -38,6 +38,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 )
 
 // A Constraint is Σ Coef[x]·x + K ≥ 0, or = 0 when Eq.
@@ -282,9 +283,13 @@ func (s *solver) solveInequalities(p []row) bool {
 			return s.solve(rest)
 		}
 	}
-	// Contradictory parallel rows, a·x + k₁ ≥ 0 and −a·x + k₂ ≥ 0 with
-	// k₁ + k₂ < 0, are the common case and need no elimination.
-	if contradictoryPair(p) {
+	// PARALLEL ROWS (Pugh 1991 §2.3): of a·x + k₁ ≥ 0 and a·x + k₂ ≥ 0 the
+	// one with the smaller constant implies the other, so one row per
+	// coefficient vector is kept; a·x + k₁ ≥ 0 and −a·x + k₂ ≥ 0 with
+	// k₁ + k₂ < 0 contradict. Both by hashing the vector, linear in the rows,
+	// where Fourier–Motzkin's combinations make many parallel ones.
+	var bad bool
+	if p, bad = parallel(p); bad {
 		return false
 	}
 	z, exact := pickVariable(p, lower, upper)
@@ -366,27 +371,45 @@ func (s *solver) solveInequalities(p []row) bool {
 	return false
 }
 
-// contradictoryPair finds two rows that are exact negations up to a constant
-// that no integer meets.
-func contradictoryPair(p []row) bool {
-	for i := range p {
-		for j := i + 1; j < len(p); j++ {
-			if len(p[i].coef) != len(p[j].coef) {
-				continue
+// parallel keeps, of the rows sharing one coefficient vector, the tightest,
+// and reports two rows a·x + k₁ ≥ 0 and −a·x + k₂ ≥ 0 that no integer meets,
+// k₁ + k₂ < 0; at k₁ + k₂ = 0 they meet, a·x = −k₁.
+func parallel(p []row) ([]row, bool) {
+	best := map[string]int{}
+	keys := make([]string, len(p))
+	var out []row
+	for i, r := range p {
+		keys[i] = vecKey(r.coef, 1)
+		if j, ok := best[keys[i]]; ok {
+			if r.k < out[j].k {
+				out[j] = r
 			}
-			neg := true
-			for x, a := range p[i].coef {
-				if p[j].coef[x] != -a {
-					neg = false
-					break
-				}
-			}
-			if neg && add(p[i].k, p[j].k) < 0 {
-				return true
-			}
+			continue
+		}
+		best[keys[i]] = len(out)
+		out = append(out, r)
+	}
+	for _, r := range out {
+		if j, ok := best[vecKey(r.coef, -1)]; ok && (add(r.k, out[j].k) < 0 || PlantParallelTouching && add(r.k, out[j].k) == 0) {
+			return nil, true
 		}
 	}
-	return false
+	return out, false
+}
+
+// PlantParallelTouching reads rows that meet, a·x + k ≥ 0 and −a·x − k ≥ 0,
+// as contradicting: x ≥ 3 and x ≤ 3 is then unsatisfiable
+// (TestKnownSystems), and every claim proven from x = 3 a false one.
+var PlantParallelTouching bool
+
+// vecKey is a coefficient vector times sign, printed in its variables' order.
+func vecKey(c map[string]int64, sign int64) string {
+	xs := sortedVars(c)
+	var b strings.Builder
+	for _, x := range xs {
+		fmt.Fprintf(&b, "%s:%d,", x, sign*c[x])
+	}
+	return b.String()
 }
 
 // pickVariable chooses the variable to eliminate: one whose elimination is
@@ -446,6 +469,10 @@ func add(a, b int64) int64 {
 	}
 	return c
 }
+
+// Overflowed reports whether a recovered panic is the checked arithmetic's
+// overflow, which a caller reads as "unknown", never as an answer.
+func Overflowed(e any) bool { return e == errOverflow }
 
 func mul(a, b int64) int64 {
 	if a == 0 || b == 0 {

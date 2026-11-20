@@ -32,6 +32,12 @@ type refiner struct {
 	// store and not indexing (indexWhat).
 	storing bool
 
+	// A FORMULA INVARIANT (ADR 0145 stage 3): handed from its mark to the loop
+	// under it (nextFInv), assumed in the body, and owed at every `again` of
+	// that loop, the innermost formula invariant first (fInvs, by depth)
+	nextFInv *fInv
+	fInvs    []*fInv
+
 	// A STATED LOOP INVARIANT (j.md §2.8): nextInv is handed from its mark to
 	// the loop under it, loopInv and peelInv set around that loop's Houdini
 	// calls, and invKept says whether every conjunct survived them.
@@ -293,6 +299,18 @@ func erasedOr(t *core.Term) (*core.Term, *core.Term, bool) {
 }
 
 func assume(f *facts, where *core.Term) {
+	// A FORMULA OF THE LOGIC IS KEPT WHOLE (ADR 0145): the linear fragment
+	// reads none of it, and the array property fragment's procedure reads it,
+	// a ∀ a schema instantiated over the index set. It is read whole, its
+	// conjuncts without a quantifier included (cstrlen's b[r] = 0, a read the
+	// linear fragment holds no atom for); every consumer of the linear facts
+	// falls back to the logic where formulas are in scope (proved, an index's
+	// obligation, an invariant), and the logic's sequents read the linear
+	// facts too.
+	if core.HasFormula(where) {
+		f.formulas = append(f.formulas, where)
+		return
+	}
 	// A CONJUNCTION IS ASSUMED CONJUNCT BY CONJUNCT, and it has to be matched in
 	// its ERASED form.
 	//
@@ -601,6 +619,19 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 	if op.Name == "again" && r.onAgain != nil && r.loopDepth == 0 {
 		r.onAgain(args, f)
 	}
+	// A FORMULA INVARIANT IS OWED AT ITS LOOP'S BACK EDGE: I(args), under the
+	// facts here, which include I(params) (Hoare's rule's induction step)
+	if op.Name == "again" && len(r.fInvs) > 0 && !PlantFormulaInvUnchecked {
+		if c := r.fInvs[len(r.fInvs)-1]; c.depth == r.loopDepth && len(args) >= len(c.at) {
+			zs := make([]*core.Term, len(c.at))
+			for i, j := range c.at {
+				zs[i] = args[j]
+			}
+			if !r.formulaHolds(c.inv.OpenWith(zs), f.clone()) {
+				c.kept = false
+			}
+		}
+	}
 	p, known := r.tgt.Prims[op.Name]
 
 	// A length is never negative on any target — free, and worth having.
@@ -883,8 +914,26 @@ func (r *refiner) componentEnsures(p Prim, args []*core.Term, binders []string, 
 	for j, b := range binders {
 		sub[core.ResultComponent(j)] = core.Name(b)
 	}
+	// A BUFFER WRITTEN IN PLACE IS ITS STATE AFTER THE CALL in the `ensure`:
+	// the write-borrow is B ⊸ B ⊗ R, the B handed back the argument's own
+	// storage (ADR 0070), and a postcondition speaks of the state after, as
+	// Hoare's does. GetWindowTextA's ∀ i < r : b[i] ≠ 0 is of the text it
+	// wrote, the version the continuation binds (logic3-2026-11-20).
+	if !PlantInPlaceEnsureOld {
+		for _, ip := range p.InPlace {
+			if ip.Arg < len(p.Names) && p.Names[ip.Arg] != "" && ip.Result < len(binders) {
+				sub[p.Names[ip.Arg]] = core.Name(binders[ip.Result])
+			}
+		}
+	}
 	return core.Rename2(p.Ensures, sub)
 }
+
+// PlantInPlaceEnsureOld reads a written buffer in a host's `ensure` as the
+// argument before the call, as first built: GetWindowTextA's promise is then
+// of a buffer no read sees, and windowtext's cstrlen is refused
+// (TestATablesPropertyIsDecided).
+var PlantInPlaceEnsureOld bool
 
 // collectEnsures assumes the postcondition of every PURE call inside a term,
 // about the call term itself.
@@ -1685,6 +1734,29 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	r.loopInv = inv
 	r.loopInvariants(lam, inits, f, g)
 	r.loopInv = nil
+	// THIS LOOP'S FORMULA INVARIANT, assumed of its variables in the body
+	if fi := r.nextFInv; fi != nil {
+		r.nextFInv = nil
+		if len(lam.Params) >= len(fi.at) {
+			zs := make([]*core.Term, len(fi.at))
+			for i, j := range fi.at {
+				zs[i] = core.Name(lam.Params[j])
+			}
+			// its quantifier-free conjuncts are facts like any (m = lo + (hi − lo)/2
+			// bounds an index), the rest the logic's
+			for _, c := range conjunctsOf(fi.inv.OpenWith(zs)) {
+				if core.HasFormula(c) {
+					g.formulas = append(g.formulas, c)
+				} else {
+					assume(g, c)
+					g.formulas = append(g.formulas, c)
+				}
+			}
+			fi.depth = r.loopDepth + 1
+			r.fInvs = append(r.fInvs, fi)
+			defer func() { r.fInvs = r.fInvs[:len(r.fInvs)-1] }()
+		}
+	}
 	r.contentInvariants(lam, inits, f, g)
 	if r.bodyFacts == nil {
 		r.bodyFacts = map[string]*facts{}
@@ -1879,6 +1951,18 @@ func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
 	// around a comparison that measured it.
 	for c != nil && core.IsRequireWhere(c) {
 		c = c.Kids[3]
+	}
+	// THE PATH'S GUARD ON THE PROGRAM'S TERMS, for the logic (ADR 0145 stage
+	// 3): its reads join the index set where a universal is instantiated, as
+	// binary search's a[mid] < t must for sortedness at (k, mid), and a failed
+	// conjunction, which the linear facts cannot hold, is read exactly, as
+	// its exit's lo >= hi must be
+	if c != nil && !PlantGuardsUnkept {
+		g := c
+		if !holds {
+			g = core.App(core.Name("if"), c, core.Bool(false), core.Bool(true))
+		}
+		f.guards = append(f.guards, g)
 	}
 	// A DISJUNCTION THAT FAILED IS A CONJUNCTION (refinements.md §5d). `or` is
 	// erased to `(if a true b)` (ADR 0017), and ¬(a ∨ b) = ¬a ∧ ¬b, each conjunct
@@ -3284,7 +3368,7 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			// program: out of range, JavaScript returns `undefined` and x86 reads
 			// past the table. A speculative walk only reports that it did not
 			// prove, as the fragment's own branch below does.
-			if r.probe {
+			if r.probe || len(f.formulas) > 0 && r.formulaHolds(want, f) {
 				continue
 			}
 			return indexRefusal(want, "%s, and %s is not proven\n"+
@@ -3304,8 +3388,12 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 				continue
 			}
 		}
+		// THE LOGIC, where formulas are in scope (ADR 0145): an index the
+		// linear facts do not bound, binary search's midpoint, bounded by the
+		// invariant's m = lo + (hi − lo)/2 read exactly
+		viaLogic := !allEntailed(f, goals) && len(f.formulas) > 0 && r.formulaHolds(want, f)
 		for _, g := range goals {
-			if f.entails(g) || r.probe {
+			if f.entails(g) || r.probe || viaLogic {
 				continue
 			}
 			return indexRefusal(want, "%s, and %s does not follow\n"+
@@ -3667,3 +3755,26 @@ var PlantRuleNoLength bool
 // PlantWhereProjectionUnread reads a host `where`'s `p.l` as a name, as
 // before: RegisterClassA's nulfree(wc.lpszClassName) is then undecided.
 var PlantWhereProjectionUnread bool
+
+// fInv is a loop's formula invariant: the λ over its variables, their positions
+// among the loop's, the loop's depth, and whether every `again` kept it.
+type fInv struct {
+	inv   *core.Term
+	at    []int
+	depth int
+	kept  bool
+}
+
+// PlantFormulaInvUnchecked owes a formula invariant nothing at its back
+// edges: an invariant the body breaks is then believed, and a claim resting on
+// it accepted (TestATablesPropertyIsDecided's broken maximum).
+var PlantFormulaInvUnchecked bool
+
+// PlantGuardsUnkept keeps no guard's term for the logic: binary search's step
+// then lacks a[mid] < t's index, and its invariant is refused.
+var PlantGuardsUnkept bool
+
+// PlantInvariantLinearWithFormulas decides a quantifier-free invariant by
+// Houdini's linear facts even where formulas are in scope, as first built:
+// windowtext's cstrlen then cannot keep i ≤ r (TestATablesPropertyIsDecided).
+var PlantInvariantLinearWithFormulas bool

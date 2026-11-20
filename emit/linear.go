@@ -113,6 +113,13 @@ type facts struct {
 	content map[string][]*core.Term
 	zero    map[string]bool
 
+	// formulas are the logic's formulas assumed in scope (ADR 0145): a `where`
+	// or an assertion with a quantifier or a connective, read by the array
+	// property fragment's procedure (arrays.go), a ∀ among them a schema
+	formulas []*core.Term
+	// guards are the path's guards that read a table, on the program's terms
+	guards []*core.Term
+
 	// finite is a name's EXACT value set, where every tail of its value is an
 	// integer constant: the join in the lattice of finite sets, of which the
 	// interval hull the inequalities hold is the over-approximation. A sum's
@@ -186,7 +193,9 @@ func (f *facts) clone() *facts {
 		content: make(map[string][]*core.Term, len(f.content)), zero: make(map[string]bool, len(f.zero)),
 		finite:    make(map[string][]int64, len(f.finite)),
 		failedAnd: f.failedAnd[:len(f.failedAnd):len(f.failedAnd)],
-		sub:       f.sub[:len(f.sub):len(f.sub)], eqVer: f.eqVer, subEq: f.subEq}
+		sub:       f.sub[:len(f.sub):len(f.sub)], eqVer: f.eqVer, subEq: f.subEq,
+		formulas: f.formulas[:len(f.formulas):len(f.formulas)],
+		guards:   f.guards[:len(f.guards):len(f.guards)]}
 	for k, v := range f.finite {
 		c.finite[k] = v
 	}

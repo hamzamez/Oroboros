@@ -107,3 +107,17 @@ that unlocks a lot of our walls. and we don't decide again."
   translation from the residual, divisions by constants exact; a definition's `ensure` that is no
   constant bounds decided as `where ⇒ ψ[body/result]`. The Gregorian leap year and Bloch's midpoint on
   every target; the book's §16.7.
+- **Stage 3** (2026-11-20, [logic3](../../gauntlet/results/logic3-2026-11-20.md)): the array property
+  fragment. A ∀ in Γ, a `where`'s or an invariant's, is a schema instantiated over the sequent's index
+  set (Theorem A: the reads, the sets' bounds, 0), two reads congruent (Ackermann), in tiers from the
+  reads' indices to the full set; the ground formula decided by DPLL's search with the Omega test
+  as its theory, unit propagation its pruning, and Pugh's parallel-row step in the Omega test itself.
+  A loop's formula invariant is Hoare's rule with these procedures, and so is any invariant where a
+  formula is in scope. A table's least and greatest, a table's maximum by its loop's invariant, and
+  binary search on every target. **L5 built**: a host declaration's `ensure` may be a formula, its
+  written buffer read as its state after the call, believed with each conjunct's sentence in
+  `gauntlet/stdlib/host-ensures-evidence.txt`, checked both ways; GetWindowTextA's, with strnlen in
+  the language proven equal to its count, on both windows triples. ADR 0091's rest is settled as far
+  as the bytes: the text is a table proven a C string; into a `String` it needs the code page's
+  decode, not built. The pairwise form of sortedness is the fragment's (each read at its own
+  universal variable); the adjacent form, a[i] ≤ a[i+1], needs induction, stage 5's lemma.

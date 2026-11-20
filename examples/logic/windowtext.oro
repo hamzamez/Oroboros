@@ -1,0 +1,64 @@
+// windowtext: A WINDOW'S TEXT IS A C STRING, BY ITS HOST'S PROMISE.
+//
+// WHAT IT IS. GetWindowTextA copies a window's text into a buffer b and returns
+// its count r, "not including the terminating null character" (Microsoft
+// Learn). A C string's length is the index of its first NUL, so the promise is
+// a formula over the buffer the host wrote (ADR 0145's L5):
+//     (∀ i ∈ 0..r-1 : b[i] != 0) ∧ (r > 0 ⇒ b[r] == 0)
+// believed as `pure` is, an axiom of the host's theory, its sentence kept as
+// evidence (gauntlet/stdlib/host-ensures-evidence.txt).
+//
+// The program measures the text itself, strnlen in the language (C's, its
+// bound the buffer's length, which the IR's intervals read: they do not read
+// an invariant), and proves the two counts one: cstrlen's `where` is the promise, its `ensure` n = r. The
+// loop's invariant is i ≤ r; its step from b[i] ≠ 0 and b[r] = 0 needs i ≠ r,
+// which only the reads' congruence gives (a[e₁] ≠ a[e₂] ⇒ e₁ ≠ e₂), and its
+// exit at b[i] = 0 needs i = r, the promise's instance at i (Theorem A).
+//
+// A hidden STATIC window titled "TinyRetroPad" (WS_POPUP, never WS_VISIBLE):
+// it prints 1, then 12 and 12, then the text from the buffer as written.
+use windows/winuser
+use windows/fileapi
+use windows/processenv
+use llvm as x
+use win/print
+
+fn cstrlen(b ∈ Array(0..255), r ∈ Int) (n ∈ Int)
+    where 0 <= r && r < len(b) && (∀ i ∈ 0..r-1 : b[i] != 0) && b[r] == 0
+    ensure n == r
+{
+    loop i = 0 invariant 0 <= i && i <= r {
+        i < len(b) && b[i] != 0 -> again(i + 1)
+        else -> i
+    }
+}
+
+fn bit(c ∈ Bool) { if c { 1 } else { 0 } }
+
+export fn main() {
+    w = winuser.CreateWindowExA(0, "STATIC", "TinyRetroPad", 2^31, 0, 0, 10, 10, x.null(), x.null(), x.null(), x.null())
+    print.print_int(bit(!x.is_null(w)))
+    // the text is read inside the buffer's scope, where the promise is in
+    // force; the scope's value is its frozen table and the count (ADR 0031)
+    (b, r) = {
+        var t := array { 0 : _ ∈ 0..63 }
+        n = winuser.GetWindowTextA(w, t)
+        case {
+            n > 0 -> {
+                print.print_int(n)
+                print.print_int(cstrlen(t, n))
+            }
+            else -> print.print_int(0)
+        }
+        (t, n)
+    }
+    case {
+        r > 0 && r <= len(b) -> {
+            (put, ok) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), b[0:r])
+            ignore(put)
+            ignore(ok)
+        }
+        else -> ()
+    }
+    ignore(winuser.DestroyWindow(w))
+}

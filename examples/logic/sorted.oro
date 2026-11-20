@@ -1,0 +1,34 @@
+// sorted: THE ENDS OF A SORTED TABLE ARE ITS LEAST AND ITS GREATEST.
+//
+// WHAT IT IS. A table a is sorted when ∀ i, j ∈ [0, n) : i ≤ j ⇒ a[i] ≤ a[j]:
+// an array property (Bradley, Manna and Sipma 2006), a universal over indices
+// whose value constraint reads the table only at the quantified indices. Its
+// first element is then a lower bound of all of them, ∀ k : a[0] ≤ a[k], and its
+// last an upper bound. The proof is two instances of the hypothesis, at (0, k)
+// and at (k, n − 1), which the procedure finds by instantiating over the
+// sequent's index set (ADR 0145 stage 3).
+//
+// The program prints the least and the greatest of {1, 3, 5, 8}: 1 and 8. The
+// call owes the table's sortedness, decided on the literal by the case split
+// over its elements; an unsorted table is refused at the call.
+use io
+
+fn least(a ∈ Array(Int)) (r ∈ Int)
+    where len(a) >= 1 && (∀ i ∈ 0..len(a)-1 : ∀ j ∈ 0..len(a)-1 : i <= j ⇒ a[i] <= a[j])
+    ensure ∀ k ∈ 0..len(a)-1 : r <= a[k]
+{
+    a[0]
+}
+
+fn greatest(a ∈ Array(Int)) (r ∈ Int)
+    where len(a) >= 1 && (∀ i ∈ 0..len(a)-1 : ∀ j ∈ 0..len(a)-1 : i <= j ⇒ a[i] <= a[j])
+    ensure ∀ k ∈ 0..len(a)-1 : a[k] <= r
+{
+    a[len(a) - 1]
+}
+
+export fn main() {
+    t = array { 1, 3, 5, 8 }
+    io.print_int(least(t))
+    io.print_int(greatest(t))
+}

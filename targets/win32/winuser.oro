@@ -72,6 +72,20 @@ module windows/winuser {
     fn ShowWindow(w ∈ windef.HWND, c ∈ minwindef.INT) (r ∈ minwindef.BOOL) { host expr call ShowWindow stdcall lib "user32" }
     fn SetWindowPos(w ∈ windef.HWND, after ∈ windef.HWND, x ∈ minwindef.INT, y ∈ minwindef.INT, cx ∈ minwindef.INT, cy ∈ minwindef.INT, f ∈ minwindef.UINT) (r ∈ minwindef.BOOL) { host expr call SetWindowPos stdcall lib "user32" }
     fn SetWindowTextA(w ∈ windef.HWND, t ∈ String) (r ∈ minwindef.BOOL) where nulfree(t) { host expr call SetWindowTextA stdcall lib "user32" }
+    // int GetWindowTextA(_In_ HWND hWnd, _Out_ LPSTR lpString, _In_ int
+    // nMaxCount): the text copied into b, a C string of r characters, its NUL
+    // at b[r] (ADR 0145's L5, its sentence in host-ensures-evidence.txt). The
+    // count is "not including the terminating null character": the length of
+    // a C string is the index of its first NUL, so b[0..r) holds none and
+    // b[r] is it. On failure r is 0 and the page says nothing of b, so the NUL
+    // is promised only for r > 0. The buffer is lent and written in place, so
+    // b in the `ensure` is its state after the call (ADR 0070).
+    fn GetWindowTextA(w ∈ windef.HWND, b ∈ Array(0..255) linear) (r ∈ minwindef.INT)
+        where len(b) >= 1 && len(b) <= 2^31-1
+        ensure 0 <= r && r <= len(b) - 1 && (∀ i ∈ 0..r-1 : b[i] != 0) && (r > 0 ⇒ b[r] == 0)
+    {
+        host expr call GetWindowTextA(w, b, len(b)) stdcall lib "user32"
+    }
     fn SetFocus(w ∈ windef.HWND) (r ∈ windef.HWND) { host expr call SetFocus stdcall lib "user32" }
     fn InvalidateRect(w ∈ windef.HWND, rc ∈ ptr, e ∈ minwindef.BOOL) (r ∈ minwindef.BOOL) { host expr call InvalidateRect stdcall lib "user32" }
 

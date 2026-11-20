@@ -236,3 +236,30 @@ The initial compile-time baseline, the minimum of two sweeps.
 1 compile(s) recorded FASTER:
 
 - `examples/logic/leap.oro windows32` 843 → 390 ms, 0.46x
+
+## 2026-11-20 — on a8b8388f, with uncommitted changes
+
+**Reason:** P3 (ADR 0146): a handle a host type, a failed call's handle a niche; lib/os's ReadFile/WriteFile with CreateFileA's option eliminated where made (smaller code, outputs equal Go's); the converted window programs; save-win new; a struct cell in an arm keeps its leaves; every new operation and loop proven
+
+207 runs: 140 emitted, 67 refused; 6998 of 7008 integer operations bounded, 795 of 877 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+18 change(s):
+
+- emitted text changed — `examples/errors/ignore.oro windows32`
+- emitted text changed — `examples/hash/crc32.oro windows32`
+- emitted text changed — `examples/hash/fnv.oro windows32`
+- emitted text changed — `examples/io/count.oro windows32`
+- emitted text changed — `examples/io/freq.oro windows32`
+- emitted text changed — `examples/io/jsonfmt.oro windows32`
+- emitted text changed — `examples/io/roundtrip.oro windows32`
+- compiler output changed — `examples/io/roundtrip.oro windows32`
+- emitted text changed — `examples/io/wc.oro windows32`
+- emitted text changed — `examples/logic/segment.oro windows32`
+- compiler output changed — `examples/logic/segment.oro windows32`
+- emitted text changed — `examples/logic/windowtext.oro windows32`
+- compiler output changed — `examples/logic/windowtext.oro windows32`
+- new source — `examples/native/save-win.oro windows32`
+- emitted text changed — `examples/native/status-win.oro windows32`
+- emitted text changed — `examples/native/wndproc-win.oro windows32`
+- emitted text changed — `examples/num/ledger.oro windows32`
+- compiler output changed — `examples/pe/pe.oro windows32`

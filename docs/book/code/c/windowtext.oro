@@ -1,4 +1,5 @@
 use windows/winuser
+use windows/windef
 use windows/fileapi
 use windows/processenv
 use llvm as x
@@ -14,32 +15,35 @@ fn cstrlen(b ∈ Array(0..255), r ∈ Int) (n ∈ Int)
     }
 }
 
-fn bit(c ∈ Bool) { if c { 1 } else { 0 } }
-
-export fn main() {
-    w = winuser.CreateWindowExA(0, "STATIC", "TinyRetroPad", 2^31, 0, 0, 10, 10, x.null(), x.null(), x.null(), x.null())
-    print.print_int(bit(!x.is_null(w)))
-    // the text is read inside the buffer's scope, where the promise is in
-    // force; the scope's value is its frozen table and the count (ADR 0031)
+// the window's text: read inside the buffer's scope, whose value is its frozen
+// table and the count (ADR 0031), the host's promise carried to both
+fn show(w ∈ windef.HWND) {
     (b, r) = {
         var t := array { 0 : _ ∈ 0..63 }
         n = winuser.GetWindowTextA(w, t)
-        case {
-            n > 0 -> {
-                print.print_int(n)
-                print.print_int(cstrlen(t, n))
-            }
-            else -> print.print_int(0)
-        }
         (t, n)
     }
     case {
-        r > 0 && r <= len(b) -> {
+        r > 0 -> {
+            print.print_int(r)
+            print.print_int(cstrlen(b, r))
             (put, ok) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), b[0:r])
             ignore(put)
             ignore(ok)
         }
-        else -> ()
+        else -> ignore(print.print_int(0))
     }
     ignore(winuser.DestroyWindow(w))
+}
+
+// a window, or none: CreateWindowExA's failure is NULL, its result's niche
+// (ADR 0146), and the parent, menu and instance are none, each its NULL
+export fn main() {
+    case winuser.CreateWindowExA(0, "STATIC", "TinyRetroPad", 2^31, 0, 0, 10, 10, 'none, 'none, 'none, x.null()) {
+        'some(w) -> {
+            ignore(print.print_int(1))
+            show(w)
+        }
+        'none -> ignore(print.print_int(0))
+    }
 }

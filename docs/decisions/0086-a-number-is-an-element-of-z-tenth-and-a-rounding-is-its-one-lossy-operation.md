@@ -1,7 +1,7 @@
 # 0086 — A number is an element of ℤ[1/10], and a rounding is its one lossy operation
 
 Date: 2026-11-01
-Status: Accepted; not built. Amends ADR 0009 (floats fold exactly, not through `float64`) and ADR 0085
+Status: Accepted; built (`core/num.go`, `ir/numbers.go`, `ir/doubles.go`; numbers.md). Amends ADR 0009 (floats fold exactly, not through `float64`) and ADR 0085
 item 3 (an unrounded float fold is exact, so associative).
 
 ## Context

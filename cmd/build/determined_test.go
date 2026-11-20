@@ -86,7 +86,7 @@ func TestACellAfterAnOutCallIsACell(t *testing.T) {
 	src := "use win/print\nuse windows/fileapi\nuse windows/sysinfoapi\nuse llvm\n\n" +
 		"export fn main() {\n" +
 		"    (d, u) = sysinfoapi.GetLocalTime()\n" +
-		"    h = fileapi.CreateFileA(\"" + path + "\", 3221225472, 0, llvm.null(), 2, 128, llvm.null())\n" +
+		"    expect 'some(h) = fileapi.CreateFileA(\"" + path + "\", 3221225472, 0, llvm.null(), 2, 128, 'none) else \"no file\"\n" +
 		"    var hi := 0\n" +
 		"    lo = fileapi.SetFilePointer(h, 0, hi, 2)\n" +
 		"    ignore(print.print_int(d.wYear))\n    ignore(print.print_int(lo))\n    ignore(print.print_int(hi))\n    ignore(u)\n}\n"
@@ -128,7 +128,7 @@ func TestACStringFieldIsLent(t *testing.T) {
 			"        hCursor : llvm.null(), hbrBackground : llvm.null(), lpszClassName : " + name + " }\n" +
 			"    a = winuser.RegisterClassA(wc)\n" +
 			"    ignore(print.print_int(if a > 0 { 1 } else { 0 }))\n" +
-			"    ignore(print.print_int(winuser.UnregisterClassA(\"OroTestClass\", llvm.null())))\n}\n"
+			"    ignore(print.print_int(winuser.UnregisterClassA(\"OroTestClass\", 'none)))\n}\n"
 	}
 	ok := src(`"OroTestClass"`)
 	for _, target := range []string{"windows", "windows32"} {

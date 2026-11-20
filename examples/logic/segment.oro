@@ -6,11 +6,11 @@
 // t(8 + n): the claim over σ carried to t by that homomorphism. The program
 // asserts it and prints the count, 12; the same assertion at t[n] is refused.
 use windows/winuser
+use windows/windef
 use llvm as x
 use win/print
 
-export fn main() {
-    w = winuser.CreateWindowExA(0, "STATIC", "TinyRetroPad", 2^31, 0, 0, 10, 10, x.null(), x.null(), x.null(), x.null())
+fn show(w ∈ windef.HWND) {
     (b, r) = {
         var t := array { 0 : _ ∈ 0..63 }
         n = winuser.GetWindowTextA(w, t[8:40])
@@ -19,4 +19,11 @@ export fn main() {
         (t, n)
     }
     ignore(winuser.DestroyWindow(w))
+}
+
+export fn main() {
+    case winuser.CreateWindowExA(0, "STATIC", "TinyRetroPad", 2^31, 0, 0, 10, 10, 'none, 'none, 'none, x.null()) {
+        'some(w) -> show(w)
+        'none -> ignore(print.print_int(0))
+    }
 }

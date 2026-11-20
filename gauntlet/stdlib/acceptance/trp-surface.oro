@@ -23,19 +23,37 @@ use windows/datetimeapi
 use windows/libloaderapi
 use windows/winbase
 use windows/winuser
+use windows/windef
 use llvm as x
 use win/print
 
 fn bit(b ∈ Bool) { if b { 1 } else { 0 } }
 
-export fn main() {
-    w = winuser.CreateWindowExA(0, "STATIC", "hello", 2^31, 0, 0, 10, 10, x.null(), x.null(), x.null(), x.null())
-    print.print_int(bit(!x.is_null(w)))
+// a handle the call answered, or none: each failure its declaration's niche,
+// NULL here (ADR 0146)
+fn present(o) (Bool) {
+    case o {
+        'some(h) -> true
+        'none -> false
+    }
+}
+
+fn window(w ∈ windef.HWND) {
     print.print_int(winuser.SendMessageA(w, 14, 0, 0)) // WM_GETTEXTLENGTH
     print.print_int(bit(winuser.SetWindowTextA(w, "abc") != 0))
     print.print_int(winuser.DefWindowProcA(w, 14, 0, 0))
-    print.print_int(bit(winuser.SetWindowPos(w, x.null(), 0, 0, 20, 20, 20) != 0)) // SWP_NOZORDER | SWP_NOACTIVATE
+    print.print_int(bit(winuser.SetWindowPos(w, 'none, 0, 0, 20, 20, 20) != 0)) // SWP_NOZORDER | SWP_NOACTIVATE
     print.print_int(bit(winuser.DestroyWindow(w) != 0))
+}
+
+export fn main() {
+    case winuser.CreateWindowExA(0, "STATIC", "hello", 2^31, 0, 0, 10, 10, 'none, 'none, 'none, x.null()) {
+        'some(w) -> {
+            ignore(print.print_int(1))
+            ignore(window(w))
+        }
+        'none -> ignore(print.print_int(0))
+    }
 
     m = winuser.CreatePopupMenu()
     print.print_int(bit(winuser.AppendMenuA(m, 0, 7, "item") != 0)) // MF_STRING
@@ -44,16 +62,22 @@ export fn main() {
     print.print_int(winuser.CheckMenuItem(m, 99, 8))
     print.print_int(bit(winuser.DestroyMenu(m) != 0))
 
-    g = winbase.GlobalAlloc(64, 16) // GMEM_FIXED | GMEM_ZEROINIT
-    print.print_int(bit(!x.is_null(g)))
-    print.print_int(bit(x.is_null(winbase.GlobalFree(g))))
+    // GlobalFree answers none when it freed the block: the block it did not
+    // free is its result, absent on success
+    case winbase.GlobalAlloc(64, 16) { // GMEM_FIXED | GMEM_ZEROINIT
+        'some(g) -> {
+            ignore(print.print_int(1))
+            ignore(print.print_int(bit(!present(winbase.GlobalFree('some(g))))))
+        }
+        'none -> ignore(print.print_int(0))
+    }
 
     var b := array { 0 : _ ∈ 0..15 }
     n = datetimeapi.GetDateFormatA(127, 0, x.null(), "yyyy", b, 16) // LOCALE_INVARIANT
     print.print_int(n)
 
-    print.print_int(bit(!x.is_null(winuser.GetSysColorBrush(5)))) // COLOR_WINDOW
-    print.print_int(bit(!x.is_null(libloaderapi.LoadLibraryA("Msftedit"))))
+    print.print_int(bit(present(winuser.GetSysColorBrush(5)))) // COLOR_WINDOW
+    print.print_int(bit(present(libloaderapi.LoadLibraryA("Msftedit"))))
     r = winuser.RegisterWindowMessageA("oroboros-trp")
     print.print_int(bit(r >= 49152 && r <= 65535))
 }

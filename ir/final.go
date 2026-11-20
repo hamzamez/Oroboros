@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sort"
 	"strings"
+	"sync"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -552,9 +553,25 @@ func joinConst(c tclass, k *big.Int) tclass {
 
 // tableAlias reports whether a host atom realizes a language table.
 func tableAlias(tg *emit.Target, ty string) bool {
+	// a function of the target, fixed once it is loaded, and of the type: kept,
+	// since a fresh unifier sorts every host type and finalize asks for each
+	// declared value (windowtext's compile 3× once handles were host types,
+	// handle-2026-11-20)
+	k := tableAliasKey{tg, ty}
+	if v, ok := tableAliases.Load(k); ok {
+		return v.(bool)
+	}
 	_, ok := newUnifier(tg).aliasOf(ty)
+	tableAliases.Store(k, ok)
 	return ok
 }
+
+type tableAliasKey struct {
+	tg *emit.Target
+	ty string
+}
+
+var tableAliases sync.Map
 
 // declaresTable reports whether a declared type fixes a table's
 // representation: a language table type, or a host alias of one.

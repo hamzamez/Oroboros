@@ -20,15 +20,15 @@ module windows/commdlg {
     // 0, each determined (Theorem F): no hook can be passed before callbacks,
     // and no template is used.
     set PRINTDLGA = record {
-        hwndOwner ∈ windef.HWND, hDevMode ∈ minwindef.HGLOBAL, hDevNames ∈ minwindef.HGLOBAL, hDC ∈ windef.HDC,
+        hwndOwner ∈ ptr, hDevMode ∈ ptr, hDevNames ∈ ptr, hDC ∈ ptr, // the layout's pointers until ADR 0136's Option(K) fields (ADR 0146)
         Flags ∈ minwindef.DWORD, nFromPage ∈ minwindef.WORD, nToPage ∈ minwindef.WORD, nMinPage ∈ minwindef.WORD,
         nMaxPage ∈ minwindef.WORD, nCopies ∈ minwindef.WORD
     }
     repr PRINTDLGA c(lStructSize ∈ minwindef.DWORD = size, hwndOwner, hDevMode, hDevNames, hDC, Flags,
-        nFromPage, nToPage, nMinPage, nMaxPage, nCopies, hInstance ∈ minwindef.HINSTANCE = 0,
+        nFromPage, nToPage, nMinPage, nMaxPage, nCopies, hInstance ∈ ptr = 0,
         lCustData ∈ minwindef.LPARAM = 0, lpfnPrintHook ∈ ptr = 0, lpfnSetupHook ∈ ptr = 0,
-        lpPrintTemplateName ∈ ptr = 0, lpSetupTemplateName ∈ ptr = 0, hPrintTemplate ∈ minwindef.HGLOBAL = 0,
-        hSetupTemplate ∈ minwindef.HGLOBAL = 0) pack(ILP32 : 1)
+        lpPrintTemplateName ∈ ptr = 0, lpSetupTemplateName ∈ ptr = 0, hPrintTemplate ∈ ptr = 0,
+        hSetupTemplate ∈ ptr = 0) pack(ILP32 : 1)
 
     // BOOL PrintDlgA(_Inout_ LPPRINTDLGA pPD): with PD_RETURNDEFAULT (0x400)
     // the default printer's, and no dialog shown.

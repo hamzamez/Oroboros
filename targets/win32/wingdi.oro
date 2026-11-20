@@ -6,7 +6,7 @@ module windows/wingdi {
     use windows/windef
 
     fn DeleteDC(d ∈ windef.HDC) (r ∈ minwindef.BOOL) { host expr call DeleteDC stdcall lib "gdi32" }
-    fn GetDeviceCaps(d ∈ windef.HDC, i ∈ minwindef.INT) (r ∈ minwindef.INT) { host expr call GetDeviceCaps stdcall lib "gdi32" }
+    fn GetDeviceCaps(d ∈ Option(windef.HDC), i ∈ minwindef.INT) (r ∈ minwindef.INT) { host expr call GetDeviceCaps stdcall lib "gdi32" }
     fn SetBkMode(d ∈ windef.HDC, m ∈ minwindef.INT) (r ∈ minwindef.INT) { host expr call SetBkMode stdcall lib "gdi32" }
     fn StartPage(d ∈ windef.HDC) (r ∈ minwindef.INT) { host expr call StartPage stdcall lib "gdi32" }
     fn EndPage(d ∈ windef.HDC) (r ∈ minwindef.INT) { host expr call EndPage stdcall lib "gdi32" }

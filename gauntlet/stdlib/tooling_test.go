@@ -418,9 +418,11 @@ var published = map[string][]string{
 		// declares it; TestTheSurveysModelCallsWhatTheTargetDeclares holds it to
 		// the declarations
 		"the model of 2026-09-08, wide strings out: 3266 26.4%",
-		"callable, structs the target declares: 4480 36.2%",
-		"callable, every struct the SDK defines: 5887 47.6%",
-		"CALLABLE AND IT LINKS, today's model: 3844 31.1% of the flat API",
+		// a handle a kind of its own (ADR 0146, handle-2026-11-20): an _Out_
+		// pointer to a handle is no word's cell, which no C call passes
+		"callable, structs the target declares: 4413 35.7%",
+		"callable, every struct the SDK defines: 5771 46.6%",
+		"CALLABLE AND IT LINKS, today's model: 3782 30.6% of the flat API",
 	},
 	"jvm": { // surveys-2026-09-10, corrected by tooling-2026-09-11
 		"4508 public types",

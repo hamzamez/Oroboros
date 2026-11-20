@@ -240,6 +240,14 @@ func (tg *Target) alias(mod, n string) (string, string, bool) {
 // aliasThroughUse resolves q.X, where q is a `use`'s alias (its path's last
 // segment when it names none) in mod or a module enclosing it, to that path's X.
 func (tg *Target) aliasThroughUse(mod, n string) (string, bool) {
+	return tg.throughUse(mod, n, func(k string) bool { _, ok := tg.Aliases[k]; return ok })
+}
+
+// throughUse resolves q.X through a `use` whose alias is q, in mod or a module
+// enclosing it, to that path's X where has holds of it: one rule for every
+// name of a set (ADR 0073), an alias's and a host type's alike (ADR 0146's
+// handle kinds, `windef.HWND` under `use windows/windef`).
+func (tg *Target) throughUse(mod, n string, has func(string) bool) (string, bool) {
 	q, x := moduleOf(n), baseOf(n)
 	if q == "" {
 		return "", false
@@ -253,10 +261,8 @@ func (tg *Target) aliasThroughUse(mod, n string) (string, bool) {
 			if a == "" {
 				a = f.Name[strings.LastIndex(f.Name, "/")+1:]
 			}
-			if a == q {
-				if _, ok := tg.Aliases[f.Name+"."+x]; ok {
-					return f.Name + "." + x, true
-				}
+			if a == q && has(f.Name+"."+x) {
+				return f.Name + "." + x, true
 			}
 		}
 		if m == "" {

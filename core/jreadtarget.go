@@ -735,6 +735,21 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 			out = append(out, app(c...))
 		case p.accept("comma_ok"):
 			out = append(out, app(Name("comma-ok")))
+		case p.accept("niche"):
+			// A FAILED CALL'S VALUE, the declaration's own (ADR 0146 item 4):
+			// `niche NULL` or `niche -1`, the point of the host's set its
+			// `Option` result's none is
+			switch {
+			case p.is("NULL"):
+				p.next()
+				out = append(out, app(Name("niche"), Name("NULL")))
+			case p.is("-") && p.i+1 < len(p.toks) && p.toks[p.i+1].text == "1":
+				p.next()
+				p.next()
+				out = append(out, app(Name("niche"), Int(-1)))
+			default:
+				return nil, p.errorf("a declaration's niche is NULL or -1 (ADR 0146), got %s", p.peek())
+			}
 		default:
 			return nil, p.errorf("%s in a host body", p.peek())
 		}

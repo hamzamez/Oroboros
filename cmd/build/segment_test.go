@@ -43,7 +43,7 @@ fn readback(h ∈ winnt.HANDLE) {
 }
 
 export fn main() {
-    h = fileapi.CreateFileA("` + path + `", 3221225472, 0, llvm.null(), 2, 128, llvm.null())
+    expect 'some(h) = fileapi.CreateFileA("` + path + `", 3221225472, 0, llvm.null(), 2, 128, 'none) else "no file"
     data = array { 104, 105, 33, 10, 33 }
     (n, w) = put(h, data[1:4])
     var hi := 0

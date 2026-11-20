@@ -1,0 +1,14 @@
+use win/print
+use windows/fileapi
+use windows/handleapi
+use llvm
+
+export fn main() {
+    case fileapi.CreateFileA("no-such-file.txt", 2^31, 1, llvm.null(), 3, 128, llvm.null()) {
+        'some(h) -> {
+            ignore(handleapi.CloseHandle(h))
+            print.print_str("opened")
+        }
+        'none -> print.print_str("no such file")
+    }
+}

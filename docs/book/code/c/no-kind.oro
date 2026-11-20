@@ -1,0 +1,7 @@
+use win/print
+use windows/winuser
+use windows/windef
+
+fn close(d ∈ windef.HDC) (Int) { winuser.DestroyWindow(d) }
+
+export fn main() { print.print_int(0) }

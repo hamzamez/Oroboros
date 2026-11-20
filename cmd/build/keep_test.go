@@ -158,13 +158,37 @@ export fn main() {
 	if err != nil || got != want {
 		t.Fatalf("on windows: %q, %v; want Go's %q", got, err, want)
 	}
-	// AN UNSTATED RESULT'S TYPE IS NO FACT: read as one, `open`'s success arm
-	// is empty to its callers (the 0 its body returns took `failed`'s
-	// 1..2^32-1 by unification), and the program is refused or wrong.
+	// AN UNSTATED RESULT'S TYPE IS NO FACT: read as one, a kept definition's
+	// success arm is empty to its callers (the 0 its body returns takes
+	// `failed`'s 1..2^32-1 by unification), and the program is refused or
+	// wrong. lib/os's `open` was the witness until ADR 0146 removed it (its
+	// option is eliminated where it is made); `code` is its shape.
+	calls := strings.Repeat(`    io.print_int(if code(k) == 0 { 1 } else { 2 })
+`, 12)
+	unstated := `use io
+fn failed(c ∈ 0..2^32-1) (1..2^32-1) { if c == 0 { 31 } else { c } }
+fn code(n ∈ 0..100) {
+    loop once = 0 {
+        else -> if n > 50 { failed(n) } else { 0 }
+    }
+}
+fn run(k ∈ 0..10) {
+` + calls + `}
+export fn main() {
+    loop i = 0 {
+        i < 1 -> { run(i); again(i + 1) }
+        else -> ()
+    }
+}
+`
+	right, err := buildAndRun(t, unstated, "windows", "")
+	if err != nil || strings.Count(right, "1") != 12 {
+		t.Errorf("the unstated result's witness: %q, %v; want twelve 1s", right, err)
+	}
 	ir.PlantTypingResult = true
-	got, err = buildAndRun(t, src, "windows", "")
+	got, err = buildAndRun(t, unstated, "windows", "")
 	ir.PlantTypingResult = false
-	if err == nil && got == want {
+	if err == nil && got == right {
 		t.Errorf("with an unstated result typed by unification: %q; want it refused or wrong", got)
 	}
 	ir.PlantKeepNothing = true

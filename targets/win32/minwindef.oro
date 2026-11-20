@@ -19,6 +19,6 @@ module windows/minwindef {
     set LRESULT = basetsd.LONG_PTR // typedef LONG_PTR LRESULT
     set ATOM = WORD                // typedef WORD ATOM
     set HGLOBAL = winnt.HANDLE     // typedef HANDLE HGLOBAL
-    set HINSTANCE = ptr            // DECLARE_HANDLE(HINSTANCE)
+    set HINSTANCE = host "HINSTANCE__*" // DECLARE_HANDLE(HINSTANCE) (ADR 0146)
     set HMODULE = HINSTANCE        // typedef HINSTANCE HMODULE
 }

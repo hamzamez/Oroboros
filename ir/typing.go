@@ -133,6 +133,12 @@ func (u *unifier) aliasOf(atom string) (string, bool) {
 	if h == "" || strings.HasPrefix(h, "/*") {
 		return "", false
 	}
+	// A HANDLE KIND IS NO TABLE'S REALIZATION (ADR 0146): every table is `ptr`
+	// on LLVM and a kind `HWND__*`, so the search below cannot succeed, and it
+	// cost windowtext's compile 3× (handle-2026-11-20)
+	if u.tg.HandleKind(atom) {
+		return "", false
+	}
 	found := ""
 	for _, e := range u.elems {
 		if e == atom {
@@ -1043,11 +1049,14 @@ func structLeafType(tg *emit.Target, f *Func, s *Stmt) string {
 	return ""
 }
 
-// structOfCell is the struct a cell reference's statement names, or "".
+// structOfCell is the struct a cell reference's statement names, or "": in
+// any region of f, a branch's arms among them (Func.Walk). Its own walk, as
+// first built, followed statements' regions only, so a struct cell made in an
+// arm, a `case` on CreateWindowExA's Option (ADR 0146), lost its leaves' sets,
+// and status-win's cpMax − start was refused (handle-2026-11-20).
 func structOfCell(tg *emit.Target, f *Func, v V) string {
 	var found string
-	var walk func(r *Region)
-	walk = func(r *Region) {
+	visit := func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
 			if (s.Op == OCellRef || s.Op == OCellFresh) && len(s.Res) == 1 && s.Res[0] == v && s.Type != "" {
@@ -1056,14 +1065,28 @@ func structOfCell(tg *emit.Target, f *Func, v V) string {
 				}
 				found = s.Type
 			}
-			for _, sub := range s.Sub {
-				walk(sub)
-			}
 		}
 	}
-	walk(f.Body)
+	if PlantStructCellArmsUnread {
+		var walk func(r *Region)
+		walk = func(r *Region) {
+			visit(r)
+			for i := range r.Stmts {
+				for _, sub := range r.Stmts[i].Sub {
+					walk(sub)
+				}
+			}
+		}
+		walk(f.Body)
+		return found
+	}
+	f.Walk(visit)
 	return found
 }
+
+// PlantStructCellArmsUnread finds a struct cell by the walk first built, which
+// does not enter a branch's arms (TestAStructCellInAnArmKeepsItsLeaves).
+var PlantStructCellArmsUnread bool
 
 // PlantSlotsUntyped types a map's value by its first slot alone, so a map of
 // products is typed a map of one: the verifier's W4 must refuse its reads

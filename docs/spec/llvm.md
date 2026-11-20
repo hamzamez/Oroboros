@@ -387,6 +387,8 @@ triple (ADR 0126).
 | −2⁶³..2⁶³−1 | 64-bit, `i64` | as it is | as it is |
 | 0..2⁶⁴−1, where the target realizes the unsigned word | 64-bit unsigned, `i64` | the unsigned word, `u64-of` from the word | the unsigned word |
 | `ptr` | a pointer, `ptr` | as it is | as it is |
+| a host type `host "T*"`, a handle kind (ADR 0146) | `T*`, `ptr` | as it is | as it is |
+| `Option(K)`, K a handle kind (ADR 0146) | K, `ptr` | some(h) ↦ h, none ↦ `null` | the declaration's `niche` ↦ none, h ↦ some(h) |
 | `String`, `where nulfree(a)` | `const char *`, `ptr` | its bytes, s + 8 (§4) | — |
 | ∅, or `host stmt` | `void` | — | — |
 

@@ -31,11 +31,15 @@ fn status(h ∈ windef.HWND) (Bool) {
 
 export fn main() {
     ignore(libloaderapi.LoadLibraryA("Msftedit.dll"))
-    h = winuser.CreateWindowExA(0, "RICHEDIT50W", "", 4, 0, 0, 200, 100, llvm.null(), llvm.null(), llvm.null(), llvm.null())
-    ignore(winuser.SetWindowTextA(h, "first line\nsecond line"))
-    ignore(richedit.ExSetSel(h, record { cpMin : 15, cpMax : 15 }))
-    ignore(status(h))
-    ignore(print.print_int(richedit.GetLineCount(h)))
-    ignore(richedit.ReplaceSel(h, 1, "X"))
-    status(h)
+    case winuser.CreateWindowExA(0, "RICHEDIT50W", "", 4, 0, 0, 200, 100, 'none, 'none, 'none, llvm.null()) {
+        'some(h) -> {
+            ignore(winuser.SetWindowTextA(h, "first line\nsecond line"))
+            ignore(richedit.ExSetSel(h, record { cpMin : 15, cpMax : 15 }))
+            ignore(status(h))
+            ignore(print.print_int(richedit.GetLineCount(h)))
+            ignore(richedit.ReplaceSel(h, 1, "X"))
+            status(h)
+        }
+        'none -> print.print_str("no control")
+    }
 }

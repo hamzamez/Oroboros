@@ -80,13 +80,13 @@
    gen: the result of os.WriteFile is a value of a relevant type (spec/errors.md §7), and it is discarded: use it, or discard it with ignore(…)
 == examples/errors/expect.oro windows32 emitted c303f0fad34e5538d128bc711db8c81f59538af3b8b4f23e81bae0dafa09724c
    note: gen-quarter: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
-== examples/errors/ignore.oro windows32 emitted 45cca44c52de963bda955b0f3bb620db3aea11c7a2bbf0a1b37132d7d6317b2f
+== examples/errors/ignore.oro windows32 emitted 3ac94f1aced532aba09da0c91291085a36c9f418ebea9ea3fe5c0a11907228ef
    note: gen-save: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 1 definition(s) kept as functions, 0 inlined by their contracts
    note: os/host.writeall (kept): 3 of 3 integer operations bounded; 0 of 1 loop(s) proven terminating
 == examples/errors/slots.oro windows32 emitted 7e57994be3197066d576123994b567fbd00aec4383efa880b1dbab9e71e8d661
    note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-== examples/hash/crc32.oro windows32 emitted c615340ede5451da96e1f67829470eb7c59707f5d02e1eae3027faf9d78dc358
+== examples/hash/crc32.oro windows32 emitted 810d27cbebee8f2e67d8fe714183171fca212109b20368616c6083cd797c274e
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
    note: gen-main: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 9 definition(s) kept as functions, 1 inlined by their contracts
@@ -99,7 +99,7 @@
    note: step (kept): 5 of 5 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: hex (kept): 6 of 6 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: crc-table (kept): 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/hash/fnv.oro windows32 emitted cc40372cc2238f18ca5c6028d055136d9057ee7cd7912b0ebed24d67a41730eb
+== examples/hash/fnv.oro windows32 emitted 2ebf560df66e4fa352752b20ed5fd78041e63293782043ba6a2224706049f9cf
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
    note: gen-main: 8 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
@@ -145,7 +145,7 @@
    note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 5 of 5 loop(s) proven terminating
-== examples/io/count.oro windows32 emitted bfd816bf2ff0e5782ec013dbfe37dbec8368f06cd77072ac459f7cfdc272845d
+== examples/io/count.oro windows32 emitted f3e0b96e824afd3ec2225e555e0cced449f086fecf620d8e28b4b7b9ef7f7616
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 8 definition(s) kept as functions, 1 inlined by their contracts
@@ -157,7 +157,7 @@
    note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 5 of 5 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/freq.oro windows32 emitted fb3d3ca640a9c0ddf077706bba01a4aebe82991f9d32085e4465ac654efb0244
+== examples/io/freq.oro windows32 emitted 20ea17e2c4106b82a0dcd847a50d0164fd6a4db255fd96804509edabcde63f4b
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
    note: gen-main: 67 product access(es) flattened
    note: gen-main: 228 of 228 integer operations bounded; 29 of 33 loop(s) proven terminating
@@ -168,7 +168,7 @@
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 5 of 5 loop(s) proven terminating
-== examples/io/jsonfmt.oro windows32 emitted 6a6703b40088bb5ee3d66f2db5d4060501692d45350a698fbc198f77203cd1ea
+== examples/io/jsonfmt.oro windows32 emitted 02a7d59b5869029503368480e165b084ea58d10396c4569e835aa9b33b77e6a7
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
    note: gen-main: 95 of 95 integer operations bounded; 17 of 17 loop(s) proven terminating
    note: 6 definition(s) kept as functions, 1 inlined by their contracts
@@ -178,25 +178,24 @@
    note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 5 of 5 loop(s) proven terminating
-== examples/io/roundtrip.oro windows32 emitted 37b49d6b94e1385f076e576634d15bca4a33426afd85360d14b109e33d87554a
+== examples/io/roundtrip.oro windows32 emitted ba029aa5dcf508570ed81e9ea590a185623b83206cb5a03f790731e6bb7f46f9
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
-   note: gen-main: 6 of 6 integer operations bounded; 4 of 4 loop(s) proven terminating
-   note: 14 definition(s) kept as functions, 1 inlined by their contracts
+   note: gen-main: 6 of 6 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: 13 definition(s) kept as functions, 1 inlined by their contracts
    note: os/host.failed (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.readinto (kept): 3 of 3 integer operations bounded; 0 of 1 loop(s) proven terminating
    note: os/host.put (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.writeall (kept): 3 of 3 integer operations bounded; 0 of 1 loop(s) proven terminating
-   note: os/host.open (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.repair (kept): 35 of 35 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-   note: os/host.readfile (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: os/host.readfile (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.readat (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.text-of (kept): 0 of 0 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: os/host.Getenv (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: os/host.Args (kept): 39 of 39 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/wc.oro windows32 emitted 6739f3af4e20284e64e41e080aaa7818e567fd955cac3e8f35e4fa9fa04ff132
+== examples/io/wc.oro windows32 emitted a12ef15573e2da6888b30ad97573e2b138874e5695558faf0519076bc1c50e5f
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 8 definition(s) kept as functions, 1 inlined by their contracts
@@ -250,21 +249,17 @@
    note: 2 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/logic/segment.oro windows32 emitted 069d15f098cf57876801c9a37258e06641d9087b4591f938e927168a3be22628
-   note: 2 definition(s) kept as functions, 0 inlined by their contracts
-   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/segment.oro windows32 emitted 01a73ffd5f06967ca81d0f89a08186a4f6df5acc0a9bf1329caeee315751f424
+   note: every definition inlined: kept, gen-main: the branches of a conditional are () and 0..0
+   note: gen-main: 18 of 18 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/logic/sorted.oro windows32 emitted 85644a82ad707f60674cee13be9137daeec5139a41258987cfdc20409bf58b35
    note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: 2 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/logic/windowtext.oro windows32 emitted 7bb58f66fde96d8f0319e80ab21d68fb424d287fb16ca906f896cb65d85786e2
-   note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
-   note: 3 definition(s) kept as functions, 0 inlined by their contracts
-   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
-   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/logic/windowtext.oro windows32 emitted 1f095dc400e146f82bb2c1d2ab0b4a4c546fd36159faed90e90bc4a7361e910f
+   note: every definition inlined: kept, gen-main: the branches of a conditional are () and 0..0
+   note: gen-main: 45 of 45 integer operations bounded; 6 of 6 loop(s) proven terminating
 == examples/map/collatz.oro windows32 emitted 849d691b54b17f2b211080aff912e853bf36f87bba23dcb30427794126233ff2
    note: every definition inlined: kept, gen-main: in again's argument 3: in a condition: in a condition: in argument 2 of `==`: steps is Array(0..2^32-1), but Int is required here.
    note: gen-main: 42 of 42 integer operations bounded; 12 of 13 loop(s) proven terminating
@@ -320,6 +315,13 @@
 == examples/native/report-js.oro windows32 refused
    gen: examples/native/report-js.oro: in main: `js/console`.log is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js/console` matched no file on the search path and this target provides no module js/console either, so every name from it is unbound. Check the path.
+== examples/native/save-win.oro windows32 emitted 53331e2270b1c0c66ea2a256bcb3ad31de31872757a83ea2041b70bc6a63ed4b
+   note: 5 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: save (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: load (kept): 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/search.oro windows32 emitted ad13ec38bb296fc8be95c094bf6df638673d3701bf6f1c4ca133001e0462b0b5
    note: gen-find-first: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/shortcircuit-go.oro windows32 refused
@@ -345,14 +347,14 @@
 == examples/native/smooth-js.oro windows32 refused
    gen: examples/native/smooth-js.oro: in fill_into: js.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/native/status-win.oro windows32 emitted 3de9a876ed83d0883e7ed91f1ff8ae2b68b160771da31f3d577ba5ad0a2f09a6
+== examples/native/status-win.oro windows32 emitted 90a13e05e6f9cb6ebd4b02ca7e50925c34db9d732d93a737eaee5db1fd204516
    note: status is inlined: status: argument 1 of digits is [1, 2147483648], not inside its parameter's 0..2147483647 (ADR 0101: a program function is decided under its parameters' sets)
    note: gen-main: 20 of 20 integer operations bounded; 8 of 8 loop(s) proven terminating
    note: 3 definition(s) kept as functions, 2 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/native/wndproc-win.oro windows32 emitted 90658f522f30eb0ae8be19ac0a7e54eba063f0296af2f0184463d5dc6db8a537
+== examples/native/wndproc-win.oro windows32 emitted af67be44e9128dab72e2593c6d3d8fcdce989f22ca6ef06a4ba177084e927261
    note: gen-main: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: 2 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
@@ -367,7 +369,7 @@
 == examples/native/wordcount-js.oro windows32 refused
    gen: examples/native/wordcount-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js` matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/num/ledger.oro windows32 emitted 319f58a8f084c3641e2786541fc9b8b43b0cfa96da8a892855d660f808cee2ab
+== examples/num/ledger.oro windows32 emitted 43adb890530606d18bdfface7d7d9972b3f9e3878f434e9e06802ed2350bf334
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
    note: num.decimal is inlined: num.decimal: num.digits's parameter n, declared in 0..2^63-1, requires a / p <= 9223372036854775807 at a call, which does not follow
    note: gen-main: 250 of 250 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -397,8 +399,8 @@
    note: bytes.get is inlined: bytes.get: the claim v ∈ 0..255 is not proven: 0 <= b(a) && b(a) <= 255 does not follow
    note: bytes.put is inlined: bytes.put: bytes.maxu's parameter k, declared in 1..8, requires 1 <= k && k <= 8 at a call, which does not follow
    note: os/host.argv is inlined: os/host.argv: 2 table allocation(s) cannot be proven to have a size in [0, 2147483639], the lengths target windows32 holds
-   note: every definition inlined: kept, gen-main: lowering: a table rule that was never allocated (tables.md §2): table(#0.1 - 0, fn(#nl518) { #1.0(0 + #nl518) })
-   gen: reduction did not terminate within the step limit; last term head: fn() { fn(av) { fn(buf) { fn(#s4) { fn(#vbuf) { fn(path) { fn(h) { fn(c) { fn(read, #vbuf) { fn(n, r) { fn(#t, #p, #p1) { fn(#k) { fn(h, av) { fn(p) { fn(n) …
+   note: every definition inlined: kept, gen-main: lowering: a table rule that was never allocated (tables.md §2): table(#0.1 - 0, fn(#nl383) { #1.0(0 + #nl383) })
+   gen: reduction did not terminate within the step limit; last term head: fn() { fn(av) { fn(buf) { fn(#s4) { fn(#vbuf) { fn(path) { fn(#h1) { fn(c) { fn(read, #vbuf) { fn(n, r) { fn(#t, #p, #p1) { fn(#k) { fn(h, av) { fn(p) { fn(n…
 == examples/smooth.oro windows32 refused
    gen: examples/smooth.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.

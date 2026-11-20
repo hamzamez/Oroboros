@@ -14,9 +14,13 @@ module windows/fileapi {
     // answers a HANDLE, INVALID_HANDLE_VALUE ((HANDLE)−1) on failure, the reason
     // in GetLastError. The path is a C string, read as UTF-8 under the
     // manifest's code page (ADR 0091).
-    fn CreateFileA(p ∈ String, a ∈ minwindef.DWORD, s ∈ minwindef.DWORD, sa ∈ ptr, d ∈ minwindef.DWORD, f ∈ minwindef.DWORD, t ∈ winnt.HANDLE) (r ∈ winnt.HANDLE) where nulfree(p) {
-        host expr call CreateFileA stdcall lib "kernel32"
+    fn CreateFileA(p ∈ String, a ∈ minwindef.DWORD, s ∈ minwindef.DWORD, sa ∈ ptr, d ∈ minwindef.DWORD, f ∈ minwindef.DWORD, t ∈ Option(winnt.HANDLE)) (r ∈ Option(winnt.HANDLE)) where nulfree(p) {
+        host expr call CreateFileA stdcall lib "kernel32" niche -1
     }
+
+    // BOOL DeleteFileA(_In_ LPCSTR lpFileName): the file removed, nonzero on
+    // success; the path a C string (ADR 0091).
+    fn DeleteFileA(p ∈ String) (r ∈ minwindef.BOOL) where nulfree(p) { host expr call DeleteFileA stdcall lib "kernel32" }
 
     // WRITES the region s to h: WriteFile(h, s, len(s), &written, NULL). The
     // region is one table, its address and length the table's projections
@@ -34,8 +38,10 @@ module windows/fileapi {
     // READS INTO the region s: ReadFile(h, s, len(s), &read, NULL), the count
     // read a result (ADR 0131). The table is lent, `linear`, so the write is the
     // caller's to see (ADR 0084), and a program passes b or b[lo:hi] (ADR 0132).
-    // A synchronous read of a file returns fewer than len(s) only at its end.
-    fn ReadFile(h ∈ winnt.HANDLE, s ∈ Array(0..255) linear) (got ∈ minwindef.DWORD, r ∈ minwindef.BOOL) where len(s) <= 2^32-1 {
+    // A synchronous read of a file returns fewer than len(s) only at its end,
+    // and never more: the count is at most nNumberOfBytesToRead, io.Reader's
+    // law, as Go's File.Read states it.
+    fn ReadFile(h ∈ winnt.HANDLE, s ∈ Array(0..255) linear) (got ∈ minwindef.DWORD, r ∈ minwindef.BOOL) where len(s) <= 2^32-1 ensure got <= len(s) {
         host expr call ReadFile(h, s, len(s), &got, NULL) stdcall lib "kernel32"
     }
 

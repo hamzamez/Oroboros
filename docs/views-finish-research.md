@@ -9,7 +9,7 @@ says what is a choice.
 | part | ADR 0084 | program | state |
 |---|---|---|---|
 | P5, a family indexed by a constant | item 12 | TinyRetroPad's status line, `examples/native/status-win.oro` | **built** (ADR 0141, family-2026-11-19) |
-| P3, a handle a host type with equality, its failure a niche | item 10 | TinyRetroPad's file load (CreateFileA's −1, GlobalAlloc's NULL) and window creation | §1 |
+| P3, a handle a host type with equality, its failure a niche | item 10 | TinyRetroPad's file load (CreateFileA's −1, GlobalAlloc's NULL) and window creation | **built** (ADR 0146, handle-2026-11-20), struct fields with ADR 0136 |
 | P6, memory the host returns | item 13 | the persistent kind: `lib/os`'s Args (built, decoded at the boundary); the epoch: a clipboard reader, made up | §2 |
 | two segments of one buffer at once, proven disjoint | item 6 | wc's tail, `copy(b, b[k:n])`, as RtlMoveMemory | §3 |
 | a formula with ↦ and ∗ where no binder says it | item 6 | §3's program, and P4's protocol | §3, §4 |

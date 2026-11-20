@@ -4166,3 +4166,50 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - `examples/logic/leap.oro js` 359 → 62 ms, 0.17x
 - `examples/logic/leap.oro java` 343 → 62 ms, 0.18x
 - `examples/logic/leap.oro windows` 953 → 343 ms, 0.36x
+
+## 2026-11-20 — on a8b8388f, with uncommitted changes
+
+**Reason:** P3 (ADR 0146): a handle a host type, a failed call's handle a niche; lib/os's ReadFile/WriteFile with CreateFileA's option eliminated where made (smaller code, outputs equal Go's); the converted window programs; save-win new; a struct cell in an arm keeps its leaves; every new operation and loop proven
+
+828 runs: 566 emitted, 262 refused; 12697 of 12753 integer operations bounded, 1501 of 1806 loops proven. compiler pass, differential pass, tooling pass.
+
+34 change(s):
+
+- emitted text changed — `examples/errors/ignore.oro windows`
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- emitted text changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- compiler output changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro windows`
+- compiler output changed — `examples/logic/segment.oro go`
+- compiler output changed — `examples/logic/segment.oro java`
+- compiler output changed — `examples/logic/segment.oro js`
+- emitted text changed — `examples/logic/segment.oro windows`
+- compiler output changed — `examples/logic/segment.oro windows`
+- compiler output changed — `examples/logic/windowtext.oro go`
+- compiler output changed — `examples/logic/windowtext.oro java`
+- compiler output changed — `examples/logic/windowtext.oro js`
+- emitted text changed — `examples/logic/windowtext.oro windows`
+- compiler output changed — `examples/logic/windowtext.oro windows`
+- new source — `examples/native/save-win.oro go`
+- new source — `examples/native/save-win.oro java`
+- new source — `examples/native/save-win.oro js`
+- new source — `examples/native/save-win.oro windows`
+- compiler output changed — `examples/native/status-win.oro go`
+- compiler output changed — `examples/native/status-win.oro java`
+- compiler output changed — `examples/native/status-win.oro js`
+- emitted text changed — `examples/native/status-win.oro windows`
+- compiler output changed — `examples/native/wndproc-win.oro go`
+- compiler output changed — `examples/native/wndproc-win.oro java`
+- compiler output changed — `examples/native/wndproc-win.oro js`
+- emitted text changed — `examples/native/wndproc-win.oro windows`
+- compiler output changed — `examples/native/wndproc-win.oro windows`
+- emitted text changed — `examples/num/ledger.oro windows`
+- compiler output changed — `examples/pe/pe.oro windows`
+
+1 compile(s) recorded FASTER:
+
+- `gauntlet/differential/cases/nulfree.oro windows` 921 → 515 ms, 0.56x

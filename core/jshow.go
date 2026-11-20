@@ -24,6 +24,12 @@ import (
 // ShowName is a name as J writes it: σ_J, a module path quoted
 // (“ `go/fmt`.Println “).
 func ShowName(n string) string {
+	// A RAW CALL IS ITS DECLARATION'S HOST PRODUCT (emit/retract.go), named by
+	// the declaration a program wrote: `#raw:windows/libloaderapi:F` is
+	// windows/libloaderapi.F, RawName's dots back (a module path holds no `:`)
+	if q, ok := strings.CutPrefix(n, "#raw:"); ok {
+		return Spell(strings.ReplaceAll(q, ":", "."))
+	}
 	if strings.HasPrefix(n, "#") {
 		return n
 	}

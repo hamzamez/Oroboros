@@ -303,12 +303,19 @@ func assume(f *facts, where *core.Term) {
 	// reads none of it, and the array property fragment's procedure reads it,
 	// a ∀ a schema instantiated over the index set. It is read whole, its
 	// conjuncts without a quantifier included (cstrlen's b[r] = 0, a read the
-	// linear fragment holds no atom for); every consumer of the linear facts
-	// falls back to the logic where formulas are in scope (proved, an index's
-	// obligation, an invariant), and the logic's sequents read the linear
-	// facts too.
+	// linear fragment holds no atom for), and each conjunct without one is a
+	// linear fact too: a primitive's `where` is decided on the linear facts
+	// alone, as a segment's formation 0 ≤ r after GetWindowTextA's promise is
+	// (the save program, handle-2026-11-20).
 	if core.HasFormula(where) {
 		f.formulas = append(f.formulas, where)
+		if !PlantFormulaConjunctionWhole {
+			for _, c := range conjuncts(where) {
+				if !core.HasFormula(c) {
+					assume(f, c)
+				}
+			}
+		}
 		return
 	}
 	// A CONJUNCTION IS ASSUMED CONJUNCT BY CONJUNCT, and it has to be matched in
@@ -542,45 +549,7 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			if err := r.walk(op, f); err != nil {
 				return err
 			}
-			g := f
-			// AND ITS `ensures`, over the arguments and each component by its
-			// position (core.ResultComponent), under Lemma 1: assumed only where
-			// the call's precondition is proven at the call. io.Reader's law
-			// n ≤ len p is File.Read's (ownbuf-2026-10-21, defect 2).
-			if q := r.componentEnsures(pr, args, k.Params, f); q != nil {
-				g = f.clone()
-				assume(g, q)
-			}
-			// A WRITE-BORROW HANDS BACK ITS ARGUMENT'S OWN STORAGE (ADR 0070):
-			// B ⊸ B ⊗ R's B is the identity on the argument, so its length is
-			// the argument's, a theorem of the arrow and no declaration's
-			// `ensure`, true whatever the precondition. Without it a buffer read
-			// after os.ReadAt, or after a kept definition that lends it
-			// (ADR 0113), had no length (roundtrip's buf[0], pe's bytes.get).
-			for _, ip := range pr.InPlace {
-				if !PlantInPlaceNoLength && ip.Result < len(k.Params) && ip.Arg < len(args) {
-					if g == f {
-						g = f.clone()
-					}
-					assume(g, core.App(core.Name("="), core.App(core.Name("len"), core.Name(k.Params[ip.Result])),
-						core.App(core.Name("len"), args[ip.Arg])))
-				}
-			}
-			for i, n := range k.Params {
-				if i >= len(pr.Results) {
-					break
-				}
-				lo, hi, haveLo, haveHi := core.RangeBounds(pr.Results[i])
-				if g == f && (haveLo || haveHi) {
-					g = f.clone()
-				}
-				if haveLo {
-					g.assumeLE(constant(lo).addScaled(variable(n), -1), fmt.Sprintf("%d <= %s", lo, n))
-				}
-				if haveHi {
-					g.assumeLE(variable(n).addScaled(constant(hi), -1), fmt.Sprintf("%s <= %d", n, hi))
-				}
-			}
+			g := r.hostCallFacts(pr, args, k, f)
 			for _, n := range k.Params {
 				r.markName(n)
 			}
@@ -596,6 +565,28 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 				return err
 			}
 			g := f
+			// THE PRODUCER'S TAIL, where it runs straight to it: its facts, and
+			// each component equal to its binder (producerTail); a table's
+			// formulas and guards renamed to the binder, a scalar by an equation
+			if tg, comps, ok := r.producerTail(prod, f); ok && len(comps) == len(k.Params) && !PlantProducerTailUnread {
+				g = tg.clone()
+				nf, ng := len(f.formulas), len(f.guards)
+				ren := map[string]*core.Term{}
+				for j, c := range comps {
+					if c.Kind != core.KName {
+						continue
+					}
+					ren[c.Name] = core.Name(k.Params[j])
+					if e, ok := g.lin(c); ok {
+						g.assumeEQ(k.Params[j], e)
+					}
+				}
+				// the spine's own, past f's (clone's slices end at their length, so
+				// f's are never written)
+				fs := append(append([]*core.Term(nil), g.formulas[:nf]...), renameAll(g.formulas[nf:], ren)...)
+				gs := append(append([]*core.Term(nil), g.guards[:ng]...), renameAll(g.guards[ng:], ren)...)
+				g.formulas, g.guards = fs, gs
+			}
 			for j, pj := range projections(r.tgt, prod, len(k.Params)) {
 				g = r.letInner(pj, k.Params[j], g)
 			}
@@ -3778,3 +3769,114 @@ var PlantGuardsUnkept bool
 // Houdini's linear facts even where formulas are in scope, as first built:
 // windowtext's cstrlen then cannot keep i ≤ r (TestATablesPropertyIsDecided).
 var PlantInvariantLinearWithFormulas bool
+
+// hostCallFacts are the facts in a host call's continuation k: its `ensures`
+// over the arguments and each component (core.ResultComponent) where its
+// `where` is proven (Lemma 1), a write-borrow's buffer its argument's length
+// (ADR 0070), and each component's range.
+func (r *refiner) hostCallFacts(pr Prim, args []*core.Term, k *core.Term, f *facts) *facts {
+	g := f
+	// AND ITS `ensures`, over the arguments and each component by its
+	// position (core.ResultComponent), under Lemma 1: assumed only where
+	// the call's precondition is proven at the call. io.Reader's law
+	// n ≤ len p is File.Read's (ownbuf-2026-10-21, defect 2).
+	if q := r.componentEnsures(pr, args, k.Params, f); q != nil {
+		g = f.clone()
+		assume(g, q)
+	}
+	// A WRITE-BORROW HANDS BACK ITS ARGUMENT'S OWN STORAGE (ADR 0070):
+	// B ⊸ B ⊗ R's B is the identity on the argument, so its length is
+	// the argument's, a theorem of the arrow and no declaration's
+	// `ensure`, true whatever the precondition. Without it a buffer read
+	// after os.ReadAt, or after a kept definition that lends it
+	// (ADR 0113), had no length (roundtrip's buf[0], pe's bytes.get).
+	for _, ip := range pr.InPlace {
+		if !PlantInPlaceNoLength && ip.Result < len(k.Params) && ip.Arg < len(args) {
+			if g == f {
+				g = f.clone()
+			}
+			assume(g, core.App(core.Name("="), core.App(core.Name("len"), core.Name(k.Params[ip.Result])),
+				core.App(core.Name("len"), args[ip.Arg])))
+		}
+	}
+	for i, n := range k.Params {
+		if i >= len(pr.Results) {
+			break
+		}
+		lo, hi, haveLo, haveHi := core.RangeBounds(pr.Results[i])
+		if g == f && (haveLo || haveHi) {
+			g = f.clone()
+		}
+		if haveLo {
+			g.assumeLE(constant(lo).addScaled(variable(n), -1), fmt.Sprintf("%d <= %s", lo, n))
+		}
+		if haveHi {
+			g.assumeLE(variable(n).addScaled(constant(hi), -1), fmt.Sprintf("%s <= %d", n, hi))
+		}
+	}
+	return g
+}
+
+// producerTail is the strongest postcondition of a producer that runs straight
+// to its tail tuple, and the tuple's components:
+//
+//	sp(let ȳ = v in P, Γ) = sp(P, Γ ∧ ȳ ≐ v),
+//
+// through a `let`, a host call's continuation (its `ensure`, hostCallFacts), a
+// region's `build` and a mark, to (fn (#k) (#k e₀ … eₘ₋₁)). A producer that
+// branches is a join, a disjunction of its tails' postconditions, and is not
+// read (ok false), as before. The spine's binders are named apart along the
+// scope chain (ADR 0036), so in the continuation they stand for themselves,
+// the existential closure ∃ȳ. sp(P, Γ) ∧ x̄ = ē with ȳ fresh there.
+func (r *refiner) producerTail(t *core.Term, f *facts) (*facts, []*core.Term, bool) {
+	g := f
+	for n := 0; n < 64 && t != nil; n++ {
+		if arity, ok := tupleArity(t); ok {
+			return g, t.OpenWith([]*core.Term{core.Name("#k")}).Kids[1 : 1+arity], true
+		}
+		if core.IsRequireWhere(t) {
+			t = t.Kids[3]
+			continue
+		}
+		if pr, args, k, ok := multiPrimCall(r.tgt, t); ok {
+			g = r.hostCallFacts(pr, args, k, g)
+			t = k.Body()
+			continue
+		}
+		if v, lam, ok := asLet(r.tgt, t); ok && len(lam.Params) == 1 {
+			g = r.letInner(v, lam.Params[0], g)
+			t = lam.Body()
+			continue
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 3 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "build" &&
+			t.Kids[2].Kind == core.KFn && len(t.Kids[2].Params) == 1 {
+			// the region's length is its count, `build`'s own `ensure`
+			g = g.clone()
+			assume(g, core.App(core.Name("="), core.App(core.Name("len"), core.Name(t.Kids[2].Params[0])), t.Kids[1]))
+			t = t.Kids[2].Body()
+			continue
+		}
+		return nil, nil, false
+	}
+	return nil, nil, false
+}
+
+// PlantProducerTailUnread binds a block's components by their projections
+// alone, as first built: a host call's `ensure` inside the block then reaches
+// none of them, and the save program's WriteFile(h, b[0:r]) is refused
+// (TestAHandleIsAHostTypeAndItsFailureANiche; the book's finding 105).
+var PlantProducerTailUnread bool
+
+func renameAll(ts []*core.Term, ren map[string]*core.Term) []*core.Term {
+	out := make([]*core.Term, len(ts))
+	for i, t := range ts {
+		out[i] = core.Rename2(t, ren)
+	}
+	return out
+}
+
+// PlantFormulaConjunctionWhole keeps a conjunction holding a formula whole, its
+// arithmetic conjuncts no linear facts: GetWindowTextA's 0 ≤ r then reaches no
+// segment's formation, and the save program's WriteFile(h, b[0:r]) is refused
+// (TestAHandleIsAHostTypeAndItsFailureANiche).
+var PlantFormulaConjunctionWhole bool

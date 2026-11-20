@@ -211,6 +211,13 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			defer c.bind(raw, tys)()
 			return c.walk(body, want)
 		}
+		// A `case` ON A VALUE THAT IS NO VARIANT: (e (fn (#t #p) …)) applies e,
+		// the sum being its own eliminator, to a tag and a payload, and a
+		// scalar or a host's value has neither (x.null() where an Option is
+		// wanted, ADR 0146)
+		if err := c.caseOnNoVariant(op, t); err != nil {
+			return "", err
+		}
 		return "", nil // the emitter reports this better than the checker can
 	}
 	// A ROUNDING (ADR 0086, numbers.md §3): its term is checked, a real
@@ -295,6 +302,9 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			// and text is no table: s[i] is no read (book finding 1)
 			if isText(c.tgt, ty) && !PlantStringIsTable {
 				return "", textIsNoTable("indexing, " + core.ShowName(op.Name) + "[…],")
+			}
+			if err := c.caseOnNoVariant(op, t); err != nil {
+				return "", err
 			}
 		}
 		return "", nil // not a primitive, so no signature fixes the type
@@ -428,6 +438,22 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		return "", fmt.Errorf("%s takes %d argument(s), given %d; a primitive is applied to "+
 			"exactly what it declares (an extra argument would be dropped by its template)",
 			core.ShowName(spelled(op.Name)), len(p.Args), len(args))
+	}
+	// A HANDLE'S EQUALITY IS ITS KIND'S (ADR 0146 item 2, hamza: "a"): h == g
+	// between two handles of one kind, a host pointer type, is a Bool; two
+	// kinds, or a kind and an integer, are refused below, as `==` is integer
+	// equality everywhere else.
+	if op.Name == "=" && len(args) == 2 && !PlantHandleEqualityRefused {
+		ta, _ := c.walk(args[0], "")
+		tb, _ := c.walk(args[1], "")
+		if ta != "" && ta == tb && c.tgt.HandleKind(ta) {
+			return "bool", c.agree("`==` between two handles", "bool", want)
+		}
+		if c.tgt.HandleKind(ta) || c.tgt.HandleKind(tb) {
+			return "", fmt.Errorf("`==` between %s and %s: a handle's one operation is equality with a "+
+				"handle of its own kind, and %s is %s and %s is %s (ADR 0146)",
+				core.ShowTerm(args[0]), core.ShowTerm(args[1]), core.ShowTerm(args[0]), core.ShowSet(ta), core.ShowTerm(args[1]), core.ShowSet(tb))
+		}
 	}
 	// An ordinary primitive: demand each declared argument type.
 	for i, a := range args {
@@ -1271,3 +1297,40 @@ func (c *checker) callbackArg(q string, lam *core.Term) error {
 	_, err := c.walk(lam.Body(), d.Result)
 	return err
 }
+
+// caseOnNoVariant refuses a `case`'s eliminator applied to e, (e (fn (#t #p)
+// …)), when e's type is a scalar or a host type: a variant's value is its tag
+// and its payload (ADR 0042), and these have neither. Before, the lowering
+// refused it in its own words ("an application of 3", "a producer of 1 values
+// bound to 2 names", handle-2026-11-20).
+func (c *checker) caseOnNoVariant(op, t *core.Term) error {
+	if PlantCaseOnNoVariant || len(t.Args()) != 1 {
+		return nil
+	}
+	k := t.Args()[0]
+	if k.Kind != core.KFn || len(k.Params) != 2 || !strings.HasPrefix(k.Params[0], "#t") {
+		return nil
+	}
+	ty, err := c.walk(op, "")
+	if err != nil || ty == "" {
+		return nil
+	}
+	_, _, isRange := core.IntRangeBig(ty)
+	v := c.tgt.ValueType(ty)
+	_, host := c.tgt.Types[ty]
+	if !isRange && !host && v != "int" && v != "bool" && v != "f64" && v != "string" && v != "ptr" {
+		return nil
+	}
+	return fmt.Errorf("a `case` reads a variant's tag and its payload, and %s is %s, which is no variant: "+
+		"a value of `Option(T)` is 'some(x) or 'none, written as such (ADR 0040, 0146)",
+		core.ShowTerm(op), core.ShowSet(ty))
+}
+
+// PlantCaseOnNoVariant leaves a `case` on a scalar to the lowering, as before:
+// x.null() passed where CreateWindowExA wants an Option(HWND) is then refused
+// as "a producer of 1 values bound to 2 names" (TestAHandleIsAHostTypeAndItsFailureANiche).
+var PlantCaseOnNoVariant bool
+
+// PlantHandleEqualityRefused refuses `==` between two handles of one kind, as
+// before ADR 0146: eq.oro's same(w, w) is then refused as integer equality.
+var PlantHandleEqualityRefused bool

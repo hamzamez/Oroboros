@@ -11,8 +11,7 @@ define i64 @gen_save(ptr nonnull dereferenceable(8) align 8 %v0, ptr nonnull der
 entry:
   %.s4 = alloca i32
   %.s9 = alloca i1
-  %.s36 = alloca i64
-  %.s53 = alloca i64
+  %.s35 = alloca i64
   %v2 = getelementptr i8, ptr %v0, i64 0
   store i32 0, ptr %.s4
   br label %.head2
@@ -60,78 +59,43 @@ entry:
   %v30 = icmp eq i64 %v28, 0
   br i1 %v30, label %.then33, label %.else34
 .then33:
-  store i64 31, ptr %.s36
-  br label %.join35
+  store i64 31, ptr %.s35
+  br label %.join20
 .else34:
-  store i64 %v28, ptr %.s36
-  br label %.join35
-.join35:
-  %v31 = load i64, ptr %.s36
-  %v36 = icmp eq i64 %v31, 0
-  br i1 %v36, label %.then38, label %.else39
-.then38:
-  %v38 = call i64 @"os/host.writeall"(ptr %v26, ptr %v1)
-  %.c41 = call x86_stdcallcc i32 @CloseHandle(ptr %v26)
-  %v39 = sext i32 %.c41 to i64
-  %v39.n = trunc i64 %v39 to i32
-  %v41 = icmp eq i64 %v38, 0
-  br i1 %v41, label %.then43, label %.else44
-.then43:
-  %.w45 = sext i32 %v39.n to i64
-  %v44 = icmp eq i64 %.w45, 0
-  br i1 %v44, label %.then47, label %.else48
-.then47:
-  %.c49 = call x86_stdcallcc i32 @GetLastError()
-  %v46 = zext i32 %.c49 to i64
-  %v48 = icmp eq i64 %v46, 0
-  br i1 %v48, label %.then51, label %.else52
-.then51:
-  store i64 31, ptr %.s53
-  br label %.join20
-.else52:
-  store i64 %v46, ptr %.s53
-  br label %.join20
-.else48:
-  store i64 0, ptr %.s53
-  br label %.join20
-.else44:
-  store i64 %v38, ptr %.s53
-  br label %.join20
-.else39:
-  store i64 %v31, ptr %.s53
+  store i64 %v28, ptr %.s35
   br label %.join20
 .else30:
-  %v56 = call i64 @"os/host.writeall"(ptr %v26, ptr %v1)
-  %.c55 = call x86_stdcallcc i32 @CloseHandle(ptr %v26)
-  %v57 = sext i32 %.c55 to i64
-  %v57.n = trunc i64 %v57 to i32
-  %v59 = icmp eq i64 %v56, 0
-  br i1 %v59, label %.then57, label %.else58
-.then57:
-  %v62 = icmp eq i32 %v57.n, 0
-  br i1 %v62, label %.then60, label %.else61
-.then60:
-  %.c62 = call x86_stdcallcc i32 @GetLastError()
-  %v64 = zext i32 %.c62 to i64
-  %v66 = icmp eq i64 %v64, 0
-  br i1 %v66, label %.then64, label %.else65
-.then64:
-  store i64 31, ptr %.s53
+  %v34 = call i64 @"os/host.writeall"(ptr %v26, ptr %v1)
+  %.c37 = call x86_stdcallcc i32 @CloseHandle(ptr %v26)
+  %v35 = sext i32 %.c37 to i64
+  %v35.n = trunc i64 %v35 to i32
+  %v37 = icmp eq i64 %v34, 0
+  br i1 %v37, label %.then39, label %.else40
+.then39:
+  %v40 = icmp eq i32 %v35.n, 0
+  br i1 %v40, label %.then42, label %.else43
+.then42:
+  %.c44 = call x86_stdcallcc i32 @GetLastError()
+  %v42 = zext i32 %.c44 to i64
+  %v44 = icmp eq i64 %v42, 0
+  br i1 %v44, label %.then46, label %.else47
+.then46:
+  store i64 31, ptr %.s35
   br label %.join20
-.else65:
-  store i64 %v64, ptr %.s53
+.else47:
+  store i64 %v42, ptr %.s35
   br label %.join20
-.else61:
-  store i64 0, ptr %.s53
+.else43:
+  store i64 0, ptr %.s35
   br label %.join20
-.else58:
-  store i64 %v56, ptr %.s53
+.else40:
+  store i64 %v34, ptr %.s35
   br label %.join20
 .else19:
-  store i64 123, ptr %.s53
+  store i64 123, ptr %.s35
   br label %.join20
 .join20:
-  %v19 = load i64, ptr %.s53
+  %v19 = load i64, ptr %.s35
   ret i64 0
 }
 

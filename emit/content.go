@@ -500,6 +500,14 @@ func (r *refiner) assumeCellValue(inner *facts, x string, v *core.Term) {
 		}
 		r.cellSets[x] = r.tgt.UnfoldType("", a.Str)
 	case v.Op().Name == core.DerefName && a.Kind == core.KName && !PlantCellValueUnbounded:
+		// AN _Out_ RESULT IS ITS CELL'S VALUE (ADR 0131): the host's `ensure`
+		// names the result, which the call's continuation binds to the fresh
+		// cell, and the cell's only writer is the host, so its read is that
+		// value: x ≐ c, ReadFile's got ≤ len(s) reaching the program's count
+		// (handle-2026-11-20)
+		if _, fresh := r.cellSets[a.Name]; fresh && !PlantOutEnsureUnread {
+			inner.assumeEQ(x, variable(a.Name))
+		}
 		lo, hi, haveLo, haveHi := core.RangeBounds(r.cellSets[a.Name])
 		if haveLo {
 			inner.assumeLE(constant(lo).addScaled(variable(x), -1), fmt.Sprintf("%d <= %s (its cell's set)", lo, x))
@@ -877,3 +885,8 @@ func (f *facts) contentString() string {
 	}
 	return s
 }
+
+// PlantOutEnsureUnread does not relate an _Out_ result's read to its cell, as
+// first built: ReadFile's got ≤ len(s) then reaches no count, and the save
+// program's b[0:got] is refused (TestAHandleIsAHostTypeAndItsFailureANiche).
+var PlantOutEnsureUnread bool

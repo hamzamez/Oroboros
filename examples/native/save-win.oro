@@ -1,0 +1,84 @@
+// save: TINYRETROPAD'S FILE SAVE AND LOAD, EACH HANDLE A TYPE OF ITS OWN.
+//
+// WHAT IT IS. A handle is a name the host gives a thing it holds, and each kind
+// is C's own type, `HWND__*` for a window, HANDLE's `void*` for a file (ADR
+// 0146): the program has no view of the thing, so a window is refused where a
+// file is wanted. A failed call answers no handle at all: CreateFileA's −1 and
+// CreateWindowExA's NULL are each its result's niche, the none of an
+// `Option`, and the program meets it as a `case`, so a failure cannot be
+// forgotten. A parameter that may be NULL, CreateFileA's template and
+// CreateWindowExA's parent, menu and instance, is an `Option` too, `'none` its
+// NULL (the SDK's `_In_opt_`).
+//
+// TinyRetroPad's SaveFile and LoadStartupFile: a hidden window's text, read by
+// GetWindowTextA into a buffer, is written to a file with CreateFileA and
+// WriteFile, read back with CreateFileA and ReadFile, and removed. The
+// window's promise (ADR 0145's L5) crosses the block that holds the buffer:
+// its count is at most the buffer's length after the block, so the segment
+// b[0:r] is proven in bounds with no test (the strongest postcondition of the
+// block's spine, handle-2026-11-20). It prints the bytes written, the bytes
+// read, the text read back, and whether the file was removed: 12 12
+// TinyRetroPad 1.
+use windows/winuser
+use windows/windef
+use windows/fileapi
+use windows/handleapi
+use windows/processenv
+use llvm as x
+use win/print
+
+fn bit(c ∈ Bool) { if c { 1 } else { 0 } }
+
+// SAVE: the text into the file, CREATE_ALWAYS; the bytes written, or −1 where
+// the file could not be created
+fn save(path ∈ String, w ∈ windef.HWND) (Int) where nulfree(path) {
+    (b, r) = {
+        var t := array { 0 : _ ∈ 0..63 }
+        n = winuser.GetWindowTextA(w, t)
+        (t, n)
+    }
+    case fileapi.CreateFileA(path, 2^30, 0, x.null(), 2, 128, 'none) { // GENERIC_WRITE, CREATE_ALWAYS
+        'some(h) -> {
+            (put, ok) = fileapi.WriteFile(h, b[0:r])
+            ignore(ok)
+            ignore(handleapi.CloseHandle(h))
+            put
+        }
+        'none -> 0 - 1
+    }
+}
+
+// LOAD: the file's first 64 bytes, OPEN_EXISTING; the count read, its bytes
+// printed, or −1 where the file could not be opened
+fn load(path ∈ String) (Int) where nulfree(path) {
+    case fileapi.CreateFileA(path, 2^31, 1, x.null(), 3, 128, 'none) { // GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING
+        'some(h) -> {
+            (b, got) = {
+                var t := array { 0 : _ ∈ 0..63 }
+                (g, ok) = fileapi.ReadFile(h, t)
+                ignore(ok)
+                (t, g)
+            }
+            ignore(handleapi.CloseHandle(h))
+            ignore(print.print_int(got))
+            (put, ok) = fileapi.WriteFile(processenv.GetStdHandle(4294967285), b[0:got])
+            ignore(put)
+            ignore(ok)
+            got
+        }
+        'none -> 0 - 1
+    }
+}
+
+export fn main() {
+    case winuser.CreateWindowExA(0, "STATIC", "TinyRetroPad", 2^31, 0, 0, 10, 10, 'none, 'none, 'none, x.null()) {
+        'some(w) -> {
+            ignore(print.print_int(save("trp-save.txt", w)))
+            ignore(winuser.DestroyWindow(w))
+            ignore(load("trp-save.txt"))
+            ignore(print.print_str(""))
+            ignore(print.print_int(bit(fileapi.DeleteFileA("trp-save.txt") != 0)))
+        }
+        'none -> ignore(print.print_str("no window"))
+    }
+}

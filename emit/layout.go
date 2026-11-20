@@ -334,6 +334,12 @@ func (tg *Target) resolveSet(mod, ty string) string {
 	return mapTypeNames(ty, func(m string) string {
 		k, def, ok := tg.alias(mod, m)
 		if !ok {
+			// a host type, a handle kind among them (ADR 0146), by its key
+			if r := tg.ResolveTypeIn(mod, m); r != m {
+				if _, host := tg.Types[r]; host {
+					return r
+				}
+			}
 			return m
 		}
 		return tg.resolveSet(moduleOf(k), def)

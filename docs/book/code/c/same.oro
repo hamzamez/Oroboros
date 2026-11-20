@@ -1,0 +1,25 @@
+use win/print
+use windows/winuser
+use windows/windef
+use llvm
+
+fn same(a ∈ windef.HWND, b ∈ windef.HWND) (Int) { if a == b { 1 } else { 0 } }
+
+fn compare(w ∈ windef.HWND) {
+    case winuser.CreateWindowExA(0, "STATIC", "b", 2^31, 0, 0, 10, 10, 'none, 'none, 'none, llvm.null()) {
+        'some(v) -> {
+            ignore(print.print_int(same(w, w)))
+            ignore(print.print_int(same(w, v)))
+            ignore(winuser.DestroyWindow(v))
+        }
+        'none -> ignore(print.print_str("no window"))
+    }
+    ignore(winuser.DestroyWindow(w))
+}
+
+export fn main() {
+    case winuser.CreateWindowExA(0, "STATIC", "a", 2^31, 0, 0, 10, 10, 'none, 'none, 'none, llvm.null()) {
+        'some(w) -> compare(w)
+        'none -> ignore(print.print_str("no window"))
+    }
+}

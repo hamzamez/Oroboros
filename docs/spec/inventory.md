@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 167 |
+| `specified` — a spec states it | 168 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 3 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -248,6 +248,7 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `checked` | specified | [target-files.md](target-files.md) |
 | `jump` | specified | [windows-target.md](windows-target.md) |
 | `comma-ok` | specified — J's `comma_ok`: the host gives a declared `(option E)` as Go's pair (v, ok): H = [E, bool], r(e, b) = `some e` if b, else `none` | [typevalues.md](typevalues.md) §7 |
+| `NULL` | specified — in a C declaration's host clause, `niche NULL`: the declaration's failure is C's NULL, its `Option` result's none (ADR 0146 item 4); among a C call's arguments the written form of `null` | [ADR 0146](../decisions/0146-a-handle-is-a-host-type-and-a-failed-calls-handle-is-its-niche.md) |
 | `subsets` | specified — a static parameter's set in a declaration's head, `(E (subsets T))`, J's `E ⊆ T`, ranging over 𝒫(⟦T⟧); abstract.md's Σ₀ constant | [typevalues.md](typevalues.md) §4 |
 
 ### Kinds
@@ -276,7 +277,7 @@ What a declaration's `host KIND …` or a `structural NAME KIND` may say.
 | `wrap` | specified — `(repr wrap W)`, the width a target's operators wrap at (ADR 0082) | [integers.md](integers.md) §0b |
 | `double` | specified — `(repr double 128)`, the double word an intermediate above the word is computed in (ADR 0103) | [llvm.md](llvm.md) §3c |
 | `scalar` | specified — `(repr scalar 32)`, a member whose preferred scalar width is 32 holds a value proven in S₃₂ in an i32 (ADR 0127) | [llvm.md](llvm.md) §3e |
-| `niche` | specified — `(repr TYPE (niche (host expr "…")))`: the host type is 1 + E, its absent point inside its own values; a fallible declaration's failure is read through it | [errors.md](errors.md) §4.1 |
+| `niche` | specified — `(repr TYPE (niche (host expr "…")))`: the host type is 1 + E, its absent point inside its own values; a fallible declaration's failure is read through it. In a C declaration's host clause, `niche NULL` or `niche -1`: the declaration's own failure value n_f, its retraction r_f : P → Option(K), where Win32 has no niche shared by a type's every function (ADR 0146 item 4) | [errors.md](errors.md) §4.1, [ADR 0146](../decisions/0146-a-handle-is-a-host-type-and-a-failed-calls-handle-is-its-niche.md) |
 | `word` | specified — `repr LO..HI word`, the target's word | [ADR 0026](../decisions/0026-an-int-is-an-integer.md) |
 
 ### Backends

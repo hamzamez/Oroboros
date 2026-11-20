@@ -77,6 +77,9 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 	for promote(tg, f, opt) {
 		typeFunc(tg, f, l.decl, declared)
 	}
+	if handleEqs(tg, f) {
+		typeFunc(tg, f, l.decl, declared)
+	}
 	// A NUMERAL IS EXACT (ADR 0086): `0.1` is one tenth, which no double holds.
 	// One typed as the host's double, where nothing rounds it (numbers.md §9
 	// part 4 brings round(F64, …)), has no representation, and nothing rounds
@@ -1631,3 +1634,55 @@ var PlantReadShapeLoose bool
 // windows' `main` loop is left to the refinement layer alone
 // (TestAScalarCellIsTheHostsCell).
 var PlantUnitUneliminated bool
+
+// handleEqs makes each `==` whose operands are typed one handle kind that
+// kind's equality, the host operation `icmp eq ptr` (ADR 0146 item 2): the
+// language's `=` is ℤ's, and a kind's is the host's. It runs once typing has
+// given every value its type, which the lowering does not know for a payload
+// taken from an Option. It reports whether anything changed.
+func handleEqs(tg *emit.Target, f *Func) bool {
+	changed := false
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != OEq || len(s.Args) != 2 || PlantHandleEqAsInteger {
+				continue
+			}
+			ty := f.Types[s.Args[0]]
+			if ty == "" || ty != f.Types[s.Args[1]] || !tg.HandleKind(ty) {
+				continue
+			}
+			if _, ok := tg.Prims[emit.HandleEq(ty)]; !ok {
+				continue
+			}
+			s.Op, s.Name, s.Mode, s.Via = OCall, emit.HandleEq(ty), MNone, ""
+			changed = true
+		}
+	})
+	if !changed {
+		return false
+	}
+	// A π names an operand of an IR comparison on one arm (spec §6), and a
+	// comparison that became the kind's call is none, as big.go's stripPis
+	// says of `big<`: each π on a handle is renamed to its source, the same
+	// handle
+	ren := map[V]V{}
+	f.Walk(func(r *Region) {
+		out := r.Pis[:0]
+		for _, pi := range r.Pis {
+			if tg.HandleKind(f.Types[pi.Of]) || tg.HandleKind(f.Types[pi.Other]) {
+				ren[pi.V] = pi.Of
+				continue
+			}
+			out = append(out, pi)
+		}
+		r.Pis = out
+	})
+	renameAway(f, ren)
+	return true
+}
+
+// PlantHandleEqAsInteger leaves `==` between two handles the integer
+// equality, as the lowering made it: IR_P then does not verify, a handle
+// flowing into (eq …) (TestAHandleIsAHostTypeAndItsFailureANiche).
+var PlantHandleEqAsInteger bool

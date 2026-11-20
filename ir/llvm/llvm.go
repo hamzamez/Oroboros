@@ -251,9 +251,14 @@ func (p *printer) llty(t string) string {
 	case "string":
 		return "ptr"
 	}
-	switch h := p.tg.HostType(t); h {
-	case "i64", "i1", "double", "ptr":
+	switch h := p.tg.HostType(t); {
+	case h == "i64", h == "i1", h == "double", h == "ptr":
 		return h
+	case strings.HasSuffix(strings.TrimSpace(h), "*"):
+		// A C POINTER TYPE IS `ptr` (ADR 0146 item 3): a handle kind,
+		// `HWND__*`, is a pointer to a struct of its own, and LLVM's pointers
+		// are opaque
+		return "ptr"
 	}
 	p.fail("type %s has no LLVM type on target %s", t, p.tg.Name)
 	return "i64"

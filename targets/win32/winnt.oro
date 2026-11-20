@@ -5,7 +5,7 @@
 module windows/winnt {
     use windows/basetsd
 
-    set HANDLE = ptr                    // typedef PVOID HANDLE
+    set HANDLE = host "void*"           // typedef PVOID HANDLE: no kind of its own (ADR 0146)
     set SHORT = -2^15..2^15-1           // typedef short SHORT
     set LONG = -2^31..2^31-1            // typedef long LONG
     set LONGLONG = -2^63..2^63-1        // typedef __int64 LONGLONG

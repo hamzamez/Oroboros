@@ -120,9 +120,11 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
 2. **ADR 0136's struct forms**: a buffer field `= len(m)`, a nested record by pointer `&f`, an
    inline array `f[N]`, an optional C string `Option(String)` its NULL the niche; and **the memory
    model's decided parts** ([views-finish-research.md](docs/views-finish-research.md)):
-   - P3, a handle a host type, `set HWND = host "HWND__*"` (C's own expansion), `==` between two of
-     one kind (hamza: "a"), its failure a niche on the declaration's result (`Option`), on LLVM;
-     TinyRetroPad's file load and save;
+   - ~~P3, a handle a host type~~ done ([handle](gauntlet/results/handle-2026-11-20.md), ADR 0146):
+     `set HWND = host "HWND__*"`, `==` within a kind, a failed call's handle the declaration's
+     `niche` (−1, NULL) of an `Option`, an `_In_opt_` handle an `Option` (held to the SDK's SAL);
+     TinyRetroPad's save and load on both triples; a block's components given the strongest
+     postcondition of its spine (finding 105); struct fields wait on ADR 0136's optional field;
    - two segments of one buffer lent at once when proven disjoint, wc's tail by RtlMoveMemory;
    - P4, a pointer the host keeps, the mode `kept` (hamza), §14.18's protocol over ADR 0133's slot;
      TinyRetroPad's find and replace;
@@ -163,9 +165,7 @@ tables made by a rule, received or built stays storage's "a table inside a table
 ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):
 1. **the memory model finished** (ADR 0084, [views-finish-research.md](docs/views-finish-research.md)):
    - P5, SendMessageA's members, built (ADR 0141);
-   - P3, a handle a host type, `set HWND = host "HWND__*"` (C's own expansion), `==` between two of
-     one kind (hamza: "a"), its failure a niche on the declaration's result (`Option`), on LLVM;
-     TinyRetroPad's file load and save;
+   - P3, handles, built (ADR 0146);
    - two segments of one buffer lent at once when proven disjoint, wc's tail by RtlMoveMemory;
    - P4, a pointer the host keeps, the mode `kept` (hamza), §14.18's protocol over ADR 0133's slot;
      TinyRetroPad's find and replace;
@@ -296,8 +296,12 @@ field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ �
 the state translation's let kept a λ argument for β without local.md §3's check.
 
 **Owed from finished steps** (each named in its result document):
-- logic3: a scope's product carrying a host call's `ensure` to its binders (the book's finding 105,
-  windowtext's clamp after the block); a C string from Win32 into a `String`, the code page's
+- handle (ADR 0146): a struct's handle field as `Option(K)` (ADR 0136's optional field); the
+  results' niches no program has met (GetStdHandle's two sentinels a two-point niche); Windows'
+  pseudo-handles (HWND_TOPMOST); an `Option` and a code crossing a join point together blew the
+  reduction's step limit (lib/os's `open`, eliminated at its introduction instead); the book's
+  finding 107, a wrong argument refused first by the facts;
+- logic3: a C string from Win32 into a `String`, the code page's
   decode; reads over writes under a ∀ (an invariant over a buffer written in the loop); a
   quantifier with several binders; a read and a literal table printed as J writes them (finding 104);
 - callbacks (ADR 0133): a slot's facts between two reads; the words audit's full pass ([words-audit.md](docs/words-audit.md): `inout`, `jump`,
@@ -417,9 +421,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,644 of 12,700** integer operations proven inside their target's word, the 56 left
+- **Provability**: **12,697 of 12,753** integer operations proven inside their target's word, the 56 left
   meant to be refused (`examples/int/`, `kara`, the midpoint's 2⁶² on JavaScript) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,492 of 1,797** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,501 of 1,806** loops proven to
   terminate (size-change termination; of the 305 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 41 were before bigbits-2026-11-19, among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
@@ -428,9 +432,10 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
   counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.2%
-  declarable and 31.1% callable and linkable by today's model, 36.2% callable, 47.6% if every struct were
+  declarable and 30.6% callable and linkable by today's model, 35.7% callable, 46.6% if every struct were
   declared (12,377 entry points, survey-2026-11-19, a function pointer counted since callbacks-2026-11-20,
-  a record under any of its typedef names since callbacks-written-2026-11-20,
+  a record under any of its typedef names since callbacks-written-2026-11-20, a handle a kind of its own
+  since handle-2026-11-20 (an _Out_ pointer to one is no word's cell),
   an upper bound; the old model's 32.0% counted UTF-16 strings); `go run gauntlet/stdlib/coverage.go` gives the declared
   share of the Go packages with a file ([gocoverage-2026-10-06](gauntlet/results/gocoverage-2026-10-06.md)).
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
@@ -817,6 +822,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A callback applied during the call is a region of the call, read as a loop of the host's count; `calls K` (K a range) and `ordered` after the arrow, the host's documented promises, default `calls 0..` unordered, their evidence in the tooling; an effect in the λ only under `ordered`, a cell or buffer threaded (the state monad's lift of a traversal); on C, closure conversion into the API's context word, `ctx`/`ctx(f)`, a slot where it has none (built on every target) | [0143](docs/decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 | A definition of the program's applied to a λ that writes a cell is expanded before the state translation: the strongest host, its body the order | [0144](docs/decisions/0144-a-definition-applied-to-a-lambda-is-expanded-before-the-state-translation.md) |
 | The logic: `∀ x ∈ S : φ`, `∃`, `⇒`, `⇔`, every quantifier over a set; recursion in `spec` and `lemma` only, checked to terminate; a lemma proven by its steps, no axioms; a host's quantified `ensure` believed with evidence; `-checked` runs a bounded ∀ as a loop; Presburger with quantifiers, the array property fragment, congruence closure, their combination (not built) | [0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md) |
+| A handle is a host type, C's `HWND__*`, its one operation `==` within its kind; a failed call's handle the niche of an `Option` on the declaration (`niche -1`, `niche NULL`); an `_In_opt_` handle an `Option`, none its NULL, held to the SDK's SAL | [0146](docs/decisions/0146-a-handle-is-a-host-type-and-a-failed-calls-handle-is-its-niche.md) |
 
 ## Build commands
 

@@ -845,7 +845,7 @@ seven more. 95–99 are fixed with the chapter
      refused, and §14.2 shows the refusal and the working form
      ([callbacks-derivation-2026-11-20](../../gauntlet/results/callbacks-derivation-2026-11-20.md)).
 
-Writing §16.7's claims about a table and §18.8, text from Windows (2026-11-20,
+Writing §16.7's claims about a table and §18.9 (then §18.8), text from Windows (2026-11-20,
 [logic3-2026-11-20](../../gauntlet/results/logic3-2026-11-20.md)), found three; 103 is fixed,
 104 and 105 are not:
 
@@ -861,7 +861,25 @@ Writing §16.7's claims about a table and §18.8, text from Windows (2026-11-20,
      := …; n = GetWindowTextA(w, t); (t, n) }` binds b and r with none of the host's promise about
      t and n, not even 0 ≤ n: a projection of the block's value carries a loop's and a table's
      facts (ADR 0031 §3) and not a host call's `ensure`. §18.8's program uses the promise inside
-     the block and tests `r <= len(b)` after it, a clamp standing for the missing proof.
+     the block and tests `r <= len(b)` after it, a clamp standing for the missing proof. Fixed
+     2026-11-20 ([handle-2026-11-20](../../gauntlet/results/handle-2026-11-20.md)): a block that
+     runs straight to its tail gives its components the strongest postcondition of its spine,
+     sp(let ȳ = v in P, Γ) = sp(P, Γ ∧ ȳ ≐ v), and §18.9's program writes `b[0:r]` with no test.
+
+Writing §18.4, a handle a type of its own (2026-11-20,
+[handle-2026-11-20](../../gauntlet/results/handle-2026-11-20.md)), found two; 106 is fixed, 107 is
+not:
+
+106. **A `case` on a value that is no variant was refused in the lowering's words**: `case n {
+     'some(h) -> 1; 'none -> 0 }` with n an Int said *an application of 3*, and `x.null()` where an
+     `Option` is wanted *a producer of 1 values bound to 2 names*. A sum is its own eliminator, so
+     the expansion applied the scalar to the clauses, which the checker let through. Now: *a `case`
+     reads a variant's tag and its payload, and n is Int, which is no variant* (§18.4).
+107. **An argument of the wrong set can be refused first by the facts**: `status(h ∈ HWND)` given
+     CreateWindowExA's `Option(HWND)` was refused as *LineIndex's parameter … is not proven*, the
+     refinement layer having run on the inlined body before the checker saw the argument. The
+     program was wrong and refused, and the message named the wrong thing. Not investigated: it may
+     predate this step.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

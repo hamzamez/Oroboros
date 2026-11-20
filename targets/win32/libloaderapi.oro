@@ -5,6 +5,6 @@
 module windows/libloaderapi {
     use windows/minwindef
 
-    fn GetModuleHandleA(p ∈ String) (r ∈ minwindef.HMODULE) where nulfree(p) { host expr call GetModuleHandleA stdcall lib "kernel32" }
-    fn LoadLibraryA(p ∈ String) (r ∈ minwindef.HMODULE) where nulfree(p) { host expr call LoadLibraryA stdcall lib "kernel32" }
+    fn GetModuleHandleA(p ∈ String) (r ∈ Option(minwindef.HMODULE)) where nulfree(p) { host expr call GetModuleHandleA stdcall lib "kernel32" niche NULL }
+    fn LoadLibraryA(p ∈ String) (r ∈ Option(minwindef.HMODULE)) where nulfree(p) { host expr call LoadLibraryA stdcall lib "kernel32" niche NULL }
 }

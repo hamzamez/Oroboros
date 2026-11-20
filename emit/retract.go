@@ -93,6 +93,19 @@ type shape struct {
 	fail    string   // a variant: the other constructor
 	err     string   // a variant: E's type
 	flag    bool     // (option E) given as (v, ok): (comma-ok)
+	niche   string   // the declaration's own niche test, where it has one (ADR 0146)
+}
+
+// declNiche gives every option and variant of the shape the declaration's
+// niche test n, in place of its type's.
+func (s *shape) declNiche(n string) {
+	s.niche = n
+	for _, e := range s.elems {
+		e.declNiche(n)
+	}
+	if s.payload != nil {
+		s.payload.declNiche(n)
+	}
 }
 
 // retractions replaces every declaration with a Retract result (retract.go's
@@ -100,7 +113,7 @@ type shape struct {
 func (tg *Target) retractions() error {
 	var names []string
 	for n, p := range tg.Prims {
-		if p.Retract != nil {
+		if p.Retract != nil || len(p.OptArgs) > 0 {
 			names = append(names, n)
 		}
 	}
@@ -126,9 +139,26 @@ func (tg *Target) retract(q string) error {
 	if home == "" {
 		home = mod
 	}
-	sh, err := tg.shapeOf(p.Retract, home)
-	if err != nil {
-		return err
+	var sh *shape
+	if p.Retract != nil {
+		var err error
+		if sh, err = tg.shapeOf(p.Retract, home); err != nil {
+			return err
+		}
+	} else {
+		// NO FALLIBLE RESULT, ONLY AN OPTIONAL ARGUMENT: r is the identity on
+		// the host's values, a leaf each
+		switch {
+		case p.Result != "":
+			sh = &shape{ty: p.Result}
+		case len(p.Results) > 0:
+			sh = &shape{elems: []*shape{}}
+			for _, x := range p.Results {
+				sh.elems = append(sh.elems, &shape{ty: x})
+			}
+		default:
+			return fmt.Errorf("an optional argument on a declaration with no result is not built")
+		}
 	}
 	if p.CommaOk {
 		// (comma-ok): the host gives the option as (v, ok) (spec/typevalues.md §7).
@@ -148,7 +178,17 @@ func (tg *Target) retract(q string) error {
 	// every declaration's do (names.go); the declaration's own were resolved
 	// before this pass.
 	in := bindStatic(p.Static, func(n string) string {
-		r, _ := resolveIn(mod, n, tg.hasType)
+		r, ok := resolveIn(mod, n, tg.hasType)
+		if !ok {
+			// through a `use`, as every set's name resolves (ADR 0073)
+			if k, ok := tg.throughUse(mod, n, func(k string) bool {
+				_, a := tg.Aliases[k]
+				_, h := tg.Types[k]
+				return a || h
+			}); ok {
+				return k
+			}
+		}
 		return r
 	})
 	sh.resolve(func(ty string) string { return mapTypeNames(ty, in) })
@@ -179,8 +219,31 @@ func (tg *Target) retract(q string) error {
 	delete(tg.Prims, q)
 	tg.Prims[raw.Name] = raw
 	tg.Names = replaceName(tg.Names, q, raw.Name)
+	// THE DECLARATION'S NICHE (ADR 0146 item 4): Win32's failure is each
+	// function's sentinel, n_f, so the retraction r_f tests the host value
+	// against it, NULL or all ones, by the LLVM layer's own test of that
+	// point, typed at the result's kind.
+	if p.Niche != "" {
+		test := "llvm.is-null"
+		if (p.Niche == "-1") != PlantNicheSwapped {
+			test = "llvm.is-all-ones"
+		}
+		t, ok := tg.Prims[test]
+		if !ok {
+			return fmt.Errorf("its niche is %s, which this target cannot test: no %s", p.Niche, test)
+		}
+		for _, e := range sh.niches() {
+			n := "#niche:" + strings.ReplaceAll(q, ".", ":") + ":" + strings.ReplaceAll(e, ".", ":")
+			tg.Prims[n] = Prim{Name: n, Args: []string{e}, Names: []string{"h"}, Result: "bool", Kind: "expr", Form: t.Form, Pure: true}
+			tg.Names = append(tg.Names, n)
+			sh.declNiche(n)
+		}
+	}
 	// The niche tests it needs, one primitive per type.
 	for _, e := range sh.niches() {
+		if p.Niche != "" {
+			break
+		}
 		tmpl, ok := tg.Niches[e]
 		if !ok {
 			tmpl, ok = tg.Niches[baseOf(e)]
@@ -204,6 +267,31 @@ func (tg *Target) retract(q string) error {
 	args := make([]*core.Term, len(params))
 	for i, a := range params {
 		args[i] = core.Name(a)
+	}
+	// THE SECTION AT AN OPTIONAL ARGUMENT (ADR 0146 item 5): s(some(h)) = h,
+	// s(none) = NULL of the kind, so r ∘ s = id where NULL is the niche. NULL
+	// is the LLVM layer's own null, typed at K.
+	for _, i := range p.OptArgs {
+		k := raw.Args[i]
+		null, ok := tg.Prims["llvm.null"]
+		if !ok {
+			return fmt.Errorf("an optional argument's none is NULL, and this target has no llvm.null")
+		}
+		nn := "#null:" + strings.ReplaceAll(k, ".", ":")
+		if _, have := tg.Prims[nn]; !have {
+			tg.Prims[nn] = Prim{Name: nn, Result: k, Kind: "expr", Form: null.Form, Pure: true}
+			tg.Names = append(tg.Names, nn)
+		}
+		h := fmt.Sprintf("#o%d", i+1)
+		// the parameter's set stated, Option(K), so a handle or a pointer
+		// passed where an option is wanted is refused by the checker, in its
+		// words, and not by the lowering's
+		if ty := core.TypeName(core.App(core.Name("option"), core.Name(k))); ty != "" {
+			args[i] = core.App(core.Name(core.AscribeName), core.Str(ty), args[i])
+		}
+		args[i] = core.App(core.Name("case"), args[i],
+			core.App(core.Name("some"), core.Name(h)), core.Name(h),
+			core.Name("none"), core.App(core.Name(nn)))
 	}
 	// UNDER STATIC PARAMETERS the definition is a static λ that binds them and
 	// passes them to the raw call, which they instantiate (spec/typevalues.md §6):
@@ -360,6 +448,9 @@ func (s *shape) build(hs []string, next *int) *core.Term {
 		return n
 	}
 	niche := func(ty string, v *core.Term) *core.Term {
+		if s.niche != "" {
+			return core.App(core.Name(s.niche), v)
+		}
 		return core.App(core.Name(nicheName(ty)), v)
 	}
 	switch {
@@ -549,3 +640,8 @@ func (s *shape) onePerComponent() bool {
 	}
 	return true
 }
+
+// PlantNicheSwapped tests each declaration's failure against the other
+// sentinel, −1 as NULL: CreateFileA of a missing file then answers 'some, and
+// the program opens what does not exist (TestAHandleIsAHostTypeAndItsFailureANiche).
+var PlantNicheSwapped bool

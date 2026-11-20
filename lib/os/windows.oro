@@ -46,25 +46,6 @@ provides win32 os/host {
     // set none, so that 0 means success
     fn failed(c ∈ error) (1..2^32-1) { if c == 0 { 31 } else { c } }
 
-    // OPEN, the first partial step: a handle and 0, or a code. A path holding
-    // a NUL names no file (Go answers EINVAL), ERROR_INVALID_NAME (123); a C
-    // string is the kernel of ν (ADR 0091), and the guard decides it.
-    fn open(path ∈ String, a ∈ 0..2^32-1, d ∈ 0..2^32-1) {
-        // a join point: the branches below give one value, and what
-        // follows the call is written once, after the loop (ADR 0031)
-        loop once = 0 {
-            else -> {
-                if nulfree(path) {
-                    h = fileapi.CreateFileA(path, a, 1, llvm.null(), d, 128, llvm.null()) // FILE_SHARE_READ, FILE_ATTRIBUTE_NORMAL
-                    if llvm.is_all_ones(h) { (h, failed(errhandlingapi.GetLastError())) } else { (h, 0) }
-                } else {
-                    (llvm.null(), 123)
-                }
-    
-            }
-        }
-    }
-
     // GET ON THE STORE F : Path ⇀ B*: open ; size ; read until full or 0 ;
     // close, a Kleisli composite in A + E whose finalizer closes what it opened.
     fn ReadFile(path ∈ String) (result.Result(Array(0..255), error)) {
@@ -76,25 +57,33 @@ provides win32 os/host {
         // follows the call is written once, after the loop (ADR 0031)
         loop once = 0 {
             else -> {
-                (h, c) = open(path, 2147483648, 3) // GENERIC_READ, OPEN_EXISTING
-                case {
-                    c != 0 -> (alloc(array { 0 : _ ∈ 0..-1 }), c)
-                    else -> {
-                        (sz, ok) = fileapi.GetFileSizeEx(h)
-                        case {
-                            ok == 0 -> { e = failed(errhandlingapi.GetLastError()); ignore(handleapi.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), e) }
-                            // ERROR_NOT_ENOUGH_MEMORY: past the largest table this cell reads
-                            sz < 0 || sz > los.max_len() -> { ignore(handleapi.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), 8) }
-                            else -> {
-                                (b, m, e) = readall(h, sz)
-                                ignore(handleapi.CloseHandle(h))
-                                // the file shrank while it was read: its first m bytes,
-                                // m ≤ len(b) by readinto's invariant (j.md §2.8)
-                                t = if m >= len(b) { b } else { alloc(array { b[i] : i ∈ 0..m - 1 }) }
-                                (t, e)
+                // OPEN: Path → H + E, eliminated where it is made. CreateFileA's
+                // failure is its result's niche, −1 (ADR 0146), so no handle
+                // exists where it failed. A path holding a NUL names no file
+                // (Go answers EINVAL), ERROR_INVALID_NAME (123); a C string is
+                // the kernel of ν (ADR 0091), and the guard decides it.
+                if nulfree(path) {
+                    case fileapi.CreateFileA(path, 2147483648, 1, llvm.null(), 3, 128, 'none) { // GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING
+                        'none -> (alloc(array { 0 : _ ∈ 0..-1 }), failed(errhandlingapi.GetLastError()))
+                        'some(h) -> {
+                            (sz, ok) = fileapi.GetFileSizeEx(h)
+                            case {
+                                ok == 0 -> { e = failed(errhandlingapi.GetLastError()); ignore(handleapi.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), e) }
+                                // ERROR_NOT_ENOUGH_MEMORY: past the largest table this cell reads
+                                sz < 0 || sz > los.max_len() -> { ignore(handleapi.CloseHandle(h)); (alloc(array { 0 : _ ∈ 0..-1 }), 8) }
+                                else -> {
+                                    (b, m, e) = readall(h, sz)
+                                    ignore(handleapi.CloseHandle(h))
+                                    // the file shrank while it was read: its first m bytes,
+                                    // m ≤ len(b) by readinto's invariant (j.md §2.8)
+                                    t = if m >= len(b) { b } else { alloc(array { b[i] : i ∈ 0..m - 1 }) }
+                                    (t, e)
+                                }
                             }
                         }
                     }
+                } else {
+                    (alloc(array { 0 : _ ∈ 0..-1 }), 123)
                 }
     
             }
@@ -104,7 +93,7 @@ provides win32 os/host {
     // read* : the table of sz bytes filled from h, until it is full or a read
     // answers 0 bytes (the file shrank), with how many were read and the
     // failure's code, 0 if none.
-    fn readall(h ∈ ptr, sz ∈ 0..2^47-9) where sz <= los.max_len() {
+    fn readall(h ∈ winnt.HANDLE, sz ∈ 0..2^47-9) where sz <= los.max_len() {
         var b := array { 0 : _ ∈ 0..sz - 1 }
         (m, e) = readinto(h, b)
         (b, m, e)
@@ -119,7 +108,7 @@ provides win32 os/host {
     // Its count is at most len(b): k ≤ n ≤ len(b) − lo each round, so
     // lo ≤ len(b) at every iteration, a relation the intervals lose across the
     // loop and Hoare's rule keeps (`invariant`, j.md §2.8); the claim is 0..2^48.
-    fn readinto(h ∈ ptr, b ∈ Array(0..255) linear) (0..2^48 × error) {
+    fn readinto(h ∈ winnt.HANDLE, b ∈ Array(0..255) linear) (0..2^48 × error) {
         loop lo = 0, got = 1, e = 0 invariant 0 <= lo && lo <= len(b) {
             e != 0 -> (lo, e)
             got == 0 || lo >= len(b) -> (lo, 0)
@@ -147,18 +136,21 @@ provides win32 os/host {
         // follows the call is written once, after the loop (ADR 0031)
         loop once = 0 {
             else -> {
-                (h, c) = open(path, 1073741824, 2) // GENERIC_WRITE, CREATE_ALWAYS
-                case {
-                    c != 0 -> c
-                    else -> {
-                        e = writeall(h, data)
-                        k = handleapi.CloseHandle(h)
-                        case {
-                            e != 0 -> e
-                            k == 0 -> failed(errhandlingapi.GetLastError())
-                            else -> 0
+                if nulfree(path) {
+                    case fileapi.CreateFileA(path, 1073741824, 1, llvm.null(), 2, 128, 'none) { // GENERIC_WRITE, FILE_SHARE_READ, CREATE_ALWAYS
+                        'none -> failed(errhandlingapi.GetLastError())
+                        'some(h) -> {
+                            e = writeall(h, data)
+                            k = handleapi.CloseHandle(h)
+                            case {
+                                e != 0 -> e
+                                k == 0 -> failed(errhandlingapi.GetLastError())
+                                else -> 0
+                            }
                         }
                     }
+                } else {
+                    123
                 }
     
             }
@@ -167,7 +159,7 @@ provides win32 os/host {
 
     // write* : data to h, at most 2^30 bytes a call; a call that writes none
     // and reports no failure is ERROR_WRITE_FAULT (29), so the loop ends.
-    fn writeall(h ∈ ptr, data ∈ Array(0..255)) {
+    fn writeall(h ∈ winnt.HANDLE, data ∈ Array(0..255)) {
         loop lo = 0, put = 1, e = 0 {
             e != 0 -> e
             lo >= len(data) -> 0
@@ -204,10 +196,9 @@ provides win32 os/host {
         loop once = 0 {
             else -> {
                 if nulfree(path) {
-                    h = fileapi.CreateFileA(path, 2147483648, 1, llvm.null(), 3, 128, llvm.null()) // GENERIC_READ, OPEN_EXISTING
-                    case {
-                        llvm.is_all_ones(h) -> (0, failed(errhandlingapi.GetLastError()))
-                        else -> {
+                    case fileapi.CreateFileA(path, 2147483648, 1, llvm.null(), 3, 128, 'none) { // GENERIC_READ, OPEN_EXISTING
+                        'none -> (0, failed(errhandlingapi.GetLastError()))
+                        'some(h) -> {
                             s = fileapi.SetFilePointerEx(h, off, llvm.null(), 0) // FILE_BEGIN
                             case {
                                 s == 0 -> { e = failed(errhandlingapi.GetLastError()); ignore(handleapi.CloseHandle(h)); (0, e) }

@@ -6,7 +6,7 @@ module windows/shellapi {
     use windows/minwindef
     use windows/windef
 
-    fn ShellExecuteA(w ∈ windef.HWND, op ∈ String, f ∈ String, a ∈ String, d ∈ String, show ∈ minwindef.INT) (r ∈ minwindef.HINSTANCE) where nulfree(op) && nulfree(f) && nulfree(a) && nulfree(d) {
+    fn ShellExecuteA(w ∈ Option(windef.HWND), op ∈ String, f ∈ String, a ∈ String, d ∈ String, show ∈ minwindef.INT) (r ∈ minwindef.HINSTANCE) where nulfree(op) && nulfree(f) && nulfree(a) && nulfree(d) {
         host expr call ShellExecuteA stdcall lib "shell32"
     }
 }

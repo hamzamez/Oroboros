@@ -47,7 +47,9 @@ func TestWin32DeclarationsAreTheirPrototypes(t *testing.T) {
 	modules := map[string]bool{}
 	for n, p := range hand.Prims {
 		// a family's member (ADR 0141) is checked against the prototype of
-		// the function it calls, in that function's header
+		// the function it calls, in that function's header; a raw call (an
+		// Option result or argument, ADR 0146) as its declaration
+		n = declOf(n)
 		if p.CSym != "" && strings.HasPrefix(n, "windows/") && !isMember(p) {
 			modules[n[:strings.LastIndex(n, ".")]] = true
 		}
@@ -77,7 +79,12 @@ func TestWin32DeclarationsAreTheirPrototypes(t *testing.T) {
 	}
 	var names []string
 	members := 0
+	raw := map[string]string{} // a declaration's name → its raw call's, where it has one
 	for n, p := range tg.Prims {
+		if d := declOf(n); d != n {
+			raw[d] = n
+			n = d
+		}
 		// a segment variant is derived from its declaration, which is checked
 		// against the prototype in its place (ADR 0132)
 		if p.CSym != "" && modules[moduleOfName(n)] && !strings.HasSuffix(n, "#seg") {
@@ -120,6 +127,12 @@ func TestWin32DeclarationsAreTheirPrototypes(t *testing.T) {
 			}
 		}
 	}
+	prim := func(n string) emit.Prim {
+		if r, ok := raw[n]; ok {
+			return tg.Prims[r]
+		}
+		return tg.Prims[n]
+	}
 	checked := 0
 	for _, n := range names {
 		g, inSDK := tg.Prims[sdkName(n)]
@@ -131,10 +144,39 @@ func TestWin32DeclarationsAreTheirPrototypes(t *testing.T) {
 		case lacksPrototype(tg, n):
 			t.Errorf("%s is declared by hand and the SDK's %s declares no such function", n, moduleOfName(n))
 		default:
-			if err := agreeC(tg, n, tg.Prims[n], g); err != nil {
+			if err := agreeC(tg, n, prim(n), g); err != nil {
 				t.Error(err)
 			}
 			checked++
+		}
+	}
+	// AN OPTIONAL HANDLE IS AN OPTION (ADR 0146 item 5), both ways: a hand
+	// parameter is Option(K) exactly where the SDK marks the handle at its C
+	// position `_opt_`, the generator's list (win32.go's optional-handles.txt)
+	opt, err := optionalHandles(filepath.Join(s.runs[0].emit, "optional-handles.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range checkOptional(tg, names, prim, opt) {
+		t.Error(e)
+	}
+	{
+		// the faults: CreateFileA's template a bare HANDLE, CloseHandle's an Option
+		bad := func(n string, f func(*emit.Prim)) func(string) emit.Prim {
+			return func(m string) emit.Prim {
+				q := prim(m)
+				if m == n {
+					q.OptArgs = append([]int(nil), q.OptArgs...)
+					f(&q)
+				}
+				return q
+			}
+		}
+		if len(checkOptional(tg, names, bad("windows/fileapi.CreateFileA", func(q *emit.Prim) { q.OptArgs = nil }), opt)) == 0 {
+			t.Error("planted: an _In_opt_ handle declared bare was not caught")
+		}
+		if len(checkOptional(tg, names, bad("windows/handleapi.CloseHandle", func(q *emit.Prim) { q.OptArgs = []int{0} }), opt)) == 0 {
+			t.Error("planted: an _In_ handle declared Option was not caught")
 		}
 	}
 	for n, why := range win32Exempt {
@@ -155,7 +197,7 @@ func TestWin32DeclarationsAreTheirPrototypes(t *testing.T) {
 	}
 	// A NAME THE SDK LACKS, the coverage half: planted in a hand module, the
 	// loop above must have refused it.
-	tg.Prims["windows/fileapi.Bogus"] = tg.Prims["windows/fileapi.CreateFileA"]
+	tg.Prims["windows/fileapi.Bogus"] = tg.Prims[emit.RawName("windows/fileapi.CreateFileA")]
 	if _, ok := tg.Prims[sdkName("windows/fileapi.Bogus")]; ok || !lacksPrototype(tg, "windows/fileapi.Bogus") {
 		t.Error("planted: a name the SDK lacks was not caught")
 	}
@@ -233,7 +275,10 @@ var win32Mistakes = map[string]func(tg *emit.Target) (string, emit.Prim){
 
 // mutateC copies a declaration, its slices included, and plants a mistake.
 func mutateC(tg *emit.Target, n string, f func(*emit.Prim)) (string, emit.Prim) {
-	p := tg.Prims[n]
+	p, ok := tg.Prims[n]
+	if !ok {
+		p = tg.Prims[emit.RawName(n)] // a declaration with an Option, by its raw call (ADR 0146)
+	}
 	p.Args = append([]string(nil), p.Args...)
 	p.CArgs = append([]emit.CArg(nil), p.CArgs...)
 	f(&p)
@@ -269,6 +314,86 @@ func sdkByCSym(tg *emit.Target, sym string) (emit.Prim, bool) {
 
 // sdkName is a hand name's generated counterpart: windows/H.F is win/H.F.
 func sdkName(n string) string { return "win/" + strings.TrimPrefix(n, "windows/") }
+
+// declOf is a raw call's declaration, emit.RawName undone (a module path holds
+// no `:`), and any other name itself.
+func declOf(n string) string {
+	if q, ok := strings.CutPrefix(n, "#raw:"); ok {
+		return strings.ReplaceAll(q, ":", ".")
+	}
+	return n
+}
+
+// optionalHandles reads the generator's list: function → its C positions
+// (1-based) whose handle the SDK marks _opt_.
+func optionalHandles(path string) (map[string]map[int]bool, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]map[int]bool{}
+	for _, line := range strings.Split(string(b), "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		f := strings.Split(line, "\t")
+		var k int
+		if len(f) != 2 {
+			return nil, fmt.Errorf("an optional handle's row is a function and a position: %q", line)
+		}
+		if _, err := fmt.Sscan(f[1], &k); err != nil {
+			return nil, err
+		}
+		if out[f[0]] == nil {
+			out[f[0]] = map[int]bool{}
+		}
+		out[f[0]][k] = true
+	}
+	return out, nil
+}
+
+// checkOptional holds each hand declaration's Option parameters to the SDK's
+// _opt_ handles, at the C position each parameter is passed at.
+func checkOptional(tg *emit.Target, names []string, prim func(string) emit.Prim, opt map[string]map[int]bool) []string {
+	var errs []string
+	for _, n := range names {
+		p := prim(n)
+		if p.CSym == "" || isMember(p) {
+			continue
+		}
+		isOpt := map[int]bool{}
+		for _, i := range p.OptArgs {
+			isOpt[i] = true
+		}
+		// the C position of each parameter: by the written arguments, or in order
+		pos := map[int]int{}
+		if len(p.CArgs) > 0 {
+			for k, c := range p.CArgs {
+				if c.Kind == emit.CParam {
+					pos[c.I] = k + 1
+				}
+			}
+		} else {
+			for i := range p.Args {
+				pos[i] = i + 1
+			}
+		}
+		for i := range p.Args {
+			k, passed := pos[i]
+			if !passed {
+				continue
+			}
+			sdkOpt := opt[p.CSym][k]
+			switch {
+			case sdkOpt && !isOpt[i] && tg.HandleKind(p.Args[i]):
+				errs = append(errs, fmt.Sprintf("%s: C argument %d is a handle the SDK marks _opt_, and the declaration takes %s, not Option(%s) (ADR 0146)", n, k, p.Args[i], p.Args[i]))
+			case isOpt[i] && !sdkOpt:
+				errs = append(errs, fmt.Sprintf("%s: C argument %d is declared Option(%s), and the SDK does not mark it _opt_ (ADR 0146)", n, k, p.Args[i]))
+			}
+		}
+	}
+	return errs
+}
 
 func moduleOfName(n string) string {
 	if i := strings.LastIndex(n, "."); i > 0 {

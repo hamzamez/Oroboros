@@ -101,8 +101,8 @@ rejected and why.
 | | how | the numbers |
 |---|---|---|
 | **as fast as hand-written code** | seven benchmark programs against hand-written Go, JavaScript, Java, and C on Windows compiled by the same compiler | generated over hand-written: **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows (geometric means, 45 comparisons from 0.85× to 1.18×, each above 1.05× explained) ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)) |
-| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,644 of 12,700** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
-| **loops stop** | size-change termination | **1,492 of 1,797** loops proven; the rest read input or the file system, count through numbers past the word (a halving, a bit cleared), or shrink a range from both ends (binary search), in a way the check does not see |
+| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,697 of 12,753** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
+| **loops stop** | size-change termination | **1,501 of 1,806** loops proven; the rest read input or the file system, count through numbers past the word (a halving, a bit cleared), or shrink a range from both ends (binary search), in a way the check does not see |
 | **every platform agrees** | 87 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 73 on all four, every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
 | **each rule is tested broken** | a fault is planted in every rule that decides what is legal, and its test must fail | listed with each result in [gauntlet/results/](gauntlet/results/) |
 | **nothing drifts by accident** | every emitted file, proof count and error message, on five platform targets, compared with a committed baseline | `go run ./cmd/check` |
@@ -162,9 +162,10 @@ each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
    documented promise, TinyRetroPad's window text).
 2. **C structs' remaining kinds of field** (a buffer with its length, a record by pointer, an array
    inside the struct, a C string that may be NULL) and **the memory model's decided parts**: a
-   handle as a type of its own, compared with `==`, a failed call's handle an `Option` (TinyRetroPad's
-   file load and save); two parts of one buffer lent at once, where they are proven apart; memory
-   Windows keeps past a call, the mode `kept` (TinyRetroPad's find and replace).
+   handle as a type of its own, compared with `==`, a failed call's handle an `Option`, **done**
+   (2026-11-20, [handle](gauntlet/results/handle-2026-11-20.md): TinyRetroPad's file save and load);
+   two parts of one buffer lent at once, where they are proven apart; memory Windows keeps past a
+   call, the mode `kept` (TinyRetroPad's find and replace).
 3. **A table written by a function a platform calls during a call** (counting sort through
    `forEach`): designed, the call lending the table and handing back its next version.
 4. **The logic, its last three stages**: a comparator's law through a platform's sort, one answer

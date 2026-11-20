@@ -93,7 +93,13 @@ func (tg *Target) resolveTypeNames() error {
 	}
 	resolve := func(mod string) func(string) string {
 		return func(m string) string {
-			q, _ := resolveIn(mod, m, tg.hasType)
+			q, ok := resolveIn(mod, m, tg.hasType)
+			if !ok {
+				// a host type named through a `use`, as an alias is (alias.go)
+				if k, ok := tg.throughUse(mod, m, func(k string) bool { _, h := tg.Types[k]; return h }); ok {
+					return k
+				}
+			}
 			return q
 		}
 	}
@@ -141,4 +147,22 @@ func bindStatic(static []StaticParam, r func(string) string) func(string) string
 		}
 		return r(n)
 	}
+}
+
+// ResolveTypeIn is the set a name denotes in module mod, by the one rule every
+// set's name follows (ADR 0073): in mod or an enclosing scope, else through a
+// `use`, an alias's or a host type's alike. A callback claim's parameters are
+// written in its module (ADR 0146: `windef.HWND` in windows/winuser).
+func (tg *Target) ResolveTypeIn(mod, n string) string {
+	if q, ok := resolveIn(mod, n, tg.hasType); ok {
+		return q
+	}
+	if k, ok := tg.throughUse(mod, n, func(k string) bool {
+		_, a := tg.Aliases[k]
+		_, h := tg.Types[k]
+		return a || h
+	}); ok {
+		return k
+	}
+	return n
 }

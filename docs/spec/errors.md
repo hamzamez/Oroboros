@@ -167,7 +167,17 @@ H((tuple R₁ … Rₙ)) = H(R₁) ++ … ++ H(Rₙ)
 ```
 
 H is a functor on result shapes and r is natural in each factor, so one rule covers a sum, the unit with
-an error, a partial product and their composites. What the build fixed in detail:
+an error, a partial product and their composites.
+
+**A declaration's own niche** (ADR 0146, built 2026-11-20 on the LLVM layer). Win32 has no niche shared
+by a type's every function: HANDLE's failure is −1 from CreateFileA and NULL from CreateEventA. So a C
+declaration states its own, `host expr call F … niche -1` or `niche NULL`, its point n_F of the host's
+set P outside the kind K, and r_F(p) = none if p = n_F, else some(p), tested by the LLVM layer's own
+`is_all_ones` or `is_null` at K. An argument `Option(K)` is the same partial isomorphism read the other
+way, its section s(none) = NULL, s(some(h)) = h, with r ∘ s = id where NULL is the niche; the
+declaration's definition applies s to each such argument and r to the result (`OptArgs`, `Niche`).
+
+What the build fixed in detail:
 - the raw call is `#raw:MODULE:NAME` and a niche's test `#niche:TYPE`. A `#` keeps a program from
   writing them, and they contain no `.`, because core reads a dotted name as an import's alias;
 - the module declaring a fallible call `(use result)`s, and the loader reads the variant from the

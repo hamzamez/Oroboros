@@ -196,6 +196,13 @@ type Prim struct {
 	// Go's pair (v, ok), so H = [E, bool] and r(e, b) = some e if b, else none
 	// (spec/typevalues.md §7).
 	CommaOk bool
+	// OptArgs are the positions of the arguments declared `Option(K)`: the host
+	// takes K, none its NULL (ADR 0146 item 5); Args holds K.
+	OptArgs []int
+	// Niche is `(host … (niche NULL))` or `(niche -1)`: the host value a failed
+	// call returns, the none of its `Option` result (ADR 0146 item 4), the
+	// declaration's own where no niche is its type's.
+	Niche string
 }
 
 // StaticParam is one static parameter: its name, and the type T when it ranges
@@ -608,6 +615,7 @@ func (tg *Target) finish(wrap func(error) error) error {
 	// A SEGMENT AT A C CALL IS ITS PROJECTIONS (ADR 0132): each declaration
 	// taking a region as len(s) gets its variant over (b, lo, hi).
 	tg.segmentVariants()
+	tg.handleEqualities()
 	if err := tg.checkRealized(); err != nil {
 		return wrap(err)
 	}
@@ -2413,6 +2421,12 @@ func (tg *Target) CType(set string) (ll, cross string, signed, ok bool) {
 	if strings.HasPrefix(set, CallbackPrefix) {
 		return "ptr", "", false, true
 	}
+	// A C POINTER TYPE IS THE TRIPLE'S POINTER (ADR 0146 item 3): a host type
+	// realized as `T*`, a handle kind `HWND__*` or HANDLE's `void*`, crosses a
+	// C call as `ptr` does.
+	if h, ok := tg.Types[set]; ok && strings.HasSuffix(strings.TrimSpace(h), "*") {
+		return "ptr", "", false, true
+	}
 	// AN OUT-PARAMETER IS A CELL (ADR 0048, 0112): T* for a C integer T, the
 	// address of the slot the printer allocates.
 	if core.IsCell(set) {
@@ -3273,7 +3287,7 @@ var respelled = map[string]string{
 // what makes "no host clause" mean "no claim about any host".
 var (
 	sigWords  = map[string]bool{"pure": true, "variadic": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true, "inplace": true, "outs": true}
-	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true, "comma-ok": true, "call": true}
+	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true, "comma-ok": true, "call": true, "niche": true}
 )
 
 // constSig elaborates a constant to the declaration it means (theories.md §8.3):
@@ -3512,6 +3526,16 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 				// Named, with a compound type: `(ws (array string))`.
 				p.Names = append(p.Names, a.Kids[0].Name)
 				p.Args = append(p.Args, core.TypeName(a.Kids[1]))
+			case a.Kind == core.KApp && len(a.Kids) == 2 && a.Kids[0].Kind == core.KName &&
+				a.Kids[1].Kind == core.KApp && len(a.Kids[1].Kids) == 2 && a.Kids[1].Kids[0].Kind == core.KName &&
+				a.Kids[1].Kids[0].Name == "option" && core.TypeName(a.Kids[1].Kids[1]) != "":
+				// AN OPTIONAL ARGUMENT, `(w (option windef.HWND))` (ADR 0146 item
+				// 5): the host takes K, and none is its NULL, the section
+				// s : Option(K) → P the declaration's definition applies
+				// (retract.go). The raw call's argument is K.
+				p.Names = append(p.Names, a.Kids[0].Name)
+				p.Args = append(p.Args, core.TypeName(a.Kids[1].Kids[1]))
+				p.OptArgs = append(p.OptArgs, len(p.Args)-1)
 			default:
 				return Prim{}, fmt.Errorf("%s: %s has a bad argument: %s", path, p.Name, a)
 			}
@@ -3666,6 +3690,16 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 		case rest.Kind == core.KApp && len(rest.Kids) == 1 && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "comma-ok":
 			p.CommaOk = true
+		case rest.Kind == core.KApp && len(rest.Kids) == 2 && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "niche":
+			switch k := rest.Kids[1]; {
+			case k.Kind == core.KName && k.Name == "NULL":
+				p.Niche = "NULL"
+			case k.Kind == core.KInt && k.Int == -1:
+				p.Niche = "-1"
+			default:
+				return Prim{}, fmt.Errorf("%s: %s's niche is NULL or -1 (ADR 0146), got %s", path, p.Name, k)
+			}
 		default:
 			return Prim{}, fmt.Errorf("%s: %s has an unexpected trailing form %s", path, p.Name, rest)
 		}
@@ -5652,3 +5686,36 @@ func (tg *Target) memberOfFamily(n string, q Prim, args []CArg) error {
 // PlantFamilyUntyped refuses every member of a family, as if its C function's
 // declaration were missing (TestAFamilyIsOneDeclarationPerMember).
 var PlantFamilyUntyped bool
+
+// HandleKind reports a host type that is a C pointer type, `HWND__*` or
+// HANDLE's `void*` (ADR 0146): its values are names the host gives, and their
+// one operation is equality within the kind.
+func (tg *Target) HandleKind(ty string) bool {
+	h, ok := tg.Types[ty]
+	return ok && strings.HasSuffix(strings.TrimSpace(h), "*")
+}
+
+// HandleEq is the name of a handle kind's equality, the host operation `==`
+// between two of its handles is (ADR 0146 item 2).
+func HandleEq(ty string) string { return "#eq:" + strings.ReplaceAll(ty, ".", ":") }
+
+// handleEqualities declares each handle kind's equality, h == g at the kind,
+// by the LLVM layer's own integer comparison's template, `icmp eq`, whose
+// operand type is the pointer's: Tier 2, a host operation and no portability
+// claim. The language's `=` stays ℤ's; the lowering calls this one where both
+// operands are of one kind.
+func (tg *Target) handleEqualities() {
+	eq, ok := tg.Prims["llvm.eq"]
+	if !ok {
+		return
+	}
+	for ty := range tg.Types {
+		if !tg.HandleKind(ty) {
+			continue
+		}
+		n := HandleEq(ty)
+		tg.Prims[n] = Prim{Name: n, Args: []string{ty, ty}, Names: []string{"a", "b"}, Result: "bool", Kind: "expr", Form: eq.Form, Pure: true}
+		tg.Names = append(tg.Names, n)
+	}
+	sort.Strings(tg.Names)
+}

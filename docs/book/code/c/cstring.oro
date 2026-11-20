@@ -1,10 +1,12 @@
 use win/print
 use windows/libloaderapi
-use llvm
 
 fn loaded(name ∈ String) (String) {
     if nulfree(name) {
-        if llvm.is_null(libloaderapi.GetModuleHandleA(name)) { "no" } else { "yes" }
+        case libloaderapi.GetModuleHandleA(name) {
+            'some(m) -> "yes"
+            'none -> "no"
+        }
     } else {
         "a NUL in the name"
     }

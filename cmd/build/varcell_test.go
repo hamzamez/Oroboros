@@ -33,7 +33,7 @@ func TestAScalarCellIsTheHostsCell(t *testing.T) {
 	path := filepath.ToSlash(filepath.Join(t.TempDir(), "seek.txt"))
 	const head = "use win/print\nuse windows/fileapi\nuse windows/handleapi\nuse llvm\n\n"
 	// GENERIC_READ | GENERIC_WRITE, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL
-	open := "    h = fileapi.CreateFileA(\"" + path + "\", 3221225472, 0, llvm.null(), 2, 128, llvm.null())\n" +
+	open := "    expect 'some(h) = fileapi.CreateFileA(\"" + path + "\", 3221225472, 0, llvm.null(), 2, 128, 'none) else \"no file\"\n" +
 		"    (w, r) = fileapi.WriteFile(h, array { 104, 105, 33, 10, 33 })\n"
 	once := func(init string) string {
 		return head + "export fn main() {\n" + open + "    var hi := " + init + "\n" +

@@ -1139,7 +1139,7 @@ export fn main() { io.print_int(if ends(array { 1, 2, 3 }) { 1 } else { 0 }) }
 <!-- gen go docs/book/code/claims/no-steps.oro -->
 ```
 gen: ends: ends: the body does not establish its `ensure`: len(a) >= 1 && (∀ i ∈ 0..len(a) - 2 : a(i) <= a(i + 1)) ⇒ a(0) <= a(len(a) - 1) does not follow from the parameters' sets and its `where`
-  known: assumed -len(a) <= 0 (fact len-nonneg)
+  known: assumed -len(a) + +1 <= 0, assumed -len(a) <= 0 (fact len-nonneg)
   A declared result is a claim decided at its definition (ADR 0072), a formula by the logic's own procedures (ADR 0145): every quantifier taken by its polarity, the rest by the Omega test. Fix the body, or the claim, or narrow a parameter's set.
 ```
 

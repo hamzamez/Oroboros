@@ -33,19 +33,23 @@ export fn main() {
     wc = record { style : 0, lpfnWndProc : fn(h, m, w, l) { step(s, h, m, w, l) }, cbClsExtra : 0, cbWndExtra : 0,
         hInstance : llvm.null(), hIcon : llvm.null(), hCursor : llvm.null(), hbrBackground : llvm.null(), lpszClassName : "OroWndProc" }
     a = winuser.RegisterClassA(wc)
-    h = winuser.CreateWindowExA(0, "OroWndProc", "", 0, 0, 0, 0, 0, llvm.null(), llvm.null(), llvm.null(), llvm.null())
-    ignore(winuser.PostMessageA(h, 1025, 0, 0))
-    ignore(winuser.PostMessageA(h, 1025, 0, 0))
-    ignore(winuser.PostMessageA(h, 1025, 0, 0))
-    ignore(winuser.PostMessageA(h, 1026, 0, 0))
-    loop n = 0, quit = 0 - 1 {
-        quit >= 0 -> { ignore(print.print_int(quit)); ignore(print.print_int(s.clicks)) }
-        n > 1000 -> ()
-        else -> {
-            (msg, r) = winuser.GetMessageA(llvm.null(), 0, 0)
-            ignore(winuser.TranslateMessage(msg))
-            ignore(winuser.DispatchMessageA(msg))
-            again(n + 1, if r > 0 { 0 - 1 } else { if msg.wParam < 1000 { msg.wParam } else { 1000 } })
+    case winuser.CreateWindowExA(0, "OroWndProc", "", 0, 0, 0, 0, 0, 'none, 'none, 'none, llvm.null()) {
+        'some(h) -> {
+            ignore(winuser.PostMessageA('some(h), 1025, 0, 0))
+            ignore(winuser.PostMessageA('some(h), 1025, 0, 0))
+            ignore(winuser.PostMessageA('some(h), 1025, 0, 0))
+            ignore(winuser.PostMessageA('some(h), 1026, 0, 0))
+            loop n = 0, quit = 0 - 1 {
+                quit >= 0 -> { ignore(print.print_int(quit)); ignore(print.print_int(s.clicks)) }
+                n > 1000 -> ()
+                else -> {
+                    (msg, r) = winuser.GetMessageA('none, 0, 0)
+                    ignore(winuser.TranslateMessage(msg))
+                    ignore(winuser.DispatchMessageA(msg))
+                    again(n + 1, if r > 0 { 0 - 1 } else { if msg.wParam < 1000 { msg.wParam } else { 1000 } })
+                }
+            }
         }
+        'none -> ignore(print.print_str("no window"))
     }
 }

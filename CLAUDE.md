@@ -102,40 +102,40 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 wrong about half the time.
 
 **The current assessment is [assessment-2026-11-20.md](docs/assessment-2026-11-20.md)**; read it
-before planning. **The plan in force is hamza's "Build all 5"** (2026-11-20), in order:
-1. ~~findings 100 and 101~~ done ([findings](gauntlet/results/findings-2026-11-20.md));
-2. **T1-4, a buffer written in a λ under an ordered host**: designed, a borrow through the call
-   returning the buffer's next version (callbacks-written §"Not built"); a research note, then the
-   build, the program counting sort;
-3. **the memory model's decided parts** ([views-finish-research.md](docs/views-finish-research.md)):
+before planning. **The plan in force** (hamza, 2026-11-20: "yes, reorder", the logic first, since
+TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in order:
+1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
+   chapter:
+   - a research note ([logic-research.md](docs/logic-research.md)): the formula language's abstract
+     syntax, its sort check, ε so a formula never reaches emission, the procedures and their order;
+   - formulas and `assert` (`∀ x ∈ S : φ`, `∃`, `⇒`, `⇔`), with Presburger quantifier elimination;
+   - the array property fragment, with GetWindowTextA's C string, its `ensure` the host's quantified
+     promise with evidence (L5, settling ADR 0091's rest): TinyRetroPad's window text;
+2. **ADR 0136's struct forms**: a buffer field `= len(m)`, a nested record by pointer `&f`, an
+   inline array `f[N]`, an optional C string `Option(String)` its NULL the niche; and **the memory
+   model's decided parts** ([views-finish-research.md](docs/views-finish-research.md)):
    - P3, a handle a host type, `set HWND = host "HWND__*"` (C's own expansion), `==` between two of
      one kind (hamza: "a"), its failure a niche on the declaration's result (`Option`), on LLVM;
      TinyRetroPad's file load and save;
    - two segments of one buffer lent at once when proven disjoint, wc's tail by RtlMoveMemory;
    - P4, a pointer the host keeps, the mode `kept` (hamza), §14.18's protocol over ADR 0133's slot;
      TinyRetroPad's find and replace;
-4. **ADR 0136's struct forms**: a buffer field `= len(m)`, a nested record by pointer `&f`, an
-   inline array `f[N]`, an optional C string `Option(String)` its NULL the niche; with
-   TinyRetroPad's modules;
-5. ~~Win32's enumerator pages as evidence~~ done
-   ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)): none promises an order, all the
-   middle strength.
+   with TinyRetroPad's modules;
+3. **T1-4, a buffer written in a λ under an ordered host**: designed, a borrow through the call
+   returning the buffer's next version (callbacks-written §"Not built"); a research note, then the
+   build, the program counting sort;
+4. **the logic, stages 4–6**: congruence closure and the combination, with a comparator's law
+   through a host's sort, one answer on every target; `spec` and recursive `lemma` (L3, L4), with a
+   table's sum proven by induction; `-checked` running a bounded ∀ as a loop (L6);
+5. **TinyRetroPad's body in J** (the 11-18 plan's item 1), module by module; then
+   `lib/num/u128.oro` in the language's own operations (blocked on U₆₄ ↪ ℤ).
 
-**After it, the logic** (ADR 0145, hamza 2026-11-20: L1–L7 "yes"; "the idea is to remove what is
-decided, in the hope that unlocks a lot of our walls. and we don't decide again"), staged, each
-stage a program first and its book chapter:
-1. a research note: the formula language's abstract syntax, its sort check, ε (spec/abstract.md) so
-   a formula never reaches emission, the procedures' order;
-2. formulas and `assert` (`∀ x ∈ S : φ`, `∃`, `⇒`, `⇔`), with Presburger quantifier elimination;
-3. the array property fragment, with GetWindowTextA's C string, its `ensure` the host's quantified
-   promise with evidence (L5, settling ADR 0091's rest): TinyRetroPad's window text;
-4. congruence closure and the combination, with a comparator's law through a host's sort, one
-   answer on every target;
-5. `spec` and recursive `lemma` (L3, L4), with a table's sum proven by induction;
-6. `-checked` running a bounded ∀ as a loop (L6).
+Done of "Build all 5" (2026-11-20): findings 100 and 101
+([findings](gauntlet/results/findings-2026-11-20.md)); Win32's enumerator pages
+([win32evidence](gauntlet/results/win32evidence-2026-11-20.md): none promises an order, all the
+middle strength).
 
-**Then**: TinyRetroPad's body in J (the 11-18 plan's item 1), and `lib/num/u128.oro` in the
-language's own operations (blocked on U₆₄ ↪ ℤ). Before it, **the 11-18 plan (assessment-2026-11-18 §5), approved** (hamza, 2026-11-19:
+Before it, **the 11-18 plan (assessment-2026-11-18 §5), approved** (hamza, 2026-11-19:
 "assessment's plan approved"):
 1. TinyRetroPad's body in J, module by module, the window procedure last;
 2. the callback decisions: tier 2's taken and built (ADR 0133); tier 1's to discuss with hamza;

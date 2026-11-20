@@ -151,36 +151,29 @@ them and checked against the SDK's prototypes.
 *Updated 2026-11-20.* The latest assessment is [docs/assessment-2026-11-20.md](docs/assessment-2026-11-20.md);
 each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 
-**The plan in force** (hamza, 2026-11-20: "Build all 5"), in order:
-1. ~~**Two things the book found**~~ **done** (its findings 100 and 101): a map read while it is still
-   being filled, and a table of tables or of tuples written out, read at an index not known when
-   compiling, build on every platform.
-2. **A table written by a function a platform calls during a call** (counting sort through
-   `forEach`): designed, the call lending the table to the platform and handing back its next
-   version; not built.
-3. **The memory model's decided parts**, each with TinyRetroPad's module that needs it:
-   - a handle as a type of its own (`set HWND = host "HWND__*"`), compared with `==` between two of
-     one kind, a failed call's handle an `Option`: TinyRetroPad's file load and save;
-   - two parts of one buffer lent at once, where they are proven apart: `wc`'s tail moved by
-     `RtlMoveMemory`;
-   - memory Windows keeps past a call, the mode `kept`: TinyRetroPad's find and replace.
-4. **C structs' remaining kinds of field**: a buffer with its length (`= len(m)`), a record by
-   pointer, an array inside the struct (`f[N]`), a C string that may be NULL (`Option(String)`);
-   with TinyRetroPad's modules.
-5. ~~**Windows' enumerators read against their documentation**~~ **done**: none promises an order,
-   every one "each element once, in turn" ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)).
+**The plan in force** (hamza, 2026-11-20), in order:
+1. **The logic, its first three stages** (decided, [ADR 0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md)):
+   claims with quantifiers, `∀ i ∈ 0..k-1 : b[i] != 0`, in a function's conditions and in `assert`,
+   proven by the compiler's own procedures; a platform's documented promises believed with their
+   sentence kept. First a research note, then the formulas and `assert`, then tables' properties,
+   with a C string read back from Windows (TinyRetroPad's window text).
+2. **C structs' remaining kinds of field** (a buffer with its length, a record by pointer, an array
+   inside the struct, a C string that may be NULL) and **the memory model's decided parts**: a
+   handle as a type of its own, compared with `==`, a failed call's handle an `Option` (TinyRetroPad's
+   file load and save); two parts of one buffer lent at once, where they are proven apart; memory
+   Windows keeps past a call, the mode `kept` (TinyRetroPad's find and replace).
+3. **A table written by a function a platform calls during a call** (counting sort through
+   `forEach`): designed, the call lending the table and handing back its next version.
+4. **The logic, its last three stages**: a comparator's law through a platform's sort, one answer
+   everywhere; definitions and lemmas by induction, a table's sum; `-checked` running a bounded
+   claim as a loop.
+5. **[TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)'s body in the language**, a
+   Notepad-style editor in about 2.5 KB of hand-written assembly, module by module; then 128-bit
+   integers written in the language itself.
 
-**After it, the logic** (decided 2026-11-20, [ADR 0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md)):
-claims with quantifiers, `∀ i ∈ 0..k-1 : b[i] != 0`, in a function's conditions and in `assert`,
-proven by the compiler's own procedures, with lemmas proven step by step and a platform's
-documented promises believed with their sentence kept. Staged, each stage with its program: the
-formulas and `assert`; tables' properties, with a C string read back from Windows (TinyRetroPad's
-window text); a comparator's law through a platform's sort, one answer everywhere; definitions and
-lemmas by induction, a table's sum; and `-checked` running a bounded claim as a loop.
-
-**Then**: TinyRetroPad's body in the language, module by module, the window procedure last; and
-128-bit integers written in the language itself, waiting on four realizations of the unsigned word
-read as an integer.
+**Done since it was set**: the book's findings 100 and 101 (a map read while it is filled; a table of
+tables or of tuples written out, read at any index), and Windows' enumerators read against their
+documentation ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)).
 
 **The plan before it** (2026-11-19) ended with the callback decisions and the capacity facts done,
 and TinyRetroPad's body carried into the one after this.

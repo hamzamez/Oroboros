@@ -1,0 +1,45 @@
+// prefix: THE LONGEST COMMON PREFIX, COUNTED BY THE HOST'S OWN COMPARISONS.
+//
+// WHAT IT IS. For tables a, b of one length n, lcp(a, b) is the least index i
+// with a[i] ≠ b[i], or n where there is none. Go's slices.EqualFunc promises
+// its calls: "the elements are compared in increasing index order, and the
+// comparison stops at the first index for which eq returns false". So its
+// activations are eq(a[0], b[0]), …, eq(a[m], b[m]) with m = min(lcp, n − 1),
+// and their number is min(lcp + 1, n).
+//
+// THE CALLBACK (ADR 0143). The λ writes the cell k and prints each pair it is
+// given: two effects, admitted because the host is `ordered`, so their history
+// is that documented sequence (Theorem T₁: the cell threaded through the
+// activations means one variable written in place). The program checks the
+// count against the lcp its own loop computes, and the printed pairs, one
+// number to a line, are the prefix and the first difference, in order.
+//
+// THE GUARD on k is the analysis's: the host promises no bound on its calls,
+// so the λ reads as a loop of unknown trip count, and k + 1 is proven inside
+// the word only under k < 1000000.
+use io
+use go/slices
+
+// lcp by a loop of the program's own
+fn lcp(a ∈ Array(Int), b ∈ Array(Int)) (Nat) where len(a) == len(b) {
+    loop i = 0 {
+        i < len(a) && a[i] == b[i] -> again(i + 1)
+        else -> i
+    }
+}
+
+export fn main() {
+    a = array { 3, 1, 4, 1, 5, 9, 2, 6 }
+    b = array { 3, 1, 4, 1, 5, 8, 2, 6 }
+    var k := 0
+    same = slices.EqualFunc(a, b, fn(x, y) {
+        io.print_int(x)
+        io.print_int(y)
+        if k < 1000000 { k := k + 1 }
+        x == y
+    })
+    io.print_line(if same { "equal" } else { "different" })
+    io.print_int(k)
+    l = lcp(a, b)
+    io.print_int(if l < len(a) { l + 1 } else { l })
+}

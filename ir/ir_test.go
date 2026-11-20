@@ -684,3 +684,25 @@ func TestTheFalseSideOfAConjunctionImpliesNoConjunct(t *testing.T) {
 		t.Errorf("a ≥ n on the false side of a < n ∧ b < n was not refused: %v", err)
 	}
 }
+
+// W16, A CALLBACK DURING A CALL IS SECOND-CLASS (ADR 0143): an `fn` value is
+// used once, by the call that applies it. Yielded from the function, it would
+// outlive the call, a closure the language does not have; the fault skips the
+// rule, and the same program must then not be refused for it.
+func TestTheVerifierRefusesAFirstClassCallback(t *testing.T) {
+	const src = "examples/callbacks/caesar.oro"
+	yieldFn := func(p *Program) {
+		f := p.Funcs[0]
+		_, s := find(f, OFn)
+		if s == nil {
+			t.Fatal("caesar has no fn statement")
+		}
+		f.Body.Args = []V{s.Res[0]}
+	}
+	expect(t, plant(t, src, yieldFn), "W16")
+	PlantSecondClassUnchecked = true
+	defer func() { PlantSecondClassUnchecked = false }()
+	if got := plant(t, src, yieldFn); strings.Contains(got, "W16") {
+		t.Errorf("with W16 unchecked the fault should not be named W16: %s", got)
+	}
+}

@@ -4,7 +4,9 @@ Date: 2026-11-20
 Status: Accepted (hamza, 2026-11-18 and 2026-11-20, on [callbacks-sketches.md](../callbacks-sketches.md)
 Part 2, derived in Part 3: T1-1 "L"; T1-3 "agree to option a"; T1-4 "agree"; T1-2 "agree to calls K
 with K a range, ordered", then "sure, I agree" to the default and the evidence; T1-5 "agree to k").
-Not built: its trigger is a Go-library program with a visitor (`filepath.WalkDir`).
+Built on Go 2026-11-20, a pure λ and a cell threaded under `ordered`
+([callbacks](../../gauntlet/results/callbacks-2026-11-20.md)); windows' closure conversion, the
+evidence check, JavaScript and the JVM to follow.
 
 ## Context
 
@@ -106,3 +108,22 @@ callback hole" to this decision.
   capture; `again` across the region; a marker without evidence.
 - The book gains the construct in chapter 17 (a declaration's markers) and chapter 14 (a cell in a
   λ given to an ordered host) when it is built.
+
+## As built (2026-11-20)
+
+- **The region is an `fn` statement whose one use is the call** (`(val %f fn (callback Q) REGION)`),
+  its value the call's argument at the callback's position. So a call's arguments stay its
+  declaration's parameters, one for one, which nine places in six passes and every printer's
+  template assume. W16 keeps it second-class: an `fn` value is used exactly once, as a call's
+  argument at a callback parameter.
+- **A written cell is a reference to a fresh copy in the caller's frame**, ADR 0048's form with the
+  λ the writer: `r = #ref(x); v = h(…, λ′, …); x := #deref(r); v`. λ′ loads the cell into one of its
+  own at entry and stores it back at exit, `#store-ref(r, x)`, Theorem T₁'s λ_S : S × A → S × R, so
+  within one activation a write under a guard is a φ the guard bounds. ADR 0133's static slot was
+  rejected for Go, where an export may be called from several goroutines at once. The interval
+  analysis reads such a reference, one no host call receives, as the join of its initial value and
+  every store, a fixed point over the host's unknown count (research §3.5).
+- **The target hands the loader `(callbacks i o …)`** per host operation: each callback parameter's
+  index, and 1 where its host promises the order. The state translation threads a written cell only
+  under it, and refuses one elsewhere naming the cell (Theorem D). A cell the λ only reads is
+  captured as its value at the call.

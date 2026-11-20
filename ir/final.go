@@ -450,6 +450,17 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 	for _, x := range f.Params {
 		isParam[x] = true
 	}
+	// A CALLBACK'S PARAMETER IS A BOUNDARY TOO (ADR 0143): the host fills it,
+	// in the claim's set, and the printer converts from the host's type.
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			if s := &r.Stmts[i]; s.Op == OFn {
+				for _, q := range s.Sub[0].Params {
+					isParam[q] = true
+				}
+			}
+		}
+	})
 	for v := 0; v < nv; v++ {
 		x := V(v)
 		ty := f.Types[x]

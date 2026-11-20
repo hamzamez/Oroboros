@@ -457,6 +457,19 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 		}
 		s.Sub = []*Region{r}
 		return s, nil
+	case OFn:
+		if len(args) != 2 {
+			return s, fmt.Errorf("(fn τ REGION)")
+		}
+		if s.Type, err = typeOf(args[0]); err != nil {
+			return s, err
+		}
+		r, err := rd.region(args[1])
+		if err != nil {
+			return s, err
+		}
+		s.Sub = []*Region{r}
+		return s, nil
 	case OBuild, OBuildMap, OTabulate:
 		if len(args) != 2 {
 			return s, fmt.Errorf("(%s %%n REGION)", h)

@@ -41,6 +41,25 @@ func TestStringsResultsDeclaredOursLandInUTF8(t *testing.T) {
 		"ToTitle":     strings.ToTitle,
 		"Title":       strings.Title, //nolint:staticcheck // deprecated, and still declared
 		"ToValidUTF8": func(s string) string { return strings.ToValidUTF8(s, "�") },
+		// MAP's claim is ∀f ∀s. Map(f, s) ∈ V (ADR 0143): its witness is an
+		// adversary over the mappings too, each scalar sent to itself, a
+		// surrogate, a negative (dropped), past MaxRune, or MaxInt32, which
+		// WriteRune must encode as U+FFFD where invalid
+		"Map": func(s string) string {
+			return strings.Map(func(r rune) rune {
+				switch r % 5 {
+				case 0:
+					return r
+				case 1:
+					return 0xD800
+				case 2:
+					return -1
+				case 3:
+					return 0x110000
+				}
+				return 0x7FFFFFFF
+			}, s)
+		},
 	}
 	for _, n := range ours {
 		if witnessed[n] == nil {

@@ -1,0 +1,20 @@
+// Go's `slices`: generic functions on slices, under Go's names.
+//
+// THE ALGEBRA, BEFORE THE NAMES. A slice here is a table, a function on
+// [0, len). EqualFunc decides whether two tables are equal under a relation
+// eq: len(a) = len(b) ∧ ∀i < len(a). eq(a[i], b[i]).
+//
+// ITS CALLS ARE A SEQUENCE ITS ARGUMENTS DETERMINE (ADR 0143), and Go's
+// documentation says so: "the elements are compared in increasing index
+// order, and the comparison stops at the first index for which eq returns
+// false". So the activations are eq(a[0], b[0]), eq(a[1], b[1]), …, up to and
+// including the first that answers false, and none when the lengths differ:
+// for equal lengths n, their number is min(lcp + 1, n), lcp the length of the
+// longest prefix eq relates. That is `ordered`, and a λ given to it may write
+// a cell of its caller's, threaded in that order (Theorem T₁).
+module go/slices {
+    set IntEq = fn(x ∈ Int, y ∈ Int) (b ∈ Bool) ordered
+    fn EqualFunc(a ∈ Array(Int), b ∈ Array(Int), eq ∈ IntEq) (Bool) pure {
+        host expr "slices.EqualFunc(${a}, ${b}, ${eq})" import "slices"
+    }
+}

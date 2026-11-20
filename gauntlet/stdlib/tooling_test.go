@@ -1415,6 +1415,13 @@ var handDeclared = []handEntry{
 	{"go", "targets/go", "strings.oro", []string{"go/strings", "go/strings/Builder", "go/strings/Reader", "go/strings/Replacer"},
 		stringsMistakes, true, map[string]string{
 			"go/strings.NewBuilder": "new(strings.Builder): Go's zero value is a construct, not a name",
+			// CALLBACKS DURING THE CALL (ADR 0143): a func(rune) parameter is a
+			// claim, which the survey does not generate
+			"go/strings.IndexFunc":     "a callback during the call (ADR 0143): the survey generates no function-typed parameter",
+			"go/strings.LastIndexFunc": "a callback during the call (ADR 0143): the survey generates no function-typed parameter",
+			"go/strings.ContainsFunc":  "a callback during the call (ADR 0143): the survey generates no function-typed parameter",
+			"go/strings.Map":           "a callback during the call (ADR 0143): the survey generates no function-typed parameter",
+			"go/strings.TrimFunc":      "a callback during the call (ADR 0143): the survey generates no function-typed parameter",
 		}, nil, nil},
 	{"go", "targets/go", "fmt.oro", nil, nil, true, nil, []string{"go/fmt/Stringer"}, []string{"go/fmt"}},
 	{"go", "targets/go", "io.oro", []string{"go/io", "go/io/PipeReader", "go/io/PipeWriter"},

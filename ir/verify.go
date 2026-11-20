@@ -79,6 +79,9 @@ type litSet struct {
 }
 
 func (v *verifier) run() {
+	if !PlantSecondClassUnchecked {
+		defer v.secondClass()
+	}
 	nv := v.f.NV()
 	v.defined = make([]bool, nv)
 	v.scope = make([]bool, nv)
@@ -121,7 +124,9 @@ func (v *verifier) run() {
 				v.alias[s.Res[0]] = s.Args[0]
 			}
 			for _, sub := range s.Sub {
-				if s.Op == OLoop {
+				// A CALLBACK'S REGION RUNS 0.. TIMES DURING ITS CALL (ADR
+				// 0143), as a loop's body does: its values are its own.
+				if s.Op == OLoop || s.Op == OFn {
 					defs(sub, d+1)
 				} else {
 					defs(sub, d)
@@ -750,9 +755,10 @@ var sigma = map[Op][2]int{
 	OThe: {1, 1}, ORequire: {1, 0},
 	ORestrict: {2, 1}, OAssume: {1, 0}, OZero: {0, 1},
 	OCellRef: {-1, 1}, OCellFresh: {0, 1}, OCellGet: {1, 1}, OStorage: {1, 1},
+	OFn: {0, 1}, OCellSet: {2, 0},
 }
 
-var subs = map[Op]int{OIf: 2, OLoop: 1, OBuild: 1, OBuildMap: 1, OTabulate: 1}
+var subs = map[Op]int{OIf: 2, OLoop: 1, OBuild: 1, OBuildMap: 1, OTabulate: 1, OFn: 1}
 
 func (v *verifier) stmt(s *Stmt) {
 	where := "(" + s.Op.String() + " …)"
@@ -861,6 +867,8 @@ func (v *verifier) stmt(s *Stmt) {
 	}
 	// The regions, and W3/W4 at their exits.
 	switch s.Op {
+	case OFn:
+		v.fnRegion(s, where)
 	case OIf:
 		for i, sub := range s.Sub {
 			v.results(v.region(sub, ctx{kind: kArm, guard: s.Args[0], side: i == 0, guarded: true}), s.Res, where)
@@ -1062,3 +1070,73 @@ func union(a, b map[V]bool) map[V]bool {
 
 // isWordRep reports a word-width integer realization: the signed word or U.
 func isWordRep(sort string) bool { return sort == "int" || sort == "u64" }
+
+// fnRegion checks a λ the host applies during a call (ADR 0143): its type is
+// a callback type's, its region takes the claim's parameters, and every exit
+// yields one value, the λ's result. A region is a scope its values do not
+// leave, as a loop's body is.
+func (v *verifier) fnRegion(s *Stmt, where string) {
+	q := strings.TrimPrefix(s.Type, core.CallbackPrefix)
+	d, _, ok := v.tg.CallbackDecl(q)
+	if !strings.HasPrefix(s.Type, core.CallbackPrefix) || !ok {
+		v.add("W4: %s's type %s is no callback type", where, s.Type)
+		return
+	}
+	body := s.Sub[0]
+	if len(body.Params) != len(d.Params) {
+		v.add("W4: %s's region has %d parameters, and %s has %d", where, len(body.Params), q, len(d.Params))
+	}
+	for _, exit := range v.region(body, ctx{kind: kScope}) {
+		if len(exit) != 1 {
+			v.add("W4: %s's region yields %d values, not 1", where, len(exit))
+		}
+	}
+}
+
+// secondClass is W16 (ADR 0143): a λ the host applies during a call is a
+// second-class value, so each `fn` value is used exactly once, as a call's
+// argument at a callback parameter. Yielded, stored, passed to anything else
+// or to two calls, it would outlive the call, a closure the language does
+// not have.
+func (v *verifier) secondClass() {
+	fns := map[V]bool{}
+	uses := map[V]int{}
+	bad := map[V]string{}
+	v.f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op == OFn && len(s.Res) == 1 {
+				fns[s.Res[0]] = true
+			}
+			var cb map[int]bool
+			if s.Op == OCall {
+				cb = callbackParams(v.tg.Prims[s.Name])
+			}
+			for j, a := range s.Args {
+				uses[a]++
+				if !cb[j] {
+					bad[a] = fmt.Sprintf("an argument of (%s …) that is no callback parameter", s.Op)
+				}
+			}
+		}
+		for _, a := range r.Args {
+			uses[a]++
+			bad[a] = "a region's exit"
+		}
+		if r.T == TBranch {
+			bad[r.Cond] = "a branch's condition"
+		}
+	})
+	for f := range fns {
+		switch {
+		case bad[f] != "":
+			v.add("W16: the λ %%%d is used as %s: a callback during a call is second-class (ADR 0143)", f, bad[f])
+		case uses[f] != 1:
+			v.add("W16: the λ %%%d is used %d times: a callback during a call is applied by one call (ADR 0143)", f, uses[f])
+		}
+	}
+}
+
+// PlantSecondClassUnchecked skips W16: an `fn` value used twice then
+// verifies (TestTheVerifierRefusesAFirstClassCallback).
+var PlantSecondClassUnchecked bool

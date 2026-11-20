@@ -90,6 +90,18 @@ const (
 	// storage(t) = p for the table made at p. It exists only where a table is
 	// released (ir/release.go), on a target whose tables are their regions.
 	OStorage
+	// OFn is a λ the host applies during one call (ADR 0143): its region is
+	// the λ's body, its parameters the λ's, each exit a yield of the λ's
+	// result, and its free values the caller's. Type is its callback type,
+	// `callback Q`. Its value is second-class (W16): used once, as a callback
+	// argument of a call later in the same region, which is where the region
+	// runs, 0.. times. It is never yielded, stored, or passed anywhere else.
+	OFn
+	// OCellSet writes its second operand through its first, a reference
+	// (ADR 0143): `(do (cell-set %r %v))`. Ordered where it stands, as a
+	// cell's read is: a λ the host applies during a call writes a cell of the
+	// caller's this way, and the read after the call sees the last write.
+	OCellSet
 	numOps
 )
 
@@ -103,7 +115,7 @@ var opNames = [numOps]string{
 	OIf: "if", OLoop: "loop", OBuild: "build", OBuildMap: "build-map", OTabulate: "tabulate",
 	OThe: "the", ORequire: "require", OZero: "zero",
 	OCellRef: "cell-ref", OCellFresh: "cell-fresh", OCellGet: "cell-get",
-	ORestrict: "restrict", OAssume: "assume", ORound: "round", OStorage: "storage",
+	ORestrict: "restrict", OAssume: "assume", ORound: "round", OStorage: "storage", OFn: "fn", OCellSet: "cell-set",
 }
 
 func (o Op) String() string {
@@ -136,7 +148,7 @@ func (o Op) IsCmp() bool { return o >= OEq && o <= OGe }
 // its primitive's declared bit, which the caller supplies.
 func (o Op) Pure() bool {
 	switch o {
-	case OSet, OInsert, OBuild, OBuildMap:
+	case OSet, OInsert, OBuild, OBuildMap, OCellSet:
 		return false
 	}
 	return true

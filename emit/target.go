@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"oroboros/core"
@@ -648,6 +649,7 @@ func (tg *Target) finish(wrap func(error) error) error {
 	tg.variadicForms()
 	tg.cellForms()
 	tg.borrowForms()
+	tg.callbackForms()
 	return nil
 }
 
@@ -940,6 +942,51 @@ func (tg *Target) borrowForms() {
 		}
 		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "borrows", Name: local,
 			Term: core.BorrowDeclTerm(core.BorrowDecl{Params: params, Results: len(results) - len(params)})})
+	}
+}
+
+// callbackForms hands the loader one `callbacks` form per host operation with
+// a callback parameter (ADR 0143): (callbacks i o …), each parameter's index
+// and 1 where its host promises the order of its calls. The state translation
+// reads it: a cell a λ there writes is threaded through the call only under
+// such a promise (Theorem D).
+func (tg *Target) callbackForms() {
+	var names []string
+	for n, p := range tg.Prims {
+		for _, a := range p.Args {
+			if strings.HasPrefix(a, CallbackPrefix) {
+				names = append(names, n)
+				break
+			}
+		}
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		p := tg.Prims[n]
+		kids := []*core.Term{core.Name("callbacks")}
+		for i, a := range p.Args {
+			if !strings.HasPrefix(a, CallbackPrefix) {
+				continue
+			}
+			o := int64(0)
+			if c, ok := tg.Callbacks[strings.TrimPrefix(a, CallbackPrefix)]; ok && c.InOrder() {
+				o = 1
+			}
+			kids = append(kids, core.Int(int64(i)), core.Int(o))
+		}
+		declared := n
+		if d, ok := DeclaredName(n); ok {
+			declared = d
+		}
+		i := strings.LastIndex(declared, ".")
+		if i < 0 {
+			continue
+		}
+		mod, local := declared[:i], declared[i+1:]
+		if tg.Defs == nil {
+			tg.Defs = map[string][]core.Form{}
+		}
+		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "callbacks", Name: local, Term: &core.Term{Kind: core.KApp, Kids: kids}})
 	}
 }
 
@@ -1392,6 +1439,7 @@ var coreStructural = []Prim{
 	{Name: core.RefName, Kind: "cell-ref", Args: []string{"any"}},
 	{Name: core.FreshName, Kind: "cell-fresh", Args: []string{"string"}},
 	{Name: core.DerefName, Kind: "cell-get", Args: []string{"any"}},
+	{Name: core.StoreRefName, Kind: "cell-set", Args: []string{"any", "any"}},
 	// A table's two presentations and its domain bound (tables.md §2). Pure:
 	// a table is a value, and reading one has no effect — which is what
 	// separates `(array V)` from ADR 0018's `(buffer V)`, whose reads are impure
@@ -3727,6 +3775,24 @@ func declareModule(frag *Target, f *core.Term, prefix, path string) error {
 			q := qualify(mod, inner.Kids[1].Name)
 			c := CallbackSig{Mod: mod, Params: []string{}}
 			bs := inner.Kids[2:]
+			// the host's promises (ADR 0143), read after the result
+			for len(bs) > 0 {
+				last := bs[len(bs)-1]
+				if formWord(last) == "ordered" {
+					c.Ordered = true
+				} else if formWord(last) == "calls" && len(last.Kids) == 2 {
+					c.Calls = core.TypeName(last.Kids[1])
+					if n, err := strconv.ParseInt(c.Calls, 10, 64); err == nil {
+						c.Calls = fmt.Sprintf("int %d %d", n, n) // a count is a set: 1 is {1}
+					}
+					if lo, _, ok := core.IntRangeBig(c.Calls); !ok || lo == nil || lo.Sign() < 0 {
+						return fmt.Errorf("%s: %s's count is a set of naturals, `calls 1`, `0..1` or `0..` (ADR 0143), not %s", path, q, c.Calls)
+					}
+				} else {
+					break
+				}
+				bs = bs[:len(bs)-1]
+			}
 			for i, b := range bs {
 				if b.Kind != core.KApp || len(b.Kids) != 2 || b.Kids[0].Kind != core.KName {
 					return fmt.Errorf("%s: %s's binder %s is `x ∈ S`", path, q, b)
@@ -3908,8 +3974,33 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 		if e.Callbacks == nil {
 			e.Callbacks = map[string]core.CallbackDecl{}
 		}
-		d, _, _ := tg.CallbackDecl(q)
+		d, cs, _ := tg.CallbackDecl(q)
+		if lo, _, ok := core.IntRangeBig(cs.Calls); ok && lo != nil && lo.Sign() > 0 {
+			d.AtLeastOnce = true
+		}
 		e.Callbacks[q] = d
+	}
+	// THE HOST OPERATIONS TAKING A CALLBACK (ADR 0143): the claim at each
+	// argument, so the usage check scales a λ's uses by the host's count.
+	for _, n := range tg.Names {
+		p := tg.Prims[n]
+		var qs []string
+		for _, a := range p.Args {
+			q := ""
+			if strings.HasPrefix(a, CallbackPrefix) {
+				q = strings.TrimPrefix(a, CallbackPrefix)
+			}
+			qs = append(qs, q)
+		}
+		for _, q := range qs {
+			if q != "" {
+				if e.CallbackArgs == nil {
+					e.CallbackArgs = map[string][]string{}
+				}
+				e.CallbackArgs[n] = qs
+				break
+			}
+		}
 	}
 	e.UnfoldSet = func(ty string) string {
 		if _, rec, ok := tg.CStruct(ty); ok {

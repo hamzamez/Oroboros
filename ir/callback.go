@@ -188,3 +188,158 @@ func buildCallback(tg *emit.Target, env *core.Env, reqs *emit.RequireSet, n stri
 	SelectShifts(tg, f)
 	return f, leg, nil
 }
+
+// callbackParams are the positions of p's callback parameters (ADR 0143): a
+// parameter whose set is a callback type's claim, `callback Q`.
+func callbackParams(p emit.Prim) map[int]bool {
+	var cb map[int]bool
+	for i, a := range p.Args {
+		if strings.HasPrefix(a, core.CallbackPrefix) {
+			if cb == nil {
+				cb = map[int]bool{}
+			}
+			cb[i] = true
+		}
+	}
+	return cb
+}
+
+// CallbackClaims are the claims of p's callback parameters, in order: the
+// claim of the call's region k is CallbackClaims(p)[k].
+func CallbackClaims(p emit.Prim) []string {
+	var qs []string
+	for _, a := range p.Args {
+		if strings.HasPrefix(a, core.CallbackPrefix) {
+			qs = append(qs, strings.TrimPrefix(a, core.CallbackPrefix))
+		}
+	}
+	return qs
+}
+
+// PlantCallbackParamUndeclared leaves a callback region's parameters with no
+// fact, as before the region was visited: an unset fact is [0, 0], a proof
+// from no premise, which TestACallbackDuringACallIsDecidedUnderItsClaim must
+// see accept a division by r − 65.
+var PlantCallbackParamUndeclared bool
+
+// CheckCallbackResults decides each λ's result claim (ADR 0143, ADR 0053
+// item 4): the claim is Π(x ∈ P). R, and the host assumes the λ answers in R,
+// so ∀x ∈ P. ⟦body⟧(x) ∈ R is our obligation, decided as a definition's
+// declared result is (ADR 0072), on ℤ's facts under the parameters' sets. A
+// result the host receives in a narrower type than ours (Go's `rune` for
+// strings.Map) would otherwise be truncated where the claim is not proven.
+func CheckCallbackResults(tg *emit.Target, f *Func) error {
+	if PlantCallbackResultUnchecked {
+		return nil
+	}
+	fs := f.facts
+	if len(fs) != f.NV() {
+		fs = analyse(tg, f)
+	}
+	var err error
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != OFn || err != nil {
+				continue
+			}
+			q := strings.TrimPrefix(s.Type, core.CallbackPrefix)
+			d, _, ok := tg.CallbackDecl(q)
+			if !ok {
+				continue
+			}
+			lo, hi, isRange := core.IntRangeBig(d.Result)
+			if !isRange {
+				continue
+			}
+			want := iv{}
+			want.lo, _ = fromBig(lo)
+			want.hi, _ = fromBig(hi)
+			res := ivBot
+			for _, y := range exitsOf(s.Sub[0], TYield) {
+				if len(y) == 1 {
+					res = joinIV(res, fs[y[0]].v)
+				}
+			}
+			if !res.bot && meetIV(res, want) != res {
+				who := core.ShowSet(q)
+				if s.Src != nil {
+					who = core.ShowTerm(s.Src)
+				}
+				err = fmt.Errorf("%s answers %s, which is not proven inside %s, the claim's result: the host "+
+					"receives it as that set (ADR 0053 item 4, ADR 0143). Narrow the λ's result, or guard it",
+					who, termShow(res), core.ShowSet(d.Result))
+			}
+		}
+	})
+	return err
+}
+
+// PlantCallbackResultUnchecked skips CheckCallbackResults: a λ answering
+// outside its claim's result is then printed, and the host truncates it.
+var PlantCallbackResultUnchecked bool
+
+// CheckCallbackEffects is Theorem D at every λ a host applies during a call
+// (ADR 0143): under a host that does not promise the order of its calls, the
+// call's answer is the host's only if the λ's body is pure, so an effect in
+// it, a host call that prints or a crash, is refused. Under `ordered`, or a
+// count of at most one, the activations are a sequence, and an effect's
+// history is that sequence's.
+func CheckCallbackEffects(tg *emit.Target, f *Func) error {
+	var err error
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != OFn || err != nil {
+				continue
+			}
+			q := strings.TrimPrefix(s.Type, core.CallbackPrefix)
+			_, cs, ok := tg.CallbackDecl(q)
+			if !ok || cs.InOrder() || PlantCallbackEffectUnchecked {
+				continue
+			}
+			if name, impure := firstEffect(tg, s.Sub[0]); impure {
+				who := "the λ"
+				if s.Src != nil {
+					who = core.ShowTerm(s.Src)
+				}
+				err = fmt.Errorf("%s calls %s, an effect, and its host does not promise the order or the number "+
+					"of its calls (%s is not `ordered`): the effect's history would be the host's, which may "+
+					"differ between releases (Theorem D, ADR 0143). Make the λ pure, or pass it to a host whose "+
+					"declaration is `ordered`", who, core.ShowName(name), core.ShowSet(q))
+			}
+		}
+	})
+	return err
+}
+
+// firstEffect is the first impure host call in r or a region inside it.
+func firstEffect(tg *emit.Target, r *Region) (string, bool) {
+	var name string
+	var found func(r *Region) bool
+	found = func(r *Region) bool {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op == OCall {
+				if p, ok := tg.Prims[s.Name]; ok && !p.Pure {
+					name = s.Name
+					return true
+				}
+			}
+			for _, sub := range s.Sub {
+				if found(sub) {
+					return true
+				}
+			}
+		}
+		if r.T == TBranch {
+			return found(r.Then) || found(r.Else)
+		}
+		return false
+	}
+	return name, found(r)
+}
+
+// PlantCallbackEffectUnchecked skips Theorem D's check: a print in a λ under
+// an unordered host is then printed, its output the host's order.
+var PlantCallbackEffectUnchecked bool

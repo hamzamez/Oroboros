@@ -80,11 +80,14 @@ type Env struct {
 	// the λs a program puts at their fields, by lifted name; Slots the cells
 	// such a λ captures, with their sets (ADR 0133).
 	Callbacks map[string]CallbackDecl
-	Lifted    map[string]Lifted
-	Slots     map[string]string
-	Defs      map[string]*Term
-	Prim      map[string]bool
-	Pure      map[string]bool // names whose APPLICATION is pure; see pureName
+	// CallbackArgs are, per host operation with a callback parameter, the
+	// claim at each argument, "" where the argument is no callback (ADR 0143).
+	CallbackArgs map[string][]string
+	Lifted       map[string]Lifted
+	Slots        map[string]string
+	Defs         map[string]*Term
+	Prim         map[string]bool
+	Pure         map[string]bool // names whose APPLICATION is pure; see pureName
 	// Observe names the host calls that may read a live buffer at a table
 	// parameter (ADR 0069): pure, with scalar results. An application of one to
 	// a bound variable is a read of a table through it, as `(b i)` is (§7c).
@@ -819,6 +822,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	variadic := map[string]int{}
 	cells := map[string]CellDecl{}
 	borrows := map[string]BorrowDecl{}
+	cbs := map[string][]CallbackArg{}
 	segs := map[string][]SegmentArg{}
 	for len(dt) > 0 {
 		byPath := map[string]*Module{}
@@ -892,6 +896,13 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 					if f.Term.Kind == KApp && len(f.Term.Kids) == 3 && f.Term.Kids[1].Kind == KInt && f.Term.Kids[2].Kind == KStr {
 						segs[qualify(path, f.Name)] = append(segs[qualify(path, f.Name)],
 							SegmentArg{Index: int(f.Term.Kids[1].Int), Variant: f.Term.Kids[2].Str})
+					}
+				case "callbacks":
+					// a host operation's callback parameters (ADR 0143):
+					// (callbacks i ordered …), each its index and promise
+					for k := 1; k+1 < len(f.Term.Kids); k += 2 {
+						cbs[qualify(path, f.Name)] = append(cbs[qualify(path, f.Name)],
+							CallbackArg{Index: int(f.Term.Kids[k].Int), Ordered: f.Term.Kids[k+1].Int != 0})
 					}
 				case "borrows":
 					d, err := readBorrowDecl(f.Term)
@@ -1229,14 +1240,14 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		}
 	}
 	for _, q := range p.Order {
-		t, err := translateCells(p.Defs[q], cells, borrows, declaresProduct(p.Sigs[q]))
+		t, err := translateCells(p.Defs[q], cells, borrows, cbs, declaresProduct(p.Sigs[q]))
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", q, err)
 		}
 		p.Defs[q] = t
 	}
 	for i, t := range terms {
-		out, err := translateCells(t, cells, borrows, false)
+		out, err := translateCells(t, cells, borrows, cbs, false)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -4306,6 +4317,24 @@ func (e *Env) usedOn(t *Term, depth, index int, outer bool) bool {
 		}
 		return e.usedOn(args[0], depth, index, true)
 	}
+	// A λ THE HOST MAY NEVER APPLY USES NOTHING (ADR 0143, 𝒰's clause): the
+	// name's usage in h(ā, λȳ.e) is Σᵢ 𝒰(aᵢ) + k · 𝒰(e), so a use inside the
+	// λ counts only where the host's count k is at least 1. A host under the
+	// default count, 0.., may call it never.
+	if qs, ok := e.CallbackArgs[op.Name]; ok && op.Kind == KName && !PlantCallbackUseCounted {
+		for i, a := range args {
+			if i < len(qs) && qs[i] != "" && a.Kind == KFn {
+				if e.Callbacks[qs[i]].AtLeastOnce && e.usedOn(a, depth, index, outer) {
+					return true
+				}
+				continue
+			}
+			if e.usedOn(a, depth, index, outer) {
+				return true
+			}
+		}
+		return false
+	}
 	var fn *Term // the receiver, when its parameters are known
 	switch {
 	case op.Kind == KFn:
@@ -4335,6 +4364,11 @@ func (e *Env) usedOn(t *Term, depth, index int, outer bool) bool {
 	// a λ written in place sees the variable itself; a definition is closed
 	return op.Kind == KFn && e.usedOn(op, depth, index, outer)
 }
+
+// PlantCallbackUseCounted counts a use inside a λ at a callback parameter as a
+// use on every path, as before ADR 0143: a relevant value the host may never
+// see is then accepted (TestACallbackDuringACallIsDecidedUnderItsClaim).
+var PlantCallbackUseCounted bool
 
 // consumes reports whether fn uses its parameter j on every path of its body
 // as written: whether handing it a relevant value uses the value. A

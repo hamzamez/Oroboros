@@ -1020,6 +1020,10 @@ type CallbackDecl struct {
 	Names  []string
 	Params []string
 	Result string
+	// AtLeastOnce is the host's count's lower end, at least 1 (`calls 1`):
+	// a name used in the λ is then used on every path of the call (ADR 0143,
+	// 𝒰's clause k · 𝒰(e)). The default count, 0.., has lower end 0.
+	AtLeastOnce bool
 }
 
 // Lifted is a λ at a callback's field, lifted to a function of ours: its

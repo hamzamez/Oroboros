@@ -481,6 +481,10 @@ type intervals struct {
 	// cleared when the loop is evaluated, so a bound computed under an
 	// earlier, narrower round of an enclosing loop never survives it.
 	trips map[*Stmt]*big.Int
+	// held is, for each reference only the program writes (no host call
+	// receives it, ADR 0143), what it holds: the join of its initial value and
+	// every value stored through it. A read of it is that join.
+	held map[V]iv
 }
 
 type exitFacts struct {
@@ -549,6 +553,7 @@ func newIntervals(tg *emit.Target, f *Func) *intervals {
 	if tg.MaxLen > 0 && tg.MaxLen < a.maxLen {
 		a.maxLen = tg.MaxLen
 	}
+	a.held = ownReferences(f)
 	a.thresh = thresholds(tg, f)
 	for _, x := range f.Params {
 		a.fs[x] = a.declared(f.Types[x])
@@ -922,7 +927,26 @@ func (a *intervals) stmt(s *Stmt) {
 		one(out)
 	case OCellRef, OCellFresh:
 		one(topFact) // an address: no integer
+		// A REFERENCE ONLY THE PROGRAM WRITES holds its initial value, joined
+		// with what is stored through it (OCellSet)
+		if _, own := a.held[s.Res[0]]; own {
+			x := exactIV(0) // a fresh cell's zero
+			if s.Op == OCellRef && len(s.Args) == 1 {
+				x = args[0].v
+			}
+			a.held[s.Res[0]] = joinIV(a.held[s.Res[0]], x)
+		}
+	case OCellSet:
+		if _, own := a.held[s.Args[0]]; own && !PlantCellReadUnjoined {
+			a.held[s.Args[0]] = joinIV(a.held[s.Args[0]], args[1].v)
+		}
 	case OCellGet:
+		if h, own := a.held[s.Args[0]]; own && s.Lit == nil {
+			out := topFact
+			out.v = h
+			one(out)
+			return
+		}
 		// A STRUCT CELL'S LEAF: its set (llvm.md §6b).
 		if s.Lit != nil {
 			if lt := structLeafType(a.tg, a.f, s); lt != "" {
@@ -1018,6 +1042,8 @@ func (a *intervals) stmt(s *Stmt) {
 		one(out)
 	case OLoop:
 		a.loop(s)
+	case OFn:
+		a.fn(s)
 	}
 	// A PROMOTED HOST OPERATION IS ℤ'S ONLY INSIDE THE WORD (lowering's
 	// promote): JavaScript's `+` is exact within ±(2⁵³ − 1) and rounds past it,
@@ -1028,6 +1054,103 @@ func (a *intervals) stmt(s *Stmt) {
 		a.fs[s.Res[0]] = topFact
 	}
 }
+
+// fn is a λ the host applies during a call (ADR 0143): its parameters are
+// what the claim's sets say, the host's promise, assumed as an export's are
+// (ADR 0028), and its body is evaluated once under them. Its body reads no
+// state of the caller's that a call writes (stage A: the λ is pure), so one
+// evaluation is every activation's. Its value, a function, has no interval.
+//
+// A REFERENCE THE λ WRITES (ADR 0143, Theorem T₁) makes the activations a
+// loop whose trip count is the host's: what the reference holds after any
+// number of them is the least fixed point of h ↦ h ⊔ stores(body under h),
+// reached by ascending with widening after three rounds, as a loop's
+// parameters are (research §3.5). Every activation's facts are then the last
+// round's, under the fixed point.
+func (a *intervals) fn(s *Stmt) {
+	body := s.Sub[0]
+	seed := func() {
+		for _, q := range body.Params {
+			if !PlantCallbackParamUndeclared {
+				a.fs[q] = a.declared(a.f.Types[q])
+			}
+		}
+	}
+	for it := 0; it < loopBudget; it++ {
+		before := make(map[V]iv, len(a.held))
+		for r, h := range a.held {
+			before[r] = h
+		}
+		seed()
+		a.region(body)
+		same := true
+		for r, h := range a.held {
+			if h != before[r] {
+				same = false
+				if it >= 3 {
+					a.held[r] = widenIV(before[r], h)
+				}
+			}
+		}
+		if same {
+			break
+		}
+		if it == loopBudget-1 {
+			for r := range a.held {
+				a.held[r] = ivTop // not a post-fixpoint: nothing is known
+			}
+			seed()
+			a.region(body)
+		}
+	}
+	for _, v := range s.Res {
+		a.fs[v] = topFact
+	}
+}
+
+// ownReferences are f's references that only the program writes: made by a
+// cell-ref or cell-fresh, and used only by cell-get and as cell-set's
+// reference, never handed to a host call, which could write anything of its
+// type into it (spec/local.md §5). Each starts at ⊥, the join's identity.
+func ownReferences(f *Func) map[V]iv {
+	made := map[V]bool{}
+	escaped := map[V]bool{}
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			switch s.Op {
+			case OCellRef, OCellFresh:
+				if s.Type == "" {
+					made[s.Res[0]] = true
+				}
+			case OCellGet:
+			case OCellSet:
+				for _, x := range s.Args[1:] {
+					escaped[x] = true
+				}
+			default:
+				for _, x := range s.Args {
+					escaped[x] = true
+				}
+			}
+		}
+		for _, x := range r.Args {
+			escaped[x] = true
+		}
+	})
+	out := map[V]iv{}
+	for v := range made {
+		if !escaped[v] {
+			out[v] = ivBot
+		}
+	}
+	return out
+}
+
+// PlantCellReadUnjoined drops the stores from the join, so a read of a
+// reference the λ writes is its initial value alone: the program after the
+// call then believes the cell unchanged (TestACellWrittenInACallbackIsThreadedInTheHostsOrder).
+var PlantCellReadUnjoined bool
 
 // inWord reports x ⊆ the target's signed word (⊥ included).
 func (a *intervals) inWord(x iv) bool { return x.within(ei(a.tg.Word.Lo), ei(a.tg.Word.Hi)) }

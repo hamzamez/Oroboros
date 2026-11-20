@@ -1,0 +1,8 @@
+use io
+use go/strings
+
+export fn letters(s ∈ go.bytestring) (Int) {
+    var n := 0
+    t = strings.Map(fn(r) { if n < 1000000 { n := n + 1 }; r }, s)
+    n
+}

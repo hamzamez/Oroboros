@@ -4006,3 +4006,24 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/table/idot.oro java`
 - new source — `examples/table/idot.oro js`
 - new source — `examples/table/idot.oro windows`
+
+## 2026-11-20 — on 59a08c75, with uncommitted changes
+
+**Reason:** callbacks tier 1 on Go (ADR 0143): two new programs, examples/callbacks/caesar.oro and prefix.oro, emitted on Go and refused on the targets declaring no such host
+
+752 runs: 518 emitted, 234 refused; 11840 of 11894 integer operations bounded, 1362 of 1655 loops proven. compiler pass, differential pass, tooling pass.
+
+8 change(s):
+
+- new source — `examples/callbacks/caesar.oro go`
+- new source — `examples/callbacks/caesar.oro java`
+- new source — `examples/callbacks/caesar.oro js`
+- new source — `examples/callbacks/caesar.oro windows`
+- new source — `examples/callbacks/prefix.oro go`
+- new source — `examples/callbacks/prefix.oro java`
+- new source — `examples/callbacks/prefix.oro js`
+- new source — `examples/callbacks/prefix.oro windows`
+
+1 compile(s) recorded FASTER:
+
+- `gauntlet/differential/cases/utf8-widths.oro windows` 1062 → 625 ms, 0.59x

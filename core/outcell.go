@@ -31,6 +31,11 @@ const (
 	RefName   = "#ref"
 	FreshName = "#fresh"
 	DerefName = "#deref"
+	// StoreRefName writes through a reference, (#store-ref r v), its value
+	// the unit: a cell a λ the host applies during a call writes, threaded in
+	// the host's order as a reference to a fresh copy (ADR 0143, Theorem T₁;
+	// ADR 0048's form, the λ the writer).
+	StoreRefName = "#store-ref"
 	// OutName is the sugar, recognized only at a cell parameter.
 	OutName = "out"
 )

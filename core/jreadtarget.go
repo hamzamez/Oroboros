@@ -958,6 +958,26 @@ func (p *parser) claimSet(name *Term) (*Term, error) {
 		return nil, p.errorf("a claim has one result, `(r ∈ R)`")
 	}
 	kids = append(kids, app(Name(r), p.setDatum(s, "")))
+	// THE HOST'S PROMISES ABOUT ITS CALLS (ADR 0143), after the result as
+	// `pure` follows an arrow: `calls K`, K a set of naturals written as a
+	// range (`1`, `0..1`, `0..`), and `ordered`, read (calls "K") and
+	// (ordered) after the result.
+	for !p.peek().nl {
+		switch {
+		case p.is("calls"):
+			p.next()
+			k, err := p.exprAt(pCmp + 1)
+			if err != nil {
+				return nil, err
+			}
+			kids = append(kids, app(Name("calls"), p.setDatum(k, "")))
+		case p.is("ordered"):
+			p.next()
+			kids = append(kids, app(Name("ordered")))
+		default:
+			return app(kids...), nil
+		}
+	}
 	return app(kids...), nil
 }
 

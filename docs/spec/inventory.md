@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 162 |
+| `specified` — a spec states it | 166 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 3 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -167,6 +167,7 @@ A target may not declare one, and declaring one is an **error**.
 | `local` | specified — a scope of local state, J's `var x := e` in a block: a binder initialized by a table is a buffer; by anything else, a cell, written in program order and translated into loop variables at load, so nothing below the loader sees one | [local.md](local.md) |
 | `out` | specified — `(out τ)`, J's `out T` as an argument, at a cell parameter: a cell for that one call, holding τ's zero; the call's value is the cells' values, then the declared result's components. Anywhere else an ordinary application | [local.md](local.md) §6 |
 | `#ref`, `#fresh`, `#deref` | specified — the cell translation's own: a reference to a fresh copy of a value, one to a type's zero, and the value a reference holds; impure, injected into every target, and out of a program's reach | [local.md](local.md) §5 |
+| `#store-ref` | specified — a write through a reference, `(#store-ref r v)`, its value the unit: a cell a λ the host applies during a call writes, threaded in the host's order (ADR 0143, Theorem T₁); impure, and out of a program's reach | [ADR 0143](../decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 | `build` | specified — the scoped buffer's core form `(build n (fn (b) …))`, made from J's `var`; also a target file's `build "cmd"` and a retired structural kind | [tables.md](tables.md), [build.md](build.md) |
 | `build-map`, `insert`, `keys` | specified — `build-map` made from J's `var m := map(cap)`, `insert` from `m[k] := v` | [maps.md](maps.md) |
 | `concat`, `string-of` | recorded — the free monoid's operation and its generator, J's `++` and `string_of`; derived in research and built, and no spec in `docs/spec/` states them | [string-operations.md](../string-operations.md), [render-2026-09-04](../../gauntlet/results/render-2026-09-04.md) |
@@ -228,6 +229,9 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `variadic` | specified — the host function takes a list as its last parameter, f : X × T* → B: the parameter a table, the template spreading it (`%s...`); a call's trailing arguments are the list | [variadic.md](variadic.md) |
 | `callback-set` | specified — the reader's form of a named claim, `set Q = fn(x ∈ S, …) (r ∈ R)`, read (callback-set Q (x "S")… (r "R")): a callback type, its set `callback Q` (ADR 0053, 0133) | [ADR 0133](../decisions/0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md), [llvm.md](llvm.md) §6c |
 | `conv` | specified — the reader's form of a callback's convention after its C signature, `repr Q c(x, …) stdcall`, read (conv "stdcall") | [llvm.md](llvm.md) §6c |
+| `calls` | specified — a callback claim's count, `set Q = fn(…) (r ∈ R) calls K`, K a set of naturals written as a range (`1`, `0..1`, `0..`), the host's promise of how many times it applies the λ: a name used in the λ is used k times its use there (ADR 0143); the default `0..` | [ADR 0143](../decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
+| `ordered` | specified — a callback claim's promise that the host's activations are a sequence its documentation fixes (ADR 0143): an effect in the λ, a cell written or a host's IO, is admitted only under it, or under a count of at most one (Theorem D) | [ADR 0143](../decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
+| `callbacks` | specified — the loader's form for a host operation's callback parameters, `(callbacks i o …)`, each index and 1 where its host promises its order, handed from the target as `cells` is: the state translation threads a cell a λ there writes only under the promise | [ADR 0143](../decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 | `cells` | specified — the loader's form for a declaration's cell parameters, `(cells ARITY LIST i…)`, handed from the target as `variadic` is | [local.md](local.md) §5 |
 | `borrows` | specified — the loader's form for a declaration that borrows a buffer, `(borrows RESULTS i…)`: its `(buffer V)` parameters, handed back first, and its result's other components, handed from the target as `cells` is | [local.md](local.md) §2.1 |
 | `index` | specified | [target-files.md](target-files.md) |

@@ -172,6 +172,14 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if err := CheckEnsures(tg, f, sig); err != nil {
 		return nil, nil, fmt.Errorf("%s: %v", name, err)
 	}
+	// A λ GIVEN TO A HOST ANSWERS IN ITS CLAIM'S RESULT (ADR 0143), decided
+	// here on ℤ's facts, as a postcondition is.
+	if err := CheckCallbackResults(tg, f); err != nil {
+		return nil, nil, fmt.Errorf("%s: %v", name, err)
+	}
+	if err := CheckCallbackEffects(tg, f); err != nil {
+		return nil, nil, fmt.Errorf("%s: %v", name, err)
+	}
 	// THE RUNG ABOVE THE WORD: the least set of values held exactly, on the
 	// decided function's facts; decided again after, where no operation held
 	// exactly is counted.

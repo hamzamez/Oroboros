@@ -1,0 +1,45 @@
+// caesar: THE CYCLIC GROUP ℤ/26 ACTING ON TEXT, through a host's Map.
+//
+// WHAT IT IS. A shift by k ∈ ℤ/26 is a permutation of each alphabet,
+// σ_k(x) = (x + k) mod 26 on a letter's place, and the identity on every other
+// scalar. k ↦ σ_k is a homomorphism ℤ/26 → Sym(Σ): σ_a ∘ σ_b = σ_{a+b}, σ_0 = id,
+// so σ_{26−k} is σ_k's inverse and σ_13 is an involution.
+//
+// strings.Map lifts a function f : Σ → Σ to the monoid homomorphism
+// Map(f) : Σ* → Σ* that maps each scalar, and the lift is a functor:
+// Map(f) ∘ Map(g) = Map(f ∘ g), Map(id) = id. So the action of ℤ/26 on Σ lifts
+// to one on Σ*, and the program checks three of its consequences:
+//   - decrypting by 26 − k undoes encrypting by k (σ_{26−k} ∘ σ_k = σ_0);
+//   - ROT13 twice is the identity (σ_13 ∘ σ_13 = σ_26 = σ_0);
+//   - a scalar σ fixes keeps its place: the comma's index is the same.
+//
+// THE CALLBACKS (ADR 0143). Each λ is applied by Go only during Map's call, in
+// an order Go does not promise, so each is pure (Theorem D): what it answers
+// for a scalar is all Map can see. k is a value of the caller's scope, read in
+// place, and the λ's result is proven inside int32, the claim's result,
+// because shift's is.
+use io
+use go/strings
+
+// σ_k on one scalar: within each alphabet a rotation, elsewhere the identity
+fn shift(r ∈ -2^31..2^31-1, k ∈ 0..25) (-2^31..2^31-1) {
+    case {
+        97 <= r && r <= 122 -> 97 + (r - 97 + k) % 26
+        65 <= r && r <= 90 -> 65 + (r - 65 + k) % 26
+        else -> r
+    }
+}
+
+export fn main() {
+    s = "Attack at dawn, said Caesar."
+    // the key is a value the program computes, so the λs capture it: six a's
+    k = strings.Count(s, "a") % 26
+    e = strings.Map(fn(r) { shift(r, k) }, s)
+    d = strings.Map(fn(r) { shift(r, (26 - k) % 26) }, e)
+    io.print_line(e)
+    io.print_line(d)
+    twice = strings.Map(fn(r) { shift(r, 13) }, strings.Map(fn(r) { shift(r, 13) }, s))
+    io.print_line(twice)
+    io.print_int(strings.IndexFunc(s, fn(r) { r == 44 }))
+    io.print_int(strings.IndexFunc(e, fn(r) { r == 44 }))
+}

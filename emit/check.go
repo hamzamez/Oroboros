@@ -3,6 +3,7 @@ package emit
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"oroboros/core"
 )
@@ -383,6 +384,19 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			}
 			return res, c.agree(core.ShowName(op.Name), res, want)
 		}
+	case "cell-set":
+		// A WRITE THROUGH A REFERENCE (ADR 0143): (#store-ref r v), v of the
+		// cell's element, its value the unit
+		if len(args) == 2 {
+			ty, err := c.walk(args[0], "")
+			if err != nil {
+				return "", err
+			}
+			if _, err := c.walk(args[1], core.CellElem(ty)); err != nil {
+				return "", err
+			}
+			return core.UnitType, c.agree(core.ShowName(op.Name), core.UnitType, want)
+		}
 	case "cell-fresh":
 		if len(args) == 1 && args[0].Kind == core.KStr {
 			// `out S` names S as written; a target's manifest set is its
@@ -441,6 +455,15 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			return "", fmt.Errorf("in argument %d of `==`: %s is a tuple or a record, several values, and "+
 				"`==` is the language's integer equality only: compare the parts, a.x == b.x && a.y == b.y",
 				i+1, core.ShowTerm(a))
+		}
+		// A λ AT A CALLBACK PARAMETER IS CHECKED UNDER ITS CLAIM (ADR 0053
+		// item 4, ADR 0143): its parameters are the claim's sets, assumed, and
+		// its body is demanded the claim's result.
+		if strings.HasPrefix(d, CallbackPrefix) && a.Kind == core.KFn {
+			if err := c.callbackArg(strings.TrimPrefix(d, CallbackPrefix), a); err != nil {
+				return "", fmt.Errorf("in argument %d of %s: %w", i+1, core.ShowName(spelled(op.Name)), err)
+			}
+			continue
 		}
 		if _, err := c.walk(a, d); err != nil {
 			// `=` is the LANGUAGE's equality and is deliberately narrow, so its
@@ -1231,3 +1254,20 @@ func isProductTerm(t *core.Term) bool {
 // PlantProductEqualityUnsaid lets a product through `==` to the lowering, as
 // before (TestAClaimOnARecordKeepsItsLabels).
 var PlantProductEqualityUnsaid bool
+
+// callbackArg checks a λ at a parameter of the callback type q under q's claim
+// (ADR 0053 item 4, ADR 0143): the λ takes q's arity, its parameters are q's
+// sets, the host's promise and assumed, and its body is demanded q's result,
+// our obligation.
+func (c *checker) callbackArg(q string, lam *core.Term) error {
+	d, _, ok := c.tgt.CallbackDecl(q)
+	if !ok {
+		return fmt.Errorf("%s is a callback type no declaration states", core.ShowSet(q))
+	}
+	if len(lam.Params) != len(d.Params) {
+		return fmt.Errorf("a %s takes %d parameter(s), and this λ takes %d", core.ShowSet(q), len(d.Params), len(lam.Params))
+	}
+	defer c.bind(lam.Params, d.Params)()
+	_, err := c.walk(lam.Body(), d.Result)
+	return err
+}

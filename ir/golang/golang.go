@@ -67,6 +67,9 @@ type printer struct {
 	err  error
 
 	yieldTo []string
+	// retConv converts a callback's result to its host type at each return
+	// (fnLit): a narrow integer, `int32(v)`. Empty elsewhere.
+	retConv string
 	rename  map[ir.V]string
 	spare   map[*ir.Stmt]string // a back-edge build that writes into its loop's spare (reuse)
 	words   map[ir.V]*ir.Stmt   // a table literal written only as a variadic call's list
@@ -311,6 +314,10 @@ func (p *printer) region(r *ir.Region, lp *loopCtx, top bool) {
 	switch r.T {
 	case ir.TYield:
 		if top {
+			if p.retConv != "" && len(r.Args) == 1 {
+				p.line("return %s(%s)", p.retConv, p.ref(r.Args[0]))
+				return
+			}
 			p.line("return %s", strings.Join(p.refs(r.Args), ", "))
 			return
 		}
@@ -475,6 +482,8 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.ifOp(s)
 	case ir.OLoop:
 		p.loop(s)
+	case ir.OFn:
+		p.fnLit(s)
 	case ir.OBuild, ir.OBuildMap:
 		p.build(s)
 	case ir.OTabulate:
@@ -501,6 +510,10 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.define(s.Res[0], "&"+c)
 	case ir.OCellGet:
 		p.define(s.Res[0], "*"+p.ref(s.Args[0]))
+	case ir.OCellSet:
+		// A WRITE THROUGH THE REFERENCE (ADR 0143): a λ during a call writing
+		// the caller's cell, which Go's closure reaches through the pointer
+		p.line("*%s = %s", p.ref(s.Args[0]), p.ref(s.Args[1]))
 	}
 }
 
@@ -883,4 +896,57 @@ func FromFunc(tg *emit.Target, f *ir.Func) (string, error) {
 		return "", err
 	}
 	return Func(tg, f)
+}
+
+// fnLit prints a λ the host applies during a call (ADR 0143) as Go's own
+// closure, bound to its value: `v10 := func(v11h int32) bool { … }`. Its
+// parameters take the host's types, the claim's sets' representations (the
+// target's `repr`, narrowest first, as a table's element is), each converted
+// to ours on entry; its result is converted back at each return. Its free
+// values are the enclosing function's variables, which Go's closure reads in
+// place; Go keeps a closure the callee does not let escape on the stack.
+func (p *printer) fnLit(s *ir.Stmt) {
+	body := s.Sub[0]
+	d, _, ok := p.tg.CallbackDecl(strings.TrimPrefix(s.Type, core.CallbackPrefix))
+	if !ok || len(d.Params) != len(body.Params) {
+		p.fail("%s is no callback type of %d parameter(s)", s.Type, len(body.Params))
+		return
+	}
+	host := func(set string) (string, bool) {
+		if _, _, ok := core.IntRangeBig(set); ok {
+			h := p.tg.HostType(set)
+			return h, h != p.tg.HostType("int")
+		}
+		return p.hostTy(set), false
+	}
+	params := make([]string, len(body.Params))
+	var convs []string
+	for j, q := range body.Params {
+		h, narrow := host(d.Params[j])
+		if p.pl.Uses[p.pl.Res(q)] == 0 {
+			params[j] = "_ " + h // a parameter the λ ignores: Go refuses an unused variable
+			continue
+		}
+		if narrow {
+			params[j] = p.name(q) + "h " + h
+			convs = append(convs, fmt.Sprintf("%s := %s(%sh)", p.name(q), p.tg.HostType("int"), p.name(q)))
+		} else {
+			params[j] = p.name(q) + " " + h
+		}
+	}
+	rt, narrow := host(d.Result)
+	p.line("%s := func(%s) %s {", p.name(s.Res[0]), strings.Join(params, ", "), rt)
+	p.ind++
+	for _, c := range convs {
+		p.line("%s", c)
+	}
+	saved, savedTo := p.retConv, p.yieldTo
+	p.retConv, p.yieldTo = "", nil
+	if narrow {
+		p.retConv = rt
+	}
+	p.region(body, nil, true)
+	p.retConv, p.yieldTo = saved, savedTo
+	p.ind--
+	p.line("}")
 }

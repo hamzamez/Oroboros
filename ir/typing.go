@@ -520,6 +520,9 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 				} else {
 					u.unify(node[s.Args[0]], u.mk("cell", node[s.Res[0]]))
 				}
+			case OCellSet:
+				// the value written is of the cell's element (ADR 0143)
+				u.unify(node[s.Args[0]], u.mk("cell", node[s.Args[1]]))
 			case ORequire, OAssume:
 				is(s.Args[0], "bool")
 			case ORestrict:

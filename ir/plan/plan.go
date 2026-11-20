@@ -310,7 +310,7 @@ func (p *Plan) liveIn(s *ir.Stmt, uses []int) bool {
 		if !p.PureRegion(s.Sub[0]) || !p.PureRegion(s.Sub[1]) {
 			return true
 		}
-	case ir.OLoop, ir.OBuild, ir.OBuildMap, ir.OTabulate, ir.OSet, ir.OInsert:
+	case ir.OLoop, ir.OBuild, ir.OBuildMap, ir.OTabulate, ir.OSet, ir.OInsert, ir.OCellSet:
 		return true
 	case ir.OCall:
 		q := p.Tg.Prims[s.Name]
@@ -335,7 +335,7 @@ func (p *Plan) PureRegion(r *ir.Region) bool {
 	for i := range r.Stmts {
 		s := &r.Stmts[i]
 		switch s.Op {
-		case ir.OLoop, ir.OBuild, ir.OBuildMap, ir.OTabulate, ir.OSet, ir.OInsert:
+		case ir.OLoop, ir.OBuild, ir.OBuildMap, ir.OTabulate, ir.OSet, ir.OInsert, ir.OCellSet:
 			return false
 		case ir.OCall:
 			if q := p.Tg.Prims[s.Name]; !q.Pure || q.Kind == "stmt" {
@@ -887,7 +887,7 @@ func (p *Plan) Inlinable() map[ir.V]bool {
 		}
 		effect := func(s *ir.Stmt) bool {
 			switch s.Op {
-			case ir.OSet, ir.OInsert, ir.OLoop, ir.OBuild, ir.OBuildMap, ir.OTabulate:
+			case ir.OSet, ir.OInsert, ir.OLoop, ir.OBuild, ir.OBuildMap, ir.OTabulate, ir.OCellSet:
 				return true
 			case ir.OCall:
 				q := p.Tg.Prims[s.Name]

@@ -5,6 +5,8 @@
 # Corrected 2026-11-20 (callbacks-derivation-2026-11-20): S only where go doc states the order of the
 # calls, 12 functions; the 52 others marked S stated a result ("the first index satisfying f",
 # "a copy with all its characters modified") and are U. strings.Map is one of them.
+# A fifth column, for an S row, is the sentence of `go doc NAME` that states the order: the evidence an
+# `ordered` declaration rests on (ADR 0143), checked both ways by TestEveryOrderedCallbackIsItsHostsSentence.
 archive/zip.RegisterCompressor	E	w	-
 archive/zip.RegisterDecompressor	E	w	-
 archive/zip.ReadCloser.RegisterDecompressor	E	w	-
@@ -20,7 +22,7 @@ bytes.Map	L	w	U
 bytes.TrimFunc	L	w	U
 bytes.TrimLeftFunc	L	w	U
 bytes.TrimRightFunc	L	w	U
-container/ring.Ring.Do	L	w	S
+container/ring.Ring.Do	L	w	S	Do calls function f on each element of the ring, in forward order
 context.AfterFunc	E	01	-
 crypto.RegisterHash	E	w	-
 crypto/fips140.WithoutEnforcement	L	1	-
@@ -41,19 +43,19 @@ expvar.Do	L	w	U
 expvar.Map.Do	L	w	U
 flag.BoolFunc	E	w	-
 flag.Func	E	w	-
-flag.Visit	L	w	S
-flag.VisitAll	L	w	S
+flag.Visit	L	w	S	Visit visits the command-line flags in lexicographical order, calling fn for each
+flag.VisitAll	L	w	S	VisitAll visits the command-line flags in lexicographical order, calling fn for each
 flag.FlagSet.BoolFunc	E	w	-
 flag.FlagSet.Func	E	w	-
-flag.FlagSet.Visit	L	w	S
-flag.FlagSet.VisitAll	L	w	S
+flag.FlagSet.Visit	L	w	S	Visit visits the flags in lexicographical order, calling fn for each
+flag.FlagSet.VisitAll	L	w	S	VisitAll visits the flags in lexicographical order, calling fn for each
 go/ast.FilterDecl	L	w	U
 go/ast.FilterFile	L	w	U
 go/ast.FilterPackage	L	w	U
 go/ast.Fprint	L	w	U
-go/ast.Inspect	L	w	S
+go/ast.Inspect	L	w	S	Inspect traverses an AST in depth-first order: It starts by calling f(node)
 go/ast.NewPackage	L	w	U
-go/ast.PreorderStack	L	w	S
+go/ast.PreorderStack	L	w	S	PreorderStack traverses the tree rooted at root, calling f before visiting each node
 go/build/constraint.AndExpr.Eval	L	w	U
 go/build/constraint.NotExpr.Eval	L	w	U
 go/build/constraint.OrExpr.Eval	L	w	U
@@ -63,7 +65,7 @@ go/importer.For	E	w	-
 go/importer.ForCompiler	E	w	-
 go/parser.ParseDir	L	w	U
 go/scanner.Scanner.Init	E	w	-
-go/token.FileSet.Iterate	L	w	S
+go/token.FileSet.Iterate	L	w	S	Iterate calls yield for the files in the file set in ascending Base order
 go/token.FileSet.Read	L	1	-
 go/token.FileSet.Write	L	1	-
 go/types.ObjectString	L	w	U
@@ -73,7 +75,7 @@ go/types.WriteSignature	L	w	U
 go/types.WriteType	L	w	U
 image.RegisterFormat	E	w	-
 image/color.ModelFunc	E	w	-
-io/fs.WalkDir	L	w	S
+io/fs.WalkDir	L	w	S	The files are walked in lexical order
 iter.Pull2	E	1	-
 iter.Pull	E	1	-
 log/slog.Record.Attrs	L	w	U
@@ -91,8 +93,8 @@ net/http.ServeMux.HandleFunc	E	w	-
 net/http.Server.RegisterOnShutdown	E	01	-
 os.Expand	L	w	U
 os.Process.WithHandle	L	01	-
-path/filepath.Walk	L	w	S
-path/filepath.WalkDir	L	w	S
+path/filepath.Walk	L	w	S	The files are walked in lexical order
+path/filepath.WalkDir	L	w	S	The files are walked in lexical order
 reflect.MakeFunc	E	w	-
 reflect.Value.FieldByNameFunc	L	w	U
 regexp.Regexp.ReplaceAllFunc	L	w	U
@@ -108,7 +110,7 @@ slices.CompactFunc	L	w	U
 slices.CompareFunc	L	w	U
 slices.ContainsFunc	L	w	U
 slices.DeleteFunc	L	w	U
-slices.EqualFunc	L	w	S
+slices.EqualFunc	L	w	S	the elements are compared in increasing index order, and the comparison stops at the first index for which eq returns false
 slices.IndexFunc	L	w	U
 slices.IsSortedFunc	L	w	U
 slices.MaxFunc	L	w	U

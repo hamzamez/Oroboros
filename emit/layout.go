@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"oroboros/core"
@@ -44,7 +45,23 @@ type CallbackSig struct {
 	Result        string
 	Order         []string
 	Conv          string
+	// The host's promises about its calls (ADR 0143): Calls the count, a
+	// range of naturals as written ("0..", "1", "0..1"), "" the default 0..;
+	// Ordered that the activations are a sequence its documentation fixes.
+	Calls   string
+	Ordered bool
 }
+
+// CallsAtMostOne reports whether the claim's count is at most one, which makes
+// its order trivial: one activation has one order (ADR 0143 item 3).
+func (c CallbackSig) CallsAtMostOne() bool {
+	lo, hi, ok := core.IntRangeBig(c.Calls)
+	return ok && lo != nil && hi != nil && hi.Cmp(big.NewInt(1)) <= 0
+}
+
+// InOrder reports whether the host's activations are a sequence its
+// documentation fixes, by its marker or by a count of at most one.
+func (c CallbackSig) InOrder() bool { return c.Ordered || c.CallsAtMostOne() }
 
 // CallbackDecl is the claim q with its sets resolved, and its C signature
 // (ADR 0133).

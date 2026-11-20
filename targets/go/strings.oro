@@ -53,8 +53,10 @@
 //   - ToLowerSpecial, ToUpperSpecial, ToTitleSpecial take a unicode.SpecialCase,
 //     and the only ones are package VARIABLES of `unicode` (TurkishCase), which
 //     no file here declares yet;
-// Not in the survey at all: the functions taking a func(rune) bool (FieldsFunc,
-// TrimFunc, IndexFunc, Map, …), which are callbacks, tiers 1 and 2, not built.
+// The functions taking a func(rune) bool or func(rune) rune are callbacks
+// during the call (ADR 0143), declared below by hand; FieldsFunc, which also
+// assumes f always returns the same value for a given c, is one of them, not
+// yet declared.
 module go/strings {
     set Builder = host "*strings.Builder"
     set Reader = host "*strings.Reader"
@@ -157,6 +159,36 @@ module go/strings {
     fn Title(s ∈ bytestring) (String) pure { host expr "strings.Title(${s})" import "strings" }
     fn ToValidUTF8(s ∈ bytestring, replacement ∈ String) (String) pure {
         host expr "strings.ToValidUTF8(${s}, ${replacement})" import "strings"
+    }
+
+    // ------------------------------------------------- callbacks during the call
+    // A λ the host applies only during the call (ADR 0143), its claim a named
+    // set. Go promises a result here, not the order or the number of the
+    // calls, so no marker: the λ is pure (Theorem D), and its parameters are
+    // the claim's sets, its result our obligation.
+    // - MAP IS THE FREE MONOID'S FUNCTOR: f : Σ → Σ extends uniquely to the
+    //   homomorphism Σ* → Σ* that maps each scalar, so Map(f) ∘ Map(g) =
+    //   Map(f ∘ g) and Map(id) = id. A negative result drops the scalar, so f
+    //   is really Σ → Σ + 1, and Map(f) is still a homomorphism. Every result
+    //   goes through WriteRune, which encodes an invalid scalar as U+FFFD, so
+    //   the result is ours (the case maps above are Map's instances).
+    // - INDEXFUNC is the least byte offset of a scalar satisfying f, or −1.
+    set RunePred = fn(r ∈ int32) (b ∈ Bool)
+    set RuneMap = fn(r ∈ int32) (m ∈ int32)
+    fn IndexFunc(s ∈ bytestring, f ∈ RunePred) (-1..2^63-1) pure {
+        host expr "strings.IndexFunc(${s}, ${f})" import "strings"
+    }
+    fn LastIndexFunc(s ∈ bytestring, f ∈ RunePred) (-1..2^63-1) pure {
+        host expr "strings.LastIndexFunc(${s}, ${f})" import "strings"
+    }
+    fn ContainsFunc(s ∈ bytestring, f ∈ RunePred) (Bool) pure {
+        host expr "strings.ContainsFunc(${s}, ${f})" import "strings"
+    }
+    fn Map(mapping ∈ RuneMap, s ∈ bytestring) (String) pure {
+        host expr "strings.Map(${mapping}, ${s})" import "strings"
+    }
+    fn TrimFunc(s ∈ bytestring, f ∈ RunePred) (bytestring) pure {
+        host expr "strings.TrimFunc(${s}, ${f})" import "strings"
     }
 
     // ----------------------------------------------------------------- trimming

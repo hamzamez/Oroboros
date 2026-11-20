@@ -417,7 +417,144 @@ claims more than the truth is how a wrong answer gets in. When in doubt, claim l
 
 ---
 
-## 17.6 What else a target says
+## 17.6 A function the host calls
+
+Some host functions take a function. Go's `strings.Map` takes one from scalars to scalars and
+applies it to every scalar of a string:
+
+<!-- file docs/book/code/hosts/rot13.oro -->
+```go
+use io
+use go/strings
+
+fn rot(r ∈ -2^31..2^31-1) (-2^31..2^31-1) {
+    case {
+        97 <= r && r <= 122 -> 97 + (r - 97 + 13) % 26
+        65 <= r && r <= 90 -> 65 + (r - 65 + 13) % 26
+        else -> r
+    }
+}
+
+export fn main() {
+    s = "Hello, World"
+    t = strings.Map(fn(r) { rot(r) }, s)
+    io.print_line(t)
+    io.print_line(strings.Map(fn(r) { rot(r) }, t))
+}
+```
+
+<!-- run go docs/book/code/hosts/rot13.oro -->
+```
+Uryyb, Jbeyq
+Hello, World
+```
+
+ROT13 twice is the identity: a rotation by 13 in a cycle of 26, done twice, is a rotation by 26.
+And `Map` keeps that, because it maps each scalar and nothing else, so mapping by f and then
+by g is mapping by g ∘ f.
+
+The λ is written at the call, as chapter 1 wrote one. Its parameter takes the set Go's
+declaration gives it:
+
+```go
+set RuneMap = fn(r ∈ int32) (m ∈ int32)
+fn Map(mapping ∈ RuneMap, s ∈ bytestring) (String) pure { host expr "strings.Map(${mapping}, ${s})" import "strings" }
+```
+
+`RuneMap` is a *claim*, the set of functions of that shape (chapter 16). The host promises
+`r ∈ int32`, so the λ's body is decided under that. The λ owes its result in `int32`, because
+Go receives it as one; `fn(r) { r + 1 }` is refused, since `r + 1` can reach 2³¹. And the λ
+is applied only during the call: Go holds nothing afterwards, so it may read the values around
+it, here none, in place.
+
+What Go does *not* promise is the order or the number of its calls. Its documentation says what
+`Map` returns, not how it gets there. So a λ that does something, rather than computes
+something, is refused:
+
+<!-- file docs/book/code/hosts/no-print.oro -->
+```go
+use io
+use go/strings
+
+export fn comma(s ∈ go.bytestring) (Int) {
+    strings.IndexFunc(s, fn(r) { io.print_int(r); r == 44 })
+}
+```
+
+<!-- gen go docs/book/code/hosts/no-print.oro -->
+```
+gen: hosts-comma: fn(r) { #_ = io.print_int(r); r == 44 } calls io.print_int, an effect, and its host does not promise the order or the number of its calls (`go/strings`.RunePred is not `ordered`): the effect's history would be the host's, which may differ between releases (Theorem D, ADR 0143). Make the λ pure, or pass it to a host whose declaration is `ordered`
+```
+
+The print is shown as chapter 5 shows a statement, a binding nobody reads, `#_`. And a count is
+refused too, since writing a cell is an effect:
+
+<!-- file docs/book/code/hosts/no-count.oro -->
+```go
+use io
+use go/strings
+
+export fn letters(s ∈ go.bytestring) (Int) {
+    var n := 0
+    t = strings.Map(fn(r) { if n < 1000000 { n := n + 1 }; r }, s)
+    n
+}
+```
+
+<!-- gen go docs/book/code/hosts/no-count.oro -->
+```
+gen: docs/book/code/hosts/no-count.oro: letters: fn(r) { if n < 1000000 { n := n + 1 } else { () }; r } writes the cell n, and `go/strings`.`Map` does not promise the order or the number of its calls (no `ordered`): the cell's last value would be the host's, which may differ between releases (Theorem D, ADR 0143). Count with a loop of your own, or pass the λ to a host whose declaration is `ordered`
+```
+
+This is not caution for its own sake. Go's `strings.FieldsFunc` once called its function twice
+for every scalar, and now calls it once, and its documentation never promised either. A count
+written in it would give one answer on one Go release and another on the next. A pure λ cannot
+tell: whatever order and however many calls, `Map` sees the same answers.
+
+A host that does promise its order says so in its declaration. `slices.EqualFunc`'s
+documentation says "the elements are compared in increasing index order, and the comparison
+stops at the first index for which eq returns false":
+
+```go
+set IntEq = fn(x ∈ Int, y ∈ Int) (b ∈ Bool) ordered
+```
+
+Under `ordered` the cell is threaded through the calls in that order, as a loop threads a
+cell through its iterations (chapter 14):
+
+<!-- file docs/book/code/hosts/compared.oro -->
+```go
+use io
+use go/slices
+
+export fn main() {
+    var k := 0
+    same = slices.EqualFunc(array { 3, 1, 4, 1, 5 }, array { 3, 1, 4, 2, 5 }, fn(x, y) {
+        if k < 1000000 { k := k + 1 }
+        x == y
+    })
+    io.print_line(if same { "equal" } else { "different" })
+    io.print_int(k)
+}
+```
+
+<!-- run go docs/book/code/hosts/compared.oro -->
+```
+different
+4
+```
+
+Four comparisons: the three equal pairs, then (1, 2), where it stopped. The guard on `k` is
+there for the reason a loop of unknown length needs one. The host promises no bound on how
+many times it calls, so `k + 1` is proven inside the word only under `k < 1000000`.
+
+`ordered` is a claim like `pure` (17.5): believed, not proven. The project keeps, beside each
+one, the sentence of the host's documentation that promises it, and a tool checks that the
+sentence is there.
+
+---
+
+## 17.7 What else a target says
 
 Declarations of functions are most of a target. The rest is a short list of facts about the
 host, and several things earlier chapters stated as given were read from it.
@@ -459,7 +596,7 @@ host is, in principle, a new directory of such files and a printer for its synta
 
 ---
 
-## 17.7 The four targets
+## 17.8 The four targets
 
 | target | the host | a program becomes |
 |---|---|---|
@@ -514,7 +651,7 @@ says which.
 
 ---
 
-## 17.8 What other languages do
+## 17.9 What other languages do
 
 Calling code written in another language is called a **foreign function interface**, and
 every language has to have one, because the operating system is foreign to all of them.

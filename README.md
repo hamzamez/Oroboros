@@ -10,7 +10,7 @@ overflow, a claim about a value) is refused before it runs.
 
 The language is taught in [a book](docs/book/), one idea at a time: each chapter uses only what came
 before it, shows a program refused before it shows the one that works, and leans on examples, edge
-cases included. Every example in it is compiled and run by `go run ./cmd/check`, 1,115 blocks
+cases included. Every example in it is compiled and run by `go run ./cmd/check`, 1,123 blocks
 across 20 chapters, and a chapter that stops saying what the compiler gives fails the check.
 
 | | chapter | the one idea |
@@ -36,7 +36,7 @@ across 20 chapters, and a chapter that stops saying what the compiler gives fail
 | 15 | [Failures](docs/book/15-failures.md) | a failure is a value: `try`, `expect`, and results that must be used |
 | | **IV. Claims and hosts** | |
 | 16 | [Claims](docs/book/16-claims.md) | how a header's claims are proven, and where the method stops |
-| 17 | [Targets](docs/book/17-targets.md) | declaring a platform's function, and portability computed |
+| 17 | [Targets](docs/book/17-targets.md) | declaring a platform's function, a function the platform calls, and portability computed |
 | 18 | [Calling C](docs/book/18-c.md) | a C function by its prototype, structs as records, a window procedure |
 | 19 | [A whole program](docs/book/19-whole.md) | one real program, read from its first line to its last |
 
@@ -101,8 +101,8 @@ rejected and why.
 | | how | the numbers |
 |---|---|---|
 | **as fast as hand-written code** | seven benchmark programs against hand-written Go, JavaScript, Java, and C on Windows compiled by the same compiler | generated over hand-written: **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows (geometric means, 45 comparisons from 0.85× to 1.18×, each above 1.05× explained) ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)) |
-| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **11,812 of 11,866** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
-| **loops stop** | size-change termination | **1,361 of 1,654** loops proven; the rest read input or the file system, or count through numbers past the word (a halving, a bit cleared) in a way the check does not see |
+| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **11,840 of 11,894** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
+| **loops stop** | size-change termination | **1,362 of 1,655** loops proven; the rest read input or the file system, or count through numbers past the word (a halving, a bit cleared) in a way the check does not see |
 | **every platform agrees** | 87 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 73 on all four, every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
 | **each rule is tested broken** | a fault is planted in every rule that decides what is legal, and its test must fail | listed with each result in [gauntlet/results/](gauntlet/results/) |
 | **nothing drifts by accident** | every emitted file, proof count and error message, on five platform targets, compared with a committed baseline | `go run ./cmd/check` |

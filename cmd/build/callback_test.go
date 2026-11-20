@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -9,267 +9,132 @@ import (
 	"oroboros/ir"
 )
 
-// A CALLBACK IS A FUNCTION OF OURS (ADR 0133, llvm.md §6c). WNDCLASSA's
-// lpfnWndProc is a WNDPROC, a named claim, and its value a definition by name
-// (its η-expansion) or a λ written at the field. Either is lifted, built under
-// the claim's sets, and printed behind a wrapper at the claim's convention,
-// stdcall on i686. Windows calls it from CreateWindowExA (WM_NCCREATE and
-// WM_CREATE, answered by DefWindowProcA) and from SendMessageA, whose WM_USER
-// it answers 42 + w: 49 for w = 7, on both triples.
-//
-// The faults: the wrapper printed cdecl, so on i686 the host's stdcall caller
-// finds its stack unbalanced; and a λ that captures a value of its scope
-// lifted, which must then fail other than by the closedness refusal. The
-// refusals: a λ that captures, a λ of the wrong arity, a field value that is
-// no function.
-func TestACallbackIsAFunctionOfOurs(t *testing.T) {
-	const head = "use win/print\nuse windows/winuser\nuse windows/windef\nuse windows/minwindef\nuse llvm\n\n"
-	prog := func(defs, field string) string {
-		return head + defs + "export fn main() {\n" +
-			"    k = 1000\n" +
-			"    wc = record { style : 0, lpfnWndProc : " + field + ", cbClsExtra : 0, cbWndExtra : 0, hInstance : llvm.null(), hIcon : llvm.null(),\n" +
-			"        hCursor : llvm.null(), hbrBackground : llvm.null(), lpszClassName : \"OroCb\" }\n" +
-			"    a = winuser.RegisterClassA(wc)\n" +
-			"    h = winuser.CreateWindowExA(0, \"OroCb\", \"\", 0, 0, 0, 0, 0, llvm.null(), llvm.null(), llvm.null(), llvm.null())\n" +
-			"    ignore(print.print_int(winuser.SendMessageA(h, 1024, 7, 0)))\n" +
-			"    ignore(winuser.DestroyWindow(h))\n}\n"
+// A CALLBACK DURING A CALL IS DECIDED UNDER ITS CLAIM (ADR 0143, ADR 0053
+// item 4). The claim is Π(x ∈ P). R: the host promises x ∈ P, and the λ owes
+// its result in R. Under a host that promises no order, the λ is pure
+// (Theorem D). Each rule has its witness refused, and its fault accepting it:
+//   - the domain: the λ's parameters are the claim's sets, so r * r * r on an
+//     int32 can reach 2⁹³ and is refused; the fault leaves the parameter
+//     unvisited, its fact [0, 0], the defect found while building this;
+//   - the result: r + 1 can reach 2³¹, outside the claim's int32, which the
+//     host would truncate;
+//   - Theorem D: a print in IndexFunc's λ, whose order Go does not promise;
+//   - 𝒰's clause: a relevant value used only inside a λ the host may call
+//     never, under the default count 0.., is not used on every path.
+func TestACallbackDuringACallIsDecidedUnderItsClaim(t *testing.T) {
+	src, err := os.ReadFile("../../examples/callbacks/caesar.oro")
+	if err != nil {
+		t.Fatal(err)
 	}
-	const wndproc = "fn wndproc(h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {\n" +
-		"    case { m == 1024 && w < 100 -> 42 + w; else -> winuser.DefWindowProcA(h, m, w, l) }\n}\n\n"
-	byName := prog(wndproc, "wndproc")
-	inline := prog("", "fn(h, m, w, l) { case { m == 1024 && w < 100 -> 42 + w; else -> winuser.DefWindowProcA(h, m, w, l) } }")
-	for _, target := range []string{"windows", "windows32"} {
-		for what, src := range map[string]string{"by name": byName, "a λ at the field": inline} {
-			if got, err := runOn(t, src, target); err != nil || got != "49" {
-				t.Errorf("%s, %s: %q, %v; want 49", target, what, got, err)
-			}
-		}
+	got, err := runOnMayFail(t, string(src), "go")
+	want := "Gzzgiq gz jgct, ygoj Igkygx. Attack at dawn, said Caesar. Attack at dawn, said Caesar. 14 14"
+	if err != nil || strings.TrimSpace(got) != want {
+		t.Errorf("caesar: want %q, got %q, %v", want, got, err)
 	}
-	for _, c := range []struct{ what, field, reason string }{
-		{"a λ that captures", "fn(h, m, w, l) { case { m == 1024 -> k; else -> winuser.DefWindowProcA(h, m, w, l) } }", "captures a value of its scope"},
-		{"a λ of three parameters", "fn(h, m, w) { 0 }", "takes 4 parameter(s), and this λ takes 3"},
-		{"a value that is no function", "0", "is a λ or a function's name"},
-	} {
-		if _, err := runOnMayFail(t, prog("", c.field), "windows"); err == nil || !strings.Contains(err.Error(), c.reason) {
-			t.Errorf("%s: want it refused naming %q, got %v", c.what, c.reason, err)
-		}
-	}
-	// THE CONVENTION is seen in the wrapper, not in a run: measured, user32
-	// restores its stack pointer itself, so a cdecl callee that leaves its 16
-	// bytes on i686's stack still answers 49 (callbacks-research §5 predicted
-	// a crash).
-	wrapper := func(target string) string {
-		if _, err := runOnMayFail(t, byName, target); err != nil {
-			t.Fatalf("%s: %v", target, err)
-		}
-		for _, l := range strings.Split(lastCode, "\n") {
-			if strings.HasPrefix(l, "define ") && strings.Contains(l, `~cb~c"(`) {
-				return l
-			}
-		}
-		t.Fatalf("%s: no callback wrapper in the emitted code", target)
-		return ""
-	}
-	if w := wrapper("windows32"); !strings.Contains(w, "x86_stdcallcc i32") {
-		t.Errorf("windows32's wrapper is not stdcall at C's i32: %s", w)
-	}
-	if w := wrapper("windows"); strings.Contains(w, "x86_stdcallcc") {
-		t.Errorf("windows' wrapper is stdcall, a convention only on i686: %s", w)
-	}
-	ir.PlantCallbackCdecl = true
-	w := wrapper("windows32")
-	ir.PlantCallbackCdecl = false
-	if strings.Contains(w, "x86_stdcallcc") {
-		t.Errorf("with the convention planted cdecl the wrapper is still stdcall: the case cannot fail")
-	}
-	// THE CAPTURE: with the check off the lifted λ refers to a binder it does
-	// not have, and must fail otherwise, by a refusal or a panic, never build
-	core.PlantCallbackOpen = true
-	err := func() (err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				err = fmt.Errorf("panic: %v", r)
-			}
-		}()
-		_, err = runOnMayFail(t, prog("", "fn(h, m, w, l) { case { m == 1024 -> k; else -> winuser.DefWindowProcA(h, m, w, l) } }"), "windows")
-		return err
-	}()
-	core.PlantCallbackOpen = false
-	if err == nil || strings.Contains(err.Error(), "captures a value of its scope") {
-		t.Errorf("with the closedness check off the capturing λ must fail otherwise, got %v", err)
-	}
-}
-
-// A WINDOW RUNS ITS MESSAGE LOOP (ADR 0133 step 2): MSG is a record with a
-// nested POINT, GetMessageA's an `_Out_` result (ADR 0131), and TranslateMessage
-// and DispatchMessageA take it back by &msg (ADR 0130). The program posts
-// WM_USER + 1 to its window, whose procedure, a λ at the field, posts WM_QUIT
-// with exit code w; the loop dispatches until GetMessageA answers 0 and prints
-// the quit's wParam: 7, on both triples. The procedure's w is a whole WPARAM
-// narrowed by its guard to 0..99, and PostQuitMessage takes an int.
-//
-// The faults: MSG's pt, bound to a name after `(msg, r) = …`, passed as one
-// leaf where the struct has two; and the narrowed WPARAM left unsigned at the
-// `void` C function's int parameter.
-func TestAWindowRunsItsMessageLoop(t *testing.T) {
-	const src = "use win/print\nuse windows/winuser\nuse llvm\n\n" +
-		"export fn main() {\n" +
-		"    wc = record { style : 0, lpfnWndProc : fn(h, m, w, l) {\n" +
-		"            case { m == 1025 && w < 100 -> { winuser.PostQuitMessage(w); 0 }; else -> winuser.DefWindowProcA(h, m, w, l) }\n" +
-		"        }, cbClsExtra : 0, cbWndExtra : 0, hInstance : llvm.null(), hIcon : llvm.null(),\n" +
-		"        hCursor : llvm.null(), hbrBackground : llvm.null(), lpszClassName : \"OroLoop\" }\n" +
-		"    a = winuser.RegisterClassA(wc)\n" +
-		"    h = winuser.CreateWindowExA(0, \"OroLoop\", \"\", 0, 0, 0, 0, 0, llvm.null(), llvm.null(), llvm.null(), llvm.null())\n" +
-		"    ignore(winuser.PostMessageA(h, 1025, 7, 0))\n" +
-		"    loop n = 0, quit = 0 - 1 {\n" +
-		"        quit >= 0 -> ignore(print.print_int(quit))\n" +
-		"        n > 1000 -> ()\n" +
-		"        else -> {\n" +
-		"            (msg, r) = winuser.GetMessageA(llvm.null(), 0, 0)\n" +
-		"            ignore(winuser.TranslateMessage(msg))\n" +
-		"            ignore(winuser.DispatchMessageA(msg))\n" +
-		"            again(n + 1, if r > 0 { 0 - 1 } else { if msg.wParam < 1000 { msg.wParam } else { 1000 } })\n" +
-		"        }\n" +
-		"    }\n}\n"
-	for _, target := range []string{"windows", "windows32"} {
-		if got, err := runOn(t, src, target); err != nil || got != "7" {
-			t.Errorf("%s: %q, %v; want 7", target, got, err)
-		}
-	}
-	for _, c := range []struct {
-		what   string
-		plant  *bool
-		reason string
+	const head = "use io\nuse go/strings\nexport fn main() {\n    s = \"abc,d\"\n"
+	cases := []struct {
+		name, body, want string
+		plant            *bool
 	}{
-		{"pt passed as one leaf", &core.PlantNestedLeafUnprojected, "is 2 values where one is wanted"},
-		{"the WPARAM left unsigned", &ir.PlantCStmtUnconverted, "W5"},
-	} {
+		{"domain", "    io.print_int(strings.IndexFunc(s, fn(r) { r * r * r > 8 }))\n}\n",
+			"cannot be proven to stay inside the word", &ir.PlantCallbackParamUndeclared},
+		{"result", "    io.print_line(strings.Map(fn(r) { r + 1 }, s))\n}\n",
+			"which is not proven inside -2^31..2^31-1, the claim's result", &ir.PlantCallbackResultUnchecked},
+		{"theorem D", "    io.print_int(strings.IndexFunc(s, fn(r) { io.print_int(r); r == 44 }))\n}\n",
+			"its host does not promise the order or the number of its calls", &ir.PlantCallbackEffectUnchecked},
+	}
+	const relevant = `use io
+use go/strings
+set Token = 'key(Int) ∪ 'nokey relevant
+fn make(n ∈ 0..9) (Token) { if n > 5 { 'key(n) } else { 'nokey } }
+export fn main() {
+    s = "abc,d"
+    t = make(strings.Count(s, "c") % 10)
+    io.print_int(strings.IndexFunc(s, fn(r) { case t { 'key(n) -> n == r; 'nokey -> false } }))
+}
+`
+	if _, err := buildOnly(t, relevant, "go"); err == nil || !strings.Contains(err.Error(), "the binder t is not used on every path") {
+		t.Errorf("𝒰: want t refused as unused on a path, got %v", err)
+	}
+	core.PlantCallbackUseCounted = true
+	_, err = buildOnly(t, relevant, "go")
+	core.PlantCallbackUseCounted = false
+	if err != nil {
+		t.Errorf("𝒰: with a λ's use counted, the program should build, so the witness can fail: %v", err)
+	}
+	for _, c := range cases {
+		if _, err := buildOnly(t, head+c.body, "go"); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: want a refusal saying %q, got %v", c.name, c.want, err)
+		}
 		*c.plant = true
-		_, err := runOnMayFail(t, src, "windows")
+		_, err := buildOnly(t, head+c.body, "go")
 		*c.plant = false
-		if err == nil || !strings.Contains(err.Error(), c.reason) {
-			t.Errorf("%s: want the program refused naming %q, got %v", c.what, c.reason, err)
+		if err != nil {
+			t.Errorf("%s: with its rule's fault planted the program should build, so the witness can fail: %v", c.name, err)
 		}
 	}
 }
 
-// A WINDOW PROCEDURE HAS A STATE (ADR 0133 items 4–6, Theorem T): the state is
-// a cell of main's scope, `var s := record { clicks : 0 }`, which the λ at the
-// field captures and passes to the step's cell parameter, `s ∈ S inout`, S
-// stating its set. The cell is the λ's slot, every read a load and every write
-// a store, so a read after any host call sees what an activation inside it
-// left. WM_USER + 1 counts a click and answers 0; WM_USER re-enters the
-// procedure by sending WM_USER + 1 to itself and answers the clicks the inner
-// activation left, 2; main reads 2 after both: "0 2 2", on both triples.
-//
-// The fault: the λ given a slot of its own, apart from the scope's, the stale
-// state Theorem T excludes, so main reads 0. The refusals: a captured cell
-// passed to no cell parameter, whose set nothing states; and a field read twice
-// across which its fact is not kept (a load is not known to equal the last).
-func TestAWindowProcedureHasAState(t *testing.T) {
-	const head = "use win/print\nuse windows/winuser\nuse windows/windef\nuse windows/minwindef\nuse llvm\n\n" +
-		"set S = record { clicks ∈ 0..1000 }\n\n"
-	step := func(arm string) string {
-		return "fn step(s ∈ S inout, h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (minwindef.LRESULT) {\n" +
-			"    c = s.clicks\n" +
-			"    case {\n" +
-			"        m == 1024 -> { r = winuser.SendMessageA(h, 1025, 0, 0); s.clicks }\n" +
-			"        " + arm + "\n" +
-			"        else -> winuser.DefWindowProcA(h, m, w, l)\n" +
-			"    }\n}\n\n"
+// A CELL WRITTEN IN A CALLBACK IS THREADED IN THE HOST'S ORDER (ADR 0143,
+// Theorem T₁): under `ordered` the cell is one variable written in place,
+// captured by reference, and a read after the call is the join of what the
+// activations stored, a fixed point over the host's unknown count. Each rule
+// has its witness and its fault:
+//   - the translation: prefix.oro counts slices.EqualFunc's comparisons, 6 for
+//     an lcp of 5; the fault refuses it as a closure, as before;
+//   - Theorem D on a write: strings.Map promises no order, so a count there is
+//     refused; the fault threads it anyway;
+//   - the join: after the call k is in [0, 10⁶], so k · 2⁶² is refused; the
+//     fault drops the stores from the join, k reads as its initial 0, and the
+//     product is believed proven.
+func TestACellWrittenInACallbackIsThreadedInTheHostsOrder(t *testing.T) {
+	src, err := os.ReadFile("../../examples/callbacks/prefix.oro")
+	if err != nil {
+		t.Fatal(err)
 	}
-	main := func(field string) string {
-		return "export fn main() {\n" +
-			"    var s := record { clicks : 0 }\n" +
-			"    wc = record { style : 0, lpfnWndProc : " + field + ", cbClsExtra : 0, cbWndExtra : 0,\n" +
-			"        hInstance : llvm.null(), hIcon : llvm.null(), hCursor : llvm.null(), hbrBackground : llvm.null(), lpszClassName : \"OroState\" }\n" +
-			"    a = winuser.RegisterClassA(wc)\n" +
-			"    h = winuser.CreateWindowExA(0, \"OroState\", \"\", 0, 0, 0, 0, 0, llvm.null(), llvm.null(), llvm.null(), llvm.null())\n" +
-			"    ignore(print.print_int(winuser.SendMessageA(h, 1025, 0, 0)))\n" +
-			"    ignore(print.print_int(winuser.SendMessageA(h, 1024, 0, 0)))\n" +
-			"    ignore(print.print_int(s.clicks))\n" +
-			"    ignore(winuser.DestroyWindow(h))\n}\n"
+	got, err := runOnMayFail(t, string(src), "go")
+	want := "3 3 1 1 4 4 1 1 5 5 9 8 different 6 6"
+	if err != nil || strings.TrimSpace(got) != want {
+		t.Errorf("prefix: want %q, got %q, %v", want, got, err)
 	}
-	const count = "m == 1025 && c < 1000 -> { s.clicks := c + 1; 0 }"
-	src := head + step(count) + main("fn(h, m, w, l) { step(s, h, m, w, l) }")
-	for _, target := range []string{"windows", "windows32"} {
-		if got, err := runOn(t, src, target); err != nil || got != "0 2 2" {
-			t.Errorf("%s: %q, %v; want \"0 2 2\"", target, got, err)
-		}
+	core.PlantCallbackCellRefused = true
+	_, err = buildOnly(t, string(src), "go")
+	core.PlantCallbackCellRefused = false
+	if err == nil || !strings.Contains(err.Error(), "a function that mentions a cell") {
+		t.Errorf("with the translation off, prefix should be refused as a closure: %v", err)
 	}
-	core.PlantSlotUnshared = true
-	got, err := runOnMayFail(t, src, "windows")
-	core.PlantSlotUnshared = false
-	if err == nil && got == "0 2 2" {
-		t.Errorf("with the λ's slot apart from the scope's main still reads 2: the case cannot fail")
-	}
-	for _, c := range []struct{ what, src, reason string }{
-		{"a captured cell passed to no cell parameter",
-			head + step(count) + main("fn(h, m, w, l) { case { m == 1 -> s.clicks; else -> winuser.DefWindowProcA(h, m, w, l) } }"),
-			"is passed to no cell parameter"},
-		{"a field read twice",
-			head + step("m == 1025 && s.clicks < 1000 -> { s.clicks := s.clicks + 1; 0 }") + main("fn(h, m, w, l) { step(s, h, m, w, l) }"),
-			"is not proven"},
-	} {
-		if _, err := runOnMayFail(t, c.src, "windows"); err == nil || !strings.Contains(err.Error(), c.reason) {
-			t.Errorf("%s: want it refused naming %q, got %v", c.what, c.reason, err)
-		}
-	}
+	const mapCount = `use io
+use go/strings
+export fn main() {
+    var n := 0
+    t = strings.Map(fn(r) { if n < 1000000 { n := n + 1 }; r }, "abc")
+    io.print_int(n)
 }
-
-// A DEFINITION'S CELL PARAMETER IS THE CALLER'S CELL (ADR 0133 item 6), an
-// ordinary cell as well as a callback's: `bump(n)` reads n and writes it, and
-// n holds the write afterwards, the state-passing translation's S × X → S × R
-// (core/slot.go's value variant). 5 6 7 on Go, windows and windows32 (the
-// differential case cell-param runs it on all four targets).
-//
-// The fault: the variant's last value not written back into the caller's
-// cell, so the callee's writes are lost (5 5 5). The refusals: a cell outside
-// the parameter's set at the call, and a write outside it in the callee.
-func TestADefinitionsCellParameterIsTheCallersCell(t *testing.T) {
-	prog := func(init, write string) string {
-		return "use io\n\nfn bump(s ∈ 0..100 inout) (Int) {\n    c = s\n" +
-			"    case { c < 100 -> { s := " + write + "; c }; else -> c }\n}\n\n" +
-			"export fn main() {\n    var n := " + init + "\n    a = bump(n)\n    b = bump(n)\n" +
-			"    io.print_int(a)\n    io.print_int(b)\n    io.print_int(n)\n}\n"
+`
+	if _, err := buildOnly(t, mapCount, "go"); err == nil || !strings.Contains(err.Error(), "writes the cell n") {
+		t.Errorf("a count under strings.Map: want the Theorem D refusal, got %v", err)
 	}
-	src := prog("5", "c + 1")
-	for _, target := range []string{"go", "windows", "windows32"} {
-		if got, err := runOn(t, src, target); err != nil || got != "5 6 7" {
-			t.Errorf("%s: %q, %v; want \"5 6 7\"", target, got, err)
-		}
+	core.PlantCallbackCellOrderUnchecked = true
+	_, err = buildOnly(t, mapCount, "go")
+	core.PlantCallbackCellOrderUnchecked = false
+	if err != nil {
+		t.Errorf("with Theorem D unchecked the count should build, so the witness can fail: %v", err)
 	}
-	core.PlantCellWriteBackDropped = true
-	got, err := runOnMayFail(t, src, "go")
-	core.PlantCellWriteBackDropped = false
-	if err == nil && got == "5 6 7" {
-		t.Errorf("with the write-back dropped the caller's cell still holds the callee's writes: the case cannot fail")
-	}
-	for _, c := range []struct{ what, src, reason string }{
-		{"a cell outside the parameter's set", prog("200", "c + 1"), "bump's parameter s is declared in 0..100, and a call passes 200"},
-		{"a write outside it", prog("5", "c + 1000"), "the claim s ∈ 0..100"},
-	} {
-		if _, err := runOnMayFail(t, c.src, "go"); err == nil || !strings.Contains(err.Error(), c.reason) {
-			t.Errorf("%s: want it refused naming %q, got %v", c.what, c.reason, err)
-		}
-	}
+	const joined = `use io
+use go/slices
+export fn main() {
+    var k := 0
+    same = slices.EqualFunc(array { 1, 2 }, array { 1, 3 }, fn(x, y) { if k < 1000000 { k := k + 1 }; x == y })
+    io.print_int(k * 4611686018427387904)
 }
-
-// A RECORD AT A LOOP'S BINDER IS CURRIED (ADR 0128, core.curryLoop): the loop's
-// variable r becomes one variable per field, so its state is scalars. Without
-// the currying (the planted fault PlantRecordLetWhole, which the residual's
-// record erasure masks at a let, probes-2026-11-19 §3), the loop carries the
-// whole record as a tuple, and its projections are indexings of it, refused.
-func TestARecordLoopVariableIsCurried(t *testing.T) {
-	src := "use io\n\nexport fn main() {\n    io.print_int(loop r = record { a : 0, b : 1 } {\n        r.a > 5 -> r.a * 10 + r.b\n" +
-		"        else -> again(r with { a : r.a + 1 })\n    })\n}\n"
-	if got, err := runOn(t, src, "go"); err != nil || got != "61" {
-		t.Errorf("a record loop variable: %q, %v; want 61", got, err)
+`
+	if _, err := buildOnly(t, joined, "go"); err == nil || !strings.Contains(err.Error(), "cannot be proven to stay inside the word") {
+		t.Errorf("k · 2⁶² after the call: want refused, k reaching 10⁶, got %v", err)
 	}
-	core.PlantRecordLetWhole = true
-	_, err := runOnMayFail(t, src, "go")
-	core.PlantRecordLetWhole = false
-	if err == nil || !strings.Contains(err.Error(), "is an indexing") {
-		t.Errorf("with the record bound whole the loop must be refused, its projections indexings; got %v", err)
+	ir.PlantCellReadUnjoined = true
+	_, err = buildOnly(t, joined, "go")
+	ir.PlantCellReadUnjoined = false
+	if err != nil {
+		t.Errorf("with the stores dropped from the join, k reads as 0 and the product should build: %v", err)
 	}
 }

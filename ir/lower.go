@@ -614,6 +614,10 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		v := l.one(r, Stmt{Op: OCellFresh, Type: ty})
 		l.decl[v] = "cell " + ty
 		return []V{v}
+	case p.Kind == "cell-set" && len(args) == 2:
+		// a write through a reference (ADR 0143): its value is the unit
+		l.emit(r, Stmt{Op: OCellSet, Args: l.values(args, r)})
+		return []V{l.one(r, Stmt{Op: OConst, Lit: &core.Term{Kind: core.KInt}})}
 	case p.Kind == "cell-get" && len(args) == 1:
 		return []V{l.one(r, Stmt{Op: OCellGet, Args: []V{l.single(args[0], r)}})}
 	case p.Kind == "ascribe" && len(args) == 2 && args[0].Kind == core.KStr:
@@ -666,6 +670,45 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	// is the argument's own storage, and the call is the host's (threadedCall).
 	if p.Host != "" && len(p.Results) == 0 && len(p.InPlace) == 1 {
 		return l.threadedCall(r, op.Name, p, l.values(args, r))[:1]
+	}
+	// A HOST CALL WITH A CALLBACK DURING IT (ADR 0143): each λ at a callback
+	// parameter is an `fn` statement, its region the λ's body, its
+	// parameters the λ's, its yield the λ's result, and its free values the
+	// caller's, read in place. Its value, of the callback type, is the call's
+	// argument at that position, so a call's arguments stay its declaration's
+	// parameters, one for one. The value is second-class (W16): used once, by
+	// that call, which is where the region runs.
+	if cb := callbackParams(p); len(cb) > 0 {
+		vs := make([]V, len(args))
+		for i, a := range args {
+			if !cb[i] {
+				vs[i] = l.single(a, r)
+				continue
+			}
+			if a.Kind != core.KFn {
+				l.fail("a callback parameter takes a λ written at the call (ADR 0143), not %s", core.ShowTerm(l.named(a)))
+			}
+			// THE CLAIM'S SETS ARE THE HOST'S PROMISE (ADR 0053 item 4): each
+			// parameter is declared in its set, as an export's parameter is
+			// (ADR 0028), and nothing else bounds what the host passes.
+			d, _, ok := l.tg.CallbackDecl(strings.TrimPrefix(p.Args[i], core.CallbackPrefix))
+			if !ok || len(d.Params) != len(a.Params) {
+				l.fail("%s's callback %s takes %d parameter(s), and the λ %d", core.ShowName(op.Name), p.Args[i], len(d.Params), len(a.Params))
+			}
+			body := &Region{Params: l.freshN(len(a.Params))}
+			for j, q := range body.Params {
+				l.decl[q] = d.Params[j]
+			}
+			l.push(body.Params, a.Params)
+			l.tail(a.Closed(), body, false)
+			l.pop()
+			f := l.one(r, Stmt{Op: OFn, Type: p.Args[i], Sub: []*Region{body}, Src: l.named(a)})
+			l.decl[f] = p.Args[i]
+			vs[i] = f
+		}
+		v := l.call(r, op.Name, p, vs)
+		r.Stmts[len(r.Stmts)-1].Src = l.named(t)
+		return []V{v}
 	}
 	v := l.call(r, op.Name, p, l.values(args, r))
 	if st := &r.Stmts[len(r.Stmts)-1]; st.Op == OCall && len(st.Res) > 0 && st.Res[0] == v {

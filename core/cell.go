@@ -32,16 +32,16 @@ import (
 // then every call of a declaration with cell parameters the scopes did not
 // reach: one outside any scope, or inside a λ a scope passes as a value
 // (spec/local.md §5, §6). decls holds those declarations by qualified name.
-func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, product bool) (*Term, error) {
+func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg, product bool) (*Term, error) {
 	t = writtenCells(t, borrows)
-	t, err := translateScopes(t, decls, borrows, product)
+	t, err := translateScopes(t, decls, borrows, cbs, product)
 	if err != nil {
 		return nil, err
 	}
 	if len(decls) == 0 {
 		return t, nil
 	}
-	c := newCellTr(decls, borrows)
+	c := newCellTr(decls, borrows, cbs)
 	// FRESH ABOVE THE SCOPES' NAMES: the scope pass named its references and
 	// versions #s1, #v2, …, and this pass may thread a call inside one of its
 	// scopes (an out-call's continuation holding a `var`), so its own names
@@ -89,21 +89,21 @@ func maxFreshIndex(t *Term) int {
 	return n
 }
 
-func newCellTr(decls map[string]CellDecl, borrows map[string]BorrowDecl) *cellTr {
-	return &cellTr{locals: map[string]bool{}, places: map[string]bool{}, maps: map[string]bool{}, decls: decls, borrows: borrows}
+func newCellTr(decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg) *cellTr {
+	return &cellTr{locals: map[string]bool{}, places: map[string]bool{}, maps: map[string]bool{}, decls: decls, borrows: borrows, cbs: cbs}
 }
 
-func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, product bool) (*Term, error) {
+func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg, product bool) (*Term, error) {
 	if t == nil || len(t.Kids) == 0 {
 		return t, nil
 	}
 	if isCellScope(t) || isBorrowScope(t) {
-		c := newCellTr(decls, borrows)
+		c := newCellTr(decls, borrows, cbs)
 		c.product = product
 		return c.st(t, false) // with no cell in scope, a scope's tuple is its value alone
 	}
 	if t.Kind == KFn {
-		body, err := translateScopes(t.Body(), decls, borrows, product)
+		body, err := translateScopes(t.Body(), decls, borrows, cbs, product)
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +111,7 @@ func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]Borr
 	}
 	kids := make([]*Term, len(t.Kids))
 	for i, k := range t.Kids {
-		x, err := translateScopes(k, decls, borrows, false)
+		x, err := translateScopes(k, decls, borrows, cbs, false)
 		if err != nil {
 			return nil, err
 		}
@@ -206,6 +206,10 @@ type cellTr struct {
 	// insert into one is marked with that claim.
 	caps    map[string]*Term
 	borrows map[string]BorrowDecl
+	// cbs are the host operations with a callback parameter, by qualified
+	// name: each callback's argument index, and whether its host promises the
+	// order of its calls (ADR 0143)
+	cbs map[string][]CallbackArg
 	// product: the definition's header declares a product result, so its
 	// borrow scope hands back the factors flat (ADR 0112)
 	product bool
@@ -912,6 +916,14 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		}
 		return &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], t.Kids[2], body}}, nil
 	}
+	// A λ THE HOST APPLIES DURING THE CALL (ADR 0143) that mentions a cell.
+	if h := t.Kids[0]; h.Kind == KName && c.cbs[h.Name] != nil && !PlantCallbackCellRefused {
+		if u, ok, err := c.callbackCells(t, c.cbs[h.Name]); err != nil {
+			return nil, err
+		} else if ok {
+			return c.stLoop(u, inLoop, carried)
+		}
+	}
 	// Any other application: every argument in order, then the call.
 	for _, a := range t.Kids {
 		if a.Kind == KFn && c.mentionsCells(a) {
@@ -1236,3 +1248,149 @@ func (c *cellTr) cellOffLen(t *Term) string {
 // PlantCellCallTwice translates a call the scope pass already translated
 // again, as before: a cell declared after an out-call is refused as no cell.
 var PlantCellCallTwice bool
+
+// CallbackArg is a host operation's callback parameter (ADR 0143): its
+// argument's index, and whether its host promises the order of its calls, by
+// `ordered` or by a count of at most one.
+type CallbackArg struct {
+	Index   int
+	Ordered bool
+}
+
+// PlantCallbackCellOrderUnchecked threads a cell written under a host that
+// promises no order, Theorem D unchecked: strings.Map's count is then the
+// host's (TestACellWrittenInACallbackIsThreadedInTheHostsOrder).
+var PlantCallbackCellOrderUnchecked bool
+
+// PlantCallbackCellRefused refuses every λ at a callback parameter that
+// mentions a cell, as before ADR 0143: the closure refusal, which
+// TestACellWrittenInACallbackIsThreadedInTheHostsOrder must see.
+var PlantCallbackCellRefused bool
+
+// callbackCells rewrites a host call whose λ at a callback parameter mentions
+// a cell of the scope (ADR 0143). The λ is second-class and applied only
+// during the call, so its environment is the caller's frame:
+//   - A CELL IT ONLY READS is a value at the call: bound to a fresh name before
+//     it, the λ capturing that value, pure under any host.
+//   - A CELL IT WRITES is threaded through the host's activations, Theorem
+//     T₁: the program whose cell is one variable written in place, captured
+//     by reference. That is ADR 0048's form with the λ the writer, a reference
+//     to a fresh copy, read and written through in the λ and read back after
+//     the call: r = #ref(x); v = h(…, λ′, …); x := #deref(r); v. It has the
+//     host's order only where the host promises one, so it is refused
+//     elsewhere (Theorem D): the count of writes would be the host's too.
+//
+// ok is false where no λ at a callback parameter mentions a cell.
+func (c *cellTr) callbackCells(t *Term, cbs []CallbackArg) (*Term, bool, error) {
+	args := t.Kids[1:]
+	type use struct {
+		x       string
+		written bool
+	}
+	var uses []use
+	seen := map[string]bool{}
+	ordered := map[int]bool{}
+	for _, cb := range cbs {
+		if cb.Index >= len(args) || args[cb.Index].Kind != KFn {
+			continue
+		}
+		ordered[cb.Index] = cb.Ordered
+		for _, x := range c.xs {
+			u := c.userOf(x)
+			if c.places[u] || seen[u] || !mentionsName(args[cb.Index], u) {
+				continue
+			}
+			w := writesName(args[cb.Index], u)
+			if w && !cb.Ordered && !PlantCallbackCellOrderUnchecked {
+				return nil, true, fmt.Errorf("%s writes the cell %s, and %s does not promise the order or the number "+
+					"of its calls (no `ordered`): the cell's last value would be the host's, which may differ "+
+					"between releases (Theorem D, ADR 0143). Count with a loop of your own, or pass the λ to a host "+
+					"whose declaration is `ordered`", ShowTerm(args[cb.Index]), ShowName(u), ShowName(t.Kids[0].Name))
+			}
+			seen[u] = true
+			uses = append(uses, use{u, w})
+		}
+	}
+	if len(uses) == 0 {
+		return nil, false, nil
+	}
+	kids := append([]*Term(nil), t.Kids...)
+	var refs []string
+	for i, u := range uses {
+		r := fmt.Sprintf("#cbr%d", c.n+i+1)
+		refs = append(refs, r)
+		for _, cb := range cbs {
+			if j := cb.Index + 1; j < len(kids) && kids[j].Kind == KFn {
+				if u.written {
+					kids[j] = loadStore(kids[j], u.x, r)
+				} else {
+					kids[j] = substFree(kids[j], u.x, Name(r))
+				}
+			}
+		}
+	}
+	c.n += len(uses)
+	// EACH λ′ IS ITS OWN SCOPE NOW, the cells it binds its own: translated
+	// here, since a λ is otherwise passed on as it stands
+	for _, cb := range cbs {
+		if j := cb.Index + 1; j < len(kids) && kids[j].Kind == KFn {
+			lam, err := translateScopes(kids[j], c.decls, c.borrows, c.cbs, false)
+			if err != nil {
+				return nil, true, err
+			}
+			kids[j] = lam
+		}
+	}
+	// v = h(…); then each written cell takes the reference's last value
+	call := &Term{Kind: KApp, Kids: kids}
+	v := fmt.Sprintf("#cbv%d", c.n)
+	body := Name(v)
+	for i := len(uses) - 1; i >= 0; i-- {
+		if uses[i].written {
+			body = App(Fn([]string{"#_"}, body), App(Name("set"), Name(uses[i].x), App(Name(DerefName), Name(refs[i]))))
+		}
+	}
+	out := App(Fn([]string{v}, body), call)
+	for i := len(uses) - 1; i >= 0; i-- {
+		init := Name(uses[i].x) // a read cell: its value at the call
+		if uses[i].written {
+			init = App(Name(RefName), Name(uses[i].x))
+		}
+		out = App(Fn([]string{refs[i]}, out), init)
+	}
+	return out, true, nil
+}
+
+// writesName says t writes the cell x: a `(set x e)` x's own binder reaches.
+func writesName(t *Term, x string) bool {
+	if t == nil {
+		return false
+	}
+	if headIs(t, "set") && len(t.Kids) == 3 && t.Kids[1].Kind == KName && t.Kids[1].Name == x {
+		return true
+	}
+	for _, k := range t.Kids {
+		if writesName(k, x) {
+			return true
+		}
+	}
+	return false
+}
+
+// loadStore is the λ fn(p…) { e } with the cell x threaded through the
+// reference r, Theorem T₁'s λ_S : S × A → S × R: the state enters an
+// activation once and leaves it once,
+//
+//	fn(p…) { var x := #deref(r); v = e; #store-ref(r, x); v }
+//
+// so within one activation x is an ordinary cell of the λ's own, a write
+// under a guard a φ the guard bounds, and the host's order threads the
+// activations through r. A λ's own parameters are indices, so x in e is the
+// cell, now the inner scope's.
+func loadStore(lam *Term, x, r string) *Term {
+	v := "#cbres"
+	store := App(Fn([]string{"#_"}, Name(v)), App(Name(StoreRefName), Name(r), Name(x)))
+	inner := App(Fn([]string{v}, store), lam.Body())
+	scope := App(Name(CellName), App(Name(DerefName), Name(r)), Fn([]string{x}, inner))
+	return Fn(lam.Params, scope)
+}

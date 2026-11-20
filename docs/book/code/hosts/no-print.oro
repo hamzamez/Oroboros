@@ -1,0 +1,6 @@
+use io
+use go/strings
+
+export fn comma(s ∈ go.bytestring) (Int) {
+    strings.IndexFunc(s, fn(r) { io.print_int(r); r == 44 })
+}

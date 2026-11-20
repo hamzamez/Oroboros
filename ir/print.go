@@ -244,6 +244,9 @@ func (pr *printer) op(s *Stmt) []string {
 		return wrap("(loop (init"+lead([]string{pr.vs(s.Args)})+")", pr.region(s.Sub[0]))
 	case OBuild, OBuildMap, OTabulate:
 		return wrap("("+name+pr.store(s)+" "+pr.vs(s.Args), pr.region(s.Sub[0]))
+	case OFn:
+		// a λ during a call, (fn τ REGION): its callback type, then its body
+		return wrap("(fn "+TypeText(s.Type), pr.region(s.Sub[0]))
 	}
 	if s.Op == OArray && len(s.Store) > 0 {
 		return []string{"(" + name + pr.store(s) + " " + pr.vs(s.Args) + ")"}

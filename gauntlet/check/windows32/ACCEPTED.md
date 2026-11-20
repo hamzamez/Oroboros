@@ -194,3 +194,16 @@ The initial compile-time baseline, the minimum of two sweeps.
 - new source — `examples/callbacks/kadane.oro windows32`
 - new source — `examples/callbacks/once.oro windows32`
 - compiler output changed — `examples/callbacks/prefix.oro windows32`
+
+## 2026-11-20 — on 31ea4be3, with uncommitted changes
+
+**Reason:** the book's findings 100 and 101: a map read then stored to, a literal table of tuples and of tables read at an unknown index, built on every target; four new programs
+
+199 runs: 132 emitted, 67 refused; 6869 of 6879 integer operations bounded, 777 of 858 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/map/collatz.oro windows32`
+- new source — `examples/map/twosum.oro windows32`
+- new source — `examples/table/magic.oro windows32`
+- new source — `examples/table/shoelace.oro windows32`

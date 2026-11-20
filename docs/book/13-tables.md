@@ -1272,18 +1272,80 @@ func TablesArea(v0 []byte) int {
 `(w, h) = sides[i]` names the two parts, and the Go is the same two reads. No pair was
 built in order to be taken apart: a pattern on a table's element is its two positions.
 
+A table of pairs may also be written out as a list, and read at any position. The shoelace
+formula gives twice a polygon's signed area from its corners in order,
+2A = Σ (x_i · y_{i+1} − x_{i+1} · y_i), the last corner followed by the first:
+
+<!-- file docs/book/code/tables/shoelace.oro -->
+```go
+use io
+
+fn area(p) {
+    loop i = 0, s = 0 {
+        i < len(p) && i < 1000 -> {
+            j = if i + 1 < len(p) { i + 1 } else { 0 }
+            (x, y) = p[i]
+            (u, v) = p[j]
+            again(i + 1, s + x * v - u * y)
+        }
+        else -> s
+    }
+}
+
+export fn main() {
+    io.print_int(area(array { (0, 0), (4, 0), (0, 3) }))
+    io.print_int(area(array { (0, 0), (0, 5), (5, 5), (5, 0) }))
+}
+```
+
+<!-- run go docs/book/code/tables/shoelace.oro -->
+```
+12
+-50
+```
+
+The 3-4-5 triangle has area 6, so 12; the square of side 5 walked clockwise has −50. The list is
+one table of coordinates, x then y for each corner, as if the program had built it.
+
+And a table of tables may be written out the same way, a square as its rows. Lo Shu, the magic
+square of order 3, has every row, column and diagonal summing to 15:
+
+<!-- file docs/book/code/tables/loshu.oro -->
+```go
+use io
+
+export fn main() {
+    sq = array { array { 4, 9, 2 }, array { 3, 5, 7 }, array { 8, 1, 6 } }
+    lines = loop i = 0, n = 0 {
+        i < 3 -> {
+            row = sq[i][0] + sq[i][1] + sq[i][2]
+            col = sq[0][i] + sq[1][i] + sq[2][i]
+            again(i + 1, n + (if row == 15 { 1 } else { 0 }) + (if col == 15 { 1 } else { 0 }))
+        }
+        else -> n
+    }
+    io.print_int(lines)
+}
+```
+
+<!-- run go docs/book/code/tables/loshu.oro -->
+```
+6
+```
+
+`sq[i]` at an `i` the loop chooses is one of three rows, and the compiler writes it that way: if
+`i` is 0 the first row, if 1 the second, else the third. Each row is a table written out, so each
+read of it is checked against its own length. `i` must still be proven in 0..2, as any index is.
+
 ---
 
 ## 13.12 What is not here
 
 - **A table cannot be changed.** Building one a piece at a time, or updating a position, is
   chapter 14.
-- **No table of tables.** A grid is one table (13.11).
+- **A table of tables is written out, never made by a rule, received or built.** A grid that is
+  computed is one table (13.11).
 - **No `==` on tables.** Compare them position by position, in a loop.
-- **A table of pairs or of records cannot be written as a list of values**, `array { (1, 2),
-  (3, 4) }`, where its index is not known when compiling: only given by a rule, received or built
-  (the book's findings 66 and 101). Read at a constant index it folds away and works, which is how the
-  limitation hides.
 
 ---
 

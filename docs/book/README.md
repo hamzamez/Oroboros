@@ -824,13 +824,20 @@ seven more. 95–99 are fixed with the chapter
      map(4); m[9] := 50; case m[9] { … }` says *{ (#t, #p) = #0.0(9); … } is 2 values where one
      is wanted*. Narrowed 2026-11-20: a read in an argument works, `io.print_int(case m[9] { … })`
      printing 50; what fails is a `case` on the read in the scope's tail whose arms print (refused
-     as a closure), and a read followed by a store (the map's capacity no longer follows). Both
-     are in the plan (CLAUDE.md, README's "Current work"), ahead of the decided list.
+     as a closure), and a read followed by a store (the map's capacity no longer follows). Fixed
+     2026-11-20 ([findings-2026-11-20](../../gauntlet/results/findings-2026-11-20.md)): an
+     elimination whose arms mention no cell is a value of the state, not a step of it; the lowering
+     reads a map read only off a variable; a read's eliminator is a continuation to every walker.
+     §14.9 shows a memo filled and read in one loop.
 101. **A table of tables, or a table of tuples written as a list, read at an index not known when
      compiling**, is refused in the lowering's words, the first quoting `#0.0`:
      `array { array { 1, 2 }, array { 3, 4 } }[k][0]` and `array { (3, 4), (10, 2) }[k]`.
      Finding 66's limitation, still there: read at a constant index the table folds away, which
-     is how it hides. In the plan, beside finding 100.
+     is how it hides. Fixed 2026-11-20 (findings-2026-11-20): a literal table of tuples is
+     flattened by currying where it is written, and a table of tables given by its graph, read at
+     an unknown index, is the n-way choice among its rows, its domain still an obligation. §13.11
+     shows both (the shoelace formula, Lo Shu); a table of tables made by a rule, received or
+     built is still not here.
 102. **A function bound to a name wrote a cell and the write was lost** (found 2026-11-20 probing
      tier 1's callbacks, not writing a chapter; fixed). `var n := 0; add = fn(x) { n := n + x };
      add(1); add(2)` printed n as 0, and `get = fn() { n }` read the cell's first value. A λ

@@ -386,8 +386,40 @@ func (c *cellTr) bind(T *Term, name string, k *Term) *Term {
 	if len(c.xs) == 0 {
 		return App(Fn([]string{name}, k), T)
 	}
-	return App(T, Fn(append([]string{name}, c.xs...), k))
+	return elimState(T, Fn(append([]string{name}, c.xs...), k))
 }
+
+// elimState is (T K), the elimination of a state tuple T by K, with K moved
+// into the eliminator where T is a read of a state's version taken apart
+// (the book's finding 100):
+//
+//	(((#vm k) (fn (t p) M)) K)  ⟶  ((#vm k) (fn (t p) (M K)))
+//
+// A version is data, a map or a table, never a function, so its read's value
+// is the pair its eliminator takes apart once, and the equation is the n-ary
+// let's (core/reduce.go): the read still runs once and first, and K, a λ, is a
+// value. The reducer cannot apply it, since under the scope's binders the
+// read's head is an index there, no longer a name that says it is a version.
+// So the arms' tuples meet K, and β gives K's state the version each arm
+// returns: a map read in an arm leaves len(m') = len(m) to the next insert.
+func elimState(T, K *Term) *Term {
+	if !PlantStateElimOutside && T.Kind == KApp && len(T.Kids) == 2 && T.Kids[1].Kind == KFn &&
+		T.Kids[0].Kind == KApp && len(T.Kids[0].Kids) == 2 && T.Kids[0].Kids[0].Kind == KName &&
+		strings.HasPrefix(T.Kids[0].Kids[0].Name, VersionPrefix) {
+		L := T.Kids[1]
+		return App(T.Kids[0], Fn(L.Params, elimState(L.Body(), K)))
+	}
+	return App(T, K)
+}
+
+// PlantElimThreaded threads the state through an elimination whose arms
+// mention no cell, as before finding 100: the read's map comes back as a new
+// version with no length fact, and the next insert's capacity does not follow.
+var PlantElimThreaded bool
+
+// PlantStateElimOutside leaves K outside a version read's eliminator, as
+// before finding 100: a read and then an insert then lose len(m') = len(m).
+var PlantStateElimOutside bool
 
 func (c *cellTr) isCell(n string) bool {
 	for _, x := range c.xs {
@@ -566,7 +598,7 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		}
 		// (v, x₁ … xₖ, y) ↦ (v, x₁ … xₖ)
 		r := c.fresh()
-		project := App(tb, Fn(append(append([]string{r}, outer...), iy), c.tup(Name(r))))
+		project := elimState(tb, Fn(append(append([]string{r}, outer...), iy), c.tup(Name(r))))
 		s := c.fresh()
 		return c.bind(te, s, App(Fn([]string{iy}, project), Name(s))), nil
 	}
@@ -873,6 +905,29 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		lam := args[0]
 		for _, p := range lam.Params {
 			c.locals[p] = true
+		}
+		// AN ELIMINATION WHOSE ARMS MENTION NO CELL is a value of the state,
+		// not a step of it (the book's finding 100): `case m[k] { … }` with arms
+		// that neither read nor write a cell, nor jump. Threaded through its
+		// arms, the state came back as a new version, #vm1, which was the same
+		// map with no fact saying so, and the next insert's capacity did not
+		// follow. Only the eliminated term's arguments are threaded; the value
+		// is paired with the state unchanged.
+		if !c.mentions(lam.Body(), inLoop) && !PlantElimThreaded {
+			marked := func(op *Term) *Term { // as `mark` below: a case arm's scrutinee is data
+				if strings.HasPrefix(lam.Params[0], "#t") {
+					return op
+				}
+				return App(Name(ElimName), op)
+			}
+			if !c.mentions(op, false) {
+				return c.tup(App(marked(op), lam)), nil
+			}
+			if op.Kind == KApp && op.Kids[0].Kind != KFn {
+				return c.thread(op.Kids, inLoop, carried, false, func(vs []*Term) *Term {
+					return App(marked(App(vs[0], vs[1:]...)), lam)
+				})
+			}
 		}
 		body, err := c.stLoop(lam.Body(), inLoop, carried)
 		if err != nil {

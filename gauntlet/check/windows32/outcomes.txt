@@ -229,9 +229,19 @@
 == examples/lines/shape.oro windows32 refused
    gen: examples/lines/shape.oro: in ending: `go/errors`.Is is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/errors` matched no file on the search path and this target provides no module go/errors either, so every name from it is unbound. Check the path.
+== examples/map/collatz.oro windows32 emitted 849d691b54b17f2b211080aff912e853bf36f87bba23dcb30427794126233ff2
+   note: every definition inlined: kept, gen-main: in again's argument 3: in a condition: in a condition: in argument 2 of `==`: steps is Array(0..2^32-1), but Int is required here.
+   note: gen-main: 42 of 42 integer operations bounded; 12 of 13 loop(s) proven terminating
 == examples/map/dynamic.oro windows32 refused
    gen: examples/map/dynamic.oro: in build3: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/map/twosum.oro windows32 emitted 199a2e80725975732e3f0415e73a2bcced610fc8ca21cdcae7425792f20d9408
+   note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 4 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: by-search (kept): 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: by-map (kept): 3 of 3 integer operations bounded; 4 of 5 loop(s) proven terminating
 == examples/match/runs.oro windows32 refused
    gen: examples/match/runs.oro: in runs: go.`%` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
@@ -369,6 +379,17 @@
    note: gen-main: 8 of 8 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: 1 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/table/magic.oro windows32 emitted c4a50b0f057f662861e81d847eac2b1e32907d0ff6b19874425c67c9ccb803ba
+   note: gen-main: 16 of 16 integer operations bounded; 4 of 4 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/table/shoelace.oro windows32 emitted 5f0e13beda0570d5d911a6632b6d06a13c195bea9fe10231b730add0d4c1d5c6
+   note: gen-main: 24 product access(es) flattened
+   note: gen-main: 54 of 54 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/table/sieve-win.oro windows32 emitted 91abbbcc6be4f1e826c13ffe297187a8a32d5798c50df6ffc1f210a7673f5bc2
    note: gen-main: 5 of 5 integer operations bounded; 2 of 2 loop(s) proven terminating
    note: 3 definition(s) kept as functions, 0 inlined by their contracts

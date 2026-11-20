@@ -1,0 +1,37 @@
+// collatz: STOPPING TIMES, MEMOIZED IN A MAP THE LOOP READS AND THEN WRITES.
+//
+// WHAT IT IS. The Collatz map sends n to n/2 when n is even and to 3n + 1 when
+// it is odd; the stopping time L(n) is the number of steps to reach 1, with
+// L(1) = 0. Whether every n reaches 1 is open (Lagarias 1985), but every n
+// below 2⁶⁸ has been checked. For even n, L(n) = L(n/2) + 1, so a table of the
+// times already found serves every even n in one step: memoization, the read
+// of m[n/2] and then the write of m[n] in the same scope (the book's finding
+// 100, the program its plan item named).
+//
+// The program fills L(1) … L(40), the even ones from the map and the odd ones by
+// iterating, checks every even one against iterating too, and prints L(27) =
+// 111, the famous long one, and how many of the 20 even agree: 20.
+use io
+
+// the steps from n to 1, iterated, under a bound the analysis can see
+fn steps(n ∈ 1..1000) (Nat) {
+    loop x = n, k = 0 {
+        x > 1 && k < 1000 && x < 100000000 -> again(if x % 2 == 0 { x / 2 } else { 3 * x + 1 }, k + 1)
+        else -> k
+    }
+}
+
+export fn main() {
+    var m := map(64)
+    m[1] := 0
+    agree = loop n = 2, a = 0 {
+        n <= 40 -> {
+            l = if n % 2 == 0 { case m[n / 2] { 'some(x) -> if x < 1000 { x + 1 } else { x }; 'none -> steps(n) } } else { steps(n) }
+            m[n] := l
+            again(n + 1, if n % 2 == 0 && l == steps(n) && a < 100 { a + 1 } else { a })
+        }
+        else -> a
+    }
+    io.print_int(case m[27] { 'some(x) -> x; 'none -> -1 })
+    io.print_int(agree)
+}

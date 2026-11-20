@@ -1,0 +1,36 @@
+// shoelace: A POLYGON'S AREA FROM ITS VERTICES, A TABLE OF TUPLES.
+//
+// WHAT IT IS. For a simple polygon with vertices (x_0, y_0), …, (x_{n−1}, y_{n−1})
+// in order, Gauss's shoelace formula gives twice its signed area:
+//     2A = Σ_i (x_i · y_{i+1} − x_{i+1} · y_i),   indices mod n,
+// positive when the vertices run counterclockwise. The program computes it for
+// the 3-4-5 triangle (2A = 12), the unit square scaled by 5 (2A = 50), and the
+// same square clockwise (2A = −50).
+//
+// THE TABLE OF TUPLES (the book's finding 101). A list of points is a table of
+// pairs, flattened by currying into one table of coordinates (products.md):
+// p[i] at an index the loop chooses is (p[2i], p[2i + 1]).
+use io
+
+
+export fn main() {
+    tri = array { (0, 0), (4, 0), (0, 3) }
+    io.print_int(area(tri))
+    sq = array { (0, 0), (5, 0), (5, 5), (0, 5) }
+    io.print_int(area(sq))
+    cw = array { (0, 0), (0, 5), (5, 5), (5, 0) }
+    io.print_int(area(cw))
+}
+
+// twice the signed area, by the formula over the pairs themselves
+fn area(p) {
+    loop i = 0, s = 0 {
+        i < len(p) && i < 1000 -> {
+            j = if i + 1 < len(p) { i + 1 } else { 0 }
+            (x, y) = p[i]
+            (u, v) = p[j]
+            again(i + 1, s + x * v - u * y)
+        }
+        else -> s
+    }
+}

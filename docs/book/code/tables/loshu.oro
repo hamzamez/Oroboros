@@ -1,0 +1,14 @@
+use io
+
+export fn main() {
+    sq = array { array { 4, 9, 2 }, array { 3, 5, 7 }, array { 8, 1, 6 } }
+    lines = loop i = 0, n = 0 {
+        i < 3 -> {
+            row = sq[i][0] + sq[i][1] + sq[i][2]
+            col = sq[0][i] + sq[1][i] + sq[2][i]
+            again(i + 1, n + (if row == 15 { 1 } else { 0 }) + (if col == 15 { 1 } else { 0 }))
+        }
+        else -> n
+    }
+    io.print_int(lines)
+}

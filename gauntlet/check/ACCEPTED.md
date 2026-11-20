@@ -4085,3 +4085,28 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/callbacks/prefix.oro java`
 - compiler output changed — `examples/callbacks/prefix.oro js`
 - compiler output changed — `examples/callbacks/prefix.oro windows`
+
+## 2026-11-20 — on 31ea4be3, with uncommitted changes
+
+**Reason:** the book's findings 100 and 101: a map read then stored to, a literal table of tuples and of tables read at an unknown index, built on every target; four new programs
+
+796 runs: 544 emitted, 252 refused; 12435 of 12489 integer operations bounded, 1477 of 1772 loops proven. compiler pass, differential pass, tooling pass.
+
+16 change(s):
+
+- new source — `examples/map/collatz.oro go`
+- new source — `examples/map/collatz.oro java`
+- new source — `examples/map/collatz.oro js`
+- new source — `examples/map/collatz.oro windows`
+- new source — `examples/map/twosum.oro go`
+- new source — `examples/map/twosum.oro java`
+- new source — `examples/map/twosum.oro js`
+- new source — `examples/map/twosum.oro windows`
+- new source — `examples/table/magic.oro go`
+- new source — `examples/table/magic.oro java`
+- new source — `examples/table/magic.oro js`
+- new source — `examples/table/magic.oro windows`
+- new source — `examples/table/shoelace.oro go`
+- new source — `examples/table/shoelace.oro java`
+- new source — `examples/table/shoelace.oro js`
+- new source — `examples/table/shoelace.oro windows`

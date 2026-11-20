@@ -1,0 +1,48 @@
+// magic: LO SHU, THE MAGIC SQUARE OF ORDER 3, AS A TABLE OF TABLES.
+//
+// WHAT IT IS. A magic square of order n holds 1 … n² once each, and every row,
+// every column and both diagonals sum to the magic constant n(n² + 1)/2, 15 for
+// n = 3. Lo Shu (China, by tradition before 650 BC) is the only one of order 3
+// up to the square's eight symmetries.
+//
+// THE TABLE OF TABLES (the book's finding 101). sq[i][j] at indices the loops
+// choose is composition, (sq i) j (tables.md §5.1). A table given by its graph
+// read at an index not known when compiling is, by extensionality, the choice
+// among its rows, each a literal table whose reads are proven as any literal's.
+//
+// The program counts the lines summing to 15, 8 of 8 (three rows, three
+// columns, two diagonals), and checks every entry 1 … 9 occurs once, 9.
+use io
+
+export fn main() {
+    sq = array { array { 4, 9, 2 }, array { 3, 5, 7 }, array { 8, 1, 6 } }
+    rows = loop i = 0, n = 0 {
+        i < 3 -> {
+            s = sq[i][0] + sq[i][1] + sq[i][2]
+            again(i + 1, if s == 15 { n + 1 } else { n })
+        }
+        else -> n
+    }
+    cols = loop j = 0, n = 0 {
+        j < 3 -> {
+            s = sq[0][j] + sq[1][j] + sq[2][j]
+            again(j + 1, if s == 15 { n + 1 } else { n })
+        }
+        else -> n
+    }
+    d1 = sq[0][0] + sq[1][1] + sq[2][2]
+    d2 = sq[0][2] + sq[1][1] + sq[2][0]
+    io.print_int(rows + cols + (if d1 == 15 { 1 } else { 0 }) + (if d2 == 15 { 1 } else { 0 }))
+    // each of 1 … 9 once: for each v, the entries equal to it
+    seen = loop v = 1, ok = 0 {
+        v <= 9 -> {
+            c = loop k = 0, m = 0 {
+                k < 9 -> again(k + 1, if sq[k / 3][k % 3] == v { m + 1 } else { m })
+                else -> m
+            }
+            again(v + 1, if c == 1 { ok + 1 } else { ok })
+        }
+        else -> ok
+    }
+    io.print_int(seen)
+}

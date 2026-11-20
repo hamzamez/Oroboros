@@ -99,6 +99,19 @@ func projectTail(tg *Target, t *core.Term, j, m int) (*core.Term, bool) {
 		}
 		return core.App(t.Kids[0], core.FnClosed(kk.Params, nb)), true
 	}
+	// A TUPLE PATTERN OVER A LOOP OR A SCOPE, (P (fn (x̄) b)): a join point
+	// (ADR 0031), b run once after P with its components bound, so its tail is
+	// b's. A definition answering a pair from a map loop, inlined, is that
+	// pattern inside a scope's tail (examples/map/twosum.oro on Go).
+	if len(t.Kids) == 2 && t.Kids[1].Kind == core.KFn && len(t.Kids[1].Params) >= 1 &&
+		isProducer(tg, t.Kids[0]) && !PlantJoinTailUnread {
+		k := t.Kids[1]
+		nb, ok := projectTail(tg, k.Closed(), j, m)
+		if !ok {
+			return nil, false
+		}
+		return core.App(t.Kids[0], core.FnClosed(k.Params, nb)), true
+	}
 	op := t.Kids[0]
 	if op.Kind != core.KName {
 		return nil, false
@@ -192,6 +205,10 @@ func withKid(t *core.Term, i int, k *core.Term) *core.Term {
 	c.Kids[i] = k
 	return &c
 }
+
+// PlantJoinTailUnread leaves a tuple pattern over a loop unread by
+// projectTail, as before: a scope whose tail is one is refused by CheckJoins.
+var PlantJoinTailUnread bool
 
 // CheckJoins refuses what tables.md §2.5 names as not built: a scope whose value
 // is a function term (R1: a closure, which could carry a buffer out unfrozen; a

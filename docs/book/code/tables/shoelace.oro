@@ -1,0 +1,18 @@
+use io
+
+fn area(p) {
+    loop i = 0, s = 0 {
+        i < len(p) && i < 1000 -> {
+            j = if i + 1 < len(p) { i + 1 } else { 0 }
+            (x, y) = p[i]
+            (u, v) = p[j]
+            again(i + 1, s + x * v - u * y)
+        }
+        else -> s
+    }
+}
+
+export fn main() {
+    io.print_int(area(array { (0, 0), (4, 0), (0, 3) }))
+    io.print_int(area(array { (0, 0), (0, 5), (5, 5), (5, 0) }))
+}

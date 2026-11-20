@@ -649,6 +649,18 @@
 == examples/lines/shape.oro windows refused
    gen: examples/lines/shape.oro: in ending: `go/errors`.Is is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/errors` matched no file on the search path and this target provides no module go/errors either, so every name from it is unbound. Check the path.
+== examples/map/collatz.oro go emitted f1d1ad7ce74228bef986b7c9aac2edec1ceccf6d464d9ca9b298aa28ac1b467e
+   note: gen-main: 22 of 22 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-main: 12 division(s) became a shift or a mask
+== examples/map/collatz.oro js emitted dcacd7edfbf2d55c91bae3e0bbc6e0e0d33336d4327e06bd87e111927676421a
+   note: gen-main: 22 of 22 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-main: 12 division(s) became a shift or a mask
+== examples/map/collatz.oro java emitted 43df8beee55559bd6633846f457634eda7189d5947408895fb73e8f19d5664da
+   note: gen-main: 22 of 22 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-main: 12 division(s) became a shift or a mask
+== examples/map/collatz.oro windows emitted 458fe98637acb228060fa53f1cefac3dd92670763b7907674cdff5fbd6b13d86
+   note: every definition inlined: kept, gen-main: in again's argument 3: in a condition: in a condition: in argument 2 of `==`: steps is Array(0..2^64-1), but Int is required here.
+   note: gen-main: 42 of 42 integer operations bounded; 12 of 13 loop(s) proven terminating
 == examples/map/dynamic.oro go emitted 68a285373ab475814232f7296a0841e91d332c5a653b699e4a8e60c98b496d7a
    note: gen-main: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/map/dynamic.oro js refused
@@ -660,6 +672,19 @@
 == examples/map/dynamic.oro windows refused
    gen: examples/map/dynamic.oro: in build3: go.`>=` is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go` matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/map/twosum.oro go emitted 9fd63f7cad982be3c7c672f03ce14b6379c2ddcd920681beb69afff97f69220b
+   note: gen-main: 13 of 13 integer operations bounded; 6 of 6 loop(s) proven terminating
+== examples/map/twosum.oro js emitted 476b612aaf4778786605ab407e1a2db8318abc29d9e3331b1d0c32b1b366a27c
+   note: gen-main: 13 of 13 integer operations bounded; 6 of 6 loop(s) proven terminating
+== examples/map/twosum.oro java emitted b280796415f743f60dd34182c5e641365f3ee9c125cc7500bce80bb983903ddf
+   note: gen-main: 13 of 13 integer operations bounded; 6 of 6 loop(s) proven terminating
+== examples/map/twosum.oro windows emitted c0380a515d0f7f052abbaca3cdeb602123dc147322c084b1011719650ca92014
+   note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 4 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: by-search (kept): 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: by-map (kept): 3 of 3 integer operations bounded; 4 of 5 loop(s) proven terminating
 == examples/match/runs.oro go emitted 6333b48db474b655fac44ec2dab083428da54c69102f9098dcfa961021b4ea08
    note: gen-runs: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-runs: 5 division(s) became a shift or a mask
@@ -1126,6 +1151,35 @@
    note: gen-main: 8 of 8 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: 1 definition(s) kept as functions, 0 inlined by their contracts
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/table/magic.oro go emitted 97ca03d550848ffb05c74617ef9b1a664cd877cddcd277e9e93effe7bf2f6158
+   note: gen-main: 16 of 16 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/table/magic.oro js emitted f843b2a33fde0e479c88b8997fecb4ffe954b95394278af3f81c7a8d1996376d
+   note: gen-main: 16 of 16 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/table/magic.oro java emitted 4ce168ace8b8d6a3f23d3ceb7f34dfef25657409dd02ec2ff12a5ad5e91d7002
+   note: gen-main: 16 of 16 integer operations bounded; 4 of 4 loop(s) proven terminating
+== examples/table/magic.oro windows emitted 9ed82782dab90f701d7939e0df07eb6694bf37e4a0eb69075ce0fefcd78f6277
+   note: gen-main: 16 of 16 integer operations bounded; 4 of 4 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/table/shoelace.oro go emitted f3eb1855c1942f55e4f0440a7635c5a578b719aa63e355ba49962c21e4356b59
+   note: gen-main: 24 product access(es) flattened
+   note: gen-main: 54 of 54 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-main: 9 division(s) became a shift or a mask
+== examples/table/shoelace.oro js emitted 69f11cff063953afecc77765320ac92b8aa56fdfc91e5468859490b09257c22c
+   note: gen-main: 24 product access(es) flattened
+   note: gen-main: 54 of 54 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-main: 9 division(s) became a shift or a mask
+== examples/table/shoelace.oro java emitted 7351fc452137dc79b4557efdb5d49390263bffbb43dcff7a108682b392692863
+   note: gen-main: 24 product access(es) flattened
+   note: gen-main: 54 of 54 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-main: 9 division(s) became a shift or a mask
+== examples/table/shoelace.oro windows emitted 63fbb5e3dead104523fc78b9fa55189673319dcd6de5dba3236ff2dcf9352e37
+   note: gen-main: 24 product access(es) flattened
+   note: gen-main: 54 of 54 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/table/sieve-win.oro go refused
    gen: examples/table/sieve-win.oro: in `win/print`.print_str: `llvm/str`.utf8 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use llvm/str` matched no file on the search path and this target provides no module llvm/str either, so every name from it is unbound. Check the path.

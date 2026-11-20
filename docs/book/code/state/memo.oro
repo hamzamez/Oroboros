@@ -1,0 +1,25 @@
+use io
+
+fn steps(n ∈ 1..100) (Nat) {
+    loop x = n, k = 0 {
+        x > 1 && k < 1000 && x < 100000000 -> again(if x % 2 == 0 { x / 2 } else { 3 * x + 1 }, k + 1)
+        else -> k
+    }
+}
+
+export fn main() {
+    var m := map(32)
+    m[1] := 0
+    loop n = 2 {
+        n <= 20 -> {
+            l = if n % 2 == 0 {
+                case m[n / 2] { 'some(x) -> if x < 1000 { x + 1 } else { x }; 'none -> steps(n) }
+            } else { steps(n) }
+            m[n] := l
+            again(n + 1)
+        }
+        else -> ()
+    }
+    io.print_int(case m[9] { 'some(x) -> x; 'none -> -1 })
+    io.print_int(case m[18] { 'some(x) -> x; 'none -> -1 })
+}

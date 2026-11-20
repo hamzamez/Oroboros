@@ -4519,7 +4519,39 @@ func (e *Env) betaTab(op *Term, args []*Term, fuel *int) (*Term, bool) {
 	}
 	if isForm(op, e, "array") {
 		i, err := normalize(args[0], e, fuel)
-		if err != nil || i == nil || i.Kind != KInt {
+		if err != nil || i == nil {
+			return nil, false
+		}
+		// A TABLE OF TABLES GIVEN BY ITS GRAPH, read at an index not known when
+		// compiling (the book's finding 101). A function on [0, n) given by its
+		// graph is, by extensionality, the n-way choice on its argument:
+		//	((array r₀ … rₙ₋₁) i)  ⟶  let #i = i ∈ 0..n−1 in
+		//	                           if #i = 0 then r₀ else … else rₙ₋₁
+		// The domain 0 ≤ i < n stays an obligation, a range on the index as a
+		// rule's is, so no index outside it reaches the last arm. Each arm is a
+		// literal table, whose own reads are proven as any literal's: the row's
+		// bound is the row's, which a flattening into one table would have to
+		// carry as a fact the analysis cannot state (two reads of the offsets).
+		if i.Kind != KInt && len(op.Kids) >= 2 && e.Word != (Word{}) && !PlantTableOfTablesStuck {
+			rows := op.Kids[1:]
+			all := true
+			for _, r := range rows {
+				if !isForm(r, e, "array") {
+					all = false
+				}
+			}
+			if all {
+				x := e.freshNames(1, op, i)[0]
+				ty := fmt.Sprintf("int 0 %d", len(rows)-1)
+				idx := &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(RuleIndexDef), Str("index"), Str(ty), i}}
+				chain := rows[len(rows)-1]
+				for j := len(rows) - 2; j >= 0; j-- {
+					chain = App(Name("if"), App(Name("="), Name(x), Int(int64(j))), rows[j], chain)
+				}
+				return App(Name("let"), idx, Fn([]string{x}, chain)), true
+			}
+		}
+		if i.Kind != KInt {
 			return nil, false
 		}
 		elems := op.Kids[1:]
@@ -4534,6 +4566,11 @@ func (e *Env) betaTab(op *Term, args []*Term, fuel *int) (*Term, bool) {
 	}
 	return nil, false
 }
+
+// PlantTableOfTablesStuck leaves a table of tables read at an unknown index
+// stuck, as before finding 101: it reaches the lowering as an application of
+// an application.
+var PlantTableOfTablesStuck bool
 
 // tableLen folds `len` when the table's length is known: `(len (array a b c))`
 // is 3 and `(len (table n f))` is n.
@@ -4590,8 +4627,21 @@ func (e *Env) duplicableTable(t *Term) bool {
 			return false
 		}
 	}
-	return isForm(in, e, "table") && len(in.Kids) == 3 &&
-		e.pureTerm(in, map[string]bool{})
+	if isForm(in, e, "table") && len(in.Kids) == 3 {
+		return e.pureTerm(in, map[string]bool{})
+	}
+	// A TABLE OF TABLES GIVEN BY ITS GRAPH has no value of its own to bind:
+	// its meaning is its reads, each the n-way choice (betaTab, finding 101),
+	// so it is substituted where it is read, as a rule is
+	if isForm(in, e, "array") && len(in.Kids) >= 2 && !PlantTableOfTablesStuck {
+		for _, r := range in.Kids[1:] {
+			if !isForm(r, e, "array") {
+				return false
+			}
+		}
+		return e.pureTerm(in, map[string]bool{})
+	}
+	return false
 }
 
 // AscribeName is the structural name that carries a range on a TERM.

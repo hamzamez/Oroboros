@@ -1016,7 +1016,12 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 	// pairs' element taken apart has the same shape, and the flattening pass
 	// rewrites it to its projections before it reaches here (emit/product.go,
 	// the book's finding 64).
+	// The map is a variable, or a named form giving one (a literal `map`, a
+	// `build-map` scope): a variable applied, or a λ, at its place is another
+	// shape, (((m k) L) K), a read's elimination itself eliminated (the book's
+	// finding 100), whose "key" L was lowered as a value and refused.
 	if op.Kind == core.KApp && len(op.Kids) == 2 && len(k.Params) >= 2 && op.Kids[0].Kind != core.KName &&
+		(isMapTerm(op.Kids[0]) || PlantReadShapeLoose) &&
 		(len(k.Params) == 2 || emit.IsMapSlots(k.Params[1:])) {
 		m := l.single(op.Kids[0], r)
 		key := l.single(op.Kids[1], r)
@@ -1538,6 +1543,23 @@ func isRangeType(ty string) bool {
 	_, _, ok := core.IntRangeBig(ty)
 	return ok
 }
+
+// isMapTerm reports a term that can be a map at a read's head: a variable, or
+// an application of a named form (a literal `map`, a `build-map` scope). A
+// variable applied to an argument, (#vm k), is a read itself, and a λ is no map.
+func isMapTerm(m *core.Term) bool {
+	switch m.Kind {
+	case core.KBound:
+		return true
+	case core.KApp:
+		return len(m.Kids) > 0 && m.Kids[0].Kind == core.KName
+	}
+	return false
+}
+
+// PlantReadShapeLoose takes any application under an eliminator for a map
+// read, as before finding 100: (((m k) L) K) then lowers L as a key.
+var PlantReadShapeLoose bool
 
 // PlantUnitUneliminated refuses (() (fn () b)) at lowering again: a claim in
 // windows' `main` loop is left to the refinement layer alone

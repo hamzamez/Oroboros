@@ -89,7 +89,13 @@ func joinLet(tg *Target, t *core.Term) (*core.Term, bool) {
 		return nil, false
 	}
 	k := t.Kids[1]
-	if k.Kind != core.KFn || len(k.Params) < 2 || !isProducer(tg, t.Kids[0]) {
+	if k.Kind != core.KFn || len(k.Params) < 2 {
+		return nil, false
+	}
+	// the producer a loop, a scope, or a map read's elimination, whose arms
+	// give the tuple (finding 100: the read under an `if` the reducer pushed
+	// the pattern into)
+	if _, read := mapReadCont(tg, t.Kids[0]); !isProducer(tg, t.Kids[0]) && !read {
 		return nil, false
 	}
 	if _, _, _, host := multiPrimCall(tg, t); host || !jumpsOut(tg, k.Closed()) {
@@ -111,8 +117,43 @@ func continuation(tg *Target, t *core.Term) (*core.Term, bool) {
 	if _, _, k, ok := multiPrimCall(tg, t); ok {
 		return k, true
 	}
+	if k, ok := mapReadCont(tg, t); ok {
+		return k, true
+	}
 	return joinLet(tg, t)
 }
+
+// mapReadCont is a map read under its eliminator, ((m k) (fn (#t #p…) b)), a
+// third continuation (the book's finding 100): the read runs once, now, and
+// its eliminator's body is in the position the read is, as a host call's
+// continuation's is (ADR 0027). The lowering's `eliminator` lowers it so. A
+// loop memoizing in a map, `l = case m[n/2] { … }; m[n] := l; again(…)`, puts
+// its back edge there, and CheckJoins counted the read as an exit of one
+// value. The map is a variable, never a primitive or a λ.
+func mapReadCont(tg *Target, t *core.Term) (*core.Term, bool) {
+	if PlantMapReadNoContinuation || t.Kind != core.KApp || len(t.Kids) != 2 || t.Kids[1].Kind != core.KFn ||
+		len(t.Kids[1].Params) < 2 {
+		return nil, false
+	}
+	read := t.Kids[0]
+	if read.Kind != core.KApp || len(read.Kids) != 2 {
+		return nil, false
+	}
+	switch m := read.Kids[0]; m.Kind {
+	case core.KBound:
+	case core.KName:
+		if _, prim := tg.Prims[m.Name]; prim || m.Name == "again" {
+			return nil, false
+		}
+	default:
+		return nil, false
+	}
+	return t.Kids[1], true
+}
+
+// PlantMapReadNoContinuation reads a map read's eliminator as no continuation,
+// as before finding 100: a loop memoizing in a map is refused by CheckJoins.
+var PlantMapReadNoContinuation bool
 
 // TOTALISATION, AND IT IS WHY A HOST CALL THAT CAN FAIL NEEDS NOTHING NEW.
 //

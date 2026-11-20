@@ -1,0 +1,68 @@
+// twosum: TWO ELEMENTS THAT SUM TO A TARGET, BY ONE PASS AND A MAP.
+//
+// WHAT IT IS. Given a table a and a target t, find i < j with a[i] + a[j] = t.
+// The quadratic search tries every pair; the one-pass algorithm keeps a map from
+// each value seen to its index, and at a[j] asks the map for t − a[j]: found, the
+// pair is (that index, j); not found, a[j] is stored. Each element is read once
+// and stored once, so the work is linear (the map's operations constant).
+//
+// THE MAP, READ AND THEN WRITTEN, in a loop (the book's finding 100). The read's
+// arms write the answer's cells, so the state flows through them, and the store
+// after the read must still know the map's length: one insert per element, at
+// most len(a) of the map's capacity.
+//
+// The program finds the pair for each target 3 … 17 in {2, 7, 11, 15, 1, 8}, by
+// the map and by the quadratic search, and prints the first pair found for 9,
+// indices 0 and 1 (2 + 7), and how many of the 15 targets agree: 15.
+use io
+
+// the pair by the map, or (-1, -1)
+fn by_map(a ∈ Array(0..1000), t ∈ 0..2000) (-1..1000, -1..1000) {
+    var m := map(16)
+    var lo := -1
+    var hi := -1
+    loop j = 0 {
+        j < len(a) && j < 16 && lo < 0 -> {
+            case m[t - a[j]] {
+                'some(i) -> { lo := i; hi := j }
+                'none -> ()
+            }
+            m[a[j]] := j
+            again(j + 1)
+        }
+        else -> ()
+    }
+    (lo, hi)
+}
+
+// the least i < j with a[i] + a[j] = t, or j
+fn first(a ∈ Array(0..1000), t ∈ 0..2000, j ∈ 0..15) (0..15) {
+    loop x = 0 {
+        x < j && x < len(a) && a[x] + a[j] != t -> again(x + 1)
+        else -> x
+    }
+}
+
+// the first pair (i, j) in the order j then i, by the quadratic search
+fn by_search(a ∈ Array(0..1000), t ∈ 0..2000) (-1..1000, -1..1000) {
+    loop j = 0 {
+        j < len(a) && j < 16 && first(a, t, j) < j -> (first(a, t, j), j)
+        j < len(a) && j < 16 -> again(j + 1)
+        else -> (-1, -1)
+    }
+}
+
+export fn main() {
+    a = array { 2, 7, 11, 15, 1, 8 }
+    (i, j) = by_map(a, 9)
+    io.print_int(i)
+    io.print_int(j)
+    loop t = 3, agree = 0 {
+        t <= 17 -> {
+            (p, q) = by_map(a, t)
+            (r, s) = by_search(a, t)
+            again(t + 1, if p == r && q == s && agree < 100 { agree + 1 } else { agree })
+        }
+        else -> io.print_int(agree)
+    }
+}

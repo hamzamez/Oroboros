@@ -107,24 +107,19 @@ until it is, the 11-18 plan below stands. **The 11-18 plan (its §5), approved**
 "assessment's plan approved"):
 1. TinyRetroPad's body in J, module by module, the window procedure last;
 2. the callback decisions: tier 2's taken and built (ADR 0133); tier 1's to discuss with hamza;
-3. the capacity facts: mapvalue's refusals prove on HEAD as reconstructed (probes-2026-11-19); the
-   refusing program found 2026-11-20, a map read and then stored to (finding 100 (b), below);
+3. ~~the capacity facts~~ done: mapvalue's refusals prove on HEAD as reconstructed
+   (probes-2026-11-19), and the refusing program, a map read and then stored to, builds
+   ([findings-2026-11-20](gauntlet/results/findings-2026-11-20.md));
 4. ~~a timeout on every program a build test runs~~ done ([timeouts](gauntlet/results/timeouts-2026-11-19.md));
 5. CLAUDE.md as state again;
 6. the words audit: first pass done ([words-audit.md](docs/words-audit.md)); `inout` kept and
    `cell(T)` to be refused (ADR 0135); `jump`, `underlying`, `cdecl` kept for now (hamza).
 
-**Ahead of the list below, the book's findings 100 and 101** (hamza, 2026-11-20: "put findings 100
-and 101 in the plan"), each a construct its spec states, refused in the lowering's words:
-- **100, a map buffer read in its scope** (maps.md §3, `m[k]` a read giving `Option`). Narrowed
-  2026-11-20: a read in an argument works (`io.print_int(case m[9] { … })` prints 50); two shapes
-  fail. (a) A `case` on the read in the scope's tail with impure arms is refused as a closure,
-  `fn(#t, #p) { … }`, by the state translation. (b) A read and then a store: `len(#vm1) < 4` does
-  not follow, because the read's threaded map carries no fact `len(#vm1) = len(m)`. This is the
-  11-18 plan's item 3, its refusing program;
-- **101, a table of tables** (tables.md §5.1, composition) **or a table of tuples written as a
-  list** (products.md, currying), read at an unknown index. The first is storage's "a table inside a
-  table", waiting on a trigger, now named.
+~~**Ahead of the list below, the book's findings 100 and 101**~~ done
+([findings-2026-11-20](gauntlet/results/findings-2026-11-20.md)), on every target: a map read and
+then stored to (Collatz memoized, Two Sum), the 11-18 plan's item 3's refusing program; a literal
+table of tuples (the shoelace formula) and of tables (Lo Shu) read at an unknown index. A table of
+tables made by a rule, received or built stays storage's "a table inside a table".
 
 **Decided and to be built** (hamza, 2026-11-19), in this order (the first list's items 1–4, 6, 7 built:
 ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):
@@ -378,10 +373,10 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **11,971 of 12,025** integer operations proven inside their target's word, the 54 left
+- **Provability**: **12,435 of 12,489** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,393 of 1,686** loops proven to
-  terminate (size-change termination; of the 293 left, 41 were before bigbits-2026-11-19, among
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,477 of 1,772** loops proven to
+  terminate (size-change termination; of the 295 left, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 41 were before bigbits-2026-11-19, among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
   halving, a falling maximum, a bit cleared, size-change termination does not see, each counted

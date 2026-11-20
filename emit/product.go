@@ -183,6 +183,9 @@ func (f *flattener) anyProduct(t *core.Term) bool {
 	if f.isKind(t, "table-set") && len(t.Kids) == 4 && f.prodLit(t.Kids[3]) != nil {
 		return true
 	}
+	if k, _ := f.litProduct(t); k > 0 {
+		return true
+	}
 	if t.Kind == core.KFn {
 		return f.anyProduct(t.Closed())
 	}
@@ -221,6 +224,77 @@ func (f *flattener) prodLit(t *core.Term) []*core.Term {
 	return parts
 }
 
+// litProduct is a table literal whose every element is a product literal of
+// one arity k ≥ 2, and the flat literal of their components in order.
+func (f *flattener) litProduct(t *core.Term) (int, *core.Term) {
+	if !f.isKind(t, "array") || len(t.Kids) < 2 {
+		return 0, nil
+	}
+	k := 0
+	flat := []*core.Term{t.Kids[0]}
+	for _, e := range t.Kids[1:] {
+		vs := f.prodLit(e)
+		if vs == nil || k != 0 && len(vs) != k {
+			return 0, nil
+		}
+		k = len(vs)
+		flat = append(flat, vs...)
+	}
+	return k, &core.Term{Kind: core.KApp, Kids: flat}
+}
+
+// onlyReads reports whether every occurrence of the name x in t reads a table
+// of k-tuples through its arity: ((x i) (fn (y₁ … yₖ) …)), ((x i) j) with j a
+// constant, or (len x).
+func onlyReads(t *core.Term, x string, k int) bool {
+	total, reads := 0, 0
+	var walk func(t *core.Term)
+	walk = func(t *core.Term) {
+		if t == nil {
+			return
+		}
+		if t.Kind == core.KName && t.Name == x {
+			total++
+			return
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 2 {
+			if in := t.Kids[0]; in.Kind == core.KApp && len(in.Kids) == 2 && in.Kids[0].Kind == core.KName &&
+				in.Kids[0].Name == x && (t.Kids[1].Kind == core.KFn && len(t.Kids[1].Params) == k || t.Kids[1].Kind == core.KInt) {
+				reads++
+			}
+			if t.Kids[0].Kind == core.KName && t.Kids[0].Name == "len" && t.Kids[1].Kind == core.KName && t.Kids[1].Name == x {
+				reads++
+			}
+		}
+		if t.Kind == core.KFn {
+			walk(t.Closed())
+			return
+		}
+		for _, c := range t.Kids {
+			walk(c)
+		}
+	}
+	walk(t)
+	return total > 0 && total == reads
+}
+
+// headArity is the arity of a table read's head, a name bound to a table of
+// products or a literal one, and the head the flat table is read through.
+func (f *flattener) headArity(h *core.Term) (int, *core.Term) {
+	if h.Kind == core.KName {
+		return f.arity[h.Name], h
+	}
+	if k, flat := f.litProduct(h); k > 0 && !PlantNoLiteralProduct {
+		return k, flat
+	}
+	return 0, nil
+}
+
+// PlantNoLiteralProduct leaves a literal table of tuples unflattened, as
+// before finding 101: read at an index not known when compiling, its element
+// reaches the lowering as two values where one is wanted.
+var PlantNoLiteralProduct bool
+
 func mul(k int, e *core.Term) *core.Term {
 	if e.Kind == core.KInt {
 		return core.Int(int64(k) * e.Int)
@@ -252,11 +326,23 @@ func (f *flattener) walk(t *core.Term) (*core.Term, error) {
 	// read as a map's (present, value), x the flag (the book's finding 64).
 	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[1].Kind == core.KFn && !PlantNoProductElim {
 		inner, k := t.Kids[0], t.Kids[1]
-		if inner.Kind == core.KApp && len(inner.Kids) == 2 && inner.Kids[0].Kind == core.KName {
-			if n, ok := f.arity[inner.Kids[0].Name]; ok && len(k.Params) == n {
+		if inner.Kind == core.KApp && len(inner.Kids) == 2 {
+			if n, head := f.headArity(inner.Kids[0]); n > 0 && len(k.Params) == n {
 				projs := make([]*core.Term, n)
 				for j := range projs {
 					projs[j] = core.App(inner, core.Int(int64(j)))
+				}
+				// a literal head is flat already, so its projections are
+				// uncurried here: the flat literal has no arity to read
+				if head != inner.Kids[0] {
+					idx, err := f.walk(inner.Kids[1])
+					if err != nil {
+						return nil, err
+					}
+					for j := range projs {
+						projs[j] = core.App(head, add(mul(n, idx), j))
+					}
+					f.n++
 				}
 				return f.walk(core.App(k, projs...))
 			}
@@ -266,9 +352,8 @@ func (f *flattener) walk(t *core.Term) (*core.Term, error) {
 	// PROJECTION — `((t i) j)`, the curried form, uncurried.
 	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[1].Kind == core.KInt {
 		inner := t.Kids[0]
-		if inner.Kind == core.KApp && len(inner.Kids) == 2 &&
-			inner.Kids[0].Kind == core.KName {
-			if k, ok := f.arity[inner.Kids[0].Name]; ok {
+		if inner.Kind == core.KApp && len(inner.Kids) == 2 {
+			if k, head := f.headArity(inner.Kids[0]); k > 0 {
 				j := int(t.Kids[1].Int)
 				if j < 0 || j >= k {
 					return nil, fmt.Errorf("field %d of a %d-component product: "+
@@ -279,7 +364,7 @@ func (f *flattener) walk(t *core.Term) (*core.Term, error) {
 					return nil, err
 				}
 				f.n++
-				return core.App(inner.Kids[0], add(mul(k, idx), j)), nil
+				return core.App(head, add(mul(k, idx), j)), nil
 			}
 		}
 	}
@@ -430,6 +515,18 @@ func (f *flattener) walk(t *core.Term) (*core.Term, error) {
 		}
 		body, raw, _ := openFresh(t.Kids[2], map[string]bool{}, mangle)
 		k := f.arityOf(t.Kids[1])
+		// A LITERAL TABLE OF TUPLES BOUND TO A NAME is its flat table where
+		// every use of the name reads through the arity: a tuple pattern on an
+		// element, a projection, or its length. Handed whole to anything else (a
+		// variadic's table, a host), its elements are the tuples, and flattening
+		// it would change the table's length.
+		if kl, flat := f.litProduct(t.Kids[1]); k == 0 && kl > 0 && !PlantNoLiteralProduct && onlyReads(body, raw[0], kl) {
+			k = kl
+			if v, err = f.walk(flat); err != nil {
+				return nil, err
+			}
+			f.n++
+		}
 		if k > 0 {
 			f.arity[raw[0]] = k
 		}

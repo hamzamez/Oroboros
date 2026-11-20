@@ -101,8 +101,8 @@ rejected and why.
 | | how | the numbers |
 |---|---|---|
 | **as fast as hand-written code** | seven benchmark programs against hand-written Go, JavaScript, Java, and C on Windows compiled by the same compiler | generated over hand-written: **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows (geometric means, 45 comparisons from 0.85× to 1.18×, each above 1.05× explained) ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)) |
-| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **11,971 of 12,025** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
-| **loops stop** | size-change termination | **1,393 of 1,686** loops proven; the rest read input or the file system, or count through numbers past the word (a halving, a bit cleared) in a way the check does not see |
+| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,435 of 12,489** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
+| **loops stop** | size-change termination | **1,477 of 1,772** loops proven; the rest read input or the file system, or count through numbers past the word (a halving, a bit cleared) in a way the check does not see |
 | **every platform agrees** | 87 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 73 on all four, every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
 | **each rule is tested broken** | a fault is planted in every rule that decides what is legal, and its test must fail | listed with each result in [gauntlet/results/](gauntlet/results/) |
 | **nothing drifts by accident** | every emitted file, proof count and error message, on five platform targets, compared with a committed baseline | `go run ./cmd/check` |
@@ -157,18 +157,15 @@ each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
    procedure last. The window procedure and the status line already run.
 2. **The callback decisions**: the window procedure's built; a function a platform calls only
    during a call decided and built on every target (2026-11-20).
-3. **The capacity facts** of maps: the program they fail was found 2026-11-20, a map read and then
-   written to inside the scope that fills it.
+3. ~~The capacity facts of maps~~ **done**: a map read and then written to inside the scope that
+   fills it builds, a memo among them (2026-11-20).
 4. ~~A time limit on every program a test runs~~ **done**.
 5. **The project's instructions to its assistant** kept as the state of things.
 6. **The words that bought nothing**: a first pass done ([words-audit](docs/words-audit.md)).
 
-**First, two things the book found** (its findings 100 and 101, hamza 2026-11-20), each a form the
-specification states that the compiler refuses in its internal words:
-- a map read while it is still being filled, when the read is the scope's last `case`, or is
-  followed by a write;
-- a table of tables, or a table of tuples written as a list, read at an index not known when
-  compiling.
+~~**First, two things the book found**~~ **done** (its findings 100 and 101, 2026-11-20): a map
+read while it is still being filled, and a table of tables or of tuples written out, read at an
+index not known when compiling, now build on every platform.
 
 **Decided and being built** (hamza, 2026-11-19), in order:
 1. **The memory model finished**: ~~one C function with many meanings, `SendMessageA`'s messages~~

@@ -1342,6 +1342,56 @@ Item 7 was written twice, and the second record replaced the first: 4 at 20 is 8
 records as `struct`s in its own `map`; Windows, which has no map of its own, keeps each record's
 two parts side by side in the slots of a table the program's own code manages.
 
+A map can be read while it is still being filled, and that is what makes it a **memo**: a table
+of answers already found. The Collatz map sends an even n to n/2 and an odd one to 3n + 1, and
+the number of steps to reach 1 obeys L(2k) = L(k) + 1. So for an even n the answer is one more
+than the one already stored for n/2:
+
+<!-- file docs/book/code/state/memo.oro -->
+```go
+use io
+
+fn steps(n ∈ 1..100) (Nat) {
+    loop x = n, k = 0 {
+        x > 1 && k < 1000 && x < 100000000 -> again(if x % 2 == 0 { x / 2 } else { 3 * x + 1 }, k + 1)
+        else -> k
+    }
+}
+
+export fn main() {
+    var m := map(32)
+    m[1] := 0
+    loop n = 2 {
+        n <= 20 -> {
+            l = if n % 2 == 0 {
+                case m[n / 2] { 'some(x) -> if x < 1000 { x + 1 } else { x }; 'none -> steps(n) }
+            } else { steps(n) }
+            m[n] := l
+            again(n + 1)
+        }
+        else -> ()
+    }
+    io.print_int(case m[9] { 'some(x) -> x; 'none -> -1 })
+    io.print_int(case m[18] { 'some(x) -> x; 'none -> -1 })
+}
+```
+
+<!-- run go docs/book/code/state/memo.oro -->
+```
+19
+20
+```
+
+<!-- run windows docs/book/code/state/memo.oro -->
+```
+19
+20
+```
+
+Each pass reads `m[n / 2]` and then stores `m[n]`. The read changes nothing, so the map after it
+is the map before it, and the store is proven to have room: one key per pass, nineteen passes,
+32 places. L(9) = 19 was computed by `steps`, and L(18) = 20 was found in the map.
+
 What maps do not do today, plainly:
 
 - **Keys are integers.** A map needs `==` on its keys, and chapter 9 said strings have none
@@ -1352,13 +1402,12 @@ What maps do not do today, plainly:
 
 ## 14.10 What is not here
 
-- **A function does not capture a cell or a buffer.** A `fn` written inside a block cannot
-  write the block's `var`. State is passed: a buffer is lent with `linear`, and a cell with
-  `inout`. (One exception is built, for Windows: a window procedure, a function Windows calls
-  back with each message, keeps its state in a cell of the block around it. Chapter 18.)
-- **A map is read once it is built.** `m[k]` on a `var m` that is still being filled is
-  refused; build it in a block and read what the block gives back, as above. The refusal is in
-  the compiler's internal words today (the book's finding 100).
+- **A function does not capture a buffer, and captures a cell only where its caller is
+  predictable.** A `fn` bound to a name cannot write the block's `var`; one handed straight to a
+  definition can (14.2), and so can one handed to a platform that promises the order of its calls
+  (chapter 17). State is otherwise passed: a buffer is lent with `linear`, and a cell with
+  `inout`. (A window procedure, a function Windows calls back with each message, keeps its state
+  in a cell of the block around it. Chapter 18.)
 - **No growing.** A buffer's length is fixed where it is made (14.8). Appending to a table
   that grows is not in the language.
 - **One loop fills a buffer, or functions are lent it.** Today a buffer written by a loop

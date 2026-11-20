@@ -113,20 +113,24 @@ traversal written as a callback where a loop of the program's own costs less.
 
 Counting sort's histogram through forEach, `count[x] := count[x] + 1`, is refused by R3 ("the
 buffer count is mentioned by a function"). T1-4 is decided (lent like a cell), and the derivation
-says how. The state is a table, λ_S : B × A → B × R, threaded as the cell is. Realized in place,
-each store returns its own argument, so **the threaded value is one address throughout**: the
-reference is constant, and the λ may capture the buffer and store into it. What is owed is the
-IR's part, more than the translation's. A store `(set h i v)` is lowered only inside a build region,
-where its table is the region's own ("a table-set is not a host call"), so a table read out of a
-reference cannot be stored into. The design the derivation gives:
-- **a store and a read through the reference**, `#ref-set(r, i, v)` and `#ref-index(r, i)`, which S
-  writes for `b[i] := v` and `b[i]` inside the λ. They are in place by construction, since r holds
-  the address, and they carry ADR 0119's obligation 0 ≤ i < len, len read through r;
-- printed as Go's `(*r)[i] = v`, JavaScript's `r[i] = v`, the JVM's holder `r[0][i] = v` and LLVM's
-  load of the table's address then a store;
-- `ownReferences` counting the two as uses, not escapes, so the table's facts after the call are
-  its element set's alone (no content fact survives a call that stores);
-- the table's release at the call, as a captured table's is (`PlantFnReleasedEarly`).
+says what the state is: a table, λ_S : B × A → B × R, threaded as a cell is. Realized in place,
+each store returns its own argument, so the threaded value is one address throughout.
 
-The program is counting sort (Seward 1954), the histogram by forEach on JavaScript, forEachOrdered on
-the JVM and a definition on every target. It is next.
+**A first attempt (2026-11-20, after the findings) stopped at the IR, for a reason the design must
+answer, not a bug.** A cell's reference form, r = #ref(b), then b := #deref(r) after the call, does
+not carry over:
+- after the call the buffer needs a new version, or the old one's content facts ("all zero" from
+  its initializer) stay, a wrong answer the analysis would believe;
+- a table read out of a reference is a value outside any build region, so the program's later
+  stores to it are not lowered ("a table-set is not a host call");
+- and on windows the table would be released at the reference's creation, its last use as a value.
+
+**The design the memory model gives** (ADR 0084's views, ADR 0070's borrow): the call borrows the
+buffer, as a host call with an `Array(V) linear` parameter does, and returns its next version. The
+host lends that view to each activation, and the λ's stores are in place on the lent view. In the
+IR the call takes the buffer at a lent position and yields b′. The region receives the view through
+its environment, E on LLVM, the frame elsewhere, and stores into it with no version of its own. The
+verifier's linearity rules accept a store to a view lent to the region. Owed with it: the store's
+domain obligation (ADR 0119) against the view's length; the view's release at b′'s death, not
+before the call; and the content facts after the call, the element set alone. A research note, then
+the build; the program is counting sort.

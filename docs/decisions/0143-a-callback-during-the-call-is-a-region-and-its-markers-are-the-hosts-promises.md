@@ -101,7 +101,8 @@ callback hole" to this decision.
     expected to lose;
   - Win32's pages kept as data for the evidence check, fetched with permission, when the first
     Win32 marker is written;
-  - ten of Win32's 291 enumerators read against their pages before any is marked;
+  - ~~ten of Win32's 291 enumerators read against their pages before any is marked~~ done
+    (win32evidence-2026-11-20): none promises an order, every one the middle strength;
   - the middle strength's word, at a program;
   - our own higher-order definitions, which still refuse the λ a host's `ordered` admits.
 - **Planted faults** (research §5): the claim's domain and result; Theorem D's purity check; 𝒰's

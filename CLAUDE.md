@@ -102,9 +102,11 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 wrong about half the time.
 
 **The current assessment is [assessment-2026-11-20.md](docs/assessment-2026-11-20.md)**; read it
-before planning. The plan in force is hamza's "Build all 5" (2026-11-20): findings 100 and 101 (done),
-T1-4, the memory model's decided parts, ADR 0136's struct forms with TinyRetroPad, Win32's
-enumerator pages as evidence. Before it, **the 11-18 plan (assessment-2026-11-18 §5), approved** (hamza, 2026-11-19:
+before planning. The plan in force is hamza's "Build all 5" (2026-11-20): findings 100 and 101 (done);
+T1-4 (designed: a borrow through the call, callbacks-written §"Not built", not built); the memory
+model's decided parts; ADR 0136's struct forms with TinyRetroPad; Win32's enumerator pages as
+evidence (done, [win32evidence](gauntlet/results/win32evidence-2026-11-20.md): none promises an order,
+all the middle strength). Before it, **the 11-18 plan (assessment-2026-11-18 §5), approved** (hamza, 2026-11-19:
 "assessment's plan approved"):
 1. TinyRetroPad's body in J, module by module, the window procedure last;
 2. the callback decisions: tier 2's taken and built (ADR 0133); tier 1's to discuss with hamza;

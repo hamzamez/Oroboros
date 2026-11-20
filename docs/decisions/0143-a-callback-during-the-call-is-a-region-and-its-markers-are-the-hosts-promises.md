@@ -4,9 +4,11 @@ Date: 2026-11-20
 Status: Accepted (hamza, 2026-11-18 and 2026-11-20, on [callbacks-sketches.md](../callbacks-sketches.md)
 Part 2, derived in Part 3: T1-1 "L"; T1-3 "agree to option a"; T1-4 "agree"; T1-2 "agree to calls K
 with K a range, ordered", then "sure, I agree" to the default and the evidence; T1-5 "agree to k").
-Built 2026-11-20 on Go, a pure λ and a cell threaded under `ordered`, and on windows, closure
-conversion into the context word and the slot, with the evidence check
-([callbacks](../../gauntlet/results/callbacks-2026-11-20.md)); JavaScript and the JVM to follow.
+Built 2026-11-20 on every target ([callbacks](../../gauntlet/results/callbacks-2026-11-20.md)): on
+Go a pure λ and a cell threaded under `ordered`; on windows closure conversion into the context
+word and the slot; on JavaScript an arrow function and on the JVM a lambda; with the evidence
+check. A written cell is threaded on Go only, the one target with an `ordered` host, and refused
+explicitly elsewhere.
 
 ## Context
 
@@ -123,6 +125,8 @@ callback hole" to this decision.
   rejected for Go, where an export may be called from several goroutines at once. The interval
   analysis reads such a reference, one no host call receives, as the join of its initial value and
   every store, a fixed point over the host's unknown count (research §3.5).
+- **On the JVM the lambda is printed where its one use is**, so the host's functional interface
+  types it and the target names none; each captured value is copied to a final local first.
 - **The target hands the loader `(callbacks i o …)`** per host operation: each callback parameter's
   index, and 1 where its host promises the order. The state translation threads a written cell only
   under it, and refuses one elsewhere naming the cell (Theorem D). A cell the λ only reads is

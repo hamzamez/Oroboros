@@ -4,8 +4,8 @@ hamza, 2026-11-20: "now build everything agreed to in callbacks, you come up wit
 programs for them. always mathematical and algebraic."
 
 Go first: stages A (a pure λ), B (a cell threaded under `ordered`) and D (the evidence check),
-then C, windows' closure conversion into the context word and the slot. JavaScript and the JVM
-(E) are the next step.
+then C, windows' closure conversion into the context word and the slot, then E, JavaScript's
+arrow function and the JVM's lambda.
 
 ## The programs
 
@@ -27,6 +27,13 @@ then C, windows' closure conversion into the context word and the slot. JavaScri
   ∀h. (p ∧ q) = (∀h. p) ∧ (∀h. q). Checked for every constant pair (a, b), captured from the loop's
   iteration through E in the context word: `0 0 0 11 4` on x86-64 and on i686. The book's §18.7.
 
+- **`examples/callbacks/quantifiers.oro`, on JavaScript: ∀, ∃ and the least witness.** For each
+  p_k(x) = x > k, k from 0 to 10, De Morgan (¬∀p ⇔ ∃¬p), the witness law (∃p ⇔ findIndex(p) ≥ 0)
+  and findIndex as the least witness, against a loop of the program's own: 11 of 11.
+- **`examples/callbacks/semilattice.oro`, on the JVM: ∀ over ∧ and ∃ over ∨.** allMatch is the
+  meet of the p(x), anyMatch their join, and each distributes over its own operation: 100 of the
+  100 pairs (k, m).
+
 ## What was built
 
 | piece | what it is | its rule and its planted fault |
@@ -46,6 +53,9 @@ then C, windows' closure conversion into the context word and the slot. JavaScri
 | closure conversion (windows) | E a record of the region's captures, an `alloca` in the entry block, its stores at the `fn`; the lifted function takes the λ's parameters and `ptr %ctx` and loads E at entry under the region's own names; the window procedure's `CallbackWrapper` at the claim's convention; `ctx(f)` E's address | the law on both triples; E read from the window's handle instead breaks it (`llvm.PlantCtxSwapped`) |
 | the slot (windows) | for a claim with no `ctx`: E's address in a global, saved, written and restored around the call | `EnumSystemGeoID` runs on both triples; the slot written before the call, in the text, and the fault leaves it unwritten (`llvm.PlantSlotUnwritten`) |
 | release | a λ's region is placed at the call that applies it, a loop's body for the rule | a captured table released after `EnumWindows` returns; the fault places the region at its `fn`, and the release falls before the call (`ir.PlantFnReleasedEarly`, `TestATableACallbackReadsLivesToItsCall`) |
+| JavaScript | an arrow function bound to the λ's value; `every`, `some`, `findIndex` typed by a claim over a table (no marker: ECMAScript's order is not kept as evidence) | the two programs, run |
+| the JVM | a lambda printed where its one use is, so the host's interface types it; each captured value copied to a final local first, and one copy per λ | a loop variable captured as it stands is refused by javac (`java.PlantJavaCaptureUnfinal`) |
+| the book's checker | runs a JVM program, `java -cp DIR Main` | §17.6's two examples |
 | declarations (Win32) | `winuser.EnumWindows` by its context word; `winnls.EnumSystemGeoID`, a new header, by its slot | exempt from the prototype check: the survey refuses a function pointer |
 | declarations | `strings`: IndexFunc, LastIndexFunc, ContainsFunc, Map, TrimFunc; `slices.EqualFunc`, `ordered` | Map's result ours, witnessed by an adversary over the mappings (`TestStringsResultsDeclaredOursLandInUTF8`) |
 
@@ -95,6 +105,15 @@ It now counts one callable where the callback's parameters are words, handles or
 bound: whether an API keeps its pointer past the call, which tier 1 excludes, is its
 documentation's, and the header does not say.
 
+**On JavaScript and the JVM:**
+- **Two λs capturing one loop variable** declared its final copy twice in one scope, and javac
+  refused it; the copy is now named per λ.
+- **A loop over (k, m) pairs was not proven to end**: size-change termination does not see a
+  lexicographic measure where m resets as k grows. One counter over the pairs, k = i / 10 and
+  m = i mod 10, is the same enumeration with a measure it sees.
+- **The book's checker could not run a JVM program**, so a JVM example would have been printed
+  unrun; it runs them now.
+
 ## Paid and bought
 
 | | |
@@ -102,10 +121,10 @@ documentation's, and the header does not say.
 | compile time | 0.95× the baseline on the corpus (`cmd/check`'s gate); no program compiles slower |
 | run time | not measured: no program had a callback before; Go keeps a non-escaping closure on the stack (research §2.1), unmeasured here |
 | code size | the two new programs only; every existing file byte-identical |
-| proofs | 11,853 of 11,907 operations and 1,364 of 1,657 loops, from 11,812 of 11,866 and 1,361 of 1,654: the three programs' 41 operations and three loops, all proven; windows32 6,685 of 6,695 and 741 of 820 |
+| proofs | 11,859 of 11,913 operations and 1,367 of 1,660 loops, from 11,812 of 11,866 and 1,361 of 1,654: the five programs' 47 operations and six loops, all proven; windows32 6,685 of 6,695 and 741 of 820 |
 | refusals changed | none in the corpus; the two programs refused on JavaScript, the JVM and windows, which declare no such host |
 | compiler lines | `core/cell.go` +190, `core/reduce.go` +40, `core/jreadtarget.go` +20, `emit/check.go` +40, `emit/target.go` +75, `emit/layout.go` +20, `ir/callback.go` +200, `ir/interval.go` +130, `ir/verify.go` +95, `ir/lower.go` +45, `ir/golang/golang.go` +65, `ir/plan`, `ir/print.go`, `ir/read.go`, `ir/typing.go`, `ir/final.go`, `ir/ir.go` a few each; tests +330 |
 | language lines | `targets/go/slices.oro` new, `targets/go/strings.oro` +30; two programs, 110 lines |
 | documents | ADR 0143's "as built"; inventory.md four words; j.md §1.4; the book's §17.6 (8 blocks); research §2.1's figure, corrected earlier today |
 | rule made less general | none |
-| not built | JavaScript and the JVM (E); a written cell on LLVM, at an `ordered` Win32 host; a buffer in the λ (T1-4, decided, waits on a program that writes one); the middle strength; a law a callback obeys |
+| not built | a written cell on LLVM, JavaScript and the JVM, each refused explicitly, since no host there is `ordered` (the JVM's holder or slot, measured, waits on one); a buffer in the λ (T1-4, decided, waits on a program that writes one); the middle strength; a law a callback obeys |

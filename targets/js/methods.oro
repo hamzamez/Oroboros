@@ -39,16 +39,22 @@ module js/Array {
     fn fill(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.fill(${b})" }
     fn flat(a ∈ Any) (Any) pure { host expr "${a}.flat()" }
 
-    // Higher-order. Declared so the target is honest about what JS has; every
-    // one is unreachable, because passing a λ is an escaping closure.
+    // Higher-order. `some`, `every` and `findIndex` take a λ written at the
+    // call, a callback during the call (ADR 0143), over a table of integers:
+    // ∃x ∈ a. p(x), ∀x ∈ a. p(x), and the least index whose element satisfies
+    // p, or −1. ECMAScript visits the elements in ascending order, but no
+    // sentence of it is kept as the evidence `ordered` rests on (callbacks-go-
+    // markers.txt is Go's), so they are declared with no marker: the λ is pure.
+    // The others are still declared over Any, and still unreachable.
+    set NumPred = fn(x ∈ Int) (b ∈ Bool)
     fn `map`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.map(${b})" }
     fn filter(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.filter(${b})" }
     fn reduce(a ∈ Any, b ∈ Any, c ∈ Any) (Any) pure { host expr "${a}.reduce(${b}, ${c})" }
     fn forEach(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.forEach(${b})" }
-    fn some(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a}.some(${b})" }
-    fn every(a ∈ Any, b ∈ Any) (Bool) pure { host expr "${a}.every(${b})" }
+    fn some(a ∈ Array(Int), p ∈ NumPred) (Bool) pure { host expr "${a}.some(${p})" }
+    fn every(a ∈ Array(Int), p ∈ NumPred) (Bool) pure { host expr "${a}.every(${p})" }
     fn find(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.find(${b})" }
-    fn findIndex(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.findIndex(${b})" }
+    fn findIndex(a ∈ Array(Int), p ∈ NumPred) (-1..2^53-1) pure { host expr "${a}.findIndex(${p})" }
     fn sort(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.sort(${b})" }
 }
 

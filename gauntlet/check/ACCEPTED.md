@@ -4040,3 +4040,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/callbacks/allwindows.oro java`
 - new source — `examples/callbacks/allwindows.oro js`
 - new source — `examples/callbacks/allwindows.oro windows`
+
+## 2026-11-20 — on 7e01ed51, with uncommitted changes
+
+**Reason:** callbacks tier 1 on JavaScript and the JVM (ADR 0143): examples/callbacks/quantifiers.oro (js) and semilattice.oro (java) new
+
+764 runs: 521 emitted, 243 refused; 11859 of 11913 integer operations bounded, 1367 of 1660 loops proven. compiler pass, differential pass, tooling pass.
+
+8 change(s):
+
+- new source — `examples/callbacks/quantifiers.oro go`
+- new source — `examples/callbacks/quantifiers.oro java`
+- new source — `examples/callbacks/quantifiers.oro js`
+- new source — `examples/callbacks/quantifiers.oro windows`
+- new source — `examples/callbacks/semilattice.oro go`
+- new source — `examples/callbacks/semilattice.oro java`
+- new source — `examples/callbacks/semilattice.oro js`
+- new source — `examples/callbacks/semilattice.oro windows`

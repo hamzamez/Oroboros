@@ -1,0 +1,44 @@
+// quantifiers: ∀, ∃ AND THE LEAST WITNESS OVER A TABLE, through JavaScript's own.
+//
+// WHAT IT IS. For a table a and a predicate p, Array's every, some and
+// findIndex are ∀x ∈ a. p(x), ∃x ∈ a. p(x), and the least index whose element
+// satisfies p, or −1. Three laws hold of them for every p:
+//   - De Morgan: ¬(∀x. p(x)) ⇔ ∃x. ¬p(x);
+//   - the witness: ∃x. p(x) ⇔ findIndex(p) ≥ 0;
+//   - findIndex(p) is the least witness, which a loop of the program's own
+//     computes too.
+// The program checks all three for each p_k(x) = x > k, k from 0 to 10, and
+// prints how many k they hold for: 11.
+//
+// THE CALLBACKS (ADR 0143). Each λ is pure, as the declarations require (no
+// marker: ECMAScript's order is not kept as evidence), and reads k, a value
+// of the loop's own iteration, in place, as an arrow function reads its
+// enclosing variables.
+use io
+use js/Array
+
+// the least index whose element exceeds k, or −1, by a loop of the program's own
+fn least(a ∈ Array(Int), k ∈ Int) (-1..2^53-1) {
+    loop i = 0 {
+        i < len(a) && a[i] <= k -> again(i + 1)
+        i < len(a) -> i
+        else -> -1
+    }
+}
+
+export fn main() {
+    a = array { 3, 1, 4, 1, 5, 9, 2, 6 }
+    loop k = 0, held = 0 {
+        k <= 10 -> {
+            all = Array.every(a, fn(x) { x > k })
+            notAll = Array.some(a, fn(x) { x <= k })
+            exists = Array.some(a, fn(x) { x > k })
+            w = Array.findIndex(a, fn(x) { x > k })
+            deMorgan = (!all && notAll) || (all && !notAll)
+            witness = (exists && w >= 0) || (!exists && w < 0)
+            least_ = w == least(a, k)
+            again(k + 1, if deMorgan && witness && least_ && held < 100 { held + 1 } else { held })
+        }
+        else -> io.print_int(held)
+    }
+}

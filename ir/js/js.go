@@ -392,11 +392,13 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.pl.Alias[s.Res[0]] = s.Args[0]
 	case ir.OIf:
 		p.ifOp(s)
-	case ir.OFn, ir.OCellSet:
-		// A CALLBACK DURING A CALL (ADR 0143) is printed on Go and on windows;
-		// here no host declares one yet, and a statement skipped would be a
-		// wrong answer, so it is refused
-		p.fail("a λ a host applies during a call (%s) is not printed on this target yet (ADR 0143)", s.Op)
+	case ir.OFn:
+		p.fnLit(s)
+	case ir.OCellSet:
+		// a cell a λ writes under an `ordered` host (ADR 0143): no JavaScript
+		// host is declared `ordered`, so no program reaches this, and it is
+		// refused rather than printed unexercised
+		p.fail("a cell written in a callback is not printed on JavaScript yet: no host here is `ordered` (ADR 0143)")
 	case ir.OLoop:
 		p.loop(s)
 	case ir.OBuild:
@@ -707,4 +709,28 @@ func FromFunc(tg *emit.Target, f *ir.Func) (string, error) {
 		return "", err
 	}
 	return Func(tg, f)
+}
+
+// fnLit prints a λ the host applies during a call (ADR 0143) as an arrow
+// function bound to its value, `const v10 = (v11) => { … };`: its parameters
+// the claim's, numbers here as ours are, its free values the enclosing
+// function's variables, which the arrow reads in place.
+func (p *printer) fnLit(s *ir.Stmt) {
+	body := s.Sub[0]
+	params := make([]string, len(body.Params))
+	for j, q := range body.Params {
+		params[j] = p.name(q)
+	}
+	p.line("const %s = (%s) => {", p.name(s.Res[0]), strings.Join(params, ", "))
+	p.ind++
+	savedTo, savedTail, savedF := p.yieldTo, p.tailOp, p.f
+	p.yieldTo, p.tailOp = nil, nil
+	// the λ's own exits return from the arrow: a function of one result
+	fc := *p.f
+	fc.Body = body
+	p.f = &fc
+	p.region(body, nil, true)
+	p.yieldTo, p.tailOp, p.f = savedTo, savedTail, savedF
+	p.ind--
+	p.line("};")
 }

@@ -47,6 +47,12 @@
      `use go/strings` matched no file on the search path and this target provides no module go/strings either, so every name from it is unbound. Check the path.
 == examples/callbacks/prefix.oro windows32 refused
    gen: examples/callbacks/prefix.oro: main: a function that mentions a cell (k): fn(x, y) { io.print_int(x); io.print_int(y); if k < 1000000 { k := k + 1 } else { () }; x == y } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), and callbacks applied during a call are tier 1, not built (spec/local.md §3)
+== examples/callbacks/quantifiers.oro windows32 refused
+   gen: examples/callbacks/quantifiers.oro: in main: `js/Array`.findIndex is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use js/Array` matched no file on the search path and this target provides no module js/Array either, so every name from it is unbound. Check the path.
+== examples/callbacks/semilattice.oro windows32 refused
+   gen: examples/callbacks/semilattice.oro: in main: `java/Arrays`.anyMatch is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use java/Arrays` matched no file on the search path and this target provides no module java/Arrays either, so every name from it is unbound. Check the path.
 == examples/dot.oro windows32 refused
    gen: examples/dot.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.

@@ -22,6 +22,7 @@ package java
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -58,6 +59,10 @@ type printer struct {
 	spare       map[*ir.Stmt]string
 	rec         string // the record of a several-results method
 	recTys      []string
+	// names spells a value other than its name: a λ during a call, its
+	// lambda written where it is used, and a captured value's final copy
+	// (fnLambda, ADR 0143)
+	names map[ir.V]string
 }
 
 type loopCtx struct {
@@ -196,6 +201,9 @@ func (p *printer) ref(v ir.V) string {
 			return "false"
 		}
 		return "null"
+	}
+	if n, ok := p.names[v]; ok {
+		return n
 	}
 	return p.name(v)
 }
@@ -518,11 +526,14 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.pl.Alias[s.Res[0]] = s.Args[0] // a view buys the JVM nothing (L13)
 	case ir.OIf:
 		p.ifOp(s)
-	case ir.OFn, ir.OCellSet:
-		// A CALLBACK DURING A CALL (ADR 0143) is printed on Go and on windows;
-		// here no host declares one yet, and a statement skipped would be a
-		// wrong answer, so it is refused
-		p.fail("a λ a host applies during a call (%s) is not printed on this target yet (ADR 0143)", s.Op)
+	case ir.OFn:
+		p.fnLambda(s)
+	case ir.OCellSet:
+		// a cell a λ writes under an `ordered` host (ADR 0143): no JVM host is
+		// declared `ordered`, so no program reaches this, and it is refused
+		// rather than printed unexercised (a written cell's holder or slot,
+		// to be measured, waits on one)
+		p.fail("a cell written in a callback is not printed on the JVM yet: no host here is `ordered` (ADR 0143)")
 	case ir.OLoop:
 		p.loop(s)
 	case ir.OBuild:
@@ -924,3 +935,106 @@ func FromFunc(tg *emit.Target, f *ir.Func) (string, error) {
 	}
 	return Func(tg, f)
 }
+
+// fnLambda prints a λ the host applies during a call (ADR 0143) as a Java
+// lambda written where its one use is (W16), `(v11) -> { … }`, so the host's
+// functional interface types it and no interface is named here. Java captures
+// only effectively final locals (JLS §15.27.2), and a loop's variable or a
+// join's is reassigned, so each value the λ reads from outside is first copied
+// to a final local, `final long v3f = v3;`, which the lambda reads.
+func (p *printer) fnLambda(s *ir.Stmt) {
+	body := s.Sub[0]
+	d, _, ok := p.tg.CallbackDecl(strings.TrimPrefix(s.Type, core.CallbackPrefix))
+	if !ok {
+		p.fail("%s is no callback type", s.Type)
+		return
+	}
+	if p.names == nil {
+		p.names = map[ir.V]string{}
+	}
+	inner := map[ir.V]string{}
+	for k, v := range p.names {
+		inner[k] = v
+	}
+	for _, v := range javaCaptures(p, body) {
+		if PlantJavaCaptureUnfinal {
+			continue // the λ reads v itself, reassigned or not
+		}
+		f := fmt.Sprintf("%sf%d", p.name(v), s.Res[0]) // one copy per λ: two may read v in one scope
+		p.line("final %s %s = %s;", p.tyOf(v), f, p.ref(v))
+		inner[v] = f
+	}
+	fc := *p.f
+	fc.Results = []string{d.Result}
+	sub := &printer{tg: p.tg, f: &fc, pl: p.pl, ind: p.ind + 1, int32: p.int32, word: p.word,
+		spare: p.spare, names: inner}
+	sub.region(body, nil, true)
+	if sub.err != nil {
+		p.fail("%v", sub.err)
+		return
+	}
+	params := make([]string, len(body.Params))
+	for j, q := range body.Params {
+		params[j] = p.name(q)
+	}
+	text := "(" + strings.Join(params, ", ") + ") -> {\n" + sub.b.String() + strings.Repeat("\t", p.ind) + "}"
+	p.names[s.Res[0]] = text
+}
+
+// javaCaptures are the values r reads and does not define, a constant or a
+// zero excepted, which is spelled where it is read.
+func javaCaptures(p *printer, r *ir.Region) []ir.V {
+	defined := map[ir.V]bool{}
+	used := map[ir.V]bool{}
+	var walk func(r *ir.Region)
+	walk = func(r *ir.Region) {
+		for _, v := range r.Params {
+			defined[v] = true
+		}
+		for _, pi := range r.Pis {
+			defined[pi.V] = true
+			used[pi.Of] = true
+			if pi.Other >= 0 {
+				used[pi.Other] = true
+			}
+		}
+		for i := range r.Stmts {
+			st := &r.Stmts[i]
+			for _, v := range st.Res {
+				defined[v] = true
+			}
+			for _, a := range st.Args {
+				used[a] = true
+			}
+			for _, sub := range st.Sub {
+				walk(sub)
+			}
+		}
+		for _, a := range r.Args {
+			used[a] = true
+		}
+		if r.T == ir.TBranch {
+			used[r.Cond] = true
+			walk(r.Then)
+			walk(r.Else)
+		}
+	}
+	walk(r)
+	seen := map[ir.V]bool{}
+	var out []ir.V
+	for v := range used {
+		res := p.pl.Res(v)
+		if defined[v] || defined[res] || seen[res] || p.pl.Const[res] != nil || p.pl.Zero[res] {
+			continue
+		}
+		seen[res] = true
+		out = append(out, res)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+// PlantJavaCaptureUnfinal lets a lambda read a captured local as it stands: a
+// loop's variable, reassigned, is then refused by javac
+// (TestACallbackIsTheHostsOwnClosureOnJavaScriptAndTheJVM).
+var PlantJavaCaptureUnfinal bool

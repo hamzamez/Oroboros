@@ -178,6 +178,9 @@ func main() {
 				exe = filepath.Join(tmp, "prog.exe")
 			case "js":
 				exe = filepath.Join(tmp, "prog.mjs")
+			case "java":
+				exe = filepath.Join(tmp, "prog-classes") // the build writes a class directory
+				os.RemoveAll(exe)
 			default:
 				fmt.Fprintf(os.Stderr, "line %d: run on %s is not something this checker does\n", open, args[0])
 				os.Exit(2)
@@ -191,6 +194,9 @@ func main() {
 				got = norm(said)
 			} else if args[0] == "js" {
 				got = norm(run("node", exe))
+				ok = block == got || loose && within(block, got)
+			} else if args[0] == "java" {
+				got = norm(run("java", "-cp", exe, "Main"))
 				ok = block == got || loose && within(block, got)
 			} else {
 				got = norm(run(exe))

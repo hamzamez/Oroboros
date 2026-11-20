@@ -83,4 +83,12 @@ module java/Arrays {
     fn binarySearchLong(a ∈ long_array, b ∈ Int) (Int) pure {
         host expr "java.util.Arrays.binarySearch(${a}, ${b})"
     }
+    // THE QUANTIFIERS over a table, callbacks during the call (ADR 0143):
+    // ∀x ∈ a. p(x) and ∃x ∈ a. p(x), a stream's allMatch and anyMatch. Their
+    // documentation says they "may not evaluate the predicate on all elements"
+    // and promises no order, so no marker: the λ is pure (Theorem D). The λ
+    // is printed inline, where the stream's LongPredicate types it.
+    set LongPred = fn(x ∈ Int) (b ∈ Bool)
+    fn allMatch(a ∈ long_array, p ∈ LongPred) (Bool) pure { host expr "java.util.Arrays.stream(${a}).allMatch(${p})" }
+    fn anyMatch(a ∈ long_array, p ∈ LongPred) (Bool) pure { host expr "java.util.Arrays.stream(${a}).anyMatch(${p})" }
 }

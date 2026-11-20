@@ -1,0 +1,36 @@
+// semilattice: ∀ AND ∃ ARE HOMOMORPHISMS, through the JVM's streams.
+//
+// WHAT IT IS. Over a table a, ∀x ∈ a. p(x) is the meet of the p(x) in the
+// Boolean lattice and ∃x ∈ a. p(x) their join, so each distributes over its own
+// operation:
+//     ∀x. (p(x) ∧ q(x))  =  (∀x. p(x)) ∧ (∀x. q(x)),
+//     ∃x. (p(x) ∨ q(x))  =  (∃x. p(x)) ∨ (∃x. q(x)),
+// and neither over the other's (∃ over ∧ fails for p, q true at different
+// elements). The program checks both laws for p(x) = x > k and q(x) = x < m,
+// every k and m from 0 to 9, the pair (i / 10, i mod 10) for each i < 100, and
+// prints how many of the hundred pairs they hold for: 100.
+//
+// THE CALLBACKS (ADR 0143). A stream's allMatch and anyMatch promise neither
+// the order nor the number of their calls ("may not evaluate the predicate on
+// all elements"), so each λ is pure (Theorem D). Each reads k and m, values of
+// the loop's own iteration, which Java lets a lambda read only as effectively
+// final locals: each is copied to a final local before the call.
+use io
+use java/Arrays
+
+export fn main() {
+    a = array { 3, 1, 4, 1, 5, 9, 2, 6 }
+    loop i = 0, held = 0 {
+        i < 100 -> {
+            k = i / 10
+            m = i % 10
+            meet = Arrays.allMatch(a, fn(x) { x > k && x < m })
+            meets = Arrays.allMatch(a, fn(x) { x > k }) && Arrays.allMatch(a, fn(x) { x < m })
+            join = Arrays.anyMatch(a, fn(x) { x > k || x < m })
+            joins = Arrays.anyMatch(a, fn(x) { x > k }) || Arrays.anyMatch(a, fn(x) { x < m })
+            ok = ((meet && meets) || (!meet && !meets)) && ((join && joins) || (!join && !joins))
+            again(i + 1, if ok && held < 1000 { held + 1 } else { held })
+        }
+        else -> io.print_int(held)
+    }
+}

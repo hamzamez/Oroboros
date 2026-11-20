@@ -1,0 +1,8 @@
+use io
+use java/Arrays
+
+export fn main() {
+    a = array { 3, 1, 4, 1, 5 }
+    c = len(a)
+    io.print_line(if Arrays.allMatch(a, fn(x) { x <= c }) { "every element is at most the length" } else { "not every" })
+}

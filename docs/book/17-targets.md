@@ -548,6 +548,47 @@ Four comparisons: the three equal pairs, then (1, 2), where it stopped. The guar
 there for the reason a loop of unknown length needs one. The host promises no bound on how
 many times it calls, so `k + 1` is proven inside the word only under `k < 1000000`.
 
+The same λ is written for any host that takes one. JavaScript's `every` and the JVM's `allMatch`
+are both ∀ over a table, each declared with its own claim, and each prints the λ as its host's own
+function value, an arrow function and a lambda:
+
+<!-- file docs/book/code/hosts/every-js.oro -->
+```go
+use io
+use js/Array
+
+export fn main() {
+    a = array { 3, 1, 4, 1, 5 }
+    c = len(a)
+    io.print_line(if Array.every(a, fn(x) { x <= c }) { "every element is at most the length" } else { "not every" })
+}
+```
+
+<!-- run js docs/book/code/hosts/every-js.oro -->
+```
+every element is at most the length
+```
+
+<!-- file docs/book/code/hosts/every-java.oro -->
+```go
+use io
+use java/Arrays
+
+export fn main() {
+    a = array { 3, 1, 4, 1, 5 }
+    c = len(a)
+    io.print_line(if Arrays.allMatch(a, fn(x) { x <= c }) { "every element is at most the length" } else { "not every" })
+}
+```
+
+<!-- run java docs/book/code/hosts/every-java.oro -->
+```
+every element is at most the length
+```
+
+Neither is declared `ordered`. ECMAScript does specify `every`'s order, but a claim the project
+keeps no evidence for is a claim it does not make; the JVM's streams promise none.
+
 `ordered` is a claim like `pure` (17.5): believed, not proven. The project keeps, beside each
 one, the sentence of the host's documentation that promises it, and a tool checks that the
 sentence is there.

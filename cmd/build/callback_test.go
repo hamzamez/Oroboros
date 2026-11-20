@@ -7,6 +7,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/ir"
+	"oroboros/ir/java"
 	"oroboros/ir/llvm"
 )
 
@@ -202,5 +203,46 @@ export fn main() {
 	llvm.PlantSlotUnwritten = false
 	if unwritten {
 		t.Error("with the slot unwritten the text should hold no store of E before the call, so the witness can fail")
+	}
+}
+
+// A CALLBACK IS THE HOST'S OWN CLOSURE ON JAVASCRIPT AND THE JVM (ADR 0143):
+// an arrow function bound to the λ's value, and a lambda written where its one
+// use is, typed by the stream's LongPredicate. The programs check quantifier
+// laws: De Morgan, the least witness and findIndex on JavaScript (11 of 11),
+// and ∀ over ∧ and ∃ over ∨ on the JVM (100 of 100). The JVM's rule: a lambda
+// reads only effectively final locals, so a captured loop variable is copied
+// to a final one; the fault reads it as it stands, and javac refuses.
+func TestACallbackIsTheHostsOwnClosureOnJavaScriptAndTheJVM(t *testing.T) {
+	for _, c := range []struct{ file, target, want string }{
+		{"quantifiers.oro", "js", "11"},
+		{"semilattice.oro", "java", "100"},
+	} {
+		src, err := os.ReadFile("../../examples/callbacks/" + c.file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, err := runOn(t, string(src), c.target); err != nil || strings.TrimSpace(got) != c.want {
+			t.Errorf("%s on %s: want %s, got %q, %v", c.file, c.target, c.want, got, err)
+		}
+	}
+	const loopVar = `use io
+use java/Arrays
+export fn main() {
+    a = array { 3, 1, 4 }
+    loop k = 0 {
+        k < 3 -> { io.print_line(if Arrays.allMatch(a, fn(x) { x > k }) { "all" } else { "not all" }); again(k + 1) }
+        else -> io.print_int(k)
+    }
+}
+`
+	if got, err := runOn(t, loopVar, "java"); err != nil || strings.TrimSpace(got) != "all not all not all 3" {
+		t.Errorf("a loop variable captured on the JVM: want all not all not all 3, got %q, %v", got, err)
+	}
+	java.PlantJavaCaptureUnfinal = true
+	_, err := buildOnly(t, loopVar, "java")
+	java.PlantJavaCaptureUnfinal = false
+	if err == nil {
+		t.Error("with the loop variable captured as it stands javac should refuse it, so the witness can fail")
 	}
 }

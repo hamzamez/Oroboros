@@ -169,3 +169,14 @@ The initial compile-time baseline, the minimum of two sweeps.
 - new source — `examples/callbacks/allwindows.oro windows32`
 - new source — `examples/callbacks/caesar.oro windows32`
 - new source — `examples/callbacks/prefix.oro windows32`
+
+## 2026-11-20 — on 7e01ed51, with uncommitted changes
+
+**Reason:** callbacks tier 1 on JavaScript and the JVM (ADR 0143): examples/callbacks/quantifiers.oro (js) and semilattice.oro (java) new
+
+191 runs: 126 emitted, 65 refused; 6685 of 6695 integer operations bounded, 741 of 820 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+2 change(s):
+
+- new source — `examples/callbacks/quantifiers.oro windows32`
+- new source — `examples/callbacks/semilattice.oro windows32`

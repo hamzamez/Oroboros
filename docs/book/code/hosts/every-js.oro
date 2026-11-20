@@ -1,0 +1,8 @@
+use io
+use js/Array
+
+export fn main() {
+    a = array { 3, 1, 4, 1, 5 }
+    c = len(a)
+    io.print_line(if Array.every(a, fn(x) { x <= c }) { "every element is at most the length" } else { "not every" })
+}

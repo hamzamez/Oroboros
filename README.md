@@ -148,7 +148,7 @@ them and checked against the SDK's prototypes.
 
 ## Current work
 
-*Updated 2026-11-20.* The latest assessment is [docs/assessment-2026-11-19.md](docs/assessment-2026-11-19.md);
+*Updated 2026-11-20.* The latest assessment is [docs/assessment-2026-11-20.md](docs/assessment-2026-11-20.md);
 each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 
 **The plan in force** (approved by hamza, 2026-11-19), in order:

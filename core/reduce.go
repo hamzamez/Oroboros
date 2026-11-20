@@ -422,6 +422,44 @@ const RuleIndexDef = "an index into a table given by a rule"
 // `where` (ADR 0028): `(#reqw "def" cond body)`, whose value is body.
 const RequireWhereName = "#reqw"
 
+// THE LOGIC'S FORMERS (ADR 0145, logic-research §1–§2): a formula's bounded
+// quantifiers, (#forall S (fn (x) φ)) and (#exists S (fn (x) φ)), and its
+// connectives, (#implies φ ψ) and (#iff φ ψ). They occur only in a claim's
+// condition, which is logic, decided and never run; ε removes them with the
+// claim before anything is printed.
+const (
+	ForallName  = "#forall"
+	ExistsName  = "#exists"
+	ImpliesName = "#implies"
+	IffName     = "#iff"
+)
+
+// AssertDef labels an assertion's mark, (#reqw AssertDef φ rest): φ decided at
+// its point and assumed in rest (ADR 0145, spec/abstract.md §7).
+const AssertDef = "an assertion"
+
+// IsFormulaHead reports one of the logic's four formers.
+func IsFormulaHead(n string) bool {
+	return n == ForallName || n == ExistsName || n == ImpliesName || n == IffName
+}
+
+// HasFormula reports whether a term holds one of the logic's formers: a
+// claim the quantifier-free route does not decide.
+func HasFormula(t *Term) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName && IsFormulaHead(t.Kids[0].Name) {
+		return true
+	}
+	for _, k := range t.Kids {
+		if HasFormula(k) {
+			return true
+		}
+	}
+	return false
+}
+
 // IsRequireWhere recognises a where-mark.
 func IsRequireWhere(t *Term) bool {
 	return t != nil && t.Kind == KApp && len(t.Kids) == 4 && t.Kids[0].Kind == KName && t.Kids[0].Name == RequireWhereName
@@ -3631,9 +3669,10 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 			t.Name == ".." || t.Name == AdoptName || t.Name == OwnedName ||
 			t.Name == RecName || t.Name == RecSetName || t.Name == GetName || t.Name == WithName ||
 			t.Name == SGetName || t.Name == SSetName || t.Name == SRefName || t.Name == DerefPName || t.Name == SetRefName ||
-			t.Name == CbFnName {
+			t.Name == CbFnName || IsFormulaHead(t.Name) {
 			// a callback's state, its slot and a cell parameter's reference
-			// (ADR 0133, core/slot.go)
+			// (ADR 0133, core/slot.go); and the logic's four formers (ADR 0145),
+			// which only a claim's condition holds
 			return nil
 		}
 		if _, ok := e.Defs[t.Name]; ok {
@@ -4762,6 +4801,13 @@ func (e *Env) staged(t *Term) error {
 		if t.Kind == KApp && len(kids) == 3 && kids[0].Kind == KName && kids[0].Name == "the" {
 			kids = kids[2:]
 		}
+		// A FORMULA IS LOGIC, a quantifier's set among it (ADR 0145): erasure
+		// drops a claim's condition with the claim, ε(assert(φ; e)) = ε(e), so
+		// Law S reaches only the value a mark guards
+		if t.Kind == KApp && len(kids) == 4 && kids[0].Kind == KName && kids[0].Name == RequireWhereName &&
+			HasFormula(kids[2]) {
+			kids = kids[3:]
+		}
 		for _, k := range kids {
 			if err := walk(k); err != nil {
 				return err
@@ -4900,7 +4946,13 @@ func setOperatorIn(t *Term) string {
 			return t.Name
 		}
 	}
-	for _, k := range t.Kids {
+	kids := t.Kids
+	// A QUANTIFIER'S SET IS A SET POSITION, its binder's (ADR 0145 L2):
+	// (#forall S (fn (x) φ)), only φ is a formula's term
+	if t.Kind == KApp && len(kids) == 3 && kids[0].Kind == KName && (kids[0].Name == ForallName || kids[0].Name == ExistsName) {
+		kids = kids[2:]
+	}
+	for _, k := range kids {
 		if n := setOperatorIn(k); n != "" {
 			return n
 		}

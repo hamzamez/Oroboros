@@ -649,6 +649,39 @@
 == examples/lines/shape.oro windows refused
    gen: examples/lines/shape.oro: in ending: `go/errors`.Is is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/errors` matched no file on the search path and this target provides no module go/errors either, so every name from it is unbound. Check the path.
+== examples/logic/leap.oro go emitted 0abbec2f13ecd84c7f58d8aa5fa70135f68cfce409f1fa03cb756d0e0bfde721
+== examples/logic/leap.oro js emitted b9aa8ccab5c0d77779f351637b8e3eead4baa2a27ecce7f1332e98e90650fd2d
+== examples/logic/leap.oro java emitted 9f0bf83272967f6a7447d2e621ddd9b6a8b07134bf25ef27bae979b9326529f7
+== examples/logic/leap.oro windows emitted da1bacb7fa3649d01acfe5c376916f2d2cc57f0853adbd3872ab9746673157ad
+   note: 4 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: leap (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+== examples/logic/midpoint.oro go emitted 619ba5048e5864623c4299f66f55e32a4b21d620624fa3cf28345a32b9e610ac
+== examples/logic/midpoint.oro js refused
+   note: gen-main: 7 of 9 integer operations bounded; 0 of 0 loop(s) proven terminating
+   gen: gen-main: 2 of 9 integer operation(s) cannot be proven to stay inside the word of target js, [-9007199254740991, 9007199254740991]
+     mul [0, 3458764513820540928] in mul
+     add [0, 3458764518115508223] in add
+     An operation above is BOUNDED, only not by this target's word: targets whose
+     word holds that interval accept the program, and this one refuses it. To compile it
+     here too, DECLARE THE RANGE — e.g. a result of `0..N` — which is arbitrary
+     precision on this target and a machine word where one holds it. `go run ./cmd/portable`
+     reports which targets accept the program.
+     Outside its word a target's arithmetic does not compute the integer the
+     program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
+     this is refused rather than noted (ADR 0019, ADR 0026).
+     Clear it by saying one of:
+       · NARROW THE RANGE — `fn f(n ∈ 0..1000)`, or a `where`,
+         so the operation is provably in range;
+       · ASK FOR THE TRAP — build with `-checked`, which emits the target's
+         own checked arithmetic and fails at run time instead.
+== examples/logic/midpoint.oro java emitted 69e101994a16a01c5bd732f104a152907644d9269ab357424d14f7b30f48c7e0
+== examples/logic/midpoint.oro windows emitted e3d9599bed65b4ca410bf28c2af1f5bad2479a39bb81e4aef6dd31451e819abc
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/map/collatz.oro go emitted f1d1ad7ce74228bef986b7c9aac2edec1ceccf6d464d9ca9b298aa28ac1b467e
    note: gen-main: 22 of 22 integer operations bounded; 5 of 5 loop(s) proven terminating
    note: gen-main: 12 division(s) became a shift or a mask

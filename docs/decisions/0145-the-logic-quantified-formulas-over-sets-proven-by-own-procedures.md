@@ -99,3 +99,11 @@ that unlocks a lot of our walls. and we don't decide again."
 - Unlocked when built: T1-4's facts across a borrowed buffer, a table of tables by rows and offsets
   (their monotonicity a ∀ over two reads), a former's laws (formers-research, waiting on demand), a
   law a callback obeys, an invariant over a buffer's elements.
+
+## As built
+
+- **Stage 2** (2026-11-20, [logic2](../../gauntlet/results/logic2-2026-11-20.md)): the reader's `∀ ∃ ⇒ ⇔` and
+  `assert`; `presburger.Valid`, quantifiers by polarity (Skolem, Cooper) and the Omega test; the
+  translation from the residual, divisions by constants exact; a definition's `ensure` that is no
+  constant bounds decided as `where ⇒ ψ[body/result]`. The Gregorian leap year and Bloch's midpoint on
+  every target; the book's §16.7.

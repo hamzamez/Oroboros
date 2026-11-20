@@ -24,7 +24,7 @@ solving inequalities that is two hundred years old, the theorem that says where 
 checker must stop, and a way to ask the compiler what it knows.
 
 The examples are in [code/claims/](code/claims/). `go run docs/book/check.go
-docs/book/16-claims.md` re-runs every block. Checked 2026-11-16.
+docs/book/16-claims.md` re-runs every block. Checked 2026-11-20.
 
 ---
 
@@ -755,27 +755,165 @@ func ClaimsAbs(v0 int) int {
 In the first branch `n < 0`, so `-n` is positive. In the second `n >= 0`. Either way the
 result is not negative, and the interval of the result shows it.
 
-What `ensure` can say today is narrow: the result compared with *constants*. A promise
-that relates the result to the parameters is refused as outside what is decided:
+`ensure` may also relate the result to the parameters. `clamp` promises a result between
+`lo` and `hi`:
 
-<!-- file docs/book/code/claims/no-ensure.oro -->
+<!-- file docs/book/code/claims/clamp.oro -->
 ```go
 export fn clamp(x ∈ Int, lo ∈ Int, hi ∈ Int) (r ∈ Int) where lo <= hi ensure lo <= r && r <= hi {
     case { x < lo -> lo; x > hi -> hi; else -> x }
 }
 ```
 
-<!-- gen go docs/book/code/claims/no-ensure.oro -->
-```
-gen: clamp: the postcondition lo <= result && result <= hi is outside what the compiler decides (constant bounds on the result, and their conjunctions); an obligation is discharged or the program is refused (refinements.md §3a)
+<!-- gen go docs/book/code/claims/clamp.oro -->
+```go
+func ClaimsClamp(v0 int, v1 int, v2 int) int {
+    v4 := (v0 < v1)
+    if v4 {
+        return v1
+    }
+    v9 := (v0 > v2)
+    if v9 {
+        return v2
+    }
+    return v0
+}
 ```
 
-`clamp` is correct, and "the result is between `lo` and `hi`" is exactly what one wants to
-say about it. The message is honest about why it is refused: not "this is false" but "this
-is outside what I decide". It matters less than it looks, because a function inside a
-program is unfolded where it is called (chapter 2), and the caller then sees the *body*, not
-a summary of it: every fact the body establishes is available. `ensure` is for the edge,
-where a promise is made to someone who cannot see inside.
+The claim is about the three branches at once, and the compiler takes it apart the same way. In
+the first, `x < lo` and the result is `lo`. In the second, `x > hi` and it is `hi`. In the third,
+the two failed tests leave `lo <= x <= hi`. Each case is a question of the kind 16.4 answers.
+
+### Claims with `∀` and `∃`
+
+A claim may say "for every" and "there is":
+- `∀ x ∈ S : φ`: φ holds for every x in the set S;
+- `∃ x ∈ S : φ`: φ holds for at least one;
+- `φ ⇒ ψ`: if φ, then ψ;
+- `φ ⇔ ψ`: φ exactly when ψ.
+
+The set after `∈` is always written, as a parameter's is, and `x ∈ Int` ranges over all the
+integers. The rest of a formula is written as a condition is, with `&&`, `||`, `!` and `==`. `∀`
+is typed `\A` and `∃` is typed `\E`, as in TLA+.
+
+The calendar's rule is such a statement. Since 1582 a year is a leap year when 4 divides it and
+100 does not, or when 400 divides it. "d divides y" is `∃ k ∈ Int : y == d * k`. Here is the rule
+with a mistake in it, 200 for 100:
+
+<!-- file docs/book/code/claims/no-leap.oro -->
+```go
+use io
+
+fn leap(y ∈ 1..9999) (r ∈ Bool)
+    ensure r ⇔ ((∃ k ∈ Int : y == 4 * k) && !(∃ k ∈ Int : y == 200 * k)) || (∃ k ∈ Int : y == 400 * k)
+{
+    y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)
+}
+
+export fn main() { io.print_int(if leap(2024) { 1 } else { 0 }) }
+```
+
+<!-- gen go docs/book/code/claims/no-leap.oro -->
+```
+gen: leap: leap: the body does not establish its `ensure`: #implies(1 <= y && y <= 9999, #iff(y % 4 == 0 && (!(y % 100 == 0) || y % 400 == 0), #exists(`Int`, fn(k) { y == 4 * k }) && !#exists(`Int`, fn(k) { y == 200 * k }) || #exists(`Int`, fn(k) { y == 400 * k }))) does not follow from the parameters' sets and its `where`
+```
+
+The year that shows the mistake is 1900: 100 divides it and 200 does not, so the body says "not a
+leap year" and the claim says "leap year". The compiler did not try years. It decided the formula
+for every y in 1..9999 at once. The rule as the calendar states it:
+
+<!-- file docs/book/code/claims/leap.oro -->
+```go
+use io
+
+fn leap(y ∈ 1..9999) (r ∈ Bool)
+    ensure r ⇔ ((∃ k ∈ Int : y == 4 * k) && !(∃ k ∈ Int : y == 100 * k)) || (∃ k ∈ Int : y == 400 * k)
+{
+    y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)
+}
+
+export fn main() { io.print_int(if leap(2024) { 1 } else { 0 }) }
+```
+
+<!-- run go docs/book/code/claims/leap.oro -->
+```
+1
+```
+
+How it is decided. A formula about integers with `+`, `-`, multiplication by constants,
+comparisons and the quantifiers is in **Presburger arithmetic**, and every such formula can be
+decided, true or false (Presburger, 1929). Two steps make it practical:
+- **"For every" in what is to be proven costs nothing.** To show φ for every k, show it for one k
+  about which nothing is known. The quantifier becomes a name.
+- **"There is" in what is to be proven is the hard case.** The compiler removes it by Cooper's
+  method (1972), which turns `∃ k ∈ Int : y == 4 * k` into "4 divides y". What is left has no
+  quantifier, and is decided by the method of 16.4 with integers instead of fractions (the Omega
+  test, 1991).
+
+`y % 4`, a remainder, is read exactly here, as `y = 4 · q + m` with `0 <= m <= 3`, which 16.8's
+table says the facts cannot do. A formula is the place to say it.
+
+### `assert`
+
+`assert φ` in a block claims φ at that point. It is proven from the facts there, or the program is
+refused, and after it φ is one more fact. A midpoint that is exactly halfway is a mistake when
+`lo + hi` is odd:
+
+<!-- file docs/book/code/claims/no-assert.oro -->
+```go
+use io
+
+fn mid(lo ∈ 0..1000, hi ∈ 0..1000) (Int) where lo <= hi {
+    m = lo + (hi - lo) / 2
+    assert 2 * m == lo + hi
+    m
+}
+
+export fn main() {
+    loop k = 0 {
+        k < 4 -> { io.print_int(mid(k, 10)); again(k + 1) }
+        else -> ()
+    }
+}
+```
+
+<!-- gen go docs/book/code/claims/no-assert.oro -->
+```
+gen: claims-main: an `assert` does not follow at its point: 2 * m == k + 10
+```
+
+For k = 1, `lo + hi` is 11, and no m has 2m = 11: the midpoint is 5. What does hold is that m is between the two,
+and that every number from `lo` to `m` is at most halfway:
+
+<!-- file docs/book/code/claims/assert.oro -->
+```go
+use io
+
+fn mid(lo ∈ 0..1000, hi ∈ 0..1000) (Int) where lo <= hi {
+    m = lo + (hi - lo) / 2
+    assert lo <= m && m <= hi
+    assert ∀ j ∈ lo..m : 2 * j <= lo + hi
+    m
+}
+
+export fn main() {
+    loop k = 0 {
+        k < 4 -> { io.print_int(mid(k, 10)); again(k + 1) }
+        else -> ()
+    }
+}
+```
+
+<!-- run go docs/book/code/claims/assert.oro -->
+```
+5
+5
+6
+6
+```
+
+`m` is a name for `lo + (hi - lo) / 2`, and a claim about `m` is a claim about that term. Like
+every claim, an `assert` costs nothing at run time: it is erased once proven.
 
 ---
 
@@ -1080,7 +1218,9 @@ test* (1991), a descendant of Fourier's.
   runs.
 - **`x ∈ S = e` claims a binding.** Use it to get a relational fact to a result, and to ask
   the compiler what it knows.
-- **`ensure` compares the result with constants.**
+- **`ensure` and `assert` may say `∀`, `∃`, `⇒` and `⇔`**, over integers, the program's values
+  and remainders by constants. Every quantifier ranges over a set you write, and is decided for
+  all its values at once.
 - **The methods are for linear arithmetic.** Products of unknowns, quotients, `mod`, "not
   equal" and "or" are where true things get refused.
 - **The compiler is sound and not complete.** "Does not follow" means "I could not show

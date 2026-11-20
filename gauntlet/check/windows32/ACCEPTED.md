@@ -207,3 +207,14 @@ The initial compile-time baseline, the minimum of two sweeps.
 - new source — `examples/map/twosum.oro windows32`
 - new source — `examples/table/magic.oro windows32`
 - new source — `examples/table/shoelace.oro windows32`
+
+## 2026-11-20 — on 0dd91ef3, with uncommitted changes
+
+**Reason:** the logic's stage 2 (ADR 0145): formulas and assert, decided by polarity and the Omega test; a definition's ensure relating its result to its parameters decided; two new programs
+
+201 runs: 134 emitted, 67 refused; 6887 of 6897 integer operations bounded, 779 of 860 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+2 change(s):
+
+- new source — `examples/logic/leap.oro windows32`
+- new source — `examples/logic/midpoint.oro windows32`

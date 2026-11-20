@@ -4110,3 +4110,24 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/table/shoelace.oro java`
 - new source — `examples/table/shoelace.oro js`
 - new source — `examples/table/shoelace.oro windows`
+
+## 2026-11-20 — on 0dd91ef3, with uncommitted changes
+
+**Reason:** the logic's stage 2 (ADR 0145): formulas and assert, decided by polarity and the Omega test; a definition's ensure relating its result to its parameters decided; two new programs
+
+804 runs: 551 emitted, 253 refused; 12460 of 12516 integer operations bounded, 1479 of 1774 loops proven. compiler pass, differential pass, tooling pass.
+
+8 change(s):
+
+- new source — `examples/logic/leap.oro go`
+- new source — `examples/logic/leap.oro java`
+- new source — `examples/logic/leap.oro js`
+- new source — `examples/logic/leap.oro windows`
+- new source — `examples/logic/midpoint.oro go`
+- new source — `examples/logic/midpoint.oro java`
+- new source — `examples/logic/midpoint.oro js`
+- new source — `examples/logic/midpoint.oro windows`
+
+1 compile(s) recorded FASTER:
+
+- `examples/json/tokenize.oro java` 1390 → 906 ms, 0.65x

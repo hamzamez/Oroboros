@@ -161,7 +161,11 @@ model's old words `max_len big_repr int_repr`; and among a C call's arguments `e
 These three paragraphs are the reader's words: `TestJsKeywordsAreTheReadersKeywords`
 (emit/inventory_test.go) reads every word a token is compared against in core/jparse.go and
 core/jreadtarget.go, and requires the paragraphs to list that set, less the words not built (spec,
-assert, invariant) and the two operands of repr the target loader reads (word, narrow). **Not built:
+invariant) and the two operands of repr the target loader reads (word, narrow). `assert` is built
+(ADR 0145, stage 2): `assert φ` a statement of a block, a sequent at its point, φ assumed after it.
+The logic's symbols are `∀ x ∈ S : φ`, `∃ x ∈ S : φ`, `⇒` (right-associative) and `⇔`, below `||`,
+in `where`, `ensure` and `assert` (ADR 0145 L1, L2); a formula's conjunction, disjunction and
+negation are the computation's `&&`, `||`, `!`. **Not built:
 the reservation**: the reader takes a word as a keyword only where the grammar meets it (the status,
 above).
 

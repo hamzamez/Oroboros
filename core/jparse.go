@@ -923,6 +923,14 @@ func (p *parser) foldStmts(stmts []stmt) (Tail, error) {
 				return nil, fmt.Errorf("a map buffer around a jump")
 			}
 			acc = &BuildMap{Names: []string{s.name}, Caps: []Expr{s.value.(Expr)}, Body: body, Place: s.kind == "mapvar"}
+		case "assert":
+			// the rest of the block under the assertion's mark, its value the
+			// rest's: (#reqw "an assertion" φ rest)
+			if !isExpr {
+				return nil, fmt.Errorf("an `assert` before a jump is not built: write it after the jump's " +
+					"arguments are computed, or as a loop's `invariant`")
+			}
+			acc = &Apply{Fn: &Var{Name: RequireWhereName}, Args: []Expr{&Lit{T: Str(AssertDef)}, s.value.(Expr), body}}
 		case "expect":
 			if isExpr {
 				acc = &Monad{Form: "expect", Items: s.items, Body: body}
@@ -956,6 +964,11 @@ func (p *parser) statement() (stmt, error) {
 		}
 		e, err := p.expr()
 		return stmt{kind: "var", name: name, value: e}, err
+	case p.accept("assert"):
+		// AN ASSERTION, `assert φ` (ADR 0062, 0145): a sequent at its point,
+		// and φ in Γ after it (spec/abstract.md §7)
+		phi, err := p.expr()
+		return stmt{kind: "assert", value: phi}, err
 	case p.accept("expect"):
 		pat, err := p.exprAt(pCmp + 1)
 		if err != nil {
@@ -1185,6 +1198,9 @@ func (p *parser) tupleBinding() bool {
 
 var binary = map[string]int{
 	"||": pOr, "&&": pAnd,
+	// THE LOGIC'S CONNECTIVES (ADR 0145 L1), below `||`: ⇒ right-associative,
+	// ⇔ lowest. A formula's own, never a computation's (logic-research §1).
+	"⇒": pImp, "⇔": pIff,
 	"==": pCmp, "!=": pCmp, "<": pCmp, "<=": pCmp, ">": pCmp, ">=": pCmp, "∈": pCmp, "∉": pCmp, "⊆": pCmp, "⊂": pCmp,
 	"∪": pSet, "∩": pSet, "∖": pSet, "×": pProd, "..": pRange,
 	"+": pAdd, "-": pAdd, "++": pAdd, "*": pMul, "/": pMul, "%": pMul, "^": pPow,
@@ -1197,7 +1213,7 @@ var binary = map[string]int{
 	"÷": pMul,
 }
 
-var opName = map[string]string{"==": "=", "++": "concat"}
+var opName = map[string]string{"==": "=", "++": "concat", "⇒": ImpliesName, "⇔": IffName}
 
 func (p *parser) expr() (Expr, error) { return p.exprAt(pLowest) }
 
@@ -1265,7 +1281,7 @@ func (p *parser) binaryFrom(left Expr, min int) (Expr, error) {
 			continue
 		}
 		next := prec + 1
-		if t.text == "^" || t.text == "&&" || t.text == "||" {
+		if t.text == "^" || t.text == "&&" || t.text == "||" || t.text == "⇒" {
 			// `^` is right-associative; `&&` and `||` are associative, and read
 			// right-nested they are today's n-ary connective (core/desugar.go).
 			next = prec
@@ -1423,6 +1439,35 @@ func (p *parser) unary() (Expr, error) {
 		p.next()
 		x, err := p.exprAt(pPrefix)
 		return &Not{X: x}, err
+	case p.is("∀") || p.is("∃"):
+		// A BOUNDED QUANTIFIER (ADR 0145 L1, L2), TLA+'s: `∀ x ∈ S : φ`, its
+		// set always written, its body extending as far right as it can. The
+		// binder is the core's λ under the quantifier's name, D's
+		// (#forall S (fn (x) φ)): a formula's binder, opened only by the
+		// decision, never applied (logic-research §2).
+		q := ForallName
+		if p.next().text == "∃" {
+			q = ExistsName
+		}
+		x := p.name()
+		if x == "" {
+			return nil, p.errorf("a quantifier binds a name, `∀ x ∈ S : φ` (ADR 0145)")
+		}
+		if err := p.expect("∈"); err != nil {
+			return nil, p.errorf("a quantifier ranges over a set, `∀ %s ∈ S : φ` (ADR 0145 L2)", x)
+		}
+		set, err := p.exprAt(pCmp + 1)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.expect(":"); err != nil {
+			return nil, p.errorf("a quantifier's body follows a colon, `∀ %s ∈ S : φ` (ADR 0145 L1)", x)
+		}
+		body, err := p.expr()
+		if err != nil {
+			return nil, err
+		}
+		return &Apply{Fn: &Var{Name: q}, Args: []Expr{set, &Lam{Params: []string{x}, Body: body}}}, nil
 	case p.is("~"):
 		// not on ℤ, −x − 1 (ADR 0082), folded on a literal as `-` is.
 		p.next()

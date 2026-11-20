@@ -306,12 +306,27 @@ func (f requireFail) message(n int) string {
 			"  A binder's claim, `b ∈ S = e`, is an obligation: proven of e, or the program is refused\n"+
 			"  (ADR 0049), whoever reads b.", f.def, f.arg)
 		return b.String()
+	case f.param == "where" && f.literal && f.def == core.AssertDef:
+		fmt.Fprintf(&b, "an `assert` is false: %s", f.arg)
+		return b.String()
 	case f.param == "where" && f.literal:
 		fmt.Fprintf(&b, "%s's `where` is false at a call: %s", f.def, f.arg)
 	case f.param == "where" && strings.HasPrefix(f.def, "the claim "):
 		fmt.Fprintf(&b, "%s is not proven: %s does not follow\n  known: %s\n"+
 			"  A binder's claim, `b ∈ S = e`, is an obligation: proven of e, or the program is refused\n"+
 			"  (ADR 0049). Prove it — narrow what e comes from — or drop the claim.", f.def, f.arg, f.known)
+		return b.String()
+	case f.param == "where" && f.def == core.AssertDef:
+		fmt.Fprintf(&b, "an `assert` does not follow at its point: %s\n  known: %s\n"+
+			"  An assertion is a claim the program makes there (ADR 0062, 0145), decided from the facts in "+
+			"scope, every quantifier by its polarity: proven, or the program is refused.", f.arg, f.known)
+		return b.String()
+	case f.param == "where" && f.def == ClaimFormulaDef:
+		fmt.Fprintf(&b, "the body does not establish its `ensure`: %s does not follow from the parameters' sets "+
+			"and its `where`\n  known: %s\n"+
+			"  A declared result is a claim decided at its definition (ADR 0072), a formula by the logic's own "+
+			"procedures (ADR 0145): every quantifier taken by its polarity, the rest by the Omega test. Fix the "+
+			"body, or the claim, or narrow a parameter's set.", f.arg, f.known)
 		return b.String()
 	case f.param == "where":
 		fmt.Fprintf(&b, "%s requires %s at a call, which does not follow\n  known: %s", f.def, f.arg, f.known)
@@ -706,13 +721,29 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 		}
 		g := f.clone()
 		r.collectEnsures(cond, g)
-		if r.requires != nil && !r.proveCond(cond, g) {
+		// A CLAIM WITH THE LOGIC'S FORMERS, or a definition's own claim, is
+		// decided as a formula when the quantifier-free route does not prove it
+		// (ADR 0145, stage 2): Γ the facts here, by polarity and the Omega test
+		proved := func() bool {
+			if core.HasFormula(cond) {
+				return r.formulaHolds(cond, g)
+			}
+			return r.proveCond(cond, g) || (t.Kids[1].Str == ClaimFormulaDef || t.Kids[1].Str == core.AssertDef) && r.formulaHolds(cond, g)
+		}
+		if r.requires != nil && !proved() {
 			raw := t.Kids[1].Str
 			if r.rangeDef != "" {
 				raw = r.rangeDef
 			}
 			*r.requires = append(*r.requires, requireFail{def: t.Kids[1].Str, param: "where",
 				arg: core.ShowTerm(cond), known: f.known(), raw: raw, cond: cond})
+		}
+		// AN ASSERTION JOINS Γ after its point (spec/abstract.md §7):
+		// 𝒪_Γ(assert(φ; e)) = {Γ ⊢ φ} ∪ 𝒪_{Γ, φ}(e)
+		if t.Kids[1].Str == core.AssertDef && !core.HasFormula(cond) {
+			h := f.clone()
+			assume(h, cond)
+			return r.walk(t.Kids[3], h)
 		}
 		return r.walk(t.Kids[3], f)
 	}
@@ -1227,4 +1258,95 @@ func (r *refiner) projected(s *core.Term) (*core.Term, bool) {
 		}
 	}
 	return nil, false
+}
+
+// ClaimFormulaDef labels a definition's own claim decided as a formula: an
+// `ensure` that is no constant bounds on the result (ADR 0145, stage 2).
+const ClaimFormulaDef = "the definition's claim"
+
+// DecideClaim decides a definition's `ensure` that is no constant bounds on its
+// result, as 𝒪's sequent for a λ (spec/abstract.md §7): Γ₀ ⊢ ψ[body/result], Γ₀
+// the parameters' sets and its `where`. It is a where-mark on the body, decided
+// by the refinement layer with every fact in scope, a formula by the logic's
+// procedures. The result's range, if declared, stays the interval route's.
+func DecideClaim(tg *Target, name string, sig *core.Sig, nf *core.Term) error {
+	if sig == nil || sig.Ensures == nil {
+		return nil
+	}
+	st := sig.Stated()
+	if st == nil {
+		return nil
+	}
+	if _, _, ok := EnsuresBounds(tg, st); ok && !core.HasFormula(st) {
+		return nil // constant bounds: the interval route's
+	}
+	body, params := nf, []string(nil)
+	if nf.Kind == core.KFn {
+		body, params = nf.Body(), nf.Params
+	}
+	cond := core.Rename2(st, map[string]*core.Term{core.ResultName: body})
+	// Γ₀'s `where` stated in the formula, φ ⇒ ψ[body/result], so the logic reads
+	// it exactly: assumed as a fact it is linear or opaque, and a remainder's
+	// `n % 4 == 0` reached the facts as no atom
+	if sig.Where != nil {
+		cond = &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.ImpliesName), sig.Where, cond}}
+	}
+	mark := &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName), core.Str(ClaimFormulaDef), cond, body}}
+	t := mark
+	if params != nil {
+		t = core.Fn(params, mark)
+	}
+	_, err := DischargeRequires(nil, tg, name, sig, t, nil)
+	return err
+}
+
+// FormulaClaim reports an `ensure` the interval route does not decide, which
+// DecideClaim does: a formula, or a relation to the parameters.
+func FormulaClaim(tg *Target, sig *core.Sig) bool {
+	if sig == nil || sig.Ensures == nil {
+		return false
+	}
+	st := sig.Stated()
+	if st == nil {
+		return false
+	}
+	if _, _, ok := EnsuresBounds(tg, st); ok && !core.HasFormula(st) {
+		return false
+	}
+	// THE LOGIC'S CLAIMS: a formula, or arithmetic relating the result to the
+	// parameters. A predicate with its own decision, utf8_valid or nulfree on
+	// a string (ADR 0091, 0112), is not a claim this route reads.
+	return arithClaim(st)
+}
+
+// arithClaim reports a claim built only from comparisons of integer terms,
+// Boolean constants and names, the connectives (`if`, the logic's formers):
+// every atom is one the translation reads (emit/formula.go).
+func arithClaim(t *core.Term) bool {
+	switch t.Kind {
+	case core.KBool, core.KName:
+		return true
+	case core.KApp:
+	default:
+		return false
+	}
+	op := t.Op()
+	if op.Kind != core.KName {
+		return false
+	}
+	args := t.Args()
+	switch {
+	case (op.Name == core.ForallName || op.Name == core.ExistsName) && len(args) == 2 && args[1].Kind == core.KFn:
+		return arithClaim(args[1].Closed())
+	case op.Name == core.ImpliesName || op.Name == core.IffName || isOp(op.Name, "if"):
+		for _, a := range args {
+			if !arithClaim(a) {
+				return false
+			}
+		}
+		return true
+	case cmpOp(op.Name) != "":
+		return true
+	}
+	return false
 }

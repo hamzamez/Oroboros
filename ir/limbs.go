@@ -614,6 +614,17 @@ func checkResultClaim(tg *emit.Target, name string, sig *core.Sig, nf *core.Term
 	if sig == nil {
 		return nil
 	}
+	// A CLAIM THE INTERVALS DO NOT STATE, a formula or a relation to the
+	// parameters, is the logic's (ADR 0145, stage 2): decided on the residual,
+	// the result's range, if any, still decided here.
+	if emit.FormulaClaim(tg, sig) {
+		if err := emit.DecideClaim(tg, name, sig, nf); err != nil {
+			return err
+		}
+		s := *sig
+		s.Ensures = sig.ResultRange
+		sig = &s
+	}
 	ensures := sig.Ensures != nil
 	// A TUPLE'S SET IS A PRODUCT, R₁ × … × Rₙ, and a tuple is in it iff each
 	// component is in its factor: the reader keeps a tuple's factors as

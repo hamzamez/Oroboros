@@ -1,0 +1,24 @@
+// leap: THE GREGORIAN RULE, STATED AS A FORMULA AND PROVEN OF ITS COMPUTATION.
+//
+// WHAT IT IS. Since 1582 a year y is a leap year iff 4 divides it and 100 does
+// not, or 400 divides it. "d divides y" is ∃ k ∈ Int : y = d · k, a formula of
+// Presburger arithmetic (Presburger 1929), whose quantifier is eliminated
+// exactly (Cooper 1972): d | y. The computation tests remainders instead, y % 4,
+// and the claim is that the two agree for every year the header admits.
+//
+// The program prints leap(1900), leap(2000), leap(2024), leap(2023) as 0 or 1:
+// 0 1 1 0, and the claim is decided when it compiles (ADR 0145, stage 2).
+use io
+
+fn leap(y ∈ 1..9999) (r ∈ Bool)
+    ensure r ⇔ (((∃ k ∈ Int : y == 4 * k) && !(∃ k ∈ Int : y == 100 * k)) || (∃ k ∈ Int : y == 400 * k))
+{
+    y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)
+}
+
+export fn main() {
+    io.print_int(if leap(1900) { 1 } else { 0 })
+    io.print_int(if leap(2000) { 1 } else { 0 })
+    io.print_int(if leap(2024) { 1 } else { 0 })
+    io.print_int(if leap(2023) { 1 } else { 0 })
+}

@@ -1,0 +1,9 @@
+use io
+
+fn leap(y ∈ 1..9999) (r ∈ Bool)
+    ensure r ⇔ ((∃ k ∈ Int : y == 4 * k) && !(∃ k ∈ Int : y == 100 * k)) || (∃ k ∈ Int : y == 400 * k)
+{
+    y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)
+}
+
+export fn main() { io.print_int(if leap(2024) { 1 } else { 0 }) }

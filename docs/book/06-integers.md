@@ -1146,19 +1146,37 @@ gen: result: the body does not establish 0 <= result && result <= 5; its result 
 ```
 
 `where` is the precondition and `ensure` the **postcondition**: what the function promises in
-return. Today `ensure` decides bounds of the result against constants. A promise relating the
-result to a parameter is refused as beyond what is decided, never accepted unproven:
+return. A promise may relate the result to the parameters, and it is decided like any other.
+This one is false, because b may be 0:
 
 <!-- file docs/book/code/integers/no-ensure.oro -->
 ```go
-export fn grows(a ∈ 0..9, b ∈ 0..9) (r ∈ Int) ensure r >= a { a + b }
+export fn grows(a ∈ 0..9, b ∈ 0..9) (r ∈ Int) ensure r > a { a + b }
 ```
 
 <!-- gen go docs/book/code/integers/no-ensure.oro -->
 ```
-gen: grows: the postcondition result >= a is outside what the compiler decides (constant bounds on the result, and their conjunctions); an obligation is discharged or the program is refused (refinements.md §3a)
+gen: grows: grows: the body does not establish its `ensure`: #implies((0 <= a && a <= 9) && 0 <= b && b <= 9, a + b > a) does not follow from the parameters' sets and its `where`
 …
 ```
+
+The true promise is proven, and costs nothing:
+
+<!-- file docs/book/code/integers/grows.oro -->
+```go
+export fn grows(a ∈ 0..9, b ∈ 0..9) (r ∈ Int) ensure r >= a { a + b }
+```
+
+<!-- gen go docs/book/code/integers/grows.oro -->
+```go
+func IntegersGrows(v0 int, v1 int) int {
+    v23 := (v0 + v1)
+    return v23
+}
+```
+
+Chapter 16 says how such a promise is decided, and what else one may say: "for every" and
+"there is".
 
 **An entry point's parameters need their sets.** A function used only inside the program takes
 its arguments' sets from each use. An `export` is called from outside, where nothing is known:

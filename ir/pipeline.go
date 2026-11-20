@@ -169,7 +169,21 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// claim is about is the same on every one, and past this point a value
 	// held above the word is a host call's, whose fact is ⊤
 	// (resultclaim-2026-11-02).
-	if err := CheckEnsures(tg, f, sig); err != nil {
+	// A CLAIM THE INTERVALS DO NOT STATE, a formula or arithmetic relating the
+	// result to the parameters, is decided on the residual by the logic (ADR
+	// 0145), and the intervals decide the result's range alone. CheckEnsures
+	// itself refuses what it cannot decide, so no caller that skips this step
+	// accepts a claim unchecked.
+	ens := sig
+	if emit.FormulaClaim(tg, sig) {
+		if err := emit.DecideClaim(tg, name, sig, nf); err != nil {
+			return nil, nil, err
+		}
+		s := *sig
+		s.Ensures = sig.ResultRange
+		ens = &s
+	}
+	if err := CheckEnsures(tg, f, ens); err != nil {
 		return nil, nil, fmt.Errorf("%s: %v", name, err)
 	}
 	// A λ GIVEN TO A HOST ANSWERS IN ITS CLAIM'S RESULT (ADR 0143), decided

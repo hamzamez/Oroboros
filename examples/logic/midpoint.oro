@@ -1,0 +1,32 @@
+// midpoint: BLOCH'S BUG, AND THE CLAIM THAT RULES IT OUT.
+//
+// WHAT IT IS. Binary search halves an interval [lo, hi] at its midpoint. The
+// textbook writes m = (lo + hi) / 2, and in 2006 Joshua Bloch reported that the
+// Java library's binary search, and Bentley's in Programming Pearls, had carried
+// that line for decades: on 32-bit integers lo + hi overflows once the table
+// passes 2³⁰ elements, and m goes negative. The repair is m = lo + (hi − lo) / 2.
+//
+// THE CLAIM is that the repair is a midpoint: lo ≤ m ≤ hi, and m is within one
+// of halfway, 2m ∈ {lo + hi − 1, lo + hi}. It is a formula relating the result
+// to the parameters, decided by the logic's procedures (ADR 0145, stage 2),
+// with the division by 2 read exactly. The textbook line's own trouble is not
+// the logic's: lo + hi past the word is refused by the decision of each
+// operation inside its target's word, where lo and hi may each reach 2⁶².
+//
+// The program prints the midpoints of [0, 10], [3, 4] and [2⁶¹, 2⁶²]:
+// 5, 3 and 3458764513820540928. On JavaScript, whose word is ±(2⁵³ − 1), 2⁶² is
+// outside it and the program is refused there (ADR 0026): portability computed.
+use io
+
+fn mid(lo ∈ 0..2^62, hi ∈ 0..2^62) (m ∈ Int)
+    where lo <= hi
+    ensure lo <= m && m <= hi && (2 * m == lo + hi || 2 * m == lo + hi - 1)
+{
+    lo + (hi - lo) / 2
+}
+
+export fn main() {
+    io.print_int(mid(0, 10))
+    io.print_int(mid(3, 4))
+    io.print_int(mid(2^61, 2^62))
+}

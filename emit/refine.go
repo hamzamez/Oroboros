@@ -24,6 +24,10 @@ type refiner struct {
 	tgt   *Target
 	notes []string // refinements propagated rather than proven
 
+	// letDefs are the pure definitions of let-bound names, x ≐ e, for the
+	// logic's translation (ADR 0145)
+	letDefs map[string]*core.Term
+
 	// storing is set while a store's domain is owed, so its refusal says
 	// store and not indexing (indexWhat).
 	storing bool
@@ -923,6 +927,15 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 	inner := f.clone()
 	if e, ok := f.lin(args[0]); ok {
 		inner.assumeEQ(k.Params[0], e)
+	}
+	// A PURE DEFINITION IS ITS NAME'S MEANING for the logic, x ≐ e (𝒪's let
+	// clause, spec/abstract.md §7): kept by name, the binders named apart
+	// (ADR 0036), and unfolded where a formula reads x (emit/formula.go)
+	if r.pureTerm(args[0]) {
+		if r.letDefs == nil {
+			r.letDefs = map[string]*core.Term{}
+		}
+		r.letDefs[k.Params[0]] = args[0]
 	}
 	r.assumeLength(inner, k.Params[0], args[0])
 	r.assumeCellValue(inner, k.Params[0], args[0])

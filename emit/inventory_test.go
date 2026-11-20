@@ -530,7 +530,6 @@ var jReaders = []string{"../core/jparse.go", "../core/jreadtarget.go"}
 // against, with why. An entry the reader starts taking is stale, and the test says so.
 var jNotRead = map[string]string{
 	"spec":   "ADR 0062's spec is not built (j.md's status)",
-	"assert": "ADR 0062's assert is not built (j.md's status)",
 	"word":   "an operand of `repr`, read as an expression and dispatched on by the target loader (inventory.md §2)",
 	"narrow": "an operand of `repr`, read as an expression and dispatched on by the target loader (inventory.md §2)",
 }

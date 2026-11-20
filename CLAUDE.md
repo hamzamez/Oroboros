@@ -106,9 +106,11 @@ before planning. **The plan in force** (hamza, 2026-11-20: "yes, reorder", the l
 TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in order:
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
-   - a research note ([logic-research.md](docs/logic-research.md)): the formula language's abstract
-     syntax, its sort check, ε so a formula never reaches emission, the procedures and their order;
-   - formulas and `assert` (`∀ x ∈ S : φ`, `∃`, `⇒`, `⇔`), with Presburger quantifier elimination;
+   - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
+   - ~~formulas and `assert`~~ done ([logic2](gauntlet/results/logic2-2026-11-20.md)): `∀ x ∈ S : φ`,
+     `∃`, `⇒`, `⇔` and `assert`, decided by polarity (Skolem constants, Cooper's elimination) and the
+     Omega test, divisions by constants exact; a definition's `ensure` relating its result to its
+     parameters decided (`clamp`); the Gregorian leap year and Bloch's midpoint;
    - the array property fragment, with GetWindowTextA's C string, its `ensure` the host's quantified
      promise with evidence (L5, settling ADR 0091's rest): TinyRetroPad's window text;
 2. **ADR 0136's struct forms**: a buffer field `= len(m)`, a nested record by pointer `&f`, an
@@ -407,9 +409,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,435 of 12,489** integer operations proven inside their target's word, the 54 left
-  meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,477 of 1,772** loops proven to
+- **Provability**: **12,460 of 12,516** integer operations proven inside their target's word, the 56 left
+  meant to be refused (`examples/int/`, `kara`, the midpoint's 2⁶² on JavaScript) or in a case whose `run` takes an unbounded parameter
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,479 of 1,774** loops proven to
   terminate (size-change termination; of the 295 left, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 41 were before bigbits-2026-11-19, among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a

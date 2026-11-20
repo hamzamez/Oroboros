@@ -201,8 +201,12 @@ type printer struct {
 	// adder, and the inner sums they absorb
 	adder    map[ir.V]*adder
 	absorbed map[*ir.Stmt]bool
-	n        int
-	err      error
+	// the λs a host applies during a call (fn.go, ADR 0143): each `fn`
+	// value's environment E, and its slot where the API has no context word
+	envOf, slotOf map[ir.V]string
+	fns           int
+	n             int
+	err           error
 }
 
 func (p *printer) fail(format string, args ...any) {
@@ -675,6 +679,13 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 		p.wide(s, func() bool { p.op(s); return true })
 	case ir.OCall:
 		p.wide(s, func() bool { p.call(s); return true })
+	case ir.OFn:
+		p.fnOutline(s)
+	case ir.OCellSet:
+		// a cell a λ writes under an `ordered` host (ADR 0143): no Win32 host
+		// promises its order, so no program reaches this, and it is refused
+		// until one does rather than printed unexercised
+		p.fail("a cell written in a callback is not printed on LLVM yet: no host here is `ordered` (ADR 0143)")
 	case ir.OIndex:
 		p.index(s)
 	case ir.OLen:
@@ -1236,6 +1247,9 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 				continue
 			}
 			ops = append(ops, param(c.I))
+		case emit.CCtx:
+			// ctx(f): the callback's environment E, by its address (ADR 0143)
+			ops, tys = append(ops, "ptr "+p.envOf[s.Args[c.I]]), append(tys, "ptr")
 		case emit.CDiff:
 			// hi − lo, a segment's length (ADR 0132), as the C integer of K bits
 			r := "%" + p.fresh("c")
@@ -1279,6 +1293,24 @@ func (p *printer) cCall(q emit.Prim, s *ir.Stmt) {
 		emit.LLVMLibs[q.Lib] = true
 	}
 	call := fmt.Sprintf("call %s%s @%s(%s)", cc, ret, q.CSym, strings.Join(ops, ", "))
+	// A CALLBACK WITH NO CONTEXT WORD finds E through its slot (fn.go):
+	// written here, and restored after, so a nested call sees its own
+	var restore []string
+	for _, a := range s.Args {
+		if g, ok := p.slotOf[a]; ok {
+			old := "%" + p.fresh("old")
+			p.line("%s = load ptr, ptr %s", old, g)
+			if !PlantSlotUnwritten {
+				p.line("store ptr %s, ptr %s", p.envOf[a], g)
+			}
+			restore = append(restore, fmt.Sprintf("store ptr %s, ptr %s", old, g))
+		}
+	}
+	defer func() {
+		for _, r := range restore {
+			p.line("%s", r)
+		}
+	}()
 	switch {
 	case ret == "void" || len(s.Res) == 0:
 		p.line("%s", call)
@@ -1751,3 +1783,8 @@ var PlantCPUUnprinted bool
 // prototype's parameter at its position: on i686 the stdcall frame is then
 // wider than the callee pops (TestAFamilyIsOneDeclarationPerMember).
 var PlantFamilyConstWord bool
+
+// PlantSlotUnwritten leaves a callback's slot as it was before the call, null
+// at the first: the λ then loads its captures through a null pointer and the
+// program crashes (TestACallbackCapturesItsEnvironmentThroughTheContextWord).
+var PlantSlotUnwritten bool

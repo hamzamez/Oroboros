@@ -32,6 +32,10 @@ type CallbackInfo struct {
 	Order   []int
 	CParams []CScalar
 	CResult CScalar
+	// Ctx says the C signature names `ctx`, the context word the API passes
+	// back (ADR 0143): the lifted function's last parameter, a pointer, its
+	// index in Order len(claim's parameters).
+	Ctx bool
 }
 
 // WrapperSuffix names the wrapper the host calls, `F~cb~c`.
@@ -121,11 +125,25 @@ func callbackSig(tg *emit.Target, q string, cs emit.CallbackSig, d core.Callback
 		return info, fmt.Errorf("%s has no C signature: its header states `repr %s c(…) stdcall|cdecl` (llvm.md §6c)",
 			core.ShowSet(q), core.ShowSet(q))
 	}
-	if len(cs.Order) != len(cs.Params) {
+	ctxs := 0
+	for _, o := range cs.Order {
+		if o == "ctx" {
+			ctxs++
+		}
+	}
+	if len(cs.Order)-ctxs != len(cs.Params) || ctxs > 1 {
 		return info, fmt.Errorf("%s's C signature lists %d parameter(s), and its claim %d", core.ShowSet(q), len(cs.Order), len(cs.Params))
 	}
 	seen := map[int]bool{}
 	for _, o := range cs.Order {
+		// THE CONTEXT WORD (ADR 0143): where E's address arrives, a pointer,
+		// ABI-identical to the LPARAM or void* C declares on both triples
+		if o == "ctx" {
+			info.Ctx = true
+			info.Order = append(info.Order, len(cs.Params))
+			info.CParams = append(info.CParams, CScalar{"ptr", false})
+			continue
+		}
 		i := -1
 		for j, p := range cs.Params {
 			if p == o {

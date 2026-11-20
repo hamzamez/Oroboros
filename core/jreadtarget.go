@@ -660,6 +660,19 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 						return nil, p.errorf("len(s) takes one parameter")
 					}
 					args = append(args, app(Name("len"), Name(x)))
+				case p.is("ctx") && p.peekN(1).text == "(":
+					// THE CONTEXT WORD (ADR 0143): ctx(f), the address of the
+					// callback parameter f's environment, which C passes back
+					p.next()
+					p.next()
+					f, err := ident("ctx(f)")
+					if err != nil {
+						return nil, err
+					}
+					if !p.accept(")") {
+						return nil, p.errorf("ctx(f) takes one callback parameter")
+					}
+					args = append(args, app(Name("ctx"), Name(f)))
 				case p.is("elem") && p.peekN(1).text == "(":
 					return nil, p.errorf("an element's address is written as C writes it, `&b[lo]` (ADR 0131), not `elem(b, lo)`")
 				case p.is("ref") && p.peekN(1).text == "(":
@@ -681,7 +694,7 @@ func (p *parser) hostBodyDatum(params, statics []string, result string) (*Term, 
 					}
 					args = append(args, Int(v))
 				default:
-					return nil, p.errorf("a C argument is a parameter, a constant, &x, &b[lo], len(s) or NULL, got %s", p.peek())
+					return nil, p.errorf("a C argument is a parameter, a constant, &x, &b[lo], len(s), ctx(f) or NULL, got %s", p.peek())
 				}
 				if !p.accept(",") {
 					break

@@ -157,3 +157,15 @@ The initial compile-time baseline, the minimum of two sweeps.
 1 compile(s) recorded FASTER:
 
 - `examples/big/stein.oro windows32` 115578 → 73906 ms, 0.64x
+
+## 2026-11-20 — on 047c5a7e, with uncommitted changes
+
+**Reason:** callbacks tier 1 on windows (ADR 0143): examples/callbacks/allwindows.oro new, emitted on windows and windows32, refused on go, js and java; the callbacks programs new on windows32
+
+189 runs: 126 emitted, 63 refused; 6685 of 6695 integer operations bounded, 741 of 820 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+3 change(s):
+
+- new source — `examples/callbacks/allwindows.oro windows32`
+- new source — `examples/callbacks/caesar.oro windows32`
+- new source — `examples/callbacks/prefix.oro windows32`

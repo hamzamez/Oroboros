@@ -37,6 +37,16 @@
    note: gen-run: 35 operation(s) in arbitrary precision
    note: gen-run: 52 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 220 of 220 integer operations bounded; 18 of 23 loop(s) proven terminating
+== examples/callbacks/allwindows.oro windows32 emitted 46aaac601c2085beb5b14303e532725adb0ca1ee2092a32e74bc2e4bfd9d1919
+   note: gen-main: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/callbacks/caesar.oro windows32 refused
+   gen: examples/callbacks/caesar.oro: in main: `go/strings`.IndexFunc is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use go/strings` matched no file on the search path and this target provides no module go/strings either, so every name from it is unbound. Check the path.
+== examples/callbacks/prefix.oro windows32 refused
+   gen: examples/callbacks/prefix.oro: main: a function that mentions a cell (k): fn(x, y) { io.print_int(x); io.print_int(y); if k < 1000000 { k := k + 1 } else { () }; x == y } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), and callbacks applied during a call are tier 1, not built (spec/local.md §3)
 == examples/dot.oro windows32 refused
    gen: examples/dot.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.

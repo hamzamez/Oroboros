@@ -330,6 +330,17 @@ func newRelCtx(tg *emit.Target, f *Func) *relCtx {
 				if s.Op == OLoop && k == 0 {
 					c.loopOf[sub] = true
 				}
+				// A λ THE HOST APPLIES DURING A CALL (ADR 0143) runs at that call,
+				// 0.. times: its region is placed at the call that uses its value,
+				// a loop's body for the rule, so a table it reads lives to the
+				// call's end. Placed at the `fn` statement, a release fell between
+				// the two, and the λ read freed memory.
+				if s.Op == OFn && !PlantFnReleasedEarly {
+					if j := consumer(r, i, s.Res[0]); j >= 0 {
+						c.parent[sub] = loc{r, j}
+					}
+					c.loopOf[sub] = true
+				}
 			}
 			switch s.Op {
 			case OIndex:
@@ -939,3 +950,20 @@ func identityCoercion(q emit.Prim) bool {
 // PlantCoercionBorrows reads llvm/str.text as borrowing its table, as before
 // strings-2026-11-16: a program's table is then released under its string.
 var PlantCoercionBorrows bool
+
+// consumer is the index of the statement after i in r that uses v, or −1.
+func consumer(r *Region, i int, v V) int {
+	for j := i + 1; j < len(r.Stmts); j++ {
+		for _, a := range r.Stmts[j].Args {
+			if a == v {
+				return j
+			}
+		}
+	}
+	return -1
+}
+
+// PlantFnReleasedEarly places a λ's region at its `fn` statement, as before:
+// a table the λ reads is then released before the call that applies it
+// (TestACallbackCapturesItsEnvironmentThroughTheContextWord, windows only).
+var PlantFnReleasedEarly bool

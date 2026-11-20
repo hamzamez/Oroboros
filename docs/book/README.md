@@ -39,7 +39,7 @@ runs every chapter, so a chapter that no longer says what the compiler gives fai
 | | **IV. Claims and hosts** | | |
 | 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 66 blocks checked 2026-11-20 |
 | 17 | [Targets](17-targets.md) | host modules, writing a declaration, a function the host calls, portability computed | J; 31 blocks checked 2026-11-20 |
-| 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a window procedure | J; 22 blocks checked 2026-11-20 (new) |
+| 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a function Windows calls during a call; a window procedure | J; 25 blocks checked 2026-11-20 (new) |
 | 19 | [A whole program](19-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-20 |
 
 Chapters 11 and 18 were added 2026-11-20, and the chapters after each renumbered (the old 11–16 are

@@ -7,6 +7,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/ir"
+	"oroboros/ir/llvm"
 )
 
 // A CALLBACK DURING A CALL IS DECIDED UNDER ITS CLAIM (ADR 0143, ADR 0053
@@ -136,5 +137,70 @@ export fn main() {
 	ir.PlantCellReadUnjoined = false
 	if err != nil {
 		t.Errorf("with the stores dropped from the join, k reads as 0 and the product should build: %v", err)
+	}
+}
+
+// A CALLBACK CAPTURES ITS ENVIRONMENT THROUGH THE CONTEXT WORD (ADR 0143 item
+// 6): on windows the λ is closure-converted, E a record in the caller's frame,
+// its address in EnumWindows' LPARAM, or, where the API passes none
+// (EnumSystemGeoID), in a slot written around the call. The law ∀ distributes
+// over ∧ is checked on both triples. The faults: E read from the λ's first
+// parameter, the window's handle, instead of the context word; and the slot
+// left unwritten, so the λ loads its captures through null and crashes.
+func TestACallbackCapturesItsEnvironmentThroughTheContextWord(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds and runs windows programs")
+	}
+	src, err := os.ReadFile("../../examples/callbacks/allwindows.oro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const law = "0 0 0 11 4"
+	for _, tg := range []string{"windows", "windows32"} {
+		if got, err := runOnMayFail(t, string(src), tg); err != nil || strings.TrimSpace(got) != law {
+			t.Errorf("allwindows on %s: want %q, got %q, %v", tg, law, got, err)
+		}
+	}
+	llvm.PlantCtxSwapped = true
+	got, err := runOnMayFail(t, string(src), "windows")
+	llvm.PlantCtxSwapped = false
+	if err == nil && strings.TrimSpace(got) == law {
+		t.Error("with E read from the window's handle the law should not hold, so the witness can fail")
+	}
+	const geo = `use win/print
+use windows/winnls
+use windows/errhandlingapi
+export fn main() {
+    k = errhandlingapi.GetLastError() % 2 + 7
+    print.print_int(winnls.EnumSystemGeoID(16, 0, fn(g) { if g == k { 0 } else { 1 } }))
+}
+`
+	for _, tg := range []string{"windows", "windows32"} {
+		if got, err := runOnMayFail(t, geo, tg); err != nil || strings.TrimSpace(got) != "1" {
+			t.Errorf("EnumSystemGeoID through the slot on %s: want 1, got %q, %v", tg, got, err)
+		}
+	}
+	// THE SLOT'S WITNESS IS ITS TEXT: no context-free enumerator measured
+	// (EnumSystemGeoID, EnumSystemLocalesA, EnumSystemCodePagesA,
+	// EnumDateFormatsA) answers differently when its callback stops it, and a
+	// load through null is undefined, which clang may fold away, so neither an
+	// answer nor a crash shows a wrong E. The slot is written with E's address
+	// before the call; the fault leaves it unwritten.
+	slotWritten := func() bool {
+		if _, err := buildOnly(t, geo, "windows"); err != nil {
+			t.Fatal(err)
+		}
+		call := strings.Index(lastCode, "call i32 @EnumSystemGeoID(")
+		store := strings.Index(lastCode, "store ptr %.env")
+		return call > 0 && store > 0 && store < call
+	}
+	if !slotWritten() {
+		t.Error("the slot should be written with E's address before EnumSystemGeoID is called")
+	}
+	llvm.PlantSlotUnwritten = true
+	unwritten := slotWritten()
+	llvm.PlantSlotUnwritten = false
+	if unwritten {
+		t.Error("with the slot unwritten the text should hold no store of E before the call, so the witness can fail")
 	}
 }

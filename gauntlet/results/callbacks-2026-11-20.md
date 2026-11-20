@@ -3,9 +3,9 @@
 hamza, 2026-11-20: "now build everything agreed to in callbacks, you come up with program or
 programs for them. always mathematical and algebraic."
 
-This is the first step: Go, stages A (a pure λ), B (a cell threaded under `ordered`) and D (the
-evidence check). Windows' closure conversion (C) and JavaScript and the JVM (E) are the next
-steps, each its own result.
+Go first: stages A (a pure λ), B (a cell threaded under `ordered`) and D (the evidence check),
+then C, windows' closure conversion into the context word and the slot. JavaScript and the JVM
+(E) are the next step.
 
 ## The programs
 
@@ -21,6 +21,11 @@ steps, each its own result.
   (6) equals lcp + 1 by the program's own loop (lcp = 5).
 - **The book's §17.6**: ROT13 twice, a print refused under `IndexFunc`, a count refused under
   `Map`, and the comparisons counted under `EqualFunc`.
+
+- **`examples/callbacks/allwindows.oro`: ∀ over the windows is a semilattice homomorphism.**
+  EnumWindows answers the conjunction of a pure λ over the windows W, a fold of (∧, 1), so
+  ∀h. (p ∧ q) = (∀h. p) ∧ (∀h. q). Checked for every constant pair (a, b), captured from the loop's
+  iteration through E in the context word: `0 0 0 11 4` on x86-64 and on i686. The book's §18.7.
 
 ## What was built
 
@@ -38,6 +43,10 @@ steps, each its own result.
 | `cell-set` | a write through a reference, `(do (cell-set %r %v))`, an effect to the plan | — |
 | the Go printer | `v14 := func(v15 int, v16 int) bool { … }`, a narrow parameter converted on entry, a narrow result at each return, an unread one `_` | — |
 | the evidence | the markers file's fifth column, the sentence of `go doc` stating the order; checked both ways | a sentence Go's documentation does not contain refused (`TestEveryOrderedCallbackIsItsHostsSentence`) |
+| closure conversion (windows) | E a record of the region's captures, an `alloca` in the entry block, its stores at the `fn`; the lifted function takes the λ's parameters and `ptr %ctx` and loads E at entry under the region's own names; the window procedure's `CallbackWrapper` at the claim's convention; `ctx(f)` E's address | the law on both triples; E read from the window's handle instead breaks it (`llvm.PlantCtxSwapped`) |
+| the slot (windows) | for a claim with no `ctx`: E's address in a global, saved, written and restored around the call | `EnumSystemGeoID` runs on both triples; the slot written before the call, in the text, and the fault leaves it unwritten (`llvm.PlantSlotUnwritten`) |
+| release | a λ's region is placed at the call that applies it, a loop's body for the rule | a captured table released after `EnumWindows` returns; the fault places the region at its `fn`, and the release falls before the call (`ir.PlantFnReleasedEarly`, `TestATableACallbackReadsLivesToItsCall`) |
+| declarations (Win32) | `winuser.EnumWindows` by its context word; `winnls.EnumSystemGeoID`, a new header, by its slot | exempt from the prototype check: the survey refuses a function pointer |
 | declarations | `strings`: IndexFunc, LastIndexFunc, ContainsFunc, Map, TrimFunc; `slices.EqualFunc`, `ordered` | Map's result ours, witnessed by an adversary over the mappings (`TestStringsResultsDeclaredOursLandInUTF8`) |
 
 ## What failed first
@@ -63,6 +72,29 @@ steps, each its own result.
   reads, printed `#_`, so the display is the convention. The change was reverted.
 - **An unread parameter's conversion was refused by Go** as an unused variable; it is now `_`.
 
+**On windows:**
+- **The lifted function's parameter was the word where the region read an i32**, on i686 only: a
+  parameter proven in S₃₂ is narrowed at a function's entry (ADR 0127), and the lifted function
+  skipped it. clang refused the module.
+- **The slot's run could not witness its fault.** EnumSystemGeoID answers 1 whether its callback
+  stops it at the first nation or runs through all 250, and EnumSystemLocalesA,
+  EnumSystemCodePagesA and EnumDateFormatsA the same (measured with C), so no answer shows a wrong
+  E; and a load through null is undefined, which clang folded away rather than crash. The witness
+  is the text: the slot written before the call. The restore after it has no planted fault, since
+  nesting the same API needs an impure host call inside the λ, which Theorem D refuses.
+- **A captured table could be freed before the call**: the release analysis placed the region at
+  its `fn` statement. Freed memory keeps its bytes, so this too is witnessed by the order.
+- **No Win32 host is `ordered`**, so a cell written in a λ is refused on LLVM, explicitly, as `fn`
+  is on JavaScript and the JVM until they are built: a statement a printer skipped would be a wrong
+  answer.
+
+**The Win32 survey's model** counted a function pointer uncallable, and the target now calls two.
+It now counts one callable where the callback's parameters are words, handles or pointers,
+`callbackPassable`: 4,468 entry points callable (36.1%, from 35.2%), 3,832 callable and linkable
+(31.0%, from 30.2%), 5,878 if every struct were declared (47.5%, from 46.3%). The 116 are an upper
+bound: whether an API keeps its pointer past the call, which tier 1 excludes, is its
+documentation's, and the header does not say.
+
 ## Paid and bought
 
 | | |
@@ -70,10 +102,10 @@ steps, each its own result.
 | compile time | 0.95× the baseline on the corpus (`cmd/check`'s gate); no program compiles slower |
 | run time | not measured: no program had a callback before; Go keeps a non-escaping closure on the stack (research §2.1), unmeasured here |
 | code size | the two new programs only; every existing file byte-identical |
-| proofs | 11,840 of 11,894 operations and 1,362 of 1,655 loops, from 11,812 of 11,866 and 1,361 of 1,654: the new programs' 28 operations and one loop, all proven |
+| proofs | 11,853 of 11,907 operations and 1,364 of 1,657 loops, from 11,812 of 11,866 and 1,361 of 1,654: the three programs' 41 operations and three loops, all proven; windows32 6,685 of 6,695 and 741 of 820 |
 | refusals changed | none in the corpus; the two programs refused on JavaScript, the JVM and windows, which declare no such host |
 | compiler lines | `core/cell.go` +190, `core/reduce.go` +40, `core/jreadtarget.go` +20, `emit/check.go` +40, `emit/target.go` +75, `emit/layout.go` +20, `ir/callback.go` +200, `ir/interval.go` +130, `ir/verify.go` +95, `ir/lower.go` +45, `ir/golang/golang.go` +65, `ir/plan`, `ir/print.go`, `ir/read.go`, `ir/typing.go`, `ir/final.go`, `ir/ir.go` a few each; tests +330 |
 | language lines | `targets/go/slices.oro` new, `targets/go/strings.oro` +30; two programs, 110 lines |
 | documents | ADR 0143's "as built"; inventory.md four words; j.md §1.4; the book's §17.6 (8 blocks); research §2.1's figure, corrected earlier today |
 | rule made less general | none |
-| not built | windows (C), JavaScript and the JVM (E); a buffer in the λ (T1-4, decided, waits on a program that writes one); the middle strength; a law a callback obeys |
+| not built | JavaScript and the JVM (E); a written cell on LLVM, at an `ordered` Win32 host; a buffer in the λ (T1-4, decided, waits on a program that writes one); the middle strength; a law a callback obeys |

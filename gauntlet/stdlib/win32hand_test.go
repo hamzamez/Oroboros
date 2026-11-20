@@ -179,6 +179,12 @@ var win32Exempt = map[string]string{
 		"its eight bytes cross as an i64 does on both triples",
 	"windows/winuser.PtInRect": "POINT by value, which the survey refuses; its passing is the ABI's, measured " +
 		"against clang on both triples (ADR 0129, TestAStructIsPassedByValue)",
+	"windows/winuser.EnumWindows": "a function pointer, WNDENUMPROC, which the survey refuses; its C signature is " +
+		"`repr WNDENUMPROC c(h, ctx) stdcall`, run on both triples (ADR 0143, " +
+		"TestACallbackCapturesItsEnvironmentThroughTheContextWord)",
+	"windows/winnls.EnumSystemGeoID": "a function pointer, GEO_ENUMPROC, which the survey refuses; its C signature is " +
+		"`repr GEO_ENUMPROC c(g) stdcall`, no context word, run on both triples (ADR 0143, " +
+		"TestACallbackCapturesItsEnvironmentThroughTheContextWord)",
 }
 
 // win32Mistakes are the errors a person could make writing a header by hand,

@@ -5195,6 +5195,7 @@ const (
 	CLen                   // len(s), s a byte table: its length as the C integer of J bits, Signed its type's sign
 	CDiff                  // hi − lo, a segment's length, I hi, J lo, as the C integer of K bits, Signed as CLen's
 	CConst                 // a constant, Val, of the prototype's type at its position, Set (ADR 0141)
+	CCtx                   // ctx(f), the address of callback parameter I's environment (ADR 0143)
 )
 
 // PlantCArgDropped accepts a C call whose argument terms leave a parameter
@@ -5246,6 +5247,17 @@ func resolveCArgs(q Prim) ([]CArg, error) {
 			default:
 				return nil, fmt.Errorf("&%s is a struct's const T* or a cell's address, and %s's set %s is neither: a scalar the host writes is a result or a cell", core.ShowName(t.Kids[1].Name), core.ShowName(t.Kids[1].Name), core.ShowSet(q.Args[i]))
 			}
+		case t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "ctx":
+			// ctx(f): the context word C passes back to the callback f, the
+			// address of f's environment (ADR 0143); f itself is passed too
+			if t.Kids[1].Kind != core.KName {
+				return nil, fmt.Errorf("ctx(f) takes a callback parameter, got %s", t.Kids[1])
+			}
+			i, ok := index[t.Kids[1].Name]
+			if !ok || !strings.HasPrefix(q.Args[i], CallbackPrefix) {
+				return nil, fmt.Errorf("ctx(%s) names no callback parameter", core.ShowName(t.Kids[1].Name))
+			}
+			out = append(out, CArg{Kind: CCtx, I: i})
 		case t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "len":
 			// len(s): a byte table's length, the second projection of the
 			// (address, length) a C function takes for a region (ADR 0132),

@@ -4,9 +4,9 @@ Date: 2026-11-20
 Status: Accepted (hamza, 2026-11-18 and 2026-11-20, on [callbacks-sketches.md](../callbacks-sketches.md)
 Part 2, derived in Part 3: T1-1 "L"; T1-3 "agree to option a"; T1-4 "agree"; T1-2 "agree to calls K
 with K a range, ordered", then "sure, I agree" to the default and the evidence; T1-5 "agree to k").
-Built on Go 2026-11-20, a pure λ and a cell threaded under `ordered`
-([callbacks](../../gauntlet/results/callbacks-2026-11-20.md)); windows' closure conversion, the
-evidence check, JavaScript and the JVM to follow.
+Built 2026-11-20 on Go, a pure λ and a cell threaded under `ordered`, and on windows, closure
+conversion into the context word and the slot, with the evidence check
+([callbacks](../../gauntlet/results/callbacks-2026-11-20.md)); JavaScript and the JVM to follow.
 
 ## Context
 

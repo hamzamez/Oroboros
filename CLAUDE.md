@@ -147,9 +147,9 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
   callbacks tier 1 at a call;
 - **callbacks tier 1**: every decision made (ADR 0143, callbacks-sketches Part 3), and **built on Go**
   ([callbacks](gauntlet/results/callbacks-2026-11-20.md)): a pure λ decided under its claim, a cell
-  threaded under `ordered` by a reference in the frame, W16, the evidence check; **being built**:
-  windows' closure conversion into the context word (`ctx`/`ctx(f)`, a slot where the API has none),
-  then JavaScript and the JVM (the JVM's written cell a slot or a holder, measured); waiting on a
+  threaded under `ordered` by a reference in the frame, W16, the evidence check; **and on windows**,
+  closure conversion into the context word (`ctx`/`ctx(f)`, a slot where the API has none);
+  **being built**: JavaScript and the JVM (the JVM's written cell a slot or a holder, measured); waiting on a
   program: the middle strength's word (each element once, no order: Win32's enumerators,
   `sync.Map.Range`), a callback on another thread while the call blocks (`T.Run`), and the trailing
   block `f(a…) { x̄ -> b }` with the scope forms;
@@ -371,9 +371,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **11,840 of 11,894** integer operations proven inside their target's word, the 54 left
+- **Provability**: **11,853 of 11,907** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,362 of 1,655** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,364 of 1,657** loops proven to
   terminate (size-change termination; of the 293 left, 41 were before bigbits-2026-11-19, among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
@@ -382,8 +382,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
   counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.2%
-  declarable and 30.2% callable and linkable by today's model, 35.2% callable, 46.3% if every struct were
-  declared (12,377 entry points, survey-2026-11-19; the old model's 32.0% counted UTF-16 strings); `go run gauntlet/stdlib/coverage.go` gives the declared
+  declarable and 31.0% callable and linkable by today's model, 36.1% callable, 47.5% if every struct were
+  declared (12,377 entry points, survey-2026-11-19, a function pointer counted since callbacks-2026-11-20,
+  an upper bound; the old model's 32.0% counted UTF-16 strings); `go run gauntlet/stdlib/coverage.go` gives the declared
   share of the Go packages with a file ([gocoverage-2026-10-06](gauntlet/results/gocoverage-2026-10-06.md)).
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
   `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints, `math/bits`, `io`'s
@@ -468,7 +469,7 @@ option (b), jswitch5b-2026-10-16).
   encoding a niche of its error type.
 - **Closures** may not survive staging. A λ at a host's callback parameter is second-class (ADR
   0143): an `fn` statement whose one use is the call (W16), decided under its claim, pure unless the
-  host is `ordered`, a written cell threaded by a reference; built on Go. A λ at a callback's field
+  host is `ordered`, a written cell threaded by a reference; built on Go and windows. A λ at a callback's field
   is the window procedure's (ADR 0133).
 - **Modules**: a file is a theory named by its path (ADR 0064); `use p as a`; **`pub` marks the
   interface, private the default, `export` an entry point** (ADR 0078); **no module defines a name of

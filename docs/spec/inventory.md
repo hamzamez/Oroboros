@@ -39,7 +39,7 @@ tested by `core/comment_test.go` and the J reader's tests.
 
 | status | count |
 |---|---:|
-| `specified` — a spec states it | 166 |
+| `specified` — a spec states it | 167 |
 | `recorded` — only research, a result document or code comments | 24 |
 | `reserved` — refused, and specified as owed | 3 |
 | `refused` — an old spelling, refused naming the new one | 11 |
@@ -231,6 +231,7 @@ From `core/jreadtarget.go`, which reads a target file's J into these forms, and 
 | `conv` | specified — the reader's form of a callback's convention after its C signature, `repr Q c(x, …) stdcall`, read (conv "stdcall") | [llvm.md](llvm.md) §6c |
 | `calls` | specified — a callback claim's count, `set Q = fn(…) (r ∈ R) calls K`, K a set of naturals written as a range (`1`, `0..1`, `0..`), the host's promise of how many times it applies the λ: a name used in the λ is used k times its use there (ADR 0143); the default `0..` | [ADR 0143](../decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 | `ordered` | specified — a callback claim's promise that the host's activations are a sequence its documentation fixes (ADR 0143): an effect in the λ, a cell written or a host's IO, is admitted only under it, or under a count of at most one (Theorem D) | [ADR 0143](../decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
+| `ctx` | specified — among a C call's arguments, `ctx(f)`, the address of the callback parameter f's environment, and in a callback's C signature, `repr Q c(x, ctx) stdcall`, where the host hands it back: the context word (ADR 0143) | [ADR 0143](../decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 | `callbacks` | specified — the loader's form for a host operation's callback parameters, `(callbacks i o …)`, each index and 1 where its host promises its order, handed from the target as `cells` is: the state translation threads a cell a λ there writes only under the promise | [ADR 0143](../decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 | `cells` | specified — the loader's form for a declaration's cell parameters, `(cells ARITY LIST i…)`, handed from the target as `variadic` is | [local.md](local.md) §5 |
 | `borrows` | specified — the loader's form for a declaration that borrows a buffer, `(borrows RESULTS i…)`: its `(buffer V)` parameters, handed back first, and its result's other components, handed from the target as `cells` is | [local.md](local.md) §2.1 |

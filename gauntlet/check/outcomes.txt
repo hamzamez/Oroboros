@@ -136,6 +136,20 @@
    note: gen-run: 35 operation(s) in arbitrary precision
    note: gen-run: 151 operation(s) or conversion(s) in the unsigned word
    note: gen-run: 163 of 163 integer operations bounded; 18 of 23 loop(s) proven terminating
+== examples/callbacks/allwindows.oro go refused
+   gen: examples/callbacks/allwindows.oro: in main: `windows/winuser`.EnumWindows is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/callbacks/allwindows.oro js refused
+   gen: examples/callbacks/allwindows.oro: in main: `windows/winuser`.EnumWindows is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/callbacks/allwindows.oro java refused
+   gen: examples/callbacks/allwindows.oro: in main: `windows/winuser`.EnumWindows is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     `use windows/winuser` matched no file on the search path and this target provides no module windows/winuser either, so every name from it is unbound. Check the path.
+== examples/callbacks/allwindows.oro windows emitted 29241d0795ee5f64d2190d4402f73ee6391c7fa5c97cdd5afcc494de8fed3861
+   note: gen-main: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 2 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/callbacks/caesar.oro go emitted 7d71ed6cb5b09a442efeb933b596db768cd6f95f1d0b0c465334704296688489
    note: gen-main: 25 of 25 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/callbacks/caesar.oro js refused

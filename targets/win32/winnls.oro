@@ -1,0 +1,24 @@
+// winnls.h (ADR 0126): THE NATIONS, enumerated by a callback with no context
+// word (ADR 0143). typedef LONG GEOID; typedef BOOL (CALLBACK*
+// GEO_ENUMPROC)(GEOID); BOOL EnumSystemGeoID(GEOCLASS GeoClass, GEOID
+// ParentGeoId, GEO_ENUMPROC lpGeoEnumProc). GEOCLASS is a DWORD, and
+// GEOCLASS_NATION is 16.
+//
+// The callback receives a GEOID and nothing else, so the λ's environment E is
+// found through a slot, written before the call and restored after it, which
+// the call's nesting makes sound on one thread (shallow binding). The page
+// promises no order, so no marker, and the λ is pure (Theorem D). Measured on
+// this machine (callbacks-2026-11-20): EnumSystemGeoID answers 1 whether the
+// callback stops it at the first nation or lets it run through all 250, so its
+// answer does not show the λ's.
+module windows/winnls {
+    use windows/minwindef
+    use windows/winnt
+
+    set GEOID = winnt.LONG
+    set GEO_ENUMPROC = fn(g ∈ GEOID) (r ∈ minwindef.BOOL)
+    repr GEO_ENUMPROC c(g) stdcall
+    fn EnumSystemGeoID(c ∈ minwindef.DWORD, parent ∈ GEOID, f ∈ GEO_ENUMPROC) (r ∈ minwindef.BOOL) {
+        host expr call EnumSystemGeoID stdcall lib "kernel32"
+    }
+}

@@ -518,6 +518,11 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.pl.Alias[s.Res[0]] = s.Args[0] // a view buys the JVM nothing (L13)
 	case ir.OIf:
 		p.ifOp(s)
+	case ir.OFn, ir.OCellSet:
+		// A CALLBACK DURING A CALL (ADR 0143) is printed on Go and on windows;
+		// here no host declares one yet, and a statement skipped would be a
+		// wrong answer, so it is refused
+		p.fail("a λ a host applies during a call (%s) is not printed on this target yet (ADR 0143)", s.Op)
 	case ir.OLoop:
 		p.loop(s)
 	case ir.OBuild:

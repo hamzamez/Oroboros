@@ -567,6 +567,17 @@ func model2(f fn, structs, handles, callbacks map[string]bool, alias map[string]
 	for _, p := range f.params {
 		p = unSAL(p)
 		sh := classify(p.typ, structs, handles, callbacks, alias)
+		// A FUNCTION POINTER IS A λ WRITTEN AT THE CALL (ADR 0143), passable
+		// where the callback's own parameters and result are scalars a claim's
+		// sets state. Whether the API keeps it past the call, which tier 1
+		// excludes, is its documentation's and not the header's, so this
+		// counts every function pointer of that shape: an upper bound.
+		if sh == shFunc {
+			if !callbackPassable(cleanType(p.typ), structs, handles, callbacks, alias) {
+				lo, up = false, false
+			}
+			continue
+		}
 		if !canPass2(p, sh, f, structs, alias, false) {
 			lo = false
 		}
@@ -2732,4 +2743,28 @@ func reportNames(file string, fns []fn, verdictOf, verdict2Of map[string]string,
 		fmt.Printf("%s\t%s\t%s\t%d\t%s\t%s\n", n, f.hdr, verdictOf[n], len(f.params), dll, v2)
 	}
 	return nil
+}
+
+// callbackPassable says the callback typedef t's parameters are words,
+// handles or pointers (a handle classifies as a pointer): what a claim's sets can
+// state, so a λ can be written for it (ADR 0143). A context word is a pointer
+// or a pointer-width integer, so both the API's context and its absence pass.
+func callbackPassable(t string, structs, handles, callbacks map[string]bool, alias map[string]string) bool {
+	for i := 0; i < 8 && t != ""; i++ {
+		ps, have := cbParams[t]
+		if !have {
+			t = alias[t]
+			continue
+		}
+		params, _ := parseParams(ps)
+		for _, q := range params {
+			switch classify(q.typ, structs, handles, callbacks, alias) {
+			case shWord, shPtr: // a handle classifies as a pointer
+			default:
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }

@@ -27,6 +27,20 @@ module windows/winuser {
     set WNDPROC = fn(h ∈ windef.HWND, m ∈ minwindef.UINT, w ∈ minwindef.WPARAM, l ∈ minwindef.LPARAM) (r ∈ minwindef.LRESULT)
     repr WNDPROC c(h, m, w, l) stdcall
 
+    // ENUMERATING THE TOP-LEVEL WINDOWS, a callback during the call (ADR 0143).
+    // typedef BOOL (CALLBACK* WNDENUMPROC)(HWND, LPARAM); BOOL
+    // EnumWindows(WNDENUMPROC lpEnumFunc, LPARAM lParam). The page promises
+    // "the handle to each window, in turn": each window once, in an order it
+    // does not state, so no marker, and the λ is pure (Theorem D). Its result
+    // is the conjunction over the windows W of the λ's answers ("If
+    // EnumWindowsProc returns zero, the return value is also zero"), a fold of
+    // the semilattice (∧, 1) over W, the same in every order and every count.
+    // LPARAM is the context word, E's address (ctx(f)), which the host hands
+    // back as the callback's second parameter.
+    set WNDENUMPROC = fn(h ∈ windef.HWND) (r ∈ minwindef.BOOL)
+    repr WNDENUMPROC c(h, ctx) stdcall
+    fn EnumWindows(f ∈ WNDENUMPROC) (r ∈ minwindef.BOOL) { host expr call EnumWindows(f, ctx(f)) stdcall lib "user32" }
+
     // WINDOW CLASSES. typedef struct tagWNDCLASSA { UINT style; WNDPROC
     // lpfnWndProc; int cbClsExtra; int cbWndExtra; HINSTANCE hInstance; HICON
     // hIcon; HCURSOR hCursor; HBRUSH hbrBackground; LPCSTR lpszMenuName; LPCSTR

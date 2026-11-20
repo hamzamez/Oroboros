@@ -1,0 +1,41 @@
+// allwindows: ∀ OVER THE WINDOWS IS A SEMILATTICE HOMOMORPHISM, on Windows.
+//
+// WHAT IT IS. EnumWindows passes each top-level window to a λ and stops at the
+// first that answers 0, and its own answer is then 0 ("If EnumWindowsProc
+// returns zero, the return value is also zero"). So for a pure λ p, its answer
+// is the conjunction of p over the set W of windows, ∀h ∈ W. p(h): a fold of
+// the semilattice (∧, 1), commutative and idempotent, the same in whatever
+// order and however many times the host calls (Theorem D). And ∀ distributes
+// over ∧:
+//
+//     ∀h ∈ W. (p(h) ∧ q(h))  =  (∀h ∈ W. p(h)) ∧ (∀h ∈ W. q(h)).
+//
+// The program checks it for p and q constant at a and b, every (a, b) in
+// {0, 1}², printing 10·lhs + rhs: 0, 0, 0, 11, then the loop's count, 4. It
+// needs a window to exist (W ≠ ∅, where ∀ over ∅ would answer 1 for every p),
+// which a desktop session has.
+//
+// THE CALLBACKS (ADR 0143). Each λ reads a and b, values of the loop's own
+// iteration, from its environment E: a record in main's frame whose address
+// EnumWindows hands back in its LPARAM, the context word (ctx(f)). The C
+// function the host calls is printed at CALLBACK's convention, __stdcall,
+// which on 32-bit Windows is the callee's to clean.
+use win/print
+use windows/winuser
+
+export fn main() {
+    loop i = 0 {
+        i < 4 -> {
+            a = i % 2
+            b = i / 2
+            both = winuser.EnumWindows(fn(h) { if a == 1 && b == 1 { 1 } else { 0 } })
+            pa = winuser.EnumWindows(fn(h) { a })
+            pb = winuser.EnumWindows(fn(h) { b })
+            lhs = if both != 0 { 1 } else { 0 }
+            rhs = if pa != 0 && pb != 0 { 1 } else { 0 }
+            print.print_int(10 * lhs + rhs)
+            again(i + 1)
+        }
+        else -> print.print_int(i)
+    }
+}

@@ -4027,3 +4027,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `gauntlet/differential/cases/utf8-widths.oro windows` 1062 → 625 ms, 0.59x
+
+## 2026-11-20 — on 047c5a7e, with uncommitted changes
+
+**Reason:** callbacks tier 1 on windows (ADR 0143): examples/callbacks/allwindows.oro new, emitted on windows and windows32, refused on go, js and java; the callbacks programs new on windows32
+
+756 runs: 519 emitted, 237 refused; 11853 of 11907 integer operations bounded, 1364 of 1657 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/callbacks/allwindows.oro go`
+- new source — `examples/callbacks/allwindows.oro java`
+- new source — `examples/callbacks/allwindows.oro js`
+- new source — `examples/callbacks/allwindows.oro windows`

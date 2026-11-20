@@ -1,0 +1,74 @@
+// horner: A POLYNOMIAL BY HORNER'S RULE, THROUGH A DEFINITION OF THE PROGRAM'S OWN.
+//
+// WHAT IT IS. For coefficients c_0 … c_{n−1}, highest first, and a point t,
+//     p(t) = c_0 t^{n−1} + c_1 t^{n−2} + … + c_{n−1},
+// and Horner's rule computes it by n multiply-adds, the fold
+//     a_0 = 0,  a_{k+1} = a_k · t + c_k,   p(t) = a_n.
+// The step is not commutative: folding the coefficients in another order is
+// another polynomial (Horner's rule on c reversed is t^{n−1} p(1/t)). So a λ
+// that steps it writes a cell whose final value depends on the order of its
+// applications.
+//
+// THE DEFINITION IS THE HOST (ADR 0144). `each` applies its λ to a[0], a[1],
+// …, in program order, as its loop says: the strongest promise a host can
+// make, exactly once per element, in order, visible to β. So a λ given to it
+// may write a cell of the caller's, expanded before the state translation;
+// `twice` applies its λ twice, f(f(x)), and a cell counts the applications.
+//
+// The program evaluates the polynomial 3t⁵ − 2t⁴ + 0t³ + 5t² − t + 7 at
+// t = 0 … 9 by Horner through `each` and by the sum of powers by a loop of its
+// own, and prints p(2) = 89, how many of the ten agree, 10, and then
+// twice(x ↦ x + 3, 1) = 7 with the count of the λ's applications, 2.
+//
+// THE GUARDS are the analysis's: intervals bound a loop's sums by its trip
+// count, not its products, so a · t in the cell and q · t in the power are
+// proven inside the word only under a bound on a and on q.
+use io
+
+// each element of a, in order, to f
+fn each(a, f) {
+    loop i = 0 {
+        i < len(a) -> {
+            f(a[i])
+            again(i + 1)
+        }
+        else -> ()
+    }
+}
+
+fn twice(f, x) { f(f(x)) }
+
+// p(t) by Horner's rule, the λ given to `each`
+fn horner(c ∈ Array(-9..9), t ∈ 0..9) (Int) {
+    var a := 0
+    each(c, fn(x) {
+        if -1000000000 < a && a < 1000000000 { a := a * t + x }
+    })
+    a
+}
+
+// p(t) by the sum of c_k t^{n−1−k}, a loop of the program's own
+fn powers(c ∈ Array(-9..9), t ∈ 0..9) (Int) {
+    loop k = 0, s = 0 {
+        k < len(c) && k < 9 -> {
+            e = loop j = 0, q = 1 {
+                j < len(c) - 1 - k && q < 1000000 -> again(j + 1, q * t)
+                else -> q
+            }
+            again(k + 1, s + c[k] * e)
+        }
+        else -> s
+    }
+}
+
+export fn main() {
+    c = array { 3, -2, 0, 5, -1, 7 }
+    io.print_int(horner(c, 2))
+    loop t = 0, agree = 0 {
+        t <= 9 -> again(t + 1, if horner(c, t) == powers(c, t) && agree < 10 { agree + 1 } else { agree })
+        else -> io.print_int(agree)
+    }
+    var n := 0
+    io.print_int(twice(fn(x) { if n < 100 { n := n + 1 }; x + 3 }, 1))
+    io.print_int(n)
+}

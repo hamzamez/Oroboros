@@ -185,6 +185,9 @@ var win32Exempt = map[string]string{
 	"windows/winnls.EnumSystemGeoID": "a function pointer, GEO_ENUMPROC, which the survey refuses; its C signature is " +
 		"`repr GEO_ENUMPROC c(g) stdcall`, no context word, run on both triples (ADR 0143, " +
 		"TestACallbackCapturesItsEnvironmentThroughTheContextWord)",
+	"windows/synchapi.InitOnceExecuteOnce": "a function pointer, PINIT_ONCE_FN, which the survey refuses, and " +
+		"INIT_ONCE a union of one pointer; its C signature is `repr INIT_ONCE_FN c(o, ctx, c) stdcall`, run " +
+		"on both triples (ADR 0143, TestACellWrittenInACallbackOnEveryTarget)",
 }
 
 // win32Mistakes are the errors a person could make writing a header by hand,

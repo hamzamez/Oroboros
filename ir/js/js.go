@@ -34,7 +34,7 @@ import (
 // Func prints one IR_P function. Imports go to emit.JSImports, which the file
 // writer reads, as the term backend does.
 func Func(tg *emit.Target, f *ir.Func) (string, error) {
-	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), pending: map[ir.V]string{}}
+	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), pending: map[ir.V]string{}, own: ir.OwnReferences(f)}
 	p.inline = p.pl.Inlinable()
 	out, err := p.function()
 	if err != nil {
@@ -57,6 +57,7 @@ type printer struct {
 
 	inline  map[ir.V]bool   // values written at their use (ir/plan Inlinable)
 	pending map[ir.V]string // their expressions, until the use reads them
+	own     map[ir.V]bool   // references no host receives (ir.OwnReferences)
 }
 
 // loopCtx is what a loop's body needs at its exits.
@@ -179,6 +180,10 @@ func (p *printer) tailLoop() *ir.Stmt {
 
 // ret is the return of the function's results.
 func (p *printer) ret(vs []ir.V) {
+	if len(vs) == 1 && len(p.f.Results) == 1 && p.f.Results[0] == "prod()" {
+		p.line("return;") // the unit's value: a callback whose host ignores it
+		return
+	}
 	switch len(vs) {
 	case 0:
 		p.line("return;")
@@ -395,10 +400,14 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OFn:
 		p.fnLit(s)
 	case ir.OCellSet:
-		// a cell a λ writes under an `ordered` host (ADR 0143): no JavaScript
-		// host is declared `ordered`, so no program reaches this, and it is
-		// refused rather than printed unexercised
-		p.fail("a cell written in a callback is not printed on JavaScript yet: no host here is `ordered` (ADR 0143)")
+		// A WRITE OF THE CALLER'S CELL from a λ under an `ordered` host (ADR
+		// 0143): the reference is the variable itself, which the arrow closes
+		// over, so the write is an assignment to it
+		if PlantCellWriteLocal {
+			p.line("{ let %s = %s; }", p.name(s.Args[0]), p.ref(s.Args[1]))
+			return
+		}
+		p.line("%s = %s;", p.name(s.Args[0]), p.ref(s.Args[1]))
 	case ir.OLoop:
 		p.loop(s)
 	case ir.OBuild:
@@ -411,7 +420,24 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.body(s, buf)
 	case ir.OTabulate:
 		p.tabulate(s)
-	case ir.OCellRef, ir.OCellFresh, ir.OCellGet:
+	case ir.OCellRef:
+		// A REFERENCE NO HOST RECEIVES (ADR 0143) is read and written only by
+		// the function and the λs its calls are given: a variable of its own,
+		// initialized with the cell's value, which an arrow function captures
+		// by reference (ECMA-262's closures), so no holder is needed
+		if !p.own[s.Res[0]] {
+			p.fail("(%s …): a cell a host writes is not built on this target (spec/local.md §5)", s.Op)
+			return
+		}
+		p.line("let %s = %s;", p.name(s.Res[0]), p.ref(s.Args[0]))
+	case ir.OCellGet:
+		if !p.own[p.pl.Res(s.Args[0])] {
+			p.fail("(%s …): a cell a host writes is not built on this target (spec/local.md §5)", s.Op)
+			return
+		}
+		// the value now, a constant: a later write must not change it
+		p.line("const %s = %s;", p.name(s.Res[0]), p.name(s.Args[0]))
+	case ir.OCellFresh:
 		// No host of this target takes a cell (spec/local.md §5): Java and
 		// JavaScript have no pointers, and their out-parameters are arrays
 		// and objects, already buffers and handles.
@@ -728,9 +754,17 @@ func (p *printer) fnLit(s *ir.Stmt) {
 	// the λ's own exits return from the arrow: a function of one result
 	fc := *p.f
 	fc.Body = body
+	if d, _, ok := p.tg.CallbackDecl(strings.TrimPrefix(s.Type, core.CallbackPrefix)); ok {
+		fc.Results = []string{d.Result}
+	}
 	p.f = &fc
 	p.region(body, nil, true)
 	p.yieldTo, p.tailOp, p.f = savedTo, savedTail, savedF
 	p.ind--
 	p.line("};")
 }
+
+// PlantCellWriteLocal writes a callback's cell into a variable of the arrow's
+// own, shadowing the caller's, as a closure that copied its environment would:
+// the caller then reads the cell unchanged (TestACellWrittenInACallbackOnEveryTarget).
+var PlantCellWriteLocal bool

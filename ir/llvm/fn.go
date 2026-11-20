@@ -71,7 +71,7 @@ func (p *printer) fnOutline(s *ir.Stmt) {
 	fc := *p.f
 	fc.Results = []string{d.Result}
 	sub := &printer{tg: p.tg, f: &fc, pl: p.pl, slots: map[ir.V]string{}, names: map[ir.V]string{},
-		dbl: p.dbl, wideNow: map[ir.V]bool{}, adder: p.adder, absorbed: p.absorbed}
+		dbl: p.dbl, wideNow: map[ir.V]bool{}, adder: p.adder, absorbed: p.absorbed, own: p.own}
 	envp := "%ctx"
 	if !info.Ctx {
 		envp = "%envp"

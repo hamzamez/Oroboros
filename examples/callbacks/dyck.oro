@@ -1,0 +1,63 @@
+// dyck: BALANCED PARENTHESES BY JAVASCRIPT'S forEach, COUNTED BY CATALAN.
+//
+// WHAT IT IS. A word over {(, )} is a table, 1 for ( and 0 for ), each a step
+// of +1 or −1, and the steps' prefix sums are a path d_0 = 0, d_1, …, d_n.
+// The word is balanced, a Dyck word, iff the path ends at 0 and never goes below it: d_n = 0 and
+// min_k d_k ≥ 0. The number of Dyck words of length 2m is the Catalan number
+// C_m = (2m choose m) / (m + 1), so 14 of the 256 words of length 8.
+//
+// THE ORDER IS THE POINT. d_n is a sum, the same in any order, but the
+// minimum of the prefix sums is not: ")(" and "()" have the same steps and
+// only one is balanced. So the λ that tracks the path writes two cells whose
+// final values depend on the order of its calls, and ECMA-262 promises that
+// order: forEach "calls callback once for each element present in the array,
+// in ascending order". The claim is `ordered`, and the cells are threaded in
+// that order (ADR 0143, Theorem T₁).
+//
+// The program decides every word of length 8 by forEach and by a loop of its
+// own, and prints how many are balanced, 14, and on how many of the 256 the
+// two agree, 256.
+//
+// THE GUARD on d is the analysis's: the host promises no bound on its calls,
+// so the λ reads as a loop of unknown trip count, and d ± 1 is proven inside
+// the word only under a bound on d.
+use io
+use js/Array
+
+// balanced by the host's traversal: the path's end and its minimum, two cells
+fn by_host(t ∈ Array(Int)) (Bool) {
+    var d := 0
+    var low := 0
+    Array.forEach(t, fn(x) {
+        if -1000 < d && d < 1000 { d := if x == 1 { d + 1 } else { d - 1 } }
+        if d < low { low := d }
+    })
+    d == 0 && low >= 0
+}
+
+// balanced by a loop of the program's own
+fn by_loop(t ∈ Array(Int)) (Bool) {
+    loop i = 0, d = 0 {
+        i < len(t) && t[i] == 1 -> again(i + 1, d + 1)
+        i < len(t) && d > 0 -> again(i + 1, d - 1)
+        i < len(t) -> false
+        else -> d == 0
+    }
+}
+
+export fn main() {
+    loop w = 0, dyck = 0, agree = 0 {
+        w < 256 -> {
+            t = alloc(array { (w >> k) & 1 : k ∈ 0..7 })
+            h = by_host(t)
+            l = by_loop(t)
+            same = (h && l) || (!h && !l)
+            again(w + 1, if h && dyck < 256 { dyck + 1 } else { dyck },
+                if same && agree < 256 { agree + 1 } else { agree })
+        }
+        else -> {
+            io.print_int(dyck)
+            io.print_int(agree)
+        }
+    }
+}

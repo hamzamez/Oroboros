@@ -1,0 +1,35 @@
+// once: ONE-TIME INITIALIZATION IS IDEMPOTENT, through Windows' InitOnce.
+//
+// WHAT IT IS. A block b ∈ {fresh, done} and e = InitOnceExecuteOnce(b, f):
+// fresh ↦ (run f; done if f answers TRUE, else fresh), done ↦ done. So
+//   - on success e ∘ e = e: a second call runs nothing;
+//   - on failure the block stays fresh: a second call runs f again.
+// The program runs each case twice, counting f's runs in a cell the λ writes,
+// and prints the counts with the calls' answers: 1 1 1 for success (one run,
+// both calls TRUE), then 2 0 0 for failure (two runs, both calls FALSE).
+//
+// THE CALLBACK (ADR 0143). Windows calls f at most once per call, `calls
+// 0..1`, so its one activation has one order and the λ may write the cell n,
+// threaded through a reference in the caller's frame (Theorem T₁), reached
+// from the lifted function through the context word.
+use win/print
+use windows/synchapi
+
+fn twice(ok ∈ 0..1) (Nat, 0..1, 0..1) {
+    var n := 0
+    var b := zero(synchapi.INIT_ONCE)
+    r1 = synchapi.InitOnceExecuteOnce(b, fn(o, c) { if n < 100 { n := n + 1 }; ok })
+    r2 = synchapi.InitOnceExecuteOnce(b, fn(o, c) { if n < 100 { n := n + 1 }; ok })
+    (n, if r1 != 0 { 1 } else { 0 }, if r2 != 0 { 1 } else { 0 })
+}
+
+export fn main() {
+    (a, a1, a2) = twice(1)
+    print.print_int(a)
+    print.print_int(a1)
+    print.print_int(a2)
+    (f, f1, f2) = twice(0)
+    print.print_int(f)
+    print.print_int(f1)
+    print.print_int(f2)
+}

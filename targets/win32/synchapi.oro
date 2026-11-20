@@ -1,0 +1,31 @@
+// synchapi.h (ADR 0126): ONE-TIME INITIALIZATION, a callback called at most
+// once during the call (ADR 0143).
+//
+// THE ALGEBRA. An INIT_ONCE block is a state in {fresh, done}; InitOnceExecuteOnce
+// is the map  fresh ↦ (run f; done if f answers TRUE, else fresh),  done ↦ done.
+// So on success it is idempotent, e ∘ e = e, and a failure leaves the block
+// fresh for the next call, which runs f again. The page states the count:
+// "only one thread will execute the callback function specified by InitFn",
+// and a call on one thread runs it once or not at all, so the claim is
+// `calls 0..1` (kept in gauntlet/stdlib/callbacks-hosts-evidence.txt). One
+// activation has one order, so a λ given to it may write a cell (Theorem T₁).
+//
+// typedef union _RTL_RUN_ONCE { PVOID Ptr; } INIT_ONCE: one pointer, which the
+// program never reads, declared as the pointer-width integer ULONG_PTR, whose
+// size and alignment are the pointer's on both triples (basetsd.h's model).
+// typedef BOOL (WINAPI *PINIT_ONCE_FN)(PINIT_ONCE InitOnce, PVOID Parameter,
+// PVOID *Context): Parameter is the context word, E's address (ctx(f)); the
+// block's address and the context out-pointer the λ is handed and ignores.
+module windows/synchapi {
+    use windows/minwindef
+    use windows/winnt
+    use windows/basetsd
+
+    set INIT_ONCE = record { Ptr ∈ basetsd.ULONG_PTR }
+    repr INIT_ONCE c(Ptr)
+    set INIT_ONCE_FN = fn(o ∈ winnt.HANDLE, c ∈ winnt.HANDLE) (r ∈ minwindef.BOOL) calls 0..1
+    repr INIT_ONCE_FN c(o, ctx, c) stdcall
+    fn InitOnceExecuteOnce(once ∈ INIT_ONCE inout, f ∈ INIT_ONCE_FN) (r ∈ minwindef.BOOL) {
+        host expr call InitOnceExecuteOnce(&once, f, ctx(f), NULL) stdcall lib "kernel32"
+    }
+}

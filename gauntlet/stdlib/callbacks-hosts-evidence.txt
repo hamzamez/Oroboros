@@ -1,0 +1,16 @@
+# The evidence for every `ordered` and `calls K` a callback claim of targets/js, targets/java and
+# targets/win32 declares (ADR 0143): each row the declaration, its marker, where the host states it, and
+# the sentence. Checked both ways by TestEveryCallbackMarkerIsItsHostsSentence: every marker declared has
+# a row, every row names a marker declared, and a JDK row's sentence is in its file of the JDK's src.zip.
+# ECMA-262 and Microsoft Learn are web pages, read 2026-11-20 with hamza's permission and kept as data:
+# their sentences are checked against nothing on this machine. Go's evidence is callbacks-go-markers.txt.
+# Columns, tab-separated: declaration, marker, source, sentence. A declaration may have several rows,
+# each a premise of its marker.
+js/Array.forEach	ordered	https://tc39.es/ecma262/#sec-array.prototype.foreach	forEach calls callback once for each element present in the array, in ascending order.
+js/Array.some	ordered	https://tc39.es/ecma262/#sec-array.prototype.some	some calls callback once for each element present in the array, in ascending order, until it finds one where callback returns true.
+js/Array.every	ordered	https://tc39.es/ecma262/#sec-array.prototype.every	every calls callback once for each element present in the array, in ascending order, until it finds one where callback returns false.
+js/Array.findIndex	ordered	https://tc39.es/ecma262/#sec-array.prototype.findindex	This method calls predicate once for each element of the array, in ascending index order, until it finds one where predicate returns a value that coerces to true.
+java/Arrays.forEachOrdered	ordered	src.zip:java.base/java/util/stream/LongStream.java	Performs an action for each element of this stream, guaranteeing that each element is processed in encounter order for streams that have a defined encounter order.
+java/Arrays.forEachOrdered	ordered	src.zip:java.base/java/util/Arrays.java	Returns a sequential {@link LongStream} with the specified array as its source.
+java/Arrays.forEachOrdered	ordered	src.zip:java.base/java/util/Arrays.java	The spliterator reports {@link Spliterator#SIZED}, {@link Spliterator#SUBSIZED}, {@link Spliterator#ORDERED}, and {@link Spliterator#IMMUTABLE}.
+windows/synchapi.InitOnceExecuteOnce	calls 0..1	https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-initonceexecuteonce	When multiple threads call InitOnceExecuteOnce passing the same one-time initialization block, only one thread will execute the callback function specified by InitFn.

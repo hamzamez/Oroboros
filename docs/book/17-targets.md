@@ -586,12 +586,15 @@ export fn main() {
 every element is at most the length
 ```
 
-Neither is declared `ordered`. ECMAScript does specify `every`'s order, but a claim the project
-keeps no evidence for is a claim it does not make; the JVM's streams promise none.
+JavaScript's `every` is declared `ordered`: ECMAScript says it calls the function "once for each
+element present in the array, in ascending order". The JVM's `allMatch` is not, since the
+streams' documentation promises no order for it. So a function given to `every` may write a
+variable of the program's, and one given to `allMatch` may not.
 
 `ordered` is a claim like `pure` (17.5): believed, not proven. The project keeps, beside each
 one, the sentence of the host's documentation that promises it, and a tool checks that the
-sentence is there.
+sentence is there: against `go doc` for Go, against the JDK's own source files for the JVM, and
+for JavaScript and Windows the sentence and the page it came from are kept, read once by a person.
 
 ---
 

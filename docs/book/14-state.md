@@ -287,7 +287,7 @@ export fn main() {
 
 <!-- gen go docs/book/code/state/no-closure.oro -->
 ```
-gen: docs/book/code/state/no-closure.oro: main: a function that mentions a cell (n): fn(x) { n := n + x } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), and callbacks applied during a call are tier 1, not built (spec/local.md §3)
+gen: docs/book/code/state/no-closure.oro: main: a function that mentions a cell (n): fn(x) { n := n + x } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), a λ at a host's callback parameter may write one where the host promises the order of its calls (ADR 0143), and a λ given to a definition of the program's may write one (ADR 0144) (spec/local.md §3)
 ```
 
 The reading above says why. Each `:=` starts a new name, and a later use means the latest one,
@@ -322,6 +322,35 @@ export fn main() {
 Until 2026-11-20 the first program compiled and printed 0, the writes inside `add` lost (the
 book's finding 102). A function *read* the cell no better: `get = fn() { n }` gave the cell's
 first value, whatever had been written since.
+
+The same function may write the cell when it is handed straight to a definition:
+
+<!-- file docs/book/code/state/twice-cell.oro -->
+```go
+use io
+
+fn twice(f, x) { f(f(x)) }
+
+export fn main() {
+    var n := 0
+    y = twice(fn(x) { n := n + 1; x + 3 }, 1)
+    io.print_int(y)
+    io.print_int(n)
+}
+```
+
+<!-- run go docs/book/code/state/twice-cell.oro -->
+```
+7
+2
+```
+
+Here the question "the latest `n`" has an answer. The function is not a value someone may apply
+later: it is an argument of `twice`, and `twice` is written in this program, its body `f(f(x))` in
+plain view. Before the compiler reads the cell it puts `twice`'s body where the call is, so the
+function's two applications are two blocks, one after the other, and each `:=` is a write in the
+program's order, as a loop's are. A definition is the most predictable caller a function can
+have: it applies it where its body says, as many times as its body says, and no other time.
 
 ---
 

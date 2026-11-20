@@ -955,6 +955,12 @@ func (p *parser) claimSet(name *Term) (*Term, error) {
 	if err := p.expect("("); err != nil {
 		return nil, p.errorf("a claim states its result, `fn(x ∈ S, …) (r ∈ R)` (ADR 0053)")
 	}
+	// THE UNIT RESULT, `fn(x ∈ S) ()`: a callback whose value its host ignores
+	// (forEach, LineDDAProc's VOID) answers 1's one value (data.md §3.6)
+	if p.accept(")") {
+		kids = append(kids, app(Name("#result"), Name("prod()")))
+		return p.claimMarkers(kids)
+	}
 	p.open(true)
 	r := "#result"
 	if t := p.peek(); t.kind == tIdent && p.peekN(1).text == "∈" {
@@ -971,10 +977,14 @@ func (p *parser) claimSet(name *Term) (*Term, error) {
 		return nil, p.errorf("a claim has one result, `(r ∈ R)`")
 	}
 	kids = append(kids, app(Name(r), p.setDatum(s, "")))
-	// THE HOST'S PROMISES ABOUT ITS CALLS (ADR 0143), after the result as
-	// `pure` follows an arrow: `calls K`, K a set of naturals written as a
-	// range (`1`, `0..1`, `0..`), and `ordered`, read (calls "K") and
-	// (ordered) after the result.
+	return p.claimMarkers(kids)
+}
+
+// claimMarkers reads THE HOST'S PROMISES ABOUT ITS CALLS (ADR 0143), after the
+// result as `pure` follows an arrow: `calls K`, K a set of naturals written as
+// a range (`1`, `0..1`, `0..`), and `ordered`, read (calls "K") and (ordered)
+// after the result.
+func (p *parser) claimMarkers(kids []*Term) (*Term, error) {
 	for !p.peek().nl {
 		switch {
 		case p.is("calls"):

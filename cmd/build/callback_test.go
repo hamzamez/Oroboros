@@ -8,6 +8,7 @@ import (
 	"oroboros/core"
 	"oroboros/ir"
 	"oroboros/ir/java"
+	"oroboros/ir/js"
 	"oroboros/ir/llvm"
 )
 
@@ -244,5 +245,108 @@ export fn main() {
 	java.PlantJavaCaptureUnfinal = false
 	if err == nil {
 		t.Error("with the loop variable captured as it stands javac should refuse it, so the witness can fail")
+	}
+}
+
+// A CELL WRITTEN IN A CALLBACK, ON EVERY TARGET (ADR 0143, Theorem T₁). Each
+// program writes cells from a λ given to a host whose documentation fixes the
+// order of its calls, and checks an answer that depends on that order against
+// a loop of its own:
+//   - JavaScript, `Array.prototype.forEach` (ECMA-262: "once for each element
+//     present in the array, in ascending order"): the Dyck words of length 8,
+//     the path's end and its minimum two cells, 14 balanced (Catalan's C₄) and
+//     256 of 256 agreeing with the loop. The arrow closes over the cell's
+//     variable; the fault writes a variable of the arrow's own, and the count
+//     changes.
+//   - the JVM, `LongStream.forEachOrdered` over a long[] (the JDK: "encounter
+//     order", the array's spliterator ORDERED): Kadane's maximum subarray, two
+//     cells, Bentley's example 6 and 100 of 100 tables agreeing with the
+//     quadratic search. Each cell a final holder of one element the lambda
+//     shares; the fault gives the lambda a clone, and the answers change.
+//   - windows, both triples, `InitOnceExecuteOnce` (its page: "only one thread
+//     will execute the callback", so `calls 0..1`, one activation one order):
+//     one-time initialization is idempotent on success and leaves the block
+//     fresh on failure, so f runs once over two successful calls and twice
+//     over two failing ones, 1 1 1 2 0 0. The cell an alloca of the word,
+//     reached through the context word; the faults drop the λ's store, and
+//     widen the λ's held cell with no thresholds (the count then unbounded
+//     after the call, and the program refused).
+func TestACellWrittenInACallbackOnEveryTarget(t *testing.T) {
+	src, err := os.ReadFile("../../examples/callbacks/dyck.oro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := runOn(t, string(src), "js"); err != nil || strings.TrimSpace(got) != "14 256" {
+		t.Errorf("dyck on js: want 14 256, got %q, %v", got, err)
+	}
+	js.PlantCellWriteLocal = true
+	got, err := runOn(t, string(src), "js")
+	js.PlantCellWriteLocal = false
+	if err == nil && strings.TrimSpace(got) == "14 256" {
+		t.Error("with the arrow writing a copy of its own the answer should change, so the witness can fail")
+	}
+	src, err = os.ReadFile("../../examples/callbacks/kadane.oro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := runOn(t, string(src), "java"); err != nil || strings.TrimSpace(got) != "6 100" {
+		t.Errorf("kadane on java: want 6 100, got %q, %v", got, err)
+	}
+	java.PlantJavaHolderCopied = true
+	got, err = runOn(t, string(src), "java")
+	java.PlantJavaHolderCopied = false
+	if err == nil && strings.TrimSpace(got) == "6 100" {
+		t.Error("with the lambda given a clone of the holder the answer should change, so the witness can fail")
+	}
+	src, err = os.ReadFile("../../examples/callbacks/once.oro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tg := range []string{"windows", "windows32"} {
+		if got, err := runOnMayFail(t, string(src), tg); err != nil || strings.TrimSpace(got) != "1 1 1 2 0 0" {
+			t.Errorf("once on %s: want 1 1 1 2 0 0, got %q, %v", tg, got, err)
+		}
+	}
+	llvm.PlantCellSetDropped = true
+	got, err = runOnMayFail(t, string(src), "windows")
+	llvm.PlantCellSetDropped = false
+	if err == nil && strings.TrimSpace(got) == "1 1 1 2 0 0" {
+		t.Error("with the λ's store dropped the count should change, so the witness can fail")
+	}
+	ir.PlantCallbackWidenedPlainly = true
+	_, err = buildOnly(t, string(src), "windows")
+	ir.PlantCallbackWidenedPlainly = false
+	if err == nil || !strings.Contains(err.Error(), "[0, +inf]") {
+		t.Errorf("with the λ widened plainly the count is [0, +inf] and the program should be refused: %v", err)
+	}
+}
+
+// A DEFINITION APPLIED TO A λ THAT WRITES A CELL IS EXPANDED (ADR 0144): the
+// program's own definition is the strongest host, its applications of the λ
+// the sequence its body fixes, so the λ's cell is threaded through them as a
+// host's under `ordered`, and on no host at all: the cell becomes a variable
+// of the definition's own loop. Horner's rule through `each`, checked against
+// the sum of powers at t = 0 … 9, and `twice` counting its applications, on
+// every target: 89 10 7 2. The fault leaves the definition unexpanded, and the
+// λ is refused as a closure, as before.
+func TestADefinitionAppliedToALambdaThatWritesACellIsExpanded(t *testing.T) {
+	src, err := os.ReadFile("../../examples/callbacks/horner.oro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tg := range []string{"go", "js", "java", "windows", "windows32"} {
+		run := runOnMayFail
+		if tg == "js" || tg == "java" {
+			run = runOn
+		}
+		if got, err := run(t, string(src), tg); err != nil || strings.Join(strings.Fields(got), " ") != "89 10 7 2" {
+			t.Errorf("horner on %s: want 89 10 7 2, got %q, %v", tg, got, err)
+		}
+	}
+	core.PlantHigherNotExpanded = true
+	_, err = buildOnly(t, string(src), "go")
+	core.PlantHigherNotExpanded = false
+	if err == nil || !strings.Contains(err.Error(), "a function that mentions a cell") {
+		t.Errorf("with the definition unexpanded the λ should be refused as a closure: %v", err)
 	}
 }

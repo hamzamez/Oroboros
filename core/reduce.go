@@ -1240,14 +1240,14 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		}
 	}
 	for _, q := range p.Order {
-		t, err := translateCells(p.Defs[q], cells, borrows, cbs, declaresProduct(p.Sigs[q]))
+		t, err := translateCells(p.Defs[q], cells, borrows, cbs, p.Defs, declaresProduct(p.Sigs[q]))
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", q, err)
 		}
 		p.Defs[q] = t
 	}
 	for i, t := range terms {
-		out, err := translateCells(t, cells, borrows, cbs, false)
+		out, err := translateCells(t, cells, borrows, cbs, p.Defs, false)
 		if err != nil {
 			return nil, nil, err
 		}

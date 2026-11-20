@@ -1076,6 +1076,15 @@ func (a *intervals) fn(s *Stmt) {
 			}
 		}
 	}
+	// THE λ IS A LOOP OF THE HOST'S COUNT (ADR 0143), so it widens as a loop
+	// does (Blanchet et al. 2003): up to its own thresholds, its constants and
+	// its guards' images, for thresholdRounds rounds, then plainly. Widened
+	// plainly from the start, a cell the λ writes under `n < 100` was held
+	// as [0, +inf] after the call.
+	lt := a.loopThresholds(s)
+	if PlantCallbackWidenedPlainly {
+		lt = nil
+	}
 	for it := 0; it < loopBudget; it++ {
 		before := make(map[V]iv, len(a.held))
 		for r, h := range a.held {
@@ -1087,8 +1096,11 @@ func (a *intervals) fn(s *Stmt) {
 		for r, h := range a.held {
 			if h != before[r] {
 				same = false
-				if it >= 3 {
+				switch {
+				case it >= 3+thresholdRounds || it >= 3 && lt == nil:
 					a.held[r] = widenIV(before[r], h)
+				case it >= 3:
+					a.held[r] = widenIVT(before[r], h, lt)
 				}
 			}
 		}
@@ -1106,6 +1118,18 @@ func (a *intervals) fn(s *Stmt) {
 	for _, v := range s.Res {
 		a.fs[v] = topFact
 	}
+}
+
+// OwnReferences are the references a function makes that no host call
+// receives: only read and written through, by the function and the λs its
+// calls are given (ADR 0143). A printer whose host has no pointers holds one
+// as a variable the λ closes over.
+func OwnReferences(f *Func) map[V]bool {
+	out := map[V]bool{}
+	for v := range ownReferences(f) {
+		out[v] = true
+	}
+	return out
 }
 
 // ownReferences are f's references that only the program writes: made by a
@@ -1146,6 +1170,11 @@ func ownReferences(f *Func) map[V]iv {
 	}
 	return out
 }
+
+// PlantCallbackWidenedPlainly widens a λ's held references with no
+// thresholds, as before: a cell written under a guard is then unbounded after
+// the call (TestACellWrittenInACallbackOnEveryTarget, once on windows).
+var PlantCallbackWidenedPlainly bool
 
 // PlantCellReadUnjoined drops the stores from the join, so a read of a
 // reference the λ writes is its initial value alone: the program after the

@@ -45,8 +45,27 @@
 == examples/callbacks/caesar.oro windows32 refused
    gen: examples/callbacks/caesar.oro: in main: `go/strings`.IndexFunc is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use go/strings` matched no file on the search path and this target provides no module go/strings either, so every name from it is unbound. Check the path.
+== examples/callbacks/dyck.oro windows32 refused
+   gen: examples/callbacks/dyck.oro: by-host: a function that mentions a cell (d, low): fn(x) { if -1000 < d && d < 1000 { d := if x == 1 { d + 1 } else { d - 1 } } else { () }; if d < low { low := d } else { () } } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), a λ at a host's callback parameter may write one where the host promises the order of its calls (ADR 0143), and a λ given to a definition of the program's may write one (ADR 0144) (spec/local.md §3)
+== examples/callbacks/horner.oro windows32 emitted 144f91c79d9c3bc23cd7276cdf3c74126d9604c39e38f1b2791d334c769ff100
+   note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: 5 definition(s) kept as functions, 0 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: powers (kept): 7 of 7 integer operations bounded; 2 of 2 loop(s) proven terminating
+   note: horner (kept): 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/callbacks/kadane.oro windows32 refused
+   gen: examples/callbacks/kadane.oro: by-host: a function that mentions a cell (c, m): fn(x) { if -1000000 < x && x < 1000000 && -1000000000 < c && c < 1000000000 { c := if c + x > 0 { c + x } else { 0 } } else { () }; if c > m { m := c } else { () } } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), a λ at a host's callback parameter may write one where the host promises the order of its calls (ADR 0143), and a λ given to a definition of the program's may write one (ADR 0144) (spec/local.md §3)
+== examples/callbacks/once.oro windows32 emitted 0ab72992e1b9d87134474c7a91e278e77b1dab7f0f6937715c5bbd9fc81fbd97
+   note: twice is inlined: twice: a result held as a numeral: its result's elements are [0, 0], not inside 0..4294967295, which its callers would read
+   note: gen-main: 4 of 4 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: 3 definition(s) kept as functions, 1 inlined by their contracts
+   note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-str (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: win/print.print-int (kept): 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/callbacks/prefix.oro windows32 refused
-   gen: examples/callbacks/prefix.oro: main: a function that mentions a cell (k): fn(x, y) { io.print_int(x); io.print_int(y); if k < 1000000 { k := k + 1 } else { () }; x == y } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), and callbacks applied during a call are tier 1, not built (spec/local.md §3)
+   gen: examples/callbacks/prefix.oro: main: a function that mentions a cell (k): fn(x, y) { io.print_int(x); io.print_int(y); if k < 1000000 { k := k + 1 } else { () }; x == y } may run any number of times, or later, so the cell's order would not be the program's. A cell may be read and written in the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field may capture one it passes to a step's cell parameter (ADR 0133), a λ at a host's callback parameter may write one where the host promises the order of its calls (ADR 0143), and a λ given to a definition of the program's may write one (ADR 0144) (spec/local.md §3)
 == examples/callbacks/quantifiers.oro windows32 refused
    gen: examples/callbacks/quantifiers.oro: in main: `js/Array`.findIndex is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use js/Array` matched no file on the search path and this target provides no module js/Array either, so every name from it is unbound. Check the path.

@@ -32,16 +32,16 @@ import (
 // then every call of a declaration with cell parameters the scopes did not
 // reach: one outside any scope, or inside a λ a scope passes as a value
 // (spec/local.md §5, §6). decls holds those declarations by qualified name.
-func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg, product bool) (*Term, error) {
+func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg, defs map[string]*Term, product bool) (*Term, error) {
 	t = writtenCells(t, borrows)
-	t, err := translateScopes(t, decls, borrows, cbs, product)
+	t, err := translateScopes(t, decls, borrows, cbs, defs, product)
 	if err != nil {
 		return nil, err
 	}
 	if len(decls) == 0 {
 		return t, nil
 	}
-	c := newCellTr(decls, borrows, cbs)
+	c := newCellTr(decls, borrows, cbs, defs)
 	// FRESH ABOVE THE SCOPES' NAMES: the scope pass named its references and
 	// versions #s1, #v2, …, and this pass may thread a call inside one of its
 	// scopes (an out-call's continuation holding a `var`), so its own names
@@ -89,21 +89,21 @@ func maxFreshIndex(t *Term) int {
 	return n
 }
 
-func newCellTr(decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg) *cellTr {
-	return &cellTr{locals: map[string]bool{}, places: map[string]bool{}, maps: map[string]bool{}, decls: decls, borrows: borrows, cbs: cbs}
+func newCellTr(decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg, defs map[string]*Term) *cellTr {
+	return &cellTr{locals: map[string]bool{}, places: map[string]bool{}, maps: map[string]bool{}, decls: decls, borrows: borrows, cbs: cbs, defs: defs}
 }
 
-func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg, product bool) (*Term, error) {
+func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl, cbs map[string][]CallbackArg, defs map[string]*Term, product bool) (*Term, error) {
 	if t == nil || len(t.Kids) == 0 {
 		return t, nil
 	}
 	if isCellScope(t) || isBorrowScope(t) {
-		c := newCellTr(decls, borrows, cbs)
+		c := newCellTr(decls, borrows, cbs, defs)
 		c.product = product
 		return c.st(t, false) // with no cell in scope, a scope's tuple is its value alone
 	}
 	if t.Kind == KFn {
-		body, err := translateScopes(t.Body(), decls, borrows, cbs, product)
+		body, err := translateScopes(t.Body(), decls, borrows, cbs, defs, product)
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +111,7 @@ func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]Borr
 	}
 	kids := make([]*Term, len(t.Kids))
 	for i, k := range t.Kids {
-		x, err := translateScopes(k, decls, borrows, cbs, false)
+		x, err := translateScopes(k, decls, borrows, cbs, defs, false)
 		if err != nil {
 			return nil, err
 		}
@@ -210,6 +210,9 @@ type cellTr struct {
 	// name: each callback's argument index, and whether its host promises the
 	// order of its calls (ADR 0143)
 	cbs map[string][]CallbackArg
+	// defs are the program's definitions, by qualified name: one applied to a
+	// λ that mentions a cell is expanded before the translation (expandHigher)
+	defs map[string]*Term
 	// product: the definition's header declares a product result, so its
 	// borrow scope hands back the factors flat (ADR 0112)
 	product bool
@@ -847,6 +850,19 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		}
 	}
 	if d, ok := c.cellCall(t); ok && (c.asWritten(t, d) || PlantCellCallTwice) {
+		// A CALL THAT WRITES A HOST'S CELL AND TAKES A λ MENTIONING ONE
+		// (InitOnceExecuteOnce's block and the callback's count, ADR 0143):
+		// the λ's cells are threaded first, r = #ref(x); v = h(…, λ′, …);
+		// x := #deref(r), and the call inside is the host's cell call again,
+		// its λ′ mentioning only references. Translated the other way round,
+		// the λ was passed as it stands and its cells read as values.
+		if h := t.Kids[0]; h.Kind == KName && c.cbs[h.Name] != nil && !PlantCallbackCellRefused {
+			if u, ok, err := c.callbackCells(t, c.cbs[h.Name]); err != nil {
+				return nil, err
+			} else if ok {
+				return c.stLoop(u, inLoop, carried)
+			}
+		}
 		return c.translateCall(t, d, nil, inLoop, carried)
 	}
 
@@ -923,6 +939,11 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		} else if ok {
 			return c.stLoop(u, inLoop, carried)
 		}
+	}
+	// A DEFINITION OF THE PROGRAM'S APPLIED TO A λ THAT MENTIONS A CELL: the
+	// strongest host there is, expanded before the translation (expandHigher).
+	if u, ok := c.expandHigher(t); ok {
+		return c.stLoop(u, inLoop, carried)
 	}
 	// Any other application: every argument in order, then the call.
 	for _, a := range t.Kids {
@@ -1115,12 +1136,94 @@ func (e *Env) isData(t *Term) bool {
 // wrong answer callbacks-derivation-2026-11-20 found.
 var PlantLetLambdaCellUnchecked bool
 
+// expandHigher expands a definition of the program applied to a λ that
+// mentions a cell (ADR 0144). The definition is the strongest host there is:
+// no recursion (ADR 0014), no escape (a closure may not survive staging), and
+// its body runs in program order, every application of its parameter at a
+// point β sees. So its activations of the λ are a sequence the program fixes,
+// and the state translation applied after the expansion is Theorem T₁ with the
+// definition's body as the traversal: S(d(λ)) = d_S(λ_S), the state monad's
+// lift, which S computes itself on the expanded term. The translation ran
+// before β, so it refused what the definition's meaning admits.
+//
+// The expansion is β on values: each λ argument substituted for its
+// parameter, which copies a value and runs nothing, and every other argument
+// let-bound first, in order, so its effects stay where they were written
+// (ADR 0010, 0071). The definition is locally nameless (its binders are
+// indices), so the substitution captures nothing.
+func (c *cellTr) expandHigher(t *Term) (*Term, bool) {
+	if PlantHigherNotExpanded || t.Kind != KApp || len(t.Kids) < 2 || t.Kids[0].Kind != KName {
+		return nil, false
+	}
+	d, ok := c.defs[t.Kids[0].Name]
+	args := t.Kids[1:]
+	if !ok || d == nil || d.Kind != KFn || len(d.Params) != len(args) {
+		return nil, false
+	}
+	cellLam := false
+	for _, a := range args {
+		if a.Kind == KFn && c.mentionsCells(a) {
+			cellLam = true
+		}
+	}
+	if !cellLam {
+		return nil, false
+	}
+	m := map[string]*Term{}
+	var names []string
+	var vals []*Term
+	for i, a := range args {
+		if a.Kind == KFn {
+			m[d.Params[i]] = a
+			continue
+		}
+		y := c.fresh()
+		m[d.Params[i]] = Name(y)
+		names, vals = append(names, y), append(vals, a)
+	}
+	body := betaLams(subst(d.Body(), m))
+	for i := len(names) - 1; i >= 0; i-- {
+		body = App(Fn([]string{names[i]}, body), vals[i])
+	}
+	return body, true
+}
+
+// betaLams rewrites each application of a λ to as many arguments as it has
+// parameters into lets, innermost first: ((fn (x y) b) a₁ a₂) is let x = a₁ in
+// let y = a₂ in b, the arguments in order, β on the λ's own parameters.
+func betaLams(t *Term) *Term {
+	if t == nil || len(t.Kids) == 0 {
+		return t
+	}
+	if t.Kind == KFn {
+		return Fn(t.Params, betaLams(t.Body()))
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = betaLams(k)
+	}
+	if h := kids[0]; h.Kind == KFn && len(h.Params) == len(kids)-1 && len(h.Params) > 1 {
+		body := h.Body()
+		for i := len(h.Params) - 1; i >= 0; i-- {
+			body = App(Fn([]string{h.Params[i]}, body), kids[1+i])
+		}
+		return body
+	}
+	return &Term{Kind: t.Kind, Kids: kids}
+}
+
+// PlantHigherNotExpanded leaves a definition applied to a λ that mentions a
+// cell unexpanded, as before ADR 0144: the λ is then refused as a closure
+// (TestADefinitionAppliedToALambdaThatWritesACellIsExpanded).
+var PlantHigherNotExpanded bool
+
 func (c *cellTr) closure(lam *Term) error {
 	return fmt.Errorf("a function that mentions a cell (%s): %s may run any number of times, or "+
 		"later, so the cell's order would not be the program's. A cell may be read and written in "+
 		"the scope, a case arm, a loop and a host call's continuation; a λ at a callback's field "+
-		"may capture one it passes to a step's cell parameter (ADR 0133), and callbacks applied during "+
-		"a call are tier 1, not built (spec/local.md §3)", strings.Join(ShowNames(c.xs), ", "), ShowTerm(lam))
+		"may capture one it passes to a step's cell parameter (ADR 0133), a λ at a host's callback parameter "+
+		"may write one where the host promises the order of its calls (ADR 0143), and a λ given to a "+
+		"definition of the program's may write one (ADR 0144) (spec/local.md §3)", strings.Join(ShowNames(c.xs), ", "), ShowTerm(lam))
 }
 
 // writtenCells makes a buffer of each cell its scope writes element by element:
@@ -1334,7 +1437,7 @@ func (c *cellTr) callbackCells(t *Term, cbs []CallbackArg) (*Term, bool, error) 
 	// here, since a λ is otherwise passed on as it stands
 	for _, cb := range cbs {
 		if j := cb.Index + 1; j < len(kids) && kids[j].Kind == KFn {
-			lam, err := translateScopes(kids[j], c.decls, c.borrows, c.cbs, false)
+			lam, err := translateScopes(kids[j], c.decls, c.borrows, c.cbs, c.defs, false)
 			if err != nil {
 				return nil, true, err
 			}

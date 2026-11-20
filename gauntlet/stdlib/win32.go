@@ -544,6 +544,7 @@ func canPass(p param, sh shape) bool {
 //   - `_In_ T*`: `&x`, a cell's address or a struct's fresh copy (ADR 0130);
 //   - a byte region and its count, `_In_reads_bytes_(n)`, `_Out_writes_(n)` over
 //     bytes, n a parameter: one segment, `b` or `b[lo:hi]` (ADR 0132).
+//
 // A struct passes only where its layout is derived and checked against clang
 // (ADR 0128), which this survey does not parse: so a struct counts in the lower
 // bound when the windows target already declares it as a record, and in the
@@ -594,7 +595,9 @@ func unSAL(p param) param {
 	fs := strings.Fields(p.typ)
 	var keep []string
 	for _, w := range fs {
-		if strings.HasPrefix(w, "_") && (strings.HasSuffix(w, "_") || strings.Contains(w, "(")) &&
+		// `__callback`, an annotation the SDK defines empty, marks a function
+		// pointer parameter (PINIT_ONCE_FN's)
+		if w == "__callback" || strings.HasPrefix(w, "_") && (strings.HasSuffix(w, "_") || strings.Contains(w, "(")) &&
 			!word[strings.TrimLeft(w, "_")] {
 			p.sal = strings.TrimSpace(p.sal + " " + w)
 			continue
@@ -652,7 +655,8 @@ func canPass2(p param, sh shape, f fn, structs map[string]bool, alias map[string
 		return false
 	}
 	pw := word[pt] || isWordAlias(pt, alias) || handWords[pt]
-	structOK := structs[pt] && (upper || handRecords[pt] || handRecords[resolveName(pt, alias)])
+	declared := handRecords[pt] || handRecords[resolveName(pt, alias)] || handRecordNaming(pt, alias)
+	structOK := (structs[pt] || declared) && (upper || declared)
 	base := p.sal
 	if i := strings.Index(base, "("); i >= 0 {
 		base = base[:i]
@@ -769,6 +773,20 @@ var handRecords = map[string]bool{}
 // handWords are the SDK's types the target declares as an integer set, not a
 // record: LARGE_INTEGER, a union read as its QuadPart (winnt.oro).
 var handWords = map[string]bool{}
+
+// handRecordNaming reports whether a record the target declares is pt under
+// another typedef name: INIT_ONCE, whose chain ends at the union RTL_RUN_ONCE
+// a PINIT_ONCE points to. Its layout is checked against clang either way
+// (TestAStructsLayoutIsTheCCompilers).
+func handRecordNaming(pt string, alias map[string]string) bool {
+	r := resolveName(pt, alias)
+	for n := range handRecords {
+		if m := resolveName(n, alias); m == pt || m == r || strings.TrimPrefix(m, "_") == strings.TrimPrefix(pt, "_") {
+			return true
+		}
+	}
+	return false
+}
 
 // resolveName follows a name's typedef chain to its last name.
 func resolveName(n string, alias map[string]string) string {

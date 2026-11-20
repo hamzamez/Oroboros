@@ -180,3 +180,17 @@ The initial compile-time baseline, the minimum of two sweeps.
 
 - new source — `examples/callbacks/quantifiers.oro windows32`
 - new source — `examples/callbacks/semilattice.oro windows32`
+
+## 2026-11-20 — on 757e9666, with uncommitted changes
+
+**Reason:** written cells on JavaScript, the JVM and windows (ADR 0143), a definition applied to a λ that writes a cell expanded (ADR 0144): four new programs, every operation and loop proven; prefix's refusal elsewhere changed only in the closure message's corrected text
+
+195 runs: 128 emitted, 67 refused; 6720 of 6730 integer operations bounded, 747 of 826 loops proven. compiler pass, differential-windows32 pass, tooling pass.
+
+5 change(s):
+
+- new source — `examples/callbacks/dyck.oro windows32`
+- new source — `examples/callbacks/horner.oro windows32`
+- new source — `examples/callbacks/kadane.oro windows32`
+- new source — `examples/callbacks/once.oro windows32`
+- compiler output changed — `examples/callbacks/prefix.oro windows32`

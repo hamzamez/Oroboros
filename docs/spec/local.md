@@ -218,8 +218,11 @@ needs no annotation; `3.0` is an `f64`.
   term whose normal form is a function: a closure that could run any number of times, or later.
   The one exception is a λ at a record's field that passes the cell to a step's cell parameter, the
   window procedure's state: that cell is the λ's static slot, every read a load and every write a
-  store, before this translation runs (ADR 0133, callbacks.md §7). Callbacks over a scope's cells
-  applied during a call are tier 1, not built;
+  store, before this translation runs (ADR 0133, callbacks.md §7). A λ at a host's callback
+  parameter may write a cell where the host promises the order of its calls, `ordered` or `calls K`
+  with K ⊆ 0..1, the cell threaded through a reference (ADR 0143, Theorem T₁); and a λ given to a
+  definition of the program's may write one, the definition expanded before this translation, its
+  body the order (ADR 0144);
 - a binder inside the scope with a cell's name: `(let total 1 …)` would hide the cell, so one must be
   renamed;
 - `(set c v)` where c is not a cell in scope, and a cell used after its scope.

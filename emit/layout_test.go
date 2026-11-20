@@ -38,7 +38,9 @@ func TestAStructsLayoutIsTheCCompilers(t *testing.T) {
 		var b strings.Builder
 		b.WriteString("#define WIN32_LEAN_AND_MEAN\n#include <windows.h>\n#include <commdlg.h>\n#include <richedit.h>\n#include <stddef.h>\n")
 		for _, n := range names {
-			c := n[strings.LastIndex(n, ".")+1:]
+			// the struct's C name, as the header spells it: INIT_ONCE, whose
+			// core name is INIT-ONCE (σ_J's inverse, as each label is)
+			c := core.Spell(n[strings.LastIndex(n, ".")+1:])
 			labels, offs, size, align, err := tg.FieldLayout(n)
 			if err != nil {
 				t.Fatalf("%s on %s: %v", n, target, err)

@@ -13,14 +13,11 @@
 // a Lisp surface cannot spell about a method-oriented host, and no amount of
 // target-file work changes it.
 //
-// The higher-order half — map, filter, reduce, sort — is declared and CANNOT BE
-// CALLED, because a bare abstraction is refused as an escaping closure — though see
-// docs/spec/callbacks.md: a lambda written AT THE CALL SITE needs no function value
-// and the host does the capture, so this is a missing template hole rather than a
-// capability gap. That is
-// deliberate and measured: js-toplevel-2026-08-18 puts those methods at 3.6x to
-// 133x SLOWER than a loop, so the one thing this language cannot reach on this
-// host is the one thing not worth reaching.
+// The higher-order half: forEach, some, every and findIndex take a λ written at
+// the call (ADR 0143); map, filter, reduce and sort are still declared over Any
+// and unreachable. js-toplevel-2026-08-18 measured these methods at 3.6x to
+// 133x slower than a loop, so a program reaches for them for what they mean,
+// not for speed.
 module js/Array {
     fn isArray(a ∈ Any) (Bool) pure { host expr "Array.isArray(${a})" }
     fn from(a ∈ Any) (Any) pure { host expr "Array.from(${a})" }
@@ -39,18 +36,22 @@ module js/Array {
     fn fill(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.fill(${b})" }
     fn flat(a ∈ Any) (Any) pure { host expr "${a}.flat()" }
 
-    // Higher-order. `some`, `every` and `findIndex` take a λ written at the
-    // call, a callback during the call (ADR 0143), over a table of integers:
-    // ∃x ∈ a. p(x), ∀x ∈ a. p(x), and the least index whose element satisfies
-    // p, or −1. ECMAScript visits the elements in ascending order, but no
-    // sentence of it is kept as the evidence `ordered` rests on (callbacks-go-
-    // markers.txt is Go's), so they are declared with no marker: the λ is pure.
-    // The others are still declared over Any, and still unreachable.
-    set NumPred = fn(x ∈ Int) (b ∈ Bool)
+    // Higher-order. `forEach`, `some`, `every` and `findIndex` take a λ
+    // written at the call, a callback during the call (ADR 0143), over a table
+    // of integers: the effect of each element in turn, ∃x ∈ a. p(x),
+    // ∀x ∈ a. p(x), and the least index whose element satisfies p, or −1.
+    // ECMA-262 states the order of each (§23.1.3, kept with its section in
+    // gauntlet/stdlib/callbacks-hosts-evidence.txt): forEach "calls callback
+    // once for each element present in the array, in ascending order", and
+    // some, every and findIndex the same "until" their answer is known. So
+    // each claim is `ordered`, and a λ given to one may write a cell, threaded
+    // in that order (Theorem T₁).
+    set NumPred = fn(x ∈ Int) (b ∈ Bool) ordered
+    set NumAct = fn(x ∈ Int) () ordered
     fn `map`(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.map(${b})" }
     fn filter(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.filter(${b})" }
     fn reduce(a ∈ Any, b ∈ Any, c ∈ Any) (Any) pure { host expr "${a}.reduce(${b}, ${c})" }
-    fn forEach(a ∈ Any, b ∈ Any) (Any) { host stmt "${a}.forEach(${b})" }
+    fn forEach(a ∈ Array(Int), f ∈ NumAct) (Any) { host stmt "${a}.forEach(${f})" }
     fn some(a ∈ Array(Int), p ∈ NumPred) (Bool) pure { host expr "${a}.some(${p})" }
     fn every(a ∈ Array(Int), p ∈ NumPred) (Bool) pure { host expr "${a}.every(${p})" }
     fn find(a ∈ Any, b ∈ Any) (Any) pure { host expr "${a}.find(${b})" }

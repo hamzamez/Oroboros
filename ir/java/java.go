@@ -35,7 +35,7 @@ import (
 // Func prints one IR_P function as a static method. Imports and records go to
 // emit.JavaImports and emit.JavaRecords, which emit.JavaFile reads.
 func Func(tg *emit.Target, f *ir.Func) (string, error) {
-	p := &printer{tg: tg, f: f, pl: plan.New(tg, f)}
+	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), own: ir.OwnReferences(f)}
 	p.int32 = tg.HostType("int -2147483648 2147483647")
 	p.word = tg.HostType("int")
 	out, err := p.function()
@@ -63,6 +63,7 @@ type printer struct {
 	// lambda written where it is used, and a captured value's final copy
 	// (fnLambda, ADR 0143)
 	names map[ir.V]string
+	own   map[ir.V]bool // references no host receives (ir.OwnReferences)
 }
 
 type loopCtx struct {
@@ -106,6 +107,12 @@ func (p *printer) jty(t string) string {
 	}
 	if strings.HasPrefix(t, "array ") || strings.HasPrefix(t, "map ") {
 		return p.tg.HostType(t)
+	}
+	// A CELL A λ WRITES (ADR 0143) is a one-element holder: a Java lambda
+	// reads only effectively final locals and writes none (JLS §15.27.2), so
+	// the cell is the element of a final array the lambda shares
+	if c, ok := strings.CutPrefix(t, "cell "); ok {
+		return p.jty(c) + "[]"
 	}
 	if t == "int" {
 		return p.word
@@ -291,7 +298,9 @@ func (p *printer) resultTy(t string) string {
 
 func (p *printer) ret(vs []ir.V) {
 	switch {
-	case len(vs) == 0:
+	case len(vs) == 0, len(p.f.Results) == 1 && p.f.Results[0] == "prod()":
+		// no value, or the unit's, which a void method or lambda returns as
+		// nothing (a callback its host ignores the value of, ADR 0143)
 		p.line("return;")
 	case p.rec != "":
 		out := make([]string, len(vs))
@@ -529,11 +538,9 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OFn:
 		p.fnLambda(s)
 	case ir.OCellSet:
-		// a cell a λ writes under an `ordered` host (ADR 0143): no JVM host is
-		// declared `ordered`, so no program reaches this, and it is refused
-		// rather than printed unexercised (a written cell's holder or slot,
-		// to be measured, waits on one)
-		p.fail("a cell written in a callback is not printed on the JVM yet: no host here is `ordered` (ADR 0143)")
+		// A WRITE OF THE CALLER'S CELL from a λ under an `ordered` host (ADR
+		// 0143), into its holder's one element
+		p.line("%s[0] = %s;", p.ref(s.Args[0]), p.ref(s.Args[1]))
 	case ir.OLoop:
 		p.loop(s)
 	case ir.OBuild:
@@ -544,7 +551,25 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.body(s, buf)
 	case ir.OTabulate:
 		p.tabulate(s)
-	case ir.OCellRef, ir.OCellFresh, ir.OCellGet:
+	case ir.OCellRef:
+		// A REFERENCE NO HOST RECEIVES (ADR 0143), read and written only by the
+		// function and the λs its calls are given: a holder of one element,
+		// final, so a lambda may capture it, initialized with the cell's value.
+		// A static field would serve one thread and race on two, as on Go, so
+		// the holder is the frame's (callbacks-written-2026-11-20 measures its price)
+		if !p.own[s.Res[0]] {
+			p.fail("(%s …): a cell a host writes is not built on this target (spec/local.md §5)", s.Op)
+			return
+		}
+		p.line("final %s %s = { %s };", p.tyOf(s.Res[0]), p.name(s.Res[0]), p.ref(s.Args[0]))
+	case ir.OCellGet:
+		if !p.own[p.pl.Res(s.Args[0])] {
+			p.fail("(%s …): a cell a host writes is not built on this target (spec/local.md §5)", s.Op)
+			return
+		}
+		// the value now, a constant: a later write must not change it
+		p.line("final %s %s = %s[0];", p.tyOf(s.Res[0]), p.name(s.Res[0]), p.ref(s.Args[0]))
+	case ir.OCellFresh:
 		// No host of this target takes a cell (spec/local.md §5): Java and
 		// JavaScript have no pointers, and their out-parameters are arrays
 		// and objects, already buffers and handles.
@@ -957,6 +982,16 @@ func (p *printer) fnLambda(s *ir.Stmt) {
 		inner[k] = v
 	}
 	for _, v := range javaCaptures(p, body) {
+		if p.own[p.pl.Res(v)] {
+			// a cell's holder is final already, and shared, not copied: the
+			// fault gives the lambda a clone, whose writes the caller never sees
+			if PlantJavaHolderCopied {
+				f := fmt.Sprintf("%sf%d", p.name(v), s.Res[0])
+				p.line("final %s %s = %s.clone();", p.tyOf(v), f, p.ref(v))
+				inner[v] = f
+			}
+			continue
+		}
 		if PlantJavaCaptureUnfinal {
 			continue // the λ reads v itself, reassigned or not
 		}
@@ -967,7 +1002,7 @@ func (p *printer) fnLambda(s *ir.Stmt) {
 	fc := *p.f
 	fc.Results = []string{d.Result}
 	sub := &printer{tg: p.tg, f: &fc, pl: p.pl, ind: p.ind + 1, int32: p.int32, word: p.word,
-		spare: p.spare, names: inner}
+		spare: p.spare, names: inner, own: p.own}
 	sub.region(body, nil, true)
 	if sub.err != nil {
 		p.fail("%v", sub.err)
@@ -1038,3 +1073,8 @@ func javaCaptures(p *printer, r *ir.Region) []ir.V {
 // loop's variable, reassigned, is then refused by javac
 // (TestACallbackIsTheHostsOwnClosureOnJavaScriptAndTheJVM).
 var PlantJavaCaptureUnfinal bool
+
+// PlantJavaHolderCopied gives a lambda a clone of a cell's holder instead of
+// the holder, as a closure copying its environment would: its writes are then
+// lost to the caller (TestACellWrittenInACallbackOnEveryTarget).
+var PlantJavaHolderCopied bool

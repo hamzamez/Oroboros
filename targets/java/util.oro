@@ -91,4 +91,15 @@ module java/Arrays {
     set LongPred = fn(x ∈ Int) (b ∈ Bool)
     fn allMatch(a ∈ long_array, p ∈ LongPred) (Bool) pure { host expr "java.util.Arrays.stream(${a}).allMatch(${p})" }
     fn anyMatch(a ∈ long_array, p ∈ LongPred) (Bool) pure { host expr "java.util.Arrays.stream(${a}).anyMatch(${p})" }
+    // EACH ELEMENT IN TURN, an action whose order the JDK fixes. Arrays.stream
+    // of a long[] is a sequential LongStream whose spliterator "reports …
+    // ORDERED", and forEachOrdered processes "each element … in encounter
+    // order for streams that have a defined encounter order" (the JDK's own
+    // javadoc, kept in gauntlet/stdlib/callbacks-hosts-evidence.txt and
+    // checked against src.zip). So the claim is `ordered`, and a λ given to it
+    // may write a cell, threaded in that order (ADR 0143, Theorem T₁).
+    set LongAct = fn(x ∈ Int) () ordered
+    fn forEachOrdered(a ∈ long_array, f ∈ LongAct) (Any) {
+        host stmt "java.util.Arrays.stream(${a}).forEachOrdered(${f})"
+    }
 }

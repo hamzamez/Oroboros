@@ -51,7 +51,7 @@ func FromFunc(tg *emit.Target, f *ir.Func) (string, error) {
 // Func prints one IR_P function as an LLVM `define`. The module lines its
 // templates name go to emit.LLVMImports, which File writes.
 func Func(tg *emit.Target, f *ir.Func) (string, error) {
-	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), slots: map[ir.V]string{}, names: map[ir.V]string{}, dbl: ir.Doubles(f), wideNow: map[ir.V]bool{}}
+	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), slots: map[ir.V]string{}, names: map[ir.V]string{}, dbl: ir.Doubles(f), wideNow: map[ir.V]bool{}, own: ir.OwnReferences(f)}
 	p.adders()
 	out := p.function()
 	if p.err != nil {
@@ -204,6 +204,7 @@ type printer struct {
 	// the λs a host applies during a call (fn.go, ADR 0143): each `fn`
 	// value's environment E, and its slot where the API has no context word
 	envOf, slotOf map[ir.V]string
+	own           map[ir.V]bool // references no host receives (ir.OwnReferences)
 	fns           int
 	n             int
 	err           error
@@ -682,10 +683,7 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 	case ir.OFn:
 		p.fnOutline(s)
 	case ir.OCellSet:
-		// a cell a λ writes under an `ordered` host (ADR 0143): no Win32 host
-		// promises its order, so no program reaches this, and it is refused
-		// until one does rather than printed unexercised
-		p.fail("a cell written in a callback is not printed on LLVM yet: no host here is `ordered` (ADR 0143)")
+		p.wide(s, func() bool { p.cell(s); return true })
 	case ir.OIndex:
 		p.index(s)
 	case ir.OLen:
@@ -752,6 +750,29 @@ func (p *printer) stmt(s *ir.Stmt, x exits) {
 // cell prints a cell's statement at the word, in a wide scope (ADR 0127).
 func (p *printer) cell(s *ir.Stmt) {
 	if p.structCell(s) {
+		return
+	}
+	switch {
+	case s.Op == ir.OCellRef && p.own[s.Res[0]]:
+		// A REFERENCE NO HOST RECEIVES (ADR 0143), read and written by the
+		// function and the λs its calls are given, which reach it through the
+		// context word: an alloca of the word in the entry block, written here
+		// with the cell's value. Its type is the word's, not a C type: no C
+		// function reads it.
+		c := "%" + p.fresh("cell")
+		p.allocas = append(p.allocas, fmt.Sprintf("  %s = alloca i64", c))
+		p.line("store i64 %s, ptr %s", p.val(s.Args[0]), c)
+		p.line("%%v%d = getelementptr i8, ptr %s, i64 0", s.Res[0], c)
+		return
+	case s.Op == ir.OCellGet && p.own[p.pl.Res(s.Args[0])]:
+		p.line("%%v%d = load i64, ptr %s", s.Res[0], p.val(s.Args[0]))
+		return
+	case s.Op == ir.OCellSet:
+		// A WRITE OF THE CALLER'S CELL from a λ under an `ordered` host (ADR
+		// 0143), through the reference E holds
+		if !PlantCellSetDropped {
+			p.line("store i64 %s, ptr %s", p.val(s.Args[1]), p.val(s.Args[0]))
+		}
 		return
 	}
 	switch s.Op {
@@ -1788,3 +1809,7 @@ var PlantFamilyConstWord bool
 // at the first: the λ then loads its captures through a null pointer and the
 // program crashes (TestACallbackCapturesItsEnvironmentThroughTheContextWord).
 var PlantSlotUnwritten bool
+
+// PlantCellSetDropped prints no store for a λ's write of its caller's cell:
+// the caller reads the cell unchanged (TestACellWrittenInACallbackOnEveryTarget).
+var PlantCellSetDropped bool

@@ -101,8 +101,8 @@ rejected and why.
 | | how | the numbers |
 |---|---|---|
 | **as fast as hand-written code** | seven benchmark programs against hand-written Go, JavaScript, Java, and C on Windows compiled by the same compiler | generated over hand-written: **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows (geometric means, 45 comparisons from 0.85× to 1.18×, each above 1.05× explained) ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)) |
-| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **11,859 of 11,913** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
-| **loops stop** | size-change termination | **1,367 of 1,660** loops proven; the rest read input or the file system, or count through numbers past the word (a halving, a bit cleared) in a way the check does not see |
+| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **11,971 of 12,025** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
+| **loops stop** | size-change termination | **1,393 of 1,686** loops proven; the rest read input or the file system, or count through numbers past the word (a halving, a bit cleared) in a way the check does not see |
 | **every platform agrees** | 87 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 73 on all four, every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
 | **each rule is tested broken** | a fault is planted in every rule that decides what is legal, and its test must fail | listed with each result in [gauntlet/results/](gauntlet/results/) |
 | **nothing drifts by accident** | every emitted file, proof count and error message, on five platform targets, compared with a committed baseline | `go run ./cmd/check` |
@@ -114,7 +114,7 @@ list of functions:
 |---|---:|---:|
 | Go's standard library | 87.8% | 60.5% |
 | the JDK | 81.4% | 60.9% |
-| Win32 | 91.2% | 36.1%, and 31.0% callable *and* linkable, by the arguments a program can pass today, a callback included; up to 47.5% as structs are declared ([survey-2026-11-19](gauntlet/results/survey-2026-11-19.md)) |
+| Win32 | 91.2% | 36.2%, and 31.1% callable *and* linkable, by the arguments a program can pass today, a callback included; up to 47.6% as structs are declared ([survey-2026-11-19](gauntlet/results/survey-2026-11-19.md)) |
 
 "Declarable" is not "supported". A Go package is supported when every function a program needs is
 declared by hand, with its preconditions, and checked against the package's source: today
@@ -131,9 +131,11 @@ them and checked against the SDK's prototypes.
   needs it.
 - **No recursion**, by design: balanced divide and conquer is a loop over levels, and recursive data
   is a table with positions in it.
-- **One kind of callback.** A window procedure, the function Windows calls with each message, is
-  built. A function a platform calls only during a call (a sort's comparator) is designed and not
-  built, and there is no concurrency.
+- **Callbacks of two kinds.** A window procedure, the function Windows calls with each message, and
+  a function a platform calls only during a call (a search's predicate, forEach's action) are built,
+  the second on every target, writing a variable of its caller's where the platform documents the
+  order of its calls. A platform's calls on another thread, and a function a platform hands back,
+  are not; there is no concurrency.
 - **Strings are thin**: joining, and conversion at a boundary. Text programs so far work in bytes,
   and maps take integer keys only.
 - **Windows** lacks a dictionary keyed by strings, the printing of floating-point numbers, handles as
@@ -153,8 +155,8 @@ each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 1. **[TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)'s body in the language**, a
    Notepad-style editor in about 2.5 KB of hand-written assembly, module by module, the window
    procedure last. The window procedure and the status line already run.
-2. **The callback decisions**: the window procedure's built; those for a function a platform calls
-   only during a call still to discuss.
+2. **The callback decisions**: the window procedure's built; a function a platform calls only
+   during a call decided and built on every target (2026-11-20).
 3. **The capacity facts** of maps: the program they fail was found 2026-11-20, a map read and then
    written to inside the scope that fills it.
 4. ~~A time limit on every program a test runs~~ **done**.
@@ -189,7 +191,10 @@ specification states that the compiler refuses in its internal words:
 **To come back to, with hamza**:
 - a block after a call, `f(a…) { x̄ -> b }`, for a resource taken at its start and given back at its
   end ([scopeforms-research.md](docs/scopeforms-research.md));
-- callbacks a platform calls only during a call;
+- a callback's remaining questions: a platform calling it on another thread, the word for "each
+  element once, in no order", the laws a comparator obeys, and a function a platform hands back;
+- formers, a data structure's literal `F { a, b, c }` as its algebra's
+  ([formers-research.md](docs/formers-research.md));
 - how a variadic of places is written;
 - text read back from Windows;
 - a table's elements narrower than a word on Windows;

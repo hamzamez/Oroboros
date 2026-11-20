@@ -4057,3 +4057,31 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/callbacks/semilattice.oro java`
 - new source — `examples/callbacks/semilattice.oro js`
 - new source — `examples/callbacks/semilattice.oro windows`
+
+## 2026-11-20 — on 757e9666, with uncommitted changes
+
+**Reason:** written cells on JavaScript, the JVM and windows (ADR 0143), a definition applied to a λ that writes a cell expanded (ADR 0144): four new programs, every operation and loop proven; prefix's refusal elsewhere changed only in the closure message's corrected text
+
+780 runs: 528 emitted, 252 refused; 11971 of 12025 integer operations bounded, 1393 of 1686 loops proven. compiler pass, differential pass, tooling pass.
+
+19 change(s):
+
+- new source — `examples/callbacks/dyck.oro go`
+- new source — `examples/callbacks/dyck.oro java`
+- new source — `examples/callbacks/dyck.oro js`
+- new source — `examples/callbacks/dyck.oro windows`
+- new source — `examples/callbacks/horner.oro go`
+- new source — `examples/callbacks/horner.oro java`
+- new source — `examples/callbacks/horner.oro js`
+- new source — `examples/callbacks/horner.oro windows`
+- new source — `examples/callbacks/kadane.oro go`
+- new source — `examples/callbacks/kadane.oro java`
+- new source — `examples/callbacks/kadane.oro js`
+- new source — `examples/callbacks/kadane.oro windows`
+- new source — `examples/callbacks/once.oro go`
+- new source — `examples/callbacks/once.oro java`
+- new source — `examples/callbacks/once.oro js`
+- new source — `examples/callbacks/once.oro windows`
+- compiler output changed — `examples/callbacks/prefix.oro java`
+- compiler output changed — `examples/callbacks/prefix.oro js`
+- compiler output changed — `examples/callbacks/prefix.oro windows`

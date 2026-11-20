@@ -145,15 +145,21 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
   lent until a named call (GlobalLock … GlobalUnlock) on the declarations, and the trailing block
   `f(a…) { x̄ -> b }` as the user-defined scope form, a derived operator, not a macro; it also spells
   callbacks tier 1 at a call;
-- **callbacks tier 1**: every decision made (ADR 0143, callbacks-sketches Part 3), and **built on Go**
-  ([callbacks](gauntlet/results/callbacks-2026-11-20.md)): a pure λ decided under its claim, a cell
-  threaded under `ordered` by a reference in the frame, W16, the evidence check; **on windows**,
-  closure conversion into the context word (`ctx`/`ctx(f)`, a slot where the API has none); **on
-  JavaScript and the JVM**, the host's arrow function and lambda; a written cell threaded on Go only,
-  refused elsewhere until a host there is `ordered` (the JVM's holder or slot measured then); waiting on a
-  program: the middle strength's word (each element once, no order: Win32's enumerators,
-  `sync.Map.Range`), a callback on another thread while the call blocks (`T.Run`), and the trailing
-  block `f(a…) { x̄ -> b }` with the scope forms;
+- **callbacks tier 1**: every decision made (ADR 0143, callbacks-sketches Part 3), **built on every
+  target** ([callbacks](gauntlet/results/callbacks-2026-11-20.md),
+  [callbacks-written](gauntlet/results/callbacks-written-2026-11-20.md)): a pure λ decided under its
+  claim, W16, closure conversion into the context word on windows (a slot where the API has none);
+  a written cell threaded under `ordered` or `calls 0..1` on each target (Go's frame reference,
+  JavaScript's variable, the JVM's final holder, 1.6–1.7× a loop and the static slot rejected as a
+  race, LLVM's alloca reached through E), every marker's host sentence kept and checked both ways; a
+  definition of the program's applied to a λ that writes a cell expanded before the state translation
+  (ADR 0144). Not built: a buffer written in the λ (T1-4, refused by R3; its design in the result).
+  For hamza: the middle strength's word (each element once, no order: a bag's commutative monoid,
+  formers-research §5), a callback on another thread while the call blocks (`T.Run`: `t.Parallel` and
+  `FailNow`'s exit into ∅), a law a callback obeys (a comparator's strict weak order, a lemma), a
+  function a host returns (ADR 0053 item 5, a host type with application); and **formers**
+  ([formers-research.md](docs/formers-research.md)): a data structure's literal `F { a, b, c }` as its
+  free algebra's term, the trailing block `f(a…) { x̄ -> b }` its first step, F1–F5 to decide;
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
   or (d) `Array(go.Value inout)`;
 - **a C string from Win32 into ours** (ADR 0091's rest, `GetWindowTextA`): the text lands in the
@@ -372,9 +378,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **11,859 of 11,913** integer operations proven inside their target's word, the 54 left
+- **Provability**: **11,971 of 12,025** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,367 of 1,660** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,393 of 1,686** loops proven to
   terminate (size-change termination; of the 293 left, 41 were before bigbits-2026-11-19, among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
@@ -383,8 +389,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
   counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.2%
-  declarable and 31.0% callable and linkable by today's model, 36.1% callable, 47.5% if every struct were
+  declarable and 31.1% callable and linkable by today's model, 36.2% callable, 47.6% if every struct were
   declared (12,377 entry points, survey-2026-11-19, a function pointer counted since callbacks-2026-11-20,
+  a record under any of its typedef names since callbacks-written-2026-11-20,
   an upper bound; the old model's 32.0% counted UTF-16 strings); `go run gauntlet/stdlib/coverage.go` gives the declared
   share of the Go packages with a file ([gocoverage-2026-10-06](gauntlet/results/gocoverage-2026-10-06.md)).
   **Supported** (declared by hand, checked against the host, exercised by a program, ADR 0022):
@@ -768,7 +775,8 @@ Read the ADR, and its "Why not", before relitigating one.
 | A lent buffer handed back is a primed result, `(b' ∈ Array(V) linear)`; `buffer(V)` at a result refused | [0140](docs/decisions/0140-a-lent-buffer-handed-back-is-a-primed-result.md) |
 | A family's member is its C function called at a constant, `call SendMessageA(w, 1076, 0, &cr)`, typed by the erased declaration; a pointer at an integer the integer carrying it (ADR 0084's P5) | [0141](docs/decisions/0141-a-family-member-is-its-c-function-at-a-constant.md) |
 | A target's CPU is data of its triple's model, `cpu "x86-64-v3"`, printed as every function's `"target-cpu"`; a level a member (`windows-v3` glues `windows`); baseline the default | [0142](docs/decisions/0142-a-targets-cpu-is-data-of-its-triples-model.md) |
-| A callback applied during the call is a region of the call, read as a loop of the host's count; `calls K` (K a range) and `ordered` after the arrow, the host's documented promises, default `calls 0..` unordered, their evidence in the tooling; an effect in the λ only under `ordered`, a cell or buffer threaded (the state monad's lift of a traversal); on C, closure conversion into the API's context word, `ctx`/`ctx(f)`, a slot where it has none (built on every target; a written cell on Go only) | [0143](docs/decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
+| A callback applied during the call is a region of the call, read as a loop of the host's count; `calls K` (K a range) and `ordered` after the arrow, the host's documented promises, default `calls 0..` unordered, their evidence in the tooling; an effect in the λ only under `ordered`, a cell or buffer threaded (the state monad's lift of a traversal); on C, closure conversion into the API's context word, `ctx`/`ctx(f)`, a slot where it has none (built on every target) | [0143](docs/decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
+| A definition of the program's applied to a λ that writes a cell is expanded before the state translation: the strongest host, its body the order | [0144](docs/decisions/0144-a-definition-applied-to-a-lambda-is-expanded-before-the-state-translation.md) |
 
 ## Build commands
 

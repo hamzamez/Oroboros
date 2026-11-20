@@ -121,7 +121,20 @@ before planning. **The plan in force is hamza's "Build all 5"** (2026-11-20), in
    ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)): none promises an order, all the
    middle strength.
 
-**After it**: TinyRetroPad's body in J (the 11-18 plan's item 1), then `lib/num/u128.oro` in the
+**After it, the logic** (ADR 0145, hamza 2026-11-20: L1–L7 "yes"; "the idea is to remove what is
+decided, in the hope that unlocks a lot of our walls. and we don't decide again"), staged, each
+stage a program first and its book chapter:
+1. a research note: the formula language's abstract syntax, its sort check, ε (spec/abstract.md) so
+   a formula never reaches emission, the procedures' order;
+2. formulas and `assert` (`∀ x ∈ S : φ`, `∃`, `⇒`, `⇔`), with Presburger quantifier elimination;
+3. the array property fragment, with GetWindowTextA's C string, its `ensure` the host's quantified
+   promise with evidence (L5, settling ADR 0091's rest): TinyRetroPad's window text;
+4. congruence closure and the combination, with a comparator's law through a host's sort, one
+   answer on every target;
+5. `spec` and recursive `lemma` (L3, L4), with a table's sum proven by induction;
+6. `-checked` running a bounded ∀ as a loop (L6).
+
+**Then**: TinyRetroPad's body in J (the 11-18 plan's item 1), and `lib/num/u128.oro` in the
 language's own operations (blocked on U₆₄ ↪ ℤ). Before it, **the 11-18 plan (assessment-2026-11-18 §5), approved** (hamza, 2026-11-19:
 "assessment's plan approved"):
 1. TinyRetroPad's body in J, module by module, the window procedure last;
@@ -174,9 +187,6 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
   thread while the call blocks waits on concurrency (below, "Waiting on a trigger");
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
   or (d) `Array(go.Value inout)`;
-- **a C string from Win32 into ours** (ADR 0091's rest, `GetWindowTextA`): the text lands in the
-  kernel of ν only if strlen's invariant ∀i < k. b[i] ≠ 0 is proven (the array property fragment,
-  not built) or a primitive's `ensure nulfree` is trusted; which;
 - **a table's element by its set on LLVM** (i16, i32 beside i8), a change to llvm.md §4's layout:
   the dot product in C is 0.74× at 16-bit elements ([cpu](gauntlet/results/cpu-2026-11-19.md));
 - **`__chkstk`**: a function whose frame passes a page does not link on windows without the C
@@ -796,6 +806,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A target's CPU is data of its triple's model, `cpu "x86-64-v3"`, printed as every function's `"target-cpu"`; a level a member (`windows-v3` glues `windows`); baseline the default | [0142](docs/decisions/0142-a-targets-cpu-is-data-of-its-triples-model.md) |
 | A callback applied during the call is a region of the call, read as a loop of the host's count; `calls K` (K a range) and `ordered` after the arrow, the host's documented promises, default `calls 0..` unordered, their evidence in the tooling; an effect in the λ only under `ordered`, a cell or buffer threaded (the state monad's lift of a traversal); on C, closure conversion into the API's context word, `ctx`/`ctx(f)`, a slot where it has none (built on every target) | [0143](docs/decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 | A definition of the program's applied to a λ that writes a cell is expanded before the state translation: the strongest host, its body the order | [0144](docs/decisions/0144-a-definition-applied-to-a-lambda-is-expanded-before-the-state-translation.md) |
+| The logic: `∀ x ∈ S : φ`, `∃`, `⇒`, `⇔`, every quantifier over a set; recursion in `spec` and `lemma` only, checked to terminate; a lemma proven by its steps, no axioms; a host's quantified `ensure` believed with evidence; `-checked` runs a bounded ∀ as a loop; Presburger with quantifiers, the array property fragment, congruence closure, their combination (not built) | [0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md) |
 
 ## Build commands
 

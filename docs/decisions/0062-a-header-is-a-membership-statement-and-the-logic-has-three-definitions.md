@@ -4,7 +4,7 @@ Date: 2026-10-13
 Status: Accepted (hamza, 2026-10-13, on surface-design.md §5.7: "I agree to all 8 recommendations").
 Amends [spec/abstract.md](../spec/abstract.md): a binder list is a telescope; a lemma has binders, a
 precondition and a conclusion, and is used by `assert`; the logic's ≐ is written with the computation's
-equality. Not built: the surface is built when it is chosen.
+equality. Not built: the surface is built when it is chosen. Its quantified formulas, recursion in the logic, lemma proofs and a host's quantified promise decided by [ADR 0145](0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md) (hamza, 2026-11-20).
 
 ## Context
 

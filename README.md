@@ -170,7 +170,15 @@ each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 5. ~~**Windows' enumerators read against their documentation**~~ **done**: none promises an order,
    every one "each element once, in turn" ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)).
 
-**After it**: TinyRetroPad's body in the language, module by module, the window procedure last; and
+**After it, the logic** (decided 2026-11-20, [ADR 0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md)):
+claims with quantifiers, `∀ i ∈ 0..k-1 : b[i] != 0`, in a function's conditions and in `assert`,
+proven by the compiler's own procedures, with lemmas proven step by step and a platform's
+documented promises believed with their sentence kept. Staged, each stage with its program: the
+formulas and `assert`; tables' properties, with a C string read back from Windows (TinyRetroPad's
+window text); a comparator's law through a platform's sort, one answer everywhere; definitions and
+lemmas by induction, a table's sum; and `-checked` running a bounded claim as a loop.
+
+**Then**: TinyRetroPad's body in the language, module by module, the window procedure last; and
 128-bit integers written in the language itself, waiting on four realizations of the unsigned word
 read as an integer.
 
@@ -192,7 +200,6 @@ and TinyRetroPad's body carried into the one after this.
 - a callback's remaining questions: the word for "each element once, in no order", the laws a
   comparator obeys, and a function a platform hands back;
 - how a variadic of places is written;
-- text read back from Windows;
 - a table's elements narrower than a word on Windows;
 - a stack frame larger than a page there.
 

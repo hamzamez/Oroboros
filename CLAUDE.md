@@ -102,11 +102,27 @@ ADRs, [spec/state.md](docs/spec/state.md), and the current assessment. Measureme
 wrong about half the time.
 
 **The current assessment is [assessment-2026-11-20.md](docs/assessment-2026-11-20.md)**; read it
-before planning. The plan in force is hamza's "Build all 5" (2026-11-20): findings 100 and 101 (done);
-T1-4 (designed: a borrow through the call, callbacks-written §"Not built", not built); the memory
-model's decided parts; ADR 0136's struct forms with TinyRetroPad; Win32's enumerator pages as
-evidence (done, [win32evidence](gauntlet/results/win32evidence-2026-11-20.md): none promises an order,
-all the middle strength). Before it, **the 11-18 plan (assessment-2026-11-18 §5), approved** (hamza, 2026-11-19:
+before planning. **The plan in force is hamza's "Build all 5"** (2026-11-20), in order:
+1. ~~findings 100 and 101~~ done ([findings](gauntlet/results/findings-2026-11-20.md));
+2. **T1-4, a buffer written in a λ under an ordered host**: designed, a borrow through the call
+   returning the buffer's next version (callbacks-written §"Not built"); a research note, then the
+   build, the program counting sort;
+3. **the memory model's decided parts** ([views-finish-research.md](docs/views-finish-research.md)):
+   - P3, a handle a host type, `set HWND = host "HWND__*"` (C's own expansion), `==` between two of
+     one kind (hamza: "a"), its failure a niche on the declaration's result (`Option`), on LLVM;
+     TinyRetroPad's file load and save;
+   - two segments of one buffer lent at once when proven disjoint, wc's tail by RtlMoveMemory;
+   - P4, a pointer the host keeps, the mode `kept` (hamza), §14.18's protocol over ADR 0133's slot;
+     TinyRetroPad's find and replace;
+4. **ADR 0136's struct forms**: a buffer field `= len(m)`, a nested record by pointer `&f`, an
+   inline array `f[N]`, an optional C string `Option(String)` its NULL the niche; with
+   TinyRetroPad's modules;
+5. ~~Win32's enumerator pages as evidence~~ done
+   ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)): none promises an order, all the
+   middle strength.
+
+**After it**: TinyRetroPad's body in J (the 11-18 plan's item 1), then `lib/num/u128.oro` in the
+language's own operations (blocked on U₆₄ ↪ ℤ). Before it, **the 11-18 plan (assessment-2026-11-18 §5), approved** (hamza, 2026-11-19:
 "assessment's plan approved"):
 1. TinyRetroPad's body in J, module by module, the window procedure last;
 2. the callback decisions: tier 2's taken and built (ADR 0133); tier 1's to discuss with hamza;
@@ -124,7 +140,7 @@ then stored to (Collatz memoized, Two Sum), the 11-18 plan's item 3's refusing p
 table of tuples (the shoelace formula) and of tables (Lo Shu) read at an unknown index. A table of
 tables made by a rule, received or built stays storage's "a table inside a table".
 
-**Decided and to be built** (hamza, 2026-11-19), in this order (the first list's items 1–4, 6, 7 built:
+**Decided and to be built** (hamza, 2026-11-19; its items 1 and 3 are "Build all 5"'s 3 and 4), in this order (the first list's items 1–4, 6, 7 built:
 ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):
 1. **the memory model finished** (ADR 0084, [views-finish-research.md](docs/views-finish-research.md)):
    - P5, SendMessageA's members, built (ADR 0141);
@@ -153,11 +169,9 @@ ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built
   definition of the program's applied to a λ that writes a cell expanded before the state translation
   (ADR 0144). Not built: a buffer written in the λ (T1-4, refused by R3; its design in the result).
   For hamza: the middle strength's word (each element once, no order: a bag's commutative monoid,
-  formers-research §5), a callback on another thread while the call blocks (`T.Run`: `t.Parallel` and
-  `FailNow`'s exit into ∅), a law a callback obeys (a comparator's strict weak order, a lemma), a
-  function a host returns (ADR 0053 item 5, a host type with application); and **formers**
-  ([formers-research.md](docs/formers-research.md)): a data structure's literal `F { a, b, c }` as its
-  free algebra's term, the trailing block `f(a…) { x̄ -> b }` its first step, F1–F5 to decide;
+  formers-research §5), a law a callback obeys (a comparator's strict weak order, a lemma), a
+  function a host returns (ADR 0053 item 5, a host type with application). A callback on another
+  thread while the call blocks waits on concurrency (below, "Waiting on a trigger");
 - **the variadic of places** (sendmessage-research §6): (c′) every variadic as its trailing binder,
   or (d) `Array(go.Value inout)`;
 - **a C string from Win32 into ours** (ADR 0091's rest, `GetWindowTextA`): the text lands in the
@@ -361,6 +375,13 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   of them, or a second string encoding;
 - **refinement sorts for `strings` over V ⊂ B\*** (Freeman and Pfenning 1991); trigger a program
   paying for `go.text` right after a `strings` call;
+- **formers** ([formers-research.md](docs/formers-research.md), hamza 2026-11-20: "let see the demand
+  for it"): a data structure's literal `F { a, b, c }` as its free algebra's term, comprehensions by
+  the Boom hierarchy's laws, block formers as handlers run in staging, the trailing block
+  `f(a…) { x̄ -> b }` the first step; F1–F5 decided when a program asks;
+- **a callback on another thread while the call blocks** (Go's `T.Run`, the JVM's parallel streams:
+  `t.Parallel` lets f outlive the call, `FailNow`'s exit into ∅ skips the cell's store), kept until
+  concurrency is in the language (hamza, 2026-11-20);
 - **concurrency's** six questions (ADR 0081), **Android's toolkit**'s six decisions
   ([android-research.md](docs/android-research.md)), **printing**'s three algebras
   ([printing-research.md](docs/printing-research.md)), a borrow a later call ends

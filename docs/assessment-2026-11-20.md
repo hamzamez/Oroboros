@@ -187,10 +187,10 @@ programs, not because a refusal demanded them. Several found the compiler's defe
   - the reader's `again` after a single-name binding over a nested loop;
   - a table of tables made by a rule, received or built;
   - Collatz's loops: a counter's guard as a measure.
+- **Waiting on a trigger** (hamza, after this assessment): formers, built when a program asks;
+  a callback on another thread while the call blocks, kept until concurrency is in the language.
 - **Set aside for hamza**:
-  - formers F1–F5, the trailing block first;
   - the middle strength's word (§2: the bag level);
-  - a callback on another thread while the call blocks;
   - a law a callback obeys;
   - a function a host returns;
   - the variadic of places;

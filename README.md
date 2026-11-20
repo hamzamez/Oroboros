@@ -151,30 +151,31 @@ them and checked against the SDK's prototypes.
 *Updated 2026-11-20.* The latest assessment is [docs/assessment-2026-11-20.md](docs/assessment-2026-11-20.md);
 each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 
-**The plan in force** (approved by hamza, 2026-11-19), in order:
-1. **[TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)'s body in the language**, a
-   Notepad-style editor in about 2.5 KB of hand-written assembly, module by module, the window
-   procedure last. The window procedure and the status line already run.
-2. **The callback decisions**: the window procedure's built; a function a platform calls only
-   during a call decided and built on every target (2026-11-20).
-3. ~~The capacity facts of maps~~ **done**: a map read and then written to inside the scope that
-   fills it builds, a memo among them (2026-11-20).
-4. ~~A time limit on every program a test runs~~ **done**.
-5. **The project's instructions to its assistant** kept as the state of things.
-6. **The words that bought nothing**: a first pass done ([words-audit](docs/words-audit.md)).
+**The plan in force** (hamza, 2026-11-20: "Build all 5"), in order:
+1. ~~**Two things the book found**~~ **done** (its findings 100 and 101): a map read while it is still
+   being filled, and a table of tables or of tuples written out, read at an index not known when
+   compiling, build on every platform.
+2. **A table written by a function a platform calls during a call** (counting sort through
+   `forEach`): designed, the call lending the table to the platform and handing back its next
+   version; not built.
+3. **The memory model's decided parts**, each with TinyRetroPad's module that needs it:
+   - a handle as a type of its own (`set HWND = host "HWND__*"`), compared with `==` between two of
+     one kind, a failed call's handle an `Option`: TinyRetroPad's file load and save;
+   - two parts of one buffer lent at once, where they are proven apart: `wc`'s tail moved by
+     `RtlMoveMemory`;
+   - memory Windows keeps past a call, the mode `kept`: TinyRetroPad's find and replace.
+4. **C structs' remaining kinds of field**: a buffer with its length (`= len(m)`), a record by
+   pointer, an array inside the struct (`f[N]`), a C string that may be NULL (`Option(String)`);
+   with TinyRetroPad's modules.
+5. ~~**Windows' enumerators read against their documentation**~~ **done**: none promises an order,
+   every one "each element once, in turn" ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)).
 
-~~**First, two things the book found**~~ **done** (its findings 100 and 101, 2026-11-20): a map
-read while it is still being filled, and a table of tables or of tuples written out, read at an
-index not known when compiling, now build on every platform.
+**After it**: TinyRetroPad's body in the language, module by module, the window procedure last; and
+128-bit integers written in the language itself, waiting on four realizations of the unsigned word
+read as an integer.
 
-**Decided and being built** (hamza, 2026-11-19), in order:
-1. **The memory model finished**: ~~one C function with many meanings, `SendMessageA`'s messages~~
-   **done**; a handle as a type of its own, compared with `==`, its failure an `Option`, with
-   TinyRetroPad's file load and save; two parts of one buffer lent at once; and memory Windows keeps
-   past a call, with TinyRetroPad's find and replace.
-2. **128-bit integers written in the language itself**, waiting on four realizations of the unsigned
-   word read as an integer.
-3. **C structs' remaining kinds of field**, with TinyRetroPad's modules.
+**The plan before it** (2026-11-19) ended with the callback decisions and the capacity facts done,
+and TinyRetroPad's body carried into the one after this.
 
 **Built since the plan was set**, each with its program:
 - **the bit operations on numbers past the word**, with Stein's binary gcd and Kernighan's popcount;
@@ -188,14 +189,18 @@ index not known when compiling, now build on every platform.
 **To come back to, with hamza**:
 - a block after a call, `f(a…) { x̄ -> b }`, for a resource taken at its start and given back at its
   end ([scopeforms-research.md](docs/scopeforms-research.md));
-- a callback's remaining questions: a platform calling it on another thread, the word for "each
-  element once, in no order", the laws a comparator obeys, and a function a platform hands back;
-- formers, a data structure's literal `F { a, b, c }` as its algebra's
-  ([formers-research.md](docs/formers-research.md));
+- a callback's remaining questions: the word for "each element once, in no order", the laws a
+  comparator obeys, and a function a platform hands back;
 - how a variadic of places is written;
 - text read back from Windows;
 - a table's elements narrower than a word on Windows;
 - a stack frame larger than a page there.
+
+**Researched, and built when a program asks for it**:
+- formers, a data structure's literal `F { a, b, c }` as its algebra's
+  ([formers-research.md](docs/formers-research.md));
+- a callback a platform runs on another thread while the call waits (Go's `T.Run`), with
+  concurrency, when concurrency is in the language.
 
 **The standing goal** is Go's standard library, package by package, each with the program that needs
 it. **The standing measure** is Windows faster than Go, the gap work owed.

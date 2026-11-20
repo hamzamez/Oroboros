@@ -1,4 +1,4 @@
-# callbacks — a λ a host applies during the call, built on Go (ADR 0143), 2026-11-20
+# callbacks — a λ a host applies during the call, built on every target (ADR 0143), 2026-11-20
 
 hamza, 2026-11-20: "now build everything agreed to in callbacks, you come up with program or
 programs for them. always mathematical and algebraic."
@@ -120,11 +120,11 @@ documentation's, and the header does not say.
 |---|---|
 | compile time | 0.95× the baseline on the corpus (`cmd/check`'s gate); no program compiles slower |
 | run time | not measured: no program had a callback before; Go keeps a non-escaping closure on the stack (research §2.1), unmeasured here |
-| code size | the two new programs only; every existing file byte-identical |
+| code size | the five new programs only; every existing file byte-identical on every target |
 | proofs | 11,859 of 11,913 operations and 1,367 of 1,660 loops, from 11,812 of 11,866 and 1,361 of 1,654: the five programs' 47 operations and six loops, all proven; windows32 6,685 of 6,695 and 741 of 820 |
-| refusals changed | none in the corpus; the two programs refused on JavaScript, the JVM and windows, which declare no such host |
-| compiler lines | `core/cell.go` +190, `core/reduce.go` +40, `core/jreadtarget.go` +20, `emit/check.go` +40, `emit/target.go` +75, `emit/layout.go` +20, `ir/callback.go` +200, `ir/interval.go` +130, `ir/verify.go` +95, `ir/lower.go` +45, `ir/golang/golang.go` +65, `ir/plan`, `ir/print.go`, `ir/read.go`, `ir/typing.go`, `ir/final.go`, `ir/ir.go` a few each; tests +330 |
-| language lines | `targets/go/slices.oro` new, `targets/go/strings.oro` +30; two programs, 110 lines |
-| documents | ADR 0143's "as built"; inventory.md four words; j.md §1.4; the book's §17.6 (8 blocks); research §2.1's figure, corrected earlier today |
+| refusals changed | none in the corpus; Go's two programs refused on JavaScript, the JVM and windows, which declare neither `strings.Map` nor an `ordered` host; a written cell refused there by name |
+| compiler lines | `core/cell.go` +190, `core/reduce.go` +40, `core/jreadtarget.go` +20, `emit/check.go` +40, `emit/target.go` +75, `emit/layout.go` +20, `ir/callback.go` +200, `ir/interval.go` +130, `ir/verify.go` +95, `ir/lower.go` +45, `ir/golang/golang.go` +65, `ir/plan`, `ir/print.go`, `ir/read.go`, `ir/typing.go`, `ir/final.go`, `ir/ir.go` a few each; then windows, JavaScript and the JVM: `ir/llvm/fn.go` +183, `ir/llvm/llvm.go` +41, `ir/java/java.go` +119, `ir/js/js.go` +31, `ir/release.go` +28, `ir/callback.go` +20, `core/jreadtarget.go` +15, `emit/target.go` +12, `gauntlet/stdlib/win32.go` +35; tests +330, then +175 |
+| language lines | `targets/go/slices.oro` new, `targets/go/strings.oro` +30, `targets/win32/winnls.oro` new (24), `winuser.oro` +14, `targets/js/methods.oro` +16, `targets/java/util.oro` +8; five programs, 231 lines |
+| documents | ADR 0143's "as built"; inventory.md four words; j.md §1.4; the book's §14.2, §17.6 (Go, JavaScript, the JVM) and §18.7, its checker running the JVM; research §2.1's figure, corrected earlier today |
 | rule made less general | none |
 | not built | a written cell on LLVM, JavaScript and the JVM, each refused explicitly, since no host there is `ordered` (the JVM's holder or slot, measured, waits on one); a buffer in the λ (T1-4, decided, waits on a program that writes one); the middle strength; a law a callback obeys |

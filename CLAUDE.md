@@ -90,7 +90,7 @@ everything in them is built (hamza, 2026-10-10).
 | [fit-research.md](docs/fit-research.md): a syntax fits when its abstract syntax is the semantics' initial algebra; misfits are countable | ADR 0050, 0068 | J is the surface |
 | [notation-research.md](docs/notation-research.md), [syntax-research.md](docs/syntax-research.md): the mathematical notation and six notations measured | ADR 0068 | J |
 | [storeorder-research.md](docs/storeorder-research.md): program-order stores are the state-passing translation's image | ADR 0052, 0058 | built ([storeorder-2026-10-15](gauntlet/results/storeorder-2026-10-15.md)) |
-| [arrow-research.md](docs/arrow-research.md): the arrow is a claim on a host's callback parameter | ADR 0053 | not built (callbacks tier 1) |
+| [arrow-research.md](docs/arrow-research.md): the arrow is a claim on a host's callback parameter | ADR 0053, 0133, 0143 | built at a host's callback parameter and field, on every target ([callbacks](gauntlet/results/callbacks-2026-11-20.md)); a function a host returns not |
 | [concurrency-research.md](docs/concurrency-research.md): a process is a Mealy machine; a crash the exception effect, a link its propagation, a supervisor its handler; isolation a typing property, determinacy computed | ADR 0081 (the direction, C2 with C3 and C4 as fragments) | not built; §7's six questions and the surface answered when a program meets them |
 
 ## Where it stands
@@ -678,7 +678,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | The abstract syntax is the semantics' initial algebra | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
 | A definition is a named λ carrying its claims | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
 | A buffer is a state binder holding a table, in program order; R0–R4 | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
-| The arrow is a claim on a host's callback parameter (not built) | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
+| The arrow is a claim on a host's callback parameter (built by 0133, 0143; a returned function not) | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
 | `let` and `local` are one scope | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
 | A loop variable is bound by application | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
 | One arm grammar for choice and iteration (the surface: 0068) | [0056](docs/decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md) |
@@ -768,7 +768,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A lent buffer handed back is a primed result, `(b' ∈ Array(V) linear)`; `buffer(V)` at a result refused | [0140](docs/decisions/0140-a-lent-buffer-handed-back-is-a-primed-result.md) |
 | A family's member is its C function called at a constant, `call SendMessageA(w, 1076, 0, &cr)`, typed by the erased declaration; a pointer at an integer the integer carrying it (ADR 0084's P5) | [0141](docs/decisions/0141-a-family-member-is-its-c-function-at-a-constant.md) |
 | A target's CPU is data of its triple's model, `cpu "x86-64-v3"`, printed as every function's `"target-cpu"`; a level a member (`windows-v3` glues `windows`); baseline the default | [0142](docs/decisions/0142-a-targets-cpu-is-data-of-its-triples-model.md) |
-| A callback applied during the call is a region of the call, read as a loop of the host's count; `calls K` (K a range) and `ordered` after the arrow, the host's documented promises, default `calls 0..` unordered, their evidence in the tooling; an effect in the λ only under `ordered`, a cell or buffer threaded (the state monad's lift of a traversal); on C, closure conversion into the API's context word, `ctx`/`ctx(f)`, a slot where it has none (not built) | [0143](docs/decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
+| A callback applied during the call is a region of the call, read as a loop of the host's count; `calls K` (K a range) and `ordered` after the arrow, the host's documented promises, default `calls 0..` unordered, their evidence in the tooling; an effect in the λ only under `ordered`, a cell or buffer threaded (the state monad's lift of a traversal); on C, closure conversion into the API's context word, `ctx`/`ctx(f)`, a slot where it has none (built on every target; a written cell on Go only) | [0143](docs/decisions/0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md) |
 
 ## Build commands
 

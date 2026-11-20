@@ -6,10 +6,11 @@ reasoning behind it"), on [arrow-research.md](../arrow-research.md). Records and
 surface-design.md §1.9's decision 1 (*"function set formers: yes"*). Amends
 [spec/abstract.md](../spec/abstract.md) §2.2, §2.6, W7 and W9, under
 [ADR 0050](0050-the-abstract-syntax-fits-the-semantics.md) and
-[ADR 0051](0051-a-definition-is-a-named-lambda.md). **Not built**: it is built with callbacks tier 1
-([callbacks.md](../spec/callbacks.md)), whose research
-([callbacks-tier1-research.md](../callbacks-tier1-research.md), 2026-11-18) proposes the markers'
-vocabulary and the hole this ADR left open; not yet decided.
+[ADR 0051](0051-a-definition-is-a-named-lambda.md). **Built** at a host's callback parameter, its markers
+`calls K` and `ordered` ([ADR 0143](0143-a-callback-during-the-call-is-a-region-and-its-markers-are-the-hosts-promises.md),
+[callbacks-2026-11-20](../../gauntlet/results/callbacks-2026-11-20.md), on every target), and as a
+named claim at a host's field ([ADR 0133](0133-the-window-procedure-is-a-lambda-at-the-hosts-field-over-a-cell-in-scope.md));
+item 5, a function a host returns, not built.
 
 ## Context
 

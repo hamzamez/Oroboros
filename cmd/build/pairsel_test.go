@@ -138,29 +138,8 @@ func TestAPairLeavesForTheIntegers(t *testing.T) {
 		t.Errorf("with PlantPairSinks the logged division still answers: the witness cannot fail")
 	}
 
-	// THE PROGRAM'S ONE SET IS ENFORCED ON EVERY OPERATION ON THE RUNG (ADR
-	// 0029), A's intermediates included: x·3 past a declared S₆₄, a set above
-	// JavaScript's word, traps there with its value proven, where Go, the JVM
-	// and windows answer by the double word. Owed (pairsel-2026-11-21's
-	// finding): after inlining a claim above the word is not told apart from an
-	// intermediate, and widening the width to hold the intermediate lost
-	// big-sign's trap, a yield past its declared set. This pins the stop, so
-	// the fix restates it.
-	const quarters = "use io\n\n" +
-		"fn tq(x ∈ -2^63..2^63-1) (-2^63..2^63-1) { x * 3 / 4 }\n\n" +
-		"export fn main() {\n" +
-		"    t = array { 9223372036854775807 }\n" +
-		"    loop i = 0 {\n" +
-		"        i < 1 -> { io.print_int(tq(t[i])); again(i + 1) }\n" +
-		"        else -> ()\n" +
-		"    }\n" +
-		"}\n"
-	if got, err := runOn(t, quarters, "go"); err != nil || got != "6917529027641081855" {
-		t.Errorf("x·3/4 at the word's top on Go: want 6917529027641081855, got %q, %v", got, err)
-	}
-	if got, err := runJSMayFail(t, quarters); err == nil {
-		t.Errorf("x·3/4 at the word's top on JavaScript answers %q: the one set's stop is gone, restate this witness and the finding", got)
-	}
+	// x·3/4 past a declared S₆₄, which stopped here, answers since ADR 0152:
+	// TestTheOneSetIsCheckedWhereItClaims (oneset_test.go)
 }
 
 // runJSMayFail builds src for JavaScript and runs it, a build's refusal or a

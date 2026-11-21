@@ -488,11 +488,21 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 	}
 	keep := f.Clone()
 	keep.facts = f.facts
+	// FIXED LIMBS HOLD A PROGRAM WITHIN ITS WIDTH (ADR 0152): their instances
+	// check the program's one set at every operation, which agrees with the
+	// host's fits at the claims only where no finite fact passes the width.
+	// An intermediate past it (D_A's, claimed by nothing) leaves the program to
+	// a representation that checks where it claims: the host's bignum, or
+	// K(ℕ*), as an operation with no instance does.
+	beyond := limbsBeyondWidth(f, plan)
 	if _, err := SelectBig(tg, f, sig, 0, false); err != nil {
 		return 0, err
 	}
-	n, err := LowerLimbs(tg, f, plan)
-	if !errors.Is(err, ErrNoLimbForm) {
+	var n int
+	var err error
+	if beyond {
+		err = fmt.Errorf("%w: a value past the declared width", ErrNoLimbForm)
+	} else if n, err = LowerLimbs(tg, f, plan); !errors.Is(err, ErrNoLimbForm) {
 		return n, err
 	}
 	// NO HOST BIGNUM: K(ℕ*), the general representation, takes the program
@@ -521,6 +531,35 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 	}
 	return BigOps(f), nil
 }
+
+// limbsBeyondWidth is whether an operation A holds exactly (f.exactDemand) has
+// a finite fact past the plan's width, or a negative one under an unsigned
+// plan: fixed limbs of that width cannot hold it, and would stop the program
+// where the host's integer answers.
+func limbsBeyondWidth(f *Func, plan emit.BigPlan) bool {
+	if PlantLimbsBeyondWidth || plan.Bits == 0 || len(f.facts) != f.NV() {
+		return false
+	}
+	for v := range f.exactDemand {
+		x := f.facts[v].v
+		if x.bot || !x.finite() {
+			continue
+		}
+		lo, hi := x.lo.big(), x.hi.big()
+		if lo.Sign() < 0 && !plan.Signed {
+			return true
+		}
+		if new(big.Int).Abs(lo).BitLen() > plan.Bits || new(big.Int).Abs(hi).BitLen() > plan.Bits {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantLimbsBeyondWidth keeps a program on fixed limbs whose intermediate passes
+// their width: x·3 under a declared S₆₄ then stops on JavaScript's limbs
+// (TestTheOneSetIsCheckedWhereItClaims).
+var PlantLimbsBeyondWidth bool
 
 // CheckClaim is the representation half of a signature's claim, for
 // emit.CheckSignatures: the definition, lowered on its own and decided, has

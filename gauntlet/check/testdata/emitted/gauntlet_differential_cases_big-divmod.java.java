@@ -17,33 +17,35 @@ public final class gauntlet_differential_cases_big-divmod.java {
 			v14 = v24;
 			continue;
 		}
-		final java.math.BigInteger v28 = (java.math.BigInteger.valueOf(100000000));
-		final java.math.BigInteger v29 = (v14.divide(v28));
-		final java.math.BigInteger v31 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v29, (long)(201)));
-		final int v33 = (int) (v31.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
-		final java.math.BigInteger v35 = (java.math.BigInteger.valueOf(11));
-		java.math.BigInteger v38 = v35;
-		int v39 = 0;
-		for (;; v39 = (v39 + 1)) {
-			final boolean v41 = (v39 >= 6);
-			if (v41) {
+		final java.math.BigInteger v28 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v14, (long)(201)));
+		final java.math.BigInteger v30 = (java.math.BigInteger.valueOf(100000000));
+		final java.math.BigInteger v31 = (v28.divide(v30));
+		final java.math.BigInteger v33 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v31, (long)(201)));
+		final int v35 = (int) (v33.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
+		final java.math.BigInteger v37 = (java.math.BigInteger.valueOf(11));
+		java.math.BigInteger v40 = v37;
+		int v41 = 0;
+		for (;; v41 = (v41 + 1)) {
+			final boolean v43 = (v41 >= 6);
+			if (v43) {
 				break;
 			}
-			final java.math.BigInteger v45 = (java.math.BigInteger.valueOf(999983));
-			final java.math.BigInteger v46 = (v38.multiply(v45));
-			final java.math.BigInteger v48 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v46, (long)(201)));
-			v38 = v48;
+			final java.math.BigInteger v47 = (java.math.BigInteger.valueOf(999983));
+			final java.math.BigInteger v48 = (v40.multiply(v47));
+			final java.math.BigInteger v50 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v48, (long)(201)));
+			v40 = v50;
 			continue;
 		}
-		final boolean v51 = (v14.compareTo(v38) > 0);
-		long v52 = 0;
-		if (v51) {
-			v52 = 1000000000000L;
+		final java.math.BigInteger v54 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v40, (long)(201)));
+		final boolean v55 = (v28.compareTo(v54) > 0);
+		long v56 = 0;
+		if (v55) {
+			v56 = 1000000000000L;
 		} else {
-			v52 = 0;
+			v56 = 0;
 		}
-		final long v55 = (v33 + v52);
-		return v55;
+		final long v59 = (v35 + v56);
+		return v59;
 	}
 
 }

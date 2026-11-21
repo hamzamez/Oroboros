@@ -4456,3 +4456,46 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 change(s):
 
 - now emits — `gauntlet/differential/cases/bits-edges.oro js`
+
+## 2026-11-21 — on 4188f866, with uncommitted changes
+
+**Reason:** ADR 0152: the one set checked where it claims; a fit at each claim above the word and at each operation the decision does not bound, none at an operation with a finite fact; fixed limbs left for the host or K(N*) where an intermediate passes their width. 27 emitted texts: fewer fits on the hosts (a fit added at each claim), windows big-bits 19 fits fewer on K(N*), 171 counted operations and 19 loops with them; big-negmid answers its third input (ADR 0150's law), double-word on JavaScript; every differential case agrees
+
+836 runs: 577 emitted, 259 refused; 12595 of 12649 integer operations bounded, 1588 of 1889 loops proven. compiler pass, differential pass, tooling pass.
+
+28 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro go`
+- emitted text changed — `examples/big/fact-limbs.oro java`
+- emitted text changed — `examples/big/fact-limbs.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-bits.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro js`
+- emitted text changed — `gauntlet/differential/cases/bloch-midpoint.oro js`
+- emitted text changed — `gauntlet/differential/cases/double-word.oro js`
+- emitted text changed — `gauntlet/differential/cases/render.oro go`
+- emitted text changed — `gauntlet/differential/cases/render.oro java`
+- emitted text changed — `gauntlet/differential/cases/render.oro js`
+
+3 compile(s) recorded FASTER:
+
+- `examples/lines/shape.oro go` 1093 → 703 ms, 0.64x
+- `gauntlet/differential/cases/render.oro windows` 3296 → 1921 ms, 0.58x
+- `gauntlet/differential/cases/utf8-widths.oro windows` 937 → 437 ms, 0.47x

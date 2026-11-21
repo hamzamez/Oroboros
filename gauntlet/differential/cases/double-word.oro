@@ -17,12 +17,9 @@
 // compared lexicographically (`overflows`' 2⁶³), and one past U, or one the
 // pair cannot compute with, is BigInt (ADR 0150, 0151). Its S₆₄ parameters are
 // a set above JavaScript's word, so the program's one set (ADR 0029) is S₆₄'s
-// 64 bits, enforced on every operation on the rung: x·3 past S₆₄, an
-// intermediate no declared set claims, traps with its value proven. Its
-// claims are not told apart from its intermediates after inlining
-// (pairsel-2026-11-21's finding).
-// (a run-time stop, "bignum overflow: the declared range is too small")
-// skip: js because "output: trap"
+// 64 bits, checked where it claims (ADR 0152): x·3 past S₆₄ is an intermediate
+// no declared set claims, held exactly and unchecked, where every operation
+// fitted had stopped it with its value proven (pairsel-2026-11-21's finding).
 // inputs: 0 1 5
 // prints: string
 // expect: 9223372036854775807/-1/6917529027641081855/f/t/-6588122883467697005/4 9223372036854775806/-1/6917529027641081854/f/t/-6588122883467697005/0 9223372036854775804/-1/6917529027641081851/f/t/-6588122883467697002/5

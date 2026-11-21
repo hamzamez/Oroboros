@@ -16,7 +16,8 @@ public final class examples_big_fact-limbs.java {
 			v13 = v23;
 			continue;
 		}
-		return v13;
+		final java.math.BigInteger v27 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v13, (long)(1301)));
+		return v27;
 	}
 
 }

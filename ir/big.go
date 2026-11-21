@@ -115,6 +115,7 @@ func SelectBig(tg *emit.Target, f *Func, sig *core.Sig, bits int, signed bool) (
 		return 0, g.err
 	}
 	g.stripPis()
+	g.fitClaims()
 	eraseThe(f)
 	if len(f.exactDemand) > 0 && tg.BigRepr == "host" && !PlantRungFactsForgotten {
 		g.ascribe()
@@ -790,7 +791,7 @@ func (g *bigs) bit(s *Stmt) {
 	g.f.Types[v] = core.BigType
 	// only the left shift and not leave a bounded set's bit length (ADR
 	// 0029): the others' results are no longer than their operands
-	if g.fit == "" || (s.Op != OShl && s.Op != ONot) {
+	if g.fit == "" || g.proven(v) || (s.Op != OShl && s.Op != ONot) {
 		op.Res = []V{v}
 		g.stmts = append(g.stmts, op)
 		return
@@ -802,6 +803,69 @@ func (g *bigs) bit(s *Stmt) {
 		Stmt{Op: OConst, Lit: core.Int(int64(g.bits)), Res: []V{k}},
 		Stmt{Op: OCall, Name: g.fit, Args: []V{t, k}, Res: []V{v}})
 }
+
+// THE ONE SET IS CHECKED WHERE IT CLAIMS (ADR 0152, amending ADR 0029). A
+// declared set above the word is the program's one set, by sign and bit
+// length, and it was checked at every operation of the rung; under ADR 0150
+// an intermediate no set claims is ℤ's, and checked so it stopped the program
+// with its value proven (`x * 3` under a declared S₆₄ on JavaScript). So the
+// fit is placed where a value is claimed, and where nothing but the declared
+// set bounds one:
+//
+//  1. at a claim, a value ascribed a declared set above the word (`the`, which
+//     a definition's result keeps through inlining, core/reduce.go's
+//     ascribeResult): fitClaims;
+//  2. at an operation whose result the decision does not bound, its fact not
+//     finite, the declared set the only consent to its room: proven is false.
+//
+// An operation whose result has a finite fact is not fitted: the fact is a
+// theorem, it is ℤ's where no set claims it, and where one does the claim's
+// fit checks it. The width stays the program's one set (g.bits): ADR 0029's
+// set, its places changed.
+func (g *bigs) proven(v V) bool {
+	if PlantFitEveryOp || int(v) >= len(g.fs) {
+		return false
+	}
+	x := g.fs[v].v
+	return !x.bot && x.finite()
+}
+
+// fitClaims turns each claim above the word on a value held exactly into its
+// fit, before the ascriptions are erased: the(x) with x on the rung, its set
+// past the word, becomes g.fit(x, bits).
+func (g *bigs) fitClaims() {
+	if g.fit == "" || PlantNoClaimFit {
+		return
+	}
+	g.f.Walk(func(r *Region) {
+		var out []Stmt
+		for _, s := range r.Stmts {
+			if s.Op != OThe || len(s.Args) != 1 || len(s.Res) != 1 || g.f.Types[s.Args[0]] != core.BigType {
+				out = append(out, s)
+				continue
+			}
+			lo, hi, ok := core.IntRangeBig(s.Type)
+			if !ok || lo.Cmp(big.NewInt(g.tg.Word.Lo)) >= 0 && hi.Cmp(big.NewInt(g.tg.Word.Hi)) <= 0 {
+				out = append(out, s)
+				continue
+			}
+			k := g.fresh("int")
+			g.f.Types[s.Res[0]] = core.BigType
+			out = append(out, Stmt{Op: OConst, Lit: core.Int(int64(g.bits)), Res: []V{k}},
+				Stmt{Op: OCall, Name: g.fit, Args: []V{s.Args[0], k}, Res: s.Res, Src: s.Src})
+		}
+		r.Stmts = out
+	})
+}
+
+// PlantFitEveryOp fits every operation of the rung again, as before ADR 0152:
+// `x * 3 / 4` under a declared S₆₄ then stops on JavaScript
+// (TestTheOneSetIsCheckedWhereItClaims).
+var PlantFitEveryOp bool
+
+// PlantNoClaimFit places no fit at a claim: big-sign's yield past its declared
+// −2^200..2^200 then answers where it must stop.
+var PlantNoClaimFit bool
 
 // fresh is a new value of the given type.
 func (g *bigs) fresh(ty string) V {
@@ -1088,7 +1152,7 @@ func (g *bigs) stmt(s *Stmt) {
 			g.ops++
 			g.f.Types[v] = core.BigType
 			op := Stmt{Op: OCall, Name: bigArith[s.Op], Args: args, Res: []V{v}, Src: s.Src}
-			if g.fit == "" {
+			if g.fit == "" || g.proven(v) {
 				g.stmts = append(g.stmts, op)
 				return
 			}

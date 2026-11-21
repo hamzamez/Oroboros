@@ -133,9 +133,11 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      ([split53](gauntlet/results/split53-2026-11-21.md)): the split x = h·2³² + l, 4.6× BigInt;
      the differential's `// opaque`; ~~1, an entry point's parameter in U as a pair~~ done
      ([pairentry](gauntlet/results/pairentry-2026-11-21.md)): the caller's BigInt split once by
-     `pair_bigint`'s inverse; next 3, the one set checked at its claims and stored by the join
-     (an ADR). After them: the report listing every operation; a program all ℤ by an unbounded
-     loop counter;
+     `pair_bigint`'s inverse; ~~3, the one set checked at its claims~~ done (ADR 0152,
+     [oneset](gauntlet/results/oneset-2026-11-21.md)): a fit at each claim above the word and at
+     each operation the decision does not bound, none at a finite fact; fixed limbs left where an
+     intermediate passes their width. Next: the report listing every operation; a program all ℤ
+     by an unbounded loop counter;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -348,14 +350,11 @@ the state translation's let kept a λ argument for β without local.md §3's che
   Integer in map-static, and quotient-corner and sum-slots prove only at their literal inputs;
   the default stays literal until they are settled; the split at 26.7 ns against its eight
   operations; ir/final.go's bit refusal reached by no program on JavaScript;
-- pairsel (ADR 0151): **under a declared set above the word, an intermediate past it stops the
-  program** with its value proven (`x * 3 / 4` over S₆₄ on JavaScript; `double-word` skips JavaScript
-  for it): the one set (ADR 0029) is one width for the representation's room and the declared sets'
-  enforcement, and after inlining a claim above the word is not told from an intermediate; widening
-  the width, and fitting only an export's yields, each printed `big-sign`'s value past its set. The
-  fix is a claim carried through inlining as a mark; a residue divided by a non-power of two; the
-  ascriptions on K(ℕ\*), where stein's compile did not end with them; a planted fault for SCT's
-  reading of `the` as the identity;
+- pairsel (ADR 0151): a residue divided by a non-power of two; the ascriptions on K(ℕ\*), where
+  stein's compile did not end with them; a planted fault for SCT's reading of `the` as the identity;
+  pairentry: the choice at an entry point by cost (≈ 25 ns a call at the boundary, a one-operation
+  export 2–3× a BigInt's); oneset (ADR 0152): each claim at its own set's width, stricter than the one
+  set, a candidate;
 - handle (ADR 0146): a struct's handle field as `Option(K)` (ADR 0136's optional field); the
   results' niches no program has met (GetStdHandle's two sentinels a two-point niche); Windows'
   pseudo-handles (HWND_TOPMOST); an `Option` and a code crossing a join point together blew the
@@ -491,9 +490,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,766 of 12,820** integer operations proven inside their target's word, the 54 left
+- **Provability**: **12,595 of 12,649** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,607 of 1,908** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,588 of 1,889** loops proven to
   terminate (size-change termination; of the 301 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 39 were before bigbits-2026-11-19 (sieve-js's two proven since intboundary-2026-11-21), among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 250 are Stein's and popcount's loops over numerals (stein's two on JavaScript proven since pairsel-2026-11-21), whose measures, a
@@ -899,6 +898,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | The double word E on every 64-bit host (Go by math/bits, the JVM by its carries, `Math.multiplyHigh` and Knuth's division); a signed quotient of E by a constant the magnitude's (LLVM's unsigned division; Go's and the JVM's 2-by-1 with Horner's rule for a remainder); a quotient by a word the 2-by-1 division, where the target has one | [0149](docs/decisions/0149-the-double-word-is-every-hosts.md) |
 | A set is a claim and ρ alone chooses: an operation past S, U and E that reaches no sink is held in ℤ and reported; a refusal only at a sink; `-words` refuses it instead | [0150](docs/decisions/0150-a-set-is-a-claim-and-rho-alone-chooses.md) |
 | A representation holds a value only where it computes the value's uses: on JavaScript a value of U is a pair where its operations are the pair's, ℤ (BigInt) whole otherwise, the greatest fixed point on the pair the rung's least; the pair compares lexicographically and reads a word signed; amends 0083 and 0150 | [0151](docs/decisions/0151-a-representation-holds-a-value-only-where-it-computes-its-uses.md) |
+| The one set is checked where it claims: a fit at each value a declared set above the word is ascribed to and at each operation the decision does not bound, none at an operation with a finite fact; fixed limbs hold a program only within their width; amends 0029 | [0152](docs/decisions/0152-the-one-set-is-checked-where-it-claims.md) |
 
 ## Build commands
 

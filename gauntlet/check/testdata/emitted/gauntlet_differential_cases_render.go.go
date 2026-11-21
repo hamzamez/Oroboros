@@ -20,55 +20,56 @@ func GenRun(v0 int) string {
 		v15 = v25
 		continue
 	}
-	v29 := (big.NewInt(int64(0)))
-	v30 := (v15.Cmp(v29) == 0)
-	if v30 {
+	v29 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v15, 201))
+	v31 := (big.NewInt(int64(0)))
+	v32 := (v29.Cmp(v31) == 0)
+	if v32 {
 		return "0"
 	}
-	var v35 string = ""
-	v36 := v15
-	var v37 int = 0
-	for ; ; v37 = (v37 + 1) {
-		v39 := (big.NewInt(int64(0)))
-		v40 := (v36.Cmp(v39) == 0)
-		if v40 {
-			break
-		}
-		v42 := (v37 >= 32)
+	var v37 string = ""
+	v38 := v29
+	var v39 int = 0
+	for ; ; v39 = (v39 + 1) {
+		v41 := (big.NewInt(int64(0)))
+		v42 := (v38.Cmp(v41) == 0)
 		if v42 {
 			break
 		}
-		v46 := (big.NewInt(int64(100000000)))
-		v47 := (new(big.Int).Quo(v36, v46))
-		v49 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v47, 201))
-		v51 := (big.NewInt(int64(0)))
-		v52 := (v49.Cmp(v51) > 0)
-		v56 := (int(new(big.Int).Rem(v36, big.NewInt(int64(100000000))).Int64()))
-		var v58 string = ""
-		var v59 int = 0
-		var v60 int = v56
-		for ; ; v59 = (v59 + 1) {
-			v62 := (v59 >= 8)
-			if v62 {
+		v44 := (v39 >= 32)
+		if v44 {
+			break
+		}
+		v48 := (big.NewInt(int64(100000000)))
+		v49 := (new(big.Int).Quo(v38, v48))
+		v51 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v49, 201))
+		v53 := (big.NewInt(int64(0)))
+		v54 := (v51.Cmp(v53) > 0)
+		v58 := (int(new(big.Int).Rem(v38, big.NewInt(int64(100000000))).Int64()))
+		var v60 string = ""
+		var v61 int = 0
+		var v62 int = v58
+		for ; ; v61 = (v61 + 1) {
+			v64 := (v61 >= 8)
+			if v64 {
 				break
 			}
-			v67 := (!v52)
-			v70 := (v67 && ((v60 == 0) && (v59 > 0)))
-			if v70 {
+			v69 := (!v54)
+			v72 := (v69 && ((v62 == 0) && (v61 > 0)))
+			if v72 {
 				break
 			}
-			v83 := (v60 % 10)
-			v84 := (48 + v83)
-			v85 := (string(rune(v84)))
-			v86 := (v85 + v58)
-			v90 := (v60 / 10)
-			v58, v60 = v86, v90
+			v85 := (v62 % 10)
+			v86 := (48 + v85)
+			v87 := (string(rune(v86)))
+			v88 := (v87 + v60)
+			v92 := (v62 / 10)
+			v60, v62 = v88, v92
 			continue
 		}
-		v91 := (v58 + v35)
-		v35, v36 = v91, v49
+		v93 := (v60 + v37)
+		v37, v38 = v93, v51
 		continue
 	}
-	return v35
+	return v37
 }
 

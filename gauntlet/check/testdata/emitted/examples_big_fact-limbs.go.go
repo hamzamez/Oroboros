@@ -19,6 +19,7 @@ func GenFactLimbs(v0 int) *big.Int {
 		v13 = v23
 		continue
 	}
-	return v13
+	v27 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v13, 1301))
+	return v27
 }
 

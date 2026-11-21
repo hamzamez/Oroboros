@@ -8,7 +8,10 @@ amended by [ADR 0098](0098-fixed-limbs-realize-a-signed-set-by-the-group-complet
 realize Z_k too, as Z(V_n), the group completion over the magnitudes. **Amends [ADR 0028](0028-a-definitions-contract-is-checked-at-its-calls.md)'s
 decision 4** (what a range above the word denotes) and corrects its reading of a declared result as a
 fact. Refines [bigrepr-2026-09-03](../../gauntlet/results/bigrepr-2026-09-03.md) §3a, which made the
-bound a bit length and left the sign unsaid.
+bound a bit length and left the sign unsaid. **Amended by
+[ADR 0152](0152-the-one-set-is-checked-where-it-claims.md)**: the one set is checked at each claim and
+at each operation the decision does not bound, not at every operation; fixed limbs hold a program only
+within their width.
 
 ## Context
 

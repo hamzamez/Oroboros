@@ -12,39 +12,40 @@ export function genRun(v0) {
 		v15 = v25;
 		continue;
 	}
-	if (((v15 === (BigInt(0))))) {
+	const v29 = ((function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error("bignum overflow: the declared range is too small"); return oroZ; })(v15, 201));
+	if (((v29 === (BigInt(0))))) {
 		return "0";
 	}
-	let v35 = "";
-	let v36 = v15;
-	let v37 = 0;
-	for (;; v37 = (v37 + 1)) {
-		if (((v36 === (BigInt(0))))) {
+	let v37 = "";
+	let v38 = v29;
+	let v39 = 0;
+	for (;; v39 = (v39 + 1)) {
+		if (((v38 === (BigInt(0))))) {
 			break;
 		}
-		if ((v37 >= 32)) {
+		if ((v39 >= 32)) {
 			break;
 		}
-		const v49 = ((function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error("bignum overflow: the declared range is too small"); return oroZ; })(((v36 / (BigInt(100000000)))), 201));
-		const v52 = ((v49 > (BigInt(0))));
-		let v58 = "";
-		let v59 = 0;
-		let v60 = (Number(v36 % BigInt(100000000)));
-		for (;; v59 = (v59 + 1)) {
-			if ((v59 >= 8)) {
+		const v51 = ((function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error("bignum overflow: the declared range is too small"); return oroZ; })(((v38 / (BigInt(100000000)))), 201));
+		const v54 = ((v51 > (BigInt(0))));
+		let v60 = "";
+		let v61 = 0;
+		let v62 = (Number(v38 % BigInt(100000000)));
+		for (;; v61 = (v61 + 1)) {
+			if ((v61 >= 8)) {
 				break;
 			}
-			if (((!v52) && ((v60 === 0) && (v59 > 0)))) {
+			if (((!v54) && ((v62 === 0) && (v61 > 0)))) {
 				break;
 			}
-			v58 = ((String.fromCodePoint((48 + (((v60 % 10) + 0))))) + v58);
-			v60 = ((Math.trunc(v60 / 10) + 0));
+			v60 = ((String.fromCodePoint((48 + (((v62 % 10) + 0))))) + v60);
+			v62 = ((Math.trunc(v62 / 10) + 0));
 			continue;
 		}
-		v35 = (v58 + v35);
-		v36 = v49;
+		v37 = (v60 + v37);
+		v38 = v51;
 		continue;
 	}
-	return v35;
+	return v37;
 }
 

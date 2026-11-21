@@ -5,11 +5,13 @@ export function genFactLimbs(v0) {
 	let v14 = 2;
 	for (;; v14 = (v14 + 1)) {
 		if ((v14 > v0)) {
-			return v13;
+			break;
 		}
 		const v23 = ((function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error("bignum overflow: the declared range is too small"); return oroZ; })(((v13 * (BigInt(v14)))), 1301));
 		v13 = v23;
 		continue;
 	}
+	const v27 = ((function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error("bignum overflow: the declared range is too small"); return oroZ; })(v13, 1301));
+	return v27;
 }
 

@@ -897,7 +897,7 @@ not:
      predate this step.
 
 Rewriting chapter 0 and bringing chapters 3–19 to ADR 0147 (2026-11-21), `Int` ℤ at an entry
-point too, found nine, three fixed:
+point too, found eleven, three fixed:
 
 108. **An intermediate above the word is computed exactly only where something asks.** `mid(lo ∈
      -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { (lo + hi) / 2 }` is refused: the sum is
@@ -960,6 +960,23 @@ point too, found nine, three fixed:
      integer (`strconv.FormatUint`'s argument, an index, a tuple's components) and slowed five
      windows compiles 1.5–1.7×. Not fixed: a request that prefers U to the rung, so that `(Int)`
      can ask without that cost; §6.9 shows both forms.
+117. **On JavaScript a natural's division and comparisons past its word fail the verifier.**
+     `fits(w ∈ 0..2^63-1, h ∈ 0..2^63-1) (Bool) { h == 0 || w <= 1000000 / h }` is refused as
+     *IR_P does not verify: W5: %1 is int 0 9223372036854775807 and flows into (eq …), which is
+     int*, and the same for `/` and `<=`: a parameter past ±(2⁵³ − 1) reaches a word's operator
+     with no widening. A refusal by the compiler's own check, not a wrong answer; Go, the JVM and
+     windows compile it. Found comparing the designs of sets-are-claims-research (2026-11-21). Not
+     fixed.
+118. **Go and the JVM refuse what windows computes in the double word.** An intermediate past
+     every word and inside E = [−2¹²⁷, 2¹²⁷) is computed exactly on windows as LLVM's `i128`
+     (ADR 0103): `(lo + hi) / 2` over S₆₄, a comparator `a - b`, `x * 3 / 4`, `w * h <= N`,
+     `a + b > 2^63 - 1` all compile there with no allocation, and JavaScript compiles them over
+     BigInt; Go and the JVM refuse each (*cannot be proven to stay inside the word*). One program,
+     two verdicts, the difference not a word size but a representation built on one host only. Go
+     has the double word's operations (`math/bits`: `Add64`, `Sub64`, `Mul64`, `Div64`), and the
+     JVM `Math.multiplyHigh`. Measured on Go by hand: the midpoint in E 1.70 ns, Bloch's form
+     1.79, the big integer 39. No corpus program meets it (its 13 Go-against-windows splits are
+     windows' own APIs). Not fixed: E on Go and the JVM, sets-are-claims-research §6.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

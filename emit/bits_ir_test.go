@@ -6,28 +6,32 @@ import (
 	"testing"
 )
 
-// A BOOLEAN OPERATION'S RESULT CHOOSES ITS REALIZATION (ADR 0083 item 2), and
-// one in no realization's set is refused naming them. JavaScript's `|` is the
-// or only where the result is proven in S₃₂ or, read `>>> 0`, in U₃₂: an or of
-// a 40-bit value is in neither, and printing either would truncate it. The same
-// program compiles on Go, where the realization is the word's.
-func TestABitResultOutsideEveryRealizationIsRefused(t *testing.T) {
+// A BOOLEAN OPERATION'S RESULT CHOOSES ITS REALIZATION (ADR 0083 item 2), the
+// narrowest whose set holds it. JavaScript's `|` is the or where the result is
+// proven in S₃₂ or, read `>>> 0`, in U₃₂: an or of a 40-bit value is in neither,
+// and printing either would truncate it, so it takes the whole word's, the split
+// (integers.md §0b), refused before it was built. The same program compiles on
+// Go, where the realization is the word's.
+func TestABitResultChoosesItsRealization(t *testing.T) {
 	src := "export fn f(a ∈ 0..2^40, b ∈ 0..255) (Int) { a | b }"
 	if _, err := genOn(t, "go", src, "f"); err != nil {
 		t.Fatalf("Go refused an or in its word: %v", err)
 	}
-	_, err := genOn(t, "js", src, "f")
-	if err == nil || !strings.Contains(err.Error(), "only where the result is proven in one of") {
-		t.Fatalf("JavaScript accepted a 40-bit or, or refused it for another reason: %v", err)
+	// A 40-BIT OR ON JAVASCRIPT IS THE SPLIT's (integers.md §0b, pairsel-2026-11-21):
+	// in neither 32-bit window, and in the whole word, where V8's `|` would
+	// truncate it and (hₓ | h_y)·2³² + (lₓ | l_y) is the or
+	code, err := genOn(t, "js", src, "f")
+	if err != nil || !strings.Contains(code, "4294967296") {
+		t.Fatalf("a 40-bit or on JavaScript: want the split, got %v\n%s", err, code)
 	}
 	// AND THE U₃₂ REALIZATION IS CHOSEN where the result is proven there, not
 	// the S₃₂ one, whose `|` would give the negative int32 of the same bits.
-	code, err := genOn(t, "js", "export fn f(a ∈ 0..2^32-1, b ∈ 0..255) (Int) { a | b }", "f")
+	code, err = genOn(t, "js", "export fn f(a ∈ 0..2^32-1, b ∈ 0..255) (Int) { a | b }", "f")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(code, ">>> 0") {
-		t.Errorf("an or proven in U₃₂ printed without `>>> 0`:\n%s", code)
+	if !strings.Contains(code, ">>> 0") || strings.Contains(code, "4294967296") {
+		t.Errorf("an or proven in U₃₂ printed without `>>> 0`, or by the split:\n%s", code)
 	}
 	if code, err = genOn(t, "js", "export fn f(a ∈ 0..2^31-1, b ∈ 0..255) (Int) { a | b }", "f"); err != nil {
 		t.Fatal(err)

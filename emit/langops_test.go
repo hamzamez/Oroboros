@@ -161,11 +161,13 @@ func TestTheBitOperationsAreTheLanguagesOnEveryTarget(t *testing.T) {
 		}
 	}
 	js, _ := LoadTarget("../targets/js")
-	windows := map[string][2]int64{"": {-1 << 31, 1<<31 - 1}, "-u32": {0, 1<<32 - 1}}
+	// the S₃₂ and U₃₂ windows, where V8's operator is the and, and the whole
+	// word, where only the split is (integers.md §0b, pairsel-2026-11-21)
+	windows := map[string][2]int64{"": {-1 << 31, 1<<31 - 1}, "-u32": {0, 1<<32 - 1}, "-s53": {-(1<<53 - 1), 1<<53 - 1}}
 	for _, op := range []string{"&", "|", "⊕"} {
 		rs := js.Realize[op]
-		if len(rs) != 2 {
-			t.Errorf("js: %q has realizations %v, want the S₃₂ and the U₃₂ one", op, rs)
+		if len(rs) != 3 {
+			t.Errorf("js: %q has realizations %v, want the S₃₂, the U₃₂ and the whole word's", op, rs)
 			continue
 		}
 		for i, name := range rs {
@@ -180,6 +182,11 @@ func TestTheBitOperationsAreTheLanguagesOnEveryTarget(t *testing.T) {
 			// check refuses is `and` declared `(Int)`.
 			if !ok || lo < w[0] || hi > w[1] {
 				t.Errorf("js: %s declares its result %q, outside the window %v where V8's operator is the and", name, js.Prims[name].Result, w)
+			}
+			// PAST THE 32-BIT WINDOWS ONLY THE SPLIT IS THE AND: a realization
+			// there that is V8's bare operator truncates a 40-bit and
+			if hi > 1<<32-1 && !strings.Contains(js.Prims[name].Form, "4294967296") {
+				t.Errorf("js: %s declares its result %q past 32 bits, and its form %q is not the split", name, js.Prims[name].Result, js.Prims[name].Form)
 			}
 		}
 	}

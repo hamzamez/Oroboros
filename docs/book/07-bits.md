@@ -1136,6 +1136,32 @@ Five functions, five different decisions, none of them yours:
   to 2⁵³.
 - `invert`: `-n - 1`, which is what `~` means.
 
+A result past 32 bits and inside JavaScript's word has a sixth way. The operations work one bit
+at a time, so a number can be cut into a high part and a low 32 bits, h·2³² + l, each part
+operated on alone, and the two put back:
+
+<!-- file docs/book/code/bits/wide.oro -->
+```go
+export fn mask(n ∈ -2^52..2^52) (0..2^40-1) { n & (2^40 - 1) }
+
+export fn mix(a ∈ 0..2^50, b ∈ 0..2^50) (0..2^51) { a ⊕ b }
+```
+
+<!-- gen js docs/book/code/bits/wide.oro -->
+```javascript
+…
+export function bitsMask(v0) {
+	return (((x, y) => { const p = x >>> 0, q = y >>> 0; return (((x - p) / 4294967296) & ((y - q) / 4294967296)) * 4294967296 + ((p & q) >>> 0); })(v0, 1099511627775));
+}
+…
+```
+
+`x >>> 0` is the low 32 bits, read unsigned; `(x - p) / 4294967296` is the high part, exact
+because x − p is a multiple of 2³²; each part fits JavaScript's 32-bit operators, and the
+multiplication by 2³² puts the high part back. A negative n works too: its low part is still
+the low 32 bits, and its high part is negative, as `>>` would make it. About eight operations on
+numbers, chosen only where the result does not fit in 32 bits.
+
 Past the word there is a way too, the rung above it. A parameter declared wider than
 JavaScript's word arrives as a `BigInt`, and `&` on a `BigInt` is the 2-adic and itself. The
 result is in 0..255, so it comes back to a number:
@@ -1287,7 +1313,8 @@ says it computes that meaning.
   mod 2^32`.
 - **`n & (n - 1)` removes the lowest 1; `n & -n` isolates it.**
 - **On JavaScript** the compiler uses the host's 32-bit operators only where the result is
-  proven to fit, and something exact elsewhere.
+  proven to fit, and something exact elsewhere: inside its word, the number cut at 32 bits and
+  each part operated on alone.
 - **A number past the word has the same bits**, and every operation here works on it exactly;
   a result proven small, as `n & 255` is, comes back as a machine integer.
 

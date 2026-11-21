@@ -389,7 +389,7 @@ oroboros/emit TestABignumDivisorIsNonZero 0.26
 oroboros/emit TestABignumIsRefusedWhereAWordIsRequired 0.04
 oroboros/emit TestABindersClaimIsProvenOrRefused 0.16
 oroboros/emit TestABindersTypeDoesNotOutliveItsBody 0.03
-oroboros/emit TestABitResultOutsideEveryRealizationIsRefused 0.05
+oroboros/emit TestABitResultChoosesItsRealization 0.05
 oroboros/emit TestABoundPastTheEndsIsExact 0.04
 oroboros/emit TestABrokenProvidesIsRefusedNotDropped 0.05
 oroboros/emit TestABufferAHostCallHandsBackIsLinear 0.04

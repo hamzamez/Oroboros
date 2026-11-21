@@ -4446,3 +4446,13 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - compiler output changed — `examples/big/stein.oro js`
 - compiler output changed — `examples/u128/inz.oro js`
+
+## 2026-11-21 — on f33317c4, with uncommitted changes
+
+**Reason:** split53 (pairsel-2026-11-21's gap 2): JavaScript's and, or and xor on its whole word by the split h*2^32 + l; bits-edges now emits on JavaScript, the only change
+
+836 runs: 577 emitted, 259 refused; 12766 of 12820 integer operations bounded, 1607 of 1908 loops proven. compiler pass, differential pass, tooling pass.
+
+1 change(s):
+
+- now emits — `gauntlet/differential/cases/bits-edges.oro js`

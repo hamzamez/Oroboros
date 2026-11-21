@@ -206,6 +206,25 @@ module js {
     fn or_u32(a ∈ Word, b ∈ Word) (0..2^32-1) pure { host expr "((${a} | ${b}) >>> 0)" }
     fn xor(a ∈ Word, b ∈ Word) (-2^31..2^31-1) pure { host expr "(${a} ^ ${b})" }
     fn xor_u32(a ∈ Word, b ∈ Word) (0..2^32-1) pure { host expr "((${a} ^ ${b}) >>> 0)" }
+    // ON THE WHOLE WORD, BY THE SPLIT (integers.md §0b): and, or and xor act
+    // bit by bit, so they commute with x = h·2³² + l, l = ToUint32(x) = x mod
+    // 2³² and h = (x − l)/2³² = ⌊x/2³²⌋: x ∘ y = (hₓ ∘ h_y)·2³² + (lₓ ∘ l_y). On W
+    // each step is exact in doubles (x − l is a multiple of 2³² below 2⁵³ in
+    // magnitude, a division by a power of two exact), h lies in [−2²¹, 2²¹),
+    // where ToInt32 is the identity and `&` the and, and the low digits'
+    // operation read unsigned is in U₃₂; the sum is the result, exact where it
+    // is in W, which the result set asks the facts to prove. Chosen only where
+    // S₃₂ and U₃₂ do not hold the result (the narrowest realization the facts
+    // prove, emit/target.go's Realize).
+    fn and_s53(a ∈ Word, b ∈ Word) (Word) pure {
+        host expr "((x, y) => { const p = x >>> 0, q = y >>> 0; return (((x - p) / 4294967296) & ((y - q) / 4294967296)) * 4294967296 + ((p & q) >>> 0); })(${a}, ${b})"
+    }
+    fn or_s53(a ∈ Word, b ∈ Word) (Word) pure {
+        host expr "((x, y) => { const p = x >>> 0, q = y >>> 0; return (((x - p) / 4294967296) | ((y - q) / 4294967296)) * 4294967296 + ((p | q) >>> 0); })(${a}, ${b})"
+    }
+    fn xor_s53(a ∈ Word, b ∈ Word) (Word) pure {
+        host expr "((x, y) => { const p = x >>> 0, q = y >>> 0; return (((x - p) / 4294967296) ^ ((y - q) / 4294967296)) * 4294967296 + ((p ^ q) >>> 0); })(${a}, ${b})"
+    }
     fn not(a ∈ Word) (Word) pure { host expr "(-(${a}) - 1)" checked not_exact }
     fn shl(a ∈ Word, b ∈ Word) (Word) pure where b >= 0 { host expr "(${a} * 2 ** ${b})" checked shl_exact }
     // Under -checked: −a − 1 leaves W only at a = 2⁵³−1, decided by Lemma S.

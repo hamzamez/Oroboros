@@ -197,8 +197,40 @@ func render(src, target string) string {
 	}
 	b.WriteString(body)
 	b.WriteString("\nexport fn main() {\n")
-	for _, n := range inputs {
-		fmt.Fprintf(&b, "    %s(run(%d))\n", d.print, n)
+	// AN OPAQUE CASE'S INPUTS ARE A LOOP'S COUNTER: called at a literal, `run`
+	// is inlined at a constant, each operation's facts a point, so a pure one
+	// folds and the rest take the narrowest realization that point proves; the
+	// realization a program with unknown inputs needs is never chosen
+	// (bits-edges' `&` past 32 bits on JavaScript compiled only so,
+	// pairsel-2026-11-21). The reducer does not unroll a loop, so each input
+	// reaches `run` unknown, its interval the counter's, exact; the inputs
+	// increase (a table of them read at the counter loses the bound, a literal
+	// table's element range unknown to the refinement layer).
+	if strings.Contains(src, "// opaque") {
+		// consecutive inputs are the counter itself; others the counter where
+		// it equals one, which in that arm is the join of the inputs, an
+		// interval, not a point
+		lo, hi, consecutive := inputs[0], inputs[len(inputs)-1], true
+		var is []string
+		for k, n := range inputs {
+			if k > 0 && n <= inputs[k-1] {
+				return "// an opaque case's inputs increase: " + fmt.Sprint(inputs) + "\n"
+			}
+			consecutive = consecutive && n == lo+k
+			is = append(is, fmt.Sprintf("caseI == %d", n))
+		}
+		fmt.Fprintf(&b, "    loop caseI = %d {\n", lo)
+		if consecutive {
+			fmt.Fprintf(&b, "        caseI <= %d -> { %s(run(caseI)); again(caseI + 1) }\n", hi, d.print)
+		} else {
+			fmt.Fprintf(&b, "        caseI <= %d -> {\n            if %s { %s(run(caseI)); () } else { () }\n            again(caseI + 1)\n        }\n",
+				hi, strings.Join(is, " || "), d.print)
+		}
+		b.WriteString("        else -> ()\n    }\n")
+	} else {
+		for _, n := range inputs {
+			fmt.Fprintf(&b, "    %s(run(%d))\n", d.print, n)
+		}
 	}
 	b.WriteString("}\n")
 	return b.String()

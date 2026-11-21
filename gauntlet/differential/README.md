@@ -37,6 +37,23 @@ Both were caught only because someone hand-wrote a reference and compared. The e
 **Both are cases here, and both fail this suite when their fixes are reverted.** That was the pass
 condition for writing it.
 
+## Opaque inputs
+
+The driver calls `run` at each input as a literal, so the reducer inlines it at a constant: each
+operation's facts are a point, a pure one folds, and the rest take the narrowest realization that
+point proves. The realization a program with unknown inputs needs is then never chosen, and never
+run. `bits-edges` was so: JavaScript's `&` past
+32 bits was refused when the file compiled alone, and passed here (pairsel-2026-11-21). A case
+that marks itself
+
+```
+// opaque
+```
+
+is driven by a loop instead, over a counter the reducer does not unroll: `run(caseI)` for
+consecutive inputs, and under `if caseI == a || caseI == b …` for others, where the counter is the
+join of the inputs, an interval. So each input reaches `run` unknown. Its inputs must increase.
+
 ## Two checks, not one
 
 **Agreement**, across every target that is not skipped. No target is the oracle; a disagreement

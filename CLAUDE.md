@@ -127,8 +127,14 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      [pairsel](gauntlet/results/pairsel-2026-11-21.md)): a value of U a pair only where the pair
      computes its uses, a BigInt the rest; the pair compares and reads a word signed; finding 114
      closed, four differential cases on JavaScript; options 2 and 3 recorded for another time
-     (hamza: "record 2 and 3 as optimizations for another time"). Next: the report listing every
-     operation; a program all ℤ by an unbounded loop counter;
+     (hamza: "record 2 and 3 as optimizations for another time"). Then **JavaScript's three gaps**
+     (hamza, 2026-11-21: "I agree, go in that order: 2, then 1, then 3"), the programs meant for
+     every target JavaScript refused or stopped: ~~2, and, or and xor past 32 bits~~ done
+     ([split53](gauntlet/results/split53-2026-11-21.md)): the split x = h·2³² + l, 4.6× BigInt;
+     the differential's `// opaque`; next 1, an entry point's parameter in U as a pair (the
+     inverse of `pair-bigint`), then 3, the one set checked at its claims and stored by the join
+     (an ADR). After them: the report listing every operation; a program all ℤ by an unbounded
+     loop counter;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -335,6 +341,12 @@ field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ �
 the state translation's let kept a λ argument for β without local.md §3's check.
 
 **Owed from finished steps** (each named in its result document):
+- split53: every differential case opaque (`// opaque`, inputs unknown at compile time): 74 of 83
+  agree; windows' IR_P fails W5/W6 on six (a table into an integer comparison: big-bits,
+  big-nat-div, big-nat-ops, big-signed-ops, record-map, tuple-map), the JVM's map literal is typed
+  Integer in map-static, and quotient-corner and sum-slots prove only at their literal inputs;
+  the default stays literal until they are settled; the split at 26.7 ns against its eight
+  operations; ir/final.go's bit refusal reached by no program on JavaScript;
 - pairsel (ADR 0151): **under a declared set above the word, an intermediate past it stops the
   program** with its value proven (`x * 3 / 4` over S₆₄ on JavaScript; `double-word` skips JavaScript
   for it): the one set (ADR 0029) is one width for the representation's room and the declared sets'

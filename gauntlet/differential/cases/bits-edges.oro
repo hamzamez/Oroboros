@@ -17,6 +17,10 @@
 // proven below 64, and ⌊a/2ᵏ⌋ ∈ {0, −1} past it (llvm-2026-11-02). The case
 // was skipped there while MASM, whose `sar` masks the count, was the printer.
 //
+// The inputs reach `run` unknown (`// opaque`): at a literal each operation's
+// facts were a point, and JavaScript's `&` past 32 bits, the split (and_s53),
+// was never chosen.
+// opaque
 // inputs: 0 1 2 3 4 5 6 7 8 9 10 11
 // expect: 148742215 148742222 674884480 679473500 144153195 369984053 900715338 148797853 674828849 905394059 392090426 188188077
 edges = array { 0, 1, -1, 2^31 - 1, -2^31, 2^31, 2^32 - 1, 12345, -12345, 2^52 + 7, -2^52 + 3, 2^53 - 2 }

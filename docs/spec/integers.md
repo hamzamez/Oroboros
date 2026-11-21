@@ -86,7 +86,7 @@ the product or the floor by the shift's power interval; `a mod m ∈ [0, m − 1
 
 | | Go | Java / ART | JavaScript | windows (MASM, retired 2026-11-03; LLVM's in `targets/windows/windows.oro`'s `realize`) |
 |---|---|---|---|---|
-| `&` `\|` `⊕` | `&` `\|` `^` | `&` `\|` `^` | `&` `\|` `^` where the result is proven in S₃₂; with `>>> 0` where it is proven in U₃₂; otherwise refused until the split is built | `and` `or` `xor` |
+| `&` `\|` `⊕` | `&` `\|` `^` | `&` `\|` `^` | `&` `\|` `^` where the result is proven in S₃₂; with `>>> 0` where it is proven in U₃₂; otherwise, in W, by the split x = h·2³² + l (`and_s53`, `or_s53`, `xor_s53`: (hₓ ∘ h_y)·2³² + (lₓ ∘ l_y), l = ToUint32(x), each step exact below 2⁵³; pairsel-2026-11-21) | `and` `or` `xor` |
 | `~` | `^a` | `~a` | `-a - 1` | `not` |
 | `<<` | `<<` | `<<` | `a * 2 ** k` | `shl` |
 | `>>` | `>>` (a count of 64 or more fills with the sign, as ℤ's floor does) | `a >> Math.min(k, 63)` | `Math.floor(a / 2 ** Math.min(k, 64))` | `sar`, count at most 63 |

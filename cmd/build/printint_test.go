@@ -17,6 +17,10 @@ import (
 // shipped are planted faults: against either old library text this test
 // fails, since 25! printed its low 20 digits or stopped.
 func TestPrintIntIsTotalOnTheIntegers(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	ir.WordsOnly = true
+	defer func() { ir.WordsOnly = false }()
 	if testing.Short() {
 		t.Skip("builds three windows programs")
 	}

@@ -4,14 +4,15 @@
 // what Go's bits.Mul64 answers; a sum's carry is (a + b) >> 64. The result is
 // a natural below 2^64, the unsigned word's. The double word is every 64-bit
 // host's (ADR 0149): LLVM's i128, Go's two uint64 by math/bits, the JVM's two
-// longs; JavaScript, which has none, refuses the product as a product above
-// the word is (ADR 0019).
+// longs; JavaScript, which has none, computes it over BigInt, the integer
+// itself (ADR 0150). The value is printed through `decimal`, alike on every
+// target (a BigInt logged is `…n`).
 //
 // expect: 16045690984505281791 16045690984516814724 16045690984511570442 16045690984506326160 16045690984512614810 16045690984496881964 16045690984504214984 16045690984495815158 16045690984477971137
-// skip: js because "lies above the word target js holds exactly"
+// prints: string
 fn run(n) {
     a = 18446744073709551615 - n * 1000003
     b = 16045690984503098046 + n * 7
     p = a * b
-    (p >> 64) + ((p & 18446744073709551615) >> 40) + ((a + b) >> 64)
+    decimal((p >> 64) + ((p & 18446744073709551615) >> 40) + ((a + b) >> 64))
 }

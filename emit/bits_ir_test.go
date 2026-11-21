@@ -1,6 +1,7 @@
 package emit_test
 
 import (
+	"oroboros/ir"
 	"strings"
 	"testing"
 )
@@ -44,6 +45,10 @@ func TestABitResultOutsideEveryRealizationIsRefused(t *testing.T) {
 // a · b · a reaches 2¹⁸⁶, past the double word, which computes a · b's 2¹²⁴
 // exactly since ADR 0149 (and wraps nothing).
 func TestFusionStopsAtWhatDoesNotDescend(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	ir.WordsOnly = true
+	defer func() { ir.WordsOnly = false }()
 	head := "export fn f(a ∈ 0..2^62, b ∈ 0..2^62, c ∈ 1..9) (-2^63..2^63-1) { " // the word (ADR 0147)
 	for _, body := range []string{
 		"(a * b) mod 256",

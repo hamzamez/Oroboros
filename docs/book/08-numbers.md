@@ -812,11 +812,11 @@ func NumbersTax(v0 int) int {
 `cents * 0.08` is the numerator `cents * 8` at scale 2. Rounding it down onto the integers is
 dividing by 100 and keeping the floor: take off the remainder, then divide.
 
-### The numerators must fit the machine's readings
+### The numerators and the machine's readings
 
 A numerator is an integer, so everything chapter 6 said about integers applies to it. Each
-operation on numerators must be proven inside one of the machine's readings, the word, the unsigned
-word or the double word (chapter 6, §6.9), or the program is refused:
+operation on numerators is held in the first of the machine's readings that holds it, the word, the
+unsigned word or the double word, and past them as the integer itself (chapter 6, §6.9):
 
 <!-- file docs/book/code/numbers/two-scales.oro -->
 ```go
@@ -827,33 +827,32 @@ export fn small(n ∈ 0..10^18) (Bool) {
 
 <!-- portable docs/book/code/numbers/two-scales.oro -->
 ```
-portable to go, java, windows — not js
+portable to go, js, java, windows
 ```
 
 `n * 0.0825` has the numerator `n * 825`, up to 8.25 × 10²⁰, and Go's word stops near
 9.2 × 10¹⁸; times 0.0825 again, 6.8 × 10²³. Both lie in the double word, which holds integers below
 2¹²⁷ ≈ 1.7 × 10³⁸, and only the comparison is kept, so Go, the JVM and Windows compute them there.
-JavaScript has no 64-bit integer, and its word is ±(2⁵³ − 1). Two numbers below 10¹⁸ multiplied
-pass even the double word:
+JavaScript has no 64-bit integer, and computes them over `BigInt`. Two numbers below 10¹⁸
+multiplied pass even the double word:
 
-<!-- file docs/book/code/numbers/no-word.oro -->
+<!-- file docs/book/code/numbers/past-e.oro -->
 ```go
 export fn small(n ∈ 0..10^18, m ∈ 0..10^18) (Bool) {
     n * m * 0.0825 < 3
 }
 ```
 
-<!-- gen go docs/book/code/numbers/no-word.oro -->
-```
-gen: numbers-small: 2 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  * [0, 1000000000000000000000000000000000000] in n * m
-  * [0, 825000000000000000000000000000000000000] in n * m * 0.0825
+<!-- gen go docs/book/code/numbers/past-e.oro -->
+```go
+note: numbers-small: 2 operation(s) past every word and the double word, held exactly: n * m; n * m * 0.0825
+note: numbers-small: 3 operation(s) in arbitrary precision
 …
 ```
 
-The numerator of `n * m * 0.0825` reaches 8.25 × 10³⁸, past every reading, and `n * m` is refused
-with it because its one use is that product. The message calls them "integer operations" because
-that is what they are. Portability is computed per program, as in chapter 6.
+The numerator of `n * m * 0.0825` reaches 8.25 × 10³⁸, past every reading, so it is held as the
+integer it is, and the note names it; the comparison is a boolean again. The note calls them
+"operations" on numerators because that is what they are.
 
 So a long chain of multiplications grows the scale and the numerator together, and sooner or
 later you must round to bring the scale back down. That is not a quirk of this language. It

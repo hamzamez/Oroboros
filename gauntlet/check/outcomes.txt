@@ -1753,16 +1753,18 @@
 == gauntlet/differential/cases/product.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/product.oro java emitted 0c414c59af9cd16a3d1af3de8452da2683fa9c8241c575e7bb6130b90540342c
 == gauntlet/differential/cases/product.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
-== gauntlet/differential/cases/quotient-corner.oro go emitted 63a9469e9ed2919581c3a1919f94afa8e7745de5a0edd6923caef3bd416e29ad
+== gauntlet/differential/cases/quotient-corner.oro go emitted 12c3deadfd81ab8bb542b09e059b474a484896fbe27fff69b97f7c116bf9bbcd
    note: gen-run: 4 of 4 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-run: 1 division(s) became a shift or a mask
-== gauntlet/differential/cases/quotient-corner.oro js refused
-   gen: gen-run: div of a value held in the unsigned word as a pair, by [-5, -2], not a constant: not built (ir/pairs.go)
-== gauntlet/differential/cases/quotient-corner.oro java emitted 234e17403855f2d6560584cea364ef70ef1774235dfd0ee9e424efeea17b2b40
+== gauntlet/differential/cases/quotient-corner.oro js emitted 4ca6fd9c809292dcd9667c1d4f1ec3b4e8fb9cc1657f51833de043d39e57012b
+   note: gen-run: 11 operation(s) in arbitrary precision
+   note: gen-run: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-run: 1 division(s) became a shift or a mask
+== gauntlet/differential/cases/quotient-corner.oro java emitted c09271ce145321e0fc513ddf2195fe899f54ac42e262435ebedd4ee651b7c15f
    note: gen-run: 4 of 4 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-run: 1 division(s) became a shift or a mask
-== gauntlet/differential/cases/quotient-corner.oro windows emitted 92d7516533a402707ad5f9ffae7226f44fdeb32932c6f92f13e6cfd7ab5c1a4d
-   note: gen-run: 4 of 4 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/quotient-corner.oro windows emitted bee91ebb407d4a96e7d435c188164a1138872a67cfe60dc8151da3b47c138403
+   note: gen-run: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating
 == gauntlet/differential/cases/read-loop.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/read-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/read-loop.oro java emitted 2c615804f5a7f837419d164183a56ccc495300334ce2c96776998db46f9e8217

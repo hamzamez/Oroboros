@@ -14,8 +14,8 @@
 // −2⁶³. The answers are ℤ's, computed apart.
 //
 // JavaScript has no double word; its S₆₄ arguments are BigInt, and the inlined
-// case meets the pairs pass's missing signed reading (the book's finding 114).
-// skip: js because "outside the unsigned word it would be held in"
+// case meets the pairs pass's comparison of a pair, not built (ir/pairs.go).
+// skip: js because "a comparison of a value held in the unsigned word as a pair is not built"
 // inputs: 0 1 5
 // prints: string
 // expect: 9223372036854775807/-1/6917529027641081855/f/t/-6588122883467697005/4 9223372036854775806/-1/6917529027641081854/f/t/-6588122883467697005/0 9223372036854775804/-1/6917529027641081851/f/t/-6588122883467697002/5

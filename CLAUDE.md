@@ -117,11 +117,11 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      [doubleword](gauntlet/results/doubleword-2026-11-21.md)): two digits by `math/bits` and by the
      JVM's carries, `Math.multiplyHigh` and Knuth's division; a signed quotient by a constant the
      magnitude's (on LLVM its unsigned division, `__divti3` before); finding 118 closed;
-   - A: no declared set consents; an intermediate outside E is ℤ, reported; a refusal only at a sink;
-     `-words` an option making an operation held in ℤ a refusal; an ADR amending 0019 item 2, 0079
-     item 3 and 0148 item 1;
-   - the book's §6.9 rewritten with it: S, U, E, ℤ through the five programs, each the bug it is
-     elsewhere, its code on each target, its algebra and what it buys, measured;
+   - ~~A~~ done (ADR 0150, [exact](gauntlet/results/exact-2026-11-21.md)): no declared set
+     consents; an operation past S, U and E that reaches no sink is ℤ, reported; a value flowing
+     into a sink stays a word (the taint, the rung's closure backward); `-words` refuses instead;
+   - ~~the book~~ done with E and A: chapter 6 §6.9 on S, U, E, ℤ through the five programs,
+     chapters 7, 8 and 18;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -865,6 +865,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | `Int` is ℤ at an entry point too, its parameter ρ of its set and `where` (the word, or the host's integer of any size; windows refuses an unbounded one); a host's word its module's `Word`; one rendering of ℤ, `decimal`, `io.print_int` over ℤ | [0147](docs/decisions/0147-int-is-the-integers-at-an-entry-point-and-decimal-renders-them.md) |
 | Where an operation's box leaves the word and its term repeats an atom or relates two, the Omega test decides its word (Moore: the box is exact on independent atoms); a `where`'s comparison a zone entry; a range claim the intervals miss decided by the logic; Presburger's constants exact; `Int` at a binder ℤ, the consent | [0148](docs/decisions/0148-where-the-box-forgets-a-relation-presburger-arithmetic-decides.md) |
 | The double word E on every 64-bit host (Go by math/bits, the JVM by its carries, `Math.multiplyHigh` and Knuth's division); a signed quotient of E by a constant the magnitude's (LLVM's unsigned division; Go's and the JVM's 2-by-1 with Horner's rule for a remainder); a quotient by a word the 2-by-1 division, where the target has one | [0149](docs/decisions/0149-the-double-word-is-every-hosts.md) |
+| A set is a claim and ρ alone chooses: an operation past S, U and E that reaches no sink is held in ℤ and reported; a refusal only at a sink; `-words` refuses it instead | [0150](docs/decisions/0150-a-set-is-a-claim-and-rho-alone-chooses.md) |
 
 ## Build commands
 

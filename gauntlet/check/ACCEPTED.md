@@ -4421,3 +4421,17 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/double-word.oro java`
 - new source — `gauntlet/differential/cases/double-word.oro js`
 - new source — `gauntlet/differential/cases/double-word.oro windows`
+
+## 2026-11-21 — on c4886a04, with uncommitted changes
+
+**Reason:** ADR 0150 (exact-2026-11-21): quotient-corner and u64-mulhi emit on JavaScript, over BigInt, printed by decimal; no program accepted before changed
+
+836 runs: 576 emitted, 260 refused; 12766 of 12820 integer operations bounded, 1605 of 1908 loops proven. compiler pass, differential pass, tooling pass.
+
+5 change(s):
+
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro go`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro java`
+- now emits — `gauntlet/differential/cases/quotient-corner.oro js`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows`
+- compiler output changed — `gauntlet/differential/cases/quotient-corner.oro windows`

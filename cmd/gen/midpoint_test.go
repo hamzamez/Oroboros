@@ -21,6 +21,10 @@ const s64 = "-2^63..2^63-1"
 //     set above the word, `(-2^64..2^64)`, on every target; its `(Int)` is a
 //     claim and no demand (finding 116).
 func TestIntIsAConsentOnEveryTarget(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	ir.WordsOnly = true
+	defer func() { ir.WordsOnly = false }()
 	binder := "export fn mid(lo ∈ " + s64 + ", hi ∈ " + s64 + ") (" + s64 + ") {\n    sum ∈ Int = lo + hi\n    sum / 2\n}\n"
 	helper := "fn add(a ∈ Int, b ∈ Int) (-2^64..2^64) { a + b }\n\nexport fn mid(lo ∈ " + s64 + ", hi ∈ " + s64 + ") (" + s64 + ") { add(lo, hi) / 2 }\n"
 	for what, src := range map[string]string{"a binder": binder, "a helper": helper} {
@@ -150,6 +154,10 @@ func TestTheRelationsAreReadWhereTheyHold(t *testing.T) {
 //     whose word is ±(2⁵³ − 1), S₆₄'s end claimed `∈ Int` is held exactly as
 //     Horner's form (PlantConstantNotSpined refuses it).
 func TestConstantsPastInt64(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	ir.WordsOnly = true
+	defer func() { ir.WordsOnly = false }()
 	call := "fn first(lo ∈ " + s64 + ", hi ∈ " + s64 + ") (" + s64 + ") where lo <= hi { lo }\n\n" +
 		"export fn g(n ∈ 0..5) (" + s64 + ") {\n    bot ∈ Int = -9223372036854775808\n    top ∈ Int = 9223372036854775807\n    first(bot + n, top - n)\n}\n"
 	if _, err := surfaceGen(t, "go", map[string]string{"p.oro": call}); err != nil {

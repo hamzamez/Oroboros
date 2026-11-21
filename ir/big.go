@@ -215,6 +215,12 @@ func langOp(s *Stmt) bool {
 // fixed demands and the seeds.
 func (g *bigs) collect(sig *core.Sig) {
 	f := g.f
+
+	// D_A (exact.go): an operation the machine's readings do not hold is held
+	// exactly, demanded like `decimal`'s argument
+	for v := range f.exactDemand {
+		g.dem[v] = true
+	}
 	for i, p := range f.Params {
 		if g.bigType(f.Types[p]) || (sig != nil && i < len(sig.Params) && g.bigType(sig.Params[i].Type)) {
 			g.b[p] = true

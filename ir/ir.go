@@ -282,6 +282,9 @@ type Func struct {
 	// step to IR_P does not recompute it when nothing between has changed a
 	// value (Finalize). Never printed.
 	facts []fact
+	// exactDemand is D_A (exact.go), the operations past every word and E that
+	// the rung holds exactly, set by the pipeline before it runs. In memory only.
+	exactDemand map[V]bool
 	// marks is, for each range mark the residual still carried when it was
 	// lowered, the values its argument became (DischargeRanges). In memory
 	// only; a value numbering dropped is −1, and decides nothing.

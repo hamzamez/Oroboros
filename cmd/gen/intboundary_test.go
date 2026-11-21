@@ -99,8 +99,12 @@ func TestIntIsTheIntegersAtTheBoundary(t *testing.T) {
 // table; PlantNoLenBound reads only constant bounds, and the read t[i] refuses
 // i as a big integer. `position(t ∈ Array(Int), x ∈ Int)` compares t[i] with
 // an x of any size, widening t[i], whose storage is a word; PlantElementTop
-// reads the element as ⊤, which no widening admits.
+// reads the element as ⊤, and t[0] / 2 is no longer proven in the word.
 func TestATablesElementIsAWord(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	ir.WordsOnly = true
+	defer func() { ir.WordsOnly = false }()
 	const promised = "export fn promised(t ∈ Array(Int), i ∈ Int) (Int) where 0 <= i && i < len(t) { t[i] }\n"
 	if code, err := onGo(t, promised); err != nil || !strings.Contains(code, "func GenPromised(v0 []int, v1 int) int") {
 		t.Fatalf("promised: %v\n%s", err, code)
@@ -130,9 +134,16 @@ func TestATablesElementIsAWord(t *testing.T) {
 			t.Fatalf("position on %s: %v", target, err)
 		}
 	}
+	// the element widens by its representation, a word (ir/big.go, wordByDef);
+	// its FACT is the word's where arithmetic reads it: t[0] / 2 is proven in
+	// the word, and with the element ⊤ (PlantElementTop) it is refused
+	const half = "export fn half(t ∈ Array(Int)) (-2^62..2^62) where len(t) >= 1 { t[0] / 2 }\n"
+	if _, err := onGo(t, half); err != nil {
+		t.Fatalf("half of an element: %v", err)
+	}
 	ir.PlantElementTop = true
-	if _, err := onGo(t, position); err == nil {
-		t.Errorf("with an element ⊤, position should be refused at its comparison")
+	if _, err := onGo(t, half); err == nil {
+		t.Errorf("with an element ⊤, half should be refused at its quotient")
 	}
 	ir.PlantElementTop = false
 }

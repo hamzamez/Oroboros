@@ -25,7 +25,7 @@ runs every chapter, so a chapter that no longer says what the compiler gives fai
 | 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 54 blocks checked 2026-11-20 |
 | 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-21 |
 | | **II. What a program computes with** | | |
-| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, the midpoint three ways, above the word | J; 106 blocks checked 2026-11-21 |
+| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, the double word and ℤ, the midpoint's family of bugs, above the word | J; 100 blocks checked 2026-11-21 |
 | 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ`; the same past the word | J; 66 blocks checked 2026-11-21 |
 | 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-21 |
 | 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-20 |
@@ -936,7 +936,9 @@ point too, found eleven, four fixed:
 113. **A Windows export's integers above the word are three cases.** A parameter of any size is
      refused (its callers are C's, which have no such type); a result declared `Int` that may leave
      the word is refused as an unproven operation; a result declared `Nat` or a range past the word
-     is returned as a pointer to the program's own numeral, a layout no C header states. The book's
+     is returned as a pointer to the program's own numeral, a layout no C header states. Since ADR
+     0150 the second is the third: `acc * i` past the words is held exactly, and a result declared
+     `Int` is the same pointer. The book's
      §18.10 says which is which. Left until a program asks (hamza, 2026-11-21): the boundary
      format, a C struct of digits and count or decimal text, decided both ways at once.
 114. **On JavaScript a pair added to a negative word is refused.** The midpoint at S₆₄'s ends,
@@ -945,7 +947,10 @@ point too, found eleven, four fixed:
      to lo = −2⁶³ + n, a word: *an operand of add, −9223372036854775808, is outside the unsigned
      word it would be held in*. The sum is in S₆₄, so its residue mod 2⁶⁴ read signed is the
      answer; `ir/pairs.go` has no signed reading of a pair. The export itself compiles on
-     JavaScript, over BigInt. Not fixed: the case skips JavaScript, saying why.
+     JavaScript, over BigInt. **The program compiles** since ADR 0150 (exact-2026-11-21): the
+     operations the pairs could not take are held exactly, over BigInt, and the case runs on
+     JavaScript. Not fixed: the pairs' signed reading, and their comparison (`double-word.oro`
+     skips JavaScript for it).
 115. **An obligation whose constants pass int64 was refused.** `first(bot + n, top - n)` with
      `where lo <= hi` at S₆₄'s ends is −2⁶³ − (2⁶³ − 1) + 2n ≤ 0, no linear term of the
      refinement layer, whose constants are int64. **Fixed** (midpoint-2026-11-21): an arithmetic

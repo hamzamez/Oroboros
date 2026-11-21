@@ -29,6 +29,8 @@ func main() {
 	name := flag.String("name", "", "name for the emitted function (defaults to the source's stem)")
 	path := flag.String("path", "lib", "search path for imported modules")
 	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
+	flag.BoolVar(&ir.WordsOnly, "words", false,
+		"hold no integer exactly for its size: an operation past the machine's words and the double word is refused, not held in ℤ (ir/exact.go)")
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	flag.StringVar(&runtimeCC, "runtime", "", "print each export also at its own name, with this LLVM calling convention (`x86_stdcallcc`): the module is a triple's runtime, what its code generator calls (ADR 0123)")

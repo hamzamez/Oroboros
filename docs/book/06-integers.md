@@ -710,7 +710,9 @@ in a header is never a trap: it is decided when the program is compiled, as `squ
 | `-checked`, where a word is required | the machine's operation, and a stop on overflow | a test per unproven operation |
 
 What you cannot get is the fourth thing, the one every host gives by default: the machine's
-operation, unproven and unchecked.
+operation, unproven and unchecked. And a value inside an expression, which no claim, table or host
+holds, needs none of the three: it is held in the first of the machine's readings that holds it, and
+past them as the integer itself (§6.9).
 
 ## 6.9 The other half of the word, and a famous bug
 
@@ -846,41 +848,28 @@ func IntegersCompare(v0 int, v1 int) int {
 `d` is never a word, only a pair of digits, and `d < 0` is a comparison of pairs: the high digits
 first, read signed, then the low ones.
 
-**Past the double word, the program asks.** A product of three words reaches 2¹⁸⁹:
+**Past the double word, the integer itself.** A product of three words reaches 2¹⁸⁹, past every
+reading the machine has:
 
-<!-- file docs/book/code/integers/no-past-e.oro -->
+<!-- file docs/book/code/integers/past-e.oro -->
 ```go
 export fn volume(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1, c ∈ -2^63..2^63-1) (-6..6) { a * b * c % 7 }
 ```
 
-<!-- gen go docs/book/code/integers/no-past-e.oro -->
-```
-note: integers-volume: 0 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: integers-volume: 2 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  * [-85070591730234615856620279821087277056, 85070591730234615865843651857942052864] in a * b
-…
-```
-
-`a * b` alone would fit the double word; it is refused because its one use, the product with `c`,
-does not. A claim on a name asks for the integer itself (§6.3's `half ∈ 0..cap`, with `Int` the
-set of all integers):
-
-<!-- file docs/book/code/integers/past-e.oro -->
-```go
-export fn volume(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1, c ∈ -2^63..2^63-1) (-6..6) {
-    v ∈ Int = a * b * c
-    v % 7
-}
-```
-
 <!-- gen go docs/book/code/integers/past-e.oro -->
 ```go
+note: integers-volume: 2 operation(s) past every word and the double word, held exactly: a * b; a * b * c
 note: integers-volume: 3 operation(s) in arbitrary precision
 …
 ```
 
-and the product is a big integer, its remainder a word again. So `Int` changes nothing about a
-value the machine's readings hold; it is the permission to go past them.
+The compiler says so and names them: `a * b` and `a * b * c` are held as integers of any size, here
+Go's `*big.Int`, and the remainder by 7 is a word again, which the claim `(-6..6)` says it is. Nothing
+in the program asked for this, and nothing needs to. Every value is held in the first reading that
+holds it, and the last reading, the integer itself, holds every value; it costs an allocation per
+operation, which is why the note names each one. A program that must allocate nothing builds with
+`-words`, and then such an operation is refused, as it was before this rule existed. `a * b` alone
+would fit the double word; it is held exactly because its one use, the product with `c`, is.
 
 **Then the algebra is how a program gets cheaper.** Bloch's other fix measures the distance from
 `lo` and adds half of it:
@@ -1470,14 +1459,15 @@ say what your numbers are.
   branch it guards, and its negation narrows the `else`.
 - **Division requires a divisor that is not zero**, a precondition. Supply the fact by a test,
   a set, or a `where`.
-- **To clear a refusal**: narrow a set or test; claim `Int` or a set above the word, for exact
-  arithmetic; or, where a word is required by a table or a host, build with `-checked`, for a
-  trap.
+- **A refusal for size is a false claim or a word that must be held**: a result, a table's element,
+  a host's word. Narrow a set or test; claim `Int` or a set above the word, for exact arithmetic;
+  or, where a word is required by a table or a host, build with `-checked`, for a trap. A value
+  inside an expression is never refused for its size.
 - **The compiler chooses the representation**: signed word, unsigned word, double word, or the target's big
   integer, by what it proves. Over naturals `(lo + hi) / 2` is computed in the unsigned word; over
   signed words in the **double word**, two digits h·2⁶⁴ + l holding every integer below 2¹²⁷, which
-  removes the midpoint's, the comparator's and the overflow test's bugs; past it, a claim of `Int`
-  asks for the integer itself. `lo + (hi - lo) / 2` under `where lo <= hi` is proven in the words
+  removes the midpoint's, the comparator's and the overflow test's bugs; past it, the integer itself,
+  each such operation named by a note (`-words` refuses it instead). `lo + (hi - lo) / 2` under `where lo <= hi` is proven in the words
   (0 ≤ ⌊(hi − lo)/2⌋ ≤ hi − lo), as fast as the double word and never slower than a big integer.
 - **Where a name repeats, or a `where` relates two names**, intervals forget the relation, and
   the compiler decides the expression in Presburger arithmetic instead.

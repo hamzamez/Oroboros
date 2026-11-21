@@ -66,6 +66,10 @@ func TestADoubleWordIntermediateIsComputedThere(t *testing.T) {
 // into the double word anyway; the decision then proves it, and W14 refuses
 // the program for the reason, independently of the pass that chose it.
 func TestADoubleWordNeverLeavesItsTerm(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	WordsOnly = true
+	defer func() { WordsOnly = false }()
 	const src = "export fn f(x ∈ 0..2^62, y ∈ 0..2^62) (Int) { x * y + 1 }\n"
 	tg, f, leg := doubleEntry(t, src)
 	if leg.Refusal("f", tg) == nil || len(Doubles(f)) != 0 {
@@ -85,6 +89,10 @@ func TestADoubleWordNeverLeavesItsTerm(t *testing.T) {
 // result is a Boolean whatever the operand's fact. THE PLANTED FAULT takes any
 // fact into the double word, and the refusal goes.
 func TestAnIntermediateOutsideEIsRefused(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	WordsOnly = true
+	defer func() { WordsOnly = false }()
 	const src = "export fn f(x ∈ 0..2^62, y ∈ 0..2^62, z ∈ 0..2^62) (Int) { if x * y * z > 5 { 1 } else { 0 } }\n"
 	tg, _, leg := doubleEntry(t, src)
 	if leg.Refusal("f", tg) == nil {
@@ -103,6 +111,10 @@ func TestAnIntermediateOutsideEIsRefused(t *testing.T) {
 // u ≤ d it may be B, and the program is refused. THE PLANTED FAULT drops the
 // premise u < d, and the refusal goes.
 func TestATwoDigitQuotientNeedsItsTopDigitBelowTheDivisor(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	WordsOnly = true
+	defer func() { WordsOnly = false }()
 	const body = "(u * 4611686018427387904 * 2 + w) / d"
 	src := func(guard string) string {
 		return "export fn f(u ∈ 0..2^62, w ∈ 0..2^62, d ∈ 1..2^62) (Int) { if " + guard + " { " + body + " } else { 0 } }\n"

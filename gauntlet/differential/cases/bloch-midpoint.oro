@@ -14,11 +14,9 @@
 // 2⁶⁴ − 1 − 2n), and the pair (2⁶³ − 1 − 2n, 2⁶³ − 1), whose midpoint is
 // 2⁶³ − 1 − n, the top of the word reached exactly.
 //
-// On JavaScript the call inlined at constant arguments holds hi − lo, 2⁶⁴ − 1 − 2n,
-// as the unsigned word's pair of digits, and lo + q adds that pair to a negative
-// word, which ir/pairs.go has no signed reading for (the book's finding 114);
-// the export itself compiles there, over BigInt.
-// skip: js because "outside the unsigned word it would be held in"
+// On JavaScript, whose word is ±(2⁵³ − 1), the call inlined at constant arguments
+// is computed over BigInt, the integer itself (ADR 0150), where the pairs of
+// digits refused a pair added to a negative word (the book's finding 114).
 // inputs: 0 1 5
 // prints: string
 // expect: -1/9223372036854775807 -1/9223372036854775806 -1/9223372036854775802

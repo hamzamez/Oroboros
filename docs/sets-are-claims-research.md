@@ -6,9 +6,12 @@ well, as far as it is consistent cross targets. what does the algebra say"; then
 under the current rule, under B (every set above the word asks) and under A (no set asks): "write the
 research note for A … these are all examples that should be taught in the book".
 
-**Not decided.** This note derives A, measures what it costs, finds that most of its cost is paid by a
-representation already decided (the double word, ADR 0103) and built on one host only, and states the
-one question that remains for hamza.
+**Decided** (hamza, 2026-11-21: "1. E on Go and the JVM, yes. 2. A an intermediate outside E yes 3.
+report is enough, a flag (-words is just a bonus option for the compiler)"). **Built**: E on every
+64-bit host (ADR 0149, [doubleword](../gauntlet/results/doubleword-2026-11-21.md)); A (ADR 0150,
+[exact](../gauntlet/results/exact-2026-11-21.md)), with the taint the build found it needs (a value
+flowing into a sink stays a word). This note derives A, measures what it costs, and finds that most of
+its cost is paid by the double word.
 
 ## 1. The question
 

@@ -30,6 +30,8 @@ func main() {
 	dir := flag.String("targets", "targets", "search path for target declarations; the source's own directory is always the nearest layer")
 	path := flag.String("path", "lib", "search path for imported modules")
 	out := flag.String("o", "", "artifact to write (default: the source's stem)")
+	flag.BoolVar(&ir.WordsOnly, "words", false,
+		"hold no integer exactly for its size: an operation past the machine's words and the double word is refused, not held in ℤ (ir/exact.go)")
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")

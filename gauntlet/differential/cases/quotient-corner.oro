@@ -11,14 +11,15 @@
 //
 // run(n) = −2⁶³ / (b − 1) − (−2⁶³ % b), b = −1 − n % 4, n ≥ 0 so b ∈ −4..−1
 //
-// skip: js because "not a constant: not built (ir/pairs.go)"
-// — JavaScript's word is ±(2⁵³ − 1), symmetric, so it has no corner:
-// −2⁶³ is above it there, and a quotient of its word never leaves it. What
-// the build does there is refuse the quotient of a pair by a divisor that is
-// not a constant, which pairs-2026-10-28 did not build.
+// JavaScript's word is ±(2⁵³ − 1), symmetric, so it has no corner: −2⁶³ is
+// above it there, and its quotient is computed over BigInt, the integer itself
+// (ADR 0150), where the pairs refused a quotient by a divisor not a constant.
+// The value is printed through `decimal`, which renders it alike on every
+// target (a BigInt logged is `…n`).
+// prints: string
 // expect: 4611686018427387904 3074457345618258602 2305843009213693954 1844674407370955161 3074457345618258602 4611686018427387904 3074457345618258602 3074457345618258602 2305843009213693954
 export fn run(n ∈ 0..2^20) {
     a = (0 - 2^62) * 2
     b = 0 - 1 - n % 4
-    a / (b - 1) - a % b
+    decimal(a / (b - 1) - a % b)
 }

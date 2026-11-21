@@ -906,7 +906,7 @@ set U32 = 0..2^32-1
 export fn low(a ∈ 0..2^40, b ∈ 0..2^40) (U32) { (a * b) mod 2^32 }
 ```
 
-<!-- file docs/book/code/bits/no-divide.oro -->
+<!-- file docs/book/code/bits/third.oro -->
 ```go
 set U32 = 0..2^32-1
 
@@ -924,18 +924,18 @@ func BitsLow(v0 int, v1 int) int {
 }
 ```
 
-<!-- gen go docs/book/code/bits/no-divide.oro -->
-```
-note: bits-third: 1 of 3 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: bits-third: 2 of 3 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  * [0, 1208925819614629174706176] in a * b
-  / [0, 402975273204876391568725] in a * b / 3
+<!-- gen go docs/book/code/bits/third.oro -->
+```go
+note: bits-third: 2 operation(s) past every word and the double word, held exactly: a * b; a * b / 3
+note: bits-third: 2 operation(s) in arbitrary precision
 …
 ```
 
 The first product reaches 2⁸⁰ and compiles to one multiply, because nothing but the `mod` reads
-it. The second is the same product, read by a division, and is refused. A C compiler accepts
-both, and the second quietly computes a third of the wrong number.
+it, and the residue of a product is the product of the residues. The second is the same product,
+read by a division, and a third of a number is not the third of its residue: the division needs
+the whole product, so the product is held as the integer it is, and only then reduced (chapter 6,
+§6.9). A C compiler accepts both, and the second quietly computes a third of the wrong number.
 
 ## 7.9 The complement with a width, and a rotation
 

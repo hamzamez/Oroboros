@@ -26,6 +26,10 @@ import (
 //   - 𝒰's clause: a relevant value used only inside a λ the host may call
 //     never, under the default count 0.., is not used on every path.
 func TestACallbackDuringACallIsDecidedUnderItsClaim(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	ir.WordsOnly = true
+	defer func() { ir.WordsOnly = false }()
 	src, err := os.ReadFile("../../examples/callbacks/caesar.oro")
 	if err != nil {
 		t.Fatal(err)

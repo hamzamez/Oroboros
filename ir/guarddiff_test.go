@@ -8,6 +8,10 @@ import "testing"
 // p − r for an r the guard never compared is accepted, and it may leave the
 // word (p = 1, r = 2^62 gives −2^62 − 2^63).
 func TestAGuardBoundsItsOwnDifference(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	WordsOnly = true
+	defer func() { WordsOnly = false }()
 	src := func(arm string) string {
 		return "export fn f(p ∈ 0..2^62, q ∈ 0..2^62, r ∈ 0..2^62) (Int) { if p > q { " + arm +
 			" - 1 - 9223372036854775807 - 1 } else { 0 } }\n"

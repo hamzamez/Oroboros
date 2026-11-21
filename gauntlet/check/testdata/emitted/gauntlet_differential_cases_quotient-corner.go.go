@@ -2,13 +2,16 @@
 
 package gauntlet
 
-func GenRun(v0 int) int {
+import "strconv"
+
+func GenRun(v0 int) string {
 	v11 := (v0 & 3)
 	v12 := (-1 - v11)
 	v15 := (v12 - 1)
 	v16 := (-9223372036854775808 / v15)
 	v18 := (-9223372036854775808 % v12)
 	v19 := (v16 - v18)
-	return v19
+	v20 := (strconv.Itoa(v19))
+	return v20
 }
 

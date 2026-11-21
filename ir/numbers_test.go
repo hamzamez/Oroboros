@@ -171,6 +171,10 @@ func TestARoundingsObligationsAreDecided(t *testing.T) {
 // any other overflow, and never wraps. Its premise is computed: the same sum
 // of a value of magnitude 1 fits, and passes.
 func TestAnAlignmentPastTheWordIsRefused(t *testing.T) {
+	// THE WORDS' AND E'S OWN RULE, as -words decides it: past them a value
+	// is ℤ's under ADR 0150, and this witness is about the readings
+	WordsOnly = true
+	defer func() { WordsOnly = false }()
 	dir := t.TempDir()
 	run := func(hi string) error {
 		src := "export fn f(a ∈ D(18, 0..1), b ∈ 0.." + hi + ") (D(18, 0..10000)) { a + b }\n"

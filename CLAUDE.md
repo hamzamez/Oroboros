@@ -459,9 +459,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,764 of 12,818** integer operations proven inside their target's word, the 54 left
+- **Provability**: **12,766 of 12,820** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,603 of 1,906** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,605 of 1,908** loops proven to
   terminate (size-change termination; of the 303 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 39 were before bigbits-2026-11-19 (sieve-js's two proven since intboundary-2026-11-21), among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a

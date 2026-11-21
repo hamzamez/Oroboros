@@ -18,19 +18,23 @@
 // inputs whose sum is in the word. Which inputs an instance has is a proof
 // about it, which the IR holds and a declaration cannot (llvm.md §5).
 module llvm {
+    // THE HOST'S WORD, the set a declaration of this host writes where its host
+    // type is the word (integers-boundary §5): `Int` is ℤ, and no host
+    // function takes all of it
+    set Word = -2^63..2^63-1
     // ---- integer arithmetic on i64: the residue mod 2⁶⁴ of ℤ's result
     // (ADR 0082), so total; ℤ's own where the result is in the word.
-    fn add(a ∈ Int, b ∈ Int) (Int) pure { host expr "add ${a}, ${b:v}" }
-    fn sub(a ∈ Int, b ∈ Int) (Int) pure { host expr "sub ${a}, ${b:v}" }
-    fn mul(a ∈ Int, b ∈ Int) (Int) pure { host expr "mul ${a}, ${b:v}" }
+    fn add(a ∈ Word, b ∈ Word) (Word) pure { host expr "add ${a}, ${b:v}" }
+    fn sub(a ∈ Word, b ∈ Word) (Word) pure { host expr "sub ${a}, ${b:v}" }
+    fn mul(a ∈ Word, b ∈ Word) (Word) pure { host expr "mul ${a}, ${b:v}" }
 
     // sdiv and srem truncate, as ℤ's `/` and `%` do (integers.md §3). Each is
     // undefined for a zero divisor and for −2⁶³ by −1 (LangRef): both are the
     // domain.
-    fn sdiv(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
+    fn sdiv(a ∈ Word, b ∈ Word) (Word) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
         host expr "sdiv ${a}, ${b:v}"
     }
-    fn srem(a ∈ Int, b ∈ Int) (Int) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
+    fn srem(a ∈ Word, b ∈ Word) (Word) pure where ne(b, 0) && (ne(a, -2^63) || ne(b, -1)) {
         host expr "srem ${a}, ${b:v}"
     }
     // udiv and urem on ℕ ∩ S₆₄: for 0 ≤ a < 2⁶³ and b > 0, truncation is the
@@ -54,26 +58,26 @@ module llvm {
     fn srem_natk(a ∈ 0..2^63-1, b ∈ 1..2^63-1) (0..2^63-2) pure where point(b) && !pow2(b) { host expr "srem ${a}, ${b:v}" }
 
     // ---- the bitwise operations: ℤ's own on the word (ADR 0082), total.
-    fn and(a ∈ Int, b ∈ Int) (Int) pure { host expr "and ${a}, ${b:v}" }
-    fn or(a ∈ Int, b ∈ Int) (Int) pure { host expr "or ${a}, ${b:v}" }
-    fn xor(a ∈ Int, b ∈ Int) (Int) pure { host expr "xor ${a}, ${b:v}" }
+    fn and(a ∈ Word, b ∈ Word) (Word) pure { host expr "and ${a}, ${b:v}" }
+    fn or(a ∈ Word, b ∈ Word) (Word) pure { host expr "or ${a}, ${b:v}" }
+    fn xor(a ∈ Word, b ∈ Word) (Word) pure { host expr "xor ${a}, ${b:v}" }
 
     // ---- shifts: poison for a count of 64 or more (LangRef), so the count's
     // set is 0..63. `shl` is a·2ᵇ mod 2⁶⁴; `ashr` is ⌊a/2ᵇ⌋.
-    fn shl(a ∈ Int, b ∈ 0..63) (Int) pure { host expr "shl ${a}, ${b:v}" }
-    fn ashr(a ∈ Int, b ∈ 0..63) (Int) pure { host expr "ashr ${a}, ${b:v}" }
+    fn shl(a ∈ Word, b ∈ 0..63) (Word) pure { host expr "shl ${a}, ${b:v}" }
+    fn ashr(a ∈ Word, b ∈ 0..63) (Word) pure { host expr "ashr ${a}, ${b:v}" }
 
     // ---- the overflow intrinsics: W × W → W × 𝔹, (a, b) ↦ (s, o) with o
     // true exactly when ℤ's result leaves the word, and s ℤ's result where it
     // does not (the residue mod 2⁶⁴ where it does). Total; two results, which
     // LLVM answers as the aggregate {i64, i1}.
-    fn sadd_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+    fn sadd_with_overflow(a ∈ Word, b ∈ Word) (Word × Bool) pure {
         host expr "call {i64, i1} @llvm.sadd.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.sadd.with.overflow.i64(i64, i64)"
     }
-    fn ssub_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+    fn ssub_with_overflow(a ∈ Word, b ∈ Word) (Word × Bool) pure {
         host expr "call {i64, i1} @llvm.ssub.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.ssub.with.overflow.i64(i64, i64)"
     }
-    fn smul_with_overflow(a ∈ Int, b ∈ Int) (Int × Bool) pure {
+    fn smul_with_overflow(a ∈ Word, b ∈ Word) (Word × Bool) pure {
         host expr "call {i64, i1} @llvm.smul.with.overflow.i64(${a}, ${b})" import "declare {i64, i1} @llvm.smul.with.overflow.i64(i64, i64)"
     }
 
@@ -83,12 +87,12 @@ module llvm {
 
     // ---- comparisons: `icmp` with its signed predicates, the order on the
     // word read as two's complement.
-    fn eq(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp eq ${a}, ${b:v}" }
-    fn ne(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp ne ${a}, ${b:v}" }
-    fn slt(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp slt ${a}, ${b:v}" }
-    fn sle(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp sle ${a}, ${b:v}" }
-    fn sgt(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp sgt ${a}, ${b:v}" }
-    fn sge(a ∈ Int, b ∈ Int) (Bool) pure { host expr "icmp sge ${a}, ${b:v}" }
+    fn eq(a ∈ Word, b ∈ Word) (Bool) pure { host expr "icmp eq ${a}, ${b:v}" }
+    fn ne(a ∈ Word, b ∈ Word) (Bool) pure { host expr "icmp ne ${a}, ${b:v}" }
+    fn slt(a ∈ Word, b ∈ Word) (Bool) pure { host expr "icmp slt ${a}, ${b:v}" }
+    fn sle(a ∈ Word, b ∈ Word) (Bool) pure { host expr "icmp sle ${a}, ${b:v}" }
+    fn sgt(a ∈ Word, b ∈ Word) (Bool) pure { host expr "icmp sgt ${a}, ${b:v}" }
+    fn sge(a ∈ Word, b ∈ Word) (Bool) pure { host expr "icmp sge ${a}, ${b:v}" }
 
     // ---- THE SAME INSTRUCTIONS READ UNSIGNED, on U₆₄ = [0, 2⁶⁴) (ADR 0083,
     // llvm.md §3a). i64 carries no sign, so the ring's and the bits' operations
@@ -116,8 +120,8 @@ module llvm {
     // realized shift keeps its fact (a carry t >> 63 is 0 or 1)
     fn u_lshr(a ∈ u64, b ∈ 0..63) (r ∈ u64) pure ensure r == a >> b { host expr "lshr ${a}, ${b:v}" }
     // The bits, unchanged, under the other reading: the identity on [0, 2⁶³).
-    fn u_of(x ∈ Int) (u64) pure { host expr "or ${x}, 0" }
-    fn int_of_u(x ∈ u64) (Int) pure { host expr "or ${x}, 0" }
+    fn u_of(x ∈ Word) (u64) pure { host expr "or ${x}, 0" }
+    fn int_of_u(x ∈ u64) (Word) pure { host expr "or ${x}, 0" }
 
     // ---- THE ROUNDINGS ONTO F64 (ADR 0086, numbers.md §6.2, llvm.md §3b).
     // LLVM's default floating-point environment rounds to nearest, ties to

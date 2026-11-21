@@ -1,1 +1,0 @@
-export fn wide(n ∈ 0..2^40) (Int) { n * n }

@@ -75,7 +75,12 @@ type Sig struct {
 	// so the result's arity is the body's. Result is then `any`, as every
 	// reader of an absent type expects; `(Any)` written is one result.
 	Unstated bool
-	Where    *Term // a boolean term over the parameter names, or nil
+	// Entry marks an entry point's header (an `export` of a module the
+	// program is built from): its parameters are what the host passes, so
+	// their representation is ρ of what the header states (integers-boundary
+	// §2), where a kept definition's are its callers'.
+	Entry bool
+	Where *Term // a boolean term over the parameter names, or nil
 	// Written is the `where` as the programmer wrote it, before each parameter's
 	// range was desugared into it. The two are one denotation; they are kept
 	// apart because ADR 0028 checks a finite range on the ARGUMENT (the set it

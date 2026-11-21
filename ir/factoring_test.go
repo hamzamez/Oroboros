@@ -50,7 +50,7 @@ func callsOn(t *testing.T, src string) ([]string, error) {
 }
 
 const fibSrc = "export fn f(n ∈ 0..100) (String) {\n" +
-	"    big_str(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) })\n}\n"
+	"    decimal(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) })\n}\n"
 
 // WHICH DEFINITIONS ARE KEPT NEVER CHANGES A VERDICT (ADR 0102, P4), when a
 // call's arguments are outside its contract: with a numeral's parameter
@@ -87,7 +87,7 @@ func TestACallOutsideItsContractIsInlined(t *testing.T) {
 // FAULT refuses with the callee's reason.
 func TestAnInstanceItsContractDoesNotProveIsInlined(t *testing.T) {
 	const src = "export fn f(n ∈ 0..100) (String) {\n" +
-		"    big_str(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) } / 7)\n}\n"
+		"    decimal(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) } / 7)\n}\n"
 	natCalled["div-small"] = true
 	defer delete(natCalled, "div-small")
 	calls, err := callsOn(t, src)

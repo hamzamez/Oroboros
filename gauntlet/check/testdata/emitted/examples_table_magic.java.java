@@ -89,67 +89,69 @@ public final class examples_table_magic.java {
 		final int v87 = (v4 + v58);
 		final int v89 = (v87 + 1);
 		final int v91 = (v89 + 1);
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v91 + "\n");
-		int v96 = 1;
-		int v97 = 0;
-		for (;; v96 = (v96 + 1)) {
-			final boolean v99 = (v96 <= 9);
-			if (v99) {
-				int v106 = 0;
+		final String v92 = (Long.toString(v91));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v92 + "\n");
+		int v97 = 1;
+		int v98 = 0;
+		for (;; v97 = (v97 + 1)) {
+			final boolean v100 = (v97 <= 9);
+			if (v100) {
 				int v107 = 0;
-				for (;; v106 = (v106 + 1)) {
-					final boolean v109 = (v106 < 9);
-					if (v109) {
-						final int v114 = (v106 / 3);
-						final boolean v116 = (v114 == 0);
-						int v117 = 0;
-						if (v116) {
-							final byte[] v122 = new byte[]{4, 9, 2};
-							final int v124 = (v106 % 3);
-							final int v125 = v122[v124];
-							v117 = v125;
+				int v108 = 0;
+				for (;; v107 = (v107 + 1)) {
+					final boolean v110 = (v107 < 9);
+					if (v110) {
+						final int v115 = (v107 / 3);
+						final boolean v117 = (v115 == 0);
+						int v118 = 0;
+						if (v117) {
+							final byte[] v123 = new byte[]{4, 9, 2};
+							final int v125 = (v107 % 3);
+							final int v126 = v123[v125];
+							v118 = v126;
 						} else {
-							final boolean v128 = (v114 == 1);
-							if (v128) {
-								final byte[] v133 = new byte[]{3, 5, 7};
-								final int v135 = (v106 % 3);
-								final int v136 = v133[v135];
-								v117 = v136;
+							final boolean v129 = (v115 == 1);
+							if (v129) {
+								final byte[] v134 = new byte[]{3, 5, 7};
+								final int v136 = (v107 % 3);
+								final int v137 = v134[v136];
+								v118 = v137;
 							} else {
-								final byte[] v141 = new byte[]{8, 1, 6};
-								final int v143 = (v106 % 3);
-								final int v144 = v141[v143];
-								v117 = v144;
+								final byte[] v142 = new byte[]{8, 1, 6};
+								final int v144 = (v107 % 3);
+								final int v145 = v142[v144];
+								v118 = v145;
 							}
 						}
-						final boolean v145 = (v117 == v96);
-						int v146 = 0;
-						if (v145) {
-							final int v149 = (v107 + 1);
-							v146 = v149;
+						final boolean v146 = (v118 == v97);
+						int v147 = 0;
+						if (v146) {
+							final int v150 = (v108 + 1);
+							v147 = v150;
 						} else {
-							v146 = v107;
+							v147 = v108;
 						}
-						v107 = v146;
+						v108 = v147;
 						continue;
 					}
 					break;
 				}
-				final boolean v153 = (v107 == 1);
-				int v154 = 0;
-				if (v153) {
-					final int v156 = (v97 + 1);
-					v154 = v156;
+				final boolean v154 = (v108 == 1);
+				int v155 = 0;
+				if (v154) {
+					final int v157 = (v98 + 1);
+					v155 = v157;
 				} else {
-					v154 = v97;
+					v155 = v98;
 				}
-				v97 = v154;
+				v98 = v155;
 				continue;
 			}
 			break;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v97 + "\n");
-		return v97;
+		final String v159 = (Long.toString(v98));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v159 + "\n");
+		return v98;
 	}
 
 }

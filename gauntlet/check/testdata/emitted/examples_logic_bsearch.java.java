@@ -45,131 +45,135 @@ public final class examples_logic_bsearch.java {
 			v12 = v15;
 			break;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v12 + "\n");
-		final int v73 = v6.length;
+		final String v71 = (Long.toString(v12));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v71 + "\n");
 		final int v74 = v6.length;
-		final int v76 = (int) (v74 >> 1);
+		final int v75 = v6.length;
+		final int v77 = (int) (v75 >> 1);
+		int v79 = 0;
+		int v80 = v74;
+		int v81 = v77;
 		int v78 = 0;
-		int v79 = v73;
-		int v80 = v76;
-		int v77 = 0;
 		for (;;) {
-			final boolean v83 = (v78 < 0);
-			final boolean v84 = (v83 || ((v78 >= v79) || ((v79 > v6.length) || ((v80 < v78) || (v80 >= v79)))));
-			if (v84) {
-				v77 = -1;
+			final boolean v84 = (v79 < 0);
+			final boolean v85 = (v84 || ((v79 >= v80) || ((v80 > v6.length) || ((v81 < v79) || (v81 >= v80)))));
+			if (v85) {
+				v78 = -1;
 				break;
 			}
-			final int v116 = v6[v80];
-			final boolean v118 = (v116 < 1);
-			if (v118) {
-				final long v120 = (v80 + 1);
-				final long v122 = (v80 + 1);
-				final long v124 = (v80 + 1);
-				final long v125 = (v79 - v124);
-				final long v127 = (v125 >> 1);
-				final long v128 = (v122 + v127);
-				v78 = (int) (v120);
-				v80 = (int) (v128);
+			final int v117 = v6[v81];
+			final boolean v119 = (v117 < 1);
+			if (v119) {
+				final long v121 = (v81 + 1);
+				final long v123 = (v81 + 1);
+				final long v125 = (v81 + 1);
+				final long v126 = (v80 - v125);
+				final long v128 = (v126 >> 1);
+				final long v129 = (v123 + v128);
+				v79 = (int) (v121);
+				v81 = (int) (v129);
 				continue;
 			}
-			final int v129 = v6[v80];
-			final boolean v131 = (v129 > 1);
-			if (v131) {
-				final int v132 = (v80 - v78);
-				final int v134 = (int) (v132 >> 1);
-				final int v135 = (v78 + v134);
-				v79 = v80;
-				v80 = v135;
+			final int v130 = v6[v81];
+			final boolean v132 = (v130 > 1);
+			if (v132) {
+				final int v133 = (v81 - v79);
+				final int v135 = (int) (v133 >> 1);
+				final int v136 = (v79 + v135);
+				v80 = v81;
+				v81 = v136;
 				continue;
 			}
-			v77 = v80;
+			v78 = v81;
 			break;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v77 + "\n");
-		final int v138 = v6.length;
-		final int v139 = v6.length;
-		final int v141 = (int) (v139 >> 1);
-		int v143 = 0;
-		int v144 = v138;
-		int v145 = v141;
-		int v142 = 0;
+		final String v137 = (Long.toString(v78));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v137 + "\n");
+		final int v140 = v6.length;
+		final int v141 = v6.length;
+		final int v143 = (int) (v141 >> 1);
+		int v145 = 0;
+		int v146 = v140;
+		int v147 = v143;
+		int v144 = 0;
 		for (;;) {
-			final boolean v148 = (v143 < 0);
-			final boolean v149 = (v148 || ((v143 >= v144) || ((v144 > v6.length) || ((v145 < v143) || (v145 >= v144)))));
-			if (v149) {
-				v142 = -1;
+			final boolean v150 = (v145 < 0);
+			final boolean v151 = (v150 || ((v145 >= v146) || ((v146 > v6.length) || ((v147 < v145) || (v147 >= v146)))));
+			if (v151) {
+				v144 = -1;
 				break;
 			}
-			final int v181 = v6[v145];
-			final boolean v183 = (v181 < 21);
-			if (v183) {
-				final int v185 = (v145 + 1);
-				final int v187 = (v145 + 1);
-				final int v189 = (v145 + 1);
-				final int v190 = (v144 - v189);
-				final int v192 = (int) (v190 >> 1);
-				final int v193 = (v187 + v192);
-				v143 = v185;
-				v145 = v193;
+			final int v183 = v6[v147];
+			final boolean v185 = (v183 < 21);
+			if (v185) {
+				final int v187 = (v147 + 1);
+				final int v189 = (v147 + 1);
+				final int v191 = (v147 + 1);
+				final int v192 = (v146 - v191);
+				final int v194 = (int) (v192 >> 1);
+				final int v195 = (v189 + v194);
+				v145 = v187;
+				v147 = v195;
 				continue;
 			}
-			final int v194 = v6[v145];
-			final boolean v196 = (v194 > 21);
-			if (v196) {
-				final long v197 = (((long) v145) - v143);
-				final long v199 = (v197 >> 1);
-				final long v200 = (v143 + v199);
-				v144 = v145;
-				v145 = (int) (v200);
+			final int v196 = v6[v147];
+			final boolean v198 = (v196 > 21);
+			if (v198) {
+				final long v199 = (((long) v147) - v145);
+				final long v201 = (v199 >> 1);
+				final long v202 = (v145 + v201);
+				v146 = v147;
+				v147 = (int) (v202);
 				continue;
 			}
-			v142 = v145;
+			v144 = v147;
 			break;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v142 + "\n");
-		final int v203 = v6.length;
-		final int v204 = v6.length;
-		final int v206 = (int) (v204 >> 1);
-		int v208 = 0;
-		int v209 = v203;
-		int v210 = v206;
-		int v207 = 0;
+		final String v203 = (Long.toString(v144));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v203 + "\n");
+		final int v206 = v6.length;
+		final int v207 = v6.length;
+		final int v209 = (int) (v207 >> 1);
+		int v211 = 0;
+		int v212 = v206;
+		int v213 = v209;
+		int v210 = 0;
 		for (;;) {
-			final boolean v213 = (v208 < 0);
-			final boolean v214 = (v213 || ((v208 >= v209) || ((v209 > v6.length) || ((v210 < v208) || (v210 >= v209)))));
-			if (v214) {
-				v207 = -1;
+			final boolean v216 = (v211 < 0);
+			final boolean v217 = (v216 || ((v211 >= v212) || ((v212 > v6.length) || ((v213 < v211) || (v213 >= v212)))));
+			if (v217) {
+				v210 = -1;
 				break;
 			}
-			final int v246 = v6[v210];
-			final boolean v248 = (v246 < 4);
-			if (v248) {
-				final int v250 = (v210 + 1);
-				final int v252 = (v210 + 1);
-				final int v254 = (v210 + 1);
-				final int v255 = (v209 - v254);
-				final int v257 = (v255 / 2);
-				final int v258 = (v252 + v257);
-				v208 = v250;
-				v210 = v258;
+			final int v249 = v6[v213];
+			final boolean v251 = (v249 < 4);
+			if (v251) {
+				final int v253 = (v213 + 1);
+				final int v255 = (v213 + 1);
+				final int v257 = (v213 + 1);
+				final int v258 = (v212 - v257);
+				final int v260 = (v258 / 2);
+				final int v261 = (v255 + v260);
+				v211 = v253;
+				v213 = v261;
 				continue;
 			}
-			final int v259 = v6[v210];
-			final boolean v261 = (v259 > 4);
-			if (v261) {
-				final int v262 = (v210 - v208);
-				final int v264 = (int) (v262 >> 1);
-				final int v265 = (v208 + v264);
-				v209 = v210;
-				v210 = v265;
+			final int v262 = v6[v213];
+			final boolean v264 = (v262 > 4);
+			if (v264) {
+				final int v265 = (v213 - v211);
+				final int v267 = (int) (v265 >> 1);
+				final int v268 = (v211 + v267);
+				v212 = v213;
+				v213 = v268;
 				continue;
 			}
-			v207 = v210;
+			v210 = v213;
 			break;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v207 + "\n");
-		return v207;
+		final String v269 = (Long.toString(v210));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v269 + "\n");
+		return v210;
 	}
 
 }

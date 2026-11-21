@@ -50,10 +50,9 @@ public final class examples_table_idot.java {
 			v18 = v47;
 			continue;
 		}
-		final java.math.BigInteger v48 = (java.math.BigInteger.valueOf(v18));
-		final String v49 = (v48.toString());
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v49 + "\n");
-		return v49;
+		final String v48 = (Long.toString(v18));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v48 + "\n");
+		return v48;
 	}
 
 }

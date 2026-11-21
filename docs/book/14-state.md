@@ -1052,7 +1052,7 @@ each kind of function pays for "is this argument allowed?" in its own way:
 
 <!-- file docs/book/code/state/lookup.oro -->
 ```go
-export fn lookup(k ∈ Int) (Int) {
+export fn lookup(k ∈ 0..1000) (Int) {
     m = map { 1 : 10, 2 : 20, 5 : 50 }
     case m[k] { 'some(v) -> v; 'none -> 0 }
 }
@@ -1061,15 +1061,15 @@ export fn lookup(k ∈ Int) (Int) {
 <!-- gen go docs/book/code/state/lookup.oro -->
 ```go
 func StateLookup(v0 int) int {
-    v7 := map[int]int{1: 10, 2: 20, 5: 50}
-    v9, ok8 := v7[v0]
-    v8 := 1
-    if ok8 {
-        v8 = 0
+    v15 := map[int]int{1: 10, 2: 20, 5: 50}
+    v17, ok16 := v15[v0]
+    v16 := 1
+    if ok16 {
+        v16 = 0
     }
-    v11 := (v8 == 0)
-    if v11 {
-        return v9
+    v19 := (v16 == 0)
+    if v19 {
+        return v17
     }
     return 0
 }
@@ -1078,15 +1078,19 @@ func StateLookup(v0 int) int {
 <!-- gen js docs/book/code/state/lookup.oro -->
 ```js
 export function stateLookup(v0) {
-    const v7 = {1: 10, 2: 20, 5: 50};
-    const v9 = v7[v0];
-    const v8 = v9 === undefined ? 1 : 0;
-    if ((v8 === 0)) {
-        return v9;
+    const v15 = {1: 10, 2: 20, 5: 50};
+    const v17 = v15[v0];
+    const v16 = v17 === undefined ? 1 : 0;
+    if ((v16 === 0)) {
+        return v17;
     }
     return 0;
 }
 ```
+
+(The key is `0..1000` and not `Int`. A map's keys are held in words, as a table's elements are,
+and a key of any size, `k ∈ Int`, is refused at the read, though its answer outside the word is
+plainly `'none`: the book's finding 111.)
 
 On Go a map is Go's own `map`, and the lookup is Go's two-result form, `v, ok := m[k]`, which
 is the same "something or nothing" with the flag carried beside the value. JavaScript has

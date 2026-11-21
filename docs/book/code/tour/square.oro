@@ -1,3 +1,8 @@
-export fn small(n ∈ -1000..1000) (Int) { n * n }
+use io
 
-export fn wide(n ∈ 0..2^63-1) (0..2^126) { n * n }
+export fn square(n ∈ Int) (Int) { n * n }
+
+export fn main() {
+    io.print_int(square(12))
+    io.print_int(square(10000000000))
+}

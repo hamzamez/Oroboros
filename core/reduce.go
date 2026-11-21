@@ -1214,6 +1214,13 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		for _, n := range m.Order {
 			if m.Exports[n] {
 				p.Exports = append(p.Exports, qualify(m.Path, n))
+				// AN ENTRY POINT'S HEADER IS THE HOST'S INTERFACE (integers-boundary
+				// §2): its parameters are what the host passes, nothing proved
+				if sig := p.Sigs[qualify(m.Path, n)]; sig != nil {
+					c := *sig
+					c.Entry = true
+					p.Sigs[qualify(m.Path, n)] = &c
+				}
 			}
 		}
 	}

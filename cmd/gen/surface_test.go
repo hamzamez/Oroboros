@@ -163,14 +163,18 @@ func TestARuleAtTheBoundaryIsItsExtension(t *testing.T) {
 
 // A BIG VALUE AT A WORD PARAMETER IS REFUSED IN THE PROGRAM'S TERMS (finding 3):
 // a statement's template reads its arguments as an expression's does, so Go's
-// io.print_int, a statement over fmt.Println, demands the word of its argument,
-// and fact(30) is refused naming it. THE PLANTED FAULT skips a statement's
+// map store, a statement whose value parameter is go.Word, demands the word of
+// its argument, and fact(30) is refused naming it. THE PLANTED FAULT skips a statement's
 // arguments: the verifier's W5 refuses it in its own words.
 func TestABigValueAtAWordParameterIsRefusedInTheProgramsTerms(t *testing.T) {
-	const src = "use io\n\nfn fact(n ∈ 0..30) (0..) {\n    loop i = 1, acc = 1 {\n        i > n -> acc\n" +
-		"        else -> again(i + 1, acc * i)\n    }\n}\n\nexport fn main() {\n    ignore(io.print_int(fact(30)))\n}\n"
-	if _, err := onGo(t, src); err == nil || !strings.Contains(err.Error(), "argument 1 of io.print_int is held in arbitrary precision") {
-		t.Fatalf("print_int(fact(30)) on Go: %v; want its argument refused, named", err)
+	// a host statement's word parameter: Go's map store `m[k] = v`, v ∈ go.Word
+	// (io.print_int took every integer since ADR 0147, and was this test's
+	// statement before)
+	const src = "use go\n\nfn fact(n ∈ 0..30) (0..) {\n    loop i = 1, acc = 1 {\n        i > n -> acc\n" +
+		"        else -> again(i + 1, acc * i)\n    }\n}\n\nexport fn main() {\n    m = go.make_map()\n" +
+		"    ignore(go.set_map(m, \"k\", fact(30)))\n}\n"
+	if _, err := onGo(t, src); err == nil || !strings.Contains(err.Error(), "argument 3 of go.set_map is held in arbitrary precision") {
+		t.Fatalf("set_map(m, k, fact(30)) on Go: %v; want its argument refused, named", err)
 	}
 	ir.PlantStmtArgsUnasked = true
 	defer func() { ir.PlantStmtArgsUnasked = false }()
@@ -189,8 +193,8 @@ func TestTheDiagnosticsAreInJ(t *testing.T) {
 			"'circle(0..1000) gives a range", "(int 0 1000)"},
 		"the closure (7)": {"export fn mk(k ∈ 0..9) (Int) {\n    g = fn(v) { v * k }\n    g(2) + g\n}\n",
 			"fn(v) { v * k }", "#1.0"},
-		"the overflow hint (7)": {"export fn sum(t ∈ Array(Int)) (Int) {\n    loop i = 0, acc = 0 {\n" +
-			"        i < len(t) -> again(i + 1, acc + t[i])\n        else -> acc\n    }\n}\n", "acc + t[i]", "t(i)"},
+		"the overflow hint (7)": {"export fn sum(t ∈ Array(Int)) (-2^63..2^63-1) {\n    var s := array { 0 : _ ∈ 0..len(t)-1 }\n    loop i = 0, acc = 0 {\n" +
+			"        i < len(t) -> { s[i] := acc + t[i]; again(i + 1, acc + t[i]) }\n        else -> len(s)\n    }\n}\n", "acc + t[i]", "t(i)"},
 		"the step limit (11)": {"export fn t() (Int) { fn(a) { a(a) }(fn(a) { a(a) }) }\n", "fn() {", "(fn ()"},
 		"equality (21)":       {"export fn eq(a ∈ String, b ∈ String) (Bool) { a == b }\n", "java.`==`", "x64"},
 	} {

@@ -32,6 +32,10 @@ repr shift 31
 repr wrap 32
 
 module js {
+    // THE HOST'S WORD, the set a declaration of this host writes where its host
+    // type is the word (integers-boundary §5): `Int` is ℤ, and no host
+    // function takes all of it
+    set Word = -9007199254740991..2^53-1
     // ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
     // with the reason. The language's `abandon`, found by spelling; it never
     // returns, so the IR ends its region with `unreachable`.
@@ -83,7 +87,7 @@ module js {
     // surrogate or a RangeError, Java an exception or a lone char — so the
     // language's operation states one domain on every target
     // (gotarget-2026-09-30).
-    fn string_of(c ∈ Int) (String) pure
+    fn string_of(c ∈ Word) (String) pure
         where c >= 0 && c <= 1114111 && (c <= 55295 || c >= 57344) {
         host expr "String.fromCodePoint(${c})"
     }
@@ -196,36 +200,36 @@ module js {
     // not, the shifts and the remainder are exact on JavaScript's whole word:
     // −a − 1, a·2ᵏ and ⌊a/2ᵏ⌋ in doubles are exact on integers below 2⁵³, a count
     // past 64 cannot move a floor, and `+ 0` turns a −0 remainder into 0.
-    fn and(a ∈ Int, b ∈ Int) (-2^31..2^31-1) pure { host expr "(${a} & ${b})" }
-    fn and_u32(a ∈ Int, b ∈ Int) (0..2^32-1) pure { host expr "((${a} & ${b}) >>> 0)" }
-    fn or(a ∈ Int, b ∈ Int) (-2^31..2^31-1) pure { host expr "(${a} | ${b})" }
-    fn or_u32(a ∈ Int, b ∈ Int) (0..2^32-1) pure { host expr "((${a} | ${b}) >>> 0)" }
-    fn xor(a ∈ Int, b ∈ Int) (-2^31..2^31-1) pure { host expr "(${a} ^ ${b})" }
-    fn xor_u32(a ∈ Int, b ∈ Int) (0..2^32-1) pure { host expr "((${a} ^ ${b}) >>> 0)" }
-    fn not(a ∈ Int) (Int) pure { host expr "(-(${a}) - 1)" checked not_exact }
-    fn shl(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "(${a} * 2 ** ${b})" checked shl_exact }
+    fn and(a ∈ Word, b ∈ Word) (-2^31..2^31-1) pure { host expr "(${a} & ${b})" }
+    fn and_u32(a ∈ Word, b ∈ Word) (0..2^32-1) pure { host expr "((${a} & ${b}) >>> 0)" }
+    fn or(a ∈ Word, b ∈ Word) (-2^31..2^31-1) pure { host expr "(${a} | ${b})" }
+    fn or_u32(a ∈ Word, b ∈ Word) (0..2^32-1) pure { host expr "((${a} | ${b}) >>> 0)" }
+    fn xor(a ∈ Word, b ∈ Word) (-2^31..2^31-1) pure { host expr "(${a} ^ ${b})" }
+    fn xor_u32(a ∈ Word, b ∈ Word) (0..2^32-1) pure { host expr "((${a} ^ ${b}) >>> 0)" }
+    fn not(a ∈ Word) (Word) pure { host expr "(-(${a}) - 1)" checked not_exact }
+    fn shl(a ∈ Word, b ∈ Word) (Word) pure where b >= 0 { host expr "(${a} * 2 ** ${b})" checked shl_exact }
     // Under -checked: −a − 1 leaves W only at a = 2⁵³−1, decided by Lemma S.
     // a·2ᵇ is exact in doubles where it is finite (a power of two scales
     // exactly), so it is in W iff the result is safe; past b = 1023, 2 ** b is
     // Infinity and 0 · Infinity is NaN, where ℤ's answer is 0.
-    fn not_exact(a ∈ Int) (Int) pure {
+    fn not_exact(a ∈ Word) (Word) pure {
         host expr "((t) => Number.isSafeInteger(t) ? t : (() => { throw new RangeError(\"int overflow\"); })())(-(${a}) - 1)"
     }
-    fn shl_exact(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 {
+    fn shl_exact(a ∈ Word, b ∈ Word) (Word) pure where b >= 0 {
         host expr "((a, b) => { const t = a * 2 ** b; if (Number.isSafeInteger(t)) { return t; } if (a === 0) { return 0; } throw new RangeError(\"int overflow\"); })(${a}, ${b})"
     }
-    fn sar(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "Math.floor(${a} / 2 ** Math.min(${b}, 64))" }
+    fn sar(a ∈ Word, b ∈ Word) (Word) pure where b >= 0 { host expr "Math.floor(${a} / 2 ** Math.min(${b}, 64))" }
     // ⌊a/2ᵏ⌋ IN THE INT32 WINDOWS, chosen by the operands' facts (ADR 0083
     // item 2): ToUint32 is the identity on U₃₂ and `>>>` its floor by 2ᵏ, as
     // ToInt32 and `>>` are on S₃₂, for a count below 32, which JavaScript masks.
     fn sar_u32(a ∈ 0..2^32-1, b ∈ 0..31) (0..2^32-1) pure { host expr "(${a} >>> ${b})" }
     fn sar_s32(a ∈ -2^31..2^31-1, b ∈ 0..31) (-2^31..2^31-1) pure { host expr "(${a} >> ${b})" }
-    fn add_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(((${a} | 0) + (${b} | 0)) | 0)" }
-    fn sub_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(((${a} | 0) - (${b} | 0)) | 0)" }
-    fn mul_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.imul(${a}, ${b})" }
-    fn neg_wrap(a ∈ Int) (Int) pure { host expr "((-(${a} | 0)) | 0)" }
-    fn not_wrap(a ∈ Int) (Int) pure { host expr "(~${a})" }
-    fn shl_wrap(a ∈ Int, b ∈ Int) (Int) pure { host expr "(${a} << ${b})" }
+    fn add_wrap(a ∈ Word, b ∈ Word) (Word) pure { host expr "(((${a} | 0) + (${b} | 0)) | 0)" }
+    fn sub_wrap(a ∈ Word, b ∈ Word) (Word) pure { host expr "(((${a} | 0) - (${b} | 0)) | 0)" }
+    fn mul_wrap(a ∈ Word, b ∈ Word) (Word) pure { host expr "Math.imul(${a}, ${b})" }
+    fn neg_wrap(a ∈ Word) (Word) pure { host expr "((-(${a} | 0)) | 0)" }
+    fn not_wrap(a ∈ Word) (Word) pure { host expr "(~${a})" }
+    fn shl_wrap(a ∈ Word, b ∈ Word) (Word) pure { host expr "(${a} << ${b})" }
     // A PAIR LEAVING ITS DIGITS (ADR 0083, ir/pairs.go): as a decimal string
     // where a host takes any value, which prints as the integer does on every
     // other target, and as the BigInt an entry point's caller holds.
@@ -235,7 +239,7 @@ module js {
     fn pair_bigint(hi ∈ 0..2^32-1, lo ∈ 0..2^32-1) (big) pure {
         host expr "(BigInt(${hi}) * 4294967296n + BigInt(${lo}))"
     }
-    fn emod(a ∈ Int, m ∈ Int) (Int) pure where m > 0 {
+    fn emod(a ∈ Word, m ∈ Word) (Word) pure where m > 0 {
         host expr "((a, m) => { const r = a % m; return r < 0 ? r + m : r + 0; })(${a}, ${m})"
     }
 

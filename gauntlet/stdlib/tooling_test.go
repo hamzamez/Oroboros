@@ -2630,7 +2630,8 @@ func agreeOne(word core.Word, name string, h, g emit.Prim, hres, gres func(strin
 		return fmt.Errorf("%s takes %d argument(s) by hand and %d on the host", name, len(h.Args), len(g.Args))
 	}
 	for i := range h.Args {
-		if !sameOrBuffer(hres(h.Args[i]), gres(g.Args[i])) && !underlyingWithin(word, hostTg, h, i, g.Args[i], hres) {
+		if !sameOrBuffer(hres(h.Args[i]), gres(g.Args[i])) && !underlyingWithin(word, hostTg, h, i, g.Args[i], hres) &&
+			!rangeIs(word, hres(h.Args[i]), gres(g.Args[i])) {
 			return fmt.Errorf("%s: argument %d is %q by hand and %q on the host", name, i+1, h.Args[i], g.Args[i])
 		}
 	}
@@ -2721,10 +2722,38 @@ func rangeWithin(word core.Word, hand, host string) bool {
 	return gl.Cmp(hl) <= 0 && hh.Cmp(gh) <= 0
 }
 
+// rangeIs: a hand parameter whose range is the host type's whole value set is
+// that type. `Int` is ℤ (ADR 0147), so a declaration states its host's word as
+// the host module's `Word`, `-2^63..2^63-1` on Go, which is Go's `int` exactly;
+// a narrower range at a parameter would be a precondition the host does not
+// state, and stays refused.
+func rangeIs(word core.Word, hand, host string) bool {
+	return rangeWithin(word, hand, host) && rangeWithin(word, host, hand) ||
+		host == "int" && hand == fmt.Sprintf("int %d %d", word.Lo, word.Hi)
+}
+
 // pathBase is an import path's last element, the package's name in a template.
 func pathBase(p string) string {
 	if i := strings.LastIndex(p, "/"); i >= 0 {
 		return p[i+1:]
 	}
 	return p
+}
+
+// A HOST'S WORD SPELLED BY ITS RANGE IS THE HOST'S TYPE, and only the whole
+// set is: `go.Word` is Go's `int`, and a narrower range at a parameter is a
+// precondition the host does not state, refused as before ADR 0147.
+func TestAWordSpelledByItsRangeIsTheHostsType(t *testing.T) {
+	w := core.Word{Lo: -9223372036854775808, Hi: 9223372036854775807}
+	if !rangeIs(w, "int -9223372036854775808 9223372036854775807", "int") {
+		t.Error("the word's whole range should be Go's int")
+	}
+	for _, narrower := range []string{"int 0 9223372036854775807", "int -9223372036854775807 9223372036854775807", "int"} {
+		if narrower != "int" && rangeIs(w, narrower, "int") {
+			t.Errorf("%s is a precondition, not Go's int", narrower)
+		}
+	}
+	if rangeIs(w, "int -9223372036854775808 9223372036854775807", "int 0 255") {
+		t.Error("the word is not uint8")
+	}
 }

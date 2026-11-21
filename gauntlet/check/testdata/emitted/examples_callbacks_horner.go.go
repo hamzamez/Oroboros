@@ -3,6 +3,7 @@
 package gauntlet
 
 import "fmt"
+import "strconv"
 
 func GenMain() int {
 	v6 := []int8{3, -2, 0, 5, -1, 7}
@@ -31,84 +32,88 @@ func GenMain() int {
 		}
 		break
 	}
-	fmt.Println(v10)
-	var v39 int = 0
+	v35 := (strconv.Itoa(v10))
+	fmt.Println(v35)
 	var v40 int = 0
-	for ; ; v39 = (v39 + 1) {
-		v42 := (v39 <= 9)
-		if v42 {
-			var v50 int = 0
+	var v41 int = 0
+	for ; ; v40 = (v40 + 1) {
+		v43 := (v40 <= 9)
+		if v43 {
 			var v51 int = 0
-			for ; ; v51 = (v51 + 1) {
-				v52 := len(v6)
-				v53 := (v51 < v52)
-				if v53 {
-					v57 := (-1000000000 < v50)
-					if v57 {
-						v60 := (v50 < 1000000000)
-						var v61 int
-						if v60 {
-							v63 := (v50 * v39)
-							v64 := int(v6[v51])
-							v65 := (v63 + v64)
-							v61 = v65
+			var v52 int = 0
+			for ; ; v52 = (v52 + 1) {
+				v53 := len(v6)
+				v54 := (v52 < v53)
+				if v54 {
+					v58 := (-1000000000 < v51)
+					if v58 {
+						v61 := (v51 < 1000000000)
+						var v62 int
+						if v61 {
+							v64 := (v51 * v40)
+							v65 := int(v6[v52])
+							v66 := (v64 + v65)
+							v62 = v66
 						} else {
-							v61 = v50
+							v62 = v51
 						}
-						v50 = v61
+						v51 = v62
 						continue
 					}
 					continue
 				}
 				break
 			}
-			var v77 int = 0
 			var v78 int = 0
-			for ; ; v77 = (v77 + 1) {
-				v80 := len(v6)
-				v81 := (v77 < v80)
-				v82 := (v81 && (v77 < 9))
-				if v82 {
-					v93 := int(v6[v77])
-					var v97 int = 0
-					var v98 int = 1
-					for ; ; v97 = (v97 + 1) {
-						v100 := len(v6)
-						v102 := (v100 - 1)
-						v103 := (v102 - v77)
-						v104 := (v97 < v103)
-						v105 := (v104 && (v98 < 1000000))
-						if v105 {
-							v114 := (v98 * v39)
-							v98 = v114
+			var v79 int = 0
+			for ; ; v78 = (v78 + 1) {
+				v81 := len(v6)
+				v82 := (v78 < v81)
+				v83 := (v82 && (v78 < 9))
+				if v83 {
+					v94 := int(v6[v78])
+					var v98 int = 0
+					var v99 int = 1
+					for ; ; v98 = (v98 + 1) {
+						v101 := len(v6)
+						v103 := (v101 - 1)
+						v104 := (v103 - v78)
+						v105 := (v98 < v104)
+						v106 := (v105 && (v99 < 1000000))
+						if v106 {
+							v115 := (v99 * v40)
+							v99 = v115
 							continue
 						}
 						break
 					}
-					v115 := (v93 * v98)
-					v116 := (v78 + v115)
-					v78 = v116
+					v116 := (v94 * v99)
+					v117 := (v79 + v116)
+					v79 = v117
 					continue
 				}
 				break
 			}
-			v117 := (v50 == v78)
-			v118 := (v117 && (v40 < 10))
-			var v122 int
-			if v118 {
-				v125 := (v40 + 1)
-				v122 = v125
+			v118 := (v51 == v79)
+			v119 := (v118 && (v41 < 10))
+			var v123 int
+			if v119 {
+				v126 := (v41 + 1)
+				v123 = v126
 			} else {
-				v122 = v40
+				v123 = v41
 			}
-			v40 = v122
+			v41 = v123
 			continue
 		}
-		fmt.Println(v40)
+		v128 := (strconv.Itoa(v41))
+		fmt.Println(v128)
 		break
 	}
-	fmt.Println(7)
-	fmt.Println(2)
+	v131 := (strconv.Itoa(7))
+	fmt.Println(v131)
+	v135 := (strconv.Itoa(2))
+	fmt.Println(v135)
 	return 2
 }
 

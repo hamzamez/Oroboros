@@ -28,153 +28,154 @@ public final class examples_io_roundtrip.java {
 				final String v27 = (System.getenv().getOrDefault("ORO_ROUNDTRIP", ""));
 				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v27 + "\n");
 				final int v29 = v21.length;
-				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v29 + "\n");
-				final byte[] v33 = new byte[4];
-				int v32 = 0;
-				int v35;
-				Exception v36;
-				try (java.nio.channels.FileChannel $oroF = java.nio.channels.FileChannel.open(java.nio.file.Paths.get(v10), java.nio.file.StandardOpenOption.READ)) { java.nio.ByteBuffer $oroB = java.nio.ByteBuffer.wrap(v33); int $oroN = 0; while ($oroB.hasRemaining()) { int $oroK = $oroF.read($oroB, 3 + $oroN); if ($oroK < 0) break; $oroN += $oroK; } v35 = $oroN; v36 = null; } catch (Exception $oroE) { v35 = 0; v36 = $oroE; }
-				final boolean v37 = (v36 == null);
-				if (v37) {
-					final int v40 = (v35 % 10);
-					final int v41 = (48 + v40);
-					final String v42 = (new String(Character.toChars((int) v41)));
-					final String v44 = (v42.concat(" "));
-					final int v47 = (v33[0] & 0xFF);
-					final int v49 = (v47 / 100);
-					final int v50 = (48 + v49);
-					final String v51 = (new String(Character.toChars((int) v50)));
-					final String v52 = (v44.concat(v51));
-					final int v55 = (v33[0] & 0xFF);
-					final int v57 = (v55 / 10);
-					final int v59 = (v57 % 10);
-					final int v60 = (48 + v59);
-					final String v61 = (new String(Character.toChars((int) v60)));
-					final String v62 = (v52.concat(v61));
-					final int v65 = (v33[0] & 0xFF);
-					final int v67 = (v65 % 10);
-					final int v68 = (48 + v67);
-					final String v69 = (new String(Character.toChars((int) v68)));
-					final String v70 = (v62.concat(v69));
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v70 + "\n");
-					final String v73 = (v10.concat(".missing"));
-					byte[] v74;
-					Exception v75;
-					try { v74 = Files.readAllBytes(Path.of(v73)); v75 = null; } catch (Exception $oroE) { v74 = null; v75 = $oroE; }
-					final boolean v76 = (v75 == null);
-					String v77 = null;
-					if (v76) {
-						v77 = "found";
+				final String v30 = (Long.toString(v29));
+				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v30 + "\n");
+				final byte[] v34 = new byte[4];
+				int v33 = 0;
+				int v36;
+				Exception v37;
+				try (java.nio.channels.FileChannel $oroF = java.nio.channels.FileChannel.open(java.nio.file.Paths.get(v10), java.nio.file.StandardOpenOption.READ)) { java.nio.ByteBuffer $oroB = java.nio.ByteBuffer.wrap(v34); int $oroN = 0; while ($oroB.hasRemaining()) { int $oroK = $oroF.read($oroB, 3 + $oroN); if ($oroK < 0) break; $oroN += $oroK; } v36 = $oroN; v37 = null; } catch (Exception $oroE) { v36 = 0; v37 = $oroE; }
+				final boolean v38 = (v37 == null);
+				if (v38) {
+					final int v41 = (v36 % 10);
+					final int v42 = (48 + v41);
+					final String v43 = (new String(Character.toChars((int) v42)));
+					final String v45 = (v43.concat(" "));
+					final int v48 = (v34[0] & 0xFF);
+					final int v50 = (v48 / 100);
+					final int v51 = (48 + v50);
+					final String v52 = (new String(Character.toChars((int) v51)));
+					final String v53 = (v45.concat(v52));
+					final int v56 = (v34[0] & 0xFF);
+					final int v58 = (v56 / 10);
+					final int v60 = (v58 % 10);
+					final int v61 = (48 + v60);
+					final String v62 = (new String(Character.toChars((int) v61)));
+					final String v63 = (v53.concat(v62));
+					final int v66 = (v34[0] & 0xFF);
+					final int v68 = (v66 % 10);
+					final int v69 = (48 + v68);
+					final String v70 = (new String(Character.toChars((int) v69)));
+					final String v71 = (v63.concat(v70));
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v71 + "\n");
+					final String v74 = (v10.concat(".missing"));
+					byte[] v75;
+					Exception v76;
+					try { v75 = Files.readAllBytes(Path.of(v74)); v76 = null; } catch (Exception $oroE) { v75 = null; v76 = $oroE; }
+					final boolean v77 = (v76 == null);
+					String v78 = null;
+					if (v77) {
+						v78 = "found";
 					} else {
-						final boolean v79 = ((v75 instanceof java.nio.file.NoSuchFileException));
-						if (v79) {
-							v77 = "not-found";
+						final boolean v80 = ((v76 instanceof java.nio.file.NoSuchFileException));
+						if (v80) {
+							v78 = "not-found";
 						} else {
-							final boolean v81 = ((v75 instanceof java.nio.file.FileAlreadyExistsException));
-							if (v81) {
-								v77 = "exists";
+							final boolean v82 = ((v76 instanceof java.nio.file.FileAlreadyExistsException));
+							if (v82) {
+								v78 = "exists";
 							} else {
-								final boolean v83 = ((v75 instanceof java.nio.file.AccessDeniedException));
-								if (v83) {
-									v77 = "permission";
+								final boolean v84 = ((v76 instanceof java.nio.file.AccessDeniedException));
+								if (v84) {
+									v78 = "permission";
 								} else {
-									v77 = "other";
+									v78 = "other";
 								}
 							}
 						}
 					}
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v77 + "\n");
-					v32 = 0;
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v78 + "\n");
+					v33 = 0;
 				} else {
-					final boolean v88 = ((v36 instanceof java.nio.file.NoSuchFileException));
-					String v89 = null;
-					if (v88) {
-						v89 = "not-found";
+					final boolean v89 = ((v37 instanceof java.nio.file.NoSuchFileException));
+					String v90 = null;
+					if (v89) {
+						v90 = "not-found";
 					} else {
-						final boolean v91 = ((v36 instanceof java.nio.file.FileAlreadyExistsException));
-						if (v91) {
-							v89 = "exists";
+						final boolean v92 = ((v37 instanceof java.nio.file.FileAlreadyExistsException));
+						if (v92) {
+							v90 = "exists";
 						} else {
-							final boolean v93 = ((v36 instanceof java.nio.file.AccessDeniedException));
-							if (v93) {
-								v89 = "permission";
+							final boolean v94 = ((v37 instanceof java.nio.file.AccessDeniedException));
+							if (v94) {
+								v90 = "permission";
 							} else {
-								v89 = "other";
+								v90 = "other";
 							}
 						}
 					}
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v89 + "\n");
-					final String v98 = (v10.concat(".missing"));
-					byte[] v99;
-					Exception v100;
-					try { v99 = Files.readAllBytes(Path.of(v98)); v100 = null; } catch (Exception $oroE) { v99 = null; v100 = $oroE; }
-					final boolean v101 = (v100 == null);
-					String v102 = null;
-					if (v101) {
-						v102 = "found";
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v90 + "\n");
+					final String v99 = (v10.concat(".missing"));
+					byte[] v100;
+					Exception v101;
+					try { v100 = Files.readAllBytes(Path.of(v99)); v101 = null; } catch (Exception $oroE) { v100 = null; v101 = $oroE; }
+					final boolean v102 = (v101 == null);
+					String v103 = null;
+					if (v102) {
+						v103 = "found";
 					} else {
-						final boolean v104 = ((v100 instanceof java.nio.file.NoSuchFileException));
-						if (v104) {
-							v102 = "not-found";
+						final boolean v105 = ((v101 instanceof java.nio.file.NoSuchFileException));
+						if (v105) {
+							v103 = "not-found";
 						} else {
-							final boolean v106 = ((v100 instanceof java.nio.file.FileAlreadyExistsException));
-							if (v106) {
-								v102 = "exists";
+							final boolean v107 = ((v101 instanceof java.nio.file.FileAlreadyExistsException));
+							if (v107) {
+								v103 = "exists";
 							} else {
-								final boolean v108 = ((v100 instanceof java.nio.file.AccessDeniedException));
-								if (v108) {
-									v102 = "permission";
+								final boolean v109 = ((v101 instanceof java.nio.file.AccessDeniedException));
+								if (v109) {
+									v103 = "permission";
 								} else {
-									v102 = "other";
+									v103 = "other";
 								}
 							}
 						}
 					}
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v102 + "\n");
-					v32 = 0;
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v103 + "\n");
+					v33 = 0;
 				}
-				return v32;
+				return v33;
 			}
-			final boolean v114 = ((v22 instanceof java.nio.file.NoSuchFileException));
-			String v115 = null;
-			if (v114) {
-				v115 = "not-found";
+			final boolean v115 = ((v22 instanceof java.nio.file.NoSuchFileException));
+			String v116 = null;
+			if (v115) {
+				v116 = "not-found";
 			} else {
-				final boolean v117 = ((v22 instanceof java.nio.file.FileAlreadyExistsException));
-				if (v117) {
-					v115 = "exists";
+				final boolean v118 = ((v22 instanceof java.nio.file.FileAlreadyExistsException));
+				if (v118) {
+					v116 = "exists";
 				} else {
-					final boolean v119 = ((v22 instanceof java.nio.file.AccessDeniedException));
-					if (v119) {
-						v115 = "permission";
+					final boolean v120 = ((v22 instanceof java.nio.file.AccessDeniedException));
+					if (v120) {
+						v116 = "permission";
 					} else {
-						v115 = "other";
+						v116 = "other";
 					}
 				}
 			}
-			final String v122 = ("roundtrip: cannot read that file: ".concat(v115));
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v122 + "\n");
+			final String v123 = ("roundtrip: cannot read that file: ".concat(v116));
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v123 + "\n");
 			return 1;
 		}
-		final boolean v126 = ((v19 instanceof java.nio.file.NoSuchFileException));
-		String v127 = null;
-		if (v126) {
-			v127 = "not-found";
+		final boolean v127 = ((v19 instanceof java.nio.file.NoSuchFileException));
+		String v128 = null;
+		if (v127) {
+			v128 = "not-found";
 		} else {
-			final boolean v129 = ((v19 instanceof java.nio.file.FileAlreadyExistsException));
-			if (v129) {
-				v127 = "exists";
+			final boolean v130 = ((v19 instanceof java.nio.file.FileAlreadyExistsException));
+			if (v130) {
+				v128 = "exists";
 			} else {
-				final boolean v131 = ((v19 instanceof java.nio.file.AccessDeniedException));
-				if (v131) {
-					v127 = "permission";
+				final boolean v132 = ((v19 instanceof java.nio.file.AccessDeniedException));
+				if (v132) {
+					v128 = "permission";
 				} else {
-					v127 = "other";
+					v128 = "other";
 				}
 			}
 		}
-		final String v134 = ("roundtrip: cannot write that file: ".concat(v127));
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v134 + "\n");
+		final String v135 = ("roundtrip: cannot write that file: ".concat(v128));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v135 + "\n");
 		return 1;
 	}
 

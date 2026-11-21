@@ -32,28 +32,27 @@ func TestAValueProvenInTheWordComesBackIntoIt(t *testing.T) {
 	}
 }
 
-// AN ENTRY POINT'S RESULT IS ITS DECLARED SET'S (finding 27, ADR 0033, 0079):
-// a result declared Int is the word on every target, so n * n with n ≤ 2^31,
-// above JavaScript's word, is refused there as Go refuses a value of U at a
-// declared Int, and declared 0..2^62 it is returned in the unsigned word.
-// THE PLANTED FAULT returns a pair whatever the declared set: a BigInt from an
-// export declared Int.
+// AN ENTRY POINT'S RESULT IS ITS DECLARED SET'S (finding 27, answered by ADR
+// 0147 item 3): a result declared Int is ℤ, held as its values are, so n * n
+// with n ≤ 2^31, above JavaScript's word, is a BigInt there and Go's word on Go;
+// declared 0..2^62 it is returned in the unsigned word. THE PLANTED FAULT leaves
+// a result's Int undemanded, as before: the declared Int's refusal comes back.
 func TestAnEntryPointsResultIsItsDeclaredSets(t *testing.T) {
 	const asInt = "export fn medium(n ∈ 0..2^31) (Int) { n * n }\n"
 	const asRange = "export fn medium(n ∈ 0..2^31) (0..2^62) { n * n }\n"
 	if _, err := surfaceGen(t, "js", map[string]string{"p.oro": asRange}); err != nil {
 		t.Fatalf("declared 0..2^62 on js: %v", err)
 	}
-	if _, err := surfaceGen(t, "js", map[string]string{"p.oro": asInt}); err == nil || !strings.Contains(err.Error(), "declared Int") {
-		t.Fatalf("declared Int on js: %v; want it refused", err)
+	if code, err := surfaceGen(t, "js", map[string]string{"p.oro": asInt}); err != nil || !strings.Contains(code, "BigInt") {
+		t.Fatalf("declared Int on js: %v; want a BigInt returned", err)
 	}
-	if _, err := onGo(t, asInt); err != nil {
+	if code, err := onGo(t, asInt); err != nil || strings.Contains(code, "big.") {
 		t.Fatalf("declared Int on Go, where n * n is in the word: %v", err)
 	}
-	ir.PlantPairResultAnySet = true
-	defer func() { ir.PlantPairResultAnySet = false }()
-	if code, err := surfaceGen(t, "js", map[string]string{"p.oro": asInt}); err != nil || !strings.Contains(code, "BigInt") {
-		t.Errorf("with the pair returned whatever the set: %v; want a BigInt returned", err)
+	ir.PlantResultIntIsTheWord = true
+	defer func() { ir.PlantResultIntIsTheWord = false }()
+	if _, err := surfaceGen(t, "js", map[string]string{"p.oro": asInt}); err == nil || !strings.Contains(err.Error(), "declared Int") {
+		t.Errorf("with a result's Int undemanded: %v; want the declared Int's refusal", err)
 	}
 }
 
@@ -110,21 +109,20 @@ func TestAFunctionStatementIsRefused(t *testing.T) {
 }
 
 // THE REFUSALS SAY WHY (findings 25, 26): an empty range is said to be empty,
-// in J; JavaScript's quotient and midpoint over values above its word are
-// refused for that, not as "may be negative" or with an interval the program
-// does not have.
+// in J. JavaScript's quotient and midpoint over values above its word, refused
+// as "may be negative" or with an interval the program did not have, then for
+// the declared Int, are computed exactly since ADR 0147: a result `Int` is ℤ.
 func TestTheRefusalsSayWhy(t *testing.T) {
 	if _, err := onGo(t, "export fn emp(n ∈ 9..0) (Int) { n }\n"); err == nil ||
 		!strings.Contains(err.Error(), "the set 9..0 is empty") {
 		t.Errorf("9..0: %v; want it said to be empty", err)
 	}
-	for src, not := range map[string]string{
-		"export fn third(n ∈ 0..2^60) (Int) { n / 3 }\n":                          "may be negative",
-		"export fn mid(lo ∈ 0..2^63-1, hi ∈ 0..2^63-1) (Int) { (lo + hi) / 2 }\n": "[0, 2147483647]",
+	for _, src := range []string{
+		"export fn third(n ∈ 0..2^60) (Int) { n / 3 }\n",
+		"export fn mid(lo ∈ 0..2^63-1, hi ∈ 0..2^63-1) (Int) { (lo + hi) / 2 }\n",
 	} {
-		_, err := surfaceGen(t, "js", map[string]string{"p.oro": src})
-		if err == nil || strings.Contains(err.Error(), not) || !strings.Contains(err.Error(), "declared Int") {
-			t.Errorf("%s on js: %v\n  want the declared Int's refusal, not %q", strings.TrimSpace(src), err, not)
+		if code, err := surfaceGen(t, "js", map[string]string{"p.oro": src}); err != nil || !strings.Contains(code, "BigInt") {
+			t.Errorf("%s on js: %v\n  want it exact, a BigInt", strings.TrimSpace(src), err)
 		}
 	}
 }

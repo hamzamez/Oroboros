@@ -112,6 +112,15 @@ func variadicWords(tg *emit.Target, f *ir.Func, pl *plan.Plan) map[ir.V]*ir.Stmt
 // its value, not its narrowest storage (elemwidth-2026-08-27); a table in
 // ρ_T of its element.
 func (p *printer) hostTy(t string) string {
+	// A VALUE HELD EXACTLY names the host's big integer's package in its type,
+	// `*big.Int`, though no operation on it may: `any(n ∈ Int) (Int) { n }`
+	// computes nothing and still needs math/big (the book's chapter 6, ADR
+	// 0147). The package is the inclusion's, `big-of`, as the target states it.
+	if t == core.BigType || p.tg.ValueType(t) == core.BigType {
+		if q, ok := p.tg.Prims["big-of"]; ok {
+			p.importsOf(q)
+		}
+	}
 	if strings.HasPrefix(t, "buffer ") {
 		t = "array " + t[len("buffer "):] // a buffer is the table it is (ADR 0020)
 	}

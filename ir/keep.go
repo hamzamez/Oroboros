@@ -367,6 +367,15 @@ func buildKept(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.Re
 		}
 		esig = lift(env, n, esig, lifted)
 	}
+	// A PARAMETER OF NO KNOWN SET stays `any` where its use did not make it an
+	// integer (emit.ParamTypes does not see through a loop's initializer:
+	// `sink(b, start)`'s `loop j = start`), and a function cannot be printed
+	// with no representation for it: kept, LLVM held it as a pointer. Inlined
+	// instead, as P4 does every definition it cannot keep (Proposition D's
+	// step 3, a representation's codomain for an unstated parameter, not built)
+	if p, ok := anyIntegerParam(tg, f); ok && !PlantKeepAnyParam {
+		return nil, nil, nil, keptPost{}, fmt.Errorf("a parameter of no known set, %%%d, is used as an integer and has no representation", p)
+	}
 	if err := leg.Refusal(n, tg); err != nil {
 		return nil, nil, nil, keptPost{}, err
 	}
@@ -550,6 +559,51 @@ func wordInstance(tg *emit.Target, sig *core.Sig, nf *core.Term) *core.Sig {
 	}
 	return out
 }
+
+// anyIntegerParam is a parameter typed `any` that the body uses as an integer:
+// an operand of an integer operation or a loop's initial value for an integer
+// variable. One used as a string or a table is the pointer `any` is printed as.
+func anyIntegerParam(tg *emit.Target, f *Func) (V, bool) {
+	untyped := map[V]bool{}
+	for _, p := range f.Params {
+		if f.Types[p] == "any" || f.Types[p] == "" {
+			untyped[p] = true
+		}
+	}
+	if len(untyped) == 0 {
+		return 0, false
+	}
+	integer := func(ty string) bool {
+		switch tg.ValueType(ty) {
+		case "int", core.U64Type, core.BigType:
+			return true
+		}
+		return false
+	}
+	found, at := false, V(0)
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			for j, a := range s.Args {
+				if !untyped[a] || found {
+					continue
+				}
+				switch {
+				case s.Op.IsArith() || s.Op.IsCmp():
+					found, at = true, a
+				case s.Op == OLoop && len(s.Sub) == 1 && j < len(s.Sub[0].Params) && integer(f.Types[s.Sub[0].Params[j]]):
+					found, at = true, a
+				}
+			}
+		}
+	})
+	return at, found
+}
+
+// PlantKeepAnyParam keeps a definition whose parameter has no known set, as
+// before: the book's chapter 14 sort on windows then fails in the printer
+// (TestAKeptParameterOfNoSetIsInlined).
+var PlantKeepAnyParam bool
 
 // PlantNoWordInstance leaves an unstated or unbounded integer parameter
 // without the word's set: write, slice and print_int are then refused under

@@ -56,7 +56,7 @@ const classSrc = "use win/print\n" +
 	"\n" +
 	"export fn main() {\n" +
 	"    m = { var t := array { 0 : _ ∈ 0..65536 }; maxes(t); t }\n" +
-	"    print.print_str(big_str(heapbad(m) + pagebad()))\n" +
+	"    print.print_str(decimal(heapbad(m) + pagebad()))\n" +
 	"}\n"
 
 // THE PLANTED FAULT is the allocator before ADR 0107 under its class: region

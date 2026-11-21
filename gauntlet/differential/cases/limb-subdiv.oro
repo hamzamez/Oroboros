@@ -2,7 +2,7 @@
 //
 // `big-subdiv.oro` next door tests the same two algorithms as the COMPILER emits
 // them, and has to skip windows: that target stores a bounded big value as limbs
-// and cannot render one, because `big-str` needs a host bignum to convert
+// and cannot render one, because `decimal` needs a host bignum to convert
 // through. So the operation reaches the one host that most needs it and nothing
 // there can observe the answer.
 //

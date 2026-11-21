@@ -212,11 +212,13 @@ func TablesLast(v0 []int) int {
     return v7
 }
 
-func TablesMaybe(v0 []int, v1 int) int {
-    v4 := (0 <= v1)
-    v5 := (v4 && (v1 < len(v0)))
-    if v5 {
-        v12 := v0[v1]
+func TablesMaybe(v0 []int, v1 *big.Int) int {
+    v4 := (big.NewInt(int64(0)))
+    v5 := (v4.Cmp(v1) <= 0)
+    v6 := (v5 && (v1.Cmp((big.NewInt(int64(len(v0))))) < 0))
+    if v6 {
+        v11 := (int(v1.Int64()))
+        v12 := v0[v11]
         return v12
     }
     return -1
@@ -229,11 +231,16 @@ func TablesPromised(v0 []int, v1 int) int {
 ```
 
 - **`promised` puts the condition in its header**, with `where`. The caller must prove it,
-  and the body may then assume it. The Go is one line.
+  and the body may then assume it. The Go is one line, and `i` is an `int`: a length is at most
+  the largest table the target holds, so `i < len(t)` keeps `i` inside the word.
 - **`tested` tests.** Inside the `if`, the condition is a fact. The test is in the Go,
   because you wrote it and it does something: it decides what to return.
 - **`maybe` answers "something or nothing"** (chapter 10), which is the honest result of a
-  lookup that can fail. The variant is gone from the Go, as chapter 10 said it would be.
+  lookup that can fail. The variant is gone from the Go, as chapter 10 said it would be. Its
+  `i ∈ Int` is any integer, since nothing in the header bounds it, so Go hands over a
+  `*big.Int`: the test compares one, and inside it `i` is proven a valid position and comes back
+  into an `int` to index. `tested` is the same. An index is a word; `i ∈ -2^63..2^63-1` would
+  have said so.
 - **`first` and `last`** show that even position 0 is not free: an empty table has no first
   value.
 
@@ -319,7 +326,8 @@ includes the set of its elements, and `t[i]` is known to be in it. It also chose
 Go got `[]uint16`, two bytes per value. (You did not ask for 16 bits. You said what the
 values are, and the compiler picked the smallest thing that holds them, as in chapter 6.)
 
-**`where len(t) <= 10^6`** is chapter 12's lesson about sums. Leave it out:
+**`where len(t) <= 10^6`** is chapter 12's lesson about sums. Leave it out, and see what it
+bought:
 
 <!-- file docs/book/code/tables/no-long.oro -->
 ```go
@@ -332,14 +340,34 @@ export fn total(t ∈ Array(0..1000)) (Int) {
 ```
 
 <!-- gen go docs/book/code/tables/no-long.oro -->
-```
-gen: tables-total: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  + [0, 9223372036854775807000] in s + t[i]
+```go
+note: tables-total: 1 operation(s) in arbitrary precision
+…
+func TablesTotal(v0 []uint16) *big.Int {
+    v3 := (big.NewInt(int64(0)))
+    var v5 int = 0
+    v6 := v3
+    for ; ; v5 = (v5 + 1) {
+        v7 := len(v0)
+        v8 := (v5 < v7)
+        if v8 {
+            v13 := int(v0[v5])
+            v14 := (big.NewInt(int64(v13)))
+            v15 := (v6.Add(v6, v14))
+            v6 = v15
+            continue
+        }
+        break
+    }
+    return v6
+}
 ```
 
 A table could in principle have 2⁶³ − 1 positions, and that many values of up to 1000 do
-not fit in a word. The compiler multiplied it out, and you can read the product in the
-message. Nobody has such a table, so say how long yours can be.
+not fit in a word. The result is claimed `Int`, every integer, so the sum is computed exactly,
+in Go's `*big.Int`: an allocation and an addition of digits per element, where `where len(t)
+<= 10^6` made it one machine addition. The compiler said so, *1 operation in arbitrary
+precision*. Nobody has such a table, so say how long yours can be.
 
 The same shape of loop finds the largest value, a position, a count:
 
@@ -944,13 +972,16 @@ export fn search(t ∈ Array(Int), x ∈ Int) (Int) where len(t) <= 10^9 {
 
 <!-- gen go docs/book/code/tables/no-search.oro -->
 ```
-gen: tables-search: 16 of 16 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+gen: tables-search: an operand of index is held in arbitrary precision, which is WIDER than the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615], so on this target it is not an `int` — it is a rung above the host's word (ADR 0026, docs/unbounded-rung.md).
+…
 ```
 
 `lo` is not negative and `hi - lo` is positive, so half of it is not negative either. The
 compiler sees that much now (it once refused the index for it, the book's finding 67). What it
 still cannot see, without the guard, is that `lo` and `hi` stay between `0` and `len(t)` from
-one time round to the next, so it cannot bound the arithmetic on them inside the word.
+one time round to the next, so it cannot bound the arithmetic on them inside the word. The
+result is claimed `Int`, so that arithmetic is computed exactly, and then the midpoint cannot be
+an index, which is a word: the refusal is there.
 
 And one more honest line. Here is what it says about the version that compiles:
 
@@ -971,10 +1002,14 @@ export fn search(t ∈ Array(Int), x ∈ Int) (Int) where len(t) <= 10^9 {
 
 <!-- gen go docs/book/code/tables/search-gen.oro -->
 ```
+note: tables-search: 2 operation(s) in arbitrary precision
 note: tables-search: 9 of 9 integer operations bounded; 0 of 1 loop(s) proven terminating
 ```
 
-Every access proven, every operation in the word, and **0 of 1 loops proven terminating**.
+Every access proven, every operation on positions in the word, and **0 of 1 loops proven
+terminating**. (The two operations in arbitrary precision are `t[m] < x` and `t[m] > x`: `x ∈
+Int` is any integer, so each compares a word with a `*big.Int`. Give `x` the elements' set and
+they are machine comparisons.)
 The loop does stop: the measure is `hi - lo`, which at least halves each trip. Both `again`s
 shrink it, one by raising `lo` past `m` and one by lowering `hi` to `m`. The compiler's
 termination check looks for one variable going one way, and here two variables close in from
@@ -1027,21 +1062,23 @@ export fn main() {
 ```go
 …
 func TablesMain() int {
-    fmt.Println(49)
-    var v5 int = 0
-    var v6 int = 0
-    for ; ; v5 = (v5 + 1) {
-        v8 := (v5 < 10)
-        if v8 {
-            v12 := (v5 * v5)
-            v13 := (v6 + v12)
-            v6 = v13
+    v1 := (strconv.Itoa(49))
+    fmt.Println(v1)
+    var v7 int = 0
+    var v8 int = 0
+    for ; ; v7 = (v7 + 1) {
+        v10 := (v7 < 10)
+        if v10 {
+            v14 := (v7 * v7)
+            v15 := (v8 + v14)
+            v8 = v15
             continue
         }
         break
     }
-    fmt.Println(v6)
-    return v6
+    v17 := (strconv.Itoa(v8))
+    fmt.Println(v17)
+    return v8
 }
 ```
 

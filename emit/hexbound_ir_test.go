@@ -1,6 +1,7 @@
 package emit_test
 
 import (
+	"oroboros/emit"
 	"strings"
 	"testing"
 )
@@ -22,6 +23,17 @@ export fn f(src ∈ Array(0..255)) (Array(0..255)) {
 }`)
 	if err == nil || !strings.Contains(err.Error(), "EncodedLen") {
 		t.Errorf("len src may pass 2^62 − 1, where Go's EncodedLen wraps; got %v", err)
+	}
+	// THE PLANTED FAULT, the bug ADR 0147 exposed: the bounds moved out of the
+	// `where` left unproven, the ensure r == 2n with r ∈ go.Word proves n's
+	// own bound, and the program is accepted
+	emit.PlantBoundsUnproven = true
+	defer func() { emit.PlantBoundsUnproven = false }()
+	if _, err := entryGo(t, `use go/encoding/hex
+export fn f(src ∈ Array(0..255)) (Array(0..255)) {
+    build(hex.EncodedLen(len(src)), fn(b) { (b2, n) = hex.Encode(b, src); b2 })
+}`); err != nil {
+		t.Errorf("with the bounds unproven the precondition should follow from its own ensure; got %v", err)
 	}
 }
 

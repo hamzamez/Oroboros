@@ -1,4 +1,4 @@
-export fn lookup(k ∈ Int) (Int) {
+export fn lookup(k ∈ 0..1000) (Int) {
     m = map { 1 : 10, 2 : 20, 5 : 50 }
     case m[k] { 'some(v) -> v; 'none -> 0 }
 }

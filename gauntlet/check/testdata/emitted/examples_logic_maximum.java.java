@@ -26,7 +26,8 @@ public final class examples_logic_maximum.java {
 			}
 			break;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v14 + "\n");
+		final String v29 = (Long.toString(v14));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v29 + "\n");
 		return v14;
 	}
 

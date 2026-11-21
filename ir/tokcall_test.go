@@ -8,7 +8,7 @@ import (
 // factLoopSrc is the measured shape (alloc-2026-11-17): a numeral times a
 // word at every step, the old numeral dying at each call.
 const factLoopSrc = "export fn f(n ∈ 0..300) (String) {\n" +
-	"    big_str(loop acc = 1, i = 2 { i > n -> acc; else -> again(acc * i, i + 1) })\n}\n"
+	"    decimal(loop acc = 1, i = 2 { i > n -> acc; else -> again(acc * i, i + 1) })\n}\n"
 
 func has(calls []string, name string) bool {
 	for _, c := range calls {

@@ -287,3 +287,186 @@ func intersectUnion(members []string, r string) ([]string, bool) {
 	}
 	return out, len(out) > 0
 }
+
+// EntrySig is an entry point's header as the host's interface: each parameter
+// declared `Int`, ℤ, takes the range its `where`'s constant bounds give it (ADR
+// 0075), the word's representation where they bound it inside the word, and
+// otherwise an end left open, so the host hands over its integer of any size
+// (integers-boundary §2). Any other header is returned as it is.
+func EntrySig(tg *Target, sig *core.Sig) *core.Sig {
+	if sig == nil || !sig.Entry || PlantEntryIntIsTheWord {
+		return sig
+	}
+	names := make([]string, len(sig.Params))
+	for i, p := range sig.Params {
+		names[i] = p.Name
+	}
+	lo := make([]*big.Int, len(sig.Params))
+	hi := make([]*big.Int, len(sig.Params))
+	type diff struct {
+		x, y int
+		c    *big.Int // x ≤ y + c
+	}
+	var diffs []diff
+	if sig.Where != nil {
+		for _, c := range whereConjuncts(sig.Where) {
+			i, l, h, ok := constantBound(c, names)
+			if !ok {
+				i, h, ok = lenBound(tg, c, names)
+			}
+			if ok {
+				if l != nil && (lo[i] == nil || l.Cmp(lo[i]) > 0) {
+					lo[i] = l
+				}
+				if h != nil && (hi[i] == nil || h.Cmp(hi[i]) < 0) {
+					hi[i] = h
+				}
+				continue
+			}
+			if x, y, k, ok := paramDiff(c, names); ok && !PlantNoDiffBound {
+				diffs = append(diffs, diff{x, y, k})
+			}
+		}
+	}
+	// THE DIFFERENCE BOUNDS' CLOSURE: x ≤ y + c carries y's upper end to x and
+	// x's lower end to y, the two-variable fragment of Fourier–Motzkin, and a
+	// chain of n parameters settles in n rounds (Bellman–Ford). `chain(i, n, t)
+	// where 0 <= i && i < n && n <= len(t)` bounds i by len(t) through n
+	// (book chapter 16), as the index t[i] needs.
+	for round := 0; round <= len(sig.Params); round++ {
+		changed := false
+		for _, d := range diffs {
+			if hi[d.y] != nil {
+				h := new(big.Int).Add(hi[d.y], d.c)
+				if hi[d.x] == nil || h.Cmp(hi[d.x]) < 0 {
+					hi[d.x], changed = h, true
+				}
+			}
+			if lo[d.x] != nil {
+				l := new(big.Int).Sub(lo[d.x], d.c)
+				if lo[d.y] == nil || l.Cmp(lo[d.y]) > 0 {
+					lo[d.y], changed = l, true
+				}
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	out := *sig
+	out.Params = append([]core.SigParam(nil), sig.Params...)
+	wlo, whi := big.NewInt(tg.Word.Lo), big.NewInt(tg.Word.Hi)
+	for i, p := range out.Params {
+		if p.Type != "int" {
+			continue
+		}
+		if lo[i] != nil && hi[i] != nil && lo[i].Cmp(wlo) >= 0 && hi[i].Cmp(whi) <= 0 {
+			continue // inside the word: the word, its bounds the where's
+		}
+		l, h := "-inf", "+inf"
+		if lo[i] != nil {
+			l = lo[i].String()
+		}
+		if hi[i] != nil {
+			h = hi[i].String()
+		}
+		out.Params[i].Type = "int " + l + " " + h
+	}
+	return &out
+}
+
+// lenBound reads c as an upper bound on parameter names[i] by a table's
+// length, x < len(t), x <= len(t), len(t) > x or len(t) >= x: a length is at
+// most the target's largest table, MaxLenOf (tables.md §2.3), so the bound is
+// that constant's, minus one where strict. `promised(t, i ∈ Int) where 0 <= i
+// && i < len(t)` takes i in the word by it (book chapter 13), as its read t[i]
+// needs: an index is a word position.
+func lenBound(tg *Target, c *core.Term, names []string) (int, *big.Int, bool) {
+	if c == nil || c.Kind != core.KApp || len(c.Kids) != 3 || c.Kids[0].Kind != core.KName || PlantNoLenBound {
+		return 0, nil, false
+	}
+	op, a, b := c.Kids[0].Name, c.Kids[1], c.Kids[2]
+	param := func(t *core.Term) int {
+		if t.Kind != core.KName {
+			return -1
+		}
+		for j, n := range names {
+			if n == t.Name {
+				return j
+			}
+		}
+		return -1
+	}
+	isLen := func(t *core.Term) bool {
+		return t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName &&
+			isOp(t.Kids[0].Name, "alen") && param(t.Kids[1]) >= 0
+	}
+	max := big.NewInt(tg.MaxLenOf())
+	one := big.NewInt(1)
+	if j := param(a); j >= 0 && isLen(b) {
+		switch {
+		case isOp(op, "lt"):
+			return j, new(big.Int).Sub(max, one), true
+		case isOp(op, "le"):
+			return j, max, true
+		}
+	}
+	if j := param(b); j >= 0 && isLen(a) {
+		switch {
+		case isOp(op, "gt"):
+			return j, new(big.Int).Sub(max, one), true
+		case isOp(op, "ge"):
+			return j, max, true
+		}
+	}
+	return 0, nil, false
+}
+
+// paramDiff reads c as x ≤ y + k between two parameters, k ∈ {0, −1}: x <= y,
+// x < y (x ≤ y − 1), y >= x, y > x.
+func paramDiff(c *core.Term, names []string) (int, int, *big.Int, bool) {
+	if c == nil || c.Kind != core.KApp || len(c.Kids) != 3 || c.Kids[0].Kind != core.KName {
+		return 0, 0, nil, false
+	}
+	op, a, b := c.Kids[0].Name, c.Kids[1], c.Kids[2]
+	param := func(t *core.Term) int {
+		if t.Kind != core.KName {
+			return -1
+		}
+		for j, n := range names {
+			if n == t.Name {
+				return j
+			}
+		}
+		return -1
+	}
+	i, j := param(a), param(b)
+	if i < 0 || j < 0 {
+		return 0, 0, nil, false
+	}
+	switch {
+	case isOp(op, "le"):
+		return i, j, big.NewInt(0), true
+	case isOp(op, "lt"):
+		return i, j, big.NewInt(-1), true
+	case isOp(op, "ge"):
+		return j, i, big.NewInt(0), true
+	case isOp(op, "gt"):
+		return j, i, big.NewInt(-1), true
+	}
+	return 0, 0, nil, false
+}
+
+// PlantNoDiffBound reads no bound between two parameters at an entry point:
+// chapter 16's chain is then refused at its index (TestATablesElementIsAWord).
+var PlantNoDiffBound bool
+
+// PlantNoLenBound reads no bound by a table's length at an entry point:
+// chapter 13's `promised` is then refused at its index again
+// (TestIntIsTheIntegersAtTheBoundary).
+var PlantNoLenBound bool
+
+// PlantEntryIntIsTheWord reads an entry point's `Int` as the host's word, as
+// before integers-boundary: `square(n ∈ Int) (Int)` is then refused again
+// (TestIntIsTheIntegersAtTheBoundary).
+var PlantEntryIntIsTheWord bool

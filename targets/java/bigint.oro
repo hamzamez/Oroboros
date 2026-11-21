@@ -78,8 +78,11 @@ module java {
     }
     fn big_mod(a ∈ big, m ∈ big) (big) pure where m > 0 { host expr "${a}.mod(${m})" }
 
-    fn big_of(a ∈ Int) (big) pure { host expr "java.math.BigInteger.valueOf(${a})" }
-    fn big_str(a ∈ big) (String) pure { host expr "${a}.toString()" }
+    fn big_of(a ∈ Word) (big) pure { host expr "java.math.BigInteger.valueOf(${a})" }
+    fn decimal(a ∈ big) (String) pure { host expr "${a}.toString()" }
+    // decimal of a value its facts keep in the word: the host's own formatting
+    // (integers-boundary §3), the same digits
+    fn decimal_word(x ∈ Word) (String) pure { host expr "Long.toString(${x})" }
 
     // THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
     // 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
@@ -113,10 +116,10 @@ module java {
     // value of length k whose magnitude needs k + 1 bits; it is also the only
     // one of length k whose lowest set bit is k, so that test, reached only on
     // that boundary, excludes it without allocating a magnitude.
-    fn big_fit(x ∈ big, k ∈ Int) (big) {
+    fn big_fit(x ∈ big, k ∈ Word) (big) {
         host expr "((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return oro$z; })).apply(${x}, (long)(${k}))"
     }
-    fn big_fit_signed(x ∈ big, k ∈ Int) (big) {
+    fn big_fit_signed(x ∈ big, k ∈ Word) (big) {
         host expr "((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k || (oro$z.signum() < 0 && oro$z.bitLength() == oro$k && oro$z.getLowestSetBit() == oro$k)) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return oro$z; })).apply(${x}, (long)(${k}))"
     }
     // The fixed-limb rung's carry check -- see targets/go/bigint.oro. Java has
@@ -129,7 +132,7 @@ module java {
     // allow the shadow, so this is a one-host rule and it fires on the first
     // program with a carry. `$` is legal in a Java identifier and the emitter's
     // mangler never produces one.
-    fn trap_if(a ∈ Int) (Int) {
+    fn trap_if(a ∈ Word) (Word) {
         host expr "((java.util.function.LongUnaryOperator)(oro$c -> { if (oro$c != 0) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return 0L; })).applyAsLong(${a})"
     }
 }

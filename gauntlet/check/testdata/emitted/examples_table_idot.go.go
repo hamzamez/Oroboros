@@ -3,7 +3,7 @@
 package gauntlet
 
 import "fmt"
-import "math/big"
+import "strconv"
 
 func GenMain() string {
 	var n1 int = 65536
@@ -52,9 +52,8 @@ func GenMain() string {
 		v18 = v47
 		continue
 	}
-	v48 := (big.NewInt(int64(v18)))
-	v49 := (v48.String())
-	fmt.Println(v49)
-	return v49
+	v48 := (strconv.Itoa(v18))
+	fmt.Println(v48)
+	return v48
 }
 

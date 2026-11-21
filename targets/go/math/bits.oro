@@ -126,19 +126,19 @@ module go/math/bits {
     }
 
     // k is any int: the action is by k mod n, and a negative k rotates right.
-    fn RotateLeft(x ∈ uint64, k ∈ Int) (uint64) pure {
+    fn RotateLeft(x ∈ uint64, k ∈ Word) (uint64) pure {
         host expr "uint64(bits.RotateLeft(uint(${x}), ${k}))" import "math/bits"
     }
-    fn RotateLeft64(x ∈ uint64, k ∈ Int) (uint64) pure {
+    fn RotateLeft64(x ∈ uint64, k ∈ Word) (uint64) pure {
         host expr "bits.RotateLeft64(uint64(${x}), ${k})" import "math/bits"
     }
-    fn RotateLeft32(x ∈ uint32, k ∈ Int) (uint32) pure {
+    fn RotateLeft32(x ∈ uint32, k ∈ Word) (uint32) pure {
         host expr "int(bits.RotateLeft32(uint32(${x}), ${k}))" import "math/bits"
     }
-    fn RotateLeft16(x ∈ uint16, k ∈ Int) (uint16) pure {
+    fn RotateLeft16(x ∈ uint16, k ∈ Word) (uint16) pure {
         host expr "int(bits.RotateLeft16(uint16(${x}), ${k}))" import "math/bits"
     }
-    fn RotateLeft8(x ∈ uint8, k ∈ Int) (uint8) pure {
+    fn RotateLeft8(x ∈ uint8, k ∈ Word) (uint8) pure {
         host expr "int(bits.RotateLeft8(uint8(${x}), ${k}))" import "math/bits"
     }
 

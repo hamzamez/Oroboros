@@ -71,8 +71,21 @@ pub export fn print_str(s) (Bool) {
 // (a store owes its index since the book's finding 70). −2⁶³ has no negation in
 // the word, and is its own clause; every other negative n is a sign and the
 // digits of −n, at most 19.
+//
+// ℤ = W ⊔ (ℤ ∖ W), W = S₆₄ ∪ U₆₄ what a word holds: outside W the numeral is
+// `decimal`'s, the limbs' render (integers-boundary §3), and inside it the
+// field below. The
+// compiler keeps this as one function at S (ADR 0113's word instance), where
+// the first arm's guard is false and LLVM removes it; a call whose argument is
+// the unsigned word's is inlined, as before.
 pub fn print_int(n ∈ Int) (Bool) {
     case {
+        // outside W = S₆₄ ∪ U₆₄, n < −2⁶³ or n ≥ 2⁶⁴, the second written
+        // n/2 > 2⁶³ − 1 by constants of the signed word (2⁶⁴ − 1 is U₆₄'s, and
+        // U₆₄ ↪ ℤ is not built, u128-2026-11-19): a hash in U prints by the
+        // field, the arm dead for it
+        n < -9223372036854775808 -> print_str(decimal(n))
+        n > 9223372036854775807 && n / 2 > 9223372036854775807 -> print_str(decimal(n))
         n < -9223372036854775807 -> print_str("-9223372036854775808")
         else -> {
             (b, start) = {
@@ -80,9 +93,9 @@ pub fn print_int(n ∈ Int) (Bool) {
                 b[21] := 10
                 loop m = if n < 0 { 0 - n } else { n }, k = 0, p = 19 {
                     // MORE THAN 20 DIGITS is a value above the words, which this
-                    // field cannot hold: start −1 says so, and the program stops
-                    // below, where it printed the low 20 digits until 2026-11-19
-                    // (print-2026-11-19)
+                    // field cannot hold and the first arm sends to `decimal`: start
+                    // −1 says so, and the program stops below, where it printed
+                    // the low 20 digits until 2026-11-19 (print-2026-11-19)
                     k > 19 && m > 0 -> (b, 0 - 1)
                     k > 19 && n < 0 -> { b[p] := 45; (b, p) }
                     k > 19 -> (b, p + 1)
@@ -93,7 +106,7 @@ pub fn print_int(n ∈ Int) (Bool) {
                 }
             }
             if start < 0 {
-                abandon("print_int: more than 20 digits; print a value above the word with print_str(big_str(n))")
+                abandon("print_int: more than 20 digits, which the first arm sends to decimal")
             } else {
                 write(b, start, 22 - start)
             }

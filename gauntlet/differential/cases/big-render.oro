@@ -15,7 +15,7 @@
 fn pw(b ∈ 2..10, k ∈ 0..5000) (Nat) { loop x = 1, i = 0 { i >= k -> x; else -> again(x * b, i + 1) } }
 
 fn run(n ∈ 0..10) {
-    big_str(case {
+    decimal(case {
         n == 0 -> pw(10, 620)
         n == 1 -> pw(10, 620) - 1
         n == 2 -> pw(10, 620) + 1

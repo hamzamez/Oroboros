@@ -28,4 +28,4 @@ export fn calc(n ∈ 0..6) (0..2^200) {
     d + b
 }
 
-fn run(n) { big_str(calc(n)) }
+fn run(n) { decimal(calc(n)) }

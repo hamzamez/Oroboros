@@ -34,8 +34,8 @@ export function genMain() {
 		v18 = (((((v18 + v29) + v17) % 1000000007) + 0));
 		continue;
 	}
-	const v49 = (String((BigInt(v18))));
-	console.log(v49);
-	return v49;
+	const v48 = (String(v18));
+	console.log(v48);
+	return v48;
 }
 

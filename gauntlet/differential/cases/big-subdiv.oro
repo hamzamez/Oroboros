@@ -31,4 +31,4 @@ export fn calc(n ∈ 0..100) (0..2^300) {
     (a - b) / 4
 }
 
-fn run(n) { big_str(calc(n)) }
+fn run(n) { decimal(calc(n)) }

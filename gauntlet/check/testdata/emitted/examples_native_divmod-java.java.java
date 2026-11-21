@@ -4,16 +4,16 @@ public final class examples_native_divmod-java.java {
 	public record Tup_long_long(long f0, long f1) {}
 
 	public static Tup_long_long genDivmod(long v0, long v1) {
-		final long v15 = (v0 / v1);
-		final long v16 = (v0 % v1);
-		return new Tup_long_long(v15, v16);
+		final long v30 = (v0 / v1);
+		final long v31 = (v0 % v1);
+		return new Tup_long_long(v30, v31);
 	}
 
 	public static long genDivmodSum(long v0, long v1) {
-		final long v15 = (v0 / v1);
-		final long v16 = (v0 % v1);
-		final long v17 = (v15 + v16);
-		return v17;
+		final long v30 = (v0 / v1);
+		final long v31 = (v0 % v1);
+		final long v32 = (v30 + v31);
+		return v32;
 	}
 
 }

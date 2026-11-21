@@ -434,7 +434,7 @@ func TestWithoutTheDeclarationTheMagnitudeIsNotDerivable(t *testing.T) {
 // `int ⊆ big` is the decidable half of subtyping type-algebra.md already keeps,
 // run in the other direction.
 func TestABignumIsRefusedWhereAWordIsRequired(t *testing.T) {
-	src := "use go\nexport fn narrow(n ∈ 0..) (Int) { n + 1 }\n"
+	src := "use go\nexport fn narrow(n ∈ 0..) (-2^63..2^63-1) { n + 1 }\n"
 	tg, err := emit.LoadTarget("../targets/go")
 	if err != nil {
 		t.Fatal(err)
@@ -452,7 +452,7 @@ func TestABignumIsRefusedWhereAWordIsRequired(t *testing.T) {
 	if err == nil {
 		t.Fatal("a value above the portable window was accepted as an `int`")
 	}
-	if !strings.Contains(err.Error(), "WIDENING") {
+	if !strings.Contains(err.Error(), "does not establish") {
 		t.Errorf("the refusal does not say what kind of mismatch this is: %v", err)
 	}
 }

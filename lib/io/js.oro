@@ -10,6 +10,7 @@
 // and it cannot arise, because `idiv` and `irem` normalise it at the source
 // (integers.md §0a) rather than every consumer having to know.
 provides js io {
+    use io
     fn print_line(s ∈ String) (String) { host stmt "console.log(${s})" }
     // ---- and the same without the newline
     //
@@ -18,5 +19,11 @@ provides js io {
     // form that does not. `process` is a Node global, so this needs no import.
     fn print(s ∈ String) (String) { host stmt "process.stdout.write(${s})" }
 
-    fn print_int(n ∈ Int) (Int) { host stmt "console.log(${n})" }
+    // PRINT_INT IS OVER ℤ (integers-boundary §3): its line is the integer's
+    // decimal numeral, one function, realized by the value's representation:
+    // the host's own formatting in the word, its integer of any size above it.
+    fn print_int(n ∈ Int) (Int) {
+        ignore(io.print_line(decimal(n)))
+        n
+    }
 }

@@ -4,6 +4,7 @@ package gauntlet
 
 import "fmt"
 import "os"
+import "strconv"
 
 func GenMain() int {
 	v0 := (func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }())
@@ -29,19 +30,20 @@ func GenMain() int {
 			v27 := len(v11)
 			v28 := (v25 >= v27)
 			if v28 {
-				fmt.Println(v26)
+				v31 := (strconv.Itoa(v26))
+				fmt.Println(v31)
 				break
 			}
-			v36 := int(v11[v25])
-			v38 := (v36 == 10)
-			var v39 int
-			if v38 {
-				v41 := (v26 + 1)
-				v39 = v41
+			v37 := int(v11[v25])
+			v39 := (v37 == 10)
+			var v40 int
+			if v39 {
+				v42 := (v26 + 1)
+				v40 = v42
 			} else {
-				v39 = v26
+				v40 = v26
 			}
-			v26 = v39
+			v26 = v40
 			continue
 		}
 		return v26

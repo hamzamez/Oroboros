@@ -21,8 +21,8 @@ func TestASignedSumIsTheGroupCompletions(t *testing.T) {
 		"    b = 0 - 5^60\n" +
 		"    if n == 0 { a + b } else { b + b }\n}\n" +
 		"export fn main() {\n" +
-		"    print.print_str(big_str(calc(0)))\n" +
-		"    print.print_str(big_str(calc(1)))\n}\n"
+		"    print.print_str(decimal(calc(0)))\n" +
+		"    print.print_str(decimal(calc(1)))\n}\n"
 	want := "515376653370273342632913923803380576748738381376 -1734723475976807094411924481391906738281250"
 	out, err := buildAndRun(t, src, "windows", "")
 	if err != nil || strings.Join(strings.Fields(out), " ") != want {
@@ -43,8 +43,8 @@ func TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength(t *testing.T) {
 	const src = "use win/print\n" +
 		"fn calc(n ∈ 0..1) (Int) { if n == 0 { 3^200 - 7^90 } else { 0 - 7^90 - 3^200 } }\n" +
 		"export fn main() {\n" +
-		"    print.print_str(big_str(calc(0)))\n" +
-		"    print.print_str(big_str(calc(1)))\n}\n"
+		"    print.print_str(decimal(calc(0)))\n" +
+		"    print.print_str(decimal(calc(1)))\n}\n"
 	want := "265613988875874769327330844441458582469893325939849349897520956915807512043087616622264459016752 " +
 		"-265613988875874769350231799630100671188573579366939642051628966562377469759516749366504939071250"
 	out, err := buildAndRun(t, src, "windows", "")
@@ -73,8 +73,8 @@ func TestAQuotientByANumeralIsAlgorithmDs(t *testing.T) {
 		"    y = 3138550867693340381917894711603833208069624466305726808063\n" +
 		"    if n == 0 { x / y } else { x % y }\n}\n" +
 		"export fn main() {\n" +
-		"    print.print_str(big_str(calc(0)))\n" +
-		"    print.print_str(big_str(calc(1)))\n}\n"
+		"    print.print_str(decimal(calc(0)))\n" +
+		"    print.print_str(decimal(calc(1)))\n}\n"
 	want := "2 3138550867693340381917894711603833208014284234084598153218"
 	out, err := buildAndRun(t, src, "windows", "")
 	if err != nil || strings.Join(strings.Fields(out), " ") != want {
@@ -101,9 +101,9 @@ func TestABoundedQuotientMovesToTheNumeralsOfAnyLength(t *testing.T) {
 		"    b = 7^40 + n\n" +
 		"    if n == 2 { a * a / b } else { a / b + a % b }\n}\n" +
 		"export fn main() {\n" +
-		"    print.print_str(big_str(calc(0)))\n" +
-		"    print.print_str(big_str(calc(1)))\n" +
-		"    print.print_str(big_str(calc(2)))\n}\n"
+		"    print.print_str(decimal(calc(0)))\n" +
+		"    print.print_str(decimal(calc(1)))\n" +
+		"    print.print_str(decimal(calc(2)))\n}\n"
 	want := "11964767091463786734584556628644403953403431640331601 " +
 		"11964767091463786734582602581825694949127182091174155"
 	out, built, err := buildAndCrash(t, src)

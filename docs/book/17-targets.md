@@ -47,10 +47,12 @@ export fn main() {
 <!-- gen go docs/book/code/hosts/hello.oro -->
 ```go
 import "fmt"
+import "strconv"
 
 func HostsMain() int {
     fmt.Println("hello")
-    fmt.Println(42)
+    v3 := (strconv.Itoa(42))
+    fmt.Println(v3)
     return 42
 }
 ```
@@ -59,7 +61,7 @@ func HostsMain() int {
 ```js
 export function hostsMain() {
     console.log("hello");
-    console.log(42);
+    console.log((String(42)));
     return 42;
 }
 ```
@@ -71,9 +73,13 @@ come from two small files in the library. Here is Go's:
 <!-- part lib/io/go.oro -->
 ```go
 provides go io {
+    use io
     fn print_line(s ∈ String) (String) { host stmt "fmt.Println(${s})" import "fmt" }
 …
-    fn print_int(n ∈ Int) (Int) { host stmt "fmt.Println(${n})" import "fmt" }
+    fn print_int(n ∈ Int) (Int) {
+        ignore(io.print_line(decimal(n)))
+        n
+    }
 }
 ```
 
@@ -82,9 +88,13 @@ and JavaScript's:
 <!-- part lib/io/js.oro -->
 ```go
 provides js io {
+    use io
     fn print_line(s ∈ String) (String) { host stmt "console.log(${s})" }
 …
-    fn print_int(n ∈ Int) (Int) { host stmt "console.log(${n})" }
+    fn print_int(n ∈ Int) (Int) {
+        ignore(io.print_line(decimal(n)))
+        n
+    }
 }
 ```
 
@@ -102,6 +112,12 @@ says: *the host can do this; here is how to ask, and here is what I claim about 
 Reduction stops at a declared name, because there is nothing to unfold. That is the precise
 meaning of chapter 1's "until only what the target provides is left".
 
+`print_int` is not a declaration. It is a definition, written over the others: print the
+integer's `decimal` text, chapter 6's rendering of any integer, and be that integer. `decimal`
+is the target's in turn: on a value its facts keep in the word it is the host's own formatting,
+`strconv.Itoa` and `String`, which is why those appear above, and on a value above the word the
+host's big integer's. One name, `n ∈ Int`, prints every integer.
+
 ---
 
 ## 17.2 The anatomy of a declaration
@@ -117,7 +133,7 @@ declarations from `go/strings`, which chapter 9 used:
 …
     fn ToUpper(s ∈ bytestring) (String) pure { host expr "strings.ToUpper(${s})" import "strings" }
 …
-    fn Repeat(s ∈ bytestring, count ∈ Int) (bytestring) pure
+    fn Repeat(s ∈ bytestring, count ∈ Word) (bytestring) pure
         where count >= 0 {
         host expr "strings.Repeat(${s}, ${count})" import "strings"
     }
@@ -137,9 +153,12 @@ marked, so it is taken to have an effect. The default is the safe one. A declara
 `pure` is never reordered or removed, and the worst a forgotten `pure` costs is a missed
 optimization.
 
-**The parameters' sets.** `count ∈ Int` with `where count >= 0`: Go's `strings.Repeat`
-panics on a negative count. Declared this way, that panic is chapter 16's obligation. Every
-call must prove `count >= 0`, and a program that could pass −1 does not compile.
+**The parameters' sets.** `count ∈ Word`: Go's `int`, the word, which the Go module names once,
+`set Word = -2^63..2^63-1`. Not `Int`, which is every integer and which no Go function takes. A
+call must prove its count is a word, as a table's store must prove its value is. And `where
+count >= 0`: Go's `strings.Repeat` panics on a negative count. Declared this way, that panic is
+chapter 16's obligation. Every call must prove `count >= 0`, and a program that could pass −1
+does not compile.
 
 **The result's set.** `(-1..2^63-1)` for `Index`: Go's documentation says it returns −1 for
 "not found" and otherwise a position. That range is what the compiler knows about the
@@ -483,10 +502,12 @@ export fn comma(s ∈ go.bytestring) (Int) {
 
 <!-- gen go docs/book/code/hosts/no-print.oro -->
 ```
-gen: hosts-comma: fn(r) { #_ = io.print_int(r); r == 44 } calls io.print_int, an effect, and its host does not promise the order or the number of its calls (`go/strings`.RunePred is not `ordered`): the effect's history would be the host's, which may differ between releases (Theorem D, ADR 0143). Make the λ pure, or pass it to a host whose declaration is `ordered`
+gen: hosts-comma: fn(r) { #_ = { #nl3 = io.print_line(decimal(r)); r }; r == 44 } calls io.print_line, an effect, and its host does not promise the order or the number of its calls (`go/strings`.RunePred is not `ordered`): the effect's history would be the host's, which may differ between releases (Theorem D, ADR 0143). Make the λ pure, or pass it to a host whose declaration is `ordered`
 ```
 
-The print is shown as chapter 5 shows a statement, a binding nobody reads, `#_`. And a count is
+The print is shown as chapter 5 shows a statement, a binding nobody reads, `#_`, and as the
+compiler holds it: `io.print_int` unfolded into its definition, whose effect is
+`io.print_line`'s (the book's finding 110). And a count is
 refused too, since writing a cell is an effect:
 
 <!-- file docs/book/code/hosts/no-count.oro -->

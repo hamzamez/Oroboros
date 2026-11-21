@@ -39,36 +39,36 @@ export function genMain() {
 }
 
 export function genSieveCount(v0) {
-	const v2 = (new Array(v0).fill(false));
-	let v5 = 2;
-	for (;; v5 = (v5 + 1)) {
-		if (((v5 * v5) >= v0)) {
+	const v10 = (new Array(v0).fill(false));
+	let v13 = 2;
+	for (;; v13 = (v13 + 1)) {
+		if (((v13 * v13) >= v0)) {
 			break;
 		}
-		if ((v2[v5])) {
+		if ((v10[v13])) {
 			continue;
 		}
-		let v15 = (v5 * v5);
+		let v23 = (v13 * v13);
 		for (;;) {
-			if ((v15 < v0)) {
-				v2[v15] = true;
-				v15 = (v15 + v5);
+			if ((v23 < v0)) {
+				v10[v23] = true;
+				v23 = (v23 + v13);
 				continue;
 			}
 			break;
 		}
 		continue;
 	}
-	let v29 = 0;
-	let v30 = 2;
-	for (;; v30 = (v30 + 1)) {
-		if ((v30 >= v0)) {
-			return v29;
+	let v37 = 0;
+	let v38 = 2;
+	for (;; v38 = (v38 + 1)) {
+		if ((v38 >= v0)) {
+			return v37;
 		}
-		if ((v2[v30])) {
+		if ((v10[v38])) {
 			continue;
 		}
-		v29 = (v29 + 1);
+		v37 = (v37 + 1);
 		continue;
 	}
 }

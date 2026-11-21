@@ -246,12 +246,12 @@ fn fib(n ∈ 0..500) (Nat) { loop a = 0, b = 1, i = 0 { i >= n -> a; else -> aga
 export fn main() {
     f = fact(300)
     g = fib(500)
-    print.print_str(big_str(f))
-    print.print_str(big_str(g))
-    print.print_str(big_str(f / 7^60))
-    print.print_str(big_str(f % (3^130 + 1)))
-    print.print_str(big_str((f * g + 7) % (2^300 + 1)))
-    print.print_str(big_str((0 - f) / 7^60))
+    print.print_str(decimal(f))
+    print.print_str(decimal(g))
+    print.print_str(decimal(f / 7^60))
+    print.print_str(decimal(f % (3^130 + 1)))
+    print.print_str(decimal((f * g + 7) % (2^300 + 1)))
+    print.print_str(decimal((0 - f) / 7^60))
 }
 `
 	fact := func(n int64) *big.Int { return new(big.Int).MulRange(1, n) }

@@ -33,36 +33,39 @@ public final class examples_io_count.java {
 				final int v31 = v11.length;
 				final boolean v32 = (v30 >= v31);
 				if (v32) {
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v27 + "\n");
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v28 + "\n");
-					final int v37 = v11.length;
+					final String v35 = (Long.toString(v27));
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v35 + "\n");
+					final String v37 = (Long.toString(v28));
 					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v37 + "\n");
-					v26 = v37;
+					final int v39 = v11.length;
+					final String v40 = (Long.toString(v39));
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v40 + "\n");
+					v26 = v39;
 					break;
 				}
-				final int v41 = (v11[v30] & 0xFF);
-				final boolean v43 = (v41 == 10);
-				int v44 = 0;
-				if (v43) {
-					final int v47 = (v27 + 1);
-					v44 = v47;
+				final int v44 = (v11[v30] & 0xFF);
+				final boolean v46 = (v44 == 10);
+				int v47 = 0;
+				if (v46) {
+					final int v50 = (v27 + 1);
+					v47 = v50;
 				} else {
-					v44 = v27;
+					v47 = v27;
 				}
-				final boolean v53 = (v41 == 32);
-				final boolean v54 = (v53 || ((v41 >= 9) && (v41 <= 13)));
-				if (v54) {
-					v27 = v44;
+				final boolean v56 = (v44 == 32);
+				final boolean v57 = (v56 || ((v44 >= 9) && (v44 <= 13)));
+				if (v57) {
+					v27 = v47;
 					v29 = false;
 					continue;
 				}
 				if (v29) {
-					v27 = v44;
+					v27 = v47;
 					continue;
 				}
-				final int v72 = (v28 + 1);
-				v27 = v44;
-				v28 = v72;
+				final int v75 = (v28 + 1);
+				v27 = v47;
+				v28 = v75;
 				v29 = true;
 				continue;
 			}

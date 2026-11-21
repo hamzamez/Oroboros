@@ -21,5 +21,5 @@ export fn main() {
     a = alloc(array { (k * 7919) % 65536 : k ∈ 0..65535 })
     b = alloc(array { (k * 104729) % 65536 : k ∈ 0..65535 })
     t = loop r = 0, s = 0 { r >= 2000 -> s; else -> again(r + 1, (s + dot(a, b) + r) % 1000000007) }
-    io.print_line(big_str(t))
+    io.print_line(decimal(t))
 }

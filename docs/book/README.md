@@ -17,30 +17,30 @@ runs every chapter, so a chapter that no longer says what the compiler gives fai
 
 | | chapter | the one idea | state |
 |---|---|---|---|
-| 0 | [A tour](00-tour.md) | the map | J; 73 blocks checked 2026-11-20 |
+| 0 | [A tour](00-tour.md) | the map | J; 108 blocks checked 2026-11-21 |
 | | **I. How a program is reduced** | | |
 | 1 | [`fn`](01-fn.md) | β; reduction is compilation | J; 62 blocks checked 2026-11-20 |
 | 2 | [Definitions](02-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-20 |
-| 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 55 blocks checked 2026-11-20 |
+| 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 55 blocks checked 2026-11-21 |
 | 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 54 blocks checked 2026-11-20 |
-| 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-20 |
+| 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-21 |
 | | **II. What a program computes with** | | |
-| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 87 blocks checked 2026-11-20 |
-| 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ`; the same past the word | J; 66 blocks checked 2026-11-20 |
-| 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-20 |
+| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 96 blocks checked 2026-11-21 |
+| 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ`; the same past the word | J; 66 blocks checked 2026-11-21 |
+| 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-21 |
 | 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-20 |
-| 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-20 |
+| 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-21 |
 | 11 | [Records](11-records.md) | a record is a function on its labels; `with`; the zero | J; 47 blocks checked 2026-11-20 (new) |
 | | **III. Repetition and storage** | | |
-| 12 | [`loop`](12-loop.md) | the one iteration; termination | J; 59 blocks checked 2026-11-20 |
-| 13 | [Tables](13-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 65 blocks checked 2026-11-20 |
-| 14 | [State](14-state.md) | `var`, buffers, maps, `inout`; why a table never changes under you | J; 69 blocks checked 2026-11-20 |
+| 12 | [`loop`](12-loop.md) | the one iteration; termination | J; 59 blocks checked 2026-11-21 |
+| 13 | [Tables](13-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 69 blocks checked 2026-11-21 |
+| 14 | [State](14-state.md) | `var`, buffers, maps, `inout`; why a table never changes under you | J; 74 blocks checked 2026-11-21 |
 | 15 | [Failures](15-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 44 blocks checked 2026-11-20 |
 | | **IV. Claims and hosts** | | |
-| 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 66 blocks checked 2026-11-20 |
-| 17 | [Targets](17-targets.md) | host modules, writing a declaration, a function the host calls, portability computed | J; 35 blocks checked 2026-11-20 |
-| 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a function Windows calls during a call; a window procedure | J; 25 blocks checked 2026-11-20 (new) |
-| 19 | [A whole program](19-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-20 |
+| 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 84 blocks checked 2026-11-21 |
+| 17 | [Targets](17-targets.md) | host modules, writing a declaration, a function the host calls, portability computed | J; 35 blocks checked 2026-11-21 |
+| 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a function Windows calls during a call; a window procedure | J; 40 blocks checked 2026-11-21 (new) |
+| 19 | [A whole program](19-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-21 |
 
 Chapters 11 and 18 were added 2026-11-20, and the chapters after each renumbered (the old 11–16 are
 12–17, the old 17 is 19); the findings below name chapters by their new numbers. Nothing
@@ -285,10 +285,14 @@ and 28 are defects, not questions: ADR 0033 refuses Go's version of 27, and ADR 
     (Int) { n * n }` is accepted there, computed as a pair of 32-bit digits and returned as a
     `BigInt`; `(n ∈ 0..2^53-1) (Int) { n + 1 }` likewise. On Go the analogous program, a result in
     the unsigned word declared `Int`, is refused (*held in the UNSIGNED word, not an `Int`*). A
-    question: which of the two is the rule at an entry point?
+    question: which of the two is the rule at an entry point? **Answered** 2026-11-21 (ADR 0147
+    item 3): a result declared `Int` is ℤ, held as its values are, so `medium` returns a `BigInt`
+    on JavaScript and the word on Go, whose 2⁶² fits. A result in the unsigned word from an
+    unsigned parameter, `(n ∈ 0..2^64-2) (Int) { n + 1 }`, is still refused on Go and the JVM:
+    U₆₄ ↪ ℤ is not built (u128-2026-11-19).
 28. **A value above the word cannot come back into it.** `square(n) / 2^40` with `n ∈ 0..2^40`
     and a result declared `0..2^40` is refused as *WIDER than the word*, though its value fits.
-    The message spells `big-str` (it is `big_str` in J) and cites `docs/unbounded-rung.md`. A
+    The message spells `decimal` (it is `decimal` in J) and cites `docs/unbounded-rung.md`. A
     question for the plan: a narrowing a claim could consent to, as a claim consents to the
     widening.
 29. **No digit separator, and no binary literal**: `1_000_000` and `0b101` are refused by the
@@ -313,7 +317,7 @@ Chapter 7 (2026-11-16) found seven, none fixed, each avoided in the chapter:
 33. **A value in the unsigned word cannot be printed whole.** `io.print_int(h)` with
     `h ∈ 0..2^64-1` prints on windows, and on Go is refused by the verifier in its own words,
     *IR_P does not verify: W5: %13 is u64 and flows into io.print-int's argument 1, which is int*
-    (item 3 fixed this for a big value, not for U). `big_str(h)` is refused on all three as
+    (item 3 fixed this for a big value, not for U). `decimal(h)` is refused on all three as
     *WIDER than the word*. The chapter prints `h >> 32` and `h & 0xFFFFFFFF`.
 34. **`mod` of a value in the unsigned word is refused where `%` compiles**, on Go:
     `(a * b) mod 7` with `a, b ∈ 0..2^32-1` is *held in the UNSIGNED word, not an `Int`*, and
@@ -325,7 +329,7 @@ Chapter 7 (2026-11-16) found seven, none fixed, each avoided in the chapter:
     need not matter.
 36. **Two small ones.** There is no way to print a `Bool` (`io` has no `print_bool`; the chapter
     defines `bit`). And `export fn f(k ∈ 0..64) (0..2^64) { 1 << k }` is refused with `big-of` in
-    the message, a core name (it is the family of item 28's `big-str`).
+    the message, a core name (it is the family of item 28's `decimal`).
 
 Chapter 8 (2026-11-16) found eight, none fixed, each avoided in the chapter:
 
@@ -796,7 +800,10 @@ Doing that found two, not fixed:
     refused. `Nat` and `..0` are each taken as a bignum, so a host can pass either half and not
     both. A result has the same gap: `fn diff(a ∈ Nat, b ∈ Nat) (Int) { a - b }` is refused as
     wider than the word. Inside a program `Int` is ℤ and is computed exactly where a claim asks.
-    Item 27's question from the other side: what is `Int` at an entry point?
+    Item 27's question from the other side: what is `Int` at an entry point? **Fixed** 2026-11-21
+    (ADR 0147): `Int` is ℤ at an entry point too, a `*big.Int`, `BigInt` or `BigInteger` where its
+    header does not bound it inside the word; Windows refuses an unbounded one, its callers C's.
+    `diff(a ∈ Nat, b ∈ Nat) (Int) { a - b }` compiles.
 
 Writing chapter 11 (Records) and bringing chapters 7, 12, 13 and 14 up to date (2026-11-20) found
 seven more. 95–99 are fixed with the chapter
@@ -880,6 +887,42 @@ not:
      refinement layer having run on the inlined body before the checker saw the argument. The
      program was wrong and refused, and the message named the wrong thing. Not investigated: it may
      predate this step.
+
+Rewriting chapter 0 and bringing chapters 3–19 to ADR 0147 (2026-11-21), `Int` ℤ at an entry
+point too, found five, one fixed:
+
+108. **An intermediate above the word is computed exactly only where something asks.** `mid(lo ∈
+     -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { (lo + hi) / 2 }` is refused: the sum is
+     in neither word, and only the result's claim speaks, of the word, though the average of two
+     words is one. A binder claim above the word asks (`sum ∈ -2^64..2^64 = lo + hi` compiles,
+     the sum a `*big.Int`) and `sum ∈ Int = lo + hi` does not, which ADR 0147's "`Int` denotes ℤ
+     at every place" refuses. integers-boundary-research §7 states the rule (a refusal only where
+     a value must enter a bounded set); for an intermediate it is not built, and building it
+     raises a question for hamza: an accumulator whose fact is unbounded only because a table's
+     length is would become a big integer silently, where it is refused today (chapter 13's
+     `no-prefix`). Chapter 6 §6.9 shows the refusal and says so.
+109. **`export fn any(n ∈ Int) (Int) { n }` emitted `*big.Int` without `import "math/big"`**, a Go
+     file that does not compile, since no operation on the value named the package. **Fixed** with
+     the chapter: a big integer in a function's type registers the inclusion's import
+     (`ir/golang`).
+110. **A definition's parameter claim, read in its body, is reported inside the body.**
+     `io.print_int(0.5 + 0.5)` is refused as *in argument 1 of io.print_line: in argument 1 of
+     decimal: n is N*, since `io.print_int` became a definition over ℤ; it read *in argument 1 of
+     io.print_int* while it was a host statement. The verdict is right and the message names the
+     library's inside. ADR 0137's typing mark checks an unread binder's claim at its binder; a read
+     one's is checked where it is used. Not fixed: a mark at every call of a definition with a
+     header is ADR 0137's measured cost, for the plan.
+111. **A map read with a key of any size is refused.** `lookup(k ∈ Int)` over `map { 1 : 10, …
+     }` is refused as *an operand of read is held in arbitrary precision*: the key is a
+     `*big.Int` since ADR 0147, and a map's keys are words. Its answer is known, `'none` for a key
+     outside the word, which no map holds, so the refusal is of a correct program. Not fixed: the
+     read needs a branch on the key's fit, `k ∈ S ? m[ρ(k)] : 'none`, written by the rung pass.
+     Chapter 14's `lookup` takes `k ∈ 0..1000` and says so.
+112. **`-checked` traps on windows what the other targets compute.** The tour's `grow.oro`, 3
+     squared seven times and printed, prints 3¹²⁸ on Go, JavaScript and the JVM under `-checked`
+     and stops on windows: there the unproven product is marked a trap before the rung, which on
+     Go takes it to `*big.Int`, and K(ℕ\*) never does. A stop, not a wrong answer; without the flag
+     windows prints 3¹²⁸. Not fixed: the trap marks should be placed after the rung on every target.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

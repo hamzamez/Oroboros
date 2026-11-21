@@ -265,7 +265,7 @@ func LimbShape(name string, wordOperand bool) string {
 		return "rem-small"
 	case "big%":
 		return ""
-	case "big-str":
+	case "decimal":
 		return "to-host"
 	}
 	if f, ok := limbOf[name]; ok {

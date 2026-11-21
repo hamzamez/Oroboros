@@ -44,4 +44,4 @@ fn calc(n ∈ 0..11) (Int) {
     }
 }
 
-fn run(n) { big_str(calc(n)) }
+fn run(n) { decimal(calc(n)) }

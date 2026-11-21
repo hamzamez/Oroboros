@@ -56,7 +56,10 @@ module go {
     fn `u64>`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(${a} > ${b})" }
     fn `u64>=`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(${a} >= ${b})" }
     fn `u64=`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(${a} == ${b})" }
-    fn u64_of(x ∈ Int) (u64) pure { host expr "uint64(${x})" }
+    fn u64_of(x ∈ Word) (u64) pure { host expr "uint64(${x})" }
+    // the IR's word, the realization's own sort and not a host API's result:
+    // a result spelled by a range is received with a conversion (int64 is the
+    // word's set too), and this one is Go's int already
     fn int_of_u64(x ∈ u64) (Int) pure { host expr "int(${x})" }
     // ⌊a/2ᵏ⌋ on U (ADR 0082): Go's `>>` on a uint64 is logical, and a count of
     // 64 or more gives 0.

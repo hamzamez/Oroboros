@@ -3,6 +3,7 @@
 package gauntlet
 
 import "fmt"
+import "strconv"
 import "strings"
 
 func GenMain() int {
@@ -111,14 +112,16 @@ func GenMain() int {
 		return v186
 	}
 	v187 := int(strings.IndexFunc("Attack at dawn, said Caesar.", v183))
-	fmt.Println(v187)
-	v189 := func(v190h int32) bool {
-		v190 := int(v190h)
-		v192 := (v190 == 44)
-		return v192
+	v188 := (strconv.Itoa(v187))
+	fmt.Println(v188)
+	v190 := func(v191h int32) bool {
+		v191 := int(v191h)
+		v193 := (v191 == 44)
+		return v193
 	}
-	v193 := int(strings.IndexFunc(v46, v189))
-	fmt.Println(v193)
-	return v193
+	v194 := int(strings.IndexFunc(v46, v190))
+	v195 := (strconv.Itoa(v194))
+	fmt.Println(v195)
+	return v194
 }
 

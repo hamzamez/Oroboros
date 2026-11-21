@@ -19,6 +19,7 @@
 // module is not a replacement for it and does not wrap it: both emit the same
 // call, and neither is lowered further than the host provides.
 provides go io {
+    use io
     fn print_line(s ∈ String) (String) { host stmt "fmt.Println(${s})" import "fmt" }
     // ---- and the same without the newline
     //
@@ -28,5 +29,11 @@ provides go io {
     // be a value at run time where this is a choice at the call site.
     fn print(s ∈ String) (String) { host stmt "fmt.Print(${s})" import "fmt" }
 
-    fn print_int(n ∈ Int) (Int) { host stmt "fmt.Println(${n})" import "fmt" }
+    // PRINT_INT IS OVER ℤ (integers-boundary §3): its line is the integer's
+    // decimal numeral, one function, realized by the value's representation:
+    // the host's own formatting in the word, its integer of any size above it.
+    fn print_int(n ∈ Int) (Int) {
+        ignore(io.print_line(decimal(n)))
+        n
+    }
 }

@@ -42,7 +42,7 @@ export function genMain() {
 	for (;; v57 = (v57 + 1)) {
 		if (((v57 > 0) && ((v56 < v54) && (v56 < v55)))) {
 			process.stdout.write((((v10 + " ") + v12) + " differ: byte "));
-			console.log(((v53 + v56) + 1));
+			console.log((String(((v53 + v56) + 1))));
 			v49 = 1;
 			break;
 		}
@@ -65,41 +65,41 @@ export function genMain() {
 			v49 = 2;
 			break;
 		}
-		let v146, v147;
-		try { const $oroF = fs.openSync(v10, "r"); try { let $oroN = 0; while ($oroN < v50.length) { const $oroK = fs.readSync($oroF, v50, $oroN, v50.length - $oroN, v52 + $oroN); if ($oroK === 0) break; $oroN += $oroK; } v146 = $oroN; } finally { fs.closeSync($oroF); } v147 = null; } catch (e) { v146 = 0; v147 = e; }
-		if ((v147 === null)) {
-			let v149, v150;
-			try { const $oroF = fs.openSync(v12, "r"); try { let $oroN = 0; while ($oroN < v51.length) { const $oroK = fs.readSync($oroF, v51, $oroN, v51.length - $oroN, v52 + $oroN); if ($oroK === 0) break; $oroN += $oroK; } v149 = $oroN; } finally { fs.closeSync($oroF); } v150 = null; } catch (e) { v149 = 0; v150 = e; }
-			if ((v150 === null)) {
-				const v154 = ((v146 < v149) ? v146 : v149);
-				let v161 = 0;
-				for (;; v161 = (v161 + 1)) {
-					if (((v161 >= v154) || ((v161 >= v50.length) || (v161 >= v51.length)))) {
+		let v147, v148;
+		try { const $oroF = fs.openSync(v10, "r"); try { let $oroN = 0; while ($oroN < v50.length) { const $oroK = fs.readSync($oroF, v50, $oroN, v50.length - $oroN, v52 + $oroN); if ($oroK === 0) break; $oroN += $oroK; } v147 = $oroN; } finally { fs.closeSync($oroF); } v148 = null; } catch (e) { v147 = 0; v148 = e; }
+		if ((v148 === null)) {
+			let v150, v151;
+			try { const $oroF = fs.openSync(v12, "r"); try { let $oroN = 0; while ($oroN < v51.length) { const $oroK = fs.readSync($oroF, v51, $oroN, v51.length - $oroN, v52 + $oroN); if ($oroK === 0) break; $oroN += $oroK; } v150 = $oroN; } finally { fs.closeSync($oroF); } v151 = null; } catch (e) { v150 = 0; v151 = e; }
+			if ((v151 === null)) {
+				const v155 = ((v147 < v150) ? v147 : v150);
+				let v162 = 0;
+				for (;; v162 = (v162 + 1)) {
+					if (((v162 >= v155) || ((v162 >= v50.length) || (v162 >= v51.length)))) {
 						break;
 					}
-					if ((v50[v161] === v51[v161])) {
+					if ((v50[v162] === v51[v162])) {
 						continue;
 					}
 					break;
 				}
 				v53 = v52;
-				v52 = (v52 + v146);
-				v54 = v146;
-				v55 = v149;
-				v56 = v161;
+				v52 = (v52 + v147);
+				v54 = v147;
+				v55 = v150;
+				v56 = v162;
 				continue;
 			}
-			if (((v150.code === "ENOENT"))) {
+			if (((v151.code === "ENOENT"))) {
 				console.log(((("cmp: " + v12) + ": ") + "not-found"));
 				v49 = 2;
 				break;
 			}
-			if (((v150.code === "EEXIST"))) {
+			if (((v151.code === "EEXIST"))) {
 				console.log(((("cmp: " + v12) + ": ") + "exists"));
 				v49 = 2;
 				break;
 			}
-			if ((["EACCES", "EPERM"].includes(v150.code))) {
+			if ((["EACCES", "EPERM"].includes(v151.code))) {
 				console.log(((("cmp: " + v12) + ": ") + "permission"));
 				v49 = 2;
 				break;
@@ -108,17 +108,17 @@ export function genMain() {
 			v49 = 2;
 			break;
 		}
-		if (((v147.code === "ENOENT"))) {
+		if (((v148.code === "ENOENT"))) {
 			console.log(((("cmp: " + v10) + ": ") + "not-found"));
 			v49 = 2;
 			break;
 		}
-		if (((v147.code === "EEXIST"))) {
+		if (((v148.code === "EEXIST"))) {
 			console.log(((("cmp: " + v10) + ": ") + "exists"));
 			v49 = 2;
 			break;
 		}
-		if ((["EACCES", "EPERM"].includes(v147.code))) {
+		if ((["EACCES", "EPERM"].includes(v148.code))) {
 			console.log(((("cmp: " + v10) + ": ") + "permission"));
 			v49 = 2;
 			break;

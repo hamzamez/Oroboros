@@ -42,7 +42,7 @@ func TestABitResultOutsideEveryRealizationIsRefused(t *testing.T) {
 // integer, and wrapping it changes the answer: π₈((200 + 100) / 2) is 150, and
 // wrapped (44 / 2) is 22. So each of those is refused, its product unproven.
 func TestFusionStopsAtWhatDoesNotDescend(t *testing.T) {
-	head := "export fn f(a ∈ 0..2^62, b ∈ 0..2^62, c ∈ 1..9) (Int) { "
+	head := "export fn f(a ∈ 0..2^62, b ∈ 0..2^62, c ∈ 1..9) (-2^63..2^63-1) { " // the word (ADR 0147)
 	for _, body := range []string{
 		"(a * b) mod 256",
 		"((a * b + c) ⊕ (a * 3 << 2)) mod 2^32",

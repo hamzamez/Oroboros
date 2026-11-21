@@ -55,7 +55,7 @@ provides java os/host {
     // java.io.FileNotFoundException for a missing file, and the kind was
     // `other` (probes-2026-11-19, cmp). The count is an int: a Java array's
     // length is below 2^31.
-    fn ReadAt(path ∈ String, off ∈ Nat, b ∈ Array(0..255) linear) (n ∈ 0..2^31-1, r ∈ result.Result((), error))
+    fn ReadAt(path ∈ String, off ∈ 0..2^63-1, b ∈ Array(0..255) linear) (n ∈ 0..2^31-1, r ∈ result.Result((), error))
         ensure n <= len(b') && len(b') == len(b) {
         host expr "try (java.nio.channels.FileChannel $oroF = java.nio.channels.FileChannel.open(java.nio.file.Paths.get(${path}), java.nio.file.StandardOpenOption.READ)) { java.nio.ByteBuffer $oroB = java.nio.ByteBuffer.wrap(${b}); int $oroN = 0; while ($oroB.hasRemaining()) { int $oroK = $oroF.read($oroB, ${off} + $oroN); if ($oroK < 0) break; $oroN += $oroK; } ${n} = $oroN; ${r} = null; } catch (Exception $oroE) { ${n} = 0; ${r} = $oroE; }"
     }

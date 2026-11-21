@@ -604,12 +604,15 @@ at all, only what each target provides for it, written beside the library and no
 <!-- part lib/io/go.oro -->
 ```go
 provides go io {
+    use io
     fn print_line(s ∈ String) (String) { host stmt "fmt.Println(${s})" import "fmt" }
 ```
 
 `provides go io { … }` says: *on the target `go`, the module `io` has these.* There is one such
 file for each target `io` supports, and a program that says `io.print_line` gets Go's
-`fmt.Println` on one and `console.log` on another, having named neither.
+`fmt.Println` on one and `console.log` on another, having named neither. A name provided this
+way may also be a definition over the others, which is what `use io` inside the block is for:
+`io.print_int` is defined there as `io.print_line` of the integer's text.
 
 ---
 

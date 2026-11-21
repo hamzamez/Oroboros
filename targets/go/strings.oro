@@ -134,13 +134,13 @@ module go/strings {
     fn Split(s ∈ bytestring, sep ∈ bytestring) (Array(bytestring)) pure {
         host expr "strings.Split(${s}, ${sep})" import "strings"
     }
-    fn SplitN(s ∈ bytestring, sep ∈ bytestring, n ∈ Int) (Array(bytestring)) pure {
+    fn SplitN(s ∈ bytestring, sep ∈ bytestring, n ∈ Word) (Array(bytestring)) pure {
         host expr "strings.SplitN(${s}, ${sep}, ${n})" import "strings"
     }
     fn SplitAfter(s ∈ bytestring, sep ∈ bytestring) (Array(bytestring)) pure {
         host expr "strings.SplitAfter(${s}, ${sep})" import "strings"
     }
-    fn SplitAfterN(s ∈ bytestring, sep ∈ bytestring, n ∈ Int) (Array(bytestring)) pure {
+    fn SplitAfterN(s ∈ bytestring, sep ∈ bytestring, n ∈ Word) (Array(bytestring)) pure {
         host expr "strings.SplitAfterN(${s}, ${sep}, ${n})" import "strings"
     }
     fn Fields(s ∈ bytestring) (Array(bytestring)) pure {
@@ -215,11 +215,11 @@ module go/strings {
     // Repeat panics on a negative count, which is a precondition; it also panics
     // when |s|·count overflows an int, which is a product of two variables and
     // outside the linear fragment, so that half is named here and not checked.
-    fn Repeat(s ∈ bytestring, count ∈ Int) (bytestring) pure
+    fn Repeat(s ∈ bytestring, count ∈ Word) (bytestring) pure
         where count >= 0 {
         host expr "strings.Repeat(${s}, ${count})" import "strings"
     }
-    fn Replace(s ∈ bytestring, old ∈ bytestring, new ∈ bytestring, n ∈ Int) (bytestring) pure {
+    fn Replace(s ∈ bytestring, old ∈ bytestring, new ∈ bytestring, n ∈ Word) (bytestring) pure {
         host expr "strings.Replace(${s}, ${old}, ${new}, ${n})" import "strings"
     }
     fn ReplaceAll(s ∈ bytestring, old ∈ bytestring, new ∈ bytestring) (bytestring) pure {
@@ -245,7 +245,7 @@ module go/strings {
         fn Len(self ∈ Builder) (0..2^63-1) { host expr "${self}.Len()" import "strings" }
         fn Cap(self ∈ Builder) (0..2^63-1) { host expr "${self}.Cap()" import "strings" }
         // Grow panics on a negative n.
-        fn Grow(self ∈ Builder, n ∈ Int) (Builder)
+        fn Grow(self ∈ Builder, n ∈ Word) (Builder)
             where n >= 0 {
             host stmt "${self}.Grow(${n})" import "strings"
         }
@@ -314,7 +314,7 @@ module go/strings {
         // whence is io.SeekStart, SeekCurrent or SeekEnd; anything else is an
         // error the host returns, not a panic, so no precondition.
         fn Seek(self ∈ Reader, offset ∈ -2^63..2^63-1,
-            whence ∈ Int) (result.result(-2^63..2^63-1, error)) {
+            whence ∈ Word) (result.result(-2^63..2^63-1, error)) {
             host expr "${self}.Seek(int64(${offset}), ${whence})" import "strings"
         }
         fn WriteTo(self ∈ Reader, w ∈ `go/io`.Writer) (-2^63..2^63-1 × result.result((), error)) {

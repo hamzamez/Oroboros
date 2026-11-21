@@ -4,6 +4,7 @@ package gauntlet
 
 import "fmt"
 import "os"
+import "strconv"
 import "unicode/utf8"
 
 func GenMain() int {
@@ -27,148 +28,149 @@ func GenMain() int {
 			v27 := (func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }(os.Getenv("ORO_ROUNDTRIP")))
 			fmt.Println(v27)
 			v29 := len(v21)
-			fmt.Println(v29)
-			v33 := make([]byte, 4)
-			var v32 int
-			v35h, v36 := func() (int, error) { f, err := os.Open(v10); if err != nil { return 0, err }; defer f.Close(); fi, err := f.Stat(); if err != nil { return 0, err }; m := int64(len(v33)); if rest := fi.Size() - int64(3); rest < m { m = max(rest, 0) }; return f.ReadAt(v33[:m], int64(3)) }()
-			v35 := int(v35h)
-			v37 := (v36 == nil)
-			if v37 {
-				v40 := (v35 % 10)
-				v41 := (48 + v40)
-				v42 := (string(rune(v41)))
-				v44 := (v42 + " ")
-				v47 := int(v33[0])
-				v49 := (v47 / 100)
-				v50 := (48 + v49)
-				v51 := (string(rune(v50)))
-				v52 := (v44 + v51)
-				v55 := int(v33[0])
-				v57 := (v55 / 10)
-				v59 := (v57 % 10)
-				v60 := (48 + v59)
-				v61 := (string(rune(v60)))
-				v62 := (v52 + v61)
-				v65 := int(v33[0])
-				v67 := (v65 % 10)
-				v68 := (48 + v67)
-				v69 := (string(rune(v68)))
-				v70 := (v62 + v69)
-				fmt.Println(v70)
-				v73 := (v10 + ".missing")
-				_, v75 := os.ReadFile(v73)
-				v76 := (v75 == nil)
-				var v77 string
-				if v76 {
-					v77 = "found"
+			v30 := (strconv.Itoa(v29))
+			fmt.Println(v30)
+			v34 := make([]byte, 4)
+			var v33 int
+			v36h, v37 := func() (int, error) { f, err := os.Open(v10); if err != nil { return 0, err }; defer f.Close(); fi, err := f.Stat(); if err != nil { return 0, err }; m := int64(len(v34)); if rest := fi.Size() - int64(3); rest < m { m = max(rest, 0) }; return f.ReadAt(v34[:m], int64(3)) }()
+			v36 := int(v36h)
+			v38 := (v37 == nil)
+			if v38 {
+				v41 := (v36 % 10)
+				v42 := (48 + v41)
+				v43 := (string(rune(v42)))
+				v45 := (v43 + " ")
+				v48 := int(v34[0])
+				v50 := (v48 / 100)
+				v51 := (48 + v50)
+				v52 := (string(rune(v51)))
+				v53 := (v45 + v52)
+				v56 := int(v34[0])
+				v58 := (v56 / 10)
+				v60 := (v58 % 10)
+				v61 := (48 + v60)
+				v62 := (string(rune(v61)))
+				v63 := (v53 + v62)
+				v66 := int(v34[0])
+				v68 := (v66 % 10)
+				v69 := (48 + v68)
+				v70 := (string(rune(v69)))
+				v71 := (v63 + v70)
+				fmt.Println(v71)
+				v74 := (v10 + ".missing")
+				_, v76 := os.ReadFile(v74)
+				v77 := (v76 == nil)
+				var v78 string
+				if v77 {
+					v78 = "found"
 				} else {
-					v79 := (os.IsNotExist(v75))
-					if v79 {
-						v77 = "not-found"
+					v80 := (os.IsNotExist(v76))
+					if v80 {
+						v78 = "not-found"
 					} else {
-						v81 := (os.IsExist(v75))
-						if v81 {
-							v77 = "exists"
+						v82 := (os.IsExist(v76))
+						if v82 {
+							v78 = "exists"
 						} else {
-							v83 := (os.IsPermission(v75))
-							if v83 {
-								v77 = "permission"
+							v84 := (os.IsPermission(v76))
+							if v84 {
+								v78 = "permission"
 							} else {
-								v77 = "other"
+								v78 = "other"
 							}
 						}
 					}
 				}
-				fmt.Println(v77)
-				v32 = 0
+				fmt.Println(v78)
+				v33 = 0
 			} else {
-				v88 := (os.IsNotExist(v36))
-				var v89 string
-				if v88 {
-					v89 = "not-found"
+				v89 := (os.IsNotExist(v37))
+				var v90 string
+				if v89 {
+					v90 = "not-found"
 				} else {
-					v91 := (os.IsExist(v36))
-					if v91 {
-						v89 = "exists"
+					v92 := (os.IsExist(v37))
+					if v92 {
+						v90 = "exists"
 					} else {
-						v93 := (os.IsPermission(v36))
-						if v93 {
-							v89 = "permission"
+						v94 := (os.IsPermission(v37))
+						if v94 {
+							v90 = "permission"
 						} else {
-							v89 = "other"
+							v90 = "other"
 						}
 					}
 				}
-				fmt.Println(v89)
-				v98 := (v10 + ".missing")
-				_, v100 := os.ReadFile(v98)
-				v101 := (v100 == nil)
-				var v102 string
-				if v101 {
-					v102 = "found"
+				fmt.Println(v90)
+				v99 := (v10 + ".missing")
+				_, v101 := os.ReadFile(v99)
+				v102 := (v101 == nil)
+				var v103 string
+				if v102 {
+					v103 = "found"
 				} else {
-					v104 := (os.IsNotExist(v100))
-					if v104 {
-						v102 = "not-found"
+					v105 := (os.IsNotExist(v101))
+					if v105 {
+						v103 = "not-found"
 					} else {
-						v106 := (os.IsExist(v100))
-						if v106 {
-							v102 = "exists"
+						v107 := (os.IsExist(v101))
+						if v107 {
+							v103 = "exists"
 						} else {
-							v108 := (os.IsPermission(v100))
-							if v108 {
-								v102 = "permission"
+							v109 := (os.IsPermission(v101))
+							if v109 {
+								v103 = "permission"
 							} else {
-								v102 = "other"
+								v103 = "other"
 							}
 						}
 					}
 				}
-				fmt.Println(v102)
-				v32 = 0
+				fmt.Println(v103)
+				v33 = 0
 			}
-			return v32
+			return v33
 		}
-		v114 := (os.IsNotExist(v22))
-		var v115 string
-		if v114 {
-			v115 = "not-found"
+		v115 := (os.IsNotExist(v22))
+		var v116 string
+		if v115 {
+			v116 = "not-found"
 		} else {
-			v117 := (os.IsExist(v22))
-			if v117 {
-				v115 = "exists"
+			v118 := (os.IsExist(v22))
+			if v118 {
+				v116 = "exists"
 			} else {
-				v119 := (os.IsPermission(v22))
-				if v119 {
-					v115 = "permission"
+				v120 := (os.IsPermission(v22))
+				if v120 {
+					v116 = "permission"
 				} else {
-					v115 = "other"
+					v116 = "other"
 				}
 			}
 		}
-		v122 := ("roundtrip: cannot read that file: " + v115)
-		fmt.Println(v122)
+		v123 := ("roundtrip: cannot read that file: " + v116)
+		fmt.Println(v123)
 		return 1
 	}
-	v126 := (os.IsNotExist(v19))
-	var v127 string
-	if v126 {
-		v127 = "not-found"
+	v127 := (os.IsNotExist(v19))
+	var v128 string
+	if v127 {
+		v128 = "not-found"
 	} else {
-		v129 := (os.IsExist(v19))
-		if v129 {
-			v127 = "exists"
+		v130 := (os.IsExist(v19))
+		if v130 {
+			v128 = "exists"
 		} else {
-			v131 := (os.IsPermission(v19))
-			if v131 {
-				v127 = "permission"
+			v132 := (os.IsPermission(v19))
+			if v132 {
+				v128 = "permission"
 			} else {
-				v127 = "other"
+				v128 = "other"
 			}
 		}
 	}
-	v134 := ("roundtrip: cannot write that file: " + v127)
-	fmt.Println(v134)
+	v135 := ("roundtrip: cannot write that file: " + v128)
+	fmt.Println(v135)
 	return 1
 }
 

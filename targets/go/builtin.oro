@@ -49,6 +49,10 @@ repr shift 63
 repr wrap 64
 
 module go {
+    // THE HOST'S WORD, the set a declaration of this host writes where its host
+    // type is the word (integers-boundary §5): `Int` is ℤ, and no host
+    // function takes all of it
+    set Word = -2^63..2^63-1
     // ---- integer arithmetic. The plain operators, and the CHECKED forms a
     // declared range selects when the compiler cannot prove the result stays in
     // the word. Go has no overflow intrinsic; each check is a func literal called
@@ -56,13 +60,13 @@ module go {
     fn `+`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} + ${b}" checked add_exact }
     fn `-`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} - ${b}" checked sub_exact }
     fn `*`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} * ${b}" checked mul_exact }
-    fn add_exact(a ∈ Int, b ∈ Int) (Int) pure {
+    fn add_exact(a ∈ Word, b ∈ Word) (Word) pure {
         host expr "func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic(\"int overflow\") }; return t }(${a}, ${b})"
     }
-    fn sub_exact(a ∈ Int, b ∈ Int) (Int) pure {
+    fn sub_exact(a ∈ Word, b ∈ Word) (Word) pure {
         host expr "func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic(\"int overflow\") }; return t }(${a}, ${b})"
     }
-    fn mul_exact(a ∈ Int, b ∈ Int) (Int) pure {
+    fn mul_exact(a ∈ Word, b ∈ Word) (Word) pure {
         host expr "func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic(\"int overflow\") }; return t }(${a}, ${b})"
     }
     // A zero divisor is a precondition, not a behaviour (integers.md §5): Go
@@ -71,7 +75,7 @@ module go {
     // THE CHECKED QUOTIENT: ℤ's a / b leaves the word only at −2⁶³ / −1, where Go
     // answers −2⁶³. −2⁶³ is the one nonzero x with x = −x in two's complement,
     // so the test names no constant.
-    fn div_exact(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) {
+    fn div_exact(a ∈ Word, b ∈ Word) (Word) pure where `!=`(b, 0) {
         host expr "func(a, b int) int { if b == -1 && a != 0 && a == -a { panic(\"int overflow\") }; return a / b }(${a}, ${b})"
     }
     fn `%`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} % ${b}" }
@@ -89,7 +93,7 @@ module go {
     // is in W. For b < 64, t = a << b ≡ a·2ᵇ (mod 2⁶⁴), and t >> b = a puts t in
     // [a·2ᵇ, a·2ᵇ + 2ᵇ), so |t − a·2ᵇ| < 2⁶⁴ and t = a·2ᵇ; the converse is the
     // floor of an exact product.
-    fn shl_exact(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 {
+    fn shl_exact(a ∈ Word, b ∈ Word) (Word) pure where b >= 0 {
         host expr "func(a, b int) int { t := a << b; if t>>b != a { panic(\"int overflow\") }; return t }(${a}, ${b})"
     }
 
@@ -101,7 +105,7 @@ module go {
     // as unary `^`, and has no Euclidean remainder: r + m on a negative r lies
     // in (0, m), so it does not overflow.
     fn `~`(a ∈ Int) (Int) pure { host expr "^${a}" }
-    fn emod(a ∈ Int, m ∈ Int) (Int) pure where m > 0 {
+    fn emod(a ∈ Word, m ∈ Word) (Word) pure where m > 0 {
         host expr "func(a, m int) int { r := a % m; if r < 0 { r += m }; return r }(${a}, ${m})"
     }
 
@@ -151,10 +155,10 @@ module go {
     // ---- predeclared functions. len and cap take any Go value they apply to
     // (a slice, a string's bytes, a map's keys); min and max are Go's generic
     // builtins at int, their restriction to one type.
-    fn len(v ∈ Any) (Int) pure { host expr "len(${v})" }
-    fn cap(v ∈ Any) (Int) pure { host expr "cap(${v})" }
-    fn min(a ∈ Int, b ∈ Int) (Int) pure { host expr "min(${a}, ${b})" }
-    fn max(a ∈ Int, b ∈ Int) (Int) pure { host expr "max(${a}, ${b})" }
+    fn len(v ∈ Any) (Word) pure { host expr "len(${v})" }
+    fn cap(v ∈ Any) (Word) pure { host expr "cap(${v})" }
+    fn min(a ∈ Word, b ∈ Word) (Word) pure { host expr "min(${a}, ${b})" }
+    fn max(a ∈ Word, b ∈ Word) (Word) pure { host expr "max(${a}, ${b})" }
     fn panic(v ∈ Any) (Any) { host stmt "panic(${v})" }
     fn print(v ∈ Any) (Any) { host stmt "print(${v})" }
     fn println(v ∈ Any) (Any) { host stmt "println(${v})" }
@@ -162,8 +166,8 @@ module go {
     // ---- map[string]int, a host map (the header). Mutated in place; every
     // read is impure so that no store is reordered past one.
     fn make_map() (map_string_int) { host expr "make(map[string]int)" }
-    fn at_map(m ∈ map_string_int, k ∈ bytestring) (Int) { host expr "${m}[${k}]" }
-    fn set_map(m ∈ map_string_int, k ∈ bytestring, v ∈ Int) (map_string_int) {
+    fn at_map(m ∈ map_string_int, k ∈ bytestring) (Word) { host expr "${m}[${k}]" }
+    fn set_map(m ∈ map_string_int, k ∈ bytestring, v ∈ Word) (map_string_int) {
         host stmt "${m}[${k}] = ${v}"
     }
     // Go's fused increment: one mapassign where `m[k] = m[k] + 1` hashes twice,
@@ -178,8 +182,8 @@ module go {
     // zero, and outside int's range or at NaN it is implementation-defined in
     // Go; floats are outside the decided fragment, so that domain is named here
     // and not checked.
-    fn int_of_float64(x ∈ F64) (Int) pure { host expr "int(${x})" }
-    fn float64_of_int(n ∈ Int) (F64) pure { host expr "float64(${n})" }
+    fn int_of_float64(x ∈ F64) (Word) pure { host expr "int(${x})" }
+    fn float64_of_int(n ∈ Word) (F64) pure { host expr "float64(${n})" }
 
     // ---- the host's string (ADR 0030). string ≤ bytestring is declared in
     // go.oro as `(implements string go.bytestring)`, the identity on bytes.
@@ -220,7 +224,7 @@ module go {
     // the hosts disagree observably — Go gives U+FFFD, JavaScript a lone
     // surrogate or a RangeError, Java an exception or a lone char — so the
     // language's operation states one domain on every target.
-    fn string_of(c ∈ Int) (String) pure
+    fn string_of(c ∈ Word) (String) pure
         where c >= 0 && c <= 1114111 && (c <= 55295 || c >= 57344) {
         host expr "string(rune(${c}))"
     }

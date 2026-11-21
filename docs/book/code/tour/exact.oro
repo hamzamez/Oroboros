@@ -1,3 +1,11 @@
+use io
+
 export fn exact() (Bool) { 0.1 + 0.2 == 0.3 }
 
 export fn tax(cents ∈ 0..10^9) (Int) { round(Int, cents * 0.0825, 'half_away) }
+
+export fn main() {
+    io.print_line(if exact() { "exact" } else { "not exact" })
+    io.print_int(tax(1999))
+    io.print_int(tax(1000))
+}

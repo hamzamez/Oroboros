@@ -4,6 +4,7 @@ package gauntlet
 
 import "fmt"
 import "slices"
+import "strconv"
 
 func GenMain() int {
 	var v19c int
@@ -13,50 +14,54 @@ func GenMain() int {
 	v19 := &v19c
 	v20 := func(v21 int, v22 int) bool {
 		v23 := *v19
-		fmt.Println(v21)
-		fmt.Println(v22)
-		v27 := (v23 < 1000000)
-		var v28 int
-		if v27 {
-			v31 := (v23 + 1)
-			v28 = v31
+		v24 := (strconv.Itoa(v21))
+		fmt.Println(v24)
+		v26 := (strconv.Itoa(v22))
+		fmt.Println(v26)
+		v29 := (v23 < 1000000)
+		var v30 int
+		if v29 {
+			v33 := (v23 + 1)
+			v30 = v33
 		} else {
-			v28 = v23
+			v30 = v23
 		}
-		*v19 = v28
-		v34 := (v21 == v22)
-		return v34
+		*v19 = v30
+		v36 := (v21 == v22)
+		return v36
 	}
-	v35 := (slices.EqualFunc(v8, v17, v20))
-	v36 := *v19
-	var v37 string
-	if v35 {
-		v37 = "equal"
+	v37 := (slices.EqualFunc(v8, v17, v20))
+	v38 := *v19
+	var v39 string
+	if v37 {
+		v39 = "equal"
 	} else {
-		v37 = "different"
+		v39 = "different"
 	}
-	fmt.Println(v37)
-	fmt.Println(v36)
-	var v44 int = 0
-	for ; ; v44 = (v44 + 1) {
-		v45 := len(v8)
-		v46 := (v44 < v45)
-		v47 := (v46 && (v8[v44] == v17[v44]))
-		if v47 {
+	fmt.Println(v39)
+	v43 := (strconv.Itoa(v38))
+	fmt.Println(v43)
+	var v47 int = 0
+	for ; ; v47 = (v47 + 1) {
+		v48 := len(v8)
+		v49 := (v47 < v48)
+		v50 := (v49 && (v8[v47] == v17[v47]))
+		if v50 {
 			continue
 		}
 		break
 	}
-	v58 := len(v8)
-	v59 := (v44 < v58)
-	var v60 int
-	if v59 {
-		v64 := (v44 + 1)
-		v60 = v64
+	v61 := len(v8)
+	v62 := (v47 < v61)
+	var v63 int
+	if v62 {
+		v67 := (v47 + 1)
+		v63 = v67
 	} else {
-		v60 = v44
+		v63 = v47
 	}
-	fmt.Println(v60)
-	return v60
+	v70 := (strconv.Itoa(v63))
+	fmt.Println(v70)
+	return v63
 }
 

@@ -6,12 +6,14 @@ public final class examples_logic_sorted.java {
 	public static long genMain() {
 		final byte[] v4 = new byte[]{1, 3, 5, 8};
 		final int v6 = v4[0];
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v6 + "\n");
-		final int v8 = v4.length;
-		final int v10 = (v8 - 1);
-		final int v11 = v4[v10];
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v11 + "\n");
-		return v11;
+		final String v7 = (Long.toString(v6));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v7 + "\n");
+		final int v9 = v4.length;
+		final int v11 = (v9 - 1);
+		final int v12 = v4[v11];
+		final String v13 = (Long.toString(v12));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v13 + "\n");
+		return v12;
 	}
 
 }

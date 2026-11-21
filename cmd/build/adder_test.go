@@ -14,7 +14,7 @@ import (
 // c ≠ 0, so the premise is c ∈ {0, 1}. Here the third leaf is in [0, 2]: t =
 // (2⁶⁴ − 1) + i + c with c = i mod 3, read by t & (2⁶⁴ − 1) and t >> 64, so it
 // must stay in the double word. The program sums the low halves mod 7 and
-// the carries, mod 1000. (Printed by print_int: big_str demands an exact
+// the carries, mod 1000. (Printed by print_int: decimal demands an exact
 // integer, and the rung above the word is chosen before the double word.)
 const adderSrc = "use win/print\n" +
 	"\n" +
@@ -74,7 +74,7 @@ func TestTheFullAdderNeedsItsCarryInZeroOne(t *testing.T) {
 		t.Errorf("with a carry of 2 read as 1 the answer is still %s: the witness cannot fail", want)
 	}
 	const fib = "use win/print\n\n" +
-		"fn run(n) { big_str(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }) }\n\n" +
+		"fn run(n) { decimal(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }) }\n\n" +
 		"export fn main() { print.print_str(run(300)) }\n"
 	out, err = buildAndRun(t, fib, "windows", "")
 	if err != nil || strings.TrimSpace(out) != "222232244629420445529739893461909967206666939096499764990979600" {

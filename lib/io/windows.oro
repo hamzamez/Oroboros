@@ -28,6 +28,11 @@ provides win32 io {
         s
     }
 
+    // PRINT_INT IS OVER ℤ (integers-boundary §3), and on this layer it is
+    // win/print's: inside the words its field written straight to the handle,
+    // one function the compiler keeps (ADR 0113), and above them `decimal`.
+    // print_line(decimal(n)) is the same text, `decimal` of a word being
+    // llvm/lang's render, a realization copied into every call.
     fn print_int(n ∈ Int) (Int) {
         ignore(print.print_int(n))
         n

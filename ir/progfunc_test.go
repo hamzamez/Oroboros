@@ -83,7 +83,7 @@ func TestACallsArgumentsAreInItsParametersSets(t *testing.T) {
 // released.
 func TestACallsResultIsReleasedByItsCaller(t *testing.T) {
 	const src = "export fn f(n ∈ 0..100) (String) {\n" +
-		"    big_str(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) })\n}\n"
+		"    decimal(loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) })\n}\n"
 	count := func() int {
 		emit.ResetImports()
 		tg, err := emit.LoadTargetLayers("windows", []string{"../targets"}, []string{"../lib"})

@@ -140,7 +140,7 @@ d2 = array { 123, 34, 97, 34, 58, 49 }
 // ]                              1 token, a closer with nothing open
 d3 = array { 93 }
 
-export fn run(k ∈ Int) (Int) {
+export fn run(k ∈ 0..2^31-1) (Int) {
     case {
         k == 0 -> tokens(d0)
         k == 1 -> tokens(d1)

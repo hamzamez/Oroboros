@@ -19,7 +19,8 @@ func GenMain() int {
 		v9 := v0[1]
 		v4 = v9
 	}
-	v10, v11 := strconv.Atoi(v4)
+	v10h, v11 := strconv.Atoi(v4)
+	v10 := int(v10h)
 	v14 := (v11 == nil)
 	v15 := (v14 && ((v10 >= 1) && (v10 <= 65536)))
 	var v24 int

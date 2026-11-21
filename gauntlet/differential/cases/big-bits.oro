@@ -41,4 +41,4 @@ export fn calc(n ∈ 0..21) (0 - pow(2, 300)..2^300) {
     }
 }
 
-fn run(n) { big_str(calc(n)) }
+fn run(n) { decimal(calc(n)) }

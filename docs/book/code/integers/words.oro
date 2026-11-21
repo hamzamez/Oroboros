@@ -1,3 +1,5 @@
 export fn small(n ∈ 0..2^26) (Int) { n * n }
 
 export fn third(n ∈ 0..2^60) (Int) { n / 3 }
+
+export fn next(n ∈ Int) (Int) { n + 1 }

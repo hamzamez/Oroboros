@@ -1,3 +1,3 @@
 fn clamp(n, lo, hi) { case { n < lo -> lo; n > hi -> hi; else -> n } }
 
-export fn squared(n ∈ Int) (0..10^6) { c = clamp(n, 0, 1000); c * c }
+export fn squared(n ∈ -2^63..2^63-1) (0..10^6) { c = clamp(n, 0, 1000); c * c }

@@ -53,7 +53,7 @@ fn gcd(a0 ∈ Nat, b0 ∈ Nat) (Nat) {
 export fn run(m ∈ 1..1000, n ∈ 1..1000) (Nat) { gcd(fib(m), fib(n)) }
 
 export fn main() {
-    io.print_line(big_str(run(300, 200)))
-    io.print_line(big_str(run(1000, 750)))
-    io.print_line(big_str(run(97, 89)))
+    io.print_line(decimal(run(300, 200)))
+    io.print_line(decimal(run(1000, 750)))
+    io.print_line(decimal(run(97, 89)))
 }

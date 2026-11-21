@@ -29,6 +29,7 @@
 // it is evaluated once. callbacks.md tier 1 — the lambda never becomes a value in
 // our residual, the host closes over it, and C2 inlines it.
 provides java io {
+    use io
     fn print_line(s ∈ String) (String) {
         host stmt "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(${s} + \"\\n\")" import "java.nio.charset.StandardCharsets"
     }
@@ -41,7 +42,11 @@ provides java io {
     // `%s + "\n"` on a `long` is `String.valueOf(long)` and a concatenation. The
     // digits are ASCII whatever the charset, so this one could have gone through
     // `print`; it does not, because two paths to one stream is the hazard above.
+    // PRINT_INT IS OVER ℤ (integers-boundary §3): its line is the integer's
+    // decimal numeral, one function, realized by the value's representation:
+    // the host's own formatting in the word, its integer of any size above it.
     fn print_int(n ∈ Int) (Int) {
-        host stmt "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(${n} + \"\\n\")" import "java.nio.charset.StandardCharsets"
+        ignore(io.print_line(decimal(n)))
+        n
     }
 }

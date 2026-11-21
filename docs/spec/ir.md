@@ -851,7 +851,7 @@ its binder's frame, and `openFresh` is not called.
 | `(keys m)`, `(set b i x)`, `(insert m k x)` | the operation of the same name |
 | `(the τ e)` | `(the τ e)` |
 | a contract mark (ADR 0028) | `(require c)` |
-| an export's `where` | `(do (assume c))` at the function's entry: at an export the precondition is assumed, because its callers are outside the program (ADR 0028). Not lowered when a representation pass moved a parameter it names above the word (`big`, `u64`), since the source's term would no longer mean what it says; dropping an assumption is always sound |
+| an export's `where` | `(do (assume c))` at the function's entry: at an export the precondition is assumed, because its callers are outside the program (ADR 0028). A conjunct naming a parameter a representation pass moved above the word (`big`, `u64`) is not lowered, since the source's term would no longer mean what it says, and the rest are (ADR 0147: `x ∈ Int` is a big integer at the entry, and `len(t) <= 10^9` beside it still holds); dropping an assumption is always sound |
 
 **Anything else is a compile error that names the term.** The IR has no opaque operation. P1's
 prototype counted opaque terms and found none on four programs, and the specification makes zero the

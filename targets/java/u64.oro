@@ -25,8 +25,8 @@ module java {
     fn `u64>`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(Long.compareUnsigned(${a}, ${b}) > 0)" }
     fn `u64>=`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(Long.compareUnsigned(${a}, ${b}) >= 0)" }
     fn `u64=`(a ∈ u64, b ∈ u64) (Bool) pure { host expr "(${a} == ${b})" }
-    fn u64_of(x ∈ Int) (u64) pure { host expr "((long) ${x})" }
-    fn int_of_u64(x ∈ u64) (Int) pure { host expr "${x}" }
+    fn u64_of(x ∈ Word) (u64) pure { host expr "((long) ${x})" }
+    fn int_of_u64(x ∈ u64) (Word) pure { host expr "${x}" }
     // ⌊a/2ᵏ⌋ on U is the logical shift; Java masks the count by 63, and a
     // count of 64 or more leaves 0.
     fn `u64>>`(a ∈ u64, b ∈ Int) (u64) pure where b >= 0 { host expr "(${b} >= 64 ? 0L : ${a} >>> ${b})" }

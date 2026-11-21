@@ -37,6 +37,6 @@ export fn run(n ∈ 0..5000, mersenne ∈ Bool) (Nat) {
 }
 
 export fn main() {
-    io.print_line(big_str(run(1000, false)))
-    io.print_line(big_str(run(4423, true)))
+    io.print_line(decimal(run(1000, false)))
+    io.print_line(decimal(run(4423, true)))
 }

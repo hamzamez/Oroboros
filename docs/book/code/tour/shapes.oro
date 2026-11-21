@@ -1,11 +1,11 @@
 pub set Shape = 'circle(Int) ∪ 'square(Int) ∪ 'point
 
+fn sq(n) { n * n }
+
 pub fn area(s) {
     case s {
-        'circle(r) -> 3 * r * r
-        'square(w) -> w * w
+        'circle(r) -> 3 * sq(r)
+        'square(w) -> sq(w)
         'point     -> 0
     }
 }
-
-fn helper(n) { n + 1 }

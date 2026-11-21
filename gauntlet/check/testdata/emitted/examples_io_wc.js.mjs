@@ -17,7 +17,7 @@ export function genMain() {
 		let v26 = 0;
 		for (;; v25 = (v25 + 1)) {
 			if ((v25 >= v11.length)) {
-				console.log(v26);
+				console.log((String(v26)));
 				break;
 			}
 			v26 = ((v11[v25] === 10) ? (v26 + 1) : v26);

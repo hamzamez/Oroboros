@@ -151,11 +151,11 @@ module go/os {
     // a loop computes (examples/os/wc.oro). It does not return; a statement's
     // value is its argument.
     fn Args() (Array(bytestring)) { host expr "os.Args" import "os" }
-    fn Exit(code ∈ Int) (Int)
+    fn Exit(code ∈ Word) (Word)
         where code >= 0 && code <= 255 {
         host stmt "os.Exit(${code})" import "os"
     }
-    fn Getpid() (Int) { host expr "os.Getpid()" import "os" }
+    fn Getpid() (Word) { host expr "os.Getpid()" import "os" }
     fn Hostname() (result.result(bytestring, error)) { host expr "os.Hostname()" import "os" }
     fn Executable() (result.result(bytestring, error)) { host expr "os.Executable()" import "os" }
 

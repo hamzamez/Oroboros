@@ -878,9 +878,33 @@ func (r *refiner) ensuresOf(call *core.Term, result *core.Term, f *facts) *core.
 			return nil
 		}
 	}
+	// AND THE BOUNDS MOVED OUT OF IT (whereBounds, ADR 0075): a constant bound
+	// is a range obligation now, no conjunct of `where`, and Lemma 1 holds of it
+	// as of the rest. Unread, EncodedLen's `ensure r == 2 * n` with its result
+	// in the word proved its own n <= 2^62 - 1 (TestAGuaranteeNeedsItsPrecondition,
+	// once the result was declared go.Word, ADR 0147)
+	if !PlantBoundsUnproven {
+		for i, b := range p.Bounds {
+			if b == "" || i >= len(call.Args()) {
+				continue
+			}
+			lo, hi, haveLo, haveHi := core.RangeBounds(b)
+			e, ok := f.lin(core.StripRequires(call.Args()[i]))
+			if strings.Contains(b, "|") || !ok ||
+				haveLo && !f.entails(constant(lo).addScaled(e, -1)) ||
+				haveHi && !f.entails(e.addScaled(constant(hi), -1)) {
+				return nil
+			}
+		}
+	}
 	q := r.ensured(p, call.Args(), result, proven)
 	return q
 }
+
+// PlantBoundsUnproven assumes a host call's postcondition without its moved
+// bounds, as before: EncodedLen's ensure then proves its own precondition
+// (TestAGuaranteeNeedsItsPrecondition).
+var PlantBoundsUnproven bool
 
 // componentEnsures is the postcondition of a call with several results, its
 // components named by the continuation's binders, or nil: ensuresOf for a tuple.

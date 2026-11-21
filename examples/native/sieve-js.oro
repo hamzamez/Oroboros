@@ -6,7 +6,7 @@ use js/String
 fn cross(c, i, n) {
     loop j = js.`*`(i, i) { js.`<`(j, n) -> { js.set(c, j, true); again(js.`+`(j, i)) }; else -> c }
 }
-export fn sieve_count(n ∈ Int) (Int) {
+export fn sieve_count(n ∈ -9007199254740991..2^53-1) (Int) {
     c = js.ArrayFill(n, false)
     done = loop i = 2 {
         js.`>=`(js.`*`(i, i), n) -> c

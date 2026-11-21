@@ -172,6 +172,13 @@ ADR 0019's rung above the word, chosen on the IR (ADR 0034, 0035). What decides 
   parameter when the definition is checked alone at its claim (ADR 0072). Inlined, a definition's
   parameter is its argument's fact.
 - **A result that claims nothing** (ADR 0062 item 8) is held as its yields are: exactly when one is.
+- **`Int` is ℤ at an entry point too** (ADR 0147, built 2026-11-21): an export's `Int` parameter is
+  ρ of its set and its `where`'s bounds (by constants, by a table's length, and through another
+  parameter), the word where they bound it inside the word and otherwise the host's integer of any
+  size; windows, whose callers are C's, refuses an unbounded one. A result declared `Int` demands
+  each yield whose own fact leaves S, so it is held as its values are. **The consent** above is then
+  any consumer whose set is ℤ: `Int`, a range above the word, `decimal`, which prints. A table's
+  element and a map's value are words by storage.
 - **A value held above the word comes back into it where its fact is inside the word** (ADR 0079
   item 4; built 2026-11-15, [chapters56-2026-11-15](../../gauntlet/results/chapters56-2026-11-15.md)):
   at a word position, a value whose proven fact is in S is r(v), `big-word`, the retraction ℤ ⇀ S that
@@ -188,6 +195,8 @@ ADR 0019's rung above the word, chosen on the IR (ADR 0034, 0035). What decides 
 | `export fn e(n ∈ Nat) (Nat) { inc(n) }` | the host's bignum: `func GenE(v0 *big.Int) *big.Int` |
 | `fn grow(n ∈ Nat) (Nat) { n * n }` used on `x ∈ 0..2^40` | exact, consented by grow's claim |
 | `export fn h(x ∈ 0..2^40) { x * x }` | refused: no claim above the word |
+| `export fn h(x ∈ 0..2^40) (Int) { x * x }` | exact: a result in ℤ, `func GenH(v0 int) *big.Int` |
+| `export fn s(n ∈ Int) (Int) { n * n }` | the host's bignum: `func GenS(v0 *big.Int) *big.Int` (ADR 0147) |
 
 ## 1b. Above the word on fixed limbs: magnitudes, and the group completion over them
 
@@ -240,7 +249,7 @@ result by writing [0, len t) at its counter, the header last, so a result is bor
 where ADR 0087 decides it at the definition. What is checked at run time is the machine's: a numeral
 is held while its table fits, len t ≤ max_len, and a capacity past it is a crash, never a numeral cut
 short. A bounded set keeps the fixed limbs (§1b), and moves to K(ℕ\*) whole when it uses an operation
-they lack, its set enforced by sign and bit length (ADR 0029). `big-str`'s argument is demanded on every target,
+they lack, its set enforced by sign and bit length (ADR 0029). `decimal`'s argument is demanded on every target,
 since render is ℤ's; a word value still renders in the word where the target has no bignum.
 
 ## 2. Overflow

@@ -17,25 +17,25 @@ export function genMain() {
 			process.stdout.write((new TextDecoder().decode(Uint8Array.from(v21))));
 			const v27 = ((process.env["ORO_ROUNDTRIP"] ?? ""));
 			console.log(v27);
-			console.log(v21.length);
-			const v33 = new Uint8Array(4);
-			let v32;
-			let v35, v36;
-			try { const $oroF = fs.openSync(v10, "r"); try { let $oroN = 0; while ($oroN < v33.length) { const $oroK = fs.readSync($oroF, v33, $oroN, v33.length - $oroN, 3 + $oroN); if ($oroK === 0) break; $oroN += $oroK; } v35 = $oroN; } finally { fs.closeSync($oroF); } v36 = null; } catch (e) { v35 = 0; v36 = e; }
-			if ((v36 === null)) {
-				console.log((((((String.fromCodePoint((48 + (((v35 % 10) + 0))))) + " ") + (String.fromCodePoint((48 + ((Math.trunc(v33[0] / 100) + 0)))))) + (String.fromCodePoint((48 + (((((Math.trunc(v33[0] / 10) + 0)) % 10) + 0)))))) + (String.fromCodePoint((48 + (((v33[0] % 10) + 0)))))));
-				let v74, v75;
-				try { v74 = fs.readFileSync((v10 + ".missing")); v75 = null; } catch (e) { v74 = null; v75 = e; }
-				console.log(((v75 === null) ? "found" : (((v75.code === "ENOENT")) ? "not-found" : (((v75.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v75.code)) ? "permission" : "other")))));
-				v32 = 0;
+			console.log((String(v21.length)));
+			const v34 = new Uint8Array(4);
+			let v33;
+			let v36, v37;
+			try { const $oroF = fs.openSync(v10, "r"); try { let $oroN = 0; while ($oroN < v34.length) { const $oroK = fs.readSync($oroF, v34, $oroN, v34.length - $oroN, 3 + $oroN); if ($oroK === 0) break; $oroN += $oroK; } v36 = $oroN; } finally { fs.closeSync($oroF); } v37 = null; } catch (e) { v36 = 0; v37 = e; }
+			if ((v37 === null)) {
+				console.log((((((String.fromCodePoint((48 + (((v36 % 10) + 0))))) + " ") + (String.fromCodePoint((48 + ((Math.trunc(v34[0] / 100) + 0)))))) + (String.fromCodePoint((48 + (((((Math.trunc(v34[0] / 10) + 0)) % 10) + 0)))))) + (String.fromCodePoint((48 + (((v34[0] % 10) + 0)))))));
+				let v75, v76;
+				try { v75 = fs.readFileSync((v10 + ".missing")); v76 = null; } catch (e) { v75 = null; v76 = e; }
+				console.log(((v76 === null) ? "found" : (((v76.code === "ENOENT")) ? "not-found" : (((v76.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v76.code)) ? "permission" : "other")))));
+				v33 = 0;
 			} else {
-				console.log((((v36.code === "ENOENT")) ? "not-found" : (((v36.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v36.code)) ? "permission" : "other"))));
-				let v99, v100;
-				try { v99 = fs.readFileSync((v10 + ".missing")); v100 = null; } catch (e) { v99 = null; v100 = e; }
-				console.log(((v100 === null) ? "found" : (((v100.code === "ENOENT")) ? "not-found" : (((v100.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v100.code)) ? "permission" : "other")))));
-				v32 = 0;
+				console.log((((v37.code === "ENOENT")) ? "not-found" : (((v37.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v37.code)) ? "permission" : "other"))));
+				let v100, v101;
+				try { v100 = fs.readFileSync((v10 + ".missing")); v101 = null; } catch (e) { v100 = null; v101 = e; }
+				console.log(((v101 === null) ? "found" : (((v101.code === "ENOENT")) ? "not-found" : (((v101.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v101.code)) ? "permission" : "other")))));
+				v33 = 0;
 			}
-			return v32;
+			return v33;
 		}
 		console.log(("roundtrip: cannot read that file: " + (((v22.code === "ENOENT")) ? "not-found" : (((v22.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v22.code)) ? "permission" : "other")))));
 		return 1;

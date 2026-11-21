@@ -3,16 +3,16 @@
 package gauntlet
 
 func GenStep(v0 int, v1 int) (int, int) {
-	v11 := (v1 == 0)
-	if v11 {
+	v24 := (v1 == 0)
+	if v24 {
 		return 1, 1
 	}
-	v16 := (v0 % v1)
-	v18 := (v16 > 0)
-	if v18 {
+	v29 := (v0 % v1)
+	v31 := (v29 > 0)
+	if v31 {
 		return 1, 2
 	}
-	v21 := (v0 / v1)
-	return 0, v21
+	v34 := (v0 / v1)
+	return 0, v34
 }
 

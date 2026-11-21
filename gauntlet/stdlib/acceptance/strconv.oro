@@ -9,7 +9,7 @@
 //   unsigned    the same over U, past 2^63 — and the parsed value COMPUTED WITH,
 //               natively, which is what ADR 0026 was for
 //   saturate    past the word P_b returns the nearest bound and ErrRange; it never wraps
-//   decimal     Atoi ∘ Itoa = id, and a bad digit is a syntax error
+//   atoi_itoa   Atoi ∘ Itoa = id, and a bad digit is a syntax error
 //   quote       Unquote ∘ Quote = id; one step of it is UnquoteChar
 //   bool, float the two small bijections, and the shortest float that round-trips
 //   append      the consume-and-return forms, threaded through one buffer
@@ -79,7 +79,7 @@ fn saturate() {
     print_err(e)
 }
 
-fn decimal() {
+fn atoi_itoa() {
     { (v, e) = sc.Atoi(sc.Itoa(top(12345))); fmt.Println(v == top(12345)); fmt.Println(ok?(e)) }
     (v, e) = sc.Atoi("12a")
     fmt.Println(v)
@@ -149,7 +149,7 @@ export fn main() {
     word()
     unsigned()
     saturate()
-    decimal()
+    atoi_itoa()
     quote()
     bools_floats()
     append()

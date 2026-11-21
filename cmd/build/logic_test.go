@@ -40,9 +40,12 @@ func TestAClaimWithQuantifiersIsDecided(t *testing.T) {
 			}
 			got, err := run(t, string(src), tg)
 			// the midpoint's 2⁶² is past JavaScript's word, ±(2⁵³ − 1): refused there,
-			// portability computed (ADR 0026)
+			// portability computed (ADR 0026); the literal itself now, which no
+			// number of that host holds and which is not yet written as a BigInt
+			// (ADR 0147's not built), where the operation was before
 			if c.file == "midpoint" && tg == "js" {
-				if err == nil || !strings.Contains(err.Error(), "inside the word of target js") {
+				if err == nil || !strings.Contains(err.Error(), "inside the word of target js") &&
+					!strings.Contains(err.Error(), "not inside target js's signed word") {
 					t.Errorf("midpoint on js: want refused, 2⁶² past the word, got %q, %v", got, err)
 				}
 				continue

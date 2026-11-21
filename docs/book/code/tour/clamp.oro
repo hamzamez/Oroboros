@@ -1,5 +1,13 @@
+use io
+
 export fn clamp(n ∈ 0..1000) (0..255) { if n > 255 { 255 } else { n } }
 
 export fn abs(n ∈ -1000..1000) (r ∈ Int) ensure r >= 0 {
     if n < 0 { -n } else { n }
+}
+
+export fn main() {
+    io.print_int(clamp(7))
+    io.print_int(clamp(1000))
+    io.print_int(abs(-12))
 }

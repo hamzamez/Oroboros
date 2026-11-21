@@ -27,6 +27,10 @@ repr shift 63
 repr wrap 64
 
 module java {
+    // THE HOST'S WORD, the set a declaration of this host writes where its host
+    // type is the word (integers-boundary §5): `Int` is ℤ, and no host
+    // function takes all of it
+    set Word = -2^63..2^63-1
     // ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
     // with the reason. The language's `abandon`, found by spelling; it never
     // returns, so the IR ends its region with `unreachable`, and nothing is
@@ -73,7 +77,7 @@ module java {
     fn ascii(b ∈ Array(0..127), lo ∈ 0..2^63-1, n ∈ 0..2^63-1) (String) pure where lo + n <= len(b) {
         host expr "new String(${b}, (int) (${lo}), (int) (${n}), java.nio.charset.StandardCharsets.US_ASCII)"
     }
-    fn string_of(c ∈ Int) (String) pure
+    fn string_of(c ∈ Word) (String) pure
         where c >= 0 && c <= 1114111 && (c <= 55295 || c >= 57344) {
         host expr "new String(Character.toChars((int) ${c}))"
     }
@@ -81,21 +85,21 @@ module java {
     fn `+`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} + ${b}" checked addExact }
     fn `-`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} - ${b}" checked subtractExact }
     fn `*`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} * ${b}" checked multiplyExact }
-    fn addExact(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.addExact(${a}, ${b})" }
-    fn subtractExact(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.subtractExact(${a}, ${b})" }
-    fn multiplyExact(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.multiplyExact(${a}, ${b})" }
+    fn addExact(a ∈ Word, b ∈ Word) (Word) pure { host expr "Math.addExact(${a}, ${b})" }
+    fn subtractExact(a ∈ Word, b ∈ Word) (Word) pure { host expr "Math.subtractExact(${a}, ${b})" }
+    fn multiplyExact(a ∈ Word, b ∈ Word) (Word) pure { host expr "Math.multiplyExact(${a}, ${b})" }
     // A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5.
     fn `/`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} / ${b}" checked divideExact }
     // THE CHECKED QUOTIENT: ℤ's a / b leaves the word only at −2⁶³ / −1, where the
     // JVM answers −2⁶³. Math.divideExact is JDK 18's; this is its definition on
     // 17, Math.negateExact throwing at −2⁶³.
-    fn divideExact(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) {
+    fn divideExact(a ∈ Word, b ∈ Word) (Word) pure where `!=`(b, 0) {
         host expr "(${b} == -1L && ${a} == Long.MIN_VALUE ? Math.negateExact(${a}) : ${a} / ${b})"
     }
     fn `%`(a ∈ Int, b ∈ Int) (Int) pure where `!=`(b, 0) { host expr "${a} % ${b}" }
-    fn neg(a ∈ Int) (Int) pure { host expr "-${a}" checked negateExact }
+    fn neg(a ∈ Word) (Word) pure { host expr "-${a}" checked negateExact }
     // −a leaves the word only at −2⁶³, where Math.negateExact throws.
-    fn negateExact(a ∈ Int) (Int) pure { host expr "Math.negateExact(${a})" }
+    fn negateExact(a ∈ Word) (Word) pure { host expr "Math.negateExact(${a})" }
 
     // ---- THE ROUNDINGS JAVA REALIZES (ADR 0086, numbers.md §6.2). Each `ensure`
     // is the term the host operation computes: JLS §15.17–15.18, IEEE 754's
@@ -128,7 +132,7 @@ module java {
     // by 2ᵇ, a long; for b ≥ 63 the product is in the word iff a = 0, or a = −1
     // and b = 63, whose product is −2⁶³. Otherwise negateExact(MIN) throws, as
     // multiplyExact does. The operands repeat, as divideExact's do.
-    fn shlExact(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 {
+    fn shlExact(a ∈ Word, b ∈ Word) (Word) pure where b >= 0 {
         host expr "(${b} <= 62L ? Math.multiplyExact(${a}, 1L << ${b}) : ${a} == 0L ? 0L : ${a} == -1L && ${b} == 63L ? Long.MIN_VALUE : Math.negateExact(Long.MIN_VALUE))"
     }
     fn `>>>`(a ∈ Int, b ∈ Int) (Int) pure { host expr "${a} >>> ${b}" }
@@ -142,8 +146,8 @@ module java {
     // remainder for a positive divisor.
     // A scalar the IR holds in an `int` (indextype) would have its count masked
     // by 31: the printer widens the operand first (ir/java's arith).
-    fn sar(a ∈ Int, b ∈ Int) (Int) pure where b >= 0 { host expr "${a} >> Math.min(${b}, 63)" }
-    fn emod(a ∈ Int, m ∈ Int) (Int) pure where m > 0 { host expr "Math.floorMod(${a}, ${m})" }
+    fn sar(a ∈ Word, b ∈ Word) (Word) pure where b >= 0 { host expr "${a} >> Math.min(${b}, 63)" }
+    fn emod(a ∈ Word, m ∈ Word) (Word) pure where m > 0 { host expr "Math.floorMod(${a}, ${m})" }
 
     // ---- comparison
     fn `<`(a ∈ Int, b ∈ Int) (Bool) pure { host expr "${a} < ${b}" }
@@ -170,62 +174,62 @@ module java {
     //
     // Every index carries `(int)`: our `int` is Java's `long`, and a Java array
     // index must be `int`. Free at run time, and unavoidable.
-    fn new_long(n ∈ Int) (r ∈ long_array) ensure len(r) == n { host expr "new long[(int) ${n}]" }
-    fn new_double(n ∈ Int) (r ∈ double_array)
+    fn new_long(n ∈ Word) (r ∈ long_array) ensure len(r) == n { host expr "new long[(int) ${n}]" }
+    fn new_double(n ∈ Word) (r ∈ double_array)
         ensure len(r) == n {
         host expr "new double[(int) ${n}]"
     }
-    fn new_bool(n ∈ Int) (r ∈ bool_array) ensure len(r) == n { host expr "new boolean[(int) ${n}]" }
-    fn new_string(n ∈ Int) (r ∈ string_array)
+    fn new_bool(n ∈ Word) (r ∈ bool_array) ensure len(r) == n { host expr "new boolean[(int) ${n}]" }
+    fn new_string(n ∈ Word) (r ∈ string_array)
         ensure len(r) == n {
         host expr "new String[(int) ${n}]"
     }
 
-    fn len(a ∈ Any) (Int) pure { host expr "${a}.length" }
+    fn len(a ∈ Any) (Word) pure { host expr "${a}.length" }
 
-    fn at_long(v ∈ long_array, i ∈ Int) (Int) pure index
+    fn at_long(v ∈ long_array, i ∈ Word) (Word) pure index
         where java.`&&`(java.`<=`(0, i), java.`<`(i, java.len(v))) {
         host expr "${v}[(int) ${i}]"
     }
-    fn at_double(v ∈ double_array, i ∈ Int) (F64) pure index
+    fn at_double(v ∈ double_array, i ∈ Word) (F64) pure index
         where java.`&&`(java.`<=`(0, i), java.`<`(i, java.len(v))) {
         host expr "${v}[(int) ${i}]"
     }
-    fn at_bool(v ∈ bool_array, i ∈ Int) (Bool) pure index
+    fn at_bool(v ∈ bool_array, i ∈ Word) (Bool) pure index
         where java.`&&`(java.`<=`(0, i), java.`<`(i, java.len(v))) {
         host expr "${v}[(int) ${i}]"
     }
-    fn at_string(v ∈ string_array, i ∈ Int) (String) pure index
+    fn at_string(v ∈ string_array, i ∈ Word) (String) pure index
         where java.`&&`(java.`<=`(0, i), java.`<`(i, java.len(v))) {
         host expr "${v}[(int) ${i}]"
     }
 
-    fn set_long(c ∈ long_array, i ∈ Int, x ∈ Int) (r ∈ long_array)
+    fn set_long(c ∈ long_array, i ∈ Word, x ∈ Word) (r ∈ long_array)
         ensure len(r) == len(c) {
         host stmt "${c}[(int) ${i}] = ${x}"
     }
-    fn set_double(c ∈ double_array, i ∈ Int, x ∈ F64) (r ∈ double_array)
+    fn set_double(c ∈ double_array, i ∈ Word, x ∈ F64) (r ∈ double_array)
         ensure len(r) == len(c) {
         host stmt "${c}[(int) ${i}] = ${x}"
     }
-    fn set_bool(c ∈ bool_array, i ∈ Int, x ∈ Bool) (r ∈ bool_array)
+    fn set_bool(c ∈ bool_array, i ∈ Word, x ∈ Bool) (r ∈ bool_array)
         ensure len(r) == len(c) {
         host stmt "${c}[(int) ${i}] = ${x}"
     }
-    fn set_string(c ∈ string_array, i ∈ Int, x ∈ String) (r ∈ string_array)
+    fn set_string(c ∈ string_array, i ∈ Word, x ∈ String) (r ∈ string_array)
         ensure len(r) == len(c) {
         host stmt "${c}[(int) ${i}] = ${x}"
     }
 
     // ---- conversions. Java spells these (T) x or T.valueOf.
-    fn int_of_f64(a ∈ F64) (Int) pure { host expr "(long) ${a}" }
-    fn f64_of_int(a ∈ Int) (F64) pure { host expr "(double) ${a}" }
-    fn jint_of_int(a ∈ Int) (jint) pure { host expr "(int) ${a}" }
+    fn int_of_f64(a ∈ F64) (Word) pure { host expr "(long) ${a}" }
+    fn f64_of_int(a ∈ Word) (F64) pure { host expr "(double) ${a}" }
+    fn jint_of_int(a ∈ Word) (jint) pure { host expr "(int) ${a}" }
 }
 
 module java/Math {
     fn abs(a ∈ F64) (F64) pure { host expr "Math.abs(${a})" }
-    fn absl(a ∈ Int) (Int) pure { host expr "Math.abs(${a})" }
+    fn absl(a ∈ Word) (Word) pure { host expr "Math.abs(${a})" }
     fn sqrt(a ∈ F64) (F64) pure { host expr "Math.sqrt(${a})" }
     fn cbrt(a ∈ F64) (F64) pure { host expr "Math.cbrt(${a})" }
     fn pow(a ∈ F64, b ∈ F64) (F64) pure { host expr "Math.pow(${a}, ${b})" }
@@ -239,9 +243,9 @@ module java/Math {
     fn hypot(a ∈ F64, b ∈ F64) (F64) pure { host expr "Math.hypot(${a}, ${b})" }
     fn floor(a ∈ F64) (F64) pure { host expr "Math.floor(${a})" }
     fn ceil(a ∈ F64) (F64) pure { host expr "Math.ceil(${a})" }
-    fn round(a ∈ F64) (Int) pure { host expr "Math.round(${a})" }
-    fn min(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.min(${a}, ${b})" }
-    fn max(a ∈ Int, b ∈ Int) (Int) pure { host expr "Math.max(${a}, ${b})" }
+    fn round(a ∈ F64) (Word) pure { host expr "Math.round(${a})" }
+    fn min(a ∈ Word, b ∈ Word) (Word) pure { host expr "Math.min(${a}, ${b})" }
+    fn max(a ∈ Word, b ∈ Word) (Word) pure { host expr "Math.max(${a}, ${b})" }
     fn PI() (F64) pure { host expr "Math.PI" }
     fn E() (F64) pure { host expr "Math.E" }
     fn random() (F64) { host expr "Math.random()" }
@@ -258,9 +262,9 @@ module java/Integer {
 }
 
 module java/Long {
-    fn parseLong(a ∈ String) (Int) pure { host expr "Long.parseLong(${a})" }
-    fn toString(a ∈ Int) (String) pure { host expr "Long.toString(${a})" }
-    fn bitCount(a ∈ Int) (jint) pure { host expr "Long.bitCount(${a})" }
+    fn parseLong(a ∈ String) (Word) pure { host expr "Long.parseLong(${a})" }
+    fn toString(a ∈ Word) (String) pure { host expr "Long.toString(${a})" }
+    fn bitCount(a ∈ Word) (jint) pure { host expr "Long.bitCount(${a})" }
     fn `MAX_VALUE`() (Int) pure { host expr "Long.MAX_VALUE" }
 }
 
@@ -274,19 +278,19 @@ module java/Double {
 
 // Instance methods on String. `(String.length s)` emits `s.length()`.
 module java/String {
-    fn length(a ∈ String) (Int) pure { host expr "${a}.length()" }
-    fn charAt(a ∈ String, b ∈ Int) (char) pure { host expr "${a}.charAt((int) ${b})" }
-    fn substring(a ∈ String, b ∈ Int, c ∈ Int) (String) pure {
+    fn length(a ∈ String) (Word) pure { host expr "${a}.length()" }
+    fn charAt(a ∈ String, b ∈ Word) (char) pure { host expr "${a}.charAt((int) ${b})" }
+    fn substring(a ∈ String, b ∈ Word, c ∈ Word) (String) pure {
         host expr "${a}.substring((int) ${b}, (int) ${c})"
     }
-    fn indexOf(a ∈ String, b ∈ String) (Int) pure { host expr "${a}.indexOf(${b})" }
+    fn indexOf(a ∈ String, b ∈ String) (Word) pure { host expr "${a}.indexOf(${b})" }
     fn contains(a ∈ String, b ∈ String) (Bool) pure { host expr "${a}.contains(${b})" }
     fn startsWith(a ∈ String, b ∈ String) (Bool) pure { host expr "${a}.startsWith(${b})" }
     fn endsWith(a ∈ String, b ∈ String) (Bool) pure { host expr "${a}.endsWith(${b})" }
     fn toUpperCase(a ∈ String) (String) pure { host expr "${a}.toUpperCase()" }
     fn toLowerCase(a ∈ String) (String) pure { host expr "${a}.toLowerCase()" }
     fn strip(a ∈ String) (String) pure { host expr "${a}.strip()" }
-    fn repeat(a ∈ String, b ∈ Int) (String) pure { host expr "${a}.repeat((int) ${b})" }
+    fn repeat(a ∈ String, b ∈ Word) (String) pure { host expr "${a}.repeat((int) ${b})" }
     fn replace(a ∈ String, b ∈ String, c ∈ String) (String) pure {
         host expr "${a}.replace(${b}, ${c})"
     }
@@ -294,7 +298,7 @@ module java/String {
     fn isEmpty(a ∈ String) (Bool) pure { host expr "${a}.isEmpty()" }
     // `==` on Strings compares references, which is why this exists.
     fn equals(a ∈ String, b ∈ String) (Bool) pure { host expr "${a}.equals(${b})" }
-    fn compareTo(a ∈ String, b ∈ String) (Int) pure { host expr "${a}.compareTo(${b})" }
+    fn compareTo(a ∈ String, b ∈ String) (Word) pure { host expr "${a}.compareTo(${b})" }
     fn concat(a ∈ String, b ∈ String) (String) pure { host expr "(${a} + ${b})" }
     fn valueOf(a ∈ Any) (String) pure { host expr "String.valueOf(${a})" }
     fn join(a ∈ String, b ∈ string_array) (String) pure { host expr "String.join(${a}, ${b})" }
@@ -307,16 +311,16 @@ module java/Character {
     fn isUpperCase(a ∈ char) (Bool) pure { host expr "Character.isUpperCase(${a})" }
     fn toLowerCase(a ∈ char) (char) pure { host expr "Character.toLowerCase(${a})" }
     fn toUpperCase(a ∈ char) (char) pure { host expr "Character.toUpperCase(${a})" }
-    fn code(a ∈ char) (Int) pure { host expr "(long) ${a}" }
+    fn code(a ∈ char) (Word) pure { host expr "(long) ${a}" }
 }
 
 // The ONLY growable container in java.lang, and it only holds text.
 module java/StringBuilder {
     fn new() (strbuf) { host expr "new StringBuilder()" }
     fn append(a ∈ strbuf, b ∈ String) (strbuf) { host stmt "${a}.append(${b})" }
-    fn appendInt(a ∈ strbuf, b ∈ Int) (strbuf) { host stmt "${a}.append(${b})" }
+    fn appendInt(a ∈ strbuf, b ∈ Word) (strbuf) { host stmt "${a}.append(${b})" }
     fn appendChar(a ∈ strbuf, b ∈ char) (strbuf) { host stmt "${a}.append(${b})" }
-    fn length(a ∈ strbuf) (Int) pure { host expr "${a}.length()" }
+    fn length(a ∈ strbuf) (Word) pure { host expr "${a}.length()" }
     fn toString(a ∈ strbuf) (String) pure { host expr "${a}.toString()" }
 }
 
@@ -324,12 +328,12 @@ module java/System {
     fn out_println(a ∈ Any) (Any) { host stmt "System.out.println(${a})" }
     fn out_print(a ∈ Any) (Any) { host stmt "System.out.print(${a})" }
     fn err_println(a ∈ Any) (Any) { host stmt "System.err.println(${a})" }
-    fn nanoTime() (Int) { host expr "System.nanoTime()" }
-    fn currentTimeMillis() (Int) { host expr "System.currentTimeMillis()" }
-    fn arraycopy(a ∈ double_array, b ∈ double_array, c ∈ Int) (double_array) {
+    fn nanoTime() (Word) { host expr "System.nanoTime()" }
+    fn currentTimeMillis() (Word) { host expr "System.currentTimeMillis()" }
+    fn arraycopy(a ∈ double_array, b ∈ double_array, c ∈ Word) (double_array) {
         host stmt "System.arraycopy(${a}, 0, ${b}, 0, (int) ${c})"
     }
-    fn exit(a ∈ Int) (Any) { host stmt "System.exit((int) ${a})" }
+    fn exit(a ∈ Word) (Any) { host stmt "System.exit((int) ${a})" }
     fn getenv(a ∈ String) (String) { host expr "System.getenv(${a})" }
 }
 

@@ -1,3 +1,4 @@
+use io
 use result
 
 fn half(n ∈ 0..1000000) (result.Result(Int, Int)) {
@@ -18,4 +19,11 @@ export fn quarter_or_zero(n ∈ 0..1000000) (Int) {
 export fn quarter_or_crash(n ∈ 0..1000000) (Int) {
     expect result.'ok(q) = quarter(n) else "a multiple of four is expected"
     q
+}
+
+export fn main() {
+    io.print_int(quarter_or_zero(20))
+    io.print_int(quarter_or_zero(6))
+    io.print_int(quarter_or_crash(40))
+    io.print_int(quarter_or_crash(6))
 }

@@ -1,1 +1,1 @@
-export fn scale(n ∈ 0..255, k ∈ 0..64) (Int) { n << k }
+export fn scale(n ∈ 0..255, k ∈ 0..64) (-2^63..2^63-1) { n << k }

@@ -58,6 +58,10 @@ func ShowSet(ty string) string {
 		return ty
 	case ty == UnitType:
 		return "()"
+	case ty == BigType:
+		// THE RUNG ABOVE THE WORD IS A REPRESENTATION, and its set is ℤ: a
+		// message names the set, `Int` (ADR 0147), never `big`
+		return "Int"
 	case strings.HasPrefix(ty, "?"):
 		return ty
 	case strings.Contains(ty, "|"):

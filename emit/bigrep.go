@@ -76,9 +76,9 @@ import (
 var bigOpNames = map[string]bool{
 	"big+": true, "big-": true, "big*": true, "big/": true, "big%": true,
 	"big<": true, "big<=": true, "big>": true, "big>=": true, "big=": true,
-	"big-of": true, "big-of-small": true, "big-str": true, "big-word": true,
+	"big-of": true, "big-of-small": true, "decimal": true, "big-word": true,
 	"big%-small": true,
-	"big&": true, "big|": true, "big⊕": true, "big~": true, "big<<": true, "big>>": true, "big-mod": true,
+	"big&":       true, "big|": true, "big⊕": true, "big~": true, "big<<": true, "big>>": true, "big-mod": true,
 }
 
 func isBigOp(name string) bool { return bigOpNames[name] }
@@ -114,7 +114,7 @@ func DeclaresBig(w core.Word, sig *core.Sig) bool {
 // helper's declared big result is gone before this pass runs — the same
 // structural limit refinements.md §6b records for a `where` and
 // indexnarrow-2026-08-27 records for a narrowed parameter. What survives
-// inlining is the BOUNDARY, and for a bignum the boundary is `big-str`: a value
+// inlining is the BOUNDARY, and for a bignum the boundary is `decimal`: a value
 // past 2^53 cannot be printed as an `int` on any of the four hosts, so the one
 // place a whole program must name arbitrary precision is exactly the one place
 // the demand can be read off the residual.
@@ -157,7 +157,7 @@ func MentionsBig(w core.Word, t *core.Term) bool {
 // that is a proof rather than an omission: a range reaches this rung only by
 // being above the portable window, so the bound is at least 54 bits, and a
 // machine word is under 2^53 — widening one can never exceed it. Comparisons
-// and `big-str` produce no big value at all.
+// and `decimal` produce no big value at all.
 //
 // The cost is one `BitLen` per operation and it is paid only by a program that
 // declares a bound. The SIGN is part of the set (ADR 0029): `big-fit` enforces
@@ -266,6 +266,26 @@ type BigPlan struct {
 	// program functions elsewhere: a call whose arguments are not in its
 	// parameters' sets is inlined, never refused (ADR 0102, P4).
 	Inline map[string]bool
+	// ResultsOnly is a plan asked for by a result declared `Int` alone (ADR
+	// 0147 item 3): ℤ, so a yield its facts leave outside the word is held
+	// exactly; ir.CheckClaim skips it, a claim in ℤ being one nothing fails.
+	ResultsOnly bool
+}
+
+// ResultIsZ reports a signature with a result declared `Int`, ℤ.
+func ResultIsZ(sig *core.Sig) bool {
+	if sig == nil {
+		return false
+	}
+	if sig.Result == "int" {
+		return true
+	}
+	for _, r := range sig.Results {
+		if r == "int" {
+			return true
+		}
+	}
+	return false
 }
 
 // Holds says the plan holds some value exactly, on any rung.
@@ -287,6 +307,9 @@ func PlanBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (BigPla
 		return BigPlan{}, nil
 	}
 	if bits == 0 && !DeclaresBig(tgt.Word, sig) && !MentionsBig(tgt.Word, t) {
+		if tgt.HasBig() && !limbs && ResultIsZ(sig) && !PlantEntryIntIsTheWord {
+			return BigPlan{Host: true, ResultsOnly: true}, nil
+		}
 		return BigPlan{}, nil
 	}
 	if limbs {

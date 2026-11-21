@@ -42,7 +42,10 @@ func TestARulesElementsAreTheUnsignedWord(t *testing.T) {
 		ir.PlantRuleElemSigned = true
 		_, err = buildAndRun(t, src, tc.target, "")
 		ir.PlantRuleElemSigned = false
-		if err == nil || !strings.Contains(err.Error(), "held in the UNSIGNED word") {
+		// refused as a value of U at a word, or, a printed result now ℤ's
+		// (ADR 0147), as a value above the word at one: the fault is caught
+		if err == nil || !strings.Contains(err.Error(), "held in the UNSIGNED word") &&
+			!strings.Contains(err.Error(), "WIDER than the word") {
 			t.Errorf("%s: with the rule's body received signed, want the unsigned word's refusal; got %v", tc.target, err)
 		}
 	}

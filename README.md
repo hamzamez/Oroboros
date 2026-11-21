@@ -49,7 +49,7 @@ fn fib(n ∈ 0..1000) (0..) {
     loop a = 0, b = 1, i = 0 { i >= n -> a; else -> again(b, a + b, i + 1) }
 }
 
-export fn main() { io.print_line(big_str(fib(100))) }
+export fn main() { io.print_line(decimal(fib(100))) }
 ```
 
 ```
@@ -101,8 +101,8 @@ rejected and why.
 | | how | the numbers |
 |---|---|---|
 | **as fast as hand-written code** | seven benchmark programs against hand-written Go, JavaScript, Java, and C on Windows compiled by the same compiler | generated over hand-written: **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows (geometric means, 45 comparisons from 0.85× to 1.18×, each above 1.05× explained) ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)) |
-| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,697 of 12,753** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
-| **loops stop** | size-change termination | **1,501 of 1,806** loops proven; the rest read input or the file system, count through numbers past the word (a halving, a bit cleared), or shrink a range from both ends (binary search), in a way the check does not see |
+| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,725 of 12,779** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
+| **loops stop** | size-change termination | **1,603 of 1,906** loops proven; the rest read input or the file system, count through numbers past the word (a halving, a bit cleared), or shrink a range from both ends (binary search), in a way the check does not see |
 | **every platform agrees** | 87 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 73 on all four, every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
 | **each rule is tested broken** | a fault is planted in every rule that decides what is legal, and its test must fail | listed with each result in [gauntlet/results/](gauntlet/results/) |
 | **nothing drifts by accident** | every emitted file, proof count and error message, on five platform targets, compared with a committed baseline | `go run ./cmd/check` |
@@ -148,10 +148,12 @@ them and checked against the SDK's prototypes.
 
 ## Current work
 
-*Updated 2026-11-20.* The latest assessment is [docs/assessment-2026-11-20.md](docs/assessment-2026-11-20.md);
+*Updated 2026-11-21.* The latest assessment is [docs/assessment-2026-11-20.md](docs/assessment-2026-11-20.md);
 each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 
-**The plan in force** (hamza, 2026-11-20), in order:
+**The plan in force** (hamza, 2026-11-20), in order, ahead of it **the check shortened**: the
+compiler's own tests split across processes, and a baseline accepted from a passing run of the same
+tree rather than a second run (a run is an hour today, and a step paid two):
 1. **The logic, its first three stages** (decided, [ADR 0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md)):
    claims with quantifiers, `∀ i ∈ 0..k-1 : b[i] != 0`, in a function's conditions and in `assert`,
    proven by the compiler's own procedures; a platform's documented promises believed with their
@@ -175,7 +177,11 @@ each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
    Notepad-style editor in about 2.5 KB of hand-written assembly, module by module; then 128-bit
    integers written in the language itself.
 
-**Done since it was set**: the book's findings 100 and 101 (a map read while it is filled; a table of
+**Done since it was set**: **`Int` is every integer at an entry point too**
+([intboundary](gauntlet/results/intboundary-2026-11-21.md), ADR 0147): an exported function taking
+`Int` takes the host's integer of any size where its header does not bound it, one rendering of an
+integer, `decimal`, and `io.print_int` printing any integer on every target; the book's chapter 0
+rewritten from scratch, every function shown with its output and its code. The book's findings 100 and 101 (a map read while it is filled; a table of
 tables or of tuples written out, read at any index), and Windows' enumerators read against their
 documentation ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)).
 

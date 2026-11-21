@@ -90,8 +90,8 @@ export function genMain() {
 	}
 	const v224 = v10[27];
 	const v223 = v224 === undefined ? 1 : 0;
-	console.log(((v223 === 0) ? v224 : -1));
-	console.log(v12);
+	console.log((String(((v223 === 0) ? v224 : -1))));
+	console.log((String(v12)));
 	v1 = v12;
 	return v1;
 }

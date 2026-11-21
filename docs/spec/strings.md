@@ -221,7 +221,7 @@ parameters and covariant in its result:
 
 | `string` (24) | why the result is in V |
 |---|---|
-| `big-str`, `hex.EncodeToString`, `hex.Dump`, `strconv.FormatBool`/`FormatInt`/`FormatUint`/`Itoa`/`FormatFloat`/`QuoteToASCII`/`QuoteRuneToASCII` (10) | the output is ASCII |
+| `decimal`, `hex.EncodeToString`, `hex.Dump`, `strconv.FormatBool`/`FormatInt`/`FormatUint`/`Itoa`/`FormatFloat`/`QuoteToASCII`/`QuoteRuneToASCII` (10) | the output is ASCII |
 | `strconv.Quote`/`QuoteToGraphic`/`QuoteRune`/`QuoteRuneToGraphic`, `strconv.NumError.Error`, `hex.InvalidByteError.Error` (6) | every byte that is not a printable scalar is escaped; `NumError.Error` prints its `Func` unquoted, which is why that field is declared ours |
 | `concat`, `string-of`, `go.text` (3) | by construction: V·V ⊆ V, a scalar's encoding is in V, and d maps B* into Σ* |
 | `strings.ToLower`/`ToUpper`/`ToTitle`/`Title`, `strings.ToValidUTF8` (5) | a map B* → V: the case maps go through `strings.Map`, which re-encodes an invalid byte as U+FFFD (measured on 1,011,155 inputs, gotarget-2026-09-30); `ToValidUTF8` replaces with a replacement declared ours |

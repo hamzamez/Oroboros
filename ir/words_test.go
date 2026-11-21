@@ -59,7 +59,9 @@ x %% (2^64-1) / %d
 	}
 	selected := 0
 	for c := 0; c < 150; c++ {
-		src := fmt.Sprintf("export fn run(n ∈ 0..12) (Int) { %s }\n", shapes[c%len(shapes)]())
+		// the result unclaimed, held as its yields are: a result `Int` is ℤ
+		// since ADR 0147, and its yields past S would go exact, not to U
+		src := fmt.Sprintf("export fn run(n ∈ 0..12) { %s }\n", shapes[c%len(shapes)]())
 		path := filepath.Join(dir, fmt.Sprintf("w%d.oro", c))
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)

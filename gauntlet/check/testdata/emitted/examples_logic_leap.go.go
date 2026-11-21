@@ -3,12 +3,17 @@
 package gauntlet
 
 import "fmt"
+import "strconv"
 
 func GenMain() int {
-	fmt.Println(0)
-	fmt.Println(1)
-	fmt.Println(1)
-	fmt.Println(0)
+	v1 := (strconv.Itoa(0))
+	fmt.Println(v1)
+	v5 := (strconv.Itoa(1))
+	fmt.Println(v5)
+	v9 := (strconv.Itoa(1))
+	fmt.Println(v9)
+	v13 := (strconv.Itoa(0))
+	fmt.Println(v13)
 	return 0
 }
 

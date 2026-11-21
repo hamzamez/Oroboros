@@ -35,8 +35,8 @@ fn dm(a, b) { (go.`/`(a, b), go.`%`(a, b)) }
 // with equality iff |b| = 1, so ℤ's quotient leaves the word only at
 // -2^63 / -1. A dividend in -(2^63-1)..2^63-1 makes it total whatever b is;
 // with `a ∈ Int` it was emitted as the host's `/`, answering -2^63 there.
-export fn divmod(a ∈ -2^63+1..2^63-1, b ∈ Int) (Int × Int) where go.`!=`(b, 0) { dm(a, b) }
-export fn divmod_sum(a ∈ -4503599627370495..2^52-1, b ∈ Int) (Int) where go.`!=`(b, 0) {
+export fn divmod(a ∈ -2^63+1..2^63-1, b ∈ -2^63..2^63-1) (Int × Int) where go.`!=`(b, 0) { dm(a, b) }
+export fn divmod_sum(a ∈ -4503599627370495..2^52-1, b ∈ -2^63..2^63-1) (Int) where go.`!=`(b, 0) {
     (q, r) = dm(a, b)
     go.`+`(q, r)
 }

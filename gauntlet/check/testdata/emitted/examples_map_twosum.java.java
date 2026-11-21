@@ -45,43 +45,45 @@ public final class examples_map_twosum.java {
 		}
 		v8 = v19;
 		v9 = v20;
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v8 + "\n");
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v9 + "\n");
-		int v61 = 3;
-		int v62 = 0;
-		for (;; v61 = (v61 + 1)) {
-			final boolean v64 = (v61 <= 17);
-			if (v64) {
-				final java.util.Map<Long,Long> v69 = new java.util.HashMap<>((int) 16);
-				int v67 = 0;
-				int v68 = 0;
-				java.util.Map<Long,Long> v77 = v69;
-				int v78 = -1;
-				int v79 = -1;
-				int v80 = 0;
-				for (;; v80 = (v80 + 1)) {
-					final int v81 = v6.length;
-					final boolean v82 = (v80 < v81);
-					if (v82) {
-						final boolean v86 = (v80 < 16);
-						if (v86) {
-							final boolean v89 = (v78 < 0);
-							if (v89) {
-								final int v91 = v6[v80];
-								final int v92 = (v61 - v91);
-								final Long b2 = v77.get((long) v92);
-								final int v93 = b2 == null ? 1 : 0;
-								final int v94 = b2 == null ? 0 : (int) ((long) b2);
-								final boolean v96 = (v93 == 0);
-								if (v96) {
-									final int v98 = v6[v80];
-									v77.put((long) v98, (long) v80);
-									v78 = v94;
-									v79 = v80;
+		final String v56 = (Long.toString(v8));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v56 + "\n");
+		final String v58 = (Long.toString(v9));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v58 + "\n");
+		int v63 = 3;
+		int v64 = 0;
+		for (;; v63 = (v63 + 1)) {
+			final boolean v66 = (v63 <= 17);
+			if (v66) {
+				final java.util.Map<Long,Long> v71 = new java.util.HashMap<>((int) 16);
+				int v69 = 0;
+				int v70 = 0;
+				java.util.Map<Long,Long> v79 = v71;
+				int v80 = -1;
+				int v81 = -1;
+				int v82 = 0;
+				for (;; v82 = (v82 + 1)) {
+					final int v83 = v6.length;
+					final boolean v84 = (v82 < v83);
+					if (v84) {
+						final boolean v88 = (v82 < 16);
+						if (v88) {
+							final boolean v91 = (v80 < 0);
+							if (v91) {
+								final int v93 = v6[v82];
+								final int v94 = (v63 - v93);
+								final Long b2 = v79.get((long) v94);
+								final int v95 = b2 == null ? 1 : 0;
+								final int v96 = b2 == null ? 0 : (int) ((long) b2);
+								final boolean v98 = (v95 == 0);
+								if (v98) {
+									final int v100 = v6[v82];
+									v79.put((long) v100, (long) v82);
+									v80 = v96;
+									v81 = v82;
 									continue;
 								}
-								final int v103 = v6[v80];
-								v77.put((long) v103, (long) v80);
+								final int v105 = v6[v82];
+								v79.put((long) v105, (long) v82);
 								continue;
 							}
 							break;
@@ -90,105 +92,106 @@ public final class examples_map_twosum.java {
 					}
 					break;
 				}
-				v67 = v78;
-				v68 = v79;
+				v69 = v80;
+				v70 = v81;
+				int v119 = 0;
 				int v117 = 0;
-				int v115 = 0;
-				int v116 = 0;
-				for (;; v117 = (v117 + 1)) {
-					final int v119 = v6.length;
-					final boolean v120 = (v117 < v119);
-					boolean v121 = false;
-					if (v120) {
-						final boolean v125 = (v117 < 16);
-						if (v125) {
-							int v129 = 0;
-							for (;; v129 = (v129 + 1)) {
-								final boolean v130 = (v129 < v117);
-								boolean v131 = false;
-								if (v130) {
-									final int v134 = v6.length;
-									final boolean v135 = (v129 < v134);
-									if (v135) {
-										final int v138 = v6[v129];
-										final int v139 = v6[v117];
-										final int v140 = (v138 + v139);
-										final boolean v141 = (v140 == v61);
-										v131 = (!v141);
+				int v118 = 0;
+				for (;; v119 = (v119 + 1)) {
+					final int v121 = v6.length;
+					final boolean v122 = (v119 < v121);
+					boolean v123 = false;
+					if (v122) {
+						final boolean v127 = (v119 < 16);
+						if (v127) {
+							int v131 = 0;
+							for (;; v131 = (v131 + 1)) {
+								final boolean v132 = (v131 < v119);
+								boolean v133 = false;
+								if (v132) {
+									final int v136 = v6.length;
+									final boolean v137 = (v131 < v136);
+									if (v137) {
+										final int v140 = v6[v131];
+										final int v141 = v6[v119];
+										final int v142 = (v140 + v141);
+										final boolean v143 = (v142 == v63);
+										v133 = (!v143);
 									} else {
-										v131 = false;
+										v133 = false;
 									}
 								} else {
-									v131 = false;
+									v133 = false;
 								}
-								if (v131) {
+								if (v133) {
 									continue;
 								}
 								break;
 							}
-							final boolean v156 = (v129 < v117);
-							v121 = v156;
+							final boolean v158 = (v131 < v119);
+							v123 = v158;
 						} else {
-							v121 = false;
+							v123 = false;
 						}
 					} else {
-						v121 = false;
+						v123 = false;
 					}
-					if (v121) {
-						int v165 = 0;
-						for (;; v165 = (v165 + 1)) {
-							final boolean v166 = (v165 < v117);
-							boolean v167 = false;
-							if (v166) {
-								final int v170 = v6.length;
-								final boolean v171 = (v165 < v170);
-								if (v171) {
-									final int v174 = v6[v165];
-									final int v175 = v6[v117];
-									final int v176 = (v174 + v175);
-									final boolean v177 = (v176 == v61);
-									v167 = (!v177);
+					if (v123) {
+						int v167 = 0;
+						for (;; v167 = (v167 + 1)) {
+							final boolean v168 = (v167 < v119);
+							boolean v169 = false;
+							if (v168) {
+								final int v172 = v6.length;
+								final boolean v173 = (v167 < v172);
+								if (v173) {
+									final int v176 = v6[v167];
+									final int v177 = v6[v119];
+									final int v178 = (v176 + v177);
+									final boolean v179 = (v178 == v63);
+									v169 = (!v179);
 								} else {
-									v167 = false;
+									v169 = false;
 								}
 							} else {
-								v167 = false;
+								v169 = false;
 							}
-							if (v167) {
+							if (v169) {
 								continue;
 							}
 							break;
 						}
-						v115 = v165;
-						v116 = v117;
+						v117 = v167;
+						v118 = v119;
 						break;
 					}
-					final int v193 = v6.length;
-					final boolean v194 = (v117 < v193);
-					final boolean v195 = (v194 && (v117 < 16));
-					if (v195) {
+					final int v195 = v6.length;
+					final boolean v196 = (v119 < v195);
+					final boolean v197 = (v196 && (v119 < 16));
+					if (v197) {
 						continue;
 					}
-					v115 = -1;
-					v116 = -1;
+					v117 = -1;
+					v118 = -1;
 					break;
 				}
-				final boolean v211 = (v67 == v115);
-				final boolean v212 = (v211 && ((v68 == v116) && (v62 < 100)));
-				int v226 = 0;
-				if (v212) {
-					final int v233 = (v62 + 1);
-					v226 = v233;
+				final boolean v213 = (v69 == v117);
+				final boolean v214 = (v213 && ((v70 == v118) && (v64 < 100)));
+				int v228 = 0;
+				if (v214) {
+					final int v235 = (v64 + 1);
+					v228 = v235;
 				} else {
-					v226 = v62;
+					v228 = v64;
 				}
-				v62 = v226;
+				v64 = v228;
 				continue;
 			}
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v62 + "\n");
+			final String v237 = (Long.toString(v64));
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v237 + "\n");
 			break;
 		}
-		return v62;
+		return v64;
 	}
 
 }

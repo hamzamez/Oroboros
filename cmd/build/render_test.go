@@ -22,7 +22,7 @@ func TestALimbValueRendersOnWindows(t *testing.T) {
 		"    b = 1000000000000000000000000000000 * n\n" +
 		"    d = a - b\n" +
 		"    d + b\n}\n" +
-		"fn run(n) { big_str(calc(n)) }\n" +
+		"fn run(n) { decimal(calc(n)) }\n" +
 		"export fn main() {\n" +
 		"    print.print_str(run(0))\n" +
 		"    print.print_str(run(5))\n" +

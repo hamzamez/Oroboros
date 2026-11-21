@@ -11,7 +11,7 @@ export function genMain() {
 		}
 		break;
 	}
-	console.log(v14);
+	console.log((String(v14)));
 	return v14;
 }
 

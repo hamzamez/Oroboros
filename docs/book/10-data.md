@@ -106,7 +106,7 @@ func DataDivmod(v0 int, v1 int) (int, int) {
     return v23, v24
 }
 
-func DataSwap(v0 int, v1 int) (int, int) {
+func DataSwap(v0 *big.Int, v1 *big.Int) (*big.Int, *big.Int) {
     return v1, v0
 }
 
@@ -117,7 +117,8 @@ func DataThree(v0 int) (int, bool, string) {
 ```
 
 Go can return several values from a function, so a tuple result *is* Go's several results.
-Nothing was built to hold them. JavaScript cannot, so there the compiler returns a small
+Nothing was built to hold them. (`swap` takes and gives `*big.Int`s because `Int` is every
+integer, and a host may hand it any; chapter 6 is why.) JavaScript cannot, so there the compiler returns a small
 object:
 
 <!-- gen js docs/book/code/data/header.oro -->

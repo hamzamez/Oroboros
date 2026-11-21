@@ -11,29 +11,29 @@ export function genMain() {
 		}
 		break;
 	}
-	console.log(v11);
-	const v75 = Uint8Array.of(0, 0, 5, 0, 5, 5, 0, 5);
-	let v79 = 0;
+	console.log((String(v11)));
+	const v76 = Uint8Array.of(0, 0, 5, 0, 5, 5, 0, 5);
 	let v80 = 0;
-	for (;; v79 = (v79 + 1)) {
-		if (((v79 < (v75.length >> 1)) && (v79 < 1000))) {
-			v80 = ((v80 + (v75[(2 * v79)] * v75[((2 * (((v79 + 1) < (v75.length >> 1)) ? (v79 + 1) : 0)) + 1)])) - (v75[(2 * (((v79 + 1) < (v75.length >> 1)) ? (v79 + 1) : 0))] * v75[((2 * v79) + 1)]));
+	let v81 = 0;
+	for (;; v80 = (v80 + 1)) {
+		if (((v80 < (v76.length >> 1)) && (v80 < 1000))) {
+			v81 = ((v81 + (v76[(2 * v80)] * v76[((2 * (((v80 + 1) < (v76.length >> 1)) ? (v80 + 1) : 0)) + 1)])) - (v76[(2 * (((v80 + 1) < (v76.length >> 1)) ? (v80 + 1) : 0))] * v76[((2 * v80) + 1)]));
 			continue;
 		}
 		break;
 	}
-	console.log(v80);
-	const v144 = Uint8Array.of(0, 0, 0, 5, 5, 5, 5, 0);
-	let v148 = 0;
-	let v149 = 0;
-	for (;; v148 = (v148 + 1)) {
-		if (((v148 < (v144.length >> 1)) && (v148 < 1000))) {
-			v149 = ((v149 + (v144[(2 * v148)] * v144[((2 * (((v148 + 1) < (v144.length >> 1)) ? (v148 + 1) : 0)) + 1)])) - (v144[(2 * (((v148 + 1) < (v144.length >> 1)) ? (v148 + 1) : 0))] * v144[((2 * v148) + 1)]));
+	console.log((String(v81)));
+	const v146 = Uint8Array.of(0, 0, 0, 5, 5, 5, 5, 0);
+	let v150 = 0;
+	let v151 = 0;
+	for (;; v150 = (v150 + 1)) {
+		if (((v150 < (v146.length >> 1)) && (v150 < 1000))) {
+			v151 = ((v151 + (v146[(2 * v150)] * v146[((2 * (((v150 + 1) < (v146.length >> 1)) ? (v150 + 1) : 0)) + 1)])) - (v146[(2 * (((v150 + 1) < (v146.length >> 1)) ? (v150 + 1) : 0))] * v146[((2 * v150) + 1)]));
 			continue;
 		}
 		break;
 	}
-	console.log(v149);
-	return v149;
+	console.log((String(v151)));
+	return v151;
 }
 

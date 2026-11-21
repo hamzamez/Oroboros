@@ -82,8 +82,8 @@ func TestTheConsentToTheRungAboveIsAClaim(t *testing.T) {
 		t.Errorf("an unproven operation with no claim above the word is refused: %v", err)
 	}
 	// An exact value where a word is claimed, refused by its fact.
-	if err := claimCheck(t, grow+"fn k(x ∈ 0..2^40) (Int) { grow(x) }\nexport fn m(y ∈ 0..2^40) { k(y) }\n"); err == nil ||
-		!strings.Contains(err.Error(), "WIDENING") {
+	if err := claimCheck(t, grow+"fn k(x ∈ 0..2^40) (-2^63..2^63-1) { grow(x) }\nexport fn m(y ∈ 0..2^40) { k(y) }\n"); err == nil ||
+		!strings.Contains(err.Error(), "does not establish") {
 		t.Errorf("a value held exactly where a word is claimed is refused: %v", err)
 	}
 }

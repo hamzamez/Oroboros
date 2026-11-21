@@ -83,7 +83,7 @@ func TestEveryTargetHasMultipleResults(t *testing.T) {
 			`return \{f0: \(v\d+ \+ v\d+\), f1: \(v\d+ - v\d+\)\};`},
 		{"java", "use java\nexport fn d(a ∈ Int, b ∈ Int) (Int × Int) where java.`!=`(b, 0) { (java.`/`(a, b), java.`%`(a, b)) }",
 			`return new Tup_long_long\(`},
-		{"windows", "export fn d(a ∈ -2^63+1..2^63-1, b ∈ Int) (Int × Int) where b != 0 { (a / b, a % b) }",
+		{"windows", "export fn d(a ∈ -2^63+1..2^63-1, b ∈ -2^63..2^63-1) (Int × Int) where b != 0 { (a / b, a % b) }",
 			`ret \{ i64, i64 \} %`},
 	}
 	for _, c := range cases {
@@ -209,7 +209,7 @@ func TestSumCrossesEveryBoundary(t *testing.T) {
 			[]string{`return \{f0: 1, f1: 0\};`, `return \{f0: 0, f1: \(v\d+ / v\d+\)\};`}},
 		{"java", "use java\nset Result = 'ok(Int) ∪ 'err(Int)\nexport fn d(a ∈ Int, b ∈ Int) (Result) { if b == 0 { 'err(0) } else { 'ok(java.`/`(a, b)) } }",
 			[]string{`Tup_long_long`, `return new Tup_long_long\(1, 0\);`}},
-		{"windows", "set Result = 'ok(Int) ∪ 'err(Int)\nexport fn d(a ∈ -2^63+1..2^63-1, b ∈ Int) (Result) { if b == 0 { 'err(0) } else { 'ok(a / b) } }",
+		{"windows", "set Result = 'ok(Int) ∪ 'err(Int)\nexport fn d(a ∈ -2^63+1..2^63-1, b ∈ -2^63..2^63-1) (Result) { if b == 0 { 'err(0) } else { 'ok(a / b) } }",
 			[]string{`insertvalue \{ i64, i64 \} undef, i64 1, 0`, `insertvalue \{ i64, i64 \} undef, i64 0, 0`}},
 	}
 	for _, c := range cases {

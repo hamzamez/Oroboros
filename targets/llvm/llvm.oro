@@ -107,7 +107,7 @@ realize ascii = lang.ascii_of
 realize utf8_text = lang.text_v
 // RENDERING, ℤ's at every sort (ADR 0095): this term at the word's; a value
 // held as limbs is the limb library's render (ir/limbs.go).
-realize big_str = lang.render
+realize decimal = lang.render
 
 // THE MAP (ADR 0120): each operation a term over the table of its cells,
 // substituted after the decision (ir/maps.go), so the decision sees the map.

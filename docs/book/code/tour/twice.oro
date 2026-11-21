@@ -1,5 +1,12 @@
+use io
+
 fn twice(f, x) { f(f(x)) }
 
 export fn add6(n ∈ 0..100) (Int) { twice(fn(x) { x + 3 }, n) }
 
 export fn shout(s ∈ String) (String) { twice(fn(x) { x ++ "!" }, s) }
+
+export fn main() {
+    io.print_int(add6(4))
+    io.print_line(shout("hey"))
+}

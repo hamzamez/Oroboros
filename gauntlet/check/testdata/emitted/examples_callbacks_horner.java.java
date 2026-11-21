@@ -30,84 +30,88 @@ public final class examples_callbacks_horner.java {
 			}
 			break;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v10 + "\n");
-		int v39 = 0;
+		final String v35 = (Long.toString(v10));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v35 + "\n");
 		int v40 = 0;
-		for (;; v39 = (v39 + 1)) {
-			final boolean v42 = (v39 <= 9);
-			if (v42) {
-				long v50 = 0;
-				int v51 = 0;
-				for (;; v51 = (v51 + 1)) {
-					final int v52 = v6.length;
-					final boolean v53 = (v51 < v52);
-					if (v53) {
-						final boolean v57 = (-1000000000 < v50);
-						if (v57) {
-							final boolean v60 = (v50 < 1000000000);
-							long v61 = 0;
-							if (v60) {
-								final long v63 = (v50 * v39);
-								final int v64 = v6[v51];
-								final long v65 = (v63 + v64);
-								v61 = v65;
+		int v41 = 0;
+		for (;; v40 = (v40 + 1)) {
+			final boolean v43 = (v40 <= 9);
+			if (v43) {
+				long v51 = 0;
+				int v52 = 0;
+				for (;; v52 = (v52 + 1)) {
+					final int v53 = v6.length;
+					final boolean v54 = (v52 < v53);
+					if (v54) {
+						final boolean v58 = (-1000000000 < v51);
+						if (v58) {
+							final boolean v61 = (v51 < 1000000000);
+							long v62 = 0;
+							if (v61) {
+								final long v64 = (v51 * v40);
+								final int v65 = v6[v52];
+								final long v66 = (v64 + v65);
+								v62 = v66;
 							} else {
-								v61 = v50;
+								v62 = v51;
 							}
-							v50 = v61;
+							v51 = v62;
 							continue;
 						}
 						continue;
 					}
 					break;
 				}
-				int v77 = 0;
 				int v78 = 0;
-				for (;; v77 = (v77 + 1)) {
-					final int v80 = v6.length;
-					final boolean v81 = (v77 < v80);
-					final boolean v82 = (v81 && (v77 < 9));
-					if (v82) {
-						final int v93 = v6[v77];
-						int v97 = 0;
-						int v98 = 1;
-						for (;; v97 = (v97 + 1)) {
-							final int v100 = v6.length;
-							final int v102 = (v100 - 1);
-							final int v103 = (v102 - v77);
-							final boolean v104 = (v97 < v103);
-							final boolean v105 = (v104 && (v98 < 1000000));
-							if (v105) {
-								final int v114 = (v98 * v39);
-								v98 = v114;
+				int v79 = 0;
+				for (;; v78 = (v78 + 1)) {
+					final int v81 = v6.length;
+					final boolean v82 = (v78 < v81);
+					final boolean v83 = (v82 && (v78 < 9));
+					if (v83) {
+						final int v94 = v6[v78];
+						int v98 = 0;
+						int v99 = 1;
+						for (;; v98 = (v98 + 1)) {
+							final int v101 = v6.length;
+							final int v103 = (v101 - 1);
+							final int v104 = (v103 - v78);
+							final boolean v105 = (v98 < v104);
+							final boolean v106 = (v105 && (v99 < 1000000));
+							if (v106) {
+								final int v115 = (v99 * v40);
+								v99 = v115;
 								continue;
 							}
 							break;
 						}
-						final int v115 = (v93 * v98);
-						final int v116 = (v78 + v115);
-						v78 = v116;
+						final int v116 = (v94 * v99);
+						final int v117 = (v79 + v116);
+						v79 = v117;
 						continue;
 					}
 					break;
 				}
-				final boolean v117 = (v50 == v78);
-				final boolean v118 = (v117 && (v40 < 10));
-				int v122 = 0;
-				if (v118) {
-					final int v125 = (v40 + 1);
-					v122 = v125;
+				final boolean v118 = (v51 == v79);
+				final boolean v119 = (v118 && (v41 < 10));
+				int v123 = 0;
+				if (v119) {
+					final int v126 = (v41 + 1);
+					v123 = v126;
 				} else {
-					v122 = v40;
+					v123 = v41;
 				}
-				v40 = v122;
+				v41 = v123;
 				continue;
 			}
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v40 + "\n");
+			final String v128 = (Long.toString(v41));
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v128 + "\n");
 			break;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(7 + "\n");
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(2 + "\n");
+		final String v131 = (Long.toString(7));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v131 + "\n");
+		final String v135 = (Long.toString(2));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v135 + "\n");
 		return 2;
 	}
 

@@ -30,19 +30,20 @@ public final class examples_io_wc.java {
 				final int v27 = v11.length;
 				final boolean v28 = (v25 >= v27);
 				if (v28) {
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v26 + "\n");
+					final String v31 = (Long.toString(v26));
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v31 + "\n");
 					break;
 				}
-				final int v36 = (v11[v25] & 0xFF);
-				final boolean v38 = (v36 == 10);
-				int v39 = 0;
-				if (v38) {
-					final int v41 = (v26 + 1);
-					v39 = v41;
+				final int v37 = (v11[v25] & 0xFF);
+				final boolean v39 = (v37 == 10);
+				int v40 = 0;
+				if (v39) {
+					final int v42 = (v26 + 1);
+					v40 = v42;
 				} else {
-					v39 = v26;
+					v40 = v26;
 				}
-				v26 = v39;
+				v26 = v40;
 				continue;
 			}
 			return v26;

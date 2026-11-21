@@ -22,40 +22,40 @@ export function genMain() {
 		}
 		break;
 	}
-	console.log((((v4 + v58) + 1) + 1));
-	let v96 = 1;
-	let v97 = 0;
-	for (;; v96 = (v96 + 1)) {
-		if ((v96 <= 9)) {
-			let v106 = 0;
+	console.log((String((((v4 + v58) + 1) + 1))));
+	let v97 = 1;
+	let v98 = 0;
+	for (;; v97 = (v97 + 1)) {
+		if ((v97 <= 9)) {
 			let v107 = 0;
-			for (;; v106 = (v106 + 1)) {
-				if ((v106 < 9)) {
-					const v114 = ((Math.trunc(v106 / 3) + 0));
-					let v117;
-					if ((v114 === 0)) {
-						const v122 = Uint8Array.of(4, 9, 2);
-						v117 = v122[(((v106 % 3) + 0))];
+			let v108 = 0;
+			for (;; v107 = (v107 + 1)) {
+				if ((v107 < 9)) {
+					const v115 = ((Math.trunc(v107 / 3) + 0));
+					let v118;
+					if ((v115 === 0)) {
+						const v123 = Uint8Array.of(4, 9, 2);
+						v118 = v123[(((v107 % 3) + 0))];
 					} else {
-						if ((v114 === 1)) {
-							const v133 = Uint8Array.of(3, 5, 7);
-							v117 = v133[(((v106 % 3) + 0))];
+						if ((v115 === 1)) {
+							const v134 = Uint8Array.of(3, 5, 7);
+							v118 = v134[(((v107 % 3) + 0))];
 						} else {
-							const v141 = Uint8Array.of(8, 1, 6);
-							v117 = v141[(((v106 % 3) + 0))];
+							const v142 = Uint8Array.of(8, 1, 6);
+							v118 = v142[(((v107 % 3) + 0))];
 						}
 					}
-					v107 = ((v117 === v96) ? (v107 + 1) : v107);
+					v108 = ((v118 === v97) ? (v108 + 1) : v108);
 					continue;
 				}
 				break;
 			}
-			v97 = ((v107 === 1) ? (v97 + 1) : v97);
+			v98 = ((v108 === 1) ? (v98 + 1) : v98);
 			continue;
 		}
 		break;
 	}
-	console.log(v97);
-	return v97;
+	console.log((String(v98)));
+	return v98;
 }
 

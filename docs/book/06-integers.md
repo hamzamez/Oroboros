@@ -13,15 +13,15 @@ something else: a large negative number in C, Java and Go, a number that is quie
 JavaScript. Programs have been lost to that "unless" for sixty years. This language's answer is
 one sentence, and the chapter is its consequences:
 
-> **An integer is an integer. An operation either computes the integer it means, or the program
-> does not compile.**
+> **An integer is an integer. An operation computes the integer it means, and a value that must
+> be held in a set it is not proven to be in does not compile.**
 
 Along the way: Euclid's division, the machine word and why it wraps, intervals (the oldest
 program analysis there is), preconditions (Hoare, 1969), and the most famous one-line bug in
 computing, which this language cannot express.
 
 The examples are in [code/integers/](code/integers/), compiled for real targets, mostly Go.
-`go run docs/book/check.go docs/book/06-integers.md` re-runs every block. Checked 2026-11-20.
+`go run docs/book/check.go docs/book/06-integers.md` re-runs every block. Checked 2026-11-21.
 
 ---
 
@@ -248,7 +248,7 @@ export fn high_bit(b ∈ Byte) (0..1) { b / 128 }
 <!-- gen go docs/book/code/integers/sets.oro -->
 ```go
 …
-func IntegersAny(v0 int) int {
+func IntegersAny(v0 *big.Int) *big.Int {
     return v0
 }
 
@@ -286,7 +286,8 @@ knowing `b` is not negative, wrote the division as a shift, which is what you wo
 
 What a set is *not* is a size in memory. In C, `short`, `int` and `long` say how many bytes a
 value occupies, and the range follows from that. Here the source says what the values are, and
-the compiler chooses how to hold them. All five functions above take a Go `int`.
+the compiler chooses how to hold them. Four of the five functions above take a Go `int`; `any`
+takes every integer, and Go's type for every integer is `*big.Int` (§6.4).
 
 **A range may not be empty**, since no call could ever supply a member:
 
@@ -342,29 +343,31 @@ gen: half: the claim half ∈ 0..100 is false: its value is 200
 
 Here is the function everything in this chapter turns on:
 
-<!-- file docs/book/code/integers/no-square.oro -->
+<!-- file docs/book/code/integers/square.oro -->
 ```go
+use io
+
 export fn square(n ∈ Int) (Int) { n * n }
+
+export fn main() {
+    io.print_int(square(3000000000))
+    io.print_int(square(4000000000))
+}
 ```
 
-<!-- gen go docs/book/code/integers/no-square.oro -->
+<!-- run go docs/book/code/integers/square.oro -->
 ```
-note: integers-square: 0 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: integers-square: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  * [-inf, +inf] in n * n
-  Outside its word a target's arithmetic does not compute the integer the
-  program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
-  this is refused rather than noted (ADR 0019, ADR 0026).
-…
+9000000000000000000
+16000000000000000000
 ```
 
-A function that squares an integer, and it does not compile. To see why, look at what the
-machine has.
+In Go, Java or C the second line is −2446744073709551616. To see why, look at what the machine
+has.
 
 A processor computes with **words**: registers of a fixed number of bits, 64 on the machines
 this language targets. A word has 2⁶⁴ possible states, so it can stand for 2⁶⁴ different
-integers and no more. Read as a signed number, those are −2⁶³ to 2⁶³ − 1, which is the first
-interval in the message: from about minus nine billion billion to plus nine billion billion.
+integers and no more. Read as a signed number, those are −2⁶³ to 2⁶³ − 1: from about minus nine
+billion billion to plus nine billion billion.
 
 Inside that interval the machine's `+`, `-` and `*` give the true integer. At its edge they
 cannot, since the true answer has no state to be stored in. What the hardware does instead is
@@ -382,9 +385,57 @@ signal: the program continues with a wrong number. In 1996 the first Ariane 5 ro
 forty seconds after launch because a number too large for the 16 bits it was being stored in
 went unnoticed in a piece of code that had worked for years on a slower rocket.
 
-`square` takes any integer. The host can pass it four billion. So `n * n` can leave the word,
-the compiler cannot prove otherwise, and it says so. The interval it printed for the product,
-`[-inf, +inf]`, is all it knows.
+`square` takes any integer, and `n * n` means the integer n². The compiler cannot prove that it
+fits a word, since it does not, so it does not use one:
+
+<!-- gen go docs/book/code/integers/square.oro -->
+```go
+note: integers-square: 1 operation(s) in arbitrary precision
+…
+func IntegersSquare(v0 *big.Int) *big.Int {
+    v1 := (new(big.Int).Mul(v0, v0))
+    return v1
+}
+```
+
+`*big.Int` is Go's integer of any size, from its library `math/big`. The compiler said what it
+did, *1 operation in arbitrary precision*, because it costs: a big integer is an allocation and a
+loop over its digits, where a word is one instruction. §6.10 is about integers above the word.
+
+**When you want the machine's word, say so, as a set.** A word is `-2^63..2^63-1`:
+
+<!-- file docs/book/code/integers/no-square.oro -->
+```go
+export fn square64(n ∈ Int) (-2^63..2^63-1) { n * n }
+```
+
+<!-- gen go docs/book/code/integers/no-square.oro -->
+```
+gen: square64: the body does not establish -9223372036854775808 <= result && result <= 9223372036854775807; its result is [-inf, +inf]
+```
+
+The header claims the square is in the word, for every integer `n`, and that is false. The
+interval it printed for the product, `[-inf, +inf]`, is all the compiler knows about it. Overflow
+is not an outcome here: a value that must be held in a set it is not proven to be in is refused
+before the program runs. Narrow the parameter and the claim is true:
+
+<!-- file docs/book/code/integers/word.oro -->
+```go
+export fn square64(n ∈ -3037000499..3037000499) (-2^63..2^63-1) { n * n }
+```
+
+<!-- gen go docs/book/code/integers/word.oro -->
+```go
+note: integers-square64: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+…
+func IntegersSquare64(v0 int) int {
+    v9 := (v0 * v0)
+    return v9
+}
+```
+
+3037000499² is just under 2⁶³, so the product is *bounded*, proven inside the word, and it is
+one machine multiplication with nothing checked.
 
 **The word is the target's.** Go, the JVM and Windows have the 64-bit word. JavaScript has no
 integers at all: its numbers are floating-point, exact only from −(2⁵³ − 1) to 2⁵³ − 1, and that
@@ -469,11 +520,11 @@ export fn distance(n ∈ 0..100) (0..50) { if n > 50 { n - 50 } else { 50 - n } 
 
 export fn magnitude(n ∈ -9..9) (0..9) { if n < 0 { -n } else { n } }
 
-export fn both_sides(n ∈ Int) (Int) { if n >= 0 && n < 1000 { n * n } else { 0 } }
+export fn both_sides(n ∈ -2^63..2^63-1) (Int) { if n >= 0 && n < 1000 { n * n } else { 0 } }
 
-export fn the_other_way(n ∈ Int) (Int) { if n < 0 || n >= 1000 { 0 } else { n * n } }
+export fn the_other_way(n ∈ -2^63..2^63-1) (Int) { if n < 0 || n >= 1000 { 0 } else { n * n } }
 
-export fn through_a_name(n ∈ Int) (Int) { small = n >= 0 && n < 1000; if small { n * n } else { 0 } }
+export fn through_a_name(n ∈ -2^63..2^63-1) (Int) { small = n >= 0 && n < 1000; if small { n * n } else { 0 } }
 ```
 
 <!-- gen go docs/book/code/integers/facts.oro -->
@@ -485,11 +536,11 @@ note: integers-the-other-way: 1 of 1 integer operations bounded; 0 of 0 loop(s) 
 note: integers-through-a-name: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 …
 func IntegersBothSides(v0 int) int {
-    v4 := (v0 >= 0)
-    v5 := (v4 && (v0 < 1000))
-    if v5 {
-        v13 := (v0 * v0)
-        return v13
+    v12 := (v0 >= 0)
+    v13 := (v12 && (v0 < 1000))
+    if v13 {
+        v21 := (v0 * v0)
+        return v21
     }
     return 0
 }
@@ -499,9 +550,9 @@ func IntegersBothSides(v0 int) int {
 - `distance`: in the first branch `n > 50` is known, so `n` is in 51..100 and `n - 50` in 1..50.
   In the other, `n` is in 0..50 and `50 - n` in 0..50. The claim `(0..50)` holds on both.
 - `magnitude`: the absolute value. Where `n < 0`, `-n` is in 1..9.
-- `both_sides`: this is `square` from §6.4, **compiling**. `n` is any integer, and inside the
-  branch it is in 0..999, so the product is under a million. A test you would have written
-  anyway is the proof.
+- `both_sides`: this is `square` from §6.4, in the word. `n` is any word, and inside the branch
+  it is in 0..999, so the product is under a million and one machine multiplication. A test you
+  would have written anyway is the proof.
 - `the_other_way`: the `else` of a condition knows its negation. Not (`n < 0` or `n >= 1000`) is
   `n >= 0` and `n < 1000`, by De Morgan's law (§4.5).
 - `through_a_name`: the condition may be computed first and tested later. The fact follows the
@@ -513,7 +564,7 @@ A fact also survives a function, since functions are reduced away (§1.2):
 ```go
 fn clamp(n, lo, hi) { case { n < lo -> lo; n > hi -> hi; else -> n } }
 
-export fn squared(n ∈ Int) (0..10^6) { c = clamp(n, 0, 1000); c * c }
+export fn squared(n ∈ -2^63..2^63-1) (0..10^6) { c = clamp(n, 0, 1000); c * c }
 ```
 
 <!-- gen go docs/book/code/integers/clamp.oro -->
@@ -613,11 +664,12 @@ called by the host, from outside, so there its header is a promise the caller ma
 
 ## 6.8 Three ways to clear a refusal
 
-Back to `square`. There are three things you can say, and each is visible in the source or on
-the command line.
+Back to `square64`, refused because its claim of the word is false. There are three things you
+can say, and each is visible in the source or on the command line.
 
-**Narrow the set**, so the operation provably fits. **Or claim a set above the word**, which is
-asking for exact arithmetic however large the result:
+**Narrow the set**, so the operation provably fits, as `word.oro` did and as §6.6's tests do.
+**Or claim a wider set**, a range above the word or `Int` itself, which is exact arithmetic
+however large the result:
 
 <!-- file docs/book/code/integers/above.oro -->
 ```go
@@ -640,50 +692,22 @@ func IntegersWide(v0 int) *big.Int {
 …
 ```
 
-`small` is one multiplication. `wide` takes an `int` and returns Go's `*big.Int`, an integer of
-any size, because its declared result does not fit a word. §6.10 is about that.
+`small` claims `Int` and is one multiplication on an `int`: a result claimed in ℤ is held as its
+value needs, and −1000..1000 squared fits the word. `wide` takes an `int`, since 2⁴⁰ fits one,
+and returns Go's `*big.Int`, because its result does not. Write `(Int)` for `wide`'s result and
+it is the same function; `(0..2^80)` says more, and §6.10 shows what that costs.
 
-Without the wider claim, the same function is refused, and the message is different from
-`square`'s. The compiler knows how large the product can be; it is the word that is too small:
-
-<!-- file docs/book/code/integers/no-above.oro -->
-```go
-export fn wide(n ∈ 0..2^40) (Int) { n * n }
-```
-
-<!-- gen go docs/book/code/integers/no-above.oro -->
-```
-note: integers-wide: 0 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: integers-wide: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  * [0, 1208925819614629174706176] in n * n
-  An operation above is BOUNDED, only not by this target's word: targets whose
-  word holds that interval accept the program, and this one refuses it. To compile it
-  here too, DECLARE THE RANGE — e.g. a result of `0..N` — which is arbitrary
-  precision on this target and a machine word where one holds it. `go run ./cmd/portable`
-  reports which targets accept the program.
-…
-```
-
-**Or ask for the trap.** `-checked` emits the host's own checked arithmetic for every operation
-that was not proven, and the program stops at run time if one overflows:
-
-<!-- gen go docs/book/code/integers/no-square.oro -checked -->
-```go
-…
-func IntegersSquare(v0 int) int {
-    v1 := (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(v0, v0))
-    return v1
-}
-```
-
-That is a division after every multiplication, which is why it is not the default: the proven
-operations cost nothing, and the trap is what you pay for the ones you chose not to prove.
+**Or ask for the trap.** `-checked` is a flag of the compiler, and it applies where a value must
+be held in a word by something other than a claim: an element of a table (chapter 13) or a
+host's parameter (chapter 17), which the program cannot prove it fits. There it emits the host's
+own checked arithmetic, and the program stops when it runs if the value leaves the word. A claim
+in a header is never a trap: it is decided when the program is compiled, as `square64`'s was.
 
 | you say | you get | it costs |
 |---|---|---|
 | a narrower set, or a test | the machine's operation, proven | nothing at run time |
-| a result set above the word | exact arithmetic of any size | an allocation, where the value leaves the word |
-| `-checked` | the machine's operation, and a stop on overflow | a test per unproven operation |
+| `Int`, or a set above the word | exact arithmetic of any size | an allocation, where the value leaves the word |
+| `-checked`, where a word is required | the machine's operation, and a stop on overflow | a test per unproven operation |
 
 What you cannot get is the fourth thing, the one every host gives by default: the machine's
 operation, unproven and unchecked.
@@ -731,7 +755,7 @@ when the two are large. The average would have fitted; the *sum on the way to it
 Java the sum wraps negative, the "middle" is negative, and the program fails with an index out
 of range, but only on lists of more than a billion elements, which in 1997 nobody had.
 
-Here is what this compiler does with the line:
+Here is what this compiler does with the line, whose sets are words that cannot be negative:
 
 <!-- gen go docs/book/code/integers/midpoint.oro -->
 ```go
@@ -752,38 +776,84 @@ func IntegersMid(v0 int, v1 int) int {
 The sum of two numbers below 2⁶³ is below 2⁶⁴. It does not fit the signed reading and does fit
 the unsigned one, so the compiler adds there, halves there, and reads the result back as signed,
 where the claim `(0..2^63-1)` says it belongs. That is one of the two fixes Bloch gave, found
-from the sets alone. And with no sets to go on, the line does not compile at all:
+from the sets alone. Let the words be signed, and neither reading holds the sum:
 
 <!-- file docs/book/code/integers/no-midpoint.oro -->
 ```go
-export fn mid(lo ∈ Int, hi ∈ Int) (Int) { (lo + hi) / 2 }
+export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { (lo + hi) / 2 }
 ```
 
 <!-- gen go docs/book/code/integers/no-midpoint.oro -->
 ```
-note: integers-mid: 0 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: integers-mid: 2 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  + [-inf, +inf] in lo + hi
-  / [-inf, +inf] in (lo + hi) / 2
+note: integers-mid: 1 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+gen: integers-mid: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+  + [-18446744073709551616, 18446744073709551614] in lo + hi
 …
 ```
 
-The bug is not caught by a clever check for averages. It is the ordinary rule: `+` must be
-proven inside a word, and here it is not.
+The bug is not caught by a clever check for averages. It is the ordinary rule: the sum must be
+held somewhere, here no word holds it, and nothing in the program asked for more than a word.
+Ask with `Int`, and the line is the integer it means:
 
-**The two readings do not mix silently.** A value held unsigned is not an `Int` for the host,
-and saying it is one is refused, here at the very edge of the word, where `n + 1` can be 2⁶³:
+<!-- file docs/book/code/integers/mid-int.oro -->
+```go
+export fn mid(lo ∈ Int, hi ∈ Int) (Int) { (lo + hi) / 2 }
+```
 
-<!-- file docs/book/code/integers/no-edge.oro -->
+<!-- gen go docs/book/code/integers/mid-int.oro -->
+```go
+note: integers-mid: 2 operation(s) in arbitrary precision
+…
+func IntegersMid(v0 *big.Int, v1 *big.Int) *big.Int {
+    v2 := (new(big.Int).Add(v0, v1))
+    v4 := (big.NewInt(int64(2)))
+    v5 := (new(big.Int).Quo(v2, v4))
+    return v5
+}
+```
+
+The average of two words is a word, so the signed `mid` above is a correct program that the
+compiler refuses: an intermediate above the word is computed exactly only where something in the
+program asks for exactness, and there only the result's claim speaks, of the word. That is a gap,
+the book's finding 108, and not a principle.
+
+**The result's set chooses the reading**, here at the very edge of the word, where `n + 1` can
+be 2⁶³. Claimed `Int`, the result is ℤ, and 2⁶³ is past the signed word, so on Go it is a
+`*big.Int`:
+
+<!-- file docs/book/code/integers/next-int.oro -->
 ```go
 export fn next(n ∈ 0..2^63-1) (Int) { n + 1 }
 ```
 
-<!-- gen go docs/book/code/integers/no-edge.oro -->
+<!-- gen go docs/book/code/integers/next-int.oro -->
+```go
+func IntegersNext(v0 int) *big.Int {
+    v10 := (big.NewInt(int64(1)))
+    v11 := (big.NewInt(int64(v0)))
+    v12 := (new(big.Int).Add(v11, v10))
+    return v12
+}
 ```
-gen: integers-next: a result is [1, 9223372036854775808], which is outside target go's signed word [-9223372036854775808, 9223372036854775807] and inside [0, 18446744073709551615], so it is held in the UNSIGNED word, not an `Int` (ADR 0026, ADR 0033).
-…
+
+Claimed `0..2^63`, the result is a natural below 2⁶⁴, which the unsigned reading holds:
+
+<!-- file docs/book/code/integers/next-u.oro -->
+```go
+export fn next(n ∈ 0..2^63-1) (0..2^63) { n + 1 }
 ```
+
+<!-- gen go docs/book/code/integers/next-u.oro -->
+```go
+func IntegersNext(v0 int) uint64 {
+    v10 := (uint64(v0))
+    v11 := (uint64(1))
+    v12 := ((v10 + v11))
+    return v12
+}
+```
+
+And one integer less in the parameter's set keeps the signed word:
 
 <!-- file docs/book/code/integers/edge.oro -->
 ```go
@@ -796,9 +866,9 @@ note: integers-next: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven te
 …
 ```
 
-One integer of difference in the parameter's set, the largest one, and the answer to this
-chapter's opening question changes from "refused" to "proven". That is the "unless" of every
-other language, stated where you can see it.
+One integer of difference in a set, the largest one, and the representation changes: a
+`*big.Int`, a `uint64`, an `int`. The answer never does. That is the "unless" of every other
+language, stated where you can see it, with the wrong answer taken out.
 
 ### The one place division overflows
 
@@ -820,23 +890,21 @@ note: integers-positive-divisor: 1 of 1 integer operations bounded; 0 of 0 loop(
 
 <!-- file docs/book/code/integers/no-corner.oro -->
 ```go
-export fn negative_divisor(a ∈ -2^63..2^63-1, b ∈ -9..-1) (Int) { a / b }
+export fn negative_divisor(a ∈ -2^63..2^63-1, b ∈ -9..-1) (-2^63..2^63-1) { a / b }
 ```
 
 <!-- gen go docs/book/code/integers/no-corner.oro -->
 ```
-note: integers-negative-divisor: 0 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: integers-negative-divisor: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  / [-9223372036854775807, 9223372036854775808] in a / b
-…
+gen: negative-divisor: the body does not establish -9223372036854775808 <= result && result <= 9223372036854775807; its result is [-9223372036854775807, 9223372036854775808]
 ```
 
 A quotient is never larger in size than what was divided, so division looks safe. It has one
 exception. The signed word is lopsided: it holds −2⁶³ and not +2⁶³. So −2⁶³ divided by −1, which
 is +2⁶³, does not fit. On an Intel processor that division stops the program; in Go and Java it
 quietly returns −2⁶³. The compiler found it: the interval printed ends at 9223372036854775808,
-one past the word. Exclude either the one dividend or the one divisor and the division is
-proven. The remainder never leaves the word and needs nothing.
+one past the word. Exclude either the one dividend or the one divisor and the claim is proven;
+claim `Int` and the quotient is 2⁶³, computed exactly. The remainder never leaves the word and
+needs nothing.
 
 ## 6.10 Above the word
 
@@ -851,12 +919,12 @@ use io
 fn square(n ∈ Nat) (Nat) { n * n }
 
 export fn main() {
-    io.print_line(big_str(2^64))
-    io.print_line(big_str(2^200))
-    io.print_line(big_str(square(10^20) + 1))
-    io.print_line(big_str(2^200 / 10^50))
-    io.print_line(big_str(2^200 % 10^9))
-    io.print_line(big_str(2^64 - 2^65))
+    io.print_line(decimal(2^64))
+    io.print_line(decimal(2^200))
+    io.print_line(decimal(square(10^20) + 1))
+    io.print_line(decimal(2^200 / 10^50))
+    io.print_line(decimal(2^200 % 10^9))
+    io.print_line(decimal(2^64 - 2^65))
 }
 ```
 
@@ -890,7 +958,7 @@ export fn main() {
 -18446744073709551616
 ```
 
-`big_str` is the language's own function from an integer of any size to its decimal text, and
+`decimal` is the language's own function from an integer of any size to its decimal text, and
 `io.print_line` prints text. `square` claims `Nat`, the naturals with no upper end, so its
 product is computed exactly, whatever its size.
 
@@ -933,9 +1001,8 @@ func IntegersNatural(v0 *big.Int) *big.Int {
 …
 ```
 
-Here, at last, `n + 1` is the next integer with no "unless". (`Int` at an entry point is the
-exception: it is taken as the host's word, as §6.3's `any` showed, with nothing known about its
-size. That is why arithmetic on a bare `Int` parameter is refused and not made exact.)
+Here, at last, `n + 1` is the next integer with no "unless". `Int` at an entry point is the
+same: §6.3's `any` and §6.4's `square` take a `*big.Int`, since a host may pass them any integer.
 
 **A bounded claim above the word is checked when the program runs**, where the compiler could
 not prove it. `wide` of §6.8, in full:
@@ -981,19 +1048,18 @@ of this chapter applies to it too:
 
 <!-- file docs/book/code/integers/no-fold.oro -->
 ```go
-export fn doubled() (Int) { 2^62 + 2^62 }
+export fn doubled() (-2^63..2^63-1) { 2^62 + 2^62 }
 ```
 
 <!-- gen go docs/book/code/integers/no-fold.oro -->
 ```
-gen: integers-doubled: a result is [9223372036854775808, 9223372036854775808], which is outside target go's signed word [-9223372036854775808, 9223372036854775807] and inside [0, 18446744073709551615], so it is held in the UNSIGNED word, not an `Int` (ADR 0026, ADR 0033).
-…
+gen: doubled: the body does not establish -9223372036854775808 <= result && result <= 9223372036854775807; its result is [9223372036854775808, 9223372036854775808]
 ```
 
 2⁶² + 2⁶² is 2⁶³, one past the signed word. A compiler that folded this in 64-bit arithmetic
 would write −2⁶³ into the program; one that folded it exactly and then stored it in an `int`
-would do the same a step later. This one notices that the constant it computed does not fit
-where the header says it goes. **Computing at compile time never changes an answer**
+would do the same a step later. This one computes 2⁶³ and notices that it does not fit where the
+header says it goes. Claim `(Int)` and the function returns 2⁶³, exactly. **Computing at compile time never changes an answer**
 ([ADR 0009](../decisions/0009-staging-preserves-results.md)).
 
 ## 6.11 Which word, and so which targets
@@ -1006,6 +1072,8 @@ That is computed, and there is a tool to ask:
 export fn small(n ∈ 0..2^26) (Int) { n * n }
 
 export fn third(n ∈ 0..2^60) (Int) { n / 3 }
+
+export fn next(n ∈ Int) (Int) { n + 1 }
 ```
 
 ```bash
@@ -1015,13 +1083,19 @@ go run ./cmd/portable docs/book/code/integers/words.oro
 <!-- portable docs/book/code/integers/words.oro -->
 ```
 …
-portable to go, java, windows — not js
-W(go, java, windows) = [-9223372036854775808, 9223372036854775807]   (the meet of their words: derived, not assumed — ADR 0026)
+portable to go, js, java — not windows
 ```
 
-`small` is fine everywhere: 2²⁶ squared is 2⁵², inside JavaScript's 2⁵³. `third` takes a number
-up to 2⁶⁰, which a JavaScript number cannot hold exactly, and JavaScript is refused for it.
-Narrow the parameter to `0..2^53-1` and the file is portable to all four.
+`small` is a word everywhere: 2²⁶ squared is 2⁵², inside JavaScript's 2⁵³. `third` takes a
+number up to 2⁶⁰, which a JavaScript number cannot hold exactly, so on JavaScript its parameter
+is a `BigInt` and on the other three an integer word: the same set, two representations. `next`
+takes every integer. Go, the JVM and JavaScript each have a type for that, and Windows does not:
+a Windows program's callers are C's, and C has no integer of any size.
+
+<!-- gen windows docs/book/code/integers/words.oro -->
+```
+gen: integers-next: its parameter n ∈ Int is any integer, and an entry point of target windows takes no integer above its word: its callers are C's, and C has none (K(ℕ*) is this program's own). Bound it, `where n <= …`, or give it a range inside the word
+```
 
 > **Portability is a property a program has or lacks, and the compiler tells you which.** Most
 > languages promise it for every program and then define an `int` that differs from machine to
@@ -1241,23 +1315,26 @@ in its header, and nowhere else.** An expression carries no annotation.
 | Swift | stops the program | a library |
 | Python, Lisp, Haskell's `Integer` | exact, always | nothing: every integer may be big, and every operation checks |
 | Ada, SPARK | a range on the type, checked at run time, or proven by a separate tool | a library |
-| this language | proven to fit, or refused | a set above the word, and exact where the value leaves it |
+| this language | exact: the next integer | nothing: a word where it is proven to fit, the host's big integer where not |
 
 Three positions, really. *Fast and sometimes wrong* (the first three rows). *Right and always
 paying for it*, a test on every operation (Swift, Python). And the one taken here, which Ada
 and SPARK came closest to: say what the numbers are, and let a proof decide, operation by
 operation, whether the machine's own instruction is the right answer. Where the proof succeeds,
 which in the programs written so far is nearly always, the cost is the same as C's and the
-answer is Python's.
+answer is Python's. Where it does not, the answer is still Python's, and the compiler says
+what it cost.
 
-The price is the one you have seen all chapter. You have to say what your numbers are.
+The price is the one you have seen all chapter. To get the machine's instruction, you have to
+say what your numbers are.
 
 ---
 
 ## What to remember
 
-- **An integer is an integer.** `Int` is ℤ. An operation computes the integer it means, or the
-  program is refused.
+- **An integer is an integer.** `Int` is ℤ, everywhere, an `export` included. An operation
+  computes the integer it means; a value that must be held in a set it is not proven in is
+  refused.
 - **Literals** are decimal or `0x` hexadecimal; `^` is a power of constants. `* / %` bind
   tighter than `+ -`, and equal strengths group from the left.
 - **`/` rounds toward zero, `%` has the sign of its left side, and `(a / b) * b + a % b` is
@@ -1272,13 +1349,14 @@ The price is the one you have seen all chapter. You have to say what your number
   branch it guards, and its negation narrows the `else`.
 - **Division requires a divisor that is not zero**, a precondition. Supply the fact by a test,
   a set, or a `where`.
-- **To clear a refusal**: narrow a set or test; claim a result above the word, for exact
-  arithmetic; or build with `-checked`, for a trap.
+- **To clear a refusal**: narrow a set or test; claim `Int` or a set above the word, for exact
+  arithmetic; or, where a word is required by a table or a host, build with `-checked`, for a
+  trap.
 - **The compiler chooses the representation**: signed word, unsigned word, or the target's big
-  integer. `(lo + hi) / 2` is computed in the unsigned word when the sets allow it, and refused
-  when nothing is known.
+  integer, by what it proves. `(lo + hi) / 2` is computed in the unsigned word when the sets
+  allow it, and exactly when they are `Int`.
 - **Above the word** is the host's big integer, or the language's own digits where the host has
-  none. `big_str` gives its text. It does not come back down silently.
+  none. `decimal` gives its text. It does not come back down silently.
 - **Portability is computed**: `cmd/portable` says which targets accept a program.
 - **A header's sets, `where` and `ensure` are claims**: obligations on callers, promises about
   the result, proven or refused.

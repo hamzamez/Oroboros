@@ -247,10 +247,12 @@ export fn main() {
 
 <!-- build go docs/book/code/numbers/no-int.oro -->
 ```
-build: main: in argument 1 of io.print_int: `+` is N, but Int is required here
+build: main: in argument 1 of io.print_line: in argument 1 of decimal: n is N, but Int is required here
 ```
 
-A half and a half *is* 1, and the compiler still refuses. The reason is that this check
+(`io.print_int` is a definition, `io.print_line(decimal(n))`, and the check met the number inside
+it, at `decimal`'s argument; the book's finding 110.) A half and a half *is* 1, and the compiler
+still refuses. The reason is that this check
 happens by looking at the program, not by running it. `+` of two numbers is a number, and
 whether it happens to land on an integer depends on the values. For these two literals you
 can see it does; for two prices read from a file nobody can.
@@ -295,7 +297,7 @@ export fn main() {
 
 <!-- build go docs/book/code/numbers/no-slash.oro -->
 ```
-build: main: in argument 1 of io.print_int: in argument 1 of `/`: `*` is N, but Int is required here
+build: main: in argument 1 of `/`: `*` is N, but Int is required here
 ```
 
 `/` is the integer quotient of chapter 6, the one where `7 / 2` is 3. It has no meaning on

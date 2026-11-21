@@ -3,6 +3,7 @@
 package gauntlet
 
 import "fmt"
+import "strconv"
 
 func GenMain() int {
 	v2 := make(map[int]int, 64)
@@ -178,8 +179,10 @@ func GenMain() int {
 	} else {
 		v227 = -1
 	}
-	fmt.Println(v227)
-	fmt.Println(v12)
+	v231 := (strconv.Itoa(v227))
+	fmt.Println(v231)
+	v233 := (strconv.Itoa(v12))
+	fmt.Println(v233)
 	v1 = v12
 	return v1
 }

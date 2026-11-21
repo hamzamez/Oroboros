@@ -3,15 +3,18 @@
 package gauntlet
 
 import "fmt"
+import "strconv"
 
 func GenMain() int {
 	v4 := []byte{1, 3, 5, 8}
 	v6 := int(v4[0])
-	fmt.Println(v6)
-	v8 := len(v4)
-	v10 := (v8 - 1)
-	v11 := int(v4[v10])
-	fmt.Println(v11)
-	return v11
+	v7 := (strconv.Itoa(v6))
+	fmt.Println(v7)
+	v9 := len(v4)
+	v11 := (v9 - 1)
+	v12 := int(v4[v11])
+	v13 := (strconv.Itoa(v12))
+	fmt.Println(v13)
+	return v12
 }
 

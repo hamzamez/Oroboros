@@ -25,7 +25,9 @@ func TestTreeRunIsContained(t *testing.T) {
 	tg, p := compile(t, "examples/json/tree.oro", "go")
 	ran := 0
 	for _, f := range p.Funcs {
-		if len(f.Params) != 1 || f.Types[f.Params[0]] != "int" {
+		// one integer parameter in the word: run's k, `0..2^31-1` since an
+		// export's `Int` is ℤ (integers-boundary §2)
+		if len(f.Params) != 1 || tg.ValueType(f.Types[f.Params[0]]) != "int" {
 			continue
 		}
 		fs := analyse(tg, f)
@@ -280,7 +282,11 @@ func TestTheLoopRulesAreSound(t *testing.T) {
 	compiled, ran := 0, 0
 	for c := 0; c < cases; c++ {
 		shape := loopShapes[c%len(loopShapes)](r)
-		src := fmt.Sprintf("export fn run(n ∈ 0..12) (Int) { %s }\n", shape)
+		// the word, which a result `Int` meant at an export before ADR 0147;
+		// as ℤ, a case's unbounded yields go exact, and an in-place big+!
+		// mutates the object its receiver names, which this interpreter's
+		// values do not model
+		src := fmt.Sprintf("export fn run(n ∈ 0..12) (-2^63..2^63-1) { %s }\n", shape)
 		path := filepath.Join(dir, fmt.Sprintf("c%d.oro", c))
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)

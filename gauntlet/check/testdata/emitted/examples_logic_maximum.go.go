@@ -3,6 +3,7 @@
 package gauntlet
 
 import "fmt"
+import "strconv"
 
 func GenMain() int {
 	v8 := []byte{3, 1, 4, 1, 5, 9, 2, 6}
@@ -27,7 +28,8 @@ func GenMain() int {
 		}
 		break
 	}
-	fmt.Println(v14)
+	v29 := (strconv.Itoa(v14))
+	fmt.Println(v29)
 	return v14
 }
 

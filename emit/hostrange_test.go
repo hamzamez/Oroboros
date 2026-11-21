@@ -57,10 +57,10 @@ func TestAGoShiftCountMustBeNonNegative(t *testing.T) {
 		body string
 		ok   bool
 	}{
-		{"fn f(x ∈ 0..1000, n ∈ Int) (Int) { go.`<<`(x, 3) }", true},
-		{"fn f(x ∈ 0..1000, n ∈ Int) (Int) { if n >= 0 { go.`>>`(x, n) } else { 0 } }", true},
-		{"fn f(x ∈ 0..1000, n ∈ Int) (Int) { go.`<<`(x, -1) }", false},
-		{"fn f(x ∈ 0..1000, n ∈ Int) (Int) { go.`>>`(x, n) }", false},
+		{"fn f(x ∈ 0..1000, n ∈ -2^63..2^63-1) (Int) { go.`<<`(x, 3) }", true},
+		{"fn f(x ∈ 0..1000, n ∈ -2^63..2^63-1) (Int) { if n >= 0 { go.`>>`(x, n) } else { 0 } }", true},
+		{"fn f(x ∈ 0..1000, n ∈ -2^63..2^63-1) (Int) { go.`<<`(x, -1) }", false},
+		{"fn f(x ∈ 0..1000, n ∈ -2^63..2^63-1) (Int) { go.`>>`(x, n) }", false},
 	} {
 		_, err := entryGo(t, head+c.body)
 		if c.ok && err != nil {
@@ -193,12 +193,12 @@ func TestABignumDivisorIsNonZero(t *testing.T) {
 		body string
 		ok   bool
 	}{
-		{"fn f(n ∈ Int) (Int) { go.`big%-small`(go.big_of(7), 3) }", true},
-		{"fn f(n ∈ Int) (Int) { go.`big%-small`(go.big_of(7), 0) }", false},
-		{"fn f(n ∈ Int) (Int) { go.`big%-small`(go.big_of(7), n) }", false},
-		{"fn f(n ∈ Int) (Int) { if n == 0 { 0 } else { go.`big%-small`(go.big_of(7), n) } }", true},
-		{"fn f(n ∈ Int) (Int) { go.`big%-small`(go.`big/`(go.big_of(7), go.big_of(0)), 3) }", false},
-		{"fn f(n ∈ Int) (Int) { go.`big%-small`(go.`big%`(go.big_of(7), go.big_of(n)), 3) }", false},
+		{"fn f(n ∈ -2^63..2^63-1) (Int) { go.`big%-small`(go.big_of(7), 3) }", true},
+		{"fn f(n ∈ -2^63..2^63-1) (Int) { go.`big%-small`(go.big_of(7), 0) }", false},
+		{"fn f(n ∈ -2^63..2^63-1) (Int) { go.`big%-small`(go.big_of(7), n) }", false},
+		{"fn f(n ∈ -2^63..2^63-1) (Int) { if n == 0 { 0 } else { go.`big%-small`(go.big_of(7), n) } }", true},
+		{"fn f(n ∈ -2^63..2^63-1) (Int) { go.`big%-small`(go.`big/`(go.big_of(7), go.big_of(0)), 3) }", false},
+		{"fn f(n ∈ -2^63..2^63-1) (Int) { go.`big%-small`(go.`big%`(go.big_of(7), go.big_of(n)), 3) }", false},
 	} {
 		_, err := entryGo(t, head+c.body)
 		if c.ok && err != nil {

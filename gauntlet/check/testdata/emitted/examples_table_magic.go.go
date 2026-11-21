@@ -3,6 +3,7 @@
 package gauntlet
 
 import "fmt"
+import "strconv"
 
 func GenMain() int {
 	var v3 int = 0
@@ -90,66 +91,68 @@ func GenMain() int {
 	v87 := (v4 + v58)
 	v89 := (v87 + 1)
 	v91 := (v89 + 1)
-	fmt.Println(v91)
-	var v96 int = 1
-	var v97 int = 0
-	for ; ; v96 = (v96 + 1) {
-		v99 := (v96 <= 9)
-		if v99 {
-			var v106 int = 0
+	v92 := (strconv.Itoa(v91))
+	fmt.Println(v92)
+	var v97 int = 1
+	var v98 int = 0
+	for ; ; v97 = (v97 + 1) {
+		v100 := (v97 <= 9)
+		if v100 {
 			var v107 int = 0
-			for ; ; v106 = (v106 + 1) {
-				v109 := (v106 < 9)
-				if v109 {
-					v114 := (v106 / 3)
-					v116 := (v114 == 0)
-					var v117 int
-					if v116 {
-						v122 := []byte{4, 9, 2}
-						v124 := (v106 % 3)
-						v125 := int(v122[v124])
-						v117 = v125
+			var v108 int = 0
+			for ; ; v107 = (v107 + 1) {
+				v110 := (v107 < 9)
+				if v110 {
+					v115 := (v107 / 3)
+					v117 := (v115 == 0)
+					var v118 int
+					if v117 {
+						v123 := []byte{4, 9, 2}
+						v125 := (v107 % 3)
+						v126 := int(v123[v125])
+						v118 = v126
 					} else {
-						v128 := (v114 == 1)
-						if v128 {
-							v133 := []byte{3, 5, 7}
-							v135 := (v106 % 3)
-							v136 := int(v133[v135])
-							v117 = v136
+						v129 := (v115 == 1)
+						if v129 {
+							v134 := []byte{3, 5, 7}
+							v136 := (v107 % 3)
+							v137 := int(v134[v136])
+							v118 = v137
 						} else {
-							v141 := []byte{8, 1, 6}
-							v143 := (v106 % 3)
-							v144 := int(v141[v143])
-							v117 = v144
+							v142 := []byte{8, 1, 6}
+							v144 := (v107 % 3)
+							v145 := int(v142[v144])
+							v118 = v145
 						}
 					}
-					v145 := (v117 == v96)
-					var v146 int
-					if v145 {
-						v149 := (v107 + 1)
-						v146 = v149
+					v146 := (v118 == v97)
+					var v147 int
+					if v146 {
+						v150 := (v108 + 1)
+						v147 = v150
 					} else {
-						v146 = v107
+						v147 = v108
 					}
-					v107 = v146
+					v108 = v147
 					continue
 				}
 				break
 			}
-			v153 := (v107 == 1)
-			var v154 int
-			if v153 {
-				v156 := (v97 + 1)
-				v154 = v156
+			v154 := (v108 == 1)
+			var v155 int
+			if v154 {
+				v157 := (v98 + 1)
+				v155 = v157
 			} else {
-				v154 = v97
+				v155 = v98
 			}
-			v97 = v154
+			v98 = v155
 			continue
 		}
 		break
 	}
-	fmt.Println(v97)
-	return v97
+	v159 := (strconv.Itoa(v98))
+	fmt.Println(v159)
+	return v98
 }
 

@@ -52,7 +52,7 @@ export function genMain() {
 			v13 = (v48 ? (v13 + 1) : v13);
 			continue;
 		}
-		console.log(v13);
+		console.log((String(v13)));
 		return v13;
 	}
 }

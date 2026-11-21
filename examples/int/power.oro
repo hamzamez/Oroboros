@@ -12,7 +12,7 @@
 // correct, because b^e leaves any window you care to name.
 use go
 
-export fn power(b ∈ Int, e ∈ Int) (Int) where 0 <= e && e < 64 {
+export fn power(b ∈ -2^63..2^63-1, e ∈ Int) (Int) where 0 <= e && e < 64 {
     loop acc = 1, x = b, k = e {
         go.`==`(k, 0) -> acc
         go.`==`(go.`%`(k, 2), 1) -> again(go.`*`(acc, x), go.`*`(x, x), go.`/`(k, 2))

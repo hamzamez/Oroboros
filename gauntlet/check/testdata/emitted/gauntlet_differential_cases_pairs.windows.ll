@@ -63,97 +63,109 @@ entry:
 
 define i64 @mix(i64 %v0, i64 range(i64 0, 16) %v1) #0 {
 entry:
-  %.s25 = alloca i64
-  %.s35 = alloca i64
-  %.s68 = alloca i64
-  %v3 = or i64 %v0, 0
-  %v4 = mul i64 %v3, -7046029254386353131
-  %v5 = add i64 %v4, %v1
-  %v6 = or i64 %v5, 0
-  %v8 = or i64 %v6, 0
-  %v9 = shl i64 %v8, 13
-  %v10 = or i64 %v6, 0
-  %v11 = xor i64 %v10, %v9
-  %v12 = or i64 %v11, 0
-  %v14 = or i64 %v12, 0
-  %v15 = add i64 %v14, 8589934591
-  %v16 = or i64 %v15, 0
-  %v17 = or i64 %v16, 0
-  %v18 = or i64 %v6, 0
-  %v19 = sub i64 %v17, %v18
+  %.s6 = alloca i1
+  %.s31 = alloca i64
+  %.s41 = alloca i64
+  %.s74 = alloca i64
+  %v3 = icmp samesign sle i64 0, %v1
+  br i1 %v3, label %.then2, label %.else3
+.then2:
+  %v7 = icmp samesign sle i64 %v1, 15
+  store i1 %v7, ptr %.s6
+  br label %.join4
+.else3:
+  store i1 false, ptr %.s6
+  br label %.join4
+.join4:
+  %v4 = load i1, ptr %.s6
+  %v11 = or i64 %v0, 0
+  %v12 = mul i64 %v11, -7046029254386353131
+  %v13 = add i64 %v12, %v1
+  %v14 = or i64 %v13, 0
+  %v16 = or i64 %v14, 0
+  %v17 = shl i64 %v16, 13
+  %v18 = or i64 %v14, 0
+  %v19 = xor i64 %v18, %v17
   %v20 = or i64 %v19, 0
-  %v21 = or i64 %v20, 0
-  %v23 = xor i64 %v21, -1
+  %v22 = or i64 %v20, 0
+  %v23 = add i64 %v22, 8589934591
   %v24 = or i64 %v23, 0
-  %v27 = icmp samesign sle i64 7, 63
-  br i1 %v27, label %.then21, label %.else22
-.then21:
-  %v30 = lshr i64 %v24, 7
-  store i64 %v30, ptr %.s25
-  br label %.join23
-.else22:
-  %v33 = or i64 0, 0
-  store i64 %v33, ptr %.s25
-  br label %.join23
-.join23:
-  %v28 = load i64, ptr %.s25
-  %v34 = or i64 %v28, 0
-  %v35 = or i64 %v24, 0
-  %v36 = xor i64 %v35, %v34
-  %v39 = icmp samesign sle i64 33, 63
-  br i1 %v39, label %.then31, label %.else32
-.then31:
-  %v42 = lshr i64 %v24, 33
-  store i64 %v42, ptr %.s35
-  br label %.join33
-.else32:
-  %v45 = or i64 0, 0
-  store i64 %v45, ptr %.s35
-  br label %.join33
-.join33:
-  %v40 = load i64, ptr %.s35
-  %v46 = or i64 %v40, 0
-  %v47 = xor i64 %v36, %v46
-  %v49 = or i64 %v6, 0
-  %v50 = shl i64 %v49, 32
-  %v51 = or i64 %v50, 0
-  %v52 = or i64 %v51, 0
-  %v53 = xor i64 %v47, %v52
-  %v55 = or i64 1024, 0
-  %v56 = udiv i64 %v24, %v55
-  %v57 = or i64 %v56, 0
-  %v59 = and i64 %v57, 65535
-  %v60 = xor i64 %v53, %v59
-  %v62 = or i64 %v24, 0
-  %v63 = and i64 %v62, 65535
-  %v64 = xor i64 %v60, %v63
-  %v65 = or i64 %v6, 0
-  %v66 = or i64 %v6, 0
-  %v67 = mul i64 %v65, %v66
-  %v68 = or i64 %v67, 0
-  %v69 = or i64 %v68, 0
-  %v70 = xor i64 %v64, %v69
-  %v71 = or i64 %v6, 0
-  %v72 = or i64 %v12, 0
-  %v73 = or i64 %v71, %v72
-  %v75 = and i64 %v73, 1085102592571150095
-  %v76 = xor i64 %v70, %v75
-  %v79 = icmp samesign sle i64 63, 63
-  br i1 %v79, label %.then64, label %.else65
-.then64:
-  %v82 = lshr i64 %v20, 63
-  store i64 %v82, ptr %.s68
-  br label %.join66
-.else65:
-  %v85 = or i64 0, 0
-  store i64 %v85, ptr %.s68
-  br label %.join66
-.join66:
-  %v80 = load i64, ptr %.s68
-  %v86 = or i64 %v80, 0
-  %v87 = xor i64 %v76, %v86
-  %v88 = or i64 %v87, 0
-  ret i64 %v88
+  %v25 = or i64 %v24, 0
+  %v26 = or i64 %v14, 0
+  %v27 = sub i64 %v25, %v26
+  %v28 = or i64 %v27, 0
+  %v29 = or i64 %v28, 0
+  %v31 = xor i64 %v29, -1
+  %v32 = or i64 %v31, 0
+  %v35 = icmp samesign sle i64 7, 63
+  br i1 %v35, label %.then27, label %.else28
+.then27:
+  %v38 = lshr i64 %v32, 7
+  store i64 %v38, ptr %.s31
+  br label %.join29
+.else28:
+  %v41 = or i64 0, 0
+  store i64 %v41, ptr %.s31
+  br label %.join29
+.join29:
+  %v36 = load i64, ptr %.s31
+  %v42 = or i64 %v36, 0
+  %v43 = or i64 %v32, 0
+  %v44 = xor i64 %v43, %v42
+  %v47 = icmp samesign sle i64 33, 63
+  br i1 %v47, label %.then37, label %.else38
+.then37:
+  %v50 = lshr i64 %v32, 33
+  store i64 %v50, ptr %.s41
+  br label %.join39
+.else38:
+  %v53 = or i64 0, 0
+  store i64 %v53, ptr %.s41
+  br label %.join39
+.join39:
+  %v48 = load i64, ptr %.s41
+  %v54 = or i64 %v48, 0
+  %v55 = xor i64 %v44, %v54
+  %v57 = or i64 %v14, 0
+  %v58 = shl i64 %v57, 32
+  %v59 = or i64 %v58, 0
+  %v60 = or i64 %v59, 0
+  %v61 = xor i64 %v55, %v60
+  %v63 = or i64 1024, 0
+  %v64 = udiv i64 %v32, %v63
+  %v65 = or i64 %v64, 0
+  %v67 = and i64 %v65, 65535
+  %v68 = xor i64 %v61, %v67
+  %v70 = or i64 %v32, 0
+  %v71 = and i64 %v70, 65535
+  %v72 = xor i64 %v68, %v71
+  %v73 = or i64 %v14, 0
+  %v74 = or i64 %v14, 0
+  %v75 = mul i64 %v73, %v74
+  %v76 = or i64 %v75, 0
+  %v77 = or i64 %v76, 0
+  %v78 = xor i64 %v72, %v77
+  %v79 = or i64 %v14, 0
+  %v80 = or i64 %v20, 0
+  %v81 = or i64 %v79, %v80
+  %v83 = and i64 %v81, 1085102592571150095
+  %v84 = xor i64 %v78, %v83
+  %v87 = icmp samesign sle i64 63, 63
+  br i1 %v87, label %.then70, label %.else71
+.then70:
+  %v90 = lshr i64 %v28, 63
+  store i64 %v90, ptr %.s74
+  br label %.join72
+.else71:
+  %v93 = or i64 0, 0
+  store i64 %v93, ptr %.s74
+  br label %.join72
+.join72:
+  %v88 = load i64, ptr %.s74
+  %v94 = or i64 %v88, 0
+  %v95 = xor i64 %v84, %v94
+  %v96 = or i64 %v95, 0
+  ret i64 %v96
 }
 
 attributes #0 = { nounwind "no-builtins" }

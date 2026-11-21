@@ -3,15 +3,15 @@
 package gauntlet
 
 func GenDivmod(v0 int, v1 int) (int, int) {
-	v15 := (v0 / v1)
-	v16 := (v0 % v1)
-	return v15, v16
+	v30 := (v0 / v1)
+	v31 := (v0 % v1)
+	return v30, v31
 }
 
 func GenDivmodSum(v0 int, v1 int) int {
-	v15 := (v0 / v1)
-	v16 := (v0 % v1)
-	v17 := (v15 + v16)
-	return v17
+	v30 := (v0 / v1)
+	v31 := (v0 % v1)
+	v32 := (v30 + v31)
+	return v32
 }
 

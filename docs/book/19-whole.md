@@ -405,11 +405,11 @@ Chapter 10: a `case` answers for every tag.
 
 <!-- gen go docs/book/code/whole/no-end.oro -->
 ```
-gen: whole-main: #nl15[i] is an indexing, and i < len(#nl15) does not follow
+gen: whole-main: #nl16[i] is an indexing, and i < len(#nl16) does not follow
 ```
 
 Chapter 13. The loop runs while `i <= len(src)`, and at `i == len(src)` there is no byte.
-(`#nl15` is the compiler's own name for `src`, after the function was unfolded into `main`.
+(`#nl16` is the compiler's own name for `src`, after the function was unfolded into `main`.
 In a small example a message names your variable. In a whole program it sometimes names its
 own, which is a wart.)
 

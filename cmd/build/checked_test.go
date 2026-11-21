@@ -38,14 +38,16 @@ func runChecked(t *testing.T, src, target string) (out string, trapped bool, bui
 	return strings.TrimSpace(string(b)), err != nil, nil
 }
 
-// checkedProgram is a loop applying step k times to z, then printing the
-// result through last.
+// checkedProgram is a loop applying step k times to z, then storing the result
+// through last into a table, whose element is a word, and printing it. Printed
+// directly, the value is ℤ's at any size since ADR 0147 and nothing traps.
 func checkedProgram(z, step string, k int, last string) string {
 	return "use io\n\nexport fn main() {\n" +
 		"    p = loop i = 0, p = " + z + " {\n" +
 		"        i < " + itoa(k) + " -> again(i + 1, " + step + ")\n" +
 		"        else -> p\n    }\n" +
-		"    io.print_int(" + last + ")\n}\n"
+		"    t = { var t := array { 0 }; t[0] := " + last + "; t }\n" +
+		"    io.print_int(t[0])\n}\n"
 }
 
 // -CHECKED STOPS WHERE THE PROOF FAILED AND THE VALUE LEFT THE WORD, on every

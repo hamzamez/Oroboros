@@ -20,25 +20,25 @@ export function genMain() {
 		let v26;
 		for (;; v30 = (v30 + 1)) {
 			if ((v30 >= v11.length)) {
-				console.log(v27);
-				console.log(v28);
-				const v37 = v11.length;
-				console.log(v37);
-				v26 = v37;
+				console.log((String(v27)));
+				console.log((String(v28)));
+				const v39 = v11.length;
+				console.log((String(v39)));
+				v26 = v39;
 				break;
 			}
-			const v41 = v11[v30];
-			const v44 = ((v41 === 10) ? (v27 + 1) : v27);
-			if (((v41 === 32) || ((v41 >= 9) && (v41 <= 13)))) {
-				v27 = v44;
+			const v44 = v11[v30];
+			const v47 = ((v44 === 10) ? (v27 + 1) : v27);
+			if (((v44 === 32) || ((v44 >= 9) && (v44 <= 13)))) {
+				v27 = v47;
 				v29 = false;
 				continue;
 			}
 			if (v29) {
-				v27 = v44;
+				v27 = v47;
 				continue;
 			}
-			v27 = v44;
+			v27 = v47;
 			v28 = (v28 + 1);
 			v29 = true;
 			continue;

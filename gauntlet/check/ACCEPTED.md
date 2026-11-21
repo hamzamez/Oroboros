@@ -4213,3 +4213,184 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `gauntlet/differential/cases/nulfree.oro windows` 921 → 515 ms, 0.56x
+
+## 2026-11-21 — on f63cbb6e, with uncommitted changes
+
+**Reason:** ADR 0147: Int is ℤ at an entry point and decimal renders ℤ; print_int a definition over ℤ (strconv.Itoa/String/Long.toString on a word), export parameters ρ of their header, the gauntlet harnesses' ranges stated, windows' print_int arms above the words (dead on a word, folded by LLVM), where-assumptions kept beside a big parameter
+
+828 runs: 565 emitted, 263 refused; 12722 of 12767 integer operations bounded, 1599 of 1900 loops proven. compiler pass, differential pass, tooling pass.
+
+154 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/fact.oro windows`
+- emitted text changed — `examples/big/fib.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/big/pair.oro windows`
+- emitted text changed — `examples/big/popcount.oro windows`
+- compiler output changed — `examples/big/popcount.oro windows`
+- emitted text changed — `examples/big/power.oro windows`
+- emitted text changed — `examples/big/stein.oro windows`
+- emitted text changed — `examples/callbacks/allwindows.oro windows`
+- compiler output changed — `examples/callbacks/allwindows.oro windows`
+- emitted text changed — `examples/callbacks/caesar.oro go`
+- emitted text changed — `examples/callbacks/dyck.oro js`
+- emitted text changed — `examples/callbacks/horner.oro go`
+- emitted text changed — `examples/callbacks/horner.oro java`
+- emitted text changed — `examples/callbacks/horner.oro js`
+- emitted text changed — `examples/callbacks/horner.oro windows`
+- compiler output changed — `examples/callbacks/horner.oro windows`
+- emitted text changed — `examples/callbacks/kadane.oro java`
+- emitted text changed — `examples/callbacks/once.oro windows`
+- compiler output changed — `examples/callbacks/once.oro windows`
+- emitted text changed — `examples/callbacks/prefix.oro go`
+- emitted text changed — `examples/callbacks/quantifiers.oro js`
+- emitted text changed — `examples/callbacks/semilattice.oro java`
+- emitted text changed — `examples/errors/expect.oro windows`
+- emitted text changed — `examples/hash/crc32.oro windows`
+- emitted text changed — `examples/hash/fnv.oro windows`
+- compiler output changed — `examples/int/collatz.oro go`
+- compiler output changed — `examples/int/fib.oro go`
+- compiler output changed — `examples/int/power.oro go`
+- emitted text changed — `examples/io/cmp.oro go`
+- emitted text changed — `examples/io/cmp.oro java`
+- emitted text changed — `examples/io/cmp.oro js`
+- emitted text changed — `examples/io/cmp.oro windows`
+- compiler output changed — `examples/io/cmp.oro windows`
+- emitted text changed — `examples/io/count.oro go`
+- emitted text changed — `examples/io/count.oro java`
+- emitted text changed — `examples/io/count.oro js`
+- emitted text changed — `examples/io/count.oro windows`
+- compiler output changed — `examples/io/count.oro windows`
+- emitted text changed — `examples/io/freq.oro windows`
+- emitted text changed — `examples/io/jsonfmt.oro windows`
+- emitted text changed — `examples/io/roundtrip.oro go`
+- emitted text changed — `examples/io/roundtrip.oro java`
+- emitted text changed — `examples/io/roundtrip.oro js`
+- emitted text changed — `examples/io/roundtrip.oro windows`
+- compiler output changed — `examples/io/roundtrip.oro windows`
+- emitted text changed — `examples/io/wc.oro go`
+- emitted text changed — `examples/io/wc.oro java`
+- emitted text changed — `examples/io/wc.oro js`
+- emitted text changed — `examples/io/wc.oro windows`
+- compiler output changed — `examples/io/wc.oro windows`
+- emitted text changed — `examples/json/tokenize.oro go`
+- emitted text changed — `examples/json/tokenize.oro java`
+- emitted text changed — `examples/json/tokenize.oro js`
+- emitted text changed — `examples/json/tokenize.oro windows`
+- emitted text changed — `examples/json/tree.oro go`
+- emitted text changed — `examples/json/tree.oro java`
+- emitted text changed — `examples/json/tree.oro js`
+- emitted text changed — `examples/json/tree.oro windows`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/lines/lines.oro go`
+- emitted text changed — `examples/logic/bsearch.oro go`
+- emitted text changed — `examples/logic/bsearch.oro java`
+- emitted text changed — `examples/logic/bsearch.oro js`
+- emitted text changed — `examples/logic/bsearch.oro windows`
+- compiler output changed — `examples/logic/bsearch.oro windows`
+- emitted text changed — `examples/logic/leap.oro go`
+- emitted text changed — `examples/logic/leap.oro java`
+- emitted text changed — `examples/logic/leap.oro js`
+- emitted text changed — `examples/logic/leap.oro windows`
+- compiler output changed — `examples/logic/leap.oro windows`
+- emitted text changed — `examples/logic/maximum.oro go`
+- emitted text changed — `examples/logic/maximum.oro java`
+- emitted text changed — `examples/logic/maximum.oro js`
+- emitted text changed — `examples/logic/maximum.oro windows`
+- compiler output changed — `examples/logic/maximum.oro windows`
+- emitted text changed — `examples/logic/midpoint.oro go`
+- emitted text changed — `examples/logic/midpoint.oro java`
+- compiler output changed — `examples/logic/midpoint.oro js`
+- emitted text changed — `examples/logic/midpoint.oro windows`
+- compiler output changed — `examples/logic/midpoint.oro windows`
+- emitted text changed — `examples/logic/segment.oro windows`
+- compiler output changed — `examples/logic/segment.oro windows`
+- emitted text changed — `examples/logic/sorted.oro go`
+- emitted text changed — `examples/logic/sorted.oro java`
+- emitted text changed — `examples/logic/sorted.oro js`
+- emitted text changed — `examples/logic/sorted.oro windows`
+- compiler output changed — `examples/logic/sorted.oro windows`
+- emitted text changed — `examples/logic/windowtext.oro windows`
+- compiler output changed — `examples/logic/windowtext.oro windows`
+- emitted text changed — `examples/map/collatz.oro go`
+- emitted text changed — `examples/map/collatz.oro java`
+- emitted text changed — `examples/map/collatz.oro js`
+- emitted text changed — `examples/map/collatz.oro windows`
+- compiler output changed — `examples/map/collatz.oro windows`
+- emitted text changed — `examples/map/twosum.oro go`
+- emitted text changed — `examples/map/twosum.oro java`
+- emitted text changed — `examples/map/twosum.oro js`
+- emitted text changed — `examples/map/twosum.oro windows`
+- compiler output changed — `examples/map/twosum.oro windows`
+- emitted text changed — `examples/native/divmod-go.oro go`
+- emitted text changed — `examples/native/divmod-java.oro java`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/save-win.oro windows`
+- compiler output changed — `examples/native/save-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- compiler output changed — `examples/native/shortcircuit-win.oro windows`
+- now REFUSED — `examples/native/sieve-js.oro js`
+- emitted text changed — `examples/native/smooth-go.oro windows`
+- emitted text changed — `examples/native/status-win.oro windows`
+- compiler output changed — `examples/native/status-win.oro windows`
+- emitted text changed — `examples/native/wndproc-win.oro windows`
+- compiler output changed — `examples/native/wndproc-win.oro windows`
+- emitted text changed — `examples/native/wordcount-go.oro go`
+- emitted text changed — `examples/num/ledger.oro windows`
+- emitted text changed — `examples/sum/parse.oro go`
+- emitted text changed — `examples/table/idot.oro go`
+- emitted text changed — `examples/table/idot.oro java`
+- emitted text changed — `examples/table/idot.oro js`
+- emitted text changed — `examples/table/idot.oro windows`
+- emitted text changed — `examples/table/magic.oro go`
+- emitted text changed — `examples/table/magic.oro java`
+- emitted text changed — `examples/table/magic.oro js`
+- emitted text changed — `examples/table/magic.oro windows`
+- compiler output changed — `examples/table/magic.oro windows`
+- emitted text changed — `examples/table/shoelace.oro go`
+- emitted text changed — `examples/table/shoelace.oro java`
+- emitted text changed — `examples/table/shoelace.oro js`
+- emitted text changed — `examples/table/shoelace.oro windows`
+- compiler output changed — `examples/table/shoelace.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- compiler output changed — `examples/table/sieve-win.oro windows`
+- compiler output changed — `examples/u128/inz.oro go`
+- compiler output changed — `examples/u128/inz.oro java`
+- compiler output changed — `examples/u128/inz.oro js`
+- compiler output changed — `examples/u128/inz.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-popcount.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-stein.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bits-edges.oro windows`
+- emitted text changed — `gauntlet/differential/cases/bytes-table.oro windows`
+- emitted text changed — `gauntlet/differential/cases/codecs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/nulfree.oro windows`
+- emitted text changed — `gauntlet/differential/cases/pairs.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
+- emitted text changed — `lib/win/print.oro windows`
+
+## 2026-11-21 — on f63cbb6e, with uncommitted changes
+
+**Reason:** ADR 0147, second accept: a join of host results stays the host's word (sieve-js on js emitted again, renumbered by its stated range); the rest as the first
+
+828 runs: 566 emitted, 262 refused; 12725 of 12779 integer operations bounded, 1603 of 1906 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- compiler output changed — `examples/int/collatz.oro go`
+- compiler output changed — `examples/int/fib.oro go`
+- compiler output changed — `examples/int/power.oro go`
+- now emits — `examples/native/sieve-js.oro js`
+
+2 compile(s) accepted SLOWER — compile time 1.00x the baseline (median of 112 compiles over 300 ms); a second sweep kept 2 of 4 suspect(s); not paired against the baseline's binary: gauntlet/check/compiletime.txt has uncommitted changes, so no commit holds its compiler; the step's phases: sweep 1m14s, second sweep 1m12s, 2 pair(s) × 3 rounds 0s:
+
+- `examples/json/tokenize.oro java` 906 → 1531 ms, 1.69x
+- `examples/logic/windowtext.oro windows` 453 → 1203 ms, 2.66x

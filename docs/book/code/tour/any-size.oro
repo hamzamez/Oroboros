@@ -1,9 +1,0 @@
-use io
-
-fn cube(n ∈ Int) (Int) { n * n * n }
-
-export fn below(n ∈ ..0) (..0) { n - 1 }
-
-export fn main() {
-    io.print_line(big_str(cube(-3000000000)))
-}

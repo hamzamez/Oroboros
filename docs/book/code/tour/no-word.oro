@@ -1,0 +1,1 @@
+export fn square64(n ∈ Int) (-2^63..2^63-1) { n * n }

@@ -39,7 +39,7 @@ module go/encoding/hex {
     // own documentation allocates — satisfies Encode's 2·len src ≤ len dst.
     // Without it the call was an atom nothing related to 2n, and that idiom was
     // refused (postconditions.md §5).
-    fn EncodedLen(n ∈ Int) (r ∈ Int) pure
+    fn EncodedLen(n ∈ Word) (r ∈ Word) pure
         where (-2^62) <= n && n <= (2^62-1)
         ensure r == 2 * n {
         host expr "hex.EncodedLen(${n})" import "encoding/hex"
@@ -48,7 +48,7 @@ module go/encoding/hex {
     // DecodedLen is x ↦ x/2, truncating, which the word IS closed under; `/`
     // truncates as Go's does, so the `ensures` is the law exactly, and the
     // fragment reads the quotient as an atom with its floor facts.
-    fn DecodedLen(x ∈ Int) (r ∈ Int) pure
+    fn DecodedLen(x ∈ Word) (r ∈ Word) pure
         ensure r == x / 2 {
         host expr "hex.DecodedLen(${x})" import "encoding/hex"
     }

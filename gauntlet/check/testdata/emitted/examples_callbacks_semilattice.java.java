@@ -70,7 +70,8 @@ public final class examples_callbacks_semilattice.java {
 				v13 = v89;
 				continue;
 			}
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v13 + "\n");
+			final String v94 = (Long.toString(v13));
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v94 + "\n");
 			break;
 		}
 		return v13;

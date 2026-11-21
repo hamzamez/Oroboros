@@ -16,5 +16,5 @@ fn gcd(a ∈ 0..10^6, b ∈ 0..10^6) (Int) {
 
 export fn main() {
     io.print_int(gcd(1071, 462))
-    io.print_line(big_str(fact(30)))
+    io.print_int(fact(30))
 }

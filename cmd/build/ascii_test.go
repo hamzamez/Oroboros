@@ -73,7 +73,7 @@ func TestASCIIObservesALiveBuffer(t *testing.T) {
 func TestTheLimbRenderIsTheHostsNumeral(t *testing.T) {
 	const src = "use go/fmt\n" +
 		"fn fact(n ∈ 0..50) (0..2^300) { loop k = 1, a = 1 { k > n -> a; else -> again(k + 1, a * k) } }\n" +
-		"export fn main() { fmt.Println(big_str(fact(50))) }\n"
+		"export fn main() { fmt.Println(decimal(fact(50))) }\n"
 	ir.PlantRenderEverywhere = true
 	defer func() { ir.PlantRenderEverywhere = false }()
 	out, err := buildAndRun(t, src, "go", "limbs")

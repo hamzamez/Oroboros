@@ -1,5 +1,12 @@
+use io
+
 export fn third(t ∈ Array(Int)) (Int) where len(t) >= 3 { t[2] }
 
 export fn third_or_zero(t ∈ Array(Int)) (Int) {
     if len(t) > 2 { t[2] } else { 0 }
+}
+
+export fn main() {
+    io.print_int(third(array { 5, 6, 7, 8 }))
+    io.print_int(third_or_zero(array { 5, 6 }))
 }

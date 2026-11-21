@@ -1,0 +1,11 @@
+use io
+
+fn mid(lo ∈ 0..1000, hi ∈ 0..1000) (Int) where lo <= hi {
+    m = lo + (hi - lo) / 2
+    assert 2 * m == lo + hi
+    m
+}
+
+export fn main() {
+    io.print_int(mid(3, 10))
+}

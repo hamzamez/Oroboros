@@ -1,3 +1,5 @@
+use io
+
 codes = map { 200 : 1, 404 : 2, 500 : 3 }
 
 export fn known(code ∈ 0..999) (Int) {
@@ -5,4 +7,9 @@ export fn known(code ∈ 0..999) (Int) {
         'some(v) -> v
         'none    -> 0
     }
+}
+
+export fn main() {
+    io.print_int(known(404))
+    io.print_int(known(302))
 }

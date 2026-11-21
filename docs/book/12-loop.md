@@ -617,15 +617,16 @@ total: 42 items
 
 ---
 
-## 12.7 The arithmetic must still fit
+## 12.7 The word, in a loop
 
-Chapter 6's rule has not gone anywhere: every operation is proven inside the word, or the
-program is refused. A loop makes that harder, because an operation in a loop is not done
-once. Take the first example and loosen its header:
+Chapter 6's rule has not gone anywhere: an operation computes the integer it means, in the
+machine's word where that is proven to hold it, and a value claimed in a set it is not proven to
+be in is refused. A loop makes the proof harder, because an operation in a loop is not done once.
+Take the first example, loosen its header, and claim the word for its result:
 
 <!-- file docs/book/code/loop/no-bound.oro -->
 ```go
-export fn sum_to(n ∈ Int) (Int) {
+export fn sum_to(n ∈ Int) (-2^63..2^63-1) {
     loop i = 1, s = 0 {
         i <= n -> again(i + 1, s + i)
         else -> s
@@ -635,13 +636,13 @@ export fn sum_to(n ∈ Int) (Int) {
 
 <!-- gen go docs/book/code/loop/no-bound.oro -->
 ```
-gen: loop-sum-to: 2 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  + [2, +inf] in i + 1
-  + [1, +inf] in s + i
+gen: sum-to: the body does not establish -9223372036854775808 <= result && result <= 9223372036854775807; its result is [0, +inf]
 ```
 
 With `n` any integer the loop may go round any number of times, so `i` and `s` may grow
-without limit. With `n ∈ 0..1000` it compiled, and here is the reasoning the compiler did:
+without limit, and the claim is false. (Claim `Int` instead and it compiles, `i` and `s` held as
+Go's `*big.Int`: exact, and an allocation per trip.) With `n ∈ 0..1000` it compiled in the word,
+and here is the reasoning the compiler did:
 
 - `i` starts at 1 and goes up by 1 while `i <= n`. So inside the arm `i` is at most 1000, and
   `i + 1` at most 1001.
@@ -656,7 +657,7 @@ It does not work for products:
 
 <!-- file docs/book/code/loop/no-fact.oro -->
 ```go
-export fn fact(n ∈ 0..20) (Int) {
+export fn fact(n ∈ 0..20) (-2^63..2^63-1) {
     loop i = 1, p = 1 {
         i <= n -> again(i + 1, p * i)
         else -> p
@@ -666,9 +667,7 @@ export fn fact(n ∈ 0..20) (Int) {
 
 <!-- gen go docs/book/code/loop/no-fact.oro -->
 ```
-note: loop-fact: 1 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-gen: loop-fact: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  * [1, +inf] in p * i
+gen: fact: the body does not establish -9223372036854775808 <= result && result <= 9223372036854775807; its result is [1, +inf]
 ```
 
 20 factorial is 2432902008176640000, which fits Go's word with a little to spare, and 21
@@ -726,8 +725,8 @@ yours.
 and which never runs. It is for statements about sums. This one is about a product, and
 stays a guard.)
 
-**Or leave the word.** Chapter 6's other answer: declare a result that does not fit, and the
-value is held with as many digits as it needs.
+**Or leave the word.** Chapter 6's other answer: claim `Int`, or a result that does not fit,
+and the value is held with as many digits as it needs.
 
 <!-- file docs/book/code/loop/fact-run.oro -->
 ```go
@@ -750,7 +749,7 @@ fn big_fact(n ∈ 0..30) (Nat) {
 export fn main() {
     io.print_int(fact(5))
     io.print_int(fact(20))
-    io.print_line(big_str(big_fact(25)))
+    io.print_line(decimal(big_fact(25)))
 }
 ```
 
@@ -933,8 +932,8 @@ fn ones(v ∈ Nat) (Nat) {
 }
 
 export fn main() {
-    io.print_line(big_str(ones(255)))
-    io.print_line(big_str(ones(3^1000)))
+    io.print_line(decimal(ones(255)))
+    io.print_line(decimal(ones(3^1000)))
 }
 ```
 

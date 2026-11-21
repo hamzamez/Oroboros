@@ -104,6 +104,15 @@ wrong about half the time.
 **The current assessment is [assessment-2026-11-20.md](docs/assessment-2026-11-20.md)**; read it
 before planning. **The plan in force** (hamza, 2026-11-20: "yes, reorder", the logic first, since
 TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in order:
+0. **the check, shortened** (hamza, 2026-11-20: "agree, put it in the plan"): a run took 62 minutes,
+   35 of them `cmd/build`'s tests in one process (2,025 s; the compiler step was 16½ minutes on
+   2026-11-18), and a step paid it twice, a review run and an accepting run:
+   - `cmd/build`'s tests in several `go test` processes at once, each its own fault switches, so
+     no planted fault leaks into another test; each test's time measured first, the groups chosen
+     from it;
+   - `-accept` reuses the verdict of a passing run of the identical tree (the hash of what it
+     checked), writing the baselines only: the emitter is a function of its input, which the check
+     verifies, so a second run of the same tree decides nothing new;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -160,6 +169,16 @@ Before it, **the 11-18 plan (assessment-2026-11-18 §5), approved** (hamza, 2026
 then stored to (Collatz memoized, Two Sum), the 11-18 plan's item 3's refusing program; a literal
 table of tuples (the shoelace formula) and of tables (Lo Shu) read at an unknown index. A table of
 tables made by a rule, received or built stays storage's "a table inside a table".
+
+**`Int` is ℤ at an entry point too, built** (ADR 0147, hamza 2026-11-20: "1. yes 2. decimal",
+[intboundary](gauntlet/results/intboundary-2026-11-21.md)): an export's `Int` ρ of its set and
+`where` (bounds by constants, by a table's length, through another parameter), the host's integer
+of any size where unbounded, windows refusing one; a result declared `Int` demands each yield
+leaving S; a host's word its module's `Word`; one rendering, `decimal`, `io.print_int` over ℤ; a
+table's element and a map's value words by storage. Not built, for hamza: an intermediate whose
+every consumer is bounded (the word midpoint's `lo + hi`, the book's finding 108; taking the note's
+§7 whole makes an unbounded accumulator a big integer silently); a map read with a key of any size
+(finding 111); a definition's claim reported inside its body (finding 110).
 
 **Decided and to be built** (hamza, 2026-11-19; its items 1 and 3 are "Build all 5"'s 3 and 4), in this order (the first list's items 1–4, 6, 7 built:
 ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):
@@ -331,7 +350,7 @@ the state translation's let kept a λ argument for β without local.md §3's che
 - bigbits (ADR 0082 above the word, [bigbits](gauntlet/results/bigbits-2026-11-19.md)): a frame
   above a page does not link on windows (no `__chkstk` without the C runtime: ADR 0123's question,
   an assembly routine a wall for hamza); a kept definition returning a numeral typed as its table
-  at the caller, so `big_str` of it inlines the program whole; a loop's counter bounded by its trip
+  at the caller, so `decimal` of it inlines the program whole; a loop's counter bounded by its trip
   count in the body (`ones(1)`); the seven on the fixed limbs; a word mask on a host bignum
   (`y & 1` as `Bit(0)`); Stein's loops' termination on numerals.
 
@@ -421,15 +440,16 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,697 of 12,753** integer operations proven inside their target's word, the 56 left
-  meant to be refused (`examples/int/`, `kara`, the midpoint's 2⁶² on JavaScript) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,501 of 1,806** loops proven to
-  terminate (size-change termination; of the 305 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 41 were before bigbits-2026-11-19, among
+- **Provability**: **12,725 of 12,779** integer operations proven inside their target's word, the 54 left
+  meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,603 of 1,906** loops proven to
+  terminate (size-change termination; of the 303 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 39 were before bigbits-2026-11-19 (sieve-js's two proven since intboundary-2026-11-21), among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
   halving, a falling maximum, a bit cleared, size-change termination does not see, each counted
   per program and target). A definition windows keeps as a function
-  (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target. Both
+  (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target; a
+  program refused counts nothing (the logic midpoint on JavaScript, refused at its literal 2⁶²). Both
   counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.2%
   declarable and 30.6% callable and linkable by today's model, 35.7% callable, 46.6% if every struct were
@@ -823,6 +843,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A definition of the program's applied to a λ that writes a cell is expanded before the state translation: the strongest host, its body the order | [0144](docs/decisions/0144-a-definition-applied-to-a-lambda-is-expanded-before-the-state-translation.md) |
 | The logic: `∀ x ∈ S : φ`, `∃`, `⇒`, `⇔`, every quantifier over a set; recursion in `spec` and `lemma` only, checked to terminate; a lemma proven by its steps, no axioms; a host's quantified `ensure` believed with evidence; `-checked` runs a bounded ∀ as a loop; Presburger with quantifiers, the array property fragment, congruence closure, their combination (not built) | [0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md) |
 | A handle is a host type, C's `HWND__*`, its one operation `==` within its kind; a failed call's handle the niche of an `Option` on the declaration (`niche -1`, `niche NULL`); an `_In_opt_` handle an `Option`, none its NULL, held to the SDK's SAL | [0146](docs/decisions/0146-a-handle-is-a-host-type-and-a-failed-calls-handle-is-its-niche.md) |
+| `Int` is ℤ at an entry point too, its parameter ρ of its set and `where` (the word, or the host's integer of any size; windows refuses an unbounded one); a host's word its module's `Word`; one rendering of ℤ, `decimal`, `io.print_int` over ℤ | [0147](docs/decisions/0147-int-is-the-integers-at-an-entry-point-and-decimal-renders-them.md) |
 
 ## Build commands
 

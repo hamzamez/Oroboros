@@ -55,8 +55,8 @@ export function genMain() {
 			v6 = ((((v64 && v72) || ((!v64) && (!v72))) && (v6 < 256)) ? (v6 + 1) : v6);
 			continue;
 		}
-		console.log(v5);
-		console.log(v6);
+		console.log((String(v5)));
+		console.log((String(v6)));
 		return v6;
 	}
 }

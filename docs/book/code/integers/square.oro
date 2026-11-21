@@ -1,0 +1,8 @@
+use io
+
+export fn square(n ∈ Int) (Int) { n * n }
+
+export fn main() {
+    io.print_int(square(3000000000))
+    io.print_int(square(4000000000))
+}

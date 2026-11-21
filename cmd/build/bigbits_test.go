@@ -46,7 +46,7 @@ func TestTheBitOperationsAboveTheWordRun(t *testing.T) {
 	}
 	// a is read twice, so β binds it rather than substituting 3^100 into the
 	// divisor, where the closed comparison alone would decide 0 < a
-	mod := "use io\nexport fn main() {\n    a = 3^100\n    b = 0 - 5^60\n    c ∈ Nat = b mod a + a\n    io.print_line(big_str(c))\n}\n"
+	mod := "use io\nexport fn main() {\n    a = 3^100\n    b = 0 - 5^60\n    c ∈ Nat = b mod a + a\n    io.print_line(decimal(c))\n}\n"
 	if got, err := runOnMayFail(t, mod, "go"); err != nil || got != "1030754174102284673669375053569001849450845903377" {
 		t.Errorf("(−5^60) mod 3^100 + 3^100: got %q, %v", got, err)
 	}

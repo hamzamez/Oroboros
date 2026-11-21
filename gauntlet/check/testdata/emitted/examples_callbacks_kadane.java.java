@@ -75,147 +75,149 @@ public final class examples_callbacks_kadane.java {
 			return;
 		});
 		final long v78 = v3[0];
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v78 + "\n");
-		int v83 = 0;
+		final String v79 = (Long.toString(v78));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v79 + "\n");
 		int v84 = 0;
-		for (;; v83 = (v83 + 1)) {
-			final boolean v86 = (v83 < 100);
-			if (v86) {
+		int v85 = 0;
+		for (;; v84 = (v84 + 1)) {
+			final boolean v87 = (v84 < 100);
+			if (v87) {
 				final int n1 = 12;
-				final long[] v89 = new long[n1];
-				for (int v90 = 0; v90 < n1; v90++) {
+				final long[] v90 = new long[n1];
+				for (int v91 = 0; v91 < n1; v91++) {
 					int e2 = 0;
-					final int v92 = (v90 * 7);
-					final int v94 = (v83 * 13);
-					final int v95 = (v92 + v94);
-					final int v97 = (v95 % 19);
-					final int v99 = (v97 - 9);
-					e2 = v99;
-					v89[v90] = e2;
+					final int v93 = (v91 * 7);
+					final int v95 = (v84 * 13);
+					final int v96 = (v93 + v95);
+					final int v98 = (v96 % 19);
+					final int v100 = (v98 - 9);
+					e2 = v100;
+					v90[v91] = e2;
 				}
-				final long[] v101 = { 0 };
-				final long[] v103 = { 0 };
-				java.util.Arrays.stream(v89).forEachOrdered((v105) -> {
-					final long v106 = v103[0];
-					final long v107 = v101[0];
-					final boolean v109 = (-1000000 < v105);
-					if (v109) {
-						final boolean v112 = (v105 < 1000000);
-						if (v112) {
-							final boolean v115 = (-1000000000 < v107);
-							if (v115) {
-								final boolean v118 = (v107 < 1000000000);
-								long v119 = 0;
-								if (v118) {
-									final int v121 = (int) ((v107 + v105));
-									final boolean v123 = (v121 > 0);
-									if (v123) {
-										final int v124 = (int) ((v107 + v105));
-										v119 = v124;
+				final long[] v102 = { 0 };
+				final long[] v104 = { 0 };
+				java.util.Arrays.stream(v90).forEachOrdered((v106) -> {
+					final long v107 = v104[0];
+					final long v108 = v102[0];
+					final boolean v110 = (-1000000 < v106);
+					if (v110) {
+						final boolean v113 = (v106 < 1000000);
+						if (v113) {
+							final boolean v116 = (-1000000000 < v108);
+							if (v116) {
+								final boolean v119 = (v108 < 1000000000);
+								long v120 = 0;
+								if (v119) {
+									final int v122 = (int) ((v108 + v106));
+									final boolean v124 = (v122 > 0);
+									if (v124) {
+										final int v125 = (int) ((v108 + v106));
+										v120 = v125;
 									} else {
-										v119 = 0;
+										v120 = 0;
 									}
 								} else {
-									v119 = v107;
+									v120 = v108;
 								}
-								v101[0] = v119;
-								final boolean v128 = (v119 > v106);
-								long v129 = 0;
-								if (v128) {
-									v129 = v119;
+								v102[0] = v120;
+								final boolean v129 = (v120 > v107);
+								long v130 = 0;
+								if (v129) {
+									v130 = v120;
 								} else {
-									v129 = v106;
+									v130 = v107;
 								}
-								v103[0] = v129;
+								v104[0] = v130;
 								return;
 							}
-							v101[0] = v107;
-							final boolean v138 = (v107 > v106);
-							long v139 = 0;
-							if (v138) {
-								v139 = v107;
+							v102[0] = v108;
+							final boolean v139 = (v108 > v107);
+							long v140 = 0;
+							if (v139) {
+								v140 = v108;
 							} else {
-								v139 = v106;
+								v140 = v107;
 							}
-							v103[0] = v139;
+							v104[0] = v140;
 							return;
 						}
-						v101[0] = v107;
-						final boolean v148 = (v107 > v106);
-						long v149 = 0;
-						if (v148) {
-							v149 = v107;
+						v102[0] = v108;
+						final boolean v149 = (v108 > v107);
+						long v150 = 0;
+						if (v149) {
+							v150 = v108;
 						} else {
-							v149 = v106;
+							v150 = v107;
 						}
-						v103[0] = v149;
+						v104[0] = v150;
 						return;
 					}
-					v101[0] = v107;
-					final boolean v158 = (v107 > v106);
-					long v159 = 0;
-					if (v158) {
-						v159 = v107;
+					v102[0] = v108;
+					final boolean v159 = (v108 > v107);
+					long v160 = 0;
+					if (v159) {
+						v160 = v108;
 					} else {
-						v159 = v106;
+						v160 = v107;
 					}
-					v103[0] = v159;
+					v104[0] = v160;
 					return;
 				});
-				final long v168 = v103[0];
-				int v172 = 0;
-				long v173 = 0;
-				for (;; v172 = (v172 + 1)) {
-					final int v174 = v89.length;
-					final boolean v175 = (v172 < v174);
-					if (v175) {
-						int v182 = v172;
-						int v183 = 0;
-						long v184 = v173;
-						for (;; v182 = (v182 + 1)) {
-							final int v185 = v89.length;
-							final boolean v186 = (v182 < v185);
-							if (v186) {
-								final int v191 = (int) (v89[v182]);
-								final int v192 = (v183 + v191);
-								final int v193 = (int) (v89[v182]);
-								final int v194 = (v183 + v193);
-								final boolean v195 = (v194 > v184);
-								long v196 = 0;
-								if (v195) {
-									final int v198 = (int) (v89[v182]);
-									final int v199 = (v183 + v198);
-									v196 = v199;
+				final long v169 = v104[0];
+				int v173 = 0;
+				long v174 = 0;
+				for (;; v173 = (v173 + 1)) {
+					final int v175 = v90.length;
+					final boolean v176 = (v173 < v175);
+					if (v176) {
+						int v183 = v173;
+						int v184 = 0;
+						long v185 = v174;
+						for (;; v183 = (v183 + 1)) {
+							final int v186 = v90.length;
+							final boolean v187 = (v183 < v186);
+							if (v187) {
+								final int v192 = (int) (v90[v183]);
+								final int v193 = (v184 + v192);
+								final int v194 = (int) (v90[v183]);
+								final int v195 = (v184 + v194);
+								final boolean v196 = (v195 > v185);
+								long v197 = 0;
+								if (v196) {
+									final int v199 = (int) (v90[v183]);
+									final int v200 = (v184 + v199);
+									v197 = v200;
 								} else {
-									v196 = v184;
+									v197 = v185;
 								}
-								v183 = v192;
-								v184 = v196;
+								v184 = v193;
+								v185 = v197;
 								continue;
 							}
 							break;
 						}
-						v173 = v184;
+						v174 = v185;
 						continue;
 					}
 					break;
 				}
-				final boolean v205 = (v168 == v173);
-				final boolean v209 = (v205 && (v84 < 100));
-				int v213 = 0;
-				if (v209) {
-					final int v216 = (v84 + 1);
-					v213 = v216;
+				final boolean v206 = (v169 == v174);
+				final boolean v210 = (v206 && (v85 < 100));
+				int v214 = 0;
+				if (v210) {
+					final int v217 = (v85 + 1);
+					v214 = v217;
 				} else {
-					v213 = v84;
+					v214 = v85;
 				}
-				v84 = v213;
+				v85 = v214;
 				continue;
 			}
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v84 + "\n");
+			final String v219 = (Long.toString(v85));
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v219 + "\n");
 			break;
 		}
-		return v84;
+		return v85;
 	}
 
 }

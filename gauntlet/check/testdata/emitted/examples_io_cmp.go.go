@@ -4,6 +4,7 @@ package gauntlet
 
 import "fmt"
 import "os"
+import "strconv"
 
 func GenMain() int {
 	v0 := (func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }())
@@ -58,138 +59,139 @@ func GenMain() int {
 			fmt.Print(v81)
 			v83 := (v53 + v56)
 			v85 := (v83 + 1)
-			fmt.Println(v85)
+			v86 := (strconv.Itoa(v85))
+			fmt.Println(v86)
 			v49 = 1
 			break
 		}
-		v90 := (v57 > 0)
-		v91 := (v90 && (v54 < v55))
-		if v91 {
-			v100 := ("cmp: EOF on " + v10)
-			fmt.Println(v100)
+		v91 := (v57 > 0)
+		v92 := (v91 && (v54 < v55))
+		if v92 {
+			v101 := ("cmp: EOF on " + v10)
+			fmt.Println(v101)
 			v49 = 1
 			break
 		}
-		v105 := (v57 > 0)
-		v106 := (v105 && (v55 < v54))
-		if v106 {
-			v115 := ("cmp: EOF on " + v12)
-			fmt.Println(v115)
+		v106 := (v57 > 0)
+		v107 := (v106 && (v55 < v54))
+		if v107 {
+			v116 := ("cmp: EOF on " + v12)
+			fmt.Println(v116)
 			v49 = 1
 			break
 		}
-		v121 := (v57 > 0)
-		v122 := (v121 && (v54 == 0))
-		if v122 {
+		v122 := (v57 > 0)
+		v123 := (v122 && (v54 == 0))
+		if v123 {
 			v49 = 0
 			break
 		}
-		v134 := (v57 >= 1000000)
-		v135 := (v134 || (v52 >= 1125899906842624))
-		if v135 {
+		v135 := (v57 >= 1000000)
+		v136 := (v135 || (v52 >= 1125899906842624))
+		if v136 {
 			fmt.Println("cmp: too long")
 			v49 = 2
 			break
 		}
-		v146h, v147 := func() (int, error) { f, err := os.Open(v10); if err != nil { return 0, err }; defer f.Close(); fi, err := f.Stat(); if err != nil { return 0, err }; m := int64(len(v50)); if rest := fi.Size() - int64(v52); rest < m { m = max(rest, 0) }; return f.ReadAt(v50[:m], int64(v52)) }()
-		v146 := int(v146h)
-		v148 := (v147 == nil)
-		if v148 {
-			v149h, v150 := func() (int, error) { f, err := os.Open(v12); if err != nil { return 0, err }; defer f.Close(); fi, err := f.Stat(); if err != nil { return 0, err }; m := int64(len(v51)); if rest := fi.Size() - int64(v52); rest < m { m = max(rest, 0) }; return f.ReadAt(v51[:m], int64(v52)) }()
-			v149 := int(v149h)
-			v151 := (v150 == nil)
-			if v151 {
-				v152 := (v52 + v146)
-				v153 := (v146 < v149)
-				var v154 int
-				if v153 {
-					v154 = v146
+		v147h, v148 := func() (int, error) { f, err := os.Open(v10); if err != nil { return 0, err }; defer f.Close(); fi, err := f.Stat(); if err != nil { return 0, err }; m := int64(len(v50)); if rest := fi.Size() - int64(v52); rest < m { m = max(rest, 0) }; return f.ReadAt(v50[:m], int64(v52)) }()
+		v147 := int(v147h)
+		v149 := (v148 == nil)
+		if v149 {
+			v150h, v151 := func() (int, error) { f, err := os.Open(v12); if err != nil { return 0, err }; defer f.Close(); fi, err := f.Stat(); if err != nil { return 0, err }; m := int64(len(v51)); if rest := fi.Size() - int64(v52); rest < m { m = max(rest, 0) }; return f.ReadAt(v51[:m], int64(v52)) }()
+			v150 := int(v150h)
+			v152 := (v151 == nil)
+			if v152 {
+				v153 := (v52 + v147)
+				v154 := (v147 < v150)
+				var v155 int
+				if v154 {
+					v155 = v147
 				} else {
-					v154 = v149
+					v155 = v150
 				}
-				var v161 int = 0
-				for ; ; v161 = (v161 + 1) {
-					v162 := (v161 >= v154)
-					v163 := (v162 || ((v161 >= len(v50)) || (v161 >= len(v51))))
-					if v163 {
+				var v162 int = 0
+				for ; ; v162 = (v162 + 1) {
+					v163 := (v162 >= v155)
+					v164 := (v163 || ((v162 >= len(v50)) || (v162 >= len(v51))))
+					if v164 {
 						break
 					}
-					v180 := int(v50[v161])
-					v181 := int(v51[v161])
-					v182 := (v180 == v181)
-					if v182 {
+					v181 := int(v50[v162])
+					v182 := int(v51[v162])
+					v183 := (v181 == v182)
+					if v183 {
 						continue
 					}
 					break
 				}
-				v52, v53, v54, v55, v56 = v152, v52, v146, v149, v161
+				v52, v53, v54, v55, v56 = v153, v52, v147, v150, v162
 				continue
 			}
-			v187 := (os.IsNotExist(v150))
-			if v187 {
-				v189 := ("cmp: " + v12)
-				v191 := (v189 + ": ")
-				v193 := (v191 + "not-found")
-				fmt.Println(v193)
+			v188 := (os.IsNotExist(v151))
+			if v188 {
+				v190 := ("cmp: " + v12)
+				v192 := (v190 + ": ")
+				v194 := (v192 + "not-found")
+				fmt.Println(v194)
 				v49 = 2
 				break
 			}
-			v196 := (os.IsExist(v150))
-			if v196 {
-				v198 := ("cmp: " + v12)
-				v200 := (v198 + ": ")
-				v202 := (v200 + "exists")
-				fmt.Println(v202)
+			v197 := (os.IsExist(v151))
+			if v197 {
+				v199 := ("cmp: " + v12)
+				v201 := (v199 + ": ")
+				v203 := (v201 + "exists")
+				fmt.Println(v203)
 				v49 = 2
 				break
 			}
-			v205 := (os.IsPermission(v150))
-			if v205 {
-				v207 := ("cmp: " + v12)
-				v209 := (v207 + ": ")
-				v211 := (v209 + "permission")
-				fmt.Println(v211)
+			v206 := (os.IsPermission(v151))
+			if v206 {
+				v208 := ("cmp: " + v12)
+				v210 := (v208 + ": ")
+				v212 := (v210 + "permission")
+				fmt.Println(v212)
 				v49 = 2
 				break
 			}
-			v215 := ("cmp: " + v12)
-			v217 := (v215 + ": ")
-			v219 := (v217 + "other")
-			fmt.Println(v219)
+			v216 := ("cmp: " + v12)
+			v218 := (v216 + ": ")
+			v220 := (v218 + "other")
+			fmt.Println(v220)
 			v49 = 2
 			break
 		}
-		v222 := (os.IsNotExist(v147))
-		if v222 {
-			v224 := ("cmp: " + v10)
-			v226 := (v224 + ": ")
-			v228 := (v226 + "not-found")
-			fmt.Println(v228)
+		v223 := (os.IsNotExist(v148))
+		if v223 {
+			v225 := ("cmp: " + v10)
+			v227 := (v225 + ": ")
+			v229 := (v227 + "not-found")
+			fmt.Println(v229)
 			v49 = 2
 			break
 		}
-		v231 := (os.IsExist(v147))
-		if v231 {
-			v233 := ("cmp: " + v10)
-			v235 := (v233 + ": ")
-			v237 := (v235 + "exists")
-			fmt.Println(v237)
+		v232 := (os.IsExist(v148))
+		if v232 {
+			v234 := ("cmp: " + v10)
+			v236 := (v234 + ": ")
+			v238 := (v236 + "exists")
+			fmt.Println(v238)
 			v49 = 2
 			break
 		}
-		v240 := (os.IsPermission(v147))
-		if v240 {
-			v242 := ("cmp: " + v10)
-			v244 := (v242 + ": ")
-			v246 := (v244 + "permission")
-			fmt.Println(v246)
+		v241 := (os.IsPermission(v148))
+		if v241 {
+			v243 := ("cmp: " + v10)
+			v245 := (v243 + ": ")
+			v247 := (v245 + "permission")
+			fmt.Println(v247)
 			v49 = 2
 			break
 		}
-		v250 := ("cmp: " + v10)
-		v252 := (v250 + ": ")
-		v254 := (v252 + "other")
-		fmt.Println(v254)
+		v251 := ("cmp: " + v10)
+		v253 := (v251 + ": ")
+		v255 := (v253 + "other")
+		fmt.Println(v255)
 		v49 = 2
 		break
 	}

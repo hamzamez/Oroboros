@@ -17,5 +17,5 @@ fn big_fact(n ∈ 0..30) (Nat) {
 export fn main() {
     io.print_int(fact(5))
     io.print_int(fact(20))
-    io.print_line(big_str(big_fact(25)))
+    io.print_line(decimal(big_fact(25)))
 }

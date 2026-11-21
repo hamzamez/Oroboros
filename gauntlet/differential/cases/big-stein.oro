@@ -43,4 +43,4 @@ export fn calc(k ∈ 0..6) (Nat) {
     }
 }
 
-fn run(k) { big_str(calc(k)) }
+fn run(k) { decimal(calc(k)) }

@@ -1,6 +1,6 @@
 use io
 
-fn show(n) { io.print_line(big_str(n)) }
+fn show(n) { io.print_line(decimal(n)) }
 
 export fn main() {
     a = 3^100

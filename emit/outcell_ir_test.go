@@ -128,12 +128,15 @@ func TestWhatTheHostWroteIsUnbounded(t *testing.T) {
 	src := `use go
 use go/fmt
 use result
-export fn f(s ∈ go.bytestring) (Int) {
+export fn f(s ∈ go.bytestring) (-2^63..2^63-1) {
     (v, n, e) = fmt.Sscan(s, out Int)
     ignore(e)
     v + 1
 }`
-	if err := entryLegal(t, src); err == nil || !strings.Contains(err.Error(), "cannot be proven") {
+	// refused as an operation or, its result claimed in the word, as the claim
+	// whose interval is ⊤: either way for v's unbounded fact
+	if err := entryLegal(t, src); err == nil || !strings.Contains(err.Error(), "cannot be proven") &&
+		!strings.Contains(err.Error(), "its result is [-inf, +inf]") {
 		t.Errorf("(+ v 1) on a scanned v was accepted: %v", err)
 	}
 	// the control: a guard bounds it
@@ -211,7 +214,7 @@ func TestAProgramLoadedWithoutCellFormsIsRefused(t *testing.T) {
 	tg := goNative(t)
 	forms, err := core.Read(`use go
 use go/fmt
-export fn f(s ∈ go.bytestring) (Int) {
+export fn f(s ∈ go.bytestring) (-2^63..2^63-1) {
     (n, e) = fmt.Sscan(s, 1)
     n
 }`)

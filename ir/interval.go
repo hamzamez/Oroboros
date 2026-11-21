@@ -569,9 +569,31 @@ func (a *intervals) declared(ty string) fact {
 	if e := ElemOf(a.tg, unbuffer(ty)); e != "" {
 		out.hasLn, out.ln = true, rangeIV(0, a.maxLen)
 		out.hasEl, out.el = true, a.rangeOf(e)
+		// A TABLE'S ELEMENT IS HELD IN A WORD (tables.md §2.3, the book's §13):
+		// every store into one owes its value in the word, and a host's table
+		// is its word's array, so an `Array(Int)`'s element, ℤ by its set since
+		// ADR 0147, lies in the signed word by its storage. `position(t ∈
+		// Array(Int), x ∈ Int)` compares t[i] with an x of any size, and the
+		// comparison widens t[i], which ⊤ refused
+		if e == "int" && !PlantElementTop {
+			out.el = rangeIV(a.tg.Word.Lo, a.tg.Word.Hi)
+		}
+	}
+	// AND A MAP'S VALUE, which a map literal's read returns: its cells are
+	// words by storage as a table's are, so an `Int` value lies in the signed
+	// word (a built map's reads are its inserted values, ORead)
+	if _, v, ok := core.MapTypes(unbuffer(ty)); ok && !core.IsProd(v) && !PlantElementTop {
+		out.hasEl, out.el = true, a.rangeOf(v)
+		if v == "int" {
+			out.el = rangeIV(a.tg.Word.Lo, a.tg.Word.Hi)
+		}
 	}
 	return out
 }
+
+// PlantElementTop reads an `Array(Int)`'s element as ⊤, as before: chapter 13's
+// position is then refused at its comparison (TestATablesElementIsAWord).
+var PlantElementTop bool
 
 // rangeOf is the interval a type denotes: its declared range read exactly
 // (U's top, 2⁶⁴ − 1, included), the realization's own range for a u64, and ⊤

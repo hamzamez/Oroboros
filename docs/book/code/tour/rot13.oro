@@ -1,0 +1,14 @@
+use io
+use go/strings
+
+fn rot(r ∈ -2^31..2^31-1) (-2^31..2^31-1) {
+    case {
+        97 <= r && r <= 122 -> 97 + (r - 97 + 13) % 26
+        65 <= r && r <= 90 -> 65 + (r - 65 + 13) % 26
+        else -> r
+    }
+}
+
+export fn main() {
+    io.print_line(strings.Map(fn(r) { rot(r) }, "Hello, World"))
+}

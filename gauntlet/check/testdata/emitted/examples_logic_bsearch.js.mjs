@@ -24,76 +24,76 @@ export function genMain() {
 		v12 = v15;
 		break;
 	}
-	console.log(v12);
-	let v78 = 0;
-	let v79 = v6.length;
-	let v80 = (v6.length >> 1);
-	let v77;
+	console.log((String(v12)));
+	let v79 = 0;
+	let v80 = v6.length;
+	let v81 = (v6.length >> 1);
+	let v78;
 	for (;;) {
-		if (((v78 < 0) || ((v78 >= v79) || ((v79 > v6.length) || ((v80 < v78) || (v80 >= v79)))))) {
-			v77 = -1;
+		if (((v79 < 0) || ((v79 >= v80) || ((v80 > v6.length) || ((v81 < v79) || (v81 >= v80)))))) {
+			v78 = -1;
 			break;
 		}
-		if ((v6[v80] < 1)) {
-			v78 = (v80 + 1);
-			v80 = ((v80 + 1) + ((v79 - (v80 + 1)) >> 1));
+		if ((v6[v81] < 1)) {
+			v79 = (v81 + 1);
+			v81 = ((v81 + 1) + ((v80 - (v81 + 1)) >> 1));
 			continue;
 		}
-		if ((v6[v80] > 1)) {
-			v79 = v80;
-			v80 = (v78 + ((v80 - v78) >> 1));
+		if ((v6[v81] > 1)) {
+			v80 = v81;
+			v81 = (v79 + ((v81 - v79) >> 1));
 			continue;
 		}
-		v77 = v80;
+		v78 = v81;
 		break;
 	}
-	console.log(v77);
-	let v143 = 0;
-	let v144 = v6.length;
-	let v145 = (v6.length >> 1);
-	let v142;
+	console.log((String(v78)));
+	let v145 = 0;
+	let v146 = v6.length;
+	let v147 = (v6.length >> 1);
+	let v144;
 	for (;;) {
-		if (((v143 < 0) || ((v143 >= v144) || ((v144 > v6.length) || ((v145 < v143) || (v145 >= v144)))))) {
-			v142 = -1;
+		if (((v145 < 0) || ((v145 >= v146) || ((v146 > v6.length) || ((v147 < v145) || (v147 >= v146)))))) {
+			v144 = -1;
 			break;
 		}
-		if ((v6[v145] < 21)) {
-			v143 = (v145 + 1);
-			v145 = ((v145 + 1) + ((v144 - (v145 + 1)) >> 1));
+		if ((v6[v147] < 21)) {
+			v145 = (v147 + 1);
+			v147 = ((v147 + 1) + ((v146 - (v147 + 1)) >> 1));
 			continue;
 		}
-		if ((v6[v145] > 21)) {
-			v144 = v145;
-			v145 = (v143 + ((v145 - v143) >> 1));
+		if ((v6[v147] > 21)) {
+			v146 = v147;
+			v147 = (v145 + ((v147 - v145) >> 1));
 			continue;
 		}
-		v142 = v145;
+		v144 = v147;
 		break;
 	}
-	console.log(v142);
-	let v208 = 0;
-	let v209 = v6.length;
-	let v210 = (v6.length >> 1);
-	let v207;
+	console.log((String(v144)));
+	let v211 = 0;
+	let v212 = v6.length;
+	let v213 = (v6.length >> 1);
+	let v210;
 	for (;;) {
-		if (((v208 < 0) || ((v208 >= v209) || ((v209 > v6.length) || ((v210 < v208) || (v210 >= v209)))))) {
-			v207 = -1;
+		if (((v211 < 0) || ((v211 >= v212) || ((v212 > v6.length) || ((v213 < v211) || (v213 >= v212)))))) {
+			v210 = -1;
 			break;
 		}
-		if ((v6[v210] < 4)) {
-			v208 = (v210 + 1);
-			v210 = ((v210 + 1) + ((Math.trunc((v209 - (v210 + 1)) / 2) + 0)));
+		if ((v6[v213] < 4)) {
+			v211 = (v213 + 1);
+			v213 = ((v213 + 1) + ((Math.trunc((v212 - (v213 + 1)) / 2) + 0)));
 			continue;
 		}
-		if ((v6[v210] > 4)) {
-			v209 = v210;
-			v210 = (v208 + ((v210 - v208) >> 1));
+		if ((v6[v213] > 4)) {
+			v212 = v213;
+			v213 = (v211 + ((v213 - v211) >> 1));
 			continue;
 		}
-		v207 = v210;
+		v210 = v213;
 		break;
 	}
-	console.log(v207);
-	return v207;
+	console.log((String(v210)));
+	return v210;
 }
 

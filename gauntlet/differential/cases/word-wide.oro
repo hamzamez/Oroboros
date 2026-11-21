@@ -13,7 +13,7 @@
 // last multiplication is a BigInt with the declared bound enforced. Four
 // representations, one integer.
 //
-// `big-str` renders it on every target that has one, which converts from a word
+// `decimal` renders it on every target that has one, which converts from a word
 // where the value is one (Go, the JVM) — the solver reads a `big` parameter as a
 // demand. On windows, which has no bignum, rendering is ℤ's at each sort (ADR 0095): the
 // limb library's render on a value held as limbs, ι of its digits, and the
@@ -26,4 +26,4 @@
 // expect: 0 1 343 1000000000000000000 999997000002999999 9223358842721533951
 fn cube(n ∈ 0..2^21-1) (0..2^63-1) { n * n * n }
 
-fn run(n) { big_str(cube(n)) }
+fn run(n) { decimal(cube(n)) }

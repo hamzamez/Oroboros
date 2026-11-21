@@ -14,49 +14,49 @@ export function genMain() {
 		}
 		break;
 	}
-	console.log(v10);
-	let v39 = 0;
+	console.log((String(v10)));
 	let v40 = 0;
-	for (;; v39 = (v39 + 1)) {
-		if ((v39 <= 9)) {
-			let v50 = 0;
+	let v41 = 0;
+	for (;; v40 = (v40 + 1)) {
+		if ((v40 <= 9)) {
 			let v51 = 0;
-			for (;; v51 = (v51 + 1)) {
-				if ((v51 < v6.length)) {
-					if ((-1000000000 < v50)) {
-						v50 = ((v50 < 1000000000) ? ((v50 * v39) + v6[v51]) : v50);
+			let v52 = 0;
+			for (;; v52 = (v52 + 1)) {
+				if ((v52 < v6.length)) {
+					if ((-1000000000 < v51)) {
+						v51 = ((v51 < 1000000000) ? ((v51 * v40) + v6[v52]) : v51);
 						continue;
 					}
 					continue;
 				}
 				break;
 			}
-			let v77 = 0;
 			let v78 = 0;
-			for (;; v77 = (v77 + 1)) {
-				if (((v77 < v6.length) && (v77 < 9))) {
-					let v97 = 0;
-					let v98 = 1;
-					for (;; v97 = (v97 + 1)) {
-						if (((v97 < ((v6.length - 1) - v77)) && (v98 < 1000000))) {
-							v98 = (v98 * v39);
+			let v79 = 0;
+			for (;; v78 = (v78 + 1)) {
+				if (((v78 < v6.length) && (v78 < 9))) {
+					let v98 = 0;
+					let v99 = 1;
+					for (;; v98 = (v98 + 1)) {
+						if (((v98 < ((v6.length - 1) - v78)) && (v99 < 1000000))) {
+							v99 = (v99 * v40);
 							continue;
 						}
 						break;
 					}
-					v78 = (v78 + (v6[v77] * v98));
+					v79 = (v79 + (v6[v78] * v99));
 					continue;
 				}
 				break;
 			}
-			v40 = (((v50 === v78) && (v40 < 10)) ? (v40 + 1) : v40);
+			v41 = (((v51 === v79) && (v41 < 10)) ? (v41 + 1) : v41);
 			continue;
 		}
-		console.log(v40);
+		console.log((String(v41)));
 		break;
 	}
-	console.log(7);
-	console.log(2);
+	console.log((String(7)));
+	console.log((String(2)));
 	return 2;
 }
 

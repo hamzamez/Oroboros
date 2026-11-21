@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 	"math/big"
+	"strings"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -101,8 +102,10 @@ func SelectBig(tg *emit.Target, f *Func, sig *core.Sig, bits int, signed bool) (
 	}
 	g.collect(sig)
 	g.solve()
-	// Nothing held exactly and nothing demanded: no widening either.
-	if len(g.b) == 0 && len(g.dem) == 0 {
+	// Nothing held exactly and nothing demanded: no widening either. A demand
+	// only a result declared `Int` made, with nothing held exactly, is met by
+	// the word: every yield fits.
+	if len(g.b) == 0 && (len(g.dem) == 0 || g.onlyResultDemands()) {
 		eraseThe(f)
 		return 0, nil
 	}
@@ -132,6 +135,10 @@ type bigs struct {
 	// a `the` with its operand. They are one object, so one representation.
 	root   map[V]V
 	b, dem map[V]bool // B, and the demanded values; keyed by root
+	// resDem are the yields a result declared `Int` demanded, and nothing else
+	resDem []V
+	// exact are the values that can be held exactly (anyExactable), once
+	exact map[V]bool
 	bits   int
 	fit    string
 	// the constraints, collected once
@@ -212,14 +219,27 @@ func (g *bigs) collect(sig *core.Sig) {
 		if g.bigType(f.Types[p]) || (sig != nil && i < len(sig.Params) && g.bigType(sig.Params[i].Type)) {
 			g.b[p] = true
 		}
+		// AN ENTRY POINT'S PARAMETER IS WHAT THE HOST PASSES (integers-boundary
+		// §2, §4): outside the signed word, on a target whose unsigned word is
+		// no host type but a pair of its digits (JavaScript's), the host hands
+		// over its own integer of any size, a BigInt. `wide(n ∈ 0..2^63-1)`
+		// was refused there for want of this case.
+		if g.tg.Word.Pair && !PlantBoundedAboveTheWordIsTheWord && g.tg.ValueType(f.Types[p]) == core.U64Type {
+			g.b[p] = true
+		}
 	}
 	consts := map[V]*big.Int{}
+	constB := map[V]*Stmt{} // the closed constant terms the rule below holds exactly
+	def := map[V]*Stmt{}
 	f.Walk(func(r *Region) {
 		for _, pi := range r.Pis {
 			g.root[pi.V] = pi.Of
 		}
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
+			for _, v := range s.Res {
+				def[v] = s
+			}
 			switch {
 			case s.Op == OConst && s.Lit != nil && s.Lit.Kind == core.KInt && len(s.Res) == 1:
 				consts[s.Res[0]] = big.NewInt(s.Lit.Int)
@@ -243,6 +263,7 @@ func (g *bigs) collect(sig *core.Sig) {
 						consts[s.Res[0]] = v
 						if e, ok := fromBig(v); (!ok || !(iv{lo: e, hi: e}).within(g.sLo, g.sHi)) && langOp(s) {
 							g.b[s.Res[0]] = true
+							constB[s.Res[0]] = s
 						}
 					}
 				}
@@ -262,7 +283,16 @@ func (g *bigs) collect(sig *core.Sig) {
 				// (ADR 0099): in B iff its fact leaves S. Only the widening of a
 				// word value is the target's question, and on a target with no
 				// bignum the word renders itself (below, ADR 0095).
-				if s.Name == "big-str" && len(s.Args) == 1 {
+				// keyed by root, so an argument whose own fact keeps it in S,
+				// a π under its arm's guard, is no demand: a dead arm's
+				// `decimal(n)` would take an unsigned hash with it
+				// On a target with no bignum a value in U is rendered by the
+				// word (windows' print_int, its field), so it is no demand
+				// either: an unsigned hash in print_int's dead arm above the
+				// words would need U₆₄ ↪ ℤ, not built
+				if s.Name == "decimal" && len(s.Args) == 1 && !g.fits(s.Args[0]) &&
+					!(!g.tg.HasBig() && (g.tg.Word.Unsigned || g.tg.Word.Pair) &&
+						g.fs[s.Args[0]].v.within(ep{}, u64Max) && !PlantDecimalDemandsU) {
 					g.dem[s.Args[0]] = true
 				}
 				for j, v := range s.Res {
@@ -329,10 +359,84 @@ func (g *bigs) collect(sig *core.Sig) {
 				big = big || g.bigType(sig.Result)
 			}
 		}
-		if big {
+		// A RESULT DECLARED `Int` IS ℤ (ADR 0147 item 3): its yields are demanded
+		// as `decimal`'s argument is, in B exactly where a fact leaves S, so a
+		// yield proven only in the unsigned word is the host's integer of any
+		// size and not a word the claim never named (the book's finding 27:
+		// `medium(n ∈ 0..2^31) (Int) { n * n }` was refused on JavaScript, its
+		// product a pair of digits at a declared `Int`)
+		if big || resultIsZ(sig, j) && !PlantResultIntIsTheWord {
 			for _, args := range ownExits(f.Body, TYield) {
 				if j < len(args) {
+					if !big {
+						// A YIELD ITS OWN FACT KEEPS IN S is a word, whatever
+						// its root's: demand is keyed by root, and a π-narrowed
+						// loop variable (binary search's m, under its guard)
+						// would take the loop's widened join with it
+						if g.fits(args[j]) {
+							continue
+						}
+						if !g.dem[args[j]] {
+							g.resDem = append(g.resDem, args[j])
+						}
+					}
 					g.dem[args[j]] = true
+				}
+			}
+		}
+	}
+	// A CONSTANT JOINED WITH A RESIDUE IS THE RESIDUE'S LITERAL: a join one of
+	// whose inputs is a residue mod 2⁶⁴, `u64-of` or a fused operation (ADR
+	// 0082), holds the unsigned word, and a closed constant in U entering it
+	// (FNV-1a's offset basis, the loop's first value) is that word's literal,
+	// not an exact value that would make the join exact and refuse the residue
+	// (windows32's fnv64, printed: `decimal` made the rung run)
+	if !PlantDecimalDemandsU {
+		var unmark func(v V)
+		unmark = func(v V) {
+			st, ok := constB[v]
+			if !ok {
+				return
+			}
+			delete(g.b, v)
+			delete(constB, v)
+			for _, a := range st.Args {
+				unmark(a)
+			}
+		}
+		for _, j := range g.joins {
+			residue := false
+			for _, u := range j.in {
+				if d := def[u]; d != nil && (d.Op == OCall && d.Name == "u64-of" || d.Op.IsArith() && !langOp(d)) {
+					residue = true
+				}
+			}
+			if !residue {
+				continue
+			}
+			for _, u := range j.in {
+				if c, ok := consts[u]; ok && c.Sign() >= 0 && c.BitLen() <= 64 {
+					unmark(u)
+				}
+			}
+		}
+	}
+	// A RESIDUE'S SPINE IS A LITERAL, NOT AN EXACT VALUE: Fuse writes `t mod 2ⁿ`
+	// of a closed term as its residue, and one past int64 as hi·10¹⁵ + lo, the
+	// core's spelling of a literal (ir/fuse.go), whose `+` is the residue's, a
+	// target's own operator (its source the `mod`). The product hi·10¹⁵ leaves
+	// S and is a closed constant term, so the rule above took it as exact, and
+	// the target's `+` then refused it, wherever a print made the rung run
+	// (book chapter 7's hash64, `decimal` of a 64-bit FNV-1a): ρ of a literal in
+	// U is the unsigned word's, which the words pass chooses
+	if !PlantResidueSpineExact {
+		for _, s := range g.ariths {
+			if langOp(s) {
+				continue
+			}
+			for _, a := range s.Args {
+				if c, ok := consts[a]; ok && c.Sign() >= 0 && c.BitLen() <= 64 {
+					delete(g.b, a)
 				}
 			}
 		}
@@ -346,6 +450,21 @@ func (g *bigs) collect(sig *core.Sig) {
 			}
 		}
 	}
+}
+
+// onlyResultDemands reports every demand to be one a result declared `Int`
+// made (collect's resDem), and none an operation's or a host's.
+func (g *bigs) onlyResultDemands() bool {
+	mine := map[V]bool{}
+	for _, v := range g.resDem {
+		mine[g.r(v)] = true
+	}
+	for v := range g.dem {
+		if !mine[v] {
+			return false
+		}
+	}
+	return true
 }
 
 // ownExits is the argument lists of a region tree's exits of kind t that
@@ -471,7 +590,12 @@ func (g *bigs) solve() {
 					setB(j.v)
 				}
 			}
-			if demanded(j.v) {
+			// A JOIN IS EXACT BY DEMAND only where some input can be: a
+			// language operation, another join, or a value already exact. One
+			// of host results alone (JavaScript's `js.+` on `Any`, sieve-js's
+			// count) holds what the host computed, in its word, and taking it
+			// exact refused the host's own operator
+			if demanded(j.v) && (g.anyExactable(j.in, promotable) || PlantJoinOfHostsExact) {
 				setB(j.v)
 			}
 			if g.isB(j.v) {
@@ -482,6 +606,48 @@ func (g *bigs) solve() {
 		}
 	}
 }
+
+// anyExactable reports some input that can be held exactly: one already in B,
+// a language operation's result, or a join one of whose inputs is, the least
+// fixed point over the joins.
+func (g *bigs) anyExactable(in []V, promotable map[V]bool) bool {
+	if g.exact == nil {
+		g.exact = map[V]bool{}
+		for _, s := range g.ariths {
+			if langOp(s) {
+				g.exact[g.r(s.Res[0])] = true
+			}
+		}
+		for _, s := range g.bitops {
+			g.exact[g.r(s.Res[0])] = true
+		}
+		for grew := true; grew; {
+			grew = false
+			for _, j := range g.joins {
+				if g.exact[g.r(j.v)] {
+					continue
+				}
+				for _, u := range j.in {
+					if g.exact[g.r(u)] || g.isB(u) {
+						g.exact[g.r(j.v)], grew = true, true
+						break
+					}
+				}
+			}
+		}
+	}
+	for _, u := range in {
+		if g.isB(u) || g.exact[g.r(u)] {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantJoinOfHostsExact takes a demanded join of host results exact, as
+// before: examples/native/sieve-js is then refused on JavaScript
+// (TestAJoinOfHostResultsIsNotExact).
+var PlantJoinOfHostsExact bool
 
 // bitExact reports a bit operation computed exactly: its result or an
 // operand that may be is held so.
@@ -547,7 +713,9 @@ func (g *bigs) fresh(ty string) V {
 // widen returns v held exactly: v itself when it is in B, otherwise
 // `big-of v`, the inclusion S ↪ ℤ, whose premise is that v lies in S.
 func (g *bigs) widen(v V, where string) V {
-	if v < 0 || g.isB(v) || !g.integer(v) {
+	// a value whose type is already the host's big integer (a host result
+	// declared `big`) needs no inclusion
+	if v < 0 || g.isB(v) || !g.integer(v) || g.bigType(g.f.Types[v]) {
 		return v
 	}
 	if !g.fits(v) && g.err == nil {
@@ -638,7 +806,7 @@ func (g *bigs) refuseWord(v V, where string) {
 		"docs/unbounded-rung.md).\n"+
 		"  A range above the word is a WIDENING, not a refinement: a value that may leave the machine "+
 		"word cannot silently be used where an `int` is required, and this refusal is where that is "+
-		"said. Widen the destination, or take the value to a string with `big_str`.",
+		"said. Widen the destination, or take the value to a string with `decimal`.",
 		where, g.tg.Name, g.tg.Word)
 }
 
@@ -694,7 +862,7 @@ func (g *bigs) rewrite(sig *core.Sig) {
 		// in B, which a claim above the word upstream consented to. Until then
 		// it was a position in the word, and a definition whose result was never
 		// claimed was refused for a representation nobody had asked for.
-		if !big && resultUnclaimed(sig, j) {
+		if !big && (resultUnclaimed(sig, j) || resultIsZ(sig, j)) {
 			for _, args := range ownExits(f.Body, TYield) {
 				if j < len(args) && g.isB(args[j]) {
 					big = true
@@ -841,12 +1009,22 @@ func (g *bigs) stmt(s *Stmt) {
 				continue
 			}
 			// RENDERING IS ℤ's AT EVERY SORT (ADR 0095): on a target with no
-			// bignum, `big-str` is realized per representation, the limb
+			// bignum, `decimal` is realized per representation, the limb
 			// library's render on a value held exactly (LowerLimbs) and the
 			// word's digit loop elsewhere (its stated term), so its argument
 			// keeps the representation its facts gave it.
-			if s.Name == "big-str" && !g.tg.HasBig() {
+			if s.Name == "decimal" && !g.tg.HasBig() {
 				continue
+			}
+			// AND ON A HOST WITH ONE, a value its facts keep in the word is
+			// rendered by the host's own integer formatting, `decimal-word`
+			// (integers-boundary §3): no widening paid to print a word
+			if s.Name == "decimal" && !g.isB(a) && g.integer(a) && g.tg.ValueType(g.f.Types[a]) == "int" && !PlantDecimalAlwaysBig {
+				if n, ok := decimalWord(g.tg); ok {
+					s.Name = n
+					s.Args[j] = g.word(a, "the argument of decimal")
+					continue
+				}
 			}
 			what := fmt.Sprintf("argument %d of %s", j+1, core.ShowName(s.Name))
 			switch ty := p.Args[j]; {
@@ -997,3 +1175,57 @@ func BigOps(f *Func) int {
 // big value then reaches a word parameter, refused only by W5
 // (TestABigValueAtAWordParameterIsRefusedInTheProgramsTerms).
 var PlantStmtArgsUnasked bool
+
+// PlantBoundedAboveTheWordIsTheWord holds an entry point's parameter in the
+// unsigned word's pair on JavaScript, as before: `wide(n ∈ 0..2^63-1)` is then
+// refused there again (TestIntIsTheIntegersAtTheBoundary).
+var PlantBoundedAboveTheWordIsTheWord bool
+
+// resultIsZ reports the j-th result declared `Int`, ℤ: no bound, so held as
+// its yields are, in the word where they are (integers-boundary §2), as an
+// unclaimed result is.
+func resultIsZ(sig *core.Sig, j int) bool {
+	if sig == nil || emit.PlantEntryIntIsTheWord {
+		return false
+	}
+	if len(sig.Results) > 0 {
+		return j < len(sig.Results) && sig.Results[j] == "int"
+	}
+	return j == 0 && sig.Result == "int"
+}
+
+// PlantDecimalDemandsU demands a value in U at windows' `decimal`, and takes a
+// closed constant in U joined with a residue as exact, as before: differential
+// case fnv64's printed hash is then refused at its loop variable
+// (TestPrintIntIsTotalOnTheIntegers).
+var PlantDecimalDemandsU bool
+
+// PlantResidueSpineExact takes a residue's spine hi·10¹⁵ as an exact value, as
+// before: chapter 7's hash64 is then refused at the target's `+`
+// (TestAResiduesSpineIsALiteral).
+var PlantResidueSpineExact bool
+
+// PlantResultIntIsTheWord leaves a result declared `Int` undemanded, as before
+// ADR 0147: finding 27's product, in the unsigned word, is then refused at its
+// declared `Int` on JavaScript (TestIntIsTheIntegersAtTheBoundary).
+var PlantResultIntIsTheWord bool
+
+// PlantDecimalAlwaysBig renders every value through the host's big integer, a
+// word widened first, as before integers-boundary: correct, and a widening per
+// print (TestIntIsTheIntegersAtTheBoundary's emitted text).
+var PlantDecimalAlwaysBig bool
+
+// decimalWord is the target's rendering of a word, `decimal-word` under its
+// host module's name (go.decimal-word), found by its spelling as the language's
+// names are on a target that states no realization.
+func decimalWord(tg *emit.Target) (string, bool) {
+	if _, ok := tg.Prims["decimal-word"]; ok {
+		return "decimal-word", true
+	}
+	for n := range tg.Prims {
+		if strings.HasSuffix(n, ".decimal-word") {
+			return n, true
+		}
+	}
+	return "", false
+}

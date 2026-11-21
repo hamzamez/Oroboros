@@ -76,6 +76,21 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if note == nil {
 		note = func(Note) {}
 	}
+	// AN ENTRY POINT'S HEADER IS THE HOST'S INTERFACE (integers-boundary §2):
+	// an `Int` its header does not bound inside the word is the host's integer
+	// of any size, and a target with none (windows: K(ℕ*) is the program's own
+	// numeral, no C type a caller passes) cannot take it, a true answer
+	if es := emit.EntrySig(tg, sig); es != sig {
+		for i, p := range es.Params {
+			if p.Type != sig.Params[i].Type && !tg.HasBig() {
+				return nil, nil, fmt.Errorf("%s: its parameter %s ∈ Int is any integer, and an entry point of target %s "+
+					"takes no integer above its word: its callers are C's, and C has none (K(ℕ*) is this "+
+					"program's own). Bound it, `where %s <= …`, or give it a range inside the word",
+					name, core.ShowName(p.Name), tg.Name, core.ShowName(p.Name))
+			}
+		}
+		sig = es
+	}
 	inline := map[string]bool{}
 	for {
 		f, leg, err := entry(tg, name, irName, sig, nf, all, checked, note, inline)
@@ -205,6 +220,10 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 		if n > 0 {
 			note(Note{Kind: NoteBig, N: n})
 		}
+		// decided again even where nothing is held exactly: the rung erases
+		// the ascriptions and renames what they named, and every pass after
+		// reads the facts (a results-only plan skipping this gave SelectShifts
+		// stale facts, TestTheLoopRulesAreSound's case 6)
 		leg = Decide(tg, f, checked)
 		// A NUMERAL'S RESULT IS A CLAIM ITS BODY PROVES (ADR 0072, on a
 		// table): every returned table's digits in [0, B), by its stores

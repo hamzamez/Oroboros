@@ -78,11 +78,14 @@ module js {
         host expr "(function(oroA, oroM){ const r = oroA % oroM; return r < 0n ? r + oroM : r; })(${a}, ${m})"
     }
 
-    fn big_of(a ∈ Int) (big) pure { host expr "BigInt(${a})" }
+    fn big_of(a ∈ Word) (big) pure { host expr "BigInt(${a})" }
     // NOT `%s.toString()`: `String(x)` gives "123" where a template literal or a
     // bare console.log of a BigInt gives "123n". The suffix is a real)
     // divergence from the other two hosts and this is where it is removed.
-    fn big_str(a ∈ big) (String) pure { host expr "String(${a})" }
+    fn decimal(a ∈ big) (String) pure { host expr "String(${a})" }
+    // decimal of a value its facts keep in the word: the host's own formatting
+    // (integers-boundary §3), the same digits
+    fn decimal_word(x ∈ Word) (String) pure { host expr "String(${x})" }
     // THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
     // 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
     // window whatever a's magnitude -- a fact about the arithmetic, not about
@@ -117,15 +120,15 @@ module js {
     // shift already says so: it floors, so a negative value shifts to -1n, never
     // 0n. `big-fit-signed` is (-2^k, 2^k), the same shift on the magnitude; the
     // negation allocates only for a negative value.
-    fn big_fit(x ∈ big, k ∈ Int) (big) {
+    fn big_fit(x ∈ big, k ∈ Word) (big) {
         host expr "(function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(${x}, ${k})"
     }
-    fn big_fit_signed(x ∈ big, k ∈ Int) (big) {
+    fn big_fit_signed(x ∈ big, k ∈ Word) (big) {
         host expr "(function(oroZ, oroK){ if (((oroZ < 0n ? -oroZ : oroZ) >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(${x}, ${k})"
     }
     // The fixed-limb rung's carry check -- see targets/go/bigint.oro for why a
     // declared width has to fail loudly rather than truncate.
-    fn trap_if(a ∈ Int) (Int) {
+    fn trap_if(a ∈ Word) (Word) {
         host expr "(function(oroC){ if (oroC !== 0) throw new Error(\"bignum overflow: the declared range is too small\"); return 0; })(${a})"
     }
 }

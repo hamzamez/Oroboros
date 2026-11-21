@@ -294,7 +294,7 @@ export fn measure(src ∈ Array(0..255)) (Int) where len(src) < 1024 {
     walk(nodes)
 }
 
-export fn run(k ∈ Int) (Int) {
+export fn run(k ∈ 0..2^31-1) (Int) {
     case {
         k == 0 -> report(d0)
         k == 1 -> report(d1)

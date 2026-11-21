@@ -32,32 +32,32 @@ export function genMain() {
 	}
 	v8 = v19;
 	v9 = v20;
-	console.log(v8);
-	console.log(v9);
-	let v61 = 3;
-	let v62 = 0;
-	for (;; v61 = (v61 + 1)) {
-		if ((v61 <= 17)) {
-			const v69 = {};
-			let v67;
-			let v68;
-			let v77 = v69;
-			let v78 = -1;
-			let v79 = -1;
-			let v80 = 0;
-			for (;; v80 = (v80 + 1)) {
-				if ((v80 < v6.length)) {
-					if ((v80 < 16)) {
-						if ((v78 < 0)) {
-							const v94 = v77[(v61 - v6[v80])];
-							const v93 = v94 === undefined ? 1 : 0;
-							if ((v93 === 0)) {
-								v77[v6[v80]] = v80;
-								v78 = v94;
-								v79 = v80;
+	console.log((String(v8)));
+	console.log((String(v9)));
+	let v63 = 3;
+	let v64 = 0;
+	for (;; v63 = (v63 + 1)) {
+		if ((v63 <= 17)) {
+			const v71 = {};
+			let v69;
+			let v70;
+			let v79 = v71;
+			let v80 = -1;
+			let v81 = -1;
+			let v82 = 0;
+			for (;; v82 = (v82 + 1)) {
+				if ((v82 < v6.length)) {
+					if ((v82 < 16)) {
+						if ((v80 < 0)) {
+							const v96 = v79[(v63 - v6[v82])];
+							const v95 = v96 === undefined ? 1 : 0;
+							if ((v95 === 0)) {
+								v79[v6[v82]] = v82;
+								v80 = v96;
+								v81 = v82;
 								continue;
 							}
-							v77[v6[v80]] = v80;
+							v79[v6[v82]] = v82;
 							continue;
 						}
 						break;
@@ -66,53 +66,53 @@ export function genMain() {
 				}
 				break;
 			}
-			v67 = v78;
-			v68 = v79;
-			let v117 = 0;
-			let v115;
-			let v116;
-			for (;; v117 = (v117 + 1)) {
-				let v121;
-				if ((v117 < v6.length)) {
-					if ((v117 < 16)) {
-						let v129 = 0;
-						for (;; v129 = (v129 + 1)) {
-							if (((v129 < v117) && ((v129 < v6.length) && (!((v6[v129] + v6[v117]) === v61))))) {
+			v69 = v80;
+			v70 = v81;
+			let v119 = 0;
+			let v117;
+			let v118;
+			for (;; v119 = (v119 + 1)) {
+				let v123;
+				if ((v119 < v6.length)) {
+					if ((v119 < 16)) {
+						let v131 = 0;
+						for (;; v131 = (v131 + 1)) {
+							if (((v131 < v119) && ((v131 < v6.length) && (!((v6[v131] + v6[v119]) === v63))))) {
 								continue;
 							}
 							break;
 						}
-						v121 = (v129 < v117);
+						v123 = (v131 < v119);
 					} else {
-						v121 = false;
+						v123 = false;
 					}
 				} else {
-					v121 = false;
+					v123 = false;
 				}
-				if (v121) {
-					let v165 = 0;
-					for (;; v165 = (v165 + 1)) {
-						if (((v165 < v117) && ((v165 < v6.length) && (!((v6[v165] + v6[v117]) === v61))))) {
+				if (v123) {
+					let v167 = 0;
+					for (;; v167 = (v167 + 1)) {
+						if (((v167 < v119) && ((v167 < v6.length) && (!((v6[v167] + v6[v119]) === v63))))) {
 							continue;
 						}
 						break;
 					}
-					v115 = v165;
-					v116 = v117;
+					v117 = v167;
+					v118 = v119;
 					break;
 				}
-				if (((v117 < v6.length) && (v117 < 16))) {
+				if (((v119 < v6.length) && (v119 < 16))) {
 					continue;
 				}
-				v115 = -1;
-				v116 = -1;
+				v117 = -1;
+				v118 = -1;
 				break;
 			}
-			v62 = (((v67 === v115) && ((v68 === v116) && (v62 < 100))) ? (v62 + 1) : v62);
+			v64 = (((v69 === v117) && ((v70 === v118) && (v64 < 100))) ? (v64 + 1) : v64);
 			continue;
 		}
-		console.log(v62);
-		return v62;
+		console.log((String(v64)));
+		return v64;
 	}
 }
 

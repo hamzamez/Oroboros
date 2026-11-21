@@ -2,8 +2,8 @@ export fn distance(n ∈ 0..100) (0..50) { if n > 50 { n - 50 } else { 50 - n } 
 
 export fn magnitude(n ∈ -9..9) (0..9) { if n < 0 { -n } else { n } }
 
-export fn both_sides(n ∈ Int) (Int) { if n >= 0 && n < 1000 { n * n } else { 0 } }
+export fn both_sides(n ∈ -2^63..2^63-1) (Int) { if n >= 0 && n < 1000 { n * n } else { 0 } }
 
-export fn the_other_way(n ∈ Int) (Int) { if n < 0 || n >= 1000 { 0 } else { n * n } }
+export fn the_other_way(n ∈ -2^63..2^63-1) (Int) { if n < 0 || n >= 1000 { 0 } else { n * n } }
 
-export fn through_a_name(n ∈ Int) (Int) { small = n >= 0 && n < 1000; if small { n * n } else { 0 } }
+export fn through_a_name(n ∈ -2^63..2^63-1) (Int) { small = n >= 0 && n < 1000; if small { n * n } else { 0 } }

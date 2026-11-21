@@ -674,19 +674,22 @@ export fn shown_twice(a ∈ 0..100) (Int) {
 func EffectsReport(v0 int, v1 int) int {
 	fmt.Println("adding")
 	v25 := (v0 + v1)
-	fmt.Println(v25)
+	v26 := (strconv.Itoa(v25))
+	fmt.Println(v26)
 	fmt.Println("done")
 	return v25
 }
 
 func EffectsShownTwice(v0 int) int {
-	fmt.Println(v0)
-	v10 := (v0 + v0)
-	return v10
+	v9 := (strconv.Itoa(v0))
+	fmt.Println(v9)
+	v11 := (v0 + v0)
+	return v11
 }
 
 func EffectsWasted(v0 int, v1 int) int {
-	fmt.Println(v0)
+	v23 := (strconv.Itoa(v0))
+	fmt.Println(v23)
 	return v1
 }
 ```
@@ -696,8 +699,10 @@ func EffectsWasted(v0 int, v1 int) int {
   and its print is there.
 - `shown_twice`: one print, and its value used twice. **The value of a print is what it
   printed**, so `n` is `a`, and the compiler wrote `v0 + v0`. That is a convention of host
-  operations that are statements (their value is their first argument), and it is occasionally
-  handy: `io.print_int(x)` can be dropped around any integer expression to watch it go by.
+  operations that are statements (their value is their first argument), and `io.print_int` keeps
+  it: it is defined as printing its integer's decimal text, `strconv.Itoa` on Go, and then being
+  that integer. It is occasionally handy: `io.print_int(x)` can be dropped around any integer
+  expression to watch it go by.
 
 And a whole program, run on three targets:
 

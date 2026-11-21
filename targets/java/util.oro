@@ -13,16 +13,16 @@
 module java/List {
     fn newLong() (list_long) { host expr "new java.util.ArrayList<Long>()" }
     fn newString() (list_string) { host expr "new java.util.ArrayList<String>()" }
-    fn addLong(a ∈ list_long, b ∈ Int) (list_long) { host stmt "${a}.add(${b})" }
+    fn addLong(a ∈ list_long, b ∈ Word) (list_long) { host stmt "${a}.add(${b})" }
     fn addString(a ∈ list_string, b ∈ String) (list_string) { host stmt "${a}.add(${b})" }
-    fn getLong(a ∈ list_long, b ∈ Int) (Int) pure { host expr "${a}.get((int) ${b})" }
-    fn getString(a ∈ list_string, b ∈ Int) (String) pure { host expr "${a}.get((int) ${b})" }
-    fn setLong(a ∈ list_long, b ∈ Int, c ∈ Int) (list_long) {
+    fn getLong(a ∈ list_long, b ∈ Word) (Word) pure { host expr "${a}.get((int) ${b})" }
+    fn getString(a ∈ list_string, b ∈ Word) (String) pure { host expr "${a}.get((int) ${b})" }
+    fn setLong(a ∈ list_long, b ∈ Word, c ∈ Word) (list_long) {
         host stmt "${a}.set((int) ${b}, ${c})"
     }
-    fn sizeLong(a ∈ list_long) (Int) pure { host expr "${a}.size()" }
-    fn sizeString(a ∈ list_string) (Int) pure { host expr "${a}.size()" }
-    fn containsLong(a ∈ list_long, b ∈ Int) (Bool) pure { host expr "${a}.contains(${b})" }
+    fn sizeLong(a ∈ list_long) (Word) pure { host expr "${a}.size()" }
+    fn sizeString(a ∈ list_string) (Word) pure { host expr "${a}.size()" }
+    fn containsLong(a ∈ list_long, b ∈ Word) (Bool) pure { host expr "${a}.contains(${b})" }
     fn clearLong(a ∈ list_long) (list_long) { host stmt "${a}.clear()" }
 }
 
@@ -52,35 +52,35 @@ module java/Map {
     // So both are declared and the program picks. ADR 0008's rule is unchanged
     // and in fact reinforced — which granularity wins is a per-target
     // MEASUREMENT — and this is what it looks like when the measurement moves.
-    fn get(a ∈ map_string_long, b ∈ String) (Int) pure { host expr "${a}.getOrDefault(${b}, 0L)" }
+    fn get(a ∈ map_string_long, b ∈ String) (Word) pure { host expr "${a}.getOrDefault(${b}, 0L)" }
     fn merge(a ∈ map_string_long, b ∈ String) (map_string_long) {
         host stmt "${a}.merge(${b}, 1L, Long::sum)"
     }
-    fn put(a ∈ map_string_long, b ∈ String, c ∈ Int) (map_string_long) {
+    fn put(a ∈ map_string_long, b ∈ String, c ∈ Word) (map_string_long) {
         host stmt "${a}.put(${b}, ${c})"
     }
     fn containsKey(a ∈ map_string_long, b ∈ String) (Bool) pure {
         host expr "${a}.containsKey(${b})"
     }
     fn remove(a ∈ map_string_long, b ∈ String) (map_string_long) { host stmt "${a}.remove(${b})" }
-    fn size(a ∈ map_string_long) (Int) pure { host expr "${a}.size()" }
+    fn size(a ∈ map_string_long) (Word) pure { host expr "${a}.size()" }
     fn clear(a ∈ map_string_long) (map_string_long) { host stmt "${a}.clear()" }
 }
 
 module java/Arrays {
     fn sortLong(a ∈ long_array) (long_array) { host stmt "java.util.Arrays.sort(${a})" }
     fn sortDouble(a ∈ double_array) (double_array) { host stmt "java.util.Arrays.sort(${a})" }
-    fn fillLong(a ∈ long_array, b ∈ Int) (long_array) {
+    fn fillLong(a ∈ long_array, b ∈ Word) (long_array) {
         host stmt "java.util.Arrays.fill(${a}, ${b})"
     }
     fn fillBool(a ∈ bool_array, b ∈ Bool) (bool_array) {
         host stmt "java.util.Arrays.fill(${a}, ${b})"
     }
     fn toStringLong(a ∈ long_array) (String) pure { host expr "java.util.Arrays.toString(${a})" }
-    fn copyOfDouble(a ∈ double_array, b ∈ Int) (double_array) pure {
+    fn copyOfDouble(a ∈ double_array, b ∈ Word) (double_array) pure {
         host expr "java.util.Arrays.copyOf(${a}, (int) ${b})"
     }
-    fn binarySearchLong(a ∈ long_array, b ∈ Int) (Int) pure {
+    fn binarySearchLong(a ∈ long_array, b ∈ Word) (Word) pure {
         host expr "java.util.Arrays.binarySearch(${a}, ${b})"
     }
     // THE QUANTIFIERS over a table, callbacks during the call (ADR 0143):

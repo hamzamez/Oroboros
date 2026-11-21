@@ -102,15 +102,15 @@ func TestBignumDivisionKeepsTheLanguagesConvention(t *testing.T) {
 }
 
 // AND JAVASCRIPT'S `BigInt` PRINTS WITH AN `n`. `String(1n)` is "1" but
-// `${1n}` and a bare console.log give "1n", so `big-str` has to be `String`,
+// `${1n}` and a bare console.log give "1n", so `decimal` has to be `String`,
 // and that is a real divergence from the other two rather than a style choice.
 func TestJavaScriptBigStringHasNoSuffix(t *testing.T) {
 	tg, err := LoadTarget("../targets/js")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := tg.Prims["big-str"].Form; !strings.Contains(f, "String(") {
-		t.Errorf("js big-str is %q; a BigInt rendered any other way carries an "+
+	if f := tg.Prims["decimal"].Form; !strings.Contains(f, "String(") {
+		t.Errorf("js decimal is %q; a BigInt rendered any other way carries an "+
 			"`n` suffix the other two targets do not print", f)
 	}
 	// `===` and not `==`: `1n == 1` is true and `1n === 1` is false, and

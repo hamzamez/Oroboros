@@ -2,9 +2,9 @@
 
 export function genMain() {
 	const v4 = Uint8Array.of(1, 3, 5, 8);
-	console.log(v4[0]);
-	const v11 = v4[(v4.length - 1)];
-	console.log(v11);
-	return v11;
+	console.log((String(v4[0])));
+	const v12 = v4[(v4.length - 1)];
+	console.log((String(v12)));
+	return v12;
 }
 

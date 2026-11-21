@@ -3,11 +3,15 @@
 package gauntlet
 
 import "fmt"
+import "strconv"
 
 func GenMain() int {
-	fmt.Println(5)
-	fmt.Println(3)
-	fmt.Println(3458764513820540928)
+	v1 := (strconv.Itoa(5))
+	fmt.Println(v1)
+	v5 := (strconv.Itoa(3))
+	fmt.Println(v5)
+	v9 := (strconv.Itoa(3458764513820540928))
+	fmt.Println(v9)
 	return 3458764513820540928
 }
 

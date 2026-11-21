@@ -1,1 +1,7 @@
-export fn add(a ∈ Int, b ∈ Int) (Int) { a + b }
+export fn shifted(a ∈ Array(Int)) (Array(Int)) where len(a) > 0 {
+    var s := array { 0 : _ ∈ 0..len(a)-1 }
+    loop i = 0 {
+        i < len(a) -> { s[i] := a[i] + a[0]; again(i + 1) }
+        else -> s
+    }
+}

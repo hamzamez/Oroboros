@@ -49,16 +49,16 @@ module go/strconv {
     // ---------------------------------------------------------- integers
     // F_b, on the word and on U. formatBits panics outside 2 ≤ base ≤ 36
     // ("strconv: illegal AppendInt/FormatInt base"), so that is the precondition.
-    fn FormatInt(i ∈ int64, base ∈ Int) (String) pure
+    fn FormatInt(i ∈ int64, base ∈ Word) (String) pure
         where 2 <= base && base <= 36 {
         host expr "strconv.FormatInt(int64(${i}), ${base})" import "strconv"
     }
-    fn FormatUint(i ∈ uint64, base ∈ Int) (String) pure
+    fn FormatUint(i ∈ uint64, base ∈ Word) (String) pure
         where 2 <= base && base <= 36 {
         host expr "strconv.FormatUint(uint64(${i}), ${base})" import "strconv"
     }
     // F_10 on Go's int, which is the word.
-    fn Itoa(i ∈ Int) (String) pure { host expr "strconv.Itoa(${i})" import "strconv" }
+    fn Itoa(i ∈ Word) (String) pure { host expr "strconv.Itoa(${i})" import "strconv" }
     fn AppendInt(dst ∈ Array(0..255) linear, i ∈ int64, base ∈ Int) (dst' ∈ Array(0..255) linear)
         where 2 <= base && base <= 36 ensure len(dst') > len(dst) {
         host expr "strconv.AppendInt(${dst}, int64(${i}), ${base})" import "strconv"
@@ -71,23 +71,23 @@ module go/strconv {
     // P_b. No precondition: a bad base or bitSize is an ERROR value, not a panic.
     // The result is the host's int64 — the word — received as Go's int, which is
     // the same 64 bits on this target.
-    fn ParseInt(s ∈ bytestring, base ∈ Int, bitSize ∈ Int) (int64 × result.result((), error)) pure {
+    fn ParseInt(s ∈ bytestring, base ∈ Word, bitSize ∈ Word) (int64 × result.result((), error)) pure {
         host expr "func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(${s}, ${base}, ${bitSize})" import "strconv"
     }
     // …and over U, returned as the uint64 it is.
-    fn ParseUint(s ∈ bytestring, base ∈ Int,
-        bitSize ∈ Int) (uint64 × result.result((), error)) pure {
+    fn ParseUint(s ∈ bytestring, base ∈ Word,
+        bitSize ∈ Word) (uint64 × result.result((), error)) pure {
         host expr "strconv.ParseUint(${s}, ${base}, ${bitSize})" import "strconv"
     }
     // P_10 into Go's int.
-    fn Atoi(s ∈ bytestring) (Int × result.result((), error)) pure {
+    fn Atoi(s ∈ bytestring) (Word × result.result((), error)) pure {
         host expr "strconv.Atoi(${s})" import "strconv"
     }
 
     // ---------------------------------------------------------- floats
     // The shortest decimal that rounds back (prec −1), or a fixed precision; an
     // unknown fmt byte gives "%" followed by it, and does not panic.
-    fn FormatFloat(f ∈ F64, fmt ∈ uint8, prec ∈ Int, bitSize ∈ Int) (String) pure
+    fn FormatFloat(f ∈ F64, fmt ∈ uint8, prec ∈ Word, bitSize ∈ Word) (String) pure
         where 64 <= bitSize && bitSize <= 64 {
         host expr "strconv.FormatFloat(${f}, uint8(${fmt}), ${prec}, ${bitSize})" import "strconv"
     }
@@ -96,7 +96,7 @@ module go/strconv {
         where 64 <= bitSize && bitSize <= 64 ensure len(dst') > len(dst) {
         host expr "strconv.AppendFloat(${dst}, ${f}, uint8(${fmt}), ${prec}, ${bitSize})" import "strconv"
     }
-    fn ParseFloat(s ∈ bytestring, bitSize ∈ Int) (F64 × result.result((), error)) pure {
+    fn ParseFloat(s ∈ bytestring, bitSize ∈ Word) (F64 × result.result((), error)) pure {
         host expr "strconv.ParseFloat(${s}, ${bitSize})" import "strconv"
     }
 

@@ -1,3 +1,5 @@
+use io
+
 export fn clear?(flags ∈ 0..255, mask ∈ 0..255) (Bool) { flags & mask == 0 }
 
 export fn fnv32(src ∈ Array(0..255)) (0..2^32-1) {
@@ -5,4 +7,9 @@ export fn fnv32(src ∈ Array(0..255)) (0..2^32-1) {
         i < len(src) -> again(i + 1, ((h ⊕ src[i]) * 16777619) mod 2^32)
         else -> h
     }
+}
+
+export fn main() {
+    io.print_line(if clear?(12, 3) { "clear" } else { "set" })
+    io.print_int(fnv32(array { 104, 101, 108, 108, 111 }))
 }

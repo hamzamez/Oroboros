@@ -16,7 +16,7 @@ func NativeTally(v0 string) map[string]int {
 			break
 		}
 		v13 := v1[v6]
-		v14 := (v5[v13])
+		v14 := int(v5[v13])
 		v16 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v14, 1))
 		v5[v13] = v16
 		continue

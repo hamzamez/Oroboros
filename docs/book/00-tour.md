@@ -7,12 +7,13 @@ the places where it only *looks* that way, and at the things you will reach for 
 
 Each section says what is **like** the languages you know and what is **unlike** them, and shows the
 unlike part failing before it shows it working, because the compiler's refusals are most of what is
-unfamiliar.
+unfamiliar. Every function is shown three ways: its source, what a program using it prints, and
+what the compiler made of it.
 
 **Everything printed below is real.** Each source is a file in [code/tour/](code/tour/); each
 emitted function, each refusal and each program's output is what the compiler gave, and
-`go run docs/book/check.go docs/book/00-tour.md` re-runs all of it and compares. Checked
-2026-11-10.
+`go run docs/book/check.go docs/book/00-tour.md` re-runs all of it and compares. A line `…` stands
+for lines left out. Checked 2026-11-21.
 
 Only what is **decided and built** is here. What is specified and not built is named once, in
 §0.14, so that nothing in between is a promise.
@@ -65,16 +66,31 @@ and there are no semicolons to forget.
 
 <!-- file docs/book/code/tour/sum.oro -->
 ```go
+use io
+
 export fn sum_to(n ∈ 0..65536) (Int) {
     loop acc = 0, i = 0 {
         i < n -> again(acc + i, i + 1)
         else  -> acc
     }
 }
+
+export fn main() {
+    io.print_int(sum_to(10))
+    io.print_int(sum_to(65536))
+}
 ```
 
 Read the header aloud: *sum_to takes an n in the set 0 to 65536 and gives an integer.* The body is
-one loop with two variables. Now compile it, without building, to see what a host receives:
+one loop with two variables. `main` uses it twice:
+
+<!-- run go docs/book/code/tour/sum.oro -->
+```
+45
+2147450880
+```
+
+Now compile it without building, to see what a host receives:
 
 ```bash
 go run ./cmd/gen -name tour docs/book/code/tour/sum.oro go sum.go
@@ -142,8 +158,9 @@ Java's primitives, and on Windows LLVM IR that links against `kernel32` alone.
   used: the parameter is an `int` and the sum a `long`, chosen from what the ranges prove, not from
   anything the source said about widths (§0.4).
 - **The compiler printed a proof count.** *2 of 2 integer operations bounded* means both additions
-  were proven to stay inside every target's machine word, so no overflow check was emitted and none
-  is needed. LLVM's `nuw nsw` flags are that proof, handed to the optimizer (§0.5).
+  were proven to stay inside every target's machine word, so each is one machine instruction and
+  nothing is checked at run time. LLVM's `nuw nsw` flags are that proof, handed to the optimizer
+  (§0.5).
 - **There is no `for`.** `loop` with `again` is the only iteration, and it was *proven
   terminating* (§0.7).
 
@@ -155,6 +172,8 @@ Android is reached, and JavaScript the browser.
 
 <!-- file docs/book/code/tour/blocks.oro -->
 ```go
+use io
+
 export fn hyp2(a ∈ 0..1000, b ∈ 0..1000) (Int) {
     aa = a * a
     bb = b * b
@@ -172,6 +191,43 @@ export fn sign(n ∈ -1000..1000) (-1..1) {
         else   -> 1
     }
 }
+
+export fn main() {
+    io.print_int(hyp2(3, 4))
+    io.print_line(grade(95) ++ grade(85) ++ grade(12))
+    io.print_int(sign(-7))
+    io.print_int(sign(0))
+}
+```
+
+<!-- run go docs/book/code/tour/blocks.oro -->
+```
+25
+ABC
+-1
+0
+```
+
+<!-- gen go docs/book/code/tour/blocks.oro -->
+```go
+func TourGrade(v0 int) string {
+    v10 := (v0 >= 90)
+    if v10 {
+        return "A"
+    }
+    v15 := (v0 >= 80)
+    if v15 {
+        return "B"
+    }
+    return "C"
+}
+
+func TourHyp2(v0 int, v1 int) int {
+    v23 := (v0 * v0)
+    v24 := (v1 * v1)
+    v25 := (v23 + v24)
+    return v25
+}
 ```
 
 **Like:** braces delimit a block; `if`/`else if`/`else`; `==`, `!=`, `<`, `<=`, `&&`, `||`, `!` mean
@@ -183,10 +239,12 @@ what they mean in C; arithmetic has the usual precedence.
   keyword in front of it, and it is not an assignment. Writing to something is a different
   statement with a different symbol, `:=` (§0.8).
 - **There is no `return`.** A block's value is its last expression, as in Rust or Ruby, and a
-  function's value is its body's. Nothing leaves a function early.
+  function's value is its body's. Nothing leaves a function early. The `return`s above are Go's,
+  which the compiler wrote.
 - **`if` is an expression**, with a value, as Rust's is and C's `?:` is. `grade` has no temporary.
 - **`case { … }` with no subject is a chain of guards**: the first true guard's arm is the value,
-  and `else` is the last arm. It is the same thing as the `if` chain, written as a table.
+  and `else` is the last arm. It is the same thing as the `if` chain, written as a table, and it
+  compiles to the same code.
 - **Comparisons do not chain.** `a < b < c` is refused: `a < b` is a `Bool`, and `<` wants an
   integer.
 
@@ -208,12 +266,13 @@ type `∈` as `\in`; every symbol has an ASCII spelling, and the reader takes bo
 |---|---|---|---|---|
 | `∈` | `\in` | | `∪` | `\cup` |
 | `×` | `\X` | | `⊕` (xor) | `\oplus` |
+| `∀` | `\A` | | `∃` | `\E` |
 
 The sets you will write:
 
 | set | its members |
 |---|---|
-| `Int` | the integers |
+| `Int` | the integers, all of them |
 | `lo..hi` | the integers from lo to hi, **both ends included**: `0..255` is a byte |
 | `0..`, `Nat` | an end left out is unbounded: the naturals |
 | `Bool`, `String` | `true` and `false`; text |
@@ -251,15 +310,39 @@ can return 1000, and that is a false statement. Make it true:
 
 <!-- file docs/book/code/tour/clamp.oro -->
 ```go
+use io
+
 export fn clamp(n ∈ 0..1000) (0..255) { if n > 255 { 255 } else { n } }
 
 export fn abs(n ∈ -1000..1000) (r ∈ Int) ensure r >= 0 {
     if n < 0 { -n } else { n }
 }
+
+export fn main() {
+    io.print_int(clamp(7))
+    io.print_int(clamp(1000))
+    io.print_int(abs(-12))
+}
+```
+
+<!-- run go docs/book/code/tour/clamp.oro -->
+```
+7
+255
+12
 ```
 
 <!-- gen go docs/book/code/tour/clamp.oro -->
 ```go
+func TourAbs(v0 int) int {
+    v10 := (v0 < 0)
+    if v10 {
+        v13 := (0 - v0)
+        return v13
+    }
+    return v0
+}
+
 func TourClamp(v0 int) int {
     v10 := (v0 > 255)
     if v10 {
@@ -269,130 +352,183 @@ func TourClamp(v0 int) int {
 }
 ```
 
-No check was emitted, because none is needed: the claim was proven and then erased. `abs` names its
-result `r` so that `ensure` can speak about it. Change `r >= 0` to `r > 0` and it is refused the
-same way, *the body does not establish result > 0; its result is [0, 1000]*, because `abs(0)` is 0.
+No check was emitted, because none is needed: the claims were proven and then erased. `abs` names
+its result `r` so that `ensure` can speak about it. Change `r >= 0` to `r > 0` and it is refused
+the same way, because `abs(0)` is 0.
 
 Inside a body almost nothing is annotated. `aa = a * a` has no type written on it and needs none;
 when you do want to state a set for a local, the binder takes one, `end ∈ 0..n = t + got`, and that
 too is proven or refused.
 
+### Claims inside a body
+
+A claim may also stand in the middle of a body, `assert φ`, and φ may quantify over a set:
+`∀ j ∈ lo..m : φ` is *φ holds for every j from lo to m*, and `∃` is *for some*. Here is the
+midpoint of two numbers, written so that it cannot overflow, with what it promises:
+
+<!-- file docs/book/code/tour/no-mid.oro -->
+```go
+use io
+
+fn mid(lo ∈ 0..1000, hi ∈ 0..1000) (Int) where lo <= hi {
+    m = lo + (hi - lo) / 2
+    assert 2 * m == lo + hi
+    m
+}
+
+export fn main() {
+    io.print_int(mid(3, 10))
+}
+```
+
+<!-- gen go docs/book/code/tour/no-mid.oro -->
+```
+gen: tour-main: an `assert` is false: 2 * 6 == 3 + 10
+```
+
+The claim is false when `lo + hi` is odd, and the compiler found the call where it is. What is
+true is weaker:
+
+<!-- file docs/book/code/tour/mid.oro -->
+```go
+use io
+
+fn mid(lo ∈ 0..1000, hi ∈ 0..1000) (Int) where lo <= hi {
+    m = lo + (hi - lo) / 2
+    assert lo <= m && m <= hi
+    assert ∀ j ∈ lo..m : 2 * j <= lo + hi
+    m
+}
+
+export fn main() {
+    io.print_int(mid(3, 10))
+    io.print_int(mid(990, 1000))
+}
+```
+
+<!-- run go docs/book/code/tour/mid.oro -->
+```
+6
+995
+```
+
+<!-- gen go docs/book/code/tour/mid.oro -->
+```go
+func TourMain() int {
+    v1 := (strconv.Itoa(6))
+    fmt.Println(v1)
+    v5 := (strconv.Itoa(995))
+    fmt.Println(v5)
+    return 995
+}
+```
+
+**Unlike** C's `assert` or Python's: **an `assert` never runs.** It is proven when the program is
+compiled, for every argument the header admits, or the program is refused; then it is erased. Here
+both calls had known arguments, so `main` is its two answers. Chapter 16 is the logic: what it
+proves, how, and what it cannot.
+
 ## 0.5 An integer is an integer
 
 This is the largest difference from every host, and it is one sentence: **`Int` means ℤ, and an
-arithmetic operation either computes the integer it means or does not compile**
-([ADR 0026](../decisions/0026-an-int-is-an-integer.md)).
-
-<!-- file docs/book/code/tour/no-square.oro -->
-```go
-export fn square(n ∈ Int) (Int) { n * n }
-```
-
-<!-- gen go docs/book/code/tour/no-square.oro -->
-```
-gen: tour-square: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  * [-inf, +inf] in n * n
-```
-
-In Go, Java and C this function compiles and wraps; in JavaScript it compiles and loses precision
-past 2⁵³. Each of those is a different wrong integer. Here there are three ways to say what you
-meant, and each is visible in the source or on the command line.
-
-**Narrow the set**, so the product provably fits a machine word. **Or claim a set above the word**,
-which is the consent to exact arithmetic:
+arithmetic operation computes the integer it means**
+([ADR 0026](../decisions/0026-an-int-is-an-integer.md),
+[ADR 0147](../decisions/0147-int-is-the-integers-at-an-entry-point-and-decimal-renders-them.md)).
 
 <!-- file docs/book/code/tour/square.oro -->
 ```go
-export fn small(n ∈ -1000..1000) (Int) { n * n }
+use io
 
-export fn wide(n ∈ 0..2^63-1) (0..2^126) { n * n }
+export fn square(n ∈ Int) (Int) { n * n }
+
+export fn main() {
+    io.print_int(square(12))
+    io.print_int(square(10000000000))
+}
+```
+
+<!-- run go docs/book/code/tour/square.oro -->
+```
+144
+100000000000000000000
+```
+
+In Go, Java and C the second line wraps to a wrong number; in JavaScript it loses its low digits.
+Here it is 10²⁰, exactly, on every host:
+
+<!-- run js docs/book/code/tour/square.oro -->
+```
+144
+100000000000000000000
 ```
 
 <!-- gen go docs/book/code/tour/square.oro -->
 ```go
-func TourSmall(v0 int) int {
-    v9 := (v0 * v0)
-    return v9
+func TourMain() *big.Int {
+    v1 := (strconv.Itoa(144))
+    fmt.Println(v1)
+    v5 := (big.NewInt(int64(10000000000)))
+    v7 := (big.NewInt(int64(10000000000)))
+    v8 := (new(big.Int).Mul(v5, v7))
+    v9 := (v8.String())
+    fmt.Println(v9)
+    return v8
 }
-…
-func TourWide(v0 int) *big.Int {
-```
 
-`small` is one multiplication on an `int`. `wide` takes an `int` and returns Go's `*big.Int`,
-because its declared result does not fit a word. **The source names no representation.** A set is a
-claim, and the facts the compiler proves choose `int`, `uint64`, or the host's big integer for each
-value ([ADR 0079](../decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).
-`^` is a power of constants, written in a set's ends; xor is `⊕` (§0.12).
-
-### All of ℤ
-
-A set may leave an end off. `Nat` is 0 and up, `5..` is 5 and up, `..0` is 0 and down, and `Int`
-has no end on either side. Arithmetic in these sets is exact at any size:
-
-<!-- file docs/book/code/tour/any-size.oro -->
-```go
-use io
-
-fn cube(n ∈ Int) (Int) { n * n * n }
-
-export fn below(n ∈ ..0) (..0) { n - 1 }
-
-export fn main() {
-    io.print_line(big_str(cube(-3000000000)))
-}
-```
-
-<!-- run go docs/book/code/tour/any-size.oro -->
-```
--27000000000000000000000000000
-```
-
-<!-- run windows docs/book/code/tour/any-size.oro -->
-```
--27000000000000000000000000000
-```
-
-<!-- gen go docs/book/code/tour/any-size.oro -->
-```go
-func TourBelow(v0 *big.Int) *big.Int {
-    v2 := (big.NewInt(int64(1)))
-    v3 := (new(big.Int).Sub(v0, v2))
-    return v3
-}
-```
-
-- **Inside a program, `Int` is all of ℤ.** `cube` is the `square` that was refused above, with
-  one more factor, and here it is accepted: `big_str`, the language's function from an integer of
-  any size to its decimal text, asks for the product whatever its size, and that is the consent.
-  −3,000,000,000 cubed has 29 digits and every one is right, on Go by `math/big` and on Windows,
-  where there is no library to call, by a table of 64-bit digits written in this language.
-- **At an `export`, a set with one end left off is an integer of any size**: `below` takes and
-  returns a `*big.Int`.
-- **At an `export`, `Int` is the host's own word.** That is why `square(n ∈ Int)` was refused and
-  not made exact: the host hands over an `int`, about which nothing is known. So a host can pass
-  either half of ℤ at any size, as `Nat` or as `..0`, and both halves in one parameter have no
-  spelling today (the book's README, item 94).
-
-**Or ask for the trap.** `-checked` is a flag of the compiler, on `gen` and on `build`, and no
-word of the source. It emits the host's own checked arithmetic for each operation that was not
-proven, and the program stops when it runs if one of them overflows:
-
-```bash
-go run ./cmd/gen -checked -name tour docs/book/code/tour/no-square.oro go square.go
-```
-
-<!-- gen go docs/book/code/tour/no-square.oro -checked -->
-```go
-func TourSquare(v0 int) int {
-    v1 := (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(v0, v0))
+func TourSquare(v0 *big.Int) *big.Int {
+    v1 := (new(big.Int).Mul(v0, v0))
     return v1
 }
 ```
 
-To see one fire, here is a program that squares 3 seven times. That is 3¹²⁸, a number of 62
-digits:
+**The source names no representation**, and the compiler chooses one for each value from what it
+proves about it
+([ADR 0079](../decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).
+`square(12)` is 144, which fits a word, so it is the constant 144. `square(10000000000)` does not
+fit, so it is Go's `*big.Int`. And `square` itself, which a host may call with any integer, takes
+and returns a `*big.Int`, because nothing bounds its `n`.
 
-<!-- file docs/book/code/tour/no-grow.oro -->
+### Where the word is written
+
+When you want a machine word, say so, as a set. A word is the integers from −2⁶³ to 2⁶³ − 1, and
+`-2^63..2^63-1` is that set (`^` is a power, written in a set's ends; xor is `⊕`, §0.12):
+
+<!-- file docs/book/code/tour/no-word.oro -->
+```go
+export fn square64(n ∈ Int) (-2^63..2^63-1) { n * n }
+```
+
+<!-- gen go docs/book/code/tour/no-word.oro -->
+```
+gen: square64: the body does not establish -9223372036854775808 <= result && result <= 9223372036854775807; its result is [-inf, +inf]
+```
+
+The header claimed a result inside the word, and for most `n` the square is not. That is where an
+integer is refused: **where a value must be held in a set it is not proven to be in**, here a
+declared range, and later a table's element (§0.8) and a host's word (§0.13). Narrow the
+parameter, and the claim is true:
+
+<!-- file docs/book/code/tour/word.oro -->
+```go
+export fn square64(n ∈ -3037000499..3037000499) (-2^63..2^63-1) { n * n }
+```
+
+<!-- gen go docs/book/code/tour/word.oro -->
+```go
+func TourSquare64(v0 int) int {
+    v9 := (v0 * v0)
+    return v9
+}
+```
+
+One multiplication on an `int`, and no check, because 3037000499² is below 2⁶³: the proof is why
+the plain machine instruction is correct.
+
+### A value at any size
+
+Squaring 3 seven times is 3¹²⁸, a number of 62 digits:
+
+<!-- file docs/book/code/tour/grow.oro -->
 ```go
 use io
 
@@ -405,37 +541,47 @@ export fn main() {
 }
 ```
 
-<!-- gen go docs/book/code/tour/no-grow.oro -->
+<!-- run go docs/book/code/tour/grow.oro -->
 ```
-gen: tour-main: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  * [9, +inf] in p * p
-```
-
-Refused, as it should be. Build it with the flag and run it:
-
-```bash
-go run ./cmd/build -checked -target=go -o grow.exe docs/book/code/tour/no-grow.oro
-./grow.exe
+11790184577738583171520872861412518665678211592275841109096961
 ```
 
-<!-- run go docs/book/code/tour/no-grow.oro -checked -->
+<!-- gen go docs/book/code/tour/grow.oro -->
+```go
+func TourMain() *big.Int {
+    v2 := (big.NewInt(int64(3)))
+    var v4 int = 0
+    v5 := v2
+    for ; ; v4 = (v4 + 1) {
+        v7 := (v4 < 7)
+        if v7 {
+            v11 := (v5.Mul(v5, v5))
+            v5 = v11
+            continue
+        }
+        break
+    }
+    v13 := (v5.String())
+    fmt.Println(v13)
+    return v5
+}
 ```
-panic: int overflow
-…
+
+The counter `i` is an `int` and the product a `*big.Int`, in one loop. Windows has no big-integer
+library to call, and prints the same 62 digits, computed by a table of 64-bit digits written in
+this language:
+
+<!-- run windows docs/book/code/tour/grow.oro -->
+```
+11790184577738583171520872861412518665678211592275841109096961
 ```
 
-The sixth squaring left the word, and the program stopped there. It printed no number, which is
-the point: in Go without the test it prints -9204772141784466943 and goes on.
-The build says what it did, *1 of 2 integer operation(s) are traps, not proofs*: the `i + 1` was
-proven and costs nothing, and the one test is on the one multiplication nobody proved. On
-Windows the trap is the processor's own, an illegal instruction, and on JavaScript a
-`RangeError`.
+`io.print_int` prints an integer of any size; `decimal(n)` is its text (§0.11).
 
-### Which word, and so which targets
+### Which targets
 
-The word is each target's own: 64 bits on Go, the JVM and Windows, and ±(2⁵³ − 1) on JavaScript,
-whose numbers are doubles. So whether a program is legal is a fact about the program *and* the
-target, and it is computed, not promised:
+Whether a program compiles is a fact about the program *and* the target, and it is computed, not
+promised:
 
 ```bash
 go run ./cmd/portable docs/book/code/tour/square.oro
@@ -443,77 +589,112 @@ go run ./cmd/portable docs/book/code/tour/square.oro
 
 <!-- portable docs/book/code/tour/square.oro -->
 ```
-portable to go, java, windows — not js
+portable to go, js, java — not windows
 ```
 
-So this file does not compile for JavaScript. Ask for it and there is a refusal, and no output
-file:
+Go, JavaScript and Java each have an integer of any size, `*big.Int`, `BigInt` and `BigInteger`,
+so a host there can call `square` with one. Windows' callers are C programs, and C has none:
 
-<!-- gen js docs/book/code/tour/square.oro -->
+<!-- gen windows docs/book/code/tour/square.oro -->
 ```
-gen: wide: an operand is [0, 9223372036854775807], which is not inside target js's signed word [-9007199254740991, 9007199254740991], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
+gen: tour-square: its parameter n ∈ Int is any integer, and an entry point of target windows takes no integer above its word: its callers are C's, and C has none (K(ℕ*) is this program's own). Bound it, `where n <= …`, or give it a range inside the word
 ```
 
-The trouble is not the product, which is exact on JavaScript too, as a `BigInt`. It is the
-parameter. `wide` promises to take any `n` up to 2⁶³ − 1, a host's JavaScript passes `n` as a
-number, and a JavaScript number above 2⁵³ has already lost its low digits before `wide` is
-entered. The compiler will not emit a function whose header it cannot honour. The refusal is of
-the file, so `small`, which is fine everywhere, is not emitted either: a file is portable or it
-is not.
+The program itself runs on Windows, since `main` takes nothing; it is the exported `square` that
+no C caller could use. A bounded range is no trouble anywhere, even one whose square is above every
+word:
 
-Ask for what JavaScript can carry and it compiles everywhere:
-
-<!-- file docs/book/code/tour/square53.oro -->
+<!-- file docs/book/code/tour/wide.oro -->
 ```go
-export fn small(n ∈ -1000..1000) (Int) { n * n }
-
-export fn wide(n ∈ 0..2^53-1) (0..2^106) { n * n }
+export fn wide(n ∈ 0..2^63-1) (0..2^126) { n * n }
 ```
 
-<!-- portable docs/book/code/tour/square53.oro -->
+<!-- portable docs/book/code/tour/wide.oro -->
 ```
 portable to go, js, java, windows
 ```
 
-**Portability is a property a program has or lacks, and the compiler tells you which.**
+On Go `wide` takes an `int` and returns a `*big.Int`; on JavaScript, whose numbers are exact only
+up to 2⁵³, it takes and returns a `BigInt`. **Portability is a property a program has or lacks,
+and the compiler tells you which.**
 
 ### Numbers with a decimal point
 
 <!-- file docs/book/code/tour/exact.oro -->
 ```go
+use io
+
 export fn exact() (Bool) { 0.1 + 0.2 == 0.3 }
 
 export fn tax(cents ∈ 0..10^9) (Int) { round(Int, cents * 0.0825, 'half_away) }
+
+export fn main() {
+    io.print_line(if exact() { "exact" } else { "not exact" })
+    io.print_int(tax(1999))
+    io.print_int(tax(1000))
+}
 ```
+
+<!-- run js docs/book/code/tour/exact.oro -->
+```
+exact
+165
+83
+```
+
+**Like:** the literals look the same. **Unlike:** `0.1` is one tenth, exactly
+([ADR 0086](../decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md)).
+A numeral is a decimal fraction, `+`, `-`, `*` and the comparisons on them are exact, and one tenth
+plus two tenths is three tenths, even in JavaScript, where `0.1 + 0.2 === 0.3` is `false`.
+
+Precision is lost in exactly one place, and you write it: `round(S, e, mode)` rounds `e` onto the
+set `S`. `tax` is 8.25% of an amount in cents, rounded to the cent, a tie going away from zero:
+1999 × 0.0825 is 164.9175, which rounds to 165, and 1000 × 0.0825 is 82.5, a tie, which goes to
+83. Here is what JavaScript received:
 
 <!-- gen js docs/book/code/tour/exact.oro -->
 ```javascript
 export function tourExact() {
     return ((1 + 2) === 3);
 }
+…
+export function tourTax(v0) {
+    const v10 = (v0 * 825);
+    const v12 = (((a, m) => { const r = a % m; return r < 0 ? r + m : r + 0; })(v10, 10000));
+    const v14 = ((Math.trunc((v10 - v12) / 10000) + 0));
+    const v17 = (v12 * 2);
+    const v19 = (v17 === 10000);
+    return ((v17 > 10000) ? (v14 + 1) : (v19 ? ((v10 >= 0) ? (v14 + 1) : v14) : v14));
+}
 ```
 
-**Like:** the literals look the same. **Unlike:** `0.1` is one tenth, exactly
-([ADR 0086](../decisions/0086-a-number-is-an-element-of-z-tenth-and-a-rounding-is-its-one-lossy-operation.md)).
-A numeral is a decimal fraction, `+`, `-`, `*` and the comparisons on them are exact, and the
-compiler holds each as an integer numerator at a known scale: one tenth plus two tenths is three
-tenths, even in JavaScript, where `0.1 + 0.2 === 0.3` is `false`.
-
-Precision is lost in exactly one place, and you write it: `round(S, e, mode)` rounds `e` onto the
-set `S`. `tax` is 8.25% of an amount in cents, rounded to the cent, a tie going away from zero, and
-it compiles to integer arithmetic with no double anywhere. `F64` is a set like the others; a
-rounding onto it is a host's floating-point operation. `/` is integer division and needs integer
-operands.
+No double anywhere. The compiler holds each numeral as an integer at a known scale: `exact`
+compares tenths, `1 + 2` with `3`, and `tax` multiplies by 825 ten-thousandths, then divides by
+10000 and looks at twice the remainder to round. `F64` is a set like the others; a rounding onto
+it is a host's floating-point operation. `/` is integer division and needs integer operands.
 
 ## 0.6 Functions vanish, unless the compiler keeps one
 
 <!-- file docs/book/code/tour/twice.oro -->
 ```go
+use io
+
 fn twice(f, x) { f(f(x)) }
 
 export fn add6(n ∈ 0..100) (Int) { twice(fn(x) { x + 3 }, n) }
 
 export fn shout(s ∈ String) (String) { twice(fn(x) { x ++ "!" }, s) }
+
+export fn main() {
+    io.print_int(add6(4))
+    io.print_line(shout("hey"))
+}
+```
+
+<!-- run go docs/book/code/tour/twice.oro -->
+```
+10
+hey!!
 ```
 
 <!-- gen go docs/book/code/tour/twice.oro -->
@@ -545,7 +726,7 @@ function.
   reaches the type checker is already first-order and monomorphic. Annotate the functions you
   `export`, since a host must know their sets, and the rest as far as you want their claims checked.
 - **Higher-order code costs nothing**, for the same reason: there is no closure to allocate and no
-  indirect call. The price is the next refusal.
+  indirect call.
 
 Reduction copies a definition into every place that uses it. For a small one that is exactly
 right. For a large one used many times it is the same code many times over, so **the compiler
@@ -573,6 +754,13 @@ export fn main() {
 }
 ```
 
+<!-- run go docs/book/code/tour/kept.oro -->
+```
+45
+4950
+10
+```
+
 <!-- gen go docs/book/code/tour/kept.oro -->
 ```go
 func TourMain() int {
@@ -587,35 +775,37 @@ func TourMain() int {
         }
         break
     }
-    fmt.Println(v3)
-    var v16 int = 0
+    v12 := (strconv.Itoa(v3))
+    fmt.Println(v12)
     var v17 int = 0
-    for ; ; v17 = (v17 + 1) {
-        v19 := (v17 < 100)
-        if v19 {
-            v21 := (v16 + v17)
-            v16 = v21
+    var v18 int = 0
+    for ; ; v18 = (v18 + 1) {
+        v20 := (v18 < 100)
+        if v20 {
+            v22 := (v17 + v18)
+            v17 = v22
             continue
         }
         break
     }
-    fmt.Println(v16)
-    fmt.Println(10)
+    v26 := (strconv.Itoa(v17))
+    fmt.Println(v26)
+    v29 := (strconv.Itoa(10))
+    fmt.Println(v29)
     return 10
 }
 ```
 
 On Go everything vanished. `triangle` was used twice and there are two loops, each with its own
 bound, 10 and 100, written into it. `twice` and its anonymous function are the constant 10.
-`io.print_int` is Go's own `fmt.Println`.
+`io.print_int` is Go's own `strconv.Itoa` and `fmt.Println`.
 
-Windows has no `fmt.Println`. There, `io.print_int` is a function written in this language,
-which turns an integer into digits and hands them to the system, and this program uses it three
-times:
+Windows has neither. There, `io.print_int` is a function written in this language, which turns an
+integer into digits and hands them to the system, and this program uses it three times:
 
 <!-- gen windows docs/book/code/tour/kept.oro -->
 ```llvm
-note: 2 definition(s) kept as functions, 0 inlined by their contracts
+note: 3 definition(s) kept as functions, 0 inlined by their contracts
 …
   %v12 = call i1 @"win/print.print_int"(i64 %v2)
 …
@@ -629,7 +819,7 @@ One function, three calls. `triangle` is still two loops and `twice` is still 10
 small, and copying them is cheaper than calling them. The rules, in short:
 
 - **A function that takes or returns a function is never kept.** It is always reduced away,
-  which is why higher-order code is free, and why a closure that would survive is refused.
+  which is why higher-order code is free.
 - **A first-order definition is kept where it pays**: it is large, and copying it would cost more
   than a call.
 - **Only where the target prints functions.** That is the Windows target today. On Go,
@@ -642,6 +832,8 @@ small, and copying them is cheaper than calling them. The rules, in short:
 So write functions for the reader. Whether one is a call is not yours to decide, and you cannot
 get it wrong.
 
+### A function may not outlive its call
+
 <!-- file docs/book/code/tour/no-closure.oro -->
 ```go
 export fn adder(n ∈ 0..10) { fn(x) { x + n } }
@@ -652,11 +844,51 @@ export fn adder(n ∈ 0..10) { fn(x) { x + n } }
 gen: tour-adder: lowering: a λ in value position is a closure (callbacks.md): fn(x) { x + n }
 ```
 
-**A function may not survive to run time.** Returning one to the host, or storing one in a table,
-would need a closure, a hidden allocation, and hidden allocation is what this language exists to
-avoid. The one exception is a window procedure, a function Windows calls back, written in the
-language and lifted to a function of its own (chapter 18); handing one to a host API that calls it
-only during the call, as a sort does its comparator, is specified and not built.
+Returning a function to the host, or storing one in a table, would need a closure, a hidden
+allocation, and hidden allocation is what this language exists to avoid. What you may do is hand a
+function to a host that applies it **during** the call, as Go's `strings.Map` applies its first
+argument to each character of its second:
+
+<!-- file docs/book/code/tour/rot13.oro -->
+```go
+use io
+use go/strings
+
+fn rot(r ∈ -2^31..2^31-1) (-2^31..2^31-1) {
+    case {
+        97 <= r && r <= 122 -> 97 + (r - 97 + 13) % 26
+        65 <= r && r <= 90 -> 65 + (r - 65 + 13) % 26
+        else -> r
+    }
+}
+
+export fn main() {
+    io.print_line(strings.Map(fn(r) { rot(r) }, "Hello, World"))
+}
+```
+
+<!-- run go docs/book/code/tour/rot13.oro -->
+```
+Uryyb, Jbeyq
+```
+
+<!-- gen go docs/book/code/tour/rot13.oro -->
+```go
+func TourMain() string {
+    v0 := func(v1h int32) int32 {
+        v1 := int(v1h)
+…
+    v43 := (strings.Map(v0, "Hello, World"))
+    fmt.Println(v43)
+    return v43
+}
+```
+
+The λ became a Go function literal over `int32`, the set Go's declaration of `Map` gives its
+argument, and its body was proven under that set. Go holds nothing after `Map` returns, so nothing
+outlives the call. Chapter 17 is functions a host calls: what the host promises about the order
+and number of its calls, and what a λ may do under each promise. Chapter 18 is the one function
+Windows keeps, a window procedure.
 
 ## 0.7 One loop, and no recursion
 
@@ -698,7 +930,7 @@ fn gcd(a ∈ 0..10^6, b ∈ 0..10^6) (Int) {
 
 export fn main() {
     io.print_int(gcd(1071, 462))
-    io.print_line(big_str(fact(30)))
+    io.print_int(fact(30))
 }
 ```
 
@@ -708,12 +940,47 @@ export fn main() {
 265252859812191058636308480000000
 ```
 
+<!-- gen go docs/book/code/tour/fact.oro -->
+```go
+func TourMain() *big.Int {
+    var v3 int = 1071
+    var v4 int = 462
+    for {
+        v6 := (v4 == 0)
+        if v6 {
+            break
+        }
+        v9 := (v3 % v4)
+        v3, v4 = v4, v9
+        continue
+    }
+    v10 := (strconv.Itoa(v3))
+    fmt.Println(v10)
+    v14 := (big.NewInt(int64(1)))
+    var v16 int = 1
+    v17 := v14
+    for ; ; v16 = (v16 + 1) {
+        v19 := (v16 <= 30)
+        if v19 {
+            v23 := (big.NewInt(int64(v16)))
+            v24 := (v17.Mul(v17, v23))
+            v17 = v24
+            continue
+        }
+        break
+    }
+    v26 := (v17.String())
+    fmt.Println(v26)
+    return v17
+}
+```
+
 Read a `loop` as a table. `loop i = 1, acc = 1` names the variables and their first values. Each
 arm is `guard -> what happens`, tried in order:
 
 - **`again(e₁, e₂)`** goes round, with the variables' next values, by position. All of them are
   given at once, so there is no half-updated state: `again(y, x % y)` is Euclid's step and needs no
-  temporary.
+  temporary. Go got it as `v3, v4 = v4, v9`.
 - **An arm without `again` leaves the loop, and its value is the loop's value.** That is `break`,
   with a result.
 
@@ -721,8 +988,8 @@ arm is `guard -> what happens`, tried in order:
 as a recursive function's parameters would be. A `loop` is the tail-recursive function you were
 going to write, with the recursion spelled `again`. Two consequences:
 
-- **The compiler proves termination** where it can (*2 of 2 loop(s) proven terminating* here, by
-  size-change analysis), and reports the loops it cannot.
+- **The compiler proves termination** where it can, by size-change analysis, and reports the loops
+  it cannot.
 - **`again` stands only where the loop's turn ends**: as an arm's value, or last in an arm's block.
   It may not sit under an `if`:
 
@@ -744,9 +1011,9 @@ gen: docs/book/code/tour/no-again.oro.txt: line 3: `again` under an if (ADR 0015
 The condition belongs in the guards: `i < n && i == 5 -> again(i + 2)`, then `i < n ->
 again(i + 1)`. A loop's arms are where its decisions are written.
 
-And look at `fact`'s result, `Nat`. Thirty factorial does not fit a word; the claim asked for the
-natural number, and the program printed it. `big_str` is the language's rendering of an integer of
-any size as text.
+And look at `fact`'s result, `Nat`, and 30! in the output: 33 digits, past every word. `gcd` is a
+loop over two `int`s and `fact` a loop whose counter is an `int` and whose product is a
+`*big.Int`, chosen as in §0.5, value by value.
 
 ## 0.8 State, and tables
 
@@ -755,6 +1022,8 @@ written with `:=`:
 
 <!-- file docs/book/code/tour/cells.oro -->
 ```go
+use io
+
 export fn count_even(t ∈ Array(0..255)) (Int) {
     var n := 0
     loop i = 0 {
@@ -765,10 +1034,48 @@ export fn count_even(t ∈ Array(0..255)) (Int) {
         else -> n
     }
 }
+
+export fn main() {
+    io.print_int(count_even(array { 3, 8, 12, 7, 0 }))
+}
+```
+
+<!-- run go docs/book/code/tour/cells.oro -->
+```
+3
+```
+
+<!-- gen go docs/book/code/tour/cells.oro -->
+```go
+func TourCountEven(v0 []byte) int {
+    var v4 int = 0
+    var v5 int = 0
+    for ; ; v5 = (v5 + 1) {
+        v6 := len(v0)
+        v7 := (v5 < v6)
+        if v7 {
+            v10 := int(v0[v5])
+            v12 := (v10 & 1)
+            v14 := (v12 == 0)
+            var v15 int
+            if v14 {
+                v17 := (v4 + 1)
+                v15 = v17
+            } else {
+                v15 = v4
+            }
+            v4 = v15
+            continue
+        }
+        break
+    }
+    return v4
+}
 ```
 
 **Like:** a mutable local, updated in a loop, in program order. `t[i]` indexes, `len(t)` is the
-length, indices start at 0. An `if` with no `else` is a statement.
+length, indices start at 0. An `if` with no `else` is a statement. A table of `0..255` reached Go
+as a `[]byte`, and `% 2` as `& 1`.
 
 **Unlike:** `var` is the *only* mutation, and it is local. There are no mutable globals and no
 mutable fields, and **a table is a value**: it cannot be written to.
@@ -795,9 +1102,9 @@ Three ways, all written with the word `array` and braces:
 
 <!-- file docs/book/code/tour/squares.oro -->
 ```go
-primes = array { 2, 3, 5, 7, 11 }
+use io
 
-export fn third_prime() (Int) { primes[2] }
+primes = array { 2, 3, 5, 7, 11 }
 
 export fn sum_squares(n ∈ 0..1000) (Int) {
     sq = array { k * k : k ∈ 0..n-1 }
@@ -806,6 +1113,11 @@ export fn sum_squares(n ∈ 0..1000) (Int) {
         else  -> acc
     }
 }
+
+export fn main() {
+    io.print_int(primes[2])
+    io.print_int(sum_squares(10))
+}
 ```
 
 - **By listing it**: `array { 2, 3, 5, 7, 11 }`.
@@ -813,6 +1125,12 @@ export fn sum_squares(n ∈ 0..1000) (Int) {
   n − 1. It is set-builder notation, and it is Python's `[k * k for k in range(n)]`.
 - **By filling a buffer**: `var s := array { … }` makes a table you may write, element by element,
   until the block ends; then it is a value like any other.
+
+<!-- run go docs/book/code/tour/squares.oro -->
+```
+5
+285
+```
 
 <!-- gen go docs/book/code/tour/squares.oro -->
 ```go
@@ -834,8 +1152,8 @@ func TourSumSquares(v0 int) int {
 ```
 
 Look for the table of squares in that output. It is not there: a table by a rule is a function, the
-read `sq[i]` applied it, and no array was ever allocated. Likewise `third_prime` compiles to
-`return 5`. Writing the intermediate structure is free when reduction can see through it.
+read `sq[i]` applied it, and no array was ever allocated. Likewise `primes[2]` is the constant 5.
+Writing the intermediate structure is free when reduction can see through it.
 
 ### An index is proven
 
@@ -856,17 +1174,52 @@ index is good, either as a precondition your callers must meet or as a test:
 
 <!-- file docs/book/code/tour/index.oro -->
 ```go
+use io
+
 export fn third(t ∈ Array(Int)) (Int) where len(t) >= 3 { t[2] }
 
 export fn third_or_zero(t ∈ Array(Int)) (Int) {
     if len(t) > 2 { t[2] } else { 0 }
 }
+
+export fn main() {
+    io.print_int(third(array { 5, 6, 7, 8 }))
+    io.print_int(third_or_zero(array { 5, 6 }))
+}
 ```
 
-A loop's guard is such a test, which is why `t[i]` under `i < len(t)` in `count_even` needed
+<!-- run go docs/book/code/tour/index.oro -->
+```
+7
+0
+```
+
+<!-- gen go docs/book/code/tour/index.oro -->
+```go
+func TourThird(v0 []int) int {
+    v5 := v0[2]
+    return v5
+}
+
+func TourThirdOrZero(v0 []int) int {
+    v1 := len(v0)
+    v3 := (v1 > 2)
+    if v3 {
+        v6 := v0[2]
+        return v6
+    }
+    return 0
+}
+```
+
+`third` is one read: its callers proved `len(t) >= 3`, and `main`'s call did, by its literal. A
+loop's guard is such a test too, which is why `t[i]` under `i < len(t)` in `count_even` needed
 nothing said. In practice most indexing is like that, and proves itself.
 
-The same proof covers arithmetic on what a table holds. This is refused,
+### A table holds words
+
+An element of a table is held in a machine word, so a value stored into one is the §0.5 case: it
+must be proven to fit. This is refused,
 
 <!-- part docs/book/code/tour/no-prefix.oro -->
 ```go
@@ -889,9 +1242,91 @@ computed the bound and showed it. Adding `where len(t) <= 2^20` to the header
 ([prefix.oro](code/tour/prefix.oro)) makes it *3 of 3 integer operations bounded*: the limit you
 were assuming is now written down, and every caller is held to it.
 
-Maps follow the same idea. `map { 200 : 1, 404 : 2 }` is a map written out, `var m := map(cap)` one
-you fill, and a read `m[k]` cannot be assumed to find its key, so its value is `'some(v)` or
-`'none` and you must say what happens in each case ([maps.oro](code/tour/maps.oro)).
+When you cannot prove it, you can **ask for the trap**. `-checked` is a flag of the compiler, on
+`gen` and on `build`, and no word of the source. It emits the host's own checked arithmetic for
+each operation that was not proven, and the program stops when it runs if one of them leaves the
+word. This one stores 3, 3², 3⁴, … into a table of eight:
+
+<!-- file docs/book/code/tour/trap.oro -->
+```go
+use io
+
+export fn main() {
+    var t := array { 0 : _ ∈ 0..7 }
+    loop i = 0, p = 3 {
+        i < 8 -> { t[i] := p; again(i + 1, p * p) }
+        else  -> { ignore(p); io.print_int(t[4]) }
+    }
+}
+```
+
+<!-- gen go docs/book/code/tour/trap.oro -->
+```
+gen: tour-main: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+  * [9, +inf] in p * p
+```
+
+```bash
+go run ./cmd/build -checked -target=go -o trap.exe docs/book/code/tour/trap.oro
+```
+
+<!-- gen go docs/book/code/tour/trap.oro -checked -->
+```go
+            v6[v7] = v8
+            v15 := (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(v8, v8))
+```
+
+<!-- run go docs/book/code/tour/trap.oro -checked -->
+```
+panic: int overflow
+…
+```
+
+The sixth squaring, 3³² × 3³², left the word, and the program stopped there and printed nothing,
+which is the point: in Go without the test it stores a wrong number and goes on. The `i + 1` was
+proven and costs nothing; the one test is on the one multiplication nobody proved. On JavaScript
+the trap is a `RangeError`, and on Windows the processor's own, an illegal instruction.
+
+### Maps
+
+<!-- file docs/book/code/tour/maps.oro -->
+```go
+use io
+
+codes = map { 200 : 1, 404 : 2, 500 : 3 }
+
+export fn known(code ∈ 0..999) (Int) {
+    case codes[code] {
+        'some(v) -> v
+        'none    -> 0
+    }
+}
+
+export fn main() {
+    io.print_int(known(404))
+    io.print_int(known(302))
+}
+```
+
+<!-- run go docs/book/code/tour/maps.oro -->
+```
+2
+0
+```
+
+<!-- gen go docs/book/code/tour/maps.oro -->
+```go
+func TourKnown(v0 int) int {
+    v15 := map[int]int{200: 1, 404: 2, 500: 3}
+    v17, ok16 := v15[v0]
+…
+    return 0
+}
+```
+
+`map { 200 : 1, 404 : 2, 500 : 3 }` is a map written out, and `var m := map(cap)` one you fill. A
+read `m[k]` cannot be assumed to find its key, so its value is `'some(v)` or `'none`, and you say
+what happens in each case. Go's own `v, ok := m[k]` is what it became.
 
 ## 0.9 Variants and `case`
 
@@ -899,20 +1334,21 @@ you fill, and a read `m[k]` cannot be assumed to find its key, so its value is `
 ```go
 pub set Shape = 'circle(Int) ∪ 'square(Int) ∪ 'point
 
+fn sq(n) { n * n }
+
 pub fn area(s) {
     case s {
-        'circle(r) -> 3 * r * r
-        'square(w) -> w * w
+        'circle(r) -> 3 * sq(r)
+        'square(w) -> sq(w)
         'point     -> 0
     }
 }
-
-fn helper(n) { n + 1 }
 ```
 
 **Like:** Rust's `enum` with `match`, Swift's enums, TypeScript's tagged unions, a sealed class
 hierarchy. A value of `Shape` is one of three alternatives, and `case` takes it apart, binding the
-payload.
+payload. (`sq` is a helper of the module's own, used twice; it has no `pub`, which matters in
+§0.13.)
 
 **Unlike:**
 
@@ -946,36 +1382,53 @@ like any other name, `shapes.'circle`.)
 
 <!-- file docs/book/code/tour/pick.oro -->
 ```go
+use io
 use shapes
-
-export fn square_area(side ∈ 0..1000) (Int) { shapes.area(shapes.'square(side)) }
 
 export fn pick(n ∈ 0..1000) (Int) {
     shapes.area(if n < 10 { shapes.'point } else { shapes.'circle(n) })
 }
+
+export fn main() {
+    io.print_int(shapes.area(shapes.'square(12)))
+    io.print_int(pick(5))
+    io.print_int(pick(20))
+}
+```
+
+<!-- run go docs/book/code/tour/pick.oro -->
+```
+144
+0
+1200
 ```
 
 <!-- gen go docs/book/code/tour/pick.oro -->
 ```go
+func TourMain() int {
+    v1 := (strconv.Itoa(144))
+    fmt.Println(v1)
+    v5 := (strconv.Itoa(0))
+    fmt.Println(v5)
+    v9 := (strconv.Itoa(1200))
+    fmt.Println(v9)
+    return 1200
+}
+
 func TourPick(v0 int) int {
     v10 := (v0 < 10)
     if v10 {
         return 0
     }
-    v15 := (3 * v0)
-    v16 := (v15 * v0)
+    v15 := (v0 * v0)
+    v16 := (3 * v15)
     return v16
-}
-…
-func TourSquareArea(v0 int) int {
-    v9 := (v0 * v0)
-    return v9
 }
 ```
 
-No tag, no `switch`, no allocation. In `square_area` the tag was known at compile time and the
-`case` reduced away. In `pick` the tag was decided by an `if`, and the `case` was pushed into its
-branches, so what is left is the `if` that decided it.
+No tag, no `switch`, no allocation. In `main` every tag was known at compile time, and the three
+`case`s reduced to their answers. In `pick` the tag was decided by an `if`, and the `case` was
+pushed into its branches, so what is left is the `if` that decided it.
 
 ## 0.10 A failure is a value
 
@@ -989,6 +1442,7 @@ pub set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok relevant
 
 <!-- file docs/book/code/tour/half.oro -->
 ```go
+use io
 use result
 
 fn half(n ∈ 0..1000000) (result.Result(Int, Int)) {
@@ -1010,6 +1464,22 @@ export fn quarter_or_crash(n ∈ 0..1000000) (Int) {
     expect result.'ok(q) = quarter(n) else "a multiple of four is expected"
     q
 }
+
+export fn main() {
+    io.print_int(quarter_or_zero(20))
+    io.print_int(quarter_or_zero(6))
+    io.print_int(quarter_or_crash(40))
+    io.print_int(quarter_or_crash(6))
+}
+```
+
+<!-- run go docs/book/code/tour/half.oro -->
+```
+5
+0
+10
+panic: a multiple of four is expected
+…
 ```
 
 **Like:** Rust's `Result`, Go's `(value, err)`, Swift's `throws`. The three ways to meet a failure
@@ -1020,6 +1490,9 @@ are the three you know:
 | `case r { 'ok(v) -> …; 'err(e) -> … }` | `match`, `if err != nil` | handle both |
 | `try 'ok(v) = e { body }` | Rust's `?` | go on with `v`; hand any failure back unchanged |
 | `expect 'ok(v) = e else "why"` | `unwrap`, `panic` | go on with `v`; crash with the reason |
+
+6 is even and its half, 3, is not, so `quarter_or_zero(6)` is 0 and `quarter_or_crash(6)` stops
+the program with its reason.
 
 **Unlike:**
 
@@ -1061,10 +1534,12 @@ Two tests and a `panic`. `half`, `quarter`, the `try` and every `Result` are gon
 divisions by two became shifts. A host function that fails, such as Go's `os.ReadFile`, arrives as
 a `Result` too, and compiles back to Go's own `if err != nil`.
 
-## 0.11 Tuples and records
+## 0.11 Tuples, text and records
 
 <!-- file docs/book/code/tour/tuples.oro -->
 ```go
+use io
+
 fn divmod(a, b) { (a / b, a % b) }
 
 export fn clock(seconds ∈ 0..86399) (String) {
@@ -1073,17 +1548,44 @@ export fn clock(seconds ∈ 0..86399) (String) {
     string_of(48 + h / 10) ++ string_of(48 + h % 10) ++ ":" ++
         string_of(48 + min / 10) ++ string_of(48 + min % 10)
 }
+
+export fn main() {
+    io.print_line(clock(3725))
+    io.print_line(clock(86399))
+}
+```
+
+<!-- run go docs/book/code/tour/tuples.oro -->
+```
+01:02
+23:59
+```
+
+<!-- gen go docs/book/code/tour/tuples.oro -->
+```go
+func TourClock(v0 int) string {
+    v10 := (v0 / 60)
+    v12 := (v10 / 60)
+    v14 := (v10 % 60)
+    v17 := (v12 / 10)
+    v18 := (48 + v17)
+    v19 := (string(rune(v18)))
+…
+    return v39
+}
 ```
 
 **Like:** Python's and Rust's tuples, Go's multiple results: `(a, b)` makes one, `(m, s) = e` takes
 one apart, `()` is the empty one, which a block ending in a statement has as its value.
 
-**Unlike:** a tuple is not allocated. In what `clock` compiles to the pairs are gone, and `s`,
-which it never uses, is never computed. A line that ends in an operator continues on the next.
+**Unlike:** a tuple is not allocated. In what `clock` compiles to the pairs are gone, and `s`, the
+seconds, which `clock` never uses, is never computed: there is no `v0 % 60`. A line that ends in an
+operator continues on the next.
 
-Text is small on purpose. A `String` is a sequence of Unicode characters, `++` joins two, and
-`string_of(n)` is the one-character string of code point n. Everything richer is the host's, under
-the host's name (§0.13).
+Text is small on purpose. A `String` is a sequence of Unicode characters, `++` joins two,
+`string_of(n)` is the one-character string of code point n (48 is `0`), and `decimal(n)` is the
+decimal numeral of an integer of any size, the text `io.print_int` prints. Everything richer is the
+host's, under the host's name (§0.13).
 
 A record is a tuple whose parts have names:
 
@@ -1104,12 +1606,22 @@ export fn main() {
 }
 ```
 
+<!-- run go docs/book/code/tour/records.oro -->
+```
+2
+1
+0
+```
+
 <!-- gen go docs/book/code/tour/records.oro -->
 ```go
 func TourMain() int {
-    fmt.Println(2)
-    fmt.Println(1)
-    fmt.Println(0)
+    v1 := (strconv.Itoa(2))
+    fmt.Println(v1)
+    v5 := (strconv.Itoa(1))
+    fmt.Println(v5)
+    v9 := (strconv.Itoa(0))
+    fmt.Println(v9)
     return 0
 }
 ```
@@ -1123,6 +1635,8 @@ records, the steps and the copies are gone, and `main` prints three numbers. Cha
 
 <!-- file docs/book/code/tour/bits.oro -->
 ```go
+use io
+
 export fn clear?(flags ∈ 0..255, mask ∈ 0..255) (Bool) { flags & mask == 0 }
 
 export fn fnv32(src ∈ Array(0..255)) (0..2^32-1) {
@@ -1131,6 +1645,17 @@ export fn fnv32(src ∈ Array(0..255)) (0..2^32-1) {
         else -> h
     }
 }
+
+export fn main() {
+    io.print_line(if clear?(12, 3) { "clear" } else { "set" })
+    io.print_int(fnv32(array { 104, 101, 108, 108, 111 }))
+}
+```
+
+<!-- run go docs/book/code/tour/bits.oro -->
+```
+clear
+1335831723
 ```
 
 **Like:** `&`, `|`, `~`, `<<`, `>>`, hexadecimal literals.
@@ -1139,7 +1664,7 @@ export fn fnv32(src ∈ Array(0..255)) (0..2^32-1) {
 
 - **`flags & mask == 0` means `(flags & mask) == 0`.** In C, Java, JavaScript and Go's ancestors
   `==` binds tighter than `&`, and that line tests the wrong thing. Here every arithmetic and bit
-  operator binds tighter than every comparison.
+  operator binds tighter than every comparison: 12 is `1100` and 3 is `0011`, so they share no bit.
 - **Xor is `⊕`**, typed `\oplus`. `^` is the power, as in mathematics, and takes constants.
 - **Nothing wraps unless you say so.** There is no `uint32` whose multiplication silently drops
   bits. FNV-1a's step is *xor, multiply, keep the low 32 bits*, and the last part is written:
@@ -1149,13 +1674,29 @@ export fn fnv32(src ∈ Array(0..255)) (0..2^32-1) {
 
 <!-- gen go docs/book/code/tour/bits.oro -->
 ```go
+func TourFnv32(v0 []byte) int {
+    var v4 int = 0
+    var v5 int = 2166136261
+    for ; ; v4 = (v4 + 1) {
+        v6 := len(v0)
+        v7 := (v4 < v6)
+        if v7 {
+            v12 := int(v0[v4])
             v13 := (v5 ^ v12)
             v15 := (v13 * 16777619)
             v17 := (v15 & 4294967295)
+            v5 = v17
+            continue
+        }
+        break
+    }
+    return v5
+}
 ```
 
-This function is from a real program, [examples/hash/fnv.oro](../../examples/hash/fnv.oro), whose
-output equals Go's `hash/fnv` on three hosts.
+1335831723 is the 32-bit FNV-1a hash of `hello`, as Go's `hash/fnv` computes it. This function is
+from a real program, [examples/hash/fnv.oro](../../examples/hash/fnv.oro), whose output equals Go's
+on three hosts.
 
 ## 0.13 Modules, and the host
 
@@ -1184,11 +1725,18 @@ member is `module.name`.
 **Unlike:** there are two markers, and they answer different questions
 ([ADR 0078](../decisions/0078-a-modules-interface-is-what-it-marks-pub.md)).
 
-- **`pub`: may another module name this?** Private is the default. `shapes.helper` has no `pub`:
+- **`pub`: may another module name this?** Private is the default. `shapes.sq` has no `pub`:
+
+<!-- file docs/book/code/tour/no-private.oro -->
+```go
+use shapes
+
+export fn f(n ∈ 0..1000) (Int) { shapes.sq(n) }
+```
 
 <!-- gen go docs/book/code/tour/no-private.oro -->
 ```
-gen: docs/book/code/tour/no-private.oro: f: module shapes defines helper and does not make it `pub`: a declaration is private to its module unless marked `pub` (ADR 0078)
+gen: docs/book/code/tour/no-private.oro: f: module shapes defines sq and does not make it `pub`: a declaration is private to its module unless marked `pub` (ADR 0078)
 ```
 
 - **`export`: does the host get a function for this?** Only an `export` of the file being compiled
@@ -1228,6 +1776,11 @@ their path, are libraries written once over each host's own calls; `hello.oro` i
 JavaScript and Java. **You choose, per program, how much of one host to use**, and `cmd/portable`
 reports what the choice cost.
 
+A host's function is declared with the host's sets. Go's `strings.Repeat` takes a Go `int`, so its
+count is a word, and a count the program cannot prove is one is refused as in §0.5; `strings.Map`
+in §0.6 gave its λ an `int32`. Inside the program `Int` is ℤ; at a host's door it is what the host
+takes.
+
 ## 0.14 What is not here
 
 | you may look for | |
@@ -1236,23 +1789,22 @@ reports what the choice cost.
 | recursion | refused; a `loop` (§0.7) |
 | `null`, `nil`, `undefined` | a variant: `'some(v)` or `'none` (§0.8) |
 | exceptions, `try`/`catch`/`finally` | a failure is a value (§0.10) |
-| integer overflow, `int32`, `uint8`, casts | a set, proven (§0.4, §0.5) |
+| integer overflow, `int32`, `uint8`, `BigInt`, casts | `Int` is ℤ; a range is a set, proven (§0.4, §0.5) |
 | implicit conversions, truthiness | none: an `if` takes a `Bool` |
 | `NaN`, `Infinity`, `-0` | none: a number is a number (§0.5) |
+| an `assert` that runs | a claim, proven when compiled (§0.4) |
 | generics, `<T>`, interfaces, traits | a definition is specialised where it is used (§0.6) |
 | classes, methods, inheritance, `this` | functions in modules; data is tables, tuples, records and variants |
-| closures at run time | refused (§0.6) |
+| closures at run time | refused; a λ a host applies during its call is allowed (§0.6) |
 | mutable arrays, shared mutable state | `var`, local to a block (§0.8) |
 | macros, annotations, pragmas, doc comments | none; a comment is erased and means nothing |
-| a string library (split, upper, format) | the host's, by name (§0.13); the language's own are `++` and `string_of` |
+| a string library (split, upper, format) | the host's, by name (§0.13); the language's own are `++`, `string_of` and `decimal` |
 | operator overloading | none |
 | a garbage collector or runtime of its own | none (§0.1) |
 
-**Specified, and not built yet**, so not in this chapter: the logic's own definitions (`spec`,
-`lemma`, `assert`, `∀` and `∃` in a claim), a guard on a `case` arm, handlers on `try`, a function a
-host calls during a call (a sort's comparator), and concurrency. The one callback built is a
-window procedure on Windows (chapter 18). [spec/j.md](../spec/j.md)'s status table is the
-exact list.
+**Specified, and not built yet**, so not in this chapter: the logic's own definitions (`spec`, and
+`lemma` proven by induction), a guard on a `case` arm, handlers on `try`, a function a host
+returns, and concurrency. [spec/j.md](../spec/j.md)'s status table is the exact list.
 
 ## 0.15 From what you write to what you write here
 
@@ -1263,7 +1815,10 @@ exact list.
 | `return e` | `e`, last in the block |
 | `fn f(x: T) -> R`, `func f(x T) R` | `fn f(x ∈ T) (R)` |
 | `x: u8`, `x uint8` | `x ∈ 0..255` |
+| `x: i64`, `x int64` | `x ∈ -2^63..2^63-1` |
+| `big.Int`, `BigInt`, `BigInteger` | `Int`: nothing to write |
 | `assert(n > 0)` at the top of a function | `where n > 0` in its header, proven at each call |
+| `assert(φ)` in a body | `assert φ`, proven when compiled |
 | `c ? a : b` | `if c { a } else { b }` |
 | `if … else if … else …` | the same, or `case { φ -> a; else -> b }` |
 | `for (i = 0; i < n; i++) acc += i` | `loop i = 0, acc = 0 { i < n -> again(i + 1, acc + i); else -> acc }` |
@@ -1278,6 +1833,7 @@ exact list.
 | `e?` (Rust) | `try 'ok(x) = e { … }` |
 | `e.unwrap()`, `panic("why")` | `expect 'ok(x) = e else "why"` |
 | `s + t` on strings | `s ++ t` |
+| `strconv.Itoa(n)`, `str(n)`, `n.toString()` | `decimal(n)` |
 | `a ^ b`, xor | `a ⊕ b`; `2^10` is 1024 |
 | `(a * b) & 0xFFFFFFFF`, or a `uint32` | `(a * b) mod 2^32` |
 | `import m`, `import m as a` | `use m`, `use m as a` |
@@ -1294,14 +1850,16 @@ exact list.
   four hosts, with no runtime of its own.
 - **`=` defines, `:=` writes, `==` compares.** A block's value is its last expression; there is no
   `return`.
-- **A type is a set**, `x ∈ 0..255`, and a header's sets, `where` and `ensure` are claims the
-  compiler proves or refuses. Nothing is cast.
-- **An integer is an integer.** An operation that might leave the machine word does not compile
-  until you narrow a set, claim one above the word, or ask for `-checked`. `0.1` is one tenth.
+- **A type is a set**, `x ∈ 0..255`, and a header's sets, `where`, `ensure` and a body's `assert`
+  are claims the compiler proves or refuses. Nothing is cast, and no claim runs.
+- **An integer is an integer.** `Int` is ℤ, computed exactly at any size, and the compiler chooses
+  a word or the host's big integer value by value. A value is refused where it must be held in a
+  set it is not proven in: a result's range, a table's element, a host's word; `-checked` traps
+  there instead. `0.1` is one tenth.
 - **Functions, variants, tuples, `Result`s and tables written by a rule are how you write the
-  program, not what runs.** Reduction removes them; a closure that would survive is refused. A
-  large first-order definition may be kept as one function, where the compiler finds that
-  cheaper, and that changes no answer.
+  program, not what runs.** Reduction removes them; a function that would outlive its call is
+  refused. A large first-order definition may be kept as one function, where the compiler finds
+  that cheaper, and that changes no answer.
 - **`loop` and `again` are the only iteration**, there is no recursion, and termination is proven.
 - **State is `var`, local to a block.** A table is a value, and an index is proven in range.
 - **A failure is a value**, and a `relevant` one cannot be dropped silently.

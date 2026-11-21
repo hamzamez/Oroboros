@@ -1190,31 +1190,59 @@ func (l *lowerer) assumeWhere(sig *core.Sig, f *Func) {
 		return
 	}
 	names := make([]string, len(sig.Params))
+	above := map[string]bool{}
 	for i, p := range sig.Params {
 		names[i] = p.Name
 		// The `where` is the SOURCE's term, written before the representation
 		// passes (PromoteBig, SelectWords) moved a parameter above the word;
-		// its operations would not mean what they mean now. Not assumed.
+		// its operations on that parameter would not mean what they mean now.
+		// Those conjuncts are not assumed, and the rest are: `search(t, x ∈
+		// Int) where len(t) <= 10^9` keeps its bound on t with x a big integer
+		// (ADR 0147), where the whole `where` was dropped
 		if vt := l.tg.ValueType(p.Type); vt == core.BigType || vt == core.U64Type {
-			return
+			if PlantWhereDroppedWhole {
+				return
+			}
+			above[p.Name] = true
 		}
 	}
 	// ONE ASSUMPTION, THE WHERE WITHOUT ITS FORMULAS: a formula (ADR 0145) is
 	// the logic's and never lowered, a set's claim and not a value (ADR 0049),
 	// so its conjuncts are dropped and the rest is the conjunction it was, its
 	// lowering the same text as before the logic
-	if w := withoutFormulas(sig.Where); w != nil {
+	if w := withoutConjuncts(sig.Where, func(c *core.Term) bool { return core.HasFormula(c) || namesFree(c, above) }); w != nil {
 		l.assume(bindNames(w, names, 0), f.Body)
 	}
 }
 
-// withoutFormulas is a `where` with every conjunct holding a formula of the
-// logic removed, D's (if a b false) rebuilt around the rest, or nil when none
-// is left.
-func withoutFormulas(t *core.Term) *core.Term {
+// PlantWhereDroppedWhole drops an export's whole `where` when any parameter is
+// above the word, as before: chapter 13's search with x ∈ Int then loses
+// len(t) <= 10^9 and is refused (TestAWheresWordConjunctsAreAssumed).
+var PlantWhereDroppedWhole bool
+
+// namesFree reports a name of the set free in t, by its spelling (a `where`
+// over the header's names, before they are bound).
+func namesFree(t *core.Term, names map[string]bool) bool {
+	if t == nil || len(names) == 0 {
+		return false
+	}
+	if t.Kind == core.KName && names[t.Name] {
+		return true
+	}
+	for _, k := range t.Kids {
+		if namesFree(k, names) {
+			return true
+		}
+	}
+	return false
+}
+
+// withoutConjuncts is a `where` with every conjunct drop holds of removed, D's
+// (if a b false) rebuilt around the rest, or nil when none is left.
+func withoutConjuncts(t *core.Term, drop func(*core.Term) bool) *core.Term {
 	if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == "if" &&
 		t.Kids[3].Kind == core.KBool && t.Kids[3].Int == 0 {
-		a, b := withoutFormulas(t.Kids[1]), withoutFormulas(t.Kids[2])
+		a, b := withoutConjuncts(t.Kids[1], drop), withoutConjuncts(t.Kids[2], drop)
 		switch {
 		case a == nil:
 			return b
@@ -1225,7 +1253,7 @@ func withoutFormulas(t *core.Term) *core.Term {
 		}
 		return core.App(t.Kids[0], a, b, t.Kids[3])
 	}
-	if core.HasFormula(t) {
+	if drop(t) {
 		return nil
 	}
 	return t

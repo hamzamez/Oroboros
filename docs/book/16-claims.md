@@ -767,20 +767,21 @@ export fn clamp(x ∈ Int, lo ∈ Int, hi ∈ Int) (r ∈ Int) where lo <= hi en
 
 <!-- gen go docs/book/code/claims/clamp.oro -->
 ```go
-func ClaimsClamp(v0 int, v1 int, v2 int) int {
-    v4 := (v0 < v1)
-    if v4 {
+func ClaimsClamp(v0 *big.Int, v1 *big.Int, v2 *big.Int) *big.Int {
+    v3 := (v0.Cmp(v1) < 0)
+    if v3 {
         return v1
     }
-    v9 := (v0 > v2)
-    if v9 {
+    v4 := (v0.Cmp(v2) > 0)
+    if v4 {
         return v2
     }
     return v0
 }
 ```
 
-The claim is about the three branches at once, and the compiler takes it apart the same way. In
+(`Int` is every integer, so a host hands `clamp` three `*big.Int`s, chapter 6's rule; the claim
+is the same at any size.) The claim is about the three branches at once, and the compiler takes it apart the same way. In
 the first, `x < lo` and the result is `lo`. In the second, `x > hi` and it is `hi`. In the third,
 the two failed tests leave `lo <= x <= hi`. Each case is a question of the kind 16.4 answers.
 
@@ -1197,30 +1198,38 @@ condition is false. Chapter 12's "a guard you are sure of" and chapter 13's bina
 are this. It is the right answer when the fact comes from outside, and an honest answer
 when it is true but beyond the method.
 
-**Ask for a trap.** For arithmetic that might leave the word, the `-checked` flag emits the
-host's own overflow check in place of a proof:
+**Ask for a trap.** Where a value must be held in a word, as a table's element must, and the
+proof that it fits fails, the `-checked` flag emits the host's own overflow check in place of
+the proof:
 
 <!-- file docs/book/code/claims/no-add.oro -->
 ```go
-export fn add(a ∈ Int, b ∈ Int) (Int) { a + b }
+export fn shifted(a ∈ Array(Int)) (Array(Int)) where len(a) > 0 {
+    var s := array { 0 : _ ∈ 0..len(a)-1 }
+    loop i = 0 {
+        i < len(a) -> { s[i] := a[i] + a[0]; again(i + 1) }
+        else -> s
+    }
+}
 ```
 
 <!-- gen go docs/book/code/claims/no-add.oro -->
 ```
-gen: claims-add: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  + [-inf, +inf] in a + b
+gen: claims-shifted: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+  + [-18446744073709551616, 18446744073709551614] in a[i] + a[0]
 ```
 
 <!-- gen go docs/book/code/claims/no-add.oro -checked -->
 ```go
-func ClaimsAdd(v0 int, v1 int) int {
-    v2 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v0, v1))
-    return v2
-}
+            v15 := v0[v10]
+            v17 := v0[0]
+            v18 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v15, v17))
+            v9[v10] = v18
 ```
 
-Any two integers may overflow when added, so without the flag the function is refused. With
-it, the addition is done and then checked, and the program stops if it wrapped. That is
+Two words may add to more than a word holds, and `s[i]` holds a word, so without the flag the
+function is refused. With it, the addition is done and then checked, and the program stops if it
+wrapped. That is
 chapter 15's `expect`, supplied by the build line: the program still never computes a wrong
 number, it has only traded a proof for a possible stop. `-checked` covers arithmetic and
 nothing else. A position in a table or a divisor is proven, or guarded by a test you write.

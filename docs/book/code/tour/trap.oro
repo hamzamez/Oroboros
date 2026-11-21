@@ -1,0 +1,9 @@
+use io
+
+export fn main() {
+    var t := array { 0 : _ ∈ 0..7 }
+    loop i = 0, p = 3 {
+        i < 8 -> { t[i] := p; again(i + 1, p * p) }
+        else  -> { ignore(p); io.print_int(t[4]) }
+    }
+}

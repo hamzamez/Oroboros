@@ -1,3 +1,5 @@
+use io
+
 export fn hyp2(a ∈ 0..1000, b ∈ 0..1000) (Int) {
     aa = a * a
     bb = b * b
@@ -14,4 +16,11 @@ export fn sign(n ∈ -1000..1000) (-1..1) {
         n == 0 -> 0
         else   -> 1
     }
+}
+
+export fn main() {
+    io.print_int(hyp2(3, 4))
+    io.print_line(grade(95) ++ grade(85) ++ grade(12))
+    io.print_int(sign(-7))
+    io.print_int(sign(0))
 }

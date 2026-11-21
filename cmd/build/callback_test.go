@@ -128,7 +128,8 @@ use go/slices
 export fn main() {
     var k := 0
     same = slices.EqualFunc(array { 1, 2 }, array { 1, 3 }, fn(x, y) { if k < 1000000 { k := k + 1 }; x == y })
-    io.print_int(k * 4611686018427387904)
+    t = { var t := array { 0 }; t[0] := k * 4611686018427387904; t }
+    io.print_int(t[0])
 }
 `
 	if _, err := buildOnly(t, joined, "go"); err == nil || !strings.Contains(err.Error(), "cannot be proven to stay inside the word") {

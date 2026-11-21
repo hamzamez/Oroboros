@@ -1757,7 +1757,7 @@ func (tg *Target) addCore() {
 // conversions go one way only. `big-of` widens a word to a bignum; there is no
 // narrowing, because unbounded-rung.md §3 is that the promotion is a WIDENING
 // and not a refinement, so a value that may leave the machine word cannot
-// silently be used where an `int` is required. `big-str` exists because a value
+// silently be used where an `int` is required. `decimal` exists because a value
 // past 2^53 cannot be printed as an `int` on any of the four hosts.
 var bigOps = []struct {
 	name  string
@@ -1766,7 +1766,7 @@ var bigOps = []struct {
 }{
 	{"big+", 2, true}, {"big-", 2, true}, {"big*", 2, true}, {"big/", 2, true}, {"big%", 2, true},
 	{"big<", 2, true}, {"big<=", 2, true}, {"big>", 2, true}, {"big>=", 2, true}, {"big=", 2, true},
-	{"big-of", 1, true}, {"big-str", 1, true},
+	{"big-of", 1, true}, {"decimal", 1, true},
 	// and its retraction r : ℤ ⇀ S, used only where the value is proven in S
 	// (ADR 0079 item 4): not a narrowing of a value that may leave the word,
 	// which unbounded-rung.md §3 forbids, but the identity on S
@@ -5139,7 +5139,7 @@ func (tg *Target) statedRealizations(op string) {
 // checkRealized refuses a stated realization that names a declaration the
 // target does not have, or a name the language does not have.
 func (tg *Target) checkRealized() error {
-	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "utf8-valid": true, "utf8-text": true, "abandon": true, "alloc": true, "release": true, "reuse": true, "discard": true, "alloc-raw": true, "reuse-raw": true, "reuse-fit": true, "reuse-fit-raw": true, "big-str": true,
+	known := map[string]bool{"=": true, "string-of": true, "concat": true, "nulfree": true, "ascii": true, "utf8-valid": true, "utf8-text": true, "abandon": true, "alloc": true, "release": true, "reuse": true, "discard": true, "alloc-raw": true, "reuse-raw": true, "reuse-fit": true, "reuse-fit-raw": true, "decimal": true,
 		// the map's operations, realized as terms over the table of its cells (ADR 0120)
 		"build-map": true, "insert": true, "read": true, "keys": true, "map-len": true, "map": true}
 	for _, op := range langOps {

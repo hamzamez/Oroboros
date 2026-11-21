@@ -76,6 +76,6 @@ fn pack(p) {
     }
 }
 
-export fn run(u ∈ Int) (Int) { pack(mulat(limbs(0), descs(0))) }
+export fn run(u ∈ 0..2^31-1) (Int) { pack(mulat(limbs(0), descs(0))) }
 
 export fn main() { fmt.Println(run(0)) }

@@ -57,4 +57,4 @@ fn calc(n ∈ 0..15) (Int) {
     }
 }
 
-fn run(n) { big_str(calc(n)) }
+fn run(n) { decimal(calc(n)) }

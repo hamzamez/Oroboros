@@ -1,4 +1,4 @@
-export fn sum_to(n ∈ Int) (Int) {
+export fn sum_to(n ∈ Int) (-2^63..2^63-1) {
     loop i = 1, s = 0 {
         i <= n -> again(i + 1, s + i)
         else -> s

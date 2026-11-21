@@ -13,7 +13,7 @@ import (
 // THE FIXED-LIMB RUNG, ON THE IR (ADR 0035).
 //
 // SelectBig chooses the values held exactly and writes the host's shape:
-// `big+ − · / %`, `big%-small`, the comparisons, `big-of` and `big-str`. On the
+// `big+ − · / %`, `big%-small`, the comparisons, `big-of` and `decimal`. On the
 // fixed-limb rung each of those is an INSTANCE of a lemma of the limb library
 // (emit.LimbFunc), checked once per width: this pass replaces each call by its
 // instance, inlined. Inlining is substitution into a verified body, so what is
@@ -164,7 +164,7 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 				} else {
 					err = fmt.Errorf("%w: the remainder by another arbitrary-precision value", ErrNoLimbForm)
 				}
-			case "big-str":
+			case "decimal":
 				// THE RENDERING: through the host's bignum where the target has
 				// one, whose own numeral is its toString; elsewhere the limb
 				// library's render, ι of the digits (ADR 0095).
@@ -332,7 +332,7 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			}
 			count++
 			if u.fn == "to-host" {
-				// the rendering: the instance converts, and big-str renders
+				// the rendering: the instance converts, and decimal renders
 				t := V(len(f.Types))
 				f.Types = append(f.Types, core.BigType)
 				out = inlineInto(f, out, c, u.args, []V{t}, ren)
@@ -360,7 +360,7 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 }
 
 func isBigName(name string) bool {
-	if name == "big-of" || name == "big%-small" || name == "big-str" {
+	if name == "big-of" || name == "big%-small" || name == "decimal" {
 		return true
 	}
 	for _, x := range bigArith {
@@ -549,7 +549,10 @@ func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.
 			return nil
 		}
 		plan, err := emit.PlanBig(tg, sig, nf, all...)
-		if err != nil || !plan.Holds() {
+		// A RESULT CLAIMED IN ℤ ALONE claims nothing a representation can
+		// fail: ∀x ∈ P. ⟦B⟧(x) ∈ ℤ holds, and which yields are held exactly is
+		// each instance's, chosen where it is inlined or entered (ADR 0147)
+		if err != nil || !plan.Holds() || plan.ResultsOnly {
 			return err
 		}
 		nf = emit.EraseWordAscriptions(tg.Word, nf)

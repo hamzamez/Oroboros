@@ -5,6 +5,6 @@ fn ones(v ∈ Nat) (Nat) {
 }
 
 export fn main() {
-    io.print_line(big_str(ones(255)))
-    io.print_line(big_str(ones(3^1000)))
+    io.print_line(decimal(ones(255)))
+    io.print_line(decimal(ones(3^1000)))
 }

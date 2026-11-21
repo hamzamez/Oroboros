@@ -373,19 +373,17 @@ it can leave the word like one:
 
 <!-- file docs/book/code/bits/no-shift.oro -->
 ```go
-export fn scale(n ∈ 0..255, k ∈ 0..64) (Int) { n << k }
+export fn scale(n ∈ 0..255, k ∈ 0..64) (-2^63..2^63-1) { n << k }
 ```
 
 <!-- gen go docs/book/code/bits/no-shift.oro -->
 ```
-note: bits-scale: 0 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: bits-scale: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  << [0, 4703919738795935662080] in n << k
-…
+gen: scale: the body does not establish -9223372036854775808 <= result && result <= 9223372036854775807; its result is [0, 4703919738795935662080]
 ```
 
-255 · 2⁶⁴ is the number printed, and it does not fit. This is the bug C calls "shifting into
-the sign bit", caught the way chapter 6 caught `n * n`. Say what the count can be, and it
+255 · 2⁶⁴ is the number printed, and it does not fit the word the result claims. This is the bug
+C calls "shifting into the sign bit", caught the way chapter 6 caught `square64`. (Claim `Int`
+and the shift is exact, Go's `Lsh` on a `*big.Int`.) Say what the count can be, and it
 compiles to the machine's shift and nothing else:
 
 <!-- file docs/book/code/bits/scale.oro -->
@@ -830,11 +828,11 @@ export fn step(h ∈ U64, b ∈ 0..255) (U64) { ((h ⊕ b) * 1099511628211) mod 
 note: bits-step: 2 operation(s) or conversion(s) in the unsigned word
 …
 func BitsStep(v0 uint64, v1 int) uint64 {
-    v2 := (int(v0))
-    v3 := (v2 ^ v1)
-    v5 := (v3 * 1099511628211)
-    v6 := (uint64(v5))
-    return v6
+    v10 := (int(v0))
+    v11 := (v10 ^ v1)
+    v13 := (v11 * 1099511628211)
+    v14 := (uint64(v13))
+    return v14
 }
 ```
 
@@ -849,8 +847,8 @@ On Windows the same function is two instructions of LLVM's:
 <!-- gen windows docs/book/code/bits/wrap64.oro -->
 ```llvm
 …
-  %v3 = xor i64 %v2, %v1
-  %v5 = mul i64 %v3, 1099511628211
+  %v11 = xor i64 %v10, %v1
+  %v13 = mul i64 %v11, 1099511628211
 …
 ```
 
@@ -1166,7 +1164,7 @@ numeral as any integer's, so everything in this chapter applies to them unchange
 ```go
 use io
 
-fn show(n) { io.print_line(big_str(n)) }
+fn show(n) { io.print_line(decimal(n)) }
 
 export fn main() {
     a = 3^100

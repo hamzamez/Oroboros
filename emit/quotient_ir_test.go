@@ -14,12 +14,15 @@ import (
 // sum, by the divisor's sign regions taken at their corners; what it cannot
 // prove is refused, as an unproven sum is.
 func TestAQuotientOutsideTheWordIsRefused(t *testing.T) {
-	refused := "export fn g(a ∈ -2^63..2^63-1, b ∈ -9..9) (Int) where b != 0 { a / b }"
+	// results unclaimed, held as their yields are (ADR 0062 item 8): a result
+	// `Int` is ℤ since ADR 0147, which computes 2^63 exactly, and a word claim
+	// refuses the quotient as a claim before this rule is reached
+	refused := "export fn g(a ∈ -2^63..2^63-1, b ∈ -9..9) where b != 0 { a / b }"
 	for what, src := range map[string]string{
-		"a positive divisor":                "export fn g(a ∈ -2^63..2^63-1, b ∈ 1..9) (Int) { a / b }",
-		"a negative divisor that is not -1": "export fn g(a ∈ -2^63..2^63-1, b ∈ -9..-2) (Int) { a / b }",
-		"a dividend that is not -2^63":      "export fn g(a ∈ -2^63+1..2^63-1, b ∈ -9..9) (Int) where b != 0 { a / b }",
-		"a constant divisor":                "export fn g(a ∈ -2^63..2^63-1) (Int) { a / 10 }",
+		"a positive divisor":                "export fn g(a ∈ -2^63..2^63-1, b ∈ 1..9) { a / b }",
+		"a negative divisor that is not -1": "export fn g(a ∈ -2^63..2^63-1, b ∈ -9..-2) { a / b }",
+		"a dividend that is not -2^63":      "export fn g(a ∈ -2^63+1..2^63-1, b ∈ -9..9) where b != 0 { a / b }",
+		"a constant divisor":                "export fn g(a ∈ -2^63..2^63-1) { a / 10 }",
 	} {
 		if err := legalGo(t, src); err != nil {
 			t.Errorf("%s: want it accepted, got %v", what, err)

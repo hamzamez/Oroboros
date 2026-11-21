@@ -73,9 +73,10 @@ cases skipped JavaScript for it (`u64-digits`, `u64-square`, `u64-values`, `mers
   for.
 - **The pair's missing operations, now** (option 2 whole): short division by a constant d < 2²¹ on
   the digits, two exact float divisions, measured 4.3× faster than BigInt on u64repr-2026-09-22's
-  kernel and 1.6× on this digit sum; a variable shift; a build's region; an entry point's parameter as
-  a pair. hamza: recorded as optimizations for another time, each its trigger a program the selection
-  sends to ℤ and a measurement that asks.
+  kernel and 1.6× on this digit sum; a variable shift; a build's region. hamza: recorded as
+  optimizations for another time, each its trigger a program the selection sends to ℤ and a
+  measurement that asks. (An entry point's parameter as a pair, listed here first, was built after:
+  the BigInt its caller holds split once by pair_bigint's inverse, pairsel-2026-11-21's gap 1.)
 - **The program's one set (ADR 0029) widened to what A holds exactly**, the width raised to every
   proven fact past the word: built first, it made `x * 3` under a declared S₆₄ compile on JavaScript,
   and it lost `big-sign`'s trap, a yield past its declared −2²⁰⁰..2²⁰⁰ printed where it must stop (a

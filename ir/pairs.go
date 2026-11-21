@@ -45,11 +45,11 @@ import (
 // demanded in ℤ before the rung, and the rung's closure takes what it touches.
 // Left refused, saying so: such a use of a residue (an operation fused under
 // mod 2⁶⁴, which the rung does not hold), a pair entering or leaving through a
-// build's region, and an entry point's parameter held as a pair. A pair
-// reaching a host argument of any type is boxed (`pair-box`, a decimal
-// string), and an entry point's result is the host's BigInt (`pair-bigint`),
-// the representation a caller holds it in; a value of U held exactly leaves
-// the same way (`big-box`, the BigInt itself).
+// build's region. A pair reaching a host argument of any type is boxed
+// (`pair-box`, a decimal string), and an entry point's result is the host's
+// BigInt (`pair-bigint`), the representation a caller holds it in, as its
+// parameter past the word arrives (`pair-hi`, `pair-lo`, entryParams); a value
+// of U held exactly leaves the same way (`big-box`, the BigInt itself).
 func SelectPairs(tg *emit.Target, f *Func, sig *core.Sig) (bool, error) {
 	if !tg.Word.Pair {
 		return false, nil
@@ -63,11 +63,12 @@ func SelectPairs(tg *emit.Target, f *Func, sig *core.Sig) (bool, error) {
 	if p.err != nil {
 		return false, p.err
 	}
-	if len(p.pair) == 0 && !p.anyResult() {
+	p.entry = p.entryParams()
+	if len(p.pair) == 0 && !p.anyResult() && len(p.entry) == 0 {
 		return false, nil
 	}
 	for _, x := range f.Params {
-		if p.pair[x] {
+		if p.pair[x] && !p.isEntry(x) {
 			return false, fmt.Errorf("an entry point's parameter held in the unsigned word, %s, is not built on "+
 				"target %s, which holds that word as a pair (ir/pairs.go)", termShow(fs[x].v), tg.Name)
 		}
@@ -80,6 +81,46 @@ func SelectPairs(tg *emit.Target, f *Func, sig *core.Sig) (bool, error) {
 	f.facts = nil
 	return true, nil
 }
+
+// AN ENTRY POINT'S PARAMETER IN U PAST THE WORD (pairsel-2026-11-21's gap 1) is
+// held by its caller as the host's integer of any size, a BigInt, as a result
+// in U is returned (`pair-bigint`, ADR 0083): a Number past 2⁵³ is no integer.
+// It enters the pair by pair_bigint's inverse, d⁻¹(x) = (⌊x/2³²⌋, x mod 2³²),
+// `pair-hi` and `pair-lo` once at the body's head, and every use reads those
+// digits. Before, the pass split the parameter as a word, (x >> 32) & m and
+// x & m, which the realization rule then refused (`>>` of a value past W). Only
+// entry points reach here on a pair target: K(ℕ*)'s program functions
+// (progfunc.go) are the LLVM layer's, which has no pair.
+func (p *pairs) entryParams() []V {
+	if PlantPairEntryAsWord {
+		return nil
+	}
+	var out []V
+	for _, x := range p.f.Params {
+		if int(x) >= len(p.fs) || p.f.Types[x] == core.BigType {
+			continue
+		}
+		if x := p.fs[x].v; x.bot || !x.within(ep{}, u64Max) || x.within(ei(p.tg.Word.Lo), ei(p.tg.Word.Hi)) {
+			continue
+		}
+		out = append(out, x)
+	}
+	return out
+}
+
+func (p *pairs) isEntry(x V) bool {
+	for _, e := range p.entry {
+		if e == x {
+			return true
+		}
+	}
+	return false
+}
+
+// PlantPairEntryAsWord splits an entry point's parameter past the word as a
+// word again: next-u's `n + 1` over 0..2^63-1 is then refused on JavaScript
+// (TestAnEntryParameterInUIsAPair).
+var PlantPairEntryAsWord bool
 
 func newPairs(tg *emit.Target, f *Func, fs []fact, sig *core.Sig) *pairs {
 	return &pairs{tg: tg, f: f, fs: fs, pair: map[V]bool{}, halves: map[V][2]V{}, kon: map[V]*big.Int{},
@@ -255,6 +296,9 @@ type pairs struct {
 	fs     []fact
 	pair   map[V]bool
 	halves map[V][2]V
+	// entry is the entry point's parameters past the word in U, each a BigInt
+	// its caller holds, entering the pair at the body's head (entryParams)
+	entry  []V
 	kon    map[V]*big.Int // closed constants, exact
 	sub    map[V]V        // a value replaced by another
 	def    map[V]*Stmt
@@ -753,7 +797,18 @@ func (p *pairs) rewrite() {
 			region(r.Else, yield, brk, cont, fn)
 		}
 	}
+	// AN ENTRY PARAMETER'S DIGITS, fixed before the body is walked so every use
+	// finds them, defined at its head once the walk has written it
+	var head []Stmt
+	for _, x := range p.entry {
+		hi, lo := p.fresh(), p.fresh()
+		p.halves[x] = [2]V{hi, lo}
+		f.Types[x] = core.BigType
+		head = append(head, Stmt{Op: OCall, Name: "pair-hi", Args: []V{x}, Res: []V{hi}},
+			Stmt{Op: OCall, Name: "pair-lo", Args: []V{x}, Res: []V{lo}})
+	}
 	region(f.Body, p.resPar, nil, nil, true)
+	f.Body.Stmts = append(head, f.Body.Stmts...)
 	// THE RESULTS' FLAGS ARE APPLIED ON THE WAY OUT: the function body's yields
 	// were written with the pass's own flags (yield above is the results').
 	for j, b := range p.resPar {

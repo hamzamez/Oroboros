@@ -131,8 +131,9 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      (hamza, 2026-11-21: "I agree, go in that order: 2, then 1, then 3"), the programs meant for
      every target JavaScript refused or stopped: ~~2, and, or and xor past 32 bits~~ done
      ([split53](gauntlet/results/split53-2026-11-21.md)): the split x = h·2³² + l, 4.6× BigInt;
-     the differential's `// opaque`; next 1, an entry point's parameter in U as a pair (the
-     inverse of `pair-bigint`), then 3, the one set checked at its claims and stored by the join
+     the differential's `// opaque`; ~~1, an entry point's parameter in U as a pair~~ done
+     ([pairentry](gauntlet/results/pairentry-2026-11-21.md)): the caller's BigInt split once by
+     `pair_bigint`'s inverse; next 3, the one set checked at its claims and stored by the join
      (an ADR). After them: the report listing every operation; a program all ℤ by an unbounded
      loop counter;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
@@ -454,8 +455,8 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   ([cpu](gauntlet/results/cpu-2026-11-19.md));
 - **JavaScript's pair, the rest** (ADR 0151's "Why not", hamza 2026-11-21: "optimizations for
   another time"): short division by a constant below 2²¹ on the digits (4.3× BigInt on
-  u64repr-2026-09-22's kernel, 1.6× on pairsel's digit sum), a variable shift, a build's region, an
-  entry point's parameter as a pair; and E on JavaScript as four 32-bit digits, BigInt today; trigger
+  u64repr-2026-09-22's kernel, 1.6× on pairsel's digit sum), a variable shift, a build's region;
+  and E on JavaScript as four 32-bit digits, BigInt today; trigger
   a program the selection sends to ℤ and a measurement that asks;
 - **U₃₂ on i686** (ADR 0127's "Why not"): K(ℕ\*)'s digit in an i32 read unsigned; trigger the next
   measurement of windows32's big-integer gap;

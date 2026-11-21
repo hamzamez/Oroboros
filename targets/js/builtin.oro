@@ -258,6 +258,12 @@ module js {
     fn pair_bigint(hi ∈ 0..2^32-1, lo ∈ 0..2^32-1) (big) pure {
         host expr "(BigInt(${hi}) * 4294967296n + BigInt(${lo}))"
     }
+    // A PAIR ENTERING ITS DIGITS from the BigInt an entry point's caller holds
+    // (pairsel-2026-11-21's gap 1): d⁻¹(x) = (⌊x/2³²⌋, x mod 2³²), pair_bigint's
+    // inverse on U, so pair_bigint(pair_hi(x), pair_lo(x)) = x. Each digit is
+    // below 2³², a Number exactly.
+    fn pair_hi(x ∈ big) (0..2^32-1) pure { host expr "Number(${x} >> 32n)" }
+    fn pair_lo(x ∈ big) (0..2^32-1) pure { host expr "Number(${x} & 4294967295n)" }
     fn emod(a ∈ Word, m ∈ Word) (Word) pure where m > 0 {
         host expr "((a, m) => { const r = a % m; return r < 0 ? r + m : r + 0; })(${a}, ${m})"
     }

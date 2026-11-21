@@ -1257,6 +1257,22 @@ slower when it converted to `BigInt` and back on every division than when it sta
 note names the operations so held. Neither function is a choice you make; on Go, the JVM and
 Windows both are one 64-bit word.
 
+A value of the unsigned word crosses an entry point as the integer a JavaScript caller holds
+it in, a `BigInt`, both ways. §6.9's `next` takes one and returns one:
+
+<!-- gen js docs/book/code/integers/next-u.oro -->
+```javascript
+…
+export function integersNext(v0) {
+	const v6 = ((Number(v0 & 4294967295n)) + 1);
+	return ((BigInt((((((Number(v0 >> 32n)) + (Math.floor(v6 / 2 ** Math.min(32, 64)))) & 4294967295) >>> 0))) * 4294967296n + BigInt((((v6 & 4294967295) >>> 0)))));
+}
+```
+
+`v0 >> 32n` and `v0 & 4294967295n` take the `BigInt` apart into its halves once, at the
+door; the sum is done on the halves, its carry from the low half into the high one; and the
+answer is put back together as a `BigInt` for the caller.
+
 ## 6.12 A header carries claims
 
 Every header in this chapter has been making claims. Here is the form in full:

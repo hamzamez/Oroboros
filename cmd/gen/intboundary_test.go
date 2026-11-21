@@ -17,8 +17,12 @@ import (
 //     (`*big.Int`), not its word: PlantEntryIntIsTheWord refuses `square`'s
 //     product again, as the book's §0.5 printed;
 //  2. on JavaScript a bounded range above the word at an entry point is a
-//     `BigInt`, not the unsigned word's pair: PlantBoundedAboveTheWordIsTheWord
-//     refuses `wide(n ∈ 0..2^63-1)` there again;
+//     `BigInt`, not the unsigned word's pair: `wide(n ∈ 0..2^63-1)`, whose
+//     product is ℤ's, takes it whole. PlantBoundedAboveTheWordIsTheWord makes
+//     it the word again, which was refused until an entry point's parameter in
+//     U entered the pair (pairsel-2026-11-21's gap 1); now it is split into the
+//     pair's digits and put straight back, a round trip, so the witness is the
+//     text: no split without the plant, the split with it;
 //  3. a result declared `Int` is ℤ, its yields demanded: PlantResultIntIsTheWord
 //     refuses finding 27's `medium` on JavaScript, its product a pair at `Int`;
 //  4. `decimal` of a value in the word is the host's own formatting,
@@ -43,12 +47,13 @@ func TestIntIsTheIntegersAtTheBoundary(t *testing.T) {
 	emit.PlantEntryIntIsTheWord = false
 
 	const wide = "export fn wide(n ∈ 0..2^63-1) (0..2^126) { n * n }\n"
-	if code, err := surfaceGen(t, "js", map[string]string{"p.oro": wide}); err != nil || !strings.Contains(code, "BigInt") {
-		t.Fatalf("wide on JavaScript: %v\n%s", err, code)
+	if code, err := surfaceGen(t, "js", map[string]string{"p.oro": wide}); err != nil || !strings.Contains(code, "BigInt") ||
+		strings.Contains(code, ">> 32n") {
+		t.Fatalf("wide on JavaScript: want its BigInt taken whole, no split: %v\n%s", err, code)
 	}
 	ir.PlantBoundedAboveTheWordIsTheWord = true
-	if _, err := surfaceGen(t, "js", map[string]string{"p.oro": wide}); err == nil {
-		t.Errorf("with the pair at the boundary, wide should be refused on JavaScript")
+	if code, err := surfaceGen(t, "js", map[string]string{"p.oro": wide}); err == nil && !strings.Contains(code, ">> 32n") {
+		t.Errorf("with the word at the boundary, wide should be split into the pair or refused on JavaScript:\n%s", code)
 	}
 	ir.PlantBoundedAboveTheWordIsTheWord = false
 

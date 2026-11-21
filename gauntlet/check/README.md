@@ -24,7 +24,7 @@ needing its own differential to pass.
 |---|---|
 | `vet` | `go vet ./...` |
 | `endings` | no carriage return in a tracked `eol=lf` text file **as the working tree holds it**, the set read off `git ls-files --eol` (checks-2026-11-16): git keeps the repository LF, but a file a tool rewrote with CRLF stays clean to git and is what the tests read |
-| `compiler` | `go test ./core/ ./emit/ ./ir/... ./cmd/...` |
+| `compiler` | `go test ./core/ ./emit/ ./ir/... ./cmd/...`, scheduled (below) |
 | `emission` | every `.oro` under `examples/`, `lib/` and `gauntlet/differential/cases/`, on every target, compared with the baseline in this directory — its output byte for byte, and what each compile cost |
 | `gauntlet` | the 33 files the gauntlet's harnesses call and windows32's runtime (`lib/rt/i686.ll`, ADR 0123), 34 in all, regenerated from [`gauntlet/regen.txt`](../regen.txt) (target, source, `-name`, output, then `gen`'s flags) and compared byte for byte with the committed copies. A difference fails, naming the file: run `bash gauntlet/regen.sh`, then time the harnesses that call it, as the rule for emission asks |
 | `ir` | the IR ([docs/spec/ir.md](../../docs/spec/ir.md) §11): the sweep runs `gen -ir`, so every program that emits is also lowered, verified (W1–W10) and printed to `.check/ir/`. This step fails if a program that emitted has no IR, a refused one has one, or `print ∘ read ∘ print ≠ print`. It keeps no baseline of its own until a printer reads the IR |
@@ -39,6 +39,23 @@ reported as it finishes (differential-2026-11-13). A full check took about 50 mi
 and about 4½ so. The emission step is about a minute plus 7 s for each suspect its gate pairs serially
 (its note prints its phases); its baseline should be the current compiler's, so after an accept on a
 slow machine leaves `compiletime.txt` behind, re-record it with `-accept "why" -retime` on a quiet one.
+
+**The compiler step is a schedule** (`cmd/check/groups.go`). Its tests are jobs of measured weight,
+[testtimes.txt](testtimes.txt), and `-testprocs` m (half the cores by default) is the processes it
+assumes at once. No schedule finishes before τ = max(maxᵢ wᵢ, Σw/m); a package heavier than τ is split
+into ⌈Wₚ/τ⌉ groups by Graham's LPT rule (within 4/3 of the optimum), each its own
+`go test -run '^(…)$'`, so a planted fault never leaks from one group into another; the lighter packages
+share one `go test`. The partition is checked: every test `go test -list` names must report in the
+`-json` stream, or the step fails naming it. A test the table does not know weighs its median;
+`-accept "why" -retime` re-records the table from the run.
+
+**An accept reuses a passing run of the same tree** (`cmd/check/verdict.go`). A run that writes no
+baseline records, in `.check/verdict.json`, every step's status under the hash of what it read: every
+file git would track, `go version` and `-tier2`, taken when it began and again when it ended (a tree
+edited during the run gets no record). `-accept` on a tree with that hash, its compiler and differential
+steps passing, runs the emission step alone, for the baselines it writes, and takes every other verdict
+from the record; its emission must be the recorded one, outcome for outcome, or the accept is refused.
+So a step pays one full run and an accept of a minute or so, not two full runs.
 
 **Every step runs**, whatever the others did, so one run reports everything. Exit codes:
 `0` all pass and emission is byte-identical, `1` a step failed, `2` emission changed or a compile got slower, and needs review.

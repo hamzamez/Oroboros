@@ -151,9 +151,14 @@ them and checked against the SDK's prototypes.
 *Updated 2026-11-21.* The latest assessment is [docs/assessment-2026-11-20.md](docs/assessment-2026-11-20.md);
 each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 
-**The plan in force** (hamza, 2026-11-20), in order, ahead of it **the check shortened**: the
-compiler's own tests split across processes, and a baseline accepted from a passing run of the same
-tree rather than a second run (a run is an hour today, and a step paid two):
+**The plan in force** (hamza, 2026-11-20), in order. Ahead of it, **the check shortened**, done
+(2026-11-21, [checktime](gauntlet/results/checktime-2026-11-21.md)): the compiler's own tests
+scheduled across processes by their measured times, and a change accepted from a passing run of the
+same tree rather than a second run, a full run 62 → 14–15 minutes and an accept after it under 3.
+Then **every integer computed as the integer it is** (decided 2026-11-21,
+[the research note](docs/sets-are-claims-research.md)): the double word on Go and the JVM, so an
+intermediate up to 2¹²⁷ needs no big integer on any target, and a value past it computed exactly
+and reported rather than refused:
 1. **The logic, its first three stages** (decided, [ADR 0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md)):
    claims with quantifiers, `∀ i ∈ 0..k-1 : b[i] != 0`, in a function's conditions and in `assert`,
    proven by the compiler's own procedures; a platform's documented promises believed with their

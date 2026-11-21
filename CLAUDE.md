@@ -104,15 +104,23 @@ wrong about half the time.
 **The current assessment is [assessment-2026-11-20.md](docs/assessment-2026-11-20.md)**; read it
 before planning. **The plan in force** (hamza, 2026-11-20: "yes, reorder", the logic first, since
 TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in order:
-0. **the check, shortened** (hamza, 2026-11-20: "agree, put it in the plan"): a run took 62 minutes,
-   35 of them `cmd/build`'s tests in one process (2,025 s; the compiler step was 16½ minutes on
-   2026-11-18), and a step paid it twice, a review run and an accepting run:
-   - `cmd/build`'s tests in several `go test` processes at once, each its own fault switches, so
-     no planted fault leaks into another test; each test's time measured first, the groups chosen
-     from it;
-   - `-accept` reuses the verdict of a passing run of the identical tree (the hash of what it
-     checked), writing the baselines only: the emitter is a function of its input, which the check
-     verifies, so a second run of the same tree decides nothing new;
+0. ~~**the check, shortened**~~ done ([checktime](gauntlet/results/checktime-2026-11-21.md)): the
+   compiler step a schedule, its 926 tests by measured weight onto `-testprocs` processes by Graham's
+   LPT, each group its own fault switches, every test checked to report; an `-accept` of a tree whose
+   last run passed reuses that run's verdicts (the hash of what it read), running the emission step
+   alone. A full run 62 → 13.8–15.4 min, an accept after it 165 s;
+0′. **a set is a claim, and ρ alone chooses** (hamza, 2026-11-21: "1. E on Go and the JVM, yes.
+   2. A an intermediate outside E yes 3. report is enough, a flag (-words is just a bonus option for
+   the compiler)", on [sets-are-claims-research.md](docs/sets-are-claims-research.md), findings 108,
+   116, 118), after item 0:
+   - E, the double word, on Go (`math/bits`) and the JVM (`Math.multiplyHigh`): ADR 0103 on every
+     host, closing finding 118 (the midpoint, the comparator, `x * 3 / 4`, `w * h <= N`, `a + b >
+     max` on every target);
+   - A: no declared set consents; an intermediate outside E is ℤ, reported; a refusal only at a sink;
+     `-words` an option making an operation held in ℤ a refusal; an ADR amending 0019 item 2, 0079
+     item 3 and 0148 item 1;
+   - the book's §6.9 rewritten with it: S, U, E, ℤ through the five programs, each the bug it is
+     elsewhere, its code on each target, its algebra and what it buys, measured;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -483,7 +491,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
 
 `go run ./cmd/check` passes every step: vet, endings, compiler, emission, gauntlet, ir, assemble,
 differential, book, tooling;
-emission first and alone (its gate times compiles), the rest at once, about 19 minutes (the compiler step's 16½ the long pole, 2026-11-18), plus 7 s for
+emission first and alone (its gate times compiles), the rest at once, about 14–15 minutes (the compiler step a schedule of 10 processes, `cmd/check/groups.go`, and the book the two poles, 2026-11-21; an `-accept` of a tree whose last run passed reuses its verdicts, about 3 minutes), plus 7 s for
 each suspect the compile-time gate pairs (differential-2026-11-13).
 
 **The pipeline.** J's reader (`core/jlex.go`, `jparse.go`, `jreadtarget.go`) builds abstract Oroboros's

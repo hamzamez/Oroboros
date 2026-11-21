@@ -14,7 +14,8 @@
 // reading the emission step's output (differential-2026-11-13):
 //
 //	vet          go vet ./...
-//	compiler     go test ./core/ ./emit/ ./ir/... ./cmd/...
+//	compiler     go test ./core/ ./emit/ ./ir/... ./cmd/..., its tests scheduled
+//	             onto -testprocs processes by their measured weights (groups.go)
 //	emission     every .oro under examples/, lib/ and the differential cases, on
 //	             every target, compared with the baseline committed in gauntlet/check/
 //	gauntlet     the files the gauntlet's harnesses call, regenerated from
@@ -85,6 +86,9 @@ type checker struct {
 	tier    string // "" for the four targets; "windows32" for the second tier
 	jobs    int
 	results map[string]result
+	// testProcs is m, the processes the compiler step's schedule assumes at
+	// once (groups.go)
+	testProcs int
 
 	// What the emission step found, for -accept to act on once every step has run.
 	emitted     []outcome
@@ -173,6 +177,7 @@ func main() {
 	regen := flag.String("regen", "", "write the gauntlet's generated files (gauntlet/regen.txt) under this directory, `.` for the gauntlet itself, and exit")
 	retime := flag.Bool("retime", false, "with -accept: re-record the compile-time baseline even when no compile crossed the rule")
 	tier2 := flag.Bool("tier2", false, "add the second tier, windows32: its emission against gauntlet/check/windows32/ and its differential")
+	testProcs := flag.Int("testprocs", max(runtime.NumCPU()/2, 1), "m, the processes the compiler step's tests are scheduled onto (cmd/check/groups.go)")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: check [-skip S,…] [-only S,…] [-accept REASON]\n"+
 			"steps: %s\n", strings.Join(stepNames, ", "))
@@ -191,6 +196,8 @@ func main() {
 		jobs:    *jobs,
 		results: map[string]result{},
 		retime:  *retime,
+
+		testProcs: *testProcs,
 	}
 	if err := os.MkdirAll(filepath.Join(c.work, "logs"), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, "check:", err)
@@ -216,11 +223,7 @@ func main() {
 	steps := []step{
 		{"vet", func(c *checker) result { return c.command("vet", c.root, "go", "vet", "./...") }},
 		{"endings", (*checker).endings},
-		{"compiler", func(c *checker) result {
-			// a package's own timeout is 10 minutes, and ir's tests take about 8
-			// under the load of the steps beside them
-			return c.command("compiler", c.root, "go", "test", "-count=1", "-timeout", "40m", "./core/", "./emit/", "./ir/...", "./cmd/...")
-		}},
+		{"compiler", (*checker).compilerStep},
 		{"emission", (*checker).emission},
 		{"gauntlet", (*checker).gauntlet},
 		{"ir", (*checker).ir},
@@ -256,6 +259,23 @@ func main() {
 		os.Exit(2)
 	}
 
+	// THE INPUT'S HASH, and an accept of a tree whose last run passed reuses that
+	// run's verdicts, running the emission step alone for its baselines (verdict.go)
+	began, hashErr := c.inputHash(*tier2)
+	var reused *runRecord
+	if *accept != "" && hashErr == nil {
+		if v, ok := c.readVerdict(); ok {
+			if why := reuseRefusal(v, began, c, c32); why == "" {
+				reused = &v
+				fmt.Printf("── reusing the verdict of the run of this tree that ended %s: the emission step runs, every other step's verdict is that run's\n", v.When)
+			} else {
+				fmt.Printf("── every step runs: %s\n", why)
+			}
+		} else {
+			fmt.Println("── every step runs: no run of this tree is recorded")
+		}
+	}
+
 	// THE EMISSION STEP ALONE, then every other step at once, each reported as it
 	// finishes; a step's own lines on a failure come before its result.
 	var mu sync.Mutex
@@ -277,6 +297,8 @@ func main() {
 		switch {
 		case (len(only) > 0 && !only[s.name]) || skipped[s.name]:
 			c.results[s.name] = result{status: skip}
+		case reused != nil && s.name != "emission" && s.name != "emission-windows32":
+			c.results[s.name] = result{status: reused.Steps[s.name], detail: "reused — " + reused.Details[s.name]}
 		case s.name == "emission" || s.name == "emission-windows32":
 			fmt.Printf("── %s, alone\n", s.name)
 			runStep(s)
@@ -300,6 +322,32 @@ func main() {
 		}()
 	}
 	wg.Wait()
+
+	// A REUSED VERDICT HOLDS ONLY IF THE EMISSION IS THE ONE IT REVIEWED
+	if reused != nil {
+		for _, e := range []struct {
+			name string
+			c    *checker
+		}{{"emission", c}, {"emission-windows32", c32}} {
+			if e.c == nil || !e.c.emissionRan {
+				continue
+			}
+			if !sameEmission(*reused, e.name, emissionDigest(e.c.emitted)) {
+				c.results[e.name] = result{status: fail, detail: "the emission is not the one the reused run reviewed: " +
+					"the emitter is not a function of its input, or the tree changed — run the check again"}
+			}
+		}
+	}
+	if *accept == "" && hashErr == nil {
+		digests := map[string]string{}
+		if c.emissionRan {
+			digests["emission"] = emissionDigest(c.emitted)
+		}
+		if c32 != nil && c32.emissionRan {
+			digests["emission-windows32"] = emissionDigest(c32.emitted)
+		}
+		c.recordRun(began, *tier2, digests)
+	}
 
 	if *accept != "" {
 		c.acceptRun(*accept)
@@ -363,6 +411,12 @@ func (c *checker) acceptRun(reason string) {
 	if err := c.acceptBaseline(reason, tooling); err != nil {
 		c.results[es] = result{status: fail, detail: "accepting: " + err.Error()}
 		return
+	}
+	if c.retime && c.tier == "" {
+		// THE COMPILER STEP'S WEIGHTS, re-recorded from this run (groups.go)
+		if b, err := os.ReadFile(filepath.Join(c.work, "testtimes.txt")); err == nil {
+			_ = os.WriteFile(filepath.Join(c.root, "gauntlet", "check", "testtimes.txt"), b, 0o644)
+		}
 	}
 	fmt.Printf("\n── accept: the baseline is this run's emission; logged in %s/ACCEPTED.md\n", c.baseRel())
 	what := fmt.Sprintf("ACCEPTED %d change(s)", len(c.changes))

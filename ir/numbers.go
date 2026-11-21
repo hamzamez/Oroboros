@@ -463,13 +463,51 @@ func (n *numbers) region(r *Region) {
 		for _, sub := range s.Sub {
 			n.region(sub)
 		}
+		at := len(r.Stmts)
 		n.stmt(r, s)
+		inheritSrc(r.Stmts[at:], provenance(&s))
 	}
 	if r.T == TBranch {
 		n.region(r.Then)
 		n.region(r.Else)
 	}
 }
+
+// inheritSrc gives each statement a rewrite made, and each statement of the
+// regions it made, the provenance of the statement it rewrote (Of), where it
+// has none of its own. PROVENANCE IS PRESERVED BY REWRITING: a statement a
+// pass derives from s computes part of the same source operation, so a
+// diagnostic naming it names s. Without it the exactness report named a
+// scaled decimal's subtraction and division by their kinds, `sub; div`, and a
+// refusal said `mul … in mul` (chapter 8's ring on JavaScript). Of and not
+// Src: Src also says which name a statement lowers, and set to a rounding's
+// application it made the derived division a host's (langOp), out of ℤ.
+func inheritSrc(stmts []Stmt, src *core.Term) {
+	if src == nil || PlantSrcNotInherited {
+		return
+	}
+	var region func(r *Region)
+	region = func(r *Region) {
+		inheritSrc(r.Stmts, src)
+		if r.T == TBranch {
+			region(r.Then)
+			region(r.Else)
+		}
+	}
+	for i := range stmts {
+		if stmts[i].Src == nil && stmts[i].Of == nil {
+			stmts[i].Of = src
+		}
+		for _, sub := range stmts[i].Sub {
+			region(sub)
+		}
+	}
+}
+
+// PlantSrcNotInherited leaves a rewritten statement's provenance empty: the
+// report names a scaled decimal's division `div` again
+// (TestTheReportNamesEveryOperation).
+var PlantSrcNotInherited bool
 
 // stmt appends to r the rewrite of s.
 func (n *numbers) stmt(r *Region, s Stmt) {

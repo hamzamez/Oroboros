@@ -230,6 +230,22 @@ type Stmt struct {
 	// prove). It is in memory only, like the facts: never printed, never read,
 	// and nothing a printer or a pass decides reads it (spec §12).
 	Src *core.Term
+	// Of is the source application a rewrite derived this statement from, where
+	// the statement lowers none of its own (a scaled decimal's subtraction,
+	// derived from its rounding): for a diagnostic only, as Src is, and kept
+	// apart from Src because Src also says which name a statement lowers
+	// (langOp reads it), and a derived statement is the language's
+	// operation whatever its source was. provenance reads Src, then Of.
+	Of *core.Term
+}
+
+// provenance is the source application a diagnostic names for s: the one it lowers,
+// else the one a rewrite derived it from (Of); nil where neither is known.
+func provenance(s *Stmt) *core.Term {
+	if s.Src != nil {
+		return s.Src
+	}
+	return s.Of
 }
 
 // Term is a region's terminator (spec §1.3).

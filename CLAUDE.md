@@ -136,8 +136,11 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      `pair_bigint`'s inverse; ~~3, the one set checked at its claims~~ done (ADR 0152,
      [oneset](gauntlet/results/oneset-2026-11-21.md)): a fit at each claim above the word and at
      each operation the decision does not bound, none at a finite fact; fixed limbs left where an
-     intermediate passes their width. Next: the report listing every operation; a program all ℤ
-     by an unbounded loop counter;
+     intermediate passes their width. Then (hamza, 2026-11-22: "1A then 2A"): ~~the report
+     listing every operation~~ done ([report](gauntlet/results/report-2026-11-22.md)): D_A whole,
+     a derived statement named in its source (`Of`); next 2A, the double word as a loop
+     variable's representation (a sum bounded inside E held in ℤ, `upto`), then the windows IR_P
+     and JVM map-literal tasks;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));

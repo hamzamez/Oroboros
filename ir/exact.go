@@ -108,12 +108,21 @@ func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, exactRepo
 			return // it would carry ℤ into a sink: a word, refused or trapped
 		}
 		out[v] = true
-		src := s.Op.String()
-		if s.Src != nil {
-			src = core.ShowTerm(s.Src) // as J writes it
+		// EACH OPERATION BY ITS SOURCE, as J writes it: the application it lowers,
+		// or, derived by a rewrite (Of), its own kind in the application it was
+		// derived from, so two from one rounding are told apart
+		short := func(t string) string {
+			if len(t) > 48 {
+				return t[:45] + "..."
+			}
+			return t
 		}
-		if len(src) > 48 {
-			src = src[:45] + "..."
+		src := s.Op.String()
+		switch {
+		case s.Src != nil:
+			src = short(core.ShowTerm(s.Src))
+		case s.Of != nil:
+			src = s.Op.String() + " in " + short(core.ShowTerm(s.Of))
 		}
 		if ofU {
 			rep.pair.add(src)
@@ -144,7 +153,8 @@ func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, exactRepo
 // of U where the pair does not compute them.
 type exactReport struct{ past, pair opList }
 
-// opList counts operations and keeps the first four as written.
+// opList is the operations held exactly, each as written: the whole list, so
+// the report is D_A itself and not a sample of it (hamza, "report is enough").
 type opList struct {
 	n    int
 	srcs []string
@@ -152,10 +162,14 @@ type opList struct {
 
 func (l *opList) add(src string) {
 	l.n++
-	if len(l.srcs) < 4 {
+	if !PlantReportFirstFour || len(l.srcs) < 4 {
 		l.srcs = append(l.srcs, src)
 	}
 }
+
+// PlantReportFirstFour keeps the first four, as before: a fifth operation is
+// then missing from the report (TestTheReportNamesEveryOperation).
+var PlantReportFirstFour bool
 
 func (l opList) String() string {
 	more := ""
@@ -166,7 +180,7 @@ func (l opList) String() string {
 }
 
 // exactNotes is the report of D_A: how many operations the machine's readings
-// do not hold, computed as the integers they are, and the first of them; on a
+// do not hold, computed as the integers they are, and each of them; on a
 // target whose U is a pair, those of U it holds exactly for want of the pair's
 // operation, a separate line, since they are not past the words.
 func exactNotes(name string, r exactReport) []string {

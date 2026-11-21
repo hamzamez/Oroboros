@@ -333,8 +333,8 @@ func srcName(s *Stmt) string {
 // source application, as the term analysis wrote it.
 func unprovenLine(s *Stmt, v iv) string {
 	src := s.Op.String()
-	if s.Src != nil {
-		src = core.ShowTerm(s.Src) // the program's term, as J writes it (spec/j.md §6.1)
+	if t := provenance(s); t != nil {
+		src = core.ShowTerm(t) // the program's term, as J writes it (spec/j.md §6.1)
 	}
 	if len(src) > 64 {
 		src = src[:61] + "..."

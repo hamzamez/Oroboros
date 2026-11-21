@@ -142,7 +142,10 @@ func TestATablesElementIsAWord(t *testing.T) {
 // the entry, and assumeWhere dropped the whole `where` for it, len(t) <= 10^9
 // with it: the search's loop variables then widened past the signed word and
 // the result, an `Int` of them, was refused. Only a conjunct naming x means
-// something else above the word. PlantWhereDroppedWhole drops it all again.
+// something else above the word. PlantWhereDroppedWhole drops it all again,
+// and `sq`'s n, bounded only by its conjuncts beside x's, is ℤ and its square
+// leaves the claim (the search itself is proven since ADR 0148 without the
+// bound: its midpoint is decided in the word).
 func TestAWheresWordConjunctsAreAssumed(t *testing.T) {
 	const search = "fn half(lo, hi) { lo + (hi - lo) / 2 }\n\n" +
 		"export fn search(t ∈ Array(Int), x ∈ Int) (Int) where len(t) <= 10^9 {\n" +
@@ -155,10 +158,14 @@ func TestAWheresWordConjunctsAreAssumed(t *testing.T) {
 	if code, err := onGo(t, search); err != nil || !strings.Contains(code, "func GenSearch(v0 []int, v1 *big.Int) int") {
 		t.Fatalf("search with x ∈ Int: %v\n%s", err, code)
 	}
+	const sq = "export fn sq(n ∈ Int, x ∈ Int) (0..1000000) where 0 <= n && n <= 1000 && x > 0 { n * n }\n"
+	if code, err := onGo(t, sq); err != nil || !strings.Contains(code, "func GenSq(v0 int, v1 *big.Int) int") {
+		t.Fatalf("sq with n bounded by its conjuncts: %v\n%s", err, code)
+	}
 	ir.PlantWhereDroppedWhole = true
 	defer func() { ir.PlantWhereDroppedWhole = false }()
-	if _, err := onGo(t, search); err == nil {
-		t.Errorf("with the whole where dropped, search should be refused")
+	if _, err := onGo(t, sq); err == nil {
+		t.Errorf("with the whole where dropped, sq should be refused")
 	}
 }
 

@@ -27,8 +27,11 @@
 //     between the two, the SPLINTERS a·z = L + i for i = 0 … ⌊(a·m − a − m)/m⌋,
 //     m the largest upper coefficient, are each decided.
 //
-// The procedure is complete for the integers. It may still answer "unknown":
-// when a coefficient would leave int64, or past a budget of steps (the problem
+// The procedure is complete for the integers. A row's constant is an integer of
+// any size (formula.go's Lin), since an elimination's constants are the
+// program's facts' ends combined, and those include the word's own; a
+// coefficient stays an int64. It may still answer "unknown": when a
+// coefficient would leave int64, or past a budget of steps (the problem
 // is NP-complete, and the worst case of the splinters is exponential). Unknown is
 // reported as such and never as an answer.
 package presburger
@@ -37,6 +40,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"strings"
 )
@@ -44,7 +48,7 @@ import (
 // A Constraint is Σ Coef[x]·x + K ≥ 0, or = 0 when Eq.
 type Constraint struct {
 	Coef map[string]int64
-	K    int64
+	K    *big.Int // nil is 0
 	Eq   bool
 }
 
@@ -81,7 +85,7 @@ func Satisfiable(cs []Constraint) (r Result) {
 	}()
 	p := make([]row, 0, len(cs))
 	for _, c := range cs {
-		r := row{coef: map[string]int64{}, k: c.K, eq: c.Eq}
+		r := row{coef: map[string]int64{}, k: kOf(c.K), eq: c.Eq}
 		for x, a := range c.Coef {
 			if a != 0 {
 				r.coef[x] = a
@@ -97,7 +101,7 @@ func Satisfiable(cs []Constraint) (r Result) {
 
 type row struct {
 	coef map[string]int64
-	k    int64
+	k    *big.Int // never written in place: a row's constant may be shared
 	eq   bool
 }
 
@@ -106,7 +110,7 @@ func (r row) String() string {
 	if r.eq {
 		op = "="
 	}
-	return fmt.Sprintf("%v + %d %s 0", r.coef, r.k, op)
+	return fmt.Sprintf("%v + %s %s 0", r.coef, r.k, op)
 }
 
 func (r row) clone() row {
@@ -150,7 +154,7 @@ func normalize(p []row) ([]row, bool) {
 	out := p[:0:0]
 	for _, r := range p {
 		if len(r.coef) == 0 {
-			if r.eq && r.k != 0 || !r.eq && r.k < 0 {
+			if r.eq && r.k.Sign() != 0 || !r.eq && r.k.Sign() < 0 {
 				return nil, false
 			}
 			continue
@@ -161,13 +165,15 @@ func normalize(p []row) ([]row, bool) {
 		}
 		if g > 1 {
 			r = r.clone() // rows are shared between branches: never divide one in place
+			G := big.NewInt(g)
 			if r.eq {
-				if r.k%g != 0 {
+				q, m := new(big.Int).QuoRem(r.k, G, new(big.Int))
+				if m.Sign() != 0 {
 					return nil, false
 				}
-				r.k /= g
+				r.k = q
 			} else {
-				r.k = floorDiv(r.k, g)
+				r.k = new(big.Int).Div(r.k, G) // Euclidean, so ⌊k/g⌋ for g > 0
 			}
 			for x, a := range r.coef {
 				r.coef[x] = a / g
@@ -191,7 +197,7 @@ func (s *solver) eliminateEquality(p []row, i int) []row {
 	}
 	if abs(ak) == 1 {
 		// xₖ = −(Σ_{j≠k} aⱼxⱼ + c)/aₖ, and aₖ = ±1.
-		def := row{coef: map[string]int64{}, k: mul(-e.k, ak)}
+		def := row{coef: map[string]int64{}, k: new(big.Int).Mul(e.k, big.NewInt(-ak))}
 		for x, a := range e.coef {
 			if x != k {
 				def.coef[x] = mul(-a, ak)
@@ -216,7 +222,7 @@ func (s *solver) eliminateEquality(p []row, i int) []row {
 	}
 	s.fresh++
 	sigma := fmt.Sprintf("σ%d", s.fresh)
-	def := row{coef: map[string]int64{sigma: mul(-m, sign)}, k: mul(modHat(e.k, m), sign)}
+	def := row{coef: map[string]int64{sigma: mul(-m, sign)}, k: new(big.Int).Mul(modHatBig(e.k, m), big.NewInt(sign))}
 	for x, a := range e.coef {
 		if x != k {
 			if h := modHat(a, m); h != 0 {
@@ -236,6 +242,14 @@ func modHat(a, m int64) int64 {
 	return a - m*floorDiv(add(mul(2, a), m), mul(2, m))
 }
 
+// modHatBig is modHat of an integer of any size; its value lies in (−m/2, m/2].
+func modHatBig(a *big.Int, m int64) *big.Int {
+	M := big.NewInt(m)
+	num := new(big.Int).Add(new(big.Int).Mul(big.NewInt(2), a), M)
+	q := new(big.Int).Div(num, new(big.Int).Mul(big.NewInt(2), M)) // ⌊·⌋, 2m > 0
+	return new(big.Int).Sub(a, new(big.Int).Mul(M, q))
+}
+
 // substitute replaces x in r by the linear expression def (coefficients and
 // constant).
 func substitute(r row, x string, def row) row {
@@ -251,7 +265,7 @@ func substitute(r row, x string, def row) row {
 			delete(out.coef, y)
 		}
 	}
-	out.k = add(out.k, mul(a, def.k))
+	out.k = new(big.Int).Add(out.k, new(big.Int).Mul(big.NewInt(a), def.k))
 	return out
 }
 
@@ -328,9 +342,9 @@ func (s *solver) solveInequalities(p []row) bool {
 						delete(r.coef, x)
 					}
 				}
-				r.k = add(mul(b, lo.k), mul(a, up.k))
+				r.k = new(big.Int).Add(new(big.Int).Mul(big.NewInt(b), lo.k), new(big.Int).Mul(big.NewInt(a), up.k))
 				if dark {
-					r.k = add(r.k, -mul(a-1, b-1))
+					r.k = new(big.Int).Sub(r.k, big.NewInt(mul(a-1, b-1)))
 				}
 				out = append(out, r)
 			}
@@ -361,7 +375,7 @@ func (s *solver) solveInequalities(p []row) bool {
 		for i := int64(0); i <= top; i++ {
 			eq := lo.clone()
 			eq.eq = true
-			eq.k = add(eq.k, -i)
+			eq.k = new(big.Int).Sub(eq.k, big.NewInt(i))
 			q := append(append([]row(nil), p...), eq)
 			if s.solve(q) {
 				return true
@@ -381,7 +395,7 @@ func parallel(p []row) ([]row, bool) {
 	for i, r := range p {
 		keys[i] = vecKey(r.coef, 1)
 		if j, ok := best[keys[i]]; ok {
-			if r.k < out[j].k {
+			if r.k.Cmp(out[j].k) < 0 {
 				out[j] = r
 			}
 			continue
@@ -390,7 +404,12 @@ func parallel(p []row) ([]row, bool) {
 		out = append(out, r)
 	}
 	for _, r := range out {
-		if j, ok := best[vecKey(r.coef, -1)]; ok && (add(r.k, out[j].k) < 0 || PlantParallelTouching && add(r.k, out[j].k) == 0) {
+		j, ok := best[vecKey(r.coef, -1)]
+		if !ok {
+			continue
+		}
+		sum := new(big.Int).Add(r.k, out[j].k).Sign()
+		if sum < 0 || PlantParallelTouching && sum == 0 {
 			return nil, true
 		}
 	}

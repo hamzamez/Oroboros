@@ -241,6 +241,11 @@ func (p *Program) AscribeWide(w Word) {
 	// under ADR 0026 the line is the target's: `(int 0 (pow 2 60))` is a word on
 	// Go and arbitrary precision on JavaScript. Loading is resolution (ADR 0011)
 	// and knows no target; the target's Env is where this belongs.
+	// A RESULT DECLARED `Int` is a claim, ℤ, and no demand: a helper's
+	// `(Int)` wrapped as ℤ's ascription demanded every value it returns above
+	// the signed word into the rung, ahead of the unsigned word, wherever a
+	// library helper was called (midpoint-2026-11-21); the consent at a
+	// binder, `x ∈ Int = e`, is the author's at one place (desugar.go)
 	for q, sig := range p.Sigs {
 		body, ok := p.Defs[q]
 		if !ok || sig == nil || w.ValueType(sig.Result) != BigType { // above the word, ℤ included

@@ -1,0 +1,36 @@
+// BLOCH'S MIDPOINT AT THE WORD'S ENDS, PROVEN AND IN THE WORD, EVERYWHERE.
+//
+// Over full words `(lo + hi) / 2` leaves the word (Bloch 2006: the JDK's binary
+// search, 2^30 elements), and `lo + (hi - lo) / 2` under `lo <= hi` does not:
+// d = hi − lo ∈ [0, 2⁶⁴ − 1], q = ⌊d/2⌋ with 2q ≤ d ≤ 2q + 1, so 0 ≤ q ≤ d and
+// lo ≤ lo + q ≤ hi. The `where` makes d's interval the unsigned word's (the zone
+// entry hi − lo ≥ 0, assumeDiff), and the sum's is decided by Presburger
+// arithmetic (ir/relate.go), where the intervals give [−2⁶³, 2⁶⁴ − 2]. So
+// d is held in the unsigned word and lo + q in the signed one: Go's
+// `uint64(hi) - uint64(lo)`, LLVM's `sub`, `udiv`, `add nsw`; the JVM's long
+// read unsigned; JavaScript, whose word is ±(2⁵³ − 1), its BigInt.
+//
+// Input n: lo = −2⁶³ + n, hi = 2⁶³ − 1 − n, whose midpoint is −1 (d is odd,
+// 2⁶⁴ − 1 − 2n), and the pair (2⁶³ − 1 − 2n, 2⁶³ − 1), whose midpoint is
+// 2⁶³ − 1 − n, the top of the word reached exactly.
+//
+// On JavaScript the call inlined at constant arguments holds hi − lo, 2⁶⁴ − 1 − 2n,
+// as the unsigned word's pair of digits, and lo + q adds that pair to a negative
+// word, which ir/pairs.go has no signed reading for (the book's finding 114);
+// the export itself compiles there, over BigInt.
+// skip: js because "outside the unsigned word it would be held in"
+// inputs: 0 1 5
+// prints: string
+// expect: -1/9223372036854775807 -1/9223372036854775806 -1/9223372036854775802
+export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) where lo <= hi {
+    lo + (hi - lo) / 2
+}
+
+fn run(n ∈ 0..5) {
+    // ∈ Int: the ends of S₆₄, past JavaScript's word, held exactly there
+    bot ∈ Int = -9223372036854775808
+    top ∈ Int = 9223372036854775807
+    a = mid(bot + n, top - n)
+    b = mid(top - 2 * n, top)
+    decimal(a) ++ "/" ++ decimal(b)
+}

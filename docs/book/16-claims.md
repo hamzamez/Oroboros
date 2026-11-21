@@ -136,23 +136,44 @@ with every operation it could not bound.)
 They have one blind spot, and it is a large one. **An interval describes each value alone.**
 It cannot record that two values are related.
 
-<!-- file docs/book/code/claims/no-gap.oro -->
+<!-- file docs/book/code/claims/through.oro -->
+```go
+export fn gap(a ∈ 0..100, b ∈ 0..100, c ∈ 0..100) (0..100) where a <= c && c <= b { b - a }
+```
+
+`b - a`, with `a <= c` and `c <= b`, is plainly between 0 and 100. But as intervals, `b` is
+0..100 and `a` is 0..100, and 0..100 minus 0..100 is −100..100: the smallest `b` minus the
+largest `a`. The facts that make the claim true are relations *between* names, and an interval
+has nowhere to put them. It compiles all the same:
+
+<!-- gen go docs/book/code/claims/through.oro -->
+```
+note: claims-gap: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+```
+
+because a claim that intervals do not establish is not refused yet: it goes to the second
+method, facts (16.4), which reads `a <= c` and `c <= b` together and finds `a <= b`.
+
+Intervals themselves do keep two kinds of relation, the ones a program writes as a single
+comparison of two names. A `where` is one, everywhere in the function:
+
+<!-- file docs/book/code/claims/where-gap.oro -->
 ```go
 export fn gap(a ∈ 0..100, b ∈ 0..100) (0..100) where a <= b { b - a }
 ```
 
-<!-- gen go docs/book/code/claims/no-gap.oro -->
-```
-gen: gap: the body does not establish 0 <= result && result <= 100; its result is [-100, 100]
+<!-- gen go docs/book/code/claims/where-gap.oro -->
+```go
+func ClaimsGap(v0 int, v1 int) int {
+    v31 := (v1 - v0)
+    return v31
+}
 ```
 
-`b - a`, with `a <= b`, is plainly between 0 and 100. But as intervals, `b` is 0..100 and
-`a` is 0..100, and 0..100 minus 0..100 is −100..100: the smallest `b` minus the largest `a`.
-The fact that makes the claim true, `a <= b`, is a relation *between* the two, and an
-interval has nowhere to put it. A function's result claim is decided by intervals, so this
-one is refused.
-
-There is one relation intervals do keep: the one a branch's condition states, inside that branch.
+`a <= b` is the statement `b - a >= 0`, a bound on a *difference*, and the compiler keeps it
+beside the intervals: `b - a` meets it and is 0..100. A table of such bounds, one per pair of
+names, is what the literature calls a **zone** (Antoine Miné, 2001), and the compiler keeps
+only the entries a program wrote. A branch's condition is the other kind, inside its branch:
 
 <!-- file docs/book/code/claims/guard-gap.oro -->
 ```go
@@ -166,9 +187,8 @@ note: claims-gap: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven termi
 
 Inside `if a <= b`, each name carries the comparison that let it in, and `b - a` meets it: with
 `a <= b`, `b - a` is at least 0, and at most 100 − 0. In the other branch, `a > b`, so `a - b` is
-at least 1. A `where` is not a branch: it is a promise about every call, and the method that
-reads it is the next one. This is the one entry of a relation between two values that a
-condition writes down, and it is enough for Euclid's oldest form, which subtracts:
+at least 1. This is the one entry of a zone that a condition writes down, and it is enough for
+Euclid's oldest form, which subtracts:
 
 <!-- file docs/book/code/claims/subtract.oro -->
 ```go
@@ -1056,7 +1076,6 @@ this book has walked into.
 
 | the true thing | why it is not found | seen in |
 |---|---|---|
-| `n * n >= 0` | a product of two unknowns is not linear | below |
 | `row * width + col >= 0` | the same | 12 |
 | `p * i` stays small over 20 trips | intervals multiply the bounds: 20²⁰ | 11 |
 | `n mod 2` is 0 or 1, as a position | the same, for `mod` | below |
@@ -1065,19 +1084,27 @@ this book has walked into.
 | `hi - lo` shrinks from both ends | termination looks for one variable moving | 12 |
 | each `a[i] <= a[i+1]` gives `a[0] <= a[n-1]` | a chain of n steps: induction, not one instance | below |
 
-<!-- file docs/book/code/claims/no-square.oro -->
+One product is not on the list, and it shows how a wall is taken down:
+
+<!-- file docs/book/code/claims/square.oro -->
 ```go
 export fn square(n ∈ -1000..1000) (r ∈ Int) ensure r >= 0 { n * n }
 ```
 
-<!-- gen go docs/book/code/claims/no-square.oro -->
-```
-gen: square: the body does not establish result >= 0; its result is [-1000000, 1000000]
+<!-- gen go docs/book/code/claims/square.oro -->
+```go
+func ClaimsSquare(v0 int) int {
+    v9 := (v0 * v0)
+    return v9
+}
 ```
 
 A square is never negative, and a child knows it. As intervals, −1000..1000 times
 −1000..1000 is −1000000..1000000, because the method does not know the two factors are the
-same number.
+same number. The facts know one thing about products: `n * n` is an unknown of its own, with
+the fact `0 <= n * n` attached, a theorem stated once for every square. Intervals miss the
+claim, the facts are asked, and the fact is the claim. Any other product of two unknowns is
+still outside: the theorem is about a square, and `row * width` is none.
 
 <!-- file docs/book/code/claims/no-mod.oro -->
 ```go

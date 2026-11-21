@@ -25,24 +25,53 @@ package presburger
 
 import (
 	"fmt"
+	"math/big"
 	"sort"
 	"strings"
 )
 
 // Lin is the linear term Σ Coef[x]·x + K.
+//
+// THE CONSTANT IS AN INTEGER, NOT A WORD: the procedures decide arithmetic over
+// ℤ, and a program's facts carry the word's own ends, ±2⁶³, which one negation
+// or one combination by a coefficient 2 takes past int64. Held as a word, the
+// midpoint's lo + (hi − lo)/2 ≤ hi over full words overflowed and was
+// "unknown", so refused (the book's finding 108). The coefficients stay words:
+// they are the program's own, small, and never grow by more than the products
+// an elimination makes, which are checked.
 type Lin struct {
 	Coef map[string]int64
-	K    int64
+	K    *big.Int // nil is 0
 }
 
 // Const is the constant term k.
-func Const(k int64) Lin { return Lin{Coef: map[string]int64{}, K: k} }
+func Const(k int64) Lin { return Lin{Coef: map[string]int64{}, K: big.NewInt(k)} }
+
+// ConstBig is the constant term k, an integer of any size.
+func ConstBig(k *big.Int) Lin { return Lin{Coef: map[string]int64{}, K: new(big.Int).Set(k)} }
 
 // Var is the term x.
-func Var(x string) Lin { return Lin{Coef: map[string]int64{x: 1}} }
+func Var(x string) Lin { return Lin{Coef: map[string]int64{x: 1}, K: new(big.Int)} }
+
+// kOf is a constant, nil read as 0; a constant is never written in place, so
+// one may be shared.
+func kOf(k *big.Int) *big.Int {
+	if k == nil {
+		return new(big.Int)
+	}
+	return k
+}
+
+// KInt64 is a constant known to fit int64, nil read as 0.
+func KInt64(k *big.Int) int64 {
+	if k == nil {
+		return 0
+	}
+	return k.Int64()
+}
 
 func (a Lin) clone() Lin {
-	c := Lin{Coef: make(map[string]int64, len(a.Coef)), K: a.K}
+	c := Lin{Coef: make(map[string]int64, len(a.Coef)), K: kOf(a.K)}
 	for k, v := range a.Coef {
 		c.Coef[k] = v
 	}
@@ -58,9 +87,20 @@ func (a Lin) Add(b Lin, s int64) Lin {
 			delete(c.Coef, k)
 		}
 	}
-	c.K = add(c.K, mul(b.K, s))
+	c.K = new(big.Int).Add(kOf(c.K), new(big.Int).Mul(kOf(b.K), big.NewInt(s)))
+	if PlantConstantWord && !c.K.IsInt64() {
+		panic(errOverflow)
+	}
 	return c
 }
+
+// PlantConstantWord holds a term's constant in int64 again, an overflow
+// "unknown": the midpoint over full words is then refused
+// (TestAConstantPastTheWordIsAnInteger).
+var PlantConstantWord bool
+
+// KOf is a term's constant, nil read as 0.
+func KOf(a Lin) *big.Int { return kOf(a.K) }
 
 // Scale is s·a, checked.
 func (a Lin) Scale(s int64) Lin { return Const(0).Add(a, s) }
@@ -75,7 +115,7 @@ func (a Lin) String() string {
 	for _, k := range ks {
 		parts = append(parts, fmt.Sprintf("%d·%s", a.Coef[k], k))
 	}
-	parts = append(parts, fmt.Sprint(a.K))
+	parts = append(parts, kOf(a.K).String())
 	return strings.Join(parts, " + ")
 }
 
@@ -611,17 +651,17 @@ func simplify(f *Formula) *Formula {
 		if len(f.T.Coef) > 0 {
 			return f
 		}
-		k := f.T.K
+		k := kOf(f.T.K)
 		var v bool
 		switch f.Kind {
 		case FGe:
-			v = k >= 0
+			v = k.Sign() >= 0
 		case FEq:
-			v = k == 0
+			v = k.Sign() == 0
 		case FDiv:
-			v = k%f.D == 0
+			v = new(big.Int).Rem(k, big.NewInt(f.D)).Sign() == 0
 		case FNDiv:
-			v = k%f.D != 0
+			v = new(big.Int).Rem(k, big.NewInt(f.D)).Sign() != 0
 		}
 		if v {
 			return True
@@ -663,7 +703,7 @@ func (d *decider) sat(lits []*Formula) Result {
 	props := map[string]bool{}
 	var cs []Constraint
 	con := func(t Lin, eq bool) {
-		cs = append(cs, Constraint{Coef: t.Coef, K: t.K, Eq: eq})
+		cs = append(cs, Constraint{Coef: t.Coef, K: kOf(t.K), Eq: eq})
 	}
 	for _, a := range lits {
 		switch a.Kind {

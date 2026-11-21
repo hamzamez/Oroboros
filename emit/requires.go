@@ -728,7 +728,13 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 			if core.HasFormula(cond) || len(g.formulas) > 0 && !r.proveCond(cond, g) {
 				return r.formulaHolds(cond, g)
 			}
-			return r.proveCond(cond, g) || (t.Kids[1].Str == ClaimFormulaDef || t.Kids[1].Str == core.AssertDef) && r.formulaHolds(cond, g)
+			// AND ARITHMETIC THE LINEAR FRAGMENT CANNOT HOLD: its constants are
+			// int64, so `bot + n <= top - n` at S₆₄'s ends, −2⁶³ − (2⁶³ − 1) + 2n
+			// ≤ 0, is no linear term there; the Omega test's constants are
+			// exact (presburger.Lin), so the logic decides it before the
+			// program is refused (PlantObligationLinearOnly)
+			return r.proveCond(cond, g) || (t.Kids[1].Str == ClaimFormulaDef || t.Kids[1].Str == core.AssertDef ||
+				!PlantObligationLinearOnly && arithClaim(cond)) && r.formulaHolds(cond, g)
 		}
 		if r.requires != nil && !proved() {
 			raw := t.Kids[1].Str
@@ -1291,6 +1297,37 @@ const ClaimFormulaDef = "the definition's claim"
 // by the refinement layer with every fact in scope, a formula by the logic's
 // procedures. The result's range, if declared, stays the interval route's.
 func DecideClaim(tg *Target, name string, sig *core.Sig, nf *core.Term) error {
+	return decideClaim(tg, name, sig, nf, false)
+}
+
+// DecideRangeClaim decides a postcondition of constant bounds, the result's
+// range among them, by the logic: the route for a claim the intervals do not
+// establish. The intervals are a non-relational domain, so the join of a
+// body's results forgets how they relate to the parameters: Bloch's midpoint
+// `lo + (hi - lo) / 2` under `lo <= hi` is in [lo, hi] ⊆ S₆₄, which is
+// lo ≤ lo + ⌊(hi − lo)/2⌋ ≤ hi, a Presburger sentence (q = ⌊d/2⌋ is
+// 2q ≤ d ≤ 2q + 1), while the intervals give its value [−2⁶³, 2⁶⁴ − 2].
+// The logic decides Presburger arithmetic exactly (Cooper's elimination, the
+// Omega test), so the route is sound, and complete for what it reads; what it
+// does not read, it refuses, and the intervals' refusal stands.
+func DecideRangeClaim(tg *Target, name string, sig *core.Sig, nf *core.Term) error {
+	if sig == nil || sig.Ensures == nil || PlantRangeClaimUnread {
+		return fmt.Errorf("no claim the logic reads")
+	}
+	s := *sig
+	s.ResultRange = nil // Stated is then the whole postcondition
+	if !arithClaim(s.Ensures) {
+		return fmt.Errorf("%s is not a claim the logic reads", core.ShowTerm(s.Ensures))
+	}
+	return decideClaim(tg, name, &s, nf, true)
+}
+
+// PlantRangeClaimUnread leaves a range claim the intervals do not establish
+// refused, as before: Bloch's midpoint is then refused on every target
+// (TestBlochsMidpointIsProven), so the witness can fail.
+var PlantRangeClaimUnread bool
+
+func decideClaim(tg *Target, name string, sig *core.Sig, nf *core.Term, bounds bool) error {
 	if sig == nil || sig.Ensures == nil {
 		return nil
 	}
@@ -1298,7 +1335,7 @@ func DecideClaim(tg *Target, name string, sig *core.Sig, nf *core.Term) error {
 	if st == nil {
 		return nil
 	}
-	if _, _, ok := EnsuresBounds(tg, st); ok && !core.HasFormula(st) {
+	if _, _, ok := EnsuresBounds(tg, st); ok && !core.HasFormula(st) && !bounds {
 		return nil // constant bounds: the interval route's
 	}
 	body, params := nf, []string(nil)
@@ -1394,6 +1431,11 @@ func mapTails(t *core.Term, leaf func(*core.Term) *core.Term) *core.Term {
 			return &core.Term{Kind: core.KApp, Kids: kids}
 		case n == "again":
 			return t
+		case n == core.AscribeName && len(args) == 2 && args[0].Kind == core.KStr:
+			// (the S e) is e's value, its claim decided apart (desugar.go), so
+			// its tails are e's: a result wrapped by its set above the word
+			// (AscribeWide) has its claim at its loop's exits
+			return core.App(t.Kids[0], args[0], mapTails(args[1], leaf))
 		}
 	}
 	// a continuation, ((p a…) (fn (x̄) b)), or a let as a redex, ((fn (x) b) e)
@@ -1411,3 +1453,8 @@ func mapTails(t *core.Term, leaf func(*core.Term) *core.Term) *core.Term {
 func loopTails(t *core.Term, leaf func(*core.Term) *core.Term) *core.Term {
 	return mapTails(t, leaf)
 }
+
+// PlantObligationLinearOnly decides a `where` at a call by the linear fragment
+// alone, as before: an obligation whose constants pass int64 is then refused,
+// `mid(bot + n, top - n)` at S₆₄'s ends (TestAnObligationPastInt64IsDecided).
+var PlantObligationLinearOnly bool

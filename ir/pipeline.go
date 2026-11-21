@@ -199,7 +199,11 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 		ens = &s
 	}
 	if err := CheckEnsures(tg, f, ens); err != nil {
-		return nil, nil, fmt.Errorf("%s: %v", name, err)
+		// THE INTERVALS FORGET RELATIONS: a claim they do not establish is
+		// decided by the logic before it is refused (emit.DecideRangeClaim)
+		if emit.DecideRangeClaim(tg, name, ens, nf) != nil {
+			return nil, nil, fmt.Errorf("%s: %v", name, err)
+		}
 	}
 	// A λ GIVEN TO A HOST ANSWERS IN ITS CLAIM'S RESULT (ADR 0143), decided
 	// here on ℤ's facts, as a postcondition is.

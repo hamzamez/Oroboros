@@ -182,6 +182,9 @@ func (d *desugarer) build(a Tail) *Term {
 		// (examples/os/du.oro, the first program to write one).
 		set := d.term(a.Set)
 		ty := TypeTerm(set)
+		if a.Name != "" {
+			ty = AscribedSet(ty) // `x ∈ Int = e` claims ℤ, the consent (ADR 0147)
+		}
 		if ty != "" {
 			set = Str(ty)
 		}

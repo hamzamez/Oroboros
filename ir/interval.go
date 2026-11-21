@@ -485,6 +485,14 @@ type intervals struct {
 	// receives it, ADR 0143), what it holds: the join of its initial value and
 	// every value stored through it. A read of it is that join.
 	held map[V]iv
+	// assumed is what the entry's assumptions say of differences: for a
+	// conjunct x rel y of a `where`, the half-line x − y lies in, keyed by the
+	// two values' places. It is the zone domain's entry (Miné 2001) that an
+	// assumption states, as guardDiff's is a guard's: the intervals keep x's and
+	// y's ranges and forget that the two were compared.
+	assumed map[[2]V]iv
+	// related is relate's answer per statement, with the question it answered
+	related map[*Stmt]relMemo
 }
 
 type exitFacts struct {
@@ -741,11 +749,11 @@ func (a *intervals) stmt(s *Stmt) {
 	case OGlobal:
 		one(a.declared(a.f.Types[s.Res[0]]))
 	case OAdd:
-		one(fact{v: addIV(args[0].v, args[1].v)})
+		one(fact{v: a.relate(s, addIV(args[0].v, args[1].v))})
 	case OSub:
-		one(fact{v: a.relSub(s.Args[0], s.Args[1], subIV(args[0].v, args[1].v))})
+		one(fact{v: a.relate(s, a.relSub(s.Args[0], s.Args[1], subIV(args[0].v, args[1].v)))})
 	case OMul:
-		one(fact{v: mulIV(args[0].v, args[1].v)})
+		one(fact{v: a.relate(s, mulIV(args[0].v, args[1].v))})
 	case ONeg:
 		one(fact{v: negIV(args[0].v)})
 	case ODiv:
@@ -753,7 +761,7 @@ func (a *intervals) stmt(s *Stmt) {
 		if top, ok := a.numeralQuotient(s.Args[0], s.Args[1]); ok {
 			q = meetIV(q, rangeE(ei(0), top))
 		}
-		one(fact{v: q})
+		one(fact{v: a.relate(s, q)})
 	case ORem:
 		one(fact{v: remIV(args[0].v, args[1].v)})
 	case OAnd:
@@ -1327,8 +1335,39 @@ func (a *intervals) assumeAs(c V, holds bool) {
 		}
 		a.narrowAssumed(d.Args[0], rel, a.fs[d.Args[1]].v)
 		a.narrowAssumed(d.Args[1], flip(rel), a.fs[d.Args[0]].v)
+		if PlantAssumedDiffUnnegated {
+			rel = relOf(d.Op)
+		}
+		a.assumeDiff(d.Args[0], d.Args[1], rel)
 	}
 }
+
+// assumeDiff records x rel y as x − y ∈ diffOf(rel), met with what is known.
+// An `assume` sits at the function's entry and values are immutable, so, as
+// for narrowAssumed, the difference holds wherever the two values are used.
+// Bloch's midpoint, `lo + (hi - lo) / 2` under `where lo <= hi`, is
+// hi − lo ∈ [0, 2⁶⁴ − 1] this way, inside the unsigned word, where the
+// intervals alone give [−2⁶⁴ + 1, 2⁶⁴ − 1], inside no word.
+func (a *intervals) assumeDiff(x, y V, rel string) {
+	if a.def[x] != nil && a.def[x].Op == OLen || a.def[y] != nil && a.def[y].Op == OLen {
+		return // a length's comparison is narrowAssumed's, on the table
+	}
+	if a.assumed == nil {
+		a.assumed = map[[2]V]iv{}
+	}
+	k := [2]V{a.pl(x), a.pl(y)}
+	if old, ok := a.assumed[k]; ok {
+		a.assumed[k] = meetIV(old, diffOf(rel))
+	} else {
+		a.assumed[k] = diffOf(rel)
+	}
+}
+
+// PlantAssumedDiffUnnegated records a comparison assumed FALSE as if it held:
+// under `where !(lo <= hi)`, hi − lo ≥ 0, so a result `(Nat)` of hi − lo is
+// accepted where every execution makes it negative
+// (TestAWhereBoundsItsDifference).
+var PlantAssumedDiffUnnegated bool
 
 // assumeRegion assumes that region r's one boolean result is true: every
 // execution past the assumption took the path through r that yields true.
@@ -2186,6 +2225,9 @@ func (a *intervals) relSub(x, y V, r iv) iv {
 // is p − q ≥ 1 this way, and ⊤ by intervals. ⊤ when no π on x's chain names y.
 func (a *intervals) guardDiff(x, y V) iv {
 	out, py := ivTop, a.pl(y)
+	if d, ok := a.assumed[[2]V{a.pl(x), py}]; ok {
+		out = meetIV(out, d)
+	}
 	for v, n := x, 0; n < 8; n++ {
 		if pi, ok := a.piRel[v]; ok && !pi.Len && (PlantGuardDiffAnyOther || a.pl(pi.Other) == py) {
 			out = meetIV(out, diffOf(pi.Rel))

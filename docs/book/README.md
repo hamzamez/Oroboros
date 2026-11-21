@@ -25,7 +25,7 @@ runs every chapter, so a chapter that no longer says what the compiler gives fai
 | 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 54 blocks checked 2026-11-20 |
 | 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-21 |
 | | **II. What a program computes with** | | |
-| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, above the word | J; 96 blocks checked 2026-11-21 |
+| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, the midpoint three ways, above the word | J; 106 blocks checked 2026-11-21 |
 | 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ`; the same past the word | J; 66 blocks checked 2026-11-21 |
 | 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-21 |
 | 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-20 |
@@ -37,7 +37,7 @@ runs every chapter, so a chapter that no longer says what the compiler gives fai
 | 14 | [State](14-state.md) | `var`, buffers, maps, `inout`; why a table never changes under you | J; 74 blocks checked 2026-11-21 |
 | 15 | [Failures](15-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 44 blocks checked 2026-11-20 |
 | | **IV. Claims and hosts** | | |
-| 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 84 blocks checked 2026-11-21 |
+| 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, zones, facts, obligations | J; 86 blocks checked 2026-11-21 |
 | 17 | [Targets](17-targets.md) | host modules, writing a declaration, a function the host calls, portability computed | J; 35 blocks checked 2026-11-21 |
 | 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a function Windows calls during a call; a window procedure; your own export as a C function | J; 51 blocks checked 2026-11-21 (new) |
 | 19 | [A whole program](19-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-21 |
@@ -542,8 +542,11 @@ Chapter 13, Tables (2026-11-16), found six, none fixed, each avoided in the chap
     is refused, *0 <= lo + (hi - lo) / 2 does not follow*: x ≥ 0 ⇒ x / k ≥ 0 is not derived
     (products.md §6 added k·(x/k) ≤ x and no more). **The midpoint is proven** 2026-11-16 (store-2026-11-16): div_floor's guard
     holds only under the loop's guards, and lang's facts are now instantiated where an obligation
-    is, so both `lo + (hi - lo) / 2` bounds follow; chapter 13's `no-search.oro` is refused now for
-    its arithmetic in the word, and its passage says so. `(lo + hi) / 2`, `>> 1` and a length-based
+    is, so both `lo + (hi - lo) / 2` bounds follow; chapter 13's `no-search.oro` was refused then for
+    its arithmetic in the word. **Its arithmetic proven** 2026-11-21 (midpoint-2026-11-21, ADR
+    0148): lo + ⌊(hi − lo)/2⌋ repeats lo, and the Omega test decides it in the word, so the search
+    written as it is taught compiles (`search-plain.oro`, run on Go and windows), and the passage
+    says so. `(lo + hi) / 2`, `>> 1` and a length-based
     form fail alike. The chapter carries the midpoint as a third loop variable under a guard;
     its termination is then *0 of 1 proven* (a measure of two variables), which the chapter
     argues by hand. The same gap refuses `grid[r * w + c]` at `0 <= r * w + c`.
@@ -675,11 +678,16 @@ J replaced and with no running example, is in git at `98ff798`). It found five, 
     `(Nat)` likewise), and `d ∈ 0..100 = b - a; d` under the same header is proven by the
     refinement layer and then satisfies the same result claim. The chapter teaches the binder
     as the way to carry a relational fact to a result, which is a workaround presented as a
-    technique.
+    technique. **Fixed** 2026-11-21 (midpoint-2026-11-21, ADR 0148): a `where`'s comparison is
+    a zone entry the intervals keep, so `b - a` is 0..100, and a result claim the intervals do
+    not establish goes to the facts before it is refused (`where a <= c && c <= b` too). §16.3
+    shows both; §16.4's binder stays as the way to name a fact.
 83. **Three facts the layer does not have**, each shown refused in §16.8: `n mod 2 >= 0`
     (`mod` is defined as never negative, integers.md; `n % 2` on a non-negative `n` is
     proven); `a - b != 0` from `where a != b`, with *assumed ne(a,b)* printed among the known
-    facts (refinements.md §3c covers a disequality beside an order); `n * n >= 0`.
+    facts (refinements.md §3c covers a disequality beside an order); `n * n >= 0`. The third
+    **fixed** 2026-11-21 (midpoint-2026-11-21): F12's square fact, `0 <= x·x`, was the layer's
+    and a result claim was the intervals' alone; the claim now reaches the facts.
 84. **Messages.** A union of ranges at a parameter, `n ∈ 0..9 ∪ 20..29`: *sets takes a ∪(int 0
     9, int 20 29). A variant type crosses a boundary as a RESULT today; as a parameter it is
     not built*. An index through a claimed binder prints the core's `the`: *t[the("int 0
@@ -889,18 +897,20 @@ not:
      predate this step.
 
 Rewriting chapter 0 and bringing chapters 3–19 to ADR 0147 (2026-11-21), `Int` ℤ at an entry
-point too, found six, one fixed:
+point too, found nine, three fixed:
 
 108. **An intermediate above the word is computed exactly only where something asks.** `mid(lo ∈
      -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { (lo + hi) / 2 }` is refused: the sum is
      in neither word, and only the result's claim speaks, of the word, though the average of two
-     words is one. A binder claim above the word asks (`sum ∈ -2^64..2^64 = lo + hi` compiles,
-     the sum a `*big.Int`) and `sum ∈ Int = lo + hi` does not, which ADR 0147's "`Int` denotes ℤ
-     at every place" refuses. integers-boundary-research §7 states the rule (a refusal only where
-     a value must enter a bounded set); for an intermediate it is not built, and building it
-     raises a question for hamza: an accumulator whose fact is unbounded only because a table's
-     length is would become a big integer silently, where it is refused today (chapter 13's
-     `no-prefix`). Chapter 6 §6.9 shows the refusal and says so.
+     words is one. **Fixed in its two parts** (midpoint-2026-11-21, hamza 2026-11-21: "yes, I
+     agree"): the program must still ask, and now it can on every target, `sum ∈ Int = lo + hi`,
+     `Int` ascribed as ℤ (the consent), where Go and the JVM refused it and windows accepted (a
+     helper asks by a set above the word, finding 116); and Bloch's form `lo + (hi - lo) / 2` under
+     `where lo <= hi` needs no consent at all, proven in the words: hi − lo ∈ [0, 2⁶⁴ − 1] by
+     the `where`'s difference, and lo + ⌊d/2⌋ ∈ [lo, hi] by Presburger arithmetic where an atom
+     repeats (`ir/relate.go`). Chapter 6 §6.9 teaches the three. The silent rule
+     (integers-boundary-research §7 whole) stays unbuilt: an accumulator unbounded only through a
+     table's length is still refused (chapter 13's `no-prefix`).
 109. **`export fn any(n ∈ Int) (Int) { n }` emitted `*big.Int` without `import "math/big"`**, a Go
      file that does not compile, since no operation on the value named the package. **Fixed** with
      the chapter: a big integer in a function's type registers the inclusion's import
@@ -929,6 +939,27 @@ point too, found six, one fixed:
      is returned as a pointer to the program's own numeral, a layout no C header states. The book's
      §18.10 says which is which. Left until a program asks (hamza, 2026-11-21): the boundary
      format, a C struct of digits and count or decimal text, decided both ways at once.
+114. **On JavaScript a pair added to a negative word is refused.** The midpoint at S₆₄'s ends,
+     inlined at constant arguments (`gauntlet/differential/cases/bloch-midpoint.oro`), holds
+     hi − lo = 2⁶⁴ − 1 − 2n as the unsigned word's two digits (ADR 0083), and lo + q adds that pair
+     to lo = −2⁶³ + n, a word: *an operand of add, −9223372036854775808, is outside the unsigned
+     word it would be held in*. The sum is in S₆₄, so its residue mod 2⁶⁴ read signed is the
+     answer; `ir/pairs.go` has no signed reading of a pair. The export itself compiles on
+     JavaScript, over BigInt. Not fixed: the case skips JavaScript, saying why.
+115. **An obligation whose constants pass int64 was refused.** `first(bot + n, top - n)` with
+     `where lo <= hi` at S₆₄'s ends is −2⁶³ − (2⁶³ − 1) + 2n ≤ 0, no linear term of the
+     refinement layer, whose constants are int64. **Fixed** (midpoint-2026-11-21): an arithmetic
+     obligation the linear fragment fails goes to the logic, whose constants are exact since this
+     step; and a claim's message shows the term as written, without the compiler's `the(…)`.
+116. **A helper's `(Int)` asks for nothing, and its `(-2^64..2^64)` asks.** Inlined, a
+     definition's result claim of ℤ is satisfied by every value, so `add(lo, hi) / 2` with
+     `fn add(a ∈ Int, b ∈ Int) (Int)` is refused on Go and the JVM, while a bounded set above the
+     word is the consent there; on JavaScript and windows `(Int)` is read as above their word and
+     asks. Making `(Int)` a request everywhere was built and taken back (midpoint-2026-11-21): it
+     asked for every library helper returning `Int`, sent values in the unsigned word to the big
+     integer (`strconv.FormatUint`'s argument, an index, a tuple's components) and slowed five
+     windows compiles 1.5–1.7×. Not fixed: a request that prefers U to the rung, so that `(Int)`
+     can ask without that cost; §6.9 shows both forms.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

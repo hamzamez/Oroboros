@@ -309,11 +309,13 @@ func (tr *formulaTr) term(t *core.Term) (presburger.Lin, bool) {
 			if !ok1 || !ok2 {
 				return presburger.Lin{}, false
 			}
+			// a constant factor scales the other term; its coefficients stay
+			// words, so a factor past int64 leaves the term unread (sound)
 			switch {
-			case len(a.Coef) == 0:
-				return b.Scale(a.K), true
-			case len(b.Coef) == 0:
-				return a.Scale(b.K), true
+			case len(a.Coef) == 0 && (a.K == nil || a.K.IsInt64()):
+				return b.Scale(presburger.KInt64(a.K)), true
+			case len(b.Coef) == 0 && (b.K == nil || b.K.IsInt64()):
+				return a.Scale(presburger.KInt64(b.K)), true
 			}
 		case (isOp(op.Name, "div") || isOp(op.Name, "rem")) && len(args) == 2 && args[1].Kind == core.KInt && args[1].Int >= 1:
 			a, ok := tr.term(args[0])

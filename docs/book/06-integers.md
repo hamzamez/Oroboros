@@ -812,10 +812,145 @@ func IntegersMid(v0 *big.Int, v1 *big.Int) *big.Int {
 }
 ```
 
-The average of two words is a word, so the signed `mid` above is a correct program that the
-compiler refuses: an intermediate above the word is computed exactly only where something in the
-program asks for exactness, and there only the result's claim speaks, of the word. That is a gap,
-the book's finding 108, and not a principle.
+That changed the parameters too, and a caller with words now hands over big integers. The
+average of two words is a word; only the sum on the way to it is not. There are three ways to
+say so, and each is a different piece of algebra.
+
+**Ask for the sum alone.** A claim on a name (§6.3's `half ∈ 0..cap`) is a claim like a
+parameter's, and `Int` is the consent to exactness:
+
+<!-- file docs/book/code/integers/mid-sum.oro -->
+```go
+export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) {
+    sum ∈ Int = lo + hi
+    sum / 2
+}
+```
+
+<!-- gen go docs/book/code/integers/mid-sum.oro -->
+```go
+note: integers-mid: 2 operation(s) in arbitrary precision
+…
+func IntegersMid(v0 int, v1 int) int {
+    v23 := (big.NewInt(int64(v0)))
+    v24 := (big.NewInt(int64(v1)))
+    v25 := (new(big.Int).Add(v23, v24))
+    v27 := (big.NewInt(int64(2)))
+    v28 := (new(big.Int).Quo(v25, v27))
+    v29 := (int(v28.Int64()))
+    return v29
+}
+```
+
+The sum lies in [−2⁶⁴, 2⁶⁴ − 2], so it is a big integer; its half lies in [−2⁶³, 2⁶³ − 1], the
+word again, and the result's claim reads it back. The parameters and the result stay `int`.
+
+**A helper asks the same way, by a set above the word**, here the sum's own, −2⁶⁴..2⁶⁴:
+
+<!-- file docs/book/code/integers/mid-helper.oro -->
+```go
+fn add(a ∈ Int, b ∈ Int) (-2^64..2^64) { a + b }
+
+export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { add(lo, hi) / 2 }
+```
+
+<!-- gen go docs/book/code/integers/mid-helper.oro -->
+```go
+note: integers-mid: 2 operation(s) in arbitrary precision
+…
+```
+
+Its result declared `Int` instead asks for nothing. A helper is inlined where it is called, and
+its `(Int)` is then a claim about the value it gives, which every integer satisfies:
+
+<!-- file docs/book/code/integers/no-mid-helper.oro -->
+```go
+fn add(a ∈ Int, b ∈ Int) (Int) { a + b }
+
+export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { add(lo, hi) / 2 }
+```
+
+<!-- gen go docs/book/code/integers/no-mid-helper.oro -->
+```
+note: integers-mid: 1 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+gen: integers-mid: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+  + [-18446744073709551616, 18446744073709551614] in lo + hi
+…
+```
+
+That the bounded set asks and the unbounded one does not is the book's finding 116: made a
+request too, `(Int)` would ask on behalf of every library helper that returns `Int`, and send
+values the unsigned word holds into a big integer instead.
+
+**Or never leave the word, which is Bloch's other fix.** Measure the distance from `lo`, and add
+half of it:
+
+<!-- file docs/book/code/integers/bloch.oro -->
+```go
+export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) where lo <= hi {
+    lo + (hi - lo) / 2
+}
+```
+
+Three values are computed, and each is in a word:
+
+- **d = hi − lo.** The `where` says d ≥ 0. The sets say d ≤ (2⁶³ − 1) − (−2⁶³) = 2⁶⁴ − 1. So
+  d ∈ [0, 2⁶⁴ − 1], too big for the signed reading and exactly the unsigned one.
+- **q = d / 2.** d is not negative, so q is ⌊d/2⌋: the integer with 2q ≤ d ≤ 2q + 1. From it,
+  0 ≤ q ≤ d, and q ≤ (2⁶⁴ − 1)/2 < 2⁶³.
+- **lo + q.** Add lo to 0 ≤ q ≤ d: lo ≤ lo + q ≤ lo + d = hi. A number between two words is a
+  word.
+
+<!-- gen go docs/book/code/integers/bloch.oro -->
+```go
+note: integers-mid: 6 operation(s) or conversion(s) in the unsigned word
+note: integers-mid: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+…
+func IntegersMid(v0 int, v1 int) int {
+    v31 := (uint64(v1))
+    v32 := (uint64(v0))
+    v33 := ((v31 - v32))
+    v35 := (uint64(2))
+    v36 := ((v33 / v35))
+    v37 := (int(v36))
+    v38 := (v0 + v37)
+    return v38
+}
+```
+
+The subtraction and the halving in the unsigned reading, the addition in the signed one, each
+reading chosen from what the sets and the `where` prove, and no big integer. Take the `where`
+away and d may be negative as well as large, in [−2⁶⁴ + 1, 2⁶⁴ − 1], which no reading holds:
+
+<!-- file docs/book/code/integers/no-bloch.oro -->
+```go
+export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) {
+    lo + (hi - lo) / 2
+}
+```
+
+<!-- gen go docs/book/code/integers/no-bloch.oro -->
+```
+note: integers-mid: 2 of 3 integer operations bounded; 0 of 0 loop(s) proven terminating
+gen: integers-mid: 1 of 3 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+  - [-18446744073709551615, 18446744073709551615] in hi - lo
+…
+```
+
+**How the compiler finds the third step.** §6.5's intervals give each value a box, and a box
+forgets where a value came from. The box of q is [0, 2⁶³ − 1] and the box of lo is
+[−2⁶³, 2⁶³ − 1], so the box of lo + q is [−2⁶³, 2⁶⁴ − 2], out of the word, although no execution
+reaches past hi. A box is exact when each name occurs once in the expression (R. E. Moore,
+1966): then every corner of the box is reached by some choice of the names. Here lo occurs
+twice, once in lo + q and once inside q, and the `where` relates lo and hi. Exactly there, the
+compiler writes the expression as a formula of **Presburger arithmetic**, integers with `+`,
+`−`, constants and `<=`, which Mojżesz Presburger proved decidable in 1929, the division as its
+definition 2q + m = d, 0 ≤ m ≤ 1, and asks whether every lo, hi and q satisfying the facts keeps
+lo + q in the word. That is the three-line proof above, found by a procedure (the Omega test,
+William Pugh, 1991) instead of by you.
+
+So three programs give the same answer. The first two pay for a big integer on every call, and
+the third proves it never needed one.
 
 **The result's set chooses the reading**, here at the very edge of the word, where `n + 1` can
 be 2⁶³. Claimed `Int`, the result is ℤ, and 2⁶³ is past the signed word, so on Go it is a
@@ -1355,7 +1490,11 @@ say what your numbers are.
   trap.
 - **The compiler chooses the representation**: signed word, unsigned word, or the target's big
   integer, by what it proves. `(lo + hi) / 2` is computed in the unsigned word when the sets
-  allow it, and exactly when they are `Int`.
+  allow it, and exactly when they are `Int`. Over signed words, ask for the sum alone
+  (`sum ∈ Int = lo + hi`), or write `lo + (hi - lo) / 2` under `where lo <= hi`, which is
+  proven in the words: 0 ≤ ⌊(hi − lo)/2⌋ ≤ hi − lo, so the result lies between lo and hi.
+- **Where a name repeats, or a `where` relates two names**, intervals forget the relation, and
+  the compiler decides the expression in Presburger arithmetic instead.
 - **Above the word** is the host's big integer, or the language's own digits where the host has
   none. `decimal` gives its text. It does not come back down silently.
 - **Portability is computed**: `cmd/portable` says which targets accept a program.

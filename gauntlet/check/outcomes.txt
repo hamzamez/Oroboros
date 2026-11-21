@@ -685,8 +685,8 @@
    note: win/print.write (kept): 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: win/print.print-int (kept): 9 of 9 integer operations bounded; 5 of 5 loop(s) proven terminating
 == examples/logic/midpoint.oro go emitted 42f1d8a62fec2e55000c00ff5210199f9242121d15ebf6ca0fb051453a8b7973
-== examples/logic/midpoint.oro js refused
-   gen: gen-main: an operand is [4611686018427387904, 4611686018427387904], which is not inside target js's signed word [-9007199254740991, 9007199254740991], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
+== examples/logic/midpoint.oro js emitted a77b1ba2ad4248bcbe1b35d7592805b2baddc671a0a000ce18d3e8a4844b4fef
+   note: gen-main: 9 operation(s) in arbitrary precision
 == examples/logic/midpoint.oro java emitted 7ff95ca184895c38110e39f25dfefeb8dab71106570f37a6941372c295ccc3a7
 == examples/logic/midpoint.oro windows emitted e60bbadba9bca40008ba01b6efb91ea0d26fe8c6947b84cd33c53520150a0852
    note: 3 definition(s) kept as functions, 0 inlined by their contracts
@@ -1517,6 +1517,17 @@
    note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/bits.oro windows emitted 112a930e82ba413542763ccadbd8425d3508287dbb328ddbfa8f649a5d463219
    note: gen-run: 19 of 19 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/bloch-midpoint.oro go emitted 06c4d2dd6fc4706b047dacc4db89eecc0a6b69f8bac0aad43b9ddbb717d6199f
+   note: gen-mid: 6 operation(s) or conversion(s) in the unsigned word
+   note: gen-mid: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/bloch-midpoint.oro js emitted d31498cfb2b4010b9ecbb48fd2ba5ce5b90f89164b4a0868b585188828fb6d91
+   note: gen-mid: 3 operation(s) in arbitrary precision
+== gauntlet/differential/cases/bloch-midpoint.oro java emitted 43f4d4157f22e15df31fa63a03b1b5318e66dab8ce2378ea399ec4e606f488a2
+   note: gen-mid: 6 operation(s) or conversion(s) in the unsigned word
+   note: gen-mid: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/bloch-midpoint.oro windows emitted dab2f98527d81d27a0548bcac71c9c1ba66810a9b1d54d316020cebc321f1847
+   note: gen-mid: 6 operation(s) or conversion(s) in the unsigned word
+   note: gen-mid: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/buffer-swap.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/buffer-swap.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/buffer-swap.oro java emitted a182f08cab2e6cc38be66d76c4126877f00383ab98bdd1e4354719e043ddef7c

@@ -953,14 +953,15 @@ years, found in 2006, and chapter 6 told the story.
 
 Now the second arm, which is this language talking. It is a guard of chapter 12's kind: it
 says what is true of `lo`, `m` and `hi` every time round (`0 <= lo <= m < hi <= len(t)`), and
-it is never false. The compiler needs those facts to prove `t[m]`, and it cannot find them
-itself, because the proof that a midpoint lies between its ends goes through a division, and
-its reasoning about division is weaker than its reasoning about `+` and `<`. Written the
-obvious way, without `m` and the guard, the search is refused:
+it is never false. It hands the compiler, as facts, what it needs to prove `t[m]`. It is not
+needed any more. Written the obvious way, without `m` and with only the first guard, the
+search compiles and answers the same:
 
-<!-- file docs/book/code/tables/no-search.oro -->
+<!-- file docs/book/code/tables/search-plain.oro -->
 ```go
-export fn search(t ∈ Array(Int), x ∈ Int) (Int) where len(t) <= 10^9 {
+use io
+
+fn search(t, x) {
     loop lo = 0, hi = len(t) {
         lo < 0 || hi > len(t) || lo >= hi -> -1
         t[lo + (hi - lo) / 2] < x -> again(lo + (hi - lo) / 2 + 1, hi)
@@ -968,20 +969,35 @@ export fn search(t ∈ Array(Int), x ∈ Int) (Int) where len(t) <= 10^9 {
         else -> lo + (hi - lo) / 2
     }
 }
+
+export fn main() {
+    primes = array { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 }
+    io.print_int(search(primes, 17))
+    io.print_int(search(primes, 2))
+    io.print_int(search(primes, 29))
+    io.print_int(search(primes, 18))
+    io.print_int(search(array { }, 5))
+}
 ```
 
-<!-- gen go docs/book/code/tables/no-search.oro -->
+<!-- run go docs/book/code/tables/search-plain.oro -->
 ```
-gen: tables-search: an operand of index is held in arbitrary precision, which is WIDER than the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615], so on this target it is not an `int` — it is a rung above the host's word (ADR 0026, docs/unbounded-rung.md).
-…
+6
+0
+9
+-1
+-1
 ```
 
-`lo` is not negative and `hi - lo` is positive, so half of it is not negative either. The
-compiler sees that much now (it once refused the index for it, the book's finding 67). What it
-still cannot see, without the guard, is that `lo` and `hi` stay between `0` and `len(t)` from
-one time round to the next, so it cannot bound the arithmetic on them inside the word. The
-result is claimed `Int`, so that arithmetic is computed exactly, and then the midpoint cannot be
-an index, which is a word: the refusal is there.
+Past the first arm, `0 <= lo`, `lo < hi` and `hi <= len(t)`. The index is lo + q with
+d = hi − lo ≥ 1 and q = ⌊d/2⌋, so 2q ≤ d, and q ≤ d − 1 because d ≥ 1. Then
+lo ≤ lo + q ≤ lo + d − 1 = hi − 1 < len(t): the index is in the table. Intervals cannot see it,
+because `lo` occurs twice, in lo + q and inside q, and the box of each forgets the other.
+Chapter 6 §6.9 showed what the compiler does there: it writes the index as a formula of
+Presburger arithmetic and decides it. Until 2026-11-21 it did not, this search was refused,
+and the chapter carried `m` and the guard to hand it the facts. The guarded form above is kept
+because it shows how to supply a fact the compiler cannot find, which is the next loop's
+problem when it is not this one.
 
 And one more honest line. Here is what it says about the version that compiles:
 

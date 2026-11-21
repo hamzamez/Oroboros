@@ -1,0 +1,1 @@
+export fn gap(a ∈ 0..100, b ∈ 0..100, c ∈ 0..100) (0..100) where a <= c && c <= b { b - a }

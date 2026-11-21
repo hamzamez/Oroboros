@@ -1,0 +1,19 @@
+use io
+
+fn search(t, x) {
+    loop lo = 0, hi = len(t) {
+        lo < 0 || hi > len(t) || lo >= hi -> -1
+        t[lo + (hi - lo) / 2] < x -> again(lo + (hi - lo) / 2 + 1, hi)
+        t[lo + (hi - lo) / 2] > x -> again(lo, lo + (hi - lo) / 2)
+        else -> lo + (hi - lo) / 2
+    }
+}
+
+export fn main() {
+    primes = array { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 }
+    io.print_int(search(primes, 17))
+    io.print_int(search(primes, 2))
+    io.print_int(search(primes, 29))
+    io.print_int(search(primes, 18))
+    io.print_int(search(array { }, 5))
+}

@@ -4394,3 +4394,17 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - `examples/json/tokenize.oro java` 906 → 1531 ms, 1.69x
 - `examples/logic/windowtext.oro windows` 453 → 1203 ms, 2.66x
+
+## 2026-11-21 — on c6206997, with uncommitted changes
+
+**Reason:** ADR 0148 (midpoint-2026-11-21): the logic midpoint now emits on JavaScript, its literal 2^62 held exactly as Horner's form; bloch-midpoint, a new differential case, on four targets; no existing program's text changed
+
+832 runs: 571 emitted, 261 refused; 12731 of 12785 integer operations bounded, 1603 of 1906 loops proven. compiler pass, differential pass, tooling pass.
+
+5 change(s):
+
+- now emits — `examples/logic/midpoint.oro js`
+- new source — `gauntlet/differential/cases/bloch-midpoint.oro go`
+- new source — `gauntlet/differential/cases/bloch-midpoint.oro java`
+- new source — `gauntlet/differential/cases/bloch-midpoint.oro js`
+- new source — `gauntlet/differential/cases/bloch-midpoint.oro windows`

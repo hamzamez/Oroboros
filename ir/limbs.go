@@ -556,6 +556,20 @@ func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.
 			return err
 		}
 		nf = emit.EraseWordAscriptions(tg.Word, nf)
+		// A DEFINITION CHECKED ALONE holds for every argument its header admits
+		// (ADR 0072), so a parameter declared `Int` is ℤ here, as an entry
+		// point's is (ADR 0147): `fn add(a ∈ Int, b ∈ Int) (Int) { a + b }` sums
+		// two integers of any size, and lowered over words its sum was refused
+		if !core.PlantZAscribedAsWord {
+			c := *sig
+			c.Params = append([]core.SigParam(nil), sig.Params...)
+			for i, p := range c.Params {
+				if p.Type == "int" {
+					c.Params[i].Type = core.ZRange
+				}
+			}
+			sig = &c
+		}
 		lsig, _ := lentSig(sig)
 		f, err := Lower(tg, name, lsig, nf, Options{Decided: true})
 		if err != nil {
@@ -707,7 +721,9 @@ func checkResultClaim(tg *emit.Target, name string, sig *core.Sig, nf *core.Term
 			"which no set expresses yet (ADR 0053): decided per instance, which is not built", core.ShowName(p))
 	}
 	if ensures {
-		if err := CheckEnsures(tg, f, fsig); err != nil {
+		// the logic decides what the intervals, which forget relations, do not
+		// establish, before it is refused (emit.DecideRangeClaim)
+		if err := CheckEnsures(tg, f, fsig); err != nil && emit.DecideRangeClaim(tg, name, sig, nf) != nil {
 			return fmt.Errorf("%v%s", err, hint)
 		}
 	}

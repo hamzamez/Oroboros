@@ -3,6 +3,7 @@ package emit
 import (
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -89,7 +90,9 @@ func (r *entailRecorder) record(f *facts, goal *linear, today bool) {
 
 // constraintOf is s·e + k ≥ 0 as a constraint.
 func constraintOf(e *linear, s, k int64) presburger.Constraint {
-	c := presburger.Constraint{Coef: make(map[string]int64, len(e.coef)), K: s*e.konst + k}
+	// the constant exactly: s·konst + k can pass int64 at the word's ends
+	K := new(big.Int).Add(new(big.Int).Mul(big.NewInt(s), big.NewInt(e.konst)), big.NewInt(k))
+	c := presburger.Constraint{Coef: make(map[string]int64, len(e.coef)), K: K}
 	for x, a := range e.coef {
 		c.Coef[x] = s * a
 	}

@@ -139,8 +139,8 @@ type bigs struct {
 	resDem []V
 	// exact are the values that can be held exactly (anyExactable), once
 	exact map[V]bool
-	bits   int
-	fit    string
+	bits  int
+	fit   string
 	// the constraints, collected once
 	ariths []*Stmt
 	bitops []*Stmt // ADR 0082's operations
@@ -718,6 +718,17 @@ func (g *bigs) widen(v V, where string) V {
 	if v < 0 || g.isB(v) || !g.integer(v) || g.bigType(g.f.Types[v]) {
 		return v
 	}
+	if !g.fits(v) && g.err == nil && !PlantConstantNotSpined {
+		// A CONSTANT PAST THE WORD is a value, not an operation: c, exact in
+		// every execution (its fact the point [c, c]), is Horner's form over
+		// 10¹⁵ held exactly, (hi·10¹⁵ + lo) with each digit in the word, the
+		// spelling the reader gives a literal past int64 (core/read.go,
+		// bigLiteral). JavaScript's word is ±(2⁵³ − 1), so S₆₄'s own ends,
+		// claimed `∈ Int`, reach here
+		if c := g.fs[v].v; c.finite() && c.lo == c.hi {
+			return g.spine(c.lo.big())
+		}
+	}
 	if !g.fits(v) && g.err == nil {
 		g.err = fmt.Errorf("%s is %s, which is not inside target %s's signed word [%d, %d], and only a "+
 			"value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, "+
@@ -1229,3 +1240,47 @@ func decimalWord(tg *emit.Target) (string, bool) {
 	}
 	return "", false
 }
+
+// spine is the constant c held exactly, Horner's form over 10¹⁵: c's digits
+// d_k … d_0 in that base (truncated, so each has c's sign), each a word
+// constant widened by big-of, folded as ((d_k·B + d_{k−1})·B + …) + d_0.
+func (g *bigs) spine(c *big.Int) V {
+	base := big.NewInt(1000000000000000)
+	var digits []int64
+	for v := new(big.Int).Set(c); v.Sign() != 0; {
+		q, r := new(big.Int).QuoRem(v, base, new(big.Int))
+		digits = append(digits, r.Int64())
+		v = q
+	}
+	if len(digits) == 0 {
+		digits = []int64{0}
+	}
+	konst := func(k int64) V {
+		w := g.fresh(fmt.Sprintf("int %d %d", k, k))
+		g.fs[w] = fact{v: exactIV(k)}
+		g.stmts = append(g.stmts, Stmt{Op: OConst, Lit: core.Int(k), Res: []V{w}})
+		out := g.fresh(core.BigType)
+		g.fs[out] = fact{v: exactIV(k)}
+		g.stmts = append(g.stmts, Stmt{Op: OCall, Name: "big-of", Args: []V{w}, Res: []V{out}})
+		return out
+	}
+	acc := konst(digits[len(digits)-1])
+	for i := len(digits) - 2; i >= 0; i-- {
+		b := konst(base.Int64())
+		p := g.fresh(core.BigType)
+		g.stmts = append(g.stmts, Stmt{Op: OCall, Name: "big*", Args: []V{acc, b}, Res: []V{p}})
+		d := konst(digits[i])
+		s := g.fresh(core.BigType)
+		g.stmts = append(g.stmts, Stmt{Op: OCall, Name: "big+", Args: []V{p, d}, Res: []V{s}})
+		acc = s
+	}
+	if e, ok := fromBig(c); ok {
+		g.fs[acc] = fact{v: rangeE(e, e)}
+	}
+	return acc
+}
+
+// PlantConstantNotSpined refuses a constant past the word where it is widened,
+// as before: S₆₄'s ends claimed `∈ Int` are then refused on JavaScript
+// (TestAConstantPastTheWordIsHeldExactly).
+var PlantConstantNotSpined bool

@@ -1557,6 +1557,28 @@ func endpointStr(v *big.Int, inf int) string {
 	return v.String()
 }
 
+// ZRange is ℤ written as the range with both ends open. `Int` canonicalizes to
+// "int", which a target holding a bignum reads as its word in a value's type;
+// as a CLAIM it is ℤ (ADR 0147), so an ascription of it, a binder's `x ∈ Int`,
+// is written in this spelling, which every consumer already reads as the
+// consent above the word (Word.ValueType). A definition's result `(Int)` is not
+// (AscribeWide; the book's finding 116).
+const ZRange = "int -inf +inf"
+
+// AscribedSet is the set an ascription of ty states: ℤ as ZRange, any other set
+// as it is.
+func AscribedSet(ty string) string {
+	if ty == "int" && !PlantZAscribedAsWord {
+		return ZRange
+	}
+	return ty
+}
+
+// PlantZAscribedAsWord leaves `Int` "int" in an ascription, the word's spelling
+// on a host with a bignum, as before: `sum ∈ Int = lo + hi` is then refused on
+// Go and the JVM and accepted on windows (TestIntIsAConsentOnEveryTarget).
+var PlantZAscribedAsWord bool
+
 // UnboundedRange reports whether a range type has an INFINITE endpoint — the
 // top of the representation lattice, where no fixed number of limbs suffices.
 //

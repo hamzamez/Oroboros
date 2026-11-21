@@ -14,8 +14,12 @@ func TestTheLanguagesNotEqualIsADisequality(t *testing.T) {
 	accepts(t, "a divisor proven nonzero", ok)
 	refuses(t, "a divisor that may be zero", head+"export fn g(a ∈ 0..9, b ∈ 0..9) (Int) { d(a, b) }", "d")
 
+	// the logic reads ¬(a = b) itself, and decides an arithmetic obligation the
+	// linear fragment fails (ADR 0148): the rule is reached with that route off
 	emit.PlantNegatedEqFault(true)
 	defer emit.PlantNegatedEqFault(false)
+	emit.PlantObligationLinearOnly = true
+	defer func() { emit.PlantObligationLinearOnly = false }()
 	if _, err := compileGo(t, ok); err == nil {
 		t.Errorf("with ¬(a = b) opaque again the proven divisor was accepted: the test does not reach the rule")
 	}

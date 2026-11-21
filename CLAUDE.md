@@ -175,10 +175,15 @@ tables made by a rule, received or built stays storage's "a table inside a table
 `where` (bounds by constants, by a table's length, through another parameter), the host's integer
 of any size where unbounded, windows refusing one; a result declared `Int` demands each yield
 leaving S; a host's word its module's `Word`; one rendering, `decimal`, `io.print_int` over ℤ; a
-table's element and a map's value words by storage. Not built, for hamza: an intermediate whose
-every consumer is bounded (the word midpoint's `lo + hi`, the book's finding 108; taking the note's
-§7 whole makes an unbounded accumulator a big integer silently); a map read with a key of any size
-(finding 111); a definition's claim reported inside its body (finding 110).
+table's element and a map's value words by storage. **The midpoint, finding 108, built** (ADR 0148,
+hamza 2026-11-21: "yes, I agree", [midpoint](gauntlet/results/midpoint-2026-11-21.md)): a program
+asks, and can on every target (`sum ∈ Int = lo + hi`; a helper by a set above the word, its
+`(Int)` no demand, finding 116); Bloch's
+`lo + (hi - lo) / 2` under `where lo <= hi` proven in the words, a `where` a zone entry and a
+repeated atom decided by the Omega test (Moore: the box is exact on independent atoms); the note's
+§7 whole, silent exactness, not taken. Not built: a pair added to a negative word on JavaScript
+(finding 114); a map read with a key of any size (finding 111); a definition's claim reported
+inside its body (finding 110).
 
 **Decided and to be built** (hamza, 2026-11-19; its items 1 and 3 are "Build all 5"'s 3 and 4), in this order (the first list's items 1–4, 6, 7 built:
 ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):
@@ -445,7 +450,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,725 of 12,779** integer operations proven inside their target's word, the 54 left
+- **Provability**: **12,731 of 12,785** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,603 of 1,906** loops proven to
   terminate (size-change termination; of the 303 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 39 were before bigbits-2026-11-19 (sieve-js's two proven since intboundary-2026-11-21), among
@@ -454,7 +459,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   halving, a falling maximum, a bit cleared, size-change termination does not see, each counted
   per program and target). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target; a
-  program refused counts nothing (the logic midpoint on JavaScript, refused at its literal 2⁶²). Both
+  program refused counts nothing (the logic midpoint on JavaScript counted since midpoint-2026-11-21, its 2⁶² held exactly). Both
   counts are pinned by `cmd/check`.
 - **Host APIs** (surveys, declarable / usable): Go 87.8% / 60.5%, the JVM 81.4% / 60.9%, Win32 91.2%
   declarable and 30.6% callable and linkable by today's model, 35.7% callable, 46.6% if every struct were
@@ -849,6 +854,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | The logic: `∀ x ∈ S : φ`, `∃`, `⇒`, `⇔`, every quantifier over a set; recursion in `spec` and `lemma` only, checked to terminate; a lemma proven by its steps, no axioms; a host's quantified `ensure` believed with evidence; `-checked` runs a bounded ∀ as a loop; Presburger with quantifiers, the array property fragment, congruence closure, their combination (not built) | [0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md) |
 | A handle is a host type, C's `HWND__*`, its one operation `==` within its kind; a failed call's handle the niche of an `Option` on the declaration (`niche -1`, `niche NULL`); an `_In_opt_` handle an `Option`, none its NULL, held to the SDK's SAL | [0146](docs/decisions/0146-a-handle-is-a-host-type-and-a-failed-calls-handle-is-its-niche.md) |
 | `Int` is ℤ at an entry point too, its parameter ρ of its set and `where` (the word, or the host's integer of any size; windows refuses an unbounded one); a host's word its module's `Word`; one rendering of ℤ, `decimal`, `io.print_int` over ℤ | [0147](docs/decisions/0147-int-is-the-integers-at-an-entry-point-and-decimal-renders-them.md) |
+| Where an operation's box leaves the word and its term repeats an atom or relates two, the Omega test decides its word (Moore: the box is exact on independent atoms); a `where`'s comparison a zone entry; a range claim the intervals miss decided by the logic; Presburger's constants exact; `Int` at a binder ℤ, the consent | [0148](docs/decisions/0148-where-the-box-forgets-a-relation-presburger-arithmetic-decides.md) |
 
 ## Build commands
 

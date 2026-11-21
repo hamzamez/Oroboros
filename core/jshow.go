@@ -234,6 +234,13 @@ func showAt(t *Term, min int) string {
 		if v, ok := bigLiteralValue(t); ok {
 			return v
 		}
+		// ℤ's ASCRIPTION is the compiler's spelling of a claim of `Int`
+		// (AscribedSet), at a binder: J wrote the claim
+		// there, never the term, so it shows as its operand
+		if len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == AscribeName &&
+			t.Kids[1].Kind == KStr && t.Kids[1].Str == ZRange {
+			return showAt(t.Kids[2], min)
+		}
 		// A READ, as J writes it (IndexShow): `t[i]`, not the application
 		if len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == IndexShow {
 			return ShowIndex(t.Kids[1], t.Kids[2])

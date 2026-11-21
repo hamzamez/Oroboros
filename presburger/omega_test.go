@@ -1,12 +1,15 @@
 package presburger
 
 import (
+	"math/big"
 	"math/rand"
 	"testing"
 )
 
-func ge(k int64, coef map[string]int64) Constraint { return Constraint{Coef: coef, K: k} }
-func eq(k int64, coef map[string]int64) Constraint { return Constraint{Coef: coef, K: k, Eq: true} }
+func ge(k int64, coef map[string]int64) Constraint { return Constraint{Coef: coef, K: big.NewInt(k)} }
+func eq(k int64, coef map[string]int64) Constraint {
+	return Constraint{Coef: coef, K: big.NewInt(k), Eq: true}
+}
 
 // KNOWN ANSWERS, among them the ones only integrality decides: a system with a
 // rational solution and no integer one.
@@ -81,7 +84,7 @@ func TestAgainstExhaustiveSearch(t *testing.T) {
 					coef[x] = int64(rng.Intn(15) - 7)
 				}
 			}
-			c := Constraint{Coef: coef, K: int64(rng.Intn(41) - 20), Eq: rng.Intn(4) == 0}
+			c := Constraint{Coef: coef, K: big.NewInt(int64(rng.Intn(41) - 20)), Eq: rng.Intn(4) == 0}
 			cs = append(cs, c)
 		}
 		want := brute(cs, vars, B)
@@ -109,7 +112,7 @@ func brute(cs []Constraint, vars []string, B int64) bool {
 	try = func(i int) bool {
 		if i == len(vars) {
 			for _, c := range cs {
-				s := c.K
+				s := c.K.Int64() // the random systems' constants are small
 				for x, a := range c.Coef {
 					s += a * val[x]
 				}

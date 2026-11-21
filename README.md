@@ -101,7 +101,7 @@ rejected and why.
 | | how | the numbers |
 |---|---|---|
 | **as fast as hand-written code** | seven benchmark programs against hand-written Go, JavaScript, Java, and C on Windows compiled by the same compiler | generated over hand-written: **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows (geometric means, 45 comparisons from 0.85× to 1.18×, each above 1.05× explained) ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)) |
-| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,725 of 12,779** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
+| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,731 of 12,785** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
 | **loops stop** | size-change termination | **1,603 of 1,906** loops proven; the rest read input or the file system, count through numbers past the word (a halving, a bit cleared), or shrink a range from both ends (binary search), in a way the check does not see |
 | **every platform agrees** | 87 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 73 on all four, every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
 | **each rule is tested broken** | a fault is planted in every rule that decides what is legal, and its test must fail | listed with each result in [gauntlet/results/](gauntlet/results/) |
@@ -181,7 +181,11 @@ tree rather than a second run (a run is an hour today, and a step paid two):
 ([intboundary](gauntlet/results/intboundary-2026-11-21.md), ADR 0147): an exported function taking
 `Int` takes the host's integer of any size where its header does not bound it, one rendering of an
 integer, `decimal`, and `io.print_int` printing any integer on every target; the book's chapter 0
-rewritten from scratch, every function shown with its output and its code. The book's findings 100 and 101 (a map read while it is filled; a table of
+rewritten from scratch, every function shown with its output and its code. **The midpoint of two
+full words** ([midpoint](gauntlet/results/midpoint-2026-11-21.md), ADR 0148): a sum claimed `Int`
+is computed exactly on every target, and `lo + (hi - lo) / 2` under `lo <= hi` is proven in the
+machine's words, so binary search compiles as it is taught; the book's chapter 6 teaches the three
+ways. The book's findings 100 and 101 (a map read while it is filled; a table of
 tables or of tuples written out, read at any index), and Windows' enumerators read against their
 documentation ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)).
 

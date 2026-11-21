@@ -4408,3 +4408,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/bloch-midpoint.oro java`
 - new source — `gauntlet/differential/cases/bloch-midpoint.oro js`
 - new source — `gauntlet/differential/cases/bloch-midpoint.oro windows`
+
+## 2026-11-21 — on 178e0ee4, with uncommitted changes
+
+**Reason:** ADR 0149 (doubleword-2026-11-21): the double word on Go and the JVM; double-word, a new differential case, on four targets; no existing program's text changed
+
+836 runs: 575 emitted, 261 refused; 12764 of 12818 integer operations bounded, 1603 of 1906 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/double-word.oro go`
+- new source — `gauntlet/differential/cases/double-word.oro java`
+- new source — `gauntlet/differential/cases/double-word.oro js`
+- new source — `gauntlet/differential/cases/double-word.oro windows`

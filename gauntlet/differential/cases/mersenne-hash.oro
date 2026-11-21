@@ -2,17 +2,15 @@
 // and Carter–Wegman's: h ← (h·x + c) mod p. With h, x < p < 2^61 the product
 // h·x is below 2^122, above the word and inside E = (−2^126, 2^126), and the
 // only thing that reads it is the remainder by p, a constant: an intermediate
-// the double word computes (ADR 0103), with every value of the program a word.
-// Go, the JVM and JavaScript hold no double word, so the product is refused
-// there, as a product above the word is (ADR 0019); under this harness's
-// -checked it is a trap, which fires at the fourth input on Go and the JVM, and
-// on JavaScript the remainder of a pair by p is not built. Each skip says which.
+// the double word computes (ADR 0103), with every value of the program a word:
+// LLVM's i128, Go's two uint64 and the JVM's two longs (ADR 0149), the
+// remainder by p by the 2-by-1 division with Horner's rule on Go and the JVM.
+// JavaScript holds no double word, and there the remainder of a pair by p is
+// not built.
 //
 // inputs: 0 1 2 100 100000
 // expect: 0 0 1 371942649230435435 695070068227922815
-// skip: go because "panic: int overflow"
 // skip: js because "not a power of two: not built (ir/pairs.go)"
-// skip: java because "long overflow"
 fn run(n) {
     loop i = 0, h = 0 { i >= n -> h; else -> again(i + 1, (h * 1234567890123456789 + i % 251) % (2^61 - 1)) }
 }

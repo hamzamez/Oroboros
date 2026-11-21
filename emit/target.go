@@ -374,6 +374,14 @@ type Target struct {
 	// since the residue map ℤ → ℤ/2¹²⁸ is injective on E. Zero: none.
 	DoubleWidth int64
 
+	// DoubleDivide is "host" on a target whose printer divides the double
+	// word by a word itself, the quotient proven in the word: Go's bits.Div64,
+	// the JVM's Knuth division (ir/java/double.go). A target whose ISA has the
+	// 2-by-1 division declares it as ir.TwoByOne instead (x86-64's divq). A
+	// quotient of E by a d that is not a power of two is that division on the
+	// magnitude, so without either it is not computed in E (ir/double.go).
+	DoubleDivide string
+
 	// ScalarWidth is 32 on a target whose preferred register width for a
 	// scalar is narrower than the word (ADR 0127, ADR 0083 item 2): a value
 	// whose proven range lies in S₃₂ = [−2³¹, 2³¹) is held in an i32, the
@@ -2267,6 +2275,7 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 		{&tg.MapType, o.MapType, "map-type"},
 		{&tg.Backend, o.Backend, "backend"},
 		{&tg.BigRepr, o.BigRepr, "big-repr"},
+		{&tg.DoubleDivide, o.DoubleDivide, "double-divide"},
 		{&tg.Narrow, o.Narrow, "narrow"},
 		{&tg.Artifact, o.Artifact, "artifact"},
 		{&tg.Build, o.Build, "build"},
@@ -3045,6 +3054,13 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 			return bad("(repr double 128)")
 		}
 		frag.DoubleWidth = choice.Int
+	case "divide":
+		// the double word's 2-by-1 division, the printer's own (DoubleDivide)
+		w, ok := word("host")
+		if !ok {
+			return bad("(repr divide host)")
+		}
+		frag.DoubleDivide = w
 	case "scalar":
 		// a scalar's preferred register width, narrower than the word (ADR
 		// 0127): 32, the width where S₃₂ is a system of representatives

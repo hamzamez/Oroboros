@@ -1,3 +1,3 @@
-export fn small(n ∈ 0..10^18) (Bool) {
-    n * 0.0825 * 0.0825 < 3
+export fn small(n ∈ 0..10^18, m ∈ 0..10^18) (Bool) {
+    n * m * 0.0825 < 3
 }

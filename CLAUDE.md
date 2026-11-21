@@ -113,9 +113,10 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
    2. A an intermediate outside E yes 3. report is enough, a flag (-words is just a bonus option for
    the compiler)", on [sets-are-claims-research.md](docs/sets-are-claims-research.md), findings 108,
    116, 118), after item 0:
-   - E, the double word, on Go (`math/bits`) and the JVM (`Math.multiplyHigh`): ADR 0103 on every
-     host, closing finding 118 (the midpoint, the comparator, `x * 3 / 4`, `w * h <= N`, `a + b >
-     max` on every target);
+   - ~~E, the double word, on Go and the JVM~~ done (ADR 0149,
+     [doubleword](gauntlet/results/doubleword-2026-11-21.md)): two digits by `math/bits` and by the
+     JVM's carries, `Math.multiplyHigh` and Knuth's division; a signed quotient by a constant the
+     magnitude's (on LLVM its unsigned division, `__divti3` before); finding 118 closed;
    - A: no declared set consents; an intermediate outside E is ℤ, reported; a refusal only at a sink;
      `-words` an option making an operation held in ℤ a refusal; an ADR amending 0019 item 2, 0079
      item 3 and 0148 item 1;
@@ -458,7 +459,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,731 of 12,785** integer operations proven inside their target's word, the 54 left
+- **Provability**: **12,764 of 12,818** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
   (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,603 of 1,906** loops proven to
   terminate (size-change termination; of the 303 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 39 were before bigbits-2026-11-19 (sieve-js's two proven since intboundary-2026-11-21), among
@@ -863,6 +864,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A handle is a host type, C's `HWND__*`, its one operation `==` within its kind; a failed call's handle the niche of an `Option` on the declaration (`niche -1`, `niche NULL`); an `_In_opt_` handle an `Option`, none its NULL, held to the SDK's SAL | [0146](docs/decisions/0146-a-handle-is-a-host-type-and-a-failed-calls-handle-is-its-niche.md) |
 | `Int` is ℤ at an entry point too, its parameter ρ of its set and `where` (the word, or the host's integer of any size; windows refuses an unbounded one); a host's word its module's `Word`; one rendering of ℤ, `decimal`, `io.print_int` over ℤ | [0147](docs/decisions/0147-int-is-the-integers-at-an-entry-point-and-decimal-renders-them.md) |
 | Where an operation's box leaves the word and its term repeats an atom or relates two, the Omega test decides its word (Moore: the box is exact on independent atoms); a `where`'s comparison a zone entry; a range claim the intervals miss decided by the logic; Presburger's constants exact; `Int` at a binder ℤ, the consent | [0148](docs/decisions/0148-where-the-box-forgets-a-relation-presburger-arithmetic-decides.md) |
+| The double word E on every 64-bit host (Go by math/bits, the JVM by its carries, `Math.multiplyHigh` and Knuth's division); a signed quotient of E by a constant the magnitude's (LLVM's unsigned division; Go's and the JVM's 2-by-1 with Horner's rule for a remainder); a quotient by a word the 2-by-1 division, where the target has one | [0149](docs/decisions/0149-the-double-word-is-every-hosts.md) |
 
 ## Build commands
 

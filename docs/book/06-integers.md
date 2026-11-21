@@ -776,114 +776,114 @@ func IntegersMid(v0 int, v1 int) int {
 The sum of two numbers below 2⁶³ is below 2⁶⁴. It does not fit the signed reading and does fit
 the unsigned one, so the compiler adds there, halves there, and reads the result back as signed,
 where the claim `(0..2^63-1)` says it belongs. That is one of the two fixes Bloch gave, found
-from the sets alone. Let the words be signed, and neither reading holds the sum:
+from the sets alone. Let the words be signed, and neither reading holds the sum: it lies in
+[−2⁶⁴, 2⁶⁴ − 2]. So the compiler uses a third reading, **the double word**: two words side by side,
+a high digit h and a low digit l, the integer h·2⁶⁴ + l, which holds every integer of size below
+2¹²⁷.
 
-<!-- file docs/book/code/integers/no-midpoint.oro -->
+<!-- file docs/book/code/integers/mid-signed.oro -->
 ```go
 export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { (lo + hi) / 2 }
 ```
 
-<!-- gen go docs/book/code/integers/no-midpoint.oro -->
-```
-note: integers-mid: 1 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: integers-mid: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  + [-18446744073709551616, 18446744073709551614] in lo + hi
-…
-```
-
-The bug is not caught by a clever check for averages. It is the ordinary rule: the sum must be
-held somewhere, here no word holds it, and nothing in the program asked for more than a word.
-Ask with `Int`, and the line is the integer it means:
-
-<!-- file docs/book/code/integers/mid-int.oro -->
+<!-- gen go docs/book/code/integers/mid-signed.oro -->
 ```go
-export fn mid(lo ∈ Int, hi ∈ Int) (Int) { (lo + hi) / 2 }
-```
-
-<!-- gen go docs/book/code/integers/mid-int.oro -->
-```go
-note: integers-mid: 2 operation(s) in arbitrary precision
-…
-func IntegersMid(v0 *big.Int, v1 *big.Int) *big.Int {
-    v2 := (new(big.Int).Add(v0, v1))
-    v4 := (big.NewInt(int64(2)))
-    v5 := (new(big.Int).Quo(v2, v4))
-    return v5
-}
-```
-
-That changed the parameters too, and a caller with words now hands over big integers. The
-average of two words is a word; only the sum on the way to it is not. There are three ways to
-say so, and each is a different piece of algebra.
-
-**Ask for the sum alone.** A claim on a name (§6.3's `half ∈ 0..cap`) is a claim like a
-parameter's, and `Int` is the consent to exactness:
-
-<!-- file docs/book/code/integers/mid-sum.oro -->
-```go
-export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) {
-    sum ∈ Int = lo + hi
-    sum / 2
-}
-```
-
-<!-- gen go docs/book/code/integers/mid-sum.oro -->
-```go
-note: integers-mid: 2 operation(s) in arbitrary precision
+note: integers-mid: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
 …
 func IntegersMid(v0 int, v1 int) int {
-    v23 := (big.NewInt(int64(v0)))
-    v24 := (big.NewInt(int64(v1)))
-    v25 := (new(big.Int).Add(v23, v24))
-    v27 := (big.NewInt(int64(2)))
-    v28 := (new(big.Int).Quo(v25, v27))
-    v29 := (int(v28.Int64()))
-    return v29
+    v23l, v23c := bits.Add64(uint64(v0), uint64(v1), 0)
+    v23h := uint64(v0 >> 63) + uint64(v1 >> 63) + v23c
+    v25bl, v25bc := bits.Add64(v23l, uint64(int64(v23h)>>63)&uint64(1), 0)
+    v25ql := v25bl>>1 | (v23h+v25bc)<<63
+    v25 := int(v25ql)
+    return v25
 }
 ```
 
-The sum lies in [−2⁶⁴, 2⁶⁴ − 2], so it is a big integer; its half lies in [−2⁶³, 2⁶³ − 1], the
-word again, and the result's claim reads it back. The parameters and the result stay `int`.
+Read it as arithmetic on two-digit numbers in base 2⁶⁴, the way you add on paper:
 
-**A helper asks the same way, by a set above the word**, here the sum's own, −2⁶⁴..2⁶⁴:
+- **The sum.** The low digits are added, `bits.Add64`, and their carry goes into the high digits:
+  h = h₁ + h₂ + c. A word enters as its sign spread over the high digit, `v0 >> 63`, which is 0 for
+  a natural and all ones for a negative number.
+- **The half.** `/` rounds toward zero, and a shift right rounds down, so a negative odd sum is
+  first raised by one, (x + [x < 0]) >> 1. The result is a word, so only its low digit is computed.
 
-<!-- file docs/book/code/integers/mid-helper.oro -->
+On Windows the double word is LLVM's own 128-bit integer, on the JVM two `long`s; JavaScript has no
+64-bit integer at all and holds both parameters as `BigInt`. The bug is not caught by a clever
+check for averages. It is the ordinary rule: every value is held in the first reading that holds
+it, and here the third does.
+
+**The same rule removes a family of bugs**, each of which, written in C, Java or Go, either wraps
+silently or is undefined:
+
+| the program | where it goes wrong elsewhere | the intermediate |
+|---|---|---|
+| `(lo + hi) / 2` | binary search, the JDK, for nine years (Bloch 2006) | [−2⁶⁴, 2⁶⁴ − 2] |
+| `d = a - b`, then the sign of `d` | a comparator returning `a - b`, Java's classic | (−2⁶⁴, 2⁶⁴) |
+| `x * 3 / 4` | multiply then divide, wrapping in the middle | (−2⁶⁵, 2⁶⁵) |
+| `w * h <= 1000000` | a size check that wraps small and passes (CWE-190) | [0, 2¹²⁶) |
+| `a + b > 2^63 - 1` | C's overflow test, undefined behaviour the compiler may delete | [−2⁶⁴, 2⁶⁴ − 2] |
+
+Each intermediate lies in the double word, so each line means what it says and costs a few
+instructions. The comparator, as it is written in every Java tutorial that gets it wrong:
+
+<!-- file docs/book/code/integers/compare.oro -->
 ```go
-fn add(a ∈ Int, b ∈ Int) (-2^64..2^64) { a + b }
-
-export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { add(lo, hi) / 2 }
+export fn compare(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1) (-1..1) {
+    d = a - b
+    if d < 0 { -1 } else { if d > 0 { 1 } else { 0 } }
+}
 ```
 
-<!-- gen go docs/book/code/integers/mid-helper.oro -->
+<!-- gen go docs/book/code/integers/compare.oro -->
 ```go
-note: integers-mid: 2 operation(s) in arbitrary precision
+func IntegersCompare(v0 int, v1 int) int {
+    v23l, v23c := bits.Sub64(uint64(v0), uint64(v1), 0)
+    v23h := uint64(v0 >> 63) - uint64(v1 >> 63) - v23c
 …
 ```
 
-Its result declared `Int` instead asks for nothing. A helper is inlined where it is called, and
-its `(Int)` is then a claim about the value it gives, which every integer satisfies:
+`d` is never a word, only a pair of digits, and `d < 0` is a comparison of pairs: the high digits
+first, read signed, then the low ones.
 
-<!-- file docs/book/code/integers/no-mid-helper.oro -->
+**Past the double word, the program asks.** A product of three words reaches 2¹⁸⁹:
+
+<!-- file docs/book/code/integers/no-past-e.oro -->
 ```go
-fn add(a ∈ Int, b ∈ Int) (Int) { a + b }
-
-export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { add(lo, hi) / 2 }
+export fn volume(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1, c ∈ -2^63..2^63-1) (-6..6) { a * b * c % 7 }
 ```
 
-<!-- gen go docs/book/code/integers/no-mid-helper.oro -->
+<!-- gen go docs/book/code/integers/no-past-e.oro -->
 ```
-note: integers-mid: 1 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: integers-mid: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  + [-18446744073709551616, 18446744073709551614] in lo + hi
+note: integers-volume: 0 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+gen: integers-volume: 2 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+  * [-85070591730234615856620279821087277056, 85070591730234615865843651857942052864] in a * b
 …
 ```
 
-That the bounded set asks and the unbounded one does not is the book's finding 116: made a
-request too, `(Int)` would ask on behalf of every library helper that returns `Int`, and send
-values the unsigned word holds into a big integer instead.
+`a * b` alone would fit the double word; it is refused because its one use, the product with `c`,
+does not. A claim on a name asks for the integer itself (§6.3's `half ∈ 0..cap`, with `Int` the
+set of all integers):
 
-**Or never leave the word, which is Bloch's other fix.** Measure the distance from `lo`, and add
-half of it:
+<!-- file docs/book/code/integers/past-e.oro -->
+```go
+export fn volume(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1, c ∈ -2^63..2^63-1) (-6..6) {
+    v ∈ Int = a * b * c
+    v % 7
+}
+```
+
+<!-- gen go docs/book/code/integers/past-e.oro -->
+```go
+note: integers-volume: 3 operation(s) in arbitrary precision
+…
+```
+
+and the product is a big integer, its remainder a word again. So `Int` changes nothing about a
+value the machine's readings hold; it is the permission to go past them.
+
+**Then the algebra is how a program gets cheaper.** Bloch's other fix measures the distance from
+`lo` and adds half of it:
 
 <!-- file docs/book/code/integers/bloch.oro -->
 ```go
@@ -918,24 +918,12 @@ func IntegersMid(v0 int, v1 int) int {
 }
 ```
 
-The subtraction and the halving in the unsigned reading, the addition in the signed one, each
-reading chosen from what the sets and the `where` prove, and no big integer. Take the `where`
-away and d may be negative as well as large, in [−2⁶⁴ + 1, 2⁶⁴ − 1], which no reading holds:
-
-<!-- file docs/book/code/integers/no-bloch.oro -->
-```go
-export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) {
-    lo + (hi - lo) / 2
-}
-```
-
-<!-- gen go docs/book/code/integers/no-bloch.oro -->
-```
-note: integers-mid: 2 of 3 integer operations bounded; 0 of 0 loop(s) proven terminating
-gen: integers-mid: 1 of 3 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-  - [-18446744073709551615, 18446744073709551615] in hi - lo
-…
-```
+One subtraction and a shift in the unsigned reading, one addition in the signed one. Measured on
+Go, the double word's midpoint above and this one take the same time, about 1.7 ns, and a big
+integer for the sum would take 39. The algebra does not always win: `w * h <= 1000000` in the
+double word is one multiplication, 0.6 ns, and its algebraic form `h == 0 || w <= 1000000 / h` is
+a division, 2.3 ns. A rewrite keeps a value inside a word; whether that is cheaper than the double
+word is a measurement, and against a big integer it always is.
 
 **How the compiler finds the third step.** §6.5's intervals give each value a box, and a box
 forgets where a value came from. The box of q is [0, 2⁶³ − 1] and the box of lo is
@@ -948,9 +936,6 @@ compiler writes the expression as a formula of **Presburger arithmetic**, intege
 definition 2q + m = d, 0 ≤ m ≤ 1, and asks whether every lo, hi and q satisfying the facts keeps
 lo + q in the word. That is the three-line proof above, found by a procedure (the Omega test,
 William Pugh, 1991) instead of by you.
-
-So three programs give the same answer. The first two pay for a big integer on every call, and
-the third proves it never needed one.
 
 **The result's set chooses the reading**, here at the very edge of the word, where `n + 1` can
 be 2⁶³. Claimed `Int`, the result is ℤ, and 2⁶³ is past the signed word, so on Go it is a
@@ -1488,11 +1473,12 @@ say what your numbers are.
 - **To clear a refusal**: narrow a set or test; claim `Int` or a set above the word, for exact
   arithmetic; or, where a word is required by a table or a host, build with `-checked`, for a
   trap.
-- **The compiler chooses the representation**: signed word, unsigned word, or the target's big
-  integer, by what it proves. `(lo + hi) / 2` is computed in the unsigned word when the sets
-  allow it, and exactly when they are `Int`. Over signed words, ask for the sum alone
-  (`sum ∈ Int = lo + hi`), or write `lo + (hi - lo) / 2` under `where lo <= hi`, which is
-  proven in the words: 0 ≤ ⌊(hi − lo)/2⌋ ≤ hi − lo, so the result lies between lo and hi.
+- **The compiler chooses the representation**: signed word, unsigned word, double word, or the target's big
+  integer, by what it proves. Over naturals `(lo + hi) / 2` is computed in the unsigned word; over
+  signed words in the **double word**, two digits h·2⁶⁴ + l holding every integer below 2¹²⁷, which
+  removes the midpoint's, the comparator's and the overflow test's bugs; past it, a claim of `Int`
+  asks for the integer itself. `lo + (hi - lo) / 2` under `where lo <= hi` is proven in the words
+  (0 ≤ ⌊(hi − lo)/2⌋ ≤ hi − lo), as fast as the double word and never slower than a big integer.
 - **Where a name repeats, or a `where` relates two names**, intervals forget the relation, and
   the compiler decides the expression in Presburger arithmetic instead.
 - **Above the word** is the host's big integer, or the language's own digits where the host has

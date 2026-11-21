@@ -48,6 +48,13 @@ repr shift 63
 // complement, so a term under `mod 2^n`, n ≤ 64, is computed in them, fused.
 repr wrap 64
 
+// ═══ THE DOUBLE WORD (ADR 0103 on every host, sets-are-claims-research §6): an
+// intermediate the decision proves in E, read back into the word, held as two
+// uint64 digits and computed by math/bits (ir/golang/double.go), as LLVM's i128;
+// its quotient by a word, the quotient proven in the word, is bits.Div64.
+repr double 128
+repr divide host
+
 module go {
     // THE HOST'S WORD, the set a declaration of this host writes where its host
     // type is the word (integers-boundary §5): `Int` is ℤ, and no host

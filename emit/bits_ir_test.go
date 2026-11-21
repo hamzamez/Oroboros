@@ -40,7 +40,9 @@ func TestABitResultOutsideEveryRealizationIsRefused(t *testing.T) {
 // though a·b may reach 2^124, past every word. Under `/`, `%`, `>>`, a
 // comparison or a `mod` by a non-power of two, the product is read as an
 // integer, and wrapping it changes the answer: π₈((200 + 100) / 2) is 150, and
-// wrapped (44 / 2) is 22. So each of those is refused, its product unproven.
+// wrapped (44 / 2) is 22. So each of those is refused, its product unproven:
+// a · b · a reaches 2¹⁸⁶, past the double word, which computes a · b's 2¹²⁴
+// exactly since ADR 0149 (and wraps nothing).
 func TestFusionStopsAtWhatDoesNotDescend(t *testing.T) {
 	head := "export fn f(a ∈ 0..2^62, b ∈ 0..2^62, c ∈ 1..9) (-2^63..2^63-1) { " // the word (ADR 0147)
 	for _, body := range []string{
@@ -53,13 +55,13 @@ func TestFusionStopsAtWhatDoesNotDescend(t *testing.T) {
 		}
 	}
 	for _, body := range []string{
-		"((a * b) / 2) mod 256",
-		"((a * b) % 7) mod 256",
-		"((a * b) >> 1) mod 256",
-		"((a * b) mod 255) mod 256",
-		"(if a * b > c { 1 } else { 0 }) mod 256",
-		"(a * b) mod 255",
-		"(a * b) mod 2^65",
+		"((a * b * a) / 2) mod 256",
+		"((a * b * a) % 7) mod 256",
+		"((a * b * a) >> 1) mod 256",
+		"((a * b * a) mod 255) mod 256",
+		"(if a * b * a > c { 1 } else { 0 }) mod 256",
+		"(a * b * a) mod 255",
+		"(a * b * a) mod 2^65",
 	} {
 		if err := legalGo(t, head+body+" }"); err == nil {
 			t.Errorf("%s: fused through an operation that does not descend", body)

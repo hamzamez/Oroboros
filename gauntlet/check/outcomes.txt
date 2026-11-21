@@ -1567,6 +1567,38 @@
    note: bytes.width-of (kept): 0 of 0 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: fill (kept): 3 of 3 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: copies (kept): 12 of 12 integer operations bounded; 3 of 3 loop(s) proven terminating
+== gauntlet/differential/cases/double-word.oro go emitted 0b89a718f15c05ee7650b135f3a6d2edb1a616f3a6b0ccb1ed2a2da014e691ae
+   note: gen-cmp: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-fits: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-m7: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-mid: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-overflows: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-q7: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-three-quarters: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/double-word.oro js emitted 0b0ad063e2ce38ebc045adb4bdf5ab52b71b3c9b4d211e51fa43e92f4b6f288a
+   note: gen-cmp: 3 operation(s) in arbitrary precision
+   note: gen-fits: 2 operation(s) in arbitrary precision
+   note: gen-m7: 1 operation(s) in arbitrary precision
+   note: gen-mid: 2 operation(s) in arbitrary precision
+   note: gen-overflows: 4 operation(s) in arbitrary precision
+   note: gen-q7: 2 operation(s) in arbitrary precision
+   note: gen-three-quarters: 2 operation(s) in arbitrary precision
+== gauntlet/differential/cases/double-word.oro java emitted 35f39acedd5abc008024f397c653a97be4f7515e0a63e4726999f5053d8ca707
+   note: gen-cmp: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-fits: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-m7: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-mid: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-overflows: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-q7: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-three-quarters: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/double-word.oro windows emitted 81c31c694266af33131e22d92f2afddade90dd973a0e1e72f662c03b924e8aa8
+   note: gen-cmp: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-fits: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-m7: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-mid: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-overflows: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-q7: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-three-quarters: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
 == gauntlet/differential/cases/expect.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736

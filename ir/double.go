@@ -102,7 +102,7 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 	// a natural by a positive word whose quotient the decision proves in the
 	// word (the two-digit lemma, numeralQuotient), its remainder by the same
 	// proof. quot holds the (dividend, divisor) pairs so proven.
-	_, twoByOne := tg.Prims[TwoByOne]
+	twoByOne := HasTwoByOne(tg)
 	nat := func(v V) bool { x := fs[v].v; return x.finite() && !x.lo.lt(ei(0)) }
 	quot := map[[2]V]bool{}
 	f.Walk(func(r *Region) {
@@ -149,6 +149,9 @@ func SelectDouble(tg *emit.Target, f *Func) int {
 			if u.j == 0 && (s.Op == ODiv || s.Op == ORem) && !positive(s.Args[1], 1<<62) {
 				return byWord(s) && back(s.Res[0])
 			}
+			// BY A CONSTANT, on every host: a shift by 2ᵏ; any other d LLVM's
+			// unsigned division of the magnitude (ir/llvm, divMagnitude), Go's and
+			// the JVM's 2-by-1 division with Horner's rule for a remainder
 			return u.j == 0 && positive(s.Args[1], 1<<62) && back(s.Res[0])
 		case OAnd:
 			// t & m for m >= 0, a word or the unsigned word's (2⁶⁴ − 1 is no
@@ -242,6 +245,14 @@ func inDouble(x iv) bool {
 
 // TwoByOne is the triple's 2-by-1 division, x86-64's `divq`.
 const TwoByOne = "llvm/isa.udiv-2by1"
+
+// HasTwoByOne says the target divides a double word by a word whose quotient
+// is a word: an ISA's instruction (TwoByOne), or its printer's own (`repr
+// divide host`: Go's bits.Div64, the JVM's Knuth division).
+func HasTwoByOne(tg *emit.Target) bool {
+	_, ok := tg.Prims[TwoByOne]
+	return ok || tg.DoubleDivide == "host"
+}
 
 // PlantDoubleEscape lets a double-word intermediate reach any use, a table or
 // a result included: TestADoubleWordNeverLeavesItsTerm must see it refused

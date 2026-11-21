@@ -101,7 +101,7 @@ rejected and why.
 | | how | the numbers |
 |---|---|---|
 | **as fast as hand-written code** | seven benchmark programs against hand-written Go, JavaScript, Java, and C on Windows compiled by the same compiler | generated over hand-written: **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows (geometric means, 45 comparisons from 0.85× to 1.18×, each above 1.05× explained) ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)) |
-| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,731 of 12,785** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
+| **no integer silently overflows** | an interval analysis against each platform's word; unproven means refused there | **12,764 of 12,818** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
 | **loops stop** | size-change termination | **1,603 of 1,906** loops proven; the rest read input or the file system, count through numbers past the word (a halving, a bit cleared), or shrink a range from both ends (binary search), in a way the check does not see |
 | **every platform agrees** | 87 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 73 on all four, every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
 | **each rule is tested broken** | a fault is planted in every rule that decides what is legal, and its test must fail | listed with each result in [gauntlet/results/](gauntlet/results/) |

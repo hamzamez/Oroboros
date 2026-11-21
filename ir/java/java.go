@@ -38,6 +38,8 @@ func Func(tg *emit.Target, f *ir.Func) (string, error) {
 	p := &printer{tg: tg, f: f, pl: plan.New(tg, f), own: ir.OwnReferences(f)}
 	p.int32 = tg.HostType("int -2147483648 2147483647")
 	p.word = tg.HostType("int")
+	p.dbl = ir.Doubles(f)
+	p.highs = p.pl.DoubleHighs(p.dbl)
 	out, err := p.function()
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", f.Name, err)
@@ -64,6 +66,9 @@ type printer struct {
 	// (fnLambda, ADR 0143)
 	names map[ir.V]string
 	own   map[ir.V]bool // references no host receives (ir.OwnReferences)
+	// dbl are the values held in the double word (ADR 0103, double.go), highs
+	// those whose high digit some use reads
+	dbl, highs map[ir.V]bool
 }
 
 type loopCtx struct {
@@ -456,6 +461,10 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.define(s.Res[0], emit.JavaMangle(s.Name))
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem, ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe,
 		ir.OAnd, ir.OOr, ir.OXor, ir.ONot, ir.OShl, ir.OShr, ir.OMod:
+		if p.readsDouble(s) {
+			p.dop(s)
+			return
+		}
 		form := p.pl.Form(s)
 		f := form[0]
 		if s.Mode == ir.MTrap {
@@ -909,6 +918,9 @@ func (p *printer) loop(s *ir.Stmt) {
 // ---------------------------------------------------------------- the Speller (ir/plan)
 
 func (p *printer) Op(s *ir.Stmt, args []string) string {
+	if p.readsDouble(s) {
+		return "" // two digits are no one expression: printed as statements (dop)
+	}
 	f := p.pl.Spell[s.Op][0]
 	if f == "" {
 		return ""
@@ -1002,7 +1014,7 @@ func (p *printer) fnLambda(s *ir.Stmt) {
 	fc := *p.f
 	fc.Results = []string{d.Result}
 	sub := &printer{tg: p.tg, f: &fc, pl: p.pl, ind: p.ind + 1, int32: p.int32, word: p.word,
-		spare: p.spare, names: inner, own: p.own}
+		spare: p.spare, names: inner, own: p.own, dbl: p.dbl, highs: p.highs}
 	sub.region(body, nil, true)
 	if sub.err != nil {
 		p.fail("%v", sub.err)

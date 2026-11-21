@@ -36,6 +36,9 @@ func Func(tg *emit.Target, f *ir.Func) (string, error) {
 	p := &printer{tg: tg, f: f, imps: map[string]bool{}, rename: map[ir.V]string{}}
 	p.pl = plan.New(tg, f)
 	p.words = variadicWords(tg, f, p.pl)
+	p.dbl = ir.Doubles(f)
+	p.highs = p.pl.DoubleHighs(p.dbl)
+	p.lows = p.pl.DoubleLows(p.dbl, p.highs)
 	out, err := p.function()
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", f.Name, err)
@@ -73,6 +76,9 @@ type printer struct {
 	rename  map[ir.V]string
 	spare   map[*ir.Stmt]string // a back-edge build that writes into its loop's spare (reuse)
 	words   map[ir.V]*ir.Stmt   // a table literal written only as a variadic call's list
+	// dbl are the values held in the double word (ADR 0103, double.go), highs
+	// and lows those whose high and low digits some use reads
+	dbl, highs, lows map[ir.V]bool
 }
 
 // variadicWords are the table literals a variadic call's list reads and
@@ -423,6 +429,10 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.define(s.Res[0], emit.ExportName(s.Name))
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem, ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe,
 		ir.OAnd, ir.OOr, ir.OXor, ir.ONot, ir.OShl, ir.OShr, ir.OMod:
+		if p.readsDouble(s) {
+			p.dop(s)
+			return
+		}
 		form := p.pl.Form(s)
 		f := form[0]
 		if s.Mode == ir.MTrap {
@@ -846,6 +856,9 @@ func (p *printer) loop(s *ir.Stmt) {
 // ---------------------------------------------------------------- the Speller (ir/plan)
 
 func (p *printer) Op(s *ir.Stmt, args []string) string {
+	if p.readsDouble(s) {
+		return "" // two digits are no one expression: printed as statements (dop)
+	}
 	f := p.pl.Spell[s.Op][0]
 	if f == "" {
 		return ""

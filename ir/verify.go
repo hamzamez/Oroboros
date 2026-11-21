@@ -252,8 +252,7 @@ func (v *verifier) double() {
 					// division, whose quotient's type says it is a word
 					ok = ok && j == 0
 					if d := v.def[s.Args[1]]; ok && (d == nil || d.Op != OConst) {
-						_, two := v.tg.Prims[TwoByOne]
-						ok = two && !v.dbl[s.Args[1]] && v.quotientInWord(s.Args[0], s.Args[1])
+						ok = HasTwoByOne(v.tg) && !v.dbl[s.Args[1]] && v.quotientInWord(s.Args[0], s.Args[1])
 					}
 				case OMod, OShr:
 					ok = ok && j == 0

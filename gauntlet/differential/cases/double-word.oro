@@ -1,0 +1,47 @@
+// THE DOUBLE WORD ON EVERY HOST (ADR 0103; sets-are-claims-research §6; the
+// book's finding 118). Seven programs, each refused on Go and the JVM before
+// for an intermediate past every word, each a bug where integers are the
+// machine's: the midpoint (Bloch 2006), a comparator by subtraction, x·3/4, an
+// area's check, an overflow test, a quotient and a mod by 7. Each intermediate
+// lies in E = (−2¹²⁷, 2¹²⁷), so each is computed in the double word: LLVM's
+// i128 (a signed quotient by 7 the magnitude's unsigned one, which LLVM lowers
+// to multiplications), Go's two uint64 by math/bits, the JVM's two longs by
+// their carries, Math.multiplyHigh and Knuth's two-digit division.
+//
+// The arguments put every intermediate outside the word, so no operation is
+// folded at compile time (ADR 0009 folds only inside it): lo + hi = 2⁶⁴ − 2 − n,
+// a − b = −2⁶⁴ + 1 + 2n, 3x and 3w past 2⁶³, a + b = 2⁶³, 5y and 3y below
+// −2⁶³. The answers are ℤ's, computed apart.
+//
+// JavaScript has no double word; its S₆₄ arguments are BigInt, and the inlined
+// case meets the pairs pass's missing signed reading (the book's finding 114).
+// skip: js because "outside the unsigned word it would be held in"
+// inputs: 0 1 5
+// prints: string
+// expect: 9223372036854775807/-1/6917529027641081855/f/t/-6588122883467697005/4 9223372036854775806/-1/6917529027641081854/f/t/-6588122883467697005/0 9223372036854775804/-1/6917529027641081851/f/t/-6588122883467697002/5
+export fn mid(lo ∈ -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { (lo + hi) / 2 }
+
+export fn cmp(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1) (-1..1) {
+    d = a - b
+    if d < 0 { -1 } else { if d > 0 { 1 } else { 0 } }
+}
+
+export fn three_quarters(x ∈ -2^63..2^63-1) (-2^63..2^63-1) { x * 3 / 4 }
+
+export fn fits(w ∈ 0..2^63-1, h ∈ 0..2^63-1) (Bool) { w * h <= 1000000 }
+
+export fn overflows(a ∈ -2^63..2^63-1, b ∈ -2^63..2^63-1) (Bool) { a + b > 2^63 - 1 }
+
+export fn q7(y ∈ -2^63..2^63-1) (-2^63..2^63-1) { y * 5 / 7 }
+
+export fn m7(y ∈ -2^63..2^63-1) (0..6) { y * 3 mod 7 }
+
+fn flag(b ∈ Bool) { if b { "t" } else { "f" } }
+
+fn run(n ∈ 0..5) {
+    top ∈ Int = 9223372036854775807
+    bot ∈ Int = -9223372036854775808
+    decimal(mid(top - n, top)) ++ "/" ++ decimal(cmp(bot + n, top - n)) ++ "/" ++
+        decimal(three_quarters(top - n)) ++ "/" ++ flag(fits(top - n, 3)) ++ "/" ++
+        flag(overflows(top - n, 1 + n)) ++ "/" ++ decimal(q7(bot + n)) ++ "/" ++ decimal(m7(bot + n))
+}

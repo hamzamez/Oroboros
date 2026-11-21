@@ -30,11 +30,18 @@ func TestIntIsAConsentOnEveryTarget(t *testing.T) {
 			}
 		}
 	}
+	// THE CONSENT IS SEEN PAST E: the midpoint's sum lies in the double word,
+	// computed there without asking (ADR 0149); a product of three words, up
+	// to 2¹⁸⁹, is ℤ's only where the binder asks
+	product := "export fn f(a ∈ " + s64 + ", b ∈ " + s64 + ", c ∈ " + s64 + ") (-6..6) {\n    p ∈ Int = a * b * c\n    p % 7\n}\n"
+	if _, err := surfaceGen(t, "go", map[string]string{"p.oro": product}); err != nil {
+		t.Errorf("a product of three words claimed Int: want it held exactly, got %v", err)
+	}
 	core.PlantZAscribedAsWord = true
-	_, err := surfaceGen(t, "go", map[string]string{"p.oro": binder})
+	_, err := surfaceGen(t, "go", map[string]string{"p.oro": product})
 	core.PlantZAscribedAsWord = false
 	if err == nil {
-		t.Error("a binder with Int ascribed as the word: Go should refuse the sum, so the witness can fail")
+		t.Error("a binder with Int ascribed as the word: Go should refuse the product, so the witness can fail")
 	}
 }
 
@@ -90,9 +97,11 @@ func TestBlochsMidpointIsProven(t *testing.T) {
 			t.Errorf("with %s, Bloch's midpoint should be refused on Go, so the witness can fail", name)
 		}
 	}
-	// and without the `where`, hi − lo leaves both words: refused
-	if _, err := surfaceGen(t, "go", map[string]string{"p.oro": strings.Replace(src, " where lo <= hi", "", 1)}); err == nil {
-		t.Error("the midpoint without lo <= hi: hi − lo is in neither word, want it refused")
+	// and without the `where`, hi − lo leaves both words and lies in E: the
+	// double word's (ADR 0149), Go's math/bits
+	if code, err := surfaceGen(t, "go", map[string]string{"p.oro": strings.Replace(src, " where lo <= hi", "", 1)}); err != nil ||
+		!strings.Contains(code, "bits.Sub64") {
+		t.Errorf("the midpoint without lo <= hi: want hi − lo in the double word, got %v\n%s", err, code)
 	}
 }
 

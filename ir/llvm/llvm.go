@@ -957,12 +957,22 @@ func (p *printer) dop(s *ir.Stmt) {
 			p.line("%%v%d = extractvalue { i64, i64 } %s, %d", s.Res[0], qr, map[ir.Op]int{ir.ODiv: 0, ir.ORem: 1}[s.Op])
 			return
 		}
+		if c := p.pl.Const[p.pl.Res(s.Args[1])]; c != nil && c.Kind == core.KInt && c.Int&(c.Int-1) != 0 &&
+			!nat(s.Args[0]) && !plantDivTI3 {
+			p.divMagnitude(s, args[0], c.Int)
+			return
+		}
 		u := map[ir.Op]string{ir.ODiv: "udiv", ir.ORem: "urem"}[s.Op]
 		if !nat(s.Args[0]) || !nat(s.Args[1]) {
 			u = map[ir.Op]string{ir.ODiv: "sdiv", ir.ORem: "srem"}[s.Op]
 		}
 		p.line("%s = %s i128 %s, %s", r, u, args[0], args[1])
 	case ir.OMod:
+		if c := p.pl.Const[p.pl.Res(s.Args[1])]; c != nil && c.Kind == core.KInt && c.Int&(c.Int-1) != 0 &&
+			!nat(s.Args[0]) && !plantDivTI3 {
+			p.divMagnitude(s, args[0], c.Int)
+			return
+		}
 		// the Euclidean residue by a positive constant: urem of a natural, and
 		// otherwise srem lifted into [0, m)
 		if nat(s.Args[0]) {
@@ -1818,3 +1828,46 @@ var PlantSlotUnwritten bool
 // PlantCellSetDropped prints no store for a λ's write of its caller's cell:
 // the caller reads the cell unchanged (TestACellWrittenInACallbackOnEveryTarget).
 var PlantCellSetDropped bool
+
+// divMagnitude is x / d, x % d or x mod d of the double word by a constant d
+// that is not a power of two, x signed: LLVM's UNSIGNED division of the
+// magnitude, the sign put back by truncation and `mod` lifted into [0, d).
+// LLVM lowers an unsigned i128 division by a constant to multiplications by
+// its reciprocal on x86-64 and expands it inline on i686, with no call, and
+// its signed one to __divti3 and __modti3 on x86-64, which no windows program
+// links (no C runtime): measured, clang 23, -O2. A quotient of magnitudes
+// has no precondition, so the quotient need not be a word's.
+func (p *printer) divMagnitude(s *ir.Stmt, x string, d int64) {
+	neg, mag, m := "%"+p.fresh("dsg"), "%"+p.fresh("dmag"), "%"+p.fresh("dng")
+	p.line("%s = icmp slt i128 %s, 0", neg, x)
+	p.line("%s = sub i128 0, %s", m, x)
+	p.line("%s = select i1 %s, i128 %s, i128 %s", mag, neg, m, x)
+	op := "udiv"
+	if s.Op != ir.ODiv {
+		op = "urem"
+	}
+	w, v := "%"+p.fresh("dq"), "%"+p.fresh("dqv")
+	p.line("%s = %s i128 %s, %d", w, op, mag, d)
+	p.line("%s = trunc i128 %s to i64", v, w)
+	res := fmt.Sprintf("%%v%d", s.Res[0])
+	n := "%" + p.fresh("dvn")
+	p.line("%s = sub i64 0, %s", n, v)
+	if s.Op != ir.OMod {
+		p.line("%s = select i1 %s, i64 %s, i64 %s", res, neg, n, v)
+		return
+	}
+	// x < 0: x mod d = d − r where r ≠ 0, and 0 where r = 0
+	nz, both, lift := "%"+p.fresh("dnz"), "%"+p.fresh("dnb"), "%"+p.fresh("dlf")
+	p.line("%s = icmp ne i64 %s, 0", nz, v)
+	p.line("%s = and i1 %s, %s", both, neg, nz)
+	p.line("%s = sub i64 %d, %s", lift, d, v)
+	p.line("%s = select i1 %s, i64 %s, i64 %s", res, both, lift, v)
+}
+
+// plantDivTI3 prints a signed quotient of the double word by any constant as
+// LLVM's own signed i128 division, as before: by 7 it is __divti3, which
+// windows does not link (TestASignedQuotientOfEIsTheMagnitudes).
+var plantDivTI3 bool
+
+// PlantDivTI3 sets plantDivTI3, for the tests of other packages.
+func PlantDivTI3(on bool) { plantDivTI3 = on }

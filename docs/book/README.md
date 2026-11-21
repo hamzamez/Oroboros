@@ -897,7 +897,7 @@ not:
      predate this step.
 
 Rewriting chapter 0 and bringing chapters 3–19 to ADR 0147 (2026-11-21), `Int` ℤ at an entry
-point too, found eleven, three fixed:
+point too, found eleven, four fixed:
 
 108. **An intermediate above the word is computed exactly only where something asks.** `mid(lo ∈
      -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { (lo + hi) / 2 }` is refused: the sum is
@@ -976,7 +976,10 @@ point too, found eleven, three fixed:
      has the double word's operations (`math/bits`: `Add64`, `Sub64`, `Mul64`, `Div64`), and the
      JVM `Math.multiplyHigh`. Measured on Go by hand: the midpoint in E 1.70 ns, Bloch's form
      1.79, the big integer 39. No corpus program meets it (its 13 Go-against-windows splits are
-     windows' own APIs). Not fixed: E on Go and the JVM, sets-are-claims-research §6.
+     windows' own APIs). **Fixed** (doubleword-2026-11-21, ADR 0149): E on Go (math/bits) and the
+     JVM, all five compiling there, the case `double-word.oro` agreeing on four hosts; and
+     windows' signed quotient of E by 7, LLVM's `__divti3` until then, the magnitude's unsigned
+     division.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

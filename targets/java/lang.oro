@@ -26,6 +26,14 @@ repr shift 63
 // complement, so a term under `mod 2^n`, n ≤ 64, is computed in them, fused.
 repr wrap 64
 
+// THE DOUBLE WORD (ADR 0103 on every host, sets-are-claims-research §6): an
+// intermediate the decision proves in E, read back into the word, held as two
+// longs and computed by their carries, Math.multiplyHigh and Knuth's two-digit
+// division (ir/java/double.go), as LLVM's i128; its quotient by a word, the
+// quotient proven in the word, is that division, oroDivlu.
+repr double 128
+repr divide host
+
 module java {
     // THE HOST'S WORD, the set a declaration of this host writes where its host
     // type is the word (integers-boundary §5): `Int` is ℤ, and no host

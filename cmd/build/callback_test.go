@@ -17,7 +17,8 @@ import (
 // its result in R. Under a host that promises no order, the λ is pure
 // (Theorem D). Each rule has its witness refused, and its fault accepting it:
 //   - the domain: the λ's parameters are the claim's sets, so r * r * r on an
-//     int32 can reach 2⁹³ and is refused; the fault leaves the parameter
+//     int32 can reach 2¹⁵⁵, past the double word (r³'s 2⁹³ is E's since ADR
+//     0149), and is refused; the fault leaves the parameter
 //     unvisited, its fact [0, 0], the defect found while building this;
 //   - the result: r + 1 can reach 2³¹, outside the claim's int32, which the
 //     host would truncate;
@@ -39,7 +40,7 @@ func TestACallbackDuringACallIsDecidedUnderItsClaim(t *testing.T) {
 		name, body, want string
 		plant            *bool
 	}{
-		{"domain", "    io.print_int(strings.IndexFunc(s, fn(r) { r * r * r > 8 }))\n}\n",
+		{"domain", "    io.print_int(strings.IndexFunc(s, fn(r) { r * r * r * r * r > 8 }))\n}\n",
 			"cannot be proven to stay inside the word", &ir.PlantCallbackParamUndeclared},
 		{"result", "    io.print_line(strings.Map(fn(r) { r + 1 }, s))\n}\n",
 			"which is not proven inside -2^31..2^31-1, the claim's result", &ir.PlantCallbackResultUnchecked},

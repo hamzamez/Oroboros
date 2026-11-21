@@ -122,6 +122,13 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      into a sink stays a word (the taint, the rung's closure backward); `-words` refuses instead;
    - ~~the book~~ done with E and A: chapter 6 §6.9 on S, U, E, ℤ through the five programs,
      chapters 7, 8 and 18;
+   - **A's three open items** (hamza, 2026-11-21: "why don't we close the 3 open: start with the
+     javascript one"): ~~JavaScript's pairs~~ done (ADR 0151,
+     [pairsel](gauntlet/results/pairsel-2026-11-21.md)): a value of U a pair only where the pair
+     computes its uses, a BigInt the rest; the pair compares and reads a word signed; finding 114
+     closed, four differential cases on JavaScript; options 2 and 3 recorded for another time
+     (hamza: "record 2 and 3 as optimizations for another time"). Next: the report listing every
+     operation; a program all ℤ by an unbounded loop counter;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -190,9 +197,8 @@ asks, and can on every target (`sum ∈ Int = lo + hi`; a helper by a set above 
 `(Int)` no demand, finding 116); Bloch's
 `lo + (hi - lo) / 2` under `where lo <= hi` proven in the words, a `where` a zone entry and a
 repeated atom decided by the Omega test (Moore: the box is exact on independent atoms); the note's
-§7 whole, silent exactness, not taken. Not built: a pair added to a negative word on JavaScript
-(finding 114); a map read with a key of any size (finding 111); a definition's claim reported
-inside its body (finding 110).
+§7 whole, silent exactness, not taken. Not built: a map read with a key of any size (finding 111); a
+definition's claim reported inside its body (finding 110).
 
 **Decided and to be built** (hamza, 2026-11-19; its items 1 and 3 are "Build all 5"'s 3 and 4), in this order (the first list's items 1–4, 6, 7 built:
 ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):
@@ -329,6 +335,14 @@ field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ �
 the state translation's let kept a λ argument for β without local.md §3's check.
 
 **Owed from finished steps** (each named in its result document):
+- pairsel (ADR 0151): **under a declared set above the word, an intermediate past it stops the
+  program** with its value proven (`x * 3 / 4` over S₆₄ on JavaScript; `double-word` skips JavaScript
+  for it): the one set (ADR 0029) is one width for the representation's room and the declared sets'
+  enforcement, and after inlining a claim above the word is not told from an intermediate; widening
+  the width, and fitting only an export's yields, each printed `big-sign`'s value past its set. The
+  fix is a claim carried through inlining as a mark; a residue divided by a non-power of two; the
+  ascriptions on K(ℕ\*), where stein's compile did not end with them; a planted fault for SCT's
+  reading of `the` as the identity;
 - handle (ADR 0146): a struct's handle field as `Option(K)` (ADR 0136's optional field); the
   results' niches no program has met (GetStdHandle's two sentinels a two-point niche); Windows'
   pseudo-handles (HWND_TOPMOST); an `Option` and a code crossing a join point together blew the
@@ -426,6 +440,11 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   to Go's scalar loop (SSE2 has no 64-bit lane product), and C at 16-bit elements is 0.74×. A table
   element by its set on LLVM changes llvm.md §4's layout: for hamza
   ([cpu](gauntlet/results/cpu-2026-11-19.md));
+- **JavaScript's pair, the rest** (ADR 0151's "Why not", hamza 2026-11-21: "optimizations for
+  another time"): short division by a constant below 2²¹ on the digits (4.3× BigInt on
+  u64repr-2026-09-22's kernel, 1.6× on pairsel's digit sum), a variable shift, a build's region, an
+  entry point's parameter as a pair; and E on JavaScript as four 32-bit digits, BigInt today; trigger
+  a program the selection sends to ℤ and a measurement that asks;
 - **U₃₂ on i686** (ADR 0127's "Why not"): K(ℕ\*)'s digit in an i32 read unsigned; trigger the next
   measurement of windows32's big-integer gap;
 - **integers' four old mechanisms as (H, d) data** (ADR 0083 item 1); trigger the next change to any
@@ -461,10 +480,10 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
 - **Provability**: **12,766 of 12,820** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,605 of 1,908** loops proven to
-  terminate (size-change termination; of the 303 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 39 were before bigbits-2026-11-19 (sieve-js's two proven since intboundary-2026-11-21), among
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,607 of 1,908** loops proven to
+  terminate (size-change termination; of the 301 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 39 were before bigbits-2026-11-19 (sieve-js's two proven since intboundary-2026-11-21), among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
-  count the host returns; 252 are Stein's and popcount's loops over numerals, whose measures, a
+  count the host returns; 250 are Stein's and popcount's loops over numerals (stein's two on JavaScript proven since pairsel-2026-11-21), whose measures, a
   halving, a falling maximum, a bit cleared, size-change termination does not see, each counted
   per program and target). A definition windows keeps as a function
   (ADR 0113) is counted once per program, and K(ℕ\*)'s instances (ADR 0101) once per target; a
@@ -866,6 +885,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | Where an operation's box leaves the word and its term repeats an atom or relates two, the Omega test decides its word (Moore: the box is exact on independent atoms); a `where`'s comparison a zone entry; a range claim the intervals miss decided by the logic; Presburger's constants exact; `Int` at a binder ℤ, the consent | [0148](docs/decisions/0148-where-the-box-forgets-a-relation-presburger-arithmetic-decides.md) |
 | The double word E on every 64-bit host (Go by math/bits, the JVM by its carries, `Math.multiplyHigh` and Knuth's division); a signed quotient of E by a constant the magnitude's (LLVM's unsigned division; Go's and the JVM's 2-by-1 with Horner's rule for a remainder); a quotient by a word the 2-by-1 division, where the target has one | [0149](docs/decisions/0149-the-double-word-is-every-hosts.md) |
 | A set is a claim and ρ alone chooses: an operation past S, U and E that reaches no sink is held in ℤ and reported; a refusal only at a sink; `-words` refuses it instead | [0150](docs/decisions/0150-a-set-is-a-claim-and-rho-alone-chooses.md) |
+| A representation holds a value only where it computes the value's uses: on JavaScript a value of U is a pair where its operations are the pair's, ℤ (BigInt) whole otherwise, the greatest fixed point on the pair the rung's least; the pair compares lexicographically and reads a word signed; amends 0083 and 0150 | [0151](docs/decisions/0151-a-representation-holds-a-value-only-where-it-computes-its-uses.md) |
 
 ## Build commands
 

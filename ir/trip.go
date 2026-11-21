@@ -445,6 +445,13 @@ func (a *intervals) deltaFrom(v V, base func(V) bool, depth int) iv {
 		return ivTop // a promoted host operation outside the word is the host's
 	}
 	switch d.Op {
+	case OThe:
+		// an ascription is the identity on its value, its fact a theorem
+		// about it: a step through one is the step under it (the rung's
+		// ascriptions, big.go's ascribe, rename a loop's word variable so)
+		if len(d.Args) == 1 {
+			return a.deltaFrom(d.Args[0], base, depth-1)
+		}
 	case OAdd:
 		if x := a.deltaFrom(d.Args[0], base, depth-1); x != ivTop {
 			return addIV(x, a.fs[d.Args[1]].v)

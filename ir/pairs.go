@@ -28,18 +28,28 @@ import (
 //	<< k, >> k (k a constant): the digits' shifts, the bits crossing the
 //	        boundary carried between them
 //	/ 2ᵐ, % 2ᵐ, mod 2ᵐ: a right shift and a mask
+//	x ⋈ y:  the lexicographic order of (h, l), xₗ ⋈ yₗ where xₕ = yₕ (ADR 0151)
+//	a / b, a rem b for a word |a| < b: 0 and a, reading no digit of b
 //
 // Every operation a pass writes is an operation on integers below 2³⁴ or
 // fused under `mod 2³²`, so the decision run after it proves each one inside
 // the word, or the program is refused: the expansion is checked by the
 // machinery that checks everything else. An exact operation's result is proven
-// in U, so its digits are the value's; a wrapped one's are its residue's.
-// What is not built is refused, saying so: a comparison of a pair, a shift by
-// a count not known when compiling, a division by anything but a power of two,
-// a pair entering or leaving through a build's region, and an entry point's
-// parameter held as a pair. A pair reaching a host argument of any type is
-// boxed (`pair-box`, a decimal string), and an entry point's result is the
-// host's BigInt (`pair-bigint`), the representation a caller holds it in.
+// in U, so its digits are the value's; a wrapped one's are its residue's. A
+// result in the word S is read from its residue's digits signed, h − 2³²·[h ≥
+// 2³¹], and ascribed its decided fact (toWord, ADR 0151).
+//
+// A VALUE THE PAIR CANNOT COMPUTE WITH IS NOT A PAIR (ADR 0151, PairsLeaving):
+// one divided by a non-power of two or shifted by a variable, one compared with
+// a word that may be negative, one whose operation's result leaves U, is
+// demanded in ℤ before the rung, and the rung's closure takes what it touches.
+// Left refused, saying so: such a use of a residue (an operation fused under
+// mod 2⁶⁴, which the rung does not hold), a pair entering or leaving through a
+// build's region, and an entry point's parameter held as a pair. A pair
+// reaching a host argument of any type is boxed (`pair-box`, a decimal
+// string), and an entry point's result is the host's BigInt (`pair-bigint`),
+// the representation a caller holds it in; a value of U held exactly leaves
+// the same way (`big-box`, the BigInt itself).
 func SelectPairs(tg *emit.Target, f *Func, sig *core.Sig) (bool, error) {
 	if !tg.Word.Pair {
 		return false, nil
@@ -48,11 +58,7 @@ func SelectPairs(tg *emit.Target, f *Func, sig *core.Sig) (bool, error) {
 	if len(fs) != f.NV() {
 		fs = analyse(tg, f)
 	}
-	p := &pairs{tg: tg, f: f, fs: fs, pair: map[V]bool{}, halves: map[V][2]V{}, kon: map[V]*big.Int{},
-		sub: map[V]V{}, def: map[V]*Stmt{}, nv: f.NV(),
-		// a header that states its result: an unstated one claims nothing
-		// (ADR 0062 item 8), so its type is typing's and no declared set
-		stated: sig != nil && (len(sig.Results) > 0 || sig.Result != "" && sig.Result != "any")}
+	p := newPairs(tg, f, fs, sig)
 	p.classify()
 	if p.err != nil {
 		return false, p.err
@@ -75,6 +81,168 @@ func SelectPairs(tg *emit.Target, f *Func, sig *core.Sig) (bool, error) {
 	return true, nil
 }
 
+func newPairs(tg *emit.Target, f *Func, fs []fact, sig *core.Sig) *pairs {
+	return &pairs{tg: tg, f: f, fs: fs, pair: map[V]bool{}, halves: map[V][2]V{}, kon: map[V]*big.Int{},
+		sub: map[V]V{}, def: map[V]*Stmt{}, nv: f.NV(),
+		// a header that states its result: an unstated one claims nothing
+		// (ADR 0062 item 8), so its type is typing's and no declared set
+		stated: sig != nil && (len(sig.Results) > 0 || sig.Result != "" && sig.Result != "any")}
+}
+
+// THE PAIRS' SELECTION (ADR 0151): ρ(v) is the cheapest representation whose
+// domain holds v's fact AND whose operations cover v's uses. U's pair is the
+// cheapest for a value of U past the word, but it has no division by a
+// non-power of two, no variable shift, no comparison with a word that may be
+// negative, and no operation whose result leaves U; ℤ, the rung, has all of
+// them. So a value of U leaves the pair exactly when a use of it, or the
+// operation computing it, is one the rung computes and the pair does not, and
+// the rung's own closure (big.go's solve) takes what that value touches: an
+// operation over an exact operand is exact, an exact result's operands are
+// demanded. That is the greatest fixed point of "every use covered" on the pair
+// and the least on ℤ, the same lattice read from both ends.
+//
+// PairsLeaving is that set on the decided f, before the rung; D_A (exact.go)
+// demands it. A residue, an operation fused under mod 2⁶⁴ (MWrapPair), never
+// leaves: the rung holds no residue, and where one meets ℤ it enters by the
+// inclusion ι : U ↪ ℤ, `pair-bigint` at the rung's `big-of`. A use the rung
+// refuses as well, a table's index, a host's word, is no reason to leave.
+//
+// Measured (pairsel-2026-11-21): a digit sum over U in BigInt throughout costs
+// 531 ns a value, the pair with each division conjugated through BigInt 1,869:
+// a value leaves whole, never one operation at a time.
+func PairsLeaving(tg *emit.Target, f *Func, sig *core.Sig) map[V]bool {
+	if !tg.Word.Pair || PlantPairsKeepAll || len(f.facts) != f.NV() {
+		return nil
+	}
+	p := newPairs(tg, f, f.facts, sig)
+	p.classify() // its refusals are the pass's own, made after the rung
+	residue := func(v V) bool { d := p.def[v]; return d != nil && d.Mode == MWrapPair }
+	out := map[V]bool{}
+	leave := func(vs ...V) {
+		for _, v := range vs {
+			// a closed constant is a value, which the rung spells as one (its
+			// spine), never a demand
+			if _, k := p.kon[v]; v >= 0 && p.pair[v] && !residue(v) && !k {
+				out[v] = true
+			}
+		}
+	}
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Name != "" || len(s.Res) != 1 || !langOp(s) || !(s.Op.IsArith() || s.Op.IsBit() || s.Op.IsCmp()) {
+				continue
+			}
+			touched := p.pair[s.Res[0]]
+			for _, a := range s.Args {
+				touched = touched || p.pair[a]
+			}
+			if touched && !p.covers(s) {
+				leave(s.Args...)
+				leave(s.Res[0])
+			}
+		}
+	})
+	// A JOIN A PAIR ENTERS THAT MAY LIE OUTSIDE U holds no pair: it is ℤ's,
+	// and the pairs that enter it with it
+	for v := range p.pair {
+		if !p.inU(v) && !residue(v) {
+			out[v] = true
+			for _, e := range p.flows {
+				if !e.fn && e.dst == v {
+					leave(e.src)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// PlantPairsKeepAll leaves every value of U in its pair, as before ADR 0151:
+// a division of one by 3 is refused again (TestAPairLeavesForTheIntegers).
+var PlantPairsKeepAll bool
+
+// covers reports that the pass expands s, an operation a pair touches: the
+// pass's own cases, read off its rewrite (arith, compare).
+func (p *pairs) covers(s *Stmt) bool {
+	r := s.Res[0]
+	if _, ok := p.kon[r]; ok && p.pair[r] {
+		return true // a closed constant is its digits
+	}
+	res := p.pair[r] || s.Mode == MWrapPair
+	if s.Op.IsCmp() {
+		return len(s.Args) == 2 && p.hasDigits(s.Args[0], false) && p.hasDigits(s.Args[1], false)
+	}
+	switch s.Op {
+	case OAdd, OSub, OMul, OAnd, OOr, OXor:
+		return res || p.inS(r)
+	case ONeg, ONot:
+		return s.Mode == MWrapPair
+	case OShl, OShr, ODiv, ORem, OMod:
+		if len(s.Args) == 2 && p.smallByLarge(s) {
+			return true
+		}
+		if len(s.Args) != 2 || p.pair[s.Args[1]] {
+			return false
+		}
+		c, ok := p.kon[s.Args[1]]
+		if !ok || !c.IsInt64() || c.Sign() < 0 {
+			return false
+		}
+		if s.Op != OShl && s.Op != OShr && (c.Sign() == 0 || c.Int64()&(c.Int64()-1) != 0) {
+			return false
+		}
+		return p.hasDigits(s.Args[0], s.Op == OShl && res) && (res || p.inS(r))
+	}
+	return false
+}
+
+// smallByLarge reports a quotient or remainder of a word by a divisor whose
+// fact lies above the word's magnitude: for |a| < b, a / b = 0 and a rem b = a,
+// truncating, and a mod b = a for a ≥ 0, so no digit of the divisor is read.
+func (p *pairs) smallByLarge(s *Stmt) bool {
+	a, b := s.Args[0], s.Args[1]
+	if p.pair[a] || !p.pair[b] || int(a) >= p.nv || int(b) >= p.nv || PlantPairSmallByLarge {
+		return false
+	}
+	x, y := p.fs[a].v, p.fs[b].v
+	if !x.finite() || y.bot || y.nlo {
+		return false
+	}
+	m := x.hi.big()
+	if n := new(big.Int).Neg(x.lo.big()); n.Cmp(m) > 0 {
+		m = n
+	}
+	if y.lo.big().Cmp(m) <= 0 {
+		return false
+	}
+	return s.Op != OMod || x.lo.sign() >= 0
+}
+
+// PlantPairSmallByLarge refuses a word divided by a pair above it, as before
+// ADR 0151: the Mersenne hash's first step is then refused on JavaScript
+// (TestAPairLeavesForTheIntegers).
+var PlantPairSmallByLarge bool
+
+// hasDigits reports that toPair gives v's digits, without making them.
+func (p *pairs) hasDigits(v V, residue bool) bool {
+	if p.pair[v] {
+		return true
+	}
+	if c, ok := p.kon[v]; ok {
+		return residue || c.Sign() >= 0 && c.Cmp(pairTop) < 0
+	}
+	if v < 0 || int(v) >= len(p.fs) {
+		return false
+	}
+	return residue || p.fs[v].v.within(ep{}, ei(p.tg.Word.Hi))
+}
+
+// inS reports a value of the pass's input whose fact lies in the signed word.
+func (p *pairs) inS(v V) bool {
+	return v >= 0 && int(v) < p.nv && p.fs[v].v.within(ei(p.tg.Word.Lo), ei(p.tg.Word.Hi))
+}
+
 var (
 	pairB    = new(big.Int).Lsh(big.NewInt(1), 32)
 	pairMask = int64(1<<32 - 1)
@@ -91,6 +259,7 @@ type pairs struct {
 	sub    map[V]V        // a value replaced by another
 	def    map[V]*Stmt
 	resPar []bool // the function's results held as pairs
+	flows  []flow // classify's joins, each input to its receiver
 	stated bool   // the header states the results
 	nv     int    // the values before the pass, whose facts are the decision's
 	out    []Stmt
@@ -237,6 +406,7 @@ func (p *pairs) classify() {
 	}
 	p.resPar = make([]bool, len(f.Results))
 	walk(f.Body, recv{fn: true}, recv{}, recv{})
+	p.flows = flows
 	// A JOIN WITH A PAIR COMING IN IS A PAIR: the least fixed point.
 	for changed := true; changed; {
 		changed = false
@@ -463,8 +633,54 @@ func (p *pairs) setResult(r V, hi, lo V) {
 		p.halves[r] = [2]V{hi, lo}
 		return
 	}
-	p.sub[r] = p.toS(hi, lo)
+	p.sub[r] = p.toWord(hi, lo, r)
 }
+
+// toWord is the value in the signed word of an operation whose digits are
+// its result's residue mod 2⁶⁴, the result r proven in S, [L, H].
+//
+// THE SIGNED READING (ADR 0151; book finding 114). For v ∈ S₆₄ with residue
+// digits (h, l), v = ⌊v/B⌋·B + (v mod B), l = v mod B, and ⌊v/B⌋ ∈ [−2³¹, 2³¹)
+// is h read as a 32-bit two's complement: h − B·[h ≥ 2³¹] = h − B·⌊h/2³¹⌋. On
+// a non-negative v the correction is 0. Each step is an operation the decision
+// counts, on integers below 2³³; what it cannot see is the theorem, that the
+// high digit so read is ⌊v/B⌋ ∈ [⌊L/B⌋, ⌊H/B⌋] and the value is v ∈ [L, H],
+// so both are ascribed, as a realization ascribes its site's fact (realize.go):
+// the expansion is a homomorphism, and d(h, l) = v.
+func (p *pairs) toWord(hi, lo, r V) V {
+	iv := ivTop
+	if int(r) < p.nv {
+		iv = p.fs[r].v
+	}
+	if p.isK(hi, 0) || iv.bot || !iv.within(ei(p.tg.Word.Lo), ei(p.tg.Word.Hi)) || PlantPairWordUnascribed {
+		return p.toS(hi, lo)
+	}
+	L, H := iv.lo.big(), iv.hi.big()
+	hs := hi
+	if L.Sign() < 0 && !PlantPairUnsignedReading {
+		hs = p.subt(hi, p.mul(p.shr(hi, 31), p.k(1<<32)))
+	}
+	q := func(x *big.Int) *big.Int { return new(big.Int).Div(x, pairB) } // Euclid's, the floor for B > 0
+	hs = p.the(hs, q(L), q(H))
+	return p.the(p.add(p.mul(hs, p.k(1<<32)), lo), L, H)
+}
+
+// the is v ascribed [lo, hi], in the word.
+func (p *pairs) the(v V, lo, hi *big.Int) V {
+	t := p.fresh()
+	p.out = append(p.out, Stmt{Op: OThe, Type: "int " + lo.String() + " " + hi.String(), Args: []V{v}, Res: []V{t}})
+	return t
+}
+
+// PlantPairUnsignedReading reads a result in the word from its residue's
+// digits unsigned: x − y = −3 is then 2⁶⁴ − 3, ascribed −3..−3, a wrong answer
+// (TestAPairLeavesForTheIntegers).
+var PlantPairUnsignedReading bool
+
+// PlantPairWordUnascribed rebuilds a result in the word with no ascription, as
+// before ADR 0151: the decision then refuses hi·B + lo, which it sees reach
+// 2⁶⁴ (TestAPairLeavesForTheIntegers).
+var PlantPairWordUnascribed bool
 
 func (p *pairs) rewrite() {
 	f := p.f
@@ -636,11 +852,11 @@ func (p *pairs) stmt(s *Stmt, region func(r *Region, yield, brk, cont []bool, fn
 		p.call(s)
 		return
 	}
+	if s.Op.IsCmp() && len(s.Args) == 2 && len(s.Res) == 1 {
+		p.compare(s)
+		return
+	}
 	if !s.Op.IsArith() || len(s.Res) != 1 {
-		if s.Op.IsCmp() {
-			p.fail("a comparison of a value held in the unsigned word as a pair is not built (ir/pairs.go)")
-			return
-		}
 		for j := range s.Args {
 			s.Args[j] = p.arg(s.Args[j])
 		}
@@ -650,6 +866,46 @@ func (p *pairs) stmt(s *Stmt, region func(r *Region, yield, brk, cont []bool, fn
 	p.arith(s)
 }
 
+// compare is a comparison of two values of U, each its digits: the order of U
+// is the lexicographic order of (h, l), since d(h, l) = h·B + l with l < B, so
+// x ⋈ y is xₗ ⋈ yₗ where xₕ = yₕ and xₕ ⋈′ yₕ elsewhere, ⋈′ the strict order ⋈
+// refines (= and ≠ answer false and true there). Each digit comparison is the
+// word's, on integers below 2³².
+func (p *pairs) compare(s *Stmt) {
+	xh, xl := p.toPair(s.Args[0], false, "an operand of "+s.Op.String())
+	yh, yl := p.toPair(s.Args[1], false, "an operand of "+s.Op.String())
+	if p.err != nil {
+		return
+	}
+	boolean := func() V {
+		v := p.fresh()
+		p.f.Types[v] = "bool"
+		return v
+	}
+	eq, lo := boolean(), boolean()
+	p.out = append(p.out, Stmt{Op: OEq, Args: []V{xh, yh}, Res: []V{eq}})
+	then := &Region{T: TYield, Stmts: []Stmt{{Op: s.Op, Args: []V{xl, yl}, Res: []V{lo}}}, Args: []V{lo}}
+	hi := boolean()
+	var at Stmt
+	switch s.Op {
+	case OEq, ONe:
+		at = Stmt{Op: OConst, Lit: core.Bool(s.Op == ONe), Res: []V{hi}}
+	case OLt, OLe:
+		at = Stmt{Op: OLt, Args: []V{xh, yh}, Res: []V{hi}}
+	default:
+		at = Stmt{Op: OGt, Args: []V{xh, yh}, Res: []V{hi}}
+	}
+	if PlantPairCompareLowOnly {
+		at = Stmt{Op: s.Op, Args: []V{xl, yl}, Res: []V{hi}}
+	}
+	els := &Region{T: TYield, Stmts: []Stmt{at}, Args: []V{hi}}
+	p.out = append(p.out, Stmt{Op: OIf, Args: []V{eq}, Sub: []*Region{then, els}, Res: s.Res})
+}
+
+// PlantPairCompareLowOnly compares two pairs by their low digits alone, where
+// the high ones differ too: 2³² < 1 is then true (TestAPairLeavesForTheIntegers).
+var PlantPairCompareLowOnly bool
+
 // call: the residue map into U is the identity on a pair; a pair at a host's
 // argument is boxed where the argument takes any value, and its value in the
 // word elsewhere.
@@ -658,6 +914,15 @@ func (p *pairs) call(s *Stmt) {
 		hi, lo := p.toPair(s.Args[0], true, "a residue")
 		p.setResult(s.Res[0], hi, lo)
 		return
+	}
+	// THE INCLUSION ι : U ↪ ℤ (ADR 0151): the rung widens a value of U it meets,
+	// a residue or a value the rung did not take, by `big-of`, whose premise S
+	// the pair does not meet; on its digits it is d(h, l) = h·B + l, held exactly
+	if s.Name == "big-of" && len(s.Args) == 1 && len(s.Res) == 1 {
+		if h, ok := p.halves[p.get(s.Args[0])]; ok {
+			p.out = append(p.out, Stmt{Op: OCall, Name: "pair-bigint", Args: []V{h[0], h[1]}, Res: s.Res})
+			return
+		}
 	}
 	q := p.tg.Prims[s.Name]
 	// A STATEMENT'S VALUE IS ITS FIRST ARGUMENT (ir.md): where that is a pair,
@@ -705,7 +970,13 @@ func (p *pairs) arith(s *Stmt) {
 	wrap := s.Mode == MWrapPair
 	res := p.pair[r] || wrap
 	a := s.Args[0]
-	operand := func(v V) (V, V) { return p.toPair(v, wrap || res, "an operand of "+s.Op.String()) }
+	// A RING OR BIT OPERATION'S OPERANDS BY THEIR RESIDUES: ℤ → ℤ/2⁶⁴ is a ring
+	// homomorphism, and the bits of a residue are the integer's low bits, so
+	// the result's digits are its residue's; read in U where it is a pair, in
+	// S by the signed reading where it is not (toWord)
+	operand := func(v V) (V, V) {
+		return p.toPair(v, true, "an operand of "+s.Op.String())
+	}
 	constArg := func(v V) (int64, bool) {
 		c, ok := p.kon[p.get(v)]
 		if !ok || !c.IsInt64() {
@@ -782,6 +1053,17 @@ func (p *pairs) arith(s *Stmt) {
 		aH, aL := operand(a)
 		p.setResult(r, p.subt(p.k(pairMask), aH), p.subt(p.k(pairMask), aL))
 		return
+	case ODiv, ORem, OMod:
+		if p.smallByLarge(s) {
+			if s.Op == ODiv {
+				p.sub[r] = p.k(0)
+			} else {
+				p.sub[r] = p.get(a)
+			}
+			return
+		}
+	}
+	switch s.Op {
 	case OShl, OShr, ODiv, ORem, OMod:
 		c, ok := constArg(s.Args[1])
 		if !ok || c < 0 {

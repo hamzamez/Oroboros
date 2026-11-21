@@ -145,6 +145,20 @@ func sizeChangeTerminates(edges []scGraph, floored func(int) bool) bool {
 
 // terminates is the theorem applied to one loop, after its last evaluation:
 // s the loop, cur its parameters' facts at the head, lc its exits' records.
+// plThe is v's place through its πs and its ascriptions, each the identity
+// on its value: a loop's variable that the rung's ascription renamed (q, then
+// p = the(q)) is the same variable for its steps (pairsel-2026-11-21).
+func (a *intervals) plThe(v V) V {
+	for {
+		v = a.pl(v)
+		d := a.def[v]
+		if d == nil || d.Op != OThe || len(d.Args) != 1 {
+			return v
+		}
+		v = d.Args[0]
+	}
+}
+
 func (a *intervals) terminates(s *Stmt, cur []fact, lc *exitFacts) bool {
 	body := s.Sub[0]
 	n := len(body.Params)
@@ -161,9 +175,9 @@ func (a *intervals) terminates(s *Stmt, cur []fact, lc *exitFacts) bool {
 	// base pᵢ, met with the facts' difference there (tripRefine's reading).
 	step := func(cr *Region, i, j int) iv {
 		rec := lc.at[cr]
-		pi := a.pl(body.Params[i])
+		pi := a.plThe(body.Params[i])
 		undo := a.atContinue(body.Params, rec[1])
-		d := a.deltaFrom(cr.Args[j], func(x V) bool { return a.pl(x) == pi }, 4)
+		d := a.deltaFrom(cr.Args[j], func(x V) bool { return a.plThe(x) == pi }, 4)
 		undo()
 		return meetIV(d, subIV(rec[0][j].v, rec[1][i].v))
 	}

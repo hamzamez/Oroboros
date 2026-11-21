@@ -4435,3 +4435,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - now emits — `gauntlet/differential/cases/quotient-corner.oro js`
 - emitted text changed — `gauntlet/differential/cases/quotient-corner.oro windows`
 - compiler output changed — `gauntlet/differential/cases/quotient-corner.oro windows`
+
+## 2026-11-21 — on 672d9489, with uncommitted changes
+
+**Reason:** ADR 0151 (pairsel-2026-11-21): JavaScript's unsigned word a pair only where it computes a value's uses. No emitted text changes; stein on js proves two more loops, its word variables ascribed after the rung and read through by size-change termination as the identity; inz on js is refused at its own decimal, a name the target provides, where add's result in U, now the host's BigInt, was refused before
+
+836 runs: 576 emitted, 260 refused; 12766 of 12820 integer operations bounded, 1607 of 1908 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- compiler output changed — `examples/big/stein.oro js`
+- compiler output changed — `examples/u128/inz.oro js`

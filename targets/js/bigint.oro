@@ -103,6 +103,11 @@ module js {
     // it (ADR 0079 item 4, ir/big.go's word): r ∘ ι = id, so nothing is lost.
     fn `big-word`(a ∈ big) (Int) pure { host expr "Number(${a})" }
 
+    // A VALUE OF U HELD EXACTLY where a host takes any value: the decimal
+    // string `pair-box` gives the same value on its digits, since a
+    // representation changes no value (ADR 0151)
+    fn `big-box`(a ∈ big) (String) pure { host expr "${a}.toString()" }
+
     fn `big%-small`(a ∈ big, k ∈ Int) (Int) pure { host expr "Number(${a} % BigInt(${k}))" }
 
     // THE DECLARED BOUND, ENFORCED -- see targets/go/bigint.oro for why the two

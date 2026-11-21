@@ -949,8 +949,10 @@ point too, found eleven, four fixed:
      answer; `ir/pairs.go` has no signed reading of a pair. The export itself compiles on
      JavaScript, over BigInt. **The program compiles** since ADR 0150 (exact-2026-11-21): the
      operations the pairs could not take are held exactly, over BigInt, and the case runs on
-     JavaScript. Not fixed: the pairs' signed reading, and their comparison (`double-word.oro`
-     skips JavaScript for it).
+     JavaScript. **Fixed** (pairsel-2026-11-21, ADR 0151): the pairs read a result in the word
+     signed, h − 2³²·[h ≥ 2³¹], and compare, lexicographically on (h, l); a value of U leaves the
+     pair for a `BigInt` exactly where an operation on it is one the pair does not compute (§6.11),
+     and the five differential cases that skipped JavaScript run on it.
 115. **An obligation whose constants pass int64 was refused.** `first(bot + n, top - n)` with
      `where lo <= hi` at S₆₄'s ends is −2⁶³ − (2⁶³ − 1) + 2n ≤ 0, no linear term of the
      refinement layer, whose constants are int64. **Fixed** (midpoint-2026-11-21): an arithmetic

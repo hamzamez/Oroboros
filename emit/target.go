@@ -1779,6 +1779,10 @@ var bigOps = []struct {
 	// (ADR 0079 item 4): not a narrowing of a value that may leave the word,
 	// which unbounded-rung.md §3 forbids, but the identity on S
 	{"big-word", 1, true},
+	// and, on a target whose unsigned word is a pair (JavaScript's), a value of
+	// U held exactly at a host's parameter of any type: its decimal string, as
+	// `pair-box` gives it on the digits (ADR 0151)
+	{"big-box", 1, true},
 	// ADR 0082's operations on ℤ, 2-adic: and, or, xor, not, a·2ᵏ and ⌊a/2ᵏ⌋
 	// with k a word, and the Euclidean remainder (ir/big.go's bigBit)
 	{"big&", 2, true}, {"big|", 2, true}, {"big⊕", 2, true}, {"big~", 1, true},

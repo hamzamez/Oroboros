@@ -30,9 +30,8 @@
 //
 // U is Go's `uint64`, the JVM's `long` read unsigned (bits-2026-10-27) and windows'
 // `i64` read unsigned (llvm.md §3a, llvm64-2026-11-06).
-// skip: js because "not a power of two: not built (ir/pairs.go)"
-// — JavaScript holds U as two 32-bit digits (ir/pairs.go), where a comparison of a pair and a
-// division by a non-power of two are not built (pairs-2026-10-28).
+// JavaScript holds U as two 32-bit digits (ir/pairs.go): x's order against 2^63
+// is theirs, and x, whose division by 3 they do not compute, is BigInt (ADR 0151).
 //
 // inputs: 1 2 3 7
 // expect: 19426835 239748576 998107577 100404562

@@ -102,8 +102,8 @@ rejected and why.
 |---|---|---|
 | **as fast as hand-written code** | seven benchmark programs against hand-written Go, JavaScript, Java, and C on Windows compiled by the same compiler | generated over hand-written: **1.001** on Go, **0.965** on JavaScript, **1.012** on Java, **0.978** on Windows (geometric means, 45 comparisons from 0.85× to 1.18×, each above 1.05× explained) ([gauntlet-2026-11-16](gauntlet/results/gauntlet-2026-11-16.md)) |
 | **no integer silently overflows** | an interval analysis against each platform's word; unproven means held as the integer itself, reported, or refused where a word is required | **12,766 of 12,820** integer operations in the corpus proven; the rest are meant to be refused, or are proven where the test harness builds them |
-| **loops stop** | size-change termination | **1,605 of 1,908** loops proven; the rest read input or the file system, count through numbers past the word (a halving, a bit cleared), or shrink a range from both ends (binary search), in a way the check does not see |
-| **every platform agrees** | 87 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 73 on all four, every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
+| **loops stop** | size-change termination | **1,607 of 1,908** loops proven; the rest read input or the file system, count through numbers past the word (a halving, a bit cleared), or shrink a range from both ends (binary search), in a way the check does not see |
+| **every platform agrees** | 89 test programs built and run on every platform that accepts them, each required to print the same, correct answer | 86 on all four (2026-11-21), every one on 32-bit Windows ([gauntlet/differential/](gauntlet/differential/)) |
 | **each rule is tested broken** | a fault is planted in every rule that decides what is legal, and its test must fail | listed with each result in [gauntlet/results/](gauntlet/results/) |
 | **nothing drifts by accident** | every emitted file, proof count and error message, on five platform targets, compared with a committed baseline | `go run ./cmd/check` |
 
@@ -158,7 +158,10 @@ same tree rather than a second run, a full run 62 → 14–15 minutes and an acc
 Then **every integer computed as the integer it is** (decided 2026-11-21,
 [the research note](docs/sets-are-claims-research.md)): the double word on Go and the JVM, so an
 intermediate up to 2¹²⁷ needs no big integer on any target, and a value past it computed exactly
-and reported rather than refused:
+and reported rather than refused; then on JavaScript, whose 64-bit unsigned integer is two 32-bit
+halves, a value kept in the halves only where they compute everything done to it and a `BigInt`
+otherwise, so a program every other platform compiles compiles there too (done 2026-11-21,
+[pairsel](gauntlet/results/pairsel-2026-11-21.md)):
 1. **The logic, its first three stages** (decided, [ADR 0145](docs/decisions/0145-the-logic-quantified-formulas-over-sets-proven-by-own-procedures.md)):
    claims with quantifiers, `∀ i ∈ 0..k-1 : b[i] != 0`, in a function's conditions and in `assert`,
    proven by the compiler's own procedures; a platform's documented promises believed with their

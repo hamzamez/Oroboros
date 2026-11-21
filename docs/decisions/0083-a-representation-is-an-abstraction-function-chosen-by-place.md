@@ -15,7 +15,9 @@ read unsigned, JavaScript's typed arrays and int32 shifts, and JavaScript's spli
 ([pairs-2026-10-28](../../gauntlet/results/pairs-2026-10-28.md)). The 32-bit scalar of items 2
 and 4 built for i686 by [ADR 0127](0127-a-scalar-in-s32-is-held-in-an-i32-where-the-triple-prefers-it.md).
 Not built: the old mechanisms re-declared as (H, d), and items 3, 4 and 6's LLVM part,
-which come with `ir/llvm`.
+which come with `ir/llvm`. **Amended** by [ADR 0151](0151-a-representation-holds-a-value-only-where-it-computes-its-uses.md):
+JavaScript's pair holds a value of U only where it computes the value's uses, a `BigInt` the rest;
+the pair compares and reads a word signed.
 
 ## Context
 

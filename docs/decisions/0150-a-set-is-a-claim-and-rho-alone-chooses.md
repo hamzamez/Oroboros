@@ -8,7 +8,9 @@ Status: Accepted (hamza, 2026-11-21: "2. A an intermediate outside E yes 3. repo
 [ADR 0079](0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md) item 3 (a claim
 above the word is no longer the consent to the rung) and
 [ADR 0148](0148-where-the-box-forgets-a-relation-presburger-arithmetic-decides.md) item 1 (a binder's
-`∈ Int` is a claim, and asks nothing the program did not already have).
+`∈ Int` is a claim, and asks nothing the program did not already have). **Amended** by
+[ADR 0151](0151-a-representation-holds-a-value-only-where-it-computes-its-uses.md) item 1: ρ the
+cheapest representation whose domain holds the fact and whose operations cover the value's uses.
 
 ## Context
 

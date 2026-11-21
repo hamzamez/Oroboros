@@ -10,7 +10,8 @@ research note for A … these are all examples that should be taught in the book
 report is enough, a flag (-words is just a bonus option for the compiler)"). **Built**: E on every
 64-bit host (ADR 0149, [doubleword](../gauntlet/results/doubleword-2026-11-21.md)); A (ADR 0150,
 [exact](../gauntlet/results/exact-2026-11-21.md)), with the taint the build found it needs (a value
-flowing into a sink stays a word). This note derives A, measures what it costs, and finds that most of
+flowing into a sink stays a word); on JavaScript, a value of U held in its pair only where the pair
+computes its uses (ADR 0151, [pairsel](../gauntlet/results/pairsel-2026-11-21.md)). This note derives A, measures what it costs, and finds that most of
 its cost is paid by the double word.
 
 ## 1. The question

@@ -116,6 +116,9 @@ func SelectBig(tg *emit.Target, f *Func, sig *core.Sig, bits int, signed bool) (
 	}
 	g.stripPis()
 	eraseThe(f)
+	if len(f.exactDemand) > 0 && tg.BigRepr == "host" && !PlantRungFactsForgotten {
+		g.ascribe()
+	}
 	// Destinations are the host's bignum's: on the fixed-limb rung a value is a
 	// table the instances build, and `big*!` has no instance.
 	if tg.HasBigDest() && tg.BigRepr != "limbs" {
@@ -153,6 +156,98 @@ type bigs struct {
 	loopParams [][]V
 	uses       map[V]int
 }
+
+// ascribe states, after the rung, the facts its representation hides from the
+// decision taken again (ADR 0151). A representation is an abstraction function
+// (ADR 0083), so what the first decision proved of a value on ℤ holds of it in
+// any representation, as a realization's site keeps its fact (realize.go). A
+// value held exactly is a host's, ⊤ to the decision, and a word computed from
+// one loses the bound it had: a digit sum's accumulator, bounded by the trip
+// count of the loop dividing v by 10, is unbounded once v is a BigInt. So each
+// word variable of a loop with a variable held exactly is ascribed its decided
+// fact, each retraction r : ℤ ⇀ S its operand's (word's g.fs), and each
+// remainder of an exact value by a word its own (v % 10 ∈ [0, 9]). Placed only
+// where A held values exactly (f.exactDemand), so no program accepted before
+// changes, and only on the host's integer (`repr big host`), where a value
+// held exactly is ⊤ to the decision. On K(ℕ*) the rung's values are numerals
+// whose library instances the decision reads under their parameters' sets, and
+// there the ascriptions are not placed: stein's gcd over Nat on windows, its
+// D_A non-empty, compiled in 40 s without them and did not end in an hour with
+// them (pairsel-2026-11-21). Everywhere else the rung runs, they are owed.
+func (g *bigs) ascribe() {
+	the := func(v V) (Stmt, bool) {
+		x := g.fs[v].v
+		if !x.finite() || x.bot {
+			return Stmt{}, false
+		}
+		return Stmt{Op: OThe, Type: factType(g.tg, x), Res: []V{v}}, true
+	}
+	g.f.Walk(func(r *Region) {
+		for i := 0; i < len(r.Stmts); i++ { // a statement inserted is passed over
+			s := &r.Stmts[i]
+			switch {
+			case s.Op == OLoop && len(s.Sub) == 1:
+				body := s.Sub[0]
+				exact := false
+				for _, p := range body.Params {
+					exact = exact || g.f.Types[p] == core.BigType && g.leftPair(p)
+				}
+				if !exact {
+					continue
+				}
+				var pre []Stmt
+				for j, p := range body.Params {
+					if int(p) >= len(g.fs) || g.f.Types[p] == core.BigType || !g.integer(p) {
+						continue
+					}
+					a, ok := the(p)
+					if !ok {
+						continue
+					}
+					q := g.fresh(g.f.Types[p])
+					body.Params[j] = q
+					a.Args = []V{q}
+					pre = append(pre, a)
+					for k := range body.Pis {
+						if body.Pis[k].Of == p {
+							body.Pis[k].Of = q
+						}
+						if body.Pis[k].Other == p {
+							body.Pis[k].Other = q
+						}
+					}
+				}
+				body.Stmts = append(pre, body.Stmts...)
+			case s.Op == OCall && (s.Name == "big-word" || s.Name == "big%-small") && len(s.Res) == 1 &&
+				int(s.Res[0]) < len(g.fs) && len(s.Args) > 0 && g.leftPair(s.Args[0]):
+				a, ok := the(s.Res[0])
+				if !ok {
+					continue
+				}
+				w := g.fresh(g.f.Types[s.Res[0]])
+				a.Args = []V{w}
+				s.Res = []V{w}
+				r.Stmts = append(r.Stmts[:i+1], append([]Stmt{a}, r.Stmts[i+1:]...)...)
+				i++
+			}
+		}
+	})
+}
+
+// leftPair is a value of U held exactly on a target whose U is a pair: one
+// the selection sent from its two digits to ℤ (ADR 0151), whose bound the
+// rung hides from the decision taken again. Only its loops and remainders are
+// ascribed: a program's `Nat`, unbounded, was ℤ's before, and ascribed its
+// loops' variables renamed lost three loops' termination on popcount and
+// render (pairsel-2026-11-21).
+func (g *bigs) leftPair(v V) bool {
+	return g.tg.Word.Pair && v >= 0 && int(v) < len(g.fs) && g.fs[v].v.within(ep{}, u64Max)
+}
+
+// PlantRungFactsForgotten places no ascription after the rung: a digit sum over
+// a value of U held exactly on JavaScript is then refused, its accumulator
+// unbounded (TestAPairLeavesForTheIntegers).
+var PlantRungFactsForgotten bool
 
 // bigJoin is a value that receives several: an `if`'s or a loop's result, a
 // loop parameter.
@@ -735,6 +830,16 @@ func (g *bigs) widen(v V, where string) V {
 			return g.spine(c.lo.big())
 		}
 	}
+	// A VALUE OF U ON A TARGET WHOSE U IS A PAIR (ADR 0151) is widened by the
+	// same name, which the pairs pass, running after, reads on the value's
+	// digits as ι : U ↪ ℤ, d(h, l) = h·B + l (`pair-bigint`); a closed constant
+	// is not one, a value its spine spells above
+	if c := g.fs[v].v; !g.fits(v) && g.tg.Word.Pair && c.within(ep{}, u64Max) && !(c.finite() && c.lo == c.hi) &&
+		!PlantPairsKeepAll {
+		out := g.fresh(core.BigType)
+		g.stmts = append(g.stmts, Stmt{Op: OCall, Name: "big-of", Args: []V{v}, Res: []V{out}})
+		return out
+	}
 	if !g.fits(v) && g.err == nil {
 		g.err = fmt.Errorf("%s is %s, which is not inside target %s's signed word [%d, %d], and only a "+
 			"value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, "+
@@ -879,7 +984,11 @@ func (g *bigs) rewrite(sig *core.Sig) {
 		// in B, which a claim above the word upstream consented to. Until then
 		// it was a position in the word, and a definition whose result was never
 		// claimed was refused for a representation nobody had asked for.
-		if !big && (resultUnclaimed(sig, j) || resultIsZ(sig, j)) {
+		// A RESULT DECLARED IN U ON A TARGET WHOSE U IS A PAIR is the host's
+		// BigInt whatever holds it inside (`pair-bigint`, ADR 0083): a yield
+		// held exactly leaves as itself (ADR 0151)
+		inU := g.tg.Word.Pair && g.tg.ValueType(f.Results[j]) == core.U64Type && !PlantPairSinks
+		if !big && (resultUnclaimed(sig, j) || resultIsZ(sig, j) || inU) {
 			for _, args := range ownExits(f.Body, TYield) {
 				if j < len(args) && g.isB(args[j]) {
 					big = true
@@ -1045,6 +1154,15 @@ func (g *bigs) stmt(s *Stmt) {
 			}
 			what := fmt.Sprintf("argument %d of %s", j+1, core.ShowName(s.Name))
 			switch ty := p.Args[j]; {
+			// A VALUE OF U AT A HOST'S PARAMETER OF ANY TYPE, on a target whose U
+			// is a pair, is its decimal string, `pair-box` on the digits (ADR
+			// 0083): held exactly it is the same string, `big-box`, since a
+			// representation changes no value (ADR 0083's L1; ADR 0151)
+			case g.isB(a) && g.tg.Word.Pair && !PlantPairSinks && g.fs[a].v.within(ep{}, u64Max) &&
+				(ty == "any" || ty == "Any" || p.Kind == "stmt" && ty == ""):
+				box := g.fresh(g.tg.Prims["big-box"].Result)
+				g.stmts = append(g.stmts, Stmt{Op: OCall, Name: "big-box", Args: []V{a}, Res: []V{box}})
+				s.Args[j] = box
 			case g.bigType(ty):
 				s.Args[j] = g.widen(a, what)
 			case ty == "int" || g.tg.ValueType(ty) == "int" || g.tg.ValueType(ty) == core.U64Type:

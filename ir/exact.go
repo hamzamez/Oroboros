@@ -47,25 +47,38 @@ var PlantTaintIgnored bool
 // (TestAnIntermediatePastEIsTheIntegersOwn).
 var PlantTaintThroughRem bool
 
+// PlantPairSinks keeps a host's any and a result declared in U sinks on a
+// target whose U is a pair: a division of a value of U printed is then refused
+// again (TestAPairLeavesForTheIntegers).
+var PlantPairSinks bool
+
 // PlantExactDemandOff leaves D_A empty: a product of three words past E is
 // then refused again (TestAnIntermediatePastEIsTheIntegersOwn).
 var PlantExactDemandOff bool
 
-// exactDemand is D_A of the decided f, and its operations as the program wrote
-// them, for the report.
-func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, []string) {
+// exactDemand is D_A of the decided f and its report: the operations past
+// every word, and those of U the pair does not compute, each counted with the
+// first of them as the program wrote them.
+//
+// ON A TARGET WHOSE U IS A PAIR (JavaScript's, ADR 0151), U holds a value only
+// where the pair covers its uses: D_A takes PairsLeaving too, a value of U the
+// pair cannot compute with, and the rung's closure the rest.
+func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, exactReport) {
+	var rep exactReport
 	if WordsOnly || PlantExactDemandOff || !tg.HoldsZ() {
-		return nil, nil
+		return nil, rep
 	}
 	fs := f.facts
 	if len(fs) != f.NV() {
-		return nil, nil
+		return nil, rep
 	}
 	sLo, sHi := ei(tg.Word.Lo), ei(tg.Word.Hi)
-	inU := func(x iv) bool { return (tg.Word.Unsigned || tg.Word.Pair) && x.within(ei(0), u64Max) }
+	leaving := PairsLeaving(tg, f, sig)
+	inU := func(v V, x iv) bool {
+		return (tg.Word.Unsigned || tg.Word.Pair && !leaving[v]) && x.within(ei(0), u64Max)
+	}
 	var e, taint map[V]bool
 	out := map[V]bool{}
-	var srcs []string
 	inOrder(f, func(s *Stmt) {
 		if len(s.Res) != 1 || s.Name != "" || s.Mode == MWrap || s.Mode == MWrapPair || !langOp(s) {
 			return
@@ -75,16 +88,17 @@ func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, []string)
 		}
 		v := s.Res[0]
 		x := fs[v].v
-		if x.bot || x.within(sLo, sHi) || inU(x) {
+		if x.bot || x.within(sLo, sHi) || inU(v, x) {
 			return
 		}
-		if e == nil { // E's selection, on a clone: nothing marked
+		ofU := leaving[v] && x.within(ei(0), u64Max)
+		if e == nil && !ofU { // E's selection, on a clone: nothing marked
 			c := f.Clone()
 			c.facts = f.facts
 			SelectDouble(tg, c)
 			e = Doubles(c)
 		}
-		if e[v] {
+		if !ofU && e[v] {
 			return
 		}
 		if taint == nil {
@@ -94,32 +108,78 @@ func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, []string)
 			return // it would carry ℤ into a sink: a word, refused or trapped
 		}
 		out[v] = true
-		if len(srcs) < 4 {
-			src := s.Op.String()
-			if s.Src != nil {
-				src = core.ShowTerm(s.Src) // as J writes it
-			}
-			if len(src) > 48 {
-				src = src[:45] + "..."
-			}
-			srcs = append(srcs, src)
+		src := s.Op.String()
+		if s.Src != nil {
+			src = core.ShowTerm(s.Src) // as J writes it
+		}
+		if len(src) > 48 {
+			src = src[:45] + "..."
+		}
+		if ofU {
+			rep.pair.add(src)
+		} else {
+			rep.past.add(src)
 		}
 	})
-	if len(out) == 0 {
-		return nil, nil
+	// THE PAIRS' JOINS: a loop's variable of U the pair cannot divide is
+	// demanded as a value, not counted as an operation
+	for v := range leaving {
+		if out[v] || fs[v].v.bot || fs[v].v.within(sLo, sHi) {
+			continue
+		}
+		if taint == nil {
+			taint = tainted(tg, f, sig)
+		}
+		if !taint[v] || PlantTaintIgnored {
+			out[v] = true
+		}
 	}
-	return out, srcs
+	if len(out) == 0 {
+		return nil, rep
+	}
+	return out, rep
 }
 
-// exactNote is the report of D_A: how many operations the machine's readings
-// do not hold, computed as the integers they are, and the first of them.
-func exactNote(name string, d map[V]bool, srcs []string) string {
+// exactReport is D_A's operations: past every word and the double word, and
+// of U where the pair does not compute them.
+type exactReport struct{ past, pair opList }
+
+// opList counts operations and keeps the first four as written.
+type opList struct {
+	n    int
+	srcs []string
+}
+
+func (l *opList) add(src string) {
+	l.n++
+	if len(l.srcs) < 4 {
+		l.srcs = append(l.srcs, src)
+	}
+}
+
+func (l opList) String() string {
 	more := ""
-	if len(d) > len(srcs) {
+	if l.n > len(l.srcs) {
 		more = "; …"
 	}
-	return fmt.Sprintf("%s: %d operation(s) past every word and the double word, held exactly: %s%s",
-		name, len(d), strings.Join(srcs, "; "), more)
+	return strings.Join(l.srcs, "; ") + more
+}
+
+// exactNotes is the report of D_A: how many operations the machine's readings
+// do not hold, computed as the integers they are, and the first of them; on a
+// target whose U is a pair, those of U it holds exactly for want of the pair's
+// operation, a separate line, since they are not past the words.
+func exactNotes(name string, r exactReport) []string {
+	var out []string
+	if r.past.n > 0 {
+		out = append(out, fmt.Sprintf("%s: %d operation(s) past every word and the double word, held exactly: %s",
+			name, r.past.n, r.past))
+	}
+	if r.pair.n > 0 {
+		out = append(out, fmt.Sprintf("%s: %d operation(s) of the unsigned word that its pair does not compute, "+
+			"held exactly: %s", name, r.pair.n, r.pair))
+	}
+	return out
 }
 
 // tainted is the set of values that must stay words because holding them
@@ -137,6 +197,14 @@ func exactNote(name string, d map[V]bool, srcs []string) string {
 func tainted(tg *emit.Target, f *Func, sig *core.Sig) map[V]bool {
 	fs := f.facts
 	bigType := func(ty string) bool { return ty == core.BigType || tg.ValueType(ty) == core.BigType }
+	// ON A TARGET WHOSE U IS A PAIR, ℤ leaves for two positions as U does (ADR
+	// 0151): a host's parameter of any type, where a value of U is its decimal
+	// string in either representation (`pair-box`, `big-box`), and a result
+	// declared in U, which is the host's BigInt in either (`pair-bigint`)
+	inU := func(v V) bool { return tg.Word.Pair && !PlantPairSinks && fs[v].v.within(ei(0), u64Max) }
+	anyArg := func(p emit.Prim, j int) bool {
+		return j < len(p.Args) && (p.Args[j] == "any" || p.Args[j] == "Any" || p.Kind == "stmt" && p.Args[j] == "")
+	}
 	// recv is each join's receiver for an input: the value it flows into
 	recv := map[V][]V{}
 	join := func(in []V, out V) {
@@ -169,7 +237,7 @@ func tainted(tg *emit.Target, f *Func, sig *core.Sig) map[V]bool {
 			case s.Op == OCall:
 				p := tg.Prims[s.Name]
 				for j, a := range s.Args {
-					if !(s.Name == "decimal" || j < len(p.Args) && bigType(p.Args[j])) {
+					if !(s.Name == "decimal" || j < len(p.Args) && bigType(p.Args[j]) || anyArg(p, j) && inU(a)) {
 						sink[a] = true
 					}
 				}
@@ -226,7 +294,7 @@ func tainted(tg *emit.Target, f *Func, sig *core.Sig) map[V]bool {
 			if j < len(f.Results) {
 				ty = f.Results[j]
 			}
-			if !(resultIsZ(sig, j) || bigType(ty)) {
+			if !(resultIsZ(sig, j) || bigType(ty) || tg.ValueType(ty) == core.U64Type && inU(a)) {
 				sink[a] = true
 			}
 		}

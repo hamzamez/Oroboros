@@ -216,13 +216,15 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// D_A (exact.go): an operation the machine's readings and the double word
 	// do not hold is held exactly, on the target's own rung where the program
 	// asked for none, and reported; `-words` refuses it instead
-	if d, srcs := exactDemand(tg, f, sig); len(d) > 0 {
+	if d, rep := exactDemand(tg, f, sig); len(d) > 0 {
 		f.exactDemand = d
 		if !plan.Holds() {
 			// THE REPORT where A decided: the program declared nothing above the
 			// word, and its operations past the readings are named; one that did
 			// is reported by the rung's count, as before
-			note(Note{Kind: NoteRefine, Text: exactNote(name, d, srcs)})
+			for _, t := range exactNotes(name, rep) {
+				note(Note{Kind: NoteRefine, Text: t})
+			}
 			plan = emit.BigPlan{Host: tg.HasBig(), Var: !tg.HasBig(), Signed: !tg.HasBig(), Inline: plan.Inline}
 		}
 	}

@@ -1222,6 +1222,41 @@ export function integersSmall(v0) {
 …
 ```
 
+### JavaScript's unsigned word is two halves
+
+JavaScript has no 64-bit integer, so its unsigned word, 0 to 2⁶⁴ − 1, is held as two numbers of
+32 bits each, the high and the low half: h·2³² + l. Addition, subtraction, multiplication, the
+order and a division by a power of two each work half by half, and cost a few operations on
+numbers. A division by 3 does not: no step on the halves gives it. So a value is held in the halves
+only where every operation on it is one the halves compute, and otherwise it is a `BigInt`, whole:
+
+<!-- file docs/book/code/integers/pair.oro -->
+```go
+export fn high(a ∈ 0..2^32-1) (Int) { (a * a + a) / 2^33 }
+
+export fn last(a ∈ 0..2^32-1) (0..999) { a * a / 3 % 1000 }
+```
+
+<!-- gen js docs/book/code/integers/pair.oro -->
+```
+note: integers-last: 2 operation(s) of the unsigned word that its pair does not compute, held exactly: a * a; a * a / 3
+…
+export function integersHigh(v0) {
+	const v12 = ((v0 & 65535));
+…
+export function integersLast(v0) {
+	return (Number((((((BigInt(v0)) * (BigInt(v0)))) / (BigInt(3)))) % BigInt(1000)));
+}
+```
+
+Both squares reach 2⁶⁴ − 2³², past JavaScript's 2⁵³. In `high` the square is multiplied out in
+16-bit pieces, which a number holds exactly, and the division by 2³³ takes the high half's bits.
+In `last` the division by 3 makes the square a `BigInt`, from the multiplication on, since moving a
+value between the two forms costs more than either: a loop dividing by 10 each time ran 3.5×
+slower when it converted to `BigInt` and back on every division than when it stayed a `BigInt`. The
+note names the operations so held. Neither function is a choice you make; on Go, the JVM and
+Windows both are one 64-bit word.
+
 ## 6.12 A header carries claims
 
 Every header in this chapter has been making claims. Here is the form in full:
@@ -1467,7 +1502,8 @@ say what your numbers are.
   integer, by what it proves. Over naturals `(lo + hi) / 2` is computed in the unsigned word; over
   signed words in the **double word**, two digits h·2⁶⁴ + l holding every integer below 2¹²⁷, which
   removes the midpoint's, the comparator's and the overflow test's bugs; past it, the integer itself,
-  each such operation named by a note (`-words` refuses it instead). `lo + (hi - lo) / 2` under `where lo <= hi` is proven in the words
+  each such operation named by a note (`-words` refuses it instead). On JavaScript the unsigned word
+  is two 32-bit halves where they compute every operation on a value, and a `BigInt` where not. `lo + (hi - lo) / 2` under `where lo <= hi` is proven in the words
   (0 ≤ ⌊(hi − lo)/2⌋ ≤ hi − lo), as fast as the double word and never slower than a big integer.
 - **Where a name repeats, or a `where` relates two names**, intervals forget the relation, and
   the compiler decides the expression in Presburger arithmetic instead.

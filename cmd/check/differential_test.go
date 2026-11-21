@@ -59,8 +59,9 @@ func TestTheParallelDifferentialStillFails(t *testing.T) {
 
 // A SKIP IS A CHECKED CLAIM (gauntlet-2026-11-16's successor, the harness): the
 // skipped target is built and run, and must fail for the reason the skip
-// states. u64-digits, refused on JavaScript for a comparison of pairs, is the
-// control, and passes. THE PLANTED FAULTS: a skip on a case that agrees on
+// states. double-word, which traps on JavaScript where its program's one set
+// meets an intermediate past it (pairsel-2026-11-21), is the control, and
+// passes. THE PLANTED FAULTS: a skip on a case that agrees on
 // every target (stale, the species that hid the JVM's unsigned word for a
 // month), the control's skip given a reason that is not its failure, and a
 // skip that states none.
@@ -75,10 +76,10 @@ func TestASkipIsACheckedClaim(t *testing.T) {
 		}
 		return string(b)
 	}
-	good, digits := read("alloc-copies"), read("u64-digits")
-	const skip = "// skip: js because \"a comparison of a value held in the unsigned word as a pair is not built\""
+	good, digits := read("alloc-copies"), read("double-word")
+	const skip = "// skip: js because \"output: trap\""
 	if !strings.Contains(digits, skip+"\n") {
-		t.Fatal("u64-digits no longer skips JavaScript for a comparison of pairs: restate the control")
+		t.Fatal("double-word no longer skips JavaScript for its one set's trap: restate the control")
 	}
 	dir := t.TempDir()
 	write := func(name, src string) {

@@ -119,7 +119,7 @@
    note: gen-run: 2 of 2 integer operations bounded; 2 of 7 loop(s) proven terminating
 == examples/big/stein.oro js emitted c0913f94c0b83f630d520ec7ceae3ba971b06f7727e00d4638e2931626b11a70
    note: gen-main: 30 operation(s) in arbitrary precision
-   note: gen-main: 6 of 6 integer operations bounded; 6 of 21 loop(s) proven terminating
+   note: gen-main: 6 of 6 integer operations bounded; 8 of 21 loop(s) proven terminating
    note: gen-run: 10 operation(s) in arbitrary precision
    note: gen-run: 2 of 2 integer operations bounded; 2 of 7 loop(s) proven terminating
 == examples/big/stein.oro java emitted ed7a38cc24242c45e5e58af099d1994897b96dd38655f585c6994e8dd34af341
@@ -1351,8 +1351,7 @@
    gen: add: an operand is [0, 18446744073709551615], which is not inside target go's signed word [-9223372036854775808, 9223372036854775807], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
 == examples/u128/inz.oro js refused
    note: decimal is defined here and provided natively by target "js"; the target's is used
-   gen: add: a result is held in arbitrary precision, which is WIDER than the word of target js, [-9007199254740991, 9007199254740991], so on this target it is not an `int` — it is a rung above the host's word (ADR 0026, docs/unbounded-rung.md).
-     A range above the word is a WIDENING, not a refinement: a value that may leave the machine word cannot silently be used where an `int` is required, and this refusal is where that is said. Widen the destination, or take the value to a string with `decimal`.
+   gen: decimal: target js provides it with 1 argument(s), but its header declares 2
 == examples/u128/inz.oro java refused
    note: decimal is defined here and provided natively by target "java"; the target's is used
    gen: add: an operand is [0, 18446744073709551615], which is not inside target java's signed word [-9223372036854775808, 9223372036854775807], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word

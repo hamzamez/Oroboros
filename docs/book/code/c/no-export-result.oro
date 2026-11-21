@@ -1,0 +1,6 @@
+export fn fact(n ∈ 0..30) (Int) {
+    loop i = 1, acc = 1 {
+        i <= n -> again(i + 1, acc * i)
+        else   -> acc
+    }
+}

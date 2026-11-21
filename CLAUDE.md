@@ -422,6 +422,11 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   for it"): a data structure's literal `F { a, b, c }` as its free algebra's term, comprehensions by
   the Boom hierarchy's laws, block formers as handlers run in staging, the trailing block
   `f(a…) { x̄ -> b }` the first step; F1–F5 decided when a program asks;
+- **an integer of any size at a Windows export** (the book's §18.10 and finding 113, hamza
+  2026-11-21: "leave it this for now until there is demand"): a parameter refused, a result `Int`
+  past the word refused, a result `Nat` returned as the program's own numeral; the boundary format,
+  a C struct of digits and count or decimal text, decided both ways at once; trigger a library that
+  hands such integers to C callers;
 - **a callback on another thread while the call blocks** (Go's `T.Run`, the JVM's parallel streams:
   `t.Parallel` lets f outlive the call, `FailNow`'s exit into ∅ skips the cell's store), kept until
   concurrency is in the language (hamza, 2026-11-20);

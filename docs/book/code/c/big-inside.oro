@@ -1,0 +1,12 @@
+use io
+
+fn fact(n ∈ 0..1000) (Nat) {
+    loop i = 1, acc = 1 {
+        i <= n -> again(i + 1, acc * i)
+        else   -> acc
+    }
+}
+
+export fn main() {
+    io.print_int(fact(30))
+}

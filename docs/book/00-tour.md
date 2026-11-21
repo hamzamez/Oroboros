@@ -601,7 +601,7 @@ gen: tour-square: its parameter n ∈ Int is any integer, and an entry point of 
 ```
 
 The program itself runs on Windows, since `main` takes nothing; it is the exported `square` that
-no C caller could use. A bounded range is no trouble anywhere, even one whose square is above every
+no C caller could use. Chapter 18 says what a Windows export can take and give. A bounded range is no trouble anywhere, even one whose square is above every
 word:
 
 <!-- file docs/book/code/tour/wide.oro -->

@@ -1090,7 +1090,8 @@ portable to go, js, java — not windows
 number up to 2⁶⁰, which a JavaScript number cannot hold exactly, so on JavaScript its parameter
 is a `BigInt` and on the other three an integer word: the same set, two representations. `next`
 takes every integer. Go, the JVM and JavaScript each have a type for that, and Windows does not:
-a Windows program's callers are C's, and C has no integer of any size.
+a Windows program's callers are C's, and C has no integer of any size (chapter 18, §18.10, has the
+whole of what a Windows export takes and gives).
 
 <!-- gen windows docs/book/code/integers/words.oro -->
 ```

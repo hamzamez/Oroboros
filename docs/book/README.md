@@ -39,7 +39,7 @@ runs every chapter, so a chapter that no longer says what the compiler gives fai
 | | **IV. Claims and hosts** | | |
 | 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, facts, obligations | J; 84 blocks checked 2026-11-21 |
 | 17 | [Targets](17-targets.md) | host modules, writing a declaration, a function the host calls, portability computed | J; 35 blocks checked 2026-11-21 |
-| 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a function Windows calls during a call; a window procedure | J; 40 blocks checked 2026-11-21 (new) |
+| 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a function Windows calls during a call; a window procedure; your own export as a C function | J; 51 blocks checked 2026-11-21 (new) |
 | 19 | [A whole program](19-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-21 |
 
 Chapters 11 and 18 were added 2026-11-20, and the chapters after each renumbered (the old 11–16 are
@@ -889,7 +889,7 @@ not:
      predate this step.
 
 Rewriting chapter 0 and bringing chapters 3–19 to ADR 0147 (2026-11-21), `Int` ℤ at an entry
-point too, found five, one fixed:
+point too, found six, one fixed:
 
 108. **An intermediate above the word is computed exactly only where something asks.** `mid(lo ∈
      -2^63..2^63-1, hi ∈ -2^63..2^63-1) (-2^63..2^63-1) { (lo + hi) / 2 }` is refused: the sum is
@@ -923,6 +923,12 @@ point too, found five, one fixed:
      and stops on windows: there the unproven product is marked a trap before the rung, which on
      Go takes it to `*big.Int`, and K(ℕ\*) never does. A stop, not a wrong answer; without the flag
      windows prints 3¹²⁸. Not fixed: the trap marks should be placed after the rung on every target.
+113. **A Windows export's integers above the word are three cases.** A parameter of any size is
+     refused (its callers are C's, which have no such type); a result declared `Int` that may leave
+     the word is refused as an unproven operation; a result declared `Nat` or a range past the word
+     is returned as a pointer to the program's own numeral, a layout no C header states. The book's
+     §18.10 says which is which. Left until a program asks (hamza, 2026-11-21): the boundary
+     format, a C struct of digits and count or decimal text, decided both ways at once.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

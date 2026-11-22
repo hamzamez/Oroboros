@@ -342,7 +342,8 @@ func (p *printer) region(r *ir.Region, lp *loopCtx, top bool) {
 		p.line("continue")
 	case ir.TBreak:
 		if lp != nil {
-			p.assign(lp.result, r.Args)
+			p.assignDigits(lp.result, lp.op.Res, r.Args)
+			p.assign(lp.result, p.notDbl(lp.op.Res, r.Args))
 		}
 		p.line("break")
 	case ir.TBranch:
@@ -378,7 +379,7 @@ func (p *printer) region(r *ir.Region, lp *loopCtx, top bool) {
 func (p *printer) assign(dst []string, vs []ir.V) {
 	var lhs, rhs []string
 	for j, v := range vs {
-		if j < len(dst) && dst[j] != "" && dst[j] != p.ref(v) {
+		if v >= 0 && j < len(dst) && dst[j] != "" && dst[j] != p.ref(v) {
 			lhs, rhs = append(lhs, dst[j]), append(rhs, p.ref(v))
 		}
 	}
@@ -391,6 +392,12 @@ func (p *printer) again(lp *loopCtx, vs []ir.V) {
 	var lhs, rhs []string
 	for j, v := range vs {
 		if lp.post[j] {
+			continue
+		}
+		if pq := lp.op.Sub[0].Params[j]; p.isDbl(pq) {
+			h, l := p.halves(v)
+			n := p.name(pq)
+			lhs, rhs = append(lhs, n+"h", n+"l"), append(rhs, h, l)
 			continue
 		}
 		q := p.name(lp.op.Sub[0].Params[j])
@@ -406,6 +413,32 @@ func (p *printer) again(lp *loopCtx, vs []ir.V) {
 	if len(lhs) > 0 {
 		p.line("%s = %s", strings.Join(lhs, ", "), strings.Join(rhs, ", "))
 	}
+}
+
+// assignDigits assigns each double-word join of into, named in dst, both
+// digits of its value (ADR 0153); notDbl is vs with those positions left out,
+// for assign.
+func (p *printer) assignDigits(dst []string, into, vs []ir.V) {
+	var lhs, rhs []string
+	for j, v := range vs {
+		if j < len(dst) && j < len(into) && dst[j] != "" && p.isDbl(into[j]) {
+			h, l := p.halves(v)
+			lhs, rhs = append(lhs, dst[j]+"h", dst[j]+"l"), append(rhs, h, l)
+		}
+	}
+	if len(lhs) > 0 {
+		p.line("%s = %s", strings.Join(lhs, ", "), strings.Join(rhs, ", "))
+	}
+}
+
+func (p *printer) notDbl(into, vs []ir.V) []ir.V {
+	out := append([]ir.V(nil), vs...)
+	for j := range out {
+		if j < len(into) && p.isDbl(into[j]) {
+			out[j] = -1
+		}
+	}
+	return out
 }
 
 // define binds a value to an expression.
@@ -790,6 +823,15 @@ func (p *printer) loop(s *ir.Stmt) {
 	body := s.Sub[0]
 	lp := &loopCtx{op: s, post: map[int]bool{}}
 	for j, q := range body.Params {
+		// A VARIABLE OF THE DOUBLE WORD is its two digits (ADR 0153), each a
+		// uint64 set from its initial value's
+		if p.isDbl(q) {
+			h, l := p.halves(s.Args[j])
+			n := p.name(q)
+			p.line("var %sh, %sl uint64 = %s, %s", n, n, h, l)
+			p.line("_, _ = %sh, %sl", n, n)
+			continue
+		}
 		init := p.ref(s.Args[j])
 		if p.f.Types[q] != "" && (p.pl.Const[p.pl.Res(s.Args[j])] != nil || strings.HasPrefix(p.typeOf(q), "int")) {
 			p.line("var %s %s = %s", p.name(q), p.typeOf(q), init)
@@ -810,13 +852,17 @@ func (p *printer) loop(s *ir.Stmt) {
 		}
 		if p.pl.Uses[p.pl.Res(rv)] > 0 {
 			lp.result[j] = p.name(rv)
+			if p.isDbl(rv) {
+				p.line("var %sh, %sl uint64", lp.result[j], lp.result[j])
+				continue
+			}
 			p.line("var %s %s", lp.result[j], p.typeOf(rv))
 		}
 	}
 	// PostVars: the stepped parameters, in the post clause.
 	var postL, postR []string
 	for j, q := range body.Params {
-		if step, ok := d.Post[j]; ok {
+		if step, ok := d.Post[j]; ok && !p.isDbl(q) {
 			lp.post[j] = true
 			postL = append(postL, p.name(q))
 			postR = append(postR, fmt.Sprintf("(%s + %s)", p.name(q), p.lit(step)))

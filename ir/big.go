@@ -569,6 +569,9 @@ func (g *bigs) onlyResultDemands() bool {
 	return true
 }
 
+// OwnExits is ownExits, for the printers' plan (ir/plan).
+func OwnExits(r *Region, t Term) [][]V { return ownExits(r, t) }
+
 // ownExits is the argument lists of a region tree's exits of kind t that
 // belong to it: yields stop at every operation owning regions (their yields
 // are theirs), and breaks and continues stop at a nested loop.

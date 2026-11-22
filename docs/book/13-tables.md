@@ -341,33 +341,32 @@ export fn total(t ∈ Array(0..1000)) (Int) {
 
 <!-- gen go docs/book/code/tables/no-long.oro -->
 ```go
-note: tables-total: 1 operation(s) in arbitrary precision
+note: tables-total: 2 operation(s) in arbitrary precision
 …
-func TablesTotal(v0 []uint16) *big.Int {
-    v3 := (big.NewInt(int64(0)))
-    var v5 int = 0
-    v6 := v3
-    for ; ; v5 = (v5 + 1) {
-        v7 := len(v0)
-        v8 := (v5 < v7)
-        if v8 {
-            v13 := int(v0[v5])
-            v14 := (big.NewInt(int64(v13)))
-            v15 := (v6.Add(v6, v14))
-            v6 = v15
+    var v5h, v5l uint64 = uint64(0), uint64(0)
+…
+        if v7 {
+            v12 := int(v0[v4])
+            v13l, v13c := bits.Add64(v5l, uint64(v12), 0)
+            v13h := v5h + uint64(v12 >> 63) + v13c
+            v5h, v5l = v13h, v13l
             continue
         }
-        break
-    }
-    return v6
+…
+    v28 := (new(big.Int).Mul(v26, v27))
+    v29 := (new(big.Int).Add(v28, v23))
+    return v29
 }
 ```
 
 A table could in principle have 2⁶³ − 1 positions, and that many values of up to 1000 do
-not fit in a word. The result is claimed `Int`, every integer, so the sum is computed exactly,
-in Go's `*big.Int`: an allocation and an addition of digits per element, where `where len(t)
-<= 10^6` made it one machine addition. The compiler said so, *1 operation in arbitrary
-precision*. Nobody has such a table, so say how long yours can be.
+not fit in a word: the sum can reach 1000 · (2⁶³ − 1), about 2⁷³. It does fit in two words, the
+double word of chapter 6, so the loop carries `s` as two of them, `v5h` and `v5l`, and each
+step is an addition with its carry. The result is claimed `Int`, every integer, so at the end
+the sum becomes Go's `*big.Int` once, from its digits: the *2 operations in arbitrary precision*
+the note counts are that last multiplication and addition. `where len(t) <= 10^6` makes the
+sum one word and each step one machine addition. Nobody has a table of 2⁶³ − 1 positions, so
+say how long yours can be.
 
 The same shape of loop finds the largest value, a position, a count:
 

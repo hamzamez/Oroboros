@@ -225,9 +225,42 @@ func (v *verifier) double() {
 	if v.tg.DoubleWidth != 128 {
 		v.add("W14: an operation in the double word on target %s, which declares none", v.tg.Name)
 	}
+	// A LOOP'S JOINS (ADR 0153): an exit a loop's body owns flows into its
+	// variables (a continue) or its results (a break), and the loop's own
+	// arguments into its variables; a double-word value may pass there only
+	// into a join the double word holds, by its type (Doubles)
+	into := map[*Region][]V{}
+	var own func(r *Region, cont, brk []V)
+	own = func(r *Region, cont, brk []V) {
+		switch r.T {
+		case TContinue:
+			into[r] = cont
+		case TBreak:
+			into[r] = brk
+		case TBranch:
+			own(r.Then, cont, brk)
+			own(r.Else, cont, brk)
+		}
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op == OLoop {
+				continue
+			}
+			for _, sub := range s.Sub {
+				own(sub, cont, brk)
+			}
+		}
+	}
 	v.f.Walk(func(r *Region) {
-		for _, a := range r.Args {
-			if v.dbl[a] {
+		for i := range r.Stmts {
+			if s := &r.Stmts[i]; s.Op == OLoop && len(s.Sub) == 1 {
+				own(s.Sub[0], s.Sub[0].Params, s.Res)
+			}
+		}
+	})
+	v.f.Walk(func(r *Region) {
+		for j, a := range r.Args {
+			if v.dbl[a] && !(PlantW14JoinsUnread == false && j < len(into[r]) && v.dbl[into[r][j]]) {
 				v.add("W14: the double word's %%%d leaves its term through a region's exit", a)
 			}
 		}
@@ -242,6 +275,9 @@ func (v *verifier) double() {
 				}
 				ok := s.Name == "" && s.Via == "" && len(s.Res) == 1
 				switch s.Op {
+				case OLoop:
+					// a loop's initial argument, into its variable
+					ok = len(s.Sub) == 1 && j < len(s.Sub[0].Params) && v.dbl[s.Sub[0].Params[j]] && !PlantW14JoinsUnread
 				case OAdd, OSub, OMul, ONeg, OEq, ONe, OLt, OLe, OGt, OGe:
 				case OAnd:
 					// by a natural mask, the other operand, a word's
@@ -266,6 +302,11 @@ func (v *verifier) double() {
 		}
 	})
 }
+
+// PlantW14JoinsUnread refuses every double-word value at a loop's exit, as
+// before ADR 0153: a loop variable in E then fails W14
+// (TestALoopVariableInEIsTheDoubleWords).
+var PlantW14JoinsUnread bool
 
 // readsDouble says s computes in the double word or reads it back.
 func (v *verifier) readsDouble(s *Stmt) bool {

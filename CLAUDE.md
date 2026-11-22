@@ -138,9 +138,11 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      each operation the decision does not bound, none at a finite fact; fixed limbs left where an
      intermediate passes their width. Then (hamza, 2026-11-22: "1A then 2A"): ~~the report
      listing every operation~~ done ([report](gauntlet/results/report-2026-11-22.md)): D_A whole,
-     a derived statement named in its source (`Of`); next 2A, the double word as a loop
-     variable's representation (a sum bounded inside E held in ℤ, `upto`), then the windows IR_P
-     and JVM map-literal tasks;
+     a derived statement named in its source (`Of`); ~~2A, the double word as a loop
+     variable's representation~~ done (ADR 0153, [eloop](gauntlet/results/eloop-2026-11-22.md)):
+     a loop's variable and result carried as E's residue, a yield into ℤ its digits'
+     recombination by Euclid's identity in radix 2³²; next the windows IR_P and JVM map-literal
+     tasks;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -902,6 +904,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A set is a claim and ρ alone chooses: an operation past S, U and E that reaches no sink is held in ℤ and reported; a refusal only at a sink; `-words` refuses it instead | [0150](docs/decisions/0150-a-set-is-a-claim-and-rho-alone-chooses.md) |
 | A representation holds a value only where it computes the value's uses: on JavaScript a value of U is a pair where its operations are the pair's, ℤ (BigInt) whole otherwise, the greatest fixed point on the pair the rung's least; the pair compares lexicographically and reads a word signed; amends 0083 and 0150 | [0151](docs/decisions/0151-a-representation-holds-a-value-only-where-it-computes-its-uses.md) |
 | The one set is checked where it claims: a fit at each value a declared set above the word is ascribed to and at each operation the decision does not bound, none at an operation with a finite fact; fixed limbs hold a program only within their width; amends 0029 | [0152](docs/decisions/0152-the-one-set-is-checked-where-it-claims.md) |
+| The double word holds a loop's variable and result where their inputs are words or E's, marked by an `int` type past both words; a yield into ℤ of a value E can hold is its digits' recombination, Euclid's identity in radix 2³²; amends 0103 and 0149 | [0153](docs/decisions/0153-the-double-word-holds-a-loops-variable.md) |
 
 ## Build commands
 

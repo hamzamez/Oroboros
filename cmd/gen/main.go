@@ -69,6 +69,10 @@ func main() {
 }
 
 func run(targetDir, src, target, out, name, path string, checked bool, bigRepr string) error {
+	// each file its own imports, as cmd/build has them: a compile refused
+	// after printing a function left its packages for the next in the same
+	// process (a test's), an unused `fmt` and `math/big` in a later program
+	emit.ResetImports()
 	layers, err := emit.SearchPath(src, targetDir)
 	if err != nil {
 		return err

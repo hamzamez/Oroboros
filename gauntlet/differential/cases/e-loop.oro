@@ -1,0 +1,34 @@
+// A LOOP'S SUM IN THE DOUBLE WORD (ADR 0153). The sum of i·2⁴⁰ for i below
+// n ≤ 4·10⁶ is at most about 2⁸³, inside E = (−2¹²⁶, 2¹²⁶) and past both
+// 64-bit words: a loop variable the double word carries, two digits on Go and
+// the JVM, an i128 on windows, a BigInt on JavaScript (no E there). `up` and
+// `down` return it into ℤ, by its digits' recombination at the exit
+// (RecombineYields), so the loop stays in E; `back` reads it back into the
+// word by `% 1000000007`. The inputs reach `run` unknown, so the loop runs at
+// run time on every target.
+// opaque
+// inputs: 0 1 2 3 4
+// prints: string
+// expect: 0/0/0 549755264132186112000000/-549755264132186112000000/290012707 2199022156040372224000000/-2199022156040372224000000/239469481 4947800675724558336000000/-4947800675724558336000000/848370329 8796090823184744448000000/-8796090823184744448000000/116715237
+fn up(n ∈ 0..2^22) (Int) {
+    loop i = 0, s = 0 {
+        i < n -> again(i + 1, s + i * 1099511627776)
+        else -> s
+    }
+}
+
+fn down(n ∈ 0..2^22) (Int) {
+    loop i = 0, s = 0 {
+        i < n -> again(i + 1, s - i * 1099511627776)
+        else -> s
+    }
+}
+
+fn back(n ∈ 0..2^22) (0..1000000006) {
+    loop i = 0, s = 0 {
+        i < n -> again(i + 1, s + i * 1099511627776)
+        else -> s % 1000000007
+    }
+}
+
+fn run(n ∈ 0..4) { decimal(up(n * 1000000)) ++ "/" ++ decimal(down(n * 1000000)) ++ "/" ++ decimal(back(n * 1000000)) }

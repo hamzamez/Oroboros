@@ -5,7 +5,7 @@ Status: Accepted (hamza, 2026-11-21: "1. E on Go and the JVM, yes", on
 [sets-are-claims-research.md](../sets-are-claims-research.md) §6). Extends
 [ADR 0103](0103-an-intermediate-above-the-word-is-computed-in-the-double-word.md) and
 [ADR 0105](0105-the-decisions-ends-are-192-bit-and-the-double-word-has-two-readings.md) from the LLVM
-layer to every host with a word of 64 bits; corrects ADR 0103's quotient by a constant.
+layer to every host with a word of 64 bits; corrects ADR 0103's quotient by a constant. **Amended by [ADR 0153](0153-the-double-word-holds-a-loops-variable.md)**: the printers carry a join of the double word as its two digits.
 
 ## Context
 

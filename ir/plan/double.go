@@ -29,10 +29,46 @@ func (p *Plan) ReadsDouble(s *ir.Stmt, dbl map[ir.V]bool) bool {
 	return false
 }
 
+// joinDigits is where a join of the double word carries its digits (ADR
+// 0153): a loop's variable or result in E, and each of its inputs held in E,
+// keep both, either being what the next iteration or the exit may read. The
+// seed of DoubleHighs and DoubleLows alike, by Res.
+func (p *Plan) joinDigits(dbl map[ir.V]bool) map[ir.V]bool {
+	need := map[ir.V]bool{}
+	isDbl := func(v ir.V) bool { return dbl[v] || dbl[p.Res(v)] }
+	mark := func(into []ir.V, args []ir.V) {
+		for j, a := range args {
+			if j < len(into) && isDbl(into[j]) {
+				need[p.Res(into[j])] = true
+				if isDbl(a) {
+					need[p.Res(a)] = true
+				}
+			}
+		}
+	}
+	p.F.Walk(func(r *ir.Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != ir.OLoop || len(s.Sub) != 1 {
+				continue
+			}
+			body := s.Sub[0]
+			mark(body.Params, s.Args)
+			for _, args := range ir.OwnExits(body, ir.TContinue) {
+				mark(body.Params, args)
+			}
+			for _, args := range ir.OwnExits(body, ir.TBreak) {
+				mark(s.Res, args)
+			}
+		}
+	})
+	return need
+}
+
 // DoubleHighs is the set of double-word values, by Res, whose high digit a use
 // reads.
 func (p *Plan) DoubleHighs(dbl map[ir.V]bool) map[ir.V]bool {
-	need := map[ir.V]bool{}
+	need := p.joinDigits(dbl)
 	var stmts []*ir.Stmt
 	p.F.Walk(func(r *ir.Region) {
 		for i := range r.Stmts {
@@ -76,7 +112,7 @@ func (p *Plan) DoubleHighs(dbl map[ir.V]bool) map[ir.V]bool {
 // result's low digit is read and its count may be below 64. The dual of
 // DoubleHighs, so that a host refusing an unused variable is given none.
 func (p *Plan) DoubleLows(dbl, highs map[ir.V]bool) map[ir.V]bool {
-	need := map[ir.V]bool{}
+	need := p.joinDigits(dbl)
 	var stmts []*ir.Stmt
 	p.F.Walk(func(r *ir.Region) {
 		for i := range r.Stmts {

@@ -213,6 +213,12 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if err := CheckCallbackEffects(tg, f); err != nil {
 		return nil, nil, fmt.Errorf("%s: %v", name, err)
 	}
+	// A YIELD INTO ℤ OF A VALUE E CAN HOLD is its digits' recombination (ADR
+	// 0153, RecombineYields), so a loop carrying it keeps it in the double word;
+	// decided again, the digits' and the recombination's facts
+	if RecombineYields(tg, f, sig) {
+		leg = Decide(tg, f, checked)
+	}
 	// D_A (exact.go): an operation the machine's readings and the double word
 	// do not hold is held exactly, on the target's own rung where the program
 	// asked for none, and reported; `-words` refuses it instead

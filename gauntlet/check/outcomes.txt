@@ -1597,6 +1597,10 @@
    note: gen-overflows: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-q7: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-three-quarters: 2 of 2 integer operations bounded; 0 of 0 loop(s) proven terminating
+== gauntlet/differential/cases/e-loop.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/e-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/e-loop.oro java emitted 4cac4a6a52c96ca7ab8ed8fad5ca776577be19528f05abb2cabd344b832054a4
+== gauntlet/differential/cases/e-loop.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/expect.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736

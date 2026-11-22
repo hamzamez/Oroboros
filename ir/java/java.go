@@ -334,7 +334,18 @@ func (p *printer) region(r *ir.Region, lp *loopCtx, top bool) {
 		p.line("continue;")
 	case ir.TBreak:
 		if lp != nil {
-			p.move(lp.result, lp.resTy, r.Args)
+			// a result of the double word takes both digits (ADR 0153)
+			var dst, src, tys []string
+			rest := append([]string(nil), lp.result...)
+			for j, v := range r.Args {
+				if j < len(rest) && rest[j] != "" && p.isDbl(lp.op.Res[j]) {
+					h, l := p.halves(v)
+					dst, src, tys = append(dst, rest[j]+"h", rest[j]+"l"), append(src, h, l), append(tys, "long", "long")
+					rest[j] = ""
+				}
+			}
+			p.moves(dst, src, tys)
+			p.move(rest, lp.resTy, r.Args)
 		}
 		p.line("break;")
 	case ir.TBranch:
@@ -402,6 +413,12 @@ func (p *printer) again(lp *loopCtx, vs []ir.V) {
 	params := lp.op.Sub[0].Params
 	for j, v := range vs {
 		if lp.post[j] {
+			continue
+		}
+		if p.isDbl(params[j]) {
+			h, l := p.halves(v)
+			n := p.name(params[j])
+			dst, src, tys = append(dst, n+"h", n+"l"), append(src, h, l), append(tys, "long", "long")
 			continue
 		}
 		q := p.name(params[j])
@@ -858,6 +875,13 @@ func (p *printer) loop(s *ir.Stmt) {
 	body := s.Sub[0]
 	lp := &loopCtx{op: s, post: map[int]bool{}}
 	for j, q := range body.Params {
+		// A VARIABLE OF THE DOUBLE WORD is its two digits (ADR 0153), each a
+		// long, set from its initial value's
+		if p.isDbl(q) {
+			h, l := p.halves(s.Args[j])
+			p.line("long %sh = %s, %sl = %s;", p.name(q), h, p.name(q), l)
+			continue
+		}
 		p.line("%s %s = %s;", p.tyOf(q), p.name(q), p.refAs(s.Args[j], p.tyOf(q)))
 	}
 	d := p.pl.DecideLoop(s)
@@ -871,12 +895,16 @@ func (p *printer) loop(s *ir.Stmt) {
 		}
 		if p.pl.Read(rv) {
 			lp.result[j] = p.name(rv)
+			if p.isDbl(rv) {
+				p.line("long %sh = 0L, %sl = 0L;", lp.result[j], lp.result[j])
+				continue
+			}
 			p.line("%s %s = %s;", lp.resTy[j], lp.result[j], zeroOf(lp.resTy[j]))
 		}
 	}
 	var ups []string
 	for j, q := range body.Params {
-		if step, ok := d.Post[j]; ok {
+		if step, ok := d.Post[j]; ok && !p.isDbl(q) {
 			lp.post[j] = true
 			// The step is computed in the parameter's own representation: its
 			// range, which includes every stepped value, proves no overflow.

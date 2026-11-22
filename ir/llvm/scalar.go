@@ -104,6 +104,14 @@ func (p *printer) asTo(v ir.V, want string, dst ir.V) string {
 	switch {
 	case have == "i32" && want == "i64":
 		p.line("%s = sext i32 %s to i64", t, x)
+	case (have == "i64" || have == "i32") && want == "i128":
+		// A WORD INTO THE DOUBLE WORD'S JOIN (ADR 0153): its residue is its
+		// extension, by its sign, a natural's zero and sign extensions agreeing
+		ext := "sext"
+		if p.lo(v) >= 0 {
+			ext = "zext"
+		}
+		p.line("%s = %s %s %s to i128", t, ext, have, x)
 	case have == "i64" && want == "i32":
 		// EXACT ONLY ON S₃₂: v's own range must lie there, as a π's may where
 		// its source's does not

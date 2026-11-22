@@ -268,6 +268,11 @@ func (p *printer) ty(v ir.V) string {
 	if p.s32(v) {
 		return "i32" // ρ₃₂ of its range (scalar.go, ADR 0127)
 	}
+	// A VALUE OF THE DOUBLE WORD is an i128, a join's slot included (ADR 0153):
+	// its residue, the loop carrying it as LLVM's own integer
+	if p.dbl[v] || p.dbl[p.pl.Res(v)] {
+		return "i128"
+	}
 	return p.llty(p.f.Types[v])
 }
 

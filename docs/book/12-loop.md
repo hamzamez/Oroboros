@@ -653,6 +653,38 @@ and here is the reasoning the compiler did:
 A bound on the *number of trips* turned into a bound on the *accumulator*. That works for
 sums, because adding the same bounded amount a bounded number of times is a multiplication.
 
+The bound can lie past the word and still be a bound. With `n ∈ 0..2^40` and the result
+claimed `Int`, `s` is at most n(n + 1)/2, below 2⁸⁰: past the word, inside the double word of
+chapter 6, two words side by side. So the loop carries `s` as two words, each trip an addition
+with its carry, and only the end makes it the `*big.Int` the claim asks for:
+
+<!-- file docs/book/code/loop/wide-sum.oro -->
+```go
+export fn sum_to(n ∈ 0..2^40) (Int) {
+    loop i = 1, s = 0 {
+        i <= n -> again(i + 1, s + i)
+        else -> s
+    }
+}
+```
+
+<!-- gen go docs/book/code/loop/wide-sum.oro -->
+```go
+…
+    var v13h, v13l uint64 = uint64(0), uint64(0)
+…
+            v19l, v19c := bits.Add64(v13l, uint64(v12), 0)
+            v19h := v13h + uint64(v12 >> 63) + v19c
+            v13h, v13l = v19h, v19l
+…
+    v35 := (new(big.Int).Add(v34, v29))
+    return v35
+}
+```
+
+The end takes the two words apart into three pieces of 32 bits and puts them together as an
+integer, `h·2⁶⁴ + m·2³² + l`, which is the same number written in base 2³².
+
 It does not work for products:
 
 <!-- file docs/book/code/loop/no-fact.oro -->

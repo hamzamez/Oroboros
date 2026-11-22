@@ -4499,3 +4499,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - `examples/lines/shape.oro go` 1093 → 703 ms, 0.64x
 - `gauntlet/differential/cases/render.oro windows` 3296 → 1921 ms, 0.58x
 - `gauntlet/differential/cases/utf8-widths.oro windows` 937 → 437 ms, 0.47x
+
+## 2026-11-22 — on 1e548d74, with uncommitted changes
+
+**Reason:** ADR 0153: the double word holds a loop's variable; e-loop, a new differential case, emits on four targets; no other program's emission changes
+
+840 runs: 581 emitted, 259 refused; 12595 of 12649 integer operations bounded, 1588 of 1889 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/e-loop.oro go`
+- new source — `gauntlet/differential/cases/e-loop.oro java`
+- new source — `gauntlet/differential/cases/e-loop.oro js`
+- new source — `gauntlet/differential/cases/e-loop.oro windows`

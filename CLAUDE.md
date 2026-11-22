@@ -355,9 +355,15 @@ the state translation's let kept a λ argument for β without local.md §3's che
   windows and JVM failures fixed (keptnum-2026-11-22, the four big cases opaque and `map-built`
   new); quotient-corner, sum-slots, record-map and tuple-map prove only at their literal inputs
   (the last two a built map's value facts); the default stays literal until they are settled;
-  keptnum: a kept numeral's facts at its call (stein's gcd and popcount's `ones` still inlined by
-  P4, a result ⊤ at the caller), a kept definition's parameter above the word; the split at 26.7 ns against its eight
-  operations; ir/final.go's bit refusal reached by no program on JavaScript;
+  the split at 26.7 ns against its eight operations; ir/final.go's bit refusal reached by no
+  program on JavaScript;
+- keptnum (hamza, 2026-11-22: "put them on the list, we will get to them in time"): record-map
+  and tuple-map opaque, a map built in a loop carrying its values' facts to a read (`r.x * 3 +
+  r.y` proven only at the literal inputs); a kept numeral's facts at its call, its post's
+  interval (stein's `gcd` and popcount's `ones` still inlined by P4, the numeral ⊤ at the
+  caller); a kept definition's parameter above the word; `TestAnIdentityCoercionMovesItsTable`
+  failing once under load (`lang.cat`'s `utf8_valid`, the obligation `emit.PlantCatValid`
+  turns off, which `TestATermsHostWhereIsDecided` sets in the same process), not reproduced;
 - pairsel (ADR 0151): a residue divided by a non-power of two; the ascriptions on K(ℕ\*), where
   stein's compile did not end with them; a planted fault for SCT's reading of `the` as the identity;
   pairentry: the choice at an entry point by cost (≈ 25 ns a call at the boundary, a one-operation

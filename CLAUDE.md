@@ -223,11 +223,12 @@ of any size where unbounded, windows refusing one; a result declared `Int` deman
 leaving S; a host's word its module's `Word`; one rendering, `decimal`, `io.print_int` over ℤ; a
 table's element and a map's value words by storage. **The midpoint, finding 108, built** (ADR 0148,
 hamza 2026-11-21: "yes, I agree", [midpoint](gauntlet/results/midpoint-2026-11-21.md)): a program
-asks, and can on every target (`sum ∈ Int = lo + hi`; a helper by a set above the word, its
-`(Int)` no demand, finding 116); Bloch's
+asks, and can on every target (`sum ∈ Int = lo + hi`; a helper by a set above the word); since
+ADR 0150 nothing needs to ask, a helper's `(Int)` and the bare `(lo + hi) / 2` computed in the
+double word on every target (finding 116, dissolved); Bloch's
 `lo + (hi - lo) / 2` under `where lo <= hi` proven in the words, a `where` a zone entry and a
 repeated atom decided by the Omega test (Moore: the box is exact on independent atoms); the note's
-§7 whole, silent exactness, not taken. Not built: a map read with a key of any size (finding 111,
+§7 whole, silent exactness, not taken there (ADR 0150 took it the same day, reported). Not built: a map read with a key of any size (finding 111,
 waiting on a trigger).
 A definition's claim reported inside its body (finding 110) is decided at the call since ADR 0154.
 

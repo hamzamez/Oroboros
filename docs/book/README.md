@@ -974,8 +974,12 @@ point too, found eleven, four fixed:
      asks. Making `(Int)` a request everywhere was built and taken back (midpoint-2026-11-21): it
      asked for every library helper returning `Int`, sent values in the unsigned word to the big
      integer (`strconv.FormatUint`'s argument, an index, a tuple's components) and slowed five
-     windows compiles 1.5–1.7×. Not fixed: a request that prefers U to the rung, so that `(Int)`
-     can ask without that cost; §6.9 shows both forms.
+     windows compiles 1.5–1.7×. **Dissolved** by ADR 0150 (exact-2026-11-21) with the double word
+     on Go and the JVM (ADR 0149): a set is a claim and ρ alone chooses, so nothing needs to ask.
+     Measured 2026-11-22: `add(lo, hi) / 2` through `fn add(a ∈ Int, b ∈ Int) (Int)`, and the bare
+     `(lo + hi) / 2`, compile and print 9223372036854775806 and −9223372036854775807 at S₆₄'s ends
+     on all four targets, Go's in `bits.Add64` with no big integer; the request preferring U is
+     not needed.
 117. **On JavaScript a natural's division and comparisons past its word fail the verifier.**
      `fits(w ∈ 0..2^63-1, h ∈ 0..2^63-1) (Bool) { h == 0 || w <= 1000000 / h }` is refused as
      *IR_P does not verify: W5: %1 is int 0 9223372036854775807 and flows into (eq …), which is

@@ -148,10 +148,71 @@ func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, exactRepo
 			out[v] = true
 		}
 	}
+	// A CONSTANT OUTSIDE S is supply (integers.md §1a, ADR 0156), held exactly
+	// whatever reads it, a sink refusing it since no word holds it; on a target
+	// whose U is a pair, a constant of U is the pair's where the pair computes
+	// its uses, as every value of U is (ADR 0151), its two digits. Only a word
+	// narrower than int64 meets one (JavaScript's); with no rung run there, it
+	// reached the host as a Number.
+	if !PlantConstantInTheWord {
+		var other map[V]bool
+		if tg.Word.Pair {
+			other = constUsesOutsideThePair(f)
+		}
+		f.Walk(func(r *Region) {
+			for i := range r.Stmts {
+				s := &r.Stmts[i]
+				if s.Op != OConst || s.Lit == nil || s.Lit.Kind != core.KInt || len(s.Res) != 1 {
+					continue
+				}
+				v := s.Res[0]
+				x := fs[v].v
+				pair := tg.Word.Pair && !leaving[v] && !other[v] && x.within(ei(0), u64Max)
+				if !x.within(sLo, sHi) && !pair {
+					out[v] = true
+				}
+			}
+		})
+	}
 	if len(out) == 0 {
 		return nil, rep
 	}
 	return out, rep
+}
+
+// constUsesOutsideThePair are the values some use of which neither the pair
+// nor a table's 64-bit storage holds: a call's argument (a host's, `decimal`'s,
+// a print's), where a value typed as a word is the host's Number, and the
+// function's own result. An operation, a comparison or a join is the pair's
+// (ADR 0151), and a table's element its storage's; a constant of U read only so
+// stays as it was, its two digits where the pair reads it.
+func constUsesOutsideThePair(f *Func) map[V]bool {
+	other := map[V]bool{}
+	var walk func(r *Region, top bool)
+	walk = func(r *Region, top bool) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op == OCall {
+				for _, a := range s.Args {
+					other[a] = true
+				}
+			}
+			for _, sub := range s.Sub {
+				walk(sub, false)
+			}
+		}
+		if top && r.T == TYield {
+			for _, a := range r.Args {
+				other[a] = true
+			}
+		}
+		if r.T == TBranch {
+			walk(r.Then, top)
+			walk(r.Else, top)
+		}
+	}
+	walk(f.Body, true)
+	return other
 }
 
 // exactReport is D_A's operations: past every word and the double word, and

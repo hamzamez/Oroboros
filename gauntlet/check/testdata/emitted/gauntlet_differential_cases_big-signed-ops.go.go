@@ -74,16 +74,16 @@ func GenCalc(v0 int) *big.Int {
 							}
 						} else {
 							v93 := (big.NewInt(int64(0)))
-							v95 := (big.NewInt(int64(9223000000000000000)))
-							v97 := (big.NewInt(int64(372036854775808)))
-							v98 := (new(big.Int).Add(v95, v97))
-							v99 := (new(big.Int).Sub(v93, v98))
-							v101 := (big.NewInt(int64(12157)))
+							v95 := (big.NewInt(int64(112134671)))
+							v97 := (big.NewInt(int64(1000000000000000)))
+							v98 := (new(big.Int).Mul(v95, v97))
+							v100 := (big.NewInt(int64(628500858351345)))
+							v101 := (new(big.Int).Add(v98, v100))
 							v103 := (big.NewInt(int64(1000000000000000)))
 							v104 := (new(big.Int).Mul(v101, v103))
-							v106 := (big.NewInt(int64(665459056928801)))
+							v106 := (big.NewInt(int64(486069873246208)))
 							v107 := (new(big.Int).Add(v104, v106))
-							v108 := (new(big.Int).Mul(v99, v107))
+							v108 := (new(big.Int).Sub(v93, v107))
 							v42 = v108
 						}
 					}

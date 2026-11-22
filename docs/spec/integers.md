@@ -603,15 +603,13 @@ In order, and none of it is a language change:
    discharges; `(/ a b)` with nothing known is refused. **`f64 → int` is not yet declared.**
 3. ~~**`(fold OP)`**, per §11~~ — **built**, and it needed the operators to be
    the LANGUAGE's first. Folding `go.+` would have meant assuming one host's
-   semantics; `+` has semantics this document verified on all four. Two side
-   conditions, both ADR 0009: a result outside the portable window is **not**
-   folded, because compile time is Go's `int64` and run time on JavaScript is a
-   binary64 exact only to ±(2⁵³−1) — and leaving the operation alone is what
-   lets the overflow analysis report it against what the programmer wrote.
-   Division by zero is **not** folded either: it is a precondition, so the
-   refinement layer reports it with the call site rather than the compiler
-   panicking. Multiplication is checked by dividing back, since two in-window
-   operands can produce a product `int64` itself cannot hold.
+   semantics; `+` has semantics this document verified on all four. **A fold
+   is an equation of ℤ at every size** (ADR 0156, 2026-11-22): a result past
+   the word is the integer it is, written as its numeral past `int64`, since
+   every target computes ℤ (ADR 0026, 0150); the window this item once kept,
+   ADR 0009's, held the compiler's carrier for the language's meaning.
+   Division by zero is **not** folded: it is a precondition, so the decision
+   refuses it with the call site rather than the compiler panicking.
 4. ~~**Covering for the JavaScript division hazard**~~ — **already closed, and more strongly than
    this asked for.** It wanted a program dividing by an unbounded value to be *told it is not
    portable* on JavaScript. What actually happens is that the program is **refused on every

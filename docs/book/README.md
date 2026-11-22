@@ -1013,6 +1013,19 @@ point too, found eleven, four fixed:
      representation is ρ of the elements' facts, the host's array of big integers on Go, the JVM
      and JavaScript and, on windows, a table of K(ℕ\*) numerals, a table inside a table (R1's
      storage); a research note first, on the plan (hamza, 2026-11-22).
+120. **A constant past the word returned as `Int` is refused.** Chapter 1's `too_big`, `2^62 *
+     4`, compiled as `export fn too_big() (Int)`, and `export fn lit() (Int) {
+     18446744073709551616 }` itself, were refused on Go, the JVM and windows (*mul [−inf, +inf] in
+     18446744073709551616*; windows *the result of shr … is not built*), JavaScript compiling them,
+     though `io.print_int(2^62 * 4)` printed 2⁶⁴ everywhere. The literal's numeral sums inside the
+     double word, so its yield into ℤ was recombined from its digits (ADR 0153) as if E computed
+     it, and the rung then held the sum in ℤ, leaving the recombination's word operations over it
+     unbounded. Found by chapter 1 §1.3, whose text also said `7 / 0` is "left for run time to
+     fail" (it is refused when compiled, §6.7) and that folding `2^62 * 4` "would give a different
+     integer from the one the target would" (false since ADR 0026). **Fixed** (ADR 0156,
+     intconst-2026-11-22, hamza 2026-11-22: "do 1 and 2 now"): a point is its constant, never
+     recombined, and the reducer folds integers exactly at every size, `too_big` reducing to
+     `18446744073709551616`; chapter 1 §1.3 says both.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

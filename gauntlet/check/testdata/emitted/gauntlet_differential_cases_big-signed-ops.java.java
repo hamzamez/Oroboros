@@ -71,16 +71,16 @@ public final class gauntlet_differential_cases_big-signed-ops.java {
 								}
 							} else {
 								final java.math.BigInteger v93 = (java.math.BigInteger.valueOf(0));
-								final java.math.BigInteger v95 = (java.math.BigInteger.valueOf(9223000000000000000L));
-								final java.math.BigInteger v97 = (java.math.BigInteger.valueOf(372036854775808L));
-								final java.math.BigInteger v98 = (v95.add(v97));
-								final java.math.BigInteger v99 = (v93.subtract(v98));
-								final java.math.BigInteger v101 = (java.math.BigInteger.valueOf(12157));
+								final java.math.BigInteger v95 = (java.math.BigInteger.valueOf(112134671));
+								final java.math.BigInteger v97 = (java.math.BigInteger.valueOf(1000000000000000L));
+								final java.math.BigInteger v98 = (v95.multiply(v97));
+								final java.math.BigInteger v100 = (java.math.BigInteger.valueOf(628500858351345L));
+								final java.math.BigInteger v101 = (v98.add(v100));
 								final java.math.BigInteger v103 = (java.math.BigInteger.valueOf(1000000000000000L));
 								final java.math.BigInteger v104 = (v101.multiply(v103));
-								final java.math.BigInteger v106 = (java.math.BigInteger.valueOf(665459056928801L));
+								final java.math.BigInteger v106 = (java.math.BigInteger.valueOf(486069873246208L));
 								final java.math.BigInteger v107 = (v104.add(v106));
-								final java.math.BigInteger v108 = (v99.multiply(v107));
+								final java.math.BigInteger v108 = (v93.subtract(v107));
 								v42 = v108;
 							}
 						}

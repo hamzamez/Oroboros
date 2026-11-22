@@ -151,6 +151,9 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      (ADR 0155, hamza 2026-11-22: "yes, fix 112 now", [keptsink](gauntlet/results/keptsink-2026-11-22.md)):
      a kept definition's parameter no sink of the taint, so windows computes `grow` under `-checked`
      as every target does; the finding's pass order changes no program, not built;
+     ~~chapter 1 §1.3 and the book's finding 120~~ done (ADR 0156, hamza 2026-11-22: "do 1 and 2
+     now", [intconst](gauntlet/results/intconst-2026-11-22.md)): an integer constant an element of
+     ℤ, folded exactly at every size, a point its constant;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -365,6 +368,10 @@ field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ �
 ([callbacks-derivation](gauntlet/results/callbacks-derivation-2026-11-20.md)):
 `add = fn(x) { n := n + x }; add(1); add(2)` printed n as 0, and `get = fn() { n }` a stale value;
 the state translation's let kept a λ argument for β without local.md §3's check.
+~~JavaScript printing a constant between its word and `int64` rounded~~ done
+([intconst](gauntlet/results/intconst-2026-11-22.md), ADR 0156): `io.print_int(4611686018427387904)`
+printed 4611686018427388000; a constant outside S is supply, held exactly where a call or the
+result reads it.
 
 **Owed from finished steps** (each named in its result document):
 - split53: every differential case opaque (`// opaque`, inputs unknown at compile time): the
@@ -695,8 +702,9 @@ option (b), jswitch5b-2026-10-16).
   or `repr big limbs`, and the program's one set is enforced on both, by sign and bit length (ADR 0029);
   a signed set on limbs is Z(V_n), a sign entry over the magnitude, the group completion (ADR 0098); an
   unbounded set on a target with no bignum is K(ℕ\*), numerals of any length (ADR 0099, `emit/natnum.oro`).
-- **Staging never changes an answer** (ADR 0009): integers fold only inside the word, checked, never
-  dividing by zero; floats fold through explicit `float64`.
+- **Staging never changes an answer** (ADR 0009): integers fold exactly at every size, a literal
+  being an element of ℤ (ADR 0156), a value past `int64` its numeral; never dividing by zero; floats
+  fold through explicit `float64`.
 
 ### Types, claims and facts
 
@@ -956,6 +964,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | The double word holds a loop's variable and result where their inputs are words or E's, marked by an `int` type past both words; a yield into ℤ of a value E can hold is its digits' recombination, Euclid's identity in radix 2³²; amends 0103 and 0149 | [0153](docs/decisions/0153-the-double-word-holds-a-loops-variable.md) |
 | A parameter's set that is no range is a claim at the call: a where-mark `(#in "S" a "i")` on the call's result, decided by the type checker as a typing mark and refused as *in argument i of f*; a literal of the set's kind decided by the reducer; `ignore` keeps a pure value's obligations | [0154](docs/decisions/0154-a-calls-sort-claim-is-decided-at-the-call.md) |
 | A kept definition's parameter is no sink: keeping is a factoring (ADR 0102), so the taint reads the program inlined and P4 inlines a call whose argument leaves its parameter's set; amends 0150 | [0155](docs/decisions/0155-a-kept-definitions-parameter-is-no-sink.md) |
+| An integer constant is an element of ℤ: the reducer folds `+ − · / %` on closed integers exactly at every size (a value past `int64` its numeral, never a division by zero), and a point is its constant, never recombined; amends 0009 and 0153 | [0156](docs/decisions/0156-an-integer-constant-is-an-element-of-z.md) |
 
 ## Build commands
 

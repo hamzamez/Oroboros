@@ -3,7 +3,7 @@
 export function genCalc(v0) {
 	const v28 = (((((((((((((BigInt(515)) * (BigInt(1000000000000000)))) + (BigInt(377520732011331)))) * (BigInt(1000000000000000)))) + (BigInt(36461129765621)))) * (BigInt(1000000000000000)))) + (BigInt(272702107522001))));
 	const v45 = (((BigInt(0)) - (((((((((BigInt(867361737988)) * (BigInt(1000000000000000)))) + (BigInt(403547205962240)))) * (BigInt(1000000000000000)))) + (BigInt(695953369140625))))));
-	const v119 = ((function(oroZ, oroK){ if (((oroZ < 0n ? -oroZ : oroZ) >> BigInt(oroK)) !== 0n) throw new Error("bignum overflow: the declared range is too small"); return oroZ; })(((v0 === 0) ? ((v28 + v45)) : ((v0 === 1) ? ((((v45 + v45)) - v28)) : ((v0 === 2) ? ((v28 * (BigInt((v0 - 9))))) : ((v0 === 3) ? (((((BigInt(0)) - v28)) / (BigInt(1000003)))) : ((v0 === 4) ? (BigInt((Number((((BigInt(0)) - v28)) % BigInt(1000003))))) : ((v0 === 5) ? ((((((BigInt(0)) - v28)) < v45)) ? (BigInt(1)) : (BigInt(0))) : (((((BigInt(0)) - (((((BigInt(9223)) * (BigInt(1000000000000000)))) + (BigInt(372036854775808)))))) * (((((BigInt(12157)) * (BigInt(1000000000000000)))) + (BigInt(665459056928801)))))))))))), 201));
-	return v119;
+	const v116 = ((function(oroZ, oroK){ if (((oroZ < 0n ? -oroZ : oroZ) >> BigInt(oroK)) !== 0n) throw new Error("bignum overflow: the declared range is too small"); return oroZ; })(((v0 === 0) ? ((v28 + v45)) : ((v0 === 1) ? ((((v45 + v45)) - v28)) : ((v0 === 2) ? ((v28 * (BigInt((v0 - 9))))) : ((v0 === 3) ? (((((BigInt(0)) - v28)) / (BigInt(1000003)))) : ((v0 === 4) ? (BigInt((Number((((BigInt(0)) - v28)) % BigInt(1000003))))) : ((v0 === 5) ? ((((((BigInt(0)) - v28)) < v45)) ? (BigInt(1)) : (BigInt(0))) : (((BigInt(0)) - (((((((((BigInt(112134671)) * (BigInt(1000000000000000)))) + (BigInt(628500858351345)))) * (BigInt(1000000000000000)))) + (BigInt(486069873246208)))))))))))), 201));
+	return v116;
 }
 

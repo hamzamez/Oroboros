@@ -65,16 +65,20 @@ func TestAnUnboundedDifferenceIsTheNumeralsOfAnyLength(t *testing.T) {
 // normalized, and x = q·(v_t·B² + v₂·B), whose top digits give q̂ = q and pass
 // D3's two-digit test while x − q·y = −q·(B − 1) < 0 (an exact model of the
 // library's loop counts the add-back). THE PLANTED FAULT drops the add-back,
-// so q̂ one too large stays, and must print others.
+// so q̂ one too large stays, and must print others. The operands are opaque, z
+// a loop's 0 the reducer does not see: on literals the reducer divides them
+// itself, exactly (ADR 0156), and Algorithm D would not run.
 func TestAQuotientByANumeralIsAlgorithmDs(t *testing.T) {
 	const src = "use win/print\n" +
-		"fn calc(n ∈ 0..1) (Int) {\n" +
-		"    x = 9415652603080021145753684134811499624153533166696051769344\n" +
-		"    y = 3138550867693340381917894711603833208069624466305726808063\n" +
+		"fn calc(n ∈ 0..1, z ∈ 0..1) (Int) {\n" +
+		"    x = 9415652603080021145753684134811499624153533166696051769344 + z\n" +
+		"    y = 3138550867693340381917894711603833208069624466305726808063 + z\n" +
 		"    if n == 0 { x / y } else { x % y }\n}\n" +
 		"export fn main() {\n" +
-		"    print.print_str(decimal(calc(0)))\n" +
-		"    print.print_str(decimal(calc(1)))\n}\n"
+		"    loop i = 0 {\n" +
+		"        i < 2 -> { print.print_str(decimal(calc(i, i - i))); again(i + 1) }\n" +
+		"        else -> ()\n" +
+		"    }\n}\n"
 	want := "2 3138550867693340381917894711603833208014284234084598153218"
 	out, err := buildAndRun(t, src, "windows", "")
 	if err != nil || strings.Join(strings.Fields(out), " ") != want {

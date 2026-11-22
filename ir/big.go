@@ -345,6 +345,14 @@ func (g *bigs) collect(sig *core.Sig) {
 			switch {
 			case s.Op == OConst && s.Lit != nil && s.Lit.Kind == core.KInt && len(s.Res) == 1:
 				consts[s.Res[0]] = big.NewInt(s.Lit.Int)
+				// A CONSTANT OUTSIDE S IS SUPPLY (integers.md §1a, ADR 0156): a
+				// point is held as ρ of itself, exactly where S does not hold it.
+				// Only a word narrower than int64 meets one (JavaScript's ±(2⁵³−1));
+				// left a word there, 2⁶² reached `console.log` and `String` as a
+				// Number and printed 4611686018427388000.
+				if !g.fits(s.Res[0]) && f.exactDemand[s.Res[0]] && !PlantConstantInTheWord {
+					g.b[s.Res[0]] = true
+				}
 			case s.Op.IsArith() && !s.Op.IsBit() && s.Name == "" && len(s.Res) == 1:
 				g.ariths = append(g.ariths, s)
 				// A CLOSED CONSTANT TERM outside S can only denote an exact
@@ -1127,6 +1135,18 @@ func (g *bigs) recvOf(res []V) []bool {
 
 func (g *bigs) stmt(s *Stmt) {
 	switch {
+	case s.Op == OConst && s.Lit != nil && s.Lit.Kind == core.KInt && len(s.Res) == 1 && g.isB(s.Res[0]) && !g.fits(s.Res[0]):
+		// the constant held exactly is its spine, defining its own value
+		v := s.Res[0]
+		sp := g.spine(big.NewInt(s.Lit.Int))
+		last := &g.stmts[len(g.stmts)-1]
+		if len(last.Res) == 1 && last.Res[0] == sp {
+			last.Res = []V{v}
+			g.f.Types[v] = core.BigType
+			g.fs[v] = g.fs[sp]
+			return
+		}
+		g.err = fmt.Errorf("a constant held exactly, %d, has no spine defining it (ir/big.go)", s.Lit.Int)
 	case s.Op.IsBit() && s.Name == "" && len(s.Res) == 1 && g.bitExact(s):
 		g.bit(s)
 	case s.Op.IsBit():
@@ -1470,6 +1490,11 @@ func (g *bigs) spine(c *big.Int) V {
 	}
 	return acc
 }
+
+// PlantConstantInTheWord leaves a constant outside S a word, as before ADR
+// 0156: on JavaScript `console.log(4611686018427387904)` prints
+// 4611686018427388000 (TestAConstantOutsideTheWordIsHeldExactly).
+var PlantConstantInTheWord bool
 
 // PlantConstantNotSpined refuses a constant past the word where it is widened,
 // as before: S₆₄'s ends claimed `∈ Int` are then refused on JavaScript

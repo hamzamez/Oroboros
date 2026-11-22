@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -268,7 +269,10 @@ func bigLiteralValue(t *Term) (string, bool) {
 	if !ok || v.IsInt64() {
 		return "", false
 	}
-	if IntLiteral(v.String()).String() != t.String() {
+	// the reader's numeral, or its normal form on a 64-bit word (Numeral), the
+	// one reduction leaves where each chunk's product fits int64
+	full := Word{Lo: math.MinInt64, Hi: math.MaxInt64}
+	if s := t.String(); s != IntLiteral(v.String()).String() && s != Numeral(v, full).String() {
 		return "", false
 	}
 	return v.String(), true

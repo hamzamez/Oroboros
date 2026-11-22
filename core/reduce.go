@@ -2239,19 +2239,111 @@ func Evaluate(goal *Term, w Word) (bool, bool) {
 	return v.IsTrue(), true
 }
 
+// foldExact is the language's integer operators on two closed integers, folded
+// as the equations of ℤ they are (ADR 0114, ADR 0156): a literal is an element
+// of ℤ, the initial ring, and 2^62 · 4 = 2^64 holds as 7 · 7 = 49 does, so no
+// fold at any size changes an answer (ADR 0009). Inside the word it is foldInt,
+// as before. Past it, its operands and its value are integers of any size, a
+// value past int64 the numeral the reader writes for a literal (bigLiteral),
+// which is its normal form: a numeral's own applications fold to themselves.
+// Division by zero is not folded: it is an obligation, refused by the decision
+// (integers.md §5); the quotient truncates and the remainder takes the
+// dividend's sign, as foldInt's.
+func (e *Env) foldExact(op string, a, b *Term) (*Term, bool) {
+	if a.Kind == KInt && b.Kind == KInt {
+		if out, ok := foldInt(op, a.Int, b.Int, e.Word); ok {
+			return out, true
+		}
+	}
+	if e.Word == (Word{}) || PlantFoldInWord {
+		return nil, false
+	}
+	x, xok := closedInt(a, e.Word)
+	y, yok := closedInt(b, e.Word)
+	if !xok || !yok {
+		return nil, false
+	}
+	v := new(big.Int)
+	switch op {
+	case "+":
+		v.Add(x, y)
+	case "-":
+		v.Sub(x, y)
+	case "*":
+		v.Mul(x, y)
+	case "/", "%":
+		if y.Sign() == 0 {
+			return nil, false
+		}
+		if op == "/" {
+			v.Quo(x, y)
+		} else {
+			v.Rem(x, y)
+		}
+	default:
+		return nil, false
+	}
+	if v.IsInt64() {
+		return Int(v.Int64()), true
+	}
+	return Numeral(v, e.Word), true
+}
+
+// Numeral is the normal form of an integer v past int64 on the word w: the
+// numeral the reader writes for its literal (bigLiteral), each of its
+// applications folded where foldInt folds it, as reduction leaves a literal.
+// Each of its subterms is again in normal form, so reducing it changes nothing.
+func Numeral(v *big.Int, w Word) *Term {
+	var fold func(t *Term) *Term
+	fold = func(t *Term) *Term {
+		if t.Kind != KApp || len(t.Kids) != 3 || t.Kids[0].Kind != KName {
+			return t
+		}
+		a, b := fold(t.Kids[1]), fold(t.Kids[2])
+		if a.Kind == KInt && b.Kind == KInt {
+			if out, ok := foldInt(t.Kids[0].Name, a.Int, b.Int, w); ok {
+				return out
+			}
+		}
+		return App(t.Kids[0], a, b)
+	}
+	return fold(IntLiteral(v.String()))
+}
+
+// PlantFoldInWord folds integers only inside the word, as before ADR 0156:
+// `2^62 * 4` stays an operation (TestAnIntegerConstantFoldsInTheIntegers).
+var PlantFoldInWord bool
+
+// closedInt is a closed integer's value: a literal, or the numeral a value
+// past int64 is written as on the word w, in its normal form (Numeral) or as
+// the reader writes it (bigLiteral).
+func closedInt(t *Term, w Word) (*big.Int, bool) {
+	if t.Kind == KInt {
+		return big.NewInt(t.Int), true
+	}
+	if t.Kind != KApp {
+		return nil, false
+	}
+	v, ok := EvalEndpoint(t)
+	if !ok || v.IsInt64() {
+		return nil, false
+	}
+	if s := t.String(); s != Numeral(v, w).String() && s != IntLiteral(v.String()).String() {
+		return nil, false
+	}
+	return v, true
+}
+
 // foldInt evaluates one of the language's integer operators on two literals,
 // reporting whether it was safe to do so at all.
 //
 // TWO SIDE CONDITIONS, and both are ADR 0009 — staging must not change an
 // answer.
 //
-//  1. THE RESULT MUST STAY INSIDE THE PORTABLE WINDOW. Compile time here is
-//     Go's int64; run time on JavaScript is a float64 whose integers are exact
-//     only to ±(2^53−1). So `(* 9007199254740991 2)` folds to a value the
-//     runtime could not have produced, and is therefore left alone — where the
-//     overflow analysis reports it against the operation the programmer wrote.
-//     The operands are checked too: a literal outside the window was never a
-//     value the language could represent.
+//  1. THE RESULT MUST STAY INSIDE THE WORD AND int64, here: a value past
+//     either is foldExact's, exactly, as the integer it is (ADR 0156). The
+//     window this condition once kept, run time computing another integer
+//     past it, has been false since ADR 0026 and 0150.
 //
 //  2. DIVISION BY ZERO IS NOT FOLDED. It is a PRECONDITION, not a behaviour
 //     (integers.md §5), and the refinement layer is what reports it with the
@@ -3200,10 +3292,8 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				}
 				return wrapWheres(wrapWheres(inner, mb), ma), nil
 			}
-			if a.Kind == KInt && b.Kind == KInt {
-				if out, ok := foldInt(op.Name, a.Int, b.Int, e.Word); ok {
-					return out, nil
-				}
+			if out, ok := e.foldExact(op.Name, a, b); ok {
+				return out, nil
 			}
 			// A COMPARISON OF CLOSED INTEGERS FOLDS EXACTLY, a literal past the
 			// word included (2^64 − 1 is staged as 18446·10¹⁵ + …): its value is

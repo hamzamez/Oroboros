@@ -4540,3 +4540,26 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 change(s):
 
 - compiler output changed — `examples/pe/pe.oro windows`
+
+## 2026-11-22 — on cb5aad95, with uncommitted changes
+
+**Reason:** ADR 0156: integer constants fold exactly in Z and a point is its constant; the logic midpoint and quotient-corner on JavaScript and big-signed-ops on four targets each fold a closed term past the word into a constant, fewer operations, every case agreeing
+
+844 runs: 585 emitted, 259 refused; 12595 of 12649 integer operations bounded, 1588 of 1889 loops proven. compiler pass, differential pass, tooling pass.
+
+9 change(s):
+
+- emitted text changed — `examples/logic/midpoint.oro js`
+- compiler output changed — `examples/logic/midpoint.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro js`
+- compiler output changed — `gauntlet/differential/cases/big-signed-ops.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro windows`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro js`
+- compiler output changed — `gauntlet/differential/cases/quotient-corner.oro js`
+
+2 compile(s) recorded FASTER:
+
+- `examples/json/tokenize.oro js` 1531 → 921 ms, 0.60x
+- `examples/native/wndproc-win.oro windows` 703 → 437 ms, 0.62x

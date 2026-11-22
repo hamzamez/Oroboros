@@ -3,8 +3,7 @@
 export function genMain() {
 	console.log((String(5)));
 	console.log((String(3)));
-	const v39 = (((((((BigInt(2305)) * (BigInt(1000000000000000)))) + (BigInt(843009213693952)))) + (((((((((BigInt(4611)) * (BigInt(1000000000000000)))) + (BigInt(686018427387904)))) - (((((BigInt(2305)) * (BigInt(1000000000000000)))) + (BigInt(843009213693952)))))) / (BigInt(2))))));
-	console.log((String(v39)));
-	return v39;
+	console.log((String((((((BigInt(3458)) * (BigInt(1000000000000000)))) + (BigInt(764513820540928)))))));
+	return (((((BigInt(3458)) * (BigInt(1000000000000000)))) + (BigInt(764513820540928))));
 }
 

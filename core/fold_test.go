@@ -1,6 +1,9 @@
 package core
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // CONSTANT FOLDING FOR THE LANGUAGE'S INTEGER OPERATORS (integers.md §11).
 //
@@ -81,41 +84,63 @@ func TestDivisionIdentityHoldsUnderFolding(t *testing.T) {
 // STAGING MUST NOT CHANGE AN ANSWER (ADR 0009), and for integers that is two
 // side conditions rather than one.
 //
-// A RESULT OUTSIDE THE PORTABLE WINDOW IS NOT FOLDED. Compile time here is Go's
-// int64; run time on JavaScript is a float64 whose integers are exact only to
-// ±(2^53−1). Folding `9007199254740991 * 2` would produce a value the runtime
-// could not have produced — and worse, would HIDE it, where leaving the
-// operation alone lets the overflow analysis report it against what the
-// programmer wrote.
+// A FOLD IS AN EQUATION OF ℤ (ADR 0114, ADR 0156). A literal is an element of
+// ℤ, so a fold of the language's operators on literals gives the integer at any
+// size, past JavaScript's 2^53 and past int64 alike, its value past int64 the
+// numeral the reader writes for a literal. These rows were once refused for
+// the window; the danger they guarded is a WRAPPED value, so each states the
+// exact integer, and a fold that wrapped would show another.
 //
-// DIVISION BY ZERO IS NOT FOLDED either: it is a precondition and not a
-// behaviour (integers.md §5), so the refinement layer reports it with the call
-// site. Folding would panic the compiler instead.
-func TestFoldingRespectsThePortableWindowAndDivisionByZero(t *testing.T) {
-	for _, c := range []struct {
-		src   string
-		folds bool
-	}{
-		{"(+ 9007199254740990 1)", true},  // lands exactly on the boundary
-		{"(+ 9007199254740991 1)", false}, // one past it
-		{"(- -9007199254740990 1)", true},
-		{"(- -9007199254740991 1)", false},
-		{"(* 9007199254740991 2)", false},
-		// int64 itself overflows here, so a range test on the WRAPPED product
-		// would pass. The fold divides back instead.
-		{"(* 4611686018427387904 4)", false},
-		{"(/ 1 0)", false},
-		{"(% 1 0)", false},
-	} {
-		got := foldNorm(t, c.src)
-		folded := got != "" && got[0] != '('
-		if folded != c.folds {
-			verb := "did not fold"
-			if folded {
-				verb = "folded to " + got
-			}
-			t.Errorf("%s %s, want folds=%v", c.src, verb, c.folds)
+// DIVISION BY ZERO IS NOT FOLDED: it is a precondition and not a behaviour
+// (integers.md §5), refused by the decision with its call site. Folding would
+// panic the compiler instead.
+func TestAFoldIsExactInTheIntegers(t *testing.T) {
+	value := func(src string) (string, bool) {
+		t.Helper()
+		term, err := ParseTerm(foldNorm(t, src))
+		if err != nil {
+			t.Fatal(err)
 		}
+		if term.String() == src {
+			return "", false
+		}
+		if term.Kind == KInt {
+			return fmt.Sprint(term.Int), true
+		}
+		v, ok := EvalEndpoint(term)
+		if !ok {
+			return "", false
+		}
+		return v.String(), true
+	}
+	for _, c := range []struct{ src, want string }{
+		{"(+ 9007199254740990 1)", "9007199254740991"},
+		{"(+ 9007199254740991 1)", "9007199254740992"},
+		{"(- -9007199254740991 1)", "-9007199254740992"},
+		{"(* 9007199254740991 2)", "18014398509481982"},
+		// int64 itself overflows here: the fold is exact, not a wrapped product
+		{"(* 4611686018427387904 4)", "18446744073709551616"},
+		{"(* (* 4611686018427387904 4) 3)", "55340232221128654848"},
+		{"(/ (* 4611686018427387904 4) 7)", "2635249153387078802"},
+		{"(% (* 4611686018427387904 4) 7)", "2"},
+		{"(- 0 (* 4611686018427387904 4))", "-18446744073709551616"},
+	} {
+		if got, ok := value(c.src); !ok || got != c.want {
+			t.Errorf("%s folded to %q (folded %v), want %s", c.src, got, ok, c.want)
+		}
+	}
+	for _, src := range []string{"(/ 1 0)", "(% 1 0)", "(/ (* 4611686018427387904 4) 0)"} {
+		if _, ok := value(src); ok {
+			t.Errorf("%s folded; a division by zero is the decision's to refuse", src)
+		}
+	}
+	// THE PLANTED FAULT: folding only inside the word leaves 2^62 · 4 an
+	// operation again
+	PlantFoldInWord = true
+	_, ok := value("(* 4611686018427387904 4)")
+	PlantFoldInWord = false
+	if ok {
+		t.Error("with the fold held to the word, 2^62 · 4 still folded: the witness cannot fail")
 	}
 }
 
@@ -130,32 +155,38 @@ func TestNoFloatFolds(t *testing.T) {
 	}
 }
 
-// ON A 64-BIT WORD THE FOLD IS CHECKED, because the operands no longer leave
-// headroom: under the 2^53 window a sum of two in-window values could not wrap
-// int64, and under Go's word it can (ADR 0026). Each case is a place where the
-// wrapped int64 would itself lie inside the word and pass the range test.
-func TestFoldingOnAFullWordIsChecked(t *testing.T) {
+// ON A 64-BIT WORD THE FOLD IS STILL EXACT: each row is a place where the
+// wrapped int64 would itself lie inside the word, so a fold computed in int64
+// and range-tested would give a wrong integer. The fold gives the integer.
+func TestFoldingOnAFullWordIsExact(t *testing.T) {
 	fold := func(src string) string {
 		t.Helper()
-		return normCore(t, src, testGo, "+", "-", "*", "/", "%")
+		term, err := ParseTerm(normCore(t, src, testGo, "+", "-", "*", "/", "%"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if term.Kind == KInt {
+			return fmt.Sprint(term.Int)
+		}
+		v, ok := closedInt(term, testGo)
+		if !ok {
+			return term.String()
+		}
+		return v.String()
 	}
-	for _, c := range []struct {
-		src   string
-		folds bool
-	}{
-		{"(+ 9007199254740991 1)", true}, // past JavaScript's word, inside Go's
-		{"(* 3037000499 3037000499)", true},
-		{"(+ 9223372036854775807 1)", false},
-		{"(- -9223372036854775808 1)", false},
-		{"(- 0 -9223372036854775808)", false},
-		{"(* -9223372036854775808 -1)", false},
-		{"(* -1 -9223372036854775808)", false},
-		{"(/ -9223372036854775808 -1)", false},
-		{"(* 4294967296 4294967296)", false},
+	for _, c := range []struct{ src, want string }{
+		{"(+ 9007199254740991 1)", "9007199254740992"},
+		{"(* 3037000499 3037000499)", "9223372030926249001"},
+		{"(+ 9223372036854775807 1)", "9223372036854775808"},
+		{"(- -9223372036854775808 1)", "-9223372036854775809"},
+		{"(- 0 -9223372036854775808)", "9223372036854775808"},
+		{"(* -9223372036854775808 -1)", "9223372036854775808"},
+		{"(* -1 -9223372036854775808)", "9223372036854775808"},
+		{"(/ -9223372036854775808 -1)", "9223372036854775808"},
+		{"(* 4294967296 4294967296)", "18446744073709551616"},
 	} {
-		got := fold(c.src)
-		if folded := got[0] != '('; folded != c.folds {
-			t.Errorf("%s gave %s, want folds=%v", c.src, got, c.folds)
+		if got := fold(c.src); got != c.want {
+			t.Errorf("%s gave %s, want %s", c.src, got, c.want)
 		}
 	}
 }

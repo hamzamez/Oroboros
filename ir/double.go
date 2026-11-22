@@ -336,6 +336,11 @@ func inDouble(x iv) bool {
 // where it pays, a clone's selection holding v in E with it. Three digits and
 // not two: 2⁶⁴ is no literal, and a digit in U does not widen into the rung on
 // every host.
+// PlantRecombinePoints recombines a yield whose fact is a point, as before
+// finding 120's fix: `export fn lit() (Int) { 2^64 }` is refused on Go, the JVM
+// and windows (TestAPointIsItsConstant).
+var PlantRecombinePoints bool
+
 func RecombineYields(tg *emit.Target, f *Func, sig *core.Sig) bool {
 	// under -words a value past the words is refused, not held in ℤ: the
 	// recombination's operations would be refused at the exit as its value is
@@ -392,7 +397,14 @@ func RecombineYields(tg *emit.Target, f *Func, sig *core.Sig) bool {
 	cands := sites[:0]
 	for _, x := range sites {
 		v := val(x)
-		if fv := f.facts[v].v; inDouble(fv) && !fv.within(wLo, wHi) && !fv.within(ei(0), u64Max) {
+		// A POINT IS ITS CONSTANT (finding 120): a value whose fact is one
+		// integer is computed by nothing, so Euclid's recombination, which reads
+		// back a value E computes, has nothing to read; the rung holds the
+		// closed term exactly as it is. Recombined, the literal 2⁶⁴ returned as
+		// `Int` became word operations over the rung's value, unbounded, and Go,
+		// the JVM and windows refused the program.
+		if fv := f.facts[v].v; inDouble(fv) && !fv.within(wLo, wHi) && !fv.within(ei(0), u64Max) &&
+			(fv.lo != fv.hi || PlantRecombinePoints) {
 			cands = append(cands, x)
 		}
 	}

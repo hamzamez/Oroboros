@@ -467,8 +467,8 @@ Here it is 10²⁰, exactly, on every host:
 func TourMain() *big.Int {
     v1 := (strconv.Itoa(144))
     fmt.Println(v1)
-    v5 := (big.NewInt(int64(10000000000)))
-    v7 := (big.NewInt(int64(10000000000)))
+    v5 := (big.NewInt(int64(100000)))
+    v7 := (big.NewInt(int64(1000000000000000)))
     v8 := (new(big.Int).Mul(v5, v7))
     v9 := (v8.String())
     fmt.Println(v9)
@@ -484,8 +484,10 @@ func TourSquare(v0 *big.Int) *big.Int {
 **The source names no representation**, and the compiler chooses one for each value from what it
 proves about it
 ([ADR 0079](../decisions/0079-a-declared-set-is-a-claim-and-the-facts-choose-the-representation.md)).
-`square(12)` is 144, which fits a word, so it is the constant 144. `square(10000000000)` does not
-fit, so it is Go's `*big.Int`. And `square` itself, which a host may call with any integer, takes
+`square(12)` is 144, which fits a word, so it is the constant 144. `square(10000000000)` is
+computed while compiling too, exactly, since an integer is an integer at any size
+([ADR 0156](../decisions/0156-an-integer-constant-is-an-element-of-z.md)), and 10²⁰ does not fit a
+word, so it is Go's `*big.Int`, written from its digits in base 10¹⁵ (100000 · 10¹⁵). And `square` itself, which a host may call with any integer, takes
 and returns a `*big.Int`, because nothing bounds its `n`.
 
 ### Where the word is written

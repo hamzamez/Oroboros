@@ -183,7 +183,15 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
    through a host's sort, one answer on every target; `spec` and recursive `lemma` (L3, L4), with a
    table's sum proven by induction; `-checked` running a bounded ∀ as a loop (L6);
 5. **TinyRetroPad's body in J** (the 11-18 plan's item 1), module by module; then
-   `lib/num/u128.oro` in the language's own operations (blocked on U₆₄ ↪ ℤ).
+   `lib/num/u128.oro` in the language's own operations (blocked on U₆₄ ↪ ℤ);
+6. **a table of integers of any size, a research note first** (hamza, 2026-11-22: "put the
+   research note on the plan", the book's finding 119): `Array(Int)` is [0, n) → ℤ, and
+   integers.md §1a makes a table's element and a map's value words by storage, so a store is a sink
+   whatever its set and the tour's `prefix_sums` is refused; by ADR 0150 an element's
+   representation is ρ of the elements' facts, the word where proven, the host's array of big
+   integers on Go, the JVM and JavaScript, and on windows a table of K(ℕ\*) numerals, a table
+   inside a table (R1's storage, its release per element by W11), the decision for hamza; maps'
+   values under the same rule; spec, conformance case and the tour's §0.8 with it.
 
 Done of "Build all 5" (2026-11-20): findings 100 and 101
 ([findings](gauntlet/results/findings-2026-11-20.md)); Win32's enumerator pages

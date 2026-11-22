@@ -996,6 +996,19 @@ point too, found eleven, four fixed:
      JVM, all five compiling there, the case `double-word.oro` agreeing on four hosts; and
      windows' signed quotient of E by 7, LLVM's `__divti3` until then, the magnitude's unsigned
      division.
+119. **A table whose elements pass the word cannot be written.** `Array(Int)` is the functions
+     [0, n) → ℤ, and a result declared `(Array(Int))` is ADR 0147's consent, yet the tour's own
+     `prefix_sums` is refused (*+ [0, 2351959869397967831040] in acc + t[i]*): integers.md §1a
+     makes a table's element and a map's value words by storage, so a store is a sink whatever its
+     set. Measured on Go, JavaScript and windows: a literal table holding 2⁷⁰ builds only where
+     every read folds at compile time, read at an index known at run time it is refused (*an
+     operand of array is held in arbitrary precision*), and a computed value past the word stored
+     into a table is refused on every target; the one way to write it is the program holding its
+     own limbs. A correct program refused, no wrong answer. The tour's §0.8 said it as a fact about
+     tables; it now says it is the compiler's limit. Not fixed: by ADR 0150 an element's
+     representation is ρ of the elements' facts, the host's array of big integers on Go, the JVM
+     and JavaScript and, on windows, a table of K(ℕ\*) numerals, a table inside a table (R1's
+     storage); a research note first, on the plan (hamza, 2026-11-22).
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

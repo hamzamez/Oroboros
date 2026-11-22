@@ -1219,7 +1219,9 @@ nothing said. In practice most indexing is like that, and proves itself.
 ### A table holds words
 
 An element of a table is held in a machine word, so a value stored into one is the §0.5 case: it
-must be proven to fit. This is refused,
+must be proven to fit. That is this compiler's limit, not what a table is: `Array(Int)` is a table
+of integers, and holding an element past the word, as a single integer is held, is not built yet
+(the book's finding 119). This is refused,
 
 <!-- part docs/book/code/tour/no-prefix.oro -->
 ```go
@@ -1804,7 +1806,8 @@ takes.
 
 **Specified, and not built yet**, so not in this chapter: the logic's own definitions (`spec`, and
 `lemma` proven by induction), a guard on a `case` arm, handlers on `try`, a function a host
-returns, and concurrency. [spec/j.md](../spec/j.md)'s status table is the exact list.
+returns, and concurrency. [spec/j.md](../spec/j.md)'s status table is the exact list. Not built
+and not yet specified: a table whose elements pass the machine word (§0.8).
 
 ## 0.15 From what you write to what you write here
 

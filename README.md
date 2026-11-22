@@ -148,7 +148,7 @@ them and checked against the SDK's prototypes.
 
 ## Current work
 
-*Updated 2026-11-21.* The latest assessment is [docs/assessment-2026-11-20.md](docs/assessment-2026-11-20.md);
+*Updated 2026-11-22.* The latest assessment is [docs/assessment-2026-11-20.md](docs/assessment-2026-11-20.md);
 each earlier plan, and how it ended, is in the assessments in [docs/](docs/).
 
 **The plan in force** (hamza, 2026-11-20), in order. Ahead of it, **the check shortened**, done
@@ -184,6 +184,10 @@ otherwise, so a program every other platform compiles compiles there too (done 2
 5. **[TinyRetroPad](https://github.com/plummersSoftwareLLC/TinyRetroPad)'s body in the language**, a
    Notepad-style editor in about 2.5 KB of hand-written assembly, module by module; then 128-bit
    integers written in the language itself.
+6. **A table of integers of any size** (added 2026-11-22), a research note first: today a table's
+   element is a machine word, so a table holding a value past it cannot be written; each element
+   would be held as a single integer is, the word where it fits and the platform's big integer
+   where not, and on Windows a table of the compiler's own big numbers.
 
 **Done since it was set**: **`Int` is every integer at an entry point too**
 ([intboundary](gauntlet/results/intboundary-2026-11-21.md), ADR 0147): an exported function taking

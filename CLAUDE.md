@@ -216,7 +216,8 @@ asks, and can on every target (`sum ∈ Int = lo + hi`; a helper by a set above 
 `(Int)` no demand, finding 116); Bloch's
 `lo + (hi - lo) / 2` under `where lo <= hi` proven in the words, a `where` a zone entry and a
 repeated atom decided by the Omega test (Moore: the box is exact on independent atoms); the note's
-§7 whole, silent exactness, not taken. Not built: a map read with a key of any size (finding 111).
+§7 whole, silent exactness, not taken. Not built: a map read with a key of any size (finding 111,
+waiting on a trigger).
 A definition's claim reported inside its body (finding 110) is decided at the call since ADR 0154.
 
 **Decided and to be built** (hamza, 2026-11-19; its items 1 and 3 are "Build all 5"'s 3 and 4), in this order (the first list's items 1–4, 6, 7 built:
@@ -464,6 +465,14 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
 - **one integer rendering on every target** (ADR 0095): since ADR 0147 a word is rendered by the
   host's own (`strconv.Itoa`, `Long.toString`, `String(n)`) and a value above it by its bignum, two
   renderings where the ADR has one; trigger printing's P3;
+- **a map read with a key of any size** (the book's finding 111, hamza 2026-11-22: "add it under
+  waiting on a trigger"): refused as an operand held above the word, a correct program; every key
+  enters a map as a word, so dom(m) ⊆ S and m(k) = m(ρ(k)) if k ∈ S, else 'none: a read is no sink
+  for its key (an insert stays one). The build: the rung pass branches a read whose key is held
+  above the word on its fit, the key's π under the branch the word by ρ, a conversion from the
+  big integer to the word on each target (whether ρ narrows at a π is the first measurement); an
+  ADR amending 0147/0150, its planted fault the branch dropped; chapter 14's `lookup` then takes
+  `k ∈ Int`; trigger a program reading a map at a key computed past the word;
 - **printing an integer on Go** (intboundary-2026-11-21): `strconv.Itoa` then `fmt.Println(s)`
   where it was `fmt.Println(n)`, 52 ns against 36 into `io.Discard`, inside the noise into a file
   (the write's system call); trigger a program printing in a measured loop;

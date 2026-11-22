@@ -77,7 +77,7 @@
    note: gen-run: 8 operation(s) in arbitrary precision
    note: gen-run: 1 of 1 integer operations bounded; 1 of 3 loop(s) proven terminating
 == examples/big/popcount.oro windows emitted c69c1d00d446228ee650e4774d8a5a89a0bacdfd2bcd8d9823680d53581ff671
-   note: every definition inlined: kept, gen-main: in argument 1 of decimal: ones is Array(0..2^64-1), but Nat is required here
+   note: every definition inlined: kept, gen-main: argument 1 of ones is held in arbitrary precision, which is WIDER than the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615], so on this target it is not an `int` — it is a rung above the host's word (ADR 0026, docs/unbounded-rung.md).
    note: gen-main: 24 operation(s) in arbitrary precision
    note: gen-main: 15 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 106 of 106 integer operations bounded; 14 of 16 loop(s) proven terminating
@@ -128,7 +128,7 @@
    note: gen-run: 10 operation(s) in arbitrary precision
    note: gen-run: 2 of 2 integer operations bounded; 2 of 7 loop(s) proven terminating
 == examples/big/stein.oro windows emitted a643e99a48956effc5c08be49420afd1b9979aef6a0c8c0c6bd4ee363f1d30c6
-   note: gcd is inlined: gcd: in a loop's guard: in argument 1 of `==`: a is Array(0..2^64-1), but Int is required here.
+   note: gcd is inlined: gcd: the body does not establish 0 <= result; its result is [-inf, +inf]
    note: every definition inlined: kept, gen-main: gcd requires 0 <= fib(300) && 0 <= fib(200) at a call, which does not follow
    note: gen-main: 108 operation(s) in arbitrary precision
    note: gen-main: 453 operation(s) or conversion(s) in the unsigned word
@@ -739,7 +739,7 @@
    note: gen-main: 22 of 22 integer operations bounded; 5 of 5 loop(s) proven terminating
    note: gen-main: 12 division(s) became a shift or a mask
 == examples/map/collatz.oro windows emitted 1718dd46c2dce0a28066d6943391436c082d15f1ce8537d33ac0add5ccc6f7a5
-   note: every definition inlined: kept, gen-main: in again's argument 3: in a condition: in a condition: in argument 2 of `==`: steps is Array(0..2^64-1), but Int is required here.
+   note: every definition inlined: kept, gen-main: an operand is [-inf, 999], which is not inside target windows's signed word [-9223372036854775808, 9223372036854775807], and only a value in the signed word widens into arbitrary precision (`big-of`); compute it exactly, or prove it inside the word
    note: gen-main: 48 of 48 integer operations bounded; 20 of 21 loop(s) proven terminating
 == examples/map/dynamic.oro go emitted 68a285373ab475814232f7296a0841e91d332c5a653b699e4a8e60c98b496d7a
    note: gen-main: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -1435,7 +1435,7 @@
    note: gen-calc: 16 operation(s) in arbitrary precision
    note: gen-calc: 10 of 10 integer operations bounded; 5 of 9 loop(s) proven terminating
 == gauntlet/differential/cases/big-popcount.oro windows emitted 32a2250427bd2fde29c69e0faac4f5c6e506500b6379cac045c50a429d47a272
-   note: every definition inlined: kept, gen-calc: ones is Array(0..2^64-1), but Nat is required here
+   note: every definition inlined: kept, gen-calc: the body does not establish 0 <= result; its result is [-inf, +inf]
    note: gen-calc: 47 operation(s) in arbitrary precision
    note: gen-calc: 30 operation(s) or conversion(s) in the unsigned word
    note: gen-calc: 230 of 230 integer operations bounded; 33 of 37 loop(s) proven terminating
@@ -1482,7 +1482,7 @@
    note: gen-calc: 70 operation(s) in arbitrary precision
    note: gen-calc: 14 of 14 integer operations bounded; 14 of 49 loop(s) proven terminating
 == gauntlet/differential/cases/big-stein.oro windows emitted 88d5f3cde54890f31c1dc9bcbdd91681d5b94740e0852a74878221856821bde6
-   note: gcd is inlined: gcd: in a loop's guard: in argument 1 of `==`: a is Array(0..2^64-1), but Int is required here.
+   note: gcd is inlined: gcd: the body does not establish 0 <= result; its result is [-inf, +inf]
    note: every definition inlined: kept, gen-calc: gcd requires 0 <= fib(300) && 0 <= fib(200) at a call, which does not follow
    note: gen-calc: 245 operation(s) in arbitrary precision
    note: gen-calc: 1057 operation(s) or conversion(s) in the unsigned word
@@ -1682,6 +1682,10 @@
 == gauntlet/differential/cases/loop-counter.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/loop-counter.oro java emitted 6cf51be0872d52b4c869bf5b9ce5919e3a7941eb811c6b5d5707577a3fbfbdb3
 == gauntlet/differential/cases/loop-counter.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
+== gauntlet/differential/cases/map-built.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/map-built.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/map-built.oro java emitted cf03a3c189c3ac43954e2fdffdb19521207e58ca9a61c984301227e6337f4994
+== gauntlet/differential/cases/map-built.oro windows emitted 24c0360b5a52c27bad5f1bb20cb7315d6a128e5e2a551756961e02cc84e77e7f
 == gauntlet/differential/cases/map-dynamic.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/map-dynamic.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/map-dynamic.oro java emitted 0d2aa1843d8ed64020736fa09c96ca9e8e5b5732725112abb7ab7143aeddc15e

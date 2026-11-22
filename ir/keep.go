@@ -121,6 +121,9 @@ func Keep(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.Require
 	}
 	for _, n := range calleesFirst(prog, K) {
 		f, lent, leg, post, err := buildKept(tg, prog, env, reqs, n, all)
+		if err == nil {
+			err = keptLimbs(f)
+		}
 		if err != nil {
 			return nil, &KeepDrop{n, err}
 		}
@@ -145,8 +148,87 @@ func Keep(tg *emit.Target, prog *core.Program, env *core.Env, reqs *emit.Require
 			p.Names, p.Ensures = post.names, post.ir
 			tg.Prims[f.Name] = p
 		}
+		keptNumerals(tg, f)
 	}
 	return K, nil
+}
+
+// keptLimbs refuses to keep a definition whose result is held on fixed limbs.
+// Their abstraction function d(t) = Σ tᵢ·2³²ⁱ, a sign over the magnitude (ADR
+// 0098), is at a width, the one set's of the program it was lowered in (ADR
+// 0029); a caller lowered under its own set reads the table at its own width,
+// so the interface has no one meaning. Inlined (P4), the program has one set
+// and one width. A numeral has none (ADR 0099), and is kept (keptNumerals).
+func keptLimbs(f *Func) error {
+	if PlantKeepFixedLimbs {
+		return nil
+	}
+	for j, nat := range f.exactResults {
+		if !nat {
+			return fmt.Errorf("its result %d is held on fixed limbs, at a width its callers do not share", j+1)
+		}
+	}
+	return nil
+}
+
+// keptNumerals types a kept definition's result held as a numeral as what it
+// denotes, an integer above the word (core.BigType), at its callers. A
+// representation is an abstraction function (H, d) (ADR 0083): K(ℕ*)'s table of
+// digits is the carrier, and d(t) = Σ tᵢ·Bⁱ, the signed size last (ADR 0099), its
+// value. Registered by its carrier, the call's value was a table at the caller,
+// d forgotten: `decimal` of it took the word's rendering, its domain assumed
+// past its facts (W5 and W6 caught the table in the comparisons). Typed by its
+// sort, the call's value is held exactly at the caller like any other, the rung
+// K(ℕ*) since the numeral has no width (LowerLimbs refuses it on fixed limbs,
+// and a caller there leaves them for K(ℕ*) whole), and the call's text is the
+// carrier's, the same pointer.
+func keptNumerals(tg *emit.Target, f *Func) {
+	if PlantKeptNumeralAsTable || len(f.exactResults) == 0 {
+		return
+	}
+	p, ok := tg.Prims[f.Name]
+	if !ok || !p.Program {
+		return
+	}
+	if len(p.Results) == 0 && f.exactResults[0] {
+		p.Result = core.BigType
+	}
+	if len(p.Results) > 0 {
+		rs := append([]string(nil), p.Results...)
+		for j := range rs {
+			if f.exactResults[j] {
+				rs[j] = core.BigType
+			}
+		}
+		p.Results = rs
+	}
+	tg.Prims[f.Name] = p
+}
+
+// PlantKeepFixedLimbs keeps a definition whose result is on fixed limbs: the
+// fixed-limb witness of TestAKeptNumeralIsAnIntegerAtItsCallers must not answer.
+var PlantKeepFixedLimbs bool
+
+// PlantKeptNumeralAsTable registers a kept definition's numeral result by its
+// carrier, as before keptnum-2026-11-22: big-bits with unknown inputs must fail
+// W5 on windows.
+var PlantKeptNumeralAsTable bool
+
+// keptNumeral says a call is of a kept definition whose result is a numeral.
+func keptNumeral(tg *emit.Target, name string) bool {
+	p, ok := tg.Prims[name]
+	if !ok || !p.Program || strings.HasPrefix(name, natPrefix) {
+		return false
+	}
+	if p.Result == core.BigType {
+		return true
+	}
+	for _, r := range p.Results {
+		if r == core.BigType {
+			return true
+		}
+	}
+	return false
 }
 
 // chooseKept is P2: each dynamic definition, first-order in a header that

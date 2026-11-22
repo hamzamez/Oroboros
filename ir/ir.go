@@ -301,6 +301,10 @@ type Func struct {
 	// exactDemand is D_A (exact.go), the operations past every word and E that
 	// the rung holds exactly, set by the pipeline before it runs. In memory only.
 	exactDemand map[V]bool
+	// exactResults are the results LowerLimbs held exactly, each by the rung it
+	// lowered on (numeral says K(ℕ*), whose carrier has no width): what a kept
+	// definition's callers read through (keep.go's keptNumerals). In memory only.
+	exactResults map[int]bool
 	// marks is, for each range mark the residual still carried when it was
 	// lowered, the values its argument became (DischargeRanges). In memory
 	// only; a value numbering dropped is −1, and decides nothing.

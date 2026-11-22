@@ -141,8 +141,10 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      a derived statement named in its source (`Of`); ~~2A, the double word as a loop
      variable's representation~~ done (ADR 0153, [eloop](gauntlet/results/eloop-2026-11-22.md)):
      a loop's variable and result carried as E's residue, a yield into ℤ its digits'
-     recombination by Euclid's identity in radix 2³²; next the windows IR_P and JVM map-literal
-     tasks;
+     recombination by Euclid's identity in radix 2³²; ~~the windows IR_P and JVM map-literal
+     tasks~~ done ([keptnum](gauntlet/results/keptnum-2026-11-22.md)): a kept definition's
+     numeral an integer at its callers, one on fixed limbs not kept; a map literal's entries cast
+     into the JVM's carrier;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -349,11 +351,12 @@ field now stops the program with its reason; total on ℤ waits on U₆₄ ↪ �
 the state translation's let kept a λ argument for β without local.md §3's check.
 
 **Owed from finished steps** (each named in its result document):
-- split53: every differential case opaque (`// opaque`, inputs unknown at compile time): 74 of 83
-  agree; windows' IR_P fails W5/W6 on six (a table into an integer comparison: big-bits,
-  big-nat-div, big-nat-ops, big-signed-ops, record-map, tuple-map), the JVM's map literal is typed
-  Integer in map-static, and quotient-corner and sum-slots prove only at their literal inputs;
-  the default stays literal until they are settled; the split at 26.7 ns against its eight
+- split53: every differential case opaque (`// opaque`, inputs unknown at compile time): the
+  windows and JVM failures fixed (keptnum-2026-11-22, the four big cases opaque and `map-built`
+  new); quotient-corner, sum-slots, record-map and tuple-map prove only at their literal inputs
+  (the last two a built map's value facts); the default stays literal until they are settled;
+  keptnum: a kept numeral's facts at its call (stein's gcd and popcount's `ones` still inlined by
+  P4, a result ⊤ at the caller), a kept definition's parameter above the word; the split at 26.7 ns against its eight
   operations; ir/final.go's bit refusal reached by no program on JavaScript;
 - pairsel (ADR 0151): a residue divided by a non-power of two; the ascriptions on K(ℕ\*), where
   stein's compile did not end with them; a planted fault for SCT's reading of `the` as the identity;

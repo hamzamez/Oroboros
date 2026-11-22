@@ -4512,3 +4512,21 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/e-loop.oro java`
 - new source — `gauntlet/differential/cases/e-loop.oro js`
 - new source — `gauntlet/differential/cases/e-loop.oro windows`
+
+## 2026-11-22 — on cb5db9b6, with uncommitted changes
+
+**Reason:** keptnum: a kept definition's numeral is an integer at its callers (P4's inlining notes name the next reason on five windows files, their code unchanged); map-built, a new case on four targets
+
+844 runs: 585 emitted, 259 refused; 12595 of 12649 integer operations bounded, 1588 of 1889 loops proven. compiler pass, differential pass, tooling pass.
+
+9 change(s):
+
+- compiler output changed — `examples/big/popcount.oro windows`
+- compiler output changed — `examples/big/stein.oro windows`
+- compiler output changed — `examples/map/collatz.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-popcount.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-stein.oro windows`
+- new source — `gauntlet/differential/cases/map-built.oro go`
+- new source — `gauntlet/differential/cases/map-built.oro java`
+- new source — `gauntlet/differential/cases/map-built.oro js`
+- new source — `gauntlet/differential/cases/map-built.oro windows`

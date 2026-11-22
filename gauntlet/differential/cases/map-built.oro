@@ -1,0 +1,13 @@
+// A MAP LITERAL READ AT A KEY NOT KNOWN WHEN COMPILING (maps.md §5.2).
+// opaque
+// inputs: 0 1 2 3 4 5 6 7 8 9
+// expect: 0 10 20 0 0 50 0 0 0 -7
+//
+// map-static's map, read at its literal inputs, folds away. Here the key reaches
+// `run` unknown, so the literal is built on every host: Go's map literal,
+// JavaScript's Map, the JVM's Map.ofEntries, windows' table of cells. A literal
+// map is a finite function K → V, its JVM carrier Map<Box ρ(K), Box ρ(V)>: each
+// entry is cast into ρ(K) and ρ(V) before it is boxed, since Java boxes an int
+// only to Integer, and `Map.entry(1, 10)` was no member of a Map<Long, Long>
+// (keptnum-2026-11-22). The negative value is a word of either sign stored.
+fn run(k ∈ 0..9) (Int) { case `map`(1(10), 2(20), 5(50), 9(-7))(k) { 'some(v) -> v; 'none -> 0 } }

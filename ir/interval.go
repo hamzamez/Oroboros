@@ -874,6 +874,12 @@ func (a *intervals) stmt(s *Stmt) {
 			if len(p.Results) >= 2 && j < len(p.Results) {
 				ty = p.Results[j]
 			}
+			// A KEPT DEFINITION'S NUMERAL is ℤ at the call and, once held,
+			// its carrier: the value's own type, its digits in [0, B)
+			// (keep.go's keptNumerals, LowerLimbs)
+			if ty == core.BigType && ElemOf(a.tg, a.f.Types[v]) != "" {
+				ty = a.f.Types[v]
+			}
 			a.fs[v] = a.declared(ty)
 		}
 		// A PRIMITIVE'S `ensures` holds at every call the IR sees: it is assumed

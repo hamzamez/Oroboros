@@ -53,6 +53,9 @@ that marks itself
 is driven by a loop instead, over a counter the reducer does not unroll: `run(caseI)` for
 consecutive inputs, and under `if caseI == a || caseI == b …` for others, where the counter is the
 join of the inputs, an interval. So each input reaches `run` unknown. Its inputs must increase.
+A definition kept as a function (ADR 0113) is reached only so: at a literal it is inlined at each
+constant, and the big cases' `calc`, kept, returned a numeral its caller read as a table
+(keptnum-2026-11-22).
 
 ## Two checks, not one
 

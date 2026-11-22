@@ -182,6 +182,22 @@ func coerce(expr, from, to string) string {
 	return "(" + to + ") (" + expr + ")"
 }
 
+// entry is a value of a map literal's key or value as the map's Java type to
+// holds it: the identity where the representations agree, else the cast, the
+// inclusion where it widens and, as coerce's, sound by the value's range where
+// it narrows. A type that is no primitive (a string, a record) is its own.
+func (p *printer) entry(v ir.V, to string) string {
+	from := p.tyOf(v)
+	if from == to || rank(from) == 0 || rank(to) == 0 || PlantMapEntryUncast {
+		return p.ref(v)
+	}
+	return "(" + to + ") (" + p.ref(v) + ")"
+}
+
+// PlantMapEntryUncast writes a map literal's entries as their own types, as
+// before keptnum-2026-11-22: map-static with unknown inputs must not compile.
+var PlantMapEntryUncast bool
+
 func zeroOf(ty string) string {
 	switch ty {
 	case "double":
@@ -526,9 +542,15 @@ func (p *printer) stmt(s *ir.Stmt) {
 		}
 		p.define(s.Res[0], fmt.Sprintf("new %s{%s}", p.tyOf(s.Res[0]), strings.Join(out, ", ")))
 	case ir.OMap:
+		// A MAP LITERAL IS A FINITE FUNCTION K → V, its carrier Map<Box ρ(K),
+		// Box ρ(V)>: each entry is taken into it by the inclusion ρ(a) ↪ ρ(K)
+		// first, since Java boxes an int only to Integer (JLS §5.1.7), and
+		// Map.entry(1, 10) was a Map.Entry<Integer, Integer>, no member of a
+		// Map<Long, Long> (map-static, its inputs unknown)
+		kt, vt := p.mapTys(s.Res[0])
 		rows := make([]string, 0, len(s.Args)/2)
 		for j := 0; j+1 < len(s.Args); j += 2 {
-			rows = append(rows, fmt.Sprintf("java.util.Map.entry(%s, %s)", p.ref(s.Args[j]), p.ref(s.Args[j+1])))
+			rows = append(rows, fmt.Sprintf("java.util.Map.entry(%s, %s)", p.entry(s.Args[j], kt), p.entry(s.Args[j+1], vt)))
 		}
 		// A literal is immutable, which Map.ofEntries gives.
 		p.define(s.Res[0], "java.util.Map.ofEntries("+strings.Join(rows, ", ")+")")

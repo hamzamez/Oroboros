@@ -63,6 +63,11 @@ var signedLimb = map[string]string{
 	"lt": "slt", "le": "sle", "gt": "sgt", "ge": "sge", "eq": "seq", "render": "srender",
 }
 
+// PlantNumeralOnFixedLimbs lets a definition on fixed limbs read a kept
+// definition's numeral as its own limbs: the third witness of
+// TestAKeptNumeralIsAnIntegerAtItsCallers must not answer.
+var PlantNumeralOnFixedLimbs bool
+
 // ErrNoLimbForm says the limb library has no instance for an operation.
 var ErrNoLimbForm = errors.New("the limb library has no form for an operation")
 
@@ -121,6 +126,12 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
 			if s.Op != OCall || err != nil {
+				continue
+			}
+			// A KEPT DEFINITION'S NUMERAL (keep.go's keptNumerals) is K(ℕ*)'s,
+			// with no width: fixed limbs would read its digits as theirs
+			if !nat && keptNumeral(tg, s.Name) && !PlantNumeralOnFixedLimbs {
+				err = fmt.Errorf("%w: %s's result is a numeral of any length, read on fixed limbs", ErrNoLimbForm, s.Name)
 				continue
 			}
 			switch s.Name {
@@ -275,6 +286,23 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			f.Types[v] = "array int"
 		}
 	}
+	// A KEPT DEFINITION'S NUMERAL is its carrier at the call, digits in [0, B):
+	// the claim its body proved (pipeline.go's proveResultElems), which the
+	// limb library's operations on it read, as they read an instance's result
+	if nat && !PlantKeptNumeralAsTable {
+		f.Walk(func(r *Region) {
+			for i := range r.Stmts {
+				if s := &r.Stmts[i]; s.Op == OCall && keptNumeral(tg, s.Name) {
+					p := tg.Prims[s.Name]
+					for j, v := range s.Res {
+						if (len(p.Results) == 0 && p.Result == core.BigType) || (j < len(p.Results) && p.Results[j] == core.BigType) {
+							f.Types[v] = NumeralType(tg)
+						}
+					}
+				}
+			}
+		})
+	}
 	// AND ON K(ℕ*) A RESULT HELD EXACTLY IS A NUMERAL'S TABLE, its digits in
 	// [0, 2⁶⁴): the type each instance's own result and parameters have
 	// (progfunc.go). Declared `array int`, an export's result was a second fixed
@@ -285,6 +313,10 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 	// (pipeline.go), as an instance's is.
 	for j, ty := range f.Results {
 		if ty == core.BigType {
+			if f.exactResults == nil {
+				f.exactResults = map[int]bool{}
+			}
+			f.exactResults[j] = nat
 			f.Results[j] = "array int"
 			if nat && !PlantNumeralResultInt {
 				f.Results[j] = NumeralType(tg)

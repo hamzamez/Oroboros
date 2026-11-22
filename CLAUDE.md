@@ -147,7 +147,10 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      into the JVM's carrier; ~~the book's finding 110~~ done (ADR 0154, hamza 2026-11-22: "A now",
      [sortclaim](gauntlet/results/sortclaim-2026-11-22.md)): a parameter's set that is no range a
      claim at the call, a where-mark on its result the type checker decides there; an unread
-     one's false claim and a discarded call's contract refused now;
+     one's false claim and a discarded call's contract refused now; ~~the book's finding 112~~ done
+     (ADR 0155, hamza 2026-11-22: "yes, fix 112 now", [keptsink](gauntlet/results/keptsink-2026-11-22.md)):
+     a kept definition's parameter no sink of the taint, so windows computes `grow` under `-checked`
+     as every target does; the finding's pass order changes no program, not built;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -473,6 +476,10 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   big integer to the word on each target (whether ρ narrows at a π is the first measurement); an
   ADR amending 0147/0150, its planted fault the branch dropped; chapter 14's `lookup` then takes
   `k ∈ Int`; trigger a program reading a map at a key computed past the word;
+- **a constant past JavaScript's word spelled as a BigInt literal** (keptsink-2026-11-22): 2⁶² is
+  held exactly since midpoint-2026-11-21, written as Horner's form over 10¹⁵ in BigInt
+  (`BigInt(4611) * BigInt(10**15) + …`) where `4611686018427387904n` is the same value; cosmetic,
+  trigger a measurement of a loop reading such a constant;
 - **printing an integer on Go** (intboundary-2026-11-21): `strconv.Itoa` then `fmt.Println(s)`
   where it was `fmt.Println(n)`, 52 ns against 36 into `io.Discard`, inside the noise into a file
   (the write's system call); trigger a program printing in a measured loop;
@@ -939,6 +946,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | The one set is checked where it claims: a fit at each value a declared set above the word is ascribed to and at each operation the decision does not bound, none at an operation with a finite fact; fixed limbs hold a program only within their width; amends 0029 | [0152](docs/decisions/0152-the-one-set-is-checked-where-it-claims.md) |
 | The double word holds a loop's variable and result where their inputs are words or E's, marked by an `int` type past both words; a yield into ℤ of a value E can hold is its digits' recombination, Euclid's identity in radix 2³²; amends 0103 and 0149 | [0153](docs/decisions/0153-the-double-word-holds-a-loops-variable.md) |
 | A parameter's set that is no range is a claim at the call: a where-mark `(#in "S" a "i")` on the call's result, decided by the type checker as a typing mark and refused as *in argument i of f*; a literal of the set's kind decided by the reducer; `ignore` keeps a pure value's obligations | [0154](docs/decisions/0154-a-calls-sort-claim-is-decided-at-the-call.md) |
+| A kept definition's parameter is no sink: keeping is a factoring (ADR 0102), so the taint reads the program inlined and P4 inlines a call whose argument leaves its parameter's set; amends 0150 | [0155](docs/decisions/0155-a-kept-definitions-parameter-is-no-sink.md) |
 
 ## Build commands
 

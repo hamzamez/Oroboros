@@ -14,8 +14,8 @@
 // operation inside its target's word, where lo and hi may each reach 2⁶².
 //
 // The program prints the midpoints of [0, 10], [3, 4] and [2⁶¹, 2⁶²]:
-// 5, 3 and 3458764513820540928. On JavaScript, whose word is ±(2⁵³ − 1), 2⁶² is
-// outside it and the program is refused there (ADR 0026): portability computed.
+// 5, 3 and 3458764513820540928, on every target: on JavaScript, whose word is
+// ±(2⁵³ − 1), 2⁶² is held as a BigInt (midpoint-2026-11-21).
 use io
 
 fn mid(lo ∈ 0..2^62, hi ∈ 0..2^62) (m ∈ Int)

@@ -151,3 +151,38 @@ func TestAnUntrappedOperationIsRefused(t *testing.T) {
 		t.Errorf("with the refusal planted away the program is %q, trapped %v, %v: the case cannot fail", out, trapped, err)
 	}
 }
+
+// A KEPT DEFINITION'S PARAMETER IS NO SINK (the book's finding 112). Under
+// -checked an operation traps where it is proven in no set its representation
+// holds, and ρ chooses the representation (ADR 0150): 3 squared seven times and
+// printed reaches no sink, so it is held in ℤ, closed under ·, and prints 3¹²⁸.
+// Windows keeps io.print_int's word as a function whose parameter is a word (a
+// kept parameter above the word is not built), and the taint read that
+// parameter as the program's sink: p stayed a word, trapped, and windows
+// stopped where Go printed. Keeping is a factoring, which never changes an
+// answer (ADR 0102), so the argument's use is the body's, and P4 inlines it.
+// Stored into a table, whose element is a word, the same squares must stay
+// words and trap on every target: the guard that the first half is not
+// vacuous. PlantKeptCallSink reads the kept parameter as a sink again.
+func TestAKeptParameterIsNoSink(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds programs on four targets")
+	}
+	grow := "use io\n\nexport fn main() {\n    p = loop i = 0, p = 3 {\n        i < 7 -> again(i + 1, p * p)\n        else -> p\n    }\n    io.print_int(p)\n}\n"
+	const want = "11790184577738583171520872861412518665678211592275841109096961"
+	sunk := checkedProgram("3", "p * p", 7, "p")
+	for _, target := range []string{"go", "js", "java", "windows"} {
+		if out, trapped, err := runChecked(t, grow, target); err != nil || trapped || out != want {
+			t.Errorf("%s: 3^128 printed under -checked should print it, got %q (trapped %v), %v", target, out, trapped, err)
+		}
+		if _, trapped, err := runChecked(t, sunk, target); err != nil || !trapped {
+			t.Errorf("%s: the squares stored into a table's word should trap under -checked, got trapped %v, %v", target, trapped, err)
+		}
+	}
+	ir.PlantKeptCallSink = true
+	_, trapped, err := runChecked(t, grow, "windows")
+	ir.PlantKeptCallSink = false
+	if err != nil || !trapped {
+		t.Errorf("with the kept parameter a sink windows should stop on 3^128, got trapped %v, %v", trapped, err)
+	}
+}

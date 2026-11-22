@@ -937,7 +937,11 @@ point too, found eleven, four fixed:
      squared seven times and printed, prints 3¹²⁸ on Go, JavaScript and the JVM under `-checked`
      and stops on windows: there the unproven product is marked a trap before the rung, which on
      Go takes it to `*big.Int`, and K(ℕ\*) never does. A stop, not a wrong answer; without the flag
-     windows prints 3¹²⁸. Not fixed: the trap marks should be placed after the rung on every target.
+     windows prints 3¹²⁸. **Fixed** (ADR 0155, keptsink-2026-11-22, hamza 2026-11-22: "yes, fix 112
+     now"), and the diagnosis above was wrong: the traps' order changes no program. Windows keeps
+     `print_int` as a function whose parameter is a word, and the taint read it as the program's
+     sink, so p stayed a word and its product trapped; keeping is a factoring, which never changes an
+     answer (ADR 0102), so a kept definition's parameter is no sink, and windows prints 3¹²⁸.
 113. **A Windows export's integers above the word are three cases.** A parameter of any size is
      refused (its callers are C's, which have no such type); a result declared `Int` that may leave
      the word is refused as an unproven operation; a result declared `Nat` or a range past the word

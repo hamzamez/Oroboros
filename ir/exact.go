@@ -47,6 +47,11 @@ var PlantTaintIgnored bool
 // (TestAnIntermediatePastEIsTheIntegersOwn).
 var PlantTaintThroughRem bool
 
+// PlantKeptCallSink reads a kept definition's parameter as a sink, as before
+// finding 112's fix: windows' `grow` under -checked keeps p a word and stops
+// (TestAKeptParameterIsNoSink).
+var PlantKeptCallSink bool
+
 // PlantPairSinks keeps a host's any and a result declared in U sinks on a
 // target whose U is a pair: a division of a value of U printed is then refused
 // again (TestAPairLeavesForTheIntegers).
@@ -248,6 +253,15 @@ func tainted(tg *emit.Target, f *Func, sig *core.Sig) map[V]bool {
 				operands = append(operands, [2][]V{args, {s.Res[0]}})
 			case s.Op.IsCmp() && s.Name == "":
 				// a comparison of exact values is exact's; its result a boolean
+			case s.Op == OCall && tg.Prims[s.Name].Program && !strings.HasPrefix(s.Name, natPrefix) && !PlantKeptCallSink:
+				// A KEPT DEFINITION'S PARAMETER IS NO SINK (finding 112, ADR
+				// 0102): keeping is a factoring, which never changes an answer, and
+				// its parameter's word is the factoring's (a kept parameter above the
+				// word is not built), not the program's. Its argument's use is the
+				// body's, which P4 inlines where the argument leaves the parameter's
+				// set (CheckCallSets). As a sink, windows' `io.print_int(p)` kept
+				// p * p a word, trapped under -checked, where the inlined program
+				// holds it in ℤ and prints 3¹²⁸.
 			case s.Op == OCall:
 				p := tg.Prims[s.Name]
 				for j, a := range s.Args {

@@ -454,8 +454,16 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
 - **Win32's strings, the rest of ADR 0091**: a C string from Win32 into ours (trigger
   `GetWindowTextA`), a list of C strings (trigger the open dialog's filter), the `W` functions'
   UTF-16 (trigger a `W` function);
-- **one integer rendering on every target** (ADR 0095): Go, the JVM and JavaScript still widen a word
-  to the host's bignum to print it; trigger printing's P3;
+- **one integer rendering on every target** (ADR 0095): since ADR 0147 a word is rendered by the
+  host's own (`strconv.Itoa`, `Long.toString`, `String(n)`) and a value above it by its bignum, two
+  renderings where the ADR has one; trigger printing's P3;
+- **printing an integer on Go** (intboundary-2026-11-21): `strconv.Itoa` then `fmt.Println(s)`
+  where it was `fmt.Println(n)`, 52 ns against 36 into `io.Discard`, inside the noise into a file
+  (the write's system call); trigger a program printing in a measured loop;
+- **`print_int`'s arm above the word on windows** (intboundary-2026-11-21): every program that
+  prints carries it, dead where the argument is a word, which LLVM removes (`maximum`'s `.ll`
+  1,119 → 3,021 lines, its binary 4,096 bytes before and after); the cure an instance of
+  `print_int` by its argument's set (ADR 0101); trigger a compile-time measurement naming it;
 - **storage, the rest of R1** (ADR 0096, 0097, 0100): the helpers' strings, a table inside a table,
   frame slots for a nested loop's first iteration, a token across a branch; trigger input-driven
   programs on windows, or a measurement naming one;

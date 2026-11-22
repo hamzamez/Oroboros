@@ -144,7 +144,10 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      recombination by Euclid's identity in radix 2³²; ~~the windows IR_P and JVM map-literal
      tasks~~ done ([keptnum](gauntlet/results/keptnum-2026-11-22.md)): a kept definition's
      numeral an integer at its callers, one on fixed limbs not kept; a map literal's entries cast
-     into the JVM's carrier;
+     into the JVM's carrier; ~~the book's finding 110~~ done (ADR 0154, hamza 2026-11-22: "A now",
+     [sortclaim](gauntlet/results/sortclaim-2026-11-22.md)): a parameter's set that is no range a
+     claim at the call, a where-mark on its result the type checker decides there; an unread
+     one's false claim and a discarded call's contract refused now;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -213,8 +216,8 @@ asks, and can on every target (`sum ∈ Int = lo + hi`; a helper by a set above 
 `(Int)` no demand, finding 116); Bloch's
 `lo + (hi - lo) / 2` under `where lo <= hi` proven in the words, a `where` a zone entry and a
 repeated atom decided by the Omega test (Moore: the box is exact on independent atoms); the note's
-§7 whole, silent exactness, not taken. Not built: a map read with a key of any size (finding 111); a
-definition's claim reported inside its body (finding 110).
+§7 whole, silent exactness, not taken. Not built: a map read with a key of any size (finding 111).
+A definition's claim reported inside its body (finding 110) is decided at the call since ADR 0154.
 
 **Decided and to be built** (hamza, 2026-11-19; its items 1 and 3 are "Build all 5"'s 3 and 4), in this order (the first list's items 1–4, 6, 7 built:
 ADR 0135, 0139, the pairs, windows32's tier, 0138, 0137; ADR 0140 and 0141 built since):
@@ -357,6 +360,10 @@ the state translation's let kept a λ argument for β without local.md §3's che
   (the last two a built map's value facts); the default stays literal until they are settled;
   the split at 26.7 ns against its eight operations; ir/final.go's bit refusal reached by no
   program on JavaScript;
+- sortclaim (ADR 0154): a term a message quotes shown reduced (finding 110's other half); a claim's
+  copy that does not reduce or shape alone left to the body (a record read through a table rule); a
+  claim reduced to a literal after it was made kept to the checker; `normalizeStep`'s frame within 8
+  bytes of Ω's stack at `MaxDepth` (HEAD's too); a range by an alias (`c ∈ error`) no argument mark;
 - keptnum (hamza, 2026-11-22: "put them on the list, we will get to them in time"): record-map
   and tuple-map opaque, a map built in a loop carrying its values' facts to a read (`r.x * 3 +
   r.y` proven only at the literal inputs); a kept numeral's facts at its call, its post's
@@ -922,6 +929,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A representation holds a value only where it computes the value's uses: on JavaScript a value of U is a pair where its operations are the pair's, ℤ (BigInt) whole otherwise, the greatest fixed point on the pair the rung's least; the pair compares lexicographically and reads a word signed; amends 0083 and 0150 | [0151](docs/decisions/0151-a-representation-holds-a-value-only-where-it-computes-its-uses.md) |
 | The one set is checked where it claims: a fit at each value a declared set above the word is ascribed to and at each operation the decision does not bound, none at an operation with a finite fact; fixed limbs hold a program only within their width; amends 0029 | [0152](docs/decisions/0152-the-one-set-is-checked-where-it-claims.md) |
 | The double word holds a loop's variable and result where their inputs are words or E's, marked by an `int` type past both words; a yield into ℤ of a value E can hold is its digits' recombination, Euclid's identity in radix 2³²; amends 0103 and 0149 | [0153](docs/decisions/0153-the-double-word-holds-a-loops-variable.md) |
+| A parameter's set that is no range is a claim at the call: a where-mark `(#in "S" a "i")` on the call's result, decided by the type checker as a typing mark and refused as *in argument i of f*; a literal of the set's kind decided by the reducer; `ignore` keeps a pure value's obligations | [0154](docs/decisions/0154-a-calls-sort-claim-is-decided-at-the-call.md) |
 
 ## Build commands
 

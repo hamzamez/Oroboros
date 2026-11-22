@@ -89,6 +89,46 @@ Where a claim is checked depends on which side of it you are on:
   checked. So an export's parameter claims are simply assumed, and they are the program's
   statement to the outside world of what it accepts.
 
+A parameter's set is owed at the call whether or not the body reads the parameter. The
+header is the claim, and a body that ignores its argument does not make the claim true:
+
+<!-- file docs/book/code/claims/unread.oro -->
+```go
+use io
+
+fn label(s ∈ String) (Int) { 7 }
+
+export fn main() {
+    io.print_int(label(3))
+    ignore(label(4))
+}
+```
+
+<!-- build go docs/book/code/claims/unread.oro -->
+```
+build: main: in argument 1 of label: 3 is Int, but String is required here
+```
+
+The message names the call you wrote, `label`, and its argument. `ignore(label(4))` owes the
+same claim: discarding a value drops the value, not what the program said about it. Given a
+string, the call holds:
+
+<!-- file docs/book/code/claims/unread-ok.oro -->
+```go
+use io
+
+fn label(s ∈ String) (Int) { 7 }
+
+export fn main() {
+    io.print_int(label("x"))
+}
+```
+
+<!-- run go docs/book/code/claims/unread-ok.oro -->
+```
+7
+```
+
 ---
 
 ## 16.3 The first method: intervals

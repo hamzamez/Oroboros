@@ -126,6 +126,9 @@ type Env struct {
 
 	// depth is how deep reduction has recursed (MaxDepth).
 	depth int
+	// noClaims is set while a claim's copy of an argument reduces (claimed):
+	// the copy marks no claim of its own.
+	noClaims int
 	// consumed caches consumes for a definition's parameter (spec/errors.md
 	// §7.2).
 	consumed map[string]bool
@@ -162,6 +165,12 @@ type Env struct {
 	// A clause that reduced to `false` is marked with the clause as written, so
 	// the refusal can show it.
 	Wheres map[string]WhereContract
+	// Sorts are the definitions whose parameters' sets that are no range are
+	// claims at their calls (ADR 0028, ADR 0154): for each, a set per
+	// parameter, "" for one the other marks carry or none. At β each is a
+	// where-mark on the call's result whose condition is the membership
+	// (#in "S" a "i") (markSorts), decided by the type checker.
+	Sorts map[string][]string
 
 	// unresolvedPaths carries Program.Unresolved through to diagnostics.
 	unresolvedPaths map[string]bool
@@ -426,6 +435,164 @@ const RuleIndexDef = "an index into a table given by a rule"
 // RequireWhereName marks a call's result with its definition's instantiated
 // `where` (ADR 0028): `(#reqw "def" cond body)`, whose value is body.
 const RequireWhereName = "#reqw"
+
+// SortClaimName is MEMBERSHIP IN A SET THAT IS NO RANGE, a call's claim on its
+// argument (ADR 0154): (#in "S" a "i"), a ∈ S for the definition's i-th
+// parameter, the condition of a where-mark on the call's result. f : S → R
+// applied to a owes ⟦a⟧ ∈ S (ADR 0028); a range's membership is the argument's
+// mark (#req) and a `where` the result's, and a set the type checker decides
+// (Int, String, a variant, a table's sort) is this. It stands as a where does,
+// so every rule that moves a where-mark moves it; DischargeRequires turns it into
+// a typing mark (TypingName) the type checker decides at the call, before any
+// decider reads the residual. A name of the marks, not of Σ_L.
+const SortClaimName = "#in"
+
+// PlantSortClaimDropped marks no call's sort claim, as before ADR 0154: `f(3)`
+// against `fn f(s ∈ String)` compiles again, and `io.print_int(0.5 + 0.5)` is
+// refused inside its body (TestACallsSortClaimIsDecidedAtTheCall).
+var PlantSortClaimDropped bool
+
+// IsSortClaim recognises a sort claim, (#in "S" a "i").
+func IsSortClaim(t *Term) bool {
+	return t != nil && t.Kind == KApp && len(t.Kids) == 4 && t.Kids[0].Kind == KName &&
+		t.Kids[0].Name == SortClaimName && t.Kids[1].Kind == KStr && t.Kids[3].Kind == KStr
+}
+
+// markSorts marks body, a call of def's result, with each parameter's sort
+// claim: (#reqw "def" (#in "S" a "i") body), the argument as markWhere passes
+// it, a pure one as itself and an impure one as the name β bound it to, so the
+// condition runs nothing and reads nothing twice. A literal of the sort's own
+// kind is the claim decided, by its kind (an integer literal is in ℤ, a string
+// literal a string, a Boolean literal a Boolean), and a λ is a callback's, whose
+// claim W16 and ADR 0143 decide.
+func (e *Env) markSorts(def string, subs, args []*Term, body *Term, fuel *int) (*Term, error) {
+	tys := e.Sorts[def]
+	if PlantSortClaimDropped || e.noClaims > 0 || len(tys) != len(subs) || len(args) != len(subs) {
+		return body, nil
+	}
+	for i := len(tys) - 1; i >= 0; i-- {
+		ty := tys[i]
+		if ty == "" {
+			continue
+		}
+		// a pure argument as itself, reduced in the claim, an impure one the name
+		// β bound it to
+		a := subs[i]
+		if e.pureTerm(args[i], map[string]bool{}) {
+			a = StripRequires(args[i])
+		}
+		if a.Kind == KFn {
+			continue
+		}
+		// A COPY THAT DOES NOT REDUCE ALONE is left to the body: a record read
+		// through a table rule is erased at the binder that curries the table
+		// (ADR 0128), which the copy is not under, and the body's demands decide
+		// that argument, as before this mark.
+		na, err := e.claimed(a, fuel)
+		if err != nil {
+			continue
+		}
+		if na.Kind == KFn || literalOfSort(na, ty) {
+			continue
+		}
+		claim := &Term{Kind: KApp, Kids: []*Term{Name(SortClaimName), Str(ty), na, Str(fmt.Sprint(i + 1))}}
+		body = &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(def), claim, body}}
+	}
+	return body, nil
+}
+
+// contracted is the name of a definition whose calls β marks, with a `where`
+// (Wheres) or a sort claim (Sorts), or "". Out of line, as keptCall is, so
+// normalizeStep's recursive frame stays small (MaxDepth's stack).
+func (e *Env) contracted(op *Term) string {
+	if op.Kind != KName {
+		return ""
+	}
+	if _, ok := e.Wheres[op.Name]; ok {
+		return op.Name
+	}
+	if len(e.Sorts[op.Name]) > 0 {
+		return op.Name
+	}
+	return ""
+}
+
+// markCall marks a call of def's result with its `where` and its sort claims.
+func (e *Env) markCall(def string, subs, args []*Term, body *Term, fuel *int) (*Term, error) {
+	var err error
+	if _, ok := e.Wheres[def]; ok {
+		if body, err = e.markWhere(def, subs, args, body, fuel); err != nil {
+			return nil, err
+		}
+	}
+	return e.markSorts(def, subs, args, body, fuel)
+}
+
+// discarded is ignore(v) for a pure v: THE DISCARD IS A DEAD VALUE, and its
+// obligations stay (the book's 81, ADR 0154): `ignore(g(30))` owes g's
+// parameter as `x = g(30); ()` does, so each moves onto the unit.
+func (e *Env) discarded(v *Term, fuel *int) *Term {
+	if PlantDeadClaimDropped {
+		return Unit()
+	}
+	return e.hoistObligations(v, Unit(), fuel)
+}
+
+// StripSortClaims is t without its calls' sort claims (ADR 0154), each
+// where-mark whose condition is one replaced by the value it marks.
+func StripSortClaims(t *Term) *Term {
+	if t == nil || (t.Kind != KApp && t.Kind != KFn) {
+		return t
+	}
+	if IsRequireWhere(t) && IsSortClaim(t.Kids[2]) {
+		return StripSortClaims(t.Kids[3])
+	}
+	var kids []*Term
+	for i, k := range t.Kids {
+		nk := StripSortClaims(k)
+		if nk != k && kids == nil {
+			kids = append([]*Term(nil), t.Kids...)
+		}
+		if kids != nil {
+			kids[i] = nk
+		}
+	}
+	if kids == nil {
+		return t
+	}
+	c := *t
+	c.Kids = kids
+	return &c
+}
+
+// claimed is a claim's copy of an argument reduced, with no claim of its own:
+// the calls inside it are the body's copy's too, whose reduction marks them,
+// so the copy marks nothing and is stripped of what reducing it marked. Each
+// argument is reduced once for the body and once for its claim; with the
+// copy's own claims, k nested calls were reduced 2^k times.
+func (e *Env) claimed(a *Term, fuel *int) (*Term, error) {
+	e.noClaims++
+	na, err := normalize(a, e, fuel)
+	e.noClaims--
+	if err != nil {
+		return nil, err
+	}
+	return StripRequires(na), nil
+}
+
+// literalOfSort says whether t is a literal of ty's own kind: an integer in ℤ
+// or the word, a string literal a string, a Boolean literal a Boolean.
+func literalOfSort(t *Term, ty string) bool {
+	switch t.Kind {
+	case KInt:
+		return ty == BigType || ty == "int"
+	case KStr:
+		return ty == "string"
+	case KBool:
+		return ty == "bool"
+	}
+	return false
+}
 
 // THE LOGIC'S FORMERS (ADR 0145, logic-research §1–§2): a formula's bounded
 // quantifiers, (#forall S (fn (x) φ)) and (#exists S (fn (x) φ)), and its
@@ -2369,12 +2536,7 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			}
 			t = e.markRequires(t)
 		}
-		callee := ""
-		if e.Wheres != nil && t.Op().Kind == KName {
-			if _, ok := e.Wheres[t.Op().Name]; ok {
-				callee = t.Op().Name
-			}
-		}
+		callee := e.contracted(t.Op())
 		// A KEPT CALL (ADR 0113): keptCall, out of line, so this recursive
 		// frame stays small (Ω must exhaust its fuel before the stack).
 		if t.Op().Kind == KName && e.Kept[t.Op().Name] {
@@ -2511,7 +2673,7 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				return normalize(App(v, Fn(e.freshNames(n, v), Unit())), e, fuel)
 			}
 			if e.pureTerm(v, map[string]bool{}) {
-				return Unit(), nil
+				return e.discarded(v, fuel), nil
 			}
 			out := App(Name("let"), v, Fn(e.freshNames(1, v), Unit()))
 			if ab, ok := e.absorb(out.Kids); ok {
@@ -2908,16 +3070,14 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			kept := bound[:0]
 			for _, b := range bound {
 				if recount[b.name] {
-					switch occurrences(body, b.name) {
+					switch programOccurrences(body, b.name) {
 					case 0:
 						// pure and unread: dropped, as β drops an unused pure
 						// argument, but not its obligations (the book's 81):
 						// they are statements of the program, owed where written
 						// whoever reads the value, so each moves onto the body,
 						// whose value a mark leaves alone.
-						if !PlantDeadClaimDropped {
-							body = e.hoistObligations(b.val, body, fuel)
-						}
+						body = e.unread(b.name, b.val, body, fuel)
 						continue
 					case 1:
 						// Once in the text, and once in evaluation: not under a
@@ -2937,7 +3097,7 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 				}
 			}
 			if callee != "" {
-				if body, err = e.markWhere(callee, subs, args, body, fuel); err != nil {
+				if body, err = e.markCall(callee, subs, args, body, fuel); err != nil {
 					return nil, err
 				}
 			}
@@ -3440,6 +3600,58 @@ func boundOccurrences(t *Term, depth, index int) int {
 
 // occurrences counts free occurrences of name in t, saturating at 2 — the
 // decision only needs to distinguish "at most once" from "more than once".
+// programOccurrences is occurrences outside the calls' sort claims (ADR
+// 0154): a claim's copy of an argument is logic, erased once decided, so the
+// program reads a name only where it is evaluated, and β's one-use rule counts
+// those. A claim reading a name takes its value with the body wherever β
+// substitutes it (subst reaches inside), and where the binding is dropped
+// (unread).
+func programOccurrences(t *Term, name string) int {
+	if PlantClaimCounted {
+		return occurrences(t, name)
+	}
+	switch t.Kind {
+	case KName:
+		if t.Name == name {
+			return 1
+		}
+		return 0
+	case KInt, KDec, KStr, KBool, KBound:
+		return 0
+	case KFn:
+		return programOccurrences(t.Kids[0], name)
+	}
+	if IsRequireWhere(t) && IsSortClaim(t.Kids[2]) {
+		return programOccurrences(t.Kids[3], name)
+	}
+	n := 0
+	for _, k := range t.Kids {
+		n += programOccurrences(k, name)
+		if n >= 2 {
+			return 2
+		}
+	}
+	return n
+}
+
+// PlantClaimCounted counts a claim's copy as the program's occurrence, as
+// before: a binding read once and copied by a claim stays a binding
+// (TestAClaimsCopyIsNoUse).
+var PlantClaimCounted bool
+
+// unread drops the binding of name to a pure val nothing evaluates: its
+// obligations move onto body (the book's 81), and a claim's copy reading name
+// takes the value (programOccurrences).
+func (e *Env) unread(name string, val, body *Term, fuel *int) *Term {
+	if !PlantDeadClaimDropped {
+		body = e.hoistObligations(val, body, fuel)
+	}
+	if occurrences(body, name) > 0 {
+		body = subst(body, map[string]*Term{name: val})
+	}
+	return body
+}
+
 func occurrences(t *Term, name string) int {
 	switch t.Kind {
 	case KName:
@@ -5069,17 +5281,26 @@ func (m *Module) qualifySig(sig *Sig) *Sig {
 
 // hoistWheres replaces each where-mark inside t by its body, collecting the
 // marks, outermost first, so an obligation a condition reached is kept as one.
-func hoistWheres(t *Term, out *[]*Term) *Term {
+func hoistWheres(t *Term, out *[]*Term) *Term { return hoistWheresUnder(t, out, false) }
+
+// hoistWheresUnder is hoistWheres under a binder when under is set: A MARK
+// LEAVES A λ ONLY IF ITS CONDITION READS NONE OF ITS VARIABLES. A λ's body is
+// closed, its variables de Bruijn indices, so a condition reading one, moved
+// out, read the next binder's (sortclaim-2026-11-22: a segment's bound in a
+// claim's copy of a table rule read the pair `(n, r)` for n). Such a mark stays
+// under its binder, where its condition means what it says.
+func hoistWheresUnder(t *Term, out *[]*Term, under bool) *Term {
 	if t == nil {
 		return nil
 	}
-	if IsRequireWhere(t) {
+	if IsRequireWhere(t) && (!under || PlantWhereLeavesItsBinder || !readsLooseBound(t.Kids[2], 0)) {
 		*out = append(*out, t)
-		return hoistWheres(t.Kids[3], out)
+		return hoistWheresUnder(t.Kids[3], out, under)
 	}
+	in := under || t.Kind == KFn
 	var kids []*Term
 	for i, k := range t.Kids {
-		nk := hoistWheres(k, out)
+		nk := hoistWheresUnder(k, out, in)
 		if nk != k && kids == nil {
 			kids = append([]*Term(nil), t.Kids...)
 		}
@@ -5093,6 +5314,41 @@ func hoistWheres(t *Term, out *[]*Term) *Term {
 	c := *t
 	c.Kids = kids
 	return &c
+}
+
+// PlantSortClaimReducedAsWhere reduces a sort claim's condition as a `where`'s,
+// its copy marking claims and its marks hoisted (TestAWhereMarkStaysUnderItsBinder
+// reaches the binder rule through it).
+var PlantSortClaimReducedAsWhere bool
+
+// PlantWhereLeavesItsBinder hoists a where-mark out of a λ whatever its
+// condition reads, as before: the claim's copy in sortclaim-2026-11-22's pe
+// program reads a pair for an integer (TestAWhereMarkStaysUnderItsBinder).
+var PlantWhereLeavesItsBinder bool
+
+// readsLooseBound says whether t reads a de Bruijn index past its own inner
+// binders: a variable of a λ t sits under.
+func readsLooseBound(t *Term, inner int) bool {
+	if t == nil {
+		return false
+	}
+	switch t.Kind {
+	case KBound:
+		return t.Depth >= inner
+	case KFn:
+		for _, k := range t.Kids {
+			if readsLooseBound(k, inner+1) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, k := range t.Kids {
+		if readsLooseBound(k, inner) {
+			return true
+		}
+	}
+	return false
 }
 
 // adopt is δ for a buffer whose region is given, (adopt e (fn (b) B)): a fresh
@@ -5321,6 +5577,20 @@ var wordBound = new(big.Int).Lsh(big.NewInt(1), 64)
 // condition is erased once decided. Apart from normalizeStep, so its frame,
 // which every step of a reduction stacks, stays as it was.
 func (e *Env) reduceCondition(t, b *Term, fuel *int) *Term {
+	// A SORT CLAIM'S CONDITION is its copy of an argument, reduced again as a
+	// claim's copy is (claimed), with no claim of its own; one that became a
+	// literal of its set's kind is decided.
+	if c := t.Kids[2]; IsSortClaim(c) && !PlantSortClaimReducedAsWhere {
+		a, err := e.claimed(c.Kids[2], fuel)
+		if err != nil {
+			return withWhere(t, b)
+		}
+		if literalOfSort(a, c.Kids[1].Str) {
+			return b
+		}
+		nc := &Term{Kind: KApp, Kids: []*Term{c.Kids[0], c.Kids[1], a, c.Kids[3]}}
+		return &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], nc, b}}
+	}
 	var inner []*Term
 	cond := hoistWheres(t.Kids[2], &inner)
 	written := cond
@@ -5443,6 +5713,9 @@ func allLiteral(ts []*Term) bool {
 // inlines the definition. callee is the name when it has a `where`, else "".
 func (e *Env) keptCall(t *Term, callee string, fuel *int) (*Term, error) {
 	name := t.Op().Name
+	if _, ok := e.Wheres[name]; !ok {
+		callee = "" // a sort claim's call: a kept call's arguments are typed as its declaration's
+	}
 	kids := []*Term{t.Op()}
 	pure := true
 	for _, a := range t.Args() {
@@ -5462,6 +5735,9 @@ func (e *Env) keptCall(t *Term, callee string, fuel *int) (*Term, error) {
 		if def, ok := e.Defs[name]; ok && def.Kind == KFn && len(def.Params) == len(kids)-1 {
 			v, err := normalize(&Term{Kind: KApp, Kids: append([]*Term{def}, kids[1:]...)}, e, fuel)
 			if err == nil && isLiteral(v) {
+				if v, err = e.markSorts(name, kids[1:], kids[1:], v, fuel); err != nil {
+					return nil, err
+				}
 				if callee == "" {
 					return v, nil
 				}
@@ -5662,6 +5938,9 @@ func (e *Env) callsContract(t *Term) bool {
 			return true
 		}
 		if _, ok := e.Wheres[n]; ok {
+			return true
+		}
+		if len(e.Sorts[n]) > 0 && !PlantSortClaimDropped {
 			return true
 		}
 	}

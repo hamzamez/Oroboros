@@ -90,6 +90,17 @@ func Check(tgt *Target, what string, t *core.Term) error {
 	return nil
 }
 
+// claimAtName is a call's claim as the checker reads it, (#claim-at "S" a "def"
+// "i") (TypingMarksAsLets): the checker's alone, made just before it runs.
+const claimAtName = "#claim-at"
+
+// ClaimAtError is a call's sort claim refused at the call (ADR 0154): in
+// argument i of the definition, its argument not in its parameter's set.
+type ClaimAtError struct{ Err error }
+
+func (e *ClaimAtError) Error() string { return e.Err.Error() }
+func (e *ClaimAtError) Unwrap() error { return e.Err }
+
 // walk checks a term and returns its type, or "" for unknown.
 func (c *checker) walk(t *core.Term, want string) (string, error) {
 	switch t.Kind {
@@ -219,6 +230,36 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			return "", err
 		}
 		return "", nil // the emitter reports this better than the checker can
+	}
+	// A CALL'S CLAIM ON ITS ARGUMENT (ADR 0154), (#claim-at "S" a "def" "i"),
+	// a call's typing mark as TypingMarksAsLets reads it: a is walked as itself,
+	// its own errors its own, and its type is to agree with S, the refusal
+	// reported at the call, where ADR 0028 puts the obligation.
+	if op.Name == claimAtName && len(t.Args()) == 4 && t.Args()[0].Kind == core.KStr && t.Args()[2].Kind == core.KStr {
+		as := t.Args()
+		// DECIDED AS THE ASCRIPTION IT IS, a walked against S, so a literal takes
+		// the sort demanded of it as it does anywhere (a table of string literals
+		// is a table of the host's strings); the message is a's own type against S
+		if _, err := c.walk(as[1], as[0].Str); err == nil {
+			return as[0].Str, nil
+		}
+		got, err := c.walk(as[1], "")
+		if err != nil {
+			return "", err
+		}
+		// A LIVE BUFFER IS THE ARRAY IT IS AT THE CALL (ADR 0069): an observer
+		// reads its contents, a table, so Array(V)'s claim is its element's.
+		if core.IsBuffer(got) && strings.HasPrefix(as[0].Str, "array ") {
+			got = "array " + core.BufferElem(got)
+		}
+		if err := c.agree(core.ShowTerm(as[1]), got, as[0].Str); err != nil {
+			def := as[2].Str
+			if d, ok := DeclaredName(def); ok {
+				def = d
+			}
+			return "", &ClaimAtError{Err: fmt.Errorf("in argument %s of %s: %w", as[3].Str, showDef(def), err)}
+		}
+		return as[0].Str, nil
 	}
 	// A ROUNDING (ADR 0086, numbers.md §3): its term is checked, a real
 	// quotient's operands as N's, and its sort is ℤ's onto a set of integers

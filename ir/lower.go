@@ -44,6 +44,11 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 	}()
 	// A PRODUCT AS A MAP'S VALUE is its components (emit/mapprod.go): every
 	// path to the IR comes through here, after the checker read the tuples.
+	// A TYPING MARK IS ITS BODY (ADR 0137, 0154): its value is the body's, and
+	// its claim the type checker's, decided by Entry where a path checks types.
+	if emit.HasTypingMarks(t) {
+		t = emit.EraseTypingMarks(t)
+	}
 	t, _, ferr := emit.FlattenMapProducts(tg, t)
 	if ferr != nil {
 		return nil, fmt.Errorf("%s: %w", name, ferr)

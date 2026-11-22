@@ -4121,7 +4121,7 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	}
 	e.Instantiate = tg.Instantiate
 	tg.hostRequires(e)
-	installContracts(e, p, tg.Word)
+	installContracts(e, p, tg)
 	// A TARGET WITH NO MAP REALIZES IT BY TERMS AFTER THE DECISION (ADR 0120,
 	// ir/maps.go), so the map reaches the decision as a map on every target.
 	e.Defs = p.Defs

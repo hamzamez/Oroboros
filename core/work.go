@@ -63,6 +63,11 @@ func (w *workWalk) count(t *Term, d int) int {
 	if w.isVar(t, d) {
 		return 1
 	}
+	// a call's sort claim is logic, never evaluated (ADR 0154,
+	// programOccurrences): its copy does no work
+	if IsRequireWhere(t) && IsSortClaim(t.Kids[2]) && !PlantClaimCounted {
+		return w.count(t.Kids[3], d)
+	}
 	switch t.Kind {
 	case KBound, KName, KInt, KDec, KStr, KBool:
 		return 0

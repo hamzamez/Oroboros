@@ -507,7 +507,8 @@ gen: hosts-comma: fn(r) { #_ = { #nl3 = io.print_line(decimal(r)); r }; r == 44 
 
 The print is shown as chapter 5 shows a statement, a binding nobody reads, `#_`, and as the
 compiler holds it: `io.print_int` unfolded into its definition, whose effect is
-`io.print_line`'s (the book's finding 110). And a count is
+`io.print_line`'s (a term a message quotes is shown reduced, the half of the book's finding 110
+not fixed). And a count is
 refused too, since writing a cell is an effect:
 
 <!-- file docs/book/code/hosts/no-count.oro -->

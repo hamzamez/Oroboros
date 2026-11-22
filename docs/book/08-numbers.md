@@ -247,12 +247,12 @@ export fn main() {
 
 <!-- build go docs/book/code/numbers/no-int.oro -->
 ```
-build: main: in argument 1 of io.print_line: in argument 1 of decimal: n is N, but Int is required here
+build: main: in argument 1 of io.print_int: 0.5 + 0.5 is N, but Int is required here
 ```
 
-(`io.print_int` is a definition, `io.print_line(decimal(n))`, and the check met the number inside
-it, at `decimal`'s argument; the book's finding 110.) A half and a half *is* 1, and the compiler
-still refuses. The reason is that this check
+`io.print_int`'s header says its parameter is in `Int`, and that is a claim about every call: the
+argument must be an integer, and the compiler checks it where the call is written. A half and a
+half *is* 1, and the compiler still refuses. The reason is that this check
 happens by looking at the program, not by running it. `+` of two numbers is a number, and
 whether it happens to land on an integer depends on the values. For these two literals you
 can see it does; for two prices read from a file nobody can.

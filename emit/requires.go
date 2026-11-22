@@ -92,12 +92,14 @@ func RequiresOf(w core.Word, sigs ...*core.Sig) *RequireSet {
 // This is called by Target.Env, the only way an environment for a target is
 // made, so reduction marks every one, and each stays in the residual until
 // something decides it: there is no side table a caller could fail to read.
-func installContracts(env *core.Env, prog *core.Program, w core.Word) {
+func installContracts(env *core.Env, prog *core.Program, tg *Target) {
+	w := tg.Word
 	if env.Requires == nil {
 		env.Requires = map[string][]string{}
 	}
 	env.Wheres = map[string]core.WhereContract{}
-	for _, m := range []string{core.RequireName, core.RequireWhereName, core.RequireFalseName, core.ClaimName} {
+	env.Sorts = map[string][]string{}
+	for _, m := range []string{core.RequireName, core.RequireWhereName, core.RequireFalseName, core.ClaimName, core.SortClaimName} {
 		env.Prim[m], env.Pure[m] = true, true
 	}
 	env.InRange = func(ty string, v int64) bool { return literalIn(w, ty, big.NewInt(v)) }
@@ -130,6 +132,22 @@ func installContracts(env *core.Env, prog *core.Program, w core.Word) {
 		if ranged {
 			env.Requires[name] = tys
 		}
+		// A SET THAT IS NO RANGE IS A CLAIM AT THE CALL TOO (ADR 0154): f : S → R
+		// applied to a owes ⟦a⟧ ∈ S whoever reads the parameter, so it is marked
+		// where the call is, and the type checker decides it there.
+		sorts := make([]string, len(sig.Params))
+		sorted := false
+		for i, p := range sig.Params {
+			// the set as the target defines it: windows' `error` is 0..2^32-1,
+			// a range, whose claim is the argument's mark and not this one
+			ty := tg.UnfoldType(moduleOf(name), p.Type)
+			if tys[i] == "" && sortClaim(ty) && !sumSet(prog, ty) {
+				sorts[i], sorted = ty, true
+			}
+		}
+		if sorted {
+			env.Sorts[name] = sorts
+		}
 		// THE CALL'S OWN OBLIGATION: the `where` as written, and each range the
 		// argument mark cannot carry — one with an infinite endpoint, whose finite
 		// side is still a conjunct (`(int 0 +inf)` is `0 <= n`).
@@ -152,6 +170,43 @@ func installContracts(env *core.Env, prog *core.Program, w core.Word) {
 			env.Wheres[name] = core.WhereContract{Params: ps, Cond: cond}
 		}
 	}
+}
+
+// sortClaim says whether a parameter's set is a claim the type checker decides
+// at the call (core.SortClaimName): a set that is no range, grid or record (each
+// its own mark), and no buffer, cell or product, whose parameter is a mode or a
+// flattening rather than a value's set.
+func sortClaim(ty string) bool {
+	if ty == "" || ty == "any" || ty == core.UnitType || core.IsBuffer(ty) || core.IsCell(ty) || core.IsProd(ty) || core.IsRecord(ty) {
+		return false
+	}
+	if _, _, ok := core.IntRangeBig(ty); ok {
+		return false
+	}
+	if _, _, _, ok := core.DecRange(ty); ok {
+		return false
+	}
+	if _, _, ok := core.F64Range(ty); ok {
+		return false
+	}
+	return true
+}
+
+// sumSet says whether ty is a variant's set (a declared sum, or `option`): its
+// values are λs in the core, which the reducer takes apart, and its claim is the
+// eliminator's, a case's exhaustiveness (ADR 0042), not a mark's.
+func sumSet(prog *core.Program, ty string) bool {
+	head := ty
+	if i := strings.IndexAny(head, " ("); i >= 0 {
+		head = head[:i]
+	}
+	if head == "option" || head == "Option" {
+		return true
+	}
+	if _, ok := prog.Sums[head]; ok {
+		return true
+	}
+	return false
 }
 
 // literalFails are the marks reduction decided against: a range mark whose
@@ -207,17 +262,24 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 	if set == nil {
 		set = &RequireSet{}
 	}
-	t = Unscope(tgt, sig, t)
+	t = Unscope(tgt, sig, TypingWheresAsMarks(t))
 	fails := literalFails(tgt.Word, t)
 	var routeErr error
 	t, _ = set.decideAscribed(tgt.Word, t)
-	if hasRequireMarks(t) {
+	// THE DECIDERS READ WHAT THE TYPING MARKS DENOTE, their bodies: a typing
+	// claim is the checker's (ADR 0137, 0154), and the residual handed on keeps
+	// it for the checker.
+	dec := t
+	if HasTypingMarks(t) {
+		dec = EraseTypingMarks(t)
+	}
+	if hasRequireMarks(dec) {
 		// The interval route decides the ranges it can and leaves every mark it
 		// cannot, and every `where`. It runs only when there is a range to
 		// decide: it has nothing to say about a `where`.
-		rest := t
-		if hasRangeMarks(t) && ranges != nil {
-			rest, routeErr = ranges(t)
+		rest := dec
+		if hasRangeMarks(dec) && ranges != nil {
+			rest, routeErr = ranges(dec)
 		}
 		// A CLOSED CONDITION NEEDS NO CONTEXT. `(go.< 20 1048576)` — a length
 		// that folded, against a literal — is decided with no facts at all, and

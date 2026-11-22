@@ -158,7 +158,7 @@ export fn f(a ∈ 0..100, b ∈ 1..100) (Int) { ({ (q, r) = dm(a, b); q + r }) +
 	// The plain residual: the same reduction with no contract in the
 	// environment, so no mark is ever placed.
 	plain, _ := tg.Env(prog)
-	plain.Requires, plain.Wheres = nil, nil
+	plain.Requires, plain.Wheres, plain.Sorts = nil, nil, nil
 	want, err := core.Normalize(prog.Defs["f"], plain, core.DefaultFuel)
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +167,8 @@ export fn f(a ∈ 0..100, b ∈ 1..100) (Int) { ({ (q, r) = dm(a, b); q + r }) +
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.String() != want.String() {
+	// the typing marks are the checker's (ADR 0154), and denote their bodies
+	if got = emit.EraseTypingMarks(got); got.String() != want.String() {
 		t.Errorf("the discharged residual differs from the plain one:\n got  %s\n want %s", got, want)
 	}
 }

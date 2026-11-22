@@ -1,0 +1,7 @@
+use io
+
+fn label(s ∈ String) (Int) { 7 }
+
+export fn main() {
+    io.print_int(label("x"))
+}

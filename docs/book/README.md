@@ -920,8 +920,13 @@ point too, found eleven, four fixed:
      decimal: n is N*, since `io.print_int` became a definition over ℤ; it read *in argument 1 of
      io.print_int* while it was a host statement. The verdict is right and the message names the
      library's inside. ADR 0137's typing mark checks an unread binder's claim at its binder; a read
-     one's is checked where it is used. Not fixed: a mark at every call of a definition with a
-     header is ADR 0137's measured cost, for the plan.
+     one's is checked where it is used. **Fixed** (ADR 0154, sortclaim-2026-11-22, hamza
+     2026-11-22: "A now"): a set that is no range is a claim at the call, a where-mark on its result
+     the type checker decides there, *in argument 1 of io.print_int: 0.5 + 0.5 is N*; writing it
+     found two more, `fn f(s ∈ String) (Int) { 0 }` applied to 3 accepted (the claim unread) and
+     `ignore(g(30))` dropping g's range and `where` (the discard keeping nothing), both refused now.
+     Chapter 8 §8.3 and chapter 16 §16.2 teach it. Not fixed: a term a message quotes is shown reduced, `io.print_int(r)`
+     as `io.print_line(decimal(r))` in chapter 17's no-print.
 111. **A map read with a key of any size is refused.** `lookup(k ∈ Int)` over `map { 1 : 10, …
      }` is refused as *an operand of read is held in arbitrary precision*: the key is a
      `*big.Int` since ADR 0147, and a map's keys are words. Its answer is known, `'none` for a key

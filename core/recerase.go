@@ -346,6 +346,20 @@ func (x *eraser) walk(t *Term) (*Term, *shape, error) {
 				s = &shape{elem: shapes[2]}
 			}
 			return App(op, kids...), s, nil
+		case IsRequireWhere(t) && IsSortClaim(t.Kids[2]):
+			// A CALL'S SORT CLAIM (ADR 0154): its value is its body's. Its copy of
+			// the argument is erased as the body is; a copy whose records the
+			// eraser cannot shape alone (a record read through a table rule whose
+			// binder is the body's) leaves the claim to the body's demands.
+			b, s, err := x.walk(t.Kids[3])
+			if err != nil {
+				return nil, nil, err
+			}
+			c, _, cerr := x.walk(t.Kids[2])
+			if cerr != nil {
+				return b, s, nil
+			}
+			return App(op, t.Kids[1], c, b), s, nil
 		case (op.Name == RequireWhereName && len(t.Kids) == 4 || op.Name == RequireName && len(t.Kids) == 5) && !PlantMapRecordUnshaped:
 			// A CONTRACT MARK'S VALUE IS ITS BODY'S, and so is its shape: a
 			// map's insert carries its capacity's `where` (ADR 0121).

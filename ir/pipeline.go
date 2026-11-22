@@ -109,6 +109,9 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// pass reads it erased.
 	var typed *core.Term
 	tsig := sig // the header before products are flattened, as typed is
+	// A CALL'S SORT CLAIM (ADR 0154) is a typing mark from here on, whoever
+	// reduced the residual: a driver's DischargeRequires made it one already.
+	nf = emit.TypingWheresAsMarks(nf)
 	if emit.HasTypingMarks(nf) {
 		typed, nf = nf, emit.EraseTypingMarks(nf)
 	}
@@ -139,15 +142,27 @@ func entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	// Check the residual before emitting it (docs/spec/types.md). On Go and
 	// Java the host would catch most of this; on JavaScript nothing would. It
 	// reads the residual with a buffer's declared sort still on it.
-	if err := emit.Check(tg, name, checking); err != nil {
-		return nil, nil, err
-	}
+	plain := emit.Check(tg, name, checking)
 	// THE TYPING MARKS, each a binding of its claim nothing reads, checked on
-	// the residual as it was before the passes above took it apart.
+	// the residual as it was before the passes above took it apart. A call's
+	// claim (ADR 0154) stands before the body it is a call of, so where the
+	// first refusal in the program's order is one, it is reported at the call;
+	// any other is the plain check's.
 	if typed != nil {
 		if err := emit.Check(tg, name, emit.TypingMarksAsLets(emit.AscribeParams(tsig, emit.KeepSortAscriptions(tg.Word, plan.Holds(), typed)))); err != nil {
-			return nil, nil, fmt.Errorf("%w (the claim of a binding nothing reads, decided where it is written: ADR 0137)", err)
+			var at *emit.ClaimAtError
+			switch {
+			case errors.As(err, &at):
+				// the claim alone: the frames around it are the residual's
+				// shape, a library's inside, not what the program wrote
+				return nil, nil, fmt.Errorf("%s: %w", name, at)
+			case plain == nil:
+				return nil, nil, fmt.Errorf("%w (the claim of a binding nothing reads, decided where it is written: ADR 0137)", err)
+			}
 		}
+	}
+	if plain != nil {
+		return nil, nil, plain
 	}
 	// ADR 0018's linearity, checked on the residual rather than by a type.
 	if err := emit.CheckLinear(nf, tg, sig); err != nil {

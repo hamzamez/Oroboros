@@ -360,12 +360,56 @@ func EraseAscriptionsButClaims(w core.Word, t *core.Term) *core.Term {
 	return &core.Term{Kind: core.KApp, Kids: kids}
 }
 
+// isTypingMark recognises a typing mark: a binder's, (#is "S" e body) (ADR
+// 0137), or a call's, (#is "S" a body "def" "i") (ADR 0154), its body Kids[3].
+func isTypingMark(t *core.Term) bool {
+	return t != nil && t.Kind == core.KApp && (len(t.Kids) == 4 || len(t.Kids) == 6) &&
+		t.Kids[0].Kind == core.KName && t.Kids[0].Name == core.TypingName
+}
+
+// TypingWheresAsMarks is t with each call's sort claim, the where-mark
+// (#reqw "def" (#in "S" a "i") body) β put on its result (core.SortClaimName),
+// made the typing mark (#is "S" a body "def" "i"): the claim is the type
+// checker's, which no decider of a `where` reads (ADR 0154).
+func TypingWheresAsMarks(t *core.Term) *core.Term {
+	if t == nil || (t.Kind != core.KApp && t.Kind != core.KFn) {
+		return t
+	}
+	if t.Kind == core.KFn {
+		b := t.Closed()
+		nb := TypingWheresAsMarks(b)
+		if nb == b {
+			return t
+		}
+		return core.FnClosed(t.Params, nb)
+	}
+	if core.IsRequireWhere(t) && core.IsSortClaim(t.Kids[2]) {
+		c := t.Kids[2]
+		return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.TypingName), c.Kids[1], c.Kids[2],
+			TypingWheresAsMarks(t.Kids[3]), t.Kids[1], c.Kids[3]}}
+	}
+	var kids []*core.Term
+	for i, k := range t.Kids {
+		nk := TypingWheresAsMarks(k)
+		if nk != k && kids == nil {
+			kids = append([]*core.Term(nil), t.Kids...)
+		}
+		if kids != nil {
+			kids[i] = nk
+		}
+	}
+	if kids == nil {
+		return t
+	}
+	return &core.Term{Kind: core.KApp, Kids: kids}
+}
+
 // HasTypingMarks says whether t holds a typing mark (core.TypingName, ADR 0137).
 func HasTypingMarks(t *core.Term) bool {
 	if t == nil {
 		return false
 	}
-	if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == core.TypingName {
+	if isTypingMark(t) {
 		return true
 	}
 	for _, k := range t.Kids {
@@ -385,7 +429,7 @@ func EraseTypingMarks(t *core.Term) *core.Term {
 	if t.Kind == core.KFn {
 		return core.FnClosed(t.Params, EraseTypingMarks(t.Closed()))
 	}
-	if len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == core.TypingName {
+	if isTypingMark(t) {
 		return EraseTypingMarks(t.Kids[3])
 	}
 	kids := make([]*core.Term, len(t.Kids))
@@ -406,7 +450,12 @@ func TypingMarksAsLets(t *core.Term) *core.Term {
 	if t.Kind == core.KFn {
 		return core.FnClosed(t.Params, TypingMarksAsLets(t.Closed()))
 	}
-	if len(t.Kids) == 4 && t.Kids[0].Kind == core.KName && t.Kids[0].Name == core.TypingName {
+	if len(t.Kids) == 6 && isTypingMark(t) {
+		// A CALL'S CLAIM (ADR 0154), decided as the call's: in argument i of def.
+		claim := core.App(core.Name(claimAtName), t.Kids[1], TypingMarksAsLets(t.Kids[2]), t.Kids[4], t.Kids[5])
+		return core.App(core.Name("let"), claim, core.Fn([]string{"#_"}, TypingMarksAsLets(t.Kids[3])))
+	}
+	if isTypingMark(t) {
 		claim := core.App(core.Name(core.AscribeName), t.Kids[1], TypingMarksAsLets(t.Kids[2]))
 		return core.App(core.Name("let"), claim, core.Fn([]string{"#_"}, TypingMarksAsLets(t.Kids[3])))
 	}

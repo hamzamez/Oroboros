@@ -4530,3 +4530,13 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/map-built.oro java`
 - new source — `gauntlet/differential/cases/map-built.oro js`
 - new source — `gauntlet/differential/cases/map-built.oro windows`
+
+## 2026-11-22 — on 00369f19, with uncommitted changes
+
+**Reason:** ADR 0154: a call's sort claim is a where-mark its copy reduced once more; pe on windows, refused before and after (P4 inlines it whole), now meets the reduction's step limit before the table-rule refusal
+
+844 runs: 585 emitted, 259 refused; 12595 of 12649 integer operations bounded, 1588 of 1889 loops proven. compiler pass, differential pass, tooling pass.
+
+1 change(s):
+
+- compiler output changed — `examples/pe/pe.oro windows`

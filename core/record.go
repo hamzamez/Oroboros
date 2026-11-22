@@ -1067,7 +1067,9 @@ func (e *Env) liftCallback(q string, v *Term) (*Term, error) {
 		name = strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(v.Name) + "~cb"
 	case v.Kind == KFn && len(v.Params) == len(d.Params):
 		lam = v
-		h := sha256.Sum256([]byte(v.String()))
+		// named by its text as the program wrote it: a call's sort claim is the
+		// checker's, no part of the λ (ADR 0154)
+		h := sha256.Sum256([]byte(StripSortClaims(v).String()))
 		name = fmt.Sprintf("cb%x~cb", h[:4])
 	case v.Kind == KFn:
 		return nil, fmt.Errorf("a %s takes %d parameter(s), and this λ takes %d", ShowSet(q), len(d.Params), len(v.Params))

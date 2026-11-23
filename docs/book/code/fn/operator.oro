@@ -1,0 +1,3 @@
+export fn a_function() { fn(plus) { plus(1, 2) } }
+
+export fn addition() { fn(plus) { 1 + 2 } }

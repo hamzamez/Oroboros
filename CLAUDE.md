@@ -159,6 +159,9 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      ~~the book's finding 121~~ done (ADR 0158, hamza 2026-11-23: "record it and build it now",
      [lamclaim](gauntlet/results/lamclaim-2026-11-23.md)): a claim on an anonymous λ, decided by
      ADR 0051 and j.md and refused by a stopgap since 2026-10-16, is a definition's, by λ-lifting;
+     ~~a binder of `+`~~ done (ADR 0159, hamza 2026-11-23: "yes, build it now",
+     [nobinder](gauntlet/results/nobinder-2026-11-23.md)): a binder of a symbol of Σ_L refused, the
+     module rule's law for binders; `fn(`if`)` had compiled to `return 7`;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -377,7 +380,9 @@ the state translation's let kept a λ argument for β without local.md §3's che
 ([intconst](gauntlet/results/intconst-2026-11-22.md), ADR 0156): `io.print_int(4611686018427387904)`
 printed 4611686018427388000; a constant outside S is supply, held exactly where a call or the
 result reads it. ~~JavaScript's literal table past its word read rounded~~ refused
-([hostconst](gauntlet/results/hostconst-2026-11-23.md)): `[9223372036854775807, …]` was Numbers.
+([hostconst](gauntlet/results/hostconst-2026-11-23.md)): `[9223372036854775807, …]` was Numbers. ~~a binder of a language name capturing its construct~~ refused
+([nobinder](gauntlet/results/nobinder-2026-11-23.md)): `fn(`if`) { if c { 1 } else { 2 } }(fn(x, a, b) { 7 })`
+compiled to `return 7` whatever c was.
 
 **Owed from finished steps** (each named in its result document):
 - split53: every differential case opaque (`// opaque`, inputs unknown at compile time): the
@@ -664,7 +669,8 @@ option (b), jswitch5b-2026-10-16).
   is the window procedure's (ADR 0133).
 - **Modules**: a file is a theory named by its path (ADR 0064); `use p as a`; **`pub` marks the
   interface, private the default, `export` an entry point** (ADR 0078); **no module defines a name of
-  Σ_L**, the language's signature (`core.LanguageSignature`, defects-2026-10-26).
+  Σ_L**, the language's signature (`core.LanguageSignature`, defects-2026-10-26), **and no binder
+  binds one** (ADR 0159: an operation symbol is no variable, bv(t) ∩ Σ_L = ∅).
 
 ### Data
 
@@ -975,6 +981,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | An integer constant is an element of ℤ: the reducer folds `+ − · / %` on closed integers exactly at every size (a value past `int64` its numeral, never a division by zero), and a point is its constant, never recombined; amends 0009 and 0153 | [0156](docs/decisions/0156-an-integer-constant-is-an-element-of-z.md) |
 | A constant of ℤ is the host's own: Go's package-level `*big.Int` (moved as a copy), the JVM's static `BigInteger`, a BigInt literal, K(ℕ\*)'s numeral in read-only data where only borrowed (the frame rule); fixed limbs keep the spine and a closed term's structure | [0157](docs/decisions/0157-a-constant-of-z-is-the-hosts-own.md) |
 | A claimed λ is a definition with a name of its own: an anonymous `fn` reads a definition's header, and D lifts a claimed one over its free variables (the enclosing definition's parameters keeping their sets), so its domain is an obligation at each application and its result is decided for every argument; at a host's callback the arrow's subsumption by composition; a mode, or a captured place, refused | [0158](docs/decisions/0158-a-claimed-lambda-is-a-definition-with-a-name-of-its-own.md) |
+| No binder binds a symbol of Σ_L: `+` and `if` are operation symbols of the abstract syntax, not variables, so bv(t) ∩ Σ_L = ∅, decided on the reader's tree for every binding operator; defects-2026-10-26's module rule stated for binders, def.md §11 reopened by its own measurement (`fn(`if`)` compiled to `return 7`) | [0159](docs/decisions/0159-no-binder-binds-a-symbol-of-the-languages-signature.md) |
 
 ## Build commands
 

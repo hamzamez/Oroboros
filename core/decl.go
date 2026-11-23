@@ -68,6 +68,9 @@ func (d *desugarer) placed(decls []Decl) ([]*Term, error) {
 	}
 	var ts []placed
 	d.lifting = true
+	if err := noLanguageBinder(decls); err != nil {
+		return nil, err
+	}
 	for _, dc := range decls {
 		switch dc := dc.(type) {
 		case *DefDecl:

@@ -250,8 +250,10 @@ These are not language, but they decide what is legal.
 - **A host body, an `axiom` and the model's data are a target file's** (j.md J5): a program writing one
   is refused by the reader. Primitives come from `targets/NAME/*.oro` and from `provides` fragments,
   and nowhere else.
-- **No module defines a language name, and no target file declares one** (§1's Σ_L), nor a program a
-  variant colliding with `lang`'s in the main module. A definition introduces a fresh name (a
+- **No module defines a language name, no binder binds one, and no target file declares one** (§1's
+  Σ_L), nor a program a variant colliding with `lang`'s in the main module. A binder, a λ's or a
+  definition's parameter, a block's name, a `var`, a loop variable or a pattern's, is refused when
+  its name is in Σ_L (ADR 0159): bv(t) ∩ Σ_L = ∅, decided on the reader's tree. A definition introduces a fresh name (a
   definitional extension); one of Σ_L's would redefine a symbol J's syntax is read as. Until
   defects-2026-10-26 it was accepted: in a nested module `fn if(c, a, b) { 7 }` captured every `if` in
   the module, and a function answered 7 whatever its argument; in the root it was ignored beside the

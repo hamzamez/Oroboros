@@ -14,25 +14,25 @@ use num/int
 
 // Slot for key k in a linear-probed table of capacity cap: the first index
 // whose key equals k, or the first empty one. Empty is 0; keys are 1-based.
-fn slot(keys, cap, k) {
+fn slot(slots, cap, k) {
     fold_range(cap, cap,
         fn(best, i) {
-            if int.lt(best, cap) { best } else if int.eq(a.iat(keys, i), k) {
+            if int.lt(best, cap) { best } else if int.eq(a.iat(slots, i), k) {
                 i
-            } else if int.eq(a.iat(keys, i), 0) { i } else { best }
+            } else if int.eq(a.iat(slots, i), 0) { i } else { best }
         })
 }
 
 // Tally i mod 97 over n values and report how many distinct keys landed. The
 // scan cannot stop early, so every lookup costs the full capacity.
 fn tally(n, cap) {
-    keys = a.make_int(cap)
+    slots = a.make_int(cap)
     fold_range(0, n,
         fn(acc, i) {
             k = int.add(ji.rem(i, 97), 1)
-            s = slot(keys, cap, k)
-            if int.ge(s, cap) { acc } else if int.eq(a.iat(keys, s), 0) {
-                a.iset(keys, s, k)
+            s = slot(slots, cap, k)
+            if int.ge(s, cap) { acc } else if int.eq(a.iat(slots, s), 0) {
+                a.iset(slots, s, k)
                 int.add(acc, 1)
             } else { acc }
         })

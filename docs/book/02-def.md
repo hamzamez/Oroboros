@@ -268,9 +268,9 @@ export fn run() { len }
 oro: docs/book/code/def/no-language.oro: the program defines len, which is the language's own: J's reader writes its constructs with these names (`if c { a } else { b }` is `if`, `a + b` is `+`), so a definition would capture them in its module or be ignored beside the target's. A definition introduces a fresh name; choose another
 ```
 
-That includes the operators. §1.6 showed a *parameter* named `` `+` ``, which shadows addition
-inside one function, where you can see it. A *definition* of `+` would change what `a + b` means
-in every line of the file:
+That includes the operators. §1.6 refused a *parameter* named `` `+` ``, which would have changed
+what `a + b` means inside one function. A *definition* of `+` would change it in every line of the
+file, and is refused for the same reason: a definition introduces a fresh name, as a binder does.
 
 <!-- file docs/book/code/def/no-operator.oro -->
 ```go

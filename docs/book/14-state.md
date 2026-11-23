@@ -834,7 +834,7 @@ out, so `bump(n, 3)` is `n := n + 3`, and after two calls `n` is 13.
 This is also how a function that writes a cell carries a claim. §14.2's `twice` was handed a
 function writing `n`; give that function a header and it is refused:
 
-<!-- file docs/book/code/state/no-claimed-cell.oro -->
+<!-- file docs/book/code/state/no-claimed-cell.oro.txt -->
 ```go
 use io
 
@@ -848,9 +848,9 @@ export fn main() {
 }
 ```
 
-<!-- gen go docs/book/code/state/no-claimed-cell.oro -->
+<!-- gen go docs/book/code/state/no-claimed-cell.oro.txt -->
 ```
-gen: docs/book/code/state/no-claimed-cell.oro: line 7: the λ claims a set and captures n, which is state (a `var`, a buffer or a map buffer): a λ that claims is a definition, and state reaches a definition only as its parameter, `fn f(n ∈ S inout, …)` for a cell, which an unclaimed λ calls, `fn(…) { f(n, …) }`
+gen: docs/book/code/state/no-claimed-cell.oro.txt: line 7: the λ claims a set and captures n, which is state (a `var`, a buffer or a map buffer): a λ that claims is a definition, and state reaches a definition only as its parameter, `fn f(n ∈ S inout, …)` for a cell, which an unclaimed λ calls, `fn(…) { f(n, …) }`
 ```
 
 A function with a header is a definition with a name the compiler gives it (§6.12), its claim

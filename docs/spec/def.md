@@ -403,6 +403,17 @@ survived both the type checker and the refinement checker. The report could then
 against the case that actually escaped, which is a better specification than "shadowing" in
 general.
 
+### Reopened for the language's own names (ADR 0159, 2026-11-23)
+
+The measurement came: `fn(`if`) { if c { 1 } else { 2 } }(fn(x, a, b) { 7 })` compiled on Go to
+`return 7` whatever `c` was, through the type checker and the refinement layer, and `fn(`+`) { x + 2 }`
+applied to multiplication to `x * 2`. Reasons 1 and 2 hold for a name and fail for a symbol of Σ_L:
+`+` and `if` are operation symbols of the abstract syntax, which J's reader writes its constructs
+with, not variables, and a binder of one does not shadow a name the program wrote; it captures the
+construct in its scope. So the case that escaped is not reported but refused, as a definition of
+one is (defects-2026-10-26): bv(t) ∩ Σ_L = ∅, decided on the reader's tree. A binder shadowing any
+other name, `double`, a target's `h`, an outer `n`, is still not reported, for the reasons above.
+
 ## 7. Decisions
 
 1. **`def` is a context extension, not a term** — a definitional equality, unfolded by δ.
@@ -420,7 +431,8 @@ general.
 6. **Recursion is rejected, and tail calls are not guaranteed** — §9, §10, ADR 0014. Iteration is
    `loop` and `again` (ADR 0015). Emitting recursion would ship a construct whose stack depth differs
    per target with no specification, so it fails at the definition instead.
-6b. **A definition the target overrides is a note; a binder that shadows is not reported** — §11.
+6b. **A definition the target overrides is a note; a binder that shadows is not reported** — §11;
+    a binder of a symbol of Σ_L is refused (ADR 0159).
 7. **`let` is a primitive taking a continuation, not a term former.** No new syntax, no weakening
    of the normal form, and the reducer's choice to emit it is the binding-time decision.
 

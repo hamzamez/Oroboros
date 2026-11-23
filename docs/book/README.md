@@ -1036,6 +1036,15 @@ point too, found eleven, four fixed:
      build it now"): a claimed λ is lifted to a definition of its own, its domain an obligation at
      each application, its result decided for every argument; §1.4 shows it working, §6.12 its
      claims, and §14's `inout` section the refusal of one writing a cell.
+122. **A binder of `+` captures addition, and the book calls it legal.** Chapter 1 §1.6 showed
+     `fn(`+`) { 1 + 2 }`, "legal, and never what you meant". `` `+` `` is the name `+` (J's quoted
+     name), the one `1 + 2` is written with, and a binder of it captured the construct:
+     `fn(`if`) { if c { 1 } else { 2 } }(fn(x, a, b) { 7 })` compiled on Go to `return 7` whatever
+     `c` was, the wrong answer defects-2026-10-26 refused for a module's `if`, reached through a
+     binder. Found by hamza reading §1.6. **Fixed** (ADR 0159, nobinder-2026-11-23, hamza
+     2026-11-23: "yes, build it now"): a symbol of Σ_L is an operation of the abstract syntax, not
+     a variable, so no binder binds one, bv(t) ∩ Σ_L = ∅; §1.6 shows the refusal, then a parameter
+     of its own name.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

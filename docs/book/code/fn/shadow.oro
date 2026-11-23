@@ -5,5 +5,3 @@ export fn thrice() { fn(a) { fn(a) { fn(a) { h(a, a) } } } }
 export fn inner_wins() { fn(a) { fn(a) { a } }(1)(2) }
 
 export fn a_primitive() { fn(h) { h(1, 2) } }
-
-export fn an_operator() { fn(`+`) { 1 + 2 } }

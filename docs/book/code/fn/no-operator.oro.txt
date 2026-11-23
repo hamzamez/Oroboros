@@ -1,0 +1,1 @@
+export fn an_operator() { fn(`+`) { 1 + 2 } }

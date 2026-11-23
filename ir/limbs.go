@@ -86,6 +86,22 @@ var natBit = map[string]string{"big&": "band", "big|": "bor", "big⊕": "bxor", 
 func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 	bits, signed, nat := rung.Bits, rung.Signed, rung.Var
 	n, lim := emit.LimbWidth(bits)
+	// A CONSTANT HELD EXACTLY (ADR 0157): on K(ℕ*) its numeral, in read-only
+	// data, a table no birth makes and no death releases; on fixed limbs, whose
+	// layout is the instance's own, its spine, as before
+	numConsts := map[V]bool{}
+	if nat && !PlantConstantSpined {
+		read := onlyBorrowed(f)
+		f.Walk(func(r *Region) {
+			for _, s := range r.Stmts {
+				if _, ok := ConstValue(s.Lit); ok && s.Op == OConst && len(s.Res) == 1 && f.Types[s.Res[0]] == core.BigType &&
+					(read[s.Res[0]] || PlantStaticNumeralEscapes) {
+					numConsts[s.Res[0]] = true
+				}
+			}
+		})
+	}
+	spineConsts(f, numConsts)
 	fs := analyse(tg, f)
 	def := map[V]*Stmt{}
 	f.Walk(func(r *Region) {
@@ -251,7 +267,9 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 			plan[s] = use{sf, u.args}
 		}
 	}
-	if len(plan) == 0 {
+	// a function whose one value held exactly is a constant has no call, and
+	// its numeral still takes the numeral's type below
+	if len(plan) == 0 && len(numConsts) == 0 {
 		return 0, nil
 	}
 	callees := map[string]*Func{}
@@ -284,6 +302,9 @@ func LowerLimbs(tg *emit.Target, f *Func, rung emit.BigPlan) (int, error) {
 	for v, ty := range f.Types {
 		if ty == core.BigType {
 			f.Types[v] = "array int"
+			if numConsts[V(v)] {
+				f.Types[v] = NumeralType(tg)
+			}
 		}
 	}
 	// A KEPT DEFINITION'S NUMERAL is its carrier at the call, digits in [0, B):
@@ -527,7 +548,7 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 	// a representation that checks where it claims: the host's bignum, or
 	// K(ℕ*), as an operation with no instance does.
 	beyond := limbsBeyondWidth(f, plan)
-	if _, err := SelectBig(tg, f, sig, 0, false); err != nil {
+	if _, err := selectBig(tg, f, sig, 0, false, plan.Var || PlantClosedTermsOnLimbs); err != nil {
 		return 0, err
 	}
 	var n int

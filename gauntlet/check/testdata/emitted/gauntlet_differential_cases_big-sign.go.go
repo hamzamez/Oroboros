@@ -4,44 +4,37 @@ package gauntlet
 
 import "math/big"
 
+var oroBig0, _ = new(big.Int).SetString("1606938044258990275541962092341162602522202993", 10)
+
 func GenCalc(v0 int) *big.Int {
-	v10 := (big.NewInt(int64(1606938044258990)))
-	v12 := (big.NewInt(int64(1000000000000000)))
-	v13 := (new(big.Int).Mul(v10, v12))
-	v15 := (big.NewInt(int64(275541962092341)))
-	v16 := (new(big.Int).Add(v13, v15))
-	v18 := (big.NewInt(int64(1000000000000000)))
-	v19 := (new(big.Int).Mul(v16, v18))
-	v21 := (big.NewInt(int64(162602522202993)))
-	v22 := (new(big.Int).Add(v19, v21))
-	v24 := (big.NewInt(int64(1000000000000000)))
-	v25 := (new(big.Int).Mul(v22, v24))
+	v19 := (big.NewInt(int64(1000000000000000)))
+	v20 := (new(big.Int).Mul(oroBig0, v19))
+	v22 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v20, 201))
+	v24 := (big.NewInt(int64(782792835301376)))
+	v25 := (new(big.Int).Add(v22, v24))
 	v27 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v25, 201))
-	v29 := (big.NewInt(int64(782792835301376)))
-	v30 := (new(big.Int).Add(v27, v29))
+	v29 := (big.NewInt(int64(0)))
+	v30 := (new(big.Int).Sub(v29, v27))
 	v32 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v30, 201))
-	v34 := (big.NewInt(int64(0)))
-	v35 := (new(big.Int).Sub(v34, v32))
-	v37 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v35, 201))
-	v39 := (v0 == 0)
-	var v40 *big.Int
-	if v39 {
-		v43 := (big.NewInt(int64(0)))
-		v40 = v43
+	v34 := (v0 == 0)
+	var v35 *big.Int
+	if v34 {
+		v38 := (big.NewInt(int64(0)))
+		v35 = v38
 	} else {
-		v46 := (v0 == 1)
-		if v46 {
-			v49 := (big.NewInt(int64(1)))
-			v50 := (new(big.Int).Sub(v32, v49))
-			v52 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v50, 201))
-			v40 = v52
+		v41 := (v0 == 1)
+		if v41 {
+			v44 := (big.NewInt(int64(1)))
+			v45 := (new(big.Int).Sub(v27, v44))
+			v47 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v45, 201))
+			v35 = v47
 		} else {
-			v40 = v32
+			v35 = v27
 		}
 	}
-	v54 := (new(big.Int).Sub(v37, v40))
-	v56 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v54, 201))
-	v58 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v56, 201))
-	return v58
+	v49 := (new(big.Int).Sub(v32, v35))
+	v51 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v49, 201))
+	v53 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v51, 201))
+	return v53
 }
 

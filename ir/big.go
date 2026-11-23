@@ -88,12 +88,21 @@ import (
 // 0 means no finite bound, which enforces nothing. It reports the number of
 // operations computed exactly, or the first obligation that fails.
 func SelectBig(tg *emit.Target, f *Func, sig *core.Sig, bits int, signed bool) (int, error) {
+	return selectBig(tg, f, sig, bits, signed, true)
+}
+
+// selectBig is SelectBig, closed saying whether a closed term held exactly is
+// its constant (ADR 0157): where the representation gives a constant a form
+// of its own, the host's bignum and K(ℕ*); fixed limbs, whose layout is the
+// instance's width, compute a closed term by its own structure, which shares
+// its operands, where one constant per term is one spine per term.
+func selectBig(tg *emit.Target, f *Func, sig *core.Sig, bits int, signed, closed bool) (int, error) {
 	fs := f.facts
 	if len(fs) != f.NV() {
 		fs = analyse(tg, f)
 	}
 	g := &bigs{tg: tg, f: f, fs: fs, sLo: ei(tg.Word.Lo), sHi: ei(tg.Word.Hi),
-		root: map[V]V{}, b: map[V]bool{}, dem: map[V]bool{}, bits: bits}
+		root: map[V]V{}, b: map[V]bool{}, dem: map[V]bool{}, bits: bits, closed: closed}
 	if bits > 0 {
 		g.fit = "big-fit"
 		if signed {
@@ -133,6 +142,7 @@ func SelectBig(tg *emit.Target, f *Func, sig *core.Sig, bits int, signed bool) (
 type bigs struct {
 	tg       *emit.Target
 	f        *Func
+	closed   bool // a closed term held exactly is its constant (selectBig)
 	fs       []fact
 	sLo, sHi ep
 	// root identifies a value with the one it renames: a π with its source,
@@ -902,6 +912,9 @@ func (g *bigs) widen(v V, where string) V {
 		// bigLiteral). JavaScript's word is ±(2⁵³ − 1), so S₆₄'s own ends,
 		// claimed `∈ Int`, reach here
 		if c := g.fs[v].v; c.finite() && c.lo == c.hi {
+			if !PlantConstantSpined {
+				return g.bigConst(c.lo.big())
+			}
 			return g.spine(c.lo.big())
 		}
 	}
@@ -1135,6 +1148,10 @@ func (g *bigs) recvOf(res []V) []bool {
 
 func (g *bigs) stmt(s *Stmt) {
 	switch {
+	case s.Op == OConst && s.Lit != nil && s.Lit.Kind == core.KInt && len(s.Res) == 1 && g.isB(s.Res[0]) && !g.fits(s.Res[0]) && !PlantConstantSpined:
+		// the constant held exactly is the host's own constant (ADR 0157)
+		g.f.Types[s.Res[0]] = core.BigType
+		g.stmts = append(g.stmts, *s)
 	case s.Op == OConst && s.Lit != nil && s.Lit.Kind == core.KInt && len(s.Res) == 1 && g.isB(s.Res[0]) && !g.fits(s.Res[0]):
 		// the constant held exactly is its spine, defining its own value
 		v := s.Res[0]
@@ -1161,6 +1178,17 @@ func (g *bigs) stmt(s *Stmt) {
 		g.stmts = append(g.stmts, *s)
 	case s.Op.IsArith() && s.Name == "" && len(s.Res) == 1:
 		v := s.Res[0]
+		// A CLOSED TERM HELD EXACTLY IS ITS CONSTANT (ADR 0157): an operation
+		// whose fact is one integer is that integer, the host's own constant,
+		// not an operation computed where it is read
+		// (a point of U on a target with an unsigned word or a pair is a word's
+		// constant, held as the unsigned word or the pair hold it)
+		if c, ok := pointOf(g.fs[v].v); ok && g.closed && g.isB(v) && langOp(s) && !PlantConstantSpined &&
+			!((g.tg.Word.Unsigned || g.tg.Word.Pair) && g.fs[v].v.within(ep{}, u64Max)) {
+			g.f.Types[v] = core.BigType
+			g.stmts = append(g.stmts, Stmt{Op: OConst, Lit: intLit(c), Res: []V{v}})
+			return
+		}
 		switch {
 		case g.isB(v):
 			args := make([]V, 0, 2)

@@ -741,8 +741,35 @@ func (a *intervals) stmt(s *Stmt) {
 	}
 	switch s.Op {
 	case OConst:
+		// an integer literal first: the analysis's fixed point meets every
+		// constant at every iteration, and this is its one cheap path
 		if s.Lit.Kind == core.KInt {
 			one(fact{v: exactIV(s.Lit.Int)})
+			break
+		}
+		// A NUMERAL IN READ-ONLY DATA (ADR 0157): its length and its digits,
+		// every entry in [0, B), as any numeral's
+		if c, ok := ConstValue(s.Lit); ok && ElemOf(a.tg, a.f.Types[s.Res[0]]) != "" {
+			bits := 64
+			if b, err := a.tg.DigitBits(); err == nil {
+				bits = b
+			}
+			t := NumeralOf(c, bits)
+			hi := ep{}
+			for _, d := range t {
+				if e, ok := fromBig(new(big.Int).SetUint64(d)); ok && e.cmp(hi) > 0 {
+					hi = e
+				}
+			}
+			one(fact{v: topFact.v, ln: exactIV(int64(len(t))), hasLn: true, el: rangeE(ep{}, hi), hasEl: true})
+		} else if s.Lit.Kind == core.KInt {
+			one(fact{v: exactIV(s.Lit.Int)})
+		} else if c, ok := ConstValue(s.Lit); ok {
+			if e, ok := fromBig(c); ok {
+				one(fact{v: rangeE(e, e)})
+			} else {
+				one(topFact)
+			}
 		} else {
 			one(topFact)
 		}

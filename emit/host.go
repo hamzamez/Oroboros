@@ -30,6 +30,83 @@ func ResetImports() {
 	clear(LLVMImports)
 	clear(LLVMStrings)
 	clear(LLVMLibs)
+	clear(GoBigConsts)
+	clear(JavaBigConsts)
+	clear(LLVMNumerals)
+}
+
+// THE HOSTS' CONSTANTS OF ℤ (ADR 0157), each made once in its file: a constant
+// held exactly is a declaration of the program, keyed by its decimal, and a
+// read of it is its name. GoBigConsts are Go's package-level *big.Int,
+// JavaBigConsts the class's static BigInteger, LLVMNumerals windows' numerals
+// in read-only data (each key its decimal and its base's bits, each value its
+// global's name and its line).
+var (
+	GoBigConsts   = map[string]string{}
+	JavaBigConsts = map[string]string{}
+	LLVMNumerals  = map[string][2]string{}
+)
+
+// GoBigConst is the name of the package-level *big.Int holding dec.
+func GoBigConst(dec string) string {
+	if n, ok := GoBigConsts[dec]; ok {
+		return n
+	}
+	n := fmt.Sprintf("oroBig%d", len(GoBigConsts))
+	GoBigConsts[dec] = n
+	Imports["math/big"] = true
+	return n
+}
+
+// JavaBigConst is the name of the class's static BigInteger holding dec.
+func JavaBigConst(dec string) string {
+	if n, ok := JavaBigConsts[dec]; ok {
+		return n
+	}
+	n := fmt.Sprintf("oroBig%d", len(JavaBigConsts))
+	JavaBigConsts[dec] = n
+	return n
+}
+
+// sortedConsts is a registry's declarations, by name.
+func sortedConsts(m map[string]string, line func(name, dec string) string) []string {
+	out := make([]string, 0, len(m))
+	for dec, name := range m {
+		out = append(out, line(name, dec))
+	}
+	sort.Strings(out)
+	return out
+}
+
+// GoConstDecls are the Go file's constants of ℤ, one package-level *big.Int
+// each, made once when the program starts: what both file writers emit.
+func GoConstDecls() string {
+	if len(GoBigConsts) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, l := range sortedConsts(GoBigConsts, func(name, dec string) string {
+		return fmt.Sprintf("var %s, _ = new(big.Int).SetString(%q, 10)\n", name, dec)
+	}) {
+		b.WriteString(l)
+	}
+	b.WriteString("\n")
+	return b.String()
+}
+
+// JavaConstDecls are the class's constants of ℤ, one static BigInteger each.
+func JavaConstDecls() string {
+	if len(JavaBigConsts) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, l := range sortedConsts(JavaBigConsts, func(name, dec string) string {
+		return fmt.Sprintf("    private static final java.math.BigInteger %s = new java.math.BigInteger(%q);\n", name, dec)
+	}) {
+		b.WriteString(l)
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 // LLVMImports are the module lines an LLVM program's templates named (a
@@ -129,6 +206,7 @@ func File(pkg string, funcs map[string]string) string {
 		}
 		out.WriteString("\n")
 	}
+	out.WriteString(GoConstDecls())
 	for _, n := range names {
 		out.WriteString(funcs[n])
 		out.WriteString("\n")
@@ -337,6 +415,7 @@ func JavaFile(class string, funcs map[string]string) string {
 		out.WriteString("\n")
 	}
 	fmt.Fprintf(&out, "public final class %s {\n", class)
+	out.WriteString(JavaConstDecls())
 	if len(JavaRecords) > 0 {
 		recs := make([]string, 0, len(JavaRecords))
 		for r := range JavaRecords {

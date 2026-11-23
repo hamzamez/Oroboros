@@ -182,8 +182,8 @@ func TestConstantsPastInt64(t *testing.T) {
 	}
 
 	spine := "export fn g(n ∈ 0..5) (Int) {\n    top ∈ Int = 9223372036854775807\n    top - n\n}\n"
-	if code, err := surfaceGen(t, "js", map[string]string{"p.oro": spine}); err != nil || !strings.Contains(code, "BigInt(372036854775807)") {
-		t.Fatalf("2⁶³ − 1 claimed Int on JavaScript: want its Horner form in BigInt: %v\n%s", err, code)
+	if code, err := surfaceGen(t, "js", map[string]string{"p.oro": spine}); err != nil || !strings.Contains(code, "9223372036854775807n") {
+		t.Fatalf("2⁶³ − 1 claimed Int on JavaScript: want its BigInt literal (ADR 0157): %v\n%s", err, code)
 	}
 	ir.PlantConstantNotSpined = true
 	_, err = surfaceGen(t, "js", map[string]string{"p.oro": spine})

@@ -114,6 +114,9 @@ func File(tg *emit.Target, funcs map[string]string, entry string) string {
 		strs = append(strs, fmt.Sprintf("%s = private unnamed_addr constant { i64, [%d x i8] } { i64 %d, [%d x i8] c\"%s\\00\" }, align 8",
 			name, len(s)+1, len(s), len(s)+1, cbytes(s)))
 	}
+	for _, n := range emit.LLVMNumerals {
+		strs = append(strs, n[1])
+	}
 	sort.Strings(strs)
 	for _, l := range lines {
 		if !strings.HasPrefix(l, "define") {
@@ -305,6 +308,10 @@ func (p *printer) val(v ir.V) string {
 		return s
 	}
 	if d := p.pl.Const[r]; d != nil {
+		// A NUMERAL IN READ-ONLY DATA (ADR 0157): the constant's global
+		if c, ok := ir.ConstValue(d); ok && ir.ElemOf(p.tg, p.f.Types[r]) != "" {
+			return p.numeral(c)
+		}
 		return p.lit(d, p.ty(r))
 	}
 	if p.pl.Zero[r] {
@@ -346,6 +353,31 @@ func (p *printer) lit(d *core.Term, ty string) string {
 	}
 	p.fail("literal %s has no LLVM spelling", core.ShowTerm(d))
 	return "0"
+}
+
+// numeral is a constant's numeral as a global of read-only data, K(ℕ*)'s
+// table in base 2^dbits with its header last (ADR 0099, 0157), laid out as a
+// table is, its length and then its entries, one per distinct value: storage
+// no birth makes and no death releases.
+func (p *printer) numeral(c *big.Int) string {
+	bits := 64
+	if b, err := p.tg.DigitBits(); err == nil {
+		bits = b
+	}
+	key := fmt.Sprintf("%d:%s", bits, c)
+	if n, ok := emit.LLVMNumerals[key]; ok {
+		return n[0]
+	}
+	t := ir.NumeralOf(c, bits)
+	n := fmt.Sprintf("@.num.%d", len(emit.LLVMNumerals))
+	es := make([]string, len(t))
+	for i, d := range t {
+		es[i] = fmt.Sprintf("i64 %d", int64(d))
+	}
+	line := fmt.Sprintf("%s = private unnamed_addr constant { i64, [%d x i64] } { i64 %d, [%d x i64] [%s] }, align 8",
+		n, len(t), len(t), len(t), strings.Join(es, ", "))
+	emit.LLVMNumerals[key] = [2]string{n, line}
+	return n
 }
 
 // str is a string literal's global, a table of its UTF-8 bytes, one per

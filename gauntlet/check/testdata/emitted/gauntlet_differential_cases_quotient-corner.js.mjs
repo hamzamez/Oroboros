@@ -2,6 +2,6 @@
 
 export function genRun(v0) {
 	const v12 = (-1 - (v0 & 3));
-	return (String((((((((((BigInt(-9223)) * (BigInt(1000000000000000)))) + (BigInt(-372036854775808)))) / (BigInt((v12 - 1))))) - (BigInt((Number((((((BigInt(-9223)) * (BigInt(1000000000000000)))) + (BigInt(-372036854775808)))) % BigInt(v12)))))))));
+	return (String(((((-9223372036854775808n / (BigInt((v12 - 1))))) - (BigInt((Number(-9223372036854775808n % BigInt(v12)))))))));
 }
 

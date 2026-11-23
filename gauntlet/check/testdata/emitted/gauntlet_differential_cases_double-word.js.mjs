@@ -25,7 +25,7 @@ export function genMid(v0, v1) {
 }
 
 export function genOverflows(v0, v1) {
-	return ((((v0 + v1)) > (((((BigInt(9223)) * (BigInt(1000000000000000)))) + (BigInt(372036854775807))))));
+	return ((((v0 + v1)) > 9223372036854775807n));
 }
 
 export function genQ7(v0) {

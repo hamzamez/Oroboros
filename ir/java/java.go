@@ -217,6 +217,9 @@ func (p *printer) name(v ir.V) string { return fmt.Sprintf("v%d", p.pl.Res(v)) }
 func (p *printer) ref(v ir.V) string {
 	v = p.pl.Res(v)
 	if d := p.pl.Const[v]; d != nil {
+		if c, ok := ir.ConstValue(d); ok && ir.IsBigConst(p.tg, p.f, v, d) {
+			return emit.JavaBigConst(c.String()) // ADR 0157: the class's constant
+		}
 		return lit(d)
 	}
 	if p.pl.Zero[v] {

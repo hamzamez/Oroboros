@@ -135,6 +135,13 @@ func (in *interp) stmt(s *Stmt) {
 			// A string is opaque here: what reads one is a host operation,
 			// stated by the caller's meanings or unsupported.
 			one(cval{})
+		case core.KApp:
+			// a constant of ℤ past int64, its numeral (ADR 0157)
+			c, ok := ConstValue(s.Lit)
+			if !ok {
+				panic(errUnsupported)
+			}
+			one(cval{i: c})
 		default:
 			panic(errUnsupported)
 		}

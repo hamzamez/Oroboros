@@ -30,13 +30,16 @@ func TestTheOneSetIsCheckedWhereItClaims(t *testing.T) {
 	const quarters = "use io\n\n" +
 		"fn tq(x ∈ -2^63..2^63-1) (-2^63..2^63-1) { x * 3 / 4 }\n\n" +
 		"export fn main() {\n" +
-		"    t = array { 9223372036854775807 }\n" +
 		"    loop i = 0 {\n" +
-		"        i < 1 -> { io.print_int(tq(t[i])); again(i + 1) }\n" +
+		"        i < 2 -> { io.print_int(tq(9223372036854775807 - i)); again(i + 1) }\n" +
 		"        else -> ()\n" +
 		"    }\n" +
 		"}\n"
-	const want = "6917529027641081855"
+	// x unknown, a loop's: read from a one-element table x was a point, and
+	// x·3 a closed term, its constant (ADR 0157), with no operation for a fit
+	// to stop; and on JavaScript a table of integers is Numbers, which a literal
+	// 2⁶³ − 1 does not fit (it printed 2⁶³ rounded, and is refused now)
+	const want = "6917529027641081855 6917529027641081854"
 	for _, tg := range []string{"js", "go"} {
 		if got, err := runOn(t, quarters, tg); err != nil || got != want {
 			t.Errorf("x·3/4 at S₆₄'s top on %s: want %s, got %q, %v", tg, want, got, err)

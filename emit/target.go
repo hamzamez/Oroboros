@@ -4365,6 +4365,7 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 			}
 			b.WriteString(")\n\n")
 		}
+		b.WriteString(GoConstDecls())
 		b.WriteString(code)
 		// Go's entry point takes no arguments and returns nothing, so the
 		// emitted function's value is discarded here rather than in the
@@ -4416,6 +4417,7 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 			b.WriteString("\n")
 		}
 		b.WriteString("public final class Main {\n")
+		b.WriteString(JavaConstDecls())
 		// THE RECORDS SHARED BY SHAPE, as JavaFile writes them: a map whose value
 		// is a product holds one (emit/mapprod.go), and a built program that
 		// declared none had written none.

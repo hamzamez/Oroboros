@@ -200,6 +200,13 @@ func (pr *printer) op(s *Stmt) []string {
 	name := s.Op.String()
 	switch s.Op {
 	case OConst:
+		// a constant of ℤ past int64 is its decimal (ADR 0157): the text's
+		// literal, which the reader reads back as the integer
+		if s.Lit != nil && s.Lit.Kind == core.KApp {
+			if c, ok := ConstValue(s.Lit); ok {
+				return []string{"(const " + c.String() + ")"}
+			}
+		}
 		return []string{"(const " + litText(s.Lit) + ")"}
 	case OGlobal:
 		return []string{"(global " + s.Name + ")"}

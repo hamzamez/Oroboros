@@ -977,7 +977,7 @@ export fn main() {
 
 <!-- gen go docs/book/code/loop/ones.oro -->
 ```
-note: loop-main: 66 operation(s) in arbitrary precision
+note: loop-main: 60 operation(s) in arbitrary precision
 note: loop-main: 2 of 2 integer operations bounded; 0 of 2 loop(s) proven terminating
 …
 ```

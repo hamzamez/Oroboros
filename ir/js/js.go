@@ -99,6 +99,9 @@ func (p *printer) ref(v ir.V) string {
 		return e
 	}
 	if d := p.pl.Const[v]; d != nil {
+		if c, ok := ir.ConstValue(d); ok && ir.IsBigConst(p.tg, p.f, v, d) {
+			return c.String() + "n" // ADR 0157: the BigInt literal
+		}
 		return lit(d)
 	}
 	if p.pl.Zero[v] {

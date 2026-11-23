@@ -153,7 +153,9 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      as every target does; the finding's pass order changes no program, not built;
      ~~chapter 1 §1.3 and the book's finding 120~~ done (ADR 0156, hamza 2026-11-22: "do 1 and 2
      now", [intconst](gauntlet/results/intconst-2026-11-22.md)): an integer constant an element of
-     ℤ, folded exactly at every size, a point its constant;
+     ℤ, folded exactly at every size, a point its constant; ~~a constant the host's own~~ done
+     (ADR 0157, hamza 2026-11-22: "go with a for windows and the hosts",
+     [hostconst](gauntlet/results/hostconst-2026-11-23.md)): a loop over 2¹⁰⁰ 3.5× faster on windows;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -371,7 +373,8 @@ the state translation's let kept a λ argument for β without local.md §3's che
 ~~JavaScript printing a constant between its word and `int64` rounded~~ done
 ([intconst](gauntlet/results/intconst-2026-11-22.md), ADR 0156): `io.print_int(4611686018427387904)`
 printed 4611686018427388000; a constant outside S is supply, held exactly where a call or the
-result reads it.
+result reads it. ~~JavaScript's literal table past its word read rounded~~ refused
+([hostconst](gauntlet/results/hostconst-2026-11-23.md)): `[9223372036854775807, …]` was Numbers.
 
 **Owed from finished steps** (each named in its result document):
 - split53: every differential case opaque (`// opaque`, inputs unknown at compile time): the
@@ -551,9 +554,9 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   files its harnesses call are listed in `gauntlet/regen.txt`, with windows32's runtime
   (`lib/rt/i686.ll`, ADR 0123), written by `bash gauntlet/regen.sh` and regenerated and compared by
   `cmd/check`'s `gauntlet` step; windows' harness is `gauntlet/windows/`.
-- **Provability**: **12,595 of 12,649** integer operations proven inside their target's word, the 54 left
+- **Provability**: **12,504 of 12,558** integer operations proven inside their target's word, the 54 left
   meant to be refused (`examples/int/`, `kara`) or in a case whose `run` takes an unbounded parameter
-  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,588 of 1,889** loops proven to
+  (`shift-div`, `limb-subdiv`) or a host map's count (`wordcount`); **1,575 of 1,876** loops proven to
   terminate (size-change termination; of the 301 left, ten are binary search's (`examples/logic/bsearch.oro`), whose measure hi − lo shrinks from both ends, two are Collatz's iteration (`examples/map/collatz.oro`, the book's memo), bounded by a guard on its counter that size-change termination does not read, and 39 were before bigbits-2026-11-19 (sieve-js's two proven since intboundary-2026-11-21), among
   them `wc`'s and `wc-nested`'s read loops and fourteen windows `os` cell loops whose progress is a
   count the host returns; 250 are Stein's and popcount's loops over numerals (stein's two on JavaScript proven since pairsel-2026-11-21), whose measures, a
@@ -965,6 +968,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A parameter's set that is no range is a claim at the call: a where-mark `(#in "S" a "i")` on the call's result, decided by the type checker as a typing mark and refused as *in argument i of f*; a literal of the set's kind decided by the reducer; `ignore` keeps a pure value's obligations | [0154](docs/decisions/0154-a-calls-sort-claim-is-decided-at-the-call.md) |
 | A kept definition's parameter is no sink: keeping is a factoring (ADR 0102), so the taint reads the program inlined and P4 inlines a call whose argument leaves its parameter's set; amends 0150 | [0155](docs/decisions/0155-a-kept-definitions-parameter-is-no-sink.md) |
 | An integer constant is an element of ℤ: the reducer folds `+ − · / %` on closed integers exactly at every size (a value past `int64` its numeral, never a division by zero), and a point is its constant, never recombined; amends 0009 and 0153 | [0156](docs/decisions/0156-an-integer-constant-is-an-element-of-z.md) |
+| A constant of ℤ is the host's own: Go's package-level `*big.Int` (moved as a copy), the JVM's static `BigInteger`, a BigInt literal, K(ℕ\*)'s numeral in read-only data where only borrowed (the frame rule); fixed limbs keep the spine and a closed term's structure | [0157](docs/decisions/0157-a-constant-of-z-is-the-hosts-own.md) |
 
 ## Build commands
 

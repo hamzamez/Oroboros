@@ -67,7 +67,10 @@ type printer struct {
 	b    strings.Builder
 	ind  int
 	imps map[string]bool
-	err  error
+	// moving is set while a terminator prints: its values are moved, and a
+	// shared constant moves as a copy (ref)
+	moving bool
+	err    error
 
 	yieldTo []string
 	// retConv converts a callback's result to its host type at each return
@@ -184,6 +187,15 @@ func (p *printer) ref(v ir.V) string {
 		return s
 	}
 	if d := p.pl.Const[v]; d != nil {
+		if c, ok := ir.ConstValue(d); ok && ir.IsBigConst(p.tg, p.f, v, d) {
+			// ADR 0157: the host's constant, made once; a *big.Int is mutable,
+			// so a terminator, which moves its value (the frame rule, ADR 0101),
+			// moves a copy, and an operation borrows the constant itself
+			if p.moving && !ir.PlantSharedConstantMoved {
+				return "new(big.Int).Set(" + emit.GoBigConst(c.String()) + ")"
+			}
+			return emit.GoBigConst(c.String())
+		}
 		return p.lit(d)
 	}
 	if p.pl.Zero[v] {
@@ -326,6 +338,8 @@ func (p *printer) region(r *ir.Region, lp *loopCtx, top bool) {
 	for i := range r.Stmts {
 		p.stmt(&r.Stmts[i])
 	}
+	p.moving = r.T == ir.TYield || r.T == ir.TContinue || r.T == ir.TBreak
+	defer func() { p.moving = false }()
 	switch r.T {
 	case ir.TYield:
 		if top {

@@ -4,18 +4,15 @@ package gauntlet
 
 import "math/big"
 
+var oroBig0, _ = new(big.Int).SetString("1000000000000000000000000000000", 10)
+var oroBig1, _ = new(big.Int).SetString("5000000000000000000000000000000", 10)
+
 func GenCalc(v0 int) *big.Int {
-	v10 := (big.NewInt(int64(1000000000000000)))
-	v12 := (big.NewInt(int64(1000000000000000)))
-	v13 := (new(big.Int).Mul(v10, v12))
-	v14 := (big.NewInt(int64(v0)))
-	v15 := (new(big.Int).Mul(v13, v14))
-	v17 := (big.NewInt(int64(5000000000000000)))
-	v19 := (big.NewInt(int64(1000000000000000)))
-	v20 := (new(big.Int).Mul(v17, v19))
-	v21 := (new(big.Int).Sub(v20, v15))
-	v22 := (new(big.Int).Add(v21, v15))
-	v24 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v22, 201))
-	return v24
+	v12 := (big.NewInt(int64(v0)))
+	v13 := (new(big.Int).Mul(oroBig0, v12))
+	v17 := (new(big.Int).Sub(oroBig1, v13))
+	v18 := (new(big.Int).Add(v17, v13))
+	v20 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v18, 201))
+	return v20
 }
 

@@ -343,7 +343,13 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 		case core.KInt, core.KDec, core.KBool, core.KStr:
 			s.Lit = args[0]
 		default:
-			return s, fmt.Errorf("%s is not a literal", args[0])
+			// a decimal past int64, read as the reader writes it (bigLiteral),
+			// is the constant of ℤ it spells (ADR 0157)
+			c, ok := ConstValue(args[0])
+			if !ok {
+				return s, fmt.Errorf("%s is not a literal", args[0])
+			}
+			s.Lit = intLit(c)
 		}
 		return s, nil
 	case OGlobal, OCall:

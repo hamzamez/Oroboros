@@ -4563,3 +4563,50 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - `examples/json/tokenize.oro js` 1531 → 921 ms, 0.60x
 - `examples/native/wndproc-win.oro windows` 703 → 437 ms, 0.62x
+
+## 2026-11-23 — on 228a3c26, with uncommitted changes
+
+**Reason:** ADR 0157: a constant of Z is the host's own, a Go package-level *big.Int, a JVM static BigInteger, a BigInt literal, windows' K(N*) numeral in read-only data; 19 files, each reading a constant where it built one, every case agreeing
+
+844 runs: 585 emitted, 259 refused; 12504 of 12558 integer operations bounded, 1575 of 1876 loops proven. compiler pass, differential pass, tooling pass.
+
+38 change(s):
+
+- emitted text changed — `examples/logic/midpoint.oro js`
+- compiler output changed — `examples/logic/midpoint.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro go`
+- compiler output changed — `gauntlet/differential/cases/big-bits.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro java`
+- compiler output changed — `gauntlet/differential/cases/big-bits.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro js`
+- compiler output changed — `gauntlet/differential/cases/big-bits.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-bits.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-bits.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro go`
+- compiler output changed — `gauntlet/differential/cases/big-negmid.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro java`
+- compiler output changed — `gauntlet/differential/cases/big-negmid.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro js`
+- compiler output changed — `gauntlet/differential/cases/big-negmid.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro go`
+- compiler output changed — `gauntlet/differential/cases/big-sign.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro java`
+- compiler output changed — `gauntlet/differential/cases/big-sign.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro js`
+- compiler output changed — `gauntlet/differential/cases/big-sign.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro go`
+- compiler output changed — `gauntlet/differential/cases/big-signed-ops.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro java`
+- compiler output changed — `gauntlet/differential/cases/big-signed-ops.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-signed-ops.oro js`
+- compiler output changed — `gauntlet/differential/cases/big-signed-ops.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro go`
+- compiler output changed — `gauntlet/differential/cases/big-subdiv.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro java`
+- compiler output changed — `gauntlet/differential/cases/big-subdiv.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro js`
+- compiler output changed — `gauntlet/differential/cases/big-subdiv.oro js`
+- emitted text changed — `gauntlet/differential/cases/double-word.oro js`
+- compiler output changed — `gauntlet/differential/cases/double-word.oro js`
+- emitted text changed — `gauntlet/differential/cases/quotient-corner.oro js`
+- compiler output changed — `gauntlet/differential/cases/quotient-corner.oro js`

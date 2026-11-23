@@ -164,6 +164,17 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 			case OConst:
 				if s.Lit.Kind == core.KInt {
 					intConsts[s.Res[0]] = s.Lit
+				} else if c, ok := ConstValue(s.Lit); ok && ElemOf(tg, f.Types[s.Res[0]]) != "" {
+					// A NUMERAL IN READ-ONLY DATA (ADR 0157): its entries, known
+					bits := 64
+					if b, err := tg.DigitBits(); err == nil {
+						bits = b
+					}
+					k := tclass{sawAny: true}
+					for _, d := range NumeralOf(c, bits) {
+						k = joinConst(k, new(big.Int).SetUint64(d))
+					}
+					sources[s.Res[0]] = k
 				}
 			case OThe:
 				union(s.Res[0], s.Args[0])

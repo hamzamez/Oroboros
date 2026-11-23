@@ -167,8 +167,11 @@ func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, exactRepo
 				}
 				v := s.Res[0]
 				x := fs[v].v
-				pair := tg.Word.Pair && !leaving[v] && !other[v] && x.within(ei(0), u64Max)
-				if !x.within(sLo, sHi) && !pair {
+				// a constant of U is the unsigned word's where the target has one
+				// (ADR 0033), and the pair's where its uses are the pair's (ADR 0151)
+				inU := x.within(ei(0), u64Max)
+				pair := tg.Word.Pair && !leaving[v] && !other[v] && inU
+				if !x.within(sLo, sHi) && !pair && !(tg.Word.Unsigned && inU) {
 					out[v] = true
 				}
 			}
@@ -180,19 +183,23 @@ func exactDemand(tg *emit.Target, f *Func, sig *core.Sig) (map[V]bool, exactRepo
 	return out, rep
 }
 
-// constUsesOutsideThePair are the values some use of which neither the pair
-// nor a table's 64-bit storage holds: a call's argument (a host's, `decimal`'s,
-// a print's), where a value typed as a word is the host's Number, and the
-// function's own result. An operation, a comparison or a join is the pair's
-// (ADR 0151), and a table's element its storage's; a constant of U read only so
-// stays as it was, its two digits where the pair reads it.
+// constUsesOutsideThePair are the values some use of which the pair does not
+// compute as an operation of U: a call's argument (a host's, `decimal`'s, a
+// print's), where a value typed as a word is the host's Number; a table's
+// element, whose storage is the word, a Number (a literal [2⁶³ − 1] printed
+// 2⁶³ at HEAD: the table, a sink, now refuses it); an index; the function's own
+// result. An operation, a comparison or a join is the pair's (ADR 0151); a
+// constant of U read only so is its two digits.
 func constUsesOutsideThePair(f *Func) map[V]bool {
 	other := map[V]bool{}
 	var walk func(r *Region, top bool)
 	walk = func(r *Region, top bool) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
-			if s.Op == OCall {
+			switch {
+			case s.Name == "" && (s.Op.IsArith() || s.Op.IsBit() || s.Op.IsCmp()):
+			case s.Op == OIf || s.Op == OLoop || s.Op == OThe:
+			default:
 				for _, a := range s.Args {
 					other[a] = true
 				}

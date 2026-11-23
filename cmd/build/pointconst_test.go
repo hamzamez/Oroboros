@@ -52,10 +52,47 @@ func TestAConstantOutsideTheWordIsHeldExactly(t *testing.T) {
 	if got, err := runOn(t, src, "js"); err != nil || got != want {
 		t.Errorf("constants past JavaScript's word should print %s, got %q, %v", want, got, err)
 	}
+	// A TABLE'S ELEMENT IS A SINK there too: JavaScript's table of integers is
+	// Numbers, and `[9223372036854775807]` printed 2⁶³ at HEAD; refused now
+	table := "use io\n\nexport fn main() {\n    t = array { 9223372036854775807, 9223372036854775806 }\n" +
+		"    loop i = 0 {\n        i < 2 -> { io.print_int(t[i]); again(i + 1) }\n        else -> ()\n    }\n}\n"
+	if got, err := runOn(t, table, "js"); err == nil {
+		t.Errorf("a literal table past JavaScript's word should be refused, not printed %q", got)
+	}
 	ir.PlantConstantInTheWord = true
 	got, err := runOn(t, src, "js")
 	ir.PlantConstantInTheWord = false
 	if err == nil && got == want {
 		t.Error("with the constant a word, JavaScript still printed it exactly: the witness cannot fail")
+	}
+}
+
+// A STATIC NUMERAL IS NEVER RELEASED (ADR 0157). On windows a constant held
+// exactly is its numeral in read-only data, a table no birth makes; a program
+// function's result is a birth its caller owns and releases (the frame rule,
+// ADR 0101), so a numeral leaving its function by its result is fresh storage,
+// its spine, and is static only where it is borrowed. A kept function returning
+// a constant, called in a loop: PlantStaticNumeralEscapes returns the read-only
+// numeral, which its caller then releases.
+func TestAStaticNumeralIsNeverReleased(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a windows program")
+	}
+	src := "use win/print\n\n" +
+		"fn pick(k ∈ 0..1) (Int) { if k == 0 { 18446744073709551616 } else { 0 - 340282366920938463463374607431768211456 } }\n\n" +
+		"export fn main() {\n    loop i = 0 {\n        i < 6 -> { print.print_str(decimal(pick(i % 2) + i)); again(i + 1) }\n        else -> ()\n    }\n}\n"
+	const want = "18446744073709551616 -340282366920938463463374607431768211455 18446744073709551618 " +
+		"-340282366920938463463374607431768211453 18446744073709551620 -340282366920938463463374607431768211451"
+	old := ir.KeepThreshold
+	ir.KeepThreshold = 1
+	defer func() { ir.KeepThreshold = old }()
+	if got, err := runOnMayFail(t, src, "windows"); err != nil || got != want {
+		t.Errorf("a kept function returning constants should print %s, got %q, %v", want, got, err)
+	}
+	ir.PlantStaticNumeralEscapes = true
+	got, err := runOnMayFail(t, src, "windows")
+	ir.PlantStaticNumeralEscapes = false
+	if err == nil && got == want {
+		t.Error("with the read-only numeral returned and released, the program still printed right: the witness cannot fail")
 	}
 }

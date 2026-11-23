@@ -4,94 +4,57 @@ package gauntlet
 
 import "math/big"
 
+var oroBig0, _ = new(big.Int).SetString("515376653370273342632913923803380576748738381376", 10)
+var oroBig1, _ = new(big.Int).SetString("-515379255455487307843555541690102664608845803251", 10)
+var oroBig2, _ = new(big.Int).SetString("-3607642645124079317255227908359348908914752654007", 10)
+var oroBig3, _ = new(big.Int).SetString("-515375974604087518773904808051197119110750", 10)
+var oroBig4, _ = new(big.Int).SetString("-515377520732011331036461129765621272702107522001", 10)
+var oroBig5, _ = new(big.Int).SetString("-867361737988403547205962240695953369140625", 10)
+var oroBig6, _ = new(big.Int).SetString("-112134671628500858351345486069873246208", 10)
+
 func GenCalc(v0 int) *big.Int {
-	v10 := (big.NewInt(int64(515377520732011331)))
-	v12 := (big.NewInt(int64(1000000000000000)))
-	v13 := (new(big.Int).Mul(v10, v12))
-	v15 := (big.NewInt(int64(36461129765621)))
-	v16 := (new(big.Int).Add(v13, v15))
-	v18 := (big.NewInt(int64(1000000000000000)))
-	v19 := (new(big.Int).Mul(v16, v18))
-	v21 := (big.NewInt(int64(272702107522001)))
-	v22 := (new(big.Int).Add(v19, v21))
-	v24 := (big.NewInt(int64(0)))
-	v26 := (big.NewInt(int64(867361737988)))
-	v28 := (big.NewInt(int64(1000000000000000)))
-	v29 := (new(big.Int).Mul(v26, v28))
-	v31 := (big.NewInt(int64(403547205962240)))
-	v32 := (new(big.Int).Add(v29, v31))
-	v34 := (big.NewInt(int64(1000000000000000)))
-	v35 := (new(big.Int).Mul(v32, v34))
-	v37 := (big.NewInt(int64(695953369140625)))
-	v38 := (new(big.Int).Add(v35, v37))
-	v39 := (new(big.Int).Sub(v24, v38))
-	v41 := (v0 == 0)
-	var v42 *big.Int
-	if v41 {
-		v44 := (new(big.Int).Add(v22, v39))
-		v42 = v44
+	v30 := (v0 == 0)
+	var v31 *big.Int
+	if v30 {
+		v31 = new(big.Int).Set(oroBig0)
 	} else {
-		v47 := (v0 == 1)
-		if v47 {
-			v49 := (new(big.Int).Add(v39, v39))
-			v50 := (new(big.Int).Sub(v49, v22))
-			v42 = v50
+		v36 := (v0 == 1)
+		if v36 {
+			v31 = new(big.Int).Set(oroBig1)
 		} else {
-			v53 := (v0 == 2)
-			if v53 {
-				v56 := (v0 - 9)
-				v57 := (big.NewInt(int64(v56)))
-				v58 := (new(big.Int).Mul(v22, v57))
-				v42 = v58
+			v42 := (v0 == 2)
+			if v42 {
+				v31 = new(big.Int).Set(oroBig2)
 			} else {
-				v61 := (v0 == 3)
-				if v61 {
-					v64 := (big.NewInt(int64(0)))
-					v65 := (new(big.Int).Sub(v64, v22))
-					v67 := (big.NewInt(int64(1000003)))
-					v68 := (new(big.Int).Quo(v65, v67))
-					v42 = v68
+				v49 := (v0 == 3)
+				if v49 {
+					v31 = new(big.Int).Set(oroBig3)
 				} else {
-					v71 := (v0 == 4)
-					if v71 {
-						v74 := (big.NewInt(int64(0)))
-						v75 := (new(big.Int).Sub(v74, v22))
-						v77 := (int(new(big.Int).Rem(v75, big.NewInt(int64(1000003))).Int64()))
-						v78 := (big.NewInt(int64(v77)))
-						v42 = v78
+					v57 := (v0 == 4)
+					if v57 {
+						v62 := (int(new(big.Int).Rem(oroBig4, big.NewInt(int64(1000003))).Int64()))
+						v63 := (big.NewInt(int64(v62)))
+						v31 = v63
 					} else {
-						v81 := (v0 == 5)
-						if v81 {
-							v84 := (big.NewInt(int64(0)))
-							v85 := (new(big.Int).Sub(v84, v22))
-							v86 := (v85.Cmp(v39) < 0)
-							if v86 {
-								v88 := (big.NewInt(int64(1)))
-								v42 = v88
+						v66 := (v0 == 5)
+						if v66 {
+							v70 := (oroBig4.Cmp(oroBig5) < 0)
+							if v70 {
+								v72 := (big.NewInt(int64(1)))
+								v31 = v72
 							} else {
-								v90 := (big.NewInt(int64(0)))
-								v42 = v90
+								v74 := (big.NewInt(int64(0)))
+								v31 = v74
 							}
 						} else {
-							v93 := (big.NewInt(int64(0)))
-							v95 := (big.NewInt(int64(112134671)))
-							v97 := (big.NewInt(int64(1000000000000000)))
-							v98 := (new(big.Int).Mul(v95, v97))
-							v100 := (big.NewInt(int64(628500858351345)))
-							v101 := (new(big.Int).Add(v98, v100))
-							v103 := (big.NewInt(int64(1000000000000000)))
-							v104 := (new(big.Int).Mul(v101, v103))
-							v106 := (big.NewInt(int64(486069873246208)))
-							v107 := (new(big.Int).Add(v104, v106))
-							v108 := (new(big.Int).Sub(v93, v107))
-							v42 = v108
+							v31 = new(big.Int).Set(oroBig6)
 						}
 					}
 				}
 			}
 		}
 	}
-	v110 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v42, 201))
-	return v110
+	v88 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v31, 201))
+	return v88
 }
 

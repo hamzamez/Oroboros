@@ -1,0 +1,1 @@
+export fn shape() { fn(n) { h(f(n), g(n)) }(x()) }

@@ -1,0 +1,6 @@
+use io
+use go/strings
+
+export fn main() {
+    io.print_line(strings.ToUpper("hello"))
+}

@@ -1,11 +1,11 @@
-# 12. `loop`
+# 13. `loop`
 
 Ten chapters, and not one program has done anything more than a fixed number of times.
-Chapter 7 hashed the three letters of `abc` by writing the step out three times. Chapter 9
+Chapter 8 hashed the three letters of `abc` by writing the step out three times. Chapter 10
 turned a two-digit number into text and stopped at two digits. Each time the text said "that
-needs chapter 12".
+needs chapter 13".
 
-The usual ways to repeat are closed here. A function may not call itself: chapter 2 refused
+The usual ways to repeat are closed here. A function may not call itself: chapter 3 refused
 that, because a definition is an abbreviation and an abbreviation of itself has no end. And
 there is no variable to count with, because a name is bound once and never changes. So the
 question of this chapter is: **how does a program do something an unknown number of times,
@@ -26,12 +26,12 @@ Along the way: the oldest algorithm still in use, why a loop is a function that 
 *last*, what Turing proved about questions like "does this stop?", and a loop a child can
 understand that no mathematician can prove ends.
 
-The examples are in [code/loop/](code/loop/). `go run docs/book/check.go docs/book/12-loop.md`
+The examples are in [code/loop/](code/loop/). `go run docs/book/check.go docs/book/13-loop.md`
 re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 12.1 Adding up
+## 13.1 Adding up
 
 The sum of the numbers from 1 to n.
 
@@ -90,7 +90,7 @@ answer is the starting `s`.
 The parts:
 
 - **`loop i = 1, s = 0`** introduces the **loop variables** and their first values.
-- **The arms** are chapter 4's guarded choice: a condition, `->`, a body, tried from the top,
+- **The arms** are chapter 5's guarded choice: a condition, `->`, a body, tried from the top,
   and the last arm is `else`.
 - **`again(i + 1, s + i)`** means *start the loop over*, with these as the new values, in the
   order the variables were declared.
@@ -126,7 +126,7 @@ change its value, because each trip round is a fresh binding of the names.
 
 ---
 
-## 12.2 All at once
+## 13.2 All at once
 
 <!-- file docs/book/code/loop/fib.oro -->
 ```go
@@ -224,7 +224,7 @@ Go can assign two variables at once (`v24, v25 = v25, v30`). JavaScript cannot, 
 
 ---
 
-## 12.3 Euclid
+## 13.3 Euclid
 
 That last function deserves a proper look. It is the oldest algorithm still in daily use:
 Euclid wrote it down around 300 BC, and every secure connection your computer opens runs it.
@@ -274,15 +274,15 @@ how many times this loop goes round. For 48 and 18 it is three. For two neighbou
 Fibonacci numbers it is as many as it can possibly be. That is the kind of repetition a fixed
 number of written-out steps can never do.
 
-`x % y` needs `y` not to be zero (chapter 6). It is proven: the first arm took the case
+`x % y` needs `y` not to be zero (chapter 7). It is proven: the first arm took the case
 `y == 0`, so in the `else` arm the compiler knows `y` is not zero. An arm's guard is a fact in
 that arm and its opposite is a fact in every arm below it.
 
 ---
 
-## 12.4 Doing things
+## 13.4 Doing things
 
-A loop's body can have effects (chapter 5), and then each trip round does them:
+A loop's body can have effects (chapter 6), and then each trip round does them:
 
 <!-- file docs/book/code/loop/count.oro -->
 ```go
@@ -340,14 +340,14 @@ export fn main() {
 []
 ```
 
-`s` starts as the empty string, chapter 9's "value that changes nothing", and each trip joins
+`s` starts as the empty string, chapter 10's "value that changes nothing", and each trip joins
 one more star to it. This is the shape of nearly every loop you will write: one variable that
 counts, and one that **accumulates** an answer, starting from the value that changes nothing
 for the operation in use. 0 for a sum. 1 for a product. `""` for a join.
 
 ---
 
-## 12.5 Where `again` may stand
+## 13.5 Where `again` may stand
 
 `again` is not a function, though it is written like a call. It is a **jump**: go back to the
 top with these values. A jump has to be the last thing an arm does, because nothing can
@@ -464,7 +464,7 @@ for the same reason a recursive function does: each call has its own `i`.
 
 ---
 
-## 12.6 More than one way out, and any kind of answer
+## 13.6 More than one way out, and any kind of answer
 
 Is 91 prime? Try dividing by 2, 3, 4, … If something divides it, that is its smallest
 divisor. If you get past its square root with no luck, it has none, and it is prime.
@@ -561,11 +561,11 @@ export fn main() {
 ```
 
 `divmod` is division the way you first learned it: keep taking `b` away, counting, until what
-is left is smaller than `b`. Its exit gives chapter 10's pair. `root` searches for an exact
-square root and answers `'some(r)` or `'none`: a search is the natural home of chapter 10's
+is left is smaller than `b`. Its exit gives chapter 11's pair. `root` searches for an exact
+square root and answers `'some(r)` or `'none`: a search is the natural home of chapter 11's
 "something or nothing".
 
-And now chapter 9's promise can be kept. A number of any size, as text:
+And now chapter 10's promise can be kept. A number of any size, as text:
 
 <!-- file docs/book/code/loop/digits.oro -->
 ```go
@@ -617,9 +617,9 @@ total: 42 items
 
 ---
 
-## 12.7 The word, in a loop
+## 13.7 The word, in a loop
 
-Chapter 6's rule has not gone anywhere: an operation computes the integer it means, in the
+Chapter 7's rule has not gone anywhere: an operation computes the integer it means, in the
 machine's word where that is proven to hold it, and a value claimed in a set it is not proven to
 be in is refused. A loop makes the proof harder, because an operation in a loop is not done once.
 Take the first example, loosen its header, and claim the word for its result:
@@ -655,7 +655,7 @@ sums, because adding the same bounded amount a bounded number of times is a mult
 
 The bound can lie past the word and still be a bound. With `n ∈ 0..2^40` and the result
 claimed `Int`, `s` is at most n(n + 1)/2, below 2⁸⁰: past the word, inside the double word of
-chapter 6, two words side by side. So the loop carries `s` as two words, each trip an addition
+chapter 7, two words side by side. So the loop carries `s` as two words, each trip an addition
 with its carry, and only the end makes it the `*big.Int` the claim asks for:
 
 <!-- file docs/book/code/loop/wide-sum.oro -->
@@ -753,11 +753,11 @@ Be honest with yourself about such a guard. If it *could* be false, the loop sto
 returns a wrong answer without a word. Writing it is a claim that it cannot, and the claim is
 yours.
 
-(Chapter 16 has the other tool: a loop may state an *invariant*, which the compiler proves
+(Chapter 17 has the other tool: a loop may state an *invariant*, which the compiler proves
 and which never runs. It is for statements about sums. This one is about a product, and
 stays a guard.)
 
-**Or leave the word.** Chapter 6's other answer: claim `Int`, or a result that does not fit,
+**Or leave the word.** Chapter 7's other answer: claim `Int`, or a result that does not fit,
 and the value is held with as many digits as it needs.
 
 <!-- file docs/book/code/loop/fact-run.oro -->
@@ -797,7 +797,7 @@ overflow. 25 factorial has 26 digits. It costs what big numbers cost, and it is 
 
 ---
 
-## 12.8 Does it stop?
+## 13.8 Does it stop?
 
 Every `gen` in this chapter has printed a line you may have skimmed:
 
@@ -951,7 +951,7 @@ the halting problem. You cannot always prove your loop stops for the reason you 
 can always *make* it stop, by counting, and then the proof is trivial and the doubt has
 become a visible −1.
 
-And here is a loop whose measure you can name, and the compiler cannot see. Chapter 7's `x & (x
+And here is a loop whose measure you can name, and the compiler cannot see. Chapter 8's `x & (x
 - 1)` clears the lowest 1 of `x`, so counting how often it can be done before `x` is 0 counts the
 ones (Peter Wegner, 1960):
 
@@ -982,7 +982,7 @@ note: loop-main: 2 of 2 integer operations bounded; 0 of 2 loop(s) proven termin
 …
 ```
 
-3¹⁰⁰⁰ is a number of 1585 bits, held exactly (chapter 6), and 758 of them are ones. The measure
+3¹⁰⁰⁰ is a number of 1585 bits, held exactly (chapter 7), and 758 of them are ones. The measure
 is the number of ones in `x`: each trip removes one, so the loop runs exactly that many times and
 stops. The compiler counts the loop as not proven, because its check compares sizes of values,
 and the number of ones in a 1585-bit number is not a size it knows how to read. The loop is
@@ -990,7 +990,7 @@ right, and the count is honest about who proved it: you did.
 
 ---
 
-## 12.9 Loops inside loops
+## 13.9 Loops inside loops
 
 A loop is an expression, so it can stand anywhere a value can, including inside another
 loop's arm:
@@ -1086,14 +1086,14 @@ note: loop-main: 6 of 6 integer operations bounded; 2 of 2 loop(s) proven termin
 …
 ```
 
-`(s, d) = loop …` is chapter 10's pattern over a loop's value, and `again` after it belongs to the
+`(s, d) = loop …` is chapter 11's pattern over a loop's value, and `again` after it belongs to the
 outer loop. Both loops stop, `m / 10` shrinking `m` and `i` climbing to 1000.
 
 ---
 
-## 12.10 A loop is where reduction stops
+## 13.10 A loop is where reduction stops
 
-Chapters 1 to 4 had a refrain: whatever the compiler knows, it computes. A call of a known
+Chapters 2 to 5 had a refrain: whatever the compiler knows, it computes. A call of a known
 function is unfolded, an `if` on a known condition picks its branch. A loop is the exception.
 
 <!-- file docs/book/code/loop/static.oro -->
@@ -1161,13 +1161,13 @@ fold =
 fn(u) { loop i = 0, s = u { i < 3 -> again(i + 1, h(s, i)); else -> s } }
 ```
 
-This gives the language its two levels, which chapter 1 hinted at. Functions, tuples,
+This gives the language its two levels, which chapter 2 hinted at. Functions, tuples,
 variants and `case` on known things belong to the level that is gone by the time the program
 runs. A `loop` over values that arrive at run time is the level that remains.
 
 ---
 
-## 12.11 What other languages do
+## 13.11 What other languages do
 
 | | repetition | what changes | may leave from the middle? | is stopping checked? |
 |---|---|---|---|---|
@@ -1212,4 +1212,4 @@ rest: it proves what it can, refuses nothing on that ground, and tells you the s
 - **When no measure exists, make one**: count the steps and give up at a limit.
 - **The compiler does not run loops.** They are what is left for the machine.
 
-Next: [chapter 13](13-tables.md), Tables. Many values of one kind, and how an index is proven to be inside.
+Next: [chapter 14](14-tables.md), Tables. Many values of one kind, and how an index is proven to be inside.

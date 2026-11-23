@@ -24,7 +24,7 @@ Written before the code, per [state.md §6](state.md).
 > file is unaffected: it is not found by a path, so it may declare as many modules as it likes.
 >
 > Three diagnostics were also pointing at the wrong half of a name, all found by writing
-> [chapter 3](../book/03-modules.md):
+> [chapter 4](../book/04-modules.md):
 >
 > - a member that is **private** and one that **does not exist** gave the same message;
 > - an alias collision in the entry file said `module "" binds …`;

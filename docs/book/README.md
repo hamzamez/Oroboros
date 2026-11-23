@@ -3,11 +3,12 @@
 Chapters, in order. Each is written for someone learning the language — human or model — and
 leans on examples rather than explanation.
 
-**Where the book stands, 2026-11-20.** The surface is J ([spec/j.md](../spec/j.md), ADR 0068). The
+**Where the book stands, 2026-11-23.** The surface is J ([spec/j.md](../spec/j.md), ADR 0068). The
 book introduces the language **one brick at a time**: a chapter uses only what the chapters before
 it introduced, opens with the question the last one left, and shows a thing refused before it
 shows it working (hamza, 2026-11-15: the order of Feynman's lectures, where nothing is used before
-it is explained). Chapter 0 is the exception, a tour that may show everything.
+it is explained). Chapters 0 and 1 are the exceptions, two maps that may show everything: how a
+file becomes a program, and a tour of the language.
 
 **The book moves with the language** (hamza, 2026-11-20). A change to the language, a construct, a
 word, a meaning, a refusal that a program can meet, updates the chapter that teaches it in the same
@@ -17,44 +18,49 @@ runs every chapter, so a chapter that no longer says what the compiler gives fai
 
 | | chapter | the one idea | state |
 |---|---|---|---|
-| 0 | [A tour](00-tour.md) | the map | J; 108 blocks checked 2026-11-21 |
+| 0 | [From a file to a program](00-compiling.md) | the tools, the eight stages, the targets, working outside the repository | J; 36 blocks checked 2026-11-23 (new) |
+| 1 | [A tour](01-tour.md) | the map | J; 108 blocks checked 2026-11-23 |
 | | **I. How a program is reduced** | | |
-| 1 | [`fn`](01-fn.md) | β; reduction is compilation | J; 62 blocks checked 2026-11-20 |
-| 2 | [Definitions](02-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-20 |
-| 3 | [Modules](03-modules.md) | where a name lives; the target can supply it | J; 55 blocks checked 2026-11-21 |
-| 4 | [Choice](04-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 54 blocks checked 2026-11-20 |
-| 5 | [Effects](05-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-21 |
+| 2 | [`fn`](02-fn.md) | β; reduction is compilation | J; 66 blocks checked 2026-11-23 |
+| 3 | [Definitions](03-def.md) | δ; a name is an abbreviation | J; 71 blocks checked 2026-11-23 |
+| 4 | [Modules](04-modules.md) | where a name lives; the target can supply it | J; 55 blocks checked 2026-11-23 |
+| 5 | [Choice](05-choice.md) | `Bool`, `if`, guards; a known condition keeps one branch | J; 54 blocks checked 2026-11-23 |
+| 6 | [Effects](06-effects.md) | what β may not drop, copy or move; a statement is a binding nobody reads | J; 40 blocks checked 2026-11-23 |
 | | **II. What a program computes with** | | |
-| 6 | [Integers](06-integers.md) | ℤ, a range is a set, the word, proven or refused, the double word and ℤ, the midpoint's family of bugs, above the word | J; 100 blocks checked 2026-11-21 |
-| 7 | [Bits](07-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ`; the same past the word | J; 66 blocks checked 2026-11-21 |
-| 8 | [Numbers with a point](08-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 73 blocks checked 2026-11-21 |
-| 9 | [Text](09-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-20 |
-| 10 | [Tuples and variants](10-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-21 |
-| 11 | [Records](11-records.md) | a record is a function on its labels; `with`; the zero | J; 47 blocks checked 2026-11-20 (new) |
+| 7 | [Integers](07-integers.md) | ℤ, a range is a set, the word, proven or refused, the double word and ℤ, the midpoint's family of bugs, above the word, a λ's header | J; 113 blocks checked 2026-11-23 |
+| 8 | [Bits](08-bits.md) | the bits are the integer's; wrapping is `mod 2ⁿ`; the same past the word | J; 68 blocks checked 2026-11-23 |
+| 9 | [Numbers with a point](09-numbers.md) | exact decimals; `round` the one place precision is lost; `F64` | J; 74 blocks checked 2026-11-23 |
+| 10 | [Text](10-text.md) | strings as sequences, `++`, the host's strings, bytes | J; 69 blocks checked 2026-11-23 |
+| 11 | [Tuples and variants](11-data.md) | "and" and "or" of data; `case` with patterns | J; 46 blocks checked 2026-11-23 |
+| 12 | [Records](12-records.md) | a record is a function on its labels; `with`; the zero | J; 47 blocks checked 2026-11-23 |
 | | **III. Repetition and storage** | | |
-| 12 | [`loop`](12-loop.md) | the one iteration; termination | J; 59 blocks checked 2026-11-21 |
-| 13 | [Tables](13-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 69 blocks checked 2026-11-21 |
-| 14 | [State](14-state.md) | `var`, buffers, maps, `inout`; why a table never changes under you | J; 74 blocks checked 2026-11-21 |
-| 15 | [Failures](15-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 44 blocks checked 2026-11-20 |
+| 13 | [`loop`](13-loop.md) | the one iteration; termination | J; 61 blocks checked 2026-11-23 |
+| 14 | [Tables](14-tables.md) | a table is a function on `0..len-1`; an index is proven; fusion | J; 69 blocks checked 2026-11-23 |
+| 15 | [State](15-state.md) | `var`, buffers, maps, `inout`; why a table never changes under you | J; 78 blocks checked 2026-11-23 |
+| 16 | [Failures](16-failures.md) | `Result`, `try`, `expect`, `relevant` | J; 44 blocks checked 2026-11-23 |
 | | **IV. Claims and hosts** | | |
-| 16 | [Claims](16-claims.md) | how a header's sets are proven: intervals, zones, facts, obligations | J; 86 blocks checked 2026-11-21 |
-| 17 | [Targets](17-targets.md) | host modules, writing a declaration, a function the host calls, portability computed | J; 35 blocks checked 2026-11-21 |
-| 18 | [Calling C](18-c.md) | a C function by its prototype; structs are records; a function Windows calls during a call; a window procedure; your own export as a C function | J; 51 blocks checked 2026-11-21 (new) |
-| 19 | [A whole program](19-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-21 |
+| 17 | [Claims](17-claims.md) | how a header's sets are proven: intervals, zones, facts, obligations | J; 90 blocks checked 2026-11-23 |
+| 18 | [Targets](18-targets.md) | host modules, writing a declaration, a function the host calls, portability computed | J; 35 blocks checked 2026-11-23 |
+| 19 | [Calling C](19-c.md) | a C function by its prototype; structs are records; a function Windows calls during a call; a window procedure; your own export as a C function | J; 51 blocks checked 2026-11-23 |
+| 20 | [A whole program](20-whole.md) | one real program read line by line | J; 24 blocks checked 2026-11-23 |
 
-Chapters 11 and 18 were added 2026-11-20, and the chapters after each renumbered (the old 11–16 are
-12–17, the old 17 is 19); the findings below name chapters by their new numbers. Nothing
-specified and not built gets a chapter (callbacks a host calls during a call, concurrency, `spec`
-and `lemma`); each is named in a line where it would belong.
+**Renumbered twice.** On 2026-11-20 two chapters were added, Records and Calling C, and the
+chapters after each moved up. On 2026-11-23 "From a file to a program" became chapter 0, before
+the tour, and every chapter after it moved up by one: the tour is 1, `fn` 2, Calling C 19, A
+whole program 20 (hamza, 2026-11-23: "should't be chapter 0 and we renumber everything else?").
+The findings below name chapters and sections by the numbers of 2026-11-23; the result documents
+and the ADRs keep the numbers of their day. Nothing specified and not built gets a chapter
+(concurrency, `spec` and `lemma`); each is named in a line where it would belong.
 
 ```bash
-go run docs/book/check.go docs/book/04-choice.md      # from the repository's root; any written chapter
+go run docs/book/check.go docs/book/05-choice.md      # from the repository's root; any written chapter
 ```
 
 [check.go](check.go) pairs each fenced block with the directive on the line before it (an HTML
-comment naming a file, a `gen`, an `oro`, a `build`, a `run` or a `portable`), runs it, and compares; a block
-with no directive is counted and reported, not passed. It was trusted after planted faults failed:
-seven in chapter 0, six in chapter 1, six in chapter 2, seven in chapter 3, seven in chapter 4, nine in chapter 5, ten in chapter 6, eleven in chapter 7, fifteen in chapter 8, fourteen in chapter 9, twelve in chapter 10, thirteen in chapter 12, sixteen in chapter 13, fifteen in chapter 14, thirteen in chapter 15, thirteen in chapter 16, ten in chapter 17 and ten in chapter 19, covering each kind of directive. `cmd/check`'s
+comment naming a file, a `gen`, an `oro`, a `core`, an `ir`, an `intervals`, a `build`, a `run` or a
+`portable`), runs it, and compares; a block with no directive is counted and reported, not passed. It
+was trusted after planted faults failed: three in chapter 0 (a false core term, IR line and proof
+count, one per directive added for it, 2026-11-23), seven in chapter 1, six in chapter 2, six in chapter 3, seven in chapter 4, seven in chapter 5, nine in chapter 6, ten in chapter 7, eleven in chapter 8, fifteen in chapter 9, fourteen in chapter 10, twelve in chapter 11, thirteen in chapter 13, sixteen in chapter 14, fifteen in chapter 15, thirteen in chapter 16, thirteen in chapter 17, ten in chapter 18 and ten in chapter 20, covering each kind of directive. `cmd/check`'s
 book step runs it over every chapter.
 
 **A reduction is printed in J**: `oro -j` writes each export's normal form in the surface's
@@ -63,7 +69,7 @@ notation (`core.ShowTerm`, [spec/j.md §6.1](../spec/j.md)), where `oro` alone w
 `.oro` file in the repository to read, so an example whose refusal is the reader's ends in
 `.oro.txt`. A `no-….oro` reads, and is refused by a later stage.
 
-**Chapters 1–5 teach reduction**, and their examples run against
+**Chapters 2–6 teach reduction**, and their examples run against
 [`targets/tutorial.oro`](../../targets/tutorial.oro), a target that exists to teach: it spells
 arithmetic `+ - * /` so a chapter need not also be about module paths, and it declares `f`, `g`,
 `h`, `x`, `y`, `z` as primitives so reduction halts exactly where a lesson wants it to.
@@ -75,29 +81,29 @@ go run ./cmd/oro -target=tutorial FILE.oro
 That a teaching target is *possible* is the thesis in miniature: the normal form is a parameter, so
 choosing where reduction stops is choosing a target.
 
-Chapter 0 uses the real targets, not the teaching one: its sources are in [code/tour/](code/tour/),
+Chapter 1 uses the real targets, not the teaching one: its sources are in [code/tour/](code/tour/),
 compiled with `cmd/gen`, built and run with `cmd/build`, and measured with `cmd/portable`. A file
 named `no-…` is meant to be refused, and the chapter prints the refusal. The chapter it replaced was
 about s-expressions, the notation before J, and is in git at `a50bd47`.
 
-Chapter 16, as it was written, uses `cmd/gen` and `cmd/build` rather than `oro`, because the checker lives at the
+Chapter 17, as it was written, uses `cmd/gen` and `cmd/build` rather than `oro`, because the checker lives at the
 emission boundary and the teaching target emits nothing. That is the lesson, not a workaround.
 
-Chapter 3's library files are real and live in [code/](code/). Its examples run against two
+Chapter 4's library files are real and live in [code/](code/). Its examples run against two
 targets — `tutorial` and `tutorial-native`, which is the same file plus one capability — because
 the four cells cannot be shown with only one.
 
 ## The 2026-10-06 verification pass
 
-A harness re-ran every paired source/output block in the book against the compiler. **Chapters 1–4
+A harness re-ran every paired source/output block in the book against the compiler. **Chapters 2–5
 had drifted in 38 places**, and the drift had one dominant cause and three others:
 
 | cause | what changed | where |
 |---|---|---|
-| **integer folding** | `(* 7 7)` now reduces to `49`. A fold is a promise that compile time and run time agree bit for bit ([ADR 0009](../decisions/0009-staging-preserves-results.md)), and the teaching targets declare a word, so they fold | 31 outputs across chapters 1–4 |
-| **hygiene** | the residual's binders are named apart, so a shadowed `n` comes back `n1` and a second `_` comes back `_1` ([ADR 0036](../decisions/0036-a-residuals-binders-are-named-apart.md)) | chapter 1 §1.5, chapter 4 §4.9 |
-| **booleans became literals** | `true` and `false` are term kinds, not names ([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)), so chapter 2's Church-boolean section was **refused outright**, not merely different | chapter 2 §2.11 |
-| **the portable layer was deleted** | `num/f64` and `num/int` are gone ([portable-2026-09-29](../../gauntlet/results/portable-2026-09-29.md)), so chapter 2's two-target showcase on `-target=go` and **all of chapter 5** stopped running | chapter 2 §2.7, chapter 5 |
+| **integer folding** | `(* 7 7)` now reduces to `49`. A fold is a promise that compile time and run time agree bit for bit ([ADR 0009](../decisions/0009-staging-preserves-results.md)), and the teaching targets declare a word, so they fold | 31 outputs across chapters 2–5 |
+| **hygiene** | the residual's binders are named apart, so a shadowed `n` comes back `n1` and a second `_` comes back `_1` ([ADR 0036](../decisions/0036-a-residuals-binders-are-named-apart.md)) | chapter 2 §2.5, chapter 5 §5.9 |
+| **booleans became literals** | `true` and `false` are term kinds, not names ([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)), so chapter 3's Church-boolean section was **refused outright**, not merely different | chapter 3 §3.11 |
+| **the portable layer was deleted** | `num/f64` and `num/int` are gone ([portable-2026-09-29](../../gauntlet/results/portable-2026-09-29.md)), so chapter 3's two-target showcase on `-target=go` and **all of chapter 6** stopped running | chapter 3 §3.7, chapter 6 |
 
 What the repair taught, and it is the reusable part:
 
@@ -105,7 +111,7 @@ What the repair taught, and it is the reusable part:
 > argument, one source specialising to two residuals — each is a claim about the *shape* of what
 > reduction leaves, and each is invisible when the shape is a number. The teaching targets supply
 > `h`, `x`, `y` and `z` precisely so a lesson can show a shape, and the repaired chapters use them
-> wherever the shape is the point. Chapter 2's `(def one 1) (def two (+ one one)) …` reduced to `4`
+> wherever the shape is the point. Chapter 3's `(def one 1) (def two (+ one one)) …` reduced to `4`
 > and taught nothing; with `h` it reduces to `(h (h 1 1) (h 1 1))` and `two` is visibly there twice.
 
 Five more findings, from running things rather than reading them:
@@ -113,7 +119,7 @@ Five more findings, from running things rather than reading them:
 1. **`targets/tutorial-native.oro` was mojibake.** Three comment lines held `â€¦`, `â€”` and `Î²` —
    UTF-8 bytes re-encoded as if Latin-1. Repaired. A comment carries no meaning
    ([ADR 0024](../decisions/0024-comments-are-erased.md)), which is exactly why nothing had noticed.
-2. **Chapter 3's `noisy-lib.oro` did not exist.** The chapter showed a library file inline and the
+2. **Chapter 4's `noisy-lib.oro` did not exist.** The chapter showed a library file inline and the
    README claimed its files were real; it was the one that was not. Now
    [code/noisy-lib.oro](code/noisy-lib.oro) and [code/noisy-prog.oro](code/noisy-prog.oro).
 3. **An impure primitive's application is folded anyway.** On
@@ -121,14 +127,14 @@ Five more findings, from running things rather than reading them:
    `(* 1 2)` reduces to `2` and `((fn (n) 7) (* 3 4))` to `(let 12 (fn (n) 7))` — the binding kept
    because the primitive is impure, the call itself evaluated away because the fold is a property of
    the language's integer operators and does not consult the purity bit. The `let` left behind binds
-   a constant. Recorded in chapter 4 §4.10 as a question, not fixed: nothing in the corpus declares
+   a constant. Recorded in chapter 5 §5.10 as a question, not fixed: nothing in the corpus declares
    arithmetic impure, and which of the two decisions should give way is a design call. **Answered
    2026-11-15** ([ADR 0114](../decisions/0114-a-fold-is-an-equation-between-pure-terms.md)): a fold
    is an equation between pure terms, so `(* 1 2)` stays a call there, and the rewritten chapter
-   (now 5, §5.13) shows it.
+   (now 5, §6.13) shows it.
 4. **The closure refusal prints `#1.0`.** `gen: clo-mk: lowering: a λ in value position is a closure
    (callbacks.md): (fn (v) (* v #1.0))` — an internal bound-variable spelling in a user-facing
-   diagnostic. Two of chapter 2's diagnostics had the same bug and were fixed when it was written;
+   diagnostic. Two of chapter 3's diagnostics had the same bug and were fixed when it was written;
    this one is in the IR's lowering and is still there.
 5. **`core-0.md §2` says "six term kinds".** There are seven — `true`/`false` is the one it predates,
    and its grammar's `literal` production omits them. [state.md §1](../spec/state.md), which is read
@@ -142,28 +148,28 @@ touched.
 ## For the writer
 
 The specifications are in [docs/spec/](../spec/) and are the authority. A chapter must not
-contradict one, and where a chapter simplifies it should say so. Writing chapter 1 found two real
-bugs — a parameter list could repeat a name, and could bind a qualified one. Chapter 2 found four
+contradict one, and where a chapter simplifies it should say so. Writing chapter 2 found two real
+bugs — a parameter list could repeat a name, and could bind a qualified one. Chapter 3 found four
 more: `(def a.b …)` was accepted and unreachable, an `export` or a `sig` naming nothing was
 silently dropped, and two diagnostics printed `#1.0` instead of the names the source used. That is
 six bugs from two chapters. Reviewing the finished chapter then produced a seventh finding and an
 ADR: recursion reduced but could not build, which is a promise the language does not keep, so it
 is now rejected outright (ADR 0014).
 
-Chapter 3 found four more: a library file's extra modules were visible only after something else
+Chapter 4 found four more: a library file's extra modules were visible only after something else
 imported it — load-order-dependent meaning, which is the one thing a module system exists to
-prevent — and three diagnostics named the wrong half of a qualified name. Chapter 4 found one
+prevent — and three diagnostics named the wrong half of a qualified name. Chapter 5 found one
 more, and a good one: the emitter recomputed a statement's value instead of binding it, so
 `fmt.Println((strings.Fields(s)))` was followed by `return (strings.Fields(s))` — the exact
 duplication the chapter is about, one layer below the chapter.
 
-Chapter 5 found two. A `sig` was checked in both directions and then **thrown away**, so a program
+Chapter 6 found two. A `sig` was checked in both directions and then **thrown away**, so a program
 whose claim had just been verified was refused for want of a type the claim stated. And an
 assumption outside the decidable fragment was dropped rather than propagated, so the diagnostic
 reported `known: nothing` about a program that plainly declared a `where`. Thirteen bugs from five
 chapters.
 
-The tour (chapter 0, 2026-12-10) found seven, by writing each example the way a newcomer would
+The tour (chapter 1, 2027-13-11) found seven, by writing each example the way a newcomer would
 first. None is fixed here; each is a defect or a question for its own step. **Planned 2026-11-15**
 (README.md's "Current work"): the wrong answers, 1, 2, 10, 15, 17, 19, 20 and the 10-06 pass's 3,
 were its item 3, and are **fixed 2026-11-15** ([bookfix-2026-11-15](../../gauntlet/results/bookfix-2026-11-15.md),
@@ -191,7 +197,7 @@ now in J until a constructor has a contract. 8 and 18 were fixed with their chap
    is a range (`` `(ok int)`; got (circle (int 0 1000)) ``), the closure refusal's `#1.0` (finding 4
    of the list above, still there), and the word-overflow hint's `acc + t(i)` for `t[i]`.
 
-Chapter 1 in J (2026-11-10) found one in the reducer, fixed with the chapter, and three more left
+Chapter 2 in J (2026-11-10) found one in the reducer, fixed with the chapter, and three more left
 as they are:
 
 8. **β dropped a binding that was read, and left its variable unbound** (fixed). In
@@ -208,10 +214,10 @@ as they are:
     compiles and returns `n`.
 11. **The step limit's message quotes a core term**: *last term head: (fn () (fn (k) k))*. Shown in J
     since surface-2026-11-15, and still a term the program never had, the identity for Ω: the
-    innermost subterm re-wrapped by its binders. **Fixed** 2026-11-23 (chapter 1's audit): the
-    message quotes the outermost application it was reducing, Ω itself, and `Y(f)` for chapter 2's.
+    innermost subterm re-wrapped by its binders. **Fixed** 2026-11-23 (chapter 2's audit): the
+    message quotes the outermost application it was reducing, Ω itself, and `Y(f)` for chapter 3's.
 
-Chapter 2 in J (2026-11-15) found three, none fixed:
+Chapter 3 in J (2026-11-15) found three, none fixed:
 
 12. **A pure binding nothing reads is left in the residual.** With `fn pair(a, b) { fn(sel) { sel(a, b) } }`
     and `fn snd(p) { p(fn(a, b) { b }) }`, `snd(pair(x(), y()))` reduces to `{ a = x(); y() }`: the
@@ -224,7 +230,7 @@ Chapter 2 in J (2026-11-15) found three, none fixed:
     no declaration*. j.md §2.2 gives `value_decl ::= binder "=" …`; only a target file's host
     constant reads so.
 
-Chapter 3 in J (2026-11-15) found three, none fixed:
+Chapter 4 in J (2026-11-15) found three, none fixed:
 
 15. **A declaration outside the `module` blocks of a file that has them is read into the last
     block.** `module inner { … }` followed by `export fn run(u) { inner.k(u) }` names the export
@@ -236,7 +242,7 @@ Chapter 3 in J (2026-11-15) found three, none fixed:
 17. **`use Geometry` finds `geometry.oro` on Windows**, whose file system ignores case; the same
     program is refused where it does not.
 
-Chapter 4, Choice (2026-11-15), found one in the reader, fixed with the chapter, and three left:
+Chapter 5, Choice (2026-11-15), found one in the reader, fixed with the chapter, and three left:
 
 18. **A guarded choice with no `else` read its last guard as one, and an arm after `else` crashed
     the reader** (fixed). `case { c -> 1; d -> 2 }` answered 2 where neither guard held, and
@@ -249,7 +255,7 @@ Chapter 4, Choice (2026-11-15), found one in the reader, fixed with the chapter,
 21. **The equality refusal names a deleted host operation**: *name it: go.`==`, js.`===`,
     java.`==`, x64.sete*, and `x64` went with MASM.
 
-Chapter 5, Effects (2026-11-15), found none in the compiler and leaves one question, **decided and
+Chapter 6, Effects (2026-11-15), found none in the compiler and leaves one question, **decided and
 built 2026-11-15** ([ADR 0116](../decisions/0116-a-statement-whose-value-is-a-function-is-refused.md),
 [chapters56-2026-11-15](../../gauntlet/results/chapters56-2026-11-15.md)): the statement is refused,
 `ignore(f)` its discard:
@@ -258,11 +264,11 @@ built 2026-11-15** ([ADR 0116](../decisions/0116-a-statement-whose-value-is-a-fu
     `io.print_line` between two prints compiles and prints two lines; `shout; 7` reduces to `7`.
     It follows from the rules (a function is a value, a pure statement is dropped), and it is the
     likeliest mistake a newcomer from C makes. A question, not a defect: should a statement whose
-    value is a function be refused, as Go refuses *f evaluated but not used*? Chapter 5 §5.11
+    value is a function be refused, as Go refuses *f evaluated but not used*? Chapter 6 §6.11
     teaches it as a trap.
 
-Chapter 6, Integers (2026-11-15), found seven, none fixed; the chapter avoids each. **Planned
-2026-11-15** with chapter 5's (README.md's "Current work", item 5), and **fixed 2026-11-15**
+Chapter 7, Integers (2026-11-15), found seven, none fixed; the chapter avoids each. **Planned
+2026-11-15** with chapter 6's (README.md's "Current work", item 5), and **fixed 2026-11-15**
 ([chapters56-2026-11-15](../../gauntlet/results/chapters56-2026-11-15.md), each with a planted
 fault): 23–28 build or are refused for their true reason, and 29 is deferred until a program needs
 it. Read against the decisions, 27
@@ -301,7 +307,7 @@ and 28 are defects, not questions: ADR 0033 refuses Go's version of 27, and ADR 
 29. **No digit separator, and no binary literal**: `1_000_000` and `0b101` are refused by the
     reader as two tokens. A question, not a defect; j.md does not promise either.
 
-Chapter 7 (2026-11-16) found seven, none fixed, each avoided in the chapter:
+Chapter 8 (2026-11-16) found seven, none fixed, each avoided in the chapter:
 
 30. **A file named after a target, beside the source, is read as that target.** With a `js.oro`
     in the program's directory, every build of a neighbour for `js` fails: *js.oro: line 1:
@@ -316,7 +322,7 @@ Chapter 7 (2026-11-16) found seven, none fixed, each avoided in the chapter:
     have.** `export fn mix(a ∈ 0..2^64-1, b ∈ 0..2^64-1) (0..2^64-1) { a ⊕ b }`: *the result of
     `>>` lies in [0, 4294967295], and target js computes `>>` only where …*. The refusal may be
     right (JavaScript has no such number to pass); the reason is the pair expansion's, not the
-    program's. Inside a program the same value works, and chapter 7's `hash64.oro` runs there.
+    program's. Inside a program the same value works, and chapter 8's `hash64.oro` runs there.
 33. **A value in the unsigned word cannot be printed whole.** `io.print_int(h)` with
     `h ∈ 0..2^64-1` prints on windows, and on Go is refused by the verifier in its own words,
     *IR_P does not verify: W5: %13 is u64 and flows into io.print-int's argument 1, which is int*
@@ -334,7 +340,7 @@ Chapter 7 (2026-11-16) found seven, none fixed, each avoided in the chapter:
     defines `bit`). And `export fn f(k ∈ 0..64) (0..2^64) { 1 << k }` is refused with `big-of` in
     the message, a core name (it is the family of item 28's `decimal`).
 
-Chapter 8 (2026-11-16) found eight, none fixed, each avoided in the chapter:
+Chapter 9 (2026-11-16) found eight, none fixed, each avoided in the chapter:
 
 37. **`÷` on exact numbers does not compile for Go or windows.** `round(Int, c ÷ 3, 'down)` with
     `c ∈ 0..10^9`, and `round(D(2, 0..100), 100 ÷ 3)`, are refused by the printers: *the target
@@ -380,15 +386,15 @@ is not in step 1). The chapter's exports take integers and doubles only.
 **The chapters after the fixes (2026-11-16).** With items 1–28 fixed, every chapter was re-run
 (all nine pass) and the passages that worked around a fixed item were rewritten, seven planted
 faults caught in the new blocks:
-- 5: the tour's `abs` and chapter 6's `magnitude` write `-n`, and the two notes saying a name
+- 5: the tour's `abs` and chapter 7's `magnitude` write `-n`, and the two notes saying a name
   cannot be negated are gone;
-- 13, 14, 25: chapter 6 §6.3 shows the empty range's refusal, a constant as a range's end, and
+- 13, 14, 25: chapter 7 §7.3 shows the empty range's refusal, a constant as a range's end, and
   a constant carrying its own claim (`limit.oro`, `no-limit.oro`, `no-empty.oro.txt`);
-- 15: chapter 3 §3.6 says a block's scope ends at its brace and shows the `use` a declaration
+- 15: chapter 4 §4.6 says a block's scope ends at its brace and shows the `use` a declaration
   after the blocks needs (`after-blocks.oro`, `no-after-blocks.oro`), in place of the defect's
   note;
-- 19: chapter 4 §4.9 shows a one-armed `if` refused at an `Int` (`no-one-arm.oro`);
-- 22: chapter 5 states the refusal in the present tense.
+- 19: chapter 5 §5.9 shows a one-armed `if` refused at an `Int` (`no-one-arm.oro`);
+- 22: chapter 6 states the refusal in the present tense.
 
 Doing that found three more, none fixed:
 
@@ -405,7 +411,7 @@ Doing that found three more, none fixed:
     refused as *gen: one-or-nothing: the unit () is (), but Int is required here*. The family
     of items 4, 7 and 21.
 
-Chapter 9, Text (2026-11-16), found five, none fixed, each avoided in the chapter:
+Chapter 10, Text (2026-11-16), found five, none fixed, each avoided in the chapter:
 
 48. **windows does not check `string_of`'s precondition.** `export fn any(n ∈ Int) (String)
     { string_of(n) }` and `wide(n ∈ 0..70000)` are refused on Go and JavaScript (*string_of's
@@ -432,11 +438,11 @@ Chapter 9, Text (2026-11-16), found five, none fixed, each avoided in the chapte
     on windows each is a heap allocation at run time.
 
 Teaching, not defects: nothing in the language takes a `String` apart (no length, index or
-equality; strings.md §4, state.md), so chapter 9 says so plainly, and its only counting and
-searching is `go/strings` in §9.12, marked Go-only by `portable`. §9.10 uses `array { … }`
+equality; strings.md §4, state.md), so chapter 10 says so plainly, and its only counting and
+searching is `go/strings` in §10.12, marked Go-only by `portable`. §10.10 uses `array { … }`
 three chapters early, as a way to write bytes down, and says so.
 
-Chapter 10, Tuples and variants (2026-11-16), found one wrong answer and five smaller, none
+Chapter 11, Tuples and variants (2026-11-16), found one wrong answer and five smaller, none
 fixed, each avoided in the chapter:
 
 53. **Two payloads in scope are one name: a wrong answer.** With `set Maybe(T) = 'just(T) ∪
@@ -456,7 +462,7 @@ fixed, each avoided in the chapter:
     tuples for the results is right. It is CLAUDE.md's *a context keyed by name is captured by
     the name alone*, in sums.md §5's recount. **Fixed** 2026-11-16 ([capture-2026-11-16](../../gauntlet/results/capture-2026-11-16.md)):
     a `case`'s binders are fresh for its clauses (Barendregt's convention, ADR 0036), so 42; item
-    76's `try` chain gives 22. Chapter 10 uses one payload at a time; chapter 15
+    76's `try` chain gives 22. Chapter 11 uses one payload at a time; chapter 16
     (`try` chains two results) cannot be written around it.
 54. **A variant's name is no set at a parameter.** `fn warm(c ∈ Colour)` is refused, exported or
     not: *its header's parameter c names colour, which is no set: not one of the language's and
@@ -486,7 +492,7 @@ fixed, each avoided in the chapter:
 
 Also: `export fn unit(a ∈ 0..9) () { () }` emits a Go function returning `int`, `return 0`.
 
-Chapter 12, `loop` (2026-11-16), found five, none fixed, each avoided in the chapter:
+Chapter 13, `loop` (2026-11-16), found five, none fixed, each avoided in the chapter:
 
 59. **On windows a `main` whose value is a loop's `()` does not lower.** `export fn main() {
     loop i = 1 { i <= 3 -> { io.print_int(i); again(i + 1) }; else -> () } }` builds on Go and
@@ -497,14 +503,14 @@ Chapter 12, `loop` (2026-11-16), found five, none fixed, each avoided in the cha
 60. **`invariant` is not read.** j.md §2.8's grammar has `loop … invariant I { … }` and its
     status lists the loop as built; `loop i = 1, p = 1 invariant p <= N {` is *"invariant"
     where "{" was expected*. So a bound the interval analysis cannot find is stated as a guard
-    that runs (§12.7's `p <= 4 * 10^17`), which is CLAUDE.md's "a clamp in a program is a
+    that runs (§13.7's `p <= 4 * 10^17`), which is CLAUDE.md's "a clamp in a program is a
     missing proof", taught as the tool there is. **Fixed** 2026-11-16
     ([invariant-2026-11-16](../../gauntlet/results/invariant-2026-11-16.md)): `invariant I` is read
-    and decided by Hoare's rule. §12.7's bound stays a guard, because p · i ≤ N does not follow
+    and decided by Hoare's rule. §13.7's bound stays a guard, because p · i ≤ N does not follow
     from p ≤ N: the invariant that carries it is p = (i − 1)!, outside the linear fragment.
 61. **A `case` on a loop's variant result must have arms of one type**, where the same `case`
     on a function's variant result need not: `'some(r) -> io.print_int(r); 'none ->
-    io.print_line("no")` is accepted after `digit_of` (chapter 10's `maybe.oro`, where
+    io.print_line("no")` is accepted after `digit_of` (chapter 11's `maybe.oro`, where
     case-of-case removes it) and refused after a loop, *the branches of a conditional are Int
     and String*. Both are statements whose value nobody reads.
 62. **`fib` and `fact` to the word's edge are refused on JavaScript for the wrong reason**:
@@ -521,7 +527,7 @@ the chapter shows a stuck loop compiling with *0 of 1* beside the halting proble
 static trip count is not unrolled (`three()` emits a loop), which the chapter uses to say what
 the dynamic level is.
 
-Chapter 13, Tables (2026-11-16), found six, none fixed, each avoided in the chapter:
+Chapter 14, Tables (2026-11-16), found six, none fixed, each avoided in the chapter:
 
 64. **A tuple pattern on a table's element emits code that is not Go.** `export fn width(p ∈
     Array(0..100 × 0..100)) … { (x, y) = p[i]; again(i + 1, s + x * y) }` emits
@@ -538,14 +544,14 @@ Chapter 13, Tables (2026-11-16), found six, none fixed, each avoided in the chap
 66. **A table of tuples cannot be written, and a table of tables not at all.** `array { (1, 2),
     (3, 4) }` is *lowering: (1, 2) is 2 values where one is wanted*; `Array(Array(Int))` and
     `array { array { 1, 2 }, … }[i][j]` are *lowering: an application whose operator is an
-    application, and not an eliminator*. So chapter 10's promised rectangle and list are two
+    application, and not an eliminator*. So chapter 11's promised rectangle and list are two
     parallel tables, which the chapter presents as the struct-of-arrays layout it is.
 67. **Division has no sign fact, so binary search cannot be written as it is taught.** With
     `0 <= lo`, `lo < hi` and `hi <= len(t)` all among the known facts, `t[lo + (hi - lo) / 2]`
     is refused, *0 <= lo + (hi - lo) / 2 does not follow*: x ≥ 0 ⇒ x / k ≥ 0 is not derived
     (products.md §6 added k·(x/k) ≤ x and no more). **The midpoint is proven** 2026-11-16 (store-2026-11-16): div_floor's guard
     holds only under the loop's guards, and lang's facts are now instantiated where an obligation
-    is, so both `lo + (hi - lo) / 2` bounds follow; chapter 13's `no-search.oro` was refused then for
+    is, so both `lo + (hi - lo) / 2` bounds follow; chapter 14's `no-search.oro` was refused then for
     its arithmetic in the word. **Its arithmetic proven** 2026-11-21 (midpoint-2026-11-21, ADR
     0148): lo + ⌊(hi − lo)/2⌋ repeats lo, and the Omega test decides it in the word, so the search
     written as it is taught compiles (`search-plain.oro`, run on Go and windows), and the passage
@@ -565,11 +571,11 @@ Chapter 13, Tables (2026-11-16), found six, none fixed, each avoided in the chap
     defines `map`, which is the language's own*); the chapter's is `each`. A guard `steps >=
     len(next)` is not taken as a trip bound where `steps >= 1000` is.
 
-Teaching: chapter 9's and chapter 10's debts are paid here (bytes as a table; a variant
-carrying a position), and chapter 12's guard-as-stated-bound returns twice (`len(t) <= 10^6`
+Teaching: chapter 10's and chapter 11's debts are paid here (bytes as a table; a variant
+carrying a position), and chapter 13's guard-as-stated-bound returns twice (`len(t) <= 10^6`
 in a header, binary search's second arm).
 
-Chapter 14, State (2026-11-16), found a soundness hole and five smaller, none fixed:
+Chapter 15, State (2026-11-16), found a soundness hole and five smaller, none fixed:
 
 70. **A store's position is not checked.** Each of these compiles, on Go, JavaScript and
     windows:
@@ -580,12 +586,12 @@ Chapter 14, State (2026-11-16), found a soundness hole and five smaller, none fi
 
     Go emits `v10[v0] = 1` and panics at run time (*index out of range [5] with length 5*);
     JavaScript's array grows; windows writes past the block. The same index in a *read* is
-    refused (chapter 13). tables.md §6 says the obligation was needed "in three places", `build`
+    refused (chapter 14). tables.md §6 says the obligation was needed "in three places", `build`
     among them, and maps.md §6 cites `(set stk sp …)` carrying `sp < cap`; nothing enforces it
-    now. Chapter 14 §14.3 tells the reader of the gap in so many words, and every store in its
+    now. Chapter 15 §15.3 tells the reader of the gap in so many words, and every store in its
     examples is under a guard that would prove it. **Fixed** 2026-11-16 ([store-2026-11-16](../../gauntlet/results/store-2026-11-16.md),
     ADR 0119): a store owes 0 <= i < len as a read does, so all three are refused, on every target;
-    §14.3 now shows the refusal.
+    §15.3 now shows the refusal.
 71. **A map's declared capacity is not enforced, and `len` of a map is wrong on windows.**
     `var m := map(2)` with three stores gives `len(m)` 3 on Go and JavaScript (maps.md §6
     chose a declared capacity so that all targets agree) and **12** on windows. **`len` fixed**
@@ -598,7 +604,7 @@ Chapter 14, State (2026-11-16), found a soundness hole and five smaller, none fi
     operation(s) cannot be proven … llvm.sdiv [0, +inf] in llvm.sdiv(a, b)*, an operation of
     the map library's and not the program's. The chapter's map blocks run on Go and JavaScript. **Fixed** 2026-11-16 ([maprealize-2026-11-16](../../gauntlet/results/maprealize-2026-11-16.md),
     ADR 0120): the map is realized after the decision, so a read in a block or a function builds on
-    windows; chapter 14's `tally` runs there now.
+    windows; chapter 15's `tally` runs there now.
 73. **A loop that answers `()` freezes the buffer it wrote.** `var b := …; loop i = 0 { i < 5 ->
     { b[i] := 5 - i; again(i + 1) }; else -> () }; b[0] := 100` is *a store writes into #nl2,
     which is a frozen table*. The same loop inside a function that takes `b` `linear`, called
@@ -617,14 +623,14 @@ Chapter 14, State (2026-11-16), found a soundness hole and five smaller, none fi
     the refusal for a name bound with `=`. `var b := t`, with `t` a parameter, compiles to a
     copy, where ADR 0052's R0 says "the copy is explicit"; the chapter writes the rule.
 
-A flaky test, seen twice (chapters 8 and 14): `go test ./core/` reports FAIL once and then
-passes three times running, with no change between. Identified in chapter 15: item 78.
+A flaky test, seen twice (chapters 9 and 15): `go test ./core/` reports FAIL once and then
+passes three times running, with no change between. Identified in chapter 16: item 78.
 
 Teaching: cells are taught as a notation for new names (static single assignment said as the
 meaning, not as an optimization), and the chapter's question, "why a value you hold never
 changes", is answered by R1 before `linear` is introduced.
 
-Chapter 15, Failures (2026-11-16), confirmed item 53 where it matters most and found three
+Chapter 16, Failures (2026-11-16), confirmed item 53 where it matters most and found three
 more, none fixed:
 
 76. **Item 53 is a wrong answer in the plainest `try` chain.** With `half` returning
@@ -636,7 +642,7 @@ more, none fixed:
     A chain where each step feeds the next (`try 'ok(a) = half(n) { try 'ok(b) = half(a)
     { half(b) } }`) is right, and so is the two-answer form when the first answer is passed to
     a function as a parameter (`fn add_half(x, b) { try 'ok(y) = half(b) { 'ok(x + y) } }`):
-    22. The chapter's §15.4 is written that way and carries a boxed warning to the reader.
+    22. The chapter's §16.4 is written that way and carries a boxed warning to the reader.
 77. **`try` with several binds is not read.** j.md §2.8: `try_expr ::= "try" t_bind,+ block`.
     `try result.'ok(x) = half(a), result.'ok(y) = half(b) { … }` is *"," where "{" was
     expected*. The handler, `else`, is listed as not built. **Fixed** 2026-11-16
@@ -646,8 +652,8 @@ more, none fixed:
     one run in five with *TestEveryCorpusFileReadsInJ: open ..\cmd\gen\booktest3866318782\
     p.oro: The system cannot find the path specified*: `core`'s corpus walk lists a temporary
     directory that `cmd/gen`'s tests make under their own package and remove while the walk is
-    reading. Either test alone passes every time. (This is the failure noted under chapters 8
-    and 14.) **Fixed** 2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): the corpus is read from git's index.
+    reading. Either test alone passes every time. (This is the failure noted under chapters 9
+    and 15.) **Fixed** 2026-11-16 ([bookfaults-2026-11-16](../../gauntlet/results/bookfaults-2026-11-16.md)): the corpus is read from git's index.
 79. **Messages.** *try: variant light declares no (success …) constructor, so it is not a model
     of the exception monad* is in the notation J replaced and names the variant in lower case.
     The relevance refusals name no function they occur in (*gen: the result of half is a value
@@ -657,7 +663,7 @@ Teaching: `expect`'s crash is shown on windows, where the output is the reason a
 JavaScript's carry a stack trace with temporary paths, so they are shown as emitted code.
 `examples/errors/` already held `discard`, `ignore` and `expect`; the chapter's are its own.
 
-Chapter 16, Claims (2026-11-16), rewritten in J from nothing (the old chapter, in the notation
+Chapter 17, Claims (2026-11-16), rewritten in J from nothing (the old chapter, in the notation
 J replaced and with no running example, is in git at `98ff798`). It found five, none fixed:
 
 80. **A binder's claim with a variable end is not checked.** `k ∈ 0..n = i` with `i ∈ Int`
@@ -683,9 +689,9 @@ J replaced and with no running example, is in git at `98ff798`). It found five, 
     as the way to carry a relational fact to a result, which is a workaround presented as a
     technique. **Fixed** 2026-11-21 (midpoint-2026-11-21, ADR 0148): a `where`'s comparison is
     a zone entry the intervals keep, so `b - a` is 0..100, and a result claim the intervals do
-    not establish goes to the facts before it is refused (`where a <= c && c <= b` too). §16.3
-    shows both; §16.4's binder stays as the way to name a fact.
-83. **Three facts the layer does not have**, each shown refused in §16.8: `n mod 2 >= 0`
+    not establish goes to the facts before it is refused (`where a <= c && c <= b` too). §17.3
+    shows both; §17.4's binder stays as the way to name a fact.
+83. **Three facts the layer does not have**, each shown refused in §17.8: `n mod 2 >= 0`
     (`mod` is defined as never negative, integers.md; `n % 2` on a non-negative `n` is
     proven); `a - b != 0` from `where a != b`, with *assumed ne(a,b)* printed among the known
     facts (refinements.md §3c covers a disequality beside an order); `n * n >= 0`. The third
@@ -702,7 +708,7 @@ directive for it and it prints only what it could not bound. The chapter has no 
 every example is a `gen`, because its subject is what the compiler decides, and a proven
 claim leaves nothing to run.
 
-Chapter 17, Targets (2026-11-16), found three, none fixed:
+Chapter 18, Targets (2026-11-16), found three, none fixed:
 
 85. **A host declaration's result set is a fact for the intervals and not for the refinement
     layer.** With `fn small() (0..9) pure { host expr "1000" }`, `small() * 10^18` is *1 of 1
@@ -716,14 +722,14 @@ Chapter 17, Targets (2026-11-16), found three, none fixed:
 87. **Java's emitted class is named after the output file**: `gen … java g.out` writes `public
     final class g.out`, which is not Java. `-name` prefixes the functions and not the class.
 
-Teaching: §17.5 lies to the compiler on purpose, with a `pure` on a print and a result claimed
+Teaching: §18.5 lies to the compiler on purpose, with a `pure` on a print and a result claimed
 `0..9` that is 1000, and shows the dropped line and the wrapped product (3875820019684212736)
 as the one way a silent wrong answer enters a program whose proofs are all valid. Five blocks
 are `part`s of the repository's own target and library files (`lib/io/go.oro`, `lib/io/js.oro`,
 `lib/io/windows.oro`, `targets/go/strings.oro`, `targets/go/go.oro`, `targets/js/js.oro`), so
 a change to those lines fails this chapter's check, which is intended: the chapter quotes them.
 
-Chapter 19, A whole program (2026-11-16), reads a 74-line ledger (adapted from
+Chapter 20, A whole program (2026-11-16), reads a 74-line ledger (adapted from
 `examples/num/ledger.oro`) line by line, runs it on three targets, and removes five of its
 guards to show each refusal. It found four, none fixed:
 
@@ -732,7 +738,7 @@ guards to show each refusal. It found four, none fixed:
     on every target (windows, which keeps definitions as functions, included). One call
     builds. The chapter's three cases are three entry programs over one module.
 89. **74 lines of source emit 1,553 lines of Go** (595 of JavaScript): the chain of arms is
-    copied where a cell's write is specialized. The chapter says so in §19.8.
+    copied where a cell's write is specialized. The chapter says so in §20.8.
 90. **In a whole program a refusal names the compiler's binder and lists every fact.**
     `src[i]` unguarded is *#nl15[i] is an indexing, and i < len(#nl15) does not follow*, and
     its `known:` line runs to some forty facts, most of them `num.decimal`'s. A bound removed
@@ -751,25 +757,25 @@ run of the program's own lines, each paragraph naming the chapter that taught th
 64, 67, 70, 71, 72, 77, 78, 80 and half of 81 fixed, every chapter was re-run against the
 compiler at `f0b5a62` (all eighteen pass) and the passages that worked around a
 fixed item were rewritten, sixteen planted faults caught in the new blocks:
-- 53/76, 77: chapter 15 §15.4 is one `try` inside another, then `try a, b, c { … }` with a later
+- 53/76, 77: chapter 16 §16.4 is one `try` inside another, then `try a, b, c { … }` with a later
   step reading an earlier name (`both.oro` rewritten, `several.oro`); the boxed warning and its
   line in "What to remember" are gone;
-- 70: chapter 14 §14.3 shows a store one past the end refused (`no-past.oro`) in place of the
+- 70: chapter 15 §15.3 shows a store one past the end refused (`no-past.oro`) in place of the
   warning about the gap;
-- 71, 72: chapter 14 §14.9 has a section on the capacity as a claim (`no-full.oro`,
+- 71, 72: chapter 15 §15.9 has a section on the capacity as a claim (`no-full.oro`,
   `distinct.oro` proven from `len(t) <= 16`, `no-distinct.oro` at 17, `distinct-guard.oro` under
   `len(m) < 16`), `tally` runs on windows, and the two lines of "what maps do not do" are gone;
-- 60: chapter 16 §16.5 has "Stating an invariant yourself" (`no-walk.oro`, `walk.oro`,
-  `no-kept.oro`, `no-entry.oro`): s <= 2 * i, a coefficient no template guesses; chapter 12 §12.7
-  points at it and says why the factorial's bound stays a guard; chapter 19's "not built" list
+- 60: chapter 17 §17.5 has "Stating an invariant yourself" (`no-walk.oro`, `walk.oro`,
+  `no-kept.oro`, `no-entry.oro`): s <= 2 * i, a coefficient no template guesses; chapter 13 §13.7
+  points at it and says why the factorial's bound stays a guard; chapter 20's "not built" list
   no longer names it;
-- 80, 81: chapter 16 §16.6 shows a claim with terms at its ends and a claim on a name nothing
+- 80, 81: chapter 17 §17.6 shows a claim with terms at its ends and a claim on a name nothing
   reads, each refused (`no-between.oro`, `no-idle.oro`), in place of "two limits today";
-- 64: chapter 13 §13.11 takes a pair apart by pattern (`pairs-named.oro`), the same two reads;
-- 67: chapter 16 §16.8's table loses the quotient's row (chapter 13 was updated with the fix).
+- 64: chapter 14 §14.11 takes a pair apart by pattern (`pairs-named.oro`), the same two reads;
+- 67: chapter 17 §17.8's table loses the quotient's row (chapter 14 was updated with the fix).
 
-Chapters 8 (39, 40) and 12 (67) had been updated with their fixes. Chapter 9 shows 48's two
-refusals on Go and needed nothing; chapter 10 never worked around 53 in its text. Probed and
+Chapters 9 (39, 40) and 12 (67) had been updated with their fixes. Chapter 10 shows 48's two
+refusals on Go and needed nothing; chapter 11 never worked around 53 in its text. Probed and
 still open, so their passages stay: 37, 49, 54, 66, 73.
 
 Doing that found one more, not fixed:
@@ -781,7 +787,7 @@ Doing that found one more, not fixed:
     core's notation, then ADR 0028's advice about a definition's parameter range. The chapter
     shows the first line and says what `#vm1` is. The family of item 90.
 
-**Chapter 0 after hamza's reading (2026-11-17).** Four questions on §0.5 and §0.6, each answered
+**Chapter 1 after hamza's reading (2026-11-17).** Four questions on §1.5 and §1.6, each answered
 in the chapter, ten planted faults caught in the new blocks:
 - all of ℤ: a section showing `Int` inside a program computed exactly (`any-size.oro`, run on Go
   and windows), a half-open set at an export as the host's bignum, and `Int` at an export as the
@@ -807,7 +813,7 @@ Doing that found two, not fixed:
     `-checked` every operation is now proven, trapped or closed on the word, or refused; JavaScript
     traps `+ − ×`, `<<` and `~`, and Go and the JVM `<<`.
 94. **All of ℤ has no spelling at an entry point.** `n ∈ ..` is refused: *`..` with neither end
-    is ℤ, which is `Int`*; and `Int` at an export is the host's word (§6.8), its arithmetic
+    is ℤ, which is `Int`*; and `Int` at an export is the host's word (§7.8), its arithmetic
     refused. `Nat` and `..0` are each taken as a bignum, so a host can pass either half and not
     both. A result has the same gap: `fn diff(a ∈ Nat, b ∈ Nat) (Int) { a - b }` is refused as
     wider than the word. Inside a program `Int` is ℤ and is computed exactly where a claim asks.
@@ -816,7 +822,7 @@ Doing that found two, not fixed:
     header does not bound it inside the word; Windows refuses an unbounded one, its callers C's.
     `diff(a ∈ Nat, b ∈ Nat) (Int) { a - b }` compiles.
 
-Writing chapter 11 (Records) and bringing chapters 7, 12, 13 and 14 up to date (2026-11-20) found
+Writing chapter 12 (Records) and bringing chapters 8, 13, 14 and 15 up to date (2026-11-20) found
 seven more. 95–99 are fixed with the chapter
 ([recordclaim_test](../../cmd/build/recordclaim_test.go), each with its planted fault); 100 and
 101 are not:
@@ -846,45 +852,45 @@ seven more. 95–99 are fixed with the chapter
      2026-11-20 ([findings-2026-11-20](../../gauntlet/results/findings-2026-11-20.md)): an
      elimination whose arms mention no cell is a value of the state, not a step of it; the lowering
      reads a map read only off a variable; a read's eliminator is a continuation to every walker.
-     §14.9 shows a memo filled and read in one loop.
+     §15.9 shows a memo filled and read in one loop.
 101. **A table of tables, or a table of tuples written as a list, read at an index not known when
      compiling**, is refused in the lowering's words, the first quoting `#0.0`:
      `array { array { 1, 2 }, array { 3, 4 } }[k][0]` and `array { (3, 4), (10, 2) }[k]`.
      Finding 66's limitation, still there: read at a constant index the table folds away, which
      is how it hides. Fixed 2026-11-20 (findings-2026-11-20): a literal table of tuples is
      flattened by currying where it is written, and a table of tables given by its graph, read at
-     an unknown index, is the n-way choice among its rows, its domain still an obligation. §13.11
+     an unknown index, is the n-way choice among its rows, its domain still an obligation. §14.11
      shows both (the shoelace formula, Lo Shu); a table of tables made by a rule, received or
      built is still not here.
 102. **A function bound to a name wrote a cell and the write was lost** (found 2026-11-20 probing
      tier 1's callbacks, not writing a chapter; fixed). `var n := 0; add = fn(x) { n := n + x };
      add(1); add(2)` printed n as 0, and `get = fn() { n }` read the cell's first value. A λ
      passed as an argument was refused, and one bound by a name was not checked. Now both are
-     refused, and §14.2 shows the refusal and the working form
+     refused, and §15.2 shows the refusal and the working form
      ([callbacks-derivation-2026-11-20](../../gauntlet/results/callbacks-derivation-2026-11-20.md)).
 
-Writing §16.7's claims about a table and §18.9 (then §18.8), text from Windows (2026-11-20,
+Writing §17.7's claims about a table and §19.9 (then §19.8), text from Windows (2026-11-20,
 [logic3-2026-11-20](../../gauntlet/results/logic3-2026-11-20.md)), found three; 103 is fixed,
 104 and 105 are not:
 
 103. **A formula in a refusal was printed in the core's notation**: *#implies(1 <= y …,
      #iff(…, #exists(`Int`, fn(k) { … })))*. Now as J writes it, `∀ x ∈ S : φ`, `⇒`, `⇔` and
-     `lo..hi`; §6.10's and §16.7's refusals changed with it.
+     `lo..hi`; §7.10's and §17.7's refusals changed with it.
 104. **A table's read and a literal table print as applications in a refusal**: `a(i)` for
-     `a[i]`, and `` `array`(3, 1, 2) `` for `array { 3, 1, 2 }` (§16.7, §18.8). A read is the
+     `a[i]`, and `` `array`(3, 1, 2) `` for `array { 3, 1, 2 }` (§17.7, §19.8). A read is the
      table applied, so the message is not wrong, only not as J writes it; `(array n)` is also an
      allocation of n cells in the residual, so the printer cannot tell a literal of one element
      from it by the term alone.
 105. **What a block knows about the values it hands out does not cross it.** `(b, r) = { var t
      := …; n = GetWindowTextA(w, t); (t, n) }` binds b and r with none of the host's promise about
      t and n, not even 0 ≤ n: a projection of the block's value carries a loop's and a table's
-     facts (ADR 0031 §3) and not a host call's `ensure`. §18.8's program uses the promise inside
+     facts (ADR 0031 §3) and not a host call's `ensure`. §19.8's program uses the promise inside
      the block and tests `r <= len(b)` after it, a clamp standing for the missing proof. Fixed
      2026-11-20 ([handle-2026-11-20](../../gauntlet/results/handle-2026-11-20.md)): a block that
      runs straight to its tail gives its components the strongest postcondition of its spine,
-     sp(let ȳ = v in P, Γ) = sp(P, Γ ∧ ȳ ≐ v), and §18.9's program writes `b[0:r]` with no test.
+     sp(let ȳ = v in P, Γ) = sp(P, Γ ∧ ȳ ≐ v), and §19.9's program writes `b[0:r]` with no test.
 
-Writing §18.4, a handle a type of its own (2026-11-20,
+Writing §19.4, a handle a type of its own (2026-11-20,
 [handle-2026-11-20](../../gauntlet/results/handle-2026-11-20.md)), found two; 106 is fixed, 107 is
 not:
 
@@ -892,14 +898,14 @@ not:
      'some(h) -> 1; 'none -> 0 }` with n an Int said *an application of 3*, and `x.null()` where an
      `Option` is wanted *a producer of 1 values bound to 2 names*. A sum is its own eliminator, so
      the expansion applied the scalar to the clauses, which the checker let through. Now: *a `case`
-     reads a variant's tag and its payload, and n is Int, which is no variant* (§18.4).
+     reads a variant's tag and its payload, and n is Int, which is no variant* (§19.4).
 107. **An argument of the wrong set can be refused first by the facts**: `status(h ∈ HWND)` given
      CreateWindowExA's `Option(HWND)` was refused as *LineIndex's parameter … is not proven*, the
      refinement layer having run on the inlined body before the checker saw the argument. The
      program was wrong and refused, and the message named the wrong thing. Not investigated: it may
      predate this step.
 
-Rewriting chapter 0 and bringing chapters 3–19 to ADR 0147 (2026-11-21), `Int` ℤ at an entry
+Rewriting chapter 1 and bringing chapters 4–20 to ADR 0147 (2026-11-21), `Int` ℤ at an entry
 point too, found eleven, four fixed:
 
 108. **An intermediate above the word is computed exactly only where something asks.** `mid(lo ∈
@@ -911,9 +917,9 @@ point too, found eleven, four fixed:
      helper asks by a set above the word, finding 116); and Bloch's form `lo + (hi - lo) / 2` under
      `where lo <= hi` needs no consent at all, proven in the words: hi − lo ∈ [0, 2⁶⁴ − 1] by
      the `where`'s difference, and lo + ⌊d/2⌋ ∈ [lo, hi] by Presburger arithmetic where an atom
-     repeats (`ir/relate.go`). Chapter 6 §6.9 teaches the three. The silent rule
+     repeats (`ir/relate.go`). Chapter 7 §7.9 teaches the three. The silent rule
      (integers-boundary-research §7 whole) stays unbuilt: an accumulator unbounded only through a
-     table's length is still refused (chapter 13's `no-prefix`).
+     table's length is still refused (chapter 14's `no-prefix`).
 109. **`export fn any(n ∈ Int) (Int) { n }` emitted `*big.Int` without `import "math/big"`**, a Go
      file that does not compile, since no operation on the value named the package. **Fixed** with
      the chapter: a big integer in a function's type registers the inclusion's import
@@ -928,14 +934,14 @@ point too, found eleven, four fixed:
      the type checker decides there, *in argument 1 of io.print_int: 0.5 + 0.5 is N*; writing it
      found two more, `fn f(s ∈ String) (Int) { 0 }` applied to 3 accepted (the claim unread) and
      `ignore(g(30))` dropping g's range and `where` (the discard keeping nothing), both refused now.
-     Chapter 8 §8.3 and chapter 16 §16.2 teach it. Not fixed: a term a message quotes is shown reduced, `io.print_int(r)`
-     as `io.print_line(decimal(r))` in chapter 17's no-print.
+     Chapter 9 §9.3 and chapter 17 §17.2 teach it. Not fixed: a term a message quotes is shown reduced, `io.print_int(r)`
+     as `io.print_line(decimal(r))` in chapter 18's no-print.
 111. **A map read with a key of any size is refused.** `lookup(k ∈ Int)` over `map { 1 : 10, …
      }` is refused as *an operand of read is held in arbitrary precision*: the key is a
      `*big.Int` since ADR 0147, and a map's keys are words. Its answer is known, `'none` for a key
      outside the word, which no map holds, so the refusal is of a correct program. Not fixed: the
      read needs a branch on the key's fit, `k ∈ S ? m[ρ(k)] : 'none`, written by the rung pass.
-     Chapter 14's `lookup` takes `k ∈ 0..1000` and says so.
+     Chapter 15's `lookup` takes `k ∈ 0..1000` and says so.
 112. **`-checked` traps on windows what the other targets compute.** The tour's `grow.oro`, 3
      squared seven times and printed, prints 3¹²⁸ on Go, JavaScript and the JVM under `-checked`
      and stops on windows: there the unproven product is marked a trap before the rung, which on
@@ -951,7 +957,7 @@ point too, found eleven, four fixed:
      is returned as a pointer to the program's own numeral, a layout no C header states. Since ADR
      0150 the second is the third: `acc * i` past the words is held exactly, and a result declared
      `Int` is the same pointer. The book's
-     §18.10 says which is which. Left until a program asks (hamza, 2026-11-21): the boundary
+     §19.10 says which is which. Left until a program asks (hamza, 2026-11-21): the boundary
      format, a C struct of digits and count or decimal text, decided both ways at once.
 114. **On JavaScript a pair added to a negative word is refused.** The midpoint at S₆₄'s ends,
      inlined at constant arguments (`gauntlet/differential/cases/bloch-midpoint.oro`), holds
@@ -963,7 +969,7 @@ point too, found eleven, four fixed:
      operations the pairs could not take are held exactly, over BigInt, and the case runs on
      JavaScript. **Fixed** (pairsel-2026-11-21, ADR 0151): the pairs read a result in the word
      signed, h − 2³²·[h ≥ 2³¹], and compare, lexicographically on (h, l); a value of U leaves the
-     pair for a `BigInt` exactly where an operation on it is one the pair does not compute (§6.11),
+     pair for a `BigInt` exactly where an operation on it is one the pair does not compute (§7.11),
      and the five differential cases that skipped JavaScript run on it.
 115. **An obligation whose constants pass int64 was refused.** `first(bot + n, top - n)` with
      `where lo <= hi` at S₆₄'s ends is −2⁶³ − (2⁶³ − 1) + 2n ≤ 0, no linear term of the
@@ -1011,73 +1017,73 @@ point too, found eleven, four fixed:
      every read folds at compile time, read at an index known at run time it is refused (*an
      operand of array is held in arbitrary precision*), and a computed value past the word stored
      into a table is refused on every target; the one way to write it is the program holding its
-     own limbs. A correct program refused, no wrong answer. The tour's §0.8 said it as a fact about
+     own limbs. A correct program refused, no wrong answer. The tour's §1.8 said it as a fact about
      tables; it now says it is the compiler's limit. Not fixed: by ADR 0150 an element's
      representation is ρ of the elements' facts, the host's array of big integers on Go, the JVM
      and JavaScript and, on windows, a table of K(ℕ\*) numerals, a table inside a table (R1's
      storage); a research note first, on the plan (hamza, 2026-11-22).
-120. **A constant past the word returned as `Int` is refused.** Chapter 1's `too_big`, `2^62 *
+120. **A constant past the word returned as `Int` is refused.** Chapter 2's `too_big`, `2^62 *
      4`, compiled as `export fn too_big() (Int)`, and `export fn lit() (Int) {
      18446744073709551616 }` itself, were refused on Go, the JVM and windows (*mul [−inf, +inf] in
      18446744073709551616*; windows *the result of shr … is not built*), JavaScript compiling them,
      though `io.print_int(2^62 * 4)` printed 2⁶⁴ everywhere. The literal's numeral sums inside the
      double word, so its yield into ℤ was recombined from its digits (ADR 0153) as if E computed
      it, and the rung then held the sum in ℤ, leaving the recombination's word operations over it
-     unbounded. Found by chapter 1 §1.3, whose text also said `7 / 0` is "left for run time to
-     fail" (it is refused when compiled, §6.7) and that folding `2^62 * 4` "would give a different
+     unbounded. Found by chapter 2 §2.3, whose text also said `7 / 0` is "left for run time to
+     fail" (it is refused when compiled, §7.7) and that folding `2^62 * 4` "would give a different
      integer from the one the target would" (false since ADR 0026). **Fixed** (ADR 0156,
      intconst-2026-11-22, hamza 2026-11-22: "do 1 and 2 now"): a point is its constant, never
      recombined, and the reducer folds integers exactly at every size, `too_big` reducing to
-     `18446744073709551616`; chapter 1 §1.3 says both.
-121. **A claim on an anonymous λ is refused, and the book says the language means it.** Chapter 1
-     §1.4 showed `fn(n ∈ Int) { n }(1)` refused at the `∈` (*"∈" in a λ's parameters, which are
+     `18446744073709551616`; chapter 2 §2.3 says both.
+121. **A claim on an anonymous λ is refused, and the book says the language means it.** Chapter 2
+     §2.4 showed `fn(n ∈ Int) { n }(1)` refused at the `∈` (*"∈" in a λ's parameters, which are
      names separated by ","*) and said "an anonymous one takes what it is given". ADR 0051 had made
      a λ carry its claims and a definition the name bound to one; j.md's grammar gives `fn` the
      whole header, and its status table listed it as not built. The refusal was jswitch5b's
      stopgap of 2026-10-16, against a reader that read `fn(m ∈ 0..9)` as five parameters. Found by
-     hamza reading §1.4. **Built** (ADR 0158, lamclaim-2026-11-23, hamza 2026-11-23: "record it and
+     hamza reading §2.4. **Built** (ADR 0158, lamclaim-2026-11-23, hamza 2026-11-23: "record it and
      build it now"): a claimed λ is lifted to a definition of its own, its domain an obligation at
-     each application, its result decided for every argument; §1.4 shows it working, §6.12 its
+     each application, its result decided for every argument; §2.4 shows it working, §7.12 its
      claims, and §14's `inout` section the refusal of one writing a cell.
-122. **A binder of `+` captures addition, and the book calls it legal.** Chapter 1 §1.6 showed
+122. **A binder of `+` captures addition, and the book calls it legal.** Chapter 2 §2.6 showed
      `fn(`+`) { 1 + 2 }`, "legal, and never what you meant". `` `+` `` is the name `+` (J's quoted
      name), the one `1 + 2` is written with, and a binder of it captured the construct:
      `fn(`if`) { if c { 1 } else { 2 } }(fn(x, a, b) { 7 })` compiled on Go to `return 7` whatever
      `c` was, the wrong answer defects-2026-10-26 refused for a module's `if`, reached through a
-     binder. Found by hamza reading §1.6. **Fixed** (ADR 0159, nobinder-2026-11-23, hamza
+     binder. Found by hamza reading §2.6. **Fixed** (ADR 0159, nobinder-2026-11-23, hamza
      2026-11-23: "yes, build it now"): a symbol of Σ_L is an operation of the abstract syntax, not
-     a variable, so no binder binds one, bv(t) ∩ Σ_L = ∅; §1.6 shows the refusal, then a parameter
+     a variable, so no binder binds one, bv(t) ∩ Σ_L = ∅; §2.6 shows the refusal, then a parameter
      of its own name.
 
-A chapter is also allowed to teach something that is not about this language. Chapter 2's last
+A chapter is also allowed to teach something that is not about this language. Chapter 3's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter
-3's is ML functors, because it turns out we already have them and did not notice; chapter 4's is
-Boole's algebra and partial evaluation; chapter 5's is referential transparency, thunks, and
+4's is ML functors, because it turns out we already have them and did not notice; chapter 5's is
+Boole's algebra and partial evaluation; chapter 6's is referential transparency, thunks, and
 substructural logic, because the effect rule derived from three concrete hazards turns out to be
-Lambek's ordered fragment, named in 1958; chapter 7's is positional notation, the adder's identity
+Lambek's ordered fragment, named in 1958; chapter 8's is positional notation, the adder's identity
 and Gauss's congruences, because "the machine may wrap early" is the statement that a remainder
-is a ring homomorphism; chapter 8's is which fractions terminate in a base, fixed point against
+is a ring homomorphism; chapter 9's is which fractions terminate in a base, fixed point against
 floating point, the bias of rounding a half upward, and what IEEE 754's arithmetic is once it is
-written out: a rounding after every operation; chapter 9's is ASCII's layout, Unicode's scalar
+written out: a rounding after every operation; chapter 10's is ASCII's layout, Unicode's scalar
 values and the surrogates' hole, UTF-8 and UTF-16, the free monoid, and a homomorphism as the
-shape of a property that is proven piece by piece (`nulfree`, beside chapter 7's remainder);
-chapter 10's is state machines, Hoare's null, case-of-case as one law shared with a tuple's
-pattern, and counting values, which is why the two are called products and sums; chapter 12's is
+shape of a property that is proven piece by piece (`nulfree`, beside chapter 8's remainder);
+chapter 11's is state machines, Hoare's null, case-of-case as one law shared with a tuple's
+pattern, and counting values, which is why the two are called products and sums; chapter 13's is
 Euclid's algorithm with his termination proof, Steele's tail call, a measure as the one argument
 that a loop ends, the halting problem as the reason termination is counted and not required, and
-Collatz as the loop nobody can prove; chapter 13's is zero-based and half-open ranges, Heartbleed
+Collatz as the loop nobody can prove; chapter 14's is zero-based and half-open ranges, Heartbleed
 as an unchecked index, fusion as β on a table given by a rule, binary search with its invariant,
 and positions in place of pointers (struct of arrays, a list by `next`, a grid by `r·w + c`);
-chapter 14's is `=` against `:=`, static single assignment, aliasing as the bug the one-name rule
-removes, gather against scatter, insertion sort, and Eratosthenes' sieve; chapter 15's is the
+chapter 15's is `=` against `:=`, static single assignment, aliasing as the bug the one-name rule
+removes, gather against scatter, insertion sort, and Eratosthenes' sieve; chapter 16's is the
 three older answers to failure (a sentinel, a flag, an exception) and Ariane 501, the exception
-monad said as "the first stop wins", relevance as chapter 5's no-dropping rule on a value, and
-Erlang's let-it-crash as the case for `expect`; chapter 16's is testing, typing and proving as
+monad said as "the first stop wins", relevance as chapter 6's no-dropping rule on a value, and
+Erlang's let-it-crash as the case for `expect`; chapter 17's is testing, typing and proving as
 three kinds of knowledge, Fourier–Motzkin elimination by adding inequalities, invariants, and
 sound against complete with Presburger, Matiyasevich and Rice as the reason for the wall;
-chapter 17's is the foreign function interface, the trusted base (with TypeScript's declaration
+chapter 18's is the foreign function interface, the trusted base (with TypeScript's declaration
 files as the same idea), and one virtual machine against being native to each host.
 
-Chapter 5 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
+Chapter 6 also uses [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) —
 `targets/tutorial.oro` with the word `pure` deleted from one primitive — so the cost of a
 forgotten purity marker can be shown rather than asserted.

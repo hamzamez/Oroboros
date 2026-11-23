@@ -1,7 +1,7 @@
-# 4. Choice
+# 5. Choice
 
-Three bricks so far: a [function](01-fn.md), a [name](02-def.md) for one, and a
-[place](03-modules.md) for the name. With those a program can only ever do one thing: the same
+Three bricks so far: a [function](02-fn.md), a [name](03-def.md) for one, and a
+[place](04-modules.md) for the name. With those a program can only ever do one thing: the same
 steps, whatever it is given. `fn(n) { h(n, n) }` does to 7 what it does to 8.
 
 This chapter is the fourth brick: **doing one thing or another.** It is the smallest piece of data
@@ -17,12 +17,12 @@ The examples are in [code/choice/](code/choice/). Those about the *shape* of a c
 `tutorial` target, as before, with `f`, `g`, `h` and `shout` standing for things we know nothing
 about. Those that compare real integers are compiled for Go, and their headers say which integers
 they take: `score ∈ 0..100` reads *score is one of 0 to 100*, and `p ∈ Bool` reads *p is true or
-false*. Chapter 6 is about that notation; here it is only a label.
-`go run docs/book/check.go docs/book/04-choice.md` re-runs every block. Checked 2026-11-15.
+false*. Chapter 7 is about that notation; here it is only a label.
+`go run docs/book/check.go docs/book/05-choice.md` re-runs every block. Checked 2026-11-15.
 
 ---
 
-## 4.1 Two values
+## 5.1 Two values
 
 <!-- file docs/book/code/choice/values.oro -->
 ```go
@@ -52,11 +52,11 @@ the two is called `Bool`, after George Boole. They are literals, as `7` is.
 
 Where do they come from? Mostly from **comparisons**. `3 < 4` is not a statement that something
 is so; it is an expression, with a value, and the value is `true`. The compiler worked two of
-them out, since both sides were literals (§1.3), and left the third for run time.
+them out, since both sides were literals (§2.3), and left the third for run time.
 
 The comparisons on integers are `<`, `<=`, `>`, `>=`, `==` and `!=`.
 
-## 4.2 `if` chooses
+## 5.2 `if` chooses
 
 <!-- file docs/book/code/choice/if.oro -->
 ```go
@@ -134,7 +134,7 @@ fn(c) { h(if c { 1 } else { 2 }, 3) }
 ```
 
 - The condition needs no parentheses, and may have them.
-- A branch is a block (§1.12): it may bind names, and its value is its last expression.
+- A branch is a block (§2.12): it may bind names, and its value is its last expression.
 - The braces are not optional, and there is no `c ? a : b`. `if` already is that:
 
 <!-- oro tutorial docs/book/code/choice/no-braces.oro.txt -->
@@ -150,14 +150,14 @@ oro: docs/book/code/choice/no-ternary.oro.txt: line 1: "?" starts no token
 > **Statements and expressions.** Fortran's `IF` (1957) and C's `if` are *statements*: they do
 > something, and have no value, which is why C needed a second conditional, `?:`, for use inside
 > an expression. McCarthy's conditional *expression* (1960, for Lisp) has a value, so one form
-> does both jobs. This language has no statements of that kind at all (§1.12), so its `if` is
+> does both jobs. This language has no statements of that kind at all (§2.12), so its `if` is
 > McCarthy's.
 
 Because the braces are always there, one famous ambiguity cannot be written. In C,
 `if (a) if (b) x(); else y();` leaves a reader to wonder which `if` the `else` belongs to, the
 *dangling else*. Here each `else` follows the closing brace of its own `if`.
 
-## 4.3 Only a `Bool` chooses
+## 5.3 Only a `Bool` chooses
 
 In C, `if (n)` means *if n is not zero*. In Python and JavaScript an empty string, an empty list
 and zero are all "falsy". Here a condition is a `Bool`, and nothing else is one:
@@ -193,10 +193,10 @@ export fn run(c ∈ Bool) { if c { 1 } else { "two" } }
 gen: run: the branches of a conditional are Int and String
 ```
 
-## 4.4 `if` is not a function
+## 5.4 `if` is not a function
 
-Chapter 2 built booleans out of functions: `yes(t, e)` gave back `t`, `no(t, e)` gave back `e`
-(§2.10). So why is `if` part of the language? Could it not be a function of three arguments?
+Chapter 3 built booleans out of functions: `yes(t, e)` gave back `t`, `no(t, e)` gave back `e`
+(§3.10). So why is `if` part of the language? Could it not be a function of three arguments?
 
 <!-- file docs/book/code/choice/lazy.oro -->
 ```go
@@ -220,7 +220,7 @@ fn(c) { if c { f(1) } else { g(2) } }
 ```
 
 `with_if` shouts once, `1` or `2`. `with_a_function` shouts **twice**, and then chooses between
-the two answers. That is §1.11's rule: `shout(1)` and `shout(2)` were written as arguments, and an
+the two answers. That is §2.11's rule: `shout(1)` and `shout(2)` were written as arguments, and an
 argument with an effect is evaluated exactly once, where it was written.
 
 > **An `if` evaluates only the branch it takes. A function evaluates all of its arguments.**
@@ -233,7 +233,7 @@ is nearly all of them) needs its conditional to be special for this reason.
 When the arguments have no effects, as in `pure_arguments`, the difference cannot be observed,
 and the compiler moved each into its branch: neither is computed unless it is chosen.
 
-## 4.5 And, or, not
+## 5.5 And, or, not
 
 Three operators combine `Bool`s, and each is an `if`:
 
@@ -267,7 +267,7 @@ fn(p, q) { p && (q || !p) }
 ```
 
 (The names `and`, `or` and `not` are the language's own, so the functions are called something
-else, §2.4.)
+else, §3.4.)
 
 Since each is an `if`, and an `if` on a known condition reduces, the compiler can fill in the
 **truth tables** itself:
@@ -415,7 +415,7 @@ fn(p, q) { !(p && q) }
 The printer writes parentheses only where they are needed, so `and_first` came back without any:
 `p || q && r` *is* `p || (q && r)`.
 
-## 4.6 The right side waits
+## 5.6 The right side waits
 
 `p && q` is `if p { q } else { false }`, and an `if` evaluates only the branch it takes. So:
 
@@ -452,10 +452,10 @@ fn(c) { q = shout(1) < 2; c && q }
 the left is false.** This is *short-circuit evaluation*, and it follows from the definition; it
 is not an extra rule.
 
-- In `never_reached` the `shout` is gone. That does not break §1.11's promise that an effect is
+- In `never_reached` the `shout` is gone. That does not break §2.11's promise that an effect is
   never dropped. There the effect was an *argument*, which is evaluated. Here it is a *branch*
   that is not taken, which is not.
-- `a_function_is_eager` is §4.4 again: pass the same thing to a function, and it is evaluated
+- `a_function_is_eager` is §5.4 again: pass the same thing to a function, and it is evaluated
   first, whatever `c` is.
 
 Short-circuiting is not only about effects. It is how one test protects the next, and the
@@ -491,9 +491,9 @@ gen: choice-unsafe: `/` requires b != 0, which does not follow
 `&&` is commutative in Boole's algebra: `p && q` and `q && p` have the same table. In a program
 they are not the same, because the left side is a *fact* the right side may rely on. **Inside
 `if c { … }`, and to the right of `c &&`, the compiler knows `c`.** That one idea is most of how
-chapter 0's proofs worked, and it starts here.
+chapter 1's proofs worked, and it starts here.
 
-## 4.7 Equality is for integers
+## 5.7 Equality is for integers
 
 <!-- file docs/book/code/choice/no-equal.oro -->
 ```go
@@ -547,7 +547,7 @@ gen: between: in argument 1 of `<`: `<` is Bool, but Int is required here
 
 Write `a < b && b < c`. (C accepts the chain, and compares 0 or 1 with `c`.)
 
-## 4.8 More than two ways
+## 5.8 More than two ways
 
 A choice among several things is a choice inside a choice:
 
@@ -702,9 +702,9 @@ fn(n) { case { n < 0 -> -1; 0 < n -> 1; else -> 0 } }
 ```
 
 A `case` can do one more thing, take a value apart by what it *is* and not by a test on it. That
-needs a kind of data this book has not introduced, and is chapter 10.
+needs a kind of data this book has not introduced, and is chapter 11.
 
-## 4.9 An `if` with no `else`
+## 5.9 An `if` with no `else`
 
 <!-- file docs/book/code/choice/one-arm.oro -->
 ```go
@@ -721,7 +721,7 @@ then_more =
 fn(c) { #_ = if c { shout(1) } else { () }; 7 }
 ```
 
-An `if` with one branch is an `if` whose other branch is `()`, nothing (§1.4). It is for doing
+An `if` with one branch is an `if` whose other branch is `()`, nothing (§2.4). It is for doing
 something or not, where the something is done for its effect and nobody wants a value: here, to
 shout or stay quiet. `then_more` is how it is used: on a line of its own, followed by what comes
 next.
@@ -743,7 +743,7 @@ C would return whatever was lying in a register, and Go refuses with *missing re
 here is the same as Go's, said as a fact about values: the function claims an `Int`, and on one
 path it has nothing to give.
 
-## 4.10 A choice moves to where it is needed
+## 5.10 A choice moves to where it is needed
 
 Reduction rearranges choices, and each rearrangement is a small theorem about `if`.
 
@@ -776,20 +776,20 @@ fn(c) { if c { if c { f(1) } else { g(1) } } else { g(2) } }
 
 - **Applying a choice is choosing between applications.** `(if c { f } else { g })(7)` became
   `if c { f(7) } else { g(7) }`. The application moved *into* the branches, where each one meets
-  a function it knows. This is why §1.10 could say no function is ever a run-time value, even
+  a function it knows. This is why §2.10 could say no function is ever a run-time value, even
   when which function is called is decided at run time.
 - A choice whose condition is a choice is one choice on both conditions.
-- A choice bound to a name follows §1.11: used once, it goes where it is used; used twice, it is
+- A choice bound to a name follows §2.11: used once, it goes where it is used; used twice, it is
   made once.
 - `same_test_twice` tests `c` again inside a branch where `c` is already known to be true, and
   the inner test stayed. The reducer computes; it does not carry facts from a condition into its
-  branches. The analysis that proves things does (§4.6), and a host's compiler will remove the
+  branches. The analysis that proves things does (§5.6), and a host's compiler will remove the
   second test, but it is still better not to write it.
 
-## 4.11 A choice made at compile time
+## 5.11 A choice made at compile time
 
-Put the pieces together: definitions unfold (chapter 2), arithmetic on literals is worked out
-(§1.3), and a choice on a known condition keeps one branch (§4.2).
+Put the pieces together: definitions unfold (chapter 3), arithmetic on literals is worked out
+(§2.3), and a choice on a known condition keeps one branch (§5.2).
 
 <!-- file docs/book/code/choice/clamp.oro -->
 ```go
@@ -852,7 +852,7 @@ func ChoiceLeap(v0 int) bool {
 Every piece of this chapter is in that output. The `&&` is an `if`, with `false` for its other
 branch. The right side waits: a year not divisible by 4 never has its remainder by 100 taken.
 The `||` is Go's own, which short-circuits too. And `y % 4` became `y & 3`, because for a year
-that cannot be negative they are the same, and the second is cheaper; chapter 7 is about why.
+that cannot be negative they are the same, and the second is cheaper; chapter 8 is about why.
 
 ---
 
@@ -872,6 +872,6 @@ that cannot be negative they are the same, and the second is cheaper; chapter 7 
   nothing.
 - **An `if` is not a function**: a function evaluates all its arguments before it can choose.
 
-Next: [effects](05-effects.md), what it means for an expression to *do* something, and why that
+Next: [effects](06-effects.md), what it means for an expression to *do* something, and why that
 is the one thing reduction may not move. That chapter is still in the notation this surface
 replaced, and is the next to be rewritten.

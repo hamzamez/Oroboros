@@ -1,0 +1,3 @@
+fn scale(k) { fn(v) { v * k } }
+
+export fn make(k ∈ 0..10) { scale(k) }

@@ -1,6 +1,6 @@
-# 11. Records
+# 12. Records
 
-Chapter 10 put several values side by side in a tuple, `(3, 4)`, and took them apart by position:
+Chapter 11 put several values side by side in a tuple, `(3, 4)`, and took them apart by position:
 `(w, h) = size`. That works while there are two parts and everyone remembers which is which. It
 stops working the day a size grows a third part, or a function takes a size and a position that
 are both `(Int, Int)`, and someone swaps them. Nothing in `(3, 4)` says which number is the width.
@@ -22,12 +22,12 @@ Along the way: the four laws that every "update one field" operation in every la
 breaks, why a record has no `==`, what a "zero" value is and why `Bool` has none, and why two
 record sets written in different orders are the same set.
 
-The examples are in [code/records/](code/records/). `go run docs/book/check.go docs/book/11-records.md`
+The examples are in [code/records/](code/records/). `go run docs/book/check.go docs/book/12-records.md`
 re-runs every block. Checked 2026-11-20.
 
 ---
 
-## 11.1 A tuple with names
+## 12.1 A tuple with names
 
 A point on a grid has an `x` and a `y`:
 
@@ -62,7 +62,7 @@ export fn main() {
 Three new things, all in the first lines.
 
 **`record { x ∈ Int, y ∈ Int }` is a set**: every value with an `x` in `Int` and a `y` in `Int`.
-`set Point = …` gives it a name, as `set` has given names to variants since chapter 10.
+`set Point = …` gives it a name, as `set` has given names to variants since chapter 11.
 
 **`record { x : 2, y : 3 }` is a value**: an `x` that is 2 and a `y` that is 3. The difference
 from the set is one character after each label: `∈` says "is a member of", as everywhere in this
@@ -70,11 +70,11 @@ language, and `:` says "is".
 
 **`p.x` reads a part.** The distance walks 3 across and 4 up: 7.
 
-`shop` was written `y` first. That made no difference to anything, and §11.4 says why.
+`shop` was written `y` first. That made no difference to anything, and §12.4 says why.
 
 ---
 
-## 11.2 What a record is
+## 12.2 What a record is
 
 A tuple `(2, 3)` is a function from positions to values: position 0 gives 2, position 1 gives 3.
 A record is the same thing with names for positions: a **function from labels to values**. The
@@ -104,7 +104,7 @@ exactly the pairs (x, 2) and (y, 3).
 
 ---
 
-## 11.3 Each label once, every label given
+## 12.3 Each label once, every label given
 
 **A function has one value at each point**, so a label may not appear twice:
 
@@ -140,7 +140,7 @@ export fn main() {
 build: a value of record { x ∈ Int, y ∈ Int } gives no y (data.md §4.2, X2): a record is total on its labels; a default is `zero(T) with { … }`
 ```
 
-`p ∈ Point = …` is chapter 6's claim on a binding, used on a record. Without the claim,
+`p ∈ Point = …` is chapter 7's claim on a binding, used on a record. Without the claim,
 `record { x : 2 }` would be a perfectly good record: a record of one label, in the set
 `record { x ∈ Int }`. It is the claim that says which labels there must be.
 
@@ -210,7 +210,7 @@ when each part is in its own set. A claim on a record is a claim on each part.
 
 ---
 
-## 11.4 The order is not part of it
+## 12.4 The order is not part of it
 
 A function has no order on its domain: "x gives 2 and y gives 3" is the same function as "y gives
 3 and x gives 2". So two record sets with the same labels and the same sets at each label are
@@ -247,7 +247,7 @@ programmers who each write `record { width ∈ Int, height ∈ Int }` have writt
 neither has to import the other's.
 
 That is called *structural* typing, and its opposite, *nominal* typing, is what C, Go and Java
-do: there, two `struct`s with the same fields and different names are different types. §11.11
+do: there, two `struct`s with the same fields and different names are different types. §12.11
 says what each costs.
 
 A function that never names a set for its argument asks for exactly what it reads:
@@ -271,12 +271,12 @@ export fn main() {
 ```
 
 The second record has a `colour`, which `area` never reads. Nothing asked for it, so nothing
-minds it. (Chapter 2 said why this costs nothing: `area` is unfolded at each call, and each copy
+minds it. (Chapter 3 said why this costs nothing: `area` is unfolded at each call, and each copy
 reads the record it was given.)
 
 ---
 
-## 11.5 A changed copy: `with`
+## 12.5 A changed copy: `with`
 
 A record, like every value in this book, never changes. To get a point one step up, you make a new
 point that is the old one except at `y`:
@@ -351,7 +351,7 @@ not, `corner.x` and `corner.y` are.
 
 ---
 
-## 11.6 Four laws
+## 12.6 Four laws
 
 Every language with records has some way to "update one field", and every one of them either obeys
 four laws or has a bug. They are named after what they compose: *get* is reading a part, *put* is
@@ -399,7 +399,7 @@ put that obey them a *very well-behaved lens* (Foster et al., 2007), and the nam
 
 ---
 
-## 11.7 The zero
+## 12.7 The zero
 
 Often you want a record that is "nothing yet" and then set a few parts. `zero(T)` is the record of
 `T` whose every part is its set's zero:
@@ -491,7 +491,7 @@ when nobody looked. Say which you mean: `zero(Lamp)` is refused, and
 
 ---
 
-## 11.8 Records with tuples, tuples with records
+## 12.8 Records with tuples, tuples with records
 
 A record goes wherever a tuple goes, and holds what a tuple holds. A record with tuple parts:
 
@@ -520,7 +520,7 @@ export fn main() {
 diagonal
 ```
 
-`Int × Int` is the set of pairs, chapter 10's product. `l.from` is a pair, and chapter 10's pattern
+`Int × Int` is the set of pairs, chapter 11's product. `l.from` is a pair, and chapter 11's pattern
 takes it apart.
 
 And a function that returns two records returns a tuple of them:
@@ -559,7 +559,7 @@ corner the larger.
 
 ---
 
-## 11.9 Where did the record go?
+## 12.9 Where did the record go?
 
 Here is what a host receives for two functions over points:
 
@@ -600,17 +600,17 @@ for `y`, and a `Point` result became two results on Go. The labels decided which
 part takes (alphabetical order, so the same on every host, whatever order the program wrote), and
 then the labels were no longer needed.
 
-This is chapter 10's tuple story again. A tuple did not exist at run time either. A record is a
+This is chapter 11's tuple story again. A tuple did not exist at run time either. A record is a
 tuple with names, and the names are for the program, not for the machine. `mirror` builds no
 object and reads no field: it returns its two arguments the other way round, which is what
 mirroring a point is.
 
 (Where a record *is* stored, in a table of records or in a map, it is laid out as its parts side
-by side. Chapters 13 and 14 show it.)
+by side. Chapters 14 and 15 show it.)
 
 ---
 
-## 11.10 What a record cannot do
+## 12.10 What a record cannot do
 
 **A record has no `==`:**
 
@@ -629,14 +629,14 @@ export fn main() {
 build: main: in argument 1 of io.print_line: in a condition: in argument 1 of `==`: (1, 2) is a tuple or a record, several values, and `==` is the language's integer equality only: compare the parts, a.x == b.x && a.y == b.y
 ```
 
-Chapter 4 said why `==` is only for integers: it is the one equality every target agrees on. A
+Chapter 5 said why `==` is only for integers: it is the one equality every target agrees on. A
 record of integers could have one, comparing part by part. But a record of `F64`s could not
 (`NaN` is not equal to itself), nor a record holding a string. And an equality that works for
 some records and not others, depending on what is inside, is a rule you would have to look up.
 So: compare the parts you mean.
 
 The refusal says `(1, 2)`: by the time `==` is checked, the record has already become its parts,
-as §11.9 showed.
+as §12.9 showed.
 
 **Two branches must give records of the same labels:**
 
@@ -652,7 +652,7 @@ gen: the projection x reads a term whose record labels are not known where it is
 ```
 
 Which labels does `pick(c)` have? It depends on `c`, which is known only when the program runs, and
-a record's labels are known before. If `c` were a constant, chapter 4's rule would keep one branch
+a record's labels are known before. If `c` were a constant, chapter 5's rule would keep one branch
 and the question would go away.
 
 **A record cannot contain itself:**
@@ -669,8 +669,8 @@ export fn main() { io.print_int(1) }
 gen: docs/book/code/records/no-self.oro.txt: line 2: set Node mentions Node itself, so the set contains itself. That is a recursive type, which is refused; recursive data is a flat table plus indices (type-algebra.md §3.1)
 ```
 
-Chapter 10 refused a variant that contains itself, for the same reason: a `Node` would be infinitely
-large. A linked list, a tree, a graph: chapter 13 builds each from a table and positions in it.
+Chapter 11 refused a variant that contains itself, for the same reason: a `Node` would be infinitely
+large. A linked list, a tree, a graph: chapter 14 builds each from a table and positions in it.
 
 **A variant cannot carry a record, yet:**
 
@@ -701,17 +701,17 @@ export fn main() {
 gen: docs/book/code/records/no-payload.oro.txt: set Shape: 'rect(record { height ∈ Int, width ∈ Int }) carries a record, and a variant's value is its tag and one slot per payload type (ADR 0042): a payload of several parts is not built. Carry one value, as 'rect(Int), and keep the parts where the value can name them
 ```
 
-Chapter 10 showed why: at the program's edge a variant is its tag and one slot for each payload
+Chapter 11 showed why: at the program's edge a variant is its tag and one slot for each payload
 set, and a record of two parts would need its slots worked out, which nothing does yet. A tuple
-payload, `'rect(Int × Int)`, is refused the same way. Chapter 13 carries a rectangle's number and
+payload, `'rect(Int × Int)`, is refused the same way. Chapter 14 carries a rectangle's number and
 keeps its width and height in tables.
 
 **Labels are names, never values.** There is no `p[l]` with `l` computed: a label decided while
-the program runs would be a dictionary, and chapter 14's maps are that.
+the program runs would be a dictionary, and chapter 15's maps are that.
 
 ---
 
-## 11.11 What other languages do
+## 12.11 What other languages do
 
 | | a record is | a field the type lacks | update | two types, same fields |
 |---|---|---|---|---|
@@ -731,14 +731,14 @@ the same operation, written as the mathematics writes it.
 **Nominal or structural.** C, Go, Java, OCaml and F# make two record types with the same fields
 different, by name. That catches a `Celsius` passed where a `Fahrenheit` was meant, if you wrote
 both as types. TypeScript, Elm and this language make them the same, which means a program never
-converts between two identical definitions, and a function asks only for what it reads (§11.4).
-The `Celsius` mistake is caught here another way: by a claim on the range, chapter 6, or by keeping
+converts between two identical definitions, and a function asks only for what it reads (§12.4).
+The `Celsius` mistake is caught here another way: by a claim on the range, chapter 7, or by keeping
 different quantities in different labels.
 
 **In place, or a copy.** C and Go update a field in place. That is fast, and it is also how one part
 of a program changes a value another part is still looking at. Here `with` always means a new
-value, and the compiler is the one who decides, by the laws of §11.6, when nothing needs copying.
-Chapter 14 shows a record that *is* changed in place, in a `var`, where the language can see
+value, and the compiler is the one who decides, by the laws of §12.6, when nothing needs copying.
+Chapter 15 shows a record that *is* changed in place, in a `var`, where the language can see
 nobody else is looking.
 
 ---
@@ -761,4 +761,4 @@ nobody else is looking.
 - **No `==` on records**, no records whose labels depend on a run-time choice, no record that
   contains itself, and no record carried by a variant yet.
 
-Next: [chapter 12](12-loop.md), `loop`. Doing something more than once, and knowing that it stops.
+Next: [chapter 13](13-loop.md), `loop`. Doing something more than once, and knowing that it stops.

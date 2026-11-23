@@ -1,4 +1,4 @@
-# 15. Failures
+# 16. Failures
 
 Every function so far has done what it was asked. Give `half` an even number and it halves
 it. But ask for half of 7, or for the contents of a file that is not there, or for the
@@ -26,14 +26,14 @@ unheard error, why "it cannot fail" should be written down as a sentence in the 
 what a file system can say besides yes.
 
 The examples are in [code/fail/](code/fail/). `go run docs/book/check.go
-docs/book/15-failures.md` re-runs every block. Checked 2026-11-16.
+docs/book/16-failures.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 15.1 Three answers that do not work
+## 16.1 Three answers that do not work
 
 **Return a special number.** C's `getchar` returns −1 at the end of input; `indexOf` returns
-−1 for "not found". Chapter 10 met this: the special number is also an ordinary number, and
+−1 for "not found". Chapter 11 met this: the special number is also an ordinary number, and
 sooner or later someone uses it as one. A price of −1. A position of −1, used as an index.
 
 **Return nothing special and set a flag somewhere.** C's library does this too: the function
@@ -60,9 +60,9 @@ find out by reading the manual, or by an outage.
 
 ---
 
-## 15.2 A failure is a value
+## 16.2 A failure is a value
 
-Chapter 10 already has the right tool. "An answer, or a reason there is none" is a variant
+Chapter 11 already has the right tool. "An answer, or a reason there is none" is a variant
 with two cases.
 
 <!-- file docs/book/code/fail/half.oro -->
@@ -98,24 +98,24 @@ a variant with two cases and two parameters: **`'ok(T)`** carries an answer of k
 **`'err(E)`** carries a description of the failure, of kind `E`. (The two words after the
 cases, `success` and `relevant`, are what this chapter is about. They come in 15.3 and 15.5.)
 Since it lives in another module, its tags are written `result.'ok` and `result.'err`
-(chapter 10).
+(chapter 11).
 
 `half` answers `result.'ok(n / 2)` for an even number and `result.'err(n)` for an odd one,
 handing back the number it could not halve. `show` takes a result apart with `case` and
 prints the answer, or the offending number with a minus sign. Half of 0 is 0, a perfectly
 good answer that nobody will mistake for a failure.
 
-Everything chapter 10 said applies. The only way to the answer is a `case` that has an arm
+Everything chapter 11 said applies. The only way to the answer is a `case` that has an arm
 for `'err`. A caller cannot forget that `half` may fail, because there is no `half(n) + 1`:
 a result is not a number.
 
-Compare `Maybe` from chapter 10. `'nothing` says *that* there is no answer. `'err(e)` says
+Compare `Maybe` from chapter 11. `'nothing` says *that* there is no answer. `'err(e)` says
 *why*. When there is only one possible reason, use the first. When the caller might want to
 know which of several things went wrong, use the second.
 
 ---
 
-## 15.3 Passing a failure on: `try`
+## 16.3 Passing a failure on: `try`
 
 One step that can fail is easy. Real work is several in a row, each needing the one before:
 open the file, *then* read it, *then* parse what was read. If any step fails, the whole
@@ -291,17 +291,17 @@ func FailQuarter(v0 int) (int, int, int) {
 ```
 
 Two tests of "is it even?", which the problem requires, and nothing else. No result was
-built by the first `half` and inspected by the `try`: chapter 10's law (a `case` applied to
+built by the first `half` and inspected by the `try`: chapter 11's law (a `case` applied to
 a choice is a choice between `case`s) dissolved it. Each failure is a plain early `return`.
 This is what you would write by hand in Go, and what an exception costs a great deal more
 than.
 
-The result exists only at the export's edge, as chapter 10's tag and slots: 0 or 1 for
+The result exists only at the export's edge, as chapter 11's tag and slots: 0 or 1 for
 `'ok` or `'err`, a slot for the answer, a slot for the reason.
 
 ---
 
-## 15.4 A step that needs an earlier answer
+## 16.4 A step that needs an earlier answer
 
 In `eighth` each step used the answer of the one just before. Often a later step needs
 answers from *two* earlier ones: half of `a` plus half of `b`. Put one `try` inside the
@@ -399,7 +399,7 @@ fail, and the reader should be able to see the whole sequence at a glance.
 
 ---
 
-## 15.5 A result must be used
+## 16.5 A result must be used
 
 Failure-as-a-value has one weakness that exceptions do not: a value can be thrown away. Call
 a function that can fail, ignore what it returns, and you have C's `errno` again. This is
@@ -515,13 +515,13 @@ func FailQuiet(v0 int, v1 bool) int {
 the code: *I know this can fail, and here it does not matter.* `or_zero` shows the other
 kind of "handling": a `case` that turns a failure into an ordinary value, on purpose.
 
-Chapter 5 had three things reduction may not do to an effect: drop it, copy it, move it.
+Chapter 6 had three things reduction may not do to an effect: drop it, copy it, move it.
 `relevant` is the first of those rules applied to a *value*. The logic of things that may
 not be dropped has a name, relevance logic, and that is where the word is from.
 
 ---
 
-## 15.6 Giving up on purpose: `expect`
+## 16.6 Giving up on purpose: `expect`
 
 Some failures are part of the job. The user typed a file name that does not exist: tell them
 and carry on. Others mean the program itself is wrong. The configuration this program wrote
@@ -619,7 +619,7 @@ values it knows are wrong, is how small faults become large ones.
 
 ---
 
-## 15.7 Failure in a loop
+## 16.7 Failure in a loop
 
 A `try` may be the last thing in a loop's arm, with `again` inside its block. If the step
 succeeds the loop goes round. If it fails, the failure is the loop's answer, and the loop is
@@ -665,13 +665,13 @@ Half of each of 2, 4 and 6, added up: 6. In the second table the 5 stops everyth
 6 after it is never looked at. That is "do this to every item, and stop at the first one
 that cannot be done", which is what processing a file line by line is.
 
-Chapter 12 said `again` may stand only at the end of an arm. The block of a `try` counts,
+Chapter 13 said `again` may stand only at the end of an arm. The block of a `try` counts,
 because it runs once, at once, and nothing happens after it. So the loop's arms are still
 its complete list of ways round, and the `try` adds one way out.
 
 ---
 
-## 15.8 The world can say no
+## 16.8 The world can say no
 
 So far the failures were invented. Here is a real one. Reading a file can fail in ways no
 program can prevent, and the library function says so in what it returns:
@@ -710,7 +710,7 @@ export fn main() {
 -1
 ```
 
-**`os.ReadFile(path)`** gives a result: `'ok` carrying the file's bytes (chapter 13's
+**`os.ReadFile(path)`** gives a result: `'ok` carrying the file's bytes (chapter 14's
 `Array(0..255)`), or `'err` carrying the reason. `size` uses `try` to turn the bytes into
 their count and let any failure through. `hello.txt` holds the twelve bytes of `hello, file`
 and a line end. The other file does not exist.
@@ -721,7 +721,7 @@ The reason is itself a variant, declared in `os`:
 pub set OsError = 'not_found ∪ 'exists ∪ 'permission ∪ 'other(error)
 ```
 
-and `report`'s inner `case` must answer for all four (chapter 10). That is worth dwelling
+and `report`'s inner `case` must answer for all four (chapter 11). That is worth dwelling
 on. With exceptions, "what can this call throw?" is answered by documentation that may be
 out of date. Here it is answered by a set, and a `case` that forgets a member does not
 compile. The three named kinds are the ones a program can usually do something about. The
@@ -805,7 +805,7 @@ worked has nothing to report.)
 
 ---
 
-## 15.9 Failures of your own
+## 16.9 Failures of your own
 
 `Result` is a library declaration, not a built-in. Any variant can say which case is its
 success and that it must not be dropped:
@@ -903,7 +903,7 @@ problem needed.
 
 ---
 
-## 15.10 What other languages do
+## 16.10 What other languages do
 
 | | a failure is | passing it on | can it be silently dropped? | giving up |
 |---|---|---|---|---|
@@ -956,4 +956,4 @@ passes it on with one word.
 - **It costs nothing inside a program**: the variants dissolve and the early exits are plain
   returns.
 
-Next: [chapter 16](16-claims.md), Claims. How the compiler proves what a header says.
+Next: [chapter 17](17-claims.md), Claims. How the compiler proves what a header says.

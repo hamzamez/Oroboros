@@ -1,4 +1,4 @@
-# 0. A tour
+# 1. A tour
 
 This chapter is the whole language at walking pace, for someone who already programs in Go, Python,
 JavaScript, Java, C or Rust. Most of what you will see looks like what you know: braces, `fn`,
@@ -12,15 +12,15 @@ what the compiler made of it.
 
 **Everything printed below is real.** Each source is a file in [code/tour/](code/tour/); each
 emitted function, each refusal and each program's output is what the compiler gave, and
-`go run docs/book/check.go docs/book/00-tour.md` re-runs all of it and compares. A line `…` stands
+`go run docs/book/check.go docs/book/01-tour.md` re-runs all of it and compares. A line `…` stands
 for lines left out. Checked 2026-11-21.
 
 Only what is **decided and built** is here. What is specified and not built is named once, in
-§0.14, so that nothing in between is a promise.
+§1.14, so that nothing in between is a promise.
 
 ---
 
-## 0.1 Hello
+## 1.1 Hello
 
 <!-- file docs/book/code/tour/hello.oro -->
 ```go
@@ -62,7 +62,7 @@ and there are no semicolons to forget.
 - **`export` marks what the host can call.** `export fn main()` is the program's entry.
 - **`++` joins strings**, and `+` is only ever arithmetic.
 
-## 0.2 One function, four hosts
+## 1.2 One function, four hosts
 
 <!-- file docs/book/code/tour/sum.oro -->
 ```go
@@ -156,19 +156,19 @@ Java's primitives, and on Windows LLVM IR that links against `kernel32` alone.
 
 - **`n ∈ 0..65536` is the parameter's type, and it is a set.** Java's signature shows it being
   used: the parameter is an `int` and the sum a `long`, chosen from what the ranges prove, not from
-  anything the source said about widths (§0.4).
+  anything the source said about widths (§1.4).
 - **The compiler printed a proof count.** *2 of 2 integer operations bounded* means both additions
   were proven to stay inside every target's machine word, so each is one machine instruction and
   nothing is checked at run time. LLVM's `nuw nsw` flags are that proof, handed to the optimizer
-  (§0.5).
+  (§1.5).
 - **There is no `for`.** `loop` with `again` is the only iteration, and it was *proven
-  terminating* (§0.7).
+  terminating* (§1.7).
 
 The targets are Go, Windows, Android and the browser
 ([ADR 0039](../decisions/0039-the-targets-are-go-windows-android-and-the-browser.md)); Java is how
 Android is reached, and JavaScript the browser.
 
-## 0.3 A block's value is its last expression
+## 1.3 A block's value is its last expression
 
 <!-- file docs/book/code/tour/blocks.oro -->
 ```go
@@ -237,7 +237,7 @@ what they mean in C; arithmetic has the usual precedence.
 
 - **`x = e` is a definition**, as in mathematics: *let x be e*. There is no `let`, `const` or `val`
   keyword in front of it, and it is not an assignment. Writing to something is a different
-  statement with a different symbol, `:=` (§0.8).
+  statement with a different symbol, `:=` (§1.8).
 - **There is no `return`.** A block's value is its last expression, as in Rust or Ruby, and a
   function's value is its body's. Nothing leaves a function early. The `return`s above are Go's,
   which the compiler wrote.
@@ -256,7 +256,7 @@ Three spellings you will get wrong once each:
 | `x := e` | write e into the state `x`, declared with `var` |
 | `x == e` | are they equal? |
 
-## 0.4 A type is a set
+## 1.4 A type is a set
 
 `n ∈ 0..65536` is not notation for a type. It *is* the type: a set, and the statement that `n` is a
 member of it ([ADR 0049](../decisions/0049-types-are-sets-and-the-logic-never-prints.md)). You can
@@ -280,7 +280,7 @@ The sets you will write:
 | `Array(V)` | tables of V, indexed from 0 |
 | `Map(Int, V)` | finite maps from integers to V |
 | `A × B` | pairs |
-| `'a ∪ 'b(T)` | a variant: a tag, or a tag carrying a T (§0.9) |
+| `'a ∪ 'b(T)` | a variant: a tag, or a tag carrying a T (§1.9) |
 
 A header is three claims: each parameter's set, the result's set in its own parentheses, and
 optionally a `where` relating the parameters and an `ensure` about the result.
@@ -425,10 +425,10 @@ func TourMain() int {
 
 **Unlike** C's `assert` or Python's: **an `assert` never runs.** It is proven when the program is
 compiled, for every argument the header admits, or the program is refused; then it is erased. Here
-both calls had known arguments, so `main` is its two answers. Chapter 16 is the logic: what it
+both calls had known arguments, so `main` is its two answers. Chapter 17 is the logic: what it
 proves, how, and what it cannot.
 
-## 0.5 An integer is an integer
+## 1.5 An integer is an integer
 
 This is the largest difference from every host, and it is one sentence: **`Int` means ℤ, and an
 arithmetic operation computes the integer it means**
@@ -492,7 +492,7 @@ and returns a `*big.Int`, because nothing bounds its `n`.
 ### Where the word is written
 
 When you want a machine word, say so, as a set. A word is the integers from −2⁶³ to 2⁶³ − 1, and
-`-2^63..2^63-1` is that set (`^` is a power, written in a set's ends; xor is `⊕`, §0.12):
+`-2^63..2^63-1` is that set (`^` is a power, written in a set's ends; xor is `⊕`, §1.12):
 
 <!-- file docs/book/code/tour/no-word.oro -->
 ```go
@@ -506,7 +506,7 @@ gen: square64: the body does not establish -9223372036854775808 <= result && res
 
 The header claimed a result inside the word, and for most `n` the square is not. That is where an
 integer is refused: **where a value must be held in a set it is not proven to be in**, here a
-declared range, and later a table's element (§0.8) and a host's word (§0.13). Narrow the
+declared range, and later a table's element (§1.8) and a host's word (§1.13). Narrow the
 parameter, and the claim is true:
 
 <!-- file docs/book/code/tour/word.oro -->
@@ -577,7 +577,7 @@ this language:
 11790184577738583171520872861412518665678211592275841109096961
 ```
 
-`io.print_int` prints an integer of any size; `decimal(n)` is its text (§0.11).
+`io.print_int` prints an integer of any size; `decimal(n)` is its text (§1.11).
 
 ### Which targets
 
@@ -602,7 +602,7 @@ gen: tour-square: its parameter n ∈ Int is any integer, and an entry point of 
 ```
 
 The program itself runs on Windows, since `main` takes nothing; it is the exported `square` that
-no C caller could use. Chapter 18 says what a Windows export can take and give. A bounded range is no trouble anywhere, even one whose square is above every
+no C caller could use. Chapter 19 says what a Windows export can take and give. A bounded range is no trouble anywhere, even one whose square is above every
 word:
 
 <!-- file docs/book/code/tour/wide.oro -->
@@ -674,7 +674,7 @@ compares tenths, `1 + 2` with `3`, and `tax` multiplies by 825 ten-thousandths, 
 10000 and looks at twice the remainder to round. `F64` is a set like the others; a rounding onto
 it is a host's floating-point operation. `/` is integer division and needs integer operands.
 
-## 0.6 Functions vanish, unless the compiler keeps one
+## 1.6 Functions vanish, unless the compiler keeps one
 
 <!-- file docs/book/code/tour/twice.oro -->
 ```go
@@ -887,11 +887,11 @@ func TourMain() string {
 
 The λ became a Go function literal over `int32`, the set Go's declaration of `Map` gives its
 argument, and its body was proven under that set. Go holds nothing after `Map` returns, so nothing
-outlives the call. Chapter 17 is functions a host calls: what the host promises about the order
-and number of its calls, and what a λ may do under each promise. Chapter 18 is the one function
+outlives the call. Chapter 18 is functions a host calls: what the host promises about the order
+and number of its calls, and what a λ may do under each promise. Chapter 19 is the one function
 Windows keeps, a window procedure.
 
-## 0.7 One loop, and no recursion
+## 1.7 One loop, and no recursion
 
 **Like:** nothing, quite. Here is what you would write first:
 
@@ -907,7 +907,7 @@ export fn fact(n ∈ 0..20) (Int) {
 gen: docs/book/code/tour/no-fact.oro: fact is recursive: it is defined in terms of itself, and recursion is not in the language, since δ unfolds a definition and a cycle has no normal form (ADR 0014). Iteration is `loop` with `again` (ADR 0015).
 ```
 
-§0.6 is why: a definition is unfolded into its uses, and a definition that mentions itself has no
+§1.6 is why: a definition is unfolded into its uses, and a definition that mentions itself has no
 end to its unfolding. So **there is no recursion**, and **there is one iteration form**, which
 replaces `for`, `while`, `do`, `break` and `continue`:
 
@@ -1014,9 +1014,9 @@ again(i + 1)`. A loop's arms are where its decisions are written.
 
 And look at `fact`'s result, `Nat`, and 30! in the output: 33 digits, past every word. `gcd` is a
 loop over two `int`s and `fact` a loop whose counter is an `int` and whose product is a
-`*big.Int`, chosen as in §0.5, value by value.
+`*big.Int`, chosen as in §1.5, value by value.
 
-## 0.8 State, and tables
+## 1.8 State, and tables
 
 A definition never changes. When something must change, it is declared as state, with `var`, and
 written with `:=`:
@@ -1219,7 +1219,7 @@ nothing said. In practice most indexing is like that, and proves itself.
 
 ### A table holds words
 
-An element of a table is held in a machine word, so a value stored into one is the §0.5 case: it
+An element of a table is held in a machine word, so a value stored into one is the §1.5 case: it
 must be proven to fit. That is this compiler's limit, not what a table is: `Array(Int)` is a table
 of integers, and holding an element past the word, as a single integer is held, is not built yet
 (the book's finding 119). This is refused,
@@ -1331,7 +1331,7 @@ func TourKnown(v0 int) int {
 read `m[k]` cannot be assumed to find its key, so its value is `'some(v)` or `'none`, and you say
 what happens in each case. Go's own `v, ok := m[k]` is what it became.
 
-## 0.9 Variants and `case`
+## 1.9 Variants and `case`
 
 <!-- file docs/book/code/tour/shapes.oro -->
 ```go
@@ -1351,7 +1351,7 @@ pub fn area(s) {
 **Like:** Rust's `enum` with `match`, Swift's enums, TypeScript's tagged unions, a sealed class
 hierarchy. A value of `Shape` is one of three alternatives, and `case` takes it apart, binding the
 payload. (`sq` is a helper of the module's own, used twice; it has no `pub`, which matters in
-§0.13.)
+§1.13.)
 
 **Unlike:**
 
@@ -1433,7 +1433,7 @@ No tag, no `switch`, no allocation. In `main` every tag was known at compile tim
 `case`s reduced to their answers. In `pick` the tag was decided by an `if`, and the `case` was
 pushed into its branches, so what is left is the `if` that decided it.
 
-## 0.10 A failure is a value
+## 1.10 A failure is a value
 
 There are no exceptions and there is no `null`. A computation that may fail returns a variant that
 says so. The library's is `Result`, and it is the whole of
@@ -1537,7 +1537,7 @@ Two tests and a `panic`. `half`, `quarter`, the `try` and every `Result` are gon
 divisions by two became shifts. A host function that fails, such as Go's `os.ReadFile`, arrives as
 a `Result` too, and compiles back to Go's own `if err != nil`.
 
-## 0.11 Tuples, text and records
+## 1.11 Tuples, text and records
 
 <!-- file docs/book/code/tour/tuples.oro -->
 ```go
@@ -1588,7 +1588,7 @@ operator continues on the next.
 Text is small on purpose. A `String` is a sequence of Unicode characters, `++` joins two,
 `string_of(n)` is the one-character string of code point n (48 is `0`), and `decimal(n)` is the
 decimal numeral of an integer of any size, the text `io.print_int` prints. Everything richer is the
-host's, under the host's name (§0.13).
+host's, under the host's name (§1.13).
 
 A record is a tuple whose parts have names:
 
@@ -1632,9 +1632,9 @@ func TourMain() int {
 **Like:** a `struct` read by its fields, and OCaml's and F#'s `{ r with x = … }` for a changed copy.
 **Unlike:** `with` never changes `start`, two record sets with the same labels are one set whatever
 they are called, and here every value was known, so the compiler computed the whole program: the
-records, the steps and the copies are gone, and `main` prints three numbers. Chapter 11.
+records, the steps and the copies are gone, and `main` prints three numbers. Chapter 12.
 
-## 0.12 Bits
+## 1.12 Bits
 
 <!-- file docs/book/code/tour/bits.oro -->
 ```go
@@ -1701,9 +1701,9 @@ func TourFnv32(v0 []byte) int {
 from a real program, [examples/hash/fnv.oro](../../examples/hash/fnv.oro), whose output equals Go's
 on three hosts.
 
-## 0.13 Modules, and the host
+## 1.13 Modules, and the host
 
-`shapes.oro` in §0.9 is a module because it is a file. Another file uses it by its path:
+`shapes.oro` in §1.9 is a module because it is a file. Another file uses it by its path:
 
 <!-- file docs/book/code/tour/room.oro -->
 ```go
@@ -1743,7 +1743,7 @@ gen: docs/book/code/tour/no-private.oro: f: module shapes defines sq and does no
 ```
 
 - **`export`: does the host get a function for this?** Only an `export` of the file being compiled
-  is emitted. Everything else, `pub` or not, exists to be reduced away (§0.6).
+  is emitted. Everything else, `pub` or not, exists to be reduced away (§1.6).
 
 Case carries no meaning anywhere: `Shape` is capitalised by convention, as sets are, and nothing
 reads it.
@@ -1780,37 +1780,37 @@ JavaScript and Java. **You choose, per program, how much of one host to use**, a
 reports what the choice cost.
 
 A host's function is declared with the host's sets. Go's `strings.Repeat` takes a Go `int`, so its
-count is a word, and a count the program cannot prove is one is refused as in §0.5; `strings.Map`
-in §0.6 gave its λ an `int32`. Inside the program `Int` is ℤ; at a host's door it is what the host
+count is a word, and a count the program cannot prove is one is refused as in §1.5; `strings.Map`
+in §1.6 gave its λ an `int32`. Inside the program `Int` is ℤ; at a host's door it is what the host
 takes.
 
-## 0.14 What is not here
+## 1.14 What is not here
 
 | you may look for | |
 |---|---|
-| `return`, `break`, `continue`, `for`, `while` | a block's last expression; `loop` and `again` (§0.3, §0.7) |
-| recursion | refused; a `loop` (§0.7) |
-| `null`, `nil`, `undefined` | a variant: `'some(v)` or `'none` (§0.8) |
-| exceptions, `try`/`catch`/`finally` | a failure is a value (§0.10) |
-| integer overflow, `int32`, `uint8`, `BigInt`, casts | `Int` is ℤ; a range is a set, proven (§0.4, §0.5) |
+| `return`, `break`, `continue`, `for`, `while` | a block's last expression; `loop` and `again` (§1.3, §1.7) |
+| recursion | refused; a `loop` (§1.7) |
+| `null`, `nil`, `undefined` | a variant: `'some(v)` or `'none` (§1.8) |
+| exceptions, `try`/`catch`/`finally` | a failure is a value (§1.10) |
+| integer overflow, `int32`, `uint8`, `BigInt`, casts | `Int` is ℤ; a range is a set, proven (§1.4, §1.5) |
 | implicit conversions, truthiness | none: an `if` takes a `Bool` |
-| `NaN`, `Infinity`, `-0` | none: a number is a number (§0.5) |
-| an `assert` that runs | a claim, proven when compiled (§0.4) |
-| generics, `<T>`, interfaces, traits | a definition is specialised where it is used (§0.6) |
+| `NaN`, `Infinity`, `-0` | none: a number is a number (§1.5) |
+| an `assert` that runs | a claim, proven when compiled (§1.4) |
+| generics, `<T>`, interfaces, traits | a definition is specialised where it is used (§1.6) |
 | classes, methods, inheritance, `this` | functions in modules; data is tables, tuples, records and variants |
-| closures at run time | refused; a λ a host applies during its call is allowed (§0.6) |
-| mutable arrays, shared mutable state | `var`, local to a block (§0.8) |
+| closures at run time | refused; a λ a host applies during its call is allowed (§1.6) |
+| mutable arrays, shared mutable state | `var`, local to a block (§1.8) |
 | macros, annotations, pragmas, doc comments | none; a comment is erased and means nothing |
-| a string library (split, upper, format) | the host's, by name (§0.13); the language's own are `++`, `string_of` and `decimal` |
+| a string library (split, upper, format) | the host's, by name (§1.13); the language's own are `++`, `string_of` and `decimal` |
 | operator overloading | none |
-| a garbage collector or runtime of its own | none (§0.1) |
+| a garbage collector or runtime of its own | none (§1.1) |
 
 **Specified, and not built yet**, so not in this chapter: the logic's own definitions (`spec`, and
 `lemma` proven by induction), a guard on a `case` arm, handlers on `try`, a function a host
 returns, and concurrency. [spec/j.md](../spec/j.md)'s status table is the exact list. Not built
-and not yet specified: a table whose elements pass the machine word (§0.8).
+and not yet specified: a table whose elements pass the machine word (§1.8).
 
-## 0.15 From what you write to what you write here
+## 1.15 From what you write to what you write here
 
 | elsewhere | here |
 |---|---|
@@ -1870,6 +1870,6 @@ and not yet specified: a table whose elements pass the machine word (§0.8).
 - **`pub` is for other modules, `export` is for the host.** A host's library is used under its own
   names, and how portable that leaves a program is computed.
 
-Next: [`fn`](01-fn.md), and how reduction does all of this. From there the book goes one brick at a
+Next: [`fn`](02-fn.md), and how reduction does all of this. From there the book goes one brick at a
 time, each chapter using only what the ones before it introduced; [the book's README](README.md)
 lists the chapters and says which are written.

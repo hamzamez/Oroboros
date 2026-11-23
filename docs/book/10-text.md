@@ -1,7 +1,7 @@
-# 9. Text
+# 10. Text
 
 Every chapter so far has printed text and none has said what text is. `"hello, world"` went to
-`io.print_line` in chapter 0 and has been taken on trust since.
+`io.print_line` in chapter 1 and has been taken on trust since.
 
 Numbers were easy to pin down: an integer is an integer. Text is harder, and most languages
 get it subtly wrong in a way you can measure. Ask five of them how long the string `🙂` is:
@@ -25,15 +25,15 @@ The answer is two sentences.
 
 Along the way: where the numbers came from, why there is a hole in them, the three ways
 machines store text and why they disagree about length, a structure called a monoid that you
-have been using since chapter 4, and the one-byte decision in 1972 that security teams are
+have been using since chapter 5, and the one-byte decision in 1972 that security teams are
 still paying for.
 
-The examples are in [code/text/](code/text/). `go run docs/book/check.go docs/book/09-text.md`
+The examples are in [code/text/](code/text/). `go run docs/book/check.go docs/book/10-text.md`
 re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 9.1 Writing text
+## 10.1 Writing text
 
 <!-- file docs/book/code/text/hello.oro -->
 ```go
@@ -112,7 +112,7 @@ and return one. `++` joins two strings and is the subject of 9.4. On Go a `Strin
 
 ---
 
-## 9.2 A character is a number
+## 10.2 A character is a number
 
 A machine stores numbers. To store text, someone has to decide which number means which
 character, and everyone who exchanges text has to agree.
@@ -156,14 +156,14 @@ A
 🙂
 ```
 
-65 and 0x41 are the same number (chapter 7), so they are the same letter.
+65 and 0x41 are the same number (chapter 8), so they are the same letter.
 
 ASCII was laid out by people who had to build the hardware, and three of its patterns are
 still useful:
 
 - **The digits are in order from 48**: the character for the digit `d` is number 48 + d.
 - **The letters are in order**: `a` to `z` are 97 to 122, `A` to `Z` are 65 to 90.
-- **A lower-case letter is its capital plus 32**, and 32 is one bit (chapter 7's bit 5). So
+- **A lower-case letter is its capital plus 32**, and 32 is one bit (chapter 8's bit 5). So
   flipping that bit changes a letter's case.
 
 <!-- file docs/book/code/text/ascii.oro -->
@@ -201,7 +201,7 @@ table lookup, and belongs to the host.)
 
 ---
 
-## 9.3 Writing the characters you cannot type
+## 10.3 Writing the characters you cannot type
 
 Most characters can stand for themselves between the quotes. A few cannot: the quote itself
 would end the literal, and a line break inside a literal is far more often a forgotten closing
@@ -285,7 +285,7 @@ find.
 
 ---
 
-## 9.4 Joining
+## 10.4 Joining
 
 `a ++ b` is the string `a` followed by the string `b`.
 
@@ -332,7 +332,7 @@ An operation whose grouping does not matter, with a value that changes nothing, 
 The name is worth having because of what it buys. If grouping does not matter, a long join can
 be done in any grouping: left to right, right to left, or in halves on two processors at once,
 and the answer is the same. Every fast algorithm that splits work in two leans on exactly this
-law, and chapter 13 will use it.
+law, and chapter 14 will use it.
 
 Strings are the *plainest* monoid there is: joining obeys those laws and **no others**. With
 numbers, 2 + 3 and 4 + 1 are the same number made two ways. With strings, two different lists
@@ -379,7 +379,7 @@ Turning one into the other is a computation, and 9.6 does it.
 
 ---
 
-## 9.5 Building text with functions
+## 10.5 Building text with functions
 
 Since strings are values and `++` is an operation, text is built the way numbers are: with
 small functions.
@@ -422,7 +422,7 @@ place, and Java made its strings unchangeable in 1995 for exactly this reason.)
 
 ---
 
-## 9.6 A number, as text
+## 10.6 A number, as text
 
 `io.print_int(42)` printed `42`. Somebody turned the number forty-two into the two characters
 `4` and `2`. Here is how, for a small number.
@@ -461,7 +461,7 @@ export fn main() {
 2026-11-16
 ```
 
-`two` is the whole idea. Chapter 6's division gives the tens (`n / 10`) and the remainder
+`two` is the whole idea. Chapter 7's division gives the tens (`n / 10`) and the remainder
 gives the ones (`n % 10`); `digit` turns each into its character; `++` puts them side by side.
 Positional notation, run backwards.
 
@@ -470,7 +470,7 @@ Every claim in those headers was proven. `two(h)` needs `h` in 0..99, and 0..23 
 and the program is refused: a three-digit number has no two-digit numeral.
 
 A number of any size needs repetition: divide by ten until nothing is left. That is chapter
-11's `loop`, and it is what `num.decimal` from chapter 8 does. With it, formatting money is one
+12's `loop`, and it is what `num.decimal` from chapter 9 does. With it, formatting money is one
 line:
 
 <!-- file docs/book/code/text/price.oro -->
@@ -496,7 +496,7 @@ total: $12.55
 
 ---
 
-## 9.7 Not every number is a character
+## 10.7 Not every number is a character
 
 `string_of` has a precondition: its argument must be a character's number.
 
@@ -581,7 +581,7 @@ func TextWide(v0 int) string {
 }
 ```
 
-Each arm's guard is the fact that arm needs (chapter 6: a condition is a fact).
+Each arm's guard is the fact that arm needs (chapter 7: a condition is a fact).
 
 The hole cannot be written in a literal either:
 
@@ -605,7 +605,7 @@ section is about storage.
 
 ---
 
-## 9.8 How machines store it, and why "length" has three answers
+## 10.8 How machines store it, and why "length" has three answers
 
 A string is a sequence of numbers up to about a million. A machine's memory is a sequence of
 bytes, each 0 to 255. There are three common ways to fit one into the other, and they are
@@ -694,9 +694,9 @@ The program is portable anyway, because it never asked.
 
 ---
 
-## 9.9 So there is no length, no index and no `==`
+## 10.9 So there is no length, no index and no `==`
 
-This language's rule (chapter 6 said it for integers) is that a program means one thing on
+This language's rule (chapter 7 said it for integers) is that a program means one thing on
 every target. "The length of a string" does not, so it is not in the language:
 
 <!-- file docs/book/code/text/no-len.oro -->
@@ -736,7 +736,7 @@ gen: same: in argument 1 of `==`: a is String, but Int is required here.
 Be clear about how much that is. A program in this language can *produce* any text. It cannot
 yet *take text apart*: it cannot count, search, compare or split a `String`. The message's
 last sentence says where that work goes: "read its bytes". Text that a program must examine
-is handled as a table of bytes (chapter 13), where length, position and equality are plain
+is handled as a table of bytes (chapter 14), where length, position and equality are plain
 integer questions with one answer each, and it becomes a `String` at the end, by 9.10's
 operations. The repository's JSON reader and its word counter are written this way.
 
@@ -778,11 +778,11 @@ was the table at the top of this chapter.
 
 ---
 
-## 9.10 From bytes to text
+## 10.10 From bytes to text
 
 Text arrives from outside as bytes: a file, a network connection, a keyboard. Two operations
 turn bytes into a `String`. Both take a list of numbers written `array { … }`, which is
-chapter 13's subject; here it is only a way to write some bytes down.
+chapter 14's subject; here it is only a way to write some bytes down.
 
 <!-- file docs/book/code/text/bytes.oro -->
 ```go
@@ -866,7 +866,7 @@ Java's or JavaScript's, which can hold half of a surrogate pair.
 
 ---
 
-## 9.11 A property that survives joining
+## 10.11 A property that survives joining
 
 One more operation, and it is here for what it teaches about proofs.
 
@@ -902,7 +902,7 @@ export fn main() {
 ```
 
 A function that will pass its argument to the operating system says so in its header, with
-chapter 6's `where`:
+chapter 7's `where`:
 
 <!-- file docs/book/code/text/cname.oro -->
 ```go
@@ -943,7 +943,7 @@ A joined string has a zero in it only if one of the pieces did. So the property 
 structure of the string: check the pieces once, and every string built from them by `++` is
 known good without looking at it again. One scan in the emitted Go, not two.
 
-This is the same idea as chapter 7's "the machine may wrap early". There, taking a remainder
+This is the same idea as chapter 8's "the machine may wrap early". There, taking a remainder
 commuted with `+` and `*`. Here, "has no zero" commutes with `++`, turning it into `&&`. A
 function that turns one monoid's operation into another's is called a **homomorphism**, and it
 is the most useful shape a property can have: it can be computed piece by piece. Length would
@@ -980,9 +980,9 @@ gen: text-unknown: open_name requires nulfree(s) at a call, which does not follo
 
 ---
 
-## 9.12 The host's own strings
+## 10.12 The host's own strings
 
-Chapter 3 said a target can supply modules. Go's standard library is full of string
+Chapter 4 said a target can supply modules. Go's standard library is full of string
 functions, and a program for Go may use them:
 
 <!-- file docs/book/code/text/host.oro -->
@@ -1040,11 +1040,11 @@ replaces anything that is not well-formed UTF-8 with the character U+FFFD, `�`
 reserves for "something unreadable was here". It never fails. `strings.ToUpper` needed no such
 step, because Go's source shows it always produces valid text, and its declaration says so.
 
-Chapter 17 is about writing those declarations.
+Chapter 18 is about writing those declarations.
 
 ---
 
-## 9.13 What other languages do
+## 10.13 What other languages do
 
 | | a string is | `length` counts | `s[i]` gives | can hold ill-formed text? |
 |---|---|---|---|---|
@@ -1093,5 +1093,5 @@ far from where it was made.
   nulfree(b)`: a property proven piece by piece.
 - **A host's string is the host's** (`go.bytestring`); `go.text` brings one into `String`.
 
-Next: [chapter 10](10-data.md), Tuples and variants. Two values at once, and one value out of several
+Next: [chapter 11](11-data.md), Tuples and variants. Two values at once, and one value out of several
 kinds.

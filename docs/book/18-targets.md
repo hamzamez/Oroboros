@@ -1,13 +1,13 @@
-# 17. Targets
+# 18. Targets
 
-One line has been in nearly every program since chapter 0, and it has never been explained:
+One line has been in nearly every program since chapter 1, and it has never been explained:
 
 ```
 use io
 ```
 
 `io.print_line` is not part of the language. Neither is `io.print_int`, nor `os.ReadFile`,
-nor `num.decimal`. Chapter 1 said a program is reduced until only names the target provides
+nor `num.decimal`. Chapter 2 said a program is reduced until only names the target provides
 are left, and stopped there. Fifteen chapters later it is time to look at the other side of
 that sentence. So the question of this chapter is: **where do the names at the bottom come
 from, and how does one program come out as Go, JavaScript, Java and a Windows executable?**
@@ -24,15 +24,15 @@ The answer is three sentences.
 > computed, and reported.
 
 Along the way: the two hard problems of calling someone else's code, how one name gets four
-implementations, what happens when a declaration lies, and where the "word" of chapter 6
-and the `[]byte` of chapter 13 were actually decided.
+implementations, what happens when a declaration lies, and where the "word" of chapter 7
+and the `[]byte` of chapter 14 were actually decided.
 
 The examples are in [code/hosts/](code/hosts/). `go run docs/book/check.go
-docs/book/17-targets.md` re-runs every block. Checked 2026-11-16.
+docs/book/18-targets.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 17.1 What `io.print_line` is
+## 18.1 What `io.print_line` is
 
 <!-- file docs/book/code/hosts/hello.oro -->
 ```go
@@ -110,20 +110,20 @@ That is all `io` is. Read the first one a piece at a time.
 A function whose body is `host …` is a **declaration**. It does not say how to print. It
 says: *the host can do this; here is how to ask, and here is what I claim about it.*
 Reduction stops at a declared name, because there is nothing to unfold. That is the precise
-meaning of chapter 1's "until only what the target provides is left".
+meaning of chapter 2's "until only what the target provides is left".
 
 `print_int` is not a declaration. It is a definition, written over the others: print the
-integer's `decimal` text, chapter 6's rendering of any integer, and be that integer. `decimal`
+integer's `decimal` text, chapter 7's rendering of any integer, and be that integer. `decimal`
 is the target's in turn: on a value its facts keep in the word it is the host's own formatting,
 `strconv.Itoa` and `String`, which is why those appear above, and on a value above the word the
 host's big integer's. One name, `n ∈ Int`, prints every integer.
 
 ---
 
-## 17.2 The anatomy of a declaration
+## 18.2 The anatomy of a declaration
 
 Go's own library is declared the same way, a file per package, under `targets/go/`. Three
-declarations from `go/strings`, which chapter 9 used:
+declarations from `go/strings`, which chapter 10 used:
 
 <!-- part targets/go/strings.oro -->
 ```go
@@ -147,7 +147,7 @@ expression: `strings.Index(a, b) + 1`. A *statement* is done for its effect and 
 line of its own: `fmt.Println(s)`. The declaration says which the host text is, because the
 emitter has to know where it may be put.
 
-**`pure`, or its absence.** Chapter 5: an effect may not be dropped, copied or moved, and a
+**`pure`, or its absence.** Chapter 6: an effect may not be dropped, copied or moved, and a
 pure computation may. `strings.Index` only looks, so it is `pure`. `print_line` is not
 marked, so it is taken to have an effect. The default is the safe one. A declaration with no
 `pure` is never reordered or removed, and the worst a forgotten `pure` costs is a missed
@@ -157,12 +157,12 @@ optimization.
 `set Word = -2^63..2^63-1`. Not `Int`, which is every integer and which no Go function takes. A
 call must prove its count is a word, as a table's store must prove its value is. And `where
 count >= 0`: Go's `strings.Repeat` panics on a negative count. Declared this way, that panic is
-chapter 16's obligation. Every call must prove `count >= 0`, and a program that could pass −1
+chapter 17's obligation. Every call must prove `count >= 0`, and a program that could pass −1
 does not compile.
 
 **The result's set.** `(-1..2^63-1)` for `Index`: Go's documentation says it returns −1 for
 "not found" and otherwise a position. That range is what the compiler knows about the
-result. And `ToUpper` gives a `String` where `Repeat` gives a `bytestring`: chapter 9's
+result. And `ToUpper` gives a `String` where `Repeat` gives a `bytestring`: chapter 10's
 distinction, and the comment above those lines in the file records how it was established,
 by running Go's `ToUpper` on a million inputs to see whether it could ever return invalid
 text.
@@ -173,7 +173,7 @@ treats a call of it exactly as it treats a call of yours.
 
 ---
 
-## 17.3 Writing one
+## 18.3 Writing one
 
 Declarations are not reserved for the people who wrote the compiler. Go has a clock, and
 nothing in the library reaches it. Make a folder named for the module, and in it a file
@@ -191,7 +191,7 @@ Two declarations.
 
 - **`seconds`** reads the clock: seconds since the start of 1970, the way nearly every
   computer counts time. It has no `pure`, and must not: two calls give two different
-  answers. It is the effect of chapter 5 that was called "reading the world".
+  answers. It is the effect of chapter 6 that was called "reading the world".
 - **`year_of`** computes the calendar year of such a count. Same input, same output, no
   effect: `pure`.
 
@@ -272,7 +272,7 @@ is where that fact came from.
 
 ---
 
-## 17.4 One name, several hosts
+## 18.4 One name, several hosts
 
 The program above says `clock.year_of`. It does not say Go. Give JavaScript a file of its
 own:
@@ -313,7 +313,7 @@ What about a host with no file?
 portable to go, js — not java, windows
 ```
 
-Chapter 6 introduced this tool for word sizes. Here is its other half. A program reaches
+Chapter 7 introduced this tool for word sizes. Here is its other half. A program reaches
 some set of names, and each target provides some set of names. **The program is portable to
 exactly the targets that provide all it reaches** (and whose word holds its arithmetic).
 There is no list of "portable features" to memorize, and no promise that everything runs
@@ -344,7 +344,7 @@ right to object to a hand-written print routine in a language that has `fmt`.
 
 ---
 
-## 17.5 A declaration is believed
+## 18.5 A declaration is believed
 
 Here is the uncomfortable part. Nothing checks a declaration against the host. The compiler
 cannot read Go's source, or JavaScript's engine, or Windows. It takes your header as true.
@@ -381,12 +381,12 @@ export fn main() {
 Both lies were acted on, faithfully.
 
 The first line of `main` printed nothing. `say` was declared pure, its result was not used,
-and a pure computation nobody reads is dropped. The compiler did what chapter 5 says it may.
+and a pure computation nobody reads is dropped. The compiler did what chapter 6 says it may.
 
 The second line printed nonsense. `small() * 10^18` was "proven" to fit the word, since 9 ×
 10¹⁸ does. The true value, 1000 × 10¹⁸, does not, and Go's multiplication wrapped round:
 the number printed is what is left of 10²¹ after the high bits fell off. That is the silent
-wrong answer chapter 6 said could not happen in this language. It can happen in exactly one
+wrong answer chapter 7 said could not happen in this language. It can happen in exactly one
 way, and this is it:
 
 <!-- file docs/book/code/hosts/lies.oro -->
@@ -436,7 +436,7 @@ claims more than the truth is how a wrong answer gets in. When in doubt, claim l
 
 ---
 
-## 17.6 A function the host calls
+## 18.6 A function the host calls
 
 Some host functions take a function. Go's `strings.Map` takes one from scalars to scalars and
 applies it to every scalar of a string:
@@ -472,7 +472,7 @@ ROT13 twice is the identity: a rotation by 13 in a cycle of 26, done twice, is a
 And `Map` keeps that, because it maps each scalar and nothing else, so mapping by f and then
 by g is mapping by g ∘ f.
 
-The λ is written at the call, as chapter 1 wrote one. Its parameter takes the set Go's
+The λ is written at the call, as chapter 2 wrote one. Its parameter takes the set Go's
 declaration gives it:
 
 ```go
@@ -480,7 +480,7 @@ set RuneMap = fn(r ∈ int32) (m ∈ int32)
 fn Map(mapping ∈ RuneMap, s ∈ bytestring) (String) pure { host expr "strings.Map(${mapping}, ${s})" import "strings" }
 ```
 
-`RuneMap` is a *claim*, the set of functions of that shape (chapter 16). The host promises
+`RuneMap` is a *claim*, the set of functions of that shape (chapter 17). The host promises
 `r ∈ int32`, so the λ's body is decided under that. The λ owes its result in `int32`, because
 Go receives it as one; `fn(r) { r + 1 }` is refused, since `r + 1` can reach 2³¹. And the λ
 is applied only during the call: Go holds nothing afterwards, so it may read the values around
@@ -505,7 +505,7 @@ export fn comma(s ∈ go.bytestring) (Int) {
 gen: hosts-comma: fn(r) { #_ = { #nl3 = io.print_line(decimal(r)); r }; r == 44 } calls io.print_line, an effect, and its host does not promise the order or the number of its calls (`go/strings`.RunePred is not `ordered`): the effect's history would be the host's, which may differ between releases (Theorem D, ADR 0143). Make the λ pure, or pass it to a host whose declaration is `ordered`
 ```
 
-The print is shown as chapter 5 shows a statement, a binding nobody reads, `#_`, and as the
+The print is shown as chapter 6 shows a statement, a binding nobody reads, `#_`, and as the
 compiler holds it: `io.print_int` unfolded into its definition, whose effect is
 `io.print_line`'s (a term a message quotes is shown reduced, the half of the book's finding 110
 not fixed). And a count is
@@ -542,7 +542,7 @@ set IntEq = fn(x ∈ Int, y ∈ Int) (b ∈ Bool) ordered
 ```
 
 Under `ordered` the cell is threaded through the calls in that order, as a loop threads a
-cell through its iterations (chapter 14):
+cell through its iterations (chapter 15):
 
 <!-- file docs/book/code/hosts/compared.oro -->
 ```go
@@ -620,7 +620,7 @@ for JavaScript and Windows the sentence and the page it came from are kept, read
 
 ---
 
-## 17.7 What else a target says
+## 18.7 What else a target says
 
 Declarations of functions are most of a target. The rest is a short list of facts about the
 host, and several things earlier chapters stated as given were read from it.
@@ -636,9 +636,9 @@ set Array(A) = host "[]${A}"
 set Map(K, V) = host "map[${K}]${V}"
 ```
 
-- **`repr -2^63..2^63-1 word`** is chapter 6's *word*: the range in which Go's native
+- **`repr -2^63..2^63-1 word`** is chapter 7's *word*: the range in which Go's native
   arithmetic is exact. Every "proven to fit the word" was a comparison against this line.
-- **`repr 0..255 host "byte"`** is why chapter 13's `Array(0..255)` came out as `[]byte` and
+- **`repr 0..255 host "byte"`** is why chapter 14's `Array(0..255)` came out as `[]byte` and
   `Array(0..1000)` as `[]uint16`: a list of the host's storage sizes, narrowest first, and
   the compiler takes the first that holds the element's set.
 - **`set Array(A) = host "[]${A}"`** is how a table is spelled on Go at all.
@@ -652,8 +652,8 @@ repr -9007199254740991..2^53-1 word
 repr 0..255 host "Uint8Array"
 ```
 
-A word of ±(2⁵³ − 1): that one line is why chapter 6's `n * n` over `0..2^31` was accepted
-on Go and refused on JavaScript, and why chapter 7 went to such lengths over 32-bit
+A word of ±(2⁵³ − 1): that one line is why chapter 7's `n * n` over `0..2^31` was accepted
+on Go and refused on JavaScript, and why chapter 8 went to such lengths over 32-bit
 operations there.
 
 The word, the storage sizes, the spelling of a table, the spelling of each operation: none
@@ -662,7 +662,7 @@ host is, in principle, a new directory of such files and a printer for its synta
 
 ---
 
-## 17.8 The four targets
+## 18.8 The four targets
 
 | target | the host | a program becomes |
 |---|---|---|
@@ -692,14 +692,14 @@ The first three are languages with large libraries of their own, and a program f
 mostly calls into what is already there. The fourth is different in kind. There is no
 runtime underneath and no library: the "host functions" are LLVM's instructions and the
 operating system's exported calls, and things such as printing an integer or joining two
-strings are written in this language on top of those. Chapter 9's string of bytes with its
-length in front, chapter 14's block of memory for a buffer: on Windows somebody had to
+strings are written in this language on top of those. Chapter 10's string of bytes with its
+length in front, chapter 15's block of memory for a buffer: on Windows somebody had to
 decide those, and it is all in `targets/llvm/`, `targets/win32/` and each member's directory.
-Calling the operating system from a program, as C does, is chapter 18.
+Calling the operating system from a program, as C does, is chapter 19.
 
 That the same source means the same thing on all four is the claim the whole design is
-built to keep. It is why an integer is an integer and not a machine word (chapter 6), why a
-string has no visible storage (chapter 9), and why the things on which hosts differ are
+built to keep. It is why an integer is an integer and not a machine word (chapter 7), why a
+string has no visible storage (chapter 10), and why the things on which hosts differ are
 either hidden behind a library that makes them agree or left as target names that carry no
 promise.
 
@@ -717,7 +717,7 @@ says which.
 
 ---
 
-## 17.9 What other languages do
+## 18.9 What other languages do
 
 Calling code written in another language is called a **foreign function interface**, and
 every language has to have one, because the operating system is foreign to all of them.
@@ -778,5 +778,5 @@ program, which hosts a given program is native to.
 - **A target may name its machine**: `windows-v3` is `windows` with `cpu "x86-64-v3"`, faster
   and runnable on fewer machines.
 
-Next: [chapter 18](18-c.md), Calling C. The operating system's own functions, declared as C
+Next: [chapter 19](19-c.md), Calling C. The operating system's own functions, declared as C
 declares them.

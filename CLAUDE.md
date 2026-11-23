@@ -120,8 +120,8 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
    - ~~A~~ done (ADR 0150, [exact](gauntlet/results/exact-2026-11-21.md)): no declared set
      consents; an operation past S, U and E that reaches no sink is ℤ, reported; a value flowing
      into a sink stays a word (the taint, the rung's closure backward); `-words` refuses instead;
-   - ~~the book~~ done with E and A: chapter 6 §6.9 on S, U, E, ℤ through the five programs,
-     chapters 7, 8 and 18;
+   - ~~the book~~ done with E and A: chapter 7 §7.9 on S, U, E, ℤ through the five programs,
+     chapters 8, 9 and 19 (the book's numbers since 2026-11-23);
    - **A's three open items** (hamza, 2026-11-21: "why don't we close the 3 open: start with the
      javascript one"): ~~JavaScript's pairs~~ done (ADR 0151,
      [pairsel](gauntlet/results/pairsel-2026-11-21.md)): a value of U a pair only where the pair
@@ -151,7 +151,7 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      (ADR 0155, hamza 2026-11-22: "yes, fix 112 now", [keptsink](gauntlet/results/keptsink-2026-11-22.md)):
      a kept definition's parameter no sink of the taint, so windows computes `grow` under `-checked`
      as every target does; the finding's pass order changes no program, not built;
-     ~~chapter 1 §1.3 and the book's finding 120~~ done (ADR 0156, hamza 2026-11-22: "do 1 and 2
+     ~~chapter 2 §2.3 and the book's finding 120~~ done (ADR 0156, hamza 2026-11-22: "do 1 and 2
      now", [intconst](gauntlet/results/intconst-2026-11-22.md)): an integer constant an element of
      ℤ, folded exactly at every size, a point its constant; ~~a constant the host's own~~ done
      (ADR 0157, hamza 2026-11-22: "go with a for windows and the hosts",
@@ -202,7 +202,7 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
    representation is ρ of the elements' facts, the word where proven, the host's array of big
    integers on Go, the JVM and JavaScript, and on windows a table of K(ℕ\*) numerals, a table
    inside a table (R1's storage, its release per element by W11), the decision for hamza; maps'
-   values under the same rule; spec, conformance case and the tour's §0.8 with it.
+   values under the same rule; spec, conformance case and the tour's §1.8 with it.
 
 Done of "Build all 5" (2026-11-20): findings 100 and 101
 ([findings](gauntlet/results/findings-2026-11-20.md)); Win32's enumerator pages
@@ -501,7 +501,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   for its key (an insert stays one). The build: the rung pass branches a read whose key is held
   above the word on its fit, the key's π under the branch the word by ρ, a conversion from the
   big integer to the word on each target (whether ρ narrows at a π is the first measurement); an
-  ADR amending 0147/0150, its planted fault the branch dropped; chapter 14's `lookup` then takes
+  ADR amending 0147/0150, its planted fault the branch dropped; chapter 15's `lookup` then takes
   `k ∈ Int`; trigger a program reading a map at a key computed past the word;
 - **a constant past JavaScript's word spelled as a BigInt literal** (keptsink-2026-11-22): 2⁶² is
   held exactly since midpoint-2026-11-21, written as Horner's form over 10¹⁵ in BigInt
@@ -539,7 +539,7 @@ contract gap (ADR 0028); named views (records and `with` decided whole by ADR 01
   for it"): a data structure's literal `F { a, b, c }` as its free algebra's term, comprehensions by
   the Boom hierarchy's laws, block formers as handlers run in staging, the trailing block
   `f(a…) { x̄ -> b }` the first step; F1–F5 decided when a program asks;
-- **an integer of any size at a Windows export** (the book's §18.10 and finding 113, hamza
+- **an integer of any size at a Windows export** (the book's §19.10 and finding 113, hamza
   2026-11-21: "leave it this for now until there is demand"): a parameter refused, a result `Int`
   past the word refused, a result `Nat` returned as the program's own numeral; the boundary format,
   a C struct of digits and count or decimal text, decided both ways at once; trigger a library that

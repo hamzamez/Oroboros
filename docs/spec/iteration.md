@@ -269,7 +269,7 @@ Either way the return type is strictly richer than `A`. That is the whole of the
 
 ### But we have encodings, and they are free — except here
 
-[Chapter 2 §2.11](../book/02-def.md) showed a Church pair costing nothing. It really does:
+[Chapter 3 §3.11](../book/03-def.md) showed a Church pair costing nothing. It really does:
 
 ```lisp
 (def pair (fn (a b) (fn (sel) (sel a b))))

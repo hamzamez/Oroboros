@@ -1,12 +1,12 @@
-# 5. Effects
+# 6. Effects
 
-Four bricks so far: a [function](01-fn.md), a [name](02-def.md), a [place](03-modules.md) for the
-name, and a [choice](04-choice.md). Every one of them was explained by saying what the compiler
+Four bricks so far: a [function](02-fn.md), a [name](03-def.md), a [place](04-modules.md) for the
+name, and a [choice](05-choice.md). Every one of them was explained by saying what the compiler
 may do to a program: replace a parameter by its argument, a name by its definition, a choice whose
 condition is known by its branch. Each time the claim was that the program *means the same* after
 the step as before it.
 
-That claim has a condition, and chapter 1 stated it in one section (§1.11) and moved on: the
+That claim has a condition, and chapter 2 stated it in one section (§2.11) and moved on: the
 replaced thing must do nothing but have a value. This chapter is the fifth brick, and it is not a
 new form. **There is no effect form**: no `IO`, no `do`, no `async`, nothing to import. There is
 one word in a target's file, and a rule about what reduction may not do to an expression that
@@ -19,12 +19,12 @@ saying so: in what order do things happen?
 
 The examples are in [code/effects/](code/effects/). Most run on the `tutorial` target, where
 `f`, `g`, `h` have no effect and `shout`, `whisper`, `tick` have one; the last sections compile
-real programs that print. `go run docs/book/check.go docs/book/05-effects.md` re-runs every block.
+real programs that print. `go run docs/book/check.go docs/book/06-effects.md` re-runs every block.
 Checked 2026-11-15.
 
 ---
 
-## 5.1 A value, and something else
+## 6.1 A value, and something else
 
 <!-- file docs/book/code/effects/hello.oro -->
 ```go
@@ -42,9 +42,9 @@ one
 two
 ```
 
-Ask what `io.print_line("one")` *is*. In chapters 1 to 4 the answer to that question was always a
+Ask what `io.print_line("one")` *is*. In chapters 2 to 5 the answer to that question was always a
 value: `3 < 4` is `true`, `h(1, 2)` is whatever `h` gives for 1 and 2. This call has a value too
-(it is the string it was given, §5.12). But nobody wrote it for its value. It was written because,
+(it is the string it was given, §6.12). But nobody wrote it for its value. It was written because,
 when it is evaluated, a line appears on a screen.
 
 > **An effect is anything an expression does besides having a value.** Printing is one. So is
@@ -54,7 +54,7 @@ A function in mathematics has no effects. `sin` does not do anything; it *is* a 
 `sin(0)` is `0` today and tomorrow. A function with an effect is a different kind of thing, and
 the simplest way to see the difference is to try to replace it by its value.
 
-## 5.2 Equals for equals
+## 6.2 Equals for equals
 
 `f` is a function with no effect, and `tick` reads a clock that advances each time it is read.
 Each is written once and its value used twice, and then written twice:
@@ -95,11 +95,11 @@ change the answer.
 > name for it, **referential transparency**. It holds for an expression with no effect, and fails
 > for one with an effect, because such an expression is not only its value.
 
-Every step of reduction in chapters 1 to 4 was a replacement of equals by equals. So the whole
+Every step of reduction in chapters 2 to 5 was a replacement of equals by equals. So the whole
 question of this chapter is: **what does reduction do when it meets an expression for which that
 law fails?**
 
-## 5.3 One word, in the target's file
+## 6.3 One word, in the target's file
 
 First, how does the compiler know? Here are six declarations from
 [targets/tutorial.oro](../../targets/tutorial.oro):
@@ -119,7 +119,7 @@ fn tick() (num) { host stmt "tick()" }
 ```
 
 One word. `f` has `pure` and `shout` does not. A target is the list of operations the host
-provides ([chapter 3](03-modules.md)), and whoever writes the list says, for each operation,
+provides ([chapter 4](04-modules.md)), and whoever writes the list says, for each operation,
 whether it is a function in the mathematical sense. Nothing else in the language knows about
 effects: not the reader, not the reducer's terms, not the sets in a header. `shout` takes a `num`
 and gives a `num`, exactly as `f` does.
@@ -127,7 +127,7 @@ and gives a `num`, exactly as `f` does.
 Three things follow, and each gets a section later:
 
 - **The word belongs to a host operation, and a program cannot write it** on its own functions.
-  Whether a function you define has an effect is computed from what it calls (§5.10).
+  Whether a function you define has an effect is computed from what it calls (§6.10).
 
 <!-- file docs/book/code/effects/no-pure.oro.txt -->
 ```go
@@ -141,13 +141,13 @@ export fn run() { mine(1) }
 oro: docs/book/code/effects/no-pure.oro.txt: line 1: "pure" where "{" was expected
 ```
 
-- **An operation with no word has an effect.** The default is the careful one (§5.13).
+- **An operation with no word has an effect.** The default is the careful one (§6.13).
 - **The word is believed.** A target that calls a printing operation `pure` is wrong the way a
   target that spells `+` as `-` is wrong, and the compiler can check neither.
 
-## 5.4 Three things reduction does, and may not do here
+## 6.4 Three things reduction does, and may not do here
 
-Chapter 1's rule for an application was: put the argument where the parameter is. Look at what
+Chapter 2's rule for an application was: put the argument where the parameter is. Look at what
 that does to the argument, depending on how many times the parameter appears and where.
 
 <!-- file docs/book/code/effects/three.oro -->
@@ -213,7 +213,7 @@ exactly the thing they are false of. So the rule of this chapter is one sentence
 
 The next three sections take the three clauses one at a time.
 
-## 5.5 Dropping: only what does nothing
+## 6.5 Dropping: only what does nothing
 
 <!-- file docs/book/code/effects/drop.oro -->
 ```go
@@ -251,7 +251,7 @@ fn() { t = tick(); 7 }
 Dead-code elimination is one of the first things any optimizing compiler does. Here it is not a
 separate pass. It is β on a parameter that appears no times, with one condition.
 
-## 5.6 Copying: purity is not cheapness
+## 6.6 Copying: purity is not cheapness
 
 <!-- file docs/book/code/effects/copy.oro -->
 ```go
@@ -287,7 +287,7 @@ fn() { n = shout(9); h(n, 2) }
 `costly` and `loud` came out the same, bound once and read twice, for **two different reasons**:
 
 - `shout(9)` is bound because copying it would be *wrong*.
-- `f(9)` is bound because copying it would be *slow* (§1.11): the same answer, computed twice.
+- `f(9)` is bound because copying it would be *slow* (§2.11): the same answer, computed twice.
 
 The last pair tells them apart. Used once, `f(9)` goes straight to where it is used, since
 nothing is gained by naming it. Used once, `shout(9)` is still bound where it was written. And a
@@ -303,7 +303,7 @@ Two questions, then, and it is worth keeping them apart: *is it safe to move thi
 cheap to repeat this?* A compiler that confused them would either repeat effects or refuse to
 copy a `5`.
 
-## 5.7 Moving: the order is the one you wrote
+## 6.7 Moving: the order is the one you wrote
 
 <!-- file docs/book/code/effects/order.oro -->
 ```go
@@ -349,7 +349,7 @@ the order *unspecified* so that each machine may choose the faster. That was a r
 This language fixes it too, and since the compiler is free to move everything that has no effect,
 fixing it costs nothing.
 
-## 5.8 Where an effect stays: where it was written
+## 6.8 Where an effect stays: where it was written
 
 "Where it was written" is doing real work. A parameter's uses can be anywhere in a body: inside
 one branch of a choice, for instance. Putting the effect where the parameter is *used* would move
@@ -390,18 +390,18 @@ fn() { shout(1) }
   so it happens whether `c` is true or not, and it stays outside.
 - `pure_goes_in`: the same program with `f(5)`. It moved *into* the branch, and now `f(5)` is
   computed only when `c` is true. Nothing can tell, and work was saved.
-- `a_block_too`: a block is a function applied (§1.12), so `n = shout(5)` on its own line is the
+- `a_block_too`: a block is a function applied (§2.12), so `n = shout(5)` on its own line is the
   same program as the first and reduces to the same thing.
 - `written_inside`: the reverse case. An effect written inside a branch stays inside it. One of
-  the two happens, never both: that is what a choice is (§4.2).
+  the two happens, never both: that is what a choice is (§5.2).
 - `in_the_condition`: a condition may have an effect. It is evaluated once, before either branch.
-- `known`: the condition is known, so one branch is kept (§4.11) and the other is deleted, with
+- `known`: the condition is known, so one branch is kept (§5.11) and the other is deleted, with
   its `whisper`. That is no violation of anything. The whisper was never going to happen; the
   compiler removed code that could not run, not an effect that would have.
 
 ### `&&` and `||` skip effects, as they skip everything
 
-Chapter 4 said `a && b` is `if a { b } else { false }`. So its right side is inside a branch:
+Chapter 5 said `a && b` is `if a { b } else { false }`. So its right side is inside a branch:
 
 <!-- file docs/book/code/effects/short.oro -->
 ```go
@@ -445,7 +445,7 @@ either
 `b` and `d` were never printed. `a` was false, so `&&` had its answer; `c` was true, so `||` had
 its own.
 
-## 5.9 A function is a value, whatever is in it
+## 6.9 A function is a value, whatever is in it
 
 <!-- file docs/book/code/effects/value.oro -->
 ```go
@@ -487,7 +487,7 @@ fn(c) { if c { shout(1) } else { whisper(2) } }
 > function may always be dropped, copied and moved, whatever its body does.
 
 - `both_run`: `pick` looks like `if`, and is not. Its arguments are evaluated before it is
-  applied, both of them, and then one *value* is chosen. This is §4.4's lesson again, and with
+  applied, both of them, and then one *value* is chosen. This is §5.4's lesson again, and with
   effects it is no longer only a matter of wasted work.
 - `one_runs`: the cure. Wrap each argument in a function of no parameters, and apply only the one
   chosen. What is passed is now two values, and only one is ever run.
@@ -500,7 +500,7 @@ two functions are gone, and what is left is the `if` you would have written by h
 
 ### The same rule, for a name
 
-Chapter 2 (§2.3) refused this, and can now say why:
+Chapter 3 (§3.3) refused this, and can now say why:
 
 <!-- file docs/book/code/def/no-effect.oro -->
 ```go
@@ -521,7 +521,7 @@ definitions are not in any order and do not run. So a top-level definition must 
 `fn` is one. Inside a function, `noisy = shout(1)` is fine: a block is in order, and the shout
 happens at that line.
 
-## 5.10 A function has an effect if applying it reaches one
+## 6.10 A function has an effect if applying it reaches one
 
 You never mark your own functions. Whether applying one has an effect is computed from its body.
 
@@ -584,12 +584,12 @@ function of yours has one if evaluating its body does; and a literal, a name or 
 standing there, has none.
 
 This is a real limit, and it should be said plainly. Nothing in a header says whether a function
-has an effect. You cannot write "this function does not print" and have it checked. §5.14 says
+has an effect. You cannot write "this function does not print" and have it checked. §6.14 says
 what was bought with that.
 
-## 5.11 A statement is a binding nobody reads
+## 6.11 A statement is a binding nobody reads
 
-Chapter 1 (§1.12) showed that a line with an expression on it and no name is a binding whose name
+Chapter 2 (§2.12) showed that a line with an expression on it and no name is a binding whose name
 is thrown away. Now it can be said why that is all a statement needs to be.
 
 <!-- file docs/book/code/effects/stmt.oro -->
@@ -620,14 +620,14 @@ oro: a statement's value is a function, shout, which does nothing until it is ap
 ```
 
 - `three`: "do this, then that" is two bindings to names nobody reads (printed `#_`, a name no
-  program can write). They stay, in order, **because dropping is denied to an effect** (§5.5).
+  program can write). They stay, in order, **because dropping is denied to an effect** (§6.5).
   Sequencing is not a feature that was added. It is what is left when a binding may not be
   removed.
 - `pure_statement`: the same shape with `f(1)`, and the line is gone. A statement with no effect
   does nothing, by definition, and so it is nothing.
 - `in_a_branch`: a branch is a block, so it may hold statements.
 - `one_armed`: an `if` with no `else` is a statement. Its missing branch is `()`, the value that
-  carries no information (§4.9).
+  carries no information (§5.9).
 - `forgot_the_call` is refused. `shout` without parentheses is the function, not a call of it,
   and a function has no effect until it is applied, so the statement could only be dead code. It
   is the likeliest slip of someone arriving from a language where a bare name can be a call, and
@@ -640,7 +640,7 @@ statements (which do something), with separate rules for each. Here there is one
 "statement" is an expression whose value is not kept, and the only expressions worth writing that
 way are the ones with effects.
 
-## 5.12 On a real target
+## 6.12 On a real target
 
 Three functions, compiled for Go:
 
@@ -768,7 +768,7 @@ printed though nobody reads it. `4` comes before `5`, and both before their sum.
 are a Go compiler, a JavaScript engine and LLVM, and they agree, because the order was settled
 before any of them saw the program.
 
-## 5.13 The default is "has an effect", and why
+## 6.13 The default is "has an effect", and why
 
 Someone writes a target and forgets the word `pure` on an operation.
 [targets/tutorial-sloppy.oro](../../targets/tutorial-sloppy.oro) is the tutorial target with that
@@ -805,7 +805,7 @@ fn() { 3 * 4 }
 
 On the careless target a multiplication nobody needs is still performed, two multiplications are
 pinned in place, and `3 * 4` is left for run time, since computing it at compile time would be
-performing an effect at the wrong moment (§1.3's folding is replacing equals by equals, and so it
+performing an effect at the wrong moment (§2.3's folding is replacing equals by equals, and so it
 has this chapter's condition too). The program is **slower**. It is not wrong, and the damage can
 be seen in the output.
 
@@ -819,7 +819,7 @@ That is a design rule far beyond this language. A door that fails locked or unlo
 signal that shows red when its wire breaks: the question is always what happens when somebody
 forgets, and the answer should be chosen, not left to chance.
 
-## 5.14 What other languages do, and what this one gave up
+## 6.14 What other languages do, and what this one gave up
 
 The problem of this chapter is every language's problem. The answers fall in three families.
 
@@ -860,17 +860,17 @@ taken from him; it was arrived at from three ways a compiler could get a program
 turned out to be something with a name. Expressions with no effect live in the top row, those
 with an effect in the bottom, and one word in a target's file says which.
 
-## 5.15 What is still to come
+## 6.15 What is still to come
 
 Three later chapters meet effects again, and each adds one thing:
 
-- **Repetition** ([chapter 12](README.md)). A function's body may run many times. An effect
+- **Repetition** ([chapter 13](README.md)). A function's body may run many times. An effect
   written outside a loop and used inside it must not be moved in, or one print becomes a
-  thousand. It is §5.8's rule with a loop where the branch was.
-- **State** ([chapter 14](README.md)). Writing to storage is an effect, and so is reading storage
+  thousand. It is §6.8's rule with a loop where the branch was.
+- **State** ([chapter 15](README.md)). Writing to storage is an effect, and so is reading storage
   that may be written. It is an effect the language itself has, where all of this chapter's came
   from the host.
-- **Failures** ([chapter 15](README.md)). Giving up is an effect too: it is something an
+- **Failures** ([chapter 16](README.md)). Giving up is an effect too: it is something an
   expression does besides having a value.
 
 ---
@@ -899,6 +899,6 @@ Three later chapters meet effects again, and each adds one thing:
 - **The default is "has an effect"**, because a forgotten mark should make a program slow, not
   wrong.
 
-Next: [chapter 6, Integers](06-integers.md). Part I was about how a program is reduced; part II
+Next: [chapter 7, Integers](07-integers.md). Part I was about how a program is reduced; part II
 is about what it computes with, starting with the numbers that have been standing in the examples
-since chapter 0.
+since chapter 1.

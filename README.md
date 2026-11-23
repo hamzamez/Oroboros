@@ -10,35 +10,36 @@ overflow, a claim about a value) is refused before it runs.
 
 The language is taught in [a book](docs/book/), one idea at a time: each chapter uses only what came
 before it, shows a program refused before it shows the one that works, and leans on examples, edge
-cases included. Every example in it is compiled and run by `go run ./cmd/check`, 1,130 blocks
-across 20 chapters, and a chapter that stops saying what the compiler gives fails the check.
+cases included. Every example in it is compiled and run by `go run ./cmd/check`, 1,299 blocks
+across 21 chapters, and a chapter that stops saying what the compiler gives fails the check.
 
 | | chapter | the one idea |
 |---|---|---|
-| 0 | [A tour](docs/book/00-tour.md) | the whole language at a glance |
+| 0 | [From a file to a program](docs/book/00-compiling.md) | the tools, the stages of compiling, the targets, and trying it outside the repository |
+| 1 | [A tour](docs/book/01-tour.md) | the whole language at a glance |
 | | **I. How a program is reduced** | |
-| 1 | [`fn`](docs/book/01-fn.md) | a function is a value, and applying one is compiling |
-| 2 | [Definitions](docs/book/02-def.md) | a name is an abbreviation, unfolded where it is used |
-| 3 | [Modules](docs/book/03-modules.md) | where a name lives, and when the platform supplies it |
-| 4 | [Choice](docs/book/04-choice.md) | `if` and guards; a choice known at compile time keeps one branch |
-| 5 | [Effects](docs/book/05-effects.md) | what the compiler may not drop, copy or move |
+| 2 | [`fn`](docs/book/02-fn.md) | a function is a value, and applying one is compiling |
+| 3 | [Definitions](docs/book/03-def.md) | a name is an abbreviation, unfolded where it is used |
+| 4 | [Modules](docs/book/04-modules.md) | where a name lives, and when the platform supplies it |
+| 5 | [Choice](docs/book/05-choice.md) | `if` and guards; a choice known at compile time keeps one branch |
+| 6 | [Effects](docs/book/06-effects.md) | what the compiler may not drop, copy or move |
 | | **II. What a program computes with** | |
-| 6 | [Integers](docs/book/06-integers.md) | an integer is an integer: a range is a set, proven or refused, exact past the machine word |
-| 7 | [Bits](docs/book/07-bits.md) | the bits belong to the integer; wrapping is `mod 2ⁿ`, written where it is meant |
-| 8 | [Numbers with a point](docs/book/08-numbers.md) | exact decimals, `round` the one place precision is lost, and IEEE doubles |
-| 9 | [Text](docs/book/09-text.md) | a string is a sequence of characters; the platform's strings are its own |
-| 10 | [Tuples and variants](docs/book/10-data.md) | "and" and "or" of data, and `case` |
-| 11 | [Records](docs/book/11-records.md) | a record is a function on its labels; `with`; the zero |
+| 7 | [Integers](docs/book/07-integers.md) | an integer is an integer: a range is a set, proven or refused, exact past the machine word |
+| 8 | [Bits](docs/book/08-bits.md) | the bits belong to the integer; wrapping is `mod 2ⁿ`, written where it is meant |
+| 9 | [Numbers with a point](docs/book/09-numbers.md) | exact decimals, `round` the one place precision is lost, and IEEE doubles |
+| 10 | [Text](docs/book/10-text.md) | a string is a sequence of characters; the platform's strings are its own |
+| 11 | [Tuples and variants](docs/book/11-data.md) | "and" and "or" of data, and `case` |
+| 12 | [Records](docs/book/12-records.md) | a record is a function on its labels; `with`; the zero |
 | | **III. Repetition and storage** | |
-| 12 | [`loop`](docs/book/12-loop.md) | the one way to repeat, and knowing that it stops |
-| 13 | [Tables](docs/book/13-tables.md) | a table is a function on `0..len-1`, and an index is proven |
-| 14 | [State](docs/book/14-state.md) | `var`, buffers, maps, cells lent with `inout` |
-| 15 | [Failures](docs/book/15-failures.md) | a failure is a value: `try`, `expect`, and results that must be used |
+| 13 | [`loop`](docs/book/13-loop.md) | the one way to repeat, and knowing that it stops |
+| 14 | [Tables](docs/book/14-tables.md) | a table is a function on `0..len-1`, and an index is proven |
+| 15 | [State](docs/book/15-state.md) | `var`, buffers, maps, cells lent with `inout` |
+| 16 | [Failures](docs/book/16-failures.md) | a failure is a value: `try`, `expect`, and results that must be used |
 | | **IV. Claims and hosts** | |
-| 16 | [Claims](docs/book/16-claims.md) | how a header's claims are proven, and where the method stops |
-| 17 | [Targets](docs/book/17-targets.md) | declaring a platform's function, a function the platform calls, and portability computed |
-| 18 | [Calling C](docs/book/18-c.md) | a C function by its prototype, structs as records, a window procedure |
-| 19 | [A whole program](docs/book/19-whole.md) | one real program, read from its first line to its last |
+| 17 | [Claims](docs/book/17-claims.md) | how a header's claims are proven, and where the method stops |
+| 18 | [Targets](docs/book/18-targets.md) | declaring a platform's function, a function the platform calls, and portability computed |
+| 19 | [Calling C](docs/book/19-c.md) | a C function by its prototype, structs as records, a window procedure |
+| 20 | [A whole program](docs/book/20-whole.md) | one real program, read from its first line to its last |
 
 ## A first program
 
@@ -192,11 +193,11 @@ otherwise, so a program every other platform compiles compiles there too (done 2
 **Done since it was set**: **`Int` is every integer at an entry point too**
 ([intboundary](gauntlet/results/intboundary-2026-11-21.md), ADR 0147): an exported function taking
 `Int` takes the host's integer of any size where its header does not bound it, one rendering of an
-integer, `decimal`, and `io.print_int` printing any integer on every target; the book's chapter 0
+integer, `decimal`, and `io.print_int` printing any integer on every target; the book's chapter 1, the tour,
 rewritten from scratch, every function shown with its output and its code. **The midpoint of two
 full words** ([midpoint](gauntlet/results/midpoint-2026-11-21.md), ADR 0148): a sum claimed `Int`
 is computed exactly on every target, and `lo + (hi - lo) / 2` under `lo <= hi` is proven in the
-machine's words, so binary search compiles as it is taught; the book's chapter 6 teaches the three
+machine's words, so binary search compiles as it is taught; the book's chapter 7 teaches the three
 ways. The book's findings 100 and 101 (a map read while it is filled; a table of
 tables or of tuples written out, read at any index), and Windows' enumerators read against their
 documentation ([win32evidence](gauntlet/results/win32evidence-2026-11-20.md)).
@@ -257,7 +258,7 @@ hello from oroboros
 go run ./cmd/build -target=windows -o stein.exe examples/big/stein.oro   # Stein's gcd over Fibonacci numbers
 go run ./cmd/portable examples/io/wc.oro       # which platforms accept a program, and why the others refuse
 go run ./cmd/oro -target=go examples/native/dot.oro   # what a program reduces to
-go run docs/book/check.go docs/book/11-records.md     # re-run one chapter's examples
+go run docs/book/check.go docs/book/12-records.md     # re-run one chapter's examples
 go run ./cmd/check                             # every check
 ```
 

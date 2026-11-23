@@ -1,4 +1,4 @@
-# 19. A whole program
+# 20. A whole program
 
 Sixteen chapters, each about one idea, each with examples of five or ten lines. A reader
 could finish them knowing every construct and still not know what a *program* looks like:
@@ -21,11 +21,11 @@ and prints the subtotal, the sales tax and the total:
 It is 74 lines. It reads a file that may not exist, treats text that may be malformed, does
 exact arithmetic on money, and runs unchanged on four targets. It is adapted from
 `examples/num/ledger.oro` in this repository, and it is in [code/whole/](code/whole/). `go
-run docs/book/check.go docs/book/19-whole.md` re-runs every block. Checked 2026-11-16.
+run docs/book/check.go docs/book/20-whole.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 19.1 Running it
+## 20.1 Running it
 
 Before reading it, watch it work. The program is a module, `ledger`, with one public
 function, and a three-line entry program names the file:
@@ -73,7 +73,7 @@ Windows executable with no runtime under it. Now the source.
 
 ---
 
-## 19.2 The header
+## 20.2 The header
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -92,20 +92,20 @@ cap_in = 2^16
 
 **The comment** says what the program does, what input it accepts, and the one decision in
 it that is a matter of law and not of arithmetic: which way a half-cent of tax rounds.
-Chapter 8 said that choice belongs in the program text. It belongs in the first comment too.
+Chapter 9 said that choice belongs in the program text. It belongs in the first comment too.
 
-**Four `use` lines** (chapter 3). Not one of them is the language. `io` prints, `os` reads
+**Four `use` lines** (chapter 4). Not one of them is the language. `io` prints, `os` reads
 files, `num` writes a number as text, `result` is the variant a fallible function returns.
-Chapter 17 showed what each is underneath: a folder with a file per target. This program
+Chapter 18 showed what each is underneath: a folder with a file per target. This program
 never says which target, and that is why it runs on four.
 
-**`cap_in = 2^16`** is a constant (chapter 2): a name for a number, computed while
+**`cap_in = 2^16`** is a constant (chapter 3): a name for a number, computed while
 compiling. It is the largest file the program accepts, 65536 bytes, and 19.6 shows what
 depends on it.
 
 ---
 
-## 19.3 Two small functions
+## 20.3 Two small functions
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -122,8 +122,8 @@ fn price(digits ∈ 0..10^7, places ∈ 0..2) {
 }
 ```
 
-**`digit?`** asks whether a byte is one of the characters `0` to `9`. Chapter 9: those are
-numbers 48 to 57 in ASCII, in order. The file is read as bytes (chapter 13), so the question
+**`digit?`** asks whether a byte is one of the characters `0` to `9`. Chapter 10: those are
+numbers 48 to 57 in ASCII, in order. The file is read as bytes (chapter 14), so the question
 is a comparison of numbers. A `?` may end a name, and here it marks a function that answers
 yes or no.
 
@@ -133,22 +133,22 @@ as `digits` = 1250 and `places` = 2. `price` moves the point back: 1250 × 0.01.
 
 Three things are packed into those six lines.
 
-- **`0.01` is one hundredth, exactly** (chapter 8). `digits * 0.01` is an exact decimal. No
+- **`0.01` is one hundredth, exactly** (chapter 9). `digits * 0.01` is an exact decimal. No
   double is anywhere in this program.
-- **The header's sets are claims** (chapters 6 and 16). `digits ∈ 0..10^7` and `places ∈
+- **The header's sets are claims** (chapters 7 and 17). `digits ∈ 0..10^7` and `places ∈
   0..2` are obligations on whoever calls `price`. The loop must prove them, and 19.5 shows
   how.
 - **The three arms give three different scales**: hundredths, tenths, units. The compiler
-  holds a decimal as an integer numerator at a scale known while compiling (chapter 8), so
+  holds a decimal as an integer numerator at a scale known while compiling (chapter 9), so
   it has to bring the arms to one scale, hundredths, where they meet. `digits * 1.0` has a
   point for that reason: it makes the third arm a number of the same kind as the other two.
 
 Neither function exists when the program runs. Both are unfolded where they are called
-(chapter 2).
+(chapter 3).
 
 ---
 
-## 19.4 The report
+## 20.4 The report
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -160,7 +160,7 @@ fn report(sum) {
 }
 ```
 
-The whole of the program's arithmetic about tax is the first line, and it is chapter 8 in
+The whole of the program's arithmetic about tax is the first line, and it is chapter 9 in
 one expression.
 
 - **`sum * 0.0825`** is the exact tax: for 57.97, the number 4.782525. Six places, more than
@@ -173,7 +173,7 @@ one expression.
   that the loop maintains, and 19.6 removes that bound to show the refusal.
 
 Then three lines of output. `num.decimal(sum, 2)` is the number as text with two places,
-`++` joins text (chapter 9), and `io.print_line` is the effect (chapter 5). The three prints
+`++` joins text (chapter 10), and `io.print_line` is the effect (chapter 6). The three prints
 happen in the order written because effects are never reordered.
 
 `sum + tax` is exact, since both are decimals, so the three numbers printed always add up.
@@ -181,7 +181,7 @@ In a program that used doubles they would add up most of the time.
 
 ---
 
-## 19.5 The loop
+## 20.5 The loop
 
 This is the heart: thirty-six lines that turn bytes into a sum.
 
@@ -197,7 +197,7 @@ fn ledger(src) {
     var bad := false
 ```
 
-**Seven cells** (chapter 14). Together they are everything the program remembers while it
+**Seven cells** (chapter 15). Together they are everything the program remembers while it
 reads:
 
 | cell | what it holds |
@@ -210,7 +210,7 @@ reads:
 | `sum` | the subtotal of all finished lines: a decimal |
 | `bad` | whether any line was malformed |
 
-Chapter 14 said a cell is a notation for a loop variable, and that cells are the better
+Chapter 15 said a cell is a notation for a loop variable, and that cells are the better
 spelling when a value changes on some trips and not others. This loop is that case exactly.
 On a typical trip one or two of the seven change. Written with `again(…)` carrying all
 seven, every arm would list seven values, six of them unchanged.
@@ -223,7 +223,7 @@ seven, every arm would list seven values, six of them unchanged.
             b = if i < len(src) { src[i] } else { 10 }
 ```
 
-**One loop variable, `i`**, the position in the file (chapter 12), and two arms.
+**One loop variable, `i`**, the position in the file (chapter 13), and two arms.
 
 The first arm is the exit. Note `i > len(src)`, not `>=`: the loop takes one trip *past* the
 end. The line below explains why. At the position one past the last byte, `b` is 10, the
@@ -231,7 +231,7 @@ newline character. Many files do not end with a newline, and a last line with no
 never be finished. Pretending there is one more newline closes it, and costs nothing when
 the file already had one.
 
-That line is also the proof that `src[i]` is a position (chapter 13). The guard `i <
+That line is also the proof that `src[i]` is a position (chapter 14). The guard `i <
 len(src)` is right there, and `i` started at 0 and only goes up. Nothing else in the program
 reads `src`.
 
@@ -251,7 +251,7 @@ At the exit there are two outcomes: a complaint, or the report.
                 }
 ```
 
-Inside, a `case` over what the byte is (chapter 4), tried in order. First, **a newline**:
+Inside, a `case` over what the byte is (chapter 5), tried in order. First, **a newline**:
 the line is over.
 
 - If the line got as far as its quantity (`field == 1`), add it in: price times quantity.
@@ -260,7 +260,7 @@ the line is over.
 - If a price was begun and no quantity followed, the line is malformed.
 - Then five cells go back to their starting values, ready for the next line.
 
-The `&& sum < 10^10` is a guard of the kind chapter 12 described: a bound stated where the
+The `&& sum < 10^10` is a guard of the kind chapter 13 described: a bound stated where the
 compiler can lean on it. 19.6 returns to it.
 
 <!-- part docs/book/code/whole/ledger.oro -->
@@ -285,7 +285,7 @@ The other bytes, one arm each:
 
 - **A space** (32), while reading the price: the price is over, the quantity begins.
 - **A point** (46), in the price, if there has not been one already.
-- **A digit in the price.** `digits * 10 + (b - 48)` is positional notation, chapter 9 run
+- **A digit in the price.** `digits * 10 + (b - 48)` is positional notation, chapter 10 run
   forwards: shift what you have one place left and add the new digit. `b - 48` is the
   digit's value. If the point has gone by, count a place.
 - **A digit in the quantity**: the same step.
@@ -296,7 +296,7 @@ The other bytes, one arm each:
 
 Then `again(i + 1)`: on to the next byte.
 
-What you are looking at is a **state machine** (chapter 10): the cells are the state, each
+What you are looking at is a **state machine** (chapter 11): the cells are the state, each
 byte is an input, and the arms are the table of what each input does in each state. Every
 program that reads text is one, underneath. This one is written out plainly.
 
@@ -317,14 +317,14 @@ before, it is below 1000 after, which bounds the product.
 
 They also do a second job. A price with too many digits, or a quantity over 999, fails its
 guard, falls through to `else`, and the line is reported as bad. So **the limit the proof
-needs and the limit the user is told about are the same test.** That is chapter 12's lesson
+needs and the limit the user is told about are the same test.** That is chapter 13's lesson
 in its best form. A program that reads numbers from a file has to have *some* largest number
 it accepts. Here the compiler made the author pick one, write it down, and say what happens
 past it.
 
 ---
 
-## 19.6 The world
+## 20.6 The world
 
 <!-- part docs/book/code/whole/ledger.oro -->
 ```go
@@ -336,9 +336,9 @@ pub fn run(path) {
 }
 ```
 
-The last function, and the only `pub` one (chapter 3): the module's whole interface.
+The last function, and the only `pub` one (chapter 4): the module's whole interface.
 
-`os.ReadFile(path)` returns a result (chapter 15), and the `case` answers for both tags.
+`os.ReadFile(path)` returns a result (chapter 16), and the `case` answers for both tags.
 There is no way to reach `src` except through the `'ok` arm, so there is no way to forget
 that the file might not be there.
 
@@ -385,7 +385,7 @@ job.
 
 ---
 
-## 19.7 Taking the guards out
+## 20.7 Taking the guards out
 
 The claim of this book is that those guards are not decoration. The way to check a claim
 like that is to remove one and see what happens. Each program below is the ledger with one
@@ -398,7 +398,7 @@ change, and each is refused.
 gen: docs/book/code/whole/no-err.oro: run: case on result is not exhaustive: err is unmatched. Add it a clause, or an `else`
 ```
 
-Chapter 10: a `case` answers for every tag.
+Chapter 11: a `case` answers for every tag.
 
 **Read one byte past the end.** Replace `b = if i < len(src) { src[i] } else { 10 }` with
 `b = src[i]`:
@@ -408,7 +408,7 @@ Chapter 10: a `case` answers for every tag.
 gen: whole-main: #nl16[i] is an indexing, and i < len(#nl16) does not follow
 ```
 
-Chapter 13. The loop runs while `i <= len(src)`, and at `i == len(src)` there is no byte.
+Chapter 14. The loop runs while `i <= len(src)`, and at `i == len(src)` there is no byte.
 (`#nl16` is the compiler's own name for `src`, after the function was unfolded into `main`.
 In a small example a message names your variable. In a whole program it sometimes names its
 own, which is a wart.)
@@ -420,7 +420,7 @@ own, which is a wart.)
 gen: whole-main: price's parameter places, declared in 0..2, requires places <= 2 at a call, which does not follow
 ```
 
-Chapter 6: a parameter's set is an obligation at the call. Without the guard, `places` can
+Chapter 7: a parameter's set is an obligation at the call. Without the guard, `places` can
 count as high as the line is long, and `price` has no arm for 3.
 
 **Let the subtotal grow without limit.** Remove `&& sum < 10^10`:
@@ -430,7 +430,7 @@ count as high as the line is long, and `price` has no arm for 3.
 gen: whole-main: whole-main: round(D(2, 0..10000000000), …)'s value inside its set: not proven (the numerator is [0, 5406720000000000], its set's ends 0..1000000000000) (ADR 0086, numbers.md §3)
 ```
 
-Chapter 8: a rounding must land in its set. The message shows the compiler's arithmetic.
+Chapter 9: a rounding must land in its set. The message shows the compiler's arithmetic.
 Without the guard it bounded the subtotal by multiplying out the worst case, every line of
 the largest file at the largest price and quantity, and the tax on *that* is past the 10¹⁰
 the tax's set allows. With the guard, the subtotal is below 10¹⁰ plus one line, and its tax
@@ -445,7 +445,7 @@ portable to go, java, windows — not js
 
 This one is not refused everywhere. It is refused *somewhere*. With no limit on the file
 there is no limit on how many lines add into `sum`'s numerator, and JavaScript's word is
-smaller than the others'. Chapter 6: portability is computed. `cap_in` is the line in this
+smaller than the others'. Chapter 7: portability is computed. `cap_in` is the line in this
 program that buys JavaScript.
 
 Five changes, five refusals, and each message pointed at a real hole: a file not there, a
@@ -456,12 +456,12 @@ bugs is found by a user.
 One honest note about the messages. Remove `digits < 10^6` and the refusal comes from far
 away, inside the library function that prints the result, which is the first place the
 too-large number gets somewhere it does not fit. The compiler tells you where the proof
-broke, and that is not always where the cause is. Chapter 16's advice applies: state what
+broke, and that is not always where the cause is. Chapter 17's advice applies: state what
 you believe near where you believe it, and the refusal moves there.
 
 ---
 
-## 19.8 What came out
+## 20.8 What came out
 
 <!-- gen go docs/book/code/whole/purchases.oro -->
 ```go
@@ -510,7 +510,7 @@ said.
 
 ---
 
-## 19.9 What the program is made of
+## 20.9 What the program is made of
 
 Count the 74 lines by what they are for.
 
@@ -546,13 +546,13 @@ every file that could ever be given to it.
 
 ---
 
-## 19.10 Where to go from here
+## 20.10 Where to go from here
 
 This book has taught what is decided and built. The repository holds a good deal more.
 
 **Programs to read.** `examples/` has larger ones in the same style: `io/wc.oro` counts
 lines, words and characters; `io/freq.oro` counts words and sorts them; `json/` reads JSON
-into a table of nodes; `hash/` computes the checksums of chapter 7 over a file; `big/`
+into a table of nodes; `hash/` computes the checksums of chapter 8 over a file; `big/`
 computes factorials and Fibonacci numbers of thousands of digits. Each is a few screens,
 and each leans on a chapter of this book harder than the chapter's own examples could.
 

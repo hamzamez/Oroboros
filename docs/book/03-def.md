@@ -1,6 +1,6 @@
-# 2. Definitions
+# 3. Definitions
 
-[Chapter 1](01-fn.md) was about `fn`, which makes a function and gives it no name. This chapter is
+[Chapter 2](02-fn.md) was about `fn`, which makes a function and gives it no name. This chapter is
 the second brick: **giving a term a name.** It is a smaller step than it sounds, and a stranger
 one, because a name here is not what it is in most languages. It is not a variable, not a memory
 location, and not a function the program calls. It is an abbreviation.
@@ -14,9 +14,9 @@ fn square(n) { n * n }       // a function; the same as  square = fn(n) { n * n 
 ```
 
 Inside the compiler this form is called `def`, and the rule that uses one is called **δ**. Those
-two words are all this chapter adds to chapter 1's β.
+two words are all this chapter adds to chapter 2's β.
 
-The examples are files in [code/def/](code/def/), run as chapter 1's were:
+The examples are files in [code/def/](code/def/), run as chapter 2's were:
 
 ```bash
 go run ./cmd/oro -j -target=tutorial docs/book/code/def/name.oro
@@ -25,12 +25,12 @@ go run ./cmd/oro -j -target=tutorial docs/book/code/def/name.oro
 `oro` reduces each `export` and prints what is left. The `tutorial` target supplies arithmetic,
 the opaque functions `f`, `g` (one argument) and `h` (two), the opaque values `x()`, `y()`, `z()`,
 and `shout`, which has an effect. A file named `no-…` is meant to be refused; one the reader
-itself refuses ends in `.oro.txt`. `go run docs/book/check.go docs/book/02-def.md` re-runs every
+itself refuses ends in `.oro.txt`. `go run docs/book/check.go docs/book/03-def.md` re-runs every
 block. Checked 2026-11-15.
 
 ---
 
-## 2.1 Naming a term
+## 3.1 Naming a term
 
 <!-- file docs/book/code/def/name.oro -->
 ```go
@@ -73,7 +73,7 @@ export fn run() { 1 }
 oro: docs/book/code/def/no-bare.oro.txt: line 1: "h" begins no declaration; a file holds fn, set, use, module and NAME = e (ADR 0064)
 ```
 
-## 2.2 Order does not matter
+## 3.2 Order does not matter
 
 <!-- file docs/book/code/def/order.oro -->
 ```go
@@ -92,10 +92,10 @@ fn() { h(4, 3) }
 
 A file's definitions are a **set**, not a sequence. Use a name before its definition, and put
 definitions in whatever order reads best; there are no forward declarations and no prototypes.
-This is the difference from a block (§1.12), whose bindings are applications, one inside the
+This is the difference from a block (§2.12), whose bindings are applications, one inside the
 other, and so are ordered.
 
-## 2.3 A definition is unfolded, not stored
+## 3.3 A definition is unfolded, not stored
 
 This is the one that surprises people, so here it is early.
 
@@ -124,7 +124,7 @@ replacement is δ:
 name   ⟶   the term it is defined as
 ```
 
-Compare a name bound in a block, which chapter 1 showed is an application and is shared:
+Compare a name bound in a block, which chapter 2 showed is an application and is shared:
 
 <!-- file docs/book/code/def/share.oro -->
 ```go
@@ -191,9 +191,9 @@ A function may always be copied, because copying one runs nothing; the effect ha
 *applied*. `run` applies it twice and shouts twice, which is what it says. `once` applies it once
 and uses the answer twice.
 
-## 2.4 What can be a name
+## 3.4 What can be a name
 
-The rules are a parameter's (§1.4): a letter or `_`, then letters, digits and `_`, an optional
+The rules are a parameter's (§2.4): a letter or `_`, then letters, digits and `_`, an optional
 final `?`. Letters are Unicode's.
 
 <!-- file docs/book/code/def/unicode.oro -->
@@ -268,7 +268,7 @@ export fn run() { len }
 oro: docs/book/code/def/no-language.oro: the program defines len, which is the language's own: J's reader writes its constructs with these names (`if c { a } else { b }` is `if`, `a + b` is `+`), so a definition would capture them in its module or be ignored beside the target's. A definition introduces a fresh name; choose another
 ```
 
-That includes the operators. §1.6 refused a *parameter* named `` `+` ``, which would have changed
+That includes the operators. §2.6 refused a *parameter* named `` `+` ``, which would have changed
 what `a + b` means inside one function. A *definition* of `+` would change it in every line of the
 file, and is refused for the same reason: a definition introduces a fresh name, as a binder does.
 
@@ -286,9 +286,9 @@ oro: docs/book/code/def/no-operator.oro: the program defines `+`, which is the l
 
 **There is no operator overloading**, and this is where it is refused.
 
-## 2.5 Every definition is checked
+## 3.5 Every definition is checked
 
-A definition's body follows §1.5's rule: each free name must be a parameter, a definition, or the
+A definition's body follows §2.5's rule: each free name must be a parameter, a definition, or the
 target's. And it is checked whether or not anything uses it.
 
 <!-- file docs/book/code/def/no-helper.oro -->
@@ -305,7 +305,7 @@ oro: docs/book/code/def/no-helper.oro: in helper: qq is not bound — it is not 
 
 `run` never mentions `helper`. A typo in a function you have not called yet is still a typo.
 
-## 2.6 Which meaning a name has
+## 3.6 Which meaning a name has
 
 Three things can give a name its meaning. When more than one does, the nearest wins.
 
@@ -333,7 +333,7 @@ fn() { f(5) }
 - In `plain`, `double` is the definition, and it unfolded.
 - In `a_parameter`, `double` is the parameter. Nothing unfolds: the definition is not what is
   meant there.
-- In `a_binding`, `double` is the block's binding, which is a parameter too (§1.12).
+- In `a_binding`, `double` is the block's binding, which is a parameter too (§2.12).
 
 > **A parameter or a binding beats a definition.**
 
@@ -343,7 +343,7 @@ check a line later. Prefer distinct names.
 
 The third thing that can supply a name is the target, and there the order runs the other way.
 
-## 2.7 The target's own beats a definition, and that is the design
+## 3.7 The target's own beats a definition, and that is the design
 
 `f` is one of the `tutorial` target's own names. Define it anyway:
 
@@ -400,7 +400,7 @@ box =
 fn(w, h) { geometry.area(w, h) }
 ```
 
-Chapter 1 said reduction runs until only the target's own operations remain. This is the other
+Chapter 2 said reduction runs until only the target's own operations remain. This is the other
 half of that sentence: **which names are the target's own is the target's choice**, so the same
 program reduces to different things on different targets, each as far as that target needs.
 
@@ -416,7 +416,7 @@ So the full order is:
 
 > **parameter or binding**, then **the target**, then **definition**.
 
-## 2.8 A definition may not mention itself
+## 3.8 A definition may not mention itself
 
 <!-- file docs/book/code/def/no-countdown.oro -->
 ```go
@@ -431,7 +431,7 @@ oro: docs/book/code/def/no-countdown.oro: countdown is recursive: it is defined 
   If the self-reference was not deliberate, this definition is shadowing the countdown you meant.
 ```
 
-**Recursion is not in the language**, and §2.3 is why. A definition is an abbreviation, and δ
+**Recursion is not in the language**, and §3.3 is why. A definition is an abbreviation, and δ
 replaces it by what it abbreviates. An abbreviation that contains itself never finishes being
 written out, and since reduction is compilation, a term that never finishes reducing is a program
 that never finishes compiling. It is refused at the definition, before anything reduces.
@@ -505,9 +505,9 @@ export fn run() { 3 }
 
 That is rarely a recursive `size`. It is a `size` meant to call some *other* `size`, one you
 forgot to `use` or spelled differently, and the definition being written took its name. The
-message says so, and, as in §2.5, it says so though nothing calls `size`.
+message says so, and, as in §3.5, it says so though nothing calls `size`.
 
-## 2.9 What reaches the host
+## 3.9 What reaches the host
 
 `export` marks the definitions a host can call. `oro` prints them; a real target emits one host
 function for each.
@@ -646,7 +646,7 @@ fn() { h(3, 3) }
 
 ---
 
-## 2.10 Everything from nothing
+## 3.10 Everything from nothing
 
 Now the part that is not about this language.
 
@@ -655,7 +655,7 @@ Church showed that this is no limitation: each of those can be *encoded* as a fu
 `fn` and definitions, which is enough to try it, and there is a reason to try it here and not on
 paper, which the end of this section is about.
 
-The textbook names are mostly taken: `true` and `false` are literals here, and §2.4 forbids
+The textbook names are mostly taken: `true` and `false` are literals here, and §3.4 forbids
 redefining what the language owns. So the encodings below are spelled `yes` and `no`, `inv`,
 `conj`, `disj`, `excl`. The shapes are Church's.
 
@@ -847,13 +847,13 @@ fn(v) { v }
 ```
 
 `S(K)(K)` reduced to `fn(c) { c }`, the identity. The compiler proved *SKK = I* with no argument
-in sight, because reduction goes inside functions (§1.9).
+in sight, because reduction goes inside functions (§2.9).
 
 ### Where it stops
 
 Two limits, and both are honest.
 
-**Arity is exact** (§1.8). The textbook calculus is curried, every function taking one argument,
+**Arity is exact** (§2.8). The textbook calculus is curried, every function taking one argument,
 and some classic encodings lean on it. Exponentiation, *exp m n = n m*, applies a two-parameter
 numeral to one argument:
 
@@ -910,9 +910,9 @@ export fn run() { Y(f) }
 oro: reduction did not terminate within the step limit, reducing fn() { Y(f) }
 ```
 
-No definition there mentions itself, so §2.8's check has nothing to refuse; but `Y(f)` unfolds to
+No definition there mentions itself, so §3.8's check has nothing to refuse; but `Y(f)` unfolds to
 `f(f(f(…)))` without end, and the step limit is the guard in front of that. It is the same fact as
-§2.8, met from the other side: recursion is not a thing you can smuggle in, because what is missing
+§3.8, met from the other side: recursion is not a thing you can smuggle in, because what is missing
 is not a keyword but a normal form.
 
 ### The encoding that is in the library
@@ -959,7 +959,7 @@ Church's encodings are usually taught as a proof that functions are enough, and 
 hopelessly slow. That is true where they run. **An encoding costs nothing when the thing that takes
 it apart is known at compile time**, and here it always is, since reduction continues until only
 the target's operations are left. The language's own tuples, variants and tables by a rule
-(chapter 0) are this idea, given syntax.
+(chapter 1) are this idea, given syntax.
 
 ---
 
@@ -983,4 +983,4 @@ the target's operations are left. The language's own tuples, variants and tables
 - **Functions and definitions alone can encode booleans, pairs, numbers and lists**, and here the
   encodings cost nothing, because whatever takes one apart is known at compile time.
 
-Next: [modules](03-modules.md), how a name in another file is reached.
+Next: [modules](04-modules.md), how a name in another file is reached.

@@ -1,0 +1,1 @@
+export fn twice_plus(n ∈ 0..100) (Int) { n * 2 + 1 }

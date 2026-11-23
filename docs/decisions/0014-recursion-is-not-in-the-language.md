@@ -120,7 +120,7 @@ A superseding ADR, not an edit to this one.
 - `Env.CheckScope` became `Env.CheckProgram` and does both checks.
 - `Env.Rec` stays. δ still declines to unfold a cycle, because reduction must remain correct on a
   term the check has not run over — tests reduce such terms directly.
-- [Chapter 2 §2.8](../book/02-def.md) rewritten: it taught the stuck residual, and now teaches the
+- [Chapter 2 §2.8](../book/03-def.md) rewritten: it taught the stuck residual, and now teaches the
   error and `fold-range`.
 - [core-0 §6](../spec/core-0.md)'s "stays in the residual as a target function" is superseded by
   this. It was written as a prediction and never run.

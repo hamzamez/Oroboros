@@ -1,7 +1,7 @@
-# 6. Integers
+# 7. Integers
 
-Part I was about how a program is reduced: [functions](01-fn.md), [names](02-def.md),
-[modules](03-modules.md), [choices](04-choice.md), [effects](05-effects.md). Numbers stood in the
+Part I was about how a program is reduced: [functions](02-fn.md), [names](03-def.md),
+[modules](04-modules.md), [choices](05-choice.md), [effects](06-effects.md). Numbers stood in the
 examples the whole time, and nothing was said about them. Part II is about what a program
 computes with, and it starts with the oldest thing there is to compute with.
 
@@ -21,11 +21,11 @@ program analysis there is), preconditions (Hoare, 1969), and the most famous one
 computing, which this language cannot express.
 
 The examples are in [code/integers/](code/integers/), compiled for real targets, mostly Go.
-`go run docs/book/check.go docs/book/06-integers.md` re-runs every block. Checked 2026-11-21.
+`go run docs/book/check.go docs/book/07-integers.md` re-runs every block. Checked 2026-11-21.
 
 ---
 
-## 6.1 Writing one
+## 7.1 Writing one
 
 <!-- file docs/book/code/integers/literals.oro -->
 ```go
@@ -64,11 +64,11 @@ export fn main() {
 - **`^` is a power**, as in mathematics, and it binds tighter than `*`: `2 * 3^2` is 18. It is
   for writing constants, `2^10`, `10^6`, `2^63-1`, and both sides must be known when the program
   is compiled. (In C and its descendants `^` is "exclusive or". That operation is `⊕` here, and
-  [chapter 7](07-bits.md) is about it.)
+  [chapter 8](08-bits.md) is about it.)
 - `*`, `/` and `%` bind tighter than `+` and `-`, and operators of the same strength group from
   the left: `10 - 3 - 2` is `(10 - 3) - 2`, and `100 / 10 / 5` is `(100 / 10) / 5`. That is the
   convention of school arithmetic and of nearly every language.
-- All of these were computed by the compiler (§1.3). The program that runs prints ten constants.
+- All of these were computed by the compiler (§2.3). The program that runs prints ten constants.
 
 Two things you might try, and cannot:
 
@@ -89,9 +89,9 @@ gen: docs/book/code/integers/no-power.oro: in power: `^` is not bound — it is 
 
 There is no digit separator: a million is `1000000` or `10^6`. And `^` with an exponent the
 compiler does not know is not an operation any target has; a power of a variable is a loop
-([chapter 12](README.md)).
+([chapter 13](README.md)).
 
-## 6.2 Division, and what is left over
+## 7.2 Division, and what is left over
 
 Addition, subtraction and multiplication of integers give integers. Division does not: 7 divided
 by 2 is three and a half. So "integer division" needs a decision about the half, and a second
@@ -203,7 +203,7 @@ func IntegersClock(v0 int) int {
 
 `back_again` is Euclid's equation, and always returns `a`. `clock` shows what `mod` costs on a
 host that lacks it: the host's remainder, and a correction when it came out negative. The
-notation `a ∈ -1000..1000` in those headers has been used since chapter 0 without explanation.
+notation `a ∈ -1000..1000` in those headers has been used since chapter 1 without explanation.
 It is next.
 
 ### A comparison is not chained
@@ -218,7 +218,7 @@ export fn between(a ∈ 0..9, b ∈ 0..9, c ∈ 0..9) (Bool) { a < b < c }
 gen: between: in argument 1 of `<`: `<` is Bool, but Int is required here
 ```
 
-`a < b` is a `Bool` (§4.1), and a `Bool` is not less than anything. C accepts this line and
+`a < b` is a `Bool` (§5.1), and a `Bool` is not less than anything. C accepts this line and
 compares `c` with 0 or 1. Mathematics means `a < b` and `b < c`, and that is how to write it:
 
 <!-- file docs/book/code/integers/chain.oro -->
@@ -226,7 +226,7 @@ compares `c` with 0 or 1. Mathematics means `a < b` and `b < c`, and that is how
 export fn between(a ∈ 0..9, b ∈ 0..9, c ∈ 0..9) (Bool) { a < b && b < c }
 ```
 
-## 6.3 A range is a set
+## 7.3 A range is a set
 
 <!-- file docs/book/code/integers/sets.oro -->
 ```go
@@ -287,7 +287,7 @@ knowing `b` is not negative, wrote the division as a shift, which is what you wo
 What a set is *not* is a size in memory. In C, `short`, `int` and `long` say how many bytes a
 value occupies, and the range follows from that. Here the source says what the values are, and
 the compiler chooses how to hold them. Four of the five functions above take a Go `int`; `any`
-takes every integer, and Go's type for every integer is `*big.Int` (§6.4).
+takes every integer, and Go's type for every integer is `*big.Int` (§7.4).
 
 **A range may not be empty**, since no call could ever supply a member:
 
@@ -339,7 +339,7 @@ not anything reads it:
 gen: half: the claim half ∈ 0..100 is false: its value is 200
 ```
 
-## 6.4 The machine's integer
+## 7.4 The machine's integer
 
 Here is the function everything in this chapter turns on:
 
@@ -400,7 +400,7 @@ func IntegersSquare(v0 *big.Int) *big.Int {
 
 `*big.Int` is Go's integer of any size, from its library `math/big`. The compiler said what it
 did, *1 operation in arbitrary precision*, because it costs: a big integer is an allocation and a
-loop over its digits, where a word is one instruction. §6.10 is about integers above the word.
+loop over its digits, where a word is one instruction. §7.10 is about integers above the word.
 
 **When you want the machine's word, say so, as a set.** A word is `-2^63..2^63-1`:
 
@@ -439,9 +439,9 @@ one machine multiplication with nothing checked.
 
 **The word is the target's.** Go, the JVM and Windows have the 64-bit word. JavaScript has no
 integers at all: its numbers are floating-point, exact only from −(2⁵³ − 1) to 2⁵³ − 1, and that
-is its word (§6.11).
+is its word (§7.11).
 
-## 6.5 How the compiler knows: intervals
+## 7.5 How the compiler knows: intervals
 
 The proof that an operation stays inside the word is arithmetic on **intervals**, and it is
 simple enough to do in your head.
@@ -506,10 +506,10 @@ Interval arithmetic is from Ramon Moore's work on numerical error (1966). Using 
 facts about a program without running it is the founding example of **abstract interpretation**
 (Patrick and Radhia Cousot, 1977): run the program not on numbers but on *descriptions* of
 numbers, here "somewhere between lo and hi", and whatever holds of the description holds of
-every run. The compiler has finer tools than intervals, and [chapter 16](16-claims.md) is about
+every run. The compiler has finer tools than intervals, and [chapter 17](17-claims.md) is about
 them. Most of the time intervals are enough.
 
-## 6.6 A condition is a fact
+## 7.6 A condition is a fact
 
 An interval starts from what a header says. It is narrowed by every condition on the way to an
 operation.
@@ -550,15 +550,15 @@ func IntegersBothSides(v0 int) int {
 - `distance`: in the first branch `n > 50` is known, so `n` is in 51..100 and `n - 50` in 1..50.
   In the other, `n` is in 0..50 and `50 - n` in 0..50. The claim `(0..50)` holds on both.
 - `magnitude`: the absolute value. Where `n < 0`, `-n` is in 1..9.
-- `both_sides`: this is `square` from §6.4, in the word. `n` is any word, and inside the branch
+- `both_sides`: this is `square` from §7.4, in the word. `n` is any word, and inside the branch
   it is in 0..999, so the product is under a million and one machine multiplication. A test you
   would have written anyway is the proof.
 - `the_other_way`: the `else` of a condition knows its negation. Not (`n < 0` or `n >= 1000`) is
-  `n >= 0` and `n < 1000`, by De Morgan's law (§4.5).
+  `n >= 0` and `n < 1000`, by De Morgan's law (§5.5).
 - `through_a_name`: the condition may be computed first and tested later. The fact follows the
   value.
 
-A fact also survives a function, since functions are reduced away (§1.2):
+A fact also survives a function, since functions are reduced away (§2.2):
 
 <!-- file docs/book/code/integers/clamp.oro -->
 ```go
@@ -577,7 +577,7 @@ note: integers-squared: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven
 after unfolding it: the result is `0`, or `1000`, or an `n` that is neither below 0 nor above
 1000. So `c` is in 0..1000 and its square is at most a million, which is what `squared` claims.
 
-## 6.7 Dividing by zero
+## 7.7 Dividing by zero
 
 Overflow is one way an integer operation can fail to mean anything. Division has another.
 
@@ -651,7 +651,7 @@ func IntegersGuarded(v0 int, v1 int) int {
 - `guarded` tests, and decides what the answer is when there is nobody to share with. The test
   is in the emitted code because it is in the source.
 - `by_its_set` says zero people is not a case: `people ∈ 1..100`.
-- `by_a_where` says the same with a `where`, the place in a header for a condition (§6.12).
+- `by_a_where` says the same with a `where`, the place in a header for a condition (§7.12).
 
 The second and third emit a bare division. They have moved the obligation to whoever calls
 them, and for a function inside the program the compiler will check each call. An `export` is
@@ -662,12 +662,12 @@ called by the host, from outside, so there its header is a promise the caller ma
 > runs, if at all. Here they are checked when it is compiled, and one that does not follow is an
 > error with a list of what was known.
 
-## 6.8 Three ways to clear a refusal
+## 7.8 Three ways to clear a refusal
 
 Back to `square64`, refused because its claim of the word is false. There are three things you
 can say, and each is visible in the source or on the command line.
 
-**Narrow the set**, so the operation provably fits, as `word.oro` did and as §6.6's tests do.
+**Narrow the set**, so the operation provably fits, as `word.oro` did and as §7.6's tests do.
 **Or claim a wider set**, a range above the word or `Int` itself, which is exact arithmetic
 however large the result:
 
@@ -695,11 +695,11 @@ func IntegersWide(v0 int) *big.Int {
 `small` claims `Int` and is one multiplication on an `int`: a result claimed in ℤ is held as its
 value needs, and −1000..1000 squared fits the word. `wide` takes an `int`, since 2⁴⁰ fits one,
 and returns Go's `*big.Int`, because its result does not. Write `(Int)` for `wide`'s result and
-it is the same function; `(0..2^80)` says more, and §6.10 shows what that costs.
+it is the same function; `(0..2^80)` says more, and §7.10 shows what that costs.
 
 **Or ask for the trap.** `-checked` is a flag of the compiler, and it applies where a value must
-be held in a word by something other than a claim: an element of a table (chapter 13) or a
-host's parameter (chapter 17), which the program cannot prove it fits. There it emits the host's
+be held in a word by something other than a claim: an element of a table (chapter 14) or a
+host's parameter (chapter 18), which the program cannot prove it fits. There it emits the host's
 own checked arithmetic, and the program stops when it runs if the value leaves the word. A claim
 in a header is never a trap: it is decided when the program is compiled, as `square64`'s was.
 
@@ -712,9 +712,9 @@ in a header is never a trap: it is decided when the program is compiled, as `squ
 What you cannot get is the fourth thing, the one every host gives by default: the machine's
 operation, unproven and unchecked. And a value inside an expression, which no claim, table or host
 holds, needs none of the three: it is held in the first of the machine's readings that holds it, and
-past them as the integer itself (§6.9).
+past them as the integer itself (§7.9).
 
-## 6.9 The other half of the word, and a famous bug
+## 7.9 The other half of the word, and a famous bug
 
 The refusals above printed *two* intervals for Go's word: `[-9223372036854775808,
 9223372036854775807]` and `[0, 18446744073709551615]`. The same 64 bits can be read as a signed
@@ -914,7 +914,7 @@ double word is one multiplication, 0.6 ns, and its algebraic form `h == 0 || w <
 a division, 2.3 ns. A rewrite keeps a value inside a word; whether that is cheaper than the double
 word is a measurement, and against a big integer it always is.
 
-**How the compiler finds the third step.** §6.5's intervals give each value a box, and a box
+**How the compiler finds the third step.** §7.5's intervals give each value a box, and a box
 forgets where a value came from. The box of q is [0, 2⁶³ − 1] and the box of lo is
 [−2⁶³, 2⁶³ − 1], so the box of lo + q is [−2⁶³, 2⁶⁴ − 2], out of the word, although no execution
 reaches past hi. A box is exact when each name occurs once in the expression (R. E. Moore,
@@ -1015,7 +1015,7 @@ one past the word. Exclude either the one dividend or the one divisor and the cl
 claim `Int` and the quotient is 2⁶³, computed exactly. The remainder never leaves the word and
 needs nothing.
 
-## 6.10 Above the word
+## 7.10 Above the word
 
 Some integers do not fit in 64 bits, and some programs need them: a factorial, a cryptographic
 key, the national debt in cents. A set whose members can exceed the word is the request to
@@ -1081,7 +1081,7 @@ The three targets hold these numbers three different ways, and the source names 
 | Windows | a table of 64-bit digits, written in this language, since there is no library to call |
 
 **Exactness is paid for only where it is needed.** The same `square`, used on small numbers, is
-the machine's multiplication: a function inside the program is reduced into each caller (§1.2),
+the machine's multiplication: a function inside the program is reduced into each caller (§2.2),
 and what decides how a value is held is what is *proven* about it there, not what was claimed
 for the function in general. The claim `Nat` gave permission to leave the word. It did not
 oblige anyone to.
@@ -1111,10 +1111,10 @@ func IntegersNatural(v0 *big.Int) *big.Int {
 ```
 
 Here, at last, `n + 1` is the next integer with no "unless". `Int` at an entry point is the
-same: §6.3's `any` and §6.4's `square` take a `*big.Int`, since a host may pass them any integer.
+same: §7.3's `any` and §7.4's `square` take a `*big.Int`, since a host may pass them any integer.
 
 **A bounded claim above the word is checked when the program runs**, where the compiler could
-not prove it. `wide` of §6.8, in full:
+not prove it. `wide` of §7.8, in full:
 
 <!-- gen go docs/book/code/integers/above.oro -->
 ```go
@@ -1152,7 +1152,7 @@ export fn scaled(n ∈ 0..2^40) (0..2^40) { square(n) / 2^40 }
 
 ### The compiler's own arithmetic obeys the rule
 
-§1.3 said the compiler computes what it can. It computes integers, not words, so the question
+§2.3 said the compiler computes what it can. It computes integers, not words, so the question
 of this chapter applies to it too:
 
 <!-- file docs/book/code/integers/no-fold.oro -->
@@ -1171,7 +1171,7 @@ would do the same a step later. This one computes 2⁶³ and notices that it doe
 header says it goes. Claim `(Int)` and the function returns 2⁶³, exactly. **Computing at compile time never changes an answer**
 ([ADR 0009](../decisions/0009-staging-preserves-results.md)).
 
-## 6.11 Which word, and so which targets
+## 7.11 Which word, and so which targets
 
 The word is the target's, so whether a program is legal depends on the program *and* the target.
 That is computed, and there is a tool to ask:
@@ -1199,7 +1199,7 @@ portable to go, js, java — not windows
 number up to 2⁶⁰, which a JavaScript number cannot hold exactly, so on JavaScript its parameter
 is a `BigInt` and on the other three an integer word: the same set, two representations. `next`
 takes every integer. Go, the JVM and JavaScript each have a type for that, and Windows does not:
-a Windows program's callers are C's, and C has no integer of any size (chapter 18, §18.10, has the
+a Windows program's callers are C's, and C has no integer of any size (chapter 19, §19.10, has the
 whole of what a Windows export takes and gives).
 
 <!-- gen windows docs/book/code/integers/words.oro -->
@@ -1258,7 +1258,7 @@ note names the operations so held. Neither function is a choice you make; on Go,
 Windows both are one 64-bit word.
 
 A value of the unsigned word crosses an entry point as the integer a JavaScript caller holds
-it in, a `BigInt`, both ways. §6.9's `next` takes one and returns one:
+it in, a `BigInt`, both ways. §7.9's `next` takes one and returns one:
 
 <!-- gen js docs/book/code/integers/next-u.oro -->
 ```javascript
@@ -1273,7 +1273,7 @@ export function integersNext(v0) {
 door; the sum is done on the halves, its carry from the low half into the high one; and the
 answer is put back together as a `BigInt` for the caller.
 
-## 6.12 A header carries claims
+## 7.12 A header carries claims
 
 Every header in this chapter has been making claims. Here is the form in full:
 
@@ -1299,7 +1299,7 @@ gen: integers-run: digit's parameter d, declared in 0..9, requires n <= 9 at a c
 
 `digit` is still reduced into its caller, as every function is. Its claim goes with it: at the
 place it was called, `n <= 9` must be provable, and all that is known is `0 <= n <= 100`. This
-is §6.7's division by zero again. `/` is a function with a precondition on its right side;
+is §7.7's division by zero again. `/` is a function with a precondition on its right side;
 `digit` is a function with one you wrote. Make it provable, and the claim costs nothing:
 
 <!-- file docs/book/code/integers/claims.oro -->
@@ -1410,7 +1410,7 @@ func IntegersGrows(v0 int, v1 int) int {
 }
 ```
 
-Chapter 16 says how such a promise is decided, and what else one may say: "for every" and
+Chapter 17 says how such a promise is decided, and what else one may say: "for every" and
 "there is".
 
 **An entry point's parameters need their sets.** A function used only inside the program takes
@@ -1463,7 +1463,7 @@ gen: of-strings: in argument 1 of `+`: s is String, but Int is required here
 ```
 
 **A λ carries a header too**, and it means what the same header means on a definition: a λ and a
-definition differ only by a name ([chapter 2](02-def.md)), so the compiler gives the λ one, *the λ at
+definition differ only by a name ([chapter 3](03-def.md)), so the compiler gives the λ one, *the λ at
 line 1* in a message, and checks it as one. Its result is a claim about every argument its
 parameters accept, not about the one it is applied to. 1 is in `0..9`; `n` is not, for every `n`:
 
@@ -1546,10 +1546,10 @@ func IntegersRun(v0 int) int {
 }
 ```
 
-How harder claims are proven is [chapter 16](16-claims.md). Where they live: **on a function, in
+How harder claims are proven is [chapter 17](17-claims.md). Where they live: **on a function, in
 its header, named or not, and nowhere else.** An expression carries no annotation.
 
-## 6.13 What other languages do
+## 7.13 What other languages do
 
 | | `n + 1` at the top of the word | to compute it exactly |
 |---|---|---|
@@ -1614,5 +1614,5 @@ say what your numbers are.
   the result, proven or refused. A λ's header is a definition's, its result decided for every
   argument and every value of a name it sees that has no set.
 
-Next: chapter 7, Bits. The same integers, looked at as the machine holds them: `&`, `|`, `⊕`,
+Next: chapter 8, Bits. The same integers, looked at as the machine holds them: `&`, `|`, `⊕`,
 shifts, and arithmetic that wraps on purpose.

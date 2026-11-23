@@ -1,12 +1,12 @@
-# 3. Modules
+# 4. Modules
 
-Two chapters, two bricks. [`fn`](01-fn.md) makes a function, and a [definition](02-def.md) gives a
+Two chapters, two bricks. [`fn`](02-fn.md) makes a function, and a [definition](03-def.md) gives a
 term a name. Everything so far has lived in one file, and every name has been one word.
 
 This chapter is the third brick: **where a name lives.** It adds three words, `use`, `pub` and
 `module`, and one character, `.`.
 
-It also answers a question chapter 2 left open. §2.7 said the target's own name beats a
+It also answers a question chapter 3 left open. §3.7 said the target's own name beats a
 definition, and called that the design. It did not say how a library's definition and a target's
 operation can be *the same name* in the first place. This chapter is that mechanism.
 
@@ -16,14 +16,14 @@ The examples are files in [code/](code/), run as before:
 go run ./cmd/oro -j -target=tutorial docs/book/code/area.oro
 ```
 
-Two targets appear: `tutorial`, from chapters 1 and 2, and `tutorial-native`, which is the same
-target with one more declaration; §3.10 is what that declaration does. A file named `no-…` is
-meant to be refused. `go run docs/book/check.go docs/book/03-modules.md` re-runs every block.
+Two targets appear: `tutorial`, from chapters 2 and 3, and `tutorial-native`, which is the same
+target with one more declaration; §4.10 is what that declaration does. A file named `no-…` is
+meant to be refused. `go run docs/book/check.go docs/book/04-modules.md` re-runs every block.
 Checked 2026-11-15.
 
 ---
 
-## 3.1 A file is a module
+## 4.1 A file is a module
 
 Here is a file, [code/geometry.oro](code/geometry.oro):
 
@@ -68,14 +68,14 @@ Four things happened.
 - **`use geometry` found the file**, beside the one that asked for it.
 - **`geometry.area` names a member of it.** The dot separates a module from one of its
   definitions.
-- **The definition unfolded exactly as in chapter 2.** δ does not care which file a name came
+- **The definition unfolded exactly as in chapter 3.** δ does not care which file a name came
   from. `scale` calls `area` by its plain name, since inside a module its definitions see each
   other unqualified, and both unfolded.
 
 `area.oro` defines its own `area`, and that is no conflict with `geometry.area`: they are
 different names. A module is a namespace.
 
-## 3.2 Paths
+## 4.2 Paths
 
 A module in a directory is named by its path, with `/`:
 
@@ -110,7 +110,7 @@ fn(r, a) { r * `math/trig`.cos(a) }
 - **`use shapes/circle` binds the last segment**, `circle`. The path is the module's identity;
   the last segment is the local name it is used by.
 - **`/` separates a path's segments, and `.` separates a module from a member.** They are
-  different characters doing different jobs, which is why chapters 1 and 2 refused `a.b` as a
+  different characters doing different jobs, which is why chapters 2 and 3 refused `a.b` as a
   parameter and as a definition's name: it already means *member b of module a*.
 
 One spelling rule, because you will meet it. A file's name may hold a hyphen; a name in a program
@@ -132,7 +132,7 @@ fn() { x() * 3 }
 
 The `use` spells the path as the file system does, `noisy-lib`; the program calls it `noisy_lib`.
 
-## 3.3 `use`
+## 4.3 `use`
 
 ```go
 use PATH            // binds PATH's last segment
@@ -177,7 +177,7 @@ oro: docs/book/code/no-unqualified.oro: in run: area is not bound — it is not 
 ```
 
 That is a refusal on purpose. In this language what a name means can already depend on the target
-you build for (§3.10). An unqualified import would add a second, invisible source of the same
+you build for (§4.10). An unqualified import would add a second, invisible source of the same
 dependence: a bare `area` whose meaning changes when a library you use adds a definition.
 Qualified, every name says where it came from, at the place it is used.
 
@@ -211,7 +211,7 @@ oro: docs/book/code/no-clash.oro: the program binds g to both geometry and shape
 Both modules really do have an `area`, so `g.area` would have meant whichever import was noticed
 first.
 
-## 3.4 `pub`: what another module may name
+## 4.4 `pub`: what another module may name
 
 `geometry` defines four things and marks three `pub`. The fourth is private:
 
@@ -251,7 +251,7 @@ oro: docs/book/code/no-member.oro: run: module geometry has no member volume
   in Python.
 
 **`pub` and `export` answer different questions**, and neither implies the other. `pub`: *may
-another module name this?* `export`: *does the host get a function for this?* (§3.5). `box.oro`
+another module name this?* `export`: *does the host get a function for this?* (§4.5). `box.oro`
 exports `box` and does not mark it `pub`:
 
 <!-- file docs/book/code/no-exported.oro -->
@@ -266,7 +266,7 @@ export fn run(u) { box.box(u, u) }
 oro: docs/book/code/no-exported.oro: run: module box defines box and does not make it `pub`: a declaration is private to its module unless marked `pub` (ADR 0078)
 ```
 
-## 3.5 The file you run, and the files it uses
+## 4.5 The file you run, and the files it uses
 
 Any `.oro` file can be either of two things, and which one is decided by how it was reached:
 
@@ -328,7 +328,7 @@ build: docs/book/code/no-entry.oro has no entry point: a program needs `export f
 
 Otherwise adding a dependency could change where your program begins.
 
-## 3.6 Several modules in one file
+## 4.6 Several modules in one file
 
 A file reached by `use` is one module. The entry file may hold several, each in a `module` block:
 
@@ -419,10 +419,10 @@ top.both =
 fn(n) { h(n * n, n + n) }
 ```
 
-That is the whole benefit of qualified names, and it is why §3.3's alias clash is the only naming
+That is the whole benefit of qualified names, and it is why §4.3's alias clash is the only naming
 conflict there is.
 
-## 3.7 Modules may use each other
+## 4.7 Modules may use each other
 
 <!-- file docs/book/code/cyc/a.oro -->
 ```go
@@ -454,17 +454,17 @@ module already loaded is not read again, so the cycle ends by itself. There are 
 no forward declarations, and no order to get right.
 
 Two modules that *use* each other are fine. Two definitions that *mention* each other are still
-recursion, and still refused (§2.8). They are different questions: one is about where names are
+recursion, and still refused (§3.8). They are different questions: one is about where names are
 found, the other about whether unfolding ends.
 
-## 3.8 What reduction sees: nothing
+## 4.8 What reduction sees: nothing
 
 > **Modules are resolution, not reduction**
 > ([ADR 0011](../decisions/0011-modules-add-nothing-to-the-reducer.md)). Before reduction starts,
 > every name has been replaced by its full, qualified one, and there are no modules left. β and δ
 > cannot tell that they ever existed.
 
-You have already seen the evidence. `circle.point_at` calls `trig.cos`, and §3.2's output says:
+You have already seen the evidence. `circle.point_at` calls `trig.cos`, and §4.2's output says:
 
 <!-- oro tutorial docs/book/code/round.oro -->
 ```go
@@ -477,10 +477,10 @@ because a path with a `/` is not an identifier.) An alias is a convenience of on
 resolution erases it. What reaches reduction is one flat set of fully named definitions, as if
 you had written every name out by hand.
 
-This is why chapters 1 and 2 needed nothing added. δ unfolds `geometry.area` for the reason it
+This is why chapters 2 and 3 needed nothing added. δ unfolds `geometry.area` for the reason it
 unfolds `square`: it is a name with a definition.
 
-## 3.9 A module the target provides
+## 4.9 A module the target provides
 
 <!-- file docs/book/code/trig.oro -->
 ```go
@@ -507,8 +507,8 @@ module math/trig {
 ```
 
 Each of those is a declaration with a host's code for a body, which is what a target is made of.
-Reduction stops at `math/trig.sin` because it is the target's own, chapter 1's rule unchanged.
-Chapter 0's `use go/strings` was this: Go's `strings` package, as a module the `go` target
+Reduction stops at `math/trig.sin` because it is the target's own, chapter 2's rule unchanged.
+Chapter 1's `use go/strings` was this: Go's `strings` package, as a module the `go` target
 provides.
 
 But *no file* is also what a typo looks like:
@@ -542,7 +542,7 @@ export fn run(u) { trig.tan(u) }
 oro: docs/book/code/no-tan.oro: in run: `math/trig`.tan is not bound — it is not a parameter, not a definition, and not a primitive on this target
 ```
 
-## 3.10 The four cells
+## 4.10 The four cells
 
 Everything in this chapter has been building one table. A qualified name can be **defined by a
 library**, **provided by a target**, both, or neither:
@@ -587,7 +587,7 @@ module geometry {
 }
 ```
 
-That is what §2.7 promised and could not show, and it works because of a rule this chapter has
+That is what §3.7 promised and could not show, and it works because of a rule this chapter has
 assumed throughout:
 
 > **One namespace.** A target and a library name into the *same* space of qualified names. The
@@ -598,7 +598,7 @@ program would quietly get the portable fallback, and no host's own implementatio
 reachable. Everything would still compile and run, and the language would never do the one thing
 it exists to do.
 
-The portable libraries are built this way. `io`, from chapter 0, is a module with no definitions
+The portable libraries are built this way. `io`, from chapter 1, is a module with no definitions
 at all, only what each target provides for it, written beside the library and not in the target:
 
 <!-- part lib/io/go.oro -->
@@ -616,7 +616,7 @@ way may also be a definition over the others, which is what `use io` inside the 
 
 ---
 
-## 3.11 What a module is not
+## 4.11 What a module is not
 
 Modules here are much less than the word usually promises, and the gaps hold weight.
 
@@ -631,13 +631,13 @@ compilation strategy; a helper costs nothing because it disappears into its call
 without a body would preserve exactly the call the language exists to remove.
 
 So compilation is **whole-program**, and that is a real trade: no compiled library to hand
-someone, and build time that grows with everything you use. What it buys is chapter 1's free
+someone, and build time that grows with everything you use. What it buys is chapter 2's free
 abstraction. It is right *here*, because parity with hand-written code is the requirement.
 
 ### Not a value
 
 You cannot pass a module to a function, store one or return one. `use` takes a path written out,
-and nothing at reduction time can refer to a module, which is §3.8 said as a limitation.
+and nothing at reduction time can refer to a module, which is §4.8 said as a limitation.
 
 ### No functors, and none needed
 
@@ -645,7 +645,7 @@ ML's parameterised module is the **functor**: a function from modules to modules
 typing and its own syntax, and a reputation as the hardest part of the language. We cannot have
 one, since a module is not a value. But look at what a functor *does*: it takes the operations you
 are parameterised over and gives back what you built from them. That is a function returning a
-function, and chapter 1 had those.
+function, and chapter 2 had those.
 
 <!-- file docs/book/code/functor.oro -->
 ```go
@@ -679,7 +679,7 @@ knows nothing about. In algebra's words, `accumulate` is written over any monoid
 hands it one. **Nothing survives the application**: no dictionary, no table of functions, no
 indirection, and no mention of `accumulate`.
 
-A structure with several members works the same way, because §2.10's Church pair holds as many
+A structure with several members works the same way, because §3.10's Church pair holds as many
 things as you like:
 
 <!-- file docs/book/code/vec2.oro -->
@@ -717,12 +717,12 @@ in, and the structure and the parameterisation are gone.
 
 **So what costs ML a second language costs nothing here, because it was already there.** What
 modules give that functions cannot is the thing functors were never about: a namespace a target
-can also write into. That is §3.10, and it is the reason modules exist.
+can also write into. That is §4.10, and it is the reason modules exist.
 
 ### Not `import *`, not `#include`, not a package manager
 
-- No unqualified import, by refusal (§3.3).
-- `use` is a dependency, not a textual inclusion (§3.5).
+- No unqualified import, by refusal (§4.3).
+- `use` is a dependency, not a textual inclusion (§4.5).
 - A module is found on a search path, the entry file's own directory and then `lib/` (or what
   `-path` names), and that is all. Versions, fetching and publishing do not exist and are not
   designed.
@@ -749,5 +749,5 @@ can also write into. That is §3.10, and it is the reason modules exist.
   fallback for a target's own operation.
 - **A functor is a function.** Modules stayed small because `fn` had already done the hard part.
 
-Next: [choice](04-choice.md), the first piece of data: a value that is one of two, and what a
+Next: [choice](05-choice.md), the first piece of data: a value that is one of two, and what a
 program does with it.

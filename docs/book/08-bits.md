@@ -1,6 +1,6 @@
-# 7. Bits
+# 8. Bits
 
-[Chapter 6](06-integers.md) said an integer is an integer, and spent its length keeping the
+[Chapter 7](07-integers.md) said an integer is an integer, and spent its length keeping the
 machine out of the picture: the word was a place an answer either fits or does not. But a great
 deal of real programming is *about* the machine's picture. A colour is three bytes packed in
 one number. A file's permissions are three switches. A checksum is arithmetic that throws the
@@ -20,12 +20,12 @@ Along the way: positional notation, Boole's algebra again (now sixty-four copies
 a machine writes a negative number, sets as integers, the circuit that adds, clock arithmetic,
 and a hash function used in real systems, in one line.
 
-The examples are in [code/bits/](code/bits/). `go run docs/book/check.go docs/book/07-bits.md`
+The examples are in [code/bits/](code/bits/). `go run docs/book/check.go docs/book/08-bits.md`
 re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 7.1 An integer, written in twos
+## 8.1 An integer, written in twos
 
 You write numbers in base ten: 305 means 3 hundreds, 0 tens and 5 ones, and the places are
 powers of ten. The same number can be written with any base. In base two the places are powers
@@ -86,7 +86,7 @@ Two facts worth carrying in your head, both visible above:
   10³ − 1.)
 - **A 1 followed by n zeros is 2ⁿ.** `0x100` is 2⁸.
 
-## 7.2 Three operations, one position at a time
+## 8.2 Three operations, one position at a time
 
 Take two numerals and line them up. Three operations combine them **column by column**, each
 column on its own, with no carry from one to the next:
@@ -143,19 +143,19 @@ export fn main() {
 
 - `⊕` is the mathematician's symbol for this operation. If your keyboard has no `⊕`, type
   `\oplus`; the two are the same token.
-- **`^` is not xor.** In C, Java, Go and JavaScript it is. Here `^` is a power (§6.1), because
+- **`^` is not xor.** In C, Java, Go and JavaScript it is. Here `^` is a power (§7.1), because
   that is what it means on paper, and `2^32` appears in programs far more often than an
   exclusive or does.
 - Check the last three by reading the hex: `F0` is 1111 0000, `3C` is 0011 1100. And: 0011 0000,
   which is `0x30`, 48. Or: 1111 1100, `0xFC`, 252. Xor: 1100 1100, `0xCC`, 204.
 
-**This is chapter 4's algebra.** A bit is a `Bool` written 0 and 1. `&` on one column is `&&`,
+**This is chapter 5's algebra.** A bit is a `Bool` written 0 and 1. `&` on one column is `&&`,
 `|` is `||`, and `⊕` is "differs", `!=` on booleans. A 64-bit `&` is sixty-four `&&`s computed
 at once, by one machine instruction. George Boole wrote the algebra down in 1854; in 1937
 Claude Shannon's master's thesis observed that circuits of switches obey it, and that is the
 reason a computer is built out of it.
 
-So every law of chapter 4 holds here, and a few new ones for `⊕`:
+So every law of chapter 5 holds here, and a few new ones for `⊕`:
 
 <!-- file docs/book/code/bits/laws.oro -->
 ```go
@@ -226,7 +226,7 @@ export fn main() {
 1
 ```
 
-- `&` and the shifts `<<` `>>` (§7.4) group like `*`: they bind tighter than `|` and `⊕`, which
+- `&` and the shifts `<<` `>>` (§8.4) group like `*`: they bind tighter than `|` and `⊕`, which
   group like `+`. So `1 | 2 & 3` is `1 | (2 & 3)`, and `1 + 2 << 3` is `1 + (2 << 3)`. The
   analogy is exact: `&` is the multiplication of single bits, and a shift is a multiplication.
 - All of them bind tighter than a comparison, so `6 & 3 == 2` asks whether `6 & 3` is 2.
@@ -234,7 +234,7 @@ export fn main() {
   `(1 + 2) << 3`, which is 24, and `x & mask == 0` as `x & (mask == 0)`, a mistake its own
   designers regretted in print. The grouping here is Go's, which fixed both.
 
-## 7.3 Negative numbers have infinitely many ones
+## 8.3 Negative numbers have infinitely many ones
 
 What are the bits of −1?
 
@@ -301,9 +301,9 @@ export fn main() {
 
 None of these answers depends on a width. There is no "32-bit not" or "64-bit not" in the
 language: `~12` is −13 on every target, as `12 + 1` is 13 on every target. (When you *want* the
-32-bit complement, the one that turns `0x0000FFFF` into `0xFFFF0000`, you say so; §7.9.)
+32-bit complement, the one that turns `0x0000FFFF` into `0xFFFF0000`, you say so; §8.9.)
 
-## 7.4 Shifts
+## 8.4 Shifts
 
 `a << k` moves the numeral `k` places to the left, filling with zeros. `a >> k` moves it `k`
 places to the right, and the bits that fall off the end are gone.
@@ -345,7 +345,7 @@ export fn main() {
 
 - `1 << 10` is 2¹⁰. `1 << k` is the number whose only 1 is bit `k`, and you will write it often.
 - **`-7 >> 1` is −4, and `-7 / 2` is −3.** Both divide by two; they round differently. `/`
-  rounds toward zero (§6.2). `>>` rounds *down*, toward minus infinity, because dropping the
+  rounds toward zero (§7.2). `>>` rounds *down*, toward minus infinity, because dropping the
   last bit of `…1001` (−7) leaves `…100` (−4). For numbers that are not negative the two agree,
   as `1000 >> 3` and `1000 / 8` do.
 - **A shift count has no upper limit.** `5 >> 100` is 0: move a numeral a hundred places right
@@ -355,7 +355,7 @@ export fn main() {
   what each machine needs to get it.
 
 A shift count that might be negative has no meaning, so it is a precondition, like a divisor
-that might be zero (§6.7):
+that might be zero (§7.7):
 
 <!-- file docs/book/code/bits/no-count.oro -->
 ```go
@@ -382,7 +382,7 @@ gen: scale: the body does not establish -9223372036854775808 <= result && result
 ```
 
 255 · 2⁶⁴ is the number printed, and it does not fit the word the result claims. This is the bug
-C calls "shifting into the sign bit", caught the way chapter 6 caught `square64`. (Claim `Int`
+C calls "shifting into the sign bit", caught the way chapter 7 caught `square64`. (Claim `Int`
 and the shift is exact, Go's `Lsh` on a `*big.Int`.) Say what the count can be, and it
 compiles to the machine's shift and nothing else:
 
@@ -415,9 +415,9 @@ func BitsShrink(v0 int, v1 int) int {
   only makes a number smaller in size. Go's `>>` happens to give the mathematical answer for
   large counts, so that is all that is emitted.
 
-## 7.5 A mask is a proof
+## 8.5 A mask is a proof
 
-Chapter 6's method was: every value has an interval, and every operation is checked against the
+Chapter 7's method was: every value has an interval, and every operation is checked against the
 word. The bit operations fit that method unusually well, because several of them *bound* their
 result no matter what goes in.
 
@@ -456,7 +456,7 @@ func BitsLowMod(v0 int) int {
 …
 ```
 
-Every declared result is a claim (§6.12), and all five were proven. The rules the compiler
+Every declared result is a claim (§7.12), and all five were proven. The rules the compiler
 used, each one something you can check on your fingers:
 
 | operation | what is known about the result |
@@ -475,7 +475,7 @@ used, each one something you can check on your fingers:
 - **`n mod 256` and `n & 255` are the same function**, on every integer, negative ones
   included: both keep the low eight bits. The compiler knows it. Look at `BitsLowMod`: you wrote
   a remainder and the machine does an and. This holds for every power of two, `n mod 2ᵏ` is
-  `n & (2ᵏ − 1)`, and it is the hinge of §7.8.
+  `n & (2ᵏ − 1)`, and it is the hinge of §8.8.
 - `top` shifts a 32-bit number right by 24: what is left is below 2⁸.
 
 "Below the next power of two" is sharper than it may look. An or can exceed both of its
@@ -495,7 +495,7 @@ gen: join: the body does not establish 0 <= result && result <= 200; its result 
 The refusal is right: `128 | 100` is 228. Two numbers up to 200 can light any of the low eight
 bits between them, so 255 is the honest bound.
 
-## 7.6 A set of small numbers is an integer
+## 8.6 A set of small numbers is an integer
 
 Here is the first place the bit operations earn their keep. Take a small universe, say three
 things a user may do to a file: read it, write it, run it. Give each thing a bit. A *set* of
@@ -507,7 +507,7 @@ permissions is then one number, with a 1 in the column of every member:
      1    0    1      =  5   the set {read, run}
 ```
 
-and the set operations of school are the bit operations of §7.2:
+and the set operations of school are the bit operations of §8.2:
 
 | sets | bits |
 |---|---|
@@ -564,11 +564,11 @@ export fn main() {
 
 - The three constants are 1, 2 and 4: `1 << 0`, `1 << 1`, `1 << 2`. One bit each.
 - `grant` is idempotent, `a | a == a`: granting a right twice is granting it once. `revoke` of
-  a right not held changes nothing (the sixth line). Those are §7.2's laws doing work.
+  a right not held changes nothing (the sixth line). Those are §8.2's laws doing work.
 - **`revoke` is `r & ~what`**, "and with everything except". `~what` is a negative number, ones
   forever to the left with holes where `what` has ones. That is fine: `r` has zeros forever, so
   the and is back in `0..7`, and the compiler proved the declared `Rights` from exactly that
-  reasoning (§7.5's first row, read the other way round).
+  reasoning (§8.5's first row, read the other way round).
 - `flip(r, read | run)` toggles two rights at once: 011 ⊕ 101 is 110, which is 6.
 
 This is how Unix stores file permissions (the 7 in `chmod 755` is `read | write | run`), how
@@ -578,7 +578,7 @@ pawn: one word, 64 switches, and a set operation on all of them in one instructi
 A set written this way is also a claim you can state. `Rights` is `0..7`: three bits and no
 more. A function that returns a `Rights` has been proven never to set a fourth.
 
-## 7.7 Packing several numbers into one
+## 8.7 Packing several numbers into one
 
 The other everyday use: a number made of fields. A colour on a screen is three intensities,
 red, green and blue, each from 0 to 255: each a byte, eight bits. Put the three side by side
@@ -649,7 +649,7 @@ func BitsPack(v0 int, v1 int, v2 int) int {
 
 - 3381759 is `0x3399FF`. The three fields come back out as 51, 153 and 255, which are `0x33`,
   `0x99` and `0xFF`.
-- `r << 16 | g << 8 | b` needs no parentheses: shifts bind tighter than `|` (§7.2).
+- `r << 16 | g << 8 | b` needs no parentheses: shifts bind tighter than `|` (§8.2).
 - **Every set in the file was proven.** `rgb` returns a `Colour` because a byte shifted left by
   16 is below 2²⁴ and an or of numbers below 2²⁴ is below 2²⁴. `red` returns a `Byte` because a
   `Colour` shifted right by 16 is below 2⁸. `green` because of its mask.
@@ -658,10 +658,10 @@ func BitsPack(v0 int, v1 int, v2 int) int {
   green glued together. You do not have to remember which fields need the mask, since the set
   on the result asks the question for you.
 - Here `|` could have been `+`: the three fields share no column, so nothing carries. That is
-  §7.2's identity `a | b == (a ⊕ b) + (a & b)` with `a & b` equal to 0. Writing `|` says what
+  §8.2's identity `a | b == (a ⊕ b) + (a & b)` with `a & b` equal to 0. Writing `|` says what
   you mean.
 
-## 7.8 Wrapping, on purpose
+## 8.8 Wrapping, on purpose
 
 Now the second sentence of the chapter. Some arithmetic is *supposed* to throw the high bits
 away. A **hash function** takes some bytes and stirs them into one number, such that different
@@ -671,7 +671,7 @@ byte:
 
 > start with h = 2166136261; for each byte b: h ← (h ⊕ b) · 16777619, **keeping the low 32 bits**.
 
-Write the step without the last four words and the compiler says what chapter 6 taught it to
+Write the step without the last four words and the compiler says what chapter 7 taught it to
 say:
 
 <!-- file docs/book/code/bits/no-wrap.oro -->
@@ -691,7 +691,7 @@ A 32-bit number times 16777619 is a 56-bit number; it is not in `U32`. In C, wit
 this line is the whole hash: the multiplication wraps and nobody writes anything. The wrapping
 is real, the algorithm depends on it, and the source does not mention it.
 
-Here you mention it. "Keeping the low 32 bits" is `mod 2^32` (§7.5):
+Here you mention it. "Keeping the low 32 bits" is `mod 2^32` (§8.5):
 
 <!-- file docs/book/code/bits/wrap.oro -->
 ```go
@@ -732,11 +732,11 @@ func BitsSub32(v0 int, v1 int) int {
 
 One xor, one multiply, one and. `mod 2^32` became `& 4294967295`, and there is no division
 anywhere. `sub32` is worth a look: `a - b` may be negative, and `mod` of a negative number is
-never negative (§6.2), so `sub32(0, 1)` is 4294967295, which is what a 32-bit register would
+never negative (§7.2), so `sub32(0, 1)` is 4294967295, which is what a 32-bit register would
 hold. The mathematics and the machine agree because `mod` was defined to make them agree.
 
 Hash the three letters `abc`, whose bytes are 97, 98 and 99. (Looping over the bytes of a real
-string needs [chapter 12](README.md); three steps can be written out.)
+string needs [chapter 13](README.md); three steps can be written out.)
 
 <!-- file docs/book/code/bits/hash.oro -->
 ```go
@@ -771,7 +771,7 @@ export fn main() {
 ### Why the machine may wrap early
 
 On Go the product above fitted in the 64-bit word, so the compiler multiplied honestly and
-masked. JavaScript's word stops at 2⁵³, and a 56-bit product does not fit. Chapter 6 would
+masked. JavaScript's word stops at 2⁵³, and a 56-bit product does not fit. Chapter 7 would
 refuse. Here is what happens instead:
 
 <!-- gen js docs/book/code/bits/wrap.oro -->
@@ -897,7 +897,7 @@ the way you multiply two-digit numbers knowing only the one-digit table.
 Division does not have the property. In base ten: 100 / 2 is 50, but the low two digits of 100
 are 00, and 00 / 2 is 0. A quotient's low digits depend on the high digits of what was divided.
 Neither does a comparison, nor a right shift. So a calculation that divides before it reduces
-must really hold the big number, and chapter 6's rule is back:
+must really hold the big number, and chapter 7's rule is back:
 
 <!-- file docs/book/code/bits/product.oro -->
 ```go
@@ -934,14 +934,14 @@ note: bits-third: 2 operation(s) in arbitrary precision
 The first product reaches 2⁸⁰ and compiles to one multiply, because nothing but the `mod` reads
 it, and the residue of a product is the product of the residues. The second is the same product,
 read by a division, and a third of a number is not the third of its residue: the division needs
-the whole product, so the product is held as the integer it is, and only then reduced (chapter 6,
-§6.9). A C compiler accepts both, and the second quietly computes a third of the wrong number.
+the whole product, so the product is held as the integer it is, and only then reduced (chapter 7,
+§7.9). A C compiler accepts both, and the second quietly computes a third of the wrong number.
 
-## 7.9 The complement with a width, and a rotation
+## 8.9 The complement with a width, and a rotation
 
 Two idioms that every C programmer writes without thinking, and that need one more word here.
 
-**The 32-bit complement.** `~a` is `-a - 1` (§7.3): negative whenever `a` is not. A checksum
+**The 32-bit complement.** `~a` is `-a - 1` (§8.3): negative whenever `a` is not. A checksum
 that says "invert all 32 bits" wants `0x0000FFFF` to become `0xFFFF0000`, a positive number.
 
 <!-- file docs/book/code/bits/no-not.oro -->
@@ -981,7 +981,7 @@ export fn main() {
 4294901760
 ```
 
-Xor with thirty-two ones flips exactly thirty-two bits (§7.2: xor with 1 flips, with 0 keeps).
+Xor with thirty-two ones flips exactly thirty-two bits (§8.2: xor with 1 flips, with 0 keeps).
 Or flip all of them and keep the low thirty-two. 4294901760 is `0xFFFF0000`.
 
 **A rotation.** A shift drops the bits that fall off the end. A *rotation* brings them round to
@@ -1027,7 +1027,7 @@ back at the bottom. `x << 8` pushes everything up (and the top byte past bit 31)
 brings the top byte down to the bottom, the or joins them, and `mod 2^32` discards what went
 past bit 31.
 
-## 7.10 Three small tricks, and why they work
+## 8.10 Three small tricks, and why they work
 
 Bit tricks have a reputation as magic. Each is a short consequence of how carrying and
 borrowing work, and each is worth understanding once.
@@ -1072,14 +1072,14 @@ export fn main() {
   1, and leaves everything above alone: 96 is `110 0000`, 95 is `101 1111`. So `n & (n - 1)` is
   `n` **with its lowest 1 removed**: `100 0000`, 64.
 - A power of two has exactly one 1. Remove it and nothing is left: **`n & (n - 1) == 0`**.
-- **`-n`** is `~n + 1` (§7.3, rearranged). Flipping makes the zeros below the lowest 1 into
+- **`-n`** is `~n + 1` (§8.3, rearranged). Flipping makes the zeros below the lowest 1 into
   ones; adding 1 carries through them and stops at that lowest position, restoring it. Above
   it everything is flipped, below it everything is 0. So `n & -n` is **the lowest 1 alone**:
   32.
 
-## 7.11 JavaScript's bit operators see 32 bits
+## 8.11 JavaScript's bit operators see 32 bits
 
-Chapter 6 ended on portability: a program is legal on a target or it is not, and the compiler
+Chapter 7 ended on portability: a program is legal on a target or it is not, and the compiler
 says which. The bit operations add one line to that story.
 
 JavaScript has no integers. Its `&`, `|`, `^`, `<<` and `>>` convert each operand to a 32-bit
@@ -1181,9 +1181,9 @@ W(go, js, java, windows) = [-9007199254740991, 9007199254740991]   (the meet of 
 The cost differs by target and the answer does not: a `BigInt` `&` per call on JavaScript, an
 `and` instruction elsewhere ([bigbits-2026-11-19](../../gauntlet/results/bigbits-2026-11-19.md)).
 
-## 7.12 The bits of a number past the word
+## 8.12 The bits of a number past the word
 
-Chapter 6 computed with integers too large for the word, exactly. Their bits are the same infinite
+Chapter 7 computed with integers too large for the word, exactly. Their bits are the same infinite
 numeral as any integer's, so everything in this chapter applies to them unchanged:
 
 <!-- file docs/book/code/bits/huge.oro -->
@@ -1228,7 +1228,7 @@ export fn main() {
 ```
 
 3¹⁰⁰ has 159 bits. Its low eight are 209, and what is left above bit 150 is 361. `x & -x` is
-§7.10's trick for the lowest 1, and on 3¹⁰⁰ shifted left by five it is 32, since 3¹⁰⁰ is odd.
+§8.10's trick for the lowest 1, and on 3¹⁰⁰ shifted left by five it is 32, since 3¹⁰⁰ is odd.
 The negative number shifts toward minus infinity, `>> 70` rounding down as `>>` always does, and
 its low sixteen bits are those of its infinite numeral of ones. `mod` is never negative.
 
@@ -1262,11 +1262,11 @@ func BitsLow(v0 *big.Int) int {
 }
 ```
 
-`n & 255` is in `0..255` whatever `n` is, by §7.5's mask law, so `low` returns a machine integer:
+`n & 255` is in `0..255` whatever `n` is, by §8.5's mask law, so `low` returns a machine integer:
 the big number goes in, a small one comes out. `half` returns `Nat`, so its result stays exact.
-The compiler decides each from what is proven, the rule of chapter 6.
+The compiler decides each from what is proven, the rule of chapter 7.
 
-## 7.13 What other languages do
+## 8.13 What other languages do
 
 | | xor is written | `~12` | `-7 >> 1` | `1 << 64` | `5 >> 100` | wrapping |
 |---|---|---|---|---|---|---|
@@ -1283,7 +1283,7 @@ exactly as you write `mod 2^32`. The difference is the cost. Python really does 
 104-bit product and then cut it down. Here the same source compiles to the single machine
 multiply, because the compiler can prove the high bits are never looked at.
 
-So the position is the one chapter 6 took, carried one step further. The meaning is the
+So the position is the one chapter 7 took, carried one step further. The meaning is the
 mathematical one, with no width in it. The width is something you state, once, where it
 matters. And the machine's fast, narrow, wrapping instruction is what runs, wherever a proof
 says it computes that meaning.
@@ -1295,7 +1295,7 @@ says it computes that meaning.
 - **Every integer has a binary numeral**, zeros forever to the left if it is not negative, ones
   forever if it is. Hexadecimal is that numeral read four bits at a time. n ones is 2ⁿ − 1.
 - **`&`, `|`, `⊕` work column by column**: both, either, differ. `⊕` is typed `\oplus`; `^` is
-  a power. They are chapter 4's `&&`, `||`, `!=`, on every bit at once.
+  a power. They are chapter 5's `&&`, `||`, `!=`, on every bit at once.
 - **`~a` is `-a - 1`**, with no width. −1 is all ones.
 - **`a << k` is `a · 2ᵏ`; `a >> k` is `a / 2ᵏ` rounded down** (where `/` rounds toward zero).
   The count must be proven not negative; it has no upper limit. `<<` can leave the word, like
@@ -1318,5 +1318,5 @@ says it computes that meaning.
 - **A number past the word has the same bits**, and every operation here works on it exactly;
   a result proven small, as `n & 255` is, comes back as a machine integer.
 
-Next: [chapter 8](08-numbers.md), Numbers with a point. What 0.1 + 0.2 is, and the one operation that is
+Next: [chapter 9](09-numbers.md), Numbers with a point. What 0.1 + 0.2 is, and the one operation that is
 allowed to lose anything.

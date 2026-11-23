@@ -1,13 +1,13 @@
-# 14. State
+# 15. State
 
 For twelve chapters nothing has changed. A name is bound once. A string is never altered. A
-table is what it was when it was made. Chapter 12 got repetition without change, by binding
+table is what it was when it was made. Chapter 13 got repetition without change, by binding
 the loop's names afresh each time round.
 
 That discipline bought a great deal: any part of a program can hold any value and be sure of
 it. But some programs are naturally told as a sequence of changes. "Start the count at zero;
 for each word, add one." "Make a row of a thousand zeros; for each number that arrives, mark
-its slot." Chapter 13's rule fills a table by saying what each position *is*. It cannot say
+its slot." Chapter 14's rule fills a table by saying what each position *is*. It cannot say
 "for each input, go and change position such-and-such", and a great many algorithms are
 that.
 
@@ -29,11 +29,11 @@ has two names for one thing, a way of finding primes that is twenty-two centurie
 what a compiler really does with your variables.
 
 The examples are in [code/state/](code/state/). `go run docs/book/check.go
-docs/book/14-state.md` re-runs every block. Checked 2026-11-16.
+docs/book/15-state.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 14.1 A name that can be written again
+## 15.1 A name that can be written again
 
 <!-- file docs/book/code/state/cell.oro -->
 ```go
@@ -101,7 +101,7 @@ gen: state-f: `:=` writes a `var`, and the place written here, 1, is none: a nam
 
 ---
 
-## 14.2 What a cell really is
+## 15.2 What a cell really is
 
 Here is the surprise. A cell does not add anything to the language. It is a way of
 *writing*, and what it stands for is something you already have.
@@ -157,7 +157,7 @@ later `x := n` gave `x` a new value and could not reach back and alter `y`: the 
 `1 + n`. A value you have taken stays the value you took. That is the guarantee of the first
 twelve chapters, and cells do not weaken it.
 
-A cell written inside a loop becomes one of the loop's variables. Chapter 12's sum, written
+A cell written inside a loop becomes one of the loop's variables. Chapter 13's sum, written
 with a cell:
 
 <!-- file docs/book/code/state/sum.oro -->
@@ -189,7 +189,7 @@ func StateSumTo(v0 int) int {
 }
 ```
 
-The same Go as chapter 12's `loop i = 1, s = 0 { … again(i + 1, s + i) … }`. The two
+The same Go as chapter 13's `loop i = 1, s = 0 { … again(i + 1, s + i) … }`. The two
 spellings are one program. Use whichever reads better: a second loop variable when a value
 changes on every trip, a cell when it changes on some trips and not others.
 
@@ -263,7 +263,7 @@ export fn main() {
 6
 ```
 
-`p.x := 3` is chapter 11's `with`, done in program order: it means `p := p with { x : 3 }`, and
+`p.x := 3` is chapter 12's `with`, done in program order: it means `p := p with { x : 3 }`, and
 `p.y := p.x * 2` reads the `x` just written. Nothing is changed that anyone else could see,
 because only `p`'s own block can name `p`. Every value here is known, so the compiler computed
 the program: `main` prints −2 and 6.
@@ -295,7 +295,7 @@ The reading above says why. Each `:=` starts a new name, and a later use means t
 handed to something that applies it later. Where `add` is written, "the latest `n`" has no
 answer. Of the functions met so far, a loop's body is the one that may mention a cell, because
 `loop` applies it in an order the program states, and `again` passes the cell's next value as it
-passes the counter's. Chapter 18 meets one more, a window procedure, for the same kind of reason.
+passes the counter's. Chapter 19 meets one more, a window procedure, for the same kind of reason.
 
 The working form says what `add` meant: take the value in, give the new one back, and let the
 block write it.
@@ -354,7 +354,7 @@ have: it applies it where its body says, as many times as its body says, and no 
 
 ---
 
-## 14.3 Building a table in place
+## 15.3 Building a table in place
 
 A cell holds a number or a string. When a `var` is given a table, it becomes something
 stronger: a **buffer**, which can be written one position at a time.
@@ -391,7 +391,7 @@ func StateSquares(v0 int) []int {
 }
 ```
 
-- **`var b := array { 0 : _ ∈ 0..n-1 }`** makes a buffer of `n` zeros. It is chapter 13's
+- **`var b := array { 0 : _ ∈ 0..n-1 }`** makes a buffer of `n` zeros. It is chapter 14's
   rule, "the value at every position is 0". The `_` is a name you write when you do not need
   the name: the rule does not depend on the position.
 - **`b[i] := i * i`** is a **store**: put this value at position `i`.
@@ -461,7 +461,7 @@ proven a digit.
 
 ### A store's position must be inside, too
 
-Chapter 13's rule for reading, "`t[i]` only where `i` is proven a position", is the rule for
+Chapter 14's rule for reading, "`t[i]` only where `i` is proven a position", is the rule for
 writing as well, with more at stake: reading past the end leaks a secret, and writing past
 the end corrupts whatever is there.
 
@@ -497,7 +497,7 @@ under a test that puts its position inside.
 
 ---
 
-## 14.4 Freezing
+## 15.4 Freezing
 
 A buffer lives in a **scope**: the block of braces in which its `var` was declared. When the
 scope ends and the buffer is given as its value, the buffer becomes a table. It is **frozen**.
@@ -613,7 +613,7 @@ The order is fixed, and there is no way back.
 
 ---
 
-## 14.5 One name only
+## 15.5 One name only
 
 Why exactly one name? Here is the program the rule forbids:
 
@@ -687,7 +687,7 @@ call sees the buffer as it is at that moment: 5, then 5 + 6, then 0 + 6.
 
 ---
 
-## 14.6 Lending a buffer
+## 15.6 Lending a buffer
 
 A function that only reads a buffer takes it like any table. A function that *writes* one
 has to say so in its header:
@@ -831,7 +831,7 @@ is passed: in, and back out. It is a *mode*, a word about the relation between `
 `n`, and not a set: there is no set of cells, only of values. Each call is a value in and a value
 out, so `bump(n, 3)` is `n := n + 3`, and after two calls `n` is 13.
 
-This is also how a function that writes a cell carries a claim. §14.2's `twice` was handed a
+This is also how a function that writes a cell carries a claim. §15.2's `twice` was handed a
 function writing `n`; give that function a header and it is refused:
 
 <!-- file docs/book/code/state/no-claimed-cell.oro.txt -->
@@ -853,7 +853,7 @@ export fn main() {
 gen: docs/book/code/state/no-claimed-cell.oro.txt: line 7: the λ claims a set and captures n, which is state (a `var`, a buffer or a map buffer): a λ that claims is a definition, and state reaches a definition only as its parameter, `fn f(n ∈ S inout, …)` for a cell, which an unclaimed λ calls, `fn(…) { f(n, …) }`
 ```
 
-A function with a header is a definition with a name the compiler gives it (§6.12), its claim
+A function with a header is a definition with a name the compiler gives it (§7.12), its claim
 decided on its own body, for every argument. A cell is no argument: `n` is a place of `main`'s, and
 the definition would see a value where `main` has a place it writes. The working form names the
 definition and lends it the cell, and the λ that `twice` applies is a plain one again:
@@ -921,9 +921,9 @@ showed; at an export the caller is a host, and the header is what it reads.
 
 ---
 
-## 14.7 The sieve
+## 15.7 The sieve
 
-Chapter 12 tested one number for primality by trial division. To find *all* the primes up to
+Chapter 13 tested one number for primality by trial division. To find *all* the primes up to
 a limit there is a far better way, published by Eratosthenes of Cyrene around 240 BC, and it
 is the classic scatter.
 
@@ -989,7 +989,7 @@ writes positions 49, 56, 63, …, scattered across the table.
 
 ---
 
-## 14.8 A buffer and a count
+## 15.8 A buffer and a count
 
 Often you do not know in advance how many values you will produce. Make the buffer as big as
 it could need to be, and keep a cell saying how much of it is used:
@@ -1026,7 +1026,7 @@ export fn main() {
 ```
 
 A buffer `b` and a cell `n`, side by side. Each even value is stored at position `n`, and
-`n` goes up. The exit gives both, as chapter 10's tuple: the table and how much of it means
+`n` goes up. The exit gives both, as chapter 11's tuple: the table and how much of it means
 anything. The first arm stops when the input is used up *or the buffer is full* (`n >= 10`),
 and that second half is what proves `b[n]` is a position.
 
@@ -1037,7 +1037,7 @@ until there is none". Neither is wrong. This one makes you write the limit down.
 
 ---
 
-## 14.9 Maps
+## 15.9 Maps
 
 A table's positions are 0, 1, 2, … in a row. Often the thing you want to look up *by* is not
 like that: a customer number, an error code, a year. A **map** is a table whose positions,
@@ -1086,11 +1086,11 @@ export fn main() {
 
 A table's positions are known from its length, so the compiler can *prove* `t[i]` is there.
 A map's keys are whatever was stored, and nothing can know while compiling whether 418 is
-among them. So `m[k]` does not give a value. It gives chapter 10's "something or nothing":
+among them. So `m[k]` does not give a value. It gives chapter 11's "something or nothing":
 **`'some(v)`** if the key is there, **`'none`** if it is not. You cannot use the answer
 without a `case`, and the `case` must say what to do about `'none`. `look` says "−1".
 
-Chapter 13 called a table a function on its positions. A map is a function on its keys, and
+Chapter 14 called a table a function on its positions. A map is a function on its keys, and
 each kind of function pays for "is this argument allowed?" in its own way:
 
 | | defined on | how you know the argument is allowed |
@@ -1197,7 +1197,7 @@ end
 
 Seven different values, 5 seen three times, 7 never. `look(m, t[i])` reads the count so far
 (0 if the key is new), and the store writes it back one higher. The `if` around `c + 1` is
-chapter 12's stated bound: a value that comes out of a map could be anything, so the program
+chapter 13's stated bound: a value that comes out of a map could be anything, so the program
 says how high a count may go before it stops counting.
 
 **`keys(m)`** is a table of the map's keys, **in ascending order**. That is a decision worth
@@ -1353,7 +1353,7 @@ discovered in production.
 `tally` above needed neither a header nor a test, because it is called on a table written
 out in the program, eleven values long, and the compiler can count to eleven.
 
-A map's values may be records, read with chapter 11's dot after the `case` has found one:
+A map's values may be records, read with chapter 12's dot after the `case` has found one:
 
 <!-- file docs/book/code/state/mapped.oro -->
 ```go
@@ -1447,20 +1447,20 @@ is the map before it, and the store is proven to have room: one key per pass, ni
 
 What maps do not do today, plainly:
 
-- **Keys are integers.** A map needs `==` on its keys, and chapter 9 said strings have none
+- **Keys are integers.** A map needs `==` on its keys, and chapter 10 said strings have none
   yet. A program that counts words keeps them in a sorted table instead.
 - **A value looked up has no known range**, which is why `tally` needs its guard.
 
 ---
 
-## 14.10 What is not here
+## 15.10 What is not here
 
 - **A function does not capture a buffer, and captures a cell only where its caller is
   predictable.** A `fn` bound to a name cannot write the block's `var`; one handed straight to a
   definition can (14.2), and so can one handed to a platform that promises the order of its calls
-  (chapter 17). State is otherwise passed: a buffer is lent with `linear`, and a cell with
+  (chapter 18). State is otherwise passed: a buffer is lent with `linear`, and a cell with
   `inout`. (A window procedure, a function Windows calls back with each message, keeps its state
-  in a cell of the block around it. Chapter 18.)
+  in a cell of the block around it. Chapter 19.)
 - **No growing.** A buffer's length is fixed where it is made (14.8). Appending to a table
   that grows is not in the language.
 - **One loop fills a buffer, or functions are lent it.** Today a buffer written by a loop
@@ -1477,7 +1477,7 @@ says `linear`.
 
 ---
 
-## 14.11 What other languages do
+## 15.11 What other languages do
 
 | | a changeable variable | two names for one changeable table | may a function alter its caller's table? | when does a table stop changing? |
 |---|---|---|---|---|
@@ -1499,7 +1499,7 @@ freeze, and the freeze is free.
 
 The idea that a buffer may be updated in place *because* nothing else can see it is from the
 language Clean (1987), under the name *uniqueness*, and the theory behind the word `linear`
-is the logic chapter 5 met: a thing that must be used exactly once.
+is the logic chapter 6 met: a thing that must be used exactly once.
 
 ---
 
@@ -1530,4 +1530,4 @@ is the logic chapter 5 met: a thing that must be used exactly once.
 - **`map(c)` holds at most `c` keys, and each store is proven to have room**: from a bound on
   the input, or under `len(m) < c`.
 
-Next: [chapter 15](15-failures.md), Failures. What a function says when it cannot do what it was asked.
+Next: [chapter 16](16-failures.md), Failures. What a function says when it cannot do what it was asked.

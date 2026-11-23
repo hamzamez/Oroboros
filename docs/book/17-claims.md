@@ -1,6 +1,6 @@
-# 16. Claims
+# 17. Claims
 
-Since chapter 6 this book has leaned on one sentence: *the compiler proves it, or refuses the
+Since chapter 7 this book has leaned on one sentence: *the compiler proves it, or refuses the
 program.* An addition fits the word. A divisor is not zero. A position is inside its table. A
 rounding lands in its set. A string has no zero in it. Each time the text said "proven" and
 moved on, and each refusal ended with a line beginning `known:` that was never explained.
@@ -24,11 +24,11 @@ solving inequalities that is two hundred years old, the theorem that says where 
 checker must stop, and a way to ask the compiler what it knows.
 
 The examples are in [code/claims/](code/claims/). `go run docs/book/check.go
-docs/book/16-claims.md` re-runs every block. Checked 2026-11-20.
+docs/book/17-claims.md` re-runs every block. Checked 2026-11-20.
 
 ---
 
-## 16.1 Three ways of knowing
+## 17.1 Three ways of knowing
 
 How do you know a function is right?
 
@@ -53,7 +53,7 @@ the statements are kept to a kind it is good at. That kind is what this chapter 
 
 ---
 
-## 16.2 What gets proven
+## 17.2 What gets proven
 
 Here is every obligation this book has met, in one table. Each row is something that must
 be true at a particular place, and each was a refusal you have seen.
@@ -131,9 +131,9 @@ export fn main() {
 
 ---
 
-## 16.3 The first method: intervals
+## 17.3 The first method: intervals
 
-Chapter 6 introduced this, and it is worth doing once slowly. For every value in the program
+Chapter 7 introduced this, and it is worth doing once slowly. For every value in the program
 the compiler keeps the smallest and largest it could be.
 
 <!-- file docs/book/code/claims/mix.oro -->
@@ -248,11 +248,11 @@ note: claims-gcd: 2 of 2 integer operations bounded; 0 of 1 loop(s) proven termi
 
 Each difference is at least 1 under its arm's comparison, so `p` and `q` stay in 1..1000 and so
 does the answer. (That the loop stops is true and not proven: the larger of `p` and `q` falls
-every trip, a measure chapter 12's check does not look for.)
+every trip, a measure chapter 13's check does not look for.)
 
 ---
 
-## 16.4 The second method: facts
+## 17.4 The second method: facts
 
 For relations the compiler keeps a second thing: a list of **facts**, formulas known to be
 true at a point. Here is the same function, with the claim moved onto a binding:
@@ -369,7 +369,7 @@ gen: claims-chain: t[i] is an indexing, and i < len(t) does not follow
 ```
 
 With `i <= n` the sum of the two facts gives only `i <= len(t)`, which allows `i == len(t)`,
-one past the end. The refusal is correct, and it is chapter 13's off-by-one again.
+one past the end. The refusal is correct, and it is chapter 14's off-by-one again.
 
 Facts may carry multipliers, as long as each term is a number times an unknown:
 
@@ -433,7 +433,7 @@ shows it without running anything.
 
 ---
 
-## 16.5 Where facts come from
+## 17.5 Where facts come from
 
 You have written facts in headers. Most of them the compiler collects for itself.
 
@@ -535,8 +535,8 @@ for something true *every* time: an **invariant**. It guesses candidates of simp
 (`0 <= i`, `i <= n`), checks that each holds on entry and that each trip round preserves
 it, and keeps the ones that survive. Here both do: `i` starts at 0, and it is increased only
 when `i < n`, so it never passes `n`. With `n <= 1000`, the claim follows. This is what was
-happening in chapter 12 every time a sum in a loop was "bounded by the number of trips", and
-in chapter 13 when "the loop's own test is the proof".
+happening in chapter 13 every time a sum in a loop was "bounded by the number of trips", and
+in chapter 14 when "the loop's own test is the proof".
 
 ### Stating an invariant yourself
 
@@ -639,7 +639,7 @@ func ClaimsWalk(v0 []byte, v1 int) int {
 ```
 
 The invariant is nowhere in the Go. It is not a test that runs: it was a statement to the
-compiler, checked once, and then it was gone. That is the difference from chapter 12's
+compiler, checked once, and then it was gone. That is the difference from chapter 13's
 stated bounds, `p <= 4 * 10^17` in the factorial, which are real tests in the loop and
 which stop it early if they are ever false. A guard says "stop if this fails". An invariant
 says "this does not fail", and has to be right.
@@ -694,12 +694,12 @@ what is true every time round, and whether the `known:` line has it.
 
 An invariant here is linear arithmetic over the loop's variables, like every fact in this
 chapter. The factorial's real invariant, "`p` is the factorial of `i - 1`", is not that, so
-chapter 12's guard stays a guard. And an invariant cannot yet speak of what a buffer
+chapter 13's guard stays a guard. And an invariant cannot yet speak of what a buffer
 *holds*, only of its length.
 
 ---
 
-## 16.6 A claim on a binding
+## 17.6 A claim on a binding
 
 `x ∈ S = e` binds `x` to `e` and claims `e` is in `S`. Section 16.4 used one to get a
 relational fact to a result. It has a second use that is worth more: it is how you *ask the
@@ -789,7 +789,7 @@ or there is no program.
 
 ---
 
-## 16.7 `ensure`
+## 17.7 `ensure`
 
 A header's `ensure` states something about the result by name:
 
@@ -840,7 +840,7 @@ func ClaimsClamp(v0 *big.Int, v1 *big.Int, v2 *big.Int) *big.Int {
 }
 ```
 
-(`Int` is every integer, so a host hands `clamp` three `*big.Int`s, chapter 6's rule; the claim
+(`Int` is every integer, so a host hands `clamp` three `*big.Int`s, chapter 7's rule; the claim
 is the same at any size.) The claim is about the three branches at once, and the compiler takes it apart the same way. In
 the first, `x < lo` and the result is `lo`. In the second, `x > hi` and it is `hi`. In the third,
 the two failed tests leave `lo <= x <= hi`. Each case is a question of the kind 16.4 answers.
@@ -1012,7 +1012,7 @@ gen: claims-main: least requires ∀ i ∈ 0..2 : ∀ j ∈ 0..2 : i <= j ⇒ `a
 ```
 
 In a message a read `a[i]` shows as `a(i)`, since a table is a function of its positions (chapter
-13), and the literal as `` `array`(3, 1, 2) ``. At i = 0 and j = 1, 3 <= 1 is false. With a sorted
+14), and the literal as `` `array`(3, 1, 2) ``. At i = 0 and j = 1, 3 <= 1 is false. With a sorted
 table:
 
 <!-- file docs/book/code/claims/least.oro -->
@@ -1107,7 +1107,7 @@ from the sortedness and an invariant with a `∀` on each side of the part still
 
 ---
 
-## 16.8 The edge of the method
+## 17.8 The edge of the method
 
 The two methods are strong on one kind of statement: sums of unknowns, each multiplied by a
 constant, compared with `<=`, `<`, `==`. That is called **linear** arithmetic. Outside it
@@ -1157,7 +1157,7 @@ gen: claims-parity: t[n mod 2] is an indexing, and 0 <= n mod 2 does not follow
   known: assumed -n <= 0, assumed n + -100 <= 0
 ```
 
-Chapter 6 said `mod` is the remainder that is *never negative*. That is its definition, and
+Chapter 7 said `mod` is the remainder that is *never negative*. That is its definition, and
 here it is not known. The other remainder is, for a dividend that is not negative, so this
 compiles:
 
@@ -1223,7 +1223,7 @@ why.
 
 ---
 
-## 16.9 Sound, and not complete
+## 17.9 Sound, and not complete
 
 Two words describe any checker.
 
@@ -1237,7 +1237,7 @@ answers true or false for every one. Add multiplication of unknowns and the pict
 changes completely. In 1970 Yuri Matiyasevich finished the proof that no procedure can
 decide whether an equation in whole numbers with multiplication has a solution. And in 1953
 Henry Rice had shown the general case: *every* interesting question about what a program
-computes is undecidable. Chapter 12's halting problem was the first instance.
+computes is undecidable. Chapter 13's halting problem was the first instance.
 
 So any checker for a real language faces the same three-way choice, and can have only two:
 
@@ -1252,7 +1252,7 @@ sometimes answers "does not follow" about something true.
 
 That changes how to read a refusal. **"Does not follow" is not "this is wrong".** It is "I
 could not show this from what I have". Sometimes the program is wrong, and the compiler has
-just saved you (16.4's `no-strict`, every off-by-one in chapter 13). Sometimes the program
+just saved you (16.4's `no-strict`, every off-by-one in chapter 14). Sometimes the program
 is right and the compiler is short of a fact or of a method. You have three responses, and
 you have used all three.
 
@@ -1261,7 +1261,7 @@ time and makes the function's assumptions part of its interface. Most refusals e
 
 **Test.** Write the condition as a guard: `if 0 <= k && k < len(t) { … } else { … }`. The
 test runs, so it costs a comparison, and it makes the program say what happens when the
-condition is false. Chapter 12's "a guard you are sure of" and chapter 13's binary search
+condition is false. Chapter 13's "a guard you are sure of" and chapter 14's binary search
 are this. It is the right answer when the fact comes from outside, and an honest answer
 when it is true but beyond the method.
 
@@ -1297,7 +1297,7 @@ gen: claims-shifted: 1 of 2 integer operation(s) cannot be proven to stay inside
 Two words may add to more than a word holds, and `s[i]` holds a word, so without the flag the
 function is refused. With it, the addition is done and then checked, and the program stops if it
 wrapped. That is
-chapter 15's `expect`, supplied by the build line: the program still never computes a wrong
+chapter 16's `expect`, supplied by the build line: the program still never computes a wrong
 number, it has only traded a proof for a possible stop. `-checked` covers arithmetic and
 nothing else. A position in a table or a divisor is proven, or guarded by a test you write.
 
@@ -1305,7 +1305,7 @@ The order of those three is the order to try them in.
 
 ---
 
-## 16.10 A type is a set
+## 17.10 A type is a set
 
 One more thing was quietly true all along. This book has never used the word *type* for
 something separate from *set*. In `fn f(n ∈ 0..9, s ∈ String, t ∈ Array(Int))`, the three
@@ -1350,16 +1350,16 @@ is the same *kind* of statement as "5 is not a member of 0..3", only coarser, an
 a cheaper check that needs no arithmetic. A classical type system is the part of this
 chapter that stops at the coarse sets. This language keeps going.
 
-Sets are built with the notation chapter 6 began:
+Sets are built with the notation chapter 7 began:
 
 | written | the set |
 |---|---|
 | `Int`, `Nat`, `Bool`, `String`, `F64` | the basic ones |
 | `lo..hi`, `lo..`, `..hi` | a range of integers |
-| `D(k, lo..hi)` | decimals with `k` places (chapter 8) |
+| `D(k, lo..hi)` | decimals with `k` places (chapter 9) |
 | `Array(S)` | tables with elements in `S` |
-| `S × T` | pairs (chapter 10) |
-| `'a ∪ 'b(T)` | a variant (chapter 10) |
+| `S × T` | pairs (chapter 11) |
+| `'a ∪ 'b(T)` | a variant (chapter 11) |
 | `set { x ∈ S : φ }` | the members of `S` for which φ holds |
 
 The last is the general one, and it is how mathematics writes a set by a property:
@@ -1386,7 +1386,7 @@ a value must be shown to be.
 
 ---
 
-## 16.11 What it costs
+## 17.11 What it costs
 
 Go back through this chapter's emitted code and look for the claims. `chain`'s three-part
 `where` is one table read. `gap`'s claim on a binding is one subtraction. `third`'s header,
@@ -1396,7 +1396,7 @@ the call's obligation and `at`'s range are `v0[2]`. `twice`'s set is `v0 + v0`.
 gone. The program that runs is the program you would have written in C with no checks at
 all, and the difference is that someone checked.
 
-That is the other half of chapter 6's bargain. A language that checks at run time (Go's
+That is the other half of chapter 7's bargain. A language that checks at run time (Go's
 index checks, Java's exceptions) pays a little on every operation, forever, and still finds
 the bug only when the bad input arrives, in production. A language that does not check (C)
 pays nothing and finds the bug when an attacker does. Proof is the one arrangement that
@@ -1405,7 +1405,7 @@ this chapter: a compiler that sometimes needs to be told a thing you consider ob
 
 ---
 
-## 16.12 What other languages do
+## 17.12 What other languages do
 
 | | what can be stated | who checks | when | if it cannot be shown |
 |---|---|---|---|---|
@@ -1465,5 +1465,5 @@ test* (1991), a descendant of Fourier's.
 - **A type is a set.** A type error is the coarsest kind of refused membership.
 - **A proven claim is erased.** It costs nothing at run time.
 
-Next: [chapter 17](17-targets.md), Targets. Where `io.print_line` comes from, and how to describe a host's
+Next: [chapter 18](18-targets.md), Targets. Where `io.print_line` comes from, and how to describe a host's
 function so that the compiler can check what you say about it.

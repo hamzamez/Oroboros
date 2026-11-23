@@ -362,7 +362,7 @@ Two questions arrived together on 2026-08-16 and got opposite answers, which is 
 note: num/vec.dot is defined here and provided natively by target "blas"; the target's is used
 ```
 
-§2.7 of [chapter 2](../book/02-def.md) is the mechanism: δ declines to unfold a name in `P_T`, so
+§3.7 of [chapter 3](../book/03-def.md) is the mechanism: δ declines to unfold a name in `P_T`, so
 the target's implementation wins and the definition is a fallback for targets that lack it. It is
 the most consequential decision the compiler makes about a program, it is made by a file the
 program does not name, and it was **silent**.
@@ -395,7 +395,7 @@ Three reasons specific to this language:
    rejected by the reader, because there the second binding is unreachable and there is no reading
    under which it was meant.
 
-What is done instead: [chapter 2 §2.6 and §2.10](../book/02-def.md) name it, show it, and say to
+What is done instead: [chapter 3 §3.6 and §3.10](../book/03-def.md) name it, show it, and say to
 prefer distinct names. Teaching is the right instrument for a legibility rule.
 
 **What would reopen it** is a measurement rather than an argument: a real shadowing bug that

@@ -1,0 +1,7 @@
+use io
+
+fn twice_plus(n ∈ 0..100) (Int) { n * 2 + 1 }
+
+export fn main() {
+    io.print_int(twice_plus(20))
+}

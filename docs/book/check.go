@@ -3,7 +3,7 @@
 // check re-runs a chapter's examples against the compiler and compares them
 // with what the chapter prints.
 //
-//	go run docs/book/check.go docs/book/00-tour.md      (from the repository's root)
+//	go run docs/book/check.go docs/book/01-tour.md      (from the repository's root)
 //
 // A fenced block is checked when the line before its fence is a directive, an
 // HTML comment, which a rendered page does not show:
@@ -14,12 +14,16 @@
 //	                                   printed, or of the file it emitted
 //	<!-- oro TARGET PATH -->           the block is a run of lines of what `oro -j`
 //	                                   printed: each export reduced, in J
+//	<!-- core TARGET PATH -->          the same, as `oro` alone prints it: core terms
+//	<!-- ir TARGET PATH -->            the block is a run of lines of the IR's text,
+//	                                   what `gen -ir` writes for the backend
+//	<!-- intervals TARGET PATH -->     the block is a run of lines of `intervals -v`
 //	<!-- build TARGET PATH -->         the block is a run of lines of what `build`
 //	                                   printed: a program it refuses to build
 //	<!-- run TARGET PATH [-checked] --> the block is what the built program printed
 //	<!-- portable PATH -->             the block is a run of lines of `portable`
 //
-// In a `part`, `gen`, `oro`, `run` or `portable` block a line holding only `…` stands for
+// In a `part`, `gen`, `oro`, `core`, `ir`, `intervals`, `run` or `portable` block a line holding only `…` stands for
 // lines left out: the pieces around it must appear in that order. Tabs compare
 // as four spaces and trailing blanks are dropped; nothing else is forgiven.
 //
@@ -37,7 +41,7 @@ import (
 	"strings"
 )
 
-var directive = regexp.MustCompile(`^<!--\s+(file|part|gen|oro|build|run|portable)\s+(.*?)\s*-->$`)
+var directive = regexp.MustCompile(`^<!--\s+(file|part|gen|oro|core|ir|intervals|build|run|portable)\s+(.*?)\s*-->$`)
 
 func norm(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
@@ -106,7 +110,7 @@ func main() {
 	}
 	defer os.RemoveAll(tmp)
 	tool := map[string]string{}
-	for _, t := range []string{"gen", "build", "portable", "oro"} {
+	for _, t := range []string{"gen", "build", "portable", "oro", "intervals"} {
 		tool[t] = filepath.Join(tmp, t+".exe")
 		if out := run("go", "build", "-o", tool[t], "./cmd/"+t); out != "" {
 			fmt.Fprint(os.Stderr, out)
@@ -165,6 +169,24 @@ func main() {
 			ok = within(block, got)
 		case "oro":
 			got = norm(run(tool["oro"], "-j", "-target="+args[0], args[1]))
+			ok = within(block, got)
+		case "core":
+			got = norm(run(tool["oro"], "-target="+args[0], args[1]))
+			ok = within(block, got)
+		case "ir":
+			// the IR's text, written beside the emitted file by `gen -ir`
+			irFile, out := filepath.Join(tmp, "out.ir"), filepath.Join(tmp, "out.txt")
+			os.Remove(irFile)
+			said := run(tool["gen"], "-name", filepath.Base(filepath.Dir(args[1])), "-ir", irFile, args[1], args[0], out)
+			text, err := os.ReadFile(irFile)
+			if err != nil {
+				got = norm(said)
+			} else {
+				got = norm(string(text))
+			}
+			ok = within(block, got)
+		case "intervals":
+			got = norm(run(tool["intervals"], "-v", args[1], args[0]))
 			ok = within(block, got)
 		case "build":
 			exe := filepath.Join(tmp, "refused.exe")

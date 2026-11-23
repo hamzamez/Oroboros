@@ -1,6 +1,6 @@
-# 8. Numbers with a point
+# 9. Numbers with a point
 
-[Chapter 6](06-integers.md) said an integer is an integer, and [chapter 7](07-bits.md) said
+[Chapter 7](07-integers.md) said an integer is an integer, and [chapter 8](08-bits.md) said
 wrapping is something you write. Both chapters were about whole numbers. Prices, rates,
 averages and measurements are not whole.
 
@@ -28,11 +28,11 @@ and why, how a machine holds 12.50 without any "floating point", what a `double`
 and why 0.1 is not one.
 
 The examples are in [code/numbers/](code/numbers/). `go run docs/book/check.go
-docs/book/08-numbers.md` re-runs every block. Checked 2026-11-16.
+docs/book/09-numbers.md` re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 8.1 The sum
+## 9.1 The sum
 
 <!-- file docs/book/code/numbers/sum.oro -->
 ```go
@@ -56,7 +56,7 @@ export fn main() {
 ```
 
 One tenth and two tenths are three tenths. The first line is the comparison (`bit` is chapter
-7's helper: 1 for true, 0 for false). The other two print the sum with one digit after the
+8's helper: 1 for true, 0 for false). The other two print the sum with one digit after the
 point, then with eighteen, and there is no 4 hiding at the end.
 
 Two things here are new.
@@ -100,7 +100,7 @@ down and one went up, and section 8.6 says why.
 
 ---
 
-## 8.2 Which numbers these are
+## 9.2 Which numbers these are
 
 A numeral with a point is a whole number and a place for the point: 12.5 is 125 with the point
 moved one place left, 0.0825 is 825 with the point moved four.
@@ -231,7 +231,7 @@ These numbers are another, a bigger one with the integers inside it.
 
 ---
 
-## 8.3 Integers are numbers; numbers are not all integers
+## 9.3 Integers are numbers; numbers are not all integers
 
 Every integer is one of these numbers, so an integer may go anywhere a number may. The other
 direction needs care:
@@ -282,7 +282,7 @@ export fn main() {
 as in all three lines here. The third line needs it because `2.0`, although it equals 2, was
 written with a point: a numeral with a point is a number, and `<<` wants an integer.
 
-The operations of chapters 6 and 7 that only make sense on integers stay on integers: `/`,
+The operations of chapters 7 and 8 that only make sense on integers stay on integers: `/`,
 `%`, `mod`, and all the bit operations.
 
 <!-- file docs/book/code/numbers/no-slash.oro -->
@@ -300,12 +300,12 @@ export fn main() {
 build: main: in argument 1 of `/`: `*` is N, but Int is required here
 ```
 
-`/` is the integer quotient of chapter 6, the one where `7 / 2` is 3. It has no meaning on
+`/` is the integer quotient of chapter 7, the one where `7 / 2` is 3. It has no meaning on
 3.5. What you wanted is the next section.
 
 ---
 
-## 8.4 The operation that leaves
+## 9.4 The operation that leaves
 
 Share 1 among 3. Each gets one third. Write one third with a point:
 
@@ -389,7 +389,7 @@ and is refused on Go and windows with an internal message: README item 37.)
 
 ---
 
-## 8.5 Rounding: a grid and a direction
+## 9.5 Rounding: a grid and a direction
 
 A rounding needs two things said.
 
@@ -536,7 +536,7 @@ That also explains 8.1's pair: `num.decimal(x, 0)` rounds to the nearest with ti
 
 ---
 
-## 8.6 Why would anyone round a half to the even side?
+## 9.6 Why would anyone round a half to the even side?
 
 School teaches "a half rounds up". It is simple, and it has a flaw you can measure.
 
@@ -580,7 +580,7 @@ was about 1098. The whole fall was `'zero` where `'nearest` was meant.
 
 ---
 
-## 8.7 A rounding must land in its set
+## 9.7 A rounding must land in its set
 
 The set you round onto has ends, and the result has to be between them:
 
@@ -599,7 +599,7 @@ export fn main() {
 build: main: oro-main: round(D(2, 0..1), …)'s value inside its set: not proven (the numerator is [550, 550], its set's ends 0..100) (ADR 0086, numbers.md §3)
 ```
 
-5.5 is on the grid of hundredths and is not between 0 and 1. This is chapter 6's rule again: a
+5.5 is on the grid of hundredths and is not between 0 and 1. This is chapter 7's rule again: a
 set is a claim, and a claim that is not proven is refused. The message even shows how the
 compiler holds the value: as the numerator 550 at scale 2, against a set whose numerators run
 from 0 to 100.
@@ -635,9 +635,9 @@ export fn main() {
 
 ---
 
-## 8.8 Integer division was a rounding all along
+## 9.8 Integer division was a rounding all along
 
-Chapter 6 said `7 / 2` is 3 and called it "the quotient, rounded toward zero". Now that
+Chapter 7 said `7 / 2` is 3 and called it "the quotient, rounded toward zero". Now that
 sentence can be written in the language:
 
 <!-- file docs/book/code/numbers/quotient.oro -->
@@ -669,14 +669,14 @@ toward zero. The other lines are the divisions `/` cannot do: how many boxes of 
 things (`'up`, 4), and the nearest whole number of halves, where 3.5 and 4.5 both go to the
 even 4.
 
-Chapter 7 met the same thing from another side: `a >> 1` halves and rounds *down*, so
+Chapter 8 met the same thing from another side: `a >> 1` halves and rounds *down*, so
 `-7 >> 1` is −4 where `-7 / 2` is −3. Two operations, one real quotient, two modes. Languages
 disagree about integer division of negative numbers (Python floors, C truncates) because each
 picked one mode and gave it the only symbol.
 
 ---
 
-## 8.9 Where you round is part of the program
+## 9.9 Where you round is part of the program
 
 A shop sells three items at 0.99 each, and the sales tax is 8.25%.
 
@@ -743,7 +743,7 @@ for ties give the two neighbours.
 
 ---
 
-## 8.10 How a machine holds 12.50
+## 9.10 How a machine holds 12.50
 
 There is no "decimal chip" in your computer. So what did those programs run on? Look at one.
 
@@ -814,9 +814,9 @@ dividing by 100 and keeping the floor: take off the remainder, then divide.
 
 ### The numerators and the machine's readings
 
-A numerator is an integer, so everything chapter 6 said about integers applies to it. Each
+A numerator is an integer, so everything chapter 7 said about integers applies to it. Each
 operation on numerators is held in the first of the machine's readings that holds it, the word, the
-unsigned word or the double word, and past them as the integer itself (chapter 6, §6.9):
+unsigned word or the double word, and past them as the integer itself (chapter 7, §7.9):
 
 <!-- file docs/book/code/numbers/two-scales.oro -->
 ```go
@@ -908,7 +908,7 @@ A thousandth is not an amount of money. The fix is to say how the thousandths be
 
 ---
 
-## 8.11 Doubles
+## 9.11 Doubles
 
 Exact decimals are right for money, quantities, rates: anything a person wrote down. They are
 the wrong tool for a physics simulation, a sound filter or a neural network. Those multiply
@@ -918,7 +918,7 @@ arithmetic built in, standardized in 1985 as IEEE 754. Its common format is the 
 
 Here is what a double is, in this chapter's terms. **A double is a number of the form
 m × 2ᵉ, where m is an integer of at most 53 bits** and e is between about −1074 and 971. It
-is chapter 7's binary numeral with a binary point that may sit anywhere. Compare:
+is chapter 8's binary numeral with a binary point that may sit anywhere. Compare:
 
 ```
  a decimal of scale k    m / 10ᵏ      the point is fixed when compiling
@@ -971,7 +971,7 @@ Line by line:
    tenth. Every language that prints `0.1` for it is rounding again while printing.
 4. 2⁵³ is a double.
 5. 2⁵³ + 1 is not: it needs 54 bits. From 2⁵³ upward the doubles are two apart, and the tie
-   goes to the even one. This is the 2⁵³ of chapter 6, where JavaScript's word ended.
+   goes to the even one. This is the 2⁵³ of chapter 7, where JavaScript's word ended.
 
 ### IEEE arithmetic is "round after every operation"
 
@@ -1048,7 +1048,7 @@ special value called infinity. This language has no infinity: `F64` is a set of 
 infinity is not a number. So the sum must be proven to fit, and the message says how (`#0.0`
 and `#0.1` are the compiler's names for the two parameters).
 
-Say how large the inputs really are, with chapter 6's set-builder notation:
+Say how large the inputs really are, with chapter 7's set-builder notation:
 
 <!-- file docs/book/code/numbers/mean.oro -->
 ```go
@@ -1243,7 +1243,7 @@ not numbers: two infinities, a second zero with a minus sign, and "not a number"
 is what 0 ÷ 0 gives and which is not equal even to itself. `F64` has none of them. An
 operation that would produce one has an obligation instead: a sum that might overflow, a
 divisor that might be zero. Equality on `F64` is equality of numbers, so `x == x` is always
-true and the laws of chapter 4 survive.
+true and the laws of chapter 5 survive.
 
 One more limit, which is only a gap: `num.decimal` prints exact decimals, and nothing in the
 library prints a double yet. This section compared doubles with exact numerals instead, which
@@ -1252,7 +1252,7 @@ truth, and a printed `0.30000000000000004` is a summary of it.
 
 ---
 
-## 8.12 Which one to use
+## 9.12 Which one to use
 
 | | decimals, `D(k, lo..hi)` | doubles, `F64` |
 |---|---|---|
@@ -1270,7 +1270,7 @@ position), they were never exact, and doubles give sixteen digits where the sens
 
 ---
 
-## 8.13 What other languages do
+## 9.13 What other languages do
 
 | | Oroboros | C, Java, JavaScript, Python | Go |
 |---|---|---|---|
@@ -1324,5 +1324,5 @@ rounding mode. It is the same rule, found at run time instead of when compiling.
   double. Outside the block nothing is.
 - **No NaN, no infinity, no −0.** Overflow and a zero divisor are things to prove.
 
-Next: [chapter 9](09-text.md), Text. What a string is made of, and why its length is a harder question than
+Next: [chapter 10](10-text.md), Text. What a string is made of, and why its length is a harder question than
 it looks.

@@ -1,4 +1,4 @@
-# 10. Tuples and variants
+# 11. Tuples and variants
 
 So far a value has been one thing: an integer, a number, a boolean, a string. Real programs
 deal in things with parts and things with alternatives. A division has a quotient *and* a
@@ -24,14 +24,14 @@ Along the way: why a function with two results needs no new idea, the most expen
 in the history of programming languages (its inventor's words), why these are called products
 and sums, and what a compiler can check for you once it knows all the cases.
 
-The examples are in [code/data/](code/data/). `go run docs/book/check.go docs/book/10-data.md`
+The examples are in [code/data/](code/data/). `go run docs/book/check.go docs/book/11-data.md`
 re-runs every block. Checked 2026-11-16.
 
 ---
 
-## 10.1 Two answers at once
+## 11.1 Two answers at once
 
-Chapter 6 divided 17 by 5 twice: `17 / 5` for the quotient and `17 % 5` for the remainder. They
+Chapter 7 divided 17 by 5 twice: `17 / 5` for the quotient and `17 % 5` for the remainder. They
 are two halves of one answer, and a function should be able to give both.
 
 <!-- file docs/book/code/data/divmod.oro -->
@@ -79,13 +79,13 @@ The last tuple has three parts of three different kinds: an integer, a string an
 The parts of a tuple need not be alike, and there may be any number of them. What is fixed is
 *how many* and *in which order*: a tuple of three is never a tuple of two.
 
-You have been using tuples since chapter 1 without the word. A function's parameter list
-`(a, b)` is a tuple pattern, and its argument list `(17, 5)` is a tuple. And chapter 4's `()`,
+You have been using tuples since chapter 2 without the word. A function's parameter list
+`(a, b)` is a tuple pattern, and its argument list `(17, 5)` is a tuple. And chapter 5's `()`,
 "nothing", is the tuple with no parts.
 
 ---
 
-## 10.2 A tuple in a header
+## 11.2 A tuple in a header
 
 A header says which set a result is in. For a tuple it says so part by part:
 
@@ -118,7 +118,7 @@ func DataThree(v0 int) (int, bool, string) {
 
 Go can return several values from a function, so a tuple result *is* Go's several results.
 Nothing was built to hold them. (`swap` takes and gives `*big.Int`s because `Int` is every
-integer, and a host may hand it any; chapter 6 is why.) JavaScript cannot, so there the compiler returns a small
+integer, and a host may hand it any; chapter 7 is why.) JavaScript cannot, so there the compiler returns a small
 object:
 
 <!-- gen js docs/book/code/data/header.oro -->
@@ -157,7 +157,7 @@ func DataDivmod(v0 int, v1 int) (int, int) {
 }
 ```
 
-Each part's set is a claim (chapter 6), and each is proven separately: the quotient of a number
+Each part's set is a claim (chapter 7), and each is proven separately: the quotient of a number
 up to 1000 by a number from 1 up is in 0..1000, and a remainder by a number up to 1000 is in
 0..999. Claim too much about one part and that part is named:
 
@@ -177,11 +177,11 @@ gen: divmod: the body does not establish that component 1 of its result is in 0.
 
 ---
 
-## 10.3 A tuple is not a thing
+## 11.3 A tuple is not a thing
 
 In many languages a pair is an object: memory is set aside for it, the two values are copied
 in, and later they are read back out. Here a tuple is a way of *writing* a program. Watch what
-reduction (chapters 1 and 2) does to it. The target is the tutorial one, where `h`, `x` and
+reduction (chapters 2 and 3) does to it. The target is the tutorial one, where `h`, `x` and
 `y` are unknown operations that stay as written.
 
 <!-- file docs/book/code/data/gone.oro -->
@@ -213,7 +213,7 @@ fn(u) { a = x(u); h(a, a) }
 - `swap` took a pair apart and built another. One pair is left, the result, because that is
   what the function returns.
 - `chosen` picked one of two pairs with an `if`. The pattern moved *into* both branches (chapter
-  4, "a choice moves to where it is needed"), and each branch then had a known pair to take
+  5, "a choice moves to where it is needed"), and each branch then had a known pair to take
   apart. No pair at all is left, only the `if`.
 - `once` built a pair of two computations and used the first part twice. `x(u)` is computed
   once and named. `y(u)` was never used and is gone (the tutorial target says `y` is pure).
@@ -249,15 +249,15 @@ Four arithmetic operations. `divmod` is gone, its tuple is gone, the pattern is 
 **What a tuple cannot do.** It has no operations of its own: there is no `t[0]`, no
 comparison of two tuples, no "length". A pattern is the only way in. And a tuple cannot be
 the set of a *parameter*; a function that wants two values takes two parameters, which is the
-same thing. Tuples of tuples, and tuples stored in tables, come with chapter 13.
+same thing. Tuples of tuples, and tuples stored in tables, come with chapter 14.
 
 ---
 
-## 10.4 One of several
+## 11.4 One of several
 
 A traffic light is red, green or amber. Never two, never none, never a fourth thing.
 
-How would you write that with what you have? Chapter 7's answer is an integer: 0 for red, 1
+How would you write that with what you have? Chapter 8's answer is an integer: 0 for red, 1
 for green, 2 for amber. It works, and it has every problem a convention has. Nothing stops 3.
 Nothing stops adding a light to a temperature. Nothing tells the reader that 1 means green.
 And when a fourth state is added one day, nothing finds the places that assumed three.
@@ -301,10 +301,10 @@ piece of data that *is* its own name. (The mark and the idea are from Lisp, 1958
 value. It can be passed, returned and stored like 7 or `"x"`.
 
 **`set Light = 'red ∪ 'green ∪ 'amber` declares the variant.** `∪` is the union sign of
-chapter 6's set notation, typed `\cup`: the set `Light` has exactly these three members. The
+chapter 7's set notation, typed `\cup`: the set `Light` has exactly these three members. The
 declaration is what makes the tags exist.
 
-**`case l { 'red -> …; 'green -> …; 'amber -> … }` asks which one.** Chapter 4's `case` chose
+**`case l { 'red -> …; 'green -> …; 'amber -> … }` asks which one.** Chapter 5's `case` chose
 by testing conditions in order. This form is given a value after the word `case`, and each arm
 starts with a tag instead of a condition. The arm whose tag matches is the answer.
 
@@ -315,7 +315,7 @@ set of states and a rule for moving between them is a **state machine**, and a v
 
 ---
 
-## 10.5 Every case, or the program is refused
+## 11.5 Every case, or the program is refused
 
 The compiler knows all three members of `Light`, so it can check that a `case` answers for
 each. Forget one:
@@ -400,7 +400,7 @@ Look again at the Go for `partial.oro`: `v0 == 0`. There is no light in it. That
 
 ---
 
-## 10.6 A case that carries a value
+## 11.6 A case that carries a value
 
 A shape is a circle with a radius, or a square with a side, or a point with nothing. The
 alternatives do not hold the same information, so each tag says what comes with it:
@@ -458,12 +458,12 @@ gen: docs/book/code/data/no-payload.oro.txt: line 1: "," where ")" was expected
 
 and what it carries is written as a set's name: `Int`, `String`, `Bool`, another variant. A
 rectangle, with a width *and* a height, wants an "and" inside an "or". That combination is
-built in chapter 13, where a variant's value can be a position in a table that holds the
+built in chapter 14, where a variant's value can be a position in a table that holds the
 parts.
 
 ---
 
-## 10.7 Something or nothing
+## 11.7 Something or nothing
 
 The most useful variant has two cases, and almost every program needs it. Is this character a
 digit, and if so which?
@@ -497,7 +497,7 @@ not a digit
 0
 ```
 
-Character 55 is `7` (chapter 9: the digit `d` is 48 + d). Character 65 is `A`. Character 48
+Character 55 is `7` (chapter 10: the digit `d` is 48 + d). Character 65 is `A`. Character 48
 is `0`, and that third line is the reason this section exists. The digit zero and "not a
 digit" are different answers. A function that returned a bare integer would have to pick some
 number to mean "no", and whichever it picks (0, −1, 999) is a number some caller will
@@ -505,7 +505,7 @@ eventually mistake for an answer.
 
 **`Maybe(T)`** has a parameter: `T` stands for whatever set the `'just` case carries. It is
 one declaration for "an integer or nothing", "a string or nothing", and so on. (A set with a
-parameter is a function from sets to sets; chapter 2's "a definition is an abbreviation"
+parameter is a function from sets to sets; chapter 3's "a definition is an abbreviation"
 covers it.)
 
 Most languages answer this question with a special value that every reference may secretly
@@ -538,12 +538,12 @@ func DataOrZero(v0 int) int {
 }
 ```
 
-Looking something up in a map (chapter 14) answers with it, and chapter 15's failures are the
+Looking something up in a map (chapter 15) answers with it, and chapter 16's failures are the
 same shape with a reason attached to the "nothing".
 
 ---
 
-## 10.8 Where did the variant go?
+## 11.8 Where did the variant go?
 
 Three times now the emitted code has had no trace of a variant in it. Here it is on purpose.
 
@@ -582,7 +582,7 @@ func DataThrough(v0 int) int {
 }
 ```
 
-`fixed` is chapter 1's rule: a `case` on a value that is known picks its arm while compiling.
+`fixed` is chapter 2's rule: a `case` on a value that is known picks its arm while compiling.
 `area('square(4))` is `4 * 4` is 16.
 
 `through` is the interesting one. `make` builds a shape depending on `n`, and `area` takes it
@@ -669,7 +669,7 @@ where `c` is between 48 and 57.
 
 ---
 
-## 10.9 At the program's edge
+## 11.9 At the program's edge
 
 Inside a program a variant dissolves. It has to become something real in one place: when an
 exported function *returns* one, because the caller is not our program and cannot be reduced.
@@ -740,7 +740,7 @@ On JavaScript the same three functions return `{f0: …, f1: …}`, as 10.2's tu
 
 ---
 
-## 10.10 Why they are called products and sums
+## 11.10 Why they are called products and sums
 
 Count values.
 
@@ -775,11 +775,11 @@ counts where the truth is their *sum*. Choosing a variant is choosing the repres
 no impossible states.
 
 `Bool` itself is a variant in everything but spelling: two tags, `true` and `false`, and `if`
-is its `case`. Chapter 4 was this chapter with two cases and no payloads.
+is its `case`. Chapter 5 was this chapter with two cases and no payloads.
 
 ---
 
-## 10.11 What is not here
+## 11.11 What is not here
 
 **A variant cannot contain itself.**
 
@@ -796,7 +796,7 @@ gen: docs/book/code/data/no-recursive.oro.txt: variant list: constructor more ca
 ```
 
 A list, a tree, a document: anything of unbounded size is a *table* here, and a "pointer" to
-another node is a position in that table. Chapter 13 builds one. It is the layout a careful C
+another node is a position in that table. Chapter 14 builds one. It is the layout a careful C
 programmer chooses for speed anyway (everything in one block of memory, no chasing pointers),
 and it keeps the promise that a variant is a tag and a few slots.
 
@@ -860,7 +860,7 @@ or a `'none` of their own, and the qualified tag says which is meant.
 
 ---
 
-## 10.12 What other languages do
+## 11.12 What other languages do
 
 | | "and" | "or" | must a choice cover every case? | "nothing" |
 |---|---|---|---|---|
@@ -904,4 +904,4 @@ payloads, and a comment asking you to check the tag before reading the union.
   impossible states.
 - **No recursive variants and no one-case variants.** Unbounded data is a table.
 
-Next: [chapter 11](11-records.md), Records. A tuple whose parts have names.
+Next: [chapter 12](12-records.md), Records. A tuple whose parts have names.

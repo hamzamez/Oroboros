@@ -907,7 +907,7 @@ export fn run() { Y(f) }
 
 <!-- oro tutorial docs/book/code/def/no-y.oro -->
 ```
-oro: reduction did not terminate within the step limit; last term head: fn() { fn(k) { fn(a) { a } } }
+oro: reduction did not terminate within the step limit, reducing fn() { Y(f) }
 ```
 
 No definition there mentions itself, so §2.8's check has nothing to refuse; but `Y(f)` unfolds to

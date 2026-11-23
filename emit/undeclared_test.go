@@ -40,12 +40,12 @@ func TestAnUndeclaredParametersReadingIsNamed(t *testing.T) {
 	}
 	term, _ := core.ParseTerm("(fn (f k) (f k))")
 	_, err = Refine(tg, "g", nil, term)
-	if err == nil || !strings.Contains(err.Error(), "f is a parameter no header gives a set") {
+	if err == nil || !strings.Contains(err.Error(), "f is a parameter with no set") {
 		t.Errorf("an undeclared parameter's reading as a table must be named, got %v", err)
 	}
 	sig := &core.Sig{Params: []core.SigParam{{Name: "f", Type: "array int"}, {Name: "k", Type: "int"}}, Result: "int"}
 	_, err = Refine(tg, "g", sig, term)
-	if err == nil || strings.Contains(err.Error(), "no header gives a set") {
+	if err == nil || strings.Contains(err.Error(), "is a parameter with no set") {
 		t.Errorf("a declared table is refused for its index, with no note about its set: %v", err)
 	}
 }

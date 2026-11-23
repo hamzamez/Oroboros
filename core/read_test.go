@@ -412,3 +412,36 @@ func TestOversizedIntegerLiteralIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// THE STEP LIMIT QUOTES ITS REDEX: a reduction with no end is named by the
+// outermost application it was inside, Ω itself, where the innermost subterm,
+// re-wrapped by its binders, quoted `fn() { fn(k) { k } }`, the identity, a term
+// the program never had (the book's chapter 1 §1.13). PlantFuelInnermost quotes
+// it again.
+func TestTheStepLimitQuotesItsRedex(t *testing.T) {
+	omega := "export fn run() { fn(k) { k(k) }(fn(k) { k(k) }) }\n"
+	msg := func() string {
+		forms, err := Read(omega)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, _, err := Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = Normalize(p.Defs["run"], testEnv(p), DefaultFuel)
+		if err == nil {
+			t.Fatal("Ω reduced to a normal form")
+		}
+		return err.Error()
+	}
+	if m := msg(); !strings.Contains(m, "k(k)") {
+		t.Errorf("the step limit should quote Ω, its redex: %s", m)
+	}
+	PlantFuelInnermost = true
+	m := msg()
+	PlantFuelInnermost = false
+	if strings.Contains(m, "k(k)") {
+		t.Errorf("with the innermost subterm quoted, the message should not show Ω: %s", m)
+	}
+}

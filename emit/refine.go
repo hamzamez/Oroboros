@@ -3346,17 +3346,23 @@ func (r *refiner) isTable(name string) bool {
 }
 
 // undeclaredNote is what an indexing's refusal adds when the table is a
-// parameter no header gives a set: the reading was the rule's, not the
-// program's, and a function there is a definition that cannot be an entry.
+// parameter no header gives a set. A table is a function on [0, len) (data.md),
+// so a table's read and a function's call are one form, and only a set tells
+// them apart: the reading as a table was the rule's, not the program's. A
+// definition refined on its own is an entry point or a library's definition, a
+// function there an argument no host can pass (closures-direction.md); one
+// inlined where it is applied takes a function, so the refusal says which.
 func (r *refiner) undeclaredNote(tab *core.Term) string {
 	if tab.Kind != core.KName || !r.undeclared[tab.Name] {
 		return ""
 	}
 	n := core.ShowName(tab.Name)
-	return "\n  " + n + " is a parameter no header gives a set, so applied to one argument it is read as a\n" +
-		"  table (tables.md §3.2). If " + n + " is a function, this definition takes one and cannot be\n" +
-		"  compiled alone: a function does not cross an entry point (closures-direction.md), and the\n" +
-		"  definition is used where it is inlined. If it is a table, declare its set, " + n + " ∈ Array(…)."
+	return "\n  " + n + " is a parameter with no set, and applied to one argument it is read as a table\n" +
+		"  (tables.md §3.2): a table is a function on [0, len), and only a set tells the two apart.\n" +
+		"  If " + n + " is a table, declare it, " + n + " ∈ Array(…). If it is a function, this definition\n" +
+		"  is compiled on its own and cannot take one: no function of the program's crosses an entry\n" +
+		"  point (closures-direction.md). A definition that is not exported takes one, where it is\n" +
+		"  applied and inlined."
 }
 
 // indexObligation demands `0 <= i` and `i < len(a)` at an indexing.

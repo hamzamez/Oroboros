@@ -1189,7 +1189,7 @@
    note: bytes.put is inlined: bytes.put: bytes.maxu's parameter k, declared in 1..8, requires 1 <= k && k <= 8 at a call, which does not follow
    note: os/host.argv is inlined: os/host.argv: 14 of 34 integer operation(s) cannot be proven to stay inside the word of target windows, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
    note: every definition inlined: kept, gen-main: lowering: a table rule that was never allocated (tables.md §2): table(#0.1 - 0, fn(#nl388) { #1.0(0 + #nl388) })
-   gen: reduction did not terminate within the step limit; last term head: fn() { fn(av) { fn(buf) { fn(#s4) { fn(#vbuf) { fn(path) { fn(#h1) { fn(c) { fn(read, #vbuf) { fn(n, r) { fn(#t, #p, #p1) { fn(#k) { fn(h, av) { fn(p) { fn(n…
+   gen: reduction did not terminate within the step limit, reducing fn() { av = os.Args(); if len(av) < 2 { io.print_line("usage: pe FILE [OUT]"); 0 } else { build(4096, fn(buf) { #s4 = buf; #vbuf = #s4; (#s3, #vbuf) = { (rea…
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in `num/vec`.dot: `num/f64`.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      `use num/f64` matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.

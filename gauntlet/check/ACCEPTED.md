@@ -4610,3 +4610,18 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `gauntlet/differential/cases/double-word.oro js`
 - emitted text changed — `gauntlet/differential/cases/quotient-corner.oro js`
 - compiler output changed — `gauntlet/differential/cases/quotient-corner.oro js`
+
+## 2026-11-23 — on 62329dc7, with uncommitted changes
+
+**Reason:** chapter 1 audit: the step limit quotes the outermost application it was reducing (Omega itself), not the innermost subterm re-wrapped by its binders, a term the program never had
+
+844 runs: 585 emitted, 259 refused; 12504 of 12558 integer operations bounded, 1575 of 1876 loops proven. compiler pass, differential pass, tooling pass.
+
+1 change(s):
+
+- compiler output changed — `examples/pe/pe.oro windows`
+
+2 compile(s) recorded FASTER:
+
+- `gauntlet/differential/cases/big-bits.oro windows` 76140 → 47640 ms, 0.63x
+- `gauntlet/differential/cases/big-stein.oro windows` 69171 → 43703 ms, 0.63x

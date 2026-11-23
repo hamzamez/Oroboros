@@ -206,7 +206,10 @@ as they are:
    telescope as built.
 10. **A result declared `()` accepts a body that yields a value**: `export fn nothing(n ∈ 0..9) () { n }`
     compiles and returns `n`.
-11. **The step limit's message quotes a core term**: *last term head: (fn () (fn (k) k))*.
+11. **The step limit's message quotes a core term**: *last term head: (fn () (fn (k) k))*. Shown in J
+    since surface-2026-11-15, and still a term the program never had, the identity for Ω: the
+    innermost subterm re-wrapped by its binders. **Fixed** 2026-11-23 (chapter 1's audit): the
+    message quotes the outermost application it was reducing, Ω itself, and `Y(f)` for chapter 2's.
 
 Chapter 2 in J (2026-11-15) found three, none fixed:
 

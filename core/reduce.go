@@ -2432,15 +2432,36 @@ func (e *Env) unfoldable(name string) bool {
 
 const DefaultFuel = 1_000_000
 
-type FuelError struct{ Term *Term }
+// FuelError is a reduction that did not end within the step limit. Term is the
+// subterm being reduced when the fuel ran out, and Outer the outermost
+// application on the path to it: the redex whose reduction has no end, as the
+// program wrote it or as reduction had left it. Each is closed again under the
+// binders it was opened beneath (reclose). The message quotes Outer: Term, the
+// innermost, re-wrapped by its binders, is no term the program has. Ω's was
+// `fn() { fn(k) { k } }`, the identity, and Y(f)'s `fn() { fn(k) { fn(a) { a } } }`.
+type FuelError struct{ Term, Outer *Term }
+
+// PlantFuelInnermost quotes the innermost subterm again (TestTheStepLimitQuotesItsRedex).
+var PlantFuelInnermost bool
 
 func (f *FuelError) Error() string {
-	return fmt.Sprintf("reduction did not terminate within the step limit; last term head: %s",
-		headJ(f.Term))
+	t := f.Outer
+	if t == nil || PlantFuelInnermost {
+		t = f.Term
+	}
+	s := ShowTerm(t)
+	if r := []rune(s); len(r) > 160 {
+		s = string(r[:157]) + "…"
+	}
+	return fmt.Sprintf("reduction did not terminate within the step limit, reducing %s", s)
 }
 
 func (f *FuelError) reclose(params []string) error {
-	return &FuelError{Term: FnClosed(params, f.Term)}
+	out := &FuelError{Term: FnClosed(params, f.Term)}
+	if f.Outer != nil {
+		out.Outer = FnClosed(params, f.Outer)
+	}
+	return out
 }
 
 // ArityError is application to the wrong number of arguments. It carries the
@@ -2472,20 +2493,6 @@ func head(t *Term) string {
 		t = t.Op()
 	}
 	return t.String()
-}
-
-// headJ is a term's head as J writes it, for a message (book finding 11: the
-// step limit's quoted the core term), cut where it is long. head stays the
-// core's spelling, which readers compare (jreadtarget's liftAxioms).
-func headJ(t *Term) string {
-	for t.Kind == KApp {
-		t = t.Op()
-	}
-	s := ShowTerm(t)
-	if r := []rune(s); len(r) > 160 {
-		s = string(r[:157]) + "…"
-	}
-	return s
 }
 
 // Normalize reduces t to normal form: no reducible β-redex and no name outside
@@ -2556,6 +2563,10 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 	}
 	out, err := normalizeStep(t, e, fuel)
 	e.depth--
+	// THE OUTERMOST APPLICATION on the way back up is the step limit's redex
+	if fe, ok := err.(*FuelError); ok && t.Kind == KApp {
+		fe.Outer = t
+	}
 	return out, err
 }
 

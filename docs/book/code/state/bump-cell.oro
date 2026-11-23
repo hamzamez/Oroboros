@@ -1,0 +1,12 @@
+use io
+
+fn twice(f, x) { f(f(x)) }
+
+fn bump(n ∈ Int inout, x ∈ 0..100) { n := n + 1; x + 3 }
+
+export fn main() {
+    var n := 0
+    y = twice(fn(x) { bump(n, x) }, 1)
+    io.print_int(y)
+    io.print_int(n)
+}

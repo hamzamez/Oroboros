@@ -1462,8 +1462,92 @@ export fn of_strings(s ∈ String) (String) { double(s) }
 gen: of-strings: in argument 1 of `+`: s is String, but Int is required here
 ```
 
-How harder claims are proven is [chapter 16](16-claims.md). Where they live: **on the function,
-in its header, and nowhere else.** An expression carries no annotation.
+**A λ carries a header too**, and it means what the same header means on a definition: a λ and a
+definition differ only by a name ([chapter 2](02-def.md)), so the compiler gives the λ one, *the λ at
+line 1* in a message, and checks it as one. Its result is a claim about every argument its
+parameters accept, not about the one it is applied to. 1 is in `0..9`; `n` is not, for every `n`:
+
+<!-- file docs/book/code/integers/no-lambda-result.oro -->
+```go
+export fn run() (Int) { fn(n ∈ Int) (0..9) { n }(1) }
+```
+
+<!-- gen go docs/book/code/integers/no-lambda-result.oro -->
+```
+gen: the λ at line 1: the body does not establish 0 <= result && result <= 9; its result is [-inf, +inf]
+…
+```
+
+and its parameter's set is an obligation where it is applied:
+
+<!-- file docs/book/code/integers/no-lambda-arg.oro -->
+```go
+export fn run() (Int) { fn(d ∈ 0..9) (Int) { d * 2 }(10) }
+```
+
+<!-- gen go docs/book/code/integers/no-lambda-arg.oro -->
+```
+gen: integers-run: the λ at line 1's parameter d is declared in 0..9, and a call passes 10
+…
+```
+
+A λ sees the names around it. A name it sees is, for its claim, a parameter it did not write, and
+the claim is decided for every value that name may have: a parameter of the definition around it
+has its set, so here `k` is in `0..5`, and `n + k` is in `0..14` for every `n` and every `k`:
+
+<!-- file docs/book/code/integers/lambda.oro -->
+```go
+export fn run(k ∈ 0..5) (Int) {
+    fn(n ∈ 0..9) (0..14) { n + k }(3)
+}
+```
+
+<!-- gen go docs/book/code/integers/lambda.oro -->
+```go
+func IntegersRun(v0 int) int {
+    v10 := (3 + v0)
+    return v10
+}
+```
+
+Any other name it sees has no set there, so a claim that holds only by what the body around it
+computed is refused, though `j` is `k + 1` and so in `1..6`:
+
+<!-- file docs/book/code/integers/no-lambda-context.oro -->
+```go
+export fn run(k ∈ 0..5) (Int) {
+    j = k + 1
+    fn(n ∈ 0..9) (0..15) { n + j }(3)
+}
+```
+
+<!-- gen go docs/book/code/integers/no-lambda-context.oro -->
+```
+gen: the λ at line 3: the body does not establish 0 <= result && result <= 15; its result is [-inf, +inf]
+…
+```
+
+Say what the claim rests on, as a parameter with its set, and pass the value:
+
+<!-- file docs/book/code/integers/lambda-context.oro -->
+```go
+export fn run(k ∈ 0..5) (Int) {
+    j = k + 1
+    fn(n ∈ 0..9, i ∈ 1..6) (0..15) { n + i }(3, j)
+}
+```
+
+<!-- gen go docs/book/code/integers/lambda-context.oro -->
+```go
+func IntegersRun(v0 int) int {
+    v11 := (v0 + 1)
+    v12 := (3 + v11)
+    return v12
+}
+```
+
+How harder claims are proven is [chapter 16](16-claims.md). Where they live: **on a function, in
+its header, named or not, and nowhere else.** An expression carries no annotation.
 
 ## 6.13 What other languages do
 
@@ -1527,7 +1611,8 @@ say what your numbers are.
   none. `decimal` gives its text. It does not come back down silently.
 - **Portability is computed**: `cmd/portable` says which targets accept a program.
 - **A header's sets, `where` and `ensure` are claims**: obligations on callers, promises about
-  the result, proven or refused.
+  the result, proven or refused. A λ's header is a definition's, its result decided for every
+  argument and every value of a name it sees that has no set.
 
 Next: chapter 7, Bits. The same integers, looked at as the machine holds them: `&`, `|`, `⊕`,
 shifts, and arithmetic that wraps on purpose.

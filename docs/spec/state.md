@@ -65,6 +65,10 @@ export fn main() { … }               // an entry point
   ADR 0051, 0062). D makes two core forms of it, **`def`**, the named λ, and **`sig`**, its claim:
   `(def f (fn (x b) …))` and `(sig f ((x (int 0 255)) (b (buffer int))) int (where …) (ensures …))`.
   `def` and `sig` are the core's words, written by no source file (inventory.md §1).
+- **An anonymous `fn(…) … { e }` carries the same header** (ADR 0051, 0158): D lifts a claimed λ to a
+  definition of its own, `f#λN`, over its free variables ȳ bound around it, and writes
+  `fn(x̄) { f#λN(ȳ, x̄) }` in its place; a yᵢ that is the enclosing definition's parameter keeps its
+  set, any other claims nothing. A mode on its parameter, and a claimed λ capturing state, are refused.
 - **The claims are checked** ([types.md](types.md), [refinements.md](refinements.md)):
   - a parameter's set and `where` are obligations at every call a definition is inlined into, and
     assumed only at an export's own boundary ([ADR 0028](../decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
@@ -122,8 +126,8 @@ claim carries usage as modes (`core/jreadtarget.go`, `emit/hostdef.go`).
 **A `loop` with no `again` is not a loop.** The name is dropped, and what remains is a β-redex
 ([match.md §5b](match.md)).
 
-What J does not build yet (`spec`, `lemma`, `assert`, quantifiers, a case arm's guard, `try`'s handlers,
-a λ's header) is j.md's status table.
+What J does not build yet (`spec`, `lemma`, a case arm's guard, `try`'s handlers) is j.md's status
+table.
 
 ### Names the language owns
 

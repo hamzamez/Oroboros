@@ -1,0 +1,3 @@
+export fn run() { fn(n ∈ Int) { n }(1) }
+
+export fn digit_twice() { fn(d ∈ 0..9) (0..18) { d * 2 }(4) }

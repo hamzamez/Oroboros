@@ -1064,7 +1064,7 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env,
 			}
 			if claim != nil {
 				if err := claim(n, sig, nf); err != nil {
-					return fmt.Errorf("%s: %w", n, err)
+					return fmt.Errorf("%s: %w", core.ShowLifted(n), err)
 				}
 			}
 			continue

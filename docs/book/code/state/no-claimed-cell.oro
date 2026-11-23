@@ -1,0 +1,10 @@
+use io
+
+fn twice(f, x) { f(f(x)) }
+
+export fn main() {
+    var n := 0
+    y = twice(fn(x ∈ 0..100) (0..200) { n := n + 1; x + 3 }, 1)
+    io.print_int(y)
+    io.print_int(n)
+}

@@ -20,9 +20,15 @@ import "fmt"
 // wrote, as the reader always has — and the image is computed once.
 type desugarer struct {
 	memo map[Tail]*Term
+	// lifting marks each anonymous λ that carries a claim (ClaimedLamName),
+	// which placed lifts to a definition of its own (liftClaimed); roots are
+	// the definitions' own λs, whose claims are their `sig`s
+	lifting bool
+	roots   map[*Lam]bool
+	claimed []*Lam
 }
 
-func newDesugarer() *desugarer { return &desugarer{memo: map[Tail]*Term{}} }
+func newDesugarer() *desugarer { return &desugarer{memo: map[Tail]*Term{}, roots: map[*Lam]bool{}} }
 
 // term is D(a).
 func (d *desugarer) term(a Tail) *Term {
@@ -65,6 +71,11 @@ func (d *desugarer) build(a Tail) *Term {
 		return &Term{Kind: KApp}
 	case *Lam:
 		body := d.term(a.Body)
+		if a.Claim != nil && d.lifting && !d.roots[a] {
+			// A CLAIMED λ is marked with its claim's index, and placed lifts it
+			d.claimed = append(d.claimed, a)
+			return App(Name(ClaimedLamName), Int(int64(len(d.claimed)-1)), Fn(a.Params, body))
+		}
 		if len(a.Borrows) > 0 {
 			// A BORROWED PARAMETER IS A PLACE in the body (local.md §2.1).
 			kids := []*Term{Name(BorrowName)}

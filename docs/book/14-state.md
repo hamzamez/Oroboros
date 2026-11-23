@@ -831,6 +831,55 @@ is passed: in, and back out. It is a *mode*, a word about the relation between `
 `n`, and not a set: there is no set of cells, only of values. Each call is a value in and a value
 out, so `bump(n, 3)` is `n := n + 3`, and after two calls `n` is 13.
 
+This is also how a function that writes a cell carries a claim. §14.2's `twice` was handed a
+function writing `n`; give that function a header and it is refused:
+
+<!-- file docs/book/code/state/no-claimed-cell.oro -->
+```go
+use io
+
+fn twice(f, x) { f(f(x)) }
+
+export fn main() {
+    var n := 0
+    y = twice(fn(x ∈ 0..100) (0..200) { n := n + 1; x + 3 }, 1)
+    io.print_int(y)
+    io.print_int(n)
+}
+```
+
+<!-- gen go docs/book/code/state/no-claimed-cell.oro -->
+```
+gen: docs/book/code/state/no-claimed-cell.oro: line 7: the λ claims a set and captures n, which is state (a `var`, a buffer or a map buffer): a λ that claims is a definition, and state reaches a definition only as its parameter, `fn f(n ∈ S inout, …)` for a cell, which an unclaimed λ calls, `fn(…) { f(n, …) }`
+```
+
+A function with a header is a definition with a name the compiler gives it (§6.12), its claim
+decided on its own body, for every argument. A cell is no argument: `n` is a place of `main`'s, and
+the definition would see a value where `main` has a place it writes. The working form names the
+definition and lends it the cell, and the λ that `twice` applies is a plain one again:
+
+<!-- file docs/book/code/state/bump-cell.oro -->
+```go
+use io
+
+fn twice(f, x) { f(f(x)) }
+
+fn bump(n ∈ Int inout, x ∈ 0..100) { n := n + 1; x + 3 }
+
+export fn main() {
+    var n := 0
+    y = twice(fn(x) { bump(n, x) }, 1)
+    io.print_int(y)
+    io.print_int(n)
+}
+```
+
+<!-- run go docs/book/code/state/bump-cell.oro -->
+```
+7
+2
+```
+
 ### At the program's edge
 
 An exported function that writes a buffer its caller lends says so in its result, with the name

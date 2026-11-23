@@ -55,18 +55,44 @@ func TestDuplicateParameterIsRejected(t *testing.T) {
 	}
 }
 
-// A λ'S PARAMETERS ARE NAMES separated by commas. The reader took any token
+// A λ'S PARAMETERS ARE BINDERS separated by commas. The reader took any token
 // as one, so `fn(m ∈ 0..9) { m }` was a λ of five parameters, `m`, `∈`, `0`,
 // `..` and `9`, and failed at its call with an arity no source states
-// (jswitch5b). A claim on a λ is ADR 0066's header, not built.
-func TestALambdasParametersAreNames(t *testing.T) {
-	for _, src := range []string{"fn t(n) { g = fn(m ∈ 0..9) { m }; g(n) }", "fn t(n) { g = fn(a b) { a }; g(n) }"} {
+// (jswitch5b). A λ now reads a definition's header (ADR 0051, 0158): a binder
+// is a name with an optional set, and a claimed λ is lifted to a definition.
+// A mode is a named definition's, and a claimed λ capturing state is refused.
+func TestALambdasParametersAreBinders(t *testing.T) {
+	for _, src := range []string{"fn t(n) { g = fn(a b) { a }; g(n) }", "fn t(n) { g = fn(1) { n }; g(n) }"} {
 		if _, err := Read(src); err == nil || !strings.Contains(err.Error(), "in a λ's parameters") {
 			t.Errorf("%s must be refused at its parameters, got %v", src, err)
 		}
 	}
-	if _, err := Read("fn t(n) { g = fn(a, b) { a }; g(n, n) }"); err != nil {
-		t.Errorf("names separated by commas are a λ's parameters: %v", err)
+	for _, src := range []string{"fn t(n) { g = fn(a, b) { a }; g(n, n) }", "fn t(n) { g = fn(m ∈ 0..9) (0..9) where m >= 0 { m }; g(n) }"} {
+		if _, err := Read(src); err != nil {
+			t.Errorf("%s: a λ's binders with their sets are its parameters: %v", src, err)
+		}
+	}
+	if _, err := Read("fn t(n) { g = fn(m ∈ Int inout) { m }; g(n) }"); err == nil || !strings.Contains(err.Error(), "anonymous λ's parameter m") {
+		t.Errorf("a mode on an anonymous λ's parameter must be refused, got %v", err)
+	}
+	if _, err := Read("fn t() { var n := 0\n    g = fn(x ∈ 0..9) { n := n + x }\n    g(1)\n    n }"); err == nil || !strings.Contains(err.Error(), "captures n, which is state") {
+		t.Errorf("a claimed λ capturing a cell must be refused, got %v", err)
+	}
+	// THE LIFTED DEFINITION: the λ's free variable bound around it, k, a
+	// parameter of its definition, keeps its set; the λ is η-expanded at its place
+	decls, err := ReadProgram("fn t(k ∈ 0..5) { fn(n ∈ 0..9) (0..14) { n + k }(3) }", "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range DeclTerms(decls) {
+		got = append(got, f.String())
+	}
+	all := strings.Join(got, "\n")
+	for _, want := range []string{"(def t#λ1 (fn (k n) (+ n k)))", "(sig t#λ1 ((k (int 0 5)) (n (int 0 9))) (int 0 14))", "(fn (n) (t#λ1 k n))"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("the lifted form should contain %s, got\n%s", want, all)
+		}
 	}
 }
 

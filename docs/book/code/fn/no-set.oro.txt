@@ -1,1 +1,0 @@
-export fn run() { fn(n ∈ Int) { n }(1) }

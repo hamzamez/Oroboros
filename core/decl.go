@@ -45,7 +45,10 @@ func carryClaims(decls []Decl) []Decl {
 // Each is the declaration term D makes of its tree, read by toForm, today's
 // reader of declaration terms.
 func (d *desugarer) forms(decls []Decl) ([]Form, error) {
-	terms, _ := d.placed(decls)
+	terms, err := d.placed(decls)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]Form, len(terms))
 	for i, t := range terms {
 		f, err := toForm(t)
@@ -64,10 +67,22 @@ func (d *desugarer) placed(decls []Decl) ([]*Term, error) {
 		t  *Term
 	}
 	var ts []placed
+	d.lifting = true
 	for _, dc := range decls {
 		switch dc := dc.(type) {
 		case *DefDecl:
-			ts = append(ts, placed{dc.At, &Term{Kind: KApp, Kids: []*Term{Name("def"), Name(dc.Name), d.term(dc.Value)}}})
+			root, ok := dc.Value.(*Lam)
+			if ok {
+				d.roots[root] = true
+			}
+			body, lifted, err := d.liftClaimed(dc.Name, root, d.term(dc.Value))
+			if err != nil {
+				return nil, err
+			}
+			for _, t := range lifted {
+				ts = append(ts, placed{dc.At, t})
+			}
+			ts = append(ts, placed{dc.At, &Term{Kind: KApp, Kids: []*Term{Name("def"), Name(dc.Name), body}}})
 			if l, ok := dc.Value.(*Lam); ok && l.Claim != nil {
 				ts = append(ts, placed{l.Claim.At, d.sig(dc.Name, l.Claim)})
 			}

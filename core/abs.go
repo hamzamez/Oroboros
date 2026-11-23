@@ -51,6 +51,9 @@ type Lam struct {
 	Params []string
 	Body   Expr
 	Claim  *Claim
+	// Line is where the λ was written, which names an anonymous one's lifted
+	// definition in messages (lamclaim.go, liftClaimed).
+	Line int
 	// Borrows are the parameters that are places in the body (ADR 0052 item 3,
 	// spec/local.md §2.1): a buffer the caller lends for the call, written in
 	// program order. The λ's value is then these buffers first, then the body's.

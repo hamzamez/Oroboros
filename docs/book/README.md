@@ -1026,6 +1026,16 @@ point too, found eleven, four fixed:
      intconst-2026-11-22, hamza 2026-11-22: "do 1 and 2 now"): a point is its constant, never
      recombined, and the reducer folds integers exactly at every size, `too_big` reducing to
      `18446744073709551616`; chapter 1 §1.3 says both.
+121. **A claim on an anonymous λ is refused, and the book says the language means it.** Chapter 1
+     §1.4 showed `fn(n ∈ Int) { n }(1)` refused at the `∈` (*"∈" in a λ's parameters, which are
+     names separated by ","*) and said "an anonymous one takes what it is given". ADR 0051 had made
+     a λ carry its claims and a definition the name bound to one; j.md's grammar gives `fn` the
+     whole header, and its status table listed it as not built. The refusal was jswitch5b's
+     stopgap of 2026-10-16, against a reader that read `fn(m ∈ 0..9)` as five parameters. Found by
+     hamza reading §1.4. **Built** (ADR 0158, lamclaim-2026-11-23, hamza 2026-11-23: "record it and
+     build it now"): a claimed λ is lifted to a definition of its own, its domain an obligation at
+     each application, its result decided for every argument; §1.4 shows it working, §6.12 its
+     claims, and §14's `inout` section the refusal of one writing a cell.
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one; chapter

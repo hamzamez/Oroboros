@@ -353,7 +353,7 @@ func (p *parser) item() ([]Decl, map[string][]string, error) {
 		p.next()
 		name := p.name()
 		claimAt := p.nextAt()
-		lam, err := p.lamHeader()
+		lam, err := p.lamHeader(false)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -476,18 +476,24 @@ func (p *parser) name() string {
 
 // lamHeader reads a definition's parameters, result, clauses and body: a λ
 // carrying its claims (ADR 0051), the claim present when the header states a
-// set, a result, a precondition or a postcondition.
-func (p *parser) lamHeader() (*Lam, error) {
+// set, a result, a precondition or a postcondition. An anonymous λ, `anon`,
+// reads the same header (j.md's `lambda ::= "fn" params result? clause*
+// block`): a λ and a definition differ by a name (ADR 0051's Why not), and a
+// definition is the name bound to it (book finding 121).
+func (p *parser) lamHeader(anon bool) (*Lam, error) {
 	line := p.peek().line
 	if err := p.expect("("); err != nil {
 		return nil, err
 	}
 
 	p.open(true)
-	lam := &Lam{}
+	lam := &Lam{Line: line}
 	claim := &Claim{}
 	claimed := false
 	for !p.is(")") {
+		if k := p.peek().kind; anon && k != tIdent && k != tQuoted {
+			return nil, p.errorf("%s in a λ's parameters, which are names, each with an optional set `∈ S`, separated by \",\"", p.peek())
+		}
 		n := p.name()
 		lam.Params = append(lam.Params, n)
 		cp := ClaimParam{Name: n}
@@ -504,6 +510,12 @@ func (p *parser) lamHeader() (*Lam, error) {
 		}
 		mode := ""
 		if p.is("linear") || p.is("inout") {
+			if anon {
+				// A MODE IS HOW A PLACE IS PASSED (ADR 0135): an anonymous λ is
+				// applied where it is written or lent to a host, and a borrow
+				// through it is a named definition's (ADR 0070, 0144)
+				return nil, p.errorf("`%s` on an anonymous λ's parameter %s: a parameter passed as a place is a named definition's, `fn f(%s ∈ S %s)`", p.peek().text, Spell(n), Spell(n), p.peek().text)
+			}
 			mode = p.next().text
 		}
 		if mode == "linear" {
@@ -516,6 +528,9 @@ func (p *parser) lamHeader() (*Lam, error) {
 		}
 		claim.Params = append(claim.Params, cp)
 		if !p.accept(",") {
+			if anon && !p.is(")") {
+				return nil, p.errorf("%s in a λ's parameters, which are names, each with an optional set `∈ S`, separated by \",\"", p.peek())
+			}
 			break
 		}
 	}
@@ -622,6 +637,9 @@ func (p *parser) lamHeader() (*Lam, error) {
 		return nil, err
 	}
 	e, ok := body.(Expr)
+	if !ok && anon {
+		return nil, p.errorf("a λ's body is never a tail (ADR 0051)")
+	}
 	if !ok {
 		return nil, p.errorf("a definition's body ends in a jump")
 	}
@@ -1799,35 +1817,14 @@ func (p *parser) qualified(first string) (Expr, error) {
 }
 
 func (p *parser) lambda() (Expr, error) {
-	if err := p.expect("("); err != nil {
-		return nil, err
-	}
-	var params []string
-	line := p.peek().line
-	for !p.is(")") {
-		// A λ's parameter is a name: a claim on one is a definition's header
-		// (ADR 0051), and a λ's own header, ADR 0066's, is not built.
-		if k := p.peek().kind; k != tIdent && k != tQuoted {
-			return nil, p.errorf("%s in a λ's parameters, which are names separated by \",\"", p.peek())
-		}
-		params = append(params, p.name())
-		if !p.accept(",") && !p.is(")") {
-			return nil, p.errorf("%s in a λ's parameters, which are names separated by \",\"", p.peek())
-		}
-	}
-	p.next()
-	if err := distinct(params, "fn", line); err != nil {
-		return nil, err
-	}
-	b, err := p.block()
+	// A λ CARRIES ITS CLAIMS (ADR 0051 D1, j.md §2.7): the header a definition
+	// reads, `fn(x ∈ S) (R) where φ ensure ψ { e }`; D gives the claimed λ a
+	// name of its own (lamclaim.go, liftClaimed).
+	lam, err := p.lamHeader(true)
 	if err != nil {
 		return nil, err
 	}
-	e, ok := b.(Expr)
-	if !ok {
-		return nil, p.errorf("a λ's body is never a tail (ADR 0051)")
-	}
-	return &Lam{Params: params, Body: e}, nil
+	return lam, nil
 }
 
 // array reads `array { e, … }`, a table's graph, or `array { e : k ∈ 0..n-1 }`,

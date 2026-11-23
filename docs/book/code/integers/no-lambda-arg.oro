@@ -1,0 +1,1 @@
+export fn run() (Int) { fn(d ∈ 0..9) (Int) { d * 2 }(10) }

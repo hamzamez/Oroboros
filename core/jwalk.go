@@ -159,7 +159,7 @@ func rename(t Tail, m map[string]string) Tail {
 		}
 		return t
 	case *Lam:
-		return &Lam{Params: t.Params, Body: renameExpr(t.Body, without(m, t.Params...)), Claim: t.Claim}
+		return &Lam{Params: t.Params, Body: renameExpr(t.Body, without(m, t.Params...)), Claim: t.Claim, Line: t.Line}
 	case *Apply:
 		return &Apply{Fn: re(t.Fn), Args: res(t.Args)}
 	case *Index:

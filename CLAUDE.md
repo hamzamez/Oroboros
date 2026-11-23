@@ -156,6 +156,9 @@ TinyRetroPad's text rests on it and nothing in "Build all 5" blocks it), in orde
      ℤ, folded exactly at every size, a point its constant; ~~a constant the host's own~~ done
      (ADR 0157, hamza 2026-11-22: "go with a for windows and the hosts",
      [hostconst](gauntlet/results/hostconst-2026-11-23.md)): a loop over 2¹⁰⁰ 3.5× faster on windows;
+     ~~the book's finding 121~~ done (ADR 0158, hamza 2026-11-23: "record it and build it now",
+     [lamclaim](gauntlet/results/lamclaim-2026-11-23.md)): a claim on an anonymous λ, decided by
+     ADR 0051 and j.md and refused by a stopgap since 2026-10-16, is a definition's, by λ-lifting;
 1. **the logic, stages 1–3** (ADR 0145, decided L1–L7), each stage a program first and its book
    chapter:
    - ~~a research note~~ done ([logic-research.md](docs/logic-research.md));
@@ -653,6 +656,8 @@ option (b), jswitch5b-2026-10-16).
 - **Relevance** (ADR 0043): a value of a `relevant` variant is used on every path, `ignore(e)` the
   discard. **Failures are values of a marked sum** (ADR 0040): `lib/result`, `try`, `expect`, the host's
   encoding a niche of its error type.
+- **A λ carries a definition's header** (ADR 0051, 0158): a claimed `fn(x ∈ S) (R) { e }` is lifted
+  to a definition `f#λN` over its free variables, its claim a definition's.
 - **Closures** may not survive staging. A λ at a host's callback parameter is second-class (ADR
   0143): an `fn` statement whose one use is the call (W16), decided under its claim, pure unless the
   host is `ordered`, a written cell threaded by a reference; built on every target. A λ at a callback's field
@@ -969,6 +974,7 @@ Read the ADR, and its "Why not", before relitigating one.
 | A kept definition's parameter is no sink: keeping is a factoring (ADR 0102), so the taint reads the program inlined and P4 inlines a call whose argument leaves its parameter's set; amends 0150 | [0155](docs/decisions/0155-a-kept-definitions-parameter-is-no-sink.md) |
 | An integer constant is an element of ℤ: the reducer folds `+ − · / %` on closed integers exactly at every size (a value past `int64` its numeral, never a division by zero), and a point is its constant, never recombined; amends 0009 and 0153 | [0156](docs/decisions/0156-an-integer-constant-is-an-element-of-z.md) |
 | A constant of ℤ is the host's own: Go's package-level `*big.Int` (moved as a copy), the JVM's static `BigInteger`, a BigInt literal, K(ℕ\*)'s numeral in read-only data where only borrowed (the frame rule); fixed limbs keep the spine and a closed term's structure | [0157](docs/decisions/0157-a-constant-of-z-is-the-hosts-own.md) |
+| A claimed λ is a definition with a name of its own: an anonymous `fn` reads a definition's header, and D lifts a claimed one over its free variables (the enclosing definition's parameters keeping their sets), so its domain is an obligation at each application and its result is decided for every argument; at a host's callback the arrow's subsumption by composition; a mode, or a captured place, refused | [0158](docs/decisions/0158-a-claimed-lambda-is-a-definition-with-a-name-of-its-own.md) |
 
 ## Build commands
 
